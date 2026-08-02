@@ -85,6 +85,10 @@ if TYPE_CHECKING:
     # by the angular quadrature factories, which already import it).
     from orpheus.numerics.symmetry import SubgroupOfO3
     from orpheus.numerics.space import FunctionSpace
+    # Same forward-ref reason: ``generating_measure`` imports FROM this
+    # module (its ``gauss`` returns a DiscreteMeasure), so the arrow runs
+    # one way and the field holds the object by forward reference.
+    from orpheus.numerics.generating_measure import GeneratingMeasure
 
 # ---------------------------------------------------------------------------
 # Space tags
@@ -101,6 +105,7 @@ Space = str
 # Common aliases used across the project. These are recommendations, not
 # constraints; user code may pass arbitrary strings.
 SPACE_R = "R"
+SPACE_HALF_LINE = "[0,inf)"
 SPACE_INTERVAL_M11 = "[-1,1]"
 SPACE_INTERVAL_01 = "[0,1]"
 SPACE_CIRCLE = "[0,2π)"
@@ -167,10 +172,41 @@ class DiscreteMeasure:
         the group fixes the homogeneous space), which :attr:`phase` reads.
     degree_of_exactness : int | None, optional
         For polynomial-exact rules, the maximum degree :math:`p` such
-        that :math:`\int_\mathcal{X} q \, d\mu = \int_\mathcal{X} q \,
-        d\mu_{\text{exact}}` for every polynomial :math:`q` with
-        :math:`\deg q \le p`. ``None`` if the rule is not
-        polynomial-exact or the degree has not been computed.
+        that
+
+        .. math::
+
+           \sum_i w_i \, q(x_i) \;=\; \int_\mathcal{X} q \,
+           d\lambda \qquad \text{for all } \deg q \le p,
+
+        where :math:`d\lambda` is :attr:`generating_measure`.
+        ``None`` if the rule is not polynomial-exact or the degree has
+        not been computed.
+
+        **The reference measure is not optional information.** A
+        Gauss-Chebyshev rule is exact to :math:`2n-1` against
+        :math:`\int q\,(1-x^2)^{-1/2}dx` and is *not* exact against
+        :math:`\int q\,dx` — `[M]` it misses the latter by 0.696 at
+        :math:`n=4,\ q=x^6`. Reading this field without reading
+        :attr:`generating_measure` is therefore reading half a claim.
+    generating_measure : GeneratingMeasure | None, optional
+        The continuous measure :math:`d\lambda = w(x)\,dx` this rule was
+        **constructed from**, when it was constructed from one (see
+        :class:`~orpheus.numerics.generating_measure.GeneratingMeasure`).
+        It is simultaneously the object that produced the nodes and
+        weights and the object :attr:`degree_of_exactness` is a claim
+        about — which is why one field carries both roles.
+
+        ``None`` means the rule was not built by this construction, and
+        it is a meaningful distinction rather than missing metadata: a
+        rule *with* a generating measure cannot over-claim its exactness
+        (the degree follows from the construction), while a rule
+        *without* one rests its claim on external authority — a
+        published table plus a citation, as Lebedev and level-symmetric
+        :math:`S_N` do. `[M]` The latter is exactly how issue #327 was
+        possible: ``level_symmetric_sn`` hand-assigns its weights, so
+        nothing constrains its advertised degree, and it is degree-3 at
+        every order while claiming :math:`N-1`.
 
     Notes
     -----
@@ -200,6 +236,7 @@ class DiscreteMeasure:
     support: Space
     invariance_group: "SubgroupOfO3 | None" = None
     degree_of_exactness: int | None = None
+    generating_measure: "GeneratingMeasure | None" = None
 
     def __post_init__(self) -> None:  # pragma: no cover - guard
         # Invariants enforced at construction. Frozen dataclasses
@@ -439,10 +476,34 @@ class DiscreteMeasure:
         - ``space`` becomes ``f"{μ.support} × {ν.support}"``.
         - ``invariance_group`` becomes ``None`` unless both factors
           carry compatible groups (Issue 3 will refine this).
-        - ``degree_of_exactness`` becomes ``min(p_μ, p_ν)`` if both
-          are set, else ``None``. (For separable polynomials of
-          degree :math:`p` per axis, both rules need to integrate
-          monomials up to :math:`p` exactly.)
+        - ``degree_of_exactness`` becomes ``min(p_μ, p_ν)`` if both are
+          set **and the two factors share a generating measure**, else
+          ``None``. (For separable polynomials of degree :math:`p` per
+          axis, both rules need to integrate monomials up to :math:`p`
+          exactly.)
+        - ``generating_measure`` becomes ``None``: the product rule's
+          reference is the *product* measure :math:`w_\mu \otimes
+          w_\nu`, which a 1-D
+          :class:`~orpheus.numerics.generating_measure.GeneratingMeasure`
+          cannot name.
+
+        .. note:: Why the degree needs the shared-measure condition
+
+           A degree of exactness is a claim relative to a measure, so
+           combining two rules with *different* references produces a
+           claim about a mongrel measure no consumer expects. `[M]`
+           ``gauss_legendre(4) * gauss_chebyshev(4)`` used to advertise
+           ``degree_of_exactness = 7`` while integrating the constant
+           ``1`` to **6.2832** instead of 4 — Gauss-Chebyshev is not
+           exact for the unweighted integral even at degree **0**
+           (3.1416 vs 2). The composite was exact for neither factor's
+           measure while claiming both their degrees.
+
+           When both factors share a reference the product measure is
+           that measure's product power — a canonical object — and
+           ``min`` is the right claim about it. Two untagged rules count
+           as sharing (both ``None``), which is the pre-2026-08-02
+           behaviour for every rule that does not yet declare a measure.
         """
         # Promote 1-D nodes to column form so we can hstack uniformly.
         a = self.nodes if self.nodes.ndim == 2 else self.nodes[:, None]
@@ -463,20 +524,15 @@ class DiscreteMeasure:
 
         # Metadata propagation.
         new_space = f"{self.support} × {other.support}"
-        if (
-            self.degree_of_exactness is not None
-            and other.degree_of_exactness is not None
-        ):
-            new_dx = min(self.degree_of_exactness, other.degree_of_exactness)
-        else:
-            new_dx = None
 
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=new_weights,
             support=new_space,
             invariance_group=None,
-            degree_of_exactness=new_dx,
+            degree_of_exactness=self._combined_degree(other),
+            # The product measure is not nameable by a 1-D type.
+            generating_measure=None,
         )
 
     # ------------------------------------------------------------------
@@ -499,10 +555,15 @@ class DiscreteMeasure:
         - ``space`` is preserved (must already match).
         - ``invariance_group`` is set to ``None`` — concatenation
           generally breaks any invariance the factors had.
-        - ``degree_of_exactness`` is set to
-          ``min(p_μ, p_ν)`` if both are set, else ``None`` — the
-          composite rule is at most as exact as its weakest piece
-          on the union domain.
+        - ``degree_of_exactness`` is set to ``min(p_μ, p_ν)`` if both
+          are set **and the two pieces share a generating measure**,
+          else ``None`` — the composite rule is at most as exact as its
+          weakest piece on the union domain, and only if the two pieces
+          are exact against the *same* measure (see :meth:`__mul__` for
+          the measurement that motivated the condition).
+        - ``generating_measure`` is set to ``None``: the union's
+          reference is a measure on the union domain, not either
+          piece's.
 
         Raises
         ------
@@ -524,21 +585,48 @@ class DiscreteMeasure:
         new_nodes = np.concatenate([self.nodes, other.nodes], axis=0)
         new_weights = np.concatenate([self.weights, other.weights])
 
-        if (
-            self.degree_of_exactness is not None
-            and other.degree_of_exactness is not None
-        ):
-            new_dx = min(self.degree_of_exactness, other.degree_of_exactness)
-        else:
-            new_dx = None
-
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=new_weights,
             support=self.support,
             invariance_group=None,
-            degree_of_exactness=new_dx,
+            degree_of_exactness=self._combined_degree(other),
+            generating_measure=None,
         )
+
+    # ------------------------------------------------------------------
+    # Shared combination rule
+    # ------------------------------------------------------------------
+
+    def _combined_degree(self, other: DiscreteMeasure) -> int | None:
+        r"""The degree of exactness a combination of the two may claim.
+
+        Both :meth:`__mul__` and :meth:`__add__` need this rule, so it
+        lives in one place: restating it per-operator would be two
+        spellings of one law, and the day the law changes only one of
+        them would move.
+
+        The law: ``min(p_μ, p_ν)`` when both degrees are known **and**
+        the two operands are exact against the same measure; otherwise
+        no claim. Two operands with no declared measure count as
+        agreeing — they are equally unspecified, which is the state
+        every rule that predates
+        :attr:`generating_measure` is in, so this preserves their
+        behaviour exactly.
+        """
+        if (
+            self.degree_of_exactness is None
+            or other.degree_of_exactness is None
+        ):
+            return None
+        if self.generating_measure != other.generating_measure:
+            # Different reference measures: the combination is exact
+            # against neither operand's, so it may claim neither's
+            # degree. `[M]` gauss_legendre(4) * gauss_chebyshev(4)
+            # integrated the constant 1 to 6.2832 instead of 4 while
+            # advertising degree 7.
+            return None
+        return min(self.degree_of_exactness, other.degree_of_exactness)
 
     # ------------------------------------------------------------------
     # Pushforward (image measure)
@@ -691,6 +779,10 @@ class DiscreteMeasure:
             support=self.support,
             invariance_group=self.invariance_group,
             degree_of_exactness=self.degree_of_exactness,
+            # Consolidation merges coincident atoms and changes no
+            # integral, so the reference measure is untouched — the
+            # same reason the degree survives.
+            generating_measure=self.generating_measure,
         )
 
     # ------------------------------------------------------------------
@@ -1093,15 +1185,12 @@ def gauss_legendre(n: int) -> DiscreteMeasure:
     wrapper of this rule. The Issue 4 adapter will rebuild it on top
     of this primitive in Wave B.
     """
-    if n < 1:
-        raise ValueError(f"gauss_legendre requires n >= 1, got n={n}")
-    nodes, weights = np.polynomial.legendre.leggauss(n)
-    return DiscreteMeasure(
-        nodes=nodes,
-        weights=weights,
-        support=SPACE_INTERVAL_M11,
-        degree_of_exactness=2 * n - 1,
-    )
+    # Late import: ``generating_measure`` imports DiscreteMeasure from
+    # this module, so the runtime arrow has to run one way. See the
+    # TYPE_CHECKING block at the top.
+    from orpheus.numerics.generating_measure import LEGENDRE
+
+    return LEGENDRE.gauss(n)
 
 
 def gauss_chebyshev(n: int) -> DiscreteMeasure:
@@ -1145,17 +1234,9 @@ def gauss_chebyshev(n: int) -> DiscreteMeasure:
         On ``support="[-1,1]"`` with ``degree_of_exactness=2n-1``
         (with respect to the weighted integral).
     """
-    if n < 1:
-        raise ValueError(f"gauss_chebyshev requires n >= 1, got n={n}")
-    i = np.arange(1, n + 1)
-    nodes = np.cos((2.0 * i - 1.0) * np.pi / (2.0 * n))
-    weights = np.full(n, np.pi / n)
-    return DiscreteMeasure(
-        nodes=nodes,
-        weights=weights,
-        support=SPACE_INTERVAL_M11,
-        degree_of_exactness=2 * n - 1,
-    )
+    from orpheus.numerics.generating_measure import CHEBYSHEV_T
+
+    return CHEBYSHEV_T.gauss(n)
 
 
 def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:

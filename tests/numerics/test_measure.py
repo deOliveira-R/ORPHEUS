@@ -713,3 +713,105 @@ def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> Non
 
     assert sorted(set(ratios)) == [1.0, 2.0], sorted(set(ratios))
     assert sum(1 for r in ratios if r == 1.0) == n_fixed
+
+
+# ---------------------------------------------------------------------------
+# The exactness claim is relative to a measure
+# ---------------------------------------------------------------------------
+#
+# `degree_of_exactness` states a degree; `generating_measure` states what
+# integral that degree is about. Combining rules that reference DIFFERENT
+# measures produces a rule exact against neither, so it may claim neither's
+# degree. Before 2026-08-02 it claimed both.
+
+
+@pytest.mark.l1
+def test_combining_different_reference_measures_makes_no_degree_claim() -> None:
+    r"""``gauss_legendre(4) * gauss_chebyshev(4)`` must not advertise a degree.
+
+    `[M]` It used to advertise ``7``. Measured, that composite integrates
+    the constant ``1`` to **6.2832** where the unweighted answer over
+    :math:`[-1,1]^2` is ``4`` — Gauss-Chebyshev is not exact for the
+    unweighted integral even at degree **0** (3.1416 vs 2), because its
+    weight :math:`(1-x^2)^{-1/2}` is in the integral, not in the rule.
+    """
+    gl, gc = gauss_legendre(4), gauss_chebyshev(4)
+    assert gl.degree_of_exactness == 7
+    assert gc.degree_of_exactness == 7
+    assert gl.generating_measure != gc.generating_measure
+
+    # The measurement that makes this a defect and not a nicety.
+    product = gl * gc
+    integrated_one = float(np.sum(product.weights))
+    assert not np.isclose(integrated_one, 4.0, atol=1e-6), (
+        "fixture no longer demonstrates the hazard"
+    )
+
+    assert product.degree_of_exactness is None
+    assert (gl + gc).degree_of_exactness is None
+
+
+@pytest.mark.foundation
+def test_combining_a_shared_reference_measure_keeps_the_claim() -> None:
+    """Same reference on both sides -> the product measure is that
+    measure's product power, and ``min`` is the right claim about it."""
+    p = gauss_legendre(3) * gauss_legendre(4)
+    assert p.degree_of_exactness == 5
+    s = gauss_legendre(3) + gauss_legendre(4)
+    assert s.degree_of_exactness == 5
+
+
+@pytest.mark.foundation
+def test_untagged_rules_count_as_agreeing() -> None:
+    """Two rules with no declared measure are equally unspecified.
+
+    This is the state of every rule that does not yet declare one, so
+    the guard must not silently strip their degrees.
+    """
+    a = DiscreteMeasure(
+        nodes=np.array([-0.5, 0.5]), weights=np.array([1.0, 1.0]),
+        support="[-1,1]", degree_of_exactness=3,
+    )
+    b = DiscreteMeasure(
+        nodes=np.array([-0.25, 0.25]), weights=np.array([1.0, 1.0]),
+        support="[-1,1]", degree_of_exactness=5,
+    )
+    assert a.generating_measure is None and b.generating_measure is None
+    assert (a * b).degree_of_exactness == 3
+    assert (a + b).degree_of_exactness == 3
+
+
+@pytest.mark.foundation
+def test_composites_name_no_generating_measure() -> None:
+    """A product's reference is the PRODUCT measure, which a 1-D
+    ``GeneratingMeasure`` cannot name — so it says so rather than
+    claiming one of the factors."""
+    p = gauss_legendre(3) * gauss_legendre(4)
+    assert p.generating_measure is None
+    assert (gauss_legendre(3) + gauss_legendre(4)).generating_measure is None
+
+
+@pytest.mark.foundation
+def test_gauss_rules_carry_the_measure_that_built_them() -> None:
+    """The constructors delegate to the Golub-Welsch body, so their
+    output records which measure it is exact against."""
+    from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
+
+    assert gauss_legendre(5).generating_measure == LEGENDRE
+    assert gauss_chebyshev(5).generating_measure == CHEBYSHEV_T
+
+
+@pytest.mark.foundation
+def test_consolidate_preserves_the_generating_measure() -> None:
+    """Consolidation merges coincident atoms and changes no integral,
+    so the reference measure survives — same reason the degree does."""
+    from orpheus.numerics.generating_measure import LEGENDRE
+
+    rule = gauss_legendre(4)
+    doubled = rule + rule  # every atom coincides with its twin
+    merged = doubled.consolidate()
+    assert merged.n_points == rule.n_points
+    # The direct sum dropped the tag (its reference is the union), but
+    # a rule that HAS one keeps it through consolidate.
+    tagged = rule.consolidate()
+    assert tagged.generating_measure == LEGENDRE
