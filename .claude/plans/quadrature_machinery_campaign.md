@@ -8,14 +8,24 @@
 > bug. It happens to dissolve #326 when the machinery is right — that is the
 > *test* of the design, not its purpose.
 >
-> **Branch** `refactor/operator-strategy-layers`. **Q0 LANDED; Q1 MERGED INTO Q2;
-> Q2 IS COMPLETE** (2026-08-02) — the Stage-1 re-pose landed at `e7d44f3c`.
-> Everything committed and green.
-> **NEXT: Q3** (the measure-parameterized Golub–Welsch rule).
-> Two Q2 items stay open by design, neither blocking: `align_to` (no consumer —
-> the gate wants literal containment, T15) and the consumer-side ε retirement
-> (`_OCTANT_SIGN_EPS` / `_MU_DIRECTION_EPS`, which must pass `Dnh(2)` explicitly
-> per T18, NOT the full group).
+> **Branch** `refactor/operator-strategy-layers`. **Q0, Q1, Q2, Q3, Q4 ALL
+> LANDED** (2026-08-02). **NEXT: #326** — swap `level_indices` to the fiber
+> ordering Q4 built, and see whether the three `xfail(strict=True)` rows in
+> `test_azimuthal_mirror_symmetry.py` XPASS. That is the campaign's own declared
+> acceptance test. **#325 is no longer blocked**: it was stuck behind a sort-key
+> ruling that Q4 dissolved (see T19).
+>
+> ⚠ **SIX SN GATES ARE RED**, deliberately, all documented in `81689a58`; each
+> needs its own call, none is a physics failure:
+> two on a frozen historical `.npz` (`test_streaming_operator`), three on a
+> hard-coded **sha256** frozen at pre-carve `63719a2`
+> (`test_affine_carve_bit_identity` — re-hashing is a different act from
+> re-capturing an array), and `test_diamond`, which is NOT a stored snapshot:
+> production vs the test's own hand-written algebra, now `[M]` **exactly 1 ULP**
+> apart (2.06e-16 rel). That one wants a small nulp gate, not a re-baseline.
+>
+> Still open by design, non-blocking: `align_to` (no consumer), the ε retirement
+> (mis-scoped per T18b).
 >
 > | commit | what |
 > |---|---|
@@ -30,14 +40,22 @@
 > | `e6f01d7e` | **`DiscreteMeasure.consolidate()`** — the second half of a quotient |
 > | `9915f15b` | the two sub-agent evidence reports + agent memory |
 > | `e7d44f3c` | **the Stage-1 re-pose** (T16/T16b) — `AngularSymmetry`, the computed gate, `product`'s false tag corrected |
+> | `c630153e` | **Q3** — `GeneratingMeasure` (Golub–Welsch, families as VALUES) + the `min()` soundness fix |
+> | `6a04fcdf` | the slab rule's reference measure; the drift gate given teeth; a doc falsity |
+> | `bc89b62e` | **⭐ IMPOSE the symmetry** (T19) — from reading numpy/scipy source |
+> | `d6f53afe` | `level_symmetric` advertised `O_h`, realized `D_2h` — the index fix (T20) |
+> | `579d5eaf` | **ONE Gauss-Legendre construction** — the consolidation + re-baseline |
+> | `81689a58` | the SN baselines re-captured through the project's own generators |
+> | `3afb52c2` | **Q4** — a level is a FIBER of an invariant (T21) |
 >
 > **`[M]` Gate at this checkpoint — measured, not asserted:**
 > ```
-> tests/numerics                                1250 passed          (2:13)
-> tests/sn -m "not slow"                        2559 passed, 1 skipped,
->                                               116 deselected, 65 xfailed  (15:27)
+> tests/numerics                                1546 passed          (2:45)
+> tests/sn -m "(l1 or l2) and not slow"          347 passed, 6 xfailed (7:47)
+> tests/sn -m "not slow"                        2537 passed + 22 baseline
+>                                               gates re-captured; 6 red (above)
 > sphinx -b html docs -W --keep-going           build succeeded
-> npx pyright numerics/quadrature/ symmetry.py     0 errors
+> npx pyright orpheus/numerics/                    0 errors
 > ```
 > Earlier in the session, unaffected by the re-pose:
 > `tests/geometry + tests/diffusion + tests/data` 909 passed, 4 skipped, 1 xfailed.
@@ -870,6 +888,96 @@ groups. The general rule this sharpens: *measuring what a detector SELECTS is no
 enough — measure what its CONSUMER does with the answer.* A set and a labelling
 can agree on membership and still not be interchangeable.
 
+### T19 — ⭐⭐ IMPOSE a structural property; never inherit it to round-off
+
+User instruction, 2026-08-02: *"go into the source of the numpy or scipy function
+and check their implementation."* It paid, and the lesson is general.
+
+Both `numpy.polynomial.legendre.leggauss` and scipy's
+`_gen_roots_and_weights` end the SAME way, for a measure whose weight is even:
+
+```
+x = (x - x[::-1]) / 2 ;  w = (w + w[::-1]) / 2     # symmetry
+w *= mu0 / w.sum()                                 # zeroth moment
+```
+
+They do not hope the rule comes out symmetric — they **make** it symmetric. `[M]`
+Adopting the two lines in the generic body: symmetry defect `8.6e-16 → 0.0`
+(exact, every family, every `n`); mass defect `4.4e-16 → 0.0`; and exactness
+*improves* `7.9e-16 → 3.3e-16`, because the mirror average cancels the
+antisymmetric part of the eigensolver's error. The banded solver and the Newton
+step, also in both references, buy nothing measurable here (`6.1e-16 → 6.1e-16`)
+and were NOT adopted — read the source, then measure which parts earn their place.
+
+> **Three tiers of exactness, in preference order.** (1) **Generate by group
+> action** when the operators are IEEE-exact — sign flips and coordinate swaps.
+> Lebedev does this: `[M]` 48/48 operators exact. (2) **Use the closed-form index
+> relation** when a constraint determines the value. (3) **Impose by averaging**
+> when neither applies. Gauss rules are tier 3; `level_symmetric` was doing
+> arithmetic where tier 2 applied (T20).
+
+**And derive the condition, don't flag it.** scipy passes `symmetrize` as a
+hand-set boolean. But `α_k ≡ 0 ⟺ w` is even is a *theorem* (α_k is the first
+moment of an even function against an odd integrand), so `is_symmetric` reads it
+off the recurrence. `[M]` It agrees with scipy's flag on every family including
+the parameterised ones — `jacobi(a,b)` is symmetric exactly when `a == b`, which
+the derivation gets right without being told and a declared flag could not.
+
+### T20 — ⛔ Recomputing what a closed-form index determines (a RECURRING pattern)
+
+`level_symmetric_sn` recovered its third direction cosine as
+`sqrt(1 - mu_z² - eta²)`. But Carlson's construction fixes
+`p + k + j = N/2 - 1`, so the third cosine is `mu_levels[j]` — an **index**.
+`[M]` The square root landed within ~1e-16 of the level value but not ON it, so
+at `N=16` the y-axis carried **22 distinct magnitudes where the level array has
+8**, and only **8 of 48** `O_h` operators were exact — precisely the pure sign
+flips (negation is exact in IEEE; a coordinate swap only if the values match).
+**The rule advertised `O_h` and realized `D_2h`** — the same over-claim shape as
+T16's geometry table, one layer down. Fixed: 48/48 at every order, and the
+`xi_sq < -1e-14` guard retired because the quantity it guarded stopped existing.
+
+The pattern recurs: MoC's `_reflected_azi_index` is an `argmin` computing exactly
+`n_azi-1-a`; `_find_reflections` is an `argmin` with **no distance guard at
+all**, load-bearing for every reflective/albedo BC. Inventory:
+`scratch/q3_symmetry_exactness_inventory.md`.
+
+### T21 — ⭐⭐ An ordering by a NON-INJECTIVE key is not an ordering
+
+User correction, 2026-08-02, on being asked to rule on a sort-key tie-break:
+*"Do we have proper level machinery? If we did, I feel like this problem would
+disappear. Seems like an 'architecture incomplete' problem, rather than a
+decision problem."* Correct, and measurement settled it.
+
+`LevelStructure` stored `level_indices` **already sorted by**
+`η = sinθ cosφ`. That key is EVEN in φ, hence **2-to-1 on a circle**. `[M]` On
+one level of `product(2,8)`, 8 ordinates give only **5 distinct η**, and the
+stored order does not determine `sign(ξ)` — that information is not in the key.
+
+> **So the "ties" are not ties.** They are the fibers of a non-injective map, and
+> no choice of tie-break makes a 2-to-1 projection into an ordering of the
+> circle. There was nothing to rule on. **This IS #326** — "the cylindrical level
+> double-covers the azimuthal range" — and the double cover is `cos φ`.
+
+The type stored **the RESULT of an ordering decision, and a lossy one**, instead
+of the structure that determines the ordering — build-the-product-not-the-
+primitive. Q4 gives it the invariant (`PolarInvariant.SIGNED_MU_Z` vs
+`ABS_MU_Z` — T7's two producers, finally distinguishable) and the fiber's own
+coordinate.
+
+**The coordinate takes BOTH `azimuth` and `hemisphere`, and writing it proved
+why**: under `ABS_MU_Z` a level carries two circles, so φ alone repeats — the
+type failed its own injectivity test on the first draft. `[M]` The pair is
+injective on every level under either invariant.
+
+⚠ The corrected order is NAMED (`fiber(level)`), not swapped in: the stored order
+is what the cylindrical sweep consumes and changing it moves results. That swap
+is #326's business, with its own gate.
+
+**Meta-lesson, and the sharpest one of the session: round-off can DISGUISE a
+structural degeneracy by manufacturing fake distinctions.** With inexact nodes,
+1e-16 noise broke the ties and made a 2-to-1 map look 1-to-1. Making the nodes
+exact collapsed the disguise. Exactness is not only an end — it is a *diagnostic*.
+
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
 User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
@@ -1215,7 +1323,7 @@ implemented and **no `D_6h`-invariant rule in tree**.
   written from the *shape* of the change (a selection gate) instead of from its
   *consumer set*. **Measure who calls it before escalating.**
 - ⏸ **COMPACTION POINT**
-- **Q3 — The measure-parameterized rule** (T12 / T12b; absorbs gap 3 and T2).
+- ✅ **Q3 — The measure-parameterized rule** — **LANDED** `c630153e`+`bc89b62e`+`579d5eaf`. (T12 / T12b; absorbs gap 3 and T2).
   ONE Golub–Welsch body; the families become `(α, β, μ₀)` **data**, not
   subclasses. The weight function is carried on the rule, and
   `degree_of_exactness` becomes a claim *with respect to that measure* — which
@@ -1228,8 +1336,8 @@ implemented and **no `D_6h`-invariant rule in tree**.
   (`gauss_legendre`, `gauss_chebyshev`, `gauss_laguerre`) become the ≥2 instances
   that prove the generic body, at `1e-16`–`3e-15`. Retire the hand-rolled bodies
   as it lands (`.claude/rules/coding-standards.md`).
-- **Q4 — Reconcile the two `LevelStructure` producers** (gap 7, T7).
-  Clean-before-extend; blocks everything downstream.
+- ✅ **Q4 — Reconcile the two `LevelStructure` producers** (gap 7, T7, T21) —
+  **LANDED** `3afb52c2`. It was upstream of #325 AND #326, as the plan said.
 - ⏸ **COMPACTION POINT**
 - **Q5 — The RANGE/SPACING/RULE factorization** (§4), decided against the survey.
 - **Q6 — Enumeration & naming** (T12d). Extend the EXISTING `QuadratureSpec` /

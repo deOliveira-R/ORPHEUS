@@ -66,6 +66,12 @@ in the old index was a frozen carve-map and is proposed for retirement.
   SN's `[0,2π)` + Σw=4π; `level_symmetric_sn` is EQUAL-weight and measures degree
   **3 for every N** (tag says N−1) ⟹ discrete SH Gram 25–45% off at L≥2 while the
   frame assumes the analytic Gram; `min(2n_mu−1, n_phi−1)` is CORRECT and sharp.
+  **+ the generation-KIND census (2026-08-02):** GROUP-ACTION is exactly ONE
+  (`roots_of_unity`, still 0 consumers/unexported); `level_symmetric` is HYBRID not
+  exact (sign subgroup exact, orbit rep by formula); the CHECKER's own ops split the
+  same way (O_h exact, `C_n`/`D_nh` by cos/sin); `is_invariant`'s only production
+  caller is unreachable ⟹ every shipped `invariance_group` is a DECLARED tag; and
+  the partner maps are 3 SEARCH (no distance guard) vs 1 FORMULA.
 - [SN multigroup axis structure](sn_multigroup_axis_structure.md) — three-tier
   group-blindness (structure / group-diagonal data / S+F coupling); NO group loop
   ("within-group" = fission-external, full multigroup S inside); τ/c are ANGULAR

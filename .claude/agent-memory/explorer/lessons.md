@@ -496,3 +496,48 @@ Also from the same survey, two cheap discriminators worth reusing:
   Measured `w(z>0)/w_tot`: LS/product exactly 0.5, Lebedev 0.33-0.43 (equator
   nodes). The ENTRIES were right. Never assume the prose is the ground truth just
   because it is longer.
+
+---
+
+## L-017 -- Before counting a retirement's blast radius, check whether a NON-target sibling shares the target's name; and never accept a test's self-description of what it pins
+
+Auditing four Gauss-rule retirements, a bare `grep gauss_legendre tests/` returned
+~570 lines. The true blast radius of the target was **2 files**. The other **450
+lines** were `Quadrature.gauss_legendre(...)` — a *classmethod* in a sibling module
+of the SAME package, spelled identically to the module-level function being retired,
+and emphatically not retiring. Reporting the unanchored number would have inflated
+the scope ~200x and buried the one finding that mattered.
+
+This is L-009's substring trap one level up: not `gains` ⊂ `against` (a lexical
+accident) but a genuine **namespace collision inside one package** — the factory
+classmethod named after the rule it wraps. It is the NORM in a
+`Facade.rule()` → `rules_x.rule_on_y()` layering, not an exception.
+
+- **How to apply:** the FIRST action of a retirement audit is a two-number probe —
+  `grep -c '<name>'` vs `grep -c '<anchored form>'`. Report the delta as a
+  named hazard, and hand the implementer the anchored pattern explicitly (they
+  are usually a different agent). Anchor on the call shape (`[^.]name(`) or on
+  import lines, not on the bare token.
+
+**Second half — a test's docstring is not evidence of what the test pins.** The
+audited `test_..._bit_identical_to_legacy_adapter` self-declared as "the
+**load-bearing contract** for the refactor: if the nodes drift even at the last
+bit, the regression snapshots will silently mis-compare", and used
+`np.array_equal` for emphasis. Reading the RHS's call chain showed it was
+`Quadrature.gauss_legendre(n)` — which *calls the LHS function*. Same process,
+same source: pure route-equivalence, immune to the exact drift it advertised
+(L-013's frozen-RHS rule, but disguised by a confident docstring and by the two
+sides having DIFFERENT SPELLINGS). The real characterization surface was a set of
+`.npz`/`.npy` snapshots that never name the symbol.
+
+- **How to apply:** for every test you classify as CHARACTERIZATION, resolve the
+  right-hand side's call chain one hop and ask "does this move when the SUT
+  moves?" Two differently-spelled call routes that converge on one implementation
+  read as independent and are not. Then go find the real frozen baselines by
+  `find tests -name '*.npz' -o -name '*.npy'` — a grep of the symbol will never
+  surface them.
+
+A third, cheap corroboration from the same audit: a **captured function object in
+a dataclass field** (`QuadratureSpec(factory=gauss_legendre_on_mu)`) is a live
+production consumer with ZERO graph edges — `callers()` reported it nowhere. L-013
+already flags this for *patching*; it applies identically to *auditing*.

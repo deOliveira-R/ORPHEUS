@@ -29,7 +29,59 @@ The one expression `np.linspace(0, 2π, n_phi, endpoint=False)` + `w=2π/n_phi`
 | **RULE on the CIRCLE** | **ONE** (periodic trapezoid) and mathematically should be — it IS the circle's Gauss rule | stays a property |
 | **RULE on an INTERVAL** | 5, + Gauss-Lobatto studied-and-declined | earns it |
 | **EXACTNESS SPACE** | **9 distinct spaces collapsed into one unlabelled `int`** | earns it; the axis with the most existing realizations AND the only measured falsehood |
-| **NODE GENERATION** (algebraic vs trig-evaluated) | 2 exact (`lebedev`, `level_symmetric`) vs 2 evaluated (`product`, MoC) | earns it (#325) |
+| **NODE GENERATION** (algebraic vs trig-evaluated) | see the 6-way kind census below | earns it (#325) |
+
+## Generation-KIND census (measured 2026-08-02, Q3 symmetry-exactness sweep)
+
+The earlier "2 exact vs 2 evaluated" split was too coarse. The real taxonomy —
+GROUP-ACTION (representative + exact ops) / IMPOSED-SYMMETRY / HYBRID / FORMULA /
+TABULATED / EXTERNAL:
+
+- **GROUP-ACTION: exactly ONE** — `numerics/roots_of_unity.py` (integer quarter-split +
+  octant fold + sign flips; ZERO tolerances, both fixed points decided by integer
+  arithmetic). **Still zero production consumers, still not exported** from
+  `numerics/__init__.py`; the 3 intended repoints (`rules_product`, `moc/quadrature`,
+  `derivations/discrete/sn/balance.py`) are all un-done and BLOCKED on the argsort-tie
+  ruling (exactness manufactures the ties).
+- **IMPOSED-SYMMETRY: two** — `GeneratingMeasure.gauss` (`(x−x[::-1])/2`, gated by the
+  COMPUTED `is_symmetric`) and numpy's `leggauss` inside `rules_1d`. Note these are two
+  DIFFERENT code paths for the same rule, deliberately 1-4 ULP apart (snapshots pinned
+  to `leggauss`).
+- **HYBRID: `level_symmetric_sn` is NOT "exact"** — the 8-fold sign replication IS an
+  exact group action (so D_2h is bit-exact), but the orbit REPRESENTATIVE is FORMULA:
+  `η` comes from the level table while `ξ = sqrt(sinθ²−η²)`, two arithmetic paths to the
+  same value ⟹ the index-6 coordinate-PERMUTATION half of its O_h claim is only
+  round-off-approximate.
+- **`lebedev` is EXTERNAL/unverified in-tree**, not "exact": scipy's tables, no ORPHEUS
+  group action applied, invariance checked only in the test suite.
+- **FORMULA:** `rules_product` (azimuth), MoC (azimuth + per-track cos/sin), MC flights.
+- **TABULATED:** the MoC Tabuchi-Yamamoto polar table only.
+
+**The CHECKER has the same split** (`numerics/symmetry.py`): `_octahedral_ops` (48
+signed-permutation matrices) and `_reflections`/`_inversion_op` are EXACT; but
+`_cyclic_ops` (= the n-th roots of unity!), `_vertical_mirrors`, `_rotation_z`,
+`_rotation_about_axis`, `_icosahedral_ops` are `cos`/`sin` FORMULA. ⟹ the `Dnh(n_phi)`
+product-rule claim is the ONE where BOTH sides are trig evaluations, which is what the
+`_NODE_WINDOW_FACTOR = 100` widening (match window `1e-11` vs weight window `1e-13`)
+absorbs. Lebedev/LS-vs-O_h is the cleanest pairing.
+
+**The invariance machinery's production reach is ~nil.** `is_invariant`'s only
+production caller is `registry.AngularSymmetry.admits_symmetry`, reachable only through
+`select_quadrature`, which has NO production caller (meshes are built by direct
+`Quadrature.<factory>` + `SNMesh(...)`). `maximal_invariance_groups`, `orbit_certificate`
+and `singular_set` are **test-only**. So every shipped `invariance_group` is a DECLARED
+tag; the computed check runs in `tests/`, not at construction. (Two tags have shipped
+false: the product rule's `SO2`, and `cartesian2d`'s `O_h` residual — both retired
+2026-08-02; product is now `Dnh(n_phi)`.)
+
+**Partner maps: 3 SEARCH vs 1 FORMULA.** `_find_reflections` (`quadrature/directional.py`,
+O(N²) `argmin`, **no distance guard at all**), `moc/geometry._reflected_azi_index`
+(`argmin` over φ, no guard — the answer is exactly `n_azi−1−a` by index arithmetic), and
+`MOCMesh._find_link` (nearest track endpoint, `best_dist` never thresholded). The one
+FORMULA is `Quadrature.gauss_legendre`'s `identity[::-1]`, legitimate ONLY because
+numpy imposes the ±μ mirror. The checker's `_orbit_closure` is a 4th `argmin` search
+(window `atol*100`). The tree already owns the FORMULA endpoint: `PermutationOperator`
+(`numerics/operator.py`) — `argsort` inverse + `perm[perm]==arange` involution, exact.
 
 ## Durable structural facts
 
