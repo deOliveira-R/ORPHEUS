@@ -78,7 +78,7 @@ import numpy as np
 from ..measure import SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
-from .rules_sphere import LevelStructure
+from .rules_sphere import LevelStructure, PolarInvariant
 
 
 def product_mu_phi(
@@ -191,6 +191,16 @@ def product_mu_phi(
         n_levels=n_mu,
         level_indices=level_indices,
         level_mu=mu_gl,
+        # SIGNED: each GL polar node is its own level, so the levels run
+        # over all of [-1, 1] and a level's fiber is ONE circle. The
+        # level-symmetric rule fibers over |mu_z| instead, and its
+        # levels carry two.
+        polar_invariant=PolarInvariant.SIGNED_MU_Z,
+        # The fiber coordinate, taken from the phi GRID rather than
+        # recovered from the cosines: phi_pts[m] is exactly the angle
+        # that generated ordinate m.
+        azimuth=np.tile(phi_pts, n_mu),
+        hemisphere=np.sign(mu_z).astype(np.int64),
     )
     return measure, structure
 

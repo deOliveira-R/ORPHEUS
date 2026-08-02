@@ -37,6 +37,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 
@@ -108,9 +109,34 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
 # ---------------------------------------------------------------------------
 
 
+class PolarInvariant(Enum):
+    r"""Which invariant a quadrature's levels are the fibers OF.
+
+    A level is a **fiber of an invariant**, not an orbit, and the two
+    shipped producers fiber over *different* invariants — which the
+    single ``LevelStructure`` type used to erase.
+
+    * :attr:`SIGNED_MU_Z` — :func:`product_mu_phi`. Each Gauss-Legendre
+      polar node is its own level, so the levels run over the whole
+      range :math:`\mu_z \in [-1, 1]` and the fiber over a level is a
+      full circle.
+    * :attr:`ABS_MU_Z` — :func:`level_symmetric_sn`. Levels are indexed
+      by :math:`|\mu_z|`, so each carries BOTH hemispheres and the
+      fiber is two circles.
+
+    Consequence, and the reason this has to be on the type: "the
+    ordinates of level :math:`p`" means a different set in the two
+    cases, so any consumer that reads ``level_indices`` without knowing
+    the invariant is reading an ambiguous object.
+    """
+
+    SIGNED_MU_Z = "signed_mu_z"
+    ABS_MU_Z = "abs_mu_z"
+
+
 @dataclass(frozen=True)
 class LevelStructure:
-    """Per-level metadata for a triangular SN-style sphere quadrature.
+    r"""Per-level metadata for a triangular SN-style sphere quadrature.
 
     Captured alongside the :class:`DiscreteMeasure` returned by
     :func:`level_symmetric_sn` and :func:`product_mu_phi`. The cylindrical
@@ -125,15 +151,64 @@ class LevelStructure:
     level_indices : list[np.ndarray]
         For each level :math:`p`, the indices into the flattened node
         array of ordinates on that level, sorted by increasing
-        :math:`\\eta = \\mu_x` (the radial cosine — the cylindrical
+        :math:`\eta = \mu_x` (the radial cosine — the cylindrical
         sweep convention from Bailey et al. 2009 Eq. 50).
+
+        .. warning::
+
+           That sort key is **2-to-1 on the fiber**. A level is a
+           circle, and :math:`\eta = \sin\theta\cos\varphi` is even in
+           :math:`\varphi`, so ordering by it is an ordering of the
+           circle *modulo the mirror* rather than of the circle.
+           `[M]` On one level of ``product(2, 8)``, 8 ordinates give
+           only 5 distinct :math:`\eta`, and the resulting order does
+           not determine :math:`\operatorname{sign}(\xi)` — that
+           information is not in the key. Use :attr:`azimuth` when the
+           ordering must be a function of the fiber. This is the
+           mechanism behind issue #326.
     level_mu : np.ndarray
-        Polar cosine value :math:`\\mu_p \\ge 0` per level.
+        The invariant's value per level — read
+        :attr:`polar_invariant` to know *which* invariant.
+    polar_invariant : PolarInvariant
+        Which invariant the levels fiber over. Not decoration: it
+        decides whether level :math:`p` holds one hemisphere's circle
+        or both.
+    azimuth : np.ndarray
+        Per-ordinate azimuthal angle :math:`\varphi \in [0, 2\pi)`.
+    hemisphere : np.ndarray
+        Per-ordinate :math:`\operatorname{sign}(\mu_z)`, as ``-1`` /
+        ``0`` / ``+1``.
+
+        Together with :attr:`azimuth` this is **the fiber's own
+        coordinate**, and it takes both because the fiber is not always
+        one circle: under :attr:`PolarInvariant.ABS_MU_Z` a level
+        carries BOTH hemispheres, so :math:`\varphi` alone repeats. The
+        pair is injective on a level under either invariant, which is
+        exactly what an ordering of the fiber needs.
     """
 
     n_levels: int
     level_indices: list[np.ndarray]
     level_mu: np.ndarray
+    polar_invariant: PolarInvariant
+    azimuth: np.ndarray
+    hemisphere: np.ndarray
+
+    def fiber(self, level: int) -> np.ndarray:
+        """Ordinate indices of ``level``, ordered by the FIBER coordinate.
+
+        Lexicographic in ``(hemisphere, azimuth)`` — an ordering that is
+        a function of the fiber, unlike :attr:`level_indices`, which is
+        ordered by a projection that is 2-to-1 on it.
+
+        Kept as a separate accessor rather than replacing the stored
+        order: the stored order is what the cylindrical sweep consumes
+        today, and changing it moves results (issue #326). This gives
+        the correct ordering a name and a home first.
+        """
+        members = self.level_indices[level]
+        keys = np.lexsort((self.azimuth[members], self.hemisphere[members]))
+        return members[keys]
 
 
 def _build_level_symmetric_arrays(
@@ -227,12 +302,25 @@ def _build_level_symmetric_arrays(
     level_mu_vals = mu_levels
     level_indices: list[np.ndarray] = []
     for p in range(n_levels):
-        tol = 1e-12
-        idx = np.where(np.abs(np.abs(mu_z_arr) - level_mu_vals[p]) < tol)[0]
+        # EXACT membership. The 8-fold sign replication above copies
+        # mu_z straight out of `mu_levels`, so |mu_z| IS the level value
+        # bit-for-bit and the comparison is an equality, not a
+        # neighbourhood test. This carried `tol = 1e-12` until
+        # 2026-08-02 — a symmetry question answered by float comparison
+        # in a loop that already knew the answer exactly.
+        idx = np.where(np.abs(mu_z_arr) == level_mu_vals[p])[0]
         order = np.argsort(mu_x[idx])
         level_indices.append(idx[order])
 
-    return mu_x, mu_y, mu_z_arr, weights, n_levels, level_mu_vals, level_indices
+    # The fiber coordinate: azimuth about the polar axis. Distinct
+    # ordinates on a level sit at distinct phi, which is what makes an
+    # ordering by it a function OF the fiber (unlike mu_x, which is even
+    # in phi and therefore 2-to-1 on it).
+    azimuth = np.mod(np.arctan2(mu_y, mu_x), 2.0 * np.pi)
+    hemisphere = np.sign(mu_z_arr).astype(np.int64)
+
+    return (mu_x, mu_y, mu_z_arr, weights, n_levels, level_mu_vals,
+            level_indices, azimuth, hemisphere)
 
 
 def level_symmetric_sn(
@@ -284,7 +372,7 @@ def level_symmetric_sn(
     :class:`orpheus.sn.quadrature.LevelSymmetricSN` — the SN-side
     adapter that caches all of this for hot-path attribute access.
     """
-    mu_x, mu_y, mu_z, w, n_levels, level_mu, level_indices = (
+    mu_x, mu_y, mu_z, w, n_levels, level_mu, level_indices, azimuth, hemisphere = (
         _build_level_symmetric_arrays(sn_order)
     )
     nodes = np.column_stack([mu_x, mu_y, mu_z])  # (N, 3)
@@ -299,6 +387,9 @@ def level_symmetric_sn(
         n_levels=n_levels,
         level_indices=level_indices,
         level_mu=level_mu,
+        polar_invariant=PolarInvariant.ABS_MU_Z,
+        azimuth=azimuth,
+        hemisphere=hemisphere,
     )
     return measure, structure
 

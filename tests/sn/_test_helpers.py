@@ -994,7 +994,10 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
     once the nodes are algebraically exact (``roots_of_unity``, issue #325).
     """
     from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
-    from orpheus.numerics.quadrature.rules_sphere import LevelStructure
+    from orpheus.numerics.quadrature.rules_sphere import (
+    LevelStructure,
+    PolarInvariant,
+)
     from orpheus.numerics.symmetry import SubgroupOfO3
 
     if tie_break not in PRODUCT_LEVEL_ORDERINGS:
@@ -1039,7 +1042,10 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
             degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
         )
         structure = LevelStructure(
-            n_levels=n_mu, level_indices=level_indices, level_mu=mu_gl
+            n_levels=n_mu, level_indices=level_indices, level_mu=mu_gl,
+            polar_invariant=PolarInvariant.SIGNED_MU_Z,
+            azimuth=np.mod(np.arctan2(xi, eta), 2.0 * np.pi),
+            hemisphere=np.sign(mu_z).astype(np.int64),
         )
         return measure, structure
 

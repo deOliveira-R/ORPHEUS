@@ -15,6 +15,7 @@ import pytest
 
 from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.quadrature import lebedev_sphere, level_symmetric_sn
+from orpheus.numerics.quadrature import product_mu_phi
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
@@ -279,3 +280,105 @@ def test_lebedev_is_EXACTLY_octahedral(sn_order: int) -> None:
     assert exact == total, (
         f"lebedev({order}): {exact}/{total} exact, worst {worst:.3e}"
     )
+
+
+# ---------------------------------------------------------------------------
+# A level is a FIBER of an invariant
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+def test_the_two_producers_fiber_over_different_invariants() -> None:
+    """One type, two invariants — which is why the type must say which.
+
+    ``product_mu_phi`` gives every Gauss-Legendre polar node its own
+    level, so levels run over all of ``[-1, 1]`` and a level's fiber is
+    ONE circle. ``level_symmetric_sn`` indexes levels by ``|mu_z|``, so
+    each carries BOTH hemispheres and the fiber is two circles.
+
+    A consumer reading ``level_indices`` without knowing which is
+    reading an ambiguous object.
+    """
+    from orpheus.numerics.quadrature.rules_sphere import PolarInvariant
+
+    _, prod = product_mu_phi(n_mu=4, n_phi=8)
+    _, lsn = level_symmetric_sn(8)
+    assert prod.polar_invariant is PolarInvariant.SIGNED_MU_Z
+    assert lsn.polar_invariant is PolarInvariant.ABS_MU_Z
+
+    # And the consequence is observable, not merely declared: signed
+    # levels span both signs across levels; abs levels do so WITHIN one.
+    m_prod, _ = product_mu_phi(n_mu=4, n_phi=8)
+    m_lsn, _ = level_symmetric_sn(8)
+    assert len(np.unique(np.sign(m_prod.nodes[prod.level_indices[0], 2]))) == 1
+    assert len(np.unique(np.sign(m_lsn.nodes[lsn.level_indices[0], 2]))) == 2
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    ("label", "build"),
+    [
+        ("product(4,8)", lambda: product_mu_phi(n_mu=4, n_phi=8)),
+        ("product(3,7)", lambda: product_mu_phi(n_mu=3, n_phi=7)),
+        ("level_symmetric(8)", lambda: level_symmetric_sn(8)),
+        ("level_symmetric(12)", lambda: level_symmetric_sn(12)),
+    ],
+)
+def test_fiber_coordinate_is_injective_on_every_level(
+    label: str, build
+) -> None:
+    """``(hemisphere, azimuth)`` separates the ordinates of a level.
+
+    This is the property the stored ``level_indices`` order does NOT
+    have: its key ``eta = sin(theta) cos(phi)`` is even in ``phi``,
+    hence 2-to-1 on the fiber. An ordering by a non-injective key is
+    not an ordering of the fiber at all — it is an ordering of the
+    fiber modulo the mirror, which is the mechanism behind #326.
+    """
+    _, s = build()
+    for level in range(s.n_levels):
+        members = s.fiber(level)
+        pairs = np.stack([s.hemisphere[members], s.azimuth[members]], axis=1)
+        assert len(np.unique(pairs, axis=0)) == len(members), (
+            f"{label} level {level}: fiber coordinate repeats"
+        )
+
+
+@pytest.mark.foundation
+def test_projection_order_is_2_to_1_where_the_fiber_order_is_not() -> None:
+    """The measurement that makes the previous test's point concrete."""
+    _, s = product_mu_phi(n_mu=2, n_phi=8)
+    m, _ = product_mu_phi(n_mu=2, n_phi=8)
+    members = s.level_indices[0]
+    eta = m.nodes[members, 0]
+
+    # The stored key collapses 8 ordinates onto 5 values...
+    assert len(np.unique(np.round(eta, 12))) < len(members)
+    # ...and cannot recover the sign of xi, which the sweep needs.
+    xi_signs = np.sign(m.nodes[members, 1])
+    assert len(np.unique(xi_signs)) > 1
+
+    # The fiber coordinate keeps all 8 apart.
+    fib = s.fiber(0)
+    assert len(np.unique(s.azimuth[fib])) == len(fib)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("sn_order", [4, 8, 16])
+def test_level_membership_is_exact_equality(sn_order: int) -> None:
+    """Level assignment is an equality, not a neighbourhood test.
+
+    The 8-fold sign replication copies ``mu_z`` straight out of the
+    level array, so ``|mu_z|`` IS the level value bit-for-bit. The
+    construction carried a ``tol = 1e-12`` window until 2026-08-02 —
+    a float comparison answering a question the generating loop had
+    already answered exactly.
+    """
+    measure, structure = level_symmetric_sn(sn_order)
+    mu_z = measure.nodes[:, 2]
+    covered = np.zeros(len(mu_z), dtype=bool)
+    for level in range(structure.n_levels):
+        members = structure.level_indices[level]
+        assert np.all(np.abs(mu_z[members]) == structure.level_mu[level])
+        covered[members] = True
+    assert covered.all(), "every ordinate belongs to exactly one level"
