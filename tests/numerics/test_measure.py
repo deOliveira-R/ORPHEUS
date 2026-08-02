@@ -597,3 +597,119 @@ def test_repr_with_invariance_group() -> None:
     r = repr(rule)
     assert "invariance_group" in r
     assert "SubgroupOfO3.Z2" in r  # the typed group's repr, not the old 'Z2' string
+
+
+# ============================================================================
+# consolidate() — the reduction pushforward documents but does not perform
+# ============================================================================
+
+
+@pytest.mark.foundation
+def test_consolidate_merges_coincident_atoms_preserving_mass() -> None:
+    """Duplicate nodes collapse; the weights are summed, never dropped.
+
+    Mass preservation is the in-tree discriminator between a QUOTIENT and a
+    restriction — ``restrict`` drops mass, this must not.
+    """
+    mu = DiscreteMeasure(
+        nodes=np.array([0.0, 1.0, 0.0, 2.0, 1.0]),
+        weights=np.array([0.5, 0.25, 0.5, 1.0, 0.75]),
+        support="[-1,1]",
+    )
+    out = mu.consolidate()
+    assert out.n_points == 3
+    assert float(out.weights.sum()) == pytest.approx(float(mu.weights.sum()))
+    # First-appearance order, weights summed per position.
+    np.testing.assert_allclose(out.nodes, [0.0, 1.0, 2.0])
+    np.testing.assert_allclose(out.weights, [1.0, 1.0, 1.0])
+
+
+@pytest.mark.foundation
+def test_consolidate_is_idempotent_and_a_no_op_when_already_reduced() -> None:
+    """Consolidating twice equals consolidating once."""
+    mu = DiscreteMeasure(
+        nodes=np.array([0.0, 1.0, 0.0]),
+        weights=np.array([1.0, 2.0, 3.0]),
+        support="[-1,1]",
+    )
+    once = mu.consolidate()
+    twice = once.consolidate()
+    np.testing.assert_array_equal(once.nodes, twice.nodes)
+    np.testing.assert_array_equal(once.weights, twice.weights)
+
+    already = DiscreteMeasure(
+        nodes=np.array([0.0, 1.0]), weights=np.array([1.0, 2.0]),
+        support="[-1,1]",
+    )
+    assert already.consolidate() is already
+
+
+@pytest.mark.foundation
+def test_consolidate_preserves_the_claims_pushforward_drops() -> None:
+    r"""``invariance_group`` and ``degree_of_exactness`` survive.
+
+    Consolidation moves no node and changes no integral, so neither claim
+    can be invalidated by it — unlike :meth:`pushforward`, where an
+    arbitrary :math:`\varphi` can invalidate both.
+    """
+    from orpheus.numerics.symmetry import SubgroupOfO3
+
+    mu = DiscreteMeasure(
+        nodes=np.array([-1.0, 0.0, 0.0, 1.0]),
+        weights=np.array([1.0, 0.5, 0.5, 1.0]),
+        support="[-1,1]",
+        invariance_group=SubgroupOfO3.Z2,
+        degree_of_exactness=3,
+    )
+    out = mu.consolidate()
+    assert out.n_points == 3
+    assert out.invariance_group == SubgroupOfO3.Z2
+    assert out.degree_of_exactness == 3
+    assert out.support == mu.support
+
+
+@pytest.mark.foundation
+def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> None:
+    r"""``quotient(G) = pushforward(rep).consolidate()``, and the weights are DERIVED.
+
+    Folding a product rule by :math:`\langle \sigma_y \rangle` must give the
+    orbit-stabilizer weights :math:`W = w \cdot |G| / |\mathrm{Stab}|` — not
+    a chosen convention but a consequence. With :math:`|G| = 2`, every
+    folded atom carries either its parent weight (it sits ON the mirror,
+    :math:`|\mathrm{Stab}| = 2`) or twice it (a free orbit).
+
+    The orbit count is Burnside's :math:`(N + F)/2`.
+    """
+    from orpheus.numerics.quadrature import Quadrature
+
+    q = Quadrature.product(n_mu=4, n_phi=8)
+    mu = q.measure
+
+    def to_representative(nodes: np.ndarray) -> np.ndarray:
+        out = nodes.copy()
+        out[:, 1] = np.abs(out[:, 1])  # xi -> |xi| picks the orbit rep
+        return out
+
+    folded = mu.pushforward(
+        to_representative, new_space="S^2/<sigma_y>",
+    ).consolidate()
+
+    n_fixed = int((np.abs(q.mu_y) < 1e-14).sum())
+    assert folded.n_points == (mu.n_points + n_fixed) // 2  # Burnside
+    assert float(folded.weights.sum()) == pytest.approx(
+        float(mu.weights.sum()), rel=1e-12
+    )
+
+    moved = to_representative(mu.nodes)
+    ratios = []
+    for k in range(folded.n_points):
+        members = np.flatnonzero(
+            np.linalg.norm(moved - folded.nodes[k], axis=1) < 1e-12
+        )
+        parent = mu.weights[members]
+        assert np.allclose(parent, parent[0]), "orbit members must share a weight"
+        assert float(folded.weights[k]) == pytest.approx(float(parent.sum()))
+        ratios.append(round(float(folded.weights[k] / parent[0]), 12))
+
+    assert sorted(set(ratios)) == [1.0, 2.0], sorted(set(ratios))
+    assert sum(1 for r in ratios if r == 1.0) == n_fixed

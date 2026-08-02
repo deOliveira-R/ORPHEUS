@@ -617,6 +617,82 @@ class DiscreteMeasure:
             degree_of_exactness=None,
         )
 
+    def consolidate(self, *, atol: float = 1e-12) -> DiscreteMeasure:
+        r"""Merge coincident atoms, summing their weights.
+
+        The reduction :meth:`pushforward` documents but does not perform:
+        a non-invertible :math:`\varphi` collapses atoms onto a shared
+        target point, leaving duplicate nodes carrying separate weights.
+        That is mathematically valid — a caller integrating against it sums
+        them implicitly — but it is an *unreduced* representation, and code
+        that inspects ``nodes`` (counting them, partitioning them, matching
+        them under a group action) sees a different object than the measure
+        it represents.
+
+        This is the second half of a quotient. With
+        :math:`\varphi = ` "map each node to its orbit representative",
+
+        .. math::
+
+           \mathrm{quotient}(G) \;=\;
+           \mathrm{pushforward}(\varphi)\ \texttt{.consolidate()},
+
+        and the summed weights are exactly the orbifold measure
+        :math:`W = w \cdot |G| / |\mathrm{Stab}|` that orbit-stabilizer
+        predicts — derived, not chosen.
+
+        **Total mass is preserved exactly** (the weights are summed, not
+        dropped), which is the in-tree discriminator between a QUOTIENT and
+        a :meth:`restrict`-style restriction: the latter drops mass.
+
+        Unlike :meth:`pushforward`, both ``invariance_group`` and
+        ``degree_of_exactness`` are **preserved**. Consolidation moves no
+        node and changes no integral — :math:`\int g\,d\mu` is identical
+        for every test function — so neither claim can be invalidated by
+        it. A group that permuted the original atoms still permutes the
+        merged ones, since merging is by position.
+
+        Parameters
+        ----------
+        atol : float, optional
+            Nodes within this distance are treated as one atom.
+
+        Returns
+        -------
+        DiscreteMeasure
+            The reduced measure. Idempotent: consolidating twice equals
+            consolidating once.
+        """
+        nodes = self.nodes
+        flat = nodes.reshape(self.n_points, -1)
+        keys = (np.round(flat / atol) * atol + 0.0).astype(np.float64)
+
+        # Group by rounded position, preserving first-appearance order so
+        # the result is deterministic and reads like the input.
+        seen: dict[bytes, int] = {}
+        order: list[int] = []
+        merged_weights: list[float] = []
+        for i in range(self.n_points):
+            key = keys[i].tobytes()
+            slot = seen.get(key)
+            if slot is None:
+                seen[key] = len(order)
+                order.append(i)
+                merged_weights.append(float(self.weights[i]))
+            else:
+                merged_weights[slot] += float(self.weights[i])
+
+        if len(order) == self.n_points:
+            return self  # already reduced — nothing coincides
+
+        return DiscreteMeasure(
+            nodes=nodes[np.array(order, dtype=np.int64)],
+            weights=np.array(merged_weights, dtype=np.float64),
+            support=self.support,
+            invariance_group=self.invariance_group,
+            degree_of_exactness=self.degree_of_exactness,
+        )
+
     # ------------------------------------------------------------------
     # Restriction
     # ------------------------------------------------------------------
