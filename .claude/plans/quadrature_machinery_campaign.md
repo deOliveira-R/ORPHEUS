@@ -521,6 +521,101 @@ identically under legacy / lexsort / stable, the two rate gates agreeing to
 ξ-odd-sector question.** A ξ-odd companion ansatz sees it but does not adjudicate
 either (two orderings converge to the same angular floor from opposite sides).
 
+### T13 — ⭐ The root of `Σ` is the GROUP. Not the space, not the quadrature.
+
+User question, 2026-08-02: *"It's very unlikely that this is an orphan convention.
+It certainly originates somewhere. […] Where is the root of this?"* Answered by
+tracing the import graph, and it settles the siting for good.
+
+**`orpheus/numerics/symmetry.py` is the root**, and both the quadrature layer and
+the space layer descend from it:
+
+- It is the **lowest** of the three. Its only import is `.measure`, and that edge
+  is one-way by construction — `measure.py:82` carries the comment *"symmetry
+  imports FROM this module, so a runtime import would cycle"*, so its own
+  `SubgroupOfO3` reference sits under `TYPE_CHECKING`.
+- It **already owns the mirrors**: `_reflections(axis)` (`:750`) returns exactly
+  σ_x, σ_y, σ_z; `_vertical_mirrors(n)` (`:787`), `_octahedral_ops` (`:802`),
+  `_icosahedral_ops` (`:827`) sit beside it. The reflections whose fixed-point
+  sets ARE `Σ` are already there.
+- The edge is **already walked**: `quadrature/rules_1d.py:30` does
+  `from ..symmetry import SubgroupOfO3`. `directional.py` simply never took it.
+
+> `Σ = Fix(σ_n̂) = {x : σ_n̂ x = x}`, and the orbifold singular set is
+> `{x : Stab(x) ≠ {e}}` — a function of **(group, point set)** and nothing else.
+> A face normal and a quadrature rule are both *inputs* to it, never its home.
+
+**Corollary — the duplication was caused by SITING** (`.claude/rules/coding-standards.md`
+L32). The shared constant lives in `numerics/spaces/angular_trace_space.py`, which
+is ABOVE one of its consumers: `numerics/quadrature/directional.py` knows nothing
+about faces and must not import a face-trace space. Unable to read it legally,
+`directional.py` minted `_OCTANT_SIGN_EPS = 1e-15`. **The twin exists because the
+primitive was sited too high**, which is L32's failure mode exactly.
+
+**Naming (user ruling, 2026-08-02).** Collection = **`singular_set`**; individual
+member = **`singular_point`**; the hyperplane itself = **`mirror`** (Thurston's
+orbifold term for a reflection's fixed set; `wall` in Coxeter vocabulary).
+`singular_point` beats `mirror_point` because it stays true for **cone points** —
+a pure-axis ordinate `(0,0,±1)` is fixed by every rotation about ẑ, so it is
+singular without lying on any mirror. `tangential` stays at the boundary layer as
+the honest face-normal **specialization**, reading down to `singular_set`.
+
+⚠ Do NOT re-inherit the earlier framing *"six ad-hoc ε-detectors for one object."*
+It is wrong twice — see §3 gap 1 as rewritten.
+
+### T14 — ⭐⭐ `Σ` is NOT a floating-point question. It is `Fix(π)`, an integer identity.
+
+The campaign's sharpest single result, and it dissolves gap 1 rather than tidying it.
+
+`_orbit_closure` (`symmetry.py:904`) already computes, for each node `i` and each
+group element `M`, the matched index `j` — then discards it to return `bool`
+(that is L-013). But observe what `j == i` **means**: `M·x_i = x_i`, i.e.
+`x_i ∈ Fix(M)`.
+
+> **`Σ` is the fixed-point set of the orbit permutation. Membership is
+> `π_M(i) == i` — an integer identity. Exact. No tolerance.**
+
+The only surviving tolerance is the one that matches nodes while *building* `π`,
+which is `symmetry.py`'s existing single `atol` — the one place the question is
+honestly numerical. The three scattered ε-detectors do not get consolidated onto
+one ε; they **stop being ε-questions**.
+
+`[M]` The measurement that independently confirms the ε was never doing real work
+— across 29 production rules (`gauss_legendre` ×6, `product` ×7,
+`level_symmetric` ×6, `lebedev` ×10):
+
+```
+  ordinates in the disputed band [8.88e-16, 1e-15) : 0
+  largest cosine BOTH constants call zero          : 1.806e-16
+  smallest cosine BOTH constants call nonzero      : 2.435e-02   (2.7e13x separation)
+```
+
+Any constant in `[2e-16, 2e-2]` classifies identically on every production rule.
+So the ε disagreement (`TANGENTIAL_EPS = 4·eps ≈ 8.88e-16` vs the two private
+`1e-15`) is **latent, not live** — a single-source-of-truth defect, never a
+numerical one. Probe: `$CLAUDE_JOB_DIR/tmp/q1_tangential_band.py`.
+
+**Corollary — `Σ` is only expressible where the certificate exists**, i.e. on a
+G-invariant set. That is exactly T5's precondition (*half-range is defined only on
+a G-invariant measure*) reappearing as `coding-elegance` Pattern 4: the
+illegal state is unrepresentable because the type that names `Σ` cannot be
+constructed without the closure proof.
+
+### T14b — The octant sign label is already a named mathematical object
+
+`_octant_sign_predicate` (`directional.py:103`) returns `{+1, 0, −1}` per axis.
+The eight octants **are** the chambers of the reflection group `(ℤ₂)³` acting on
+ℝ³; the three coordinate planes are its **walls**; a node with `k` zero components
+lies on a codimension-`k` face of a chamber, with isotropy `(ℤ₂)^k`. The sign
+vector is the **covector** of that hyperplane arrangement (oriented-matroid
+vocabulary), and the collection of them is its **face lattice**.
+
+So the label is not an ad-hoc encoding — it is the **orbit-type stratification**,
+and the zero components name *which* mirrors fix the point. Two zero components is
+Thurston's **corner reflector**, which is precisely the
+`|μ_x| < ε ∧ |μ_y| < ε` case `directional.py:116` describes as the 2-D wavefront
+short-circuit.
+
 ---
 
 ## 2. Diagnostics and gates that now exist
@@ -556,9 +651,39 @@ an open close-out item (§6).
 
 Ordered by (reach ÷ cost). **Item 1 first** — smallest change, largest reach.
 
-1. **The orbifold singular set `Σ = {ξ = 0}` has no name and six ad-hoc ε-detectors.**
-   Every #326 pathology lives on it. `Quadrature.octants` already computes it as
-   the zero-sign-label partition entry and nothing consumes it as such.
+1. **⚠ REWRITTEN 2026-08-02 — the original claim was wrong twice.** It read *"the
+   orbifold singular set `Σ = {ξ = 0}` has no name and six ad-hoc ε-detectors."*
+   Reading the code refutes **both** halves. Do not re-inherit it.
+
+   **(a) It HAS a name — `tangential`** — with an exported, empirically-calibrated
+   constant `TANGENTIAL_EPS = 4·eps ≈ 8.88e-16`
+   (`numerics/spaces/angular_trace_space.py:164`), read across `sn/boundary/`,
+   `geometry/boundary/`, `numerics/operator.py`, `numerics/face_layout.py`,
+   `numerics/spaces/full_field_space.py`. The **boundary campaign minted it** and
+   did the calibration (its docstring cites N=2..64 + Lebedev 3..53).
+
+   **(b) It is THREE sites, not six** — and the other three are different
+   OPERATIONS, so folding all six would be the L30 mistake (shared *data* ≠ shared
+   *operation*):
+
+   | plan's original site | actual predicate | what it really is |
+   |---|---|---|
+   | `directional.py:120` | `\|c\| ≤ _OCTANT_SIGN_EPS` ⟹ label 0 | **Σ** ✓ per coordinate axis |
+   | `loss_representation:2903` | `\|μ_x\| < _MU_DIRECTION_EPS` | **Σ** ✓ for σ_x only |
+   | `geometry/boundary/_specular.py:223` (*not in the original list*) | `\|μ_axis\| > TANGENTIAL_EPS` | **Σ** ✓ canonical |
+   | `augmented_mesh.py:815` | `eps < τ_raw[0] < 1−eps` | τ-**degeneracy** — a closure property, NOT membership |
+   | `rules_sphere.py:213` | `\|\|μ_z\|−level_μ_p\| < 1e-12` | **fiber membership** ⟹ that is **Q4** |
+   | `symmetry.py:952` | `\|w_j − w_i\| > atol` | **orbit-partner weight equality** ⟹ part of the Q2 certificate |
+
+   **The real gap** is that ONE object has three private tolerances
+   (`TANGENTIAL_EPS` ≈ 8.88e-16, `_MU_DIRECTION_EPS` = 1e-15, `_OCTANT_SIGN_EPS`
+   = 1e-15) because it is **sited above one of its consumers** (T13). The
+   disagreement is **latent, not live** — measured, `2.7e13×` separation, zero
+   ordinates in the disputed band (T14).
+
+   **⟹ DISSOLVED INTO Q2, not fixed here.** Per T14, membership is `π_M(i) == i`,
+   an integer identity — so the ε-detectors do not get consolidated, they *cease
+   to be ε-questions*. Naming and retirement ride on the Q2 certificate.
 2. **`DiscreteMeasure.consolidate()` — one missing verb.** `pushforward` already
    exists and its own docstring documents the atom-merging case as
    *valid-but-unreduced*. The gap is one method, not a class hierarchy.
@@ -653,10 +778,34 @@ implemented and **no `D_6h`-invariant rule in tree**.
   three promoted gates + `roots_of_unity` + `_test_helpers`, at
   `305 passed, 3 xfailed`, with `--runxfail` confirming each xfail reds on its own
   documented assertion. The plan + evidence + agent memory landed at `49bd7314`.
-- **Q1 — Name `Σ`, the orbifold singular set** (gap 1). Retire the six ad-hoc
-  ε-detectors onto it. Highest reach ÷ cost.
-- **Q2 — Widen `_orbit_closure`** to return its certificate (L-013), and add
-  `DiscreteMeasure.consolidate()` (gaps 2, 5).
+- **Q1 ⇒ MERGED INTO Q2** (user ruling, 2026-08-02). They are ONE carve: per T14,
+  widening `_orbit_closure` to return its permutation **is** what names `Σ`, because
+  `Σ = {i : π_M(i) == i}`. Splitting them would build the certificate in Q2 and then
+  not use it for the question it directly answers.
+- **Q2 — The orbit certificate, and `Σ` with it** (L-013; gaps 1, 2, 5; T13, T14).
+  Sited in **`numerics/symmetry.py`** — the root (T13), below every consumer.
+  1. **Widen `_orbit_closure`** to return the orbit permutation `π_M` it already
+     computes and discards, as a certificate type. `is_invariant` keeps its
+     `-> bool` face by asking the certificate.
+     ⚠ **Not every group tag routes through `_orbit_closure`** — `O_h` is decided by
+     a *fingerprint* and the continuous groups by a *representative orbit*, so those
+     tags yield NO permutation today. Settle the per-tag strategy table before
+     designing the surface (in the correctness audit,
+     `scratch/q1q2_symmetry_audit.md`).
+  2. **Name `Σ`** off that certificate: `singular_set` (collection),
+     `singular_point` (member), `mirror` (the hyperplane). Membership is
+     `π_M(i) == i` — **integer, exact, no ε**.
+  3. **Retire** `_OCTANT_SIGN_EPS` and `_MU_DIRECTION_EPS` outright (not re-point
+     them). `TANGENTIAL_EPS` survives as the boundary's **matching** tolerance and
+     its face-normal specialization reads down to `singular_set`.
+  4. **Fix what the correctness audit finds** in `symmetry.py` (user ruling: fix it
+     while we are in the module).
+  5. Add `DiscreteMeasure.consolidate()` — the one missing measure verb;
+     `quotient(G) = pushforward(rep).consolidate()`.
+  **Gate:** the certificate must be proven a genuine **bijection** (a non-injective
+  "permutation" would let a non-invariant rule certify as invariant), and `Σ` must
+  reproduce today's three ε-classifications on all 29 production rules — with the
+  ε-free path as the reference, not the other way round.
 - ⏸ **COMPACTION POINT**
 - **Q3 — The measure-parameterized rule** (T12 / T12b; absorbs gap 3 and T2).
   ONE Golub–Welsch body; the families become `(α, β, μ₀)` **data**, not
