@@ -27,6 +27,7 @@ from ..measure import (
     SPACE_INTERVAL_M11,
     DiscreteMeasure,
 )
+from ..generating_measure import LEGENDRE
 from ..symmetry import SubgroupOfO3
 
 
@@ -92,6 +93,19 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         # [-1,1] satisfies it, and here that triviality is the point.
         invariance_group=SubgroupOfO3.SO2,
         degree_of_exactness=2 * n - 1,
+        # Which integral that degree is a claim about: the unweighted
+        # one on [-1,1]. This rule IS the Gauss rule for the Legendre
+        # measure — the tag states the reference, not the code path, and
+        # the reference is the same whichever route computes the roots.
+        #
+        # The route here is deliberately NOT the generic Golub-Welsch
+        # body: `numpy.leggauss` Newton-refines, and `[M]` the two differ
+        # by 1-4 ULP in the nodes. Every SN slab snapshot is pinned to
+        # these bits (see the drift gate in tests/numerics/test_rules_1d.py),
+        # so switching construction is a deliberate re-baselining
+        # decision, not a cleanup. Tracked as an open item in the
+        # quadrature campaign plan.
+        generating_measure=LEGENDRE,
     )
 
 

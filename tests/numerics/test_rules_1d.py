@@ -62,21 +62,54 @@ def test_gauss_legendre_rejects_zero() -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("n", [2, 4, 8, 16, 32])
-def test_gauss_legendre_bit_identical_to_legacy_adapter(n: int) -> None:
-    """Bit-identical match between the rule and the legacy adapter.
+def test_adapter_passes_the_rule_through_unmodified(n: int) -> None:
+    """The adapter must not transform the values it wraps.
 
-    This is the **load-bearing contract** for the Issue 4 refactor:
-    if the rule's nodes/weights drift even at the last bit, the SN
-    regression snapshots will silently mis-compare. We use
-    :func:`numpy.array_equal` (exact-bit comparison), not
-    :func:`numpy.allclose`.
+    A real contract, but a NARROW one — and narrower than this test
+    used to claim. ``Quadrature.gauss_legendre`` *calls*
+    ``gauss_legendre_on_mu`` (``directional.py``), so comparing the two
+    compares a value with itself routed through a wrapper. It verifies
+    the adapter is a pass-through; it can NEVER detect the node drift
+    it was previously documented as catching, because both sides move
+    together by construction. The drift gate is the separate test
+    below.
     """
     m = gauss_legendre_on_mu(n)
-    legacy = Quadrature.gauss_legendre(n)
-    assert np.array_equal(legacy.mu_x, m.nodes)
-    assert np.array_equal(legacy.weights, m.weights)
+    adapter = Quadrature.gauss_legendre(n)
+    assert np.array_equal(adapter.mu_x, m.nodes)
+    assert np.array_equal(adapter.weights, m.weights)
     # mu_y must be identically zero (1-D slab convention).
-    assert np.array_equal(legacy.mu_y, np.zeros(n))
+    assert np.array_equal(adapter.mu_y, np.zeros(n))
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("n", [2, 4, 8, 16, 32])
+def test_nodes_are_bit_identical_to_the_reference_implementation(
+    n: int,
+) -> None:
+    """The **load-bearing** drift contract, against an EXTERNAL source.
+
+    Every SN regression snapshot built on a slab quadrature is pinned
+    to these exact bits. A change of construction that moves them —
+    swapping ``numpy.leggauss`` for the Golub-Welsch body in
+    :mod:`orpheus.numerics.generating_measure`, say, which `[M]` moves
+    nodes by 1-4 ULP — must therefore be a deliberate re-baselining
+    decision, not a silent side effect.
+
+    So this compares against ``numpy.polynomial.legendre.leggauss``
+    directly: a source that does NOT move when ORPHEUS changes, which
+    is what makes the comparison capable of failing.
+    """
+    m = gauss_legendre_on_mu(n)
+    ref_nodes, ref_weights = np.polynomial.legendre.leggauss(n)
+    assert np.array_equal(m.nodes, ref_nodes), (
+        f"n={n}: slab quadrature nodes moved off the reference "
+        f"implementation; max delta "
+        f"{np.max(np.abs(m.nodes - ref_nodes)):.3e}. Every SN snapshot "
+        f"built on this rule is pinned to the old bits — re-baseline "
+        f"deliberately per vv-principles, do not relax this gate."
+    )
+    assert np.array_equal(m.weights, ref_weights)
 
 
 # ---------------------------------------------------------------------------

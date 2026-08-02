@@ -353,12 +353,37 @@ The module ships three 1-D primitives:
   ``(a, b, n)`` — midpoint rule on :math:`[a, b]`,
   ``degree_of_exactness = 1``, weights sum to :math:`b - a`.
 
-Higher-dimensional rules are built by composition:
-``μ_S2 = gauss_legendre(n_mu) * equispaced(0.0, 2*np.pi, n_phi)``
-gives a product quadrature on
-:math:`\mu \in [-1, 1] \times \varphi \in [0, 2\pi)` —
-the standard polar-azimuthal split for transport on the unit
-sphere.
+Higher-dimensional rules are built by composition. The tensor product
+``gauss_legendre(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
+on the **parameter rectangle**
+:math:`(\mu, \varphi) \in [-1,1] \times [0, 2\pi)` — the standard
+polar-azimuthal split.
+
+.. warning::
+
+   That product is **not yet a rule on** :math:`S^2`, and this page
+   claimed it was until 2026-08-02. `[M]` It carries ``nodes`` of shape
+   ``(n, 2)`` on support ``"[-1,1] × [0,6.28…]"``, while the production
+   sphere rule
+   :func:`~orpheus.numerics.quadrature.rules_product.product_mu_phi`
+   carries ``(n, 3)`` on ``"S^2"``. The missing step is the
+   **pushforward** onto direction cosines,
+
+   .. math::
+
+      (\mu, \varphi) \;\longmapsto\;
+      \bigl(\sqrt{1-\mu^2}\cos\varphi,\;
+            \sqrt{1-\mu^2}\sin\varphi,\; \mu\bigr),
+
+   which is a change of *space*, not merely of coordinates — and it is
+   exactly the step under which
+   :attr:`~orpheus.numerics.measure.DiscreteMeasure.degree_of_exactness`
+   is dropped, because polynomial exactness in :math:`(\mu, \varphi)` is
+   not polynomial exactness in the direction cosines. ``product_mu_phi``
+   performs the map itself rather than composing these two primitives;
+   the two differ further in the azimuthal convention
+   (``equispaced`` places **midpoints**, the production rule
+   **left-endpoints**).
 
 
 Symmetry groups for quadrature invariance

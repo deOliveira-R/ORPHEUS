@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **7802**
+Total tests collected: **8006**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1206, 15.5%
-   L1, 1230, 15.8%
+   L0, 1206, 15.1%
+   L1, 1309, 16.4%
    L2, 64, 0.8%
    L3, 0, 0.0%
-   foundation, 5302, 68.0%
+   foundation, 5427, 67.8%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 7723
+   explicit, 7927
    class-name, 46
    func-name, 0
    case, 33
@@ -315,6 +315,7 @@ Module × level grid
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
+   numerics/test_generating_measure, 0, 78, 0, 0, 114, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
@@ -322,7 +323,7 @@ Module × level grid
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 24, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
-   numerics/test_measure, 0, 16, 0, 0, 36, 0
+   numerics/test_measure, 0, 17, 0, 0, 41, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
    numerics/test_operator, 0, 0, 0, 0, 58, 0
@@ -334,7 +335,7 @@ Module × level grid
    numerics/test_registry, 0, 0, 0, 0, 42, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
-   numerics/test_rules_1d, 0, 5, 0, 0, 16, 0
+   numerics/test_rules_1d, 0, 5, 0, 0, 21, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
@@ -443,7 +444,7 @@ Module × level grid
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 334, 0
+   test_layer_imports, 0, 0, 0, 0, 335, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
