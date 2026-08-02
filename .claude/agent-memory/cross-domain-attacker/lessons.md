@@ -577,3 +577,57 @@ new types, grep the predicates in the neighbourhood and read their BODIES. Ask "
 this `bool` know something?" A found witness reframes the whole deliverable — and a
 proposal that over-scoped the gap is a finding worth reporting plainly, because it is
 good news.
+
+---
+
+## L-014 -- An UNSATISFIABLE predicate is a wrong-ARGUMENT diagnosis, not a wrong-predicate one: check each argument's KIND before redesigning the relation
+
+Recurring shape on "derive the correct formulation of predicate P" dispatches. A
+gate is found to reject everything (or accept everything) once a broken checker is
+fixed, and the brief offers a menu of alternative RELATIONS. Nearly always the
+relation is right and one of its ARGUMENTS is of the wrong KIND — a
+cardinality/topology mismatch that no amount of re-shaping the relation repairs.
+
+The diagnostic: **compare the CARDINALITY or TOPOLOGY the predicate demands against
+what the object can carry.** A finite object cannot satisfy a containment against a
+continuous group; a band-limited claim cannot constrain a non-band-limited unknown;
+a static table cannot carry a configuration-dependent generator.
+
+Worked (#326/Q2, [[quadrature-symmetry-quotient-frames]]): `G_geom ⊆ G_rule` was
+found unsatisfiable because `GEOMETRY_GROUPS` supplies `SO(2)`. Two one-line
+theorems settle it without touching the relation: **(A)** `Sym(Q)` of a finite node
+set is FINITE (an orthogonal map fixing a spanning set is `id` ⟹ `Sym(Q) ↪ S_N`),
+so a continuous `G` is unsatisfiable *by any discretisation*; **(D)** the
+correctly-derived requirement — the DISCRETE residual `Γ = G/G⁰` acting on the
+fiber — is ALWAYS finite (discrete subgroup of a compact group). The predicate was
+never wrong; it was being handed the half of the symmetry group that the
+dimensional reduction had already CONSUMED.
+
+Two generalisable corollaries, both cheap to check:
+
+- **A symmetry group that reduces a problem's dimension is SPENT; it cannot also be
+  a requirement on the reduced problem.** Its continuous isotropy becomes the
+  angular/fiber QUOTIENT (which domain the rule lives on), its free part becomes
+  the CONNECTION/redistribution term, and only the DISCRETE residual is still owed
+  as a constraint. Three parts, three fates, none discarded — one decomposition
+  predicts "why does the slab use a 1-D rule and the cylinder a 2-D one" AND "why
+  does the cylinder have an α term and the slab not" from the same split.
+- **A "vacuous" candidate framing usually has a non-vacuous sibling one theorem
+  away.** "Exactness space is `G`-invariant for every rule ⟹ the test says nothing"
+  is true; the sibling is `E = Q∘(Id − Π_V)` (the error functional IS the
+  quadrature on the aliased-out part), from which `G ⊆ Sym(Q)` ⟹ `E` annihilates
+  every NON-trivial isotypic component at EVERY degree (average `E[f]` over `G`).
+  Before discarding a framing as vacuous, apply the group-average to its error
+  functional.
+
+Discriminating first test for this family: a case where the candidates DIVERGE on a
+parameter the current predicate cannot see (odd vs even `n_φ`), and where the
+derived answer REPRODUCES an independently-established in-tree guard (ERR-042) as a
+consequence. **A derived predicate that re-derives an existing hand-written guard is
+strongly confirmed; one that contradicts it owes an explanation.**
+
+How to apply: at any "the gate rejects/accepts everything, pick a new formulation"
+brief, tabulate `(argument, kind it has, kind the relation needs)` FIRST. If a kind
+mismatches, fix the argument and stop — the menu of alternative relations is a
+distraction. Then hunt for an existing hand-written guard the corrected predicate
+should reproduce; that reproduction is the cheapest available confirmation.

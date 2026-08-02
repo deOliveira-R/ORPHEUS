@@ -140,3 +140,107 @@ be a design serving one caller.
 Cracknell) — the projection-operator basis construction `P_χ=(dim χ/|G|)Σχ(g)*g`.
 Same literature lineage `symmetry.py:59-73` already cites (Hamermesh, Stiefel-Fässler),
 and it is what `D_{6h}`/hex will need.
+
+---
+
+## SECOND ATTACK (2026-08-02) — the Stage-1 SELECTION predicate, derived
+
+Deliverable `scratch/q2_stage1_predicate_derivation.md`. Brief: the registry's
+`G_geom ⊆ G_rule` gate (`registry.py:677`) is unsatisfiable once `is_invariant` is
+fixed, because `GEOMETRY_GROUPS` supplies `SO(2)`. Derive the honest predicate. NO
+SHELL this dispatch — every number is `[M-plan]`/`[M-user]` cited or hand-derived.
+**The relation is right; both ARGUMENTS are of the wrong kind** (→ lessons L-014).
+
+### The two theorems that settle it
+
+- **A.** `Sym(Q)` of a finite node set is FINITE (an orthogonal map fixing a
+  spanning set is `id` ⟹ `Sym(Q) ↪ S_N`). ⟹ a CONTINUOUS `G` on the left is
+  unsatisfiable *by any discretisation*, not just by today's rules.
+- **D.** The correct left argument — the DISCRETE residual `Γ = G/G⁰` acting on the
+  angular fiber — is ALWAYS finite (discrete subgroup of a compact group). ⟹ the
+  predicate is always satisfiable once fed the right group.
+
+### The THREE-PART decomposition (generalises T9; this is the durable core)
+
+Unfold every specular boundary by images first (the boundary campaign's ruling:
+*G is the deck transformation, the mirror is an ambient isometry*). Then `G`'s three
+parts have three fates, **none discarded**:
+
+| part | fate | ORPHEUS name |
+|---|---|---|
+| `G⁰` acting FREELY at `x₀` | reduces SPATIAL dim; non-trivial fiber action ⟹ the **connection** | the α redistribution (T9) |
+| `G⁰_{x₀}` continuous ISOTROPY | the angular domain is the QUOTIENT `S²/G⁰_{x₀}` | **Stage 0** (missing today) |
+| `Γ = G/G⁰` DISCRETE residual | must be an ordinate PERMUTATION | **Stage 1** (the predicate) |
+
+ONE split predicts *why slab uses a 1-D rule and cylinder a 2-D one* AND *why
+cylinder has α and slab does not*. `G_ang := image of Γ in Aut(S²/G⁰_{x₀})`.
+
+### The derived predicate + table
+
+```
+Stage 0  domain(Q) == S²/G⁰_{x₀}          # currently enforced only by ACCIDENT (node count)
+Stage 1  G_ang(geom) ⊆ Sym(Q(params))     # exact permutation; no approximate version
+Stage 2  deg(Q) ≥ d  ON  L²(D)^{G_ang}    # Sobolev — this IS the campaign's gap 3
+```
+
+`slab: Z₂ / [−1,1]` · `sphere: Z₂ / [−1,1]` · `cylinder: D_{2h} / S²` ·
+`cartesian2d: D_{2h} / S²` (**NOT `O_h`** — that demands `x↔y↔z`; `x↔z` is never a
+symmetry, `z` is the uniform direction. The docstring's *"conservatively tagging
+`O_h`"* is INVERTED: enlarging `G_geom` makes the gate STRICTER).
+
+**`product` for `cylinder`: ADMITTED for even `n_φ`, REJECTED for odd — and that
+rejection IS ERR-042**, reproduced as a *consequence* of the predicate where today
+it is a separate hand-written guard. Strongest confirmation available.
+It does NOT catch #326 (the quadrature IS `σ_y`-invariant; #326 is a sweep/ordering
+defect) — say so explicitly or someone "fixes" the wrong layer.
+
+### Named results
+
+- **Sobolev (1962)**, Dokl. Akad. Nauk SSSR 146(2) 310–313: a `G`-invariant cubature
+  has degree `t` **iff** exact on `G`-INVARIANT polys of degree ≤ `t`. THE citation
+  for gap 3's "subspace attached to the degree".
+- **Isotypic annihilation** (derived, 3 lines): `E = Q∘(Id−Π_V)`, and `G ⊆ Sym(Q)`
+  ⟹ `E` kills every NON-trivial isotype at EVERY degree (group-average `E[f]`).
+  This is why the naive "exactness space is `O(3)`-invariant ⟹ vacuous" framing has
+  a non-vacuous sibling — and it re-derives T6's `+2.94` from theory.
+
+### Findings that are new consequences, not restatements
+
+- **The azimuthal OFFSET is exactness-invisible and `Sym`-visible.** `φ_m = δ+2πm/n`
+  ⟹ mirror planes at `δ+kπ/n` ⟹ `D_{2h} ⊆ Sym` iff `n` even **AND** `δ ≡ 0 mod π/n`.
+  Stage 1 is the ONLY conjunct in the machinery that can see the offset. Direct input
+  to Q5's RANGE/SPACING/RULE/OFFSET factorization; the Monkhorst–Pack
+  Γ-centered-vs-shifted decision is the same question.
+- **`invariance_group` must be `invariance_group_for(params)`** (mirroring
+  `degree_of_exactness_for`) — and one level down a COMPUTED property with an
+  EQUALITY gate. 3 of 4 rules have a constant group; the 4th (`product` → `D_{n_φ h}`)
+  is the one that shipped the falsehood, because the field's TYPE could not spell it.
+  THIRD instance in this campaign of *the type erases a distinction the prose states*
+  (degree `int`, `invariance_group`, `parameters: dict[str,type]`).
+- **`select_quadrature` never calls `is_invariant`** — Stage 1 compares two TAGS. The
+  #327 mechanism transplanted from the V axis to the G axis.
+- **Prerequisites the carve cannot skip** (all latent today, live the moment the table
+  changes): `_contains` says `D_{2h} ⊄ O_h` (FALSE — would reject Lebedev for
+  cylinder/cartesian2d; fix = `O_h ⊇ D_{nh}` iff `n∈{1,2,4}`, `⊇ C_n` iff
+  `n∈{1,2,3,4}`); `GaussLegendre1D`'s tag must move `SO2 → O2` **in the same commit**
+  (`Z2 ⊄ SO2` is correctly false in the lattice, so the slab's own rule would be
+  rejected); `_vertical_mirrors` puts NORMALS at `kπ/n` ⟹ PLANES at `kπ/n+π/2`, i.e.
+  the tree's `Dnh(n)` is rotated `π/2n` from `Sym(product)` — agrees for even `n`,
+  disagrees for odd.
+
+### REFUTED with reason
+
+- **(C) "largest representable finite subgroup"** — refuted TWICE: `SO(2)` has no
+  largest finite subgroup (`C_n ⊂ C_{2n}` forever), and naming it via the rule makes
+  the gate `C_{n_φ(Q)} ⊆ Sym(Q)`, a tautology every product rule passes. Also points
+  at the wrong half: `C_{n_φ}` rotations MOVE `x₀`, so they are the CONSUMED part.
+  Salvage only its kernel — `Sym(Q)` computed, not declared.
+- **(A) with `∀f ∈ L²`** — correct but forces exact closure, hence unsatisfiable for
+  continuous `G`. NOT a defect of (A): it is (A) correctly reporting a wrong input.
+  Restricting the quantifier does not rescue it — the rule's own exactness makes `V`
+  invisible, so the test bites entirely on `V^⊥` where nothing protects it.
+- **Spherical designs / `t`-designs** — adjacent but fires on CONSTRUCTING rules, not
+  SELECTING among them. Revisit iff #327 (Q8) is fixed by rebuilding
+  `level_symmetric` rather than renaming it.
+- **Koksma–Hlawka / QMC** — no trigger: the derived requirement is an exact
+  permutation condition, not an error bound. Revisit at #128 (Stage-2 question).

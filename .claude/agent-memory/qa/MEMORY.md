@@ -2,8 +2,8 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 61 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-061). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 62 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-062). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
@@ -100,6 +100,17 @@ sharpen in place after every task. The recurring spine:
   body); a run-book that cites config for "operational detail" can point at a note
   (pyproject SN-OOM "no whole-tree single-process") that reads as CONTRADICTING its
   headline (full-tree single-process gate) — reconcilable NIT, read the delegated-to file.
+- **Group-theory / symmetry-module audit** (L-062) — three reusable moves:
+  BFS the group the SAMPLE generates and compare to the claimed one (a
+  `{0,90,180,270}°` "SO(2) orbit" generates `C_4` ⟹ every `n_phi=4k` product
+  rule falsely certifies — ERR-072); "found a matching partner" ≠ **bijection**
+  (a bit-identical duplicate node makes a non-invariant measure certify, no
+  tolerance games — ERR-073, and returning the permutation fixes it *and* hands
+  the orbifold singular set `{i: perm[i]==i}` for free); and the **monotonicity
+  law** `A⊆B ∧ P(B,x) ⟹ P(A,x)` — one loop, 68 violations, three independent
+  defect classes no per-relation/per-predicate test can see. A **0-call mutation
+  counter is a finding** (unreachable path), not an inert mutation; and zsh does
+  NOT word-split `$VAR` — a mutation loop can silently run zero tests.
 - **Distillation-fidelity review** (L-056) — a skill→Sphinx doctrine page:
   the DOCTRINE is faithful (read vs preloaded skill), yield is in code-anchored
   SPECIFICS the build can't gate — `:mod:`/`:class:` roles are NOT `-W`-gated

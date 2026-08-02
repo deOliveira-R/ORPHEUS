@@ -8,7 +8,7 @@ resolvent backbone → the AGENT.md kernel (fire from there, do NOT re-derive). 
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 13 process lessons. Spine: a frame-attack's value is a
+- [lessons.md](lessons.md) — 14 process lessons. Spine: a frame-attack's value is a
   concrete reformulation with a FAIL-ABLE first test OR a crisp refutation carrying its
   structural reason — never a named-but-payoff-free frame. L1 refuted-frames-are-first-class ·
   L2 tests must DISCRIMINATE · L3 Smell#16 four shapes · L4 property-vs-type by counting
@@ -22,7 +22,10 @@ resolvent backbone → the AGENT.md kernel (fire from there, do NOT re-derive). 
   promises run against the violator, delete-it-and-ask-what-breaks for a reused word (+ smell
   cand "name states a contract the content violates") · L13 a `-> bool` PREDICATE that
   internally builds the permutation/partition/certificate IS the "missing" primitive —
-  widen the return type before minting a class.
+  widen the return type before minting a class · L14 an UNSATISFIABLE predicate is a
+  wrong-ARGUMENT diagnosis (check each argument's KIND before redesigning the relation);
+  a symmetry that REDUCES dimension is SPENT — 3 parts, 3 fates; a "vacuous" framing has a
+  non-vacuous sibling one group-average away.
 
 ## 2. Active / in-flight state
 
@@ -55,7 +58,18 @@ in `lessons.md`; structural CONTENT is in each topic file.
 
 ### Curvilinear / phase-space boundary
 - [psi_half_seed_angular_trace_frames.md](psi_half_seed_angular_trace_frames.md) — #282/#280 R10: the ψ½(µ=−1) seed IS the ANGULAR-INFLOW TRACE of the (r,µ) rectangle (dual to ∂spatial); ZERO-metric GHOST ((1−µ²)=0=α_{1/2}); Euclidean coupling via apply_transpose (G at outer wrap only); sphere-only. Smell cand "metric-invisible-yet-active DOF".
-- [quadrature_symmetry_quotient_frames.md](quadrature_symmetry_quotient_frames.md) — #326: half-range = ORBIFOLD quotient by the point-ISOTROPY group (C_2v), weights FORCED by orbit-stabilizer (trapezoid = the orbifold measure), ξ-even/odd = the trivial/sign ISOTYPIC split. **A level is a FIBER of an invariant, NOT an orbit** (product fibers signed µ_z, LS fibers |µ_z| — one type, two meanings); redistribution exists **iff the spatial-reduction group acts on the angular fiber**; n_levels>1 ⟺ isotropy FINITE. `σ_xσ_y=C₂(ẑ)` welds the spatial r=0 map to the angular fold (right by a coincidence today). API: measure-quotient is **NOT** a Frame (⟹ `pushforward∘consolidate`, ONE verb), basis-side isotypic restriction **IS** (symmetry-adapted SH, Galerkin-on-a-smaller-space — PG REFUTED). Missing: the singular set Σ={ξ=0} (6 ε-detectors), the group ACTION (3 impls), exactness-without-a-subspace. MoC = live 2nd consumer. → lessons L9-3rd-outcome, L13.
+- [quadrature_symmetry_quotient_frames.md](quadrature_symmetry_quotient_frames.md) — #326: half-range = ORBIFOLD quotient by the point-ISOTROPY group (C_2v), weights FORCED by orbit-stabilizer (trapezoid = the orbifold measure), ξ-even/odd = the trivial/sign ISOTYPIC split. **A level is a FIBER of an invariant, NOT an orbit** (product fibers signed µ_z, LS fibers |µ_z| — one type, two meanings); redistribution exists **iff the spatial-reduction group acts on the angular fiber**; n_levels>1 ⟺ isotropy FINITE. `σ_xσ_y=C₂(ẑ)` welds the spatial r=0 map to the angular fold (right by a coincidence today). API: measure-quotient is **NOT** a Frame (⟹ `pushforward∘consolidate`, ONE verb), basis-side isotypic restriction **IS** (symmetry-adapted SH, Galerkin-on-a-smaller-space — PG REFUTED). Missing: the singular set Σ={ξ=0} (6 ε-detectors), the group ACTION (3 impls), exactness-without-a-subspace. MoC = live 2nd consumer. **2nd attack (Q2 Stage-1 SELECTION
+predicate):** the relation `G_geom ⊆ G_rule` is RIGHT, both ARGUMENTS wrong-kind — `Sym(Q)`
+of a finite node set is FINITE (Thm A) so a continuous `G` is unsatisfiable by ANY
+discretisation, while the correct left argument (the DISCRETE residual `Γ=G/G⁰` on the fiber)
+is ALWAYS finite (Thm D). **3 parts, 3 fates**: free `G⁰` ⟹ the α connection · continuous
+isotropy ⟹ the angular-domain QUOTIENT (Stage 0, today enforced only by accident) · discrete
+residual ⟹ the ordinate PERMUTATION (Stage 1). Table = `slab/sphere: Z₂` on `[−1,1]`,
+`cylinder/cartesian2d: D_{2h}` on `S²` (**not `O_h`** — "conservatively tagging `O_h`" is
+INVERTED). **`product` for cylinder ADMITTED iff `n_φ` even = ERR-042 re-derived**; does NOT
+catch #326 (a sweep defect, not a quadrature one). Stage 2 = **Sobolev 1962** (gap 3's
+citation) + isotypic annihilation. Offset is exactness-INVISIBLE, `Sym`-VISIBLE (Q5 input).
+→ lessons L9-3rd-outcome, L13, **L14**.
 
 ### Eigenvalue / iteration layering
 - [eigenvalue_posing_layering_frames.md](eigenvalue_posing_layering_frames.md) — K/α/source/transient = ONE generalized eigenproblem `Aψ=λMψ`, backbone = resolvent `A_loss⁻¹M`, layered leaves→posing→resolvent→algorithm (role-assignment method-agnostic, realization method-specific).
