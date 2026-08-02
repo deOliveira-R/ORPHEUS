@@ -601,6 +601,220 @@ a G-invariant measure*) reappearing as `coding-elegance` Pattern 4: the
 illegal state is unrepresentable because the type that names `Σ` cannot be
 constructed without the closure proof.
 
+### T15 — ⭐ Containment vs SUBCONJUGACY: two standard relations, and the module had neither
+
+User ruling, 2026-08-02: *"An arbitrary choice is not the answer. We need a
+concept that is mathematically grounded in group theory (how do group theorists
+tackle this?) and that works for curvilinear and cartesian geometries."*
+
+Group theory keeps **two** named relations, and conflating them was the defect:
+
+1. **Containment `H ≤ K`** — literal, set-theoretic, **setting-dependent**. This is
+   what "subgroup" means. Crystallography (International Tables Vol. A) always
+   lists subgroups *with their setting* for exactly this reason.
+2. **Subconjugacy `H ≼ K` ⟺ `∃g ∈ O(3): gHg⁻¹ ≤ K`** — **setting-independent**. The
+   poset of *conjugacy classes* ordered by subconjugacy is what indexes orbit /
+   isotropy types (Bredon, *Compact Transformation Groups*, Ch. I §5) — i.e. the
+   same object as T14b's stratification.
+
+They genuinely differ. `O ≅ S₄` has element orders 1,2,3,4 only:
+
+| relation | literal (z-axis setting) | subconjugate |
+|---|---|---|
+| `C₁, C₂, C₄ ≤ O_h` | ✓ | ✓ |
+| `C₃ ≤ O_h` | ✗ (the cube's 3-fold is the **body diagonal**) | ✓ |
+| `C₆ ≤ O_h` | ✗ | ✗ (no order-6 proper rotation in `S₄`) |
+| `D_2h, D_4h ≤ O_h` | ✓ | ✓ |
+| `D_3h ≤ O_h` | ✗ | ✗ (`O_h` carries `D_3d`, not `D_3h`) |
+
+**Which one the selection gate needs — and why it is not a preference.** A rule and
+its geometry are used in **one frame**: the ordinates stream against a mesh whose
+axes the problem fixes. So the gate asks **literal containment**, which is also the
+only sense `is_invariant` can test (it applies z-oriented operators to actual
+nodes). Making `contains` literal is what makes `contains` and `is_invariant`
+answer the **same question** — they previously did not, which is how the lattice
+and the checker could disagree with nothing noticing.
+
+The re-orientation freedom is real (rotating every ordinate yields a valid rule)
+and is **exactly** subconjugacy. It must be explicit, not folded into `contains`.
+Per L-013/T14, its honest shape returns the **aligning rotation**, not a bool:
+
+> `contains(H) -> bool` — literal, same setting. `align_to(K) -> Rotation | None`
+> — the subconjugacy **certificate**, so a caller that re-orients a rule gets the
+> rotation it must apply and selection stays honest about having done so.
+
+`align_to` is NOT yet built — recorded here as the named next step.
+
+### T15b — ⭐ The lattice is COMPUTED, not tabulated (and that closed a deliberate gap)
+
+`_contains` hand-tabulated its relations, and the source admitted the hole:
+*"Cn ⊂ Oh would need n ∈ {1,2,3,4,6}; we do not encode this until a consumer
+needs it."* `[M]` That note is itself wrong under **either** convention — 6 is
+never right. The gap made `O_h.contains(X)` return **False for every** `C_n` and
+`D_nh`, including `C₁`, `C₂`, `C₄`, `D_2h`, `D_4h`.
+
+Fixed by **computing** finite-vs-finite containment from the SAME operator sets
+`_check_invariance_3d` applies (`_realized_ops` → `_close_group` → matrix-set
+containment, memoised). A hand-maintained table is a claim with no construction
+behind it — the T12b lesson applied to the symmetry lattice. `[M]` The computed
+group orders are textbook: `|Z₂|=2, |C₃|=3, |C₄|=4, |D_2h|=8, |D_3h|=12,
+|D_4h|=16, |O_h|=48, |I_h|=120`, and the lattice now satisfies reflexivity,
+antisymmetry, transitivity and **Lagrange** (a subgroup's order divides the
+group's) — laws a computed lattice can be checked against and a tabulated one
+cannot.
+
+Continuous groups keep the static lattice: they have no finite realization to
+compare against.
+
+### T15c — ⛔ `_vertical_mirrors` placed the PLANES at the normals' angles
+
+`[M]` A fourth live defect, found while verifying the derivation and **missed by
+the generator audit's clean bill**. `_vertical_mirrors(n)` put the k-th mirror
+**normal** at `kπ/n`, hence every **plane** at `kπ/n + π/2`. The standard `D_nh`
+setting (principal axis z, vertex on x — which is exactly what
+`linspace(0, 2π, n, endpoint=False)` builds) requires the planes AT `kπ/n`.
+
+For **even** `n`, `π/2` is a multiple of `π/n`, so the shift maps the normal set
+onto itself and is invisible. For **odd** `n` it is a different set of planes:
+
+```
+  product(4,n) closed under the phi=0 mirror : True at n = 3,4,5,6,7,8
+  Dnh(n).is_invariant(product(4,n))  BEFORE  : False at n = 3,5,7
+                                      AFTER  : True  at every n
+```
+
+⚠ **Why the audit could not see it:** orthogonality, determinant, group closure
+and group ORDER are all preserved by a *rotated* mirror set. Only comparing the
+angles against the setting can catch it. Generalises: **a generator audit that
+checks algebraic properties cannot see a CONVENTION error.**
+
+### T16 — ⭐ The Stage-1 gate was fed the SPENT half of the symmetry group
+
+The derived answer to *"what replaces `G_geom ⊆ G_rule` once the checker is
+truthful?"* ⚠ **Derived, not executed** — the deriving agent had no shell, so
+every number in `scratch/q2_stage1_predicate_derivation.md` is hand-derived or
+cited. The three prerequisites below WERE verified against the tree (T15b/T15c).
+
+**The chain that made the re-pose necessary.** `GEOMETRY_GROUPS["cylinder"] = SO2`
+is right *as geometry*; `registry.py:438` declares `product → invariance_group =
+SO2`, which is **false** (`[M]` its node set is `D_{n_φ h}`: `C_{n_φ}` ✓, `σ_v` ✓,
+`σ_h` ✓, `C_{2n_φ}` ✗); `registry.py:677` gates on
+`geom_group.is_subgroup_of(spec.invariance_group)`, passing **only** because of
+that false tag; and `is_invariant(SO2)` — the checker that should have caught it —
+was broken in exactly the certifying direction (ERR-072).
+
+**The structural root:** no finite point set on S² is SO(2)-closed, so Stage 1 as
+posed is **unsatisfiable by any discrete azimuthal rule**. It could only ever pass
+on a false tag.
+
+**The derived resolution.** Split the geometry's group by how the action is used:
+`G⁰` acting freely (it REDUCES the spatial dimension — and its non-trivial fiber
+action **IS the α term**, T3/T9), continuous isotropy `G⁰_{x₀}` (the angular
+domain IS the quotient `S²/G⁰_{x₀}`), and the **discrete residual** `Γ = G/G⁰`,
+which must be realized as an ordinate permutation. `Γ` is always finite.
+
+> **`GEOMETRY_GROUPS` recorded the half of the symmetry group that the dimensional
+> reduction had already SPENT (paid as the α term) and omitted the half still
+> owed.** The relation `G ⊆ Sym(Q)` was never wrong — it was fed the wrong group.
+
+Proposed: `slab, sphere → Z₂`; `cylinder, cartesian2d → D_2h` (+ a Stage-0 domain
+column). `O_h` for cartesian2d over-claims by 6× — it demands `x↔z`, never a
+symmetry of a z-uniform problem. `invariance_group` becomes
+`invariance_group_for(params)`, mirroring `degree_of_exactness_for`; three of four
+rules are constant and `product` is the parameter-dependent one — **the one that
+lied, because the field's type could not spell it** (the THIRD instance of
+"the type erases a distinction the prose states": T2/T12b degree, T12d
+`parameters`, and now this).
+
+`[M]` **Decisive discriminator, verified:** odd `n_φ` for cylinder. Today ADMITted;
+under `D_2h` **REJECTed** — and that rejection *is* ERR-042, today a hand-written
+guard. (`product(4,3)` genuinely fails `σ_x`: `φ→180°−φ` sends the 0° node to
+180°, which is not a node.) Even `n_φ` stays admitted.
+
+⚠ **It does NOT catch #326, and must not** — the rule *is* σ_y-invariant; #326 is
+a sweep/ordering defect. A predicate that "caught" it would route the fix to the
+wrong layer.
+
+**New for Q5:** the azimuthal **offset is exactness-invisible but `Sym`-visible** —
+`φ_m = δ + 2πm/n` puts mirror planes at `δ + kπ/n`, so `D_2h ⊆ Sym` needs `n` even
+**and** `δ ≡ 0 mod π/n`. Stage 1 is the only conjunct in the machinery that can
+see the offset.
+
+### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
+
+User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
+graph that we could walk to determine [the] group. That seems like essentially the
+machinery we need. Why don't we implement the graph, and walk the graph?"*
+
+The remembered object is the **Hasse diagram of the subgroup lattice** — nodes are
+groups, edges are **maximal-subgroup** relations (`H ⋖ G` iff `H < G` with no `K`
+strictly between). Crystallography walks it downward from high symmetry to find
+the symmetry a structure actually has; International Tables Vol. A1 renders it as
+the **Bärnighausen tree**. It is exactly the machinery this campaign needs, and it
+**supersedes** the `invariance_group_for(params)` proposal of T16.
+
+**Definition.** For a measure `μ` and an expressible candidate set `C`:
+
+> `Sym_C(μ) := the MAXIMAL elements of { G ∈ C : μ is G-invariant }`
+
+**The theorem that makes the walk sound** — *invariance is DOWNWARD-CLOSED*: if `μ`
+is `G`-invariant and `H ≤ G`, then `μ` is `H`-invariant. So the invariant set is an
+**order ideal**, and two prunings follow: if `μ` is **not** `G`-invariant, no
+supergroup of `G` can be invariant; if `μ` **is** `G`-invariant, every subgroup is
+implied and need not be tested. This is precisely the law the audit measured
+**68 violations** of (S-16) — so the walk both *requires* a correct lattice and
+*is a test of it*.
+
+**Edges are DERIVED, never tabulated.** `H ⋖ G` is computed from T15b's
+matrix-set containment. A hand-drawn Bärnighausen tree would be the same
+"claim with no construction behind it" this campaign keeps finding.
+
+**Two realizations — and the second is the verification instrument** (the user's
+standing ≥2 rule):
+- **R1 brute force** — test every candidate, take the maximal elements.
+- **R2 Hasse walk** — descend from the tops with both prunings.
+The invariant tested ACROSS them: `R1 ≡ R2` on every rule × candidate set. R2 is
+the fast path; R1 is what proves it.
+
+**Why this beats a declared tag** (and dissolves T16's item 3):
+
+1. `invariance_group` stops being a **declaration** and becomes a **computed
+   property of the object**. The #327 disease — a tag with no construction, which
+   nothing can check — is cured on the **G axis** exactly as T12b cures it on the
+   **V axis**. A declaration, if any survives, is gated by *equality* against the
+   computed value.
+2. `product`'s parameter-dependence needs **no** `invariance_group_for(params)`
+   function at all: `D_{n_φ h}` simply falls out of the walk. The measure tells
+   you; the spec cannot lie.
+3. Stage 1 becomes `G_ang(geom) ⊆ Sym(Q)` with **`Sym(Q)` computed** — so the
+   false `product → SO2` tag becomes structurally unspellable rather than merely
+   corrected.
+
+**Bounding the infinite families.** `C_n` / `D_{nh}` are infinite families, so `C`
+is bounded by the measure: an order-`n` rotation acting on `N` nodes needs `n ≤ N`,
+giving ~`2N` candidates plus the named entries — cheap at production sizes.
+
+⚠ The walk answers about the group's **realization in the standard setting**
+(T15), not up to conjugation. A rule whose symmetry axis is not `z` reports a
+smaller group — correctly, since the gate compares against a geometry in the same
+frame. `align_to` (§6) is what makes re-orientation expressible.
+
+### T15d — `O2` is realized as `C_∞h`, not `O(2)` — RESOLVED: rename to `D_∞h`
+
+`[M]` `_check_invariance_3d` built `O2` as *rotations about z* + `σ_h`, i.e.
+`C_∞h`. True `O(2)` embedded in 3-D is `C_∞v` (rotations + **vertical** mirrors).
+Consequence for the audit's S-7 (`D_nh ⊆ O2`, asserted true, **pinned by a
+committed test** at `test_symmetry.py:216`): `D_nh` contains `C₂` about *in-plane*
+axes, which lies in **neither** `C_∞h` nor `C_∞v` — so the claim was false under
+both readings. It is true only for `D_∞h`, the full cylindrical group.
+
+**RESOLVED (user ruling, 2026-08-02): rename `O2 → D_∞h` and re-realize it as the
+full cylindrical group** — `C_∞` rotations + `σ_h` + the vertical mirrors + the
+in-plane `C₂` axes. Under `D_∞h` the relation `D_nh ≤ D_∞h` is **true for every
+n**, so the pinned assertion becomes correct rather than deleted — the test was
+right about the *relation* and wrong about the *name*. `D_∞h` is also what a
+cylinder actually carries, which is why the geometry table wanted it (T16).
+
 ### T14b — The octant sign label is already a named mathematical object
 
 `_octant_sign_predicate` (`directional.py:103`) returns `{+1, 0, −1}` per axis.
@@ -799,8 +1013,18 @@ implemented and **no `D_6h`-invariant rule in tree**.
      them). `TANGENTIAL_EPS` survives as the boundary's **matching** tolerance and
      its face-normal specialization reads down to `singular_set`.
   4. **Fix what the correctness audit finds** in `symmetry.py` (user ruling: fix it
-     while we are in the module).
-  5. Add `DiscreteMeasure.consolidate()` — the one missing measure verb;
+     while we are in the module). ✅ ERR-072, ERR-073, the computed lattice
+     (T15b), `_vertical_mirrors` (T15c). ⬜ the `O2 → D_∞h` rename (T15d), the 1-D
+     path, the tolerance asymmetries, the dead generators.
+  5. ✅ **The subgroup GRAPH and its walk** (T17) — **LANDED `63d0b234`**, with the
+     `O2 → D_∞h` rename (T15d). `maximal_invariance_groups(measure)`; Hasse edges
+     derived from the computed containment; two realizations that verify each
+     other. `[M]` `product(4,n) → D_nh`, `level_symmetric/lebedev → O_h`, walk ≡
+     bruteforce on every rule, and **downward-closure now 0 violations over 1088
+     pairs** (was 68). **Superseded** `invariance_group_for(params)`.
+     ⚠ Cost: `test_symmetry.py` 5s → 57s, because `_orbit_closure` is an O(N²)
+     Python loop per operator. Vectorising it is an open follow-up (§6).
+  6. Add `DiscreteMeasure.consolidate()` — the one missing measure verb;
      `quotient(G) = pushforward(rep).consolidate()`.
   **Gate:** the certificate must be proven a genuine **bijection** (a non-injective
   "permutation" would let a non-invariant rule certify as invariant), and `Σ` must
@@ -844,6 +1068,22 @@ implemented and **no `D_6h`-invariant rule in tree**.
 
 ## 6. Open close-out items
 
+- **`align_to(K) -> Rotation | None`** — the subconjugacy certificate (T15). Named
+  and derived, NOT built. Without it the re-orientation freedom is unspellable and
+  a caller that rotates a rule has no way to say so.
+- ~~`O2` means `C_∞h`~~ — **RESOLVED**, see T15d: rename to `D_∞h` and re-realize
+  as the full cylindrical group. Closes the audit's S-7.
+- **Vectorise `_orbit_closure`** — it is an O(N²) Python loop per operator, and
+  the graph walk (T17) now calls it many times. Cost is real and measured:
+  `test_symmetry.py` 5s → 57s, and a brute-force scan over every candidate of a
+  110-node Lebedev rule took **150 s** before the gate's rule set was trimmed. The
+  fix is one `(N,N,3)` broadcast + `argmin` per operator.
+- **Remaining `symmetry.py` audit findings** (`scratch/q1q2_symmetry_audit.md`),
+  not yet addressed: the 1-D path returns `True` for all ten tags
+  (`SO3`/`Cn` unconditionally, though `R_x(π)` maps `μ→−μ`); the node window is
+  `100·atol` while the weight window is `1·atol` (and a third constant `10·atol`
+  in the 1-D helper), all absolute; `_rotation_x`/`_rotation_y` are dead code and
+  `SPACE_SPHERE` is an unused import.
 - **Mint the ERR entry for #326** and attach `catches(...)` to the mirror gates.
   Deliberately not minted yet — a parallel investigation was live on the same
   issue and an ID collision is worse than the gap.
