@@ -107,12 +107,26 @@ class _NamedSubgroup(Enum):
 
     Trivial = "Trivial"        # {e}
     Z2 = "Z2"                  # {e, σ} — single reflection / 180° rotation
-    SO2 = "SO2"                # axial rotations (continuous 1-parameter)
-    O2 = "O2"                  # SO(2) ⋊ Z_2 — axial rotations + reflection
+    SO2 = "SO2"                # axial rotations C_∞ (continuous 1-parameter)
+    Dinfh = "Dinfh"            # D_∞h — the FULL cylindrical group (see below)
     OctahedralOh = "Oh"        # full octahedral group, 48 elements
     IcosahedralIh = "Ih"       # full icosahedral group, 120 elements
     SO3 = "SO3"                # proper rotations of the sphere
     O3 = "O3"                  # orthogonal group of R^3 (top of lattice)
+
+    # ``Dinfh`` was named ``O2`` until 2026-08-02, and the name was
+    # wrong in a load-bearing way. The entry is REALIZED as axial
+    # rotations + σ_h, which is C_∞h; true O(2) embedded in 3-D is
+    # C_∞v (rotations + VERTICAL mirrors). Neither contains D_{nh},
+    # because D_{nh} carries C₂ axes lying IN the plane — so the
+    # lattice's asserted ``D_nh ⊆ O2`` was false under both readings,
+    # and a committed test pinned it.
+    #
+    # D_∞h — C_∞ rotations, the in-plane C₂ axes, σ_h, the vertical
+    # mirrors and the improper products — DOES contain every D_{nh},
+    # so the relation the test asserted is correct once the name is.
+    # It is also the group a cylinder actually carries, which is what
+    # the geometry table needs.
 
 
 @dataclass(frozen=True)
@@ -190,7 +204,7 @@ _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
     # Trivial ⊂ everything (handled implicitly + explicit edges below).
     (_NamedSubgroup.Trivial, _NamedSubgroup.Z2),
     (_NamedSubgroup.Trivial, _NamedSubgroup.SO2),
-    (_NamedSubgroup.Trivial, _NamedSubgroup.O2),
+    (_NamedSubgroup.Trivial, _NamedSubgroup.Dinfh),
     (_NamedSubgroup.Trivial, _NamedSubgroup.OctahedralOh),
     (_NamedSubgroup.Trivial, _NamedSubgroup.IcosahedralIh),
     (_NamedSubgroup.Trivial, _NamedSubgroup.SO3),
@@ -198,19 +212,19 @@ _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
 
     # Z2 ⊂ everything except SO2 (a continuous proper-rotation group
     # has no order-2 reflection element).
-    (_NamedSubgroup.Z2, _NamedSubgroup.O2),
+    (_NamedSubgroup.Z2, _NamedSubgroup.Dinfh),
     (_NamedSubgroup.Z2, _NamedSubgroup.OctahedralOh),
     (_NamedSubgroup.Z2, _NamedSubgroup.IcosahedralIh),
     (_NamedSubgroup.Z2, _NamedSubgroup.SO3),
     (_NamedSubgroup.Z2, _NamedSubgroup.O3),
 
-    # SO2 ⊂ O2, SO3, O3.
-    (_NamedSubgroup.SO2, _NamedSubgroup.O2),
+    # SO2 ⊂ Dinfh, SO3, O3.
+    (_NamedSubgroup.SO2, _NamedSubgroup.Dinfh),
     (_NamedSubgroup.SO2, _NamedSubgroup.SO3),
     (_NamedSubgroup.SO2, _NamedSubgroup.O3),
 
-    # O2 ⊂ O3 (the projection R^2 → R^3 along a fixed axis).
-    (_NamedSubgroup.O2, _NamedSubgroup.O3),
+    # Dinfh ⊂ O3 (the projection R^2 → R^3 along a fixed axis).
+    (_NamedSubgroup.Dinfh, _NamedSubgroup.O3),
 
     # Oh, Ih ⊂ O3 (NOT ⊂ SO3 — both contain improper rotations).
     (_NamedSubgroup.OctahedralOh, _NamedSubgroup.O3),
@@ -249,7 +263,7 @@ class SubgroupOfO3:
         SubgroupOfO3.Trivial
         SubgroupOfO3.Z2
         SubgroupOfO3.SO2
-        SubgroupOfO3.O2
+        SubgroupOfO3.Dinfh
         SubgroupOfO3.OctahedralOh
         SubgroupOfO3.IcosahedralIh
         SubgroupOfO3.SO3
@@ -281,7 +295,7 @@ class SubgroupOfO3:
     Trivial: ClassVar[SubgroupOfO3]
     Z2: ClassVar[SubgroupOfO3]
     SO2: ClassVar[SubgroupOfO3]
-    O2: ClassVar[SubgroupOfO3]
+    Dinfh: ClassVar[SubgroupOfO3]
     OctahedralOh: ClassVar[SubgroupOfO3]
     IcosahedralIh: ClassVar[SubgroupOfO3]
     SO3: ClassVar[SubgroupOfO3]
@@ -364,7 +378,10 @@ class SubgroupOfO3:
           out of the static-lattice scope and not consumed today).
         - :math:`SO(2)` is the union :math:`\bigcup_n C_n`, so
           :math:`C_n \subseteq SO(2)` for every :math:`n`. Likewise
-          :math:`D_{nh} \subseteq O(2)` for every :math:`n`.
+          :math:`D_{nh} \subseteq D_{\infty h}` for every :math:`n` —
+          note :math:`D_{nh} \not\subseteq O(2)` under either
+          embedding, since :math:`D_{nh}` carries :math:`C_2` axes
+          lying IN the plane.
 
         Reflexivity (``self.contains(self) == True``) is honoured for
         every group.
@@ -421,7 +438,7 @@ class SubgroupOfO3:
 
         - **Trivial**: always ``True`` (every measure is invariant
           under the identity).
-        - **Z2 / Cn / SO2 / O2 / SO3 / O3 / Dnh**: handled via the
+        - **Z2 / Cn / SO2 / Dinfh / SO3 / O3 / Dnh**: handled via the
           1-D vs sphere dispatch — see :func:`_check_invariance` below.
         - **OctahedralOh**: requires (i) closure under the 6
           coordinate-axis sign flips (:math:`x \to -x`, etc.) and
@@ -463,15 +480,127 @@ class SubgroupOfO3:
 # ---------------------------------------------------------------------------
 
 
+def _realized_ops(tag) -> "list[np.ndarray] | None":
+    r"""The FINITE matrix realization of ``tag``, or ``None`` if continuous.
+
+    Single-sources the operator sets from the very functions
+    :func:`_check_invariance_3d` applies, so ``contains`` and
+    ``is_invariant`` answer questions about the *same* group. A
+    hand-maintained containment table is a claim with no construction
+    behind it, and this module already shipped two such claims that
+    were false.
+
+    Every realization is in the **standard setting**: principal axis
+    along z, vertex on the x-axis. Containment is therefore literal
+    subgroup containment *in that setting* — which is the question the
+    quadrature-selection gate asks, because a rule and its geometry are
+    used in one frame. The setting-independent relation (subconjugacy,
+    :math:`\exists g: gHg^{-1} \le K`) is a different question and gets
+    its own verb; conflating them is what let the two senses disagree
+    without anything noticing.
+    """
+    if isinstance(tag, _NamedSubgroup):
+        if tag is _NamedSubgroup.Trivial:
+            return [np.eye(3)]
+        if tag is _NamedSubgroup.Z2:
+            return _reflections("z")
+        if tag is _NamedSubgroup.OctahedralOh:
+            return _octahedral_ops()
+        if tag is _NamedSubgroup.IcosahedralIh:
+            return _icosahedral_ops()
+        return None  # SO2 / Dinfh / SO3 / O3 are continuous — no finite set
+    if isinstance(tag, Cn):
+        return _cyclic_ops(tag.n)
+    if isinstance(tag, Dnh):
+        return _cyclic_ops(tag.n) + _reflections("z") + _vertical_mirrors(tag.n)
+    return None
+
+
+_MAX_GROUP_ORDER = 2000
+
+
+def _close_group(ops: "list[np.ndarray]") -> "list[np.ndarray]":
+    """The group generated by ``ops`` — closure under multiplication.
+
+    The realizations above are GENERATING sets, not full groups
+    (:math:`D_{nh}` ships :math:`2n+1` matrices for a group of order
+    :math:`4n`). Orbit closure only needs generators, but containment
+    needs the elements, so the closure is taken here.
+    """
+    elems: list[np.ndarray] = [np.eye(3)]
+
+    def _seen(M: np.ndarray) -> bool:
+        return any(np.linalg.norm(M - E) < 1e-9 for E in elems)
+
+    for M in ops:
+        if not _seen(M):
+            elems.append(M)
+
+    frontier = list(elems)
+    while frontier:
+        fresh: list[np.ndarray] = []
+        for A in frontier:
+            for B in list(elems):
+                C = A @ B
+                if not _seen(C):
+                    elems.append(C)
+                    fresh.append(C)
+                    if len(elems) > _MAX_GROUP_ORDER:
+                        raise ValueError(
+                            "operator set does not generate a finite group "
+                            f"(exceeded {_MAX_GROUP_ORDER} elements)"
+                        )
+        frontier = fresh
+    return elems
+
+
+_GROUP_CACHE: "dict[str, list[np.ndarray]]" = {}
+
+
+def _group_elements(tag) -> "list[np.ndarray] | None":
+    """Memoised :func:`_close_group` of ``tag``'s realization.
+
+    The lattice is queried O(n^3) times by the transitivity law, and every
+    query would otherwise re-derive the same closures. Tags are immutable
+    value objects, so their ``repr`` is a sound cache key.
+    """
+    key = repr(tag)
+    cached = _GROUP_CACHE.get(key)
+    if cached is not None:
+        return cached
+    ops = _realized_ops(tag)
+    if ops is None:
+        return None
+    elems = _close_group(ops)
+    _GROUP_CACHE[key] = elems
+    return elems
+
+
+def _finite_contains(outer, inner) -> bool:
+    """``True`` iff every element of ``<inner>`` lies in ``<outer>``."""
+    outer_elems, inner_elems = _group_elements(outer), _group_elements(inner)
+    assert outer_elems is not None and inner_elems is not None
+    return all(
+        any(np.linalg.norm(M - E) < 1e-9 for E in outer_elems)
+        for M in inner_elems
+    )
+
+
 def _contains(outer, inner) -> bool:
     """Dispatch table for :meth:`SubgroupOfO3.contains`.
 
-    Branches on the (outer, inner) tag types and falls back to the
-    static named-lattice when both are named entries.
+    Finite-vs-finite is COMPUTED from the realized operator sets;
+    anything involving a continuous group falls back to the static
+    named-lattice, since a continuous group has no finite realization
+    to compare against.
     """
     # Reflexivity for parameterised families.
     if outer == inner:
         return True
+
+    # Both finite — decide by literal matrix-set containment.
+    if _realized_ops(outer) is not None and _realized_ops(inner) is not None:
+        return _finite_contains(outer, inner)
 
     # Both named — use the static lattice.
     if isinstance(outer, _NamedSubgroup) and isinstance(inner, _NamedSubgroup):
@@ -488,7 +617,7 @@ def _contains(outer, inner) -> bool:
     if isinstance(outer, Dnh) and isinstance(inner, _NamedSubgroup):
         # D_nh contains the trivial group, the Z_2 mirror reflection,
         # and (for n >= 1) the principal-axis cyclic subgroup C_n.
-        # Higher named subgroups (SO2, O2, etc.) are not contained in a
+        # Higher named subgroups (SO2, Dinfh, etc.) are not contained in a
         # finite dihedral group.
         if inner is _NamedSubgroup.Trivial or inner is _NamedSubgroup.Z2:
             return True
@@ -497,13 +626,13 @@ def _contains(outer, inner) -> bool:
     # ----- Outer is named, inner is parameterised --------------------
     if isinstance(outer, _NamedSubgroup) and isinstance(inner, Cn):
         # Cn ⊂ SO2 for every n (SO(2) = union over n of C_n).
-        # Cn ⊂ O2, SO3, O3 transitively. Cn ⊂ Oh / Ih only for specific
+        # Cn ⊂ Dinfh, SO3, O3 transitively. Cn ⊂ Oh / Ih only for specific
         # n that match the polyhedral rotation axes — out of scope for
         # the static lattice (Cn ⊂ Oh would need n ∈ {1,2,3,4,6}; we do
         # not encode this until a consumer needs it).
         if outer in (
             _NamedSubgroup.SO2,
-            _NamedSubgroup.O2,
+            _NamedSubgroup.Dinfh,
             _NamedSubgroup.SO3,
             _NamedSubgroup.O3,
         ):
@@ -513,9 +642,9 @@ def _contains(outer, inner) -> bool:
         return False
 
     if isinstance(outer, _NamedSubgroup) and isinstance(inner, Dnh):
-        # Dnh ⊂ O2, O3 always. Not ⊂ SO2 / SO3 (Dnh contains improper
+        # Dnh ⊂ Dinfh, O3 always. Not ⊂ SO2 / SO3 (Dnh contains improper
         # rotations).
-        return outer in (_NamedSubgroup.O2, _NamedSubgroup.O3)
+        return outer in (_NamedSubgroup.Dinfh, _NamedSubgroup.O3)
 
     # ----- Both parameterised ---------------------------------------
     if isinstance(outer, Cn) and isinstance(inner, Cn):
@@ -584,7 +713,7 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
 
     Most rotational groups act trivially on a 1-D measure (there is no
     azimuthal coordinate). The non-trivial check is reflection
-    :math:`x \\to -x`, which is what Z2 / O2 / O3 require on
+    :math:`x \\to -x`, which is what Z2 / Dinfh / O3 require on
     :math:`[-1, 1]`.
     """
     # SO(2), SO(3), Cn, Dnh (with n >= 1): trivially invariant on a 1-D
@@ -598,12 +727,12 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
     if rotational_only:
         return True
 
-    # Z2, O2, O3, Oh, Ih, Dnh: require closure under x -> -x for a
+    # Z2, Dinfh, O3, Oh, Ih, Dnh: require closure under x -> -x for a
     # measure on a symmetric interval. (For an asymmetric interval
     # the check is automatically False, which is the correct answer.)
     if isinstance(tag, _NamedSubgroup) and tag in (
         _NamedSubgroup.Z2,
-        _NamedSubgroup.O2,
+        _NamedSubgroup.Dinfh,
         _NamedSubgroup.O3,
         _NamedSubgroup.OctahedralOh,
         _NamedSubgroup.IcosahedralIh,
@@ -669,9 +798,13 @@ def _check_invariance_3d(
             # subgroup is strictly weaker than closure under G.
             return _is_axis_supported(nodes, atol)
 
-        if tag is _NamedSubgroup.O2:
-            # O(2) = SO(2) x <sigma_h>.  Both conjuncts, the first
-            # exact and the second an honest finite-orbit check.
+        if tag is _NamedSubgroup.Dinfh:
+            # D_∞h = C_∞ + in-plane C₂ axes + σ_h + σ_v + improper
+            # products.  Its continuous factor C_∞ forces axis support
+            # exactly as SO(2) does; on an axis-supported set the
+            # in-plane C₂ and σ_v act identically to σ_h (both send
+            # (0,0,z) -> (0,0,-z)), so σ_h closure is the whole of the
+            # remaining condition.  Both conjuncts exact.
             return _is_axis_supported(nodes, atol) and _orbit_closure(
                 nodes, weights, _reflections("z"), atol
             )
@@ -814,14 +947,34 @@ def _cyclic_ops(n: int) -> list[np.ndarray]:
 
 
 def _vertical_mirrors(n: int) -> list[np.ndarray]:
-    """n vertical mirror planes (passing through the z-axis).
+    r"""The n vertical mirror planes of :math:`D_{nh}` (containing the z-axis).
 
-    The k-th mirror normal makes angle :math:`k\\pi/n` with the x-axis.
-    Reflection through the plane is :math:`x \\to x - 2 (x \\cdot n) n`.
+    The k-th mirror **plane** makes angle :math:`k\pi/n` with the x-axis,
+    so its **normal** lies at :math:`k\pi/n + \pi/2`. Reflection through
+    the plane is :math:`x \to x - 2 (x \cdot \hat n)\hat n`.
+
+    The plane placement is the convention that matters, and it is fixed
+    by the standard :math:`D_{nh}` setting: the principal axis along z
+    with a vertex on the **x-axis**, so :math:`\sigma_v` through
+    :math:`\varphi = 0` is a symmetry. This is the setting every
+    azimuthal rule in the tree is built in (``np.linspace(0, 2*pi, n,
+    endpoint=False)`` puts a node at :math:`\varphi = 0`).
+
+    Previously the k-th **normal** was placed at :math:`k\pi/n`, i.e.
+    every plane was rotated by :math:`\pi/2`. For even ``n`` that maps
+    the normal set onto itself (:math:`\pi/2` is then a multiple of
+    :math:`\pi/n`) and is invisible; for **odd** ``n`` it is a
+    genuinely different set of planes, and
+    ``Dnh(n).is_invariant(product(4, n))`` read ``False`` for
+    ``n = 3, 5, 7`` while the rule is demonstrably closed under the
+    :math:`\varphi = 0` mirror at every ``n``. Orthogonality,
+    determinant, closure and group order are all preserved by a rotated
+    mirror set, so none of those checks can see this — only comparing
+    the angles against the convention can.
     """
     out = []
     for k in range(n):
-        theta = k * np.pi / n
+        theta = k * np.pi / n + np.pi / 2.0
         n_vec = np.array([np.cos(theta), np.sin(theta), 0.0])
         M = np.eye(3) - 2.0 * np.outer(n_vec, n_vec)
         out.append(M)
@@ -1013,13 +1166,172 @@ def _orbit_closure(
 SubgroupOfO3.Trivial = SubgroupOfO3._from_named(_NamedSubgroup.Trivial)
 SubgroupOfO3.Z2 = SubgroupOfO3._from_named(_NamedSubgroup.Z2)
 SubgroupOfO3.SO2 = SubgroupOfO3._from_named(_NamedSubgroup.SO2)
-SubgroupOfO3.O2 = SubgroupOfO3._from_named(_NamedSubgroup.O2)
+SubgroupOfO3.Dinfh = SubgroupOfO3._from_named(_NamedSubgroup.Dinfh)
 SubgroupOfO3.OctahedralOh = SubgroupOfO3._from_named(_NamedSubgroup.OctahedralOh)
 SubgroupOfO3.IcosahedralIh = SubgroupOfO3._from_named(_NamedSubgroup.IcosahedralIh)
 SubgroupOfO3.SO3 = SubgroupOfO3._from_named(_NamedSubgroup.SO3)
 SubgroupOfO3.O3 = SubgroupOfO3._from_named(_NamedSubgroup.O3)
 
 
+# ---------------------------------------------------------------------------
+# The subgroup graph, and walking it to find a measure's symmetry
+# ---------------------------------------------------------------------------
+#
+# Crystallography does not ASK a structure what its symmetry group is — it
+# walks the subgroup lattice downward from high symmetry until it reaches
+# the symmetry the structure actually has. The graph is the Hasse diagram of
+# the lattice: nodes are groups, edges are MAXIMAL-subgroup relations
+# (International Tables Vol. A1 renders it as a Bärnighausen tree).
+#
+# That is the machinery this module needs. A DECLARED invariance group is a
+# claim with no construction behind it, and such claims have already shipped
+# false here twice. A COMPUTED one cannot lie about the object it was
+# computed from.
+
+
+def _distinct_azimuths(nodes: np.ndarray, atol: float) -> int:
+    r"""Number of distinct azimuthal angles among the off-axis nodes.
+
+    Bounds the cyclic families: a :math:`C_n` rotation (``n > 1``) fixes no
+    azimuth, so the azimuths split into FREE orbits of size ``n`` and
+    therefore ``n`` divides this count. That turns two infinite families
+    into a handful of divisors.
+    """
+    rho = np.hypot(nodes[:, 0], nodes[:, 1])
+    off_axis = nodes[rho > atol]
+    if off_axis.shape[0] == 0:
+        return 0
+    phi = np.sort(np.mod(np.arctan2(off_axis[:, 1], off_axis[:, 0]), 2.0 * np.pi))
+    distinct = [phi[0]]
+    for p in phi[1:]:
+        if p - distinct[-1] > 1e-9:
+            distinct.append(float(p))
+    # The first and last can be the same angle seen either side of the branch.
+    if len(distinct) > 1 and (2.0 * np.pi - distinct[-1] + distinct[0]) < 1e-9:
+        distinct.pop()
+    return len(distinct)
+
+
+def candidate_groups(
+    measure: DiscreteMeasure, *, atol: float = 1e-13,
+) -> "tuple[SubgroupOfO3, ...]":
+    """The expressible groups worth testing against ``measure``.
+
+    The named entries always, plus :math:`C_n` / :math:`D_{nh}` for each
+    divisor of the measure's distinct-azimuth count (see
+    :func:`_distinct_azimuths` for why divisors suffice).
+    """
+    named = [
+        SubgroupOfO3.Trivial, SubgroupOfO3.Z2, SubgroupOfO3.SO2,
+        SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
+        SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
+    ]
+    nodes = measure.nodes
+    if nodes.ndim == 1 or nodes.shape[1] < 3:
+        return tuple(named)
+    n_az = _distinct_azimuths(nodes, atol)
+    families: "list[SubgroupOfO3]" = []
+    for d in (d for d in range(1, n_az + 1) if n_az % d == 0) if n_az else (1,):
+        families.append(SubgroupOfO3.Cn(d))
+        families.append(SubgroupOfO3.Dnh(d))
+    return tuple(named + families)
+
+
+def _maximal(groups: "Iterable[SubgroupOfO3]") -> "tuple[SubgroupOfO3, ...]":
+    """Those members not strictly contained in another member."""
+    items = list(groups)
+    return tuple(
+        g for g in items
+        if not any(h != g and h.contains(g) for h in items)
+    )
+
+
+def maximal_subgroups(
+    group: "SubgroupOfO3", candidates: "Iterable[SubgroupOfO3]",
+) -> "tuple[SubgroupOfO3, ...]":
+    """The Hasse edges below ``group`` — its maximal proper subgroups.
+
+    Derived from :meth:`SubgroupOfO3.contains`, never tabulated: a
+    hand-drawn Bärnighausen tree would be exactly the unverifiable claim
+    the computed lattice exists to eliminate.
+    """
+    below = [h for h in candidates if h != group and group.contains(h)]
+    return _maximal(below)
+
+
+def maximal_invariance_groups(
+    measure: DiscreteMeasure,
+    *,
+    atol: float = 1e-13,
+    candidates: "Iterable[SubgroupOfO3] | None" = None,
+    method: str = "walk",
+) -> "tuple[SubgroupOfO3, ...]":
+    r"""The maximal groups leaving ``measure`` invariant — its symmetry.
+
+    Returns the maximal elements of
+    :math:`\{G \in C : \mu \text{ is } G\text{-invariant}\}`. Several
+    incomparable maxima can survive (a rule may carry both a rotation group
+    and a reflection with neither inside the other); the true
+    :math:`\mathrm{Sym}(\mu)` is the group they GENERATE, which need not be
+    expressible in the candidate set — so the maximal elements, not a single
+    tag, are the honest answer.
+
+    **Soundness.** Invariance is DOWNWARD-CLOSED: if :math:`\mu` is
+    :math:`G`-invariant and :math:`H \le G`, then :math:`\mu` is
+    :math:`H`-invariant. So the invariant set is an order ideal, giving the
+    walk both prunings — a failing node kills every supergroup, a passing
+    node implies every subgroup. The walk therefore *requires* a correct
+    lattice and is simultaneously a test of it.
+
+    Parameters
+    ----------
+    method : {"walk", "bruteforce"}
+        Two realizations of the same definition. ``"walk"`` descends the
+        Hasse diagram with both prunings; ``"bruteforce"`` tests every
+        candidate. They must agree on every input — that agreement is the
+        verification instrument, not a mere fast-path check.
+
+    Notes
+    -----
+    The answer is about the group's realization in the **standard setting**
+    (principal axis along z), not up to conjugation. A rule whose symmetry
+    axis is not z reports a smaller group, which is correct for a gate
+    comparing against a geometry in the same frame.
+    """
+    cands = tuple(candidates) if candidates is not None else candidate_groups(
+        measure, atol=atol
+    )
+
+    if method == "bruteforce":
+        return _maximal(
+            g for g in cands if g.is_invariant(measure, atol=atol)
+        )
+    if method != "walk":
+        raise ValueError(
+            f"method must be 'walk' or 'bruteforce', got {method!r}"
+        )
+
+    accepted: "list[SubgroupOfO3]" = []
+    visited: set[str] = set()
+    stack = list(_maximal(cands))
+    while stack:
+        group = stack.pop()
+        key = repr(group)
+        if key in visited:
+            continue
+        visited.add(key)
+        if any(a.contains(group) for a in accepted):
+            continue  # already implied by an accepted supergroup
+        if group.is_invariant(measure, atol=atol):
+            accepted.append(group)  # everything below is implied — do not descend
+        else:
+            stack.extend(maximal_subgroups(group, cands))
+    return _maximal(accepted)
+
+
 __all__ = [
     "SubgroupOfO3",
+    "candidate_groups",
+    "maximal_invariance_groups",
+    "maximal_subgroups",
 ]

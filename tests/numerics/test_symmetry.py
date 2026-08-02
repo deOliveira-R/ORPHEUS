@@ -66,7 +66,7 @@ _NAMED = [
     SubgroupOfO3.Trivial,
     SubgroupOfO3.Z2,
     SubgroupOfO3.SO2,
-    SubgroupOfO3.O2,
+    SubgroupOfO3.Dinfh,
     SubgroupOfO3.OctahedralOh,
     SubgroupOfO3.IcosahedralIh,
     SubgroupOfO3.SO3,
@@ -95,7 +95,7 @@ def test_trivial_inside_every_named_group(G: SubgroupOfO3) -> None:
     [
         SubgroupOfO3.Z2,
         SubgroupOfO3.SO2,
-        SubgroupOfO3.O2,
+        SubgroupOfO3.Dinfh,
         SubgroupOfO3.OctahedralOh,
         SubgroupOfO3.IcosahedralIh,
         SubgroupOfO3.SO3,
@@ -109,9 +109,9 @@ def test_o3_contains_every_proper_subgroup(G: SubgroupOfO3) -> None:
 
 @pytest.mark.foundation
 def test_so2_chain() -> None:
-    """``SO(2) ⊂ O(2) ⊂ O(3)`` is the canonical axisymmetric tower."""
-    assert SubgroupOfO3.O2.contains(SubgroupOfO3.SO2)
-    assert SubgroupOfO3.O3.contains(SubgroupOfO3.O2)
+    r""":math:`SO(2) \subset D_{\infty h} \subset O(3)` — the axisymmetric tower."""
+    assert SubgroupOfO3.Dinfh.contains(SubgroupOfO3.SO2)
+    assert SubgroupOfO3.O3.contains(SubgroupOfO3.Dinfh)
     assert SubgroupOfO3.O3.contains(SubgroupOfO3.SO2)  # transitive
 
 
@@ -210,10 +210,20 @@ def test_dnh_reflection_in_dnh() -> None:
 
 @pytest.mark.foundation
 def test_dnh_in_o3() -> None:
-    """``D_{nh} ⊂ O(3)`` for every ``n`` (and ``D_{nh} ⊂ O(2)``)."""
+    r""":math:`D_{nh} \subset O(3)` and :math:`D_{nh} \subset D_{\infty h}`.
+
+    The second relation is the one this test was always asserting, and it is
+    TRUE — but it was written against an entry named ``O2`` whose realization
+    is :math:`C_{\infty h}` (axial rotations + :math:`\sigma_h`). Neither
+    :math:`C_{\infty h}` nor the true :math:`O(2) = C_{\infty v}` contains
+    :math:`D_{nh}`, because :math:`D_{nh}` carries :math:`C_2` axes lying IN
+    the plane. Renaming the entry to :math:`D_{\infty h}` — the full
+    cylindrical group, and what a cylinder actually carries — makes the
+    assertion correct rather than deleting it.
+    """
     for n in (1, 2, 3, 4, 6):
         assert SubgroupOfO3.O3.contains(SubgroupOfO3.Dnh(n))
-        assert SubgroupOfO3.O2.contains(SubgroupOfO3.Dnh(n))
+        assert SubgroupOfO3.Dinfh.contains(SubgroupOfO3.Dnh(n))
         # Not in SO(2)/SO(3) — D_nh contains improper rotations.
         assert not SubgroupOfO3.SO2.contains(SubgroupOfO3.Dnh(n))
         assert not SubgroupOfO3.SO3.contains(SubgroupOfO3.Dnh(n))
@@ -530,7 +540,7 @@ def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
         support="S^2",
     )
     assert SubgroupOfO3.SO2.is_invariant(poles)
-    assert SubgroupOfO3.O2.is_invariant(poles)
+    assert SubgroupOfO3.Dinfh.is_invariant(poles)
     assert not SubgroupOfO3.SO3.is_invariant(poles)
 
     # Unequal weights break sigma_h, hence O(2), while SO(2) survives.
@@ -540,7 +550,7 @@ def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
         support="S^2",
     )
     assert SubgroupOfO3.SO2.is_invariant(lopsided)
-    assert not SubgroupOfO3.O2.is_invariant(lopsided)
+    assert not SubgroupOfO3.Dinfh.is_invariant(lopsided)
 
 
 @pytest.mark.foundation
@@ -636,3 +646,302 @@ def test_bijection_requirement_keeps_every_shipped_rule_certified() -> None:
     for n_phi in (4, 8, 16):
         mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
         assert SubgroupOfO3.Dnh(n_phi).is_invariant(mu)
+
+
+# ============================================================================
+# Containment computed from the realized operator sets
+# ============================================================================
+#
+# A hand-maintained lattice is a claim with no construction behind it, and
+# this module shipped two such claims that were false. Finite-vs-finite
+# containment is now COMPUTED from the same operator sets `is_invariant`
+# applies, so the two verbs answer questions about the same group.
+#
+# The sense is LITERAL containment in the standard setting (principal axis
+# along z, vertex on x). That is the question the selection gate asks, since
+# a rule and its geometry are used in one frame. The setting-INDEPENDENT
+# relation -- subconjugacy, exists g with g H g^-1 <= K -- is a different
+# question and is not what `contains` answers.
+
+
+@pytest.mark.foundation
+def test_realized_group_orders_are_textbook() -> None:
+    """The realizations generate groups of the right ORDER.
+
+    If a realization were wrong, every containment computed from it would be
+    wrong in the same direction and silently. Orders are the cheapest
+    independent check: |D_nh| = 4n, |O_h| = 48, |I_h| = 120.
+    """
+    from orpheus.numerics.symmetry import _close_group, _realized_ops
+
+    expected = {
+        "Trivial": (SubgroupOfO3.Trivial, 1),
+        "Z2": (SubgroupOfO3.Z2, 2),
+        "C_3": (SubgroupOfO3.Cn(3), 3),
+        "C_4": (SubgroupOfO3.Cn(4), 4),
+        "D_2h": (SubgroupOfO3.Dnh(2), 8),
+        "D_3h": (SubgroupOfO3.Dnh(3), 12),
+        "D_4h": (SubgroupOfO3.Dnh(4), 16),
+        "O_h": (SubgroupOfO3.OctahedralOh, 48),
+        "I_h": (SubgroupOfO3.IcosahedralIh, 120),
+    }
+    for label, (tag, order) in expected.items():
+        ops = _realized_ops(tag._tag)
+        assert ops is not None, f"{label} has no finite realization"
+        assert len(_close_group(ops)) == order, (
+            f"|{label}| computed as {len(_close_group(ops))}, expected {order}"
+        )
+
+
+@pytest.mark.foundation
+def test_octahedral_contains_exactly_its_z_axis_subgroups() -> None:
+    r""":math:`O_h` contains :math:`C_1, C_2, C_4` and :math:`D_{1h},
+    D_{2h}, D_{4h}` -- and no others among these families.
+
+    ``O`` is isomorphic to :math:`S_4`, whose element orders are 1, 2, 3, 4:
+    so there is no 6-fold proper rotation and :math:`C_6` is excluded under
+    ANY setting. :math:`C_3` is excluded under THIS setting because the
+    cube's 3-fold axis is the body diagonal, not :math:`z`.
+
+    These relations were all ``False`` before containment was computed --
+    a deliberate gap (the source said "we do not encode this until a
+    consumer needs it"), whose accompanying note also mis-stated the answer
+    as ``n in {1,2,3,4,6}``.
+    """
+    for n in (1, 2, 4):
+        assert SubgroupOfO3.OctahedralOh.contains(SubgroupOfO3.Cn(n)), f"C_{n}"
+        assert SubgroupOfO3.OctahedralOh.contains(SubgroupOfO3.Dnh(n)), f"D_{n}h"
+    for n in (3, 5, 6):
+        assert not SubgroupOfO3.OctahedralOh.contains(SubgroupOfO3.Cn(n)), f"C_{n}"
+    for n in (3, 6):
+        assert not SubgroupOfO3.OctahedralOh.contains(SubgroupOfO3.Dnh(n)), f"D_{n}h"
+
+
+@pytest.mark.foundation
+def test_computed_containment_obeys_the_order_relation_laws() -> None:
+    """Reflexive, antisymmetric, transitive -- and consistent with Lagrange.
+
+    A computed lattice can be checked against the laws an order relation
+    must satisfy; a hand-written one cannot be checked at all.
+    """
+    from orpheus.numerics.symmetry import _close_group, _realized_ops
+
+    finite = [
+        SubgroupOfO3.Trivial, SubgroupOfO3.Z2,
+        SubgroupOfO3.Cn(1), SubgroupOfO3.Cn(2), SubgroupOfO3.Cn(3),
+        SubgroupOfO3.Cn(4), SubgroupOfO3.Dnh(1), SubgroupOfO3.Dnh(2),
+        SubgroupOfO3.Dnh(4), SubgroupOfO3.OctahedralOh,
+    ]
+    order = {
+        g: len(_close_group(_realized_ops(g._tag)))  # type: ignore[arg-type]
+        for g in finite
+    }
+
+    for a in finite:
+        assert a.contains(a), f"not reflexive at {a.name}"
+
+    for a in finite:
+        for b in finite:
+            if a.contains(b) and b.contains(a):
+                assert order[a] == order[b], (
+                    f"{a.name} and {b.name} contain each other but have "
+                    f"orders {order[a]} != {order[b]}"
+                )
+            if a.contains(b):
+                # Lagrange: a subgroup's order divides the group's.
+                assert order[a] % order[b] == 0, (
+                    f"{a.name} contains {b.name} but {order[b]} does not "
+                    f"divide {order[a]} -- impossible for a subgroup"
+                )
+
+    for a in finite:
+        for b in finite:
+            for c in finite:
+                if a.contains(b) and b.contains(c):
+                    assert a.contains(c), (
+                        f"transitivity broken: {a.name} > {b.name} > {c.name}"
+                    )
+
+
+@pytest.mark.foundation
+def test_vertical_mirror_planes_follow_the_dnh_setting() -> None:
+    r"""The :math:`\sigma_v` PLANES sit at :math:`k\pi/n`, not their normals.
+
+    The standard :math:`D_{nh}` setting puts a vertex on the x-axis, so the
+    :math:`\varphi = 0` plane is a mirror. Placing the k-th *normal* at
+    :math:`k\pi/n` instead rotates every plane by :math:`\pi/2` -- which
+    maps the set onto itself for EVEN ``n`` and is therefore invisible
+    there, while giving genuinely different planes for ODD ``n``.
+
+    Orthogonality, determinant, closure and group order all survive a
+    rotated mirror set, so only comparing angles against the setting can
+    see this. Pinned on odd ``n``, where the product rule is demonstrably
+    closed under its :math:`\varphi = 0` mirror.
+    """
+    for n_phi in (3, 5, 7):
+        mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
+        assert SubgroupOfO3.Dnh(n_phi).is_invariant(mu), (
+            f"product(4,{n_phi}) is not D_{n_phi}h-invariant -- the sigma_v "
+            f"planes are rotated off the setting"
+        )
+
+
+# ============================================================================
+# The subgroup graph, and walking it to compute a measure's symmetry
+# ============================================================================
+#
+# Crystallography walks the Hasse diagram of the subgroup lattice downward
+# from high symmetry to find the symmetry a structure actually has. Doing the
+# same here replaces a DECLARED invariance group with a COMPUTED one -- a
+# declaration is a claim with no construction behind it, and two such claims
+# already shipped false in this module.
+
+
+def _walk_rules() -> list[tuple[str, object]]:
+    """A representative rule set spanning all three families.
+
+    Deliberately not the full parameter sweep: ``_orbit_closure`` is an
+    O(N^2) Python loop per operator, so a brute-force scan over every
+    candidate of a 110-node Lebedev rule costs minutes. This set keeps the
+    discriminating cases -- odd and even ``n_phi``, the two ``O_h`` families
+    -- at a cost the foundation tier can carry on every run.
+    """
+    rules: list[tuple[str, object]] = []
+    for n_phi in (3, 4, 8):
+        rules.append((f"product(4,{n_phi})",
+                      Quadrature.product(n_mu=4, n_phi=n_phi)))
+    for sn_order in (4, 8):
+        rules.append((f"level_symmetric({sn_order})",
+                      Quadrature.level_symmetric(sn_order=sn_order)))
+    for order in (5, 11):
+        rules.append((f"lebedev({order})", Quadrature.lebedev(order=order)))
+    return rules
+
+
+@pytest.mark.foundation
+def test_walk_and_bruteforce_agree() -> None:
+    """The two realizations of ``Sym`` must agree on every rule.
+
+    This is the verification instrument, not a fast-path check: the pruned
+    Hasse walk and the exhaustive scan compute the same definition by
+    structurally different routes, so agreement across the whole production
+    family is what PROVES the walk rather than merely pinning it.
+    """
+    from orpheus.numerics.symmetry import maximal_invariance_groups
+
+    for name, q in _walk_rules():
+        mu = _measure_from_sphere_quad(q)
+        walk = sorted(g.name for g in maximal_invariance_groups(mu, method="walk"))
+        brute = sorted(
+            g.name for g in maximal_invariance_groups(mu, method="bruteforce")
+        )
+        assert walk == brute, f"{name}: walk={walk} bruteforce={brute}"
+
+
+@pytest.mark.foundation
+def test_computed_symmetry_matches_the_construction() -> None:
+    r"""The walk recovers each rule's symmetry from its NODES alone.
+
+    ``product(n_mu, n_phi)`` is built with equispaced azimuth from
+    :math:`\varphi = 0` over Gauss-Legendre polar levels, so it carries
+    :math:`D_{n_\varphi h}` -- a group that depends on a PARAMETER.
+    Level-symmetric and Lebedev rules are built :math:`O_h`-invariant.
+    Nothing is declared here; the measure is asked.
+    """
+    from orpheus.numerics.symmetry import maximal_invariance_groups
+
+    for n_phi in (3, 4, 5, 8, 12):
+        mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
+        got = maximal_invariance_groups(mu)
+        assert [g.name for g in got] == [SubgroupOfO3.Dnh(n_phi).name], (
+            f"product(4,{n_phi}): expected D_{n_phi}h, got "
+            f"{[g.name for g in got]}"
+        )
+
+    for sn_order in (4, 8):
+        mu = _measure_from_sphere_quad(
+            Quadrature.level_symmetric(sn_order=sn_order)
+        )
+        assert [g.name for g in maximal_invariance_groups(mu)] == [
+            SubgroupOfO3.OctahedralOh.name
+        ]
+    for order in (5, 11):
+        mu = _measure_from_sphere_quad(Quadrature.lebedev(order=order))
+        assert [g.name for g in maximal_invariance_groups(mu)] == [
+            SubgroupOfO3.OctahedralOh.name
+        ]
+
+
+@pytest.mark.foundation
+def test_invariance_is_downward_closed() -> None:
+    r"""The law the walk's pruning rests on.
+
+    If :math:`\mu` is :math:`G`-invariant and :math:`H \le G`, then
+    :math:`\mu` is :math:`H`-invariant -- so the invariant set is an order
+    ideal, a failing node kills every supergroup, and a passing node implies
+    every subgroup. The walk is unsound without it.
+
+    Simultaneously a test OF the lattice: a wrong containment edge shows up
+    here as a violation. This law measured 68 violations before the lattice
+    was computed from the operator sets rather than tabulated.
+    """
+    from orpheus.numerics.symmetry import candidate_groups
+
+    violations: list[str] = []
+    checked = 0
+    for name, q in _walk_rules():
+        mu = _measure_from_sphere_quad(q)
+        cands = candidate_groups(mu)
+        invariant = {repr(g): g.is_invariant(mu) for g in cands}
+        for outer in cands:
+            for inner in cands:
+                if outer == inner or not outer.contains(inner):
+                    continue
+                checked += 1
+                if invariant[repr(outer)] and not invariant[repr(inner)]:
+                    violations.append(
+                        f"{name}: {outer.name}-invariant but not "
+                        f"{inner.name}-invariant, though {inner.name} <= "
+                        f"{outer.name}"
+                    )
+    assert checked > 500, f"only {checked} pairs checked -- gate is too thin"
+    assert not violations, (
+        f"{len(violations)} downward-closure violations:\n  "
+        + "\n  ".join(violations[:10])
+    )
+
+
+@pytest.mark.foundation
+def test_product_symmetry_contradicts_its_registry_declaration() -> None:
+    r"""The computed answer convicts the declared one.
+
+    ``registry.py`` declares ``product -> invariance_group = SO2``. The walk
+    says :math:`D_{n_\varphi h}`, and :math:`SO(2)` is not among the groups
+    the rule carries -- nor could it be, since no finite point set with
+    off-axis nodes is :math:`SO(2)`-closed.
+
+    Kept as a live gate rather than a comment: it is the evidence that a
+    computed property cannot lie about its object where a declared tag can,
+    and it must start passing for the opposite reason once the registry is
+    re-posed (the declaration removed, not the fact changed).
+    """
+    from orpheus.numerics.quadrature.registry import quadrature_registry
+    from orpheus.numerics.symmetry import maximal_invariance_groups
+
+    declared = {
+        spec.name: spec.invariance_group
+        for spec in quadrature_registry
+        if "roduct" in spec.name
+    }
+    assert declared, "no product entry found in the registry"
+    assert any(g.name == SubgroupOfO3.SO2.name for g in declared.values()), (
+        "expected the product spec to declare SO2 -- if this fails the "
+        "registry was re-posed and this gate should be re-read, not deleted"
+    )
+
+    mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=8))
+    carried = maximal_invariance_groups(mu)
+    assert [g.name for g in carried] == [SubgroupOfO3.Dnh(8).name]
+    assert not SubgroupOfO3.SO2.is_invariant(mu), (
+        "the declared SO2 is not a symmetry the rule actually has"
+    )
