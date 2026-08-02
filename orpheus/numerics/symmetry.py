@@ -663,16 +663,18 @@ def _check_invariance_3d(
             return _orbit_closure(nodes, weights, _reflections("z"), atol)
 
         if tag is _NamedSubgroup.SO2:
-            # Continuous rotation about z — check closure under a
-            # non-trivial finite rotation (90° about z is sufficient
-            # for the rules ORPHEUS uses, which are either built to
-            # be axisymmetric or live on a discrete orbit).
-            return _orbit_closure(nodes, weights, _so2_representatives(), atol)
+            # DECIDED EXACTLY, never sampled (ERR-072).  A continuous
+            # group cannot be tested by a finite sample: the sample
+            # generates a finite SUBgroup, and closure under that
+            # subgroup is strictly weaker than closure under G.
+            return _is_axis_supported(nodes, atol)
 
         if tag is _NamedSubgroup.O2:
-            # SO(2) + horizontal reflection.
-            ops = _so2_representatives() + _reflections("z")
-            return _orbit_closure(nodes, weights, ops, atol)
+            # O(2) = SO(2) x <sigma_h>.  Both conjuncts, the first
+            # exact and the second an honest finite-orbit check.
+            return _is_axis_supported(nodes, atol) and _orbit_closure(
+                nodes, weights, _reflections("z"), atol
+            )
 
         if tag is _NamedSubgroup.OctahedralOh:
             return _orbit_closure(nodes, weights, _octahedral_ops(), atol)
@@ -681,20 +683,14 @@ def _check_invariance_3d(
             return _orbit_closure(nodes, weights, _icosahedral_ops(), atol)
 
         if tag is _NamedSubgroup.SO3:
-            # Continuous proper rotations. A finite-orbit fingerprint
-            # check uses the icosahedral group as a "dense enough"
-            # finite subgroup of SO(3); a measure passing the Ih
-            # check passes SO(3) for the rules ORPHEUS ships. Be
-            # explicit that this is a *necessary* condition — the
-            # full SO(3) check on an arbitrary measure is undecidable.
-            return _orbit_closure(nodes, weights, _icosahedral_ops(), atol)
+            # DECIDED EXACTLY (ERR-072).  Every SO(3) orbit of a
+            # non-origin point is a whole 2-sphere, so a FINITE set is
+            # SO(3)-closed iff it is supported at the origin.
+            return _is_origin_supported(nodes, atol)
 
         if tag is _NamedSubgroup.O3:
-            # SO(3) + inversion. Inversion is x -> -x for every axis.
-            ops = _icosahedral_ops() + [
-                _inversion_op(),
-            ]
-            return _orbit_closure(nodes, weights, ops, atol)
+            # O(3) contains SO(3), so the same exact criterion binds.
+            return _is_origin_supported(nodes, atol)
 
     if isinstance(tag, Cn):
         # Cyclic group about z, n proper rotations.
@@ -766,17 +762,50 @@ def _inversion_op() -> np.ndarray:
     return -np.eye(3)
 
 
-def _so2_representatives() -> list[np.ndarray]:
-    """Finite representative set for SO(2) about the z-axis.
+def _is_axis_supported(nodes: np.ndarray, atol: float) -> bool:
+    r"""``True`` iff every node lies on the :math:`z`-axis.
 
-    Uses 4 rotations (0, 90, 180, 270 degrees). For the rules ORPHEUS
-    ships (Lebedev, level-symmetric, product-with-equispaced-φ), 4
-    samples from the continuous group is sufficient because those
-    rules are either *built* to be SO(2)-invariant by their generating
-    construction or have an explicit C_4 sub-symmetry that catches
-    deviations.
+    The exact criterion for **SO(2)-invariance of a FINITE point set**.
+    The :math:`SO(2)` orbit of a point at cylindrical radius
+    :math:`\rho > 0` is a whole circle — an infinite set — so a finite
+    set containing it cannot be closed. Points with :math:`\rho = 0`
+    are fixed by every rotation about :math:`z`. Hence closure
+    :math:`\iff` every node has :math:`\rho \le` ``atol``.
+
+    Replaces the retired ``_so2_representatives()``, which sampled
+    :math:`\{0, 90, 180, 270\}^\circ` and therefore tested closure under
+    the finite subgroup :math:`C_4`, **not** under :math:`SO(2)`
+    (ERR-072). That is unsound in the dangerous direction: it CERTIFIES
+    non-invariant rules. Measured on the shipped product family, the
+    old answer was a function of ``n_phi mod 4`` — ``True`` for
+    ``n_phi`` in 4/8/12/16 and ``False`` for 2/3/5/6/7 — while the true
+    azimuthal group is the finite :math:`D_{n_\varphi h}` in every case.
+
+    Consequence, and it is intended: **no real angular cubature is
+    SO(2)-invariant.** A consumer needing "this rule respects a
+    continuous azimuthal symmetry" is asking a question about the
+    rule's exactness space, not about node-set closure, and must not
+    be answered here.
     """
-    return [_rotation_z(k * np.pi / 2.0) for k in range(4)]
+    return bool(np.all(np.hypot(nodes[:, 0], nodes[:, 1]) <= atol))
+
+
+def _is_origin_supported(nodes: np.ndarray, atol: float) -> bool:
+    r"""``True`` iff every node sits at the origin.
+
+    The exact criterion for **SO(3)- (and O(3)-) invariance of a FINITE
+    point set**: every orbit of a non-origin point under :math:`SO(3)`
+    is a whole 2-sphere, so only the origin can be carried by a finite
+    invariant set.
+
+    Replaces the retired icosahedral-sample check, which tested
+    :math:`I_h` closure and called it :math:`SO(3)` (ERR-072). That
+    conflation had a second edge: :math:`-I \in I_h`, so the
+    ``SO3`` and ``O3`` branches ran the *same* operator set and were
+    identically equal for every input — and 60 of those 120 matrices
+    are improper, hence not in :math:`SO(3)` at all.
+    """
+    return bool(np.all(np.linalg.norm(nodes, axis=1) <= atol))
 
 
 def _cyclic_ops(n: int) -> list[np.ndarray]:
@@ -916,6 +945,20 @@ def _orbit_closure(
     ``atol``). The match is verified element-wise, then the weight
     equality :math:`w_i = w_{\\pi(i)}` is checked.
 
+    The match is required to be a **bijection**. Nearest-neighbour
+    matching alone only proves every image has *a* same-weight partner,
+    which is strictly weaker than "the action permutes the nodes": two
+    distinct sources may land on one target, leaving some node
+    unmatched entirely. Such a set is NOT :math:`G`-invariant — its
+    mass is distributed differently from its image — yet it passes an
+    injectivity-free check. Appending a bit-identical duplicate of any
+    node to an :math:`O_h`-invariant rule is the minimal witness: the
+    duplicated position then carries twice the mass of its mirror
+    image, and every one of the 48 match maps is non-injective.
+    Since :math:`\\pi` maps an :math:`n`-set to an :math:`n`-set,
+    injectivity is equivalent to bijectivity, so tracking claimed
+    targets suffices. (ERR-073.)
+
     Returns ``False`` at the first failure.
     """
     n = nodes.shape[0]
@@ -932,6 +975,10 @@ def _orbit_closure(
 
     for M in ops:
         moved = nodes @ M.T
+        # ``claimed_by[j] = i`` once source i has matched target j. A
+        # second claim on the same j means the match is not injective,
+        # hence not a permutation — see the docstring (ERR-073).
+        claimed_by = np.full(n, -1, dtype=np.int64)
         for i in range(n):
             target = moved[i]
             target_q = (np.round(target / atol).astype(np.int64) * atol).tobytes()
@@ -949,6 +996,9 @@ def _orbit_closure(
                 j = min(cands, key=lambda k: float(np.linalg.norm(nodes[k] - target)))
                 if np.linalg.norm(nodes[j] - target) > atol * 100:
                     return False
+            if claimed_by[j] != -1:
+                return False
+            claimed_by[j] = i
             if abs(weights[j] - weights[i]) > atol:
                 return False
     return True

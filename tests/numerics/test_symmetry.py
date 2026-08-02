@@ -373,3 +373,266 @@ def test_repr_and_equality() -> None:
     assert "Z2" in repr(SubgroupOfO3.Z2)
     assert "Cn(6)" in repr(SubgroupOfO3.Cn(6))
     assert "Dnh(4)" in repr(SubgroupOfO3.Dnh(4))
+
+
+# ============================================================================
+# ERR-072 — a CONTINUOUS group cannot be decided by a FINITE sample
+# ============================================================================
+#
+# `is_invariant` asks node-set closure: "does every g in G permute the nodes
+# among themselves, weights matched?"  For a continuous G that question has an
+# exact, decidable answer that no sampling can approximate -- a finite sample
+# generates a finite SUBgroup, and closure under a subgroup is strictly weaker
+# than closure under G.  The old code sampled {0,90,180,270} degrees about z,
+# i.e. C_4, and called it SO(2); the certification it produced was therefore a
+# function of `n_phi mod 4`.  These gates pin the exact criterion instead.
+
+
+def _production_sphere_rules() -> list[tuple[str, object]]:
+    """Every S^2 rule the tree actually ships, across its parameter range."""
+    rules: list[tuple[str, object]] = []
+    for n_mu, n_phi in ((2, 4), (4, 4), (4, 8), (4, 12), (4, 16), (6, 12)):
+        rules.append((f"product({n_mu},{n_phi})",
+                      Quadrature.product(n_mu=n_mu, n_phi=n_phi)))
+    for sn_order in (4, 8, 16):
+        rules.append((f"level_symmetric({sn_order})",
+                      Quadrature.level_symmetric(sn_order=sn_order)))
+    for order in (5, 11, 17):
+        rules.append((f"lebedev({order})", Quadrature.lebedev(order=order)))
+    return rules
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-072")
+def test_no_discrete_cubature_is_so2_invariant() -> None:
+    r"""No finite angular cubature is :math:`SO(2)`-invariant.
+
+    The :math:`SO(2)` orbit of any node off the :math:`z`-axis is a whole
+    circle, so a finite set containing that node cannot be closed. Every
+    shipped rule places nodes off-axis, hence every one must answer ``False``.
+    """
+    for name, q in _production_sphere_rules():
+        mu = _measure_from_sphere_quad(q)
+        assert not SubgroupOfO3.SO2.is_invariant(mu), (
+            f"{name} certified SO(2)-invariant, but a finite point set with "
+            f"off-axis nodes has infinite SO(2) orbits and cannot be closed"
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-072")
+def test_so2_verdict_is_not_a_function_of_n_phi_mod_4() -> None:
+    r"""The ERR-072 signature: the old answer tracked ``n_phi mod 4``.
+
+    Sampling :math:`\{0, 90, 180, 270\}^\circ` generates :math:`C_4`, so a
+    product rule whose azimuthal count is a multiple of 4 closed under the
+    sample and was certified. ``n_phi`` in 4/8/12/16 read ``True`` while
+    2/3/5/6/7 read ``False`` -- a verdict that depends on the sample, not on
+    the group. The correct verdict is constant across the family.
+    """
+    verdicts = {
+        n_phi: SubgroupOfO3.SO2.is_invariant(
+            _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
+        )
+        for n_phi in (2, 3, 4, 5, 6, 7, 8, 12, 16)
+    }
+    assert set(verdicts.values()) == {False}, (
+        f"SO(2) verdict varies across the product family: {verdicts}. A "
+        f"correct criterion cannot depend on n_phi mod 4 -- that dependence "
+        f"IS the sampled-subgroup bug"
+    )
+
+
+def _icosahedron_vertices() -> np.ndarray:
+    r"""The 12 icosahedron vertices, built from the golden ratio.
+
+    Constructed here rather than from :mod:`~orpheus.numerics.symmetry`'s own
+    operator tables, so the fixture is structurally independent of the module
+    under test (``vv-principles`` L11).
+    """
+    phi = (1.0 + np.sqrt(5.0)) / 2.0
+    raw = []
+    for s1 in (-1.0, 1.0):
+        for s2 in (-1.0, 1.0):
+            raw.extend([
+                [0.0, s1 * 1.0, s2 * phi],
+                [s1 * 1.0, s2 * phi, 0.0],
+                [s2 * phi, 0.0, s1 * 1.0],
+            ])
+    v = np.array(raw)
+    return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-072")
+def test_icosahedral_vertex_set_is_not_so3_invariant() -> None:
+    r"""The discriminating fixture for the :math:`SO(3)` half of ERR-072.
+
+    The old code tested :math:`I_h` closure and *called it* :math:`SO(3)`. On
+    every rule the tree ships that happened to give the right answer for the
+    wrong reason -- none of them is :math:`I_h`-invariant, so the check said
+    ``False`` by accident. The 12 icosahedron vertices ARE :math:`I_h`-closed,
+    which is exactly where the two criteria part company: the old check
+    certifies them :math:`SO(3)`-invariant, and they are not. Every
+    :math:`SO(3)` orbit of a non-origin point is a whole 2-sphere, so only a
+    measure supported at the origin can be :math:`SO(3)`-closed.
+
+    Also pins the second edge: since :math:`-I \in I_h`, the old ``SO3`` and
+    ``O3`` branches ran the SAME operator set and were identically equal for
+    every input -- and 60 of those 120 matrices are improper, hence not in
+    :math:`SO(3)` at all.
+    """
+    verts = _icosahedron_vertices()
+    ico = DiscreteMeasure(
+        nodes=verts, weights=np.full(len(verts), 1.0), support="S^2",
+    )
+    # Sanity: the fixture really is the I_h orbit it claims to be.
+    assert len(verts) == 12
+    assert SubgroupOfO3.IcosahedralIh.is_invariant(ico), (
+        "fixture is not I_h-invariant -- it cannot discriminate the criteria"
+    )
+    assert not SubgroupOfO3.SO3.is_invariant(ico), (
+        "the 12 icosahedron vertices certified SO(3)-invariant; a finite set "
+        "cannot be, since every SO(3) orbit of a non-origin point is S^2"
+    )
+    assert not SubgroupOfO3.O3.is_invariant(ico)
+
+
+@pytest.mark.foundation
+def test_no_sphere_cubature_is_so3_or_o3_invariant() -> None:
+    r"""Regression floor for :math:`SO(3)` / :math:`O(3)` on the shipped rules.
+
+    Deliberately NOT marked ``catches("ERR-072")``: measured, the pre-fix code
+    also answered ``False`` for every one of these rules, so this gate would
+    not have caught the defect. It pins the answer against future drift; the
+    catcher is
+    :func:`test_icosahedral_vertex_set_is_not_so3_invariant`.
+    """
+    for name, q in _production_sphere_rules():
+        mu = _measure_from_sphere_quad(q)
+        assert not SubgroupOfO3.SO3.is_invariant(mu), f"{name} certified SO(3)"
+        assert not SubgroupOfO3.O3.is_invariant(mu), f"{name} certified O(3)"
+
+
+@pytest.mark.foundation
+def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
+    r"""Positive control + discriminator, so the SO(2) gate is not vacuous.
+
+    A two-pole measure IS :math:`SO(2)`-invariant (both nodes are fixed by
+    every rotation about :math:`z`) and IS :math:`O(2)`-invariant
+    (:math:`\sigma_h` swaps them at equal weight) -- but is NOT
+    :math:`SO(3)`-invariant, since the orbit of a pole is the whole sphere.
+    A criterion that simply returned ``False`` would fail this test.
+    """
+    poles = DiscreteMeasure(
+        nodes=np.array([[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]),
+        weights=np.array([1.0, 1.0]),
+        support="S^2",
+    )
+    assert SubgroupOfO3.SO2.is_invariant(poles)
+    assert SubgroupOfO3.O2.is_invariant(poles)
+    assert not SubgroupOfO3.SO3.is_invariant(poles)
+
+    # Unequal weights break sigma_h, hence O(2), while SO(2) survives.
+    lopsided = DiscreteMeasure(
+        nodes=np.array([[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]),
+        weights=np.array([1.0, 2.0]),
+        support="S^2",
+    )
+    assert SubgroupOfO3.SO2.is_invariant(lopsided)
+    assert not SubgroupOfO3.O2.is_invariant(lopsided)
+
+
+@pytest.mark.foundation
+def test_product_rule_honest_group_is_dnh_of_n_phi() -> None:
+    r"""The product rule's true azimuthal group is the FINITE
+    :math:`D_{n_\varphi h}` -- parameter-dependent, never :math:`SO(2)`.
+
+    Deliberately NOT marked ``catches("ERR-072")``: measured, this gate is
+    green under the pre-fix code too (the :math:`C_n` / :math:`D_{nh}`
+    branches were always sound), so it never caught the defect. It states
+    positively what the rule's symmetry IS -- the fact the registry's
+    constant ``invariance_group=SO2`` tag contradicts.
+
+    Verified in both directions: the rule IS :math:`D_{n_\varphi h}`- and
+    :math:`C_{n_\varphi}`-invariant, and is NOT invariant under the
+    twice-as-fine :math:`C_{2 n_\varphi}`. The second half is what forbids
+    over-claiming: an azimuthal group of order :math:`2 n_\varphi` would
+    require a node at every half-spacing, and there is none.
+    """
+    for n_phi in (4, 8, 12, 16):
+        mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
+        assert SubgroupOfO3.Cn(n_phi).is_invariant(mu), (
+            f"product(4,{n_phi}) is not C_{n_phi}-invariant"
+        )
+        assert SubgroupOfO3.Dnh(n_phi).is_invariant(mu), (
+            f"product(4,{n_phi}) is not D_{n_phi}h-invariant"
+        )
+        assert not SubgroupOfO3.Cn(2 * n_phi).is_invariant(mu), (
+            f"product(4,{n_phi}) certified C_{2 * n_phi}-invariant -- that "
+            f"would need a node at every half-spacing"
+        )
+
+
+# ============================================================================
+# ERR-073 — the orbit match must be a BIJECTION, not merely a partner map
+# ============================================================================
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-073")
+def test_duplicated_node_breaks_oh_invariance() -> None:
+    r"""A bit-identical duplicate node destroys invariance, and must be seen.
+
+    Appending a copy of one node to an :math:`O_h`-invariant rule leaves the
+    node SET unchanged but not the MEASURE: the duplicated position now
+    carries twice the mass of its mirror image, so :math:`M_\# \mu \neq \mu`.
+    Nearest-neighbour matching still finds a same-weight partner for every
+    image, so an injectivity-free check certifies it. The match must be
+    required to be a bijection.
+    """
+    q = Quadrature.level_symmetric(sn_order=4)
+    nodes = np.column_stack([q.mu_x, q.mu_y, q.mu_z])
+    weights = np.asarray(q.weights)
+
+    duplicated = DiscreteMeasure(
+        nodes=np.vstack([nodes, nodes[0]]),
+        weights=np.concatenate([weights, [weights[0]]]),
+        support="S^2",
+    )
+
+    # Independent ground truth: O_h contains sigma_x, so the mass carried at
+    # p0 and at sigma_x(p0) must agree. It does not.
+    p0 = nodes[0]
+    image = np.array([-p0[0], p0[1], p0[2]])
+    dup_nodes = np.vstack([nodes, nodes[0]])
+    dup_w = np.concatenate([weights, [weights[0]]])
+    mass_p0 = dup_w[np.linalg.norm(dup_nodes - p0, axis=1) < 1e-12].sum()
+    mass_image = dup_w[np.linalg.norm(dup_nodes - image, axis=1) < 1e-12].sum()
+    assert not np.isclose(mass_p0, mass_image), (
+        "fixture is not actually non-invariant -- pick a node off the mirror"
+    )
+
+    assert not SubgroupOfO3.OctahedralOh.is_invariant(duplicated), (
+        f"duplicated measure certified O_h-invariant, but mass at p0 is "
+        f"{mass_p0!r} against {mass_image!r} at its mirror image"
+    )
+
+
+@pytest.mark.foundation
+def test_bijection_requirement_keeps_every_shipped_rule_certified() -> None:
+    """Positive control: the bijection requirement adds no false negative.
+
+    Each shipped rule must still certify under the group it is built to
+    carry. A stricter check that rejected a genuine rule would be a
+    regression, not a fix.
+    """
+    for sn_order in (4, 8, 16):
+        mu = _measure_from_sphere_quad(Quadrature.level_symmetric(sn_order=sn_order))
+        assert SubgroupOfO3.OctahedralOh.is_invariant(mu)
+    for order in (5, 11, 17):
+        mu = _measure_from_sphere_quad(Quadrature.lebedev(order=order))
+        assert SubgroupOfO3.OctahedralOh.is_invariant(mu)
+    for n_phi in (4, 8, 16):
+        mu = _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
+        assert SubgroupOfO3.Dnh(n_phi).is_invariant(mu)
