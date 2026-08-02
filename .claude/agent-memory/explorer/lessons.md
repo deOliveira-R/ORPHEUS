@@ -266,6 +266,15 @@ yet built" is the thing most likely to be hours stale, and when it is, the
 deliverable is no longer a blast radius — it is a **done-vs-remaining
 reconciliation**, which is a different document.
 
+**Sharpening (2026-08-01, #326 half-range map).** `git status --short` at OPEN is
+not enough to call a file "tracked at HEAD". Three test modules I cited as
+"exists, tracked" were **untracked** — the main session created them mid-dispatch,
+and a `?? ` line is easy to miss in a 38-line status. **Run
+`git ls-files --error-unmatch <path>` on every file you are about to describe as
+landed**, and re-run `git diff --name-only` at close (a helper went clean → `+118`
+under me). Then tag each reference *(untracked, in-flight)* vs *(at HEAD)* in the
+deliverable — the distinction changes what the reader may build on.
+
 How to apply: for any brief phrased "ahead of a surgical carve / before we change
 X", open with `git status --short` + `git diff --stat` (and re-run both at the
 end). If the carve is underway: (1) keep the audit sections as taken — they are
@@ -311,3 +320,179 @@ noun and grep THAT; (2) check whether a sibling implementation refuses the same
 input and why; (3) check the strict-`xfail` set — a `pytest.mark.xfail(strict=True)`
 row naming the gap is the project's own admission that the claim is false, and is
 better evidence than any prose.
+
+---
+
+## L-013 -- For "what breaks if this numeric primitive changes?", SWAP IT AND RUN — a grep-classification of exact assertions is guesswork
+
+Auditing #325 (trig-evaluated → algebraically-generated quadrature nodes), a grep
+for `assert_array_equal` across the 50 consuming test files returned ~200 hits.
+Classifying those by reading would have been slow AND wrong. Instead: a **pytest
+plugin that swaps the primitive at `pytest_configure`** and a run of the consuming
+surface. 3024 tests, ~9 min, answer = **exactly 1 failure + 1 DriftWarning**. The
+audit's central number went from "~200 candidates to triage" to "2 items", measured.
+
+Three sub-lessons that generalize:
+
+- **The dangerous class is a FROZEN right-hand side, not an exact comparison.**
+  `assert_array_equal(route_A, route_B)` computed in the SAME process from the
+  same inputs is *immune* to an input perturbation — both sides move together.
+  Only a comparison against a stored `.npz`/`.npy`, a hardcoded literal, or a
+  hash can move. Classify by "is the RHS frozen?", never by "is the comparison
+  exact?". Nearly all of the ~200 hits were route-equivalence and immune.
+- **Patch every re-export, not just the definition.** `from X import f` binds a
+  name; patching `X.f` misses `directional.f`, `registry.f`, and both
+  `__init__.f`, plus any dataclass field that CAPTURED the function object (the
+  registry's `QuadratureSpec.factory` needed `object.__setattr__`). Patch the
+  module list AND the captured references, then print a confirmation line from
+  `pytest_configure` so a silent no-op swap is impossible.
+- **The consuming-file list from grep is INCOMPLETE — run the sibling suites
+  too.** `test_dd_regression.py` never spells `.product(`; it reaches it through
+  `_generate_snapshots.CASES`. That file held the ONLY moving snapshot. A
+  second batch over the whole owning directories (`tests/sn/regression`,
+  `tests/moc`, …) is what found it.
+
+Two more findings from the same audit, both re-usable question shapes:
+
+- **A guard test's FIXTURE ENUMERATION is where vacuity hides.** A test asserting
+  "no shipped quadrature has a cosine in the round-off band" built its list from
+  `gauss_legendre` + `lebedev` only — excluding `product`, the one family that
+  violates it. The assertion was strong and the *sample* was empty of violators
+  (vv Mode 7). When asked "does this guard bite?", read the parametrize/fixture
+  LIST first, then the assertion.
+- **Check whether the "new" hazard already exists on the sibling.** #325's ties
+  looked like a new reproducibility hazard — until measuring `level_symmetric`
+  (already algebraic, already exact) showed 18–216 ties per rule TODAY, with
+  `np.argsort` kinds already disagreeing at LS6+. Exact symmetry CREATES ties;
+  the already-exact family is the free oracle for "is this consequence new or
+  pre-existing?" (Same oracle move as L-011's sibling-that-refuses.)
+
+---
+
+## L-014 -- To adjudicate an ALGORITHM against the literature, read the source's DERIVATION and its INDEX-DOMAIN sentence — the equation alone is permutation- and domain-agnostic
+
+Asked whether the cylindrical α-recursion's ordinate ordering is "correct or merely a
+convention" (#326), the theory page and the code agreed with each other and both
+matched the published *equation* — so an equation-level check said "fine". The answer
+was in two places the equation is not:
+
+- **The source's DERIVATION names what the quantity IS.** Hébert doesn't just state
+  `α_{q+1/2} = α_{q−1/2} + 𝒲μ`; two lines earlier he *defines* `α ≡ 𝒲_p·η_{q+1/2}` —
+  the tangential cosine at a real boundary. That single definition converts "which
+  ordering is conventional?" into "which ordering reproduces the closed form?", i.e.
+  from a taste question into a decidable one. **Always read the paragraph that
+  PRODUCES the equation, not the equation.**
+- **The load-bearing sentence is PROSE that bounds the index range.** "Each axial
+  level contains 2ℱ(p) base points in interval `0 ≤ ω ≤ π`" and "the weights are
+  normalized on each level to sum to `2√(1−ξ²)`" are the two sentences that decide
+  the whole issue (the level is a HALF range; ORPHEUS spans the full circle). Neither
+  is an equation; a grep for `\alpha` finds neither. Grep the OCR sidecar for the
+  *domain* words — `interval`, `octant`, `normalized to`, `range`, `for m = 1 … M` —
+  right after you find the equation.
+
+Two corollaries that generalize past this issue:
+
+- **A recursion is only as meaningful as its enumeration.** Any cumulative recursion
+  (`x_{k+1} = x_k + f_k`) telescopes under EVERY permutation, so its closure test, its
+  sum rule, and its "step" identity are all permutation-invariant — structurally blind
+  to the very ordering they appear to certify (`vv-principles` Mode 12). When a brief
+  asks "does this gate adjudicate X?", check whether the gate's quantity is a
+  telescoping sum before reading its assertion.
+- **Find the closed form first; it is a cheaper oracle than an MMS.** The whole
+  question collapsed to a pointwise identity (`α == −W·ξ` at the boundary, exact via a
+  Dirichlet kernel) — a millisecond quadrature-only check, versus the proposed
+  "run the L1 MMS suite under each candidate ordering". And the MMS turned out to be
+  Mode-7 blind anyway (both ansatzes lived inside the symmetric sector). **When a plan
+  proposes an expensive reference to settle a discretization choice, spend one query
+  asking whether the coefficient has a closed form.**
+
+How to apply: for any "is this convention or is it determined?" brief, (1) pull the
+source's derivation paragraph, not its equation; (2) grep the sidecar for the index-domain
+prose; (3) classify each candidate gate as telescoping-invariant / fixture-restricted /
+frozen-RHS before believing it bites; (4) hunt the closed form before endorsing a
+reference solve.
+
+---
+
+## L-015 -- To test a "this DOF is redundant, fold it" hypothesis, enumerate the FUNCTIONALS, not the algorithm — and first ask whether the fold is of the ALGORITHM or of the STATE
+
+Asked to map a half-range azimuthal level (#326) and to try to REFUTE the framing
+"the redundancy IS the bug", every attempted refutation aimed at the marching
+algorithm (does alpha still close? does the redistribution term survive doubled
+weights? do the specular BCs still pair?) came back CLEAN. The one real break was
+somewhere the algorithm never looks: a **functional of the state**. A fold with
+doubled weights reproduces every *even*-parity spherical-harmonic moment to 5e-16
+and turns the *odd*-parity one from its structural `-1.3e-16` into `+2.94`.
+
+The reusable move, in two parts:
+
+- **The sweep is parity-blind; the analysis face is not.** A quotient by a
+  symmetry group G is exact on the G-invariant sector and meaningless on its
+  complement. So enumerate every INTEGRAL the code takes of the state — moments,
+  currents, leakage, inner products, the adjoint metric — and classify each
+  integrand's parity under G. Even-parity functionals survive the fold with
+  reweighting; odd-parity ones are *out of the space*, not "inaccurate". That
+  reframing is what turns a defect into a typed obligation (restrict the trial
+  space / a Petrov-Galerkin analysis face) instead of a patch.
+- **Split "fold the algorithm" from "fold the state" BEFORE scoping.** They read
+  as the same proposal and have opposite blast radii. Folding only the MARCH and
+  lifting the partners back into the full state buffer makes the symmetry hold by
+  construction, kills the ordering ambiguity, AND makes the functional break
+  vanish (the integrals see the lifted, exactly-symmetric state) — at the price of
+  no memory saving. Folding the STATE is the memory win and pulls in the trial-
+  space restriction, the partition-by-sign consumers, and every `n_dof`/Krylov
+  resize. The brief usually means the first; the headline number ("2x fewer
+  unknowns") advertises the second. Name the split in the deliverable.
+
+A third, cheaper corollary from the same audit: when two candidate constructions
+both satisfy the criterion the issue argues from (here, both half-range rules
+reproduce the alpha closed form with the SAME constant), **the criterion does not
+discriminate them — go find the predicate that does.** It was a one-line structural
+predicate elsewhere in the tree (`0 < tau_raw[0] < 1`) that flipped an entire
+solver route on for one candidate and not the other. Sweep the STRUCTURAL
+PREDICATES the codebase already keys behaviour on, and evaluate each candidate
+against them; that is where the real cost difference lives.
+
+---
+
+## L-016 -- A stored NUMERIC PROPERTY (an exactness/order/rank tag) is a claim: sweep it, and first establish what the SYMMETRY gives for free
+
+Surveying the quadrature landscape (2026-08-01), the single highest-value finding
+came from ~40 lines of probe: brute-force sweep the monomials and ask "what is the
+LARGEST degree at which EVERY monomial is exact?", per rule, per parameter. Result:
+`level_symmetric_sn` tags `degree_of_exactness = N-1` and measures **3 for every
+N** — a 12-degree over-claim at S16, with a live consumer (the registry selector
+returns it when you ask for degree 15). Two moves made it decisive:
+
+- **Establish the FREE baseline before crediting the construction.** I built a
+  RANDOM `O_h` orbit with equal weights summing to 4π and measured it: degree-3
+  exact, fails at 4 — identical to the real rule. So the rule's entire measured
+  exactness is a consequence of the `invariance_group` tag it already carries, and
+  the level construction contributes nothing. Without that control I would have
+  reported "degree 3, not N−1" instead of "the number is not just wrong, it is
+  redundant with another field". **For any "does this property hold?" audit, first
+  measure what a structurally-trivial object with the same declared symmetry gives.**
+- **Read the WEIGHTS, not the nodes, when a moment claim fails.** `n_distinct_weights == 1`
+  for every N immediately named the root cause (equal-weight, not the cited
+  Carlson-Lathrop moment-matched construction). A node-level diff would not have.
+
+Why no test caught it (the reusable diagnosis): every test asserted the **tag**
+(`assert m.degree_of_exactness == sn_order - 1`) and every *property* test stopped
+at degree 2 — inside the sector the symmetry makes free (vv Mode 7,
+fixture-restricted). **A tag-pinning assert is not a property test; when a brief
+says "audit claim X", grep the tests for `== <the tag>` and treat every such line
+as evidence that the property is UNTESTED.**
+
+Also from the same survey, two cheap discriminators worth reusing:
+- **When a docstring says a `min()` is "conservative" over two incommensurable
+  units, look for the unstated MAPPING before calling it a bug.** The product
+  rule's `min(2n_mu-1, n_phi-1)` measured CORRECT and SHARP on both branches,
+  because for `x^a y^b z^c` on `S²` the max azimuthal frequency is exactly `a+b`.
+  The defect was the missing mapping, not the arithmetic — a different (and much
+  cheaper) deliverable than "the formula is wrong".
+- **A structural FLAG's docstring and its registry ENTRIES can disagree; measure
+  to decide which is wrong.** `half_range_clean`'s attribute docstring said
+  "Lebedev and level-symmetric are not"; the entries said LS=True, Lebedev=False.
+  Measured `w(z>0)/w_tot`: LS/product exactly 0.5, Lebedev 0.33-0.43 (equator
+  nodes). The ENTRIES were right. Never assume the prose is the ground truth just
+  because it is longer.

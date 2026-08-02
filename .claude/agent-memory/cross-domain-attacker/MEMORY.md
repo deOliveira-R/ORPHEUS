@@ -8,18 +8,21 @@ resolvent backbone → the AGENT.md kernel (fire from there, do NOT re-derive). 
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 12 process lessons. Spine: a frame-attack's value is a
+- [lessons.md](lessons.md) — 13 process lessons. Spine: a frame-attack's value is a
   concrete reformulation with a FAIL-ABLE first test OR a crisp refutation carrying its
   structural reason — never a named-but-payoff-free frame. L1 refuted-frames-are-first-class ·
   L2 tests must DISCRIMINATE · L3 Smell#16 four shapes · L4 property-vs-type by counting
   applied morphisms · L5 read-worktree-not-Nexus-on-a-branch · L6 frame-leak naming · L7
   resolvent-backbone predicts cross-method layering · L8 "fully probes"=linearity-not-degree ·
-  L9 frame OWNER + Galerkin/PG discipline set by the operator's SYMMETRY (Funk–Hecke) · L10
-  conserved-collapse splits rate⟹average(G⁻¹M) vs mass⟹marginalize(M) · L11 coupled-block =
-  free re-association of a biproduct (Mat∘Mat≅Mat), defer-until-2 counts KINDS · L12 naming IS
-  frame-detection: a theorem can FORBID a family word (⇒ species+genus-ABC), a name's test is
-  the invariant it promises run against the violator, delete-it-and-ask-what-breaks for a
-  reused word (+ smell cand "name states a contract the content violates").
+  L9 frame OWNER + Galerkin/PG discipline set by the operator's SYMMETRY (Funk–Hecke; **3rd
+  outcome: ALL owners ⟹ no owner, still GALERKIN-on-a-sub-block**) · L10 conserved-collapse
+  splits rate⟹average(G⁻¹M) vs mass⟹marginalize(M) · L11 coupled-block = free re-association
+  of a biproduct (Mat∘Mat≅Mat), defer-until-2 counts KINDS · L12 naming IS frame-detection: a
+  theorem can FORBID a family word (⇒ species+genus-ABC), a name's test is the invariant it
+  promises run against the violator, delete-it-and-ask-what-breaks for a reused word (+ smell
+  cand "name states a contract the content violates") · L13 a `-> bool` PREDICATE that
+  internally builds the permutation/partition/certificate IS the "missing" primitive —
+  widen the return type before minting a class.
 
 ## 2. Active / in-flight state
 
@@ -52,6 +55,7 @@ in `lessons.md`; structural CONTENT is in each topic file.
 
 ### Curvilinear / phase-space boundary
 - [psi_half_seed_angular_trace_frames.md](psi_half_seed_angular_trace_frames.md) — #282/#280 R10: the ψ½(µ=−1) seed IS the ANGULAR-INFLOW TRACE of the (r,µ) rectangle (dual to ∂spatial); ZERO-metric GHOST ((1−µ²)=0=α_{1/2}); Euclidean coupling via apply_transpose (G at outer wrap only); sphere-only. Smell cand "metric-invisible-yet-active DOF".
+- [quadrature_symmetry_quotient_frames.md](quadrature_symmetry_quotient_frames.md) — #326: half-range = ORBIFOLD quotient by the point-ISOTROPY group (C_2v), weights FORCED by orbit-stabilizer (trapezoid = the orbifold measure), ξ-even/odd = the trivial/sign ISOTYPIC split. **A level is a FIBER of an invariant, NOT an orbit** (product fibers signed µ_z, LS fibers |µ_z| — one type, two meanings); redistribution exists **iff the spatial-reduction group acts on the angular fiber**; n_levels>1 ⟺ isotropy FINITE. `σ_xσ_y=C₂(ẑ)` welds the spatial r=0 map to the angular fold (right by a coincidence today). API: measure-quotient is **NOT** a Frame (⟹ `pushforward∘consolidate`, ONE verb), basis-side isotypic restriction **IS** (symmetry-adapted SH, Galerkin-on-a-smaller-space — PG REFUTED). Missing: the singular set Σ={ξ=0} (6 ε-detectors), the group ACTION (3 impls), exactness-without-a-subspace. MoC = live 2nd consumer. → lessons L9-3rd-outcome, L13.
 
 ### Eigenvalue / iteration layering
 - [eigenvalue_posing_layering_frames.md](eigenvalue_posing_layering_frames.md) — K/α/source/transient = ONE generalized eigenproblem `Aψ=λMψ`, backbone = resolvent `A_loss⁻¹M`, layered leaves→posing→resolvent→algorithm (role-assignment method-agnostic, realization method-specific).

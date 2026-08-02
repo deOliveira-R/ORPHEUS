@@ -474,3 +474,63 @@ angular w is the sole gauge d.o.f., no canonical value for a single ray).
    read only by A.H + inner_product, #208 trace-metric precedent). Diagnostics
    `derivations/diagnostics/diag_gsd_0{1,2,3}_*.py` (17 green). See
    [[starting_direction_metric_gauge_derivation]].
+
+## L18: To adjudicate a LABELING/ORDERING degeneracy in a discrete-ordinate scheme, the instrument is the operator's own SYMMETRY GROUP — MMS is exactly blind, and the answer is usually "no ordering is right, the closure is broken"
+
+#326 (2026-08-01, cylindrical per-level ordinate order, `rules_product.py:139`
+`argsort(mu_x)` where η is 2-to-1 over φ). Five durable points:
+
+1. **An MMS whose ansatz AND source depend only on the INVARIANTS of the degenerate class
+   is EXACTLY blind** (Mode 7 by design + Mode 12: the relabeling is in the measured
+   functional's stabiliser). Both ORPHEUS cylindrical ansatzes are functions of (η, ξ²) —
+   exactly the two things the azimuthal mirror pair shares — so the pair carries identical
+   ψ_ref, Q, w. Measured: two tie-breaks agree to 3e-12 / 9e-15 on the production ladders,
+   at every mesh, at every quadrature order. **Declare the ansatz's invariants BEFORE
+   trusting it as an adjudicator**; a companion ansatz that leaves the symmetric sector
+   (here ξ-ODD `(A+B ξ)/W`) SEES it (20.6%) yet still cannot ADJUDICATE — both orderings
+   converge to the SAME angular floor from opposite sides at spatial order ~0.
+2. **A within-tie permutation cannot move a cumulative-sum coefficient.** α is a partial
+   sum of `w_m η_m` and `w` is constant within a product level ⟹ α and τ are BIT-identical
+   across tie-breaks; only WHICH ORDINATE sits at each position moves. So the whole effect
+   is a labeling, and the symmetry-defect MAGNITUDE is ordering-invariant.
+3. **The leak path is any coupling that maps ACROSS the degenerate class.** The tie-break
+   need not COMMUTE with it. Here the r=0 pole seed `pole_outflow[reflection_index("x")[n]]`
+   sends ordinate n to the −η class where the tie-break made an independent choice —
+   measured non-commuting for 24/64 ordinates — which is why even ξ-EVEN data moves 2.6e-2.
+   Grep every cross-class index map (`reflection_index`, mirror/partner tables) before
+   concluding a relabeling is inert.
+4. **The adjudicating criterion is a SYMMETRY the continuous AND semi-discrete problems
+   both have** — no reference solver, no MMS, structurally independent by construction.
+   1-D cylindrical: ψ is EVEN in ξ; the product rule is closed under ξ→−ξ with equal
+   weights. Production breaks it at 1.19e-1 (30% local; LS4 3.08e-1), flat in n_mu, falling
+   in n_phi ⟹ it IS the #229 azimuthal floor, seen WITHOUT a reference. Verdict: no ordering
+   is correct — the M-M 1-D η-march on a level with duplicate η is, plus the [½,1] clamp
+   that turns the resulting ZERO-WIDTH angular cell into an arbitrary {1, ½} τ split.
+5. **The constructive exit is to fold to the FUNDAMENTAL DOMAIN.** A degeneracy in a sort
+   key usually means the discretization carries a redundant symmetric copy. On ω∈[0,π]
+   (the independent half) η is strictly MONOTONE: no ties, ordering UNIQUE, and every
+   competing criterion coincides — α is simultaneously a non-negative dome AND exactly
+   `2 w_gl κ ξ(ω_{m+½})` (the user's closed form, κ=Δω/(2sin(Δω/2))=1+Δω²/24, verified
+   3e-16 via the Dirichlet kernel), and the ξ-mirror holds by construction.
+
+**Method warning (cost me a probe):** verify the varying knob is REACHABLE. My first
+tie-break probe was vacuous — production's trig-evaluated nodes split the "ties" by 1 ULP,
+so lexsort/stable/quicksort all agree and the tie-break is not a free variable until the
+nodes are algebraically exact (#325). A control leg asserting "the two settings really
+DO differ" caught it. This is vv Mode-8's SIGNATURE-tautological class in numeric clothing:
+the knob existed, the value it should have varied was decided upstream by rounding noise.
+See [[cylindrical-level-ordering-symmetry-adjudication]].
+
+**[M] Promotion sharpening (2026-08-01), two measured corrections worth reusing:**
+(a) **`xfail` swallows FIXTURE SETUP ERRORS too**, so "move the solve into a fixture so an
+incidental failure surfaces as an ERROR" is FALSE — measured: a raising stub for the solve
+left all three strict-xfail rows reporting `3 xfailed` in 0.32 s. The working structure is
+the xfail row asserting ONLY its documented inequality PLUS a **reddenable un-xfailed
+SIBLING** consuming the same fixtures (a well-formedness/activation band); break the solve
+and the sibling ERRORs loudly. Pair it with the positive control — simulate the fix and
+confirm `XPASS(strict)` — which is what proves the row measures what the repair changes.
+(b) **A diagnostic that RE-IMPLEMENTS the production kernel must be rewired to CALL it at
+promotion** (vv Mode 11). My α diagnostic ran a local copy of the recursion; the promoted
+gate drives `cylindrical_streaming`, and the proof is a mutation applied through the test's
+OWN import binding (flip the production α sign → 20 L1 rows red, the 15 foundation
+derivation rows stay green — which also validates the L1-vs-foundation marker split).

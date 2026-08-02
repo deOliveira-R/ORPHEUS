@@ -351,14 +351,33 @@ is taken on the DISCRETE (assembled) high-order operator (reduce-discrete ≠
 discretize-reduced). One symmetry principle now predicts frame OWNERSHIP, the
 Galerkin-vs-PG DISCIPLINE, AND the multigrid CONSISTENCY condition.
 
+Corollary — the THIRD outcome: **ALL owners ⟹ NO owner, and it is still GALERKIN**
+(#326 symmetry quotient, [[quadrature-symmetry-quotient-frames]]). The rule as stated
+has two outcomes (one operator's eigenbasis ⟹ owned+Galerkin; no symmetry ⟹ owned by
+none+PG). A **symmetry quotient** is the third: the group sits in the commutant of
+**every** equivariant operator at once (streaming, collision, scattering, fission AND
+the BCs are all `C_{2v}`-equivariant for a 1-D cylinder), so by Schur they are all
+simultaneously block-diagonal in the isotypic decomposition. A frame owned by
+everything is owned by nothing — it belongs to the **PROBLEM's symmetry**, not to an
+operator. Crucially this does NOT make it Petrov-Galerkin: PG in this project means a
+**solution weighting**, and a symmetry fold carries none (its Gram stays diagonal at
+exactly the parent value, because invariant functions are constant on orbits and the
+orbit weights sum to the parent's). So the verdict is **Galerkin on a SMALLER SPACE**
+— second sighting of that exact verdict after the DSA ℓ=0 sub-block. Detection rule:
+before typing an `R∘A∘M` as PG, ask *"is the test≠trial gap a SOLUTION weight, or a
+GROUP identification?"* A group identification is Galerkin-on-a-sub-block; typing it
+PG repeats the category error B3.0 fixed when it moved the Lambertian out of the
+geometry slot.
+
 SKILL-PROMOTION STATUS: a STRONG candidate for skill Part C (a new smell:
 "eigenbasis-blind frame placement" / "operational-pipeline vocabulary for a spectral
 decomposition") — the `harmonic_moment_flux.py:6` "natural data carrier of the
 Galerkin pipeline" is the tell that the native Funk–Hecke frame is unnamed. The DSA
 ℓ=0 case is a second CONSUMER of the SAME angular frame (not the independent
 non-angular sighting the bar wants), but it strengthens the rule with the sub-block +
-multigrid face above. Still held for a genuinely non-angular eigenbasis frame before
-promotion; until then fire it inline.
+multigrid face above; the #326 symmetry-quotient case adds the third outcome and a
+SECOND instance of the Galerkin-on-a-sub-block verdict. Still held for a genuinely
+non-angular eigenbasis frame before promotion; until then fire it inline.
 
 ---
 
@@ -518,3 +537,43 @@ that would promise an unsupported operation, say which operation and cite the
 measurement that refutes it (`Functor` ⟹ `reduce-discrete ≠ discretize-reduce`,
 measured). Do NOT invent a name where none exists — say "no faithful name
 exists", give the least-bad invented one, and flag it as invented.
+
+---
+
+## L-013 -- Before accepting "the machinery lacks X", check whether a PREDICATE already computes X and throws it away — a `bool` return is the commonest way a primitive stays missing
+
+Recurring shape on "what is missing in the machinery" dispatches. A proposal says a
+capability is absent; the truth is that a **verification predicate already computes
+the exact object** and destroys it at the `return` statement, because the return type
+was chosen as `bool`. The capability is not missing — its **witness** is.
+
+Worked (#326, [[quadrature-symmetry-quotient-frames]]): `SubgroupOfO3.is_invariant`
+was offered as "the checking face; the quotient is what's missing". But
+`_orbit_closure` (`symmetry.py:904-954`) computes the matched partner index `j` for
+every `(node i, group element M)` — i.e. **the permutation representation, which IS
+the quotient's only hard input** — and returns `bool`. Two OTHER modules then
+re-implement the same permutation independently (`_compute_sphere_reflection_partners`;
+MoC's `_reflected_azi_index`). So the honest finding is not "add a quotient class"
+(the proposal's scale) but "**return the witness**", after which the quotient is one
+further verb (`consolidate`). That collapses the estimated work by an order of
+magnitude and is a strictly better answer for the requester.
+
+TELL (grep-able): a function named `is_*` / `check_*` / `verify_*` / `*_closure`
+whose BODY builds an index map, a permutation, a matching, a partition, a
+factorisation, or a certificate — and whose signature says `-> bool`. Same family as
+Smell #16 shape 1 (the re-implementations downstream are the confirmation), but the
+CAUSE is different and so is the fix: shape 1 says "collapse two paths"; this says
+"one path exists and is throwing away its output — widen the return type first, and
+the twin paths delete themselves."
+
+Discriminating first test: assert the consumer's hand-rolled artefact is
+`array_equal` (0 ULP, L-002) to the predicate's now-returned witness. A
+re-implementation with a different tolerance or tie-break diverges exactly on the
+degenerate elements (self-partners / fixed points), which is where every bug in that
+family lives.
+
+How to apply: at any "map what is missing in the machinery" brief, before enumerating
+new types, grep the predicates in the neighbourhood and read their BODIES. Ask "does
+this `bool` know something?" A found witness reframes the whole deliverable — and a
+proposal that over-scoped the gap is a finding worth reporting plainly, because it is
+good news.

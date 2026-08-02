@@ -2530,3 +2530,120 @@ verification plan written against a stale premise gates the wrong thing.
   real guard raises, a size comparison passes. No mesh produces that input, so
   the discipline is otherwise an unverified claim however well its docstring
   argues for it.
+
+---
+
+## L34 — Making a SYMMETRY EXACT is not a ≤1-ULP change: exactness manufactures TIES, and a downstream sort that was accidentally total becomes under-determined (#325, roots_of_unity)
+
+The framing that arrives with such a change is always *"the node values move
+by ≤1 ULP, so anything pinned bit-exactly re-baselines."* That sentence is
+true about the **values** and can be catastrophically false about the
+**results**, because the whole point of the change is to make previously-
+distinct floats **bit-equal** — and anything downstream that ORDERS, GROUPS,
+DEDUPES, or takes an `argmin`/`argsort` over them was relying on the noise to
+break ties.
+
+`[M]` #325: `roots_of_unity` makes azimuthal mirror partners share `η`
+bit-exactly. `rules_product.py` sorts each μ-level by `η` with a default
+`np.argsort`. Distinct-η per level at `n_phi=64` drops **60 → 33**; the
+per-level ordering changed in **36 of 36** `(n_mu, n_phi)` configurations,
+including those with no axis node. End-to-end on a heterogeneous 2-G
+cylindrical fixed-source at `n_phi=32`, with the node values held
+**bit-identical** and only the ordering varied: **1.008 % flux change**; and
+`kind="quicksort"` vs `kind="stable"` — a numpy implementation detail —
+differ by **1.775 %**. The node-value drift in the same run was **1.06e-14**.
+Twelve orders apart, in the same commit, under one justification sentence.
+
+**The checklist when a change makes something exact:**
+1. Grep the consumers for `argsort` / `argmin` / `sort` / `unique` /
+   `set(` / dict-keying **on the quantity being made exact**. Each is a
+   tie-break that was being decided by the noise you just removed.
+2. **Is the sort key INJECTIVE?** `η = sinθ·cos φ` is 2-to-1 over
+   `φ ∈ [0,2π)`. A non-injective key means the ordering was never determined
+   *by the physics* — exactness only reveals it. That is a live latent defect
+   to be ruled on, not a side effect of your change.
+3. **Does the ambiguity converge away?** `[M]` it did not: the gap sat flat at
+   ~1.0–1.8 % across `n_phi ∈ {32, 64, 128}`. A flat-in-refinement gap is a
+   defect; a shrinking one is discretization.
+4. **Split the commits.** The ordering ruling lands FIRST, alone, with its own
+   reference. Otherwise the value-change commit's DriftWarning run is
+   uninterpretable and its justification record is a lie.
+
+**The Mode-12 trap specific to ordering:** *"the level is sorted by η"* is the
+wrong functional — sortedness is invariant under permuting equal elements, so
+the two orderings that differ by 1.8 % are BOTH sorted. Gate the **full index
+tuple** against an independently-constructed one, plus a
+**`kind=`-invariance** row (`quicksort`/`stable`/`heapsort`/`mergesort` must
+give bit-identical tuples), which is the operational proof the key is
+injective. And the canonical curvilinear diagnostic is no help: `[M]` the
+homogeneous flat-flux `Q/Σ_t` leg gave the SAME value on all four ordering
+legs — the config that AGENT.md §0.6 calls the single most powerful
+curvilinear diagnostic is designed-green here, because flat flux nulls exactly
+the redistribution the ordering perturbs.
+
+### L34b — the two blind involutions, and the "is it a live bug?" discipline
+
+`[M]` Two measurements from the same session, both worth reusing:
+
+- **A nearest-neighbour partner search is not automatically a bug.** The
+  hypothesis "NN matching over a noisy set must be mis-pairing" was
+  **REFUTED**: the map is a valid permutation AND involution up to
+  `n_phi=1024`, because the mis-pair margin is the node separation
+  (`5.0e-3`) versus a `1e-16` perturbation — 13 orders. Measure the margin
+  before filing it as a bug; and **KEEP the search** rather than replacing it
+  with an index formula, because the sibling family (`lebedev`) has no such
+  formula and the replacement would mint a twin path AND delete the only
+  detector of the next item.
+- **`ref[ref] == id` passes on a residual-0.94 garbage map.** `[M]` for odd
+  `n_phi` the x-mirror partner does not EXIST; the unguarded `argmin` returns
+  the nearest node anyway and the result is still a permutation and still an
+  involution. The only functional outside that stabiliser is the
+  **RESIDUAL** `max‖R·x_n − x_{ref[n]}‖`. Same shape as the `face_opposite`
+  lesson (L33): an involution law alone is blind because the identity is an
+  involution — here, because *any* self-inverse pairing is.
+
+### L34c — "≤1 ULP agreement with `np.cos`" is the wrong reference, not just a wrong number
+
+`[M]` The shipped construction is `3.75 ulp(1.0)` from `np.cos(2πp/q)` — the
+stated acceptance criterion FAILS. But `np.cos(2πp/q)` is not the true value:
+`fl(2πp/q)` already carries argument-reduction error. Against 100-digit
+mpmath the new code is `0.57 ulp(1.0)` and the legacy is `3.72 ulp(1.0)`.
+**Gating a more-accurate implementation against the less-accurate one it
+replaces gates it against the error it exists to remove.** State the criterion
+against the arbitrary-precision value, and state it honestly: `[M]` the legacy
+is strictly closer on `30/1040 = 2.9 %` of components (by ≤ `1.11e-16`), so
+the claim is *"within 0.57 ulp everywhere"*, never *"always closer"*.
+
+### L34d — the harness that says "N gates are blind" is the one to distrust first
+
+`[M]` My first teeth harness reported **18 of 18 gates never red**. The
+mutation had never bound — `pytest.main` imports its own copy of the test
+module, so patching a privately-loaded copy does nothing. The corrected
+harness patches the SOURCE module, purges the test module from `sys.modules`,
+and carries a **positive-control probe** ("did the freshly-imported test
+module bind the mutant?") printed on every row. With it: 14 of 17 gates red
+from the body battery, the remaining 3 from targeted mutations. This is the
+`vv-principles` Mode-8 METHOD WARNING and it cost a full false verdict — an
+all-blind result is far more likely to be a broken harness than a broken
+suite.
+
+Corollary, and it caught me: the same harness flagged a gate **I had just
+written** as never-reddening — an "activation guard" asserting odd `q` has no
+node at `π` (`not any(2p == q)`), which is a **theorem about parity**, true
+for every input. It survived authoring and a full green run. Run the teeth
+harness over your OWN new module before delivering it.
+
+### L34e — a "bit-identical to the legacy adapter" pin whose legacy adapter is gone
+
+`[M]` `test_product_bit_identical_to_legacy_adapter` compares
+`product_mu_phi(...)` to `Quadrature.product(...)` — and `Quadrature.product`
+CALLS `product_mu_phi`. The named legacy adapter
+(`orpheus.sn.quadrature.ProductQuadrature`) no longer exists. Replacing
+`product_mu_phi` with **random nodes** leaves the test **green**, while its
+docstring claims *"Pins the cylindrical regression snapshots"*. A snapshot
+whose only "independent" pin is that test has **no anchor at all**, and
+re-baselining it against its own old value is the contaminated re-baseline
+L32 is about. **Whenever a pin names a "legacy"/"reference"/"adapter"
+counterpart, grep that the counterpart still EXISTS and is not the SUT
+reached by another name** — a delegation added later silently converts the
+pin into `X == X`.
