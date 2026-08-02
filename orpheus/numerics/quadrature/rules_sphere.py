@@ -171,18 +171,36 @@ def _build_level_symmetric_arrays(
 
     mu_levels = np.sqrt(mu2_levels)
 
+    # The defining property of a level-symmetric set: every ordinate's
+    # three direction cosines are drawn from the SAME level array, so
+    # the set is closed under permuting the axes. The level index of the
+    # third cosine is not free — it is fixed by the other two.
+    #
+    #   mu2[p] + mu2[k] + mu2[j] = 3*mu1_sq + (p + k + j)*delta = 1
+    #   and delta = 2(1 - 3*mu1_sq)/(N - 2)
+    #   =>  p + k + j = (1 - 3*mu1_sq)/delta = (N - 2)/2 = n_half - 1.
+    #
+    # So j is INDEX ARITHMETIC. Until 2026-08-02 this loop instead
+    # recovered the third cosine numerically as
+    # ``sqrt(1 - mu_z**2 - eta**2)``, which lands within ~1e-16 of
+    # ``mu_levels[j]`` but not ON it: `[M]` at N=16 the y-axis then
+    # carried 22 distinct magnitudes where the level array has 8, and
+    # only 8 of the 48 O_h operators mapped the node set onto itself
+    # bit-exactly — the 8 pure sign flips, since negation is exact in
+    # IEEE while a coordinate swap is only exact if the values match.
+    # The rule advertised O_h invariance and realized D_2h.
+    #
+    # Reading the level value instead makes all 48 exact, so the
+    # octahedral symmetry becomes an integer permutation of ordinate
+    # indices rather than a question about tolerances. It also retires
+    # the `xi_sq < -1e-14` guard: `j` is provably in range for every
+    # admissible (p, k), because p + k <= n_half - 1 by the loop bound.
     octant_dirs: list[tuple[float, float, float]] = []
     for p in range(n_half):
         mu_z = mu_levels[p]
-        sin_theta_sq = 1.0 - mu_z**2
-        n_azi = n_half - p
-        for k in range(n_azi):
-            eta = mu_levels[k]
-            xi_sq = sin_theta_sq - eta**2
-            if xi_sq < -1e-14:
-                continue
-            xi = np.sqrt(max(xi_sq, 0.0))
-            octant_dirs.append((eta, xi, mu_z))
+        for k in range(n_half - p):
+            j = n_half - 1 - p - k
+            octant_dirs.append((mu_levels[k], mu_levels[j], mu_z))
 
     n_octant = len(octant_dirs)
     w_octant = 4.0 * np.pi / (8.0 * n_octant)

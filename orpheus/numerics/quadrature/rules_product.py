@@ -28,8 +28,21 @@ rotations :math:`C_{n_\phi}` and by the vertical mirrors at
 symmetric about :math:`\mu = 0`, which supplies :math:`\sigma_h`.
 Together these generate :math:`D_{n_\phi h}` — and
 :func:`~orpheus.numerics.symmetry.maximal_invariance_groups`
-**computes** exactly that from the nodes, so the tag above is
-checked rather than asserted.
+**computes** exactly that from the nodes, so the tag above is pinned
+by a permanent test rather than merely asserted. It is not verified
+at construction: the computed check runs in ``tests/``, not here.
+
+.. caution::
+
+   Both sides of that check are ``cos``/``sin`` evaluations — the
+   :math:`\phi` grid here, and the checker's own :math:`C_n` and
+   :math:`\sigma_v` operators — so the agreement holds to ~1e-16, not
+   bit-exactly, and the match window
+   (``symmetry._NODE_WINDOW_FACTOR``) is what absorbs the difference.
+   Lebedev's :math:`O_h` claim, by contrast, is exact on both sides
+   because signed permutations are exact in IEEE. Making this one
+   exact needs :mod:`orpheus.numerics.roots_of_unity` on the generator
+   AND on the checker's cyclic/mirror operators (issue #325).
 
 .. note::
 

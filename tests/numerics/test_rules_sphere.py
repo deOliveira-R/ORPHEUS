@@ -188,3 +188,94 @@ def test_level_symmetric_quadratic_isotropy() -> None:
     assert val_x == pytest.approx(expected, rel=1e-10)
     assert val_y == pytest.approx(expected, rel=1e-10)
     assert val_z == pytest.approx(expected, rel=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Octahedral invariance is EXACT, not approximate
+# ---------------------------------------------------------------------------
+#
+# A rule that advertises O_h invariance should realize it as an integer
+# permutation of ordinate indices. That is what a reflecting boundary
+# condition needs: the face reflection must map ordinate m onto ordinate
+# m', not merely near it.
+
+
+def _oh_exactness(nodes: "np.ndarray") -> "tuple[float, int, int]":
+    """(worst landing distance, #operators exact, #operators) over O_h."""
+    from orpheus.numerics.symmetry import SubgroupOfO3, _realized_ops
+
+    ops = _realized_ops(SubgroupOfO3.OctahedralOh._tag)
+    assert ops is not None and len(ops) == 48
+    worst, exact = 0.0, 0
+    for g in ops:
+        moved = nodes @ np.asarray(g).T
+        landing = np.linalg.norm(
+            moved[:, None, :] - nodes[None, :, :], axis=2
+        ).min(axis=1).max()
+        worst = max(worst, float(landing))
+        exact += int(landing == 0.0)
+    return worst, exact, len(ops)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("sn_order", [4, 6, 8, 12, 16, 20])
+def test_level_symmetric_is_EXACTLY_octahedral(sn_order: int) -> None:
+    r"""All 48 :math:`O_h` operators map the node set onto itself bit-exactly.
+
+    Regression for a defect that made the rule advertise :math:`O_h` and
+    realize only :math:`D_{2h}`. The construction used to recover the
+    third direction cosine numerically as
+    :math:`\sqrt{1 - \mu_z^2 - \eta^2}`, landing within ~1e-16 of the
+    level value but not on it. `[M]` At :math:`N = 16` the y-axis then
+    carried **22** distinct magnitudes where the level array has 8, and
+    only the 8 pure sign flips were exact — negation is exact in IEEE,
+    a coordinate swap only if the values match.
+
+    The third level index is fixed by the triangular relation
+    :math:`p + k + j = N/2 - 1`, so it is index arithmetic, not
+    arithmetic.
+    """
+    measure, _ = level_symmetric_sn(sn_order)
+    worst, exact, total = _oh_exactness(measure.nodes)
+    assert exact == total, (
+        f"S_{sn_order}: only {exact}/{total} O_h operators are exact "
+        f"(worst landing {worst:.3e}) — the rule realizes a subgroup of "
+        f"what it advertises"
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("sn_order", [4, 8, 16, 20])
+def test_level_symmetric_axes_share_one_magnitude_set(sn_order: int) -> None:
+    """The defining property of a *level*-symmetric rule.
+
+    Every ordinate's three cosines are drawn from the SAME level array,
+    so the three axes must carry identical magnitude sets — as sets of
+    exact floats, not merely to a tolerance. This is what makes the
+    axis-permuting half of :math:`O_h` a relabeling.
+    """
+    measure, structure = level_symmetric_sn(sn_order)
+    per_axis = [set(np.abs(measure.nodes[:, k]).tolist()) for k in range(3)]
+    assert per_axis[0] == per_axis[1] == per_axis[2], (
+        f"S_{sn_order}: axes carry "
+        f"{[len(s) for s in per_axis]} distinct magnitudes"
+    )
+    # And that shared set IS the level array.
+    assert per_axis[0] == set(np.abs(structure.level_mu).tolist())
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("sn_order", [4, 6, 8, 12, 16])
+def test_lebedev_is_EXACTLY_octahedral(sn_order: int) -> None:
+    """Lebedev already had this property — it is the reference case.
+
+    Its tabulated orbits are sign-flip and coordinate-permutation images
+    of a few representatives, so closure is bit-exact by construction.
+    Pinned so a future table edit cannot quietly lose it.
+    """
+    order = {4: 3, 6: 5, 8: 7, 12: 11, 16: 17}[sn_order]
+    measure = lebedev_sphere(order=order)
+    worst, exact, total = _oh_exactness(measure.nodes)
+    assert exact == total, (
+        f"lebedev({order}): {exact}/{total} exact, worst {worst:.3e}"
+    )
