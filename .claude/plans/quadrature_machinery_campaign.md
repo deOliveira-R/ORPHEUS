@@ -8,16 +8,31 @@
 > bug. It happens to dissolve #326 when the machinery is right — that is the
 > *test* of the design, not its purpose.
 >
-> **Branch** `refactor/operator-strategy-layers`. **Q0 IS LANDED** (2026-08-02) —
-> the campaign's instrumentation is committed and is no longer a `git clean`
-> hazard. **Next phase is Q1.**
+> **Branch** `refactor/operator-strategy-layers`. **Q0 LANDED; Q1 MERGED INTO Q2;
+> Q2 IS ~80 % LANDED** (2026-08-02). Everything committed and green.
+> **NEXT: the registry Stage-1 re-pose — and it NEEDS USER STEERING** (changing
+> `GEOMETRY_GROUPS` makes the cylinder REJECT odd-`n_φ` product rules; that
+> rejection is correct and IS ERR-042, but it is a live semantic change).
 >
 > | commit | what |
 > |---|---|
 > | `1f9d4818` | **Q0** — `roots_of_unity` + the three promoted gates + `_test_helpers` |
 > | `49bd7314` | this plan + the 8 `scratch/` evidence reports + agent memory |
-> | `93287e57` | the boundary campaign's 13 orphaned evidence reports (already-landed work) |
+> | `93287e57` | the boundary campaign's 13 orphaned evidence reports |
 > | `35a1fdb1` | `.gitignore` the 215 MB local literature corpus |
+> | `d6bc55e4` | **ERR-072 + ERR-073** — two false certifications, with 4 proven catchers |
+> | `63d0b234` | **the subgroup GRAPH + walk** (T17) and the `O2 → D_∞h` rename (T15d) |
+> | `c9c57152` | **the orbit certificate + `Σ`** (T14, T18) + 2 perf fixes |
+> | `4fd0c7b3` | the 1-D polar-marginal action; `Z2` is improper; dead code retired |
+> | `e6f01d7e` | **`DiscreteMeasure.consolidate()`** — the second half of a quotient |
+> | `9915f15b` | the two sub-agent evidence reports + agent memory |
+>
+> **`[M]` Gate at this checkpoint:** `tests/numerics` **1244 passed**;
+> `tests/geometry`+`tests/diffusion`+`tests/data` **909 passed**, 4 skipped,
+> 1 xfailed; `npx pyright` on `symmetry.py` and `measure.py` **0 errors**.
+> ⚠ `tests/numerics/test_symmetry.py` now costs ~**80 s** (was ~5 s) — it verifies
+> the lattice, the walk, the certificate, `Σ`, orbit-stabilizer and 2 ERR
+> catchers. Budget it.
 >
 > **What Q0 landed:**
 >
@@ -1056,12 +1071,25 @@ implemented and **no `D_6h`-invariant rule in tree**.
      pairs** (was 68). **Superseded** `invariance_group_for(params)`.
      ⚠ Cost: `test_symmetry.py` 5s → 57s, because `_orbit_closure` is an O(N²)
      Python loop per operator. Vectorising it is an open follow-up (§6).
-  6. Add `DiscreteMeasure.consolidate()` — the one missing measure verb;
-     `quotient(G) = pushforward(rep).consolidate()`.
-  **Gate:** the certificate must be proven a genuine **bijection** (a non-injective
-  "permutation" would let a non-invariant rule certify as invariant), and `Σ` must
-  reproduce today's three ε-classifications on all 29 production rules — with the
-  ε-free path as the reference, not the other way round.
+  6. ✅ **`DiscreteMeasure.consolidate()`** — **LANDED `e6f01d7e`**. `[M]` The
+     quotient's weights come out as orbit-stabilizer predicts
+     (`W/w_parent ∈ {1,2}` for `|G|=2`, 8 on-mirror + 12 free), orbits `32→20`
+     matching Burnside `(N+F)/2`, mass preserved to `3.6e-15`. Preserves
+     `invariance_group`/`degree_of_exactness` (it changes no integral), unlike
+     `pushforward`. **One method, not a class hierarchy** — as predicted.
+  7. ⬜ **`align_to(K) -> Rotation | None`** — the subconjugacy certificate (T15).
+     Deliberately deferred: its only consumer is the Stage-1 re-pose, so it is
+     blocked on the same decision.
+  8. ⬜ **The registry Stage-1 re-pose** (T16) — **NEEDS STEERING**, see below.
+
+  **⚠ WHERE Q2 STOPS AND WHY.** The re-pose changes `GEOMETRY_GROUPS` from the
+  spent (continuous) half of the symmetry group to the owed (discrete) residual:
+  `slab, sphere → Z₂`; `cylinder, cartesian2d → D_2h`. Consequence, `[M]`
+  verified: the cylinder then **REJECTS odd-`n_φ` product rules**. That rejection
+  is mathematically right and *is* ERR-042 — but it is a live behaviour change in
+  rule selection, so it wants an explicit ruling rather than being slipped in.
+  Prerequisites are now all DONE (they were the blockers: the computed lattice,
+  `_vertical_mirrors`, the `D_∞h` rename).
 - ⏸ **COMPACTION POINT**
 - **Q3 — The measure-parameterized rule** (T12 / T12b; absorbs gap 3 and T2).
   ONE Golub–Welsch body; the families become `(α, β, μ₀)` **data**, not
