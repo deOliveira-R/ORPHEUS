@@ -71,9 +71,18 @@ def test_product_bit_identical_to_legacy_adapter(n_mu: int, n_phi: int) -> None:
     ``ProductQuadrature.create`` comparison it was written against)
     suggests: the factory *calls* ``product_mu_phi``, so both sides
     move together by construction and this can NEVER detect node
-    drift. What pins the ordinate order against the pre-carve
-    behaviour is the cylindrical regression snapshots
-    (``cyl_*_product_*.npz``)."""
+    drift. Replacing ``product_mu_phi``'s body with random nodes
+    leaves every assertion below GREEN.
+
+    ⚠ And no pre-carve anchor exists elsewhere either. An earlier
+    version of this docstring named the cylindrical regression
+    snapshots (``cyl_*_product_*.npz``) as what "pins the ordinate
+    order against the pre-carve behaviour". That is backwards: those
+    snapshots were THEMSELVES re-captured by the consolidation
+    (``81689a58``, "re-capture the SN baselines the quadrature
+    consolidation moved"), so they pin POST-carve behaviour as a
+    regression floor going forward. Nothing in the tree witnesses
+    that the carve preserved the ordinate order."""
     m, s = product_mu_phi(n_mu, n_phi)
     legacy = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     nodes = m.nodes

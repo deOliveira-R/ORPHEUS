@@ -151,9 +151,15 @@ def test_level_symmetric_bit_identical_to_legacy_adapter(sn_order: int) -> None:
     ``level_symmetric_sn``, so both sides move together by
     construction and this can NEVER detect node drift. Node order and
     per-level grouping matter — if either drifts, the cylindrical
-    sweep's α-recursion delivers different per-cell flux — but what
-    pins them against the pre-carve behaviour is the cylindrical
-    regression snapshots (``cyl_*_LS4_*.npz``), not this gate."""
+    sweep's α-recursion delivers different per-cell flux.
+
+    ⚠ Nothing witnesses that the carve PRESERVED them. An earlier
+    version of this docstring named the cylindrical regression
+    snapshots (``cyl_*_LS4_*.npz``) as what "pins them against the
+    pre-carve behaviour"; that is backwards, because both LS4
+    snapshots were themselves re-captured by the consolidation
+    (``81689a58``). They are a POST-carve regression floor going
+    forward, not a witness to the carve."""
     m, s = level_symmetric_sn(sn_order)
     legacy = Quadrature.level_symmetric(sn_order)
     nodes = m.nodes
