@@ -993,6 +993,7 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
     quicksort all agree.  The tie-break only becomes a reachable free variable
     once the nodes are algebraically exact (``roots_of_unity``, issue #325).
     """
+    from orpheus.numerics.exactness import UNIFORM_ON_SPHERE, ExactnessClaim
     from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
     from orpheus.numerics.quadrature.rules_sphere import (
     LevelStructure,
@@ -1039,7 +1040,10 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
         measure = DiscreteMeasure(
             nodes=np.column_stack([eta, xi, mu_z]), weights=w,
             support=SPACE_SPHERE, invariance_group=SubgroupOfO3.SO2,
-            degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
+            exactness=ExactnessClaim(
+                reference=UNIFORM_ON_SPHERE,
+                degree=min(2 * n_mu - 1, n_phi - 1),
+            ),
         )
         structure = LevelStructure(
             n_levels=n_mu, level_indices=level_indices, level_mu=mu_gl,

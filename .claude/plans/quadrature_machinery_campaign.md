@@ -1936,14 +1936,58 @@ implemented and **no `D_6h`-invariant rule in tree**.
      *also* constructs. Widening `GeneratingMeasure` would weld "what the claim
      is about" to "how the rule was built" — the very welding T28 indicts.
 
-  2. ⬜ **E2 — wire it into `DiscreteMeasure`.** Replace the two loose fields
-     with one `exactness: ExactnessClaim | None`; `degree_of_exactness` and
-     `generating_measure` become **derived read-only views** over it (no
-     separate storage — the `Quadrature.mu_x` precedent), so the ~35 read sites
-     keep working while the field that let a degree float free is gone.
-     `_combined_degree` retires into `ExactnessClaim.combined_with`.
-     *Blast radius, measured:* 7 production files (all under `numerics/`),
-     11 test files, 35 read sites.
+  2. ✅ **E2 — wired into `DiscreteMeasure`.** One `exactness` field;
+     `degree_of_exactness` and `generating_measure` are now **derived
+     read-only views** (no separate storage — the `Quadrature.mu_x`
+     precedent), so the read sites survive while the storage that let a degree
+     float free is gone. `with_metadata`'s `degree_of_exactness: int`
+     parameter **retired, not renamed** — it attached a half-claim after the
+     fact and `[M]` had zero callers.
+
+     ⭐⭐ **The suite caught a real design error on the first run, and the
+     correction is the most valuable thing in E2.** `_combined_degree` was ONE
+     law serving **two different operations**:
+
+     * `__add__` (direct sum) lands on the **same** space — summing two rules
+       for `λ` gives a rule for **2λ** (`[M]` its weights sum to 4, not 2), so
+       its reference is `λ₁ + λ₂`, not the shared `λ`;
+     * `__mul__` (tensor) lands on the **product** space, so its reference is
+       `λ₁ ⊗ λ₂`.
+
+     Keeping a factor's reference in either case asserts exactness against a
+     measure the composite is not exact against. Split: `tensor_with` mints a
+     `ProductMeasure`; the direct sum carries **no claim** (nothing consumes
+     it, and a `SumMeasure` built on speculation is worse than silence).
+     `combined_with` then had no consumer and was **retired** — it was never
+     the direct sum's law, only a plausible-looking one.
+
+     ⛔⛔ **AND THE CAMPAIGN'S OWN "6.2832 BUG" WAS PARTLY A MISREADING.** The
+     tree cited `gauss_legendre(4) * gauss_chebyshev(4)` "advertising degree 7
+     while integrating the constant 1 to **6.2832** instead of **4**" as proof
+     that a mixed-reference product must claim nothing. `[M]` Re-measured with
+     the reference nameable:
+
+     > `2π = 6.2832` **IS** the correct mass of `legendre ⊗ chebyshev_t`, and
+     > the product **IS** exact to degree 7 per axis against
+     > `dx ⊗ (1−y²)^(−1/2)dy` — worst error **4.16e-13** over every
+     > `(a,b) ≤ 7`, with degree 8 missing by **1.5e-2**, so the bound is TIGHT.
+
+     The expected `4` was the **Lebesgue** product — the wrong reference. So
+     the real defect was always *the claim was unfalsifiable for want of a
+     reference*, and the "drop the degree" guard was a **conservative
+     workaround for a missing type**, not a mathematical law. Naming the
+     reference makes a correct, tight claim representable that the tree could
+     previously only suppress. Two tests were **inverted** accordingly.
+
+     **Lesson worth carrying beyond quadrature:** when a claim is compared
+     against the wrong reference, the *measurement* is real and the
+     *conclusion* can still be backwards. "Suppress the claim" and "name what
+     the claim is about" both make the red go away; only one of them is right,
+     and the cheap one hides a correct result for years.
+
+     Also fixed in passing: `_build_level_symmetric_arrays`' return annotation
+     said 7-tuple while Q4 (`3afb52c2`) had made the body return 9 — a stale
+     signature no test could fail on and `sphinx -W` could not see.
 
   3. ⬜ **E3 — the circle reference + the periodic trapezoid as a REGISTERED
      rule.** `UNIFORM_ON_CIRCLE` (trigonometric system, mass `2π`) and a circle

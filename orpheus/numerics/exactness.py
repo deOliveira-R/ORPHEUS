@@ -106,7 +106,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
-from .measure import Space
+from .measure import SPACE_CIRCLE, SPACE_SPHERE, Space
 
 
 class OrthogonalSystem(Enum):
@@ -171,6 +171,122 @@ class ReferenceMeasure(Protocol):
 
 
 @dataclass(frozen=True)
+class UniformMeasure:
+    r"""Lebesgue measure on a domain — a reference that generates nothing.
+
+    The second realization of :class:`ReferenceMeasure`, and the one that
+    shows why the protocol is not just
+    :class:`~orpheus.numerics.generating_measure.GeneratingMeasure` under
+    another name. A uniform measure is what the non-Gauss rules are exact
+    against:
+
+    * the **midpoint / equispaced** rule on an interval — exact for
+      algebraic polynomials of degree 1, against :math:`dx`;
+    * the **periodic trapezoid** on the circle — exact for trigonometric
+      polynomials of degree :math:`n-1`, against :math:`d\varphi`;
+    * **Lebedev** on :math:`S^2` — exact for spherical harmonics, against
+      :math:`d\Omega`.
+
+    None of the three is produced by a three-term recurrence, and the
+    last two are not polynomial claims at all. The orthogonal system is
+    passed explicitly rather than inferred from :attr:`support`, because
+    inferring it would mean parsing a string tag to decide a
+    mathematical fact.
+
+    Attributes
+    ----------
+    support : Space
+        The domain :math:`\mathcal{X}`.
+    orthogonal_system : OrthogonalSystem
+        Which family the harmonic analysis of :math:`\mathcal{X}`
+        provides — polynomials on an interval, Fourier on the circle,
+        spherical harmonics on :math:`S^2`.
+    """
+
+    support: Space
+    orthogonal_system: OrthogonalSystem
+
+    @property
+    def name(self) -> str:
+        """Canonical identity — two uniform measures on the same domain
+        with the same system ARE the same measure, so the name is
+        derived rather than stored and cannot disagree with the fields."""
+        return f"uniform({self.support})"
+
+
+#: Lebesgue measure on the circle :math:`[0, 2\pi)`. The reference the
+#: periodic trapezoid is exact against, and the one whose orthogonal
+#: system is the **Fourier basis** — so a degree against it is a
+#: *trigonometric* degree, not the algebraic degree the same nodes would
+#: carry when read as a midpoint rule on an interval.
+UNIFORM_ON_CIRCLE = UniformMeasure(
+    support=SPACE_CIRCLE, orthogonal_system=OrthogonalSystem.TRIGONOMETRIC,
+)
+
+#: Lebesgue measure on :math:`S^2`. The reference for cubatures whose
+#: claim is about spherical harmonics (Lebedev, and what a
+#: level-symmetric rule claims) rather than about a weight on an
+#: interval.
+UNIFORM_ON_SPHERE = UniformMeasure(
+    support=SPACE_SPHERE,
+    orthogonal_system=OrthogonalSystem.SPHERICAL_HARMONIC,
+)
+
+
+@dataclass(frozen=True)
+class ProductMeasure:
+    r"""The product reference :math:`\lambda_1 \otimes \lambda_2`.
+
+    A tensor product of rules lands on the **product space**, so its
+    claim is about the product measure — not about either factor's. That
+    distinction is what separates a tensor product from a direct sum, and
+    conflating them is a live bug this type exists to prevent: a shared
+    "combined degree" helper served both operations, so a product could
+    inherit a factor's reference and thereby claim exactness against a
+    measure it is not exact against.
+
+    Only defined when the factors share an :class:`OrthogonalSystem`. A
+    mixed product — algebraic :math:`\times` trigonometric, which is
+    exactly the polar :math:`\times` azimuthal case — spans a *mixed
+    tensor* system whose degree is not a minimum of the factors' but a
+    theorem about the target space. Such a product legitimately has no
+    generic claim here, and the theorem belongs with the rule that
+    applies it.
+    """
+
+    factors: tuple[ReferenceMeasure, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.factors) < 2:
+            raise ValueError(
+                f"a product measure needs >= 2 factors, got "
+                f"{len(self.factors)}"
+            )
+        systems = {f.orthogonal_system for f in self.factors}
+        if len(systems) != 1:
+            raise ValueError(
+                f"a ProductMeasure's factors must share an orthogonal "
+                f"system; got {sorted(s.value for s in systems)}. A mixed "
+                f"product spans a mixed tensor system whose degree is a "
+                f"theorem about the target space, not a minimum — build "
+                f"that claim where the theorem lives."
+            )
+
+    @property
+    def name(self) -> str:
+        return " ⊗ ".join(f.name for f in self.factors)
+
+    @property
+    def support(self) -> Space:
+        return " × ".join(f.support for f in self.factors)
+
+    @property
+    def orthogonal_system(self) -> OrthogonalSystem:
+        """The shared system — guaranteed unique by construction."""
+        return self.factors[0].orthogonal_system
+
+
+@dataclass(frozen=True)
 class ExactnessClaim:
     r"""A quadrature rule's exactness, stated whole: :eq:`exactness-claim`.
 
@@ -210,41 +326,54 @@ class ExactnessClaim:
         reference, never stored separately, so the two cannot drift."""
         return self.reference.orthogonal_system
 
-    def combined_with(self, other: "ExactnessClaim") -> "ExactnessClaim | None":
-        r"""The claim shared by ``self`` and ``other``, or ``None``.
+    def tensor_with(self, other: "ExactnessClaim") -> "ExactnessClaim | None":
+        r"""The claim of a TENSOR PRODUCT of the two rules, or ``None``.
 
-        This is the composition for operations that put two rules on
-        **one** space — a direct sum, or a tensor product whose factors
-        measure the same thing. The surviving degree is
-        :math:`\min(p_1, p_2)`, and only when the two claims are about
-        the **same reference**.
+        The product lands on the **product space**, so its reference is
+        :class:`ProductMeasure` — never either factor's. For separable
+        integrands of degree :math:`p` per axis both factors must be
+        exact to :math:`p`, so the degree is :math:`\min(p_1, p_2)`.
 
-        The same-reference condition is load-bearing, not defensive.
-        `[M]` ``gauss_legendre(4) * gauss_chebyshev(4)`` advertised
-        ``degree_of_exactness = 7`` while integrating the constant
-        :math:`1` to **6.2832** instead of :math:`4`: each factor is
-        exact against *its own* weight, and the product of two different
-        weights is a measure neither factor ever claimed anything about.
-        A ``min()`` over the raw integers cannot see that.
+        ⭐ **This makes a correct claim representable that the tree
+        previously had to suppress.** The old shared "combined degree"
+        helper refused any pair with different references, on the
+        strength of a measurement that `[M]`
+        ``gauss_legendre(4) * gauss_chebyshev(4)`` advertised degree 7
+        while integrating the constant :math:`1` to **6.2832** instead
+        of :math:`4`. Re-measured with the reference named: the product
+        **is** exact to degree 7 per axis against
+        :math:`dx \otimes (1-y^2)^{-1/2}dy` — worst error **4.16e-13**
+        over every :math:`(a,b) \le 7`, with the degree-8 control
+        missing by 1.5e-2, so the bound is tight. And :math:`2\pi =
+        6.2832` **is** the correct mass of ``legendre ⊗ chebyshev_t``;
+        the old expectation of :math:`4` was the *Lebesgue* product,
+        which is not this product's reference. The refusal was a
+        conservative workaround for a missing type, not a law.
 
-        ⚠ **This is NOT the rule for a product across different spaces.**
-        A polar rule on :math:`[-1,1]` and an azimuthal rule on the
-        circle have different references *and* different systems, so
-        this returns ``None`` — correctly, because their composition is
-        a theorem about the target space (which monomials on
-        :math:`S^2` factor into which polar and azimuthal degrees), not
-        a minimum. That theorem belongs with the rule that applies it.
+        Returns ``None`` when the factors' systems differ — a mixed
+        product (algebraic :math:`\times` trigonometric, i.e. polar
+        :math:`\times` azimuthal) spans a mixed tensor system whose
+        degree comes from a theorem about the target space, not from a
+        minimum. That theorem belongs with the rule that applies it.
 
-        Returns
-        -------
-        ExactnessClaim | None
-            ``None`` when the references differ — the honest answer
-            being "no claim survives", not a smaller number.
+        .. note:: Why there is no ``combined_with``
+
+           An earlier draft carried a meet "for operations on one space",
+           intended for the direct sum. It is **not** the direct sum's
+           law: :meth:`~orpheus.numerics.measure.DiscreteMeasure.__add__`
+           requires equal supports, so summing two rules for
+           :math:`\lambda` gives a rule for :math:`2\lambda` — keeping
+           the shared reference would assert exactness against a measure
+           the sum is not exact against, the very error this type exists
+           to prevent. The direct sum therefore carries no claim, and the
+           meet had no other consumer.
         """
-        if self.reference != other.reference:
+        if self.system is not other.system:
             return None
         return ExactnessClaim(
-            reference=self.reference,
+            reference=ProductMeasure(
+                factors=(self.reference, other.reference),
+            ),
             degree=min(self.degree, other.degree),
         )
 
@@ -256,7 +385,10 @@ class ExactnessClaim:
 
 
 __all__ = [
+    "UNIFORM_ON_CIRCLE",
+    "UNIFORM_ON_SPHERE",
     "ExactnessClaim",
     "OrthogonalSystem",
     "ReferenceMeasure",
+    "UniformMeasure",
 ]

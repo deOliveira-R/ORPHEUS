@@ -158,7 +158,7 @@ from typing import Callable
 import numpy as np
 from scipy.special import gammaln
 
-from .exactness import OrthogonalSystem
+from .exactness import ExactnessClaim, OrthogonalSystem
 from .measure import (
     SPACE_HALF_LINE,
     SPACE_INTERVAL_M11,
@@ -361,8 +361,12 @@ class GeneratingMeasure:
             nodes=nodes,
             weights=weights,
             support=self.support,
-            degree_of_exactness=2 * n - 1,
-            generating_measure=self,
+            # The claim names its own reference: this rule is exact to
+            # algebraic degree 2n-1 against THIS measure, and (for a
+            # weighted family) against no other. A rule built from its
+            # measure cannot over-claim, because the degree follows from
+            # the construction rather than being typed in beside it.
+            exactness=ExactnessClaim(reference=self, degree=2 * n - 1),
         )
 
     # -- morphisms ----------------------------------------------------

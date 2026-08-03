@@ -4,11 +4,12 @@ An exactness claim is a mathematical object, so it is tested against
 the laws that define it rather than against the way callers happen to
 use it:
 
-* ``combined_with`` is a **meet** — commutative, associative,
-  idempotent, and order-reversing in the degree;
-* it is **partial**: claims about different reference measures have no
-  common refinement, and the honest answer is ``None`` rather than a
-  smaller number;
+* ``tensor_with`` meets the **degree** and multiplies the
+  **reference** — so it is order-reversing in the degree but is NOT
+  idempotent, because ``a ⊗ a`` lands on the square;
+* it is **partial**: factors whose orthogonal SYSTEMS differ have no
+  product claim, because a mixed tensor system's degree is a theorem
+  about the target space rather than a minimum;
 * :attr:`ExactnessClaim.system` is **read** from the reference, so the
   claim and the space it quantifies over cannot drift apart;
 * a degree is meaningless below ``0``.
@@ -27,6 +28,7 @@ import pytest
 from orpheus.numerics.exactness import (
     ExactnessClaim,
     OrthogonalSystem,
+    ProductMeasure,
     ReferenceMeasure,
 )
 from orpheus.numerics.generating_measure import (
@@ -110,86 +112,125 @@ def test_the_two_failure_modes_are_now_distinguishable() -> None:
     assert gl.system is not trig.system                    # different space
 
 
-# ── ``combined_with`` is a partial meet ─────────────────────────────────
+# ── ``tensor_with``: a meet on the DEGREE, a product on the REFERENCE ──
+#
+# NOT a meet as a whole, and the distinction is worth stating because an
+# earlier draft of these tests assumed it was. Only the degree meets; the
+# reference ACCUMULATES into a ``ProductMeasure``. So ``tensor_with`` is
+# neither idempotent (a ⊗ a is a rule on a SQUARE, not on the interval)
+# nor associative as an object (the references nest differently), and
+# asserting either would be asserting a law the operation does not have.
 
 
 @pytest.mark.parametrize("p,q", [(0, 0), (0, 5), (3, 7), (7, 3), (9, 9)])
-def test_combined_with_takes_the_minimum_degree(p: int, q: int) -> None:
+def test_tensor_degree_is_the_minimum(p: int, q: int) -> None:
+    """Separable integrands of degree ``d`` per axis need BOTH factors
+    exact to ``d``, so the surviving degree is the smaller."""
     a, b = ExactnessClaim(LEGENDRE, p), ExactnessClaim(LEGENDRE, q)
-    combined = a.combined_with(b)
-    assert combined is not None
-    assert combined.degree == min(p, q)
-    assert combined.reference == LEGENDRE
+    product = a.tensor_with(b)
+    assert product is not None
+    assert product.degree == min(p, q)
 
 
-def test_combined_with_is_commutative() -> None:
-    a, b = ExactnessClaim(LEGENDRE, 3), ExactnessClaim(LEGENDRE, 7)
-    assert a.combined_with(b) == b.combined_with(a)
+def test_tensor_reference_is_the_PRODUCT_not_a_factor() -> None:
+    """The load-bearing property: a product claims the product measure.
+
+    Keeping a factor's reference would assert exactness against a measure
+    the product is not exact against — the error the direct sum still
+    demonstrates by carrying no claim at all.
+    """
+    product = ExactnessClaim(LEGENDRE, 3).tensor_with(
+        ExactnessClaim(CHEBYSHEV_T, 7)
+    )
+    assert product is not None
+    assert isinstance(product.reference, ProductMeasure)
+    assert product.reference != LEGENDRE
+    assert product.reference != CHEBYSHEV_T
+    assert product.reference.name == "legendre ⊗ chebyshev_t"
+    assert product.reference.support == "[-1,1] × [-1,1]"
 
 
-def test_combined_with_is_idempotent() -> None:
+def test_tensor_is_NOT_idempotent() -> None:
+    """``a ⊗ a`` is a rule on the SQUARE, not the original rule.
+
+    Pins that the operation is not being treated as a meet: a meet would
+    satisfy ``a ∧ a == a``, and asserting that here would be asserting a
+    law this operation does not have.
+    """
     a = ExactnessClaim(LEGENDRE, 5)
-    assert a.combined_with(a) == a
+    squared = a.tensor_with(a)
+    assert squared is not None
+    assert squared != a
+    assert squared.degree == a.degree
+    assert squared.reference.support == "[-1,1] × [-1,1]"
 
 
-def test_combined_with_is_associative() -> None:
-    a = ExactnessClaim(LEGENDRE, 9)
-    b = ExactnessClaim(LEGENDRE, 4)
-    c = ExactnessClaim(LEGENDRE, 6)
-    left = a.combined_with(b)
-    right = b.combined_with(c)
-    assert left is not None and right is not None
-    assert left.combined_with(c) == a.combined_with(right)
-
-
-def test_combining_never_strengthens_a_claim() -> None:
-    """The meet is a lower bound on both — an exactness composition can
-    only ever weaken, which is the direction that keeps it sound."""
+def test_tensor_degree_never_strengthens() -> None:
+    """A composition can only ever weaken the degree — the direction that
+    keeps the claim sound."""
     a, b = ExactnessClaim(LEGENDRE, 3), ExactnessClaim(LEGENDRE, 11)
-    combined = a.combined_with(b)
-    assert combined is not None
-    assert combined.degree <= a.degree and combined.degree <= b.degree
+    product = a.tensor_with(b)
+    assert product is not None
+    assert product.degree <= a.degree and product.degree <= b.degree
 
 
-# ── partiality: the condition that is load-bearing, not defensive ───────
+# ── partiality: which pairs have NO product claim, and why ──────────────
 
 
-def test_different_references_have_NO_common_claim() -> None:
-    r"""`[M]` ``gauss_legendre(4) * gauss_chebyshev(4)`` advertised degree
-    7 while integrating the constant 1 to 6.2832 instead of 4.
+def test_different_references_DO_compose_when_the_system_agrees() -> None:
+    r"""⚠ Inverted 2026-08-02, and the inversion is the finding.
 
-    Each factor is exact against its OWN weight; the product of two
-    different weights is a measure neither ever claimed anything about.
-    ``None`` is the honest answer — a smaller number would still be a
-    claim about nothing.
+    This previously asserted that Legendre ⊗ Chebyshev has **no** claim,
+    citing "it integrates the constant 1 to 6.2832 where the answer is
+    4". `[M]` Re-measured: :math:`2\pi = 6.2832` **is** the mass of
+    ``legendre ⊗ chebyshev_t``, and the rule IS exact to degree 7 per
+    axis against that measure (4.16e-13, tight at degree 8). The old
+    expectation of 4 was the *Lebesgue* product — the wrong reference.
+
+    The refusal was a workaround for having no way to NAME the product
+    measure, not a law. With the name available the correct claim is
+    representable, which is the whole point of the carve.
     """
     gl = ExactnessClaim(LEGENDRE, 7)
     gc = ExactnessClaim(CHEBYSHEV_T, 7)
-    assert gl.combined_with(gc) is None
-    assert gc.combined_with(gl) is None
+    product = gl.tensor_with(gc)
+    assert product is not None
+    assert product.degree == 7
+    assert product.reference.name == "legendre ⊗ chebyshev_t"
 
 
-def test_different_SPACES_have_no_common_claim_either() -> None:
-    """A polar (algebraic) and an azimuthal (trigonometric) claim do not
-    combine by ``min`` — their composition is a theorem about the target
-    space, and this method correctly declines to guess it."""
+def test_different_SYSTEMS_have_no_product_claim() -> None:
+    """A polar (algebraic) and an azimuthal (trigonometric) claim do NOT
+    compose by ``min``.
+
+    This is the case that survives as partial, and it is the one that
+    matters: their product spans a mixed tensor system whose degree comes
+    from a theorem about the target space (which monomials on
+    :math:`S^2` factor into which polar and azimuthal degrees). Guessing
+    a minimum here is exactly the ``min()``-gives-1 bug.
+    """
     polar = ExactnessClaim(LEGENDRE, 7)
     azimuthal = ExactnessClaim(_FourierRef(), 7)
-    assert polar.combined_with(azimuthal) is None
+    assert polar.tensor_with(azimuthal) is None
+    assert azimuthal.tensor_with(polar) is None
 
 
-def test_canonically_equal_references_DO_combine() -> None:
-    """``jacobi(0, 0)`` IS Legendre, so their claims compose.
+def test_a_mixed_product_reference_is_unconstructible() -> None:
+    """The guard is on the type, not only on the composing method — so a
+    mixed product cannot be built by going around ``tensor_with``."""
+    with pytest.raises(ValueError, match="share an orthogonal system"):
+        ProductMeasure(factors=(LEGENDRE, _FourierRef()))
 
-    Equality is on the mathematical identity, not the code path that
-    built it — so a rule constructed either way carries a claim that
-    composes with the other.
-    """
-    combined = ExactnessClaim(LEGENDRE, 7).combined_with(
+
+def test_canonically_equal_references_compose_as_one_measure() -> None:
+    """``jacobi(0, 0)`` IS Legendre, so the product names it once per
+    factor rather than treating the two constructions as different."""
+    product = ExactnessClaim(LEGENDRE, 7).tensor_with(
         ExactnessClaim(jacobi(0.0, 0.0), 5)
     )
-    assert combined is not None
-    assert combined.degree == 5
+    assert product is not None
+    assert product.degree == 5
+    assert product.reference.name == "legendre ⊗ legendre"
 
 
 # ── the degree's own invariant ──────────────────────────────────────────

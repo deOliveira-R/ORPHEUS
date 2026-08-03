@@ -89,6 +89,9 @@ if TYPE_CHECKING:
     # module (its ``gauss`` returns a DiscreteMeasure), so the arrow runs
     # one way and the field holds the object by forward reference.
     from orpheus.numerics.generating_measure import GeneratingMeasure
+    # ``exactness`` imports ``Space`` from here, so the same one-way arrow
+    # applies: the field holds an ``ExactnessClaim`` by forward reference.
+    from orpheus.numerics.exactness import ExactnessClaim
 
 # ---------------------------------------------------------------------------
 # Space tags
@@ -170,40 +173,45 @@ class DiscreteMeasure:
         signature of the **angular** phase-space factor: a measure carrying
         an :math:`O(3)`-subgroup invariance lives on :math:`S^2` (Erlangen —
         the group fixes the homogeneous space), which :attr:`phase` reads.
-    degree_of_exactness : int | None, optional
-        For polynomial-exact rules, the maximum degree :math:`p` such
-        that
+    exactness : ExactnessClaim | None, optional
+        What this rule integrates exactly, stated **whole**: the
+        reference measure the claim is against, and the degree indexing
+        that reference's own orthogonal system
+        (:class:`~orpheus.numerics.exactness.ExactnessClaim`).
 
         .. math::
 
-           \sum_i w_i \, q(x_i) \;=\; \int_\mathcal{X} q \,
-           d\lambda \qquad \text{for all } \deg q \le p,
+           \sum_i w_i \, f(x_i) \;=\; \int_\mathcal{X} f \,
+           d\lambda \qquad \text{for every } f \in V.
 
-        where :math:`d\lambda` is :attr:`generating_measure`.
-        ``None`` if the rule is not polynomial-exact or the degree has
-        not been computed.
+        ``None`` if the rule has no exactness claim or it has not been
+        computed.
 
-        **The reference measure is not optional information.** A
-        Gauss-Chebyshev rule is exact to :math:`2n-1` against
-        :math:`\int q\,(1-x^2)^{-1/2}dx` and is *not* exact against
-        :math:`\int q\,dx` — `[M]` it misses the latter by 0.696 at
-        :math:`n=4,\ q=x^6`. Reading this field without reading
-        :attr:`generating_measure` is therefore reading half a claim.
-    generating_measure : GeneratingMeasure | None, optional
-        The continuous measure :math:`d\lambda = w(x)\,dx` this rule was
-        **constructed from**, when it was constructed from one (see
-        :class:`~orpheus.numerics.generating_measure.GeneratingMeasure`).
-        It is simultaneously the object that produced the nodes and
-        weights and the object :attr:`degree_of_exactness` is a claim
-        about — which is why one field carries both roles.
+        **This used to be two loose fields** — a bare
+        ``degree_of_exactness`` beside a ``generating_measure`` — and a
+        degree could therefore exist without saying what it was about.
+        Two measured consequences, and they are *different* bugs:
 
-        ``None`` means the rule was not built by this construction, and
-        it is a meaningful distinction rather than missing metadata: a
-        rule *with* a generating measure cannot over-claim its exactness
-        (the degree follows from the construction), while a rule
-        *without* one rests its claim on external authority — a
+        * same degree, different **measure**: `[M]` Gauss-Chebyshev is
+          exact to :math:`2n-1` against
+          :math:`\int q\,(1-x^2)^{-1/2}dx` and misses
+          :math:`\int q\,dx` by **0.696** at :math:`n=4,\ q=x^6`;
+        * same degree, different **space**: `[M]` :math:`n` equispaced
+          nodes on an interval are the midpoint rule (*algebraic*
+          degree 1); the same nodes on the circle are the periodic
+          trapezoid (*trigonometric* degree :math:`n-1`).
+
+        :attr:`degree_of_exactness` and :attr:`generating_measure`
+        survive as **derived read-only views** over this one field, so
+        the convenient readings remain available while the storage that
+        let them drift apart is gone.
+
+        A claim whose reference is a
+        :class:`~orpheus.numerics.generating_measure.GeneratingMeasure`
+        **cannot over-claim** — the degree follows from the
+        construction. A rule without one rests on external authority (a
         published table plus a citation, as Lebedev and level-symmetric
-        :math:`S_N` do. `[M]` The latter is exactly how issue #327 was
+        :math:`S_N` do). `[M]` That is exactly how issue #327 was
         possible: ``level_symmetric_sn`` hand-assigns its weights, so
         nothing constrains its advertised degree, and it is degree-3 at
         every order while claiming :math:`N-1`.
@@ -235,8 +243,7 @@ class DiscreteMeasure:
     weights: np.ndarray
     support: Space
     invariance_group: "SubgroupOfO3 | None" = None
-    degree_of_exactness: int | None = None
-    generating_measure: "GeneratingMeasure | None" = None
+    exactness: "ExactnessClaim | None" = None
 
     def __post_init__(self) -> None:  # pragma: no cover - guard
         # Invariants enforced at construction. Frozen dataclasses
@@ -530,9 +537,13 @@ class DiscreteMeasure:
             weights=new_weights,
             support=new_space,
             invariance_group=None,
-            degree_of_exactness=self._combined_degree(other),
-            # The product measure is not nameable by a 1-D type.
-            generating_measure=None,
+            # A TENSOR product, so the reference is the PRODUCT measure —
+            # not either factor's. ``tensor_with``, not ``combined_with``:
+            # the direct sum below lands on the same space and keeps the
+            # shared reference, and one helper serving both is how a
+            # product came to inherit a factor's reference and claim
+            # exactness against a measure it is not exact against.
+            exactness=self._tensor_exactness(other),
         )
 
     # ------------------------------------------------------------------
@@ -590,43 +601,82 @@ class DiscreteMeasure:
             weights=new_weights,
             support=self.support,
             invariance_group=None,
-            degree_of_exactness=self._combined_degree(other),
-            generating_measure=None,
+            # A direct sum carries NO claim, and that is a correction.
+            # ``__add__`` requires equal supports, so summing two rules
+            # for λ yields a rule for **2λ** — its reference is λ₁ + λ₂,
+            # not the shared λ. Keeping the shared reference would assert
+            # exactness against a measure the sum is not exact against,
+            # which is exactly the error the product side just fixed.
+            # The predecessor kept ``min(p₁, p₂)`` with the reference
+            # dropped — a half-claim, and the state this carve removes.
+            # Nothing consumes a direct sum's degree, so the honest
+            # answer is no claim rather than a sum-measure type built on
+            # speculation.
+            exactness=None,
         )
 
     # ------------------------------------------------------------------
     # Shared combination rule
     # ------------------------------------------------------------------
 
-    def _combined_degree(self, other: DiscreteMeasure) -> int | None:
-        r"""The degree of exactness a combination of the two may claim.
+    def _tensor_exactness(
+        self, other: DiscreteMeasure
+    ) -> "ExactnessClaim | None":
+        r"""The claim of a TENSOR PRODUCT of the two, or ``None``.
 
-        Both :meth:`__mul__` and :meth:`__add__` need this rule, so it
-        lives in one place: restating it per-operator would be two
-        spellings of one law, and the day the law changes only one of
-        them would move.
-
-        The law: ``min(p_μ, p_ν)`` when both degrees are known **and**
-        the two operands are exact against the same measure; otherwise
-        no claim. Two operands with no declared measure count as
-        agreeing — they are equally unspecified, which is the state
-        every rule that predates
-        :attr:`generating_measure` is in, so this preserves their
-        behaviour exactly.
+        Separate from :meth:`_combined_exactness` because the two
+        operations land on **different spaces**, and therefore make
+        claims about different reference measures. Until 2026-08-02 one
+        helper served both, which is how a product could report a factor's
+        reference — asserting exactness against a measure it is not exact
+        against. `[M]` a test caught it on the first run of the carve:
+        ``gauss_legendre(3) * gauss_legendre(4)`` reported ``legendre``
+        where the reference is ``legendre ⊗ legendre``.
         """
-        if (
-            self.degree_of_exactness is None
-            or other.degree_of_exactness is None
-        ):
+        if self.exactness is None or other.exactness is None:
             return None
-        if self.generating_measure != other.generating_measure:
-            # Different reference measures: the combination is exact
-            # against neither operand's, so it may claim neither's
-            # degree. `[M]` gauss_legendre(4) * gauss_chebyshev(4)
-            # integrated the constant 1 to 6.2832 instead of 4 while
-            # advertising degree 7.
+        return self.exactness.tensor_with(other.exactness)
+
+    # ------------------------------------------------------------------
+    # Derived views over the exactness claim
+    # ------------------------------------------------------------------
+
+    @property
+    def degree_of_exactness(self) -> int | None:
+        """The claim's degree, or ``None``.
+
+        A **derived view**, not storage — reading it without
+        :attr:`exactness` is reading half a claim, which is precisely
+        the state that let a Gauss-Legendre and a Gauss-Chebyshev degree
+        look interchangeable. Kept because the degree alone is genuinely
+        the useful reading at a call site that already knows the
+        reference.
+        """
+        return None if self.exactness is None else self.exactness.degree
+
+    @property
+    def generating_measure(self) -> "GeneratingMeasure | None":
+        r"""The claim's reference **when it is a Golub-Welsch generator**.
+
+        A derived view over :attr:`exactness`, and deliberately narrower
+        than the claim's own ``reference``: not every reference measure
+        generates its rule. The circle's Fourier system has no three-term
+        recurrence, and Lebedev's reference (uniform on :math:`S^2`)
+        generates nothing at all — both are legitimate references and
+        neither is a generating measure, so this returns ``None`` for
+        them.
+
+        ``None`` therefore keeps its original meaning: *this rule was not
+        built by the Golub-Welsch construction*, and so its exactness
+        rests on external authority rather than following from how it was
+        made.
+        """
+        from orpheus.numerics.generating_measure import GeneratingMeasure
+
+        if self.exactness is None:
             return None
-        return min(self.degree_of_exactness, other.degree_of_exactness)
+        reference = self.exactness.reference
+        return reference if isinstance(reference, GeneratingMeasure) else None
 
     # ------------------------------------------------------------------
     # Pushforward (image measure)
@@ -702,7 +752,7 @@ class DiscreteMeasure:
             weights=self.weights.copy(),
             support=target_space,
             invariance_group=None,
-            degree_of_exactness=None,
+            exactness=None,
         )
 
     def consolidate(self, *, atol: float = 1e-12) -> DiscreteMeasure:
@@ -778,11 +828,10 @@ class DiscreteMeasure:
             weights=np.array(merged_weights, dtype=np.float64),
             support=self.support,
             invariance_group=self.invariance_group,
-            degree_of_exactness=self.degree_of_exactness,
+            exactness=self.exactness,
             # Consolidation merges coincident atoms and changes no
             # integral, so the reference measure is untouched — the
             # same reason the degree survives.
-            generating_measure=self.generating_measure,
         )
 
     # ------------------------------------------------------------------
@@ -832,7 +881,7 @@ class DiscreteMeasure:
             weights=self.weights[mask],
             support=self.support,
             invariance_group=None,
-            degree_of_exactness=None,
+            exactness=None,
         )
 
     # ------------------------------------------------------------------
@@ -951,7 +1000,7 @@ class DiscreteMeasure:
                 weights=self.weights[indices],
                 support=self.support,
                 invariance_group=None,
-                degree_of_exactness=None,
+                exactness=None,
             )
             result.append(
                 DiscreteMeasurePartition(
@@ -968,15 +1017,20 @@ class DiscreteMeasure:
         self,
         *,
         invariance_group: "SubgroupOfO3 | None" = None,
-        degree_of_exactness: int | None = None,
+        exactness: "ExactnessClaim | None" = None,
     ) -> DiscreteMeasure:
         """Return a copy with optional metadata fields populated.
 
         Used by Issue 3 (symmetry tagging) and by quadrature-rule
-        constructors that want to set ``degree_of_exactness`` after
-        the fact (e.g. when the measure has been built by a
-        composition that drops the field, but the caller knows the
-        rule is still polynomial-exact to a particular degree).
+        constructors that tag a measure after building it.
+
+        The former ``degree_of_exactness: int`` parameter is **retired**,
+        not renamed: it took a bare degree with no reference, so it was
+        an API through which a half-claim could be attached to a rule
+        after the fact — the exact state the exactness carve exists to
+        make unspellable. `[M]` it had **zero** callers; every
+        ``with_metadata`` call in the tree passes ``invariance_group``
+        only.
         """
         return replace(
             self,
@@ -985,10 +1039,8 @@ class DiscreteMeasure:
                 if invariance_group is not None
                 else self.invariance_group
             ),
-            degree_of_exactness=(
-                degree_of_exactness
-                if degree_of_exactness is not None
-                else self.degree_of_exactness
+            exactness=(
+                exactness if exactness is not None else self.exactness
             ),
         )
 
@@ -1279,14 +1331,33 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
         raise ValueError(f"equispaced requires n >= 1, got n={n}")
     if not (a < b):
         raise ValueError(f"equispaced requires a < b, got a={a}, b={b}")
+    from orpheus.numerics.exactness import (
+        ExactnessClaim,
+        OrthogonalSystem,
+        UniformMeasure,
+    )
+
     h = (b - a) / n
     nodes = a + (np.arange(n) + 0.5) * h
     weights = np.full(n, h)
+    support = f"[{a},{b}]"
     return DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        support=f"[{a},{b}]",
-        degree_of_exactness=1,
+        support=support,
+        # ALGEBRAIC degree 1, against Lebesgue measure on THIS INTERVAL —
+        # and naming both halves is the point. The same nodes read as a
+        # rule on the CIRCLE are the periodic trapezoid, exact to
+        # trigonometric degree n-1; that is a different claim about a
+        # different reference, and it belongs to a circle rule rather
+        # than to this one (§4: a rule on a domain is ONE object).
+        exactness=ExactnessClaim(
+            reference=UniformMeasure(
+                support=support,
+                orthogonal_system=OrthogonalSystem.ALGEBRAIC,
+            ),
+            degree=1,
+        ),
     )
 
 

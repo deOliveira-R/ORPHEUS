@@ -652,6 +652,8 @@ def test_consolidate_preserves_the_claims_pushforward_drops() -> None:
     can be invalidated by it — unlike :meth:`pushforward`, where an
     arbitrary :math:`\varphi` can invalidate both.
     """
+    from orpheus.numerics.exactness import ExactnessClaim
+    from orpheus.numerics.generating_measure import LEGENDRE
     from orpheus.numerics.symmetry import SubgroupOfO3
 
     mu = DiscreteMeasure(
@@ -659,7 +661,7 @@ def test_consolidate_preserves_the_claims_pushforward_drops() -> None:
         weights=np.array([1.0, 0.5, 0.5, 1.0]),
         support="[-1,1]",
         invariance_group=SubgroupOfO3.Z2,
-        degree_of_exactness=3,
+        exactness=ExactnessClaim(reference=LEGENDRE, degree=3),
     )
     out = mu.consolidate()
     assert out.n_points == 3
@@ -726,69 +728,149 @@ def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> Non
 
 
 @pytest.mark.l1
-def test_combining_different_reference_measures_makes_no_degree_claim() -> None:
-    r"""``gauss_legendre(4) * gauss_chebyshev(4)`` must not advertise a degree.
+def test_mixed_reference_product_claims_the_PRODUCT_measure() -> None:
+    r"""``gauss_legendre(4) * gauss_chebyshev(4)`` **is** exact to degree 7
+    — against :math:`dx \otimes (1-y^2)^{-1/2}dy`, and this says so.
 
-    `[M]` It used to advertise ``7``. Measured, that composite integrates
-    the constant ``1`` to **6.2832** where the unweighted answer over
-    :math:`[-1,1]^2` is ``4`` — Gauss-Chebyshev is not exact for the
-    unweighted integral even at degree **0** (3.1416 vs 2), because its
-    weight :math:`(1-x^2)^{-1/2}` is in the integral, not in the rule.
+    ⚠ This test was inverted on 2026-08-02, and the correction is the
+    point. It previously asserted the product must advertise **no**
+    degree, on the strength of "it integrates the constant 1 to 6.2832
+    where the answer is 4". `[M]` Re-measured with the reference named:
+    :math:`2\pi = 6.2832` **is** the correct mass of
+    ``legendre ⊗ chebyshev_t``; the expected ``4`` was the *Lebesgue*
+    product, which is not this product's reference. Against its actual
+    reference the rule is exact to degree 7 per axis to **4.16e-13**,
+    with degree 8 missing by 1.5e-2 — so the claim is true AND tight.
+
+    The old refusal was a conservative workaround for a missing type
+    (there was no way to name :math:`\lambda_1 \otimes \lambda_2`), not
+    a mathematical law. Naming the reference makes the correct claim
+    representable, which is what the exactness carve is for.
     """
+    from scipy.integrate import quad
+
+    from orpheus.numerics.exactness import ProductMeasure
+
     gl, gc = gauss_legendre(4), gauss_chebyshev(4)
     assert gl.degree_of_exactness == 7
     assert gc.degree_of_exactness == 7
     assert gl.generating_measure != gc.generating_measure
 
-    # The measurement that makes this a defect and not a nicety.
     product = gl * gc
-    integrated_one = float(np.sum(product.weights))
-    assert not np.isclose(integrated_one, 4.0, atol=1e-6), (
-        "fixture no longer demonstrates the hazard"
+    claim = product.exactness
+    assert claim is not None
+    assert isinstance(claim.reference, ProductMeasure)
+    assert claim.reference.name == "legendre ⊗ chebyshev_t"
+    assert claim.degree == 7
+
+    # The claim, verified against the reference it actually names.
+    for a in range(8):
+        for b in range(8):
+            approx = float(np.sum(
+                product.weights * product.nodes[:, 0] ** a
+                * product.nodes[:, 1] ** b
+            ))
+            exact = (
+                quad(lambda x: x ** a, -1, 1)[0]
+                * quad(lambda y: y ** b / np.sqrt(1 - y * y), -1, 1)[0]
+            )
+            assert abs(approx - exact) < 1e-11, f"not exact at ({a}, {b})"
+
+    # Tightness: the bound must actually bind one degree higher.
+    approx8 = float(np.sum(
+        product.weights * product.nodes[:, 0] ** 8 * product.nodes[:, 1] ** 8
+    ))
+    exact8 = (
+        quad(lambda x: x ** 8, -1, 1)[0]
+        * quad(lambda y: y ** 8 / np.sqrt(1 - y * y), -1, 1)[0]
     )
+    assert abs(approx8 - exact8) > 1e-6, "the degree bound is not tight"
 
-    assert product.degree_of_exactness is None
-    assert (gl + gc).degree_of_exactness is None
+    # The DIRECT SUM is the case that genuinely has no claim: it lands on
+    # the shared space, so its reference would be λ₁ + λ₂.
+    assert (gl + gc).exactness is None
 
 
 @pytest.mark.foundation
-def test_combining_a_shared_reference_measure_keeps_the_claim() -> None:
-    """Same reference on both sides -> the product measure is that
-    measure's product power, and ``min`` is the right claim about it."""
+def test_product_keeps_a_claim_where_the_direct_sum_does_not() -> None:
+    r"""The two composites diverge, and the reason is the reference.
+
+    * **Product** — lands on the square, reference
+      :math:`\lambda \otimes \lambda`, degree :math:`\min(5, 7) = 5`.
+    * **Direct sum** — lands on the SAME interval, so its reference is
+      :math:`\lambda + \lambda = 2\lambda`, a measure neither operand is
+      exact against. Its total weight is ``4``, not ``2``.
+
+    The predecessor asserted degree ``5`` for both. That was the
+    half-claim: it kept a degree while dropping the reference, so nothing
+    could notice the sum is a rule for twice the measure.
+    """
     p = gauss_legendre(3) * gauss_legendre(4)
-    assert p.degree_of_exactness == 5
+    assert p.exactness is not None
+    assert p.exactness.degree == 5
+    assert p.exactness.reference.name == "legendre ⊗ legendre"
+
     s = gauss_legendre(3) + gauss_legendre(4)
-    assert s.degree_of_exactness == 5
+    assert s.exactness is None
+    assert s.degree_of_exactness is None
+    # The measurement that shows why: the sum integrates 1 to 4, not 2.
+    assert float(np.sum(s.weights)) == pytest.approx(4.0)
 
 
 @pytest.mark.foundation
-def test_untagged_rules_count_as_agreeing() -> None:
-    """Two rules with no declared measure are equally unspecified.
+def test_a_rule_with_no_reference_has_NO_claim_at_all() -> None:
+    """The successor of ``test_untagged_rules_count_as_agreeing``.
 
-    This is the state of every rule that does not yet declare one, so
-    the guard must not silently strip their degrees.
+    That test pinned the pre-2026-08-02 state: a measure could carry
+    ``degree_of_exactness=3`` with no reference at all, and two such
+    "equally unspecified" rules composed to a degree. **That state is now
+    unrepresentable** — a degree lives inside an
+    :class:`~orpheus.numerics.exactness.ExactnessClaim`, which cannot be
+    built without naming what the claim is about.
+
+    So the contract it documented is retired rather than migrated, and
+    this is the replacement: no reference means no claim, and composing
+    with a claimless rule yields no claim. The old behaviour ("keep the
+    smaller degree") was the half-claim the carve exists to remove.
     """
     a = DiscreteMeasure(
         nodes=np.array([-0.5, 0.5]), weights=np.array([1.0, 1.0]),
-        support="[-1,1]", degree_of_exactness=3,
+        support="[-1,1]",
     )
     b = DiscreteMeasure(
         nodes=np.array([-0.25, 0.25]), weights=np.array([1.0, 1.0]),
-        support="[-1,1]", degree_of_exactness=5,
+        support="[-1,1]",
     )
+    assert a.exactness is None and b.exactness is None
+    assert a.degree_of_exactness is None
     assert a.generating_measure is None and b.generating_measure is None
-    assert (a * b).degree_of_exactness == 3
-    assert (a + b).degree_of_exactness == 3
+    assert (a * b).exactness is None
+    assert (a + b).exactness is None
 
 
 @pytest.mark.foundation
 def test_composites_name_no_generating_measure() -> None:
-    """A product's reference is the PRODUCT measure, which a 1-D
-    ``GeneratingMeasure`` cannot name — so it says so rather than
-    claiming one of the factors."""
+    """A composite is not a Golub-Welsch product, so ``generating_measure``
+    is ``None`` — but for two different reasons, and the difference is the
+    point.
+
+    * a **product**'s reference IS named — ``legendre ⊗ legendre`` — it
+      is simply a ``ProductMeasure``, which no three-term recurrence
+      generates, so the narrower view reports ``None``;
+    * a **direct sum** carries no claim at all (its reference would be
+      :math:`\\lambda_1 + \\lambda_2`).
+    """
+    from orpheus.numerics.exactness import ProductMeasure
+
     p = gauss_legendre(3) * gauss_legendre(4)
     assert p.generating_measure is None
-    assert (gauss_legendre(3) + gauss_legendre(4)).generating_measure is None
+    assert p.exactness is not None
+    assert isinstance(p.exactness.reference, ProductMeasure)
+    assert p.exactness.reference.name == "legendre ⊗ legendre"
+
+    s = gauss_legendre(3) + gauss_legendre(4)
+    assert s.generating_measure is None
+    assert s.exactness is None
 
 
 @pytest.mark.foundation

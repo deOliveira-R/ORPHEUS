@@ -41,6 +41,7 @@ from enum import Enum
 
 import numpy as np
 
+from ..exactness import UNIFORM_ON_SPHERE, ExactnessClaim
 from ..measure import SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
 
@@ -100,7 +101,13 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
         weights=w,
         support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
-        degree_of_exactness=order,
+        # SPHERICAL-HARMONIC degree, against Lebesgue measure on S^2 —
+        # not an algebraic degree, and not against a weight on an
+        # interval. Lebedev's reference generates nothing by
+        # Golub-Welsch: the claim's authority is the published table
+        # (Lebedev 1976), which is exactly why the reference here is a
+        # ``UniformMeasure`` rather than a ``GeneratingMeasure``.
+        exactness=ExactnessClaim(reference=UNIFORM_ON_SPHERE, degree=order),
     )
 
 
@@ -213,7 +220,10 @@ class LevelStructure:
 
 def _build_level_symmetric_arrays(
     sn_order: int,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, np.ndarray, list[np.ndarray]]:
+) -> tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, np.ndarray,
+    list[np.ndarray], np.ndarray, np.ndarray,
+]:
     """Construct level-symmetric :math:`S_N` quadrature arrays.
 
     This implementation mirrors the existing
@@ -231,6 +241,12 @@ def _build_level_symmetric_arrays(
         Polar cosine per level.
     level_indices : list[np.ndarray]
         Per-level ordinate indices, sorted by increasing ``mu_x``.
+    azimuth, hemisphere : np.ndarray
+        The fiber coordinate (Q4): :math:`\\varphi \\in [0, 2\\pi)` and
+        :math:`\\operatorname{sign}(\\mu_z)` per ordinate. The annotation
+        omitted these two from 2026-08-02 (`3afb52c2`) until the exactness
+        carve, while the body returned all nine — a stale signature the
+        Sphinx build could not see and the tests could not fail on.
     """
     if sn_order % 2 != 0 or sn_order < 2:
         raise ValueError(f"S_N order must be positive even, got {sn_order}")
@@ -381,7 +397,19 @@ def level_symmetric_sn(
         weights=w,
         support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
-        degree_of_exactness=sn_order - 1,
+        # ⛔ This claim is FALSE and known to be — issue #327. `[M]` the
+        # measured degree is 3 at EVERY order, an over-claim of 12 at
+        # S_16. It is recorded unchanged here so the carve stays
+        # behaviour-neutral; #327 is where it gets corrected.
+        #
+        # Naming the reference makes the defect legible rather than
+        # fixing it: this rule has NO generating measure (it hand-assigns
+        # one weight to every ordinate), so nothing constrains the
+        # integer, and the claim rests on an authority the construction
+        # does not actually implement. That is the mechanism of #327.
+        exactness=ExactnessClaim(
+            reference=UNIFORM_ON_SPHERE, degree=sn_order - 1,
+        ),
     )
     structure = LevelStructure(
         n_levels=n_levels,

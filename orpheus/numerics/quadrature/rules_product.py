@@ -75,6 +75,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..exactness import UNIFORM_ON_SPHERE, ExactnessClaim
 from ..measure import SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
@@ -185,7 +186,25 @@ def product_mu_phi(
         # set on S² can satisfy. See ``maximal_invariance_groups``, which
         # computes this group from the nodes and pins the declaration.
         invariance_group=SubgroupOfO3.Dnh(n_phi),
-        degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
+        # SPHERICAL-HARMONIC degree against Lebesgue measure on S^2. On
+        # the sphere a polynomial of degree d restricted to S^2 spans the
+        # same space as the harmonics up to ell = d, so the monomial
+        # measurement that pinned this bound and the harmonic reading of
+        # it are the same claim.
+        #
+        # ⚠ The VALUE is still hand-written, and deliberately so at this
+        # step: `[M]` the bound is tight (`product(4,8)` reproduces every
+        # degree-7 spherical monomial to 1.1e-16 and misses at degree 8
+        # by 7.3e-2), and it is tight for a REASON — a degree-d spherical
+        # monomial's azimuthal factor is a trig polynomial of degree <= d,
+        # so the polar and azimuthal bounds coincide. Deriving it from the
+        # two factors' own claims is the product theorem, and it needs the
+        # azimuthal factor to BE a measure carrying a trigonometric claim
+        # — which is the next step of this carve, not this one.
+        exactness=ExactnessClaim(
+            reference=UNIFORM_ON_SPHERE,
+            degree=min(2 * n_mu - 1, n_phi - 1),
+        ),
     )
     structure = LevelStructure(
         n_levels=n_mu,
