@@ -162,11 +162,17 @@ from .mesh import Mesh1D
 class AngularMeasure(Protocol):
     """Minimal contract this module needs from an angular quadrature.
 
-    The full angular-measure / discrete-measure type is owned by
-    Wave A (:mod:`orpheus.sn.discrete_measure`); here we only depend on
-    the attributes the connection-coefficient math reads.  This avoids
-    importing ``AngularQuadrature`` from :mod:`orpheus.sn.quadrature`
-    so the geometry layer remains free of SN-specific imports.
+    The concrete implementer is
+    :class:`~orpheus.numerics.quadrature.Quadrature`, which wraps a
+    :class:`~orpheus.numerics.measure.DiscreteMeasure`; here we only
+    depend on the attributes the connection-coefficient math reads, so
+    the geometry layer needs no import from the quadrature package at
+    all.  This structural Protocol outlived the type it was written
+    against: the ``AngularQuadrature`` Protocol and its four
+    per-family adapter classes at ``orpheus.sn.quadrature`` were
+    retired into classmethod factories on the single ``Quadrature``
+    type (R-1 Phase A detour-C), and the read contract below did not
+    have to move.
     """
 
     # Read-only properties (not plain attributes): this module only READS
@@ -278,7 +284,7 @@ class StreamingTerms:
     **all three factories** so that a downstream
     :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` strategy
     receives a self-contained per-cell, per-direction packet and need
-    not reach back into ``SNMesh`` or the ``AngularQuadrature``.  Every
+    not reach back into ``SNMesh`` or the ``Quadrature``.  Every
     surviving curvature field is populated for **every** geometry
     (Step 2.5; slab carries neutral values) as a required ``float``
     (Pattern 4), so cell-update strategies consume the same packet
@@ -736,12 +742,22 @@ def cylindrical_streaming(
     independently; the connection coefficients are therefore stored
     per-level.
 
-    Requires ``angular_measure`` to have a ``level_indices`` attribute
-    (a list of index arrays, one per :math:`\mu`-level).
-    :class:`~orpheus.sn.quadrature.LevelSymmetricSN` and
-    :class:`~orpheus.sn.quadrature.ProductQuadrature` provide this.
-    The quadrature must also expose ``mu_z`` (axial direction cosine,
-    used to derive :math:`\sin\theta` for the level's azimuthal extent).
+    Requires ``angular_measure`` to carry per-:math:`\mu`-level
+    structure: the guard below rejects a quadrature whose
+    ``level_structure`` is ``None``, and the math then reads
+    ``level_indices`` (a list of index arrays, one per level). The two
+    cylindrical-compatible factories supply it —
+    :meth:`Quadrature.level_symmetric
+    <orpheus.numerics.quadrature.Quadrature.level_symmetric>` and
+    :meth:`Quadrature.product
+    <orpheus.numerics.quadrature.Quadrature.product>`; the slab
+    (``gauss_legendre``) and pure-sphere (``lebedev``) factories carry
+    no ``LevelStructure`` side-channel. These are named classmethod
+    factories on the single ``Quadrature`` type — the per-family
+    adapter classes this docstring used to name were retired in R-1
+    Phase A detour-C. The quadrature must also expose ``mu_z`` (axial
+    direction cosine, used to derive :math:`\sin\theta` for the
+    level's azimuthal extent).
 
     Output is bit-identical to
     :class:`SNMesh._setup_cylindrical`.

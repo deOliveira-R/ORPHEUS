@@ -18,17 +18,17 @@ The Lebesgue integral of an integrable test function :math:`f` against
 
    \int_{\mathcal{X}} f \, d\mu \;=\; \sum_{i=1}^{N} w_i \, f(x_i).
 
-This module promotes that view to a first-class primitive. Today the
-project's quadrature classes (:class:`~orpheus.numerics.quadrature.Quadrature`,
-:class:`~orpheus.numerics.quadrature.Quadrature`, :class:`~orpheus.numerics.quadrature.Quadrature`,
-:class:`~orpheus.numerics.quadrature.Quadrature`) compose 1-D rules into
-2-D / S² rules **internally**, hiding the tensor-product structure
-behind ``Quadrature.product(n_mu, n_phi)``. With
+This module promotes that view to a first-class primitive. The
+project's single quadrature class
+(:class:`~orpheus.numerics.quadrature.Quadrature`, reached through its
+named factories) composes 1-D rules into 2-D / :math:`S^2` rules
+**internally**, hiding the tensor-product structure behind
+:meth:`~orpheus.numerics.quadrature.Quadrature.product`. With
 :class:`DiscreteMeasure` the four canonical operations are exposed:
 
 - **Tensor product** ``μ * ν``. Product measure on
   :math:`\mathcal{X} \times \mathcal{Y}` — Fubini-Tonelli on discrete
-  factors. Replaces the implicit product inside ``ProductQuadrature``.
+  factors, in place of a product implicit inside a rule constructor.
 - **Direct sum** ``μ + ν``. Concatenation on a shared space — used
   when a domain is partitioned into subintervals each carrying its
   own rule.
@@ -1318,14 +1318,22 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
     The midpoint rule has degree of exactness ``1`` (exact for
     constants and linears, not for quadratics in general).
 
-    This primitive is provided for tensor-product azimuthal
-    quadrature (matching the convention in
-    :class:`orpheus.sn.quadrature.ProductQuadrature` for the φ-axis,
-    where ``np.linspace(0, 2π, n_phi, endpoint=False)`` gives
-    left-endpoints rather than midpoints; the project's existing
-    code uses left-endpoints, but this primitive offers midpoints
-    because they integrate constants exactly while preserving
-    symmetry under reflection through the centre of the interval).
+    This primitive is offered for tensor-product azimuthal quadrature,
+    but it is **not** what the shipped SN product rule uses. The φ-axis
+    of :func:`~orpheus.numerics.quadrature.product_mu_phi` is
+    :func:`~orpheus.numerics.quadrature.periodic_trapezoid` at
+    ``shift=NODE_ALIGNED`` — the left-endpoint grid
+    :math:`\varphi_m = 2\pi m / n_\varphi`, generated as roots of
+    unity, not midpoints. (That convention was carried by the SN-side
+    ``ProductQuadrature`` adapter this docstring used to point at;
+    R-1 Phase A detour-C retired all four per-family adapters into
+    classmethod factories on the one ``Quadrature`` type, and the
+    convention now lives in the rule function.) Midpoints are offered
+    here because they integrate constants exactly while preserving
+    symmetry under reflection through the centre of the interval —
+    but the shift a rule *needs* is a well-posedness question (whether
+    a node sits on the mirror axis), so select it deliberately rather
+    than reaching for this primitive by default.
 
     Parameters
     ----------

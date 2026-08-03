@@ -11,9 +11,14 @@ The remaining tests are tagged ``foundation`` because they verify
 software invariants of the composition algebra (tensor product,
 direct sum, pushforward, restriction, metadata propagation, bundle
 disintegration) that have no Sphinx ``:label:`` of their own — they
-guard the data structure contract that downstream consumers
-(:class:`orpheus.sn.quadrature.AngularQuadrature` adapters in Issue 4,
-MoC bundle measures in Wave 2) will rely on.
+guard the data structure contract that downstream consumers rely on:
+:class:`~orpheus.numerics.quadrature.Quadrature`, which wraps a
+``DiscreteMeasure`` and exposes the four SN rule families as named
+classmethod factories, and (in Wave 2) the MoC bundle measures. The
+Issue-4 design that this docstring named — an ``AngularQuadrature``
+Protocol with four per-family adapter classes at
+``orpheus.sn.quadrature`` — was retired into those factories in R-1
+Phase A detour-C; the contract guarded here did not change.
 """
 
 from __future__ import annotations

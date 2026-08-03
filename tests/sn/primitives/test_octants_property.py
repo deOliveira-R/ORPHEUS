@@ -1,7 +1,7 @@
-r"""Tests for :attr:`AngularQuadrature.octants` cached property.
+r"""Tests for the :attr:`Quadrature.octants
+<orpheus.numerics.quadrature.Quadrature.octants>` cached property.
 
-The :attr:`~orpheus.sn.quadrature._OctantsMixin.octants` property is the
-SN-side adapter over
+The property is a thin cached view over
 :meth:`orpheus.numerics.measure.DiscreteMeasure.partition_by` with the
 sign-of-direction predicate. It realises the direct-sum decomposition
 
@@ -11,8 +11,13 @@ sign-of-direction predicate. It realises the direct-sum decomposition
     \qquad \sigma = (\mathrm{sign}\,\mu_x, \mathrm{sign}\,\mu_y,
                      \mathrm{sign}\,\mu_z)
 
-on each :class:`AngularQuadrature` adapter. This test pins the
-contract that the Wave-2 ``SweepDependencyGraph`` will consume:
+on every quadrature the four
+:class:`~orpheus.numerics.quadrature.Quadrature` factories build. (The
+property lived on an ``_OctantsMixin`` shared by four per-family
+adapter classes at ``orpheus.sn.quadrature`` until R-1 Phase A
+detour-C retired the hierarchy; with one class there is no mixin to
+share.) This test pins the contract that the Wave-2
+``SweepDependencyGraph`` will consume:
 
 * Disjoint coverage — every ordinate appears in exactly one entry.
 * Sign correctness — for every entry with label ``σ``, every ordinate

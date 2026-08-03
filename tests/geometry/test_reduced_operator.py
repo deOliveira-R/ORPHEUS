@@ -333,7 +333,7 @@ class TestStreamingTermsVolumeAndAbsMu:
     These are the two new fields added in Wave C Round 1 (Issue #157)
     so that downstream cell-update strategies receive a self-contained
     per-cell, per-direction packet without reaching back into
-    ``SNMesh`` or the ``AngularQuadrature``.
+    ``SNMesh`` or the ``Quadrature``.
     """
 
     @pytest.mark.foundation

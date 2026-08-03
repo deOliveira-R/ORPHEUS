@@ -2,9 +2,12 @@
 
 The product rule :math:`\\mu_{\\text{GL}} \\times \\phi_{\\text{equispaced}}`
 is the cylindrical-SN workhorse. Tests pin shape / metadata, weight
-sum, bit-identical match to the legacy
-:class:`~orpheus.sn.quadrature.ProductQuadrature` adapter, and
-polynomial-exactness in the polar factor.
+sum, the pass-through contract of
+:meth:`~orpheus.numerics.quadrature.Quadrature.product`, and
+polynomial-exactness in the polar factor. The per-family adapter
+class the pass-through gate once compared against
+(``orpheus.sn.quadrature.ProductQuadrature``) was retired into that
+classmethod factory in R-1 Phase A detour-C.
 """
 
 from __future__ import annotations
@@ -60,10 +63,16 @@ def test_product_weight_sum_is_4pi(n_mu: int, n_phi: int) -> None:
     ("n_mu", "n_phi"), [(4, 4), (8, 8), (8, 16), (16, 8), (12, 24)]
 )
 def test_product_bit_identical_to_legacy_adapter(n_mu: int, n_phi: int) -> None:
-    """Bit-identical match against
-    :class:`~orpheus.sn.quadrature.ProductQuadrature.create`.
+    """:meth:`~orpheus.numerics.quadrature.Quadrature.product` passes
+    this rule through unmodified — the accessor views read the right
+    node columns and the level structure survives the wrap.
 
-    Pins the cylindrical regression snapshots
+    A real contract, but NARROWER than the test name (and the retired
+    ``ProductQuadrature.create`` comparison it was written against)
+    suggests: the factory *calls* ``product_mu_phi``, so both sides
+    move together by construction and this can NEVER detect node
+    drift. What pins the ordinate order against the pre-carve
+    behaviour is the cylindrical regression snapshots
     (``cyl_*_product_*.npz``)."""
     m, s = product_mu_phi(n_mu, n_phi)
     legacy = Quadrature.product(n_mu=n_mu, n_phi=n_phi)

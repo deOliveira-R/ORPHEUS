@@ -14,12 +14,17 @@ Two families:
 Both families are :math:`O_h`-invariant, so the returned measures
 carry ``invariance_group=SubgroupOfO3.OctahedralOh``.
 
-The level-symmetric rule additionally carries per-level metadata
-inside the ``levels`` field of the result (a small adjacent
-namedtuple), needed by the cylindrical SN sweep for azimuthal
-redistribution. The :math:`O(1)`-attribute SN-side adapter
-(:class:`~orpheus.sn.quadrature.LevelSymmetricSN`) caches that
-metadata directly.
+The level-symmetric rule additionally returns a
+:class:`LevelStructure` *alongside* the measure — a frozen dataclass
+carrying the per-level metadata the cylindrical SN sweep needs for
+azimuthal redistribution.
+:meth:`Quadrature.level_symmetric
+<orpheus.numerics.quadrature.Quadrature.level_symmetric>` stores it on
+the ``level_structure`` field, so the sweep reads it in :math:`O(1)`.
+There is no per-family adapter class: the four SN-side wrappers this
+docstring used to point at (``LevelSymmetricSN`` and its siblings)
+were retired into classmethod factories on the one ``Quadrature``
+type (R-1 Phase A detour-C).
 
 References
 ----------
@@ -86,9 +91,14 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
 
     See Also
     --------
-    :class:`orpheus.sn.quadrature.LebedevSphere` — the SN-side adapter
-    that caches ``mu_x`` / ``mu_y`` / ``mu_z`` views and reflection
-    indices.
+    :meth:`orpheus.numerics.quadrature.Quadrature.lebedev` — the named
+    factory SN consumers call. It wraps this measure and precomputes
+    the reflection-partner map at construction. There is no per-family
+    adapter class: the SN-side wrapper this docstring used to point at
+    (``orpheus.sn.quadrature.LebedevSphere``) was retired into a
+    classmethod factory on the one ``Quadrature`` type, whose
+    ``mu_x`` / ``mu_y`` / ``mu_z`` are ``@property`` views over these
+    nodes rather than separately-cached fields.
     """
     from scipy.integrate import lebedev_rule
 
@@ -226,10 +236,18 @@ def _build_level_symmetric_arrays(
 ]:
     """Construct level-symmetric :math:`S_N` quadrature arrays.
 
-    This implementation mirrors the existing
-    :func:`orpheus.sn.quadrature._build_level_symmetric` byte-for-byte
-    (verified by the bit-identical foundation tests at
-    ``tests/numerics/test_rules_sphere.py``).
+    This body was lifted byte-for-byte from the private
+    ``_build_level_symmetric`` of the now-retired
+    ``orpheus/sn/quadrature.py`` (R-1 Phase A detour-C), and is today
+    the ONE producer of level-symmetric ordinates in the tree. The
+    old side-by-side bit-identity comparison is therefore no longer
+    expressible — what pins this node order against the pre-carve
+    behaviour is the cylindrical regression snapshots
+    (``tests/sn/regression/snapshots/cyl_*_LS4_*.npz``); the
+    foundation tests at ``tests/numerics/test_rules_sphere.py`` pin
+    that :meth:`Quadrature.level_symmetric
+    <orpheus.numerics.quadrature.Quadrature.level_symmetric>` reads
+    these columns in the order the sweep expects.
 
     Returns
     -------
@@ -356,8 +374,8 @@ def level_symmetric_sn(
     reflection elements of the octahedral group.
 
     Polynomial exactness: depends on :math:`N`. For the simple
-    equal-weight construction implemented here (matching the existing
-    :func:`orpheus.sn.quadrature._build_level_symmetric`), the rule is
+    equal-weight construction implemented here (lifted byte-for-byte
+    from the retired ``orpheus/sn/quadrature.py`` builder), the rule is
     exact at degree :math:`1` for :math:`N = 2` (zeroth and first
     moments) and reaches degree :math:`N - 1` for higher orders under
     the moment-conditions construction in Carlson & Lathrop 1968.
@@ -385,8 +403,14 @@ def level_symmetric_sn(
 
     See Also
     --------
-    :class:`orpheus.sn.quadrature.LevelSymmetricSN` — the SN-side
-    adapter that caches all of this for hot-path attribute access.
+    :meth:`orpheus.numerics.quadrature.Quadrature.level_symmetric` —
+    the named factory SN consumers call. It wraps this measure,
+    precomputes the reflection-partner map, and holds the
+    :class:`LevelStructure` on its ``level_structure`` field for
+    hot-path access. There is no per-family adapter class: the
+    SN-side wrapper this docstring used to point at
+    (``orpheus.sn.quadrature.LevelSymmetricSN``) was retired into a
+    classmethod factory on the one ``Quadrature`` type.
     """
     mu_x, mu_y, mu_z, w, n_levels, level_mu, level_indices, azimuth, hemisphere = (
         _build_level_symmetric_arrays(sn_order)

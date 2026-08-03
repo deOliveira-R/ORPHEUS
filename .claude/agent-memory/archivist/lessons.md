@@ -3741,6 +3741,75 @@ reproduce to its source rather than adopting it.
 
 ---
 
+## L-044 — A retirement's doc blast radius in UN-autodoc'd modules is invisible to `-W` AND to `-n`; and the same retirement silently DEMOTES the rewired tests' claim class
+
+Two findings from one sweep (retirement of `orpheus/sn/quadrature.py`:
+4 per-family adapter classes + an `AngularQuadrature` Protocol → named
+classmethod factories on the single `Quadrature`).
+
+**(a) Nitpicky mode is NOT the missing gate.** L-002 says a dead
+Python-domain role renders plain-text with no `-W` warning and suggests
+`-n` as the stronger probe. MEASURED here: `-n` saw **zero** of the 22
+dead `orpheus.sn.quadrature` refs — because Sphinx only nitpicks what it
+RENDERS, and none of the carrying modules (`numerics/measure.py`,
+`numerics/operator.py`, `numerics/quadrature/*`, `geometry/reduced_operator.py`)
+is `automodule`'d, nor is any `tests/**` file ever read. So for a
+docstring in an un-autodoc'd module the ONLY gate is `grep`. Before
+concluding "`-n` would have caught this", check `grep -c "docstring of
+<module>" <nitpick.log>` — 0 means the module is invisible at every
+severity. Corollary for the fix: edits to such docstrings CANNOT move the
+warning count, so "count unchanged" proves nothing about them — the
+acceptance evidence is the grep inventory plus a per-hit
+KEEP/FIX adjudication, and the build is only a no-regression control.
+(The `-n` counts were 6493 py-domain lines / 6964 total, byte-identical
+pre and post by set-diff; the normal `-E -W` build is at **0** warnings
+now — the `mesh.py` `:paramref:` baseline in AGENT.md is STALE.)
+
+**(b) The sharper find — a retirement can DEMOTE a gate's claim class
+without touching one line of the test body.** Four tests named
+`test_*_bit_identical_to_legacy_adapter` had their comparison target
+`sed`-migrated by the retirement commit (`LebedevSphere(order)` →
+`Quadrature.lebedev(order)`), keeping the local name `legacy`. But the
+factory *calls* the very rule function under test, so what was a
+two-implementation bit-identity gate became a value compared with itself
+routed through a wrapper — it can NEVER detect the node drift its
+docstring still advertised. The test stayed green, the name stayed
+authoritative, and the docstring kept the stronger claim. RULE: when a
+retirement rewires a comparison target, re-ask **"are the two sides still
+independently produced?"** — if the survivor is the caller of the other,
+the gate has silently dropped to a pass-through check and every doc/
+docstring crediting it must be re-scoped (name the real pin — here the
+cylindrical regression snapshots — rather than deleting the gate's
+description). The tell in a diff is a variable still called `legacy`
+beside a brand-new API. The tree had already self-corrected exactly ONE
+of the four (`test_rules_1d.py`, with the excellent phrasing "compares a
+value with itself routed through a wrapper … the drift gate is the
+separate test below") — reuse an in-tree honest framing when one exists
+rather than inventing vocabulary.
+
+**Adjudication shape that worked.** Every surviving mention became a
+past-tense double-backtick LITERAL ("the four SN-side wrappers this
+docstring used to point at (``…LebedevSphere``) were retired into
+classmethod factories on the one ``Quadrature`` type"); every live claim
+got a `:meth:` at the successor. Two mechanical gates make the sweep
+auditable: `grep -rn "<retired path>" … | grep -v '``'` must be EMPTY (no
+surviving hit outside a literal) and a role-regex over the retired names
+must be EMPTY. Both beat reading the diff. Widen the grep from the
+module PATH to the bare CLASS NAMES — that surfaced 3 more dead roles
+the path-grep missed, and separates the genuinely-dead from the
+live-homonym (here `name="LebedevSphere"` is a **live registry
+`QuadratureSpec` identifier** asserted by ~30 tests — never "fix" it).
+The residue — a retired class name used as an informal FAMILY LABEL in
+prose ("ProductQuadrature(2x4)", "LS-family (``LevelSymmetricSN``…)"),
+~25 sites — is a separate sweep: FLAG it, don't half-do it.
+
+How to apply: for any retirement, run the grep inventory yourself and
+adjudicate hit-by-hit (history KEEPS, present-tense-false FIXES); do not
+let a clean `-n` build imply the docs are clean, and re-derive what each
+rewired test can still SEE before repeating its old claim.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

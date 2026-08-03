@@ -219,8 +219,11 @@ def product_mu_phi(
 
     Implements the layout in
     :eq:`product-mu-phi-cosines`. Ordinate ordering matches the
-    long-standing :class:`orpheus.sn.quadrature.ProductQuadrature`
-    convention bit-for-bit: outer loop over the :math:`n_\mu`
+    long-standing SN product-quadrature convention bit-for-bit — the
+    one the ``ProductQuadrature`` adapter carried until R-1 Phase A
+    detour-C retired the four per-family adapters into classmethod
+    factories on the one ``Quadrature`` type: outer loop over the
+    :math:`n_\mu`
     Gauss-Legendre nodes (axial cosine), inner loop over the
     :math:`n_\phi` azimuthal samples. Per-level indexing lists are
     sorted by increasing :math:`\eta = \mu_x` to match the
@@ -302,8 +305,14 @@ def product_mu_phi(
 
     See Also
     --------
-    :class:`orpheus.sn.quadrature.ProductQuadrature` — the SN-side
-    adapter caching this rule's outputs for hot-path access.
+    :meth:`orpheus.numerics.quadrature.Quadrature.product` — the named
+    factory SN consumers call. It wraps this measure, precomputes the
+    reflection-partner map, and holds the returned
+    :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
+    on its ``level_structure`` field for hot-path access. There is no
+    per-family adapter class: the SN-side wrapper this docstring used
+    to point at (``orpheus.sn.quadrature.ProductQuadrature``) was
+    retired into a classmethod factory on the one ``Quadrature`` type.
     """
     if n_mu < 1:
         raise ValueError(f"product_mu_phi requires n_mu >= 1, got n_mu={n_mu}")

@@ -3,9 +3,15 @@
 Two layers:
 
 * **Foundation** — software invariants of the rule function (shape,
-  metadata fields, bit-identical match against the legacy
-  :class:`~orpheus.sn.quadrature.GaussLegendre1D` constructor that
-  the regression snapshots pin).
+  metadata fields, exact :math:`\\mu \\to -\\mu` reflection symmetry,
+  and the pass-through contract of
+  :meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre`).
+  Note the pass-through gate is NOT a drift gate: the factory *calls*
+  this rule function, so both sides move together by construction —
+  see ``test_adapter_passes_the_rule_through_unmodified``. The
+  per-family adapter class it once compared against
+  (``orpheus.sn.quadrature.GaussLegendre1D``) was retired into that
+  classmethod factory in R-1 Phase A detour-C.
 * **L1** — closed-form polynomial-exactness theorem of Stoer &
   Bulirsch (2002) Theorem 3.6.20: the :math:`n`-point Gauss-Legendre
   rule integrates polynomials of degree :math:`\\le 2n - 1` exactly.

@@ -2187,8 +2187,8 @@ class PermutationOperator(LinearOperator):
     and exposed as :attr:`is_involution` for downstream consumers that
     benefit from knowing self-adjointness in the unweighted inner
     product. In particular, SN specular reflection through
-    :func:`~orpheus.sn.quadrature.Quadrature.reflection_index` is an
-    involution; periodic shifts and rotational reorderings are not.
+    :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index` is
+    an involution; periodic shifts and rotational reorderings are not.
 
     A permutation is always invertible (:math:`P^{-1} = P^T`), and its
     inverse is ALGEBRA-CLOSED: :meth:`inverse` returns the inverse

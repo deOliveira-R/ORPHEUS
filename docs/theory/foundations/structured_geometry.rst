@@ -342,7 +342,7 @@ volume :math:`V_i` and the absolute primary direction cosine
 a downstream sweep cell update — see :doc:`/theory/methods/sn/index`,
 "Cell update strategies (the strategy contract)" — receives a
 self-contained per-cell, per-direction packet and need not reach back
-into ``SNMesh`` or the ``AngularQuadrature``.  The ``alpha_in is
+into ``SNMesh`` or the ``Quadrature``.  The ``alpha_in is
 None`` test discriminates slab from curvilinear inside cell-update
 strategies; the cylindrical pure-azimuthal degenerate case
 (``abs_mu < 1e-15``) is the single runtime branch a strategy must

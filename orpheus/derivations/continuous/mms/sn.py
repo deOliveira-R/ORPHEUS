@@ -3730,8 +3730,12 @@ class SNCylindricalAnisotropicMMSCase:
     radial direction cosine for cylindrical 1D is :math:`\eta_n =
     \sin\theta_n\cos\varphi_n`; the partner :math:`\xi_n =
     \sin\theta_n\sin\varphi_n` enters the redistribution term.
-    Both are stored on :class:`ProductQuadrature` as ``mu_x`` and
-    ``mu_y`` respectively.
+    Both are exposed by :meth:`Quadrature.product
+    <orpheus.numerics.quadrature.Quadrature.product>` as the ``mu_x``
+    and ``mu_y`` views respectively — ``@property`` reads of the
+    wrapped measure's node columns, not cached fields (the per-family
+    ``ProductQuadrature`` adapter that stored them was retired in R-1
+    Phase A detour-C).
     """
 
     name: str

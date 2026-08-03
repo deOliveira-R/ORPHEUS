@@ -38,7 +38,8 @@ pytestmark = pytest.mark.foundation  # software-invariant tier
 
 
 class _StubQuad:
-    """Minimal AngularQuadrature stand-in for synthetic tests.
+    """Minimal :class:`~orpheus.numerics.quadrature.Quadrature`
+    stand-in for synthetic tests.
 
     Issue #197 PR-TYPED-1 — :class:`ScatteringOperator` now consumes
     a quadrature handle (instead of separate ``N`` / ``weights`` / ``Y``

@@ -266,8 +266,10 @@ def test_cylindrical_aniso_numerical_qext_matches_sympy():
     r"""L1 cross-check (Branch 1 ↔ Branch 2) for the cylindrical case.
 
     Branch 1 uses the SymPy expression in :math:`(r, \theta, \varphi)`;
-    Branch 2 uses :math:`(\eta, \xi)` extracted from
-    :class:`ProductQuadrature`. The agreement is the strongest check
+    Branch 2 uses :math:`(\eta, \xi)` read off the ``mu_x`` / ``mu_y``
+    views of a :meth:`Quadrature.product
+    <orpheus.numerics.quadrature.Quadrature.product>` quadrature. The
+    agreement is the strongest check
     that the :math:`(\eta, \xi) \leftrightarrow (\theta, \varphi)`
     convention is consistent between the two branches.
     """

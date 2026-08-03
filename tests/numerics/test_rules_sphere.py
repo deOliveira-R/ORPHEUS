@@ -3,9 +3,14 @@
 Lebedev rules (Lebedev 1976) and Carlson-Lathrop level-symmetric
 :math:`S_N` rules (Carlson & Lathrop 1968) are both
 :math:`O_h`-invariant by construction. Foundation tests pin shape /
-metadata + bit-identical match to the legacy SN adapters; L1 tests
-check polynomial-exactness for small Lebedev orders against
-closed-form spherical integrals.
+metadata + the pass-through contract of
+:meth:`~orpheus.numerics.quadrature.Quadrature.lebedev` and
+:meth:`~orpheus.numerics.quadrature.Quadrature.level_symmetric`; L1
+tests check polynomial-exactness for small Lebedev orders against
+closed-form spherical integrals. The per-family SN adapters those
+pass-through gates once compared against (``LebedevSphere`` /
+``LevelSymmetricSN`` at ``orpheus.sn.quadrature``) were retired into
+those classmethod factories in R-1 Phase A detour-C.
 """
 
 from __future__ import annotations
@@ -51,8 +56,14 @@ def test_lebedev_weight_sum_is_4pi(order: int) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize("order", [3, 5, 7, 11, 17])
 def test_lebedev_bit_identical_to_legacy_adapter(order: int) -> None:
-    """Bit-identical match against the legacy
-    :class:`~orpheus.sn.quadrature.LebedevSphere` constructor."""
+    """:meth:`~orpheus.numerics.quadrature.Quadrature.lebedev` passes
+    this rule through unmodified — the ``mu_x`` / ``mu_y`` / ``mu_z``
+    views read the right node columns of the wrapped measure.
+
+    NARROWER than the test name (and the retired ``LebedevSphere``
+    comparison it was written against) suggests: the factory *calls*
+    ``lebedev_sphere``, so both sides move together by construction
+    and this can NEVER detect node drift."""
     m = lebedev_sphere(order)
     legacy = Quadrature.lebedev(order)
     nodes = m.nodes
@@ -131,13 +142,18 @@ def test_level_symmetric_weight_sum_is_4pi(sn_order: int) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize("sn_order", [2, 4, 6, 8])
 def test_level_symmetric_bit_identical_to_legacy_adapter(sn_order: int) -> None:
-    """Bit-identical match against the legacy
-    :class:`~orpheus.sn.quadrature.LevelSymmetricSN` constructor.
+    """:meth:`~orpheus.numerics.quadrature.Quadrature.level_symmetric`
+    passes this rule through unmodified — the accessor views read the
+    right node columns and the per-level grouping survives the wrap.
 
-    This is the load-bearing test of the cylindrical regression
-    snapshots (``cyl_*_LS4_*.npz``) — if the level-symmetric rule
-    drifts in node order or per-level grouping, the cylindrical
-    sweep's α-recursion will deliver different per-cell flux."""
+    NARROWER than the test name (and the retired ``LevelSymmetricSN``
+    comparison it was written against) suggests: the factory *calls*
+    ``level_symmetric_sn``, so both sides move together by
+    construction and this can NEVER detect node drift. Node order and
+    per-level grouping matter — if either drifts, the cylindrical
+    sweep's α-recursion delivers different per-cell flux — but what
+    pins them against the pre-carve behaviour is the cylindrical
+    regression snapshots (``cyl_*_LS4_*.npz``), not this gate."""
     m, s = level_symmetric_sn(sn_order)
     legacy = Quadrature.level_symmetric(sn_order)
     nodes = m.nodes

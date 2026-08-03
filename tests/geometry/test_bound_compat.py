@@ -28,7 +28,7 @@ History
 =======
 
 The Wave-8/9 implementation carried an optional ``quadrature=``
-kwarg that bound an :class:`AngularQuadrature` and forwarded
+kwarg that bound an ``AngularQuadrature`` and forwarded
 ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
 :class:`BoundaryTraceLaw` body. Issue #176 dropped that mode after
 Issue #188 (curvilinear trace support) eliminated
