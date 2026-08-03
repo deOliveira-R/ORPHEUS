@@ -1,13 +1,21 @@
 r"""Product quadrature on the sphere: Gauss-Legendre :math:`(\mu)`
 :math:`\times` equispaced :math:`(\phi)`.
 
-The polar angle is discretised by Gauss-Legendre on
-:math:`\mu = \cos\theta \in [-1, 1]` and the azimuthal angle is
-sampled at the :math:`n_\phi` left-endpoints of an even partition of
-:math:`[0, 2\pi)` (matching the long-standing convention in
-:class:`orpheus.sn.quadrature.ProductQuadrature` — the bit-identical
-contract enforced by the regression snapshots requires this exact
-convention).
+Both factors are **registered rules**, not inline constructions: the
+polar one is :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`
+on :math:`\mu = \cos\theta \in [-1, 1]`, and the azimuthal one is
+:func:`~orpheus.numerics.quadrature.rules_circle.periodic_trapezoid` on
+:math:`S^1` at ``shift=NODE_ALIGNED`` — the :math:`n_\phi`
+left-endpoints of an even partition of :math:`[0, 2\pi)`, which is the
+long-standing convention here, now *named* rather than spelled as a
+``linspace`` literal.
+
+That naming is the seam a fold needs: selecting the **staggered** shift
+(and with it :math:`\Sigma = \emptyset`) becomes a substitution of one
+registered rule for another, rather than a new flag on this function.
+It also makes both factors carry their own exactness claims, which is
+what lets this rule's degree be *derived* — see
+:func:`spherical_product_claim`.
 
 Direction cosines per ordinate:
 
@@ -34,15 +42,18 @@ at construction: the computed check runs in ``tests/``, not here.
 
 .. caution::
 
-   Both sides of that check are ``cos``/``sin`` evaluations — the
-   :math:`\phi` grid here, and the checker's own :math:`C_n` and
-   :math:`\sigma_v` operators — so the agreement holds to ~1e-16, not
-   bit-exactly, and the match window
+   The agreement holds to ~1e-16, not bit-exactly, and the match window
    (``symmetry._NODE_WINDOW_FACTOR``) is what absorbs the difference.
    Lebedev's :math:`O_h` claim, by contrast, is exact on both sides
-   because signed permutations are exact in IEEE. Making this one
-   exact needs :mod:`orpheus.numerics.roots_of_unity` on the generator
-   AND on the checker's cyclic/mirror operators (issue #325).
+   because signed permutations are exact in IEEE.
+
+   Issue #325 named **two** halves for closing this gap, and as of
+   2026-08-02 the **generator half is done**: the :math:`\phi` grid is
+   :mod:`~orpheus.numerics.roots_of_unity`-generated, so this side of
+   the check no longer evaluates ``cos``/``sin`` at a sampled angle.
+   The remaining half is the **checker's** own :math:`C_n` and
+   :math:`\sigma_v` operators, which still do — so the window is still
+   load-bearing, now for one reason instead of two.
 
 .. note::
 
@@ -75,11 +86,130 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..exactness import UNIFORM_ON_SPHERE, ExactnessClaim
+from ..exactness import (
+    UNIFORM_ON_SPHERE,
+    ExactnessClaim,
+    OrthogonalSystem,
+)
 from ..measure import SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
+from .rules_circle import NODE_ALIGNED, periodic_trapezoid
 from .rules_sphere import LevelStructure, PolarInvariant
+
+
+def spherical_product_claim(
+    polar: ExactnessClaim, azimuthal: ExactnessClaim
+) -> ExactnessClaim:
+    r"""The claim of a polar :math:`\times` azimuthal product on :math:`S^2`.
+
+    .. math::
+       :label: spherical-product-degree
+
+       \deg_{S^2} \;=\; \min\big(\deg_{\text{polar}},\,
+                                 \deg_{\text{azimuthal}}\big),
+
+    against the uniform measure on :math:`S^2`, in the
+    **spherical-harmonic** system.
+
+    Why this is not
+    :meth:`~orpheus.numerics.exactness.ExactnessClaim.tensor_with`
+    ---------------------------------------------------------------
+
+    The factors' systems differ — algebraic in :math:`\mu`, trigonometric
+    in :math:`\varphi` — so ``tensor_with`` correctly returns ``None``
+    for this pair. It is right to: a tensor product lands on the
+    **square** :math:`[-1,1] \times S^1`, spanning a mixed tensor system.
+    This rule instead composes the factors through the **embedding**
+    :math:`(\mu, \varphi) \mapsto \Omega`, so its claim is about
+    spherical harmonics on :math:`S^2` — a different space, and therefore
+    a different theorem. This is the theorem
+    :class:`~orpheus.numerics.exactness.ProductMeasure`'s docstring means
+    by "belongs with the rule that applies it".
+
+    The derivation
+    --------------
+
+    A product rule **factorises** on a separated integrand, so it is
+    enough to check the monomials :math:`\Omega_x^a \Omega_y^b
+    \Omega_z^c` of total degree :math:`d`. Writing :math:`k = a + b` for
+    the transverse power, such a monomial is
+    :math:`(1-\mu^2)^{k/2}\,\mu^{\,d-k}` times a trigonometric polynomial
+    of degree :math:`k` in :math:`\varphi`, and the rule's value is the
+    product of the two factors' values. Two cases:
+
+    * :math:`k` **odd** — the polar factor :math:`(1-\mu^2)^{k/2}` is
+      **not a polynomial in** :math:`\mu`, so the polar rule has no
+      exactness to offer. It does not need any: :math:`\cos^a\varphi
+      \sin^b\varphi` with :math:`a + b` odd contains only *odd*
+      harmonics, so every :math:`m \neq 0` and the azimuthal rule
+      reproduces the exact :math:`0` — provided its degree is
+      :math:`\ge k`. **The azimuthal factor annihilates exactly the terms
+      whose polar factor is non-polynomial.**
+    * :math:`k` **even** — the polar factor **is** a polynomial, of
+      degree exactly :math:`d`, so the polar rule must be exact to
+      :math:`d`; the azimuthal trigonometric degree is :math:`k \le d`.
+
+    Both conditions read :math:`\deg \ge d`, so the largest :math:`d`
+    both admit is the minimum — :eq:`spherical-product-degree`. `[M]` The
+    bound is attained: ``product_mu_phi(4, 8)`` reproduces every
+    degree-7 spherical monomial to **1.1e-17** and misses at degree 8 by
+    **7.3e-2** (worst at :math:`\Omega_z^8`).
+
+    That degree-7 residual was **1.1e-16** until 2026-08-02 — an order of
+    magnitude larger — and the exact azimuths are what closed it. The
+    tightness at degree 8 is unmoved, as it must be: it is a statement
+    about which subspace the rule integrates, not about how well.
+
+    Parameters
+    ----------
+    polar : ExactnessClaim
+        The polar factor's own claim. MUST be
+        :attr:`~orpheus.numerics.exactness.OrthogonalSystem.ALGEBRAIC` —
+        the derivation's even-:math:`k` case is a statement about
+        polynomials in :math:`\mu`.
+    azimuthal : ExactnessClaim
+        The azimuthal factor's own claim. MUST be
+        :attr:`~orpheus.numerics.exactness.OrthogonalSystem.TRIGONOMETRIC`
+        — the odd-:math:`k` case rests on the rule annihilating every
+        non-zero harmonic, which is what a trigonometric degree asserts
+        and an algebraic one does not.
+
+    Returns
+    -------
+    ExactnessClaim
+        Against :data:`~orpheus.numerics.exactness.UNIFORM_ON_SPHERE`, in
+        the spherical-harmonic system.
+
+    Raises
+    ------
+    ValueError
+        If either factor is in the wrong orthogonal system. The guard is
+        the point of typing the inputs: passing two *algebraic* claims
+        (the shape a bare-integer ``min`` cannot distinguish) is the
+        square's tensor product, not this embedding, and its degree is
+        not this minimum.
+    """
+    if polar.system is not OrthogonalSystem.ALGEBRAIC:
+        raise ValueError(
+            f"the spherical product theorem needs an ALGEBRAIC polar "
+            f"claim, got {polar.system.value} ({polar}). Its even-k case "
+            f"is a statement about polynomials in mu."
+        )
+    if azimuthal.system is not OrthogonalSystem.TRIGONOMETRIC:
+        raise ValueError(
+            f"the spherical product theorem needs a TRIGONOMETRIC "
+            f"azimuthal claim, got {azimuthal.system.value} "
+            f"({azimuthal}). Its odd-k case rests on the rule "
+            f"annihilating every non-zero harmonic — a trigonometric "
+            f"degree asserts that; an algebraic one does not. The same "
+            f"nodes read as an interval rule carry degree 1, which is "
+            f"how a naive min() over bare integers reported 1 here."
+        )
+    return ExactnessClaim(
+        reference=UNIFORM_ON_SPHERE,
+        degree=min(polar.degree, azimuthal.degree),
+    )
 
 
 def product_mu_phi(
@@ -106,38 +236,49 @@ def product_mu_phi(
     as the weakest of the two — for general polynomial integrands on
     :math:`S^2`, both factors must be exact simultaneously.
 
-    .. note::
+    The degree is **derived** from the two factors' own claims by
+    :func:`spherical_product_claim`, which carries the theorem. It used
+    to be a hand-written ``min()`` over two bare integers; the value is
+    unchanged and tight, but it can no longer disagree with the factors
+    it is supposed to be about.
 
-       The azimuthal factor here is built inline as
-       ``np.linspace(0, 2π, n_phi, endpoint=False)`` — the
-       **node-aligned** periodic trapezoid, which
+    .. note:: What the azimuthal substitution changed (2026-08-02)
+
+       The azimuthal factor was built inline as
+       ``np.linspace(0, 2π, n_phi, endpoint=False)`` until this carve. It
+       is now
        :func:`~orpheus.numerics.quadrature.rules_circle.periodic_trapezoid`
-       now expresses as a first-class rule carrying its own
-       trigonometric claim. Substituting it is the unwelding step of
-       the quadrature campaign, not this one; until then two facts are
-       worth stating rather than leaving to be rediscovered:
+       at ``shift=NODE_ALIGNED`` — the same grid, named rather than
+       spelled, and generated as roots of unity. Three consequences, all
+       measured, none cosmetic:
 
-       * the prose above said "midpoint rule" until 2026-08-02, which
-         was false — these are left-endpoints, i.e. shift :math:`0`,
-         not shift :math:`\tfrac{1}{2}`. The *exactness* statement was
-         right anyway, because the shift cannot change the degree;
-       * the shift it does decide is whether a node sits on the
-         :math:`\varphi = 0` axis. Node-aligned means one does, so
-         :math:`\Sigma = \{\xi = 0\}` is non-empty for every
-         :math:`n_\phi` this rule can be asked for.
-
-       And the construction leaves :math:`\Sigma` **mis-counted**, which
-       is the sharper reason to substitute the registered rule. At even
-       :math:`n_\phi` the node set meets the axis twice per level, at
-       :math:`\varphi = 0` and :math:`\varphi = \pi` — but
-       ``np.sin(np.pi)`` is ``1.22e-16``, not ``0.0``, so only the first
-       is on the axis in exact arithmetic. `[M]` At
-       ``product_mu_phi(4, 8)``: :math:`|\Sigma| = 4` by equality
-       against :math:`8` by any sane tolerance. A fold whose
-       well-posedness condition is :math:`\Sigma = \emptyset` cannot be
-       decided on a set whose size depends on the tolerance used to
-       measure it; generating the azimuths as roots of unity makes both
-       counts :math:`8`.
+       * :math:`\Sigma` **now has one size.** At even :math:`n_\phi` the
+         node set meets the :math:`\xi = 0` axis twice per level, at
+         :math:`\varphi = 0` and :math:`\varphi = \pi` — but
+         ``np.sin(np.pi)`` is ``1.22e-16``, so under ``linspace`` only
+         the first was on it in exact arithmetic. `[M]` At
+         ``product_mu_phi(4, 8)``, :math:`|\Sigma|` read **4 by equality
+         against 8 by any sane tolerance**; it now reads 8 both ways. A
+         fold whose well-posedness condition is :math:`\Sigma =
+         \emptyset` cannot be decided on a set whose size depends on how
+         you measure it.
+       * **The η-ties became real, so the tie-break had to be named.**
+         :math:`\cos\varphi_m = \cos\varphi_{n_\phi - m}` holds
+         bit-exactly for roots of unity, so a level carries only
+         :math:`\lfloor n_\phi/2 \rfloor + 1` distinct :math:`\eta`
+         values — `[M]` 5 of 8 at :math:`n_\phi = 8`. Round-off had been
+         manufacturing :math:`n_\phi` fake distinctions, which means the
+         intra-pair order was previously decided **by noise**. See the
+         ``kind="stable"`` comment at the sort.
+       * The prose above said "midpoint rule" until 2026-08-02, which was
+         false — these are left-endpoints, shift :math:`0`, not shift
+         :math:`\tfrac{1}{2}`. The *exactness* sentence beside it was
+         right anyway, **because the shift cannot change the degree**.
+         What the shift decides is whether a node sits on the mirror
+         axis; node-aligned means one does, so :math:`\Sigma \neq
+         \emptyset` for every :math:`n_\phi` this rule can be asked for.
+         Selecting ``STAGGERED`` instead is the fold's business, and is
+         now a substitution rather than a new flag.
 
     Parameters
     ----------
@@ -177,10 +318,30 @@ def product_mu_phi(
     polar = gauss_legendre_on_mu(n_mu)
     mu_gl, w_gl = polar.nodes, polar.weights
 
-    # Equispaced φ in [0, 2π) — left-endpoints, matching the legacy
-    # ProductQuadrature contract pinned by the regression snapshots.
-    phi_pts = np.linspace(0, 2 * np.pi, n_phi, endpoint=False)
-    w_phi = 2.0 * np.pi / n_phi
+    # The azimuthal factor IS the registered circle rule — same reason as
+    # the polar one above. NODE_ALIGNED reproduces the left-endpoint grid
+    # this rule has always used; it is now a named shift rather than a
+    # `linspace` literal, which is what lets a fold SELECT the staggered
+    # one instead of a flag existing.
+    #
+    # The nodes are roots of unity, so cos/sin are exact on the axes.
+    # That is not cosmetic here: it is what makes Sigma = {xi = 0} a set
+    # of a definite size (see the note in the docstring above).
+    azimuthal = periodic_trapezoid(n_phi, shift=NODE_ALIGNED)
+    cos_phi, sin_phi = azimuthal.nodes[:, 0], azimuthal.nodes[:, 1]
+    w_phi = azimuthal.weights
+
+    # Type-narrowing, not validation: `DiscreteMeasure.exactness` is
+    # optional because SOME measures legitimately carry no claim (the
+    # direct sum), but both factors here are built two lines up by rules
+    # whose return contract includes one. Spelled as a raise rather than
+    # an `assert` because production asserts vanish under `-O`.
+    polar_claim, azimuthal_claim = polar.exactness, azimuthal.exactness
+    if polar_claim is None or azimuthal_claim is None:  # pragma: no cover
+        raise ValueError(
+            f"both factors must carry an exactness claim; got polar="
+            f"{polar_claim}, azimuthal={azimuthal_claim}"
+        )
 
     n_total = n_mu * n_phi
     mu_x = np.empty(n_total)
@@ -195,15 +356,30 @@ def product_mu_phi(
         sin_theta = np.sqrt(1.0 - mu_val**2)
         level_idx: list[int] = []
         for m in range(n_phi):
-            mu_x[idx] = sin_theta * np.cos(phi_pts[m])
-            mu_y[idx] = sin_theta * np.sin(phi_pts[m])
+            mu_x[idx] = sin_theta * cos_phi[m]
+            mu_y[idx] = sin_theta * sin_phi[m]
             mu_z[idx] = mu_val
-            weights[idx] = w_gl[p] * w_phi
+            weights[idx] = w_gl[p] * w_phi[m]
             level_idx.append(idx)
             idx += 1
         # Sort by increasing η (mu_x) for cylindrical sweep convention.
+        #
+        # `kind="stable"` is load-bearing, and became so the moment the
+        # azimuths turned exact. η = sinθ·cos φ, and `cos φ_m = cos
+        # φ_{n_φ−m}` holds BIT-exactly for roots of unity — so a level's
+        # η values come in genuine ties, `[M]` only ⌊n_φ/2⌋+1 distinct
+        # values among n_φ ordinates (5 of 8 at n_φ=8). Under the
+        # `linspace`+`cos` azimuths this rule used until 2026-08-02,
+        # round-off manufactured 8 fake distinctions and the sort never
+        # saw a tie.
+        #
+        # This is the 2-to-1-ness `LevelStructure.fiber` already names
+        # ("ordered by a projection that is 2-to-1 on it") made literal.
+        # With real ties the tie-break must be NAMED rather than left to
+        # the sort algorithm: stable keeps the construction order, i.e.
+        # increasing φ within an η-tie.
         level_arr = np.array(level_idx)
-        order = np.argsort(mu_x[level_arr])
+        order = np.argsort(mu_x[level_arr], kind="stable")
         level_indices.append(level_arr[order])
 
     nodes = np.column_stack([mu_x, mu_y, mu_z])  # (N, 3)
@@ -219,25 +395,13 @@ def product_mu_phi(
         # set on S² can satisfy. See ``maximal_invariance_groups``, which
         # computes this group from the nodes and pins the declaration.
         invariance_group=SubgroupOfO3.Dnh(n_phi),
-        # SPHERICAL-HARMONIC degree against Lebesgue measure on S^2. On
-        # the sphere a polynomial of degree d restricted to S^2 spans the
-        # same space as the harmonics up to ell = d, so the monomial
-        # measurement that pinned this bound and the harmonic reading of
-        # it are the same claim.
-        #
-        # ⚠ The VALUE is still hand-written, and deliberately so at this
-        # step: `[M]` the bound is tight (`product(4,8)` reproduces every
-        # degree-7 spherical monomial to 1.1e-16 and misses at degree 8
-        # by 7.3e-2), and it is tight for a REASON — a degree-d spherical
-        # monomial's azimuthal factor is a trig polynomial of degree <= d,
-        # so the polar and azimuthal bounds coincide. Deriving it from the
-        # two factors' own claims is the product theorem, and it needs the
-        # azimuthal factor to BE a measure carrying a trigonometric claim
-        # — which is the next step of this carve, not this one.
-        exactness=ExactnessClaim(
-            reference=UNIFORM_ON_SPHERE,
-            degree=min(2 * n_mu - 1, n_phi - 1),
-        ),
+        # DERIVED from the two factors' own claims, by the theorem that
+        # states what a polar × azimuthal embedding into S^2 is exact on.
+        # The value is unchanged — `min(2n_μ−1, n_φ−1)`, tight — but it is
+        # no longer a hand-written `min()` over two bare integers that
+        # happen to match the factors' degrees. It now cannot drift from
+        # them, and the systems are checked rather than assumed.
+        exactness=spherical_product_claim(polar_claim, azimuthal_claim),
     )
     structure = LevelStructure(
         n_levels=n_mu,
@@ -248,13 +412,22 @@ def product_mu_phi(
         # level-symmetric rule fibers over |mu_z| instead, and its
         # levels carry two.
         polar_invariant=PolarInvariant.SIGNED_MU_Z,
-        # The fiber coordinate, taken from the phi GRID rather than
-        # recovered from the cosines: phi_pts[m] is exactly the angle
-        # that generated ordinate m.
-        azimuth=np.tile(phi_pts, n_mu),
+        # The fiber coordinate, as an angle in [0, 2π). Recovered from
+        # the circle rule's components rather than kept as a second
+        # spelling of the grid — the rule's nodes are POINTS, and the
+        # angle is a chart chosen by whoever needs one. `fiber()` needs
+        # one, because it orders by it.
+        #
+        # `[M]` The round trip is exact where it matters: against the
+        # 2π·m/n_φ grid it reproduces bit-identically at n_φ = 4 and 8
+        # (0.0), and to 8.9e-16 at n_φ = 12 — with the ORDER, which is
+        # all `fiber()` consumes, preserved at every n_φ tested.
+        azimuth=np.tile(
+            np.mod(np.arctan2(sin_phi, cos_phi), 2.0 * np.pi), n_mu
+        ),
         hemisphere=np.sign(mu_z).astype(np.int64),
     )
     return measure, structure
 
 
-__all__ = ["product_mu_phi"]
+__all__ = ["product_mu_phi", "spherical_product_claim"]

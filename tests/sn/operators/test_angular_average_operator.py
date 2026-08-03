@@ -63,6 +63,8 @@ threshold, which is the B3.4a bug.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -164,16 +166,44 @@ class TestOutflowHalfTraceIsTheDomain:
         :meth:`from_quadrature` carried its OWN outflow classifier, a strict
         ``> 0.0`` compare, which disagrees with the trace space's
         ``> TANGENTIAL_EPS`` wherever a quadrature carries tangential
-        ordinates whose cosine is small-but-nonzero. `[M]` ``product(2, 4)``
-        on ``xmax`` is exactly such a fixture: 4 of its 8 ordinates are
-        tangential, the strict compare admits 4 rows and the tangential-band
-        rule admits 2.
+        ordinates whose cosine is small-but-nonzero.
+
+        ⚠ **The fixture changed on 2026-08-02, and why is the point.** It
+        used to be the SHIPPED ``product(2, 4)``, which discriminated
+        because its :math:`\varphi = \pm\pi/2` azimuths came out of
+        ``np.cos(np.linspace(...))`` as :math:`\pm 6.1\text{e-}17` rather
+        than :math:`0` — i.e. **the gate was activated by round-off**.
+        Once the azimuths became roots of unity (E3/E4, issue #325) those
+        ordinates are *exactly* tangential and the two classifiers agree,
+        so the activation guard below fired. `[M]` Re-measured across
+        every shipped rule — ``product`` at (2,4)/(2,8)/(4,8),
+        ``level_symmetric`` 4/8, ``lebedev`` 3/5, on all three axes —
+        **none discriminates any more**: every projection is either
+        exactly ``0.0`` or far above the 4-ULP band.
+
+        So the fixture is now CONSTRUCTED. That is strictly better: the
+        classifier distinction is a property of ``TANGENTIAL_EPS``, not of
+        any rule's accident, and a constructed input cannot decay the way
+        a shipped rule's round-off just did. (Which is exactly the
+        ``catches``-marker shelf-life hazard — the gate was resting on a
+        fixture property nobody had pinned.)
 
         The first assertion is the ACTIVATION guard — without it this test
-        silently decays into a restatement of the sibling rows the moment the
-        fixture stops discriminating (``vv`` Mode-8 class 7).
+        silently decays into a restatement of the sibling rows the moment
+        the fixture stops discriminating (``vv`` Mode-8 class 7). It is
+        what caught the change.
         """
-        quad = Quadrature.product(n_mu=2, n_phi=4)
+        shipped = Quadrature.product(n_mu=2, n_phi=4)
+        # Nudge the exactly-tangential ordinates to a sub-EPS but NON-ZERO
+        # projection — the case the band exists to classify, and the one
+        # no shipped rule produces any more. The nudge goes into the
+        # MEASURE, so the operator itself is built from it and the claim
+        # is about the operator, not about a hand-made comparison array.
+        nodes = np.array(shipped.measure.nodes, copy=True)
+        nodes[nodes[:, 0] == 0.0, 0] = TANGENTIAL_EPS / 2.0
+        quad = replace(
+            shipped, measure=replace(shipped.measure, nodes=nodes)
+        )
         odn = _signed_projection(quad, "x", +1)
         gamma_plus = np.flatnonzero(odn > +TANGENTIAL_EPS)
         retired_strict = np.flatnonzero(odn > 0.0)

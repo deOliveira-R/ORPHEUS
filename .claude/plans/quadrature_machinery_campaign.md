@@ -27,9 +27,10 @@
 > | **Q5.0.1** | `a7695148` | the reflection partner map is **certified** — caught a live defect (odd-`n_φ` products had an involutive-but-wrong `σ_x` map feeding the `r=0` pole continuation) |
 > | **Q5.E / E1** | `9e74faa1` | `numerics/exactness.py` — a claim names the SPACE its degree indexes |
 > | **Q5.E / E2** | `34a97f43` | `DiscreteMeasure` carries ONE claim; `tensor_with` vs the direct sum; the "6.2832 bug" re-measured and partly **inverted** |
-> | **Q5.E / E3** | *this commit* | `rules_circle.py` — the periodic trapezoid on `S^1`, shift as a `Fraction`, nodes as roots of unity |
+> | **Q5.E / E3** | `647ece5a` | `rules_circle.py` — the periodic trapezoid on `S^1`, shift as a `Fraction`, nodes as roots of unity |
+> | **Q5.E / E4** | *this commit* | the sphere product theorem + the azimuthal substitution; #325's generator half closed |
 >
-> **▶ NEXT = Q5.E / E4**, then Q5.0.2, then Q5.1–Q5.6. The full ladder with gates
+> **▶ NEXT = Q5.0.2**, then Q5.1–Q5.6. The full ladder with gates
 > is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
 >
 > ⛔ **UNCOMMITTED AND UNCOMMITTABLE: ERR-074** was appended to
@@ -2071,7 +2072,52 @@ implemented and **no `D_6h`-invariant rule in tree**.
      it made the tag assert a *coordinate* where the rest assert a *space* —
      which is precisely the distinction E3 exists to draw.
 
-  4. ⬜ **E4 — the sphere product theorem.** T2 already proved the shipped
+  4. ✅ **E4 — the sphere product theorem + the azimuthal substitution.**
+     `spherical_product_claim(polar, azimuthal)` in `rules_product.py` carries
+     the theorem and its derivation; `product_mu_phi` now composes **two
+     registered rules** and DERIVES its degree. Value unchanged and tight.
+     `tests/numerics` 1753 passed; `tests/sn -m "not slow"` **6 failed / 2554
+     passed — the SAME six**; `sphinx -W` clean; pyright 1 (the #288 residual).
+
+     `[M]` **What the substitution moved** (isotropic cyl MMS, nx=40, S(4,8)):
+     MMS L2 `5.389276744519e-04 → …525e-04` (1.2e-12); scalar flux **6.7e-16**;
+     per-ordinate ψ **3.0e-05**; and the degree-7 monomial residual **improved**
+     `1.1e-16 → 1.1e-17`. The movement is entirely in the ξ-odd sector, where
+     `test_azimuthal_mirror_symmetry.py` already measured the defect magnitude
+     as **ordering-INVARIANT** — so this is not correct→incorrect, it is
+     **noise-decided → named**.
+
+     ⭐ **Two committed tests went red, both CORRECTLY, and both were good
+     tests doing exactly their job.** Worth carrying because the pattern
+     generalises: *a fixture can be discriminating for a reason nobody pinned.*
+
+     * `test_domain_is_the_tangential_band_gamma_plus` — its **ACTIVATION
+       guard** fired. It discriminated only because `product(2,4)`'s `±π/2`
+       azimuths came out of `cos(linspace(…))` as `±6.1e-17` instead of `0`;
+       exact nodes made them exactly tangential and the two classifiers agreed.
+       `[M]` Re-measured across EVERY shipped rule (`product` ×3,
+       `level_symmetric` 4/8, `lebedev` 3/5, all three axes): **none
+       discriminates any more** — every projection is exactly `0.0` or far
+       above the 4-ULP band. So `TANGENTIAL_EPS` existed to absorb the product
+       rule's round-off, and the product rule was its only source. Re-posed to a
+       **constructed** sub-EPS measure, which cannot decay that way again.
+     * `test_trig_nodes_hide_the_tie_break_behind_rounding_noise` — a
+       characterization test of the pre-#325 state that **predicted this change
+       in its own docstring**. Split into a pair: the historical claim stays as
+       a control, its inversion (production ties are now exactly `0`) is the new
+       row. Keeping both is what makes the second legible as a defect removed.
+
+     ⚖ **On that file's "#326 blocks #325".** The blocking condition was that
+     exact nodes hand the ordering decision to a tie-break, so one must be
+     CHOSEN rather than inherited from noise. It was — `kind="stable"` (η
+     ascending, ties by increasing φ) — so the condition is **discharged, not
+     violated**. Choosing ≠ ranking: that file's headline result stands (no
+     ordering is more correct), and Q5.3 may re-pose it as the azimuthal march.
+
+     ---
+     *Original E4 specification, kept for its derivation:*
+
+     T2 already proved the shipped
      `min(2n_μ − 1, n_φ − 1)` is **tight**, and *why*: a degree-`d` spherical
      monomial's azimuthal factor is a trig polynomial of degree `≤ d`, so the
      two bounds coincide. So E4 does not change the formula — it gives it
@@ -2105,11 +2151,22 @@ implemented and **no `D_6h`-invariant rule in tree**.
      azimuthal factor must BE `periodic_trapezoid(n_φ, shift=NODE_ALIGNED)` —
      constructing that rule *only for its claim* while still building nodes from
      `np.linspace` would be a twin path asserting a claim about a measure it
-     does not build. So E4 ⟹ substitute the azimuthal nodes ⟹ **the cylindrical
-     SN snapshots re-baseline.** `[M]` The node move is pure ULP:
-     `2.2e-16 … 6.1e-16` on `(cos, sin)` over `(n_μ,n_φ) ∈ {(4,8),(6,12),(2,4),
-     (4,5)}`. Precedent: Q3 already took exactly this trade for the GL polar
-     nodes (user ruling, 2026-08-02) and re-baselined the SN **slab** snapshots.
+     does not build. So E4 ⟹ substitute the azimuthal nodes. Precedent: Q3 took
+     exactly this trade for the GL polar nodes (user ruling, 2026-08-02) and
+     re-baselined the SN **slab** snapshots. **User ruled 2026-08-02:
+     substitute now.**
+
+     ⛔ **THE COST QUOTED FOR THIS RULING WAS INCOMPLETE — recorded because the
+     understatement is the lesson.** It was presented as "a pure-ULP node move,
+     `2.2e-16 … 6.1e-16`". The node move IS that. But the exact azimuths ALSO
+     change the **level ordering**, which is discrete, not ULP:
+     `η = sinθ·cos φ` and `cos φ_m = cos φ_{n_φ−m}` bit-exactly, so a level has
+     only `⌊n_φ/2⌋+1` distinct η — `[M]` **5 of 8** at `n_φ = 8`. Under
+     `linspace` round-off manufactured `n_φ` fake distinctions, so **the
+     intra-pair order was previously decided by NOISE**; with real ties it is
+     decided by the sort's tie-break. `[M]` The orderings differ at every `n_φ`
+     tested (4, 8, 12). That is the exactness-as-diagnostic lesson landing on
+     the campaign's own change, one step after the campaign wrote it down.
 
      `[M]` What does NOT block it: `test_product_bit_identical_to_legacy_adapter`
      compares `Quadrature.product(...)` against `product_mu_phi(...)`, and the

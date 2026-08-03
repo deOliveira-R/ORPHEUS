@@ -986,12 +986,18 @@ _PRODUCT_RULE_IMPORT_SITES = (
 def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
     """Build a ``product_mu_phi`` replacement with a chosen level ordering.
 
-    ``exact_nodes`` selects the node generator, and it MATTERS: with the
-    trig-evaluated ``np.cos(np.linspace(...))`` nodes production uses today,
-    the mirror pair's ``eta`` differ by ~1 ULP, so the "tie" is resolved by
-    ROUNDING NOISE before any tie-break rule can act and lexsort / stable /
-    quicksort all agree.  The tie-break only becomes a reachable free variable
-    once the nodes are algebraically exact (``roots_of_unity``, issue #325).
+    ``exact_nodes`` selects the node generator, and it MATTERS: with
+    trig-evaluated ``np.cos(np.linspace(...))`` nodes the mirror pair's ``eta``
+    differ by ~1 ULP, so the "tie" is resolved by ROUNDING NOISE before any
+    tie-break rule can act and lexsort / stable / quicksort all agree.  The
+    tie-break only becomes a reachable free variable once the nodes are
+    algebraically exact (``roots_of_unity``, issue #325).
+
+    ⚠ ``exact_nodes=False`` is now the HISTORICAL arm, not production.  As of
+    2026-08-02 ``rules_product`` builds its azimuths with ``periodic_trapezoid``
+    (roots of unity), so ``exact_nodes=True`` — the default here — is what
+    production does.  Keep the False arm: it is what makes the noise-resolved
+    regime measurable rather than merely asserted.
     """
     from orpheus.numerics.exactness import UNIFORM_ON_SPHERE, ExactnessClaim
     from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure

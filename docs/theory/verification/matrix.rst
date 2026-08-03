@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8290**
+Total tests collected: **8309**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1206, 14.5%
-   L1, 1407, 17.0%
+   L1, 1407, 16.9%
    L2, 64, 0.8%
    L3, 0, 0.0%
-   foundation, 5613, 67.7%
+   foundation, 5632, 67.8%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8211
+   explicit, 8230
    class-name, 46
    func-name, 0
    case, 33
@@ -294,7 +294,7 @@ Module × level grid
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    mms/test_mms_ld_2d, 0, 11, 0, 0, 13, 0
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
-   mms/test_mms_ordering_blindness, 0, 0, 0, 0, 10, 0
+   mms/test_mms_ordering_blindness, 0, 0, 0, 0, 11, 0
    mms/test_space_angle_separability, 0, 6, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
@@ -338,7 +338,7 @@ Module × level grid
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
-   numerics/test_rules_product, 0, 3, 0, 0, 14, 0
+   numerics/test_rules_product, 0, 3, 0, 0, 32, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 53, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0

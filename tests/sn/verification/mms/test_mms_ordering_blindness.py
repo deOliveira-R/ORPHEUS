@@ -16,11 +16,29 @@ claim cannot decay silently.
 
 THE SITUATION
 -------------
-``rules_product.py`` orders each mu-level by ``np.argsort(mu_x)``.
+``rules_product.py`` orders each mu-level by ``np.argsort(mu_x, kind="stable")``.
 ``eta = mu_x = sin(theta) cos(phi)`` is 2-to-1 over ``phi`` in ``[0, 2*pi)``:
 the azimuthal mirror pair ``(phi, 2*pi - phi)`` shares it.  The level was never
-totally ordered, and the tie-break — decided today by rounding noise — moves a
-heterogeneous cylindrical solve by 0.6 %–7.2 %.
+totally ordered, and the tie-break moves a heterogeneous cylindrical solve by
+0.6 %-7.2 %.
+
+UPDATED 2026-08-02 — the tie-break used to be decided BY ROUNDING NOISE.  The
+azimuths are now roots of unity (#325's generator half, landed with the
+exactness carve), so the ties are exact and the tie-break is a named rule:
+``kind="stable"``, eta ascending with ties broken by increasing phi.  ``[M]``
+What that substitution actually moved, isotropic cylindrical MMS at
+``nx=40, n_mu=4, n_phi=8``::
+
+    MMS L2 error   5.389276744519e-04 -> 5.389276744525e-04   (1.2e-12)
+    scalar flux    max rel diff 6.7e-16
+    per-ordinate   max rel diff 3.0e-05
+
+i.e. machine-level in the scalar flux, solver-tolerance in the ladder, and
+real but small per-ordinate — exactly the sector this file proves the MMS is
+blind to, and in which ``test_azimuthal_mirror_symmetry.py`` measures the
+defect magnitude to be ordering-INVARIANT.  So the substitution did not make
+the solver more or less correct; it replaced a noise-decided label with a
+named one.
 
 WHAT THIS FILE PROVES
 ---------------------
@@ -117,14 +135,27 @@ def test_the_two_tie_breaks_really_order_the_level_differently():
 
 
 def test_trig_nodes_hide_the_tie_break_behind_rounding_noise():
-    """#325 <-> #326 coupling: today's nodes make the tie-break unreachable.
+    """#325 <-> #326 coupling — HALF OF THIS RESOLVED 2026-08-02.
 
     With ``np.cos(np.linspace(0, 2pi, n_phi, endpoint=False))`` the mirror
     pair's ``eta`` differ by ~1 ULP, so EVERY sort rule agrees and the
-    degeneracy is invisible.  Algebraically-exact nodes (#325) make the ties
-    exact and hand the decision to the tie-break — which is why #326 blocks
-    #325 rather than the reverse, and why every "ordering alone" measurement
-    must be made on exact nodes.
+    degeneracy is invisible.  That half is unchanged and is asserted below
+    against the ``exact_nodes=False`` arm, which is now a HISTORICAL control
+    rather than a description of production.
+
+    Production moved: ``rules_product`` builds its azimuths with
+    ``periodic_trapezoid`` (roots of unity, #325's generator half), so the
+    ties are now EXACT and the tie-break IS the decision.  The companion
+    ``test_production_now_has_exact_ties_and_a_NAMED_tie_break`` is the
+    other half of this pair.
+
+    On "#326 blocks #325": the blocking condition was that exact nodes hand
+    the ordering decision to a tie-break rule, so one has to be CHOSEN
+    rather than inherited from noise.  It was — ``kind="stable"``, i.e. eta
+    ascending with ties broken by increasing phi — so the condition is
+    discharged, not violated.  Choosing is not the same as *ranking*: this
+    file's own headline result stands, that no ordering is more correct
+    than another, and Q5.3 may yet re-pose it as the azimuthal march.
     """
     got = {}
     for tie_break in ("lexsort", "stable"):
@@ -136,14 +167,43 @@ def test_trig_nodes_hide_the_tie_break_behind_rounding_noise():
     assert got["lexsort"] == got["stable"], (
         f"trig-evaluated nodes unexpectedly left a REACHABLE tie: {got}"
     )
-    production = Quadrature.product(n_mu=4, n_phi=8)      # today's nodes
+
+
+def test_production_now_has_exact_ties_and_a_NAMED_tie_break():
+    r"""The inversion of the row above, and the reason it is a pair.
+
+    ``eta = sin(theta) cos(phi)`` and ``cos(phi_m) == cos(phi_{n-m})``
+    bit-exactly for roots of unity, so a production level carries only
+    ``n_phi//2 + 1`` distinct eta among ``n_phi`` ordinates and the
+    interior gaps are EXACTLY zero — where they used to be ~1 ULP of
+    rounding noise standing in for a tie.
+
+    Keeping both rows is the point: the historical claim is what makes
+    the present one legible, and a lone "gaps are zero" assertion would
+    read as an unremarkable property rather than as a defect removed.
+    """
+    production = Quadrature.product(n_mu=4, n_phi=8)
     level = np.asarray(production.level_indices[0])
-    gaps = np.abs(np.diff(production.eta[level]))
-    ulp_gaps = gaps[gaps < 1e-12]
-    print(f"production eta gaps that should be exact ties: {ulp_gaps}")
-    assert ulp_gaps.size > 0 and np.all(ulp_gaps > 0.0), (
-        f"expected non-zero ULP-scale gaps standing in for exact ties, "
-        f"got {ulp_gaps}"
+    eta = production.eta[level]
+    gaps = np.abs(np.diff(eta))
+    tie_gaps = gaps[gaps < 1e-12]
+    print(f"production eta gaps at the mirror pairs: {tie_gaps}")
+    assert tie_gaps.size > 0, "no near-ties at all — fixture stopped working"
+    assert np.all(tie_gaps == 0.0), (
+        f"expected EXACT ties on roots-of-unity azimuths, got {tie_gaps}"
+    )
+    assert len(np.unique(eta)) == 8 // 2 + 1
+
+    # The tie-break is now reachable, which is the whole consequence.
+    got = {}
+    for tie_break in ("lexsort", "stable"):
+        with product_level_ordering(tie_break, exact_nodes=True):
+            got[tie_break] = [
+                list(map(int, a))
+                for a in Quadrature.product(n_mu=4, n_phi=8).level_indices
+            ]
+    assert got["lexsort"] != got["stable"], (
+        f"exact nodes left the tie-break UNREACHABLE: {got}"
     )
 
 
