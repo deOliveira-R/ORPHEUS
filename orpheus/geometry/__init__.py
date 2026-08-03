@@ -36,6 +36,7 @@ from .reduced_operator import (
     spherical_streaming,
 )
 from .structured_geometry import Region, StructuredGeometry
+from .transformation import RigidMotion, close_group
 
 __all__ = [
     "AngularMeasure",
@@ -46,8 +47,10 @@ __all__ = [
     "ReducedStreamingOperator",
     "Region",
     "RegionMesh",
+    "RigidMotion",
     "StreamingTerms",
     "StructuredGeometry",
+    "close_group",
     "compute_areas_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",
