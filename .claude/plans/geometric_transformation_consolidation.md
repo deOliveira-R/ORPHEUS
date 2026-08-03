@@ -342,10 +342,53 @@ sphere, because meshes start at `origin = 0.0` while the mirror plane sits at
 `x = a`. That is `d ≠ 0` — unexpressible today, one field away from
 expressible.
 
-**Scope: rigid motions (`QᵀQ = I`, `det = ±1`), NOT general affine.** No
-consumer needs shear or scaling, and orthogonality is what makes the type
-verifiable. Coordinate charts `(r,θ) ↔ (x,y)` are **non-linear** and stay
-outside — a different concept, not a degenerate case.
+### R1b. Two axes, not one — and the scope argument had to be replaced
+
+⛔ **Corrected 2026-08-03, on the user's challenge.** The original wording ran
+two independent questions together as "rigid vs affine". They are:
+
+| | question | answer | argued by |
+|---|---|---|---|
+| **Axis 1** | is the **translation** in the core? | **YES — forced** | the proof above: you cannot say *where* a mirror is without it |
+| **Axis 2** | is a **non-isometric linear part** in the core? | **NO** | see below |
+
+`[M]` Axis 1 is implemented and working: `reflection(normal=x, offset=2.5)`
+carries `t = [5,0,0]`, is not linear, and fixes its own plane; the production
+cell lattice reads `None` under a mirror at `x=0` and
+`Permutation([5,4,3,2,1,0])` under the same mirror at `x=½`. `[M]` Axis 2 is
+enforced: shear, uniform scale and anisotropic scale are all rejected.
+
+**The Axis-2 justification was resting on an argument this plan had already
+disavowed.** It read *"No consumer needs shear or scaling"* — the very
+"weak argument" the affine proof was introduced to replace. And the affine proof
+does not cover it: it argues for **including translation** and says nothing
+about **excluding shear**. Replaced with the structural argument:
+
+**Orthogonality is not a convenience — it is what makes "symmetry" a well-posed
+question.**
+
+* A symmetry **preserves the structure**; for a weighted point set that
+  structure is distance and volume. A non-isometry carries the node set to a
+  *different* node set, so `permutes` / `preserves` would not be answering a
+  hard question — they would be answering a malformed one.
+* A point group **is by definition** a subgroup of `O(d)` seated at a point,
+  not of `GL(d)`.
+* `close_group` of a non-isometry is generically **infinite** (scaling by 2
+  generates ℤ), so the finite-group machinery loses its meaning and
+  `NotAFinitePointGroupError` would fire on ordinary input.
+* `inverse()` is `Qᵀ` — **exact**. A general linear part makes it a solve
+  carrying conditioning, and every G2 law that closes at ~1e-15 today
+  (`g∘g⁻¹ = e`; adjoint-of-uplift = uplift-of-inverse) degrades to
+  tolerance-bound.
+
+The consumer count survives only as a footnote, never as the argument.
+
+**Where a genuinely non-rigid affine map would go.** Not here. The real
+candidate in this tree is the **reference-cell → physical-cell map** behind the
+LD/UBLD tensor-Legendre basis, which carries an anisotropic scaling. That is a
+**chart** — a different object with a different job — and it belongs beside the
+curvilinear charts `(r,θ) ↔ (x,y)`, which are **non-linear** and stay outside as
+a different concept, not a degenerate case.
 
 ### R2. Elements are DIMENSION-GENERIC, parameterised by the complement of what they fix
 
