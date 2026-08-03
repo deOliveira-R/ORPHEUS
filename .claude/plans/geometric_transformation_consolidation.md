@@ -1,10 +1,11 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: MAPPING.** Audits in flight. Nothing implemented. This file is the
-> plan of record; it is written to survive a compaction and be picked up cold.
+> **STATUS: G1 LANDED (`6acb6a8a`). G2 next.** This file is the plan of record;
+> it is written to survive a compaction and be picked up cold.
 >
 > **Branch** `refactor/operator-strategy-layers`. Base commit at authoring:
 > `bfedc621` (Q5.0.2 — `Z2` retired, `Mirror(axis)` minted).
+> **Merge-status: trust git, not this header** — `git merge-base --is-ancestor`.
 
 ---
 
@@ -561,13 +562,39 @@ it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 
 ## 5. Open questions — NOT blocking, to settle during implementation
 
-1. **`_distinct_azimuths` / `candidate_groups` may be quadrature-shaped wearing
-   geometry clothes.** The `Cn`/`Dnh` enumeration is bounded by counting
-   distinct azimuths — sensible for *directions on a sphere*, probably wrong for
-   a mesh's vertex set (a square lattice's symmetry is not bounded by its
-   azimuth count). The walk may need a **candidate generator polymorphic in the
-   kind of point set**. Biggest remaining unknown; bears directly on "the mesh
-   computes its own group".
+1. ⛔ **RESOLVED BY MEASUREMENT, AND THE ANSWER INVERTED THE QUESTION
+   (2026-08-03).** I had this recorded as *"`_distinct_azimuths` /
+   `candidate_groups` may be quadrature-shaped wearing geometry clothes — a
+   square lattice's symmetry is not bounded by its azimuth count."* **False.**
+   The bound's reasoning — a `C_n` rotation (`n>1`) fixes no azimuth, so the
+   off-axis azimuths fall into FREE orbits of size `n`, hence `n | count` — is
+   a fact about ℝ³, not about the sphere. `[M]` sound on every set tried:
+
+   | point set | `n_az` | divisors | true `C_n` |
+   |---|---|---|---|
+   | 3×3 / 4×4 / 5×5 square lattice | 8 / 12 / 16 | … | 4 / 4 / 4 |
+   | 2×4 rectangle | 8 | 1,2,4,8 | 2 |
+   | hex 1-ring / 2-ring | 6 / 12 | … | 6 / 6 |
+   | cube vertices | 4 | 1,2,4 | 4 |
+   | triangle / pentagon | 3 / 5 | … | 3 / 5 |
+   | 1-D slab cell centres | 2 | 1,2 | 2 |
+
+   **The real limitation is that the candidate set is AXIS-LOCKED**, which is a
+   different and more tractable problem: `Cn`/`Dnh` are realized about **z**
+   only and `Mirror` offers **coordinate normals** only. `[M]` A 3×3 lattice
+   standing in the x–z plane has a genuine `C_4` about **y**; the z-locked walk
+   reads `n_az = 2` and finds nothing. `[M]` A lattice rotated 30° about z
+   **keeps** its `C_4` (rotations about z commute with the re-orientation) while
+   **both** `σ_x` and `σ_y` fail and only the rotated normal permutes.
+
+   ⟹ That asymmetry — *the rotation family survives re-orientation about its own
+   axis, the mirror family does not* — is the campaign's own ruling
+   **"containment ≠ subconjugacy: literal for the gate, the aligning ROTATION
+   for re-orientation"** landing on a concrete case. The fix is not a polymorphic
+   candidate generator; it is to let the walk carry an **orientation** (a
+   `RigidMotion` conjugating the realization), which G1's `conjugated_by` already
+   supplies. Bears directly on "the mesh computes its own group", since a mesh
+   has no obligation to be axis-aligned.
 2. **Is `Mesh1D` misplaced?** There is a `transport/mesh/` package (`axis.py`,
    `material_mesh.py`, `material_xs_field.py`) and discretisation arguably
    belongs there, while `Mesh1D` sits in `geometry/`. Noted by the user; a
@@ -587,7 +614,7 @@ it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 
 | step | what | gate |
 |---|---|---|
-| **G1** | mint `geometry/transformation.py`: dimension-generic elements, `RigidMotion`, closure, the point-set orbit primitive; `permutes`/`preserves` | tree green; realizations bit-identical |
+| **G1** ✅ `6acb6a8a` | mint `geometry/transformation.py`: dimension-generic elements, `RigidMotion`, closure, the point-set orbit primitive; `permutes`/`preserves` | tree green; realizations bit-identical |
 | **G2** | ⭐ **mathematically verify** against PURE MATH — group axioms, `QᵀQ=I`, `det=±1`, involution, order-`n`, Householder/Rodrigues vs independent constructions, conjugation `RσR⁻¹`, orbit–stabiliser | every law mutation-verified |
 | **G3** | route `symmetry.py`'s seven constructors through the core; delete the 1-D/3-D arm split | realizations bit-identical |
 | **G4** | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | `Dnh(n_φ)` exact on BOTH sides |
@@ -622,7 +649,67 @@ interest of the user's; revisit deliberately.
 
 ---
 
-## 6. Standing constraints for the implementation session
+## 7. G1 — what landed, and what it measured (`6acb6a8a`)
+
+`orpheus/geometry/transformation.py`, ~700 lines, `numpy`-only, exported from
+`geometry/__init__`. **Zero production consumers** — G3 wires it. `pyright`
+clean on both touched files; `tests/numerics` + `tests/geometry` = 2338 passed,
+1 failed (the known `WhiteXminPartial03GL` red, task #33, bisected to
+`292a1ba5` — unchanged).
+
+**The surface.** `RigidMotion(linear, translation)` with orthogonality enforced
+at construction and only there; `@` composition, `.inverse()`,
+`.conjugated_by()`, `.seated_at()`; `on_points` / `on_directions` as two named
+actions with **no `__call__`** (a direction has no position — translating one is
+the bug the split prevents); `.determinant`, `.fixed_subspace_dimension`,
+`.element_order()` (returns the order, not "is it n?" — `gⁿ = e` is satisfied by
+every element whose order *divides* n); constructors `identity`,
+`translation_by`, `inversion`, `reflection(normal=, offset=)`,
+`rotation_from_circle_point`, `rotation`, `rotation_about_axis`,
+`signed_permutation`; free function `close_group`.
+
+**R1 and R2 demonstrated, not asserted.** `[M]` A 6-cell production lattice
+under a mirror at `x=0` → `None`; the SAME lattice under
+`reflection(normal=x, offset=½)` → `[5 4 3 2 1 0]`, exactly the
+`arange(n)[::-1]` at `sweep_graph.py:577-580`. `[M]` A bare `(4,1)` GL rule
+under `reflection(normal=[1.0])` → `[3 2 1 0]`, identical to the `(μ,0,0)`
+3-D embedding — the arm split dissolved.
+
+**Bit-identity, measured against the legacy primitives:**
+
+| | vs | max │Δ│ |
+|---|---|---|
+| `reflection(normal=e_i)` | `_reflections(axis)` | **0.0** (all three) |
+| `signed_permutation` family | `_octahedral_ops()` | **0.0** (48/48) |
+| `preserves(...)` permutations | `_orbit_closure(...)` | **0.0** on lebedev(17), LS(8), product D₅ₕ, D₈ₕ |
+| planar rotation | `_rotation_z` | 1.11e-16 ⟵ improvement set |
+| `rotation_about_axis` | `_rotation_about_axis` | 7.77e-16 ⟵ improvement set |
+
+`[M]` Closure reproduces every order: `C_n`/`D_nh` for n = 2,3,4,6,8; `O_h` = 48
+**and the closed set IS `_octahedral_ops()`'s 48 matrices**, not merely a group
+of the right size; `I_h` = 120 with 60 proper.
+
+**`rotation_from_circle_point` is the primitive, `rotation(angle=)` the
+convenience** — an angle is a lossy parameterisation of a point on S¹.
+`[M]` it returns exactly `0.0` where `np.cos(np.pi/2)` = 6.1e-17. **This is the
+hook G4 needs** to re-base `_cyclic_ops`/`_vertical_mirrors` on
+`roots_of_unity`.
+
+### ⚠ A G3 PRECONDITION discovered here, currently held by accident
+
+`numerics/__init__.py:40` imports `symmetry`, so G3's back-edge
+(`symmetry` → `geometry.transformation`) lands inside a live package cycle.
+`[M]` It imports clean at every entry point (`orpheus`, `orpheus.numerics`,
+`orpheus.numerics.symmetry`, `orpheus.sn.solver`) — **because every one of
+geometry's 16 numerics imports is SUBMODULE-level** (`from
+orpheus.numerics.X import Y`), never `from orpheus.numerics import Y`. A
+partially-initialised package serves the former and fails the latter. Nothing
+enforces this today. **G3 must add the gate** alongside the import, in
+`tests/test_layer_imports.py`'s family.
+
+---
+
+## 8. Standing constraints for the implementation session
 
 * `main` is always green; never commit to `main`; `--ff-only`; no squash-merge.
 * **NEVER** `git checkout <path>` / `git restore <path>` / `git stash` /
