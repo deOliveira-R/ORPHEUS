@@ -9,11 +9,16 @@
 > *test* of the design, not its purpose.
 >
 > **Branch** `refactor/operator-strategy-layers`. **Q0, Q1, Q2, Q3, Q4 ALL
-> LANDED** (2026-08-02). **NEXT: #326** — swap `level_indices` to the fiber
-> ordering Q4 built, and see whether the three `xfail(strict=True)` rows in
-> `test_azimuthal_mirror_symmetry.py` XPASS. That is the campaign's own declared
-> acceptance test. **#325 is no longer blocked**: it was stuck behind a sort-key
-> ruling that Q4 dissolved (see T19).
+> LANDED** (2026-08-02). **#325 is no longer blocked**: it was stuck behind a
+> sort-key ruling that Q4 dissolved (see T19).
+>
+> ⛔ **THIS ANCHOR PRESCRIBED A FALSE NEXT STEP UNTIL 2026-08-02.** It said
+> "**NEXT: #326** — swap `level_indices` to the fiber ordering Q4 built, and see
+> whether the three `xfail(strict=True)` rows XPASS". **Measured: that swap
+> makes the cylindrical solve produce NaN**, and the same anchor's own §7 said
+> "do not fix #326 directly". See **T22** for the measurement and **T23** for
+> what the acceptance test actually has to be. The real next step is the
+> **half-range FOLD** (T5/T6/T8), with a **must-precede** guard first (T23).
 >
 > ⚠ **SIX SN GATES ARE RED**, deliberately, all documented in `81689a58`; each
 > needs its own call, none is a physics failure:
@@ -978,6 +983,158 @@ structural degeneracy by manufacturing fake distinctions.** With inexact nodes,
 1e-16 noise broke the ties and made a 2-to-1 map look 1-to-1. Making the nodes
 exact collapsed the disguise. Exactness is not only an end — it is a *diagnostic*.
 
+### T22 — ⛔ The ordering is CLOSED as an adjudication: every option is measured
+
+T21 ended by deferring "the swap" to #326 "with its own gate", and the cold-pickup
+anchor then promoted that to **the** next step. `[M]` **Measured 2026-08-02** on the
+cylindrical fixed-source problem the three xfail rows use (`product(4,8)`, nx=20,
+isotropic source, `inner_tol=1e-13`), varying ONLY the per-level ordering through
+`tests/sn/_test_helpers.product_level_ordering` with node VALUES held identical:
+
+```
+ordering      exact-nodes   homogeneous       heterogeneous
+PRODUCTION    (n/a)         1.190877e-01      5.144789e-02
+lexsort       False         1.190877e-01      5.144789e-02
+lexsort       True          1.190877e-01      5.144789e-02
+stable        False         1.190877e-01      5.144789e-02
+stable        True          1.190877e-01      5.144789e-02
+azimuthal     False         nan               nan
+azimuthal     True          nan               nan
+```
+
+**⚠ Do NOT read row 6/7 as "the fiber ordering is wrong".** That was this
+theorem's first draft and it is a misreading — the fiber ordering is the
+*physically* natural march order. User challenge, 2026-08-02: *"Don't simply
+accept the overflow. Investigate the mechanism and reason if the mechanism is a
+principled and inherent mechanism or a problem of implementation."* It is the
+latter, and running that down is what produced T22b.
+
+1. **η-ascending orderings are bit-identical to each other.** The tie-break is not
+   a free variable that moves the answer — not even with exact nodes. (This also
+   re-confirms independently that **#325 does not gate #326**.)
+2. **The NaN localises to ONE expression** — the cylinder's edge convention at
+   `pole_angular_closure.py:599-603`:
+   ```python
+   eta_edge[0] = -sin_theta                        # the march STARTS at −sinθ
+   for m in range(M - 1):
+       eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
+   eta_edge[M] = sin_theta                         # …and ENDS at +sinθ
+   ```
+   That hard-codes **"this level is ONE monotone arc from −sinθ to +sinθ"**. Under
+   the ω-order `eta[0] = +sinθ`, so `τ_raw[0] = 2sinθ/(0.434+0.508) = 1.079` —
+   the measured value, reproduced exactly from the convention alone.
+3. **Nothing catches it.** `τ_raw`'s only guard is `abs(deta) > 1e-15` (exact
+   collapse), and `morel_montry_tau_per_level` then applies the structural
+   `max(0.5, min(1.0, ·))` clamp, which **absorbs the out-of-range value into a
+   plausible one**. So a violated premise is laundered into a finite wrong answer;
+   the NaN is downstream divergence, not a guard firing. `[M]` A mere *reversal*
+   of a level yields `τ_raw ∈ {+1.079, −0.079}` with **no NaN and no raise** at
+   all. The clamp is the thing that hides mis-ordering.
+
+### T22b — ⭐⭐ The α-march is a march in ω ARC BY ARC; the arcs end on Σ = {ξ = 0}
+
+The principled statement the overflow was pointing at, and it makes the fold
+*necessary* rather than merely elegant.
+
+ξ is the coefficient of `∂ψ/∂ω` in the cylindrical streaming operator, so
+**ξ = 0 is exactly where the angular-redistribution flux vanishes** — the only
+place the recursion's closure `α_{1/2} = α_{M+1/2} = 0` is physically right, not
+merely conventional. Those points are `ω ∈ {0, π}`: each level's circle carries
+**exactly two**, and they cut it into two arcs. This is the set the campaign
+already named in **Q1** — `Σ = {ξ = 0}`, the orbifold singular set — arriving
+independently from the sweep side.
+
+On ONE arc, `η = sinθ·cos ω` is **strictly monotone in ω**. So `[M]` (measured,
+every level of `product(4,8)`):
+
+> **the η-ascending order and the ω-order are THE SAME ORDER.** `[4 3 2 1 0]`
+> both ways. They are not competitors; they are one order seen through two
+> coordinates. They can only *appear* to compete on a level carrying two arcs.
+
+**Verdict on the mechanism: implementation, not inherent — and the convention
+encodes the bug.** The edge rule is *correct code for one arc* applied to a
+two-arc level. Sorting by η makes a two-arc level **impersonate** one arc (a
+monotone sequence from −sinθ to +sinθ) by interleaving ordinates from *different*
+arcs — which is precisely why mirror partners land adjacent and split `{1, ½}`.
+So neither ordering is right, because the LEVEL is wrong: the η-order returns a
+finite wrong answer, the ω-order a divergent one, and they are the same disease.
+
+**The strongest result: the fold needs NO change to the closure at all.** `[M]`
+The unmodified production producer, run on a half-range level:
+
+```
+                            tau_raw                          degenerate
+production (2 arcs)  [0, 1, 0, 1, 0, 1, 0, 1]                 8/8
+half-range (1 arc)   [0, 0.292893, 0.5, 0.707107, 1]          2/5
+```
+`0.292893 = 1 − 1/√2`, `0.707107 = 1/√2` — smooth, monotone, in range, identical
+on all four levels. **The alternation is gone.** The two remaining degenerate entries are
+the arc's own endpoints (`η = ∓sinθ` *is* the boundary, by definition, and they
+are the Σ points), and only one of the five is touched by the clamp. `[M]` Mass
+is exact: `12.566370614359172` before and after `= 4π` bit-for-bit, `32 → 20`
+ordinates, `|Σ| = 8`, with T5's orbit-stabilizer trapezoid `[w, 2w, …, 2w, w]`
+supplying the weights (Σ points have `|Stab| = 2`).
+
+⟹ `morel_montry_tau_raw_per_level` was written for a half range all along. The
+defect is that nobody ever gave it one.
+
+⚠ The lesson for planning, not just for #326: **an anchor written at a compaction
+checkpoint is a claim, and it can be falsified by the repo it summarises.** This
+one contradicted its own §7 ("do not fix #326 directly") and the promoted test
+file's own docstring ("WHY NO RE-ORDERING FIXES IT"), and survived a checkpoint
+because prose was reconciled against prose. Cost: one probe. Reconcile a
+next-step claim against a MEASUREMENT before it becomes the anchor.
+
+### T23 — ⛔⭐ The declared acceptance test CANNOT adjudicate the fold — and the reason is a live Pattern-4 gap
+
+§7 declared the three `xfail(strict=True)` rows the campaign's proof: "when the
+machinery is right they XPASS and force their own deletion". They measure
+`max|ψ − ψ[reflection_index("y")]| / max|ψ|`.
+
+**The fold makes that expression meaningless**, because the quotient carries ONE
+representative per mirror pair — the partner is *not in the node set*. `[M]`
+Measured on a half-range restriction (ξ ≥ 0) of `product(4,8)`, 32 → 20 ordinates:
+
+```
+                          full sphere      half-range quotient
+involution?               True             False
+identity (slab case)?     -                False
+max |ξ[partner] + ξ|      2.303e-16        9.404e-01     <- maximally wrong
+raised?                   -                NO
+partner map               -                [0 0 0 4 4 5 5 0 9 9 10 10 ...]
+```
+
+Every node is mapped onto some **ξ = 0** node — the nearest thing to a reflection
+that exists in the set — silently, many-to-one, non-involutive.
+
+**Root cause, and it is a bug independent of #326.**
+`directional._find_reflections` (`directional.py:125`) is a bare `argmin` over
+squared distance with **no distance threshold and no closure check**. It *asserts*
+"these are the reflection partners"; it never verifies it. Today every production
+rule happens to be closed under all three axes, so the map is correct — a latent
+trap, not a live defect. **The fold breaks exactly that unstated precondition**,
+so the guard is a MUST-PRECEDE cleanup (`coding-standards.md` "clean before
+extending"), not follow-up polish: fold first and the cylinder ships a silently
+wrong pole map.
+
+The fix is already in the tree and is one call: `[M]`
+`SubgroupOfO3.Dnh(2).is_invariant(measure)` returns **True** for the full rule and
+**False** for the half range — the campaign's own computed predicate (T14/T17)
+gets the right answer where the nearest-neighbour matcher gets a silent wrong one.
+Same shape as ERR-072/073: *a certification claimed and never computed.*
+
+**The replacement acceptance test.** The non-vacuous prediction is already on the
+issue: a half-range level should **remove the #229 azimuthal error floor** and
+restore a convergence order to the anisotropic curvilinear MMS gate (today flat at
+≈1.9e-2). That is a manufactured-solution measurement against a structurally
+independent reference — not a self-comparison, and not something the fold can
+satisfy by construction. Secondary, both substantive: `τ_raw` must leave `{0,1}`
+(T22's mechanism), and the α closed form of **T3** must hold exactly.
+
+⚠ **Do NOT** re-pose the three xfail rows as "ψ even in ξ on the quotient". That
+IS satisfied by construction and would be a gate that cannot red — `vv-principles`
+Mode 8, the tautological-guard class.
+
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
 User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
@@ -1402,10 +1559,16 @@ implemented and **no `D_6h`-invariant rule in tree**.
   (`1f9d4818`), but is **not exported and has no consumer**. Repointing its three
   consumers is Q5's business, because the repoint touches the RANGE/RULE
   factorization.
-- **#326** (the double-cover) — **do not fix it directly.** It is the campaign's
-  acceptance test: when the machinery is right, the three `xfail(strict=True)`
-  rows in `test_azimuthal_mirror_symmetry.py` XPASS and force their own deletion.
-  That is the design's proof, and it is why the gates were promoted first.
+- **#326** (the double-cover) — **do not fix it directly.** Still true, and now
+  measured rather than argued: every re-ordering either changes nothing
+  (`lexsort`/`stable` are bit-identical to production, with exact AND inexact
+  nodes) or destroys the march (the fiber ordering NaNs). See **T22**.
+  ⛔ **What has changed is the acceptance test.** This section used to say the
+  three `xfail(strict=True)` rows XPASS "when the machinery is right". `[M]`
+  **They cannot adjudicate the fold at all** — on the quotient the ξ-mirror
+  partner is not in the node set, and `reflection_index("y")` returns a silent
+  many-to-one garbage map rather than raising. See **T23** for the measurement
+  and for the non-vacuous replacement (the #229 azimuthal floor).
 - **The boundary campaign** (B3.3, B3.5, B4–B7) — resumes after Q7.
 
 ### ⚠ Two claims that must NOT be inherited
