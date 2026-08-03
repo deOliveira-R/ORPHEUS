@@ -405,11 +405,16 @@ carry only their distinctive content.)
   is a *separate* docutils severity that a `WARNING|ERROR` grep misses
   and that does NOT bump the exit code. Grep all three.
 - **The acceptance gate is count-unchanged-from-the-`-E`-pre-edit
-  baseline, NOT count = 0.** The standing baseline is **1 warning** —
-  the pre-existing `orpheus/geometry/mesh.py` `Mesh1D.from_geometry`
-  `:paramref:` ERROR (needs `sphinx-paramlinks`, out of scope for a
-  docs task). (Older sessions baselined at 9; it dropped to 1.) Diff
-  the WARNING/ERROR/CRITICAL *sets* pre-vs-post, not just the count.
+  baseline, NOT count = 0 — and you RE-MEASURE that baseline every
+  session, never quote it from this file.** It drifts (9 → 1 → 0 as
+  of 2026-07-30, when the `Mesh1D.from_geometry` `:paramref:` ERROR
+  this file used to name went away; `orpheus/geometry/mesh.py` has
+  carried no `paramref` since). A quoted baseline is a frozen claim
+  that rots exactly like a stale `NEXT =` pointer: it reads as
+  authority long after it stopped being true, and a session trusting
+  it will either chase a warning that no longer exists or accept one
+  that is new. Diff the WARNING/ERROR/CRITICAL *sets* pre-vs-post,
+  not just the count.
 - **`... has no matching equation node ... — skipping` lines are INFO
   severity, not warnings.** They are `@pytest.mark.verifies(...)`
   section-anchor registrations under `-W`. Do NOT try to silence them
@@ -437,8 +442,17 @@ carry only their distinctive content.)
 ### Cross-ref reality (this project is NOT `-n` nitpicky)
 
 - **Unresolvable `:func:`/`:class:`/`:meth:` refs render as PLAIN TEXT
-  with NO warning.** `-W` will NOT catch a dead code-xref or a stale
-  alias-xref. They are Cardinal-Rule-1 staleness bugs regardless — fix
+  with NO warning — and `-n` (nitpicky) does NOT save you either.**
+  `-W` will NOT catch a dead code-xref or a stale alias-xref, and
+  neither will a nitpicky build: Sphinx can only nitpick what it
+  RENDERS, so a docstring in an un-`automodule`'d module is invisible
+  at every severity, as is every file under `tests/`. That is the
+  MAJORITY case here — the doc source carries only ~45 live
+  `automodule` directives (2026-08-03), which is how a module
+  retirement left 22 dead refs no build of any severity could see.
+  Before concluding "`-n` would have caught this", check whether the
+  module is rendered at all (`grep -c "docstring of <module>"` in a
+  nitpick log; 0 means invisible). They are Cardinal-Rule-1 staleness bugs regardless — fix
   them on correctness grounds via an explicit `grep` gate, never by
   relying on the warning count (which only proves you added nothing
   new). After a carve that DELETES a helper, `grep -rn "<symbol>" docs/`
