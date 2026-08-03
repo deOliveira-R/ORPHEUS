@@ -44,12 +44,18 @@ CHECKER = REPO_ROOT / "tools" / "check_docstring_xrefs.py"
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("tree", ["orpheus", "tests"])
+@pytest.mark.parametrize("tree", ["orpheus", "tests", "docs"])
 def test_no_docstring_names_a_missing_object(tree: str) -> None:
     """Every fully-qualified xref in ``tree`` resolves against the live namespace.
 
-    Parametrised by tree so a production regression and a test-tree regression
-    are distinguishable in the report rather than sharing one red row.
+    Parametrised by tree so a production regression, a test-tree regression and
+    a corpus regression are distinguishable in the report rather than sharing
+    one red row.
+
+    ``docs`` is a weaker case than the other two — a page under ``docs/`` IS
+    rendered, so a nitpicky build could in principle flag its dead roles. It is
+    gated here anyway for one gate instead of two and no ``nitpick_ignore``
+    curation; see the checker's module docstring.
     """
     result = subprocess.run(
         [sys.executable, str(CHECKER), tree],
