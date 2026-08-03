@@ -89,27 +89,10 @@ metric, the un-transposed nested recurrence).
 ## L-003 -- Smell #16 (distinct paths/reps to one operator) is the dominant transport tell — fire all four shapes
 
 The single most-recurring native-frame-not-found signal in this project's
-SN/transport work. NOW PROMOTED into the skill (reference.md Part C, Smell #16,
-2026-06-22) — the four-shape CATALOG is in the skill so every agent fires it; it
-also remains in the AGENT.md promoted kernel. The LESSON here is the detection
-discipline, NOT the catalog. Four shapes, recognise all four BEFORE the fix:
-
-1. Two code paths claiming to be the same discrete operator over different
-   storage conventions (cells vs faces; typed field vs raw ndarray). Fix: both
-   consume the same primary representation (usually the faces; cells are
-   DD-derivatives of faces).
-2. One physical quantity in two incompatible representations bridged by hand
-   (a seed/absorb index copy; a `sigma: np.ndarray` threaded positionally
-   alongside a typed `MaterialXSField` view). The bridge IS the missing
-   trace/restriction/multiplication operator un-named.
-3. An iterate increment `Δx = xⁿ−xⁿ⁻¹` typed as the STATE type (admits illegal
-   `state+state`, strands the contraction data). Fix: a difference-space type.
-   ALSO fires one remove out: an operator OUTPUT typed with the iterating-
-   state's decoration (a history-bearing `TimedFullField` returned where a
-   timeless base belongs).
-4. A third hand-rolled path ABOUT to be written (a backward adjoint sweep for a
-   per-cell operator already shared by two callers) — fires BEFORE the code
-   exists. Fix: re-apply the shared primitive, do not twin it.
+SN/transport work. The four-shape CATALOG is NOT re-copied here: it lives in the
+skill (reference.md Part C, Smell #16) and in the AGENT.md promoted kernel, both
+preloaded on every dispatch. The LESSON is the detection discipline, not the
+catalog.
 
 How to apply: every shape resolves to the SAME elegance move — collapse the
 distinct paths onto ONE primary object (faces / a named trace-or-multiplication
@@ -216,13 +199,8 @@ promote.
 
 ## L-007 -- The transport-resolvent backbone predicts cross-method layering AND its exceptions — reach for it first
 
-The durable cross-method spine (in the AGENT.md kernel): SN/MoC/CP `solve` are
-three QUADRATURES of one object, the Peierls resolvent `(Ω·∇+Σ_t)⁻¹`; diffusion is
-the EXCEPTION (a P1/asymptotic LIMIT, not a quadrature), which is exactly WHY its
-solve is elliptic-self-adjoint while the others are characteristic-triangular. The
-power-method fixed-point combinator `fix(step)` recurs at every layer because each
-iterates the same resolvent; adjoint solve = backward semigroup (`Ω→−Ω` = path
-reversal). The LESSON about how to deploy it:
+The spine itself is the AGENT.md kernel ("Cross-method backbone: the transport
+resolvent") — preloaded, so it is NOT restated here. The LESSON is how to DEPLOY it:
 
 - When a "find-the-special-value" family (k, α, time-step, fixed-source) looks like
   distinct solvers, check whether they are POSINGS of one generalized eigenproblem

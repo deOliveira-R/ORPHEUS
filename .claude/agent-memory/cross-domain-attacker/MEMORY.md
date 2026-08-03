@@ -1,100 +1,76 @@
 # Cross-Domain Attacker — Memory Index
 
-Slim index: ONE line per entry (open the topic file for the full verdict). Behavioral
-lessons → `lessons.md` (read FIRST each dispatch). Frame-trigger CATALOG → the
-`cross-domain-frames` skill (Part A/B/C); Smell #16 four-shape detector + transport-
-resolvent backbone → the AGENT.md kernel (fire from there, do NOT re-derive). This index =
-(1) lessons pointer, (2) active state, (3) durable design pointers.
+Pointers only. Per-lesson detail lives ONLY in `lessons.md` — never re-summarize a lesson
+here. The frame-trigger CATALOG (Part A/B/C, incl. Smell #15 and Smell #16's four shapes)
+lives in the `cross-domain-frames` skill; the transport-resolvent backbone lives in the
+AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory.
 
-## 1. Lessons (read first)
+## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 14 process lessons. Spine: a frame-attack's value is a
-  concrete reformulation with a FAIL-ABLE first test OR a crisp refutation carrying its
-  structural reason — never a named-but-payoff-free frame. L1 refuted-frames-are-first-class ·
-  L2 tests must DISCRIMINATE · L3 Smell#16 four shapes · L4 property-vs-type by counting
-  applied morphisms · L5 read-worktree-not-Nexus-on-a-branch · L6 frame-leak naming · L7
-  resolvent-backbone predicts cross-method layering · L8 "fully probes"=linearity-not-degree ·
-  L9 frame OWNER + Galerkin/PG discipline set by the operator's SYMMETRY (Funk–Hecke; **3rd
-  outcome: ALL owners ⟹ no owner, still GALERKIN-on-a-sub-block**) · L10 conserved-collapse
-  splits rate⟹average(G⁻¹M) vs mass⟹marginalize(M) · L11 coupled-block = free re-association
-  of a biproduct (Mat∘Mat≅Mat), defer-until-2 counts KINDS · L12 naming IS frame-detection: a
-  theorem can FORBID a family word (⇒ species+genus-ABC), a name's test is the invariant it
-  promises run against the violator, delete-it-and-ask-what-breaks for a reused word (+ smell
-  cand "name states a contract the content violates") · L13 a `-> bool` PREDICATE that
-  internally builds the permutation/partition/certificate IS the "missing" primitive —
-  widen the return type before minting a class · L14 an UNSATISFIABLE predicate is a
-  wrong-ARGUMENT diagnosis (check each argument's KIND before redesigning the relation);
-  a symmetry that REDUCES dimension is SPENT — 3 parts, 3 fates; a "vacuous" framing has a
-  non-vacuous sibling one group-average away.
+- [lessons.md](lessons.md) — 14 detection lessons. Spine: an attack's value is a concrete
+  reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
+  reason. A named-but-payoff-free frame is rejected output.
 
 ## 2. Active / in-flight state
 
-**None.** These attacks fed landed campaigns; their DESIGN VERDICTS are the §3 pointers, not
-in-flight code. Merge-status in memory goes STALE (L5) — re-ground any cited file:line against
-the live worktree before acting. #236 (spatial⊗angular) was the last known-open branch at curation.
+Attacks feed campaigns; campaigns move without telling this file. Standing rule: **re-ground
+every cited `file:line` and every "not yet landed" claim against the live worktree before
+acting** — git is the authority, this file is a snapshot. The quadrature attack (§3) is the
+one whose campaign was still in flight at last curation.
 
-## 3. Durable design pointers (open the file for the full verdict)
+## 3. Durable design pointers
 
-Frame-attacks whose reformulation became, or should become, architecture. Detection HABIT is
-in `lessons.md`; structural CONTENT is in each topic file.
+Open the file for the verdict; the hook only tells you whether to open it.
 
 ### Operator algebra (the SN/transport spine)
-- [reaction_term_naming_species_split.md](reaction_term_naming_species_split.md) — the 3-layer reaction NAMING verdict: genus = decomposable-operator field (von Neumann/Dixmier; excludes streaming), species = **1 multiplier + 3 kernels, a theorem not a taste** (no uniform family word: `Σ_t δ` is a distribution + Boltzmann false friend), seam = Kalman **realization**, layer-3 carrier arms = **compressions** `PAP*`. `Law` reserved for CLOSURES (delete-it-check + ENDF File 7 `S(α,β)`); `MaterialXSField`/`CrossSectionField` KEEP their names — the bug is the 9 `apply_*` verbs on the datum. Deliverable `scratch/reaction_naming_frames.md`.
-- [assembly_mode_functor_dag_frames.md](assembly_mode_functor_dag_frames.md) — Phase-2b: `assembled≡probed` IS functoriality of the additive-monoidal `F:Op→Mat`; per-octant `(L+C)` = the sweep-DAG incidence matrix (triangular⟺acyclic, #282 pole=back-edge); emission earns NO type (scipy carrier). REFUTED: DEC-homology/circulant/MPO.
-- [operator_inverse_taxonomy_frames.md](operator_inverse_taxonomy_frames.md) — #226 inverse taxonomy: TWO LAYERS — substrate `LossRepresentation` (many action-views of ONE object) vs OPERATOR (one morphism/one promise; A/A.H/A⁻¹ distinct); 4 inverse strategies, structure-keyed factory. Smell cand "vestigial-forward" (`_GaussSeidelResolvent` round-trip REDs).
-- [operator_inverse_w1_w2_resolutions.md](operator_inverse_w1_w2_resolutions.md) — #226 W1/W2: moment-emit = `OperatorProduct(P,A⁻¹)`, P a block COISOMETRY (no round-trip); G-S resolvent = `M.inverse()`, M=(L+C−B_lower) a REAL forward (matrix-splitting), REIFY M.apply not "preconditioner"; `ResolventOperator(z)`=`(A−zI).inverse()`, drop the class.
-- [iso_source_frame_conjugation_unification.md](iso_source_frame_conjugation_unification.md) — every iso source = `frame.conjugate(K)` thru the HARMONIC frame (already realized `full_scatter_kernel`); the rank-1 `iso_frame` is `angular_frame(0)` NOT a new ConstantBasis; homog/condense are PG `project` NOT conjugate (different verbs, don't unify). WIN: collapse 3 cross-model fission transcriptions onto the #261 FissionOperator.
-- [fission_rank1_normal_form_dead_functional.md](fission_rank1_normal_form_dead_functional.md) — fission `F=|χ⟩⟨νΣf|` IS the single-mode frame-conjugate normal form ⇒ "unfold F" is structurally empty. Smell: an abstract `Functional` category whose only typed instance is production-DEAD while 5 live functionals stay untyped; re-seat on the live pop as `BilinearFunctional ⟨φ†,Aφ⟩`.
-- [issue_261_cross_method_operator_relocation.md](issue_261_cross_method_operator_relocation.md) — relocate C/F/S sn/→transport/: C's mesh is session-born (collapse to a held `full_field_space`); the W-D guard's essential invariant is object-id⊋geometric-consistency⊋shape-eq; do NOT mint `ReactionOperator` (`IntegralKernelOperator`+`LinearOperator[Flux,SourceSink]` already the contract).
-- [rep_role_grid_double_category_frames.md](rep_role_grid_double_category_frames.md) — the (Rep×Role) carrier grid IS a double category; scattering = the `frame.conjugate(Λ)` 2-cell; the (Rep,Role) parametrization belongs on `LinearOperator[Din,Cout]` NOT the carrier (phantom-param impossible ∵ erased); the MI `Leaf(RoleMixin,RepBase)` is the unique form. → lessons L4 corollary.
-- [operator_protocol_mixin_collapse_frames.md](operator_protocol_mixin_collapse_frames.md) — P4.5: the stateless dunder-installer Mixin is Smell#16 shape-1; collapse to dunders-as-default-methods ON the Protocol (gated on a pyright variance spike) or a single `Operator(Generic[Din,Cout],ABC)`; retire the 7 @overload stubs. Run the variance spike FIRST.
-- [issue_208_operator_algebra_frames.md](issue_208_operator_algebra_frames.md) — the algebra IS a dagger inverse biproduct category with a co-equal boundary metric G (`†=G⁻¹AᵀG`); block matrices + adjoint-for-free are THEOREMS; `solve` a partial-inverse morphism (not a string tag); triangularity an SN/MoC-only mixin. Smell cand: metric-blindness.
-- [bordered_vs_biproduct_facefield_frames.md](bordered_vs_biproduct_facefield_frames.md) — `BorderedOperator` is over-abstraction (fuses saddle-point/biproduct/Galerkin-coarsening; discriminator = corner block + metric); `FaceField` codim-1 dual RIGHT as mimetic/Hodge NOT cohomology (no d²=0, L-001); ONE face measure `|Ω·n|`. Sequel = [[coupled-system-field-bc-frames]].
-- [coupled_system_field_bc_frames.md](coupled_system_field_bc_frames.md) — augmented-SN 2×2 is NOT new: the existing 3-block biproduct RE-PARTITIONED (`Mat∘Mat≅Mat`), G-adjoint composes block-wise free; don't mint `CoupledOperator`, lift the `BlockRole` freeze + NAME A_BA (an un-named Schur elimination). → lessons L-011.
-- [issue_208_delta_psi_affine_frames.md](issue_208_delta_psi_affine_frames.md) — the affine/torsor + Banach-contraction + Krylov-dual triad for typing a solver's two "→0" quantities (increment Δx vs residual r). Affine frame + state-typed-increment anti-pattern PROMOTED TO THE SKILL.
-- [field_role_typing_faceflux_frames.md](field_role_typing_faceflux_frames.md) — the SN face flux is a DEC 1-cochain, the boundary trace its restriction ι* ("absorption=identity" IS ι_*∘ι*=id), `C¹=C¹_int⊕C¹_∂` the biproduct; G-S/Jacobi = back-edge split of the reflective coupling on the (octant×face) graph.
-- [streaming_apply_transpose_frame.md](streaming_apply_transpose_frame.md) — `Lᵀ` = triangular-transpose (reverse DAG walk + transposed local coupling + face roles swapped) + Lewis-Miller adjoint-ordinate; 3 gotchas a spatial-only reverse silently violates (nested angular recurrence, pole seed→outer face, trace inflow↔outflow swap).
-- [flux_to_sourcesink_operator_contract_frames.md](flux_to_sourcesink_operator_contract_frames.md) — the universal `Operator: flux-STATE→rate-density SOURCE/SINK` contract (linear part of an affine bundle morphism); `apply(x:V)->V` is the endomorphic LIE ⟹ `Operator[Flux,SourceSink]`, retiring the per-leaf overloads; fission = rank-1 degenerate of scattering's frame.
+- [#208 operator algebra](issue_208_operator_algebra_frames.md) — dagger inverse biproduct category + metric G (†=G⁻¹AᵀG); adjoint-for-free = theorem.
+- [Δψ affine/torsor](issue_208_delta_psi_affine_frames.md) — typing a solver's two "→0" quantities (Δx vs residual r); frame now IN the skill.
+- [coupled 2×2](coupled_system_field_bc_frames.md) — a coupled block system over an existing biproduct is a FREE re-association; mint nothing.
+- [bordered vs biproduct](bordered_vs_biproduct_facefield_frames.md) — BorderedOperator fuses 3 structures; FaceField = mimetic NOT cohomology.
+- [face-flux cochain](field_role_typing_faceflux_frames.md) — the SN face flux is a DEC 1-cochain, the boundary trace its restriction ι*.
+- [streaming transpose](streaming_apply_transpose_frame.md) — Lᵀ = reverse DAG walk + transposed coupling + swapped face roles; 3 gotchas listed.
+- [SN adjoint construction](sn_adjoint_construction_frames.md) — build the EXACT discrete transpose; F† is a free dyad-swap, S† free by Funk–Hecke.
+- [flux→source contract](flux_to_sourcesink_operator_contract_frames.md) — `apply(x:V)->V` is the endomorphic LIE: flux-STATE → rate SOURCE.
+- [assembly=functor](assembly_mode_functor_dag_frames.md) — assembled≡probed IS functoriality; (L+C) = sweep-DAG incidence. REFUTED: DEC/MPO.
+- [inverse taxonomy](operator_inverse_taxonomy_frames.md) — TWO LAYERS: substrate = many views of ONE object; operator = one morphism, one promise.
+- [inverse resolutions](operator_inverse_w1_w2_resolutions.md) — the splitting M is a REAL forward op (reify it), not a "preconditioner".
+- [protocol/mixin collapse](operator_protocol_mixin_collapse_frames.md) — stateless dunder-installer Mixin = Smell#16 shape-1; variance spike FIRST.
+- [Rep×Role grid](rep_role_grid_double_category_frames.md) — carrier grid = double category; phantom params erased ⇒ MI `Leaf(RoleMixin,RepBase)`.
+- [reaction naming](reaction_term_naming_species_split.md) — no family word: 1 multiplier + 3 kernels is a theorem; `Law` = closures only.
+- [iso-source conjugation](iso_source_frame_conjugation_unification.md) — every iso source is `frame.conjugate(K)`; rank-1 iso = `angular_frame(0)`.
+- [fission rank-1](fission_rank1_normal_form_dead_functional.md) — F=|χ⟩⟨νΣf| IS the normal form ⇒ "unfold F" is structurally empty.
+- [#261 op relocation](issue_261_cross_method_operator_relocation.md) — guard invariant is object-id ⊋ geometry ⊋ shape-eq; mint nothing new.
 
 ### Curvilinear / phase-space boundary
-- [psi_half_seed_angular_trace_frames.md](psi_half_seed_angular_trace_frames.md) — #282/#280 R10: the ψ½(µ=−1) seed IS the ANGULAR-INFLOW TRACE of the (r,µ) rectangle (dual to ∂spatial); ZERO-metric GHOST ((1−µ²)=0=α_{1/2}); Euclidean coupling via apply_transpose (G at outer wrap only); sphere-only. Smell cand "metric-invisible-yet-active DOF".
-- [quadrature_symmetry_quotient_frames.md](quadrature_symmetry_quotient_frames.md) — #326: half-range = ORBIFOLD quotient by the point-ISOTROPY group (C_2v), weights FORCED by orbit-stabilizer (trapezoid = the orbifold measure), ξ-even/odd = the trivial/sign ISOTYPIC split. **A level is a FIBER of an invariant, NOT an orbit** (product fibers signed µ_z, LS fibers |µ_z| — one type, two meanings); redistribution exists **iff the spatial-reduction group acts on the angular fiber**; n_levels>1 ⟺ isotropy FINITE. `σ_xσ_y=C₂(ẑ)` welds the spatial r=0 map to the angular fold (right by a coincidence today). API: measure-quotient is **NOT** a Frame (⟹ `pushforward∘consolidate`, ONE verb), basis-side isotypic restriction **IS** (symmetry-adapted SH, Galerkin-on-a-smaller-space — PG REFUTED). Missing: the singular set Σ={ξ=0} (6 ε-detectors), the group ACTION (3 impls), exactness-without-a-subspace. MoC = live 2nd consumer. **2nd attack (Q2 Stage-1 SELECTION
-predicate):** the relation `G_geom ⊆ G_rule` is RIGHT, both ARGUMENTS wrong-kind — `Sym(Q)`
-of a finite node set is FINITE (Thm A) so a continuous `G` is unsatisfiable by ANY
-discretisation, while the correct left argument (the DISCRETE residual `Γ=G/G⁰` on the fiber)
-is ALWAYS finite (Thm D). **3 parts, 3 fates**: free `G⁰` ⟹ the α connection · continuous
-isotropy ⟹ the angular-domain QUOTIENT (Stage 0, today enforced only by accident) · discrete
-residual ⟹ the ordinate PERMUTATION (Stage 1). Table = `slab/sphere: Z₂` on `[−1,1]`,
-`cylinder/cartesian2d: D_{2h}` on `S²` (**not `O_h`** — "conservatively tagging `O_h`" is
-INVERTED). **`product` for cylinder ADMITTED iff `n_φ` even = ERR-042 re-derived**; does NOT
-catch #326 (a sweep defect, not a quadrature one). Stage 2 = **Sobolev 1962** (gap 3's
-citation) + isotypic annihilation. Offset is exactness-INVISIBLE, `Sym`-VISIBLE (Q5 input).
-→ lessons L9-3rd-outcome, L13, **L14**.
+- [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; sphere-only.
+- [quadrature sym](quadrature_symmetry_quotient_frames.md) — half-range = orbifold quotient; a level is a FIBER not an orbit; SPENT group: 3 fates.
 
 ### Eigenvalue / iteration layering
-- [eigenvalue_posing_layering_frames.md](eigenvalue_posing_layering_frames.md) — K/α/source/transient = ONE generalized eigenproblem `Aψ=λMψ`, backbone = resolvent `A_loss⁻¹M`, layered leaves→posing→resolvent→algorithm (role-assignment method-agnostic, realization method-specific).
-- [power_iteration_vs_keigenvalue_morphism.md](power_iteration_vs_keigenvalue_morphism.md) — a power-iteration loop and an operator-triple loop are the SAME `fix(step)` at two layers; the Protocol-opaque-resolvent layer is strictly more general (admits monolithic-matrix resolvents) ⟹ it is the engine (deprecation arrows point toward it).
+- [eigenvalue posing](eigenvalue_posing_layering_frames.md) — k/α/source/transient = ONE generalized eigenproblem Aψ=λMψ over the resolvent backbone.
+- [power-iteration morphism](power_iteration_vs_keigenvalue_morphism.md) — two loops = one fix(step); the OPAQUE-resolvent layer is the engine.
 
-### Field-typed operator algebra DESIGN MEMOS
-- [issue_226_container_algebra_design.md](issue_226_container_algebra_design.md) — uniform container-typed algebra: structural `Vector` Protocol + `apply(x:V)->V` (not per-op Generic); `(L+C−S−F−B)` an endomorphism on one carrier; 7 numerics primitives stay flat ndarray; scipy = the serialization boundary.
-- [issue_257_carrier_typing_layering_frames.md](issue_257_carrier_typing_layering_frames.md) — `Vector` = the forgetful-functor image (irreducible by the layer DAG); `apply:V→V` a fibration cartesian morphism; `TimedFullField=Cofree(FullField,d)`. Promotion cands: forgetful-functor + Cofree-comonad.
-- [coefficient_field_promotion_frames.md](coefficient_field_promotion_frames.md) — `f↦M_f` IS the multiplier-algebra embedding `M:L^∞→B(L²)`; `CoefficientField` a commutative algebra+cone splitting into CrossSectionField(cone,1/cm)/SpectrumField(simplex,χ); locality = diagonal-symbol⇒Multiplication vs integrated⇒IntegralKernel. ⚠ `multiplication_operator` name collision.
-- [spatial_order_type_vs_property_criterion.md](spatial_order_type_vs_property_criterion.md) — the DECIDABLE property-vs-type criterion (≥2 non-iso bases + an applied change-of-basis morphism); spatial order = PROPERTY (morphism=id), angular order = TYPE. → lessons L4.
-- [harmonic_frame_ownership_funk_hecke.md](harmonic_frame_ownership_funk_hecke.md) — CAPSTONE: WHO owns the angular SH frame? M is LITERALLY the change-of-basis into Σ_s's EIGENSPACE (Funk–Hecke: zonal Σ_s ⟹ {Y_ℓ^m} diagonalize, eigenvalues=Λ diagonal; + Schur); streaming=ℓ=1 ladder doesn't diagonalize ⟹ scattering OWNS it; energy condensation=no symmetry⟹PG. ONE cause for the Galerkin-vs-PG split. → lessons L9.
-- [dsa_rp_angular_frame.md](dsa_rp_angular_frame.md) — DSA-#2 Phase-3 3-P0: restriction/prolongation IS the ℓ=0 sub-block `angular_frame(0)`, a GalerkinFrame (Π=P∘M W-self-adjoint under the PLAIN measure; NOT PG — no solution weighting); consistency = `Schur_{ℓ=1}(R₁ A_high P₁)` on the ASSEMBLED DD op (reduce-discrete≠discretize-reduce); boundary arm = half-range `|Ω·n|w`; foreign frames (two-grid/deflation/precond-Richardson/Fourier-0.2247c) all reduce to the Krylov `preconditioner` hook + a `SourceIteration` wrap; ANTI-MINT: instantiate `angular_frame(0)`, mint nothing. Sharpens L9. Deliverable `.claude/plans/dsa_rp_frame_analysis.md`.
-- [dsa_saddle_point_mixed_fem_frames.md](dsa_saddle_point_mixed_fem_frames.md) — DSA consistency ↔ mixed-FEM inf-sup / CFD pressure–velocity: the (φ,J) pair is a **Darcy** saddle-point (mass J-block ⟹ closed-form current Schur-elim, NOT Stokes; import H(div)/RT0 not velocity-pressure). "Consistent"=Schur-complement-of-a-compatible-pairing, and the frame fires on the diffusion/LOW-ORDER member ONLY (the L7 elliptic exception — sweeps are triangular, no saddle). Reed=staggering-mismatch NOT checkerboard (transport BORN STAGGERED, DD=MAC; Σa coercivizes φ; oscillatory≠null — REFUTED-with-reason). Krylov rescues TWO distinct modes: inconsistency=BAND/spectral-radius-irrelevance vs discontinuity=isolated-OUTLIER-deflation ("one eig near 1 ruins accel; Krylov shrugs", Century p.83). k-skeleton=the DEC design axis (covolume 0-skel vs RT0 (d−1)-face); **persistence-not-degree earns a cochain type** (3rd sighting WavefrontFlux-retired/ψ½-typed/f₀-to-type → L4-sharpen cand). Angular axis=same cochain complex (BMC Morel–Montry τ_raw ⟹ AXIS-AGNOSTIC consistency; curvilinear-DSA's angular half already built). Deliverable `.claude/plans/dsa_saddle_point_frame.md` (cited #312/#314/#294/#200 + k-skeleton issue). ACQUIRE: WWM NSE 147:218. Pollination: **NDA** (nonlinear sibling ≅ SIMPLE, handles voids). Sharpens L7.
-- [projection_reconstruction_frame_pair.md](projection_reconstruction_frame_pair.md) — M/R asymmetry was a half-applied P1.3 refactor; the 3 weight families = ONE convention datum `(2ℓ+1)=4π·g_C⁻¹`. Naming: `angular_frame` names the AXIS not the basis; discipline → the FRAME TYPE (the GalerkinFrame/PG hierarchy that landed).
-- [homogenization_measure_derivation_frames.md](homogenization_measure_derivation_frames.md) — DERIVES that spatial XS homogenization is the weighted-L²(φV) projection (measure φV FORCED, `/Φ_R` = inverse coarse Gram); mesh YIELDS indicator+measure views, n-D membership = searchsorted. ⚠ the "Galerkin-in-L²(φV)" reading SUPERSEDED by [[condensation-nonnested-fractional-overlap-frames]] (→PG-with-flux-as-TEST); the derivation stands.
-- [condensation_nonnested_fractional_overlap_frames.md](condensation_nonnested_fractional_overlap_frames.md) — non-nested condensation is PETROV-GALERKIN with a fractional-overlap trial table `T[g,G]∈[0,1]` (partition of unity), NOT a LeastSquaresFrame (user's LSQ refuted 3 ways); most elegant = generalize `IndicatorBasis.evaluate` one-hot→fractional (nested = the {0,1} case). → lessons L10.
-- [xs_coarsening_collapse_marginalize_vs_average.md](xs_coarsening_collapse_marginalize_vs_average.md) — homogenize ∥ condense = ONE op `project`; the "1-vs-2-frame / χ-weight" asymmetries are DIFFERENT AXES + two MORPHISMS: average=`G⁻¹M`(conserves rate) vs marginalize=`M`(conserves Σχ=1); declare Gram structure ON THE BASIS (a DENSE stub makes `.project` RAISE). → lessons L10.
-- [projection_discipline_hierarchy_frames.md](projection_discipline_hierarchy_frames.md) — projection-discipline hierarchy: "projector" reserved for the idempotent R∘Π; Galerkin/PG are SIBLINGS neither earning a class; ONE generalizing object = Saad's (K,L) trial/test = ORPHEUS (basis,measure). (Discipline-as-property SUPERSEDED by the landed GalerkinFrame/PG type hierarchy.)
+### Carrier typing / coefficient fields
+- [#226 container algebra](issue_226_container_algebra_design.md) — structural `Vector` Protocol + `apply(x:V)->V`; primitives stay flat ndarray.
+- [#257 carrier layering](issue_257_carrier_typing_layering_frames.md) — `Vector` = the forgetful-functor image, irreducible by the layer DAG.
+- [coefficient fields](coefficient_field_promotion_frames.md) — f↦M_f IS the multiplier-algebra embedding; diagonal symbol ⇒ Multiplication op.
+- [type-vs-property](spatial_order_type_vs_property_criterion.md) — the decidable criterion: ≥2 non-iso bases + an APPLIED morphism, else property.
 
-### Unified Frame API
-- [unified_frame_api_design.md](unified_frame_api_design.md) — lifts the two derivation memos into 3 API verbs: `project_weighted=G_w⁻¹M(w⊙f)`, `conjugate(A)=R∘A∘M` typed (+`reconstruct_after` for the windowed arm), bare `analyze`; `Frame(basis,measure,*,test)`, `is_galerkin=(test is basis)`; flux-as-MULTIPLIER durable (DiscreteMeasure stays 1-D).
+### Frames: ownership, discipline, collapse
+- [frame ownership](harmonic_frame_ownership_funk_hecke.md) — an operator OWNS a frame iff the frame is its eigenbasis (Funk–Hecke); no symmetry ⇒ PG.
+- [DSA R/P frame](dsa_rp_angular_frame.md) — restriction/prolongation IS the ℓ=0 sub-block `angular_frame(0)`, Galerkin; ANTI-MINT — instantiate.
+- [DSA saddle-point](dsa_saddle_point_mixed_fem_frames.md) — (φ,J) is a DARCY saddle-point; mixed-FEM fires on the DIFFUSION member, not the sweep.
+- [collapse morphism](xs_coarsening_collapse_marginalize_vs_average.md) — conserved RATE ⇒ average (G⁻¹M); MASS ⇒ marginalize (M), not a weight.
+- [condensation](condensation_nonnested_fractional_overlap_frames.md) — non-nested is Petrov-Galerkin, fractional-overlap table; LSQ refuted 3 ways.
+- [homogenization](homogenization_measure_derivation_frames.md) — DERIVES the φV measure as FORCED, not chosen; its Galerkin reading is superseded.
+- [projection discipline](projection_discipline_hierarchy_frames.md) — "projector" = the idempotent R∘Π only; Saad's (K,L) = ORPHEUS (basis,measure).
+- [M/R frame pair](projection_reconstruction_frame_pair.md) — the M/R asymmetry was a half-applied refactor; 3 weight families = ONE convention datum.
+- [unified Frame API](unified_frame_api_design.md) — the 3 verbs (project_weighted / conjugate / analyze) + `is_galerkin = (test is basis)`.
 
-### Variant-α Green's-function family + spatial closure
-- [variant_alpha_family_hindsight.md](variant_alpha_family_hindsight.md) + [trajectory_resolvent_foreign_frames.md](trajectory_resolvent_foreign_frames.md) — the 6-geometry×2-orbit family: top frame = fiber bundle (BaseAtlas/AngularFiber/ChordOracle); rank-N IS an open-MPO bond dimension (user-confirmed); ready-now = shared ChordOracle + unified `power_iterate` + single GreensResult; MPO/bundle wait for the N≥3 tripwire.
-- [d5_trait_and_mms_frames.md](d5_trait_and_mms_frames.md) — the DD/Step-vs-LD scan-march discriminator is TRANSVERSE-COUPLING ORDER (0th-order face trace ⇒ separable vs 1st-order slope moment ⇒ irreducible (1+d)-block); name the SCHEME trait `transverse_coupling_is_facewise`; multi-D LD MMS ansatz needs x↔y-broken cross terms.
+### Green's-function family / spatial closure / diffusion
+- [variant-α family](variant_alpha_family_hindsight.md) — the 6-geometry×2-orbit family: fiber bundle on top; MPO waits for the N≥3 tripwire.
+- [trajectory foreign frames](trajectory_resolvent_foreign_frames.md) — the foreign-frame sweep behind that family (BIE / spectral / bundle verdicts).
+- [scan-march trait](d5_trait_and_mms_frames.md) — DD/Step-vs-LD splits on TRANSVERSE-COUPLING ORDER; name the SCHEME trait, not the sweep strategy.
+- [diffusion carve](diffusion_integration_frames.md) — the diffusion solver IS the transport algebra hand-inlined; trace = partial currents J±.
 
-### Diffusion integration (#290)
-- [diffusion_integration_frames.md](diffusion_integration_frames.md) — the diffusion solver IS the transport algebra hand-inlined; the carve collapses it onto the shared leaves; trace = partial currents J± (ℓ=0 half-range moment under `|Ω·n|⊙w`); `A_diff=L_diff+C` (the L-007 diffusion exception NAMED), `A_diff.H` free ⟹ adjoint-φ* for #281.
+Files here not listed above = archive: early Peierls / Variant-α / phase attacks, plus
+`elegance_smell_rank_non_monotone.md` whose content is now skill Part C Smell #15.
