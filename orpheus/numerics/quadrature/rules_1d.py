@@ -1,15 +1,25 @@
 r"""1-D quadrature rules on the polar cosine interval :math:`[-1, 1]`.
 
 These rules return :class:`~orpheus.numerics.measure.DiscreteMeasure`
-instances tagged with the :math:`SO(2)` invariance group — the maximal
-:math:`O(3)` subgroup that fixes a 1-D measure on the polar cosine,
-because rotations about the polar axis act trivially on
-:math:`\mu = \cos\theta`.
+instances tagged with the :math:`\sigma_x` invariance group — the
+reflection :math:`\mu \to -\mu`, which under the tree's canonical
+:math:`(\mu, 0, 0)` embedding is the mirror with normal :math:`\hat e_x`.
+It is the symmetry the slab and sphere geometries actually owe, and the
+one their two sweep senses consume.
 
-The Gauss-Legendre rule is the canonical 1-D primitive consumed by
-the SN slab solver via the
-:class:`~orpheus.sn.quadrature.GaussLegendre1D` adapter (and by the
-product rule in :mod:`.rules_product`).
+The group the polar marginal was quotiented **by** — :math:`SO(2)`, whose
+fiber action is the curvilinear :math:`\alpha` term — is a different fact
+and lives in
+:attr:`~orpheus.numerics.quadrature.registry.AngularSymmetry.continuous_isotropy`,
+where it derives the support :math:`S^2/SO(2) = [-1, 1]`. It was carried
+in the invariance tag until 2026-08-03; see the note at
+:func:`gauss_legendre_on_mu`'s return statement for why that had to move.
+
+The Gauss-Legendre rule is the canonical 1-D primitive, consumed by the
+SN slab solver through
+:meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre` and by the
+product rule in :mod:`.rules_product`. There is **no adapter class** in
+between — ``Quadrature`` is one type with named classmethod factories.
 
 References
 ----------
@@ -49,10 +59,9 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     of :math:`[-1, 1]` (so the rule is unweighted in the classical
     sense).
 
-    Symmetry: the tag is :math:`SO(2)`, the group the polar marginal
-    was quotiented BY (see the note at the return statement). The
-    property SN consumers actually use is the reflection
-    :math:`\mu \to -\mu`, and that one holds **bit-exactly**: the
+    Symmetry: the tag is :math:`\sigma_x`, the reflection
+    :math:`\mu \to -\mu` — the property SN consumers actually use, and
+    the one this measure actually has. It holds **bit-exactly**: the
     generic construction imposes it rather than inheriting it (`[M]`
     defect 0.0 at every :math:`n`, where the previous route left
     ~1e-16). So the slab's two sweep senses pair by integer index —
@@ -71,14 +80,16 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     DiscreteMeasure
         Nodes shape ``(n,)``, weights shape ``(n,)``, on
         ``space="[-1,1]"``, with
-        ``invariance_group=SubgroupOfO3.SO2`` and
+        ``invariance_group=SubgroupOfO3.Mirror("x")`` and
         ``degree_of_exactness=2n-1``.
 
     See Also
     --------
-    :class:`orpheus.sn.quadrature.GaussLegendre1D` — the SN-side
-    adapter that caches ``mu_x`` / ``mu_y`` / ``weights`` views of
-    this measure.
+    :meth:`orpheus.numerics.quadrature.Quadrature.gauss_legendre` — the
+    named factory SN calls. It is a factory on the single
+    ``Quadrature`` type, not an adapter class: the four per-family
+    wrappers that once cached ``mu_x`` / ``mu_y`` / ``weights`` views
+    were retired into classmethod factories.
     """
     # ONE construction. This is the Gauss rule for the Legendre measure,
     # so it is built by asking that measure for it — the same generic
@@ -95,16 +106,28 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     # 2026-08-02 (user ruling), and bought a single source of truth for
     # every Gauss rule in the tree.
     return LEGENDRE.gauss(n).with_metadata(
-        # SO(2) here is CORRECT, and correct for a different reason
-        # than a rule on S² would be: this measure lives on the
-        # QUOTIENT S²/SO(2) = [-1,1]. The tag names the group that was
-        # integrated out to produce the μ-marginal — the "spent" half
-        # of the geometry's symmetry, whose fiber action is the
-        # curvilinear α term. Do NOT "correct" this to a finite group
-        # by analogy with :func:`product_mu_phi` (whose SO(2) tag WAS
-        # false): SO(2) acts trivially on μ, so every measure on
-        # [-1,1] satisfies it, and here that triviality is the point.
-        invariance_group=SubgroupOfO3.SO2,
+        # σ_x: μ -> -μ, and the generic Golub-Welsch body imposes it
+        # BIT-EXACTLY (see the note above), which is what lets the slab's
+        # two sweep senses pair by index rather than by tolerance.
+        #
+        # This field used to read `SubgroupOfO3.SO2`, defended as "the tag
+        # names the group that was INTEGRATED OUT to produce the μ-marginal
+        # — the spent half of the geometry's symmetry". That is a true and
+        # useful fact, but it is a DIFFERENT fact from the one this field's
+        # name promises, and a field whose values correlate with something
+        # other than its name is doing two jobs. Its own defence gave the
+        # tell: "SO(2) acts trivially on μ, so EVERY measure on [-1,1]
+        # satisfies it" — a tag satisfied by every possible value carries no
+        # information and cannot be wrong, so it could never have been
+        # checked. `[M]` It also made the μ-marginal answer O(3) to the
+        # invariance walk, and let an ASYMMETRIC μ-set certify as
+        # SO(2)-invariant.
+        #
+        # The spent half is NOT lost: it lives in
+        # `AngularSymmetry.continuous_isotropy` (registry.py), which is
+        # where it belongs and where it does real work — deriving the
+        # support S²/SO(2) = [-1,1] that this measure carries.
+        invariance_group=SubgroupOfO3.Mirror("x"),
     )
 
 

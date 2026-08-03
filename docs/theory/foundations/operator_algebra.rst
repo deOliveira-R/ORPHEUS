@@ -3932,7 +3932,8 @@ whose ``"{axis}{min|max}"`` face names imply axis-aligned outward
 normals — no spatial mesh is consulted. Every :class:`Mesh1D` coord
 system (``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) shares the
 same ``("xmin", "xmax")`` radial-axis face structure —
-:class:`GaussLegendre1D` is the shared quadrature, with ``mu_x`` as the
+:meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre` is the
+shared quadrature, with ``mu_x`` as the
 direction cosine along that axis — and 2-D / 3-D Cartesian add the
 ``y`` / ``z`` faces from the same convention. The 2-D cylindrical
 (axisymmetric :math:`(r, z)`) case never reaches the factory: such a

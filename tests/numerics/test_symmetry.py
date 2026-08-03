@@ -321,16 +321,38 @@ def test_level_symmetric_is_octahedral_invariant(sn_order: int) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("n", [4, 8, 16])
-def test_gauss_legendre_1d_so2_invariant(n: int) -> None:
-    """A 1-D measure on :math:`[-1, 1]` is trivially
-    :math:`SO(2)`-invariant: there is no azimuthal coordinate to rotate.
+def test_gauss_legendre_1d_is_NOT_so2_invariant(n: int) -> None:
+    r"""A polar marginal is **not** :math:`SO(2)`-invariant, and the
+    inverted claim is what made a 1-D measure answer :math:`O(3)`.
 
-    This is the "axisymmetric slab" tag — slab geometry uses GL1D
-    because the slab's azimuthal symmetry is automatically inherited.
+    This gate is the INVERSION of a test that asserted the opposite
+    ("trivially :math:`SO(2)`-invariant: there is no azimuthal coordinate
+    to rotate"). The premise was a category error. A measure on
+    :math:`[-1,1]` embeds as :math:`(\mu, 0, 0)` — the tree's canonical
+    embedding, written down in :meth:`Quadrature.axis_cosines` and used by
+    ``spherical_harmonics`` internally — and a rotation about :math:`z`
+    **moves** :math:`(\mu, 0, 0)` off the x-axis. The old claim was only
+    true for a :math:`(0, 0, \mu)` embedding, i.e. it silently used a
+    different convention from the mirror branch sitting beside it.
+
+    What "there is no azimuthal coordinate to rotate" really described is
+    the group the marginal was quotiented BY. That is a real and useful
+    fact, but it is a property of the REDUCTION, not of this point set,
+    and it lives in ``AngularSymmetry.continuous_isotropy`` where it
+    derives the support.
+
+    The old claim also could not fail: `[M]` it held for EVERY measure on
+    :math:`[-1,1]`, including a deliberately asymmetric one — certifying a
+    continuous group that was never tested, which is ERR-072's shape and
+    contradicted :func:`_is_axis_supported`, the exact criterion the same
+    module applies to three-dimensional nodes.
     """
     q = Quadrature.gauss_legendre(n_ordinates=n)
     mu = _measure_from_1d_quad(q)
-    assert SubgroupOfO3.SO2.is_invariant(mu)
+    assert not SubgroupOfO3.SO2.is_invariant(mu)
+    # And the property the slab actually owes DOES hold — otherwise this
+    # gate would be satisfied by a measure with no symmetry at all.
+    assert SubgroupOfO3.Mirror("x").is_invariant(mu)
 
 
 @pytest.mark.foundation
@@ -1218,6 +1240,23 @@ def test_so3_on_a_polar_marginal_requires_reflection_symmetry() -> None:
 
     Returning ``True`` unconditionally made an asymmetric node set read
     :math:`SO(3)`-invariant and :math:`Z_2`-non-invariant at once.
+
+    **Re-posed 2026-08-03, and the premise in the paragraph above is now
+    part of the history rather than the claim.** ":math:`SO(2)` and
+    :math:`C_n` rotate about :math:`z` and leave the polar cosine alone"
+    is true only under a :math:`(0,0,\mu)` embedding; the tree embeds a
+    polar marginal as :math:`(\mu, 0, 0)`, where a rotation about
+    :math:`z` **moves** the node. The two readings sat in adjacent
+    branches of one function, and the rotational one is what let a 1-D
+    measure answer :math:`O(3)`.
+
+    So all three rotational groups now read ``False`` on both fixtures,
+    for two different exact reasons — :math:`SO(2)` and :math:`SO(3)`
+    because a finite set closed under a CONTINUOUS group must be
+    axis-/origin-supported, and :math:`C_n` because it genuinely moves
+    :math:`(\mu,0,0)`. The discriminating content moves to
+    :math:`\sigma_x`, which is where it always belonged: it is what the
+    slab and sphere rows of ``GEOMETRY_ANGULAR_SYMMETRY`` require.
     """
     asymmetric = DiscreteMeasure(
         nodes=np.array([-0.9, -0.1, 0.3]),
@@ -1230,12 +1269,16 @@ def test_so3_on_a_polar_marginal_requires_reflection_symmetry() -> None:
         support="[-1,1]",
     )
 
-    # Rotations about z genuinely are trivial here — both stay True.
-    assert SubgroupOfO3.SO2.is_invariant(asymmetric)
-    assert SubgroupOfO3.Cn(3).is_invariant(asymmetric)
+    # No rotational group is invariant on a polar marginal, symmetric or
+    # not — and crucially these are NOT vacuous "always False" rows: the
+    # sigma_x pair below shows the same fixtures ARE distinguishable.
+    for rotational in (SubgroupOfO3.SO2, SubgroupOfO3.Cn(3), SubgroupOfO3.SO3):
+        assert not rotational.is_invariant(asymmetric), rotational
+        assert not rotational.is_invariant(symmetric), rotational
 
-    assert not SubgroupOfO3.SO3.is_invariant(asymmetric)
-    assert SubgroupOfO3.SO3.is_invariant(symmetric)
+    # The reflection is the discriminator, and it separates the fixtures.
+    assert not SubgroupOfO3.Mirror("x").is_invariant(asymmetric)
+    assert SubgroupOfO3.Mirror("x").is_invariant(symmetric)
 
 
 @pytest.mark.foundation

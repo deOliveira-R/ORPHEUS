@@ -865,7 +865,69 @@ end-to-end gate reds on `orpheus.numerics`, `orpheus.numerics.symmetry` and
 `orpheus.sn.solver` — while `orpheus.geometry` stays **green**, correctly, since
 importing geometry directly never triggers the cycle.
 
-### ⛔ THE ARM SPLIT IS NOT A REFACTOR — IT HIDES A CONVENTION CONFLICT
+### The arm split — RULED (user, 2026-08-03): make it honest about dimension
+
+**Done.** `_check_invariance_1d` and `_is_reflection_invariant_1d` are
+**deleted** (the latter was one of the five duplicate permutation engines the
+audit found — a second matching loop *inside the same file*, with a different
+window, that discarded π to return a bool). `_check_invariance_3d` is renamed
+`_invariance_on_points`; there is now ONE arm, fed by `_embedded_nodes`, which
+lifts the DATA (`μ ↦ (μ,0,0)`, `(x,y) ↦ (x,y,0)`) rather than the group —
+`O_h` and `I_h` genuinely are 3-D and there is nothing to restrict them to.
+
+| | before | after |
+|---|---|---|
+| `Sym(GL(8))` | **`O3`** | the three mirrors |
+| asymmetric: `SO2`, `Cn(4)` | **True** ⚠ | **False** ✓ |
+| live path `Mirror('x')` | True / False | **True / False — preserved** |
+
+**Two answers to the user's questions, both measured.**
+
+*Why did a 1-D measure answer `O(3)`?* `[M]` `GL(8)` was certified invariant
+under **15/15** candidate groups — FALSE for nothing. `_check_invariance_1d` had
+exactly ONE discriminating branch (the `μ→−μ` test) and waved the rest through.
+Its output was a **one-bit function of the input** wearing a nineteen-group
+lattice walk: pass the one test and every group reads True, so the maximal
+element is necessarily the TOP of the lattice. It could not have answered
+anything else.
+
+*What else over-promises?* `[M]` **Nothing — it was confined to the 1-D arm.**
+Monotonicity (`A ⊆ B ∧ P(B) ⟹ P(A)`) over 9 measures × 15 groups: **0
+violations** (the 2026-08-02 run found 68; Q5.0.x closed them). Generator-set vs
+full closed group: **0 disagreements** — unlike ERR-072's sampling, these
+generating sets genuinely generate. Continuous groups on 3-D rules: **all
+False**, exact criteria properly applied.
+
+⭐ **AND THE "0 VIOLATIONS" CARRIES ITS OWN LESSON.** Monotonicity read clean
+even for the 1-D case — because when *everything* reads True the implication is
+vacuously satisfied. **A consistency law is blind to uniform
+over-certification.** Anti-pattern #15 catches *inconsistency*, never *uniform
+falsehood*; only comparing against a COMPUTED answer catches that.
+
+⭐⭐ **The root cause was a FIELD DOING TWO JOBS.** `gauss_legendre_on_mu`
+declared `invariance_group=SubgroupOfO3.SO2`, defended in-comment as *"the tag
+names the group that was INTEGRATED OUT to produce the μ-marginal"*. True and
+useful — and a **different fact from the one the field's name promises**. Its
+own defence gave the tell: *"SO(2) acts trivially on μ, so EVERY measure on
+[-1,1] satisfies it"* — **a tag satisfied by every possible value carries no
+information and cannot be wrong, so it could never have been checked.** Now
+`Mirror("x")`. The spent half is not lost: it already lived in
+`AngularSymmetry.continuous_isotropy`, where it derives the support.
+
+**A gate whose witness was DISSOLVED by the fix.**
+`test_selector_asks_the_nodes_not_the_declared_tag` pinned "a lattice query
+against the declared tag would reject GL for a slab" — a trap that existed
+*only because the declaration was wrong*. Fixing the tag made its assertion
+false. **A gate whose witness can be removed by fixing an unrelated bug is
+pinning a coincidence, not a mechanism.** Re-posed to inject a
+true-but-not-maximal declaration (`Trivial`) and show stage 1 is unmoved — which
+cannot be dissolved, because the injected tag IS true.
+
+Also re-posed: `test_gauss_legendre_1d_so2_invariant` → its **inversion**, and
+`test_so3_on_a_polar_marginal_requires_reflection_symmetry`, whose own premise
+("`SO(2)` and `C_n` leave the polar cosine alone") was the `(0,0,μ)` reading.
+
+### ⛔ THE ARM SPLIT WAS NOT A REFACTOR — IT HID A CONVENTION CONFLICT
 
 `_check_invariance_1d` uses **two incompatible embeddings of the polar cosine**,
 and deleting the split would silently pick one:

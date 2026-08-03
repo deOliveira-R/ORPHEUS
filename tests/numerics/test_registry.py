@@ -218,7 +218,7 @@ def test_select_slab_returns_gauss_legendre() -> None:
     assert log.chosen_parameters == {"n": 8}
     assert measure.n_points == 8
     assert measure.degree_of_exactness == 15
-    assert measure.invariance_group == SubgroupOfO3.SO2
+    assert measure.invariance_group == SubgroupOfO3.Mirror("x")
     # Every S^2 rule is rejected at the DOMAIN stage.
     rejected_names = {name for name, _ in log.rejected}
     assert rejected_names == {
@@ -650,24 +650,50 @@ def test_owed_symmetry_selects_by_azimuthal_parity() -> None:
 
 @pytest.mark.foundation
 def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
-    """Stage 1 must not route through ``measure.invariance_group``.
+    r"""Stage 1 must not route through ``measure.invariance_group``.
 
-    A declaration may be true-but-not-maximal, and one shipped rule is:
-    ``gauss_legendre_on_mu`` declares SO(2), the group its domain was
-    quotiented BY. Z_2 is a reflection, hence not a subgroup of the
-    rotation group SO(2) — so a lattice query against the declared tag
-    would reject Gauss-Legendre for a slab, which is the one rule a
-    slab must accept. Asking the nodes directly cannot fail that way.
+    **Re-posed 2026-08-03, because its original witness was DISSOLVED by a
+    fix — and that is the more interesting story.** It used to read: a
+    declaration may be true-but-not-maximal, and ``gauss_legendre_on_mu``
+    declares :math:`SO(2)` (the group its domain was quotiented BY), so a
+    lattice query against the declared tag would reject Gauss-Legendre for
+    a slab — the one rule a slab must accept.
+
+    That trap existed *because the declaration was wrong*. The tag has
+    since been corrected to :math:`\sigma_x` — the symmetry the measure
+    actually has, rather than the one its reduction spent — so the lattice
+    route and the node route now agree, and the original assertion
+    (``not Mirror('x').is_subgroup_of(Mirror('x'))``) is simply false.
+
+    A gate whose witness can be removed by fixing an unrelated bug is
+    pinning a COINCIDENCE, not a mechanism. So this now injects a
+    deliberately weakened-but-TRUE declaration and shows stage 1 is
+    unmoved. That cannot be dissolved: it is the "compute the answer,
+    never read a declaration — even a true one" rule, and the injected tag
+    IS true, merely not maximal.
     """
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
     gl = next(
         s for s in quadrature_registry if s.name == "GaussLegendre1D"
     ).build({"n": 8})
 
-    # The lattice route is the trap...
-    assert not slab.discrete_residual.is_subgroup_of(gl.invariance_group)
-    # ...and the nodes give the right answer.
+    # The honest declaration and the nodes now agree — no trap left here.
+    declared = gl.invariance_group
+    assert declared is not None
+    assert slab.discrete_residual.is_subgroup_of(declared)
     assert slab.admits_symmetry(gl)
+
+    # Weaken the DECLARATION to something true-but-not-maximal. Every
+    # measure is Trivial-invariant, so this is not a lie — it is exactly
+    # the "true but under-claiming" case a declaration is allowed to be.
+    understated = gl.with_metadata(invariance_group=SubgroupOfO3.Trivial)
+    # A lattice query against the tag would now REJECT the one rule a slab
+    # must accept...
+    weakened = understated.invariance_group
+    assert weakened is not None
+    assert not slab.discrete_residual.is_subgroup_of(weakened)
+    # ...while stage 1, which asks the NODES, is unmoved.
+    assert slab.admits_symmetry(understated)
 
     # End-to-end: the slab does get Gauss-Legendre.
     _, log = select_quadrature("slab", target_degree=15)

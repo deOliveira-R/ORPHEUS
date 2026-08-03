@@ -95,7 +95,7 @@ from orpheus.geometry.transformation import (
     close_group as _close_rigid_motions,
 )
 
-from .measure import DiscreteMeasure, SPACE_INTERVAL_M11
+from .measure import DiscreteMeasure
 
 #: The standard setting's coordinate frame. Every realization below is built
 #: in it — principal axis along z, vertex on the x-axis — so containment is
@@ -588,7 +588,7 @@ def _realized_ops(tag) -> "list[RigidMotion] | None":
     r"""The FINITE matrix realization of ``tag``, or ``None`` if continuous.
 
     Single-sources the operator sets from the very functions
-    :func:`_check_invariance_3d` applies, so ``contains`` and
+    :func:`_invariance_on_points` applies, so ``contains`` and
     ``is_invariant`` answer questions about the *same* group. A
     hand-maintained containment table is a claim with no construction
     behind it, and this module already shipped two such claims that
@@ -780,143 +780,82 @@ def _contains(outer, inner) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
+    r"""The measure's nodes as points of :math:`\mathbb{R}^3`.
+
+    The tree's canonical embedding, written down in
+    :meth:`Quadrature.axis_cosines` and used by ``spherical_harmonics``
+    internally: a polar marginal :math:`\mu` becomes :math:`(\mu, 0, 0)`, a
+    planar rule :math:`(x, y)` becomes :math:`(x, y, 0)`. It is the *data*
+    that is lifted, not the group — :class:`SubgroupOfO3`'s named entries
+    (:math:`O_h`, :math:`I_h`) genuinely are three-dimensional, and there is
+    nothing to restrict them to.
+    """
+    nodes = measure.nodes
+    if nodes.ndim == 1:
+        nodes = nodes[:, None]
+    n, d = nodes.shape
+    if d == 3:
+        return nodes
+    embedded = np.zeros((n, 3))
+    embedded[:, :d] = nodes
+    return embedded
+
+
 def _check_invariance(tag, measure: DiscreteMeasure, atol: float) -> bool:
-    """Dispatch table for :meth:`SubgroupOfO3.is_invariant`."""
+    r"""Dispatch for :meth:`SubgroupOfO3.is_invariant` — **one arm**.
+
+    Every measure is embedded in :math:`\mathbb{R}^3` and asked the same
+    question: does every element of the group carry this point set onto
+    itself, weights and all?
+
+    **This replaced a separate 1-D arm, and that arm was over-promising.**
+    `[M]` It had exactly ONE discriminating branch — the
+    :math:`\mu \to -\mu` reflection test — and waved every other group
+    through: :math:`SO(2)` and :math:`C_n` returned ``True``
+    unconditionally, :math:`\sigma_y` and :math:`\sigma_z` returned ``True``
+    unconditionally, and :math:`D_{\infty h} / SO(3) / O(3) / O_h / I_h /
+    D_{nh}` all ran *the same* reflection test. So its output was a **one-bit
+    function of the input** wearing a nineteen-group lattice walk: a symmetric
+    rule passed the one test, every group read ``True``, and the maximal
+    element was necessarily the TOP of the lattice. `[M]`
+    ``Sym(gauss_legendre_on_mu(8))`` was reported as :math:`O(3)`; it is
+    :math:`\{e, \sigma_x\}` together with the mirrors that fix the embedded
+    axis pointwise.
+
+    Worse in the dangerous direction: `[M]` an ASYMMETRIC 1-D measure read
+    :math:`\sigma_x`-non-invariant (right) but :math:`SO(2)`- and
+    :math:`C_4`-invariant (wrong), certifying a CONTINUOUS group that was
+    never tested — ERR-072's shape, and in direct contradiction with the
+    exact criterion :func:`_is_axis_supported` that the same module applies
+    to three-dimensional nodes.
+
+    The cause was a **convention conflict inside one function**: the mirror
+    branch was derived from the :math:`(\mu, 0, 0)` embedding (so
+    :math:`\sigma_x` is the real test), while the rotational branch asserted
+    that ":math:`C_n` rotates about z, which does not move the polar cosine"
+    — true only if :math:`\mu` sits on **z**. Under :math:`(\mu,0,0)` a
+    rotation about z moves the node, and the two branches were answering
+    questions about different embeddings.
+
+    Note what monotonicity could NOT see. The compatibility law
+    :math:`A \subseteq B \wedge P(B) \Rightarrow P(A)` measured **zero**
+    violations here — because when *everything* reads ``True`` the
+    implication is vacuously satisfied. **A consistency law is blind to
+    uniform over-certification**; only comparing against a computed answer
+    catches it.
+    """
     # Trivial is always invariant.
     if isinstance(tag, _NamedSubgroup) and tag is _NamedSubgroup.Trivial:
         return True
     if isinstance(tag, Cn) and tag.n == 1:
         return True
-
-    # Determine which "ambient space" the measure lives in. For 1-D
-    # measures the rotation/reflection axis story is degenerate and
-    # most groups are trivially invariant; for S^2 (or any 3-D node
-    # array) the check is non-trivial.
-    is_1d = measure.dim == 1 or measure.support in (
-        SPACE_INTERVAL_M11,
-        "[0,1]",
-        "R",
+    return _invariance_on_points(
+        tag, _embedded_nodes(measure), measure.weights, atol,
     )
 
-    if is_1d:
-        return _check_invariance_1d(tag, measure, atol)
 
-    # 3-D node arrays (S^2, R^3, …). For SN-relevant rules the nodes
-    # lie on the unit sphere.
-    nodes = measure.nodes
-    if nodes.ndim == 1:
-        return False  # 1-D nodes — handled above; safety net
-    if nodes.shape[1] == 2:
-        # 2-D ambient — promote to 3-D by appending z=0 so the same
-        # transformation kernels work. (Useful for product quadrature
-        # restricted to a plane, not consumed today but harmless.)
-        nodes_full = np.column_stack([nodes, np.zeros(nodes.shape[0])])
-    else:
-        nodes_full = nodes
-    return _check_invariance_3d(tag, nodes_full, measure.weights, atol)
-
-
-def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
-    """Invariance check for 1-D measures.
-
-    Most rotational groups act trivially on a 1-D measure (there is no
-    azimuthal coordinate). The non-trivial check is reflection
-    :math:`x \\to -x`, which is what ``Mirror("x")`` / Dinfh / O3 require
-    on :math:`[-1, 1]`. Under the tree's canonical embedding
-    :math:`(\\mu, 0, 0)` that reflection IS :math:`\\sigma_x`, which is why
-    the mirror family had to name its plane before the 1-D and 3-D arms
-    could be said to answer one question.
-    """
-    # SO(2), SO(3), Cn, Dnh (with n >= 1): trivially invariant on a 1-D
-    # measure — the rotation axis is the (missing) angular coordinate.
-    # SO(2) and C_n rotate about z, which does NOT move the polar cosine —
-    # they act trivially on a 1-D mu-measure, so every such measure is
-    # invariant under them.
-    #
-    # SO(3) is NOT in this set, though it was until 2026-08-02. It contains
-    # R_x(pi), which induces mu -> -mu, so an SO(3)-invariant polar marginal
-    # must be reflection-symmetric. Returning True unconditionally broke
-    # monotonicity outright: an asymmetric mu-set read SO3-invariant and
-    # mirror-non-invariant simultaneously.
-    rotational_only = (
-        (isinstance(tag, _NamedSubgroup) and tag is _NamedSubgroup.SO2)
-        or isinstance(tag, Cn)
-    )
-    if rotational_only:
-        return True
-
-    # A MIRROR, and this arm is DERIVED from the embedding rather than
-    # declared. A 1-D polar marginal embeds as (mu, 0, 0) — written down
-    # in `Quadrature.axis_cosines` and `angular_frame`, and the same
-    # embedding `spherical_harmonics` uses internally. So:
-    #
-    #   sigma_x : (mu, 0, 0) -> (-mu, 0, 0)   the one real test
-    #   sigma_y : (mu, 0, 0) -> (mu, -0, 0)   fixes every node POINTWISE
-    #   sigma_z : (mu, 0, 0) -> (mu, 0, -0)   fixes every node POINTWISE
-    #
-    # so y and z hold trivially and x is the mu -> -mu closure. This is
-    # what makes the 1-D and 3-D arms answer the SAME question. Before
-    # the plane was named this branch tested `x -> -x` (plane-free) while
-    # the 3-D branch tested sigma_z, and `[M]` on an ASYMMETRIC mu-set
-    # they disagreed — the 3-D arm certifying True for a set that
-    # violates mu -> -mu, a false certification in the dangerous
-    # direction. See `Mirror`'s docstring.
-    if isinstance(tag, Mirror):
-        if tag.axis == "x":
-            return _is_reflection_invariant_1d(measure, atol)
-        return True
-
-    # Z2, Dinfh, O3, Oh, Ih, Dnh: require closure under x -> -x for a
-    # measure on a symmetric interval. (For an asymmetric interval
-    # the check is automatically False, which is the correct answer.)
-    if isinstance(tag, _NamedSubgroup) and tag in (
-        _NamedSubgroup.Dinfh,
-        _NamedSubgroup.SO3,
-        _NamedSubgroup.O3,
-        _NamedSubgroup.OctahedralOh,
-        _NamedSubgroup.IcosahedralIh,
-    ):
-        return _is_reflection_invariant_1d(measure, atol)
-
-    if isinstance(tag, Dnh):
-        return _is_reflection_invariant_1d(measure, atol)
-
-    return False
-
-
-def _is_reflection_invariant_1d(measure: DiscreteMeasure, atol: float) -> bool:
-    """Closure of a 1-D measure under :math:`x \\to -x`."""
-    nodes = measure.nodes if measure.nodes.ndim == 1 else measure.nodes[:, 0]
-    weights = measure.weights
-    # For each node x, find the reflected partner -x and check weights match.
-    sorted_idx = np.argsort(nodes)
-    sorted_nodes = nodes[sorted_idx]
-    sorted_weights = weights[sorted_idx]
-
-    n = len(sorted_nodes)
-    for i in range(n):
-        # Find -sorted_nodes[i] in sorted_nodes via binary search.
-        target = -sorted_nodes[i]
-        # np.searchsorted gives an insertion index; use it to find the
-        # nearest node and check distance.
-        j = np.searchsorted(sorted_nodes, target)
-        # Try both j and j-1 (insertion point may be on either side).
-        candidates = []
-        if 0 <= j < n:
-            candidates.append(j)
-        if 0 <= j - 1 < n:
-            candidates.append(j - 1)
-        if not candidates:
-            return False
-        best = min(candidates, key=lambda k: abs(sorted_nodes[k] - target))
-        if abs(sorted_nodes[best] - target) > atol * 10:
-            return False
-        if abs(sorted_weights[best] - sorted_weights[i]) > atol:
-            return False
-    return True
-
-
-def _check_invariance_3d(
+def _invariance_on_points(
     tag,
     nodes: np.ndarray,
     weights: np.ndarray,

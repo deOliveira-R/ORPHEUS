@@ -1243,9 +1243,11 @@ def gauss_legendre(n: int) -> DiscreteMeasure:
 
     See Also
     --------
-    :class:`orpheus.sn.quadrature.GaussLegendre1D` — the SN-side
-    wrapper of this rule. The Issue 4 adapter will rebuild it on top
-    of this primitive in Wave B.
+    :meth:`orpheus.numerics.quadrature.Quadrature.gauss_legendre` — the
+    named factory SN consumers call. There is no per-family adapter
+    class: the four SN-side wrappers this docstring used to point at
+    (``orpheus.sn.quadrature.GaussLegendre1D`` and its siblings) were
+    retired into classmethod factories on the one ``Quadrature`` type.
     """
     # Late import: ``generating_measure`` imports DiscreteMeasure from
     # this module, so the runtime arrow has to run one way. See the
