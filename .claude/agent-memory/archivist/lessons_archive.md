@@ -3810,6 +3810,189 @@ rewired test can still SEE before repeating its old claim.
 
 ---
 
+## L-045 — `tools/check_docstring_xrefs.py` is the gate L-044 said did not exist; and in `tests/` a dead xref is a TRIPWIRE for a false claim about what the gate proves
+
+L-044 concluded that for an un-`automodule`'d docstring "the ONLY gate is
+grep". That is now superseded by a real gate, committed this session:
+**`tools/check_docstring_xrefs.py`** resolves every *fully-qualified*
+Python-domain role by **importing** it, so render coverage is irrelevant.
+`.venv/bin/python tools/check_docstring_xrefs.py tests --quiet` →
+`DEAD TARGETS : 0` is a hard, cheap acceptance criterion; exit 1 gates CI.
+It deliberately ships an EMPTY `ALLOWLIST` — never add to it. Two design
+facts to respect: (i) it skips UNQUALIFIED refs (`:meth:`Quadrature.product``)
+because Sphinx resolves those against module context and flagging them
+manufactures false positives — so an unqualified dead ref still needs
+grep; (ii) it separates "module exists but raises on import" (a TOOLING
+problem) from "genuinely absent" (a dead ref) — opposite fixes.
+
+**Why `tests/` is the sharpest surface.** It carried 495 fully-qualified
+xrefs and **nothing had ever checked one of them**: Sphinx never reads
+`tests/` at any severity, so `-W` and `-n` are both structurally blind
+(L-044(a)). First run: **41 dead targets across 62 sites**.
+
+**The load-bearing finding — a dead ref in a TEST docstring is a
+tripwire, not a typo.** A test docstring states what the test PINS, so
+the retirement that killed the ref usually also invalidated the
+surrounding CLAIM. Rate measured here: 3 of 41 dead targets sat inside a
+present-tense-FALSE claim, and one was a whole-file misdescription
+(`test_unified_matvec_sphere.py` still advertised a six-step
+unified-vs-legacy bit-identity chain; BOTH implementations had been
+deleted and the surviving file holds two σ_t/zero sanity gates — the
+accurate story was already written in a CLASS docstring three screens
+down). Another (`test_native_matvec.py`) had a 7-item pin list whose
+item 5 asserted the **inverse** of the live gate (docstring: "face
+residual zero at non-outflow ordinates"; test name:
+`test_outer_face_inflow_slots_carry_the_identity`), plus one retired and
+one inverted item. RULE: on every dead ref in `tests/`, read the test
+BODY, not just the sentence — then REPORT the false claim explicitly
+rather than quietly repointing the link, because a wrong claim about
+what a gate proves is worse than a dead link (Mode-11/Mode-12 adjacent:
+the docs are the only place the claim is written down).
+
+**The four-way adjudication that worked** (per site, never blanket):
+REPOINT (symbol moved — the majority, 46/62 here) · PAST-TENSE LITERAL
+(the sentence is history; flip the tense and demote the role to
+double-backticks, since a role PROMISES a live link) · REWRITE (the
+claim is present-tense-false) · DELETE (rare; here **zero** — every
+sentence carried content). A useful sub-case: a not-yet-built module
+(`orpheus.derivations.registry`, "gets promoted into … per the wave3
+plan") is a LITERAL, and while there also verify the cited PLAN FILE
+still exists — `.claude/plans/wave3/` did not.
+
+**The brief's own successor map is a hypothesis.** It said
+`orpheus.sn.angular_flux.AngularFlux` "now lives at
+`orpheus/transport/fields/angular_flux.py`". `git log --diff-filter=D`
+on the old path showed the opposite: the legacy class was a *different*
+object (bulk + conflated boundary buffer + history) DELETED at
+`d8843ba9`, replaced by the composite `TimedFullField` whose bulk is the
+same-named L2 class. Same name, different object ⇒ the 5 sites split
+into past-tense literals (history) and one REWRITE (a module docstring
+naming the wrong return carrier while the gate asserts
+`isinstance(state, TimedFullField)`). ALWAYS run the deletion-commit
+read before trusting a "just moved" claim.
+
+**Mechanics.** A module-path rename is a mechanical `str.replace` over
+`tests/**` — but ORDER the mapping longest-first (`_quadrature_recipes`
+before `_quadrature`) and first prove every occurrence is inside a
+docstring/comment (a live import cannot contain a dead path, so
+`grep -v` the role spellings and eyeball the remainder). 43 replacements
+landed that way; the ~19 judgment sites were hand-edited.
+
+**Proving doc-only.** The reviewer's check IS the author's check: parse
+HEAD and worktree, strip docstrings, compare `ast.dump`. 42 files,
+0 diffs. This also proves no `@pytest.mark.verifies/catches` moved —
+those are V&V registry edges. Note what it does NOT cover: comments
+(absent from the AST, and legitimately editable), and **f-string
+assertion messages, which ARE code** — two stale `cells_view` mentions
+had to be left in `_require(...)` messages and REPORTED instead (L-041).
+
+**Free catches worth taking.** The tool's `DECIDABLE_ROOTS` excludes
+`tests`, so intra-tree `:mod:`tests.…`` refs are ungated — a 20-line
+ad-hoc resolver found 5 more dead ones (a partly-executed
+`test_trajectory_resolvent_*` rename family). Raw path strings with LINE
+NUMBERS (`orpheus/derivations/peierls_geometry.py:2906`, ~10 sites) are
+the opposite call: repointing the directory without re-verifying the
+line implies a verification you did not do — FLAG, don't half-fix.
+
+How to apply: run the tool as the acceptance gate on any tests/ or
+docstring sweep; treat each dead ref as a claim to re-verify against the
+test body; adjudicate four-way; prove doc-only by AST; report every false
+claim you find and never fix the underlying gate yourself.
+
+---
+
+## L-046 — An import-resolving xref gate OVER-reports: an annotation-only class attribute is live to Sphinx and dead to `getattr` — prove the anchor before degrading a ref to make a gate green
+
+The `orpheus/` half of L-045's sweep: **30 dead targets / 37 sites**, all
+residue of module MOVES the corpus-side edit had already fixed while the
+docstrings were left behind (`8cda6b73` rewrote four theory pages for the
+`TransportSolver` retirement; the four *modules* naming it kept their
+refs for months).
+
+**The finding that matters: 5 of the 30 were NOT dead.**
+`resolve()` imports the longest importable prefix and `getattr`s the
+remainder — so a class attribute that exists only as a **class-level
+annotation** reports `missing` while being a perfectly live symbol:
+
+| target | declaration | verdict |
+|---|---|---|
+| `Field.UNITS` | `UNITS: ClassVar[Unit]` + `#:` comment | **renders as a LIVE `<a href="#…Field.UNITS">`** |
+| `DiscreteMeasure.nodes` | `nodes: np.ndarray` | dataclass field |
+| `AngularSymmetry.continuous_isotropy` | `continuous_isotropy: SubgroupOfO3` | dataclass field |
+| `AngularTraceSpace.omega_dot_n` | `omega_dot_n: NDArray = field(...)` | dataclass field |
+| `WithinGroupSystem.loss` | `loss: "CoupledOperator"` | dataclass field |
+
+The decisive evidence is a **rendered-anchor grep in a FRESH build**:
+`grep -o 'id="orpheus.numerics.field.Field.UNITS"' <build>/api/numerics.html`
+→ present, with three inbound `href="#…"`. So autodoc DOES emit
+`py:attribute` for annotation-only members; the gate's probe cannot see
+them. Turning that ref into a literal to make the gate green would
+DELETE a working link — the exact inversion of the gate's purpose. Leave
+it, report it with the anchor as proof, and hand over the resolver patch
+(after the `getattr` `AttributeError`, accept
+`attribute in getattr(obj, "__annotations__", {})`). **Never edit a gate
+you were not asked to edit, and never mutilate a true ref to satisfy
+one.**
+
+**The mirror-image class — genuinely unresolvable, and worth fixing.**
+`napoleon_use_ivar = True` (docs/conf.py) makes numpydoc
+`Attributes`/`Parameters` entries render as `:ivar:`/`:param:` FIELDS,
+which mint **no** `py:attribute` target. So an instance attribute
+assigned in `__init__` (`self.bc = …`, `self.pole_angular_closure = …`,
+`self.eigenvalue_method = …`) is unresolvable in EVERY build no matter
+how well documented. Honest spelling: a live `:class:` role on the owner
++ the attribute as a literal — "the realized ``bc`` dict on
+:class:`~…DiffusionMesh`". Three such sites here. Check
+`napoleon_use_ivar` before assuming an `Attributes` section creates
+targets.
+
+**Adjudication mix (25 genuine).** 12 REPOINT · 4 past-tense literal ·
+9 REWRITE. The REWRITE rate is much higher than a rename sweep would
+suggest because a *move* leaves a true-but-relocated symbol, whereas a
+**deletion** leaves a sentence whose PREMISE died: the paragraph that
+justified the deleted thing inherits its wrongness. Three shapes recurred:
+(i) a **self-contradicting file** — `geometry/boundary/__init__.py`
+past-tensed the dissolved realizer registry at line 173 and still
+present-tensed "three stub realizers self-register at import time" at
+line 466; (ii) a **completed migration still written as future work** —
+`reduced_operator.py` said consumers "will migrate in Wave G" while
+`SNMesh.__init__` already calls its factories; (iii) a **docstring
+contradicting its own body** — `BasisSpace.solve_critical` documented a
+`d=None` fallback the code deletes with a `ValueError`.
+
+**A retirement DEMOTED a gate, again (L-044's rule, live).** The
+`reduced_operator` docstring credited
+`tests/geometry/test_reduced_operator.py` with hash-equality "vs the
+legacy SNMesh setup methods". Those methods are gone; the test now
+compares `spherical_streaming(mesh, quad)` against `sn_mesh.reduced.*`
+— the value that same factory produced, through the mesh constructor —
+and the two remaining `SNMesh.face_areas`/`delta_A` legs are DEPRECATED
+read-throughs to the same object. It pins the WIRING, not the math. The
+fix is a `.. warning::` naming what survives (the SN curvilinear
+snapshots + the τ producer-equivalence floor), not a deleted claim. Same
+stale claim sits in `docs/theory/foundations/structured_geometry.rst`
+§"Bit-identical contract" — whose very next section says the methods
+"no longer exist".
+
+**Also worth a look every time:** a `:mod:` naming an UNBUILT plan target
+(`orpheus.transport.problems`) must be a literal (L-002/L-014); a type
+name invented in prose and never minted (`FlatVectorLike` — grep says it
+never existed in `orpheus/`) is a dead ref with no successor, so name the
+actual construct (here the duck-typed *ravellable* `to_flat` /
+`from_flat` pair, deliberately unnamed so `numerics` need not import
+`transport`); and a **code block whose first import raises `ImportError`**
+(`docs/theory/references/trajectory_resolvent.rst:3816` still imports
+`GeometrySpec`) is the hardest MUST-FIX of the tense discriminator.
+
+How to apply: run the tool, then adjudicate EVERY hit against the live
+tree before touching it — a `getattr`-based gate over-reports on
+annotation-only members and under-reports on unqualified refs (L-045).
+Prove a contested hit with a rendered-anchor grep in a FRESH build.
+Fix the mirror class (instance attributes) properly. Expect the deletion
+residue to be a stale PARAGRAPH, not a stale token.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

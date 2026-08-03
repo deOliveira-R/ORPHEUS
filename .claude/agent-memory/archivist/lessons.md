@@ -69,8 +69,13 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   → L-002
 - **`-n` (nitpicky) is NOT the missing gate.** MEASURED: `-n` saw ZERO of 22 dead refs, because
   Sphinx only nitpicks what it RENDERS and the carrying modules were not `automodule`'d
-  (`tests/**` is never read). For an un-autodoc'd docstring the ONLY gate is grep — and edits there
-  cannot move the warning count, so "count unchanged" proves nothing. → L-044
+  (`tests/**` is never read). Edits to such docstrings cannot move the warning count, so "count
+  unchanged" proves nothing. → L-044
+- **`tools/check_docstring_xrefs.py` IS the gate — run it, don't grep blind.** It resolves every
+  FULLY-QUALIFIED role by IMPORTING it, so render coverage is irrelevant;
+  `… tests --quiet` → `DEAD TARGETS : 0` is the acceptance criterion. Never touch its empty
+  ALLOWLIST. It skips UNQUALIFIED refs by design (Sphinx resolves those by module context) — those
+  still need grep. First `tests/` run: 41 dead across 62 sites, never checked by anything. → L-045
 - **Beyond AGENT.md's warn-list, two more DO warn:** a `:widths:`/column mismatch, and `ref.ref`
   "*A title or caption not found*" — a bare `:ref:` to an anchor sitting before a PARAGRAPH (fix:
   anchor a titled/captioned element, or use `` :ref:`text <label>` ``). Raw path strings in prose
@@ -92,6 +97,13 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   whitespace-FLATTENED scan (the `:doc:` routinely wraps). → L-024, L-026
 - **Any doc-cleanup pass is a free staleness audit** — reading a line to trim it is the only gate
   catching a stale RAW PATH or a stale V&V word. → L-034
+- **That gate also OVER-reports — its `getattr` probe is blind to an annotation-only class
+  attribute (`ClassVar`, dataclass field), which autodoc DOES publish.** 5 of 30 `orpheus/` hits
+  were live; `Field.UNITS` renders a real `href` in a FRESH build. Prove a contested hit with a
+  rendered-anchor grep, then LEAVE it and report — never mutilate a true ref to green a gate,
+  never edit a gate you weren't asked to edit. Mirror class, genuinely unresolvable and worth
+  fixing: with `napoleon_use_ivar = True` an `Attributes`/`Parameters` entry mints NO target, so
+  an `__init__`-assigned attribute needs a live `:class:` + a literal. → L-046
 
 ---
 
@@ -143,6 +155,11 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 **Meta-rule: grep the SYMBOL, the full MODULE PATH, and the CONCEPT'S human paraphrase. Then ask of
 each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
+- **A DELETION (unlike a MOVE) leaves a stale PARAGRAPH, not a stale token** — a move leaves a
+  true-but-relocated symbol, a deletion leaves a sentence whose premise died. Three shapes recur:
+  a file that past-tenses a retirement in one section and PRESENT-tenses it in another; a LANDED
+  migration still written as future work ("consumers will migrate in Wave G"); a docstring
+  contradicting its own body (a documented `None` fallback the code `raise`s on). → L-046
 - **Preserve the WHY; tombstone, don't delete.** Flip tenses, keep the logic. When a finding
   invalidates a published table, add `.. note:: **Retraction (date, Issue #N).**` above it — values
   stay, the INTERPRETATION gets the tombstone. → L-007
@@ -169,6 +186,17 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   column is a 3-part edit (header · every value cell · `:widths:`) verified in RENDERED HTML; prefer
   REPLACING it with the true intrinsic property. And the paragraph that JUSTIFIED the retired flag
   inherits the flag's wrongness — re-verify it. → L-040
+- **In `tests/`, a dead xref is a TRIPWIRE for a false CLAIM, not a typo** — a test docstring says
+  what the test PINS, so the retirement that killed the ref usually invalidated the sentence too.
+  Read the test BODY, then REPORT the false claim (never quietly repoint, never fix the gate). Seen:
+  a module docstring advertising a unified-vs-legacy bit-identity chain when BOTH implementations
+  were deleted; a pin list whose item asserted the INVERSE of the live gate. Adjudicate four ways —
+  REPOINT (majority) · PAST-TENSE LITERAL (a role PROMISES a live link) · REWRITE · DELETE (rare;
+  0 of 62 here). A not-yet-built module is a LITERAL — and check its cited PLAN FILE exists too.
+  → L-045
+- **The brief's successor map is a HYPOTHESIS — run `git log --diff-filter=D` on the old path.**
+  "X now lives at Y" hid a DELETED legacy class whose replacement merely reuses the name; same name,
+  different object splits the sites into history-literals and a rewrite. → L-045
 - **A retirement can DEMOTE a gate's claim class without touching the test body.** When a rewire
   points a comparison at the successor, re-ask "are the two sides still INDEPENDENTLY produced?" —
   if the survivor CALLS the other, the gate became a pass-through check and every doc crediting it
@@ -347,7 +375,9 @@ never paraphrase a level definition. → L-010
 - **A batch "special" is a VERIFICATION obligation first, an edit obligation only on failure** —
   read the oracle, read both ends, report SATISFIED, never touch a correct CONTRACT block. → L-034
 - **Prove the edit is doc-only by AST/token comparison vs HEAD** (`tokenize` dropping
-  COMMENT/STRING, or `ast.dump` with docstrings stripped), not by reading the diff. Run the Sphinx
+  COMMENT/STRING, or `ast.dump` with docstrings stripped), not by reading the diff. The AST check
+  also proves no `verifies`/`catches` marker moved — but it is BLIND to comments (fine, they are
+  editable) and an **f-string assertion message is CODE**: leave it and REPORT. → L-041, L-045 Run the Sphinx
   gate **iff** the file is `automodule`'d — `:noindex:` does NOT exempt it. A RENDERED file affords
   two extra moves: promote a latent trap to a real `.. warning::`, and repoint in-file back-refs
   after a heading rename. → L-033, L-034, L-041
