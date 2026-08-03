@@ -24,9 +24,20 @@ genuinely dead ones. Spot-checked: ``Quadrature.angular_frame``, ``.octants``
 and ``.spherical_harmonics`` are all flagged ``unresolved`` and all EXIST.
 That bucket therefore cannot be gated on.
 
-This checker sidesteps rendering entirely: it reads docstrings with ``ast``
-and resolves each target by **importing it**. Render coverage is irrelevant,
-so it covers all 263 modules plus ``tests/``.
+This checker sidesteps rendering entirely: it reads prose with ``ast`` (``.py``
+docstrings) or verbatim (``.rst``) and resolves each target by **importing
+it**. Render coverage is irrelevant, so it reaches all 263 modules, ``tests/``,
+and the doc source.
+
+Honest scope note — ``.rst`` is a WEAKER case for this tool than ``.py``.
+A page under ``docs/`` *is* rendered by definition, so a nitpicky build genuinely
+could flag its dead Python-domain roles; the structural argument above applies
+only to docstrings. ``.rst`` is covered here anyway for three practical reasons:
+one gate instead of two, no ``nitpick_ignore`` curation (this checker only
+judges fully-qualified targets it can decide, so it does not flood on
+``int``/``ndarray``/annotation noise), and the same per-site adjudication
+discipline for both trees. Turning nitpicky on properly is a separate and
+larger question — it would also cover roles this tool ignores.
 
 What it checks, and what it deliberately does not
 -------------------------------------------------
@@ -45,7 +56,7 @@ matters because the two need opposite fixes.
 Usage
 -----
 
-    .venv/bin/python tools/check_docstring_xrefs.py            # orpheus + tests
+    .venv/bin/python tools/check_docstring_xrefs.py            # orpheus + tests + docs
     .venv/bin/python tools/check_docstring_xrefs.py orpheus    # narrower
 
 Exit code is 1 when any dead reference is found, so it can gate CI.
@@ -137,19 +148,45 @@ def _is_annotated_attribute(owner: object, attribute: str) -> bool:
     return False
 
 
-def iter_docstrings(tree: ast.AST):
-    """Yield ``(lineno, docstring)`` for every module/class/function docstring.
+def iter_text_blocks(path: pathlib.Path):
+    """Yield ``(start_lineno, text)`` for every block of prose worth scanning.
 
-    Module docstrings report line 1 rather than ``ast.Module``'s absent
-    ``lineno``, so every hit is clickable.
+    For ``.py`` that is each module/class/function docstring, reported at the
+    docstring literal's OWN line so a hit resolves to the prose rather than to
+    the enclosing ``def``. For ``.rst`` the whole file is one block: a doc page
+    is prose end to end.
     """
-    for node in ast.walk(tree):
-        if isinstance(
-            node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
-        ):
-            doc = ast.get_docstring(node, clean=False)
-            if doc:
-                yield getattr(node, "lineno", 1), doc
+    if path.suffix == ".py":
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(
+                node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
+                continue
+            body = getattr(node, "body", None)
+            if not body:
+                continue
+            first = body[0]
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                yield first.lineno, first.value.value
+    else:
+        yield 1, path.read_text(encoding="utf-8", errors="replace")
+
+
+def source_files(root: pathlib.Path):
+    """Every scannable file under ``root``, skipping build output.
+
+    ``docs/_build/**`` holds stale copies of the very pages being checked —
+    scanning them reports long-fixed refs as live findings.
+    """
+    for pattern in ("*.py", "*.rst"):
+        for path in sorted(root.rglob(pattern)):
+            if "_build" not in path.parts:
+                yield path
 
 
 def main() -> int:
@@ -159,7 +196,7 @@ def main() -> int:
     parser.add_argument("--quiet", action="store_true",
                         help="summary only, no per-site listing")
     args = parser.parse_args()
-    roots = args.roots or ["orpheus", "tests"]
+    roots = args.roots or ["orpheus", "tests", "docs"]
 
     dead: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
     broken_imports: dict[str, str] = {}
@@ -167,15 +204,16 @@ def main() -> int:
     n_files = n_roles = n_decidable = 0
 
     for top in roots:
-        for path in sorted((REPO_ROOT / top).rglob("*.py")):
+        for path in source_files(REPO_ROOT / top):
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                blocks = list(iter_text_blocks(path))
             except (SyntaxError, UnicodeDecodeError):
                 continue
             n_files += 1
-            for lineno, doc in iter_docstrings(tree):
-                for role, raw in ROLE_PATTERN.findall(doc):
+            for start, text in blocks:
+                for match in ROLE_PATTERN.finditer(text):
                     n_roles += 1
+                    role, raw = match.group(1), match.group(2)
                     target = extract_target(raw)
                     if (
                         target is None
@@ -193,6 +231,7 @@ def main() -> int:
                         broken_imports[target] = problem
                         continue
                     rel = str(path.relative_to(REPO_ROOT))
+                    lineno = start + text[: match.start()].count("\n")
                     dead[target].append((rel, lineno, role))
 
     n_sites = sum(len(v) for v in dead.values())
