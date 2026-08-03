@@ -13,17 +13,32 @@
 > sort-key ruling that Q4 dissolved (see T19).
 >
 > **IN FLIGHT: Q5 — THE FOLD.** Design of record written 2026-08-02, reviewed
-> and RULED. Read §5's Q5 block, then T24 / T25 / T26 / T27. Both open questions
-> are ruled (the fold reaches the SOLVE — every cylindrical snapshot moves and
-> that is *scheduling*, not a cost; and Q7's mirror-plane naming is pulled
-> forward into Q5.0).
+> and RULED. Read §5's Q5 block, then **T22b / T23 / T24 / T25 / T27 / T28**.
+> All three open questions are ruled: the fold reaches the **SOLVE** (every
+> cylindrical snapshot moves, and that is *scheduling*, not a cost — "it is a
+> matter of WHEN we rebuild the snapshot, not IF"); Q7's mirror-plane naming is
+> **pulled forward** into Q5.0.2; and the **exactness space is pulled forward**
+> as Q5.E because T28 showed it is the root.
 >
-> **Q5.0.1 ✅ LANDED `a7695148`** — the reflection partner map is now certified,
-> and it caught a live defect (odd-`n_φ` products had an involutive-but-wrong
-> `σ_x` map feeding the `r=0` pole continuation).
-> **NEXT = Q5.0.2** (name the mirror's plane; the map is in
-> `scratch/q5_mirror_plane_blast_radius.md` and the template is in the Q5.0.2
-> block), then Q5.1.
+> **⏸ COMPACTION CHECKPOINT — 2026-08-02, before E3. Tree clean, all gates as
+> below. Landed so far, in order:**
+>
+> | step | commit | what |
+> |---|---|---|
+> | **Q5.0.1** | `a7695148` | the reflection partner map is **certified** — caught a live defect (odd-`n_φ` products had an involutive-but-wrong `σ_x` map feeding the `r=0` pole continuation) |
+> | **Q5.E / E1** | `9e74faa1` | `numerics/exactness.py` — a claim names the SPACE its degree indexes |
+> | **Q5.E / E2** | `34a97f43` | `DiscreteMeasure` carries ONE claim; `tensor_with` vs the direct sum; the "6.2832 bug" re-measured and partly **inverted** |
+>
+> **▶ NEXT = Q5.E / E3**, then E4, then Q5.0.2, then Q5.1–Q5.6. The full ladder
+> with gates is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
+>
+> ⛔ **UNCOMMITTED AND UNCOMMITTABLE: ERR-074** was appended to
+> `.claude/skills/vv-principles/error_catalog.md` (user-authorised, 2026-08-02).
+> That file is on the **forbidden-to-commit** list and carries other uncommitted
+> user state. It is the quadrature-layer sibling of ERR-042 — an uncertified
+> partner map that is *involutive but wrong*. **Do not `git checkout` /
+> `restore` / `stash` / `clean` it; the content is irrecoverable** (lesson L28).
+> The same account is in `a7695148`'s message if the file is ever lost.
 >
 > ⛔ **THIS ANCHOR PRESCRIBED A FALSE NEXT STEP UNTIL 2026-08-02.** It said
 > "**NEXT: #326** — swap `level_indices` to the fiber ordering Q4 built, and see
@@ -74,18 +89,34 @@
 > | `579d5eaf` | **ONE Gauss-Legendre construction** — the consolidation + re-baseline |
 > | `81689a58` | the SN baselines re-captured through the project's own generators |
 > | `3afb52c2` | **Q4** — a level is a FIBER of an invariant (T21) |
+> | `fadb827a` | the Q0–Q4 compaction checkpoint |
+> | `6a4a64af` | **T22/T22b/T23** — the α-march is a march in ω ARC BY ARC |
+> | `32809d98` | **Q5 design of record** — T24 (`Σ = ∅`), T25 (the derived offset), T26 (the R12a float) |
+> | `b54c1066` | **T27** — the clamp is TWO objects fused; both Q5 rulings recorded |
+> | `a7695148` | **⭐ Q5.0.1** — CERTIFY the reflection partner map (+ **ERR-074**) |
+> | `63049c84` | Q5.0.1's anchor + substep update |
+> | `58fe2dc3` | **T28** — the product rule is a WELDED PAIR that re-derives its own properties |
+> | `9e74faa1` | **⭐ Q5.E / E1** — an exactness claim names the SPACE its degree indexes |
+> | `89af5d15` | the Q5.E ladder (E1 landed, E2–E4 specified) |
+> | `34a97f43` | **⭐⭐ Q5.E / E2** — ONE claim on `DiscreteMeasure`; the "6.2832 bug" inverted |
 >
-> **`[M]` Gate at this checkpoint — measured, not asserted:**
+> **`[M]` Gate at THIS checkpoint (before E3) — measured, not asserted:**
 > ```
-> tests/numerics                                1546 passed          (2:45)
-> tests/sn -m "(l1 or l2) and not slow"          347 passed, 6 xfailed (7:47)
-> tests/sn -m "not slow"                        2537 passed + 22 baseline
->                                               gates re-captured; 6 red (above)
-> sphinx -b html docs -W --keep-going           build succeeded
-> npx pyright orpheus/numerics/                    0 errors
+> tests/numerics                        1585 passed              (1:29)
+> tests/sn -m "not slow"                2553 passed, 6 failed   (16:14)
+>                                       the SAME six as 81689a58 — no new ones
+> sphinx -b html docs -W --keep-going   build succeeded
+> npx pyright orpheus/numerics/            0 errors
 > ```
-> Earlier in the session, unaffected by the re-pose:
-> `tests/geometry + tests/diffusion + tests/data` 909 passed, 4 skipped, 1 xfailed.
+> `tests/sn` is the real blast-radius check and its counts are **unchanged
+> across Q5.0.1 and E1–E2** — three carves through `measure.py` (163 external
+> callers), `symmetry.py` (91) and `product_mu_phi` (17) that moved **no
+> solver's behaviour**. `tests/numerics` grew 1546 → 1585 purely by added gates
+> (+18 Q5.0.1, +21 E1).
+>
+> Earlier in the session, untouched since: `tests/geometry + tests/diffusion +
+> tests/data` 909 passed, 4 skipped, 1 xfailed.
+> ⚠ `tests/numerics/test_symmetry.py` costs ~**80 s** on its own. Budget it.
 >
 > `tests/sn` is the real blast-radius check: `symmetry.py` has 91 external
 > callers, `measure.py` 163, `product_mu_phi` 17. Its counts are **identical to
