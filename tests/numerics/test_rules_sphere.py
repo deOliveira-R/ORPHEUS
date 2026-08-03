@@ -209,7 +209,10 @@ def _oh_exactness(nodes: "np.ndarray") -> "tuple[float, int, int]":
     assert ops is not None and len(ops) == 48
     worst, exact = 0.0, 0
     for g in ops:
-        moved = nodes @ np.asarray(g).T
+        # The element applies ITSELF to the points. The `nodes @ M.T` this
+        # replaced put the row-vs-column convention at the call site, which
+        # is one of the conventions the carve exists to seat in one place.
+        moved = g.on_points(nodes)
         landing = np.linalg.norm(
             moved[:, None, :] - nodes[None, :, :], axis=2
         ).min(axis=1).max()

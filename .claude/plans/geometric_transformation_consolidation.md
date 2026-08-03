@@ -659,7 +659,7 @@ it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 |---|---|---|
 | **G1** ✅ `6acb6a8a` | mint `geometry/transformation.py`: dimension-generic elements, `RigidMotion`, closure, the point-set orbit primitive; `permutes`/`preserves` | tree green; realizations bit-identical |
 | **G2** ✅ | ⭐ **mathematically verify** against PURE MATH — group axioms, `QᵀQ=I`, `det=±1`, involution, order-`n`, Householder/Rodrigues vs independent constructions, conjugation `RσR⁻¹`, orbit–stabiliser | every law mutation-verified |
-| **G3** | route `symmetry.py`'s seven constructors through the core; delete the 1-D/3-D arm split | realizations bit-identical |
+| **G3** ◐ | route `symmetry.py`'s seven constructors through the core (**DONE**); delete the 1-D/3-D arm split (**BLOCKED — needs a ruling, see §7c**) | realizations bit-identical |
 | **G4** | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | `Dnh(n_φ)` exact on BOTH sides |
 | **G5** | the BC layer's 4 σ_a vocabularies + `_reflect_corner`; `ReflectionLaw` binding | `product(4,5)`'s `ValueError` → `BoundaryError` |
 | **G6** | MoC: replace the 2 guard-free `argmin`s with the certificate; adopt `periodic_trapezoid` | the 8.96e-2 cm link gap becomes visible |
@@ -817,6 +817,92 @@ upper-bounded only by the consumer's own minimum point separation — so default
 it *relative to* that intrinsic quantity, which also retires
 `_NODE_WINDOW_FACTOR` honestly); and the physical centroid computation, which is
 G7's, not G2's.
+
+---
+
+## 7c. G3 — routed; and the arm split turned out to hide a CONVENTION CONFLICT
+
+**Done.** All seven constructors now build `RigidMotion`s; `_close_group`
+delegates to the core (the hand-rolled I_h BFS with its own dedup and its own
+cap is **retired**); `_orbit_closure` is now a ~10-line delegation to
+`preserves` and keeps only the *measure*-level question; `OrbitCertificate`
+carries `RigidMotion` + `Permutation` and is off its `np.eye(3)` lock;
+`_finite_contains` compares elements, not matrices. The one production consumer
+outside the file — `directional.py`'s hand-built `np.eye(3)` with a flipped
+sign, a **fourth** re-spelling of a reflection in a module that already imported
+the checker — is retargeted.
+
+**Gate: `tests/numerics` 1762 passed, 0 failed.** That includes
+`test_lebedev_is_EXACTLY_octahedral` and
+`test_level_symmetric_is_EXACTLY_octahedral`, which assert `landing == 0.0` for
+all **48** `O_h` operators — the strongest available bit-identity evidence.
+
+`[M]` Preservation set exactly `0.0`: `_reflections` (all three),
+`_octahedral_ops` (48, in order), `_inversion_op`. Improvement set:
+`_rotation_z` `1.1e-16`, `_rotation_about_axis` `1.1e-15`, `_vertical_mirrors`
+`4.4e-16` — the last because the core normalises the normal and the old code
+did not. `[M]` The raw normal was *already* unit (0 or `1.1e-16` off), so this
+is a pure ULP re-rounding, neither better nor worse (`max|QᵀQ−I|` is `4.4e-16`
+both ways, marginally worse at n=5). Real exactness arrives in **G4**.
+
+Two tests migrated with the retirement (a retirement includes its tests):
+`_oh_exactness`'s `nodes @ np.asarray(g).T` → `g.on_points(nodes)`, and
+`np.linalg.det(M)` → `M.determinant`.
+
+### The G3 precondition is now GATED, and the hazard is REAL
+
+Two new gates in `tests/test_layer_imports.py`: a structural one (an input-layer
+package may not import the `numerics` **package**, only its submodules) and an
+end-to-end one (six entry points must import in a **fresh interpreter** —
+in-process is worthless, everything is already in `sys.modules`).
+
+`[M]` **Mutation-verified.** Inserting `from orpheus.numerics import
+SubgroupOfO3` at true module level in `geometry/mesh.py` (AST-anchored, so it
+parses) gives exactly the predicted
+`ImportError: cannot import name 'SubgroupOfO3' from partially initialized
+module 'orpheus.numerics'`. The structural gate reds on `[geometry]`; the
+end-to-end gate reds on `orpheus.numerics`, `orpheus.numerics.symmetry` and
+`orpheus.sn.solver` — while `orpheus.geometry` stays **green**, correctly, since
+importing geometry directly never triggers the cycle.
+
+### ⛔ THE ARM SPLIT IS NOT A REFACTOR — IT HIDES A CONVENTION CONFLICT
+
+`_check_invariance_1d` uses **two incompatible embeddings of the polar cosine**,
+and deleting the split would silently pick one:
+
+* the **mirror** arm is derived from `(μ, 0, 0)` — μ on **x**, so `σ_x` is the
+  one real test (this is the LIVE selection path, and it is correct);
+* the **rotational** arm asserts "`C_n`/`SO(2)` rotate about z, which does not
+  move the polar cosine" — true only if μ is on **z**. Under `(μ,0,0)` a
+  rotation about z *does* move the node.
+
+`[M]` measured on `gauss_legendre_on_mu(8)`:
+
+| | shipped 1-D arm | the `(μ,0,0)` embedding |
+|---|---|---|
+| `σ_x`, `σ_y`, `σ_z` | True | True ✓ |
+| **`C_4` about z** | **True** | **False** |
+| `Sym(GL(8))` | **`O3`** | would be `{e, σ_x}` |
+
+And `[M]` on a deliberately **asymmetric** 4-point measure: `Mirror('x')` reads
+`False` (correct) while **`SO2` and `Cn(4)` read `True`**, and the walk reports
+`Sym = [SO2, Mirror('z'), Mirror('y')]`. That is **ERR-072's shape** — a
+continuous group certified without being tested — and it disagrees with the 3-D
+arm's own exact criterion (`_is_axis_supported`), which would say `False`.
+
+**Not currently a live defect:** `GEOMETRY_ANGULAR_SYMMETRY`'s slab/sphere rows
+are `Mirror("x")`, which is correct on both symmetric and asymmetric input. The
+unsound answers sit on non-consumed rows.
+
+**Why it needs a RULING, not a refactor.** R8 already holds that *"`SO(2)` acts
+trivially on a polar marginal"* is a statement about a **polar marginal**, which
+only SN has — so it does not migrate to geometry. But that means deleting the
+arm changes what `is_invariant` MEANS for a 1-D measure, from "the 3-D rule this
+marginal came from is G-invariant" (unknowable here) to "this point set in ℝ¹ is
+carried onto itself" (checkable, and `Sym = {e, σ_x}`). The second is the honest
+one and the dimension-generic core makes it free — but it changes many answers
+and is a semantics decision, not a mechanical one. **This is the same family as
+the SH polar-axis crosswalk (six sites say z, the seventh says x) and #328.**
 
 ---
 

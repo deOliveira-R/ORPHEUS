@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import subprocess
+import sys
 from collections.abc import Iterable
 
 import pytest
@@ -164,3 +166,97 @@ _ALL_MODULES = sorted(_iter_python_modules(ORPHEUS_ROOT))
 def test_no_forbidden_imports(module_path: pathlib.Path) -> None:
     violations = _check_module(module_path)
     assert not violations, "\n".join(violations)
+
+
+# ---------------------------------------------------------------------------
+# The numerics -> geometry back-edge, and the discipline that makes it safe
+# ---------------------------------------------------------------------------
+#
+# `numerics/__init__.py` imports `symmetry`, and `symmetry` imports
+# `geometry.transformation` (the rigid-motion core). That is a genuine package
+# CYCLE: importing `orpheus.numerics` runs `orpheus.geometry.__init__`, which
+# imports `orpheus.geometry.mesh`, which imports back into `orpheus.numerics`
+# — while `orpheus.numerics.__init__` is still mid-execution.
+#
+# It resolves, and the reason is precise: a partially-initialised package can
+# serve `from orpheus.numerics.measure import X` (a SUBMODULE import, resolved
+# through the module system) but NOT `from orpheus.numerics import X` (an
+# ATTRIBUTE lookup on a package whose body has not reached that line yet).
+# Every one of geometry's numerics imports happens to be the first form.
+#
+# "Happens to be" is not a guarantee, and the failure is a hard ImportError at
+# interpreter start-up, not a subtle wrong answer. These two gates make the
+# discipline explicit: one structural, one end-to-end.
+
+_INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("package", _INPUT_PACKAGE_ROOTS)
+def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
+    """An input-layer package may not import the `numerics` PACKAGE itself.
+
+    `from orpheus.numerics.measure import DiscreteMeasure` is fine;
+    `from orpheus.numerics import DiscreteMeasure` is not, because the second
+    form is an attribute lookup that fails while `numerics/__init__` is still
+    executing — which is exactly the state it is in when `symmetry` reaches
+    across to `geometry.transformation`.
+    """
+    offenders: list[str] = []
+    for module_path in _iter_python_modules(ORPHEUS_ROOT / package):
+        source = module_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(module_path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                # `level > 0` is a relative import — never cross-package.
+                if node.level == 0 and node.module == "orpheus.numerics":
+                    names = ", ".join(a.name for a in node.names)
+                    offenders.append(
+                        f"{module_path.relative_to(ORPHEUS_ROOT)}:{node.lineno} "
+                        f"`from orpheus.numerics import {names}` — use the "
+                        f"submodule (`from orpheus.numerics.<mod> import ...`)"
+                    )
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "orpheus.numerics":
+                        offenders.append(
+                            f"{module_path.relative_to(ORPHEUS_ROOT)}:"
+                            f"{node.lineno} `import orpheus.numerics`"
+                        )
+    assert not offenders, (
+        "input-layer -> numerics imports must be SUBMODULE-level; these are "
+        "package-level and will deadlock the numerics->geometry back-edge:\n"
+        + "\n".join(offenders)
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "orpheus",
+        "orpheus.numerics",
+        "orpheus.numerics.symmetry",
+        "orpheus.geometry",
+        "orpheus.geometry.transformation",
+        "orpheus.sn.solver",
+    ],
+)
+def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:
+    """Each entry point imports cleanly from a COLD interpreter.
+
+    The end-to-end companion to the structural gate above, and the one that
+    cannot be fooled: a cycle that resolves only because some other module
+    happened to be imported first will fail here. It must be a subprocess —
+    in-process the modules are already in ``sys.modules`` and every import is
+    a no-op.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", f"import {entry}"],
+        capture_output=True,
+        text=True,
+        cwd=ORPHEUS_ROOT.parent,
+    )
+    assert result.returncode == 0, (
+        f"`import {entry}` failed in a fresh interpreter:\n{result.stderr}"
+    )

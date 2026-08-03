@@ -86,6 +86,7 @@ from orpheus.numerics.measure import (
 # certified by the SAME machinery that proves invariance — one source of
 # truth for "does this operator permute these nodes?" (see
 # ``_compute_sphere_reflection_partners``).
+from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.symmetry import _orbit_closure
 
 if TYPE_CHECKING:
@@ -206,13 +207,17 @@ def _compute_sphere_reflection_partners(
     """
     partners: dict[int, np.ndarray] = {}
     for axis in range(3):
-        reflection = np.eye(3)
-        reflection[axis, axis] = -1.0
+        # The mirror is named by its NORMAL — sigma_x reflects in the plane
+        # x = 0. This used to be a local `np.eye(3)` with one sign flipped,
+        # a fourth re-spelling of a reflection in a module that already
+        # imported the checker; the construction now comes from the one place
+        # that builds transformations.
+        reflection = RigidMotion.reflection(normal=np.eye(3)[axis])
         certificate = _orbit_closure(
             measure.nodes, measure.weights, (reflection,), _REFLECTION_ATOL,
         )
         if certificate is not None:
-            partners[axis] = certificate.permutations[0]
+            partners[axis] = certificate.permutations[0].indices
     return partners
 
 

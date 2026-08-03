@@ -1194,7 +1194,7 @@ def test_a_mirror_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
     from orpheus.numerics.symmetry import _close_group, _realized_ops
 
     dets = [
-        float(np.linalg.det(M))
+        M.determinant
         for M in _close_group(_realized_ops(SubgroupOfO3.Mirror("z")._tag))  # type: ignore[arg-type]
     ]
     assert sorted(round(d) for d in dets) == [-1, 1], dets
