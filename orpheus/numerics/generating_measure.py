@@ -158,6 +158,7 @@ from typing import Callable
 import numpy as np
 from scipy.special import gammaln
 
+from .exactness import OrthogonalSystem
 from .measure import (
     SPACE_HALF_LINE,
     SPACE_INTERVAL_M11,
@@ -253,6 +254,29 @@ class GeneratingMeasure:
         """
         _, beta = self.recurrence(1)
         return float(beta[0])
+
+    @property
+    def orthogonal_system(self) -> OrthogonalSystem:
+        r"""Always :attr:`~orpheus.numerics.exactness.OrthogonalSystem.ALGEBRAIC`
+        — and that is a **theorem of the construction, not a choice**.
+
+        A three-term recurrence
+        :eq:`generating-measure-three-term` generates a sequence of
+        *polynomials*, degree :math:`k` at index :math:`k`, orthogonal
+        with respect to :math:`w`. So a measure defined by such a
+        recurrence has algebraic polynomials as its orthogonal system by
+        definition; there is no measure of this class whose degree could
+        index anything else.
+
+        This property is what makes :class:`GeneratingMeasure` satisfy
+        :class:`~orpheus.numerics.exactness.ReferenceMeasure` — the
+        broader protocol an exactness claim is typed against. Systems
+        with no such recurrence (the Fourier basis on the circle, the
+        spherical harmonics) are reference measures that are **not**
+        generating measures, which is exactly why the claim is typed
+        against the protocol rather than against this class.
+        """
+        return OrthogonalSystem.ALGEBRAIC
 
     # -- the construction ---------------------------------------------
 
