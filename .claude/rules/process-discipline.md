@@ -47,6 +47,13 @@ is never updated — so the snapshot lies forward.
   way a `Closes #NN` trailer closes an issue. After that it is archaeology — its lesson goes
   to `lessons.md`, its architectural milestone to the relevant theory page's Development-
   history changelog, and the note retires.
+- **A plan's internal task numbers COLLIDE with real GitHub issue numbers.** A plan reading
+  "Tasks #46–#52" may be that session's INTERNAL numbering while #46–#52 are unrelated live
+  issues in another module. Never resolve "which issue tracks this?" from a plan's bare
+  `#N` — read each candidate's title (`gh issue view N`). Same rule before *citing* an issue
+  in code, docs, or a commit trailer: a docs pass that redirects a retired claim to "#183
+  tracks this" is minting a new claim, and a closed or mis-numbered issue is the same
+  defect class the pass was removing.
 - Why it matters: "resuming" merged work, or re-deriving a landed decision, is wasted effort,
   and a stale "in-flight" claim makes a clean tree look unfinished. (2026-06-21: ≈7 SN
   campaigns were mislabeled in-flight across the memory substrate; only one branch was
@@ -63,6 +70,21 @@ state.
   path and mutate the copy. Reserve `git checkout`/`restore` for files you have **not** touched.
 - Same data-loss family as the `.claude/*` checkout hazard (lessons L28): a `git checkout` on
   any path carrying uncommitted state is irrecoverable.
+
+## A refuted candidate is first-class output — record the structural REASON
+
+When an investigation rejects a hypothesis, frame, design, or root-cause candidate, the
+deliverable lists the rejected candidates **with the one-line structural reason each
+failed** — never a bare "considered and rejected".
+
+- **Why:** the reason is what stops the next session re-attacking a dead candidate. A
+  rejection without its reason must be re-derived from scratch, at full cost — and the
+  re-derivation usually costs more than the original, because the second attacker has less
+  context about why it looked promising.
+- **Who owes this:** `qa` (findings excluded from a report), `numerics-investigator`
+  (hypotheses eliminated in the probe cascade), `explorer` (paths that dead-ended),
+  `cross-domain-attacker` (the UNEXPLORED block), and the main agent in any plan that
+  narrows a design space.
 
 ## Don't file issues for what you'll fix this session
 

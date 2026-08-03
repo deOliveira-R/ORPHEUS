@@ -36,6 +36,17 @@ same object wearing a label. The decidable (grep-checkable) criterion: mint a ty
 - This is the *type-minting* corollary of the `coding-elegance` "defer abstraction until ≥2
   instances" rule. Worked: an expanded-order spatial moment with a single basis and an
   identity change-of-basis is a `property`, not a `SpatialOrder` type.
+- **Corollary — an axis that changes the ARITHMETIC INTERFACE cannot be a phantom type
+  parameter.** The criterion above decides *whether* to mint; this decides *how to encode
+  it*. `Generic[Tag]` is erased at runtime and does not specialize dunders, so every
+  instantiation shares ONE `__add__` body. If two values of the axis need different
+  arithmetic signatures — a torsor `A×V→A` that must FORBID `A×A`, versus a vector
+  `V×V→V` — no shared body satisfies both, and the encoding must be a distinct class.
+  Decision lattice: axis changes the **arithmetic** ⇒ class; axis changes the **shape** ⇒
+  class; only an axis that changes NEITHER may be a phantom parameter. Negative
+  discriminator: an implementation that "passes" only by branching on a stored tag field
+  at runtime is stringly-typed dispatch — `replace(obj, tag=Other)` type-checks and walks
+  straight through the gate the type was minted to be.
 
 ## Retire as you go (aggressive retirement)
 
@@ -49,11 +60,41 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   authorizes it (e.g. a public API on a versioned release).
 - Treat the **retirement audit as its own numbered substep**; a plan should carry a
   "retirement list" enumerating what gets deleted (with `file:line`).
+- **A retirement's own past-tense NOTE is a confidence trap — discriminate the surviving
+  references BY TENSE.** A batch that deletes a symbol and adds an honest "`X` existed
+  until 2026-07 and was retired with zero consumers" note *reads* like a completed audit;
+  it is not. Grep the deleted name across the whole tree and sort the hits: past-tense
+  ("existed", "was retired") is correct history and STAYS; a **present-tense claim**
+  ("provides an ergonomic shortcut") or an **imperative instruction** ("Apply the marker —
+  `@verify.lN(...)`") is a MUST-FIX — a contributor following it hits `ImportError`, and a
+  maintainer re-adds the symbol "to match the doc", reopening the retired twin. Expect the
+  offenders to be PRE-EXISTING lines outside the diff, sometimes ~50 lines from the
+  batch's own note.
 - **Retirement means test migration:** retiring a symbol includes **rewiring its tests to
   the successor**, not deleting them with the symbol. Behavioral test (correctness contract)
   → rewire to the new API; API-smoke test (symbol exists) → delete; characterization test
   (e.g. FD-vs-WDD delta) → keep under `tests/<module>/characterization/`. Pure delete-only
   retirement is incomplete — it loses coverage. Inventory with `grep -rn "<symbol>" tests/`.
+- **Retirement means MARKER migration too.** A retired test takes its
+  `@pytest.mark.catches(...)` / `verifies(...)` with it: the successor asserting the same
+  invariant must be re-tagged, or the coverage edge silently disappears while the
+  error-catalog entry keeps naming the dead test class — an audit "MISSING" whose stated
+  L0 test still *reads* plausible. Grep the catalog and the `tests/_harness` registry for
+  the retired symbol alongside the code grep.
+- **A rewire can silently DEMOTE a gate's claim class without touching one line of the
+  test body.** When a retirement re-points a comparison target at the successor, re-ask
+  **"are the two sides still INDEPENDENTLY produced?"** If the survivor is the *caller* of
+  the other, a two-implementation bit-identity gate has become a value compared with
+  itself through a wrapper: green forever, keeping its authoritative name, unable to
+  detect the drift its docstring advertises — and invisible in review because BOTH sides
+  are genuine production calls. The tell in a diff is a local variable still called
+  `legacy` beside a brand-new API. The mutation test is one line: replace the SUT's body
+  with garbage; if the pin stays green it was never a pin. Do not delete the gate —
+  re-scope every doc and docstring crediting it, and name the pin that actually survives.
+  **Then check that the named replacement is real:** a redirect to "the regression
+  snapshots pin this" is worthless if those snapshots were re-baselined BY the same carve
+  (measured 2026-08-03: three `cyl_*` snapshots cited as the pre-carve anchor had all been
+  re-captured by the consolidation commit itself).
 - **The retirement audit's blast radius is THREE searches, not one** (4–5 agents converged on
   this independently): (1) **graph callers** (`nexus impact`/`callers`) — necessary but NOT
   sufficient; the call graph misses property-reached leaves (`callers()==0` but live via a
@@ -76,7 +117,13 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   retirements ARE gated by `-W`; the silent class is the Python-domain roles, plus **raw path
   strings** in prose/docstrings, which no build ever checks. A path assembled from segments —
   `REPO_ROOT / "docs" / "theory"` — is invisible to a path-grep too; grep the **last
-  segment**.) (3) **direct constructors** of any guarded type (a guard-at-source change
+  segment**.) **Grep the CONCEPT, not only the symbol:** a field/flag is documented in two
+  registers — by NAME, which greps, and by PARAPHRASE, which does not. A `list-table`
+  column headed "Sweep-cycle flag" carries per-law values with no symbol in any cell; one
+  audit's 7 exact hits missed 17 further cells. After the symbol grep, grep the
+  hyphen/space variants of the concept the symbol names. And the paragraph that JUSTIFIED
+  the retired thing inherits its wrongness — re-verify that prose against the replacement
+  rather than only deleting the dead name from it. (3) **direct constructors** of any guarded type (a guard-at-source change
   reaches every `T(...)` caller, not just the factory path). Run all three, then retire.
 - **Mass-deletes are retirements too — and untracked shadow-copies mask the breakage.** A
   "chore: mass-delete old diagnostics" sweep owes each file the same 3-search audit, with two
@@ -90,6 +137,22 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   `diag_cin_aware_split_basis_keff` while the CP rank-n protocol test's worker consumed it;
   an untracked scratch copy masked the loss for ten weeks, then vanished — recovery had to
   route through a surviving `.pyc`'s `co_filename` back into git history.)
+
+### The mirror — landing a deferred capability stales its DEFERRAL CONTRACT
+
+Retirement's mirror image, and just as blocking. When a change flips a case from *deferred*
+to *implemented*, every docstring naming that case "raises / deferred / not yet supported"
+becomes present-tense-FALSE, and the blast radius is the same three searches.
+
+- The recurring half-cleanup signature: **the human-facing prose ledger gets rewritten and
+  the machine-facing contracts do not** — the `@runtime_checkable` Protocol stub, the BASE
+  class's default docstring that the next implementer inherits, the sibling class's own
+  docstring, and public operators in files the diff never touched.
+- Grep the deferred case's NAME and its prose forms across the package, then discriminate
+  **by arm**: landing a matvec-transpose does not un-defer the transpose-SOLVE. Only the
+  one flipped row changes; the still-genuine future seams stay.
+- In a campaign-closing commit this is blocking — a `Closes #NN` trailer is internally
+  inconsistent with a status the tree still tags deferred.
 
 ### Exception — keep a relinquished *fuller view* as a verification oracle
 

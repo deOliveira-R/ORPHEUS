@@ -62,3 +62,9 @@ the provenance header carries the printed-page mapping). Regenerate/extend with
   quotes short; SELECT from the sidecar text instead of transcribing from page renders;
   and write findings to the deliverable file INCREMENTALLY so a mid-run kill preserves
   progress (both dead agents lost everything — zero bytes written).
+- **Zotero liveness — 0 hits is not "empty".** A Zotero MCP server returning **0 hits on a
+  known-present item** *together with* **connection-refused on port 23119** is BROKEN, not
+  a library that lacks the paper. The misreading is silent and burns turns on repeated
+  0-hit queries. Stop querying, record "Zotero down — no annotations checked", and proceed
+  on the local folder + Tier-2. Applies to any agent briefed to consult Zotero, not just
+  `literature-researcher`.
