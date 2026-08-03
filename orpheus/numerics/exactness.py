@@ -98,6 +98,10 @@ See Also
 :class:`orpheus.numerics.generating_measure.GeneratingMeasure`
     The Golub-Welsch generator; the sub-case that builds as well as
     certifies.
+:func:`orpheus.numerics.quadrature.rules_circle.periodic_trapezoid`
+    The second measured bug above, realised as a rule: the same nodes
+    that are degree-1 on an interval are degree-:math:`(n-1)` on the
+    circle, and each now says so.
 """
 
 from __future__ import annotations

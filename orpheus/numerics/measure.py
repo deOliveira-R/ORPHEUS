@@ -98,8 +98,8 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 # String tags for measurable spaces. Treated as opaque labels at runtime —
-# composition operations stitch them together (e.g. ``"[-1,1]" * "[0,2π)"
-# → "[-1,1] × [0,2π)"``) but no type-level enforcement is attempted, in
+# composition operations stitch them together (e.g. ``"[-1,1]" * "S^1"
+# → "[-1,1] × S^1"``) but no type-level enforcement is attempted, in
 # line with the design note in `.claude/plans/sn_reshape.md` Issue 2
 # ("Don't try to enforce ``Space`` types via Python generics — not
 # expressive enough without runtime overhead").
@@ -111,7 +111,17 @@ SPACE_R = "R"
 SPACE_HALF_LINE = "[0,inf)"
 SPACE_INTERVAL_M11 = "[-1,1]"
 SPACE_INTERVAL_01 = "[0,1]"
-SPACE_CIRCLE = "[0,2π)"
+# The circle names the MANIFOLD, not a chart of it. It was ``"[0,2π)"``
+# until 2026-08-02, which put an off-pattern member in a family whose
+# sibling is ``SPACE_SPHERE = "S^2"`` — and, worse, made the tag assert a
+# coordinate. The distinction is load-bearing here: the periodic
+# trapezoid's nodes are the roots of unity as POINTS
+# (:func:`~orpheus.numerics.roots_of_unity.roots_of_unity`), because only
+# in that representation is an on-axis node exactly ``0.0``; an angle
+# chart would have re-introduced the very rounding
+# :mod:`~orpheus.numerics.roots_of_unity` exists to remove. Uniform
+# measure on S^1 has mass 2π, on S^2 mass 4π — one family, one rule.
+SPACE_CIRCLE = "S^1"
 SPACE_SPHERE = "S^2"
 
 # The physical FACTOR of transport phase space (position × direction × energy)

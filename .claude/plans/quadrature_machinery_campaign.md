@@ -20,17 +20,17 @@
 > **pulled forward** into Q5.0.2; and the **exactness space is pulled forward**
 > as Q5.E because T28 showed it is the root.
 >
-> **⏸ COMPACTION CHECKPOINT — 2026-08-02, before E3. Tree clean, all gates as
-> below. Landed so far, in order:**
+> **⏸ CHECKPOINT — 2026-08-02. Landed so far, in order:**
 >
 > | step | commit | what |
 > |---|---|---|
 > | **Q5.0.1** | `a7695148` | the reflection partner map is **certified** — caught a live defect (odd-`n_φ` products had an involutive-but-wrong `σ_x` map feeding the `r=0` pole continuation) |
 > | **Q5.E / E1** | `9e74faa1` | `numerics/exactness.py` — a claim names the SPACE its degree indexes |
 > | **Q5.E / E2** | `34a97f43` | `DiscreteMeasure` carries ONE claim; `tensor_with` vs the direct sum; the "6.2832 bug" re-measured and partly **inverted** |
+> | **Q5.E / E3** | *this commit* | `rules_circle.py` — the periodic trapezoid on `S^1`, shift as a `Fraction`, nodes as roots of unity |
 >
-> **▶ NEXT = Q5.E / E3**, then E4, then Q5.0.2, then Q5.1–Q5.6. The full ladder
-> with gates is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
+> **▶ NEXT = Q5.E / E4**, then Q5.0.2, then Q5.1–Q5.6. The full ladder with gates
+> is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
 >
 > ⛔ **UNCOMMITTED AND UNCOMMITTABLE: ERR-074** was appended to
 > `.claude/skills/vv-principles/error_catalog.md` (user-authorised, 2026-08-02).
@@ -2020,14 +2020,56 @@ implemented and **no `D_6h`-invariant rule in tree**.
      said 7-tuple while Q4 (`3afb52c2`) had made the body return 9 — a stale
      signature no test could fail on and `sphinx -W` could not see.
 
-  3. ⬜ **E3 — the circle reference + the periodic trapezoid as a REGISTERED
-     rule.** `UNIFORM_ON_CIRCLE` (trigonometric system, mass `2π`) and a circle
-     rule carrying `ExactnessClaim(UNIFORM_ON_CIRCLE, n − 1)` with the offset
-     as its parameter. This is where `Σ = ∅` becomes *selectable* (T25).
-     ⚠ Per §4, a rule on the circle and a rule on an interval are **different
-     objects even when the nodes coincide** — do not reuse `equispaced`'s
-     interval claim for the circle; that identity is the E1 header's second
-     measured bug.
+  3. ✅ **E3 — the periodic trapezoid on `S^1`, as a first-class rule.**
+     `numerics/quadrature/rules_circle.py`: `periodic_trapezoid(n, *, shift)`
+     carrying `ExactnessClaim(UNIFORM_ON_CIRCLE, n − 1)`, with the classification
+     constants `NODE_ALIGNED` / `STAGGERED`. 30 tests × parameterisation = 150;
+     `tests/numerics` 1735 passed; `sphinx -W` clean; pyright 0.
+
+     ⭐ **Three design calls, each derived rather than chosen:**
+
+     * **The nodes are POINTS, not angles** — `(cos φ, sin φ)` from
+       `roots_of_unity`, not a stored angle chart. This is the call the rest of
+       the step hangs off, and the reason is `Σ`: on-axis `sin` is **exactly
+       `0.0`**, so `Σ = {ξ = 0}` is decided by an EQUALITY. Under the
+       construction it replaces, `np.sin(np.pi) = 1.22e-16` and the membership
+       test would need an `eps` — i.e. **the fold's well-posedness condition
+       would be a tuning parameter**. `[M]` The mutation control is brutal: the
+       `linspace+cos` nodes differ by **2.22e-16** and that alone destroys the
+       bit-exact mirror AND one of the two exact zeros.
+     * **The shift is a `Fraction`, and REQUIRED.** Rational because the exact
+       generation rests on integer arithmetic (`Fraction(0.1)` would ask for a
+       root of unity of order `n · 3.6e16`); required because the shift is
+       **exactness-invisible and yet `Σ`-decisive** — a default is exactly how a
+       parameter no gate can see goes unexamined (L19 route 2). It lives in
+       `ℚ/ℤ` (a whole step is the identity relabelled), so the reduction
+       canonicalises rather than restricts.
+     * **`NODE_ALIGNED` / `STAGGERED` are theorems, not conventions.** The node
+       set is mirror-symmetric iff `2s ∈ ℤ`, so within `[0,1)` there are
+       **exactly two** such shifts — the classification T25 wanted. Which is why
+       the shift is a *parameter* and the two values are *named constants*,
+       never a boolean flag (anti-pattern #3 avoided by deriving, not by taste).
+       Caveat pinned by its own test: staggered empties `Σ` only for **even**
+       `n` — at odd `n` the node `m = (n−1)/2` lands on `φ = π`.
+
+     ⭐ **The step found a live mis-count in the shipped product rule.** `[M]`
+     `product_mu_phi(4, 8)`: the node set meets the axis **twice per level**, but
+     `|Σ| = 4` by equality against `8` by any sane tolerance — because
+     `np.sin(np.pi) ≠ 0`. So today `Σ`'s SIZE depends on the tolerance used to
+     measure it, which is not a defensible state for a quantity that is a fold's
+     well-posedness condition. Generating the azimuths as roots of unity makes
+     both counts `8`. Recorded in `rules_product`'s docstring; the fix is Q5.2's
+     substitution, not a patch here.
+
+     Also fixed in passing: `product_mu_phi` called its azimuthal factor the
+     "midpoint rule" — false, it is left-endpoints (shift `0`, not `½`). The
+     *exactness* sentence beside it was right anyway, **because the shift cannot
+     change the degree** — a small worked instance of the same lesson.
+
+     Renamed `SPACE_CIRCLE` from `"[0,2π)"` to `"S^1"` (4 sites). It was the
+     off-pattern member of a family whose sibling is `SPACE_SPHERE = "S^2"`, and
+     it made the tag assert a *coordinate* where the rest assert a *space* —
+     which is precisely the distinction E3 exists to draw.
 
   4. ⬜ **E4 — the sphere product theorem.** T2 already proved the shipped
      `min(2n_μ − 1, n_φ − 1)` is **tight**, and *why*: a degree-`d` spherical

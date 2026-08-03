@@ -99,12 +99,45 @@ def product_mu_phi(
     Weight sum: :math:`\sum_i w_i = 4\pi`.
 
     Polynomial exactness: the polar factor is exact at
-    degree :math:`2 n_\mu - 1` (Stoer-Bulirsch); the azimuthal
-    midpoint rule is exact for trigonometric polynomials of degree
-    :math:`< n_\phi`. We tag the conservative
-    ``degree_of_exactness = min(2*n_mu - 1, n_phi - 1)`` as the
-    weakest of the two — for general polynomial integrands on
+    degree :math:`2 n_\mu - 1` (Stoer-Bulirsch); the azimuthal factor
+    is the :math:`n_\phi`-point periodic trapezoid, exact for
+    trigonometric polynomials of degree :math:`n_\phi - 1`. We tag the
+    conservative ``degree_of_exactness = min(2*n_mu - 1, n_phi - 1)``
+    as the weakest of the two — for general polynomial integrands on
     :math:`S^2`, both factors must be exact simultaneously.
+
+    .. note::
+
+       The azimuthal factor here is built inline as
+       ``np.linspace(0, 2π, n_phi, endpoint=False)`` — the
+       **node-aligned** periodic trapezoid, which
+       :func:`~orpheus.numerics.quadrature.rules_circle.periodic_trapezoid`
+       now expresses as a first-class rule carrying its own
+       trigonometric claim. Substituting it is the unwelding step of
+       the quadrature campaign, not this one; until then two facts are
+       worth stating rather than leaving to be rediscovered:
+
+       * the prose above said "midpoint rule" until 2026-08-02, which
+         was false — these are left-endpoints, i.e. shift :math:`0`,
+         not shift :math:`\tfrac{1}{2}`. The *exactness* statement was
+         right anyway, because the shift cannot change the degree;
+       * the shift it does decide is whether a node sits on the
+         :math:`\varphi = 0` axis. Node-aligned means one does, so
+         :math:`\Sigma = \{\xi = 0\}` is non-empty for every
+         :math:`n_\phi` this rule can be asked for.
+
+       And the construction leaves :math:`\Sigma` **mis-counted**, which
+       is the sharper reason to substitute the registered rule. At even
+       :math:`n_\phi` the node set meets the axis twice per level, at
+       :math:`\varphi = 0` and :math:`\varphi = \pi` — but
+       ``np.sin(np.pi)`` is ``1.22e-16``, not ``0.0``, so only the first
+       is on the axis in exact arithmetic. `[M]` At
+       ``product_mu_phi(4, 8)``: :math:`|\Sigma| = 4` by equality
+       against :math:`8` by any sane tolerance. A fold whose
+       well-posedness condition is :math:`\Sigma = \emptyset` cannot be
+       decided on a set whose size depends on the tolerance used to
+       measure it; generating the azimuths as roots of unity makes both
+       counts :math:`8`.
 
     Parameters
     ----------

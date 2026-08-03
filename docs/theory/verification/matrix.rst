@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8139**
+Total tests collected: **8290**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1206, 14.8%
-   L1, 1314, 16.1%
+   L0, 1206, 14.5%
+   L1, 1407, 17.0%
    L2, 64, 0.8%
    L3, 0, 0.0%
-   foundation, 5555, 68.3%
+   foundation, 5613, 67.7%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8060
+   explicit, 8211
    class-name, 46
    func-name, 0
    case, 33
@@ -337,6 +337,7 @@ Module × level grid
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
+   numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 14, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 53, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
@@ -445,7 +446,7 @@ Module × level grid
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 336, 0
+   test_layer_imports, 0, 0, 0, 0, 337, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0

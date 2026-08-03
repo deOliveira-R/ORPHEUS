@@ -835,9 +835,46 @@ rule:
   - :func:`~orpheus.numerics.quadrature.level_symmetric_sn` —
     Carlson-Lathrop level-symmetric :math:`S_N` rule on
     :math:`S^2`, :math:`O_h`-invariant.
+  - :func:`~orpheus.numerics.quadrature.periodic_trapezoid` — the
+    :math:`n`-point rule on the circle :math:`S^1`, exact for
+    *trigonometric* polynomials of degree :math:`n - 1`. The
+    azimuthal factor of the product rule below.
   - :func:`~orpheus.numerics.quadrature.product_mu_phi` — the
     polar-times-azimuthal product rule used by the cylindrical SN
     sweep.
+
+  The circle rule is worth reading closely even though it is
+  one-dimensional, because it is where two of this page's
+  distinctions become concrete rather than notional.
+
+  **A rule on a domain is one object, and the domain decides the
+  claim.** Its nodes coincide numerically with
+  :func:`~orpheus.numerics.measure.equispaced`'s on
+  :math:`[0, 2\pi]` — and the two claims are incomparable: degree
+  :math:`n - 1` against the Fourier basis on :math:`S^1` versus
+  degree :math:`1` against polynomials on an interval. Composing a
+  polar rule with an azimuthal one by taking :math:`\min` of those
+  two bare integers gives **1**, where the sphere product rule's
+  true degree is :math:`\min(2n_\mu - 1,\, n_\varphi - 1)`. That is
+  the whole argument for
+  :class:`~orpheus.numerics.exactness.ExactnessClaim`.
+
+  **A parameter no gate can see still decides something.** The
+  rule's ``shift`` — the rotation of the node lattice, in units of
+  one step — provably cannot change the degree (it enters the
+  aliasing sum only as a phase on an already-vanishing factor). What
+  it decides instead is whether a node sits *on* a mirror axis, and
+  hence whether the singular set :math:`\Sigma = \{\xi = 0\}` of a
+  fold through that mirror is empty. Exactly two shifts in
+  :math:`[0, 1)` leave the node set mirror-symmetric at all —
+  :math:`0` and :math:`\tfrac{1}{2}` — so the pair is a
+  classification rather than a choice of convention, and the shift
+  is a parameter of the rule rather than a boolean flag on it.
+  Because the nodes are generated as roots of unity by
+  :func:`~orpheus.numerics.roots_of_unity.roots_of_unity`,
+  :math:`\Sigma` is decided by ``sin == 0.0`` — an equality, not a
+  tolerance whose ``eps`` would otherwise set a fold's
+  well-posedness condition.
 
 * The single :class:`~orpheus.numerics.quadrature.Quadrature` class
   wraps a :class:`DiscreteMeasure` and exposes named classmethod
