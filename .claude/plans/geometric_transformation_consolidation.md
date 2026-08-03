@@ -288,105 +288,340 @@ consumer could want already exists in `symmetry.py` — the general Householder
 (`:1132`), inversion (`:1041`). What is missing is a **vocabulary** the
 consumers can speak.
 
-### The vocabulary mismatch, measured
+`symmetry.py` trades in **3×3 matrices on `(N,3)` nodes**. Its consumers speak
+four other languages: **permutations** of ordinates (BC) and of cell lattices
+(spatial), **sign vectors** (the octant rep), **angle arithmetic** (MoC), and
+**sign powers on ℓ** (moments). `_orbit_closure` is the ONE bridge
+(matrix → permutation) and it is already correct — three guards, incl. the
+ERR-073 bijectivity check. **So the carve is mostly about making that bridge
+reachable, not about writing new math.**
 
-`symmetry.py` trades in **3×3 matrices acting on `(N,3)` nodes**. Its consumers
-speak four *different* languages, and none of them is matrices:
+### Duplication (Cardinal Rule 2 targets)
 
-| consumer | speaks | example |
-|---|---|---|
-| BC / specular | **permutations** of ordinates | `reflection_index(axis)` |
-| spatial / sweep | **permutations** of a cell lattice + **sign vectors** | `np.arange(n)[::-1]`, `Π_a s_a^{o_a}` |
-| MoC | **angle arithmetic** + argmin search | `φ ↦ π − φ` |
-| moment layer | **sign powers** on `ℓ` | `(±1)^ℓ` |
-
-`_orbit_closure` is the ONE bridge (matrix → permutation) and it is already
-correct — three guards, incl. the ERR-073 bijectivity check. **The consolidation
-is therefore mostly about making that bridge REACHABLE, not about writing new
-math.**
-
-### The three findings that shape the design
-
-1. **The category boundary is the TRANSLATION.** `[M]` `_orbit_closure` on a
-   *centred* cell lattice already returns the spatial answer; what defeats it is
-   `origin = 0.0`. The spatial group is `E(d) = O(d) ⋉ ℝ^d` and **the affine
-   part has no type anywhere**. *Point group ≠ space group* — this is a scope
-   decision, not a refactor. (Periodic's `SpatialWrap` is the same boundary from
-   the BC side.)
-2. **A transformation can hide as a CONVENTION.** The SH basis applies a real
-   `O_h` element by choosing which array is called `cos θ`. There is no matrix,
-   so there is nothing to test — and it has already produced a live falsified
-   docstring (#328). *A transformation applied by naming rather than by
-   multiplication is invisible to every gate.*
-3. **A representation is not an element.** `octant_moment_frame_signs` is the
-   character rep of `(Z₂)^d` — `[M]` verified a homomorphism — and is documented
-   only as "an involution". It was **born from ERR-061**. `symmetry.py` today
-   has no way to say "this is a representation of that group".
-
-### What is genuinely duplicated (Cardinal Rule 2 targets)
-
-| the operation | spellings | worst offender |
+| operation | spellings | worst offender |
 |---|---|---|
 | `σ_a` on ordinates | **7+** | 4 BC vocabularies + `_reflect_corner`'s ±1 key swap |
 | `_orbit_closure`'s job | **5 clones** | MoC's two guard-free `argmin`s |
-| sweep-sense reversal | **11**, in 4 idioms | 4 `range` ternaries in ~100 lines of one file |
-| `(Z₂)³` octant classification | **3 mutually-unaware views** | generated, classified, and named in 3 modules |
+| sweep-sense reversal | **11**, 4 idioms | 4 `range` ternaries in ~100 lines of one file |
+| `(Z₂)³` octants | **3 mutually-unaware views** | generated, classified, named in 3 modules |
 | the equispaced circle | **2** | MoC's azimuths ARE `periodic_trapezoid(2n, STAGGERED)` |
 
 ---
 
-## 4. Open design questions — ANSWER BEFORE WRITING CODE
+## 4. RULINGS — settled with the user, 2026-08-03
 
-1. **Scope: `O(3)` or `E(3)`?** The translation is outside `O(3)`. Decide
-   explicitly. A defensible middle: keep the consolidated core point-group, and
-   give the affine part its own small type so `origin`/`pitch/2` stop being bare
-   floats — without claiming a space-group implementation.
-2. **Where is "one appropriate place"?** `symmetry.py` mixes THREE concerns:
-   the transformation primitives, the subgroup lattice, and the invariance
-   checker. Consolidation likely means **extracting the primitives into their
-   own module** that `symmetry.py` then consumes — which also gives
-   `roots_of_unity` a natural home next to them.
-3. **What is the TYPE?** Candidate: a value type carrying composition, inverse,
-   determinant, order, and axis-or-plane, with `Reflection(normal)` /
-   `Rotation(axis, angle)` constructors and the coordinate mirrors as the exact
-   special case. Must answer: does it also carry its **action** (matrix) vs its
-   **realization on a given node set** (permutation)?
-4. **Does `Mirror(axis)` widen to `Reflection(normal)`?** Minted hours ago with
-   a deliberately narrow `{x,y,z}`. Widening is cheapest NOW.
-5. **Exactness tiering.** Coordinate mirrors and signed permutations are
-   bit-exact; general Householder/Rodrigues are not. The type should make the
-   tier LEGIBLE, not uniform. Closing the three checker-side `roots_of_unity`
-   sites is in scope here (#325's remaining half).
-6. **Do representations get a name?** (finding 3 above). Possibly out of scope —
-   but decide, do not drift.
-7. **What is the mathematical verification (the step-2 gate)?** Against PURE
-   MATH, never another ORPHEUS path: group axioms (closure / associativity /
-   identity / inverse), `MᵀM = I`, `det = ±1`, involution for reflections,
-   order-`n` for `C_n`, Householder and Rodrigues against independent
-   constructions, conjugation `R σ R⁻¹`, and the orbit–stabiliser count on a
-   known orbit. Every law mutation-verified.
+### R1. The core is `RigidMotion`, and the affine part is FORCED
+
+Not a preference — a proof. **You cannot describe a reflection or a rotation
+*in space* without the affine part.** A hyperplane is `{x : n̂·x = d}`; only
+`d = 0` passes through the origin. A rotation needs a centre. Only the
+origin-fixing special case is linear.
+
+**The relation between affine and non-affine is ONE operation** — conjugation
+by a translation:
+
+```
+Q seated at c  ≡  translate(c) ∘ Q ∘ translate(−c)  =  (Q, (I − Q)c)
+```
+
+which reproduces every case:
+
+| element | geometric description | `Q` | `t` |
+|---|---|---|---|
+| reflection | normal `n̂`, offset `d` | `I − 2n̂n̂ᵀ` | `2d·n̂` |
+| rotation | plane, angle `θ`, centre `c` | `R` | `(I − R)c` |
+| inversion | centre `c` | `−I` | `2c` |
+| translation | vector `v` | `I` | `v` |
+
+Composition `(Q₁,t₁)∘(Q₂,t₂) = (Q₁Q₂, Q₁t₂+t₁)`; inverse `(Qᵀ, −Qᵀt)`.
+
+⭐ **This is load-bearing for a consumer that is broken TODAY.** `[M]`
+`Mirror('x').is_invariant(mesh)` reads **False** for the production slab and
+sphere, because meshes start at `origin = 0.0` while the mirror plane sits at
+`x = a`. That is `d ≠ 0` — unexpressible today, one field away from
+expressible.
+
+**Scope: rigid motions (`QᵀQ = I`, `det = ±1`), NOT general affine.** No
+consumer needs shear or scaling, and orthogonality is what makes the type
+verifiable. Coordinate charts `(r,θ) ↔ (x,y)` are **non-linear** and stay
+outside — a different concept, not a degenerate case.
+
+### R2. Elements are DIMENSION-GENERIC, parameterised by the complement of what they fix
+
+| | reflection | rotation |
+|---|---|---|
+| fixed set | dim `n−1` (hyperplane) | dim `n−2` |
+| **parameterised by the complement** | 1-D → a **normal** | 2-D → a **rotation plane** + angle |
+| det | −1 | +1 |
+
+ℝ²: a rotation fixes the origin (dim 0). ℝ³: fixes a line — which is why we say
+"axis", the normal of the rotation plane. For `n ≤ 3` every rotation is
+*simple*, so this covers us completely.
+
+⭐ **This DISSOLVES the 1-D/3-D arm split rather than reconciling it.**
+`symmetry.py` is 3-D-locked (`np.eye(3)`, `SubgroupOfO3`), which is why
+`_check_invariance` has two arms — 1-D data must be forced through the
+`(μ,0,0)` embedding. Q5.0.2 made the arms *agree* by deriving the 1-D case from
+that embedding; a dimension-generic `Reflection` makes ℝ¹ first-class (normal
+`[1]` → `[−1]` → `x ↦ −x`) and the split is deleted, not reconciled.
+
+⚠ **Naming trap, live in the tag shipped 2026-08-02.** `Mirror("z")` reads in
+English as "through the z axis" = `diag(−1,−1,1)`, `det = +1` — which is
+`Cn(2)`, a rotation, and is *also* expressible. Only the docstring
+disambiguates. Fix: `normal=` keyword-only, so the wrong reading is unspellable.
+
+### R3. Placement — `geometry`, and the layer test PERMITS it
+
+⛔ **A claim I made and had to retract.** I asserted `numerics → geometry` was
+forbidden, from a 0-import count plus the layer *description*. The rule says
+otherwise: `FORBIDDEN_EDGES["numerics"] = L2 | L3` — transport and the solver
+families only. The docstring is explicit: *"Imports flow only L3 → L2 → L1 …
+**and any layer → input**."* `geometry` is an input layer; **every** layer may
+import it, `numerics` included. The 0 count was current usage, not a rule.
+
+And the dependency runs the way the user argued: **geometry determines its point
+group → that drives quadrature selection**, which `GEOMETRY_ANGULAR_SYMMETRY`
+already encodes. The inverse ("choose a quadrature, then decide the geometry")
+is absurd. Putting the walk in numerics puts the upstream concept downstream of
+its own consumer.
+
+```
+geometry/transformation.py   dimension-generic elements + closure
+                             + the point-set orbit primitive   (numpy only)
+geometry/  (symmetry)        the 3-D point-group lattice + candidates + the walk
+numerics/                    the WEIGHT-aware wrapper only
+```
+
+`SubgroupOfO3` keeps its name — the named entries (`O_h`, `I_h`, `D_∞h`,
+`SO(3)`) genuinely are 3-D, even though the elements below them are not.
+
+### R4. `permutes` vs `preserves` — two predicates, not an optional flag
+
+`_orbit_closure`'s three guards separate cleanly. Guards 1–2 (image-is-a-node,
+**bijection**) need only points; guard 3 (weights match) is the measure
+specialisation, and it is ONE LINE.
+
+```
+g.permutes(points)    -> permutation  | None    "does g map this set onto itself?"
+g.preserves(measure)  -> certificate  | None    "...and match the weights?"
+```
+
+`preserves` composes `permutes` + one guard. An optional `weights=None` would be
+a boolean flag changing *which question is asked* — anti-pattern #3.
+
+**And geometry wants `preserves`, not `permutes`**: a mesh has weights too — the
+**cell volumes**. A mesh whose centres are mirror-symmetric but whose volumes
+are not is not symmetric for any integration purpose.
+
+### R5. The uplift is BY CONSTRUCTION, not by method
+
+An adjoint is undetermined until the domain and codomain are. So the uplift
+cannot be `element.as_operator()` — that would also make geometry name an
+operator type. Instead a **law type** binds the element to a space pair:
+
+```
+ReflectionLaw(element, domain, codomain)     # built where the spaces live
+```
+
+taking its operation from `geometry/transformation.py`. Geometry never names an
+operator; no cycle. Verification law worth building around: for orthogonal
+`Q⁻¹ = Qᵀ` and permutation `P⁻¹ = Pᵀ`, so
+
+```
+T.realize_on(μ).as_operator().H  ≡  T.inverse().realize_on(μ).as_operator()
+```
+
+**the adjoint of the uplift is the uplift of the inverse element.**
+
+### R6. Representations — build the permutation family, DOCUMENT the character family
+
+The five collapse into two structurally different families.
+
+**A — permutation reps on finite point sets** (ordinates, faces-as-normals, cell
+lattices): 3 of 5. The bridge exists and is correct. **BUILD.**
+
+**B — character/sign reps on moment bases** (`(±1)^ℓ` on Legendre moments;
+`octant_moment_frame_signs`' `(Z₂)^d`): 2 of 5, and *not permutations* —
+diagonal sign operators indexed by moment order. **DEFER the type**, by the
+project's own type-minting criterion (b): no non-identity morphism is applied
+(nothing composes, restricts, tensors, or takes characters of them).
+
+**But fix the prose NOW** — `octant_moment_frame_signs` should say "the
+character rep of `(Z₂)^d` on the tensor-Legendre basis", not "an involution".
+One line, and ERR-061 is the evidence for what not saying it costs.
+
+**Revisit trigger:** when the **angular moment-layout module** is built (there
+is none; the `(ℓ,m)` convention is restated in ≥4 places). That is where the
+character reps get a home *and* a second morphism (restriction to the octant
+subgroup) — the ≥2-instances-plus-a-morphism moment.
+
+### R7. `Mirror` is the SURFACE; `Reflection` is what it produces; the ACTION is separate
+
+User's vocabulary, adopted: **Mirror** = the surface (normal + offset);
+**Reflection** = the transformation it produces; **Specular** = one *action* it
+can carry.
+
+⛔ **A MAP I GOT WRONG IN CONVERSATION — corrected here so it does not
+propagate.** I placed white/albedo as `G = reflection, R = Lambertian/αI`. FALSE.
+
+| BC | G (deck transformation) | R (constitutive response) |
+|---|---|---|
+| specular / reflective | the reflection | identity |
+| **white** | **identity** | Lambertian (rank-one) |
+| **albedo** | **identity** | `αI` |
+| specular-albedo | the reflection | `αI` |
+| periodic | **translation** | identity |
+| sector (#178) | **rotation** | identity |
+
+The code was already right (`white.py:114-132`, `albedo.py:142-158`:
+`IdentityMap` unconditionally), and the campaign's own theorem names the trap I
+fell into: *"G is unobservable exactly when R is rank-one — the theorem that hid
+the Lambertian in the geometry slot."*
+
+⭐ **The user's physical framing, which sharpens the membership rule.** Albedo
+and white are **real mirrors**, not conceptual ones — their deck transformation
+is the identity and the mirror physics lives in the RESPONSE. Specular is the
+*ideal* limit whose response is a delta in the mirror direction; Lambertian is
+the perfectly-diffuse limit; **a real Ni/Ti supermirror neutron guide is a
+peaked-but-not-delta kernel in between**, which needs a genuine `R` — not a
+scalar, not a rank-one.
+
+⟹ **The same reflection belongs in G or in R depending on whether the domain is
+actually quotiented.** Specular at a *symmetry plane* IS a deck transformation
+(the half-domain really is a quotient). Specular at a *physical mirror surface*
+is NOT — nothing is quotiented; it is constitutive. Same math, different slot.
+This is the campaign's stated sufficient test applied to the guide case, and it
+is why neutron-guide modelling lands in `R`.
+
+⭐ **And G need not be a reflection — the BC family is ONE law parameterised by
+a rigid motion:** `ψ_in(x,Ω) = ψ_out(g⁻¹x, Q_g⁻¹Ω)`, with `g` a reflection
+(specular), a translation (periodic), or a rotation (sector, #178 — e.g. the
+two cut faces of a 60° hex wedge, related by `C₆`). That explains BOTH the four
+unrelated BC vocabularies AND why `Cn`/`Dnh` are fully realized with **zero**
+consumers: #178 is the consumer, blocked on exactly this machinery.
+
+### R8. The phase-space quotient is METHOD-specific, not geometry's
+
+The `S²` in `S²/G⁰` is the **direction** sphere of the transport equation.
+Mechanism: the spatial symmetry group's **linear part** acts on directions, so
+`ψ(x,Ω) = ψ(gx, Q_gΩ)` and ψ depends on direction only through `S²/G⁰`.
+
+But **phase space is only determined once a method is picked**: diffusion has no
+`S²` (a moment closure), CP has integrated angle out. So the quotient is a
+concern of methods carrying a discrete measure on `S²`, NOT a universal one.
+
+⟹ The 1-D arm's residual content — *"`SO(2)` acts trivially on a polar
+marginal"* — is a statement about a **polar marginal**, which only SN has. It
+does **not** migrate to geometry; it stays with the method. (This resolves an
+earlier open doubt.)
+
+### R9. It is the MESH, not the raw shape, that computes the point group
+
+Four steelman arguments were put against "geometry computes its own group".
+Two fell, two stand — and neither survivor blocks:
+
+| # | argument | verdict |
+|---|---|---|
+| 1 | a shape has no point set for `_orbit_closure` | **FALLS** — CSG vertices are the intersections of 3 surfaces, a canonical finite set. Caveat: *curved* primitives have no vertices and must declare their group analytically (a cylinder is `D_∞h`); both feed the same machinery |
+| 2 | the mesh can BREAK the shape's symmetry | **STANDS** — and becomes a feature, see below |
+| 3 | materials break it (a centred vs off-centre pin: `D_4h` vs `C_1`) | **STANDS**, but is *resolvable* — see the centre-of-mass ruling |
+| 4 | BCs break it | **FALLS** — geometry already knows the BCs; only the *Law* is unrealised, and that is method-specific. Knowing which faces are reflective/vacuum/periodic is enough |
+
+⟹ The claim sharpens from "geometry computes its point group" to **"a MESH
+computes its point group"** — the mesh has the point set, the volumes, AND the
+materials. `Mesh1D` (`geometry/mesh.py`) carries `edges + mat_ids + coord +
+volumes`: exactly the four things `Sym(domain) ∩ Sym(materials)` needs. Package
+placement is unaffected.
+
+The problem's group is `Sym(domain) ∩ Sym(materials) ∩ Sym(BCs) ∩ Sym(source)`.
+
+### R10. ⭐ The ORIGIN is not a convention — it is the CENTRE OF MASS
+
+User's insight, and it closes R1's loose end. **Every symmetry of a body
+preserves its mass distribution, hence fixes its centre of mass.** So the centre
+of mass lies in the fixed-point set of *every* element of the point group, and
+is therefore the canonical seat.
+
+Computable without cross-sections: from material density directly, or from
+element/nuclide densities under the per-material homogeneity assumption that
+already holds.
+
+⟹ The affine part is not merely *representable* — it is **determinable**. This
+is what turns "`origin = 0.0` defeats `Mirror('x')`" from a modelling choice
+into a computed fact.
+
+### R11. ⭐ `Sym(geometry) ⊇ Sym(mesh)` is a MESH-QUALITY METRIC
+
+Fell out of R9 unintentionally and is worth keeping. The ideal shape's group is
+an **upper bound**; the mesh realises some subgroup of it. **The gap is a
+meshing objective** — a good mesh preserves as much of the domain's symmetry as
+it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 
 ---
 
-## 5. Sequencing
+## 5. Open questions — NOT blocking, to settle during implementation
+
+1. **`_distinct_azimuths` / `candidate_groups` may be quadrature-shaped wearing
+   geometry clothes.** The `Cn`/`Dnh` enumeration is bounded by counting
+   distinct azimuths — sensible for *directions on a sphere*, probably wrong for
+   a mesh's vertex set (a square lattice's symmetry is not bounded by its
+   azimuth count). The walk may need a **candidate generator polymorphic in the
+   kind of point set**. Biggest remaining unknown; bears directly on "the mesh
+   computes its own group".
+2. **Is `Mesh1D` misplaced?** There is a `transport/mesh/` package (`axis.py`,
+   `material_mesh.py`, `material_xs_field.py`) and discretisation arguably
+   belongs there, while `Mesh1D` sits in `geometry/`. Noted by the user; a
+   SEPARATE carve, not this one. (For symmetry purposes `Mesh1D` is
+   well-placed — it has geometry AND materials.)
+3. **Naming collision** `Mirror` (the group `{e,σ}` / the surface) vs
+   `Reflection` (the element). Lean: `Reflection` = the element in
+   `transformation.py`; `Mirror` = the surface/tag; `Mirror`'s realization is
+   `[Reflection.through_hyperplane(...)]`.
+4. **Does `symmetry.py` move whole, or leave the lattice behind?** Whole-move is
+   ~1660 lines + 105 tests, mostly mechanical. "Never as cheap as today" argues
+   whole.
+
+---
+
+## 6. Sequencing
 
 | step | what | gate |
 |---|---|---|
-| **G0** | answer §4 with the user | a ruling recorded here |
-| **G1** | extract/mint the primitives in ONE place; widen `Mirror`; export `roots_of_unity` | tree green; realizations bit-identical |
-| **G2** | ⭐ **mathematically verify** them against pure math | the law suite, every law mutation-verified |
-| **G3** | route `symmetry.py`'s seven constructors through the consolidated core | realizations bit-identical |
-| **G4** | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | `Dnh(n_φ)` check exact on BOTH sides |
-| **G5** | route the BC layer's 4 σ_a vocabularies + `_reflect_corner` | tree green; the `product(4,5)` `ValueError` becomes a `BoundaryError` |
-| **G6** | MoC: replace the 2 guard-free `argmin`s with the certificate; adopt `periodic_trapezoid` | the 8.96e-2 cm link gap becomes visible/asserted |
-| **G7** | ⭐ **migrate the tests** onto the verified machinery | coverage preserved; no gate weakened; re-run each migrated gate's justifying mutation |
+| **G1** | mint `geometry/transformation.py`: dimension-generic elements, `RigidMotion`, closure, the point-set orbit primitive; `permutes`/`preserves` | tree green; realizations bit-identical |
+| **G2** | ⭐ **mathematically verify** against PURE MATH — group axioms, `QᵀQ=I`, `det=±1`, involution, order-`n`, Householder/Rodrigues vs independent constructions, conjugation `RσR⁻¹`, orbit–stabiliser | every law mutation-verified |
+| **G3** | route `symmetry.py`'s seven constructors through the core; delete the 1-D/3-D arm split | realizations bit-identical |
+| **G4** | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | `Dnh(n_φ)` exact on BOTH sides |
+| **G5** | the BC layer's 4 σ_a vocabularies + `_reflect_corner`; `ReflectionLaw` binding | `product(4,5)`'s `ValueError` → `BoundaryError` |
+| **G6** | MoC: replace the 2 guard-free `argmin`s with the certificate; adopt `periodic_trapezoid` | the 8.96e-2 cm link gap becomes visible |
+| **G7** | ⭐ **migrate the tests** onto the verified machinery | coverage preserved; re-run each gate's justifying mutation |
 | **G8** | retire superseded spellings + dead code (`_rotation_x/_y`, the `directional.py:209` re-spelling, the ghost-justified epsilons) | grep clean |
 
-**Deliberately NOT in scope** (file/track, do not fix here): #328 (the SH
-`m≠0` defect), the SH polar-axis crosswalk, `#178 SymmetryBoundary`, the
-11-fold sweep-reversal cleanup, the dangling `_setup_spherical` xrefs.
+**Bit-identity — two sets, two different gates.** *Preservation* (must stay
+bit-identical): `_reflections`, `_octahedral_ops`, `directional.py:574`
+(`arange(N)[::-1]`), `rules_sphere.py:289`, all `roots_of_unity` output.
+*Improvement* (deliberately re-baselined): `_cyclic_ops`, `_vertical_mirrors`,
+where `[M]` `_cyclic_ops(4)/(8)` produce **zero** exact zeros against
+`roots_of_unity`'s two. Separate gates, or the second silently licenses drift in
+the first.
+
+**Deliberately NOT in scope** (filed/tracked, not fixed here): #328 (the SH
+`m≠0` defect), the SH polar-axis crosswalk, #178 `SymmetryBoundary`, the
+11-fold sweep-reversal cleanup, the dangling `_setup_spherical` xrefs, the
+adaptive/exactness-based quadrature selection (see below), `Mesh1D`'s placement.
+
+**Parked with its seam identified:** quadrature selection when the mesh is
+irregular and the answer is "no particular affinity". `select_quadrature`
+already runs staged gates (stage 0 domain, stage 1 symmetry), so an
+affinity/exactness score is a natural **stage 2**, reached only when stage 1
+returns nothing. The user's two variants — (a) assume a uniform flux and
+pre-estimate exactness, (b) an ML initial-guess framework predicting flux on its
+(much smaller) manifold — differ only in what prior seeds the estimate, so one
+seam serves both. Monte Carlo is attractive as the estimator precisely because
+it needs no quadrature to evaluate the integrand — no circularity. A standing
+interest of the user's; revisit deliberately.
 
 ---
+
 ## 6. Standing constraints for the implementation session
 
 * `main` is always green; never commit to `main`; `--ff-only`; no squash-merge.
