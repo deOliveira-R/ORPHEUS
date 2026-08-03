@@ -12,13 +12,27 @@
 > LANDED** (2026-08-02). **#325 is no longer blocked**: it was stuck behind a
 > sort-key ruling that Q4 dissolved (see T19).
 >
+> **NEXT: Q5 — THE FOLD.** Design of record written 2026-08-02 and **awaiting
+> review; no code has moved.** Read §5's Q5 block, then T24 / T25 / T26. Two
+> questions need a user ruling before Q5.1 (does the fold reach the SOLVE — every
+> cylindrical snapshot moves; and is Q7's mirror-plane naming pulled forward).
+>
 > ⛔ **THIS ANCHOR PRESCRIBED A FALSE NEXT STEP UNTIL 2026-08-02.** It said
 > "**NEXT: #326** — swap `level_indices` to the fiber ordering Q4 built, and see
 > whether the three `xfail(strict=True)` rows XPASS". **Measured: that swap
 > makes the cylindrical solve produce NaN**, and the same anchor's own §7 said
-> "do not fix #326 directly". See **T22** for the measurement and **T23** for
-> what the acceptance test actually has to be. The real next step is the
-> **half-range FOLD** (T5/T6/T8), with a **must-precede** guard first (T23).
+> "do not fix #326 directly". See **T22** for the measurement, **T22b** for why
+> the mechanism is *implementation, not inherent*, and **T23** for why those
+> three rows cannot serve as the acceptance test at all.
+>
+> **The one-paragraph version of Q5.** ξ is the coefficient of `∂ψ/∂ω`, so
+> `Σ = {ξ = 0}` (Q1's own object) is where angular redistribution vanishes and
+> the closure `α = 0` is *physically* right — the endpoints of the arcs a level's
+> circle is cut into. On one arc `η` is strictly monotone in `ω`, so the march
+> order and the fiber order **coincide** and #326 has nothing left to decide.
+> `Σ = ∅` makes the fold a **free** action, and that condition **derives** the
+> azimuthal offset (`δ = π/n_φ`, i.e. Gauss–Chebyshev in `cos φ`) rather than
+> leaving it a preference. Every piece already exists and is unconsumed.
 >
 > ⚠ **SIX SN GATES ARE RED**, deliberately, all documented in `81689a58`; each
 > needs its own call, none is a physics failure:
@@ -789,14 +803,22 @@ under `D_2h` **REJECTed** — and that rejection *is* ERR-042, today a hand-writ
 guard. (`product(4,3)` genuinely fails `σ_x`: `φ→180°−φ` sends the 0° node to
 180°, which is not a node.) Even `n_φ` stays admitted.
 
-⚠ **It does NOT catch #326, and must not** — the rule *is* σ_y-invariant; #326 is
-a sweep/ordering defect. A predicate that "caught" it would route the fix to the
-wrong layer.
+⚠ **It does NOT catch #326, and must not** — the rule *is* σ_y-invariant, so
+Stage 1 passes and should. ⛔ **The reason given here was wrong**: this said "#326
+is a sweep/ordering defect". `[M]` T22b establishes it is a **double-cover**
+defect, and the fold is a *quadrature-layer* operation, so the fix does live at
+this layer — just not in this conjunct. The predicate that sees it is not
+"is the rule σ_y-invariant?" (yes, trivially) but **"has the owed mirror been
+REALIZED as a quotient, or only as a permutation index?"** — Q5.
 
 **New for Q5:** the azimuthal **offset is exactness-invisible but `Sym`-visible** —
 `φ_m = δ + 2πm/n` puts mirror planes at `δ + kπ/n`, so `D_2h ⊆ Sym` needs `n` even
-**and** `δ ≡ 0 mod π/n`. Stage 1 is the only conjunct in the machinery that can
-see the offset.
+**and** `δ ≡ 0 mod π/n`. Stage 1 is the only conjunct **in the selection gate**
+that can see the offset. ⛔ **But it is NOT the only thing that can** — and the
+sharpening matters, because this paragraph was used to conclude the offset is a
+free choice. `[M]` **Σ sees it decisively**: `δ = 0` ⟹ `|Σ| = 2` per level,
+`δ = π/n` ⟹ `|Σ| = 0`, which is exactly the free-vs-non-free fold. See **T25**:
+the offset is **derived**, not chosen.
 
 ### T16b — ⭐⭐ What EXECUTING T16 changed (and the general lesson)
 
@@ -1135,6 +1157,112 @@ satisfy by construction. Secondary, both substantive: `τ_raw` must leave `{0,1}
 IS satisfied by construction and would be a gate that cannot red — `vv-principles`
 Mode 8, the tautological-guard class.
 
+### T24 — ⭐⭐ `Σ = ∅` is the FOLD'S WELL-POSEDNESS CONDITION, and it is a property of the RULE
+
+User direction, 2026-08-02, declining a menu of implementation sites: *"this is a
+question of principles and design … grounded in mathematics, invariants and
+theorems … we should consider the possibility of leveraging the singular set
+(since the quadrature already knows it). When considering this possibility, we
+should consider other quadratures that could be used in the same problem … and if
+they can also define, in a mathematically clean way, their own singular set."*
+
+They can, and the answer selects the design. Σ is already a *computed* object
+(`symmetry.singular_set`, T14: an integer identity `π_M(i) == i`, unrepresentable
+without the invariance proof). Asking it of each candidate cylindrical rule under
+the owed mirror `σ_y` — `[M]`, all four levels of a GL(4) polar factor:
+
+| azimuthal rule | \|Σ\| per level | why |
+|---|---|---|
+| equispaced **left**, `n_φ` even | **2** | nodes land on `ω = 0` AND `π` |
+| equispaced **left**, `n_φ` odd | **1** | only `ω = 0` is a node |
+| equispaced **midpoint** | **0** | nodes straddle both |
+| `level_symmetric(4)` | **0** | no ordinate has `ξ = 0` |
+
+**`Σ = ∅` ⟺ the mirror acts FREELY ⟺ every orbit has length exactly `|G|`.** That
+is the condition under which the quotient has no fixed points to special-case: the
+orbit-stabilizer weight `W = w·|G|/|Stab|` collapses to a uniform `2w`, so mass is
+preserved **bit-exactly** rather than by a mixed `w`/`2w` sum. `[M]` folded:
+
+```
+                 ordinates    mass                      tau_raw           degen
+equi-LEFT(8)     32 -> 20     12.566370614359169 (3ulp) [0,.293,.5,.707,1]  2/5
+equi-MID(8)      32 -> 16     12.566370614359172 = 4pi  [.2195,.4142,       0/4
+                                                         .5858,.7805]
+```
+`0.4142 = √2−1`, `0.5858 = 2−√2` — strictly interior, symmetric about ½.
+
+**This unifies a decision §4 already made on other grounds.** Gauss–Lobatto was
+characterised and *declined* there because "`τ_raw=0` breaks the M-M recurrence AND
+the R12a predicate" — i.e. because Lobatto **puts nodes on the interval endpoints,
+which are Σ**. Equispaced-left is doing the very thing Lobatto was rejected for,
+on the circle. One criterion, stated once: **a rule is admissible for a fold iff it
+places no node on Σ.**
+
+⚠ **A hypothesis this REFUTED, recorded so it is not re-derived.** The natural
+guess — "the `τ_raw ∈ {0,1}` degeneracy IS Σ-occupancy" — is **FALSE**. `[M]`
+`equi-MID(8)` has `|Σ| = 0` and is *still* **8/8 degenerate** unfolded. The
+degeneracy comes from the **double cover** (mirror partners share `η` whether or
+not anything sits on Σ), so the FOLD is what cures it, in every rule; Σ decides
+only the folded arc's **endpoint** behaviour. Two independent structural facts,
+one float.
+
+### T25 — ⭐ The azimuthal OFFSET is exactness-invisible, `Sym`-visible, and Σ-DECISIVE — so it is DERIVED, not chosen
+
+`[M]` **Gauss–Chebyshev-1 in `x = cos φ` IS the midpoint rule on `(0, π)`**:
+`x_k = cos((2k−1)π/2n)` ⟺ `φ_k = (2k−1)π/2n`, agreeing to **5.55e-17** at `n = 4`
+and `n = 6`. So the azimuthal rule that natively lives on the half range is a
+*Gauss* rule — `CHEBYSHEV_T`, which **Q3's `GeneratingMeasure` already
+constructs**. The campaign built the object two steps before it was needed.
+
+This closes the offset question the plan had left open in three places, and it
+closes it by **derivation rather than by vote** (the campaign's own standing
+ruling: *when a fork looks like a preference, the abstraction is missing*). The
+three visibility levels, now complete:
+
+* **exactness — BLIND.** The periodic trapezoid is exact for trig degree `< n` at
+  any offset (T1). `§4` already recorded this.
+* **`Sym` — VISIBLE.** `φ_m = δ + 2πm/n` puts the mirror planes at `δ + kπ/n`, so
+  `D_2h ⊆ Sym` needs `n` even **and** `δ ≡ 0 mod π/n`. Recorded at T16.
+* **Σ — DECISIVE, and new.** `δ = 0` ⟹ `|Σ| = 2` per level; `δ = π/n` ⟹
+  `|Σ| = 0`. Nothing else in the machinery separates them, and it is the
+  separation that decides whether the fold is free.
+
+⟹ the offset is not a knob on the RANGE axis. **It is fixed by requiring the
+quotient to be free**, which is the only reading under which "half-range" is a
+quotient (T5) rather than a restriction.
+
+### T26 — ⛔ The R12a carrying predicate decides a STRUCTURAL question with a 5.55e-16 float
+
+`SNMesh.radial_characteristic_levels` — which decides whether a mesh carries
+independent ψ½ state, and therefore its **field block structure and coupled
+operator grid** — is `τ_raw[0] ∈ (0,1)` exclusive, documented as a "bit-exact
+trichotomy". `[M]` at full precision:
+
+```
+equi-LEFT(4)      0.0                    1 - t0 = 1.000e+00   -> not carrying
+equi-LEFT(5)      0.9999999999999994     1 - t0 = 5.551e-16   -> CARRYING
+equi-LEFT(7)      0.9999999999999989     1 - t0 = 1.110e-15   -> CARRYING
+equi-LEFT(8)      0.0                    1 - t0 = 1.000e+00   -> not carrying
+level_symmetric   1.0                    1 - t0 = 0.000e+00   -> not carrying
+```
+
+For **odd** `n_φ` the exact value **is** 1 — the level's two most-negative `η`
+coincide, so `eta_edge[1]` lands on them — and trig round-off alone puts it
+`5.6e-16` below, flipping the classification. The trichotomy is bit-exact only for
+even `n_φ`; the docstring's claim is true of the cases anyone ran.
+
+**And the predicate conflates two different structural facts**, which is why one
+float cannot carry it:
+
+* `τ_raw[0] = 0` ⟺ a node sits at the march-start endpoint — **Σ occupancy**;
+* `τ_raw[0] = 1` ⟺ the first two ordinates share `η` — **the double cover**;
+* `τ_raw[0] ∈ (0,1)` ⟺ neither.
+
+Both degenerate cases read "not carrying" today, for unrelated reasons. This is
+exactly the disease **T14** already diagnosed and cured for Σ — *not a
+floating-point question, an integer identity* — recurring one layer up, in the
+sweep. The certificate answers both conjuncts exactly.
+
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
 User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
@@ -1383,8 +1511,8 @@ The expression fuses **FOUR** choices, not three — generation method is the fo
 | axis | today | ≥2 realizations? | verdict |
 |---|---|---|---|
 | **RANGE** | `[0,2π)` hardcoded | **YES — 8 realizations.** MoC's `[0,π)` is the same physical angle under a symmetry quotient; `angular_range` is **already a polymorphic property** in the derivations tree | **EARNED.** And it is T5's quotient, not a free parameter |
-| **SPACING** | equispaced hardcoded | **YES** | **EARNED** |
-| **RULE — on the CIRCLE** | periodic trapezoid hardcoded | **NO — there is exactly one, and mathematically there should be** | **NOT earned.** The periodic trapezoid **IS the circle's Gauss rule**. The real variation there is *offset* and *generation*, and `[M]` the offset provably does not change exactness |
+| **SPACING** | equispaced hardcoded | **YES** | **EARNED** — but see T25: the one degree of freedom that remains (the *offset*) is **DERIVED by `Σ = ∅`**, not exposed as a knob |
+| **RULE — on the CIRCLE** | periodic trapezoid hardcoded | **NO — there is exactly one, and mathematically there should be** | **NOT earned.** The periodic trapezoid **IS the circle's Gauss rule**. The real variation there is *offset* and *generation*, and `[M]` the offset provably does not change exactness — ⚠ **which is NOT the same as "the offset does not matter"**: it is exactness-blind, `Sym`-visible, and **Σ-decisive** (T25). Reading exactness-invisibility as freedom is what left `δ = 0` in place |
 | **RULE — on an INTERVAL** | GL / tabulated, per call site | **YES** | **EARNED.** Gauss-Lobatto is fully characterised and *declined* — and the decline reason (`τ_raw=0` breaks the M-M recurrence AND the R12a predicate) is itself the proof the rule choice is not encapsulated today |
 | **EXACTNESS SPACE** | one bare integer | **YES — the most realizations of any axis**; nine distinct function spaces already share the one field | **EARNED MOST.** The only axis with a **measured falsehood shipping today** (T9b / #327) |
 | **GENERATION** | trig evaluation | **YES** (#325's group action) | **EARNED** |
@@ -1496,7 +1624,115 @@ implemented and **no `D_6h`-invariant rule in tree**.
 - ✅ **Q4 — Reconcile the two `LevelStructure` producers** (gap 7, T7, T21) —
   **LANDED** `3afb52c2`. It was upstream of #325 AND #326, as the plan said.
 - ⏸ **COMPACTION POINT**
-- **Q5 — The RANGE/SPACING/RULE factorization** (§4), decided against the survey.
+- **Q5 — ⭐ THE FOLD: RANGE realized, SPACING derived** (§4; T5, T22b, T23, T24,
+  T25, T26). *Design of record below — written 2026-08-02 for review BEFORE any
+  code moves. Nothing in it has been implemented.*
+
+  **The thesis in one line.** RANGE is not a parameter — it is T5's quotient by
+  the geometry's **owed** residual mirror; the fold's well-posedness condition is
+  `Σ = ∅` (T24); and that condition **derives** the azimuthal offset (T25)
+  instead of leaving it a preference. #326 then dissolves because a folded level
+  is a single arc on which the march order and the fiber order coincide (T22b).
+
+  **Why this is the campaign's shape and not a #326 patch.** Every piece already
+  exists and is unconsumed: `AngularSymmetry` names the owed residual (T16),
+  `orbit_certificate`/`singular_set` compute Σ exactly (T14), `pushforward` +
+  `consolidate` **are** the two halves of the quotient (Q2.6), `CHEBYSHEV_T` is
+  the half-range azimuthal rule (Q3). Q5 is the verb that composes them.
+
+  ---
+  **Q5.0 — Must-precede cleanup** (`coding-standards.md` "clean before
+  extending"). The fold breaks two unstated preconditions; fix them FIRST or the
+  fold ships a silent wrong answer.
+
+  1. **Certify the reflection partner map** (T23). `_find_reflections`
+     (`directional.py:125`) is a bare `argmin` with no distance threshold and no
+     closure check — on a non-closed set it returns silent many-to-one garbage
+     (`[M]` `max|ξ[partner]+ξ| = 9.404e-01`). Populate
+     `reflection_partners[axis]` **only** where the node set is genuinely closed,
+     so a missing axis raises `reflection_index`'s existing `ValueError` instead.
+     Pattern 4: the illegal state stops being representable.
+     *Gate:* a folded node set must make axis 1 **absent**; every shipped rule
+     today must keep all three (no behaviour change on the current tree).
+  2. **Name the mirror's PLANE.** `Z2` is realized as `_reflections("z")` — σ_z
+     only — so the cylinder's σ_y is **not nameable**, an axis convention hidden
+     inside an "abstract order-2 group". Same class as T15c.
+     ⚠ *This is Q7's residual-group territory.* **Decide: pull the mirror-plane
+     parameterisation forward into Q5.0, or inline a private σ_y here and let Q7
+     generalise.** Recommend pulling forward — an un-nameable group is what
+     forced the probes to bypass the public surface.
+
+  ---
+  **Q5.1 — `DiscreteMeasure.quotient(group)`.** Name the composite
+  `pushforward(orbit representative).consolidate()`. Precondition already
+  enforced by construction (Σ is unrepresentable on a non-invariant measure).
+  *Gates:* mass preserved exactly; weights equal orbit-stabilizer's
+  `W = w·|G|/|Stab|`; idempotent; and **`Σ = ∅` ⟹ every orbit has length `|G|`**
+  (the free-action certificate, T24).
+
+  **Q5.2 — The offset, derived.** Give the circle rule its offset and fix
+  `δ = π/n_φ` **by the `Σ = ∅` criterion**, not by preference (T25). Register
+  `CHEBYSHEV_T` as the half-range azimuthal rule and pin the identity
+  `GC1(cos φ) ≡ midpoint(0,π)`.
+  *Gates:* exactness unchanged (trig degree `< n` either way, T1); `Sym` still
+  `D_{n_φ h}` with mirrors at `δ + kπ/n`; `Σ` **computed** as ∅.
+  ⚠ **Measure the consumer set before calling this user-facing** (T16b). The
+  offset changes `Quadrature.product` for **every** consumer, not just the
+  cylinder — 2-D Cartesian included. Establish that blast radius before landing.
+
+  **Q5.3 — A level becomes an ARC.** On a folded measure `η` is strictly monotone
+  in `ω`, so `level_indices` and `fiber()` **are the same order** (T22b, `[M]`
+  `[4 3 2 1 0]` both ways). The two accessors MERGE — this is the retirement Q4
+  deliberately deferred.
+  *Gate:* `level_indices[p] == fiber(p)` for every level of every folded rule —
+  T22b's measurement promoted to a permanent test.
+
+  **Q5.4 — Re-pose the R12a predicate on the integer** (T26). Replace
+  `0 < τ_raw[0] < 1`, which decides a structural question on a `5.6e-16` gap AND
+  conflates Σ-occupancy with the double cover.
+  *Gate:* classification invariant under trig round-off; odd `n_φ` no longer
+  flips. ⚠ Requires first deciding **which** of the two facts R12a actually
+  wants — do not port the conflation forward.
+
+  **Q5.5 — Adjudicate the `[½,1]` clamp.** Its stated justification is `τ = 0`
+  dividing by zero. `[M]` folded + `Σ = ∅` gives `τ_raw ∈ [0.22, 0.78]`, the same
+  regime as the sphere's **unclamped** dome. Strong hint it is the double cover's
+  workaround — but it also currently *hides* mis-ordering (T22), so retiring it
+  removes a (bad) safety net. **Measure, do not assume.** Note the clamp is
+  asymmetric and would now bite genuinely-valid interior values, destroying the
+  folded set's symmetry about ½.
+
+  ---
+  **Q5.6 — Acceptance** (T23 — the three xfail rows CANNOT serve).
+
+  1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
+     curvilinear MMS with no convergence order. It must **fall and recover an
+     order**. Structurally independent, manufactured-solution, not satisfiable by
+     construction. This is the acceptance test.
+  2. **T3's α closed form** holds exactly on the arc
+     (`α_k = −w_gl·κ·[ξ(ω_{k−1/2}) − ξ(ω_{−1/2})]`, `κ = Δω/(2 sin(Δω/2))`).
+     ⚠ Do NOT gate a bare `α == −ξ`: `κ` is 2.6 % off 1 at `n_φ = 8`.
+  3. `τ_raw` leaves `{0,1}` (T22b's mechanism).
+  4. The three `xfail(strict=True)` rows are **re-posed or retired with reasons
+     recorded** — never silently XPASSed, and never re-posed as "ψ even in ξ on
+     the quotient" (tautological, `vv-principles` Mode 8).
+
+  **Retirement list** (a numbered deliverable, per `coding-standards.md`):
+  `[½,1]` clamp (if Q5.5 rules so) · `LevelStructure.fiber()` (merges at Q5.3) ·
+  the τ_raw trichotomy as the R12a predicate (Q5.4) ·
+  `derivations/discrete/sn/contamination.py:45-90` (the `eta_edge` twin, whose
+  docstring writes the double cover down as a feature) · `_XFAIL_326` + its three
+  rows · `_test_helpers.product_level_ordering` / `PRODUCT_LEVEL_ORDERINGS` (the
+  adjudication they existed for is closed by T22).
+
+  **⚠ OPEN — needs a user ruling before Q5.1:**
+  * **Does the fold reach the SOLVE, or only the march?** The quotient reading
+    says the solve: a cylinder gets 16 ordinates where it had 32, and **every
+    cylindrical snapshot moves**. The alternative (march the arc, mirror to fill)
+    keeps the double cover alive and dissolves nothing — recommend the quotient,
+    but the snapshot cost is the user's call.
+  * **Q5.0.2** — pull the mirror-plane parameterisation forward from Q7, or
+    inline σ_y here?
 - **Q6 — Enumeration & naming** (T12d). Extend the EXISTING `QuadratureSpec` /
   `quadrature_registry` — do not mint a mechanism. Adds the **family** grouping
   (= the construction axis, a closed sum type), a **`ParameterSpec`** replacing
@@ -1569,6 +1805,8 @@ implemented and **no `D_6h`-invariant rule in tree**.
   partner is not in the node set, and `reflection_index("y")` returns a silent
   many-to-one garbage map rather than raising. See **T23** for the measurement
   and for the non-vacuous replacement (the #229 azimuthal floor).
+  ⟹ #326 is now **subsumed by Q5** (the fold), not a separate item: it dissolves
+  when a level becomes a single arc. See §5's Q5 block for the design of record.
 - **The boundary campaign** (B3.3, B3.5, B4–B7) — resumes after Q7.
 
 ### ⚠ Two claims that must NOT be inherited
