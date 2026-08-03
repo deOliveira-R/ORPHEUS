@@ -63,6 +63,22 @@ These are convention/units facts that a line-number drift cannot invalidate —
 they pin WHY a quantity carries the units it does. Keep them; everything else
 in the old index was a frozen carve-map and is proposed for retirement.
 
+- [Spatial transform category — durable](spatial_transform_category_durable.md) —
+  the spatial layer's mirrors are **E(d) = O(d) ⋉ ℝ^d**, not O(3): `_orbit_closure`
+  on a CENTRED cell lattice already returns the sweep DAG's `arange(n)[::-1]`, but
+  production meshes start at `origin=0` so `Mirror.is_invariant` is False; the gap
+  is the TRANSLATION (no affine type exists). Two genuine group objects:
+  `octant_moment_frame_signs` = the character rep of (Z₂)^d; `reflection_index("x")`
+  = the r=0 quotient's deck transformation. Chart map never written (only its
+  integrated Jacobian). Sweep reversal spelled 11×; done right once (the adjoint).
+- [Angular layer — hidden geometric transformations](angular_layer_hidden_transformations.md)
+  — where the angular/quadrature/moment layer rotates/reflects WITHOUT naming a group
+  element: the SH basis's polar axis is `μ_x` ⟹ every `Y_ℓ^m` carries an unnamed 120°
+  `O_h` rotation about `(1,1,1)` that `SubgroupOfO3` cannot tag; "octants" is really the
+  `(Z₂)³=D_2h` orbit stratification (26 parts on Lebedev-17, not 8); `_orbit_closure` is
+  one of SIX partner-map engines; the curvilinear fiber circle is only ever an ordered
+  interval. Two measured defect leads (slab `ℓ≥2` SH docstring is false; the `arctan2`
+  round trip destroys the roots-of-unity exactness) + the six open #325 sites.
 - [Quadrature landscape — durable shape](quadrature_landscape_durable.md) — which
   of {range, spacing, rule-on-circle, rule-on-interval, exactness-space,
   node-generation} has ≥2 realizations; MoC's unnamed `[0,π)` quotient + Σω=1 vs
@@ -88,6 +104,12 @@ in the old index was a frozen carve-map and is proposed for retirement.
   recursion is a cumulative integral in ω ⟹ the level must be a HALF range (Hébert
   `0≤ω≤π`; BMC Eq. 52 `Σw̄=2sinθ`) but ORPHEUS spans `[0,2π)`; every existing α gate is
   telescoping-blind; the ξ-mirror invariant (not the MMS) is the adjudicator.
+- [Non-SN geometric-transform census](nonsn_geometric_transform_census.md) — zero
+  hand-built rotation/reflection matrices outside `numerics/symmetry.py`; trig is 5
+  lines; MoC owns the only 2 hand-rolled `_orbit_closure` clones (both guard-free);
+  MC has no reflection (periodic only); CP's images are an ADDITION; 4 spellings of
+  one `(I−TR)⁻¹` orbit sum. Two durable identities: MoC's azimuthal set IS the upper
+  half of `periodic_trapezoid(2n, STAGGERED)`, and its mirror partner is `k↦n−1−k`.
 - [Phase 5 µ-resolved primitive inventory](phase5_mu_resolved_primitive_inventory.md)
   — µ-resolved vs µ-integrated primitives in `peierls_geometry.py` for the
   continuous-µ specular multibounce closure.

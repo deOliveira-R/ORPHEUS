@@ -39,10 +39,12 @@ TABULATED / EXTERNAL:
 
 - **GROUP-ACTION: exactly ONE** — `numerics/roots_of_unity.py` (integer quarter-split +
   octant fold + sign flips; ZERO tolerances, both fixed points decided by integer
-  arithmetic). **Still zero production consumers, still not exported** from
-  `numerics/__init__.py`; the 3 intended repoints (`rules_product`, `moc/quadrature`,
-  `derivations/discrete/sn/balance.py`) are all un-done and BLOCKED on the argsort-tie
-  ruling (exactness manufactures the ties).
+  arithmetic). **Update 2026-08-03: it now has exactly ONE production consumer** —
+  `rules_circle.periodic_trapezoid`, reached from `rules_product.product_mu_phi` (the SN
+  azimuth repoint LANDED; the argsort-tie was resolved by naming `kind="stable"`). Still
+  **not exported** from `numerics/__init__.py`. The remaining #325 surface is enumerated
+  in the angular geometric-transform audit (see [[angular-layer-hidden-transformations]]);
+  three of the six open sites are `symmetry.py`'s OWN operators.
 - **IMPOSED-SYMMETRY: two** — `GeneratingMeasure.gauss` (`(x−x[::-1])/2`, gated by the
   COMPUTED `is_symmetric`) and numpy's `leggauss` inside `rules_1d`. Note these are two
   DIFFERENT code paths for the same rule, deliberately 1-4 ULP apart (snapshots pinned

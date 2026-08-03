@@ -275,6 +275,20 @@ landed**, and re-run `git diff --name-only` at close (a helper went clean → `+
 under me). Then tag each reference *(untracked, in-flight)* vs *(at HEAD)* in the
 deliverable — the distinction changes what the reader may build on.
 
+**Sharpening 2 (2026-08-03, non-SN geometry census).** The drift can invalidate a
+**VERDICT**, not just a line number. I wrote the gap "`roots_of_unity` has zero
+production consumers" — true at the opening HEAD, **false by the closing one**:
+the main session landed `rules_circle.periodic_trapezoid` mid-dispatch, and that
+new rule turned out to BE the thing MoC hand-rolls (its upper half, measured
+identical to 5e-16). The deliverable flipped from "extract a missing primitive"
+to "consume the rule that now exists" — a different recommendation. What caught
+it was **re-running the census greps verbatim at close and following one
+surprising hit**, not reading the diff. So: at close, re-run the *searches whose
+EMPTINESS is a finding* (a "zero consumers" / "zero hits" claim is the most
+drift-fragile kind of claim there is), and when `git log <open>..<close>` shows
+commits in the neighbourhood you audited, read the NEW code — it may be your
+answer.
+
 How to apply: for any brief phrased "ahead of a surgical carve / before we change
 X", open with `git status --short` + `git diff --stat` (and re-run both at the
 end). If the carve is underway: (1) keep the audit sections as taken — they are
@@ -571,3 +585,47 @@ the two findings that reshaped the answer both came from measurement, not readin
   L-016's free-baseline control and vv Mode 7.) The cheapest version: hunt a
   SHIPPED datum that already discriminates — `product(4,3)` is closed under σ_z
   and not σ_x, so no synthetic fixture was needed at all.
+
+---
+
+## L-019 -- Hunting a hidden TRANSFORMATION: read the chart-defining ASSIGNMENT and COUNT the partition's parts — the matrix and the docstring are the two places it isn't
+
+Auditing "where does the angular layer rotate/reflect without naming a group
+element?", the two highest-value findings were invisible to every grep I would
+naturally run (`rotat`, `mirror`, `np.eye(3)`, `wigner` — all ran, all missed
+them), and both were found by a different move:
+
+- **A coordinate CONVENTION applied by variable choice is a group element with
+  no matrix.** `cos_theta = mu_x` (one assignment, in a basis module) makes every
+  `Y_ℓ^m` in the project the textbook harmonic composed with the 120° rotation
+  about `(1,1,1)` — a real `O_h` element, in the checker's own `_octahedral_ops()`,
+  and *not expressible as a tag* (`Cn(3)` is about z and measurably excludes it).
+  Nothing can test it: there is no matrix for an invariance check, no adjoint,
+  and a rename breaks nothing. **How to apply:** for any "find the hidden
+  transformation" brief, grep the *chart-defining assignments* — `cos_theta =`,
+  `= arctan2(`, `polar axis`, `_ = nodes[:, k]` — and reconstruct the implied
+  frame matrix by hand, then ask `_group_elements(tag)` whether the machinery can
+  NAME it. Constructing the 3×3 and testing membership is ~10 lines and decides it.
+- **A partition predicate's LABEL SET is an orbit-type stratification — count the
+  parts before believing the name.** `Quadrature.octants` is documented as the
+  8-way sign decomposition; measured it returns **26** parts on `lebedev(17)`
+  (8 chambers + 18 walls) and 2 on a slab. The `0`-component labels are exactly
+  `Fix(σ_a)` — the singular set the same package computes EXACTLY elsewhere. One
+  `len(...)` per shipped rule turned "ad-hoc sign classification?" into a table.
+
+Two corollaries that generalize past this audit:
+
+- **The tolerance-family census is a cheap, high-yield side product.** Three
+  epsilons for one question (`1e-15`, `8.88e-16`, `1e-14`), all provably idle
+  (measured min genuine `|cos|` = `1.57e-1`), and the one comment defending the
+  first points at `_DEGENERATE_ABS_MU_THRESHOLD` — a symbol that exists **nowhere**.
+  That is L-011's delegation-shaped falsity in a `#:` comment rather than a
+  docstring: whenever a constant is justified by "keep in lockstep with X", grep X.
+- **Measuring a docstring's claim on the DEGENERATE input finds the bug the test
+  fixture can't.** "For slab GL1D only the `m=0` harmonics are non-zero" is false
+  at `ℓ≥2` (measured ~0.83 in the `m>0` slots; a 4.4× reconstruction difference),
+  because the slab's `(μ,0,0)` embedding makes `(cos φ, sin φ) = (0,0)` — not a
+  point of `S¹` — and the on-axis guard never fires. The only `P≥2` test in the
+  tree uses a 3-D Lebedev rule, where the chart is fine. **When a docstring says
+  "for the degenerate/1-D case, X vanishes", evaluate X on that case.** It costs
+  one probe and it is exactly where the fixtures aren't.
