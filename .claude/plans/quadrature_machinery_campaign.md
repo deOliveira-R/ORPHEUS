@@ -2078,6 +2078,45 @@ implemented and **no `D_6h`-invariant rule in tree**.
      correctly-typed inputs and a name, turning a hand-written `min()` over two
      bare integers into the theorem it always was.
 
+     **The derivation, worked out at E3 and worth keeping** — the mechanism is
+     sharper than "both bounds coincide", and it is the reason the theorem is
+     NOT `tensor_with`. On `S²` the product rule FACTORISES on a separated
+     integrand, so for `Ω^a Ω^b Ω^c` of total degree `d`, split off
+     `sin^k θ` (`k` = the combined transverse power):
+
+     * **`k` odd** ⟹ the polar factor `(1−μ²)^{k/2}·μ^{d−k}` is **not a
+       polynomial in μ** — but its azimuthal partner `cos^aφ sin^bφ` with
+       `a+b = k` odd contains only ODD harmonics, so every `m ≠ 0` and the
+       azimuthal rule reproduces the exact `0`. *The azimuthal factor
+       annihilates exactly the terms whose polar factor is non-polynomial.*
+     * **`k` even** ⟹ the polar factor IS a polynomial, of degree exactly `d`,
+       so the polar rule needs `2n_μ − 1 ≥ d`; the azimuthal trig degree is
+       `k ≤ d`, so the azimuthal rule needs `n_φ − 1 ≥ d`.
+
+     Hence `min`, and hence why the two systems (ALGEBRAIC × TRIGONOMETRIC) do
+     NOT compose by `ExactnessClaim.tensor_with` — that method correctly returns
+     `None` here, because the product's claim is about **spherical harmonics on
+     `S²`**, reached through the EMBEDDING `(μ, φ) ↦ Ω`, not about a mixed
+     tensor system on the square `[−1,1] × S¹`. E4 is the theorem the
+     `ProductMeasure` docstring says "belongs with the rule that applies it".
+
+     ⚠ **E4's honest form needs Q5.2 step 1 first, and that is a scheduling
+     call, not a technical one.** To hand the theorem its two typed inputs, the
+     azimuthal factor must BE `periodic_trapezoid(n_φ, shift=NODE_ALIGNED)` —
+     constructing that rule *only for its claim* while still building nodes from
+     `np.linspace` would be a twin path asserting a claim about a measure it
+     does not build. So E4 ⟹ substitute the azimuthal nodes ⟹ **the cylindrical
+     SN snapshots re-baseline.** `[M]` The node move is pure ULP:
+     `2.2e-16 … 6.1e-16` on `(cos, sin)` over `(n_μ,n_φ) ∈ {(4,8),(6,12),(2,4),
+     (4,5)}`. Precedent: Q3 already took exactly this trade for the GL polar
+     nodes (user ruling, 2026-08-02) and re-baselined the SN **slab** snapshots.
+
+     `[M]` What does NOT block it: `test_product_bit_identical_to_legacy_adapter`
+     compares `Quadrature.product(...)` against `product_mu_phi(...)`, and the
+     wrapper CALLS the rule — so both sides move together. (It is the same
+     compare-a-value-with-itself-through-a-wrapper shape `test_rules_1d`'s own
+     docstring already flags; worth re-posing when touched.)
+
   ---
   **Q5.2 — ⭐ UNWELD the product: a COMBINATOR over registered rules** (T28).
   Re-posed 2026-08-02 by user diagnosis — this is no longer "add an offset", it
@@ -2085,10 +2124,20 @@ implemented and **no `D_6h`-invariant rule in tree**.
 
   1. **Make the azimuthal factor a MEASURE.** Today it is `np.linspace` plus a
      scalar — an object that can carry no degree, no group, no generating
-     measure, and cannot be substituted. `measure.equispaced` (the **midpoint**
-     rule, registered, `[M]` zero production consumers) is the factor the fold
-     wants, and **its own docstring already gives T25's reason** — midpoints
-     "preserve symmetry under reflection through the centre of the interval".
+     measure, and cannot be substituted.
+
+     ⛔ **This step named the WRONG factor until E3.** It said "`measure.
+     equispaced` (the **midpoint** rule) is the factor the fold wants, and its
+     own docstring already gives T25's reason". Both halves are now false, and
+     the way they are false is the whole point of E3: `equispaced` is a rule on
+     an **interval**, carrying an ALGEBRAIC degree of **1**. Handing it to the
+     product would be the exact confusion the exactness carve exists to prevent
+     — same nodes, wrong space, wrong claim. The factor the fold wants is
+     `periodic_trapezoid(n_φ, shift=…)` (E3, `647ece5a`), on `S^1`, carrying
+     TRIGONOMETRIC degree `n_φ − 1`. Its `shift` is the parameter that used to
+     be spelled "midpoints vs left-endpoints", and T25's reason now lives there
+     as a **classification** (exactly two shifts are mirror-symmetric) rather
+     than as a passing remark in an interval rule's docstring.
   2. **Take the pair as arguments, not as literals.** `product_mu_phi` welds
      `gauss_legendre_on_mu × linspace`. The seam is what lets `Σ = ∅` *select*
      the azimuthal rule instead of a `half_range=True` flag existing.
