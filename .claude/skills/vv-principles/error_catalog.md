@@ -3675,22 +3675,22 @@ normalisation at every site that emits a per-ordinate value
 (``ScatteringOperator.apply`` AngularFlux variant,
 ``FissionOperator.apply`` AngularFlux variant,
 ``PerOrdinateSource.from_isotropic`` factory).  The legacy ``×W``
-bridge in ``InvertibleOperator.solve`` and the ``/W`` rescales in
+bridge in ``StreamingCollisionOperator.solve`` and the ``/W`` rescales in
 ``_solve_krylov`` / ``_solve_source_iteration`` /
 ``_make_sweep_preconditioner`` all dissolved.
 
 **Failure mode:** **#6 (convention drift)** — the operator-algebra
-layer (``InvertibleOperator``, ``ScatteringOperator``,
+layer (``StreamingCollisionOperator``, ``ScatteringOperator``,
 ``FissionOperator``) carried values in **per-ordinate units**
 (``ψ_n``, ``q_n = q_iso/Σw``); ``transport_sweep`` consumed an
 ``aniso_source`` argument in **iso magnitude** and applied an internal
 ``weight_norm = 1/W`` (``sweep.py:432`` pre-fix).  The carve in R-1
 Step E threaded per-ordinate ``rhs.values`` directly through
-``InvertibleOperator.solve`` to ``transport_sweep``: the per-ord
+``StreamingCollisionOperator.solve`` to ``transport_sweep``: the per-ord
 ``q_n`` got divided by ``W`` a second time, planting the converged
 fixed point at ``k_inf/W`` instead of ``k_inf``.
 
-**Module:** `orpheus.sn.operator.InvertibleOperator.solve` (the
+**Module:** `orpheus.sn.operator.StreamingCollisionOperator.solve` (the
 consumer-side bridge site); root cause is the convention asymmetry
 between `orpheus.sn.scattering.ScatteringOperator.apply` (typed
 producer; pre-A1 emitted iso magnitude on the AngularFlux variant)
@@ -3746,7 +3746,7 @@ power-iteration's group-source mixing is accounted for.
   ``ref=1.875``) was the diagnostic trigger.
 
 - **Pre-A1 the consumer-side ``×W`` bridge in
-  ``InvertibleOperator.solve`` had been added in R-1 Step C to
+  ``StreamingCollisionOperator.solve`` had been added in R-1 Step C to
   paper over the asymmetry**; Step E's principled carve removed
   the bridge and exposed the underlying convention drift.
 
@@ -3806,7 +3806,7 @@ Three test methods, ``@pytest.mark.l1 @pytest.mark.catches("ERR-049")
 The N5 unit pin
 ``tests/sn/test_invertible_operator.py::TestSolve::test_solve_consumes_per_ordinate_rhs``
 (``@pytest.mark.l0``) structurally pins the new contract:
-``InvertibleOperator.solve`` forwards ``rhs.values`` to
+``StreamingCollisionOperator.solve`` forwards ``rhs.values`` to
 ``transport_sweep`` bit-equal — no ``×W`` or ``/W`` rescaling on the
 hot path.
 
@@ -3854,7 +3854,7 @@ Carlson coupled-pole seed inline (calling
 ``Q_bar`` inline) while the matvec already routed through
 ``MorelMontryAngularSweep.psi_half_seed``.  Phase 1.2
 (commit ``c93355c``) unified both consumers through M-M's
-``psi_half_seed`` strategy: ``InvertibleOperator.solve(rhs, *,
+``psi_half_seed`` strategy: ``StreamingCollisionOperator.solve(rhs, *,
 initial_guess=None)`` is now a pure function — the Carlson seed
 travels through the explicit ``initial_guess`` kwarg, not through
 the lag-1 frame ``rhs(1)``.  ``KrylovAcceleration``'s
@@ -3871,7 +3871,7 @@ inputs did not carry.  The bug class is "the default invokes a
 primitive whose precondition (stateful caller) is not advertised
 in the type system".
 
-**Module:** `orpheus.sn.operator.InvertibleOperator.solve` (pre-fix
+**Module:** `orpheus.sn.operator.StreamingCollisionOperator.solve` (pre-fix
 read ``previous = rhs(1)`` to seed the M-M Carlson closure) +
 `orpheus.numerics.iteration.KrylovAcceleration` (pre-fix
 ``preconditioner=None`` silently defaulted to invoking ``L.solve``
@@ -3940,7 +3940,7 @@ on identity-precond (GMRES restarted repeatedly without progress).
 **Empirical post-fix evidence (Phase 1.2, 2026-05-22):**
 
 ```
-Phase 1.2 made InvertibleOperator.solve a pure function:
+Phase 1.2 made StreamingCollisionOperator.solve a pure function:
   signature pre-fix:   solve(rhs)  →  read rhs(1) for Carlson seed
   signature post-fix:  solve(rhs, *, initial_guess=None)  →  seed
                        reads initial_guess explicitly; rhs(1) no
@@ -4010,7 +4010,7 @@ closure as the seed), unify them through one strategy.  Reduce
 strategies; don't add alternatives.  The structural fix (Phase
 1.2) eliminated the bug class without needing a capability flag —
 a stronger result than the original A2 plan because
-``InvertibleOperator.solve`` is now a pure function with no
+``StreamingCollisionOperator.solve`` is now a pure function with no
 silent paths to deprecate.
 
 → ERR-049 (convention drift) is the sibling defect — both arose
@@ -4773,6 +4773,22 @@ degrades the rate, never the answer).
   {the definition site, the split layer, the DSA low-order build};
   a new consumer reds at design time, before numerics can be wrong.
   Tooth: a planted `mat_xs.foldable_sigma()` module is flagged.
+- `tests/sn/architecture/test_stage_separation.py::
+  test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder`
+  (`catches("ERR-070")`, added 2026-07-29 @ `9a546640`) — the **algebraic**
+  catcher, and the earliest of the three: it constructs the fold's splitting
+  `M = (L+C) − Σ_s0·𝕀` and gates the splitting law `A = M − N`, so the defect
+  reds at CONSTRUCTION, before any solve runs. Three legs, all measured:
+  the honest complement `N = −Σ_s0(𝕀 − P_iso) + B` satisfies the law
+  (2.93e-17); `N = 0` reds on an anisotropic state (5.43e-03 relative, 2.63
+  absolute); `N = 0` is machine-invisible on an angularly-flat state
+  (3.57e-18) — the Mode-9 degeneracy, shipped as a permanent control leg so
+  the anisotropic leg's claim to be *what caught it* stays falsifiable. The
+  fixture is vacuum-both-faces so `B ψ ≡ 0` (measured 0.0) and the legs
+  isolate the projection mechanism alone. A companion test asserts the
+  mechanism directly (`Σ_s0·P_iso ≡ Σ_s0·𝕀` on a flat flux, both 2.045) and
+  deliberately carries NO marker — it characterises the degeneracy without
+  detecting the defect, so a marker there would be a phantom coverage edge.
 
 **Lesson.** A splitting that is exact on a degenerate subspace needs
 its FP-invariance gate run on a config that EXITS the subspace
@@ -4788,7 +4804,7 @@ check, and every convergence-order study.
 caught and fixed 2026-07-26 (#2 Phase 3c — the P1-DSA d₁ Krylov
 posture excited the kernel deterministically; the end-of-solve
 ConvergenceCertificateError made the catch).
-**Module:** `sn` (`operators/streaming.py::InvertibleOperator.
+**Module:** `sn` (`operators/streaming.py::StreamingCollisionOperator.
 _solve_timed_full_field`).
 **Class:** Mode 9 in its purest structural form — the operator was
 EXACT on the degenerate subspace every physical path lives in (rhs
@@ -4900,3 +4916,221 @@ existed; a hand-rolled `from_mesh(trace.values.copy())` beside a
 Pattern-4 factory is the same smell as a hand-rolled loop beside an
 operator: the cast site is where role errors live, so spell role
 conversions through the typed factory, never through raw values.
+
+---
+
+## ERR-072 — `SubgroupOfO3.SO2.is_invariant` certifies a NON-`SO(2)`-invariant rule: the "representative orbit" of a CONTINUOUS group is four rotations `{0°, 90°, 180°, 270°}`, which generate only `C_4`, so every product quadrature with `n_phi ≡ 0 (mod 4)` passes
+
+**Date:** filed 2026-08-02 (pre-carve audit of
+`orpheus/numerics/symmetry.py`, ahead of widening `_orbit_closure` to
+return its orbit permutation).
+**Module:** `numerics` (`symmetry.py:769-779` the generator;
+`:665-670` the `SO2` dispatch; `:672-675` the `O2` dispatch, which
+inherits it).
+**Class:** Mode 12 (invariant-functional / designed-green) in its
+group-theoretic spelling — the *checked group* is a proper subgroup of
+the *claimed group*, so every measure in the gap is annihilated before
+any assertion sees it.
+
+**What it is.** `_orbit_closure` is a **generator-set** check: closure
+under every listed matrix implies closure under every product, i.e.
+under the group the listed set *generates*. That makes the strategy
+sound for `C_n`, `D_nh`, `O_h`, `I_h` — each listed set generates its
+group. `_so2_representatives()` returns `[rot_z(kπ/2) for k in
+range(4)]`; the first is the **identity** (a vacuous check) and the
+group generated is `C_4`, not `SO(2)`. Any `C_4`-invariant rule
+therefore certifies as `SO(2)`-invariant.
+
+**Measured.** `Quadrature.product(n_mu=4, n_phi=8)`:
+`SO2.is_invariant → True`, while closure under `rot_z(22.5°)` (half
+the azimuthal spacing) is `False` and closure under `rot_z(1°)` is
+`False` — the rule is exactly `C_8`-invariant. Same `True` for
+`n_phi ∈ {4, 8, 12, 16}`; `False` for `n_phi ∈ {2, 3, 5, 6, 7}`, so
+the answer is a function of `n_phi mod 4` rather than of the rule's
+actual symmetry. The self-inconsistency is visible without any
+external reference: the (sound) `C_n` sibling correctly REJECTS
+`Cn(16)` on the same measure while `SO2 ⊋ C_16` is accepted —
+violating `A ⊆ B` ∧ `B`-invariant ⟹ `A`-invariant.
+
+**How it hid.** Three layers. (1) The docstring pre-authorises the
+gap — "*necessary but not sufficient* for general measures, but
+**sufficient by construction** for the rules ORPHEUS ships" — which is
+FALSE for the product family, one of the four rules shipped. A caveat
+that names the risk reads as if the risk had been assessed. (2) The
+only `SO2` test in the suite feeds a **1-D** measure, which takes the
+`_check_invariance_1d` short-circuit and never reaches the 3-D path:
+an instrumented whole-suite run measured `_so2_representatives` called
+**0 times across 182 tests**. (3) `is_invariant` returns a bare
+`bool`, so a `True` from a `C_4` sample is indistinguishable from a
+`True` from the real group — the return type cannot carry the evidence
+that would expose it.
+
+**Which test catches it.** None today (the defect is filed, not yet
+fixed). The gate that catches it by construction is the
+**monotonicity law** — for every asserted lattice edge `A ⊆ B` and
+every measure `m`, `B.is_invariant(m) ⟹ A.is_invariant(m)` — which
+flagged 68 violations on 11 measures × 19 groups in one loop, of which
+48 trace to this entry. The companion is a return-shape change: once
+`_orbit_closure` returns its per-operator permutations,
+`len(perms) == 4` for a group of infinite order is visibly wrong.
+
+**Lesson.** A finite "representative orbit" certifies **only the group
+the sample generates** — compute that group and compare it to the
+claimed one, never sample-and-hope. For a CONTINUOUS group the honest
+discrete statement is usually a different predicate entirely: a finite
+node set on `S²` is `SO(2)`-invariant iff every node lies on the axis
+(an off-axis orbit is a circle), so the correct answer is `False` for
+every genuine `S²` rule and the `invariance_group=SO2` tags on the
+product/GL rules are a claim about the **continuum measure being
+discretised**, not about the discrete measure. Two different claims
+must not share a predicate name. → `numerical-bug-signatures`
+Signature 4 (a quadrature-dependent constant baked into a check) in
+its group-theoretic form.
+
+---
+
+## ERR-073 — `_orbit_closure` documents "find a permutation π such that M(nodes)_i = nodes_{π(i)}" but only ever finds SOME same-weight partner per node: the map is never checked for injectivity, so duplicating one node of an `O_h`-invariant rule yields a measure with `M#µ ≠ µ` that certifies invariant
+
+**Date:** filed 2026-08-02 (same pre-carve audit as ERR-072).
+**Module:** `numerics` (`orpheus/numerics/symmetry.py:904-954`;
+the same defect in `_is_reflection_invariant_1d:619-648`).
+**Class:** Mode 12 — the measured functional ("does every image have a
+same-weight partner?") has the many-to-one maps inside its invariance
+group, so the multiplicity error is annihilated exactly, at every
+tolerance, on every input.
+
+**What it is.** Invariance is `M#µ = µ` as **measures**. The loop
+computes, for each `i`, some `j` with `‖nodes[j] − M·nodes[i]‖ ≤
+100·atol` and `|w_j − w_i| ≤ atol`, and never asserts that `i ↦ j` is
+injective (hence, on an equal-size set, bijective). A many-to-one
+match satisfies every assertion in the body while certifying a measure
+whose pushforward carries different **multiplicities**.
+
+**Measured.** Take `level_symmetric(sn_order=4)` (24 nodes, genuinely
+`O_h`-invariant) and append an **exact duplicate** of node 0 (25
+nodes, total mass 12.566 → 13.090). `is_invariant(O_h)` returns
+`True`. The match map is non-injective for **48 of 48** operators (24
+distinct targets from 25 sources). The measure is demonstrably not
+invariant: for the first non-identity `M`, `mass at p0 in µ = 1.0472`
+vs `mass at p0 in M#µ = 0.5236` — a factor of two. **No tolerance
+games are involved**: the duplicate is bit-identical, so no loosening
+of `atol` could rescue the check.
+
+**How it hid.** The docstring asserts the strong claim ("find a
+permutation π") while the body implements the weak one, and the
+`-> bool` return makes the two indistinguishable to every caller and
+every test. No test in the suite builds a duplicated-node measure —
+the negative cases are a 2-point asymmetric set and a Lebedev-vs-`I_h`
+rejection, both of which fail on **partner absence**, never on
+**multiplicity**. The bug is also invisible to the four shipped rules,
+which are honest permutations: adding the injectivity check leaves
+`lebedev(7/17/23)`, `LS(2/4/6/8)` and `product(4,8)` all `True`, so
+the fix costs nothing and buys nothing *until* a caller consumes the
+permutation — which is exactly what the pending carve does.
+
+**Which test catches it.** None today. The catcher is the duplicate
+construction above (`invariant rule + one duplicated node ⟹ must be
+rejected`), plus `sorted(perm) == list(range(n))` asserted on the
+carve's returned permutation.
+
+**Lesson.** "Every image has a matching partner" is **not** "the map
+is a bijection" — the second is what invariance means, the first is
+what a nearest-neighbour loop computes, and on a `-> bool` return they
+are the same green. Whenever a docstring names a **structure**
+(permutation, bijection, isomorphism, partition) that the body only
+*implies*, either assert the structure or weaken the docstring; and
+prefer **returning the structure** over returning a bit about it,
+because a returned permutation makes its own bijectivity assertable
+while a `bool` makes it unfalsifiable. (Corollary for orbifold /
+stabiliser work: the fixed-point set that makes a node *singular* is
+`{i : perm[i] == i}` — derivable from the returned permutation and
+underivable from the `bool`, so the structure was load-bearing all
+along.)
+
+---
+
+## ERR-074 — `_find_reflections` computed a reflection partner map by bare `argmin` and never checked that the reflection PERMUTES the nodes: on an odd-`n_φ` product rule the stored `σ_x` map was wrong by 0.58 in the direction cosines **and was still an involution**, so the one committed check passed on it, and that map feeds the cylindrical `r = 0` pole continuation
+
+**Date:** filed 2026-08-02 (quadrature-machinery campaign, Q5.0.1 —
+found while establishing the fold's preconditions, not by a failing test).
+
+**Where:** `orpheus/numerics/quadrature/directional.py::_find_reflections`
+(retired at `a7695148`), consumed via `Quadrature.reflection_index` by
+`orpheus/sn/loss_representation/__init__.py` (the `r = 0` pole seed) and
+by the specular / reflective BC realizers.
+
+**The bug.** The partner map was
+
+```python
+ref[i] = np.argmin( ||R x_i - x_k||²  over k )
+```
+
+with **no distance threshold, no injectivity check, and no weight
+comparison**. It therefore *asserted* a structure — "these are the
+reflection partners" — that it never verified. On a node set the
+reflection does not preserve, `argmin` still returns an index: the
+nearest node to a point which is **not in the set at all**.
+
+**Why it was reachable.** A product rule's mirror planes sit at
+`kπ/n_φ`. `σ_x` is `φ → π − φ`, i.e. a plane at `π/2`, which needs
+`k = n_φ/2` — an **integer only for even `n_φ`**. So every odd-`n_φ`
+product rule is *not* `σ_x`-closed. `[M]` at `n_φ = 5 / 7 / 9` the
+stored axis-0 map was wrong by **0.58 / 0.42 / 0.33** in the direction
+cosines. (`σ_y` is the `k = 0` plane and survives at every `n_φ`,
+which is why the azimuthal fold is unconditional while the centreline
+map is not.)
+
+**Why nothing caught it — the load-bearing part.** The only committed
+check was `test_q4_2_reflection_is_an_involution`, asserting
+`ref[ref[i]] == i`. `[M]` **the garbage map satisfies it.** A
+nearest-neighbour match on a nearly-mirror-symmetric set produces a
+self-consistent pairing, so the map is a genuine involution that is
+simply not *the reflection*. The test also ran only on even-`n_φ`
+products, where the map is correct anyway — so it was doubly blind.
+
+This is the **same failure mode as ERR-042**, one layer down.
+`orpheus/geometry/boundary/_specular.py` had already ratified the
+lesson for specular BC pairings: it requires **three** independent
+checks (involution, measure preservation, inflow→outflow) *because each
+passes a table the other two reject*, and its own prose says "the
+involution does not [catch it] (it can still be its own inverse)". The
+quadrature layer carried **none** of the three.
+
+**Which test catches it.** `tests/numerics/test_quadrature_directional.py`:
+`test_q4_5_every_stored_partner_map_really_is_its_reflection` (all three
+checks on every stored map), `test_q4_7_odd_n_phi_product_has_NO_x_reflection`
+(the axis is absent and the call raises), and
+`test_q4_8_certification_drops_an_axis_when_closure_actually_breaks` (a
+perturbed node must drop its axis). Teeth proven by monkeypatching back to
+the legacy body: **6 red**, with a positive control confirming the mutation
+bit first.
+
+⚠ **A gate-design trap this exposed, worth more than the bug.** With only
+**even-`n_φ`** rules in its parametrization, the new three-check gate stayed
+**GREEN** under the legacy body — every map it inspected happened to be
+correct. A gate over "all the rules we ship" is *not* a gate over "the cases
+that can break"; the discriminating parameter has to be in the list on
+purpose. The odd rows are what give it teeth.
+
+**The fix, and why it cost nothing.** `symmetry._orbit_closure` already
+computes the permutation while proving closure, and already requires a
+**bijection** with matched positions *and* equal weights (that requirement
+is ERR-073's fix). So routing the partner map through it supplies all three
+checks for free, and the permutation it returns **is** the partner map. An
+axis the measure is not closed under is now omitted, so `reflection_index`
+raises rather than returning a wrong answer.
+
+**Lesson.** A map named for a *group action* ("reflection partners",
+"rotation index", "octant image") is a claim that some `g ∈ G` **permutes**
+the set. Nearest-neighbour matching computes a map; it does not compute that
+claim, and the two are indistinguishable on the sets where the claim happens
+to hold. Verify the action, or do not name the map after it. And note the
+asymmetry that made this survive: an **involution check is cheap and
+reassuring and nearly worthless here** — the wrong map was self-inverse. The
+check that bites is the one against the *definition* (`R x_i == x_{ref[i]}`),
+which is exactly the check nobody writes because it looks tautological.
+
+Cross-refs: **ERR-042** (the same failure for specular BC pairings, one layer
+up, already carrying the three-check discipline), **ERR-073** (the bijection
+requirement in `_orbit_closure` that this fix consumes), **ERR-072** (the
+sibling "a certification claimed and never computed" in the same module).
