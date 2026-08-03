@@ -60,8 +60,18 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   `cached_property`), class-name *bypass* consumers, and direct constructors of a guarded
   type; (2) **text-grep the symbol across code, tests, AND `docs/`** — an unresolved
   **Python-domain** cross-reference (`:func:`/`:class:`/`:meth:`/`:mod:`) renders as plain
-  text with **no `-W` warning** unless the build runs `-n` (nitpicky), so the Sphinx gate
-  does NOT catch a code retirement's doc blast radius. (Measured 2026-07-15, Sphinx 9.1.0:
+  text with **no `-W` warning**, so the Sphinx gate does NOT catch a code retirement's doc
+  blast radius — **and `-n` (nitpicky) does NOT save you either.** (This clause read
+  "unless the build runs `-n`" until 2026-08-03; that was false, and it told every
+  retirement audit it was covered when it was not.) Sphinx can only nitpick what it
+  RENDERS, so a docstring in an un-`automodule`'d module is invisible at EVERY severity,
+  as is every file under `tests/`. That is the majority case here, not an edge case:
+  the doc source carries only ~45 live `automodule` directives, and the whole of
+  `numerics/measure.py`, `numerics/operator.py` and `numerics/quadrature/` is among the
+  many with zero — which is exactly why a module retirement left 22 dead `:class:`/`:mod:`
+  refs that no build of any severity could see. Before concluding "`-n` would have caught
+  this", check whether the module is rendered at all; if it is not, **grep is the only
+  gate**, and an unchanged warning count proves nothing about it. (Measured 2026-07-15, Sphinx 9.1.0:
   `:doc:` and `:ref:` **do** warn — `ref.doc` / `ref.ref` — so *page* moves and *label*
   retirements ARE gated by `-W`; the silent class is the Python-domain roles, plus **raw path
   strings** in prose/docstrings, which no build ever checks. A path assembled from segments —
