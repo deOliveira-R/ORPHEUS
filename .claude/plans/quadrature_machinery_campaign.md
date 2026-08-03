@@ -1905,6 +1905,63 @@ implemented and **no `D_6h`-invariant rule in tree**.
   `W = w·|G|/|Stab|`; idempotent; and **`Σ = ∅` ⟹ every orbit has length `|G|`**
   (the free-action certificate, T24).
 
+  ---
+  **Q5.E — ⭐ THE EXACTNESS SPACE, pulled forward** (T2, T12b, T28). User
+  ruling 2026-08-02: *"pull the exactness space forward, it's the root. Let's
+  implement the principled product machinery."* It is a **prerequisite of
+  Q5.2**, not a later phase — without it the combinator's derived degree is
+  wrong by construction (`[M]` a naive `min()` gives **1**).
+
+  The unification: `V` is the span of the first `m` functions of the reference
+  measure's own **orthogonal system**, and which system that is follows from
+  the measure — weight-on-an-interval → orthogonal polynomials (algebraic);
+  uniform-on-the-circle → the Fourier basis (trigonometric); uniform-on-`S²` →
+  spherical harmonics. T12b's "the generating measure IS the exactness space"
+  holds in general once the system is **read off** the measure instead of
+  assumed to be polynomials.
+
+  1. ✅ **E1 — mint the claim** — **LANDED `9e74faa1`.**
+     `numerics/exactness.py`: `OrthogonalSystem` (a VALUE, per T12c),
+     `ReferenceMeasure` (a Protocol), `ExactnessClaim(reference, degree)` with
+     `combined_with` as a **partial meet**. `GeneratingMeasure` satisfies the
+     protocol structurally and reports `ALGEBRAIC` as a *theorem of the
+     construction* (a three-term recurrence generates polynomials by
+     definition). 21 law tests; `tests/numerics` 1585 passed; pyright 0.
+
+     ⭐ **The fork, resolved and recorded so it is not re-opened.**
+     `GeneratingMeasure` is a Golub–Welsch *generator* — more than a claim
+     needs, and less than every rule has (the circle's Fourier system has no
+     such recurrence; Lebedev's reference generates nothing). So the claim is
+     typed against the **protocol**, and the generator is the sub-case that
+     *also* constructs. Widening `GeneratingMeasure` would weld "what the claim
+     is about" to "how the rule was built" — the very welding T28 indicts.
+
+  2. ⬜ **E2 — wire it into `DiscreteMeasure`.** Replace the two loose fields
+     with one `exactness: ExactnessClaim | None`; `degree_of_exactness` and
+     `generating_measure` become **derived read-only views** over it (no
+     separate storage — the `Quadrature.mu_x` precedent), so the ~35 read sites
+     keep working while the field that let a degree float free is gone.
+     `_combined_degree` retires into `ExactnessClaim.combined_with`.
+     *Blast radius, measured:* 7 production files (all under `numerics/`),
+     11 test files, 35 read sites.
+
+  3. ⬜ **E3 — the circle reference + the periodic trapezoid as a REGISTERED
+     rule.** `UNIFORM_ON_CIRCLE` (trigonometric system, mass `2π`) and a circle
+     rule carrying `ExactnessClaim(UNIFORM_ON_CIRCLE, n − 1)` with the offset
+     as its parameter. This is where `Σ = ∅` becomes *selectable* (T25).
+     ⚠ Per §4, a rule on the circle and a rule on an interval are **different
+     objects even when the nodes coincide** — do not reuse `equispaced`'s
+     interval claim for the circle; that identity is the E1 header's second
+     measured bug.
+
+  4. ⬜ **E4 — the sphere product theorem.** T2 already proved the shipped
+     `min(2n_μ − 1, n_φ − 1)` is **tight**, and *why*: a degree-`d` spherical
+     monomial's azimuthal factor is a trig polynomial of degree `≤ d`, so the
+     two bounds coincide. So E4 does not change the formula — it gives it
+     correctly-typed inputs and a name, turning a hand-written `min()` over two
+     bare integers into the theorem it always was.
+
+  ---
   **Q5.2 — ⭐ UNWELD the product: a COMBINATOR over registered rules** (T28).
   Re-posed 2026-08-02 by user diagnosis — this is no longer "add an offset", it
   is the root the fold's other symptoms hang off.
