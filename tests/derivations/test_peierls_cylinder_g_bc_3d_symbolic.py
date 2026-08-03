@@ -25,7 +25,7 @@ The canonical derivation source is
 ``orpheus/derivations/peierls_cylinder_g_bc_3d.py:1`` (full SymPy
 docstring with the :math:`z` → :math:`\mathrm{Ki}_2` reduction) and
 the shipped production primitive lives at
-``orpheus/derivations/peierls_geometry.py:1725``
+``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
 (:func:`compute_G_bc_cylinder_3d`).
 """
 from __future__ import annotations

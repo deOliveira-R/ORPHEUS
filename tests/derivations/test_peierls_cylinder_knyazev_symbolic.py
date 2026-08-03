@@ -21,8 +21,8 @@ The verified equation is :eq:`peierls-cyl-3d-mode-formula` (cylinder
 mode-N :math:`P_{\rm esc}^{(n,3d)}` formula, Knyazev expansion).
 
 The canonical derivation sources are
-``orpheus/derivations/peierls_cylinder_knyazev.py:1`` (SymPy module
-docstring) and ``orpheus/derivations/peierls_geometry.py:1927`` (the
+``orpheus/derivations/continuous/peierls_nystrom/origins/cylinder_knyazev.py`` (SymPy module
+docstring) and ``orpheus/derivations/continuous/peierls_nystrom/geometry.py`` (the
 shipped :func:`compute_P_esc_cylinder_3d_mode`).
 """
 from __future__ import annotations

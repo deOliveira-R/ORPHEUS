@@ -28,8 +28,8 @@ The canonical derivation source is
 ``orpheus/derivations/peierls_specular/slab.py:1`` (SymPy module
 docstring with the basis-choice resolution). The shipped slab
 production primitives are at
-``orpheus/derivations/peierls_geometry.py:2906`` (P_esc_outer) and
-``orpheus/derivations/peierls_geometry.py:3218`` (G_bc_outer).
+``orpheus/derivations/continuous/peierls_nystrom/geometry.py`` (P_esc_outer) and
+``orpheus/derivations/continuous/peierls_nystrom/geometry.py`` (G_bc_outer).
 """
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def test_slab_p_primitive_n0_matches_E2():
     r"""For :math:`n = 0`, the slab outer P primitive
     :func:`derive_slab_p_outer_n0` equals :math:`(1/2)\,E_2(\tau)`
     symbolically; production :func:`compute_P_esc_outer` (slab
-    branch, ``orpheus/derivations/peierls_geometry.py:2933``) uses
+    branch, ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``) uses
     the same closed form. Numerical agreement at machine precision is
     required.
     """
@@ -101,7 +101,7 @@ def test_slab_g_primitive_n0_matches_2E2():
     r"""For :math:`n = 0`, the slab outer G primitive
     :func:`derive_slab_g_outer_n0` equals :math:`2\,E_2(\tau)`
     symbolically; production :func:`compute_G_bc_outer` (slab branch,
-    ``orpheus/derivations/peierls_geometry.py:3242``) uses the same
+    ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``) uses the same
     closed form. Numerical agreement at machine precision is required.
     """
     g_n0 = derive_slab_g_outer_n0()
@@ -137,7 +137,7 @@ def test_slab_p_primitive_n0_inner_matches_E2():
     r"""Inner-face counterpart of :func:`test_slab_p_primitive_n0_matches_E2`.
 
     Production :func:`compute_P_esc_inner` (slab branch,
-    ``orpheus/derivations/peierls_geometry.py:3020``) uses
+    ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``) uses
     :math:`(1/2)\,E_2(\Sigma_t\,x_i)` for the perpendicular optical
     depth from :math:`x_i` to the inner face at :math:`x = 0`.
     """
