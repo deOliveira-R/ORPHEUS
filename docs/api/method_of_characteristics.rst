@@ -66,12 +66,24 @@ permutation on the angular flux array, with no interpolation —
 which is the trick that keeps the characteristic sweep linear in
 the number of segments.
 
-Azimuthal angles are adjusted slightly from an even distribution
-to satisfy the cyclic condition on a square domain. The number
-of effective azimuthal directions per quadrant is recorded in
-:attr:`~orpheus.moc.quadrature.MOCQuadrature.n_azi_2` and the
-tracks are stored in :class:`~orpheus.moc.geometry.MOCMesh`
-grouped by azimuthal index.
+The shipped implementation reaches that permutation from the *ray
+spacing* side rather than the angle side.
+:meth:`MOCQuadrature.create
+<orpheus.moc.quadrature.MOCQuadrature.create>` lays down
+:attr:`~orpheus.moc.quadrature.MOCQuadrature.n_azi` **unadjusted**
+midpoint-even azimuthal angles on :math:`[0, \pi)`,
+:math:`\varphi_a = \pi(a + \tfrac12)/n_{\rm azi}` — a set closed
+under :math:`\varphi \mapsto \pi - \varphi`, which is what makes the
+reflected direction always exist in the quadrature. Per angle,
+:class:`~orpheus.moc.geometry.MOCMesh` then rounds the requested
+perpendicular ray spacing to an integer number of rays spanning the
+cell, so the *effective* spacing (queryable via
+:meth:`~orpheus.moc.geometry.MOCMesh.effective_spacing`) differs
+slightly per angle. Tracks live in the ``tracks`` list on
+:class:`~orpheus.moc.geometry.MOCMesh`, grouped by azimuthal index in
+``tracks_per_azi``; the reflective links (``fwd_link`` / ``bwd_link``
+on each :class:`~orpheus.moc.geometry.Track`) are resolved by
+nearest-endpoint match against the reflected angle's track family.
 
 
 Integration with the Eigenvalue Loop
@@ -91,10 +103,13 @@ the exponential attenuation
 Geometry construction currently reuses
 :class:`~orpheus.geometry.mesh.Mesh1D` for the underlying radial
 discretisation of concentric pin-cell regions: the MOC mesh is
-built by tracking rays through a
-:func:`~orpheus.geometry.factories.pwr_pin_equivalent` Wigner–Seitz
-cell. 2-D Cartesian assemblies are not yet supported; see the
-open MOC issues for the roadmap.
+built by tracking rays through the Wigner–Seitz cell that
+:meth:`StructuredGeometry.wigner_seitz_pin_cell
+<orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
+declares and :meth:`Mesh1D.from_geometry
+<orpheus.geometry.mesh.Mesh1D.from_geometry>` discretises. 2-D
+Cartesian assemblies are not yet supported; see the open MOC issues
+for the roadmap.
 
 
 API Reference

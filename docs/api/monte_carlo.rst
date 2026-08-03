@@ -98,9 +98,14 @@ ship with the module:
   inside a square lattice, material looked up by radial distance
   from the cell centre.
 * :class:`~orpheus.mc.solver.SlabPinCell` — Cartesian slab layout
-  (the ``default_pwr`` constructor matches the
-  :func:`~orpheus.geometry.factories.pwr_slab_half_cell` geometry
-  used by the deterministic solvers).
+  (the ``default_pwr`` constructor lays down the mirrored FULL cell
+  ``cool | clad | fuel | clad | cool`` of the
+  :meth:`StructuredGeometry.pwr_slab_half_cell
+  <orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell>`
+  geometry used by the deterministic solvers — its default boundaries
+  ``[0.7, 0.9, 2.7, 2.9]`` at ``pitch = 3.6`` are the half-cell's
+  ``fuel_half = 0.9`` / ``clad_thick = 0.2`` / ``cool_thick = 0.7``
+  reflected about the fuel centreline).
 
 Both implement the runtime-checkable
 :class:`~orpheus.mc.solver.MCGeometry` protocol, so user code can

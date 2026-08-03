@@ -4477,8 +4477,9 @@ future session does not mistake intent for fact.
   *unify-after-two*).
 
 * **The full-spectrum / shift-invert seam is reserved, not built.**
-  :attr:`KEigenvalue.eigenvalue_method <orpheus.numerics.iteration.KEigenvalue.eigenvalue_method>`
-  selects the Layer-4 algorithm. Only ``"power"`` is implemented; any
+  The ``eigenvalue_method`` constructor selector on
+  :class:`~orpheus.numerics.iteration.KEigenvalue`
+  picks the Layer-4 algorithm. Only ``"power"`` is implemented; any
   other value raises :class:`NotImplementedError` at construction time.
   Full-spectrum Arnoldi / Krylov–Schur and shift-invert / FEAST (for
   interior eigenvalues — higher spatial harmonics) slot in at this

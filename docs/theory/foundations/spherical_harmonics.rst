@@ -130,9 +130,14 @@ constants.
 
 .. warning::
 
-   The SciPy function :func:`scipy.special.sph_harm` returns the
-   **complex** spherical harmonics in the standard ANSI
-   normalisation. ORPHEUS does NOT consume that function. The
+   The SciPy function :func:`scipy.special.sph_harm_y` (the successor
+   to ``scipy.special.sph_harm``, which SciPy deprecated in 1.15 and
+   removed in 1.17 — note the swapped ``(n, m)`` argument order)
+   returns the **complex** spherical harmonics in the standard ANSI
+   normalisation,
+   :math:`Y_n^m = \sqrt{\tfrac{2n+1}{4\pi}\tfrac{(n-m)!}{(n+m)!}}\,
+   P_n^m(\cos\theta)\,e^{im\phi}`. ORPHEUS does NOT consume that
+   function. The
    :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
    method builds real :math:`Y_\ell^m` from
    :func:`scipy.special.lpmv` (associated Legendre values

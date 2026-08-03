@@ -267,10 +267,31 @@ top of it:
    Rationale: this is the literature-transcribed definition of the M-M
    angular closure weight (Bailey-Morel-Chang 2010 Eq. 43) plus the
    production clamp policy; it is a representational identity, not a
-   solver claim. The verifiable content is the bit-identity hash gate
-   ``tests/geometry/test_reduced_operator.py`` (the τ arrays match the
-   legacy SNMesh setup) and the W1 clamp-silence + positivity gates
+   solver claim. The verifiable content is the producer-equivalence
+   gate ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
+   (τ is closure-owned, NOT a reduced-operator field — see the
+   τ-ownership note below) and the W1 clamp-silence + positivity gates
    named at :ref:`sn-curvilinear-aniso-norm-reconciliation`.
+
+.. _tau-ownership-note:
+
+.. note:: **Where τ lives.**
+
+   :math:`\tau_m` is **not** a
+   :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+   field.  The geometry-layer primitive carries the curvature
+   coefficients (``face_areas``, ``delta_A``, ``alpha_half``,
+   ``redist_dAw``, ``mu_start`` and their ``*_per_level`` cylindrical
+   siblings) and nothing else; the M-M closure weight is produced by
+   :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`
+   (raw) and
+   :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`
+   (the clamp policy applied), which :class:`SNMesh` calls against the
+   quadrature and ``self.reduced.coord``.  The split is deliberate: τ
+   is a property of the *angular closure scheme*, selectable per mesh,
+   while the curvature coefficients are a property of the *geometry*.
+   Statements elsewhere in the corpus describing ``tau_mm`` /
+   ``tau_mm_per_level`` as factory outputs predate that move.
 
 The raw weight :math:`\tau_m^{\rm raw}` is the **unique** weight exact
 for a flux linear in :math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with
@@ -309,8 +330,8 @@ per coordinate system:
 * :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
   no curvature math.  ``requires_upstream_angular_state = False``,
-  ``angular_marching_axis = None``.  All ``alpha_*``, ``redist_dAw``,
-  ``tau_mm`` arrays remain ``None``.
+  ``angular_marching_axis = None``.  All ``alpha_*`` and
+  ``redist_dAw*`` arrays remain ``None``.
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
   with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
@@ -319,7 +340,8 @@ per coordinate system:
 * :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
   cylindrical with **per-:math:`\mu`-level** :math:`\alpha`,
-  :math:`\Delta A/w`, and :math:`\tau_{mm}` lists.  Requires the
+  :math:`\Delta A/w` and :math:`\mu_{\rm start}` lists (τ is
+  closure-owned — see the :ref:`τ-ownership note <tau-ownership-note>`).  Requires the
   angular measure to expose ``level_indices`` (e.g., a
   :class:`~orpheus.numerics.quadrature.Quadrature` built from
   :meth:`Quadrature.level_symmetric
@@ -387,21 +409,87 @@ cylindrical resolves the global index through
 ``direction_idx`` is the within-level azimuthal index
 :math:`m \in [0, M)`.  ``abs_mu`` follows the same convention.
 
-Bit-identical contract
-----------------------
+Bit-identical contract — and what it pins TODAY
+-----------------------------------------------
 
-The factories produce arrays bit-identical to the historical inline
-implementations on
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh._setup_spherical` and
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh._setup_cylindrical`.  Hash
-equality is enforced at test time
-(``tests/geometry/test_reduced_operator.py``,
-``foundation``-tagged) using :func:`numpy.array_equal` (not
-``np.allclose``) — the two paths must share every floating-point bit.
-This is what makes the lift safe: today's consumers (the SN sweep
-and the BiCGSTAB curvilinear operator) are unaffected because the
-two paths compute the same data; tomorrow's consumers can bind to
-the geometry-layer primitive instead of duplicating the math.
+When the lift landed, the factories were required to produce arrays
+bit-identical to the historical inline implementations
+``SNMesh._setup_spherical`` and ``SNMesh._setup_cylindrical``.  Hash
+equality — :func:`numpy.array_equal`, never ``np.allclose`` — was
+enforced at test time by ``tests/geometry/test_reduced_operator.py``
+(``foundation``-tagged), so the two paths had to share every
+floating-point bit.  That is what made the lift safe at the time: the
+then-consumers (the SN sweep and the curvilinear Krylov operator) were
+unaffected because the two paths computed the same data.
+
+.. warning:: **That gate has since been DEMOTED — read its green
+   accordingly.**
+
+   The two legacy setup methods no longer exist (see
+   :ref:`snmesh-as-router` below).  ``SNMesh.__init__`` now calls
+   :func:`~orpheus.geometry.reduced_operator.spherical_streaming` /
+   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
+   itself, so the surviving hash-equality legs compare a fresh factory
+   call against ``sn_mesh.reduced`` — *the value that same factory
+   produced*, routed through the mesh constructor — and the two
+   ``SNMesh.face_areas`` / ``SNMesh.delta_A`` legs are deprecated
+   read-throughs to that same object.  The gate therefore pins the
+   **wiring** (the constructor really does route to the geometry-layer
+   primitive, for every geometry and every quadrature order in its
+   parametrization), not the **math**: no structurally-independent
+   second implementation remains on the other side of the comparison.
+
+   Measured 2026-08-03: garbaging every array the factories emit
+   leaves **all 47** tests in that file green.
+
+   The mathematical content is pinned elsewhere.  These are the gates
+   to cite for a correctness claim — identified by that same mutation,
+   each one **structurally independent** (a closed form), with the SN
+   curvilinear regression snapshots
+   (``tests/sn/regression/test_dd_regression.py``) corroborating but
+   nowhere the sole evidence:
+
+   * ``delta_A`` — the closed-form L0 term check
+     ``TestL0TermVerification::test_delta_A_magnitude`` in
+     ``tests/sn/primitives/test_quadrature.py``, against
+     :math:`4\pi\,\Delta(r^2)` / :math:`2\pi\,\Delta r`.  **Sole
+     catcher**; the snapshots are blind here, and correctly so —
+     ``delta_A`` has no production consumer.
+   * ``alpha_half`` — the L0 per-ordinate flat-flux identity
+     ``test_per_ordinate_flat_flux_consistency[SPHERICAL]``
+     (``catches("ERR-006", "ERR-007")``), plus the sphere snapshots.
+   * ``alpha_per_level`` —
+     ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py``
+     (the Dirichlet-kernel closed form; **cylindrical α only** — every
+     fixture there is ``CoordSystem.CYLINDRICAL``), plus the
+     cylindrical flat-flux arm and the cylinder snapshots.
+   * ``redist_dAw`` / ``redist_dAw_per_level`` —
+     ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``,
+     the L0 closed-form :math:`\varphi = Q/(\Sigma_t(1-c))` identity,
+     plus both snapshot families.  The flat-flux identity does **not**
+     cover these: it recomputes :math:`\Delta A / w` rather than
+     reading the production array.
+   * ``face_areas`` — ``tests/geometry/test_geometry.py`` pins the
+     producer :func:`~orpheus.geometry.coord.compute_areas_1d`
+     against its closed form; the snapshots pin the forwarding.
+
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` is
+   **not** among them, despite an earlier revision of this warning
+   naming it.  #236 Step C moved :math:`\tau` to the angular closure
+   (see the :ref:`τ-ownership note <tau-ownership-note>` above), which
+   derives it from :math:`(\mu, w)` alone — so that gate passes
+   untouched (5 passed, 0.03 s) under fully-garbaged factories.  It
+   remains the right gate to cite for :math:`\tau` **itself**; it is
+   simply blind to the reduced-operator arrays.
+
+   None of these is evidence that the *lift* preserved bits, which is
+   now unfalsifiable by construction.
+
+The forward-looking half of the original rationale still holds
+unchanged: new consumers bind to the geometry-layer primitive instead
+of duplicating the curvature math.
+
+.. _snmesh-as-router:
 
 SNMesh as router
 ----------------
@@ -420,15 +508,17 @@ every downstream consumer should bind to::
 returns the per-(cell, direction) packet a sweep cell update needs —
 no more reaching into ``SNMesh`` for a half-dozen separate arrays.
 
-The legacy attribute names (``alpha_half``, ``redist_dAw``, ``tau_mm``,
-``alpha_per_level``, ``redist_dAw_per_level``, ``tau_mm_per_level``,
-``face_areas``, ``delta_A``) survive as ``@property`` accessors that
-emit :class:`DeprecationWarning` and route to the matching attribute
-on ``self.reduced``.  This preserves the 6 production read sites in
-``orpheus/sn/sweep.py`` and ``orpheus/sn/solver.py`` for the
-duration of Wave D Round 2 (Issue 12) and Wave E, which then migrate
-those call sites to ``streaming_terms(...)`` directly and remove the
-deprecated properties.
+That migration has since **completed**.  Of the eight legacy attribute
+names the lift originally re-exposed as :class:`DeprecationWarning`
+``@property`` accessors, only **two** survive on :class:`SNMesh` today
+— ``face_areas`` and ``delta_A``, still read-throughs to the matching
+field on ``self.reduced``.  The other six (``alpha_half``,
+``redist_dAw``, ``alpha_per_level``, ``redist_dAw_per_level``,
+``tau_mm``, ``tau_mm_per_level``) are gone: consumers bind to
+``streaming_terms(...)`` or to ``sn_mesh.reduced.*`` directly, and the
+two ``tau_mm`` names have no ``self.reduced`` field left to route to at
+all — τ is closure-owned now, not a factory output (see the
+:ref:`τ-ownership note <tau-ownership-note>` above).
 
 The Cartesian path is unchanged: ``SNMesh._setup_cartesian`` still
 populates the :math:`2|\mu|/\Delta x` and :math:`2|\mu_y|/\Delta y`

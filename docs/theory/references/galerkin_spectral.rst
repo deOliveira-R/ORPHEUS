@@ -770,7 +770,7 @@ pillar; the ``eigenvalue_kind`` field disambiguates ``"k_eff"``
 (MomentSpace, Billiard) from ``"c_critical"`` (BasisSpace) so
 cross-method comparators read the right field before comparing.
 
-The pre-Phase-D :class:`TransportSolver` Protocol (in
+The pre-Phase-D ``TransportSolver`` Protocol (in
 ``orpheus.derivations.common.solver_protocol``) was retired in the
 architectural reset — it conflated continuous reference generators
 with discrete production solvers, which have functionally different

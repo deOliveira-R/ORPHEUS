@@ -273,7 +273,7 @@ the SN :term:`sweep` uses.
        (:class:`SweepSchedule <orpheus.sn.loss_representation.sweep_schedule.SweepSchedule>`).
 
 In the SN solver, selecting ``inner_schedule="gauss_seidel"`` (see
-:func:`_select_si_resolvent <orpheus.sn.solver>` and the reified
+:func:`~orpheus.sn.solver._select_si_splitting` and the reified
 splitting matrix
 :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`)
 builds an **octant-group / boundary** Gauss–Seidel: it folds the

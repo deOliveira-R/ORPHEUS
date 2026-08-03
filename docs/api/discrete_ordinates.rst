@@ -88,12 +88,31 @@ Transport Sweep — the loss representations
 Direct Transport Operator
 -------------------------
 
-The :mod:`~orpheus.sn.operators.streaming` module forms the transport operator
-``T`` explicitly for the Krylov inner solver. The
-:class:`~orpheus.sn.operators.streaming.EquationMap` dataclass indexes which
-``(ordinate, cell)`` pairs are unknowns — ordinates below the equator
-and incoming faces at reflective boundaries are excluded and restored
-by reflection.
+The :mod:`~orpheus.sn.operators.streaming` module carries the streaming
+leaves of the four-operator within-group algebra
+:math:`A_{\rm wg} = L + C - S_{\rm foldable}`:
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` is the pure
+:math:`\sigma`-free :math:`L = \Omega\cdot\nabla` (plus the curvilinear
+angular redistribution), and
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` is
+the sweep-invertible specialisation :math:`(L + C)` returned by
+``L + C``. The collision multiplier :math:`C = M[\sigma_t]` is not
+defined here — it is a plain
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`.
+
+Both consume and emit the typed composite carrier
+:class:`~orpheus.transport.timed_full_field.TimedFullField` (bulk
+:class:`~orpheus.transport.fields.angular_flux.AngularFlux` + boundary
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`).
+There is **no packed-vector codec**: the ``EquationMap`` /
+``build_equation_map`` / ``solution_to_angular_flux`` slot-map family
+that once enumerated which ``(ordinate, cell)`` pairs are unknowns was
+retired in 2026-05 once the typed contract landed at every operator
+leaf. The equivalent information is now read straight off the
+quadrature and the mesh (the ordinate sign mask), and the flat view
+scipy's Krylov drivers need is produced by the carrier's inherited
+:meth:`~orpheus.transport.full_field.Composite.to_flat` /
+:meth:`~orpheus.transport.full_field.Composite.from_flat` pair.
 
 .. automodule:: orpheus.sn.operators.streaming
    :members:

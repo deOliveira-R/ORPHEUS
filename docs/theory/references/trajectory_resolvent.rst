@@ -3813,7 +3813,8 @@ one with:
 
 .. code-block:: python
 
-   from orpheus.derivations.common.geometry_spec import GeometrySpec
+   import numpy as np
+
    from orpheus.derivations.common.xs_library import make_mixture
    from orpheus.derivations.continuous.trajectory_resolvent import Billiard
    from orpheus.geometry.mesh import BC
@@ -3938,12 +3939,17 @@ identical power-iteration outer loops into
 :func:`~orpheus.derivations.continuous.trajectory_resolvent.power_iteration.power_iterate_variant_alpha`;
 R2 unified the 12 result dataclasses behind the
 :class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
-math-rich facade; R3 extracts the chord-arithmetic primitives. After
-the abstraction beds in for one merge cycle, the oracle is scheduled
-to promote to :mod:`orpheus.derivations.common.chord_oracle` so that
+math-rich facade; R3 extracts the chord-arithmetic primitives. The
+oracle still lives inside the Variant-α package, at
+:mod:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle`;
+the R4 step that would promote it to a shared
+``orpheus.derivations.common.chord_oracle`` — so that
 :mod:`~orpheus.derivations.continuous.peierls_nystrom` and a future
-MoC reference solver can consume it (see plan §R4 in
-:file:`.claude/plans/trajectory_resolvent_hindsight_refactor.md`).
+MoC reference solver could consume it — is **not built**, and the plan
+file that scoped it (``trajectory_resolvent_hindsight_refactor.md``) no
+longer exists in ``.claude/plans/``. Treat the promotion as an open
+opportunity, not a scheduled step: the trigger is a **second**
+consumer, per the defer-until-two rule.
 
 .. rubric:: References for the billiard frame
 

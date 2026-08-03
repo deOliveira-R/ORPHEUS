@@ -3804,7 +3804,7 @@ not on fluxes, sources, or iteration state — so it is built once and
 reused across every SI iterate (the same lifetime contract as
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
 
-The selection lives in :func:`~orpheus.sn.solver._select_si_resolvent`:
+The selection lives in :func:`~orpheus.sn.solver._select_si_splitting`:
 ``"gauss_seidel"`` on a multi-D Cartesian mesh returns
 ``((L+C) - parts.lower, (S, parts.upper))`` — the regular splitting
 :math:`(L+C-B) = M - B_{\rm upper}`: the strictly-lower half
@@ -4093,7 +4093,7 @@ go stale).
      - 655
      - 1.00×
      - **No-op** by design — the 1-D scan is not a wavefront;
-       ``_select_si_resolvent`` falls back to Jacobi.
+       ``_select_si_splitting`` falls back to Jacobi.
    * - B-2g **vacuum** slab (G-4 negative control)
      - 128
      - 128

@@ -73,7 +73,8 @@ the layers below it):
      - thin scripts; ``plotting.py``
    * - **L3** discretization
      - one method's machinery
-     - :mod:`orpheus.sn`, :mod:`orpheus.pn` (planned),
+     - :mod:`orpheus.sn`, ``orpheus.pn`` (planned — no such package
+       exists yet),
        :mod:`orpheus.moc`, :mod:`orpheus.cp`, :mod:`orpheus.mc`,
        :mod:`orpheus.diffusion`, :mod:`orpheus.kinetics` (transitional —
        dissolves under P3.6), :mod:`orpheus.fuel`,

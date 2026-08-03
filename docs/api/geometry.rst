@@ -43,18 +43,21 @@ limits of explicit sweeps.
 
 **Precomputed volumes — the ULP escape hatch.**
 :class:`~orpheus.geometry.mesh.Mesh1D` accepts an optional
-``precomputed_volumes`` override. The
-:func:`~orpheus.geometry.factories.mesh1d_from_zones` factory sets
-it by computing the *algebraic* cell volume (e.g.
+``precomputed_volumes`` override.
+:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry` sets it for every
+``"equal-volume"`` region by routing through
+:func:`~orpheus.geometry.factories._subdivide_zone`, which returns the
+*algebraic* cell volume (e.g.
 :math:`V_{\rm cell} = \pi(r_{\rm out}^2 - r_{\rm in}^2)/n` in the
-cylindrical case) and broadcasting that scalar to every cell in
-the zone. Deriving volumes from the *edges* after the fact via
+cylindrical case) broadcast as a scalar to every cell in the region.
+Deriving volumes from the *edges* after the fact via
 :func:`~orpheus.geometry.coord.compute_volumes_1d` would pass
 through a ``sqrt → **2`` or ``cbrt → **3`` round trip that loses
 roughly one ULP per cell and breaks the invariant "every cell in
-an equal-volume zone is bit-identical" at ``rtol=1e-14``. Manually
-constructed meshes with arbitrary edges still derive volumes from
-edges as before — the override only kicks in on the factory path.
+an equal-volume region is bit-identical" at ``rtol=1e-14`` (ERR-020).
+``"uniform"`` regions and manually constructed meshes with arbitrary
+edges still derive volumes from edges — the override only kicks in on
+the equal-volume subdivision path.
 
 **Boundary condition declaration and deferred resolution.**
 Boundary conditions follow a two-phase pattern: *declare* on the
@@ -215,15 +218,64 @@ w_m` redistribution factor in the curvilinear SN sweeps (see
    :noindex:
 
 
-Factories
----------
+Construction — the geometry to mesh path
+----------------------------------------
 
-The factory layer is the recommended construction path.
-:class:`~orpheus.geometry.factories.Zone` describes one material
-region by its outer boundary and cell count;
-:func:`~orpheus.geometry.factories.mesh1d_from_zones` builds a
-coordinate-aware :class:`~orpheus.geometry.mesh.Mesh1D` from a
-list of zones. Three subdivision strategies are baked in:
+The recommended 1-D construction path is **two-layered**: declare a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+(pure shape — geometry kind, an ordered tuple of
+:class:`~orpheus.geometry.structured_geometry.Region` layers, and the
+endpoint :class:`~orpheus.geometry.mesh.BC`\ s), then discretize it
+with :meth:`Mesh1D.from_geometry
+<orpheus.geometry.mesh.Mesh1D.from_geometry>` by supplying one
+:class:`~orpheus.geometry.mesh.RegionMesh` per region. The geometry
+carries **no** cell counts; the discretization description enters at
+exactly one point, the ``from_geometry`` call.
+
+.. code-block:: python
+
+   from orpheus.geometry import BC, Mesh1D, RegionMesh
+   from orpheus.geometry.structured_geometry import (
+       Region, StructuredGeometry,
+   )
+
+   geom = StructuredGeometry(
+       geometry="SPH",
+       regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
+       bcs=(BC.vacuum,),
+   )
+   mesh = Mesh1D.from_geometry(
+       geom, region_meshes=(RegionMesh(n_cells=64),),
+   )
+
+This split is what lets **reference** solution generators (``Billiard``,
+``MomentSpace``, ``Spectrum``, ``BasisSpace``) consume the
+:class:`StructuredGeometry` directly — they need no mesh — while
+**discrete production** solvers (``solve_sn`` / ``solve_cp`` /
+``solve_moc`` / ``solve_mc``) consume the resulting
+:class:`~orpheus.geometry.mesh.Mesh1D`.
+
+Two conventional PWR shapes ship as
+:class:`StructuredGeometry` classmethods:
+
+* :meth:`StructuredGeometry.pwr_slab_half_cell
+  <orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell>`
+  — Cartesian 3-region (fuel / clad / coolant) half-cell starting at
+  the reflective symmetry plane :math:`x = 0`.
+* :meth:`StructuredGeometry.wigner_seitz_pin_cell
+  <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
+  — cylindrical Wigner--Seitz equivalent pin cell. The square unit
+  cell of side *pitch* is replaced by a cylinder of equal
+  cross-sectional area, :math:`r_{\rm cell} = {\rm pitch} /
+  \sqrt{\pi}`.
+
+Per-region subdivision
+~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~orpheus.geometry.mesh.RegionMesh` selects the scheme per
+region. ``"equal-volume"`` (the default) routes through
+:func:`~orpheus.geometry.factories._subdivide_zone`, which carries the
+three coordinate-system invariants:
 
 * **Cartesian** — equal-width cells
   :math:`x_k = x_0 + (k/n)\,(x_n - x_0)`.
@@ -232,32 +284,50 @@ list of zones. Three subdivision strategies are baked in:
 * **Spherical** — equal-volume shells
   :math:`r_k = \sqrt[3]{r_0^3 + (k/n)\,(r_n^3 - r_0^3)}`.
 
-Each returns both the edges and the exact per-cell volume (a
-broadcast scalar) so the frozen :class:`Mesh1D` can be built with
+It returns both the edges **and** the exact per-cell volume (a
+broadcast scalar) so the frozen :class:`Mesh1D` is built with
 ``precomputed_volumes`` set — see the design principle above.
-
-**Convenience constructors:**
-
-* :func:`~orpheus.geometry.factories.pwr_slab_half_cell` — Cartesian
-  3-zone (fuel / clad / coolant) half-cell with a reflective
-  symmetry plane at :math:`x = 0`.
-* :func:`~orpheus.geometry.factories.pwr_pin_equivalent` — cylindrical
-  Wigner--Seitz equivalent pin cell. The square unit cell of side
-  *pitch* is replaced by a cylinder of equal cross-sectional area,
-  :math:`r_{\rm cell} = {\rm pitch} / \sqrt{\pi}`.
-* :func:`~orpheus.geometry.factories.homogeneous_1d` — single-material
-  uniform mesh for homogeneous-medium tests and analytical
-  benchmarks.
-* :func:`~orpheus.geometry.factories.slab_fuel_moderator` — 2-zone
-  Cartesian slab (fuel / moderator) for classic L1 verification
-  problems.
-* :func:`~orpheus.geometry.factories.pwr_pin_2d` — 2-D Cartesian mesh
-  with material IDs assigned by radial distance from the pin centre.
+``"uniform"`` instead lays down equal radial extents and derives
+volumes from the edges via
+:func:`~orpheus.geometry.coord.compute_volumes_1d`.
 
 **Material ID convention:**
 ``2 = fuel``, ``1 = clad``, ``0 = coolant / moderator``. This
 ordering matches the synthetic cross-section library used by the
 L0 / L1 verification suites.
+
+.. note:: **Retired 1-D factory surface.**
+
+   Phase F retired the free functions ``Zone``, ``mesh1d_from_zones``,
+   ``pwr_pin_equivalent``, ``pwr_slab_half_cell``, ``homogeneous_1d``
+   and ``slab_fuel_moderator`` from
+   :mod:`orpheus.geometry.factories`. Their jobs are now split between
+   the geometry layer (the two classmethods above) and the mesh layer
+   (:meth:`Mesh1D.from_geometry
+   <orpheus.geometry.mesh.Mesh1D.from_geometry>` +
+   :class:`~orpheus.geometry.mesh.RegionMesh`) — which is what removed
+   the old "a factory both shapes AND meshes the problem" conflation.
+   A homogeneous or two-region slab is now a one-liner
+   ``StructuredGeometry`` literal, so no dedicated convenience
+   function survives for it.
+
+Structured geometry
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: orpheus.geometry.structured_geometry
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+Two-dimensional factories
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There is no 2-D :class:`StructuredGeometry` yet, so the 2-D Cartesian
+path keeps a standalone factory:
+:func:`~orpheus.geometry.factories.pwr_pin_2d` builds a
+:class:`~orpheus.geometry.mesh.Mesh2D` on a uniform grid with material
+IDs assigned by radial distance from the pin centre.
 
 .. automodule:: orpheus.geometry.factories
    :members:

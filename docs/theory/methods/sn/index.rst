@@ -826,9 +826,10 @@ The curvilinear sweep dispatches per-cell to
        psi_face = result.outgoing_spatial_flux  # may be None for cylindrical degenerate
        psi_angle[cell_idx] = result.outgoing_angular_state
 
-The cell-update strategy lives on
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.scheme` (introduced in
-this round as a constructor argument with default
+The cell-update strategy lives on the ``scheme`` attribute that
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` realizes in its
+constructor (introduced in this round as a constructor argument with
+default
 :class:`~orpheus.transport.spatial.diamond.DiamondDifference`).  The
 default reproduces the inlined sweep math bit-identically — every
 regression snapshot at ``tests/sn/regression/snapshots/`` was

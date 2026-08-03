@@ -825,8 +825,9 @@ Default flips
 Phase D ships **two default flips** that activate the full
 canonical curvilinear closure path:
 
-#. :attr:`SNMesh.pole_angular_closure
-   <orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure>` default
+#. The ``pole_angular_closure`` constructor argument of
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` — realized onto the
+   like-named instance attribute — had its default
    flipped from
    ``LegacyTauSymmetricInterpolation``
    to
@@ -2985,7 +2986,8 @@ legs:
 Production-decision record — curvilinear default reverted to SI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The curvilinear :attr:`~orpheus.sn.solver.SNSolver.inner_solver` default
+The curvilinear ``inner_solver`` default on
+:class:`~orpheus.sn.solver.SNSolver`
 is now ``"source_iteration"``, **reverted from the Phase-D Krylov
 flip**.  The Phase-D flip existed ONLY because the sweep's fixed point
 was wrong; ERR-058 made it correct, so SI is restored as the default —

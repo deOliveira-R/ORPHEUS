@@ -776,10 +776,12 @@ merge hash or not at all).
        product factory. :class:`~orpheus.numerics.iteration.KEigenvalue`
        guards ``A.is_invertible`` at construction and builds the inner step
        via the single-source
-       :func:`_seeded_inverse <orpheus.numerics.iteration._seeded_inverse>`;
+       :func:`~orpheus.numerics.iteration.seeded_inverse` (spelled
+       ``_seeded_inverse`` at the time; promoted to the public name by
+       #276 A4);
        :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
        forward ``A`` and rewires its default preconditioner from a
-       ``CAP_SOLVE`` probe to ``_seeded_inverse(A).apply``. Whether
+       ``CAP_SOLVE`` probe to ``seeded_inverse(A).apply``. Whether
        seeded-apply becomes a structural mixin or stays per-leaf convention
        is `#285 <https://github.com/deOliveira-R/ORPHEUS/issues/285>`_
        (folded into steps 4–5). Gates:

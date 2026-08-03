@@ -227,22 +227,47 @@ The narrowing boundary and the structural resolution
 
 ``SupportsSeededApply`` and ``SupportsInverse`` are not
 ``runtime_checkable`` (an ``isinstance`` against a Protocol carrying only
-a method member is a false-positive machine). The static narrow from "an
+a method member is a false-positive machine). The narrow from "an
 invertible operator" to "a seeded-apply operator" therefore lives in
 **one** place,
-:func:`_seeded_inverse <orpheus.numerics.iteration._seeded_inverse>`:
+:func:`~orpheus.numerics.iteration.seeded_inverse` (spelled
+``_seeded_inverse`` until #276 A4 promoted it — a third consumer, the
+daggered adjoint :class:`~orpheus.numerics.iteration.SourceIteration`,
+had joined the two below and cross-module callers were already importing
+the underscore name):
 
 .. code-block:: python
 
-   def _seeded_inverse(A):                       # numerics/iteration.py
-       # runtime precondition: the CALLER's A.is_invertible guard
-       return cast(SupportsSeededApply, cast(SupportsInverse, A).inverse())
+   def seeded_inverse(A):                        # numerics/iteration.py
+       if not invertible(A):                     # the guard lives HERE
+           raise NotInvertible(...)
+       inv = A.inverse()
+       if _wrap_delegate_member(inv):            # TypeGuard on the family
+           return inv                            # canonical seeded apply
+       return _SeededExactApply(inv)             # accept-and-drop wrapper
 
-Both :class:`~orpheus.numerics.iteration.KEigenvalue` (inner
-:class:`~orpheus.numerics.iteration.SourceIteration`) and
+Two things about that body are load-bearing. First, **the runtime
+precondition is internal, not the caller's**: ``seeded_inverse`` runs its
+own :func:`~orpheus.numerics.operator.invertible` check and raises
+:class:`~orpheus.numerics.operator.NotInvertible`, so a caller's
+``is_invertible`` guard is a *domain-message* courtesy, never the thing
+that makes the call sound. Second, **there is no** ``cast``: both
+narrowings are checked bridges (Design C) — ``invertible`` is a
+``TypeGuard`` whose runtime predicate *is* the static permission for the
+``.inverse()`` call, and ``_wrap_delegate_member`` is a ``TypeGuard``
+``isinstance`` on :class:`~orpheus.numerics.operator.InverseWrapMixin`
+membership, i.e. type-as-structure dispatch on the two-kinds split rather
+than a signature probe. The algebra-closed branch wraps in
+``_SeededExactApply``, which accepts and drops the seed — an exact
+inverse has nothing to seed.
+
+:class:`~orpheus.numerics.iteration.KEigenvalue` (inner
+:class:`~orpheus.numerics.iteration.SourceIteration`),
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` (default
-preconditioner) route through it, so the cast — and its runtime
-precondition, the caller's ``is_invertible`` guard — is single-sourced.
+preconditioner), the
+:class:`~orpheus.numerics.green_operator.GreenOperator` builder and the
+adjoint fixed-source entry all route through it, so the narrowing — and
+its guard — is single-sourced.
 
 When step 3 shipped, ``_seeded_inverse`` narrowed to the seeded-apply
 signature only for the inverses the posing layers here actually reach —
@@ -261,10 +286,10 @@ extracted into :class:`~orpheus.numerics.operator.InverseWrapMixin`, whose
 inherits — so a new inverse *cannot* forget the keyword: pyright rejects a
 kwarg-less override (``reportIncompatibleMethodOverride``,
 mutation-verified) and ``ABCMeta`` blocks a sibling that omits ``apply``
-entirely. The narrowing ``_seeded_inverse`` performs is therefore now a
-cast over an *already-guaranteed* shape rather than a hoped-for one, and
-every ``.inverse()`` a posing layer reaches through it carries the seeded
-signature by construction.
+entirely. The narrowing ``seeded_inverse`` performs is therefore now a
+checked bridge over an *already-guaranteed* shape rather than a
+hoped-for one, and every wrap-delegate ``.inverse()`` a posing layer
+reaches through it carries the seeded signature by construction.
 
 **Step 5 closed the product residue.** One ``.inverse()`` stayed outside the
 family after step 4: a composed
@@ -330,12 +355,12 @@ The two eigenvalue-outer consumers pose the inverse explicitly:
   raises :class:`~orpheus.numerics.operator.NotInvertible` with a
   domain message, not an ``AttributeError`` mid-iteration) and builds its
   inner :class:`~orpheus.numerics.iteration.SourceIteration` step via
-  ``_seeded_inverse(A)``.
+  :func:`~orpheus.numerics.iteration.seeded_inverse`.
 * :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
   **forward** :math:`A` (its GMRES matvec is
   :math:`A\cdot - \sum_i g_i\cdot`) and rewired its default-preconditioner
   fallback from the old ``CAP_SOLVE`` probe (with a ``# type: ignore``) to
-  the honest ``A.is_invertible`` test + ``_seeded_inverse(A).apply`` — the
+  the honest ``A.is_invertible`` test + ``seeded_inverse(A).apply`` — the
   transport-corrected sweep preconditioner (Adams & Larsen 2002 §III).
 
 

@@ -6049,7 +6049,8 @@ gates inside the SN source-iteration driver keyed on
 * the **moment-windowing** gate (:meth:`_maybe_window
   <orpheus.sn.solver>`), which decides whether the SI iterate is held
   as compact harmonic moments rather than the full angular flux; and
-* the **Gauss–Seidel resolvent** selector (``_select_si_resolvent``),
+* the **Gauss–Seidel splitting** selector
+  (:func:`~orpheus.sn.solver._select_si_splitting`),
   which decides whether the boundary-G-S accelerator is used.
 
 ``reduced is None`` is a **coincidence proxy**: it is ``None`` for
@@ -6079,7 +6080,7 @@ C5.4 retargets both gates to the **genuine** dimensionality predicate:
      - ``is_cartesian and ndim == 2`` — the genuine
        windowing-eligibility condition (the 2-D moment kernel's exact
        domain).
-   * - Boundary-G-S (``_select_si_resolvent``)
+   * - Boundary-G-S (``_select_si_splitting``)
      - ``reduced is None``
      - ``is_cartesian and not is_1d`` — multi-D Cartesian.
 

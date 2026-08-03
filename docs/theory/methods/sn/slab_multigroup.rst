@@ -812,7 +812,8 @@ directly (predicate + verb), not a capability tag:
 * :class:`KEigenvalue` poses the ``(A, S, F)`` triple: ``A`` MUST report
   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
   ``= True`` — the posing layer builds :math:`A^{-1}` via
-  ``_seeded_inverse(A)``, and a non-invertible ``A`` raises
+  :func:`~orpheus.numerics.iteration.seeded_inverse`, and a
+  non-invertible ``A`` raises
   :class:`~orpheus.numerics.operator.NotInvertible`.  ``S`` / ``F`` MUST
   provide ``apply`` (pass
   :class:`~orpheus.numerics.operator.ZeroOperator` for the

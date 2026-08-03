@@ -6123,10 +6123,13 @@ without specialising :math:`F_1` to :math:`E_1`, :math:`\mathrm{Ki}_1`,
 or :math:`e^{-\tau}`, which is the strongest possible form of the
 claim that the operator is geometry-invariant.
 
-Future: lift the SymPy snippet into
-:func:`orpheus.derivations.continuous.flat_source_cp.geometry.derive_second_difference` and
+Future: lift the SymPy snippet into a
+``derive_second_difference()`` verification function in
+:mod:`orpheus.derivations.continuous.flat_source_cp.geometry` (which
+today carries only the *numerical* second-difference helper
+``_second_difference``, not a symbolic derivation) and
 add ``test_second_difference_operator_is_geometry_invariant`` as a
-programmatic L1 check. Tracked in
+programmatic L1 check. Neither exists yet. Tracked in
 `Issue #141 <https://github.com/deOliveira-R/ORPHEUS/issues/141>`_.
 
 
