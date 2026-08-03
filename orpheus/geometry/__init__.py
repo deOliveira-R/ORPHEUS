@@ -36,7 +36,12 @@ from .reduced_operator import (
     spherical_streaming,
 )
 from .structured_geometry import Region, StructuredGeometry
-from .transformation import RigidMotion, close_group
+from .transformation import (
+    NotAFinitePointGroupError,
+    Permutation,
+    RigidMotion,
+    close_group,
+)
 
 __all__ = [
     "AngularMeasure",
@@ -44,6 +49,8 @@ __all__ = [
     "CoordSystem",
     "Mesh1D",
     "Mesh2D",
+    "NotAFinitePointGroupError",
+    "Permutation",
     "ReducedStreamingOperator",
     "Region",
     "RegionMesh",

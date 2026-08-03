@@ -107,20 +107,45 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from numpy.typing import ArrayLike
 
 __all__ = [
+    "NotAFinitePointGroupError",
+    "Permutation",
     "RigidMotion",
     "close_group",
 ]
 
 
+class NotAFinitePointGroupError(ValueError):
+    r"""A generating set generates an INFINITE group.
+
+    Named rather than bare, because the configuration that raises it is
+    ordinary rather than exotic: **two parallel mirrors generate the infinite
+    dihedral group**, and two parallel mirrors are the two reflective faces of
+    a slab. Their product is the pure translation by twice their separation —
+    an element of infinite order that a point group cannot contain.
+
+    Every finite subgroup of :math:`E(d)` fixes a point (its own centroid), so
+    this error is the type system saying "there is no common seat": either the
+    generators are genuinely a space group rather than a point group, or one
+    of them was built with an offset it should not carry.
+    """
+
+
 #: Tolerance on :math:`\|Q^\mathsf{T}Q - I\|_\infty` at construction.
 #:
 #: Directly-built elements (Householder, planar rotation, signed permutation)
-#: are orthogonal to a few ULP. The slack is for accumulated products: closing
-#: :math:`I_h` multiplies a few hundred matrices pairwise, and each product
-#: adds :math:`O(\varepsilon)`. It is still many orders below the departure
-#: from orthogonality of any *genuine* non-isometry (a shear or a scaling),
-#: which is what this guard exists to reject.
-_ORTHOGONALITY_ATOL = 1e-10
+#: are orthogonal to a few ULP; the slack is for accumulated products. Chosen
+#: against measurement, not habit: closing :math:`I_h` (120 elements) reaches
+#: `1.6e-15`, and a deliberately pathological 5000-deep chain of random
+#: rotations reaches `2.8e-14` — so this leaves a factor of ~36 over a case no
+#: real consumer produces, and ~640 over the deepest realistic one.
+#:
+#: It is a guard against a *genuine* non-isometry (a shear, a scaling), whose
+#: departure is :math:`O(1)`. Note what that means for gates: an element with
+#: a `1e-13` shear is a LEGAL value of this type, so a test asserting
+#: orthogonality to `1e-14` on an arbitrary element would be asserting a
+#: property the type does not promise. Gate the constructors' actual quality
+#: separately from the type's invariant.
+_ORTHOGONALITY_ATOL = 1e-12
 
 #: Decimal places used to key group elements during closure.
 #:
@@ -141,6 +166,92 @@ _MAX_ELEMENT_ORDER = 1000
 #: Singular-value threshold for the rank used by
 #: :attr:`RigidMotion.fixed_subspace_dimension`.
 _RANK_ATOL = 1e-10
+
+
+@dataclass(frozen=True, eq=False)
+class Permutation:
+    r"""A bijection of :math:`\{0, \dots, n-1\}`, stored as the index array
+    :math:`\pi` with :math:`i \mapsto \pi(i)`.
+
+    Bijectivity is asserted at construction, so **returning one at all is the
+    proof**. That is the point of the type: a nearest-neighbour match loop
+    computes a *relation*, and a many-to-one relation satisfies every assertion
+    a bare index array can carry — which is how ERR-073 shipped. Here the
+    illegal state is unrepresentable rather than merely guarded against.
+
+    Composition follows the maps it represents: :math:`(\pi \circ \rho)(i) =
+    \pi(\rho(i))`, i.e. ``(a @ b).indices == a.indices[b.indices]``. Paired
+    with :meth:`RigidMotion.permutes`' convention :math:`g(x_i) = x_{\pi(i)}`
+    this makes :math:`\pi` a group **homomorphism**,
+    :math:`\pi_{g \circ h} = \pi_g \circ \pi_h` — the one law that pins the
+    composition order, the row-versus-column action, and the
+    :math:`\pi`-versus-:math:`\pi^{-1}` choice all at once. None of the three
+    is checkable alone.
+    """
+
+    indices: np.ndarray
+
+    def __post_init__(self) -> None:
+        pi = np.asarray(self.indices, dtype=np.int64)
+        if pi.ndim != 1:
+            raise ValueError(f"a permutation is a 1-D index array, got {pi.shape}")
+        if not np.array_equal(np.sort(pi), np.arange(pi.size)):
+            raise ValueError(
+                f"indices are not a permutation of range({pi.size}): "
+                f"{pi.size - np.unique(pi).size} value(s) repeat"
+            )
+        object.__setattr__(self, "indices", pi)
+
+    @property
+    def n(self) -> int:
+        """The size of the set permuted."""
+        return int(self.indices.size)
+
+    @classmethod
+    def identity(cls, n: int) -> "Permutation":
+        return cls(np.arange(n, dtype=np.int64))
+
+    def __matmul__(self, other: "Permutation") -> "Permutation":
+        r""":math:`(\pi \circ \rho)(i) = \pi(\rho(i))` — ``other`` applied
+        first."""
+        if not isinstance(other, Permutation):
+            return NotImplemented
+        if other.n != self.n:
+            raise ValueError(
+                f"cannot compose permutations of {self.n} and {other.n} points"
+            )
+        return Permutation(self.indices[other.indices])
+
+    def inverse(self) -> "Permutation":
+        r""":math:`\pi^{-1}`, the unique bijection with
+        :math:`\pi^{-1}\circ\pi = \mathrm{id}`."""
+        out = np.empty_like(self.indices)
+        out[self.indices] = np.arange(self.n, dtype=np.int64)
+        return Permutation(out)
+
+    @property
+    def fixed_points(self) -> np.ndarray:
+        r"""Indices with :math:`\pi(i) = i`.
+
+        For a permutation induced by a group element this is exactly the set
+        of points that element **stabilises**, so the union over the
+        non-identity elements is the orbifold singular set :math:`\Sigma`.
+        Membership is an INTEGER identity — no tolerance anywhere. The only
+        place a tolerance ever enters is matching points while *building*
+        :math:`\pi`, which is the one place the question is honestly numerical.
+        """
+        return np.flatnonzero(self.indices == np.arange(self.n))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Permutation):
+            return NotImplemented
+        return bool(np.array_equal(self.indices, other.indices))
+
+    def __hash__(self) -> int:
+        return hash(self.indices.tobytes())
+
+    def __repr__(self) -> str:  # pragma: no cover - display only
+        return f"Permutation({self.indices.tolist()})"
 
 
 @dataclass(frozen=True, eq=False)
@@ -311,6 +422,41 @@ class RigidMotion:
         """
         return other @ self @ other.inverse()
 
+    def embedded_in(self, dimension: int) -> "RigidMotion":
+        r"""The image of :math:`\iota : E(d) \hookrightarrow E(D)`,
+        :math:`(Q, t) \mapsto (\mathrm{diag}(Q, I),\, (t, 0))`.
+
+        The standard inclusion, and the operation that makes "dimension
+        generic" a property **of the type** rather than a habit of its callers.
+        Without it, relating a 1-D element to its 3-D counterpart is
+        ``np.eye(3)`` padding at each call site — and then the 1-D/3-D split
+        this module exists to delete has merely *moved*.
+
+        It is a group homomorphism (:math:`\iota(g)\iota(h) = \iota(gh)`) that
+        preserves the determinant and raises the fixed-subspace dimension by
+        exactly :math:`D - d`. So a reflection stays a reflection and keeps
+        fixing a hyperplane: in :math:`\mathbb{R}^1`, ``reflection(normal=[1])``
+        fixes a 0-dimensional set (the origin); embedded in
+        :math:`\mathbb{R}^3` it is :math:`\sigma_x`, fixing the plane
+        :math:`x = 0` — the same element, read in a bigger room.
+
+        The complementary axes are fixed pointwise, which is precisely the
+        content of the :math:`(\mu, 0, 0)` embedding the angular layer already
+        performs on its data.
+        """
+        d = self.dimension
+        if dimension < d:
+            raise ValueError(
+                f"an embedding cannot lower dimension: {d} -> {dimension}. "
+                "There is no canonical restriction; a projection would not be "
+                "an isometry of the target."
+            )
+        Q = np.eye(dimension)
+        Q[:d, :d] = self.linear
+        t = np.zeros(dimension)
+        t[:d] = self.translation
+        return RigidMotion(Q, t)
+
     def seated_at(self, centre: "ArrayLike") -> "RigidMotion":
         r"""Conjugation by the translation to ``centre``:
         :math:`(Q,\, t + (I-Q)c)`.
@@ -364,7 +510,7 @@ class RigidMotion:
 
     def permutes(
         self, points: "ArrayLike", *, atol: float
-    ) -> np.ndarray | None:
+    ) -> "Permutation | None":
         r"""The permutation :math:`\pi` with :math:`g(x_i) = x_{\pi(i)}`, or
         ``None`` if ``g`` does not map the set onto itself.
 
@@ -409,7 +555,7 @@ class RigidMotion:
             return None  # some image is not a point of the set at all
         if np.unique(pi).size != n:
             return None  # the match is not a bijection (ERR-073)
-        return pi.astype(np.int64)
+        return Permutation(pi.astype(np.int64))
 
     def preserves(
         self,
@@ -418,7 +564,7 @@ class RigidMotion:
         *,
         atol: float,
         weight_atol: float,
-    ) -> np.ndarray | None:
+    ) -> "Permutation | None":
         r"""The permutation :math:`\pi` with :math:`g(x_i) = x_{\pi(i)}`
         **and** :math:`w_i = w_{\pi(i)}`, or ``None``.
 
@@ -438,12 +584,12 @@ class RigidMotion:
         if pi is None:
             return None
         w = np.asarray(weights, dtype=float)
-        if w.shape != (pi.size,):
+        if w.shape != (pi.n,):
             raise ValueError(
-                f"weights must have shape ({pi.size},) to match the points, "
+                f"weights must have shape ({pi.n},) to match the points, "
                 f"got {w.shape}"
             )
-        if np.any(np.abs(w[pi] - w) > weight_atol):
+        if np.any(np.abs(w[pi.indices] - w) > weight_atol):
             return None
         return pi
 
@@ -586,6 +732,14 @@ class RigidMotion:
             raise ValueError(
                 f"plane must be two vectors, shape (2, d), got {P.shape}"
             )
+        if P.shape[1] < 2:
+            raise ValueError(
+                "there is no rotation of R^1: SO(1) = {e}, so the only "
+                "1-dimensional rotation is the identity — use "
+                "RigidMotion.identity(1). A rotation fixes a (d-2)-dimensional "
+                "subspace, and d-2 = -1 here. R^1's non-trivial content lives "
+                "entirely in reflection()."
+            )
         u, v = P[0], P[1]
         gram = P @ P.T
         if not np.allclose(gram, np.eye(2), atol=_ORTHOGONALITY_ATOL):
@@ -700,10 +854,11 @@ def close_group(
     generators, but asking whether one group **contains** another needs the
     elements, so the closure is taken here rather than at each such question.
 
-    Raises ``ValueError`` if the generated group exceeds
-    :data:`_MAX_GROUP_ORDER`, which is what an infinite group (an irrational
-    rotation, or any element with a translation off its fixed subspace) looks
-    like from inside a breadth-first closure.
+    Raises :class:`NotAFinitePointGroupError` if the generated group exceeds
+    :data:`_MAX_GROUP_ORDER`, which is what an infinite group looks like from
+    inside a breadth-first closure. That is not an exotic input: two PARALLEL
+    mirrors compose to the pure translation by twice their separation, and two
+    parallel mirrors are the two reflective faces of a slab.
 
     ``dimension`` is required only when ``generators`` is empty, where it
     fixes which trivial group is meant.
@@ -755,9 +910,14 @@ def close_group(
                     seen.add(k)
                     fresh.append(c)
                     if len(elements) > _MAX_GROUP_ORDER:
-                        raise ValueError(
+                        raise NotAFinitePointGroupError(
                             "generating set does not generate a finite group "
-                            f"(exceeded {_MAX_GROUP_ORDER} elements)"
+                            f"(exceeded {_MAX_GROUP_ORDER} elements). Every "
+                            "finite subgroup of E(d) fixes a point, so this "
+                            "generating set has no common seat — check for an "
+                            "element carrying a translation off its own fixed "
+                            "subspace (two parallel mirrors are the common "
+                            "case: their product is a pure translation)."
                         )
         frontier = fresh
     return tuple(elements)
