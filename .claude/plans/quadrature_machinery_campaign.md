@@ -1360,6 +1360,81 @@ mechanism works, at the most-activating configuration:
   legs fail together — `Σ` becomes non-empty AND `τ_raw` hits `0`. That is what
   attributes the pass to the mechanism rather than to luck.
 
+### T28 — ⭐⭐⭐ The product rule is a WELDED PAIR that re-derives its own properties; it should be a COMBINATOR over registered rules
+
+User diagnosis, 2026-08-02, on being shown the odd-`n_φ` reflection defect:
+*"the most likely reason why we have a problem in the product rule is … machinery.
+(1) is the product rule hard-coded to a product pair? If so, we must become capable
+of selecting the pair we want to instantiate. (2) does it derive its properties in a
+principled way based on the properties of the rules we're composing + the invariants
+and theorems of the product rule? If the rules we can make a product off are
+registered, the product rule should be capable of using a registered rule to make a
+product, and all intrinsic properties come downstream of this."*
+
+Both halves confirmed by measurement. This is the root T24–T27 are symptoms of.
+
+**(1) It is a welded pair.** `product_mu_phi(n_mu, n_phi)` hard-codes
+`gauss_legendre_on_mu(n_mu)` for the polar factor and
+`np.linspace(0, 2π, n_φ, endpoint=False)` for the azimuthal one. The azimuthal
+factor **is not a measure object at all** — it is a raw array plus a scalar
+weight, so it can carry no degree, no group, no generating measure, and cannot be
+substituted.
+
+⛔ **And the rule the fold needs is ALREADY IN THE TREE, registered and unwired.**
+`measure.equispaced(a, b, n)` is the **midpoint** rule, and its own docstring says
+why it is midpoints:
+
+> *"the project's existing code uses left-endpoints, but this primitive offers
+> midpoints because they integrate constants exactly **while preserving symmetry
+> under reflection through the centre of the interval**"*
+
+That is **T25's `Σ = ∅` criterion**, written down by whoever built the primitive
+and then never reached, because the welded pair left no seam to reach it through.
+`[M]` `equispaced(0, 2π, 8)` gives exactly the `π/n`-offset nodes T24 measured as
+`|Σ| = 0`. §4 already recorded that `equispaced` / `gauss_chebyshev` /
+`gauss_laguerre` ship with **zero production consumers** — "the abstraction is
+being paid for and not used". This is what the non-use cost: the double cover.
+
+**(2) It re-derives what its factors already know.**
+
+| property | today | what it should be |
+|---|---|---|
+| nodes / weights | hand-built nested loop | `(polar ⊗ azimuthal).pushforward(embedding)` |
+| `degree_of_exactness` | `min(2*n_mu - 1, n_phi - 1)` **hand-written** | composed from the factors' own degrees |
+| `invariance_group` | `Dnh(n_phi)` **declared** | computed / derived from the factors |
+| `Σ`, level structure | — | downstream of the nodes and the polar factor |
+
+`[M]` `polar.degree_of_exactness` **already equals** `2*n_mu − 1` at every order —
+so the product recomputes a number its own factor is holding. That is the **fourth
+in-tree instance of T20** (recomputing what a closed-form relation determines).
+
+⚠ **Be precise about the group tag: it is CORRECT, not false.** `[M]` declared
+`== computed` for `n_φ = 4,5,6,7,8` — `D_{n_φ h}` every time, odd `n_φ` included.
+The objection is not that it lies; it is that **a declaration cannot be falsified
+by construction**, and this exact module has already shipped two declarations that
+*were* false (ERR-072, ERR-073) plus a partner map that was (ERR-074). T17's rule
+stands on its own: a computed property cannot lie about the object it was computed
+from.
+
+**⛔ The real prerequisite, and it is not cosmetic.** A naive composition
+`min(p_polar, p_azimuthal)` would give **degree 1**, because
+`equispaced.degree_of_exactness = 1` is the **algebraic** degree of the midpoint
+rule *on an interval* — while on the **circle** the same nodes are the periodic
+trapezoid, exact to **trigonometric** degree `n − 1`. Same nodes, same weights,
+two different exactness claims, and the integer cannot tell them apart. This is
+§4's "**EXACTNESS SPACE — EARNED MOST**" axis and T2/T12b's gap, arriving as a
+hard blocker: **the product cannot derive its degree until each factor carries the
+SPACE its degree is measured in.** T12b already named the fix — the *generating
+measure* IS the exactness space.
+
+**Consequence for the plan.** Q5.2 ("the derived offset") stops being a change to
+`product_mu_phi` and becomes a **selection**: the azimuthal factor is a registered
+rule VALUE, and the fold's `Σ = ∅` requirement *picks* `equispaced`(midpoint) —
+equivalently `CHEBYSHEV_T` in `cos φ` (T25) — over the welded left-endpoint array.
+No flag, no boolean, no `half_range=True`. The campaign's standing ruling holds:
+**when a fork looks like a preference, the abstraction is missing** — here the
+missing abstraction is the seam that lets a registered rule be the factor.
+
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
 User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
@@ -1830,15 +1905,44 @@ implemented and **no `D_6h`-invariant rule in tree**.
   `W = w·|G|/|Stab|`; idempotent; and **`Σ = ∅` ⟹ every orbit has length `|G|`**
   (the free-action certificate, T24).
 
-  **Q5.2 — The offset, derived.** Give the circle rule its offset and fix
-  `δ = π/n_φ` **by the `Σ = ∅` criterion**, not by preference (T25). Register
-  `CHEBYSHEV_T` as the half-range azimuthal rule and pin the identity
-  `GC1(cos φ) ≡ midpoint(0,π)`.
-  *Gates:* exactness unchanged (trig degree `< n` either way, T1); `Sym` still
-  `D_{n_φ h}` with mirrors at `δ + kπ/n`; `Σ` **computed** as ∅.
-  ⚠ **Measure the consumer set before calling this user-facing** (T16b). The
-  offset changes `Quadrature.product` for **every** consumer, not just the
-  cylinder — 2-D Cartesian included. Establish that blast radius before landing.
+  **Q5.2 — ⭐ UNWELD the product: a COMBINATOR over registered rules** (T28).
+  Re-posed 2026-08-02 by user diagnosis — this is no longer "add an offset", it
+  is the root the fold's other symptoms hang off.
+
+  1. **Make the azimuthal factor a MEASURE.** Today it is `np.linspace` plus a
+     scalar — an object that can carry no degree, no group, no generating
+     measure, and cannot be substituted. `measure.equispaced` (the **midpoint**
+     rule, registered, `[M]` zero production consumers) is the factor the fold
+     wants, and **its own docstring already gives T25's reason** — midpoints
+     "preserve symmetry under reflection through the centre of the interval".
+  2. **Take the pair as arguments, not as literals.** `product_mu_phi` welds
+     `gauss_legendre_on_mu × linspace`. The seam is what lets `Σ = ∅` *select*
+     the azimuthal rule instead of a `half_range=True` flag existing.
+  3. **Derive every intrinsic property downstream of the factors** — nodes and
+     weights through `⊗` + `pushforward` (both exist), the group **computed**
+     (not declared — `[M]` today's `D_{n_φ h}` tag is *correct*, but a
+     declaration is unfalsifiable and this module has shipped three false ones:
+     ERR-072/073/074), `Σ` and the level structure downstream of the nodes.
+     Retire the hand-written `2*n_mu - 1`: `[M]` `polar.degree_of_exactness`
+     already holds it — the fourth in-tree instance of **T20**.
+
+  ⛔ **BLOCKED on the exactness space — do NOT compose degrees before fixing
+  it.** `[M]` a naive `min(p_polar, p_azimuthal)` yields **degree 1**, because
+  `equispaced.degree_of_exactness = 1` is the *algebraic* degree on an interval
+  while the same nodes on the *circle* are the periodic trapezoid, exact to
+  *trigonometric* degree `n − 1`. One integer, two incompatible claims. So the
+  **EXACTNESS SPACE** axis (§4's "earned most", T2/T12b) is a **prerequisite of
+  Q5.2**, not a later phase — pull the minimum of it forward, or land Q5.2's
+  nodes/weights/group and leave the degree hand-written with a `[M]`-justified
+  comment until it lands. Decide explicitly; do not let it drift.
+
+  *Gates:* `Σ` **computed** as ∅ under the geometry's owed mirror; the group
+  computed and equal to the previous declaration on every shipped order; nodes
+  bit-identical when the same factors are passed (the un-welding alone must move
+  nothing).
+  ⚠ **Measure the consumer set before calling the offset user-facing** (T16b):
+  changing which azimuthal rule `Quadrature.product` defaults to reaches **every**
+  consumer, 2-D Cartesian included, not just the cylinder.
 
   **Q5.3 — A level becomes an ARC.** On a folded measure `η` is strictly monotone
   in `ω`, so `level_indices` and `fiber()` **are the same order** (T22b, `[M]`
