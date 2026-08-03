@@ -10,27 +10,25 @@ doc-architecture reference. Campaign play-by-play is retired — its
 behavioral lesson is in `lessons.md`; its landed milestones are in the
 SN theory page's "Development history" section.
 
-## 1. Lessons (read first)
+## 1. Lessons — a HOT digest over a COLD archive
 
-- [lessons.md](lessons.md) — 44 lessons (L-001…L-044), read FIRST each dispatch.
-  The spine: a page is done when every cross-ref resolves against the LIVE tree,
-  every claim's V&V level matches the skill verbatim, every retired symbol leaves
-  no dangling ref, and the build's WARNING/ERROR/CRITICAL set is unchanged from
-  the `-E` baseline. **Per-lesson detail lives ONLY in lessons.md — never
-  re-summarize a lesson here.** Topic index of the newest:
-  - L-044 — a retirement's doc radius in UN-autodoc'd modules is invisible to `-n` too; and it DEMOTES the rewired tests' claim class
-  - L-043 — reproduce the brief's "MEASURED, do not re-derive" block; audit the inventory
-  - L-042 — audit the corpus against a just-landed multi-commit REFACTOR
-  - L-041 — DOC-ONLY "retire the false promises" B0 pass; prove doc-only by AST
-  - L-040 — retiring a per-X flag from the docs (grep the CONCEPT, not the symbol)
-  - L-039 — authoring a campaign-CAPSTONE theory page from an algebra-of-record
-  - L-038 — auditing an "is the terminal docs phase done?" charter
-  - L-037 — flipping a documented-future SEAM to LANDED across a rich page
-  - L-036 — growing a thin honest-stub chapter to full at campaign close
-  - L-035 — V7 orphan-slice adjudication (WIRE / SENTINEL / GAP)
-  - L-033/L-034 — #231 P2 code-prose rebalance: pilot, then contract-dense classes
-  - L-032 — `:label:` re-namespacing onto design families
-  - L-026…L-031 — #231 corpus split→de-dup→metadata→taxonomy→labels→bibtex
+Same hot/cold split as this index: read the digest always, page the
+archive on demand. **Never re-summarize a lesson here or in the digest —
+each layer points down, it does not copy up.**
+
+- [lessons.md](lessons.md) — **HOT digest, read FIRST every dispatch**
+  (~395 lines / 30 KB, fits one `Read`). All 44 lessons as one imperative
+  rule each + its failure→correction core, clustered into 9 themes:
+  (1) verify against the LIVE tree · (2) the build is blind, grep is the
+  gate · (3) a `:label:` is a V&V edge · (4) retirement & staleness ·
+  (5) page surgery · (6) doc SHAPE per event class · (7) V&V vocabulary
+  curation · (8) code-prose rebalance · (9) gates & tooling. Every entry
+  carries a `→ L-0NN` pointer into the archive.
+- [lessons_archive.md](lessons_archive.md) — **COLD, load on demand**
+  (~3820 lines / 254 KB). The full L-001…L-044 sections: war stories,
+  evidence tables, `file:line` detail, per-instance calibrations. Open
+  ONLY the `→ L-0NN` section the digest sent you to — never the whole file.
+  New lessons are appended HERE first, then distilled into the digest.
 
 ## 2. Active / doc-debt state — git-true
 
