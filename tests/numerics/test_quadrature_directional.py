@@ -196,6 +196,132 @@ def test_q4_4_unknown_axis_label_raises() -> None:
         q.reflection_index("w")
 
 
+# ─── Q4.5+: the partner map is CERTIFIED, not merely involutive ─────────
+#
+# Campaign Q5.0.1. ``test_q4_2`` above checks only ``ref[ref[i]] == i`` —
+# which ``geometry/boundary/_specular.py`` documents as insufficient for
+# exactly this object: "the involution does not [catch it] (it can still
+# be its own inverse)". That is ERR-042, catalogued one layer up for
+# specular BC pairings; the quadrature layer carried none of that
+# module's three checks and reproduced the failure.
+
+
+_SHIPPED_RULES = [
+    ("lebedev(17)", lambda: Quadrature.lebedev(17)),
+    ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4)),
+    ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8)),
+    ("product(4,4)", lambda: Quadrature.product(n_mu=4, n_phi=4)),
+    ("product(4,8)", lambda: Quadrature.product(n_mu=4, n_phi=8)),
+    ("product(4,12)", lambda: Quadrature.product(n_mu=4, n_phi=12)),
+    # ODD n_phi belongs in this list even though the certification leaves
+    # it with only two axes: `[M]` with only even rows, restoring the
+    # pre-Q5.0.1 bare-argmin body left this gate GREEN — every map it
+    # inspected happened to be correct. The odd rows are what give it
+    # teeth against the defect it documents, because there the legacy body
+    # produces an axis-0 map whose reflection residual is 0.33-0.58.
+    ("product(4,5)", lambda: Quadrature.product(n_mu=4, n_phi=5)),
+    ("product(4,7)", lambda: Quadrature.product(n_mu=4, n_phi=7)),
+    ("gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8)),
+]
+
+
+@pytest.mark.parametrize("name,build", _SHIPPED_RULES, ids=[r[0] for r in _SHIPPED_RULES])
+def test_q4_5_every_stored_partner_map_really_is_its_reflection(name, build) -> None:
+    r"""Where a partner map EXISTS it must satisfy all three pairing checks.
+
+    The three are independent — each passes a table the other two reject
+    (``_specular.py``'s ERR-042 / ERR-044 / ERR-045 table):
+
+    * **involution** — ``ref[ref[i]] == i``;
+    * **the actual reflection** — ``R x_i == x_{ref[i]}``, which is the
+      one a garbage map fails and the involution cannot see;
+    * **measure preservation** — ``w_i == w_{ref[i]}``.
+    """
+    q = build()
+    nodes = np.atleast_2d(q.measure.nodes.T).T if q.measure.nodes.ndim == 1 \
+        else q.measure.nodes
+    for axis, ref in q.reflection_partners.items():
+        np.testing.assert_array_equal(
+            ref[ref], np.arange(q.N), err_msg=f"{name} axis {axis}: not an involution",
+        )
+        np.testing.assert_array_equal(
+            q.weights[ref], q.weights,
+            err_msg=f"{name} axis {axis}: partners carry different weights",
+        )
+        if axis < nodes.shape[1]:
+            reflected = nodes.copy()
+            reflected[:, axis] *= -1.0
+            residual = float(np.max(np.abs(reflected - nodes[ref])))
+            assert residual < 1e-11, (
+                f"{name} axis {axis}: the stored map is NOT the reflection — "
+                f"max |R x_i - x_ref[i]| = {residual:.4e}. An involutive but "
+                f"wrong map is ERR-042's signature."
+            )
+
+
+@pytest.mark.parametrize("n_phi", [4, 6, 8, 12, 16])
+def test_q4_6_even_n_phi_products_keep_all_three_axes(n_phi: int) -> None:
+    """The certification is a NO-OP on everything shipped with even ``n_phi``.
+
+    Pins that Q5.0.1 tightened the contract without narrowing any rule the
+    tree actually uses.
+    """
+    q = Quadrature.product(n_mu=4, n_phi=n_phi)
+    assert sorted(q.reflection_partners) == [0, 1, 2]
+
+
+@pytest.mark.parametrize("n_phi", [5, 7, 9])
+def test_q4_7_odd_n_phi_product_has_NO_x_reflection(n_phi: int) -> None:
+    r"""An odd-:math:`n_\varphi` product is not :math:`\sigma_x`-closed, so
+    axis 0 is ABSENT and asking for it RAISES.
+
+    Mechanism: a product rule's mirror planes sit at
+    :math:`k\pi/n_\varphi`. :math:`\sigma_x` is :math:`\varphi \to \pi -
+    \varphi`, i.e. a plane at :math:`\pi/2`, needing :math:`k =
+    n_\varphi/2` — an integer only for even :math:`n_\varphi`.
+    :math:`\sigma_y` is the :math:`k = 0` plane and therefore survives at
+    every :math:`n_\varphi`, which is why the cylindrical fold is
+    unconditional while the centreline map is not.
+
+    `[M]` Before Q5.0.1 the stored axis-0 map was wrong by ``0.58 / 0.42 /
+    0.33`` in the direction cosines at ``n_phi = 5 / 7 / 9`` — **and was
+    still an involution**, so ``test_q4_2`` passed on it. It feeds the
+    :math:`r=0` pole continuation.
+    """
+    q = Quadrature.product(n_mu=4, n_phi=n_phi)
+    assert 0 not in q.reflection_partners
+    assert sorted(q.reflection_partners) == [1, 2]
+    with pytest.raises(ValueError, match="no precomputed reflection partner"):
+        q.reflection_index("x")
+    # sigma_y survives — the fold does not depend on the parity.
+    q.reflection_index("y")
+
+
+def test_q4_8_certification_drops_an_axis_when_closure_actually_breaks() -> None:
+    """Mutation control: perturb ONE node off the mirror and the axis goes.
+
+    Without this the parametrized rows above could all be passing because
+    the certification never refuses anything.
+    """
+    from orpheus.numerics.quadrature.directional import (
+        _compute_sphere_reflection_partners,
+    )
+
+    good = Quadrature.lebedev(17).measure
+    assert sorted(_compute_sphere_reflection_partners(good)) == [0, 1, 2]
+
+    broken_nodes = good.nodes.copy()
+    broken_nodes[0, 1] += 0.05  # move one node off the y-mirror orbit
+    broken = DiscreteMeasure(
+        nodes=broken_nodes, weights=good.weights, support=good.support,
+    )
+    axes = sorted(_compute_sphere_reflection_partners(broken))
+    assert 1 not in axes, (
+        "perturbing a node off the y-mirror left axis 1 certified — the "
+        "closure check is not actually checking closure"
+    )
+
+
 # ─── Q5: Spherical harmonics ────────────────────────────────────────────
 
 

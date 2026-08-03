@@ -541,3 +541,33 @@ A third, cheap corroboration from the same audit: a **captured function object i
 a dataclass field** (`QuadratureSpec(factory=gauss_legendre_on_mu)`) is a live
 production consumer with ZERO graph edges — `callers()` reported it nowhere. L-013
 already flags this for *patching*; it applies identically to *auditing*.
+
+---
+
+## L-018 -- Before scoping a change to a STATIC TABLE, measure which rows are still consulted; and when one tag routes through two dispatch branches, the discriminating fixture is the one that FAILS
+
+Mapping the blast radius of parameterizing `SubgroupOfO3.Z2` by its mirror plane,
+the two findings that reshaped the answer both came from measurement, not reading:
+
+- **Half the table was dead code.** `_NAMED_LATTICE` looks like 5 load-bearing
+  `Z2` edges. But `_contains` decides **finite × finite by computed matrix
+  containment** and only falls back to the table when one side is *continuous* —
+  so `(Trivial,Z2)`, `(Z2,Oh)`, `(Z2,Ih)` are never read. The change needed **2**
+  relations, not 5. Generalizes: **a hand-written lookup table that sits behind a
+  computed fast path has dead rows; enumerate the table and ask, per row, "which
+  branch answers this?" before costing a change.** (Corollary for a NEW tag type:
+  both `_contains` and `_check_invariance_1d` end in a bare `return False`, so an
+  unhandled tag gets a *wrong-but-silent* answer — measured `O3.contains(Mirror('x'))
+  = False`. Check the fallthrough, not just the arms.)
+- **A tag with two dispatch branches is invisible on the fixture both accept.**
+  `Z2` means "σ_z" on 3-D nodes and plane-free "`x → −x`" on 1-D nodes. Every
+  shipped gate uses Gauss-Legendre / Lebedev — sets closed under **all three**
+  coordinate mirrors — so σ_x and σ_z agree and the overload cannot be seen. The
+  discriminator was a set that *breaks* the symmetry: embed an asymmetric μ two
+  ways and the answers split (`True` vs `False`), exposing a false certification.
+  **When a brief asks "is tag X consistent across its consumers?", build the input
+  that FAILS the property and check whether the two routes still agree** — an
+  input that passes proves nothing about which question was asked. (Sibling to
+  L-016's free-baseline control and vv Mode 7.) The cheapest version: hunt a
+  SHIPPED datum that already discriminates — `product(4,3)` is closed under σ_z
+  and not σ_x, so no synthetic fixture was needed at all.

@@ -456,14 +456,42 @@ exhibits.
 ORPHEUS's relevant sub-lattice of :math:`O(3)` is **finite and
 small**. Slab, sphere, 1-D / 2-D Cartesian geometries combined with
 the four shipped quadrature families (Gauss-Legendre, Lebedev,
-level-symmetric, product) span exactly the eight named entries
-encoded in :class:`~orpheus.numerics.symmetry.SubgroupOfO3` —
-``Trivial``, ``Z_2``, ``SO(2)``, ``O(2)``, ``O_h``, ``I_h``,
+level-symmetric, product) span the eight named entries encoded in
+:class:`~orpheus.numerics.symmetry.SubgroupOfO3` — ``Trivial``,
+``Z_2``, ``SO(2)``, :math:`D_{\infty h}`, ``O_h``, ``I_h``,
 ``SO(3)``, ``O(3)`` — plus the parameterised families :math:`C_n`
-and :math:`D_{nh}` reserved for forthcoming hex / triangular
-lattices. The subgroup-containment relation is therefore captured
-exhaustively by a static dict; no character-table or generator-based
-machinery is implemented because none is yet needed.
+and :math:`D_{nh}`.
+
+.. note::
+
+   Three statements in this paragraph were falsified by later work and
+   are corrected above; they are recorded because each was load-bearing
+   when written.
+
+   * It named :math:`O(2)`. That entry is **realized** as axial
+     rotations plus :math:`\sigma_h`, which is :math:`C_{\infty h}`,
+     not :math:`O(2)` — and under either reading the asserted relation
+     :math:`D_{nh} \subseteq O(2)` is false, because :math:`D_{nh}`
+     carries :math:`C_2` axes lying *in* the plane. Renamed to
+     :math:`D_{\infty h}`, which does contain every :math:`D_{nh}` and
+     is the group a cylinder actually carries.
+   * It called :math:`C_n` / :math:`D_{nh}` "reserved for forthcoming
+     hex / triangular lattices". They are in **active use**: the
+     product rule on :math:`S^2` is tagged :math:`D_{n_\varphi h}`,
+     computed from its nodes. (It previously advertised :math:`SO(2)`
+     — a claim **no** finite point set on :math:`S^2` can satisfy.)
+   * It said containment "is captured exhaustively by a static dict; no
+     character-table or generator-based machinery is implemented because
+     none is yet needed." Both halves are now false. Containment between
+     two FINITE groups is decided by **computed matrix containment** on
+     their realized operator sets; the static table is consulted only
+     when one side is continuous. The lattice itself is a **computed**
+     Hasse diagram of maximal-subgroup relations, walked downward from
+     high symmetry to find the symmetry a node set actually has — the
+     crystallographic construction. A *declared* invariance group is a
+     claim with no construction behind it, and such claims shipped false
+     here more than once; a computed one cannot lie about the object it
+     was computed from.
 
 Lebedev quadratures (Lebedev 1976) and level-symmetric :math:`S_N`
 quadratures (Carlson & Lathrop 1968) are :math:`O_h`-invariant *by

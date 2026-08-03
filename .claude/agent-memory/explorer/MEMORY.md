@@ -20,7 +20,10 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
   algorithm — and fold-the-algorithm ≠ fold-the-state (L15)**; **a stored numeric
   TAG (exactness/order/rank) is a claim — sweep it, and first measure what the
   declared SYMMETRY gives for free; a tag-pinning `assert x == <tag>` is evidence
-  the property is UNTESTED (L16)**.
+  the property is UNTESTED (L16)**; **a static table behind a computed fast path has
+  DEAD ROWS — measure which are consulted before costing a change; and a tag routing
+  through two dispatch branches is invisible on the fixture both accept, so find the
+  input that FAILS (L18)**.
 
 ## 2. Active / in-flight state
 

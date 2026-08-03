@@ -1744,13 +1744,58 @@ implemented and **no `D_6h`-invariant rule in tree**.
      Pattern 4: the illegal state stops being representable.
      *Gate:* a folded node set must make axis 1 **absent**; every shipped rule
      today must keep all three (no behaviour change on the current tree).
-  2. **Name the mirror's PLANE.** `Z2` is realized as `_reflections("z")` — σ_z
-     only — so the cylinder's σ_y is **not nameable**, an axis convention hidden
-     inside an "abstract order-2 group". Same class as T15c.
-     ⚠ *This is Q7's residual-group territory.* **Decide: pull the mirror-plane
-     parameterisation forward into Q5.0, or inline a private σ_y here and let Q7
-     generalise.** Recommend pulling forward — an un-nameable group is what
-     forced the probes to bypass the public surface.
+  2. **Name the mirror's PLANE** — ✅ **PULLED FORWARD from Q7 by user ruling.**
+     `Z2` is realized as `_reflections("z")` — σ_z only — so the cylinder's σ_y
+     is **not nameable**, an axis convention hidden inside an "abstract order-2
+     group". Same class as T15c.
+
+     **Blast radius, mapped** (`scratch/q5_mirror_plane_blast_radius.md`): 29
+     sites over 4 production files, 3 test files, 1 doc page, carrying **three
+     different meanings** — σ_z-specific (3-D containment + invariance), a
+     plane-free `x → −x` (the 1-D arm), and `μ → −μ` (the geometry table).
+
+     **The plumbing already exists.** `_reflections(axis: str)` accepts exactly
+     `x`/`y`/`z` and raises otherwise; σ_y is constructible today. Only the enum
+     member is missing — all five callers pass the literal `"z"`.
+
+     ⛔ **A shipped rule already gets a FALSE certification.** `[M]`
+     `product(4, 3)`: `σ_x = False`, `σ_z = True`, and
+     `SubgroupOfO3.Z2.is_invariant(...) = True`. It is harmless *today* only by
+     **dispatch accident** — two independent guards (the 1-D branch at
+     `symmetry.py:706-713`, and Stage 0 rejecting every S² rule on domain before
+     `Z2` is asked) — not by any designed invariant. The slab embedding really
+     is `(μ, 0, 0)` (written twice in `directional.py`), so the slab's mirror is
+     **σ_x** while `Z2` realizes **σ_z**; `symmetry.py:816-818`'s *"Any single
+     reflection works; the choice is convention"* is simply **false**. On a
+     symmetric GL μ every embedding reports `True` for all three axes, so the
+     natural fixture **structurally cannot see the difference** — only an
+     asymmetric μ, or an odd-`n_φ` product, exposes it.
+
+     ⭐ **A convergence worth keeping.** A prototype `Mirror(axis)` got every
+     finite relation right for free, including `Dnh(3).contains(Mirror("x")) =
+     False` — which **breaks `test_dnh_reflection_in_dnh`**, whose prose ("a
+     single reflection sits inside every `D_nh`") is a false generalization.
+     That is **the same parity fact** Q5.0.1 measured on the node set: `D_nh`'s
+     vertical mirrors sit at `kπ/n`, so `σ_x` needs `k = n/2`. The group lattice
+     and the point set agree, from opposite directions — the sharpest available
+     evidence that the parity is structural and not an artifact of either.
+
+     **Template + hazards for the new family** (from the `Cn`/`Dnh` arms):
+     * `_contains` decides finite×finite by **computed matrix containment**; the
+       static `_NAMED_LATTICE` is consulted only when a side is CONTINUOUS. So a
+       new family needs **2** relations (`⊆ D_∞h`, `⊆ O(3)`), not 5 — `[M]`
+       **3 of the 5 existing `Z2` edges are dead code.**
+     * ⚠ `_contains` ends in a bare `return False`, so `O3.contains(Mirror("x"))`
+       measures **`False`** — wrong, and silent. Fix this in the same pass or the
+       new family inherits it.
+     * `_NAMED_LATTICE` is typed enum→enum, so parameterized families live
+       entirely in `isinstance` arms — that is the pattern to follow.
+     * `repr` is **load-bearing**: `_GROUP_CACHE` and the lattice walk's
+       `visited` set both key on it.
+     * The 1-D arm (`_check_invariance_1d`) never touches `_realized_ops` /
+       `_orbit_closure` (`[M]` 0 calls) and ends in `return False`, so a new tag
+       **silently reports not-invariant** on every 1-D measure until its arm is
+       written.
 
   ---
   **Q5.1 — `DiscreteMeasure.quotient(group)`.** Name the composite

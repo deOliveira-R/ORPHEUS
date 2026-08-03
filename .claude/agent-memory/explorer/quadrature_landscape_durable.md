@@ -75,7 +75,12 @@ false: the product rule's `SO2`, and `cartesian2d`'s `O_h` residual — both ret
 2026-08-02; product is now `Dnh(n_phi)`.)
 
 **Partner maps: 3 SEARCH vs 1 FORMULA.** `_find_reflections` (`quadrature/directional.py`,
-O(N²) `argmin`, **no distance guard at all**), `moc/geometry._reflected_azi_index`
+O(N²) `argmin`, **no distance guard at all** — ⚠ **being RETIRED as of 2026-08-02, in an
+UNCOMMITTED edit** on `refactor/operator-strategy-layers`: `_compute_sphere_reflection_partners`
+now takes a `DiscreteMeasure` and routes through `symmetry._orbit_closure`, so the partner
+map is *certified* (bijection + weights) and an uncertifiable axis is OMITTED rather than
+guessed. Verify against git before citing the guard-free version),
+`moc/geometry._reflected_azi_index`
 (`argmin` over φ, no guard — the answer is exactly `n_azi−1−a` by index arithmetic), and
 `MOCMesh._find_link` (nearest track endpoint, `best_dist` never thresholded). The one
 FORMULA is `Quadrature.gauss_legendre`'s `identity[::-1]`, legitimate ONLY because
