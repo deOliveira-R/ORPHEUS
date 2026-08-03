@@ -1,18 +1,27 @@
 # Test-Architect Memory Index
 
-One line per entry — detail lives in the linked topic file, NEVER inlined here
-(the index is loaded whole every dispatch; keep it small). Four sections:
-(1) lessons pointer — READ `lessons.md` FIRST every dispatch; (2) active/in-flight
-state — git-true (reconcile "unmerged" claims against git before acting);
-(3) durable reference recipes; (4) design idioms. The failure-mode taxonomy lives
-in `vv-principles`; the reference inventory + XS mixtures in `AGENT.md`. No
-campaign play-by-play here — it is merged archaeology.
+One line per entry — detail lives in the linked file, NEVER inlined here (the
+index is loaded whole every dispatch; keep it small). Four sections: (1) lessons
+— READ `lessons.md` FIRST every dispatch; (2) active/in-flight state — git-true
+(reconcile "unmerged" claims against git before acting); (3) durable reference
+recipes; (4) design idioms. The failure-mode taxonomy lives in `vv-principles`;
+the reference inventory + XS mixtures in `AGENT.md`. No campaign play-by-play
+here — it is merged archaeology.
 
-## 1. Lessons (durable verification discipline — READ `lessons.md` at START)
+## 1. Lessons — a HOT digest over a COLD archive (READ the digest at START)
 
-- [Test Architect lessons](lessons.md) — full L1–L35 detail. This legend is POINTERS ONLY; open the
-  file for the mechanism, the measurements and the recipe. Keep each entry to one clause.
-  L1 config-blindness (flat/1G/homog/slab/iso-snapshot) · L2 reference↔claim-layer + structural-independence · L3 MMS simplification-bias override + activate/null declaration · L4 prove every gate's teeth bite (Mode-8 / xfail / mutation / call-count) · L5 characterization-gate without calcifying · L6 Mode-10 sub-floor term → STRUCTURAL teeth · L7 regression-tolerance IS the claim · L8 cross-method infra · L9 V&V tagging · L10 proactive refute-the-premise · L11 axis-transpose of a shipped reduction → gate the FLIPPING rule · L12 fast-path→composed fold (principled-equiv; leaf-transpose; Euclidean ≠ `.H`) · L13 capability-string → typed-operator carve · L14 first *iterative* inverse (dense-LU + G-Neumann keystone) · L15 frozenset → typed-predicate retirement · L16 new consumption-mode of a shipped algebra (`assemble()`) · L17 reverse-scan transpose-solve (#280; dense-apply SPHERE keystone) · L18 carrier-augmentation ψ½ metric (SPD `G_sd`; both-legs Mode-12 closure) · L19 swap-law wiring (`A.H.inverse() ≡ A.inverse().H`) · L20 structure-only ABC re-parent + typed-key generalization · L21 WRAP-resolvent delegating to a verified engine · L22 welded-fold UN-WELD (Mode-11 wrap-COUNTER) · L23 synthetic accelerator: the correction→0 PARTITION · L24 three-DOF separation — MEASURE the AC first (signature-tautological) · L25 call-count PERF gate · L26 metric-adjoint blindness is the COMMUTATOR `[G,A]=0`, not "uniform h" · L28 REPAIRING blind gates (decayed `catches`, tautological `raises`, blind hand-computed) · L29 DOMAIN NARROWING — the old gate stops RUNNING, not tautologizes · L30 MIGRATING a narrowing's inherited test surface — rectangular self-adjointness IS reciprocity vs the opposite-face sibling · L31 an `A ≡ B` theorem holding BY SHARED BODY is designed-GREEN under a body bug; two sibling routes have DISJOINT discriminating fixtures · L32 INVERT a snapshot generator recorder→reference (derive from the EQUATION; totality is the precondition; the frozen FILE is what stops generator+production co-drift — make it an AST gate) · L33 the deferred marker whose FLIP IS A NO-OP (diff the xfail body against its own flip-proof) + the green gate whose REASON decayed + reciprocity is a CONSISTENCY check not a correctness one · L34 making a SYMMETRY EXACT manufactures TIES (a downstream `argsort` that was accidentally total becomes under-determined — 1.8 % flux, NOT ≤1 ULP; "sorted by η" is Mode-12 blind; grep argsort/argmin/unique on the quantity made exact; split the ordering commit) + L34b NN-search margin refutes the "must be mis-pairing" premise, and `ref[ref]==id` passes on a residual-0.94 map + L34c gating a MORE-accurate impl against the less-accurate one it replaces + L34d an all-blind teeth verdict is a broken harness (positive-control probe mandatory; it caught a tautology in my OWN new gate) + L34e a "bit-identical to the legacy adapter" pin whose adapter no longer exists is `X == X` · **L35 verifying a pure-math PRIMITIVE (a group/algebra type): L35a the pillars differ (no MMS/semi-analytical row exists; the grounds are SymPy-under-an-EXPLICIT-unit-parameterisation, an external DIFFERENT-ALGORITHM impl, the Lie `expm` definition, published tables, exact integers) · L35b the group-action HOMOMORPHISM `π(gh)=π(g)∘π(h)` is the deepest cheap gate and is VACUOUS on an abelian fixture · L35c an involution/order law is Mode-12 BLIND to the AFFINE part — gate the FIXED SET · L35d the SEAT is a THEOREM (a G-preserved set's centroid is G-fixed) · L35e bijectivity ⊥ the match WINDOW · L35f a `-> T | None` collapses N guards — isolate from the INPUT side · L35g ⛔ never assert TIGHTER than the type's own invariant · L35h bit-exactness is EARNED PER LAW — measure before choosing the assertion · L35i `ls` the target path before delivering a pre-carve plan (the module can LAND mid-plan; the reconciliation outvalues the matrix) · L35j WRITING the gates found 3 defects, all in the FIXTURE (one-pass Gram-Schmidt fails a 1e-12 gate; an ABSOLUTE atol is wrong for a residual scaling with `‖t‖`; state the law in the direction that IS a float theorem) · L35k a SELF-CONSISTENT gate is blind to a transposed action — only the composition law catches it · L35l the harness lied first AGAIN, and the positive control is what caught it**.
+- **[Lessons — hot digest](lessons.md)** — ~425 lines. One imperative rule per
+  entry, grouped by behavioral family (gates that cannot red · harness discipline ·
+  config blindness · reference & claim layer · tolerance · carve archetypes ·
+  snapshots & exactness · pure-math primitives). **Read this file whole, every
+  dispatch.** Every entry ends with a `→ LNN` pointer into the archive.
+- **[Lessons — cold archive](lessons_archive.md)** — 2808 lines, sections L1–L35,
+  append-ordered. The war stories, measured numbers, `file:line` detail and
+  per-fixture tables. **Open ONE section at a time, only when the digest's pointer
+  says the detail matters.** Never read it whole — that is ~48K tokens.
+- NO lesson content is inlined here. The digest is the index over the archive;
+  this file is the index over everything else. New lessons: add the RULE to the
+  digest (with its `→ LNN`) and the war story as a new archive section.
 
 ## 2. Active / in-flight verification work
 
