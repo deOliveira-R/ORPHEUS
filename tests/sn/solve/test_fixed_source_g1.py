@@ -1,7 +1,19 @@
 r"""L1 contract pins for the R-1 Step 4 G1 carve of
 :func:`~orpheus.sn.solver._solve_fixed_source_krylov` onto
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` + typed
-:class:`~orpheus.sn.angular_flux.AngularFlux`.
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` + a typed
+angular-flux carrier.
+
+.. note::
+
+   The carve originally landed on the legacy
+   ``orpheus.sn.angular_flux.AngularFlux`` (bulk + conflated boundary
+   buffer + history).  D-H.1b replaced that carrier with the composite
+   :class:`~orpheus.transport.timed_full_field.TimedFullField` (bulk =
+   L2 :class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
+   boundary = L2
+   :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`),
+   and D-H.2-C5 phase 2 deleted the legacy class.  The pins below are
+   stated against the composite — that is what the gates assert.
 
 Per V&V plan §G1.3 (``.claude/plans/r1_step4_g_verification_plan.md``).
 
@@ -20,9 +32,11 @@ What this file pins
    ``ψ_n = q_n / Σ_t``** (the L0 streaming-equilibrium / per-ord
    flat-flux invariant for the fixed-source path — the canonical
    ERR-026 diagnostic specialised to the carve).
-4. **Returns typed AngularFlux with B1'' face residual on its
-   boundary** (the path-forward contract — Solution.angular_flux
-   carries the matvec's face residual as `.boundary`).
+4. **Returns the typed composite with the B1'' face residual on its
+   boundary** (the path-forward contract — ``Solution.angular_flux``
+   IS the ``TimedFullField`` KrylovAcceleration returned, carrying the
+   matvec's face residual as ``.boundary``; the gate asserts the type
+   and the per-face view shapes, no flat round-trip).
 5. **No legacy eq_map machinery exists** (D-J 2026-05-30: the
    ``build_equation_map_*`` / ``solution_to_angular_flux_*`` /
    ``pack_with_traces`` family was deleted from
@@ -259,13 +273,14 @@ class TestHomogeneousReflectiveFixedPoint:
         )
 
 
-# ── Pin 4: returns typed AngularFlux with face boundary ─────────────
+# ── Pin 4: returns the typed composite with face boundary ───────────
 
 
 class TestReturnTypeContract:
-    """G1's Solution.angular_flux IS the AngularFlux that KrylovAcceleration
-    returned — including its `.boundary` carrying the matvec's B1''
-    face residual.  No flat round-trip, no reconstruction from packed."""
+    """G1's Solution.angular_flux IS the TimedFullField that
+    KrylovAcceleration returned — including its `.boundary` carrying the
+    matvec's B1'' face residual.  No flat round-trip, no reconstruction
+    from packed."""
 
     @pytest.mark.verifies("transport-cartesian")
     def test_solution_angular_flux_carries_boundary(self) -> None:

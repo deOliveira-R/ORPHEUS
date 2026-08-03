@@ -28,8 +28,8 @@ Post-D-G this class:
   1-4 faces.
 * **Is IMMUTABLE** (``frozen=True``). The pre-D-G mutable
   write-through pattern (sweep's persistent BC state) is replaced by
-  sweep-side :class:`~orpheus.sn.sweep_scratch.SweepScratch` +
-  functional reconstruction at iteration boundaries.
+  sweep-side EPHEMERAL local arrays + functional reconstruction at
+  iteration boundaries.
 * **Carries face geometry via** :class:`~orpheus.numerics.face_layout.FaceLayout`
   **on the** :class:`AngularTraceSpace` **(A.5)**, not as a separate field
   attribute. ``mesh.angular_trace`` is the cached source; the underlying
@@ -41,9 +41,16 @@ Post-D-G this class:
 * **Excludes interior wavefront cache.** The pre-D-G 2-D
   ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)`` conflated buffers
   split: face slots live here (``(N, ng, ny)`` × 2 + ``(N, ng, nx)``
-  × 2 = much smaller); interior cells live on
-  :class:`~orpheus.sn.sweep_scratch.SweepScratch` (sweep-private,
-  owned by the sweep operator across iterations).
+  × 2 = much smaller); interior cells are sweep-local working
+  storage, allocated inside the sweep and discarded with it (every
+  sweep recomputes each interior cell from upstream propagation, so
+  nothing there is authoritative state). A ``SweepScratch`` type was
+  minted for them and deleted within the same step (2026-05-28,
+  "Option I"): a sweep-private *persistent* type re-created the very
+  boundary/interior conflation being dissolved, and the 1-D unified
+  sweep had already shown the right pattern — an ephemeral local
+  ``psi_face_chain``. **This trace is the sole persistent face-state
+  carrier.**
 
 **B.1 (field vocabulary):** every member that was generic to a boundary
 trace field — the ``mesh`` field, the cross-mesh guard, the AngularTraceSpace

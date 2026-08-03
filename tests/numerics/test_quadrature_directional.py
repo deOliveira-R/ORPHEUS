@@ -337,8 +337,10 @@ def test_q5_2_spherical_harmonics_l0_constant() -> None:
     the :math:`\sqrt{4\pi}` factor on the moment side, so :math:`Y_0^0
     \equiv 1` at every ordinate.
 
-    See :func:`orpheus.numerics.spherical_harmonics.evaluate_real_sh`
-    for the convention details. The pin checks the constancy
+    See :mod:`orpheus.numerics.basis.spherical_harmonic_basis` — the
+    canonical home of the :math:`Y_\ell^m` evaluator and of the discrete
+    Gram, which absorbed the free ``evaluate_real_sh`` function this
+    docstring used to cite — for the convention details. The pin checks the constancy
     (rotation-invariance of the :math:`l=0` slot), not a specific
     normalisation value.
     """

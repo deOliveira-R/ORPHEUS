@@ -1,10 +1,10 @@
 """Verification plan for the rank-N (Marshak/DP_N) white-BC closure in
-:mod:`orpheus.derivations.peierls_geometry`.
+:mod:`orpheus.derivations.continuous.peierls_nystrom.geometry`.
 
 Scope
 -----
 These tests define the contract for the upcoming rank-N extension of
-:func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`.
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`.
 The rank-1 (Mark / isotropic re-entry) closure currently shipped
 incurs the well-known boundary-leakage error documented in
 ``docs/theory/references/peierls_nystrom.rst`` §8:
@@ -241,7 +241,7 @@ def test_rank2_improves_over_rank1(geometry, R):
 
     This is the **canonical Marshak-ladder first step** that the
     2026-04-18 ``(ρ_max / R)²`` Jacobian fix unlocked in
-    :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode`.
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_mode`.
     Adding the N=1 mode to the rank-1 closure MUST reduce the
     thin-cell error on both geometries — this is the direct analogue
     of Stepanek 1981's slab DP_0 → DP_1 improvement at each optical

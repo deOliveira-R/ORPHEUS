@@ -2,10 +2,10 @@
 
 C7 of the Phase-4.2 campaign. Exercises the ``boundary='white'``
 path of
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 (with ``geometry=_pg.CYLINDER_1D``) and the two helpers
-:func:`~orpheus.derivations.peierls_geometry.compute_P_esc` and
-:func:`~orpheus.derivations.peierls_geometry.compute_G_bc`.
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc` and
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc`.
 
 .. important::
 
@@ -15,7 +15,7 @@ path of
    becomes thinner — the Wigner-Seitz exact identity
    ``k_eff(white) = k_inf`` holds only asymptotically. See the
    caveat block in
-   :func:`~orpheus.derivations.peierls_geometry.build_white_bc_correction`
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`
    for the error table. Tests here gate on the **thick-limit**
    behaviour, where the closure is quantitatively accurate.
 

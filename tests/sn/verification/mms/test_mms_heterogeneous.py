@@ -3,7 +3,7 @@ r"""L1 MMS (Method of Manufactured Solutions) tests for SN — heterogeneous 2-g
 This is the **Phase-2.1a** consumer test landing alongside the
 deletion of the Richardson-extrapolated ``sn_slab_Neg_Nrg`` cases
 (T3 violators). Unlike the earlier
-:mod:`tests.sn.test_mms` which tests the homogeneous single-material
+:mod:`tests.sn.verification.mms.test_mms` which tests the homogeneous single-material
 slab, this file exercises the 1D SN sweep on a **continuously
 heterogeneous** 2-group problem — smooth :math:`\Sigma_t(x)`,
 :math:`\Sigma_s(x)` — so the multigroup scatter assembly and the
@@ -18,7 +18,7 @@ spatial-convergence measurement with interface-treatment artefacts
 difference hits its design :math:`\mathcal O(h^{2})` order exactly.
 
 See :doc:`/theory/verification/sn` (heterogeneous MMS section)
-for the full derivation and :mod:`orpheus.derivations.sn_mms` for
+for the full derivation and :mod:`orpheus.derivations.continuous.mms.sn` for
 the reference solution.
 """
 
@@ -195,7 +195,7 @@ def test_sn_heterogeneous_mms_positive_absorption_everywhere():
     on the whole slab for both groups.
 
     Regression guard on
-    :func:`orpheus.derivations.sn_mms._default_hetero_xs_functions`:
+    :func:`orpheus.derivations.continuous.mms.sn._default_hetero_xs_functions`:
     any future tweak that makes absorption negative somewhere
     would build unphysical materials and the
     :meth:`SNSlab2GHeterogeneousMMSCase.build_materials` call

@@ -950,7 +950,7 @@ def energy_spectrum(sol) -> np.ndarray:
     The one spelling of the spectrum-extraction convention the adjoint
     batteries compare against closed-form eigenvectors: group axis first,
     unweighted spatial mean over every remaining axis, ℓ² normalisation
-    (matching :func:`orpheus.derivations.common.eigenvalue.dominant_eigenpair`'s
+    (matching :func:`orpheus.numerics.eigenvalue.dominant_eigenpair`'s
     convention).  On a spatially-flat iterate the mean is exact; on a
     structured one it is the flat-weight projection — the batteries only
     apply it where flatness holds (∞-medium legs) or where the reference

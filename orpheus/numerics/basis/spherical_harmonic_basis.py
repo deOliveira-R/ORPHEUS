@@ -392,10 +392,14 @@ def _evaluate_real_sh(
 ) -> NDArray:
     r"""Implementation body of :meth:`SphericalHarmonicBasis.evaluate`.
 
-    Kept as a free function so the back-compat shim at
-    :mod:`orpheus.numerics.spherical_harmonics` can re-export this
-    without instantiating a class. Algorithm preserved bit-identical to
-    the legacy ``evaluate_real_sh`` so the snapshots at
+    A free function because it is class-free math (an
+    :math:`(L, \Omega) \mapsto Y` table): it was carved out so the
+    now-retired back-compat shim ``orpheus.numerics.spherical_harmonics``
+    could re-export it without instantiating a class, and it stays free
+    because :meth:`SphericalHarmonicBasis.evaluate` and
+    :meth:`SphericalHarmonicBasis.evaluate_from_components` are both
+    thin callers of it. Algorithm preserved bit-identical to the legacy
+    ``evaluate_real_sh`` so the snapshots at
     ``tests/sn/regression/snapshots/`` continue to pass.
 
     See the module docstring for the convention and citations.

@@ -21,7 +21,7 @@ Test strategy:
    correctly across the τ_R range.
 
 Predecessor:
-:mod:`tests.derivations.test_trajectory_resolvent_symbolic`
+:mod:`tests.derivations.test_peierls_greens_function_symbolic`
 (V_α1, V_α2, V_α3 SymPy gates).
 """
 from __future__ import annotations

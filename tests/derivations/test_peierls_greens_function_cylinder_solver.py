@@ -129,7 +129,7 @@ def test_v_alpha1_cyl_numerical_constant_initial_guess(
     machine precision.
 
     Cylinder analog of
-    :func:`tests.derivations.test_trajectory_resolvent_solver.test_v_alpha1_numerical_constant_initial_guess`.
+    :func:`tests.derivations.test_peierls_greens_function_solver.test_v_alpha1_numerical_constant_initial_guess`.
     """
     fix = fuelA_thin_cylinder
     k_inf = fix["nu_sigma_f"] / (fix["sigma_t"] - fix["sigma_s"])

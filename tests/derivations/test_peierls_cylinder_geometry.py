@@ -22,7 +22,7 @@ subsumes the chord form). Coverage:
    depth.
 
 These are the sanity checks that must pass before the Nyström kernel
-assembly in :func:`~orpheus.derivations.peierls_geometry.build_volume_kernel`
+assembly in :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel`
 is trusted.
 """
 

@@ -24,9 +24,10 @@ Two checks, complementary:
 * **the −C glue, cross-checked against an INDEPENDENT collision operator.**
   ``apply(ψ).interior == loss_action(σ_t, ψ).interior − C.apply(ψ).interior`` on a ≥2G
   heterogeneous NON-FLAT config, where ``C`` is a SEPARATELY-constructed
-  :class:`~orpheus.sn.operators.streaming.CollisionOperator` — so the subtrahend is verified
-  to be exactly ``σ_t·ψ`` (the same σ_t), applied ONCE, not the production
-  self-check.
+  :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+  (``M[σ_t]``; #261 retired the former ``CollisionOperator`` thin subclass) — so
+  the subtrahend is verified to be exactly ``σ_t·ψ`` (the same σ_t), applied
+  ONCE, not the production self-check.
 
 ``-O``-safe (vv Mode 8): ``np.testing`` / ``pytest.fail`` only.  ``foundation`` —
 a software/algebra invariant (no theory ``:label:``).  ≥2G heterogeneous (vv
@@ -139,7 +140,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
       ``StreamingCollisionOperator.apply`` IS ``loss_action(σ_t)`` (the full loss).
     * ``L.apply ≈ loss_action(σ_t) − C·ψ`` to FP ULP — the affine relation
       ``streaming_action(ψ) = M(σ_t)ψ − σ_t⊙ψ``, with ``C`` a SEPARATELY
-      built :class:`CollisionOperator` so the subtrahend is the verified
+      built :class:`MultiplicationOperator` so the subtrahend is the verified
       ``σ_t·ψ`` (same σ_t), applied ONCE.  pure ``L`` re-associates the FP
       reduction tree vs subtracting ``C·ψ`` off the σ-bearing matvec, so
       the agreement is to a few ULP, not bit-exact.

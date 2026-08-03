@@ -435,7 +435,7 @@ class CollisionCache:
         ``(a_attenuation, inverse_denom)`` are owned by the cell-update
         scheme (Issue #236 §2): this method delegates their three numpy
         ops to :meth:`scheme.affine_scan_coefficients
-        <orpheus.transport.spatial.scheme.DiscretizationScheme.affine_scan_coefficients>`
+        <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients>`
         so the cache reflects whichever spatial closure ``SNMesh`` selected
         — the cache keeps storage + lifetime; the scheme owns the math
         (Cardinal Rule 2 / Pattern 2, single source of truth).  This cache

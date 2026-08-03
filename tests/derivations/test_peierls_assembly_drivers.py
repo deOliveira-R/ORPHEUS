@@ -1,7 +1,7 @@
 r"""Foundation tests for the per-observer angular-sweep assembler
 drivers (`per_observer_angular_assembly` and
 `per_surface_centred_angular_assembly`) in
-:mod:`orpheus.derivations.peierls_geometry`.
+:mod:`orpheus.derivations.continuous.peierls_nystrom.geometry`.
 
 These drivers collapse the ~18 `_per_obs(r_i)` skeletons that
 `compute_P_esc_*` / `compute_G_bc_*` / per-face / per-mode primitives

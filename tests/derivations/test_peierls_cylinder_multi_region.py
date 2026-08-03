@@ -2,9 +2,9 @@
 
 C4 of the Phase-4.2 campaign. The volume kernel builder from C3 already
 handles multi-region via
-:meth:`~orpheus.derivations.peierls_geometry.CurvilinearGeometry.optical_depth_along_ray`
+:meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.optical_depth_along_ray`
 (ray annular-boundary walking) and
-:func:`~orpheus.derivations.peierls_geometry.lagrange_basis_on_panels`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.lagrange_basis_on_panels`
 (piecewise-Lagrange source interpolation across panels). This test
 file adds the direct unit-tests on those two helpers and verifies
 the ``build_volume_kernel`` output for a thick **inhomogeneous**

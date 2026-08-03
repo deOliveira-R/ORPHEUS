@@ -1,7 +1,9 @@
 r"""Intrinsic-law tests for :class:`~orpheus.numerics.basis.IndicatorBasis`.
 
 The piecewise-constant (P0) cell-indicator basis is the trial side of the
-spatial / energy homogenisation :class:`~orpheus.numerics.frame.Frame`.  These
+spatial / energy homogenisation
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` (test ≠ trial: the
+flux/spectrum weighting lives on the TEST side, never on the measure).  These
 ``foundation`` tests pin its DEFINING laws (independent of any consumer):
 
 * **partition of unity** — every point lands in exactly one cell (one-hot rows),

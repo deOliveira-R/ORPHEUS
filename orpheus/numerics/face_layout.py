@@ -17,7 +17,7 @@ L1 primitives (mathematics, knows no neutrons) shared by every codim-1
 Motivation (Depth B step D-G)
 ==============================
 
-Pre-D-G :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` carried a
+Pre-D-G ``orpheus.sn.boundary_flux.AngularBoundaryFlux`` carried a
 dict-like collection of per-geometry-conditional ndarray attributes
 (``xmin_face`` / ``xmax_face`` for 1-D, ``xmin_xmax_buf`` /
 ``ymin_ymax_buf`` for 2-D). Arithmetic dispatched per-attribute with

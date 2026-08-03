@@ -2,11 +2,13 @@ r"""The flattened realization of a typed-carrier operator.
 
 :class:`FlattenedOperator` conjugates a
 :class:`~orpheus.numerics.operator.LinearOperator` whose carrier is a
-**flat-vector-like composite** (anything exposing the duck-typed
-``to_flat()`` / ``from_flat(flat, template)`` pair — the
-:data:`~orpheus.numerics.iteration.FlatVectorLike` protocol; the
-canonical instance is the transport
-``FullField``) into an operator on **bare 1-D ndarrays**:
+**flat-vector-like composite** into an operator on **bare 1-D
+ndarrays**. "Flat-vector-like" is the *ravellable* protocol
+:mod:`~orpheus.numerics.iteration` duck-types on — an instance
+``to_flat()`` paired with a class-level ``from_flat(flat, template)``
+factory, deliberately unnamed as a type so ``numerics`` need not
+import ``transport`` (the canonical instance is the transport
+``FullField``):
 
 .. math::
 
@@ -81,7 +83,7 @@ class FlattenedOperator(LinearOperator):
     inner : LinearOperator
         The typed-carrier operator (e.g. the diffusion loss
         ``L + C − S − B`` on the scalar composite).
-    template : FlatVectorLike
+    template : ravellable composite
         A composite instance supplying the unflatten metadata (shapes,
         spaces, meshes, concrete class) — canonically a zero composite
         on the operator's mesh. Must satisfy

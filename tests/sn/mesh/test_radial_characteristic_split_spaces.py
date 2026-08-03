@@ -1,17 +1,19 @@
 r"""B.1b — the split ψ½ ray spaces (System B's interior ⊕ boundary layout).
 
 Space-level gates for the Phase-B (coupled-block campaign) split of the unified
-:class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace`
-(keyed ``(level, sign, part)``) into the two per-``(level, sign)`` spaces
+``RadialCharacteristicSpace`` (keyed ``(level, sign, part)``; retired BY the
+split, hence a literal and not a cross-reference) into the two per-``(level,
+sign)`` spaces
 :class:`RadialCharacteristicInteriorSpace` (the ``cells`` legs, ``G_sd = V_cell``)
 and :class:`RadialCharacteristicBoundarySpace` (the ``corner`` legs, ``G = V(r =
 R)``) — the substrate for posing the ψ½ ray as its own composite.
 
 The split-fidelity oracle is a **hand-known arange fingerprint** (NOT
-``split == unified`` — the split spaces and the unified space read ONE shared
-``_radial_characteristic_legs`` walk, so a split-vs-unified check is
-self-referential to a walk bug; the arange pins the layout order/offsets against
-a value computed independently of production).
+``split == unified`` — the split spaces and the unified space read the ONE
+shared ``_radial_characteristic_legs`` walk, so a split-vs-unified check was
+self-referential to a walk bug even while the unified space still existed; the
+arange pins the layout order/offsets against a value computed independently of
+production).
 
 ⚠ **Mandatory config-blindness fixture (test-architect
 ``coupled_operator_b1_split_verification.md``):** the sphere carries ONE level,

@@ -491,7 +491,7 @@ def derive_sphere_psi_from_phi_characteristic() -> dict:
 
     This is the textbook integral-transport form for the sphere
     Green's function; it is the basis of the Peierls operator (cf.
-    :mod:`orpheus.derivations.continuous.peierls`).
+    :mod:`orpheus.derivations.continuous.peierls_nystrom`).
 
     SymPy verifies the chord-exit length formula
     :math:`s_{\rm out}(r, \mu) = -r\mu + \sqrt{R^2 - r^2(1 - \mu^2)}`

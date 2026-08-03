@@ -2104,7 +2104,8 @@ def solve_sn(
         Typed return carrying eigenvalue, typed
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
-        :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` fields plus an
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+        fields plus an
         :class:`~orpheus.sn.solution.IterationHistory` carrying the
         eigenvalue trajectory.  The unified :class:`Solution` type covers
         both eigenvalue and fixed-source problems.

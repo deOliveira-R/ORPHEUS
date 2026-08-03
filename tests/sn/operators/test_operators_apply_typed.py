@@ -12,17 +12,22 @@ Per-operator boundary semantics pinned here:
   ``result.boundary``.  The B1'' face equation
   :math:`(WDD\text{-propagated face}) − \psi_{\rm face}` lives in
   the appropriate face slots of ``result.boundary``.
-* :class:`~orpheus.sn.operators.streaming.CollisionOperator` (``C``) — volumetric;
+* :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+  (``C``, the collision multiplier ``M[σ_t]``) — volumetric;
   ``result.boundary`` is the implicit-zero L2 AngularBoundaryFlux.
+  (#261 retired the former ``CollisionOperator`` thin subclass; the
+  collision leaf is now a plain multiplication operator carrying ``σ_t``
+  as its coefficient.)
 * :class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``) —
   volumetric secondary-emission; ``result.boundary`` is zero.
-* :class:`~orpheus.sn.fission.FissionOperator` (``F``) — volumetric
+* :class:`~orpheus.transport.operators.fission.FissionOperator` (``F``) — volumetric
   rank-1 emission; ``result.boundary`` is zero.
 
 D-H.2-C1 (2026-05-28) — migrated from the legacy
-:class:`orpheus.sn.angular_flux.AngularFlux` input contract to the
+``orpheus.sn.angular_flux.AngularFlux`` input contract to the
 composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
-carrier.  The legacy class retires in D-H.2-C5; the typed-vs-packed
+carrier.  The legacy class was DELETED in D-H.2-C5 phase 2 (commit
+``d8843ba9``); the typed-vs-packed
 ``to_flat_with_traces`` parity tests retired with the migration
 (both branches share the same compute kernel — exercising the
 composite branch alone is sufficient).  The composite-vs-legacy

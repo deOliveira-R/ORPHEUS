@@ -3,7 +3,7 @@
 These tests land with C3 of the Phase-4.2 verification campaign and
 constitute the **prefactor-bug gate**: passing them proves that the
 1/π prefactor, the Ki₁ kernel choice, and the polar (β, ρ) Nyström
-assembly in :func:`orpheus.derivations.peierls_geometry.build_volume_kernel`
+assembly in :func:`orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel`
 are all individually correct.
 
 Physical identity under test

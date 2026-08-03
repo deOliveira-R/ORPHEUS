@@ -39,10 +39,13 @@ Per the algebra-of-record skill (``algebra-of-record/SKILL.md``), the
 ``common`` package is the **shared layer above the trusted-library
 line** — it carries primitives that both Branch-1 (SymPy /
 SymPy+mpmath) and Branch-2 (numpy / scipy) implementations of all
-methods share. Solution types belong here for the same reason
-:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec` does:
-they describe *what is being computed* in a method-agnostic way,
-without bringing any method's machinery into scope.
+methods share. Solution types belong here because they describe
+*what is being computed* in a method-agnostic way, without bringing
+any method's machinery into scope. (The retired ``GeometrySpec``
+carrier lived here for the same reason on the *input* side; Phase F.3
+deleted it in favour of the geometry-layer
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`,
+which every reference solver now consumes directly.)
 
 Why this is **not** a Protocol
 ==============================

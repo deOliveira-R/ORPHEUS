@@ -456,24 +456,24 @@ fault-injection tests in
 firing under the right conditions.
 
 
-Cross-method realizers: two functional, three stubs
-===================================================
+Cross-method realizers: two functional, and no stubs
+====================================================
 
-The :class:`BoundaryRealizer` Protocol has two functional
+The :class:`BoundaryRealizer` Protocol has exactly two
 implementations —
 :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` (angular:
 per-ordinate masks / permutations / averages) and
 :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
 (#290 P3 / issue #182 — scalar: every law collapses to the
 albedo-family response :math:`J^- = \mathcal{A} J^+` on the
-partial-current trace). Three stub realizers in
-:mod:`orpheus.moc.boundary_realizer`,
-:mod:`orpheus.mc.boundary_realizer`, and
-:mod:`orpheus.cp.boundary_realizer` self-register at import time but
-raise :class:`NotImplementedError` from :meth:`realize`; they hold
-the dispatch architecture in place so a future modernisation session
-for each method can ship a functional body without touching the
-functional realizers.
+partial-current trace). MoC, MC and CP have **none**: their
+``NotImplementedError`` stub realizers existed only to populate the
+Wave-5 string-keyed registry, and went with it at #290 P7b (see the
+parenthetical under "One registry connects the tag layer to the law
+layer" above). A method adopting the unified BC model ships its
+realizer next to its method-mesh — there is no central registration
+step to hold open, so an empty slot costs nothing and a stub bought
+nothing.
 
 The "unify after two instances" trigger fired at the second
 functional realizer (#290 P3): the shared surface turned out to be

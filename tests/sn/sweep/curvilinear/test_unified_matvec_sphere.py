@@ -1,31 +1,44 @@
-r"""Comparison test — unified matvec vs legacy spherical matvec (PR-TYPED-6c Step 2).
+r"""Sanity gates for the spherical ``(L + C)`` matvec.
 
-Issue #197 PR-TYPED-6c Step 2 — verifies that the new
-:func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified` produces
-output bit-exact (within ULP) to the legacy
-:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical` for
-spherical geometry.
+.. warning::
 
-The two functions consume DIFFERENT input layouts:
-  - legacy: ``psi_packed`` shape ``(n_unknowns,)`` (F-order ravel of
-    ``(ng, n_eq)``)
-  - unified: ``psi_view`` shape ``(N, ng, nx, ny)`` canonical layout
+   **This file NO LONGER carries a unified-vs-legacy comparison.**  It
+   was created for Issue #197 PR-TYPED-6c Step 2 as exactly that: a
+   bit-identity (within-ULP) gate of the then-new
+   ``_transport_operator_matvec_unified`` against the legacy
+   ``transport_operator_matvec_spherical``, via a six-step encode /
+   run-legacy / decode / compare chain at the equation-bearing slots.
+   PR-TYPED-6c Step 7 (2026-05-18) RETIRED
+   ``transport_operator_matvec_spherical``, and the bit-identity test
+   retired with it (see :class:`TestUnifiedMatvecSphere`); the Wave T
+   T.5 matvec retirement then deleted
+   ``_transport_operator_matvec_unified`` itself.  Do not read the file
+   name — nor the orphaned ``_canonical_to_packed`` / ``_bc_fill_outer``
+   helpers, which are un-called residue of the retired encode/decode
+   chain — as evidence of a cross-implementation comparison.  BOTH
+   sides of that comparison are gone.
 
-Equivalence chain:
-  1. Start with a canonical ``psi_view`` (N, ng, nx, ny).
-  2. Decode to packed via the same path ``solution_to_angular_flux_spherical``
-     uses (sparse scatter): ``psi_packed[g + ng*k] = psi_view[ord[k], g, ix[k], iy[k]]``.
-  3. Run legacy matvec on ``psi_packed`` → ``m_packed (n_unknowns,)``.
-  4. Decode ``m_packed`` to canonical ``m_legacy_view (N, ng, nx, ny)``
-     using ``solution_to_angular_flux_spherical``.
-  5. Run unified matvec on ``psi_view`` → ``m_unified (N, ng, nx, ny)``.
-  6. Compare ``m_unified`` against ``m_legacy_view`` at the unknown
-     slots — equivalence holds iff bit-exact within reduction-tree ULP.
+What survives here are two L0 sanity gates on the ONE production
+matvec, reached through the operator algebra
+(:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`,
+whose 1-D kernel is
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`):
 
-The comparison is performed ONLY at unknown slots (eq_map.ordinate/ix/iy
-positions). BC-resolved slots are filled by the legacy decoder via
-BC.apply and may differ structurally — those are not part of the matvec's
-domain.
+1. ``ψ ≡ const`` on a homogeneous reflective sphere → ``σ_t·ψ`` at
+   every equation-bearing slot (the per-ordinate flat-flux invariant).
+2. ``ψ ≡ 0`` → ``0`` (linearity sentinel).
+
+``legacy_proxy_matvec`` is the pre-B1'' *boundary-fill convention*
+bridge (cell-centre face proxy), NOT retired code: it lets these gates
+feed the bare ``(N, ng, nx, ny)`` arrays the L0 hand references were
+built around.  Both gates assert ONLY at the equation-bearing slots
+(all ``(n, ix, 0)`` except inward ordinates at ``ix == nx - 1``, whose
+values the reflective BC determines).
+
+The matvec's structurally-independent L0 reference — and its L1
+``k_∞`` / trajectory-resolvent anchors — live in
+``test_unified_matvec_cylinder.py``; the slab L1 ``k_∞`` anchor is in
+``test_unified_matvec_slab.py``.
 """
 from __future__ import annotations
 

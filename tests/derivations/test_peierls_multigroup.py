@@ -1,7 +1,7 @@
 r"""Multi-group Peierls eigenvalue driver (Issue #104).
 
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_mg`
-generalises :func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
+generalises :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 to ``ng ≥ 1`` groups with downscatter / upscatter coupling and
 χ-weighted fission.
 
@@ -19,7 +19,7 @@ The verification strategy has two tiers:
    Issue #130 Phase G.5). Lives in separate test files because the 2G
    references require XS-library data and the curvilinear references
    are still being registered in
-   :func:`~orpheus.derivations.peierls_cases._class_a_cases`.
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.cases._class_a_cases`.
 
 This file is the tier-1 regression gate. It must run cheaply (tens of
 seconds) and on every push.

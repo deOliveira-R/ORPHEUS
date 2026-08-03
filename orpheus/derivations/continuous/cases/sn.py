@@ -23,7 +23,8 @@ Three problem families:
    :doc:`/theory/verification/sn`.
 
 The Case-method implementation follows the same real-basis
-mode-decomposition pattern as :mod:`orpheus.derivations.diffusion`:
+mode-decomposition pattern as
+:mod:`orpheus.derivations.continuous.cases.diffusion`:
 
 - Per region, diagonalise the slope matrix
   :math:`\mathbf S(k) = \mathbf M^{-1}(\mathbf K(k) - \Sigma_t\mathbf I)`
@@ -404,7 +405,8 @@ def _assemble_matching_matrix_sn_1g(
 
     Notes
     -----
-    This mirrors :func:`orpheus.derivations.diffusion._assemble_matching_matrix`
+    This mirrors
+    :func:`orpheus.derivations.continuous.cases.diffusion._assemble_matching_matrix`
     in structure, with three differences:
 
     - The BC is **reflective**, not vacuum (angular-flux pairing

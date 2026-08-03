@@ -27,7 +27,8 @@ The abstraction axis is **data vs behavior**:
 
 This is the layer where cross-section **homogenization** lands: a
 fine-mesh :class:`~orpheus.sn.solution.Solution` plus a coarse
-:class:`~orpheus.geometry.mesh.Mesh` produce a homogenized
+:class:`~orpheus.geometry.mesh.Mesh1D` / :class:`~orpheus.geometry.mesh.Mesh2D`
+produce a homogenized
 :class:`MaterialMesh` (flux·volume-weighted collapse), which a transport
 method can then *promote* back to a solvable phase space
 (:meth:`SNMesh.from_material_mesh`).

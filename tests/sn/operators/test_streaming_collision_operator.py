@@ -65,8 +65,8 @@ def _random_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` with random bulk values.
 
-    D-H.2-C1: the composite carrier replaces the legacy
-    :class:`orpheus.sn.angular_flux.AngularFlux` test fixture.  Bulk
+    D-H.2-C1: the composite carrier replaced the legacy
+    ``orpheus.sn.angular_flux.AngularFlux`` test fixture.  Bulk
     values are sampled from ``N(0, 1)``; boundary is left as the
     implicit-zero L2 :class:`AngularBoundaryFlux`.
     """
@@ -648,7 +648,8 @@ class TestStreamingCollisionSolveBridgeRegression:
     per-ordinate-vs-iso magnitude convention drift in the typed
     operator algebra (issue #202, lesson :ref:`L18 <lessons-l18>`):
     ``ScatteringOperator.apply`` (typed) was returning iso-magnitude
-    while :func:`~orpheus.sn.loss_representation.transport_sweep` internally divided
+    while the then-current ``transport_sweep`` entry point (retired at
+    step 6 with the walk's ψ½ joint) internally divided
     by ``W = sum_w``, so the converged fixed point sat at ``k_inf / W``
     instead of ``k_inf``.  Slab-2eg SI keff = 1.4844 vs ref = 1.875
     (ratio ≈ 1/W·c_s for W=2 GL) was the signature.

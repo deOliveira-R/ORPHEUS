@@ -8,7 +8,7 @@ angular quadrature fixed.
 The MMS sweep uses per-segment manufactured sources along each
 characteristic — the streaming residual is angle-dependent and
 cannot be represented by an isotropic per-FSR external source.
-See :mod:`orpheus.derivations.moc_mms` for the full derivation.
+See :mod:`orpheus.derivations.continuous.mms.moc` for the full derivation.
 """
 
 from __future__ import annotations

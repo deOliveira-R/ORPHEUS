@@ -1,4 +1,4 @@
-"""Foundation tests for :class:`orpheus.sn.fission.FissionOperator`.
+"""Foundation tests for :class:`orpheus.transport.operators.fission.FissionOperator`.
 
 Round 1.2 of Wave D of the SN reshape campaign (Issue #162). The
 operator carries the same math :class:`SNSolver` used to expose under

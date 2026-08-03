@@ -10,7 +10,7 @@ projection on Legendre moments). With ``Spectrum`` landing the third
 sibling, the math-heart pattern crosses the "≥3 instances" threshold:
 three structurally-distinct mathematical attacks on the same
 boundary-value transport problem, all sharing the same method-agnostic
-:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec` /
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` /
 :class:`~orpheus.derivations.common.solution_types.CriticalSolution`
 contract.
 
@@ -39,8 +39,11 @@ solution:
   (\Sigma_s + \nu\Sigma_f)/\Sigma_t` and (when the
   package supports it) the linear-anisotropy moment :math:`f_1`.
 
-* **Boundary condition** — the reflection coefficient :math:`R`
-  encoded in the GeometrySpec's ``BC`` ``params["albedo"]`` field.
+* **Boundary condition** — the reflection coefficient :math:`R`,
+  read by :func:`_extract_R_refl` off the geometry's OUTER ``BC``
+  (:attr:`StructuredGeometry.bcs` ``[-1]``): ``BC.vacuum`` for
+  :math:`R = 0`, and ``BC("partial", params={"albedo": R})`` for any
+  other :math:`R`.
   Vacuum (:math:`R = 0`) for bare-critical configurations;
   partial reflection :math:`R \in (0, 1)` for the Atalay
   reflected-slab / reflected-sphere benchmarks. The cylinder
@@ -54,8 +57,9 @@ solution:
   a single ``n_modes`` field (typical operating point: 8–24,
   depending on geometry and required accuracy).
 
-The class is intentionally a thin computational specialisation of
-:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec` for
+The class is intentionally a thin computational specialisation of the
+pure-geometry
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` for
 the singular-eigenfunction family. The solve methods
 (:meth:`Spectrum.solve_critical`, :meth:`Spectrum.solve_fixed_source`)
 are thin wrappers around the existing function-level API in
@@ -76,8 +80,8 @@ Architectural role
   ``fn_method``.
 
 All three are method-specific computational specialisations of the
-abstract :class:`GeometrySpec`. They answer the same triplet of
-questions:
+method-agnostic :class:`StructuredGeometry`. They answer the same
+triplet of questions:
 
 1. *"What is the critical configuration?"* — :meth:`solve_critical`
    returns a :class:`CriticalSolution`.
@@ -93,12 +97,16 @@ questions:
 
 The shared :class:`CriticalSolution` / :class:`FluxSolution` types
 are the load-bearing piece of the unification — they make Spectrum,
-MomentSpace, Billiard substitutable at the cross-method protocol
-boundary (``tests/cross_method/adapters.py``). Behavioural Protocols
-across the math-heart classes (`TransportSolver`) are implemented
-in :mod:`orpheus.derivations.common.solver_protocol`; ``Spectrum``
-is designed to conform structurally as the third sibling that
-empirically validates the Protocol's design.
+MomentSpace, Billiard substitutable at the cross-method comparison
+boundary (``tests/cross_method/adapters.py``). A *behavioural*
+Protocol over the math-heart classes was
+tried and retired: the Phase-D ``TransportSolver`` (in
+``orpheus.derivations.common.solver_protocol``) conflated continuous
+reference generators with discrete production solvers, which have
+functionally different roles, so the shared surface is the result
+types plus direct
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+construction — no Protocol.
 
 References
 ----------
@@ -495,18 +503,27 @@ class Spectrum:
     Why this is **not** a Protocol implementation
     ============================================
 
-    Per the project's "unify after two instances" memory, the
-    behavioural Protocol :class:`TransportSolver` (in
-    :mod:`orpheus.derivations.common.solver_protocol`) was designed
-    only AFTER ``MomentSpace`` and ``Billiard`` worked. ``Spectrum``
-    is the third concrete instance that empirically validates the
-    Protocol. The class structurally conforms (same factory
-    signature, same ``materials`` / ``geometry_spec`` / ``method_name``
-    properties, same :class:`CriticalSolution` /
-    :class:`FluxSolution` returns) so an explicit
-    :class:`isinstance` check against the Protocol passes — but the
-    ``Spectrum`` class itself does NOT inherit from any ABC or
-    Protocol type. Conformance is structural, by design.
+    Per the project's "unify after two instances" memory, a
+    behavioural ``TransportSolver`` Protocol (in
+    ``orpheus.derivations.common.solver_protocol``) was designed only
+    AFTER ``MomentSpace`` and ``Billiard`` worked, with ``Spectrum``
+    as the third instance meant to validate it empirically. The
+    third instance instead **falsified** it: Phase D deleted the
+    Protocol, because it conflated continuous reference generators
+    (which consume a
+    :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+    directly through a frozen ``__init__``) with discrete production
+    solvers (which consume ``(materials, mesh, params)`` through the
+    canonical free functions) — two functionally different roles that
+    a single Protocol could only blur.
+
+    What survives is the *structural* contract, and it is the
+    stronger one: every math-heart class takes the same
+    ``geometry`` / ``materials`` construction pair and returns the
+    same :class:`CriticalSolution` / :class:`FluxSolution` types, so
+    the cross-method adapters can hold any of them without a
+    nominal type — and ``Spectrum`` inherits from no ABC or Protocol
+    at all.
 
     Construction (Phase D)
     ----------------------

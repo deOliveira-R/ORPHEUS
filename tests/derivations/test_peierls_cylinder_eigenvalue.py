@@ -2,7 +2,7 @@
 
 C5 of the Phase-4.2 campaign. Exercises the 1-group vacuum-BC
 eigenvalue driver
-:func:`~orpheus.derivations.peierls_geometry.solve_peierls_1g`
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
 (with ``geometry=_pg.CYLINDER_1D``) and ``boundary="vacuum"``.
 
 Grounded identity used here: as the cylinder radius

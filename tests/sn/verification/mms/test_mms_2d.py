@@ -11,7 +11,7 @@ smooth :math:`\Sigma(x, y)` cross sections with downscatter coupling
 to exercise the multigroup scatter assembly in 2D.
 
 See :doc:`/theory/verification/sn` (2D Cartesian MMS sections)
-for the full derivation and :mod:`orpheus.derivations.sn_mms` for
+for the full derivation and :mod:`orpheus.derivations.continuous.mms.sn` for
 the reference solution.
 """
 

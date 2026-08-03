@@ -12,18 +12,32 @@ face areas, the :math:`\Delta A/w` geometry factor, the Bailey 2009
 weights :math:`\tau_{mm}`.
 
 Per Cardinal Rule 2 (architecture), this primitive **MUST NOT** be
-duplicated across solvers.  The historical home was
-:class:`orpheus.sn.mesh.augmented_mesh.SNMesh._setup_spherical` and
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh._setup_cylindrical`; this module is
-the geometry-layer parallel implementation that those consumers will
-migrate to in Wave G of the SN reshape campaign (Issue 10).
+duplicated across solvers.  The historical home was a pair of in-line
+setup methods on :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+(``_setup_spherical`` / ``_setup_cylindrical``); the migration has
+LANDED — those methods are gone and ``SNMesh.__init__`` now calls
+:func:`spherical_streaming` / :func:`cylindrical_streaming` here,
+storing the result as its ``reduced`` attribute.
 
-The output is **bit-identical** to the legacy SNMesh setup methods
-(verified by hash-equality assertions in
-``tests/geometry/test_reduced_operator.py``).  Bit-identity is the
-load-bearing contract — both call sites compute connection coefficients
-the same way; this module simply lifts the math to a place where MoC
-and CP can share it.
+Bit-identity with those retired methods was the migration's
+load-bearing contract, established at the Wave-B carve while both
+implementations were live.
+
+.. warning::
+
+   That contract is **no longer independently gated**.  The
+   hash-equality tests in ``tests/geometry/test_reduced_operator.py``
+   compare this module's factory output against ``sn_mesh.reduced.*``
+   (and against the deprecated ``SNMesh.face_areas`` / ``delta_A``
+   read-throughs, which forward to the same object) — i.e. against
+   the value this module itself produced, through the mesh
+   constructor.  They pin the WIRING (SNMesh really does bind to
+   these factories) and would redden if that wiring broke; they can
+   no longer detect a change in the connection-coefficient math,
+   because there is no second implementation left to disagree with.
+   The surviving numerical pins on the math are the SN curvilinear
+   regression snapshots and the closure producer-equivalence floor at
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``.
 
 Mathematical content
 ====================
@@ -655,8 +669,8 @@ def spherical_streaming(
     Implements Hébert (2009) §3.9.4 Eqs. 3.423-3.424 (α-dome
     recursion, in the ORPHEUS factor-of-2-absorbed normalization) +
     Bailey-Morel-Chang (2010) Eq. 5 (Morel--Montry :math:`\tau`
-    clamp), producing arrays bit-identical to
-    :class:`SNMesh._setup_spherical`.
+    clamp), producing arrays bit-identical to the retired
+    ``SNMesh._setup_spherical`` it replaced.
 
     The :math:`\Delta A/w` geometry factor (Cardinal Rule 2 — the
     connection-coefficient data, common to SN/MoC/CP) is precomputed
@@ -759,8 +773,8 @@ def cylindrical_streaming(
     direction cosine, used to derive :math:`\sin\theta` for the
     level's azimuthal extent).
 
-    Output is bit-identical to
-    :class:`SNMesh._setup_cylindrical`.
+    Output is bit-identical to the retired
+    ``SNMesh._setup_cylindrical`` it replaced.
 
     Parameters
     ----------

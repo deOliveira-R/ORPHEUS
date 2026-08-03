@@ -25,9 +25,10 @@ Today's contents:
 * :mod:`orpheus.transport.source_sinks` — ScalarSourceSink /
   AngularSourceSink and the boundary / moment role leaves (D-F).
 
-Future contents (deferred to later parent-plan steps):
+Future contents (deferred to later parent-plan steps; NOT built — the
+names below are plan targets, not importable modules):
 
-* :mod:`orpheus.transport.problems` — Problem ABCs (P3.4): Criticality,
+* ``orpheus.transport.problems`` — Problem ABCs (P3.4): Criticality,
   FixedSource, AlphaEigen, InitialValue.
 
 References

@@ -66,7 +66,9 @@ is a single multiplication (a future ``target_power`` hook).
 
 Future solution algorithms (full-spectrum Arnoldi / Krylov--Schur,
 shift-invert / FEAST for interior eigenvalues) slot in at this same boundary,
-dispatched via :attr:`~orpheus.numerics.iteration.KEigenvalue.eigenvalue_method`.
+dispatched via the ``eigenvalue_method`` constructor selector on
+:class:`~orpheus.numerics.iteration.KEigenvalue` (today only ``"power"`` is
+implemented; any other value raises at construction).
 """
 
 from __future__ import annotations

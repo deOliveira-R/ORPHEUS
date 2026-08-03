@@ -1,9 +1,9 @@
 r"""Typed return type for the SN transport solvers.
 
 Issue #197 PR-TYPED-5 — :class:`Solution` and :class:`IterationHistory`
-replace the legacy bare-dataclass pair
-:class:`~orpheus.sn.solver.SNFixedSourceResult` /
-:class:`~orpheus.sn.solver.SNResult`.
+replaced the legacy bare-dataclass pair ``SNFixedSourceResult`` /
+``SNResult`` (both formerly in ``orpheus.sn.solver``, deleted with the
+migration).
 
 The legacy types were data bags: they carried bare ``np.ndarray`` flux
 fields, an opaque ``geometry`` / ``quadrature`` pair, and an ad-hoc set

@@ -5,8 +5,8 @@ across the project, sibling to:
 
 * :class:`~orpheus.derivations.continuous.trajectory_resolvent.Billiard`
   — the bouncing-trajectory transfer-operator resolvent (1st instance).
-* :class:`~orpheus.derivations.continuous.fn_method.MomentSpace` — the
-  F_N Galerkin half-range projection (2nd instance).
+* :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
+  — the F_N Galerkin half-range projection (2nd instance).
 * The forthcoming ``Spectrum`` (Case singular eigenfunction expansion,
   3rd instance, in
   :mod:`~orpheus.derivations.continuous.singular_eigenfunction`).
@@ -33,8 +33,8 @@ solution:
   moment basis. Dahl–Sjöstrand 1979 recommend :math:`N = 9` to
   saturate against their 7-significant-figure tables.
 
-The class is a thin computational specialisation of
-:class:`~orpheus.derivations.common.geometry_spec.GeometrySpec` for
+The class is a thin computational specialisation of the pure-geometry
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` for
 the Galerkin spectral method — it is the *Galerkin spectral basis
 space*, not the *Galerkin spectral solver*. The solve methods
 (:meth:`BasisSpace.solve_critical`,
@@ -53,7 +53,7 @@ Architectural role and the math-heart pattern
 ``BasisSpace`` is to ``galerkin_spectral`` what ``MomentSpace`` is to
 ``fn_method`` and what ``Billiard`` is to ``trajectory_resolvent``: a
 **method-specific computational space** mounted on a method-agnostic
-:class:`GeometrySpec`. All three classes answer the same question
+:class:`StructuredGeometry`. All three classes answer the same question
 *"What is the critical configuration?"* by populating a
 :class:`CriticalSolution` carrying the eigenvalue + the parameter
 that locates criticality, but each commits to a different
@@ -77,9 +77,17 @@ that locates criticality, but each commits to a different
 
 The same physical problem solved three ways. The shared result
 types (:class:`CriticalSolution` /
-:class:`~orpheus.derivations.common.solution_types.FluxSolution`) and
-the :class:`~orpheus.derivations.common.solver_protocol.TransportSolver`
-Protocol are the load-bearing piece of the unification.
+:class:`~orpheus.derivations.common.solution_types.FluxSolution`) are
+the load-bearing piece of the unification. The pre-Phase-D
+``TransportSolver`` Protocol (in
+``orpheus.derivations.common.solver_protocol``) was retired in the
+architectural reset — it conflated continuous reference generators
+with discrete production solvers, which have functionally different
+roles. The reference solvers now consume
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+directly via their frozen ``__init__``; the production solvers
+consume ``(materials, mesh, params)`` via the canonical free
+functions ``solve_cp`` / ``solve_sn`` / ``solve_moc``.
 
 Distinguishing :class:`BasisSpace` from :class:`MomentSpace`
 -----------------------------------------------------------
@@ -140,10 +148,9 @@ References
 * :doc:`/theory/references/galerkin_spectral` — the canonical theory
   exposition. The "Galerkin spectral basis space and the
   variational principle" section is the rich-narrative companion
-  to this module's docstrings.
-* :doc:`/theory/transport_solver_protocol` — the shared Protocol
-  ``BasisSpace`` conforms to alongside ``MomentSpace``,
-  ``Billiard``, and the discrete-mesh adapters.
+  to this module's docstrings, and its "role split" paragraph
+  carries the retirement of the ``TransportSolver`` Protocol (whose
+  own theory page went with it in the same Phase-D cleanup).
 """
 from __future__ import annotations
 
@@ -658,13 +665,15 @@ class BasisSpace:
 
         Parameters
         ----------
-        d : float, optional
+        d : float
             Slab thickness in mean free paths (full slab :math:`d =
-            2 a`) or sphere diameter :math:`d = 2 R`. If ``None``,
-            inferred from
-            :attr:`GeometrySpec.critical_dimension_mfp` (the
-            published critical configuration). Either ``d`` or the
-            :class:`GeometrySpec` must supply the dimension.
+            2 a`) or sphere diameter :math:`d = 2 R`. **Required** —
+            ``d=None`` raises :class:`ValueError`. The pre-Phase-D
+            fallback that inferred it from the retired carrier's
+            ``critical_dimension_mfp`` field was removed with that
+            carrier: :class:`StructuredGeometry`'s role here is
+            structural (tag + materials lookup), not parametric, so
+            nothing on the geometry supplies the dimension.
         mu_bar : float, optional
             Override the linearly-anisotropic mean cosine. If
             ``None``, uses :attr:`BasisSpace.mu_bar` derived from

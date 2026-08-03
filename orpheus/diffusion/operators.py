@@ -558,8 +558,8 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
     (``L`` supplies the identity — the block-matrix table in
     :mod:`orpheus.diffusion.operators`).
 
-    The per-face laws are read off the mesh's own realized :attr:`bc
-    <orpheus.diffusion.augmented_mesh.DiffusionMesh.bc>` dict (#290
+    The per-face laws are read off the realized ``bc`` dict on
+    :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` (#290
     P7a — ``SNMesh.bc`` parity). Law coverage ≡ face coverage holds BY
     CONSTRUCTION: the mesh builds ``bc`` and the trace from the ONE
     ``face_labels`` inventory, so the pre-P7a coverage validation

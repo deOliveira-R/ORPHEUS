@@ -1,15 +1,23 @@
-r"""Foundation contract pins for the path-forward
-:func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified`.
+r"""Foundation contract pins for the path-forward ``(L + C)`` matvec.
 
 R-1 Step 4 Step G0 (2026-05-22) — the unified matvec switched to a
-native :class:`AngularFlux` ↔ :class:`AngularFlux` signature.  The
-face-state I/O is direct ``(N, ng)`` :class:`AngularBoundaryFlux` access (no
-``EquationMap.face_outer_ordinate`` slot map; the inflow / outflow
-ordinate masks derive from ``quad.mu_x`` direction signs).
+native typed-field ↔ typed-field signature; the module-level helper
+``_transport_operator_matvec_unified`` it landed as was DELETED at the
+Wave T T.5 matvec retirement.  The kernel now lives on the loss
+representation (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`,
+the fused ``(L+C)ψ`` walk) and is reached through the public operator
+algebra :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`;
+every gate below drives it through the ``_LC_matvec`` shim.  The
+face-state I/O is direct ``(N, ng)``
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+access (no ``EquationMap.face_outer_ordinate`` slot map; the inflow /
+outflow ordinate masks derive from ``quad.mu_x`` direction signs).
 
 This file pins the structural contract the path-forward matvec must
-satisfy.  Per V&V plan §G0.2 (``.claude/plans/r1_step4_g_verification_plan.md``)
-the seven foundation pins are:
+satisfy.  The V&V plan §G0.2
+(``.claude/plans/r1_step4_g_verification_plan.md``) listed seven
+foundation pins; five survive as gates and two retired with the
+machinery they cross-checked:
 
 1. Zero input → zero output (linearity sentinel).
 2. Uniform ψ on homogeneous reflective medium → ``(L+C)·ψ = σ_t·ψ``
@@ -17,16 +25,24 @@ the seven foundation pins are:
    the ERR-026 / ERR-006 / ERR-007 canonical diagnostic; Signature
    1 of ``numerical-bug-signatures``).
 3. Linearity in ψ — ``M(αψ + βφ) = αM(ψ) + βM(φ)`` at FP-ULP.
-4. Output shape ``(N, ng, *spatial)`` for cells + ``(N, ng)`` for
-   ``boundary.xmax_face`` (and slab-inner) — the path-forward
-   typed contract.
-5. Face residual zero at non-outflow ordinates (no equation there;
-   inflow ords get their value from the BC, not from the iterate).
-6. Quadrature-derived outflow masks at the outer face match the
-   legacy ``face_outer_ordinate`` slot positions exactly.  Pin via
-   ``build_equation_map_with_traces`` cross-check.
-7. 2-D Cartesian raises ``NotImplementedError`` (mirrors the
-   existing 2-D guard pre-Step-G; Phase A absorbs).
+4. Output shape ``(N, ng, *spatial)`` for cells + ``(N, ng)`` per
+   boundary face (``boundary.face_view("xmax")``, and the slab inner
+   face) — the path-forward typed contract.
+5. Face residual at the outflow ordinates is the outflow-definition
+   defect ``streamed − ψ.outflow``; at the INFLOW ordinates it is the
+   ``I·ψ.inflow`` IDENTITY, not zero.  (Wave O #208 O.4a.2 inverted
+   this pin: pre-carve the matvec re-applied the BC internally and
+   emitted a zero residual there; post-carve the trace inflow is an
+   explicit unknown driven by the boundary consistency residual
+   ``ψ.inflow − B·ψ.outflow``.)
+6. *(RETIRED — D-J 2026-05-30.)*  ``TestQuadDerivedMaskEqualsLegacySlotMap``
+   pinned ``quad.mu_x > 0`` ≡ ``eq_map.face_outer_ordinate``; the
+   ``eq_map`` side no longer exists, so the equivalence is the
+   definition rather than a gate.
+7. *(INVERTED — Wave T post-T.5.)*  The 2-D Cartesian
+   ``NotImplementedError`` guard is GONE; 2-D Cartesian ``(L+C).apply``
+   drives the representation's ``loss_action`` and returns a valid
+   result.  ``TestTwoDCartesianRaises`` now pins the positive contract.
 
 Cross-references:
 
@@ -462,7 +478,7 @@ class TestFaceResidualMask:
         )
 
 
-# ── Pin 7: 2-D Cartesian raises NotImplementedError ─────────────────
+# ── Pin 7: 2-D Cartesian returns a result (the guard is GONE) ───────
 #
 # (Pin 6 — ``TestQuadDerivedMaskEqualsLegacySlotMap`` — retired with
 # D-J 2026-05-30.  It pinned the equivalence ``quad.mu_x > 0`` ≡
@@ -472,9 +488,15 @@ class TestFaceResidualMask:
 
 
 class TestTwoDCartesianRaises:
-    r"""Mirrors the existing 2-D guard pre-Step-G — the unified matvec
-    only handles 1-D slab + curvilinear; 2-D Cartesian absorbs in
-    Phase A.  Failure here would mean a silent 2-D regression.
+    r"""2-D Cartesian coverage of the ``(L+C)`` matvec.
+
+    The class NAME is historical: pre-Step-G the unified matvec handled
+    only 1-D slab + curvilinear and raised ``NotImplementedError`` on
+    2-D Cartesian, and this class pinned that guard.  Wave T post-T.5
+    removed the guard — 2-D Cartesian drives the representation's
+    ``loss_action`` and returns a result — so the pin INVERTED into the
+    positive contract asserted below.  Failure here would still mean a
+    silent 2-D regression.
     """
 
     def test_two_d_cartesian_loss_action_returns_result(self) -> None:

@@ -1,7 +1,12 @@
 r"""Comparison tests — unified slab matvec (PR-TYPED-6c Step 4).
 
 Issue #197 PR-TYPED-6c Step 4 verifies the 1-D Cartesian (slab) branch
-of :func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified`.
+of the unified ``(L + C)`` matvec.  The module-level helper it landed
+as, ``_transport_operator_matvec_unified``, was DELETED at the Wave T
+T.5 matvec retirement; the kernel now lives on the loss representation
+(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`)
+and is reached through
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`.
 
 Slab is the M-M-neutral 1-level case of the per-level body that
 sphere and cylinder also flow through:
@@ -20,13 +25,15 @@ at x=0) where curvilinear uses ``ψ_view[:, :, 0, 0]`` directly
 (cell-centre IS the pole-face proxy for r=0). The Phase 2 inward IC
 uses ``bc_right.apply(ψ_view[:, :, -1, 0])`` symmetrically.
 
-Important: the unified Cartesian matvec is WDD-based; the legacy
-:func:`~orpheus.sn.operators.streaming.transport_operator_matvec` is FD-based.
-These are DIFFERENT discretisations — they converge to the same
-continuous solution under refinement but DIFFER by O(h) at any fixed
-mesh.  The L1 verification here uses analytical k_∞ (shape-invariant,
-so insensitive to discretisation order) and the FD-vs-WDD
-characterisation is informational (NOT a pass/fail gate).
+Important: the unified Cartesian matvec is WDD-based, whereas the
+since-retired legacy ``transport_operator_matvec`` was FD-based.  Those
+were DIFFERENT discretisations — converging to the same continuous
+solution under refinement but differing by O(h) at any fixed mesh — so
+the L1 verification here uses analytical k_∞, which is shape-invariant
+and therefore insensitive to discretisation order.  The FD-vs-WDD
+characterisation that made the distinction explicit was informational
+(never a pass/fail gate) and RETIRED with the legacy FD path at
+D-H.2-C4e.6; see the note at the foot of this file.
 
 The full Case singular-eigenfunction Krylov verification is exercised
 by ``test_heterogeneous_transport.py`` (production path through the

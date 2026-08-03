@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-production contract test for the 3-D
 :math:`G_{\rm bc}^{\rm cyl}` cylinder white-BC kernel.
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.peierls_cylinder_g_bc_3d` is the **source of
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d` is the **source of
 truth** for the corrected 3-D :math:`G_{\rm bc}^{\rm cyl}` form
 (Issue #112 Phase C). This test pins:
 

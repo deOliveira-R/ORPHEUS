@@ -1,7 +1,7 @@
 r"""Contract tests for :class:`CurvilinearGeometry` (Phase F.1 additions).
 
 Created 2026-04-21 (Phase F.1). This file tests the hollow-core scaffolding
-added to :class:`orpheus.derivations.peierls_geometry.CurvilinearGeometry`:
+added to :class:`orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`:
 
 1. ``inner_radius`` field + ``__post_init__`` validation.
 2. ``n_surfaces`` property (rank-1 vs rank-2 geometries).

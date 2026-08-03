@@ -1,7 +1,7 @@
 """Phase 2.1b SN heterogeneous eigenvalue consumer tests.
 
 Consumes the Case singular-eigenfunction continuous reference from
-:func:`orpheus.derivations.sn.derive_sn_heterogeneous_continuous` to
+:func:`orpheus.derivations.continuous.cases.sn.derive_sn_heterogeneous_continuous` to
 verify ``solve_sn`` on a two-region reflective slab at material
 interfaces with piecewise-constant cross sections — the regime where
 the Phase 2.1a smooth-Σ MMS test cannot reach, and the regime that

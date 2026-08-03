@@ -1,7 +1,15 @@
 r"""Comparison tests — unified cylinder matvec (PR-TYPED-6c Step 3).
 
-Issue #197 PR-TYPED-6c Step 3 verifies the cylindrical branch of
-:func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified`.
+Issue #197 PR-TYPED-6c Step 3 verifies the cylindrical branch of the
+unified ``(L + C)`` matvec.  The module-level helper it landed as,
+``_transport_operator_matvec_unified``, was DELETED at the Wave T T.5
+matvec retirement; the kernel now lives on the loss representation
+(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`)
+and is reached through
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`.
+The gates below drive it via the ``legacy_proxy_matvec`` shim, which
+supplies the pre-B1'' cell-centre boundary-fill convention the L0 hand
+reference was built around (a CONVENTION bridge, not retired code).
 
 Two levels of evidence (per L14 in ``.claude/lessons.md`` — solver
 correctness is a 4-way standoff):
@@ -22,11 +30,11 @@ correctness is a 4-way standoff):
   (Variant α at α=1) at the same tolerance as the production Gate 4.2
   cross-check (3% — set by Variant α's quadrature error budget).
 
-The legacy :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_cylindrical`
-has a per-ordinate routing bug (ERR-049 — ascending-global ``ks``
-indices vs level-internal μ-sorted column order in
-``streaming + redistribution + collision``). It is **NOT** a valid
-reference here.
+The since-retired legacy ``transport_operator_matvec_cylindrical`` had a
+per-ordinate routing bug (ERR-049 — ascending-global ``ks`` indices vs
+level-internal μ-sorted column order in ``streaming + redistribution +
+collision``), which is why it was **never** used as a reference here:
+the L0 evidence above is the hand reference, not a legacy cross-check.
 """
 from __future__ import annotations
 

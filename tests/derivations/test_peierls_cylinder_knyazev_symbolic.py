@@ -3,7 +3,7 @@ mode-N Knyazev :math:`\mathrm{Ki}_{2+k}` expansion.
 
 Math-origin pattern (mirroring
 :func:`orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence`): the
-SymPy derivation in :mod:`orpheus.derivations.peierls_cylinder_knyazev`
+SymPy derivation in :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev`
 is the **source of truth** for the rank-:math:`N` cylinder
 :math:`P_{\rm esc}^{(n,3d)}` and :math:`G_{\rm bc}^{(n,3d)}`
 primitives. This test consumes the SymPy origin as a contract and pins:

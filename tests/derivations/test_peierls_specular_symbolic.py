@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-closed-form contract test for the specular BC.
 
 Math-origin pattern (mirroring :func:`orpheus.derivations.discrete.sn.balance.
 derive_cumprod_recurrence`): the SymPy derivation in
-:mod:`orpheus.derivations.peierls_specular` is the **source of truth**
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular` is the **source of truth**
 for the rank-:math:`N` specular reflection matrix
 :math:`R_{\rm spec} = \tfrac{1}{2}\,M^{-1}`. This test consumes the
 SymPy origin as a contract and pins three identities:

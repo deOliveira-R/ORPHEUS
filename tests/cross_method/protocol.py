@@ -24,10 +24,11 @@ adds:
   :doc:`/skills/vv-principles`.
 
 When a second project (e.g. spectral_resolvent or singular_eigenfunction)
-reaches the same point, this module gets promoted into
-:mod:`orpheus.derivations.registry` per the wave3 plan
-(``.claude/plans/wave3/architecture.md``). Until then it lives in
-the test tree.
+reaches the same point, this module is to be promoted into a shared
+``orpheus.derivations.registry`` per the wave3 plan (a literal, not a
+cross-reference: neither the module nor the plan file
+``.claude/plans/wave3/architecture.md`` exists yet). Until then it
+lives in the test tree.
 
 References
 ----------

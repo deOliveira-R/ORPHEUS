@@ -18,12 +18,14 @@ cross-section ``σ_r = σ_t − Σ_{s,0}^{g→g}``. No ``is_removal`` flag —
 the operator's action is identical for either input.
 
 D-H.2-C1 (2026-05-28) — these tests migrated from the legacy
-:class:`orpheus.sn.angular_flux.AngularFlux` input contract to the
+``orpheus.sn.angular_flux.AngularFlux`` input contract to the
 composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
 carrier (bulk = L2 :class:`~orpheus.transport.fields.angular_flux.AngularFlux`).
-The legacy class retires in D-H.2; rewriting fixtures in-place
-preserves the breadth of coverage (per-σ-shape, per-geometry, linearity)
-while exercising the composite branch of every operator method.
+The legacy class (a distinct pre-D-G design: bulk values + conflated
+boundary buffer + history tuple) was DELETED in D-H.2-C5 phase 2
+(commit ``d8843ba9``); rewriting fixtures in-place preserved the
+breadth of coverage (per-σ-shape, per-geometry, linearity) while
+exercising the composite branch of every operator method.
 """
 from __future__ import annotations
 
@@ -93,8 +95,8 @@ def _random_state(
 ) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``.
 
-    D-H.2-C1: the composite carrier replaces the legacy
-    :class:`orpheus.sn.angular_flux.AngularFlux` input.  Bulk values
+    D-H.2-C1: the composite carrier replaced the legacy
+    ``orpheus.sn.angular_flux.AngularFlux`` input.  Bulk values
     are random; boundary is zero (the collision multiplier ``M[σ_t]`` is
     bulk-only — boundary is structurally implicit-zero per Option β3 /
     Issue #208).

@@ -1,4 +1,4 @@
-r"""The ψ½ direct-march slot-coordination invariant: ``cells_view`` is keyed by
+r"""The ψ½ direct-march slot-coordination invariant: ``slot_view`` is keyed by
 the level POSITION (``p_idx``), and the gate that admits a ``p_idx`` shares its
 source with the space's key validator.
 
@@ -6,11 +6,11 @@ source with the space's key validator.
 direct-march block in
 :mod:`orpheus.sn.loss_representation` (the ``for p_idx, level in enumerate(levels)``
 solve) passes ``p_idx`` — the enumerate POSITION — to
-:meth:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicSpace.cells_view`
+:meth:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace.slot_view`
 ``(buffer, level, sign)``, whose ``_slot_key`` raises unless the argument is a
 member of ``self.levels``. This is **correct, not a coincidence**:
 
-* ``RadialCharacteristicSpace.levels`` are level POSITIONS (``enumerate(raw)`` in
+* the space's ``levels`` are level POSITIONS (``enumerate(raw)`` in
   :meth:`SNMesh.radial_characteristic_levels`), the same coordinate that keys the
   space slots AND indexes ``level_ordinates_list[p_idx]`` in the sweep;
 * the gate ``seed_levels = frozenset(mesh.radial_characteristic_levels)`` and the
@@ -137,7 +137,7 @@ def test_gate_source_is_the_space_key_source(name, coord, quad):
     ``seed_levels = frozenset(mesh.radial_characteristic_levels)`` and
     ``space = mesh.radial_characteristic_space`` built ``for_levels(mesh.
     radial_characteristic_levels)``. Therefore the gate ONLY admits ``p_idx ∈
-    space.levels`` — so ``cells_view(buf, p_idx, sign)``'s ``_slot_key`` guard can
+    space.levels`` — so ``slot_view(buf, p_idx, sign)``'s ``_slot_key`` guard can
     NEVER raise, regardless of contiguity/multiplicity.
     """
     sn = _mesh_1d(coord, quad)
@@ -159,7 +159,7 @@ def test_gate_source_is_the_space_key_source(name, coord, quad):
 
 def test_sphere_p_idx_is_the_correct_slot_key_and_level_is_None():
     """Sphere: the ONLY carrying geometry. ``p_idx == 0`` is the correct
-    ``cells_view`` key; the loop's ``level`` is ``None`` (the walk's
+    ``slot_view`` key; the loop's ``level`` is ``None`` (the walk's
     ``mu_level_idx``), so the proposed "fix" (pass ``level`` not ``p_idx``) would
     CRASH here — proving ``p_idx`` is deliberate, not a typo.
     """

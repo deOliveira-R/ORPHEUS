@@ -4,7 +4,7 @@ C8 of the Phase-4.2 campaign. Tests CP cylindrical flux shapes against
 the polar-form Peierls reference built by C7.
 
 Scope limits imposed by the rank-1 white-BC closure (documented in
-``orpheus.derivations.peierls_geometry.build_white_bc_correction``):
+``orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction``):
 
 - At :math:`R \\lesssim 2` MFP the rank-1 Peierls white BC over/
   undershoots CP's flat-source white BC by :math:`\\mathcal O(10\\%)`

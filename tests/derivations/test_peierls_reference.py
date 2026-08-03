@@ -1,5 +1,5 @@
 """Step-wise verification of the unified Peierls solver against the
-mesh-independent reference in :mod:`orpheus.derivations.peierls_reference`.
+mesh-independent reference in :mod:`orpheus.derivations.continuous.peierls_nystrom.reference`.
 
 Layer-by-layer:
 
@@ -18,7 +18,7 @@ Layer-by-layer:
 
 2. **Cylinder K matrix row-sum identity** (next). Built on the
    ``Ki_1`` kernel; analytical row-sum via
-   :func:`~orpheus.derivations.peierls_geometry.K_vol_element_adaptive`
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.K_vol_element_adaptive`
    adaptive mpmath.quad reference.
 
 3. **Sphere K matrix row-sum identity** (after cylinder). Same
@@ -749,7 +749,7 @@ class TestSlabPescClosedForm:
 
     deriving from the :math:`\mu`-integration of the isotropic point
     kernel over the two half-spaces. The
-    :func:`~orpheus.derivations.peierls_geometry.compute_P_esc` slab
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc` slab
     branch evaluates this via :func:`mpmath.expint` directly
     (machine-precision; bypasses the grazing-ray GL stiffness of the
     unified quadrature form).
@@ -797,7 +797,7 @@ class TestSlabGbcClosedForm:
 
     deriving from the :math:`\psi_{\rm in} = J^-/\pi` convention (2π
     azimuthal factor absorbed) multiplied by two faces. The
-    :func:`~orpheus.derivations.peierls_geometry.compute_G_bc` slab
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc` slab
     branch evaluates this closed form directly.
     """
 
@@ -954,7 +954,7 @@ class TestSlabWhiteBCInfiniteMediumIdentity:
     source on a pure absorber:
     :math:`\varphi_{\rm white}(x) \equiv 1/\Sigma_t` for all :math:`x`,
     any :math:`L`. This is the
-    :func:`~orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical`
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.reference.slab_uniform_source_white_bc_analytical`
     closed form (as of commit correcting the earlier algebra bug in
     commit 2538cfe).
 
@@ -992,8 +992,8 @@ class TestSlabRankNNotImplementedGuard:
     r"""Rank-N :math:`(n > 0)` BC for slab-polar requires per-face mode
     decomposition (two faces → :math:`A = \mathbb{R}^{2N}` rather than
     :math:`\mathbb{R}^{N}`). The unified
-    :func:`~orpheus.derivations.peierls_geometry.compute_P_esc_mode`
-    and :func:`~orpheus.derivations.peierls_geometry.compute_G_bc_mode`
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_mode`
+    and :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_mode`
     explicitly raise :class:`NotImplementedError` for slab at
     :math:`n_{\rm mode} > 0`; the rank-1 (:math:`n_{\rm bc\_modes} = 1`,
     mode-0-only) path is the supported configuration.

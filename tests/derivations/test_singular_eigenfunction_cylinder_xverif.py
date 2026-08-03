@@ -46,7 +46,7 @@ the published WM-72 Table II values. The cross-check now uses a
 V&V triangle for Sood ``Ua-1-0-CY``:
 
 * Variant α via bouncing characteristics: 8.5e-6 (already shipped at
-  :mod:`tests.derivations.test_trajectory_resolvent_cylinder_xverif_sood2003`).
+  :mod:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`).
 * WM-72 via singular-eigenfunction Fredholm: ≤ 3e-7 (this module).
 * Cross-check WM-72 ↔ Variant α: ≤ 1e-5 (this test).
 

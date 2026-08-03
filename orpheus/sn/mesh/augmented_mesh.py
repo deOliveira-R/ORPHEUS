@@ -1056,8 +1056,13 @@ class SNMesh(MaterialMesh):
         The layout contains ONLY boundary face slots. Interior
         wavefront cache cells (pre-D-G stored in AngularBoundaryFlux's 2-D
         ``xmin_xmax_buf`` / ``ymin_ymax_buf`` interior positions) are
-        explicitly excluded — they live on
-        :class:`~orpheus.sn.sweep_scratch.SweepScratch` post-D-G.
+        explicitly excluded — post-D-G they are **ephemeral local
+        arrays inside the sweep**, allocated per sweep and never
+        persisted (the boundary trace is the sole persistent face-state
+        carrier). A short-lived ``SweepScratch`` type was introduced to
+        hold them and deleted in the same step: a sweep-private
+        persistent type re-created exactly the boundary/interior
+        conflation D-G was dissolving.
         """
         from orpheus.numerics.face_layout import FaceLayout
         from orpheus.numerics.moment_layout import face_moment_count, face_moment_tail

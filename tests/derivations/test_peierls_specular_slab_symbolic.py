@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-production contract test for the slab per-face
 specular primitives.
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.peierls_specular.slab` is the **source of
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.slab` is the **source of
 truth** for the per-face slab primitives and the block-diagonal
 reflection operator
 :math:`R_{\rm slab} = {\rm blockdiag}(R_{\rm spec}, R_{\rm spec})`.

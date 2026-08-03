@@ -2,7 +2,7 @@ r"""Paired symbolic-vs-textbook contract test for the Phase-5
 continuous-:math:`\mu` multi-bounce specular kernel.
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.peierls_specular.continuous_mu` is the
+:mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu` is the
 **source of truth** for the Sanchez 1986 :cite:`SanchezTTSP1986` Eq. (A6)
 ↔ ORPHEUS M1 sketch equivalence and the diagonal-singularity finding
 that blocks production wiring of ``boundary="specular_continuous_mu"``.
@@ -156,7 +156,7 @@ def test_v4_diagonal_singularity_documented():
     Future investigators wiring the continuous-µ closure must
     address the singularity (adaptive µ-quadrature, singularity
     subtraction, or a change-of-variables to absorb it). See
-    :mod:`orpheus.derivations.peierls_specular.continuous_mu` V4
+    :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu` V4
     docstring for the three resolution options.
 
     Reference: workbench (now lifted) lines 286-367

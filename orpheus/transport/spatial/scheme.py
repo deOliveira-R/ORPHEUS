@@ -145,8 +145,8 @@ class CellVisit:
         upstream-numerator constant
         :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2}
         + \alpha_{m-1/2}` for THIS visit's ordinate, stamped on the visit
-        by the mesh from its
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure`.
+        by the mesh from its bound ``pole_angular_closure``
+        (:class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`).
         ``0.0`` for slab / Cartesian (the identity closure carries no
         angular redistribution).  The spatial scheme consumes it as DATA
         on the visit; it must NOT be rebuilt from ``streaming_terms``

@@ -1,8 +1,8 @@
 r"""L0 term-verification tests for the unified Quadrature1D contract.
 
 Pins the contract that
-:mod:`orpheus.derivations._quadrature` and
-:mod:`orpheus.derivations._quadrature_recipes` ship:
+:mod:`orpheus.derivations.common.quadrature` and
+:mod:`orpheus.derivations.common.quadrature_recipes` ship:
 
 1. The :class:`Quadrature1D` value object (frozen dataclass with
    ``pts``, ``wts``, ``interval``, ``panel_bounds``, ``integrate``,
