@@ -5,36 +5,27 @@ anti-pattern CATALOG is the preloaded `coding-elegance` skill; the cross-cutting
 institutional SMELLS (twin-delivery plumbing, role-grid, fuller-view-oracle
 exception, tells-to-grep) are in AGENT.md §"Institutional knowledge". This index
 holds only (1) review-PROCESS lessons, (2) git-true active state, (3) durable
-design-review reference. Campaign play-by-play is retired to `lessons.md`.
+design-review reference.
 
-## 1. Lessons (read FIRST each review)
+## 1. Lessons — a HOT digest + a COLD archive (read the digest each review)
 
-- [lessons.md](lessons.md) — L1–L19, the review-process authority. Spine (now also
-  a standing AGENT.md directive): a VIOLATION = a named bug-habitat edit + NOT
-  coextensive-today (else NIT) + verified against the LIVE tree not the diff's
-  docstring. Recurring catches: docstring-names-a-primitive-the-code-doesn't-call
-  (L1); collapse single-source debt on the 3rd DIVERGENT consumer not the 2nd (L2);
-  parallel predicates with different return types are NOT a unify trigger (L3);
-  stale-doc/deferred-contract blast radius lands OUTSIDE the diff (L4/L16); prove the
-  teeth bite before crediting a re-baseline (L5); Mode-10 sub-floor = structural teeth
-  not a value band (L6); TRIM a predicate whose docstring concedes prod won't use it
-  (L7); emergent invariant-gate over hand dunder (L8); stash-baseline pyright delta
-  for typing-honesty (L9); sibling-repo latent crash = the guard a sibling already has
-  (L10); verify DIFF SCOPE against live `git status` (L11); PROVE a dead `# type:
-  ignore` via a throwaway `reportUnnecessaryTypeIgnoreComment` config (L12); doc
-  gather/split = RETIREMENT review, honest algebra `A=L+C−S−B` sweep=`(L+C)^{-1}`
-  (L13); code-prose REBALANCE cert by token-invariance+pointer-content (L14);
-  delete-batch's own retirement NOTE is a confidence trap, tree-grep+tense (L15);
-  generic-bound-rejects-ndarray is a CONSUMER-site claim, CLI-pyright first (L17);
-  class SPLIT strands an IN-DIFF intro docstring contradiction (L18); an
-  algebra-of-record module can still harbor an unwelded THIRD inline spelling (L19).
+- [lessons.md](lessons.md) — the hot digest (~300 ln): L-001–L-019 as standalone
+  behavioral rules, grouped {standing review order · verify-before-you-flag ·
+  grading · blast radius · elegance calls · doc-carve certification}. Read every
+  dispatch. Lessons the `coding-elegance` skill has since absorbed (anti-#20 ⊃ L-001,
+  Pattern-4 `replace()` ⊃ L-008, Pattern-6 trim ⊃ L-007, anti-#19 ⊃ L-012) survive
+  there only as DETECTION heuristics — never re-add catalog content.
+- [lessons_archive.md](lessons_archive.md) — the cold archive (874 ln), byte-identical
+  predecessor of the digest. War stories, `file:line` forensics, per-review
+  inventories, the 16 L-013 doc-carve sharpenings. Load ONLY when a digest entry's
+  `→ archive L-NNN` pointer is the thing you need.
 
 ## 2. Active / in-flight state
 
 **None of my own MERGED-campaign work is active** (git-verified 2026-07-22): #257/
 #247/#251/#245/#246/#249/#240/#158/#208/#20/#206 + the whole #226 inverse-as-operator
 carve (steps 1–6, incl. step-6 `f4919b1`) are all in origin/main. Rulings in the
-#226 topic files below; lessons in `lessons.md`.
+#226 topic files below; lessons in the digest.
 
 Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 - **#236** `feature/sn-spatial-angular-product` (tip `6409328`, NOT in main). My
