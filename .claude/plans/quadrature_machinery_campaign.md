@@ -12,11 +12,18 @@
 > LANDED** (2026-08-02). **#325 is no longer blocked**: it was stuck behind a
 > sort-key ruling that Q4 dissolved (see T19).
 >
-> **NEXT: Q5 — THE FOLD.** Design of record written 2026-08-02, **reviewed and
-> RULED**; implementation starts at Q5.0. Read §5's Q5 block, then T24 / T25 /
-> T26 / T27. Both open questions are ruled (the fold reaches the SOLVE — every
-> cylindrical snapshot moves and that is *scheduling*, not a cost; and Q7's
-> mirror-plane naming is pulled forward into Q5.0).
+> **IN FLIGHT: Q5 — THE FOLD.** Design of record written 2026-08-02, reviewed
+> and RULED. Read §5's Q5 block, then T24 / T25 / T26 / T27. Both open questions
+> are ruled (the fold reaches the SOLVE — every cylindrical snapshot moves and
+> that is *scheduling*, not a cost; and Q7's mirror-plane naming is pulled
+> forward into Q5.0).
+>
+> **Q5.0.1 ✅ LANDED `a7695148`** — the reflection partner map is now certified,
+> and it caught a live defect (odd-`n_φ` products had an involutive-but-wrong
+> `σ_x` map feeding the `r=0` pole continuation).
+> **NEXT = Q5.0.2** (name the mirror's plane; the map is in
+> `scratch/q5_mirror_plane_blast_radius.md` and the template is in the Q5.0.2
+> block), then Q5.1.
 >
 > ⛔ **THIS ANCHOR PRESCRIBED A FALSE NEXT STEP UNTIL 2026-08-02.** It said
 > "**NEXT: #326** — swap `level_indices` to the fiber ordering Q4 built, and see
@@ -1735,15 +1742,33 @@ implemented and **no `D_6h`-invariant rule in tree**.
   extending"). The fold breaks two unstated preconditions; fix them FIRST or the
   fold ships a silent wrong answer.
 
-  1. **Certify the reflection partner map** (T23). `_find_reflections`
-     (`directional.py:125`) is a bare `argmin` with no distance threshold and no
-     closure check — on a non-closed set it returns silent many-to-one garbage
-     (`[M]` `max|ξ[partner]+ξ| = 9.404e-01`). Populate
-     `reflection_partners[axis]` **only** where the node set is genuinely closed,
-     so a missing axis raises `reflection_index`'s existing `ValueError` instead.
-     Pattern 4: the illegal state stops being representable.
-     *Gate:* a folded node set must make axis 1 **absent**; every shipped rule
-     today must keep all three (no behaviour change on the current tree).
+  1. ✅ **Certify the reflection partner map** (T23) — **LANDED `a7695148`.**
+     `_find_reflections` retired; `_compute_sphere_reflection_partners` routes
+     through `symmetry._orbit_closure`, which already computes the permutation
+     while proving closure and requires a **bijection** with matched positions
+     AND equal weights (ERR-073) — so the certification is free and the
+     permutation it returns IS the partner map (L-013). An uncertified axis is
+     OMITTED, so `reflection_index` raises rather than returning garbage.
+
+     ⛔ **It caught a LIVE defect, not a hypothetical one.** `[M]` A product
+     rule's mirror planes sit at `kπ/n_φ`, so `σ_x` needs `k = n_φ/2` — integer
+     only for **even** `n_φ`. At `product(4, 5/7/9)` the shipped axis-0 map was
+     wrong by `0.58 / 0.42 / 0.33` in the direction cosines **and was still an
+     involution**, so `test_q4_2` passed on it. That map feeds the `r=0` pole
+     continuation. `σ_y` is the `k=0` plane and survives at every `n_φ` — which
+     is why the **fold is unconditional while the centreline map is not**.
+
+     `[M]` No behaviour change anywhere else: every `product(4, even)`,
+     `level_symmetric(4/8/16)`, `lebedev(5/11/17)`, `gauss_legendre(8)` keeps
+     all three axes. `tests/numerics` 1546 passed (== baseline); `tests/sn -m
+     "not slow"` 2553 passed with **the same six** deliberately-red gates and no
+     new ones; sphinx `-W` clean; pyright 0.
+
+     Teeth verified by monkeypatch back to the legacy body (positive control
+     first): **6 gates red**. ⚠ Note for future gate design: with only
+     even-`n_φ` rows the three-check gate stayed **GREEN** under the legacy body
+     — every map it inspected happened to be correct. The odd rows are what give
+     it teeth, and they are in `_SHIPPED_RULES` deliberately.
   2. **Name the mirror's PLANE** — ✅ **PULLED FORWARD from Q7 by user ruling.**
      `Z2` is realized as `_reflections("z")` — σ_z only — so the cylinder's σ_y
      is **not nameable**, an axis convention hidden inside an "abstract order-2
