@@ -1,127 +1,29 @@
 # QA Agent Memory — index
 
-## 1. Lessons (the behavioral spine)
+## 1. Lessons — a HOT digest over a COLD archive
 
-[lessons.md](lessons.md) — 62 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-062). "What mistake did I make, what did I
-learn that improved my review behaviour." Consult before every review;
-sharpen in place after every task. The recurring spine:
+Two files, read at different times. Do **not** summarize lesson content here.
 
-- **Coverage ≠ count** (L-001, L-005, L-030) — demand a heterogeneous /
-  multi-group / mesh-refinement gate; a per-axis invariant needs a fixture
-  that VARIES along the non-reduced axis.
-- **Mode-8 (-O strip)** (L-006, L-010, L-039, L-052) — bare asserts fire in
-  collected `tests/` (rewriter), die only in `orpheus/` AND in your own probe
-  SCRIPTS (L-052: a bare assert in a `python -O` throwaway prints PASSED while
-  unequal — teeth-check through pytest or `np.testing.assert_*`, never a bare
-  script assert); prove a gate fired by mutating it, not by inspection.
-  **L-010 sharpening:** a BRIEF's Mode-8 hypothesis about a `tests/` subtree is
-  settled in 2 min (synthetic control + falsified COPY of a real file, both
-  modes) and is usually REFUTED — then PIVOT to an AST census of what the
-  asserts assert (boundary suite: 61.7 % bare but only 29.1 % of bare pin a
-  VALUE; `tag_equality` is the shadow of stringly-typed production dispatch).
-- **catches/verifies markers** (L-007, L-054, L-061) — a marker is a coverage
-  CLAIM; mutation-verify the EXACT documented bug reddens THIS test or drop it.
-  Markers DECAY: ERR-052's catcher was true when written and is now blind (the
-  config converges in 6 outers, the bug needs 30–60) — re-verify on review.
-- **Your OWN mutation needs a bite check** (L-061) — "the attribute was set" is
-  presence, not bite. A `__post_init__` install on a dataclass decorated without
-  one is a NO-OP (manufactured a false "ungated" finding); a capability REFUSAL
-  is two-part (`apply_transpose` AND the declared `is_adjointable` predicate).
-  Three inert-gate classes to grep: tautological `raises(X): raise err`,
-  `except Exception: pytest.skip` (read `-rs` reasons — an exception message as
-  a skip reason = a permanently-dead sentinel), and a self-generated snapshot
-  wearing an `l1` marker.
-- **Re-baseline integrity** (L-022, L-023, L-024, L-028, L-044, L-049) —
-  grep the WHOLE tree for the old literal; pin a regen'd `.npy` to a
-  STRUCTURALLY-INDEPENDENT reference, never old-vs-new ULP; prove the
-  masking-check (old snapshot still hard-fails the new code).
-- **Twin-path / Mode-11** (L-018, L-021, L-031, L-033, L-036, L-043) — a
-  green "twin" must EXECUTE the rewired line; sentinel-instrument it,
-  mutate the SHARED source not the dead-for-this-path method.
-- **Circularity & structural independence** (L-026, L-029, L-046) — a
-  re-encoded production formula is a circular VALUE check unless the other
-  side is independently assembled; a weighted pin needs every factor in the
-  hand-ref.
-- **Bit-id micro-facts** (L-013, L-014, L-020) — resolve byte-id disputes
-  with the IEEE/Python fact + git `.npy` status + a +1-ULP perturb, not a
-  docstring.
-- **API-migration rewire bit-id + phantom-symbol discipline** (L-051) — a
-  "deleted class → new face" rewire's bit-id is VERIFIABLE (recompute the OLD
-  einsum on a structurally-independent table, `np.array_equal`), never ASSUMED
-  from the brief; confirm every brief-named symbol/file with find/grep (two
-  phantoms caught) and byte-compile no-test generator scripts.
-- **Adjoint-via-metric-composition** (L-052) — `A.H = G_dom⁻¹·Aᵀ·G_cod` is
-  VERIFIABLE: re-derive the inner-product identity by hand, then prove it with a
-  DENSE matrix built by loops + transposed directly + composed with metrics
-  (zero shared code with the fused einsums); the "weight-free transpose" choice
-  is provable (each transpose mirrors its OWN forward — asymmetric w/ a
-  weight-baking sibling is correct, not a missing factor); teeth = drop-factor /
-  bake-weight / reverse-factor / wrong-Gram-power, all RED via monkeypatch;
-  per-term fold beats post-scale for a bit-faithful ref (0 vs 112 ULP).
-- **Stale-snapshot triage** (L-034) — a HUGE-ULP red on ONE geometry while
-  siblings pass = live-correct / frozen-stale; find the apply-changing
-  commit that didn't re-capture.
-- **Mode-10 honest-scope** (L-026, L-037, L-038) — an exercised term whose
-  sign error is sub-floor is UNVERIFIED, not verified; structural teeth +
-  no-op control when no dominant regime exists.
-- **Mode-12 verify-by-running** (L-058) — a "k/functional is designed-green /
-  blind to this mutation class" claim is checkable: RUN the mutation. A
-  leaf-transpose-DROP is a NON-transpose operator whose k SHIFTS (only the
-  correct adjoint is similar to forward); k's real blind spot is the flux-SHAPE
-  (eigenvector), not the machinery. Mirror of the #226 step-5b overclaim; when
-  the pushback hits the skill's OWN Mode-12 example, flag the skill edit.
-  **A6 sharpening:** a cited mutation-MAGNITUDE for a metric-adjoint SOLVE is the
-  full-solve value (RUN it), NOT the angular-collapsed 0-D char-poly proxy — the
-  metric `G=V·w_n` conjugation on a MUTATED (non-transpose) op is not
-  spectrum-preserving, so the SN F†=F k-tooth is 0.171, not the 0-D 0.153 the
-  chapter/slice/tests/SKILL.md all cite (MUST-FIX; never asserted).
-  **L-060 sharpening (reciprocity gates):** a transpose/adjoint RECIPROCITY gate
-  `⟨A.solve q,p⟩=⟨q,A.solve_transpose p⟩` pins the transpose RELATIONSHIP, not
-  correctness — it is GREEN for any `(S,Sᵀ)` pair, so it is Mode-12 blind to a
-  SYMMETRIC completion-drop (both solve+solve_transpose). Mutation BOTH ways:
-  MUT-T (asymmetric → reds) AND MUT-BOTH (symmetric → stays green); the one-sided
-  `A∘A⁻¹=I` identity gate is the non-redundant partner. A symmetric-completion
-  (E_out-diagonal) inverse fix is provable by dense `(A⁻¹)ᵀ=(Aᵀ)⁻¹` (≈1e-16, incl.
-  the cyl free-DOF subspace where `A·A⁻¹=1.0` is the honest rank-deficient pair).
-- **Protocol/category gates** (L-039, L-047) — runtime_checkable only checks
-  member PRESENCE; the direct `not hasattr` negatives are the defense.
-- **Behavior-neutral retype** (L-041, L-045, L-048, L-050) — re-prove
-  inertness for EVERY consumer with a direct value comparison; a "neutral"
-  claim holds only for the ONE contract it was proven against (ERR-063).
-- **Doc-staleness adjudication** (L-055) — campaign-narration (`Phase X`/
-  `Wave Y`) FIX bar = "provably lies about CURRENT code", verified via
-  grep(symbol/wiring/workaround)+`gh issue view` BEFORE ruling; guards:
-  a stale RUNTIME STRING is behavioral→KEEP, a "HALTs Phase X" load-bearing
-  banner is a characterization record→KEEP.
-- **Results-compilation review** (L-057) — a count-DE-FREEZE is CERTIFIABLE (live
-  `--collect-only` proves the old literal was stale, so it's warranted not invented); a
-  doc-retitle can beat the test's OWN stale name/docstring (verify vs the live `assert`
-  body); a run-book that cites config for "operational detail" can point at a note
-  (pyproject SN-OOM "no whole-tree single-process") that reads as CONTRADICTING its
-  headline (full-tree single-process gate) — reconcilable NIT, read the delegated-to file.
-- **Group-theory / symmetry-module audit** (L-062) — three reusable moves:
-  BFS the group the SAMPLE generates and compare to the claimed one (a
-  `{0,90,180,270}°` "SO(2) orbit" generates `C_4` ⟹ every `n_phi=4k` product
-  rule falsely certifies — ERR-072); "found a matching partner" ≠ **bijection**
-  (a bit-identical duplicate node makes a non-invariant measure certify, no
-  tolerance games — ERR-073, and returning the permutation fixes it *and* hands
-  the orbifold singular set `{i: perm[i]==i}` for free); and the **monotonicity
-  law** `A⊆B ∧ P(B,x) ⟹ P(A,x)` — one loop, 68 violations, three independent
-  defect classes no per-relation/per-predicate test can see. A **0-call mutation
-  counter is a finding** (unreachable path), not an inert mutation; and zsh does
-  NOT word-split `$VAR` — a mutation loop can silently run zero tests.
-- **Distillation-fidelity review** (L-056) — a skill→Sphinx doctrine page:
-  the DOCTRINE is faithful (read vs preloaded skill), yield is in code-anchored
-  SPECIFICS the build can't gate — `:mod:`/`:class:` roles are NOT `-W`-gated
-  (dead target renders as plain text; grep corpus, the OUTLIER-count spelling
-  is the bug), and the skill SOURCE carries stale specifics that propagate, so
-  verify module-path/`mpmath`-vs-`scipy`/test-count against CODE + the consuming
-  test's docstring, never the skill twin.
+- **[lessons.md](lessons.md)** — the HOT digest (~377 lines). Behavioral rules
+  only: one imperative rule + its failure→correction core + a
+  `→ lessons_archive.md L-0NN` pointer. Nine sections: **A** mutation mechanics,
+  **B** structural blindness, **C** structural independence, **D**
+  re-baseline/bit-identity, **E** markers & audit surface, **F** claim-scope,
+  **G** doc-correctness, **H** mechanics/environment, **I** the map of what is
+  already in `vv-principles`/`numerical-bug-signatures` (point, don't restate).
+  **Read this before every review.**
+- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (2572 lines,
+  L-001..L-062, append-ordered). War stories, evidence, `file:line`, measured
+  tables, verdicts. **Open only the specific `L-0NN` a digest rule points at** —
+  never read it whole (it is ~45K tokens).
+
+Maintenance: a new lesson appends `L-0NN` to the archive AND lands a 2–5 line
+rule in the digest. Sharpen the digest in place; if it drifts past ~400 lines,
+distill (encode a shared meta-lesson once, list its instances) — never truncate.
 
 ## 2. Active / in-flight state
 
-None. All SN review campaigns whose lessons are recorded above are merged to
+None. All SN review campaigns behind L-001..L-062 are merged to
 `main` (verified via `git merge-base --is-ancestor`). Only #236
 (`feature/sn-spatial-angular-product`) remains open at the repo level, but it
 carries no unresolved QA finding here. Git is authoritative for merge status —
