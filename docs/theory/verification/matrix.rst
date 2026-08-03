@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8319**
+Total tests collected: **8415**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1206, 14.5%
-   L1, 1407, 16.9%
+   L0, 1206, 14.3%
+   L1, 1407, 16.7%
    L2, 64, 0.8%
    L3, 0, 0.0%
-   foundation, 5642, 67.8%
+   foundation, 5738, 68.2%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8240
+   explicit, 8336
    class-name, 46
    func-name, 0
    case, 33
@@ -270,6 +270,7 @@ Module × level grid
    geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
+   geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
@@ -1437,7 +1438,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-070``, 4
    ``ERR-071``, 8
    ``ERR-072``, 3
-   ``ERR-073``, 1
+   ``ERR-073``, 2
    ``ERR-074``, **0 (MISSING)**
 
 Unmarked tests

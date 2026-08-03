@@ -56,12 +56,39 @@ which reproduces every case — a reflection at signed offset :math:`d` is
 :math:`(-I,\,2c)`, and a translation is :math:`(I,\,v)`.
 
 **Scope: rigid motions only** (:math:`Q^\mathsf{T}Q = I`), not general affine
-maps. No consumer needs shear or scaling, and orthogonality is precisely what
-makes the type verifiable — it is the invariant enforced at construction, so a
-non-isometry is not a value this type can hold. Curvilinear coordinate charts
-(:math:`(r,\theta) \leftrightarrow (x,y)`) are **non-linear** and are a
-different concept, not a degenerate case of this one; they live in
-:mod:`orpheus.geometry.coord`.
+maps — and this is a *separate* question from the one above, easy to run
+together with it. The affine part is forced because you must be able to say
+*where* a mirror is; excluding shear and scaling is a different claim, and it
+does **not** follow from that proof. It rests on this:
+
+**Orthogonality is not a convenience — it is what makes "symmetry" a
+well-posed question.**
+
+* A symmetry **preserves the structure**, and for a weighted point set that
+  structure is distance and volume. A non-isometry carries the set to a
+  *different* set, so :meth:`RigidMotion.permutes` and
+  :meth:`RigidMotion.preserves` would not be answering a hard question — they
+  would be answering a malformed one.
+* A point group **is by definition** a subgroup of :math:`O(d)` seated at a
+  point, not of :math:`GL(d)`.
+* :func:`close_group` of a non-isometry is generically **infinite** — a scaling
+  by 2 generates :math:`\mathbb{Z}` — so the finite-group machinery loses its
+  meaning and :class:`NotAFinitePointGroupError` would fire on ordinary input.
+* :meth:`RigidMotion.inverse` is :math:`Q^\mathsf{T}`, **exact**. A general
+  linear part makes it a solve carrying conditioning, and every law that closes
+  at round-off today would degrade to tolerance-bound.
+
+Orthogonality is therefore the invariant enforced at construction, and a
+non-isometry is not a value this type can hold. That the codebase happens to
+have no consumer for shear is a footnote, never the argument.
+
+**Where a genuinely non-rigid affine map would go — not here.** The real
+candidate in this tree is the reference-cell :math:`\to` physical-cell map
+behind the tensor-Legendre spatial basis, which carries an anisotropic scaling.
+That is a **chart**: a different object with a different job, belonging beside
+the curvilinear charts (:math:`(r,\theta) \leftrightarrow (x,y)`) in
+:mod:`orpheus.geometry.coord`, which are **non-linear** and are likewise a
+different concept rather than a degenerate case of this one.
 
 Elements are parameterised by the complement of what they fix
 -------------------------------------------------------------

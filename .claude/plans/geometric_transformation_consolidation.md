@@ -658,7 +658,7 @@ it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 | step | what | gate |
 |---|---|---|
 | **G1** ✅ `6acb6a8a` | mint `geometry/transformation.py`: dimension-generic elements, `RigidMotion`, closure, the point-set orbit primitive; `permutes`/`preserves` | tree green; realizations bit-identical |
-| **G2** | ⭐ **mathematically verify** against PURE MATH — group axioms, `QᵀQ=I`, `det=±1`, involution, order-`n`, Householder/Rodrigues vs independent constructions, conjugation `RσR⁻¹`, orbit–stabiliser | every law mutation-verified |
+| **G2** ✅ | ⭐ **mathematically verify** against PURE MATH — group axioms, `QᵀQ=I`, `det=±1`, involution, order-`n`, Householder/Rodrigues vs independent constructions, conjugation `RσR⁻¹`, orbit–stabiliser | every law mutation-verified |
 | **G3** | route `symmetry.py`'s seven constructors through the core; delete the 1-D/3-D arm split | realizations bit-identical |
 | **G4** | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | `Dnh(n_φ)` exact on BOTH sides |
 | **G5** | the BC layer's 4 σ_a vocabularies + `_reflect_corner`; `ReflectionLaw` binding | `product(4,5)`'s `ValueError` → `BoundaryError` |
@@ -749,6 +749,74 @@ orpheus.numerics.X import Y`), never `from orpheus.numerics import Y`. A
 partially-initialised package serves the former and fails the latter. Nothing
 enforces this today. **G3 must add the gate** alongside the import, in
 `tests/test_layer_imports.py`'s family.
+
+---
+
+## 7b. G2 — the gates, and what they measured
+
+`tests/geometry/test_transformation.py` — **42 gates, 96 parametrised cases**,
+8.9 s serial under `-O`, module-level `@pytest.mark.foundation`, SymPy rows
+in-file and deliberately NOT `slow`-marked (a `slow`-marked foundation gate is
+deselected by the canonical `-m "not slow"` sweep and stops guarding). Plan +
+closeout: `scratch/g2_verification_plan.md`.
+
+**Mutation battery: 32 mutations, 32 caught, 0 blind.** Twelve redden EXACTLY
+one gate, so coverage isolates rather than smears. Main-agent independently
+re-ran three and reproduced the agent's counts row-for-row (M21 → 1 failed,
+M13 → 13, M01 → 23), with the source restored byte-identically.
+
+**The findings worth keeping:**
+
+- ⭐⭐ **`σ² = e` is Mode-12 designed-green on the ENTIRE affine-offset family.**
+  `Qt = (I−2n̂n̂ᵀ)(αn̂) = −αn̂ = −t`, so `g² = (Q², Qt+t) = (I,0)` for *every* α.
+  `[M]` `t ∈ {d, 2d, 4d, −2d}·n̂` are **all** involutions while the true mirror
+  plane moves by `0.37 / 0.00 / 0.74 / 1.48`. The offset is this campaign's
+  motivating defect and the involution law **cannot see it** — its only catcher
+  is "the element fixes its named fixed set POINTWISE".
+- ⭐ **The seat is a THEOREM, not a convention** — a `G`-preserved weighted point
+  set has a `G`-fixed centroid. `[M]` a cube shifted to `(2.5,−1.25,0.75)`:
+  **48/48** seated `O_h` elements preserve it, **1/48** unseated. This is what
+  converts **R10** from a modelling choice into a computed fact.
+- ⭐ **The permutation homomorphism is the only gate that pins three
+  conventions at once** (composition order, row-vs-column action,
+  `π` vs `π⁻¹`) — none is checkable alone. `[M]` a transposed point action
+  reddens it but does NOT redden the direct `g(P) == P[π]` check, because that
+  check builds `π` with the same mutated action and a transposed action still
+  maps a `G`-invariant set onto itself.
+- ⚠ **VACUITY, measured not argued:** on the **abelian** `C_4` the reversed
+  composition order agrees **16/16**; on `O_h`, **42/144**. A `C_n` fixture
+  would have made the gate completely vacuous — the same shape as the
+  stable-sort tie-break gate this campaign already shipped vacuous at
+  n ∈ {4,8,12}. Four gates carried this risk; all four now have non-abelian /
+  mixed-parity / unequal-weight fixtures.
+- ⭐ **NEVER ASSERT TIGHTER THAN THE TYPE'S OWN INVARIANT.** `__post_init__`
+  admits `max|QᵀQ−I| ≤ 1e-12`, so a `1e-13` shear is a **legal** element and a
+  gate demanding `1e-14` orthogonality of an arbitrary element asserts a
+  property the type does not promise. Split: one gate for the type's invariant
+  and its rejection threshold, another for the constructors' (far better)
+  actual quality — `signed_permutation` is exactly `0`.
+- **An absolute `atol` is the wrong contract for a translation residual** — it
+  scales `O(ops × ‖t‖ × ε)`. Gates scale by `max(1, ‖desired‖_∞)`; worst over
+  3000–4000 draws per law is **6.9e-15**.
+- **`on_points − on_directions == t` is NOT a float theorem** (2.2e-16) while
+  **`on_points == on_directions + t` is bit-exact 6000/6000.** Gated in the
+  true — and stronger — direction.
+- **The harness lied before the code did, again.** The battery's first run
+  reported 32/32 BLIND while the summaries plainly read `23 failed` / `63
+  failed`: the parser wanted `FAILED` lines that `-q --tb=no` never emits.
+  **The positive control is what exposed it** — a mutation making `reflection`
+  return `+I` cannot leave 42 gates green. Never run a mutation battery without
+  one.
+
+**Laws with no pure-math reference** (recorded so none is smuggled in wearing
+one): the `D_nh` mirror-plane placement is a literature *setting*, not a theorem
+(`[M]` orthogonality, det, closure and group order are all preserved by rotating
+the mirror set, so no intrinsic law can distinguish them); the `(n̂,d)`/`(−n̂,−d)`
+gauge; the numeric VALUE of the match window (lower-bounded by measurement,
+upper-bounded only by the consumer's own minimum point separation — so default
+it *relative to* that intrinsic quantity, which also retires
+`_NODE_WINDOW_FACTOR` honestly); and the physical centroid computation, which is
+G7's, not G2's.
 
 ---
 
