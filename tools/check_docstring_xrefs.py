@@ -110,9 +110,31 @@ def resolve(dotted: str) -> tuple[bool, str | None]:
             try:
                 obj = getattr(obj, attribute)
             except AttributeError:
+                if _is_annotated_attribute(obj, attribute):
+                    # Declared but not bound on the class — a dataclass field or
+                    # a bare ``x: T`` / ``ClassVar[T]``. ``getattr`` on the CLASS
+                    # raises (only instances carry it), yet autodoc documents it
+                    # and the xref resolves. Treating this as dead would delete
+                    # live cross-references — the inverse of the tool's purpose.
+                    return True, None
                 return False, "missing"
         return True, None
     return False, "missing"
+
+
+def _is_annotated_attribute(owner: object, attribute: str) -> bool:
+    """True if ``attribute`` is declared as an annotation anywhere in ``owner``'s MRO.
+
+    The MRO walk matters: a dataclass field declared on a base class is absent
+    from the subclass's own ``__annotations__``, so an own-class-only check
+    would still report inherited fields as dead.
+    """
+    if not isinstance(owner, type):
+        return False
+    for klass in getattr(owner, "__mro__", ()):
+        if attribute in getattr(klass, "__annotations__", {}):
+            return True
+    return False
 
 
 def iter_docstrings(tree: ast.AST):
