@@ -28,9 +28,10 @@
 > | **Q5.E / E1** | `9e74faa1` | `numerics/exactness.py` — a claim names the SPACE its degree indexes |
 > | **Q5.E / E2** | `34a97f43` | `DiscreteMeasure` carries ONE claim; `tensor_with` vs the direct sum; the "6.2832 bug" re-measured and partly **inverted** |
 > | **Q5.E / E3** | `647ece5a` | `rules_circle.py` — the periodic trapezoid on `S^1`, shift as a `Fraction`, nodes as roots of unity |
-> | **Q5.E / E4** | *this commit* | the sphere product theorem + the azimuthal substitution; #325's generator half closed |
+> | **Q5.E / E4** | `255a9f1c` | the sphere product theorem + the azimuthal substitution; #325's generator half closed |
+> | **Q5.0.2** | *this commit* | `Z2` RETIRED → `Mirror(axis)`; the 1-D and 3-D arms unified |
 >
-> **▶ NEXT = Q5.0.2**, then Q5.1–Q5.6. The full ladder with gates
+> **▶ NEXT = Q5.1** (`DiscreteMeasure.quotient`), then Q5.2–Q5.6. The full ladder with gates
 > is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
 >
 > ⛔ **UNCOMMITTED AND UNCOMMITTABLE: ERR-074** was appended to
@@ -57,6 +58,17 @@
 > `Σ = ∅` makes the fold a **free** action, and that condition **derives** the
 > azimuthal offset (`δ = π/n_φ`, i.e. Gauss–Chebyshev in `cos φ`) rather than
 > leaving it a preference. Every piece already exists and is unconsumed.
+>
+> ⚠ **A SEVENTH RED lives OUTSIDE `tests/sn`, and the campaign had not been
+> running it.** `tests/geometry/test_bc_equivalence_snapshot.py::
+> TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`
+> — `[M]` 8 of 60 elements off by **2.2e-16 abs / 1.1e-15 rel** against an
+> `rtol` of `8.9e-16`, i.e. over by 1.26×. Bisected 2026-08-02: it fails at
+> `292a1ba5` too, so **neither E3/E4 nor Q5.0.2 caused it** — it is older, and
+> the likely origin is Q3's GL re-baseline (`bc89b62e`), which re-captured the
+> SN slab snapshots and evidently missed this geometry one. Same class as the
+> other re-baseline items; needs its own call. **Every "the same six" report in
+> this plan is scoped to `tests/sn`** — run `tests/geometry` too.
 >
 > ⚠ **SIX SN GATES ARE RED**, deliberately, all documented in `81689a58`; each
 > needs its own call, none is a physics failure:
@@ -2276,9 +2288,47 @@ implemented and **no `D_6h`-invariant rule in tree**.
     way. It's just a matter of WHEN we will rebuild the snapshot, not IF."*
     ⟹ **a snapshot is never a reason to decline a principled correction.** Plan
     the re-baseline as scheduling, not as a cost to weigh against the fix.
-  * **Q5.0.2 — PULL FORWARD.** The mirror-plane parameterisation comes out of Q7
-    into Q5.0. (An un-nameable group is what forced this campaign's own probes to
-    bypass the public surface.)
+  * ✅ **Q5.0.2 — DONE.** `Z2` **RETIRED**, `Mirror(axis)` minted. Blast-radius
+    map `scratch/q5_mirror_plane_blast_radius.md` (its §6 checklist held).
+    `tests/numerics` 1753 + 9 new; `sphinx -W` clean; pyright 1 (#288).
+
+    ⭐ **Why retire rather than add.** `Mirror('z') == Z2` was `False` while
+    `contains` said each held the other — **two unequal spellings of one
+    group**. And `Z2` meant two DIFFERENT things by node shape: the 3-D arm
+    tested σ_z, the 1-D arm tested plane-free `x → −x`. The tree's canonical
+    embedding of a polar marginal is `(μ, 0, 0)`, so the slab mirror `μ → −μ`
+    **is σ_x** — a different matrix. `[M]` On an ASYMMETRIC μ-set the two arms
+    disagreed, the 3-D one CERTIFYING a set that violates `μ → −μ` (ERR-072
+    family, the dangerous direction). And the false docstring — *"any single
+    reflection works; the choice is convention"* — is falsified by a SHIPPED
+    rule: `product(4, 3)` is σ_z-closed and NOT σ_x-closed.
+
+    ⭐ **The 1-D arm is now DERIVED, not declared.** Under `(μ, 0, 0)`, σ_y and
+    σ_z fix every node POINTWISE (so they hold trivially) and σ_x carries the
+    whole content. That is what makes the two arms answer one question —
+    verified with an asymmetric discriminating leg AND a symmetric control (on
+    a symmetric set every plane is True and the arms agree even while asking
+    different questions, which is exactly how this hid).
+
+    `[M]` The map's predictions all held: `Dnh(n) ⊇ σ_x` iff `n` even, `⊇ σ_z`
+    always; `Oh/O3/Dinfh ⊇ σ_a`; `SO2/SO3 ⊉ σ_a` — and the last two are now
+    right BY THE ARM rather than by the bare `return False` fallthrough. Three
+    of the five old `Z2` lattice edges were already dead code; the family owes
+    exactly two facts, both on `_contains` arms since `_NAMED_LATTICE` is typed
+    enum-to-enum.
+
+    Re-posed `test_dnh_reflection_in_dnh`, whose prose *"a single reflection
+    sits inside every D_nh"* was a false generalisation the parameter-free tag
+    made unfalsifiable — two of its five orders answer False once named.
+
+    ⛔ **Method note, and it cost a full mutation round.** The first mutation
+    harness monkeypatched the PARENT process and ran pytest in a SUBPROCESS,
+    which re-imports a clean module — all four mutations read GREEN. The
+    positive controls were real and proved the mutation bit **in the wrong
+    process**. Redone with source-level mutation (copy to tmp, mutate, restore
+    — never `git checkout`): M1/M3/M4 red immediately, and M2/M5 red only after
+    removing a `-k` filter that had deselected the very tests written to catch
+    them. **Five for five once the mutation actually reached the tests.**
 - **Q6 — Enumeration & naming** (T12d). Extend the EXISTING `QuadratureSpec` /
   `quadrature_registry` — do not mint a mechanism. Adds the **family** grouping
   (= the construction axis, a closed sum type), a **`ParameterSpec`** replacing

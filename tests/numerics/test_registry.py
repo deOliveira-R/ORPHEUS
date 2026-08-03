@@ -102,11 +102,11 @@ def test_geometry_angular_symmetry_table() -> None:
     assert GEOMETRY_ANGULAR_SYMMETRY == {
         "slab": AngularSymmetry(
             continuous_isotropy=SubgroupOfO3.SO2,
-            discrete_residual=SubgroupOfO3.Z2,
+            discrete_residual=SubgroupOfO3.Mirror("x"),
         ),
         "sphere": AngularSymmetry(
             continuous_isotropy=SubgroupOfO3.SO2,
-            discrete_residual=SubgroupOfO3.Z2,
+            discrete_residual=SubgroupOfO3.Mirror("x"),
         ),
         "cylinder": AngularSymmetry(
             continuous_isotropy=SubgroupOfO3.Trivial,
@@ -579,7 +579,7 @@ def test_support_is_derived_from_the_spent_group_not_declared() -> None:
     """
     assert AngularSymmetry(
         continuous_isotropy=SubgroupOfO3.SO2,
-        discrete_residual=SubgroupOfO3.Z2,
+        discrete_residual=SubgroupOfO3.Mirror("z"),
     ).support == "[-1,1]"
 
     assert AngularSymmetry(
@@ -592,7 +592,7 @@ def test_support_is_derived_from_the_spent_group_not_declared() -> None:
     with pytest.raises(NotImplementedError, match="S\\^2/"):
         _ = AngularSymmetry(
             continuous_isotropy=SubgroupOfO3.OctahedralOh,
-            discrete_residual=SubgroupOfO3.Z2,
+            discrete_residual=SubgroupOfO3.Mirror("z"),
         ).support
 
 

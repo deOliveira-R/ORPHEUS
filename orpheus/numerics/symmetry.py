@@ -106,7 +106,6 @@ class _NamedSubgroup(Enum):
     """
 
     Trivial = "Trivial"        # {e}
-    Z2 = "Z2"                  # {e, σ} — single reflection / 180° rotation
     SO2 = "SO2"                # axial rotations C_∞ (continuous 1-parameter)
     Dinfh = "Dinfh"            # D_∞h — the FULL cylindrical group (see below)
     OctahedralOh = "Oh"        # full octahedral group, 48 elements
@@ -139,9 +138,10 @@ class Cn:
     n : int
         Order of the cyclic group; must be :math:`\\ge 1`. ``Cn(1)``
         is the trivial group; ``Cn(2)`` is the rotation-only sibling
-        of :class:`_NamedSubgroup.Z2` (``Z2`` here is *any* order-2
-        subgroup including pure reflections; ``Cn(2)`` is specifically
-        the :math:`180^{\\circ}`-rotation group).
+        of :class:`Mirror` — ``Cn(2)`` is specifically the
+        :math:`180^{\\circ}`-ROTATION group (:math:`\\det = +1`), where a
+        mirror is a reflection (:math:`\\det = -1`). Same order, different
+        group, and the two spellings exist to keep them apart.
     """
 
     n: int
@@ -176,10 +176,75 @@ class Dnh:
             raise ValueError(f"Dnh requires n >= 1, got n={self.n}")
 
 
+@dataclass(frozen=True)
+class Mirror:
+    r"""The order-2 reflection group :math:`\{e, \sigma_a\}`.
+
+    **Parameterised by the plane, because the plane is not a
+    convention.** This family replaced a parameter-free ``Z2`` entry on
+    2026-08-02, and the entry was wrong in a way no test could see.
+
+    ``Z2`` was realized as :math:`\sigma_z` while its docstring said
+    *"pick* :math:`z \to -z` *as a canonical representative; any single
+    reflection works, the choice is convention"*. `[M]` That is false on
+    a rule this tree ships: ``product(4, 3)`` is closed under
+    :math:`\sigma_z` and **not** under :math:`\sigma_x`, and ``Z2``
+    answered ``True``. The claim survived because every fixture that
+    reached it was symmetric in all three planes, where the answer is
+    ``True`` either way — a degenerate fixture masking an overload, one
+    more instance of the pattern this campaign keeps finding.
+
+    Worse, the tag meant two DIFFERENT things by node shape: the 3-D arm
+    tested :math:`\sigma_z`, the 1-D arm tested :math:`x \to -x` on the
+    single coordinate (plane-free). The tree's canonical embedding of a
+    polar marginal is :math:`(\mu, 0, 0)` (see
+    :meth:`~orpheus.numerics.quadrature.directional.Quadrature.axis_cosines`),
+    so the slab mirror :math:`\mu \to -\mu` **is** :math:`\sigma_x` — a
+    different matrix from the one the 3-D arm used. `[M]` On an
+    ASYMMETRIC :math:`\mu`-set the two arms disagree: the 3-D arm
+    certifies ``True`` for a set that violates :math:`\mu \to -\mu`,
+    which is a false certification in the dangerous direction (the
+    ERR-072 family).
+
+    Naming the plane is what makes the two arms say the same thing. On a
+    1-D measure embedded as :math:`(\mu, 0, 0)`, :math:`\sigma_y` and
+    :math:`\sigma_z` fix every node **pointwise** — so they hold
+    trivially, and :math:`\sigma_x` is the one real test. That is now
+    derived from the embedding rather than asserted by a branch.
+
+    Parameters
+    ----------
+    axis : str
+        The mirror's NORMAL, one of ``"x"`` / ``"y"`` / ``"z"``; the
+        plane is the one perpendicular to it through the origin. So
+        ``Mirror("z")`` is :math:`\sigma_h` for an axial geometry and
+        ``Mirror("x")`` is the slab's polar mirror.
+
+    See Also
+    --------
+    Cn
+        The PROPER order-2 sibling is ``Cn(2)`` — a rotation, not a
+        reflection. Keeping the two spellings distinct is the point:
+        ``Mirror`` has :math:`\det = -1` and therefore lies in no
+        proper-rotation group.
+    """
+
+    axis: str
+
+    def __post_init__(self) -> None:  # pragma: no cover - guard
+        if self.axis not in ("x", "y", "z"):
+            raise ValueError(
+                f"Mirror requires axis in x/y/z, got {self.axis!r}. The "
+                f"axis names the mirror's NORMAL; there is no unnamed "
+                f"reflection, which is exactly what the retired Z2 tag "
+                f"pretended there was."
+            )
+
+
 # Public type for "any subgroup tag". The selection logic below
-# branches on type — Cn and Dnh are kept as separate dataclasses (not
-# enum entries) so the order parameter is explicit.
-SubgroupTag = "_NamedSubgroup | Cn | Dnh"
+# branches on type — Cn, Dnh and Mirror are kept as separate dataclasses
+# (not enum entries) so their parameter is explicit.
+SubgroupTag = "_NamedSubgroup | Cn | Dnh | Mirror"
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +267,6 @@ SubgroupTag = "_NamedSubgroup | Cn | Dnh"
 # used for the project's quadratures.
 _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
     # Trivial ⊂ everything (handled implicitly + explicit edges below).
-    (_NamedSubgroup.Trivial, _NamedSubgroup.Z2),
     (_NamedSubgroup.Trivial, _NamedSubgroup.SO2),
     (_NamedSubgroup.Trivial, _NamedSubgroup.Dinfh),
     (_NamedSubgroup.Trivial, _NamedSubgroup.OctahedralOh),
@@ -210,18 +274,27 @@ _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
     (_NamedSubgroup.Trivial, _NamedSubgroup.SO3),
     (_NamedSubgroup.Trivial, _NamedSubgroup.O3),
 
-    # Z2 ⊂ everything except the PROPER-rotation groups SO2 and SO3.
-    # Z2 is REALIZED as sigma_z, det = -1 (see ``_realized_ops``), and an
-    # improper element cannot lie in a proper-rotation group. The
-    # ``(Z2, SO3)`` edge asserted otherwise until 2026-08-02, and it broke
-    # monotonicity on any measure that is SO3-invariant but not
-    # reflection-symmetric. The proper order-2 sibling is ``Cn(2)``, which
-    # IS inside SO2 and SO3 — that is the distinction the two spellings
-    # exist to carry.
-    (_NamedSubgroup.Z2, _NamedSubgroup.Dinfh),
-    (_NamedSubgroup.Z2, _NamedSubgroup.OctahedralOh),
-    (_NamedSubgroup.Z2, _NamedSubgroup.IcosahedralIh),
-    (_NamedSubgroup.Z2, _NamedSubgroup.O3),
+    # The reflection group's edges are NOT here, and the reason is worth
+    # stating: it is `Mirror(axis)`, a parameterised dataclass, and this
+    # table is typed enum-to-enum. Its relations live in `_contains`'s
+    # isinstance arms, exactly as `Cn`/`Dnh`'s do.
+    #
+    # `[M]` That costs less than it sounds: of the five edges the old
+    # parameter-free ``Z2`` entry carried here, THREE WERE ALREADY DEAD
+    # CODE — `_contains` decides finite × finite by computed matrix
+    # containment and only consults this table when one side is
+    # continuous, so `Trivial ⊆ Z2`, `Z2 ⊆ Oh` and `Z2 ⊆ Ih` were never
+    # read. A reflection family owes exactly TWO facts, `Mirror ⊆ D_∞h`
+    # and `Mirror ⊆ O(3)`, and gets every finite relation — including
+    # the n-dependent `D_nh ⊇ Mirror(x)` answers — for free.
+    #
+    # The improper-element argument that shaped those edges still holds
+    # and now lives on the arms: det(σ) = −1, so a reflection lies in no
+    # PROPER-rotation group. (A ``(Z2, SO3)`` edge asserted otherwise
+    # until 2026-08-02 and broke monotonicity on any measure that is
+    # SO3-invariant but not reflection-symmetric.) The proper order-2
+    # sibling is ``Cn(2)``, which IS inside SO2 and SO3 — the distinction
+    # the two spellings exist to carry.
 
     # SO2 ⊂ Dinfh, SO3, O3.
     (_NamedSubgroup.SO2, _NamedSubgroup.Dinfh),
@@ -266,7 +339,7 @@ class SubgroupOfO3:
     .. code-block:: python
 
         SubgroupOfO3.Trivial
-        SubgroupOfO3.Z2
+        SubgroupOfO3.Mirror('z')
         SubgroupOfO3.SO2
         SubgroupOfO3.Dinfh
         SubgroupOfO3.OctahedralOh
@@ -298,7 +371,6 @@ class SubgroupOfO3:
     # / ... access surface is statically known (these are class attributes,
     # not instance slots, so they coexist with ``__slots__``).
     Trivial: ClassVar[SubgroupOfO3]
-    Z2: ClassVar[SubgroupOfO3]
     SO2: ClassVar[SubgroupOfO3]
     Dinfh: ClassVar[SubgroupOfO3]
     OctahedralOh: ClassVar[SubgroupOfO3]
@@ -306,7 +378,7 @@ class SubgroupOfO3:
     SO3: ClassVar[SubgroupOfO3]
     O3: ClassVar[SubgroupOfO3]
 
-    def __init__(self, tag: "_NamedSubgroup | Cn | Dnh") -> None:
+    def __init__(self, tag: "_NamedSubgroup | Cn | Dnh | Mirror") -> None:
         self._tag = tag
 
     # --- Constructors ----------------------------------------------------
@@ -324,6 +396,14 @@ class SubgroupOfO3:
     def Dnh(cls, n: int) -> "SubgroupOfO3":
         """Dihedral group :math:`D_{nh}` of order :math:`4n`."""
         return cls(Dnh(n))
+
+    @classmethod
+    def Mirror(cls, axis: str) -> "SubgroupOfO3":
+        r"""Reflection group :math:`\{e, \sigma_a\}` about the plane
+        normal to ``axis``. Replaced the parameter-free ``Z2`` on
+        2026-08-02 — see :class:`Mirror` for why the plane is not a
+        convention."""
+        return cls(Mirror(axis))
 
     # --- Equality / hashing / repr --------------------------------------
 
@@ -343,6 +423,12 @@ class SubgroupOfO3:
             return f"SubgroupOfO3.Cn({tag.n})"
         if isinstance(tag, Dnh):
             return f"SubgroupOfO3.Dnh({tag.n})"
+        if isinstance(tag, Mirror):
+            # MUST carry the axis: `maximal_invariance_groups` keys its
+            # `visited` set and `_GROUP_CACHE` on repr(), so a repr that
+            # dropped the plane would silently collapse the three mirrors
+            # into one cache entry.
+            return f"SubgroupOfO3.Mirror({tag.axis!r})"
         return f"SubgroupOfO3({tag!r})"
 
     @property
@@ -355,6 +441,8 @@ class SubgroupOfO3:
             return f"C_{tag.n}"
         if isinstance(tag, Dnh):
             return f"D_{tag.n}h"
+        if isinstance(tag, Mirror):
+            return f"sigma_{tag.axis}"
         return repr(tag)
 
     # --- Containment lattice --------------------------------------------
@@ -443,7 +531,7 @@ class SubgroupOfO3:
 
         - **Trivial**: always ``True`` (every measure is invariant
           under the identity).
-        - **Z2 / Cn / SO2 / Dinfh / SO3 / O3 / Dnh**: handled via the
+        - **Mirror / Cn / SO2 / Dinfh / SO3 / O3 / Dnh**: handled via the
           1-D vs sphere dispatch — see :func:`_check_invariance` below.
         - **OctahedralOh**: requires (i) closure under the 6
           coordinate-axis sign flips (:math:`x \to -x`, etc.) and
@@ -507,13 +595,15 @@ def _realized_ops(tag) -> "list[np.ndarray] | None":
     if isinstance(tag, _NamedSubgroup):
         if tag is _NamedSubgroup.Trivial:
             return [np.eye(3)]
-        if tag is _NamedSubgroup.Z2:
-            return _reflections("z")
         if tag is _NamedSubgroup.OctahedralOh:
             return _octahedral_ops()
         if tag is _NamedSubgroup.IcosahedralIh:
             return _icosahedral_ops()
         return None  # SO2 / Dinfh / SO3 / O3 are continuous — no finite set
+    if isinstance(tag, Mirror):
+        # One generator, so the closed group is {e, sigma_a}: order 2.
+        return _reflections(tag.axis)
+
     if isinstance(tag, Cn):
         return _cyclic_ops(tag.n)
     if isinstance(tag, Dnh):
@@ -628,19 +718,26 @@ def _contains(outer, inner) -> bool:
     # ----- Inner is named, outer is parameterised --------------------
     if isinstance(outer, Cn) and isinstance(inner, _NamedSubgroup):
         # The only named subgroup of an arbitrary Cn is the trivial group.
-        # (Cn(2) coincides with Z2 in the proper-rotation sense, but our
-        # Z2 entry is the abstract order-2 group — we keep them distinct
-        # so the named lattice stays unambiguous.)
+        # (Cn(2) and Mirror share an order but not a determinant: Cn(2) is
+        # a proper rotation, a reflection is not. They are different
+        # groups and the two spellings exist to keep them apart.)
         return inner is _NamedSubgroup.Trivial
 
     if isinstance(outer, Dnh) and isinstance(inner, _NamedSubgroup):
-        # D_nh contains the trivial group, the Z_2 mirror reflection,
-        # and (for n >= 1) the principal-axis cyclic subgroup C_n.
-        # Higher named subgroups (SO2, Dinfh, etc.) are not contained in a
-        # finite dihedral group.
-        if inner is _NamedSubgroup.Trivial or inner is _NamedSubgroup.Z2:
-            return True
-        return False
+        # D_nh contains the trivial group and (for n >= 1) the
+        # principal-axis cyclic subgroup C_n. Higher named subgroups
+        # (SO2, Dinfh, ...) are not contained in a finite dihedral group.
+        #
+        # `Mirror` is deliberately absent from this arm: both sides are
+        # finite, so the branch above already decided it by computed
+        # matrix containment — and the computed answer is n-DEPENDENT,
+        # which is the whole reason the plane had to be named. `[M]`
+        # Dnh(1) ⊇ Mirror(z) but NOT Mirror(x); Dnh(2) ⊇ both; Dnh(3)
+        # again only z. The retired `Z2` arm returned an unconditional
+        # True here, and a committed test asserted it as "a single
+        # reflection sits inside every D_nh" — false for two of the four
+        # orders it was parametrized over.
+        return inner is _NamedSubgroup.Trivial
 
     # ----- Outer is named, inner is parameterised --------------------
     if isinstance(outer, _NamedSubgroup) and isinstance(inner, Cn):
@@ -664,6 +761,22 @@ def _contains(outer, inner) -> bool:
         # Dnh ⊂ Dinfh, O3 always. Not ⊂ SO2 / SO3 (Dnh contains improper
         # rotations).
         return outer in (_NamedSubgroup.Dinfh, _NamedSubgroup.O3)
+
+    if isinstance(outer, _NamedSubgroup) and isinstance(inner, Mirror):
+        # The two facts a reflection family owes the CONTINUOUS groups —
+        # every finite relation is computed above. det(sigma) = -1, so a
+        # reflection lies in no proper-rotation group; D_inf_h carries
+        # sigma_h AND every sigma_v, so it contains all three.
+        #
+        # Reaching the fallthrough here instead would be silent and
+        # wrong, not an error: `_contains` ends in a bare `return False`,
+        # and `O3 not-contains Mirror` would break the soundness
+        # precondition `maximal_invariance_groups` states for the walk.
+        return outer in (_NamedSubgroup.Dinfh, _NamedSubgroup.O3)
+
+    if isinstance(outer, Mirror) and isinstance(inner, _NamedSubgroup):
+        # {e, sigma} has exactly two subgroups, itself and {e}.
+        return inner is _NamedSubgroup.Trivial
 
     # ----- Both parameterised ---------------------------------------
     if isinstance(outer, Cn) and isinstance(inner, Cn):
@@ -732,8 +845,11 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
 
     Most rotational groups act trivially on a 1-D measure (there is no
     azimuthal coordinate). The non-trivial check is reflection
-    :math:`x \\to -x`, which is what Z2 / Dinfh / O3 require on
-    :math:`[-1, 1]`.
+    :math:`x \\to -x`, which is what ``Mirror("x")`` / Dinfh / O3 require
+    on :math:`[-1, 1]`. Under the tree's canonical embedding
+    :math:`(\\mu, 0, 0)` that reflection IS :math:`\\sigma_x`, which is why
+    the mirror family had to name its plane before the 1-D and 3-D arms
+    could be said to answer one question.
     """
     # SO(2), SO(3), Cn, Dnh (with n >= 1): trivially invariant on a 1-D
     # measure — the rotation axis is the (missing) angular coordinate.
@@ -745,7 +861,7 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
     # R_x(pi), which induces mu -> -mu, so an SO(3)-invariant polar marginal
     # must be reflection-symmetric. Returning True unconditionally broke
     # monotonicity outright: an asymmetric mu-set read SO3-invariant and
-    # Z2-non-invariant simultaneously.
+    # mirror-non-invariant simultaneously.
     rotational_only = (
         (isinstance(tag, _NamedSubgroup) and tag is _NamedSubgroup.SO2)
         or isinstance(tag, Cn)
@@ -753,11 +869,31 @@ def _check_invariance_1d(tag, measure: DiscreteMeasure, atol: float) -> bool:
     if rotational_only:
         return True
 
+    # A MIRROR, and this arm is DERIVED from the embedding rather than
+    # declared. A 1-D polar marginal embeds as (mu, 0, 0) — written down
+    # in `Quadrature.axis_cosines` and `angular_frame`, and the same
+    # embedding `spherical_harmonics` uses internally. So:
+    #
+    #   sigma_x : (mu, 0, 0) -> (-mu, 0, 0)   the one real test
+    #   sigma_y : (mu, 0, 0) -> (mu, -0, 0)   fixes every node POINTWISE
+    #   sigma_z : (mu, 0, 0) -> (mu, 0, -0)   fixes every node POINTWISE
+    #
+    # so y and z hold trivially and x is the mu -> -mu closure. This is
+    # what makes the 1-D and 3-D arms answer the SAME question. Before
+    # the plane was named this branch tested `x -> -x` (plane-free) while
+    # the 3-D branch tested sigma_z, and `[M]` on an ASYMMETRIC mu-set
+    # they disagreed — the 3-D arm certifying True for a set that
+    # violates mu -> -mu, a false certification in the dangerous
+    # direction. See `Mirror`'s docstring.
+    if isinstance(tag, Mirror):
+        if tag.axis == "x":
+            return _is_reflection_invariant_1d(measure, atol)
+        return True
+
     # Z2, Dinfh, O3, Oh, Ih, Dnh: require closure under x -> -x for a
     # measure on a symmetric interval. (For an asymmetric interval
     # the check is automatically False, which is the correct answer.)
     if isinstance(tag, _NamedSubgroup) and tag in (
-        _NamedSubgroup.Z2,
         _NamedSubgroup.Dinfh,
         _NamedSubgroup.SO3,
         _NamedSubgroup.O3,
@@ -812,12 +948,6 @@ def _check_invariance_3d(
 ) -> bool:
     """Invariance check for 3-D-node measures (typically on :math:`S^2`)."""
     if isinstance(tag, _NamedSubgroup):
-        if tag is _NamedSubgroup.Z2:
-            # Single reflection — pick z -> -z as a canonical
-            # representative. (Any single reflection works; the choice
-            # is convention.)
-            return _orbit_closure(nodes, weights, _reflections("z"), atol) is not None
-
         if tag is _NamedSubgroup.SO2:
             # DECIDED EXACTLY, never sampled (ERR-072).  A continuous
             # group cannot be tested by a finite sample: the sample
@@ -851,6 +981,15 @@ def _check_invariance_3d(
         if tag is _NamedSubgroup.O3:
             # O(3) contains SO(3), so the same exact criterion binds.
             return _is_origin_supported(nodes, atol)
+
+    if isinstance(tag, Mirror):
+        # ONE named plane, not "a reflection". The retired Z2 arm hard-
+        # coded _reflections("z") under a docstring calling the choice a
+        # convention; `[M]` product(4, 3) is sigma_z-closed and NOT
+        # sigma_x-closed, so it was not.
+        return _orbit_closure(
+            nodes, weights, _reflections(tag.axis), atol,
+        ) is not None
 
     if isinstance(tag, Cn):
         # Cyclic group about z, n proper rotations.
@@ -1275,7 +1414,6 @@ def _orbit_closure(
 # Pre-instantiated singletons attached to the public class. These are
 # the canonical way users obtain a SubgroupOfO3 for a named entry.
 SubgroupOfO3.Trivial = SubgroupOfO3._from_named(_NamedSubgroup.Trivial)
-SubgroupOfO3.Z2 = SubgroupOfO3._from_named(_NamedSubgroup.Z2)
 SubgroupOfO3.SO2 = SubgroupOfO3._from_named(_NamedSubgroup.SO2)
 SubgroupOfO3.Dinfh = SubgroupOfO3._from_named(_NamedSubgroup.Dinfh)
 SubgroupOfO3.OctahedralOh = SubgroupOfO3._from_named(_NamedSubgroup.OctahedralOh)
@@ -1333,10 +1471,16 @@ def candidate_groups(
     :func:`_distinct_azimuths` for why divisors suffice).
     """
     named = [
-        SubgroupOfO3.Trivial, SubgroupOfO3.Z2, SubgroupOfO3.SO2,
+        SubgroupOfO3.Trivial, SubgroupOfO3.SO2,
         SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
         SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
     ]
+    # All three mirrors, always. The parameter set of a reflection family
+    # is {x, y, z} — FINITE BY CONSTRUCTION, so unlike Cn/Dnh (which need
+    # the distinct-azimuth divisor bound to stay finite) it needs no bound
+    # at all, and unlike the retired parameter-free Z2 it offers the walk
+    # all three planes instead of silently only sigma_z.
+    named += [SubgroupOfO3.Mirror(a) for a in ("x", "y", "z")]
     nodes = measure.nodes
     if nodes.ndim == 1 or nodes.shape[1] < 3:
         return tuple(named)

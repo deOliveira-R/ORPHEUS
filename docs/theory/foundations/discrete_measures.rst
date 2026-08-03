@@ -422,7 +422,7 @@ moments where physics demands their absence.
 
 Quadrature selection in ORPHEUS therefore reduces to a containment
 check: given a geometry with natural symmetry group
-:math:`G_{\text{geom}}` (slab :math:`\to SO(2) \times Z_2`,
+:math:`G_{\text{geom}}` (slab :math:`\to SO(2) \times \sigma_x`,
 sphere :math:`\to O(3)`, hexagonal lattice :math:`\to D_{6h}`, …)
 and a candidate quadrature with invariance group
 :math:`G_{\text{quad}}`, the rule is
@@ -437,7 +437,7 @@ and a candidate quadrature with invariance group
 .. (vv-status rationale) subgroup-of-o3-containment: Verified
    transitively by the foundation tests in
    :file:`tests/numerics/test_symmetry.py` — every named relation in
-   the static lattice (``Trivial ⊂ Z_2 ⊂ O_h ⊂ O(3)``,
+   the static lattice (``Trivial ⊂ σ_z ⊂ O_h ⊂ O(3)``,
    ``SO(2) ⊂ O(2) ⊂ O(3)``, the ``O_h \not\subset SO(3)`` improper-
    rotation test, the parameterised ``C_n ⊂ C_m \iff n | m`` rule,
    and reflexivity for every named entry) is asserted directly.
@@ -456,11 +456,25 @@ exhibits.
 ORPHEUS's relevant sub-lattice of :math:`O(3)` is **finite and
 small**. Slab, sphere, 1-D / 2-D Cartesian geometries combined with
 the four shipped quadrature families (Gauss-Legendre, Lebedev,
-level-symmetric, product) span the eight named entries encoded in
+level-symmetric, product) span the **seven** named entries encoded in
 :class:`~orpheus.numerics.symmetry.SubgroupOfO3` — ``Trivial``,
-``Z_2``, ``SO(2)``, :math:`D_{\infty h}`, ``O_h``, ``I_h``,
-``SO(3)``, ``O(3)`` — plus the parameterised families :math:`C_n`
-and :math:`D_{nh}`.
+``SO(2)``, :math:`D_{\infty h}`, ``O_h``, ``I_h``, ``SO(3)``,
+``O(3)`` — plus the parameterised families :math:`C_n`,
+:math:`D_{nh}` and :math:`\sigma_a`.
+
+.. note::
+
+   The reflection group joined the parameterised families on
+   2026-08-02. It was a named, parameter-free ``Z_2`` entry realized as
+   :math:`\sigma_z`, under a docstring calling the plane a convention.
+   `[M]` It is not: ``product(4, 3)`` is :math:`\sigma_z`-closed and
+   **not** :math:`\sigma_x`-closed, and the tag answered ``True``.
+   Worse, the tag meant two different things by node shape — the 3-D
+   arm tested :math:`\sigma_z`, the 1-D arm tested :math:`x \to -x`
+   plane-free — so on an asymmetric :math:`\mu`-set the two arms
+   disagreed, the 3-D one *certifying* a set that violates
+   :math:`\mu \to -\mu`. Naming the plane is what makes the two arms
+   answer one question.
 
 .. note::
 
@@ -514,8 +528,12 @@ verifies that every generator's image of the node array agrees with
 the input under nearest-neighbour matching. The 1-D case
 (:math:`SO(2)`-invariance of a measure on :math:`[-1, 1]`) is
 trivial — there is no azimuthal coordinate to rotate — and the
-:math:`Z_2` reflection :math:`x \to -x` is the only non-trivial
-1-D check.
+reflection :math:`x \to -x` is the only non-trivial 1-D check. That
+reflection is :math:`\sigma_x`, not "a reflection": the polar marginal
+embeds as :math:`(\mu, 0, 0)`, so :math:`\sigma_y` and
+:math:`\sigma_z` fix every node **pointwise** and hold trivially,
+while :math:`\sigma_x` carries the whole content. The 1-D and 3-D
+checks are the same question asked of the same embedding.
 
 Tensor-product propagation of invariance is **deliberately dropped**
 to ``None`` (see the metadata-propagation table above):
@@ -654,7 +672,7 @@ consumes — the face reflection maps ordinate :math:`m` to ordinate
    * - ``"slab"``
      - :math:`SO(2)`
      - :math:`[-1,1]`
-     - :math:`Z_2`
+     - :math:`\sigma_x`
      - 1-D in :math:`z`. Azimuthal rotation about the normal is
        integrated out, leaving :math:`\mu = \cos\theta` alone. Owed is
        :math:`\mu \to -\mu`, which pairs the two sweep senses;
@@ -663,7 +681,7 @@ consumes — the face reflection maps ordinate :math:`m` to ordinate
    * - ``"sphere"``
      - :math:`SO(2)`
      - :math:`[-1,1]`
-     - :math:`Z_2`
+     - :math:`\sigma_x`
      - 1-D **radial** spherical SN reduces to GL on :math:`\mu_r`, the
        cosine of the angle between ordinate and radial direction
        (Lewis & Miller 1993 §4.4). The continuous problem is

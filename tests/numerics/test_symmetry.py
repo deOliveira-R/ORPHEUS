@@ -64,7 +64,7 @@ def _measure_from_1d_quad(q) -> DiscreteMeasure:
 
 _NAMED = [
     SubgroupOfO3.Trivial,
-    SubgroupOfO3.Z2,
+    SubgroupOfO3.Mirror("z"),
     SubgroupOfO3.SO2,
     SubgroupOfO3.Dinfh,
     SubgroupOfO3.OctahedralOh,
@@ -93,7 +93,7 @@ def test_trivial_inside_every_named_group(G: SubgroupOfO3) -> None:
 @pytest.mark.parametrize(
     "G",
     [
-        SubgroupOfO3.Z2,
+        SubgroupOfO3.Mirror("z"),
         SubgroupOfO3.SO2,
         SubgroupOfO3.Dinfh,
         SubgroupOfO3.OctahedralOh,
@@ -116,11 +116,11 @@ def test_so2_chain() -> None:
 
 
 @pytest.mark.foundation
-def test_z2_chain_via_octahedral() -> None:
-    """``Z_2 ⊂ O_h ⊂ O(3)`` — the Cartesian-symmetry tower."""
-    assert SubgroupOfO3.OctahedralOh.contains(SubgroupOfO3.Z2)
+def test_mirror_chain_via_octahedral() -> None:
+    r""":math:`\sigma_z \subset O_h \subset O(3)` — the Cartesian tower."""
+    assert SubgroupOfO3.OctahedralOh.contains(SubgroupOfO3.Mirror("z"))
     assert SubgroupOfO3.O3.contains(SubgroupOfO3.OctahedralOh)
-    assert SubgroupOfO3.O3.contains(SubgroupOfO3.Z2)
+    assert SubgroupOfO3.O3.contains(SubgroupOfO3.Mirror("z"))
 
 
 @pytest.mark.foundation
@@ -202,10 +202,27 @@ def test_cn_in_dnh_principal_axis(n: int) -> None:
 
 
 @pytest.mark.foundation
-def test_dnh_reflection_in_dnh() -> None:
-    """``Z_2`` (a single reflection) sits inside every ``D_{nh}``."""
+def test_dnh_contains_sigma_h_at_every_n_but_sigma_x_only_at_EVEN_n() -> None:
+    r"""WHICH reflection sits inside :math:`D_{nh}` is ``n``-dependent.
+
+    ⚠ Re-posed 2026-08-02. This asserted ``Dnh(n).contains(Z2)`` for
+    ``n in (1, 2, 3, 4, 6)`` under the docstring *"Z_2 (a single
+    reflection) sits inside every D_nh"*. The prose was a FALSE
+    GENERALISATION that the parameter-free tag made unfalsifiable: ``Z2``
+    was realized as :math:`\sigma_z`, so the test only ever asked about
+    the horizontal mirror — which every :math:`D_{nh}` does carry.
+
+    `[M]` Named, the claim splits: :math:`\sigma_h` is in every
+    :math:`D_{nh}`, but :math:`\sigma_x` is a VERTICAL mirror and
+    :math:`D_{nh}`'s vertical mirrors sit at :math:`k\pi/n` — so the
+    x-normal plane is one of them only for even ``n``. Two of the five
+    orders this test was parametrized over answer False.
+    """
     for n in (1, 2, 3, 4, 6):
-        assert SubgroupOfO3.Dnh(n).contains(SubgroupOfO3.Z2)
+        assert SubgroupOfO3.Dnh(n).contains(SubgroupOfO3.Mirror("z")), n
+        assert SubgroupOfO3.Dnh(n).contains(SubgroupOfO3.Mirror("x")) == (
+            n % 2 == 0
+        ), n
 
 
 @pytest.mark.foundation
@@ -237,7 +254,7 @@ def test_dnh_in_o3() -> None:
 @pytest.mark.foundation
 def test_is_subgroup_of_reverses_contains() -> None:
     """``A.is_subgroup_of(B)`` is equivalent to ``B.contains(A)``."""
-    assert SubgroupOfO3.Z2.is_subgroup_of(SubgroupOfO3.OctahedralOh)
+    assert SubgroupOfO3.Mirror("z").is_subgroup_of(SubgroupOfO3.OctahedralOh)
     assert SubgroupOfO3.SO2.is_subgroup_of(SubgroupOfO3.O3)
     assert SubgroupOfO3.OctahedralOh.is_subgroup_of(SubgroupOfO3.O3)
     assert not SubgroupOfO3.O3.is_subgroup_of(SubgroupOfO3.OctahedralOh)
@@ -326,7 +343,14 @@ def test_gauss_legendre_1d_z2_reflective(n: int) -> None:
     """
     q = Quadrature.gauss_legendre(n_ordinates=n)
     mu = _measure_from_1d_quad(q)
-    assert SubgroupOfO3.Z2.is_invariant(mu)
+    # sigma_x, not "a reflection": the polar marginal embeds as
+    # (mu, 0, 0), so mu -> -mu is the mirror normal to x. sigma_y and
+    # sigma_z fix the embedded nodes POINTWISE, so they hold trivially —
+    # asserted alongside, because a lone True for sigma_x would not show
+    # that the plane is the thing being tested.
+    assert SubgroupOfO3.Mirror("x").is_invariant(mu)
+    assert SubgroupOfO3.Mirror("y").is_invariant(mu)
+    assert SubgroupOfO3.Mirror("z").is_invariant(mu)
 
 
 # ============================================================================
@@ -375,12 +399,17 @@ def test_asymmetric_measure_not_octahedral_invariant() -> None:
 def test_repr_and_equality() -> None:
     """Singleton named entries compare equal to themselves; the
     parameterised families compare by their ``n``."""
-    assert SubgroupOfO3.Z2 == SubgroupOfO3.Z2
+    assert SubgroupOfO3.Mirror("z") == SubgroupOfO3.Mirror("z")
+    assert SubgroupOfO3.Mirror("x") != SubgroupOfO3.Mirror("z")
     assert SubgroupOfO3.Cn(6) == SubgroupOfO3.Cn(6)
     assert SubgroupOfO3.Cn(4) != SubgroupOfO3.Cn(6)
     assert SubgroupOfO3.Dnh(4) != SubgroupOfO3.Dnh(6)
     # Repr should not raise and should mention the group name.
-    assert "Z2" in repr(SubgroupOfO3.Z2)
+    # The repr MUST carry the axis: the lattice walk keys `visited`
+    # and `_GROUP_CACHE` on it, so a plane-dropping repr would
+    # silently collapse the three mirrors into one entry.
+    assert "Mirror('z')" in repr(SubgroupOfO3.Mirror("z"))
+    assert repr(SubgroupOfO3.Mirror("x")) != repr(SubgroupOfO3.Mirror("z"))
     assert "Cn(6)" in repr(SubgroupOfO3.Cn(6))
     assert "Dnh(4)" in repr(SubgroupOfO3.Dnh(4))
 
@@ -676,7 +705,7 @@ def test_realized_group_orders_are_textbook() -> None:
 
     expected = {
         "Trivial": (SubgroupOfO3.Trivial, 1),
-        "Z2": (SubgroupOfO3.Z2, 2),
+        "sigma_z": (SubgroupOfO3.Mirror("z"), 2),
         "C_3": (SubgroupOfO3.Cn(3), 3),
         "C_4": (SubgroupOfO3.Cn(4), 4),
         "D_2h": (SubgroupOfO3.Dnh(2), 8),
@@ -727,7 +756,7 @@ def test_computed_containment_obeys_the_order_relation_laws() -> None:
     from orpheus.numerics.symmetry import _close_group, _realized_ops
 
     finite = [
-        SubgroupOfO3.Trivial, SubgroupOfO3.Z2,
+        SubgroupOfO3.Trivial, SubgroupOfO3.Mirror("z"),
         SubgroupOfO3.Cn(1), SubgroupOfO3.Cn(2), SubgroupOfO3.Cn(3),
         SubgroupOfO3.Cn(4), SubgroupOfO3.Dnh(1), SubgroupOfO3.Dnh(2),
         SubgroupOfO3.Dnh(4), SubgroupOfO3.OctahedralOh,
@@ -1149,7 +1178,7 @@ def test_orbit_stabilizer_theorem_holds_on_every_certificate() -> None:
 
 
 @pytest.mark.foundation
-def test_z2_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
+def test_a_mirror_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
     r""":math:`Z_2` is realized as :math:`\sigma_z`, ``det = -1``.
 
     An improper element cannot lie in a proper-rotation group, so
@@ -1166,13 +1195,13 @@ def test_z2_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
 
     dets = [
         float(np.linalg.det(M))
-        for M in _close_group(_realized_ops(SubgroupOfO3.Z2._tag))  # type: ignore[arg-type]
+        for M in _close_group(_realized_ops(SubgroupOfO3.Mirror("z")._tag))  # type: ignore[arg-type]
     ]
     assert sorted(round(d) for d in dets) == [-1, 1], dets
 
-    assert not SubgroupOfO3.SO3.contains(SubgroupOfO3.Z2)
-    assert not SubgroupOfO3.SO2.contains(SubgroupOfO3.Z2)
-    assert SubgroupOfO3.O3.contains(SubgroupOfO3.Z2)
+    assert not SubgroupOfO3.SO3.contains(SubgroupOfO3.Mirror("z"))
+    assert not SubgroupOfO3.SO2.contains(SubgroupOfO3.Mirror("z"))
+    assert SubgroupOfO3.O3.contains(SubgroupOfO3.Mirror("z"))
     # The proper sibling behaves oppositely.
     assert SubgroupOfO3.SO3.contains(SubgroupOfO3.Cn(2))
     assert SubgroupOfO3.SO2.contains(SubgroupOfO3.Cn(2))
@@ -1218,7 +1247,13 @@ def test_invariance_is_downward_closed_on_polar_marginals() -> None:
     surface here as violations.
     """
     tags = [
-        SubgroupOfO3.Trivial, SubgroupOfO3.Z2, SubgroupOfO3.SO2,
+        # All THREE mirrors. On a polar marginal (embedded (mu, 0, 0))
+        # sigma_y and sigma_z hold trivially — they fix every node
+        # pointwise — so sigma_x is the only one that can constrain
+        # anything here, and listing only sigma_z would leave the
+        # reflection family untested on this path.
+        SubgroupOfO3.Mirror("x"), SubgroupOfO3.Mirror("y"),
+        SubgroupOfO3.Trivial, SubgroupOfO3.Mirror("z"), SubgroupOfO3.SO2,
         SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
         SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
         SubgroupOfO3.Cn(1), SubgroupOfO3.Cn(2), SubgroupOfO3.Cn(3),
@@ -1257,3 +1292,121 @@ def test_invariance_is_downward_closed_on_polar_marginals() -> None:
     assert not violations, (
         f"{len(violations)} violations:\n  " + "\n  ".join(violations[:10])
     )
+
+
+# ============================================================================
+# The mirror family — Q5.0.2 (naming the plane)
+# ============================================================================
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_a_mirror_reaches_a_REAL_arm_for_every_continuous_outer_group(
+    axis: str,
+) -> None:
+    r"""``_contains`` ends in a bare ``return False``, so a tag it has no
+    arm for gets a wrong-but-SILENT answer rather than an error.
+
+    `[M]` That is not hypothetical: a prototype mirror with only the
+    realization and invariance arms extended answered
+    ``O3.contains(Mirror('x')) = False`` and
+    ``Dinfh.contains(Mirror('x')) = False`` — both flatly wrong, and
+    ``O(3) ⊉`` anything breaks the soundness precondition
+    :func:`~orpheus.numerics.symmetry.maximal_invariance_groups` states
+    for the lattice walk.
+
+    The finite outer groups are decided by computed matrix containment
+    and cannot go silently wrong this way; it is exactly the CONTINUOUS
+    ones that fall through to the table, and the table is typed
+    enum-to-enum so a parameterised tag can never be in it.
+    """
+    sigma = SubgroupOfO3.Mirror(axis)
+    # Improper (det = -1) ⇒ inside the full groups, outside the proper ones.
+    assert SubgroupOfO3.O3.contains(sigma)
+    assert SubgroupOfO3.Dinfh.contains(sigma)
+    assert not SubgroupOfO3.SO3.contains(sigma)
+    assert not SubgroupOfO3.SO2.contains(sigma)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_a_mirror_has_exactly_two_subgroups(axis: str) -> None:
+    """:math:`\\{e, \\sigma\\}` has order 2, so its only proper subgroup is
+    the trivial one — and no other mirror is inside it."""
+    sigma = SubgroupOfO3.Mirror(axis)
+    assert sigma.contains(SubgroupOfO3.Trivial)
+    assert sigma.contains(sigma)
+    for other in ("x", "y", "z"):
+        if other != axis:
+            assert not sigma.contains(SubgroupOfO3.Mirror(other))
+    assert not sigma.contains(SubgroupOfO3.SO2)
+
+
+@pytest.mark.foundation
+def test_the_axis_is_validated_at_CONSTRUCTION() -> None:
+    """There is no unnamed reflection — which is what the retired tag
+    pretended there was."""
+    with pytest.raises(ValueError, match="axis in x/y/z"):
+        SubgroupOfO3.Mirror("w")
+
+
+@pytest.mark.foundation
+def test_the_two_invariance_ARMS_agree_on_the_canonical_embedding() -> None:
+    r"""⭐ The reason the plane had to be named.
+
+    A polar marginal is dispatched to the 1-D arm; the SAME data
+    embedded as :math:`(\mu, 0, 0)` — the tree's canonical embedding,
+    written down in ``Quadrature.axis_cosines`` — is dispatched to the
+    3-D arm. Before the plane was named the two arms asked DIFFERENT
+    questions (plane-free :math:`x \to -x` vs :math:`\sigma_z`), and
+    `[M]` on an asymmetric :math:`\mu`-set the 3-D arm CERTIFIED a set
+    that violates :math:`\mu \to -\mu` — a false certification in the
+    dangerous direction, the ERR-072 family.
+
+    The asymmetric leg is the discriminating one; the symmetric leg is
+    the control that keeps the agreement from being vacuous (on a
+    symmetric set every plane answers True and the two arms would agree
+    even while asking different questions — which is precisely how this
+    went unnoticed).
+    """
+    weights = np.full(4, 0.5)
+
+    def both_arms(mu: np.ndarray, axis: str) -> tuple[bool, bool]:
+        one_d = DiscreteMeasure(nodes=mu, weights=weights, support="[-1,1]")
+        embedded = DiscreteMeasure(
+            nodes=np.column_stack([mu, np.zeros(4), np.zeros(4)]),
+            weights=weights,
+            support="S^2",
+        )
+        g = SubgroupOfO3.Mirror(axis)
+        return g.is_invariant(one_d), g.is_invariant(embedded)
+
+    asymmetric = np.array([-0.9, -0.3, 0.3, 0.7])   # violates mu -> -mu
+    symmetric = np.array([-0.7, -0.3, 0.3, 0.7])
+
+    # DISCRIMINATING: sigma_x must be False on both arms, y/z True on both.
+    assert both_arms(asymmetric, "x") == (False, False)
+    assert both_arms(asymmetric, "y") == (True, True)
+    assert both_arms(asymmetric, "z") == (True, True)
+
+    # CONTROL: on a symmetric set every plane is True on both arms, so
+    # the agreement above is not an artefact of everything being True.
+    for axis in ("x", "y", "z"):
+        assert both_arms(symmetric, axis) == (True, True)
+
+
+@pytest.mark.foundation
+def test_a_shipped_rule_already_discriminates_the_planes() -> None:
+    r"""`[M]` ``product(4, 3)`` is :math:`\sigma_z`-closed and NOT
+    :math:`\sigma_x`-closed.
+
+    This is what falsifies the retired tag's docstring claim that "any
+    single reflection works; the choice is convention". No synthetic
+    fixture is needed — an odd-:math:`n_\varphi` product rule the tree
+    ships already tells the planes apart, and the parameter-free tag
+    answered ``True``.
+    """
+    measure = Quadrature.product(n_mu=4, n_phi=3).measure
+    assert not SubgroupOfO3.Mirror("x").is_invariant(measure)
+    assert SubgroupOfO3.Mirror("y").is_invariant(measure)
+    assert SubgroupOfO3.Mirror("z").is_invariant(measure)

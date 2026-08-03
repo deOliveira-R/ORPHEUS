@@ -593,10 +593,10 @@ def test_repr_smoke() -> None:
 @pytest.mark.foundation
 def test_repr_with_invariance_group() -> None:
     """repr surfaces invariance_group when set."""
-    rule = gauss_legendre(8).with_metadata(invariance_group=SubgroupOfO3.Z2)
+    rule = gauss_legendre(8).with_metadata(invariance_group=SubgroupOfO3.Mirror("z"))
     r = repr(rule)
     assert "invariance_group" in r
-    assert "SubgroupOfO3.Z2" in r  # the typed group's repr, not the old 'Z2' string
+    assert "SubgroupOfO3.Mirror('z')" in r  # the typed group's repr, incl. its PLANE
 
 
 # ============================================================================
@@ -660,12 +660,12 @@ def test_consolidate_preserves_the_claims_pushforward_drops() -> None:
         nodes=np.array([-1.0, 0.0, 0.0, 1.0]),
         weights=np.array([1.0, 0.5, 0.5, 1.0]),
         support="[-1,1]",
-        invariance_group=SubgroupOfO3.Z2,
+        invariance_group=SubgroupOfO3.Mirror("z"),
         exactness=ExactnessClaim(reference=LEGENDRE, degree=3),
     )
     out = mu.consolidate()
     assert out.n_points == 3
-    assert out.invariance_group == SubgroupOfO3.Z2
+    assert out.invariance_group == SubgroupOfO3.Mirror("z")
     assert out.degree_of_exactness == 3
     assert out.support == mu.support
 
