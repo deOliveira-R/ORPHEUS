@@ -12,10 +12,11 @@
 > LANDED** (2026-08-02). **#325 is no longer blocked**: it was stuck behind a
 > sort-key ruling that Q4 dissolved (see T19).
 >
-> **NEXT: Q5 — THE FOLD.** Design of record written 2026-08-02 and **awaiting
-> review; no code has moved.** Read §5's Q5 block, then T24 / T25 / T26. Two
-> questions need a user ruling before Q5.1 (does the fold reach the SOLVE — every
-> cylindrical snapshot moves; and is Q7's mirror-plane naming pulled forward).
+> **NEXT: Q5 — THE FOLD.** Design of record written 2026-08-02, **reviewed and
+> RULED**; implementation starts at Q5.0. Read §5's Q5 block, then T24 / T25 /
+> T26 / T27. Both open questions are ruled (the fold reaches the SOLVE — every
+> cylindrical snapshot moves and that is *scheduling*, not a cost; and Q7's
+> mirror-plane naming is pulled forward into Q5.0).
 >
 > ⛔ **THIS ANCHOR PRESCRIBED A FALSE NEXT STEP UNTIL 2026-08-02.** It said
 > "**NEXT: #326** — swap `level_indices` to the fiber ordering Q4 built, and see
@@ -1263,6 +1264,95 @@ exactly the disease **T14** already diagnosed and cured for Σ — *not a
 floating-point question, an integer identity* — recurring one layer up, in the
 sweep. The certificate answers both conjuncts exactly.
 
+### T27 — ⭐⭐ The `[½,1]` clamp is TWO objects fused; retire one, promote the other
+
+User instruction, 2026-08-02: *"check if twisting its perspective, function and
+location adds some value. If we have reached a way to structurally avoiding the
+clamp, then retiring it is the right thing. If we have reached a mechanism to
+structurally make the clamp unnecessary, then a test must assert this condition in
+the configuration that would be most likely to activate the clamp and show that it
+passes because our structural mechanism is working."*
+
+Twisting it does add value, and the measurement **corrects a hint this plan
+carried**: I had suggested the fold puts `τ_raw` "in the sphere's unclamped
+regime". `[M]` It does not, and the sphere is not in `[½,1]` either:
+
+```
+folded, n_phi =  4 .. 64    tau_raw  [0.292893, 0.707107] -> [0.200289, 0.799711]
+sphere GL(8/16/32)          tau_raw  [0.390354, 0.610160]   -- UNCLAMPED, also
+                                                               outside [1/2, 1]
+```
+
+So the clamp still *bites* after the fold. Three findings settle it anyway.
+
+**1. The `[½,1]` box was never the invariant.** The sphere runs **unclamped** at
+`[0.390, 0.610]` — outside the box, and correct. The clamp exists for exactly one
+thing: `τ = 0` makes the recurrence `(ψ − (1−τ)ψ)/τ` divide by zero.
+
+**2. The fold bounds `τ` away from the singularity, ANALYTICALLY.** With midpoint
+nodes on the arc the smallest-`η` node sits at `φ = π − ε`, `ε = π/2n`, so
+`η_0 = −1 + ε²/2`, `η_1 = −1 + 9ε²/2`, `η_{1/2} = −1 + 5ε²/2`, giving
+
+> `τ_0 = (ε²/2)/(5ε²/2) = 1/5` exactly, and by reversal `τ_{M−1} → 4/5`.
+
+`[M]` approached monotonically from inside (`0.2929 → 0.2003` over `n_φ = 4…64`).
+`τ = 0` becomes **structurally unreachable**, so the clamp's reason is gone even
+though its range is still violated. This is the user's first branch: *structurally
+avoided ⟹ retire.*
+
+**3. Keeping it would now be ACTIVELY HARMFUL.** On a reversal-symmetric arc the
+node's fractional position in its cell flips under `ω → π−ω`, so
+`τ_m + τ_{M−1−m} = 1` is an exact structural identity. `[M]`
+
+```
+n_phi= 8   RAW max|tau + tau_rev - 1| = 0.000e+00    CLAMPED = 2.805e-01
+n_phi=16                              6.661e-16                2.953e-01
+n_phi=32                              8.216e-15                2.988e-01
+   raw     : [0.219545, 0.414214, 0.585786, 0.780455]
+   clamped : [0.5,      0.5,      0.585786, 0.780455]
+```
+
+The clamp is **asymmetric** (`[½,1]`, not `[0,1]`), so it destroys an identity the
+fold creates — **a symmetry-breaking defect of the same kind as #326, one level
+down.** Retiring it is not merely permitted; keeping it would reintroduce the
+disease the campaign is curing.
+
+**The twist — the fused expression is TWO objects at TWO locations.**
+`max(0.5, min(1.0, τ_raw))` welds an *absorber* to a *range check*:
+
+| half | verdict | why |
+|---|---|---|
+| `[½,1]` **absorption** | **RETIRE** | reason structurally removed (2); actively breaks an exact identity (3) |
+| `[0,1]` **membership** | **PROMOTE to a guard that RAISES** | `τ_raw ∉ [0,1]` means a node lies **outside its own angular cell** — impossible on a monotone arc, so it certifies arc well-posedness |
+
+Today the absorber *hides* the range violation (T22), which is why a mis-ordering
+laundered into a finite wrong answer instead of stopping. `[M]` the promoted
+guard's honest teeth:
+
+```
+production: full circle, eta-sorted (THE #326 DEFECT)  [0.0000, 1.0000]  MISSES
+full circle, omega-ordered (T22's NaN case)            [0.2929, 1.0790]  CATCHES
+folded + midpoint (the Q5 target)                      [0.2195, 0.7805]  silent
+```
+
+⚠ **State the limit plainly: the guard does NOT catch the double cover** — the
+`[0,1,0,1,…]` fingerprint is entirely *inside* `[0,1]`. It catches the ordering
+violation (and would have stopped T22's NaN at source instead of 400 lines
+downstream). The #326 detector is the `Σ`/fold criterion (T24), not this.
+
+**The gate the user's instruction requires** — it must pass *because* the
+mechanism works, at the most-activating configuration:
+
+* **config**: folded + midpoint, swept to the largest supported `n_φ` (min
+  `τ_raw` falls monotonically toward `1/5`, so large `n_φ` is the worst case;
+  `[M]` `τ_raw` is `n_μ`-independent — `sinθ` cancels in the ratio);
+* **assert the MECHANISM**: `Σ = ∅`, computed via `singular_set` (not declared);
+* **assert the CONSEQUENCE**: `τ_raw ⊂ [1/5, 4/5]`, strictly bounded away from
+  `{0, 1}`, and the reversal identity `τ_m + τ_{M−1−m} = 1` to round-off;
+* **reddenable, on one mutation**: revert Q5.2's offset to `δ = 0` and *both*
+  legs fail together — `Σ` becomes non-empty AND `τ_raw` hits `0`. That is what
+  attributes the pass to the mechanism rather than to luck.
+
 ### T17 — ⭐⭐ WALK the subgroup graph; stop declaring the symmetry group
 
 User ruling, 2026-08-02: *"when I was studying crystallography, there was a literal
@@ -1694,13 +1784,10 @@ implemented and **no `D_6h`-invariant rule in tree**.
   flips. ⚠ Requires first deciding **which** of the two facts R12a actually
   wants — do not port the conflation forward.
 
-  **Q5.5 — Adjudicate the `[½,1]` clamp.** Its stated justification is `τ = 0`
-  dividing by zero. `[M]` folded + `Σ = ∅` gives `τ_raw ∈ [0.22, 0.78]`, the same
-  regime as the sphere's **unclamped** dome. Strong hint it is the double cover's
-  workaround — but it also currently *hides* mis-ordering (T22), so retiring it
-  removes a (bad) safety net. **Measure, do not assume.** Note the clamp is
-  asymmetric and would now bite genuinely-valid interior values, destroying the
-  folded set's symmetry about ½.
+  **Q5.5 — The `[½,1]` clamp: SPLIT it in two, retire one half, promote the
+  other.** ✅ **ADJUDICATED — see T27.** The absorption retires; the `[0,1]`
+  membership becomes a guard that RAISES. The accompanying gate is specified in
+  T27 and is reddenable by reverting Q5.2's offset.
 
   ---
   **Q5.6 — Acceptance** (T23 — the three xfail rows CANNOT serve).
@@ -1725,14 +1812,19 @@ implemented and **no `D_6h`-invariant rule in tree**.
   rows · `_test_helpers.product_level_ordering` / `PRODUCT_LEVEL_ORDERINGS` (the
   adjudication they existed for is closed by T22).
 
-  **⚠ OPEN — needs a user ruling before Q5.1:**
-  * **Does the fold reach the SOLVE, or only the march?** The quotient reading
-    says the solve: a cylinder gets 16 ordinates where it had 32, and **every
-    cylindrical snapshot moves**. The alternative (march the arc, mirror to fill)
-    keeps the double cover alive and dissolves nothing — recommend the quotient,
-    but the snapshot cost is the user's call.
-  * **Q5.0.2** — pull the mirror-plane parameterisation forward from Q7, or
-    inline σ_y here?
+  **✅ BOTH RULED, 2026-08-02 — do not re-litigate:**
+  * **The fold reaches the SOLVE.** A cylinder gets 16 ordinates where it had 32,
+    and every cylindrical snapshot moves. User: *"we had already settled on the
+    quotient at the very start of the quadrature interlude … There is ZERO point
+    in having a snapshot that is not reflecting our best understanding of
+    correctness, when correctness is our first cardinal rule. Remaking a snapshot
+    is expected when our understanding of correctness improved in a principled
+    way. It's just a matter of WHEN we will rebuild the snapshot, not IF."*
+    ⟹ **a snapshot is never a reason to decline a principled correction.** Plan
+    the re-baseline as scheduling, not as a cost to weigh against the fix.
+  * **Q5.0.2 — PULL FORWARD.** The mirror-plane parameterisation comes out of Q7
+    into Q5.0. (An un-nameable group is what forced this campaign's own probes to
+    bypass the public surface.)
 - **Q6 — Enumeration & naming** (T12d). Extend the EXISTING `QuadratureSpec` /
   `quadrature_registry` — do not mint a mechanism. Adds the **family** grouping
   (= the construction axis, a closed sum type), a **`ParameterSpec`** replacing
