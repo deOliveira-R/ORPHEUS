@@ -26,7 +26,7 @@ implementations were live.
 .. warning::
 
    That contract is **no longer independently gated**.  The
-   hash-equality tests in ``tests/geometry/test_reduced_operator.py``
+   factory-binding tests in ``tests/geometry/test_reduced_operator.py``
    compare this module's factory output against ``sn_mesh.reduced.*``
    (and against the deprecated ``SNMesh.face_areas`` / ``delta_A``
    read-throughs, which forward to the same object) — i.e. against
@@ -35,9 +35,41 @@ implementations were live.
    these factories) and would redden if that wiring broke; they can
    no longer detect a change in the connection-coefficient math,
    because there is no second implementation left to disagree with.
-   The surviving numerical pins on the math are the SN curvilinear
-   regression snapshots and the closure producer-equivalence floor at
-   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``.
+   Measured 2026-08-03: garbaging every array these factories emit
+   leaves **all 47** tests in that file green.
+
+   The surviving numerical pins on the math, per field, measured by
+   that same mutation — every one of them **structurally independent**
+   (a closed form), with the SN curvilinear regression snapshots
+   (``tests/sn/regression/test_dd_regression.py``) corroborating but
+   nowhere the sole evidence:
+
+   * ``delta_A`` — ``tests/sn/primitives/test_quadrature.py::
+     TestL0TermVerification::test_delta_A_magnitude`` (closed form
+     :math:`4\pi\,\Delta(r^2)` / :math:`2\pi\,\Delta r`), sole catcher;
+     the snapshots are blind, correctly — ``delta_A`` has no
+     production consumer.
+   * ``alpha_half`` — the L0 per-ordinate flat-flux identity
+     ``test_per_ordinate_flat_flux_consistency[SPHERICAL]``
+     (``catches("ERR-006", "ERR-007")``) + the sphere snapshots.
+   * ``alpha_per_level`` — ``tests/sn/sweep/curvilinear/
+     test_alpha_closed_form.py`` (Dirichlet-kernel closed form) + the
+     cylindrical flat-flux arm + the cylinder snapshots.
+   * ``redist_dAw`` / ``redist_dAw_per_level`` — ``tests/sn/sweep/
+     curvilinear/test_streaming_equilibrium_curvilinear.py``, the L0
+     closed-form :math:`\varphi = Q/(\Sigma_t(1-c))` gate (15 and 12
+     of its 27 cases redden respectively) + both snapshot families.
+     The flat-flux identity does NOT cover these — it recomputes
+     ``dA / w`` instead of reading the production array.
+   * ``face_areas`` — ``tests/geometry/test_geometry.py`` pins the
+     producer :func:`~orpheus.geometry.coord.compute_areas_1d` against
+     the closed form; the snapshots pin the forwarding.
+
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` is
+   **not** among them, despite an earlier revision of this warning
+   naming it: Issue #236 Step C moved :math:`\tau` to the angular
+   closure, which derives it from :math:`(\mu, w)` alone, so that gate
+   passes untouched (5 passed, 0.03 s) under fully-garbaged factories.
 
 Mathematical content
 ====================

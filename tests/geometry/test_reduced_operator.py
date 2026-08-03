@@ -1,18 +1,74 @@
-"""Hash-equality + property tests for the reduced streaming operator.
+"""Factory-binding + packet-plumbing tests for the reduced streaming operator.
 
-The load-bearing contract: arrays produced by the geometry-layer
-factories (:func:`slab_streaming`, :func:`spherical_streaming`,
-:func:`cylindrical_streaming`) MUST be **bit-identical** to those
-produced by the legacy in-line setup methods on
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`.
+What this file pins
+-------------------
+The **wiring**: that :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+builds ``self.reduced`` by calling the geometry-layer factories
+(:func:`slab_streaming`, :func:`spherical_streaming`,
+:func:`cylindrical_streaming`) with the caller's mesh and quadrature —
+so every array a curvilinear sweep reads is the one *this* module
+produced, and not a divergent second copy that a future refactor
+re-introduces.  Plus the per-(cell, direction) ``streaming_terms``
+plumbing: which array lands in which packet slot, and that the
+geometric ``inner``/``outer`` labels stay direction-independent.
 
-These tests are tagged ``@pytest.mark.foundation`` — they verify
-software invariants (hash-equality of array bit patterns, property
-correctness) rather than equation-level math claims.  The
-equation-level math is verified transitively via the 11 SN regression
-snapshots that gate the entire reshape campaign.
+What this file is blind to — MEASURED, 2026-08-03
+-------------------------------------------------
+The connection-coefficient **math**.  The file's original claim — the
+factories are bit-identical to the legacy in-line
+``SNMesh._setup_spherical`` / ``._setup_cylindrical`` — was a genuine
+two-implementation gate *while both were live*.  Those methods were
+retired at the Wave-B carve (#159), and ``SNMesh.__init__`` now calls
+these very factories, so the comparison silently became
+``factory(mesh, quad) == SNMesh(mesh, quad).reduced``: the SAME
+producer on both sides.  Measured by replacing every array the
+factories emit with deterministic garbage (in-process rebind of all
+12 module bindings, so both call sites receive the SAME wrong values,
+exactly as a real sign flip in ``reduced_operator.py`` would):
 
-Wave B Round 1 — Issue 6 (.claude/plans/sn_reshape.md, GH #155).
+* **all 47 tests in this file stay green**;
+* 29 gates in ``tests/sn/primitives/test_quadrature.py`` +
+  ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py`` redden in
+  the same run (the positive control, ``vv-principles`` anti-#17);
+* garbaging only the ``SNMesh``-side binding reddens exactly the 15
+  factory-binding cases below — which is the claim they honestly carry.
+
+``face_areas`` is not merely equal but the *same object* on both sides
+(both are the shared ``Mesh1D.areas`` cached property), so that leg is
+``array_equal(x, x)`` for any face-area math whatsoever.
+
+Where the math IS pinned — measured by the same mutation
+--------------------------------------------------------
+Every array below has at least one **structurally-independent**
+(closed-form) catcher; the regression snapshots corroborate but are
+nowhere the sole evidence.
+
+* ``delta_A`` — ``tests/sn/primitives/test_quadrature.py::
+  TestL0TermVerification::test_delta_A_magnitude`` (closed form
+  :math:`4\\pi\\,\\Delta(r^2)` / :math:`2\\pi\\,\\Delta r`).  Sole catcher —
+  the snapshots are blind to it, which is correct: ``delta_A`` has no
+  production consumer.
+* ``alpha_half`` — ``…::test_per_ordinate_flat_flux_consistency
+  [SPHERICAL]``, the L0 per-ordinate flat-flux identity
+  (``catches("ERR-006", "ERR-007")``); plus the sphere snapshots.
+* ``alpha_per_level`` — ``tests/sn/sweep/curvilinear/
+  test_alpha_closed_form.py`` (Dirichlet-kernel closed form) + the
+  cylindrical arm of the flat-flux identity + the cylinder snapshots.
+* ``redist_dAw`` / ``redist_dAw_per_level`` — ``tests/sn/sweep/
+  curvilinear/test_streaming_equilibrium_curvilinear.py``, the L0
+  closed-form :math:`\\varphi = Q/(\\Sigma_t(1-c))` gate (15 and 12 of
+  its 27 cases redden respectively) + both geometries' snapshots.
+  Note the L0 flat-flux identity does NOT cover these: it RECOMPUTES
+  ``dA / w`` rather than reading the production array.
+* ``face_areas`` — ``tests/geometry/test_geometry.py`` pins the
+  producer ``compute_areas_1d`` against the closed form; the
+  snapshots pin that the factory forwards it.
+
+These tests are tagged ``@pytest.mark.foundation`` — software
+invariants (wiring, packet plumbing), never equation-level math claims.
+
+Wave B Round 1 — Issue 6 (.claude/plans/sn_reshape.md, GH #155);
+re-scoped 2026-08-03 after the demoted claim was measured.
 """
 
 from __future__ import annotations
@@ -73,11 +129,19 @@ def _cylindrical_mesh() -> Mesh1D:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Hash-equality tests (the primary gate)
+# Factory-binding tests — SNMesh routes to THIS module's factories
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestHashEqualitySpherical:
-    """Spherical: every precomputed array bit-identical to SNMesh."""
+class TestSNMeshBindsSphericalFactory:
+    """Sphere: ``SNMesh.reduced`` is what :func:`spherical_streaming` built.
+
+    The claim is **routing**, not math: re-running the factory on the
+    same ``(mesh, quadrature)`` reproduces every array ``SNMesh`` holds,
+    so ``SNMesh`` cannot have grown a private second implementation.  A
+    change to the connection-coefficient math moves BOTH sides and is
+    invisible here by construction — see the module docstring for the
+    measurement and for where the math is actually pinned.
+    """
 
     @pytest.fixture
     def pair(self):
@@ -88,25 +152,36 @@ class TestHashEqualitySpherical:
         return sn_mesh, reduced
 
     @pytest.mark.foundation
-    def test_face_areas_bit_identical(self, pair):
+    def test_face_areas_read_through_is_the_factory_value(self, pair):
+        """The deprecated ``SNMesh.face_areas`` lands on the factory array.
+
+        Note both sides are the SAME ``Mesh1D.areas`` object, so this
+        leg cannot see a change in how face areas are computed — only a
+        read-through that stops forwarding to ``self.reduced``.  The
+        stronger ``is``-identity form of that claim lives at
+        ``tests/sn/primitives/test_snmesh_consumes_reduced.py``.
+        """
         sn_mesh, reduced = pair
         assert reduced.face_areas is not None
         assert np.array_equal(reduced.face_areas, sn_mesh.face_areas)
 
     @pytest.mark.foundation
-    def test_delta_A_bit_identical(self, pair):
+    def test_delta_A_read_through_is_the_factory_value(self, pair):
+        """The deprecated ``SNMesh.delta_A`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert reduced.delta_A is not None
         assert np.array_equal(reduced.delta_A, sn_mesh.delta_A)
 
     @pytest.mark.foundation
-    def test_alpha_half_bit_identical(self, pair):
+    def test_alpha_half_is_the_factory_value(self, pair):
+        """``SNMesh.reduced.alpha_half`` came from this module's factory."""
         sn_mesh, reduced = pair
         assert reduced.alpha_half is not None
         assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
 
     @pytest.mark.foundation
-    def test_redist_dAw_bit_identical(self, pair):
+    def test_redist_dAw_is_the_factory_value(self, pair):
+        """``SNMesh.reduced.redist_dAw`` came from this module's factory."""
         sn_mesh, reduced = pair
         assert reduced.redist_dAw is not None
         assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
@@ -120,8 +195,8 @@ class TestHashEqualitySpherical:
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("N", [4, 8, 16, 32])
-    def test_alpha_dome_bit_identical_across_N(self, N):
-        """Hash equality holds for every quadrature order."""
+    def test_factory_binding_holds_across_quadrature_order(self, N):
+        """The routing claim is not an artefact of one quadrature order."""
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(N)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
@@ -130,8 +205,12 @@ class TestHashEqualitySpherical:
         assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
 
 
-class TestHashEqualityCylindrical:
-    """Cylindrical: per-level arrays bit-identical to SNMesh."""
+class TestSNMeshBindsCylindricalFactory:
+    """Cylinder: ``SNMesh.reduced`` is what :func:`cylindrical_streaming` built.
+
+    Routing claim only — see :class:`TestSNMeshBindsSphericalFactory`
+    and the module docstring.
+    """
 
     @pytest.fixture
     def pair(self):
@@ -142,17 +221,20 @@ class TestHashEqualityCylindrical:
         return sn_mesh, reduced
 
     @pytest.mark.foundation
-    def test_face_areas_bit_identical(self, pair):
+    def test_face_areas_read_through_is_the_factory_value(self, pair):
+        """The deprecated ``SNMesh.face_areas`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert np.array_equal(reduced.face_areas, sn_mesh.face_areas)
 
     @pytest.mark.foundation
-    def test_delta_A_bit_identical(self, pair):
+    def test_delta_A_read_through_is_the_factory_value(self, pair):
+        """The deprecated ``SNMesh.delta_A`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert np.array_equal(reduced.delta_A, sn_mesh.delta_A)
 
     @pytest.mark.foundation
-    def test_alpha_per_level_bit_identical(self, pair):
+    def test_alpha_per_level_is_the_factory_value(self, pair):
+        """Per-level α on ``SNMesh`` came from this module's factory."""
         sn_mesh, reduced = pair
         assert reduced.alpha_per_level is not None
         assert len(reduced.alpha_per_level) == len(sn_mesh.reduced.alpha_per_level)
@@ -162,7 +244,8 @@ class TestHashEqualityCylindrical:
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
 
     @pytest.mark.foundation
-    def test_redist_dAw_per_level_bit_identical(self, pair):
+    def test_redist_dAw_per_level_is_the_factory_value(self, pair):
+        """Per-level ΔA/w on ``SNMesh`` came from this module's factory."""
         sn_mesh, reduced = pair
         assert reduced.redist_dAw_per_level is not None
         for lvl, (rdc, snm) in enumerate(
@@ -177,8 +260,8 @@ class TestHashEqualityCylindrical:
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 4), (4, 8)])
-    def test_full_per_level_hash_equality(self, n_mu, n_phi):
-        """Per-level hash equality across multiple quadrature shapes."""
+    def test_factory_binding_holds_across_quadrature_shape(self, n_mu, n_phi):
+        """The routing claim is not an artefact of one quadrature shape."""
         mesh = _cylindrical_mesh()
         quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
