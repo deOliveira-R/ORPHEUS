@@ -36,9 +36,28 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   its symbols**, re-scope those rows in the SAME change, and give the new
   structure its own positive gate. → `L33`
 - **A pin naming a "legacy"/"reference"/"adapter" counterpart must be checked
-  that the counterpart still EXISTS and is not the SUT under another name.** A
-  later-added delegation silently converts it into `X == X`: replacing the
-  production function with random nodes left it green. → `L34e`
+  that the counterpart still EXISTS and is not the SUT under another name.** Two
+  mechanisms, same `X == X` end state: a later-added DELEGATION (survivor calls
+  the other side — replacing the production function with random nodes left it
+  green) `L34e`; or a RETIREMENT that deletes the counterpart and re-points the
+  comparison at the successor, where the survivor is the *caller* (`SNMesh`
+  stopped owning `_setup_spherical` and now calls the very factory the test
+  compares it to — a fully-garbaged factory left all 47 tests in the file green,
+  while 29 gates elsewhere reddened). **Two probes, in this order, before any
+  mutation battery: (1) is the "other side" literally the SAME OBJECT? (`is`, 5
+  seconds — `face_areas` was, via a shared `cached_property`, so that leg was
+  `array_equal(x, x)`); (2) garbage the ONE shared producer in EVERY module
+  binding and see if the file notices.** Then re-scope rather than delete —
+  garbaging only the CONSUMER-side binding reddened exactly the 15 cases, which
+  is the wiring claim they honestly carry. → `L34e`
+- **A docstring that names "the surviving pins" is a CLAIM to measure, not a
+  handoff to trust** — including one you wrote an hour ago. A named anchor can be
+  blind for a *structural* reason: the τ producer-equivalence gate was cited as
+  pinning the connection-coefficient math, but a refactor had moved τ to the
+  angular closure (a function of `(μ, w)` alone), so it passes untouched under a
+  fully-garbaged geometry factory. Corollary: an L0 identity that "covers" a term
+  may RECOMPUTE the production array instead of reading it (`dA/w` recomputed
+  from `dA` and `w`), pinning the LAW while blind to the ARRAY — check which.
 - **Retiring a runtime guard that had NO negative test makes its replacement's
   teeth NET-NEW, not migrated.** Grep `pytest.raises(match=<guard msg>)` before
   crediting a mechanism-swap as behavior-identical; if nothing asserts the old
@@ -70,6 +89,24 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
 control proves otherwise** — `vv` anti-#17 carries the rule and both ORPHEUS
 instances (a privately-loaded test-module copy; a summary parser defeated by ANSI
 codes). → `L34d`, `L35l`
+
+- **Make the harness ASSERT its own installation — printing a banner is not
+  enough, because nobody reads a banner in a captured `$out`.** Two more
+  false-"0 caught" verdicts in one session, both in the SAFE-LOOKING direction:
+  a per-field shell loop that silently DROPPED the `-p <plugin>` flag (six
+  fields, six clean zeros — exposed only by contradicting an earlier all-fields
+  run that reported 29 reds on the same set), and a per-field loop over
+  ~80 s-per-case tests that TIMED OUT and again reported "0 red". Repairs, both
+  cheap: `raise RuntimeError` inside the plugin when it rebinds 0 symbols, and
+  grep the banner COUNT into the result line so a missing instrument is visible
+  per row. A mutated run that gets *slower* (garbage destroys convergence:
+  3.4 s → 80 s) will blow a timeout sized on the baseline — budget mutation runs
+  off the MUTATED cost, never the green one.
+- **`git status` + `ls -la` mid-run, not just at the start: on a shared tree
+  another agent may be rewriting the very doc you are about to correct.** The
+  same `sed` range returned different prose 20 minutes apart; a second agent was
+  running its own tree-wide mutation battery concurrently. Report the correction
+  with `file:line` + evidence instead of racing the writer.
 
 - **Run the teeth harness over your OWN new module before delivering it.** It
   flagged a gate I had just written — an activation guard that was a theorem

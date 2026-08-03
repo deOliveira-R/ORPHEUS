@@ -73,9 +73,12 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   unchanged" proves nothing. → L-044
 - **`tools/check_docstring_xrefs.py` IS the gate — run it, don't grep blind.** It resolves every
   FULLY-QUALIFIED role by IMPORTING it, so render coverage is irrelevant;
-  `… tests --quiet` → `DEAD TARGETS : 0` is the acceptance criterion. Never touch its empty
-  ALLOWLIST. It skips UNQUALIFIED refs by design (Sphinx resolves those by module context) — those
-  still need grep. First `tests/` run: 41 dead across 62 sites, never checked by anything. → L-045
+  `… <tree> --quiet` → `DEAD TARGETS : 0` is the acceptance criterion. Never touch its empty
+  ALLOWLIST. It skips UNQUALIFIED refs by design (Sphinx resolves those by module context), and it
+  is blind to LITERALS — so after fixing a renamed symbol's roles, grep the OLD NAME tree-wide and
+  adjudicate every ``literal`` by tense (`_select_si_resolvent`: 1 dead role + 3 live-prose
+  literals on two other pages). All three trees are now at 0: `tests/` 41 dead/62 sites,
+  `orpheus/` 30/37, `docs/` 20/24 in 15 pages. → L-045, L-046, L-047
 - **Beyond AGENT.md's warn-list, two more DO warn:** a `:widths:`/column mismatch, and `ref.ref`
   "*A title or caption not found*" — a bare `:ref:` to an anchor sitting before a PARAGRAPH (fix:
   anchor a titled/captioned element, or use `` :ref:`text <label>` ``). Raw path strings in prose
@@ -83,9 +86,12 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 - **A not-yet-built symbol is a code LITERAL, never a `:class:`/`:meth:`.** Gate with `hasattr`;
   the same probe flips a LANDED seam to a live role. → L-002, L-014, L-025
 - **Plain-text refs are often the page CONVENTION, not a defect** — un-`automodule`'d packages, and
-  `:noindex:`-automodule'd ones (no xref target, docstrings still RENDERED), are plain-text
-  page-wide. Match the page, repoint dead refs to the LIVE path, never half-surface 1–2 leaves.
-  → L-002, L-034
+  `:noindex:`-automodule'd ones, are plain-text page-wide. MEASURED: `api/method_of_characteristics.html`
+  and `api/discrete_ordinates.html` carry **zero** `id="orpheus.*"` anchors, so `:noindex:` renders
+  docstrings but mints NO targets and leaves live `href`s pointing at anchors that never existed.
+  Adding an `automodule` there is still worth it for the DOCSTRINGS — just don't expect roles to
+  link. Match the page, repoint dead refs to the LIVE path, never half-surface 1–2 leaves.
+  → L-002, L-034, L-047
 - **`automodule`-readiness is MULTI-gate; "0 `:label:`" is necessary, not sufficient** — it also
   trips on an unregistered role, a short docstring underline, a malformed field-list, a member-name
   collision cascading onto pages you never touched, and a closing role-backtick followed by a word
@@ -103,7 +109,21 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   rendered-anchor grep, then LEAVE it and report — never mutilate a true ref to green a gate,
   never edit a gate you weren't asked to edit. Mirror class, genuinely unresolvable and worth
   fixing: with `napoleon_use_ivar = True` an `Attributes`/`Parameters` entry mints NO target, so
-  an `__init__`-assigned attribute needs a live `:class:` + a literal. → L-046
+  an `__init__`-assigned attribute needs a live `:class:` + a literal — **5 of 24 `docs/` sites**,
+  and autodoc coverage will NEVER revive them. Phrase the replacement so the sentence says where
+  the value comes from ("the ``scheme`` attribute that :class:`SNMesh` realizes in its
+  constructor"). → L-046, L-047
+- **In `docs/api/`, dead refs cluster by SECTION: the unit of repair is the retired API SURFACE.**
+  7 of 24 sites were ONE section listing 6 factories retired in one commit; the successors were a
+  re-LAYERING, not renames, so 6 repoints would have been 6 lies. Read the surviving module's own
+  docstring FIRST — a well-retired module states its successor map and tells you whether you owe N
+  edits or one rewrite. Expect ~⅓ REWRITE on a deletion-driven sweep. → L-047
+- **RUN every doc code block a present-tense sentence promises works.** One opened on an import of
+  a module deleted months earlier AND used `np` with no `import numpy`; no build sees either. A
+  dead import is the loudest possible dead ref. → L-047
+- **A `scipy`/3rd-party role can die by UPSTREAM removal** — `scipy.special.sph_harm` was removed
+  in 1.17; the successor `sph_harm_y` has a SWAPPED `(n, m)` order, which belongs in the fixed
+  sentence, not just the target. → L-047
 
 ---
 
@@ -197,6 +217,14 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 - **The brief's successor map is a HYPOTHESIS — run `git log --diff-filter=D` on the old path.**
   "X now lives at Y" hid a DELETED legacy class whose replacement merely reuses the name; same name,
   different object splits the sites into history-literals and a rewrite. → L-045
+- **A dead ref can sit on a claim a rename INVERTED, not merely moved** — a published code block
+  showed a `cast`-based helper whose live body has no cast and owns the guard the prose credited to
+  the CALLER; a repoint alone leaves two falsehoods with a working link. Read the live body, then
+  re-state the mechanism. → L-047
+- **When a page has an OPEN owner issue: fix the dead refs + the MEASURED adjacent falsehoods,
+  leave the issue's genuine rewrite item, and comment with a measurement table AND the residue's
+  CORRECTED path** (#286 named a page that no longer exists). Neither "defer, it's theirs" nor
+  "annex it". → L-047
 - **A retirement can DEMOTE a gate's claim class without touching the test body.** When a rewire
   points a comparison at the successor, re-ask "are the two sides still INDEPENDENTLY produced?" —
   if the survivor CALLS the other, the gate became a pass-through check and every doc crediting it
@@ -331,6 +359,17 @@ never paraphrase a level definition. → L-010
 - **Never upgrade a `@pytest.mark.foundation` gate to an L-level in prose to make a section sound
   better-verified** — read the marks and say "software/structural invariant of a discrete
   construction, not an equation claim". → L-040
+- **A doc sentence "gates X, Y pin claim C" IS a coverage claim** — the prose analogue of
+  `vv-principles`' "a `catches` marker is a COVERAGE CLAIM, not a topic tag". Justify it by a
+  MUTATION that reddens X and Y, never by topical adjacency. Cite **per field**, not per topic
+  (5 arrays needed 5 different files; one had a SOLE catcher, another was cylindrical-only).
+  Highest-risk moment is REPLACING a gate you just demoted — the nearest-sounding sibling
+  inherits neither scope. I credited a τ gate for reduced-operator arrays it passes in 0.03 s
+  under fully-garbaged factories, two screens after writing the note explaining τ had LEFT that
+  operator. → L-047
+- **The SAME gate cited for TWO claims can be right once and wrong once — narrow, never sweep.**
+  On "citation of X is false", ask *false for WHICH claim* and grep every occurrence before
+  editing any; a blanket fix destroys the true citation. → L-047
 - **Distinguish the EUCLIDEAN transpose `Aᵀ` from the metric HILBERT adjoint `A† = G⁻¹AᵀG`.** A
   campaign may colloquially call the former "†"; write the precise object. A docstring summary
   saying "Hilbert transpose" over a body computing the Euclidean one is a real defect. → L-010,

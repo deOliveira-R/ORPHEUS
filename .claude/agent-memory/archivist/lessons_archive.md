@@ -3993,6 +3993,194 @@ residue to be a stale PARAGRAPH, not a stale token.
 
 ---
 
+## L-047 — The `docs/` half of the xref sweep: a dead ref in an `api/` page is a retired API SURFACE (rewrite the section), and `:noindex:` makes a whole page's roles plain text so "would `-n` catch it?" is moot
+
+Closing the trilogy after L-045 (`tests/`, 41 dead / 62 sites) and
+L-046 (`orpheus/`, 30 / 37). `docs/`: **20 dead targets across 24
+sites in 15 pages → 0**, `-E -W` EXIT 0 with the diagnostic set
+unchanged from a freshly-measured **0**-warning baseline.
+
+**The tree-specific shape: `api/` prose dies in BLOCKS, not tokens.**
+7 of the 24 sites were one page's one section — `docs/api/geometry.rst`
+"Factories", listing `Zone` / `mesh1d_from_zones` / `pwr_pin_equivalent`
+/ `pwr_slab_half_cell` / `homogeneous_1d` / `slab_fuel_moderator`, all
+retired in one Phase-F commit (`81b083be`). Six repoints would have been
+six lies: the successors are not renames but a **re-layering** (geometry
+`StructuredGeometry` + `Region`, then mesh `Mesh1D.from_geometry` +
+`RegionMesh`), so a section whose thesis is "the factory layer is the
+recommended construction path" is stale as a THESIS. The tell that
+distinguishes this from a rename sweep: the retired names' own module
+docstring already carried the successor map (`factories.py` opens with
+"Phase F retired … The 1-D path is now …"). **Read the surviving
+module's docstring before planning repoints** — a well-retired module
+tells you whether you owe N edits or one rewrite. Ratio here: `docs/`
+came out **7 REPOINT · 5 mirror-class · 4 past-tense literal · 8
+REWRITE**, i.e. a third rewrites, matching L-046's finding that
+deletions leave stale PARAGRAPHS.
+
+**`:noindex:` suppresses the WHOLE page's anchors — measured.**
+`docs/_build/html/api/method_of_characteristics.html` contains **zero**
+`id="orpheus.*"` anchors; so does `api/discrete_ordinates.html`. Every
+`automodule` on those pages carries `:noindex:`, which renders docstrings
+but mints no `py:` targets — so *every* py-domain role there is plain
+text whether or not the symbol exists, and a live `href` to
+`#orpheus.sn.solver.SNSolver` sits in the tree pointing at an anchor that
+was never created. Consequence for L-002/L-044's "would `-n` have caught
+it?": on this corpus the question is doubly moot — nitpicky can only
+nitpick what it RENDERS, and here rendering doesn't mint targets either.
+The import-checker is the only gate. (Corollary when rewriting such a
+page: adding an `automodule` is still worth it for the *docstrings*, but
+do not expect it to make roles link.)
+
+**The `napoleon_use_ivar` mirror class is not a curiosity — it was 5 of
+24 sites** (`SNMesh.scheme`, `SNMesh.pole_angular_closure`,
+`SNSolver.inner_solver`, `KEigenvalue.eigenvalue_method`, plus
+`MOCQuadrature.n_azi_2` which never existed at all). An
+`__init__`-assigned attribute is unresolvable in EVERY build; adding
+autodoc coverage will NOT revive it. Standard rewrite, applied five
+times: a live `:class:` on the owner + the attribute as a literal, phrased
+so the sentence says where the value comes from — "the ``scheme``
+attribute that :class:`SNMesh` realizes in its constructor", "the
+``eigenvalue_method`` constructor selector on :class:`KEigenvalue`".
+Contrast the OVER-report class (L-046): the checker now falls back to
+`__annotations__` across the MRO, so dataclass fields and `ClassVar`s
+resolve correctly and need no defensive verification.
+
+**Three dead refs sat on a claim that a rename had INVERTED, not just
+moved.** (a) `operator_inverse_family.rst` published a 3-line code block
+for `_seeded_inverse` reading
+`return cast(SupportsSeededApply, cast(SupportsInverse, A).inverse())`
+with prose crediting "the CALLER's `A.is_invertible` guard". The live
+`seeded_inverse` (public since #276 A4, `cd000c2e`) has **no cast at
+all** — two `TypeGuard` bridges — and runs its **own** `invertible()`
+guard raising `NotInvertible`. The published sentence named the wrong
+mechanism AND the wrong guard owner; a repoint alone would have left both
+falsehoods with a working link. (b) `api/method_of_characteristics.rst`
+claimed "azimuthal angles are adjusted slightly from an even distribution
+to satisfy the cyclic condition" — `MOCQuadrature.create` is a plain
+midpoint-even `linspace`; cyclicity is reached from the **ray-spacing**
+side (`effective_ts = (t_max−t_min)/n_rays` per angle). (c) A
+`.. code-block:: python` introduced by "A user constructs one with:"
+opened on `from orpheus.derivations.common.geometry_spec import
+GeometrySpec` (module deleted at `81b083be`) *and* used `np` with no
+`import numpy`. **RUN every doc code block that a present-tense sentence
+promises works** — this one now does, verified end-to-end
+(`k_eff = 1.0000000000000002`), as does the new geometry construction
+block. A dead import is the loudest possible dead ref and no build sees it.
+
+**Scope discipline against an owner issue.** Two sites sat on a page an
+OPEN issue (#286) already owns. Correct move was neither "defer, it's
+theirs" nor "fix everything": fix the dead refs, fix the **measured**
+adjacent falsehoods (`ReducedStreamingOperator` has no `tau_mm` field;
+2 of 8 claimed deprecated properties survive on `SNMesh`), leave the
+issue's genuine mechanism-rewrite item alone, then comment with a
+measurement table and the residue's **corrected path** (the issue named
+`docs/theory/discrete_ordinates.rst`, which no longer exists — the
+section is now `docs/theory/methods/sn/index.rst:472`). An owner issue
+whose cited paths have rotted is worth less than the five minutes it
+costs to re-point them.
+
+**A retirement DEMOTED a gate, again — and a sibling agent proved it
+independently.** `structured_geometry.rst` credited
+`tests/geometry/test_reduced_operator.py` with bit-identity "vs the
+legacy SNMesh setup methods"; those methods are gone and `SNMesh.__init__`
+now calls the factories itself, so the surviving legs compare a fresh
+factory call against the value that same factory produced. Fix: past-tense
+the history, `.. warning::` the demotion, name the gates that DO carry the
+math (`sphere_*`/`cyl_*` regression snapshots,
+`test_tau_producer_equivalence.py`, `test_alpha_closed_form.py`). A
+concurrent `tests/geometry/` pass was simultaneously renaming those legs
+to `test_*_is_the_factory_value` with a docstring reading "`array_equal(x,
+x)` for any face-area math whatsoever" — same verdict, reached
+separately. **When you suspect a gate was demoted, say so in the doc; the
+convergence is evidence, and the doc is the only place the claim is
+written down.**
+
+**THE SESSION'S SHARPEST CORRECTION — I named a gate that was BLIND to
+the claim I credited it with.** Having correctly demoted the
+bit-identity gate, I wrote "the mathematical content is pinned
+elsewhere: … `test_tau_producer_equivalence.py` + `test_alpha_closed_form.py`
+for the closure coefficients themselves." The τ half was FALSE, and it
+was falsified by measurement, not argument: under fully-garbaged
+`spherical_streaming`/`cylindrical_streaming` factories that file passes
+**5 tests in 0.03 s**. Cause — the same #236 Step C move I had just
+documented two screens earlier in my OWN τ-ownership note: τ left the
+reduced operator for the angular closure, so the gate compares
+`morel_montry_tau_per_level` against `morel_montry_weights`, both
+derived from `(μ, w)` alone. It pins a quantity `reduced_operator.py`
+no longer produces. **I had written the premise and still drew the
+wrong conclusion from it**, because "τ is a closure coefficient" and
+"the reduced operator carries the closure coefficients" were both true
+sentences on the page and I composed them without checking the
+referent.
+
+The rule this earns, and it is the doc-prose analogue of
+`vv-principles`' "a `catches` marker is a COVERAGE CLAIM, not a topic
+tag": **a doc sentence of the form "gates X, Y pin claim C" IS a
+coverage claim, and it must be justified the same way — by a mutation
+that reddens X and Y, never by topical adjacency.** Corollaries:
+
+* **Replacing a demoted gate is the moment of maximum risk.** Having
+  just proven gate A blind, the reflex is to reach for the
+  nearest-sounding sibling. That reflex is exactly what produced the
+  error; the sibling inherits neither A's scope nor the claim's.
+* **The correct citation is PER FIELD, not per topic.** The measured
+  replacement is five different files, one per array — `delta_A` →
+  the closed-form `test_delta_A_magnitude` (its **sole** catcher; the
+  snapshots are legitimately blind because `delta_A` has no production
+  consumer); `alpha_half` → `test_per_ordinate_flat_flux_consistency[SPHERICAL]`
+  (`catches` ERR-006/007); `alpha_per_level` → `test_alpha_closed_form.py`,
+  **cylindrical-α only** (every fixture is `CoordSystem.CYLINDRICAL`);
+  `redist_dAw` → `test_streaming_equilibrium_curvilinear.py`'s L0
+  `φ = Q/(Σ_t(1−c))` identity — and NOT the flat-flux identity, which
+  recomputes `ΔA/w` instead of reading the production array;
+  `face_areas` → `tests/geometry/test_geometry.py` on the producer
+  `compute_areas_1d`. A single "these gates cover it" sentence cannot
+  be true at that granularity.
+* **The SAME gate cited for TWO different claims can be right once and
+  wrong once — narrow the correction, do not sweep it.** The τ gate
+  appears twice on this page: at the `morel-montry-clamp` vv-status
+  rationale (**correct** — it does pin τ) and in the demotion warning
+  (**false** — it does not pin the reduced-operator arrays). The
+  coordinator had to send a second message narrowing the first,
+  because a blanket "that gate is wrong" would have destroyed a true
+  citation. When told "citation of X is false", ask *false for WHICH
+  claim* and grep every occurrence before editing any.
+* **When a sibling agent corrects a shared claim in code you may not
+  edit, MIRROR its wording rather than re-deriving prose.** The
+  corrected `reduced_operator.py` docstring already carried the
+  measurement and the per-field table; re-verifying each catcher
+  against the live tree (5 for 5) and mirroring cost minutes and
+  guarantees code and corpus say the same thing.
+
+**Free catches en route.** A `scipy` role can die by UPSTREAM removal —
+`scipy.special.sph_harm` was deprecated in 1.15 and removed in 1.17 (the
+tree runs 1.17.1); successor `sph_harm_y` has a **swapped `(n, m)`**
+argument order, which belongs in the fixed sentence. A `:mod:` naming a
+planned promotion (`orpheus.derivations.common.chord_oracle`) needs the
+literal AND a check of the plan file it cites
+(`.claude/plans/trajectory_resolvent_hindsight_refactor.md` — gone; the
+"scheduled" framing had to become "open opportunity, trigger = a second
+consumer"). And a rename ripples past the roles: `_select_si_resolvent →
+_select_si_splitting` had 1 dead role plus **3 present-tense literal
+mentions** on two other pages, invisible to the checker (literals aren't
+roles) — after fixing the flagged role, grep the OLD NAME tree-wide and
+adjudicate every literal by tense.
+
+**Sanity note on the by-product.** The `-E` build regenerated
+`docs/theory/verification/matrix.rst` (+2 foundation tests,
+`test_docstring_xrefs`), because the committed matrix predated that test
+file landing in HEAD. Legitimate; report it, never revert it (L-008).
+
+How to apply: run the checker as the gate on `docs/` too; before planning
+repoints read the surviving module's docstring to learn whether you owe N
+edits or one section rewrite; expect ~⅓ REWRITE and ~⅕ mirror-class; RUN
+every promised code block; grep the old name for literals after fixing the
+roles; and when a page has an owner issue, fix + measure + comment with
+corrected paths rather than defer or annex.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
@@ -4001,3 +4189,5 @@ approaches · Code traceability · Derivation source (from `derivations/`,
 never hand-written). The recurring weak dimension on TERMINOLOGY/ROUTING
 fixes is "numerical evidence" — structurally absent (no flux moves → no
 convergence table), not a deficit; say so rather than manufacturing one.
+
+---
