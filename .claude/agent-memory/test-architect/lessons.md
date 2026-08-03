@@ -2647,3 +2647,162 @@ L32 is about. **Whenever a pin names a "legacy"/"reference"/"adapter"
 counterpart, grep that the counterpart still EXISTS and is not the SUT
 reached by another name** — a delegation added later silently converts the
 pin into `X == X`.
+
+## L35 — verifying a pure-math PRIMITIVE (a group/algebra type) against pure math
+
+From the G2 gate spec for `orpheus/geometry/transformation.py` (rigid motions
+`E(d)`), written PRE-carve — and the module LANDED mid-plan, which is half the
+lesson. Full plan: `scratch/g2_verification_plan.md`.
+
+### L35a — the reference pillars for an ALGEBRA are different from a solver's
+
+There is no MMS row and no semi-analytical row: a group-theory type has no
+differential operator to manufacture a solution for and nothing reduces to a
+quadrature. Every row is **closed-form**, and the structurally-independent
+grounds available are: (1) **SymPy under an EXPLICIT unit parameterisation**
+(`n̂ = (sinθcosφ, sinθsinφ, cosθ)` — `[M]` imposing `Σnᵢ²=1` by `subs` after
+expansion **does not fire** and leaves `4n₀²(Σnᵢ²−1)` residuals); (2) an
+**external implementation with a different ALGORITHM** (`scipy…Rotation.
+from_rotvec` is quaternion-based, so it is not a re-spelling of Rodrigues);
+(3) the **Lie definition** `R = expm(θ(vuᵀ−uvᵀ))` — Padé, structurally unlike
+every closed form, and the only **dimension-generic** reference (`[M]` 3.9e-14
+vs the shipped constructor, so gate at 1e-12, not 1e-15); (4) **published
+tables** (group orders; the cube's Wyckoff site symmetries); (5) **exact
+integer arithmetic** (a permutation's bijectivity, `π(gh)=π(g)∘π(h)`,
+`ord(g^k)=n/gcd(k,n)`) — this last one needs no reference at all and is the
+strongest class available.
+
+### L35b — the group-action HOMOMORPHISM is the deepest cheap gate
+
+`π(g∘h) = π(g)∘π(h)` on an induced permutation cross-checks **two independent
+layers** — the element algebra and the nearest-neighbour action on points —
+using only integers. It simultaneously pins the composition order, the
+row-vs-column action convention, and `π` vs `π⁻¹`. `[M]` the wrong composition
+order violates it on **102 of 144** cube/`O_h` pairs. It is **VACUOUS on an
+abelian group** (`C_n`: 0 violations either way) — the fixture must be
+non-abelian. A checker that computes `π` and returns a `bool` (ERR-073's
+shape) makes this law unaskable; returning the permutation makes it free.
+
+### L35c — an involution/order law is Mode-12 BLIND to the AFFINE part
+
+`(σ, t)² = (I, σt + t)`, and `σt = −t` for **every** `t ∈ span(n̂)`. `[M]` all
+of `t ∈ {d n̂, 2d n̂, 4d n̂, −2d n̂}` are involutions, while the true fixed
+plane moves by `0.37 / 0.74 / 1.48`. Likewise a rotation's ORDER is blind to
+its centre. **The only catcher is "fixes its named fixed set POINTWISE"** —
+gate the FIXED SET, never the order, for anything affine. Generalisation: for
+any type carrying a decomposition `(linear, affine)`, enumerate which laws
+factor through the linear part alone — those are designed-green on the affine
+half.
+
+### L35d — the SEAT is a theorem, not a convention (and it is one gate)
+
+A `G`-preserved weighted point set has a `G`-FIXED centroid (3-line proof from
+`w_{π(i)} = w_i` + linearity). `[M]` a cube shifted to `(2.5,−1.25,0.75)`:
+**48/48** `O_h` elements *seated at the centroid* preserve it; **1/48**
+unseated do. That single row converts "where do we put the origin?" from a
+modelling choice into a computed fact, and it is the abstract form of a live
+defect (`Mirror('x').is_invariant(mesh)` reads False for production meshes
+solely because they start at `origin = 0.0`).
+
+### L35e — bijectivity and the match WINDOW are INDEPENDENT failure modes
+
+The ERR-073 injectivity guard does **not** make a nearest-neighbour certifier
+sound. `[M]` a two-point set off-symmetry by **1e-9** certifies under a
+**1e-7** window with a *perfectly injective* π. So the window is a
+first-class correctness parameter: it must be an **explicit argument** (a
+module constant makes the "the window bites" gate SIGNATURE-tautological), and
+it should default relative to the point set's **minimum pairwise separation**
+— a computable, set-intrinsic quantity — rather than to an absolute constant.
+
+### L35f — a `-> T | None` collapses N guards into one value; isolate from the INPUT side
+
+`permutes` returns `None` for "image not in the set" OR "not injective" (and
+`preserves` adds "weights disagree"). A negative gate asserting `is None`
+proves only that *some* guard fired. Where the API cannot be changed, prove
+the isolation **from the input**, in the test, with plain numpy: `[M]` the
+ERR-073 duplicate-node witness has guard1 passing **48/48**, guard3 **48/48**,
+guard2 **0/48** — a clean isolator; and an unequal-weight antipodal pair makes
+`permutes` SUCCEED while `preserves` FAILS, isolating the weight guard (which
+is **VACUOUS on any equal-weight fixture**, i.e. on every shipped quadrature).
+
+### L35g — ⛔ do NOT assert TIGHTER than the type's own invariant
+
+`RigidMotion.__post_init__` accepts `max|QᵀQ−I| ≤ 1e-10`, so an element
+carrying a 1e-11 shear is a **legal value of the type**. A gate asserting
+`1e-14` on *any* element asserts a property the type does not promise and
+would red on a legal instance. Split it: one row for **the type's invariant**
+(and its rejection threshold, via the production constructor), a separate,
+stronger row for **the named constructors' actual quality** (`[M]` ≤1e-14, and
+`signed_permutation` **exactly 0** — integer entries). Conflating them leaves
+the constructors ungated at their real quality while over-claiming the type's.
+
+### L35h — bit-exactness is EARNED PER LAW; measure before choosing the assertion
+
+`[M]` on the same type: identity `e∘g=g∘e=g` **500/500 bit-exact**;
+associativity **500/500** on signed permutations but **0/500** on general
+rotations; `σ²=I` bit-exact for a COORDINATE normal but **0/300** for a
+general one; `g∘g⁻¹` **0/500**; seating fixes `c` only **58/500**. And a
+seated reflection of a cell lattice lands its images **5.6e-17–2.2e-16** off
+their partners while the induced PERMUTATION is exactly `arange(n)[::-1]` —
+integers exact, coordinates not. Pick `array_equal` vs `atol` per row from
+measurement; a uniform choice is either a false red or a thrown-away gate.
+The coordinate-vs-general normal split is also a **size-blindness** trap in the
+argsort-n family: a coordinate-only fixture tests the degenerate diagonal
+sign-flip and is structurally blind to the general Householder path.
+
+### L35i — the module can LAND while you are planning it (and that IS the deliverable)
+
+`[M]` the brief said `transformation.py` did not exist; it was written during
+the session (untracked, mtime mid-plan). Re-checking the plan against the
+shipped code re-scored **10 of 15 API findings as DISCHARGED** and surfaced
+**3 new gates the landed design earns** (two spelled actions
+`on_points`/`on_directions`; a circle-point rotation primitive that preserves
+exactness where an angle cannot; `element_order() -> int | None` where `None`
+is the glide/screw law). **Before delivering any pre-carve plan, `ls` the
+target path** — the reconciliation is higher-value than the original matrix,
+and an unreconciled plan silently specifies a dead API. Same family as the
+B3.4c finding (L33) where all seven production steps landed mid-plan.
+
+### L35j — WRITING the gates found three defects, and every one was in the FIXTURE
+
+G2 shipped as `tests/geometry/test_transformation.py` (42 gates / 96 cases,
+8.9 s, 32/32 mutations caught, 0 blind). The three reds during authoring were
+all mine, and each is a reusable trap:
+
+1. **A single Gram–Schmidt pass is not orthonormal enough for a 1e-12 gate.**
+   `[M]` `max|GGᵀ − I| = 2.1e-12` on near-parallel random draws, so the
+   production constructor *correctly refused my fixture*. When a shipped guard
+   rejects your test input, suspect the fixture first. Build orthonormal
+   frames with QR.
+2. **An ABSOLUTE tolerance is the wrong contract for a translation residual.**
+   It scales `O(ops × ‖t‖ × eps)`, so a fixed `atol` reds on correct code for
+   large-‖t‖ draws (`[M]` 2.1e-14 against a 1e-14 bound) — while being too
+   loose for small ones. Normalise by `max(1, ‖desired‖_∞)` and MEASURE the
+   normalised worst case (`[M]` ≤6.9e-15 over 3000–4000 draws per law).
+3. **State the law in the direction that is a FLOAT theorem.**
+   `on_points − on_directions == t` is NOT exact (`fl(a+t) − a ≠ t`; `[M]`
+   2.2e-16) but `on_points == on_directions + t` IS bit-exact `[M]` 6000/6000,
+   because it recomputes the same expression. The true direction is also the
+   stronger assertion — check both before settling for a tolerance.
+
+### L35k — the SELF-CONSISTENT gate is blind to a transposed action; the homomorphism is not
+
+`[M]` The mutation `x @ Q` for `x @ Qᵀ` reddens **O2 (the homomorphism) but
+NOT O1 (the positive `permutes` gate)**. O1 asserts `g.on_points(P) == P[π]`
+where `π` was *built by the same mutated action* — and a transposed action
+still maps a group-invariant set onto itself (`Qᵀ` is in the group), so O1 is
+self-consistent and green while returning the WRONG permutation. Only
+`π(g∘h) = π(g)∘π(h)` catches it, because a transposed action is an
+ANTI-homomorphism. Generalisation: **a gate that builds its own reference
+through the mutated path can only see errors that break self-consistency** —
+pair every "the map is correct" row with a COMPOSITION law it must satisfy.
+
+### L35l — the harness lied first, again (L34d recurrence, and the control caught it)
+
+`[M]` The G2 battery's first run reported **32/32 BLIND** while the summary
+lines plainly read `23 failed` / `63 failed` / `38 failed`: the parser wanted
+`FAILED` lines that `-q --tb=no` never emits (needs `-rf`), and ANSI colour
+codes broke the match. The POSITIVE CONTROL is what exposed it — a mutation
+making `reflection` return `+I` cannot leave 42 gates green, so "0 gates" was
+a *harness* verdict. Cost: one run. **Never ship a battery without a mutation
+whose expected blast radius is large enough that a zero reading is absurd.**
