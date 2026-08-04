@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 LANDED. G6.0 DONE + G6 RE-SCOPED (§7g); G6.1 is next.**
+> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 · G6.0 · G6.1 LANDED. G6.3 is next — DESIGN OF RECORD in §7h.**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -1683,6 +1683,162 @@ The test-architect also **reproduced anti-#17's exact failure mode** in passing:
 - ⛔ **"No operator is half-bound"** — the explorer wrote this first and corrected
   itself by runtime census. Two classes are half-bound 100 % of the time, and
   half-bound is worse than either extreme.
+
+---
+
+## 7h. G6.3 — DESIGN OF RECORD: materialize G and R, then bind (user ruling, 2026-08-04)
+
+**G6.1 LANDED** (`34f465cc`): `AngularFaceTraceSpace` + the three accessors
+`trace.face_space/outflow_space/inflow_space(face)`, cached, metric-carrying,
+face+role in the name. 56/56 gates, mutation battery with a live positive
+control, 2294 numerics+transport passing, wide gate at the 4 known reds.
+It also fixed a **pre-existing base-class defect** (see §7h.0 below).
+
+### ⛔ G6.3's ORIGINAL SCOPE RESTED ON A FALSE PREMISE — measured
+
+§7f scoped G6.3 as "bind `γ±`, `G`, `R`, and periodic's cross-face `G`". `[M]`
+**`G` and `R` are not operators at all.** `law.geometry_map` returns a
+`SelfPairedDeck` / `SpatialWrap` and `law.response_kernel` a
+`SpecularReemission` / `LambertianReemission` / `ScalarResponse` — **descriptors**,
+with no `.apply`, no `.domain`, and `isinstance(_, LinearOperator) is False`.
+`SNBoundaryRealizer.realize` emits **ONE** operator per law with `R∘G` already
+collapsed. So two of the four scoped rows have **zero construction sites**, and
+`R : Γ₋→Γ₋` is un-bindable — nothing in the SN realizer is an endomorphism of
+`Γ₋`.
+
+**The sharpest tell** (`[R]` `realizer.py:770-778` vs `:349`): `albedo` +
+`SpecularReemission` calls **the same `_specular_kernel` helper `reflective`
+uses**, funnelling into the same `_attenuated_kernel_operator` body — while
+declaring the mirror lives in **`G`** for one and **`R`** for the other. One
+construction site would need two different codomains.
+
+⟹ **the G/R split is precise at the DECLARATION tier and collapsed at the
+REALIZATION tier.** `_factors.py:399` states it exactly (*"a polished wall's
+specular return … is constitutive rather than geometric because a wall is not a
+quotient"*), and the realizer then welds the two factors into a single un-named
+product. That is the *welded un-named operation* the standing
+build-the-machinery ruling names as **a failure to realize the algebra**.
+
+### ⚠ And binding the collapsed operator would be INERT, not safe
+
+`[M]` the binding was installed as a pytest plugin and run: **4941 bindings,
+~5100 tests, ZERO new failures** (the pre-existing reds identical to baseline),
+16 periodic cross-face bindings firing. Read that as **inert**: `_reflect_trace`
+composes with three raw `.apply` calls (`sn/operators/boundary.py:527`, `:570`),
+never `@` or `+`, so **no composability check exists on the path G6.3 types**.
+Two hand-rolled size checks already stand in for the absent gate
+(`realizer.py:385`, `:502`). Binding alone ships honest metadata that gates
+nothing.
+
+### ⭐ THE RULING (user, 2026-08-04): materialize, then bind
+
+> Make `G` and `R` real `LinearOperator`s so the law is spelled **`R @ G`**,
+> bind each to its space, and route the composition through the operator
+> algebra so the check actually fires.
+
+Payoff beyond tidiness: **`R` is an endomorphism `Γ₋→Γ₋` and CAN be
+self-adjoint; `G : Γ₊→Γ₋` cannot** (disjoint index sets). Today neither claim is
+expressible — which is precisely why `PermutationOperator`'s `is_involution`
+docstring is already flagged present-tense-false for the narrowed operator
+(§7f). Materializing makes one claim true and the other unspellable.
+
+### What the declaration tier FORCES (so these are not free choices)
+
+Both from `BoundaryGeometryMap`'s own Protocol docstring
+(`geometry/boundary/_factors.py`):
+
+1. *"The crossing from `Γ₊` to `Γ₋` is part of **this factor**, not of the
+   response."* ⟹ **`G` always carries the crossing**; `R` is always the
+   endomorphism. No law may deviate.
+2. *"The identity deck element … **relabels nothing**."* ⟹ the identity deck
+   realizes as the **local-index-preserving** crossing `Γ₊(f) → Γ₋(f)` — local
+   position `i` in `Γ₊` to local position `i` in `Γ₋`. "Relabels nothing" is
+   literally "local position preserved", so this is forced.
+
+**Why that is measure-preserving, and why it matters.** `[M]`
+`G₋ == G₊[local]` **bit-identical** on all three shipped quadratures. A rank-one
+`R = u ⊗ v` gives `R∘G = u ⊗ (Gᵀv)`, and measure-preservation makes `Gᵀv` the
+same functional for every admissible `G` — which IS the boundary campaign's
+theorem *"`G` is unobservable exactly when `R` is rank-one"*, the one that hid
+the Lambertian in the geometry slot. So the canonical local-index `G` gives the
+right composite for every identity-deck law (white, albedo+Lambertian, vacuum,
+prescribed) without claiming a mirror those laws do not have.
+
+⛔ **`|Γ₊| == |Γ₋|` is a PRECONDITION and MUST be a GUARD, never an assumption.**
+`_narrowed_zero_operator` (`realizer.py:248-256`) already says why in its own
+words: *"`|Γ₊| == |Γ₋|` on every reachable fixture, so the shapes coincide — an
+accident, not a contract."* Measured 2/2, 4/4, 49/49. A local-index crossing is
+ill-defined the moment that fails, so it must raise there rather than
+mis-pair silently.
+
+### Per-law realization map `[M]` — the ONE operator today, typed `Γ₊(f) → Γ₋(f)`
+
+| law | site | class today | cross-face |
+|---|---|---|---|
+| vacuum | `realizer.py:274-290` | `ZeroOperator` | no |
+| reflective α=1 / 0<α<1 / α=0 | `:349` / `:352` / `:345` | `TensorProductOperator(Perm@:421, Id)` / `ScaledOperator(TP)` / `ZeroOperator` | no |
+| white (3 regimes) | `:349` / `:352` / `:345` | `TP(AngularAverage@:559, Id)` / Scaled / Zero | no |
+| albedo+Specular | `:770-778` | **identical to reflective** | no |
+| albedo+Isotropic | `:780-789` | **identical to white** | no |
+| periodic | `:859` | `TensorProductOperator(Id, Id)` | **YES** |
+| prescribed | `:885-888` | `IncomingSourceOperator` | no |
+
+Three different *outermost* classes for one law (α=1 / 0<α<1 / α=0) ⟹ **bind at
+`_attenuated_kernel_operator`'s single exit, not per-arm** (B3.4b already
+funnelled four laws through it).
+
+### Constructor readiness `[M]`
+
+- **Nothing to change (2):** `ScaledOperator`, `_BoundBoundaryOperator` — pure
+  passthrough properties. This dissolves §7g R3's worry for `ScaledOperator`: it
+  *forwards*, so the per-law decision is made once, on its operand.
+- **Additive constructor change (6):** `TraceRestrictionOperator`,
+  `PermutationOperator`, `TensorProductOperator`, `ZeroOperator`,
+  `AngularAverageOperator`, `IncomingSourceOperator` — each has its own
+  `__init__`, no `__slots__` blocker, `domain`/`codomain` plain overridable
+  properties.
+- **No `__init__` at all (1):** `IdentityOperator` — **do not touch** (11
+  production + 61 test sites).
+- `[M]` **nothing computes a codomain from its domain**, so explicit binding
+  conflicts with nothing. Only forwarding (`Scaled`, `_Bound`), projection
+  (`OperatorProduct`), and `OperatorSum`'s first-non-`None` fallback.
+
+### Order of work
+
+| # | step | why here |
+|---|---|---|
+| **0** | bind the space-side `γ±` (`angular_trace_space.py:482`) | all three accessors are `self` — zero threading |
+| **1** | materialize `G`: the local-index crossing + the specular permutation, `Γ₊(f)→Γ₋(f)`, **with the `\|Γ₊\|==\|Γ₋\|` guard** | the forced semantics above |
+| **2** | materialize `R`: `Γ₋(f)→Γ₋(f)` for scalar / Lambertian / specular-reemission | the endomorphism; where self-adjointness becomes askable |
+| **3** | spell the law `R @ G` at `_attenuated_kernel_operator`'s exit | four laws at once |
+| **4** | vacuum, then prescribed | simplest single-face arms |
+| **5** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
+| **6** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above |
+
+⛔ **Do NOT descend into the `PermutationOperator` / `AngularAverageOperator`
+factors.** `[M]` `Γ₊(f)` is already the product space (`(12,2,7)` on 2-D
+2-group), and `is_involution` becomes a type-incoherent claim on a
+non-endomorphism.
+
+### §7h.0 — the base-class defect G6.1 exposed (fixed in `34f465cc`)
+
+`FunctionSpace._diagonal_inner_product` used numpy's default **TRAILING**
+broadcast while `_diagonal_apply_metric` used the documented **LEADING**
+convention — *the same metric applied along different axes by two methods of one
+space*. Invisible whenever `w.ndim >= x.ndim` (every case the tree exercised),
+so it shipped. `[M]` non-square shapes RAISED from `inner_product` while
+`apply_metric` worked (`SphericalHarmonicSpace.from_L(3)` at its production
+`(L+1, 2L+1, ng, *spatial)` layout); square shapes **silently disagreed** (456 vs
+552 on a `(3,3)` probe). Either way `⟨Ax,y⟩ = ⟨x,A†y⟩` is false by construction,
+since `_AdjointOperator` builds `A†` from `apply_metric` while the pairing
+judging it came from `inner_product`. **The ERR-067 family one layer down.**
+Fixed by routing both through `_broadcast_metric`; bit-identical over 2294 tests,
+as its no-op argument predicts.
+
+⚠ **Wants an `ERR-NNN` catalog entry — NOT written**, because
+`.claude/skills/vv-principles/error_catalog.md` carries uncommitted-by-policy
+state forbidden to commit. Flagged for the user; recorded meanwhile in
+`scratch/g6_design_measurements.md`.
 
 ---
 
