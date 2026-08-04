@@ -588,6 +588,54 @@ the two findings that reshaped the answer both came from measurement, not readin
 
 ---
 
+## L-020 -- The BRIEF's own timeline is a claim; and a prior audit's "structurally cannot express X" EXPIRES the moment a substrate lands
+
+Re-auditing a 1-day-old boundary-layer audit (2026-08-03, `refactor/operator-strategy-layers`),
+the two findings that reshaped the deliverable were both about **inherited claims
+that had a timestamp**, and neither was in the list of things I was asked to check:
+
+- **The dispatch brief said "what landed AFTER that audit: B3.4a/b/c".** Measured:
+  B3.4a/b/c landed **2026-08-01**, the audit was written **2026-08-03 00:43**, and
+  the audit *cites B3.4a and B3.4c by name in its own body*. The brief's framing
+  was backwards, and had I trusted it I would have gone hunting for changes that
+  could not exist, and mis-attributed `SpatialWrap`'s `is_adjointable` flip to a
+  post-audit event. **One `git log -1 --format="%h %ad" --date=iso <hash>` per
+  named commit, plus the target document's mtime (`stat -f "%Sm"` on macOS —
+  `ls --time-style` is GNU-only), settles it in one call.** Operating Principle 5
+  says verify the ISSUE's premise; this extends it: **verify the BRIEF's own
+  timeline the same way.** A brief is written from the dispatcher's memory, which
+  freezes exactly like an issue body does.
+- **The audit's negative capability claim was half-stale in 6 hours.** It wrote
+  "`symmetry.py` **CANNOT express** the periodic translation — `SubgroupOfO3` is
+  origin-fixing; explicitly out of reach today." True at write time. Six hours
+  later a *different* campaign step (G3) landed `RigidMotion`, an E(d) element
+  carrying a translation part with a `translation_by` constructor. The tag layer
+  still can't name it — so the claim is now true of `SubgroupOfO3` and false of
+  the substrate, which is a materially different recommendation.
+
+The reusable rule: **an "X cannot be expressed / X does not exist / X has zero
+consumers" verdict is the most perishable kind of finding, and the thing that
+expires it is usually a sibling campaign, not a change to the audited code.** So
+when re-auditing, don't only re-run the emptiness greps (L-012 Sharpening 2) —
+**read the NEW module any intervening commit added**, and ask the negative claim
+against it directly. Here that was ~10 lines of probe (`RigidMotion.translation_by`,
+`on_points` vs `on_directions`, and `_orbit_closure` fed the translation) and it
+turned "out of reach" into a precise three-tier answer: the ELEMENT exists, the
+TAG cannot name it, and the certifier correctly REJECTS it because a translation
+is the identity on directions.
+
+Corollary worth reusing: **when an audit reports N spellings of one concept, check
+whether they differ in DOMAIN/CODOMAIN before endorsing a unification.** The
+"four vocabularies of σ_a" turned out to be four different categories (deck
+transformation `Γ₊→Γ₋` / constitutive kernel `Γ₋→Γ₋` / a curried factory /
+a subgroup tag), and three of the four are a deliberate, documented,
+sweep-schedule-load-bearing split. The genuine duplication was somewhere the
+audit never looked: **three live spellings of the axis-letter→index table, beside
+a docstring asserting it has "ONE home"**. Count the tiers first; the real twin is
+usually the boring shared primitive, not the named types.
+
+---
+
 ## L-019 -- Hunting a hidden TRANSFORMATION: read the chart-defining ASSIGNMENT and COUNT the partition's parts — the matrix and the docstring are the two places it isn't
 
 Auditing "where does the angular layer rotate/reflect without naming a group

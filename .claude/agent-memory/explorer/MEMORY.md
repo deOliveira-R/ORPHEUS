@@ -13,7 +13,10 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
   Operating Principles 4–7 — L1/L2/L3/L5 remain as forensic war-stories with
   "→ now in AGENT.md" pointers. Lesson-only (narrower question shapes): carve
   verdicts name both retire AND keep-as-anchor with the discriminator (L4);
-  boolean-presence ≠ integer-width before a typed probe-swap (L6); **"what breaks
+  boolean-presence ≠ integer-width before a typed probe-swap (L6); **the BRIEF's own
+  timeline is a claim (verify commit dates vs the target doc's mtime), and a prior
+  audit's "X cannot be expressed" EXPIRES when a SIBLING campaign lands a substrate —
+  read the new module, don't just re-run the emptiness greps (L20)**; **"what breaks
   if this numeric primitive changes?" → SWAP IT AND RUN; the dangerous assertion
   class is a FROZEN rhs, not an exact comparison (L13)**; **a "fold this redundant
   DOF" hypothesis is refuted (or not) by the FUNCTIONALS' parity, not the

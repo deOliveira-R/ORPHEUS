@@ -64,6 +64,13 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   raise, WRITE the negative test the guard never had — and `match=` the SPECIFIC
   message, since a downstream crash on the same input satisfies a bare
   `pytest.raises`. → `L4`
+- **When the fix is "raise the project's TYPED error instead of the builtin", a
+  `pytest.raises(<builtin>)` gate is GREEN BEFORE the fix and after** — ORPHEUS's
+  `BoundaryError(ValueError)` means `except ValueError` catches the bare error
+  today while `except BoundaryError` provably does not. One word, total loss of
+  the gate, and it reads correct in review. Name the SUBCLASS, and require the
+  gate's pre-fix state to be RED (ship it `xfail(strict=True)` so the fix deletes
+  the marker). → `L36f`
 - **A `pytest.raises` on a refusal is teeth-less without MESSAGE legs, KEYED to
   the argument that triggers it.** A generic message keeps `exc.value.law` true;
   a blanket "the message names both completions" pins a FALSE reason on the α=0
@@ -102,6 +109,14 @@ codes). → `L34d`, `L35l`
   per row. A mutated run that gets *slower* (garbage destroys convergence:
   3.4 s → 80 s) will blow a timeout sized on the baseline — budget mutation runs
   off the MUTATED cost, never the green one.
+- **MEASURE the reachable subset before rationing the battery — a brief's cost
+  estimate names a DIRECTORY, not the tests the carve can reach.** A "≈5.5 min"
+  budget measured **9.40 s** for the subset that mattered (35×), turning a
+  16-mutation battery from "ration it" into ≈6 min. An over-stated cost silently
+  shrinks the battery, which is the same loss as a blind gate and harder to see.
+  Also re-measure the pre-declared RED: if the brief names one known failure,
+  confirm it is the ONLY one, so every later red is attributable with no triage.
+  → `L36e`
 - **`git status` + `ls -la` mid-run, not just at the start: on a shared tree
   another agent may be rewriting the very doc you are about to correct.** The
   same `sed` range returned different prose 20 minutes apart; a second agent was
@@ -327,6 +342,21 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   before reaching for `xfail`. When a narrowing retires a private CLASSIFIER,
   exactly ONE fixture usually discriminates the replacement: name it + an
   activation guard. → `L30`
+- **TYPE-COLLAPSE (N types → 1 parameterised type):** the information moves from
+  the TYPE to a FIELD, so every `isinstance` / class-set gate over the collapsing
+  family **stays green and stops discriminating** — inventory them FIRST and
+  re-pose each onto the PARAMETER *in the same commit*. Free companion:
+  `type(A().f) is type(B().f)` (`is`, not `isinstance`) — the only gate that
+  catches "collapsed" into a base class + two subclasses. The guard named after
+  the concept is usually necessary-NOT-sufficient, and the missing clause's
+  inhabitants do the DEFERRED type's job (involution admits half-turn AND
+  inversion, both of which map a face to its OPPOSITE): enumerate the property's
+  CONJUGACY CLASSES against the semantic claim, then build a two-way witness pair
+  with DISTINCT `match=` strings. Prefer the guard that makes the blind parameter
+  UNSPELLABLE over one that needs a gate — a rigid motion's TRANSLATION is
+  bit-identically invisible to every angular functional (`on_directions` drops
+  it; measured identical at offset −17), so `is_linear` closes it by type and
+  also implies involution for free. → `L36`
 - **An `A ≡ B` theorem holding BY SHARED BODY is designed-GREEN under a body
   bug** — the design's own justification is why the gate cannot verify. It catches
   ARGUMENT drift only; the catcher is an independent-expression anchor written

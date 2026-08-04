@@ -2806,3 +2806,138 @@ codes broke the match. The POSITIVE CONTROL is what exposed it — a mutation
 making `reflection` return `+I` cannot leave 42 gates green, so "0 gates" was
 a *harness* verdict. Cost: one run. **Never ship a battery without a mutation
 whose expected blast radius is large enough that a zero reading is absurd.**
+
+---
+
+## L36 — TYPE-COLLAPSE carve (N types → 1 parameterised type): the class-level gates decay silently
+
+Source: G5 verification plan (`scratch/g5_verification_plan.md`), PRE-carve,
+`refactor/operator-strategy-layers` @ `af99f064`. The carve: collapse
+`IdentityMap` + `SpecularMirror` (`orpheus/geometry/boundary/_factors.py:443,474`)
+into one `SelfPairedDeck(motion: RigidMotion)`.
+
+### L36a — the archetype's signature failure: class-level assertions become tautologies
+
+A type-collapse moves the discriminating information **from the TYPE to a
+FIELD**. Every existing gate that asserts on the type keeps passing and stops
+discriminating. Two measured instances in ONE file
+(`tests/geometry/test_boundary_factors.py`):
+
+* `test_every_production_law_states_both_factors` asserts
+  `isinstance(law.geometry_map, geom_cls)` per law. Today: `IdentityMap × 5`,
+  `SpecularMirror × 2`, `SpatialWrap × 1`. Post-collapse **7 of 8 rows expect
+  the same class**, so "a vacuum law that mistakenly declared a mirror" is no
+  longer distinguishable.
+* `test_specular_mirror_is_the_only_ordinate_permuting_geometry` asserts
+  `permuting_geoms == {SpecularMirror}`. Post-collapse the permuting set and the
+  non-permuting set are the SAME class — the gate reduces to "the class is among
+  the classes that permute", satisfied by any non-empty subset.
+
+**RULE: for any N→1 type collapse, inventory every `isinstance` / `type(...)` /
+class-set assertion over the collapsing family FIRST, and re-pose each onto the
+PARAMETER in the same commit that lands the collapse.** A commit that lands the
+collapse alone has deleted those gates while the suite stayed green. The
+re-posed form asserts the parameter's VALUE (here: the exact signed-diagonal
+matrix per law, `array_equal` — bit-exactness is earned, `[M]` 12/12 exact).
+
+Cheap companion the archetype earns for free: `type(A().factor) is
+type(B().factor)` — `is`, not `isinstance`. It is the collapse's headline claim
+as one line, and it is the ONLY gate that catches "collapsed" into a base class
+plus two subclasses.
+
+### L36b — the naming invariant is necessary-not-sufficient, and the missing clause has a concrete inhabitant that does the DEFERRED type's job
+
+The brief's insight — "a face paired with ITSELF has an involutive pairing" — is
+true forward and was used as the guard `element_order() in (1,2)`. The CONVERSE
+is false. `[M]` (probe p1) the involutions of `E(3)` are FOUR families:
+
+```
+identity        order=1 det=+1 fix=3      self-paired  ✔
+reflection      order=2 det=-1 fix=2      self-paired  ✔
+half-turn       order=2 det=+1 fix=1      maps a face to its OPPOSITE  ✘
+inversion (-I)  order=2 det=-1 fix=0      maps a face to its OPPOSITE  ✘
+```
+
+So the sketched guard admits exactly the elements that do the **deferred**
+type's job (`SpatialWrap`), re-opening the illegal state the carve exists to
+close. Correct guard is a conjunction; the second clause (`fixed_subspace_
+dimension ≥ dimension − 1`) is the load-bearing one, and it is dimension-generic
+(`[M]` d=1: reflection fix=0=d−1 admitted, inversion(1) IS the mirror; d=2:
+inversion(2) is a half-turn, det=+1 fix=0, rejected).
+
+**RULE: when a carve's guard is ONE algebraic property named after the concept,
+enumerate that property's full conjugacy classes and check each against the
+SEMANTIC claim.** Then build the two-way witness pair — here a glide
+(`T[0,1,0] ∘ refl_x`: `fix=2` ✔, `order=None` ✘) and `inversion(3)`
+(`order=2` ✔, `fix=0` ✘) — so each clause has a mutant that only IT catches,
+with DISTINCT `match=` strings. A single generic message lets one clause be
+deleted with the other's message still matching.
+
+### L36c — a `RigidMotion`-carrying type's TRANSLATION is bit-identically invisible to every angular functional
+
+`RigidMotion.on_directions` **drops the translation by construction**
+(`transformation.py:515-518`). `[M]` `reflection(normal=e_x, offset=off)` gives
+an image bit-identical to `offset=0` at `off ∈ {0, 2.5, −17.0}` on
+`lebedev(17)`. So a wrong mirror-plane POSITION is designed-green at the
+permutation level, the realized-image level, the frozen-snapshot level and any
+scalar — no tolerance, refinement or regime can expose it.
+
+Closure is the ERR-067 pattern: **repair the TYPE, not the gate.** Requiring
+`motion.is_linear` at construction makes the offset unspellable and turns the
+blindness into a real gate. `[M]` the stronger guard `is_linear ∧ fix ≥ d−1`
+also *implies* involution (a linear orthogonal `Q` fixing a hyperplane pointwise
+is `I` or a reflection ⟹ `Q²=I`), so it needs no `element_order` and carries no
+`atol` — the involution property demotes to an asserted theorem. Prefer it.
+
+Sibling permanent blindness worth recording: for ANY involution
+`perm == argsort(perm)` identically, so forward-vs-inverse permutation is
+unfalsifiable by theorem. Good news for `is_adjointable`; it means the day a
+NON-involutive deck map lands (#178), the transpose direction becomes falsifiable
+for the first time and needs its own gate.
+
+### L36d — the level lattice: bool / matrix / permutation / certified-table are pairwise incomparable
+
+The recurring question "is a permutation-level gate blind to what a matrix-level
+gate catches, and vice versa?" has a clean answer for this shape — **neither
+subsumes the other, so all four levels are required**:
+
+| level | sees | blind to |
+|---|---|---|
+| bool (`permutes_ordinates`) | that *some* relabeling happens | which axis; the offset; whether the quadrature admits it |
+| matrix (`motion.linear`) | which mirror, bit-for-bit | whether the quadrature is CLOSED under it |
+| permutation (`reflection_index`) | the right relabeling of THIS quadrature | the offset; forward-vs-inverse; a local remap unless the fixture REVERSES order |
+| certified table (ERR-042/044/045) | involutive ∧ measure-preserving ∧ inflow→outflow | which mirror was declared (its canonical mutant IS the identity table) |
+
+Two operational corollaries. (i) `domain_face`-style accessors that don't read
+the parameter have the WHOLE group as their stabiliser — such a gate can never
+be evidence about the parameter; its value is entirely in the cross-type
+partition (self-paired ⟺ not-a-wrap), so it MUST ship with the sibling type's
+no-fixed-point control. (ii) The certified-table row whose canonical mutant is
+the identity table (`ERR-045`,
+`tests/geometry/test_bc_universal_invariants.py::TestReflectiveInflowToOutflowInvariant`)
+is the row a merge-identity-with-mirror carve must not let decay — it is the gate
+saying the two are still distinguishable where it matters.
+
+### L36e — measure the brief's cost estimate before rationing the battery
+
+`[M]` The brief budgeted "`tests/numerics` + `tests/geometry` ≈ 5.5 min". The
+subset the carve can actually reach —
+`tests/geometry tests/numerics/test_quadrature_directional.py tests/numerics/test_face_layout.py`
+— runs in **9.40 s** (`1 failed, 743 passed`, the 1 being the pre-declared
+task-#33 red). Off by ~35×, in the helpful direction: a 16-mutation battery goes
+from "ration it" to ≈6 min. **Measure the reachable subset, not the directory
+the brief names.** Same discipline as refuting an optimistic premise — an
+over-stated cost silently shrinks the battery, which is the same loss as a blind
+gate but harder to see.
+
+### L36f — a `pytest.raises(ValueError)` written against a `ValueError` SUBCLASS is a false gate that reads correct
+
+`class BoundaryError(ValueError)` (`orpheus/geometry/boundary/_errors.py:44`).
+The defect being fixed is that a certification path raises a *bare* `ValueError`
+instead of `BoundaryError` — so `[M]` `except ValueError` catches it today and
+`except BoundaryError` does not. A gate spelled `pytest.raises(ValueError)` is
+therefore GREEN BEFORE THE FIX and stays green after: total loss, one word, and
+it looks right in review. **When the fix is "raise the project's typed error
+instead of the builtin", the gate MUST name the subclass, and the pre-fix state
+of that gate MUST be RED** — ship it `xfail(strict=True)` so the fix's landing
+is what deletes the marker.
