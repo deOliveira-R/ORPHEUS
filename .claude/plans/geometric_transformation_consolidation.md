@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 LANDED. G6 is next (SCOPED, §7f).**
+> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 LANDED. G6.0 DONE + G6 RE-SCOPED (§7g); G6.1 is next.**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -17,16 +17,22 @@
 > | **G4.5** | `af99f064` (§7d) | the index-permutation route to an exact `0.0` — proposed, measured, **abandoned** with its reason |
 > | **G5** | `3cce383a` + `241097b3` (§7e) | `SelfPairedDeck` minted and verified, then `IdentityMap` + `SpecularMirror` retired onto it; two decaying gates re-posed in the same commit |
 >
-> **G6 (next)** — ⭐ **every operator knows its domain, codomain and space; the
-> SPACE owns shape and traversal.** The adjoint then falls out of well-posedness
-> instead of being hand-rolled, and a layout change happens in ONE place with
-> zero edits to any mathematical operation. `[M]` half of this is ALREADY built
-> and correct (`_AdjointOperator` derives `A† = G_V⁻¹AᵀG_W` from the spaces
-> alone; 28 of 54 operators bind) — the defect is that the binding is OPTIONAL,
-> so it silently degrades to the Euclidean transpose for the other 26. Fully
-> scoped in **§7f**, including the acceptance test that falsifies the principle
-> (change a layout in the space; assert zero operator diffs AND bit-identical
-> output). Steps G7/G8/G9 are the former G6/G7/G8, renumbered.
+> **G6 (in progress)** — ⭐ **every operator knows its domain, codomain and space;
+> the SPACE owns shape and traversal.** The adjoint then falls out of
+> well-posedness instead of being hand-rolled, and a layout change happens in ONE
+> place with zero edits to any mathematical operation. `[M]` half of this is
+> ALREADY built and correct (`_AdjointOperator` derives `A† = G_V⁻¹AᵀG_W` from the
+> spaces alone) — the defect is that the binding is OPTIONAL, so it silently
+> degrades to the Euclidean transpose.
+>
+> **G6.0 is DONE**; read **§7g** for what it measured and the two user rulings that
+> re-scoped the step. Headlines: the Γ ladder is **three** tiers, not two; **G** is
+> metric-blind in every shipped case while **R** is where the metric bites (and R
+> is an endomorphism, so it can be self-adjoint); binding comes from the
+> **realizer per law, never the class**; **no operator is silently wrong today**,
+> so G6 closes a trap rather than fixing a live defect; and the tree-wide
+> **mandate moved to #330**. §7f is the original scope with its falsified claims
+> corrected in place. Steps G7/G8/G9 are the former G6/G7/G8, renumbered.
 >
 > **Branch** `refactor/operator-strategy-layers`. Base commit at authoring:
 > `bfedc621` (Q5.0.2 — `Z2` retired, `Mirror(axis)` minted).
@@ -1337,11 +1343,25 @@ principle, already implemented.** G6 is a COMPLETION, not an invention.
 
 `domain` / `codomain` are `Optional[FunctionSpace]` defaulting to `None`, and
 when `None` **both metric applications are skipped** — `.H` degrades to the bare
-Euclidean transpose with no error and no warning. `[M]` **28 of 54**
-`LinearOperator` subclasses override `domain`; **26 inherit the `None`
-default.** The bulk tier (fission, scattering, leakage, multiplication) binds;
-the boundary and utility tier (`PermutationOperator`, `TraceRestrictionOperator`)
-does not.
+Euclidean transpose with no error and no warning.
+
+⛔ **The count below was wrong and G6.0 corrected it.** This line read *"28 of 54
+override; **26 inherit the `None` default**"* until 2026-08-04. `54` and `28` are
+right *if* you count only `cls.__dict__` overrides — but **8** of the remaining
+26 inherit a genuine, working binding from a non-`LinearOperator` ancestor
+(`InverseWrapMixin` ×5, `OperatorSum` ×2, `OperatorProduct` ×1) and are NOT
+degraded. `[M]` the true ledger is **54 total / 36 bound / 18 unbound**, of which
+**6 are abstract** ⟹ **12 concrete unbound classes.** A static override census
+over-states the surface; see §7g for the runtime census that settles it.
+
+The bulk tier (fission, scattering, leakage, multiplication) binds; the boundary
+and utility tier (`PermutationOperator`, `TraceRestrictionOperator`) does not.
+
+⚠ **The degradation is PER-END, and half-bound is worse than either extreme.** An
+operator binding `codomain` but not `domain` gets `G_W` applied and `G_V⁻¹`
+skipped — neither the Hilbert adjoint nor the Euclidean transpose. `[M]` two
+shipped classes are half-bound at runtime **100 % of the time** and are hot:
+`RadialCharacteristicReconstruction` (3089 applies) and `WindowedSweep` (1000).
 
 That `None` default is [[lessons-L19]] exactly — *a default that encodes an
 unstated invariant*. It silently means "assume Euclidean", and nothing in the
@@ -1354,9 +1374,28 @@ matters. The specular permutation **preserves** it (ERR-042's
 weight-preservation), so `[G, Aᵀ] = 0` and dropping the metric is invisible
 *there*. The boundary adjoint is therefore **right by accident of the one case
 anyone checked** — the Mode-12 commutator criterion. Any boundary operator that
-does NOT preserve the trace weight — a general re-emission kernel, an
-anisotropic response, the Ni/Ti supermirror `R` of §R7 — gets a **silently wrong**
-`.H` today.
+does NOT preserve the trace weight gets a **silently wrong** `.H` today.
+
+⛔ **Two corrections G6.0 forced here.**
+
+1. **No operator is silently wrong TODAY.** `[M]` `.H` is read on exactly **7**
+   AST-level expressions in all of `orpheus/` (2 internal to `operator.py`, 5 in
+   `sn/solver.py`'s adjoint), every one on a **bound composite**; and
+   `SNMesh.BOUNDARY_OPERATOR_REGISTRY` admits only `{reflective, vacuum}`, both
+   weight-preserving. So G6 **closes a trap before its consumer arrives** rather
+   than fixing a live defect. The architectural argument is untouched — realization
+   IS binding to a space — but the urgency claim was overstated, and the honest
+   version is the one that goes in the commit message.
+2. **The Ni/Ti supermirror `R` of §R7 DOES NOT EXIST in the tree.** Do not plan
+   against it. `[M]` the *only* non-weight-preserving boundary operator shipped is
+   the Lambertian `AngularAverageOperator` (`orpheus/sn/boundary/angular.py:41`),
+   reached by the white / albedo+`IsotropicReturn` arm — measured
+   `‖A†−Aᵀ‖/‖Aᵀ‖` = **0.209 / 0.684 / 0.612** (GL4 / product / lebedev), with the
+   weighted law holding at `2.2e-16` and the metric-dropped answer wrong by
+   `5.5e-1`. Four of five shipped laws are Mode-12 blind (vacuum → `ZeroOperator`;
+   reflective and albedo-specular → weight-preserving permutation, `G₋ == G₊[local]`
+   **bit-identical** on all three quadratures; periodic → opposite normals;
+   prescribed-inflow → rank-0).
 
 ### The half that is NOT built: shape and traversal ownership
 
@@ -1411,12 +1450,24 @@ never sufficient here.
 
 | step | what | note |
 |---|---|---|
-| **G6.0** | **SURVEY** the 26 unbound operators: for each, does a space already exist to bind, and does its `.H` currently rely on the Euclidean degradation? | do this FIRST — it sizes everything below and finds the operators whose adjoint is silently wrong TODAY |
-| **G6.1** | mint the half-trace space — Γ₊(face) / Γ₋(face) as a `FunctionSpace`, `name` encoding face **and** sign | the missing type; `[M]` the face must be in the NAME (see the collision below) |
-| **G6.2** | carry the **restricted metric** onto it (`partial_current_metric` restricted to the half) | so a half-trace pairing is PHYSICAL, not Euclidean — the ERR-067 family |
-| **G6.3** | bind the boundary tier: `γ± : Γ → Γ±(f)`, `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and periodic's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes |
-| **G6.4** | ⭐ **make the binding MANDATORY** — retire the `Optional[...] = None` default so an unbound operator cannot be CONSTRUCTED | this is the real fix; without it G6.3 is a convention the next operator quietly opts out of |
-| **G6.5** | move **traversal** onto the space: it owns iteration, the axis, and the local↔global index map; operators stop carrying `axis=` and call sites stop doing `to_local` | the second half of the principle |
+⛔ **RE-SCOPED 2026-08-04 after G6.0 (user ruling).** G6 does **the boundary tier,
+complete**. The tree-wide **mandate moves to #330** — because G6.0 measured that
+retiring the `None` default at the `LinearOperator` base breaks
+`orpheus/homogeneous/solver.py` (a production path) until the **energy/bulk** tier
+gets real spaces, which is a different campaign's work. That is a *principled*
+boundary, not a risk-dodge: the mandate is blocked on work G6 does not own.
+Decay cost of the two scopes, `[M]`: **~20** test sites boundary-scoped vs **~150**
+tree-wide.
+
+| step | what | note |
+|---|---|---|
+| **G6.0** | ✅ **DONE** — survey + triage of the unbound operators, and the runtime binding census | `scratch/g6_0_operator_binding_survey.md`; findings folded into §7g |
+| **G6.1** | mint the **three-tier Γ ladder**: `Γ(f)` (per-face slot), `Γ₊(f)`, `Γ₋(f)`, each with face **and** sign in the `name` | `[M]` the plan previously scoped only the halves — the **middle tier has no type either**, and is NOT recoverable as `Γ₊ ⊕ Γ₋` (see §7g) |
+| **G6.2** | carry the **restricted metric** onto each (`partial_current_metric` restricted to the tier) | so a half-trace pairing is PHYSICAL, not Euclidean — the ERR-067 family |
+| **G6.3** | bind the boundary tier: `γ± : Γ(f) → Γ±(f)`, `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and periodic's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes. **Bind from the REALIZER, per law — never from the class** (§7g) |
+| **G6.3b** | **absorb `AngularAverageOperator.apply_transpose`** (the step its own docstring assigns to boundary phase B5) | user ruling: without it the flagship gate can only run on a stand-in, which is the proxy-evidence pattern `vv-principles` #12 forbids |
+| **G6.5** | move **traversal** onto the trace spaces: they own iteration, the axis, and the local↔global index map; boundary operators stop carrying `axis=` and the realizer stops doing `to_local` | the second half of the principle, **boundary-scoped**; the tree-wide sweep is #330 |
+| ~~G6.4~~ | ~~make the binding MANDATORY~~ | **MOVED TO #330** — see the re-scoping note above |
 
 ### ⭐ The acceptance test that actually falsifies the principle
 
@@ -1426,10 +1477,21 @@ whether G6 succeeded rather than merely compiled:
 > **Change a layout in ONE place — the space — and assert (a) ZERO diff in any
 > operator file, and (b) BIT-IDENTICAL numerical output.**
 
-Concretely: permute the ordinate storage order (or move the group axis) inside
-the space's traversal abstraction; every operator body must be untouched, and
-every gate must stay green with `np.array_equal`. If any operator needs an edit,
-book-keeping is still living in the math and G6.5 is not done.
+⛔ **The concrete instruction here was IMPOSSIBLE as written, and G6.0 measured
+the ceiling.** This paragraph said *"permute the ordinate storage order (or move
+the group axis) … every gate must stay green with `np.array_equal`."* `[M]`
+floating-point summation is not associative, so a 49-term reduction is
+bit-identical under reordering only about **25 %** of the time — the criterion
+demanded something arithmetic cannot deliver. Same failure class as G4's
+acceptance line (§7d): *compute the ceiling before implementing.*
+
+**Honest replacement, and it is a STRONGER discriminator, not a weaker one:**
+permute the **face packing order** in the layout. `[M]` bit-identical **4/4 per
+face** while the flat buffer genuinely moves — so it tests exactly the claim
+(book-keeping changed, mathematics did not) without smuggling in a
+reduction-order change that no implementation could survive. Every operator body
+must be untouched and every gate green under `np.array_equal`. If any operator
+needs an edit, book-keeping is still living in the math and G6.5 is not done.
 
 Supporting acceptance:
 
@@ -1486,6 +1548,141 @@ code bug, it IS a prose bug. Its own caveat — self-adjointness *"in the
 **unweighted** inner product"* — is the second half: the trace pairing is
 weighted by `|Ω·n|·w`, so the physical-metric claim is separate and needs
 ERR-042's weight-preservation.
+
+---
+
+## 7g. G6.0 — the survey, and the two rulings that re-scoped G6 (2026-08-04)
+
+Deliverables: `scratch/g6_0_operator_binding_survey.md` (inventory + triage +
+runtime census) and `scratch/g6_verification_plan.md` (7 gates, 8-mutation
+battery + 2 controls). Design measurements: `scratch/g6_design_measurements.md`.
+Every `[M]` below is a probe, not an inference. The §7f claims these falsify
+have been corrected **in place** above (present-tense-false is the bug).
+
+### ⭐ R1 — the space ladder is THREE tiers; the middle one was never scoped
+
+| tier | shape | space today |
+|---|---|---|
+| `Γ` whole boundary | `(n_faces·n_ordinates,)` | ✔ `AngularTraceSpace` |
+| **`Γ(f)` per-face slot** | `(n_ordinates,)` | ✘ **MISSING — and unscoped until now** |
+| `Γ₊(f)` / `Γ₋(f)` | `(|Γ±|,)` | ✘ missing |
+
+`[M]` `_face_restrictions` builds `TraceRestrictionOperator(..., n_total=n_ordinates)`
+— the **per-face** count, not `layout.total_size`. And the middle tier is not
+recoverable as `Γ₊ ⊕ Γ₋`, because the tangential class is non-empty:
+
+| quadrature | `\|Γ₊\|` | `\|Γ₋\|` | sum | `n_total` | **tangential** |
+|---|---|---|---|---|---|
+| `gauss_legendre(4)` | 2 | 2 | 4 | 4 | **0** |
+| `product(4,4)` | 4 | 4 | 8 | 16 | **8** |
+| `lebedev(17)` | 49 | 49 | 98 | 110 | **12** |
+
+⚠ **`gauss_legendre(4)` has ZERO tangential ordinates** — a gate written only on
+it is blind to the entire tier (`vv-principles` Mode 7: the ansatz nulls the term
+it was meant to exercise). Every partition-touching G6 gate MUST include
+`product(4,4)` or `lebedev(17)`.
+
+Corollary: the face-collision constraint applies **one tier higher** than §7f
+says. `Γ(xmin)` and `Γ(xmax)` share `shape=(n_ordinates,)`, so with `__eq__` on
+`(name, shape)` the face must be in the name for the middle tier too.
+
+### ⭐ R2 — G and R are different KINDS of thing, and only R can be gated numerically
+
+User ruling, 2026-08-04, confirmed by the code's own Protocol
+(`geometry/boundary/_factors.py:399`): **the Lambertian is `R`, not `G`.** A
+Lambertian reflective wall is `G = identity` with `R = Lambertian`. The
+distinction is *geometry is a conceptually enforceable quotient; response is an
+assumption about a real surface* — which is exactly why `_factors.py` files
+`SpecularReemission` under **R**: *"a polished wall's specular return, which is
+constitutive rather than geometric because a wall is not a quotient."*
+
+| factor | typing | what a gate can see |
+|---|---|---|
+| **`G : Γ₊ → Γ₋`** | cross-space, NOT an endomorphism | `[M]` **metric-blind in every shipped case** — no numerical gate can ever see it. Its whole value is the **type-level refusal** of a reversed composition. |
+| **`R : Γ₋ → Γ₋`** | **endomorphism** — domain == codomain | where the metric bites (Lambertian, ‖A†−Aᵀ‖/‖Aᵀ‖ = 0.209/0.684/0.612). The flagship gate lives here, and needs only `Γ₋(f)`. |
+
+Two consequences worth carrying: the flagship gate is **more reachable** than
+scoped (one space, not the Γ₊/Γ₋ pair); and because `R` is an endomorphism it
+**can** be self-adjoint — a free, sharp invariant to gate — while §7f's
+"OUT of scope: do not give `G` a self-adjointness property" stays exactly right,
+since `Γ₊` and `Γ₋` are disjoint.
+
+### ⭐ R3 — bind from the REALIZER, per law; NEVER from the class
+
+`[M]` `TensorProductOperator` and `ScaledOperator` each land in "right by
+accident" **or** "would be silently wrong" **depending on which law is realized
+into them**. A class-level binding would therefore be a lie for half its
+instances. This is the single most important implementation constraint in G6.3.
+
+Related, and it constrains ordering: `[M]` `OperatorSum.domain` is a
+**first-non-`None` fallback**, so **both legs of a sum must be bound in one
+change** — otherwise the composite advertises a space it never verified.
+
+### R4 — the composability check's blast radius, as a number
+
+`[M]` **178 skipping compositions** over `tests/geometry + tests/sn/operators`
+(`OperatorSum` 172/1694 = 9.2 %; `OperatorProduct` 6/1568 = 0.4 %), in 10
+distinct operand shapes. Concentrated in **test fixtures, not production**:
+`Sum(IsotropicScattering, IsotropicN2N)` alone is 148 of them, and production
+`solve_sn_adjoint` skips **0 of 595**. Highest-risk shape is the 5×
+`Product(BulkAnalysisOperator, SweepOperator)` — **left codomain unbound only**,
+i.e. half-bound, where a genuine mismatch can hide because the bound side already
+committed to a space and nothing ever compared them. **Bind, run, then triage —
+and if it raises, record it as an ERR-NNN candidate before "fixing" it by
+widening the space.**
+
+### R5 — the decay list under the RULED scope is empty where it matters
+
+The verification plan's decay list (12 strict xfails + ~8 gates) was written for
+the **tree-wide mandate**. Under the ruled boundary scope, `[M]`:
+
+- The 12 `strict=True` xfails in `tests/sn/architecture/test_monomorphic_leaves.py`
+  are about the **SN bulk ladder** (L/C/S/F/B) and the meshless homogeneous path
+  — they do **NOT** flip. (They are #330's todo list, and its acceptance gates
+  are already committed there — the `xfail(strict=True)`-set-IS-the-todo-list
+  technique from the operator-strategy campaign.)
+- `[M]` **zero** gates in `tests/geometry`, `tests/sn/boundary`, `tests/sn/operators`
+  assert the boundary tier is unbound (`domain is None` / `space_anonymous`) —
+  so the **DECAY class, the dangerous one that stays green while discriminating
+  nothing, is EMPTY here.**
+- What remains is the **BREAK** class, and it is visible as reds: any
+  `assert_array_equal` on a `.H` of a newly-bound operator breaks at **1–2 nulp**,
+  because `G⁻¹(f·(G x))` vs `f·x` is not bit-identical. Re-derive each tolerance
+  from the metric round-trip depth — **do NOT relax to `allclose`**; the
+  tolerance is the claim.
+
+### R6 — the positive control, MEASURED (not predicted)
+
+`apply_inverse_metric := identity` — linear and shape-preserving, so it is clean
+under `vv-principles` anti-#18 (it does not break a structural law and inflate
+the red count). `[M]` **3 failed → 33 failed = 30 net reds**, all in the
+metric-aware `.H` family, and **zero boundary-law operators reddened** — because
+`domain is None` short-circuits the call. That is *empirical proof of the
+blindness* G6 exists to remove, and it is the control every G6 mutation run must
+carry (anti-#17).
+
+The test-architect also **reproduced anti-#17's exact failure mode** in passing:
+`grep "^FAILED"` returned zero rows on a run whose own summary read `33 failed`
+(ANSI codes). The instrument lies before the code does.
+
+### Refuted / corrected, with the structural reason
+
+- ⛔ **"Mint a generic (`EuclideanSpace` / anonymous) space first"** — proposed by
+  both agents as Tier 0, **REJECTED by the user, and the code agrees.**
+  `homogeneous/solver.py:136-141` hand-passes `basis_shape=(ng,1)` *"because the
+  meshless operators carry no `domain` space to derive it from"* — it **has** an
+  `EnergyGrid` and **needs** an energy space. So that `None` is the defect wearing
+  the sentinel's other meaning, not a mathematical category. A generic space would
+  have **institutionalized the ambiguity under a new name**. Correct fix: every
+  production `None` is a defect and gets its real space (#330); test fixtures get
+  an explicit small named space (`FunctionSpace("R3", (3,))`), one line each.
+- ⛔ **The Ni/Ti supermirror `R` (§R7)** — does not exist in the tree. Removed as
+  a motivating case above.
+- ⛔ **"26 unbound operators"** — a static-override artifact; 8 inherit real
+  bindings. True surface is 12 concrete classes.
+- ⛔ **"No operator is half-bound"** — the explorer wrote this first and corrected
+  itself by runtime census. Two classes are half-bound 100 % of the time, and
+  half-bound is worse than either extreme.
 
 ---
 
