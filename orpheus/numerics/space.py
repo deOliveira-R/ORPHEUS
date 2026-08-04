@@ -209,16 +209,47 @@ class FunctionSpace(Generic[Carrier]):
         With diagonal weights ``w`` the inner product is the weighted
         sum :math:`\sum_i w_i \, x_i \, y_i`. Without weights it
         reduces to the Euclidean :math:`\sum_i x_i \, y_i`. The
-        weights array is broadcast against ``x * y`` so a 1-D weight
-        vector along (say) the ordinate axis acts on the full
-        ``(n_cells, n_ordinates, n_groups)`` tensor without manual
+        weights array is broadcast against ``x * y`` through
+        :meth:`_broadcast_metric` — the SAME leading-axis convention
+        :meth:`_diagonal_apply_metric` uses — so a 1-D weight vector
+        along (say) the ordinate axis acts on the full
+        ``(n_ordinates, n_groups, *spatial)`` tensor without manual
         reshaping. Valid only for an ``NDArray``-carried space — the
         ``Any`` parameters are the realization/surface seam, not an
         open contract.
+
+        Notes
+        -----
+        ⛔ **This routed through numpy's default (TRAILING) broadcast
+        until 2026-08-04, while :meth:`_diagonal_apply_metric` used the
+        LEADING convention — the same metric applied along different
+        axes by two methods of one space.** The divergence is invisible
+        whenever ``w.ndim >= x.ndim`` (``_broadcast_metric`` is then a
+        no-op), which is every case the tree exercised, so it shipped.
+        It bites the moment a space carries a leading-axis metric over
+        an element with trailing axes:
+
+        * non-square shapes — :meth:`inner_product` raised
+          ``ValueError`` while :meth:`apply_metric` worked. `[M]`
+          ``SphericalHarmonicSpace.from_L(3)`` on its PRODUCTION layout
+          ``(L+1, 2L+1, ng, *spatial)`` did exactly this.
+        * square shapes — both succeeded and **silently disagreed**
+          (`[M]` 456 vs 552 on a ``(3, 3)`` probe), which is the
+          dangerous half.
+
+        Either way :math:`\langle Ax, y\rangle = \langle x, A^\dagger
+        y\rangle` is false by construction, since ``_AdjointOperator``
+        builds :math:`A^\dagger = G_V^{-1}A^{\mathsf T}G_W` from
+        :meth:`apply_metric` while the pairing that judges it came from
+        here — the ERR-067 family, one layer down. The fix is
+        bit-identical wherever the old path did not raise: it only ever
+        pads ``w`` with trailing 1s, which is a no-op when ``w`` already
+        spans every axis.
         """
         if self.inner_product_weights is None:
             return float(np.sum(x * y))
-        return float(np.sum(self.inner_product_weights * x * y))
+        w = self._broadcast_metric(self.inner_product_weights, np.ndim(x))
+        return float(np.sum(w * x * y))
 
     def norm(self, x: Carrier) -> float:
         r"""Return the induced :math:`L^2` norm

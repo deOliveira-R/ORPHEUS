@@ -18,6 +18,19 @@ subclasses that carry domain-specific metadata beyond
   + the signed :math:`\Omega\cdot\hat n` per face; inflow / outflow are
   *selectors* over it (no longer separate ``Inflow`` / ``Outflow``
   subclasses).
+* :class:`AngularFaceTraceSpace` (G6.1, #330) — one directional tier of
+  that trace at ONE face: the whole ordinate slot :math:`\Gamma(f)`, or
+  the half-traces :math:`\Gamma_+(f)` / :math:`\Gamma_-(f)`. These are
+  the spaces the boundary operators BIND to, so that
+  :math:`\gamma_\pm`, the deck transformation :math:`G` and the
+  constitutive response :math:`R` carry a domain and a codomain and
+  their adjoints fall out of :math:`A^\dagger = G_V^{-1}A^{\mathsf T}G_W`
+  instead of being hand-rolled. Built by the parent trace space
+  (:meth:`~AngularTraceSpace.face_space` /
+  :meth:`~AngularTraceSpace.outflow_space` /
+  :meth:`~AngularTraceSpace.inflow_space`), never directly. Note the
+  three tiers do NOT partition — tangential ordinates belong to
+  :math:`\Gamma(f)` alone.
 * :class:`ScalarTraceSpace` (#290 P2) — the quadrature-free scalar
   sibling of :class:`AngularTraceSpace`: per-face ``(J⁺, J⁻)``
   partial-current pairs under the face-AREA metric, for methods whose
@@ -49,13 +62,19 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+from orpheus.numerics.spaces.angular_trace_space import (
+    AngularFaceTraceSpace,
+    AngularTraceSpace,
+    TraceRole,
+)
 
 __all__ = [
+    "AngularFaceTraceSpace",
+    "AngularTraceSpace",
     "FullFieldSpace",
     "ScalarTraceSpace",
     "SpatialMomentSpace",
     "SphericalHarmonicSpace",
-    "AngularTraceSpace",
+    "TraceRole",
     "spatial_moment_tail",
 ]

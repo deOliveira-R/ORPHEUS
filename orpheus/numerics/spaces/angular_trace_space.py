@@ -131,7 +131,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -149,7 +149,20 @@ if TYPE_CHECKING:
     from orpheus.numerics.quadrature import Quadrature
 
 
-__all__ = ["AngularTraceSpace", "TANGENTIAL_EPS", "build_omega_dot_n"]
+__all__ = [
+    "AngularFaceTraceSpace",
+    "AngularTraceSpace",
+    "TANGENTIAL_EPS",
+    "TraceRole",
+    "build_omega_dot_n",
+]
+
+#: Which directional class a per-face tier of the Γ ladder carries.
+#: ``"full"`` is the whole ordinate slot Γ(f); ``"outflow"`` / ``"inflow"``
+#: are the half-traces Γ₊(f) / Γ₋(f). The three do NOT partition: tangential
+#: ordinates (``|Ω·n| <= TANGENTIAL_EPS``) belong to ``"full"`` alone, which
+#: is why ``"not inflow"`` must never be spelled ``"outflow"``.
+TraceRole = Literal["full", "outflow", "inflow"]
 
 
 # Tangential tolerance for the unit-vector projection ``Ω · n``. A
@@ -499,3 +512,165 @@ class AngularTraceSpace(FunctionSpace):
         """Raise the layout's own error for an unknown face name."""
         self._face_row(face)
         return face
+
+    # ── The Γ ladder: the per-face tiers, AS SPACES (G6.1) ───────────
+
+    @cached_property
+    def _face_spaces(self) -> "dict[tuple[TraceRole, str], AngularFaceTraceSpace]":
+        r"""``(role, face) -> Γ`` — the whole ladder, built once per space.
+
+        Cached for the same reason as :attr:`_face_restrictions`: a
+        half-trace space is per-``(face, quadrature)``, so constructing one
+        per call would move allocation into the per-sweep path. Built on the
+        trace space (which the mesh already caches), never at each
+        realization.
+        """
+        out: dict[tuple[TraceRole, str], AngularFaceTraceSpace] = {}
+        metric_flat = np.asarray(self.partial_current_metric)
+        for face in self.face_names:
+            slot = self.layout.faces[face]
+            n_ordinates = int(slot.shape[0])
+            # The metric restricted to THIS face, then reduced to its leading
+            # (ordinate) axis: `[M]` it is constant across the trailing group /
+            # codim-1 spatial axes by construction (`_build_trace_metric_weights`
+            # broadcasts one per-ordinate vector across the slot), and
+            # `_broadcast_metric` re-expands a leading vector on application.
+            # Storing the 1-D vector rather than the full slot keeps ONE
+            # source of truth for the weight and matches the base's
+            # broadcast convention.
+            face_metric = slot.slice_view(metric_flat).reshape(n_ordinates, -1)[:, 0]
+            tiers: tuple[tuple[TraceRole, np.ndarray], ...] = (
+                ("full", np.arange(n_ordinates, dtype=np.intp)),
+                ("outflow", self.outflow_indices_for_face(face)),
+                ("inflow", self.inflow_indices_for_face(face)),
+            )
+            for role, indices in tiers:
+                out[(role, face)] = AngularFaceTraceSpace(
+                    name=_face_space_name(face, role),
+                    shape=(len(indices), *slot.shape[1:]),
+                    inner_product_weights=face_metric[indices],
+                    face=face,
+                    role=role,
+                    ordinate_indices=np.asarray(indices, dtype=np.intp),
+                )
+        return out
+
+    def face_space(self, face: str) -> "AngularFaceTraceSpace":
+        r""":math:`\Gamma(f)` — the whole ordinate slot at ``face``.
+
+        The **middle tier** of the ladder, and NOT the direct sum
+        :math:`\Gamma_+ \oplus \Gamma_-`: the tangential ordinates
+        (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither half, and
+        `[M]` there are 0 / 8 / 12 of them on ``gauss_legendre(4)`` /
+        ``product(4,4)`` / ``lebedev(17)``. It is the DOMAIN of both trace
+        maps :math:`\gamma_\pm`.
+        """
+        return self._face_spaces[("full", self._checked_face(face))]
+
+    def outflow_space(self, face: str) -> "AngularFaceTraceSpace":
+        r""":math:`\Gamma_+(f)` — the outflow half-trace at ``face``.
+
+        The codomain of :math:`\gamma_+` and the **domain** of every boundary
+        law (:math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`).
+        """
+        return self._face_spaces[("outflow", self._checked_face(face))]
+
+    def inflow_space(self, face: str) -> "AngularFaceTraceSpace":
+        r""":math:`\Gamma_-(f)` — the inflow half-trace at ``face``.
+
+        The codomain of :math:`\gamma_-`, the **codomain** of the deck
+        transformation :math:`G`, and BOTH ends of the constitutive response
+        :math:`R : \Gamma_- \to \Gamma_-` — which is why ``R``, unlike ``G``,
+        is an endomorphism and can be self-adjoint.
+        """
+        return self._face_spaces[("inflow", self._checked_face(face))]
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The per-face tiers of the Γ ladder
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _face_space_name(face: str, role: "TraceRole") -> str:
+    r"""The identity of a face tier: ``angular_trace[<face>:<role>]``.
+
+    ⭐ **The face and the role are LOAD-BEARING, not decoration.**
+    :meth:`FunctionSpace.__eq__` is ``(name, shape)`` and
+    ``inner_product_weights`` is ``compare=False``, so the metric offers no
+    secondary discrimination. `[M]` every shipped quadrature gives
+    :math:`|\Gamma_+(x_{\min})| = |\Gamma_+(x_{\max})|` (2/2, 4/4, 49/49 on
+    ``gauss_legendre(4)`` / ``product(4,4)`` / ``lebedev(17)``) over DIFFERENT
+    ordinate indices — so a name omitting the face would make a space compare
+    EQUAL to its opposite face's, and a cross-face composition would
+    type-check while being wrong. That is the exact error class the binding
+    exists to refuse, re-admitted by the mechanism meant to close it.
+    """
+    return f"angular_trace[{face}:{role}]"
+
+
+@dataclass(frozen=True)
+class AngularFaceTraceSpace(FunctionSpace):
+    r"""One directional tier of the boundary trace at ONE face.
+
+    The three tiers — :math:`\Gamma(f)` (the whole ordinate slot),
+    :math:`\Gamma_+(f)` (outflow) and :math:`\Gamma_-(f)` (inflow) — are the
+    SAME kind of object differing only in *which ordinates they carry*, so
+    they are one class parameterised by :attr:`ordinate_indices`, not three.
+    :attr:`role` is carried for the space's NAME (its identity) and for
+    legibility; **nothing dispatches on it** — a predicate answering by role
+    string would be the stringly-typed dispatch this design exists to avoid.
+
+    Construct via :meth:`AngularTraceSpace.face_space` /
+    :meth:`~AngularTraceSpace.outflow_space` /
+    :meth:`~AngularTraceSpace.inflow_space`, never directly: the parent trace
+    space owns the layout, the signed :math:`\Omega\cdot\hat n` and the
+    partial-current metric, and is already cached per mesh.
+
+    Parameters
+    ----------
+    face : str
+        The face this tier lives on. Part of the space's IDENTITY via
+        :func:`_face_space_name` — see that function for why omitting it
+        silently re-admits cross-face composition.
+    role : {"full", "outflow", "inflow"}
+        Which directional class. Identity + legibility only.
+    ordinate_indices : NDArray
+        Indices into the face's **leading (ordinate) axis**. Sorted and
+        unique. For ``role="full"`` this is ``arange(n_ordinates)``.
+
+    Notes
+    -----
+    **Why the middle tier exists.** :math:`\Gamma(f)` is not recoverable as
+    :math:`\Gamma_+ \oplus \Gamma_-`, because the tangential ordinates
+    (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither half. `[M]`
+    counts are 0 / 8 / 12 on ``gauss_legendre(4)`` / ``product(4,4)`` /
+    ``lebedev(17)``. ⚠ Note the first: **``gauss_legendre(4)`` has no
+    tangential ordinates at all**, so a gate written only on it is blind to
+    this entire tier (``vv-principles`` Mode 7 — the fixture nulls the term it
+    was meant to exercise). Gate on ``product(4,4)`` or ``lebedev(17)``.
+
+    **The metric.** :attr:`inner_product_weights` is
+    :math:`|\Omega\cdot\hat n_f|\odot w_n` restricted to
+    :attr:`ordinate_indices` — a 1-D vector along the leading axis, which the
+    base's :meth:`~FunctionSpace._broadcast_metric` re-expands across the
+    trailing group / codim-1 spatial axes on application. It is **never**
+    Euclidean: a half-trace pairing that dropped it would be the ERR-067
+    family, and it is exactly what makes ``.H`` the Hilbert adjoint
+    :math:`A^\dagger = G_V^{-1}A^{\mathsf T}G_W` rather than the bare
+    transpose. On the two HALVES the metric is strictly positive (the
+    tangential rows are excluded by construction); on the ``"full"`` tier it
+    vanishes on the tangential rows, where the base's Moore-Penrose
+    :meth:`~FunctionSpace.apply_inverse_metric` correctly returns zero.
+    """
+
+    # ``compare=False`` throughout: identity is ``(name, shape)`` (the base's
+    # contract), and the name already encodes face + role, so these would be
+    # redundant discriminators. It is also REQUIRED for ``ordinate_indices`` —
+    # an array-valued compare field makes the dataclass ``__eq__`` raise on
+    # the ambiguous element-wise truth value.
+    face: str = field(kw_only=True, compare=False)
+    role: "TraceRole" = field(kw_only=True, compare=False)
+    ordinate_indices: NDArray = field(kw_only=True, repr=False, compare=False)
+
+    def __repr__(self) -> str:
+        return f"AngularFaceTraceSpace({self.name!r}, shape={self.shape})"
