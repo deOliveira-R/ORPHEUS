@@ -44,6 +44,12 @@ the residual directly. Seconds, and decisive. → L-029
 replacing `O_h`'s 48 ops with its 8 diagonal sign-flips (= `D_2h`) left a
 182-test suite green. → L-062
 
+**A8. Mutate INSIDE the object's algebraic class, or the reds are catching the
+LAW you broke.** [skill: #18] A CONSTANT written into a linear operator's output
+makes it affine → 60 Krylov/SI gates red; the realistic LINEAR bug (same 94k
+rows) red exactly 1 of 5076. Ask of every red: *by what mechanism does THIS gate
+see THIS property?* Over-power lies "richly caught" — the flattering direction. → L-063
+
 **A7. ONE mutation direction is almost never enough — enumerate the leaks and
 red each.** (a) *Capability default-OFF*: the factory AUTO-SELECTS the wider
 shape, OR appends a PHANTOM length-1 axis (control:
@@ -278,6 +284,14 @@ claim.** A loud `NotImplementedError` on the deferred half is the CORRECT interi
 **F10. Every brief-named symbol/file is a CLAIM — confirm with `find`/grep before
 editing** (two phantoms in one brief). Byte-compile no-test generator SCRIPTS
 after a rewire: a broken import there is a breakage no test run surfaces. → L-051
+
+**F12. A retired claim quantified over a COMPLEMENT has one clause per partition
+class — enumerate before ruling obsolete.** The SN face partition is THREE-way,
+so "residual zero at non-outflow" = inflow (INVERTED by #208) ⊔ tangential (still
+exactly true). Rewriting the sentence around the inverted clause silently retires
+the survivor. Check whether the file's own fixtures can even EXPRESS the survivor
+(all 3 there carry 0 tangential ordinates; GL-at-even-order is the only
+production quadrature with none). → L-063
 
 **F11. ACCEPT a floor-CHARACTER gate; do not demand a floor-REMOVAL gate.** When
 a fix cleans a RATE but leaves a floor, the honest claim is a falsifiable scaling

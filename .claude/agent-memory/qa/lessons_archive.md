@@ -2570,3 +2570,87 @@ argument and every run produced no tests and a 0 counter; use a shell FUNCTION
 with `"$@"` and always print the baseline `N passed` line in the same loop.
 Cross-refs [[lessons-L024]], [[lessons-L058]] (Mode-12 verify-by-running),
 [[lessons-L061]] (bite check on your own mutation).
+
+## L-063 — a retired claim over "not-X" carries as many clauses as the partition has classes; and an over-powered mutation over-states coverage 60x
+
+**Context.** `tests/sn/operators/test_native_matvec.py` pin 5 read "face residual
+zero at NON-OUTFLOW ordinates (inflow ords get their value from the BC)". Wave O
+#208 O.4a.2 inverted the inflow half — the live gate
+`test_outer_face_inflow_slots_carry_the_identity` asserts `out[inflow] ==
+psi.inflow`. Commit `b4984773` corrected the prose. Question posed: is the old
+claim obsolete, or did it describe a still-true property that got silently dropped?
+
+**Finding 1 — decompose the quantified set BEFORE ruling.** The SN face partition
+is THREE-way (inflow ⊔ outflow ⊔ tangential, `|Ω·n| <= TANGENTIAL_EPS =
+4*eps`), so "non-outflow" is TWO clauses with INDEPENDENT fates:
+- inflow clause: **inverted** (obsolete). Mutation-verified live: emptying the
+  inflow index set (= re-introducing the old claim verbatim) reds 4 gates; a
+  mask swap reds the same 4.
+- tangential clause: **still exactly true**. Production
+  (`loss_representation/__init__.py:1162-1172` multi-D, `:3355-3378` 1-D)
+  allocates `AngularBoundarySourceSink.zeros_on` and writes ONLY `out_idx` /
+  `in_idx`, so tangential rows stay at zero by construction. Measured
+  `array_equal(out[tan], 0)` True on cylinder `product(2,4)` (4/8 tangential),
+  `product(4,8)` (8/32), sphere `product(4,4)` (8/16).
+A prose fix that re-writes the whole sentence around the inverted clause silently
+retires the surviving one. **When a retired claim quantifies over a complement
+("non-X", "not inflow", "everything else"), enumerate the partition first.**
+
+**Finding 2 — the pin file cannot express its own surviving clause.** All three
+fixtures (`gauss_legendre(4)` slab + sphere, `level_symmetric(4)` cylinder) carry
+**zero** tangential ordinates: the mutation bit 0 rows over 23 apply calls.
+GL-at-even-order is the ONLY production quadrature with no tangential ordinate
+(`numerics/operator.py:2533`). So the file's fixture set is exactly the blind spot.
+
+**Finding 3 (the expensive one) — an over-powered mutation over-stated coverage
+by 60x.** First mutation wrote a CONSTANT `SENTINEL=7.25` into the tangential
+output rows: **60 new reds** over 5076 tests (kinf analytical, streaming
+equilibrium, MMS, sweep-inverse, DD regression). Reading that as coverage would
+have been wrong: a constant makes a LINEAR operator **affine**, and every one of
+those 60 is a Krylov/SI solve that diverges when its operator stops being linear.
+Re-run with the realistic LINEAR bug — `out[tan] = ±ψ[tan]`, what you get by
+initialising the output block from the input, or from the documented "not inflow
+== outflow" trap (`streamed[tan] - given[tan] = -given[tan]`) — the SAME 94 148
+rows over 9 949 meshes reddened **exactly 1** test, for BOTH signs. → new
+`vv-principles` anti-pattern **#18** (the dual of #17: #17's broken harness lies
+"0 caught"; an over-strong mutation lies "richly caught", and an audit closes on it).
+
+**Finding 4 — why only one catcher CAN exist.** The trace metric
+`G = |Ω·n|·w_n` is *exactly* 0 on tangential rows: a `1e6` perturbation there
+moves `⟨x,y⟩_G` by `0.0` — bit-identical. And the rows are decoupled: varying the
+tangential INPUT by `1e3` leaves the bulk `(L+C)ψ` and every other face row
+**bit-identical**. So every G-weighted gate (reciprocity, duality, norms,
+pseudo-inverse round-trip) and every solver-level observable is designed-green
+(Mode 12) — a direct array assertion is the only instrument that can exist.
+`numerics/spaces/full_field_space.py:47-53` states the property and relies on it
+for the Moore–Penrose adjoint being exact.
+
+**The one catcher.** `tests/sn/operators/test_sweep_inverse_identity.py::
+TestSweepInverseIdentity::test_forward_of_inverse_is_identity_on_a_random_composite[cyl_product]`
+— asserts `back.boundary.face_view(face)[degenerate] == 0` where
+`degenerate = setdiff1d(arange(N), union(inflow, outflow))`. Its `cyl_product`
+fixture (`product(n_mu=4, n_phi=8)`) is documented as "the #280 MANDATORY cylinder
+config: a PRODUCT quadrature carries degenerate pure-azimuthal ordinates".
+Residual weakness: that branch is `if degenerate.size:` with NO non-vacuity guard
+— the file's `pytest.fail("no live trace rows")` guards `n_live`, not
+`degenerate`. A fixture drift to `level_symmetric` silently deletes the tree's
+only catcher with zero signal.
+
+**Pins 4 / 6 / 7 (same file, same question).** All three genuinely obsolete.
+(4) `boundary.xmax_face` → `face_view("xmax")` is an accessor rename; the
+attribute no longer exists anywhere and the shape contract it named is asserted
+live in `TestOutputShape`. (6) the `eq_map` cross-check partner is gone from
+`orpheus/` entirely (`EquationMap`/`face_outer_ordinate`: 0 hits in production,
+prose-only in tests); the residual "does the matvec use the right mask" is
+mutation-verified — both the empty-inflow and mask-swap mutations red 4 gates.
+(7) the `NotImplementedError` guard's removal is the point of the change; real
+2-D correctness lives in the MMS-2D + T4b snapshot suites, not here.
+
+**Method notes.** Baseline carried 7 pre-existing reds (in-flight quadrature /
+geometry campaigns) — always diff, never count. Two direct `loss_action` callers
+bypass an `.apply`-level mutation (`test_one_octant_walk.py:149` discards the
+result; `test_ld_adjoint_deferral.py:425` asserts only `interior.values`), so
+neither hides a catcher. zsh `$SUITE` word-split bit AGAIN (L-062 (d)): the first
+baseline run collected zero tests and reported `1 warning in 0.01s`.
+Cross-refs [[lessons-L061]], [[lessons-L062]] (bite check, positive control),
+[[lessons-L058]] (verify a blindness narrative by RUNNING it).
