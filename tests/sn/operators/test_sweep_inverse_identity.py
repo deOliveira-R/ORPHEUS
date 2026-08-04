@@ -164,6 +164,7 @@ class TestSweepInverseIdentity:
                     f"the bulk",
         )
         n_live = 0
+        n_degenerate = 0
         for face in rhs.boundary.layout.faces:
             live = np.union1d(
                 trace.inflow_indices_for_face(face),
@@ -173,6 +174,7 @@ class TestSweepInverseIdentity:
                 np.arange(sn_mesh.quad.N), live,
             )
             n_live += live.size
+            n_degenerate += degenerate.size
             np.testing.assert_allclose(
                 np.asarray(back.boundary.face_view(face))[live],
                 np.asarray(rhs.boundary.face_view(face))[live],
@@ -199,6 +201,28 @@ class TestSweepInverseIdentity:
                 )
         if not n_live > 0:
             pytest.fail(f"{geom}: no live trace rows — vacuous gate")
+        if geom == "cyl_product" and n_degenerate == 0:
+            # This is the ONLY assertion in the tree that the forward is a
+            # structural zero on the tangential (μ_r = 0) slots — measured
+            # 2026-08-03 by mutating those rows with a LINEAR bug
+            # (``out[tan] = ±ψ[tan]``): exactly 1 of 5076 tests reddened,
+            # this one. The trace metric ``G = |Ω·n|·w_n`` is EXACTLY zero
+            # there, so every G-weighted or solver-level gate is Mode-12
+            # designed-green and structurally cannot see it.
+            #
+            # The ``if degenerate.size:`` branch above is therefore
+            # load-bearing but self-silencing: swap this fixture to
+            # ``level_symmetric`` (or any even-order Gauss-Legendre, the
+            # one production family with no tangential ordinate) and the
+            # branch simply stops executing — green, with the property
+            # unasserted anywhere. Fail loudly instead.
+            pytest.fail(
+                "cyl_product carries no tangential ordinates — the tree's "
+                "only catcher for the structural-zero trace row has gone "
+                "vacuous. Restore a PRODUCT quadrature here (see the #280 "
+                "MANDATORY config on _mesh_cyl) rather than deleting this "
+                "guard."
+            )
 
     @pytest.mark.parametrize("geom", _GEOMS)
     def test_pure_outflow_rhs_round_trips(self, geom):

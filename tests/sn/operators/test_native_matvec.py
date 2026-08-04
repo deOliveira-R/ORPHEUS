@@ -28,13 +28,32 @@ machinery they cross-checked:
 4. Output shape ``(N, ng, *spatial)`` for cells + ``(N, ng)`` per
    boundary face (``boundary.face_view("xmax")``, and the slab inner
    face) — the path-forward typed contract.
-5. Face residual at the outflow ordinates is the outflow-definition
-   defect ``streamed − ψ.outflow``; at the INFLOW ordinates it is the
-   ``I·ψ.inflow`` IDENTITY, not zero.  (Wave O #208 O.4a.2 inverted
-   this pin: pre-carve the matvec re-applied the BC internally and
-   emitted a zero residual there; post-carve the trace inflow is an
-   explicit unknown driven by the boundary consistency residual
-   ``ψ.inflow − B·ψ.outflow``.)
+5. Face residual, per face class.  The partition is **THREE-way**
+   (inflow ⊔ outflow ⊔ tangential), so this pin has three clauses and
+   they have independent fates:
+
+   * **outflow** — the outflow-definition defect
+     ``streamed − ψ.outflow``.
+   * **inflow** — the ``I·ψ.inflow`` IDENTITY, *not* zero.  (Wave O
+     #208 O.4a.2 inverted this clause: pre-carve the matvec re-applied
+     the BC internally and emitted a zero residual there; post-carve
+     the trace inflow is an explicit unknown driven by the boundary
+     consistency residual ``ψ.inflow − B·ψ.outflow``.)
+   * **tangential** (``μ_r = 0``) — an exact structural ZERO, and
+     still true.  ⚠ It is NOT asserted in this file, and cannot be:
+     all three fixtures here (GL-4 slab, GL-4 sphere, LS-4 cylinder)
+     carry **zero** tangential ordinates — even-order Gauss-Legendre
+     is the one production family with none.  A test added here would
+     pass vacuously.  The tree's sole catcher is
+     ``test_sweep_inverse_identity.py`` on its ``cyl_product``
+     fixture, which now fails loudly if that fixture ever loses its
+     tangential ordinates.
+
+   Historical note: this pin used to read "residual zero at
+   **non-outflow** ordinates", which conflated the last two clauses —
+   "not outflow" is not "inflow".  When Wave O inverted the inflow
+   half, a 2026-08-03 correction rewrote the sentence around it and
+   dropped the tangential half entirely; measurement restored it.
 6. *(RETIRED — D-J 2026-05-30.)*  ``TestQuadDerivedMaskEqualsLegacySlotMap``
    pinned ``quad.mu_x > 0`` ≡ ``eq_map.face_outer_ordinate``; the
    ``eq_map`` side no longer exists, so the equivalence is the
