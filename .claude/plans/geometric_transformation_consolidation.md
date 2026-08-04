@@ -1,7 +1,26 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 LANDED (`6acb6a8a`). G2 next.** This file is the plan of record;
-> it is written to survive a compaction and be picked up cold.
+> **STATUS: G1 · G1b · G2 · G3 LANDED. ⏸ COMPACTION POINT — G4 is next.**
+> This file is the plan of record; it is written to survive a compaction and be
+> picked up cold. Verify every hash below with
+> `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
+> a snapshot, and the `NEXT =` field is the one that rots (see the main memory
+> index's three index disciplines, 2026-08-03).
+>
+> | phase | commit(s) | what landed |
+> |---|---|---|
+> | **G1** | `6acb6a8a` | `orpheus/geometry/transformation.py` — the dimension-generic rigid-motion core |
+> | **G1b** | `cc5703ed` | the `E(d)→E(D)` embedding, the `Permutation` type, `NotAFinitePointGroupError` |
+> | **G2** | `387fe625` | verified against PURE MATH — 42 gates / 96 cases, 32 mutations / 32 caught / 0 blind |
+> | **G3** | `3bf029de` + `0c3d4e65` | `numerics/symmetry.py` speaks `RigidMotion`; the 1-D/3-D arm split deleted; the 1-D invariance tag corrected to `Mirror("x")` |
+>
+> **G4 (next)** — close the checker-side `roots_of_unity` sites (`_cyclic_ops`,
+> `_vertical_mirrors`); acceptance is `Dnh(n_φ)` **exact on BOTH sides**. G1 put
+> the hook in place for it: `RigidMotion.rotation_from_circle_point(plane=, point=)`
+> builds a rotation from an EXACT circle point rather than from an angle, so the
+> checker can consume `roots_of_unity` directly instead of re-deriving `cos`/`sin`.
+> See the §"what G4 needs" note further down and the phase table at the campaign
+> plan's end.
 >
 > **Branch** `refactor/operator-strategy-layers`. Base commit at authoring:
 > `bfedc621` (Q5.0.2 — `Z2` retired, `Mirror(axis)` minted).
