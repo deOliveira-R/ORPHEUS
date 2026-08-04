@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 · G1b · G2 · G3 · G4 LANDED. G5 is next.**
+> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 LANDED. G6 is next (SCOPED, §7f).**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -14,10 +14,14 @@
 > | **G2** | `387fe625` | verified against PURE MATH — 42 gates / 96 cases, 32 mutations / 32 caught / 0 blind |
 > | **G3** | `3bf029de` + `0c3d4e65` | `numerics/symmetry.py` speaks `RigidMotion`; the 1-D/3-D arm split deleted; the 1-D invariance tag corrected to `Mirror("x")` |
 > | **G4** | `cfe0a448` (§7d) | the checker's `C_n` / `σ_v` re-based on `roots_of_unity`; mirrors become the coset `C_n·σ₀`; `_rotation_z` retired |
+> | **G4.5** | `af99f064` (§7d) | the index-permutation route to an exact `0.0` — proposed, measured, **abandoned** with its reason |
+> | **G5** | `3cce383a` + `241097b3` (§7e) | `SelfPairedDeck` minted and verified, then `IdentityMap` + `SpecularMirror` retired onto it; two decaying gates re-posed in the same commit |
 >
-> **G5 (next)** — the BC layer's 4 σ_a vocabularies + `_reflect_corner`;
-> `ReflectionLaw` binding; acceptance `product(4,5)`'s `ValueError` →
-> `BoundaryError`.
+> **G6 (next)** — bind the boundary operators' `domain`/`codomain` to the trace
+> spaces, so B3.2's `G : Γ₊ → Γ₋` narrowing becomes CHECKED rather than merely
+> documented. Fully scoped in **§7f** (measured facts, the face-encoded-name
+> constraint, substeps G6.1–G6.5, risks, acceptance, and what is deliberately
+> out of scope). Steps G7/G8/G9 are the former G6/G7/G8, renumbered.
 >
 > **Branch** `refactor/operator-strategy-layers`. Base commit at authoring:
 > `bfedc621` (Q5.0.2 — `Z2` retired, `Mirror(axis)` minted).
@@ -678,9 +682,10 @@ it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 | **G3** ◐ | route `symmetry.py`'s seven constructors through the core (**DONE**); delete the 1-D/3-D arm split (**BLOCKED — needs a ruling, see §7c**) | realizations bit-identical |
 | **G4** ✅ §7d | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | ⛔ "`Dnh(n_φ)` exact on BOTH sides" is **unachievable** — angle-addition is not a float theorem. Landed criterion: exact at `n_φ ∈ {1,2,4}`, and mirror residual **≡** rotation residual everywhere |
 | **G5** | the BC layer's 4 σ_a vocabularies + `_reflect_corner`; `ReflectionLaw` binding | `product(4,5)`'s `ValueError` → `BoundaryError` |
-| **G6** | MoC: replace the 2 guard-free `argmin`s with the certificate; adopt `periodic_trapezoid` | the 8.96e-2 cm link gap becomes visible |
-| **G7** | ⭐ **migrate the tests** onto the verified machinery | coverage preserved; re-run each gate's justifying mutation |
-| **G8** | retire superseded spellings + dead code (`_rotation_x/_y`, the `directional.py:209` re-spelling, the ghost-justified epsilons) | grep clean |
+| **G6** ⭐ NEW | **bind the boundary operators' domain/codomain to the trace spaces** (§7f) | a Γ₋→Γ₊ composition is REFUSED, not silently skipped |
+| **G7** (was G6) | MoC: replace the 2 guard-free `argmin`s with the certificate; adopt `periodic_trapezoid` | the 8.96e-2 cm link gap becomes visible |
+| **G8** (was G7) | ⭐ **migrate the tests** onto the verified machinery | coverage preserved; re-run each gate's justifying mutation |
+| **G9** (was G8) | retire superseded spellings + dead code (`_rotation_x/_y`, the `directional.py:209` re-spelling, the ghost-justified epsilons) | grep clean |
 
 **Bit-identity — two sets, two different gates.** *Preservation* (must stay
 bit-identical): `_reflections`, `_octahedral_ops`, `directional.py:574`
@@ -832,7 +837,7 @@ gauge; the numeric VALUE of the match window (lower-bounded by measurement,
 upper-bounded only by the consumer's own minimum point separation — so default
 it *relative to* that intrinsic quantity, which also retires
 `_NODE_WINDOW_FACTOR` honestly); and the physical centroid computation, which is
-G7's, not G2's.
+G8's, not G2's (the test-migration step, renumbered when G6 was inserted).
 
 ---
 
@@ -1245,6 +1250,113 @@ collapse:
 
 Two gates got *stronger* for free: `test_factors_are_frozen` had a vacuous
 branch for the field-less `IdentityMap` and now runs for every geometry factor.
+
+---
+
+## 7f. G6 (SCOPED, not started) — bind the boundary operators to their trace spaces
+
+**Origin.** A user review question after G5: *"does the realizer turn a declared
+geometry BC into a LinearOperator with bound domain and codomain, operating on
+the trace space, with adjoint? (I think a reflective boundary also has a
+self-adjoint property)"*. Measured answer: **LinearOperator yes, adjoint yes,
+bound spaces NO, self-adjoint NOT as typed.** G6 closes the third; the fourth is
+deliberately NOT chased (see "explicitly out of scope").
+
+### What is measured true today
+
+| question | measured |
+|---|---|
+| realized reflective BC is a `LinearOperator` | ✔ `TensorProductOperator`, `isinstance` True |
+| `.H` exists | ✔ returns `_AdjointOperator` |
+| `domain` / `codomain` | ✘ **`None`** on `gauss_legendre(4)`, `product(4,4)`, `lebedev(17)` |
+| a trace `FunctionSpace` exists to bind to | ✔ `AngularTraceSpace(FunctionSpace)`, `spaces/angular_trace_space.py:299` |
+| the half-traces Γ₊(f) / Γ₋(f) exist as SPACES | ✘ they are **index arrays** + a `TraceRestrictionOperator` |
+| `TraceRestrictionOperator` binds spaces | ✘ it carries `n_restricted`, a **length** |
+
+**So the gap is layer-wide and consistent, not an inconsistency**: the whole
+boundary operator family is *shape*-typed, never *space*-typed. And the cost is
+named in `LinearOperator.domain`'s own docstring — *"when either operand has
+`None` … the composability check is **SKIPPED**"*. B3.2's narrowing to
+`G : Γ₊ → Γ₋` is real in the guards and the prose and **absent from the type
+system**, so composing a boundary law the wrong way round is not refused.
+
+### ⛔ The design constraint, and it is MEASURED not hypothetical
+
+`FunctionSpace.__eq__` is `(name, shape)` — the weakest of the nesting tiers
+([[lessons-L29]]). Measured, for every shipped quadrature:
+
+```
+gauss_legendre(4)  |Γ₊(xmin)|=2   |Γ₊(xmax)|=2   same size=True  same INDICES=False
+product(4,4)       |Γ₊(xmin)|=4   |Γ₊(xmax)|=4   same size=True  same INDICES=False
+lebedev(17)        |Γ₊(xmin)|=49  |Γ₊(xmax)|=49  same size=True  same INDICES=False
+```
+
+⟹ **a half-trace space whose `name` does not encode the FACE (and the sign)
+compares EQUAL to its opposite face's**, so a cross-face composition would
+type-check while being wrong — the exact class G6 exists to refuse, re-admitted
+by the mechanism meant to close it. The name is load-bearing; `shape` alone is
+never sufficient here.
+
+### Substeps
+
+| step | what | note |
+|---|---|---|
+| **G6.1** | mint the half-trace space — Γ₊(face) / Γ₋(face) as a `FunctionSpace`, `name` encoding face **and** sign | the missing type; everything else is wiring |
+| **G6.2** | carry the **restricted metric** onto it (`AngularTraceSpace.partial_current_metric` restricted to the half) | so `⟨·,·⟩` on a half-trace is the PHYSICAL pairing, not Euclidean — the ERR-067 family, where a wrong metric put the error class inside the measured functional's stabiliser |
+| **G6.3** | bind on `TraceRestrictionOperator`: `γ₊ : Γ → Γ₊(f)`, `γ₋ : Γ → Γ₋(f)` | it already knows both index sets |
+| **G6.4** | bind on the realized BC operators: `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and the periodic wrap's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes |
+| **G6.5** | verify `.H` inherits the SWAPPED pair (`G.H : Γ₋ → Γ₊`) rather than inheriting `None` | today `.H` is type-correct only by accident |
+
+### Risks, in the order they are likely to bite
+
+1. **Turning on a check that has never run.** Every `None` today means a skipped
+   composability test; binding spaces makes those tests fire tree-wide for the
+   first time. Some will be REAL bugs and some will be false positives from
+   legitimately-untyped legacy paths. **Survey before binding** — count how many
+   compositions currently skip, and triage — rather than discovering it as a
+   wall of reds.
+2. **The periodic wrap crosses faces** (`domain_face → face_opposite`), so it is
+   the one law whose domain and codomain belong to DIFFERENT faces. It is the
+   natural first witness that the face-encoded name works, and the natural first
+   casualty if it does not.
+3. **A half-trace space is per-(face, quadrature)**, so naive construction in a
+   hot path could allocate per call. Build it on the trace space (which is
+   already cached) rather than at each realization.
+
+### Acceptance
+
+- A deliberately reversed composition (`R ∘ G` built as `G ∘ R`, or a
+  `Γ₋→Γ₊` operator fed where `Γ₊→Γ₋` is required) **raises**, and the message
+  names both spaces. Mutation-verified, with a positive control.
+- `Γ₊(xmin) != Γ₊(xmax)` — the measured collision above, now refused.
+- Bit-identical: binding spaces changes no numbers. `np.array_equal` on every
+  realized boundary operator's action, before vs after.
+- The pre-existing red set is unchanged (task #33 + the 3 quadrature-campaign
+  SN reds, signatures 1152 ULP / 296 ULP / `assert False`).
+
+### Explicitly OUT of scope, with the reason
+
+**Do NOT give `G` a self-adjointness property.** It is honestly false for the
+narrowed operator: Γ₊ and Γ₋ are DISJOINT index sets (measured on all three
+quadratures), and self-adjointness requires domain = codomain. The local-
+coordinate matrix *looks* symmetric on `gauss_legendre(4)` and `product(4,4)`
+and is **NOT** on `lebedev(17)` (`M ≠ Mᵀ`, `M² ≠ I`) — so the apparent symmetry
+is an artefact of local index ordering and is quadrature-dependent. The
+involution belongs to the **un-narrowed full-trace reflection**, where it is a
+theorem; narrowing is exactly what destroys it as stated.
+
+⚠ **One live documentation falsehood to fix while here.**
+`numerics/operator.py:2188-2191` (`PermutationOperator`) states *"SN specular
+reflection through `reflection_index` is an involution"* and exposes
+`is_involution` "for downstream consumers that benefit from knowing
+self-adjointness". True of the full-trace permutation, **false of what the
+realizer produces** — and it sits beside a flag inviting precisely the wrong
+inference. The boundary audit flagged the symptom (`is_involution` reads `False`
+on `lebedev(17)`) as "zero production consumers, not a live bug"; it is not a
+code bug, it IS a prose bug. Its own caveat — self-adjointness *"in the
+**unweighted** inner product"* — is the second half: the trace pairing is
+weighted by `|Ω·n|·w`, so the physical-metric claim is separate and needs
+ERR-042's weight-preservation.
 
 ---
 
