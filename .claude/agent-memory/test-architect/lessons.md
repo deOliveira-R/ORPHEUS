@@ -357,6 +357,42 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   bit-identically invisible to every angular functional (`on_directions` drops
   it; measured identical at offset −17), so `is_linear` closes it by type and
   also implies involution for free. → `L36`
+- **OPTIONAL→MANDATORY BINDING (a `None` default that silently disables a
+  derivation):** nothing on the forward path changes, so a bit-id keystone is cheap
+  and WORTHLESS — the keystone is a metric-sensitive reciprocity gate written
+  BEFORE the metric lands, so it goes RED→GREEN (written after it can only be
+  green). Decay has THREE flavours, not one: **DIE** (the gate can no longer
+  CONSTRUCT its subject), **DECAY** (green tautology — re-pose onto "the space is
+  the RIGHT one", `is` not `==`, since `FunctionSpace.__eq__` is `(name,shape)`),
+  **INVERT** (the gate pins the degradation as the contract — its docstring
+  literally says "metric-blind Euclidean `.H`"). And `assert_array_equal` on ANY
+  `.H` of a newly-bound operator breaks at **2 nulp** (`(g·x)/g` is not an IEEE
+  identity) — grep them all first. → `L37`
+- **A sentinel encoding TWO states makes the discriminating gate UNWRITABLE — say
+  "this gate cannot exist; here is the TYPE that makes it exist".** `domain=None`
+  means BOTH "space-generic by mathematics" (an identity is the identity on every
+  space) AND "nobody bothered"; no assertion can separate one runtime value from
+  itself, and that is exactly WHY the degradation is silent. → `L37`
+- **Run the POSITIVE CONTROL before writing the gate and read which files it
+  MISSES** — the absent reds map the blind region exactly, and are far more
+  persuasive in a plan than a code citation. (`apply_inverse_metric := identity`
+  reddened 30 bulk gates and **zero** boundary ones, because `domain is None`
+  short-circuits the call.) Enumerate the WHOLE family's Mode-12 stabiliser, not
+  the one operator: 4 of 5 shipped SN boundary laws are metric-blind, so "test the
+  reflective BC harder" is a provable non-catcher. → `L37`
+- **Before accepting a BIT-IDENTITY acceptance line, ask which REDUCTIONS the
+  change reorders.** Zero ⟹ `array_equal` is honest. Any ⟹ the line is
+  arithmetically IMPOSSIBLE (a 49-term reduction under permutation is bit-identical
+  25 % of the time) — re-scope to a permutation that reorders no addition (a
+  packing/relabel), never loosen. And "ZERO diff in file X" is a one-shot
+  commit-scoped `git diff` check + a PERMANENT AST vocabulary gate, never a pytest
+  gate. → `L37`
+- **When a step says "make X mandatory", find WHERE the optional default is
+  DECLARED** — on a shared base it is not scoped to your tier whatever the heading
+  says (a "boundary" mandate reached the homogeneous solver, 12 test-local
+  subclasses in 6 files, and a helper feeding 21 call sites: ~20 tests vs ~150).
+  A committed strict-xfail set is the todo list, but **read it BY ARM** — 12 of 21
+  flipped, the other 8 were a different phase. → `L37`
 - **An `A ≡ B` theorem holding BY SHARED BODY is designed-GREEN under a body
   bug** — the design's own justification is why the gate cannot verify. It catches
   ARGUMENT drift only; the catcher is an independent-expression anchor written

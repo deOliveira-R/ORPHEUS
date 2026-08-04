@@ -2941,3 +2941,196 @@ it looks right in review. **When the fix is "raise the project's typed error
 instead of the builtin", the gate MUST name the subclass, and the pre-fix state
 of that gate MUST be RED** — ship it `xfail(strict=True)` so the fix's landing
 is what deletes the marker.
+
+---
+
+## L37 — OPTIONAL-BINDING carve (a `None` default that silently disables a derivation): the gate you cannot write, and the sentinel that means two things
+
+**Campaign:** ORPHEUS `geometric_transformation_consolidation` G6 — plan
+`scratch/g6_verification_plan.md`, written PRE-carve 2026-08-04 at `2ca7dd86`.
+Scope: `LinearOperator.domain`/`.codomain` are `Optional[FunctionSpace] = None`;
+when `None`, `_AdjointOperator.apply` (`numerics/operator.py:1223-1226`) **skips
+both metric applications**, so `A† = G_V⁻¹AᵀG_W` degrades silently to the bare
+Euclidean transpose. G6 mints `Γ±(face)` spaces, binds the boundary tier, makes
+binding mandatory, moves traversal onto the space.
+
+### a. The carve archetype and where its keystone lives
+
+An **optional-binding** carve is not a value carve. Nothing numerical changes on
+the forward path (`apply` never reads `domain`), so a bit-identity keystone is
+available and CHEAP — and it is worthless alone, because the whole point of the
+carve is the ONE path where numbers DO change (`.H`). The keystone is a
+**metric-sensitive reciprocity gate**, and it must be written BEFORE the metric
+is installed so it goes RED→GREEN. Written after, it can only ever be green, and
+a green metric gate proves nothing about whether the metric does anything.
+
+Corollary the plan states as non-negotiable ordering: **the red→green transition
+IS the evidence the metric step is not decorative.** Nothing else produces it.
+
+### b. ⭐ The Mode-12 stabiliser was FOUR cases wide — measure the whole tier, not the one operator
+
+`vv` Mode 12 says compute the commutator `[G, Aᵀ]` at design time. Measured on
+the ORPHEUS SN boundary tier, EVERY shipped law except one is in the stabiliser:
+
+| realized law | operator | `[G, Aᵀ] = 0`? |
+|---|---|---|
+| vacuum / any re-emission at α=0 | `ZeroOperator` | yes — `G⁻¹0ᵀG = 0` |
+| reflective, albedo+specular | `PermutationOperator` | yes — ERR-042 weight preservation, **`G₋ == G₊[local]` bit-identical** on GL(4)/product(4,4)/lebedev(17) |
+| periodic | index-identity wrap | yes — opposite normals ⟹ same `\|Ω·n\|` |
+| prescribed inflow | `IncomingSourceOperator` | rank-0, apply-only |
+| **white / albedo+isotropic** | `AngularAverageOperator` | **NO** — `‖A†−Aᵀ‖/‖Aᵀ‖` = 0.209 / 0.684 / 0.612 |
+
+⟹ the adjoint is "right by accident of the one case anyone checked", and the
+accident is four cases wide. **A design-time stabiliser audit must enumerate the
+WHOLE family the gate could be posed on, not just the operator in front of you** —
+otherwise "test the reflective BC harder" reads like a cheaper alternative when
+it is provably a non-catcher.
+
+Measured margins for the one catcher (`probe_rank1.py`, lebedev 17, spaces bound,
+`outer(1_{Γ₋}, InnerProductFunctional(cos_w/norm))` carrying PRODUCTION `cos_w`):
+
+```
+⟨Ax,y⟩_G−  vs  ⟨x, A.H y⟩_G+   rel err 2.2e-16   <- the LAW
+⟨Ax,y⟩_G−  vs  ⟨x, Aᵀ  y⟩_G+   rel err 5.5e-1    <- the DEGRADATION
+mutation domain:=None  ⟹  A.H y  array_equal  Aᵀ y   (exactly)
+activation: trace metric max/min = 1.351 / 3.468 / 5.601  (GL4 / product / lebedev)
+```
+
+### c. ⭐ The MUTATION found what code-reading could only assert
+
+Positive control PC1 (`FunctionSpace.apply_inverse_metric := identity`, a
+linear/shape-preserving mutation — anti-#18 clean) over
+`tests/sn/operators + tests/geometry`:
+
+```
+baseline    3 failed, 1597 passed   23.2 s
+PC1        33 failed, 1567 passed   23.7 s      ⟹ 30 NET REDS
+  19 test_g_adjoint_reciprocity.py · 7 test_inverse_adjoint_coherence.py
+   3 test_radial_characteristic_metric.py · 1 test_psi_half_coupling.py
+```
+
+**All 30 are bulk / SN-leaf / radial-characteristic gates. NOT ONE narrowed
+boundary-law operator reddened** — because `domain is None` short-circuits the
+call, so the metric mutation is *unreachable* there. That is empirical proof of
+the blindness, obtained by mutation rather than by reading `if x is not None`.
+
+**Reusable technique: run the positive control BEFORE writing the gate, and read
+WHICH files it misses.** The absent reds map the blind region exactly, and they
+are far more persuasive in a plan than a code citation.
+
+### d. ⭐ A sentinel that encodes TWO states makes the discriminating gate
+UNWRITABLE — the type must fix it, not a test
+
+`domain = None` means BOTH "this operator is space-GENERIC by mathematics"
+(`IdentityOperator`, `ZeroOperator`, `DiagonalOperator`, `PermutationOperator` —
+an identity is the identity on every space) AND "nobody bothered to bind it".
+**No gate can distinguish them**, because the two states are the same value.
+That is *why* the degradation is silent, and it is why "an unbound operator
+cannot be constructed" is the wrong acceptance line for the generic leaves.
+
+The verification verdict is a TYPE demand, not a test: mint an explicit
+space-generic marker so the escape is DECLARED. Generalisation — **when an
+acceptance criterion asks a gate to separate two states that share one runtime
+value, the honest deliverable is "this gate cannot exist; here is the type that
+makes it exist", not a cleverer assertion.**
+
+### e. The survey that sizes a "turn on a check that never ran" risk
+
+Instrument the composer constructors and COUNT the skips before binding
+anything. Plugin `skipcount2.py`, `tests/geometry + tests/sn/operators`, 23 s:
+
+```
+OperatorSum 172 SKIP / 1694 CHECK (9.2 %) · OperatorProduct 6 / 1568 (0.4 %)
+178 skipping compositions, 10 distinct operand shapes
+  148  Sum(IsotropicScattering, IsotropicN2N)          both sides fully anonymous
+    5  Product(BulkAnalysisOperator, SweepOperator)    LEFT CODOMAIN ONLY  <- the dangerous one
+```
+
+**The half-bound composition is the highest-risk row**, not the biggest one: the
+bound side already commits to a space and nothing has ever compared it to the
+other, so a genuine mismatch can be hiding there. A fully-anonymous pair usually
+just needs the same space on both sides.
+
+### f. Two acceptance lines that were arithmetically / structurally impossible
+
+1. **"permute the layout and assert BIT-IDENTICAL output."** Measured: a
+   49-term reduction under 200 random permutations is bit-identical **50/200
+   (25 %)**, worst drift 4 ULP; even `sum(cos_w)` alone is bit-stable 146/200.
+   FP addition is not associative — **no architecture can make a REDUCTION
+   permutation bit-identical.** The honest replacement is a permutation that
+   reorders no addition: the **face packing order** in the flat-buffer layout.
+   Measured bit-identical 4/4 per face (slices + index sets) while the flat
+   buffer moves — a stronger discriminator, because it reds exactly the
+   consumer that reads a self-computed offset instead of a name.
+   **Rule: before accepting a bit-identity acceptance line, ask which
+   REDUCTIONS the proposed change reorders. Zero ⟹ `array_equal` is honest.
+   Any ⟹ the line is impossible and must be re-scoped, not loosened.**
+2. **"ZERO diff in any operator file."** Not a pytest gate — a permanent test
+   asserting a property of a diff that no longer exists is signature-tautological
+   (`vv` Mode 8 class 3). Split into (a) a one-shot commit-scoped
+   `git diff --name-only` check quoted in the commit message, and (b) a
+   PERMANENT **AST vocabulary gate** forbidding the book-keeping the carve
+   relocates (`axis=<int>` signature defaults, `.to_local(`, bare
+   `n_restricted`/`n_total`) inside operator modules — with a negative leg
+   feeding the walker a fixture string that MUST be flagged, else it is a grep
+   that passes because it matched nothing.
+
+### g. The decay list has THREE flavours, not one (the G5 lesson, sharpened)
+
+G5 taught: a type-collapse makes class-level gates DECAY to tautologies, and the
+re-pose must land in the same commit. An **optional→mandatory** carve is sharper,
+because it changes what is CONSTRUCTIBLE:
+
+- **DIE** — the gate can no longer build its subject (`test_space_anonymous_by_default`
+  asserting `M.domain is None`; `test_space_anonymous_leaves_refuse` constructing
+  three unbound operators). It reds; it must be deleted or re-posed.
+- **DECAY** — still constructs, still passes, assertion is now a theorem of the
+  type system (`test_leaf_declares_both_function_spaces`). **Invisible in a run.**
+  Re-pose onto what stays contingent: not "a space is bound" but "the space is the
+  RIGHT one" — `op.domain is mesh.full_field_space`, **identity not equality**,
+  since `FunctionSpace.__eq__` is `(name, shape)` and accepts a look-alike.
+- **INVERT** — the gate now pins the degradation as the contract. Canonical
+  instance: `test_self_adjoint_M_H_equals_M`, whose docstring literally says
+  *"the metric-blind Euclidean `.H` (domain None) reduces to the representation
+  transpose"* and asserts `array_equal(M.H.apply(ψ), forward)`. Both halves break:
+  the docstring's REASON goes present-tense-false, and the assertion itself reds —
+  **measured, binding a metric changes a self-adjoint diagonal's `.H` by 2 nulp**
+  (`G⁻¹(f·(G x))` vs `f·x` — `(g·x)/g` is not an IEEE identity).
+  **Corollary: `assert_array_equal` on ANY `.H` result of a newly-bound operator
+  breaks at ~2 nulp. Grep them all before the carve.**
+
+### h. The strict-xfail set was ALREADY the todo list — and it must be read by ARM
+
+`tests/sn/architecture/test_monomorphic_leaves.py` already carried G6.4's
+acceptance gates as `strict=True` xfails whose reasons say *"WHEN THIS XPASSES:
+P1 has landed — delete this marker."* Measured `105 passed, 21 xfailed` in 1.31 s,
+of which **exactly 12** flip (4 `test_model_generic_leaf_declares_a_space` + 5
+`test_leaf_space_annotation_is_not_optional` + 3
+`test_leaf_without_a_space_refuses_construction`). The other **8** (`_R6_XFAIL`,
+the carrier-guard non-uniformity) are a DIFFERENT campaign phase and must NOT be
+deleted. **Deleting markers because "the xfails flipped" is exactly the Mode-8
+class-4 misattribution.** Read the xfail set BY ARM, never by file.
+
+### i. The scope alarm a decay-list sweep surfaces for free
+
+The committed xfail `test_model_generic_leaf_declares_a_space` mirrors
+`orpheus/homogeneous/solver.py` line for line and MEASURES `C.domain is None` /
+`F.domain is None` there — a PRODUCTION path. ⟹ **a "boundary-tier" carve that
+retires the `None` default on the BASE class silently reaches the homogeneous
+solver, 12 test-local `LinearOperator` subclasses across 6 files, and a
+`_multiplier` helper feeding 21 call sites.** The decay list is ~20 tests if the
+mandate is boundary-scoped and ~150 if it is tree-wide, and *the plan must choose
+before the first line of code*, because everything downstream is sized by it.
+
+**Generalisable: when a campaign step says "make X mandatory", locate WHERE the
+optional default is declared. If it is on a shared base, the step is not scoped
+to the campaign's tier no matter what the plan's heading says.**
+
+### j. A harness lie reproduced, in the exact anti-#17 shape
+
+`grep "^FAILED"` on a `-q --tb=no` run returned **zero rows** on a run whose own
+summary line read `33 failed` — the `FAILED` lines carry ANSI colour codes.
+Identical to the 2026-08-03 battery that reported 32/32 BLIND. **Always
+`sed -e 's/\x1b\[[0-9;]*m//g'` before parsing, and always cross-check the
+extracted count against the summary line.** Cost here: one confusing minute,
+because a positive control was already in hand to contradict it.
