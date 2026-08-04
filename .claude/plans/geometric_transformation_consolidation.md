@@ -1262,6 +1262,11 @@ branch for the field-less `IdentityMap` and now runs for every geometry factor.
 
 ### The principle (user, 2026-08-04) — this is the scope, the boundary case is only its first consumer
 
+**Tracked tree-wide as #330**; G6 below is its BOUNDARY-TIER slice. The general
+statement (every operator, mandatory binding, the space owning traversal) lives
+in the issue so it survives this campaign; #295 (`LayoutBearingSpace`) is a
+concrete sub-piece of its traversal half.
+
 > Every operator, bulk or boundary, **must know its domain, codomain and
 > space**. Without that binding the adjoint has to be hand-rolled instead of
 > falling out for free from mathematical well-posedness. Whatever **shape**
