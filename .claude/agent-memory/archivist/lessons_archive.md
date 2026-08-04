@@ -4179,6 +4179,164 @@ every promised code block; grep the old name for literals after fixing the
 roles; and when a page has an owner issue, fix + measure + comment with
 corrected paths rather than defer or annex.
 
+
+## L-048 — An equation in a doc has TYPES and a SCOPE, and NO gate checks either: a type-incoherent identity and a one-instance proof stated for a whole class both build clean forever
+
+**The task.** Correct two defects in the boundary-condition *algebra of
+record* (`docs/theory/foundations/boundary_conditions.rst`, the
+`bc-factor-roles` section) as step 0 of campaign step G6.3. Both defects
+were in *published mathematics* — not in a cross-reference, a symbol name,
+or a status claim — so every gate this agent owns was green on them:
+`-E -W` at 0 warnings, `check_docstring_xrefs` at DEAD TARGETS 0, and the
+V&V matrix regenerating without complaint, for as long as the claims had
+shipped.
+
+### Defect class A — the identity does not TYPE-CHECK
+
+The rank-one theorem concluded, verbatim, **`R ∘ G = R`**. With
+`G : Γ₊ → Γ₋` and the classifying `R : Γ₋ → Γ₋`, the left side is
+`Γ₊ → Γ₋` and the right side is `Γ₋ → Γ₋`: they cannot be equal as
+operators. The step had silently identified `Gᵀv` with `v` by treating
+`v = |Ω·n|` as a *function* without tracking which half-trace it is
+restricted to — **harmless until campaign phase B3.2 narrowed the SN law
+onto `γ±` and made the two halves genuinely distinct spaces**, a type
+abuse from that commit onward.
+
+Note the shape: nobody introduced an error. A *code* carve (B3.2)
+retroactively falsified a *math* sentence three chapters away, and the
+falsification is a **type mismatch inside an equation** — a defect class
+with no gate at all. The correct statement (`R ∘ G = u ⊗ (Gᵀv)`, and
+`Gᵀv = v` *as a function*, so the composite is `G`-INDEPENDENT rather than
+equal to `R`) preserves the theorem's whole content and every downstream
+conclusion, including "the B3 correction leaves the composite unchanged".
+
+⇒ **Read an equation's DOMAINS AND CODOMAINS, not just its symbols.** For
+every displayed identity on a page you touch, name the space each side
+lives in and check they agree. When a page's spaces have recently been
+NARROWED (a half-trace split, a domain restriction, a role-keyed retype),
+that narrowing is a licence to re-type-check every identity mentioning the
+affected spaces — the old ones were written when the spaces coincided.
+
+Bonus catch from doing this properly: the slogan's real hypothesis is that
+`v` is `G`-INVARIANT, not merely that `R` is rank-one (a rank-one `R` with
+`v = δ_{Ω₀}` makes `G` fully observable). Keep the memorable slogan — it is
+cited by `:ref:` from 5 code/test sites — and add ONE sentence naming the
+hypothesis that actually does the work.
+
+### Defect class B — proven for ONE instance, stated for the CLASS
+
+A paragraph headed "**The crossing is geometric**" argued — correctly —
+that the specular mirror is the unique ambient isometry fixing the face,
+exchanges the hemispheres, and preserves `|Ω·n|`. It then closed *"which
+is why `G` and not `R` carries it"* — for **every** law. False for a law
+with no isometry: a wall is not a quotient (the page's own sufficient test
+says so), so nothing provides the crossing geometrically and the
+**physics** does it, by integrating the outflow and re-emitting an inflow.
+
+⇒ **On any "which is why X" generalisation, ask: for WHICH instance is the
+argument given, and is the conclusion stated for the CLASS?** The tell is a
+paragraph that opens on one concrete object (a mirror, a slab, a 1-group
+case) and closes on a universal. Scope the existing argument to the case it
+proves — keep it verbatim in substance — and *add* the missing case. Do not
+rewrite the proof; it was never wrong, only over-quantified.
+
+Corollary that made the fix stronger: the honest law ("whichever factor is
+non-trivial carries the crossing") has **boundary cases worth writing out**
+rather than hiding. Rank-0 laws cross vacuously; a bare scalar response on
+an ANGULAR trace is non-trivial in *magnitude* and trivial in *angular
+structure*, so NEITHER factor crosses — which is exactly the
+already-documented realizer REFUSAL. Boundary cases that turn out to be
+shipped refusals are the best possible evidence that the reformulated law
+is the right one.
+
+### The framing that DISSOLVED both — taxonomy ≠ computational factorization
+
+Both defects had one root: `R ∘ G` is a **TAXONOMY** (does this law's
+content come from geometry or from physics? — decided by multiplicativity +
+the quotient test) and the page presented it as also the **computational
+factorization**. As a classification `G : Γ₊→Γ₋`, `R : Γ₋→Γ₋` is coherent;
+as a realized typing it is false, and `[M]` **no realized response in the
+tree is an endomorphism of `Γ₋`** — the Lambertian's realization types
+itself `Γ₊ → Γ₋` in its own first line.
+
+⇒ **When a doc carries a factored / classified form of an object, state
+explicitly whether it is a classification or a recipe** — and check the
+declaration tier against the REALIZATION before writing either. Two
+successive campaign designs were built on this conflation, each refuted by
+one read of the realizing class. A dedicated short section ("the taxonomy
+and the factorization are different questions") is the right shape: it
+gives the distinction a citable anchor so the next design cannot re-make
+the assumption silently.
+
+### What I got RIGHT and should repeat
+
+- **Reproduced every number before publishing it.** Re-ran the design
+  probe (`R* = G₊⁻¹RᵀG₋`, `G_S` over 11 orders): `0.0` / `1.110e-16` /
+  `1.110e-16` / `7.628e-01` degenerate, weighted adjoint law at exactly
+  `0.0`. Verified the claimed one-line transpose
+  `Rᵀ(φ) = (cos_w/norm)·Σφ` against the DENSE transpose of the operator's
+  own `apply` — `max err 0.0`. Verified `is_adjointable is False`.
+  Re-measured the plan's `2/2, 4/4, 49/49` `|Γ₊| = |Γ₋|` claim and
+  WIDENED it (6 quadratures × every face, incl. `level_symmetric(6)`
+  24/24) instead of transcribing the sample.
+- **Refused to cite an ephemeral path.** The probe lived under
+  `$CLAUDE_JOB_DIR/tmp/`, which no future reader can open, and
+  `scratch/g6_design_measurements.md` did NOT record it. Instead I
+  DESCRIBED the construction (shapes, metrics, comparison) so the table is
+  reproducible from the page alone. **A path that will not exist is a
+  stale raw path the moment it is written** — describe, don't cite.
+- **Reported rather than edited a concurrently-edited code file.**
+  `orpheus/geometry/boundary/_factors.py` was being rewritten by the main
+  agent DURING my session (its mtime moved mid-task; it had already fixed
+  defect B and the taxonomy framing there, but NOT the `R ∘ G = R`
+  identity). Two residual sites in it were REPORTED, not touched.
+- **Kept the heavily-referenced anchor.** `bc-factor-roles` has 8 inbound
+  `:ref:`s across docs + code + tests; the fix went INSIDE it and the two
+  new ideas got their own new anchors, so zero referrers moved.
+
+### Two mechanical facts worth keeping
+
+- **`⭐` and `⛔` have ZERO occurrences anywhere in `docs/`.** They are the
+  agent-memory / plan / code-docstring vocabulary. `⚠` (9 sites) and `✓`
+  (43) ARE corpus vocabulary. I drafted with `⭐`/`⛔` carried over from
+  the plan and had to strip them — **grep a glyph in `docs/` before
+  importing a marker from a plan or a docstring.**
+- **A Python `SyntaxWarning` appears in the Sphinx log and is MISSED by a
+  case-sensitive `grep 'WARNING:|ERROR:|CRITICAL:'`.** A non-raw docstring
+  containing `\Gamma` produced `SyntaxWarning: "\G" is an invalid escape
+  sequence` mid-build; it does not bump the exit code either. Add
+  `SyntaxWarning` to the build-log grep — and before reporting one in a
+  file the main agent is editing, re-`py_compile` the LIVE file (mine was
+  already fixed a minute later).
+
+### vv-status for an equation whose CODE does not exist yet
+
+The new adjoint identity got `.. vv-status: bc-response-factored-adjoint
+documented` — correct, because the FACTORED spelling is not built (the
+Lambertian ships as ONE operator with `is_adjointable=False`; the
+factorization is a later campaign step), so no `verifies` marker has a
+function to point at. The rationale comment names the **precondition**
+gates that DO exist (`test_the_half_trace_metric_is_strictly_positive`
+pins the non-degeneracy the identity requires;
+`test_the_metric_is_not_euclidean` pins that the metric is load-bearing at
+all) and ends with *"when the factorization lands, WIRE a test to this
+label and REMOVE this sentinel"* — so the sentinel carries its own exit
+condition. Documented-only count moved 524 → 525 on regen, as expected.
+
+⚠ **The `-E` regen also absorbed a row from the main agent's uncommitted
+work** (`numerics/test_angular_face_trace_space`, +56 foundation tests,
+8478 → 8534 total, shifting every share percentage). Legitimate
+by-product; report it, never revert it (L-008).
+
+How to apply: type-check every displayed identity against the spaces its
+sides live in, especially after a narrowing carve; scope every "which is
+why" to the instance actually proven and add the missing case, writing out
+the boundary cases; say whether a factored form is a classification or a
+recipe, and check the declaration against the realization FIRST; reproduce
+and WIDEN every measured number; describe a probe instead of citing an
+ephemeral path; grep a glyph in `docs/` before importing it; add
+`SyntaxWarning` to the build-log grep.
+
 ---
 
 ## Quality self-assessment rubric (Directive 3)

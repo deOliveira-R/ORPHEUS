@@ -56,6 +56,22 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   docstring described semantics its body had abandoned, and only 3 of 7 cases were re-posed — my
   draft's "every case" was a fresh falsehood. Likewise `python -c` every numeric constant a doc
   asserts (one was four orders off, unwarned, for months). → L-042
+- **An EQUATION has TYPES and a SCOPE, and NO gate checks either — read the domains/codomains, and
+  ask which instance the proof covers.** A published `R∘G = R` could not type-check
+  (`Γ₊→Γ₋` vs `Γ₋→Γ₋`); nobody introduced it — a CODE carve narrowing the spaces retroactively
+  falsified a math sentence three chapters away. Separately, "the crossing is geometric … which is
+  why G carries it" was proven for the mirror and stated for EVERY law. A narrowing carve is a
+  licence to re-type-check every identity naming the affected spaces; a "which is why X" closing a
+  one-instance argument is a licence to re-quantify it. Fix by SCOPING the proof and ADDING the
+  missing case — never rewrite a proof that was only over-quantified — and write out the boundary
+  cases (they turned out to be a shipped realizer REFUSAL, the best evidence the new law is right).
+  Root cause of both: a factored form presented as BOTH a classification and a computational
+  recipe; say which it is, and check the declaration tier against the REALIZATION first. → L-048
+- **Describe a probe, never cite an ephemeral path.** A `$CLAUDE_JOB_DIR/tmp/` script no reader can
+  open is a stale raw path the moment it is written (and `scratch/` is untracked). Publish the
+  construction — shapes, metrics, comparison — so the table regenerates from the page. Reproduce AND
+  WIDEN every measured number a plan hands you (a 3-sample `|Γ₊|=|Γ₋|` claim became 6 quadratures ×
+  every face). → L-048
 
 ---
 
@@ -83,6 +99,13 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   "*A title or caption not found*" — a bare `:ref:` to an anchor sitting before a PARAGRAPH (fix:
   anchor a titled/captioned element, or use `` :ref:`text <label>` ``). Raw path strings in prose
   warn NOWHERE. → L-002, L-027, L-040
+- **Grep `SyntaxWarning` in the build log too — a case-sensitive `WARNING:|ERROR:|CRITICAL:` MISSES
+  it** and it does not bump the exit code. A non-raw docstring with `\Gamma` emits
+  `SyntaxWarning: "\G" is an invalid escape sequence` mid-build. Before reporting one in a file
+  another agent is editing, `py_compile` the LIVE file — mine was fixed a minute later. → L-048
+- **`⭐`/`⛔` have ZERO occurrences in `docs/`** (they are plan / agent-memory / docstring
+  vocabulary); `⚠` and `✓` ARE corpus vocabulary. Grep a glyph in `docs/` before importing a marker
+  from a plan. → L-048
 - **A not-yet-built symbol is a code LITERAL, never a `:class:`/`:meth:`.** Gate with `hasattr`;
   the same probe flips a LANDED seam to a live role. → L-002, L-014, L-025
 - **Plain-text refs are often the page CONVENTION, not a defect** — un-`automodule`'d packages, and

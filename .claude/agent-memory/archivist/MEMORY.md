@@ -17,18 +17,21 @@ archive on demand. **Never re-summarize a lesson here or in the digest —
 each layer points down, it does not copy up.**
 
 - [lessons.md](lessons.md) — **HOT digest, read FIRST every dispatch**
-  (~395 lines / 30 KB, fits one `Read`). All 44 lessons as one imperative
-  rule each + its failure→correction core, clustered into 9 themes:
-  (1) verify against the LIVE tree · (2) the build is blind, grep is the
-  gate · (3) a `:label:` is a V&V edge · (4) retirement & staleness ·
-  (5) page surgery · (6) doc SHAPE per event class · (7) V&V vocabulary
-  curation · (8) code-prose rebalance · (9) gates & tooling. Every entry
-  carries a `→ L-0NN` pointer into the archive.
+  (one `Read` fits it). Every lesson as one imperative rule + its
+  failure→correction core, clustered into 9 themes: (1) verify against the
+  LIVE tree · (2) the build is blind, grep is the gate · (3) a `:label:` is
+  a V&V edge · (4) retirement & staleness · (5) page surgery · (6) doc
+  SHAPE per event class · (7) V&V vocabulary curation · (8) code-prose
+  rebalance · (9) gates & tooling. Every entry carries a `→ L-0NN` pointer
+  into the archive.
 - [lessons_archive.md](lessons_archive.md) — **COLD, load on demand**
-  (~3820 lines / 254 KB). The full L-001…L-044 sections: war stories,
-  evidence tables, `file:line` detail, per-instance calibrations. Open
-  ONLY the `→ L-0NN` section the digest sent you to — never the whole file.
-  New lessons are appended HERE first, then distilled into the digest.
+  (~250 KB — never open whole). One `## L-0NN` section per lesson: war
+  stories, evidence tables, `file:line` detail, per-instance calibrations.
+  Open ONLY the section a `→ L-0NN` pointer sent you to. New lessons are
+  appended HERE first, then distilled into the digest.
+  (Counts are deliberately NOT quoted here — a frozen number rots, and
+  this line claimed "44 lessons / L-001…L-044" while the archive was at
+  L-047. `grep -c '^## L-0'` answers it in one command.)
 
 ## 2. Active / doc-debt state — git-true
 

@@ -677,3 +677,59 @@ Two corollaries that generalize past this audit:
   tree uses a 3-D Lebedev rule, where the chart is fine. **When a docstring says
   "for the degenerate/1-D case, X vanishes", evaluate X on that case.** It costs
   one probe and it is exactly where the fixtures aren't.
+
+---
+
+## L-021 -- A brief's TYPE table is a claim about MATERIALIZED objects; and an all-green "does it break?" run may have measured INERT, not SAFE
+
+Mapping the G6.3 boundary-operator binding sites (2026-08-04,
+`refactor/operator-strategy-layers`), the two findings that reshaped the deliverable
+were both about the *shape of the question*, not about the code:
+
+- **The brief handed me a four-row typing table** (`γ₊ : Γ→Γ₊`, `G : Γ₊→Γ₋`,
+  `R : Γ₋→Γ₋`, …) and asked "where is each constructed?". The table was correct
+  MATHEMATICS and had **no code counterpart**: `law.geometry_map` returns a
+  `SelfPairedDeck`/`SpatialWrap` and `law.response_kernel` a `SpecularReemission` —
+  *descriptors*, not `LinearOperator`s. The realizer emits ONE operator per law with
+  `G` and `R` already collapsed, so two of the four rows had **zero** construction
+  sites and the "endomorphism of `Γ₋`" row was un-bindable in principle. Had I filled
+  the table by finding the nearest plausible object per row, I'd have shipped a map
+  that told the implementer to bind a `PermutationOperator` as `G` — which is the
+  SAME body two different laws reach while declaring the mirror lives in different
+  tiers, i.e. structurally unfillable.
+  **How to apply:** when a brief (or a theory page) names an arrow `A --f--> B`, the
+  FIRST query is *"is `f` a materialized object?"* — one grep of its accessor's return
+  type. Only then map construction sites. This is Operating Principle 5 applied to a
+  TYPING premise: OP5 catches a premise that went stale; this catches one that was
+  never true in code, only on paper. The deliverable's headline flips from "here are
+  the sites" to "two of your four rows do not exist, and here is why they can't".
+
+- **I did the L-013 move (install the change, run the suite) and it came back
+  ALL GREEN — 4 941 bindings, ~5 100 tests, zero new failures. That result was
+  nearly a false reassurance.** The composition G6.3 types is spelled as three raw
+  `.apply` calls, never `@`/`+`, so **no composability gate exists on that path at
+  all**. Green did not mean "the binding is right"; it meant "the binding is inert".
+  Those are opposite messages to an implementer: the first says ship it, the second
+  says ship it AND schedule the step that makes it bite.
+  **How to apply:** after any all-green "what breaks?" measurement, spend one query on
+  *"could a gate have fired?"* — find the gate (here: `OperatorSum`/`OperatorProduct`
+  `__init__`), and check whether the audited path routes through it. Report
+  `inert` vs `verified` explicitly. A measurement that CANNOT fail is Mode-7 blind at
+  the whole-suite scale, and an audit that reports it as "safe" has laundered a
+  no-op into evidence.
+
+Two cheaper corollaries from the same dispatch, both reusable:
+
+- **A predecessor survey from the SAME campaign expires like any other audit.** Two of
+  the G6.0 survey's Tier-1 "pure omission, both types exist" calls were written against
+  the pre-B3.4a operator shapes and were wrong by G6.1 (`AngularAverageOperator` is
+  `Γ₊→Γ₋`, not angular→scalar; the boundary `TensorProductOperator`'s space is NOT
+  `TensorProductSpace(a.domain, b.domain)` because the face space ALREADY is the
+  product). L-020 says a sibling campaign expires a claim; this says **an earlier PHASE
+  of your own campaign does too** — re-measure the predecessor's per-item calls, don't
+  inherit them.
+- **The cheapest cross-face threading is usually already computed and thrown away.**
+  The periodic partner face — the one genuinely hard-looking argument in the whole map —
+  is *returned* by the guard the realizer already calls and *discarded* at the call
+  site. Before writing "X would have to be threaded", read the helper's return
+  statement.

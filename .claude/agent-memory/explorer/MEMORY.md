@@ -26,7 +26,10 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
   the property is UNTESTED (L16)**; **a static table behind a computed fast path has
   DEAD ROWS — measure which are consulted before costing a change; and a tag routing
   through two dispatch branches is invisible on the fixture both accept, so find the
-  input that FAILS (L18)**.
+  input that FAILS (L18)**; **a brief's TYPE table is a claim about MATERIALIZED objects
+  (grep the accessor's return type before mapping construction sites), and an all-green
+  "what breaks?" run may have measured INERT rather than SAFE — find the gate and check
+  the path routes through it (L21)**.
 
 ## 2. Active / in-flight state
 
