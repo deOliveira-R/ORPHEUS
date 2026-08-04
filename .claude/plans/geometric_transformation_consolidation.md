@@ -1258,6 +1258,39 @@ branch for the field-less `IdentityMap` and now runs for every geometry factor.
 
 ---
 
+## ⏸ COMPACTION POINT — before G6
+
+Everything above is LANDED and committed; everything below is SCOPED and not
+started. A session picking up cold re-anchors from **this file + `git log`**,
+never from a conversation summary.
+
+- **HEAD at the point:** `a6878a82` on `refactor/operator-strategy-layers`.
+  Verify every hash in the header table with
+  `git merge-base --is-ancestor <hash> HEAD` — all nine were ancestors when this
+  marker was written, and the header is a snapshot that can rot.
+- **Tree clean.** No uncommitted production, plan, docs or agent-memory state.
+- **Known reds — 4, none of them this campaign's, and that is MEASURED not
+  assumed** (a `git worktree` at HEAD and again at `95fa693c` reproduced the
+  three SN ones with BYTE-IDENTICAL signatures):
+  `TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`
+  (~1 ULP, task #33); `test_cart2d_1g_vacuum_apply_principled_equiv` (1152 ULP);
+  `test_cart2d_2g_specular_apply_principled_equiv` (296 ULP);
+  `TestBitIdenticalCurvilinear::test_spherical_inward_bit_identical`
+  (`assert False`). The last three are the quadrature campaign's deliberate set.
+- **Gate costs, measured:** `tests/geometry` ≈ 10 s · `tests/geometry +
+  tests/sn/operators + tests/sn/sweep/core` ≈ 100 s · full tree at
+  `-m "not slow"` ≈ 52 min. Canonical invocation `python -O -m pytest`, SERIAL.
+- **Static gates:** `tools/check_docstring_xrefs.py orpheus tests docs` must
+  read `DEAD TARGETS : 0`; `sphinx -E -W` (use `-E`, never `rm -rf docs/_build`)
+  builds with 0 warnings; `npx pyright` is the trusted checker (the streamed
+  LSP diagnostics are the #226 artifact — advisory only).
+- ⛔ **Never `git checkout <path>` / `git restore` / `git stash` / `git clean`
+  on a tracked path** — this tree carries uncommitted-by-policy state elsewhere
+  and a git-level discard is irrecoverable (lesson L28). To compare against
+  another commit, use `git worktree add` (as the red-set triage above did).
+
+---
+
 ## 7f. G6 (SCOPED, not started) — every operator knows its spaces; the SPACE owns shape and traversal
 
 ### The principle (user, 2026-08-04) — this is the scope, the boundary case is only its first consumer
