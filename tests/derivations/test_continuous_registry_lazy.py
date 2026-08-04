@@ -115,3 +115,75 @@ def test_lazy_peierls_fetch_builds_requested_ref(fresh_continuous_registry):
     ref = rv.continuous_get("peierls_slab_2eg_2rg")
     assert ref.name == "peierls_slab_2eg_2rg"
     assert rv._CONTINUOUS["peierls_slab_2eg_2rg"] is ref
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The discovery walk's AGGREGATE output
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+def test_discovery_publishes_exactly_this_inventory():
+    """The walk's aggregate output is a DECLARED artifact, not a by-product.
+
+    ``_build_continuous_registry`` finds producers by ``pkgutil.walk_packages``
+    — the edge is created by a module's *position under the package root*, not
+    by any name, so it is invisible to a call graph, a text grep and a
+    constructor search alike. Nothing else in this codebase discovers that way
+    (:mod:`orpheus.transport.method` explicitly rules the other direction for
+    boundary laws), and the walk earns its place only because this set is open
+    and grows module-by-module as derivations are retrofitted.
+
+    The price of that is silence: before this gate, adding a producer, losing
+    one, or having two claim the same name all changed the registry with
+    nothing to notice. This test is what converts the invisible edge into a
+    reviewed one — a diff here means someone must say which producer changed
+    and why.
+
+    It is a *membership* gate, deliberately not a value gate: it names no
+    eigenvalue and no tolerance, so a physics change never reddens it and it
+    never becomes a snapshot to re-baseline. Adding a reference is expected to
+    red it — extend the set in the same commit that adds the producer.
+    """
+    refs, builders = rv._build_continuous_registry()
+
+    eager = {
+        "dif_slab_2eg_1rg", "dif_slab_2eg_2rg",
+        "homo_1eg", "homo_2eg", "homo_2eg_n2n", "homo_4eg",
+        "moc_mms_pincell",
+        "sn_mms_2d_cartesian_2g_hetero", "sn_mms_2d_cartesian_sin",
+        "sn_mms_cylindrical_aniso", "sn_mms_cylindrical_sin",
+        "sn_mms_p1_aniso",
+        "sn_mms_slab_2g_hetero",
+        "sn_mms_spherical_aniso", "sn_mms_spherical_sin",
+        "sn_slab_1eg_2rg_S8",
+    }
+    lazy = {
+        "peierls_slab_2eg_2rg",
+        *(
+            f"peierls_{shape}_hollow_{ng}eg_1rg_r0_{tag}"
+            for shape in ("cyl1D", "sph1D")
+            for ng in (1, 2)
+            for tag in ("10", "20", "30")
+        ),
+    }
+
+    assert set(refs) == eager, (
+        "the eagerly-built continuous references changed.\n"
+        f"  gained: {sorted(set(refs) - eager)}\n"
+        f"  lost:   {sorted(eager - set(refs))}\n"
+        "A GAIN means a new producer was discovered — extend the set here. A "
+        "LOSS is the dangerous direction: a producer stopped publishing, or "
+        "its module stopped importing, and every test requesting it will fail "
+        "with a confusing 'unknown reference' instead of naming the cause."
+    )
+    assert set(builders) == lazy, (
+        "the lazy continuous builders changed.\n"
+        f"  gained: {sorted(set(builders) - lazy)}\n"
+        f"  lost:   {sorted(lazy - set(builders))}"
+    )
+    assert not (set(refs) & set(builders)), (
+        "a reference name is claimed as BOTH an eager case and a lazy "
+        f"builder: {sorted(set(refs) & set(builders))}. `get` resolves the two "
+        "in a fixed order, so the loser would be dead weight."
+    )
