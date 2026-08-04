@@ -19,6 +19,21 @@ reproducible-in-principle but not *gated*, which is the weaker thing.
 
 so **the intermediate space's metric cancels** — provided it is invertible.
 
+⭐ **And it telescopes at ANY chain length**, which is the general statement:
+
+.. math::
+
+    (A_1 \cdots A_n)^* = A_n^* \cdots A_1^*
+                       = G_0^{-1} (A_1 \cdots A_n)^{\mathsf T} G_n .
+
+**Every** interior metric cancels, not just one. That is what licenses modelling
+a boundary law as a **sequence from outflow to inflow** — an expression in the
+operator algebra (``@`` for the chain, ``+`` for parallel channels such as a
+partly-polished wall) rather than a bespoke two-factor struct. A deck
+transformation is then not an "atomic" special arm but a chain of **length 1**,
+gated as such below; and no interior space needs a declared type, only a
+non-degenerate metric.
+
 **Why it matters.** It is the difference between "a response's adjoint exists"
 and "a response's adjoint exists if we choose the intermediate metric
 correctly". The answer is the former, and the *only* requirement on the
@@ -199,6 +214,110 @@ def test_a_DEGENERATE_intermediate_metric_BREAKS_the_cancellation():
         "pseudo-inverse; if it does not, this gate no longer probes degeneracy"
     )
     assert not np.allclose(factored, direct)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The general statement: it telescopes at ANY chain length
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _chain(dims: list[int]) -> tuple[list[np.ndarray], list[FunctionSpace]]:
+    r"""A chain ``V0 → V1 → … → Vn`` with all-different dims and metrics."""
+    rng = np.random.default_rng(_SEED + 7)
+    spaces = [
+        FunctionSpace(
+            name=f"probe:chain:V{i}", shape=(d,),
+            inner_product_weights=rng.uniform(0.3, 2.0, d),
+        )
+        for i, d in enumerate(dims)
+    ]
+    links = [
+        rng.standard_normal((dims[i + 1], dims[i])) for i in range(len(dims) - 1)
+    ]
+    return links, spaces
+
+
+@pytest.mark.verifies("bc-response-factored-adjoint")
+@pytest.mark.parametrize(
+    "dims",
+    [[7, 5], [7, 1, 5], [7, 3, 5, 4], [7, 2, 6, 3, 5]],
+    ids=["len1-deck", "len2-lambertian", "len3", "len4"],
+)
+def test_the_chain_adjoint_telescopes_at_any_length(dims):
+    r"""⭐ ``(A₁…Aₙ)* = Aₙ*…A₁*`` — EVERY interior metric cancels.
+
+    The general form of the identity above, and the reason a boundary law is an
+    **expression in the operator algebra** rather than a bespoke two-factor
+    struct: it is a sequence from :math:`\Gamma_+` to :math:`\Gamma_-`, and how
+    many links it has is not a type distinction.
+
+    ⭐ **``len1-deck`` is the load-bearing case.** A deck transformation was
+    designed as an "atomic" arm *separate* from the composed response; this gate
+    pins that it is nothing of the kind — it is the same formula at length 1. If
+    a future refactor reintroduces a special path for it, this parametrisation
+    is what says the special path is unnecessary.
+
+    Interior spaces therefore need **no declared type** — only a non-degenerate
+    metric, which the negative-leg gate above shows is load-bearing.
+    """
+    links, spaces = _chain(dims)
+
+    composite = links[0]
+    for link in links[1:]:
+        composite = link @ composite
+    direct = _hilbert_adjoint(composite, spaces[0], spaces[-1])
+
+    chained = _hilbert_adjoint(links[0], spaces[0], spaces[1])
+    for i, link in enumerate(links[1:], start=1):
+        chained = chained @ _hilbert_adjoint(link, spaces[i], spaces[i + 1])
+
+    assert chained.shape == (dims[0], dims[-1])
+    np.testing.assert_allclose(chained, direct, rtol=0.0, atol=1e-13)
+
+    rng = np.random.default_rng(_SEED + 8)
+    x = rng.standard_normal(dims[0])
+    y = rng.standard_normal(dims[-1])
+    assert spaces[-1].inner_product(composite @ x, y) == pytest.approx(
+        spaces[0].inner_product(x, direct @ y), rel=1e-12,
+    )
+
+
+@pytest.mark.verifies("bc-response-factored-adjoint")
+def test_the_telescoping_survives_wildly_scaled_interior_metrics():
+    r"""The cancellation is exact, not merely well-conditioned.
+
+    An interior metric scaled by :math:`10^{-8}` against another scaled by
+    :math:`4\times10^{7}` — 15 orders of magnitude apart — must give the same
+    adjoint as the unscaled chain. This is what licenses the design statement
+    *"the interior metric is free"*: if the cancellation only held for
+    comparably-scaled metrics, the choice would be a numerical liability rather
+    than a genuine freedom.
+    """
+    dims = [7, 3, 5, 4]
+    links, spaces = _chain(dims)
+
+    composite = links[0]
+    for link in links[1:]:
+        composite = link @ composite
+    direct = _hilbert_adjoint(composite, spaces[0], spaces[-1])
+
+    scaled = [
+        spaces[0],
+        FunctionSpace(
+            name="probe:chain:V1", shape=(dims[1],),
+            inner_product_weights=np.asarray(spaces[1].inner_product_weights) * 1e-8,
+        ),
+        FunctionSpace(
+            name="probe:chain:V2", shape=(dims[2],),
+            inner_product_weights=np.asarray(spaces[2].inner_product_weights) * 4e7,
+        ),
+        spaces[-1],
+    ]
+    chained = _hilbert_adjoint(links[0], scaled[0], scaled[1])
+    for i, link in enumerate(links[1:], start=1):
+        chained = chained @ _hilbert_adjoint(link, scaled[i], scaled[i + 1])
+
+    np.testing.assert_allclose(chained, direct, rtol=0.0, atol=1e-13)
 
 
 # ─────────────────────────────────────────────────────────────────────

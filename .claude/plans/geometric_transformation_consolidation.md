@@ -1783,6 +1783,75 @@ a response (composable), and the non-trivial factor is the one that crosses.**
 | **deck transformation** | ⭐ **ATOMIC** — a measure-preserving bijection does not factor into two meaningful pieces. `Γ₊(f) → Γ₋(f)` self-paired, or `→ Γ₋(f_partner)` through paired faces. **Pure geometry: a law imposed by theorem, transport-method-agnostic** — it needs the method only to know WHICH SPACE to act on. | **none** | **guaranteed, a THEOREM**: the composition operator of a bijection `g` has `G⁻¹ = G_{g⁻¹}`, and measure-preservation makes that inverse the transpose. Purely geometrical. |
 | **response** | **`N` COMPOSED operations**, `Γ₊(f) → … → Γ₋(f)`. Lambertian = an **outflow angle contraction** `C` then an **isotropic broadcast** `B`. Constitutive: an assumption about a real surface. | ⭐ **`S(f)`** — the angle-integrated per-face scalar current. Already exists as a TYPE: `ScalarTraceSpace` ("per-face `(J⁺, J⁻)` partial-current pairs… already angle-integrated"). It is `psi_avg` in the body above — **a real physical quantity, currently an anonymous local**. | **conditional** — see the theorem below |
 
+### ⭐⭐ SUBSUMED BY THE CHAIN VIEW (user, 2026-08-04) — one structure, not two
+
+The two-row table above is **correct but over-articulated**: it makes "atomic"
+and "composed" two *kinds*, hence two code arms. The user's reframing collapses
+them:
+
+> A boundary law is a **sequence from outflow to inflow**. The first link's
+> domain is :math:`\Gamma_+(f)`, the last link's codomain is
+> :math:`\Gamma_-(f)`, and the interior is whatever the physics needs. A deck
+> transformation is simply a sequence of **length 1**.
+
+⟹ **"atomic" is not a kind, it is a degenerate length.** One code path.
+
+**And the user's diagnosis of WHY the endomorphism trouble arose is correct:** it
+was an artifact of forcing a fixed **two**-factor decomposition with
+**pre-declared** types. In a chain the interior types are *determined by the
+chain*, never declared. Checked against every shipped law:
+
+| law | chain | endomorphism? |
+|---|---|---|
+| specular / periodic | `Γ₊ → Γ₋` | none |
+| white / Lambertian | `Γ₊ → S(f) → Γ₋` | none |
+| albedo + specular | `Γ₊ → Γ₋ → Γ₋` (or `Γ₊ → Γ₊ → Γ₋`) | exactly where one BELONGS — the scalar amplitude |
+| vacuum | the zero chain | none |
+
+An endomorphism appears where one naturally occurs and is **never required**.
+The `R : Γ₋ → Γ₋` declaration was the whole problem, self-inflicted.
+
+### ⭐ The chain adjoint TELESCOPES at any length — `[M]`
+
+Probe: a `7→3→5→4` chain (3 links, **2** interior spaces), interior metrics
+scaled across 15 orders of magnitude.
+
+```
+max|chained - direct|                       = 3.553e-15
+<Ax,y>_V3 - <x,A*y>_V0                      = 8.882e-16
+interior metrics × 1e-8 and × 4e7           = 7.105e-15
+```
+
+⟹ `(A₁…Aₙ)* = Aₙ*…A₁* = G₀⁻¹(A₁…Aₙ)ᵀGₙ` — **every** interior metric cancels,
+not just one. So the theorem in the next subsection is the **chain** theorem, and
+the 2-link response is its special case. **No interior space needs a declared
+type; it needs only a non-degenerate metric.** Length 1 is the same formula with
+no special arm.
+
+### ⭐ NO NEW TYPE — the machinery was already right, the USAGE was wrong
+
+One refinement to the chain: a physically real wall can be *partly* polished,
+`α_spec·P + α_diff·L` — two channels in **parallel**. So the structure is
+compositions **and sums** — which is exactly the operator algebra ORPHEUS
+already has. `OperatorProduct` and `OperatorSum` exist; `@` already checks
+composability at every link.
+
+⟹ **Do NOT mint a `BoundaryChain` / tensor-network type.** It would be a new
+abstraction where the algebra suffices, against defer-until-≥2-instances. Bind
+the endpoints to `Γ₊(f)` / `Γ₋(f)` and **the chain constraint enforces itself**,
+link by link. A boundary law is an **expression in the operator algebra**, not a
+bespoke two-factor struct.
+
+⚠ **Two structures, easy to conflate — both already live in the code:**
+
+| spelling | meaning | example |
+|---|---|---|
+| `@` | **sequential** composition — the chain | `B @ C` (contract, then broadcast) |
+| `&` | **tensor product across axes** | `k_omega & IdentityOperator()` — angle ⊗ group |
+
+A boundary law is a **`@`-chain whose links may themselves be `&`-products**.
+Different directions; do not merge them.
+
 ### ⭐ THE THEOREM that settles whether a response adjoint is well-defined
 
 `[M]` probe `$CLAUDE_JOB_DIR/tmp/g6_response_adjoint.py`. For `R = B∘C`:
@@ -1875,9 +1944,9 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **1** | bind the space-side `γ±` (`angular_trace_space.py:482`) | all three accessors are `self` — zero threading |
 | **2** | mint `S(f)`, the angle-integrated scalar current space, on `ScalarTraceSpace`, with a **non-degenerate** metric | the theorem's one requirement; also names `psi_avg`, today an anonymous local |
 | **3** | factor the Lambertian into `C : Γ₊(f) → S(f)` and `B : S(f) → Γ₋(f)`, each bound; the law is `B @ C` | the transpose falls out here (`Rᵀ = CᵀBᵀ`), closing the deferred B5 step |
-| **4** | put the albedo amplitude `α` **on `S(f)`** | where it physically belongs — it scales the CURRENT, not an angular distribution |
-| **5** | bind the deck-transformation arm **atomically**, `Γ₊(f) → Γ₋(f)`: the specular permutation | no factorization — a bijection has no meaningful split; adjoint is a theorem |
-| **6** | vacuum, then prescribed | simplest arms; vacuum is `ZeroOperator`, prescribed is affine (rank 0) |
+| **4** | put the albedo amplitude `α` **on `S(f)`** as a chain link | where it physically belongs — it scales the CURRENT, not an angular distribution. ⭐ **This collapses `_attenuated_kernel_operator`'s THREE arms** (`α=1` / `0<α<1` / `α=0`, `realizer.py:345/349/352`) into chain manipulations: the chain as-is / prepend a scalar link / the zero chain. Three arms → one body |
+| **5** | the deck-transformation arm as a **length-1 chain**, `Γ₊(f) → Γ₋(f)` | ⛔ **NOT a separate code arm** — this read "bind atomically" until the chain reframing. Same body as step 3 with one link; a bijection simply has nothing to factor. Adjoint still a theorem |
+| **6** | vacuum, then prescribed | simplest arms; vacuum is the **zero chain**, prescribed is affine (rank 0) |
 | **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
 | **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above |
 
