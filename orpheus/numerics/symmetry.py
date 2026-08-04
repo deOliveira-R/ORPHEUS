@@ -96,6 +96,7 @@ from orpheus.geometry.transformation import (
 )
 
 from .measure import DiscreteMeasure
+from .roots_of_unity import roots_of_unity
 
 #: The standard setting's coordinate frame. Every realization below is built
 #: in it — principal axis along z, vertex on the x-axis — so containment is
@@ -945,17 +946,6 @@ def _axis_vector(axis: str) -> np.ndarray:
         raise ValueError(f"axis must be x/y/z, got {axis!r}") from None
 
 
-def _rotation_z(theta: float) -> RigidMotion:
-    r"""Rotation about the z-axis by :math:`\theta`.
-
-    The z-axis is the principal axis of the standard setting; the rotation
-    happens in the :math:`(x, y)` **plane**, which is how the core spells it
-    and which is what generalises — "about an axis" is available only because
-    a 2-plane in :math:`\mathbb{R}^3` is named by its normal.
-    """
-    return RigidMotion.rotation(plane=(_X_AXIS, _Y_AXIS), angle=theta)
-
-
 def _reflections(axis: str) -> list[RigidMotion]:
     r"""The single coordinate mirror whose NORMAL is ``axis``.
 
@@ -1027,23 +1017,69 @@ def _is_origin_supported(nodes: np.ndarray, atol: float) -> bool:
 
 
 def _cyclic_ops(n: int) -> list[RigidMotion]:
-    """C_n: n proper rotations about the z-axis."""
-    return [_rotation_z(2.0 * np.pi * k / n) for k in range(n)]
+    r""":math:`C_n`: the ``n`` proper rotations about the z-axis.
+
+    The angles are the :math:`n`-th roots of unity, taken from
+    :func:`~orpheus.numerics.roots_of_unity.roots_of_unity` as exact points
+    on the circle rather than recomputed from :math:`\theta_k = 2\pi k/n`
+    through :func:`numpy.cos`. Two reasons, and the second is the
+    structural one:
+
+    1. The symmetric angles have exactly-representable components
+       (:math:`\cos(\pi/2) = 0`) that a rounded :math:`\pi/2` does not
+       reproduce. `[M]` at :math:`n = 4` this takes the operator matrices
+       from 30/36 exactly-representable entries to **36/36**, and the
+       landing residual on ``product(4, 4)`` from ``2.1e-16`` to exactly
+       ``0.0``.
+    2. It is the SAME generator the azimuthal rules are built from
+       (:func:`~orpheus.numerics.quadrature.periodic_trapezoid`). A checker
+       that derives its own cosines is a second spelling of the very nodes
+       it is checking — so the two sides could drift, and the tolerance
+       absorbing that drift would be reported as the rule's own accuracy.
+    """
+    cos, sin = roots_of_unity(np.arange(n), n)
+    return [
+        RigidMotion.rotation_from_circle_point(
+            plane=(_X_AXIS, _Y_AXIS), point=(cos[k], sin[k])
+        )
+        for k in range(n)
+    ]
 
 
 def _vertical_mirrors(n: int) -> list[RigidMotion]:
     r"""The n vertical mirror planes of :math:`D_{nh}` (containing the z-axis).
 
-    The k-th mirror **plane** makes angle :math:`k\pi/n` with the x-axis,
-    so its **normal** lies at :math:`k\pi/n + \pi/2`. Reflection through
-    the plane is :math:`x \to x - 2 (x \cdot \hat n)\hat n`.
+    Built as the **coset** :math:`C_n\,\sigma_0` — that is,
+    :math:`\sigma_k = R(2\pi k/n)\,\sigma_0`, where :math:`\sigma_0` is the
+    :math:`\varphi = 0` mirror (normal :math:`\hat e_y`). This is the group
+    fact :math:`D_n = C_n \sqcup C_n\sigma` spelled directly, and it has
+    three consequences worth naming:
+
+    - The mirror set IS the rotation set carried by one reflection, not a
+      second trigonometric construction of the same angles. There is one
+      source of truth for the :math:`n`-fold angles in this module.
+    - :math:`\sigma_0` is a coordinate mirror, hence a bit-exact signed
+      diagonal, so composing with it is a column sign flip and introduces
+      **no** round-off. `[M]` the mirrors' landing residual is therefore
+      exactly EQUAL to the rotations' on every rule measured — the mirror
+      half can no longer be the worse half, which it previously was by
+      1.7--4.8x because it went through a half-angle and a normalisation.
+    - The half-angle disappears. The normal at :math:`k\pi/n + \pi/2` is
+      a root of unity of order :math:`4n`, i.e. a *different* generator
+      from the rule's own order-:math:`n` one; the coset form needs only
+      the order-:math:`n` roots the rules themselves use.
 
     The plane placement is the convention that matters, and it is fixed
     by the standard :math:`D_{nh}` setting: the principal axis along z
     with a vertex on the **x-axis**, so :math:`\sigma_v` through
     :math:`\varphi = 0` is a symmetry. This is the setting every
-    azimuthal rule in the tree is built in (``np.linspace(0, 2*pi, n,
-    endpoint=False)`` puts a node at :math:`\varphi = 0`).
+    azimuthal rule in the tree is built in —
+    :func:`~orpheus.numerics.quadrature.periodic_trapezoid` puts a node
+    at :math:`\varphi = 0` for the unshifted (``NODE_ALIGNED``) family.
+    Composing on the RIGHT by :math:`\sigma_0` is what places the k-th
+    plane at :math:`k\pi/n`: :math:`\sigma_k` sends
+    :math:`\varphi \mapsto 2\pi k/n - \varphi`, whose fixed azimuths are
+    :math:`k\pi/n` and :math:`k\pi/n + \pi`.
 
     Previously the k-th **normal** was placed at :math:`k\pi/n`, i.e.
     every plane was rotated by :math:`\pi/2`. For even ``n`` that maps
@@ -1054,15 +1090,18 @@ def _vertical_mirrors(n: int) -> list[RigidMotion]:
     ``n = 3, 5, 7`` while the rule is demonstrably closed under the
     :math:`\varphi = 0` mirror at every ``n``. Orthogonality,
     determinant, closure and group order are all preserved by a rotated
-    mirror set, so none of those checks can see this — only comparing
-    the angles against the convention can.
+    mirror set, so none of those checks can see it. Two gates can, by
+    different mechanisms: the plane-placement gate in
+    ``tests/numerics/test_symmetry.py`` compares the placement against
+    the setting, and the mirror-accuracy gate in
+    ``tests/numerics/test_symmetry_exactness.py`` sees it as a RESIDUAL
+    — rotating the planes takes the mirrors off the odd-``n`` rule
+    entirely, so the landing blows up from ``2.5e-16`` to ``1.97e-01``.
+    `[M]` that second gate reds on odd ``n`` and stays green on even
+    ``n``, which is this paragraph's own claim, measured.
     """
-    out = []
-    for k in range(n):
-        theta = k * np.pi / n + np.pi / 2.0
-        normal = np.array([np.cos(theta), np.sin(theta), 0.0])
-        out.append(RigidMotion.reflection(normal=normal))
-    return out
+    sigma_0 = RigidMotion.reflection(normal=_Y_AXIS)
+    return [rotation @ sigma_0 for rotation in _cyclic_ops(n)]
 
 
 def _octahedral_ops() -> list[RigidMotion]:

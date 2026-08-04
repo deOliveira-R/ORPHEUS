@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 · G1b · G2 · G3 LANDED. ⏸ COMPACTION POINT — G4 is next.**
+> **STATUS: G1 · G1b · G2 · G3 · G4 LANDED. G5 is next.**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -13,14 +13,11 @@
 > | **G1b** | `cc5703ed` | the `E(d)→E(D)` embedding, the `Permutation` type, `NotAFinitePointGroupError` |
 > | **G2** | `387fe625` | verified against PURE MATH — 42 gates / 96 cases, 32 mutations / 32 caught / 0 blind |
 > | **G3** | `3bf029de` + `0c3d4e65` | `numerics/symmetry.py` speaks `RigidMotion`; the 1-D/3-D arm split deleted; the 1-D invariance tag corrected to `Mirror("x")` |
+> | **G4** | see §7d | the checker's `C_n` / `σ_v` re-based on `roots_of_unity`; mirrors become the coset `C_n·σ₀`; `_rotation_z` retired |
 >
-> **G4 (next)** — close the checker-side `roots_of_unity` sites (`_cyclic_ops`,
-> `_vertical_mirrors`); acceptance is `Dnh(n_φ)` **exact on BOTH sides**. G1 put
-> the hook in place for it: `RigidMotion.rotation_from_circle_point(plane=, point=)`
-> builds a rotation from an EXACT circle point rather than from an angle, so the
-> checker can consume `roots_of_unity` directly instead of re-deriving `cos`/`sin`.
-> See the §"what G4 needs" note further down and the phase table at the campaign
-> plan's end.
+> **G5 (next)** — the BC layer's 4 σ_a vocabularies + `_reflect_corner`;
+> `ReflectionLaw` binding; acceptance `product(4,5)`'s `ValueError` →
+> `BoundaryError`.
 >
 > **Branch** `refactor/operator-strategy-layers`. Base commit at authoring:
 > `bfedc621` (Q5.0.2 — `Z2` retired, `Mirror(axis)` minted).
@@ -679,7 +676,7 @@ it can. A future heuristic-meshing criterion, recorded here so it is not lost.
 | **G1** ✅ `6acb6a8a` | mint `geometry/transformation.py`: dimension-generic elements, `RigidMotion`, closure, the point-set orbit primitive; `permutes`/`preserves` | tree green; realizations bit-identical |
 | **G2** ✅ | ⭐ **mathematically verify** against PURE MATH — group axioms, `QᵀQ=I`, `det=±1`, involution, order-`n`, Householder/Rodrigues vs independent constructions, conjugation `RσR⁻¹`, orbit–stabiliser | every law mutation-verified |
 | **G3** ◐ | route `symmetry.py`'s seven constructors through the core (**DONE**); delete the 1-D/3-D arm split (**BLOCKED — needs a ruling, see §7c**) | realizations bit-identical |
-| **G4** | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | `Dnh(n_φ)` exact on BOTH sides |
+| **G4** ✅ §7d | close the checker-side `roots_of_unity` sites (`_cyclic_ops`, `_vertical_mirrors`) | ⛔ "`Dnh(n_φ)` exact on BOTH sides" is **unachievable** — angle-addition is not a float theorem. Landed criterion: exact at `n_φ ∈ {1,2,4}`, and mirror residual **≡** rotation residual everywhere |
 | **G5** | the BC layer's 4 σ_a vocabularies + `_reflect_corner`; `ReflectionLaw` binding | `product(4,5)`'s `ValueError` → `BoundaryError` |
 | **G6** | MoC: replace the 2 guard-free `argmin`s with the certificate; adopt `periodic_trapezoid` | the 8.96e-2 cm link gap becomes visible |
 | **G7** | ⭐ **migrate the tests** onto the verified machinery | coverage preserved; re-run each gate's justifying mutation |
@@ -862,7 +859,9 @@ all **48** `O_h` operators — the strongest available bit-identity evidence.
 `4.4e-16` — the last because the core normalises the normal and the old code
 did not. `[M]` The raw normal was *already* unit (0 or `1.1e-16` off), so this
 is a pure ULP re-rounding, neither better nor worse (`max|QᵀQ−I|` is `4.4e-16`
-both ways, marginally worse at n=5). Real exactness arrives in **G4**.
+both ways, marginally worse at n=5). Exactness arrives in **G4** — but only at
+`n_φ ∈ {1,2,4}`, and G4 measured that no construction can do better at the rest
+(angle-addition is not a float theorem). See §7d.
 
 Two tests migrated with the retirement (a retirement includes its tests):
 `_oh_exactness`'s `nodes @ np.asarray(g).T` → `g.on_points(nodes)`, and
@@ -984,6 +983,118 @@ carried onto itself" (checkable, and `Sym = {e, σ_x}`). The second is the hones
 one and the dimension-generic core makes it free — but it changes many answers
 and is a semantics decision, not a mechanical one. **This is the same family as
 the SH polar-axis crosswalk (six sites say z, the seventh says x) and #328.**
+
+---
+
+## 7d. G4 — the checker re-based, and the acceptance line CORRECTED
+
+**Done.** `_cyclic_ops` builds `C_n` from `roots_of_unity(arange(n), n)` as exact
+circle points through `rotation_from_circle_point` — the hook G1 minted for
+exactly this. `_vertical_mirrors` is now the **coset** `C_n·σ₀` (σ₀ = the
+`φ = 0` mirror, normal `ê_y`), i.e. the group fact `D_n = C_n ⊔ C_nσ` spelled
+directly. `_rotation_z` had exactly one consumer and **retires** with it.
+
+### ⛔ The acceptance line as written was NOT achievable, and the reason is structural
+
+The header said "`Dnh(n_φ)` **exact on BOTH sides**". Carrying the node at
+azimuth `2πj/n` to the node at `2π(j+k)/n` requires
+`cos a cos b − sin a sin b = cos(a+b)` to hold in IEEE-754, and the
+angle-addition formula **is not a floating-point theorem**. So exactness exists
+only where every root involved is an axis point. `[M]` sweeping `n_φ = 1…24`:
+the landing residual is exactly `0.0` at **n_φ ∈ {1, 2, 4}** and `1.1e-16` to
+`3.3e-16` everywhere else — and no construction can do better at the rest.
+
+This is *not* a shortfall to be fixed in a later phase; it is a proof that the
+line asked for something impossible. The honest criterion, and what landed:
+**exact where exactness exists, and the mirror half no longer worse than the
+rotation half anywhere.**
+
+### What it measured
+
+| | before | after |
+|---|---|---|
+| `C_4` matrix entries exactly `0`/`±1` | 30/36 | **36/36** |
+| `σ_v(4)` entries exactly `0`/`±1` | 26/36 | **36/36** |
+| `C_8` / `σ_v(8)` exactly representable | 54/72 · 47/72 | **68/72 · 68/72** |
+| landing on `product(4,4)` (rot · mir) | `2.1e-16` · `4.7e-16` | **`0.0` · `0.0`** |
+| landing on `product(8,16)` (rot · mir) | `7.1e-16` · `1.3e-15` | `2.2e-16` · **`2.2e-16`** |
+
+⭐ **The mirror residual is now EXACTLY EQUAL to the rotation residual at every
+one of `n_φ = 1…16`** — because σ₀ is a coordinate mirror, hence a bit-exact
+signed diagonal, so composing with it is a column sign flip that adds no
+round-off. Previously the mirrors were 1.7–4.8× *worse* than the rotations (`[M]`
+over the six rules swept), because
+each was built from a normal at the half-angle `kπ/n + π/2` — a root of unity of
+order **4n**, a different generator from the rule's own — and then normalised.
+That equality is the falsifiable half of the change and is gated as such.
+
+### Verdict-neutrality, proven by VALUE not by proxy
+
+The re-base only *tightens* the landing, and a tighter landing can only make a
+match easier — so the hazard is one-directional and real: a rule that read
+`False` could start reading `True`. `[M]` **3234 verdicts** (77 shipped rules ×
+42 groups, product/level-symmetric/Lebedev), old construction vs new:
+**0 changed** (767 True / 2467 False both ways). Green tests are the proxy; this
+is the value comparison (vv-principles anti-pattern #12).
+
+### Gates — `tests/numerics/test_symmetry_exactness.py`, 30 cases
+
+A separate file from `test_symmetry.py` on purpose: that one gates *group
+structure*, this one gates the *floating-point realization*. Orthogonality,
+determinant, closure and group order all survive a less-accurate construction of
+the same group, so nothing in the structural file can see the operator set drift
+into a wider tolerance — and the drift would be absorbed by the very node-match
+window the checker uses to decide invariance.
+
+`[M]` **Mutation battery, 4 mutations + control, all caught**, and the isolation
+is clean:
+
+| mutation | reds | reads |
+|---|---|---|
+| control (none) | **0/30** | the harness does not red spuriously |
+| M1 revert `_cyclic_ops` to `np.cos(angle)` | 9 | the rotation-side gates |
+| M2 revert `_vertical_mirrors` to the half-angle normal | 29 | every mirror gate; the rotation-only control correctly stays green |
+| M3 `_landing_residual` returns `0.0` always | **exactly 1** | the instrument-liveness control, and nothing else |
+| M4 mirror planes rotated by π/2 (the historical convention bug) | 11 | residual blows to `1.97e-01` |
+
+⭐ **M4 reds on ODD `n_φ` only** (1,3,5,7,9,11,13,15) — a direct measurement of
+the claim the `_vertical_mirrors` docstring has carried since G3, that a π/2
+plane rotation maps the normal set onto itself for even `n` and is therefore
+invisible there. The designated convention gate
+(`test_vertical_mirror_planes_follow_the_dnh_setting`) also reds, so the division
+of labour holds: that gate owns the convention, these own the accuracy.
+
+### Gate
+
+`tests/numerics/test_symmetry.py` + `roots_of_unity` + `registry` +
+`rules_product`: **433 passed, 0 failed** (5:16). `tests/numerics` +
+`tests/geometry`: see the commit body. `pyright` CLI clean on both touched
+files; `check_docstring_xrefs` **0 dead targets across 813 files**.
+
+### Refuted candidates — recorded with their structural reason
+
+Two trig sites survive in `symmetry.py` and **both are correctly out of scope**,
+measured rather than assumed:
+
+- **`_icosahedral_ops` buys NOTHING from the re-base.** Feeding
+  `roots_of_unity(1, 5)` instead of `np.cos(2π/5)` produces a **bit-identical**
+  matrix (`[M]` max|Δ| = `0.0`; 0/9 entries exactly representable either way).
+  The icosahedral axes are golden-ratio irrationals, so the AXIS sets the
+  exactness ceiling and the angle cannot move it — `[M]` 34/1080 entries exact
+  over the closed group, landing `1.2e-15` on the 12 vertices. Do not re-attack
+  this; it would also require minting a `rotation_about_axis_from_circle_point`
+  sibling for no measured gain.
+- **`_distinct_azimuths` runs point→angle**, not angle→point: `arctan2` on the
+  off-axis nodes to bound which cyclic families are candidates. Roots of unity
+  go the other direction and do not apply.
+
+### Retired
+
+`_rotation_z` (one consumer, replaced). Its docstring's point — that the
+rotation happens in the `(x,y)` **plane** and "about an axis" is a 3-D-only
+convenience — is already carried by `rotation_about_axis` in the core, which is
+where it belongs. `_Z_AXIS` is now unused, but `[M]` it was **already unused at
+HEAD** — pre-existing, and left alone rather than folded into this change.
 
 ---
 
