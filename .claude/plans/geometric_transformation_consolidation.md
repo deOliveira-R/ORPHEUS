@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 · G6.0 · G6.1 LANDED. G6.3 is next — DESIGN OF RECORD in §7h.**
+> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 · G6.0 · G6.1 LANDED. G6.3 IN FLIGHT — steps 0-1 done, step 2 next. DESIGN OF RECORD in §7h (re-derived TWICE; read §7h.1 before trusting any typing claim).**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -1940,8 +1940,8 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 
 | # | step | why here |
 |---|---|---|
-| **0** | correct the TWO false Protocol docstrings (`BoundaryResponseKernel`'s typing, `BoundaryGeometryMap`'s crossing claim) | a falsified doc is a bug, fixed on sight — and every step below reads them. Past-tense history stays; the present-tense claims go |
-| **1** | bind the space-side `γ±` (`angular_trace_space.py:482`) | all three accessors are `self` — zero threading |
+| **0** | ✅ **DONE** `ab7c3711` — correct the false Protocol docstrings | ⭐ **THREE claims were live, not two.** The unanticipated one: the Lambertian's *"IS self-adjoint under the cosine-weighted inner product"*, asserted in FOUR sites while the same docstring 8 lines up says the operator *"maps BETWEEN two half-traces"*. True of the pre-B3.4a full-face endomorphism (`[M]` `‖R*−R‖ = 2.8e-17`); **type-incoherent** after the narrowing — the same defect class as `PermutationOperator.is_involution`, so it is a PATTERN in this tier, not a slip. 15 candidate sites, **9 corrected, 3 deliberately left** (they scope the crossing claim to deck maps, where it is true). Also gave the adjoint theorem a permanent home (`tests/numerics/test_factored_adjoint_identity.py`) instead of leaving it in a probe |
+| **1** | ✅ **DONE** — bind the space-side `γ±` (`angular_trace_space._face_restrictions`) | `γ± : Γ(f) → Γ±(f)` in the TYPE system. ⭐ **The check now FIRES**: wrong-half AND cross-face compositions raise `IncompatibleOperatorComposition` naming both spaces (shape could never catch cross-face — `\|Γ₊(xmin)\| == \|Γ₊(xmax)\|` everywhere). Constructor cross-checks the spaces against `n_total`/`len(indices)`, because a mis-binding is invisible at apply-time. Binding stays OPTIONAL here — the realizer's own producer is unbound until step 3, and a mandatory-binding gate would be false today (a test pins that transitional state). ⚠ **`γ±`'s `.H` EQUALS its transpose by construction** — `Γ₊(f)`'s metric IS `Γ(f)`'s restricted, so the weights cancel; the value is the type-level refusal, not numerics. Needs its negative leg (a ×3 metric shifts by O(1) relative vs ≤2 ulp) or the gate would pin "the metric is ignored". `[M]` the round-trip `(g·y)/g` costs **1** nulp on tangential-bearing quadratures, **0** on `gauss_legendre(4)`; tolerance set to 2 from the round-trip DEPTH, not fitted |
 | **2** | mint `S(f)`, the angle-integrated scalar current space, on `ScalarTraceSpace`, with a **non-degenerate** metric | the theorem's one requirement; also names `psi_avg`, today an anonymous local |
 | **3** | factor the Lambertian into `C : Γ₊(f) → S(f)` and `B : S(f) → Γ₋(f)`, each bound; the law is `B @ C` | the transpose falls out here (`Rᵀ = CᵀBᵀ`), closing the deferred B5 step |
 | **4** | put the albedo amplitude `α` **on `S(f)`** as a chain link | where it physically belongs — it scales the CURRENT, not an angular distribution. ⭐ **This collapses `_attenuated_kernel_operator`'s THREE arms** (`α=1` / `0<α<1` / `α=0`, `realizer.py:345/349/352`) into chain manipulations: the chain as-is / prepend a scalar link / the zero chain. Three arms → one body |

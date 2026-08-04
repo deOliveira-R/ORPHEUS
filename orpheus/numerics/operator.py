@@ -2372,10 +2372,29 @@ class TraceRestrictionOperator(LinearOperator):
     axis : int
         Axis to gather along. Trailing axes broadcast, so this composes as
         a :class:`TensorProductOperator` factor.
+    domain, codomain : FunctionSpace, optional
+        The spaces this restriction maps between — for a boundary trace,
+        :math:`\gamma_\pm : \Gamma(f) \to \Gamma_\pm(f)`. Binding them is what
+        makes ``.H`` the **Hilbert** adjoint :math:`G_V^{-1}\gamma^{\mathsf T}G_W`
+        rather than the bare Euclidean transpose, and what lets ``@`` refuse a
+        mis-composed chain; unbound, both metric applications are silently
+        skipped (campaign step G6.3, issue **#330**).
+
+        ⭐ **Checked against** ``n_total`` **and** ``indices`` **at
+        construction**, so the space and the length cannot disagree. That
+        matters because they are redundant *today*: ``n_total`` /
+        :attr:`n_restricted` are lengths standing where a space belongs, and the
+        guard is what keeps the duplication honest until G6.5 retires them in
+        favour of the spaces. A binding that contradicts its own lengths is the
+        one failure this class cannot detect any other way — the shapes still
+        broadcast, so the wrong answer would be silent.
     """
 
     def __init__(
         self, indices: np.ndarray, n_total: int, axis: int = 0,
+        *,
+        domain: Optional[FunctionSpace] = None,
+        codomain: Optional[FunctionSpace] = None,
     ) -> None:
         idx = np.asarray(indices, dtype=np.intp)
         if idx.ndim != 1:
@@ -2409,6 +2428,48 @@ class TraceRestrictionOperator(LinearOperator):
         self.indices = idx
         self.n_total = n_total
         self.axis = int(axis)
+        self._domain = self._checked_space(domain, n_total, "domain")
+        self._codomain = self._checked_space(codomain, idx.size, "codomain")
+
+    def _checked_space(
+        self, space: Optional[FunctionSpace], expected: int, role: str,
+    ) -> Optional[FunctionSpace]:
+        """Refuse a space whose extent along :attr:`axis` contradicts the length.
+
+        The lengths (``n_total`` / :attr:`n_restricted`) and the spaces are
+        redundant descriptions of the same fact until G6.5 retires the former.
+        While both exist, a disagreement between them is undetectable at
+        apply-time — the arrays still broadcast — so it is refused here.
+        """
+        if space is None:
+            return None
+        if not 0 <= self.axis < len(space.shape):
+            raise ValueError(
+                f"TraceRestrictionOperator {role}={space!r} has "
+                f"{len(space.shape)} axes, so axis={self.axis} is out of range. "
+                f"The restriction gathers along that axis, so the space must "
+                f"have it."
+            )
+        actual = space.shape[self.axis]
+        if actual != expected:
+            raise ValueError(
+                f"TraceRestrictionOperator {role}={space!r} has extent "
+                f"{actual} along axis {self.axis}, but this restriction's "
+                f"{role} is {expected} rows. The space and the length describe "
+                f"the SAME fact and disagree; a mis-bound space is silent at "
+                f"apply-time because the arrays still broadcast."
+            )
+        return space
+
+    @property
+    def domain(self) -> Optional[FunctionSpace]:
+        r""":math:`\Gamma(f)` — the full space restricted FROM, when bound."""
+        return self._domain
+
+    @property
+    def codomain(self) -> Optional[FunctionSpace]:
+        r""":math:`\Gamma_\pm(f)` — the subspace restricted ONTO, when bound."""
+        return self._codomain
 
     @property
     def n_restricted(self) -> int:

@@ -29,7 +29,12 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.operator import (
+    IncompatibleOperatorComposition,
+    TraceRestrictionOperator,
+)
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import AngularFaceTraceSpace, AngularTraceSpace
 
 pytestmark = pytest.mark.foundation
@@ -368,6 +373,190 @@ def test_the_name_encodes_face_and_role(quad_name):
         assert trace.face_space(face).name == f"angular_trace[{face}:full]"
         assert trace.outflow_space(face).name == f"angular_trace[{face}:outflow]"
         assert trace.inflow_space(face).name == f"angular_trace[{face}:inflow]"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# G6.3 step 1 — γ± BOUND to the ladder, and what the binding buys
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_trace_maps_are_bound_to_the_ladder(quad_name):
+    r"""``γ₊ : Γ(f) → Γ₊(f)`` and ``γ₋ : Γ(f) → Γ₋(f)`` — in the TYPE system.
+
+    B3.2 made this true in the guards and the prose; until G6.3 it was absent
+    from the types, so ``LinearOperator.domain``'s own docstring applied — *"when
+    either operand has ``None`` … the composability check is SKIPPED"*.
+    """
+    trace = _trace(quad_name)
+    for face in ("xmin", "xmax"):
+        assert trace.outflow_restriction(face).domain is trace.face_space(face)
+        assert trace.outflow_restriction(face).codomain is trace.outflow_space(face)
+        assert trace.inflow_restriction(face).domain is trace.face_space(face)
+        assert trace.inflow_restriction(face).codomain is trace.inflow_space(face)
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_bound_trace_map_satisfies_the_weighted_adjoint_law(quad_name):
+    r"""``⟨γx, y⟩_{Γ₊} == ⟨x, γ*y⟩_{Γ(f)}`` — the point of binding.
+
+    Unbound, ``.H`` silently degrades to the Euclidean transpose and this
+    identity is asserted against nothing.
+    """
+    trace = _trace(quad_name)
+    gamma = trace.outflow_restriction("xmin")
+    domain, codomain = gamma.domain, gamma.codomain
+    assert domain is not None and codomain is not None, "step 1 binds these"
+
+    rng = np.random.default_rng(20260804)
+    x = rng.standard_normal(domain.shape)
+    y = rng.standard_normal(codomain.shape)
+
+    assert codomain.inner_product(gamma.apply(x), y) == pytest.approx(
+        domain.inner_product(x, gamma.H.apply(y)), rel=1e-13,
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_a_restrictions_hilbert_adjoint_IS_its_transpose_by_construction(quad_name):
+    r"""⭐ For ``γ±`` the metric CANCELS — a theorem, not an oversight.
+
+    ``Γ₊(f)``'s metric *is* ``Γ(f)``'s restricted to the same indices, so in
+    ``G_dom⁻¹γᵀG_cod`` the weights cancel on the selected rows and vanish
+    elsewhere. Hence binding ``γ±`` changes no numbers, and its value is the
+    type-level refusal below, not a numerical correction.
+
+    This gate exists so that fact is *recorded* rather than rediscovered: a
+    reader who measures ``.H ≈ γᵀ`` and concludes the binding is inert would be
+    drawing the wrong lesson. Its companion is
+    :func:`test_a_restriction_bound_to_a_FOREIGN_metric_does_shift_its_adjoint`,
+    which shows the metric is genuinely applied — without that negative leg this
+    gate cannot distinguish "cancels" from "never ran"
+    (``vv-principles`` anti-pattern #11).
+
+    ⚠ **Asserted at 2 nulp, not bit-identity, and the bound is derived rather
+    than fitted.** The cancellation is exact in exact arithmetic; in floating
+    point it runs through ``(g·y)/g``, one multiply and one divide, so ≤2 ulp.
+    `[M]` measured **1** nulp on ``product(4,4)`` and ``lebedev(17)``, and
+    genuinely **0** on ``gauss_legendre(4)``. Do NOT relax this to ``allclose``
+    — the tolerance is the claim, and a real metric error is O(1) relative, as
+    the negative leg shows.
+    """
+    trace = _trace(quad_name)
+    gamma = trace.outflow_restriction("xmin")
+    domain, codomain = gamma.domain, gamma.codomain
+    assert domain is not None and codomain is not None, "step 1 binds these"
+
+    rng = np.random.default_rng(20260804)
+    y = rng.standard_normal(codomain.shape)
+
+    domain_metric = np.asarray(domain.inner_product_weights)
+    codomain_metric = np.asarray(codomain.inner_product_weights)
+    assert np.array_equal(codomain_metric, domain_metric[gamma.indices]), (
+        "the codomain metric is no longer the restriction of the domain's, so "
+        "the cancellation argument does not apply"
+    )
+    np.testing.assert_array_almost_equal_nulp(
+        gamma.H.apply(y), gamma.apply_transpose(y), nulp=2,
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_a_restriction_bound_to_a_FOREIGN_metric_does_shift_its_adjoint(quad_name):
+    """The negative leg — the metric is applied, it merely cancels.
+
+    Rebinding the codomain to a scaled metric (no longer the restriction of the
+    domain's) must move ``.H`` away from the bare transpose. If this passed
+    trivially, the gate above would be pinning "the metric is ignored".
+
+    The separation is not marginal: a ×3 metric shifts the adjoint by O(1)
+    RELATIVE, against the ≤2 ulp the genuine cancellation leaves. Asserted as a
+    relative floor so the two legs can never be confused for one another.
+    """
+    trace = _trace(quad_name)
+    gamma = trace.outflow_restriction("xmin")
+    codomain = gamma.codomain
+    assert codomain is not None, "step 1 binds this"
+
+    foreign = FunctionSpace(
+        name="foreign", shape=codomain.shape,
+        inner_product_weights=np.asarray(codomain.inner_product_weights) * 3.0,
+    )
+    rebound = TraceRestrictionOperator(
+        gamma.indices, n_total=gamma.n_total, axis=0,
+        domain=gamma.domain, codomain=foreign,
+    )
+    rng = np.random.default_rng(20260804)
+    y = rng.standard_normal(codomain.shape)
+
+    hilbert = rebound.H.apply(y)
+    euclidean = rebound.apply_transpose(y)
+    relative = np.abs(hilbert - euclidean).max() / np.abs(euclidean).max()
+    assert relative > 0.1, (
+        f"a x3 metric shifted the adjoint by only {relative:.2e} relative — "
+        "indistinguishable from the round-trip noise the positive leg allows"
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_composing_across_faces_is_REFUSED_naming_both_spaces(quad_name):
+    r"""⭐ The payoff: a cross-face composition raises instead of type-checking.
+
+    ``|Γ₊(xmin)| == |Γ₊(xmax)|`` on every shipped quadrature, so **shape can
+    never catch this** — the face had to be in the space's identity for the
+    check to have anything to compare. This is the error class the whole binding
+    exists to refuse, and before G6.3 the check was skipped outright.
+    """
+    trace = _trace(quad_name)
+    with pytest.raises(IncompatibleOperatorComposition, match="angular_trace"):
+        _ = trace.outflow_restriction("xmin") @ trace.outflow_restriction("xmax")
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_composing_the_wrong_HALF_is_REFUSED(quad_name):
+    r"""``γ₊ @ γ₋`` — ``Γ(f) != Γ₋(f)``, so the chain does not connect.
+
+    The sibling of the cross-face gate, one axis over: it is the ROLE rather
+    than the face that fails to match.
+    """
+    trace = _trace(quad_name)
+    with pytest.raises(IncompatibleOperatorComposition, match="angular_trace"):
+        _ = trace.outflow_restriction("xmin") @ trace.inflow_restriction("xmin")
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_a_space_contradicting_its_own_length_is_REFUSED_at_construction(quad_name):
+    """The lengths and the spaces are redundant; a disagreement must not pass.
+
+    ``n_total`` / ``n_restricted`` and the bound spaces describe the same fact
+    until G6.5 retires the former. A mis-binding is invisible at apply-time
+    (the arrays still broadcast), so it is refused at construction.
+    """
+    trace = _trace(quad_name)
+    gamma = trace.outflow_restriction("xmin")
+
+    with pytest.raises(ValueError, match="along axis 0"):
+        TraceRestrictionOperator(
+            gamma.indices, n_total=gamma.n_total, axis=0,
+            codomain=gamma.domain,          # the FULL tier, not the half
+        )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_a_restriction_still_constructs_UNBOUND(quad_name):
+    """Binding is optional at this step — the tree-wide mandate is #330.
+
+    Pins the transitional state honestly: the realizer's own producer
+    (``sn/boundary/realizer.py``) is still unbound at step 1, so a gate
+    asserting binding is mandatory would be false today.
+    """
+    trace = _trace(quad_name)
+    bare = TraceRestrictionOperator(
+        trace.outflow_indices_for_face("xmin"),
+        n_total=int(trace.omega_dot_n.shape[1]),
+    )
+    assert bare.domain is None
+    assert bare.codomain is None
 
 
 @pytest.mark.parametrize("quad_name", _ALL)

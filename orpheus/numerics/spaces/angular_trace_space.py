@@ -479,8 +479,24 @@ class AngularTraceSpace(FunctionSpace):
                 # ``np.flatnonzero`` yields sorted, unique indices, so the
                 # operator's guards are satisfied by construction here — they
                 # exist for hand-built index sets.
+                #
+                # G6.3 step 1 (#330): BOUND to the Γ ladder, so γ± is
+                # `Γ(f) → Γ±(f)` in the type system and not merely in the
+                # prose. Two consequences: `.H` becomes the Hilbert adjoint
+                # `G_V⁻¹γᵀG_W` (the restricted partial-current metric now
+                # travels with the operator instead of being dropped), and a
+                # composition against the wrong face or the wrong half is
+                # REFUSED rather than silently accepted — `|Γ₊(f)| == |Γ₋(f)|`
+                # on every shipped quadrature, so shape alone could never
+                # catch it. The operator's own guard cross-checks these spaces
+                # against `n_total` / `len(indices)`.
                 out[(role, face)] = TraceRestrictionOperator(
                     indices, n_total=n_ordinates, axis=0,
+                    domain=self.face_space(face),
+                    codomain=(
+                        self.inflow_space(face) if role == "inflow"
+                        else self.outflow_space(face)
+                    ),
                 )
         return out
 
