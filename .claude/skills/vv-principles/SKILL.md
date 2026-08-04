@@ -186,6 +186,39 @@ any other review work.
     GREEN for every mutation): in both, the *evidence pipeline* failed
     while the code under test was fine. **Verify the instrument on a
     known-positive before trusting any negative it reports.**
+18. **NEVER credit a mutation's reds as coverage of a property when the
+    mutation also breaks a STRUCTURAL law the object obeys** (linearity,
+    symmetry, positivity, conservation, a shape/type contract) —
+    **instead** mutate INSIDE the object's algebraic class, so the only
+    thing that changed is the property under test. This is the exact dual
+    of #17 and it fails in the *opposite*, more flattering direction:
+    #17's broken harness reports a false "0 caught" (which reads as
+    *write more tests*); an over-powered mutation reports a false "richly
+    caught" (which reads as *nothing to do here*) — and a coverage audit
+    closes on it. The tell is a red count wildly out of scale with the
+    property's reach, and reds concentrated in gates that have no
+    plausible view of the property (end-to-end eigenvalue / convergence
+    gates reddening for a boundary-slot bookkeeping claim). Ask of every
+    red: *by what mechanism does THIS gate see THIS property?* — if the
+    honest answer is "it doesn't; it sees the law I broke", the gate is
+    not a catcher. (2026-08-03, the SN `(L+C)` matvec's tangential trace
+    slots: writing a CONSTANT sentinel into those rows made the operator
+    **affine**, and 60 gates reddened — every one of them a Krylov/SI
+    solve that diverges when its operator stops being linear. The
+    realistic bug is linear (`out[tan] = ±ψ[tan]` — what you get by
+    initialising the output block from the input, or by the "not inflow
+    == outflow" trap), and re-run in that class it reddened **exactly
+    1 of 5076** tests, with 94 148 rows mutated. The affine verdict
+    over-stated coverage by 60×.) Corollary — the honest way to size a
+    property's reachable audience BEFORE mutating: check whether the
+    measured quantity's **metric/functional annihilates it** (the Mode-12
+    stabiliser check). Here the trace metric `G = |Ω·n|·w_n` is *exactly*
+    zero on tangential rows — a `1e6` perturbation there moves
+    `⟨·,·⟩_G` by `0.0`, bit-identical — and the rows are decoupled from
+    the bulk, so no solver-level, norm-level or reciprocity gate can EVER
+    be a catcher and a direct array assertion is the only instrument that
+    can exist. Knowing that first would have flagged the 60 reds as
+    impossible on sight.
 
 ---
 

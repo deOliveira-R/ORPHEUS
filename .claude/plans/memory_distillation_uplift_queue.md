@@ -16,7 +16,21 @@ the ones NOT applied on 2026-08-03, so they survive compaction.
 uncommitted state and are forbidden to commit. Every item below is queued for a session
 where that is resolved. **Read the live file first — some may already be there.**
 
-### ⚠ TWO NUMBERING COLLISIONS — reconcile before writing anything
+### ⚠ NUMBERING — #18 IS NOW TAKEN (updated 2026-08-03, later the same day)
+
+**`18` is spoken for.** A THIRD anti-pattern #18 was written and LANDED that
+evening: *never credit a mutation's reds as coverage when the mutation also
+breaks a structural law the object obeys* — the over-powered-mutation rule, the
+exact dual of #17. Both queued proposals below must therefore be renumbered
+(**19** and **20**, in whatever order they land). Do not paste either as "#18".
+
+That the same number was claimed three times by three agents in one day is
+itself the argument for #308's generated-index direction: a hand-maintained
+ordinal in a file many agents append to is a collision waiting to happen. Until
+then, **re-read the live file's last number before writing a new entry** —
+`grep -oE "^[0-9]+\. \*\*NEVER" SKILL.md | tail -1`.
+
+The original two collisions, both still queued:
 
 1. **`qa` and `test-architect` each proposed a DIFFERENT "anti-pattern #18".**
 2. **Three agents proposed a DIFFERENT "eighth class" for Mode 8** (`qa`'s deselected
