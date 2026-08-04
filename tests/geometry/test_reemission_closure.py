@@ -2,7 +2,7 @@ r"""Campaign phase **B3.4b** — the re-emission closure, and the discipline it 
 
 The user's 2026-08-01 ruling (`.claude/plans/b3_domain_narrowing_crosswalk.md`
 §11.1) put the specular pairing of an absorbing *surface* in :math:`R`, not
-:math:`G`: ``AlbedoBoundary.geometry_map`` is ``IdentityMap()``
+:math:`G`: ``AlbedoBoundary.geometry_map`` is ``SelfPairedDeck.identity()``
 **unconditionally**, and a :class:`ReemissionClosure` selects the response
 kernel. This module carries the four claims that ruling creates and that have no
 older home:
@@ -86,7 +86,7 @@ from orpheus.geometry.boundary import (
     BoundaryError,
     BoundaryTraceLaw,
     ConstantInflowSource,
-    IdentityMap,
+    SelfPairedDeck,
     IsotropicReturn,
     LambertianReemission,
     law_permutes_ordinates,
@@ -481,7 +481,7 @@ class TestDiffuseAgainstAnIndependentExpression:
 
 def _g_is_trivial(geometry_map) -> bool:
     """``G`` fixes no geometry — the deck group's identity element."""
-    return isinstance(geometry_map, IdentityMap)
+    return geometry_map == SelfPairedDeck.identity()
 
 
 def _r_is_trivial(response_kernel) -> bool:
@@ -499,7 +499,7 @@ def _r_is_trivial(response_kernel) -> bool:
 
 _B5_XFAIL = (
     "B5 — ReflectiveBoundary(axis, α<1) carries TWO non-trivial factors "
-    "(G = SpecularMirror AND R = α·I), which the §11.1 ruling forbids: a "
+    "(G = a mirror AND R = α·I), which the §11.1 ruling forbids: a "
     "symmetry plane is a quotient of the domain and cannot absorb. That object "
     "IS AlbedoBoundary(α, SpecularReturn(axis)) wearing the geometry costume, "
     "and B3.4b built the honest spelling. It is unreachable from a tag "
@@ -580,7 +580,7 @@ class TestExactlyOneFactorIsNonTrivial:
     def test_bare_albedo_at_unit_amplitude_carries_NEITHER_factor(self) -> None:
         r"""``AlbedoBoundary(1.0)`` bare is the registry's ONE degenerate row.
 
-        ``G = IdentityMap`` and ``R = ScalarResponse(1.0) = I``: **zero**
+        ``G = SelfPairedDeck.identity()`` and ``R = ScalarResponse(1.0) = I``: **zero**
         non-trivial factors, so it sits outside the parametrised invariant
         above. This is NOT a deferred defect and NOT an oversight — it is the
         degenerate factorisation a SCALAR trace forces, where ``G`` is the
@@ -652,13 +652,14 @@ class TestTheClosureTierIsAmplitudeFree:
         assert not hasattr(law.reemission, "alpha")
 
     def test_geometry_map_is_the_identity_for_every_closure(self) -> None:
-        r"""``G = IdentityMap`` UNCONDITIONALLY — the ruling's core claim.
+        r"""``G = SelfPairedDeck.identity()`` UNCONDITIONALLY — the ruling's core claim.
 
         In particular a ``SpecularReturn`` closure does NOT put a mirror in
         ``G``. That is the whole content of the 2026-08-01 ruling: the specular
         pairing of a WALL is constitutive, so it lives in ``R``; only a
         symmetry-plane's pairing is geometry. Mutating
-        ``AlbedoBoundary.geometry_map`` to return ``SpecularMirror`` for a
+        ``AlbedoBoundary.geometry_map`` to return
+        ``SelfPairedDeck.mirror(axis=...)`` for a
         specular closure is the canonical RED for this class AND for the G/R
         invariant above.
         """
@@ -668,7 +669,7 @@ class TestTheClosureTierIsAmplitudeFree:
             IsotropicReturn(axis="z", outward_sign=-1),
         ):
             law = AlbedoBoundary(0.5, closure)
-            assert isinstance(law.geometry_map, IdentityMap), (
+            assert law.geometry_map == SelfPairedDeck.identity(), (
                 f"closure={closure!r}: G must stay the deck group's identity"
             )
 

@@ -250,8 +250,8 @@ sole bridge. The canonical SN-realised representation per law.
   where the law is installed (configuration) while "wrap along x" is
   intrinsic.
 * :class:`AlbedoBoundary(albedo, reemission)` (registry key ``"albedo"``) —
-  an absorbing **surface**. :math:`G = ` :class:`IdentityMap` **always**: a
-  wall is not a quotient of the domain, so it fixes no geometry. All the
+  an absorbing **surface**. :math:`G = ` :meth:`SelfPairedDeck.identity`
+  **always**: a wall is not a quotient of the domain, so it fixes no geometry. All the
   content is in :math:`R = \alpha\,C`, where the *re-emission closure*
   :math:`C` names the angular shape of the return —
   :class:`SpecularReturn(axis)` :math:`\Rightarrow`
@@ -622,14 +622,12 @@ from ._composition import LawNode, LawScaled, LawSum
 from ._factors import (
     BoundaryGeometryMap,
     BoundaryResponseKernel,
-    IdentityMap,
     IsotropicReturn,
     LambertianReemission,
     ReemissionClosure,
     ScalarResponse,
     SelfPairedDeck,
     SpatialWrap,
-    SpecularMirror,
     SpecularReemission,
     SpecularReturn,
 )
@@ -709,7 +707,6 @@ __all__ = [
     # of ``G``, ``R`` is non-trivial (B3.4b, user ruling 2026-08-01).
     "BoundaryGeometryMap",
     "BoundaryResponseKernel",
-    "IdentityMap",
     "LambertianReemission",
     "ScalarResponse",
     # The self-paired half of the deck tier (G5): one type carrying the
@@ -717,7 +714,6 @@ __all__ = [
     # inhabitants are the trivial pairing and the mirror.
     "SelfPairedDeck",
     "SpatialWrap",
-    "SpecularMirror",
     "SpecularReemission",
     # The re-emission CLOSURE tier: amplitude-free angular shapes a surface
     # law instantiates at its own α. ``AlbedoBoundary`` is the one consumer —

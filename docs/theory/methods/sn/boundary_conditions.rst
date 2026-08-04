@@ -231,18 +231,18 @@ primitives are, with each law's affine factors alongside:
    * - :class:`~orpheus.geometry.boundary.VacuumInflow`
      - the zero map
      - 0
-     - ``IdentityMap()``, ``ScalarResponse(0.0)``
+     - ``SelfPairedDeck.identity()``, ``ScalarResponse(0.0)``
      - 0 / yes
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - permutation under reflection axis
      - albedo (1 = perfect)
-     - ``SpecularMirror(axis)``, ``ScalarResponse(α)``
+     - ``SelfPairedDeck.mirror(axis)``, ``ScalarResponse(α)``
      - 1 / yes
    * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - cosine-weighted hemispheric average — a **response**, not a
        geometry (B3.0)
      - albedo
-     - ``IdentityMap()``, ``LambertianReemission(α, …)``
+     - ``SelfPairedDeck.identity()``, ``LambertianReemission(α, …)``
      - 1 / no (Wave C)
    * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - spatial wrap along ``axis``; the realizer derives the partner
@@ -254,13 +254,13 @@ primitives are, with each law's affine factors alongside:
      - the **re-emission closure**'s pairing — specular or diffuse;
        with no closure, unstated (see below)
      - albedo
-     - ``IdentityMap()`` always, and ``SpecularReemission(α, a)`` /
-       ``LambertianReemission(α, …)`` / ``ScalarResponse(α)`` by closure
+     - ``SelfPairedDeck.identity()`` always, and ``SpecularReemission(α, a)``
+       / ``LambertianReemission(α, …)`` / ``ScalarResponse(α)`` by closure
      - 1 / no (building block)
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - 0
      - 0
-     - ``IdentityMap()``, ``ScalarResponse(0.0)``, plus
+     - ``SelfPairedDeck.identity()``, ``ScalarResponse(0.0)``, plus
        :math:`q \in \Gamma_-`
      - 0 with :math:`q \neq 0` / no (rank-0 source-only affine BC)
 
@@ -415,9 +415,10 @@ diff}` — a specular term plus a Lambertian term, Bell & Glasstone 1970
 same algebra: pick the per-term maps, pick the amplitudes, sum. Each
 term still factors as :math:`R \circ G` internally, and what
 distinguishes the two terms of a Marshak mix is their **response**: a
-:class:`~orpheus.geometry.boundary.ScalarResponse` behind a
-:class:`~orpheus.geometry.boundary.SpecularMirror` for the specular
-term, a :class:`~orpheus.geometry.boundary.LambertianReemission` for
+:class:`~orpheus.geometry.boundary.ScalarResponse` behind a mirror deck
+element (:meth:`~orpheus.geometry.boundary.SelfPairedDeck.mirror`) for
+the specular term, a
+:class:`~orpheus.geometry.boundary.LambertianReemission` for
 the diffuse one — whose rank-one structure makes its own :math:`G`
 unobservable, which is why the diffuse term declares the identity deck
 element rather than a second mirror. New BCs are one

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8426**
+Total tests collected: **8478**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1206, 14.3%
-   L1, 1407, 16.7%
+   L0, 1206, 14.2%
+   L1, 1407, 16.6%
    L2, 64, 0.8%
    L3, 0, 0.0%
-   foundation, 5749, 68.2%
+   foundation, 5801, 68.4%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8347
+   explicit, 8399
    class-name, 46
    func-name, 0
    case, 33
@@ -149,7 +149,7 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
-   derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 5, 0
+   derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
@@ -269,6 +269,7 @@ Module × level grid
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
+   geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
@@ -348,6 +349,7 @@ Module × level grid
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 105, 0
+   numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_operator, 25, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
@@ -448,7 +450,7 @@ Module × level grid
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 3, 0
-   test_layer_imports, 0, 0, 0, 0, 346, 0
+   test_layer_imports, 0, 0, 0, 0, 344, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0

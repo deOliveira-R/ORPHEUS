@@ -92,7 +92,7 @@ translations and rotations are :math:`G` — but only when they are mirrors
      - :math:`R`
      - what it asserts
    * - ``ReflectiveBoundary(axis)``
-     - :class:`SpecularMirror`
+     - :meth:`SelfPairedDeck.mirror`
      - :math:`I`
      - a symmetry plane — a quotient, **zero physics**
    * - ``PeriodicBoundary(axis)``
@@ -100,22 +100,23 @@ translations and rotations are :math:`G` — but only when they are mirrors
      - :math:`I`
      - a torus — a quotient
    * - ``AlbedoBoundary(α, SpecularReturn)``
-     - :class:`IdentityMap`
+     - :meth:`SelfPairedDeck.identity`
      - :class:`SpecularReemission`
      - a **surface** returning :math:`\alpha` specularly
    * - ``AlbedoBoundary(α, IsotropicReturn)``
-     - :class:`IdentityMap`
+     - :meth:`SelfPairedDeck.identity`
      - :class:`LambertianReemission`
      - a surface returning :math:`\alpha` diffusely
    * - ``VacuumInflow``
-     - :class:`IdentityMap`
+     - :meth:`SelfPairedDeck.identity`
      - :math:`0`
      - a surface returning nothing
 
-:class:`SpecularReturn` and :class:`SpecularMirror` realize to the *same*
-permutation and are nonetheless different types. That is the **point**, not a
-smell: two types make "put a surface's response in the geometry slot"
-unspellable, which is the exact error this section corrects.
+:class:`SpecularReturn` and the mirror deck element
+(:meth:`SelfPairedDeck.mirror`) realize to the *same* permutation and are
+nonetheless different types. That is the **point**, not a smell: two types make
+"put a surface's response in the geometry slot" unspellable, which is the exact
+error this section corrects.
 
 .. note::
 
@@ -213,7 +214,8 @@ the discretization as an argument —
 — so the *law* owns the spec and the *trace space* produces the matrix. It is
 also what makes the factors populatable at all: a specular mirror's realized
 :math:`G` is a permutation **of ordinates**, which needs a quadrature the
-method-agnostic law does not have; ``SpecularMirror(axis="x")`` needs nothing.
+method-agnostic law does not have; ``SelfPairedDeck.mirror(axis="x")`` needs
+nothing.
 
 .. note::
 
@@ -240,9 +242,22 @@ multiplication, a contract-then-broadcast, a gather). §16A.2's
 singleton of :class:`ScalarResponse`, so :attr:`~ScalarResponse.is_zero` stays
 a property.
 
-The **geometry tier** likewise: a mirror and a spatial wrap are genuinely
-non-isomorphic deck transformations, and :class:`IdentityMap` is the group's
-identity element rather than a fourth realization.
+The **geometry tier** splits on the **pairing**, not on the individual motion.
+:class:`SelfPairedDeck` is the face paired with *itself*
+(:meth:`~SelfPairedDeck.domain_face` answers ``face``); :class:`SpatialWrap` is
+the face paired with a *distinct* one (it answers the opposite face). Those two
+are genuinely non-isomorphic — the self-paired guard rejects a translation
+outright — so the tier earns exactly two types.
+
+The trivial pairing and the mirror are **not** two more. They differ by a
+*value*, not by structure: same guard, same ``domain_face``, and
+:attr:`~SelfPairedDeck.permutes_ordinates` *derived* from the motion instead of
+declared. So they are two constructors of one type
+(:meth:`~SelfPairedDeck.identity`, :meth:`~SelfPairedDeck.mirror`). They were
+two classes — ``IdentityMap`` and ``SpecularMirror`` — until phase **G5**, each
+hand-declaring ``permutes_ordinates`` and ``is_adjointable``: a second source of
+truth for two questions the deck element already answers about itself, the
+second of them a theorem its construction guard proves.
 
 The **closure tier** (:class:`ReemissionClosure`) is the newest and needs its
 own defence, because it is one indirection above the kernel it produces.
@@ -284,14 +299,12 @@ from orpheus.numerics.face_layout import AXIS_NAMES, face_normal, face_opposite
 __all__ = [
     "BoundaryGeometryMap",
     "BoundaryResponseKernel",
-    "IdentityMap",
     "IsotropicReturn",
     "LambertianReemission",
     "ReemissionClosure",
     "ScalarResponse",
     "SelfPairedDeck",
     "SpatialWrap",
-    "SpecularMirror",
     "SpecularReemission",
     "SpecularReturn",
 ]
@@ -391,11 +404,21 @@ class BoundaryResponseKernel(Protocol):
     accommodation, diffusivity. It is a positive kernel operator, and — the
     discriminator — it is **not multiplicative**.
 
-    Two realizations, genuinely non-isomorphic: :class:`ScalarResponse` (a bare
-    amplitude, the whole story on a scalar trace where the angular distribution
-    has no degrees of freedom) and :class:`LambertianReemission` (a rank-one
-    angular kernel). The theory page anticipated exactly this tier as
-    *"a full angular kernel in general weak-form BCs (deferred)"*; B3 mints it.
+    **Three** realizations, genuinely non-isomorphic: :class:`ScalarResponse`
+    (a bare amplitude, the whole story on a scalar trace where the angular
+    distribution has no degrees of freedom), :class:`LambertianReemission` (a
+    rank-one angular kernel), and :class:`SpecularReemission` (a permutation —
+    a polished wall's specular return, which is constitutive rather than
+    geometric because a wall is not a quotient). The theory page anticipated
+    exactly this tier as *"a full angular kernel in general weak-form BCs
+    (deferred)"*; B3 mints it.
+
+    (This paragraph read "Two realizations" and named only the first two until
+    2026-08-04. **B3.4b** added the third and updated the module docstring's
+    count at line 237 without updating this one — so the module asserted three
+    and this Protocol asserted two, five hundred lines apart. Found while
+    retiring a different symbol; a dead reference is a tripwire for a false
+    claim, and this one was found by looking one line further.)
 
     :class:`~orpheus.geometry.boundary.ZeroFluxBoundary` is expressible here but
     sits outside the sub-Markov range, at :math:`\mathcal{A} = -1` in the
@@ -533,7 +556,15 @@ class SelfPairedDeck:
 
         The law identifies no geometry: the domain is represented by itself,
         not by a quotient. Every law whose content is entirely constitutive
-        lands here — vacuum, prescribed inflow, white, albedo, zero-flux.
+        lands here — vacuum, prescribed inflow, white, albedo, zero-flux — and
+        for all of them the crossing to :math:`\Gamma_-` is the face's own
+        canonical one, which the realizer supplies.
+
+        That this is *sound* rather than merely conventional is the rank-one
+        theorem (:ref:`bc-factor-roles`): where the response destroys
+        directional information, :math:`R \circ G = R` for **any**
+        measure-preserving :math:`G`, so declaring the identity is not a lossy
+        choice — it is the honest statement that the law fixes no geometry.
         """
         return cls(RigidMotion.identity(dimension))
 
@@ -622,85 +653,6 @@ class SelfPairedDeck:
         return face
 
 
-@dataclass(frozen=True, slots=True)
-class IdentityMap:
-    r""":math:`G = \mathrm{id}` — the **identity element** of the deck group.
-
-    The law imposes no geometric identification: the domain is represented by
-    itself, not by a quotient. Every law carrying this map is one whose content
-    is entirely constitutive — vacuum, prescribed inflow, white, albedo,
-    zero-flux — and for all of them the crossing to :math:`\Gamma_-` is the
-    face's own canonical one, which the realizer supplies.
-
-    That this is *sound* rather than merely conventional is the rank-one
-    theorem (:ref:`bc-factor-roles`): where the response destroys
-    directional information, :math:`R \circ G = R` for **any** measure-
-    preserving :math:`G`, so declaring the identity is not a lossy choice — it
-    is the honest statement that the law fixes no geometry.
-    """
-
-    @property
-    def permutes_ordinates(self) -> bool:
-        return False
-
-    @property
-    def is_adjointable(self) -> bool:
-        return True
-
-    def domain_face(self, face: str) -> str:
-        # The identity deck element identifies nothing, so the law consumes
-        # the face it is installed on. Every constitutive law lands here.
-        return face
-
-
-@dataclass(frozen=True, slots=True)
-class SpecularMirror:
-    r""":math:`G = G_{\text{refl}}` — mirror reflection about ``axis``.
-
-    The reflection :math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` —
-    the unique ambient isometry fixing the face. It exchanges the hemispheres
-    (which is why it, and not the response, carries the
-    :math:`\Gamma_+ \to \Gamma_-` crossing) and preserves
-    :math:`|\Omega\cdot\hat n|`, so it is measure-preserving in the trace
-    measure, as ERR-042 requires.
-
-    Quotient reading: this is the deck transformation of a quotient **with
-    fixed points** — the mirror plane itself — so a reflecting face makes the
-    computational domain an **orbifold** with what Thurston calls a reflector
-    boundary. (Contrast :class:`SpatialWrap`, whose action is free.)
-
-    Realizes (B4) to the ordinate permutation
-    ``quadrature.reflection_index(axis)``. The law carries only the axis; the
-    permutation itself needs the quadrature, which is exactly why this is a
-    spec and not an operator.
-    """
-
-    axis: str = "x"
-
-    @property
-    def permutes_ordinates(self) -> bool:
-        return True
-
-    @property
-    def is_adjointable(self) -> bool:
-        # A permutation's transpose is its inverse permutation — realized today
-        # as ``argsort(perm)``, a genuine transpose rather than a
-        # re-application. Measured exact: ‖T − Fᵀ‖∞ = 0.
-        return True
-
-    def domain_face(self, face: str) -> str:
-        # The mirror FIXES the face (it is the plane's own isometry), so the
-        # crossing it carries is angular and stays within one face's slot:
-        # Γ₊(face) → Γ₋(face). Contrast SpatialWrap, whose action is free.
-        #
-        # No axis-vs-face reconciliation here. The mirror's declared axis IS
-        # checked against the installation face — but at realization, where a
-        # mismatch is diagnosed against the actual reflection table (a mirror
-        # about 'y' on an x-face relabels WITHIN each half-trace instead of
-        # exchanging them), and that check has the quadrature this one does
-        # not. A second, weaker name-only test here would be a twin that can
-        # disagree with it.
-        return face
 
 
 @dataclass(frozen=True, slots=True)
@@ -725,8 +677,8 @@ class SpatialWrap:
     on the configuration or the discretization.* Which face is the partner
     depends on **where the law is installed** — configuration — whereas "wrap
     along x" is intrinsic, and it is the same shape as
-    :class:`SpecularMirror`'s parameter. The realizer derives the partner from
-    the installation face plus this axis.
+    :meth:`SelfPairedDeck.mirror`'s ``axis``. The realizer derives the partner
+    from the installation face plus this axis.
 
     :class:`~orpheus.geometry.boundary.PeriodicBoundary` has never carried
     ANY field (issue #183), so the map it names was not expressible; ``axis`` is
@@ -821,10 +773,10 @@ class ScalarResponse:
 
     The flux returns attenuated but otherwise untouched, so whatever angular
     structure the deck transformation produced is what arrives. Paired with
-    :class:`SpecularMirror` this is the specular albedo; paired with
-    :class:`IdentityMap` on a **scalar** trace it is the partial-current albedo,
-    where it is the complete story because the angular distribution has no
-    degrees of freedom to fix.
+    :meth:`SelfPairedDeck.mirror` this is the specular albedo; paired with
+    :meth:`SelfPairedDeck.identity` on a **scalar** trace it is the
+    partial-current albedo, where it is the complete story because the angular
+    distribution has no degrees of freedom to fix.
 
     Construction does NOT clamp to :math:`[0, 1]`: the sub-Markov bound is a
     per-law invariant (``assert_albedo_in_unit_interval``), and the zero-flux
@@ -911,7 +863,7 @@ class SpecularReemission:
     A surface that returns :math:`\alpha` of the arriving flux into the
     mirror-partner direction. Realized as the ordinate permutation
     ``quadrature.reflection_index(axis)``, scaled by :math:`\alpha` — the same
-    matrix :class:`SpecularMirror` realizes to.
+    matrix :meth:`SelfPairedDeck.mirror` realizes to.
 
     Why this is a **response** and not a geometry
     ---------------------------------------------
@@ -1001,9 +953,9 @@ class ReemissionClosure(Protocol):
     map :math:`\Gamma_+ \to \Gamma_+` — an endomorphism of the *outgoing*
     hemisphere — while the law it must produce is
     :math:`\Gamma_+ \to \Gamma_-`. The identity supplies no crossing, and
-    :class:`IdentityMap` (the geometry of every surface law) supplies none
-    either. Something must say which outgoing direction feeds which incoming
-    one; that something is this closure.
+    :meth:`SelfPairedDeck.identity` (the geometry of every surface law) supplies
+    none either. Something must say which outgoing direction feeds which
+    incoming one; that something is this closure.
 
     Composing it anyway, without a closure, is not an approximation — it is a
     pairing by **array position**: incoming ordinate :math:`j` would receive
@@ -1031,11 +983,12 @@ class ReemissionClosure(Protocol):
 class SpecularReturn:
     r"""Return into the **mirror-partner** direction — a polished surface.
 
-    Deliberately a different type from :class:`SpecularMirror`, which realizes
-    to the same permutation. The two are structurally identical and
-    semantically disjoint, and keeping them apart is what makes "a wall's
-    response in the geometry slot" unspellable — the exact conflation phase B3
-    found in the white law and the user's 2026-08-01 ruling generalized.
+    Deliberately a different type from the mirror deck element
+    :meth:`SelfPairedDeck.mirror` builds, which realizes to the same
+    permutation. The two realize identically and are semantically disjoint, and
+    keeping them apart is what makes "a wall's response in the geometry slot"
+    unspellable — the exact conflation phase B3 found in the white law and the
+    user's 2026-08-01 ruling generalized.
     """
 
     axis: str = "x"

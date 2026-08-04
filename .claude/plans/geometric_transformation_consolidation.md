@@ -1156,6 +1156,98 @@ HEAD** — pre-existing, and left alone rather than folded into this change.
 
 ---
 
+## 7e. G5 — the self-paired deck half, and a refuted premise in the plan's own G5 line
+
+**Scope, ruled by the user (2026-08-04):** do **Specular + Identity first, to try
+out the design**. Periodic and rotational are deferred because they need
+**surface pairs**: by Poincaré, a face may be paired with ITSELF (an involution,
+domain face = codomain face — the reflection) or with a DISTINCT face (the
+codomain of one is the domain of the other — periodic, rotational). Only the
+self-paired half is nameable by one face, so only it is buildable today.
+
+The code already carried the distinction in Thurston's language: `SpecularMirror`
+documented a reflecting face as a quotient **with fixed points** (an orbifold
+reflector boundary), explicitly contrasted with `SpatialWrap`, *"whose action is
+free"*. Fixed points ⟺ self-paired; free ⟺ genuinely paired.
+
+### ⛔ The plan's own G5 line was WRONG about the four σ_a vocabularies
+
+This plan said "FOUR type vocabularies for σ_a that do not know about each
+other", implying they should merge. A re-audit refuted it: they are **four
+different categories** — `SpecularMirror` (deck `Γ₊→Γ₋`), `SpecularReemission`
+(constitutive kernel `Γ₋→Γ₋`), `SpecularReturn` (a curried factory), and
+`symmetry.Mirror` (a subgroup tag). Three of the four are a deliberate,
+documented, sweep-schedule-load-bearing split, and merging them re-opens exactly
+the conflation **B3.0** removed — *unobservably*, because a rank-one `R`
+annihilates `G`. The user's scope is the correct one and touches `R` not at all.
+
+(Also refuted: my re-audit brief claimed B3.4a/b/c postdated the boundary audit.
+Backwards — they landed 2026-08-01 and the audit *cites them by name*. Only G3
+and G4 postdate it, and both touched only `numerics/symmetry.py`.)
+
+### Stage 1 — `SelfPairedDeck` minted and verified (`3cce383a`)
+
+Guard: **`is_linear ∧ dim Fix ≥ d − 1`**. ⛔ My first design guarded on
+`element_order() in (1, 2)` — the CONVERSE of the insight, and wrong. A
+proactive `test-architect` dispatch caught it before any code: `E(3)` has FOUR
+involution families, and the half-turn (`order 2, det +1, fix 1`) and inversion
+(`order 2, det −1, fix 0`) map a face to its **opposite** — precisely
+`SpatialWrap`'s deferred job. An order-only guard admits the elements the type
+exists to exclude.
+
+The shipped guard is strictly stronger, carries **no tolerance**, and is a
+**theorem-carrier**: a linear orthogonal `Q` fixing a hyperplane pointwise is
+`I` or a reflection, so `Q² = I` FOLLOWS. Involution became a derived property
+to assert, not a premise to trust. Both clauses are load-bearing — a glide
+passes the fixed-set clause and fails linearity; an inversion is the reverse.
+
+⭐ **The linearity clause closes a class no gate could ever close.**
+`on_directions` DROPS the translation, so a mirror plane at the wrong POSITION
+is bit-identical in the permutation, the realized image, the snapshots and any
+scalar — Mode-12 designed-green at every tolerance. Unspellable is the only
+closure that exists. (`[M]` identical at `offset ∈ {0, 2.5, −17.0}`.)
+
+`[M]` 23 gates; 7 mutations + control, all caught. M4 first produced **no
+output**, and reading that rather than the summary found a real defect: two
+`parametrize` lists built the SUT at COLLECTION time, so a guard regression
+became a collection ERROR that took the whole file down. Made lazy.
+
+### Stage 2 — migration, and the two gates that would have decayed silently
+
+Six production sites moved (`white`/`vacuum`/`albedo`/`zero_flux`/
+`prescribed_inflow` → `SelfPairedDeck.identity()`, `reflective` →
+`.mirror(axis=…)`); both retired classes deleted from `_factors.py` and the
+package surface.
+
+⭐ **`realizer.py:726` passes `axis=law.axis`, not `geometry_map.axis`** — the
+realized permutation comes from the LAW, so the G slot is purely declarative and
+realization is untouched. That is why the migration is contained to
+`geometry/boundary/` + tests, and why bit-identity of the permutation is
+structural rather than something to gate.
+
+**`test-architect`'s highest-value finding: two gates decay to TAUTOLOGIES on
+the collapse, silently green.** `[M]` measured after the fact —
+`SelfPairedDeck` appears on BOTH the permuting side (`reflective-a1`,
+`reflective-partial`) and the non-permuting side (vacuum, white, albedo,
+prescribed_inflow, zero_flux), so the sets are **not disjoint** and a type-level
+assertion cannot separate them. Both re-posed in the SAME commit as the
+collapse:
+
+- `test_every_production_law_states_both_factors` — the spec table's *type*
+  column became the expected **value**, compared by equality. Strictly stronger:
+  the type column could not distinguish `reflective-a1` (axis x) from
+  `reflective-partial` (axis **y**) — both were just `SpecularMirror` — and the
+  value column pins the axis.
+- `test_specular_mirror_is_the_only_ordinate_permuting_geometry` — re-posed onto
+  the **answer set** (which law IDs permute) plus the mechanism one level down
+  (a self-paired element permutes angle iff `det = −1`). Immune to any future
+  re-typing, which the type-level form was not.
+
+Two gates got *stronger* for free: `test_factors_are_frozen` had a vacuous
+branch for the field-less `IdentityMap` and now runs for every geometry factor.
+
+---
+
 ## 8. Standing constraints for the implementation session
 
 * `main` is always green; never commit to `main`; `--ff-only`; no squash-merge.

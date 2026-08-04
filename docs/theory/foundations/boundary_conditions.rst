@@ -435,7 +435,7 @@ implemented law:
      - :math:`R`
      - what it asserts
    * - ``ReflectiveBoundary(axis)``
-     - ``SpecularMirror``
+     - ``SelfPairedDeck.mirror(axis)``
      - :math:`I`
      - a symmetry plane — a quotient, **zero physics**
    * - ``PeriodicBoundary(axis)``
@@ -443,19 +443,19 @@ implemented law:
      - :math:`I`
      - a torus — a quotient
    * - ``AlbedoBoundary(α, SpecularReturn)``
-     - ``IdentityMap``
+     - ``SelfPairedDeck.identity()``
      - ``SpecularReemission``
      - a **surface** returning :math:`\alpha` specularly
    * - ``AlbedoBoundary(α, IsotropicReturn)``
-     - ``IdentityMap``
+     - ``SelfPairedDeck.identity()``
      - ``LambertianReemission``
      - a surface returning :math:`\alpha` diffusely
    * - ``WhiteBoundary(axis, sign, α)``
-     - ``IdentityMap``
+     - ``SelfPairedDeck.identity()``
      - ``LambertianReemission``
      - the same diffuse surface, under its traditional name
    * - ``VacuumInflow``
-     - ``IdentityMap``
+     - ``SelfPairedDeck.identity()``
      - :math:`0`
      - a surface returning nothing
 
@@ -940,7 +940,7 @@ returning a bare :class:`~orpheus.numerics.operator.ZeroOperator` /
 identity), plus ``periodic``. Both are blocked on a **design ruling**,
 not on plumbing: albedo is under-determined on an angular trace
 (:math:`R = \alpha\,I` is a :math:`\Gamma_+ \to \Gamma_+` endomorphism
-and its :math:`G = \mathrm{IdentityMap}` supplies no crossing), so
+and its :math:`G = \mathrm{id}` supplies no crossing), so
 **B3.4b** must give it an explicit re-emission closure carried in
 :math:`R`; periodic's :math:`G` reads the PARTNER face's
 :math:`\Gamma_+`, which **B3.4c** builds (#183, #189). Measured on both:
@@ -2600,8 +2600,7 @@ The ABC ships:
    :class:`~orpheus.geometry.boundary.NoSource`, but **all seven
    concrete laws populate all three** since campaign phase B1 — the
    two factor tiers are typed specifications
-   (:class:`~orpheus.geometry.boundary.IdentityMap` /
-   :class:`~orpheus.geometry.boundary.SpecularMirror` /
+   (:class:`~orpheus.geometry.boundary.SelfPairedDeck` /
    :class:`~orpheus.geometry.boundary.SpatialWrap` for :math:`G`;
    :class:`~orpheus.geometry.boundary.ScalarResponse` /
    :class:`~orpheus.geometry.boundary.LambertianReemission` for
@@ -2615,25 +2614,27 @@ The ABC ships:
         - ``geometry_map``
         - ``response_kernel``
       * - ``VacuumInflow``
-        - ``IdentityMap()``
+        - ``SelfPairedDeck.identity()``
         - ``ScalarResponse(alpha=0.0)``
       * - ``ReflectiveBoundary``
-        - ``SpecularMirror(axis)``
+        - ``SelfPairedDeck.mirror(axis)``
         - ``ScalarResponse(alpha=albedo)``
       * - ``WhiteBoundary``
-        - ``IdentityMap()``
+        - ``SelfPairedDeck.identity()``
         - ``LambertianReemission(alpha, axis, outward_sign)``
       * - ``AlbedoBoundary``
-        - ``IdentityMap()``
-        - ``ScalarResponse(alpha=albedo)``
+        - ``SelfPairedDeck.identity()``
+        - by closure (**B3.4b**): ``SpecularReemission(alpha, axis)`` /
+          ``LambertianReemission(alpha, axis, outward_sign)`` /
+          ``ScalarResponse(alpha=albedo)`` with none
       * - ``PeriodicBoundary``
         - ``SpatialWrap(axis)``
         - ``ScalarResponse(alpha=1.0)``
       * - ``ZeroFluxBoundary``
-        - ``IdentityMap()``
+        - ``SelfPairedDeck.identity()``
         - ``ScalarResponse(alpha=-1.0)``
       * - ``PrescribedInflow``
-        - ``IdentityMap()``
+        - ``SelfPairedDeck.identity()``
         - ``ScalarResponse(alpha=0.0)`` (plus ``source``)
 
    They are **read by production**: phase B2.2 repointed five sites
@@ -2760,24 +2761,43 @@ Reflective is an **angular permutation** (the axis reflection, scaled
 by the albedo) — rank :math:`N/2` per slab face: structured,
 trace-sized, NOT rank-1.
 
-.. note:: **Albedo's angular closure is the one genuine gap.** Its
-   :math:`R_\alpha` states the *magnitude* with which flux returns but
+.. note:: **Albedo's angular closure was the one genuine gap** — the
+   *closure* landed at campaign phase **B3.4b**; wiring the law into
+   the SN law-admission registry is still open (issue **#189**; the
+   registry admits ``{vacuum, reflective}`` today). Its
+   :math:`R_\alpha` stated the *magnitude* with which flux returns but
    not the *distribution*, and on an angular trace those are
    independent — the scalar is complete only on a scalar
    (partial-current) trace, where the distribution has no degrees of
-   freedom. Fixing the closure makes
+   freedom. The closure makes
    :math:`\text{albedo}(\alpha, \text{isotropic}) \equiv
    \text{white}(\alpha)` and
    :math:`\text{albedo}(\alpha, \text{specular}) \equiv
-   \text{reflective}(\alpha)` **theorems** rather than coincidences,
-   with the specular closure moving its content across into
-   :math:`G_\alpha` — which is exactly what the
-   :ref:`membership criterion <bc-factor-roles>` predicts. Campaign
-   phase **B3.4b** — which is also what blocks albedo's domain
-   narrowing: without that closure, :math:`R = \alpha\,I` is a
+   \text{reflective}(\alpha)` **theorems** rather than coincidences —
+   in the code both routes execute *one* realization body rather than
+   two transcriptions agreeing.
+
+   **Retraction (2026-08-04).** This note used to forecast that the
+   specular closure would move its content across into
+   :math:`G_\alpha`, "which is exactly what the
+   :ref:`membership criterion <bc-factor-roles>` predicts". That was
+   **backwards**: it read the criterion's *necessary* half
+   (multiplicativity — which a permutation passes) as the whole test.
+   The *sufficient* half is the quotient test, and a polished wall is
+   not a quotient of the domain, so its specular return is
+   **constitutive**. The 2026-08-01 ruling and the shipped code both
+   put it in :math:`R_\alpha`
+   (:class:`~orpheus.geometry.boundary.SpecularReemission`), with
+   ``AlbedoBoundary.geometry_map`` staying
+   :meth:`~orpheus.geometry.boundary.SelfPairedDeck.identity`
+   **unconditionally** — whatever the closure.
+
+   What blocked albedo's **domain narrowing** is unchanged and still
+   reads correctly: without a closure :math:`R = \alpha\,I` is a
    :math:`\Gamma_+ \to \Gamma_+` endomorphism and albedo's
-   :math:`G = \mathrm{IdentityMap}` supplies no crossing, so there is
-   nothing to narrow *onto*. Issue **#189**.
+   :math:`G = \mathrm{id}` supplies no crossing, so there is nothing
+   to narrow *onto* — which is why the SN realizer **refuses** the
+   closure-free spelling on an angular trace.
 
 Periodic is a **spatial pushforward** pairing opposite faces. Marshak /
 partial-current boundaries are rank-N via the

@@ -82,7 +82,8 @@ def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
     inline and were right. The 2026-08-01 ruling put a pairing in :math:`R`
     too — a polished wall's specular return is *constitutive*, not a symmetry
     of the domain — so ``AlbedoBoundary(α, SpecularReturn(a))`` permutes
-    ordinates with ``G = IdentityMap``. Four inline spellings then became four
+    ordinates with ``G = SelfPairedDeck.identity()``. Four inline spellings
+    then became four
     half-right answers, and since that law equals ``ReflectiveBoundary(a, α)``
     as a matrix, each was a place where two identical operators behaved
     differently:

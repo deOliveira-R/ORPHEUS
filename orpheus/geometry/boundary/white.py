@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from ._base import BoundaryTraceLaw
-from ._factors import IdentityMap, LambertianReemission
+from ._factors import SelfPairedDeck, LambertianReemission
 
 if TYPE_CHECKING:
     import numpy as np
@@ -111,7 +111,7 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "IdentityMap":
+    def geometry_map(self) -> "SelfPairedDeck":
         r""":math:`G = \mathrm{id}` — a white face fixes no geometry.
 
         Diffuse re-emission is not a symmetry of the domain: nothing is
@@ -129,7 +129,7 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
         :ref:`bc-factor-roles`, which is also why the correction
         leaves the composite :math:`R\,G` unchanged by construction.
         """
-        return IdentityMap()
+        return SelfPairedDeck.identity()
 
     @property
     def response_kernel(self) -> "LambertianReemission":

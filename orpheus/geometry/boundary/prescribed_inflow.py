@@ -48,7 +48,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ._base import BoundaryTraceLaw
-from ._factors import IdentityMap, ScalarResponse
+from ._factors import SelfPairedDeck, ScalarResponse
 from ._source import InflowSourceSpec, NoSource
 
 
@@ -126,7 +126,7 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "IdentityMap":
+    def geometry_map(self) -> "SelfPairedDeck":
         r""":math:`G = \mathrm{id}` — the inflow comes entirely from :math:`q`.
 
         Prescribed inflow is the rank-0 AFFINE case: unlike vacuum it has a
@@ -141,7 +141,7 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
         same conflation: the zero map is not a bijection and so cannot be a
         geometry map, and :math:`R = 0` alone already severs the routing.
         """
-        return IdentityMap()
+        return SelfPairedDeck.identity()
 
     @property
     def response_kernel(self) -> "ScalarResponse":

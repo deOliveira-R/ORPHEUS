@@ -1021,7 +1021,8 @@ class TestSpecularPairingCertifiedOnBothCarriers:
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         mutant = _TableQuad(quad, np.array([1, 0, 3, 2, 5, 4, 7, 6]))
         law = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
-        # The G hook is silent — G is IdentityMap, which fixes no geometry.
+        # The G hook is silent — G is the identity deck element, which fixes
+        # no geometry.
         law.assert_geometry_map_measure_preserving(mutant)  # type: ignore[arg-type]
         # …while the aggregate still reds, via the R-tier extension.
         with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):

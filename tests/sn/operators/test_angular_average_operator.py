@@ -9,7 +9,7 @@ the older reading — "the §15.2 geometric projection G_diff in the
 decomposition R_white = G_diff ⊗ α" — on a decidable criterion: a
 geometry map is the composition operator of a measure-preserving
 bijection, hence **multiplicative** (``G(ψφ) = (Gψ)(Gφ)``), and an
-average is never that. So white's factors are ``G = IdentityMap``
+average is never that. So white's factors are ``G = SelfPairedDeck.identity()``
 (a white face fixes no geometry) and
 ``R = LambertianReemission(α)``, which is what this operator realizes.
 

@@ -44,8 +44,9 @@ class AngularAverageOperator(LinearOperator):
     Realizes the **response** factor :math:`R_{\text{diff}}` of the white
     boundary law — the spec
     :class:`~orpheus.geometry.boundary.LambertianReemission`. White's
-    geometry factor is :class:`~orpheus.geometry.boundary.IdentityMap`: a
-    white face fixes no geometry, and all of its content is constitutive.
+    geometry factor is
+    :meth:`~orpheus.geometry.boundary.SelfPairedDeck.identity`: a white face
+    fixes no geometry, and all of its content is constitutive.
 
     **Not a geometry, despite the older name.** Campaign phase **B3.0**
     moved this out of the geometry tier: a geometry map is the composition

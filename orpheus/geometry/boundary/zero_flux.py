@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
-from ._factors import IdentityMap, ScalarResponse
+from ._factors import SelfPairedDeck, ScalarResponse
 
 
 __all__ = ["ZeroFluxBoundary"]
@@ -109,9 +109,9 @@ class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
     # These describe the REALIZATION (see "Factors, and the tier caveat"
     # above), not a claim that the law is posed affinely.
     @property
-    def geometry_map(self) -> "IdentityMap":
+    def geometry_map(self) -> "SelfPairedDeck":
         r""":math:`G = I` — no relabeling; the sign lives entirely in `R`."""
-        return IdentityMap()
+        return SelfPairedDeck.identity()
 
     @property
     def response_kernel(self) -> "ScalarResponse":

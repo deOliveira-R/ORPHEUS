@@ -68,7 +68,8 @@ suffices for the two laws below.
   agreeing. The laws still assert different physics — a wall's constitutive
   return versus a symmetry of the domain — which is the user's 2026-08-01
   ruling: the specular pairing belongs to :math:`R`, and
-  ``AlbedoBoundary.geometry_map`` is ``IdentityMap()`` unconditionally.
+  ``AlbedoBoundary.geometry_map`` is ``SelfPairedDeck.identity()``
+  unconditionally.
 * :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α)` with **no**
   closure → **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`).
   Its response :math:`R = \alpha\,I` is an endomorphism of :math:`\Gamma_+` and
@@ -750,8 +751,9 @@ class SNBoundaryRealizer:
 
         if isinstance(law, AlbedoBoundary):
             # B3.4b — a SURFACE returning α of the flux, in the angular shape
-            # its closure names. ``G`` is ``IdentityMap`` unconditionally (a
-            # wall is not a quotient of the domain), so the whole law is in
+            # its closure names. ``G`` is ``SelfPairedDeck.identity()``
+            # unconditionally (a wall is not a quotient of the domain), so
+            # the whole law is in
             # ``R`` and both arms land in the same two bodies the
             # geometry-tier laws use.
             #
@@ -813,7 +815,8 @@ class SNBoundaryRealizer:
                     f"(albedo={law.albedo}) with no re-emission closure: on "
                     f"an ANGULAR trace the law is under-determined. Its "
                     f"response R = α·I is an endomorphism of Γ₊ and its "
-                    f"geometry G = IdentityMap supplies no crossing, so "
+                    f"geometry G = SelfPairedDeck.identity() supplies no crossing, "
+                    f"so "
                     f"nothing says which outgoing direction feeds which "
                     f"incoming one — composing it anyway would pair them by "
                     f"ARRAY POSITION, an artefact of index order carrying no "

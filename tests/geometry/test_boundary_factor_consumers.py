@@ -41,7 +41,7 @@ from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
     BoundaryTraceLaw,
-    IdentityMap,
+    SelfPairedDeck,
     PrescribedInflow,
     ReflectiveBoundary,
     ScalarResponse,
@@ -266,7 +266,7 @@ class TestSpecMutationsPropagate:
         assert _reflective_faces(sn) == frozenset({"xmin"})
         monkeypatch.setattr(
             ReflectiveBoundary, "geometry_map",
-            property(lambda self: IdentityMap()),
+            property(lambda self: SelfPairedDeck.identity()),
         )
         mutated = _reflective_faces(_slab("reflective", "vacuum"))
         if mutated:
@@ -283,7 +283,7 @@ class TestSpecMutationsPropagate:
             _sphere("reflective")).is_adjointable
         monkeypatch.setattr(
             ReflectiveBoundary, "geometry_map",
-            property(lambda self: IdentityMap()),
+            property(lambda self: SelfPairedDeck.identity()),
         )
         if RadialCharacteristicBoundaryOperator(
                 _sphere("reflective")).is_adjointable:
@@ -315,7 +315,7 @@ class TestSpecMutationsPropagate:
         [
             (VacuumInflow, "response_kernel", ScalarResponse(0.5),
              "vacuum's response stops being zero"),
-            (ReflectiveBoundary, "geometry_map", IdentityMap(),
+            (ReflectiveBoundary, "geometry_map", SelfPairedDeck.identity(),
              "reflective's geometry stops permuting"),
         ],
         ids=["vacuum-response", "reflective-geometry"],

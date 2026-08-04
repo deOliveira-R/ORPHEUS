@@ -143,7 +143,8 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     was complete while the *only* specular pairing lived in :math:`G`. The
     user's 2026-08-01 ruling put one in :math:`R` too — a polished wall's
     return is constitutive — so ``AlbedoBoundary(α, SpecularReturn(a))`` has
-    ``G = IdentityMap`` and would have been loud-deferred at the corner while
+    ``G = SelfPairedDeck.identity()`` and would have been loud-deferred at the
+    corner while
     ``ReflectiveBoundary(a, α)``, which it equals as a matrix, is ruled. That
     breaks the equivalence B3.4b asserts, in the one consumer that reads the
     factors rather than the realized operator.

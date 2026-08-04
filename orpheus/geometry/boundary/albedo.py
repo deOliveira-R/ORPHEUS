@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Optional
 from ._base import BoundaryTraceLaw
 from ._factors import (
     BoundaryResponseKernel,
-    IdentityMap,
+    SelfPairedDeck,
     ReemissionClosure,
     ScalarResponse,
     SpecularReemission,
@@ -140,7 +140,7 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "IdentityMap":
+    def geometry_map(self) -> "SelfPairedDeck":
         r""":math:`G = I`, **unconditionally** — a surface is not a quotient.
 
         Whatever the closure, the deck transformation stays the group's
@@ -155,7 +155,7 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
         It is also why the diffusion arm needs no geometric factor at all — on
         a scalar trace ``G`` is forced to the identity by dimension anyway.
         """
-        return IdentityMap()
+        return SelfPairedDeck.identity()
 
     @property
     def response_kernel(self) -> "BoundaryResponseKernel":

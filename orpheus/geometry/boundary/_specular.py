@@ -6,8 +6,8 @@ supplied by :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`.
 Two laws carry one, in **different tiers** of the affine form:
 
 * :class:`~orpheus.geometry.boundary.ReflectiveBoundary` carries it as
-  :math:`G` (:class:`~orpheus.geometry.boundary.SpecularMirror`) — a symmetry
-  of the domain;
+  :math:`G` (:meth:`~orpheus.geometry.boundary.SelfPairedDeck.mirror`) — a
+  symmetry of the domain;
 * :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
   :class:`~orpheus.geometry.boundary.SpecularReturn` closure carries it as
   :math:`R` (:class:`~orpheus.geometry.boundary.SpecularReemission`) — a
@@ -171,8 +171,8 @@ def assert_specular_pairing_involutive(
 
     An axis reflection applied twice returns every ordinate to itself. A table
     with a longer cycle is not a reflection at all, and the operator it
-    realizes has no honest transpose — the ``.H`` that
-    :class:`~orpheus.geometry.boundary.SpecularMirror` and
+    realizes has no honest transpose — the ``.H`` that the mirror deck element
+    (:meth:`~orpheus.geometry.boundary.SelfPairedDeck.mirror`) and
     :class:`~orpheus.geometry.boundary.SpecularReemission` both advertise as a
     theorem rests on exactly this property.
 

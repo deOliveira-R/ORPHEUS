@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
-from ._factors import IdentityMap, ScalarResponse
+from ._factors import SelfPairedDeck, ScalarResponse
 
 
 __all__ = ["VacuumInflow"]
@@ -61,7 +61,7 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "IdentityMap":
+    def geometry_map(self) -> "SelfPairedDeck":
         r""":math:`G = \mathrm{id}` — a vacuum face fixes no geometry.
 
         Vacuum is the rank-0 corner of :math:`\gamma_-\psi = R\,G\,\gamma_+\psi
@@ -80,7 +80,7 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
         outflow rows), not a different law — and phase **B3** narrows the domain
         so the two agree.
         """
-        return IdentityMap()
+        return SelfPairedDeck.identity()
 
     @property
     def response_kernel(self) -> "ScalarResponse":

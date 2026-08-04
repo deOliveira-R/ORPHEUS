@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 
 from ._base import BoundaryTraceLaw
-from ._factors import ScalarResponse, SpecularMirror
+from ._factors import ScalarResponse, SelfPairedDeck
 from ._specular import (
     assert_specular_pairing_involutive,
     assert_specular_pairing_maps_inflow_to_outflow,
@@ -90,9 +90,9 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "SpecularMirror":
+    def geometry_map(self) -> "SelfPairedDeck":
         r""":math:`G = G_{\text{refl}}`, the mirror about :attr:`axis`."""
-        return SpecularMirror(axis=self.axis)
+        return SelfPairedDeck.mirror(axis=self.axis)
 
     @property
     def response_kernel(self) -> "ScalarResponse":

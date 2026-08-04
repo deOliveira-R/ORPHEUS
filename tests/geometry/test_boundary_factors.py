@@ -34,14 +34,13 @@ from orpheus.geometry.boundary import (
     BoundaryGeometryMap,
     BoundaryResponseKernel,
     BoundaryTraceLaw,
-    IdentityMap,
     LambertianReemission,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
     ScalarResponse,
     SpatialWrap,
-    SpecularMirror,
+    SelfPairedDeck,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
@@ -63,8 +62,11 @@ from orpheus.geometry.boundary import (
 #:   retired) into ``R`` (:class:`LambertianReemission`). An average is neither
 #:   multiplicative nor a bijection, so it never belonged in the geometry tier.
 #: * **vacuum** and **prescribed_inflow** moved from ``NullMap`` (retired) to
-#:   :class:`IdentityMap`. ``G = 0`` is not a bijection, and their zero-ness is
-#:   already spelled once, correctly, as ``ScalarResponse(0.0)``.
+#:   the identity deck element. ``G = 0`` is not a bijection, and their
+#:   zero-ness is already spelled once, correctly, as ``ScalarResponse(0.0)``.
+#:   (That element was spelled ``IdentityMap`` until G5 collapsed it and
+#:   ``SpecularMirror`` into :class:`SelfPairedDeck`; the history is unchanged,
+#:   only the spelling.)
 #:
 #: The response TYPE is now a parameter because the tier has two members — the
 #: split B1 declined to make while every response was a bare scalar.
@@ -72,17 +74,21 @@ from orpheus.geometry.boundary import (
 #: ``_stub_for_test`` is deliberately absent: it is a test fixture, and the
 #: registry-hygiene fixture in ``test_boundary_trace_law.py`` evicts it outside
 #: that module anyway.
-_LAW_SPECS: list[tuple[BoundaryTraceLaw, type, type, float, str]] = [
-    (VacuumInflow(), IdentityMap, ScalarResponse, 0.0, "vacuum"),
-    (ReflectiveBoundary(), SpecularMirror, ScalarResponse, 1.0, "reflective-a1"),
-    (ReflectiveBoundary(axis="y", albedo=0.7), SpecularMirror, ScalarResponse,
-     0.7, "reflective-partial"),
-    (WhiteBoundary(axis="x", albedo=0.4), IdentityMap, LambertianReemission,
-     0.4, "white"),
-    (AlbedoBoundary(albedo=0.25), IdentityMap, ScalarResponse, 0.25, "albedo"),
-    (PeriodicBoundary(), SpatialWrap, ScalarResponse, 1.0, "periodic"),
-    (PrescribedInflow(), IdentityMap, ScalarResponse, 0.0, "prescribed_inflow"),
-    (ZeroFluxBoundary(), IdentityMap, ScalarResponse, -1.0, "zero_flux"),
+_LAW_SPECS: list[tuple[BoundaryTraceLaw, object, type, float, str]] = [
+    (VacuumInflow(), SelfPairedDeck.identity(), ScalarResponse, 0.0, "vacuum"),
+    (ReflectiveBoundary(), SelfPairedDeck.mirror(axis="x"), ScalarResponse,
+     1.0, "reflective-a1"),
+    (ReflectiveBoundary(axis="y", albedo=0.7), SelfPairedDeck.mirror(axis="y"),
+     ScalarResponse, 0.7, "reflective-partial"),
+    (WhiteBoundary(axis="x", albedo=0.4), SelfPairedDeck.identity(),
+     LambertianReemission, 0.4, "white"),
+    (AlbedoBoundary(albedo=0.25), SelfPairedDeck.identity(), ScalarResponse,
+     0.25, "albedo"),
+    (PeriodicBoundary(), SpatialWrap(axis="x"), ScalarResponse, 1.0, "periodic"),
+    (PrescribedInflow(), SelfPairedDeck.identity(), ScalarResponse, 0.0,
+     "prescribed_inflow"),
+    (ZeroFluxBoundary(), SelfPairedDeck.identity(), ScalarResponse, -1.0,
+     "zero_flux"),
 ]
 
 PRODUCTION_LAWS = [
@@ -92,8 +98,8 @@ PRODUCTION_LAWS = [
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
-def test_every_production_law_states_both_factors(law, geom_cls, resp_cls, alpha) -> None:
+@pytest.mark.parametrize("law,expected_geometry,resp_cls,alpha", PRODUCTION_LAWS)
+def test_every_production_law_states_both_factors(law, expected_geometry, resp_cls, alpha) -> None:
     """No production law may report ``None`` for either factor.
 
     This is the whole of B1 as a single assertion. It reds if a new law ships
@@ -106,21 +112,29 @@ def test_every_production_law_states_both_factors(law, geom_cls, resp_cls, alpha
             f"an unpopulated factor is the pre-B1 state that forced production "
             f"to dispatch on `law.kind` strings instead."
         )
-    assert isinstance(law.geometry_map, geom_cls)
+    # EQUALITY, not isinstance — since G5 collapsed IdentityMap and
+    # SpecularMirror into one type, an isinstance check would pass for 7 of
+    # the 8 rows regardless of what the law actually declares, and would be
+    # blind to the AXIS entirely (both reflective rows were `SpecularMirror`).
+    # Comparing the value pins the type, the motion and the axis at once.
+    assert law.geometry_map == expected_geometry, (
+        f"{type(law).__name__} declares geometry_map={law.geometry_map!r}, "
+        f"expected {expected_geometry!r}"
+    )
     assert isinstance(law.response_kernel, resp_cls)
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
-def test_factors_satisfy_their_protocols(law, geom_cls, resp_cls, alpha) -> None:
+@pytest.mark.parametrize("law,expected_geometry,resp_cls,alpha", PRODUCTION_LAWS)
+def test_factors_satisfy_their_protocols(law, expected_geometry, resp_cls, alpha) -> None:
     """Structural conformance to the two Protocols, at runtime."""
     assert isinstance(law.geometry_map, BoundaryGeometryMap)
     assert isinstance(law.response_kernel, BoundaryResponseKernel)
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
-def test_response_scalar_is_the_declared_amplitude(law, geom_cls, resp_cls, alpha) -> None:
+@pytest.mark.parametrize("law,expected_geometry,resp_cls,alpha", PRODUCTION_LAWS)
+def test_response_scalar_is_the_declared_amplitude(law, expected_geometry, resp_cls, alpha) -> None:
     """``response_kernel.amplitude`` is exactly the law's amplitude."""
     scalar = law.response_kernel.amplitude
     if scalar != alpha:
@@ -132,9 +146,9 @@ def test_response_scalar_is_the_declared_amplitude(law, geom_cls, resp_cls, alph
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+@pytest.mark.parametrize("law,expected_geometry,resp_cls,alpha", PRODUCTION_LAWS)
 def test_response_is_bit_identical_to_the_sn_realizer_float(
-    law, geom_cls, resp_cls, alpha,
+    law, expected_geometry, resp_cls, alpha,
 ) -> None:
     r"""The SN arm multiplies by ``float(law.albedo)``; we must equal it.
 
@@ -152,9 +166,9 @@ def test_response_is_bit_identical_to_the_sn_realizer_float(
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
+@pytest.mark.parametrize("law,expected_geometry,resp_cls,alpha", PRODUCTION_LAWS)
 def test_the_two_tiers_are_structurally_disjoint(
-    law, geom_cls, resp_cls, alpha,
+    law, expected_geometry, resp_cls, alpha,
 ) -> None:
     r"""No factor may satisfy BOTH Protocols — the B3 correction, as a gate.
 
@@ -247,16 +261,19 @@ def test_every_registered_law_is_covered_by_this_file() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("law,geom_cls,resp_cls,alpha", PRODUCTION_LAWS)
-def test_factors_are_frozen(law, geom_cls, resp_cls, alpha) -> None:
+@pytest.mark.parametrize("law,expected_geometry,resp_cls,alpha", PRODUCTION_LAWS)
+def test_factors_are_frozen(law, expected_geometry, resp_cls, alpha) -> None:
     """A spec is a value; mutating one in place must be impossible."""
     import dataclasses
 
     for factor in (law.geometry_map, law.response_kernel):
         fields = dataclasses.fields(factor)
         if not fields:
-            # IdentityMap / NullMap are parameterless — there is nothing to
-            # mutate, so frozen-ness is vacuous for them rather than untested.
+            # A parameterless factor has nothing to mutate, so frozen-ness is
+            # vacuous for it rather than untested. G5 SHRANK this branch: the
+            # identity deck element used to be the field-less ``IdentityMap``
+            # and skipped here, but ``SelfPairedDeck`` carries its motion, so
+            # every geometry factor now actually exercises the assertion.
             continue
         with pytest.raises(dataclasses.FrozenInstanceError):
             setattr(factor, fields[0].name, None)
@@ -298,16 +315,44 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
        diverge for a partial reflector, and only the latter reaches production
        — because the wrapper discards the law entirely.
     """
-    permuting_geoms = {
-        type(law.geometry_map)
-        for law, _, _, _, _ in _LAW_SPECS
+    # Posed on the ANSWER SET, not on the implementing TYPE.
+    #
+    # This assertion read ``{type(g) for ...} == {SpecularMirror}`` until G5
+    # collapsed the two self-paired geometry types into one. The type-level
+    # form would still be GREEN after that collapse — and would be a
+    # tautology, because the permuting and non-permuting laws would both
+    # answer ``SelfPairedDeck``, so it could no longer tell them apart at all.
+    # The docstring above already says the claim is "this pins the answer
+    # set"; the set of LAW IDS is that claim, and it is immune to any future
+    # re-typing of the tier.
+    permuting_ids = {
+        tid for law, _, _, _, tid in _LAW_SPECS
         if law.geometry_map.permutes_ordinates
     }
-    assert permuting_geoms == {SpecularMirror}, (
-        f"expected exactly SpecularMirror to permute ordinates; got "
-        f"{sorted(c.__name__ for c in permuting_geoms)}. A change here "
-        f"silently alters which faces the sweep schedule treats as reflective."
+    assert permuting_ids == {"reflective-a1", "reflective-partial"}, (
+        f"expected exactly the reflective laws to permute ordinates; got "
+        f"{sorted(permuting_ids)}. A change here silently alters which faces "
+        f"the sweep schedule treats as reflective."
     )
+
+    # And the mechanism behind the answer, one level down: a law permutes
+    # ordinates exactly when its deck element's linear part is a reflection.
+    # Checking both means neither can drift into agreeing with a wrong rule —
+    # the set could be right for the wrong reason if `permutes_ordinates` were
+    # hard-coded per law rather than derived from the motion.
+    for law, _, _, _, tid in _LAW_SPECS:
+        geometry = law.geometry_map
+        motion = getattr(geometry, "motion", None)
+        if motion is None:
+            continue                      # SpatialWrap — the genuinely-paired half
+        expected = tid.startswith("reflective")
+        assert geometry.permutes_ordinates is expected
+        assert (motion.determinant == -1.0) is expected, (
+            f"{tid}: permutes_ordinates={geometry.permutes_ordinates} but the "
+            f"deck element has det={motion.determinant:+.0f}. A self-paired "
+            f"element permutes angle iff it is a reflection (det -1); the "
+            f"identity (det +1) relabels nothing."
+        )
 
     # The agreement B2 relies on, pinned. A partial reflector permutes AND
     # carries the "reflective" registry key that production actually compares
