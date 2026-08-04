@@ -17,11 +17,16 @@
 > | **G4.5** | `af99f064` (§7d) | the index-permutation route to an exact `0.0` — proposed, measured, **abandoned** with its reason |
 > | **G5** | `3cce383a` + `241097b3` (§7e) | `SelfPairedDeck` minted and verified, then `IdentityMap` + `SpecularMirror` retired onto it; two decaying gates re-posed in the same commit |
 >
-> **G6 (next)** — bind the boundary operators' `domain`/`codomain` to the trace
-> spaces, so B3.2's `G : Γ₊ → Γ₋` narrowing becomes CHECKED rather than merely
-> documented. Fully scoped in **§7f** (measured facts, the face-encoded-name
-> constraint, substeps G6.1–G6.5, risks, acceptance, and what is deliberately
-> out of scope). Steps G7/G8/G9 are the former G6/G7/G8, renumbered.
+> **G6 (next)** — ⭐ **every operator knows its domain, codomain and space; the
+> SPACE owns shape and traversal.** The adjoint then falls out of well-posedness
+> instead of being hand-rolled, and a layout change happens in ONE place with
+> zero edits to any mathematical operation. `[M]` half of this is ALREADY built
+> and correct (`_AdjointOperator` derives `A† = G_V⁻¹AᵀG_W` from the spaces
+> alone; 28 of 54 operators bind) — the defect is that the binding is OPTIONAL,
+> so it silently degrades to the Euclidean transpose for the other 26. Fully
+> scoped in **§7f**, including the acceptance test that falsifies the principle
+> (change a layout in the space; assert zero operator diffs AND bit-identical
+> output). Steps G7/G8/G9 are the former G6/G7/G8, renumbered.
 >
 > **Branch** `refactor/operator-strategy-layers`. Base commit at authoring:
 > `bfedc621` (Q5.0.2 — `Z2` retired, `Mirror(axis)` minted).
@@ -1253,14 +1258,81 @@ branch for the field-less `IdentityMap` and now runs for every geometry factor.
 
 ---
 
-## 7f. G6 (SCOPED, not started) — bind the boundary operators to their trace spaces
+## 7f. G6 (SCOPED, not started) — every operator knows its spaces; the SPACE owns shape and traversal
 
-**Origin.** A user review question after G5: *"does the realizer turn a declared
-geometry BC into a LinearOperator with bound domain and codomain, operating on
-the trace space, with adjoint? (I think a reflective boundary also has a
-self-adjoint property)"*. Measured answer: **LinearOperator yes, adjoint yes,
-bound spaces NO, self-adjoint NOT as typed.** G6 closes the third; the fourth is
-deliberately NOT chased (see "explicitly out of scope").
+### The principle (user, 2026-08-04) — this is the scope, the boundary case is only its first consumer
+
+> Every operator, bulk or boundary, **must know its domain, codomain and
+> space**. Without that binding the adjoint has to be hand-rolled instead of
+> falling out for free from mathematical well-posedness. Whatever **shape**
+> something has is an algorithmic / book-keeping detail, **not math**. Whoever
+> imposes a shape — *the* thing that determines the shape of everything
+> downstream of it — must contain the abstraction used to **traverse, iterate
+> and operate** on everything inheriting that shape. Any shape change happens
+> at that one place, and everyone downstream gets it automatically **without a
+> single change to the mathematical operation**. Book-keeping is not math; it is
+> a detail necessary to correctly apply mathematical operations.
+
+**Origin.** A review question after G5 (*"does the realizer produce a
+LinearOperator with bound domain/codomain on the trace space, with adjoint?"*),
+whose measured answer generalised into the statement above. G6 was first scoped
+as "bind the BOUNDARY operators"; that was the symptom. This is the scope.
+
+### ⭐ Half of this is ALREADY BUILT, and built correctly
+
+`_AdjointOperator.apply` (`numerics/operator.py:1204-1227`) computes the Hilbert
+adjoint **entirely from the spaces**:
+
+```python
+z      = inner_codomain.apply_metric(y)        if inner_codomain is not None else y
+result = self.inner.apply_transpose(z)
+result = inner_domain.apply_inverse_metric(result) if inner_domain is not None else result
+```
+
+i.e. `A† = G_V⁻¹ Aᵀ G_W`, with the module's own comment: *"The space owns the
+metric; the adjoint wrapper is metric-representation-agnostic."* `FunctionSpace`
+owns `inner_product` / `norm` / `apply_metric` / `apply_inverse_metric`, plus
+the space algebra (`__mul__` → `TensorProductSpace`, `dual()`). **That IS the
+principle, already implemented.** G6 is a COMPLETION, not an invention.
+
+### ⛔ The defect: the binding is OPTIONAL, so the derivation SILENTLY NO-OPS
+
+`domain` / `codomain` are `Optional[FunctionSpace]` defaulting to `None`, and
+when `None` **both metric applications are skipped** — `.H` degrades to the bare
+Euclidean transpose with no error and no warning. `[M]` **28 of 54**
+`LinearOperator` subclasses override `domain`; **26 inherit the `None`
+default.** The bulk tier (fission, scattering, leakage, multiplication) binds;
+the boundary and utility tier (`PermutationOperator`, `TraceRestrictionOperator`)
+does not.
+
+That `None` default is [[lessons-L19]] exactly — *a default that encodes an
+unstated invariant*. It silently means "assume Euclidean", and nothing in the
+type system says so.
+
+**And it is a live CORRECTNESS hazard, not hygiene.** `[M]` the SN trace metric
+`|Ω·n|·w` restricted to `Γ₋` is **non-constant** — max/min = `1.35`
+(gauss_legendre 4), `3.47` (product 4,4), `5.6` (lebedev 17) — so it genuinely
+matters. The specular permutation **preserves** it (ERR-042's
+weight-preservation), so `[G, Aᵀ] = 0` and dropping the metric is invisible
+*there*. The boundary adjoint is therefore **right by accident of the one case
+anyone checked** — the Mode-12 commutator criterion. Any boundary operator that
+does NOT preserve the trace weight — a general re-emission kernel, an
+anisotropic response, the Ni/Ti supermirror `R` of §R7 — gets a **silently wrong**
+`.H` today.
+
+### The half that is NOT built: shape and traversal ownership
+
+`FunctionSpace` carries `shape` as a **passive tuple** and has no iteration /
+indexing / traversal abstraction. So book-keeping leaks into the math:
+
+- `PermutationOperator(perm, axis=0)` — an **axis** inside a mathematical object.
+- `gamma_out.to_local(perm[inflow])` (`realizer.py`) — the local↔global index
+  map computed at the **call site**, not owned by the space.
+- `TraceRestrictionOperator` carries `n_restricted`, a **length**, where a
+  codomain space belongs.
+
+⟹ a layout change today touches every operator. That is the precise thing the
+principle forbids.
 
 ### What is measured true today
 
@@ -1297,15 +1369,45 @@ type-check while being wrong — the exact class G6 exists to refuse, re-admitte
 by the mechanism meant to close it. The name is load-bearing; `shape` alone is
 never sufficient here.
 
-### Substeps
+### Substeps — in dependency order, each independently landable
 
 | step | what | note |
 |---|---|---|
-| **G6.1** | mint the half-trace space — Γ₊(face) / Γ₋(face) as a `FunctionSpace`, `name` encoding face **and** sign | the missing type; everything else is wiring |
-| **G6.2** | carry the **restricted metric** onto it (`AngularTraceSpace.partial_current_metric` restricted to the half) | so `⟨·,·⟩` on a half-trace is the PHYSICAL pairing, not Euclidean — the ERR-067 family, where a wrong metric put the error class inside the measured functional's stabiliser |
-| **G6.3** | bind on `TraceRestrictionOperator`: `γ₊ : Γ → Γ₊(f)`, `γ₋ : Γ → Γ₋(f)` | it already knows both index sets |
-| **G6.4** | bind on the realized BC operators: `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and the periodic wrap's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes |
-| **G6.5** | verify `.H` inherits the SWAPPED pair (`G.H : Γ₋ → Γ₊`) rather than inheriting `None` | today `.H` is type-correct only by accident |
+| **G6.0** | **SURVEY** the 26 unbound operators: for each, does a space already exist to bind, and does its `.H` currently rely on the Euclidean degradation? | do this FIRST — it sizes everything below and finds the operators whose adjoint is silently wrong TODAY |
+| **G6.1** | mint the half-trace space — Γ₊(face) / Γ₋(face) as a `FunctionSpace`, `name` encoding face **and** sign | the missing type; `[M]` the face must be in the NAME (see the collision below) |
+| **G6.2** | carry the **restricted metric** onto it (`partial_current_metric` restricted to the half) | so a half-trace pairing is PHYSICAL, not Euclidean — the ERR-067 family |
+| **G6.3** | bind the boundary tier: `γ± : Γ → Γ±(f)`, `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and periodic's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes |
+| **G6.4** | ⭐ **make the binding MANDATORY** — retire the `Optional[...] = None` default so an unbound operator cannot be CONSTRUCTED | this is the real fix; without it G6.3 is a convention the next operator quietly opts out of |
+| **G6.5** | move **traversal** onto the space: it owns iteration, the axis, and the local↔global index map; operators stop carrying `axis=` and call sites stop doing `to_local` | the second half of the principle |
+
+### ⭐ The acceptance test that actually falsifies the principle
+
+The principle's own words are testable, and this is the gate that decides
+whether G6 succeeded rather than merely compiled:
+
+> **Change a layout in ONE place — the space — and assert (a) ZERO diff in any
+> operator file, and (b) BIT-IDENTICAL numerical output.**
+
+Concretely: permute the ordinate storage order (or move the group axis) inside
+the space's traversal abstraction; every operator body must be untouched, and
+every gate must stay green with `np.array_equal`. If any operator needs an edit,
+book-keeping is still living in the math and G6.5 is not done.
+
+Supporting acceptance:
+
+- A deliberately reversed composition (`Γ₋→Γ₊` fed where `Γ₊→Γ₋` is required)
+  **raises**, naming both spaces. Mutation-verified, with a positive control.
+- `Γ₊(xmin) != Γ₊(xmax)` — the measured collision below, now refused.
+- **An unbound operator cannot be constructed** (G6.4). The mutation is
+  re-introducing the `None` default: it must red.
+- ⭐ **A metric-sensitive adjoint gate**: build a boundary operator that does NOT
+  preserve the trace weight, and assert `⟨Ax, y⟩_W = ⟨x, A†y⟩_V` in the WEIGHTED
+  pairing. `[M]` this gate is IMPOSSIBLE to write today (the metric is dropped),
+  and it is the one that would have caught ERR-067. Its control leg: the
+  specular case, where the commutator vanishes and weighted ≡ Euclidean.
+- Bit-identical everywhere binding is added: spaces change no numbers.
+- The pre-existing red set is unchanged (task #33 + the 3 quadrature-campaign
+  SN reds, signatures 1152 ULP / 296 ULP / `assert False`).
 
 ### Risks, in the order they are likely to bite
 
@@ -1322,17 +1424,6 @@ never sufficient here.
 3. **A half-trace space is per-(face, quadrature)**, so naive construction in a
    hot path could allocate per call. Build it on the trace space (which is
    already cached) rather than at each realization.
-
-### Acceptance
-
-- A deliberately reversed composition (`R ∘ G` built as `G ∘ R`, or a
-  `Γ₋→Γ₊` operator fed where `Γ₊→Γ₋` is required) **raises**, and the message
-  names both spaces. Mutation-verified, with a positive control.
-- `Γ₊(xmin) != Γ₊(xmax)` — the measured collision above, now refused.
-- Bit-identical: binding spaces changes no numbers. `np.array_equal` on every
-  realized boundary operator's action, before vs after.
-- The pre-existing red set is unchanged (task #33 + the 3 quadrature-campaign
-  SN reds, signatures 1152 ULP / 296 ULP / `assert False`).
 
 ### Explicitly OUT of scope, with the reason
 
