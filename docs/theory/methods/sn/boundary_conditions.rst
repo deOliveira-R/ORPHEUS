@@ -190,17 +190,26 @@ pushforward, angular average, spatial wrap) and :math:`A_\alpha` is a
    :eq:`affine-bc-form` is a **factorisation** of one term,
    :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`, where
 
-   * :math:`G` is the **deck transformation** :math:`\Gamma_+ \to
-     \Gamma_-` — the composition operator of a measure-preserving
-     bijection, and specifically one that is the deck transformation of
-     an **actual quotient** of the domain. Multiplicativity is
-     necessary but NOT sufficient: a specular *kernel* is a
-     permutation, hence multiplicative, and is still constitutive
-     (:ref:`bc-factor-roles`);
-   * :math:`R` is the **constitutive response kernel** on
-     :math:`\Gamma_-` — an amplitude or an angular kernel.
+   * :math:`G` is the **deck transformation** — the composition
+     operator of a measure-preserving bijection, and specifically one
+     that is the deck transformation of an **actual quotient** of the
+     domain. Multiplicativity is necessary but NOT sufficient: a
+     specular *kernel* is a permutation, hence multiplicative, and is
+     still constitutive (:ref:`bc-factor-roles`);
+   * :math:`R` is the **constitutive response kernel** — an amplitude
+     or an angular kernel.
 
-   Whence **exactly one of** :math:`G`, :math:`R` **is non-trivial**.
+   Whence **exactly one of** :math:`G`, :math:`R` **is non-trivial**,
+   and **whichever one that is carries the crossing**
+   :math:`\Gamma_+ \to \Gamma_-`: geometrically for a quotient law,
+   and by the physics for a constitutive one, which has no ambient
+   isometry to inherit it from. (This bullet pair typed :math:`G` as
+   :math:`\Gamma_+ \to \Gamma_-` and :math:`R` as living "on
+   :math:`\Gamma_-`" until 2026-08-04. That pairing is the
+   **classifying** typing, not the realized one — see
+   :ref:`bc-taxonomy-vs-factorization`; every realized response in the
+   tree, including the two this page's table builds, is typed
+   :math:`\Gamma_+ \to \Gamma_-`.)
 
    So the :math:`G_\alpha` of this section is **not** the :math:`G` of
    the affine form: it is the whole per-term map, whose honest name is
@@ -413,7 +422,9 @@ Marshak boundaries (:math:`B = c_1 \, B_{\rm refl} + c_2 \, B_{\rm
 diff}` — a specular term plus a Lambertian term, Bell & Glasstone 1970
 §1.5) and multi-region interface couplings are all instances of the
 same algebra: pick the per-term maps, pick the amplitudes, sum. Each
-term still factors as :math:`R \circ G` internally, and what
+term still *classifies* as :math:`R \circ G` internally (a taxonomy of
+the term's content, not a recipe for evaluating it —
+:ref:`bc-taxonomy-vs-factorization`), and what
 distinguishes the two terms of a Marshak mix is their **response**: a
 :class:`~orpheus.geometry.boundary.ScalarResponse` behind a mirror deck
 element (:meth:`~orpheus.geometry.boundary.SelfPairedDeck.mirror`) for

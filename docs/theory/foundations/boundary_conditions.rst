@@ -19,19 +19,31 @@ Key Facts
   transport equation's boundary trace:
   :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`, where
   :math:`\gamma_\pm` are the inflow / outflow trace operators,
-  :math:`G : \Gamma_+ \to \Gamma_-` is the **deck transformation**
-  (a specular mirror, a spatial wrap, a rotation — and it carries the
-  **crossing**, because the mirror that exchanges the hemispheres is
-  an ambient isometry), :math:`R : \Gamma_- \to \Gamma_-` is the
-  **constitutive response kernel** (an :term:`albedo` amplitude, or a
-  rank-one angular kernel for diffuse re-emission), and :math:`q` is
-  an optional prescribed inflow source. **Membership in** :math:`G`
-  **is decidable by multiplicativity** — :math:`G(\psi\varphi) =
-  (G\psi)(G\varphi)` holds for a relabeling and never for an average,
-  so an angular average is an :math:`R`, not a :math:`G`. See
-  :eq:`affine-bc-form` and :ref:`bc-factor-roles`; campaign phase B3.0
-  corrected the assignment (the Lambertian average had shipped in the
-  geometry slot).
+  :math:`G` is the **deck transformation** (a specular mirror, a
+  spatial wrap, a rotation), :math:`R` is the **constitutive response
+  kernel** (an :term:`albedo` amplitude, or a rank-one angular kernel
+  for diffuse re-emission), and :math:`q` is an optional prescribed
+  inflow source. **Membership in** :math:`G` **is decidable by
+  multiplicativity** — :math:`G(\psi\varphi) = (G\psi)(G\varphi)`
+  holds for a relabeling and never for an average, so an angular
+  average is an :math:`R`, not a :math:`G`. See :eq:`affine-bc-form`
+  and :ref:`bc-factor-roles`; campaign phase B3.0 corrected the
+  assignment (the Lambertian average had shipped in the geometry
+  slot).
+- **The** :math:`R\,G` **product is a TAXONOMY, not a computational
+  factorization** (:ref:`bc-taxonomy-vs-factorization`). It answers
+  *"is this law's content geometry or physics?"*; it does NOT say how
+  the law is evaluated. **Whichever factor is non-trivial carries the
+  crossing** :math:`\Gamma_+ \to \Gamma_-`, which is well defined
+  because exactly one of them ever is: for a **quotient** law the
+  crossing is geometric (:math:`G`), for a **constitutive** law the
+  response does it by integrating the outgoing flux and re-emitting an
+  incoming one — there is no ambient isometry at a wall to provide it.
+  This bullet read ":math:`G : \Gamma_+ \to \Gamma_-` … it carries the
+  crossing, because the mirror … is an ambient isometry" and
+  ":math:`R : \Gamma_- \to \Gamma_-`" until 2026-08-04; the first was
+  proven only for the mirror and the second is contradicted by every
+  realized response, all of which type :math:`\Gamma_+ \to \Gamma_-`.
 - The architecture has **three concrete layers**, connected by the
   kind-keyed law registry (#290 P7b dissolved the Wave-5 realizer
   registry — realizers are owned by their method-meshes):
@@ -242,20 +254,35 @@ where:
   function space to the inflow / outflow boundary trace spaces
   :math:`\Gamma_\pm` (see :ref:`bc-trace-structure` below for the
   formal definition).
-* :math:`G : \Gamma_+ \to \Gamma_-` is the **deck transformation** — a
-  measure-preserving permutation, pushforward, or spatial wrap-around.
-  It carries pure geometry (it changes nothing about the physical
-  interaction at the boundary; it just relabels the angular fluxes
-  that meet there). Note the codomain: :math:`G` carries the
-  **crossing**, because the mirror that exchanges the two hemispheres
-  is an ambient isometry — see :ref:`bc-factor-roles` below.
-* :math:`R : \Gamma_- \to \Gamma_-` is the **response kernel** — the
-  constitutive law. A scalar amplitude in :math:`[0, 1]` for the
-  standard sub-Markov BCs (albedo, partial-current), or a rank-one
-  angular kernel for diffuse (Lambertian) re-emission. The general
+* :math:`G` is the **deck transformation** — a measure-preserving
+  permutation, pushforward, or spatial wrap-around. It carries pure
+  geometry (it changes nothing about the physical interaction at the
+  boundary; it just relabels the angular fluxes that meet there). When
+  it is the non-trivial factor it is a map
+  :math:`\Gamma_+ \to \Gamma_-` and it carries the **crossing**,
+  because the mirror that exchanges the two hemispheres is an ambient
+  isometry — see :ref:`bc-factor-roles` below.
+* :math:`R` is the **response kernel** — the constitutive law. A scalar
+  amplitude in :math:`[0, 1]` for the standard sub-Markov BCs (albedo,
+  partial-current), or a rank-one angular kernel for diffuse
+  (Lambertian) re-emission. When it is the non-trivial factor it is
+  the one that crosses, and every realized response in the tree is
+  typed :math:`\Gamma_+ \to \Gamma_-` accordingly. The general
   weak-form angular kernel remains deferred; see the
   :class:`~orpheus.geometry.boundary.BoundaryError` catalog and
   Issue #175 close-out follow-ups.
+
+  .. note::
+
+     This bullet typed :math:`R` as an endomorphism
+     :math:`\Gamma_- \to \Gamma_-` until 2026-08-04, and the
+     :math:`G` bullet above claimed the crossing for :math:`G`
+     unconditionally. As a **classification** the pair
+     :math:`G : \Gamma_+ \to \Gamma_-`,
+     :math:`R : \Gamma_- \to \Gamma_-` is coherent and it answers the
+     question the taxonomy exists to answer; it is *not* the realized
+     typing of either factor, and reading it as such is what the new
+     :ref:`bc-taxonomy-vs-factorization` separates out.
 
 * :math:`q \in \Gamma_-` is the **prescribed inflow source** — a
   vector-valued quantity on :math:`\Gamma_-` only. The empty case
@@ -363,28 +390,117 @@ diffusivity are :math:`R`. Mirrors, translations and rotations are
 :math:`G` — but only when they are mirrors *of the domain*, not of a
 wall standing in it.
 
-**The crossing is geometric.** The specular mirror
+**Whichever factor is non-trivial carries the crossing.** For a
+**quotient** law the crossing is geometric, and the argument is exact:
+the specular mirror
 :math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` is the unique
 ambient isometry fixing the face; it exchanges the hemispheres and
-preserves :math:`|\Omega\cdot\hat n|`. So the passage from
-:math:`\Gamma_+` to :math:`\Gamma_-` is not something the *physics*
-does — it is something the *geometry* provides, which is why
-:math:`G` and not :math:`R` carries it.
+preserves :math:`|\Omega\cdot\hat n|`. So across a symmetry plane the
+passage from :math:`\Gamma_+` to :math:`\Gamma_-` is not something the
+*physics* does — it is something the *geometry* provides, and
+:math:`G`, not :math:`R`, carries it.
+
+For a **constitutive** law there is no such isometry to lean on. A wall
+is not a quotient — that is the sufficient test above — so nothing
+identifies an outgoing direction with an incoming one geometrically,
+and the crossing is performed by the *physics*: the response integrates
+the outgoing flux and re-emits an incoming one. The realization is the
+witness. :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`,
+which realizes the response :math:`R_{\text{diff}}` of the white /
+diffuse-albedo law, types itself :math:`\Gamma_+ \to \Gamma_-` and its
+:meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`
+collapses the *outflow* angle axis before broadcasting over the
+*inflow* one; the specular kernel behind
+:class:`~orpheus.geometry.boundary.SpecularReemission` is likewise a
+narrowed :math:`\Gamma_+ \to \Gamma_-` permutation. `[M]` **no realized
+response is an endomorphism of** :math:`\Gamma_-`.
+
+Since exactly one of :math:`G`, :math:`R` is non-trivial, "the
+non-trivial factor crosses" is well defined. Two boundary cases sharpen
+it rather than break it:
+
+* **Rank-0 laws** (vacuum, prescribed inflow). :math:`R = 0`, so the
+  composite is the zero map on :math:`\Gamma_+` landing in
+  :math:`\Gamma_-`: it *does* cross, vacuously, because no pairing
+  information is needed to emit nothing.
+* **A bare scalar response on an ANGULAR trace.** :math:`R = \alpha I`
+  is non-trivial in *magnitude* and trivial in *angular structure* — it
+  commutes with everything and therefore cannot pair directions — while
+  :math:`G = \mathrm{id}` supplies no crossing either. So neither
+  factor crosses, and the law is genuinely under-determined: this is
+  exactly the closure-free ``AlbedoBoundary(α)`` spelling the SN
+  realizer **refuses**, and the same law is *complete* on a scalar
+  trace where :math:`J^- = \alpha J^+` exhausts the single degree of
+  freedom. See :ref:`bc-method-realizability` for that scalar-vs-angular
+  axis, which is the same distinction one level up.
+
+.. note::
+
+   This paragraph read *"The crossing is geometric … which is why*
+   :math:`G` *and not* :math:`R` *carries it"* until 2026-08-04. The
+   mirror argument it gives is correct and is retained above; what was
+   wrong is that it was stated for **every** law, and a law with no
+   isometry has no geometric crossing to inherit.
 
 **Why a misassignment can hide — a theorem.** If :math:`R` is rank-one,
 :math:`R = u \otimes v`, then
-:math:`R \circ G = u \otimes (G^{\mathsf T} v)`. The Lambertian's
-:math:`v = |\Omega\cdot\hat n|` is invariant under both the mirror and
-the periodic translation, so :math:`R \circ G = R`:
+
+.. math::
+
+   R \circ G \;=\; u \otimes \bigl(G^{\mathsf T} v\bigr),
+
+a :math:`\Gamma_+ \to \Gamma_-` operator — the same type as the boundary
+law's composite action, with :math:`u \in \Gamma_-` and
+:math:`G^{\mathsf T} v \in \Gamma_+^{*}`. Now :math:`G` is the
+composition operator of a measure-preserving bijection :math:`g`, and
+that is precisely the hypothesis under which the three candidate
+"transposes" coincide: :math:`G^{-1} = G_{g^{-1}}` because :math:`g` is
+a bijection, and preserving the trace measure makes that inverse both
+the Euclidean transpose and the metric adjoint (the same theorem the
+deck-transformation row of
+:ref:`the evaluation table <bc-taxonomy-vs-factorization>` cites). So
+:math:`G^{\mathsf T} v = v \circ g`, and the Lambertian's
+:math:`v = |\Omega\cdot\hat n|` is **preserved** by both the mirror and
+the periodic translation — so :math:`v \circ g` is *the same function*
+:math:`|\Omega\cdot\hat n|`, merely read on :math:`\Gamma_+` rather than
+on :math:`\Gamma_-`. Hence :math:`R \circ G` comes out the SAME operator
+whichever admissible :math:`G` was used:
 
     :math:`G` is **unobservable exactly when** :math:`R` is rank-one.
 
-The white BC is precisely that case. Its :math:`G` slot therefore had
-no observable consequence, and the physics drifted into it — the
-cosine-weighted Lambertian average shipped as a geometry map until
+Read "unobservable" precisely: it means the composite does not depend on
+*which* :math:`G` it was given. The hypothesis doing the work is that
+:math:`v` is :math:`G`-invariant — true of every response this codebase
+ships, because the only rank-one response is the Lambertian and its
+:math:`v` *is* the trace measure's own weight. A hypothetical rank-one
+response with a direction-selective :math:`v` (say
+:math:`v = \delta_{\Omega_0}`) would make :math:`G` fully observable, so
+do not read the slogan as "rank-one alone suffices".
+
+The white BC is precisely the invariant case. Its :math:`G` slot
+therefore had no observable consequence, and the physics drifted into it
+— the cosine-weighted Lambertian average shipped as a geometry map until
 campaign phase B3 moved it to the response tier where it belongs. The
 same theorem is why that correction leaves the composite :math:`R\,G`
 unchanged by construction.
+
+.. note::
+
+   **This step concluded** ":math:`R \circ G = R`" **until 2026-08-04.**
+   That spelling type-checked only while the two half-traces were the
+   same space in practice: with :math:`G : \Gamma_+ \to \Gamma_-` and
+   the classifying :math:`R : \Gamma_- \to \Gamma_-`, the left side is
+   :math:`\Gamma_+ \to \Gamma_-` and the right side is
+   :math:`\Gamma_- \to \Gamma_-`, so they cannot be equal as operators.
+   The step silently identified :math:`G^{\mathsf T} v` with :math:`v`
+   by treating :math:`v` as the *function* :math:`|\Omega\cdot\hat n|`
+   without tracking which half-trace it is restricted to — harmless
+   before campaign phase **B3.2** (:ref:`bc-domain-narrowing`) narrowed
+   the SN law onto :math:`\gamma_\pm` and made the two halves genuinely
+   distinct spaces, a type abuse afterwards. **The theorem itself is
+   untouched**: its content is the :math:`G`-independence of the
+   composite, which is what makes :math:`G` unobservable and what makes
+   the B3 correction safe. Nothing numerical changes.
 
 .. _bc-factor-quotients:
 
@@ -502,6 +618,231 @@ construction rather than by two transcriptions agreeing.
    strengthening that audits **two** BC apply calls per matvec
    (Phase D Carlson context + Phase C trace law).
 
+.. _bc-taxonomy-vs-factorization:
+
+The taxonomy and the factorization are different questions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Everything the two sections above say about :math:`R \circ G` is a
+**taxonomy**. Two successive designs in this campaign were built on the
+premise that it is also a *recipe for evaluation*, and both were refuted
+by the tree's own realization — which is why the distinction gets its
+own section rather than a parenthesis.
+
+**What** :math:`R \circ G` **is.** A classification of the law's
+*content*: the multiplicativity test plus the quotient test decide
+whether a boundary law asserts geometry or physics
+(:ref:`bc-factor-roles`, :ref:`bc-factor-quotients`). In that register
+the typing :math:`G : \Gamma_+ \to \Gamma_-`,
+:math:`R : \Gamma_- \to \Gamma_-` is perfectly coherent and it answers
+the only question the taxonomy exists to answer. What makes the
+classification load-bearing is that it is **decidable** and that it
+makes "put a wall's response in the geometry slot" unspellable.
+
+**What it is NOT.** How a law is *evaluated* — and, decisively, how its
+adjoint is obtained — follows the law's **kind**, not the two-factor
+product:
+
+.. list-table:: Evaluation follows the KIND, not the classifying product
+   :header-rows: 1
+   :widths: 16 40 44
+
+   * - kind
+     - structure
+     - adjoint
+   * - **deck transformation**
+     - **Atomic.** A measure-preserving bijection does not factor into
+       two meaningful pieces. Pure geometry — a law imposed by theorem
+       and transport-method-agnostic apart from needing to know *which
+       space* it acts on. It is :math:`\Gamma_+(f) \to \Gamma_-(f)` for a
+       self-paired face and :math:`\Gamma_+(f') \to \Gamma_-(f)` through
+       a genuine face pair.
+     - A **theorem**: the composition operator of a bijection :math:`g`
+       is invertible with :math:`G^{-1} = G_{g^{-1}}`, and
+       measure-preservation makes that inverse the transpose. Nothing to
+       verify per law.
+   * - **response**
+     - :math:`N` **composed** operations
+       :math:`\Gamma_+(f) \to \cdots \to \Gamma_-(f)`. The Lambertian is
+       an outflow **angle contraction** :math:`C` followed by an
+       **isotropic broadcast** :math:`B`, so :math:`R = B \circ C`, with
+       an intermediate state in the angle-integrated per-face
+       **scalar-current space** :math:`S(f)`. Constitutive — an
+       assumption about a real surface.
+     - **Conditional** on :math:`S(f)` carrying a non-degenerate metric
+       — see :ref:`bc-response-adjoint`.
+
+:math:`S(f)` is not bookkeeping: it is the cosine-weighted mean outgoing
+intensity, a real physical quantity, and it is exactly what the
+Lambertian's realization already computes and immediately throws away as
+the anonymous local ``psi_avg`` in
+:meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`. The
+type that will host it exists —
+:class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`,
+the per-face :math:`(J^+, J^-)` partial-current space, already
+angle-integrated — but the per-face accessor ``S(f)`` and the factored
+:math:`B \circ C` spelling are **not built yet**; they are steps 2–3 of
+the geometric-transformation campaign's G6.3.
+
+.. important::
+
+   **Why the conflation was invisible, and what it cost.** Reading the
+   classifying product as the computational one is what made
+   ":math:`R \circ G = R`" look sound (it is a type error the moment
+   :math:`\Gamma_\pm` are distinct spaces —
+   :ref:`see the theorem <bc-factor-roles>`) and what made "the crossing
+   is geometric" look general (it is proven for the mirror only). Both
+   claims shipped — on this page and in the
+   :mod:`orpheus.geometry.boundary` Protocols — and both were corrected
+   on 2026-08-04.
+   The transferable lesson is the campaign's own: **a declaration tier's
+   typing is a declaration, not a measurement — check it against the
+   realization before designing on it.** In this case one read of
+   :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`'s first
+   line, which types itself :math:`\Gamma_+ \to \Gamma_-`, refutes both.
+
+.. _bc-response-adjoint:
+
+When a response has an adjoint — the intermediate metric cancels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A deck transformation's adjoint is free (the theorem above). A
+**response**'s is not, because factoring it introduces an intermediate
+space :math:`S(f)` whose metric appears in each factor's Hilbert
+adjoint. Write :math:`G_+`, :math:`G_-`, :math:`G_S` for the metrics on
+:math:`\Gamma_+`, :math:`\Gamma_-`, :math:`S(f)`, and recall the Hilbert
+adjoint of a map between metric spaces,
+:math:`A^{*} = G_{\mathrm{dom}}^{-1} A^{\mathsf T} G_{\mathrm{cod}}`.
+For :math:`R = B \circ C` with :math:`C : \Gamma_+ \to S` and
+:math:`B : S \to \Gamma_-`,
+
+.. math::
+   :label: bc-response-factored-adjoint
+
+   R^{*} \;=\; C^{*} B^{*}
+   \;=\; \bigl(G_+^{-1} C^{\mathsf T} G_S\bigr)
+         \bigl(G_S^{-1} B^{\mathsf T} G_-\bigr)
+   \;=\; G_+^{-1} C^{\mathsf T} B^{\mathsf T} G_-
+   \;=\; G_+^{-1} R^{\mathsf T} G_- .
+
+.. (vv-status rationale) Structural: the factored-response adjoint identity.
+   The FACTORED spelling does not exist in code yet — the Lambertian ships as
+   one operator with ``is_adjointable=False`` (campaign G6.3 steps 2-3 build
+   ``S(f)`` and the ``B ∘ C`` factorization), so there is no function for a
+   ``verifies`` marker to point at. Its verifiable PRECONDITION is already
+   gated: ``tests/numerics/test_angular_face_trace_space.py::
+   test_the_half_trace_metric_is_strictly_positive`` pins the non-degeneracy
+   this equation requires of the intermediate, and
+   ``test_the_metric_is_not_euclidean`` pins that the metric is load-bearing at
+   all. The identity itself is measured by the design probe described below.
+   When the factorization lands, WIRE a test to this label and REMOVE this
+   sentinel.
+.. vv-status: bc-response-factored-adjoint documented
+
+**The intermediate metric cancels.** :math:`G_S` appears once as a
+factor and once as its inverse, so it drops out of the composite
+entirely — which means the requirement on :math:`S(f)` is exactly **one
+binary condition: the metric must be non-degenerate.** Not "the
+physically correct metric". Measured with :math:`|\Gamma_+| = 7 \neq
+|\Gamma_-| = 5` deliberately (so no accidental index pairing can mask
+an error), sweeping :math:`G_S` over eleven orders of magnitude:
+
+.. list-table:: :eq:`bc-response-factored-adjoint`, measured 2026-08-04
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - :math:`G_S`
+     - :math:`\max\lvert R^{*}_{\text{factored}} - R^{*}_{\text{direct}}\rvert`
+     - reading
+   * - identity (Euclidean)
+     - ``0.000e+00``
+     - exact
+   * - ``1e-6``
+     - ``1.110e-16``
+     - one ULP — cancels
+   * - ``3.7e5``
+     - ``1.110e-16``
+     - one ULP — cancels
+   * - **``0`` (degenerate)**
+     - **``7.628e-01``**
+     - ⚠ **BROKEN** — no adjoint exists
+
+and the weighted adjoint law
+:math:`\langle Rx, y\rangle_{G_-} = \langle x, R^{*}y\rangle_{G_+}`
+holding at exactly ``0.0``.
+
+The probe is a G6.3 design-session artefact and is reproducible in a
+dozen lines, so it is described rather than pinned to a path: build
+:math:`C = (\cos\!w/\operatorname{norm})` as a :math:`(1, 7)` row and
+:math:`B = \mathbf{1}` as a :math:`(5, 1)` column (so
+:math:`R = BC` is the rank-one Lambertian shape), take :math:`G_+`,
+:math:`G_-` diagonal with entries drawn from :math:`[0.5, 2]`, and
+compare :math:`C^{*}B^{*}` against :math:`G_+^{-1}R^{\mathsf T}G_-`
+for each :math:`G_S` in the table. The asymmetric sizes are the
+load-bearing part of the design: at :math:`|\Gamma_+| = |\Gamma_-|` an
+index-pairing error would be invisible, and equal sizes are `[M]` what
+**every** production quadrature happens to give — measured
+:math:`|\Gamma_+| = |\Gamma_-|` on every face of
+``gauss_legendre(4)`` (2/2), ``gauss_legendre(8)`` (4/4),
+``product(2,4)`` (2/2), ``product(4,4)`` (4/4),
+``level_symmetric(6)`` (24/24) and ``lebedev(17)`` (49/49). That
+equality is an **accident, not a contract**, which is why
+``_narrowed_zero_operator`` refuses to lean on it and why a factored
+response — routed through :math:`S(f)` — never pairs by index at all.
+
+Two consequences to carry:
+
+1. ⚠ **Only the COMPOSITE is metric-free.** :math:`C^{*}` and
+   :math:`B^{*}` *individually* depend on :math:`G_S`, and factoring
+   exists precisely so that the factors become usable — so
+   :math:`S(f)`'s metric must still be chosen deliberately. What the
+   cancellation guarantees is that no admissible choice can make the
+   composite wrong.
+2. **The full per-face tier can never be the intermediate.**
+   :math:`\Gamma(f)`'s metric :math:`|\Omega\cdot\hat n| \odot w_n`
+   **vanishes** on the tangential ordinates
+   (:math:`|\Omega\cdot\hat n| \le \varepsilon_{\text{tan}}`), so it is
+   only semi-definite; the two half-traces are strictly positive
+   precisely because they exclude those rows
+   (:ref:`bc-trace-structure`). That retroactively gives the G6.1 gate
+   ``test_the_half_trace_metric_is_strictly_positive`` its real reason:
+   it reads as hygiene and is in fact the precondition for
+   :eq:`bc-response-factored-adjoint` to hold.
+
+**The payoff — the deferred transpose falls out.**
+:class:`~orpheus.sn.boundary.angular.AngularAverageOperator` reports
+``is_adjointable = False`` and defers its transpose to campaign phase
+**B5**. Factored, there is nothing to defer:
+:math:`C^{\mathsf T}(s) = \cos\!w \cdot s / \operatorname{norm}` (the
+outer product) and :math:`B^{\mathsf T}(\varphi) = \sum_{\Gamma_-}
+\varphi` (the sum over inflow), so
+
+.. math::
+
+   R^{\mathsf T}(\varphi) \;=\;
+   \frac{\cos\!w}{\operatorname{norm}} \sum_{\Gamma_-} \varphi ,
+
+verified `[M]` bit-exactly (``max|Rᵀφ − (cos_w/norm)·Σφ| = 0.0`` on
+``product(2,4)``, ``xmax``) against the dense transpose of the operator's
+own :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`.
+
+.. warning::
+
+   That one-liner is the **Euclidean transpose** :math:`R^{\mathsf T}`,
+   not the Hilbert adjoint. The two differ by exactly the re-weighting
+   in :eq:`bc-response-factored-adjoint`:
+   :math:`R^{*} = G_+^{-1} R^{\mathsf T} G_-`, and on a trace the metric
+   is **never** Euclidean (it is :math:`|\Omega\cdot\hat n| \odot w_n`
+   — the ERR-067 family is what happens when a half-trace pairing drops
+   it). Advertising :math:`R^{\mathsf T}` under a name that reads as
+   "the adjoint" is exactly the two-``.T``-semantics ambiguity the
+   operator's docstring declines today; the honest channel is ``.H`` on
+   the metric-carrying
+   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`.
+
+That is the campaign's thesis in one line: **the adjoint falls out of
+well-posedness instead of being hand-rolled.**
+
 .. _bc-method-realizability:
 
 When a law realizes in a method — the three tiers
@@ -567,8 +908,11 @@ states it:
 
 This is the same fact as :ref:`the rank-one theorem <bc-factor-roles>`
 read from the other side. Where the response destroys directional
-information, :math:`R \circ G = R` for **any** measure-preserving
-:math:`G` — upstairs, in the continuum. Tier 2 is the *method's*
+information, the composite :math:`R \circ G` comes out the **same
+operator** for any admissible measure-preserving :math:`G` — upstairs,
+in the continuum. (That is the theorem's honest conclusion; the equality
+":math:`R \circ G = R`" this sentence carried until 2026-08-04 does not
+type-check once the two half-traces are distinct spaces.) Tier 2 is the *method's*
 version of the same collapse: the projection, not the response, is what
 destroys the distinction. A reader who conflates "the realization is
 exact" with "the realization is a faithful record of the law" will

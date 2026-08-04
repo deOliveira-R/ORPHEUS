@@ -24,13 +24,21 @@ that restrict :math:`\psi(\mathbf{r}, \Omega)` to the directional
 halves of :math:`\partial\Omega`; :math:`G : \Gamma_+ \to \Gamma_-`
 is the **deck transformation** (a mirror, a spatial wrap, a rotation —
 the composition operator of a measure-preserving bijection of the
-boundary phase space, which is why it carries the CROSSING: the mirror
-that exchanges the two hemispheres is an ambient isometry);
-:math:`R : \Gamma_- \to \Gamma_-` is the **constitutive response** (a
+boundary phase space, which is why it carries the CROSSING **when it is
+the non-trivial factor**: the mirror that exchanges the two hemispheres
+is an ambient isometry); :math:`R` is the **constitutive response** (a
 scalar amplitude in :math:`[0, 1]` for sub-Markov BCs, or a rank-one
 angular kernel for diffuse re-emission); and :math:`q \in \Gamma_-` is
 the optional **prescribed inflow source** (zero for the homogeneous
 case).
+
+⛔ ``R`` was typed :math:`\Gamma_- \to \Gamma_-` here until 2026-08-04.
+That is the **classifying** typing; the **realized** response is
+:math:`\Gamma_+ \to \Gamma_-` for all three kernels, because a
+constitutive surface is not a quotient and so has no isometry to provide
+the crossing — the physics does it. Exactly one of :math:`G`, :math:`R`
+is non-trivial, and it is the one that crosses. See
+:class:`~orpheus.geometry.boundary._factors.BoundaryResponseKernel`.
 
 Membership in :math:`G` takes **two** tests. Multiplicativity —
 :math:`G(\psi\varphi) = (G\psi)(G\varphi)` — is **necessary**: it holds
@@ -692,9 +700,12 @@ __all__ = [
     "law_permutes_ordinates",
     # The affine form's two operator factors, as typed SPECIFICATIONS
     # (Grand Report v3 §16A.2; campaign phases B1 + B3). ``G : Γ₊ → Γ₋`` is the
-    # DECK TRANSFORMATION — it carries the crossing, because the mirror that
-    # exchanges the hemispheres is geometry — and ``R : Γ₋ → Γ₋`` is the
-    # CONSTITUTIVE response; the realized composite is ``B``. Membership takes
+    # DECK TRANSFORMATION — it carries the crossing WHEN IT IS the non-trivial
+    # factor, because the mirror that exchanges the hemispheres is geometry —
+    # and ``R`` is the CONSTITUTIVE response, whose ``Γ₋ → Γ₋`` is a CLASSIFYING
+    # typing only (every realized response is ``Γ₊ → Γ₋``: a wall is not a
+    # quotient, so the physics does the crossing). The realized composite is
+    # ``B``. Membership takes
     # TWO tests (``_factors`` docstring): multiplicativity is NECESSARY — a
     # relabeling satisfies ``G(ψφ) = (Gψ)(Gφ)``, an average never does, which
     # is what moved the Lambertian across the line in B3

@@ -134,9 +134,9 @@ The crossing :math:`\Gamma_+ \to \Gamma_-` is itself geometric
 
 The specular mirror :math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n`
 is the unique ambient isometry fixing the face. It **exchanges the hemispheres**
-and preserves :math:`|\Omega\cdot\hat n|`. So the crossing is not something the
-*physics* does — it is something the *geometry* provides, and the honest typing
-is
+and preserves :math:`|\Omega\cdot\hat n|`. So for a **quotient** law the
+crossing is not something the *physics* does — it is something the *geometry*
+provides, and the **classifying** typing is
 
 .. math::
 
@@ -146,15 +146,45 @@ An earlier draft of this module typed ``G`` as an **endomorphism of the outflow
 trace** (:math:`\Gamma_+ \to \Gamma_+`), which forces the mirror *into*
 :math:`R` for a specular law — the same conflation running the other way.
 
+⛔ **And the typing above is a CLASSIFICATION, not the realized one — this
+module presented it as both until 2026-08-04.** The sentence above generalises
+an argument about the mirror to every law, but a wall is not a quotient, so at a
+white or albedo face there is no isometry to provide the crossing and the
+**response** performs it: `[M]` every realized response is
+:math:`\Gamma_+ \to \Gamma_-`, never an endomorphism of :math:`\Gamma_-`. Read
+the display as *"exactly one of the two is non-trivial, and it is the one that
+crosses"* — which for :math:`G` present-and-non-trivial reduces to exactly the
+sentence above. How each factor is EVALUATED is a separate question with a
+per-kind answer (:class:`BoundaryGeometryMap` atomic,
+:class:`BoundaryResponseKernel` composed); conflating classification with
+factorization is what let this stand.
+
 Why the misassignment survived — a theorem
 ------------------------------------------
 
 If :math:`R` is rank-one, :math:`R = u \otimes v`, then
 :math:`R \circ G = u \otimes (G^{\mathsf T} v)`. The Lambertian's
 :math:`v = |\Omega\cdot\hat n|` is **invariant** under both the mirror and the
-periodic translation, so :math:`R \circ G = R`:
+periodic translation, so :math:`G^{\mathsf T}v = v` **as a function** and the
+composite does not depend on WHICH admissible :math:`G` was used:
 
     :math:`G` **is unobservable exactly when** :math:`R` **is rank-one.**
+
+⛔ **This concluded** ":math:`R \circ G = R`" **until 2026-08-04, and that does
+not type-check.** With :math:`G : \Gamma_+ \to \Gamma_-` the left side is
+:math:`\Gamma_+ \to \Gamma_-` while :math:`R` is (classified)
+:math:`\Gamma_- \to \Gamma_-`; the step silently identified :math:`G^{\mathsf T}v`
+with :math:`v` by treating :math:`v` as a *function* without tracking which
+half-trace it is restricted to. Harmless before **B3.2** made the halves distinct
+spaces; a type error after. The theorem's content is unaffected — it is
+:math:`G`-INDEPENDENCE of the composite, not an equality of operators.
+
+⚠ **And the slogan's hypothesis is stronger than "rank-one".** The work is done
+by :math:`v` being :math:`G`-**invariant**; a rank-one :math:`R` with
+:math:`v = \delta_{\Omega_0}` makes :math:`G` fully observable. Rank-one is what
+makes the *Lambertian's* :math:`v` a measure, and the measure is what :math:`G`
+preserves. The slogan is kept verbatim because five code and test sites
+cross-reference it; :ref:`bc-factor-roles` carries the sharpened form.
 
 White is precisely that case. Its :math:`G` slot was therefore free of any
 observable consequence, and the physics drifted into it: the cosine-weighted
@@ -325,9 +355,23 @@ class BoundaryGeometryMap(Protocol):
     The physics lives entirely in :class:`BoundaryResponseKernel`.
 
     Membership is decidable by **multiplicativity** — see
-    :ref:`bc-factor-roles` on the theory page. The crossing
-    from :math:`\Gamma_+` to :math:`\Gamma_-` is part of this factor, not of
-    the response (:ref:`bc-factor-roles`).
+    :ref:`bc-factor-roles` on the theory page.
+
+    ⛔ This paragraph continued *"the crossing from* :math:`\Gamma_+` *to*
+    :math:`\Gamma_-` *is part of this factor, not of the response"* until
+    2026-08-04. That is proven for the case it argues — a specular mirror IS
+    the unique ambient isometry fixing the face, so for a **quotient** law the
+    geometry provides the crossing — but it was stated for *every* law, and it
+    is false for a law with no isometry. A wall is not a quotient, so nothing
+    provides the crossing geometrically and the **response** does it (see
+    :class:`BoundaryResponseKernel`). The honest general form: **whichever
+    factor is non-trivial carries the crossing**, which is well defined because
+    exactly one of them ever is.
+
+    This map, being a genuine deck transformation, is always the non-trivial
+    factor when it is present at all — so for :math:`G` specifically the
+    crossing IS geometric, and :meth:`domain_face` below is that statement at
+    the level of which face's :math:`\Gamma_+` is consumed.
 
     The two predicates below are the structural questions production used to
     ask with string comparisons — ``bc[face] == "reflective"`` for the first,
@@ -397,12 +441,54 @@ class BoundaryGeometryMap(Protocol):
 
 @runtime_checkable
 class BoundaryResponseKernel(Protocol):
-    r""":math:`R : \Gamma_- \to \Gamma_-` — the **constitutive response**.
+    r"""The **constitutive response** — classified :math:`R`, realized
+    :math:`\Gamma_+ \to \Gamma_-`.
 
     How much of the outgoing flux returns, and with what angular distribution.
     This is where every piece of *physics* in a boundary law lives: absorption,
     accommodation, diffusivity. It is a positive kernel operator, and — the
     discriminator — it is **not multiplicative**.
+
+    .. important::
+
+       ⭐ **The** :math:`R \circ G` **split is a TAXONOMY, not a computational
+       factorization** — and this docstring typed :math:`R` as
+       :math:`\Gamma_- \to \Gamma_-` until 2026-08-04, which conflated the two.
+
+       As a *classification* the pair :math:`G : \Gamma_+ \to \Gamma_-`,
+       :math:`R : \Gamma_- \to \Gamma_-` is coherent, and it answers the only
+       question the taxonomy exists to answer: *is this law's content geometry
+       or physics?* (multiplicativity + the quotient test — see
+       :ref:`bc-factor-roles`).
+
+       But **no realized response is an endomorphism of** :math:`\Gamma_-`.
+       :class:`LambertianReemission` realizes as
+       :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`, typed
+       :math:`\Gamma_+ \to \Gamma_-`; :class:`SpecularReemission` realizes as a
+       narrowed permutation, likewise :math:`\Gamma_+ \to \Gamma_-`;
+       :class:`ScalarResponse` realizes as a commuting scale. **Whichever
+       factor is non-trivial carries the crossing** — and since exactly one of
+       them ever is, that is well defined. For a *quotient* law the crossing is
+       geometric; for a *constitutive* law the physics does the crossing, by
+       integrating the outgoing flux and re-emitting an incoming one. There is
+       no ambient isometry at a wall to provide it.
+
+       **How a response is actually evaluated** follows its kind: it is
+       :math:`N` composed operations :math:`\Gamma_+ \to \dots \to \Gamma_-`.
+       The Lambertian is an outflow **angle contraction** followed by an
+       **isotropic broadcast**, through an intermediate state in the
+       angle-integrated per-face scalar-current space — the cosine-weighted
+       mean outgoing intensity, a real physical quantity. Contrast a
+       :class:`BoundaryGeometryMap`, which is **atomic**: a measure-preserving
+       bijection does not factor into two meaningful pieces.
+
+       Why it matters rather than being pedantry: the adjoint. A deck
+       transformation's is a *theorem* (:math:`G^{-1} = G_{g^{-1}}`, and
+       measure-preservation makes that inverse the transpose). A response's
+       exists iff the intermediate space carries a **non-degenerate** metric —
+       and then :math:`R^* = C^*B^* = G_+^{-1}R^{\mathsf T}G_-`, with the
+       intermediate metric CANCELLING (`[M]` verified over eleven orders of
+       magnitude of that metric; broken only when it is singular).
 
     **Three** realizations, genuinely non-isomorphic: :class:`ScalarResponse`
     (a bare amplitude, the whole story on a scalar trace where the angular
@@ -450,13 +536,22 @@ class BoundaryResponseKernel(Protocol):
 
     @property
     def is_adjointable(self) -> bool:
-        """Whether the realized kernel exposes an honest transpose.
+        r"""Whether the realized kernel exposes an honest transpose.
 
-        ``False`` for the Lambertian today: its realized form is self-adjoint
-        under the cosine-weighted inner product but NOT under the Euclidean
-        one, and the codebase declines to advertise the ambiguous transpose.
+        ``False`` for the Lambertian today: the codebase declines to advertise
+        a transpose whose Euclidean and cosine-weighted semantics differ.
         Phase **B5** types that kernel as the rank-one it is, at which point
         the adjoint becomes structurally available and this flips.
+
+        ⛔ This read *"its realized form is self-adjoint under the
+        cosine-weighted inner product"* until 2026-08-04. **Type-incoherent
+        since B3.4a**: self-adjointness requires domain :math:`=` codomain, and
+        the realized Lambertian maps :math:`\Gamma_+ \to \Gamma_-` over disjoint
+        index sets. It was true of the pre-B3.4a full-face endomorphism. What
+        survives is a **structural symmetry** — :math:`R` and :math:`R^*` share
+        one form with the half-traces exchanged — see
+        :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for the
+        measured statement.
         """
         ...
 
@@ -562,9 +657,17 @@ class SelfPairedDeck:
 
         That this is *sound* rather than merely conventional is the rank-one
         theorem (:ref:`bc-factor-roles`): where the response destroys
-        directional information, :math:`R \circ G = R` for **any**
-        measure-preserving :math:`G`, so declaring the identity is not a lossy
-        choice — it is the honest statement that the law fixes no geometry.
+        directional information, the composite :math:`R \circ G` is the **same
+        for every** measure-preserving :math:`G`, so declaring the identity is
+        not a lossy choice — it is the honest statement that the law fixes no
+        geometry.
+
+        (This read ":math:`R \circ G = R` for **any** measure-preserving
+        :math:`G`" until 2026-08-04. Same non-type-checking shorthand as the
+        module docstring's: the composite is :math:`\Gamma_+ \to \Gamma_-` and
+        cannot equal a :math:`\Gamma_- \to \Gamma_-` classification. The
+        soundness argument is untouched — :math:`G`-independence is exactly what
+        it needs.)
         """
         return cls(RigidMotion.identity(dimension))
 
@@ -847,12 +950,15 @@ class LambertianReemission:
 
     @property
     def is_adjointable(self) -> bool:
-        # FALSE TODAY, and honestly so: the realized operator is self-adjoint
-        # under the cosine-weighted inner product but not the Euclidean one,
-        # and advertising the unweighted transpose would invite two different
-        # ``.T`` semantics. B5 types it as ``u ⊗ v`` (transpose ``v ⊗ u``),
-        # which makes the metric explicit rather than avoided — this flips
-        # there, WITH its gate.
+        # FALSE TODAY, and honestly so: advertising the unweighted transpose
+        # would invite two different ``.T`` semantics. B5 types it as ``u ⊗ v``
+        # (transpose ``v ⊗ u``), which makes the metric explicit rather than
+        # avoided — this flips there, WITH its gate.
+        # (Said "the realized operator is self-adjoint under the cosine-weighted
+        # inner product" until 2026-08-04. Type-incoherent since B3.4a narrowed
+        # it to Γ₊ → Γ₋: self-adjointness needs domain == codomain. What holds
+        # is that R and R* share ONE FORM with the half-traces exchanged — see
+        # the property docstring above.)
         return False
 
 

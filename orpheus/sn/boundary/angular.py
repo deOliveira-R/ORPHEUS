@@ -167,12 +167,36 @@ class AngularAverageOperator(LinearOperator):
     Capabilities
     ------------
     apply-only (structurally non-invertible, non-adjointable as posed).
-    The white BC is not self-adjoint in the unweighted inner product; it
-    IS self-adjoint under the cosine-weighted one. ``apply_transpose`` is
-    NOT advertised because the unweighted transpose semantics differ from
-    the weighted adjoint the BC analytically possesses — exposing it here
-    would invite two different ``.T`` semantics. The Hilbert adjoint via
-    ``.H`` on a weighted ``FunctionSpace`` is the right channel.
+    ``apply_transpose`` is NOT advertised because the unweighted transpose
+    semantics differ from the weighted adjoint the BC analytically
+    possesses — exposing it here would invite two different ``.T``
+    semantics. The Hilbert adjoint via ``.H`` on a weighted
+    ``FunctionSpace`` is the right channel.
+
+    ⛔ **This said the white BC "IS self-adjoint under the cosine-weighted"
+    inner product until 2026-08-04. That claim is type-incoherent for the
+    narrowed operator** — and note it contradicted this very docstring
+    eight lines up (*"the operator maps BETWEEN two half-traces"*).
+    Self-adjointness requires domain :math:`=` codomain; since **B3.4a**
+    this maps :math:`\Gamma_+ \to \Gamma_-`, two spaces over disjoint
+    index sets. The claim was TRUE of the pre-B3.4a full-face
+    endomorphism (`[M]` :math:`\|R^* - R\| = 2.8\times10^{-17}` under
+    :math:`G = \cos w`) and the narrowing silently invalidated it — the
+    same defect class as
+    :class:`~orpheus.numerics.operator.PermutationOperator`'s
+    ``is_involution``, where narrowing also outlived the property it
+    advertised.
+
+    ⭐ **What survives is a STRUCTURAL SYMMETRY, and it is more useful.**
+    `[M]` with :math:`R = \mathbf{1}_{\Gamma_-} \otimes \cos w_+/\|\cdot\|`
+    the Hilbert adjoint is
+    :math:`R^* = \mathbf{1}_{\Gamma_+} \otimes \cos w_-/\|\cdot\|` — the
+    **same form** (contract against the cosine weight, broadcast over the
+    other half) with the two half-traces **exchanged**. So the transpose is
+    this operator's own body with :math:`\Gamma_+` and :math:`\Gamma_-`
+    swapped, which is why factoring it into a contraction and a broadcast
+    yields :math:`R^{\mathsf T}` for free rather than requiring a
+    hand-rolled one (campaign step G6.3b).
 
     See Also
     --------

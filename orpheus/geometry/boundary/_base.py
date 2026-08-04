@@ -279,7 +279,17 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
 
     @property
     def response_kernel(self) -> Any:
-        r"""The constitutive response :math:`R : \Gamma_- \to \Gamma_-`.
+        r"""The constitutive response — classified :math:`R`, realized
+        :math:`\Gamma_+ \to \Gamma_-`.
+
+        This read ":math:`R : \Gamma_- \to \Gamma_-`" until 2026-08-04. That is
+        the **classifying** typing (the taxonomy answering *geometry or
+        physics?*), not the realized one: `[M]` no realized response is an
+        endomorphism of :math:`\Gamma_-` — a constitutive law has no ambient
+        isometry to provide the crossing, so the response performs it. See
+        :class:`~orpheus.geometry.boundary._factors.BoundaryResponseKernel` for
+        the full statement and for why the distinction decides whether the
+        adjoint exists.
 
         **Populated on every concrete law since campaign phase B1.** The
         diffusion realizer reads :attr:`~orpheus.geometry.boundary.ScalarResponse.amplitude`

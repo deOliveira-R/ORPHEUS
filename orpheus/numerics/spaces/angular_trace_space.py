@@ -578,10 +578,21 @@ class AngularTraceSpace(FunctionSpace):
     def inflow_space(self, face: str) -> "AngularFaceTraceSpace":
         r""":math:`\Gamma_-(f)` — the inflow half-trace at ``face``.
 
-        The codomain of :math:`\gamma_-`, the **codomain** of the deck
-        transformation :math:`G`, and BOTH ends of the constitutive response
-        :math:`R : \Gamma_- \to \Gamma_-` — which is why ``R``, unlike ``G``,
-        is an endomorphism and can be self-adjoint.
+        The codomain of :math:`\gamma_-`, of the deck transformation :math:`G`,
+        and of the constitutive response — i.e. of **every** realized boundary
+        law, all of which are typed :math:`\Gamma_+ \to \Gamma_-` since campaign
+        phase B3.2.
+
+        ⛔ This said the response is an endomorphism *"BOTH ends of*
+        :math:`R : \Gamma_- \to \Gamma_-` *— which is why* ``R``\ *, unlike*
+        ``G``\ *, is an endomorphism and can be self-adjoint"* when it shipped
+        with G6.1 on 2026-08-04, and that was wrong within the day. `[M]` **no
+        realized response is an endomorphism of** :math:`\Gamma_-`:
+        :math:`\Gamma_- \to \Gamma_-` is the *classifying* typing, while the
+        realized response crosses (a constitutive surface is not a quotient, so
+        no isometry provides the crossing and the physics does it). Nothing here
+        is self-adjoint. See
+        :class:`~orpheus.geometry.boundary._factors.BoundaryResponseKernel`.
         """
         return self._face_spaces[("inflow", self._checked_face(face))]
 
