@@ -1742,34 +1742,95 @@ expressible — which is precisely why `PermutationOperator`'s `is_involution`
 docstring is already flagged present-tense-false for the narrowed operator
 (§7f). Materializing makes one claim true and the other unspellable.
 
-### What the declaration tier FORCES (so these are not free choices)
+### ⛔⛔ CORRECTION 2026-08-04 — the `R @ G` common-intermediate design above is ALSO WRONG
 
-Both from `BoundaryGeometryMap`'s own Protocol docstring
-(`geometry/boundary/_factors.py`):
+The paragraphs that stood here took the two Protocols at face value and derived a
+uniform `R∘G` split with `Γ₋` as the intermediate. **A review of the math with the
+user refuted it, and the tree's own realization was the witness all along.** This
+was the SECOND false premise in G6.3; the lesson is recorded in §7h.1.
 
-1. *"The crossing from `Γ₊` to `Γ₋` is part of **this factor**, not of the
-   response."* ⟹ **`G` always carries the crossing**; `R` is always the
-   endomorphism. No law may deviate.
-2. *"The identity deck element … **relabels nothing**."* ⟹ the identity deck
-   realizes as the **local-index-preserving** crossing `Γ₊(f) → Γ₋(f)` — local
-   position `i` in `Γ₊` to local position `i` in `Γ₋`. "Relabels nothing" is
-   literally "local position preserved", so this is forced.
+`[R]` `AngularAverageOperator` (`sn/boundary/angular.py`) — the realization of
+`LambertianReemission`, i.e. of a **response** — types itself
+***"Lambertian re-emission, `Γ₊ → Γ₋`"*** and its body is
 
-**Why that is measure-preserving, and why it matters.** `[M]`
-`G₋ == G₊[local]` **bit-identical** on all three shipped quadratures. A rank-one
-`R = u ⊗ v` gives `R∘G = u ⊗ (Gᵀv)`, and measure-preservation makes `Gᵀv` the
-same functional for every admissible `G` — which IS the boundary campaign's
-theorem *"`G` is unobservable exactly when `R` is rank-one"*, the one that hid
-the Lambertian in the geometry slot. So the canonical local-index `G` gives the
-right composite for every identity-deck law (white, albedo+Lambertian, vacuum,
-prescribed) without claiming a mirror those laws do not have.
+```python
+psi_avg = (cos_w * psi).sum(axis=0) / self._norm     # collapses the ANGLE axis
+return broadcast_to(psi_avg[None, ...], (n_inflow,) + psi.shape[1:])
+```
 
-⛔ **`|Γ₊| == |Γ₋|` is a PRECONDITION and MUST be a GUARD, never an assumption.**
-`_narrowed_zero_operator` (`realizer.py:248-256`) already says why in its own
-words: *"`|Γ₊| == |Γ₋|` on every reachable fixture, so the shapes coincide — an
-accident, not a contract."* Measured 2/2, 4/4, 49/49. A local-index crossing is
-ill-defined the moment that fails, so it must raise there rather than
-mis-pair silently.
+`[M]` **No realized response is an endomorphism of `Γ₋`.** `LambertianReemission`
+→ `Γ₊→Γ₋`; `SpecularReemission` → `Γ₊→Γ₋`; `ScalarResponse` → a commuting
+`ScaledOperator`. So `R : Γ₋ → Γ₋` is not merely un-bindable — it does not exist,
+and *the response carries the crossing* for every law where the response is the
+non-trivial factor.
+
+⟹ **TWO Protocol docstrings are present-tense-FALSE and must be corrected**
+(the code is right; the declaration tier is wrong):
+
+| `geometry/boundary/_factors.py` | false claim | truth |
+|---|---|---|
+| `BoundaryResponseKernel` | "`R : \Gamma_- \to \Gamma_-`" | `R : Γ₊ → Γ₋` |
+| `BoundaryGeometryMap` | "the crossing … is part of **this factor**, not of the response" | whichever factor is NON-TRIVIAL carries the crossing |
+
+### ⭐ The CORRECTED algebra (user, 2026-08-04) — the factorization is PER LAW KIND
+
+Not one uniform split. The campaign theorem *"exactly one of `G`/`R` is
+non-trivial"* sharpens into: **a law is either a deck transformation (atomic) or
+a response (composable), and the non-trivial factor is the one that crosses.**
+
+| law kind | structure | intermediate | adjoint |
+|---|---|---|---|
+| **deck transformation** | ⭐ **ATOMIC** — a measure-preserving bijection does not factor into two meaningful pieces. `Γ₊(f) → Γ₋(f)` self-paired, or `→ Γ₋(f_partner)` through paired faces. **Pure geometry: a law imposed by theorem, transport-method-agnostic** — it needs the method only to know WHICH SPACE to act on. | **none** | **guaranteed, a THEOREM**: the composition operator of a bijection `g` has `G⁻¹ = G_{g⁻¹}`, and measure-preservation makes that inverse the transpose. Purely geometrical. |
+| **response** | **`N` COMPOSED operations**, `Γ₊(f) → … → Γ₋(f)`. Lambertian = an **outflow angle contraction** `C` then an **isotropic broadcast** `B`. Constitutive: an assumption about a real surface. | ⭐ **`S(f)`** — the angle-integrated per-face scalar current. Already exists as a TYPE: `ScalarTraceSpace` ("per-face `(J⁺, J⁻)` partial-current pairs… already angle-integrated"). It is `psi_avg` in the body above — **a real physical quantity, currently an anonymous local**. | **conditional** — see the theorem below |
+
+### ⭐ THE THEOREM that settles whether a response adjoint is well-defined
+
+`[M]` probe `$CLAUDE_JOB_DIR/tmp/g6_response_adjoint.py`. For `R = B∘C`:
+
+```
+R* = C*B* = (G₊⁻¹ Cᵀ G_S)(G_S⁻¹ Bᵀ G₋) = G₊⁻¹ Cᵀ Bᵀ G₋ = G₊⁻¹ Rᵀ G₋
+```
+
+**The intermediate metric CANCELS.** Measured over `G_S` spanning ELEVEN orders
+of magnitude — Euclidean `0.0`, `1e-6` → `1.11e-16`, `3.7e5` → `1.11e-16` — with
+the weighted adjoint law `⟨Rx,y⟩_{G₋} = ⟨x,R*y⟩_{G₊}` holding at **exactly 0.0**.
+At `G_S = 0` the cancellation **BREAKS** (error `7.6e-1`).
+
+⟹ the requirement on `S(f)` is exactly **ONE binary condition: a NON-DEGENERATE
+metric.** Not "the physically correct metric".
+
+Two consequences to carry:
+
+1. ⚠ **Only the COMPOSITE is metric-free.** `C*` and `B*` *individually* depend
+   on `G_S`, and factoring exists precisely so the factors become usable — so
+   `S(f)`'s metric must still be chosen DELIBERATELY. It just cannot make the
+   composite wrong.
+2. ⭐ **This retroactively gives a G6.1 gate its real reason.**
+   `test_the_half_trace_metric_is_strictly_positive` reads as hygiene; it is in
+   fact **the precondition for the factored adjoint to be exact**. The `Γ(f)`
+   full tier has a DEGENERATE metric (zeros on the tangential rows), so it can
+   never serve as an intermediate; the halves can, because they exclude them.
+
+### ⭐ The payoff: the missing transpose falls out for FREE
+
+`AngularAverageOperator` reports `is_adjointable=False` and defers its transpose
+to boundary phase **B5**. Factored, there is nothing to defer:
+
+* `Cᵀ(s) = cos_w · s / norm` — the outer product
+* `Bᵀ(φ) = Σ_{Γ₋} φ` — the sum over inflow
+* ⟹ `Rᵀ(φ) = (cos_w / norm) · Σφ`
+
+That is the campaign's whole thesis in one line: **the adjoint falls out of
+well-posedness instead of being hand-rolled.** G6.3b's "absorb the B5 step"
+stops being scope creep and becomes a consequence.
+
+⛔ **`|Γ₊| == |Γ₋|` MUST be a GUARD wherever a local-index pairing is used.**
+`_narrowed_zero_operator` (`realizer.py:248-256`) already says why:
+*"`|Γ₊| == |Γ₋|` on every reachable fixture … an accident, not a contract."*
+Measured 2/2, 4/4, 49/49. Note the corrected design needs this in FEWER places —
+a factored response never pairs by index at all (it goes through `S(f)`), so only
+the deck-transformation arm carries the constraint, and there it is intrinsic to
+the bijection rather than assumed.
 
 ### Per-law realization map `[M]` — the ONE operator today, typed `Γ₊(f) → Γ₋(f)`
 
@@ -1805,15 +1866,45 @@ funnelled four laws through it).
 
 ### Order of work
 
+⛔ **The order below is REVISED for the corrected algebra.** The superseded
+version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator exists.
+
 | # | step | why here |
 |---|---|---|
-| **0** | bind the space-side `γ±` (`angular_trace_space.py:482`) | all three accessors are `self` — zero threading |
-| **1** | materialize `G`: the local-index crossing + the specular permutation, `Γ₊(f)→Γ₋(f)`, **with the `\|Γ₊\|==\|Γ₋\|` guard** | the forced semantics above |
-| **2** | materialize `R`: `Γ₋(f)→Γ₋(f)` for scalar / Lambertian / specular-reemission | the endomorphism; where self-adjointness becomes askable |
-| **3** | spell the law `R @ G` at `_attenuated_kernel_operator`'s exit | four laws at once |
-| **4** | vacuum, then prescribed | simplest single-face arms |
-| **5** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
-| **6** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above |
+| **0** | correct the TWO false Protocol docstrings (`BoundaryResponseKernel`'s typing, `BoundaryGeometryMap`'s crossing claim) | a falsified doc is a bug, fixed on sight — and every step below reads them. Past-tense history stays; the present-tense claims go |
+| **1** | bind the space-side `γ±` (`angular_trace_space.py:482`) | all three accessors are `self` — zero threading |
+| **2** | mint `S(f)`, the angle-integrated scalar current space, on `ScalarTraceSpace`, with a **non-degenerate** metric | the theorem's one requirement; also names `psi_avg`, today an anonymous local |
+| **3** | factor the Lambertian into `C : Γ₊(f) → S(f)` and `B : S(f) → Γ₋(f)`, each bound; the law is `B @ C` | the transpose falls out here (`Rᵀ = CᵀBᵀ`), closing the deferred B5 step |
+| **4** | put the albedo amplitude `α` **on `S(f)`** | where it physically belongs — it scales the CURRENT, not an angular distribution |
+| **5** | bind the deck-transformation arm **atomically**, `Γ₊(f) → Γ₋(f)`: the specular permutation | no factorization — a bijection has no meaningful split; adjoint is a theorem |
+| **6** | vacuum, then prescribed | simplest arms; vacuum is `ZeroOperator`, prescribed is affine (rank 0) |
+| **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
+| **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above |
+
+### §7h.1 — the transferable lesson: TWO false premises, both from a docstring
+
+G6.3 was scoped twice on claims read from prose, and refuted twice by the
+realization:
+
+1. "`G` and `R` are operators" — they are **descriptors**; the realizer welds
+   `R∘G`. Caught by the mapping dispatch.
+2. "`R : Γ₋ → Γ₋`, so the split is `R @ G` with intermediate `Γ₋`" — **no realized
+   response is an endomorphism of `Γ₋`**; the response *carries the crossing*.
+   Caught by the USER asking what space sits between the two operators.
+
+⭐ **The lesson: a Protocol docstring is a DECLARATION, not a measurement — and
+when a tier declares a typing, CHECK IT AGAINST THE REALIZATION before designing
+on it.** Both refutations were sitting in one `[R]` read of
+`AngularAverageOperator`'s first line, which types itself `Γ₊ → Γ₋` in direct
+contradiction of the Protocol it implements. The declaration/realization gap is
+exactly what this campaign exists to close, so it should have been the FIRST
+thing checked, not the last.
+
+Corollary for the fleet: the sub-agent DID report "`R : Γ₋ → Γ₋` is un-bindable —
+nothing in the SN realizer is an endomorphism of `Γ₋`" and the main agent
+under-weighted it, treating it as a scoping detail rather than a refutation of
+the algebra. **A sub-agent's negative structural finding deserves the same
+scrutiny as a positive one.**
 
 ⛔ **Do NOT descend into the `PermutationOperator` / `AngularAverageOperator`
 factors.** `[M]` `Γ₊(f)` is already the product space (`(12,2,7)` on 2-D
