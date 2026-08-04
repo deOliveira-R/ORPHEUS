@@ -627,6 +627,7 @@ from ._factors import (
     LambertianReemission,
     ReemissionClosure,
     ScalarResponse,
+    SelfPairedDeck,
     SpatialWrap,
     SpecularMirror,
     SpecularReemission,
@@ -711,6 +712,10 @@ __all__ = [
     "IdentityMap",
     "LambertianReemission",
     "ScalarResponse",
+    # The self-paired half of the deck tier (G5): one type carrying the
+    # involutive rigid motion of a face paired with ITSELF. Its two
+    # inhabitants are the trivial pairing and the mirror.
+    "SelfPairedDeck",
     "SpatialWrap",
     "SpecularMirror",
     "SpecularReemission",

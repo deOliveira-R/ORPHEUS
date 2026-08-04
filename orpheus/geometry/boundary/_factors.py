@@ -275,6 +275,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+import numpy as np
+
+from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.face_layout import AXIS_NAMES, face_normal, face_opposite
 
 
@@ -286,6 +289,7 @@ __all__ = [
     "LambertianReemission",
     "ReemissionClosure",
     "ScalarResponse",
+    "SelfPairedDeck",
     "SpatialWrap",
     "SpecularMirror",
     "SpecularReemission",
@@ -437,6 +441,185 @@ class BoundaryResponseKernel(Protocol):
 # ═══════════════════════════════════════════════════════════════════════
 # Concrete deck transformations
 # ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True, slots=True)
+class SelfPairedDeck:
+    r""":math:`G` for a face paired with **itself** — Poincaré's self-pairing case.
+
+    A boundary law's :math:`G` is a **face pairing** of the fundamental domain
+    (Poincaré). Two cases exist and they are structurally different:
+
+    - **Self-paired** — the face is paired with itself, so
+      :math:`\mathrm{dom} = \mathrm{cod}` and ``domain_face(face) is face``.
+      This class. Its two inhabitants are the trivial pairing
+      (:meth:`identity`, every constitutive law) and the mirror
+      (:meth:`mirror`, a reflecting face).
+    - **Paired with a DISTINCT face** — the codomain of one surface is the
+      domain of its partner and vice versa. That is :class:`SpatialWrap`
+      (periodic, a translation) and the unbuilt sector BC (#178, a rotation).
+      **Not this class**: a pair cannot be named by one face, so it needs a
+      surface-pair type that does not exist yet.
+
+    The construction guard is the self-pairing condition itself, and it is what
+    makes the distinction structural rather than documented:
+
+    .. math::
+
+        Q \text{ linear} \;\wedge\; \dim \mathrm{Fix}(Q) \ge d - 1
+
+    **Involution is a THEOREM here, not a guard.** A linear orthogonal
+    :math:`Q` fixing a hyperplane pointwise is :math:`I` or a reflection, so
+    :math:`Q^2 = I` follows. Guarding on ``element_order() in (1, 2)``
+    *instead* would be the converse of the insight and is **wrong**:
+    :math:`E(3)` has FOUR involution families, and the other two — the
+    half-turn (``order=2, det=+1, fix=1``) and the inversion
+    (``order=2, det=-1, fix=0``) — map a face to its **opposite**, which is
+    precisely :class:`SpatialWrap`'s deferred job. An order-only guard admits
+    exactly the elements this type exists to exclude. It would also carry an
+    ``atol`` into a type invariant, which the fixed-set spelling does not need.
+
+    **Why the guard forbids an affine part** (``is_linear``), and this is the
+    load-bearing half: :meth:`~orpheus.geometry.transformation.RigidMotion.on_directions`
+    **drops the translation**, so a mirror's *offset* — where the plane sits —
+    is bit-identically invisible at every level the tree can measure: the
+    ordinate permutation, the realized image, the frozen snapshots, any scalar.
+    A wrong mirror position is `vv-principles` Mode-12 **designed-green**, and
+    no gate at any tolerance can ever catch it. Refusing the affine part makes
+    the error *unspellable* instead of ungatable — the only closure available.
+    (`[M]` ``on_directions`` identical at ``offset ∈ {0, 2.5, −17.0}``.)
+
+    The angular/spatial split is the same statement one level up: :math:`G`
+    carries the crossing **in ANGLE** for a self-paired face (the linear part
+    acts, the position cannot matter because the face maps to itself) and
+    **in SPACE** for a genuine pair (the translation is the whole content).
+    """
+
+    motion: RigidMotion
+
+    def __post_init__(self) -> None:
+        motion = self.motion
+        if not isinstance(motion, RigidMotion):
+            raise TypeError(
+                f"SelfPairedDeck takes a RigidMotion, got {type(motion).__name__}. "
+                f"The deck element is the transformation itself, not a name for "
+                f"one — an axis LETTER cannot say which plane, and the letter "
+                f"table had three live spellings when this type was minted."
+            )
+        if not motion.is_linear:
+            raise ValueError(
+                "a self-paired deck element must be LINEAR (no translation). "
+                "A face paired with itself is fixed by its own pairing, so "
+                "there is nothing for a translation to do — and `on_directions` "
+                "drops it, which makes a wrong mirror POSITION invisible to "
+                "every gate at every tolerance (vv-principles Mode 12). "
+                "A translation belongs to a genuine face PAIR: see SpatialWrap."
+            )
+        fixed = motion.fixed_subspace_dimension
+        if fixed < motion.dimension - 1:
+            raise ValueError(
+                f"a self-paired deck element must fix the face pointwise, i.e. "
+                f"dim Fix >= {motion.dimension - 1}; this one fixes {fixed}. "
+                f"An element fixing less carries the face to a DIFFERENT face "
+                f"(a half-turn fixes a line, an inversion only the origin) — "
+                f"that is a genuine face pairing and needs a surface-pair type, "
+                f"not this one. Being an involution is NOT sufficient: E(3) has "
+                f"four involution families and two of them are face-swapping."
+            )
+
+    @classmethod
+    def identity(cls, dimension: int = 3) -> "SelfPairedDeck":
+        r"""The trivial pairing — :math:`G = \mathrm{id}`, the deck group's unit.
+
+        The law identifies no geometry: the domain is represented by itself,
+        not by a quotient. Every law whose content is entirely constitutive
+        lands here — vacuum, prescribed inflow, white, albedo, zero-flux.
+        """
+        return cls(RigidMotion.identity(dimension))
+
+    @classmethod
+    def mirror(cls, *, axis: str, dimension: int = 3) -> "SelfPairedDeck":
+        r"""The reflection whose plane is normal to ``axis``.
+
+        The unique ambient isometry fixing the face. It exchanges the
+        hemispheres — which is why :math:`G`, not the response, carries the
+        :math:`\Gamma_+ \to \Gamma_-` crossing — and preserves
+        :math:`|\Omega\cdot\hat n|`, so it is measure-preserving in the trace
+        measure (ERR-042).
+
+        Quotient reading: a deck transformation with **fixed points** (the
+        mirror plane), so a reflecting face makes the computational domain an
+        orbifold with what Thurston calls a *reflector boundary*. Contrast
+        :class:`SpatialWrap`, whose action is **free** — that contrast IS the
+        self-paired/genuinely-paired split this type is built on.
+
+        The axis letter is resolved against
+        :data:`~orpheus.numerics.face_layout.AXIS_NAMES` — the single home of
+        that convention — and refused HERE rather than at realization, so a
+        mis-named axis cannot be constructed and then fail late somewhere
+        holding a quadrature.
+        """
+        try:
+            index = AXIS_NAMES.index(axis)
+        except ValueError:
+            raise ValueError(
+                f"axis must be one of {AXIS_NAMES}, got {axis!r}. The mirror "
+                f"names the plane's NORMAL; validating here is what keeps a "
+                f"bad axis from surviving construction and failing later "
+                f"against a quadrature it never should have reached."
+            ) from None
+        if not 0 <= index < dimension:
+            raise ValueError(
+                f"axis {axis!r} is index {index}, out of range for a "
+                f"{dimension}-dimensional deck element"
+            )
+        normal = np.zeros(dimension)
+        normal[index] = 1.0
+        return cls(RigidMotion.reflection(normal=normal))
+
+    @property
+    def permutes_ordinates(self) -> bool:
+        """Whether realizing this map permutes the ANGULAR index.
+
+        **Derived, not declared.** The linear part IS the action on
+        directions, so "does it move angle?" is "is the linear part the
+        identity?" — a question the motion answers about itself. Before this
+        type the answer was a hand-written ``True``/``False`` per class, which
+        is a second source of truth for something the element already knows.
+        """
+        return not np.array_equal(
+            self.motion.linear, np.eye(self.motion.dimension)
+        )
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""Whether the realized map exposes an honest transpose.
+
+        A **theorem** for a genuine deck transformation: the composition
+        operator of a bijection :math:`g` is invertible with
+        :math:`G^{-1} = G_{g^{-1}}`, and measure-preservation makes that
+        inverse the transpose. Always ``True`` here — and unlike the
+        per-class declaration it replaces, it cannot drift, because the
+        construction guard already proved the element is an involution.
+        """
+        return True
+
+    def domain_face(self, face: str) -> str:
+        r"""Which face's :math:`\Gamma_+` this map's domain is.
+
+        ``face`` itself — **by construction, not by choice**. That is the
+        definition of self-paired, and it is why this is one line on the type
+        rather than a per-class decision that could disagree with the guard.
+
+        No axis-vs-face reconciliation happens here. A mirror's axis IS
+        checked against the installation face, but at realization, where a
+        mismatch is diagnosed against the actual reflection table (a mirror
+        about ``y`` on an x-face relabels WITHIN each half-trace instead of
+        exchanging them) and where the quadrature this method does not hold is
+        available. A second, weaker name-only test here would be a twin that
+        can disagree with it.
+        """
+        return face
 
 
 @dataclass(frozen=True, slots=True)
