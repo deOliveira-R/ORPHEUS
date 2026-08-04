@@ -1071,6 +1071,64 @@ of labour holds: that gate owns the convention, these own the accuracy.
 `tests/geometry`: see the commit body. `pyright` CLI clean on both touched
 files; `check_docstring_xrefs` **0 dead targets across 813 files**.
 
+### ⛔ G4.5 PROPOSED AND ABANDONED — the index-permutation route to a true `0.0`
+
+The obvious follow-on: since the residual is a floating-point artefact of the
+matvec, answer "does `g` permute the nodes?" by **integer index arithmetic**
+(`j ↦ (j+k) mod n`) instead of geometrically — which `[M]` reproduces the node
+set bit-identically, `0.0` at every `n`. Proposed as a G4.5, **measured, and
+abandoned.** Four independent findings, any one of which is disqualifying:
+
+| | measured | verdict |
+|---|---|---|
+| **margin** | window `1e-11` vs residual `1.1e-16`–`4.1e-16` | 24 000×–88 000×; buys **no** correctness |
+| **growth** | `n_φ` 8→256 moves the residual only `1.1e-16`→`4.1e-16` | sub-linear; never approaches the window |
+| **cost** | `Dnh(64).is_invariant` = 154 ms / 256 nodes | not a bottleneck at production sizes |
+| **coverage** | `level_symmetric(4/8/16)` and `lebedev(11/17)` have **NO** azimuthal index structure | product rules only |
+
+⭐ **The performance case and the exactness case point at DIFFERENT rules.** The
+slow path is the brute-force candidate scan on a 110-node Lebedev — and Lebedev
+is exactly what the index route cannot serve. An optimisation that misses the
+only expensive case is not an optimisation.
+
+**The architectural kill, and it is the decisive one.** Because the route serves
+only product rules, the geometric path **must stay** — so this can never retire
+its predecessor and is structural debt by construction (`.claude/rules/
+coding-standards.md`, "retire as you go"). It would be a permanent SECOND
+implementation of "does `g` permute this node set", in the module whose own
+durable finding is that `_orbit_closure` is *the ONE bridge* matrix→permutation,
+and where this campaign already retired **five** clones of that very job.
+
+**The codebase had already ruled**, in `permutes`'s own body:
+
+> *"one match rule cannot disagree with itself the way a fast path plus a
+> fallback can."*
+
+That comment defends the single distance-matrix rule against precisely this
+shape. G4.5's version is strictly worse than the one it rejects: the two paths
+would answer by **different mathematics**, so a disagreement is a silent wrong
+verdict rather than a slow one.
+
+Also required, and not free: `LevelStructure.azimuth` is `float64` — the integer
+numerator is not carried, so the route needs `(numerator, denominator)` threaded
+from `periodic_trapezoid` through `product_mu_phi`, i.e. a change to the
+generating measure while Q5 is in flight on that surface.
+
+**What survives is the insight, not the code:** the residual lives in the
+MATVEC, not the operator, so no factorisation of the operator reaches it — `[M]`
+Cartan–Dieudonné (rotation = two reflections) is 2–4× WORSE at every `n`,
+because each reflection is `I − 2n̂n̂ᵀ` plus a normalisation and then you multiply
+two of them. And `{1,2,4}` is exactly the **signed-permutation** set: a rotation
+whose entries are all `0`/`±1` is one of `I`, `−I`, `±90°`, and only there does
+the action become a relabel with no arithmetic. That is a closed form for the
+empirical exact set, not a coincidence.
+
+(`[M]` a related non-finding: `rotation_from_circle_point` computes
+`Q[0,0] = 1 + (c−1)`, which differs from the raw root in 32 entries — and is
+sometimes BETTER, landing on exactly `−0.5` at `n = 3` where the raw root is
+`−0.49999999999999994`. Writing entries directly is worse at `n = 3/5/6`, same
+at `8/16`, better at `12`. Pure ULP noise; leave it alone.)
+
 ### Refuted candidates — recorded with their structural reason
 
 Two trig sites survive in `symmetry.py` and **both are correctly out of scope**,
