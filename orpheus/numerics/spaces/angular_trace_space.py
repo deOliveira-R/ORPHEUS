@@ -591,6 +591,66 @@ class AngularTraceSpace(FunctionSpace):
         """
         return self._face_spaces[("outflow", self._checked_face(face))]
 
+    @cached_property
+    def _current_spaces(self) -> "dict[str, FunctionSpace]":
+        r"""``face -> S(f)`` — the angle-INTEGRATED per-face trace, built once.
+
+        The tier the :math:`\Gamma` ladder was missing: not a subset of
+        ordinates but the **collapse of the ordinate axis**. It is where a
+        factored response's intermediate state lives — for the Lambertian, the
+        cosine-weighted outgoing partial current
+        :math:`J^+_g = \sum_{\Gamma_+} w\,|\Omega\cdot\hat n|\,\psi`, which
+        today exists only as an anonymous local inside
+        :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`.
+        """
+        out: dict[str, FunctionSpace] = {}
+        for face in self.face_names:
+            shape = tuple(self.layout.faces[face].shape[1:])
+            out[face] = FunctionSpace(
+                name=f"angular_trace[{face}:current]",
+                shape=shape,
+                # ⭐ EXPLICITLY unit, never ``None``. The angular measure
+                # |Ω·n|·w is CONSUMED by the contraction that lands here, so
+                # nothing further remains to weight — and the ladder's other
+                # tiers carry no face area either (``AngularTraceSpace``'s own
+                # metric is |Ω·n|·w alone), so adding one here would break that
+                # convention and double-count against
+                # ``ScalarTraceSpace``, which owns the area-weighted boundary
+                # integral for angle-integrated quantities.
+                #
+                # Spelled as ones rather than left ``None`` because ``None``
+                # encodes TWO states — "deliberately Euclidean" and "nobody
+                # bound a metric" — and no gate can separate one value from
+                # itself. The factored-adjoint theorem needs only
+                # non-degeneracy here (the interior metric cancels from the
+                # composite), so this records the INTENT, which is the part a
+                # reader cannot recover.
+                inner_product_weights=np.ones(shape, dtype=float),
+            )
+        return out
+
+    def current_space(self, face: str) -> FunctionSpace:
+        r""":math:`S(f)` — the angle-integrated trace at ``face``.
+
+        Shape ``(ng, *face_spatial)``: the face slot with its **ordinate axis
+        integrated out**, one value per group per boundary cell.
+
+        This is the intermediate a factored response passes through
+        (:math:`\Gamma_+(f) \to S(f) \to \Gamma_-(f)`), and the quantity is
+        named rather than anonymous: the cosine-weighted outgoing **partial
+        current**. Distinct from
+        :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`,
+        which carries the :math:`(J^+, J^-)` PAIR for the whole boundary under
+        the face-AREA metric — diffusion's P1 Cauchy data, a different object
+        with a different metric and a different scope.
+
+        Its metric is deliberately unit; see :attr:`_current_spaces`. The
+        factored-adjoint theorem makes any non-degenerate choice give the same
+        composite adjoint, so the freedom is real — but the individual factors'
+        adjoints DO depend on it, which is why it is chosen rather than defaulted.
+        """
+        return self._current_spaces[self._checked_face(face)]
+
     def inflow_space(self, face: str) -> "AngularFaceTraceSpace":
         r""":math:`\Gamma_-(f)` — the inflow half-trace at ``face``.
 

@@ -53,6 +53,19 @@ _QUADRATURES = {
 #: excluded by measurement, not by taste — see the module docstring.
 _TANGENTIAL_BEARING = ["product(4,4)", "lebedev(17)"]
 
+#: The fixtures that can build a MULTI-DIMENSIONAL layout at all —
+#: ``gauss_legendre`` is a 1-D slab rule with no ``mu_y``, so a ``y``-face
+#: raises rather than producing a degenerate answer.
+#:
+#: ⚠ Deliberately a SEPARATE list from ``_TANGENTIAL_BEARING`` even though the
+#: members coincide today. They coincide for two unrelated reasons —
+#: dimensionality here, tangential-ordinate count there — and a single list
+#: whose values correlate with something other than its name is a field doing
+#: two jobs; the day a 1-D rule grows tangential ordinates (or a 3-D rule loses
+#: them) the two would need to diverge, and a merged list would silently pick
+#: the wrong one.
+_MULTIDIM = ["product(4,4)", "lebedev(17)"]
+
 _ALL = list(_QUADRATURES)
 
 
@@ -373,6 +386,131 @@ def test_the_name_encodes_face_and_role(quad_name):
         assert trace.face_space(face).name == f"angular_trace[{face}:full]"
         assert trace.outflow_space(face).name == f"angular_trace[{face}:outflow]"
         assert trace.inflow_space(face).name == f"angular_trace[{face}:inflow]"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# G6.3 step 2 — S(f), the angle-INTEGRATED tier
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _trace_2d(quad_name: str, ng: int = 2) -> AngularTraceSpace:
+    """A 2-D Cartesian trace: x-faces carry ``ny``, y-faces carry ``nx``.
+
+    Needed because ``S(f)`` must collapse the ordinate axis and leave EVERY
+    trailing axis intact; a 1-D fixture (whose only trailing axis is the group)
+    cannot distinguish "collapse axis 0" from "keep exactly one trailing axis".
+    """
+    quad = _QUADRATURES[quad_name]()
+    n = int(quad.N)
+    return AngularTraceSpace.from_quadrature_and_layout(
+        quad,
+        FaceLayout.from_named_shapes(
+            [("xmin", (n, ng, 5)), ("xmax", (n, ng, 5)),
+             ("ymin", (n, ng, 7)), ("ymax", (n, ng, 7))]
+        ),
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_current_space_collapses_ONLY_the_ordinate_axis(quad_name):
+    r"""``S(f)`` is ``Γ(f)`` with the ordinate axis integrated out.
+
+    The tier the ladder was missing, and it is not a subset of ordinates — it is
+    an axis COLLAPSE. The group axis must survive; its 2-D companion below adds
+    the codim-1 spatial axis.
+    """
+    trace = _trace(quad_name, ng=2)
+    for face in ("xmin", "xmax"):
+        current = trace.current_space(face)
+        assert current.shape == (2,)
+        assert current.shape == trace.face_space(face).shape[1:]
+
+
+@pytest.mark.parametrize("quad_name", _MULTIDIM)
+def test_the_current_space_keeps_the_codim1_SPATIAL_axis_too(quad_name):
+    r"""EVERY trailing axis survives, not just the group one.
+
+    A 1-D fixture has exactly one trailing axis, so it cannot distinguish
+    "collapse axis 0" from "keep exactly one trailing axis" — two different rules
+    that agree there and diverge in 2-D, where x-faces carry ``ny`` and y-faces
+    carry ``nx``. This is also the gate that would catch a hardcoded
+    ``shape[:2]``-style slice.
+    """
+    trace = _trace_2d(quad_name)
+    assert trace.current_space("xmin").shape == (2, 5)
+    assert trace.current_space("ymin").shape == (2, 7)
+    for face in ("xmin", "ymin"):
+        assert (
+            trace.current_space(face).shape
+            == trace.face_space(face).shape[1:]
+        )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_current_space_metric_is_EXPLICITLY_unit_not_None(quad_name):
+    r"""⭐ ``None`` would encode two different states; ones encodes the intent.
+
+    The angular measure :math:`|\Omega\cdot\hat n|\,w` is CONSUMED by the
+    contraction that lands here, so nothing remains to weight — and the ladder
+    carries no face area (``AngularTraceSpace``'s own metric is
+    :math:`|\Omega\cdot\hat n|\,w` alone; the area-weighted boundary integral
+    belongs to ``ScalarTraceSpace``). So unit is the *derived* answer, not a
+    default.
+
+    Gated as ``is not None`` because ``None`` means BOTH "deliberately
+    Euclidean" and "nobody bound a metric", and no gate can separate one value
+    from itself — the reason a generic space was rejected for this campaign.
+    """
+    trace = _trace(quad_name, ng=3)
+    weights = trace.current_space("xmin").inner_product_weights
+
+    assert weights is not None, "unit must be RECORDED, not left to the default"
+    assert np.all(np.asarray(weights) == 1.0)
+
+
+@pytest.mark.parametrize("quad_name", _TANGENTIAL_BEARING)
+def test_the_current_space_is_ADMISSIBLE_as_a_chain_intermediate(quad_name):
+    r"""⭐ Non-degenerate — the factored-adjoint theorem's one requirement.
+
+    ``R* = C*B* = G₊⁻¹RᵀG₋`` holds because the intermediate metric cancels, and
+    that cancellation needs the intermediate metric to be **invertible**; at
+    zero it breaks outright (see
+    ``tests/numerics/test_factored_adjoint_identity.py``).
+
+    The contrast is the point, and it is why this is parametrised over the
+    tangential-bearing quadratures: ``Γ(f)``'s metric IS degenerate — exactly
+    zero on tangential ordinates — so the full tier could **never** serve as a
+    chain intermediate, while ``S(f)`` and the two halves can. This gate is what
+    connects step 2 to the theorem rather than leaving the precondition as a
+    docstring claim.
+    """
+    trace = _trace(quad_name, ng=2)
+    current = np.asarray(trace.current_space("xmin").inner_product_weights)
+    full_tier = np.asarray(trace.face_space("xmin").inner_product_weights)
+
+    assert (current > 0.0).all(), "S(f) must be admissible as an intermediate"
+    assert (full_tier == 0.0).any(), (
+        "the full tier no longer has a degenerate metric, so this gate has "
+        "lost the contrast it exists to draw"
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_current_space_has_its_own_identity(quad_name):
+    """Face-encoded and distinct from every angular tier, like the rest.
+
+    ``S(xmin)`` and ``S(xmax)`` share a shape on a symmetric mesh, so the same
+    collision argument applies here as for the half-traces.
+    """
+    trace = _trace(quad_name, ng=2)
+    xmin, xmax = trace.current_space("xmin"), trace.current_space("xmax")
+
+    assert xmin.shape == xmax.shape, "fixture no longer exercises the collision"
+    assert xmin != xmax
+    assert xmin is trace.current_space("xmin")          # cached
+    assert xmin != trace.face_space("xmin")
+    assert xmin != trace.outflow_space("xmin")
+    assert xmin != trace.inflow_space("xmin")
 
 
 # ─────────────────────────────────────────────────────────────────────
