@@ -13,7 +13,7 @@
 > | **G1b** | `cc5703ed` | the `E(d)→E(D)` embedding, the `Permutation` type, `NotAFinitePointGroupError` |
 > | **G2** | `387fe625` | verified against PURE MATH — 42 gates / 96 cases, 32 mutations / 32 caught / 0 blind |
 > | **G3** | `3bf029de` + `0c3d4e65` | `numerics/symmetry.py` speaks `RigidMotion`; the 1-D/3-D arm split deleted; the 1-D invariance tag corrected to `Mirror("x")` |
-> | **G4** | see §7d | the checker's `C_n` / `σ_v` re-based on `roots_of_unity`; mirrors become the coset `C_n·σ₀`; `_rotation_z` retired |
+> | **G4** | `cfe0a448` (§7d) | the checker's `C_n` / `σ_v` re-based on `roots_of_unity`; mirrors become the coset `C_n·σ₀`; `_rotation_z` retired |
 >
 > **G5 (next)** — the BC layer's 4 σ_a vocabularies + `_reflect_corner`;
 > `ReflectionLaw` binding; acceptance `product(4,5)`'s `ValueError` →
