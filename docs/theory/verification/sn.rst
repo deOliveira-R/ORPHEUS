@@ -3153,8 +3153,8 @@ The composite fixed-source API — :math:`q = q_{\text{bulk}} \oplus q_\partial`
      slots of a prescribed inflow are physically meaningless →
      unrepresentable by construction, ``coding-elegance`` Pattern 4),
      leaving everything else zero. It is the known-per-face-array route;
-     the lazy ``InflowSourceSpec``-recipe route (``from_spec``) is a
-     distinct, still-deferred bridge.
+     the lazy ``InflowSourceSpec``-recipe route (``from_specs``) is a
+     distinct bridge that delegates its packing back to this method.
 
 The fixed-source right-hand side is a source on the whole phase space
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3355,7 +3355,7 @@ not as duplicates:
 
    * -
      - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
-     - ``AngularBoundarySourceSink.from_spec`` (deferred)
+     - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
    * - Input
      - known per-face ``(N, ng)`` arrays
      - a lazy

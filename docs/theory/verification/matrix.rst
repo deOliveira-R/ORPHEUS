@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8740**
+Total tests collected: **8752**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1264, 14.5%
-   L1, 1510, 17.3%
+   L0, 1264, 14.4%
+   L1, 1522, 17.4%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5897, 67.5%
+   foundation, 5897, 67.4%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8656
+   explicit, 8668
    class-name, 46
    func-name, 0
    case, 33
@@ -459,6 +459,7 @@ Module × level grid
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
+   transport/test_boundary_source_from_specs, 0, 12, 0, 0, 0, 0
    transport/test_composite, 0, 0, 0, 0, 14, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
    transport/test_full_field, 0, 0, 0, 0, 17, 0

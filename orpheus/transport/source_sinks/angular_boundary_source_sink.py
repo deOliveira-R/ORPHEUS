@@ -82,17 +82,31 @@ consume (it supersedes the ``zeros_on`` + per-face
 (every face, full slot incl. outflow) remains for non-inflow uses; the
 operator-output zeros use :meth:`zeros_on`.
 
-The **recipe → snapshot bridge** ``AngularBoundarySourceSink.from_spec(spec,
-mesh)`` (materialise an :class:`InflowSourceSpec` onto the trace by
-looping ``spec.evaluate(face_shape)`` per face and packing the flat
-layout) is a DISTINCT, still-deferred path — it is the *recipe*-driven
-route (a lazy :class:`InflowSourceSpec` evaluated per face), NOT the
-known-array route :meth:`prescribed_inflow` serves. Per
-``feedback_unify_after_two_instances`` ``from_spec`` waits for the first
-real consumer that both declares a non-trivial ``InflowSourceSpec`` AND
-drives a sweep that consumes a typed boundary-source field (rather than
-the current inline ``evaluate(shape)`` call); the MMS does NOT — it has
-explicit per-face arrays, so it uses :meth:`prescribed_inflow`.
+The **recipe → snapshot bridge** is :meth:`AngularBoundarySourceSink.from_specs`
+— materialise per-face :class:`InflowSourceSpec` recipes onto the trace by
+evaluating each at its face's :math:`\Gamma_-` shape and packing the flat
+layout. It is a DISTINCT route from :meth:`prescribed_inflow`, which serves
+the known-per-face-array case; ``from_specs`` serves the lazy-recipe case, and
+delegates its packing to ``prescribed_inflow`` so the "inflow slots written,
+everything else zero" rule lives in exactly one place.
+
+It **evaluates at the same shape the inline path uses** —
+:meth:`~orpheus.sn.boundary.angular.IncomingSourceOperator.apply` asks the spec
+for ``(|Γ₋|,) + trailing`` and so does ``from_specs`` — so the two routes to
+:math:`q` agree by construction rather than by transcription.
+
+.. note::
+
+   This bridge stood DEFERRED under ``feedback_unify_after_two_instances``
+   until 2026-08-05, waiting for a consumer that both declared a non-trivial
+   ``InflowSourceSpec`` and drove a sweep consuming a typed boundary-source
+   field. It was built ahead of that trigger by explicit user ruling, to close
+   the affine boundary channel (``.claude/plans/affine_boundary_source_channel.md``):
+   the design of record already said prescribed inflow's realization IS
+   ``q.boundary``, and the missing bridge was the reason SN had the fence
+   (no ``BlockRole.BOUNDARY`` stamp) without the channel. The deferred sketch
+   named it ``from_spec(spec, mesh)``, singular; the realization takes a
+   per-face mapping, because a boundary's faces carry different laws.
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================
@@ -132,6 +146,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from numpy.typing import NDArray
+
+    from orpheus.geometry.boundary._source import InflowSourceSpec
 
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
@@ -174,7 +190,7 @@ class AngularBoundarySourceSink(AngularBoundaryField):
 
     See the module docstring for the recipe→snapshot relationship to the
     geometry-layer :class:`InflowSourceSpec` generator (formerly named
-    ``BoundarySource``) and the deferred ``from_spec`` bridge.
+    ``BoundarySource``) and the :meth:`from_specs` bridge that materialises it.
     """
 
     #: Dimensional identity (View-G, B.4): the boundary is all-flux, so
@@ -221,8 +237,9 @@ class AngularBoundarySourceSink(AngularBoundaryField):
         this builds the snapshot directly from **known per-face arrays**,
         NOT from a lazy
         :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
-        recipe — the deferred ``from_spec`` bridge is the latter path and
-        remains deferred (no recipe-driven consumer yet).
+        recipe — :meth:`from_specs` is the latter path, and it delegates its
+        packing here so this method stays the single place that knows the
+        "inflow slots written, everything else zero" rule.
 
         Parameters
         ----------
@@ -293,3 +310,100 @@ class AngularBoundarySourceSink(AngularBoundaryField):
                     f"a scalar {view.shape[:-1]!r} onto a moment-resolved slot)."
                 )
         return bss
+
+    # ── The recipe → snapshot bridge ─────────────────────────────────
+
+    @classmethod
+    def from_specs(
+        cls,
+        mesh: "SNMesh",
+        face_specs: "Mapping[str, InflowSourceSpec]",
+    ) -> "AngularBoundarySourceSink":
+        r"""Materialise lazy :class:`InflowSourceSpec` **recipes** onto the trace.
+
+        The recipe→snapshot bridge the module docstring describes: each face's
+        generator is evaluated at that face's :math:`\Gamma_-` shape and the
+        result packed into the flat layout, turning a per-face lazy rule into
+        one eager, mesh-bound, role-typed :math:`q`.
+
+        ⭐ **Evaluated at the SAME shape the inline path uses, deliberately.**
+        :meth:`~orpheus.sn.boundary.angular.IncomingSourceOperator.apply` asks
+        the spec for ``(|Γ₋|,) + trailing``; so does this. The two routes to
+        :math:`q` therefore agree *by construction* rather than by a
+        transcription that could drift — which is the property the affine-channel
+        carve relies on when it retires the inline path.
+
+        Packing is delegated to :meth:`prescribed_inflow` rather than repeated
+        here: that method is the single source of truth for "inflow slots
+        written, everything else zero", including the moment-resolved LD case
+        (#251). This method's only job is the recipe evaluation.
+
+        .. note::
+
+           The deferred sketch in the module docstring named this
+           ``from_spec(spec, mesh)`` — ONE spec for the whole boundary. The
+           realization takes a **per-face mapping**, because a mesh's faces
+           carry different laws: a single spec applied boundary-wide would
+           impose an inflow on vacuum and reflective faces too. Argument order
+           follows :meth:`prescribed_inflow` (mesh first, mapping second) so
+           the two read alike.
+
+        Parameters
+        ----------
+        mesh : SNMesh
+            The SN phase-space carrier; ``mesh.angular_trace`` supplies the
+            layout and the per-face inflow ordinate index sets.
+        face_specs : Mapping[str, InflowSourceSpec]
+            ``{face_name: spec}``. Faces absent from the mapping are vacuum
+            (all-zero), matching :meth:`prescribed_inflow`.
+
+        Returns
+        -------
+        AngularBoundarySourceSink
+            The materialised :math:`q` — inflow slots of the named faces set
+            from their recipes, everything else zero.
+
+        Raises
+        ------
+        ValueError
+            If ``mesh.angular_trace is None``; if a key is not a face of the
+            layout; or if a spec returns an array of the wrong shape (the
+            :class:`InflowSourceSpec` contract's one invariant).
+        """
+        trace = mesh.angular_trace
+        if trace is None:
+            raise ValueError(
+                f"{cls.__name__}.from_specs: mesh has no AngularTraceSpace "
+                f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
+                f"boundary source cannot be built without a trace."
+            )
+        known = set(trace.layout.faces.keys())
+        template = cls.zeros_on(mesh)
+        face_values: "dict[str, NDArray]" = {}
+        for face, spec in face_specs.items():
+            if face not in known:
+                raise ValueError(
+                    f"{cls.__name__}.from_specs: {face!r} is not a face of the "
+                    f"layout; available: {sorted(known)!r}"
+                )
+            slot_shape = template.face_view(face).shape
+            inflow = trace.inflow_indices_for_face(face)
+            wanted = (int(np.size(inflow)),) + tuple(
+                int(s) for s in slot_shape[1:]
+            )
+            values = np.asarray(spec.evaluate(wanted), dtype=float)
+            if values.shape != wanted:
+                raise ValueError(
+                    f"{cls.__name__}.from_specs: face {face!r} spec "
+                    f"{spec!r} returned shape {values.shape!r}, expected "
+                    f"{wanted!r}. The InflowSourceSpec contract's ONE invariant "
+                    f"is that the returned array has exactly the requested "
+                    f"shape."
+                )
+            # Scatter onto the full slot so `prescribed_inflow` — which reads
+            # `[inflow]` from a full-slot array — stays the only code that
+            # knows the packing. The zeros in the outflow rows are never read.
+            full = np.zeros(slot_shape, dtype=float)
+            full[inflow] = values
+            face_values[face] = full
+        return cls.prescribed_inflow(mesh, face_values)

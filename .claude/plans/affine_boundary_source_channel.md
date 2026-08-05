@@ -99,17 +99,42 @@ Gates: round-trip `from_spec(ConstantInflowSource(v)) ≡ prescribed_inflow({fac
 on the inflow slots and **zero elsewhere** (the outflow/tangential slots are the
 claim that the mask dissolved into the type); `NoSource → zeros_on`.
 
-### P2 — route it: `q_ext.boundary` carries the source
+### ⛔ P2 AS WRITTEN IS REFUTED — the channel already exists (2026-08-05)
 
-Both `q_ext_composite` sites (`solver.py:1584`, `:1775`) and
-`_build_fixed_source_rhs` (`:3110`). Fix the two false comments.
+P2 originally read *"route it: `q_ext.boundary` carries the source"*, targeting
+`solver.py:1584` / `:1775`. **That premise was wrong, and this is the SIXTH time in
+this campaign that a plan claim has been refuted by the realization.** The evidence
+was in the corpus the whole time — `docs/theory/verification/sn.rst:3450-3458`:
 
-⚠ **The Krylov site says `q_ext.boundary` is deliberately NOT pre-seeded** (`:1769`:
-*"reflective-BC state threads through `initial_guess` per the audit §5 contract"*).
-That is about reflective state, not about a prescribed source — but the two now
-share a slot. **Read the audit §5 contract before touching the Krylov site**; if the
-slot is load-bearing for the reflective thread, prescribed needs a different entry
-point and this phase splits.
+> the inflow is carried in the `q.boundary` slot
+> (`AngularBoundarySourceSink`) and consumed directly by `(L+C).solve` as the sweep
+> inflow seed … the inflow is supplied as the boundary leaf of the **composite
+> source** `q = q_bulk ⊕ q_∂` that `solve_sn_fixed_source` now accepts directly.
+
+`[M]` `solver.py:3110` — `_build_fixed_source_rhs` normalises to `q = q_bulk ⊕ q_∂`
+and **both** inner paths (`_solve_fixed_source_si`, `_solve_fixed_source_krylov`)
+consume it. A non-vacuum MMS (§4.6) already drives it.
+
+⟹ the two `zeros_on(...)` sites I flagged are the **eigenvalue** paths, where a zero
+boundary source is CORRECT (a k-eigenvalue problem has no external inflow). Their
+comments are misleading, but the code is right. **Fix the comments; touch nothing
+else.**
+
+**What is actually missing is narrower:** the **mesh-BC bridge** — a
+`PrescribedInflow` *declared as a boundary law* never reaches the composite source.
+`sn.rst:3900` says so in as many words: *"No `from_specs` / `PrescribedInflow`-BC
+bridge is touched"* — the §4.6 MMS deliberately supplies `q_∂` directly instead.
+That bridge is the one thing standing between the law tier and the channel, and it
+is exactly what the user asked for: *"next time we're working on BC, you will be
+able to connect the prescribed inflow machinery to the source at boundary."*
+
+### P2′ — the mesh-BC bridge (REPLACES P2)
+
+Materialise a face's declared `PrescribedInflow.source` into `q.boundary` via
+`from_specs`, so a law-tier declaration reaches the existing channel. Scope this
+against **#189** (prescribed_inflow is not a registered `BC` kind), which is the
+reason the law is only constructible directly today — the bridge and the
+registration are separable, and this plan owns only the bridge.
 
 ### P3 — collapse the operator; retire `IncomingSourceOperator`
 
