@@ -463,7 +463,8 @@ class BoundaryResponseKernel(Protocol):
 
        But **no realized response is an endomorphism of** :math:`\Gamma_-`.
        :class:`LambertianReemission` realizes as
-       :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`, typed
+       :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator` composed on
+       :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`, typed
        :math:`\Gamma_+ \to \Gamma_-`; :class:`SpecularReemission` realizes as a
        narrowed permutation, likewise :math:`\Gamma_+ \to \Gamma_-`;
        :class:`ScalarResponse` realizes as a commuting scale. **Whichever
@@ -556,8 +557,8 @@ class BoundaryResponseKernel(Protocol):
         index sets. It was true of the pre-B3.4a full-face endomorphism. What
         survives is a **structural symmetry** — :math:`R` and :math:`R^*` share
         one form with the half-traces exchanged — see
-        :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for the
-        measured statement.
+        :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` and its
+        partner for the measured statement.
         """
         ...
 

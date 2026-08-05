@@ -601,7 +601,9 @@ class AngularTraceSpace(FunctionSpace):
         cosine-weighted outgoing partial current
         :math:`J^+_g = \sum_{\Gamma_+} w\,|\Omega\cdot\hat n|\,\psi`, which
         today exists only as an anonymous local inside
-        :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`.
+        the welded ``AngularAverageOperator``'s apply, until G6.3 step 3b factored
+        it and :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`
+        gave the quantity its name.
         """
         out: dict[str, FunctionSpace] = {}
         for face in self.face_names:

@@ -2281,6 +2281,66 @@ class PermutationOperator(LinearOperator):
         return True
 
 
+def checked_space_extent(
+    space: Optional[FunctionSpace],
+    expected: int,
+    *,
+    axis: int = 0,
+    owner: str,
+    role: str,
+) -> Optional[FunctionSpace]:
+    r"""Refuse a bound space whose extent contradicts a stored length.
+
+    ⭐ **Why this exists as a shared primitive.** An operator that carries BOTH
+    a length (``n_total``, ``n_inflow``, ``len(cos_w)``) and a bound space is
+    describing the SAME fact twice, and the two can disagree. That disagreement
+    is **invisible at apply-time** — the arrays still broadcast, so the operator
+    computes a plausible wrong answer — which makes construction the only place
+    it can be caught.
+
+    The redundancy is transitional: G6.5 retires the lengths in favour of the
+    spaces (#330). Until then this keeps the pair honest, and it is one routine
+    rather than three because three operators now need it
+    (:class:`TraceRestrictionOperator`,
+    :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`,
+    :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`) — the
+    threshold at which a repeated check earns extraction.
+
+    Parameters
+    ----------
+    space : FunctionSpace or None
+        The bound space, or ``None`` while binding remains optional.
+    expected : int
+        The length the operator stores for that end.
+    axis : int
+        Which of the space's axes the length describes.
+    owner, role : str
+        Names for the error message — the class and which end (``"domain"`` /
+        ``"codomain"``).
+
+    Returns
+    -------
+    FunctionSpace or None
+        ``space`` unchanged when consistent, so callers can assign the result.
+    """
+    if space is None:
+        return None
+    if not 0 <= axis < len(space.shape):
+        raise ValueError(
+            f"{owner} {role}={space!r} has {len(space.shape)} axes, so "
+            f"axis={axis} is out of range."
+        )
+    actual = space.shape[axis]
+    if actual != expected:
+        raise ValueError(
+            f"{owner} {role}={space!r} has extent {actual} along axis {axis}, "
+            f"but this operator's {role} is {expected} rows. The space and the "
+            f"length describe the SAME fact and disagree; a mis-bound space is "
+            f"SILENT at apply-time because the arrays still broadcast."
+        )
+    return space
+
+
 class TraceRestrictionOperator(LinearOperator):
     r"""Restriction onto an index subset along an axis:
     :math:`(\gamma_S x)_i = x_{S(i)}`.
@@ -2434,32 +2494,11 @@ class TraceRestrictionOperator(LinearOperator):
     def _checked_space(
         self, space: Optional[FunctionSpace], expected: int, role: str,
     ) -> Optional[FunctionSpace]:
-        """Refuse a space whose extent along :attr:`axis` contradicts the length.
-
-        The lengths (``n_total`` / :attr:`n_restricted`) and the spaces are
-        redundant descriptions of the same fact until G6.5 retires the former.
-        While both exist, a disagreement between them is undetectable at
-        apply-time — the arrays still broadcast — so it is refused here.
-        """
-        if space is None:
-            return None
-        if not 0 <= self.axis < len(space.shape):
-            raise ValueError(
-                f"TraceRestrictionOperator {role}={space!r} has "
-                f"{len(space.shape)} axes, so axis={self.axis} is out of range. "
-                f"The restriction gathers along that axis, so the space must "
-                f"have it."
-            )
-        actual = space.shape[self.axis]
-        if actual != expected:
-            raise ValueError(
-                f"TraceRestrictionOperator {role}={space!r} has extent "
-                f"{actual} along axis {self.axis}, but this restriction's "
-                f"{role} is {expected} rows. The space and the length describe "
-                f"the SAME fact and disagree; a mis-bound space is silent at "
-                f"apply-time because the arrays still broadcast."
-            )
-        return space
+        """Refuse a space whose extent along :attr:`axis` contradicts the length."""
+        return checked_space_extent(
+            space, expected,
+            axis=self.axis, owner="TraceRestrictionOperator", role=role,
+        )
 
     @property
     def domain(self) -> Optional[FunctionSpace]:

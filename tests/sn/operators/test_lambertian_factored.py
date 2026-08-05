@@ -36,7 +36,6 @@ from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.sn.boundary.angular import (
-    AngularAverageOperator,
     IsotropicEmissionOperator,
     PartialCurrentOperator,
 )
@@ -78,10 +77,23 @@ class _Lambertian:
             domain=self.current, codomain=self.gamma_minus,
         )
         self.R = self.B @ self.C
-        self.welded = AngularAverageOperator(
-            cos_w=self.cos_w, norm=self.norm,
-            n_inflow=self.gamma_minus.shape[0],
-        )
+
+    def closed_form(self, psi):
+        r"""The Lambertian written out, with NO production operator in the path.
+
+        Replaces the welded ``AngularAverageOperator`` this module compared
+        against until its retirement (G6.3 step 3b). Re-pointing that reference
+        at the chain would have compared the chain WITH ITSELF; an explicit
+        closed form is strictly more independent than the class it replaces,
+        which was production code.
+        """
+        psi = np.asarray(psi)
+        contracted = (
+            self.cos_w.reshape((-1,) + (1,) * (psi.ndim - 1)) * psi
+        ).sum(axis=0) / self.norm
+        return np.broadcast_to(
+            contracted[None, ...], (self.gamma_minus.shape[0],) + contracted.shape,
+        ).copy()
 
     def draw(self, seed_offset: int = 0):
         rng = np.random.default_rng(_SEED + seed_offset)
@@ -108,11 +120,11 @@ def _dense(op, in_shape) -> np.ndarray:
 
 
 @pytest.mark.parametrize("quad_name", _ALL)
-def test_the_factored_chain_is_BIT_IDENTICAL_to_the_welded_operator(quad_name):
+def test_the_factored_chain_is_BIT_IDENTICAL_to_the_closed_form(quad_name):
     r"""``(B ∘ C)ψ == R_diff ψ``, exactly — factoring is a re-spelling.
 
     Bit-identity is achievable here (not merely principled equivalence) because
-    the operation order is unchanged: the welded body computes
+    the operation order is unchanged: the closed form computes
     ``(cos_w·ψ).sum() / norm`` and the chain computes the same sum in ``C`` and
     the same division in ``B``. If a future refactor moves the normalisation
     into ``C``, this gate SHOULD break — the reduction would then happen after a
@@ -120,7 +132,7 @@ def test_the_factored_chain_is_BIT_IDENTICAL_to_the_welded_operator(quad_name):
     """
     lam = _Lambertian(quad_name)
     psi, _ = lam.draw()
-    np.testing.assert_array_equal(lam.R.apply(psi), lam.welded.apply(psi))
+    np.testing.assert_array_equal(lam.R.apply(psi), lam.closed_form(psi))
 
 
 @pytest.mark.parametrize("quad_name", _ALL)
@@ -146,14 +158,17 @@ def test_the_chain_REFUSES_to_compose_the_wrong_way_round(quad_name):
 
 
 @pytest.mark.parametrize("quad_name", _ALL)
-def test_the_welded_operator_withheld_the_transpose_the_chain_supplies(quad_name):
-    """The step's whole point, as a before/after on one line each.
+def test_the_chain_supplies_the_transpose_the_welded_form_withheld(quad_name):
+    """The step's whole point, pinned as a present-tense capability.
 
-    Not decoration: it pins that the capability genuinely changed, so a future
-    reader can see the deferral was closed rather than forgotten.
+    The welded ``AngularAverageOperator`` reported ``is_adjointable = False``
+    and deferred its transpose to boundary phase B5. It is retired (G6.3 step
+    3b), so the before/after can no longer be asserted as a pair — what remains
+    assertable, and what matters, is that every link and the composite DO
+    advertise one. The history is in the commit and in
+    ``LambertianReemission.is_adjointable``'s own note.
     """
     lam = _Lambertian(quad_name)
-    assert lam.welded.is_adjointable is False
     assert lam.R.is_adjointable is True
     assert lam.C.is_adjointable is True
     assert lam.B.is_adjointable is True

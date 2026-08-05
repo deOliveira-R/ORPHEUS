@@ -57,12 +57,13 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     to neither half-trace, so "not inflow" is never "outflow". Writing
     the strict compare was the producer-side twin campaign phase
     **B3.4a** retired — see
-    :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`.
+    :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` composed into
+    :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`.
 
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
     no ``apply`` method. The SN realisation is narrowed
     :math:`\Gamma_+ \to \Gamma_-` (**B3.4a**):
-    ``AngularAverageOperator.from_quadrature(...) & IdentityOperator()``
+    ``(IsotropicEmissionOperator(...) @ PartialCurrentOperator(...)) & IdentityOperator()``
     (α=1 fast path) or that tensor product wrapped in a
     ``ScaledOperator(α, ...)`` (α ≠ 1). Realising needs a **face** —
     the law's domain is that face's :math:`\Gamma_+`, which a

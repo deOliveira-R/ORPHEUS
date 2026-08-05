@@ -238,7 +238,7 @@ sole bridge. The canonical SN-realised representation per law.
   transformation; the physics settled into the empty :math:`G` slot
   because a rank-one response annihilates :math:`G` entirely, making the
   error unobservable. SN realises the composite to
-  :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` (α=1 fast
+  ``AngularAverageOperator`` (α=1 fast
   path) or scaled — since **B3.4a** typed :math:`\Gamma_+ \to \Gamma_-`.
 * :class:`PeriodicBoundary(axis)` (registry key ``"periodic"``) —
   :math:`G = ` :class:`SpatialWrap(axis)`, the translation carrying the

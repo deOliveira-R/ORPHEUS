@@ -37,7 +37,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     ZeroFluxBoundary,
 )
-from orpheus.sn.boundary.angular import AngularAverageOperator
+from orpheus.numerics.spaces.angular_trace_space import build_omega_dot_n
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -484,8 +484,12 @@ def test_white_bc_z_axis_unsupported_on_1d_quadrature() -> None:
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
 
+    # Re-posed at G6.3 step 3b: ``AngularAverageOperator.from_quadrature``
+    # is retired, and the refusal was never its own — this docstring already
+    # credits "the single face-name → signed-projection primitive". Asserted
+    # directly against that primitive, which is what the realizer calls.
     with pytest.raises(ValueError, match="requires genuine mu_z"):
-        AngularAverageOperator.from_quadrature(quad, bc.axis, bc.outward_sign)
+        build_omega_dot_n(quad, ("zmax",))
 
 
 @pytest.mark.foundation

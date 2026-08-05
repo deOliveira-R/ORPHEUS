@@ -403,7 +403,7 @@ class TestDiffuseAgainstAnIndependentExpression:
     :math:`\Gamma_+`, broadcast over :math:`\Gamma_-`, scale by α. That
     normalisation — total returned current = α × incident current, NOT the
     textbook :math:`1/\pi` — is the convention
-    :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` implements and
+    ``AngularAverageOperator`` implements and
     :class:`~orpheus.geometry.boundary.WhiteBoundary` documents.
 
     **Tolerance ``rtol=1e-14``, and it is the BOUND rather than a rounded-up

@@ -38,7 +38,7 @@ non-degenerate metric.
 and "a response's adjoint exists if we choose the intermediate metric
 correctly". The answer is the former, and the *only* requirement on the
 intermediate space is non-degeneracy. That is what makes
-:class:`~orpheus.sn.boundary.angular.AngularAverageOperator`'s missing transpose
+``AngularAverageOperator``'s missing transpose
 a consequence of factoring rather than a hand-rolled addition.
 
 **What is the SUT.** Not hand-rolled matrix algebra: every adjoint below is
@@ -329,7 +329,7 @@ def test_the_telescoping_survives_wildly_scaled_interior_metrics():
 def test_R_and_its_adjoint_share_one_form_with_the_halves_exchanged():
     r"""⭐ What actually survives of the Lambertian's "self-adjointness".
 
-    :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` claimed to be
+    ``AngularAverageOperator`` claimed to be
     *self-adjoint under the cosine-weighted inner product* until 2026-08-04.
     That was true of the pre-B3.4a full-face endomorphism and became
     **type-incoherent** when B3.4a narrowed it to :math:`\Gamma_+ \to \Gamma_-`:
