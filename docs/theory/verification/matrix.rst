@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8542**
+Total tests collected: **8587**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1214, 14.2%
-   L1, 1407, 16.5%
+   L0, 1219, 14.2%
+   L1, 1407, 16.4%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5857, 68.6%
+   foundation, 5897, 68.7%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8463
+   explicit, 8508
    class-name, 46
    func-name, 0
    case, 33
@@ -305,7 +305,7 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
-   numerics/test_angular_face_trace_space, 0, 0, 0, 0, 56, 0
+   numerics/test_angular_face_trace_space, 0, 0, 0, 0, 96, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 56, 0
@@ -316,7 +316,7 @@ Module × level grid
    numerics/test_face_layout, 0, 0, 0, 0, 30, 0
    numerics/test_face_layout_typed_key, 0, 0, 0, 0, 5, 0
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
-   numerics/test_factored_adjoint_identity, 8, 0, 0, 0, 0, 0
+   numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
@@ -582,6 +582,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-annulus-architecture``, 14
    ``two-group-charpoly``, 14
    ``two-group-roots``, 14
+   ``bc-response-factored-adjoint``, 13
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``cp-infinite-lattice-sum``, 12
@@ -609,7 +610,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
-   ``bc-response-factored-adjoint``, 8
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
    ``energy-condensation-scattering-collapse``, 8
