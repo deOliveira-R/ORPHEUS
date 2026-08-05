@@ -259,13 +259,17 @@ class SNBoundaryOperator(LinearOperator):
     ------------
 
     ``apply`` always. ``apply_transpose`` is advertised iff EVERY per-face law
-    advertises it. The discriminator is the law's FACTORS, not its class: a
-    permutation and a zero map have honest Euclidean transposes, and a
-    Lambertian does not (its Euclidean and ``|Ω·n|·w``-weighted transposes
-    differ, so its adjoint routes through ``B.H`` on the weighted trace space
-    at O.2 — this read "self-adjoint only under ``|Ω·n|·w``" until 2026-08-04,
-    which B3.4a's narrowing to :math:`\Gamma_+ \to \Gamma_-` had already made
-    type-incoherent: self-adjointness needs domain = codomain).
+    advertises it. The discriminator is the law's FACTORS, not its class.
+
+    ⭐ **Every shipped law now advertises one**, so the intersection is
+    currently vacuous — it was not until **G6.3 step 3** (2026-08-04). The
+    Lambertian was the lone holdout: its Euclidean and ``|Ω·n|·w``-weighted
+    transposes differ, so it withheld the ambiguous one. Factoring its
+    realization into a contraction and a broadcast removed the ambiguity —
+    each link has ONE honest transpose — rather than choosing between the two
+    readings. The intersection rule STAYS: it is the structure that keeps a
+    future non-adjointable law from silently granting the composite a
+    transpose it does not have.
     The intersection rule keeps ``apply_transpose`` honest: it is reachable
     only when every block can honour it.
 
@@ -388,9 +392,10 @@ class SNBoundaryOperator(LinearOperator):
     @property
     def is_adjointable(self) -> bool:
         # B = ⊕ per-face laws; the composite adjoint exists iff EVERY face law
-        # is adjointable (reflective / vacuum / periodic are; white is NOT —
-        # its Euclidean and |Ω·n|·w transposes differ, routed via B.H; an albedo face
-        # answers by its closure since B3.4b, specular yes / diffuse no).
+        # is adjointable. Since G6.3 step 3 every shipped law is (white was
+        # the lone holdout until its realization was factored); an albedo face
+        # still answers by its CLOSURE, per B3.4b — the mechanism survives the
+        # answers becoming uniform.
         # Reading each REALIZED law's own predicate rather than its class is
         # what makes that automatic. The per-face
         # intersection rule, computed recursively like every composite

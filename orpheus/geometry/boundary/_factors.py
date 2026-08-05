@@ -538,10 +538,16 @@ class BoundaryResponseKernel(Protocol):
     def is_adjointable(self) -> bool:
         r"""Whether the realized kernel exposes an honest transpose.
 
-        ``False`` for the Lambertian today: the codebase declines to advertise
-        a transpose whose Euclidean and cosine-weighted semantics differ.
-        Phase **B5** types that kernel as the rank-one it is, at which point
-        the adjoint becomes structurally available and this flips.
+        ``True`` for every shipped kernel since **G6.3 step 3** (2026-08-04).
+
+        It read *"``False`` for the Lambertian today … phase B5 types that
+        kernel as the rank-one it is, at which point the adjoint becomes
+        structurally available and this flips."* G6.3 absorbed that step by
+        FACTORING the realization — :class:`PartialCurrentOperator` then
+        :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator` — which
+        removes the two-``.T``-semantics ambiguity instead of resolving it:
+        each link has one honest transpose, so the composite's Hilbert adjoint
+        follows from its bound spaces.
 
         ⛔ This read *"its realized form is self-adjoint under the
         cosine-weighted inner product"* until 2026-08-04. **Type-incoherent
@@ -950,16 +956,30 @@ class LambertianReemission:
 
     @property
     def is_adjointable(self) -> bool:
-        # FALSE TODAY, and honestly so: advertising the unweighted transpose
-        # would invite two different ``.T`` semantics. B5 types it as ``u ⊗ v``
-        # (transpose ``v ⊗ u``), which makes the metric explicit rather than
-        # avoided — this flips there, WITH its gate.
-        # (Said "the realized operator is self-adjoint under the cosine-weighted
-        # inner product" until 2026-08-04. Type-incoherent since B3.4a narrowed
-        # it to Γ₊ → Γ₋: self-adjointness needs domain == codomain. What holds
-        # is that R and R* share ONE FORM with the half-traces exchanged — see
-        # the property docstring above.)
-        return False
+        # ⭐ FLIPPED 2026-08-04 at G6.3 step 3 (#330), which absorbed the B5
+        # step this comment was waiting on. It read FALSE, "advertising the
+        # unweighted transpose would invite two different ``.T`` semantics …
+        # B5 types it as ``u ⊗ v`` (transpose ``v ⊗ u``) … this flips there,
+        # WITH its gate."
+        #
+        # Factoring the realization into PartialCurrentOperator @
+        # IsotropicEmissionOperator REMOVED the ambiguity rather than resolving
+        # it: each link has ONE honest transpose (an outer product, a sum), so
+        # there is no longer a choice of ``.T`` semantics to avoid. The
+        # composite's Hilbert adjoint then follows from the bound spaces.
+        #
+        # The flip is REQUIRED, not cosmetic: TestFactorAdjointabilityMatches-
+        # TheRealizedOperator holds this declaration against what the realizer
+        # actually produces, and it caught the disagreement the moment the
+        # realization gained its transpose — a landed capability staling its
+        # own deferral contract.
+        #
+        # (Also said "the realized operator is self-adjoint under the
+        # cosine-weighted inner product" until 2026-08-04. Type-incoherent
+        # since B3.4a narrowed it to Γ₊ → Γ₋: self-adjointness needs
+        # domain == codomain. What holds is that R and R* share ONE FORM with
+        # the half-traces exchanged — see the property docstring above.)
+        return True
 
 
 @dataclass(frozen=True, slots=True)

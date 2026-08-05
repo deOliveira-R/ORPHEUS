@@ -46,7 +46,6 @@ from orpheus.numerics.operator import (
     TensorProductOperator,
     ZeroOperator,
 )
-from orpheus.sn.boundary.angular import AngularAverageOperator
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -59,6 +58,70 @@ from tests.sn._test_helpers import face_method_space, face_trace
 
 
 @pytest.mark.l1
+
+def assert_lambertian_kernel(kernel, space, quad) -> None:
+    r"""The surviving claims about a realized Lambertian, posed BEHAVIOURALLY.
+
+    Re-posed at G6.3 step 3b (#330), where the welded ``AngularAverageOperator``
+    was retired onto the chain ``IsotropicEmission @ PartialCurrent``. The old
+    spelling pinned the concrete CLASS and read ``n_outflow`` / ``n_inflow`` off
+    it; neither survives a factorisation, and neither was the claim.
+
+    ⭐ **The load-bearing leg is the SIZE one**, and B3.4a's docstring says why:
+    *"without it a revert to the full-face kernel would keep every structural
+    claim here green."* It is re-posed as a **behavioural** pair — the kernel
+    ACCEPTS ``|Γ₊|`` rows and REFUSES ``quad.N`` — which is strictly stronger
+    than reading an attribute, because it holds for any future spelling and
+    cannot be satisfied by an operator that merely reports the right number.
+    """
+    n_out = int(space.outflow_indices.size)
+    n_in = int(space.inflow_indices.size)
+    assert n_out < quad.N, (
+        "fixture no longer exercises the narrowing — Γ₊ is the whole face"
+    )
+
+    out = np.asarray(kernel.apply(np.ones((n_out,))))
+    assert out.shape == (n_in,), (
+        f"the realized Lambertian emits {out.shape} on Γ₋ of size {n_in}"
+    )
+    with pytest.raises(ValueError):
+        kernel.apply(np.ones((quad.N,)))
+
+
+def lambertian_reference(quad, axis, sign, psi_out, space):
+    r"""An INDEPENDENT closed form for the Lambertian, in explicit numpy.
+
+    .. math::
+
+        (R\psi)(\Omega) = \frac{\sum_{\Gamma_+} w\,|\Omega'\cdot\hat n|\,
+        \psi(\Omega')}{\sum_{\Gamma_+} w\,|\Omega'\cdot\hat n|},
+        \qquad \Omega \in \Gamma_-.
+
+    ⭐ **Why this exists rather than a production operator.** These gates used
+    ``AngularAverageOperator.from_quadrature`` as their reference. G6.3 step 3b
+    retires that class onto the chain ``IsotropicEmission @ PartialCurrent`` —
+    which is *what the realizer now builds*. Re-pointing the reference at the
+    chain would compare the realizer's output **with itself through a wrapper**:
+    green forever, still named a bit-identity check, and unable to detect the
+    drift its docstring advertises. That is the documented rewire-demotion trap.
+
+    So the reference is rebuilt from the quadrature's own ``weights`` and
+    direction cosines with no production operator in the path — strictly MORE
+    independent than the class it replaces, which was itself production code.
+    """
+    mu_n = np.asarray(getattr(quad, f"mu_{axis}"), dtype=float) * sign
+    out_i = np.asarray(space.outflow_indices)
+    cos_w = np.asarray(quad.weights, dtype=float)[out_i] * mu_n[out_i]
+    psi_out = np.asarray(psi_out)
+    contracted = (
+        cos_w.reshape((-1,) + (1,) * (psi_out.ndim - 1)) * psi_out
+    ).sum(axis=0)
+    n_in = int(np.asarray(space.inflow_indices).size)
+    return np.broadcast_to(
+        (contracted / cos_w.sum())[None, ...],
+        (n_in,) + contracted.shape,
+    ).copy()
+
 class TestRealizeVacuum:
     r"""Vacuum realizes to the ZERO MAP :math:`\Gamma_+ \to \Gamma_-`.
 
@@ -340,9 +403,6 @@ class TestRealizeWhite:
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
         space = face_method_space(quad, face="xmax")
         op = SNBoundaryRealizer().realize(bc, space)
-        ref = AngularAverageOperator.from_quadrature(
-            quad, axis="x", outward_sign=+1,
-        )
         rng = np.random.default_rng(123)
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
         psi_out = psi[space.outflow_indices]
@@ -351,11 +411,13 @@ class TestRealizeWhite:
             f"white emitted {got.shape}; the narrowed codomain is Γ₋, i.e. "
             f"{(space.inflow_indices.size, 5, 3)}."
         )
-        np.testing.assert_array_equal(got, ref.apply(psi_out))
+        np.testing.assert_array_equal(
+            got, lambertian_reference(quad, "x", +1, psi_out, space),
+        )
 
     def test_white_unit_albedo_returns_tensor_product(self):
         r"""At α=1 the dispatch returns a 2-factor
-        :class:`TensorProductOperator` ``(AngularAverageOperator, IdentityOperator)``.
+        :class:`TensorProductOperator` ``(the Lambertian chain, IdentityOperator)``.
 
         Wave T step T.1 (2026-05-30): white BC lifted from a bare
         :class:`AngularAverageOperator` to the 2-factor TP shape
@@ -375,14 +437,8 @@ class TestRealizeWhite:
         op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
-        assert isinstance(op.ops[0], AngularAverageOperator)
         assert isinstance(op.ops[1], IdentityOperator)
-        assert op.ops[0].n_outflow == space.outflow_indices.size < quad.N, (
-            f"the realized Lambertian reads {op.ops[0].n_outflow} ordinates; "
-            f"the narrowed law acts on Γ₊ ({space.outflow_indices.size} of "
-            f"{quad.N})."
-        )
-        assert op.ops[0].n_inflow == space.inflow_indices.size
+        assert_lambertian_kernel(op.ops[0], space, quad)
 
     def test_white_partial_albedo_returns_scaled_tensor_product(self):
         """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
@@ -395,9 +451,8 @@ class TestRealizeWhite:
         assert op.scalar == 0.3
         assert isinstance(op.op, TensorProductOperator)
         assert len(op.op.ops) == 2
-        assert isinstance(op.op.ops[0], AngularAverageOperator)
         assert isinstance(op.op.ops[1], IdentityOperator)
-        assert op.op.ops[0].n_outflow == space.outflow_indices.size < quad.N
+        assert_lambertian_kernel(op.op.ops[0], space, quad)
 
     def test_white_partial_albedo_matches_albedo_times_angular_average(self):
         r"""At α=0.3 the realized op output equals
@@ -417,13 +472,10 @@ class TestRealizeWhite:
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)
         space = face_method_space(quad, face="xmax")
         op = SNBoundaryRealizer().realize(bc, space)
-        ref = AngularAverageOperator.from_quadrature(
-            quad, axis="x", outward_sign=+1,
-        )
         rng = np.random.default_rng(11)
         psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
         psi_out = psi[space.outflow_indices]
-        expected = 0.3 * ref.apply(psi_out)
+        expected = 0.3 * lambertian_reference(quad, "x", +1, psi_out, space)
         np.testing.assert_array_almost_equal_nulp(
             op.apply(psi_out), expected, nulp=4,
         )
@@ -529,8 +581,7 @@ class TestWhiteOrientationGuard:
                 WhiteBoundary(axis=axis, outward_sign=sign, albedo=1.0), space,
             )
             assert isinstance(op, TensorProductOperator), face
-            assert op.ops[0].n_outflow == space.outflow_indices.size, face
-            assert op.ops[0].n_inflow == space.inflow_indices.size, face
+            assert_lambertian_kernel(op.ops[0], space, quad)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -650,7 +701,6 @@ class TestRealizeAlbedo:
         )
         assert isinstance(op, ScaledOperator)
         assert isinstance(op.op, TensorProductOperator)
-        assert isinstance(op.op.ops[0], AngularAverageOperator)
 
     def test_the_bare_spelling_is_refused_by_the_ALBEDO_ARM_not_the_face_guard(
         self,

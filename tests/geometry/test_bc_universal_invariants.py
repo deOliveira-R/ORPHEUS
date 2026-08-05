@@ -1102,8 +1102,11 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
 
     #: ``(law_id, law)`` over every law with a realizable SN arm. The albedo
     #: rows carry both closures because since B3.4b an albedo face answers by
-    #: its CLOSURE, not its class — a specular closure is adjointable and a
-    #: diffuse one is not, so a single albedo row would pin only one arm.
+    #: its CLOSURE, not its class, so a single row would pin only one arm.
+    #: (That comment continued "a specular closure is adjointable and a diffuse
+    #: one is not" until 2026-08-04; G6.3 step 3 factored the diffuse
+    #: realization and both are now adjointable. Both rows STAY — the
+    #: closure-dispatch mechanism is what they pin, not the answers.)
     def _laws(self):
         from orpheus.geometry.boundary import IsotropicReturn, SpecularReturn
 
@@ -1144,22 +1147,78 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
             f"for periodic."
         )
 
-    def test_both_answers_are_actually_exercised(self) -> None:
-        """The row set must contain a ``True`` AND a ``False``.
+    def test_the_agreement_comparison_DETECTS_a_disagreement(self) -> None:
+        """The agreement gate must still discriminate — proven directly.
 
-        Without this the agreement above is satisfied by a set that is all one
-        value, and a mutation flipping every declaration at once would pass.
-        White and the diffuse albedo closure supply the ``False`` (the
-        Lambertian is self-adjoint only under the cosine-weighted metric).
+        ⛔ **This asserted ``answers == {True, False}`` over the shipped law set
+        until 2026-08-04**, on the reasoning that *"white and the diffuse albedo
+        closure supply the ``False``"*. **G6.3 step 3 made every shipped kernel
+        adjointable** by factoring the Lambertian, so the set went one-valued
+        and this gate reddened — correctly. It was doing its job: a one-valued
+        set makes the agreement above blind to a uniform flip.
+
+        But the premise it rested on — that the tree happens to contain a
+        non-adjointable law — was never something this gate controlled, and it
+        is now simply false. Re-posed onto the property actually wanted: that
+        the COMPARISON detects a disagreement when one exists. A synthetic
+        under-claimer (declaration ``False``, realization ``True``) must be
+        flagged, which is exactly the ``SpatialWrap`` drift B3.4c closed and is
+        strictly stronger than hoping the fixture set stays two-valued.
+        """
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+
+        class _UnderClaimingKernel:
+            """A response that DENIES the transpose its realization provides."""
+
+            def __init__(self, real):
+                self._real = real
+
+            def __getattr__(self, name):
+                return getattr(self._real, name)
+
+            @property
+            def is_adjointable(self) -> bool:
+                return False
+
+        quad = Quadrature.level_symmetric(sn_order=6)
+        space = face_method_space(
+            quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
+        )
+        law = ReflectiveBoundary(axis="x", albedo=1.0)
+        realized = SNBoundaryRealizer().realize(law, space).is_adjointable
+        assert realized is True, "fixture must realize to an adjointable op"
+
+        honest = (
+            law.geometry_map.is_adjointable and law.response_kernel.is_adjointable
+        )
+        under = (
+            law.geometry_map.is_adjointable
+            and _UnderClaimingKernel(law.response_kernel).is_adjointable
+        )
+        assert honest == realized, "the honest declaration must agree"
+        assert under != realized, (
+            "an under-claiming declaration was NOT flagged — the agreement "
+            "comparison has lost its teeth and would pass a uniform flip"
+        )
+
+    def test_every_shipped_kernel_is_now_adjointable(self) -> None:
+        """Records the state change that emptied the ``False`` column.
+
+        Kept as its own row so the one-valued set is an ASSERTED fact rather
+        than an accident nobody noticed. If a future law arrives that genuinely
+        cannot expose a transpose, this reddens and the gate above regains a
+        natural counterexample.
         """
         answers = {
-            law.geometry_map.is_adjointable
-            and law.response_kernel.is_adjointable
-            for _law_id, law in self._laws()
+            law_id: (
+                law.geometry_map.is_adjointable
+                and law.response_kernel.is_adjointable
+            )
+            for law_id, law in self._laws()
         }
-        assert answers == {True, False}, (
-            f"the law set exercises only {answers}; a one-valued set makes "
-            f"the agreement gate blind to a uniform flip."
+        assert set(answers.values()) == {True}, (
+            f"a shipped law now declares non-adjointable: "
+            f"{ {k: v for k, v in answers.items() if not v} }"
         )
 
     def test_prescribed_inflow_is_the_documented_exception(self) -> None:

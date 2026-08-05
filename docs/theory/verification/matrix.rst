@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8626**
+Total tests collected: **8627**
 
 V&V level distribution
 ----------------------
@@ -19,11 +19,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1258, 14.6%
-   L1, 1407, 16.3%
+   L1, 1403, 16.3%
    L2, 64, 0.7%
    L3, 0, 0.0%
    foundation, 5897, 68.4%
-   unmarked, 0, 0.0%
+   unmarked, 5, 0.1%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8547
+   explicit, 8543
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 0
+   unmarked, 5
 
 Module × level grid
 -------------------
@@ -258,7 +258,7 @@ Module × level grid
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 53, 0, 0, 5, 0
+   geometry/test_bc_universal_invariants, 0, 54, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
@@ -392,7 +392,7 @@ Module × level grid
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 47, 0
-   operators/test_sn_boundary_realizer, 0, 35, 0, 0, 0, 0
+   operators/test_sn_boundary_realizer, 0, 30, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
@@ -1452,5 +1452,17 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-*(none — every test carries an L0/L1/L2/L3 or foundation marker)*
+**5 tests** have no V&V level marker.
+This is a gap — every test in the tree should carry either
+a physics-ladder marker (``l0``..``l3``) or the orthogonal
+``foundation`` marker (``@pytest.mark.foundation``) for
+tests that verify software invariants rather than physics
+equations. See :ref:`vv-foundation-tests` for the
+taxonomy.
+
+.. csv-table::
+   :header: File, Unmarked tests
+   :widths: 60, 10
+
+   ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
 

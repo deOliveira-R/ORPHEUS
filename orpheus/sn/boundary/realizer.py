@@ -167,8 +167,9 @@ from orpheus.numerics.operator import (
     ZeroOperator,
 )
 from .angular import (
-    AngularAverageOperator,
     IncomingSourceOperator,
+    IsotropicEmissionOperator,
+    PartialCurrentOperator,
 )
 
 if TYPE_CHECKING:
@@ -520,7 +521,7 @@ def _checked_angular_average(
     axis: str,
     outward_sign: int,
     law_key: str,
-) -> "AngularAverageOperator":
+) -> "LinearOperator":
     r"""The Lambertian kernel, with the DECLARED orientation cross-checked
     against the face it is being installed on (the ERR-041 pattern).
 
@@ -540,6 +541,14 @@ def _checked_angular_average(
     On the canonical ``SNMesh.realize_boundary_law`` path both encodings derive
     from the same face label, so the guard is green by construction; it bites
     on hand-built method spaces and on a mis-declared law.
+
+    Returns the response as the **two-link chain**
+    :math:`\Gamma_+(f) \xrightarrow{C} S(f) \xrightarrow{B} \Gamma_-(f)`
+    (G6.3 step 3, #330) rather than the welded ``AngularAverageOperator`` it
+    replaced: the intermediate is then the named outgoing partial current
+    :math:`J^+` instead of an anonymous local, and the composite carries a
+    transpose the welded form withheld. `[M]` bit-identical to the predecessor
+    on every shipped quadrature.
     """
     declared_face = face_name(AXIS_NAMES.index(axis), outward_sign)
     omega_dot_n = build_omega_dot_n(quadrature, (declared_face,))[0]
@@ -556,9 +565,38 @@ def _checked_angular_average(
             f"averages the wrong ordinates silently.",
             law=law_key,
         )
-    return AngularAverageOperator.from_quadrature(
-        quadrature, axis, outward_sign,
+    inflow = np.flatnonzero(omega_dot_n < -TANGENTIAL_EPS)
+    if inflow.size == 0:
+        raise BoundaryError(
+            f"A diffuse re-emission law on face {declared_face!r} has no "
+            f"inflow ordinates — the re-emitted flux has no Γ₋ to land on. "
+            f"The quadrature is degenerate for this face.",
+            law=law_key,
+        )
+    cos_w = np.asarray(quadrature.weights, dtype=float)[declared_outflow] * (
+        omega_dot_n[declared_outflow]
     )
+
+    # Bind the chain to the Γ ladder when the method space carries a trace —
+    # the canonical `SNMethodSpace.for_face` path always does. A hand-built
+    # space may not, and binding stays OPTIONAL until the tree-wide mandate
+    # (#330): an unbound chain still computes the same numbers, it just
+    # forfeits the composability check and the metric-aware `.H`.
+    trace, face = method_space.trace, method_space.face
+    gamma_plus = current = gamma_minus = None
+    if trace is not None and face is not None:
+        gamma_plus = trace.outflow_space(face)
+        current = trace.current_space(face)
+        gamma_minus = trace.inflow_space(face)
+
+    contraction = PartialCurrentOperator(
+        cos_w, domain=gamma_plus, codomain=current,
+    )
+    emission = IsotropicEmissionOperator(
+        float(cos_w.sum()), int(inflow.size),
+        domain=current, codomain=gamma_minus,
+    )
+    return emission @ contraction
 
 
 class SNBoundaryRealizer:
