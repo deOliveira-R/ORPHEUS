@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–4 DONE; steps 5–8 remain. Read ⏸ COMPACTION POINT #2 (end of §7h) FIRST — it carries the red set, the gate costs, and the four-times-refuted-scope lesson.**
+> **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–5 DONE; steps 6, 7, 8.0, 8 remain — and 8.0 is NEW, discovered by step 5 (`TensorProductOperator` drops the binding, so step 8 as written would gate nothing). Read ⏸ COMPACTION POINT #2 (end of §7h) FIRST — red set, gate costs, and the now five-times-refuted-scope lesson; step 5's own findings are §7h.3.**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -1945,10 +1945,83 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **2** | mint `S(f)`, the angle-integrated scalar current space, on `ScalarTraceSpace`, with a **non-degenerate** metric | the theorem's one requirement; also names `psi_avg`, today an anonymous local |
 | **3** | factor the Lambertian into `C : Γ₊(f) → S(f)` and `B : S(f) → Γ₋(f)`, each bound; the law is `B @ C` | the transpose falls out here (`Rᵀ = CᵀBᵀ`), closing the deferred B5 step |
 | **4** | ✅ **DONE — but NOT as scoped; the premise was refuted, for the FOURTH time in this step** | see §7h.2 |
-| **5** | the deck-transformation arm as a **length-1 chain**, `Γ₊(f) → Γ₋(f)` | ⛔ **NOT a separate code arm** — this read "bind atomically" until the chain reframing. Same body as step 3 with one link; a bijection simply has nothing to factor. Adjoint still a theorem |
+| **5** | ✅ **DONE — and it refuted step 8, the FIFTH refutation in this step** | see §7h.3. The deck arm is bound `Γ₊(f) → Γ₋(f)`, `γ₊` with it, `is_involution` RETIRED; `TensorProductOperator` turns out to drop the binding, so **step 8 gains a substep** |
 | **6** | vacuum, then prescribed | simplest arms; vacuum is the **zero chain**, prescribed is affine (rank 0) |
 | **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
-| **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above |
+| **8.0** | ⛔ **NEW (step 5's finding)** — make `TensorProductOperator` derive `domain`/`codomain` from its factors | `[M]` it derives NOTHING, so the realizer returns `domain=None` and one `None` short-circuits the check. **Blocks 8.** Committed as `xfail(strict=True)` (`test_the_realized_operator_carries_the_binding`), flip-proof measured: patching `TP.domain → ops[0].domain` turns it `XPASS(strict)` |
+| **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above. **Cannot fire until 8.0 lands** |
+
+### §7h.3 — step 5: bound, a flag retired, and step 8 refuted from below
+
+**Shipped.** `_specular_kernel` returns its `PermutationOperator` bound
+`Γ₊(f) → Γ₋(f)`; `_outflow_restriction`'s `γ₊` bound `Γ(f) → Γ₊(f)` with it, so
+`P @ γ₊` now types the WHOLE face action end-to-end. `inverse()` **inverts** the
+binding (it was dropping it). `PermutationOperator.is_involution` RETIRED.
+Gates: `tests/sn/operators/test_specular_deck_chain.py` (79 + 1 strict xfail),
+plus 2 rows in `test_permutation_operator.py`.
+
+**⛔ THE FIFTH REFUTATION — and this one refutes a FUTURE step, not this one.**
+`[M]` `TensorProductOperator` derives NOTHING from its factors, so
+`SNBoundaryRealizer.realize(...)` returns `domain=None`. The binding is real at
+the inner permutation and invisible at the object the realizer hands out. Step 8
+("route `_reflect_trace` through `@` so the check FIRES") composes exactly that
+object, and one `None` short-circuits the check — **so step 8 as written would
+have landed, passed, and gated nothing.** The already-committed step-3 Lambertian
+chain has the identical hole. New substep 8.0; committed as a strict xfail whose
+flip-proof is measured (`XPASS(strict)` when `TP.domain → ops[0].domain`).
+
+⭐ **The transferable form: a step can be refuted by a LATER step's precondition,
+and the campaign's own order table is what hides it.** Steps 1–7 each verified
+their own tier and were each correct there. The hole lives in the seam that step
+8 was scheduled to exercise — so it was invisible to every step that came before
+it and would have been *invisible to step 8 too*, which would have gone green.
+Refutations 1–4 came from reading a claim against the realization; this one came
+from asking **"what will the step AFTER this one actually compose?"** Ask it one
+step ahead, not at the step.
+
+**⭐ The `is_involution` retirement — a flag whose VALUE tracked the quadrature.**
+`[M]` for ONE law (mirror about `x` on `xmin`) the narrowed permutation satisfies
+`perm[perm] == arange` on `gauss_legendre(4/8)`, `product(4,4)`,
+`level_symmetric(6)` — and NOT on `lebedev(17)`. The physics does not vary with
+the quadrature; the value tracked how `to_local`'s `searchsorted` orders the
+locals. The user ruled RETIRE over REFINE, and the reason generalizes: a refined
+flag still answers, and an answer can be wrong; `P @ P` **cannot be formed**, so
+routing the question through the algebra replaces a value that can drift with a
+composition that cannot exist. Rewire, not delete — the two tests became "the
+square is the identity", asked of `@`.
+
+⚠ Blast radius the retirement actually had: TWO sentences reading *"a permutation
+is a bijection (invertible, **involution-detectable**, …)"* — one in
+`operator.py`, one in the theory page — became present-tense-false with the
+attribute. Neither contains the symbol `is_involution`. **Grep the CONCEPT.**
+
+**⭐ The mutation battery, before and after.** Baseline `3 failed / 1747 passed`:
+
+| mutation | reds BEFORE the gates | reds AFTER |
+|---|---|---|
+| identity permutation (positive control) | +23 | **+28** |
+| ⭐ **swap `domain` ↔ `codomain`** | **0** | **+10** |
+| bind both ends to `Γ₊` | **0** | **+18** |
+| drop the binding | **0** | **+31** |
+
+The swap is the one that matters: a one-word slip, invisible to
+`checked_space_extent` (`|Γ₊| == |Γ₋|` everywhere), zero arithmetic change — and
+after step 8 it would make the LEGAL composition raise and the ILLEGAL one pass.
+Its 10 reds land **entirely** in `TestTheBindingIsTheRightWayRound`; nothing else
+in the slice can see it. `⟹` **an `is`-identity assertion naming which space is
+which end is the only instrument that can exist for this class.**
+
+⚠ And the swap does NOT red the `.H` rows — correctly. `G_{Γ₋} = G_{Γ₊}∘π`
+bit-exactly on all five quadratures (a mirror preserves `|Ω·n|·w_n`), so the
+swapped adjoint is numerically the unswapped one. **The metric is blind to the
+swap for the same reason `.H` is blind to the metric here** — which is why the
+blindness criterion is pinned as its own gate rather than left implicit under a
+`.H ≈ transpose` row that would silently be pinning a coincidence.
+
+⚠ **Harness note, twice in one session and both from the anti-pattern-#17 list:**
+a `FAILED`-line scan returned nothing under `-q --tb=no` (no such lines emitted),
+and then returned nothing again under `-rf` because **ANSI colour codes break
+`^FAILED`**. Use `--color=no -rf`. Both times the empty result read as "no reds".
 
 ### §7h.2 — step 4: the arm collapse is IMPOSSIBLE, and what shipped instead
 
