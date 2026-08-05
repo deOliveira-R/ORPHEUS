@@ -1,6 +1,9 @@
 # The affine boundary source channel — `γ₋ψ = L γ₊ψ + q`
 
-> **STATUS: PLANNED, not started.** Branch `refactor/operator-strategy-layers`.
+> **STATUS: P1 + P2′ LANDED (HEAD `48657072`); P3–P6 remain. Read ⏸ COMPACTION
+> POINT #1 at the END of this file FIRST — it carries the corrected red-set
+> baseline (7, not 4 — the inherited wide slice omitted `tests/sn/solve`), the
+> gate costs, and the durable lessons.** Branch `refactor/operator-strategy-layers`.
 > Arose from G6.3 **step 6** (`.claude/plans/geometric_transformation_consolidation.md`
 > §7h order table) and outgrew it. That plan's step 6 now means "bind `ZeroOperator`'s
 > spaces"; everything else about prescribed inflow lives here.
@@ -256,3 +259,82 @@ source as the worked example.
   `TestBitIdenticalCurvilinear::test_spherical_inward_bit_identical`.
 * Gate costs: `tests/geometry + tests/sn/operators` ≈24 s (`3 failed / 1747 passed`);
   wide slice ≈10 m 15 s (`4 failed / 4626 passed`).
+
+---
+
+## ⏸ COMPACTION POINT #1 — P1 + P2′ landed; P3–P6 remain
+
+A session picking up cold re-anchors from **this file + `git log`**, never from a
+conversation summary. Companion checkpoint: `geometric_transformation_consolidation.md`
+⏸ COMPACTION POINT #2 (that campaign's G6.3 steps 6–8 are still open and step 6
+now means only "bind `ZeroOperator`'s spaces").
+
+- **HEAD `48657072`** on `refactor/operator-strategy-layers`. **Tree clean.**
+  Verify any hash with `git merge-base --is-ancestor <hash> HEAD`.
+- **What landed:**
+  | phase | commit | what |
+  |---|---|---|
+  | plan | `4a23c18a` | the plan of record |
+  | P1 | `9dfddeaf` | `from_specs` — the recipe→snapshot bridge |
+  | P2′ | `48657072` | `from_mesh_laws` + the RHS wiring; the user-path doctrine in `principles.rst` |
+- **REMAINING: P3, P4, P5, P6** (§2). Order is forced: P3 → P4 → P6, with P5
+  attachable any time after P3. **P2′ blocks P4** (an MMS cannot route through a
+  bridge that does not exist) and **P4 blocks P6** (do not design the promoted
+  shape before the MMS states what it needs).
+
+### ⛔ THE RED-SET BASELINE WAS WRONG BY A WHOLE DIRECTORY — read this first
+
+The "wide slice" this campaign inherited —
+`geometry + numerics + sn/{operators,sweep,architecture} + diffusion` —
+**OMITS `tests/sn/solve`**, and therefore reported **4** known reds when the true
+count is **7**. The three it never saw:
+
+* `tests/sn/solve/test_affine_carve_bit_identity.py::
+  test_converged_flux_bit_identical_after_affine_carve` — `[si_2d_p1_aniso_het]`,
+  `[krylov_2d_p1_aniso_het]`, `[si_slab_2g_het]`
+
+⚠ **They read as a P2′ regression and are not one.** `[M]` with
+`from_mesh_laws` monkeypatched back to `zeros_on` (the pre-P2′ behaviour) all
+three STILL fail. Count check: 2 (operators) + 3 (solve) + 1 (sweep) = **6 in
+`tests/sn`**, matching the "6 deliberate reds, documented in `81689a58`" that
+project memory records, plus the 7th in `geometry`.
+
+⟹ **Run `tests/sn` whole, not a hand-listed subset.** Measured cost:
+`tests/{sn,transport,geometry,numerics,diffusion} -m "not slow"` = **17 m 35 s**
+at `7 failed / 5882 passed`. The narrow slice is 10 m 15 s and under-covers.
+⚠ Also note `tests/transport` was absent from the inherited slice too.
+
+### Gate costs, measured
+
+`tests/transport + tests/geometry + tests/sn/operators` ≈45 s
+(`3 failed / 2205 passed`) · the full slice above ≈17 m 35 s
+(`7 failed / 5882 passed`). Static: `tools/check_docstring_xrefs.py orpheus tests
+docs` → `DEAD TARGETS 0` · `tests/test_pyright_ratchet.py` (NOT bare `npx
+pyright`, which scans `scratch/`) · `sphinx -E -W` → 0 warnings.
+
+### ⭐ Durable lessons from P1/P2′
+
+1. ⭐⭐ **The user-path doctrine is now CORPUS, not a plan note** —
+   :ref:`verification-user-path` in `docs/theory/verification/principles.rst`,
+   both halves plus two corollaries. Do not re-derive it here; cite it.
+2. ⭐⭐ **TWICE in one session my own scope claim was refuted BY THE CORPUS.** I
+   proposed the affine carve as unbuilt — `diffusion/boundary_realizer.py:103`
+   and `numerics/operator.py:385` already stated it as the design of record. I
+   then wrote P2 as "route `q_ext.boundary`" — `sn.rst:3450` already described
+   the composite channel, and `solver.py:3110` already built it. ⟹ **before
+   proposing a carve, grep the corpus for the thing you are about to claim is
+   missing.** The docs are the design of record and they were right both times.
+3. ⭐ **A convenience factory can BE a bypass.** `prescribed_inflow` is public,
+   production, correct — and a driver using it still skips the declaration tier.
+   "It is a production symbol" does not establish that the user path was
+   travelled. (Now recorded as a corollary in the corpus.)
+4. ⭐ **A silently-inert declaration is invisible to a green suite** and the
+   inertness is *caused by* the missing wiring the tests bypassed. The two
+   defects protect each other: the bypass is why no test could see the
+   inertness, and the inertness is why the bypass looked harmless.
+5. **Refuse a double specification; do not resolve it.** Adding double-counts,
+   overriding makes an input a silent no-op. Both wrong answers are quiet.
+6. ⚠ **`grep "^FAILED"` failed TWICE, both from the anti-pattern-#17 list:** no
+   FAILED lines are emitted under `-q --tb=no`, and ANSI colour breaks the `^`
+   anchor even with `-rf`. Use `--color=no -rf`. Each empty result read as
+   "no reds".
