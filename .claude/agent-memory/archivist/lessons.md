@@ -36,6 +36,11 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   → L-001
 - **Reproduce every number you cite, and sanity-check its neighbours while the harness is open** —
   one worked example's intermediates contradicted its own result three lines later. → L-001
+- **A COMPOSITE's measured identity cannot certify its FACTORS — verify each factor against its own
+  live method.** A page's `Rᵀ = (cos w/norm)·Σφ` was `[M]` bit-exact while BOTH per-factor formulas
+  it was built from were wrong (the shipped split puts `1/norm` in `B`, not `C`, because `C` makes a
+  *current* and `B` an *intensity*); every measurement on the page reads `0.0` either way, so no
+  gate could see it. Re-verify the design-probe's description too. → L-049
 - **A "MEASURED, do not re-derive" block is a CLAIM** — that means "don't burn a session", not
   "don't check". A bit-identity attribution was wrong on exactly the configuration that motivated
   the change; widen the repro to the WHOLE inventory, since the brief's sample is never the
@@ -180,6 +185,11 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 - **Un-sentineling is verified against the LIVE test, not the brief** (a brief says "wired" when the
   marker is still WAITING). After removing the directive, rewrite — don't delete — its rationale
   comment to a plain note naming the gates, so a future auditor doesn't re-add a sentinel. → L-037
+- **When the exit condition FIRES but you don't own the generated artefact un-sentineling would move:
+  keep the DIRECTIVE, rewrite the RATIONALE.** Open it `⚠ PRECONDITION EXPIRED … REMOVABLE`, quote
+  the superseded text verbatim as history, name the exact gate that now exists. Avoids both silently
+  re-categorising a generated table and leaving quoted-false text. A sentinel carrying its own exit
+  condition still needs somebody to NOTICE it fired — no build does. → L-049, L-048
 - **Dropping a duplicated eq-label ALSO drops its `.. vv-status:`, silently DEMOTING the concept to
   orphan** — and `-W` is blind (the orphan gate is a generated REPORT, not a build check). Move the
   status to the survivor. → L-027
@@ -272,6 +282,14 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   just flip "deferred"→"done".** The change routinely closes the seam by a DIFFERENT mechanism;
   separate the surviving conclusion from the stale PREMISE, and re-derive why it still holds.
   → L-007
+- **A retirement leaves THREE tense classes, not two — the third is a falsified PREDICTION.** Beyond
+  present-false (repoint) and past-history (de-role to a literal), future-tense prose written while
+  the replacement was a plan names **a MECHANISM, a HOST/TYPE and a PHASE**, and a landing can
+  falsify any subset independently — check each against shipped code. Seen: "the type that WILL host
+  it exists — `ScalarTraceSpace`" (shipped host was a NEW ladder tier the live docstring explicitly
+  distinguishes from it) and "that is phase B5" (landed at G6.3, by factoring not by the predicted
+  `u⊗v` typing). Preserve the prediction and `.. note::` WHY it didn't hold — more informative than
+  the corrected sentence alone. → L-049
 - **A stale-status blast radius is the WHOLE page.** Grep every future-tense/blocked token
   (`blocked|not built|not yet|pending|in flight|future seam|lands with`) — a brief naming 3 sites
   had 7. A "the one remaining unbuilt X" sentence must RE-POINT to the still-unbuilt sibling when X

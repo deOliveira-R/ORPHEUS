@@ -4323,6 +4323,15 @@ all) and ends with *"when the factorization lands, WIRE a test to this
 label and REMOVE this sentinel"* — so the sentinel carries its own exit
 condition. Documented-only count moved 524 → 525 on regen, as expected.
 
+⚠ **UPDATE 2026-08-04 — that exit condition FIRED six days later** (G6.3
+step 3b) and the sentinel's rationale became present-tense-false in the
+exact words quoted above. See **L-049** for what to do when you are not
+the owner of the generated artefact the un-sentineling would move: keep
+the DIRECTIVE, rewrite the RATIONALE to state that the precondition
+expired + why the directive is still there + the gate that now exists,
+and flag it. A sentinel that carries its own exit condition still needs
+somebody to notice the condition fired — nothing in the build does.
+
 ⚠ **The `-E` regen also absorbed a row from the main agent's uncommitted
 work** (`numerics/test_angular_face_trace_space`, +56 foundation tests,
 8478 → 8534 total, shifting every share percentage). Legitimate
@@ -4336,6 +4345,145 @@ recipe, and check the declaration against the realization FIRST; reproduce
 and WIDEN every measured number; describe a probe instead of citing an
 ephemeral path; grep a glyph in `docs/` before importing it; add
 `SyntaxWarning` to the build-log grep.
+
+---
+
+## L-049 — A class retirement's docs blast radius is THREE tense classes, not two; and a composite `[M]` cannot certify its factors
+
+**Task (2026-08-04):** repoint the dead xrefs left by deleting the welded
+`AngularAverageOperator` (`orpheus/sn/boundary/angular.py`), replaced by
+`IsotropicEmissionOperator @ PartialCurrentOperator`. 19 mentions in
+`docs/` source: 12 role-bearing (the checker's list) + 7 literals the
+checker cannot see. Bounded, "do not restructure".
+
+### The THIRD tense class — a falsified PREDICTION
+
+The brief's discriminator was the standard two: present-tense claim ⟹
+REPOINT; past-tense history ⟹ DE-ROLE to a literal. Both applied and both
+were right. But 4 of the 12 role sites, and the richest prose on the page,
+were neither — they were **future-tense predictions written while the
+replacement was still a plan**, and the landing falsified them:
+
+* *"The type that will host it exists —* `ScalarTraceSpace` *… the
+  per-face accessor and the factored `B ∘ C` spelling are* **not built
+  yet**." Both halves shipped — but the host is NOT `ScalarTraceSpace`. It
+  is a new `Γ`-ladder tier (`AngularTraceSpace.current_space`, a unit
+  metric, per-face) and the shipped `current_space` docstring goes out of
+  its way to say `ScalarTraceSpace` is a *different object* (the `(J⁺,J⁻)`
+  pair for the whole boundary under the face-AREA metric — hosting one in
+  the other double-counts the area weight). "Not built yet" → "built"
+  would have shipped a page asserting the wrong type.
+* *"that is phase **B5**, which is what makes its adjoint structurally
+  available"* — landed at **G6.3 step 3b**, and by *factoring* rather than
+  by the predicted `u ⊗ v` typing, which **dissolved** the transpose
+  ambiguity instead of resolving it.
+
+⭐ **A deferral contract names THREE things — the MECHANISM, the
+HOST/TYPE, and the PHASE — and a landing can falsify any subset
+independently.** Check each separately against the shipped code; do not
+let "the seam closed" license a blanket tense-flip. (Sharpens lessons §4's
+"verify the SHAPE that shipped": the shape is three fields, not one.) The
+honest repair preserves the prediction and tombstones it — I kept the
+sentence and added a `.. note::` naming what was predicted, that it did
+not hold, and *why the shipped host is a different object* — which is
+strictly more informative than the correct sentence alone would have been.
+
+### A composite `[M]` measurement cannot certify its own FACTORIZATION
+
+The page carried, correctly, `Rᵀ(φ) = (cos w / norm)·Σφ` verified `[M]`
+bit-exactly. It built that from `Cᵀ(s) = cos w · s / norm` and
+`Bᵀ(φ) = Σφ` — and the SHIPPED split is the other way round:
+`Cᵀ(s) = cos_w ⊗ s` (no `/norm`) and `Bᵀ(φ) = Σφ / norm`. Composite
+identical, per-factor formulas both wrong. Re-measured live: every one of
+the four identities reads `0.0` on `product(2,4)`/`xmax`, so **no
+measurement on the page could ever have caught it.**
+
+⭐ The structural reason matters and belongs in the prose: the
+normalisation lives in `B` because `C` produces a **current** and `B` must
+produce an **intensity**, so the division is the unit-changing step —
+which is what leaves `S(f)` carrying an honest `J⁺` and lets an albedo
+enter as the pure scalar law `J⁻ = α J⁺`. A doc that gets the split
+backwards silently deletes that argument. **When a doc factors an operator,
+verify EACH factor's formula against its own live `apply_transpose`, not
+the composite** — and re-verify the design-probe description too (this
+page's probe also built `C` with the `/norm`; one clause fixed it).
+
+### The vv-status sentinel whose exit condition fired, when you don't own the artefact
+
+`.. vv-status: bc-response-factored-adjoint documented` (minted at L-048)
+was correct while no production function realized the identity. The
+factorization landed and the label now has a `verifies` marker on the
+SHIPPED chain — so the directive is removable. But removing it
+re-categorises a **generated** artefact (`theory/verification/matrix.rst`)
+in a session whose remit is dead-xref repair, with the code owner mid-carve.
+
+⭐ Resolution: **keep the DIRECTIVE, rewrite the RATIONALE.** The comment
+now opens `⚠ THE SENTINEL'S PRECONDITION EXPIRED AT G6.3 step 3b AND THE
+DIRECTIVE BELOW IS NOW REMOVABLE — left in place only because
+un-sentineling re-categorises a GENERATED artefact and is owed the
+regeneration`, quotes the superseded rationale verbatim as history, and
+names the exact gate (`tests/sn/operators/test_lambertian_chain.py::
+TestReciprocityAgainstTheMirrorFace::test_H_is_pointwise_the_mirror_face_kernel`).
+Zero false text, zero silent V&V-category change, next session has the
+whole decision. Contrast the two failure modes it avoids: flipping the
+category unasked (invisible to `-W`, changes a generated table) vs.
+leaving the quoted-false rationale (a future reader re-derives a dead
+precondition).
+
+### Mechanics worth keeping
+
+* **`git status` at task start named the branch, not the one in the
+  session snapshot** (`refactor/operator-strategy-layers`, not `main`),
+  and by task end the main agent had COMMITTED the code side underneath
+  me (`b4f0f5c9`). Re-read git before every claim about tree state.
+* **The baseline `-E -W` warning was 1 and it was TRANSIENT** —
+  `verification matrix regeneration failed: pytest collection failed
+  (exit 2)`, caused by the main agent's half-saved test edits. `pytest
+  --collect-only -q` succeeded moments later. Before attributing a
+  baseline warning to the corpus, re-run the underlying tool directly.
+  Final build: 0 warnings, EXIT 0.
+* **`orpheus.sn.boundary.angular` is not `automodule`'d anywhere**, so
+  every role on the BC page — the dead ones I removed AND the live ones I
+  added — renders as plain text with no `href`. Verified in built HTML
+  (`xref py py-class` spans, zero `<a>`). Matching the page convention is
+  correct; adding an `automodule` for the two leaves I touched would be
+  half-surfacing. The refs are still right and become links the day the
+  package is surfaced.
+* **A verbatim historical ERROR MESSAGE quoted in past tense
+  (`` ``AngularAverageOperator.apply: psi.shape[0] = |Γ₊|, expected N`` ``)
+  is correct history and already a literal** — leave it entirely. That was
+  1 of the 19 sites and the only one needing no action.
+* **Inline literals wrapping across two source lines render as ONE
+  `<code>`** — the pre-existing table cells already did this, so
+  ``` ``(IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))\n
+  & IdentityOperator()`` ``` is safe; `-W` catches the `:widths:`/column
+  mismatch if you get a row wrong.
+* **Measure the operator tree, don't infer it.** The two "MEASURED" code
+  comments claim a realized `repr` shape; I walked the live tree by
+  `__slots__`/`__dict__` (`realize_recursively` → `OperatorSum` →
+  `ScaledOperator` → `TensorProductOperator` → `OperatorProduct(B, C)` →
+  `IdentityOperator`) before writing it, and it matched
+  `orpheus/geometry/boundary/white.py`'s own spelling exactly. Use the
+  production module's spelling when it has one — that is the SSOT.
+
+**Residue flagged, not fixed (owner = main agent):** 7 present-tense
+`orpheus/` mentions the import-based checker cannot see (unqualified role
+at `sn/boundary/angular.py:271`; "the angular primitives the realizer
+**consumes**: `AngularAverageOperator`" at `sn/boundary/__init__.py:10`;
+the realization-map line at `sn/boundary/realizer.py:50`; the live
+`WhiteBoundary`-arm comment at `realizer.py:774`; two at
+`geometry/boundary/__init__.py:241,349`) plus a claim INVERSION at
+`geometry/boundary/_factors.py:1050` — `SpecularReemission.is_adjointable`
+still reads *"TRUE, **unlike the Lambertian's**"* three lines after the
+Lambertian's flipped to `True`.
+
+How to apply: split a retirement's doc sites into THREE tense classes
+(present-false / past-history / falsified-prediction) and check a
+prediction's mechanism, host and phase separately; verify each FACTOR of a
+factored operator against its own live method, never via the composite's
+measurement; when un-sentineling would move a generated artefact you don't
+own, keep the directive and rewrite the rationale; re-run the underlying
+tool before crediting a baseline build warning.
 
 ---
 
