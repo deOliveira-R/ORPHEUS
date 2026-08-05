@@ -1944,11 +1944,72 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **1** | ✅ **DONE** — bind the space-side `γ±` (`angular_trace_space._face_restrictions`) | `γ± : Γ(f) → Γ±(f)` in the TYPE system. ⭐ **The check now FIRES**: wrong-half AND cross-face compositions raise `IncompatibleOperatorComposition` naming both spaces (shape could never catch cross-face — `\|Γ₊(xmin)\| == \|Γ₊(xmax)\|` everywhere). Constructor cross-checks the spaces against `n_total`/`len(indices)`, because a mis-binding is invisible at apply-time. Binding stays OPTIONAL here — the realizer's own producer is unbound until step 3, and a mandatory-binding gate would be false today (a test pins that transitional state). ⚠ **`γ±`'s `.H` EQUALS its transpose by construction** — `Γ₊(f)`'s metric IS `Γ(f)`'s restricted, so the weights cancel; the value is the type-level refusal, not numerics. Needs its negative leg (a ×3 metric shifts by O(1) relative vs ≤2 ulp) or the gate would pin "the metric is ignored". `[M]` the round-trip `(g·y)/g` costs **1** nulp on tangential-bearing quadratures, **0** on `gauss_legendre(4)`; tolerance set to 2 from the round-trip DEPTH, not fitted |
 | **2** | mint `S(f)`, the angle-integrated scalar current space, on `ScalarTraceSpace`, with a **non-degenerate** metric | the theorem's one requirement; also names `psi_avg`, today an anonymous local |
 | **3** | factor the Lambertian into `C : Γ₊(f) → S(f)` and `B : S(f) → Γ₋(f)`, each bound; the law is `B @ C` | the transpose falls out here (`Rᵀ = CᵀBᵀ`), closing the deferred B5 step |
-| **4** | put the albedo amplitude `α` **on `S(f)`** as a chain link | where it physically belongs — it scales the CURRENT, not an angular distribution. ⭐ **This collapses `_attenuated_kernel_operator`'s THREE arms** (`α=1` / `0<α<1` / `α=0`, `realizer.py:345/349/352`) into chain manipulations: the chain as-is / prepend a scalar link / the zero chain. Three arms → one body |
+| **4** | ✅ **DONE — but NOT as scoped; the premise was refuted, for the FOURTH time in this step** | see §7h.2 |
 | **5** | the deck-transformation arm as a **length-1 chain**, `Γ₊(f) → Γ₋(f)` | ⛔ **NOT a separate code arm** — this read "bind atomically" until the chain reframing. Same body as step 3 with one link; a bijection simply has nothing to factor. Adjoint still a theorem |
 | **6** | vacuum, then prescribed | simplest arms; vacuum is the **zero chain**, prescribed is affine (rank 0) |
 | **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
 | **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above |
+
+### §7h.2 — step 4: the arm collapse is IMPOSSIBLE, and what shipped instead
+
+Step 4 was scoped as *"put `α` on `S(f)`; this collapses `_attenuated_kernel_operator`'s
+THREE arms into chain manipulations — the chain as-is / prepend a scalar link /
+**the zero chain**."* `[M]` **both halves are wrong.**
+
+⛔ **The zero arm cannot collapse.** `ScaledOperator` *refuses* a zero scalar:
+`ValueError: ScaledOperator with zero scalar is degenerate; use ZeroOperator
+explicitly.` The guard is deliberate and the α=0 arm's own docstring already
+said so — *"**Not** a convenience: the general path cannot express it."* The
+three arms are not structural debt awaiting a chain; they are three genuinely
+different objects, and *a surface that returns nothing IS a vacuum*.
+
+⚠ **I measured `0.0 * chain` in NUMPY and reported it as free.** The operator
+algebra refuses it. Same error as §7h.1's, one level down: *measuring the wrong
+tier and generalising*. The chain being correctly typed makes the ZEROS right;
+it does not make the SPELLING legal.
+
+⛔ **And moving `α` onto `S(f)` is not uniform.** The specular chain has length
+1 and no interior, so `α`-on-`S(f)` is a per-law-kind placement — the arm split
+returning. `[M]` it also costs a re-baseline: `α·(J/n)` vs `(αJ)/n` differ
+**34.8 %** of the time (≤2 nulp) over random floats, and 35 % at α=0.3
+specifically — though **0 %** at α=0.5, because a power of two multiplies
+exactly. Two fixtures said "bit-identical"; they were lucky. The affected
+snapshots include `TestWhiteXminPartial03GLSnapshot`, which is the α=0.3 white
+case **already red as task #33** — so a re-baseline would let the carve
+re-capture the very anchor meant to pin it.
+
+⟹ **α stays on the composite.** Its position is unobservable except in ULPs
+(scalars commute), so moving the multiply buys interpretation at the price of a
+re-baseline and a reintroduced branch. The `J⁻ = αJ⁺` reading is documented
+where it belongs instead.
+
+### ⭐ What step 4 actually delivered — the user's pin (2026-08-04)
+
+> A deck transformation admits **no attenuation** — and that is the *proof* it
+> is geometry. The specular reflection as a RESPONSE is a stand-in for a real
+> mirror, which we may attenuate because real mirrors are not ideal. That we
+> can check the response against the geometric reflection is a **special case**
+> where the two can be pinned against each other. Even a scalar attenuation is
+> already an imposed response — real mirrors rarely attenuate uniformly.
+
+`_factors.py` already flagged `ReflectiveBoundary(axis, albedo≠1)` as a
+deliberate violation, justified by *taxonomy*. This is the **consequence** form,
+which is stronger: **if it can be attenuated, it was never a quotient.**
+
+`tests/geometry/test_specular_response_pins_to_geometry.py` (15 gates) makes the
+special case a gate. The two sides are independently derived — the geometric one
+applies `SelfPairedDeck.mirror`'s `RigidMotion` (the G1–G5 core, verified against
+pure math) to the direction cosines and reads off the induced permutation; the
+response side is `quadrature.reflection_index(axis)`, the rule's own table.
+Neither consults the other. `[M]` they agree EXACTLY on `gauss_legendre(4)`/`(8)`,
+`product(4,4)` (x, y), `lebedev(17)` (x, y) and `level_symmetric(6)` (z).
+
+⭐ **A finding from the teeth check worth keeping: the EXACTNESS leg catches a
+class the equality leg cannot.** A scaled mirror `diag(-1,1,1)·1.1` induces the
+**correct permutation** while its images are not nodes — `matches_table=True`,
+`exact=False`. Equality alone passes it. The residual is what enforces the
+**measure-preserving** half of the definition: a scaling is not an isometry, so
+it is not a deck element however right its combinatorics look.
 
 ### §7h.1 — the transferable lesson: TWO false premises, both from a docstring
 
