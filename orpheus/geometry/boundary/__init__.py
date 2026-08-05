@@ -288,14 +288,16 @@ sole bridge. The canonical SN-realised representation per law.
   element**, not zero: the zero map is not a bijection, so it cannot be a
   geometry map at all, and the older spelling ":math:`R = G = 0`" wrote
   one vanishing twice, once in the wrong tier (corrected at B3.0; this
-  entry outlived that correction until B3.4a). SN realises to
-  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`, whose
-  :meth:`apply` ignores the outgoing flux and asks the source to fill
-  ``(|Γ₋|,) + psi_out.shape[1:]``. Since **B3.4a** the delivered
-  :math:`q` lives on :math:`\Gamma_-` **by typing** — there are no other
-  rows in the codomain to write — where it previously lived there because
-  an inflow MASK erased them (#52 / ERR-047). Both the mask and its
-  unmasked companion branch are retired. Consumes an
+  entry outlived that correction until B3.4a). Since **P3** SN realises the
+  law's LINEAR factor, which is :math:`0` — the same zero morphism vacuum
+  realises to, stamped :attr:`BlockRole.BOUNDARY` — while :math:`q` travels
+  the boundary-source channel (:ref:`bc-affine-source-channel`). Until P3 it
+  realised to an ``IncomingSourceOperator`` whose ``apply`` ignored the
+  outgoing flux and returned :math:`q`: an affine map in a linear slot, which
+  delivered the source into the ``B`` block on top of the source channel.
+  The delivered :math:`q` lives on :math:`\Gamma_-` **by typing** (since
+  **B3.4a**; before that an inflow MASK erased the other rows — #52 /
+  ERR-047, both the mask and its unmasked companion retired). Consumes an
   :class:`InflowSourceSpec` (typically :class:`NoSource` for the
   homogeneous case or :class:`ConstantInflowSource(value)` for a uniform
   inflow).

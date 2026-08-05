@@ -25,16 +25,22 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.geometry.boundary import ConstantInflowSource, NoSource
+from orpheus.geometry.boundary import (
+    ConstantInflowSource,
+    PrescribedInflow,
+    stamp_boundary_role,
+)
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import (
+    BlockRole,
     BoundaryOperator,
     BulkOperator,
     FullOperator,
     OperatorSum,
+    ZeroOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.angular import IncomingSourceOperator
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
@@ -58,7 +64,7 @@ from tests._harness.predicates import (
     VALUE_RAISE,
     assert_inverse_adjoint_contract,
 )
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import face_method_space, placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
 
@@ -92,24 +98,50 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
 # ─────────────────────────────────────────────────────────────────────
 
 
-class TestIncomingSourceOperatorIsUnclassified:
-    r"""The rank-0 affine inflow source carries NO block role — it is the
-    boundary *source* ``q.boundary``, not a linear boundary operator ``B``.
-    Pins the bare-mixin ``None`` default survives the ``[D, C]`` re-typing
-    (RC 3 ∩ RC 1).
+class TestTheBlockRoleIsAnInstanceStampNotAClassFact:
+    r"""The bare-mixin ``None`` default survives the ``[D, C]`` re-typing —
+    pinned on the class that carries BOTH answers in production (RC 3 ∩ RC 1).
 
-    B3.4a: ``n_inflow`` is now a REQUIRED keyword — the operator's codomain
-    is :math:`\Gamma_-`, and the source is asked to fill exactly that many
-    rows. The value is irrelevant to the block-role claim; it is the
-    :math:`|\Gamma_-|` of the module's 4-ordinate slab fixture.
+    ⭐ **Why this subject, since P3.** This class previously asked the retired
+    ``IncomingSourceOperator`` whether it was unclassified, on the claim that
+    the rank-0 affine inflow source is ``q.boundary`` and not a linear boundary
+    operator ``B``. P3 refuted that claim: prescribed inflow's realization IS a
+    linear boundary operator — the ZERO one — and it is stamped like every
+    other law (see ``tests/sn/operators/test_operator_block_role.py``, where
+    prescribed now sits in ``_LINEAR_LAWS``).
+
+    What survives the retirement, and is what this module actually needs, is the
+    orthogonal claim: :attr:`block_role` is an **instance stamp**, so the same
+    class reads ``None`` bare and ``BOUNDARY`` once
+    :func:`~orpheus.geometry.boundary.stamp_boundary_role` has been applied.
+    Post-P3 that is no longer hypothetical — :class:`ZeroOperator` genuinely
+    appears both ways in production: unstamped as the within-group zero fission
+    slot, and stamped as the realization of vacuum / prescribed inflow / a
+    re-emission law at ``α = 0``. A re-typing that turned the stamp into a class
+    attribute would collapse the two, and this is the row that sees it.
     """
 
-    def test_default_block_role_is_none(self) -> None:
-        op = IncomingSourceOperator(NoSource(), n_inflow=2)
+    def test_an_unstamped_instance_is_unclassified(self) -> None:
+        op = ZeroOperator()
         assert op.block_role is None
         assert not isinstance(op, BulkOperator)
         assert not isinstance(op, FullOperator)
         assert not isinstance(op, BoundaryOperator)
+
+    def test_stamping_one_instance_leaves_the_class_alone(self) -> None:
+        """The negative leg: the stamp must not leak to a sibling instance.
+
+        Without this, ``block_role`` could be a CLASS attribute set by
+        ``stamp_boundary_role`` and every row above would still pass — read in
+        the wrong order, because the bare instance would be constructed before
+        the stamp ever ran.
+        """
+        stamped = stamp_boundary_role(ZeroOperator())
+        assert stamped.block_role is BlockRole.BOUNDARY
+        assert isinstance(stamped, BoundaryOperator)
+        # …and a FRESH sibling, built after the stamp, is still bare.
+        assert ZeroOperator().block_role is None
+        assert not isinstance(ZeroOperator(), BoundaryOperator)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -117,14 +149,38 @@ class TestIncomingSourceOperatorIsUnclassified:
 # ─────────────────────────────────────────────────────────────────────
 
 
-class TestIncomingSourceOperatorCapabilities:
-    """RC 2: the apply-only surface survives intact (carve P4 rewire of
-    the strict caps-equality pin: the "spurious added capability" concern
-    becomes "spurious predicate True", still caught)."""
+class TestRealizedPrescribedInflowCapabilities:
+    r"""RC 2: the realized prescribed-inflow surface, per-leaf and strict.
 
-    def test_surface_is_exactly_apply_only(self) -> None:
-        op = IncomingSourceOperator(ConstantInflowSource(value=2.5), n_inflow=2)
-        assert not op.is_invertible and not op.is_adjointable
+    ⭐ **The surface INVERTED at P3, and the inversion is the claim.** The
+    retired ``IncomingSourceOperator`` was apply-only — ``is_adjointable`` was
+    ``False``, because an affine map has no transpose to advertise. The zero
+    morphism that replaced it is adjointable (``0ᵀ = 0``), so the honest pin is
+    the new set, not a preserved one. What survives verbatim is the *shape* of
+    the concern this module exists for: a re-typing that dropped a leaf's
+    advertised set, or added one it cannot honour, changes the capability
+    closure of the composite ``(L + C − B)``.
+
+    ``is_invertible`` stays ``False`` and ``inverse`` stays absent — the zero
+    map is the singular map par excellence, and
+    :class:`~orpheus.numerics.operator.ZeroOperator` declines to declare an
+    ``inverse()`` at all rather than shipping a raising stub.
+    """
+
+    def _realized(self):
+        return SNBoundaryRealizer().realize(
+            PrescribedInflow(source=ConstantInflowSource(value=2.5)),
+            face_method_space(Quadrature.gauss_legendre(n_ordinates=4)),
+        )
+
+    def test_the_transpose_is_now_advertised(self) -> None:
+        op = self._realized()
+        assert op.is_adjointable
+        assert callable(getattr(op, "apply_transpose", None))
+
+    def test_the_inverse_axis_stays_absent(self) -> None:
+        op = self._realized()
+        assert not op.is_invertible
         assert not hasattr(op, "inverse")
         assert callable(getattr(op, "apply", None))
 

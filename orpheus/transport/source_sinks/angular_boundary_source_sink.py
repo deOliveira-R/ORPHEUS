@@ -29,8 +29,8 @@ There are TWO distinct objects for the inflow :math:`q`, related as
   shape, with no trace/mesh handle (deliberately decoupled from the
   trace; the impls :class:`NoSource` / :class:`ConstantInflowSource`
   derive their output from construction-time data only). It is the
-  *recipe* the affine boundary law / sweep consumes inline per face
-  (:meth:`IncomingSourceOperator.apply`).
+  *recipe* a declared affine boundary law carries; the mesh-BC bridge
+  :meth:`from_mesh_laws` is what turns it into the snapshot below.
 * :class:`AngularBoundarySourceSink` (THIS class, the L2 transport **field**):
   the *eager, whole-boundary, mesh-bound, role-typed snapshot* — the
   materialised :math:`q` as a stored
@@ -90,10 +90,17 @@ the known-per-face-array case; ``from_specs`` serves the lazy-recipe case, and
 delegates its packing to ``prescribed_inflow`` so the "inflow slots written,
 everything else zero" rule lives in exactly one place.
 
-It **evaluates at the same shape the inline path uses** —
-:meth:`~orpheus.sn.boundary.angular.IncomingSourceOperator.apply` asks the spec
-for ``(|Γ₋|,) + trailing`` and so does ``from_specs`` — so the two routes to
-:math:`q` agree by construction rather than by transcription.
+It **evaluates each spec at** ``(|Γ₋|,) + trailing``, so the packed result is
+the spec's own output placed on that face's inflow rows and nowhere else — the
+two routes to :math:`q` agree by construction rather than by transcription.
+
+(Until **P3** this paragraph justified the shape by pointing at the retired
+``IncomingSourceOperator.apply``, which asked for the same shape from inside
+the realized operator. That operator is gone — it was an affine map in a
+linear slot, and it delivered :math:`q` into the ``B`` block a second time —
+so this channel is now the ONLY route, and the shape is its own contract
+rather than a match against something else's. See
+:ref:`bc-affine-source-channel`.)
 
 .. note::
 
@@ -326,12 +333,13 @@ class AngularBoundarySourceSink(AngularBoundaryField):
         result packed into the flat layout, turning a per-face lazy rule into
         one eager, mesh-bound, role-typed :math:`q`.
 
-        ⭐ **Evaluated at the SAME shape the inline path uses, deliberately.**
-        :meth:`~orpheus.sn.boundary.angular.IncomingSourceOperator.apply` asks
-        the spec for ``(|Γ₋|,) + trailing``; so does this. The two routes to
-        :math:`q` therefore agree *by construction* rather than by a
-        transcription that could drift — which is the property the affine-channel
-        carve relies on when it retires the inline path.
+        ⭐ **Evaluated at** ``(|Γ₋|,) + trailing``, which is this channel's own
+        contract. Until **P3** the shape was justified by matching the retired
+        ``IncomingSourceOperator.apply``, and that match is exactly what let the
+        carve retire it: the operator's whole body was
+        ``source.evaluate((n_inflow,) + trailing)``, so nothing was lost by
+        deleting the wrapper. Since P3 this is the ONLY route to :math:`q`
+        (:ref:`bc-affine-source-channel`).
 
         Packing is delegated to :meth:`prescribed_inflow` rather than repeated
         here: that method is the single source of truth for "inflow slots

@@ -101,12 +101,25 @@ Refusals
   a consumer, on the P4 boundary-operator assembly where the whole
   trace block is in scope.
 * :class:`~orpheus.geometry.boundary.PrescribedInflow` is the rank-0
-  AFFINE law :math:`J^- = q`: its realization is the boundary
-  *source* ``q.boundary``, not a linear boundary operator ``B``
-  (exactly the SN split — SN realizes it as an
-  ``IncomingSourceOperator`` and does NOT stamp it BOUNDARY). The
-  diffusion source arm lands with the P5 fixed-source wiring; until
-  then the refusal keeps the operator/source split honest.
+  AFFINE law :math:`J^- = L J^+ + q` with :math:`L = 0`: its
+  :math:`q` is the boundary *source* ``q.boundary`` and is not
+  realizable as an operator here, so this realizer refuses the law.
+  The diffusion source arm lands with the P5 fixed-source wiring;
+  until then the refusal keeps the operator/source split honest.
+
+  ⚠ **Do not rebuild the SN design this used to cite.** Until **P3**
+  (2026-08-05) this bullet read *"exactly the SN split — SN realizes
+  it as an ``IncomingSourceOperator`` and does NOT stamp it
+  BOUNDARY"*. Both halves are now wrong: that class is retired, and SN
+  realizes the law's LINEAR factor — the zero morphism, stamped
+  ``BlockRole.BOUNDARY`` like every other law — while :math:`q`
+  travels the boundary-source channel
+  (:ref:`bc-affine-source-channel`). The affine SPLIT is what SN
+  shares with diffusion; the affine OPERATOR was a defect, and it
+  delivered :math:`q` into the linear ``B`` block where nothing
+  intended it to. If a diffusion source arm is built here, build it as
+  a source on the trace block, never as an operator that ignores its
+  input.
 
 Rank-N composition (Marshak mixes, partial reflection) goes through
 the descriptor-tree walker with this realizer at the leaves::

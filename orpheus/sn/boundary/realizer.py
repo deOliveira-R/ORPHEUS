@@ -87,9 +87,12 @@ suffices for the two laws below.
   :class:`~orpheus.numerics.operator.IdentityOperator` (the crossing it
   carries is the PARTNER-face channel, not an action on the trace).
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` — apply ignores
-  the outgoing flux and asks the source spec to fill :math:`|\Gamma_-|` rows.
-  The rank-0 affine BC (Wave 7 / C7.5). **B3.4a** retired the inflow MASK
+  :class:`~orpheus.numerics.operator.ZeroOperator` — the same zero morphism
+  vacuum returns, because the law is affine and this tier realizes its LINEAR
+  factor, which is :math:`0`. The source travels the boundary-source channel
+  (:ref:`bc-affine-source-channel`). The rank-0 affine BC (Wave 7 / C7.5);
+  until **P3** it realized to an ``IncomingSourceOperator`` whose apply
+  ignored its input and returned :math:`q`. **B3.4a** retired the inflow MASK
   (#52 / ERR-047) along with the codomain it corrected: the rows it zeroed are
   no longer emitted on, so :math:`q \in \Gamma_-` holds by typing rather than by
   erasure. Its unmasked companion branch retired with it — post-B3.2 a method
@@ -165,9 +168,9 @@ from orpheus.numerics.operator import (
     PermutationOperator,
     TraceRestrictionOperator,
     ZeroOperator,
+    checked_space_extent,
 )
 from .angular import (
-    IncomingSourceOperator,
     IsotropicEmissionOperator,
     PartialCurrentOperator,
 )
@@ -271,13 +274,26 @@ def _narrowed_zero_operator(
     wrong in principle and merely lucky in practice: ``|Γ₊| == |Γ₋|`` on every
     reachable fixture, so the shapes coincide — an accident, not a contract.
 
-    Two callers, one body: vacuum (whose response IS structurally zero) and any
+    THREE callers, one body: vacuum (whose response IS structurally zero), any
     re-emission law at :math:`\alpha = 0` (whose response *evaluates* to zero —
-    a perfectly absorbing wall is a vacuum, and says so with the same object).
+    a perfectly absorbing wall is a vacuum, and says so with the same object),
+    and — since **P3** — prescribed inflow, whose LINEAR factor is zero and
+    whose entire content is the affine :math:`q`
+    (:ref:`bc-affine-source-channel`). That third caller is the one that makes
+    the shared body a statement rather than a coincidence: vacuum and prescribed
+    are the SAME operator, and differ only in a term this tier does not carry.
 
     Both half-traces are REQUIRED, and the demand is the whole point: a zero map
     that does not know its codomain degenerates to exactly the endomorphic echo
     described above.
+
+    Since **G6.3 step 6** the two spaces are NAMED as well as sized. :math:`\Gamma_+`
+    is read off ``gamma_out``'s own codomain rather than fetched from the trace a
+    second time — ``_outflow_restriction`` bound it at step 5, and re-deriving it
+    here would be a twin source for one fact. Each space is checked against the
+    row count the matching hook was sized from: the space and the length describe
+    the same fact, and a disagreement is invisible at apply-time because the zero
+    arrays broadcast either way.
     """
     if method_space.inflow_indices is None:
         raise BoundaryError(
@@ -287,6 +303,13 @@ def _narrowed_zero_operator(
             f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
             law=law_key,
         )
+    n_inflow = int(method_space.inflow_indices.size)
+    trace, face = method_space.trace, method_space.face
+    gamma_minus = (
+        trace.inflow_space(face)
+        if trace is not None and face is not None
+        else None
+    )
     return ZeroOperator(
         # ``reportArgumentType``: ``ZeroOperator`` is generic over ``Vector``,
         # and MEASURED (2026-07-31, pyright + numpy stubs) ``np.ndarray`` does
@@ -297,11 +320,17 @@ def _narrowed_zero_operator(
         # (``PermutationOperator(LinearOperator)``), an option a generic's own
         # hooks do not have. Runtime conformance is real; only the static bind
         # fails.
-        codomain_zero=_zero_rows(  # type: ignore[reportArgumentType]
-            method_space.inflow_indices.size
-        ),
+        codomain_zero=_zero_rows(n_inflow),  # type: ignore[reportArgumentType]
         transpose_zero=_zero_rows(  # type: ignore[reportArgumentType]
             gamma_out.n_restricted
+        ),
+        domain=checked_space_extent(
+            gamma_out.codomain, gamma_out.n_restricted, axis=0,
+            owner="_narrowed_zero_operator", role="domain",
+        ),
+        codomain=checked_space_extent(
+            gamma_minus, n_inflow, axis=0,
+            owner="_narrowed_zero_operator", role="codomain",
         ),
     )
 
@@ -677,7 +706,7 @@ class SNBoundaryRealizer:
         The concrete return is always a :class:`LinearOperator`
         subclass (a generic numerics primitive —
         :class:`TensorProductOperator` / :class:`ScaledOperator` /
-        :class:`IncomingSourceOperator` / …); the narrower mixin type
+        :class:`~orpheus.numerics.operator.ZeroOperator` / …); the narrower mixin type
         (vs the bare :class:`LinearOperator` Protocol) lets the
         :func:`~orpheus.geometry.boundary.stamp_boundary_role`
         ``block_role`` instance-stamp type-check and keeps the
@@ -949,32 +978,37 @@ class SNBoundaryRealizer:
             return stamp_boundary_role(IdentityOperator() & IdentityOperator())
 
         if isinstance(law, PrescribedInflow):
-            # B3.4a — the rank-0 affine source, narrowed to Γ₊ → Γ₋.
+            # P3 — realize the LINEAR factor, which is ZERO. The law is
+            # affine, ``γ₋ψ = L γ₊ψ + q``, and this tier realizes ``L``
+            # alone; the source ``q`` travels the boundary-source channel
+            # (:ref:`bc-affine-source-channel`), assembled from the declared
+            # law by ``AngularBoundarySourceSink.from_mesh_laws``. So
+            # prescribed inflow returns the SAME expression vacuum does,
+            # which is the honest statement of the algebra: the two laws
+            # differ only in a term that is not an operator.
             #
-            # The operator's apply ignores the outgoing flux and asks the
-            # source to fill |Γ₋| rows. The inflow MASK (#52 / ERR-047)
-            # dissolved with the codomain: the rows it used to zero — every
-            # outflow and tangential ordinate — are no longer in the
-            # codomain to be emitted on, so "q lives on Γ₋" is now a
-            # property of the TYPE rather than of an erasure. Same
-            # dissolution as vacuum's projector at B3.2.
+            # ⛔ Until P3 this arm returned an ``IncomingSourceOperator``
+            # whose ``apply`` IGNORED its input and emitted ``q`` — an
+            # AFFINE map in a linear slot. It carried no BOUNDARY stamp, and
+            # the stamp's absence was believed to fence it out of ``B``. It
+            # did not: ``SNBoundaryOperator._face_laws`` collects EVERY
+            # face's law with no role filter, so the source was delivered
+            # through ``B`` as well. MEASURED on a declared inflow at
+            # ``q = 2.5``: ``|B(0)| = 2.5`` and ``|B(2x) − 2B(x)| = 2.5``,
+            # and once P2′ wired the source channel the converged flux
+            # carried the inflow TWICE (ratio 2.000000 against the vacuum
+            # control). Returning the zero morphism is what makes the two
+            # channels one.
             #
-            # ``_outflow_restriction`` is called for its GUARD, not its
-            # value: prescribed inflow ignores its input, but a law that
-            # cannot name its own domain is not realized, it is guessed.
-            _outflow_restriction(method_space, "prescribed_inflow")
-            if method_space.inflow_indices is None:
-                raise BoundaryError(
-                    "SNBoundaryRealizer cannot realize PrescribedInflow "
-                    "without inflow_indices: since B3.4a the delivered q "
-                    "is sized from Γ₋ — the source spec fills whatever "
-                    "shape it is handed, so the face must supply that "
-                    "shape. Construct via SNMethodSpace.for_face(...).",
-                    law="prescribed_inflow",
+            # Prescribed inflow ignores its input, but a law that cannot
+            # name its own domain is not realized, it is guessed — so the
+            # Γ₊ restriction is still built, now for its VALUE as well as
+            # its guard: the zero map is bound with it.
+            gamma_out = _outflow_restriction(method_space, "prescribed_inflow")
+            return stamp_boundary_role(
+                _narrowed_zero_operator(
+                    method_space, gamma_out, law_key="prescribed_inflow",
                 )
-            return IncomingSourceOperator(
-                law.source,
-                n_inflow=int(np.asarray(method_space.inflow_indices).size),
             )
 
         raise BoundaryError(

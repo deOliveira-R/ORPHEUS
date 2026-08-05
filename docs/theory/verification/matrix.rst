@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8761**
+Total tests collected: **8774**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1264, 14.4%
-   L1, 1531, 17.5%
+   L1, 1532, 17.5%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5897, 67.3%
+   foundation, 5909, 67.3%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8677
+   explicit, 8690
    class-name, 46
    func-name, 0
    case, 33
@@ -258,7 +258,7 @@ Module × level grid
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 54, 0, 0, 5, 0
+   geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
@@ -357,12 +357,13 @@ Module × level grid
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
+   numerics/test_zero_operator_spaces, 0, 0, 0, 0, 8, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
    operators/test_b3_domain_narrowing, 0, 0, 0, 0, 31, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 13, 0
-   operators/test_capability_survival, 0, 0, 0, 0, 10, 0
+   operators/test_capability_survival, 0, 0, 0, 0, 12, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
@@ -382,7 +383,7 @@ Module × level grid
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
-   operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
+   operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
    operators/test_psi_half_coupling, 0, 2, 0, 0, 83, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
@@ -432,7 +433,7 @@ Module × level grid
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
-   solve/test_declared_inflow_reaches_the_rhs, 0, 9, 0, 0, 0, 0
+   solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
@@ -702,6 +703,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
    ``sn-space-angle-cross-term``, 3
+   ``bc-single-delivery``, 2
    ``cp-second-difference-operator``, 2
    ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
@@ -826,7 +828,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **524** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **527** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -848,6 +850,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bailey-dome-recursion``
 - ``balance-cartesian-1d-eq``
 - ``balance-cartesian-2d-eq``
+- ``bc-affine-linear-factor``
+- ``bc-composite-source``
 - ``bc-extraction-block-matrix``
 - ``bc-extraction-direct-sum-state``
 - ``bc-extraction-loss-operator``
@@ -858,6 +862,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bc-extraction-within-group-decomposition``
 - ``bc-face-action-narrowed``
 - ``bc-face-name-key-identity``
+- ``bc-prescribed-zero-linear-factor``
 - ``bc-rank-n-tensor-decomposition``
 - ``bc-realizability-square``
 - ``bc-tensor-decomposition``
@@ -1423,7 +1428,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-044``, 11
    ``ERR-045``, 11
    ``ERR-046``, 8
-   ``ERR-047``, 7
+   ``ERR-047``, 10
    ``ERR-048``, 51
    ``ERR-049``, 15
    ``ERR-050``, 10
@@ -1451,6 +1456,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-072``, 3
    ``ERR-073``, 2
    ``ERR-074``, **0 (MISSING)**
+   ``ERR-075``, 2
 
 Unmarked tests
 --------------

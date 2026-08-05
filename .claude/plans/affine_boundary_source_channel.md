@@ -68,18 +68,57 @@ source are one object, exactly as the user said.
 ⟹ **a nonzero prescribed inflow is built, returned, unstamped, and dropped.** The
 source never reaches the channel the docs say it belongs in.
 
-### ⚠ NOT a live bug — record this so it is not re-alarmed
+### ⛔⛔ REFUTED 2026-08-05 — it WAS a live bug, and fence (2) never existed
 
-The affine operator does **not** reach a Krylov matvec, fenced twice over:
+**The text below is kept as the falsified claim, because the way it was wrong is the
+lesson.** It read:
 
-1. `augmented_mesh.py:186-190` — `prescribed_inflow` is **not a registered `BC` kind**,
-   so the law is *"declarable only by constructing the law directly, never from a
-   `BC(...)` tag"* (#189). Only tests construct it.
-2. The missing `BlockRole.BOUNDARY` stamp keeps it out of the `B` block.
+> The affine operator does **not** reach a Krylov matvec, fenced twice over:
+> (1) `augmented_mesh.py:186-190` — `prescribed_inflow` is not a registered `BC`
+> kind (#189); only tests construct it. (2) The missing `BlockRole.BOUNDARY` stamp
+> keeps it out of the `B` block.
+> So this carve is **prophylactic architecture**, not a bug fix.
 
-So this carve is **prophylactic architecture**, not a bug fix. Say so in the commit;
-a future reader finding "affine operator in a linear slot" will otherwise re-open it
-as a defect.
+**Fence (1) is real. Fence (2) does not exist.**
+`SNBoundaryOperator._face_laws` (`orpheus/sn/operators/boundary.py:311-324`) collects
+`sn_mesh.bc[face]` for **every** face in the trace layout with **no `block_role`
+filter**. `SNBoundaryOperator` carries the stamp itself and applies all of them, so
+the unstamped affine leaf entered `B` exactly like any other law. `[M]`:
+
+| claim | measured |
+|---|---|
+| `B` is linear with a declared inflow at `q = 2.5` | ⛔ `|B(0)| = 2.5`, `|B(2x) − 2B(x)| = 2.5` |
+| SI, declared inflow, HEAD (post-P2′) | `γ₋(xmin) = 5.000000000000` — **delivered twice** |
+| SI, declared inflow, pre-P2′ | `γ₋(xmin) = 2.500000000000` — worked, once, correct sign |
+| Krylov, declared inflow, **both** sides of P2′ | ⛔ **RAISES** `ConvergenceCertificateError`, `‖Aψ−q‖/‖q‖ = 1.718` |
+| vacuum control | `0.000000000000` |
+
+⟹ **three corrections to this plan's own record:**
+
+1. A declared `PrescribedInflow` was **never "silently inert."** On SI it was
+   FUNCTIONAL — delivered once, with the correct sign, through `+Bψ` on the RHS.
+2. **P2′ (`48657072`) is a double-delivery regression on the SI path**, ratio
+   `2.000000` exactly against the vacuum control. On Krylov there was nothing left
+   to regress: an affine `A(x) = A_lin(x) − c` breaks GMRES's Arnoldi relation
+   `A V_k = V_{k+1} H_k`, so declared-prescribed × Krylov had been **unusable all
+   along** and `_certify_within_group_exit` (`solver.py:435`) was catching it.
+3. ⟹ **P3 is a BUG FIX, not prophylaxis.** The commit must say so. P2′ and P3 are
+   two halves of one change and the tree is incorrect with only one of them landed.
+
+⭐ **Why no gate saw any of it** — fence (1) is the whole answer. `prescribed_inflow`
+is not a registered `BC` kind, so no production driver installs the law, and **no
+test ran a full solve with a DECLARED law.** The P2′ gates stop at
+`_build_fixed_source_rhs`: they correctly verify the RHS receives `q` and are
+structurally blind to `B` also delivering it. That is `:ref:`verification-user-path``
+failing on its own author one commit after landing it — the gates travelled part of
+the user path and stopped before the solve.
+
+⭐ **The transferable lesson: an "it is fenced, so it is not a bug" argument is a
+claim about a CONSUMER, and must be measured at the consumer.** Both fences were
+read off the *producer* (the realizer returns an unstamped operator; the `BC` registry
+has no key). Fence (1) happened to be a genuine consumer fact. Fence (2) was an
+inference about what `SNBoundaryOperator` *would* do with an unstamped leaf, never
+checked against its 14 lines of code — and the check is one `B.apply(0)`.
 
 ---
 
@@ -139,7 +178,73 @@ against **#189** (prescribed_inflow is not a registered `BC` kind), which is the
 reason the law is only constructible directly today — the bridge and the
 registration are separable, and this plan owns only the bridge.
 
-### P3 — collapse the operator; retire `IncomingSourceOperator`
+### P3 — collapse the operator; retire `IncomingSourceOperator` ✅ LANDED 2026-08-05
+
+**Verification plan of record: `scratch/p3_verification_plan.md`** (1033 lines,
+`test-architect`) — read §0 for the measurements and §8 for the residual gap list.
+
+**What landed:** `realize(PrescribedInflow)` returns `_narrowed_zero_operator(...)`
+stamped `BlockRole.BOUNDARY`; `IncomingSourceOperator` retired; `ZeroOperator` gained
+`domain`/`codomain` (G6.3 step 6 folded in), bound in `_narrowed_zero_operator` via
+`checked_space_extent`. Post-carve: `|B(0)| = 0`, `|B(2x) − 2B(x)| = 0`,
+`block_role = BOUNDARY`, `domain is Γ₊(f)`, `codomain is Γ₋(f)`.
+
+⭐ **The keystone gate is `γ₋ψ|_f = q_f` on the converged answer**
+(`tests/sn/solve/test_declared_inflow_reaches_the_rhs.py`), parameterized over
+`{source_iteration, krylov}`. The boundary condition is a DEFINITION, so this needs no
+reference solver and no discretization assumption, and it separates the three
+outcomes exactly: `5.0` double / `2.5` single / `0.0` lost.
+
+⚠ **Exactness differs by path, MEASURED.** SI writes the source into the inflow slot
+and sweeps from it, so `γ₋ψ` is a COPY — bit-exact. Krylov reaches the trace through
+the GMRES iterate and carries `2.500000000000008` = **18 ULP** at 2.5. The gate
+asserts `array_equal` on SI and `assert_array_almost_equal_nulp(nulp=64)` on Krylov,
+stated in ULP rather than `rtol` so the budget cannot quietly grow into the 1×/2× gap.
+
+⭐⭐ **Why the leaf-linearity gate cannot replace the keystone — measured, not argued.**
+Mutation battery over the 5 gate files (baseline `111 passed`):
+
+| mutation | class | keystone | `B(0)==0` leaf gate | total reds |
+|---|---|---|---|---|
+| `q2` — double `q` in the source channel | **in-class** | 🔴 | 🟢 | 6 |
+| `Lident` — realize `L := IdentityOperator` | **in-class** (linear!) | 🔴 | 🟢 | 10 |
+| `affine` — reinstate the retired operator | out-of-class | 🔴 | 🔴 | 17 |
+| `pcplus` — realize vacuum as identity (**control**) | control | 🔴 | 🟢 | 7 |
+
+`Lident` is the discriminator: it is *perfectly linear*, so `B(0) = 0` still holds and
+the leaf gate is blind, while the keystone reddens. And `affine`'s inflated 17 reds are
+the vv anti-pattern #18 trap — it breaks LINEARITY, so most of its reds see the broken
+law rather than the delivery count, and must not be credited as coverage.
+
+⚠ Two `vv` rulings this battery confirms: candidate "φ is affine in `q` with the right
+slope" is a **provable non-catcher** (a doubled delivery is `q → 2q`, still exactly
+affine in `q` — Mode 12); and the `krylov` parameter is load-bearing because pre-P3 it
+*raised* rather than answering wrongly.
+
+⚠ **`_build_fixed_source_rhs`'s two arms take DIFFERENT bulk-source types** (a
+per-ordinate array vs an `AngularSourceSink`). Every two-channel gate routes its bulk
+through one helper (`_composite`) so the trap is unspellable; feeding one arm each way
+gave `φ[0] = 3.083` vs `2.480`, a bulk difference that reads as a channel difference.
+
+**Five docstrings stated the retired split as the design of record** and were corrected
+(the campaign's own inventory found two): `numerics/operator.py:383`,
+`diffusion/boundary_realizer.py:103`, `geometry/boundary/_realizer.py:124`,
+`geometry/boundary/_bound_compat.py:218`, `sn/operators/boundary.py:283`.
+
+**Also cleaned:** four imports in `sn/boundary/angular.py` (`AXIS_NAMES`, `face_name`,
+`TANGENTIAL_EPS`, `build_omega_dot_n`) had been orphaned since **G6.3 step 3b** retired
+`AngularAverageOperator` — a pre-existing retirement-audit miss, fixed while in the file.
+
+**Open from `scratch/p3_verification_plan.md` §8** (not blockers for P3's landing):
+the `SNBoundaryOperator.is_adjointable` widening row (§4.2, with its warning that a
+reciprocity gate on prescribed alone is a provable non-catcher — the zero morphism is
+metric-blind, so the honest gate pairs prescribed with a Lambertian face); ERR-047's
+catalog catcher paths; and whether the double delivery earns its own `ERR-NNN`
+(mode #6 convention drift: the definition site said "unstamped ⟹ not in `B`" and the
+usage site never filtered). ⛔ `error_catalog.md` is forbidden to commit, so both
+catalog items are handoffs.
+
+#### P3 as originally specified
 
 `realize(PrescribedInflow)` returns the **zero morphism** — literally
 `_narrowed_zero_operator`, the same object vacuum returns — stamped

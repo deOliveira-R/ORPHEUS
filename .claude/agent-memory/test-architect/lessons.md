@@ -238,6 +238,13 @@ against a concrete row before trusting a green.
   written mid-session (untracked, mtime mid-plan); re-checking re-scored 10 of 15
   API findings as DISCHARGED and surfaced 3 gates the landed design earns. The
   reconciliation outvalues the original matrix. → `L35i`, `L33`
+- **⭐ Re-measure the RED COUNT at the END of a planning dispatch, not only the
+  start.** An 8-red migration debt I measured mid-plan went to `555 passed`
+  before I finished (four test files migrated + a brand-new module appeared).
+  A migration table whose status column is stale by minutes is worse than none —
+  ship it with an explicit "READ the reconciliation section FIRST" banner, keep
+  the verdict/action columns as the audit of record, and make the **residual gap
+  list, measured absent by grep at the end**, the deliverable. → `L39`
 
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
@@ -395,6 +402,49 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   **(b)** an already-COMMITTED sibling step probably has the identical hole —
   check it, and ship the gap as a `strict=True` xfail naming the later step, not
   as scope creep. → `L38`
+- **DELIVERY-COUNT / "is this term applied, and how many times?" carve: gate the
+  governing EQUATION evaluated on the CONVERGED answer, at the tier where the
+  posed system's rows ARE that equation** (a trace / interface / boundary DOF).
+  For the affine BC `γ₋ψ = Lγ₊ψ + q` with `L=0`, `γ₋ψ|_f` read off the solution
+  gave bit-exact `2q` (double) / `q` (single) / `0` (lost) — three distinguishable
+  readings, ONE assertion, no reference solver, no tolerance, and independent of
+  mesh/quadrature/materials. It beat all three candidates the brief offered.
+  ⛔ **`superposition in q` is a Mode-12 NON-CATCHER for a doubled source**: the
+  double IS `q→2q`, still exactly affine in `q`, so `φ(a)=φ(0)+a·s` holds for any
+  `s` — a "linearity in the parameter" gate can never see a wrong CONSTANT
+  multiplying that parameter. ⚠ And the OBVIOUS mutation is out-of-class
+  (anti-#18): re-instating the affine operator breaks LINEARITY, so solve-level
+  reds come from that, not the count — the in-class mutation is `q + q` in the
+  SOURCE channel, and *a gate reddening under the affine reinstatement but not
+  under `q+q` is not a single-delivery catcher*. Second in-class mutation `L := I`
+  (linear!) is invisible to the `B(0)==0` gate and visible only to the trace gate.
+  → `L39`
+- **A "not a live bug — it is fenced" claim is a HYPOTHESIS; apply the fence's own
+  predicate to the object the CONSUMER holds.** A `block_role=None` stamp fenced
+  nothing (`_face_laws` collects every law with no role filter, `|B(0)|=2.5`), and
+  the consequence was a HARD RAISE on Krylov (`‖Aψ−q‖/‖q‖=1.718` — an affine
+  operator breaks Arnoldi) on BOTH sides of the phase blamed for it. A stamp only
+  fences if somebody reads it: grep the consumer for the filter. → `L39`
+- **A measured number living in a COMMENT is not a gate.** The campaign's central
+  measurement (`|B(0)| = 2.5`) existed in the tree ONLY as prose in a test file.
+  When auditing a landed carve, grep the measurement's NUMBER and ask whether any
+  `assert` consumes it. → `L39`
+- **An agreement-between-two-siblings row is NOT an is-it-correct row** — a
+  type-collapse carve naturally produces `prescribed.domain is vacuum.domain`,
+  which stays GREEN if BOTH are bound swapped (and the extent guard passes too,
+  since `|Γ₊|==|Γ₋|`). Pair every "the two collapsed things agree" row with one
+  naming the RIGHT value. → `L39`, `L37`
+- **When a Mode-12 fixture's SUBJECT is retired, ask whether the successor is
+  also hand-constructible** — if yes the claim migrates and usually GAINS legs
+  (the zero morphism added a transpose direction + two space identities the
+  apply-only affine operator never had). Two production docstrings having
+  independently written the same Mode-12 argument is the signal it is
+  load-bearing. → `L39`
+- **A rewire's demotion test: is the retired symbol a SOURCE of the expected
+  value or a FORWARDER of it?** A one-line adapter (`op.apply` whose whole body
+  was `spec.evaluate(shape)`) can be inlined for free — independence lived in
+  *who produces each side*, not in the adapter. The trap is then "make the new
+  oracle generic" by reading the SUT's own derivation. → `L39`
 - **A sentinel encoding TWO states makes the discriminating gate UNWRITABLE — say
   "this gate cannot exist; here is the TYPE that makes it exist".** `domain=None`
   means BOTH "space-generic by mathematics" (an identity is the identity on every

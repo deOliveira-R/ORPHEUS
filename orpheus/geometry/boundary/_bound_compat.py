@@ -215,10 +215,15 @@ class _BoundBoundaryOperator(LinearOperator):
     def block_role(self):  # type: ignore[override]
         # Forward the realized law's block-role classification (Issue #208
         # / Wave O) so ``isinstance(sn_mesh.bc["xmin"], BoundaryOperator)``
-        # reads the inner op's role. The realized boundary laws carry
-        # ``BlockRole.BOUNDARY``; the rank-0 affine PrescribedInflow source
-        # carries ``None`` (it is ``q.boundary``, not a linear ``B``).
-        # ``getattr``-safe: an inner op without the attribute reports None.
+        # reads the inner op's role. Since P3 (2026-08-05) EVERY realized
+        # boundary law carries ``BlockRole.BOUNDARY``, prescribed inflow
+        # included — its realization is the zero morphism (the affine
+        # ``q`` travels the boundary-source channel, not this tier), and a
+        # zero map is an ordinary linear ``B``. This comment named it as
+        # the ``None`` case until P3.
+        # ``getattr``-safe: an inner op without the attribute reports None
+        # — which remains reachable for a hand-wrapped operator, so the
+        # fallback stays.
         return getattr(self.inner, "block_role", None)
 
     def apply(self, psi: np.ndarray) -> np.ndarray:

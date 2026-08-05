@@ -41,6 +41,23 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   it was built from were wrong (the shipped split puts `1/norm` in `B`, not `C`, because `C` makes a
   *current* and `B` an *intensity*); every measurement on the page reads `0.0` either way, so no
   gate could see it. Re-verify the design-probe's description too. → L-049
+- **Ask WHICH SIDE of a carve a brief's "measured" number came from — and re-measure BOTH.** A
+  briefed "post-carve: agrees to solver tolerance, `1.998e-13`, `array_equal=False`" was a PRE-carve
+  number (two structurally different deliveries reaching one fixed point); post-carve the two
+  channels are the same float program and collapse to **`0.0`**, `array_equal=True`. Publishing the
+  brief would have inverted the carve's headline AND justified an `rtol` gate blind to the very
+  defect (`2.9e-14` sails through `10×inner_tol`). A pinned pre-carve worktree makes both sides
+  cheap and turns one number into a before/after table. ⚠ the venv's **editable install hooks
+  `sys.meta_path`, which OUTRANKS `sys.path`** — `PYTHONPATH=<worktree>` silently loads the MAIN
+  tree; strip the editable finder and PRINT `orpheus.__file__` as proof. → L-050
+- **Never accept a fixed-decimal printout as evidence of bit-exactness.** "`2.500000000000` at 12 dp"
+  cannot resolve `8e-15` at 2.5. Measured: the converged inflow trace is exact on SI (the sweep
+  *writes* the seed) and NOT on Krylov (GMRES *solves* the trace rows — 1–23 ULP at `tol=1e-13`,
+  27 580 ULP at `1e-10`, i.e. the iteration residual, not FP noise). An exactness claim true on one
+  inner solver is a **per-leg** gate (`array_equal` on the exact leg, `rtol=SAFETY×inner_tol` on the
+  iterative one) — say "do not relax the exact leg to match". Assert `x == v` or print
+  `float(x).hex()`. And run your OWN probes without `-O`: a bare `assert` in my widened check was
+  stripped (vv Mode 8, in my own instrument). → L-050
 - **A "MEASURED, do not re-derive" block is a CLAIM** — that means "don't burn a session", not
   "don't check". A bit-identity attribution was wrong on exactly the configuration that motivated
   the change; widen the repro to the WHOLE inventory, since the brief's sample is never the

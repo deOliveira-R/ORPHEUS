@@ -9,8 +9,9 @@ The L3 layer that turns a geometry-declared
 * :mod:`~orpheus.sn.boundary.angular` — the angular primitives the realizer
   consumes: :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` and
   :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`, the two
-  links of the factored Lambertian (white / diffuse-albedo BC), and
-  :class:`IncomingSourceOperator` (prescribed inflow).
+  links of the factored Lambertian (white / diffuse-albedo BC).
+  (``IncomingSourceOperator``, which realized prescribed inflow, lived there
+  until **P3** — 2026-08-05 — and was retired onto the zero morphism.)
 
 This seam was one of the two recorded witnesses of the
 :class:`~orpheus.transport.method.TransportMethod` Protocol (the other:

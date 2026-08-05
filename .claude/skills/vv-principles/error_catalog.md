@@ -5134,3 +5134,113 @@ Cross-refs: **ERR-042** (the same failure for specular BC pairings, one layer
 up, already carrying the three-check discipline), **ERR-073** (the bijection
 requirement in `_orbit_closure` that this fix consumes), **ERR-072** (the
 sibling "a certification claimed and never computed" in the same module).
+
+---
+
+## ERR-075 — the SN realizer returned an AFFINE operator for prescribed inflow and withheld the `BlockRole.BOUNDARY` stamp on the reasoning that the stamp's absence fenced it out of the `B` block: `SNBoundaryOperator._face_laws` never filtered on the stamp, so the source was delivered through `−B` as well as through `q_∂` — a 2× inflow on source iteration and a hard `ConvergenceCertificateError` on Krylov, both invisible because the law is not a registered `BC` kind and no test ran a full solve with a DECLARED law
+
+**Date:** filed 2026-08-05 (affine-boundary-source campaign, P3 — found by
+asking `B.apply(0)` while auditing a *different* claim, not by a failing test).
+
+**Where:** `orpheus/sn/boundary/realizer.py` (the `PrescribedInflow` arm) and
+`orpheus/sn/boundary/angular.py::IncomingSourceOperator` (both retired at P3);
+the un-filtering consumer is
+`orpheus/sn/operators/boundary.py::SNBoundaryOperator._face_laws`.
+
+**The bug.** The affine boundary law is `γ₋ψ = L γ₊ψ + q`. The realizer tier's
+contract is to realize `L`. For prescribed inflow `L = 0` and the whole content
+is `q` — but the arm returned an operator whose `apply` **ignored its input and
+returned `q`**:
+
+```python
+def apply(self, psi_out):
+    return self.source.evaluate((self.n_inflow,) + psi_out.shape[1:])
+```
+
+That is an affine map declared as a `LinearOperator`. `[M]` at `q = 2.5`:
+`A(0) = 2.5` and `A(2x) − 2A(x) = 2.5`.
+
+**The load-bearing error is not the affine operator — it is the FENCE ARGUMENT.**
+Three docstrings (`numerics/operator.py`, `geometry/boundary/_realizer.py`,
+`geometry/boundary/_bound_compat.py`) stated as the design of record that the
+rank-0 affine source "is deliberately NOT stamped `BlockRole.BOUNDARY` — it is
+the boundary *source* `q.boundary`, not a linear boundary operator `B`", and the
+campaign plan drew the conclusion that it therefore could not reach `B`. It
+could. `_face_laws` is:
+
+```python
+return {face: self.sn_mesh.bc[face]
+        for face in self.sn_mesh.angular_trace.layout.faces}
+```
+
+— every face, no `block_role` test anywhere. `SNBoundaryOperator` carries the
+stamp *itself* and applies all of its face laws, so an unstamped leaf is not
+excluded from anything. **The stamp is a classification consumers may query; it
+was never a gate.**
+
+**Measured consequences** (heterogeneous 2-group scattering slab, GL-8, identical
+composite bulk on every leg; `γ₋(xmin)` read off the converged answer, 12 dp):
+
+| configuration | SI | Krylov |
+|---|---|---|
+| declared inflow, both channels live | `5.000000000000` | ⛔ raises |
+| declared inflow, source channel disabled | `2.500000000000` | ⛔ raises |
+| vacuum mesh + hand-supplied `q_∂` | `2.500000000000` | `2.500000000000` |
+| vacuum control | `0.000000000000` | `0.000000000000` |
+
+`|φ_double − φ_vac| / |φ_single − φ_vac| = 2.000000` exactly. On Krylov it is
+worse and older: an affine `A(x) = A_lin(x) − c` breaks the Arnoldi relation
+`A V_k = V_{k+1} H_k`, so GMRES's tracked residual is meaningless and
+`_certify_within_group_exit` raises `‖Aψ − q‖/‖q‖ = 1.718`. That path had been
+UNUSABLE with a declared prescribed inflow since long before the source channel
+existed.
+
+**Why it survived.** One real fence, misread as two. `prescribed_inflow` is not a
+registered `BC` kind (`sn/mesh/augmented_mesh.py`, #189), so no production driver
+can install the law and only tests construct it — and **no test ran a full solve
+with a declared law.** The gates that existed stopped at
+`_build_fixed_source_rhs`: they correctly verified the RHS receives `q` and were
+structurally blind to `B` also delivering it. This is `verification-user-path`
+(`docs/theory/verification/principles.rst`) failing one commit after that
+doctrine landed — the gates travelled part of the user's path and stopped short
+of the solve.
+
+**The catcher.** `tests/sn/solve/test_declared_inflow_reaches_the_rhs.py::
+test_the_declared_boundary_law_holds_on_the_answer[source_iteration|krylov]`
+(`catches("ERR-075")`) — asserts `γ₋ψ|_f == q_f` on the converged answer. The
+boundary condition is a DEFINITION, so the gate needs no reference solver and no
+discretization assumption, and it separates the three outcomes exactly
+(`5.0` / `2.5` / `0.0`). Exactness is path-dependent and measured: SI copies the
+source into the slot (bit-exact); Krylov reaches the trace through its iterate
+(18 ULP at 2.5, gated by `assert_array_almost_equal_nulp(nulp=64)` — a ULP budget
+rather than an `rtol`, so it cannot quietly widen into the 1×/2× gap).
+
+**⭐ The generalizable lesson — a "it is fenced, so it cannot happen" argument is
+a claim about a CONSUMER and must be measured at the consumer.** Both fences here
+were read off the PRODUCER: the realizer returns an unstamped operator, the `BC`
+registry has no key. One of those (the registry) happened to be a genuine
+consumer-side fact. The other was an *inference* about what `SNBoundaryOperator`
+would do with an unstamped leaf, and the code it was an inference about is
+fourteen lines long and was never opened. The check costs one line —
+`B.apply(zero)` — and a linear operator's answer is `0` by definition, so the
+probe needs no oracle. **Whenever a design note says "X is excluded because it
+lacks Y", grep for who reads Y.** If nobody does, X is not excluded; and the
+absent-`Y` note will read, to every later reader, exactly like a safety argument.
+
+**⭐ Mutation-classification corollary (anti-pattern #18, measured here).** The
+obvious mutation — reinstate the affine operator — reddened 17 gates, but it
+breaks LINEARITY, so most of those reds see the broken law rather than the
+delivery count and must not be credited. The in-class mutations are `q → 2q` in
+the source channel (6 reds) and `L := IdentityOperator` (10 reds), both perfectly
+linear. The second is the discriminator: `B(0) == 0` still HOLDS under it, so a
+leaf-linearity gate is blind and only the converged-trace gate bites. A
+superposition gate ("φ is affine in `q`") is a *provable* non-catcher — a doubled
+delivery is `q → 2q`, which is still exactly affine in `q` (Mode 12).
+
+Cross-refs: **ERR-069** (the sibling prescribed-inflow delivery bug — the d3
+corner datum went silently zero, and also survived because it was verified only
+on the regimes where the missing arm is accidentally exact), **ERR-068** (the same
+`B_a` block, a transpose-side projection error that rode fixtures where two
+spellings coincide), **ERR-047** (the `q ∈ Γ₋` contract this campaign's source
+channel now carries), **ERR-063** (a "this change is inert" claim that held for
+the contract it was proven against and failed for a second consumer).

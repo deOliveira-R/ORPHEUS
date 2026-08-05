@@ -4487,6 +4487,61 @@ tool before crediting a baseline build warning.
 
 ---
 
+## L-050 — A brief's "measured, post-carve" number can be a PRE-carve number in disguise; re-measure BOTH sides of a carve, and never let a 12-dp printout stand in for bit-exactness
+
+The brief told me the post-carve two-channel equivalence was "to solver
+tolerance, NOT bit-identically: `|φ_D0 − φ_C|_inf = 1.998e-13`,
+`array_equal = False`", and asked me to document that as the current
+state with a `⚠`. It was a real measurement — of the **pre**-carve tree,
+between a delivery through the operator block and a delivery through the
+source channel (two structurally different computations reaching one
+fixed point). Post-carve the two channels are the SAME float program, so
+the difference collapses to **exactly `0.0`** with `array_equal = True`
+on every fixture and both inner solvers. Documenting the brief's framing
+would have published the inverse of the carve's most important
+consequence — and would have justified an `rtol` gate that is
+structurally BLIND to the defect the carve removed (`2.9e-14` relative
+sails through `rtol = 10 × inner_tol`).
+
+Second, worse trap in the same brief: it asserted the converged inflow
+trace is exact — "measured `5.000000000000` / `2.500000000000` /
+`0.000000000000` at 12 dp on both fixtures" — and specified a keystone
+gate as one `assert_array_equal` parameterized over BOTH inner solvers.
+Measured: exact on source iteration (the sweep *writes* the seed, so `q`
+arrives as a copy — `0.0` deviation, every fixture, every tolerance) and
+**NOT** exact on Krylov (GMRES *solves* for the trace rows, so the
+reading carries the iteration residual: 1–23 ULP at `inner_tol = 1e-13`,
+and **27 580 ULP** at `1e-10`). Twelve decimal places of `2.500000000000`
+cannot resolve `8e-15` at 2.5 — the printout that "proved" exactness was
+blind to the effect by three orders of magnitude, and the plan never
+caught it because the pre-carve Krylov leg *raised* instead of producing
+a reading. The specified gate would be red on Krylov for a reason with
+nothing to do with the claim.
+
+Third: my OWN verification probe hid a failure the same way. A widened
+bit-identity check used a bare `assert` inside a script I ran under
+`python -O` — vv Mode 8, in my own instrument. It reported clean; the
+assertion never executed.
+
+How to apply: (1) when a brief hands you a "measured" number about a
+change, ask WHICH SIDE of the change it was measured on — a pinned
+worktree at the pre-carve commit (`git worktree add <dir> <hash>`) makes
+both sides cheap, and re-measuring both turns one asserted number into a
+before/after table that is the strongest content on the page. (2) A
+venv's setuptools *editable* install hooks `sys.meta_path`, which
+OUTRANKS `sys.path` — `PYTHONPATH=<worktree>` silently loads the MAIN
+tree instead; strip the editable finder before importing, and PRINT
+`orpheus.__file__` as the proof (my first pre-carve run measured the live
+tree and looked plausible). (3) Never accept a fixed-decimal printout as
+evidence of bit-exactness — assert `x == v` or print `float(x).hex()`.
+(4) An exactness claim that holds on one inner solver and not another is
+a per-leg gate, not a weakened gate: say `assert_array_equal` on the
+exact leg and `rtol = SAFETY × inner_tol` on the iterative leg, and say
+explicitly "do not relax the exact leg to match". (5) Run your own
+probes WITHOUT `-O`, or raise instead of asserting.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

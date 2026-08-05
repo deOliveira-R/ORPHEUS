@@ -149,6 +149,27 @@ Key Facts
   the boundary trace space (then named ``InflowTraceSpace``; since
   #205 / #201 the unified
   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
+- **So does PRESCRIBED INFLOW — the same zero map, the same object**
+  (campaign phase **P3**, 2026-08-05). The realizer tier realizes the
+  law's LINEAR factor :math:`L = R\,G` and only that
+  (:eq:`bc-affine-linear-factor`); for prescribed inflow :math:`L = 0`,
+  so **vacuum and prescribed inflow differ only in** :math:`q`
+  (:eq:`bc-prescribed-zero-linear-factor`). The source travels the
+  typed boundary-source channel —
+  :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`,
+  the boundary leaf of the composite :math:`q = q_{\rm bulk} \oplus
+  q_\partial` — and :func:`~orpheus.sn.solver._build_fixed_source_rhs`
+  is its single construction point for both inner solvers. Until P3 this
+  law realized to an ``IncomingSourceOperator`` whose ``apply`` ignored
+  its input and returned :math:`q`: an **affine** map in a linear slot,
+  which the missing :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`
+  stamp was believed to fence out of :math:`B` and did not
+  (``SNBoundaryOperator._face_laws`` has no role filter — measured
+  :math:`\lVert B(0) \rVert_\infty = q`, a doubled delivery on source
+  iteration, and a raised
+  :class:`~orpheus.sn.solver.ConvergenceCertificateError` on Krylov).
+  Full derivation, measurements and gotchas:
+  :ref:`bc-affine-source-channel`.
 - **The face ordinate partition is THREE-way**, not two:
   :math:`\{1..N\} = I_f \sqcup O_f \sqcup T_f` with
   :math:`T_f = \{|\Omega\cdot\hat n| \le \texttt{TANGENTIAL\_EPS}\}`
@@ -288,7 +309,12 @@ where:
   vector-valued quantity on :math:`\Gamma_-` only. The empty case
   :math:`q \equiv 0` is the homogeneous BC; the inhomogeneous case
   :math:`q \neq 0` is the rank-0 affine BC
-  :class:`~orpheus.geometry.boundary.PrescribedInflow`.
+  :class:`~orpheus.geometry.boundary.PrescribedInflow`. It is **not**
+  realized as an operator: :math:`q` is the one factor the realizer
+  tier does not carry, travelling instead as the boundary leaf of the
+  composite source — see :ref:`bc-affine-source-channel`, which is also
+  where the consequence of that split (vacuum and prescribed inflow
+  realize to the *same* operator) is derived and measured.
 
 Three remarks make this form load-bearing:
 
@@ -1390,13 +1416,16 @@ own:
      - **dissolved** at B3.2 — the law's codomain *is*
        :math:`\Gamma_-`, so :math:`\iota_-` is the honest scatter, not
        a projection of a wider image
-   * - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`'s
-       dense inflow-mask multiply
+   * - ``IncomingSourceOperator``'s dense inflow-mask multiply
      - :math:`\iota_- \circ \gamma_-` (measured bit-identical to the
        slice-write)
-     - **dissolved** at B3.4a — the source is now asked to fill
-       :math:`|\Gamma_-|` rows directly, so there is nothing off
-       :math:`\Gamma_-` left to erase
+     - **dissolved** at B3.4a — the operator was thereafter asked to
+       fill :math:`|\Gamma_-|` rows directly, so nothing off
+       :math:`\Gamma_-` was left to erase. That operator itself retired
+       at **P3**, and the spec is now evaluated at the same
+       :math:`|\Gamma_-|` shape one tier out, by
+       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+       — see :ref:`bc-affine-source-channel`
    * - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
      - :math:`I - \iota_- \circ \gamma_-`
      - **off the vacuum path** at B3.2; the class itself retires at
@@ -1445,8 +1474,12 @@ across four law kinds. **B3.4a** took two of those kinds:
 * ``white``, whose Lambertian kernel now contracts over
   :math:`\Gamma_+` and re-emits on :math:`\Gamma_-`
   (:ref:`bc-narrowing-b34a`); and
-* ``prescribed_inflow``, whose rank-0 source now fills
-  :math:`|\Gamma_-|` rows directly.
+* ``prescribed_inflow``, whose rank-0 source was thereafter asked for
+  :math:`|\Gamma_-|` rows directly. **P3** then collapsed that arm
+  further — onto the zero morphism vacuum already returned, with the
+  source itself moved to the boundary-source channel
+  (:ref:`bc-affine-source-channel`), so the narrowing survives while the
+  operator that carried it does not.
 
 What remains is **four rows across two law kinds** — ``albedo`` at
 *three* rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
@@ -1572,19 +1605,36 @@ constructor that today refuses a full-face weight vector by name.
 **Prescribed inflow — the mask that dissolved.** An
 :class:`~orpheus.geometry.boundary.InflowSourceSpec` fills whatever
 block *shape* it is handed; it carries no trace knowledge. So pre-B3.4a
-:class:`~orpheus.sn.boundary.angular.IncomingSourceOperator` emitted a
+``IncomingSourceOperator`` emitted a
 full-face block and then zeroed every non-inflow ordinate — outflow AND
 tangential — to make :math:`q \in \Gamma_-` hold. With the codomain
-narrowed it simply asks the spec to fill ``(|Γ₋|,) + psi_out.shape[1:]``:
-the rows the mask used to zero are not in the codomain to be emitted
-on, so **ERR-047 is closed by the TYPE rather than by an erasure**.
+narrowed it simply asked the spec to fill
+``(|Γ₋|,) + psi_out.shape[1:]``:
+the rows the mask used to zero were not in the codomain to be emitted
+on, so **ERR-047 was closed by the TYPE rather than by an erasure**.
 That is precisely the dissolution vacuum's projector underwent at B3.2
 — the mask was never load-bearing physics, only the cost of a codomain
 that was too big. Its companion, an *unmasked* fallback branch legal
 only for :math:`q \equiv 0`, retired with it: post-B3.2 every
 realization needs :math:`\gamma_+` too, so a method space with no face
-data cannot reach the operator at all and the branch was already
+data could not reach the operator at all and the branch was already
 unreachable on the realize path.
+
+.. note::
+
+   **That operator no longer exists** (campaign phase **P3**,
+   2026-08-05), so this paragraph is history — but the *typing* half of
+   it survives verbatim one tier out. The spec is still evaluated at
+   exactly ``(|Γ₋|,) + trailing``, now by
+   :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+   on the way into the boundary-source channel, and ERR-047 is still
+   closed by the type rather than by an erasure. What B3.4a could not
+   see is that the operator was ALSO affine — it returned :math:`q`
+   whatever it was handed — and that this put an affine term inside the
+   linear :math:`B` block, which the missing ``BlockRole.BOUNDARY``
+   stamp did **not** prevent. See :ref:`bc-affine-source-channel` for
+   the collapse, the measurement, and why vacuum and prescribed inflow
+   realize to the same object.
 
 **Equivalence — and the reason two DIFFERENT effects both measure at
 1 ULP.** White's operator was measured against a reconstruction of the
@@ -1707,6 +1757,929 @@ chain's first link, checks
 and so has nothing to validate against. Refusal and non-endomorphism
 are separate properties; see the warning at :ref:`bc-worked-example`.
 
+
+.. _bc-affine-source-channel:
+
+The affine source channel — which tier carries :math:`q`
+--------------------------------------------------------
+
+:eq:`affine-bc-form` is an **affine** map, and an affine map has two
+halves. The realizer of :ref:`bc-realizer-layer` realizes the
+**linear** half and only the linear half; the inhomogeneous half
+travels a separate, typed channel and is added by the solve. Campaign
+phase **P3** (2026-08-05) is the carve that made that sentence true of
+the code as well as of the design; before it, one law realized both
+halves into a single object that was declared linear and was not.
+
+Write the law with the linear factor named:
+
+.. math::
+   :label: bc-affine-linear-factor
+
+   \gamma_-\psi\big|_f
+   \;=\; \underbrace{R\,G}_{\textstyle L_f}\;\gamma_+\psi\big|_f
+   \;+\; q_f ,
+   \qquad
+   \operatorname{realize}(\text{law}_f) \;=\; L_f ,
+   \qquad
+   q_f \in \Gamma_-(f).
+
+.. (vv-status rationale) Structural/tier-assignment: the same affine form as
+   :eq:`affine-bc-form`, with the realizer's output NAMED as its linear factor
+   L. It is a statement about which tier carries which half, not a solver
+   claim; its verifiable content is the linearity of every realized leaf
+   (``B(0) = 0``, ``B(2x) = 2B(x)``) plus the source-tier claim
+   :eq:`bc-single-delivery`. Per this page's V&V-status note, its equations are
+   definitional / structural-architecture statements.
+.. vv-status: bc-affine-linear-factor documented
+
+Then every law the SN realizer admits splits cleanly, and the split is
+the whole content of the carve (``zero_flux``, the seventh registered
+kind, has no SN ``isinstance`` arm at all and is REFUSED — a negative
+angular inflow is unrepresentable, so an angular method says ``vacuum``
+instead; it is realizable only on a scalar trace):
+
+.. list-table:: Every SN-realizable law as a linear factor plus a source
+   :header-rows: 1
+   :widths: 26 32 20 22
+
+   * - law
+     - :math:`L = R\,G`
+     - :math:`q`
+     - realized leaf
+   * - :class:`~orpheus.geometry.boundary.VacuumInflow`
+     - :math:`0` — the zero morphism
+       :math:`\Gamma_+ \to \Gamma_-`
+     - :math:`0`
+     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
+       bound
+   * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
+     - :math:`0` — **the same zero morphism**
+     - :math:`\neq 0`
+     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
+       bound
+   * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
+     - :math:`P` — a permutation (scaled by :math:`\alpha < 1`)
+     - :math:`0`
+     - ``PermutationOperator & IdentityOperator``
+   * - :class:`~orpheus.geometry.boundary.WhiteBoundary` /
+       diffuse :class:`~orpheus.geometry.boundary.AlbedoBoundary`
+     - :math:`B \circ C` — emit :math:`\circ` contract, the factored
+       Lambertian
+     - :math:`0`
+     - ``(IsotropicEmissionOperator @ PartialCurrentOperator)
+       & IdentityOperator``
+   * - specular :class:`~orpheus.geometry.boundary.AlbedoBoundary`
+     - :math:`\alpha P` — the reflective body at its own
+       :math:`\alpha`
+     - :math:`0`
+     - ``ScaledOperator(α, <that TP>)``
+   * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
+     - the identity on the local index, fed the **partner** face's
+       :math:`\Gamma_+`
+     - :math:`0`
+     - ``IdentityOperator & IdentityOperator``
+
+**Vacuum and prescribed inflow differ ONLY in** :math:`q`. That is not
+a tidiness observation, it is what makes a separate affine operator
+**unnecessary** rather than merely untidy: there is no linear content
+to distinguish them by, so a type that existed to carry prescribed
+inflow's realization was carrying an *empty* linear factor and a
+source that belongs to another tier. Measured on one
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, one face, both laws
+realized through :meth:`SNMesh.realize_boundary_law
+<orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>`:
+
+.. math::
+   :label: bc-prescribed-zero-linear-factor
+
+   \operatorname{realize}\bigl(\texttt{PrescribedInflow}(q)\bigr)
+   \;=\;
+   \operatorname{realize}\bigl(\texttt{VacuumInflow}()\bigr)
+   \;=\;
+   0_{\,\Gamma_+(f) \to \Gamma_-(f)}
+   \qquad\text{for every } q .
+
+.. (vv-status rationale) Structural/typing identity, not a solver claim: the
+   two laws realize to the SAME expression, so it is verified by object- and
+   space-identity assertions, not by a value. Gated at the production tier by
+   ``tests/sn/operators/test_operator_block_role.py``
+   (``test_prescribed_inflow_realizes_the_same_object_vacuum_does``:
+   ``type(...) is type(...)`` plus ``domain is`` / ``codomain is``) and by
+   ``tests/sn/operators/test_capability_survival.py``'s re-posed capability
+   rows; the ``ZeroOperator`` two-space contract itself is pinned by the
+   foundation suite ``tests/numerics/test_zero_operator_spaces.py``. NOTE the
+   Mode-12 hole recorded in the gotchas below: an identity row proves the two
+   AGREE, not that either names the right END — see G5 of the P3 verification
+   plan.
+.. vv-status: bc-prescribed-zero-linear-factor documented
+
+.. admonition:: The fixture every ``[M]`` on this page's section uses
+   :class: note
+
+   A **2-group, heterogeneous, scattering-active slab**, chosen so that
+   no result below rides on a degeneracy: two regions of mixtures
+   ``A`` | ``D`` from the cross-section library at ``2g``
+   (:math:`c \approx 0.90`–:math:`0.96`, with a non-symmetric
+   :math:`\Sigma_{s0}` so the group transfer is transpose-active), 1.0
+   and 2.0 cm thick, 6 + 6 cells, vacuum ``BC`` tags on both faces,
+   ``Quadrature.gauss_legendre(n_ordinates=8)`` — hence
+   :math:`|\Gamma_+| = |\Gamma_-| = 4` per face and a 32-value trace
+   (2 faces :math:`\times` 8 ordinates :math:`\times` 2 groups). The
+   prescribed inflow is installed by constructing the law and calling
+   :meth:`SNMesh.realize_boundary_law
+   <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>` for
+   the face, which is what the mesh's own resolve body does — a ``BC``
+   tag cannot express this law (see the warning below). The bulk source
+   is a spatially uniform isotropic
+   :math:`Q = 1` through
+   :meth:`AngularSourceSink.from_isotropic
+   <orpheus.transport.source_sinks.AngularSourceSink.from_isotropic>`,
+   identical on every leg of every comparison (gotcha 1 below explains
+   why that matters), and ``inner_tol = 1e-13`` unless a row says
+   otherwise. **Not** the campaign's ``placeholder_materials`` slab:
+   :math:`\Sigma_s \equiv 0` there, so a delivered inflow never feeds a
+   scattering source and the SI solve is a single sweep — the
+   delivery-count claim survives that degeneracy but a flux-level claim
+   on it would be configuration-blind.
+
+``[M]`` on that fixture, ``xmin`` declaring
+``PrescribedInflow(ConstantInflowSource(2.5))``:
+both leaves are a ``ZeroOperator``; ``type(prescribed) is
+type(vacuum)`` is ``True``; and on a single mesh instance
+``prescribed.domain is vacuum.domain`` and ``prescribed.codomain is
+vacuum.codomain`` are both ``True``, with
+``domain = AngularFaceTraceSpace('angular_trace[xmin:outflow]',
+shape=(4, 2))`` and ``codomain = …[xmin:inflow]…`` — i.e. exactly
+:math:`\Gamma_+(f)` and :math:`\Gamma_-(f)`. The default-source
+spelling ``PrescribedInflow()`` realizes to the same object as the
+sourced one, which is the honest reading of ":math:`L` does not depend
+on :math:`q`".
+
+One consequence is worth stating before the mechanics, because it is
+the reason the collapse is *safe*: since the realized operator no
+longer distinguishes the two laws, **anything that must still
+distinguish them has to read the LAW**, not the operator. Two
+consumers do, and both were written that way before P3 — see
+:ref:`bc-affine-channel-law-tier-consumers`.
+
+
+.. _bc-affine-channel-where-q-travels:
+
+Where :math:`q` travels instead — the composite source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The typed :math:`q` is
+:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` —
+the *eager, whole-boundary, mesh-bound* snapshot of the inflow,
+packed into the unified
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+flat layout (one flat vector of ``layout.total_size`` values, with
+per-face views). It carries angular-flux units, because :math:`q` is
+added to :math:`\gamma_-\psi`, not to a volumetric rate.
+
+It is not a second, parallel source object.
+:class:`~orpheus.transport.full_field.FullField` **is**
+``Composite[BulkField, BoundaryField]``, so the bulk and boundary
+source are **one** object
+
+.. math::
+   :label: bc-composite-source
+
+   q \;=\; q_{\rm bulk} \,\oplus\, q_\partial ,
+   \qquad
+   q_{\rm bulk} \in \text{BulkField},\quad
+   q_\partial \in \text{BoundaryField},
+
+.. (vv-status rationale) Representational: names the composite the solve's RHS
+   already is (the ``TimedFullField`` pair). Its verifiable content is the
+   class gate on every operator-output boundary plus the RHS construction
+   rows in ``tests/sn/solve/test_declared_inflow_reaches_the_rhs.py``
+   (``TestTheDeclarationIsNotInert``,
+   ``TestTheSourceCannotBeSpecifiedTwice``). Not a solver claim.
+.. vv-status: bc-composite-source documented
+
+and the single construction point for it is
+:func:`~orpheus.sn.solver._build_fixed_source_rhs`. **Both** inner
+paths consume what that helper returns — the source-iteration driver
+and the Krylov driver — so there is exactly one place where a boundary
+source can be attached and exactly one place where a bug in the
+attachment could live. A caller may hand
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` a bare
+``(N, ng, *spatial)`` bulk array or the full composite
+:class:`~orpheus.transport.timed_full_field.TimedFullField`; either
+way the helper normalises to :eq:`bc-composite-source`.
+
+The path from a declared law to a packed snapshot is a **ladder**, each
+rung delegating to the next so the packing rule is stated exactly once:
+
+.. list-table:: The recipe → snapshot ladder on :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
+   :header-rows: 1
+   :widths: 30 44 26
+
+   * - rung
+     - takes the source in the form …
+     - delegates to
+   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`
+     - **the form the problem holds** — a boundary condition someone
+       declared. Reads every face's ``mesh.bc[face].law`` and
+       materialises the
+       :class:`~orpheus.geometry.boundary.PrescribedInflow` sources
+       among them; every other law contributes nothing because its
+       whole content is :math:`L`
+     - ``from_specs``
+   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+     - **a lazy per-face recipe** — a mapping ``{face:
+       InflowSourceSpec}``, each evaluated at that face's
+       :math:`(|\Gamma_-(f)|,) + \text{trailing}` shape
+     - ``prescribed_inflow``
+   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+     - **known per-face arrays** — writes the **inflow** ordinate slots
+       of the named faces and leaves every other slot zero (a
+       prescribed source's outflow rows are physically meaningless, so
+       they are unrepresentable rather than overwritten)
+     - ``zeros_on``
+   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.zeros_on`
+     - **nothing** — the all-zero source every sourceless law needs, and
+       the base every rung above allocates before filling
+     - — (the bottom)
+   * - *(sibling, not a rung)*
+       :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
+     - **every** face's **full** slot, outflow rows included — the
+       general inherited constructor for non-inflow uses; nothing in the
+       ladder delegates to it, and a prescribed inflow must not use it
+     - —
+
+Only the top rung starts from a **declaration**, and that is why it is
+the top rung. A driver or a test that reaches for ``prescribed_inflow``
+directly is supplying by hand what the declaration should have
+produced, and is therefore exercising a path no user travels — see
+:ref:`verification-user-path`, whose worked example this boundary
+source is.
+
+``[M]`` the ladder is not decorative:
+``from_mesh_laws(mesh)`` and ``from_specs(mesh, {face: spec})`` return
+**bit-identical** arrays for a declared ``ConstantInflowSource(2.5)``
+(``np.array_equal`` on the flat values), and ``from_mesh_laws`` returns
+exactly ``zeros_on`` — ``q.linf == 0.0`` — for ``vacuum``,
+``reflective``, ``white``, and for ``PrescribedInflow(NoSource())``.
+Only ``PrescribedInflow(ConstantInflowSource(2.5))`` gives
+``q.linf == 2.5``. On the documented fixture the packed :math:`q` has 8
+non-zeros in 32 values: :math:`|\Gamma_-(\texttt{xmin})| = 4` inflow
+ordinates :math:`\times` 2 groups, and nothing anywhere else on the
+trace.
+
+The claim the channel exists to support is the affine law **evaluated
+on the answer**. For prescribed inflow :math:`L = 0`, so at
+convergence
+
+.. math::
+   :label: bc-single-delivery
+
+   \gamma_-\psi\big|_f \;=\; q_f
+   \qquad\text{exactly, and once.}
+
+Three failure directions are distinguishable in one reading of that
+equation, with no reference solver and no discretization dependence:
+a doubled delivery reads :math:`2q`, a lost channel reads :math:`0`,
+and a wrong linear factor reads :math:`q + L\gamma_+\psi \neq q`.
+
+.. warning::
+
+   ⚠ **That reading is bit-exact on source iteration and is NOT
+   bit-exact on Krylov** — and the difference is a property of the
+   inner solver, not of the delivery. It is the one measurement on this
+   page most likely to be gated wrongly, in either direction.
+
+   The sweep *writes* the inflow seed into :math:`\gamma_-\psi`, so on
+   SI the converged trace is :math:`q` **as a copy**: ``[M]``
+   ``0x1.4000000000000p+1``, :math:`\lVert \gamma_-\psi - q
+   \rVert_\infty = 0.0` exactly, on every fixture below and at every
+   tolerance. GMRES instead *solves* for the trace rows along with
+   everything else, so the converged trace carries the iteration
+   residual:
+
+   .. list-table:: :math:`\lVert \gamma_-\psi - q \rVert_\infty` at :math:`q = 2.5`, post-P3
+      :header-rows: 1
+      :widths: 34 12 18 10 12 14
+
+      * - fixture
+        - inner
+        - :math:`\lVert \gamma_-\psi - q \rVert_\infty`
+        - ULP
+        - exact?
+        - :math:`/\,(q\cdot\texttt{tol})`
+      * - GL-8, ``vac|vac``, ``inner_tol = 1e-13``
+        - SI
+        - ``0.0``
+        - 0
+        - **yes**
+        - ``0.0``
+      * - GL-8, ``vac|vac``, ``inner_tol = 1e-13``
+        - Krylov
+        - ``7.994e-15``
+        - 18
+        - no
+        - ``0.032``
+      * - GL-16, ``vac|vac``, ``inner_tol = 1e-13``
+        - Krylov
+        - ``3.109e-15``
+        - 7
+        - no
+        - ``0.012``
+      * - GL-8, ``vac|refl``, ``inner_tol = 1e-13``
+        - Krylov
+        - ``4.441e-16``
+        - 1
+        - no
+        - ``0.002``
+      * - GL-8, 12+12 cells, ``inner_tol = 1e-13``
+        - Krylov
+        - ``1.021e-14``
+        - 23
+        - no
+        - ``0.041``
+      * - GL-8, ``vac|vac``, ``inner_tol = 1e-10``
+        - Krylov
+        - ``1.225e-11``
+        - **27 580**
+        - no
+        - ``0.049``
+
+   Read the last row: loosening ``inner_tol`` by :math:`10^{3}` moves
+   the deviation by :math:`10^{3}`, so it is the **iteration residual**
+   and not floating-point noise — the ULP count is not a stable
+   quantity, while the ratio to :math:`q \cdot \texttt{inner\_tol}` is
+   (measured ``0.002``–``0.049`` across the scan). ``[M]`` the
+   hand-supplied channel shows the *same* deviation to the last bit, so
+   this is not an artefact of the declaration route.
+
+   **What the gate ships, and why it is TWO legs.** A single
+   ``assert_array_equal`` parameterized over both inner solvers — the
+   shape P3's verification plan first specified, on the strength of a
+   pre-carve measurement printed at 12 decimal places, which cannot
+   resolve :math:`8\times10^{-15}` at :math:`2.5` — is **red on
+   Krylov** for a reason that has nothing to do with the delivery
+   count. The keystone
+   ``test_the_declared_boundary_law_holds_on_the_answer`` therefore
+   splits the claim:
+
+   * **the delivery COUNT**, ``assert_allclose(rtol=0, atol=1e-9)`` on
+     both legs — eleven orders of margin over readings of ``0.0`` /
+     ``2.5`` / ``5.0``, so the three cases stay exactly
+     distinguishable while the failure message stays readable; and
+   * **the exactness**, per path: ``assert_array_equal`` on SI, and
+     ``assert_array_almost_equal_nulp(nulp=64)`` on Krylov
+     (:math:`\approx 3.5\times` the measured 18 ULP).
+
+   Splitting is what keeps the two claims from eroding each other. Do
+   **not** relax the SI leg to a tolerance to "match" Krylov: that
+   discards the one exact reading in the whole claim. And note what the
+   scan above implies about the ULP budget — a **fixed** ``nulp`` is a
+   floating-point claim about a quantity that is really an *iteration
+   residual*, so it is stable only at the fixture's ``inner_tol``.
+   ``nulp=64`` has ample headroom at ``1e-13`` and would be exceeded by
+   three orders at ``1e-10``. That is a deliberate trade: a ULP budget
+   cannot be quietly loosened the way an ``rtol`` can, so if someone
+   changes the fixture's tolerance the row goes red and asks to be
+   re-derived, which is the intended conversation.
+
+The pre-P3 double delivery is likewise exact on SI —
+``5.000000000000``, i.e. :math:`2.5 + 2.5` in IEEE — and on Krylov it
+did not produce a reading at all, because the solve raised (see
+:ref:`bc-affine-channel-the-defect`). See
+:ref:`bc-affine-channel-two-channels` for the *flux*-level comparison
+and which assertion belongs there.
+
+.. note::
+
+   :eq:`bc-single-delivery` carries **no** ``vv-status`` sentinel
+   because it needs none: it is a genuine L1 equation claim with a
+   committed gate. ``tests/sn/solve/test_declared_inflow_reaches_the_rhs.py``'s
+   ``test_the_declared_boundary_law_holds_on_the_answer`` carries
+   ``@pytest.mark.verifies("bc-single-delivery")`` on both inner-solver
+   parameters, plus ``@pytest.mark.catches("ERR-075")`` — the error
+   catalog's entry for the double delivery described in
+   :ref:`bc-affine-channel-the-defect`. Its negative control
+   (``test_an_undeclared_face_has_a_zero_inflow_trace``) pins the
+   complement: an all-vacuum mesh under the identical bulk source must
+   read :math:`\gamma_-\psi = 0` on **both** faces, without which the
+   keystone would pass against an implementation that wrote :math:`q`
+   onto every inflow trace unconditionally.
+
+
+.. _bc-affine-channel-the-defect:
+
+The defect the collapse closed — an affine map in a linear slot
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Until P3 the SN realizer answered ``PrescribedInflow`` with an
+``IncomingSourceOperator`` whose ``apply`` **ignored its input** and
+returned :math:`q`. That is an affine map declared as a
+:class:`~orpheus.numerics.operator.LinearOperator`. It carried no
+:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` stamp, and the
+stamp's absence was *believed* to fence it out of the :math:`B` block.
+
+**It did not.** The property that assembles :math:`B` is
+``SNBoundaryOperator._face_laws``
+(:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`), and it
+reads
+
+.. code-block:: python
+
+   return {
+       face: self.sn_mesh.bc[face]
+       for face in self.sn_mesh.angular_trace.layout.faces
+   }
+
+— every face in the trace layout, with **no** ``block_role`` filter.
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` carries the
+stamp itself, applies every law it collected, and never asks a leaf
+what its role is. So the affine leaf reached the block, and :math:`B`
+stopped being linear.
+
+``[M]`` in a worktree pinned at the pre-carve commit (``ef4c3537``,
+which already carried the P2′ source wiring), same 2-group
+heterogeneous slab, ``xmin`` declaring
+``PrescribedInflow(ConstantInflowSource(2.5))``:
+
+.. list-table:: The operator tier, before and after the collapse
+   :header-rows: 1
+   :widths: 42 29 29
+
+   * - measured on :math:`B`
+     - pre-P3
+     - post-P3
+   * - faces collected by ``_face_laws``
+     - ``['xmax', 'xmin']``
+     - ``['xmax', 'xmin']`` — **unchanged; there was never a filter**
+   * - ``xmin`` leaf's ``block_role``
+     - ``None``
+     - ``BlockRole.BOUNDARY``
+   * - realized ``xmin`` leaf
+     - ``IncomingSourceOperator``
+     - ``ZeroOperator``
+   * - :math:`\lVert B(0) \rVert_\infty`, bulk block
+     - ``0.0``
+     - ``0.0``
+   * - :math:`\lVert B(0) \rVert_\infty`, **boundary block**
+     - ``2.5`` — a linear operator has :math:`B(0) = 0`
+     - ``0.0``
+   * - :math:`\lVert B(2x) - 2B(x) \rVert_\infty`
+     - ``2.5``
+     - ``0.0``
+   * - ``B.is_adjointable``
+     - ``False`` — the affine leaf declined a transpose, and the
+       per-face intersection rule made the **whole** block
+       non-adjointable
+     - ``True``
+
+Two end-to-end consequences followed, and they are different on the
+two inner solvers.
+
+**On source iteration the inflow was delivered TWICE.** :math:`q_\partial`
+enters the SI right-hand side and :math:`B\psi` enters as a coupling
+gain, so once P2′ wired the declared law into the source channel while
+the affine operator was still in the block, both carried it. ``[M]``
+on the documented fixture, comparing a declared inflow (``D``) against
+the same inflow hand-supplied on an all-vacuum mesh (``C``) against a
+no-inflow control (``V``):
+
+.. list-table:: Converged inflow trace :math:`\gamma_-\psi` at ``xmin``, and the delivery ratio
+   :header-rows: 1
+   :widths: 34 22 22 22
+
+   * - configuration
+     - pre-P3, SI
+     - pre-P3, Krylov
+     - post-P3, both
+   * - ``D`` — declared ``PrescribedInflow(2.5)``
+     - ``5.0`` (bit-exact: ``0x1.4000000000000p+2``)
+     - raises (below)
+     - ``2.5``
+   * - ``D0`` — declared, source channel disabled (the pre-P2′
+       behaviour, reached by monkeypatching ``from_mesh_laws`` back to
+       ``zeros_on``)
+     - ``2.5``
+     - raises (below)
+     - —
+   * - ``C`` — all-vacuum mesh, :math:`q_\partial` supplied directly
+     - ``2.5``
+     - ``2.5``
+     - ``2.5``
+   * - ``V`` — all-vacuum, no inflow (control)
+     - ``0.0``
+     - ``0.0``
+     - ``0.0``
+   * - :math:`\lVert \varphi_D - \varphi_V \rVert_\infty /
+       \lVert \varphi_C - \varphi_V \rVert_\infty`
+     - ``2.0000000000``
+     - —
+     - ``1.0000000000``
+
+Every entry in that table is a trace value read at the SI convergence
+point, where it is bit-exact; the ``post-P3, both`` column reads
+``2.5`` on SI bit-exactly and on Krylov to the iteration residual (the
+warning at :eq:`bc-single-delivery` carries that scan). The ratio is
+**exactly** two pre-P3 and **exactly** one post-P3, on
+every fixture measured. Note what row ``D0`` says about the history:
+pre-P2′ a declared inflow was *not* inert — it was delivered, through
+the affine operator inside :math:`B`. P2′ then added the channel it
+should have travelled all along, and the two deliveries summed. P3
+removes the wrong one.
+
+**On the Krylov path it was worse, and had been for longer.** GMRES's
+residual bookkeeping rests on the Arnoldi relation
+:math:`A V_k = V_{k+1} H_k`, which requires :math:`A` to be linear. An
+affine :math:`A(x) = A_{\rm lin}(x) + c` breaks it, so the residual
+SciPy tracks internally becomes meaningless: it reports convergence
+while the iterate does not solve the equation.
+:func:`~orpheus.sn.solver._certify_within_group_exit` catches exactly
+that — it recomputes the honest equation residual
+:math:`\lVert A\psi - q \rVert / \lVert q \rVert` after any convergence
+claim and raises
+:class:`~orpheus.sn.solver.ConvergenceCertificateError`:
+
+.. code-block:: text
+
+   solve_sn_fixed_source[krylov]: the within-group solve claimed
+   convergence (running residual 0.000e+00 < tol 1.0e-13) but the
+   honest equation residual is ‖Aψ − q‖/‖q‖ = 2.313e+00 — the
+   iteration's fixed point does not solve the equation (the #282
+   lag-death class: a stale/lagged block inside M; the free-identity
+   stop is structurally blind to it).
+
+``[M]`` pre-P3 **both** rows raise: ``D`` at a defect of ``2.313e+00``
+and ``D0`` at ``2.504e+00`` on the documented fixture (P3's
+verification plan measured ``1.718e+00`` on its own probe — the
+magnitude is fixture-dependent, the :math:`\mathcal{O}(1)` scale is
+not). So **a declared prescribed inflow combined with the Krylov inner
+solver was simply UNUSABLE**, at the pre-carve commit *and* before the
+source channel existed. P3 is a bug **fix**, not prophylaxis; ``[M]``
+post-P3 the same configuration converges on both inner solvers and the
+certificate is silent.
+
+.. warning::
+
+   **Only one fence was ever real, and it is the reason a green suite
+   never saw any of this.** ``prescribed_inflow`` is **not a registered
+   ``BC`` kind** — :class:`~orpheus.geometry.mesh.BC`'s ``params`` is
+   ``dict[str, float]``, so a tag can carry ``{"albedo": 0.7}`` but
+   never an inflow distribution, and the SN tag registry admits only
+   ``{vacuum, reflective}``. A non-trivial prescribed inflow is
+   reachable **only** by constructing the law object and installing it,
+   which no production driver did. Issue **#189** tracks registering
+   the kind for the constant case; it is a separate, weaker question.
+
+   The two defects protected each other. The bypass — every existing
+   non-vacuum test supplied :math:`q_\partial` by hand — is why no test
+   could observe the law tier at all; and the law tier's inertness (as
+   far as any driver was concerned) is why the bypass looked harmless.
+   That is the :ref:`verification-user-path` doctrine's canonical
+   instance: the gates were operator-tier or right-hand-side-tier, and
+   never a *solve* started from a *declaration*.
+
+
+.. _bc-affine-channel-two-channels:
+
+The two channels, and what "equivalent" means
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are two user-visible ways to put flux into :math:`\Gamma_-`:
+
+1. **Declare the law** — install
+   :class:`~orpheus.geometry.boundary.PrescribedInflow` on a face and
+   let :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`
+   find it. This is the user path.
+2. **Supply** :math:`q_\partial` **directly** — build the source with
+   :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+   and pass the composite. This is what the existing non-vacuum
+   manufactured-solution coverage does, deliberately bypassing the law
+   tier.
+
+Post-P3 the two reach the same fixed point, and the *strength* of that
+agreement is the sharpest single statement about what the carve did:
+
+.. list-table:: Declared (``D``) versus hand-supplied (``C``), post-P3
+   :header-rows: 1
+   :widths: 34 17 15 17 17
+
+   * - fixture
+     - inner
+     - :math:`\lVert \varphi_D - \varphi_C \rVert_\infty`
+     - ``array_equal``
+     - delivery ratio
+   * - slab 2G het, ``xmin`` only
+     - SI
+     - ``0.000e+00``
+     - ``True``
+     - ``1.0000000``
+   * - slab 2G het, ``xmin`` only
+     - Krylov
+     - ``0.000e+00``
+     - ``True``
+     - ``1.0000000``
+   * - slab 2G het, **both** faces declaring
+     - SI / Krylov
+     - ``0.000e+00``
+     - ``True``
+     - ``1.0000000``
+   * - slab 2G het, ``xmax`` reflective
+     - SI / Krylov
+     - ``0.000e+00``
+     - ``True``
+     - ``1.0000000``
+   * - slab 2G het, ``gauss_legendre(16)``
+     - SI / Krylov
+     - ``0.000e+00``
+     - ``True``
+     - ``1.0000000``
+
+**Bit-identical, on every fixture and both inner solvers — and that is
+structural, not luck.** Post-P3 the two configurations are the *same
+floating-point program*: the realized :math:`B` is a ``ZeroOperator``
+in both (by :eq:`bc-prescribed-zero-linear-factor`), every other
+operator is built from the same ``(mesh, quadrature, materials)``, and
+the two right-hand sides carry bit-equal :math:`q_\partial` arrays. The
+only precondition is that last one — the declared spec must *evaluate*
+to the same floats the hand-built slot was filled with, which holds by
+construction for a constant source compared against a constant slot,
+and is exactly the property
+:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+was built to guarantee (it evaluates at the same shape the inline path
+asked for).
+
+.. warning::
+
+   ⚠ **The pre-P3 number for this same comparison is 1.998e-13 — and
+   a tolerance-based two-channel flux gate is therefore BLIND to the
+   defect P3 removed.** ``[M]`` at ``ef4c3537``, rows ``D0`` versus
+   ``C``: :math:`\lVert \varphi_{D0} - \varphi_C \rVert_\infty =
+   1.9984\times10^{-13}` with ``array_equal = False``, against
+   :math:`\lVert \varphi \rVert_\infty = 6.838442` — a relative
+   :math:`2.92\times10^{-14}`, i.e. :math:`0.3 \times
+   \texttt{inner\_tol}` at ``inner_tol = 1e-13``.
+
+   That non-zero difference was never an error. It was the
+   **signature** of the two channels being two different computations
+   reaching the same fixed point: the delivery travelled through
+   :math:`B` as an off-diagonal gain rather than through
+   :math:`q_{\rm ext}`, so the reduction tree differed. Post-P3 it
+   collapses to ``0.0`` because there is one computation.
+
+   The consequence for gate design is concrete. A two-channel flux
+   comparison at ``rtol = 10 × inner_tol`` — a defensible tolerance
+   derived from the iteration floor — **passes** on a
+   :math:`2.9\times10^{-14}` relative difference. It can see the
+   :math:`2\times` double delivery and it cannot see a re-introduced
+   *structural* difference between the channels. Assert
+   ``np.array_equal`` on the flux for the constant-source case, and
+   state the precondition; if a future non-constant spec makes the two
+   :math:`q_\partial` arrays differ in their last bit, pin **that**
+   (a source-tier ``array_equal`` on the two :math:`q_\partial`
+   arrays) and let the flux comparison relax — do not silently swap
+   an exact gate for a tolerance and call it the same claim.
+
+**Which gate asserts what.** The distinction matters in both
+directions and is easy to get backwards:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 22 48
+
+   * - quantity
+     - assertion
+     - why
+   * - converged inflow trace
+       :math:`\gamma_-\psi\big|_f` against the declared :math:`q_f`
+       (:eq:`bc-single-delivery`) — the **delivery count**
+     - ``assert_allclose(rtol=0, atol=1e-9)``, both inner solvers
+     - eleven orders of margin over ``0.0`` / ``2.5`` / ``5.0``, so the
+       three readings stay exactly distinguishable. This is the leg
+       that IS the claim; the exactness legs below are about *how* the
+       trace is reached, not *how much* arrived
+   * - the same trace — the **exactness**, SI leg
+     - ``assert_array_equal`` — bit-exact
+     - the sweep *writes* the seed, so :math:`q` arrives as a copy;
+       measured ``0.0`` deviation on every fixture and every tolerance.
+       If a future moment-resolved trace makes it inexact, descend to
+       ``assert_array_almost_equal_nulp`` and say why — **not** to
+       ``rtol``
+   * - the same trace — the **exactness**, Krylov leg
+     - ``assert_array_almost_equal_nulp(nulp=64)``
+     - GMRES *solves* for the trace rows, so the reading carries the
+       iteration residual (18 ULP measured, and tolerance-dependent —
+       see the warning above). A fixed ULP budget is chosen over an
+       ``rtol`` precisely because it cannot be quietly loosened
+   * - converged **flux**, declared versus hand-supplied
+     - ``np.array_equal`` post-P3 (measured), with the bit-equal
+       :math:`q_\partial` precondition stated
+     - the two solves are the same float program; a tolerance here is
+       blind to the ``1.998e-13`` structural-difference signature
+       above
+   * - the operator tier: :math:`B(0) = 0`,
+       :math:`B(2x) = 2B(x)`, :math:`B(x{+}y) = B(x){+}B(y)` over the
+       whole shipped law set
+     - exact, and reachable **without a solve**
+     - it catches an affine term anywhere in the block at
+       *construction* time — the day the next affine operator is
+       written, before it reaches a solver. It is blind to the
+       delivery count (a source doubled in :math:`q_\partial` leaves
+       :math:`B` perfectly linear) and blind to a wrong-but-linear
+       :math:`L`
+
+.. note::
+
+   A **superposition** gate — "the flux is affine in the inflow
+   amplitude with slope :math:`s`" — was considered for this claim and
+   **rejected**. The double delivery *is* :math:`q \mapsto 2q`, which
+   is still exactly affine in :math:`q`: :math:`\varphi(a) =
+   \varphi(0) + a\,s` holds for every :math:`s`, including
+   :math:`s = 2 s_{\rm true}`. The measured functional's invariance
+   group contains the scale factor, so the gate is designed-green on
+   the entire defect class at every tolerance and every refinement —
+   a textbook ``vv-principles`` **Mode 12** non-catcher. Only the
+   *coefficient*, pinned against an independent reference, has teeth,
+   and that is what :eq:`bc-single-delivery` does directly.
+
+   A frozen snapshot of the converged flux was rejected for a
+   different reason: it asserts that production equals a recording of
+   production, cannot distinguish "delivered twice" from "the spec
+   changed", and would have to be re-baselined by the very carve it is
+   meant to gate.
+
+
+.. _bc-affine-channel-gotchas:
+
+Five gotchas, all measured
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**1. The two bulk-source arms take different types, and mixing them
+reads as a boundary difference.**
+:func:`~orpheus.sn.solver._build_fixed_source_rhs` accepts either a
+per-ordinate ``(N, ng, *spatial)`` array *or* a composite whose bulk
+leaf is an
+:class:`~orpheus.transport.source_sinks.AngularSourceSink`. The two are
+**not** interchangeable spellings of one source. The array form is
+already a per-ordinate density :math:`Q_n`, while
+:meth:`AngularSourceSink.from_isotropic
+<orpheus.transport.source_sinks.AngularSourceSink.from_isotropic>`
+takes a *scalar* :math:`Q(\vec r, g)` and applies the
+:math:`1/\sum_n w_n` projection at the producer boundary (Pattern 7).
+So the same-looking pair of spellings differs by exactly the
+quadrature's total weight. ``[M]`` on the fixture above,
+``np.ones((N, ng, …))`` against
+``AngularSourceSink.from_isotropic(np.ones((ng, …)))``:
+:math:`\varphi[0,0] = 4.524718` versus :math:`2.262359`, ratio
+**2.000000** exactly — which is :math:`\sum_n w_n = 2` for a
+Gauss–Legendre rule on :math:`\mu \in [-1, 1]` (it would be
+:math:`4\pi` for a full-sphere rule).
+
+A factor of :math:`\sum_n w_n` in the **bulk** presents as a
+disagreement of the *boundary* channel, because that is the only thing
+the comparison was varying. Any two-channel comparison must therefore
+supply the *identical* bulk spelling on both legs; building both legs'
+source through one helper makes the trap unspellable rather than
+avoided by care.
+
+**2. Double specification is REFUSED, not resolved.** If the mesh
+declares a ``PrescribedInflow`` **and** the composite
+``external_source`` carries a non-zero boundary leaf, there are two
+answers to one question.
+:func:`~orpheus.sn.solver._build_fixed_source_rhs` raises. Neither
+alternative is acceptable: adding double-counts (the exact defect this
+section documents), and overriding makes one of the two inputs a silent
+no-op. **Both wrong answers are quiet**, which is why the refusal is
+loud. A composite whose boundary leaf is all-zero alongside a
+declaration is fine — that is the normal declared-law path.
+
+**3. The** ``BlockRole.BOUNDARY`` **stamp is honest metadata; it is
+NOT a fence.** ``[M]`` and stated plainly because a reader will
+otherwise assume it is load-bearing: ``_face_laws`` never filtered on
+``block_role``, so the stamp's presence or absence changes **nothing**
+about :math:`B`'s behaviour. Making
+:func:`~orpheus.geometry.boundary.stamp_boundary_role` a no-op for
+prescribed inflow reddens the direct stamp assertions and no numerical
+gate — the stamp claim needs its own assertion, and a value gate
+structurally cannot supply one. What the stamp *does* do is describe a
+leaf's role for a reader and for the block-role marker classes; what it
+never did is keep anything out of the block. Post-P3 the stamp is also
+no longer an exception: every realizable law carries it, prescribed
+inflow included, because the leaf is now genuinely linear.
+
+**4. A declared prescribed inflow is REFUSED on a carrying
+(1-D curvilinear) mesh — and the hand-supplied channel is not.** This
+is the one place where the two channels of
+:ref:`bc-affine-channel-two-channels` are *not* interchangeable, and
+it is a deliberate loud deferral rather than a defect. ``[M]`` on a
+2-group heterogeneous sphere:
+
+.. code-block:: text
+
+   declared law      : NotImplementedError
+       RadialCharacteristicBoundaryOperator: the outer-face law
+       PrescribedInflow (G=SelfPairedDeck, R=0.0) has no ruled corner
+       action yet (white / albedo / periodic / a prescribed source at
+       the off-quadrature μ = ±1 ray — loud-deferred, 2.5d
+       plan-of-record).
+   hand-supplied q_∂ : OK   γ₋(xmax) = [2.5]
+
+A seed-carrying mesh closes its ray boundary at the off-quadrature
+:math:`\mu = \pm 1` corner, and
+:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`'s
+corner block is a **linear** operator on the ray alone. A prescribed
+inflow's corner value is a free parameter, not a function of the
+outflow ray, so a linear corner block structurally cannot carry it —
+whereas the *source* side has a ruled three-arm inflow-corner law and
+delivers it fine. The predicate is a **type** test on the
+prescribed-inflow family, by design: ``[M]``
+``_has_ruled_corner_action`` is ``False`` for both
+``PrescribedInflow(ConstantInflowSource(2.5))`` **and** the default
+``PrescribedInflow()`` at its zero source, and ``True`` for vacuum.
+Testing the source *value* instead would quietly admit the default
+spelling and then silently drop the source the day one was set.
+
+**5. The identity row proves the two laws AGREE — not that either names
+the right END.** :eq:`bc-prescribed-zero-linear-factor` is gated by
+``test_prescribed_inflow_realizes_the_same_object_vacuum_does``, which
+asserts ``prescribed.domain is vacuum.domain`` and
+``prescribed.codomain is vacuum.codomain``. Read what that row cannot
+see: if **both** leaves were bound swapped —
+:math:`\text{domain} := \Gamma_-`,
+:math:`\text{codomain} := \Gamma_+` — the row stays **green**, because
+it compares the two operators against each other and never against the
+trace. And the construction-time guard cannot catch it either:
+:math:`|\Gamma_+| = |\Gamma_-|` on every quadrature :math:`\times` face
+in the tree (see the warning at :ref:`bc-narrowing-what-it-removed`), so
+a size check passes both ways. This is a textbook ``vv-principles``
+**Mode 12** blindness — the measured functional (mutual agreement) has
+the error class in its invariance group.
+
+``[M]`` the binding is correct today: ``prescribed.domain`` **is**
+``trace.outflow_space("xmin")`` and ``prescribed.codomain`` **is**
+``trace.inflow_space("xmin")``, verified by object identity, and the
+same holds for the default-source spelling. But that measurement is not
+a gate. The gate that would close the hole is one ``is``-identity row
+per bound realized law naming *which* space is *which end* — asserting
+against the **trace's** ``outflow_space`` / ``inflow_space``, not
+against a sibling operator. It exists for the hand-built type
+(``tests/numerics/test_zero_operator_spaces.py`` carries a
+``test_the_ends_are_not_swapped`` row on an intentionally *unequal*
+:math:`3 \times 7` fixture, which is what makes a swap observable
+there) and for the specular chain
+(``tests/sn/operators/test_specular_deck_chain.py``); at the production
+tier it exists for **neither** vacuum nor prescribed inflow. It is item
+**G5** of P3's verification plan, and it is the reason the
+``vv-status`` rationale on
+:eq:`bc-prescribed-zero-linear-factor` records a known hole rather than
+claiming full coverage.
+
+
+.. _bc-affine-channel-law-tier-consumers:
+
+The two law-tier consumers that still discriminate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Collapsing the operator raises an obvious question: what breaks in the
+consumers that needed to tell prescribed inflow apart? Nothing, and
+the reason is that **both of them read the LAW, not the realized
+operator** — and both said so, in their own comments, before P3 was
+planned. This was a prediction to check, not a reassurance to accept;
+``[M]`` it holds, and both refusals fire on the *family*, whatever
+:math:`q` currently holds:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 40 30
+
+   * - consumer
+     - what it asks
+     - post-P3
+   * - :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`'s
+       corner block, via ``_has_ruled_corner_action``
+     - is the law outside the prescribed-inflow family, **and** either
+       :math:`R = 0` or the composite a specular pairing? The corner
+       block is linear on the off-quadrature ray, so a free-parameter
+       inflow has no expressible action there
+     - unchanged — ``isinstance(law, PrescribedInflow)`` disqualifies,
+       loud-deferred (gotcha 4 above)
+   * - :class:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem`
+     - is the law's low-order edge row proven? A zero response gives
+       the Marshak row and an ordinate-permuting geometry gives the
+       zero-net-current row; a free-parameter inflow has **no row** in
+       the low-order edge system
+     - unchanged — excluded by family, because admitting it on a zero
+       default :math:`q` would build a Marshak row and silently drop
+       the source the day one was set
+
+Both are the same discipline in two places: **a type test on the family
+is the honest predicate when the disqualifying property belongs to the
+family whatever the current value is.** A response-factor test alone
+would admit prescribed inflow (its :math:`R` *is* zero) — measured
+while writing the DSA guard, and the reason the ``isinstance`` arm is
+there. Post-P3 that discipline is what carries the discrimination the
+operator tier deliberately gave up, and it is the reason the collapse
+does not leak into the accelerator or the ray corner.
 
 .. _bc-realizer-layer:
 
@@ -3661,21 +4634,31 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        **#183** was exactly this gap and closes here; the
        ``PeriodicWrapOperator`` type retired with it
      - n/a (periodic has no α parameter)
-   * - :class:`PrescribedInflow(source)` — rank-0 **affine**, not a
-       linear law; **narrowed** (B3.4a)
-     - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-       — :meth:`apply` ignores the outgoing flux and asks the source
-       spec to fill ``(|Γ₋|,) + psi_out.shape[1:]``. The dense inflow
-       **mask** dissolved with the codomain at B3.4a: the outflow and
-       tangential rows it used to zero are no longer in the codomain to
-       be emitted on, so :math:`q \in \Gamma_-` holds by TYPING rather
-       than by an erasure (ERR-047), exactly as vacuum's projector
-       dissolved at B3.2. Its unmasked companion branch (legal only for
-       :math:`q \equiv 0`) retired with it — post-B3.2 a method space
-       with no face data cannot supply :math:`\gamma_+` either, so that
-       branch was already unreachable here. Still unreachable from a
-       ``BC`` tag in production (the SN registry admits only
-       ``{vacuum, reflective}``).
+   * - :class:`PrescribedInflow(source)` — the rank-0 **affine** law;
+       **narrowed** (B3.4a), **collapsed** (P3)
+     - the **zero map** :math:`\Gamma_+ \to \Gamma_-` — literally the
+       same :class:`~orpheus.numerics.operator.ZeroOperator` expression
+       the vacuum row above builds, from the same
+       ``_narrowed_zero_operator`` body, stamped
+       :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` like every
+       other law. The law stays affine; this tier realizes its LINEAR
+       factor, and for prescribed inflow that factor is zero, so
+       **vacuum and prescribed inflow differ only in** :math:`q` — which
+       travels the boundary-source channel instead
+       (:ref:`bc-affine-source-channel`). Until **P3** this arm returned
+       an ``IncomingSourceOperator`` whose ``apply`` ignored the
+       outgoing flux and asked the source spec to fill
+       ``(|Γ₋|,) + psi_out.shape[1:]`` — an AFFINE map in a linear slot,
+       measured :math:`\lVert B(0) \rVert_\infty = 2.5` at
+       :math:`q = 2.5`; the spec is now evaluated at that same shape by
+       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+       one tier out. The dense inflow **mask** had already dissolved
+       with the codomain at B3.4a, so :math:`q \in \Gamma_-` holds by
+       TYPING rather than by an erasure (ERR-047), exactly as vacuum's
+       projector dissolved at B3.2. Still unreachable from a ``BC`` tag
+       in production (the SN registry admits only
+       ``{vacuum, reflective}``, #189) — the law is declarable only by
+       constructing it directly.
      - n/a
 
 .. note::

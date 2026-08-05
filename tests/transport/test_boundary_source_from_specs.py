@@ -11,19 +11,26 @@ routes to :math:`q`, related as *recipe → snapshot* rather than as duplicates:
   :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` generators onto
   the trace.
 
-⭐ **The load-bearing claim is the last test in this module:**
-``from_specs`` evaluates each spec at ``(|Γ₋|,) + trailing``, which is *exactly*
-the shape :meth:`~orpheus.sn.boundary.angular.IncomingSourceOperator.apply` asks
-for. So the two routes to :math:`q` agree **by construction** rather than by a
-transcription that could drift. That property is what the later phases rely on
-when they retire the inline path — without it, "the bridge computes the same
-thing" would be a claim needing its own perpetual regression gate.
+⭐ **The load-bearing claim is the last test in this module:** ``from_specs``
+evaluates each spec at ``(|Γ₋|,) + trailing`` and writes the result to the
+inflow rows **in order**. The oracle is the spec called DIRECTLY on a
+hand-derived shape — the independence lives in deriving that shape and placing
+those rows, which is the whole of what ``from_specs`` does.
+
+**P3 note (2026-08-05).** Until P3 the oracle was
+``IncomingSourceOperator.apply``, whose entire body was
+``source.evaluate((n_inflow,) + trailing)``. Retiring that operator did NOT cost
+this module an independent reference: the operator was a one-line adapter, never
+the source of the independence, so the migration is a straight inlining of the
+call it made. Both sides are still produced independently — one by the bridge,
+one by asking the user's own spec object.
 
 ⚠ **What these gates deliberately do NOT claim.** They pin the *materialisation*,
 not the *wiring*: nothing here asserts that a declared
-:class:`~orpheus.geometry.boundary.PrescribedInflow` reaches a solve. It does not
-(P2′ — the mesh-BC bridge), and a gate implying otherwise would be the
-"honest metadata that gates nothing" shape this campaign keeps finding.
+:class:`~orpheus.geometry.boundary.PrescribedInflow` reaches a solve. That is
+P2′/P3's claim, gated in ``tests/sn/solve/``; a gate here implying otherwise
+would be the "honest metadata that gates nothing" shape this campaign keeps
+finding.
 """
 
 from __future__ import annotations
@@ -34,7 +41,6 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import ConstantInflowSource, NoSource
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.angular import IncomingSourceOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.source_sinks import AngularBoundarySourceSink
 from tests.sn._test_helpers import placeholder_materials
@@ -54,8 +60,24 @@ def _slab(n_ord: int = 8, ng: int = 2, nx: int = 4) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+@pytest.mark.catches("ERR-047")
 class TestTheRecipeLandsOnTheInflowSlotsOnly:
-    r""":math:`q \in \Gamma_-` — by construction, not by an erasure."""
+    r""":math:`q \in \Gamma_-` — by construction, not by an erasure.
+
+    ⭐ **The ERR-047 marker MIGRATED here at P3** (2026-08-05), from
+    ``tests/geometry/test_bc_universal_invariants.py::
+    TestSourceLivesOnIncomingTraceInvariant``, whose operator-side rows asked
+    the REALIZED law to deliver ``q`` and then checked which rows it landed on.
+    Post-P3 the realized law delivers nothing — it is the zero morphism — so
+    the postcondition had to travel with the delivery, and this is the channel
+    that now delivers. (The law-tier rows there keep their own copy of the
+    marker: they exercise ``assert_source_lives_on_incoming_trace`` itself,
+    which is what the catalog entry names.)
+
+    The catalogued hazard is unchanged in substance: an inflow source written
+    into slots the sweep discards leaves the total inflow SHORT of intent. What
+    changed is which code could commit it.
+    """
 
     def test_the_inflow_rows_carry_the_recipes_value(self) -> None:
         """A constant recipe fills every inflow ordinate of the named face."""
@@ -147,24 +169,28 @@ class TestTheContractIsEnforced:
 
 
 class TestTheTwoRoutesAgreeByConstruction:
-    r"""⭐ The keystone: the bridge and the inline path evaluate the SAME shape.
+    r"""⭐ The keystone: the bridge delivers exactly what the SPEC produces.
 
-    :meth:`IncomingSourceOperator.apply` asks the spec for
-    ``(|Γ₋|,) + psi_out.shape[1:]``; ``from_specs`` asks for
-    ``(|Γ₋|,) + slot.shape[1:]``. On a face those trailing axes are the same
-    axes, so the two calls are the same call — and the equality below is a
-    consequence rather than a coincidence that needs watching.
+    ``from_specs`` asks each spec for ``(|Γ₋|,) + slot.shape[1:]`` and writes
+    the answer to that face's inflow rows. The oracle asks the same spec for
+    ``(|Γ₋|, ng)`` derived by hand from the trace. Independence is intact: one
+    side is the bridge, the other is the user's own spec object; neither calls
+    the other.
+
+    Until **P3** the oracle read ``IncomingSourceOperator(spec,
+    n_inflow=…).apply(probe)``, whose body was precisely
+    ``spec.evaluate((n_inflow,) + probe.shape[1:])`` — so retiring the operator
+    inlines the call rather than removing a reference. See the module docstring.
     """
 
     @pytest.mark.parametrize("value", [2.5, -1.0, 0.0])
-    def test_the_bridge_reproduces_the_inline_operators_values(
+    def test_the_bridge_reproduces_the_specs_own_values(
         self, value: float
     ) -> None:
-        """Bit-identical, on the inflow rows the inline path produces."""
+        """Bit-identical to the spec's own output, on the inflow rows."""
         sn = _slab()
         trace = sn.angular_trace
         inflow = trace.inflow_indices_for_face("xmin")
-        outflow = trace.outflow_indices_for_face("xmin")
         spec = ConstantInflowSource(value=value)
 
         bridged = np.asarray(
@@ -172,14 +198,8 @@ class TestTheTwoRoutesAgreeByConstruction:
             .face_view("xmin")
         )[inflow]
 
-        inline = IncomingSourceOperator(
-            spec, n_inflow=int(np.size(inflow))
-        ).apply(
-            # apply IGNORES its input except for the trailing axes, which is
-            # exactly why a zero probe of the right shape is sufficient.
-            np.zeros((int(np.size(outflow)), sn.ng))
-        )
-        np.testing.assert_array_equal(bridged, inline)
+        direct = spec.evaluate((int(np.size(inflow)), sn.ng))
+        np.testing.assert_array_equal(bridged, direct)
 
     def test_a_nonconstant_recipe_also_agrees(self) -> None:
         r"""⭐ The negative leg — a constant recipe cannot see an ORDERING bug.
@@ -192,7 +212,6 @@ class TestTheTwoRoutesAgreeByConstruction:
         sn = _slab()
         trace = sn.angular_trace
         inflow = trace.inflow_indices_for_face("xmin")
-        outflow = trace.outflow_indices_for_face("xmin")
 
         class _Ramp:
             """``q[n, g] = n + 10·g`` — distinct in BOTH axes, deliberately."""
@@ -208,11 +227,9 @@ class TestTheTwoRoutesAgreeByConstruction:
             AngularBoundarySourceSink.from_specs(sn, {"xmin": _Ramp()})
             .face_view("xmin")
         )[inflow]
-        inline = IncomingSourceOperator(
-            _Ramp(), n_inflow=int(np.size(inflow))
-        ).apply(np.zeros((int(np.size(outflow)), sn.ng)))
+        direct = _Ramp().evaluate((int(np.size(inflow)), sn.ng))
 
-        np.testing.assert_array_equal(bridged, inline)
+        np.testing.assert_array_equal(bridged, direct)
         # Activation guard: the fixture must actually vary, or the ordering
         # claim above is vacuous.
         assert bridged.min() != bridged.max(), (

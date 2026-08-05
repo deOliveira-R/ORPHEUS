@@ -280,10 +280,24 @@ class SNBoundaryOperator(LinearOperator):
     realizing periodic answered ``True``, so a consumer got opposite answers
     depending on which it asked — the declaration was reporting an unbuilt
     partner channel (#183) in a slot whose contract is a property of the map.
-    B3.4c built the channel and the declaration became true. The one law that
-    legitimately sits outside the agreement is the AFFINE
-    :class:`~orpheus.geometry.boundary.PrescribedInflow`, whose content is the
-    source term the factor pair does not carry.
+    B3.4c built the channel and the declaration became true. **Since P3
+    (2026-08-05) the agreement holds for every shipped law with no
+    exception.** The AFFINE
+    :class:`~orpheus.geometry.boundary.PrescribedInflow` sat outside it until
+    then — both its factors declare adjointable while its realized affine
+    operator declined a transpose — and P3 closed the gap by realizing the
+    law's LINEAR factor, the zero morphism, whose transpose is itself. The
+    affine ``q`` is still not carried by the factor pair
+    (:ref:`bc-affine-source-channel`); the difference is that the tier no
+    longer pretends ``q`` is an operator.
+
+    ⚠ **A capability widened here.** :attr:`is_adjointable` below is the
+    per-face conjunction, so ONE non-adjointable law made the whole ``B``
+    block non-adjointable. Pre-P3 a declared prescribed face did exactly
+    that, putting ``B.apply_transpose`` and ``B.H`` out of reach on such a
+    mesh; post-P3 it does not. The configuration is observable only in tests
+    — #189 keeps prescribed inflow out of every production driver — which is
+    why it went unnoticed.
 
     Since **B3.4b** an albedo face answers by its **re-emission closure**, not
     by its class: a specular closure realizes to the same scaled permutation

@@ -13,8 +13,20 @@ operator here should be promoted to ``orpheus/numerics/`` (per
 Cardinal Rule 2 — no shared abstraction with only one consumer).
 Today: :class:`PartialCurrentOperator` and
 :class:`IsotropicEmissionOperator` — the two links of the factored Lambertian
-(white / diffuse-albedo, via the SN realizer) — and
-:class:`IncomingSourceOperator` (prescribed inflow) are all SN-only.
+(white / diffuse-albedo, via the SN realizer) — are both SN-only.
+
+``IncomingSourceOperator`` lived here until **P3** of the affine-boundary-source
+campaign (2026-08-05). It realized prescribed inflow as a rank-0 map whose
+``apply`` ignored its input and returned :math:`q` — i.e. an **affine** map
+declared as a :class:`~orpheus.numerics.operator.LinearOperator`, measured
+``A(0) = 2.5`` and ``A(2x) − 2A(x) = 2.5`` at :math:`q = 2.5`. It was retired
+onto the **zero morphism** every other zero-response law already returns
+(:func:`~orpheus.sn.boundary.realizer._narrowed_zero_operator`): the affine law
+is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, this tier realizes :math:`L`, and
+for prescribed inflow :math:`L = 0`. The source travels the boundary-source
+channel instead (:ref:`bc-affine-source-channel`). Retiring it removed a
+DOUBLE delivery, not merely an untidy type — see the realizer's own arm for the
+measurement.
 
 ``AngularAverageOperator`` lived here until **G6.3 step 3b** (2026-08-04) as the
 WELDED Lambertian: one operator :math:`\Gamma_+ \to \Gamma_-` that withheld its
@@ -35,116 +47,14 @@ from orpheus.numerics.operator import (
     LinearOperator,
     checked_space_extent,
 )
-from orpheus.numerics.face_layout import AXIS_NAMES, face_name
-from orpheus.numerics.spaces.angular_trace_space import (
-    TANGENTIAL_EPS,
-    build_omega_dot_n,
-)
 
 if TYPE_CHECKING:
-    from orpheus.geometry.boundary._source import InflowSourceSpec
-    from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
 
 __all__ = [
-    "IncomingSourceOperator",
     "IsotropicEmissionOperator",
     "PartialCurrentOperator",
 ]
-
-
-class IncomingSourceOperator(LinearOperator):
-    r"""Prescribed inflow source — returns the source value, ignores input.
-
-    Realises the :math:`q` term in the §16A.1 affine BC form
-
-    .. math::
-
-        \gamma_- \psi \;=\; R\,G\,\gamma_+ \psi \;+\; q
-
-    for the rank-0 case where :math:`R = 0` and only the source
-    matters: :math:`\gamma_- \psi = q`. (Campaign phase **B3.0**
-    corrected the older spelling ":math:`R = G = 0`" — it is the
-    RESPONSE that vanishes; :math:`G` is the identity deck element,
-    because the zero map is not a bijection and so cannot be a geometry
-    map at all. Writing both as zero spelled one vanishing twice, once
-    in the wrong tier.) The :meth:`apply` IGNORES its
-    input and returns the source evaluated on a probe inflow trace
-    matching the input shape. Used by the SN realizer for
-    :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`.
-
-    **B3.4a — the inflow mask dissolved.** An
-    :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` fills
-    whatever block *shape* it is handed (it carries no trace knowledge),
-    so pre-B3.4a this operator emitted a FULL-FACE block and then zeroed
-    every non-inflow ordinate — outflow AND tangential — to make the
-    affine form's :math:`q \in \Gamma_-` hold. With the codomain narrowed
-    to :math:`\Gamma_-` the operator simply asks the spec to fill a
-    :math:`|\Gamma_-|`-row block: the rows the mask used to zero are no
-    longer in the codomain to be emitted on, so ERR-047 is closed by the
-    TYPE rather than by an erasure. That is the same dissolution the
-    vacuum projector underwent at B3.2 — the mask was never load-bearing
-    physics, only the cost of a codomain that was too big.
-
-    The masked branch had a companion: an *un*masked fallback for a method
-    space carrying no inflow indices, legal only for :math:`q \equiv 0`.
-    It is retired with the mask. Post-B3.2 every realization needs
-    :math:`\gamma_+` too, so a method space with no face data cannot reach
-    this operator at all — the fallback was already unreachable on the
-    realize path.
-
-    Apply-only. The operator is rank-0 in the input (every input maps to
-    the same source value); it is NOT invertible and NOT naturally
-    self-adjoint. ``solve`` and ``apply_transpose`` are deliberately NOT
-    advertised.
-
-    Parameters
-    ----------
-    source : InflowSourceSpec
-        The :math:`q` source generator. Typically
-        :class:`~orpheus.geometry.boundary._source.NoSource` (no
-        inflow, equivalent to vacuum) or
-        :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`
-        for a uniform inflow level. Custom
-        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
-        implementations may inject spatially / energy- / angularly-
-        varying inflow.
-    n_inflow : int
-        :math:`|\Gamma_-|` — the codomain size, i.e. how many inflow
-        ordinates this face carries. Required: the source is asked to
-        fill the CODOMAIN's shape, which the domain does not determine.
-    """
-
-    def __init__(
-        self,
-        source: "InflowSourceSpec",
-        *,
-        n_inflow: int,
-    ) -> None:
-        self.source = source
-        n_inflow = int(n_inflow)
-        if n_inflow < 0:
-            raise ValueError(
-                f"IncomingSourceOperator n_inflow must be non-negative; "
-                f"got {n_inflow}."
-            )
-        #: :math:`|\Gamma_-|` — the codomain size the source is asked to fill.
-        self.n_inflow = n_inflow
-
-    def apply(self, psi_out: np.ndarray) -> np.ndarray:
-        r"""Return :math:`q` on :math:`\Gamma_-`. ``psi_out`` is IGNORED
-        (an affine source does not depend on the outgoing flux) — only its
-        TRAILING axes are read, to size the group / spatial block.
-
-        Since **B3.4a** the source is asked to fill
-        ``(|Γ₋|,) + psi_out.shape[1:]`` directly, so the affine form's
-        :math:`q \in \Gamma_-` holds because there are no other rows to
-        write, not because a mask erased them.
-        """
-        psi_out = np.asarray(psi_out)
-        return self.source.evaluate(
-            (self.n_inflow,) + tuple(int(s) for s in psi_out.shape[1:])
-        )
 
 
 # ─────────────────────────────────────────────────────────────────────

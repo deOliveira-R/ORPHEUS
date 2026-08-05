@@ -32,15 +32,23 @@ special-casing them in the solver layer; the affine-form refactor
 prescribed-inflow law is the smallest concrete BC that exercises
 this slot.
 
-The realizer dispatch maps an instance to
-:class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`, whose
-:meth:`apply` ignores the outgoing flux and returns the source
-evaluated on :math:`|\Gamma_-|` rows. Campaign phase **B3.4a**
-narrowed that operator's codomain to :math:`\Gamma_-` and retired the
-inflow MASK it previously used to zero the non-inflow rows of a
-full-face emission: the rows the mask erased are no longer in the
-codomain to be written, so the affine form's :math:`q \in \Gamma_-`
-now holds by TYPING rather than by an erasure (ERR-047).
+The realizer dispatch maps an instance to the **zero morphism**
+:math:`\Gamma_+ \to \Gamma_-` — the law is affine,
+:math:`\gamma_-\psi = L\,\gamma_+\psi + q`, the realizer tier realizes
+:math:`L`, and here :math:`L = 0`. The :attr:`source` reaches a solve
+through the boundary-source channel instead
+(:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`;
+see :ref:`bc-affine-source-channel`).
+
+Until **P3** (2026-08-05) the dispatch produced an
+``IncomingSourceOperator`` whose ``apply`` ignored the outgoing flux and
+returned :math:`q` — an affine map declared as a linear operator, which
+reached the ``B`` block and delivered the source there as well. Campaign
+phase **B3.4a** had narrowed that operator's codomain to
+:math:`\Gamma_-`, retiring the inflow MASK that used to zero the
+non-inflow rows of a full-face emission; that is why the affine form's
+:math:`q \in \Gamma_-` holds by TYPING rather than by an erasure
+(ERR-047), a property the source channel inherits.
 """
 
 from __future__ import annotations
@@ -65,14 +73,13 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     the identity deck element — see :attr:`geometry_map`).
 
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
-    no ``apply`` method. The SN realisation is
-    ``IncomingSourceOperator(source, n_inflow=|Γ₋|)``, narrowed
-    :math:`\Gamma_+ \to \Gamma_-` at campaign phase **B3.4a**.
-    Realising needs a **face**: the operator sizes the delivered
-    :math:`q` from :math:`|\Gamma_-|`, and an
-    :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` fills
-    whatever block shape it is handed, so the face must supply that
-    shape. ``SNMethodSpace.minimal`` raises.
+    no ``apply`` method. The SN realisation is the zero morphism
+    :math:`\Gamma_+ \to \Gamma_-` (since **P3**; narrowed to the two
+    half-traces at campaign phase **B3.4a**). Realising still needs a
+    **face**, and the demand is structural rather than a leftover: a law
+    that cannot name its own domain is not realized, it is guessed, and a
+    zero map that cannot name its CODOMAIN degenerates to echoing its
+    input. ``SNMethodSpace.minimal`` raises.
 
     .. code-block:: python
 
@@ -136,10 +143,12 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
         identity element.
 
         **Corrected in B3.** This property previously returned ``NullMap``
-        (:math:`G = 0`). The realized ``IncomingSourceOperator`` describes
-        itself as *"the rank-0 case where R = G = 0"*, and that phrasing is the
-        same conflation: the zero map is not a bijection and so cannot be a
-        geometry map, and :math:`R = 0` alone already severs the routing.
+        (:math:`G = 0`), and the then-realized ``IncomingSourceOperator``
+        described itself as *"the rank-0 case where R = G = 0"* — the same
+        conflation, spelled one vanishing twice: the zero map is not a
+        bijection and so cannot be a geometry map, and :math:`R = 0` alone
+        already severs the routing. (That operator was itself retired at
+        **P3**; the ruling here is unchanged by it.)
         """
         return SelfPairedDeck.identity()
 

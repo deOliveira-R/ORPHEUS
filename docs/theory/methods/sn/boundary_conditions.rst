@@ -271,7 +271,13 @@ primitives are, with each law's affine factors alongside:
      - 0
      - ``SelfPairedDeck.identity()``, ``ScalarResponse(0.0)``, plus
        :math:`q \in \Gamma_-`
-     - 0 with :math:`q \neq 0` / no (rank-0 source-only affine BC)
+     - 0 with :math:`q \neq 0` / not ``solve_sn`` (a k-eigenvalue
+       problem has no external inflow), but **yes**
+       ``solve_sn_fixed_source`` since campaign phase P2′ — the
+       declared source is read by
+       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`
+       and delivered through the boundary-source channel
+       (:ref:`bc-affine-source-channel`)
 
 Note vacuum's and prescribed inflow's :math:`G`: it is the **identity
 deck element**, not zero. The zero map is not a bijection, so it cannot
@@ -535,15 +541,23 @@ at :ref:`bc-sweep-cycle`.
        A **scalar** method needs no closure, which is why the diffusion
        realizer takes the same object unchanged
      - n/a
-   * - ``"prescribed_inflow"`` — rank-0 **affine**, **narrowed**
-       :math:`\Gamma_+ \to \Gamma_-` (B3.4a)
+   * - ``"prescribed_inflow"`` — the rank-0 **affine** law;
+       **narrowed** :math:`\Gamma_+ \to \Gamma_-` (B3.4a),
+       **collapsed** onto the zero morphism (P3)
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
-     - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
-       — :meth:`apply` ignores the outgoing flux and asks the source
-       spec to fill ``(|Γ₋|,) + psi_out.shape[1:]``. The inflow **mask**
-       dissolved with the codomain at B3.4a: the outflow and tangential
-       rows it used to zero are no longer emitted on, so :math:`q \in
-       \Gamma_-` holds by TYPING rather than by an erasure (ERR-047).
+     - the same :class:`~orpheus.numerics.operator.ZeroOperator` the
+       vacuum row builds. This tier realizes the law's LINEAR factor
+       :math:`L`, and for prescribed inflow :math:`L = 0`; the source
+       :math:`q` travels the boundary-source channel
+       (:ref:`bc-affine-source-channel`), assembled from the declared
+       law by
+       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`.
+       Until **P3** this arm returned an ``IncomingSourceOperator``
+       whose ``apply`` ignored the outgoing flux and asked the source
+       spec to fill ``(|Γ₋|,) + psi_out.shape[1:]`` — affine, in a
+       linear slot. The inflow **mask** had dissolved with the codomain
+       at B3.4a, so :math:`q \in \Gamma_-` holds by TYPING rather than
+       by an erasure (ERR-047).
      - —
 
 .. note::

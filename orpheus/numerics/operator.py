@@ -377,13 +377,34 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     The realized boundary laws produced by the functional method
     realizers —
     :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
-    (vacuum / reflective / white / albedo / periodic) and
+    (vacuum / reflective / white / albedo / periodic / prescribed inflow)
+    and
     :meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`
     (the albedo family incl. zero-flux, #290) — carry
     :attr:`BlockRole.BOUNDARY` via
-    :func:`~orpheus.geometry.boundary.stamp_boundary_role`; the rank-0
-    affine ``PrescribedInflow`` source does NOT — it is the boundary
-    *source* ``q.boundary``, not a linear boundary operator ``B``.
+    :func:`~orpheus.geometry.boundary.stamp_boundary_role`.
+
+    **EVERY realizable law is stamped, prescribed inflow included** (P3,
+    2026-08-05). Until P3 this docstring named it as the one exception,
+    on the reading that the rank-0 affine source is the boundary *source*
+    ``q.boundary`` rather than a linear boundary operator ``B``. The
+    affine split is real and unchanged — see
+    :ref:`bc-affine-source-channel` — but it does not put the law outside
+    this marker: the law is ``γ₋ψ = L γ₊ψ + q``, the realizer realizes
+    ``L``, and for prescribed inflow ``L = 0``. A zero morphism is an
+    ordinary linear boundary operator, and it is the same one vacuum
+    realizes to.
+
+    ⛔ The exception was also not doing the job it appeared to do. An
+    unstamped leaf is NOT excluded from ``B``:
+    :attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_laws`
+    collects every face's law with no ``block_role`` filter, so the
+    pre-P3 AFFINE operator reached the block regardless — measured
+    ``|B(0)| = q`` and ``|B(2x) − 2B(x)| = q``, and on the Krylov path a
+    raised ``ConvergenceCertificateError``, because an affine map breaks
+    the Arnoldi relation GMRES's residual depends on. The stamp is
+    honest metadata about a leaf's role; it is not, and never was, the
+    fence.
     """
 
     _role = BlockRole.BOUNDARY
@@ -1907,15 +1928,57 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     grid's (B, B) slot, whose whole grid the daggered eigen posing
     transposes. Without either hook both directions stay the endomorphic
     ``0.0 * x`` echo, bit-identical to the pre-A4 behaviour.
+
+    Naming the two spaces (G6.3 step 6, #330)
+    ----------------------------------------
+
+    The zero map is the one operator whose ACTION cannot reveal which spaces it
+    connects — every input goes to zero, so no probe distinguishes
+    :math:`0 : \mathcal D \to \mathcal C` from :math:`0` on any other pair. The
+    two hooks above already carry the *shapes* (that is what they are FOR); the
+    optional ``domain`` / ``codomain`` carry the **identities**, so a zero slot
+    composes under the :class:`OperatorSum` / :class:`OperatorProduct`
+    composability check like any other bound operator instead of silently
+    short-circuiting it via ``None``.
+
+    Note the distinction from the class's TYPE parameters: ``Domain`` /
+    ``Codomain`` are the static element types (what ``apply`` consumes and
+    emits); ``domain`` / ``codomain`` are the runtime
+    :class:`~orpheus.numerics.space.FunctionSpace` instances (WHICH space, of
+    possibly many sharing that element type). A zero map between two distinct
+    trace half-spaces of one face has identical type parameters and different
+    spaces — which is exactly the case
+    :func:`~orpheus.sn.boundary.realizer._narrowed_zero_operator` binds.
+
+    Unlike the four operators guarded by :func:`checked_space_extent`, this one
+    stores no LENGTH to check a bound space against: the hooks are opaque
+    callables, and calling one at construction to measure its output would
+    require an input this class does not have. The consistency check therefore
+    belongs to the caller that knows both facts —
+    ``_narrowed_zero_operator`` runs it there, against the half-trace index
+    arrays it sizes the hooks from.
     """
 
     def __init__(
         self,
         codomain_zero: "Callable[[Domain], Codomain] | None" = None,
         transpose_zero: "Callable[[Codomain], Domain] | None" = None,
+        *,
+        domain: Optional["FunctionSpace"] = None,
+        codomain: Optional["FunctionSpace"] = None,
     ) -> None:
         self._codomain_zero = codomain_zero
         self._transpose_zero = transpose_zero
+        self._domain = domain
+        self._codomain = codomain
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        return self._domain
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self._codomain
 
     def apply(self, x: Domain, /) -> Codomain:
         if self._codomain_zero is not None:

@@ -41,6 +41,7 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
+    ConstantInflowSource,
     IsotropicReturn,
     NoSource,
     PeriodicBoundary,
@@ -187,6 +188,27 @@ _LINEAR_LAWS = {
         0.3, IsotropicReturn(axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN),
     ),
     "periodic": PeriodicBoundary(),
+    # ⭐ P3 (2026-08-05) — prescribed inflow JOINED this table. It sat outside,
+    # in a dedicated ``test_prescribed_inflow_is_not_boundary_operator`` row
+    # asserting the opposite, on the claim that the rank-0 affine source is
+    # ``q.boundary`` and not a linear boundary operator ``B``. That claim was
+    # refuted: the affine law is ``γ₋ψ = L γ₊ψ + q``, this tier realizes ``L``,
+    # and for prescribed inflow ``L = 0`` — a perfectly ordinary linear
+    # boundary operator, and the SAME object vacuum realizes to. The source
+    # travels the boundary-source channel instead.
+    #
+    # ⛔ The old exclusion was not merely a mis-labelling: because
+    # ``SNBoundaryOperator._face_laws`` applies every face's law with no role
+    # filter, the unstamped AFFINE operator reached ``B`` anyway
+    # (``|B(0)| = q``, measured), so the source was delivered through ``B``
+    # *and* through the source channel — a double count. Membership here is
+    # what makes the two channels one.
+    "prescribed_inflow": PrescribedInflow(
+        source=ConstantInflowSource(value=2.5),
+    ),
+    # …and the sourceless spelling, whose ``q`` is zero: it must realize to the
+    # same LINEAR object, since the source is not what this tier carries.
+    "prescribed_no_source": PrescribedInflow(source=NoSource()),
 }
 
 
@@ -203,16 +225,37 @@ class TestBoundaryLeaves:
         assert not isinstance(op, BulkOperator)
         assert not isinstance(op, FullOperator)
 
-    def test_prescribed_inflow_is_not_boundary_operator(self) -> None:
-        """The rank-0 affine ``PrescribedInflow`` source is ``q.boundary``,
-        NOT a linear boundary operator ``B`` — it carries no block role."""
-        op = SNBoundaryRealizer().realize(
-            PrescribedInflow(source=NoSource()), _boundary_method_space(),
+    def test_prescribed_inflow_realizes_the_same_object_vacuum_does(self) -> None:
+        r"""⭐ P3: vacuum and prescribed inflow differ ONLY in :math:`q`.
+
+        REPLACES ``test_prescribed_inflow_is_not_boundary_operator``, whose
+        claim (no block role; not a ``BoundaryOperator``) P3 refuted — see the
+        note on the ``prescribed_inflow`` rows of :data:`_LINEAR_LAWS`, which
+        now carry the role claim through the parameterized gate above.
+
+        This row adds what a parameterized membership cannot say: that the two
+        laws realize to the same TYPE with the same two spaces. The affine
+        form is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`; both laws have
+        :math:`L = 0`, and the only difference between them lives in a term
+        this tier does not carry. If a future edit gave prescribed inflow its
+        own zero-ish operator again, the membership rows would still pass and
+        this one would not.
+        """
+        space = _boundary_method_space()
+        vacuum = SNBoundaryRealizer().realize(VacuumInflow(), space)
+        prescribed = SNBoundaryRealizer().realize(
+            PrescribedInflow(source=ConstantInflowSource(value=2.5)), space,
         )
-        assert getattr(op, "block_role", None) is None
-        assert not isinstance(op, BoundaryOperator)
-        assert not isinstance(op, BulkOperator)
-        assert not isinstance(op, FullOperator)
+        assert type(prescribed) is type(vacuum)
+        assert prescribed.domain is vacuum.domain
+        assert prescribed.codomain is vacuum.codomain
+        # …and the source amplitude is invisible here, which is the point: the
+        # LINEAR factor cannot depend on q.
+        sourceless = SNBoundaryRealizer().realize(
+            PrescribedInflow(source=NoSource()), space,
+        )
+        assert type(sourceless) is type(prescribed)
+        assert sourceless.codomain is prescribed.codomain
 
     def test_mesh_bc_forwards_boundary_role(self) -> None:
         """``sn_mesh.bc`` entries (the ``_BoundBoundaryOperator`` shim) forward

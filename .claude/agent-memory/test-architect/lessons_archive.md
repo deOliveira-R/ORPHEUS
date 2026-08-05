@@ -3275,3 +3275,175 @@ Pattern-6's trim signal verbatim. Raised as an explicit user ruling (refine vs
 retire) rather than decided in a test plan — because if it is retired, three of
 the ten gates collapse into "ask the algebra" (`P @ P` raises), which is the
 better claim anyway.
+
+---
+
+## L39 — P3 affine-boundary-source carve: the CONSUMPTION-TIER readout, and a "prophylactic" carve that was a live bug
+
+Dispatch 2026-08-05, `refactor/operator-strategy-layers` @ `ef4c3537`. Brief:
+plan the verification for retiring `IncomingSourceOperator` and collapsing
+`realize(PrescribedInflow)` onto the zero morphism. Brief already carried a
+measured double-delivery finding; my job was the gate design.
+
+### 1. ⭐⭐ The keystone gate was NOT one of the three candidates offered
+
+The brief offered (a) `B(0)==0` linearity, (b) two-user-path flux agreement,
+(c) superposition in `q`. The winner was a FOURTH: **evaluate the boundary law
+on the converged answer.** For prescribed inflow `L = 0`, so
+`γ₋ψ|_f == q_f` — read from `sol.angular_flux.boundary.face_view(f)[inflow]`.
+
+`[M]` het-2G scattering slab, identical composite bulk on every row:
+
+| config | SI `γ₋(xmin)` | Krylov |
+|---|---|---|
+| declared, HEAD (both channels) | `5.000000000000` | RAISES |
+| declared, pre-P2′ (operator channel only) | `2.500000000000` | RAISES |
+| all-vacuum + composite `q_∂` (source channel only) | `2.500000000000` | `2.500000000000` |
+| vacuum control | `0.000000000000` | `0.000000000000` |
+
+**Three configurations, three bit-exactly distinguishable readings, ONE
+assertion, NO reference solver.** Double = `2q`, loss = `0`, wrong `L` =
+`q + Lγ₊ψ`. Closed-form pillar (the BC *is* the definition), discretization-,
+mesh-, quadrature- and materials-independent. `assert_array_equal` is EARNED
+(`5.0` is `2.5+2.5`, exact; `2.5` is a copy).
+
+⭐ **Generalisable rule: when a carve is about "is this term delivered, and how
+many times?", look for a tier where the governing EQUATION can be evaluated on
+the converged answer.** A trace/boundary/interface DOF is usually such a tier,
+because the posed system's rows there ARE the constitutive law. That beats a
+snapshot (self-referential), beats a flux comparison (needs tolerance + a
+non-vacuity leg), and beats linearity (blind to the source channel).
+
+### 2. ⛔ Candidate (c) — superposition in `q` — is a Mode-12 NON-CATCHER
+
+The double delivery IS `q → 2q`, **which is still exactly affine in `q`**.
+`φ(a) = φ(0) + a·s` holds for every `s`, including `s = 2 s_true`. The scale
+factor is in the measured functional's invariance group ⟹ designed-green on the
+whole defect class at every tolerance and refinement. Only the *coefficient*
+pinned against an independent reference has teeth. **A "linearity in the
+parameter" gate can never detect a wrong CONSTANT multiplying that parameter** —
+check this before adopting any superposition row.
+
+### 3. ⭐⭐ The "prophylactic architecture" framing was FALSE — measure the fence
+
+The plan's §1 asserted TWO fences and concluded the carve was prophylactic. Both
+failed: (i) the `block_role=None` stamp fences nothing because
+`SNBoundaryOperator._face_laws` collects EVERY face's law with no role filter
+(`|B(0)|_inf = 2.5`); (ii) the consequence is a **hard raise** on Krylov —
+`ConvergenceCertificateError: ‖Aψ−q‖/‖q‖ = 1.718` — because an affine
+`A(x) = A_lin(x) − c` breaks GMRES's Arnoldi relation.
+
+⭐ And the raise fired on **BOTH sides of P2′**, so the Krylov path was already
+dead pre-P2′: P2′ was a double-delivery regression on **SI only**. **A "not a
+live bug, fenced twice" claim is a HYPOTHESIS — apply `B(0)` (or the fence's own
+predicate) to the object the consumer actually holds.** A stamp only fences if
+somebody reads it; grep the consumer for the filter before believing the fence.
+
+### 4. ⚠ anti-#18 in its sharpest form: the OBVIOUS mutation is out-of-class
+
+The natural mutation ("put the affine operator back") **breaks linearity**, so
+every solve-level red comes from the operator ceasing to be linear, not from the
+delivery count. Reds under it must NOT be credited as single-delivery coverage.
+
+⭐ **The in-class mutation for a delivery-COUNT claim is `q + q` in the SOURCE
+channel** — everything stays linear, so every red is attributable to the count
+alone. Test: *a gate that reds under the affine reinstatement but NOT under
+`q + q` is not a single-delivery catcher.* Second in-class mutation, for the
+carve's own content: `L := IdentityOperator` (perfectly linear) — gate A
+(`B(0)==0`) is BLIND to it; only the trace gate sees it. That asymmetry is why
+one gate cannot replace the other.
+
+### 5. ⭐ The tree was being written UNDER me — three times, and each time the
+### reconciliation outvalued the forecast
+
+`realizer.py` had lost the `IncomingSourceOperator` import while the call site
+still referenced it (`NameError`) — so I measured "before" from
+`git worktree add <tmp> <HEAD-hash>` (NEVER `git checkout`; the tree carries
+irrecoverable uncommitted state). Then, mid-plan: four test files migrated, a
+brand-new `tests/numerics/test_zero_operator_spaces.py` appeared, and the 8-red
+debt I had measured went to **`555 passed`** before I finished. So §2 became an
+AUDIT of what landed and §8 the residual-gap list.
+
+⭐ **Re-measure the red count at the END of a planning dispatch, not just the
+start.** A migration table whose status column is stale by minutes is worse than
+no table — add an explicit "READ §8 FIRST" banner rather than silently shipping
+it. And the deliverable that survived was **the gap list**: measured absent by
+grep at the end — Gate D, Gate A, the two-channel gate, the Krylov row, the
+production SWAP row, the `checked_space_extent` negative, the `is_adjointable`
+widening, the un-mutation-verified `catches` re-home, `DEAD TARGETS 2`, a
+label-less `:ref:`, and the whole battery.
+
+### 6. ⭐ A measured number recorded in a COMMENT is not a gate
+
+`|B(0)| = 2.5` — the campaign's central measurement — appears in the tree ONLY
+as prose at `tests/sn/operators/test_operator_block_role.py:203`. Excellent
+documentation; zero teeth. **When auditing a landed carve, grep for the
+measurement's NUMBER and ask whether any `assert` consumes it.** The
+"honest metadata that gates nothing" shape.
+
+### 7. Did the retired oracle's independence survive? Audit, don't assume
+
+`test_boundary_source_from_specs.py` used `IncomingSourceOperator.apply` as its
+shape oracle. **Verdict: no demotion** — that operator's entire body was
+`source.evaluate((n_inflow,) + psi_out.shape[1:])`, a ONE-LINE ADAPTER, so
+inlining it to `spec.evaluate((|Γ₋|, ng))` preserves the independence, which
+always lived in *who produces each side* (the bridge vs the user's own spec
+object), never in the adapter.
+
+⭐ **The discriminator for "did this rewire demote the gate?": is the retired
+symbol a SOURCE of the expected value, or a FORWARDER of it?** A forwarder can
+be inlined for free. Corollary trap recorded as a refuted candidate: making the
+new oracle dimension-generic by reading `slot_shape[1:]` — the SUT's own
+derivation — WOULD be the demotion.
+
+### 8. The `|Γ₊| ≠ |Γ₋|` Mode-12 fixture migrated STRICTLY STRONGER
+
+`TestIncomingSourceOperator` was the only place unequal half-trace extents were
+reachable (equal on every production face), which is what discriminates "fills
+the codomain" from "echoes the input". `ZeroOperator` is equally hand-buildable
+AND adds a transpose direction and two space identities the apply-only affine
+operator never had. ⭐ **When a Mode-12 fixture's subject is retired, check
+whether the successor is also hand-constructible — if it is, the claim migrates
+and usually GAINS legs.** Two production docstrings had independently written
+the same argument (`_narrowed_zero_operator`: *"wrong in principle and merely
+lucky in practice"*), which is how I knew the claim was load-bearing.
+
+### 9. The production SWAP hole that a same-object gate cannot see
+
+The landed `test_prescribed_inflow_realizes_the_same_object_vacuum_does` asserts
+`prescribed.domain is vacuum.domain` — that the two AGREE, never that **either
+is the RIGHT space**. Both bound swapped ⟹ green, and `|Γ₊| == |Γ₋|` on every
+production face ⟹ `checked_space_extent` passes too. `L37` measured that three
+wrong bindings each produced ZERO new reds over 1668 tests. ⭐ **An
+agreement-between-two-siblings row is NOT an is-it-correct row** — a collapse
+carve naturally produces the former and it feels like coverage.
+
+### 10. Doc-debt instrumentation: two instruments, and a hole between them
+
+`[M]` `tools/check_docstring_xrefs.py orpheus tests docs` → `DEAD TARGETS 2
+across 9 sites`, with file:line and role — far better than a hand grep. BUT it
+gates only **fully-qualified Python-domain** targets (7073 of 14541 roles), and
+`sphinx -W`/`-n` cannot see a docstring in an un-`automodule`'d module (verified:
+`orpheus.sn.boundary.*` and `orpheus.numerics.operator` have none). ⟹ a
+`:ref:`bc-affine-source-channel`` cited twice by the new code with **no target
+anywhere** is caught by NEITHER. ⭐ **After a carve adds a `:ref:` from a
+docstring, grep the label in `docs/` by hand — no instrument reports it.** And
+raw grep found 13 files vs the checker's 9 sites: prose mentions are invisible to
+the checker, so run BOTH and triage BY TENSE (past-tense provenance STAYS).
+
+### 11. Fixture facts (add to the config-blindness inventory)
+
+* `_build_fixed_source_rhs`'s two arms take **different bulk sources** —
+  per-ordinate `(N, ng, *spatial)` array vs an `AngularSourceSink`. Feeding one
+  to each leg of a two-channel comparison gave `φ[0] = 3.083` vs `2.480`: a bulk
+  difference misread as a channel difference. **Use ONE spelling on every leg.**
+* Two channels reaching the same fixed point are **NOT bit-identical**:
+  `|φ_D0 − φ_C|_inf = 1.998e-13` at `inner_tol = 1e-13` (rel ≈ 0.3 × tol),
+  `array_equal = False`. Gate at `SAFETY(10) × inner_tol`.
+* `tests/sn/solve` naming trap: `test_affine_carve_bit_identity.py` is **#208's**
+  `FluxDisplacement` carve, NOT the affine BOUNDARY carve — all-vacuum configs,
+  `sha256`-frozen, and 3 of its params are pre-existing reds. `[M]` its signature
+  is unchanged by P3, which is the useful fact: **a `sha256` gate that MOVES
+  during a carve that should not touch its path is a real signal.**
+* Costs `[M]`: the P3 blast-radius slice **24.5 s** (555 passed);
+  `tests/sn/solve + tests/numerics` **7 m 27 s** (2016 passed, the 3 known reds).

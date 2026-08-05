@@ -120,10 +120,24 @@ def stamp_boundary_role(op: "LinearOperator") -> "LinearOperator":
     (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`,
     :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`)
     — through this ONE helper (``coding-elegance`` Pattern 7 / Pattern 2:
-    the stamp is a shared realizer-layer concept, defined once). The
-    rank-0 affine ``PrescribedInflow`` source is deliberately NOT
-    stamped: it is the boundary *source* ``q.boundary``, not a linear
-    boundary operator ``B``.
+    the stamp is a shared realizer-layer concept, defined once).
+
+    **Every realizable law is stamped, with no exception** (P3,
+    2026-08-05). Until P3 the rank-0 affine ``PrescribedInflow`` source
+    was deliberately NOT stamped, on the reading that it is the boundary
+    *source* ``q.boundary`` rather than a linear boundary operator ``B``.
+    The affine split survives (:ref:`bc-affine-source-channel`); what
+    changed is what gets realized: the law is ``γ₋ψ = L γ₊ψ + q``, a
+    realizer realizes ``L``, and prescribed inflow's ``L`` is the zero
+    morphism — which is linear, and is the same object vacuum realizes
+    to. ``q`` reaches the solve through the boundary-source channel.
+
+    ⚠ **The absence of a stamp never excluded a leaf from anything.**
+    :attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_laws`
+    collects every face's law with no ``block_role`` filter, so the
+    pre-P3 unstamped affine operator entered ``B`` regardless and
+    delivered its source there. Read this stamp as a *classification*
+    that consumers may query, never as a gate that keeps something out.
     """
     op.block_role = BlockRole.BOUNDARY
     return op
