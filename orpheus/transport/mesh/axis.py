@@ -34,11 +34,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
 from orpheus.geometry import BC
+
+if TYPE_CHECKING:
+    from orpheus.geometry.boundary import BoundaryTraceLaw
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -166,7 +169,10 @@ class Axis1D(Protocol):
       (``"outer"``); the pole at :math:`r=0` is intentionally NOT an
       endpoint here — it carries an angular-closure regularity
       condition, not a BC trace law.
-    * ``bc`` — mapping ``endpoint_label → BC | None``.
+    * ``bc`` — mapping ``endpoint_label → BC | BoundaryTraceLaw | None``.
+      A declaration is EITHER a ``BC`` tag or an already-typed law; the
+      law arm carries what a tag structurally cannot (a source that is a
+      FUNCTION). See ``orpheus.geometry.mesh._check_boundary_declaration``.
 
     Pole rationale (D3 of the ultraplan): a BC trace law is a linear
     operator ``bc.apply(outflow) → inflow`` that closes the transport
@@ -201,7 +207,7 @@ class Axis1D(Protocol):
     def endpoints(self) -> tuple[str, ...]: ...
 
     @property
-    def bc(self) -> dict[str, BC | None]: ...
+    def bc(self) -> "dict[str, BC | BoundaryTraceLaw | None]": ...
 
     def with_uniform_bc(self, bc: BC) -> "Axis1D":
         """Return a copy with EVERY endpoint's BC set to ``bc``.
@@ -234,18 +240,18 @@ class AxisMesh:
     ----------
     edges : ndarray, shape (n+1,)
         Strictly monotonically increasing cell-face positions.
-    bc_low : BC or None
+    bc_low : BC, BoundaryTraceLaw, or None
         Boundary condition at the low endpoint. ``None`` means "use
         the mesh-level default" (typically reflective).
-    bc_high : BC or None
+    bc_high : BC, BoundaryTraceLaw, or None
         Boundary condition at the high endpoint.
     label_low, label_high : str
         Endpoint labels; default ``"min"`` / ``"max"``.
     """
 
     edges: np.ndarray
-    bc_low: BC | None = None
-    bc_high: BC | None = None
+    bc_low: "BC | BoundaryTraceLaw | None" = None
+    bc_high: "BC | BoundaryTraceLaw | None" = None
     label_low: str = "min"
     label_high: str = "max"
 
@@ -275,7 +281,7 @@ class AxisMesh:
         return (self.label_low, self.label_high)
 
     @property
-    def bc(self) -> dict[str, BC | None]:
+    def bc(self) -> "dict[str, BC | BoundaryTraceLaw | None]":
         return {self.label_low: self.bc_low, self.label_high: self.bc_high}
 
     def with_uniform_bc(self, bc: BC) -> "AxisMesh":
@@ -301,7 +307,7 @@ class RadialAxisMesh:
     coord : AxisCoord
         Must be :attr:`AxisCoord.RADIAL_SPHERICAL` or
         :attr:`AxisCoord.RADIAL_CYLINDRICAL`.
-    bc_outer : BC or None
+    bc_outer : BC, BoundaryTraceLaw, or None
         Boundary condition at the outer radial surface.
     label_outer : str
         Endpoint label; default ``"outer"``.
@@ -309,7 +315,7 @@ class RadialAxisMesh:
 
     edges: np.ndarray
     coord: AxisCoord
-    bc_outer: BC | None = None
+    bc_outer: "BC | BoundaryTraceLaw | None" = None
     label_outer: str = "outer"
 
     def __post_init__(self) -> None:
@@ -345,7 +351,7 @@ class RadialAxisMesh:
         return (self.label_outer,)
 
     @property
-    def bc(self) -> dict[str, BC | None]:
+    def bc(self) -> "dict[str, BC | BoundaryTraceLaw | None]":
         return {self.label_outer: self.bc_outer}
 
     def with_uniform_bc(self, bc: BC) -> "RadialAxisMesh":

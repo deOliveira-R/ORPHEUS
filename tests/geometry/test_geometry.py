@@ -378,8 +378,29 @@ class TestBC:
             mesh.bc_left = BC.vacuum
 
     def test_mesh1d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="bc_left must be a BC instance"):
+        with pytest.raises(TypeError, match="bc_left must be a BC tag"):
             Mesh1D(edges=[0, 1], mat_ids=[0], bc_left="vacuum")
+
+    def test_mesh1d_bc_accepts_a_typed_law(self):
+        """The declaration channel: a LAW OBJECT is a legal declaration.
+
+        The positive leg of the row above (``vv`` anti-pattern #11). A ``BC``
+        tag is ``(kind, dict[str, float])`` and so cannot express a law whose
+        content is a FUNCTION — a ``PrescribedInflow`` carrying a
+        manufactured-solution source has no tag spelling. Declaring the law
+        object directly is the channel for those; see
+        ``orpheus.geometry.mesh._check_boundary_declaration``.
+
+        Without this leg the widened guard could reject every law and the row
+        above would still pass.
+        """
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource, PrescribedInflow,
+        )
+
+        law = PrescribedInflow(source=ConstantInflowSource(value=2.5))
+        mesh = Mesh1D(edges=[0, 1], mat_ids=[0], bc_left=law)
+        assert mesh.bc_left is law
 
     # ── BC.to_alpha — production-tag → continuous-albedo bridge ─────
 
@@ -432,11 +453,30 @@ class TestBC:
         assert mesh.bc_xmax == BC("vacuum")
 
     def test_mesh2d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="bc_xmin must be a BC instance"):
+        with pytest.raises(TypeError, match="bc_xmin must be a BC tag"):
             Mesh2D(
                 edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
                 bc_xmin="reflective",
             )
+
+    def test_mesh2d_bc_accepts_a_typed_law(self):
+        """The 2-D arm of the declaration channel — all four faces.
+
+        Parameterised over every endpoint because the four fields were
+        validated by a hand-written loop until the channel landed; a widening
+        that reached only ``bc_xmin`` would pass a single-face row.
+        """
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource, PrescribedInflow,
+        )
+
+        law = PrescribedInflow(source=ConstantInflowSource(value=1.0))
+        for face in ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax"):
+            mesh = Mesh2D(
+                edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+                **{face: law},
+            )
+            assert getattr(mesh, face) is law, face
 
 
 # ═══════════════════════════════════════════════════════════════════════

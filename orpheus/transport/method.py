@@ -267,10 +267,32 @@ def resolve_boundary_conditions(
 
 def _law_from_tag(
     method: "TransportMethod[Any]",
-    tag: BC,
+    tag: "BC | BoundaryTraceLaw",
     label: "FaceLabel",
 ) -> BoundaryTraceLaw:
-    r"""Parse one ``BC`` tag into the typed law it declares.
+    r"""Parse one boundary declaration into the typed law it names.
+
+    A declaration is EITHER a ``BC`` tag (parsed below) or an **already-typed
+    law**, which is returned unchanged. The law arm exists because a tag is
+    ``(kind: str, params: dict[str, float])`` and therefore cannot express a
+    law whose content is a FUNCTION — a
+    :class:`~orpheus.geometry.boundary.PrescribedInflow` carrying a
+    manufactured-solution source has no tag spelling and never will. See
+    :func:`~orpheus.geometry.mesh._check_boundary_declaration` for why the
+    declaration has to ride the GEOMETRY rather than a constructed mesh's
+    resolved table.
+
+    ⚠ **The two arms are not equivalent in what they guarantee.** A tag is
+    parsed HERE, so the parse can supply construction context the tag omits —
+    the face's axis, its outward sign, its albedo (see below). A law object
+    arrives fully constructed, so **its orientation is whatever its author
+    set**, and nothing here can correct it. That is the intended division: an
+    object-declared law is asserting "I know my own geometry", and the
+    realizer's own cross-checks (B3.4a's orientation guard, ERR-041's vacuum
+    trace check) are what catch an author who was wrong. Do NOT add
+    orientation-patching to the law arm — it would silently overwrite a
+    deliberate declaration, and the realizer would then certify the patched
+    law rather than the declared one.
 
     Method-generic given the method's admission table: the tag names
     the law class; the label supplies the face geometry. Three law
@@ -302,6 +324,17 @@ def _law_from_tag(
        ``axis="x", outward_sign=+1`` on every face; it was latent only
        because no method's registry admits ``"white"`` yet (#189).
     """
+    if isinstance(tag, BoundaryTraceLaw):
+        # Already typed — nothing to parse, and nothing to patch (see the
+        # orientation warning above). This arm deliberately does NOT consult
+        # ``BOUNDARY_OPERATOR_REGISTRY``: that table gates which TAGS a method
+        # admits, and a law the caller constructed by hand has already made the
+        # admission decision. What still gates the law is the method's realizer,
+        # which refuses what it cannot realize (SN refuses ``ZeroFluxBoundary``,
+        # diffusion refuses ``PrescribedInflow``) — an honest refusal at
+        # realization rather than a tag-table miss at parse.
+        return tag
+
     law_cls = method.BOUNDARY_OPERATOR_REGISTRY.get(tag.kind)
     if law_cls is None:
         supported = ", ".join(

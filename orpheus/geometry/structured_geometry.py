@@ -107,11 +107,15 @@ mesh layer::
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .coord import CoordSystem
 from .mesh import BC
+
+if TYPE_CHECKING:
+    from .boundary import BoundaryTraceLaw
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -291,7 +295,7 @@ class StructuredGeometry:
 
     geometry: str
     regions: tuple[Region, ...]
-    bcs: tuple[BC, ...]
+    bcs: "tuple[BC | BoundaryTraceLaw, ...]"
 
     def __post_init__(self) -> None:
         if self.geometry not in _GEOMETRY_TO_COORD:
@@ -327,11 +331,26 @@ class StructuredGeometry:
                 f"StructuredGeometry: geometry={self.geometry!r} "
                 f"requires {expected_n_bcs} BC(s); got {len(self.bcs)}."
             )
+        # A declaration is EITHER a ``BC`` tag or an already-typed
+        # ``BoundaryTraceLaw``. The law arm exists because a tag cannot
+        # express a law that carries a FUNCTION: ``BC.params`` is
+        # ``dict[str, float]``, so a prescribed inflow whose source is a
+        # manufactured solution restricted to a face has no tag spelling.
+        # Before this arm such a law could only be installed by mutating a
+        # constructed mesh's resolved ``bc`` dict — which the public solver
+        # entry points then DISCARDED, because they rebuild the method mesh
+        # from the raw geometry. Declaring on the geometry is what makes the
+        # law survive that rebuild.
+        #
+        # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
+        # THIS module, so a top-level import cycles.
+        from orpheus.geometry.boundary import BoundaryTraceLaw
+
         for k, bc in enumerate(self.bcs):
-            if not isinstance(bc, BC):
+            if not isinstance(bc, (BC, BoundaryTraceLaw)):
                 raise TypeError(
-                    f"StructuredGeometry.bcs[{k}] must be a BC instance, "
-                    f"got {type(bc).__name__}"
+                    f"StructuredGeometry.bcs[{k}] must be a BC tag or a "
+                    f"BoundaryTraceLaw instance, got {type(bc).__name__}"
                 )
 
     @property

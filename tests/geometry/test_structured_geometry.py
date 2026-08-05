@@ -155,13 +155,37 @@ class TestStructuredGeometryValidation:
                 bcs=(BC.vacuum, BC.vacuum),
             )
 
-    def test_bcs_must_be_BC_instances(self):
-        with pytest.raises(TypeError, match="must be a BC instance"):
+    def test_bcs_must_be_a_tag_or_a_typed_law(self):
+        """RE-POSED from ``test_bcs_must_be_BC_instances``.
+
+        A declaration is EITHER a ``BC`` tag or an already-typed
+        ``BoundaryTraceLaw``; a bare string is still neither. The claim
+        widened when the declaration channel landed — a law carrying a
+        FUNCTION (a prescribed inflow whose source is a manufactured
+        solution) has no tag spelling, and declaring it on the GEOMETRY is
+        what makes it survive the method-mesh rebuild every public solver
+        entry point performs.
+        """
+        with pytest.raises(TypeError, match="must be a BC tag or a"):
             StructuredGeometry(
                 geometry="SPH",
                 regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
                 bcs=("vacuum",),  # type: ignore[arg-type]
             )
+
+    def test_bcs_accepts_a_typed_law(self):
+        """The positive leg — without it the guard could reject every law."""
+        from orpheus.geometry.boundary import (
+            ConstantInflowSource, PrescribedInflow,
+        )
+
+        law = PrescribedInflow(source=ConstantInflowSource(value=2.5))
+        geom = StructuredGeometry(
+            geometry="SPH",
+            regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+            bcs=(law,),
+        )
+        assert geom.bcs[0] is law
 
     def test_regions_must_be_Region_instances(self):
         with pytest.raises(TypeError, match="must be a Region"):

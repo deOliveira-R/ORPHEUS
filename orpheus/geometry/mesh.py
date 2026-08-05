@@ -34,12 +34,54 @@ from .coord import (
 )
 
 if TYPE_CHECKING:
+    from .boundary import BoundaryTraceLaw
     from .structured_geometry import StructuredGeometry
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # Boundary condition declaration
 # ═══════════════════════════════════════════════════════════════════════
+
+
+def _check_boundary_declaration(mesh: object, attrs: "tuple[str, ...]") -> None:
+    r"""Every boundary declaration is a ``BC`` tag OR an already-typed law.
+
+    One spelling for all six endpoint fields (``Mesh1D``'s two, ``Mesh2D``'s
+    four); before this it was two near-identical loops, and the widening would
+    otherwise have had to land in both.
+
+    **Why the law arm exists.** A ``BC`` tag is
+    ``(kind: str, params: dict[str, float])`` — structurally unable to carry a
+    law whose content is a FUNCTION. A
+    :class:`~orpheus.geometry.boundary.PrescribedInflow` whose source is a
+    manufactured solution restricted to a face has no tag spelling and never
+    will, so before this arm the only way to install one was to mutate a
+    constructed method-mesh's already-resolved ``bc`` dict — and every public
+    solver entry point then DISCARDED it, because they rebuild the method mesh
+    from the raw geometry (``solve_sn_fixed_source`` → ``_as_sn_mesh``).
+    Declaring on the GEOMETRY is what makes such a law survive that rebuild:
+    the shared
+    :func:`~orpheus.transport.method.resolve_boundary_conditions` body reads
+    this field, so a law declared here reaches the realizer through exactly the
+    path a tag does.
+
+    The tag remains the right spelling for everything expressible as one — it
+    is serialisable, comparable, and the input-deck surface. The law arm is for
+    the cases a float dict cannot reach, not a replacement.
+
+    ``BoundaryTraceLaw`` is imported lazily: ``orpheus.geometry.boundary``
+    transitively loads THIS module, so a top-level import cycles.
+    """
+    from orpheus.geometry.boundary import BoundaryTraceLaw
+
+    for attr in attrs:
+        bc = getattr(mesh, attr)
+        if bc is not None and not isinstance(bc, (BC, BoundaryTraceLaw)):
+            raise TypeError(
+                f"{attr} must be a BC tag, a BoundaryTraceLaw instance, or "
+                f"None; got {type(bc).__name__}"
+            )
+
 
 @dataclass(frozen=True)
 class BC:
@@ -237,8 +279,8 @@ class Mesh1D:
     mat_ids: np.ndarray
     coord: CoordSystem = CoordSystem.CARTESIAN
     precomputed_volumes: np.ndarray | None = None
-    bc_left: BC | None = None
-    bc_right: BC | None = None
+    bc_left: "BC | BoundaryTraceLaw | None" = None
+    bc_right: "BC | BoundaryTraceLaw | None" = None
 
     # Derived geometric attributes, computed eagerly in ``__post_init__`` and
     # stored via ``object.__setattr__`` (frozen).  Declared here so the public
@@ -279,12 +321,7 @@ class Mesh1D:
                 raise ValueError("precomputed_volumes must be strictly positive")
 
         # Validate BC fields
-        for attr in ("bc_left", "bc_right"):
-            bc = getattr(self, attr)
-            if bc is not None and not isinstance(bc, BC):
-                raise TypeError(
-                    f"{attr} must be a BC instance or None, got {type(bc).__name__}"
-                )
+        _check_boundary_declaration(self, ("bc_left", "bc_right"))
 
         # Store validated arrays (frozen bypass via object.__setattr__)
         object.__setattr__(self, "edges", edges)
@@ -558,10 +595,10 @@ class Mesh2D:
     edges_y: np.ndarray
     mat_map: np.ndarray
     coord: CoordSystem = CoordSystem.CARTESIAN
-    bc_xmin: BC | None = None
-    bc_xmax: BC | None = None
-    bc_ymin: BC | None = None
-    bc_ymax: BC | None = None
+    bc_xmin: "BC | BoundaryTraceLaw | None" = None
+    bc_xmax: "BC | BoundaryTraceLaw | None" = None
+    bc_ymin: "BC | BoundaryTraceLaw | None" = None
+    bc_ymax: "BC | BoundaryTraceLaw | None" = None
 
     def __post_init__(self) -> None:
         edges_x = np.asarray(self.edges_x, dtype=float)
@@ -589,12 +626,9 @@ class Mesh2D:
             )
 
         # Validate BC fields
-        for attr in ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax"):
-            bc = getattr(self, attr)
-            if bc is not None and not isinstance(bc, BC):
-                raise TypeError(
-                    f"{attr} must be a BC instance or None, got {type(bc).__name__}"
-                )
+        _check_boundary_declaration(
+            self, ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax"),
+        )
 
         object.__setattr__(self, "edges_x", edges_x)
         object.__setattr__(self, "edges_y", edges_y)
