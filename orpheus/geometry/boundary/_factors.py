@@ -1047,8 +1047,12 @@ class SpecularReemission:
 
     @property
     def is_adjointable(self) -> bool:
-        # TRUE, unlike the Lambertian's, and for a structural reason rather
-        # than an implementation one: a scaled permutation's transpose is the
+        # TRUE for a STRUCTURAL reason rather than an implementation one:
+        # (this read "TRUE, unlike the Lambertian's" until 2026-08-04. The
+        # contrast expired in the SAME commit ~70 lines up, where the
+        # Lambertian flipped to True once its realization was factored. Both
+        # are adjointable now; only the REASONS still differ, which is what
+        # the rest of this comment is about.) a scaled permutation's transpose is the
         # inverse permutation scaled by the same α, and an axis reflection is
         # an involution, so the transpose is the forward action itself. No
         # inner-product ambiguity to decline — it is symmetric under both the

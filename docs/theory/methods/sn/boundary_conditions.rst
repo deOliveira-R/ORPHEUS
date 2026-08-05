@@ -485,11 +485,15 @@ at :ref:`bc-sweep-cycle`.
      - ``α * <that TP>``
        (:class:`~orpheus.numerics.operator.ScaledOperator`)
      - α ≠ 1
-   * - ``"white"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-` (B3.4a)
+   * - ``"white"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-` (B3.4a),
+       **factored** (G6.3 step 3b)
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-     - ``AngularAverageOperator.from_quadrature(...) &
-       IdentityOperator()`` — the Lambertian kernel contracts over
-       :math:`\Gamma_+` and re-emits on :math:`\Gamma_-`. The law's
+     - ``(IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))
+       & IdentityOperator()`` — the Lambertian kernel as a two-link
+       chain: :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`
+       contracts :math:`\Gamma_+` to the outgoing partial current, and
+       :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`
+       re-emits it on :math:`\Gamma_-`. The law's
        declared ``axis`` / ``outward_sign`` is cross-checked against the
        installation face's :math:`\Gamma_+` before construction.
      - 1 (fast path)

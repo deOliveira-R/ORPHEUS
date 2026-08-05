@@ -7,7 +7,9 @@ The L3 layer that turns a geometry-declared
 * :mod:`~orpheus.sn.boundary.realizer` — :class:`SNBoundaryRealizer`
   (isinstance-dispatch realizing each ``BoundaryTraceLaw`` concrete).
 * :mod:`~orpheus.sn.boundary.angular` — the angular primitives the realizer
-  consumes: :class:`AngularAverageOperator` (white BC) and
+  consumes: :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` and
+  :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`, the two
+  links of the factored Lambertian (white / diffuse-albedo BC), and
   :class:`IncomingSourceOperator` (prescribed inflow).
 
 This seam was one of the two recorded witnesses of the

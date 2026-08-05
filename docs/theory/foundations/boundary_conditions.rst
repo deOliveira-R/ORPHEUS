@@ -405,12 +405,15 @@ is not a quotient — that is the sufficient test above — so nothing
 identifies an outgoing direction with an incoming one geometrically,
 and the crossing is performed by the *physics*: the response integrates
 the outgoing flux and re-emits an incoming one. The realization is the
-witness. :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`,
-which realizes the response :math:`R_{\text{diff}}` of the white /
-diffuse-albedo law, types itself :math:`\Gamma_+ \to \Gamma_-` and its
-:meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`
-collapses the *outflow* angle axis before broadcasting over the
-*inflow* one; the specular kernel behind
+witness. The response :math:`R_{\text{diff}}` of the white /
+diffuse-albedo law realizes as a **two-link chain** whose links state
+the crossing out loud:
+:class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` collapses
+the *outflow* angle axis, and
+:class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`
+broadcasts the result over the *inflow* one, so the composite types
+itself :math:`\Gamma_+ \to \Gamma_-` (:ref:`bc-response-adjoint`); the
+specular kernel behind
 :class:`~orpheus.geometry.boundary.SpecularReemission` is likewise a
 narrowed :math:`\Gamma_+ \to \Gamma_-` permutation. `[M]` **no realized
 response is an endomorphism of** :math:`\Gamma_-`.
@@ -672,17 +675,35 @@ product:
      - **Conditional** on :math:`S(f)` carrying a non-degenerate metric
        — see :ref:`bc-response-adjoint`.
 
-:math:`S(f)` is not bookkeeping: it is the cosine-weighted mean outgoing
-intensity, a real physical quantity, and it is exactly what the
-Lambertian's realization already computes and immediately throws away as
-the anonymous local ``psi_avg`` in
-:meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`. The
-type that will host it exists —
-:class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`,
-the per-face :math:`(J^+, J^-)` partial-current space, already
-angle-integrated — but the per-face accessor ``S(f)`` and the factored
-:math:`B \circ C` spelling are **not built yet**; they are steps 2–3 of
-the geometric-transformation campaign's G6.3.
+:math:`S(f)` is not bookkeeping: it is the **outgoing partial current**
+:math:`J^+_g = \sum_{\Gamma_+} w\,\lvert\Omega\cdot\hat n\rvert\,\psi`,
+a real physical quantity with units, and it is exactly what the
+Lambertian's realization used to compute and immediately throw away as
+the anonymous local ``psi_avg`` inside the welded
+``AngularAverageOperator``'s apply. Both halves shipped at **G6.3**
+(2026-08-04): the per-face accessor is
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.current_space`
+(step 2) and the factored :math:`B \circ C` spelling is
+:class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`
+:math:`\circ`
+:class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` (step 3).
+
+.. note::
+
+   **The host is a new tier of the** :math:`\Gamma` **ladder, not**
+   :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`.
+   This paragraph predicted the latter — "the type that will host it
+   exists" — and the prediction did **not** hold. ``S(f)`` is not a
+   subset of ordinates but the *collapse of the ordinate axis*, one
+   value per group per boundary cell, carrying a deliberately **unit**
+   metric because the angular measure
+   :math:`\lvert\Omega\cdot\hat n\rvert \odot w` has already been
+   consumed by the contraction that lands there.
+   :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
+   carries the :math:`(J^+, J^-)` **pair** for the whole boundary under
+   the face-**area** metric — diffusion's P1 Cauchy data. Same physical
+   name, different object, different metric, different scope; hosting
+   one in the other would have double-counted the area weight.
 
 .. important::
 
@@ -697,9 +718,12 @@ the geometric-transformation campaign's G6.3.
    on 2026-08-04.
    The transferable lesson is the campaign's own: **a declaration tier's
    typing is a declaration, not a measurement — check it against the
-   realization before designing on it.** In this case one read of
-   :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`'s first
-   line, which types itself :math:`\Gamma_+ \to \Gamma_-`, refutes both.
+   realization before designing on it.** In this case one read of the
+   then-welded ``AngularAverageOperator``'s first line, which typed
+   itself :math:`\Gamma_+ \to \Gamma_-`, refuted both — and the typing
+   survived the operator: the chain that replaced it composes
+   :math:`\Gamma_+ \to S(f) \to \Gamma_-`, so the refutation now reads
+   off the two links' bound spaces instead of one docstring.
 
 .. _bc-response-adjoint:
 
@@ -725,19 +749,25 @@ For :math:`R = B \circ C` with :math:`C : \Gamma_+ \to S` and
    \;=\; G_+^{-1} C^{\mathsf T} B^{\mathsf T} G_-
    \;=\; G_+^{-1} R^{\mathsf T} G_- .
 
-.. (vv-status rationale) Structural: the factored-response adjoint identity.
-   The FACTORED spelling does not exist in code yet — the Lambertian ships as
-   one operator with ``is_adjointable=False`` (campaign G6.3 steps 2-3 build
-   ``S(f)`` and the ``B ∘ C`` factorization), so there is no function for a
-   ``verifies`` marker to point at. Its verifiable PRECONDITION is already
-   gated: ``tests/numerics/test_angular_face_trace_space.py::
+.. (vv-status history) This equation carried
+   ``.. vv-status: bc-response-factored-adjoint documented`` until G6.3 step 3b
+   (2026-08-04). The sentinel's rationale was: "The FACTORED spelling does not
+   exist in code yet — the Lambertian ships as one operator with
+   ``is_adjointable=False``, so there is no function for a ``verifies`` marker
+   to point at." Both halves shipped — ``S(f)`` is
+   ``AngularTraceSpace.current_space``, the factorization is
+   ``IsotropicEmissionOperator @ PartialCurrentOperator`` — so the precondition
+   expired and the directive is removed rather than left as a standing claim
+   that the equation is documented-only. It is now GATED on the shipped chain:
+   ``tests/sn/operators/test_lambertian_chain.py::
+   TestReciprocityAgainstTheMirrorFace::test_H_is_pointwise_the_mirror_face_kernel``
+   carries ``verifies("bc-response-factored-adjoint")``, alongside six
+   abstract-matrix gates in ``tests/numerics/test_factored_adjoint_identity.py``.
+   Its PRECONDITION is separately gated:
+   ``tests/numerics/test_angular_face_trace_space.py::
    test_the_half_trace_metric_is_strictly_positive`` pins the non-degeneracy
    this equation requires of the intermediate, and
-   ``test_the_metric_is_not_euclidean`` pins that the metric is load-bearing at
-   all. The identity itself is measured by the design probe described below.
-   When the factorization lands, WIRE a test to this label and REMOVE this
-   sentinel.
-.. vv-status: bc-response-factored-adjoint documented
+   ``test_the_metric_is_not_euclidean`` pins that the metric is load-bearing.
 
 **The intermediate metric cancels.** :math:`G_S` appears once as a
 factor and once as its inverse, so it drops out of the composite
@@ -775,7 +805,11 @@ The probe is a G6.3 design-session artefact and is reproducible in a
 dozen lines, so it is described rather than pinned to a path: build
 :math:`C = (\cos\!w/\operatorname{norm})` as a :math:`(1, 7)` row and
 :math:`B = \mathbf{1}` as a :math:`(5, 1)` column (so
-:math:`R = BC` is the rank-one Lambertian shape), take :math:`G_+`,
+:math:`R = BC` is the rank-one Lambertian shape; the *shipped* split
+puts the :math:`1/\operatorname{norm}` in :math:`B` instead, since
+:math:`C` must produce a current and :math:`B` an intensity — the
+composite, and therefore this measurement, is unaffected), take
+:math:`G_+`,
 :math:`G_-` diagonal with entries drawn from :math:`[0.5, 2]`, and
 compare :math:`C^{*}B^{*}` against :math:`G_+^{-1}R^{\mathsf T}G_-`
 for each :math:`G_S` in the table. The asymmetric sizes are the
@@ -809,13 +843,17 @@ Two consequences to carry:
    it reads as hygiene and is in fact the precondition for
    :eq:`bc-response-factored-adjoint` to hold.
 
-**The payoff — the deferred transpose falls out.**
-:class:`~orpheus.sn.boundary.angular.AngularAverageOperator` reports
-``is_adjointable = False`` and defers its transpose to campaign phase
-**B5**. Factored, there is nothing to defer:
-:math:`C^{\mathsf T}(s) = \cos\!w \cdot s / \operatorname{norm}` (the
-outer product) and :math:`B^{\mathsf T}(\varphi) = \sum_{\Gamma_-}
-\varphi` (the sum over inflow), so
+**The payoff — the deferred transpose fell out, and shipped.** The
+welded ``AngularAverageOperator`` reported ``is_adjointable = False``
+and deferred its transpose to campaign phase **B5**. Factored at
+**G6.3 step 3b** there was nothing left to defer — each link has ONE
+honest transpose:
+:math:`C^{\mathsf T}(s) = \cos\!w \otimes s` (the outer product, on
+:meth:`~orpheus.sn.boundary.angular.PartialCurrentOperator.apply_transpose`)
+and :math:`B^{\mathsf T}(\varphi) = \bigl(\sum_{\Gamma_-} \varphi\bigr)
+/ \operatorname{norm}` (the sum over inflow, on
+:meth:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator.apply_transpose`),
+so :math:`R^{\mathsf T} = C^{\mathsf T} B^{\mathsf T}` is
 
 .. math::
 
@@ -823,8 +861,15 @@ outer product) and :math:`B^{\mathsf T}(\varphi) = \sum_{\Gamma_-}
    \frac{\cos\!w}{\operatorname{norm}} \sum_{\Gamma_-} \varphi ,
 
 verified `[M]` bit-exactly (``max|Rᵀφ − (cos_w/norm)·Σφ| = 0.0`` on
-``product(2,4)``, ``xmax``) against the dense transpose of the operator's
-own :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`.
+``product(2,4)``, ``xmax``) against the dense transpose of the chain's
+own ``apply``, and :math:`\le` 1 ULP on ``gauss_legendre(8)``,
+``level_symmetric(6)`` and ``lebedev(17)``. Note where the
+normalisation sits: in :math:`B`, not :math:`C`, because :math:`C`
+produces a *current* and :math:`B` must produce an *intensity* — which
+is what leaves :math:`S(f)` carrying an honest :math:`J^+` and lets an
+albedo enter as the pure scalar law :math:`J^- = \alpha J^+`.
+:attr:`~orpheus.geometry.boundary.LambertianReemission.is_adjointable`
+flipped to ``True`` in the same step.
 
 .. warning::
 
@@ -836,9 +881,18 @@ own :meth:`~orpheus.sn.boundary.angular.AngularAverageOperator.apply`.
    — the ERR-067 family is what happens when a half-trace pairing drops
    it). Advertising :math:`R^{\mathsf T}` under a name that reads as
    "the adjoint" is exactly the two-``.T``-semantics ambiguity the
-   operator's docstring declines today; the honest channel is ``.H`` on
-   the metric-carrying
-   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`.
+   welded operator declined to resolve — and note how the factoring
+   *dissolved* rather than settled it: each link's ``apply_transpose``
+   is unambiguous on its own, so no link ever had to choose a reading,
+   and the composite's Hilbert adjoint follows from its bound spaces.
+   The honest channel is therefore still ``.H``, carrying the metrics
+   of the
+   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
+   the chain is bound to — measured `[M]` equal to
+   :math:`G_+^{-1} R^{\mathsf T} G_-` to :math:`\le` 1 ULP, with
+   :math:`\langle Rx, y\rangle_{G_-} - \langle x, R^{*}y\rangle_{G_+}`
+   at :math:`\le` 1 ULP, on ``gauss_legendre(8)``, ``product(2,4)``,
+   ``level_symmetric(6)`` and ``lebedev(17)`` at ``xmax``.
 
 That is the campaign's thesis in one line: **the adjoint falls out of
 well-posedness instead of being hand-rolled.**
@@ -1326,8 +1380,8 @@ Each law arrived carrying a correction for a defect that the narrowing
 then removed the possibility of, so in both cases the shipped diff
 *deletes* the correction rather than repairing it.
 
-**White — the outflow classifier that had a twin.** Pre-B3.4a
-:class:`~orpheus.sn.boundary.angular.AngularAverageOperator` was a
+**White — the outflow classifier that had a twin.** Pre-B3.4a the
+then-welded ``AngularAverageOperator`` was a
 full-face endomorphism whose ``cos_w`` carried :math:`N` entries zeroed
 off the outgoing hemisphere by its OWN test,
 ``(outward_sign * mu_n) > 0.0``. That is a **second outflow
@@ -1381,18 +1435,21 @@ And the exposure is *face-asymmetric within a single quadrature*, so a
 fixture that exercises one face of a ``product`` rule can be green
 while its opposite face is wrong.
 
-:meth:`AngularAverageOperator.from_quadrature
-<orpheus.sn.boundary.angular.AngularAverageOperator.from_quadrature>`
-keeps its ``(quadrature, axis, outward_sign)`` signature but now
-renders ``(axis, outward_sign)`` as the face NAME and hands it to
-:func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`
-— the codebase's single face-name :math:`\to` signed-projection
-primitive — classifying against ``TANGENTIAL_EPS`` exactly as the trace
-space does. With the domain narrowed the operator classifies **nothing**:
-it is *handed* :math:`\Gamma_+`. The twin is not fixed, it is
-unspellable, and every ``cos_w`` entry is now strictly positive by
-construction rather than mostly zero — which is why the constructor
-guard tightened from ``>= 0`` to ``> 0``.
+B3.4a's fix was to route the classification through the codebase's
+**single** face-name :math:`\to` signed-projection primitive:
+``(axis, outward_sign)`` is rendered as the face NAME and handed to
+:func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`,
+which classifies against ``TANGENTIAL_EPS`` exactly as the trace space
+does. It landed on the welded operator's own ``from_quadrature``
+constructor, and since **G6.3 step 3b** retired that operator the same
+lines live one layer out, in the realizer's ``_checked_angular_average``
+factory. With the domain narrowed the kernel classifies **nothing**: it
+is *handed* :math:`\Gamma_+`. The twin is not fixed, it is unspellable,
+and every ``cos_w`` entry is strictly positive by construction rather
+than mostly zero — which is why the guard tightened from ``>= 0`` to
+``> 0``, and why it is
+:class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`'s
+constructor that today refuses a full-face weight vector by name.
 
 **Prescribed inflow — the mask that dissolved.** An
 :class:`~orpheus.geometry.boundary.InflowSourceSpec` fills whatever
@@ -1515,13 +1572,19 @@ mis-declared law.
 **Two things B3.4a deliberately did NOT do.** It did not type the
 Lambertian kernel as the rank-one :math:`u \otimes v` it now visibly is
 (with :math:`u = \mathbf{1}_{\Gamma_-}` and :math:`v =
-\cos w / \mathrm{norm}` on :math:`\Gamma_+`) — that is phase **B5**,
-which is what makes its adjoint structurally available, and it carries
-the Euclidean-vs-cosine-metric transpose question with it. And it did
+\cos w / \mathrm{norm}` on :math:`\Gamma_+`) — deferred to phase
+**B5** as what would make its adjoint structurally available, carrying
+the Euclidean-vs-cosine-metric transpose question with it. In the event
+that deferral was discharged at **G6.3 step 3b**, and by a different
+mechanism: the kernel was *factored* into
+:math:`B \circ C` rather than typed as :math:`u \otimes v`, which
+dissolved the transpose question instead of answering it
+(:ref:`bc-response-adjoint`). And it did
 not give the narrowed laws a domain **validator**: white happens to
 refuse a full-face input (because
-:meth:`AngularAverageOperator.apply
-<orpheus.sn.boundary.angular.AngularAverageOperator.apply>` checks
+:meth:`PartialCurrentOperator.apply
+<orpheus.sn.boundary.angular.PartialCurrentOperator.apply>`, the
+chain's first link, checks
 ``psi.shape[0]``), while prescribed inflow ignores its input entirely
 and so has nothing to validate against. Refusal and non-endomorphism
 are separate properties; see the warning at :ref:`bc-worked-example`.
@@ -1864,7 +1927,7 @@ projection, since B3.2 solved by **typing**.
 At the time of the extraction the realized per-face law was a
 **full-face operator**: a specular
 :class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
-an :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for
+the then-welded ``AngularAverageOperator`` for
 white. Its permutation mapped the input's *inflow* slots onto the
 *output's outflow* slots (a spurious :math:`R\cdot\psi.\text{inflow}`),
 because the permutation was defined on the whole face, not just the
@@ -3434,13 +3497,15 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        sent an inflow ordinate anywhere but :math:`\Gamma_+`.
      - ``ScaledOperator(α, <that TP>)``
    * - :class:`WhiteBoundary(axis, outward_sign, α)` — **narrowed**
-       (B3.4a)
-     - ``AngularAverageOperator.from_quadrature(quad, axis,
-       outward_sign) & IdentityOperator()`` — the Lambertian kernel
-       contracts over :math:`\Gamma_+` and broadcasts one scalar over
+       (B3.4a), **factored** (G6.3 step 3b)
+     - ``(IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))
+       & IdentityOperator()`` — the Lambertian kernel as a two-link
+       chain :math:`\Gamma_+ \to S(f) \to \Gamma_-`: the first link
+       contracts over :math:`\Gamma_+` to the outgoing partial current,
+       the second broadcasts it over
        :math:`\Gamma_-`. Both half-traces come from the single
        face-name :math:`\to` signed-projection primitive classified
-       against ``TANGENTIAL_EPS``, so the operator's old private
+       against ``TANGENTIAL_EPS``, so the pre-B3.4a private
        ``> 0.0`` outflow test — a second classifier that disagreed with
        the trace space on any quadrature carrying tangential ordinates
        — is gone. The law's declared ``axis`` / ``outward_sign`` is
@@ -4046,8 +4111,9 @@ it must now hand it a :math:`\Gamma_+`-shaped argument.
 
    The B3.4a arms split on exactly this axis, which is why the two
    properties must be named separately. White **refuses** the
-   full-face input (:meth:`AngularAverageOperator.apply
-   <orpheus.sn.boundary.angular.AngularAverageOperator.apply>` checks
+   full-face input (:meth:`PartialCurrentOperator.apply
+   <orpheus.sn.boundary.angular.PartialCurrentOperator.apply>`, the
+   chain's first link, checks
    ``psi.shape[0]`` against :math:`|\Gamma_+|`) — the strictly stronger
    answer. Prescribed inflow does **not**: it ignores its input
    entirely, so it has nothing to validate against, and merely returns
@@ -4328,10 +4394,13 @@ white reflection (weight :math:`c_2`) — is:
    ms = SNMethodSpace.for_face(...)
    marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
    # marshak_op is (MEASURED — each leaf is the 2-factor tensor
-   # product the realizer emits, not the bare angular primitive):
+   # product the realizer emits, not the bare angular primitive;
+   # white's angular factor is the G6.3 two-link chain):
    #   OperatorSum(
    #       ScaledOperator(0.3, PermutationOperator(...) & IdentityOperator()),
-   #       ScaledOperator(0.7, AngularAverageOperator(...) & IdentityOperator()),
+   #       ScaledOperator(0.7, (IsotropicEmissionOperator(...)
+   #                            @ PartialCurrentOperator(...))
+   #                           & IdentityOperator()),
    #   )
    psi_in = marshak_op.apply(psi_out)   # 1-arg; psi_out is Γ₊-shaped
 
@@ -4491,10 +4560,13 @@ Usage on the descriptor tree:
    # method-blind, so the method's realizer is passed explicitly.
    realized = realize_recursively(law, method_space, SNBoundaryRealizer())
    # realized is (MEASURED — each leaf is the 2-factor tensor product
-   # the realizer emits, not the bare angular primitive):
+   # the realizer emits, not the bare angular primitive; white's
+   # angular factor is the G6.3 two-link chain):
    #   OperatorSum(
    #       ScaledOperator(0.3, PermutationOperator(...) & IdentityOperator()),
-   #       ScaledOperator(0.7, AngularAverageOperator(...) & IdentityOperator()),
+   #       ScaledOperator(0.7, (IsotropicEmissionOperator(...)
+   #                            @ PartialCurrentOperator(...))
+   #                           & IdentityOperator()),
    #   )
    psi_in = realized.apply(psi_out)   # 1-arg; psi_out is Γ₊-shaped
 

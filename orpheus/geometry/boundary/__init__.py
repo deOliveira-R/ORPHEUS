@@ -238,7 +238,7 @@ sole bridge. The canonical SN-realised representation per law.
   transformation; the physics settled into the empty :math:`G` slot
   because a rank-one response annihilates :math:`G` entirely, making the
   error unobservable. SN realises the composite to
-  ``AngularAverageOperator`` (α=1 fast
+  the factored Lambertian chain (α=1 fast
   path) or scaled — since **B3.4a** typed :math:`\Gamma_+ \to \Gamma_-`.
 * :class:`PeriodicBoundary(axis)` (registry key ``"periodic"``) —
   :math:`G = ` :class:`SpatialWrap(axis)`, the translation carrying the
@@ -346,7 +346,7 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
     marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
     # marshak_op is:
     #   OperatorSum(ScaledOperator(0.3, PermutationOperator(...)),
-    #               ScaledOperator(0.7, AngularAverageOperator(...)))
+    #               ScaledOperator(0.7, IsotropicEmission @ PartialCurrent))
     psi_in = marshak_op.apply(psi_out)   # 1-arg LinearOperator
 
 The output is a Wave-0

@@ -47,7 +47,7 @@ suffices for the two laws below.
   The ``albedo=1.0`` fast path returns the bare
   :class:`PermutationOperator` TP.
 * :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
-  ``albedo * AngularAverageOperator.from_quadrature(quadrature, axis, outward_sign)``
+  ``albedo * (IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))``
   (with the ``albedo=1.0`` fast path), narrowed at **B3.4a** to contract over
   :math:`\Gamma_+` and re-emit on :math:`\Gamma_-`. Two things dissolved with
   the codomain: the operator's private ``> 0.0`` outflow test (it now reads the
@@ -771,7 +771,7 @@ class SNBoundaryRealizer:
         if isinstance(law, WhiteBoundary):
             # B3.4a — the Lambertian kernel, narrowed to Γ₊ → Γ₋.
             #
-            # ``AngularAverageOperator`` derives BOTH half-traces from the one
+            # the Lambertian arm derives BOTH half-traces from the one
             # face-name → signed-projection primitive, classified against
             # ``TANGENTIAL_EPS`` — so its old private ``> 0.0`` outflow test is
             # gone, and with it the disagreement with the trace space on every

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8627**
+Total tests collected: **8643**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1258, 14.6%
-   L1, 1403, 16.3%
+   L0, 1262, 14.6%
+   L1, 1415, 16.4%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5897, 68.4%
+   foundation, 5897, 68.2%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8543
+   explicit, 8559
    class-name, 46
    func-name, 0
    case, 33
@@ -356,7 +356,6 @@ Module × level grid
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
-   operators/test_angular_average_operator, 17, 4, 0, 0, 0, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
    operators/test_b3_domain_narrowing, 0, 0, 0, 0, 31, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
@@ -373,6 +372,7 @@ Module × level grid
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
+   operators/test_lambertian_chain, 21, 16, 0, 0, 0, 0
    operators/test_lambertian_factored, 39, 0, 0, 0, 0, 0
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
@@ -530,13 +530,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``surface-to-region``, 34
    ``surface-to-surface``, 34
    ``transport-spherical``, 34
+   ``bc-response-factored-adjoint``, 33
    ``keff-mean``, 33
    ``peierls-equation``, 33
    ``sigma-keff``, 33
    ``dd-slab``, 32
    ``free-flight``, 31
    ``transport-cylindrical``, 30
-   ``bc-response-factored-adjoint``, 28
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
@@ -822,7 +822,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **525** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **524** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -856,7 +856,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bc-face-name-key-identity``
 - ``bc-rank-n-tensor-decomposition``
 - ``bc-realizability-square``
-- ``bc-response-factored-adjoint``
 - ``bc-tensor-decomposition``
 - ``bc-trace-restriction-pair``
 - ``bessel-wronskian``

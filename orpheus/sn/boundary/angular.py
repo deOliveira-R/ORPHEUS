@@ -268,7 +268,7 @@ class PartialCurrentOperator(LinearOperator):
         The Euclidean transpose. The *Hilbert* adjoint additionally carries the
         two spaces' metrics and is reached through ``.H``; both are honest
         here, which is why this one can be advertised (contrast
-        :class:`AngularAverageOperator`, which withheld its transpose precisely
+        the retired ``AngularAverageOperator``, which withheld its transpose precisely
         because the composite's two readings differed).
         """
         current = np.asarray(current)
