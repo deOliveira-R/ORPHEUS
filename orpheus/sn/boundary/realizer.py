@@ -221,6 +221,13 @@ def _outflow_restriction(
     accessor exists for the per-sweep consumer. Reading the method space's own
     field also keeps a hand-built space workable, which is the reason
     ``inflow_indices`` is a field too.
+
+    Bound :math:`\Gamma(f) \to \Gamma_+(f)` when the method space carries a
+    trace (G6.3 step 5, #330). Building here rather than fetching the cached
+    :math:`\gamma_+` is a construction-cost decision, not a typing one — so
+    the local build owes the same binding the cached accessor already has, or
+    the realizer would hand its own consumer an untyped domain while typing
+    that consumer's output.
     """
     if method_space.outflow_indices is None:
         raise BoundaryError(
@@ -233,10 +240,18 @@ def _outflow_restriction(
             f"explicitly alongside inflow_indices.",
             law=law_key,
         )
+    trace, face = method_space.trace, method_space.face
+    gamma, gamma_plus = (
+        (trace.face_space(face), trace.outflow_space(face))
+        if trace is not None and face is not None
+        else (None, None)
+    )
     return TraceRestrictionOperator(
         np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
         n_total=method_space.quadrature.N,
         axis=0,
+        domain=gamma,
+        codomain=gamma_plus,
     )
 
 
@@ -380,6 +395,30 @@ def _specular_kernel(
     polished wall). They assert different physics and realize to the same
     matrix — so they share this construction rather than agreeing by
     transcription. ``law_key`` names the caller in the errors only.
+
+    The deck transformation as a length-1 chain
+    -------------------------------------------
+
+    Returned **bound** to :math:`\Gamma_+(f) \to \Gamma_-(f)` (G6.3 step 5,
+    #330), which makes it the degenerate case of the same structure the
+    diffuse arm builds in :func:`_checked_angular_average`: a boundary law is
+    a chain from outflow to inflow, and a measure-preserving bijection has
+    nothing to factor, so its chain has ONE link. There is no separate
+    "atomic" code path — only a shorter chain.
+
+    ⭐ **Binding is also what retired the involution flag.** `[M]` the
+    narrowed local permutation satisfies ``perm[perm] == arange`` on
+    ``gauss_legendre(4/8)``, ``product(4,4)`` and ``level_symmetric(6)``, and
+    NOT on ``lebedev(17)`` — one physical law, an answer tracking the
+    quadrature's local index ordering rather than the mirror. Bound, the
+    question stops being answerable at all: :math:`P \circ P` is not an
+    expression when the ends are different spaces, so
+    :class:`~orpheus.numerics.operator.PermutationOperator` no longer stores
+    a ``bool`` about it — ``P @ P`` raises, which is the same claim delivered
+    by the algebra. The involution that IS real lives one tier up, on the
+    full-space table
+    (:meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`), where
+    domain and codomain coincide and ERR-044 guards it.
     """
     inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
     perm = quadrature.reflection_index(axis)
@@ -419,7 +458,20 @@ def _specular_kernel(
             f"this point the first is the likely one. Underlying: {exc}",
             law=law_key,
         ) from exc
-    return PermutationOperator(local_perm, axis=0)
+
+    # Bind the single link to the Γ ladder when the method space carries a
+    # trace — the canonical `SNMethodSpace.for_face` path always does. A
+    # hand-built space may not, and binding stays OPTIONAL until the tree-wide
+    # mandate (#330): an unbound permutation gathers the same rows, it just
+    # forfeits the composability check and the metric-aware `.H`.
+    trace, face = method_space.trace, method_space.face
+    gamma_plus = gamma_minus = None
+    if trace is not None and face is not None:
+        gamma_plus = trace.outflow_space(face)
+        gamma_minus = trace.inflow_space(face)
+    return PermutationOperator(
+        local_perm, axis=0, domain=gamma_plus, codomain=gamma_minus,
+    )
 
 
 def _assert_wrap_identification(

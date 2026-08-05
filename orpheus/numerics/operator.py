@@ -2181,14 +2181,34 @@ class PermutationOperator(LinearOperator):
         x_{i_0 \ldots i_{a-1}\,\pi(j)\,i_{a+1} \ldots}
 
     The transpose is the inverse permutation :math:`\pi^{-1}`, computed
-    once at construction via ``np.argsort(perm)``. When
-    ``perm[perm] == np.arange(N)`` the permutation is an involution
-    (:math:`\pi \circ \pi = \mathrm{id}`) — detected at construction
-    and exposed as :attr:`is_involution` for downstream consumers that
-    benefit from knowing self-adjointness in the unweighted inner
-    product. In particular, SN specular reflection through
-    :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index` is
-    an involution; periodic shifts and rotational reorderings are not.
+    once at construction via ``np.argsort(perm)``.
+
+    ⭐ **Ask the algebra whether it is an involution; there is no flag.**
+    Until G6.3 step 5 this class carried an ``is_involution`` attribute,
+    set at construction from ``perm[perm] == np.arange(N)``. It is retired,
+    and the retirement is the *point* rather than a tidy-up: an involution
+    is a claim about :math:`P \circ P`, so it needs that composition to
+    exist, and the composition is exactly what the operator algebra already
+    knows how to form and to refuse. Spell it::
+
+        (P @ P).apply(x)        # same-space: compare against x
+        P @ P                   # cross-space: IncompatibleOperatorComposition
+
+    The second line is the whole argument. A permutation bound
+    :math:`\Gamma_+ \to \Gamma_-` — every specular kernel the SN realizer
+    builds — has no square, and a stored ``bool`` had to answer *something*
+    anyway. `[M]` for ONE physical law (a mirror about ``x`` on ``xmin``)
+    the raw index test answered ``True`` on ``gauss_legendre(4/8)``,
+    ``product(4,4)`` and ``level_symmetric(6)`` and ``False`` on
+    ``lebedev(17)`` — an answer tracking the quadrature's local index
+    ordering rather than the mirror, and unfalsifiable at every row because
+    the flag's documented purpose (self-adjointness in the unweighted inner
+    product) is undefined between two different spaces. Routing the
+    question through ``@`` replaces a value that could be wrong with a
+    composition that cannot be formed. A full-space rule like
+    :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index` IS an
+    involution on :math:`\{0, \ldots, N-1\}`, and asks and answers as one;
+    periodic shifts and rotational reorderings are not.
 
     A permutation is always invertible (:math:`P^{-1} = P^T`), and its
     inverse is ALGEBRA-CLOSED: :meth:`inverse` returns the inverse
@@ -2206,6 +2226,15 @@ class PermutationOperator(LinearOperator):
     axis
         Tensor axis along which the permutation acts. The operator
         broadcasts on every other axis.
+    domain, codomain : FunctionSpace, optional
+        The spaces this permutation maps between. For the SN deck
+        transformation — a specular mirror realized as a **length-1 chain**
+        (campaign step G6.3, issue **#330**) — these are
+        :math:`\Gamma_+(f)` and :math:`\Gamma_-(f)`, and binding them is
+        what makes ``@`` refuse a mis-composed chain and ``.H`` the
+        metric-aware Hilbert adjoint rather than the bare transpose.
+        Both extents are checked against :attr:`n` along :attr:`axis` at
+        construction, because a mis-bound space is SILENT at apply-time.
 
     Attributes
     ----------
@@ -2218,11 +2247,14 @@ class PermutationOperator(LinearOperator):
         The tagged tensor axis.
     n : int
         Length of the permuted axis.
-    is_involution : bool
-        ``True`` iff :math:`\pi \circ \pi = \mathrm{id}`.
     """
 
-    def __init__(self, perm: np.ndarray, axis: int = 0) -> None:
+    def __init__(
+        self, perm: np.ndarray, axis: int = 0,
+        *,
+        domain: Optional[FunctionSpace] = None,
+        codomain: Optional[FunctionSpace] = None,
+    ) -> None:
         perm = np.asarray(perm, dtype=np.intp)
         if perm.ndim != 1:
             raise ValueError(
@@ -2243,10 +2275,22 @@ class PermutationOperator(LinearOperator):
         self.inverse_perm = np.argsort(perm)
         self.axis = int(axis)
         self.n = n
-        # Involution detection: perm[perm] == arange(n).
-        self.is_involution: bool = bool(
-            np.array_equal(perm[perm], np.arange(n))
+        self._domain = checked_space_extent(
+            domain, n, axis=self.axis,
+            owner="PermutationOperator", role="domain",
         )
+        self._codomain = checked_space_extent(
+            codomain, n, axis=self.axis,
+            owner="PermutationOperator", role="codomain",
+        )
+
+    @property
+    def domain(self) -> Optional[FunctionSpace]:
+        return self._domain
+
+    @property
+    def codomain(self) -> Optional[FunctionSpace]:
+        return self._codomain
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return np.take(x, self.perm, axis=self.axis)
@@ -2273,8 +2317,19 @@ class PermutationOperator(LinearOperator):
         :meth:`apply_transpose` (bit-identical: no arithmetic at all), and
         ``argsort`` of a permutation is exactly involutive in integer math,
         so :math:`(P^{-1})^{-1}` reproduces :attr:`perm` EXACTLY (§13 I2).
+
+        ⭐ **The binding is INVERTED, not carried and not dropped.**
+        :math:`P : V \to W` has :math:`P^{-1} : W \to V`, so the spaces
+        swap. Dropping them instead — which is what this returned before
+        the ends could be bound (G6.3 step 5) — would be the quieter bug of
+        the two: the inverse would compose with anything, and the
+        deck transformation's return leg would lose exactly the typing the
+        forward leg had just been given.
         """
-        return PermutationOperator(self.inverse_perm, axis=self.axis)
+        return PermutationOperator(
+            self.inverse_perm, axis=self.axis,
+            domain=self._codomain, codomain=self._domain,
+        )
 
     @property
     def is_adjointable(self) -> bool:
@@ -2292,19 +2347,20 @@ def checked_space_extent(
     r"""Refuse a bound space whose extent contradicts a stored length.
 
     ⭐ **Why this exists as a shared primitive.** An operator that carries BOTH
-    a length (``n_total``, ``n_inflow``, ``len(cos_w)``) and a bound space is
-    describing the SAME fact twice, and the two can disagree. That disagreement
+    a length (``n_total``, ``n``, ``n_inflow``, ``len(cos_w)``) and a bound
+    space is describing the SAME fact twice, and the two can disagree. That
+    disagreement
     is **invisible at apply-time** — the arrays still broadcast, so the operator
     computes a plausible wrong answer — which makes construction the only place
     it can be caught.
 
     The redundancy is transitional: G6.5 retires the lengths in favour of the
     spaces (#330). Until then this keeps the pair honest, and it is one routine
-    rather than three because three operators now need it
-    (:class:`TraceRestrictionOperator`,
+    rather than four because four operators now need it
+    (:class:`TraceRestrictionOperator`, :class:`PermutationOperator`,
     :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`,
-    :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`) — the
-    threshold at which a repeated check earns extraction.
+    :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`) — well
+    past the threshold at which a repeated check earns extraction.
 
     Parameters
     ----------
@@ -2368,8 +2424,8 @@ class TraceRestrictionOperator(LinearOperator):
     Relation to :class:`PermutationOperator` — a **sibling, not a
     subclass**. The mechanism is the same ``np.take`` gather with a
     non-square index array, but the algebra is different in kind: a
-    permutation is a bijection (invertible, involution-detectable, with an
-    algebra-closed :meth:`~PermutationOperator.inverse`), whereas a
+    permutation is a bijection (invertible, with an algebra-closed
+    :meth:`~PermutationOperator.inverse`), whereas a
     restriction is **rank-deficient by construction** and has a scatter
     transpose rather than an inverse. Inheriting would have promised
     guarantees this type cannot honour.

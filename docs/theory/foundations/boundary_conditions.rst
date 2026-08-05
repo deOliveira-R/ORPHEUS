@@ -897,6 +897,124 @@ flipped to ``True`` in the same step.
 That is the campaign's thesis in one line: **the adjoint falls out of
 well-posedness instead of being hand-rolled.**
 
+.. _bc-deck-length-one-chain:
+
+The deck transformation is the same chain, one link long
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The two-link chain above invites a taxonomy — *composed* responses
+against *atomic* deck transformations — and that taxonomy is a trap. It
+would make "atomic" a **kind**, and a kind needs its own code arm. It is
+not a kind; it is a **degenerate length**. A boundary law is a sequence
+whose first link has domain :math:`\Gamma_+(f)` and whose last has
+codomain :math:`\Gamma_-(f)`, with the interior determined by whatever
+the physics needs; a measure-preserving bijection has nothing to factor,
+so its sequence has one link. Specular reflection is therefore built by
+the same body as the Lambertian, bound to the same two spaces, and
+composed by the same ``@`` — there is no second path (G6.3 step 5, issue
+**#330**).
+
+.. _bc-narrowed-involution:
+
+The involution that isn't — a flag retired in favour of the algebra
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A mirror is an involution — :math:`\sigma^2 = \mathrm{id}` is the whole
+content of a symmetry plane, and ERR-044 guards it. It is therefore
+natural to expect the *realized* specular operator to report itself an
+involution, and until G6.3 step 5
+:class:`~orpheus.numerics.operator.PermutationOperator` carried an
+``is_involution`` attribute — set at construction from
+``perm[perm] == np.arange(N)`` — to say so. **It could not, and the reason
+is structural rather than numerical.**
+
+The realizer does not build the full reflection table; it builds the
+table **narrowed to** :math:`\Gamma_+`-local indices, because the law was
+narrowed to :math:`\Gamma_+ \to \Gamma_-` in B3.4a. Whether that narrowed
+array satisfies ``perm[perm] == arange`` depends on how ``to_local``'s
+``searchsorted`` happens to order the locals — which is a property of the
+quadrature, not of the mirror. `[M]` for **one** law, a mirror about
+``x`` installed on ``xmin``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 12 24 30
+
+   * - quadrature
+     - :math:`|\Gamma_+|`
+     - full-space table
+     - **narrowed** ``perm[perm] == arange``
+   * - ``gauss_legendre(4)``
+     - 2
+     - involution
+     - ``True``
+   * - ``gauss_legendre(8)``
+     - 4
+     - involution
+     - ``True``
+   * - ``product(4, 4)``
+     - 4
+     - involution
+     - ``True``
+   * - ``level_symmetric(6)``
+     - 24
+     - involution
+     - ``True``
+   * - ``lebedev(17)``
+     - 49
+     - involution
+     - ``False``
+
+The physics does not vary with the quadrature, so the raw index answer
+carries no invariant meaning — and Lebedev is only the row that makes
+that *visible*. The deeper point holds at all five: the flag's documented
+purpose is **self-adjointness in the unweighted inner product**, and
+self-adjointness is undefined for a map between two different spaces. The
+four ``True`` rows were never right; they were unfalsifiable.
+
+Binding the operator is what converts this from a wrong value into a
+**refused question**. Once the ends are :math:`\Gamma_+(f)` and
+:math:`\Gamma_-(f)`, the composition :math:`P \circ P` is not an
+expression at all, and ``@`` says so at construction:
+
+.. code-block:: text
+
+   P @ P            -> IncompatibleOperatorComposition:
+                       A.domain=angular_trace[xmin:outflow]
+                       B.codomain=angular_trace[xmin:inflow]
+   P_xmin @ P_xmax  -> IncompatibleOperatorComposition   (cross-face)
+   P @ P.inverse()  -> composes: Γ₋ → Γ₊ → Γ₋
+
+⭐ So the flag was **retired rather than corrected**, and that is the
+load-bearing choice. A refined flag would have answered ``False`` for a
+bound cross-space permutation — the right value, still stored, still
+obliged to answer for every future caller in every future binding state.
+Asking ``P @ P`` instead replaces a value that *can* be wrong with a
+composition that *cannot be formed*: the same claim, delivered by the
+algebra, with no second clause to keep in step. The involution that IS
+real lives one tier up, on the full-space table
+(:meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`), where
+domain and codomain coincide and ERR-044 gates it. **Two different claims
+had been sharing one predicate name across two tiers**, and the fix is to
+make the tier explicit rather than to tune the value.
+
+.. note::
+
+   The retirement had zero production consumers and two test assertions,
+   both on unbound abstract permutations. Those were *rewired, not
+   deleted* — from "the flag matches the index test" to "the square is the
+   identity", asked of the algebra
+   (``tests/numerics/test_permutation_operator.py``). The behavioural
+   content survived the attribute; only the caching of it did not.
+
+One consequence worth stating, because dropping it would have been the
+quieter bug. :math:`P : \Gamma_+ \to \Gamma_-` has
+:math:`P^{-1} : \Gamma_- \to \Gamma_+`, so
+:meth:`~orpheus.numerics.operator.PermutationOperator.inverse` **inverts
+the binding** rather than carrying or discarding it. Discarding it would
+have left the return leg composable with anything while the forward leg
+was fully typed — an asymmetry no gate on the forward leg could see.
+
 .. _bc-method-realizability:
 
 When a law realizes in a method — the three tiers
@@ -1212,7 +1330,7 @@ with :math:`\gamma_S \iota_S = I` on the restricted space and
 a **sibling of** :class:`~orpheus.numerics.operator.PermutationOperator`
 and deliberately **not a subclass**: same ``np.take`` mechanism with a
 non-square index array, but different algebra in kind — a permutation
-is a bijection (invertible, involution-detectable, algebra-closed
+is a bijection (invertible, with an algebra-closed
 :meth:`~orpheus.numerics.operator.PermutationOperator.inverse`) while a
 restriction is rank-deficient by construction and has a *scatter*
 transpose rather than an inverse. Inheriting would promise what the
@@ -3483,8 +3601,10 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        (:math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture — a
        coincidence, not a contract).
      - n/a (vacuum has no α parameter)
-   * - :class:`ReflectiveBoundary(axis, α)` — **narrowed**
-     - ``PermutationOperator(local_perm, axis=0) & IdentityOperator()``
+   * - :class:`ReflectiveBoundary(axis, α)` — **narrowed** (B3.4a),
+       **bound** (G6.3 step 5)
+     - ``PermutationOperator(local_perm, axis=0,
+       domain=Γ₊(f), codomain=Γ₋(f)) & IdentityOperator()``
        — a 2-factor
        :class:`~orpheus.numerics.operator.TensorProductOperator` on the
        **reduced** ordinate axis, with
@@ -3494,7 +3614,11 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        ``to_local`` is mandatory because a slab mirror **reverses**
        order. The ERR-045 inflow → outflow invariant is *consumed*
        here rather than re-assumed — ``to_local`` raises if the mirror
-       sent an inflow ordinate anywhere but :math:`\Gamma_+`.
+       sent an inflow ordinate anywhere but :math:`\Gamma_+`. The
+       binding makes this the **one-link** case of the white arm's chain
+       (:ref:`bc-deck-length-one-chain`) and costs zero arithmetic
+       — `[M]` ``apply`` and ``apply_transpose`` bit-identical to the
+       unbound build on all five shipped quadratures.
      - ``ScaledOperator(α, <that TP>)``
    * - :class:`WhiteBoundary(axis, outward_sign, α)` — **narrowed**
        (B3.4a), **factored** (G6.3 step 3b)

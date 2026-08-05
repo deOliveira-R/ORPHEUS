@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8643**
+Total tests collected: **8740**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1262, 14.6%
-   L1, 1415, 16.4%
+   L0, 1264, 14.5%
+   L1, 1510, 17.3%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5897, 68.2%
+   foundation, 5897, 67.5%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8559
+   explicit, 8656
    class-name, 46
    func-name, 0
    case, 33
@@ -270,6 +270,7 @@ Module × level grid
    geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
+   geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
@@ -335,7 +336,7 @@ Module × level grid
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
-   numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
+   numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 41, 0
    numerics/test_registry, 0, 0, 0, 0, 42, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
@@ -395,6 +396,7 @@ Module × level grid
    operators/test_sn_boundary_realizer, 0, 30, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
+   operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
    operators/test_streaming_collision_operator, 1, 10, 0, 0, 20, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0

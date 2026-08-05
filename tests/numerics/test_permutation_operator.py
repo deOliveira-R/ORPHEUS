@@ -8,8 +8,10 @@ Verifies the operator's invariants:
   :class:`PermutationOperator` (since :math:`P^{-1} = P^{T}` for
   permutation matrices) — carve P4: ``solve`` retired, the inverse is
   ALGEBRA-CLOSED, solving is ``.inverse().apply(b)``. Issue #150 closeout.
-* Involution detection: ``is_involution`` matches
-  ``np.array_equal(perm[perm], np.arange(n))``.
+* Involution, **asked of the algebra**: ``(P @ P).apply(x) == x``. The
+  ``is_involution`` attribute this file used to assert against was retired
+  in G6.3 step 5 (#330) — see :ref:`bc-narrowed-involution`. The
+  behavioural claim was rewired here, not deleted with the flag.
 * Predicates: ``is_invertible`` and ``is_adjointable`` are both ``True``
   (a permutation always transposes and always inverts).
 * Composition with ``@`` reproduces function composition.
@@ -25,6 +27,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     PermutationOperator,
 )
+from orpheus.numerics.space import FunctionSpace
 
 
 @pytest.mark.l0
@@ -47,26 +50,44 @@ def test_apply_transpose_round_trip():
 
 
 @pytest.mark.l1
-def test_involution_detection():
-    """L1: ``is_involution`` flag matches ``perm[perm] == arange(n)``.
+def test_the_square_of_a_pair_swap_is_the_identity():
+    r"""L1: :math:`P \circ P = \mathrm{id}`, **asked of the algebra**.
 
-    Pair-swap permutations are involutions; cyclic permutations of
-    length > 2 are not. The flag is what downstream consumers
-    (e.g. SN specular reflection) use to know that
-    ``apply_transpose == apply``.
+    This is the rewire of the retired ``is_involution`` flag (G6.3 step 5,
+    #330). The flag stored ``perm[perm] == arange(n)``; the composition
+    ``P @ P`` *computes* it, and — the reason for the retirement — it also
+    REFUSES to exist when the operator is bound between two different
+    spaces, where a stored ``bool`` was obliged to answer anyway. The
+    cross-space refusal is gated in
+    ``tests/sn/operators/test_specular_deck_chain.py``; this file keeps the
+    positive, unbound claim the flag used to carry.
+
+    The negative leg is the same question asked of a 3-cycle, which is a
+    permutation of the same shape and NOT an involution — so a mutation
+    that made ``@`` return the identity, or made ``apply`` a no-op, cannot
+    pass both legs.
     """
-    pair_swap = np.array([1, 0, 3, 2])
-    P_inv = PermutationOperator(pair_swap)
-    assert P_inv.is_involution is True
-    assert np.array_equal(pair_swap[pair_swap], np.arange(4))
-    # And ``apply_transpose == apply`` for the involution.
     x = np.array([1.0, 2.0, 3.0, 4.0])
-    np.testing.assert_array_equal(P_inv.apply(x), P_inv.apply_transpose(x))
 
-    cyclic = np.array([2, 0, 1])
-    P_cyc = PermutationOperator(cyclic)
-    assert P_cyc.is_involution is False
-    assert not np.array_equal(cyclic[cyclic], np.arange(3))
+    pair_swap = PermutationOperator(np.array([1, 0, 3, 2]))
+    np.testing.assert_array_equal((pair_swap @ pair_swap).apply(x), x)
+    # An involution is its own inverse, so the transpose gathers the same
+    # rows as the forward — the property the retired flag advertised.
+    np.testing.assert_array_equal(
+        pair_swap.apply(x), pair_swap.apply_transpose(x)
+    )
+
+    three_cycle = PermutationOperator(np.array([2, 0, 1]))
+    y = np.array([1.0, 2.0, 3.0])
+    assert not np.array_equal((three_cycle @ three_cycle).apply(y), y), (
+        "a 3-cycle squared is the OTHER 3-cycle, not the identity — if this "
+        "passes, `@` is not composing"
+    )
+    # Its cube is, which pins that the composition is genuine rather than
+    # merely non-identity.
+    np.testing.assert_array_equal(
+        (three_cycle @ three_cycle @ three_cycle).apply(y), y
+    )
 
 
 @pytest.mark.l0
@@ -171,6 +192,32 @@ def test_invalid_perm_2d_raises():
     """L0: non-1-D perm input is rejected."""
     with pytest.raises(ValueError, match="1-D"):
         PermutationOperator(np.array([[0, 1], [1, 0]]))
+
+
+@pytest.mark.l0
+@pytest.mark.parametrize("end", ["domain", "codomain"])
+def test_a_bound_space_whose_extent_contradicts_the_perm_is_refused(end):
+    """L0: the space and ``n`` state the same fact; a disagreement raises.
+
+    Construction is the only place this can be caught — a mis-bound space is
+    SILENT at apply-time, because the arrays still broadcast and the operator
+    computes a plausible wrong answer.
+
+    ⚠ The extent check is structurally unable to catch a domain/codomain
+    **swap**: on every shipped SN quadrature ``|Γ₊| == |Γ₋|``, so both ends
+    have the same extent. That claim needs an identity assertion instead, and
+    lives in ``tests/sn/operators/test_specular_deck_chain.py``.
+    """
+    perm = np.array([1, 0, 3, 2])
+    wrong = FunctionSpace(name="too-long", shape=(5,))
+    with pytest.raises(ValueError, match="along axis 0"):
+        PermutationOperator(perm, axis=0, **{end: wrong})
+
+    # Positive leg: the matching extent constructs, so the row above is
+    # about the DISAGREEMENT and not about binding being rejected at all.
+    right = FunctionSpace(name="matching", shape=(4,))
+    bound = PermutationOperator(perm, axis=0, **{end: right})
+    assert getattr(bound, end) is right
 
 
 @pytest.mark.l0
