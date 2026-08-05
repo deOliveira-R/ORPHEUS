@@ -407,3 +407,70 @@ class AngularBoundarySourceSink(AngularBoundaryField):
             full[inflow] = values
             face_values[face] = full
         return cls.prescribed_inflow(mesh, face_values)
+
+    @classmethod
+    def from_mesh_laws(cls, mesh: "SNMesh") -> "AngularBoundarySourceSink":
+        r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
+
+        Reads each face's realized law (``mesh.bc[face].law``) and materialises
+        the inflow source of every
+        :class:`~orpheus.geometry.boundary.PrescribedInflow` among them. Faces
+        carrying any other law contribute nothing: vacuum, reflective, white,
+        albedo and periodic are all :math:`q = 0` — their entire content is the
+        linear factor :math:`L`.
+
+        **Why this method exists, and why it is the top of the ladder.** The
+        four constructors below it each take the source in a form the *caller*
+        already holds — zeros, full slots, known inflow arrays, lazy recipes.
+        This one takes it from the form the *problem* holds: a boundary
+        condition someone declared. A test or a driver that reaches for
+        :meth:`prescribed_inflow` directly is supplying by hand what the
+        declaration should have produced, and is therefore exercising a path no
+        user travels (user ruling, 2026-08-05:
+
+            *Tests must route through the machinery that a user would exercise
+            without bypassing code functionality. Or else it's not testing the
+            path the users go through.*
+
+        ) — so a manufactured-solution driver with a non-vacuum inflow declares
+        a ``PrescribedInflow`` and comes through here.
+
+        The chain is ``from_mesh_laws → from_specs → prescribed_inflow``, each
+        step delegating down, so the packing rule is stated exactly once.
+
+        .. note::
+
+           A non-trivial inflow is reachable ONLY by constructing the law
+           object; ``BC.params`` is ``dict[str, float]``, so a ``BC(...)`` tag
+           can never carry a manufactured solution restricted to a face. That
+           is structural, not a gap — and it is separate from **#189**, which
+           is about registering ``prescribed_inflow`` as a tag *kind* for the
+           constant case.
+
+        Returns
+        -------
+        AngularBoundarySourceSink
+            The declared :math:`q` — all-zero when no face declares a
+            prescribed inflow, which is the overwhelmingly common case and is
+            exactly :meth:`zeros_on`.
+
+        Raises
+        ------
+        ValueError
+            If ``mesh.angular_trace is None`` (trace-less 2-D cylindrical).
+        """
+        from orpheus.geometry.boundary import PrescribedInflow
+
+        trace = mesh.angular_trace
+        if trace is None:
+            raise ValueError(
+                f"{cls.__name__}.from_mesh_laws: mesh has no AngularTraceSpace "
+                f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
+                f"boundary source cannot be built without a trace."
+            )
+        specs = {}
+        for face in trace.layout.faces:
+            law = getattr(mesh.bc[face], "law", None)
+            if isinstance(law, PrescribedInflow):
+                specs[face] = law.source
+        return cls.from_specs(mesh, specs)

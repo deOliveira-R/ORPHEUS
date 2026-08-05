@@ -742,6 +742,79 @@ cannot drift from the values in the tests because both come from
 the same :mod:`orpheus.derivations` package.
 
 
+.. _verification-user-path:
+
+Route through the user's path — and treat a bypass as a gap
+===========================================================
+
+A verification case must reach the system under test **the way a user
+reaches it**. Stated as the ruling that established it (2026-08-05):
+
+   Tests must route through the machinery that a user would exercise
+   without bypassing code functionality. Or else it's not testing the
+   path the users go through.
+
+This is not a style preference about test ergonomics. A test that
+assembles an internal object by hand and injects it past the layers a
+user traverses has verified **that object**, and has said nothing about
+the declaration, resolution, and wiring that were supposed to produce
+it. Every one of those skipped steps is production code that ships
+unexercised — and the failure is silent in the worst way, because the
+suite is green and the coverage report counts the injected object's
+lines.
+
+The canonical instance in this codebase is the boundary source. The
+affine boundary law is
+
+.. math::
+
+   \gamma_-\psi \;=\; L\,\gamma_+\psi \;+\; q ,
+
+and a manufactured-solution driver needs a non-zero :math:`q`. Supplying
+it as :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+straight into a composite source verifies the *channel* — the RHS carries
+it, the sweep consumes it — while saying nothing about whether **declaring**
+a :class:`~orpheus.geometry.boundary.PrescribedInflow` produces it. It did
+not: until the mesh-BC bridge landed, a declared inflow realized into an
+operator nothing consumed, so the declaration was inert and no green test
+could tell. The honest driver declares the boundary condition and lets the
+machinery materialise :math:`q`.
+
+Test-owned machinery is a GAP SIGNAL
+------------------------------------
+
+The rule has a second half, and it is the more useful one.
+
+A test may legitimately implement a production **Protocol** — an
+:class:`~orpheus.geometry.boundary._source.InflowSourceSpec` evaluating a
+manufactured solution on a face is using the machinery, not bypassing it.
+But when a test has to *build* something in order to exercise production,
+that is evidence the production shape is **missing**, not evidence the
+test is clever:
+
+   If the MMS is exercising custom machinery that is not part of
+   production, then the proper shape of the machinery should be
+   implemented so that the MMS can use it. It is a sign of a gap.
+
+So a test-authored implementation is a **stopgap with an owner**: it
+ships, and it ships with a phase that promotes the shape into production.
+The diagnostic question at review time is not *"is this test allowed to
+define that class?"* but *"why does production not already offer it?"* —
+and the answer is nearly always that a real capability was never built,
+with the test's private version quietly standing in for it.
+
+Two corollaries worth stating, because both have bitten:
+
+* **A bypass and a stopgap look identical in the diff.** Both add a class
+  to a test module. The discriminator is whether the object is *reached
+  through* the production path (stopgap — the Protocol is public and the
+  wiring is exercised) or *injected past* it (bypass). Ask which
+  production lines run because of it.
+* **A convenience factory can BE the bypass.** ``prescribed_inflow`` is
+  production code, public and correct; using it in a driver still skips
+  the declaration tier. "It is a production symbol" does not establish
+  that the user path was travelled.
+
 .. _verification-principled-equivalence:
 
 Bit-identity vs principled equivalence

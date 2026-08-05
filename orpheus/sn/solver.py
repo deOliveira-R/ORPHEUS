@@ -2793,6 +2793,23 @@ def _build_fixed_source_rhs(
                 f"on the same mesh / quadrature / materials)."
             )
         boundary = AngularBoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
+        # A composite carries its own q_∂. If the MESH also declares a
+        # prescribed inflow, there are two answers to one question — refuse
+        # rather than pick, since silently adding double-counts and silently
+        # overriding makes the declaration a no-op.
+        declared = AngularBoundarySourceSink.from_mesh_laws(sn_mesh)
+        if declared.linf > 0.0 and boundary.linf > 0.0:
+            raise ValueError(
+                "_build_fixed_source_rhs: the boundary source q_∂ is specified "
+                "TWICE — the mesh declares a PrescribedInflow law AND the "
+                "composite external_source carries a non-zero boundary leaf. "
+                "These are two answers to one question. Supply the inflow "
+                "either as the declared boundary condition (preferred — it is "
+                "the path a user travels) or as the composite's boundary leaf, "
+                "not both."
+            )
+        if declared.linf > 0.0:
+            boundary = declared
     else:
         bulk_values = np.asarray(source_a)
         if bulk_values.dtype == object:
@@ -2805,7 +2822,13 @@ def _build_fixed_source_rhs(
                 f"TimedFullField composite source; got "
                 f"{type(external_source).__name__}"
             )
-        boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
+        # ⭐ The bulk-array form is "bulk only", NOT "boundary vacuum": a face
+        # that DECLARES a PrescribedInflow contributes its q here (P2′ of
+        # `.claude/plans/affine_boundary_source_channel.md`). Before this, a
+        # declared inflow was realized into an affine operator that nothing
+        # consumed, so the declaration was silently inert. Every other law is
+        # q = 0, so this is `zeros_on` for all of them.
+        boundary = AngularBoundarySourceSink.from_mesh_laws(sn_mesh)
 
     # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO
     # principled ndarray ranks — flat ``(N, ng, *spatial)`` (the original path)

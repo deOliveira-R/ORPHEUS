@@ -157,6 +157,37 @@ survive — that is a prediction to check, not a reassurance to accept.
 ⚠ **`is_adjointable` flips.** `IncomingSourceOperator` reports `False` (measured);
 the zero morphism is adjointable. Grep for gates pinning the `False`.
 
+### ⭐⭐ THE RULING that orders the rest (user, 2026-08-05)
+
+> **Tests must route through the machinery that a user would exercise without
+> bypassing code functionality. Or else it's not testing the path the users go
+> through.**
+
+This is V&V doctrine, not a preference about this MMS, and it belongs in the
+corpus (`docs/theory/verification/principles.rst`) alongside the ladder. It
+disqualifies the §4.6 MMS's shape as a model for P4: that MMS hand-builds `q_∂`
+and supplies it directly, *deliberately* bypassing the law tier
+(`sn.rst:3900`). It verifies the CHANNEL and is silent about everything a user
+actually touches to get an inflow.
+
+**Three consequences, in order:**
+
+1. ⛔ **P2′ BLOCKS P4.** An MMS cannot route through a bridge that does not
+   exist. The old plan had P4 independent; it is not.
+2. ⭐ **The MMS cannot use a `BC(...)` tag, and that is structural, not a gap.**
+   `BC.params` is `dict[str, float]` (`geometry/mesh.py:59-64`), so a tag can
+   carry `{"albedo": 0.7}` but never a manufactured solution restricted to a
+   face. A non-trivial prescribed inflow is *inherently* not tag-expressible ⟹
+   the user path here is constructing `PrescribedInflow(source=<spec>)` and
+   installing it, which is a public surface (`orpheus.geometry.boundary`
+   exports it). #189 (registering the kind) is a SEPARATE, weaker question
+   about the constant case and is NOT a prerequisite.
+3. ⭐ **The MMS fires the deferral trigger retroactively.** `from_specs` waited
+   for *"the first real consumer that both declares a non-trivial
+   `InflowSourceSpec` AND drives a sweep that consumes a typed boundary-source
+   field"*. That is precisely P4. Built ahead of the trigger by ruling; the
+   trigger then arrives two phases later and vindicates the ordering.
+
 ### P4 — the non-trivial MMS ⭐ the user's smash test
 
 A manufactured solution with a **nonzero inflow on at least one face**, driven
@@ -177,6 +208,32 @@ face and check that a mutation of `q` moves the measured error.
   (zero-operator + `q_ext.boundary`) ≡ the pre-carve (affine operator + zero
   `q_ext.boundary`), on a fixture where both are reachable.
 * The Krylov matvec stays linear with a prescribed law installed.
+
+### P6 — promote what P4 hand-rolled into production ⭐ the doctrine's second half
+
+**Added by user ruling, 2026-08-05**, refining the P4 ruling. (Numbered P6
+because P5 — the matvec/linearity gates — was already in this plan.)
+
+> If the MMS is exercising custom machinery that is not part of production, then
+> the proper shape of the machinery should be implemented so that the MMS can
+> use it. **It is a sign of a gap.**
+
+P4's manufactured inflow needs an `InflowSourceSpec` that evaluates a
+manufactured solution on a face. Implementing the Protocol in the test module is
+*using* the machinery, not bypassing it — but it is a **stopgap with an owner**,
+because production offering only `NoSource` and `ConstantInflowSource` is
+precisely the gap. Nothing shipped can express an inflow that varies in angle,
+space, or energy, which is the whole content of a non-trivial boundary
+condition.
+
+P6 promotes the shape P4 needed. **Do not design it before P4** — the honest
+production shape is whatever the MMS turns out to require, and guessing it first
+is how a speculative abstraction gets minted. Let the test state the need, then
+build to it and retire the private version.
+
+Landed doctrine: :ref:`verification-user-path` in
+`docs/theory/verification/principles.rst` carries both halves, with this boundary
+source as the worked example.
 
 ---
 
