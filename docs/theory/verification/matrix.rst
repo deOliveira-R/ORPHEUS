@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8587**
+Total tests collected: **8626**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1219, 14.2%
-   L1, 1407, 16.4%
+   L0, 1258, 14.6%
+   L1, 1407, 16.3%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5897, 68.7%
+   foundation, 5897, 68.4%
    unmarked, 0, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8508
+   explicit, 8547
    class-name, 46
    func-name, 0
    case, 33
@@ -373,6 +373,7 @@ Module × level grid
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
+   operators/test_lambertian_factored, 39, 0, 0, 0, 0, 0
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
@@ -535,6 +536,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-slab``, 32
    ``free-flight``, 31
    ``transport-cylindrical``, 30
+   ``bc-response-factored-adjoint``, 28
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
@@ -582,7 +584,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-annulus-architecture``, 14
    ``two-group-charpoly``, 14
    ``two-group-roots``, 14
-   ``bc-response-factored-adjoint``, 13
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``cp-infinite-lattice-sum``, 12
