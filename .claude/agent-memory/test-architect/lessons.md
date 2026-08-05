@@ -2,7 +2,7 @@
 
 Read at the START of every dispatch. This is the **behavioral index**: one rule
 per entry, imperative and standalone. War stories, measured numbers and
-`file:line` detail live in **`lessons_archive.md`** (sections L1–L35) — open only
+`file:line` detail live in **`lessons_archive.md`** (sections L1–L38) — open only
 the section a pointer names. The failure-mode TAXONOMY (Modes 1–12, three
 pillars, anti-patterns #1–#17) lives in the preloaded **`vv-principles`** skill:
 **cite it, never restate it.** Reference inventory + XS mixtures → `AGENT.md`;
@@ -118,9 +118,19 @@ codes). → `L34d`, `L35l`
   confirm it is the ONLY one, so every later red is attributable with no triage.
   → `L36e`
 - **`git status` + `ls -la` mid-run, not just at the start: on a shared tree
-  another agent may be rewriting the very doc you are about to correct.** The
-  same `sed` range returned different prose 20 minutes apart; a second agent was
-  running its own tree-wide mutation battery concurrently. Report the correction
+  another agent may be rewriting the very code you are measuring.** The same
+  `sed` range returned different prose 20 minutes apart; a second agent was
+  running its own tree-wide mutation battery concurrently. ⭐ **Worse form,
+  measured: a concurrent write can DEMOTE your own measurement to a
+  value-compared-with-itself.** Dispatched to plan a carve "before" it landed, I
+  probed production at 22:39 and again at 22:41; the implementer shipped the
+  change in between, so my "bound production vs unbound production" bit-identity
+  leg was bound-vs-bound and `array_equal` was true for free. Same end state as
+  the lesson-#4 rewire demotion, arriving through the CLOCK. Defences: build the
+  control EXPLICITLY (`np.asarray(x.perm).copy()`, then assert
+  `control.domain is None` INSIDE the test so it cannot silently become bound),
+  re-`git diff` before every claim, and treat a brief's "I am about to write X"
+  as "X may already be on disk" — re-`ls` and re-score. Report the correction
   with `file:line` + evidence instead of racing the writer.
 
 - **Run the teeth harness over your OWN new module before delivering it.** It
@@ -361,13 +371,30 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   derivation):** nothing on the forward path changes, so a bit-id keystone is cheap
   and WORTHLESS — the keystone is a metric-sensitive reciprocity gate written
   BEFORE the metric lands, so it goes RED→GREEN (written after it can only be
-  green). Decay has THREE flavours, not one: **DIE** (the gate can no longer
-  CONSTRUCT its subject), **DECAY** (green tautology — re-pose onto "the space is
-  the RIGHT one", `is` not `==`, since `FunctionSpace.__eq__` is `(name,shape)`),
-  **INVERT** (the gate pins the degradation as the contract — its docstring
-  literally says "metric-blind Euclidean `.H`"). And `assert_array_equal` on ANY
-  `.H` of a newly-bound operator breaks at **2 nulp** (`(g·x)/g` is not an IEEE
-  identity) — grep them all first. → `L37`
+  green). **MEASURED how worthless: THREE wrong bindings — dropped, SWAPPED
+  (`domain`↔`codomain`), collapsed-to-one-space — each produced ZERO new reds
+  across 1668 tests and 1252 constructions of the bound operator.** ⭐ **Design
+  the battery around the SWAP**: it survives the extent guard (`|Γ₊|==|Γ₋|` on
+  every shipped fixture), survives the refusal flag (the two spaces still
+  DIFFER, so an `is_involution`-style gate stays correctly False), and changes
+  no arithmetic — the ONLY catcher is an `is`-identity row naming WHICH space is
+  WHICH end. Decay has THREE flavours: **DIE** (the gate can no longer CONSTRUCT
+  its subject), **DECAY** (green tautology — re-pose onto "the space is the RIGHT
+  one", `is` not `==`, since `FunctionSpace.__eq__` is `(name,shape)`),
+  **INVERT** (the gate pins the degradation as the contract). And
+  `assert_array_equal` on ANY `.H` of a newly-bound operator breaks at **2 nulp**
+  (`(g·x)/g` is not an IEEE identity) — grep them all first. → `L37`
+- **A binding added at a LEAF may not survive to the object the producer
+  RETURNS — measure at the tier the CONSUMER sees, not at the construction
+  site.** A `TensorProductOperator`/`&` wrapper derived no `domain`/`codomain`
+  from its factors, so a leaf bound `Γ₊→Γ₋` reached the realizer's output as
+  `None`/`None` — and the campaign's next step ("route the composition through
+  `@` so the check FIRES") could not fire, because one `None` short-circuits the
+  composability check. Two rules: **(a)** before crediting "the check now
+  fires", compose the object PRODUCTION hands out, not the leaf you just bound;
+  **(b)** an already-COMMITTED sibling step probably has the identical hole —
+  check it, and ship the gap as a `strict=True` xfail naming the later step, not
+  as scope creep. → `L38`
 - **A sentinel encoding TWO states makes the discriminating gate UNWRITABLE — say
   "this gate cannot exist; here is the TYPE that makes it exist".** `domain=None`
   means BOTH "space-generic by mathematics" (an identity is the identity on every

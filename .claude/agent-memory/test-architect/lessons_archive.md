@@ -3134,3 +3134,144 @@ Identical to the 2026-08-03 battery that reported 32/32 BLIND. **Always
 `sed -e 's/\x1b\[[0-9;]*m//g'` before parsing, and always cross-check the
 extracted count against the summary line.** Cost here: one confusing minute,
 because a positive control was already in hand to contradict it.
+
+---
+
+## L38 — BINDING carve, step 5 (bind the deck permutation `Γ₊→Γ₋`): the binding is ungated by construction, and it evaporates at the tensor product
+
+**Context.** ORPHEUS `#330` G6.3 step 5, `refactor/operator-strategy-layers`,
+2026-08-04. `PermutationOperator` gains optional `domain`/`codomain`;
+`_specular_kernel` binds them; `is_involution` refuses across two different
+spaces; `inverse()` swaps them. I was dispatched to design the gates.
+
+### 1. The tree moved TWICE mid-dispatch, and it demoted one of my measurements
+
+The brief said "I am writing the code directly; you design the gates" — i.e.
+pre-carve. `[M]` `git status` at 22:39: `operator.py` modified (items 1/3/4
+already landed). At 22:41: `realizer.py` modified (item 2 landed). The plan
+went from PRE-carve to POST-carve while I was reading context.
+
+The damage: my first bit-identity probe compared the production kernel against a
+hand-bound copy of itself. Between probe run 1 (22:39, production UNBOUND) and
+run 2 (22:41, production BOUND) the implementer shipped the binding, so both
+sides of my `array_equal` were bound and the leg was true for free — the
+lesson-#4 demotion arriving through the clock rather than through a rewire. The
+tell was a *sign inversion in the data*: run 1 reported
+`is_involution=True` on `gauss_legendre(4)`, run 2 reported `False` for the same
+fixture. **A measurement that contradicts your own earlier measurement of the
+same quantity is a tree-moved signal, not a flaky test.**
+
+Defences adopted: build controls EXPLICITLY (`np.asarray(P.perm).copy()`),
+assert `control.domain is None` INSIDE the gate, re-`git diff` before every
+claim, and read "I am about to write X" as "X may already be on disk".
+
+### 2. The binding is gated by NOTHING — measured, not argued
+
+In-process pytest plugin rebinding `realizer._specular_kernel`; the plugin
+raises if the rebind does not take and prints its entry count in the terminal
+summary. Baseline `tests/geometry tests/sn/operators -m "not slow"` =
+`3 failed / 1668 passed` in 24 s, `_specular_kernel entered 1252 times`.
+
+| mutation | new reds |
+|---|---|
+| **POSITIVE CONTROL** — return the IDENTITY permutation, binding intact | **+23** (26 failed) |
+| drop the binding (`domain=None, codomain=None`) | **0** |
+| ⭐ **SWAP** the binding (`domain=Γ₋, codomain=Γ₊`) | **0** |
+| bind both ends to `Γ₊` | **0** |
+
+The control is inside the algebraic class (the identity IS a permutation:
+linear, orthogonal, right shape, right spaces), so anti-#18 holds and its 23
+reds mean "wrong bijection", not "stopped being an operator".
+
+⭐ **The SWAP is the mutation to design for.** It is a one-word implementer slip;
+it survives the extent guard because `|Γ₊| == |Γ₋|` on every shipped quadrature;
+it leaves `is_involution` correctly `False` (the two spaces still differ), so
+the refusal gate cannot see it; it changes no arithmetic. The ONLY catcher that
+can exist is an `is`-identity row asserting WHICH space is WHICH end. And it is
+not benign: once the composition is routed through `@`, a swapped binding makes
+the LEGAL composition raise and the ILLEGAL one pass.
+
+### 3. The binding evaporates at the tensor product — the step's own goal unmet
+
+`[M]` through `SNBoundaryRealizer().realize(...)`:
+
+| law | returned type | `.domain` |
+|---|---|---|
+| reflective α=1 | `TensorProductOperator` | **None** |
+| reflective α=0.5 | `ScaledOperator` (forwards a `None`) | **None** |
+| white | `TensorProductOperator` | **None** |
+| — its inner `OperatorProduct` (the committed step-3 chain) | `OperatorProduct` | `Γ₊(xmin)` ✅ |
+
+`OperatorProduct` derives its spaces from its factors; `TensorProductOperator`
+does not. So a leaf bound `Γ₊→Γ₋` reaches the realizer's OUTPUT as `None`, and
+the campaign's next step ("route `_reflect_trace` through `@` so the
+composability check FIRES") **cannot fire** — `[M]` one `None` short-circuits
+the check (`bound @ unbound` is ACCEPTED). The already-COMMITTED step 3 has the
+identical hole.
+
+⟹ **Measure the binding at the tier the CONSUMER sees.** Rule: before crediting
+"the check now fires", compose the object production HANDS OUT, not the leaf you
+just bound. And when a sibling step landed the same pattern earlier, check it too
+— then ship the gap as a `strict=True` xfail naming the later step, rather than
+widening scope.
+
+### 4. `is_involution` — the fixture-dependent attribute, and its four legs
+
+One physical law (mirror about `x` on `xmin`), narrowed to `Γ₊`-local indices:
+
+| quadrature | raw `perm[perm]==arange` | UNBOUND | SAME-SPACE | HALF-BOUND | bound `Γ₊→Γ₋` |
+|---|---|---|---|---|---|
+| gl(4) / gl(8) / product(4,4) / ls(6) | True | True | True | True | **False** |
+| lebedev(17) | **False** | False | False | False | **False** |
+
+Three gate-design consequences:
+
+* **A refusal gate written only on `lebedev(17)` is green on a NO-OP** — its
+  `False` comes from the index test, not the space test. Every refusal row needs
+  an ACTIVATION GUARD asserting `perm[perm] == arange` is True, and lebedev
+  belongs in a separately-named control row.
+* **Two positive legs, not one, and they are not interchangeable.** UNBOUND
+  (`None`/`None`) and SAME-SPACE (`Γ₊→Γ₊`) both report True; only SAME-SPACE
+  proves the clause discriminates on *space inequality* rather than on *presence
+  of binding*. An implementation spelled `not (domain is not None)` passes
+  UNBOUND and fails SAME-SPACE.
+* **HALF-BOUND reports True** (the conjunction needs both ends) — a deliberate
+  asymmetry pinned by nothing; it is the sole catcher for an `and`→`or` slip.
+
+### 5. `.H` is metric-blind, and the criterion is EXACT (not a tolerance question)
+
+`[M]` `G_{Γ₋} == G_{Γ₊} ∘ π` **bit-exactly on all five quadratures** — a specular
+mirror preserves `|Ω·n|·w_n`, so `G₊⁻¹PᵀG₋ = Pᵀ` in exact arithmetic. This is
+`vv` Mode 12's own named example. `.H` vs `apply_transpose`: `array_equal` True
+on gl(4) and product(4,4), **1 nulp** on gl(8), ls(6), lebedev(17) — the
+`(g·y)/g` round-trip, and note the 0-vs-1 split lands on DIFFERENT fixtures than
+step 1's did. Fixtures agree by luck; `assert_array_equal` is a false red on 3
+of 5. Tolerance 2 nulp from round-trip DEPTH.
+
+⭐ **Pin the blindness CRITERION as its own gate**, not just the near-equality:
+`wm == wp[perm]` is a statement about the physics, it explains why the `.H` row
+is allowed to be approximate, and it reds FIRST if a future quadrature breaks
+it. Negative legs, measured and quadrature-independent: scaling `G_{Γ₊}` by 3
+moves `.H` by exactly `2/3`; scaling `G_{Γ₋}` by 3 moves it by exactly `2`.
+Assert the NUMBER, not "it moved".
+
+### 6. Cost — the reachable-subset rule again
+
+The brief's cost ladder said `+ tests/numerics` ≈5 m 45 s. `[M]` the positive
+control reddens **zero** files under `tests/numerics`, and no `tests/numerics`
+module imports `sn.boundary.realizer`. The whole realizer-side battery lives in
+a **24 s** slice. Budgeting off the directory rather than the reachable subset
+would have made a 7-mutation battery 40 minutes instead of 3.
+
+⚠ **The ANSI trap fired again**: `grep "^FAILED"` returned nothing against a run
+that had plainly failed. `--color=no` when parsing. Third instance.
+
+### 7. A retirement question the plan surfaced but did not decide
+
+`is_involution` has **zero production consumers**, its one would-be consumer now
+reports `False` by design, and the new docstring concedes *"nothing in the tree
+does"*. Zero consumers + a self-conceding docstring is `coding-elegance`
+Pattern-6's trim signal verbatim. Raised as an explicit user ruling (refine vs
+retire) rather than decided in a test plan — because if it is retired, three of
+the ten gates collapse into "ask the algebra" (`P @ P` raises), which is the
+better claim anyway.
