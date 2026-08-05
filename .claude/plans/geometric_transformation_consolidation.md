@@ -1,6 +1,6 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1 · G1b · G2 · G3 · G4 · G5 · G6.0 · G6.1 LANDED. G6.3 IN FLIGHT — steps 0-1 done, step 2 next. DESIGN OF RECORD in §7h (re-derived TWICE; read §7h.1 before trusting any typing claim).**
+> **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–4 DONE; steps 5–8 remain. Read ⏸ COMPACTION POINT #2 (end of §7h) FIRST — it carries the red set, the gate costs, and the four-times-refuted-scope lesson.**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -1264,7 +1264,7 @@ branch for the field-less `IdentityMap` and now runs for every geometry factor.
 
 ---
 
-## ⏸ COMPACTION POINT — before G6
+## ⏸ COMPACTION POINT #1 — before G6 (HISTORICAL; superseded by #2 at the end of §7h)
 
 Everything above is LANDED and committed; everything below is SCOPED and not
 started. A session picking up cold re-anchors from **this file + `git log`**,
@@ -2060,6 +2060,100 @@ as its no-op argument predicts.
 `.claude/skills/vv-principles/error_catalog.md` carries uncommitted-by-policy
 state forbidden to commit. Flagged for the user; recorded meanwhile in
 `scratch/g6_design_measurements.md`.
+
+---
+
+## ⏸ COMPACTION POINT #2 — G6.3 steps 0–4 done, steps 5–8 remain
+
+Supersedes #1. A session picking up cold re-anchors from **this file + `git log`**,
+never from a conversation summary.
+
+- **HEAD `78e6b289`** on `refactor/operator-strategy-layers`. **Tree clean.**
+  18 commits since #1; all verified ancestors. Verify any hash you rely on with
+  `git merge-base --is-ancestor <hash> HEAD`.
+- **What landed** (G6.3 step → commit):
+  | step | commit | what |
+  |---|---|---|
+  | scope | `979a6bb9` `e8885d02` `df503d3b` | G6.0 survey; the design of record; the CHAIN reframing |
+  | G6.1 | `34f465cc` | the Γ ladder + a base-class metric-convention fix |
+  | 1 | `bff3bd96` | `γ±` bound; the composability check FIRES |
+  | 2 | `38466932` `c17deea3` | `S(f)`; and `ker(G) == tangential` — one theorem, not two facts |
+  | 3 | `b4290873` `47c33d7b` `b4f0f5c9` `7d70e5b5` | the Lambertian factored; realizer spells the chain; `AngularAverageOperator` retired; corpus repointed |
+  | 4 | `78e6b289` | the specular RESPONSE pinned against the geometric deck transformation |
+- **REMAINING: steps 5–8** (§7h order table). **Step 8 is the one that matters
+  most** — until `_reflect_trace` composes through `@`, the binding is honest
+  metadata that gates nothing (`[M]` 4941 bindings, ZERO new failures, because
+  the path uses raw `.apply`).
+- **Known reds — still exactly 4, unchanged all session**, and none this
+  campaign's: `TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`
+  (~1 ULP, task #33); `test_cart2d_1g_vacuum_apply_principled_equiv` (1152 ULP);
+  `test_cart2d_2g_specular_apply_principled_equiv` (296 ULP);
+  `TestBitIdenticalCurvilinear::test_spherical_inward_bit_identical`
+  (`assert False`).
+- **Gate costs, measured THIS session:** `tests/geometry` ≈10 s ·
+  `tests/geometry + tests/sn/operators` ≈25 s · `+ tests/numerics` ≈5 m 45 s ·
+  `+ tests/sn/sweep` ≈4 m 50 s · the wide slice
+  (`geometry + numerics + sn/{operators,sweep,architecture} + diffusion`)
+  ≈9 m 45 s. ⚠ **Always pass `-m "not slow"`** — without it a `tests/sn` run
+  exceeded 26 min and is not comparable to the red baseline, which was
+  established WITH the deselection.
+- ⚠ **Verify a test path exists before running it.** A run that collects
+  nothing exits 0 in 0.01 s and looks identical to a green one. This bit twice
+  this session (`tests/sn/boundary` does not exist).
+- **Static gates:** `tools/check_docstring_xrefs.py orpheus tests docs` →
+  `DEAD TARGETS : 0` · `sphinx -E -W` → 0 warnings (use `-E`, never
+  `rm -rf docs/_build`) · the pyright **ratchet test** is the gate — bare
+  `npx pyright` reports ~2000 errors because it scans `scratch/`.
+- ⛔ **Never `git checkout <path>` / `git restore` / `git stash` / `git clean`
+  on a tracked path** (lesson L28). Compare via `git worktree add`.
+
+### ⭐⭐ The meta-lesson, and it is the session's most transferable output
+
+**G6.3's scope was refuted FOUR times, always the same way: a claim read from
+PROSE, contradicted by the REALIZATION.**
+
+| # | the claim | the refutation |
+|---|---|---|
+| 1 | "`G` and `R` are operators" | they are **descriptors**; the realizer welds `R∘G` |
+| 2 | "`R : Γ₋→Γ₋`, so split `R @ G` through `Γ₋`" | **no realized response is an endomorphism of `Γ₋`** — the response CARRIES the crossing |
+| 3 | "the factorization is per-law-KIND" | it is a **chain**; atomic is a degenerate LENGTH, and the machinery (`@`, `+`) already existed |
+| 4 | "α on `S(f)` collapses the three arms into … the zero chain" | `ScaledOperator` **refuses** a zero scalar; the arms are three different objects |
+
+Three were caught by the USER asking a question, not by a gate. ⟹ **Before
+designing on a Protocol/docstring typing, CHECK IT AGAINST THE REALIZATION** —
+one `[R]` read of the implementing class's first line would have caught #1 and
+#2 together.
+
+**And its sharpened form, which bit twice more:** *measure at the tier you will
+build on.* Refutation #4's first measurement was `0.0 * chain` in **numpy**,
+reported as free; the **operator algebra** refuses it. Same shape as measuring
+a doc claim instead of the code. A measurement at the wrong tier is not weak
+evidence — it is evidence about a different question.
+
+**Corollary for the fleet:** a sub-agent DID report "`R : Γ₋→Γ₋` is un-bindable"
+and the main agent under-weighted it as a scoping detail. **A sub-agent's
+negative structural finding deserves the same scrutiny as a positive one.**
+
+### Other lessons this stretch, ranked by transferability
+
+1. ⭐ **A correct composite is NOT evidence its factors are right.** The theory
+   page derived the correct `Rᵀ` from two WRONG per-factor formulas; the
+   composite measured exactly 0.0 and no gate could see it. Dual of the
+   metric-cancellation theorem — interior errors cancel just as interior metrics
+   do. Gate each factor separately.
+2. ⭐ **Fixtures agree by luck; check whether it is a contract.** `α·(J/n)` vs
+   `(αJ)/n` was bit-identical on two fixtures and differs **34.8 %** of the time
+   in general (0 % at α=0.5 — powers of two multiply exactly).
+3. ⭐ **A mutation the property cannot SEE proves nothing either way.** A
+   teeth-check that came back bit-identical read as "the reference is
+   toothless"; the mutation was inside the stabiliser (symmetric hemispheres).
+4. ⭐ **A retirement's rewire can DEMOTE a gate silently** — re-pointing a
+   bit-identity reference at the successor compares a value with itself. Hit
+   TWICE in one retirement, from different directions.
+5. **Grep the CONCEPT, not the symbol.** A claim inversion survived 70 lines
+   from its own cause because it named the OTHER class, not the property.
+6. **The exactness leg catches what the equality leg cannot** — a scaled mirror
+   induces the right permutation with images that are not nodes.
 
 ---
 
