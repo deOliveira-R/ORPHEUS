@@ -736,6 +736,45 @@ class AngularFaceTraceSpace(FunctionSpace):
     this entire tier (``vv-principles`` Mode 7 — the fixture nulls the term it
     was meant to exercise). Gate on ``product(4,4)`` or ``lebedev(17)``.
 
+    .. important::
+
+       ⭐⭐ **The excess and the metric's degeneracy are ONE fact.** `[M]` on
+       every shipped quadrature,
+
+       .. math::
+
+           \ker G_{\Gamma(f)} \;=\; \Gamma(f) \setminus
+           (\Gamma_+ \sqcup \Gamma_-),
+
+       because both sides are exactly
+       :math:`|\Omega\cdot\hat n| \le \epsilon`. The rows the halves exclude
+       are precisely the rows the metric annihilates.
+
+       Two consequences, neither derivable from either statement alone:
+
+       * ⭐ **In the QUOTIENT the full tier IS the direct sum of its halves** —
+         :math:`\Gamma(f)/\ker G \cong \Gamma_+(f) \oplus \Gamma_-(f)`. As a
+         *Hilbert* space, which is the only category an adjoint cares about, the
+         decomposition holds; only the storage array carries the extra rows. So
+         "the full trace is two half-spaces" is right in the right category and
+         wrong as a statement about shape.
+       * **Hence the full tier can never be a chain intermediate while the
+         halves can.** The factored-adjoint theorem requires a non-degenerate
+         intermediate metric, and the degeneracy *is* the excess.
+
+       Contrast :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`,
+       where the halves ARE an explicit axis (slot shape
+       ``(2, ng, *face_spatial)``) and the partition is exact. That asymmetry is
+       forced, not incidental: :math:`J^\pm` are two independently-defined
+       *moments* with no ordinate-level pairing, whereas pairing individual
+       ordinates across the hemispheres **is the specular deck transformation**
+       — a boundary LAW. Encoding the angular halves as an axis would bake that
+       law into a storage layout (the "a transformation hiding as a convention"
+       hazard, issue **#328**), demand an even :math:`N` with no tangential
+       ordinates — which ``lebedev(17)`` violates at 110 / 12 — and render the
+       mirror unspellable as an operator, since it would be the identity on the
+       storage.
+
     **The metric.** :attr:`inner_product_weights` is
     :math:`|\Omega\cdot\hat n_f|\odot w_n` restricted to
     :attr:`ordinate_indices` — a 1-D vector along the leading axis, which the

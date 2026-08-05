@@ -183,6 +183,11 @@ def test_the_full_tier_is_strictly_larger_than_the_two_halves(quad_name):
         f"{quad_name} has no tangential ordinates, so it cannot exercise the "
         "middle tier — it does not belong in _TANGENTIAL_BEARING"
     )
+    # ⭐ The excess is not merely nonzero — it is EXACTLY the metric's null
+    # space, so this gate and the degeneracy gate measure one fact from two
+    # sides. See test_the_metric_null_space_IS_the_tangential_set.
+    metric = np.asarray(full.inner_product_weights)
+    assert int((metric == 0.0).sum()) == n_tangential
 
 
 def test_the_degenerate_fixture_is_degenerate():
@@ -468,6 +473,54 @@ def test_the_current_space_metric_is_EXPLICITLY_unit_not_None(quad_name):
     assert np.all(np.asarray(weights) == 1.0)
 
 
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_metric_null_space_IS_the_tangential_set(quad_name):
+    r"""⭐⭐ ``ker(G_{Γ(f)}) == Γ(f) ∖ (Γ₊ ⊔ Γ₋)`` — ONE theorem, not two facts.
+
+    This module gates the non-partition
+    (:func:`test_the_full_tier_is_strictly_larger_than_the_two_halves`) and the
+    metric degeneracy
+    (:func:`test_the_current_space_is_ADMISSIBLE_as_a_chain_intermediate`)
+    separately, which reads as two independent coincidences. **They are the same
+    fact**, and this gate is the identity that says so: the rows the halves
+    exclude are *exactly* the rows the metric annihilates, because both are
+    ``|Ω·n| ≤ TANGENTIAL_EPS``.
+
+    Two consequences follow, and neither is derivable from either half alone:
+
+    * **The full tier IS the direct sum of its halves — in the quotient.**
+      ``Γ(f)/ker(G) ≅ Γ₊(f) ⊕ Γ₋(f)``. As a *Hilbert* space (the only category
+      the adjoint cares about) the decomposition holds; it is only the storage
+      array that carries the extra rows.
+    * **Which is precisely why ``Γ(f)`` can never be a chain intermediate while
+      the halves can.** The factored-adjoint theorem needs a non-degenerate
+      intermediate metric, and the degeneracy IS the excess.
+
+    Gated on every quadrature, including ``gauss_legendre(4)`` where both sides
+    are empty — a vacuous-but-true instance keeps the identity honest about the
+    degenerate case instead of quietly excluding it.
+    """
+    trace = _trace(quad_name, ng=2)
+    for face in ("xmin", "xmax"):
+        n_ordinates = int(trace.omega_dot_n.shape[1])
+        halves = set(trace.outflow_indices_for_face(face).tolist()) | set(
+            trace.inflow_indices_for_face(face).tolist()
+        )
+        excluded = set(range(n_ordinates)) - halves
+
+        metric = np.asarray(trace.face_space(face).inner_product_weights)
+        annihilated = set(np.flatnonzero(metric == 0.0).tolist())
+
+        assert annihilated == excluded, (
+            "the rows the halves exclude and the rows the metric annihilates "
+            "have diverged; the non-partition and the degeneracy are no longer "
+            "the same fact, and every argument resting on that identity needs "
+            "re-deriving"
+        )
+        # ... and the halves are exactly the metric's support.
+        assert set(np.flatnonzero(metric > 0.0).tolist()) == halves
+
+
 @pytest.mark.parametrize("quad_name", _TANGENTIAL_BEARING)
 def test_the_current_space_is_ADMISSIBLE_as_a_chain_intermediate(quad_name):
     r"""⭐ Non-degenerate — the factored-adjoint theorem's one requirement.
@@ -483,6 +536,14 @@ def test_the_current_space_is_ADMISSIBLE_as_a_chain_intermediate(quad_name):
     chain intermediate, while ``S(f)`` and the two halves can. This gate is what
     connects step 2 to the theorem rather than leaving the precondition as a
     docstring claim.
+
+    ⭐ **Not an independent coincidence.** The degeneracy asserted here and the
+    non-partition asserted in
+    :func:`test_the_full_tier_is_strictly_larger_than_the_two_halves` are the
+    SAME fact; :func:`test_the_metric_null_space_IS_the_tangential_set` is the
+    identity that proves it. Read the three together — this one measures the
+    metric, that one the index sets, and the identity says they describe one
+    set of rows.
     """
     trace = _trace(quad_name, ng=2)
     current = np.asarray(trace.current_space("xmin").inner_product_weights)
