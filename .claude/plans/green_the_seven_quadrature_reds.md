@@ -7,10 +7,15 @@
 >
 > **Done when** `tests/ -m "not slow"` is 0 failed and the branch has ff-merged.
 >
-> **⛔ DEFERRED 2026-08-06 — gated on #327, and the reason is structural, not
+> **⛔⛔ THE DEFERRAL IS REFUTED — 2026-08-06, same day, by measurement.**
+> See "§ REFUTED" below. The rationale was that 4 of the 7 are #327-fork
+> dependent; measured, **none of the seven is**. Greening is UNBLOCKED and was
+> the right call all along.
+>
+> ~~**DEFERRED 2026-08-06 — gated on #327, and the reason is structural, not
 > scheduling.** Adjudicate all seven in ONE pass **after** the `level_symmetric`
-> fork is resolved. Verification criterion (1) is already discharged (below), so
-> the deferred work is the re-capture, not the investigation.
+> fork is resolved.~~ Verification criterion (1) is already discharged (below),
+> so the remaining work is the re-capture, not the investigation.
 >
 > **Proposed means** (*hypothesis until each red is adjudicated*): re-baseline
 > the quadrature-induced reds citing the L0/L1/L2 evidence, and re-pose the
@@ -201,6 +206,60 @@ on it again.
 #327 measures ℓ=0 and ℓ=1 **exact** ("which is why isotropic and P1 transport
 look healthy"), and reds 3/4 are **P1**-anisotropic. So the deferred configs are
 correct today; what is uncertain is only whether their VALUES will move.
+
+### ⛔⛔ REFUTED 2026-08-06 — the fork-dependence claim was FALSE
+
+**The claim above** — "4 of 7 ride on `level_symmetric`, and #327 Fork A moves
+every weighted sum materially, not by ULP" — **is measured false. It is left in
+place because the way it was wrong is the lesson.**
+
+`[M]` **`O_h` orbit count of the node set** (an orbit = one multiset
+`{|x|,|y|,|z|}`; a single orbit + `Σw = 4π` *uniquely forces* equal weights, so
+there is no freedom for a moment-matched solve to exploit):
+
+| order | nodes | orbits | consequence |
+|---|---|---|---|
+| **S2** | 8 | **1** | **equal weights FORCED** |
+| **S4** | 24 | **1** | **equal weights FORCED** |
+| S6 | 48 | 2 | 2 free weights |
+| S8 | 80 | 3 | 3 free weights |
+| S12 | 168 | 5 | 5 free weights |
+| S16 | 288 | 8 | 8 free weights |
+
+`[M]` and **every one of the four `level_symmetric`-riding reds uses
+`sn_order=4`** — `_capture_pre_t4_snapshots.py:175` (default `sn_order=4`),
+`test_streaming_operator.py:101,480`, `test_affine_carve_bit_identity.py:158`.
+
+⟹ At S4 a genuine Carlson–Lathrop solve returns **the weights already there,
+bit-for-bit**. Fork A cannot move those four. Reds 5/6/7 are `gauss_legendre`
+and were never fork-dependent either. **None of the seven is.**
+
+⭐ **How the error was made, so it is not repeated: the blast radius was
+inferred from the ISSUE'S PROSE ("implement the moment-matched weights") rather
+than measured from the REALIZATION (count the orbits).** One `np.unique` over
+sorted `|node|` triples — six lines — refutes a committed rationale. This is the
+"a scope read from PROSE gets refuted by the REALIZATION" failure already on
+record from the G6.3 campaign, recurring in a new tier.
+
+⭐ **The deeper correction to #327 itself:** the defect is NOT "the rule is wrong
+at every order". At S2/S4 the equal-weight implementation is **already correct
+and provably optimal for its node set** — degree 3 is the ceiling there, and the
+advertised 3 at S4 is RIGHT. The defect is that **S6+ leaves 2/3/5/8 free
+weights unsolved**. That is a much narrower statement than the issue's title.
+
+### What survives, and what does not
+
+* **Does NOT survive:** the fork-dependence rationale, refuted candidate **R5**
+  (whose premise was the same false claim), and the "adjudicate after #327"
+  gating.
+* **Survives unchanged:** every verification measurement below (L0 nodes, L0
+  exactness, L1/L2 462-green), the finding that a `sha256` gate is
+  unfalsifiable-in-magnitude (**#333**), and the observation that reds 3/4/5 are
+  one gate that should move together.
+* **New coupling, in the other direction:** Fork A moves exactly **one** GREEN
+  baseline — `2d_octant_equivalence_04_vacuum_2g_het_gradientQ_LS6.npz` (S6, so
+  2 free weights). So #327 and the baseline set ARE coupled, just not through
+  these seven.
 
 ### Correction to this plan's own earlier framing
 
