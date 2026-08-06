@@ -9,8 +9,12 @@ gates the claim TYPE's algebra
 realization (:mod:`tests.numerics.test_symmetry_exactness`), neither of which
 can see a rule whose promise is simply false.
 
-`[M]` it was false. ``level_symmetric`` advertises :math:`N-1` and delivers
-**3 at every order** — an over-claim of 12 at :math:`S_{16}`.
+`[M]` it was false. ``level_symmetric`` advertised :math:`N-1` and delivered
+**3 at every order** — an over-claim of 12 at :math:`S_{16}`. Fixed by #327 on
+2026-08-06 (per-:math:`O_h`-orbit moment-matched weights); **every production
+rule now measures exactly its advertised degree**, and the xfail set below is
+empty because this module's own strict marks refused to let the fix land
+without the tag correction.
 
 The reference is the CLOSED FORM, not another rule
 ==================================================
@@ -47,13 +51,15 @@ experiences completely differently, so they are separate rows:
                             could do.
 ==========================  ==================================================
 
-`[M]` ``level_symmetric`` fails BOTH, in both directions: it over-claims at
-:math:`N \ge 6` (unsafe) and **under-claims at** :math:`N = 2` (advertised 1,
-measured 3). That is the tell that the tag is not a mis-calibrated measurement
-but a **formula describing a different rule** — ``N-1`` is the Carlson–Lathrop
-moment-matched construction's degree, and this rule assigns one equal weight to
-every ordinate (`[M]` exactly ONE distinct weight at every order). The two
-coincide only at :math:`N = 4`.
+`[M]` **before #327** ``level_symmetric`` failed BOTH, in opposite directions:
+it over-claimed at :math:`N \ge 6` (unsafe) and **under-claimed at**
+:math:`N = 2` (advertised 1, measured 3). Failing in both directions is what
+identified the tag as a **formula describing a different rule** rather than a
+mis-calibrated measurement of this one — ``N-1`` is the moment-matched
+construction's degree, and the rule then assigned one equal weight to every
+ordinate. They coincided only at :math:`N = 4`. A bare
+``measured == advertised`` would have reddened identically and hidden the
+direction, which is why the split is worth its extra row.
 
 The controls are in the SAME parametrization, deliberately
 ==========================================================
@@ -65,14 +71,20 @@ instrument is dead" are indistinguishable. `[M]` all three controls measure
 EXACTLY their advertised degree, which is what licenses reading
 ``level_symmetric``'s 3 as a property of the rule rather than of this file.
 
-Why the failing rows are ``xfail(strict=True)`` and not deleted or relaxed
-=========================================================================
+The xfail mechanism, and what it actually did
+=============================================
 
-The defect is LIVE and #327 is open. A strict xfail pins it: the row cannot
-silently start passing (that is an ``XPASS`` failure, which forces the tag to be
-corrected in the same change that fixes the rule), and it cannot be forgotten,
-because the xfail list IS the todo list. Relaxing the assertion to ``>= 3``
-would encode the defect as the contract.
+The failing rows shipped as ``xfail(strict=True)`` while #327 was open. When the
+fix landed, all nine became ``XPASS(strict)`` **failures** — the suite would not
+go green until the advertised degree was corrected in the same change as the
+weights. That is the mechanism working end to end, not a hypothetical: the tag
+and the rule were physically unable to drift apart across the fix.
+
+⛔ The first draft used the IMPERATIVE ``pytest.xfail(...)``, which aborts
+unconditionally and can never report ``XPASS``. Under it, the fix would have
+landed with all nine still reporting ``XFAIL`` and the stale ``N-1`` intact —
+the exact "gate that cannot redden" class this module exists to catch, inside
+the module itself.
 """
 
 from __future__ import annotations
@@ -173,8 +185,8 @@ _RULES = [
     ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4), 10),
     ("level_symmetric(6)", lambda: Quadrature.level_symmetric(6), 12),
     ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 14),
+    ("level_symmetric(10)", lambda: Quadrature.level_symmetric(10), 16),
     ("level_symmetric(12)", lambda: Quadrature.level_symmetric(12), 18),
-    ("level_symmetric(16)", lambda: Quadrature.level_symmetric(16), 22),
 ]
 
 
@@ -184,17 +196,20 @@ def _advertised(quad: "Quadrature") -> int:
     return int(claim.degree)
 
 
-#: `[M]` 2026-08-06 — the rules whose PROMISE is broken today (#327). Strict, so
-#: fixing the rule without correcting the tag is an ``XPASS`` failure.
-_OVER_CLAIMS = {
-    "level_symmetric(6)": 2,
-    "level_symmetric(8)": 4,
-    "level_symmetric(12)": 8,
-    "level_symmetric(16)": 12,
-}
-#: …and the one that under-claims. Safe, but the same root cause: the tag is a
-#: formula for a rule this is not.
-_UNDER_CLAIMS = {"level_symmetric(2)": -2}
+#: ⭐ **EMPTY since #327 landed (2026-08-06) — and the emptiness was FORCED.**
+#:
+#: These held the four over-claims and the one under-claim as strict xfails.
+#: When the moment-matched weights landed, all nine rows turned into
+#: ``XPASS(strict)`` failures and the suite refused to go green until the tag
+#: was corrected alongside the rule. That is the whole reason the marks were
+#: strict rather than imperative ``pytest.xfail()``, which would have kept
+#: reporting ``XFAIL`` and let a stale tag through.
+#:
+#: Kept as empty dicts rather than deleted: they are the seam a future
+#: over-claim is recorded in, and an empty seam states "nothing is
+#: over-claiming today" where an absent one states nothing at all.
+_OVER_CLAIMS: "dict[str, int]" = {}
+_UNDER_CLAIMS: "dict[str, int]" = {}
 
 
 _SAFETY_PARAMS = [
@@ -265,23 +280,25 @@ def test_the_probe_itself_is_sound() -> None:
     probe DOES resolve a degree and that the three control families land exactly
     on their claims. `[M]` 2026-08-06:
 
-    ==================  ==========  ========
-    rule                advertised  measured
-    ==================  ==========  ========
-    gauss_legendre(8)   15          15
-    lebedev(17)         17          17
-    product(6,12)       11          11
-    level_symmetric(8)  7           **3**
-    ==================  ==========  ========
+    ==================  ==========  ====================  ===============
+    rule                advertised  measured (post-#327)  before #327
+    ==================  ==========  ====================  ===============
+    gauss_legendre(8)   15          15                    15
+    lebedev(17)         17          17                    17
+    product(6,12)       11          11                    11
+    level_symmetric(8)  7           **7**                 **3**
+    ==================  ==========  ====================  ===============
 
-    Without the first three, ``level_symmetric``'s 3 is a statement about this
-    file. With them, it is a statement about the rule.
+    Without the first three, ``level_symmetric``'s number is a statement about
+    this file. With them, it is a statement about the rule — and the last
+    column is why the controls had to be here BEFORE the fix, not added with
+    it: they are what licensed reading the pre-fix 3 as real.
     """
     for rule_id, build, ceiling, expected in (
         ("gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8), 20, 15),
         ("lebedev(17)", lambda: Quadrature.lebedev(17), 22, 17),
         ("product(6,12)", lambda: Quadrature.product(n_mu=6, n_phi=12), 16, 11),
-        ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 14, 3),
+        ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 14, 7),
     ):
         got = _measured_degree(build(), ceiling=ceiling)
         assert got == expected, (
@@ -292,27 +309,67 @@ def test_the_probe_itself_is_sound() -> None:
         )
 
 
-def test_level_symmetric_has_exactly_ONE_distinct_weight() -> None:
-    r"""The mechanism behind the degree, pinned separately from the symptom.
+#: `[M]` 2026-08-06 — distinct weights == number of :math:`O_h` orbits.
+_ORBIT_COUNT = {2: 1, 4: 1, 6: 2, 8: 3, 10: 4, 12: 5}
 
-    ``rules_sphere.py`` assigns ``w_octant = 4π/(8·n_octant)`` to every ordinate.
-    Classical Carlson–Lathrop solves a moment-matching system for **per-level**
-    weights; the degree-3 this rule does reach is free — it comes from the
-    :math:`O_h` orbit symmetry, which any equal-weight orbit set with
-    :math:`\sum w = 4\pi` achieves.
 
-    Pinning the mechanism rather than only the degree is what makes the eventual
-    fix legible: the day this row reddens, the weights became per-level and the
-    degree rows above should XPASS in the same commit.
+@pytest.mark.parametrize("n,orbits", sorted(_ORBIT_COUNT.items()))
+def test_the_weights_are_ONE_PER_ORBIT_and_positive(n: int, orbits: int) -> None:
+    r"""⭐ RE-POSED at #327 — this row asserted the OPPOSITE until 2026-08-06.
+
+    It read ``test_level_symmetric_has_exactly_ONE_distinct_weight`` and pinned
+    the equal-weight construction as the mechanism behind the degree-3, with the
+    note: *"the day this row reddens, the weights became per-level and the
+    degree rows above should XPASS in the same commit."* That is exactly what
+    happened, in this commit — so the row is re-posed to the new mechanism
+    rather than deleted, and the old claim is recorded here because it is how
+    the fix was recognised.
+
+    The claim now: :math:`O_h`-invariance forces the weight to be constant on
+    each orbit, so the number of DISTINCT weights is the number of orbits — no
+    fewer (that would be the old equal-weight collapse) and no more (that would
+    be a weight varying within an orbit, i.e. a rule that is not
+    :math:`O_h`-invariant at all, whatever it advertises).
+
+    ⛔ **Positivity is asserted, not assumed.** ``φ = Σ wₙ ψₙ`` must be
+    non-negative for a non-negative angular flux, and the boundary response
+    kernels assert it. `[M]` the moment-matched solve goes NEGATIVE from
+    :math:`S_{14}` (−0.027) — which is why the family refuses above
+    :math:`S_{12}` rather than trading positivity for degree.
     """
-    for n in (4, 8, 16):
-        weights = np.asarray(Quadrature.level_symmetric(n).weights)
-        distinct = np.unique(np.round(weights, 15))
-        assert distinct.size == 1, (
-            f"level_symmetric({n}) now has {distinct.size} distinct weights — "
-            f"if these are moment-matched per-level weights, #327's fix has "
-            f"landed and the exactness rows above must be re-adjudicated."
-        )
-        assert float(np.sum(weights)) == pytest.approx(4.0 * np.pi), (
-            f"level_symmetric({n}) weight sum is not 4π"
-        )
+    weights = np.asarray(Quadrature.level_symmetric(n).weights)
+    distinct = np.unique(np.round(weights, 15))
+
+    assert distinct.size == orbits, (
+        f"level_symmetric({n}) has {distinct.size} distinct weights, expected "
+        f"{orbits} (one per O_h orbit). Fewer means the equal-weight collapse "
+        f"is back and the degree has dropped to 3; more means a weight varies "
+        f"WITHIN an orbit, so the rule is not O_h-invariant."
+    )
+    assert float(np.min(weights)) > 0.0, (
+        f"level_symmetric({n}) has a non-positive weight {float(np.min(weights))} "
+        f"— a positive angular flux can then integrate to a negative scalar "
+        f"flux, and the boundary response kernels assert positivity."
+    )
+    assert float(np.sum(weights)) == pytest.approx(4.0 * np.pi), (
+        f"level_symmetric({n}) weight sum is not 4π"
+    )
+
+
+def test_the_family_REFUSES_where_it_has_no_positive_solution() -> None:
+    r"""⭐ Above :math:`S_{12}` the construction does not exist, and says so.
+
+    `[M]` the moment-matched solve yields a negative weight from :math:`S_{14}`
+    up (−0.027 at 14, −0.018 at 16, −0.142 at 20). Rather than ship a second
+    silent construction under one name, or a rule whose scalar flux can go
+    negative, the family is **defined exactly where it is valid**.
+
+    ⭐ The frontier is COMPUTED, never hardcoded — the builder reads the sign of
+    its own solution — so it tracks the node set instead of going stale beside
+    it. This row therefore pins the BEHAVIOUR (refusal, with a message naming
+    positivity and an alternative), not the number 12.
+    """
+    with pytest.raises(ValueError, match="no POSITIVE solution"):
+        Quadrature.level_symmetric(14)
+    with pytest.raises(ValueError, match="lebedev|product"):
+        Quadrature.level_symmetric(16)

@@ -179,15 +179,37 @@ def test_lebedev_invert_too_high_returns_none() -> None:
 @pytest.mark.parametrize(
     "target,expected_N",
     [
-        (1, 2),    # min even N=2 (deg 1)
-        (3, 4),    # N=4 (deg 3)
-        (4, 6),    # need N>=5; round up to even -> 6 (deg 5)
-        (15, 16),  # N=16 (deg 15)
+        (1, 2),     # min even N=2
+        (3, 4),     # N=4
+        (4, 6),     # need N>=5; round up to even -> 6
+        (11, 12),   # N=12 — the LAST order the family can serve
     ],
 )
 def test_ls_sn_invert(target: int, expected_N: int) -> None:
     params = _ls_sn_invert(target)
     assert params == {"sn_order": expected_N}
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("target", [13, 15, 21])
+def test_ls_sn_invert_REFUSES_above_the_positivity_frontier(target: int) -> None:
+    r"""⭐ RE-POSED at #327 — the ``(15, 16)`` row asserted the opposite.
+
+    It read ``(15, 16),  # N=16 (deg 15)`` and pinned that the family serves
+    target degree 15 with :math:`S_{16}`. Since #327 the weights are solved per
+    :math:`O_h` orbit and the solve has no POSITIVE solution above
+    :math:`S_{12}` (`[M]` min weight ``-0.027`` at :math:`S_{14}`), so
+    :math:`S_{16}` does not exist and the inverter returns ``None`` — the
+    selector's documented "cannot reach target_degree with any supported
+    parameters" channel.
+
+    ⭐ The inverter discovers this by ATTEMPTING the construction, not by
+    comparing against a literal 12, so this row pins the BEHAVIOUR and not the
+    number. If a future node choice pushes the frontier up, the inverter
+    follows it and these targets start being served — at which point this row
+    reddens and says so, which is the correct outcome.
+    """
+    assert _ls_sn_invert(target) is None
 
 
 @pytest.mark.foundation
@@ -382,14 +404,39 @@ def test_log_rejected_list_carries_reasons() -> None:
     failing stage (domain / symmetry / V / structural)."""
     _, log = select_quadrature("slab", target_degree=15)
     assert log.rejected, "expected the S^2 rules to be rejected for a slab"
+    stages = set()
     for name, reason in log.rejected:
         assert isinstance(name, str)
         assert isinstance(reason, str)
-        # Every slab rejection is at the DOMAIN stage: Lebedev, LS_N
-        # and the product rule all live on S^2, while a slab
-        # discretises the quotient S^2/SO(2) = [-1,1].
-        assert "domain mismatch" in reason
-        assert "[-1,1]" in reason
+        # The CLAIM: every rejection names the stage that rejected it. That is
+        # what this row is for, and it holds for all of them.
+        assert any(
+            marker in reason
+            for marker in ("domain mismatch", "V mismatch", "symmetry",
+                           "structural")
+        ), f"{name} was rejected without naming a stage: {reason!r}"
+        stages.add("V" if "V mismatch" in reason else "domain")
+
+    # ⭐ RE-POSED at #327. This used to assert ``"domain mismatch" in reason``
+    # for EVERY rejection — true only incidentally, because every rule could
+    # reach every target degree, so the V stage never rejected anything and
+    # domain was always the first refusal. The level-symmetric family is now
+    # BOUNDED (no positive solution above S12), so at ``target_degree=15`` it
+    # is rejected at V — which runs FIRST by design, since V fixes the
+    # parameters the domain check needs nodes for.
+    #
+    # The domain claim is kept where it still applies: any rule that CAN reach
+    # the target still has to be rejected for living on S^2.
+    for name, reason in log.rejected:
+        if "V mismatch" not in reason:
+            assert "domain mismatch" in reason and "[-1,1]" in reason, (
+                f"{name} reached the domain stage but its reason does not name "
+                f"the S^2 vs [-1,1] mismatch: {reason!r}"
+            )
+    assert "domain" in stages, (
+        "every rule was rejected at V, so this row no longer exercises the "
+        "domain stage at all — pick a target_degree the S^2 rules can reach"
+    )
 
 
 @pytest.mark.foundation

@@ -455,7 +455,7 @@ def _production_sphere_rules() -> list[tuple[str, object]]:
     for n_mu, n_phi in ((2, 4), (4, 4), (4, 8), (4, 12), (4, 16), (6, 12)):
         rules.append((f"product({n_mu},{n_phi})",
                       Quadrature.product(n_mu=n_mu, n_phi=n_phi)))
-    for sn_order in (4, 8, 16):
+    for sn_order in (4, 8, 12):
         rules.append((f"level_symmetric({sn_order})",
                       Quadrature.level_symmetric(sn_order=sn_order)))
     for order in (5, 11, 17):
@@ -688,7 +688,7 @@ def test_bijection_requirement_keeps_every_shipped_rule_certified() -> None:
     carry. A stricter check that rejected a genuine rule would be a
     regression, not a fix.
     """
-    for sn_order in (4, 8, 16):
+    for sn_order in (4, 8, 12):
         mu = _measure_from_sphere_quad(Quadrature.level_symmetric(sn_order=sn_order))
         assert SubgroupOfO3.OctahedralOh.is_invariant(mu)
     for order in (5, 11, 17):
@@ -1093,7 +1093,10 @@ def test_singular_set_under_d2h_reproduces_the_epsilon_detectors() -> None:
 
     for name, q in _cert_rules() + [
         ("lebedev(17)", Quadrature.lebedev(order=17)),
-        ("level_symmetric(16)", Quadrature.level_symmetric(sn_order=16)),
+        # S12, the top of the family's defined range since #327 (the
+        # moment-matched solve has no positive solution above it). The row
+        # wants a HIGH order with many levels, not the number 16.
+        ("level_symmetric(12)", Quadrature.level_symmetric(sn_order=12)),
     ]:
         mu = _measure_from_sphere_quad(q)
         nodes = np.column_stack([q.mu_x, q.mu_y, q.mu_z])

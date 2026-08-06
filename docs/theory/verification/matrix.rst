@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8859**
+Total tests collected: **8867**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1264, 14.3%
-   L1, 1547, 17.5%
+   L1, 1547, 17.4%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5979, 67.5%
+   foundation, 5987, 67.5%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8775
+   explicit, 8783
    class-name, 46
    func-name, 0
    case, 33
@@ -306,7 +306,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
-   numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 26, 0
+   numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 32, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 114, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
@@ -340,13 +340,13 @@ Module × level grid
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 41, 0
-   numerics/test_registry, 0, 0, 0, 0, 42, 0
+   numerics/test_registry, 0, 0, 0, 0, 45, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 32, 0
-   numerics/test_rules_sphere, 0, 7, 0, 0, 53, 0
+   numerics/test_rules_sphere, 0, 7, 0, 0, 52, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0

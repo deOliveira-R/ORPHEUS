@@ -41,6 +41,7 @@ References
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 
@@ -228,6 +229,161 @@ class LevelStructure:
         return members[keys]
 
 
+def _even_monomial_conditions(max_degree: int) -> list[tuple[int, int, int]]:
+    r"""The independent moment conditions up to ``max_degree``, lowest first.
+
+    Only EVEN triples constrain anything: an :math:`O_h`-invariant node set is
+    closed under sign flips, so every odd monomial sums to zero on both sides
+    identically. And :math:`O_h` contains the coordinate permutations, so
+    :math:`(4,2,0)` and :math:`(0,4,2)` are the SAME equation — deduping by the
+    sorted triple keeps the system square rather than padded with copies.
+    """
+    seen: set[tuple[int, int, int]] = set()
+    out: list[tuple[int, int, int]] = []
+    for degree in range(0, max_degree + 1, 2):
+        for a in range(0, degree + 1, 2):
+            for b in range(0, degree - a + 1, 2):
+                c = degree - a - b
+                if c % 2:
+                    continue
+                key = (a, b, c)
+                canonical = tuple(sorted(key))
+                if canonical in seen:
+                    continue
+                seen.add(canonical)  # type: ignore[arg-type]
+                out.append(key)
+    return out
+
+
+def _sphere_monomial_integral(a: int, b: int, c: int) -> float:
+    r""":math:`\int_{S^2} x^a y^b z^c \,\mathrm{d}\Omega` in closed form."""
+    if a % 2 or b % 2 or c % 2:
+        return 0.0
+    return 2.0 * (
+        math.gamma((a + 1) / 2) * math.gamma((b + 1) / 2)
+        * math.gamma((c + 1) / 2) / math.gamma((a + b + c + 3) / 2)
+    )
+
+
+def _moment_matched_octant_weights(
+    sn_order: int,
+    octant_dirs: "list[tuple[float, float, float]]",
+    octant_orbit: "list[tuple[int, int, int]]",
+) -> "list[float]":
+    r"""Carlson–Lathrop weights: one free weight per :math:`O_h` orbit, solved.
+
+    Issue **#327**. Until 2026-08-06 this was ``4π/(8·n_octant)`` — ONE weight
+    for every ordinate — and the rule was therefore **degree 3 at every order**
+    while advertising :math:`N-1`, an over-claim of 12 at :math:`S_{16}`. The
+    degree-3 it did reach was free: any :math:`O_h`-symmetric node set with
+    :math:`\sum w = 4\pi` reaches 3, so nothing about the weights was earning it.
+
+    :math:`O_h`-invariance FORCES the weight to be constant on each orbit, so
+    the free parameters are exactly one per orbit — no more, no fewer. Solving
+    the lowest independent moment conditions for them is the classical
+    construction the docstring has always cited.
+
+    ⭐ **At** :math:`S_2` **and** :math:`S_4` **this is provably a no-op.** Both
+    node sets are a SINGLE orbit, so invariance plus :math:`\sum w = 4\pi`
+    determine the weight uniquely — the old equal-weight value was already
+    right, and `[M]` the solve returns it bit-for-bit. That is the regression
+    control for this change, and it is why ~290 :math:`S_4` call sites and four
+    frozen baselines do not move.
+
+    `[M]` 2026-08-06, achieved degree and positivity:
+
+    ====  ======  ======  ============  ==========
+    N     orbits  degree  min weight    vs. before
+    ====  ======  ======  ============  ==========
+    2     1       3       1.570796      identical
+    4     1       3       0.523599      identical
+    6     2       5       0.201682      moves
+    8     3       7       0.131132      moves
+    10    4       9       0.057100      moves
+    12    5       11      0.027825      moves
+    ====  ======  ======  ============  ==========
+
+    Raises
+    ------
+    ValueError
+        When the solve yields a **non-positive** weight — measured, from
+        :math:`S_{14}` upward on this node set (`[M]` ``-0.027`` at
+        :math:`S_{14}`, ``-0.142`` at :math:`S_{20}`).
+
+        ⛔ **Positivity is not a preference.** :math:`\phi = \sum_n w_n \psi_n`
+        must be non-negative for a non-negative angular flux, and the boundary
+        response kernels asserts it outright
+        (``assert_response_positive_if_declared``; the Lambertian's sub-Markov
+        bound). A rule that integrates a positive flux to a negative scalar
+        flux is not a transport quadrature, so the family is **defined exactly
+        where it is valid and refuses elsewhere** rather than shipping a
+        silent second construction under one name.
+
+        The frontier is **computed, never hardcoded**: it is read off the
+        solution's own sign, so it tracks the node set instead of going stale
+        beside it. Today that puts it between :math:`S_{12}` and :math:`S_{14}`.
+    """
+    orbits: "dict[tuple[int, int, int], list[int]]" = {}
+    for index, label in enumerate(octant_orbit):
+        orbits.setdefault(label, []).append(index)
+    labels = list(orbits)
+
+    # One octant's contribution, replicated over the 8 sign octants: the 8-fold
+    # replication below multiplies every orbit sum by the same factor, so it is
+    # carried here rather than left for the caller to remember.
+    directions = np.asarray(octant_dirs, dtype=float)
+    conditions = _even_monomial_conditions(max(sn_order + 2, 4))
+    system = np.array(
+        [
+            [
+                8.0 * float(np.sum(
+                    directions[members, 0] ** a
+                    * directions[members, 1] ** b
+                    * directions[members, 2] ** c
+                ))
+                for members in (orbits[label] for label in labels)
+            ]
+            for (a, b, c) in conditions
+        ],
+        dtype=float,
+    )
+    targets = np.array(
+        [_sphere_monomial_integral(a, b, c) for (a, b, c) in conditions],
+        dtype=float,
+    )
+
+    # Take the lowest INDEPENDENT conditions, one per free weight, and solve
+    # exactly. ⛔ Not least squares over all of them: with more conditions than
+    # orbits that is an overdetermined compromise satisfying NONE of them —
+    # `[M]` it misses even ``Σw = 4π``, the degree-0 condition, and the rule
+    # then integrates a constant wrongly.
+    chosen: list[int] = []
+    for row in range(system.shape[0]):
+        trial = chosen + [row]
+        if np.linalg.matrix_rank(system[trial], tol=1e-10) == len(trial):
+            chosen = trial
+        if len(chosen) == len(labels):
+            break
+    per_orbit = np.linalg.solve(system[chosen], targets[chosen])
+
+    if float(np.min(per_orbit)) <= 0.0:
+        raise ValueError(
+            f"level-symmetric S_{sn_order}: the moment-matched construction "
+            f"has no POSITIVE solution on this node set (min weight "
+            f"{float(np.min(per_orbit)):.6f}). phi = sum(w*psi) must stay "
+            f"non-negative for a non-negative angular flux, and the boundary "
+            f"response kernels assert it, so a negative weight is not a "
+            f"tolerable trade for the extra degree. The level-symmetric family "
+            f"is positive up to S_12 on these levels; above it use "
+            f"Quadrature.lebedev(order) or Quadrature.product(n_mu, n_phi), "
+            f"both of which reach their advertised degree with positive "
+            f"weights (issue #327)."
+        )
+
+    weight_of = dict(zip(labels, (float(w) for w in per_orbit)))
+    return [weight_of[label] for label in octant_orbit]
+
+
 def _build_level_symmetric_arrays(
     sn_order: int,
 ) -> tuple[
@@ -305,27 +461,39 @@ def _build_level_symmetric_arrays(
     # the `xi_sq < -1e-14` guard: `j` is provably in range for every
     # admissible (p, k), because p + k <= n_half - 1 by the loop bound.
     octant_dirs: list[tuple[float, float, float]] = []
+    # ⭐ The O_h ORBIT of each octant direction, as EXACT index arithmetic.
+    #
+    # O_h contains the coordinate permutations and all sign flips, so two
+    # directions lie in the same orbit iff their |cosine| MULTISETS agree —
+    # and every cosine here is ``mu_levels[·]``, so the multiset is the sorted
+    # triple of LEVEL INDICES. That makes the orbit label an integer fact of
+    # the construction rather than a float comparison discovered afterwards
+    # (the same reasoning that made ``j`` index arithmetic above: a symmetry
+    # question answered by a loop that already knows the answer exactly).
+    octant_orbit: list[tuple[int, int, int]] = []
     for p in range(n_half):
         mu_z = mu_levels[p]
         for k in range(n_half - p):
             j = n_half - 1 - p - k
             octant_dirs.append((mu_levels[k], mu_levels[j], mu_z))
+            octant_orbit.append(tuple(sorted((p, k, j))))  # type: ignore[arg-type]
 
-    n_octant = len(octant_dirs)
-    w_octant = 4.0 * np.pi / (8.0 * n_octant)
+    w_octant_per_dir = _moment_matched_octant_weights(
+        sn_order, octant_dirs, octant_orbit,
+    )
 
     all_eta: list[float] = []
     all_xi: list[float] = []
     all_mu: list[float] = []
     all_w: list[float] = []
-    for eta, xi, mu_z in octant_dirs:
+    for (eta, xi, mu_z), w_dir in zip(octant_dirs, w_octant_per_dir):
         for s_eta in (-1, 1):
             for s_xi in (-1, 1):
                 for s_mu in (-1, 1):
                     all_eta.append(s_eta * eta)
                     all_xi.append(s_xi * xi)
                     all_mu.append(s_mu * mu_z)
-                    all_w.append(w_octant)
+                    all_w.append(w_dir)
 
     mu_x = np.array(all_eta)
     mu_y = np.array(all_xi)
@@ -421,18 +589,25 @@ def level_symmetric_sn(
         weights=w,
         support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
-        # ⛔ This claim is FALSE and known to be — issue #327. `[M]` the
-        # measured degree is 3 at EVERY order, an over-claim of 12 at
-        # S_16. It is recorded unchanged here so the carve stays
-        # behaviour-neutral; #327 is where it gets corrected.
+        # ⭐ TRUE since #327 (2026-08-06), and gated:
+        # ``tests/numerics/test_advertised_degree_is_measured.py`` measures
+        # every production rule against the closed-form monomial integral and
+        # asserts BOTH directions — the promise is kept (measured ≥ advertised)
+        # and it is tight (measured == advertised).
         #
-        # Naming the reference makes the defect legible rather than
-        # fixing it: this rule has NO generating measure (it hand-assigns
-        # one weight to every ordinate), so nothing constrains the
-        # integer, and the claim rests on an authority the construction
-        # does not actually implement. That is the mechanism of #327.
+        # `[M]` achieved: S_2 → 3, S_4 → 3, S_6 → 5, S_8 → 7, S_10 → 9,
+        # S_12 → 11. So ``N-1`` from S_4 up, and ``3`` at S_2, where the single
+        # orbit over-delivers against the formula.
+        #
+        # ⛔ This read ``degree=sn_order - 1`` unconditionally and was FALSE:
+        # the weights were one equal value for every ordinate, which reaches
+        # degree 3 at every order (an over-claim of 12 at S_16) — while ALSO
+        # under-claiming at S_2, the tell that the integer was a formula for a
+        # rule this was not rather than a mis-measured property of this one.
+        # The weights are now solved per O_h orbit, so the authority the
+        # docstring cites is the authority the construction implements.
         exactness=ExactnessClaim(
-            reference=UNIFORM_ON_SPHERE, degree=sn_order - 1,
+            reference=UNIFORM_ON_SPHERE, degree=max(3, sn_order - 1),
         ),
     )
     structure = LevelStructure(

@@ -120,7 +120,16 @@ def test_level_symmetric_returns_measure_and_structure(sn_order: int) -> None:
     assert m.nodes.shape[1] == 3
     assert m.support == SPACE_SPHERE
     assert m.invariance_group == SubgroupOfO3.OctahedralOh
-    assert m.degree_of_exactness == sn_order - 1
+    # ``max(3, N-1)``, not ``N-1``, since #327 gave the rule per-O_h-orbit
+    # moment-matched weights: `[M]` S2 reaches degree 3, because its 8 nodes
+    # are a SINGLE orbit whose one free weight is already fixed by
+    # ``Σw = 4π`` — the rule over-delivers against the formula there and the
+    # old ``N-1`` UNDER-claimed it. That under-claim is what identified the
+    # tag as a formula for a different construction rather than a
+    # mis-measurement of this one; the value is measured against the
+    # closed-form monomial integral in
+    # ``tests/numerics/test_advertised_degree_is_measured.py``.
+    assert m.degree_of_exactness == max(3, sn_order - 1)
 
     assert isinstance(s, LevelStructure)
     assert s.n_levels == sn_order // 2
@@ -244,7 +253,13 @@ def _oh_exactness(nodes: "np.ndarray") -> "tuple[float, int, int]":
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("sn_order", [4, 6, 8, 12, 16, 20])
+# S12 caps every level-symmetric sweep in this module since #327: the
+# moment-matched solve has no POSITIVE solution above it (`[M]` min weight
+# -0.027 at S14, -0.142 at S20), so the builder refuses and the ORDERS
+# SIMPLY DO NOT EXIST. These rows gate NODE structure, which is unchanged
+# by #327 -- the coverage is not weakened, its subject is gone. If a future
+# node choice pushes the positivity frontier up, restore the orders here.
+@pytest.mark.parametrize("sn_order", [4, 6, 8, 10, 12])
 def test_level_symmetric_is_EXACTLY_octahedral(sn_order: int) -> None:
     r"""All 48 :math:`O_h` operators map the node set onto itself bit-exactly.
 
@@ -271,7 +286,7 @@ def test_level_symmetric_is_EXACTLY_octahedral(sn_order: int) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("sn_order", [4, 8, 16, 20])
+@pytest.mark.parametrize("sn_order", [4, 8, 10, 12])
 def test_level_symmetric_axes_share_one_magnitude_set(sn_order: int) -> None:
     """The defining property of a *level*-symmetric rule.
 
@@ -291,7 +306,7 @@ def test_level_symmetric_axes_share_one_magnitude_set(sn_order: int) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("sn_order", [4, 6, 8, 12, 16])
+@pytest.mark.parametrize("sn_order", [4, 6, 8, 10, 12])
 def test_lebedev_is_EXACTLY_octahedral(sn_order: int) -> None:
     """Lebedev already had this property — it is the reference case.
 
@@ -299,7 +314,7 @@ def test_lebedev_is_EXACTLY_octahedral(sn_order: int) -> None:
     of a few representatives, so closure is bit-exact by construction.
     Pinned so a future table edit cannot quietly lose it.
     """
-    order = {4: 3, 6: 5, 8: 7, 12: 11, 16: 17}[sn_order]
+    order = {4: 3, 6: 5, 8: 7, 10: 9, 12: 11}[sn_order]
     measure = lebedev_sphere(order=order)
     worst, exact, total = _oh_exactness(measure.nodes)
     assert exact == total, (
@@ -389,7 +404,7 @@ def test_projection_order_is_2_to_1_where_the_fiber_order_is_not() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("sn_order", [4, 8, 16])
+@pytest.mark.parametrize("sn_order", [4, 8, 12])
 def test_level_membership_is_exact_equality(sn_order: int) -> None:
     """Level assignment is an equality, not a neighbourhood test.
 

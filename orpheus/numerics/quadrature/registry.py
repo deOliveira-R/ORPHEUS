@@ -442,12 +442,27 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
     docstring). To meet ``target_degree``, choose the smallest even
     :math:`N \ge \mathrm{target\_degree} + 1`.
 
-    The construction supports any even :math:`N \ge 2`. There is no
-    upper bound here, but in practice :math:`N \ge 24` runs into
-    moment-condition algebra that the simple equal-weight construction
-    in this module does not capture; consumers asking for very high
-    target degrees should prefer Lebedev (which scales cleanly to
-    order 47).
+    ⛔ **The family is BOUNDED, and the bound is asked of the family rather
+    than tabulated here.** Since #327 the weights are solved per :math:`O_h`
+    orbit, and the solve has no POSITIVE solution above :math:`S_{12}` on these
+    levels (`[M]` min weight ``-0.027`` at :math:`S_{14}`). Above it the rule
+    does not exist, so this inverter returns ``None`` — the selector's own
+    "cannot reach target_degree with any supported parameters" channel — and
+    the caller falls through to Lebedev or the product rule.
+
+    ⚠ The bound is discovered by ATTEMPTING the construction, not by comparing
+    against a constant. A literal ``12`` here would be a second copy of a
+    frontier that lives in the solve, and the two would drift the first time
+    the node set changes — the selector would then either refuse a rule that
+    works or hand back one that raises. Selection is not a hot path (`[M]` the
+    selector has no production consumers at all today), so the honest check is
+    affordable.
+
+    ⛔ This docstring previously read *"The construction supports any even
+    N ≥ 2. There is no upper bound here, but in practice N ≥ 24 runs into
+    moment-condition algebra that the simple equal-weight construction in this
+    module does not capture."* Three things were wrong: there IS an upper
+    bound, it is 12 and not 24, and the construction is no longer equal-weight.
     """
     if target_degree < 0:
         return None
@@ -456,6 +471,13 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
         n_min = 2
     if n_min % 2 == 1:
         n_min += 1
+    try:
+        level_symmetric_sn(n_min)
+    except ValueError:
+        # No positive moment-matched solution at this order — the family
+        # cannot serve this target. Not an error: it is exactly what the
+        # ``None`` contract is for.
+        return None
     return {"sn_order": n_min}
 
 
