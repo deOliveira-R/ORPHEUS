@@ -217,17 +217,59 @@ Four gates, mutation-verified: reversing the row order reds 9/9 row-order rows
 and correctly leaves the inward-pointing row green (reversal preserves the set);
 dropping the restriction reds 15.
 
-**Step 2** — `InflowSourceSpec.evaluate(space)`. `NoSource` →
-`np.zeros(space.shape)`; `ConstantInflowSource` → `np.full(space.shape, value)`.
-The delivery site's hand-rolled `wanted` **deletes** — it is `space.shape`.
+**Steps 2 + 3 + 4 ✅ — and they were NOT separable.** ⚠ A planning surprise
+worth its own note: the probe is one of the two `evaluate` call sites, so
+changing the signature *forces* the guard's retirement in the same change.
+Landing "step 2" alone would have left the probe calling `evaluate((N,))` on a
+source expecting a space. **A step boundary that cuts across a signature's call
+sites is not a step boundary** — the unit of work is the call-site set, not the
+conceptual tidiness of the description.
 
-**Step 3** — retire `assert_source_lives_on_incoming_trace` (user ruling). Its
-live content — a method space that cannot name Γ₋ — moves to the realizer seam;
-ERR-047's catcher re-points there.
+* `InflowSourceSpec.evaluate(space)`. `NoSource` → `np.zeros(space.shape)`;
+  `ConstantInflowSource` → `np.full(space.shape, value)` (unchanged in
+  behaviour, and therefore the migration's regression control).
+* The delivery site's hand-rolled `wanted = (|Γ₋|,) + slot_shape[1:]` deleted —
+  it is `space.shape`.
+* The probe deleted. `assert_source_lives_on_incoming_trace` →
+  **`assert_source_is_placeable`**, because the old name outlived its claim: it
+  no longer certifies where the source's values live, only that Γ₋ is
+  nameable. The `quadrature` parameter went with the probe (nothing read it).
+* Contract written down on the Protocol: `evaluate` returns the angular flux on
+  Γ₋ in ψ's units, and the `1/W` is the author's — the FULL weight sum, `[M]`
+  2.0 vs the inflow-restricted 1.0 on GL-8.
 
-**Step 4** — write the contract down: `evaluate` returns the angular flux on
-Γ₋, in ψ's units. That is what makes `1/W` the author's business, and it is the
-gap that has no signature fix.
+⭐ **Behaviour change, deliberate and strictly safer.**
+`PrescribedInflow(ConstantInflowSource(0.0))` with no inflow set now RAISES,
+where the probe let it through. The check can no longer ask "is this value
+zero?" — in the arm where the answer matters there is no Γ₋ to evaluate
+against, which is the thing being complained about. So the discriminator is the
+source's IDENTITY (`NoSource` or not). Value-at-check-time was never
+value-at-delivery-time, and that gap *is* ERR-047's mechanism. The typed escape
+for a genuinely sourceless prescribed law is unchanged: `PrescribedInflow()`
+defaults to `NoSource`.
+
+### `[M]` The payoff, measured against the phase's own done-when
+
+`_ManufacturedFaceInflow`'s constructor went **5 args → 2**, and both survivors
+are declaration-time:
+
+| before | after |
+|---|---|
+| `mu_inflow` (per-row μ in trace order) | `space.directions` |
+| `n_ordinates` (to recognise the rank-1 probe) | *gone — there is no probe* |
+| `A_g`, `B_g`, `W` | `case`, `x_face` (the ansatz and where to evaluate it) |
+
+and the driver's throwaway **probe `SNMesh` is deleted** — the two-step that
+existed only so the spec could learn the row order. The done-when predicate
+("no `mu_inflow=`, no `n_ordinates=`") greps clean; the only residual mentions
+are past-tense history.
+
+**G8 re-posed, and it now asserts the opposite of what it did.** It pinned that
+the spec is called at TWO shapes and that its rank-1 answer is non-zero — both
+properties of the defect, not of a contract. It now pins **exactly one call,
+against `Γ₋(f)` by name**, plus that the delivered `q_∂` is what the spec
+returned for that space (so the single call is the real one, not a discarded
+rehearsal).
 
 ⚠ **Diffusion.** `evaluate(space)` typed on the shared `FunctionSpace` means
 `ScalarTraceSpace` fits the slot but has no `directions`, so a directional

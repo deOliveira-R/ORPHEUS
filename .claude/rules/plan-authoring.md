@@ -6,6 +6,49 @@ authority and none of your memory. That reader cannot tell a considered decision
 from a placeholder, an outcome from a guess at the means, or a measurement from
 a plausible number — unless the plan marks the difference.
 
+## ⭐⭐ This file is a LIVING document, and it has a measurable target
+
+A plan is the hardest case of the **articulation standard**: articulate = take a
+concept apart so a fresh reader reassembles it *losslessly*, and **the LOSS is
+the measure**. For prose the loss is hard to observe. For a plan it is not —
+it shows up as a **SURPRISE**: a moment where a session, reading the plan in
+good faith, believed something the tree contradicts. Every surprise is a
+quantum of information that failed to survive the context boundary.
+
+**So the loop is closed, and running it is part of the work:**
+
+1. **Log the surprise** the moment it happens — in the plan (in place, per §3)
+   and, if the mechanism generalises past that campaign, here.
+2. **Ask what a plan could have carried that would have prevented it.** Not
+   "what was wrong" — what *absent structure* let it through. A clause earns its
+   place only if it would have caught its own founding surprise.
+3. **Add the clause, with the surprise as its worked example**, dated and
+   measured. A rule without its founding failure is advice; with it, it is
+   evidence.
+
+⟹ **the target is falsifiable: surprises per campaign trending to zero.** When a
+session picks up a cold plan and finds nothing that contradicts the tree, the
+transfer was lossless and this file is done growing. Until then it is not, and a
+campaign that produced a surprise but no clause has thrown away its own
+measurement.
+
+⚠ **Two failure modes of the loop itself.** (a) Adding a clause for a
+*one-off* — if the same absent structure cannot plausibly bite a different
+campaign, it belongs in that plan, not here; this file is the floor, not an
+archive. (b) Growing without distilling — clauses that have stopped catching
+anything should merge or retire, exactly as the memory-distillation standard
+requires, or the file becomes a hot surface that costs more to read than the
+surprises cost to hit.
+
+### Surprise log — each clause traces to what produced it
+
+| date | the surprise | clause |
+|---|---|---|
+| 2026-08-06 | A phase title named a MECHANISM; its own author designed to it three compactions later and lost a cycle. | §1 |
+| 2026-08-06 | An inherited `[M]` number (`\|B(x)\| = 1.320`) was a *different fixture's*; the resuming session measured `1.824`. Both correct, silently incompatible. | §2, §4 |
+| 2026-08-06 | A plan's §5 blocker ("there is NO public entry point") was true when written and void two commits later, inside the same campaign. | §3, §7.3 |
+| 2026-08-06 | A "forbidden to commit" note was a point-in-time snapshot; the work had been committed at `34af8474`. | §7.1 |
+
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
 a plan must CONTAIN so it does not lie to the next session.

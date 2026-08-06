@@ -396,17 +396,23 @@ class AngularBoundarySourceSink(AngularBoundaryField):
                 )
             slot_shape = template.face_view(face).shape
             inflow = trace.inflow_indices_for_face(face)
-            wanted = (int(np.size(inflow)),) + tuple(
-                int(s) for s in slot_shape[1:]
-            )
-            values = np.asarray(spec.evaluate(wanted), dtype=float)
+            # ⭐ P6: hand the spec Γ₋(f) ITSELF, not a shape tuple. The space is
+            # the discretization — its rows ARE ``inflow``, its ``directions``
+            # are those rows' Ω (so an angular source is spellable), and its
+            # ``shape`` is what a hand-rolled
+            # ``(|Γ₋|,) + slot_shape[1:]`` used to recompute here. That
+            # duplicate is gone: one object now answers "which rows", "which
+            # directions" and "what shape", so they cannot disagree.
+            space = trace.inflow_space(face)
+            wanted = tuple(int(s) for s in space.shape)
+            values = np.asarray(spec.evaluate(space), dtype=float)
             if values.shape != wanted:
                 raise ValueError(
                     f"{cls.__name__}.from_specs: face {face!r} spec "
                     f"{spec!r} returned shape {values.shape!r}, expected "
-                    f"{wanted!r}. The InflowSourceSpec contract's ONE invariant "
-                    f"is that the returned array has exactly the requested "
-                    f"shape."
+                    f"{wanted!r} (= the shape of {space.name}). The "
+                    f"InflowSourceSpec contract's ONE invariant is that the "
+                    f"returned array has exactly the space's shape."
                 )
             # Scatter onto the full slot so `prescribed_inflow` — which reads
             # `[inflow]` from a full-slot array — stays the only code that

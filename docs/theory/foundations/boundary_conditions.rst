@@ -4021,12 +4021,18 @@ the load-bearing primitive that downstream consumers need:
   own half-traces without a whole trace space
   (:ref:`bc-domain-narrowing`).
 * The universal invariant
-  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
-  reads the inflow set as a **presence** check, not an entry-wise one:
-  it probes the source's support on the per-ordinate shape and raises
+  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_is_placeable`
+  reads the inflow set as a **structural** check — it asks whether the
+  realization can NAME :math:`\Gamma_-`, and raises
   :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
-  (ERR-047) when a nonzero :math:`q` is realized against a space that
-  cannot name :math:`\Gamma_-` at all. When the face CAN name it, the
+  (ERR-047) when a source-carrying law is realized against a space that
+  cannot. ⭐ Until campaign phase **P6** it probed the source's *support* on
+  the per-ordinate shape first, and a source that answered that probe with
+  zeros **skipped the certification entirely** while still delivering. Since a
+  spec now receives :math:`\Gamma_-(f)` itself, :math:`q \in \Gamma_-` holds
+  by construction, the probe is retired, and the discriminator is whether the
+  law carries a source at all (:class:`NoSource` or not) rather than what that
+  source currently evaluates to. When the face CAN name it, the
   delivery guarantee is structural: since **B3.4a** the realizer sizes
   the source's block from :math:`|\Gamma_-|`, so :math:`q \in \Gamma_-`
   holds by typing (pre-B3.4a it held because the realized operator
@@ -5255,7 +5261,7 @@ structural verification surface that the
    :class:`~orpheus.geometry.boundary.ZeroFluxBoundary`) override no
    universal invariant at all. Read the "What it asserts" column as a
    statement of *intent* wherever it says "Default: no-op"; only
-   ``assert_source_lives_on_incoming_trace`` fires for every law.
+   ``assert_source_is_placeable`` fires for every law.
 
    A second gap, orthogonal to the empty bodies: the aggregate
    :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_realizable`
@@ -5311,13 +5317,15 @@ reflective but not for white).
      - If a response kernel is declared, it produces non-negative
        output on the inflow trace. Empty base body; **overridden by**
        :class:`WhiteBoundary` and :class:`AlbedoBoundary`.
-   * - ``assert_source_lives_on_incoming_trace``
+   * - ``assert_source_is_placeable``
      - :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
        (ERR-047)
-     - The source :math:`q` is nonzero only on :math:`\Gamma_-`.
-       **The only universal with a real base body** — it probes the
-       source's support and raises when a nonzero :math:`q` is
-       realized without an inflow-index mask. **No law overrides
+     - A law carrying a source has a NAMEABLE :math:`\Gamma_-` to deliver
+       into. **The only universal with a real base body** — it raises when a
+       source-carrying law is realized without an inflow-index set. (P6
+       re-pose: it asserted "the source :math:`q` is nonzero only on
+       :math:`\Gamma_-`" and probed the source's values to decide; that claim
+       is now structural, so there is nothing left to probe.) **No law overrides
        it**; every law (including
        :class:`~orpheus.geometry.boundary.PrescribedInflow`) is
        certified by that one body, which is why the

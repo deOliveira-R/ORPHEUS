@@ -3909,11 +3909,15 @@ Three consumers read the mask today:
   table caches (campaign phase B3.2; see
   :ref:`bc-domain-narrowing`).
 * The universal invariant
-  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
-  reads the inflow selector as a **presence** check on a
-  :class:`~orpheus.geometry.boundary.InflowSourceSpec` (ERR-047): a
-  nonzero :math:`q` realized against a space that cannot name
-  :math:`\Gamma_-` is refused. Where the face CAN name it, the
+  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_is_placeable`
+  reads the inflow selector as a **structural** check on a law carrying an
+  :class:`~orpheus.geometry.boundary.InflowSourceSpec` (ERR-047): a law with a
+  source, realized against a space that cannot name :math:`\Gamma_-`, is
+  refused. (Until campaign phase **P6** it was a *presence* check that first
+  probed the source's values — and a source could decline it by answering the
+  probe with zeros. A spec now receives :math:`\Gamma_-(f)` itself, so
+  :math:`q \in \Gamma_-` holds by construction and only the structural
+  precondition remains.) Where the face CAN name it, the
   delivery is structural — since campaign phase B3.4a the realizer
   sizes the source's block from :math:`|\Gamma_-|`, so
   :math:`q \in \Gamma_-` holds by typing rather than by masking a

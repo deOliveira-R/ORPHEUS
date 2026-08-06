@@ -29,9 +29,12 @@ Invariant → ERR-NNN map
 * :meth:`ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
   → ERR-045 (``ReflectionDidNotMapInflowToOutflowError``) — the
   third independent reflection-table invariant (#52)
-* :meth:`BoundaryTraceLaw.assert_source_lives_on_incoming_trace` →
+* :meth:`BoundaryTraceLaw.assert_source_is_placeable` →
   ERR-047 (``BoundarySourceNotOnIncomingTraceError``) — the
-  universal q ∈ Γ_- certification (#52; real body on the ABC)
+  universal certification that a source-carrying law has a NAMEABLE
+  :math:`\\Gamma_-` to deliver into (#52; real body on the ABC;
+  RE-POSED at P6 from ``assert_source_lives_on_incoming_trace``,
+  which certified the source's VALUES through a declinable probe)
 * :meth:`WhiteBoundary.assert_response_positive_if_declared` →
   ERR-043 (``BoundaryResponseNotPositiveError``)
 * :meth:`WhiteBoundary.assert_submarkov` → ERR-046
@@ -678,24 +681,34 @@ class TestSNRealizerPrescribedInflowDispatch:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# BoundaryTraceLaw.assert_source_lives_on_incoming_trace (ERR-047)
+# BoundaryTraceLaw.assert_source_is_placeable (ERR-047)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-047")
-class TestSourceLivesOnIncomingTraceInvariant:
-    """:meth:`BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
-    (#52) — the real universal body replacing the no-op default.
+class TestSourceIsPlaceableInvariant:
+    """:meth:`BoundaryTraceLaw.assert_source_is_placeable`
+    (#52, RE-POSED at P6) — the real universal body replacing the no-op default.
 
-    The affine form's :math:`q` lives on :math:`\\Gamma_-`. An
-    :class:`InflowSourceSpec` fills whatever shape it is handed, so
-    the delivered-:math:`q` guarantee needs the realizer's inflow
-    mask; the invariant certifies the mask EXISTS whenever
-    :math:`q \\not\\equiv 0`, and the delivered-q leg pins the masked
-    postcondition end-to-end (the ERR-047 mechanism: an unmasked
-    constant writes into outflow slots the sweep silently discards —
-    the total inflow lands SHORT of intent)."""
+    ⭐ **What this class asserts CHANGED at P6, and the change is the point.**
+    It used to certify the source's VALUES: an :class:`InflowSourceSpec` filled
+    whatever *shape* it was handed, so the delivered-:math:`q` guarantee needed
+    the realizer's inflow mask, and the body probed the source at ``(N,)`` to
+    see whether :math:`q \\not\\equiv 0` before demanding one.
+
+    That probe was **declinable** — `[M]` a source returning zeros at the probe
+    shape and ``7.0`` at the delivery shape skipped the certification and
+    delivered anyway. It is gone. A spec now receives :math:`\\Gamma_-(f)`
+    itself and returns its shape, so :math:`q \\in \\Gamma_-` holds **by
+    construction** and there is no value-level claim left to make.
+
+    What survives is STRUCTURAL and is asserted unconditionally: a law carrying
+    a source needs a face that can NAME its inflow set. Note the consequence
+    the rows below pin — the check can no longer look at the source's values,
+    because in the arm where it would matter (``inflow_indices is None``) there
+    is no space to evaluate against. So it discriminates on whether a source is
+    :class:`NoSource`, not on what a source currently contains."""
 
     def test_nonzero_source_without_inflow_set_raises(self) -> None:
         """Law-level negative: the exact catalog catcher —
@@ -707,9 +720,8 @@ class TestSourceLivesOnIncomingTraceInvariant:
         )
 
         law = PrescribedInflow(source=ConstantInflowSource(value=2.0))
-        quad = Quadrature.lebedev(17)
         with pytest.raises(BoundarySourceNotOnIncomingTraceError):
-            law.assert_source_lives_on_incoming_trace(quad, None)
+            law.assert_source_is_placeable(None)
 
     def test_nonzero_source_with_inflow_set_passes(self) -> None:
         """Positive: with the face's inflow indices supplied, the
@@ -721,16 +733,13 @@ class TestSourceLivesOnIncomingTraceInvariant:
 
         law = PrescribedInflow(source=ConstantInflowSource(value=2.0))
         quad = Quadrature.lebedev(17)
-        law.assert_source_lives_on_incoming_trace(
-            quad, np.flatnonzero(quad.mu_x < 0),
-        )
+        law.assert_source_is_placeable(np.flatnonzero(quad.mu_x < 0))
 
     def test_homogeneous_laws_certify_masklessly(self) -> None:
         """Positive sweep: every homogeneous law's ``NoSource`` is
         :math:`q \\equiv 0` — trivially on :math:`\\Gamma_-`, with or
         without a mask. The universal body must not demand trace data
         it does not need."""
-        quad = Quadrature.lebedev(17)
         for law in (
             VacuumInflow(),
             ReflectiveBoundary(axis="x"),
@@ -738,20 +747,50 @@ class TestSourceLivesOnIncomingTraceInvariant:
             AlbedoBoundary(albedo=0.5),
             PeriodicBoundary(),
         ):
-            law.assert_source_lives_on_incoming_trace(quad, None)
+            law.assert_source_is_placeable(None)
 
-    def test_zero_valued_constant_certifies_masklessly(self) -> None:
-        """``ConstantInflowSource(0.0)`` has zero support — same
-        trivial certification as ``NoSource``."""
+    def test_a_zero_VALUED_constant_is_still_a_source_and_still_needs_a_trace(
+        self,
+    ) -> None:
+        """⭐ RE-POSED at P6 — this row asserted the OPPOSITE until 2026-08-06.
+
+        It read ``test_zero_valued_constant_certifies_masklessly``:
+        ``ConstantInflowSource(0.0)`` has zero support, so it certified
+        without an inflow set, exactly as :class:`NoSource` does.
+
+        That was the presence probe speaking, and the probe is what made the
+        guard declinable. The check can no longer ask "is this source's value
+        zero?" — in the arm where the answer would matter there is no
+        :math:`\\Gamma_-` to evaluate the source against, which is precisely
+        what is being complained about. So the discriminator is the source's
+        IDENTITY: :class:`NoSource` means *no delivery*, and anything else
+        means *a delivery whose destination must be nameable*, whatever it
+        currently holds.
+
+        ⚠ This is a deliberate behaviour change and it is strictly safer: the
+        old arm let a source that is zero **today** past a check it would fail
+        the moment its value changed, and value-at-check-time is not
+        value-at-delivery-time — which was ERR-047's whole mechanism.
+
+        The escape hatch for a genuinely sourceless prescribed law is
+        unchanged and typed: ``PrescribedInflow()`` defaults to
+        :class:`NoSource` and takes the first arm."""
         from orpheus.geometry.boundary import (
             ConstantInflowSource,
+            NoSource,
             PrescribedInflow,
         )
 
-        law = PrescribedInflow(source=ConstantInflowSource(value=0.0))
-        law.assert_source_lives_on_incoming_trace(
-            Quadrature.lebedev(17), None,
-        )
+        with pytest.raises(BoundarySourceNotOnIncomingTraceError):
+            PrescribedInflow(
+                source=ConstantInflowSource(value=0.0)
+            ).assert_source_is_placeable(None)
+
+        # …and the sourceless spelling still certifies masklessly, which is
+        # what keeps the row above a claim about DELIVERY rather than a blanket
+        # refusal of the prescribed family.
+        assert PrescribedInflow().assert_source_is_placeable(None) is None
+        assert isinstance(PrescribedInflow().source, NoSource)
 
     def test_raises_at_realize_time(self) -> None:
         """Production wiring: realizing the nonzero source on a
@@ -793,7 +832,7 @@ class TestSourceLivesOnIncomingTraceInvariant:
     #   about afterwards.
     #
     # The LAW-tier rows above keep this class's ERR-047 marker earned: they
-    # exercise ``assert_source_lives_on_incoming_trace`` itself, which is the
+    # exercise ``assert_source_is_placeable`` itself, which is the
     # invariant the catalog entry names and which P3 did not touch.
 
 

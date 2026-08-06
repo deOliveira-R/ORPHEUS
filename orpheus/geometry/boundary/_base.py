@@ -147,7 +147,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
       to :class:`NoSource` (the homogeneous case). **Populated**
       (:class:`~orpheus.geometry.boundary.PrescribedInflow`
       overrides it) and **read** — by
-      :meth:`assert_source_lives_on_incoming_trace` here and by the
+      :meth:`assert_source_is_placeable` here and by the
       SN realizer's prescribed-inflow arm.
     * :attr:`geometry_map` -- the geometric operator :math:`G` (a
       permutation, pushforward, angular average, spatial wrap).
@@ -387,13 +387,29 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         Default: no-op. Albedo / white override.
         """
 
-    def assert_source_lives_on_incoming_trace(
+    def assert_source_is_placeable(
         self,
-        quadrature: "Quadrature",
         inflow_indices: Optional[np.ndarray] = None,
     ) -> None:
-        r"""The source :math:`q` is nonzero only on :math:`\Gamma_-`
-        (ERR-047).
+        r"""A law carrying a source is realizable only where :math:`\Gamma_-`
+        can be NAMED (ERR-047).
+
+        ⭐ **RENAMED at P6, from** ``assert_source_lives_on_incoming_trace``
+        **, because the old name outlived its claim.** It used to certify
+        something about the source's VALUES — that :math:`q` is nonzero only on
+        :math:`\Gamma_-` — by probing the source and inspecting what came back.
+        It cannot make that claim any more and does not need to: an
+        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` is handed
+        :math:`\Gamma_-(f)` and returns its shape, so :math:`q \in \Gamma_-`
+        holds **by construction**. What is left is a precondition on the
+        REALIZATION, not a property of the source: a face that cannot name its
+        inflow set has nowhere to put a source, whatever the source contains.
+        The ``quadrature`` parameter went with the probe — the surviving check
+        never reads it, and an unused parameter on a certification method
+        misstates what the certification depends on.
+
+        The historical claim, kept because the ERR-047 mechanism is worth
+        having in one place:
 
         The affine form's :math:`q` term lives on the incoming trace by
         definition. An
@@ -437,8 +453,33 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         requested shape") makes the probe representative of any
         trailing-axis block the realizer later requests.
         """
-        probe = self.source.evaluate((int(quadrature.N),))
-        if not np.any(probe):
+        # ⭐ P6 — the PRESENCE PROBE IS GONE, and with it the way out of this
+        # check. It used to open:
+        #
+        #     probe = self.source.evaluate((int(quadrature.N),))
+        #     if not np.any(probe):
+        #         return
+        #
+        # `[M]` 2026-08-06: a source answering that rank-1 probe with zeros and
+        # the real (|Γ₋|, ng) delivery with 7.0 realized cleanly, skipped this
+        # certification entirely, and delivered 7.0 anyway. A presence
+        # predicate the subject can decline is not a guard. The probe's own
+        # justification — "the contract 'fill exactly the requested shape'
+        # makes the probe representative" — was a claim about a contract the
+        # Protocol did not enforce, and the §4.6 manufactured source HAD to
+        # vary with rank because rank was the only signal distinguishing the
+        # probe call from the delivery call.
+        #
+        # Since :class:`InflowSourceSpec` now receives Γ₋(f) itself, the
+        # source cannot write off the incoming trace — there is nowhere else
+        # to write — so the value-level half of this check has nothing left to
+        # certify. What survives is the STRUCTURAL half below: a law that
+        # carries a source at all needs a face that can NAME its inflow set,
+        # and that is now asked unconditionally rather than only when a probe
+        # happened to come back non-zero.
+        if isinstance(self.source, NoSource):
+            # No source, no delivery, nothing to name Γ₋ for. Every
+            # homogeneous law takes this arm.
             return
         if inflow_indices is None:
             from ._errors import BoundarySourceNotOnIncomingTraceError
@@ -500,7 +541,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         The base body fires the five universal invariants — four of
         which are empty and two of those overridden by nobody, so in
         practice the aggregate's teeth are
-        :meth:`assert_source_lives_on_incoming_trace` (all laws),
+        :meth:`assert_source_is_placeable` (all laws),
         :meth:`assert_geometry_map_measure_preserving`
         (:class:`ReflectiveBoundary`) and
         :meth:`assert_response_positive_if_declared`
@@ -526,9 +567,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         self.assert_outgoing_leakage_unconstrained(quadrature)
         self.assert_geometry_map_measure_preserving(quadrature)
         self.assert_response_positive_if_declared()
-        self.assert_source_lives_on_incoming_trace(
-            quadrature, inflow_indices
-        )
+        self.assert_source_is_placeable(inflow_indices)
 
     # ------------------------------------------------------------------
     # Method realisation hook -- guidance raise; the realizers are the

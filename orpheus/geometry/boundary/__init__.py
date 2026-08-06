@@ -421,7 +421,7 @@ Universal invariants + named-error catalog
 The ABC declares five universal ``assert_*`` invariants (per Grand
 Report v3 §16A.12 + §27.6). What is actually implemented, measured:
 
-* ``assert_source_lives_on_incoming_trace`` — the only one with a
+* ``assert_source_is_placeable`` — the only one with a
   base body (the ERR-047 gate). No law overrides it; every law is
   certified by that one body.
 * ``assert_geometry_map_measure_preserving`` — empty base;

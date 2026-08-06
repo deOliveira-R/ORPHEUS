@@ -405,7 +405,7 @@ def test_boundary_source_not_on_incoming_trace_error() -> None:
     """ERR-047: an affine source with support off :math:`\\Gamma_-`.
 
     PRODUCTION GUARD:
-    ``BoundaryTraceLaw.assert_source_lives_on_incoming_trace``
+    ``BoundaryTraceLaw.assert_source_is_placeable``
     (``geometry/boundary/_base.py:333``), fired both directly and
     through ``SNBoundaryRealizer.realize``: a nonzero
     ``ConstantInflowSource`` on a method space with NO inflow indices
@@ -438,9 +438,7 @@ def test_boundary_source_not_on_incoming_trace_error() -> None:
 
     # Positive control: with the face's inflow indices supplied the
     # same guard certifies silently.
-    law.assert_source_lives_on_incoming_trace(
-        quad, np.flatnonzero(quad.mu_x < 0),
-    )
+    law.assert_source_is_placeable(np.flatnonzero(quad.mu_x < 0))
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -74,70 +74,60 @@ def _require(condition: bool, message: str) -> None:
 class _ManufacturedFaceInflow:
     r""":math:`\gamma_-\psi = (A_g(x_f) + \mu_n B_g(x_f))/W` on ONE face.
 
-    ⚠ **P6 STOPGAP WITH AN OWNER.** Every constructor argument is information
-    :meth:`~orpheus.geometry.boundary._source.InflowSourceSpec.evaluate` cannot
-    supply, because its whole signature is a bare ``shape``:
+    ⭐ **The P6 payoff: this is now an ORDINARY user-written source.** It takes
+    the manufactured case and the face's coordinate — both known when you
+    DECLARE the boundary — and nothing else. Everything it used to smuggle
+    through its constructor now arrives with the space:
 
-    * ``mu_inflow`` — the per-row direction cosines **in trace order**. The spec
-      is handed ``(|Γ₋|, ng)`` and must know that row ``i`` is ordinate
-      ``inflow_indices_for_face(face)[i]``. Getting that wrong is silent: a
-      constant-valued spec cannot detect a permuted or reversed trace.
-    * ``A_g`` / ``B_g`` — evaluated at **this face's own coordinate**. The spec
-      is not told which face it is on, so the coordinate is baked in and one
-      spec instance is built per face.
-    * ``W`` and the ``1/W`` convention — a property of the ansatz, invisible here.
-    * ``n_ordinates`` — needed only to recognise the rank-1 probe (below).
+    ===========================  =============================================
+    was a constructor argument   now read from ``space``
+    ===========================  =============================================
+    ``mu_inflow``                ``space.directions`` — the per-row Ω, in this
+                                 space's own row order, so a permuted trace is
+                                 unspellable rather than silently wrong
+    ``n_ordinates``              nothing needs it: there is ONE call at ONE
+                                 shape, so there is no probe to recognise
+    ===========================  =============================================
 
-    ⟹ P6's specification is "a source that receives the trace and the face",
-    not "a source that receives a shape". See `scratch/p4_mms_design.md` §10.
+    The two that remain are genuinely the author's: :math:`A_g` / :math:`B_g`
+    come from the ansatz at this face's coordinate, and the :math:`1/W` is the
+    ansatz's own normalisation (``φ = Σ w ψ``), which is why the Protocol
+    documents the units rather than trying to supply the factor. ⚠ It is the
+    FULL weight sum — ``case.quadrature.weights.sum()`` — not the
+    inflow-restricted one; `[M]` those are 2.0 and 1.0 on GL-8 and the wrong
+    choice is a silent ×2 in the same direction as a double delivery.
 
-    **The two evaluate shapes** (`[M]`, design §3):
-
-    ``realize_boundary_law``  → ``evaluate((N,))``       — rank 1, ALL ordinates,
-                                                            no group axis
-    ``from_mesh_laws``        → ``evaluate((|Γ₋|, ng))`` — the real delivery
-
-    A spec written for only one of these dies with ``IndexError`` before the MMS
-    ever runs.
-
-    ⛔ **The rank-1 probe MUST be non-zero.**
-    ``assert_source_lives_on_incoming_trace`` opens with
-    ``probe = source.evaluate((N,)); if not np.any(probe): return`` — so a spec
-    that returns zeros there **silently skips the ERR-047 certification it is
-    supposed to pass**. Measured: a spec returning zeros at rank-1 and ``7.0`` at
-    rank-2 realizes cleanly. A presence predicate a source can decline is not a
-    guard; that is a P6 finding in its own right, and this class works *with* the
-    guard rather than around it.
+    ⛔ **What this class no longer has to do**, kept as the record of what the
+    old ``evaluate(shape)`` signature cost: recognise a rank-1 realize-time
+    probe by its rank, return a deliberately non-zero value into it so the
+    ERR-047 certification would not be skipped, and be rebuilt per face from a
+    throwaway probe ``SNMesh`` just to learn the row order.
     """
 
-    def __init__(self, *, mu_inflow, A_g, B_g, W, n_ordinates) -> None:
-        self.mu = np.asarray(mu_inflow, dtype=float)    # (|Γ₋|,) IN TRACE ORDER
-        self.A = np.asarray(A_g, dtype=float)           # (ng,) at THIS face
-        self.B = np.asarray(B_g, dtype=float)           # (ng,) at THIS face
-        self.W = float(W)
-        self.N = int(n_ordinates)
-        #: Every shape this spec was asked for — G8 reads it.
-        self.shapes_seen: list[tuple[int, ...]] = []
+    def __init__(self, *, case, x_face: float) -> None:
+        self.case = case
+        self.x_face = float(x_face)
+        self.W = float(np.asarray(case.quadrature.weights).sum())
+        #: Every space this spec was asked for, by name — G8 reads it.
+        self.spaces_seen: list[str] = []
 
-    def _trace(self) -> np.ndarray:
+    def _coefficients(self) -> "tuple[np.ndarray, np.ndarray]":
+        x = np.array([self.x_face])
+        ng = self.case.n_groups
+        A = np.array([float(np.atleast_1d(self.case.A(x, g))[0])
+                      for g in range(ng)])
+        B = np.array([float(np.atleast_1d(self.case.B(x, g))[0])
+                      for g in range(ng)])
+        return A, B
+
+    def evaluate(self, space) -> np.ndarray:
+        self.spaces_seen.append(space.name)
         # γ₋ψ is the angular FLUX on the trace, so it carries the ansatz's own
         # 1/W — a DIFFERENT reason from the bulk source's /W (design §1.3/§1.4).
-        return (self.A[None, :] + self.mu[:, None] * self.B[None, :]) / self.W
-
-    def evaluate(self, shape) -> np.ndarray:
-        shape = tuple(int(s) for s in shape)
-        self.shapes_seen.append(shape)
-        if len(shape) == 1:
-            _require(
-                shape[0] == self.N,
-                f"unexpected rank-1 probe {shape}; expected (N={self.N},). The "
-                f"two evaluate shapes are (N,) at realize and (|Γ₋|, ng) at "
-                f"materialisation — see this class's docstring.",
-            )
-            probe = np.zeros(shape, dtype=float)
-            probe[: self.mu.size] = self._trace()[:, 0]
-            return probe
-        return self._trace()
+        mu = np.asarray(space.directions, dtype=float)
+        mu = mu if mu.ndim == 1 else mu[:, 0]
+        A, B = self._coefficients()
+        return (A[None, :] + mu[:, None] * B[None, :]) / self.W
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -145,35 +135,29 @@ class _ManufacturedFaceInflow:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _face_spec(case, sn, face: str, x_face: float) -> _ManufacturedFaceInflow:
-    rows = np.asarray(sn.angular_trace.inflow_indices_for_face(face))
-    return _ManufacturedFaceInflow(
-        mu_inflow=case.quadrature.mu_x[rows],
-        A_g=[float(np.atleast_1d(case.A(np.array([x_face]), g))[0])
-             for g in range(case.n_groups)],
-        B_g=[float(np.atleast_1d(case.B(np.array([x_face]), g))[0])
-             for g in range(case.n_groups)],
-        W=float(case.quadrature.weights.sum()),
-        n_ordinates=case.quadrature.N,
-    )
+def _face_spec(case, face: str, x_face: float) -> _ManufacturedFaceInflow:
+    """No mesh argument, and no ``face`` read — the space carries both.
+
+    ``face`` survives only as documentation of which coordinate ``x_face`` is;
+    the spec never branches on it.
+    """
+    return _ManufacturedFaceInflow(case=case, x_face=x_face)
 
 
 def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
     r"""Build → declare → solve, entirely through public surfaces.
 
-    The trace is read from a **probe** ``SNMesh`` before the declaration is
-    made, because the spec needs the inflow row order and only the trace knows
-    it. That two-step is itself a P6 signal: a spec that received the trace
-    would not need the probe. Deriving the ordering from the quadrature instead
-    would be re-implementing production logic inside the test — the one thing an
-    oracle must not do.
+    ⭐ **P6 deleted a step here.** This used to build a throwaway probe
+    ``SNMesh`` first, purely so the spec could be handed the inflow row order —
+    "a spec that received the trace would not need the probe", as the note then
+    said. It receives the trace now, so the probe is gone and the fixture is
+    build → declare → solve with nothing in front of it.
 
     Returns ``(sn, solution, specs)``.
     """
     mesh0 = case.build_mesh(n_cells)
-    probe = SNMesh(mesh0, case.quadrature, case.materials)
     specs = {
-        face: _face_spec(case, probe, face, x_face)
+        face: _face_spec(case, face, x_face)
         for face, x_face in (("xmin", 0.0), ("xmax", case.slab_length))
     }
 
@@ -388,11 +372,7 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
     """
     case = build_slab_2g_nonvacuum_mms_case()
     mesh0 = case.build_mesh(40)
-    probe = SNMesh(mesh0, case.quadrature, case.materials)
-    specs = {
-        face: _face_spec(case, probe, face, x)
-        for face, x in _faces(case)
-    }
+    specs = {face: _face_spec(case, face, x) for face, x in _faces(case)}
     mesh = replace(
         mesh0,
         bc_left=PrescribedInflow(source=specs["xmin"]),
@@ -420,45 +400,54 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
         np.testing.assert_array_equal(d[off], 0.0)
 
 
-def test_the_spec_receives_both_shapes_and_the_probe_is_non_zero() -> None:
-    r"""⭐ The ERR-047 certification must actually RUN, not be opted out of.
+def test_the_spec_is_asked_exactly_ONCE_and_for_gamma_minus_ITSELF() -> None:
+    r"""⭐ RE-POSED at P6 — this row asserted the opposite until 2026-08-06.
 
-    ``assert_source_lives_on_incoming_trace`` returns early on a zero rank-1
-    probe, so a source can silently decline the certification it is meant to
-    pass. This row pins that (a) both evaluate shapes really are requested —
-    a refactor collapsing them would break every hand-rolled spec — and (b) this
-    spec's probe is non-zero, so the guard fired.
+    It read ``test_the_spec_receives_both_shapes_and_the_probe_is_non_zero``
+    and pinned that the spec is called at TWO shapes: a rank-1 ``(N,)``
+    realize-time probe and the rank-2 ``(|Γ₋|, ng)`` materialisation. It also
+    pinned that this spec's probe answer is non-zero, because
+    ``assert_source_lives_on_incoming_trace`` returned early on a zero probe
+    and a source could therefore decline the certification it was meant to
+    pass.
+
+    ⛔ **Both of those were properties of a defect, not of a contract.** Rank
+    was the only signal distinguishing the probe call from the delivery call —
+    "an accident, not a contract", as the design said — and a source that
+    answered the probe with zeros skipped the ERR-047 check and delivered
+    anyway (`[M]` zeros at ``(N,)``, ``7.0`` at ``(|Γ₋|, ng)``, delivered
+    ``7.0``). P6 removed the probe. There is now ONE call, at ONE object, and
+    that object is :math:`\Gamma_-(f)` itself.
+
+    So the row now pins the *absence* of what it used to require: exactly one
+    evaluation, against the inflow space of the declaring face, with the
+    delivered values matching what the spec returns for that space. A future
+    edit that reintroduced a second call — a probe, a shape sniff, a
+    speculative evaluation — reddens here.
     """
     case = build_slab_2g_nonvacuum_mms_case()
     mesh0 = case.build_mesh(20)
-    probe_mesh = SNMesh(mesh0, case.quadrature, case.materials)
-    spec = _face_spec(case, probe_mesh, "xmin", 0.0)
+    spec = _face_spec(case, "xmin", 0.0)
 
     mesh = replace(mesh0, bc_left=PrescribedInflow(source=spec))
     sn = SNMesh(mesh, case.quadrature, case.materials)
-    AngularBoundarySourceSink.from_mesh_laws(sn)
+    q = AngularBoundarySourceSink.from_mesh_laws(sn)
 
-    ranks = {len(s) for s in spec.shapes_seen}
+    gamma_minus = sn.angular_trace.inflow_space("xmin")
     _require(
-        ranks == {1, 2},
-        f"the spec saw shapes {spec.shapes_seen} (ranks {sorted(ranks)}); both "
-        f"the rank-1 (N,) realize-time probe and the rank-2 (|Γ₋|, ng) "
-        f"materialisation call must occur",
+        spec.spaces_seen == [gamma_minus.name],
+        f"the spec was asked for {spec.spaces_seen}; expected exactly one "
+        f"call, for {gamma_minus.name!r}. More than one means a probe or a "
+        f"shape sniff is back; a different name means it was handed the wrong "
+        f"face or the wrong directional tier.",
     )
-    n_inflow = int(np.asarray(
-        sn.angular_trace.inflow_indices_for_face("xmin")).size)
-    _require(
-        (case.quadrature.N,) in spec.shapes_seen,
-        f"no (N={case.quadrature.N},) probe in {spec.shapes_seen}",
-    )
-    _require(
-        any(s[0] == n_inflow and len(s) == 2 for s in spec.shapes_seen),
-        f"no (|Γ₋|={n_inflow}, ng) call in {spec.shapes_seen}",
-    )
-    _require(
-        bool(np.any(spec.evaluate((case.quadrature.N,)))),
-        "the rank-1 probe is all-zero, so assert_source_lives_on_incoming_trace "
-        "returned early and the ERR-047 certification was SKIPPED",
+    # …and what it returned for that space is what was delivered, so the single
+    # call is the REAL one rather than a discarded rehearsal.
+    rows = np.asarray(sn.angular_trace.inflow_indices_for_face("xmin"))
+    np.testing.assert_array_equal(
+        np.asarray(q.face_view("xmin"))[rows],
+        spec.evaluate(gamma_minus),
+        err_msg="the delivered q_∂ is not what the spec returned for Γ₋(xmin)",
     )
 
 

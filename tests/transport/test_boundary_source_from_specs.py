@@ -71,7 +71,7 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
     Post-P3 the realized law delivers nothing — it is the zero morphism — so
     the postcondition had to travel with the delivery, and this is the channel
     that now delivers. (The law-tier rows there keep their own copy of the
-    marker: they exercise ``assert_source_lives_on_incoming_trace`` itself,
+    marker: they exercise ``assert_source_is_placeable`` itself,
     which is what the catalog entry names.)
 
     The catalogued hazard is unchanged in substance: an inflow source written
@@ -144,7 +144,8 @@ class TestTheContractIsEnforced:
         sn = _slab()
 
         class _Liar:
-            def evaluate(self, shape):
+            def evaluate(self, space):
+                shape = tuple(space.shape)
                 return np.zeros((shape[0] + 1,) + shape[1:])
 
         with pytest.raises(ValueError, match="expected"):
@@ -198,7 +199,7 @@ class TestTheTwoRoutesAgreeByConstruction:
             .face_view("xmin")
         )[inflow]
 
-        direct = spec.evaluate((int(np.size(inflow)), sn.ng))
+        direct = spec.evaluate(trace.inflow_space("xmin"))
         np.testing.assert_array_equal(bridged, direct)
 
     def test_a_nonconstant_recipe_also_agrees(self) -> None:
@@ -216,7 +217,8 @@ class TestTheTwoRoutesAgreeByConstruction:
         class _Ramp:
             """``q[n, g] = n + 10·g`` — distinct in BOTH axes, deliberately."""
 
-            def evaluate(self, shape):
+            def evaluate(self, space):
+                shape = tuple(space.shape)
                 n, ng = shape[0], shape[1]
                 return (
                     np.arange(n, dtype=float)[:, None]
@@ -227,7 +229,7 @@ class TestTheTwoRoutesAgreeByConstruction:
             AngularBoundarySourceSink.from_specs(sn, {"xmin": _Ramp()})
             .face_view("xmin")
         )[inflow]
-        direct = _Ramp().evaluate((int(np.size(inflow)), sn.ng))
+        direct = _Ramp().evaluate(trace.inflow_space("xmin"))
 
         np.testing.assert_array_equal(bridged, direct)
         # Activation guard: the fixture must actually vary, or the ordering

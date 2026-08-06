@@ -34,6 +34,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
@@ -143,12 +145,26 @@ def test_response_kernel_default_is_none() -> None:
     assert _StubLaw().response_kernel is None
 
 
+@dataclass(frozen=True)
+class _SpaceStub:
+    """The MINIMUM an :class:`InflowSourceSpec` may assume of its argument.
+
+    P6 hands a source the face's :math:`\\Gamma_-` space. The two shipped
+    sources read ``.shape`` and nothing else — a constant is row-independent —
+    so a stub carrying only ``shape`` both drives them and PINS that minimum:
+    if either grows a read of ``directions`` / ``face``, these rows red with an
+    ``AttributeError`` and the Protocol's documented floor has moved.
+    """
+
+    shape: tuple[int, ...]
+
+
 @pytest.mark.foundation
 def test_source_default_is_no_source() -> None:
     law = _StubLaw()
     src = law.source
     assert isinstance(src, NoSource)
-    out = src.evaluate((8, 1))
+    out = src.evaluate(_SpaceStub((8, 1)))
     assert out.shape == (8, 1)
     assert np.all(out == 0.0)
 
@@ -185,11 +201,12 @@ def test_assert_invariants_default_behaviour() -> None:
     raises the typed errors from
     :mod:`orpheus.geometry.boundary._errors`. The first four defaults
     must not raise on ANY input;
-    ``assert_source_lives_on_incoming_trace`` probes ``self.source``
-    against the quadrature's ordinate count — for the inherited
-    :class:`NoSource` (:math:`q \\equiv 0`) it certifies trivially,
-    with or without an inflow set. Its no-op era ended at #52 (the
-    d3 audit's "a marker today would be blind" finding)."""
+    ``assert_source_is_placeable`` reads ``self.source`` alone — for the
+    inherited :class:`NoSource` (:math:`q \\equiv 0`) it certifies trivially,
+    with or without an inflow set, because a law delivering nothing needs no
+    :math:`\\Gamma_-` to deliver it into. Its no-op era ended at #52 (the
+    d3 audit's "a marker today would be blind" finding); it stopped taking a
+    quadrature at P6, when the presence probe that read one was retired."""
     law = _StubLaw()
     # ``None`` as the quadrature stand-in -- the four no-op defaults
     # don't access it.
@@ -198,18 +215,11 @@ def test_assert_invariants_default_behaviour() -> None:
     assert law.assert_geometry_map_measure_preserving(None) is None  # type: ignore[arg-type]
     assert law.assert_response_positive_if_declared() is None
 
-    class _QuadStub:
-        N = 6
-
-    # The real body reads quadrature.N + self.source only; NoSource
-    # certifies masklessly (both index states).
-    assert law.assert_source_lives_on_incoming_trace(_QuadStub()) is None  # type: ignore[arg-type]
-    assert (
-        law.assert_source_lives_on_incoming_trace(
-            _QuadStub(), np.arange(3),  # type: ignore[arg-type]
-        )
-        is None
-    )
+    # P6: the ``_QuadStub`` that used to be needed here is GONE with the
+    # presence probe — the surviving check reads ``self.source`` and the
+    # index set, nothing angular. NoSource certifies in both index states.
+    assert law.assert_source_is_placeable() is None
+    assert law.assert_source_is_placeable(np.arange(3)) is None
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -289,7 +299,7 @@ def test_unified_registry_holds_all_concretes() -> None:
 @pytest.mark.foundation
 def test_no_source_evaluate_returns_zeros_of_requested_shape() -> None:
     src = NoSource()
-    out = src.evaluate((12, 2))
+    out = src.evaluate(_SpaceStub((12, 2)))
     assert out.shape == (12, 2)
     assert out.dtype == np.float64
     assert np.all(out == 0.0)
@@ -298,7 +308,7 @@ def test_no_source_evaluate_returns_zeros_of_requested_shape() -> None:
 @pytest.mark.foundation
 def test_constant_inflow_source_returns_value_everywhere() -> None:
     src = ConstantInflowSource(value=2.5)
-    out = src.evaluate((6, 3))
+    out = src.evaluate(_SpaceStub((6, 3)))
     assert out.shape == (6, 3)
     assert out.dtype == np.float64
     assert np.all(out == 2.5)
