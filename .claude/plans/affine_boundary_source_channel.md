@@ -1,12 +1,31 @@
 # The affine boundary source channel — `γ₋ψ = L γ₊ψ + q`
 
-> **STATUS: P1, P2′, P3, the DECLARATION CHANNEL and P4 LANDED (HEAD `c86df8fb`);
-> P5 + P6 remain. Read ⏸ COMPACTION POINT #2 at the END of this file FIRST** — it
-> carries the phase→commit table, the measured P5 spec (its fixture is NOT the MMS
-> one: every linearity row is a tautology there), the red-set baseline
-> (7 pre-existing), the gate costs, and the durable lessons. **#2 supersedes #1
-> where they disagree, and they do** — §1's "fenced twice over / prophylactic"
-> premise was refuted, see the ⛔⛔ REFUTED block below.
+> **STATUS: ⏹ COMPLETE — every phase landed 2026-08-05/06.**
+>
+> | phase | commit |
+> |---|---|
+> | P1 `from_specs` | `9dfddeaf` |
+> | P2′ `from_mesh_laws` + RHS wiring | `48657072` |
+> | **P3** retire the affine operator (ERR-075) | `8d552395` |
+> | **declaration channel** — a law is a legal `bcs=` entry | `985497b5` |
+> | **P4** the §4.6 MMS through a declared law | `c86df8fb` |
+> | **P5** linearity of `B` and of the full matvec | `d3066188` |
+> | **P6** step 1 — trace tiers carry their directions | `16835c68` |
+> | **P6** — `evaluate(space)`; the probe retired | `6ecb637a` |
+>
+> Verify any hash with `git merge-base --is-ancestor <hash> HEAD`. Follow-ups
+> live as GitHub issues (**#331** the displacement-domain disagreement,
+> **#332** the `principles.rst` redirect backlog), not here.
+>
+> **Read ⏸ COMPACTION POINT #2 at the END of this file** for the measured
+> baselines, gate costs and durable lessons. **#2 supersedes #1 where they
+> disagree, and they do** — §1's "fenced twice over / prophylactic" premise was
+> refuted, see the ⛔⛔ REFUTED block below.
+>
+> ⭐ **The campaign's one-line result:** a boundary law is `γ₋ψ = Lγ₊ψ + q`,
+> the realizer tier carries `L` **only**, and vacuum and prescribed differ
+> **solely in `q`** — now true at the leaf, at the assembled `B`, at the full
+> matvec, and in the declaration a user writes.
 > Branch `refactor/operator-strategy-layers`.
 > Arose from G6.3 **step 6** (`.claude/plans/geometric_transformation_consolidation.md`
 > §7h order table) and outgrew it. That plan's step 6 now means "bind `ZeroOperator`'s

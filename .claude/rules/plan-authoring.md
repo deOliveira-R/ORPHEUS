@@ -48,6 +48,7 @@ surprises cost to hit.
 | 2026-08-06 | An inherited `[M]` number (`\|B(x)\| = 1.320`) was a *different fixture's*; the resuming session measured `1.824`. Both correct, silently incompatible. | §2, §4 |
 | 2026-08-06 | A plan's §5 blocker ("there is NO public entry point") was true when written and void two commits later, inside the same campaign. | §3, §7.3 |
 | 2026-08-06 | A "forbidden to commit" note was a point-in-time snapshot; the work had been committed at `34af8474`. | §7.1 |
+| 2026-08-06 | A plan split one signature change into three steps. Step 2 was unlandable alone: the retired probe was one of the two call sites of the signature being changed. | §6b |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -150,6 +151,30 @@ put the first under *proposed means*.
   update themselves; a hand-written pointer is the field guaranteed to rot.
 - A plan's internal task numbers **collide with real GitHub issue numbers**.
   Never write a bare `#N` for an internal step.
+
+### 6b. A step boundary must not cut across a signature's CALL SITES
+
+Steps are usually drawn along conceptual lines — *change the signature*, then
+*retire the guard*, then *write the contract*. That is how a plan reads best and
+it is the wrong unit when the steps touch one interface: **the unit of work is
+the call-site set, not the tidiness of the description.**
+
+Before committing to a step decomposition that changes a signature, enumerate
+every call site and ask which step each one lands in. A step that leaves any
+call site speaking the old signature is not a step; it is half of one, and the
+tree does not compile (or worse, compiles and fails at runtime) between them.
+
+> `[M]` 2026-08-06, campaign P6. "Step 2 — change `evaluate(shape)` to
+> `evaluate(space)`" and "Step 3 — retire the ERR-047 probe" read as two clean
+> steps. They are one: the probe **is** one of the two call sites of
+> `evaluate`, so landing step 2 alone leaves it calling `evaluate((N,))` on a
+> source that expects a space. Discovered only because the pick-up honoured §7
+> and re-read the call sites before designing; a session that trusted the
+> decomposition would have found it by breaking the tree.
+
+Corollary for the plan text: when steps ARE fused this way, say so where the
+step is defined, not only in the commit. The next reader is planning against
+the plan, not against your commit history.
 
 ## 7. Before resuming a plan, reconcile it against the tree
 
