@@ -3447,3 +3447,273 @@ the checker, so run BOTH and triage BY TENSE (past-tense provenance STAYS).
   during a carve that should not touch its path is a real signal.**
 * Costs `[M]`: the P3 blast-radius slice **24.5 s** (555 passed);
   `tests/sn/solve + tests/numerics` **7 m 27 s** (2016 passed, the 3 known reds).
+
+---
+
+## L40 — P4 non-trivial MMS through the DECLARED inflow channel: the brief's central risk was a LANDED fix, and the phase collapsed from "build a reference" to "re-route one"
+
+Dispatch 2026-08-05, branch `refactor/operator-strategy-layers` @ `8d552395`
+(P3 landed). Deliverable `scratch/p4_mms_design.md`. Probes
+`/Users/rodrigo/.claude/jobs/c30e4f25/tmp/m{1..9}_*.py`.
+
+### L40a — the enumeration refutation, and why the phase changed shape
+
+The brief's framing block was headed *"⛔ THE CENTRAL RISK — vv Mode 7, and it is
+already realised in the tree"*, asserting **"Every existing SN MMS ansatz is
+chosen so `ψ ≡ 0` on both faces"** and asking me to *"verify this claim across all
+four case families"*.
+
+`[M]` M1 — `dir(orpheus.derivations.continuous.mms.sn)` holds **12** `SN*MMSCase`
+classes and **13** builders. Boundary trace at the faces:
+
+| builder | `|φ|` @ faces | `prescribed_inflow()` |
+|---|---|---|
+| slab 1G / slab-2G-het / P1-aniso / 2-D / 2-D-het / sphere / cyl / sphere-aniso / cyl-aniso | `0` … `1.2e-16` | no |
+| **`build_slab_nonvacuum_mms_case`** | **0.5, 0.5** | **yes** |
+| **`build_slab_2g_nonvacuum_mms_case`** | **0.5, 0.5** | **yes** |
+| **`build_sphere_nonvacuum_mms_case`** | **0.5 pole, 0.75 @R** | **yes** |
+| **`build_2d_cartesian_ld_stress_mms_case`** | **1.0 on x-edges** | **yes** |
+
+And the module's own §4.6 header states the brief's claim **as the thing 4.6 was
+written to fix** ("That is the entire novelty"). This is the SAME lesson the
+campaign already recorded twice (`L39` / plan lesson #2 — *grep the corpus before
+calling a thing missing*), now at three-for-three, and this time it fired on my
+OWN earlier lesson `L3`, which said the gap existed. **`L3` was true when written
+and the fix landed; the digest entry had no landing note.** ⟹ when a digest entry
+records a GAP, it needs a landing note the moment the gap closes, or it becomes a
+brief-generator for a phase that no longer exists.
+
+Consequence: a fresh anisotropic non-vacuum ansatz would have been a Pattern-2
+twin of `SNSlabNonVacuumMMSCase` — same `(A_g + μ_n B_g)/W` form, second
+manufactured source, second SymPy derivation, second place for the `1/W`
+convention to drift. **The phase's real content is ONE line of delivery:**
+`case.prescribed_inflow(sn)` (channel tier) → `sn.bc[face] =
+sn.realize_boundary_law(PrescribedInflow(source=spec), face)` (law tier), letting
+`from_mesh_laws` assemble `q_∂`. `[M]` M5b the two routes are **bit-identical**:
+`array_equal(declared[Γ₋], supplied[Γ₋]) = True`, whole-slot `max|diff| = 0.0`,
+off-inflow `0.0`, both `linf = 0.39841014024874755`.
+
+`[M]` the ansatz's shipped parameters and the trace they produce (GL-16, `W = 2`):
+`a₀=0.5, a₁=0.25, b₀=0.3, k=2π·1.5/L, L=5, c=(1.0,0.4), Σ_t=(1.0,1.5)`,
+`SigS=[[0.3,0.2],[0.0,0.6]]`. `xmin`: `A=+0.5c_g, B=+0.3c_g`; `xmax`:
+`A=+0.5c_g, B=−0.3c_g` (sign flip — `cos 3π = −1`). Over Γ₋(xmin) g=0 the trace
+reads `[0.264252, 0.398410]`, i.e. **`(max−min)/mean = 0.390`** — a 39 % angular
+swing, which is exactly what `ConstantInflowSource` cannot express.
+
+### L40b — ⛔ the vv frequency-strengthening default is WRONG for a channel claim
+
+`vv` §MMS-operational-rules says override the simplification bias with high
+frequency / mixed scales. `[M]` `n_wavelengths` sweep on the §4.6 2G slab, SI,
+declared route, ladder `[20,40,80,160]`:
+
+| `n_wl` | `L2(20)` | `L2(80)` | orders | order gate reds at `ε_q = 1e-4`? |
+|---|---|---|---|---|
+| **1.5 (shipped)** | `1.70e-3` | `1.02e-4` | `2.041, 2.010, 2.003` | no |
+| 3.0 | `1.61e-2` | `9.42e-4` | `2.077, 2.019, 2.005` | no |
+| 4.5 | `4.84e-2` | `2.72e-3` | `2.125, 2.031, 2.008` | no |
+
+Raising `k` multiplies the **bulk truncation error ×16** while the
+boundary-source error is untouched, so the gate's S/N for the *boundary* claim
+gets strictly worse. **Generalisation: the "hardest trial function" rule is
+scoped to the claim it was written for (spatial discretization). Identify which
+term is the NUMERATOR of your gate's signal-to-noise ratio and strengthen THAT
+axis; everything else is denominator.**
+
+### L40c — ⛔ the brief's matvec row is tautological on the phase's own fixture
+
+`[M]` M8b — the P4 MMS slab declares `PrescribedInflow` on BOTH faces, and P3
+collapsed that law onto `_narrowed_zero_operator`, so:
+
+```
+B.block_role = BlockRole.BOUNDARY ; per-face block_role = BOUNDARY (both)
+per-face domain/codomain = Γ₊(f)/Γ₋(f) shape (8,2) ; is_adjointable = True
+|B(x)|_inf for a random x = 0.0     ← the whole B is the zero morphism
+|B(0)|_inf = 0.0 ; |B(c·x) − c·B(x)|_inf = 0.0
+```
+
+So `B(0)=0` / `B(2x)=2B(x)` / additivity hold with both sides structurally zero —
+`vv` Mode 8's tautological-companion class, and impossible to red for any input.
+
+`[M]` M9a — the fixture on which linearity IS a claim: **prescribed(`xmin`) +
+REFLECTIVE(`xmax`)** (het 2G slab, GL-8): `|B(x1)| = 1.3201645939238549`,
+`|B(0)| = 0.0`, `|B(c·x) − c·B(x)| = 0.0` exactly. `[M]` M9b both drivers
+converge on it (`γ₋(xmin) = 2.500000000000`; SI 0.05 s, Krylov 0.24 s).
+
+⚠ The MMS ansatz does NOT satisfy a reflective law, so the two claims need two
+fixtures — this is why the split is P4 = {the zero-morphism STRUCTURAL row, the
+Krylov-reproduces-the-MMS row} and P5 = {every linearity row, on the mixed
+fixture, with a `|B(x)| > 0` activation leg}.
+
+Also `vv` anti-#18 applies to the whole-matvec version: on the MMS fixture the
+prescribed law's contribution to `A = (L+C) − S − B` is structurally zero, so any
+red of an `A`-linearity gate comes from `L+C−S`, not from the boundary law.
+
+### L40d — the sensitivity band where BOTH the rate AND the value gate are blind
+
+`[M]` M8a + a narrowing run. Scale the declared `q` by `(1+ε)`, SI, `[20,40,80]`:
+
+| `ε` | `L2(80)`/honest (g0, g1) | orders g0 | order gate reds? |
+|---|---|---|---|
+| `1e-4` | `0.8`, `0.6` | `2.089, 2.187` | no |
+| `2e-4` | `0.76`, `0.44` | `2.135, 2.286` | no |
+| `3e-4` | `0.76`, `0.60` | `2.178, 2.229` | no |
+| `5e-4` | `1.00`, `1.36` | `2.254, 1.727` | **yes** |
+| `1e-3` | `2.1`, `3.5` | `2.314, 0.503` | yes |
+| `1e-2` | `25.9`, `42.9` | `−0.274, −0.106` | yes |
+
+The trap is that below `~3e-4` the error **decreases** (partial cancellation
+against the `O(h²)` truncation), so a value gate at ANY `rtol` is blind there too
+— "value + rate" is not a floor. Contrast the trace-level keystone, same
+mutation: `max|γ₋ψ − manufactured|` reads `0` / `3.985e-13` / `3.984e-10` /
+`3.984e-07` at `ε = 0 / 1e-12 / 1e-9 / 1e-6` ⟹ **reds from `ε ≈ 3e-12`, eight
+orders sharper.**
+
+### L40e — the keystone's ORACLE decides whether it catches anything
+
+Two spellings of `γ₋ψ|_f = q_f`:
+* ❌ `γ₋ψ == spec.evaluate(...)` — self-consistency; under a magnitude mutation
+  both sides move ⟹ green for every `ε`. Catches delivery-COUNT only.
+* ✅ `γ₋ψ == (case.A(x_f,g) + μ_n·case.B(x_f,g))/W` — the manufactured trace
+  recomputed from the reference OBJECT ⟹ catches everything in the L40f battery.
+
+The shipped channel-tier sibling
+(`tests/sn/verification/analytical/test_mms_prescribed_inflow.py`, assertion 3)
+already uses ✅. **General: for any "the answer satisfies the declared condition"
+gate, name which side is under test. If the answer is "both", it is not a gate.**
+
+`[M]` exactness by path (the `nulp` budget differs from P3's): SI is bit-exact
+(`array_equal = True`, `0.000e+00`, every face/group/mesh) because it copies `q`
+into the inflow slot and sweeps; Krylov SOLVES those rows and carries the
+iteration residual — smallest passing `nulp` = **256 / 16 / 256** at
+`nc = 20/40/80`, `inner_tol = 1e-13`, trace values `~0.34`. Non-monotone in mesh
+⟹ it is an `inner_tol` budget, not an `h`-law. (P3 measured 64 at `_VALUE=2.5`;
+same absolute residual, 7× smaller values ⟹ more ULP.)
+
+### L40f — the Mode-7 activation battery (ratios = `L2(80)_mut / L2(80)_honest`)
+
+`[M]` M7, 2G case, SI, `[20,40,80]`, all mutations in-process on the spec:
+
+| mutation | models | g0 / g1 ratio | orders g0 |
+|---|---|---|---|
+| `q0` (declare `NoSource`) | the silent-vacuum defect | **×2653 / ×4376** | `0.004, 0.001` |
+| `q2` (double) | the P2′ double-delivery regression | **×2652 / ×4374** | `−0.005, −0.001` |
+| `W`-drop (omit `1/W`) | vv mode #3 missing factor | **×2652** | `−0.005, −0.001` |
+| `qscale` (`×1.02`) | 2 % magnitude | **×52 / ×87** | `−0.203, −0.054` |
+| `qiso` (drop `μ_n B_g`) | **the isotropic-ansatz bug** | **×725 / ×1216** | `0.017, 0.004` |
+| `qrev` (reverse Γ₋ rows) | mis-ordered inflow | **×156 / ×213** | `0.011, 0.001` |
+| `qswap` (swap group axis) | group-axis bug | **×1592 / ×4097** | `0.007, −0.004` |
+| `qface` (xmax gets xmin's trace) | per-face confusion | **×107 / ×147** | `0.020, 0.002` |
+
+Three things this settles:
+1. **`qiso` is the decisive row** — it keeps `q ≠ 0` and the correct scalar
+   content, changing ONLY the `μ`-dependence, and reds ×725. So the anisotropy is
+   *constrained* (`vv` Mode 10 discharged), not merely activated. **That row does
+   not exist under an isotropic ansatz** — which is the whole argument for the
+   anisotropic one.
+2. **Row order is gated by the SOLVE**, not only by an array compare (`qrev`
+   ×156). A constant-valued spec would be blind; the angular variation is
+   load-bearing, not decorative.
+3. **The orders collapse to ~0 under every mutation** because a boundary-source
+   error is MESH-INDEPENDENT — it becomes an error FLOOR, so `orders > 1.9` is
+   unusually a genuine catcher here. Do not generalise (vv anti-#5 still stands).
+4. ⚠ **`W = 2` on Gauss–Legendre ⟹ "drop the `1/W`" and "deliver twice" are the
+   SAME mutation** — non-attributable on a 1-D slab (needs `W ≠ 2`, i.e. a
+   full-sphere rule). The error message must name both candidates.
+
+`vv` anti-#18 check: no mutation breaks a structural law (each mutated `q` is a
+legal Γ₋ element, `B` stays the zero morphism, the matvec stays linear, every
+solve converges) ⟹ no red is credited to a broken law.
+
+### L40g — the `InflowSourceSpec` Protocol is evaluated at TWO shapes
+
+`[M]` M2/M3/M5a, instrumented `evaluate` per face:
+
+```
+realize_boundary_law(PrescribedInflow(spec), face) → spec.evaluate((N,))        rank 1
+AngularBoundarySourceSink.from_mesh_laws(sn)       → spec.evaluate((|Γ₋|, ng))  rank 2
+```
+
+| fixture | `N` | `|Γ₋|` | slot | realize | materialise |
+|---|---|---|---|---|---|
+| slab 1G GL-16 | 16 | 8 | `(16,1)` | `(16,)` | `(8,1)` |
+| slab 2G GL-16 | 16 | 8 | `(16,2)` | `(16,)` | `(8,2)` |
+| 2-D LD 6×6 N=24 2G | 24 | 12 | `(24,2,6)` | `(24,)` | `(12,2,6)` |
+| plain 2-D 4×6, `product(4,8)` | 38 | 13 | x-faces `(38,2,6)`, y-faces `(38,2,4)` | `(38,)` | `(13,2,6)` / `(13,2,4)` |
+
+The rank-1 call is `BoundaryTraceLaw.assert_source_lives_on_incoming_trace`
+(`orpheus/geometry/boundary/_base.py:440`), the ERR-047 PRESENCE probe: a
+per-ordinate axis over ALL ordinates, no group axis. A spec written only for
+`(|Γ₋|, ng)` dies `IndexError: tuple index out of range` **before the MMS runs** —
+my first probe did exactly that. Row order: `q[i, g]` lands on trace ordinate
+`inflow_indices_for_face(face)[i]`; `xmin → [8..15]`, `mu ∈ [+0.095, +0.989]`;
+`xmax → [0..7]`, `mu ∈ [−0.989, −0.095]`, both ascending. Pinned by a per-row
+ramp oracle (2-D: `i + 100g + 10000j`, `array_equal = True`, off-inflow `0.0`).
+
+⛔ **And the presence guard is opt-out-able.** Its body opens
+`probe = source.evaluate((N,)); if not np.any(probe): return`. `[M]` M5c — a spec
+returning zeros at rank 1 and `7.0` at rank 2 realizes cleanly and materialises
+`linf = 7.0`; the ERR-047 certification never runs. **A presence predicate a
+source can decline is not a guard** (a P6 defect, and a hazard for anyone writing
+a spec: return a non-zero rank-1 probe deliberately).
+
+### L40h — ⛔ constraint refuted #2: the sphere is NOT refused
+
+The brief said a declared `PrescribedInflow` is refused on a carrying mesh because
+`RadialCharacteristicBoundaryOperator._reflect_corner` raises. `[M]` M4 on
+`build_sphere_nonvacuum_mms_case` (`coord=SPHERICAL`,
+`radial_characteristic_field_space is not None` — genuinely seed-carrying):
+`realize_boundary_law` OK; `from_mesh_laws` OK (`linf = 0.5`);
+`solve_sn_fixed_source` OK — while
+`_has_ruled_corner_action(PrescribedInflow) = False` and
+`RadialCharacteristicBoundaryOperator(sn).is_adjointable = False`.
+
+So the refusal machinery is real but **fires only when the ray-corner forward or
+transpose action is INVOKED**, which the fixed-source drivers here do not do. The
+genuine restriction is narrower: **the transpose is unavailable**, so an
+adjoint/reciprocity row on a declared-prescribed sphere is blocked. **Lesson: "X
+raises" read off a producer is a claim about a CONSUMER — measure it at the
+consumer.** (The exact shape of the campaign's own `⛔⛔ REFUTED 2026-08-05`
+block, one phase later, in the opposite direction.)
+
+### L40i — ⛔ and a probe that "proved the public path works" was discarding my declaration
+
+M4c printed `solve: OK` and I nearly believed it proved end-to-end sphere
+support. `[M]` `solve_sn_fixed_source(materials, mesh, quadrature, q, …)`
+(`solver.py:2974`) takes a **raw** `Mesh1D|Mesh2D|tuple[Axis1D,...]` and at
+`:3095` calls `_as_sn_mesh(...)`, which **constructs its own `SNMesh`** — there
+is no `SNMesh` pass-through and no `sn_mesh=` kwarg, so my `sn3.bc[...] = ...`
+was silently dropped and the solve ran ALL-VACUUM.
+
+⟹ **there is NO public entry point that can be handed a declared boundary law.**
+`SNSolver` is public and takes an `SNMesh`, but its `solve_fixed_source(
+fission_source, flux_distribution)` is the eigenvalue-inner interface (no
+external composite source). `BC.params : dict[str, float]` cannot carry a
+manufactured trace. So a declared law reaches a solve only via the private
+`_build_fixed_source_rhs` + `_solve_fixed_source_{si,krylov}` triple — which is
+what P3's keystone assembles by hand. That is `:ref:`verification-user-path``'s
+SECOND half (test-owned machinery = a GAP SIGNAL), and P4 must DECLARE it in the
+module docstring rather than silently reuse the privates. **Method lesson: when a
+probe on a public entry point succeeds unexpectedly, check whether the entry
+point REBUILT the object you configured.**
+
+### L40j — costs and baselines `[M]`
+
+| item | cost |
+|---|---|
+| SI 2G declared ladder `[20,40,80]` | **0.064 s** |
+| **Krylov** 2G declared ladder `[20,40,80]` | **46.0 s** ⟹ one mesh only (`≈15 s`) |
+| Krylov 1G ladder | 7.4 s |
+| G7 2-D layout ramp, plain `Mesh2D` + `placeholder_materials(ng=2)` | **0.67 s** (do NOT reach for the LD stress case) |
+| the 3 existing gate modules together | `29 passed, 1 deselected in 0.74 s` |
+| medium slice `tests/{transport,geometry,sn/operators} -m "not slow"` | **`3 failed, 2205 passed, 5 skipped, 9 xfailed in 42.57 s`** — RE-VERIFIED at `8d552395`, identical to the pre-P3 figure ⟹ P3 added no reds |
+| wide slice (campaign figure, not re-run) | `7 failed`, ≈17 m 35 s — run `tests/sn` WHOLE |
+
+Labels: **no new one is needed.** `bc-single-delivery`
+(`foundations/boundary_conditions.rst:2037`) is literally `γ₋ψ|_f = q_f`
+"exactly, and once" — the keystone's own equation; `bc-composite-source` (`:1947`)
+for the channel row; `sn-mms-nonvacuum-{psi,qext,qext-mg}`
+(`verification/sn.rst:3610/3711/3749`) for the convergence rows.
+⚠ **No second `catches("ERR-075")`** — it lives on P3's
+`test_declared_inflow_reaches_the_rhs.py`; a duplicate is an unverified coverage
+claim unless the new row is separately mutation-proven against the exact
+documented double delivery.

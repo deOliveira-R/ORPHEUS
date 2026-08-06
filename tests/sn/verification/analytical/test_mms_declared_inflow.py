@@ -460,3 +460,104 @@ def test_the_spec_receives_both_shapes_and_the_probe_is_non_zero() -> None:
         "the rank-1 probe is all-zero, so assert_source_lives_on_incoming_trace "
         "returned early and the ERR-047 certification was SKIPPED",
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# G5 (value half) + the fixture's own structural precondition
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_the_krylov_path_reproduces_the_manufactured_solution() -> None:
+    r"""⭐ "Test the matvec path as well" — and it is stronger than ``A(0) = 0``.
+
+    Reproducing the manufactured solution through GMRES with a declared law
+    installed says the whole matvec is right, not merely that it is linear at
+    the origin. It is also the row that could not have existed before P3: an
+    affine ``A(x) = A_lin(x) − c`` breaks the Arnoldi relation
+    ``A V_k = V_{k+1} H_k``, so this path RAISED ``ConvergenceCertificateError``
+    (``‖Aψ − q‖/‖q‖ = 1.718``) rather than returning a wrong answer.
+
+    One mesh, not a ladder: the convergence ORDER is a property of the spatial
+    discretization and is already pinned on SI, and SI ≡ Krylov at the fixed
+    point. What is Krylov-specific is that the fixed point is reached at all.
+    """
+    case = build_slab_2g_nonvacuum_mms_case()
+    sn, solution, _ = _declared_solve(case, 40, "krylov")
+    for g in range(case.n_groups):
+        phi = np.asarray(solution.scalar_flux.values)[g, :]
+        exact = case.phi_exact(sn.mesh.centers, g)
+        np.testing.assert_allclose(
+            phi, exact, rtol=1e-2,
+            err_msg=(
+                f"[krylov] group {g} did not reproduce the manufactured "
+                f"solution through the declared channel"
+            ),
+        )
+
+
+def test_B_is_the_zero_morphism_when_every_face_is_prescribed() -> None:
+    r"""The MMS fixture's own structural precondition — and a returning-affine tripwire.
+
+    Both slab faces declare :class:`PrescribedInflow`, so since P3 both realize
+    to the zero morphism and the assembled ``B`` is identically zero: `[M]`
+    ``|B(x)|_inf = 0.0`` for a random ``x``. Every ordinate of the answer's
+    inflow trace therefore comes from ``q_∂`` and from nowhere else, which is
+    what lets G1 read the declared source straight off the converged flux.
+
+    ⚠ **Deliberately NOT called a linearity gate.** On this fixture ``B(0) = 0``
+    and ``B(2x) = 2B(x)`` hold because both sides are *structurally zero* — no
+    input can make them red, so asserting them here would be a tautological
+    companion guard (``vv`` Mode 8). Linearity is a genuine claim only where
+    ``B`` is non-trivial, which is P5's prescribed + **reflective** fixture
+    (`[M]` there: ``|B(x)|_inf = 1.320``, with an activation guard).
+
+    What this row DOES catch is the affine operator returning: a ``B`` that
+    emits ``q`` makes ``|B(x)|`` non-zero on exactly this fixture.
+    """
+    case = build_slab_2g_nonvacuum_mms_case()
+    sn, _, _ = _declared_solve(case, 20)
+
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    from orpheus.numerics.operator import BlockRole
+
+    B = SNBoundaryOperator(sn)
+    _require(B.block_role is BlockRole.BOUNDARY, "B lost its block role")
+
+    for face, _ in _faces(case):
+        leaf = sn.bc[face]
+        _require(
+            leaf.block_role is BlockRole.BOUNDARY,
+            f"the realized law on {face} is unstamped — before P3 the affine "
+            f"operator carried no stamp, and its absence was (wrongly) believed "
+            f"to fence it out of B",
+        )
+
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    zero = TimedFullField.zeros(
+        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+    )
+    rng = np.random.default_rng(20260806)
+    x = replace(
+        zero,
+        interior=replace(
+            zero.interior,
+            values=rng.uniform(0.5, 2.0, zero.interior.values.shape),
+        ),
+        boundary=replace(
+            zero.boundary,
+            values=rng.uniform(0.5, 2.0, zero.boundary.values.shape),
+        ),
+    )
+    out = np.asarray(B.apply(x).boundary.values)
+    np.testing.assert_array_equal(
+        out, 0.0,
+        err_msg=(
+            f"|B(x)|_inf = {float(np.max(np.abs(out))):.6e}, expected 0.0. With "
+            f"every face prescribed, B must be identically the zero morphism — "
+            f"a non-zero reading means an operator is emitting the source "
+            f"again, which is ERR-075 returning."
+        ),
+    )

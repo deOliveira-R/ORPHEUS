@@ -1,9 +1,13 @@
 # The affine boundary source channel — `γ₋ψ = L γ₊ψ + q`
 
-> **STATUS: P1 + P2′ LANDED (HEAD `48657072`); P3–P6 remain. Read ⏸ COMPACTION
-> POINT #1 at the END of this file FIRST — it carries the corrected red-set
-> baseline (7, not 4 — the inherited wide slice omitted `tests/sn/solve`), the
-> gate costs, and the durable lessons.** Branch `refactor/operator-strategy-layers`.
+> **STATUS: P1, P2′, P3, the DECLARATION CHANNEL and P4 LANDED (HEAD `c86df8fb`);
+> P5 + P6 remain. Read ⏸ COMPACTION POINT #2 at the END of this file FIRST** — it
+> carries the phase→commit table, the measured P5 spec (its fixture is NOT the MMS
+> one: every linearity row is a tautology there), the red-set baseline
+> (7 pre-existing), the gate costs, and the durable lessons. **#2 supersedes #1
+> where they disagree, and they do** — §1's "fenced twice over / prophylactic"
+> premise was refuted, see the ⛔⛔ REFUTED block below.
+> Branch `refactor/operator-strategy-layers`.
 > Arose from G6.3 **step 6** (`.claude/plans/geometric_transformation_consolidation.md`
 > §7h order table) and outgrew it. That plan's step 6 now means "bind `ZeroOperator`'s
 > spaces"; everything else about prescribed inflow lives here.
@@ -443,3 +447,134 @@ pyright`, which scans `scratch/`) · `sphinx -E -W` → 0 warnings.
    FAILED lines are emitted under `-q --tb=no`, and ANSI colour breaks the `^`
    anchor even with `-rf`. Use `--color=no -rf`. Each empty result read as
    "no reds".
+
+---
+
+## ⏸ COMPACTION POINT #2 — P3 + the declaration channel + P4 landed; P5/P6 remain
+
+A session picking up cold re-anchors from **this file + `git log`**, never from a
+conversation summary. Supersedes ⏸ COMPACTION POINT #1 where they disagree —
+and they DO disagree, because #1's §1 premise was refuted (see the "⛔⛔ REFUTED"
+block in §1).
+
+### State
+
+**HEAD `c86df8fb`** on `refactor/operator-strategy-layers`. Verify any hash with
+`git merge-base --is-ancestor <hash> HEAD`.
+
+| phase | commit | what |
+|---|---|---|
+| P1 | `9dfddeaf` | `from_specs` — the recipe→snapshot bridge |
+| P2′ | `48657072` | `from_mesh_laws` + the RHS wiring; the user-path doctrine |
+| — | `ef4c3537` | checkpoint #1 |
+| **P3** | **`8d552395`** | retire `IncomingSourceOperator` onto the zero morphism; `ZeroOperator` gains `domain`/`codomain` (G6.3 step 6 folded in); ERR-075 |
+| **channel** | **`985497b5`** | a `BoundaryTraceLaw` is a legal declaration wherever a `BC` tag is |
+| **P4** | **`c86df8fb`** | the §4.6 non-vacuum MMS re-routed through a DECLARED law |
+
+**REMAINING: P5, P6.** Both specified below. Nothing blocks either.
+
+### ⛔ Read these three corrections before trusting anything older
+
+1. **P3 fixed a LIVE bug, not a hypothetical.** §1's "fenced twice over /
+   prophylactic architecture" was wrong: `SNBoundaryOperator._face_laws` has no
+   `block_role` filter, so the affine operator reached `B`. SI double-delivered
+   (ratio `2.000000`); **Krylov RAISED** `ConvergenceCertificateError` on both
+   sides of P2′ and had been unusable all along.
+2. **The existing MMS suite is NOT uniformly vacuum-nulling.** 4 of 13 builders
+   are non-vacuum by design (anisotropic `(A_g + μ_n B_g)/W`, SymPy provenance,
+   live L1 consumer). P4 is therefore a **re-routing**, not a new ansatz. A
+   claim generalised from the 1-D-1G case's docstring cost a whole design cycle.
+3. **The sphere is NOT refused** for a declared prescribed inflow — declare,
+   materialise and solve all succeed; `_reflect_corner` fires only when the
+   ray-corner action is *invoked*. The real restriction is `is_adjointable=False`.
+
+### ⭐ P5 — the spec, already measured; do NOT re-derive it
+
+**The whole point: on the P4 MMS fixture every linearity row is a TAUTOLOGY.**
+Both slab faces are prescribed ⟹ after P3 both realize to the zero morphism ⟹
+`|B(x)|_inf = 0.0` for random `x`. `B(0)=0` and `B(2x)=2B(x)` then hold because
+both sides are structurally zero; no input can red them (`vv` Mode 8).
+
+⟹ **P5's fixture is prescribed(`xmin`) + REFLECTIVE(`xmax`)**, het 2G slab, GL-8.
+`[M]` there: `|B(x1)|_inf = 1.3201645939238549` (the activation guard), `|B(0)| = 0`,
+`|B(c·x) − c·B(x)| = 0` exactly; both drivers converge, `γ₋(xmin) = 2.500000000000`
+exactly; SI 0.05 s, Krylov 0.24 s.
+
+P5 owns, all on that fixture, each with the activation guard:
+* `B.apply` linearity — `B(0)=0`, homogeneity, additivity;
+* full matvec `A = (L+C) − S − B` linearity with a declared law. On the MMS
+  fixture the prescribed contribution to `A` is structurally zero, so reds would
+  come from `L+C−S` — unattributable (`vv` #18). The mixed fixture is what makes
+  them attributable.
+
+**ALREADY LANDED, do not duplicate** (design `scratch/p4_mms_design.md` §9.3):
+the affine-content-lives-in-`q` claim (P3's `test_the_two_user_paths_reach_the_same_fixed_point`,
+bit-identical); the leaf-level zero-morphism rows; the zero-morphism structural
+row and the Krylov-reproduces-the-MMS row (both in P4's module).
+
+Also open from `scratch/p3_verification_plan.md` §4.2: a row that
+`SNBoundaryOperator.is_adjointable` is now `True` with a declared prescribed face
+(a capability WIDENING — pre-P3 one prescribed face poisoned the whole block's
+transpose). ⚠ Its warning: the zero morphism is the most metric-blind law there
+is (`0ᵀ = 0` under every metric), so a reciprocity gate on prescribed **alone**
+is a provable non-catcher. Pair it with a Lambertian/white face.
+
+### P6 — two items, both with measured specifications
+
+1. **The `InflowSourceSpec` shape.** `_ManufacturedFaceInflow`'s constructor list
+   IS the spec (`test_mms_declared_inflow.py`, and `p4_mms_design.md` §10): the
+   per-row `μ` **in trace order**, the face's own coordinate, the group axis, the
+   `1/W`. ⟹ "a source that receives the TRACE and the FACE", not a bare shape.
+2. **The ERR-047 presence probe is opt-out-able.**
+   `assert_source_lives_on_incoming_trace` opens
+   `probe = source.evaluate((N,)); if not np.any(probe): return` — `[M]` a spec
+   returning zeros at rank-1 and `7.0` at rank-2 realizes cleanly with the
+   certification SKIPPED. A presence predicate a source can decline is not a guard.
+
+### Gate costs and the red baseline, measured
+
+* **Wide** `tests/{sn,transport,geometry,numerics,diffusion} -m "not slow"` =
+  **`7 failed / 5904 passed`, ≈17–18 min.** The 7 are pre-existing:
+  2× `test_streaming_operator` `cart2d_*_principled_equiv`, 3×
+  `test_affine_carve_bit_identity` (that file is **#208's** carve, not this
+  campaign's — its `sha256` is measured unchanged by P3), 1×
+  `test_diamond` `spherical_inward_bit_identical`, 1×
+  `TestWhiteXminPartial03GLSnapshot` (task #33).
+* `tests/sn/verification + tests/sn/solve + tests/transport` ≈ 7 min.
+* `tests/geometry + tests/transport + tests/diffusion + tests/sn/operators` ≈ 46 s.
+* Static: `tests/test_pyright_ratchet.py` (NOT bare `npx pyright` — it scans
+  `scratch/`) · `tools/check_docstring_xrefs.py orpheus tests docs` → `DEAD
+  TARGETS 0` · `sphinx -E -W` → 0 warnings · `python -m tests._harness.audit` →
+  0 orphan equations, ERR coverage 74/75 (the gap is pre-existing ERR-074).
+
+### ⭐⭐ Durable lessons from this stretch
+
+1. ⭐⭐ **"It is FENCED, so it cannot happen" is a claim about a CONSUMER and must
+   be measured AT the consumer.** Both fences were read off the producer; one was
+   genuine, the other an unchecked inference about 14 lines nobody opened. The
+   check was one line (`B.apply(0)`) needing no oracle. **When a design note says
+   "X is excluded because it lacks Y", grep for who READS Y.**
+2. ⭐⭐ **A mutation battery reporting 0 caught is a broken INSTRUMENT until
+   proven otherwise — and it broke twice this stretch.** (a) `grep "^FAILED"`
+   matches nothing under `-q --tb=no`, and ANSI colour breaks `^` even with `-rf`
+   → use `--color=no -rf`. (b) A pytest plugin patching a module it imported
+   itself in `pytest_configure` patches a DIFFERENT object from the one pytest
+   collected: 0/6 caught while the mutations were provably live (ratio 2.0
+   in-process). **Patch `item.module` in `pytest_runtest_setup`.** Fixing the
+   harness alone took the P4 battery 0 → 5 reds with no test change.
+3. ⭐⭐ **Read a sub-agent measurement's CONFIGURATION, not just its value.** I
+   "corrected" a right statement (channels are bit-identical) using a **pre-carve**
+   number (`1.998e-13`, operator-route vs channel). Post-carve it is exactly
+   `0.0`. Three real numbers, three different comparisons; the wrong one would
+   have justified an `rtol` gate blind to the defect.
+4. ⭐ **zsh does NOT word-split unquoted variables.** `pytest $FILES` passes ONE
+   bogus path → 0 collected, exit 0, 0.01 s, reads green. Always read the count.
+5. ⭐ **A ULP budget coupled to `inner_tol` is not a floating-point claim.** The
+   Krylov trace deviation scales with the solver tolerance: 18 ULP at `1e-13`,
+   **27 580** at `1e-10`. Still spell it in ULP, not `rtol`.
+6. ⭐ **pyright as architecture-smell detector, again.** Widening the declaration
+   source without the axis SINK left 8 new `transport` errors — it found the
+   half-done change before any test could.
+7. **A "forbidden to commit" note is a point-in-time snapshot.** The
+   `vv-principles` prohibition was stale (committed at `34af8474`); verified with
+   `git merge-base --is-ancestor` + a content grep before appending ERR-075.

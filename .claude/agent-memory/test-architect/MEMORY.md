@@ -10,12 +10,16 @@ here — it is merged archaeology.
 
 ## 1. Lessons — a HOT digest over a COLD archive (READ the digest at START)
 
-- **[Lessons — hot digest](lessons.md)** — ~440 lines. One imperative rule per
+- **[Lessons — hot digest](lessons.md)** — ~650 lines. One imperative rule per
   entry, grouped by behavioral family (gates that cannot red · harness discipline ·
   config blindness · reference & claim layer · tolerance · carve archetypes ·
   snapshots & exactness · pure-math primitives). **Read this file whole, every
   dispatch.** Every entry ends with a `→ LNN` pointer into the archive.
-- **[Lessons — cold archive](lessons_archive.md)** — 3277 lines, sections L1–L38,
+  ⚠ **A digest entry recording a GAP needs a LANDING note the moment the gap
+  closes** — `L3`'s "no SN MMS exercises `q.boundary ≠ 0`" was true when written,
+  the §4.6 fix landed, and the stale entry then generated a whole phase brief for
+  work already done (`L40a`).
+- **[Lessons — cold archive](lessons_archive.md)** — 3719 lines, sections L1–L40,
   append-ordered. The war stories, measured numbers, `file:line` detail and
   per-fixture tables. **Open ONE section at a time, only when the digest's pointer
   says the detail matters.** Never read it whole — that is ~48K tokens.
@@ -35,6 +39,7 @@ file for headlines, open findings and measured numbers. Reconcile against git fi
 - **#325 symmetry-exact circle nodes** — plan + SHIPPED `tests/numerics/test_roots_of_unity.py` (17 gates, all mutation-proven), lessons L34. ⛔ **BLOCKED on a USER physics ruling**: exactness manufactures `argsort` ties worth **1.008 %** flux.
 - **B3.4c periodic → partner face** — plan + dry-run gate module (95/95), lessons L33. All seven production steps landed mid-plan; **the TEST surface does not exist** and the two live strict xfails cannot detect the change.
 - **P3 affine boundary source channel** (retire `IncomingSourceOperator`; `realize(PrescribedInflow)` → the zero morphism) — plan `scratch/p3_verification_plan.md` (8 sections, 4-candidate evaluation, 6-mutation battery + 2 controls), lessons **L39**. ⛔ **The campaign's "prophylactic, fenced twice" premise is FALSE**: the `block_role=None` stamp fences nothing (`|B(0)|=2.5`) and Krylov HARD-RAISES (`‖Aψ−q‖/‖q‖=1.718`) on BOTH sides of P2′ ⟹ P3 is a **fix**. ⭐ Keystone = the boundary law evaluated on the CONVERGED answer (`γ₋ψ|_f` reads bit-exact `2q`/`q`/`0`); superposition-in-`q` is a Mode-12 non-catcher. **The production carve + 4 test migrations landed DURING the dispatch** (8 reds → `555 passed`, 24.5 s) ⟹ §8 is the live reconciliation and carries the **11-item residual gap list** — Gates A/B/D all still ABSENT, `|B(0)|=2.5` lives only in a COMMENT, `DEAD TARGETS 2`, a label-less `:ref:`, battery un-run.
+- **P4 non-trivial MMS through the DECLARED inflow channel** — design `scratch/p4_mms_design.md` (13 sections, 9-gate matrix, 8-mutation activation battery, 15 refuted candidates), lessons **L40**. ⛔⛔ **The brief's central risk was a LANDED fix**: 4 of 13 MMS builders are already non-vacuum + anisotropic (`build_slab_2g_nonvacuum_mms_case`), so P4 collapses from "build a reference" to **RE-ROUTE one** — declared ≡ hand-supplied `q_∂` measured BIT-IDENTICAL. ⭐ Orders `[2.041, 2.010, 2.003]`; the 8-mutation battery reds ×52–×4376 (`qiso` ×725 ⟹ the anisotropy is CONSTRAINED, not merely activated). ⛔ Three further refutations: the spec is evaluated at **TWO** shapes (`(N,)` guard probe + `(|Γ₋|,ng)`); the sphere is **NOT** refused (only its transpose is); **no public entry point can be handed a declared law** (`solve_sn_fixed_source` rebuilds the `SNMesh`) ⟹ P6's first item. ⛔ The brief's `B(0)=0` matvec row is **tautological** on the MMS fixture (`|B(x)|=0.0`) ⟹ moved to P5 on prescribed+reflective (`|B(x)|=1.320`).
 - **Boundary machinery B3.2 → B3.4b + #21** — ALL DELIVERED on `refactor/operator-strategy-layers`; lessons L29–L32. Six open follow-ups incl. a LATENT `_law_from_tag` bug and a real orientation mismatch.
 - **Three-DOF separation (operator ∥ splitting ∥ realization)** — full spec + **P0 SHIPPED** (`tests/sn/architecture/`), lessons L24–L26. The proposed AC was signature-tautological; the real red is the WELD.
 - **#280 RESIDUE** — binding spec `.claude/plans/residue_verification_spec.md`, PRE-carve. Three contract findings SHAPE the carve; the LD `.H` moment-mass metric is load-bearing.

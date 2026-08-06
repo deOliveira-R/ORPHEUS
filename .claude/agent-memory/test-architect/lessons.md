@@ -82,7 +82,17 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   in its own fixture at any depth, so the repair asserts the output convention the
   fix establishes (`∫νΣ_f φ dV = 1`), true at every outer count — check
   reachability BEFORE trying to reach it, record the answer, and never compute the
-  reference with the routine that ESTABLISHES it. Repair a tautological-`raises`
+  reference with the routine that ESTABLISHES it. **⛔ A brief's own proposed
+  matvec row can be tautological on the very fixture the phase is built on:** on
+  the P4 MMS slab BOTH faces declare `PrescribedInflow`, which P3 collapsed onto
+  the zero morphism, so `[M]` `|B(x)| = 0.0` for a random `x` and `B(0)=0` /
+  `B(2x)=2B(x)` hold with both sides structurally zero — no input can red them.
+  **Before writing any linearity/homogeneity/additivity row, measure `|Op(x)|`
+  on a random `x` and require it `> 0` as a committed ACTIVATION leg**; if it is
+  zero, the honest gate is the STRUCTURAL claim ("this IS the zero morphism") on
+  that fixture plus the linearity row on a fixture where the operator is
+  non-trivial (here: prescribed on one face, REFLECTIVE on the other →
+  `|B(x)| = 1.320`). → `L40c`. Repair a tautological-`raises`
   file guard-by-guard with the guard named at `file:line` in each docstring; the
   acceptance measurement is the PER-GUARD red table (0/14 → 12/14), every residual
   miss categorically out of scope and said so. Pointing tests at production entry
@@ -202,7 +212,25 @@ against a concrete row before trusting a green.
   MOMENT REACH ≥ the MMS source's anisotropy before trusting it as an absorb-gate
   `L18`. And every prior SN MMS ansatz VANISHED at the boundary, so the
   prescribed-inflow `q.boundary ≠ 0` path was NEVER exercised — the fix needs a
-  non-vanishing-at-face ansatz with `a0 > 0` load-bearing `L3`.
+  non-vanishing-at-face ansatz with `a0 > 0` load-bearing `L3`. **That fix
+  LANDED** as the §4.6 family (`build_slab_{,2g_}nonvacuum_mms_case`,
+  `build_sphere_nonvacuum_mms_case`, `build_2d_cartesian_ld_stress_mms_case`) —
+  `a₀=0.5`, `b₀=0.3`, anisotropic `(A_g + μ_n B_g)/W`, `[M]` 39 % angular swing
+  over Γ₋. **Do NOT re-derive it; re-route it.** → `L40a`
+- **⛔⛔ The vv "override the simplification bias — pick high frequency / mixed
+  scales" rule is SCOPED to a SPATIAL-DISCRETIZATION claim. For a
+  boundary/source-CHANNEL claim it makes the gate WORSE.** `[M]` `n_wavelengths`
+  1.5 → 4.5 on the §4.6 slab multiplied the bulk truncation `L2` **×16** while
+  the boundary-source error was untouched ⟹ the gate's signal-to-noise for the
+  boundary claim strictly degraded. **The strengthening axis must be the one the
+  claim lives on** — here the trace's ANGULAR content (`b₀/a₀`), not `k`.
+  → `L40b`
+- **⛔ A convergence+value pair can be blind in a band where the error DECREASES.**
+  `[M]` scaling the declared `q` by `(1+ε)`: at `ε ≤ 3e-4` the perturbation
+  partially CANCELS the `O(h²)` truncation, so `L2(80)` drops to `0.6–0.8×` the
+  honest value and BOTH `orders > 1.9` AND any `rtol` value row stay green; the
+  order gate first reds at `ε = 5e-4`. So "value + rate" is not a floor — name
+  the band and put the real keystone at the tier the defect lives on. → `L40d`
 
 ## 4. Reference, claim layer, and the proactive refutation
 
@@ -245,6 +273,23 @@ against a concrete row before trusting a green.
   ship it with an explicit "READ the reconciliation section FIRST" banner, keep
   the verdict/action columns as the audit of record, and make the **residual gap
   list, measured absent by grep at the end**, the deliverable. → `L39`
+- **⭐⭐ A brief's "central risk, ALREADY REALISED in the tree" is a claim to
+  audit, not a premise — and it comes with an ENUMERATION that is usually
+  short.** A brief said *every* SN MMS ansatz vanishes on both faces and named
+  "all four case families"; the module holds **12** case classes and **four
+  builders are non-vacuum by design**, with an anisotropic ansatz, SymPy
+  provenance and a live L1 consumer — and the module's own header states the
+  brief's claim as the thing it was written to FIX. **Enumerate the population
+  yourself (`dir(module)`), never the brief's list.** When the refutation lands,
+  the phase usually collapses from *build a new reference* to *re-route the
+  existing one* — which is also the Pattern-2-correct answer. → `L40a`
+- **⭐ The keystone's ORACLE choice decides whether it catches anything — same
+  assertion shape, 8 orders of sensitivity apart.** `γ₋ψ == spec.evaluate(...)`
+  is self-consistency: under a magnitude mutation BOTH sides move, green for
+  every ε (it still catches delivery-COUNT). `γ₋ψ == the manufactured value
+  recomputed from the reference OBJECT` reds at `ε ≈ 3e-12`. For any
+  "the answer satisfies the declared condition" gate, ask **which side is the
+  thing under test** — if the answer is "both", it is not a gate. → `L40e`
 
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
