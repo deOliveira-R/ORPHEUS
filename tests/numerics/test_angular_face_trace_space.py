@@ -767,3 +767,122 @@ def test_a_tier_carries_its_face_and_role_as_data(quad_name):
     assert space.face == "xmax"
     assert space.role == "outflow"
     assert isinstance(space, AngularFaceTraceSpace)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The ordinate DIRECTIONS each tier carries (campaign P6 step 1)
+#
+# A boundary source is a function of direction, q(Ω). A tier handed only a
+# SHAPE can express nothing angular — which is why the prescribed-inflow spec
+# had to smuggle μ through its constructor. These rows pin the field that
+# removes the smuggling, and the property that makes it usable: row order.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+@pytest.mark.parametrize("role", ["full", "outflow", "inflow"])
+def test_a_tier_carries_its_ordinate_directions_in_ROW_order(quad_name, role):
+    r"""``directions[i]`` is the direction of ordinate ``ordinate_indices[i]``.
+
+    ⭐ **Row order is the whole contract.** A consumer reads row ``i`` of a
+    vector in this space and needs to know which direction it belongs to; if
+    ``directions`` were merely the right SET, every angularly-varying source
+    would be silently permuted and no shape check could see it. Asserted
+    against the quadrature's own nodes indexed by the tier's own index set —
+    two independently-stored arrays that must agree element-wise.
+    """
+    quad = _QUADRATURES[quad_name]()
+    trace = _trace(quad_name)
+    space = {
+        "full": trace.face_space, "outflow": trace.outflow_space,
+        "inflow": trace.inflow_space,
+    }[role]("xmin")
+
+    np.testing.assert_array_equal(
+        np.asarray(space.directions),
+        np.asarray(quad.nodes)[np.asarray(space.ordinate_indices)],
+        err_msg=(
+            f"[{quad_name}/{role}] the tier's directions are not its own rows' "
+            f"directions — a source reading direction i would be applied to a "
+            f"different ordinate's row"
+        ),
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_directions_are_dimension_generic(quad_name):
+    r"""``(m,)`` in 1-D and ``(m, 3)`` in 3-D, by the SAME leading-axis index.
+
+    The restriction indexes the leading axis only, so it carries the ordinate
+    axis and leaves the component axis alone. Without this row a 1-D-only
+    fixture set would let a ``directions[indices]`` regress to something that
+    happens to work on a flat array — `[M]` 1-D rules give ``(m,)`` and
+    ``product(4,4)`` / ``lebedev(17)`` give ``(m, 3)``.
+    """
+    quad = _QUADRATURES[quad_name]()
+    space = _trace(quad_name).inflow_space("xmin")
+    m = int(np.size(space.ordinate_indices))
+    expected = (m,) if int(quad.dim) == 1 else (m, 3)
+
+    assert np.asarray(space.directions).shape == expected, (
+        f"[{quad_name}] dim={quad.dim} tier directions have shape "
+        f"{np.asarray(space.directions).shape}, expected {expected}"
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_two_halves_directions_partition_the_full_tiers(quad_name):
+    r"""Γ₊ ⊔ Γ₋ directions are disjoint subsets of Γ(f)'s — no row is shared.
+
+    The directions inherit the tiers' own disjointness (already gated on the
+    INDEX sets), so this row would be redundant if the two were built from one
+    source. They are: ``directions`` and ``ordinate_indices`` are restricted by
+    the same expression. The row exists so that a future edit which sourced the
+    directions differently — from a re-derived mask, say — reddens instead of
+    silently admitting a direction into both halves.
+    """
+    trace = _trace(quad_name)
+    plus = np.atleast_2d(np.asarray(trace.outflow_space("xmin").directions).T).T
+    minus = np.atleast_2d(np.asarray(trace.inflow_space("xmin").directions).T).T
+    full = np.atleast_2d(np.asarray(trace.face_space("xmin").directions).T).T
+
+    rows = lambda a: {tuple(np.round(r, 15)) for r in a}  # noqa: E731
+    assert rows(plus).isdisjoint(rows(minus)), (
+        f"[{quad_name}] a direction appears in BOTH half-traces"
+    )
+    assert rows(plus) | rows(minus) <= rows(full), (
+        f"[{quad_name}] a half-trace carries a direction the full tier does not"
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_the_inflow_directions_all_point_INWARD(quad_name):
+    r"""⭐ The physics the index set encodes, asserted on the directions.
+
+    :math:`\Gamma_-(f) = \{\Omega : \Omega\cdot\hat n_f < 0\}`. Every other row
+    here checks bookkeeping (the directions match the indices); this one checks
+    that the bookkeeping means what its name says — computed from the
+    directions and the face normal, NOT read back from ``omega_dot_n``, which
+    is the array the index set was built from and would make the check
+    circular.
+
+    ``xmin``'s outward normal is :math:`-\hat x`, so inflow is
+    :math:`\mu_x > 0`. `[M]` on ``gauss_legendre(8)``: rows ``[4 5 6 7]``,
+    ``μ ∈ [+0.183, +0.960]``.
+    """
+    space = _trace(quad_name).inflow_space("xmin")
+    directions = np.asarray(space.directions)
+    mu_x = directions if directions.ndim == 1 else directions[:, 0]
+
+    assert np.all(mu_x > 0.0), (
+        f"[{quad_name}] Γ₋(xmin) carries a direction with μ_x = "
+        f"{float(mu_x.min()):.6e} ≤ 0 — that ordinate leaves the domain "
+        f"through xmin, so it belongs to Γ₊"
+    )
+    # PC⁻: the opposite face must be the mirror claim, or the row above would
+    # pass for a space that put every ordinate in every inflow set.
+    mu_x_max = np.asarray(_trace(quad_name).inflow_space("xmax").directions)
+    mu_x_max = mu_x_max if mu_x_max.ndim == 1 else mu_x_max[:, 0]
+    assert np.all(mu_x_max < 0.0), (
+        f"[{quad_name}] Γ₋(xmax) carries a direction with μ_x ≥ 0"
+    )

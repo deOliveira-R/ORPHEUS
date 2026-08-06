@@ -337,6 +337,28 @@ class AngularTraceSpace(FunctionSpace):
         The signed projection :math:`\Omega\cdot\hat n_f` per face. The
         single source of truth the inflow/outflow selectors AND the
         operator-side directional masks both read.
+    directions : NDArray, shape ``(n_ordinates,)`` in 1-D, ``(n_ordinates, 3)`` otherwise
+        The ordinate directions :math:`\Omega_n` themselves —
+        :attr:`~orpheus.numerics.quadrature.Quadrature.nodes` verbatim.
+
+        ⭐ **Why the FULL direction and not just** :attr:`omega_dot_n`. On an
+        axis-aligned face the normal component is recoverable
+        (:math:`\mu = \pm\,\Omega\cdot\hat n`), so a source varying only along
+        the normal could read the projection — but a source varying
+        *tangentially* (a beam at an angle to the face) cannot, and neither can
+        one on a face whose normal is not an axis. Storing the projection alone
+        would be a lossy reduction that happens to suffice for the ansätze
+        shipped today, which is the shape of a decision that has to be undone
+        later. `[M]` the array is dimension-generic as it stands: ``(8,)`` on
+        ``gauss_legendre(8)``, ``(24, 3)`` on ``level_symmetric(4)``.
+
+        ⚠ **Vocabulary crossing, deliberate.** The quadrature calls these
+        ``nodes`` (measure vocabulary — a rule is a measure and its support is
+        nodes). On a *trace* they are directions, which is the transport
+        vocabulary this class already speaks (``omega_dot_n``). The rename is
+        at the boundary between the two registers and happens exactly once,
+        here; grep ``nodes`` in ``numerics/quadrature`` and ``directions`` in
+        the trace/boundary tier.
     """
 
     # Required (an AngularTraceSpace cannot even size itself without its layout,
@@ -346,6 +368,7 @@ class AngularTraceSpace(FunctionSpace):
     # :meth:`from_quadrature_and_layout`.
     layout: "FaceLayout[str]" = field(kw_only=True, repr=False, compare=False)
     omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
+    directions: NDArray = field(kw_only=True, repr=False, compare=False)
 
     @property
     def partial_current_metric(self) -> NDArray:
@@ -421,6 +444,11 @@ class AngularTraceSpace(FunctionSpace):
             inner_product_weights=inner_product_weights,
             layout=layout,
             omega_dot_n=omega_dot_n,
+            # The ordinate directions, kept verbatim. This factory is the ONLY
+            # construction site of an AngularTraceSpace (`[M]` zero direct
+            # ``AngularTraceSpace(...)`` calls in orpheus/ or tests/), which is
+            # why a required field can be added here without touching a caller.
+            directions=np.asarray(quadrature.nodes),
         )
 
     # ── Directional selectors ────────────────────────────────────────
@@ -568,6 +596,14 @@ class AngularTraceSpace(FunctionSpace):
                     face=face,
                     role=role,
                     ordinate_indices=np.asarray(indices, dtype=np.intp),
+                    # The SAME restriction the metric gets one line above, on
+                    # the SAME index set — which is the point: a tier's rows,
+                    # its weights and its directions are three views of one
+                    # selection, so they cannot drift out of correspondence.
+                    # Indexing the LEADING axis alone is what makes this
+                    # dimension-generic: `(N,) -> (m,)` in 1-D and
+                    # `(N, 3) -> (m, 3)` in 3-D, both by the same expression.
+                    directions=self.directions[indices],
                 )
         return out
 
@@ -799,6 +835,20 @@ class AngularFaceTraceSpace(FunctionSpace):
     face: str = field(kw_only=True, compare=False)
     role: "TraceRole" = field(kw_only=True, compare=False)
     ordinate_indices: NDArray = field(kw_only=True, repr=False, compare=False)
+    #: The directions :math:`\Omega_n` of THIS tier's ordinates, in the tier's
+    #: own row order — the parent's :attr:`AngularTraceSpace.directions`
+    #: restricted to :attr:`ordinate_indices`.
+    #:
+    #: ⭐ **Row order is the contract.** Row ``i`` of anything living in this
+    #: space is ordinate ``ordinate_indices[i]``, and ``directions[i]`` is that
+    #: ordinate's direction. Before this field existed, a consumer needing the
+    #: directions had to re-derive them by indexing the quadrature with
+    #: ``inflow_indices_for_face(face)`` — correct, but re-derived at every
+    #: consumer, and silently wrong if the two index sets ever diverged. A
+    #: prescribed-inflow source is the first consumer that cannot be written
+    #: at all without them (campaign P6): ``q(Ω)`` is a function of direction,
+    #: so a source handed only a SHAPE can express nothing angular.
+    directions: NDArray = field(kw_only=True, repr=False, compare=False)
 
     def __repr__(self) -> str:
         return f"AngularFaceTraceSpace({self.name!r}, shape={self.shape})"

@@ -134,6 +134,11 @@ the SKILL.
   briefing. (Companion to Cardinal Rule 5.)
 - **`process-discipline.md`** — fix bugs immediately; bias to completion; issues are for
   cross-session handoff. (Companion to Cardinal Rules 1 & 4.)
+- **`plan-authoring.md`** — what a plan owes its own future author: title the OUTCOME not
+  the mechanism; separate goal from proposed means; mark every claim's epistemic status;
+  refuted premises edited in place, never dropped; numbers carry their configuration.
+  (Companion to Cardinal Rule 4. Written after a plan's own phase title misled the agent
+  that wrote it, three compactions later.)
 - **`vv-testing.md`** (path-scoped `tests/**`) — canonical `python -O -m pytest`; never relax
   a tolerance for an inexact method; the `tests/_harness/` tagging/linking registry.
 

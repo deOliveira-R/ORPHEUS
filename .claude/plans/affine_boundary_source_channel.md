@@ -444,7 +444,25 @@ above it in the same class**. Discriminated by scope, NOT blanket-replaced:
 different predicate about the sphere's off-quadrature μ = ±1 ray corner — and
 its wording stands.
 
-### P6 — promote what P4 hand-rolled into production ⭐ the doctrine's second half
+### P6 — a directional inflow is declarable without smuggling ⭐ the doctrine's second half
+
+> ⛔ **RETITLED 2026-08-06. This phase read "promote what P4 hand-rolled into
+> production" and that title cost a design cycle.** It named a MECHANISM (move
+> the class) when the goal is an OUTCOME, and the agent that wrote it was the
+> agent it later misled — reading its own words back, after compaction, as a
+> specification. Moving the class would have been *wrong*: a manufactured
+> solution is legitimately test-owned, and promoting it would put a
+> verification artefact in the production tree. The gap was never the class's
+> location; it was that the INTERFACE forced the class to smuggle trace
+> knowledge through its constructor. This is now the worked example in
+> `.claude/rules/plan-authoring.md` §1.
+>
+> **Goal.** A user can declare `q(Ω)` on a face and have it delivered, without
+> the source carrying trace knowledge it should not need.
+>
+> **Done when** `_ManufacturedFaceInflow` is an ordinary user-written source —
+> concretely, when it no longer takes `mu_inflow=` or `n_ordinates=`, because
+> the interface supplies both.
 
 **Added by user ruling, 2026-08-05**, refining the P4 ruling. (Numbered P6
 because P5 — the matvec/linearity gates — was already in this plan.)
