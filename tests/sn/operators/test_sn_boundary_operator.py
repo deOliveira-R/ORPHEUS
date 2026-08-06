@@ -15,7 +15,17 @@ action. These foundation tests pin the assembly BEFORE anything consumes ``B``
   face↔face swap is caught);
 * **block-diagonal over faces** — a single-face perturbation stays on that face;
 * the ``is_adjointable`` face conjunction (True iff every face law honours the
-  transpose — white would drop it; see the stub negative).
+  transpose; see the stub negative, which supplies an apply-only law because no
+  SHIPPED law drops the predicate any more — corrected 2026-08-06, see below).
+
+⚠ **Correction (2026-08-06).** This header read "white would drop it" from
+``d7e13164`` (2026-06-03) until B3.4b landed the Lambertian's re-emission
+closure. `[M]` a ``WhiteBoundary()`` face now reports ``is_adjointable = True``
+and ``B.apply_transpose`` returns, so the illustration was present-tense false
+and would have told a reader that a working configuration was unsupported. The
+CLAIM the conjunction makes is unchanged and still gated — only its example was
+stale, which is why the negative below uses an explicit stub rather than naming
+a shipped law it can no longer name.
 
 Campaign phase B3.2 — the re-posed C-1 gates (RG-1 … RG-5)
 ==========================================================
@@ -439,9 +449,19 @@ class TestApplyTransposeCapability:
 
     def test_adjointability_drops_when_a_face_lacks_it(self) -> None:
         """The predicate is a face CONJUNCTION — if any face law cannot
-        transpose (e.g. the white BC, self-adjoint only under the |Ω·n|·w
-        metric), ``B`` must NOT be adjointable (vv L11 negative; prevents a
-        silent wrong/raising adjoint in a Krylov adjoint solve)."""
+        transpose, ``B`` must NOT be adjointable (vv L11 negative; prevents a
+        silent wrong/raising adjoint in a Krylov adjoint solve).
+
+        ⚠ The stub is not a stand-in for a shipped law. This docstring named
+        "e.g. the white BC" until 2026-08-06; `[M]` white reports
+        ``is_adjointable = True`` since B3.4b closed the Lambertian's
+        re-emission, and **every** shipped law now honours the transpose (the
+        P5 rows in ``test_g_adjoint_reciprocity`` exercise a declared
+        prescribed + white slab). So the conjunction's False arm is reachable
+        only through a duck-typed law like the one below — which is exactly
+        why the negative must construct one instead of picking a law off the
+        shelf, and why it stays even though nothing shipped trips it today.
+        """
 
         sn = _sn("SLB", (BC.vacuum, BC.reflective))
         _n_inflow = sn.angular_trace.inflow_indices_for_face("xmin").size

@@ -62,6 +62,12 @@ from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry.boundary import (
+    BoundaryTraceLaw,
+    ConstantInflowSource,
+    PrescribedInflow,
+    WhiteBoundary,
+)
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
@@ -82,17 +88,57 @@ from tests.sn._test_helpers import (
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh builders (homogeneous, reflective — B ≠ 0, the A_ss block live)
+#
+# Campaign phase P5 (`.claude/plans/affine_boundary_source_channel.md`) adds
+# the two ``slab_declared_*`` cases, whose ``xmin`` carries a DECLARED
+# ``PrescribedInflow``. They state a capability WIDENING: before P3 that law
+# realized to an affine operator with no transpose, so ``B.is_adjointable`` —
+# a conjunction over faces — was **False** for the whole block and ``A.H`` did
+# not exist. One prescribed face poisoned the adjoint of every other face on
+# the mesh. Post-P3 the law is the bound zero morphism and the block is
+# adjointable again, which is what these cases exercise through the reciprocity
+# body that was already here.
+#
+# ⚠ **Count CASES, not rows.** The 3 new cases multiply into 6 parametrized
+# rows and only **3** read anything the declaration changes. Measured, these
+# stay green under four separate mutations (`affine`, `identity`, a nonlinear
+# control, and a transpose-leak) while the control reddens 17 sibling
+# reciprocity rows:
+#
+#   * ``test_full_field_space_metric_matches_independent_reference`` on BOTH new
+#     cases — bit-identical to ``[slab_2g]`` (`[M]` ``g_inner ==
+#     inner_product == -0.6830574021861343`` for all three). The metric is built
+#     from ``volumes`` / ``weights`` / ``omega_dot_n`` and never reads
+#     ``sn.bc``, so no boundary-law change can EVER move it.
+#   * ``test_full_loss_reciprocity_per_group_one_hot[slab_declared_prescribed_2g]``
+#     — B-blind by construction: ``_one_hot_group_composite`` zeroes the whole
+#     trace block, which is exactly where ``B``'s range and co-range live, so
+#     both sides are identically 0 (Mode 12, not a sub-floor residual).
+#
+# They cost nothing and are kept, but they are NOT coverage, and a changelog
+# saying "+6 rows" would overstate this change by a factor of two. The test
+# that keeps the count honest: for each row a new case multiplies into, name
+# the line in its BODY that reads the thing the case varies.
 # ═══════════════════════════════════════════════════════════════════════
 
+#: The P5 declaration. The amplitude is irrelevant to every row in this module
+#: — that is the point: ``q`` is not what the realizer tier produces, so a law
+#: carrying a source must still realize to an operator that cannot see it.
+_PRESCRIBED_INFLOW = PrescribedInflow(source=ConstantInflowSource(value=2.5))
 
-def _make_slab(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
+
+def _make_slab(
+    nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5,
+    bc_left: "BC | BoundaryTraceLaw" = BC("reflective"),
+    bc_right: "BC | BoundaryTraceLaw" = BC("reflective"),
+):
     quad = Quadrature.gauss_legendre(4)
     mesh = Mesh1D(
         edges=np.linspace(0.0, R, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
         coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+        bc_left=bc_left,
+        bc_right=bc_right,
     )
     sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
     # Per-group-varying σ_t so the 2g row is non-degenerate in the group axis
@@ -265,6 +311,38 @@ _BUILDERS = {
     "ld_slab_2g": lambda: _make_ld_slab(ng=2),
     "cart2d_2g": lambda: _make_cart2d(ng=2),
     "ld_2d_2g": lambda: _make_ld_2d(ng=2),
+    # ── P5: a DECLARED PrescribedInflow no longer poisons the block's
+    # transpose. Two partner faces, because the prescribed face alone can
+    # never be the reciprocity content:
+    #
+    #   * ``reflective`` — a deck permutation. Its transpose under
+    #     ``|Ω·n|·w_n`` must pair rows of matching weight, so a mis-paired
+    #     permutation reds. This is the same partner P5's linearity module
+    #     uses, so the two read the same fixture.
+    #   * ``white`` — the rank-one Lambertian, whose kernel is BUILT from the
+    #     cosine metric. It is the metric-loaded partner, and the `[M]` that
+    #     SAYS SO is the WRONG-metric reading **1.351e-01** in
+    #     ``test_wrong_trace_metric_breaks_reciprocity``, not the true-metric
+    #     residual (1.68e-16) — a small positive residual is exactly what a
+    #     metric-BLIND gate produces too.
+    #
+    # ⚠ Why a partner is MANDATORY and not belt-and-braces: the zero morphism
+    # is the most metric-blind object there is (``0ᵀ = 0`` under EVERY metric),
+    # so reciprocity on an all-prescribed mesh is satisfied by any metric
+    # whatsoever — a provable non-catcher (``vv`` Mode 12). The claim these
+    # rows carry is that the prescribed face does not DESTROY a neighbour's
+    # genuinely metric-dependent reciprocity, which needs the neighbour.
+    #
+    # ⚠ ``WhiteBoundary`` is reachable here as a LAW OBJECT only. SN's
+    # ``BOUNDARY_OPERATOR_REGISTRY`` still refuses the ``BC("white")`` TAG
+    # (#189), and these rows assert reciprocity of ``B``, NOT that a white-faced
+    # SN solve is a supported configuration.
+    "slab_declared_prescribed_2g": lambda: _make_slab(
+        ng=2, bc_left=_PRESCRIBED_INFLOW,
+    ),
+    "slab_declared_prescribed_white_2g": lambda: _make_slab(
+        ng=2, bc_left=_PRESCRIBED_INFLOW, bc_right=WhiteBoundary(),
+    ),
 }
 
 
@@ -482,7 +560,23 @@ def test_ld_moment_mass_metric_is_load_bearing(monkeypatch):
     # slab + sphere break strongly (dense oracle: 6.4e-2 / 8.3e-1); cyl breaks
     # only marginally (1.9e-3) because its single reflective face carries less
     # of the reciprocity residual — so the decisive control lives on slab/sphere.
-    ["slab", "sphere"],
+    #
+    # ⭐ P5 added the two declared-prescribed cases, and adding them here is the
+    # POINT, not housekeeping. The ``_BUILDERS`` note argues that a prescribed
+    # face needs a metric-loaded PARTNER because the zero morphism is
+    # metric-blind — an argument about what a positive reading can and cannot
+    # prove. Leaving it ungated meant the module asserted the argument in prose
+    # and nowhere in a gate. `[M]` wrong-metric relative residual:
+    # ``slab_declared_prescribed_2g`` **2.410e-01**, ``…_white_2g``
+    # **1.351e-01**, versus ``sphere``'s **1.213e-03** — the two ungated cases
+    # fire 100–200× harder than the one that was gated.
+    #
+    # ⛔ The generalisable half: their TRUE-metric residuals (1.98e-16 /
+    # 1.68e-16) were never evidence of metric-loading. A metric-BLIND gate
+    # produces exactly the same small positive reading. Only the wrong-metric
+    # leg distinguishes them (``vv`` #11 / Mode 12).
+    ["slab", "sphere",
+     "slab_declared_prescribed_2g", "slab_declared_prescribed_white_2g"],
 )
 def test_wrong_trace_metric_breaks_reciprocity(case):
     r"""Dropping ``|Ω·n|`` from the trace metric MUST break reciprocity (L11).
@@ -595,7 +689,10 @@ def _mix_4g(p0: np.ndarray):
     )
 
 
-def _full_loss_case(coord: CoordSystem, ng: int):
+def _full_loss_case(
+    coord: CoordSystem, ng: int,
+    bc_left: "BC | BoundaryTraceLaw" = BC("reflective"),
+):
     r"""Het 2-material mesh + the full loss ``A = (L + C) - S - A_BA - B``.
 
     ``S`` is the PRODUCTION scattering operator off a real :class:`SNSolver`
@@ -627,9 +724,25 @@ def _full_loss_case(coord: CoordSystem, ng: int):
     if coord is CoordSystem.CARTESIAN:
         mesh = Mesh1D(
             edges=edges, mat_ids=mat_ids, coord=coord,
-            bc_left=BC("reflective"), bc_right=BC("reflective"),
+            bc_left=bc_left, bc_right=BC("reflective"),
         )
     else:
+        # A solid sphere/cylinder has ONE true face, so there is no partner to
+        # carry the reciprocity content — ``bc_left`` is the centre, which is
+        # not a boundary at all. The P5 declared cases are Cartesian only.
+        #
+        # ⛔ REFUSE rather than silently drop. Accepting a ``bc_left`` here and
+        # ignoring it would hand back a mesh with NO declaration and a
+        # permanently-green row — a silently-inert declaration, which is
+        # precisely the pre-P2′ defect this whole campaign exists to close.
+        # Reproducing it inside the campaign's own gates would be the joke that
+        # writes itself. A comment is not a guard; this is.
+        if bc_left != BC("reflective"):
+            raise ValueError(
+                f"_full_loss_case: {coord.name} has one true face, so "
+                f"bc_left={bc_left!r} has nowhere to go and would be silently "
+                f"dropped. Declare on bc_right, or use a Cartesian case."
+            )
         mesh = Mesh1D(
             edges=edges, mat_ids=mat_ids, coord=coord,
             bc_right=BC("reflective"),
@@ -703,6 +816,13 @@ _FULL_LOSS_BUILDERS = {
     "slab_4g": lambda: _full_loss_case(CoordSystem.CARTESIAN, 4),
     "sphere_4g": lambda: _full_loss_case(CoordSystem.SPHERICAL, 4),
     "cart2d_2g": _full_loss_case_cart2d,
+    # P5 — the SAME widening claim one tier up: with ``S`` in the sum, the
+    # composite ``.H`` must still exist and still be reciprocal on a mesh whose
+    # ``xmin`` declares a prescribed inflow. Reflective partner (see the
+    # ``_BUILDERS`` note on why a partner is mandatory).
+    "slab_declared_prescribed_2g": lambda: _full_loss_case(
+        CoordSystem.CARTESIAN, 2, bc_left=_PRESCRIBED_INFLOW,
+    ),
 }
 
 

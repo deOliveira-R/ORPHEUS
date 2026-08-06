@@ -219,6 +219,100 @@ any other review work.
     be a catcher and a direct array assertion is the only instrument that
     can exist. Knowing that first would have flagged the 60 reds as
     impossible on sight.
+19. **NEVER** cite a gate's POSITIVE reading as evidence that the gate is
+    *loaded* on the structure it is credited with (metric-loaded,
+    weight-loaded, transpose-loaded) — **instead** cite the reading under
+    the DELIBERATELY-WRONG structure. A tiny residual is exactly what a
+    *blind* gate produces too, so the positive leg cannot discriminate
+    loaded from blind; only the negative leg can. This is #11's
+    positive+negative pairing applied to the *structure* a gate rides on
+    rather than to a contract-validation method, and it is the operational
+    form of the Mode-12 stabiliser question: "is the thing I claim this
+    gate is sensitive to actually outside the measured functional's
+    stabiliser?" The tell in review is a comment of the shape "X is the
+    metric-loaded partner: `[M]` residual 1.8e-15" — the number quoted is
+    the one measurement that carries **zero** information about loading.
+    (2026-08-06, the SN affine-boundary P5 reciprocity rows: two new
+    `_BUILDERS` cases were added with a prose argument that a partner face
+    is *mandatory* because the zero morphism is metric-blind (`0ᵀ = 0`
+    under every metric) — and then neither case was added to the
+    committed wrong-metric control, which stayed `["slab", "sphere"]`.
+    Measured by dropping `|Ω·n|` from the trace metric while `A.H` stays
+    built for the true one: `slab_declared_prescribed_2g` reads
+    `1.98e-16` true / **`2.410e-01` wrong**, `..._white_2g` reads
+    `1.68e-16` / **`1.351e-01`** — against the already-listed `sphere`'s
+    `1.05e-16` / `1.213e-03`. The two ungated cases fire **100–200×
+    harder** than the one that IS gated, and both clear the control's own
+    anti-dud precondition (`|Ω·n|` spread `0.5212 > 0.1`). The argument
+    for needing the partner was right; the evidence offered for it was the
+    wrong measurement, and the control that would have supplied the right
+    one was one list entry away.) Review rule: for every "this fixture is
+    loaded on S" claim, demand the S-broken reading, and if a negative
+    control for S already exists in the module, the new fixture belongs in
+    its parametrize list — a partner argued for in prose and ungated in
+    code is an unverified coverage claim.
+20. **NEVER** count the ROWS a new case multiplies into as new coverage —
+    **instead** count the CASES, and for each row the case reaches, name
+    the line in that row's BODY that reads the thing the case varies. A
+    shared `parametrize` dict (`_BUILDERS`, `_CASES`, a fixture registry)
+    is consumed by every test in the module, so adding one case adds one
+    row per consumer — and a row whose body never touches the varied
+    thing is *structurally* incapable of reddening for it, in the exact
+    Mode-12 sense (not sub-floor, not under-tested: annihilated). The
+    inflation is invisible in a diff, which shows `+3 lines` and a test
+    count that jumps by 6, and it lands in the closeout as "+6 rows" of
+    coverage. (2026-08-06, SN affine-boundary P5: 3 new cases → 6 new
+    rows, of which **3 are provable non-catchers**. Two are
+    `test_full_field_space_metric_matches_independent_reference[…]`,
+    whose body builds the metric from `volumes` / `weights` /
+    `omega_dot_n` and never reads `sn.bc` — measured **bit-identical** to
+    the pre-existing `slab_2g` row, `g_inner = inner_product =
+    -0.6830574021861343` for all three cases. The third is
+    `test_full_loss_reciprocity_per_group_one_hot[…]`, whose one-hot
+    composite zeroes the WHOLE trace block, which is exactly where `B`'s
+    range and co-range live, so `⟨Bψ,φ_g⟩_G ≡ 0 ≡ ⟨ψ,B.Hφ_g⟩_G`
+    identically. All three stayed green under **four** mutations —
+    including a positive control that reddened 17 sibling reciprocity
+    rows.) The rows are free and harmless; the *claim* is the defect.
+    Write the closeout as "3 cases → 3 mutation-verified rows (+3 that
+    ride along and are blind to the varied thing)", and if a row is blind
+    for every case, say so once rather than re-counting it per case.
+21. **NEVER** audit a negated claim with a LINE-based grep — **instead**
+    search a multi-line WINDOW (subject within ±2 lines of the negation),
+    because prose wraps and the subject and its negation routinely land on
+    different lines. This is the missing mechanic in the
+    "grep the CONCEPT, not only the symbol" retirement-audit rule
+    (`.claude/rules/coding-standards.md`): that rule tells you to widen
+    the *vocabulary* you search for; this one tells you to widen the
+    *window* you search in. A correction pass that greps
+    `white.*not adjointable` finds every instance the formatter happened
+    to keep on one line and silently reports the rest as clean.
+    (2026-08-06, SN affine-boundary P5: a pass corrected the two sites
+    where the subject and the negation shared a line —
+    `SNBoundaryOperator.apply_transpose`'s docstring ("the white BC has no
+    Euclidean transpose") and a test-module header ("white would drop
+    it") — and missed the `SNBoundaryOperator` class docstring's
+    re-emission-closure paragraph, where "white" and "(not adjointable)"
+    sit on ADJACENT lines. Measured: `WhiteBoundary()` →
+    `is_adjointable = True`, `AlbedoBoundary(0.7, IsotropicReturn(...))`
+    → `True`, i.e. the surviving sentence is present-tense FALSE. It sits
+    in the SAME class-docstring family, ~470 lines from a site the same
+    pass corrected to say the opposite. ⭐ Sharpest detail: that paragraph
+    was ITSELF a correction pass — its own closing sentence reads "it is
+    the enumeration in prose that had to stop naming classes" — and the
+    fix was applied to the *subjects* and not to the parenthetical
+    *verdicts* beside them. A correction is not evidence its own paragraph
+    is now clean.) **The aggravator is the reason
+    this ranks as an anti-pattern rather than a grep tip:** a half-done
+    correction leaves the stale claim and its correction coexisting in ONE
+    FILE, which is strictly worse than either alone — a reader who lands
+    on the stale one gets no signal it was superseded, and the file now
+    contradicts itself, so *whichever* sentence a future contributor
+    trusts, they can cite the file for it. Review rule: after any
+    claim-correction pass, re-run the audit as a windowed search over the
+    whole tree and reconcile every hit BY TENSE (past-tense history stays;
+    a present-tense claim is a MUST-FIX) — and check the corrected file
+    itself first, since it is the likeliest place for a survivor.
 
 ---
 

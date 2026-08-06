@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8774**
+Total tests collected: **8815**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1264, 14.4%
-   L1, 1532, 17.5%
+   L0, 1264, 14.3%
+   L1, 1547, 17.5%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5909, 67.3%
+   foundation, 5935, 67.3%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8690
+   explicit, 8731
    class-name, 46
    func-name, 0
    case, 33
@@ -54,6 +54,7 @@ Module × level grid
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
    analytical/test_l1_standoff_slab_cylinder, 0, 10, 0, 0, 0, 0
+   analytical/test_mms_declared_inflow, 0, 9, 0, 0, 0, 0
    analytical/test_mms_prescribed_inflow, 0, 3, 0, 0, 1, 0
    analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
@@ -264,14 +265,14 @@ Module × level grid
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
-   geometry/test_geometry, 0, 0, 0, 0, 55, 0
+   geometry/test_geometry, 0, 0, 0, 0, 57, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
-   geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
+   geometry/test_structured_geometry, 0, 0, 0, 0, 37, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
@@ -365,11 +366,12 @@ Module × level grid
    operators/test_boundary_conditions, 0, 0, 0, 0, 13, 0
    operators/test_capability_survival, 0, 0, 0, 0, 12, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
+   operators/test_declared_law_is_linear, 0, 0, 0, 0, 15, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 32, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 40, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
@@ -434,6 +436,7 @@ Module × level grid
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
+   solve/test_declared_law_survives_the_public_entry, 0, 6, 0, 0, 0, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
@@ -501,7 +504,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``fission-matrix``, 63
    ``removal-matrix``, 63
    ``e3-def``, 61
-   ``transport-cartesian``, 59
+   ``transport-cartesian``, 60
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
    ``balance-general``, 54
@@ -536,10 +539,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``surface-to-surface``, 34
    ``transport-spherical``, 34
    ``bc-response-factored-adjoint``, 33
+   ``dd-slab``, 33
    ``keff-mean``, 33
    ``peierls-equation``, 33
    ``sigma-keff``, 33
-   ``dd-slab``, 32
    ``free-flight``, 31
    ``transport-cylindrical``, 30
    ``chi-sampling``, 28
@@ -657,8 +660,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``sn-keff-update``, 5
+   ``sn-mms-nonvacuum-psi``, 5
    ``streaming-equilibrium``, 5
    ``xs-interp``, 5
+   ``bc-single-delivery``, 4
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
    ``hebert-3-323``, 4
@@ -675,6 +680,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``phase-f-q-bar-twin-forms``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
+   ``sn-mms-nonvacuum-qext``, 4
    ``cp-escape-from-p-cell``, 3
    ``dd-mm-closure-constants``, 3
    ``delta-psi``, 3
@@ -700,10 +706,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-dsa-sweep-inverse-identity``, 3
    ``sn-homogenization-rate-preservation``, 3
    ``sn-leakage-functional``, 3
-   ``sn-mms-nonvacuum-psi``, 3
-   ``sn-mms-nonvacuum-qext``, 3
+   ``sn-mms-nonvacuum-qext-mg``, 3
    ``sn-space-angle-cross-term``, 3
-   ``bc-single-delivery``, 2
    ``cp-second-difference-operator``, 2
    ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
@@ -736,7 +740,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-cylindrical-aniso-qext``, 2
    ``sn-mms-cylindrical-psi``, 2
    ``sn-mms-cylindrical-qext``, 2
-   ``sn-mms-nonvacuum-qext-mg``, 2
    ``sn-mms-nonvacuum-sph-psi``, 2
    ``sn-mms-nonvacuum-sph-qext``, 2
    ``sn-mms-p1-qext``, 2
@@ -1447,7 +1450,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-063``, 3
    ``ERR-064``, 2
    ``ERR-065``, 1
-   ``ERR-066``, 9
+   ``ERR-066``, 11
    ``ERR-067``, 2
    ``ERR-068``, 1
    ``ERR-069``, 2
@@ -1456,7 +1459,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-072``, 3
    ``ERR-073``, 2
    ``ERR-074``, **0 (MISSING)**
-   ``ERR-075``, 2
+   ``ERR-075``, 8
 
 Unmarked tests
 --------------

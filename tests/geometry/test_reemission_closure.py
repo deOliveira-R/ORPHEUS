@@ -268,11 +268,26 @@ class TestEquivalenceTheorems:
         ``CAP_APPLY_TRANSPOSE`` is SILENT at the value level (nothing raises
         until a consumer asks), and it gates the whole composite through
         :attr:`SNBoundaryOperator.is_adjointable`. So the claim is
-        ``adjointable(a) == adjointable(b)`` — an EQUALITY, not
-        ``is True``: MEASURED, the diffuse route is honestly NOT adjointable at
-        α ∉ {0} (``LambertianReemission.is_adjointable`` is ``False`` until B5
-        types it as the rank-one it is), and asserting ``True`` there would pin
-        a fiction.
+        ``adjointable(a) == adjointable(b)`` — an EQUALITY, not ``is True``.
+
+        ⚠ **Corrected 2026-08-06 — the equality is right, its old reason was
+        not.** This docstring justified the equality with "MEASURED, the diffuse
+        route is honestly NOT adjointable at α ∉ {0}
+        (``LambertianReemission.is_adjointable`` is ``False`` until B5 types it
+        as the rank-one it is)". `[M]` today
+        ``LambertianReemission(α).is_adjointable`` is ``True`` at
+        α ∈ {0, 0.3, 0.7, 1.0} — B3.4b typed it. Two things follow, and the
+        second is why a stale rationale is worse than a stale sentence:
+
+        * the EQUALITY stays, on its own merits. This row's subject is that the
+          two ROUTES agree, not that either is adjointable; pinning ``is True``
+          would convert it into a claim about the law family and would red for
+          the right reason on a future law that legitimately has no transpose.
+        * the early return below (``if not adjointable(a_op): return``) **no
+          longer fires for any parametrised case**, so the value leg went live
+          across the whole grid the day B3.4b landed — silently, with nobody
+          re-measuring what it now compares. It is kept as a guard for that
+          future law, not because anything shipped reaches it.
         """
         _id, _q, _face, axis, sign, _faces = fixture
         quad, space = _space(fixture)

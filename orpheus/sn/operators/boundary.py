@@ -301,11 +301,25 @@ class SNBoundaryOperator(LinearOperator):
 
     Since **B3.4b** an albedo face answers by its **re-emission closure**, not
     by its class: a specular closure realizes to the same scaled permutation
-    reflective does (adjointable), a diffuse one to the same Lambertian white
-    uses (not adjointable), and the closure-free spelling never reaches here —
-    the realizer refuses it. The predicate below already computed this
-    correctly, since it reads each realized law's own ``is_adjointable``; it is
-    the enumeration in prose that had to stop naming classes.
+    reflective does, a diffuse one to the same Lambertian white uses, and the
+    closure-free spelling never reaches here — the realizer refuses it. The
+    predicate below already computed this correctly, since it reads each
+    realized law's own ``is_adjointable``; it is the enumeration in prose that
+    had to stop naming classes.
+
+    ⚠ **Corrected 2026-08-06.** The diffuse arm above carried "(not
+    adjointable)" and the specular arm "(adjointable)". `[M]` on a slab face,
+    **all three are ``True``** — ``WhiteBoundary()``,
+    ``AlbedoBoundary(0.7, IsotropicReturn(...))`` and
+    ``AlbedoBoundary(0.7, SpecularReturn(...))`` — because B3.4b factored the
+    Lambertian so the chain transposes leaf by leaf. Two lessons ride on this
+    one line. (1) The paragraph is *itself* a correction pass — it says so in
+    its own last sentence — and it still left a class-named falsehood in the
+    text it was correcting; "stop naming classes" was applied to the subjects
+    and not to the parenthetical verdicts. (2) The subject ("white") and the
+    negation ("not adjointable") sit on DIFFERENT LINES, so the line-based grep
+    that found and fixed the sibling claim on :774 could not see this one — a
+    concept grep for a negated claim needs a multi-line window.
 
     Parameters
     ----------
@@ -770,9 +784,25 @@ class SNBoundaryOperator(LinearOperator):
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
 
         Reachable only when every per-face law is adjointable (see
-        :attr:`is_adjointable`). The white BC has
-        no Euclidean transpose; its physically-correct adjoint is ``B.H`` under
-        the ``|Ω·n|·w`` trace metric (Wave O step O.2).
+        :attr:`is_adjointable`), which since G6.3 step 3 every SHIPPED law is —
+        including white, whose realization was factored so that the Lambertian
+        chain transposes leaf by leaf (B3.4b). `[M]` 2026-08-06: a slab with a
+        ``WhiteBoundary()`` face reports ``is_adjointable = True`` and this
+        method returns.
+
+        ⚠ **Corrected 2026-08-06.** This docstring read "the white BC has no
+        Euclidean transpose" — present-tense false since B3.4b, and in direct
+        contradiction with :attr:`is_adjointable`'s own (correct, past-tense)
+        note twelve properties above. Do not confuse it with
+        :class:`RadialCharacteristicBoundaryOperator` (``B_b``), where white
+        genuinely IS in the loud-deferred set: that predicate is about the
+        sphere's **off-quadrature μ = ±1 ray corner**, a different action on a
+        different carrier.
+
+        What remains true, and is the reason both spellings exist: ``Bᵀ`` is
+        the **Euclidean** transpose, while the physically-meaningful adjoint is
+        ``B.H`` under the ``|Ω·n|·w`` trace metric (Wave O step O.2). For white
+        the two differ; reciprocity gates must use ``.H``.
         """
         return self._apply_faces(psi, "apply_transpose")
 

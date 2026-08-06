@@ -311,7 +311,11 @@ and which it nulls; if ψ happens to vanish on the inflow trace, the MMS is blin
 exactly the thing it was built to test. Design the ansatz so `γ₋ψ ≠ 0` on the source
 face and check that a mutation of `q` moves the measured error.
 
-### P5 — the matvec/linearity gates ⭐ explicitly requested
+### P5 — the matvec/linearity gates ⭐ explicitly requested ✅ LANDED 2026-08-06
+
+> ⛔ **The bullets below are the ORIGINAL brief and one of them is
+> unspellable.** Kept because the correction is the phase's main lesson; read
+> the "as built" block underneath for what actually landed.
 
 * `B.apply` is **linear for every law**, prescribed included: `B(0) = 0`,
   `B(2x) = 2B(x)`, `B(x+y) = B(x)+B(y)`. Today prescribed fails all three at
@@ -320,6 +324,125 @@ face and check that a mutation of `q` moves the measured error.
   (zero-operator + `q_ext.boundary`) ≡ the pre-carve (affine operator + zero
   `q_ext.boundary`), on a fixture where both are reachable.
 * The Krylov matvec stays linear with a prescribed law installed.
+
+#### ⛔ `B(x+y) = B(x)+B(y)` IS UNSPELLABLE — the carrier is an AFFINE space
+
+Written as specified, the additivity row raises before it can assert::
+
+    TypeError: cannot add two AngularFlux states: flux states form an affine
+    space with no origin, so '+' between two fluxes is undefined
+    (Σλ = 2 lands off the affine subspace).
+
+Flux states are a torsor over a distinct displacement space (the #208 carve,
+`orpheus/transport/fields/_flux_role.py`); `ψ ⊖ ψ → Δψ` and `ψ ⊕ Δψ → ψ` are
+the legal moves. Scalar scaling is untouched, so homogeneity survives verbatim.
+`B`'s CODOMAIN, by contrast, is a vector space — it returns rate densities
+(`AngularSourceSink ⊕ AngularBoundarySourceSink`), so output differences are
+ordinary subtraction. ⟹ **`B` is an affine map from an affine space into a
+vector space**, and the honest third law is base-point independence of the
+increment:
+
+.. math::  B(\psi_1) - B(\psi_2) = B(\psi_1 \oplus \sigma) - B(\psi_2 \oplus \sigma)
+
+which says the increment depends only on `ψ₁ ⊖ ψ₂` — the same content as
+additivity, stated without ever naming `B`'s induced tangent map (unspellable:
+`B.apply` refuses a displacement argument — **#331**, filed).
+
+#### As built
+
+**`tests/sn/operators/test_declared_law_is_linear.py`** (new, 14 rows) on
+prescribed(`xmin`) + **reflective**(`xmax`), het 2G GL-8, declared on the
+GEOMETRY:
+
+* §0 the activation guard, **decomposed per face** — `xmin`'s whole slot
+  exactly `0.0`, `xmax`'s inflow rows `1.8239310798528774`. A bare
+  `|B(x)| > 0` would not have been attributable.
+* §1 `B(0)=0` · homogeneity at `c ∈ {3.7, −2, 1e3, 1e−3}` · base-point
+  independence. `[M]` **`B` is EXACT** — `0.0` at every scalar; the
+  base-point row reads 4–8 nulp, which is the re-basing's own rounding
+  (`fl(a+σ) − fl(b+σ) ≠ a − b`), not the operator.
+* §2 the same three for `A = (L+C) − S − B` off `build_within_group_system`.
+  `[M]` worst relative `3.7e-16` ⟹ `_MATVEC_RTOL = 1e-14` (27× headroom,
+  twelve orders against the affine regression's `1.6e-1`).
+* §3 ⭐⭐ **the campaign theorem at the assembled tier**: prescribed and vacuum
+  give **bit-identical** `B` *and* `A` (`|Δ|_inf = 0.0` at `|A(ψ)| = 42.685`)
+  while `q_∂` reads `2.5` vs `0.0`. Both halves in one row — without the
+  second, a channel that dropped the declaration passes the first perfectly.
+
+**`tests/sn/operators/test_g_adjoint_reciprocity.py`** (extended, +6 rows) —
+the `is_adjointable` WIDENING, added to the family that already owns
+reciprocity rather than as a second spelling. Two new `_BUILDERS` cases
+(`slab_declared_prescribed_2g`, `…_white_2g`) + one `_FULL_LOSS_BUILDERS` case.
+A partner face is MANDATORY: the zero morphism is metric-blind (`0ᵀ = 0` under
+every metric), so prescribed alone is a provable non-catcher.
+
+#### `[M]` The mutation battery — 66 rows, baseline green
+
+| mutation | reds | reading |
+|---|---|---|
+| `control` — `B.apply` scaled by `\|ψ_trace\|_inf` (NONLINEAR) | **27** | positive control (vv #17); every homogeneity + both base-point rows + every reciprocity case |
+| `affine` — the P3 regression (`+q` inside the operator) | **18** | `B(0)`, `A(0)`, all 8 homogeneity, §3, §0, the 3 NEW reciprocity cases, the P3 trace gate. **The 9 pre-existing reflective reciprocity cases stay GREEN** ⟹ the new ones are attributable |
+| `identity` — `L := I` for prescribed (perfectly LINEAR) | **5** | every linearity row stays green **as predicted**; caught by §0, §3, and the P3 trace gate |
+
+⭐ The `affine` column's **misses** are the informative part: neither
+base-point row reddens, exactly as their docstrings say *in advance*. A
+coverage audit counting them as ERR-075 catchers would have been wrong by two
+rows — `vv` #18 working as intended.
+
+#### ⭐ What the QA pass found that I had missed (and why)
+
+A fresh-context `qa` review of the above returned 8 findings; all were acted on
+in the same commit. The two that generalise:
+
+* ⭐⭐ **My own correction pass left a third falsified claim standing, ~470 lines
+  from one it had just corrected to say the opposite.** The
+  `SNBoundaryOperator` class docstring's re-emission paragraph reads "a diffuse
+  one to the same Lambertian white uses **(not adjointable)**" — `[M]` white,
+  diffuse albedo and specular albedo ALL report `True`. It survived because
+  "white" and "(not adjointable)" sit on ADJACENT lines and my grep was
+  line-based. Sharpest detail: **that paragraph was itself a correction pass** —
+  it ends "it is the enumeration in prose that had to stop naming classes" — and
+  the fix had been applied to the subjects but not to the parenthetical verdicts
+  beside them. Now `vv-principles` **#21**.
+* ⭐⭐ **"+6 rows" over-counted the reciprocity work by 2×.** 3 cases × the
+  module's parametrized consumers = 6 rows, but 3 have bodies that cannot see a
+  boundary law at all: the metric-reference row builds `G` from
+  `volumes`/`weights`/`omega_dot_n` and never reads `sn.bc` (`[M]` bit-identical
+  to `slab_2g`), and the one-hot row zeroes the whole trace block where `B`'s
+  range lives. Green under four mutations. Now `vv-principles` **#20**.
+* ⭐ A third, **#19**: I argued in prose that a metric-loaded partner face is
+  mandatory, then cited the TRUE-metric residual (`1.7e-15`) as evidence it was
+  loaded — the one number that carries zero information about loading. The
+  wrong-metric readings are `2.4e-01` / `1.4e-01`, and the two new cases were
+  never added to the committed wrong-metric control. Fixed both.
+
+Also fixed: a `[M]`-badged false rationale in `test_reemission_closure.py`
+(`LambertianReemission.is_adjointable` is `True`, not `False` — and its early
+return therefore stopped firing, silently taking that test's value leg live); an
+invented `≈ 1.6e-1` regression magnitude that is actually the fixture's
+boundary/interior ratio (true reading `4.3e-2`); a silently-dropped `bc_left` on
+the non-Cartesian arm of `_full_loss_case` (now raises — accepting and ignoring
+a declaration is this campaign's own opening defect); and three nit-level `[M]`
+numbers. Plus one row ADDED, `test_an_all_prescribed_mesh_makes_B_the_zero_morphism`
+— this module's premise for rejecting the MMS fixture was prose only.
+
+⚠ The battery harness broke a **third** time during that review, in the
+reviewer's own hands, the same zsh way (`pytest $VAR` → one bogus path → 0
+collected, exit 0, 0.01 s, reads as "0 caught").
+
+#### Two falsified doc claims fixed on sight (measured, not inferred)
+
+`test_sn_boundary_operator.py`'s header ("the `is_adjointable` conjunction —
+**white would drop it**", from `d7e13164`, 2026-06-03) and
+`SNBoundaryOperator.apply_transpose`'s docstring ("**the white BC has no
+Euclidean transpose**") were both present-tense FALSE: `[M]` a
+`WhiteBoundary()` face reports `is_adjointable = True` and `apply_transpose`
+returns, since B3.4b factored the Lambertian's re-emission. The second
+contradicted `is_adjointable`'s own correct past-tense note **twelve properties
+above it in the same class**. Discriminated by scope, NOT blanket-replaced:
+`RadialCharacteristicBoundaryOperator` (`B_b`) genuinely does defer white — a
+different predicate about the sphere's off-quadrature μ = ±1 ray corner — and
+its wording stands.
 
 ### P6 — promote what P4 hand-rolled into production ⭐ the doctrine's second half
 
@@ -488,7 +611,13 @@ block in §1).
    materialise and solve all succeed; `_reflect_corner` fires only when the
    ray-corner action is *invoked*. The real restriction is `is_adjointable=False`.
 
-### ⭐ P5 — the spec, already measured; do NOT re-derive it
+### ⭐ P5 — ✅ LANDED 2026-08-06. The spec below was RIGHT about the fixture and
+### WRONG about one law; §2's "P5 — as built" block is the record.
+
+⛔ The `B(x+y) = B(x)+B(y)` row it specifies **cannot be written**: the flux
+carrier is an affine space and refuses `flux + flux`. The landed third law is
+base-point independence of the increment. Full account in §2's P5 block; the
+architecture gap it exposed is **#331**.
 
 **The whole point: on the P4 MMS fixture every linearity row is a TAUTOLOGY.**
 Both slab faces are prescribed ⟹ after P3 both realize to the zero morphism ⟹
@@ -575,6 +704,14 @@ is a provable non-catcher. Pair it with a Lambertian/white face.
 6. ⭐ **pyright as architecture-smell detector, again.** Widening the declaration
    source without the axis SINK left 8 new `transport` errors — it found the
    half-done change before any test could.
-7. **A "forbidden to commit" note is a point-in-time snapshot.** The
+7. ⚠ **`docs/theory/verification/matrix.rst` is GENERATED by the Sphinx build,
+   so a commit that adds tests without committing a rebuild leaves it stale —
+   and the staleness is invisible in a green tree.** `[M]` at P5 it was stale by
+   **three** commits (`985497b5`, `c86df8fb`, `30637db7`, all of which added
+   rows): 8774 → 8812 tests, +15 L1 and +23 foundation, five modules missing or
+   under-counted. It reads as an authoritative V&V inventory while under-
+   reporting the coverage that exists. Rebuild Sphinx and `git add` the matrix
+   in the SAME commit as any test addition.
+8. **A "forbidden to commit" note is a point-in-time snapshot.** The
    `vv-principles` prohibition was stale (committed at `34af8474`); verified with
    `git merge-base --is-ancestor` + a content grep before appending ERR-075.

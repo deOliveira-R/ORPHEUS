@@ -5205,15 +5205,75 @@ structurally blind to `B` also delivering it. This is `verification-user-path`
 doctrine landed — the gates travelled part of the user's path and stopped short
 of the solve.
 
-**The catcher.** `tests/sn/solve/test_declared_inflow_reaches_the_rhs.py::
-test_the_declared_boundary_law_holds_on_the_answer[source_iteration|krylov]`
-(`catches("ERR-075")`) — asserts `γ₋ψ|_f == q_f` on the converged answer. The
-boundary condition is a DEFINITION, so the gate needs no reference solver and no
-discretization assumption, and it separates the three outcomes exactly
+**The catchers.** **Six** `catches("ERR-075")` test functions across **three**
+tiers — solve, operator, and MMS — collecting **eight** rows (the two
+solve-tier functions are each parametrized over both inner solvers).
+
+Five of the six were mutation-verified against the EXACT documented bug: a
+pytest plugin that wraps the realizer's prescribed arm so it returns
+`apply(x) = 0·x + 2.5` (reproducing the recorded `|B(0)| = 2.5`) reddens
+**19 of 69** rows over the battery's three modules, and all six of those rows
+are among them. ⚠ The sixth —
+`tests/sn/verification/analytical/test_mms_declared_inflow.py::
+test_the_declared_manufactured_trace_holds_on_the_answer` (campaign phase P4) —
+is **outside the battery's module set** and is therefore claimed on its own
+construction, not on a measured red. Re-run the battery over four modules before
+citing it as mutation-verified.
+
+*Keystone (solve tier).* `tests/sn/solve/test_declared_inflow_reaches_the_rhs.py::
+test_the_declared_boundary_law_holds_on_the_answer[source_iteration|krylov]` —
+asserts `γ₋ψ|_f == q_f` on the converged answer. The boundary condition is a
+DEFINITION, so the gate needs no reference solver and no discretization
+assumption, and it separates the three outcomes exactly
 (`5.0` / `2.5` / `0.0`). Exactness is path-dependent and measured: SI copies the
 source into the slot (bit-exact); Krylov reaches the trace through its iterate
 (18 ULP at 2.5, gated by `assert_array_almost_equal_nulp(nulp=64)` — a ULP budget
 rather than an `rtol`, so it cannot quietly widen into the 1×/2× gap).
+
+*Operator tier (added by campaign phase P5, 2026-08-06)* —
+`tests/sn/operators/test_declared_law_is_linear.py`, on a het-2G GL-8 slab
+declaring `PrescribedInflow` at `xmin` and **reflective** at `xmax` (the partner
+is load-bearing: on an all-prescribed mesh `B` is identically the zero morphism
+and every linearity row is a Mode-8 tautology — measured `|B(x)|_inf = 0.0`
+exactly there).
+
+* `test_an_all_prescribed_mesh_makes_B_the_zero_morphism` — the module's own
+  PREMISE, committed rather than left as prose. On the all-prescribed het-2G
+  slab both blocks read exactly `0.0` and `B.is_adjointable is True`. It exists
+  because the failure is a JOINT one no single module sees: a re-armed
+  prescribed face would give the P4 MMS back its double delivery *and* falsify
+  the operator-tier module's stated reason for using a different fixture, while
+  that module — which deliberately avoids the MMS fixture — stayed green.
+* `test_B_vanishes_at_zero` — `B(0) = 0`. Reads the affine term *directly*,
+  where the keystone reads it only through a converged solve. **The cheapest
+  catcher in the tree**: operator tier, no solve, no iteration budget, the whole
+  module in **0.7 s**. This is the row to re-run first on any realizer edit.
+* `test_the_full_matvec_vanishes_at_zero` — `A(0) = 0` for
+  `A = (L+C) − S − B` off `build_within_group_system`. Adds the *composition*:
+  a leaf's affineness only becomes the solver's problem through `OperatorSum`,
+  and this is the algebraic precondition for GMRES being applicable at all
+  (an affine `A` breaks Arnoldi's `A V_k = V_{k+1} H_k`, which is why the bug
+  raised `ConvergenceCertificateError` at `‖Aψ − q‖/‖q‖ = 1.718` rather than
+  returning a wrong answer).
+* `test_declaring_prescribed_moves_q_and_leaves_the_operator_untouched` — the
+  campaign theorem at the assembled tier: prescribed and vacuum give
+  **bit-identical** `B` *and* `A` (`|Δ|_inf = 0.0` at `|A(ψ)|_inf = 42.685`)
+  while `q_∂` reads `2.5` against vacuum's `0.0`. Both halves are required —
+  without the source half, a channel that dropped the declaration entirely
+  satisfies the first perfectly, which is the campaign's own pre-P2′ state.
+
+**⚠ The honest limit — the shape rows are blind to `L := Identity`.** The
+realizer arm could return a *perfectly linear* wrong operator (identity instead
+of the zero morphism) and `B(0) = 0`, homogeneity, `A(0) = 0` and every
+base-point row stay **green** by construction. Measured: that mutation reddens
+only **6 of 69** rows — the all-prescribed premise row, the fixture's activation
+guard, the theorem row above (which sees it because prescribed then differs from
+vacuum), the two keystone rows, and
+`test_the_two_user_paths_reach_the_same_fixed_point` in the keystone's module.
+**That is why the solve-tier keystone stays the keystone**: it pins the *value*
+the law must deliver, where the operator-tier rows pin the *shape* the operator
+must have. Cite the operator-tier rows for the affine regression and the fast
+feedback loop; cite the keystone for the law.
 
 **⭐ The generalizable lesson — a "it is fenced, so it cannot happen" argument is
 a claim about a CONSUMER and must be measured at the consumer.** Both fences here
