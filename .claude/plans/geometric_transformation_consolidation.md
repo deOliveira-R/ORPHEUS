@@ -31,11 +31,12 @@
 > space mandate, the lengths retirement, and the iteration primitive are
 > **#330**; the seven baseline reds + the owed wide slice are **task
 > #51**'s merge gate.
-> **Read the G6.5 LANDING RECORD (END of file) FIRST** — the census, the
-> two honest narrowings of the G6.5 row, and the §8 behavior-narrowing
-> audit — then the G6.3b closure record, ⏸ COMPACTION POINT #6 (gate
-> costs / red baseline / 7d.3 lessons), §7d.3's record, and the G6
-> design rows :1496 / :1905-1945.
+> **Read ⏸ COMPACTION POINT #7 (END of file) FIRST** — the commit table,
+> the ⏳ qa-review-in-flight triage instruction, and the Q5.1 pick-up
+> hazards — then the G6.5 landing record (census + narrowings + §8
+> audit), the G6.3b closure record, ⏸ #6 (gate costs / red baseline /
+> 7d.3 lessons), §7d.3's record, and the G6 design rows :1496 /
+> :1905-1945.
 >
 > ⏸ #6 → #5 → #4 → #3 → #2 (each additive; #5's 7d.3 items and #4's
 > step-7 items are HISTORY but
@@ -3658,3 +3659,104 @@ record above has the three-stops history).
 - The deck arm REFUSES space-less method spaces since G6.5 — do not
   "fix" the refusal back to the silent unbound path; the refusal is the
   contract.
+
+## ⏸ COMPACTION POINT #7 — track G closed; the session RETURNS TO TRACK Q (Q5.1)
+
+Additive to the G6.5 landing record → the G6.3b closure record → ⏸ #6
+(→ #5 → #4 → #3 → #2). A session picking up cold re-anchors from the
+**status header → this checkpoint → the QUADRATURE plan**
+(`.claude/plans/quadrature_machinery_campaign.md`) — never a summary.
+
+### State
+
+**Branch `refactor/operator-strategy-layers`**, tree clean except the
+three deliberately-uncommitted files (qa agent-memory ×2 and ⛔
+`.claude/skills/vv-principles/SKILL.md` — FORBIDDEN to commit). The
+stretch after #6 landed these commits — verify each with
+`git merge-base --is-ancestor`:
+
+| commit | what |
+|---|---|
+| `bdd5bccc` | G6.3b closed by RECONCILIATION — the flagship gate was already landed (steps 3/8.0/7); the strictly-positive gate's real-reason docstring; plan §3 annotations; plan-authoring §1 widened AGAIN |
+| `754d384e` | the owed wide slice externally stopped a THIRD time → debt reassigned to task #51's merge gate; tee-not-tail lesson |
+| `0d99140c` | **G6.5a** — `AngularFaceTraceSpace.to_local` owns the local↔global map (+ row-order construction guard); `TraceRestrictionOperator.to_local` RETIRED with claim-class test migration; the deck arm REQUIRES the bound spaces (output unconditionally fully bound); row-restricted emission asks the space |
+| `619a873d` | **G6.5b** — `_ORDINATE_AXIS` single-sources the packing contract (parameter removal REFUTED by a measured non-boundary `axis=1` consumer); `TestFacePackingOrderIsBookkeeping` acceptance gate |
+| `a018de9e` | the G6.5 landing record; status header → track G COMPLETE |
+| *(+ this checkpoint commit)* | |
+
+**MEMORY.md distilled 20.4 → 17.3 KB, verified-lossless** (every cut
+ruling grepped in its durable home first; two index-only rulings —
+#327's xfail-strict, track G's certification-reads-one-object —
+RELOCATED into their topic files before the cut). Issue #330 carries
+the tree-wide remainder (3 measured items, commented on the issue).
+
+### ⏳ qa REVIEW OF G6.5 IN FLIGHT AT WRITE TIME
+
+An adversarial qa review of `0d99140c` + `619a873d` (5 dimensions:
+retirement completeness, the refusal's §8 blast radius, the packing
+gate's teeth under in-class mutation, the vv #16 check on the new
+construction guard, prose truth) was dispatched after landing and had
+NOT returned when this checkpoint was written. Its verdict arrives as a
+task notification; incremental findings stream to
+`$CLAUDE_JOB_DIR/tmp/qa_g65_review.md`. **Triage per
+process-discipline — inline-fix now vs cross-session follow-up — before
+any merge activity**, and do NOT attribute the two `cart2d_*` baseline
+reds to the carve. No `[M]` verdict is transcribed here because none
+existed at write time.
+
+### ⛔ READ FIRST for the Q5.1 pick-up
+
+1. ⛔⛔ **THIS PLAN IS DORMANT — Q5.1's definition lives in the
+   QUADRATURE plan** (its per-step landing table is the authority).
+   Per plan-authoring §1-widened: do NOT design Q5.1 from any title in
+   THIS file, the task list, or the memory index — re-derive the scope
+   from the Q plan against the TREE, with one existence-check per
+   deliverable the pointer promises (this stretch's founding lesson:
+   G6.3b's "flagship gate" was already landed when its pointer said to
+   build it).
+2. ⛔ **G-side contracts a Q session must not violate**: the deck arm
+   REFUSES space-less method spaces (the refusal is the contract);
+   `Quadrature.ordinate_permutation` is structurally the only pairing
+   source; `tests/_harness/references.py`'s local `_AXIS_INDEX` is
+   deliberate (vv #22 — the surviving axis-letter cross-check).
+3. ⛔ **The wide slice**: task #51's merge-gate debt; never launch it
+   from this background session (three external stops are the answer);
+   when #51 runs it, `| tee`, never `| tail`.
+4. **Red baseline unchanged**: `[M]` 7 failed / 6163 passed at
+   `39b29b42` (the last full measurement). This stretch's widest run:
+   tests/sn/operators + two numerics batteries = **1301 passed /
+   2 failed** (both the pre-existing `cart2d_*` pair).
+
+### Gate costs
+
+| gate | cost `[M]` this stretch |
+|---|---|
+| tests/sn/operators + test_angular_face_trace_space + test_trace_restriction_operator | ≈ 25 s |
+| sphinx `-W` incremental | ≈ 1 min |
+| pyright ratchet | ≈ 30 s |
+| `tools/check_docstring_xrefs.py orpheus tests docs` | fast; DEAD TARGETS 0 |
+
+### ⭐⭐ Durable lessons of the #6→#7 stretch
+
+1. ⭐⭐ **A resume pointer owes one EXISTENCE-CHECK per deliverable it
+   promises**, not only one grep per symbol it names — the deliverable
+   is usually a concept (plan-authoring §1, widened twice; the G6.3b
+   inversion is the founding instance; caught by the mandated §7.2 tree
+   re-derivation at zero implementation cost).
+2. ⭐⭐ **A step-row's verb is a HYPOTHESIS about consumers.** "Boundary
+   operators stop carrying `axis=`" read as parameter removal until one
+   grep found a live non-boundary `axis=1` consumer — the honest fix
+   was single-sourcing the VALUE, not removing the parameter. Grep the
+   parameter's other uses before reading a row as an API change.
+3. ⭐ **Hardening a degraded path is a §8 event with a fixed shape**:
+   census the path's success-consumers (here: zero), RE-POSE the pin
+   that documented the degradation as the refusal pin, and PRESERVE its
+   positive-control half off the retired path (the unbound-square
+   control moved onto a directly-built `PermutationOperator`).
+4. ⭐ **The killed-slice protocol, confirmed a third time** — and a
+   killable long gate streams through `tee` so a stop preserves the
+   partial transcript (the `tail` pipe preserved zero bytes).
+5. ⭐ **Distillation displaces unless verified**: the index's fattest
+   line was the distiller's own close-out; the lossless cut is
+   grep-verify-in-durable-home first, RELOCATE index-only rulings, then
+   trim.
