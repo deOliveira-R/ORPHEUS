@@ -51,6 +51,7 @@ surprises cost to hit.
 | 2026-08-06 | A plan split one signature change into three steps. Step 2 was unlandable alone: the retired probe was one of the two call sites of the signature being changed. | §6b |
 | 2026-08-06 | A step was scoped as an *enabler* ("the binding is metadata, not enforcement"). The field was read by a consumer that BRANCHES on `is None`, so populating it moved a production adjoint by 87 %. | §8 |
 | 2026-08-07 | A table captioned "checked against every shipped law" mixed five MEASURED rows with one ASPIRATIONAL one. The step planned against it recorded the concept's own diagnosis as a blocker. | §2 |
+| 2026-08-07 | A RESUME POINTER (task subject + plan header + both memory surfaces) said "absorb `AngularAverageOperator.apply_transpose`" — a mechanism a landed step of the SAME campaign had dissolved 3 days earlier (the operator was retired; its factoring made the transpose a theorem). The close-out that wrote the pointer reconciled ITS OWN step against the tree (§7.2) but copied the NEXT step's title from the frozen task list. Caught by the user asking what the operator was; the grep answered "nothing — it is gone". | §1 (widened) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -90,6 +91,17 @@ hand-rolled spec into production.
   mechanism; "X is expressible without smuggling" is an outcome. If the title
   contains a verb that names an edit (*move*, *promote*, *rename*, *extract*),
   ask what the edit is FOR and title that instead.
+- ⭐ **This governs EVERY resume pointer, not only phase titles**: task-list
+  subjects, "▶ RESUMES AT" header lines, memory-index hooks. They are the same
+  highest-leverage class (they survive summarisation intact), and they rot the
+  same way — worse, because a close-out session copies them forward VERBATIM
+  from the frozen task list without re-reconciling them against the tree
+  (2026-08-07: "absorb `AngularAverageOperator.apply_transpose`" was
+  propagated into three surfaces the same day, naming an operator retired
+  three days earlier — the mechanism it promised had been dissolved by the
+  campaign's own step 3b, and only a user question exposed it). When writing
+  a pointer at the NEXT step, apply §7.2 to THAT step's named objects too:
+  one grep per symbol the pointer names, before the pointer ships.
 - A means proposed before the investigation is a **hypothesis**. Label it, date
   it, and say it is unverified. An unlabelled means reads as a decision.
 - **Done-when is a checkable predicate**, not a feeling. Prefer one that a

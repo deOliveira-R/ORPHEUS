@@ -24,10 +24,12 @@
 > link has one honest transpose, so the deferral DISSOLVED; re-derive
 > the remaining scope from the tree per §7.2 before designing), then
 > G6.5 — and track G is done, unblocking Q5.1.
-> **Read ⏸ COMPACTION POINT #5 (END of file) FIRST, then §7h.6's landing
-> banner + its §7d block (incl. the 7d.3 landing record).**
+> **Read ⏸ COMPACTION POINT #6 (END of file) FIRST — it carries the
+> G6.3b hazards, the owed wide slice, and the six-commit table — then
+> §7d.3's landing record and the G6 design rows :1496 / :1905-1945.**
 >
-> ⏸ #5 → #4 → #3 → #2 (each additive; #4's step-7 items are HISTORY but
+> ⏸ #6 → #5 → #4 → #3 → #2 (each additive; #5's 7d.3 items and #4's
+> step-7 items are HISTORY but
 > its gate costs and lessons stand). #3 covers what changed under track G
 > *while G was paused* (the Γ ladder grew a `directions` field; the
 > `level_symmetric` weights changed and the family now REFUSES above S12) —
@@ -3293,3 +3295,148 @@ batteries', and this one).
    lines + 21 doc mentions" were three DIFFERENT greps, each correct for
    its pattern and scope. State what was counted, or the next reader
    plans against the wrong magnitude.
+
+## ⏸ COMPACTION POINT #6 — step 7 CLOSED; track G resumes at G6.3b (the flagship metric gate)
+
+Additive to #5 (→ #4 → #3 → #2). #5's 7d.3 items are HISTORY — the
+retirement it scoped is fully landed — but its cold-session hazards about
+the DELETED table now read as "do not resurrect", and its gate costs and
+lessons stand. A session picking up cold re-anchors from the **status
+header → this checkpoint → §7d.3's landing record → the plan's G6 rows
+:1496 and :1905-1945** (the G6.3b design inputs), never a summary.
+
+### State
+
+**Branch `refactor/operator-strategy-layers`, HEAD `93e71172`, tree clean
+except three deliberately-uncommitted files** (qa agent-memory ×2 and ⛔
+`.claude/skills/vv-principles/SKILL.md` — the FORBIDDEN-to-commit file,
+whose working delta now contains BOTH the user's edits AND qa's 35-line
+anti-pattern **#22**; never commit it). The stretch after #5 landed SIX
+commits — verify each with `git merge-base --is-ancestor`:
+
+| commit | what |
+|---|---|
+| `c7ca338e` | 7d.3a — surviving test tier off the table, BY CLAIM CLASS (reference gates → `tests/_harness/references.py::mirror_partner_indices`; production-datum gates → production's exact expression); the sweep-tier refusal pin minted (`"cannot seed the r = 0 pole"`, previously UNPINNED) |
+| `b5ac130e` | 7d.3b — the table DELETED (`reflection_index`, the `reflection_partners` FIELD, `_compute_sphere_reflection_partners`, GL1D closed form, `_resolve_axis_to_index`); Q4 gates re-posed; oracle class deleted per its own docstring; equation node re-posed `quadrature-ordinate-permutation`; 8 doc pages + `_errors.py` migrated. Net −97 lines |
+| `fc5c7a67` | qa's eight prose-truth findings fixed; the specular-response independence claim honestly NARROWED with the measurement |
+| `1b6beb86` | plan: the §7d.3 landing record, incl. the owed-wide-slice statement |
+| `93e71172` | the G6.3b resume pointer's STALE MECHANISM TITLE corrected (plan-authoring §1 widened + surprise-log row) |
+| *(+ this checkpoint commit)* | |
+
+Issue **#334** filed (file-level `verifies` lists over-credit equation
+coverage — qa informational, pre-existing).
+
+### ⛔⛔ READ FIRST — what a cold session would get wrong about G6.3b
+
+1. ⛔⛔ **G6.3b is the flagship metric gate ONLY.** Its original "absorb
+   `AngularAverageOperator.apply_transpose`" half is DISCHARGED: that
+   operator was retired at step 3b (2026-08-04, #330), factored into
+   `IsotropicEmissionOperator @ PartialCurrentOperator`
+   (`orpheus/sn/boundary/angular.py`) where each link has one honest
+   transpose and the composite adjoint falls out by composition. Grep
+   `AngularAverageOperator` — every hit is past-tense. Re-derive the
+   gate's scope from the TREE (§7.2): read `angular.py`'s module
+   docstring, plan rows :1496 (the vv #12 rationale — "without it the
+   flagship gate can only run on a stand-in") and :1905-1945 (the
+   factored-adjoint payoff + the G6.1 strictly-positive-metric gate as
+   its precondition). Design anchors that EXIST: the periodic metric
+   row (`test_sn_boundary_realizer.py::test_the_PERIODIC_metric_agrees_across_the_pair`
+   — weights bit-exact, `.H`-vs-transpose at `nulp=4`, the FP-non-
+   associativity mechanism documented) is the deck-tier sibling of what
+   the Lambertian tier needs; ERR-067 ("the G-metric is a free parameter
+   no eigenvalue gate can see") is the failure class the gate exists for.
+2. ⛔⛔ **The wide slice is OWED as G6.3b's landing gate.** The last
+   MEASURED wide slice is **7 failed / 6163 passed at `39b29b42`**
+   (pre-7d.3, 21:41). At `b5ac130e`..HEAD it was launched twice and
+   externally stopped twice — NOT measured; §7d.3's landing record
+   carries the in-lieu evidence (touched batteries 4231/3 — exactly the
+   three of the seven baseline reds reachable in those dirs; the other
+   four (3× affine sha256 #333 · diamond spherical_inward) were NOT
+   re-run this stretch) labelled as EXPECTATION. Run the full slice
+   before or with G6.3b's landing; expect the same pre-existing seven.
+3. ⛔ **The reflection table is GONE — do not resurrect.** Production and
+   tests read `Quadrature.ordinate_permutation(motion)` (structurally
+   the only source). The independent TEST reference is
+   `tests/_harness/references.py::mirror_partner_indices` — its local
+   `_AXIS_INDEX` is DELIBERATE (vv #22: it is the only surviving
+   cross-check of the axis-letter→normal convention; importing
+   `AXIS_NAMES` there would close it silently).
+4. ⛔ **The killed-slice protocol** (this stretch's precedent): a
+   background gate externally stopped twice is closed out HONESTLY —
+   record not-measured, cite in-lieu evidence as expectation, assign the
+   measurement forward — never relaunch a third time against a possible
+   deliberate stop, and NEVER write a `[M]` line from an output that
+   does not exist (a forward-written slice count was caught and
+   stripped before commit this stretch).
+5. **Memory surfaces are current and consistent**: MEMORY.md index line
+   + topic file both say "resumes at G6.3b — the flagship metric gate"
+   with the stale-title ⛔ and the owed-slice ⚠. The index is at
+   ~19.5 KB nearing its 24.4 KB cap — a fuller per-owner distillation
+   pass is QUEUED follow-up (only the track-G line was trimmed this
+   stretch; other owners' lines need lossless-cut verification first).
+6. **After G6.3b**: G6.5 (traversal onto the trace spaces), then track G
+   is DONE and Q5.1 unblocks (the carve-out condition). The seven
+   baseline reds are tasks #51/#33/#333's business — unchanged all
+   stretch.
+
+### Red baseline
+
+`[M]` last measured wide slice: **7 failed / 6163 passed** at `39b29b42`
+(21:41) — 2× `cart2d_*_principled_equiv` · 3× `test_affine_carve_bit_identity`
+sha256 (#333) · 1× `test_diamond spherical_inward` · 1×
+`WhiteXminPartial03GLSnapshot` (#33). This stretch: NOT re-measured wide
+(two external stops — hazard 2 above); `[M]` touched batteries at
+`b5ac130e` = 4231 passed / 3 failed (the three reachable baseline reds),
+sweep/mms trio 29 passed / 7 xfailed (#326), qa's independent baseline
+331 passed / 1 xfailed on the seven reference files.
+
+### Gate costs
+
+| gate | cost |
+|---|---|
+| wide slice | 17:30–21:41 measured historically; UNCONTENDED only — foreground batteries alongside stretch it past 60 min (this stretch, killed before completing) |
+| tests/numerics + geometry + sn/operators + sn/primitives + acyclicity + coupled-pole | 5:33 (measured UNDER background-slice contention; expect less clean) |
+| sphinx `-W` incremental | ≈1 min |
+| pyright ratchet | ≈16 s |
+| `tools/check_docstring_xrefs.py orpheus tests docs` | DEAD TARGETS 0 |
+
+### ⭐⭐ Durable lessons of the 7d.3 stretch
+
+1. ⭐⭐ **Independence has TWO axes — derivation and INPUT resolution**
+   (qa-minted vv-principles **#22**). The specular-response cross-check
+   kept independent derivations, but both sides came to consume ONE
+   `SelfPairedDeck.mirror(axis).motion`: `[M]` an axis-letter swap left
+   it all-green while 78 sibling gates red. Single-sourcing an input
+   closes a convention cross-check SILENTLY; the fix was narrowing the
+   claim + keeping the reference helper's axis map deliberately local.
+2. ⭐⭐ **A retirement's test migration is claim-class TRIAGE, one
+   retirement, two opposite correct answers**: reference gates must get
+   an INDEPENDENT datum (re-pointing them at production's source is the
+   rewire-demotion — every one becomes production-vs-itself), while
+   production-datum gates must get production's EXACT expression (an
+   independent lookalike would gate nothing production reads). `[M]` qa's
+   in-class mutation: 21/21 reference gates red, none self-comparing.
+3. ⭐ **The CONCEPT grep out-catches the symbol grep — grep every
+   SPELLING of the concept, not the symbol's**: two rounds in one
+   retirement ("reflection-index table" hyphenated prose in
+   `_errors.py`; "reflection-partner map" ×3 INSIDE the gutted package).
+   No build severity renders those modules; grep was the only gate, and
+   the symbol grep alone would have shipped four present-tense
+   falsehoods.
+4. ⭐ **§1 governs every RESUME POINTER** (plan-authoring widened + the
+   surprise-log row): a close-out copies the next step's title verbatim
+   from the frozen task list — reconcile the pointer's named objects
+   against the tree (one grep per symbol) before it ships. The
+   propagation was same-day into THREE surfaces; a user question, not
+   the protocol, caught it.
+5. ⭐ **A `[M]` line is a TRANSCRIPTION, never a forecast**: results are
+   written only from outputs that exist. The checkpoint protocol's
+   "PENDING AT WRITE TIME" idiom is the honest placeholder; this stretch
+   proved both halves (a forward-written slice count stripped before
+   commit; the killed slice recorded as not-measured and assigned
+   forward rather than papered over).
+6. ⭐ **A symbol retirement's two-commit shape**: consumers first (tree
+   green, the old path still self-gated), then deletion + its own gates
+   + docs + label TOGETHER (the xref/verifies gates red between —
+   §6b's call-site-set discipline applied to code, Sphinx labels, and
+   `verifies` strings alike).
