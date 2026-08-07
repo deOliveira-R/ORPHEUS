@@ -896,3 +896,123 @@ def test_the_inflow_directions_all_point_INWARD(quad_name):
     assert np.all(mu_x_max < 0.0), (
         f"[{quad_name}] Γ₋(xmax) carries a direction with μ_x ≥ 0"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The local↔global map — the SPACE owns its row order (G6.5)
+# ─────────────────────────────────────────────────────────────────────
+#
+# Migrated from ``TraceRestrictionOperator``'s battery when the method moved
+# (G6.5): the remap's claims are about the SUBSPACE's embedding, so they
+# re-home with it. The operator's file keeps the gates of what the operator
+# still owns (gather, scatter, guards, spaces).
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_to_local_inverts_the_ordinate_index_set(quad_name):
+    """``ordinate_indices[to_local(g)] == g`` — the remap's defining property.
+
+    ``g`` is deliberately NOT ascending: the map must answer in the caller's
+    request order, not in the space's storage order.
+    """
+    space = _trace(quad_name).inflow_space("xmin")
+    idx = np.asarray(space.ordinate_indices)
+    g = idx[np.array([idx.size - 1, 0, idx.size // 2])]
+    assert np.array_equal(idx[space.to_local(g)], g)
+
+
+def test_to_local_is_not_arange_when_the_subset_is_not_a_prefix():
+    r"""The N8 trap, pinned: ``arange(g.size)`` is right in 1-D and wrong in 2-D.
+
+    A 1-D face's selected rows happen to be a prefix of the index set, so the
+    naive remap agrees and every 1-D gate stays green. A 2-D face's do not.
+    Stated on the 2-D index shape directly (a hand-built tier — exactly what
+    the construction guards exist for) so it does not depend on a mesh
+    fixture that could drift out of the regime.
+    """
+    inflow = np.array([2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23])
+    space = AngularFaceTraceSpace(
+        name="angular_trace[xmin:inflow]",
+        shape=(inflow.size, 2),
+        inner_product_weights=np.ones(inflow.size),
+        face="xmin",
+        role="inflow",
+        ordinate_indices=inflow,
+        directions=np.zeros((inflow.size, 3)),
+    )
+    lower_half = np.array([6, 7, 14, 15, 22, 23])     # NOT a prefix of `inflow`
+    got = space.to_local(lower_half)
+    assert np.array_equal(inflow[got], lower_half)
+    assert not np.array_equal(got, np.arange(lower_half.size)), (
+        "the naive `arange` remap agreed here — this fixture no longer "
+        "discriminates, and the 2-D index bug it exists to catch is unpinned"
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+def test_to_local_refuses_a_row_of_the_wrong_tier(quad_name):
+    """Crossing two index sets is a caller error, not a silent zero.
+
+    The production shape of the mistake (ERR-045): an OUTFLOW ordinate asked
+    of the INFLOW tier. The two halves are disjoint on every face, so any
+    outflow row is a legal probe.
+    """
+    trace = _trace(quad_name)
+    inflow = trace.inflow_space("xmin")
+    outflow_row = np.asarray(trace.outflow_space("xmin").ordinate_indices)[:1]
+    with pytest.raises(ValueError, match="are not ordinates of"):
+        inflow.to_local(outflow_row)
+
+
+def test_the_row_order_contract_is_guarded_at_construction():
+    """Sorted, unique, one entry per row — refused, not documented-and-hoped.
+
+    ``to_local`` searchsorts ``ordinate_indices``; an unsorted array would
+    return silently WRONG positions, not raise — so the invariant the class
+    docstring states is enforced where instances are born (``vv-principles``
+    #14: assert the named structure or weaken the claim).
+    """
+    def build(indices, n_rows=None):
+        indices = np.asarray(indices)
+        n = indices.size if n_rows is None else n_rows
+        return AngularFaceTraceSpace(
+            name="angular_trace[xmin:inflow]",
+            shape=(n, 2),
+            inner_product_weights=np.ones(n),
+            face="xmin",
+            role="inflow",
+            ordinate_indices=indices,
+            directions=np.zeros((n, 3)),
+        )
+
+    with pytest.raises(ValueError, match="sorted ascending and unique"):
+        build([3, 1, 5])                      # unsorted
+    with pytest.raises(ValueError, match="sorted ascending and unique"):
+        build([1, 3, 3])                      # duplicate
+    with pytest.raises(ValueError, match="one entry per leading-axis row"):
+        build([1, 3], n_rows=5)               # length ≠ shape[0]
+    build([1, 3, 5])                          # PC⁺: the legal form constructs
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+@pytest.mark.parametrize("role", ["outflow", "inflow"])
+def test_the_restriction_and_the_space_carry_ONE_index_set(quad_name, role):
+    """``γ±.indices == Γ±.ordinate_indices`` — elementwise, not just in length.
+
+    The operator's construction guard cross-checks the space only by EXTENT,
+    so an elementwise divergence (the gather reading different rows than the
+    space claims to carry) would be silent there. On the canonical builder
+    path both derive from one computation; this gate is what keeps that a
+    fact rather than an intention.
+    """
+    trace = _trace(quad_name)
+    gamma = (
+        trace.outflow_restriction if role == "outflow"
+        else trace.inflow_restriction
+    )("xmin")
+    space = (
+        trace.outflow_space if role == "outflow" else trace.inflow_space
+    )("xmin")
+    np.testing.assert_array_equal(
+        np.asarray(gamma.indices), np.asarray(space.ordinate_indices)
+    )

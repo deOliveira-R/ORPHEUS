@@ -39,17 +39,20 @@ suffices for the two laws below.
   it, because those rows are no longer in the operator's domain.
 * :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
   ``albedo * PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
-  where ``local_perm = γ₊.to_local(π⁻¹[inflow])`` and :math:`\pi` is the
+  where ``local_perm = Γ₊(f').to_local(π⁻¹[inflow])`` and :math:`\pi` is the
   ordinate permutation the law's own MIRROR MOTION induces
   (:func:`_deck_kernel` →
   :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
   G6.3 step 7 — before which this row keyed the certified axis table by
   letter while the deck slot's motion went unread) — row :math:`j` of the
   image reads the mirror of the :math:`j`-th inflow ordinate, at that
-  ordinate's position inside :math:`\Gamma_+`. (The remap must go through
-  ``to_local``: on a slab the mirror REVERSES order, so a hand-written
-  ``arange`` is wrong there — see the ``TraceRestrictionOperator``
-  docstring.) The ``albedo=1.0`` fast path returns the bare
+  ordinate's position inside :math:`\Gamma_+`. (The remap is the half-trace
+  SPACE's
+  :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`
+  — G6.5: the space owns its row order — and it is mandatory: on a slab the
+  mirror REVERSES order, so a hand-written ``arange`` is wrong there. The
+  deck arm consequently REQUIRES the bound domain space, so its output is
+  always fully bound.) The ``albedo=1.0`` fast path returns the bare
   :class:`PermutationOperator` TP.
 * :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
   ``albedo * (IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))``
@@ -166,6 +169,7 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.face_layout import AXIS_NAMES, face_name
 from orpheus.numerics.spaces.angular_trace_space import (
     TANGENTIAL_EPS,
+    AngularFaceTraceSpace,
     build_omega_dot_n,
 )
 from orpheus.numerics.operator import (
@@ -430,7 +434,8 @@ def _attenuated_kernel_operator(
        function discards it. That is deliberate, and it is not the
        compute-then-discard pattern this campaign removes: what is kept is the
        **construction's validation**, not its value. Building the specular
-       kernel runs ``γ₊.to_local``, which refuses a mirror that sends an inflow
+       kernel runs the domain space's ``Γ₊.to_local`` (G6.5), which refuses a
+       mirror that sends an inflow
        ordinate outside :math:`\Gamma_+` (ERR-045 at realization). Skipping it
        would make *realizability itself* depend on the amplitude — a law that
        refuses at :math:`\alpha = 0.001` and is accepted at :math:`\alpha = 0`
@@ -476,8 +481,9 @@ def _deck_kernel(
     convention :math:`h(\Omega_i) = \Omega_{\pi(i)}`), row :math:`j` of the
     narrowed operator therefore gathers ordinate
     :math:`\pi^{-1}(\mathrm{inflow}[j])` — at that ordinate's position
-    INSIDE :math:`\Gamma_+(f')`, which is exactly what ``γ₊.to_local``
-    computes and what a hand-written ``arange`` would get wrong (on a slab
+    INSIDE :math:`\Gamma_+(f')`, which is exactly what the half-trace
+    space's ``Γ₊(f').to_local`` computes (G6.5 — the space owns its row
+    order) and what a hand-written ``arange`` would get wrong (on a slab
     the mirror REVERSES order).
 
     ⚠ **The inverse is load-bearing only for the latent case, so it is
@@ -561,6 +567,29 @@ def _deck_kernel(
             f"tangential band has swallowed ordinates asymmetrically.",
             law=law_key,
         )
+    # G6.5 — the deck arm REQUIRES the bound half-trace spaces. The local
+    # row order of the pairing is the SPACE's own (`Γ₊.to_local`), and the
+    # returned arrow is always fully bound Γ₊(f') → Γ₋(f); a method space
+    # that names index sets but stands up no spaces cannot pose either
+    # half. Placed AFTER the size check so a lopsided-but-spaceless pair
+    # still gets the sharper BIJECTION diagnosis first.
+    trace, face = method_space.trace, method_space.face
+    gamma_plus = gamma_out_domain.codomain
+    if (
+        not isinstance(gamma_plus, AngularFaceTraceSpace)
+        or trace is None
+        or face is None
+    ):
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot realize the deck pairing for "
+            f"{law_key!r} without the bound half-trace spaces: since G6.5 "
+            f"the local row order of the pairing is the space's own "
+            f"(Γ₊ answers to_local) and the deck arrow is returned fully "
+            f"bound, so index sets alone cannot pose either half. "
+            f"Construct via SNMethodSpace.for_face(quadrature=..., "
+            f"face=..., trace=...).",
+            law=law_key,
+        )
     pi = quadrature.ordinate_permutation(motion)
     if pi is None:
         raise BoundaryError(
@@ -575,44 +604,38 @@ def _deck_kernel(
             f"e.g. an odd-n_phi product rule has no x-mirror closure.",
             law=law_key,
         )
-    # ``to_local`` raises if the pairing sent an inflow ordinate anywhere
-    # but Γ₊(f') — the ERR-045 violation, caught here as a crossed-index-set
-    # error rather than as silent wrong physics. It stays the SINGLE
-    # authority on that index question (no second membership test here to
-    # drift from it); what this body adds is the semantic diagnosis the
-    # caller supplied, so a consumer gets an attributed BoundaryError in the
-    # law's own vocabulary rather than a raw index complaint from a helper
-    # it never called. (For periodic this check plus the size check above
+    # The SPACE answers the local-index question (G6.5): ``Γ₊.to_local``
+    # raises if the pairing sent an inflow ordinate anywhere but Γ₊(f') —
+    # the ERR-045 violation, caught here as a crossed-index-set error rather
+    # than as silent wrong physics. The space stays the SINGLE authority on
+    # that index question (no second membership test here to drift from
+    # it); what this body adds is the semantic diagnosis the caller
+    # supplied, so a consumer gets an attributed BoundaryError in the law's
+    # own vocabulary rather than a raw index complaint from a helper it
+    # never called. (For periodic this check plus the size check above
     # ARE the B3.4c quotient certification Γ₊(f') ≡ Γ₋(f) — executed by the
     # construction instead of pre-asserted beside it.)
     try:
-        local_perm = gamma_out_domain.to_local(pi.inverse().indices[inflow])
+        local_perm = gamma_plus.to_local(pi.inverse().indices[inflow])
     except ValueError as exc:
         raise BoundaryError(
             f"{crossed_diagnosis} Underlying: {exc}",
             law=law_key,
         ) from exc
 
-    # Bind the single link to the Γ ladder when the method space carries a
-    # trace — the canonical `SNMethodSpace.for_face` path always does. A
-    # hand-built space may not, and binding stays OPTIONAL until the
-    # tree-wide mandate (#330): an unbound permutation gathers the same
-    # rows, it just forfeits the composability check and the metric-aware
-    # `.H`. The DOMAIN space is read off ``gamma_out_domain``'s own codomain
-    # (bound by whoever built the restriction — re-deriving it here would be
-    # a twin source for one fact, the `_narrowed_zero_operator` argument);
-    # the CODOMAIN is the installation face's Γ₋.
-    trace, face = method_space.trace, method_space.face
-    gamma_minus = (
-        trace.inflow_space(face)
-        if trace is not None and face is not None
-        else None
-    )
+    # Bind the single link to the Γ ladder. The G6.5 guard above makes the
+    # deck arm's output unconditionally FULLY bound — composability check
+    # live, ``.H`` metric-aware — where it used to degrade silently on a
+    # trace-less space. The DOMAIN space is read off ``gamma_out_domain``'s
+    # own codomain (bound by whoever built the restriction — re-deriving it
+    # here would be a twin source for one fact, the
+    # `_narrowed_zero_operator` argument); the CODOMAIN is the installation
+    # face's Γ₋.
     return PermutationOperator(
         local_perm,
         axis=0,
-        domain=gamma_out_domain.codomain,
-        codomain=gamma_minus,
+        domain=gamma_plus,
+        codomain=trace.inflow_space(face),
     )
 
 

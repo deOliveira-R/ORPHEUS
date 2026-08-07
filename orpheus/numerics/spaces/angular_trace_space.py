@@ -850,5 +850,73 @@ class AngularFaceTraceSpace(FunctionSpace):
     #: so a source handed only a SHAPE can express nothing angular.
     directions: NDArray = field(kw_only=True, repr=False, compare=False)
 
+    def __post_init__(self) -> None:
+        """Make the documented row-order contract REAL, not implied.
+
+        ``ordinate_indices`` is documented "Sorted and unique", and
+        :meth:`to_local` searchsorts it — an unsorted array would return
+        silently wrong positions, not raise. So the invariant is guarded at
+        construction (``vv-principles`` #14: a docstring that names a
+        structure the body only implies must either assert it or weaken).
+        The canonical builder (:attr:`AngularTraceSpace._face_spaces`)
+        satisfies all three by construction; the guards exist for the
+        hand-built case the class docstring already discourages.
+        """
+        idx = np.asarray(self.ordinate_indices)
+        if idx.ndim != 1 or idx.size != int(self.shape[0]):
+            raise ValueError(
+                f"AngularFaceTraceSpace {self.name!r}: ordinate_indices must "
+                f"be 1-D with one entry per leading-axis row; got shape "
+                f"{idx.shape} against space shape {self.shape}."
+            )
+        if idx.size and (
+            np.unique(idx).size != idx.size or not np.all(idx[1:] > idx[:-1])
+        ):
+            raise ValueError(
+                f"AngularFaceTraceSpace {self.name!r}: ordinate_indices must "
+                f"be sorted ascending and unique — row order IS the space's "
+                f"contract, and to_local searchsorts this array. Got {idx!r}."
+            )
+
+    def to_local(self, global_rows: NDArray) -> NDArray:
+        r"""Map face-slot ordinate indices to their row positions in THIS tier.
+
+        For ``g`` a subset of :attr:`ordinate_indices`, returns ``p`` with
+        ``ordinate_indices[p] == g`` — the local↔global index map, owned by
+        the space because the embedding data is the space's
+        (:attr:`ordinate_indices`; "row order is the contract"). Moved here
+        from ``TraceRestrictionOperator.to_local`` at G6.5: the operator is
+        the *arrow* :math:`\gamma_\pm`, but which global row sits where is a
+        fact about the SUBSPACE, and every consumer of a narrowed trace needs
+        it — the deck kernel to read a full-space permutation between two
+        half-traces, a row-restricted emission to place a subset of
+        :math:`\Gamma_-`.
+
+        Owning it here is what makes the classic slip unspellable: the naive
+        ``arange(g.size)`` is exactly correct when ``g`` happens to be a
+        PREFIX of the index set — the 1-D slab case — and silently wrong in
+        2-D, where a call site that hand-rolled the remap would be gated only
+        by end-to-end solves.
+
+        Raises
+        ------
+        ValueError
+            If any requested row is not an ordinate of this tier — i.e. two
+            different index sets were crossed (an inflow row asked of an
+            outflow tier), the ERR-045 shape.
+        """
+        g = np.asarray(global_rows, dtype=np.intp)
+        idx = np.asarray(self.ordinate_indices, dtype=np.intp)
+        outside = g[~np.isin(g, idx)]
+        if outside.size:
+            raise ValueError(
+                f"AngularFaceTraceSpace.to_local: row(s) "
+                f"{np.unique(outside).tolist()} are not ordinates of "
+                f"{self.name!r}, so they have no position in its row order. "
+                f"This usually means two different index sets were crossed "
+                f"(an inflow row asked of an outflow tier)."
+            )
+        return np.searchsorted(idx, g)
+
     def __repr__(self) -> str:
         return f"AngularFaceTraceSpace({self.name!r}, shape={self.shape})"

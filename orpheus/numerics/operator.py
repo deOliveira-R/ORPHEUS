@@ -2572,15 +2572,15 @@ class TraceRestrictionOperator(LinearOperator):
     Guards, and what each one prevents
     ----------------------------------
 
-    **Sorted** is not tidiness — it is what makes :meth:`to_local` correct.
-    Remapping a subset of global rows into positions within the restricted
-    space is ``searchsorted(indices, sel)``, which *requires* a sorted
-    haystack. The naive alternative ``arange(sel.size)`` is **exactly
-    correct in 1-D and wrong in 2-D** (in 1-D the selected rows happen to
-    be a prefix of the index set; in 2-D they are not), so a call site that
-    spelled it by hand would be gated only by 2-D end-to-end solves. Owning
-    both the guard and the remap here makes that whole failure mode
-    unspellable rather than merely tested for.
+    **Sorted** is canonical form, and it is load-bearing one tier up: the
+    local↔global remap (``to_local``) lives on the half-trace SPACE since
+    G6.5 — the embedding data is the space's — and its ``searchsorted``
+    haystack is, on the canonical trace-builder path, this SAME array. One
+    ascending spelling per subspace means the gather, the space's row
+    order, and the metric restriction are three views of one selection
+    that cannot drift. (The 1-D-prefix-vs-2-D lesson that used to justify
+    the remap living here travels with it — see
+    :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`.)
 
     **Unique** because a repeated row is not a restriction — the transpose
     would silently drop all but one contribution, and the pair would stop
@@ -2617,11 +2617,16 @@ class TraceRestrictionOperator(LinearOperator):
         ⭐ **Checked against** ``n_total`` **and** ``indices`` **at
         construction**, so the space and the length cannot disagree. That
         matters because they are redundant *today*: ``n_total`` /
-        :attr:`n_restricted` are lengths standing where a space belongs, and the
-        guard is what keeps the duplication honest until G6.5 retires them in
-        favour of the spaces. A binding that contradicts its own lengths is the
-        one failure this class cannot detect any other way — the shapes still
-        broadcast, so the wrong answer would be silent.
+        :attr:`n_restricted` are lengths standing where a space belongs, and
+        the guard is what keeps the duplication honest until the tree-wide
+        mandate (#330) retires them in favour of MANDATORY spaces. (G6.5,
+        2026-08-07, measured why the retirement cannot land sooner: binding
+        is optional this era, and the trace-less arm must still name its
+        extent. What G6.5 did move is the local↔global remap — ``to_local``
+        now lives on the half-trace space, where the index data does.) A
+        binding that contradicts its own lengths is the one failure this
+        class cannot detect any other way — the shapes still broadcast, so
+        the wrong answer would be silent.
     """
 
     def __init__(
@@ -2656,8 +2661,9 @@ class TraceRestrictionOperator(LinearOperator):
         if idx.size > 1 and not np.all(idx[1:] > idx[:-1]):
             raise ValueError(
                 "TraceRestrictionOperator indices must be SORTED ascending — "
-                "`to_local` remaps via `searchsorted`, which requires it. Got "
-                f"{idx!r}; pass `np.sort(indices)`."
+                "one canonical spelling per subspace, matching the half-trace "
+                "space's own row order (whose `to_local` searchsorts the same "
+                f"array). Got {idx!r}; pass `np.sort(indices)`."
             )
         self.indices = idx
         self.n_total = n_total
@@ -2722,33 +2728,10 @@ class TraceRestrictionOperator(LinearOperator):
         out[tuple(sel)] = x
         return out
 
-    def to_local(self, global_indices: np.ndarray) -> np.ndarray:
-        r"""Map global row indices to their positions in the restricted space.
-
-        For ``g`` a subset of :attr:`indices`, returns ``p`` with
-        ``self.indices[p] == g``. This is the remap every consumer of a
-        narrowed trace needs, and it lives here so that no call site can
-        reach for ``arange(g.size)`` — correct only when ``g`` happens to be
-        a prefix of the index set, which is the 1-D case and not the 2-D one.
-
-        Raises
-        ------
-        ValueError
-            If any requested row is not in this restriction's index set —
-            i.e. the caller asked for the position of something this
-            operator does not carry.
-        """
-        g = np.asarray(global_indices, dtype=np.intp)
-        outside = g[~np.isin(g, self.indices)]
-        if outside.size:
-            raise ValueError(
-                f"TraceRestrictionOperator.to_local: row(s) "
-                f"{np.unique(outside).tolist()} are not in this restriction's "
-                f"index set, so they have no position in the restricted "
-                f"space. This usually means two different index sets were "
-                f"crossed (an inflow row asked of an outflow restriction)."
-            )
-        return np.searchsorted(self.indices, g)
+    # NO ``to_local``: the local↔global remap moved to the half-trace SPACE
+    # at G6.5 (`AngularFaceTraceSpace.to_local`) — the embedding data is the
+    # space's, and on the canonical builder path the space's row order and
+    # this operator's gather are the same array by construction.
 
     # NO ``inverse()``: a restriction is rank-deficient by construction.
     # The transpose is the scatter, NOT an inverse — ``ι ∘ γ`` is the

@@ -103,7 +103,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import ReflectiveBoundary
+from orpheus.geometry.boundary import BoundaryError, ReflectiveBoundary
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
@@ -564,23 +564,28 @@ class TestTheHilbertAdjointCarriesTheMetric:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# The optional-binding branch, and the hole step 8 must close
+# The deck arm's binding requirement (G6.5), and the refusals' control
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_a_traceless_method_space_yields_an_unbound_kernel() -> None:
-    r"""The optional-binding branch is LIVE, and it is the cleanest control.
+def test_a_spaceless_method_space_is_REFUSED_by_the_deck_arm() -> None:
+    r"""G6.5 — the deck arm's optional-binding branch is RETIRED.
 
-    `[M]` ``SNMethodSpace.for_face`` *without* ``trace=`` cannot reach the
-    kernel — ``_outflow_restriction`` raises first — but direct dataclass
-    construction can, and that path is exactly what the ``if trace is not
-    None`` comment claims to serve.
+    Until G6.5 this row pinned the opposite claim ("a trace-less method
+    space yields an unbound kernel"): direct dataclass construction with
+    ``trace=None`` reached the kernel and produced a silently UNBOUND arrow
+    — same gathered rows, no composability check, ``.H`` degraded to the
+    bare Euclidean transpose (the ERR-076 shape). The pairing's local row
+    order is now the SPACE's own (``Γ₊.to_local``) and the deck arrow is
+    returned fully bound, so the spaceless path is refused with the
+    constructor advice the sibling refusals already give. (#330's tree-wide
+    optional-binding era continues at the base tier; the deck arm's
+    requirement is a LAW input — the B3.2 class — not a base mandate.)
 
-    Two jobs in one row. It pins the documented contract that binding stays
-    optional while the tree migrates (#330); and it is the positive control
-    for every refusal in this module — same permutation, same face, same code
-    path, differing **only** in whether a trace was supplied, and the square
-    goes from refused to composable.
+    The positive-control half the old row carried — "unbound, the square
+    composes; so the module's refusals are about the SPACES, not the
+    permutation" — re-poses below on a directly-built unbound
+    ``PermutationOperator`` carrying the bound kernel's own ``perm``.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     layout = FaceLayout.from_named_shapes(
@@ -593,18 +598,31 @@ def test_a_traceless_method_space_yields_an_unbound_kernel() -> None:
     traceless = replace(with_trace, trace=None)
 
     gamma_out = _outflow_restriction(traceless, "reflective")
-    kernel = _deck_kernel(
-        quad, traceless, gamma_out,
+    assert gamma_out.domain is None and gamma_out.codomain is None
+    with pytest.raises(
+        BoundaryError, match="without the bound half-trace spaces"
+    ):
+        _deck_kernel(
+            quad, traceless, gamma_out,
+            motion=SelfPairedDeck.mirror(axis="x").motion,
+            domain_face="xmin",
+            law_key="reflective",
+            crossed_diagnosis=_specular_crossed_diagnosis("x", "xmin"),
+        )
+
+    # The control, off the retired path: the SAME permutation with no
+    # spaces composes with itself — so every refusal in this module is
+    # attributable to the bound spaces, never to the permutation.
+    bound = _deck_kernel(
+        quad, with_trace, _outflow_restriction(with_trace, "reflective"),
         motion=SelfPairedDeck.mirror(axis="x").motion,
         domain_face="xmin",
         law_key="reflective",
         crossed_diagnosis=_specular_crossed_diagnosis("x", "xmin"),
     )
-    assert kernel.domain is None and kernel.codomain is None
-    assert gamma_out.domain is None and gamma_out.codomain is None
-    # The control: unbound, the square composes. Bound, it raises.
-    squared = kernel @ kernel
-    assert squared.domain is None
+    unbound_twin = PermutationOperator(np.asarray(bound.perm).copy(), axis=0)
+    assert unbound_twin.domain is None
+    assert (unbound_twin @ unbound_twin).domain is None
 
 
 def test_the_realized_operator_carries_the_binding() -> None:

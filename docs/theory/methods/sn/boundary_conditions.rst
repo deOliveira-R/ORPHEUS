@@ -487,7 +487,8 @@ at :ref:`bc-sweep-cycle`.
      - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - ``PermutationOperator(local_perm) & IdentityOperator()`` on the
        **reduced** ordinate axis, with ``local_perm =
-       γ₊.to_local(π⁻¹[inflow])`` — :math:`\pi` the mirror's derived
+       Γ₊(f').to_local(π⁻¹[inflow])`` (the half-trace SPACE owns the
+       local↔global remap — G6.5) — :math:`\pi` the mirror's derived
        ordinate permutation (:math:`\pi^{-1} = \pi` for a mirror)
      - 1 (fast path)
    * - ``"reflective"``

@@ -393,6 +393,34 @@ class TestRealizeReflective:
                 ReflectiveBoundary(axis="x", albedo=1.0), lopsided,
             )
 
+    def test_a_spaceless_method_space_cannot_pose_the_deck_pairing(self):
+        r"""G6.5 — the deck arm REQUIRES the bound half-trace spaces.
+
+        The local row order of the pairing is the SPACE's own
+        (``Γ₊.to_local``), and the returned arrow is fully bound
+        ``Γ₊(f') → Γ₋(f)`` — so a method space that names index SETS but
+        stands up no half-trace spaces is refused, with the constructor
+        advice its sibling refusals already give. Before G6.5 this path
+        realized a silently UNBOUND permutation: the same gathered rows, no
+        composability check, ``.H`` degraded to the bare Euclidean transpose
+        (the ERR-076 shape, here structurally excluded instead of risked).
+        The size guard stays FIRST, so a lopsided-but-spaceless pair still
+        gets the sharper BIJECTION diagnosis — see the sibling above.
+        """
+        quad = Quadrature.gauss_legendre(8)
+        trace = face_trace(quad)
+        spaceless = SNMethodSpace(
+            quadrature=quad, face="xmax",
+            inflow_indices=trace.inflow_indices_for_face("xmax"),
+            outflow_indices=trace.outflow_indices_for_face("xmax"),
+        )
+        with pytest.raises(
+            BoundaryError, match="without the bound half-trace spaces"
+        ):
+            SNBoundaryRealizer().realize(
+                ReflectiveBoundary(axis="x", albedo=1.0), spaceless,
+            )
+
 
 # ─────────────────────────────────────────────────────────────────────
 # 3. White (Lambertian)

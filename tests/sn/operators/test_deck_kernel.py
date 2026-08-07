@@ -632,8 +632,10 @@ class TestTheGatherIsThePreimage:
         r"""⭐ Where the π-vs-π⁻¹ mutation's red is honestly attributed.
 
         `[M]` on all six rotation fixtures ``π[inflow]`` lands in
-        :math:`\Gamma_-(f')`, not :math:`\Gamma_+(f')`, so
-        :meth:`TraceRestrictionOperator.to_local` refuses it. Structural:
+        :math:`\Gamma_-(f')`, not :math:`\Gamma_+(f')`, so the domain
+        space's
+        :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`
+        refuses it. Structural:
         :math:`h(\Gamma_-(f)) = h^2(\Gamma_+(f'))`, and that equals
         :math:`\Gamma_+(f')` **iff h² = e** — i.e. only for the involutions,
         where the two conventions coincide anyway.
@@ -658,11 +660,11 @@ class TestTheGatherIsThePreimage:
             f"not an involution — if this fires, the fixture is not the "
             f"motion it claims to be"
         )
-        with pytest.raises(ValueError, match="not in this restriction"):
-            gamma_out.to_local(forward)
+        with pytest.raises(ValueError, match="are not ordinates of"):
+            gamma_out.codomain.to_local(forward)
         # …and the correct one is accepted, so the refusal above is about the
-        # DIRECTION and not about the restriction refusing everything.
-        gamma_out.to_local(backward)
+        # DIRECTION and not about the space refusing everything.
+        gamma_out.codomain.to_local(backward)
 
 
 def _parse_product(case: str) -> tuple[int, int]:

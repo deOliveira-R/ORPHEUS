@@ -1444,9 +1444,11 @@ sets have nothing to hand each other.
    1. **The index remap is** ``searchsorted``, **not** ``arange``.
       Mapping a subset of *global* rows into positions inside a
       restricted space is
-      :meth:`~orpheus.numerics.operator.TraceRestrictionOperator.to_local`,
-      which needs a sorted index set — which is why sortedness is a
-      **construction guard**, not tidiness. The naive
+      :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`
+      (owned by the half-trace SPACE since G6.5 — the embedding data,
+      ``ordinate_indices``, is the space's), which needs a sorted index
+      set — which is why sortedness is a **construction guard** on the
+      space, not tidiness. The naive
       ``arange(sel.size)`` is right only when the subset is a *prefix*
       of the index set, and the two sites where the remap appears are
       discriminated by **different, complementary fixtures**: the
@@ -4589,10 +4591,13 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        — a 2-factor
        :class:`~orpheus.numerics.operator.TensorProductOperator` on the
        **reduced** ordinate axis, with
-       ``local_perm = γ₊.to_local(π⁻¹[inflow])`` where :math:`\pi` is the
-       mirror's derived ordinate permutation
+       ``local_perm = Γ₊(f).to_local(π⁻¹[inflow])`` where :math:`\pi` is
+       the mirror's derived ordinate permutation
        (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`;
-       :math:`\pi^{-1} = \pi` for a mirror).
+       :math:`\pi^{-1} = \pi` for a mirror) and the remap is the
+       half-trace SPACE's own (G6.5 — the space owns its row order, and
+       the deck arm consequently REQUIRES the bound spaces, so its
+       output is always fully bound).
        Row :math:`j` reads the mirror of the :math:`j`-th inflow
        ordinate *at that ordinate's position inside* :math:`\Gamma_+`;
        ``to_local`` is mandatory because a slab mirror **reverses**

@@ -123,30 +123,11 @@ def test_a_three_way_partition_resolves_the_identity() -> None:
     assert np.array_equal(three_way, np.eye(n))
 
 
-def test_to_local_inverts_the_index_set() -> None:
-    """``indices[to_local(g)] == g`` — the remap's defining property."""
-    gamma = TraceRestrictionOperator(np.array([2, 3, 6, 7, 10, 11]), n_total=12)
-    g = np.array([6, 11, 2])
-    assert np.array_equal(gamma.indices[gamma.to_local(g)], g)
-
-
-def test_to_local_is_not_arange_when_the_subset_is_not_a_prefix() -> None:
-    r"""The N8 trap, pinned: ``arange(g.size)`` is right in 1-D and wrong in 2-D.
-
-    A 1-D face's selected rows happen to be a prefix of the index set, so the
-    naive remap agrees and every 1-D gate stays green. A 2-D face's do not.
-    This test is the discriminator, stated on the 2-D index shape directly so
-    it does not depend on a mesh fixture that could drift out of the regime.
-    """
-    inflow = np.array([2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23])
-    gamma = TraceRestrictionOperator(inflow, n_total=24)
-    lower_half = np.array([6, 7, 14, 15, 22, 23])     # NOT a prefix of `inflow`
-    got = gamma.to_local(lower_half)
-    assert np.array_equal(gamma.indices[got], lower_half)
-    assert not np.array_equal(got, np.arange(lower_half.size)), (
-        "the naive `arange` remap agreed here — this fixture no longer "
-        "discriminates, and the 2-D index bug it exists to catch is unpinned"
-    )
+# ``to_local`` and its gates (the round-trip, the N8 non-prefix trap, the
+# crossed-set refusal) moved to the half-trace SPACE at G6.5 — the remap is
+# a fact about the subspace's embedding, which the space owns. See
+# ``tests/numerics/test_angular_face_trace_space.py``, section "The
+# local↔global map".
 
 
 def test_composes_along_a_trailing_axis_leaving_others_untouched() -> None:
@@ -211,8 +192,5 @@ def test_apply_transpose_refuses_an_input_of_the_wrong_length() -> None:
         gamma.apply_transpose(np.ones((4, 3)))   # the FULL length, wrongly fed in
 
 
-def test_to_local_refuses_a_row_this_restriction_does_not_carry() -> None:
-    """Crossing two index sets is a caller error, not a silent zero."""
-    gamma = TraceRestrictionOperator(np.array([0, 2]), n_total=4)
-    with pytest.raises(ValueError, match="not in this restriction"):
-        gamma.to_local(np.array([1]))
+# The crossed-index-set refusal moved with ``to_local`` to the half-trace
+# space's battery (G6.5).

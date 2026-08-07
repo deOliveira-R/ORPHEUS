@@ -495,9 +495,10 @@ class SNBoundaryOperator(LinearOperator):
           stopped being a thing to remember — see there.
         * The ``ι₋`` end stays an explicit ``γ₋`` verb rather than joining the
           product, because the ``rows`` branch does not emit through a plain
-          scatter (it writes a SUBSET of Γ₋ via ``to_local``). Composing it
-          would need a second, row-restricted operator per call to say
-          something the whole-slot branch already says.
+          scatter (it writes a SUBSET of Γ₋, placed by the half-trace SPACE's
+          ``to_local`` — G6.5). Composing it would need a second,
+          row-restricted operator per call to say something the whole-slot
+          branch already says.
         * ⭐ **Periodic's check is LIVE — and it is the law the check was
           designed for** (G6.3 step 7). A boundary law is a ``@``-chain
           :math:`\Gamma_+ \to \Gamma_-` whose deck-transformation case is
@@ -634,13 +635,14 @@ class SNBoundaryOperator(LinearOperator):
                 else:
                     # A row-restricted emission (the schedule's split halves):
                     # keep only the requested inflow rows of the image. The
-                    # remap MUST go through ``to_local`` — the requested rows
-                    # are a subset of Γ₋, and they are a PREFIX of it only in
-                    # 1-D, so a hand-written ``arange`` is right on a slab and
+                    # remap MUST go through the SPACE's ``to_local`` (G6.5 —
+                    # Γ₋(f) owns its row order): the requested rows are a
+                    # subset of Γ₋, and they are a PREFIX of it only in 1-D,
+                    # so a hand-written ``arange`` is right on a slab and
                     # wrong in 2-D.
                     sel = rows[face]
                     out_boundary.face_view(face)[sel] = image[
-                        gamma_in.to_local(sel)
+                        trace.inflow_space(face).to_local(sel)
                     ]
             else:
                 # The forward is ``ι₋ ∘ law ∘ γ₊``, so the Euclidean transpose

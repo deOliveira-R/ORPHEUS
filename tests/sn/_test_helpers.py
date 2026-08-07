@@ -211,8 +211,9 @@ def local_positions(global_rows, index_set) -> np.ndarray:
 
     The test-side reference for B3.2's ``sel → position-within-Γ_S`` remap.
     Deliberately a DIFFERENT algorithm from production's
-    :meth:`TraceRestrictionOperator.to_local` (``np.searchsorted``, a binary
-    search that additionally requires a sorted haystack): a reference computed
+    :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`
+    (``np.searchsorted``, a binary search that additionally requires a sorted
+    haystack; owned by the half-trace space since G6.5): a reference computed
     by calling ``to_local`` would share the very code the remap gates exist to
     check, making the cross-check procedural rather than structural.
 
