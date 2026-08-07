@@ -52,6 +52,7 @@ surprises cost to hit.
 | 2026-08-06 | A step was scoped as an *enabler* ("the binding is metadata, not enforcement"). The field was read by a consumer that BRANCHES on `is None`, so populating it moved a production adjoint by 87 %. | §8 |
 | 2026-08-07 | A table captioned "checked against every shipped law" mixed five MEASURED rows with one ASPIRATIONAL one. The step planned against it recorded the concept's own diagnosis as a blocker. | §2 |
 | 2026-08-07 | A RESUME POINTER (task subject + plan header + both memory surfaces) said "absorb `AngularAverageOperator.apply_transpose`" — a mechanism a landed step of the SAME campaign had dissolved 3 days earlier (the operator was retired; its factoring made the transpose a theorem). The close-out that wrote the pointer reconciled ITS OWN step against the tree (§7.2) but copied the NEXT step's title from the frozen task list. Caught by the user asking what the operator was; the grep answered "nothing — it is gone". | §1 (widened) |
+| 2026-08-07 | The SAME pointer's DELIVERABLE half ("the flagship metric gate") instructed building a gate that had landed 3 days earlier across three files. The same-day correction of its SYMBOL half ran the mandated grep and stopped there — the deliverable is a CONCEPT, not a symbol, and no existence-check was run. Caught at design time by the checkpoint's own §7.2 re-derivation instruction: zero implementation waste, one fully-derived twin gate discarded on discovery. | §1 (widened again: existence-check per promised deliverable) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -101,7 +102,15 @@ hand-rolled spec into production.
   three days earlier — the mechanism it promised had been dissolved by the
   campaign's own step 3b, and only a user question exposed it). When writing
   a pointer at the NEXT step, apply §7.2 to THAT step's named objects too:
-  one grep per symbol the pointer names, before the pointer ships.
+  one grep per symbol the pointer names, before the pointer ships. AND one
+  **existence-check per DELIVERABLE the pointer promises** — a pointer can
+  instruct building something the tree already carries, and the deliverable
+  is usually a CONCEPT (greppable only by its spelling variants), not a
+  symbol (2026-08-07, same campaign, the very NEXT step: "the flagship
+  metric gate" survived the same-day symbol-half correction of its own
+  pointer because the gate is a concept; it had landed 3 days earlier across
+  three files. Caught at design time by the checkpoint's mandated §7.2 tree
+  re-derivation — zero cost, but only because that instruction was carried).
 - A means proposed before the investigation is a **hypothesis**. Label it, date
   it, and say it is unverified. An unlabelled means reads as a decision.
 - **Done-when is a checkable predicate**, not a feeling. Prefer one that a

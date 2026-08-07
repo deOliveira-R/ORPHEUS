@@ -242,6 +242,16 @@ def test_the_half_trace_metric_is_strictly_positive(quad_name, role):
     This is what makes the halves a genuine inner-product space (rather than
     merely semi-definite), and it is the precondition for the round-trip law
     below to be an identity rather than a projection.
+
+    ⭐ It is also the END-metric half of the factored-adjoint theorem's
+    precondition: :math:`R^{*} = G_+^{-1}R^{\\mathsf T}G_-` reaches an end
+    metric through its INVERSE, so ``.H`` on a half-trace is well-posed only
+    because this gate holds — what reads as hygiene is what lets a half-trace
+    sit at the end of an adjoint-bearing chain at all. The intermediate-tier
+    half of the same precondition is
+    :func:`test_the_current_space_is_ADMISSIBLE_as_a_chain_intermediate`; the
+    theorem itself, including what breaks at a degenerate metric, is gated in
+    ``tests/numerics/test_factored_adjoint_identity.py``.
     """
     trace = _trace(quad_name)
     space = (trace.outflow_space if role == "outflow" else trace.inflow_space)("xmin")

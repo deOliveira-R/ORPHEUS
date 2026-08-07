@@ -16,17 +16,20 @@
 > certifications and the sweep pole seed read the same source; the
 > reflection table is GONE — `ordinate_permutation` is structurally the
 > only path.
-> ▶ **RESUMES AT G6.3b — the flagship metric gate on the factored
-> Lambertian** (task #45; ⛔ its original "absorb
-> `AngularAverageOperator.apply_transpose`" half is a STALE MECHANISM
-> TITLE — that operator was retired at step 3b, 2026-08-04, factored
-> into `IsotropicEmissionOperator @ PartialCurrentOperator` where each
-> link has one honest transpose, so the deferral DISSOLVED; re-derive
-> the remaining scope from the tree per §7.2 before designing), then
-> G6.5 — and track G is done, unblocking Q5.1.
-> **Read ⏸ COMPACTION POINT #6 (END of file) FIRST — it carries the
-> G6.3b hazards, the owed wide slice, and the six-commit table — then
-> §7d.3's landing record and the G6 design rows :1496 / :1905-1945.**
+> ✅ **G6.3b CLOSED BY RECONCILIATION 2026-08-07** — the §7.2 re-derivation
+> its own hazard mandated found BOTH halves already in the tree: the
+> "absorb `apply_transpose`" half dissolved at step 3b's factoring, and
+> **the flagship metric gate itself LANDED with steps 3 / 8.0 / 7** (the
+> G6.3b closure record at the END of file carries the demand→gate census,
+> the wide-slice measurement, and the stale-pointer round-2 lesson).
+> ▶ **RESUMES AT G6.5 — traversal moves onto the trace spaces,
+> boundary-scoped: the spaces own iteration, the axis, and the
+> local↔global index map** (task #46) — and track G is done, unblocking
+> Q5.1 (the carve-out condition).
+> **Read the G6.3b closure record (END of file) FIRST, then ⏸ COMPACTION
+> POINT #6** — #6's G6.3b hazards are DISCHARGED by the closure record,
+> but its gate costs, red baseline, and 7d.3 lessons stand — then §7d.3's
+> landing record and the G6 design rows :1496 / :1905-1945.
 >
 > ⏸ #6 → #5 → #4 → #3 → #2 (each additive; #5's 7d.3 items and #4's
 > step-7 items are HISTORY but
@@ -1500,7 +1503,7 @@ tree-wide.
 | **G6.1** | mint the **three-tier Γ ladder**: `Γ(f)` (per-face slot), `Γ₊(f)`, `Γ₋(f)`, each with face **and** sign in the `name` | `[M]` the plan previously scoped only the halves — the **middle tier has no type either**, and is NOT recoverable as `Γ₊ ⊕ Γ₋` (see §7g) |
 | **G6.2** | carry the **restricted metric** onto each (`partial_current_metric` restricted to the tier) | so a half-trace pairing is PHYSICAL, not Euclidean — the ERR-067 family |
 | **G6.3** | bind the boundary tier: `γ± : Γ(f) → Γ±(f)`, `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and periodic's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes. **Bind from the REALIZER, per law — never from the class** (§7g) |
-| **G6.3b** | **absorb `AngularAverageOperator.apply_transpose`** (the step its own docstring assigns to boundary phase B5) | user ruling: without it the flagship gate can only run on a stand-in, which is the proxy-evidence pattern `vv-principles` #12 forbids |
+| **G6.3b** | **absorb `AngularAverageOperator.apply_transpose`** (the step its own docstring assigns to boundary phase B5) ✅ **CLOSED BY RECONCILIATION 2026-08-07 — BOTH halves were already landed**: the absorb half dissolved at step 3b's factoring; the flagship gate itself landed with steps 3 / 8.0 / 7 (see the G6.3b closure record, END of file) | user ruling: without it the flagship gate can only run on a stand-in, which is the proxy-evidence pattern `vv-principles` #12 forbids — **DISCHARGED**: the gate runs on `SNBoundaryRealizer().realize(...)`'s own output |
 | **G6.5** | move **traversal** onto the trace spaces: they own iteration, the axis, and the local↔global index map; boundary operators stop carrying `axis=` and the realizer stops doing `to_local` | the second half of the principle, **boundary-scoped**; the tree-wide sweep is #330 |
 | ~~G6.4~~ | ~~make the binding MANDATORY~~ | **MOVED TO #330** — see the re-scoping note above |
 
@@ -1540,6 +1543,13 @@ Supporting acceptance:
   pairing. `[M]` this gate is IMPOSSIBLE to write today (the metric is dropped),
   and it is the one that would have caught ERR-067. Its control leg: the
   specular case, where the commutator vanishes and weighted ≡ Euclidean.
+  ✅ **LANDED — the "IMPOSSIBLE today" was true when written and void two steps
+  later (§7.3's class, annotated 2026-08-07):** step 3 wrote it
+  (`test_lambertian_factored.py::test_the_WEIGHTED_adjoint_law_holds`, whose own
+  section header reads "THE FLAGSHIP"), step 8.0 ran it on the realizer's own
+  output (`TestTheRealizedLawIsMETRICCorrect`, `catches("ERR-076")`), and the
+  specular control leg lives in `test_specular_deck_chain.py`. See the G6.3b
+  closure record (END of file) for the full census.
 - Bit-identical everywhere binding is added: spaces change no numbers.
 - The pre-existing red set is unchanged (task #33 + the 3 quadrature-campaign
   SN reds, signatures 1152 ULP / 296 ULP / `assert False`).
@@ -1641,6 +1651,21 @@ scoped (one space, not the Γ₊/Γ₋ pair); and because `R` is an endomorphism
 **can** be self-adjoint — a free, sharp invariant to gate — while §7f's
 "OUT of scope: do not give `G` a self-adjointness property" stays exactly right,
 since `Γ₊` and `Γ₋` are disjoint.
+
+⛔ **The endomorphism framing was REFUTED IN THE TREE within the day** (recorded
+at `inflow_space`'s own docstring, 2026-08-04, annotated here 2026-08-07): **no
+realized response is an endomorphism of `Γ₋`** — `Γ₋ → Γ₋` is the *classifying*
+typing, while the realized response CROSSES the half-traces (a constitutive
+surface is not a quotient, so no isometry provides the crossing; the physics
+does it). Nothing is self-adjoint. The "free, sharp invariant" this row reached
+for is realized in the crossed types instead: **the adjoint of the Lambertian is
+the reverse-face Lambertian**, gated as
+`test_lambertian_chain.py::TestReciprocityAgainstTheMirrorFace` (`.H` pointwise
+against a SECOND production chain built from the opposite face — one row never
+touches `.H` at all) and
+`test_factored_adjoint_identity.py::test_R_and_its_adjoint_share_one_form_with_the_halves_exchanged`.
+And the flagship gate does NOT live at an endomorphism — it landed on the
+`Γ₊ → Γ₋` composite (G6.3b closure record, END of file).
 
 ### ⭐ R3 — bind from the REALIZER, per law; NEVER from the class
 
@@ -1915,6 +1940,10 @@ Two consequences to carry:
    fact **the precondition for the factored adjoint to be exact**. The `Γ(f)`
    full tier has a DEGENERATE metric (zeros on the tangential rows), so it can
    never serve as an intermediate; the halves can, because they exclude them.
+   ✅ carried into the gate's own docstring 2026-08-07 (the one deliverable of
+   the G6.3b closure — the theorem itself was already gated in
+   `tests/numerics/test_factored_adjoint_identity.py`, including the degenerate
+   breaking case).
 
 ### ⭐ The payoff: the missing transpose falls out for FREE
 
@@ -1938,6 +1967,13 @@ the deck-transformation arm carries the constraint, and there it is intrinsic to
 the bijection rather than assumed.
 
 ### Per-law realization map `[M]` — the ONE operator today, typed `Γ₊(f) → Γ₋(f)`
+
+*(§4 configuration note, added 2026-08-07: "today" = the G6.0 survey,
+2026-08-04, PRE-step-3b. The white/albedo-isotropic rows' `AngularAverage`
+realization has since factored into
+`IsotropicEmissionOperator @ PartialCurrentOperator` — see
+`orpheus/sn/boundary/angular.py` — and the `realizer.py` line numbers have
+shifted. The table stands as the measurement that fed the design.)*
 
 | law | site | class today | cross-face |
 |---|---|---|---|
@@ -3440,3 +3476,66 @@ sweep/mms trio 29 passed / 7 xfailed (#326), qa's independent baseline
    + docs + label TOGETHER (the xref/verifies gates red between —
    §6b's call-site-set discipline applied to code, Sphinx labels, and
    `verifies` strings alike).
+
+## ✅ G6.3b — CLOSED BY RECONCILIATION (2026-08-07): the flagship gate was ALREADY LANDED
+
+The step opened under checkpoint #6's hazard 1, whose own instruction —
+re-derive the scope from the TREE per §7.2 before designing — is what closed
+it. The census found every demand the design rows place on "the flagship
+metric gate" already landed, on 2026-08-04/06, by steps 3, 8.0 and 7.
+Nothing new was built; one docstring crumb was delivered; the owed wide slice
+is the landing gate.
+
+### The census — each demand, and where the tree already gates it
+
+| demand (design row) | landed gate |
+|---|---|
+| the weighted adjoint law on a metric-sensitive boundary operator (the acceptance bullet that read "IMPOSSIBLE to write today") | `test_lambertian_factored.py::test_the_WEIGHTED_adjoint_law_holds` — its own section header reads "⭐ THE FLAGSHIP" (step 3) |
+| the metric OBSERVABLE, not Mode-12-stabilised (ERR-067's class) | `::test_the_metric_is_NOT_invisible_here` — `[M]` ‖A†−Aᵀ‖/‖Aᵀ‖ = 0.209 / 0.684 / 0.612 on the three quadratures |
+| the ERR-076 mutation as a permanent gate | `::test_dropping_the_binding_BREAKS_the_weighted_law` |
+| no factor-error-cancellation escape | `::test_each_factor_satisfies_its_own_weighted_adjoint_law` |
+| runs on PRODUCTION, not a stand-in (the vv #12 user ruling) | `test_sn_boundary_realizer.py::TestTheRealizedLawIsMETRICCorrect` (`catches("ERR-076")`, step 8.0) — the weighted law on `SNBoundaryRealizer().realize(...)`'s own output, over 5 laws incl. both scaled arms, + the Lambertian discrimination row |
+| what `R*` IS — the VALUE, not the law (R2's "free, sharp invariant", in the crossed types) | `test_lambertian_chain.py::TestReciprocityAgainstTheMirrorFace` — `.H` pointwise against a SECOND production chain built from the opposite face; its first row never touches `.H` at all |
+| the intermediate-metric theorem as a GATE (cancellation; degeneracy breaks it) | `tests/numerics/test_factored_adjoint_identity.py` — invariance over parametrized `g_intermediate`, the DEGENERATE breaking case, telescoping at any chain length, wildly-scaled interior metrics, the halves-exchanged form |
+| the specular control leg (weighted ≡ Euclidean where the commutator vanishes) | `test_specular_deck_chain.py::TestTheHilbertAdjointCarriesTheMetric` + the exact-ratio metric-scaling legs |
+| the periodic cross-face metric row | `test_sn_boundary_realizer.py::test_the_PERIODIC_metric_agrees_across_the_pair` (step 7) |
+| the G6.1 preconditions | `test_angular_face_trace_space.py`: strictly-positive halves · non-Euclidean · `S(f)` admissible · null-space ≡ tangential set |
+
+`[M]` all six battery files green at `1727672d` BEFORE any edit this session:
+**190 passed** (factored + chain + trace-space, 0.53 s) and **142 passed**
+(identity + realizer + specular deck, 0.39 s), serial `-O`.
+
+### What this closure actually changed
+
+1. `test_the_half_trace_metric_is_strictly_positive` gained its REAL REASON
+   (the theorem's consequence-2 instruction, delivered): the END-metric half
+   of the factored-adjoint precondition, cross-referencing the admissibility
+   gate and the identity file.
+2. §3 annotations in place: the "IMPOSSIBLE today" acceptance bullet ✅; the
+   G6.3b substep row ✅; R2's endomorphism framing ⛔ (the tree had already
+   refuted it, same-day, at `inflow_space`'s docstring — this plan never
+   caught up); the per-law realization map dated as the pre-3b snapshot.
+3. `plan-authoring.md`: surprise-log row + §1 widened AGAIN — one
+   existence-check per DELIVERABLE a pointer promises, not only one grep per
+   symbol it names.
+
+### The stale-pointer mechanism, round 2 — and why the protocol gets the credit
+
+`93e71172` corrected the pointer's SYMBOL half (`AngularAverageOperator`,
+grepped, every hit past-tense) and left the DELIVERABLE half unexamined —
+"the flagship metric gate" is a CONCEPT, greppable only by spelling variants
+(checkpoint #6's own lesson 3), and nobody ran that grep. The catch came from
+hazard 1's mandated §7.2 re-derivation, at DESIGN time: a reciprocity gate was
+fully derived on paper before `TestReciprocityAgainstTheMirrorFace` was found
+carrying the same claim (Pattern 2's near-miss), and the in-tree ⛔ at
+`inflow_space` refuted the same sitting's self-adjointness candidate — which
+would have been exactly the vv #12 stand-in the user ruling forbids. Cost:
+zero implementation waste. The loop closes with a clause instead of a casualty.
+
+### The owed wide slice — G6.3b's landing gate
+
+⏳ PENDING AT WRITE TIME — launched after the reconciliation commit,
+uncontended; the `[M]` line is transcribed below when the output exists.
+Expectation (NOT a measurement): the pre-existing seven
+(2× `cart2d_*_principled_equiv` · 3× affine sha256 #333 ·
+`test_diamond spherical_inward` · `WhiteXminPartial03GLSnapshot` #33).
