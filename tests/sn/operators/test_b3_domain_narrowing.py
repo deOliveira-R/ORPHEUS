@@ -64,6 +64,7 @@ from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import face_method_space, placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -147,8 +148,10 @@ def _pre_b32_face_action(law, face_in, inflow, quad, transpose: bool):
       gather through ``inverse_perm``.
 
     Nothing here imports a B3.2 symbol: the input is the law DESCRIPTOR, the
-    arithmetic is numpy, and the only ORPHEUS datum is ``reflection_index``
-    (which B3.2 did not touch).
+    arithmetic is numpy, and the partner map comes from the independent
+    geometric reference (:func:`~tests._harness.references.mirror_partner_indices`
+    — until G6.3 §7d.3 it was the shared ``reflection_index`` datum, which
+    B3.2 did not touch and the §7d retirement replaced).
     """
     out = np.zeros_like(face_in)
     if transpose:
@@ -158,7 +161,7 @@ def _pre_b32_face_action(law, face_in, inflow, quad, transpose: bool):
             full_t = masked.copy()
             full_t[inflow] = 0.0            # the mask is its own transpose
         elif isinstance(law, ReflectiveBoundary):
-            perm = quad.reflection_index(law.axis)
+            perm = mirror_partner_indices(quad, law.axis)
             inverse_perm = np.argsort(perm)  # NOT production's cached table
             full_t = float(law.albedo) * np.take(masked, inverse_perm, axis=0)
         else:  # pragma: no cover - SN admits only the two
@@ -169,7 +172,7 @@ def _pre_b32_face_action(law, face_in, inflow, quad, transpose: bool):
         full = face_in.copy()
         full[inflow] = 0.0
     elif isinstance(law, ReflectiveBoundary):
-        perm = quad.reflection_index(law.axis)
+        perm = mirror_partner_indices(quad, law.axis)
         full = float(law.albedo) * np.take(face_in, perm, axis=0)
     else:  # pragma: no cover
         raise AssertionError(f"unreachable law {type(law).__name__}")

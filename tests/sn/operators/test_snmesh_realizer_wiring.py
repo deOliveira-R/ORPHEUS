@@ -51,6 +51,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
+from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import local_positions, placeholder_materials
 
 
@@ -137,11 +138,12 @@ def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
     r"""Reflective on ymax: the realized shim returns ``psi[ref][inflow]``,
     the pre-B3.2 full-face gather RESTRICTED to :math:`\Gamma_-`.
 
-    RE-POSED at B3.2. The reference is the retired expression itself
-    (``np.take(psi, reflection_index("y"), 0)``) with the inflow rows selected
-    — which is exactly the bit-identity claim the phase makes at the
-    mesh-wired shim, and it is built without ``to_local``, so a remap error
-    cannot cancel against it.
+    RE-POSED at B3.2. The reference is the pre-B3.2 full-face gather with the
+    inflow rows selected — which is exactly the bit-identity claim the phase
+    makes at the mesh-wired shim — and its partner map is the independent
+    geometric reference (§7d.3), built without ``to_local`` and without any
+    production pairing derivation, so neither a remap error nor a pairing
+    error can cancel against it.
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
@@ -157,7 +159,7 @@ def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
     psi = rng.standard_normal(size=(quad_2d.N, 4, 2))
     inflow = sn.angular_trace.inflow_indices_for_face("ymax")
     outflow = sn.angular_trace.outflow_indices_for_face("ymax")
-    expected = psi[quad_2d.reflection_index("y")][inflow]
+    expected = psi[mirror_partner_indices(quad_2d, "y")][inflow]
     np.testing.assert_array_equal(sn.bc["ymax"].apply(psi[outflow]), expected)
 
 
@@ -173,8 +175,8 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
 
     RE-POSED at **B3.2**: the realized permutation now lives on the REDUCED
     ordinate axis, so the pinned value is
-    ``local_positions(reflection_index(axis)[inflow], outflow)`` rather than
-    ``reflection_index(axis)`` itself. The non-vacuity guard is re-posed with
+    ``local_positions(mirror_partner[inflow], outflow)`` rather than the
+    full-face partner map itself. The non-vacuity guard is re-posed with
     it, and STRENGTHENED — the pre-B3.2 guard ("x and y reflection maps
     differ") is no longer sufficient, because the narrowing could in principle
     collapse two distinct full-face maps onto the same reduced one. The guard
@@ -194,13 +196,13 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
         inflow = sn.angular_trace.inflow_indices_for_face(face)
         outflow = sn.angular_trace.outflow_indices_for_face(face)
         expected = local_positions(
-            quad_2d.reflection_index(axis)[inflow], outflow,
+            mirror_partner_indices(quad_2d, axis)[inflow], outflow,
         )
         # Non-vacuity, per face and IN THE NARROWED COORDINATES: the wrong
         # axis must be distinguishable here, else the pin proves nothing.
         try:
             wrong = local_positions(
-                quad_2d.reflection_index(wrong_axis)[inflow], outflow,
+                mirror_partner_indices(quad_2d, wrong_axis)[inflow], outflow,
             )
         except KeyError:
             pass  # the wrong axis maps Γ₋ off Γ₊ entirely — production refuses
@@ -398,10 +400,11 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     :class:`PermutationOperator`; the shim wraps it with no bound quadrature.
 
     RE-POSED at **B3.2**: the permutation is on the REDUCED ordinate axis, so
-    its table is ``local_positions(reflection_index("x")[inflow], outflow)``
-    and its length is :math:`|\\Gamma_+|`. Both the structural pin and the
-    value pin move with it; the reference stays the retired full-face gather,
-    restricted.
+    its table is ``local_positions(mirror_partner[inflow], outflow)`` and its
+    length is :math:`|\\Gamma_+|`. Both the structural pin and the value pin
+    move with it; the reference stays the pre-B3.2 full-face gather,
+    restricted, with the partner map from the independent geometric
+    reference (§7d.3).
     """
     mesh = Mesh1D(
         edges=np.linspace(0.1, 1.0, 6),
@@ -428,18 +431,18 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     outflow = sn._trace.outflow_indices_for_face("xmax")
     np.testing.assert_array_equal(
         outer_perm.perm,
-        local_positions(quad.reflection_index("x")[inflow], outflow),
+        local_positions(mirror_partner_indices(quad, "x")[inflow], outflow),
     )
     assert outer_perm.perm.size == outflow.size < quad.N
 
     # Bit-equivalence: the shim's 1-arg apply matches the
-    # ReflectiveBoundary semantics — ``psi[reflection_index]`` RESTRICTED to
+    # ReflectiveBoundary semantics — ``psi[mirror_partner]`` RESTRICTED to
     # Γ₋, which is the pre-B3.2 value this face's consumer actually read.
     rng = np.random.default_rng(7)
     psi = rng.standard_normal(size=(quad.N, 2))
     np.testing.assert_array_equal(
         sn.bc["xmax"].apply(psi[outflow]),
-        psi[quad.reflection_index("x")][inflow],
+        psi[mirror_partner_indices(quad, "x")][inflow],
     )
 
 

@@ -69,6 +69,7 @@ from orpheus.geometry.boundary import (
     PrescribedInflow,
     ReflectionDidNotMapInflowToOutflowError,
     ReflectiveBoundary,
+    SelfPairedDeck,
     SubmarkovViolationError,
     VacuumInflow,
     WhiteBoundary,
@@ -278,9 +279,11 @@ class TestReflectiveInflowToOutflowInvariant:
         correct image. The exemption must keep it green (an
         over-strict check would red every degenerate axis)."""
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        np.testing.assert_array_equal(
-            quad.reflection_index("y"), np.arange(quad.N),
+        pi = quad.ordinate_permutation(
+            SelfPairedDeck.mirror(axis="y", dimension=3).motion
         )
+        assert pi is not None
+        np.testing.assert_array_equal(pi.indices, np.arange(quad.N))
         ReflectiveBoundary(axis="y").assert_reflection_maps_inflow_to_outflow(quad)
 
     def test_raises_at_realize_time(self, monkeypatch) -> None:
@@ -882,7 +885,12 @@ def _non_involutive_but_otherwise_valid(
       (:math:`\sigma` does not touch :math:`\pi[b]`, which has the opposite
       sign).
     """
-    perm = quadrature.reflection_index(axis)
+    true_pi = quadrature.ordinate_permutation(
+        SelfPairedDeck.mirror(axis=axis, dimension=3).motion
+    )
+    if true_pi is None:  # pragma: no cover — fixtures are mirror-closed
+        raise AssertionError(f"{quadrature!r} has no {axis}-mirror pairing")
+    perm = true_pi.indices
     mu = quadrature.axis_cosines(AXIS_NAMES.index(axis))
     measure = quadrature.weights * np.abs(mu)
     # Group same-sign ordinates by measure; the first class with ≥2 members
@@ -915,7 +923,7 @@ class TestSpecularPairingCertifiedOnBothCarriers:
     :class:`ReflectiveBoundary`'s methods and into
     :mod:`~orpheus.geometry.boundary._specular`, because the 2026-08-01 ruling
     gave :class:`AlbedoBoundary` a :class:`SpecularReturn` closure that realizes
-    through the SAME ``quadrature.reflection_index(axis)`` table — with the
+    through the SAME specular pairing — with the
     pairing in :math:`R` instead of :math:`G`.
 
     That module's central claim is *"one certification, two laws"*, and until
@@ -1040,13 +1048,13 @@ class TestSpecularPairingCertifiedOnBothCarriers:
             law.assert_realizable(mutant)  # type: ignore[arg-type]
 
     def test_a_diffuse_closure_does_NOT_fire_the_pairing_checks(self) -> None:
-        """SCOPE control: only a SPECULAR closure stands on the table.
+        """SCOPE control: only a SPECULAR closure stands on the mirror pairing.
 
         An ``IsotropicReturn`` closure realizes through the Lambertian average
-        and never touches ``reflection_index``, so a broken table must leave it
-        untouched. Without this leg, an ``assert_realizable`` that fired the
-        pairing checks unconditionally would pass every row above while
-        refusing perfectly good diffuse laws.
+        and never touches ``ordinate_permutation``, so a poisoned pairing must
+        leave it untouched. Without this leg, an ``assert_realizable`` that
+        fired the pairing checks unconditionally would pass every row above
+        while refusing perfectly good diffuse laws.
         """
         from orpheus.geometry.boundary import IsotropicReturn
 

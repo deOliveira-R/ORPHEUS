@@ -49,6 +49,7 @@ from orpheus.numerics.operator import (
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
+from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import face_method_space, face_trace
 
 
@@ -250,7 +251,7 @@ class TestRealizeReflective:
 
     def test_specular_unit_albedo_lebedev_matches_hand_computed(self):
         r"""At α=1 the realized op MUST bit-match the hand-computed narrowed
-        gather ``psi[reflection_index][inflow]``.
+        gather ``psi[mirror_partner][inflow]``.
 
         RE-POSED at **B3.2** (C-1): the pre-B3.2 reference was the FULL-face
         gather ``psi[reflection_index]``. The narrowed reference is that SAME
@@ -258,11 +259,15 @@ class TestRealizeReflective:
         the bit-identity claim the phase makes, so this leg doubles as the
         law-level half of it.
 
-        Note what the reference does NOT use: ``to_local``. The expected value
-        is built from ``reflection_index`` and the inflow index set alone, so
-        an error in the production remap cannot cancel against the reference
-        (they share no code above the numpy line — ``algebra-of-record``
-        structural independence).
+        Note what the reference does NOT use: ``to_local``, or ANY production
+        derivation of the partner map. The expected value is built from
+        :func:`~tests._harness.references.mirror_partner_indices` (pure numpy
+        over the direction cosines) and the inflow index set alone, so neither
+        a remap error nor a pairing-derivation error in production can cancel
+        against the reference (``algebra-of-record`` structural independence —
+        strengthened at G6.3 §7d.3, when production moved onto
+        ``ordinate_permutation`` and the retired shared-datum table went with
+        it).
         """
         quad = Quadrature.lebedev(17)
         bc = ReflectiveBoundary(axis="x", albedo=1.0)
@@ -270,7 +275,7 @@ class TestRealizeReflective:
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(7)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5, 3))
-        expected = psi[quad.reflection_index("x")][space.inflow_indices]
+        expected = psi[mirror_partner_indices(quad, "x")][space.inflow_indices]
         np.testing.assert_array_equal(
             op.apply(psi[space.outflow_indices]), expected,
         )
@@ -310,8 +315,9 @@ class TestRealizeReflective:
         r"""At α=0.7 the realized op output equals
         ``0.7 * psi[reflection_index][inflow]`` bit-exactly.
 
-        RE-POSED at B3.2 alongside its α=1 sibling — same retired reference,
-        restricted to :math:`\Gamma_-`.
+        RE-POSED at B3.2 alongside its α=1 sibling — same reference shape,
+        restricted to :math:`\Gamma_-`; the partner map comes from the
+        independent geometric reference (§7d.3).
         """
         quad = Quadrature.lebedev(17)
         bc = ReflectiveBoundary(axis="x", albedo=0.7)
@@ -319,7 +325,7 @@ class TestRealizeReflective:
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(9)
         psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5))
-        expected = 0.7 * psi[quad.reflection_index("x")][space.inflow_indices]
+        expected = 0.7 * psi[mirror_partner_indices(quad, "x")][space.inflow_indices]
         np.testing.assert_array_equal(
             op.apply(psi[space.outflow_indices]), expected,
         )

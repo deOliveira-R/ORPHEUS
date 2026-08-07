@@ -30,8 +30,10 @@ catches ARGUMENT drift (a wrong axis, a dropped α, a wrong ``law_key``) and
 nothing else — necessary, never sufficient (``vv-principles`` §1).
 
 The catchers are the two anchor classes, whose references are written from
-``quadrature.reflection_index`` / ``quadrature.weights`` × ``omega_dot_n`` and
-import nothing from :mod:`orpheus.sn.boundary.realizer` above the ``np.take`` /
+the independent geometric partner reference
+(:func:`~tests._harness.references.mirror_partner_indices`) /
+``quadrature.weights`` × ``omega_dot_n`` and import nothing from
+:mod:`orpheus.sn.boundary.realizer` above the ``np.take`` /
 ``np.tensordot`` line.
 
 ⭐ The two routes need COMPLEMENTARY fixtures — neither list covers the other
@@ -109,6 +111,7 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import build_omega_dot_n
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import face_method_space
 
 
@@ -330,9 +333,10 @@ class TestEquivalenceTheorems:
 class TestSpecularAgainstAnIndependentExpression:
     r"""``albedo(α, SpecularReturn(a))`` vs a hand-written specular gather.
 
-    The reference is four lines of numpy over ``quadrature.reflection_index``
-    and the raw index sets — it shares nothing with the realizer above the
-    ``np.take``. Row :math:`j` of the image reads the MIRROR of the
+    The reference is four lines of numpy over the independent geometric
+    partner map (``mirror_partner_indices``) and the raw index sets — it
+    shares nothing with the realizer above the ``np.take``, and since §7d.3
+    nothing with production's pairing derivation either. Row :math:`j` of the image reads the MIRROR of the
     :math:`j`-th inflow ordinate, which is an outflow ordinate, at its position
     inside :math:`\Gamma_+`.
 
@@ -355,7 +359,7 @@ class TestSpecularAgainstAnIndependentExpression:
         inflow, outflow = _sorted_half_traces(space)
         x = _probe(space)
 
-        perm = quad.reflection_index(axis)
+        perm = mirror_partner_indices(quad, axis)
         full = np.zeros((int(quad.N),) + x.shape[1:], dtype=x.dtype)
         full[outflow] = x
         expected = alpha * full[perm[inflow]]
@@ -391,7 +395,7 @@ class TestSpecularAgainstAnIndependentExpression:
         _id, _q, _face, axis, _sign, _faces = fixture
         quad, space = _space(fixture)
         inflow, outflow = _sorted_half_traces(space)
-        perm = quad.reflection_index(axis)
+        perm = mirror_partner_indices(quad, axis)
         local = np.searchsorted(outflow, perm[inflow])   # a LINEAR-scan-free
         naive = np.arange(inflow.size)                   # independent to_local
         discriminating = {"gl4_xmax", "gl8_xmin", "lebedev17_xmax"}

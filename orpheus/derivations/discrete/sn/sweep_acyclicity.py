@@ -298,7 +298,8 @@ def build_slab_trace_digraph(
         acyclicity is a combinatorial property, not a numerical one.
     reflection_index :
         ``reflection_index[n]`` is the partner ordinate under reflection across
-        the slab axis (``Quadrature.reflection_index(0)``).
+        the slab axis — the ``.indices`` of
+        ``Quadrature.ordinate_permutation(RigidMotion.reflection(normal=ê_x))``.
     bc_left, bc_right :
         The boundary kinds.  See :data:`BoundaryKind`.
 

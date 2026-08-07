@@ -24,30 +24,31 @@ fix). Both matvec twins (``orpheus/sn/operator.py`` ``_compute_LpC`` /
 (``orpheus/sn/loss_representation.py``) seed the +μ (outward) pole face from
 the −μ (inward) sweep's pole outflow at the **mirror ordinate**::
 
-    pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]
+    pole_face_seed = outflow_at_inner.T[self._ensure_pole_mirror()]
 
 This realises the Carlson coupled-pole continuity
 :math:`\psi(0,+\mu_r) = \psi(0,-\mu_r)` (:ref:`the documented continuity
-<sn-err-058-coupled-pole-continuity>`).  It is correct **iff**
-``reflection_index("x")[n]`` is the **intra-level sign-flip partner** of
-ordinate ``n``: the same μ-level (same axial cosine :math:`\mu = \mu_z`), with
+<sn-err-058-coupled-pole-continuity>`).  It is correct **iff** the derived
+mirror pairing sends ``n`` to its **intra-level sign-flip partner**:
+the same μ-level (same axial cosine :math:`\mu = \mu_z`), with
 :math:`\mu_x` negated and the other cosines held.  The physics demands it —
 the pole continuity holds at *fixed axial direction*, so the reflected partner
 must stay in the same level.
 
-If ``reflection_index("x")`` ever returned a **cross-level** partner (a future
-cubature, or a refactor of ``_compute_sphere_reflection_partners``), the
+If the derived pairing ever returned a **cross-level** partner (a future
+cubature, or a refactor of ``ordinate_permutation``'s match machinery), the
 ``pole_outflow[mirror[n]]`` read would grab a *different axial direction's*
 value — a **silent** correctness break: on a flat ψ field the mirror value
 equals the cell value, so every flat-flux gate stays green (the exact ERR-058
 blindness class — vv-principles Mode 7, at the operator-internals level).  This
 gate pins the invariant so a future change cannot break it silently.
 
-The invariant holds by construction today: ``reflection_index("x")`` is the
-certified partner table ``_compute_sphere_reflection_partners`` builds from
-``RigidMotion.reflection(normal=ê_x)`` (``directional.py``; the bare
-``_find_reflections`` it names in older prose was retired at Q5.0.1), and
-the x-mirror's action flips only :math:`\mu_x` and holds
+The invariant holds by construction today: the seed derives its pairing at
+first use (``_OneDimScanWalk._ensure_pole_mirror``) from the σ_x mirror
+MOTION via ``Quadrature.ordinate_permutation`` — certified bijective and
+weight-preserving, with the same match discipline the retired
+``reflection_index`` table carried until G6.3 §7d — and the x-mirror's
+action flips only :math:`\mu_x` and holds
 :math:`\mu_y, \mu_z`.  The cylinder μ-level is keyed
 on the **axial** cosine :math:`\mu = \mu_z` (``rules_sphere.py`` groups by
 ``|mu_z|``; ``rules_product.py`` levels are fixed-``mu_z`` GL nodes), and the
@@ -58,7 +59,7 @@ The physics continuity :math:`\psi(0,+\mu)=\psi(0,-\mu)` is a representational
 identity (``:vv-status: documented``), whose *verifiable* content lives in the
 curvilinear-MMS operator-admission gate (``test_curvilinear_operator_admits_mms``,
 ``catches("ERR-058")``) and the seed-adjoint bit-identity gate — NOT in this
-reflection-index data-structure contract.  This test pins the **software
+mirror-pairing data-structure contract.  This test pins the **software
 invariant** the seed relies on; attaching the physics ``:label:`` here would
 write a misleading ``tests`` edge promoting the equation to "covered" on the
 strength of a structure check that never touches a non-flat ψ profile.  Per the
@@ -72,7 +73,29 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
+from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn import solve_sn_fixed_source
+
+
+def _seed_mirror(quad: Quadrature) -> np.ndarray:
+    """The seed's x-mirror pairing, derived exactly as production derives it.
+
+    This is deliberately the SAME expression
+    ``_OneDimScanWalk._ensure_pole_mirror`` evaluates — the gates below pin
+    properties of the datum production actually consumes, not of a
+    reference lookalike (a lookalike could hold the invariant while the
+    production derivation drifts).
+    """
+    pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="x").motion)
+    if pi is None:
+        raise AssertionError(
+            "no x-mirror ordinate pairing on this rule — every _CUBATURES "
+            "row is expected to be σ_x-closed"
+        )
+    return np.asarray(pi.indices, dtype=int)
 
 # Curvilinear-relevant cubatures.  Sphere/slab GL1D is single-level (the
 # intra-level leg is trivial; it still exercises the μ_x sign-flip leg).
@@ -99,11 +122,11 @@ def _level_of(quad: Quadrature) -> np.ndarray:
 @pytest.mark.foundation
 @pytest.mark.parametrize("quad_factory", _CUBATURES)
 def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
-    r"""``reflection_index("x")`` is the intra-level :math:`\mu_x`-sign-flip
+    r"""The seed's x-mirror pairing is the intra-level :math:`\mu_x`-sign-flip
     partner — the contract the ERR-058 coupled-pole seed relies on.
 
     Three facets, asserted together for every ordinate ``n`` with
-    ``m = reflection_index("x")[n]``:
+    ``m = mirror[n]`` (the pairing derived exactly as production derives it):
 
     1. **Intra-level** — ``level(m) == level(n)``.  The coupled-pole partner
        stays in ``n``'s μ-level, so ``pole_outflow[m]`` is the *same axial
@@ -118,7 +141,7 @@ def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
     ``python -O``; bare ``assert`` would be stripped — vv-principles Mode 8).
     """
     quad = quad_factory()
-    mirror = np.asarray(quad.reflection_index("x"), dtype=int)
+    mirror = _seed_mirror(quad)
 
     # (2)+(3): the full node maps to itself with column 0 (μ_x) negated.
     mu = np.column_stack(
@@ -129,7 +152,7 @@ def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
     np.testing.assert_allclose(
         mu[mirror], expected, atol=1e-12,
         err_msg=(
-            "reflection_index('x') is not the μ_x sign-flip partner "
+            "the seed's x-mirror pairing is not the μ_x sign-flip partner "
             "(μ_y/μ_z must be held) — the coupled-pole seed would read the "
             "wrong direction's pole outflow (ERR-058 class, Issue #193)."
         ),
@@ -140,10 +163,10 @@ def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
     np.testing.assert_array_equal(
         level_of[mirror], level_of,
         err_msg=(
-            "reflection_index('x') maps an ordinate to a DIFFERENT μ-level — "
-            "the coupled-pole seed's pole_outflow[mirror[n]] read would grab a "
-            "cross-level (wrong axial direction) value, a SILENT break "
-            "invisible to flat-flux gates (ERR-058 class, Issue #193)."
+            "the seed's x-mirror pairing maps an ordinate to a DIFFERENT "
+            "μ-level — the coupled-pole seed's pole_outflow[mirror[n]] read "
+            "would grab a cross-level (wrong axial direction) value, a SILENT "
+            "break invisible to flat-flux gates (ERR-058 class, Issue #193)."
         ),
     )
 
@@ -151,7 +174,7 @@ def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
 @pytest.mark.foundation
 @pytest.mark.parametrize("quad_factory", _CUBATURES)
 def test_x_reflection_is_an_involution(quad_factory):
-    r"""``reflection_index("x")`` is its own inverse — applying it twice
+    r"""The seed's x-mirror pairing is its own inverse — applying it twice
     returns the identity.
 
     The coupled-pole seed pairs ``(+μ_x, -μ_x)`` ordinates; a non-involutive
@@ -160,8 +183,43 @@ def test_x_reflection_is_an_involution(quad_factory):
     the sign-flip/level invariant above.
     """
     quad = quad_factory()
-    mirror = np.asarray(quad.reflection_index("x"), dtype=int)
+    mirror = _seed_mirror(quad)
     np.testing.assert_array_equal(
         mirror[mirror], np.arange(quad.N),
-        err_msg="reflection_index('x') is not an involution (mirror∘mirror ≠ id).",
+        err_msg="the seed's x-mirror pairing is not an involution (mirror∘mirror ≠ id).",
     )
+
+
+@pytest.mark.foundation
+def test_a_rule_without_the_x_mirror_refuses_before_any_march():
+    r"""A σ_x-unclosed rule refuses the curvilinear sweep LOUDLY, with the
+    pairing's own diagnosis — the pole seed never runs on a wrong partner.
+
+    ``product(4, 5)`` (odd :math:`n_\varphi`) has no x-mirror closure — the
+    ERR-074 fixture: its pre-certification partner table was wrong by 0.58
+    in the direction cosines *and still involutive*.  Until G6.3 §7d the
+    only barrier here was the retired ``reflection_index`` table's generic
+    lookup ``ValueError``, raised MID-ITERATION; since 7d.2 the seed derives
+    its pairing at first use (``_ensure_pole_mirror``) and refuses with the
+    coupled-pole continuation's own message, before any march.
+
+    Pinned on the message FRAGMENT, not the exception type: this is the
+    re-point of the retired ``"no precomputed reflection partner"`` pin, and
+    ``BoundaryError ⊂ ValueError`` taught the campaign that a type-only
+    refusal pin stays green across the wrong refusal.
+    """
+    nx = 4
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+        bc_left=BC("reflective"),          # r = 0 symmetry axis
+        bc_right=BC("vacuum"),             # no mirror demand from the BC tier
+    )
+    quad = Quadrature.product(n_mu=4, n_phi=5)
+    Q = np.full((quad.N, 1, nx), 1.0)
+    with pytest.raises(ValueError, match="cannot seed the r = 0 pole"):
+        solve_sn_fixed_source(
+            {0: _make_1g_mixture(1.0, 0.5)}, mesh, quad, Q,
+            max_inner=2, inner_tol=1e-13,
+        )

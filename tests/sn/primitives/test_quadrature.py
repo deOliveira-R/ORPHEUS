@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import CoordSystem
+from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
@@ -156,11 +157,21 @@ class TestLevelStructure:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Reflection indices
+# Mirror-induced ordinate permutations
 # ═══════════════════════════════════════════════════════════════════════
 
+
+def _mirror_pi(quad, axis_index: int) -> np.ndarray:
+    """The permutation σ_axis induces, via ``ordinate_permutation``."""
+    pi = quad.ordinate_permutation(
+        RigidMotion.reflection(normal=np.eye(3)[axis_index])
+    )
+    assert pi is not None, f"axis {axis_index}: rule not mirror-closed"
+    return pi.indices
+
+
 class TestReflectionIndices:
-    """Reflection partner must have the negated direction cosine."""
+    """The mirror partner must have the negated direction cosine."""
 
     @pytest.mark.parametrize("factory,kwargs", [
         (Quadrature.level_symmetric, {"sn_order": 4}),
@@ -168,7 +179,7 @@ class TestReflectionIndices:
     ])
     def test_x_reflection(self, factory, kwargs):
         quad = factory(**kwargs)
-        ref = quad.reflection_index("x")
+        ref = _mirror_pi(quad, 0)
         # μ_x of reflected partner should be -μ_x of original
         np.testing.assert_allclose(quad.mu_x[ref], -quad.mu_x, atol=1e-12)
 
@@ -179,10 +190,10 @@ class TestReflectionIndices:
     def test_reflection_involution(self, factory, kwargs):
         """Reflecting twice must return to the original ordinate."""
         quad = factory(**kwargs)
-        for axis in ["x", "y", "z"]:
-            ref = quad.reflection_index(axis)
+        for axis in (0, 1, 2):
+            ref = _mirror_pi(quad, axis)
             np.testing.assert_array_equal(ref[ref], np.arange(quad.N),
-                                          err_msg=f"{axis}-reflection not involution")
+                                          err_msg=f"axis-{axis} mirror not involution")
 
 
 # ═══════════════════════════════════════════════════════════════════════

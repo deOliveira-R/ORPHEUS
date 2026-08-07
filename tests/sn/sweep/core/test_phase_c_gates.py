@@ -50,6 +50,7 @@ from orpheus.geometry import (
 )
 from orpheus.geometry.boundary import (
     ReflectiveBoundary,
+    SelfPairedDeck,
     VacuumInflow,
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -700,8 +701,9 @@ def _outflow_at_boundary_for_sphere_from_bulk(
         psi_face_in_inward = 2.0 * psi_cell - psi_face_in_inward
     pole_outflow = np.zeros((ng, quad.N))
     pole_outflow[:, incoming_mask] = psi_face_in_inward
-    mirror = quad.reflection_index("x")
-    psi_face_in = pole_outflow[:, mirror][:, outgoing_mask]
+    pole_pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="x").motion)
+    assert pole_pi is not None  # mimics production's _ensure_pole_mirror source
+    psi_face_in = pole_outflow[:, pole_pi.indices][:, outgoing_mask]
     for i in range(nx):
         psi_cell = psi_g_first[:, outgoing_mask, i]
         psi_face_out = 2.0 * psi_cell - psi_face_in

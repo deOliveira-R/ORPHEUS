@@ -19,7 +19,7 @@ Hence the exact angular flux satisfies
     psi(r, eta, xi, mu_z) == psi(r, eta, -xi, mu_z).
 
 The ``product`` quadrature is closed under that mirror
-(``quad.reflection_index("y")`` is an involution pairing ``phi`` with
+(the :math:`\sigma_y` ordinate pairing is an involution pairing ``phi`` with
 ``2*pi - phi``) and the two partners carry EQUAL weights — so the SEMI-discrete
 (discrete-ordinate, continuous-space) problem inherits the symmetry EXACTLY.  A
 symmetry-respecting closure must therefore reproduce it to solver tolerance.
@@ -103,8 +103,23 @@ import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
+
+
+def _mirror_pairing(quad: Quadrature, axis: str) -> np.ndarray:
+    """The ordinate pairing :math:`\\sigma_{axis}` induces — read from
+    production's own source (``ordinate_permutation``, the same derivation
+    the coupled-pole seed and the BC realizer consume). The control legs
+    below verify its ξ-mirror facts INDEPENDENTLY (η/μ_z held, ξ negated,
+    weights equal), so the defect fixtures do not merely trust it."""
+    pi = quad.ordinate_permutation(
+        SelfPairedDeck.mirror(axis=axis, dimension=3).motion
+    )
+    if pi is None:
+        raise AssertionError(f"no {axis}-mirror ordinate pairing on this rule")
+    return pi.indices
 
 _XFAIL_326 = pytest.mark.xfail(
     strict=True,
@@ -140,7 +155,7 @@ def _solve_isotropic_source(nx: int, quad: Quadrature, *, het: bool):
 
 
 def _mirror_defect(quad: Quadrature, psi: np.ndarray) -> float:
-    partner = quad.reflection_index("y")
+    partner = _mirror_pairing(quad, "y")
     return float(np.max(np.abs(psi - psi[partner]))) / max(
         float(np.max(np.abs(psi))), 1e-300
     )
@@ -170,14 +185,14 @@ def defect_level_symmetric() -> float:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("n_phi", [4, 8, 16])
-def test_reflection_index_y_is_the_xi_mirror_involution(n_phi):
-    """``reflection_index("y")`` really pairs ``(eta, xi)`` with ``(eta, -xi)``.
+def test_y_mirror_pairing_is_the_xi_mirror_involution(n_phi):
+    """The σ_y pairing really pairs ``(eta, xi)`` with ``(eta, -xi)``.
 
     Control leg.  Without it the defect measurement below would be comparing
     the wrong ordinates and could manufacture a false positive.
     """
     quad = Quadrature.product(n_mu=4, n_phi=n_phi)
-    partner = quad.reflection_index("y")
+    partner = _mirror_pairing(quad, "y")
     np.testing.assert_array_equal(partner[partner], np.arange(quad.N))
     np.testing.assert_allclose(quad.eta[partner], quad.eta, atol=1e-15)
     np.testing.assert_allclose(quad.mu_z[partner], quad.mu_z, atol=1e-15)
@@ -190,11 +205,11 @@ def test_slab_quadrature_has_a_trivial_xi_mirror_control():
     """Control leg: on a 1-D slab GL rule the ``xi`` mirror is the identity.
 
     Pins that the defect below is specific to the cylindrical AZIMUTHAL
-    structure, not an artefact of how ``reflection_index`` is built.
+    structure, not an artefact of how the pairing is derived.
     """
     quad = Quadrature.gauss_legendre(8)
     np.testing.assert_array_equal(
-        quad.reflection_index("y"), np.arange(quad.N)
+        _mirror_pairing(quad, "y"), np.arange(quad.N)
     )
 
 
@@ -330,12 +345,13 @@ def test_cylinder_pole_map_and_axis_crossing_differ_by_exactly_the_xi_mirror():
     axis crossing is ``(eta,xi) -> (-eta,-xi)``.  They agree IFF psi is xi-even.
 
     ``orpheus/sn/loss_representation/__init__.py`` seeds each outward
-    ordinate's r=0 inflow from ``pole_outflow[reflection_index("x")[n]]`` — the
-    map ``omega -> pi - omega``.  A ray that actually crosses the axis keeps its
-    LAB direction while the local ``(r_hat, phi_hat)`` frame rotates by ``pi``,
-    so BOTH components flip: ``omega -> omega + pi``.
+    ordinate's r=0 inflow at the x-mirror partner
+    (``pole_outflow[mirror[n]]``, the pairing ``_ensure_pole_mirror``
+    derives) — the map ``omega -> pi - omega``.  A ray that actually crosses
+    the axis keeps its LAB direction while the local ``(r_hat, phi_hat)``
+    frame rotates by ``pi``, so BOTH components flip: ``omega -> omega + pi``.
 
-    The two maps compose to exactly ``reflection_index("y")`` — the ``xi``
+    The two maps compose to exactly the ``sigma_y`` pairing — the ``xi``
     mirror.  So the shipped pole map is correct up to the ``xi``-symmetry the
     solution is ASSUMED to have and (per the xfailed rows above) measurably
     does not.  FLAGGED as a structural observation, NOT a confirmed bug: it
@@ -343,8 +359,8 @@ def test_cylinder_pole_map_and_axis_crossing_differ_by_exactly_the_xi_mirror():
     """
     n_phi = 8
     quad = Quadrature.product(n_mu=2, n_phi=n_phi)
-    mirror_eta = quad.reflection_index("x")
-    mirror_xi = quad.reflection_index("y")
+    mirror_eta = _mirror_pairing(quad, "x")
+    mirror_xi = _mirror_pairing(quad, "y")
     rotate_pi = np.array([                        # omega -> omega + pi
         (n // n_phi) * n_phi + ((n % n_phi) + n_phi // 2) % n_phi
         for n in range(quad.N)
@@ -361,7 +377,7 @@ def test_tie_break_permutation_does_not_commute_with_the_pole_map():
     """WHY the tie-break leaks into the answer even on ``xi``-EVEN data.
 
     A tie-break swap ``sigma`` acts inside ONE ``eta`` class.  The pole seed
-    couples ordinate ``n`` to ``reflection_index("x")[n]``, which lives in the
+    couples ordinate ``n`` to its x-mirror partner, which lives in the
     ``-eta`` class — and nothing forces the tie-break to have made the same
     choice there.  So ``sigma`` and the pole map do NOT commute, and the pole
     seed feeds an ordinate from the wrong ``xi`` branch.
@@ -373,8 +389,8 @@ def test_tie_break_permutation_does_not_commute_with_the_pole_map():
     relabeling and phi would be bit-invariant.
     """
     quad = Quadrature.product(n_mu=2, n_phi=8)
-    mirror_eta = quad.reflection_index("x")
-    mirror_xi = quad.reflection_index("y")
+    mirror_eta = _mirror_pairing(quad, "x")
+    mirror_xi = _mirror_pairing(quad, "y")
 
     # A tie-break swap acting on ONE eta class only: swap the (+eta, +-xi)
     # partners and leave the (-eta, +-xi) partners alone.

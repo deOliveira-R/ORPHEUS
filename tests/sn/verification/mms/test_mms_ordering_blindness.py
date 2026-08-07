@@ -105,8 +105,16 @@ from orpheus.derivations.continuous.mms.sn import (
     build_cylindrical_anisotropic_mms_case,
 )
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
+
+
+def _xi_mirror_pairing(quad: Quadrature) -> np.ndarray:
+    """The σ_y (ξ-mirror) ordinate pairing, from production's own source."""
+    pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="y").motion)
+    assert pi is not None, "every fixture here is σ_y-closed (k = 0 plane)"
+    return pi.indices
 
 from tests.sn._test_helpers import product_level_ordering, volume_weighted_l2
 
@@ -266,7 +274,7 @@ def test_production_mms_source_is_identical_on_the_mirror_pair(builder):
     """
     case = builder()
     quad = case.quadrature
-    partner = quad.reflection_index("y")
+    partner = _xi_mirror_pairing(quad)
     Q = case.external_source(case.build_mesh(20))           # (N, ng, nx)
     np.testing.assert_allclose(Q, Q[partner], rtol=0, atol=1e-15)
     np.testing.assert_array_equal(quad.weights, quad.weights[partner])
@@ -394,7 +402,7 @@ def _build_xi_odd_case(n_mu: int = 4, n_phi: int = 8) -> _CylXiOddMMSCase:
 def test_xi_odd_companion_source_DOES_differ_on_the_mirror_pair():
     """Control: the companion ansatz really leaves the symmetric sector."""
     case = _build_xi_odd_case()
-    partner = case.quadrature.reflection_index("y")
+    partner = _xi_mirror_pairing(case.quadrature)
     Q = case.external_source(case.build_mesh(20))
     rel = float(np.max(np.abs(Q - Q[partner])) / np.max(np.abs(Q)))
     print(f"xi-odd companion: mirror-pair source difference {rel:.3e}")

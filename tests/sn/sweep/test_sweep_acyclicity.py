@@ -30,12 +30,15 @@ from orpheus.derivations.discrete.sn.sweep_acyclicity import (
     build_slab_trace_digraph,
     derive_slab_trace_acyclicity,
 )
+from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.quadrature import Quadrature
 
 
 def _slab(n_ordinates: int = 4):
     q = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
-    return np.asarray(q.mu_x, dtype=float), q.reflection_index(0)
+    pi = q.ordinate_permutation(RigidMotion.reflection(normal=np.eye(3)[0]))
+    assert pi is not None  # GL1D is always σ_x-closed (node symmetry)
+    return np.asarray(q.mu_x, dtype=float), pi.indices
 
 
 # ── the headline: acyclicity is per-CONFIGURATION, not per-boundary-KIND ──

@@ -27,8 +27,10 @@ derived by genuinely independent routes:
   :class:`~orpheus.geometry.transformation.RigidMotion` — the ``G1``–``G5``
   core, verified against pure math — to the quadrature's direction cosines and
   reads off the induced permutation;
-* the **response** side is ``quadrature.reflection_index(axis)``, the
-  quadrature's own reflection table, built by the rule's constructor.
+* the **response** side is ``quadrature.ordinate_permutation(motion)``, the
+  quadrature's own certified pairing derivation — the one source production
+  realization also reads (G6.3 step 7; until §7d.3 this side was the
+  construction-time ``reflection_index`` table).
 
 Neither consults the other. `[M]` they agree EXACTLY (``atol=1e-12``, and the
 permutation is a genuine bijection) on ``gauss_legendre(4)``,
@@ -98,7 +100,7 @@ def _geometric_permutation(quad, axis: str) -> tuple[np.ndarray, np.ndarray]:
 
 @pytest.mark.parametrize("case", list(_CASES))
 def test_the_deck_transformation_induces_the_quadratures_own_table(case):
-    r"""⭐ ``σ_axis`` applied to the nodes == ``quadrature.reflection_index``.
+    r"""⭐ ``σ_axis`` applied to the nodes == ``quadrature.ordinate_permutation``.
 
     The pin: the constitutive stand-in and the geometric theorem agree at
     :math:`\alpha = 1`, by two derivations that never consult each other.
@@ -131,7 +133,13 @@ def test_the_deck_transformation_induces_the_quadratures_own_table(case):
     assert len(set(induced.tolist())) == len(induced), (
         "the induced map is not injective — it is a relation, not a permutation"
     )
-    np.testing.assert_array_equal(induced, np.asarray(quad.reflection_index(axis)))
+    motion = SelfPairedDeck.mirror(axis=axis, dimension=3).motion
+    pi = quad.ordinate_permutation(motion)
+    assert pi is not None, (
+        f"production's pairing derivation refuses σ_{axis} on a rule the "
+        f"geometric side just proved symmetric under it"
+    )
+    np.testing.assert_array_equal(induced, pi.indices)
 
 
 @pytest.mark.parametrize("case", list(_CASES))

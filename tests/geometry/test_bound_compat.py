@@ -55,6 +55,7 @@ from orpheus.numerics.operator import (
     PermutationOperator,
     ZeroOperator,
 )
+from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -361,7 +362,7 @@ class Test188WiringContracts:
         ⭐ RE-POSED at **B3.2**, and this fixture is one of the TWO
         discriminating fixtures for the narrowing's new index remap. The
         realized permutation is now on the reduced ordinate axis, i.e.
-        ``local_positions(reflection_index("x")[inflow], outflow)``, and on a
+        ``local_positions(mirror_partner[inflow], outflow)``, and on a
         SLAB the mirror REVERSES order: with ``gauss_legendre(4)`` at ``xmax``,
         ``perm[inflow] = [3, 2]`` maps to local ``[1, 0]`` while the naive
         ``arange(2)`` would give ``[0, 1]``. So the slab — not a curvilinear or
@@ -398,7 +399,7 @@ class Test188WiringContracts:
             # GL1D x-reflection pairs mu with -mu — the flip permutation,
             # narrowed to the face's half-traces.
             expected = local_positions(
-                quad.reflection_index("x")[inflow], outflow,
+                mirror_partner_indices(quad, "x")[inflow], outflow,
             )
             np.testing.assert_array_equal(angular.perm, expected)
             if not np.array_equal(expected, np.arange(expected.size)):

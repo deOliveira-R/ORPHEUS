@@ -41,6 +41,7 @@ from orpheus.numerics.spaces.angular_trace_space import build_omega_dot_n
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
+from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import face_method_space
 
 
@@ -124,19 +125,20 @@ def test_vacuum_bc_is_resolved_bc() -> None:
 
 @pytest.mark.foundation
 def test_specular_bc_indexes_through_reflection_partner() -> None:
-    r"""``B(γ₊ψ)[j] == ψ[reflection_index[inflow[j]]]``.
+    r"""``B(γ₊ψ)[j] == ψ[mirror_partner[inflow[j]]]``.
 
     RE-POSED at **B3.2**: the pre-B3.2 claim was the full-face gather
-    ``psi_in == psi_out[reflection_index]``. Narrowed, row ``j`` of the image
+    ``psi_in == psi_out[mirror_partner]``. Narrowed, row ``j`` of the image
     is the mirror of the ``j``-th INFLOW ordinate — which is the same gather
-    restricted to :math:`\Gamma_-`, and is written here from
-    ``reflection_index`` and the inflow set alone (no ``to_local``), so a
-    remap error cannot cancel against the reference.
+    restricted to :math:`\Gamma_-`, and is written here from the independent
+    geometric partner reference and the inflow set alone (no ``to_local``,
+    no production pairing derivation), so neither a remap error nor a
+    pairing error can cancel against the reference.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.arange(quad.N * 2, dtype=float).reshape(quad.N, 2)
     bc = ReflectiveBoundary(axis="x", albedo=1.0)
-    ref = quad.reflection_index("x")
+    ref = mirror_partner_indices(quad, "x")
     inflow, outflow = _half_traces(quad)
 
     psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_out[outflow])
@@ -192,7 +194,7 @@ def test_specular_bc_axis_y_on_lebedev() -> None:
     )
 
     np.testing.assert_array_equal(
-        psi_in, psi_out[quad.reflection_index("y")][space.inflow_indices],
+        psi_in, psi_out[mirror_partner_indices(quad, "y")][space.inflow_indices],
     )
 
 
@@ -578,7 +580,7 @@ def test_albedo_bc_scales_the_flux_its_CLOSURE_pairs() -> None:
 
     psi_in = _realize_narrowed_for_face_right(bc, quad).apply(psi_full[outflow])
 
-    perm = quad.reflection_index("x")
+    perm = mirror_partner_indices(quad, "x")
     np.testing.assert_array_equal(psi_in, 0.5 * psi_full[perm[inflow]])
     # …and the retired positional reading is DIFFERENT here, which is what
     # makes the assertion above discriminating rather than a coincidence.
