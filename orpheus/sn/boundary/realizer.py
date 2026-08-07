@@ -39,7 +39,9 @@ suffices for the two laws below.
   it, because those rows are no longer in the operator's domain.
 * :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
   ``albedo * PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
-  where ``local_perm = Γ₊(f').to_local(π⁻¹[inflow])`` and :math:`\pi` is the
+  where ``local_perm = Γ₊(f).to_local(π⁻¹[inflow])`` (a mirror is
+  self-paired, so the domain face is the installation face; the general
+  ``_deck_kernel`` doc speaks ``Γ₊(f')``) and :math:`\pi` is the
   ordinate permutation the law's own MIRROR MOTION induces
   (:func:`_deck_kernel` →
   :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,

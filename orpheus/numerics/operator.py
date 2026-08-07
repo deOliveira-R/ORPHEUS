@@ -2472,9 +2472,12 @@ def checked_space_extent(
     computes a plausible wrong answer — which makes construction the only place
     it can be caught.
 
-    The redundancy is transitional: G6.5 retires the lengths in favour of the
-    spaces (#330). Until then this keeps the pair honest, and it is one routine
-    rather than four because four operators now need it
+    The redundancy is transitional: the tree-wide mandate (**#330**) retires
+    the lengths in favour of MANDATORY spaces — G6.5 (2026-08-07) measured why
+    the retirement cannot land sooner (binding is optional this era, and the
+    space-less arms must still name their extents). Until then this keeps the
+    pair honest, and it is one routine rather than four because four operators
+    now need it
     (:class:`TraceRestrictionOperator`, :class:`PermutationOperator`,
     :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator`,
     :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`) — well
@@ -2575,11 +2578,13 @@ class TraceRestrictionOperator(LinearOperator):
     **Sorted** is canonical form, and it is load-bearing one tier up: the
     local↔global remap (``to_local``) lives on the half-trace SPACE since
     G6.5 — the embedding data is the space's — and its ``searchsorted``
-    haystack is, on the canonical trace-builder path, this SAME array. One
-    ascending spelling per subspace means the gather, the space's row
-    order, and the metric restriction are three views of one selection
-    that cannot drift. (The 1-D-prefix-vs-2-D lesson that used to justify
-    the remap living here travels with it — see
+    haystack carries, on the canonical trace-builder path, the same VALUES
+    as this gather's index array (two objects; the agreement is CHECKED
+    elementwise at binding — ERR-077 — not assumed). One ascending
+    spelling per subspace means the gather, the space's row order, and the
+    metric restriction are three views of one selection that cannot drift.
+    (The 1-D-prefix-vs-2-D lesson that used to justify the remap living
+    here travels with it — see
     :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`.)
 
     **Unique** because a repeated row is not a restriction — the transpose
@@ -2674,11 +2679,36 @@ class TraceRestrictionOperator(LinearOperator):
     def _checked_space(
         self, space: Optional[FunctionSpace], expected: int, role: str,
     ) -> Optional[FunctionSpace]:
-        """Refuse a space whose extent along :attr:`axis` contradicts the length."""
-        return checked_space_extent(
+        """Refuse a space whose extent along :attr:`axis` contradicts the length.
+
+        For the CODOMAIN, extent alone is not enough (**ERR-077**): the gather
+        emits rows in :attr:`indices` order, and a space that declares its own
+        ambient rows (``ordinate_indices``) must declare the SAME ones — or
+        the space's ``to_local`` answers a row order this gather never
+        produces. Pre-G6.5 the operator-side ``to_local`` was implicitly
+        closed under the gather's own array; relocating the remap to the
+        space made the agreement a separate fact, so it is CHECKED where the
+        pair is bound rather than assumed. Duck-typed deliberately: numerics
+        cannot import the spaces module (circular), and any space declaring
+        ambient rows owes the agreement regardless of its class.
+        """
+        space = checked_space_extent(
             space, expected,
             axis=self.axis, owner="TraceRestrictionOperator", role=role,
         )
+        declared = getattr(space, "ordinate_indices", None)
+        if role == "codomain" and declared is not None:
+            declared = np.asarray(declared, dtype=np.intp)
+            if not np.array_equal(declared, self.indices):
+                raise ValueError(
+                    f"TraceRestrictionOperator: the bound codomain "
+                    f"{getattr(space, 'name', space)!r} declares "
+                    f"ordinate_indices {declared.tolist()} but this gather "
+                    f"reads rows {self.indices.tolist()} — same extent, "
+                    f"different rows. The space's to_local would answer a row "
+                    f"order the gather does not emit (ERR-077)."
+                )
+        return space
 
     @property
     def domain(self) -> Optional[FunctionSpace]:

@@ -146,7 +146,8 @@ def _sn_2d(nx: int = 4, ny: int = 4, ng: int = 2) -> SNMesh:
 
     B3.2 introduced a NEW piece of index arithmetic on the schedule-split
     path: the requested rows are a subset of :math:`\Gamma_-`, so they must be
-    remapped to POSITIONS within it (``γ₋.to_local(sel)``). In 1-D the
+    remapped to POSITIONS within it (``Γ₋(f).to_local(sel)`` — the half-trace
+    SPACE's remap since G6.5). In 1-D the
     schedule hands each face entirely to one half, so the requested rows ARE a
     prefix of the inflow set and the naive ``arange(sel.size)`` is *exactly
     correct* — the whole 1-D suite is blind. In 2-D the lower-half rows
@@ -774,7 +775,7 @@ class TestScheduleSplitPartition2D:
     B3.2's row-restricted emission carries index arithmetic that did not exist
     before it: the requested rows ``sel`` index the FACE, but the law's image
     is indexed by POSITION WITHIN :math:`\Gamma_-`, so the write needs
-    ``γ₋.to_local(sel)``.
+    ``Γ₋(f).to_local(sel)`` (the half-trace SPACE's remap since G6.5).
 
     **[M]** The plausible transcription ``arange(sel.size)`` is *exactly
     correct in 1-D* — the schedule hands each face entirely to one half, so

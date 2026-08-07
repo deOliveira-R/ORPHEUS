@@ -1238,14 +1238,39 @@ class TestFacePackingOrderIsBookkeeping:
     identical to the BIT, with zero edits in any operator file (that half of
     the claim is the G6.5 carve itself; this gate holds the runtime half).
 
-    ``product(4,4)`` is mandatory here (Mode 7): ``gauss_legendre`` has no
-    tangential band, and the tangential rows are exactly where a packing
-    change could silently reindex without moving either half-trace.
+    ⭐ **The 3-D arm carries the y-faces, and they are load-bearing, not
+    decoration** (qa's in-class mutation battery, 2026-08-07): the ONLY
+    flat-offset read in the whole realization path is the per-face metric
+    slice (``slot.slice_view`` in ``_face_spaces``), and with both faces on
+    ONE axis the two slots' metric slices are bit-identical
+    (``|Ω·n̂| = |μ_x|`` on both) — so a wrong-slot metric read is INVISIBLE
+    on a same-axis fixture (Mode 12 at the fixture tier). `[M]` with a
+    y-face heading one ordering, the same mutation moves ``Γ₊(xmax)``'s
+    weights by ``max |Δw| = 0.963``. ``gauss_legendre`` structurally cannot
+    carry a y-face (no ``mu_y``), so its arm stays 2-face and gates the
+    permutation class only.
+
+    Reachability, stated so the row counts read honestly: only specular and
+    periodic route through ``_deck_kernel`` (the permutation class);
+    lambertian's ``cos_w`` and every law's binding read the metric slice
+    (the wrong-slot class); vacuum's rows are near-vacuous completeness. And
+    per ``vv-principles`` #23, the valid positive control for an INVARIANCE
+    gate is knob-dependent (the ignored-order mutation reddening the
+    activation rows) — a catastrophic identity mutation correctly leaves
+    all bit-identity rows green.
     """
 
     _QUADS = {
-        "gauss_legendre(8)": lambda: Quadrature.gauss_legendre(n_ordinates=8),
-        "product(4,4)": lambda: Quadrature.product(n_mu=4, n_phi=4),
+        "gauss_legendre(8)": (
+            lambda: Quadrature.gauss_legendre(n_ordinates=8),
+            ("xmin", "xmax"),
+            ("xmax", "xmin"),
+        ),
+        "product(4,4)": (
+            lambda: Quadrature.product(n_mu=4, n_phi=4),
+            ("xmin", "xmax", "ymin", "ymax"),
+            ("ymin", "xmax", "xmin", "ymax"),
+        ),
     }
     _LAWS = {
         "specular": lambda: ReflectiveBoundary(axis="x"),
@@ -1253,28 +1278,29 @@ class TestFacePackingOrderIsBookkeeping:
         "periodic": lambda: PeriodicBoundary(axis="x"),
         "vacuum": lambda: VacuumInflow(),
     }
-    _FORWARD = ("xmin", "xmax")
-    _REVERSED = ("xmax", "xmin")
 
     @pytest.mark.parametrize("quad_name", sorted(_QUADS))
     def test_the_packing_order_genuinely_moves_the_buffer(self, quad_name):
         """Activation: without this, the class could green on an ignored order.
 
-        The two orderings place ``xmax`` at different flat offsets (the
-        buffer MOVES), while the per-face spaces compare equal and carry
+        The two orderings place at least one face at a different flat offset
+        (the buffer MOVES), while the per-face spaces compare equal and carry
         bit-identical metrics (the FACE does not) — which is precisely the
         claim "packing is book-keeping" at the space tier.
         """
-        quad = self._QUADS[quad_name]()
-        trace_a = face_trace(quad, self._FORWARD)
-        trace_b = face_trace(quad, self._REVERSED)
+        factory, forward, reversed_ = self._QUADS[quad_name]
+        quad = factory()
+        trace_a = face_trace(quad, forward)
+        trace_b = face_trace(quad, reversed_)
 
-        assert (
-            trace_a.layout.faces["xmax"].offset
-            != trace_b.layout.faces["xmax"].offset
-        ), "the two orderings packed xmax identically — the fixture is vacuous"
+        offsets_a = {f: trace_a.layout.faces[f].offset for f in forward}
+        offsets_b = {f: trace_b.layout.faces[f].offset for f in forward}
+        assert offsets_a != offsets_b, (
+            "the two orderings packed every face identically — the fixture "
+            "is vacuous"
+        )
 
-        for face in self._FORWARD:
+        for face in forward:
             assert trace_a.outflow_space(face) == trace_b.outflow_space(face)
             np.testing.assert_array_equal(
                 np.asarray(trace_a.outflow_space(face).inner_product_weights),
@@ -1295,9 +1321,10 @@ class TestFacePackingOrderIsBookkeeping:
         ``np.array_equal``, not ``allclose``: nothing arithmetic changed, so
         any drift at all is a packing dependence leaking into the math.
         """
-        quad = self._QUADS[quad_name]()
+        factory, forward, reversed_ = self._QUADS[quad_name]
+        quad = factory()
         ops = []
-        for faces in (self._FORWARD, self._REVERSED):
+        for faces in (forward, reversed_):
             ms = face_method_space(quad, face="xmax", faces=faces)
             ops.append(
                 SNBoundaryRealizer().realize(self._LAWS[law_key](), ms)
@@ -1309,6 +1336,10 @@ class TestFacePackingOrderIsBookkeeping:
         y = rng.standard_normal(op_a.codomain.shape)
 
         np.testing.assert_array_equal(op_a.apply(x), op_b.apply(x))
+        np.testing.assert_array_equal(
+            np.asarray(op_a.apply_transpose(y)),
+            np.asarray(op_b.apply_transpose(y)),
+        )
         np.testing.assert_array_equal(
             np.asarray(op_a.H.apply(y)), np.asarray(op_b.H.apply(y))
         )

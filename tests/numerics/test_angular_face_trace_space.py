@@ -738,7 +738,8 @@ def test_a_space_contradicting_its_own_length_is_REFUSED_at_construction(quad_na
     """The lengths and the spaces are redundant; a disagreement must not pass.
 
     ``n_total`` / ``n_restricted`` and the bound spaces describe the same fact
-    until G6.5 retires the former. A mis-binding is invisible at apply-time
+    until the tree-wide mandate (#330) retires the former — G6.5 measured why
+    that cannot land sooner. A mis-binding is invisible at apply-time
     (the arrays still broadcast), so it is refused at construction.
     """
     trace = _trace(quad_name)
@@ -1015,4 +1016,38 @@ def test_the_restriction_and_the_space_carry_ONE_index_set(quad_name, role):
     )("xmin")
     np.testing.assert_array_equal(
         np.asarray(gamma.indices), np.asarray(space.ordinate_indices)
+    )
+
+
+@pytest.mark.parametrize("quad_name", _ALL)
+@pytest.mark.catches("ERR-077")
+def test_a_codomain_declaring_DIFFERENT_rows_is_REFUSED(quad_name):
+    r"""ERR-077 — same extent, DIFFERENT rows: refused where the pair binds.
+
+    The G6.5 relocation made the remap's haystack (the space's
+    ``ordinate_indices``) and the gather's index array two objects whose
+    agreement the extent guard cannot see. Pre-G6.5 the operator-side
+    ``to_local`` was implicitly closed under the gather's own rows; `[M]`
+    (qa, 2026-08-07) the post-carve deck kernel ACCEPTED a hand-built
+    divergent pair and emitted ``local_perm = [0, 1, 2, 3]`` against gather
+    rows it never produces, where the pre-carve kernel refused with the
+    crossed-set message. The agreement is therefore CHECKED elementwise at
+    construction — the one place every call site funnels through.
+    """
+    trace = _trace(quad_name)
+    space = trace.outflow_space("xmin")
+    honest = np.asarray(space.ordinate_indices, dtype=np.intp)
+    shifted = honest.copy()
+    shifted[-1] = int(honest[-1]) + 1        # same extent, one different row
+    with pytest.raises(ValueError, match="same extent,"):
+        TraceRestrictionOperator(
+            shifted,
+            n_total=int(shifted[-1]) + 1,
+            axis=0,
+            codomain=space,
+        )
+    # PC⁺: the honest pair still binds through the same guard.
+    TraceRestrictionOperator(
+        honest, n_total=int(trace.omega_dot_n.shape[1]), axis=0,
+        codomain=space,
     )

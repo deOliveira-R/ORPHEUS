@@ -892,7 +892,8 @@ class AngularFaceTraceSpace(FunctionSpace):
         half-traces, a row-restricted emission to place a subset of
         :math:`\Gamma_-`.
 
-        Owning it here is what makes the classic slip unspellable: the naive
+        Owning it here keeps the classic slip out of call-site hands (it
+        stays SPELLABLE — two committed gates pin it): the naive
         ``arange(g.size)`` is exactly correct when ``g`` happens to be a
         PREFIX of the index set — the 1-D slab case — and silently wrong in
         2-D, where a call site that hand-rolled the remap would be gated only
