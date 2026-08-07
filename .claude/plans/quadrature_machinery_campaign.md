@@ -30,9 +30,14 @@
 > | **Q5.E / E3** | `647ece5a` | `rules_circle.py` — the periodic trapezoid on `S^1`, shift as a `Fraction`, nodes as roots of unity |
 > | **Q5.E / E4** | `255a9f1c` | the sphere product theorem + the azimuthal substitution; #325's generator half closed |
 > | **Q5.0.2** | `bfedc621` | `Z2` RETIRED → `Mirror(axis)`; the 1-D and 3-D arms unified *(hash filled at the 2026-08-07 reconciliation — the row shipped saying "this commit")* |
+> | **Q5.1** | `681bc49b` | `DiscreteMeasure.quotient(group)` — the composite named, weights orbit-stabilizer-derived, refusal off the certificate; the "idempotent" gate realized as TWO arms (see the block's landing note) |
 >
-> **▶ NEXT = Q5.1** (`DiscreteMeasure.quotient`), then Q5.2–Q5.6. The full ladder with gates
-> is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
+> **▶ NEXT = Q5.2** (the derived offset). ⚠ Re-scope at pickup per the block's own
+> §7.2 instruction — the 2026-08-07 reconciliation measured that Q5.E/E4 already
+> absorbed its composition half; the residual is the signature-orders half at
+> `rules_product.py:215` + the one-word "conservative" fix at `:238`. Then
+> Q5.3–Q5.6. The full ladder with gates is in §5's `Q5.E` and `Q5.2` blocks —
+> read them, not this summary.
 >
 > ---
 > **⏱ RECONCILED AGAINST THE TREE 2026-08-07 — the G/P interlude landed
@@ -2049,12 +2054,48 @@ implemented and **no `D_6h`-invariant rule in tree**.
        family needs NO per-dimension arm.)*
 
   ---
-  **Q5.1 — `DiscreteMeasure.quotient(group)`.** Name the composite
+  **Q5.1 — `DiscreteMeasure.quotient(group)`.** ✅ **LANDED `681bc49b`
+  (2026-08-07).** Name the composite
   `pushforward(orbit representative).consolidate()`. Precondition already
   enforced by construction (Σ is unrepresentable on a non-invariant measure).
   *Gates:* mass preserved exactly; weights equal orbit-stabilizer's
   `W = w·|G|/|Stab|`; idempotent; and **`Σ = ∅` ⟹ every orbit has length `|G|`**
   (the free-action certificate, T24).
+
+  **Landing note.** The representative is the orbit's **first-appearing
+  member** — the only group-generic section (`ξ → |ξ|` exists only for a
+  mirror; the pre-existing manual-composite test keeps that geometric section
+  as the independent reference realization, gated equal orbit-by-orbit).
+  Refusal = `orbit_certificate(...) is None ⟹ ValueError`, message family
+  matching `singular_set`'s. `[M]` product(4,8) folds 32 → 20 (Burnside
+  `(N+|Σ|)/2`, `|Σ| = 8`), weights `{w, 2w}` == `w·|G|/|Stab|` read off the
+  certificate; a hand-built midpoint ring (Σ = ∅, because the SHIPPED product
+  rule is equispaced-LEFT until Q5.2 derives the offset) folds 8 → 4 at
+  uniform `2w` per-atom BIT-exact. Result honestly drops BOTH claims:
+  `invariance_group=None` (the section is not equivariant) and
+  `exactness=None` (a claim would be against `φ_*λ`, no consumer — the E2
+  direct-sum precedent).
+
+  ⭐ **The one-word "idempotent" gate was underdetermined; realized as TWO
+  arms, derived from the API.** Literal idempotence holds exactly where the
+  action is TRIVIAL (every node fixed ⟹ the quotient is the identity on
+  `(nodes, weights)`). On a free action the fold **consumes the symmetry** —
+  the folded measure keeps one member per pair, so it is no longer
+  G-invariant and a SECOND `quotient(group)` **refuses**: T5's "the quotient
+  CHANGES the space", enforced at runtime rather than faked as a no-op. Both
+  arms gated. Teeth `[M]` (in-process monkeypatch): skip-consolidate 4 red,
+  skip-fold 6 red; the invariant-integral gate is blind to skip-consolidate
+  BY THEOREM (consolidate changes no integral) — the count/weight gates are
+  its designed catchers.
+
+  ⚠ **A docstring `:label:` is invisible in an un-`automodule`'d module** —
+  the first `-W` run failed with `equation not found` at both `:eq:` sites
+  because `numerics/measure.py` is among the 218 unrendered modules (the
+  corpus-integrity lesson, hit live). The labeled equation now lives on the
+  theory page (`discrete_measures.rst`, with its vv-status pair); the
+  docstring keeps the math unlabeled. The page pass also closed owed drift:
+  consolidate's propagation-table row (owed since Q2.6), the rotting
+  "four"/"fifth" ordinals, and stale `μ.space` cells → `μ.support`.
 
   ---
   **Q5.E — ⭐ THE EXACTNESS SPACE, pulled forward** (T2, T12b, T28). User
