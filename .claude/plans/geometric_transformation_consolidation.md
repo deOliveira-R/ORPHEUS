@@ -5,8 +5,11 @@
 > (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing);
 > **step 8 LANDED** (§7h.5 — the check now runs on the production path, and the
 > transpose leg is DERIVED rather than written).
-> ▶ **RESUMES AT STEP 7 — periodic**, now the ONLY unbound law and therefore
-> the one face-crossing the new check cannot police. Then G6.3b and G6.5.**
+> ▶ **RESUMES AT STEP 7, RE-SCOPED 2026-08-07 by user ruling** — no longer
+> "bind periodic" but **uplift the deck transformation once**: mint
+> `PairedDeck` (translation + rotation; only the REFLECTION is self-paired),
+> derive the trace arrow from the motion via `RigidMotion.permutes`, and retire
+> `reflection_index` after the checks pass. **Read §7h.6.** Then G6.3b, G6.5.**
 >
 > **Read ⏸ COMPACTION POINT #4 at the END of this file FIRST** — it carries the
 > three things a cold session gets WRONG about step 7 (its cited line numbers had
@@ -1965,9 +1968,116 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **4** | ✅ **DONE — but NOT as scoped; the premise was refuted, for the FOURTH time in this step** | see §7h.2 |
 | **5** | ✅ **DONE — and it refuted step 8, the FIFTH refutation in this step** | see §7h.3. The deck arm is bound `Γ₊(f) → Γ₋(f)`, `γ₊` with it, `is_involution` RETIRED; `TensorProductOperator` turns out to drop the binding, so **step 8 gains a substep** |
 | **6** | ✅ **DONE — landed inside the affine campaign's P3, `8d552395`** | ⭐ vacuum is NOT "the zero chain" as a distinct structure; it is a **length-1 chain whose single link is the zero morphism** (user, 2026-08-05) — same shape as step 5's deck arm, different kernel. `ZeroOperator` gained `domain`/`codomain`, bound in `_narrowed_zero_operator` via `checked_space_extent` against the half-trace index arrays, and gated by the NEW `tests/numerics/test_zero_operator_spaces.py` (which also inherited the `\|Γ₊\| ≠ \|Γ₋\|` Mode-12 discrimination from a retired operator — no face fixture can make it, since the two half-traces are equal-sized on every reachable face). Everything else about prescribed inflow lives in **`.claude/plans/affine_boundary_source_channel.md`** — read its ⏸ COMPACTION POINT #2. ⚠ **Do not re-plan vacuum/prescribed here** — that plan is the authority |
-| **7** | ▶ **NEXT — periodic's link becomes a typed arrow, like every other law's** | the threading claim still holds: `_assert_wrap_identification` RETURNS the partner face and the call site discards it. ⛔ **its two line numbers were STALE** (`:512`/`:851`, re-measured 2026-08-07 as `:506`/`:970` — cite the SYMBOL, never the line). ⛔ **And the obvious means is BLOCKED** — see ⏸ COMPACTION POINT #4 |
+| **7** | ▶ **NEXT — RE-SCOPED 2026-08-07 (user ruling): the deck transformation is UPLIFTED once, and periodic is the translational case** | ⛔ **no longer a periodic-only step** — see §7h.6. Mint `PairedDeck`; derive the bound ordinate arrow from the MOTION via `RigidMotion.permutes`; retire `reflection_index` once the checks pass. The threading claim still holds: `_assert_wrap_identification` RETURNS the partner face and the call site discards it. ⛔ **its two line numbers were STALE** (`:512`/`:851`, re-measured 2026-08-07 as `:506`/`:970` — cite the SYMBOL, never the line). ⛔ **And the obvious means is BLOCKED** — see ⏸ COMPACTION POINT #4 |
 | **8.0** | ✅ **LANDED `72f5ce97` — and it was NOT the plumbing step this row said it was** | see §7h.4. The anchor flipped `XPASS(strict)` exactly as the flip-proof predicted. ⛔ **This row's framing was wrong**: it scoped 8.0 as an enabler for 8, so a session trusting it would have shipped a **live `.H` repair with zero gates** — `[M]` binding the product moved the realized *white* law's Hilbert adjoint by **87 % relative** (specular: **0.0**, its metric cancels) |
 | **8** | ✅ **LANDED `84d7861f` — the check now runs on the production path** | see §7h.5. `face_action = law @ γ₊`, ONE operator serving BOTH legs (`(law∘γ₊)ᵀ = γ₊ᵀ∘lawᵀ`). `[M]` bit-identical on all four shipped law kinds; flip-proof measured (reverting reddens the B3.4c re-injection gate, and **only** that one of 8) |
+
+### §7h.6 — step 7 RE-SCOPED: uplift the deck transformation, once
+
+**USER RULING, 2026-08-07** (verbatim): *"for the periodic (translation rigid
+motion) and rotational symmetry (rotational rigid motion), we need a
+`PairedDeck`, not a `SelfPairedDeck` (because only reflection is involution).
+We're going to uplift, do all the checks and retire the old one when we're
+successful."* Arrived from the question **"why does the periodic case need the
+identity operator? Why not just the translational deck transformation — a law
+uplift of the rigid-motion machinery in geometry?"**
+
+**Goal (the OUTCOME).** A deck transformation's action on the trace is DERIVED
+from the rigid motion, by one body, for every law that has one. Specular,
+periodic and (latent) rotational sector symmetry then differ only in **which
+motion** they carry — never in which code path realizes them.
+
+#### Why the current tree is not that — `[M]` two measured gaps
+
+1. **The deck slot is typed asymmetrically.** `SelfPairedDeck` holds
+   `motion: RigidMotion`; `SpatialWrap` (periodic) holds `axis: str`. G5's own
+   argument sits unapplied in `SelfPairedDeck`'s error message — *"the deck
+   element is the transformation itself, not a name for one — an axis LETTER
+   cannot say which plane"*. A letter equally cannot say which **lattice
+   vector**, nor which **rotation angle**.
+2. ⛔ **The specular arm does NOT go through the rigid-motion core.** `[M]`
+   `_specular_kernel` builds its permutation from
+   `quadrature.reflection_index(axis)` → `_find_reflections`, a
+   nearest-neighbour `argmin` table — **ERR-074's own site** (*"never checked
+   that the reflection PERMUTES the nodes"*). Meanwhile
+   `RigidMotion.permutes` exists, is G2-verified, and **returns a
+   bijectivity-checked `Permutation`** — the exact guard whose absence was
+   ERR-073. ⟹ **two paths for one concept, and the boundary tier is on the
+   unhardened one.** Cardinal Rule 2.
+
+#### The taxonomy, and the criterion that decides it
+
+`[M]` 2026-08-07, against `SelfPairedDeck`'s live guard:
+
+| motion | order | fixed_dim (d=3) | `SelfPairedDeck` |
+|---|---|---|---|
+| reflection | 2 | **2 = d−1** | accepted — this IS the self-paired case |
+| rotation 90° | 4 | 1 | refused |
+| **rotation 180° (half-turn)** | **2 — an involution** | 1 | refused |
+| translation | ∞ | 3 | refused |
+
+⭐ **Involution is NECESSARY but not SUFFICIENT for self-pairing.** The
+half-turn is an involution and still maps a face to its *opposite*. The
+deciding criterion is the **fixed subspace**: a self-paired face must LIE in
+the motion's fixed set (`fixed_dim ≥ d−1`), which among the deck families only
+the reflection satisfies. The existing guard already encodes this, and its
+docstring already names the half-turn and the inversion as *"precisely
+`SpatialWrap`'s deferred job"* — so the tree anticipated the sibling type and
+then under-typed it.
+
+⟹ **`PairedDeck(motion: RigidMotion)`** — the genuine-pair deck element,
+covering translation (periodic), rotation (sector symmetry), half-turn and
+inversion. `SpatialWrap` retires onto it.
+
+⚠ **Rotational sector symmetry is a LATENT consumer, not speculation** — 1/4,
+1/6, 1/8 core symmetry is ordinary reactor physics and the reason to build the
+paired type generically rather than special-casing the wrap
+(`process-discipline`: *"no current consumer" often means "consumer not yet
+wired"*).
+
+#### Why `IdentityOperator` was the wrong answer, stated once
+
+A rigid motion is a linear part (acting on DIRECTIONS) plus a translation
+(acting on POSITIONS). A torus wrap's linear part **is** the identity, so
+`on_directions` returns its input — which is why the arm reached for
+`IdentityOperator`. But the trace arrow is `Γ₊(f') → Γ₋(f)` and for a
+translation **the face crossing is the entire content**. `IdentityOperator` is
+an endomorphism `V → V` that names no spaces; it can never be an arrow between
+two. The linear part being trivial is a **value of the motion**, not a
+different kind of object.
+
+#### Proposed shape (2026-08-07, NOT yet implemented)
+
+```
+PairedDeck(motion)      SelfPairedDeck(motion)
+        \                      /
+         one uplift: RigidMotion + trace.directions
+                     |
+             permutes()  ->  Permutation      (bijectivity-checked, ERR-073)
+                     |
+      PermutationOperator(π, domain=Γ₊(f'), codomain=Γ₋(f))
+```
+
+`[M]` the input is already there: **P6 gave every trace tier a `directions`
+field** (`16835c68`, added for the inflow source) — exactly `permutes`'s
+argument. The uplift is cheaper now than when G5 ran.
+
+**Done when:** one body realizes every deck law; `SpatialWrap` carries a
+motion; the boundary tier no longer calls `reflection_index`; and — **the
+user's gate** — `reflection_index` is RETIRED across its consumers *after* the
+checks pass, not before.
+
+⚠ **Retirement is NOT boundary-scoped.** `[M]` 10 call sites across 6 modules:
+`derivations/discrete/sn/sweep_acyclicity` (8), `geometry/boundary/_specular`
+(10 refs), `sn/boundary/realizer` (4), `sn/loss_representation` (4),
+`geometry/boundary/{albedo,reflective,_factors,__init__}`,
+`numerics/operator`, `numerics/quadrature/directional`. The sweep is in there.
+Sequence the retirement as its own substep with the three-search audit.
+
+⚠ **The transitional pin flips here too:**
+`test_PERIODIC_is_the_one_law_the_check_cannot_police_yet` asserts periodic is
+unbound, and the ⚠ note in `_reflect_trace`'s docstring says the same. Both
+re-scope when this lands.
 
 ### §7h.5 — step 8: the check fires, and what it does NOT reach
 
@@ -2631,7 +2741,19 @@ picking up cold re-anchors from **this file + `git log`**, never a summary.
    | vacuum, prescribed | `ZeroOperator` | ✅ |
    | **periodic** | **`IdentityOperator`** | ⛔ **the only one that is not** |
 
-3. ⭐⭐ **And that reframing DISSOLVES the "blocker" I first recorded here.**
+3. ⛔⛔ **AND THE STEP WAS RE-SCOPED AGAIN, 2026-08-07 — read §7h.6 BEFORE
+   anything below.** The user's question *"why does periodic need the identity
+   operator at all — why not the translational deck transformation, a law
+   uplift of the rigid-motion machinery?"* re-scoped step 7 from a
+   periodic-only fix to **uplifting the deck transformation once**: mint
+   `PairedDeck` (translation, rotation, half-turn, inversion — only the
+   REFLECTION is self-paired), derive the trace arrow from the MOTION via the
+   bijectivity-checked `RigidMotion.permutes`, and retire `reflection_index`
+   (ERR-074's site, 10 call sites incl. the sweep) once the checks pass. The
+   identity-permutation sketch in item 4 below is now an IMPLEMENTATION DETAIL
+   of that uplift — the arrow for the translation case — not the step's goal.
+
+4. ⭐⭐ **The reframing DISSOLVES the "blocker" I first recorded here.**
    The original note read *"`IdentityOperator` has no `__init__` and cannot be
    bound, and G6.0 ruled do not touch it"* — true, and beside the point.
    `IdentityOperator` is an **endomorphism** :math:`V \to V`; periodic needs an
@@ -2643,7 +2765,7 @@ picking up cold re-anchors from **this file + `git log`**, never a summary.
    action is the identity"* with *"the operator is `IdentityOperator`"* is what
    made this arm the odd one out.
 
-4. ⭐ **The arrow, measured 2026-08-07** — a permutation is the trivial
+5. ⭐ **The arrow, measured 2026-08-07** — a permutation is the trivial
    relabeling between two DISTINCT index sets, which is exactly what a torus
    wrap induces (`_assert_wrap_identification` proves the local index needs no
    relabelling, so the permutation is `arange`):
