@@ -507,14 +507,18 @@ at :ref:`bc-sweep-cycle`.
      -
      - ``α * <that TP>``
      - α ≠ 1
-   * - ``"periodic"`` — **narrowed** (B3.4c)
+   * - ``"periodic"`` — **narrowed** (B3.4c); arrow derived (G6.3 step 7)
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-     - ``IdentityOperator() & IdentityOperator()``, fed the PARTNER
+     - ``PermutationOperator(arange) & IdentityOperator()``, bound
+       :math:`\Gamma_+(f') \to \Gamma_-(f)` and fed the PARTNER
        face's :math:`\Gamma_+`. The crossing lives in the channel
        (:meth:`PairedDeck.domain_face <orpheus.geometry.boundary.PairedDeck.domain_face>` names the partner; the composite
-       supplies it), so the action on the trace is the identity —
-       EARNED by the certified identification
-       :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, not assumed
+       supplies it); the angular factor is the ordinate permutation the
+       wrap MOTION induces — the identity relabelling between two DISTINCT
+       index sets, EARNED by the kernel's certified identification
+       :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, not assumed. (Until step 7
+       this was an unbound ``IdentityOperator() & IdentityOperator()`` —
+       the one link of the five that was not a typed arrow.)
      - 1
    * - ``"albedo"`` — **narrowed** (B3.4b); the realized body is chosen
        by the law's **re-emission closure**, not by its class

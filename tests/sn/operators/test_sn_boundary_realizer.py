@@ -743,20 +743,21 @@ class TestRealizeAlbedo:
 
 @pytest.mark.l1
 class TestRealizePeriodic:
-    """Periodic realizes to the IDENTITY between the partner's Γ₊ and this
-    face's Γ₋ — the crossing lives in the channel, not in the operator."""
+    """Periodic realizes to the identity RELABELLING between the partner's
+    Γ₊ and this face's Γ₋ — a typed arrow between two distinct spaces,
+    derived from the wrap's motion (G6.3 step 7)."""
 
     def test_periodic_returns_tensor_product_and_passes_through(self):
         """Periodic realizes to a 2-factor :class:`TensorProductOperator`
-        ``(PeriodicWrapOperator, IdentityOperator)`` whose apply passes
-        through values unchanged.
+        ``(PermutationOperator, IdentityOperator)`` — the angular factor a
+        BOUND identity relabelling — whose apply passes through values
+        unchanged.
 
         Wave T step T.1 (2026-05-30): the bare
         :class:`PeriodicWrapOperator` (identity-with-copy body) is now
         lifted to a 2-factor TP, mirroring the D-B+1 specular pattern.
-        Compare values, NOT identity: the TP fold returns a copy from
-        the first factor and the :class:`IdentityOperator` second
-        factor returns it unchanged.
+        Compare values, NOT identity: the TP fold returns a copy and the
+        :class:`IdentityOperator` group factor returns it unchanged.
 
         **Re-posed at B3.4c** — the same migration B3.2 made for vacuum /
         reflective and B3.4a for white / prescribed inflow, now that periodic
@@ -766,10 +767,20 @@ class TestRealizePeriodic:
         space that cannot name the installation face cannot name the partner
         either, and the realizer refuses instead of guessing.
 
+        **Re-posed again at G6.3 step 7** — the angular factor was a bare
+        unbound :class:`IdentityOperator`, an endomorphism standing in for
+        an isomorphism between two DIFFERENT spaces. It is now the
+        :class:`PermutationOperator` the wrap MOTION derives (the identity
+        permutation, EARNED: a translation moves no direction and the
+        kernel certifies Γ₊(partner) ≡ Γ₋(face)), bound
+        Γ₊(xmax) → Γ₋(xmin) — the same kind of object every other law's
+        link is, which is what lets the composability check police the one
+        law whose domain face differs from its installation face.
+
         The pass-through claim is unchanged and is exactly what the identity
-        body means — but it is now the identity on the **narrowed** trace, so
-        the probe is :math:`\\Gamma_+`-shaped rather than full-face. That the
-        two shapes differ (49 of 74 ordinates on ``lebedev(17)``) is what
+        relabelling means — but it is the identity on the **narrowed** trace,
+        so the probe is :math:`\\Gamma_+`-shaped rather than full-face. That
+        the two shapes differ (49 of 74 ordinates on ``lebedev(17)``) is what
         makes this a statement about the narrowed law rather than about an
         endomorphism that happens to be the identity.
         """
@@ -778,7 +789,12 @@ class TestRealizePeriodic:
         op = SNBoundaryRealizer().realize(PeriodicBoundary(axis="x"), space)
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
-        assert all(isinstance(f, IdentityOperator) for f in op.ops)
+        angular, group = op.ops
+        assert isinstance(angular, PermutationOperator)
+        assert isinstance(group, IdentityOperator)
+        trace = space.trace
+        assert op.domain == trace.outflow_space("xmax")
+        assert op.codomain == trace.inflow_space("xmin")
         n_domain = np.asarray(space.outflow_indices).size
         assert n_domain != quad.N, (
             "the probe must be narrower than the full face, or the shape "
@@ -787,6 +803,7 @@ class TestRealizePeriodic:
         rng = np.random.default_rng(3)
         psi = rng.uniform(-1.0, 1.0, size=(n_domain, 5))
         np.testing.assert_array_equal(op.apply(psi), psi)
+        np.testing.assert_array_equal(op.apply_transpose(psi), psi)
 
     def test_periodic_without_a_face_is_refused(self):
         r"""A quadrature-only space cannot name the partner, so it is refused.

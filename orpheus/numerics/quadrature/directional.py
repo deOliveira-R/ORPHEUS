@@ -85,9 +85,15 @@ from orpheus.numerics.measure import (
 # The reflection-partner map is a group action on the measure, so it is
 # certified by the SAME machinery that proves invariance — one source of
 # truth for "does this operator permute these nodes?" (see
-# ``_compute_sphere_reflection_partners``).
-from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.symmetry import _orbit_closure
+# ``_compute_sphere_reflection_partners``). ``ordinate_permutation`` asks
+# the same question of ONE arbitrary motion, with the same two windows and
+# the same canonical R³ embedding (``_embedded_nodes``).
+from orpheus.geometry.transformation import Permutation, RigidMotion
+from orpheus.numerics.symmetry import (
+    _NODE_WINDOW_FACTOR,
+    _embedded_nodes,
+    _orbit_closure,
+)
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import GalerkinFrame
@@ -427,6 +433,68 @@ class Quadrature:
                 f"axis index {axis_idx}; available axes: "
                 f"{sorted(self.reflection_partners.keys())}."
             ) from exc
+
+    def ordinate_permutation(
+        self, motion: "RigidMotion"
+    ) -> "Permutation | None":
+        r"""The permutation ``motion`` induces on this rule's weighted
+        ordinates, or ``None`` if the motion does not carry them onto
+        themselves.
+
+        **The single source for "which ordinate permutation does a rigid
+        motion induce?"** (G6.3 step 7). Before this method the tree had two
+        paths to that answer — the certified axis-mirror table
+        (:meth:`reflection_index`, populated at construction through
+        :func:`~orpheus.numerics.symmetry._orbit_closure`) and nothing at
+        all for any other motion — so a translation deck element realized
+        through a hand-argued identity and a sector rotation had no path.
+        This method is the general question, asked with exactly the table's
+        discipline:
+
+        * the same canonical :math:`\mathbb{R}^3` embedding
+          (:func:`~orpheus.numerics.symmetry._embedded_nodes` — a polar
+          :math:`\mu` becomes :math:`(\mu, 0, 0)`), with a lower-dimensional
+          motion lifted through
+          :meth:`~orpheus.geometry.transformation.RigidMotion.embedded_in`;
+        * the same two tolerance windows (node window
+          :data:`~orpheus.numerics.symmetry._NODE_WINDOW_FACTOR` times the
+          weight window, the measure-level claim recorded on
+          ``_orbit_closure``);
+        * the same three certifications, delivered by
+          :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`:
+          every image matches a node (no bare ``argmin`` — ERR-074), the
+          match is a **bijection** (ERR-073), and the matched nodes carry
+          equal weights (a deck transformation is measure-preserving —
+          ERR-042's third check).
+
+        Returning the :class:`~orpheus.geometry.transformation.Permutation`
+        rather than a ``bool`` or a bare index array is the L-013 lesson:
+        the returned object PROVES its own bijectivity at construction, and
+        every downstream reading (the boundary trace arrow, orbit structure,
+        fixed points) is a reading of :math:`\pi`. ``None`` is the honest
+        "this motion is not a symmetry of this rule" — callers own the
+        domain-specific refusal message.
+
+        Convention (pinned by the core's homomorphism law):
+        :math:`g(\Omega_i) = \Omega_{\pi(i)}` — ``pi.indices[i]`` is the
+        index of ordinate :math:`i`'s IMAGE.
+
+        The match runs through
+        :attr:`~orpheus.geometry.transformation.RigidMotion.linear_part`,
+        because ordinates are DIRECTIONS: the translation does not act on
+        them (a wrap's ordinate permutation is the identity — `[M]` feeding
+        the affine element instead translates the nodes off the sphere and
+        answers ``None``, a false "not a symmetry").
+        """
+        motion3 = (
+            motion if motion.dimension == 3 else motion.embedded_in(3)
+        )
+        return motion3.linear_part.preserves(
+            _embedded_nodes(self.measure),
+            self.measure.weights,
+            atol=_REFLECTION_ATOL * _NODE_WINDOW_FACTOR,
+            weight_atol=_REFLECTION_ATOL,
+        )
 
     # ────────────────────────────────────────────────────────────
     # Spherical harmonics evaluation

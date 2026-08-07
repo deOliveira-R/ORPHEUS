@@ -4,17 +4,20 @@ Campaign step **G6.3 step 5** (#330), sibling of ``test_lambertian_chain.py``.
 The Lambertian is a two-link chain :math:`\Gamma_+(f) \to S(f) \to
 \Gamma_-(f)`; a measure-preserving bijection has nothing to factor, so the
 specular mirror is the **same structure with one link** — no separate "atomic"
-arm, just a shorter chain. ``_specular_kernel`` now returns its
+arm, just a shorter chain. The kernel returns its
 :class:`~orpheus.numerics.operator.PermutationOperator` bound
-:math:`\Gamma_+(f) \to \Gamma_-(f)`.
+:math:`\Gamma_+(f) \to \Gamma_-(f)`. (Since G6.3 step 7 the body is
+``_deck_kernel``, deriving the permutation from the mirror MOTION rather
+than the axis-letter table; these gates migrated with the rename and their
+claims are unchanged.)
 
 What these gates are FOR — the mutation measurement that shaped them
 --------------------------------------------------------------------
 
 Before this module existed, the binding was gated by **nothing**. Measured over
 ``tests/geometry tests/sn/operators -m "not slow"`` (baseline ``3 failed /
-1668 passed``, ``_specular_kernel`` entered 1252×), with an in-process plugin
-rebinding the kernel:
+1668 passed``, the kernel — then named ``_specular_kernel`` — entered 1252×),
+with an in-process plugin rebinding the kernel:
 
 .. list-table::
    :header-rows: 1
@@ -108,10 +111,12 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
+from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.sn.boundary.realizer import (
     SNBoundaryRealizer,
+    _deck_kernel,
     _outflow_restriction,
-    _specular_kernel,
+    _specular_crossed_diagnosis,
 )
 from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -151,8 +156,12 @@ def _fixture(case: str):
         quadrature=quad, face=face, trace=trace
     )
     gamma_out = _outflow_restriction(method_space, "reflective")
-    kernel = _specular_kernel(
-        quad, method_space, gamma_out, axis=axis, law_key="reflective"
+    kernel = _deck_kernel(
+        quad, method_space, gamma_out,
+        motion=SelfPairedDeck.mirror(axis=axis).motion,
+        domain_face=face,
+        law_key="reflective",
+        crossed_diagnosis=_specular_crossed_diagnosis(axis, face),
     )
     return quad, trace, method_space, gamma_out, kernel, axis, face
 
@@ -584,8 +593,12 @@ def test_a_traceless_method_space_yields_an_unbound_kernel() -> None:
     traceless = replace(with_trace, trace=None)
 
     gamma_out = _outflow_restriction(traceless, "reflective")
-    kernel = _specular_kernel(
-        quad, traceless, gamma_out, axis="x", law_key="reflective"
+    kernel = _deck_kernel(
+        quad, traceless, gamma_out,
+        motion=SelfPairedDeck.mirror(axis="x").motion,
+        domain_face="xmin",
+        law_key="reflective",
+        crossed_diagnosis=_specular_crossed_diagnosis("x", "xmin"),
     )
     assert kernel.domain is None and kernel.codomain is None
     assert gamma_out.domain is None and gamma_out.codomain is None

@@ -255,18 +255,17 @@ class TestBitIdentityAgainstTheRetiredExpression:
 # ── The seven-law domain gate: B3.4's todo list ───────────────────────
 
 
-_B34_XFAIL = (
-    "B3.4c — PERIODIC still realizes FULL-FACE. B3.2 narrowed the two laws SN "
-    "reaches from a mesh ({vacuum, reflective}); B3.4a narrowed white and "
-    "prescribed_inflow; B3.4b narrowed albedo (see the completed rows above — "
-    "its bare spelling is REFUSED rather than narrowed, pinned by "
-    "test_bare_albedo_is_refused_outright). MEASURED: periodic silently "
-    "accepts a Γ₊ input and echoes it back, i.e. Γ₊ → Γ₊, the wrong codomain, "
-    "invisible to a shape check because |Γ₊| == |Γ₋| on every fixture (vv "
-    "Mode 12). It is blocked on a DESIGN ruling, not on plumbing: periodic's "
-    "G is a translation reading the PARTNER face's Γ₊, which B3.4c builds "
-    "(#183, #189). Delete this marker when the law narrows."
-)
+# ⏹ The strict-xfail todo mechanism this registry carried is RETIRED
+# (G6.3 step 7, 2026-08-07) — its set is EMPTY. The narrowing campaign it
+# tracked: B3.2 narrowed {vacuum, reflective}; B3.4a white and
+# prescribed_inflow; B3.4b albedo-by-closure (the bare spelling REFUSED,
+# pinned below); and finally step 7 narrowed PERIODIC — the last row, whose
+# ``_B34_XFAIL`` marker measured "silently accepts a Γ₊ input and echoes it
+# back, Γ₊ → Γ₊, invisible to a shape check because |Γ₊| == |Γ₋| (vv
+# Mode 12)". The realized periodic law is now the wrap motion's bound
+# PermutationOperator Γ₊(f') → Γ₋(f), so it passes BOTH legs genuinely; the
+# marker XPASSed(strict) the moment the step landed — the flip mechanism
+# working exactly as designed — and retired with its last row.
 
 #: Every law in the registry, with a representative amplitude per kind.
 #: ``zero_flux`` is absent by construction — SN refuses it outright, which is
@@ -274,15 +273,15 @@ _B34_XFAIL = (
 #: refusal is not a deferred narrowing). Since **B3.4b** the BARE albedo
 #: spelling is absent for the same reason, with its own negative.
 _LAWS = {
-    "vacuum": (VacuumInflow(), False),
-    "reflective_a1": (ReflectiveBoundary(axis="x", albedo=1.0), False),
-    "reflective_a07": (ReflectiveBoundary(axis="x", albedo=0.7), False),
+    "vacuum": VacuumInflow(),
+    "reflective_a1": ReflectiveBoundary(axis="x", albedo=1.0),
+    "reflective_a07": ReflectiveBoundary(axis="x", albedo=0.7),
     # B3.4a narrowed these two. The law's axis / outward_sign must match the
     # fixture face ("xmax" ⇔ x, +1) or the realizer's orientation cross-check
     # fires — which is the point of that guard, not an inconvenience.
-    "white_a1": (WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0), False),
-    "white_a03": (WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3), False),
-    "prescribed": (PrescribedInflow(source=ConstantInflowSource(value=1.0)), False),
+    "white_a1": WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
+    "white_a03": WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3),
+    "prescribed": PrescribedInflow(source=ConstantInflowSource(value=1.0)),
     # ── B3.4b — albedo, COMPLETED by a re-emission closure ────────────────
     #
     # These four replace the three ``albedo_*`` rows that stood here as
@@ -300,16 +299,20 @@ _LAWS = {
     # branches (``_narrowed_zero_operator`` / ``ScaledOperator`` / the bare
     # tensor product), and the α=0 row is the only place in this module that
     # reaches the narrowed zero map.
-    "albedo_specular_0": (AlbedoBoundary(0.0, SpecularReturn(axis="x")), False),
-    "albedo_specular_1": (AlbedoBoundary(1.0, SpecularReturn(axis="x")), False),
-    "albedo_specular_05": (AlbedoBoundary(0.5, SpecularReturn(axis="x")), False),
+    "albedo_specular_0": AlbedoBoundary(0.0, SpecularReturn(axis="x")),
+    "albedo_specular_1": AlbedoBoundary(1.0, SpecularReturn(axis="x")),
+    "albedo_specular_05": AlbedoBoundary(0.5, SpecularReturn(axis="x")),
     # The diffuse closure's axis / outward_sign must match the fixture face
     # for the same reason white's must — the ERR-041 orientation cross-check
     # is now parametrised over BOTH carriers.
-    "albedo_isotropic_05": (
-        AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=+1)), False,
+    "albedo_isotropic_05": AlbedoBoundary(
+        0.5, IsotropicReturn(axis="x", outward_sign=+1)
     ),
-    "periodic": (PeriodicBoundary(), True),
+    # Narrowed at G6.3 step 7 — the LAST law to narrow; see the retirement
+    # note above. The fixture face is "xmax", so the realized arrow reads
+    # the PARTNER's Γ₊("xmin") — Leg A's probe is |Γ₊|-shaped either way
+    # because |Γ₊(xmin)| == |Γ₊(xmax)| on the symmetric GL rule.
+    "periodic": PeriodicBoundary(),
 }
 
 
@@ -317,9 +320,7 @@ class TestEveryLawsDomain:
     r"""A realized law's domain is :math:`\Gamma_+` — for every law."""
 
     @pytest.mark.parametrize("law_id", list(_LAWS))
-    def test_realized_law_has_gamma_plus_domain(
-        self, law_id: str, request: pytest.FixtureRequest,
-    ) -> None:
+    def test_realized_law_has_gamma_plus_domain(self, law_id: str) -> None:
         r"""Two legs, and the second is why this gate is not Mode-12 blind.
 
         **Leg A — it CONSUMES** :math:`\Gamma_+`: ``apply`` on a
@@ -333,8 +334,10 @@ class TestEveryLawsDomain:
         (measured: gauss_legendre 4/5/8, product 2×4/3×4/4×8, lebedev 9/17,
         level_symmetric 4/6). The error class sits inside the shape
         functional's invariance group — vv Mode 12 — so the discriminator has
-        to leave that functional. Leg B is exactly what catches ``albedo`` and
-        ``periodic``, which pass Leg A by accident.
+        to leave that functional. Leg B is exactly what caught ``albedo`` and
+        ``periodic`` while they were deferred: both passed Leg A by accident
+        (a full-face echo has the right shape), and their xfail rows flipped
+        strictly when B3.4b / G6.3 step 7 narrowed them.
 
         **Two outcomes pass Leg B, and they are not equal in strength.** A
         narrowed law either
@@ -352,9 +355,7 @@ class TestEveryLawsDomain:
         ``test_sn_boundary_operator.py`` — kept separate on purpose, so that
         this row cannot quietly credit the weaker property as the stronger one.
         """
-        law, deferred = _LAWS[law_id]
-        if deferred:
-            request.node.add_marker(pytest.mark.xfail(strict=True, reason=_B34_XFAIL))
+        law = _LAWS[law_id]
         quad = Quadrature.gauss_legendre(8)
         space = face_method_space(quad, face="xmax")
         n_in, n_out = space.inflow_indices.size, space.outflow_indices.size
@@ -451,7 +452,7 @@ class TestEveryLawsDomain:
         """
         from orpheus.geometry.boundary import BoundaryTraceLaw
 
-        covered = {type(law).__name__ for law, _ in _LAWS.values()}
+        covered = {type(law).__name__ for law in _LAWS.values()}
         covered.add("ZeroFluxBoundary")
         registered = {
             type(BoundaryTraceLaw.create(key)).__name__

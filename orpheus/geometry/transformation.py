@@ -538,6 +538,27 @@ class RigidMotion:
             )
         return x @ self.linear.T + self.translation
 
+    @property
+    def linear_part(self) -> "RigidMotion":
+        r"""The linear element :math:`(Q, 0)` — this motion's action on
+        DIRECTIONS, as an element.
+
+        The image of this motion under the group homomorphism
+        :math:`E(d) \to O(d),\; (Q, t) \mapsto Q`. It is the object-level
+        twin of :meth:`on_directions` (which applies :math:`Q` and drops
+        :math:`t`, because a direction has no position for a translation to
+        act on): when a *set of directions* is asked "how does this motion
+        permute you?", the element doing the permuting is ``linear_part``,
+        never the affine motion itself — feeding the affine element to a
+        point-set matcher translates the nodes off their sphere and reports
+        a false "not a symmetry". `[M]` measured 2026-08-07 while building
+        :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`:
+        the unit wrap translation matched to ``None`` through
+        :meth:`on_points` and to the identity permutation through this
+        element — the second is the deck transformation's truth.
+        """
+        return RigidMotion(self.linear, np.zeros(self.dimension))
+
     def on_directions(self, directions: "ArrayLike") -> np.ndarray:
         r"""The linear action :math:`\Omega \mapsto Q\Omega`.
 

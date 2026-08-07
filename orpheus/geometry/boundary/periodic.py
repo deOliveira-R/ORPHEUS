@@ -44,15 +44,22 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     The partner is named by the geometry factor
     (:meth:`~orpheus.geometry.boundary.PairedDeck.domain_face`) and SUPPLIED
     by the composition
-    (:attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_domains`),
-    which is why the realized operator is a bare
-    :class:`~orpheus.numerics.operator.IdentityOperator`: with the right
-    half-trace on the input, ordinate :math:`n` of the partner's outflow IS
-    ordinate :math:`n` of this face's inflow, because the two faces' outward
-    normals are opposite. The realizer CERTIFIES that identification
+    (:attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_domains`).
+    The realized angular factor (G6.3 step 7) is the
+    :class:`~orpheus.numerics.operator.PermutationOperator` the wrap MOTION
+    derives — the identity permutation, as a typed arrow
+    :math:`\Gamma_+(f') \to \Gamma_-(f)` between the two faces' half-trace
+    spaces: ordinate :math:`n` of the partner's outflow IS ordinate
+    :math:`n` of this face's inflow, because the two faces' outward normals
+    are opposite. The realizer CERTIFIES that identification
     (:math:`\Gamma_+(f') \equiv \Gamma_-(f)`) rather than assuming it — the
-    user's B3.4c ruling that the quotient reading becomes a guard, not a mesh
-    restructure.
+    user's B3.4c ruling that the quotient reading becomes a guard, not a
+    mesh restructure; since step 7 the certification is executed by the
+    kernel's own membership and size checks rather than pre-asserted.
+    (Until step 7 the factor was a bare unbound
+    :class:`~orpheus.numerics.operator.IdentityOperator` — an endomorphism
+    standing in for the isomorphism, and the one link of the five laws that
+    the composability check could not police.)
 
     .. warning::
 

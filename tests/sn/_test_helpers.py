@@ -241,12 +241,16 @@ def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
       ``"ymin"`` ⇔ ``axis="y", outward_sign=-1``, and so on — or the
       realizer's orientation cross-check refuses it (the ERR-041 pattern; a
       mismatched white law averages the wrong hemisphere).
-    * **albedo** and **periodic** are still full-face endomorphisms, so
-      ``minimal`` remains correct for them — as it does for
-      dispatch-failure tests.
+    * **albedo** (with a closure, B3.4b) and **periodic** (B3.4c) require it
+      too — periodic doubly so, since its domain is a *different* face's
+      :math:`\Gamma_+` and a faceless space cannot even name the partner.
+      ``minimal`` remains correct only for dispatch-failure tests and for
+      probing the refusals themselves.
 
-    (Before B3.4a this docstring listed white among the full-face laws. That
-    was true when it was written and became false with the narrowing.)
+    (Before B3.4a this docstring listed white among the full-face laws; until
+    G6.3 step 7 it listed albedo and periodic. Both claims were true when
+    written and became false with the narrowings — the second was caught
+    late, in step 7's audit, after B3.4c had already made it false.)
     """
     from orpheus.sn.mesh.method_space import SNMethodSpace
 

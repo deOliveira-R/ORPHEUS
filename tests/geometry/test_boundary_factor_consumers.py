@@ -257,6 +257,20 @@ class TestSpecMutationsPropagate:
     Equivalence is necessary but Mode-11 blind on its own: a site that never
     reads the factors and hard-codes the old answer passes every row above.
     These are the reddening mutations that prove consumption.
+
+    ⭐ **Re-posed at G6.3 step 7 — the mutation moved one property up, to
+    stay inside the REALIZABLE class** (vv #18). The rows below used to
+    mutate ``geometry_map`` wholesale (``mirror → identity``); step 7 made
+    the realizer itself consume the deck MOTION, so that mutation now
+    reddens at MESH CONSTRUCTION (the deck kernel's crossed-index guard
+    refuses a specular law whose element does not exchange the
+    hemispheres) — an incoherent law can no longer produce a mesh to probe,
+    which is the strongest possible answer to "is the realizer reading the
+    letter?", and simultaneously the death of the old probe route. The
+    consumers under test read ``law_permutes_ordinates`` →
+    ``geometry_map.permutes_ordinates``, so the surgical mutation patches
+    THAT property (the motion stays a genuine mirror; realization is
+    untouched) and the only thing changed is the flag each site consumes.
     """
 
     def test_sweep_schedule_moves_when_the_mirror_stops_permuting(
@@ -265,8 +279,8 @@ class TestSpecMutationsPropagate:
         sn = _slab("reflective", "vacuum")
         assert _reflective_faces(sn) == frozenset({"xmin"})
         monkeypatch.setattr(
-            ReflectiveBoundary, "geometry_map",
-            property(lambda self: SelfPairedDeck.identity()),
+            SelfPairedDeck, "permutes_ordinates",
+            property(lambda self: False),
         )
         mutated = _reflective_faces(_slab("reflective", "vacuum"))
         if mutated:
@@ -282,8 +296,8 @@ class TestSpecMutationsPropagate:
         assert RadialCharacteristicBoundaryOperator(
             _sphere("reflective")).is_adjointable
         monkeypatch.setattr(
-            ReflectiveBoundary, "geometry_map",
-            property(lambda self: SelfPairedDeck.identity()),
+            SelfPairedDeck, "permutes_ordinates",
+            property(lambda self: False),
         )
         if RadialCharacteristicBoundaryOperator(
                 _sphere("reflective")).is_adjointable:
@@ -315,7 +329,10 @@ class TestSpecMutationsPropagate:
         [
             (VacuumInflow, "response_kernel", ScalarResponse(0.5),
              "vacuum's response stops being zero"),
-            (ReflectiveBoundary, "geometry_map", SelfPairedDeck.identity(),
+            # Step 7: mutate the FLAG the admission reads, not the deck
+            # object — a mirror whose element stops exchanging hemispheres
+            # is refused at realization now (see the class docstring).
+            (SelfPairedDeck, "permutes_ordinates", False,
              "reflective's geometry stops permuting"),
         ],
         ids=["vacuum-response", "reflective-geometry"],

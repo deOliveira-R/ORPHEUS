@@ -245,13 +245,16 @@ sole bridge. The canonical SN-realised representation per law.
   translation carrying the
   partner face onto this one; :math:`R = 1` (a periodic face is loss-free
   by construction, and a pure symmetry statement adds no physics). SN
-  realises (campaign phase **B3.4c**) to a bare
-  :class:`~orpheus.numerics.operator.IdentityOperator` fed the PARTNER
-  face's :math:`\Gamma_+`: :meth:`PairedDeck.domain_face` names the partner
-  and the composition supplies it, so the pushforward lives in the CHANNEL and
-  the action on the trace is the identity — earned by the opposite-normals
-  identification :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, which the realizer
-  certifies. (Until B3.4c it realised to a ``PeriodicWrapOperator`` that never
+  realises (B3.4c built the partner channel; **G6.3 step 7** derived the
+  arrow) to the :class:`~orpheus.numerics.operator.PermutationOperator`
+  the wrap MOTION induces — the identity permutation, typed
+  :math:`\Gamma_+(f') \to \Gamma_-(f)` — fed the PARTNER face's
+  :math:`\Gamma_+`: :meth:`PairedDeck.domain_face` names the partner
+  and the composition supplies it, so the pushforward lives in the CHANNEL
+  and the action on the trace is the identity relabelling — earned by the
+  opposite-normals identification
+  :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, which the realizer's kernel
+  certifies by construction. (Until B3.4c it realised to a ``PeriodicWrapOperator`` that never
   read the partner face; issue #183 was that gap, and the type retired with it
   — its body was the identity and its content is now on the factor.) The law
   gained its ``axis`` field at B1; the partner face

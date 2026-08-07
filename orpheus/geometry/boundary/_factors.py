@@ -570,6 +570,43 @@ class BoundaryResponseKernel(Protocol):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _mirror_motion(axis: str, dimension: int) -> RigidMotion:
+    r"""The reflection whose plane is normal to the named ``axis`` — the ONE
+    axis-letter → mirror spelling.
+
+    Two tiers name a mirror by an axis letter and mean the same element:
+    :meth:`SelfPairedDeck.mirror` (a symmetry of the domain, in :math:`G`)
+    and :attr:`SpecularReemission.motion` (a polished wall's constitutive
+    return, in :math:`R`). They assert different physics and MUST carry the
+    same motion — which they do by reading it here rather than by two
+    resolutions agreeing (G6.3 step 7; the same single-sourcing argument
+    that folded their realizations into one kernel at B3.4b).
+
+    The axis letter is resolved against
+    :data:`~orpheus.numerics.face_layout.AXIS_NAMES` — the single home of
+    that convention — and refused HERE rather than at realization, so a
+    mis-named axis cannot be constructed and then fail late somewhere
+    holding a quadrature.
+    """
+    try:
+        index = AXIS_NAMES.index(axis)
+    except ValueError:
+        raise ValueError(
+            f"axis must be one of {AXIS_NAMES}, got {axis!r}. The mirror "
+            f"names the plane's NORMAL; validating here is what keeps a "
+            f"bad axis from surviving construction and failing later "
+            f"against a quadrature it never should have reached."
+        ) from None
+    if not 0 <= index < dimension:
+        raise ValueError(
+            f"axis {axis!r} is index {index}, out of range for a "
+            f"{dimension}-dimensional deck element"
+        )
+    normal = np.zeros(dimension)
+    normal[index] = 1.0
+    return RigidMotion.reflection(normal=normal)
+
+
 @dataclass(frozen=True, slots=True)
 class SelfPairedDeck:
     r""":math:`G` for a face paired with **itself** — Poincaré's self-pairing case.
@@ -696,29 +733,13 @@ class SelfPairedDeck:
         :class:`PairedDeck`, whose action is **free** — that contrast IS the
         self-paired/genuinely-paired split this type is built on.
 
-        The axis letter is resolved against
-        :data:`~orpheus.numerics.face_layout.AXIS_NAMES` — the single home of
-        that convention — and refused HERE rather than at realization, so a
-        mis-named axis cannot be constructed and then fail late somewhere
-        holding a quadrature.
+        The axis letter is resolved by :func:`_mirror_motion` — the ONE
+        axis-letter → mirror spelling, shared with
+        :attr:`SpecularReemission.motion` — and refused at construction, so
+        a mis-named axis cannot survive to fail late somewhere holding a
+        quadrature.
         """
-        try:
-            index = AXIS_NAMES.index(axis)
-        except ValueError:
-            raise ValueError(
-                f"axis must be one of {AXIS_NAMES}, got {axis!r}. The mirror "
-                f"names the plane's NORMAL; validating here is what keeps a "
-                f"bad axis from surviving construction and failing later "
-                f"against a quadrature it never should have reached."
-            ) from None
-        if not 0 <= index < dimension:
-            raise ValueError(
-                f"axis {axis!r} is index {index}, out of range for a "
-                f"{dimension}-dimensional deck element"
-            )
-        normal = np.zeros(dimension)
-        normal[index] = 1.0
-        return cls(RigidMotion.reflection(normal=normal))
+        return cls(_mirror_motion(axis, dimension))
 
     @property
     def permutes_ordinates(self) -> bool:
@@ -1142,9 +1163,13 @@ class SpecularReemission:
     r""":math:`R = \alpha\,P_{\text{mirror}}` — **specular** re-emission.
 
     A surface that returns :math:`\alpha` of the arriving flux into the
-    mirror-partner direction. Realized as the ordinate permutation
-    ``quadrature.reflection_index(axis)``, scaled by :math:`\alpha` — the same
-    matrix :meth:`SelfPairedDeck.mirror` realizes to.
+    mirror-partner direction. Realized (G6.3 step 7) as the ordinate
+    permutation the mirror MOTION induces on the quadrature
+    (:attr:`motion` →
+    :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`),
+    scaled by :math:`\alpha` — the same matrix
+    :meth:`SelfPairedDeck.mirror` realizes to, because both read the same
+    element from :func:`_mirror_motion`.
 
     Why this is a **response** and not a geometry
     ---------------------------------------------
@@ -1193,6 +1218,20 @@ class SpecularReemission:
     @property
     def amplitude(self) -> float:
         return float(self.alpha)
+
+    @property
+    def motion(self) -> RigidMotion:
+        r"""The mirror this kernel's :attr:`axis` names, as a rigid motion.
+
+        The SAME element :meth:`SelfPairedDeck.mirror` carries — one
+        spelling, :func:`_mirror_motion` — exposed on the RESPONSE tier
+        because this kernel's pairing is *constitutive* (a polished wall),
+        not a symmetry of the domain. The realizer derives the ordinate
+        permutation from the motion regardless of which tier asserts it
+        (G6.3 step 7): the two tiers keep their different physics claims
+        and can no longer realize to different matrices.
+        """
+        return _mirror_motion(self.axis, 3)
 
     @property
     def is_zero(self) -> bool:

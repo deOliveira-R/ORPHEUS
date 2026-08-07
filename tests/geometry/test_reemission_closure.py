@@ -369,7 +369,7 @@ class TestSpecularAgainstAnIndependentExpression:
                 f"{_id} α={alpha}: the realized specular closure disagrees "
                 f"with the hand-written mirror gather. This reference imports "
                 f"nothing from the realizer, so a mismatch is a real defect in "
-                f"the shared _specular_kernel body (which the ≡ theorem cannot "
+                f"the shared _deck_kernel body (which the ≡ theorem cannot "
                 f"see)."
             ),
         )

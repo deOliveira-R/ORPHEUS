@@ -498,22 +498,24 @@ class SNBoundaryOperator(LinearOperator):
           scatter (it writes a SUBSET of Γ₋ via ``to_local``). Composing it
           would need a second, row-restricted operator per call to say
           something the whole-slot branch already says.
-        * ⚠ **Periodic's check SKIPS, and the reason is structural, not a
-          missing argument.** A boundary law is a ``@``-chain
+        * ⭐ **Periodic's check is LIVE — and it is the law the check was
+          designed for** (G6.3 step 7). A boundary law is a ``@``-chain
           :math:`\Gamma_+ \to \Gamma_-` whose deck-transformation case is
           degenerate at LENGTH ONE (:ref:`bc-deck-length-one-chain`), and
           every law's link is a typed arrow between the two half-traces —
-          except periodic's, which is a bare
-          :class:`~orpheus.numerics.operator.IdentityOperator`. That is an
-          **endomorphism** :math:`V \to V`; what a torus wrap needs is an
-          **isomorphism between two DIFFERENT spaces**,
-          :math:`\Gamma_+(f') \to \Gamma_-(f)`. The identity names no spaces
-          — that is what "identity" means — so it cannot be that arrow and no
-          binding argument would make it one. **Step 7** replaces the link
-          rather than annotating it. Until then the one law whose domain face
-          differs from its installation face is the one law this check cannot
-          police, which is worth knowing because it is also the law the check
-          was designed for.
+          periodic's an isomorphism between two DIFFERENT faces' spaces,
+          :math:`\Gamma_+(f') \to \Gamma_-(f)`, derived from the wrap's
+          MOTION by the same kernel that builds the mirror's. Periodic is
+          the only off-diagonal block of ``B``, so composing ``law ∘ γ₊``
+          here is precisely where a wrong-partner wiring (the B3.4c defect,
+          98 % relative when live) now raises instead of computing a
+          plausible wrong answer. (Until step 7 the link was a bare unbound
+          :class:`~orpheus.numerics.operator.IdentityOperator` — an
+          *endomorphism* :math:`V \to V` standing in for that isomorphism.
+          The identity names no spaces — that is what "identity" means — so
+          it could never be the arrow, and one ``None`` short-circuited
+          this check on exactly the law it was designed for. Step 7
+          replaced the link rather than annotating it.)
 
         Pre-B3.2 the law was a *full-face* operator and this method projected
         its image onto the inflow rows (``B_face = P_inflow ∘ law``), masking

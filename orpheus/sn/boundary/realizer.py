@@ -39,12 +39,17 @@ suffices for the two laws below.
   it, because those rows are no longer in the operator's domain.
 * :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
   ``albedo * PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
-  where ``local_perm = γ₊.to_local(reflection_index(axis)[inflow])`` — row
-  :math:`j` of the image reads the mirror of the :math:`j`-th inflow ordinate,
-  at that ordinate's position inside :math:`\Gamma_+`. (The remap must go
-  through ``to_local``: on a slab the mirror REVERSES order, so a hand-written
-  ``arange`` is wrong there — see the ``TraceRestrictionOperator`` docstring.)
-  The ``albedo=1.0`` fast path returns the bare
+  where ``local_perm = γ₊.to_local(π⁻¹[inflow])`` and :math:`\pi` is the
+  ordinate permutation the law's own MIRROR MOTION induces
+  (:func:`_deck_kernel` →
+  :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
+  G6.3 step 7 — before which this row keyed the certified axis table by
+  letter while the deck slot's motion went unread) — row :math:`j` of the
+  image reads the mirror of the :math:`j`-th inflow ordinate, at that
+  ordinate's position inside :math:`\Gamma_+`. (The remap must go through
+  ``to_local``: on a slab the mirror REVERSES order, so a hand-written
+  ``arange`` is wrong there — see the ``TraceRestrictionOperator``
+  docstring.) The ``albedo=1.0`` fast path returns the bare
   :class:`PermutationOperator` TP.
 * :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
   ``albedo * (IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))``
@@ -59,7 +64,8 @@ suffices for the two laws below.
 * :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α, closure)` →
   the SAME body its closure names, at **B3.4b**: a
   :class:`~orpheus.geometry.boundary.SpecularReturn` routes to
-  :func:`_specular_kernel` (shared with reflective) and an
+  :func:`_deck_kernel` (shared with reflective — and, since step 7, with
+  periodic) and an
   :class:`~orpheus.geometry.boundary.IsotropicReturn` to
   :func:`_checked_angular_average` (shared with white). So
   ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)`` and
@@ -178,7 +184,7 @@ from .angular import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from orpheus.geometry.boundary import PairedDeck
+    from orpheus.geometry.transformation import RigidMotion
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -252,6 +258,50 @@ def _outflow_restriction(
     return TraceRestrictionOperator(
         np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
         n_total=method_space.quadrature.N,
+        axis=0,
+        domain=gamma,
+        codomain=gamma_plus,
+    )
+
+
+def _partner_outflow_restriction(
+    method_space: "SNMethodSpace", partner: str,
+) -> "TraceRestrictionOperator":
+    r"""The PARTNER face's :math:`\gamma_+` — a paired law's DOMAIN.
+
+    Periodic (and any future paired gluing) is the one law whose domain is a
+    *different* face's outflow, so its restriction cannot be read off the
+    method space's own ``outflow_indices`` the way
+    :func:`_outflow_restriction` does. The index set is derived from the
+    partner face NAME through the one face-name → signed-projection
+    primitive, classified against the same ``TANGENTIAL_EPS`` the trace
+    space uses.
+
+    That derivation is deliberate, not a fallback — it preserves the ERR-041
+    discipline ``_assert_wrap_identification`` carried before it retired
+    onto the deck kernel (G6.3 step 7): the installation face's
+    :math:`\Gamma_-` comes from the method space, the partner's
+    :math:`\Gamma_+` from the face name alone, so the two encodings of the
+    quotient identification stay independently sourced and the kernel's
+    membership + size checks genuinely compare them.
+
+    Bound to the partner's own rungs of the Γ ladder when the method space
+    carries a trace, exactly as :func:`_outflow_restriction` binds the
+    self-paired case — the deck kernel reads its domain space off this
+    operator's codomain.
+    """
+    quadrature = method_space.quadrature
+    omega_dot_n = build_omega_dot_n(quadrature, (partner,))[0]
+    outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
+    trace = method_space.trace
+    gamma, gamma_plus = (
+        (trace.face_space(partner), trace.outflow_space(partner))
+        if trace is not None
+        else (None, None)
+    )
+    return TraceRestrictionOperator(
+        np.sort(outflow),
+        n_total=quadrature.N,
         axis=0,
         domain=gamma,
         codomain=gamma_plus,
@@ -397,43 +447,83 @@ def _attenuated_kernel_operator(
     return stamp_boundary_role(float(alpha) * base)
 
 
-def _specular_kernel(
+def _deck_kernel(
     quadrature: "Quadrature",
     method_space: "SNMethodSpace",
-    gamma_out: "TraceRestrictionOperator",
+    gamma_out_domain: "TraceRestrictionOperator",
     *,
-    axis: str,
+    motion: "RigidMotion",
+    domain_face: "str | None",
     law_key: str,
+    crossed_diagnosis: str,
 ) -> "PermutationOperator":
-    r"""The specular pairing on :math:`\Gamma_+ \to \Gamma_-`, as a permutation
-    of the REDUCED ordinate axis.
+    r"""A deck transformation's arrow :math:`\Gamma_+(f') \to \Gamma_-(f)`,
+    DERIVED from its rigid motion — the ONE body every deck law realizes
+    through (G6.3 step 7).
 
-    The mirror sends the inflow ordinate ``inflow[j]`` to the outflow ordinate
-    ``perm[inflow[j]]`` (the ERR-045 invariant the law layer certifies at
-    realization: a reflection maps inflow to OUTFLOW, never to itself). So the
-    narrowed operator's row ``j`` reads the position of that outflow ordinate
-    INSIDE :math:`\Gamma_+` — which is exactly what ``γ₊.to_local`` computes,
-    and what a hand-written ``arange`` would get wrong: on a slab the mirror
-    REVERSES order, so ``perm[inflow] = [3, 2]`` maps to local ``[1, 0]``.
+    The quotient equivariance :math:`\psi(g x, g\Omega) = \psi(x, \Omega)`
+    evaluated on the trace gives the law this kernel realizes:
 
-    **Two laws reach this body** (B3.4b), carrying the pairing in different
-    tiers: :class:`~orpheus.geometry.boundary.ReflectiveBoundary` in :math:`G`
-    (a symmetry of the domain) and
+    .. math::
+
+        \gamma_-\psi|_f(\Omega) \;=\; \gamma_+\psi|_{f'}(h^{-1}\Omega),
+        \qquad h(f') = f,
+
+    where ``motion`` is :math:`h` — the deck element carrying the DOMAIN
+    face onto the INSTALLATION face. With :math:`\pi` the ordinate
+    permutation :math:`h` induces
+    (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
+    convention :math:`h(\Omega_i) = \Omega_{\pi(i)}`), row :math:`j` of the
+    narrowed operator therefore gathers ordinate
+    :math:`\pi^{-1}(\mathrm{inflow}[j])` — at that ordinate's position
+    INSIDE :math:`\Gamma_+(f')`, which is exactly what ``γ₊.to_local``
+    computes and what a hand-written ``arange`` would get wrong (on a slab
+    the mirror REVERSES order).
+
+    ⚠ **The inverse is load-bearing only for the latent case, so it is
+    pinned now.** For a mirror :math:`\pi^{-1} = \pi` (involution) and for
+    a wrap :math:`\pi = \mathrm{id}` (a translation moves no direction) —
+    every SHIPPED law is blind to the choice. A sector rotation is not:
+    :math:`\pi \ne \pi^{-1}` there, and reading the image where the
+    derivation demands the preimage would realize the sector glued
+    backwards. The kernel-level C₄ gate pins the convention against the
+    hand-derived preimage map so the future consumer inherits it correct.
+
+    **Three routes reach this body.**
+    :class:`~orpheus.geometry.boundary.ReflectiveBoundary` carries the
+    mirror in :math:`G` (a symmetry of the domain);
     :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
-    :class:`~orpheus.geometry.boundary.SpecularReturn` closure in :math:`R` (a
-    polished wall). They assert different physics and realize to the same
-    matrix — so they share this construction rather than agreeing by
-    transcription. ``law_key`` names the caller in the errors only.
+    :class:`~orpheus.geometry.boundary.SpecularReturn` closure carries the
+    same element in :math:`R` (a polished wall);
+    :class:`~orpheus.geometry.boundary.PeriodicBoundary` carries the wrap
+    translation in :math:`G`. They assert different physics and share this
+    construction rather than agreeing by transcription — ``law_key`` and
+    ``crossed_diagnosis`` name the caller and its failure semantics in the
+    errors only. (Until step 7 this body was ``_specular_kernel``: the
+    mirror arms keyed the certified axis table by LETTER while the law's
+    own motion went unread, and periodic realized through a hand-argued
+    unbound identity — two paths for one concept, with the general motion
+    unreachable. ``_assert_wrap_identification`` retired onto this body's
+    guards: the set certification IS ``to_local``'s membership check plus
+    the bijection size check, executed rather than pre-asserted.)
+
+    The ERR-045 invariant (a deck pairing maps inflow to OUTFLOW, never to
+    itself) is enforced by ``to_local``: a gathered ordinate outside
+    :math:`\Gamma_+(f')` raises, and the caller's ``crossed_diagnosis``
+    attributes the failure in the law's own vocabulary.
 
     The deck transformation as a length-1 chain
     -------------------------------------------
 
-    Returned **bound** to :math:`\Gamma_+(f) \to \Gamma_-(f)` (G6.3 step 5,
-    #330), which makes it the degenerate case of the same structure the
-    diffuse arm builds in :func:`_checked_angular_average`: a boundary law is
-    a chain from outflow to inflow, and a measure-preserving bijection has
-    nothing to factor, so its chain has ONE link. There is no separate
-    "atomic" code path — only a shorter chain.
+    Returned **bound** to :math:`\Gamma_+(f') \to \Gamma_-(f)` (G6.3 step
+    5, #330), which makes it the degenerate case of the same structure the
+    diffuse arm builds in :func:`_checked_angular_average`: a boundary law
+    is a chain from outflow to inflow, and a measure-preserving bijection
+    has nothing to factor, so its chain has ONE link. There is no separate
+    "atomic" code path — only a shorter chain. Periodic is the one law
+    whose two ends live on DIFFERENT faces, which is precisely why deriving
+    its link from the motion (rather than hand-arguing an identity) is what
+    lets the composability check police it.
 
     ⭐ **Binding is also what retired the involution flag.** `[M]` the
     narrowed local permutation satisfies ``perm[perm] == arange`` on
@@ -449,149 +539,97 @@ def _specular_kernel(
     (:meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`), where
     domain and codomain coincide and ERR-044 guards it.
     """
-    inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
-    perm = quadrature.reflection_index(axis)
-    if inflow.size != gamma_out.n_restricted:
+    if method_space.inflow_indices is None:
         raise BoundaryError(
-            f"SNBoundaryRealizer cannot narrow a specular pairing at "
-            f"face {method_space.face!r}: |Γ₋| = {inflow.size} but "
-            f"|Γ₊| = {gamma_out.n_restricted}. A specular mirror is a "
-            f"BIJECTION between the two half-traces, so a face where "
-            f"they differ in size has no specular realization — which "
-            f"means the quadrature's tangential band has swallowed "
-            f"ordinates asymmetrically at this face.",
+            f"SNBoundaryRealizer cannot realize the deck pairing for "
+            f"{law_key!r} without inflow_indices: the arrow lands on "
+            f"Γ₋ of the installation face, which is the half the method "
+            f"space carries. Construct via "
+            f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
             law=law_key,
         )
-    # ``to_local`` raises if the mirror sent an inflow ordinate anywhere but
-    # Γ₊ — the ERR-045 violation, caught here as a crossed-index-set error
-    # rather than as silent wrong physics. It stays the SINGLE authority on
-    # that index question (no second membership test here to drift from it);
-    # what this arm adds is the semantic diagnosis, so the caller gets an
-    # attributed BoundaryError naming the two possible causes rather than a
-    # raw index complaint from a helper it never called. Symmetric with the
-    # diffuse arm's orientation cross-check — before B3.4b these two
-    # disagreed, because a law had no way to declare an axis that could
-    # disagree with its installation face until the closure gave it one.
+    inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+    if inflow.size != gamma_out_domain.n_restricted:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot narrow the deck pairing for "
+            f"{law_key!r} at face {method_space.face!r}: |Γ₋| = "
+            f"{inflow.size} but |Γ₊({domain_face})| = "
+            f"{gamma_out_domain.n_restricted}. A deck transformation is a "
+            f"BIJECTION between the two half-traces, so a pair that "
+            f"differs in size has no realization — the quadrature's "
+            f"tangential band has swallowed ordinates asymmetrically.",
+            law=law_key,
+        )
+    pi = quadrature.ordinate_permutation(motion)
+    if pi is None:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot realize {law_key!r}: the deck "
+            f"motion does not permute this quadrature's weighted ordinate "
+            f"set — no bijective, weight-preserving match of the "
+            f"{quadrature.N} ordinates onto their images exists within the "
+            f"certification windows (the ERR-073/ERR-074 discipline, live "
+            f"at realization). A deck transformation is a "
+            f"measure-preserving bijection of the trace, so a rule not "
+            f"closed under the motion admits no realization of this law — "
+            f"e.g. an odd-n_phi product rule has no x-mirror closure.",
+            law=law_key,
+        )
+    # ``to_local`` raises if the pairing sent an inflow ordinate anywhere
+    # but Γ₊(f') — the ERR-045 violation, caught here as a crossed-index-set
+    # error rather than as silent wrong physics. It stays the SINGLE
+    # authority on that index question (no second membership test here to
+    # drift from it); what this body adds is the semantic diagnosis the
+    # caller supplied, so a consumer gets an attributed BoundaryError in the
+    # law's own vocabulary rather than a raw index complaint from a helper
+    # it never called. (For periodic this check plus the size check above
+    # ARE the B3.4c quotient certification Γ₊(f') ≡ Γ₋(f) — executed by the
+    # construction instead of pre-asserted beside it.)
     try:
-        local_perm = gamma_out.to_local(perm[inflow])
+        local_perm = gamma_out_domain.to_local(pi.inverse().indices[inflow])
     except ValueError as exc:
         raise BoundaryError(
-            f"A specular pairing about axis {axis!r} does not map Γ₋ into Γ₊ "
-            f"at face {method_space.face!r}. Two causes: the declared axis "
-            f"disagrees with the face the law is installed on — a mirror "
-            f"about 'y' on an x-face relabels WITHIN each half-trace instead "
-            f"of exchanging them, which is not a boundary law at all — or "
-            f"the quadrature's reflection table violates ERR-045 (an inflow "
-            f"ordinate whose partner is not outflow). The law-level "
-            f"certification catches the second at assert_realizable, so at "
-            f"this point the first is the likely one. Underlying: {exc}",
+            f"{crossed_diagnosis} Underlying: {exc}",
             law=law_key,
         ) from exc
 
     # Bind the single link to the Γ ladder when the method space carries a
     # trace — the canonical `SNMethodSpace.for_face` path always does. A
-    # hand-built space may not, and binding stays OPTIONAL until the tree-wide
-    # mandate (#330): an unbound permutation gathers the same rows, it just
-    # forfeits the composability check and the metric-aware `.H`.
+    # hand-built space may not, and binding stays OPTIONAL until the
+    # tree-wide mandate (#330): an unbound permutation gathers the same
+    # rows, it just forfeits the composability check and the metric-aware
+    # `.H`. The DOMAIN space is read off ``gamma_out_domain``'s own codomain
+    # (bound by whoever built the restriction — re-deriving it here would be
+    # a twin source for one fact, the `_narrowed_zero_operator` argument);
+    # the CODOMAIN is the installation face's Γ₋.
     trace, face = method_space.trace, method_space.face
-    gamma_plus = gamma_minus = None
-    if trace is not None and face is not None:
-        gamma_plus = trace.outflow_space(face)
-        gamma_minus = trace.inflow_space(face)
+    gamma_minus = (
+        trace.inflow_space(face)
+        if trace is not None and face is not None
+        else None
+    )
     return PermutationOperator(
-        local_perm, axis=0, domain=gamma_plus, codomain=gamma_minus,
+        local_perm,
+        axis=0,
+        domain=gamma_out_domain.codomain,
+        codomain=gamma_minus,
     )
 
 
-def _assert_wrap_identification(
-    wrap: "PairedDeck",
-    method_space: "SNMethodSpace",
-) -> str:
-    r"""Certify the quotient reading :math:`\Gamma_+(f') \equiv \Gamma_-(f)`,
-    and return the partner face.
-
-    The user's **B3.4c** ruling: build the partner-face channel now, and let
-    the quotient reading be *asserted at realization* rather than baked into
-    the mesh topology — so this identification is a guard, not a restructure.
-    (The alternative was to make the mesh carry a face-partner map, which
-    commits every mesh to a topology decision that belongs to a law.)
-
-    It is a geometric theorem, not a coincidence: the two faces' outward
-    normals are opposite, so a direction OUTGOING at :math:`f'` is INCOMING at
-    :math:`f`. `[M]` measured 2026-08-01 as an exact set equality on
-    ``gauss_legendre(8)``, ``product(2,4)``, ``level_symmetric(6)`` and
-    ``lebedev(17)``, on both axis pairs. It is asserted anyway, for the reason
-    every guard in this campaign is asserted: the theorem is about the
-    *continuous* normals, and what the realization needs is a statement about
-    THIS quadrature's classified index sets, which a tangential band or a
-    hand-built method space can break.
-
-    The comparison is against index SETS, never sizes — ``|Γ₊| == |Γ₋|`` on
-    every quadrature in the tree, so a size check is Mode-12 blind (the same
-    trap the diffuse arm's cross-check documents).
-
-    Both encodings are sourced independently: the installation face's
-    :math:`\Gamma_-` comes from the method space (built by the trace space),
-    the partner's :math:`\Gamma_+` from the one face-name → signed-projection
-    primitive applied to the name :meth:`~orpheus.geometry.boundary.PairedDeck.domain_face` derives. That
-    is the ERR-041 discipline — two encodings of one orientation, compared.
-
-    The face demand is checked FIRST, ahead of the shared
-    :func:`_outflow_restriction`, so a faceless method space hears the reason
-    that is true of periodic and of no other law — *your domain is a different
-    face* — rather than the generic missing-``outflow_indices`` complaint every
-    narrowed law shares. Same data missing, but only one message tells the
-    caller what periodic actually needs.
+def _specular_crossed_diagnosis(axis: str, face: "str | None") -> str:
+    r"""The mirror arms' semantics for a crossed-index failure in
+    :func:`_deck_kernel` — two laws, one wording, ERR-045 vocabulary kept.
     """
-    face = method_space.face
-    if face is None:
-        raise BoundaryError(
-            "SNBoundaryRealizer cannot realize PeriodicBoundary without a "
-            "face: this is the one law whose DOMAIN is a DIFFERENT face's Γ₊ "
-            "(γ₋ψ|_f = γ₊ψ|_f'), so the partner cannot be named without "
-            "knowing where the law is installed. Construct via "
-            "SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
-            law="periodic",
-        )
-    if method_space.inflow_indices is None:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot certify the periodic identification "
-            f"at face {face!r} without inflow_indices: the claim being "
-            f"checked is Γ₊(partner) == Γ₋(this face), and Γ₋ is the half "
-            f"the method space carries.",
-            law="periodic",
-        )
-    partner = wrap.domain_face(face)          # raises on a mis-declared axis
-    gamma_out = _outflow_restriction(method_space, "periodic")
-    omega_dot_n = build_omega_dot_n(method_space.quadrature, (partner,))[0]
-    partner_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
-    face_inflow = np.sort(
-        np.asarray(method_space.inflow_indices, dtype=np.intp)
+    return (
+        f"A specular pairing about axis {axis!r} does not map Γ₋ into Γ₊ "
+        f"at face {face!r}. Two causes: the declared axis disagrees with "
+        f"the face the law is installed on — a mirror about 'y' on an "
+        f"x-face relabels WITHIN each half-trace instead of exchanging "
+        f"them, which is not a boundary law at all — or the quadrature's "
+        f"reflection pairing violates ERR-045 (an inflow ordinate whose "
+        f"partner is not outflow). The law-level certification catches the "
+        f"second at assert_realizable, so at this point the first is the "
+        f"likely one."
     )
-    if not np.array_equal(partner_outflow, face_inflow):
-        raise BoundaryError(
-            f"A periodic law on face {face!r} identifies it with partner "
-            f"{partner!r}, but Γ₊({partner}) = {partner_outflow.tolist()} is "
-            f"not Γ₋({face}) = {face_inflow.tolist()}. The wrap is realized as "
-            f"the identity on the ordinate index, which is sound only when the "
-            f"partner's outgoing directions ARE this face's incoming ones — "
-            f"the opposite-normals theorem. A mismatch means the two faces do "
-            f"not carry opposite normals as classified on this quadrature, so "
-            f"the pair is not a translation quotient and needs an explicit "
-            f"gluing map (issue #178).",
-            law="periodic",
-        )
-    if gamma_out.n_restricted != face_inflow.size:
-        raise BoundaryError(
-            f"A periodic law on face {face!r} has |Γ₊({face})| = "
-            f"{gamma_out.n_restricted} but |Γ₋({face})| = {face_inflow.size}. "
-            f"A translation quotient is a BIJECTION of half-traces, so a face "
-            f"where they differ in size has no periodic realization — the "
-            f"quadrature's tangential band has swallowed ordinates "
-            f"asymmetrically at this face.",
-            law="periodic",
-        )
-    return partner
 
 
 def _checked_angular_average(
@@ -835,15 +873,24 @@ class SNBoundaryRealizer:
 
         if isinstance(law, ReflectiveBoundary):
             # B3.2 — the specular mirror, narrowed to Γ₊ → Γ₋. The pairing
-            # itself is built by ``_specular_kernel``, which the albedo arm
-            # below also reaches: the mirror sits in this law's G (a symmetry
-            # of the domain) and in that law's R (a polished wall), and they
-            # realize to the same matrix.
+            # is built by ``_deck_kernel`` from the law's own MOTION — G5's
+            # deck slot, consumed at last (step 7): the axis-letter table
+            # lookup is retired from this path, and the same three
+            # certifications now run at realization through
+            # ``ordinate_permutation``. The albedo arm below reaches the
+            # same body: the mirror sits in this law's G (a symmetry of the
+            # domain) and in that law's R (a polished wall), and they
+            # realize to the same matrix because both read the same motion.
             gamma_out = _outflow_restriction(method_space, "reflective")
             return _attenuated_kernel_operator(
-                _specular_kernel(
+                _deck_kernel(
                     quad, method_space, gamma_out,
-                    axis=law.axis, law_key="reflective",
+                    motion=law.geometry_map.motion,
+                    domain_face=method_space.face,
+                    law_key="reflective",
+                    crossed_diagnosis=_specular_crossed_diagnosis(
+                        law.axis, method_space.face
+                    ),
                 ),
                 law.albedo,
                 method_space=method_space, gamma_out=gamma_out, law_key="reflective",
@@ -887,9 +934,14 @@ class SNBoundaryRealizer:
             kernel = law.response_kernel
             if isinstance(kernel, SpecularReemission):
                 return _attenuated_kernel_operator(
-                    _specular_kernel(
+                    _deck_kernel(
                         quad, method_space, gamma_out,
-                        axis=kernel.axis, law_key="albedo",
+                        motion=kernel.motion,
+                        domain_face=method_space.face,
+                        law_key="albedo",
+                        crossed_diagnosis=_specular_crossed_diagnosis(
+                            kernel.axis, method_space.face
+                        ),
                     ),
                     kernel.amplitude,
                     method_space=method_space, gamma_out=gamma_out,
@@ -959,23 +1011,71 @@ class SNBoundaryRealizer:
 
         if isinstance(law, PeriodicBoundary):
             # B3.4c — the torus quotient, narrowed to Γ₊(partner) → Γ₋(face).
+            # Step 7 — its link is a typed arrow DERIVED from the MOTION,
+            # through the same body as the mirror's.
             #
             # Periodic is the only law whose DOMAIN is not the face it is
-            # installed on: ``γ₋ψ|_f = γ₊ψ|_{f'}``. Which face f' is depends on
-            # where the law sits, so the geometry factor is asked
+            # installed on: ``γ₋ψ|_f = γ₊ψ|_{f'}``. Which face f' is depends
+            # on where the law sits, so the geometry factor is asked
             # (``G.domain_face``) rather than the partner being stored — and
             # that call is also where a wrap declared for the wrong axis is
             # refused. The composition supplies the partner's half-trace;
             # ``SNBoundaryOperator._face_domains`` is the consumer.
-            _assert_wrap_identification(law.geometry_map, method_space)
-            # The body is the IDENTITY on the local index, and that is EARNED,
-            # not assumed: the guard above proves Γ₊(partner) and Γ₋(face) are
-            # the same global ordinate set, so ordinate n of the partner's
-            # outflow lands at ordinate n of this face's inflow with no
-            # relabelling. (It is a geometric theorem — the outward normals are
-            # opposite, so ``n_f = −n_f'`` sends outgoing to incoming — but a
-            # theorem the realization checks rather than trusts.)
-            return stamp_boundary_role(IdentityOperator() & IdentityOperator())
+            #
+            # The realized permutation is the identity relabelling between
+            # two DISTINCT index sets, and that is EARNED, not assumed: the
+            # wrap's linear part is the identity (a translation moves no
+            # direction), and the kernel's membership + size checks prove
+            # Γ₊(partner) and Γ₋(face) are the same global ordinate set —
+            # the B3.4c quotient certification, executed by the
+            # construction. (It is a geometric theorem — the outward
+            # normals are opposite, so ``n_f = −n_f'`` sends outgoing to
+            # incoming — but a theorem the realization checks rather than
+            # trusts.) Until step 7 this arm returned an UNBOUND
+            # ``IdentityOperator() & IdentityOperator()`` — an endomorphism
+            # standing in for an isomorphism between two different spaces,
+            # the one link of the five that was not a typed arrow, and the
+            # one law step 8's composability check could not police.
+            face = method_space.face
+            if face is None:
+                raise BoundaryError(
+                    "SNBoundaryRealizer cannot realize PeriodicBoundary "
+                    "without a face: this is the one law whose DOMAIN is a "
+                    "DIFFERENT face's Γ₊ (γ₋ψ|_f = γ₊ψ|_f'), so the partner "
+                    "cannot be named without knowing where the law is "
+                    "installed. Construct via "
+                    "SNMethodSpace.for_face(quadrature=..., face=..., "
+                    "trace=...).",
+                    law="periodic",
+                )
+            deck = law.geometry_map
+            partner = deck.domain_face(face)  # refuses a mis-declared axis
+            gamma_out_partner = _partner_outflow_restriction(
+                method_space, partner
+            )
+            return _attenuated_kernel_operator(
+                _deck_kernel(
+                    quad, method_space, gamma_out_partner,
+                    motion=deck.motion,
+                    domain_face=partner,
+                    law_key="periodic",
+                    crossed_diagnosis=(
+                        f"A periodic law on face {face!r} identifies it "
+                        f"with partner {partner!r}, but the wrap's ordinate "
+                        f"map does not carry Γ₋({face}) into Γ₊({partner}). "
+                        f"The wrap is sound only when the partner's "
+                        f"outgoing directions ARE this face's incoming ones "
+                        f"— the opposite-normals theorem. A mismatch means "
+                        f"the two faces do not carry opposite normals as "
+                        f"classified on this quadrature, so the pair is not "
+                        f"a translation quotient and needs an explicit "
+                        f"gluing map (issue #178)."
+                    ),
+                ),
+                law.response_kernel.amplitude,
+                method_space=method_space, gamma_out=gamma_out_partner,
+                law_key="periodic",
+            )
 
         if isinstance(law, PrescribedInflow):
             # P3 — realize the LINEAR factor, which is ZERO. The law is

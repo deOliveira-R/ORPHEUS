@@ -4634,18 +4634,25 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        narrowed**
      -
      - ``ScaledOperator(α, IdentityOperator() & IdentityOperator())``
-   * - :class:`PeriodicBoundary` — **narrowed** (B3.4c)
-     - ``IdentityOperator() & IdentityOperator()``, consuming the
+   * - :class:`PeriodicBoundary` — **narrowed** (B3.4c); arrow derived
+       (G6.3 step 7)
+     - ``PermutationOperator(arange) & IdentityOperator()``, bound
+       :math:`\Gamma_+(f') \to \Gamma_-(f)` and consuming the
        PARTNER face's :math:`\Gamma_+`. This is the one law whose domain
        is a different face, and that IS what makes it a quotient rather
        than a wall: :meth:`PairedDeck.domain_face <orpheus.geometry.boundary.PairedDeck.domain_face>` names the partner and
        :attr:`SNBoundaryOperator._face_domains` supplies it, so the
        pushforward the spec names lives in the CHANNEL and the action on
-       the trace is the identity. Earned, not assumed — the realizer
-       certifies :math:`\Gamma_+(f') \equiv \Gamma_-(f)` (opposite
-       outward normals) before returning the identity body. Issue
-       **#183** was exactly this gap and closes here; the
-       ``PeriodicWrapOperator`` type retired with it
+       the trace is the identity relabelling between two DISTINCT index
+       sets — the ordinate permutation the wrap MOTION induces, through
+       the same kernel as the mirror's. Earned, not assumed — the
+       kernel's membership and size checks certify
+       :math:`\Gamma_+(f') \equiv \Gamma_-(f)` (opposite outward
+       normals) by construction. Issue **#183** was exactly this gap and
+       closes here; the ``PeriodicWrapOperator`` type retired with it,
+       and step 7 retired the unbound-identity stand-in (an endomorphism
+       :math:`V \to V` can never be an isomorphism between two different
+       spaces — the one link the composability check could not police)
      - n/a (periodic has no α parameter)
    * - :class:`PrescribedInflow(source)` — the rank-0 **affine** law;
        **narrowed** (B3.4a), **collapsed** (P3)

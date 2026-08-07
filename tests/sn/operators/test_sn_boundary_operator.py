@@ -628,35 +628,41 @@ class TestTheFaceActionIsCOMPOSED:
                 gamma_out.apply_transpose(law.apply_transpose(y)),
             )
 
-    def test_PERIODIC_is_the_one_law_the_check_cannot_police_yet(self) -> None:
-        r"""⚠ The honest scope statement, and it flips at step 7.
+    def test_PERIODIC_the_law_the_check_was_designed_for_is_policed(
+        self,
+    ) -> None:
+        r"""⭐ The composability check is LIVE on the off-diagonal block —
+        step 7's prize, and the row that was this suite's transitional pin.
 
-        Periodic realizes to ``IdentityOperator() & IdentityOperator()``, so
-        one ``None`` short-circuits the composability check — and periodic is
-        precisely the law whose domain face differs from its installation
-        face, i.e. the one this check was designed for.
-
-        ⭐ **The cause is structural, not a missing argument.** Every boundary
-        law is a ``@``-chain :math:`\Gamma_+ \to \Gamma_-` (degenerate at
-        length one for a deck transformation), and every law's link is a typed
-        arrow between the half-traces — except this one.
+        Periodic is the ONLY law whose domain face differs from its
+        installation face — the only off-diagonal block of ``B`` — which
+        makes it exactly the law the composed face action was designed to
+        police, and (until G6.3 step 7) the only one it could not: the link
+        was a bare unbound ``IdentityOperator() & IdentityOperator()``, and
+        one ``None`` short-circuited the check. An
         :class:`~orpheus.numerics.operator.IdentityOperator` is an
         *endomorphism* :math:`V \to V`; a torus wrap needs an *isomorphism
         between two different spaces*, :math:`\Gamma_+(f') \to \Gamma_-(f)`.
-        The identity names no spaces, so it can never be that arrow. Step 7
-        REPLACES the link (a permutation is the trivial relabelling between
-        two distinct index sets); it does not annotate this one. This row is
-        the transitional pin that reddens when it lands.
+        Step 7 REPLACED the link with that arrow, derived from the wrap's
+        MOTION (this row asserted the opposite until then — it was the
+        strict pin that reddened when the step landed, with a failure
+        message naming its own re-scope).
+
+        Two legs, and the second is the catcher: the RIGHT face's
+        restriction composes into ``Γ(xmax) → Γ₋(xmin)``; the WRONG face's —
+        feeding the law its OWN face's outflow, the exact pre-B3.4c defect
+        (98 % relative when live, invisible to every shape check because
+        ``|Γ₊| == |Γ₋|``) — now cannot even be FORMED.
         """
         sn = TestPeriodicReadsThePartnerFace._periodic_slab()
         law = sn.bc["xmin"]
-        assert law.domain is None and law.codomain is None, (
-            "periodic is bound now — step 7 landed; re-scope this row and the "
-            "⚠ note in _reflect_trace's docstring, which says the same thing"
-        )
-        # Consequently the cross-face composition is FORMED, not checked.
-        composed = law @ sn.angular_trace.outflow_restriction("xmax")
-        assert composed.codomain is None
+        trace = sn.angular_trace
+        assert law.domain == trace.outflow_space("xmax")
+        assert law.codomain == trace.inflow_space("xmin")
+        composed = law @ trace.outflow_restriction("xmax")
+        assert composed.codomain == trace.inflow_space("xmin")
+        with pytest.raises(IncompatibleOperatorComposition):
+            law @ trace.outflow_restriction("xmin")
 
 
 class TestNarrowedLawDomain:
