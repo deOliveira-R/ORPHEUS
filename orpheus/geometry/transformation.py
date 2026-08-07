@@ -365,6 +365,32 @@ class RigidMotion:
         return bool(np.all(self.translation == 0.0))
 
     @property
+    def is_translation(self) -> bool:
+        r"""``True`` iff the linear part is the identity (:math:`Q = I`).
+
+        The exact complement question to :attr:`is_linear` — that one asks
+        whether the *translation* part is trivial, this one whether the
+        *linear* part is. The identity motion answers ``True`` to both (the
+        trivial translation), which is the group-theoretic reading: the
+        translations are the kernel of :math:`(Q, t) \mapsto Q`, and the
+        kernel contains the unit.
+
+        Why this is the load-bearing predicate for the boundary tier: the
+        action on **directions** is the linear part alone
+        (:meth:`on_directions` drops :math:`t`), so "does this motion move
+        angle at all?" IS this question. Both deck-element types derive
+        their ``permutes_ordinates`` from it rather than declaring it —
+        one source of truth for a fact the motion already knows.
+
+        Exact compare, deliberately (like :attr:`is_linear`): the elements
+        this discriminates are CONSTRUCTED (:meth:`identity`,
+        :meth:`translation_by`, :meth:`reflection`, :meth:`rotation`), not
+        measured, so a tolerance would only admit near-identities whose
+        classification should be decided by the constructor that made them.
+        """
+        return bool(np.array_equal(self.linear, np.eye(self.dimension)))
+
+    @property
     def fixed_subspace_dimension(self) -> int:
         r"""Dimension of :math:`\ker(Q - I)` — the linear part's fixed
         subspace.

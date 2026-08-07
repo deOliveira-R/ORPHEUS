@@ -240,7 +240,8 @@ class TestFaceNameBijection:
         perfect involution, so ``face_opposite = lambda f: f`` satisfies it and
         would silently make every periodic law read its own face. The
         no-fixed-point clause is what distinguishes them, and it is the exact
-        property :meth:`SpatialWrap.domain_face` needs.
+        property :meth:`~orpheus.geometry.boundary.PairedDeck.domain_face`
+        needs.
         """
         for face in FACE_NAMES:
             assert face_opposite(face_opposite(face)) == face, face

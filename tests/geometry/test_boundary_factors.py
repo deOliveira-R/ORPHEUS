@@ -35,11 +35,11 @@ from orpheus.geometry.boundary import (
     BoundaryResponseKernel,
     BoundaryTraceLaw,
     LambertianReemission,
+    PairedDeck,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
     ScalarResponse,
-    SpatialWrap,
     SelfPairedDeck,
     VacuumInflow,
     WhiteBoundary,
@@ -84,7 +84,8 @@ _LAW_SPECS: list[tuple[BoundaryTraceLaw, object, type, float, str]] = [
      LambertianReemission, 0.4, "white"),
     (AlbedoBoundary(albedo=0.25), SelfPairedDeck.identity(), ScalarResponse,
      0.25, "albedo"),
-    (PeriodicBoundary(), SpatialWrap(axis="x"), ScalarResponse, 1.0, "periodic"),
+    (PeriodicBoundary(), PairedDeck.wrap(axis="x"), ScalarResponse, 1.0,
+     "periodic"),
     (PrescribedInflow(), SelfPairedDeck.identity(), ScalarResponse, 0.0,
      "prescribed_inflow"),
     (ZeroFluxBoundary(), SelfPairedDeck.identity(), ScalarResponse, -1.0,
@@ -335,23 +336,24 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
         f"the sweep schedule treats as reflective."
     )
 
-    # And the mechanism behind the answer, one level down: a law permutes
-    # ordinates exactly when its deck element's linear part is a reflection.
-    # Checking both means neither can drift into agreeing with a wrong rule —
-    # the set could be right for the wrong reason if `permutes_ordinates` were
-    # hard-coded per law rather than derived from the motion.
+    # And the mechanism behind the answer, one level down: a shipped law
+    # permutes ordinates exactly when its deck element's linear part is a
+    # reflection. Checking both means neither can drift into agreeing with a
+    # wrong rule — the set could be right for the wrong reason if
+    # `permutes_ordinates` were hard-coded per law rather than derived from
+    # the motion. Since G6.3 step 7 EVERY law's G carries a motion (periodic's
+    # PairedDeck included — its translation has det +1 and permutes nothing),
+    # so no law is exempt from this agreement.
     for law, _, _, _, tid in _LAW_SPECS:
         geometry = law.geometry_map
-        motion = getattr(geometry, "motion", None)
-        if motion is None:
-            continue                      # SpatialWrap — the genuinely-paired half
+        motion = geometry.motion
         expected = tid.startswith("reflective")
         assert geometry.permutes_ordinates is expected
         assert (motion.determinant == -1.0) is expected, (
             f"{tid}: permutes_ordinates={geometry.permutes_ordinates} but the "
-            f"deck element has det={motion.determinant:+.0f}. A self-paired "
+            f"deck element has det={motion.determinant:+.0f}. A shipped deck "
             f"element permutes angle iff it is a reflection (det -1); the "
-            f"identity (det +1) relabels nothing."
+            f"identity and the wrap translation (det +1) relabel nothing."
         )
 
     # The agreement B2 relies on, pinned. A partial reflector permutes AND

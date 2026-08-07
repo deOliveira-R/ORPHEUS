@@ -508,7 +508,8 @@ def _periodic_image(ri: ReferenceInputs) -> np.ndarray:
     is why this case shipped as a strict xfail: the composition fed every law
     its own face's :math:`\Gamma_+`, so the row reddened at 98 % relative. Since
     B3.4c the geometry factor names the partner
-    (:meth:`SpatialWrap.domain_face`) and the composition supplies it, the
+    (:meth:`~orpheus.geometry.boundary.PairedDeck.domain_face`) and the
+    composition supplies it, the
     marker is deleted, and the harness row is LIVE — it asks the law which face
     to read and feeds the probe that answer names, so a regression selects the
     wrong probe and reds again.

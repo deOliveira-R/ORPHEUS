@@ -584,7 +584,7 @@ implemented law:
      - :math:`I`
      - a symmetry plane — a quotient, **zero physics**
    * - ``PeriodicBoundary(axis)``
-     - ``SpatialWrap``
+     - ``PairedDeck.wrap(axis)``
      - :math:`I`
      - a torus — a quotient
    * - ``AlbedoBoundary(α, SpecularReturn)``
@@ -1206,9 +1206,10 @@ touches:
   certifies them.
 * **A spatial wrap acts only on the SPATIAL coordinate.** Ordinate
   :math:`n` at face :math:`f'` feeds ordinate :math:`n` at face
-  :math:`f`, untouched — which is why
-  :class:`~orpheus.geometry.boundary.SpatialWrap` answers
-  ``permutes_ordinates = False``. **Every angular discretization is
+  :math:`f`, untouched — which is why the wrap's
+  :class:`~orpheus.geometry.boundary.PairedDeck` answers
+  ``permutes_ordinates = False``, DERIVED from its motion's identity
+  linear part rather than declared. **Every angular discretization is
   therefore trivially equivariant under it.** Periodic is the more
   method-agnostic of the two deck transformations, and for a sharper
   reason than "it is a trace connection": there is no angular symmetry
@@ -4105,7 +4106,7 @@ The ABC ships:
    concrete laws populate all three** since campaign phase B1 — the
    two factor tiers are typed specifications
    (:class:`~orpheus.geometry.boundary.SelfPairedDeck` /
-   :class:`~orpheus.geometry.boundary.SpatialWrap` for :math:`G`;
+   :class:`~orpheus.geometry.boundary.PairedDeck` for :math:`G`;
    :class:`~orpheus.geometry.boundary.ScalarResponse` /
    :class:`~orpheus.geometry.boundary.LambertianReemission` for
    :math:`R`), never realized matrices. Measured on the live tree:
@@ -4132,7 +4133,7 @@ The ABC ships:
           ``LambertianReemission(alpha, axis, outward_sign)`` /
           ``ScalarResponse(alpha=albedo)`` with none
       * - ``PeriodicBoundary``
-        - ``SpatialWrap(axis)``
+        - ``PairedDeck.wrap(axis)``
         - ``ScalarResponse(alpha=1.0)``
       * - ``ZeroFluxBoundary``
         - ``SelfPairedDeck.identity()``
@@ -4637,7 +4638,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
      - ``IdentityOperator() & IdentityOperator()``, consuming the
        PARTNER face's :math:`\Gamma_+`. This is the one law whose domain
        is a different face, and that IS what makes it a quotient rather
-       than a wall: :meth:`SpatialWrap.domain_face` names the partner and
+       than a wall: :meth:`PairedDeck.domain_face <orpheus.geometry.boundary.PairedDeck.domain_face>` names the partner and
        :attr:`SNBoundaryOperator._face_domains` supplies it, so the
        pushforward the spec names lives in the CHANNEL and the action on
        the trace is the identity. Earned, not assumed — the realizer

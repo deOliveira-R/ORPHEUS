@@ -241,12 +241,13 @@ sole bridge. The canonical SN-realised representation per law.
   the factored Lambertian chain (α=1 fast
   path) or scaled — since **B3.4a** typed :math:`\Gamma_+ \to \Gamma_-`.
 * :class:`PeriodicBoundary(axis)` (registry key ``"periodic"``) —
-  :math:`G = ` :class:`SpatialWrap(axis)`, the translation carrying the
+  :math:`G = ` :meth:`PairedDeck.wrap(axis) <PairedDeck.wrap>`, the
+  translation carrying the
   partner face onto this one; :math:`R = 1` (a periodic face is loss-free
   by construction, and a pure symmetry statement adds no physics). SN
   realises (campaign phase **B3.4c**) to a bare
   :class:`~orpheus.numerics.operator.IdentityOperator` fed the PARTNER
-  face's :math:`\Gamma_+`: :meth:`SpatialWrap.domain_face` names the partner
+  face's :math:`\Gamma_+`: :meth:`PairedDeck.domain_face` names the partner
   and the composition supplies it, so the pushforward lives in the CHANNEL and
   the action on the trace is the identity — earned by the opposite-normals
   identification :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, which the realizer
@@ -634,10 +635,10 @@ from ._factors import (
     BoundaryResponseKernel,
     IsotropicReturn,
     LambertianReemission,
+    PairedDeck,
     ReemissionClosure,
     ScalarResponse,
     SelfPairedDeck,
-    SpatialWrap,
     SpecularReemission,
     SpecularReturn,
 )
@@ -722,11 +723,13 @@ __all__ = [
     "BoundaryResponseKernel",
     "LambertianReemission",
     "ScalarResponse",
-    # The self-paired half of the deck tier (G5): one type carrying the
-    # involutive rigid motion of a face paired with ITSELF. Its two
-    # inhabitants are the trivial pairing and the mirror.
+    # The deck tier (G5, completed by G6.3 step 7): two complementary types
+    # carrying the rigid motion itself. Self-paired — a face paired with
+    # ITSELF (the trivial pairing and the mirror); Paired — a face carried
+    # onto a DISTINCT one (the periodic translation today; sector rotation,
+    # half-turn, inversion admissible awaiting #178's partner map).
+    "PairedDeck",
     "SelfPairedDeck",
-    "SpatialWrap",
     "SpecularReemission",
     # The re-emission CLOSURE tier: amplitude-free angular shapes a surface
     # law instantiates at its own α. ``AlbedoBoundary`` is the one consumer —

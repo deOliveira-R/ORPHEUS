@@ -96,7 +96,7 @@ translations and rotations are :math:`G` — but only when they are mirrors
      - :math:`I`
      - a symmetry plane — a quotient, **zero physics**
    * - ``PeriodicBoundary(axis)``
-     - :class:`SpatialWrap`
+     - :meth:`PairedDeck.wrap`
      - :math:`I`
      - a torus — a quotient
    * - ``AlbedoBoundary(α, SpecularReturn)``
@@ -274,10 +274,11 @@ a property.
 
 The **geometry tier** splits on the **pairing**, not on the individual motion.
 :class:`SelfPairedDeck` is the face paired with *itself*
-(:meth:`~SelfPairedDeck.domain_face` answers ``face``); :class:`SpatialWrap` is
+(:meth:`~SelfPairedDeck.domain_face` answers ``face``); :class:`PairedDeck` is
 the face paired with a *distinct* one (it answers the opposite face). Those two
-are genuinely non-isomorphic — the self-paired guard rejects a translation
-outright — so the tier earns exactly two types.
+are genuinely non-isomorphic — the guards are complements of one fixed-subspace
+criterion, so no motion is unclaimed and none is claimed twice — and the tier
+earns exactly two types.
 
 The trivial pairing and the mirror are **not** two more. They differ by a
 *value*, not by structure: same guard, same ``domain_face``, and
@@ -331,10 +332,10 @@ __all__ = [
     "BoundaryResponseKernel",
     "IsotropicReturn",
     "LambertianReemission",
+    "PairedDeck",
     "ReemissionClosure",
     "ScalarResponse",
     "SelfPairedDeck",
-    "SpatialWrap",
     "SpecularReemission",
     "SpecularReturn",
 ]
@@ -401,9 +402,10 @@ class BoundaryGeometryMap(Protocol):
         :math:`G^{-1} = G_{g^{-1}}`, and measure-preservation makes that
         inverse the transpose. Every map here answers ``True``; the declaration
         survives because a *future* map could be realized without one, and
-        because :class:`SpatialWrap` answered ``False`` until campaign phase
-        **B3.4c** built its pushforward — it was reporting an implementation
-        gap (#183), never a property of the map.
+        because ``SpatialWrap`` (:class:`PairedDeck`'s axis-lettered
+        predecessor, retired 2026-08-07) answered ``False`` until campaign
+        phase **B3.4c** built its pushforward — it was reporting an
+        implementation gap (#183), never a property of the map.
         """
         ...
 
@@ -415,7 +417,7 @@ class BoundaryGeometryMap(Protocol):
         itself for every map that acts within one face, and a DIFFERENT face
         exactly when the deck transformation carries the crossing between two
         faces of the fundamental domain — which today means
-        :class:`SpatialWrap` alone.
+        :class:`PairedDeck` alone.
 
         **Why the geometry tier owns this and the response tier cannot.** A
         response is *constitutive* — a property of the material surface at this
@@ -428,8 +430,8 @@ class BoundaryGeometryMap(Protocol):
 
         **Why it takes the installation face as an argument** rather than being
         a stored field: which face is the partner depends on where the law is
-        installed — configuration — while the axis is intrinsic. That is the
-        same B0 rule that kept ``partner_face`` off :class:`SpatialWrap`.
+        installed — configuration — while the motion is intrinsic. That is the
+        same B0 rule that keeps ``partner_face`` off :class:`PairedDeck`.
 
         A map whose declared axis cannot be reconciled with ``face`` MUST raise
         rather than answer: a wrap along ``y`` installed on an ``x`` face
@@ -581,10 +583,10 @@ class SelfPairedDeck:
       (:meth:`identity`, every constitutive law) and the mirror
       (:meth:`mirror`, a reflecting face).
     - **Paired with a DISTINCT face** — the codomain of one surface is the
-      domain of its partner and vice versa. That is :class:`SpatialWrap`
-      (periodic, a translation) and the unbuilt sector BC (#178, a rotation).
-      **Not this class**: a pair cannot be named by one face, so it needs a
-      surface-pair type that does not exist yet.
+      domain of its partner and vice versa. That is :class:`PairedDeck`
+      (periodic's translation today; the sector rotation, half-turn and
+      inversion are admissible elements awaiting #178's partner map).
+      **Not this class**: a pair cannot be named by one face.
 
     The construction guard is the self-pairing condition itself, and it is what
     makes the distinction structural rather than documented:
@@ -600,7 +602,7 @@ class SelfPairedDeck:
     :math:`E(3)` has FOUR involution families, and the other two — the
     half-turn (``order=2, det=+1, fix=1``) and the inversion
     (``order=2, det=-1, fix=0``) — map a face to its **opposite**, which is
-    precisely :class:`SpatialWrap`'s deferred job. An order-only guard admits
+    precisely :class:`PairedDeck`'s job. An order-only guard admits
     exactly the elements this type exists to exclude. It would also carry an
     ``atol`` into a type invariant, which the fixed-set spelling does not need.
 
@@ -638,7 +640,7 @@ class SelfPairedDeck:
                 "there is nothing for a translation to do — and `on_directions` "
                 "drops it, which makes a wrong mirror POSITION invisible to "
                 "every gate at every tolerance (vv-principles Mode 12). "
-                "A translation belongs to a genuine face PAIR: see SpatialWrap."
+                "A translation belongs to a genuine face PAIR: see PairedDeck."
             )
         fixed = motion.fixed_subspace_dimension
         if fixed < motion.dimension - 1:
@@ -691,7 +693,7 @@ class SelfPairedDeck:
         Quotient reading: a deck transformation with **fixed points** (the
         mirror plane), so a reflecting face makes the computational domain an
         orbifold with what Thurston calls a *reflector boundary*. Contrast
-        :class:`SpatialWrap`, whose action is **free** — that contrast IS the
+        :class:`PairedDeck`, whose action is **free** — that contrast IS the
         self-paired/genuinely-paired split this type is built on.
 
         The axis letter is resolved against
@@ -724,13 +726,13 @@ class SelfPairedDeck:
 
         **Derived, not declared.** The linear part IS the action on
         directions, so "does it move angle?" is "is the linear part the
-        identity?" — a question the motion answers about itself. Before this
-        type the answer was a hand-written ``True``/``False`` per class, which
-        is a second source of truth for something the element already knows.
+        identity?" — a question the motion answers about itself
+        (:attr:`~orpheus.geometry.transformation.RigidMotion.is_translation`,
+        the single source both deck types read). Before this type the answer
+        was a hand-written ``True``/``False`` per class, which is a second
+        source of truth for something the element already knows.
         """
-        return not np.array_equal(
-            self.motion.linear, np.eye(self.motion.dimension)
-        )
+        return not self.motion.is_translation
 
     @property
     def is_adjointable(self) -> bool:
@@ -766,104 +768,256 @@ class SelfPairedDeck:
 
 
 @dataclass(frozen=True, slots=True)
-class SpatialWrap:
-    r""":math:`G` = wrap-around along ``axis`` (periodic).
+class PairedDeck:
+    r""":math:`G` for a face paired with a **DISTINCT** face — the genuine pair.
 
-    Pushes the outflow of one face onto the inflow of the opposite face at the
-    SAME angle — which is why periodic closes a sweep cycle from a *single* law
-    while a lone reflecting face does not.
+    The second of Poincaré's two face-pairing cases, and the structural
+    complement of :class:`SelfPairedDeck`: the deck element carries face
+    :math:`f'` onto face :math:`f`, so the law's domain is a *different*
+    face's :math:`\Gamma_+` and :meth:`domain_face` never answers ``face``.
+    Its families are the translation (periodic — the only one with a
+    face-name derivation today), the sector rotation (#178), the half-turn
+    and the inversion. Quotient reading: the action is **free** (no fixed
+    points), so the quotient is a covering-space quotient — a torus for the
+    translation — and a manifold, NOT an orbifold; contrast the mirror's
+    reflector boundary.
 
-    It is a genuine deck transformation: the translation :math:`x \mapsto x + L`
-    carries face :math:`f'` onto face :math:`f`, and because the outward
-    normals are opposite (:math:`\hat n_f = -\hat n_{f'}`) a direction that is
-    *outgoing* at :math:`f'` is *incoming* at :math:`f` — so the crossing comes
-    for free, with :math:`|\Omega\cdot\hat n|` preserved. Quotient reading: the
-    action is **free** (no fixed points), so the quotient is a torus — a
-    covering space and a manifold, NOT an orbifold.
+    The construction guard is the complement of the self-pairing condition,
+    and the criterion is the **fixed subspace**, never the element order:
 
-    **``axis``, not a partner face.** The first draft of this type carried
-    ``partner_face``, which is wrong by the rule this campaign's B0 phase
-    established: *a law carries only what is intrinsic to it, never what depends
-    on the configuration or the discretization.* Which face is the partner
-    depends on **where the law is installed** — configuration — whereas "wrap
-    along x" is intrinsic, and it is the same shape as
-    :meth:`SelfPairedDeck.mirror`'s ``axis``. The realizer derives the partner
-    from the installation face plus this axis.
+    .. math::
 
-    :class:`~orpheus.geometry.boundary.PeriodicBoundary` has never carried
-    ANY field (issue #183), so the map it names was not expressible; ``axis`` is
-    the parameter it was missing.
+        \neg\bigl(Q \text{ linear} \;\wedge\; \dim \mathrm{Fix}(Q)
+        \ge d - 1\bigr)
 
-    Non-opposite gluing — a hex partner, a rotational quotient — is genuinely a
-    different object and needs an explicit partner map. That is issue **#178**
-    (``SymmetryBoundary``, "octant/quotient gluing distinct from physical
-    mirror"), deliberately NOT this type.
+    **Involution is NECESSARY but not SUFFICIENT for self-pairing** — the
+    half-turn (``order=2, det=+1, fix=1``) is an involution and still maps a
+    face to its *opposite*, which is why :class:`SelfPairedDeck` refuses it
+    and this type accepts it. `[M]` measured 2026-08-07 against the live
+    guard: reflection (fix :math:`= d-1`) refused here / accepted there;
+    rotation 90° (fix 1), half-turn (fix 1), translation (not linear) all
+    accepted here / refused there. One criterion, two complementary guards,
+    no element unclaimed and none claimed twice.
+
+    **The motion, not a name for one.** This type retires ``SpatialWrap``
+    (2026-08-07, G6.3 step 7), which held ``axis: str`` — the exact
+    under-typing :class:`SelfPairedDeck`'s own guard message argues against
+    (*"the deck element is the transformation itself, not a name for one"*).
+    A letter equally cannot say which **lattice vector** or which **rotation
+    angle**; the motion says both, and every derived answer below
+    (:attr:`permutes_ordinates`, :meth:`domain_face`) is read off the motion
+    rather than declared beside it.
+
+    **Why the stored translation is a UNIT vector** (:meth:`wrap`), and this
+    is the same closure :class:`SelfPairedDeck` applies to the mirror's
+    offset: the wrap's *direction* is intrinsic to the law, but its *length*
+    is the domain extent — configuration. And the length is bit-identically
+    invisible at every level the realization can measure, because
+    :meth:`~orpheus.geometry.transformation.RigidMotion.on_directions` drops
+    the translation entirely. Storing a physical length would therefore be a
+    Mode-12 designed-green field: wrong values provably unobservable. The
+    stored element is the **generator of the identification, up to positive
+    scale and inversion** — which power carries :math:`f'` onto :math:`f`
+    (the wrap installed on ``xmin`` needs :math:`t^{-1}`, on ``xmax``
+    :math:`t`) is resolved at realization from the installation face. For a
+    translation the distinction is invisible (the linear part is :math:`I`
+    either way); a future rotational deck MUST resolve it, which is part of
+    what #178 owes.
+
+    **Why the partner face is derived, not stored.** The B0 rule: *a law
+    carries only what is intrinsic to it, never what depends on the
+    configuration or the discretization.* Which face is the partner depends
+    on where the law is installed; "wrap along x" is intrinsic. The realizer
+    derives the partner from the installation face plus the motion
+    (:meth:`domain_face`).
+
+    Non-opposite gluing — a hex partner, a rotational quotient — is
+    admissible as an *element* here but has no face-name derivation on an
+    axis-aligned box: that is issue **#178** (``SymmetryBoundary``,
+    "octant/quotient gluing distinct from physical mirror"), and
+    :meth:`domain_face` refuses those motions loudly rather than guessing.
     """
 
-    axis: str = "x"
+    motion: RigidMotion
+
+    def __post_init__(self) -> None:
+        motion = self.motion
+        if not isinstance(motion, RigidMotion):
+            raise TypeError(
+                f"PairedDeck takes a RigidMotion, got {type(motion).__name__}. "
+                f"The deck element is the transformation itself, not a name "
+                f"for one — an axis LETTER cannot say which lattice vector, "
+                f"nor which rotation angle. Use PairedDeck.wrap(axis=...) for "
+                f"the periodic translation."
+            )
+        if (
+            motion.is_linear
+            and motion.fixed_subspace_dimension >= motion.dimension - 1
+        ):
+            raise ValueError(
+                f"a paired deck element must carry the face to a DIFFERENT "
+                f"face, but this motion is linear and fixes a subspace of "
+                f"dimension {motion.fixed_subspace_dimension} >= "
+                f"{motion.dimension - 1} — it fixes a face pointwise, so it "
+                f"pairs the face with ITSELF. That is the self-paired case "
+                f"(the identity or a mirror): see SelfPairedDeck. The two "
+                f"guards are complements of one criterion — the fixed "
+                f"subspace, NOT the element order: the half-turn is an "
+                f"involution and belongs HERE."
+            )
+
+    @classmethod
+    def wrap(cls, *, axis: str = "x", dimension: int = 3) -> "PairedDeck":
+        r"""The periodic identification along ``axis`` — the torus generator.
+
+        Pushes the outflow of one face onto the inflow of the opposite face
+        at the SAME angle (the translation's linear part is :math:`I`, so
+        :attr:`permutes_ordinates` derives ``False``) — which is why a
+        periodic pair closes a sweep cycle from a *single* law while a lone
+        reflecting face only adds a forward trace edge.
+
+        The stored element is the **unit** translation along ``axis`` — the
+        generator of the identification, not the physical wrap
+        :math:`x \mapsto x + L`. The length is configuration (the domain
+        extent) and is bit-invisible to realization; see the class note.
+
+        :class:`~orpheus.geometry.boundary.PeriodicBoundary` has never
+        carried any field beyond its axis (issue #183): this constructor is
+        the map that axis was naming all along, now as a motion.
+
+        The axis letter is resolved against
+        :data:`~orpheus.numerics.face_layout.AXIS_NAMES` — the single home
+        of that convention — and refused HERE rather than at realization,
+        the same closure :meth:`SelfPairedDeck.mirror` applies: a mis-named
+        axis cannot be constructed and then fail late somewhere holding a
+        quadrature.
+        """
+        try:
+            index = AXIS_NAMES.index(axis)
+        except ValueError:
+            raise ValueError(
+                f"axis must be one of {AXIS_NAMES}, got {axis!r}. The wrap "
+                f"names the direction of the identifying translation; "
+                f"validating here is what keeps a bad axis from surviving "
+                f"construction and failing later against a face layout it "
+                f"never should have reached."
+            ) from None
+        if not 0 <= index < dimension:
+            raise ValueError(
+                f"axis {axis!r} is index {index}, out of range for a "
+                f"{dimension}-dimensional deck element"
+            )
+        direction = np.zeros(dimension)
+        direction[index] = 1.0
+        return cls(RigidMotion.translation_by(direction))
 
     @property
     def permutes_ordinates(self) -> bool:
-        # Spatial, not angular: ordinate n at face A feeds ordinate n at face B.
-        return False
+        """Whether realizing this map permutes the ANGULAR index.
+
+        **Derived, not declared** — the same derivation as
+        :attr:`SelfPairedDeck.permutes_ordinates`, single-sourced on
+        :attr:`~orpheus.geometry.transformation.RigidMotion.is_translation`:
+        the linear part IS the action on directions, so a wrap (linear part
+        :math:`I`) answers ``False`` — ordinate :math:`n` at one face feeds
+        ordinate :math:`n` at the partner — while a rotational deck element
+        answers ``True``.
+        """
+        return not self.motion.is_translation
 
     @property
     def is_adjointable(self) -> bool:
-        # The translation IS adjointable as a map — for a deck transformation
-        # that is a theorem (see the Protocol's note), and the realized form is
-        # now a genuine one: an identity between the PARTNER's Γ₊ and this
-        # face's Γ₋, whose transpose scatters the image back over the partner's
-        # Γ₊. Until campaign phase **B3.4c** this answered ``False`` to report
-        # the implementation gap (#183): the operator existed but was fed its
-        # own face's outflow, so there was no partner leg for a transpose to
-        # return along. B3.4c built the channel and this flipped, WITH its gate.
+        # A theorem for a genuine deck transformation (see the Protocol's
+        # note): the composition operator of a bijection is invertible, and
+        # measure-preservation makes that inverse the transpose. The realized
+        # form is a genuine map between the PARTNER's Γ₊ and this face's Γ₋,
+        # whose transpose scatters the image back over the partner's Γ₊.
+        # History: SpatialWrap (this type's predecessor) answered ``False``
+        # until campaign phase **B3.4c** to report the then-unbuilt partner
+        # channel (#183) — an implementation gap, never a property of the
+        # map. B3.4c built the channel and the declaration became true.
         return True
 
     def domain_face(self, face: str) -> str:
-        r"""The PARTNER face — the one datum that makes periodic periodic.
+        r"""The PARTNER face — the one datum that makes a genuine pair a pair.
 
-        A wrap's law reads :math:`\gamma_-\psi|_f = \gamma_+\psi|_{f'}`: the
-        inflow here is the outflow *across the domain*. It is the only
+        A paired law reads :math:`\gamma_-\psi|_f = \gamma_+\psi|_{f'}`: the
+        inflow here is the outflow *across the domain*. This is the only
         :class:`BoundaryGeometryMap` whose answer is not ``face``, which is
         exactly the sense in which a torus is a quotient and a wall is not.
 
-        The identification is well-posed because the two faces' outward normals
-        are opposite (:math:`\hat n_f = -\hat n_{f'}`): a direction OUTGOING at
-        :math:`f'` is INCOMING at :math:`f`, so :math:`\Gamma_+(f')` and
-        :math:`\Gamma_-(f)` are the same index set and the crossing costs
-        nothing. `[M]` measured 2026-08-01 as an exact set equality on
-        ``gauss_legendre(8)``, ``product(2,4)``, ``level_symmetric(6)`` and
-        ``lebedev(17)``, on both axis pairs. The realizer ASSERTS it rather
-        than assuming it — the user's B3.4c ruling was that the quotient
-        reading becomes a guard, not a mesh restructure.
+        The answer is DERIVED from the motion, never stored: a translation
+        along :math:`\hat e_a` carries the two faces normal to axis
+        :math:`a` onto each other, so the partner of an on-axis ``face`` is
+        its opposite. The identification is well-posed because those faces'
+        outward normals are opposite (:math:`\hat n_f = -\hat n_{f'}`): a
+        direction OUTGOING at :math:`f'` is INCOMING at :math:`f`, so
+        :math:`\Gamma_+(f')` and :math:`\Gamma_-(f)` are the same index set
+        and the crossing costs nothing. `[M]` measured 2026-08-01 as an
+        exact set equality on ``gauss_legendre(8)``, ``product(2,4)``,
+        ``level_symmetric(6)`` and ``lebedev(17)``, on both axis pairs. The
+        realizer ASSERTS it rather than assuming it — the user's B3.4c
+        ruling was that the quotient reading becomes a guard, not a mesh
+        restructure.
 
         Raises
         ------
         BoundaryError
-            If ``face`` does not lie on :attr:`axis`. A wrap along ``y``
-            installed on an ``x`` face identifies nothing — the translation
-            :math:`x \mapsto x + L_y` does not carry that face anywhere — and
-            answering ``face`` would silently realize it as a bare identity on
-            the wrong half-trace, which is the ERR-041 mis-declaration class
-            (the diffuse arm's orientation cross-check is the same shape).
+            If the motion has no face-name derivation on an axis-aligned
+            box — any non-translation (a sector rotation, a half-turn, an
+            inversion) or a translation not along a single axis. Those are
+            legitimate deck ELEMENTS whose gluing needs an explicit partner
+            map: issue **#178** (``SymmetryBoundary``). Refusing loudly here
+            is what keeps an admissible element from being silently realized
+            as a wrap it is not.
+        BoundaryError
+            If ``face`` does not lie on the translation's axis. A wrap
+            along ``y`` installed on an ``x`` face identifies nothing — the
+            translation :math:`x \mapsto x + L_y` does not carry that face
+            anywhere — and answering ``face`` would silently realize it as
+            a bare identity on the wrong half-trace, which is the ERR-041
+            mis-declaration class (the diffuse arm's orientation cross-check
+            is the same shape).
         """
         from ._errors import BoundaryError
 
+        motion = self.motion
+        if not motion.is_translation:
+            raise BoundaryError(
+                f"PairedDeck cannot name a partner for face {face!r}: its "
+                f"motion is not a translation (linear part is not the "
+                f"identity), and only a translation pairs the opposite faces "
+                f"of an axis-aligned box. A rotational or point-symmetry "
+                f"gluing is a legitimate deck element but needs an explicit "
+                f"partner map — issue #178 (SymmetryBoundary).",
+                law="periodic",
+            )
+        along = np.flatnonzero(motion.translation != 0.0)
+        if along.size != 1:
+            raise BoundaryError(
+                f"PairedDeck cannot name a partner for face {face!r}: its "
+                f"translation {motion.translation.tolist()} is not along a "
+                f"single axis, so it carries no face of an axis-aligned box "
+                f"onto another. A diagonal gluing needs an explicit partner "
+                f"map — issue #178 (SymmetryBoundary).",
+                law="periodic",
+            )
+        wrap_axis = AXIS_NAMES[int(along[0])]
         try:
             axis_index, _sign = face_normal(face)
         except ValueError as exc:
             raise BoundaryError(
-                f"SpatialWrap(axis={self.axis!r}) cannot name a partner for "
-                f"face {face!r}: {exc}",
+                f"PairedDeck.wrap(axis={wrap_axis!r}) cannot name a partner "
+                f"for face {face!r}: {exc}",
                 law="periodic",
             ) from exc
-        if AXIS_NAMES[axis_index] != self.axis:
+        if AXIS_NAMES[axis_index] != wrap_axis:
             raise BoundaryError(
-                f"SpatialWrap declares axis={self.axis!r} but is installed on "
+                f"PairedDeck.wrap(axis={wrap_axis!r}) is installed on "
                 f"face {face!r}, which lies on axis "
                 f"{AXIS_NAMES[axis_index]!r}. A wrap identifies the two faces "
-                f"NORMAL to its own axis; it carries an {self.axis}-face to "
-                f"the opposite {self.axis}-face and says nothing about any "
+                f"NORMAL to its own axis; it carries an {wrap_axis}-face to "
+                f"the opposite {wrap_axis}-face and says nothing about any "
                 f"other face, so there is no partner to name here. Declare "
                 f"PeriodicBoundary(axis={AXIS_NAMES[axis_index]!r}) if this "
                 f"face's axis is the periodic one.",

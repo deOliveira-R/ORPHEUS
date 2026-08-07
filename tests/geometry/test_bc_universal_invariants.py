@@ -1083,7 +1083,9 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
     applied to adjointability. The factor tier DECLARES whether the map it
     names exposes an honest transpose; the realized operator ANSWERS from its
     own composition tree. Nothing compared them before **B3.4c**, and they had
-    silently drifted apart: :class:`SpatialWrap` declared ``False`` while the
+    silently drifted apart: ``SpatialWrap`` (the wrap deck's axis-lettered
+    predecessor, retired onto
+    :class:`~orpheus.geometry.boundary.PairedDeck`) declared ``False`` while the
     operator realizing it answered ``True``, so a consumer got opposite
     answers depending on which one it asked. (The declaration was reporting an
     implementation gap — #183, periodic's unbuilt partner channel — in a slot

@@ -178,7 +178,7 @@ from .angular import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from orpheus.geometry.boundary import SpatialWrap
+    from orpheus.geometry.boundary import PairedDeck
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -504,7 +504,7 @@ def _specular_kernel(
 
 
 def _assert_wrap_identification(
-    wrap: "SpatialWrap",
+    wrap: "PairedDeck",
     method_space: "SNMethodSpace",
 ) -> str:
     r"""Certify the quotient reading :math:`\Gamma_+(f') \equiv \Gamma_-(f)`,
@@ -533,7 +533,7 @@ def _assert_wrap_identification(
     Both encodings are sourced independently: the installation face's
     :math:`\Gamma_-` comes from the method space (built by the trace space),
     the partner's :math:`\Gamma_+` from the one face-name → signed-projection
-    primitive applied to the name :meth:`SpatialWrap.domain_face` derives. That
+    primitive applied to the name :meth:`~orpheus.geometry.boundary.PairedDeck.domain_face` derives. That
     is the ERR-041 discipline — two encodings of one orientation, compared.
 
     The face demand is checked FIRST, ahead of the shared

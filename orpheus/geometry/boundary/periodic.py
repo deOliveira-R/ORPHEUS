@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._base import BoundaryTraceLaw
-from ._factors import ScalarResponse, SpatialWrap
+from ._factors import PairedDeck, ScalarResponse
 
 
 __all__ = ["PeriodicBoundary"]
@@ -42,7 +42,7 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     quotient rather than a wall.
 
     The partner is named by the geometry factor
-    (:meth:`~orpheus.geometry.boundary.SpatialWrap.domain_face`) and SUPPLIED
+    (:meth:`~orpheus.geometry.boundary.PairedDeck.domain_face`) and SUPPLIED
     by the composition
     (:attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_domains`),
     which is why the realized operator is a bare
@@ -89,21 +89,26 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
-    def geometry_map(self) -> "SpatialWrap":
-        r""":math:`G` = the spatial pushforward along :attr:`axis`.
+    def geometry_map(self) -> "PairedDeck":
+        r""":math:`G` = the translational deck element along :attr:`axis`.
 
         Outflow at one face becomes inflow at the opposite face **at the same
         angle** — which is why a periodic pair closes a sweep cycle from a
         single law, where a lone reflecting face only adds a forward trace
-        edge.
+        edge. "Same angle" is DERIVED, not declared: the wrap's linear part
+        is the identity, so
+        :attr:`~orpheus.geometry.boundary.PairedDeck.permutes_ordinates`
+        reads ``False`` off the motion itself.
 
         Since **B3.4c** the realization matches: the factor names the partner
         face and the composition reads it there. The pushforward that #183
-        recorded as unbuilt is this channel, and it is the map's whole content
-        — the action ON the trace, once the right half-trace arrives, is the
-        identity.
+        recorded as unbuilt is this channel. Since **G6.3 step 7** the factor
+        carries the MOTION (a unit translation — the torus generator) rather
+        than an axis letter, so the law's :math:`G` is the same *kind* of
+        object a mirror's is: a rigid motion the realizer derives the trace
+        arrow from.
         """
-        return SpatialWrap(axis=self.axis)
+        return PairedDeck.wrap(axis=self.axis)
 
     @property
     def response_kernel(self) -> "ScalarResponse":

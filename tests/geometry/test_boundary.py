@@ -506,7 +506,7 @@ def test_periodic_bc_returns_input_unchanged() -> None:
       that responsibility, and no mechanism existed for one to discharge it —
       the composition fed every law its OWN face's :math:`\Gamma_+`, so
       periodic returned a face's own outflow as its inflow. Since B3.4c the
-      channel is real (:meth:`SpatialWrap.domain_face` names the partner and
+      channel is real (:meth:`~orpheus.geometry.boundary.PairedDeck.domain_face` names the partner and
       ``SNBoundaryOperator._face_domains`` supplies it), and a law that cannot
       name its installation face is refused rather than realized;
     * the probe was full-face, so "identity" was a statement about an

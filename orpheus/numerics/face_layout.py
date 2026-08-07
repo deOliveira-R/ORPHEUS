@@ -211,8 +211,8 @@ def face_opposite(face: str) -> str:
 
     ``"xmin" -> "xmax"``. An involution, and the only thing a *translation*
     deck transformation needs to know about where it was installed — which is
-    why :class:`~orpheus.geometry.boundary.SpatialWrap` carries an ``axis``
-    rather than a partner face (the partner is configuration, the axis is
+    why :class:`~orpheus.geometry.boundary.PairedDeck` carries the motion
+    rather than a partner face (the partner is configuration, the motion is
     intrinsic).
 
     The two faces' outward normals are opposite (:math:`\hat n_f =

@@ -257,7 +257,7 @@ primitives are, with each law's affine factors alongside:
      - spatial wrap along ``axis``; the realizer derives the partner
        face from the installation face
      - 1
-     - ``SpatialWrap(axis)``, ``ScalarResponse(1.0)``
+     - ``PairedDeck.wrap(axis)``, ``ScalarResponse(1.0)``
      - 1 / no (Wave C/D)
    * - :class:`~orpheus.geometry.boundary.AlbedoBoundary`
      - the **re-emission closure**'s pairing — specular or diffuse;
@@ -511,7 +511,7 @@ at :ref:`bc-sweep-cycle`.
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - ``IdentityOperator() & IdentityOperator()``, fed the PARTNER
        face's :math:`\Gamma_+`. The crossing lives in the channel
-       (:meth:`SpatialWrap.domain_face` names the partner; the composite
+       (:meth:`PairedDeck.domain_face <orpheus.geometry.boundary.PairedDeck.domain_face>` names the partner; the composite
        supplies it), so the action on the trace is the identity —
        EARNED by the certified identification
        :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, not assumed

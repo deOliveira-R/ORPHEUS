@@ -21,7 +21,7 @@ reflection           2    −1    2  self-paired
 **inversion**        2    −1    0  face → **opposite**
 ===============  =====  ====  ===  ==========================
 
-The last two are exactly ``SpatialWrap``'s (deferred) job, so an order-only
+The last two are exactly ``PairedDeck``'s job, so an order-only
 guard admits the elements the type exists to exclude. The shipped guard is
 ``is_linear ∧ dim Fix ≥ d − 1``, which is strictly stronger, carries no
 tolerance, and makes involution a **theorem** rather than a trusted premise:
@@ -41,8 +41,8 @@ import pytest
 
 from orpheus.geometry.boundary import (
     BoundaryGeometryMap,
+    PairedDeck,
     SelfPairedDeck,
-    SpatialWrap,
 )
 from orpheus.geometry.transformation import RigidMotion
 
@@ -118,7 +118,7 @@ def test_a_face_SWAPPING_involution_is_refused() -> None:
     be refused — the whole reason the guard is not ``element_order``.
 
     Both satisfy :math:`g^2 = e`. Both map a face to its OPPOSITE, which is a
-    genuine face pairing (``SpatialWrap``'s deferred job), not a self-pairing.
+    genuine face pairing (``PairedDeck``'s job), not a self-pairing.
     An order-only guard admits both.
     """
     for name, motion in (("inversion", RigidMotion.inversion(3)),
@@ -273,15 +273,17 @@ def test_it_conforms_to_the_geometry_map_protocol(inhabitant: str) -> None:
 
 
 def test_the_genuinely_paired_half_is_untouched() -> None:
-    """``SpatialWrap`` still constructs and still answers the OPPOSITE face.
+    """``PairedDeck`` still constructs and still answers the OPPOSITE face.
 
     A scope statement that cannot rot: if a later pass folds the periodic wrap
-    into this type without building the surface-pair concept, this gate reds
-    and says why.
+    into THIS type, this gate reds and says why. (G6.3 step 7 built the
+    surface-pair type this row used to defer to — ``SpatialWrap`` retired
+    onto ``PairedDeck.wrap``, which now carries the MOTION — and the split
+    this gate polices is unchanged: two complementary types, one
+    fixed-subspace criterion.)
     """
-    wrap = SpatialWrap(axis="x")
+    wrap = PairedDeck.wrap(axis="x")
     assert wrap.domain_face("xmin") == "xmax", (
-        "SpatialWrap pairs two DISTINCT faces — that is exactly the case "
-        "SelfPairedDeck refuses, and it must keep its own type until a "
-        "surface-pair type exists"
+        "PairedDeck pairs two DISTINCT faces — that is exactly the case "
+        "SelfPairedDeck refuses, and it must keep its own type"
     )

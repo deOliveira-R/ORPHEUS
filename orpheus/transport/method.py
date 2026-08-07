@@ -395,7 +395,7 @@ def _law_from_tag(
         # A wrap's axis is not an accessory: it names WHICH pair of faces the
         # translation identifies, so a wrong one points the law at a partner
         # across the wrong axis. Since B3.4c that is loud rather than silent
-        # (``SpatialWrap.domain_face`` refuses a face off its own axis), but a
+        # (``PairedDeck.domain_face`` refuses a face off its own axis), but a
         # producer that emits a wrong law and leans on a downstream guard is
         # still the consumer-side bridge this codebase fixes at the producer.
         #

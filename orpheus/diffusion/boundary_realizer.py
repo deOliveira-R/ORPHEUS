@@ -152,8 +152,8 @@ from __future__ import annotations
 from orpheus.geometry.boundary import (
     BoundaryError,
     BoundaryTraceLaw,
+    PairedDeck,
     PrescribedInflow,
-    SpatialWrap,
     stamp_boundary_role,
 )
 from orpheus.numerics.operator import (
@@ -305,26 +305,31 @@ class DiffusionBoundaryRealizer:
                 f"(#290 P5).",
                 law=type(law).key or type(law).__name__,
             )
-        if isinstance(law.geometry_map, SpatialWrap):
+        if isinstance(law.geometry_map, PairedDeck):
             # ── REFUSAL AXIS: spatial / topological ──────────────────────
             # NOT an angular-resolution refusal, which is the one a reader
             # expects from a diffusion realizer. Periodic's deck
             # transformation is a TRANSLATION: it acts on the spatial
             # coordinate and leaves angle untouched, so every angular
             # discretization is trivially equivariant under it and P1 loses
-            # nothing angularly. What blocks it is that the wrap couples a
-            # face to its OPPOSITE face, and this realizer's codomain is a
-            # per-face scalar 𝒜 — a block-diagonal object with no slot for
-            # cross-face coupling. A method could resolve angle perfectly and
-            # still refuse this.
+            # nothing angularly. What blocks it is that a PAIRED deck
+            # element couples a face to a DIFFERENT face (the opposite one,
+            # for the wrap), and this realizer's codomain is a per-face
+            # scalar 𝒜 — a block-diagonal object with no slot for
+            # cross-face coupling. A method could resolve angle perfectly
+            # and still refuse this. Dispatching on the TYPE (the
+            # genuine-pair deck element, G6.3 step 7) rather than a law
+            # name is what makes the refusal reach every paired gluing —
+            # a future sector rotation is refused by the same line.
             raise BoundaryError(
                 f"DiffusionBoundaryRealizer cannot realize "
-                f"{type(law).__name__}: its geometry map is a SPATIAL "
-                f"wrap, which couples a face to its OPPOSITE face (a "
-                f"trace-block permutation) — the one geometry P1 cannot "
-                f"integrate away into a per-face albedo J⁻ = 𝒜·J⁺. The "
-                f"wrap lands with the boundary-operator assembly when a "
-                f"diffusion consumer exists (#290 P4 seam).",
+                f"{type(law).__name__}: its geometry map pairs this face "
+                f"with a DISTINCT face — the wrap couples a face to its "
+                f"OPPOSITE face (a trace-block permutation) — the one "
+                f"geometry P1 cannot integrate away into a per-face albedo "
+                f"J⁻ = 𝒜·J⁺. The cross-face coupling lands with the "
+                f"boundary-operator assembly when a diffusion consumer "
+                f"exists (#290 P4 seam).",
                 law=type(law).key or type(law).__name__,
             )
         return response.amplitude
