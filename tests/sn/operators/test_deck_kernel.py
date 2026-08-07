@@ -401,10 +401,13 @@ class TestThePermutationIsTheLinearParts:
 # is ``TestTheGatherIsThePreimage``'s witness-check below, which verifies
 # the claimed partner's COORDINATES instead of comparing derivations.
 # The binding claim its second row carried (Γ₊(f) → Γ₋(f), by ``is``) is
-# asserted independently by the self-paired/paired split gate at the end
-# of this module (``mirrored.domain is trace.outflow_space("xmin")``) and,
-# for the load-bearing off-diagonal case, by
-# ``TestPeriodicIsBoundToThePartner``.
+# carried forward split by leg: the DOMAIN leg by the self-paired/paired
+# split gate at the end of this module (``mirrored.domain is
+# trace.outflow_space("xmin")``); the CODOMAIN leg rides on
+# ``TestPeriodicIsBoundToThePartner`` alone — the split gate's codomain
+# assertion is ``mirrored.codomain is realized.codomain``, which a
+# None/None regression satisfies (`[M]` qa M5: dropping ``codomain=`` in
+# the kernel reds 5 periodic rows and leaves the split gate green).
 # ============================================================================
 
 

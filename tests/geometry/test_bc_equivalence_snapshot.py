@@ -432,8 +432,9 @@ class TestSpecularXLebedev17Snapshot:
     Reference: :math:`\psi^-(\Omega) = \psi^+(\Omega')` with
     :math:`\Omega' = \Omega - 2(\Omega\cdot\hat n)\hat n`, the pairing derived
     from the isometry and matched onto the ordinate table by exact float
-    equality — never read from ``quadrature.reflection_index``, which is the
-    table production consults.
+    equality — never read from production's pairing derivation
+    (``quadrature.ordinate_permutation``; until §7d.3, the
+    ``reflection_index`` table).
 
     ``assert_array_equal``: a gather introduces no re-association, so the
     predicted drift is EXACTLY zero and any tolerance would admit the failure

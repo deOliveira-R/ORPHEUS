@@ -306,8 +306,8 @@ def product_mu_phi(
     See Also
     --------
     :meth:`orpheus.numerics.quadrature.Quadrature.product` — the named
-    factory SN consumers call. It wraps this measure, precomputes the
-    reflection-partner map, and holds the returned
+    factory SN consumers call. It wraps this measure and holds the
+    returned
     :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
     on its ``level_structure`` field for hot-path access. There is no
     per-family adapter class: the SN-side wrapper this docstring used

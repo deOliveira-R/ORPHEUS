@@ -19,20 +19,32 @@ stand-in for a real mirror, the other a theorem about the domain — and they
 coincide at exactly one point, :math:`\alpha = 1`. That coincidence is
 checkable, and checking it is what licenses the response as a stand-in at all.
 
-**Why this is a real cross-check and not a tautology.** The two sides are
-derived by genuinely independent routes:
+**Why this is a real cross-check and not a tautology.** The two DERIVATIONS
+are genuinely independent:
 
 * the **geometric** side applies
   :meth:`~orpheus.geometry.boundary.SelfPairedDeck.mirror`'s
   :class:`~orpheus.geometry.transformation.RigidMotion` — the ``G1``–``G5``
   core, verified against pure math — to the quadrature's direction cosines and
-  reads off the induced permutation;
+  reads off the induced permutation with this module's OWN
+  argmin + exactness + injectivity discipline (no call into ``preserves``);
 * the **response** side is ``quadrature.ordinate_permutation(motion)``, the
   quadrature's own certified pairing derivation — the one source production
   realization also reads (G6.3 step 7; until §7d.3 this side was the
   construction-time ``reflection_index`` table).
 
-Neither consults the other. `[M]` they agree EXACTLY (``atol=1e-12``, and the
+⚠ **Scope, narrowed at §7d.3 — independence has TWO axes, and this file
+holds one.** Both sides consume ONE ``SelfPairedDeck.mirror(axis).motion``
+object, so the INPUT — the axis-letter → mirror-normal resolution — is
+shared, and this file no longer cross-checks that convention: `[M]`
+swapping x↔y inside ``_mirror_motion`` leaves all rows here GREEN while
+78 sibling gates red. The letter-convention cross-check lives in the
+reference helper's deliberately-local axis map
+(``tests/_harness/references.py`` ``_AXIS_INDEX``) and the gates it
+feeds. What THIS file pins is the DERIVATION: ``preserves``'s match
+machinery against an independently-written match, on the same motion.
+
+`[M]` the two derivations agree EXACTLY (``atol=1e-12``, and the
 permutation is a genuine bijection) on ``gauss_legendre(4)``,
 ``gauss_legendre(8)``, ``product(4,4)`` (x and y), ``lebedev(17)`` and
 ``level_symmetric(6)`` (z).

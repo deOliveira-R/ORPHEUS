@@ -313,7 +313,7 @@ class TestRealizeReflective:
 
     def test_specular_partial_albedo_matches_hand_computed(self):
         r"""At α=0.7 the realized op output equals
-        ``0.7 * psi[reflection_index][inflow]`` bit-exactly.
+        ``0.7 * psi[mirror_partner][inflow]`` bit-exactly.
 
         RE-POSED at B3.2 alongside its α=1 sibling — same reference shape,
         restricted to :math:`\Gamma_-`; the partner map comes from the

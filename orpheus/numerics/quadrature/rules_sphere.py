@@ -93,8 +93,8 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
     See Also
     --------
     :meth:`orpheus.numerics.quadrature.Quadrature.lebedev` — the named
-    factory SN consumers call. It wraps this measure and precomputes
-    the reflection-partner map at construction. There is no per-family
+    factory SN consumers call. It wraps this measure; mirror pairings
+    are derived on demand via ``ordinate_permutation``. There is no per-family
     adapter class: the SN-side wrapper this docstring used to point at
     (``orpheus.sn.quadrature.LebedevSphere``) was retired into a
     classmethod factory on the one ``Quadrature`` type, whose
@@ -572,10 +572,9 @@ def level_symmetric_sn(
     See Also
     --------
     :meth:`orpheus.numerics.quadrature.Quadrature.level_symmetric` —
-    the named factory SN consumers call. It wraps this measure,
-    precomputes the reflection-partner map, and holds the
-    :class:`LevelStructure` on its ``level_structure`` field for
-    hot-path access. There is no per-family adapter class: the
+    the named factory SN consumers call. It wraps this measure and
+    holds the :class:`LevelStructure` on its ``level_structure`` field
+    for hot-path access. There is no per-family adapter class: the
     SN-side wrapper this docstring used to point at
     (``orpheus.sn.quadrature.LevelSymmetricSN``) was retired into a
     classmethod factory on the one ``Quadrature`` type.

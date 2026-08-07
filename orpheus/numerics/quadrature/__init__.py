@@ -35,8 +35,9 @@ Each factory returns a :class:`Quadrature` wrapping the canonical
 :class:`DiscreteMeasure` produced by the rule functions
 (:func:`gauss_legendre_on_mu`, :func:`lebedev_sphere`,
 :func:`level_symmetric_sn`, :func:`product_mu_phi`) — the mathematical
-ground truth — plus the SN-side derived data (reflection partners,
-octant partition, level structure) cached at construction time.
+ground truth — plus the SN-side derived-data surface (ordinate
+permutations via :meth:`Quadrature.ordinate_permutation`, the octant
+partition, the level structure).
 
 The legacy ``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` / ``N``
 attribute surface survives on :class:`Quadrature` as ``@property``

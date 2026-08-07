@@ -2277,7 +2277,7 @@ something either site enforces alone.
 **Why it now has its own foundation gate.**  Because the solver tests are
 structurally blind to a cross-level regression, the invariant is pinned
 *directly* — not through any flux or eigenvalue, but as a property of the
-quadrature's reflection table itself — by the foundation test
+derived mirror pairing itself — by the foundation test
 :func:`tests.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_intra_level_signflip_partner`.
 It asserts all three equalities of
 :eq:`sn-coupled-pole-mu-level-invariant-eq` (intra-level membership,
