@@ -1,8 +1,15 @@
 r"""Certification of a **specular pairing** — three independent invariants.
 
 A specular pairing is the ordinate permutation realizing
-:math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` on a quadrature,
-supplied by :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`.
+:math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n` on a quadrature —
+since **G6.3 step 7d** derived HERE from the mirror MOTION
+(:func:`_specular_pairing` →
+:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`), the
+same single source the realization's deck kernel reads. Until 7d these
+checks read the precomputed ``reflection_index`` table while realization
+derived the permutation from the law's motion — two objects for one
+pairing, bit-identical by gate but structurally twinned; certifying the
+very array the kernel narrows is what closes the split.
 Two laws carry one, in **different tiers** of the affine form:
 
 * :class:`~orpheus.geometry.boundary.ReflectiveBoundary` carries it as
@@ -81,6 +88,8 @@ import numpy as np
 from orpheus.numerics.face_layout import AXIS_NAMES
 from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS
 
+from ._factors import _mirror_motion
+
 if TYPE_CHECKING:
     from orpheus.numerics.quadrature import Quadrature
 
@@ -91,6 +100,48 @@ __all__ = [
     "assert_specular_pairing_measure_preserving",
     "assert_specular_pairing_valid",
 ]
+
+
+def _specular_pairing(
+    quadrature: "Quadrature", axis: str, *, law_key: str,
+) -> "np.ndarray":
+    r"""The pairing under certification — derived from the mirror MOTION,
+    the same single source realization reads (G6.3 step 7d).
+
+    Each invariant below asserts ITS OWN claim on this array — the
+    derivation's built-in certificate (bijection + bare-weight equality,
+    from :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`)
+    is deliberately NOT treated as subsuming them: ERR-044's involution
+    has no carrier in ``preserves`` (a bijection needn't be its own
+    inverse), and ERR-042's measure is the TRACE one,
+    :math:`w\,|\mu_a|`, not the bare :math:`w` the matcher compares.
+    The checks keep their teeth; only the array's source moved.
+
+    Raises
+    ------
+    BoundaryError
+        When the rule is not closed under the mirror — no bijective,
+        weight-preserving match of the ordinates onto their mirror
+        images exists (e.g. an odd-:math:`n_\varphi` product rule has
+        no x-mirror closure). This is the refusal that used to surface
+        as ``reflection_index``'s missing-axis ``ValueError``; a pairing
+        that does not exist can satisfy no invariant, so it is refused
+        before any of the three is asked.
+    """
+    pi = quadrature.ordinate_permutation(_mirror_motion(axis, 3))
+    if pi is None:
+        from ._errors import BoundaryError
+
+        raise BoundaryError(
+            f"no specular pairing about axis {axis!r} exists on this "
+            f"quadrature: the mirror does not permute its weighted "
+            f"ordinate set (no bijective, weight-preserving match — "
+            f"e.g. an odd-n_phi product rule has no x-mirror closure), "
+            f"so a specular law cannot be certified, let alone "
+            f"realized.",
+            law=law_key,
+        )
+    return pi.indices
 
 
 #: Relative tolerance for the ERR-042 measure-preservation check.
@@ -142,7 +193,7 @@ def assert_specular_pairing_measure_preserving(
         ordinates carry zero measure, so a tangential↔non-tangential
         mispairing is caught by the same comparison).
     """
-    perm = quadrature.reflection_index(axis)
+    perm = _specular_pairing(quadrature, axis, law_key=law_key)
     cosine_measure = quadrature.weights * np.abs(_axis_cosines(quadrature, axis))
     partner_measure = cosine_measure[perm]
     if not np.allclose(
@@ -152,12 +203,12 @@ def assert_specular_pairing_measure_preserving(
 
         worst = int(np.argmax(np.abs(partner_measure - cosine_measure)))
         raise BoundaryGeometryMapNotMeasurePreservingError(
-            f"reflection_index({axis!r}) does not preserve the "
-            f"direction-cosine measure w·|μ_{axis}|: ordinate "
+            f"the specular pairing about axis {axis!r} does not preserve "
+            f"the direction-cosine measure w·|μ_{axis}|: ordinate "
             f"{worst} carries m={cosine_measure[worst]:.6e} but its "
             f"partner {int(perm[worst])} carries "
             f"m={partner_measure[worst]:.6e} (ERR-042: wrong "
-            f"reflection-index table, or a quadrature whose weights "
+            f"pairing, or a quadrature whose weights "
             f"are inconsistent with its nodes).",
             law=law_key,
         )
@@ -181,12 +232,12 @@ def assert_specular_pairing_involutive(
     ReflectionNotInvolutiveError
         When ``reflection_index(axis)`` is not its own inverse.
     """
-    ref = quadrature.reflection_index(axis)
+    ref = _specular_pairing(quadrature, axis, law_key=law_key)
     if not np.array_equal(ref[ref], np.arange(quadrature.N)):
         from ._errors import ReflectionNotInvolutiveError
 
         raise ReflectionNotInvolutiveError(
-            f"reflection_index({axis!r}) is not an involution",
+            f"the specular pairing about axis {axis!r} is not an involution",
             law=law_key,
         )
 
@@ -217,7 +268,7 @@ def assert_specular_pairing_maps_inflow_to_outflow(
         When any non-tangential ordinate's partner is tangential or lies in the
         same sign class.
     """
-    perm = quadrature.reflection_index(axis)
+    perm = _specular_pairing(quadrature, axis, law_key=law_key)
     mu_axis = _axis_cosines(quadrature, axis)
     partner_mu = mu_axis[perm]
     active = np.abs(mu_axis) > TANGENTIAL_EPS
@@ -230,12 +281,13 @@ def assert_specular_pairing_maps_inflow_to_outflow(
 
         worst = int(np.flatnonzero(bad)[0])
         raise ReflectionDidNotMapInflowToOutflowError(
-            f"reflection_index({axis!r}) maps ordinate {worst} "
+            f"the specular pairing about axis {axis!r} maps ordinate "
+            f"{worst} "
             f"(μ_{axis}={mu_axis[worst]:+.6e}) to ordinate "
             f"{int(perm[worst])} "
             f"(μ_{axis}={partner_mu[worst]:+.6e}) — same sign "
             f"class instead of the outflow partner (ERR-045: wrong "
-            f"reflection-index table, or a non-axis-aligned "
+            f"pairing, or a non-axis-aligned "
             f"reflection that needs a different BC type).",
             law=law_key,
         )
@@ -246,9 +298,11 @@ def assert_specular_pairing_valid(
 ) -> None:
     r"""All three invariants — the full certification of a specular pairing.
 
-    Call this from a law's ``assert_realizable`` when the law realizes through
-    ``reflection_index(axis)``, whichever tier its pairing sits in. Firing only
-    a subset leaves one of the three holes tabulated in this module's docstring.
+    Call this from a law's ``assert_realizable`` when the law realizes a
+    specular pairing (the deck kernel derives it from the same mirror
+    motion these checks certify), whichever tier the pairing sits in.
+    Firing only a subset leaves one of the three holes tabulated in this
+    module's docstring.
     """
     assert_specular_pairing_measure_preserving(quadrature, axis, law_key=law_key)
     assert_specular_pairing_involutive(quadrature, axis, law_key=law_key)

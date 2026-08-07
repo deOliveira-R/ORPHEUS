@@ -83,6 +83,7 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
 from orpheus.diffusion.method_space import DiffusionMethodSpace
+from orpheus.geometry.transformation import Permutation
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
@@ -90,21 +91,28 @@ from tests.sn._test_helpers import face_method_space
 
 
 class _TableQuad:
-    """Quadrature stand-in with an INJECTABLE reflection table.
+    """Quadrature stand-in with an INJECTABLE specular pairing.
 
     Only the surface ``ReflectiveBoundary.assert_is_involutive`` reads
-    (``N`` + ``reflection_index``); every other datum is irrelevant to
-    that guard. Used ONLY where the realize-time route cannot isolate
-    the invariant under test (see
-    ``test_reflection_not_involutive_error``).
+    (``N`` + ``ordinate_permutation`` — the certification's door since
+    G6.3 step 7d, when the checks moved off the ``reflection_index``
+    table onto the motion-derived pairing); every other datum is
+    irrelevant to that guard. Used ONLY where the realize-time route
+    cannot isolate the invariant under test (see
+    ``test_reflection_not_involutive_error``). The injected array must
+    be a genuine bijection — :class:`Permutation` refuses anything
+    else at construction, which is exactly the ERR-073 defence: the
+    mutants these gates need (a rotation cycle, a weight-class
+    mispairing, an identity) are all bijections that each violate ONE
+    certification invariant.
     """
 
     def __init__(self, n: int, table: np.ndarray) -> None:
         self.N = n
         self._table = table
 
-    def reflection_index(self, axis: str) -> np.ndarray:  # noqa: ARG002
-        return self._table
+    def ordinate_permutation(self, motion) -> "Permutation":  # noqa: ARG002
+        return Permutation(np.asarray(self._table))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -251,9 +259,9 @@ def test_boundary_geometry_map_not_measure_preserving_error(monkeypatch) -> None
     )
 
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    monkeypatch.setitem(
-        quad.reflection_partners, 0,
-        np.array([1, 0, 3, 2, 5, 4, 7, 6]),
+    monkeypatch.setattr(
+        quad, "ordinate_permutation",
+        lambda motion: Permutation(np.array([1, 0, 3, 2, 5, 4, 7, 6])),
     )
     with pytest.raises(
         BoundaryGeometryMapNotMeasurePreservingError,
@@ -356,8 +364,9 @@ def test_reflection_did_not_map_inflow_to_outflow_error(monkeypatch) -> None:
     )
 
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    monkeypatch.setitem(
-        quad.reflection_partners, 0, np.arange(quad.N),
+    monkeypatch.setattr(
+        quad, "ordinate_permutation",
+        lambda motion: Permutation(np.arange(quad.N)),
     )
     with pytest.raises(ReflectionDidNotMapInflowToOutflowError) as exc:
         SNBoundaryRealizer().realize(

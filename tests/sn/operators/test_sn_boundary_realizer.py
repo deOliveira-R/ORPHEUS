@@ -339,6 +339,30 @@ class TestRealizeReflective:
         assert isinstance(op.op.ops[1], IdentityOperator)
         assert op.op.ops[0].perm.size == space.outflow_indices.size < quad.N
 
+    def test_an_uncertified_mirror_is_refused_at_realize_with_the_pairing_diagnosis(
+        self,
+    ):
+        r"""G6.3 step 7d: a rule NOT closed under the mirror is refused at
+        ``realize()`` with the pairing's own diagnosis.
+
+        ``product(4,5)`` has no x-mirror closure (odd :math:`n_\varphi` —
+        the ERR-074 fixture): the certification's ``_specular_pairing``
+        derivation returns ``None`` and raises the not-closed
+        ``BoundaryError`` at ``assert_realizable``, BEFORE any dispatch
+        arm runs. This pin did not exist before 7d — the audit found the
+        realize-level refusal ungated — and it is asserted on the
+        distinctive message fragment deliberately: the pre-7d failure
+        mode here was ``reflection_index``'s table-lookup ``ValueError``,
+        and ``BoundaryError ⊂ ValueError`` makes a type-only pin unable
+        to tell the two apart.
+        """
+        quad = Quadrature.product(n_mu=4, n_phi=5)
+        with pytest.raises(BoundaryError, match="no specular pairing"):
+            SNBoundaryRealizer().realize(
+                ReflectiveBoundary(axis="x"),
+                face_method_space(quad, face="xmin"),
+            )
+
     def test_specular_narrowing_needs_a_bijection_between_half_traces(self):
         r"""B3.2 negative: a face where :math:`|\Gamma_-| \neq |\Gamma_+|` has
         NO specular realization, and says so.

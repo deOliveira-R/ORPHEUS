@@ -74,6 +74,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.geometry.boundary._errors import ReflectionNotInvolutiveError
+from orpheus.geometry.transformation import Permutation
 from orpheus.numerics.face_layout import AXIS_NAMES
 from orpheus.numerics.quadrature import Quadrature
 # B3.4a: the prescribed-inflow legs below realize through the SN realizer
@@ -113,23 +114,25 @@ class TestReflectiveInvolutionInvariant:
         bc.assert_is_involutive(quad)
 
     def test_raises_for_non_involutive_perm(self) -> None:
-        """A monkey-patched non-involutive ``reflection_index`` raises.
+        """An injected non-involutive pairing raises.
 
-        Construct a fake quadrature whose ``reflection_index`` returns
-        a 1-cycle rotation (NOT its own inverse). The invariant must
-        catch this.
+        Construct a fake quadrature whose ``ordinate_permutation`` (the
+        certification's read since G6.3 step 7d) returns a 1-cycle
+        rotation (NOT its own inverse). The invariant must catch this —
+        a rotation is a genuine bijection, so it passes the
+        :class:`Permutation` construction and only THIS check sees it.
         """
         quad = Quadrature.lebedev(17)
         N = quad.N
 
-        # Wrap with a fake reflection_index that returns a rotation
-        # (1-cycle: i → (i+1) % N), which is NOT an involution for N ≠ 2.
+        # A fake pairing that is a rotation (i → (i+1) % N) — not an
+        # involution for N ≠ 2.
         class _FakeQuad:
             N = quad.N
 
             @staticmethod
-            def reflection_index(axis: str) -> np.ndarray:
-                return np.roll(np.arange(N), 1)
+            def ordinate_permutation(motion) -> Permutation:  # noqa: ARG004
+                return Permutation(np.roll(np.arange(N), 1))
 
         bc = ReflectiveBoundary(axis="x")
         with pytest.raises(ReflectionNotInvolutiveError):
@@ -137,14 +140,18 @@ class TestReflectiveInvolutionInvariant:
 
 
 class _TableQuad:
-    """Quadrature stand-in: REAL nodes/weights, injectable reflection
-    table.
+    """Quadrature stand-in: REAL nodes/weights, injectable specular
+    pairing.
 
-    The negative legs below need tables that are wrong in exactly ONE
+    The negative legs below need pairings that are wrong in exactly ONE
     invariant while every other datum stays production-real — the
-    surgical way to prove the three reflection-table invariants are
+    surgical way to prove the three pairing invariants are
     independent (the ERR-045 catalog lesson: "checking only one or two
-    leaves a hole").
+    leaves a hole"). Served through ``ordinate_permutation`` — the
+    certification's read since G6.3 step 7d — so every mutant must be a
+    genuine bijection (:class:`Permutation` refuses anything else at
+    construction), which the three mutant families all are: each
+    violates its ONE invariant while remaining a permutation.
     """
 
     def __init__(self, base: Quadrature, table: np.ndarray) -> None:
@@ -156,8 +163,8 @@ class _TableQuad:
     def axis_cosines(self, axis_index: int) -> np.ndarray:
         return self._base.axis_cosines(axis_index)
 
-    def reflection_index(self, axis: str) -> np.ndarray:
-        return self._table
+    def ordinate_permutation(self, motion) -> Permutation:  # noqa: ARG002
+        return Permutation(self._table)
 
 
 @pytest.mark.l1
@@ -201,16 +208,20 @@ class TestReflectiveMeasurePreservingInvariant:
 
     def test_raises_at_realize_time(self, monkeypatch) -> None:
         """The invariant is a PRODUCTION guard: the same mispaired
-        table poisoning a real quadrature's precomputed partners
+        pairing poisoning the quadrature's ``ordinate_permutation``
+        (the certification's read since G6.3 step 7d — poisoning the
+        old ``reflection_partners`` table no longer reaches anything)
         reddens ``SNBoundaryRealizer.realize`` itself (via the
         ``assert_realizable`` certification at entry)."""
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
 
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        monkeypatch.setitem(
-            quad.reflection_partners, 0,
-            np.array([1, 0, 3, 2, 5, 4, 7, 6]),
+        monkeypatch.setattr(
+            quad, "ordinate_permutation",
+            lambda motion: Permutation(
+                np.array([1, 0, 3, 2, 5, 4, 7, 6])
+            ),
         )
         with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):
             SNBoundaryRealizer().realize(
@@ -273,14 +284,16 @@ class TestReflectiveInflowToOutflowInvariant:
         ReflectiveBoundary(axis="y").assert_reflection_maps_inflow_to_outflow(quad)
 
     def test_raises_at_realize_time(self, monkeypatch) -> None:
-        """Production wiring: the identity-poisoned table reddens
-        ``SNBoundaryRealizer.realize`` itself."""
+        """Production wiring: the identity-poisoned pairing reddens
+        ``SNBoundaryRealizer.realize`` itself (injected at
+        ``ordinate_permutation``, the read since G6.3 step 7d)."""
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
 
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        monkeypatch.setitem(
-            quad.reflection_partners, 0, np.arange(quad.N),
+        monkeypatch.setattr(
+            quad, "ordinate_permutation",
+            lambda motion: Permutation(np.arange(quad.N)),
         )
         with pytest.raises(ReflectionDidNotMapInflowToOutflowError):
             SNBoundaryRealizer().realize(
@@ -1057,9 +1070,11 @@ class TestSpecularPairingCertifiedOnBothCarriers:
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        monkeypatch.setitem(
-            quad.reflection_partners, 0,
-            np.array([1, 0, 3, 2, 5, 4, 7, 6]),
+        monkeypatch.setattr(
+            quad, "ordinate_permutation",
+            lambda motion: Permutation(
+                np.array([1, 0, 3, 2, 5, 4, 7, 6])
+            ),
         )
         with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError) as exc:
             SNBoundaryRealizer().realize(
