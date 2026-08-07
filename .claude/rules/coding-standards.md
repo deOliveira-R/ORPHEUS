@@ -125,6 +125,24 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   the retired thing inherits its wrongness — re-verify that prose against the replacement
   rather than only deleting the dead name from it. (3) **direct constructors** of any guarded type (a guard-at-source change
   reaches every `T(...)` caller, not just the factory path). Run all three, then retire.
+- **Retiring a MESSAGE STRING: grep the SHORTEST distinctive fragment, never the full
+  sentence.** An exception/log message is an API the moment a test pins it, and tests pin
+  **substrings**. A grep for your own longer wording is strictly LESS sensitive than the
+  consumer's pattern, so it returns a confident, empty, wrong answer. (2026-08-06, G6.3 step
+  8.0: retiring `OperatorSum`'s inline check onto a shared helper reworded
+  `"OperatorSum requires equal domains"`. The audit grepped `requires equal domains` — which
+  matches the production line — and reported only the definition site. Two gates matched on
+  `"equal domains"` alone and went red in the wide run; a third reference was prose. The
+  correct pattern was the two-word fragment.) Corollary: when the audit does find pins,
+  prefer **keeping the established vocabulary** over renaming it — the phrase is load-bearing
+  provenance ("this guard fired, not some incidental raise"), and it is greppable precisely
+  because it has not drifted.
+- **And a retirement onto a SHARED helper moves the raise's provenance one frame out.** Any
+  gate asserting the innermost traceback frame is now asserting the helper, which is
+  reachable on behalf of *every* caller — so the gate silently widens from "this composite
+  refused" to "something refused". Re-point it at the helper AND assert the CALLER frame (or
+  an owner tag in the message), or the retirement demoted a provenance pin while leaving its
+  name intact — the same defect class as the fuller-view/bit-identity demotion above.
 - **Mass-deletes are retirements too — and untracked shadow-copies mask the breakage.** A
   "chore: mass-delete old diagnostics" sweep owes each file the same 3-search audit, with two
   sharpenings: (a) grep the **module/script NAME**, not only its symbols — a subprocess-worker

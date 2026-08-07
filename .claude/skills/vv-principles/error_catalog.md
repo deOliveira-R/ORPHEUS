@@ -5304,3 +5304,79 @@ on the regimes where the missing arm is accidentally exact), **ERR-068** (the sa
 spellings coincide), **ERR-047** (the `q ∈ Γ₋` contract this campaign's source
 channel now carries), **ERR-063** (a "this change is inert" claim that held for
 the contract it was proven against and failed for a second consumer).
+
+---
+
+## ERR-076 — `TensorProductOperator` derived NO spaces from its factors, so `(K_ω ⊗ I).H` silently degraded from the partial-current Hilbert adjoint to the Euclidean transpose: 87 % relative error on the realized white boundary law, and **exactly 0.0** on the specular mirror whose metric cancels — so the reflective fixture certifies the Lambertian defect
+
+**Date:** filed 2026-08-06 (campaign G6.3 step 8.0 — found by asking "what does
+binding this CHANGE?" about a step the plan had scoped as pure plumbing).
+
+**Where:** `orpheus/numerics/operator.py::TensorProductOperator` (no
+`domain`/`codomain`, inheriting the base's `None`) and
+`SumOfTensorProductsOperator` (the same). The consumer that turns the absence
+into a numerical difference is `_AdjointOperator.apply`.
+
+**The bug.** `_AdjointOperator.apply` BRANCHES on the spaces:
+
+```python
+z = inner_codomain.apply_metric(y) if inner_codomain is not None else y
+result = self.inner.apply_transpose(z)
+if inner_domain is not None:
+    result = inner_domain.apply_inverse_metric(result)
+```
+
+So an unbound operator's `.H` is not a *weaker* adjoint — it is a **different
+operator**, the unweighted transpose, produced with no error and no warning.
+Every SN boundary law realizes to `K_ω ⊗ IdentityOperator()`; the ordinate
+factor was bound `Γ₊(f) → Γ₋(f)` at G6.3 step 5, and the `⊗ I` wrapper dropped
+it. `[M]` on a 3-group `gauss_legendre(8)` face:
+
+| realized law | ‖unbound `.H` − bound `.H`‖ / ‖bound‖ |
+|---|---|
+| specular (reflective) | **0.0** (bit-identical) |
+| Lambertian (white) | **0.866** |
+
+**Why no test caught it, and it is a Mode-12 stabiliser, not a coverage gap.**
+The mirror's metric cancels *exactly*: `G_{Γ₋} = G_{Γ₊}∘π` bit-exactly, because
+a reflection permutes the ordinates and preserves `|Ω·n|·w_n`. So on the
+specular arm the weighted and unweighted adjoints are the same array, and any
+fixture built from a reflective face confirms the weighted adjoint law while
+being blind to whether the metric was applied at all. The suite's binding
+coverage was concentrated exactly there — the step-5 gates are a specular deck
+chain. The Lambertian's own factored gates (`test_lambertian_factored.py`) DO
+test the weighted law, but on the **chain** (`B @ C`), which was bound; the
+`⊗ I` wrapper the realizer puts around it is what dropped the binding, and no
+gate asked the realizer's OUTPUT.
+
+**The second, structural half.** The composability check
+`A.domain == B.codomain` skips whenever either side is `None`, so a dropped
+binding also disables the very refusal the binding exists to produce. `[M]`
+4941 bindings across the suite, **zero** failures — a green that means nothing.
+
+**Fix.** The commutative composites (`+`, `⊗`) resolve their spaces by
+**agreement** — one shared law, `_agreed_space`: every operand that declares a
+space must declare the same one, silence contributes nothing, disagreement
+raises. Position-based resolution (correct for the non-commutative `A @ B`) is
+*structurally* wrong here: it would give an order-independent operator
+order-dependent spaces.
+
+**Catches / gates.** `TestTensorProductSpaces`,
+`TestSumOfTensorProductsSpaces` (`tests/numerics/test_tensor_product_operator.py`)
+and `TestTheRealizedLawIsMETRICCorrect`
+(`tests/sn/operators/test_sn_boundary_realizer.py`) — the latter parametrizes
+BOTH laws and carries a discrimination row asserting the Lambertian fixture can
+still tell a weighted adjoint from a bare one, plus a negative row pinning the
+specular coincidence as the documented blind case rather than a property of
+boundary operators. `[M]` mutation battery on a 199-test slice: dropping the
+derivation reddens **18**, swapping `domain`↔`codomain` **8**, the position
+rule **7**, removing the refusal exactly the **3** refusal gates.
+
+**Family.** **ERR-063** (a "this change is inert" claim true for the one
+contract it was proven against and false for a second consumer — same shape,
+one tier up: here the inert claim was true of the *composability check* and
+false of the *adjoint*), **ERR-067** (a metric that no eigenvalue gate can see),
+**ERR-051** (a contract-validation method whose sole fixture was built so the
+wrong invariant passed). The generalisation is `vv-principles` anti-pattern
+**#12** plus a new plan-side clause (`plan-authoring` §8): *a field a consumer
+branches on is an INPUT, not metadata.*

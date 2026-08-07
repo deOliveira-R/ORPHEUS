@@ -1,14 +1,16 @@
 # Geometric transformation machinery — consolidation campaign
 
 > **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–5 DONE; step 6 DONE (absorbed by the
-> affine campaign's P3 — bind `ZeroOperator`'s spaces); steps 7, 8.0, 8 remain, and
-> 8.0 is NEW, discovered by step 5 (`TensorProductOperator` drops the binding, so step 8
-> as written would gate nothing). ▶ RESUMES AT STEP 8.0.**
+> affine campaign's P3 — bind `ZeroOperator`'s spaces); step 8.0 LANDED `72f5ce97`
+> (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing).
+> Steps 7 and 8 remain. ▶ RESUMES AT STEP 8 — "route `_reflect_trace` through `@`",
+> the one that matters, and its precondition is now discharged.**
 >
 > **Read ⏸ COMPACTION POINT #3 at the END of this file FIRST** — it records what changed
 > under track G *while G was paused* (the Γ ladder grew a `directions` field; the
-> `level_symmetric` weights changed and the family now REFUSES above S12), the
-> re-verified step-8.0 anchor, gate costs, and seven durable lessons. Then ⏸ #2 (end of
+> `level_symmetric` weights changed and the family now REFUSES above S12), gate costs,
+> and seven durable lessons. ⚠ **#3's "Step 8.0 — the next step" section is now
+> HISTORY** (it landed; §7h.4 is the record). Then ⏸ #2 (end of
 > §7h) for the red set and the five-times-refuted-scope lesson; step 5's own findings
 > are §7h.3. **#3 does not supersede #2 — it is additive.**
 > This file is the plan of record; it is written to survive a compaction and be
@@ -1958,8 +1960,125 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **5** | ✅ **DONE — and it refuted step 8, the FIFTH refutation in this step** | see §7h.3. The deck arm is bound `Γ₊(f) → Γ₋(f)`, `γ₊` with it, `is_involution` RETIRED; `TensorProductOperator` turns out to drop the binding, so **step 8 gains a substep** |
 | **6** | ✅ **DONE — landed inside the affine campaign's P3, `8d552395`** | ⭐ vacuum is NOT "the zero chain" as a distinct structure; it is a **length-1 chain whose single link is the zero morphism** (user, 2026-08-05) — same shape as step 5's deck arm, different kernel. `ZeroOperator` gained `domain`/`codomain`, bound in `_narrowed_zero_operator` via `checked_space_extent` against the half-trace index arrays, and gated by the NEW `tests/numerics/test_zero_operator_spaces.py` (which also inherited the `\|Γ₊\| ≠ \|Γ₋\|` Mode-12 discrimination from a retired operator — no face fixture can make it, since the two half-traces are equal-sized on every reachable face). Everything else about prescribed inflow lives in **`.claude/plans/affine_boundary_source_channel.md`** — read its ⏸ COMPACTION POINT #2. ⚠ **Do not re-plan vacuum/prescribed here** — that plan is the authority |
 | **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
-| **8.0** | ⛔ **NEW (step 5's finding)** — make `TensorProductOperator` derive `domain`/`codomain` from its factors | `[M]` it derives NOTHING, so the realizer returns `domain=None` and one `None` short-circuits the check. **Blocks 8.** Committed as `xfail(strict=True)` (`test_the_realized_operator_carries_the_binding`), flip-proof measured: patching `TP.domain → ops[0].domain` turns it `XPASS(strict)` |
+| **8.0** | ✅ **LANDED `72f5ce97` — and it was NOT the plumbing step this row said it was** | see §7h.4. The anchor flipped `XPASS(strict)` exactly as the flip-proof predicted. ⛔ **This row's framing was wrong**: it scoped 8.0 as an enabler for 8, so a session trusting it would have shipped a **live `.H` repair with zero gates** — `[M]` binding the product moved the realized *white* law's Hilbert adjoint by **87 % relative** (specular: **0.0**, its metric cancels) |
 | **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above. **Cannot fire until 8.0 lands** |
+
+### §7h.4 — step 8.0: the "plumbing" step that was carrying a live repair
+
+✅ **LANDED `72f5ce97`.** ▶ **Track G now resumes at step 8** — its precondition
+is discharged: `[M]` `_reflect_trace:553` spells the face action as
+`law.apply(gamma_out.apply(face_in))`, and `law.domain == gamma_out.codomain`
+now holds for every arm except periodic (still `I & I`, unbound — step 7's
+job), so routing it through `@` will FIRE rather than skip.
+
+**Shipped.** `TensorProductOperator` and `SumOfTensorProductsOperator` derive
+their spaces; `OperatorSum`'s two inline transcriptions of the same check are
+retired onto the one shared law, `_agreed_space`. The strict xfail
+`test_the_realized_operator_carries_the_binding` lost its mark.
+
+**The law, and why it is agreement rather than position.** A composite answers
+`domain`/`codomain` from its operands in exactly one of two ways. `A @ B`
+answers **by position** — correct, because swapping the operands makes a
+different operator. Apply that to `A ⊗ B` and it self-contradicts: `A & I`
+would be bound at the domain and unbound at the codomain while `I & A` is the
+reverse, so an **order-independent operator would carry order-dependent
+spaces**. The commutative composites (`+`, `⊗`) therefore resolve by
+**agreement** — every operand that speaks must say the same thing, silence
+contributes nothing, disagreement RAISES. `OperatorSum` already worked this
+way; the tensor product was the outlier, and the fix made the two one body.
+
+`[M]` agreement is sufficient *because the bindings here are WHOLE-space*: a
+`PermutationOperator` tagged `axis=0` on a `(4,3)` trace declares
+`domain.shape == (4,3)` — both axes. The factors are not separate legs; each
+bound one describes the whole space and at most one can be non-trivial. The
+refusal message names the product-space constructor that genuine per-leg
+bindings would require, instead of electing a leg.
+
+**⛔ THE SURPRISE — and it is about this plan's own prose, not the tree.**
+The order-table row above sold 8.0 as an enabler: *"the binding is metadata,
+not enforcement."* `[M]` **it is not metadata.** `_AdjointOperator.apply`
+BRANCHES on whether the spaces are `None` to decide whether to apply the
+metrics, so filling them in changes `.H` from the Euclidean transpose to the
+partial-current Hilbert adjoint. On a 3-group `gauss_legendre(8)` xmin face:
+
+| law | ‖bound − unbound‖ / ‖bound‖ |
+|---|---|
+| specular (mirror) | **0.0** — `G_{Γ₋} = G_{Γ₊}∘π` bit-exactly; the metrics cancel |
+| Lambertian (white) | **0.87** |
+
+So today's realized white boundary `.H` is *wrong*, and step 8.0 repairs it.
+A session designing to the row would have shipped that repair silently: the
+mutation battery confirms the boundary tier reddened **nothing** until the
+consequence gates were added (`TestTheRealizedLawIsMETRICCorrect`, which
+parametrizes BOTH laws and asserts the Lambertian fixture can still tell a
+weighted adjoint from a bare one — a reflective-only fixture certifies a
+Lambertian defect).
+
+⟹ the transferable clause is now `plan-authoring` §8: **a field a consumer
+branches on is an INPUT, not metadata** — a step that populates one is never
+behaviour-neutral, whatever the plan calls it. Grep `is None` on the field
+before believing the word.
+
+**⭐ The mutation battery.** `[M]` all four on ONE slice — TP module + specular
+chain + Lambertian factored + realizer + typed-residual (the `OperatorSum` arm)
+— baseline **212 passed**, restored to 212 after:
+
+| mutation | reds |
+|---|---|
+| drop the derivation (regress to pre-8.0) | **18** |
+| swap `domain` ↔ `codomain` (positive control) | **8** |
+| position rule instead of agreement | **17** — incl. the order-invariance row |
+| remove the disagreement refusal | **5** |
+
+⚠ **Two of these numbers were WRONG in an earlier draft of this table** (7 and
+3), because the first three mutations were measured on a 189-test slice and the
+fourth on 199, before the realizer consequence gates and the typed-residual
+module were in it. Same defect `plan-authoring` §4 names: a number without its
+configuration is not merely unreusable, it is *usable wrongly* — and here it
+would have UNDER-stated the position rule's blast radius by 2.4×, which is the
+direction that makes a gate set look thinner than it is. Re-measured on one
+slice before landing.
+
+**⛔ THE SECOND SURPRISE — a retirement audit that grepped its own wording.**
+Folding `OperatorSum`'s inline check into the shared helper reworded its
+exception message. `[M]` the audit grepped `requires equal domains`, found only
+the definition site, and concluded no consumer. **Two gates
+(`test_typed_residual_evaluation.py`) pin `"equal domains"` — the two-word
+fragment — and both went red in the wide run** (9 failed vs the baseline 7; the
+other 7 identical). A grep for the longer phrase cannot match a shorter pin, so
+the audit was *strictly less sensitive* than the thing it was auditing, and it
+returned an empty answer confidently.
+
+Fixed by KEEPING the vocabulary (`f"{owner} requires equal {role}s"`) rather
+than updating the gates to a new phrase — the phrase is load-bearing
+provenance, and prefixing `owner` makes it say WHICH composite refused now that
+the law is shared. ⭐ And the retirement moved the raise **one frame out**: the
+gates asserted `co_qualname == "OperatorSum.__init__"`, which is now
+`_agreed_space`. Re-pointing the frame alone would have DEMOTED them (the
+helper is reachable on behalf of the tensor product too), so they now assert
+the innermost frame **and** the caller. Clause added to `coding-standards`
+retirement.
+
+⚠ **Harness note — THREE instrument failures in this one step**, all of the
+anti-pattern-#17 family (*the instrument lies before the code does, and it lies
+in the safe-looking direction*), but by three different mechanisms:
+
+| # | the instrument | what it reported | why |
+|---|---|---|---|
+| 1 | `tail -2 \| head -1` on pytest output | the pytest **docs footer**, six times | the summary line is the LAST line, not the second-to-last |
+| 2 | its rewrite | `1 warning in 0.01s` = "clean" | the run collected **0 tests** — an empty run and a green run look identical |
+| 3 | ⭐ `until ! pgrep -f "pytest tests/cp …"` | **"still running" forever** | `pgrep -f` matched the WAITER'S OWN command line, which contains the pattern — the liveness check detected itself |
+
+⭐ **(3) is the new one and the nastiest**, because a never-terminating wait is
+indistinguishable from a slow suite: two monitors sat in it until their
+timeouts, and the run they were watching was killed unobserved at 58 %
+(0 failures at that point). **A liveness check must not be able to match
+itself** — filter by log content or let the job's own exit notify, never
+`pgrep -f` on a string your waiter also carries. Belongs in `vv-principles`
+**#17** alongside the fail-open parser.
+
+The battery was only trusted after the baseline printed **199 passed** — #17's
+positive control, applied to the instrument rather than the code.
 
 ### §7h.3 — step 5: bound, a flag retired, and step 8 refuted from below
 

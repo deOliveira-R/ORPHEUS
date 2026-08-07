@@ -49,6 +49,7 @@ surprises cost to hit.
 | 2026-08-06 | A plan's §5 blocker ("there is NO public entry point") was true when written and void two commits later, inside the same campaign. | §3, §7.3 |
 | 2026-08-06 | A "forbidden to commit" note was a point-in-time snapshot; the work had been committed at `34af8474`. | §7.1 |
 | 2026-08-06 | A plan split one signature change into three steps. Step 2 was unlandable alone: the retired probe was one of the two call sites of the signature being changed. | §6b |
+| 2026-08-06 | A step was scoped as an *enabler* ("the binding is metadata, not enforcement"). The field was read by a consumer that BRANCHES on `is None`, so populating it moved a production adjoint by 87 %. | §8 |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -187,3 +188,41 @@ The plan is a snapshot; the tree is the fact. On pick-up:
    been dissolved by a later phase of the same campaign. (P4 §5's "there is NO
    public entry point" was true when written and void two commits later; the
    banner saying so had to be added retroactively.)
+
+## 8. An "enabler" step still has its OWN blast radius — ask what it CHANGES
+
+A step whose stated purpose is *to unblock a later step* reads as plumbing, and
+plumbing reads as behaviour-neutral. The two are not the same claim, and the
+plan almost never distinguishes them, because the author was thinking about the
+dependency when they wrote the row.
+
+**The sharp form, which is grep-checkable:** *a field a consumer BRANCHES on is
+an input, not metadata.* If anything anywhere does `if x.field is None`, then
+filling that field in is a behaviour change at every such site — and the
+change is invisible in the diff, because the diff only shows the field being
+populated. Before accepting a step's "this only adds typing / tags / metadata"
+framing, grep the field name against `is None` / `is not None` / `getattr(...,
+None)` and read what each hit decides.
+
+> `[M]` 2026-08-06, campaign G6.3 step 8.0. The order-table row read *"the
+> binding is metadata, not enforcement"* — true of the composability check it
+> was talking about, and false of the object as a whole.
+> `_AdjointOperator.apply` branches on `domain`/`codomain` being `None` to
+> decide whether to apply the space metrics, so teaching the tensor product to
+> derive its spaces turned `(K_ω ⊗ I).H` from the Euclidean transpose into the
+> partial-current Hilbert adjoint: **87 % relative** change on the realized
+> white boundary law. The step was a live correctness repair wearing a
+> plumbing label. Worse, the repair would have shipped **ungated** — the
+> mutation battery reddened nothing at the boundary tier until consequence
+> gates were written for it.
+
+Corollary, and it is where the cost actually lands: **an unmeasured
+behaviour change ships without a gate**, because nobody writes a gate for a
+change they believe did not happen. So the deliverable of this check is not
+just "I know it changed" — it is a test at the tier the change is observable.
+
+⚠ And when you do measure, **measure on more than the symmetric fixture**. The
+same 87 % was exactly **0.0** for the specular mirror, whose metric cancels by
+symmetry. A reflective-only measurement would have confirmed the plan's
+"neutral" framing with a real number attached (`vv-principles` Mode 12 — the
+measured functional's invariance group contained the error class).
