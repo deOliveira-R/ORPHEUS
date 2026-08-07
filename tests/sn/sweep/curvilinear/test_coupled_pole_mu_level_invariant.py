@@ -43,9 +43,12 @@ equals the cell value, so every flat-flux gate stays green (the exact ERR-058
 blindness class — vv-principles Mode 7, at the operator-internals level).  This
 gate pins the invariant so a future change cannot break it silently.
 
-The invariant holds by construction today: ``reflection_index("x")`` is
-``_find_reflections(-mu_x, mu_y, mu_z, ...)`` (``directional.py``), which flips
-only :math:`\mu_x` and holds :math:`\mu_y, \mu_z`.  The cylinder μ-level is keyed
+The invariant holds by construction today: ``reflection_index("x")`` is the
+certified partner table ``_compute_sphere_reflection_partners`` builds from
+``RigidMotion.reflection(normal=ê_x)`` (``directional.py``; the bare
+``_find_reflections`` it names in older prose was retired at Q5.0.1), and
+the x-mirror's action flips only :math:`\mu_x` and holds
+:math:`\mu_y, \mu_z`.  The cylinder μ-level is keyed
 on the **axial** cosine :math:`\mu = \mu_z` (``rules_sphere.py`` groups by
 ``|mu_z|``; ``rules_product.py`` levels are fixed-``mu_z`` GL nodes), and the
 x-mirror holds :math:`\mu_z` — so the x-mirror provably preserves the level.

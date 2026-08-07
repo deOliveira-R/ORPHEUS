@@ -1988,8 +1988,15 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 > Γ₊(f')→Γ₋(f); both transitional pins flipped strictly ON LANDING and
 > were re-scoped); 7c `635c22e5` (142 gate rows; the π⁻¹ convention
 > pinned on `product(4,8)` — NOT `product(4,4)`, whose local permutation
-> is degenerately `arange`; the periodic metric row). Wide-slice result
-> recorded at ⏸ #5.
+> is degenerately `arange`; the periodic metric row). `[M]` wide slice
+> `tests/{numerics,sn,transport,geometry,diffusion} -m "not slow"` =
+> **7 failed / 6159 passed**, 17:30 — the SAME pre-existing seven as
+> ⏸ #4's baseline (2× cart2d principled_equiv · 3× affine-carve sha256
+> (#333) · 1× spherical diamond · 1× WhiteXminPartial03GL (#33)); the
+> passing count grew 6017 → 6159 with the new gates. Complement exposure
+> covered by an import smoke (the only structural delta reaching
+> cp/moc/mc/derivations is directional.py's new module-level imports —
+> all packages import clean).
 >
 > ⭐ **The landing's own surprise — ordinates are DIRECTIONS.** `[M]`
 > `RigidMotion.permutes/preserves` match through `on_points` (the AFFINE
@@ -2130,20 +2137,57 @@ axis-mirror TABLE either becomes its private cache or its consumers
 re-derive. *The user's sequencing ruling:* retire only after the checks
 pass — they now have (142 rows green; wide slice at ⏸ #5).
 
-- ⛔ the §7h.6 header's "10 call sites across 6 modules" was the SYMBOL
-  grep of its day; `[M]` the test-architect's delivery audit counts **33
-  live refs** tree-wide. Re-measure at pick-up; the sweep's `r = 0` pole
-  seed (`sn/loss_representation`) and `derivations/` are the heavy
-  consumers, and the pole seed is HOT-path (per-sweep) where the table's
-  precompute amortizes — the cache-vs-rederive decision is THE design
-  question of the substep, not a detail.
-- When it retires: **delete**
-  `test_deck_kernel.py::TestTheSpecularArmInheritsTheRetiredTable` (its
-  docstring says so — a one-time equivalence claim against the retired
-  path); re-point `test_quadrature_directional.py:294`'s
-  `match="no precomputed reflection partner"` pin at whatever refusal
-  survives; full three-search audit + the message-string
-  shortest-fragment grep.
+`[M]` **The explorer's full census landed 2026-08-07**
+(`scratch/audit_reflection_index_retirement.md` — the earlier "10 call
+sites" and "33 live refs" were both partial): **7 production call sites,
+44 test lines / 17 files, 5 `monkeypatch.setitem(quad.reflection_partners,
+…)` injection sites, 2 duck-typed `_TableQuad` fakes, 21 doc mentions /
+8 pages**, plus the Nexus equation node `quadrature-reflection-index`
+(`angular_quadrature.rst:239`, 23 `tests` edges via the file-level
+verifies list at `tests/sn/primitives/test_quadrature.py:35`) — the
+marker-migration surface.
+
+**The cache-vs-rederive question is ANSWERED by frequency class:**
+
+- **HOT — 4 sites, `sn/loss_representation/__init__.py`**
+  (`_apply_walk`:3294, `loss_action_transpose`:3470, `_run`:4189,
+  `_run_transpose`:4593), all static ``"x"``, all the r=0 coupled-pole
+  seed, sitting inside the `(L+C)` apply/solve/transpose bodies —
+  10²–10⁴ lookups per solve; the TABLE is their cache. Migration =
+  **hoist ONE derivation to walk/mesh construction** and let the 4 sites
+  read the stored array — which also moves the σ_x-closure refusal from
+  mid-iteration to construction, a strict improvement.
+- **WARM — 3 sites, `geometry/boundary/_specular.py`** (:145/:184/:220,
+  the ERR-042/044/045 certifications via `assert_realizable`,
+  data-driven axis). O(N²) rederive is affordable — **but the collapse
+  onto `preserves` is NOT lossless per-check**: ⚠ ERR-044's involution
+  has NO motion-path carrier (`preserves` certifies bijection, not
+  involution — assert it ON the derived π, `π∘π == id`, where the
+  catalog names it), and ⚠ ERR-042's check is against the TRACE measure
+  ``w·|μ_a|`` where `preserves` checks bare ``w`` — keep each
+  certification's own claim; let them consume the derived π, never
+  substitute the weaker certificate for the stronger check.
+- **COLD — 1 site**: `derivations/…/sweep_acyclicity` takes the ARRAY
+  as a parameter; only the test harness calls the accessor. Zero
+  ceremony.
+
+Also owed by the substep: **no gate pins the realize()-level refusal**
+of an uncertified mirror (the deck-kernel refusal rows call the kernel
+directly; `BoundaryError ⊂ ValueError` makes a lazy re-pin vacuous —
+mint an explicit realize-path pin); **delete**
+`test_deck_kernel.py::TestTheSpecularArmInheritsTheRetiredTable` (its
+docstring carries its own deletion order); re-point the
+`test_quadrature_directional.py:294` message pin;
+`docs/api/discrete_ordinates.rst:67` is the ONE Sphinx-rendered xref
+that dangles visibly (the other 20 doc mentions are grep-only); full
+three-search audit + shortest-fragment message grep at the end.
+
+✅ **7d.0 landed with this note**: the audit's four found falsehoods
+fixed on sight — two docstrings step 7 itself falsified
+(`albedo.py`/`reflective.py` "realizes through ``reflection_index``" →
+the motion spelling) and two `_find_reflections` citations dead since
+Q5.0.1 (`curvilinear_numerics.rst:2228`,
+`test_coupled_pole_mu_level_invariant.py:47`).
 
 ✅ **The transitional pins flipped as designed** (2026-08-07): the
 boundary-operator pin reddened with its own re-scope message and is now

@@ -203,7 +203,9 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         Since **B3.4b** the same three certify
         :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
         :class:`~orpheus.geometry.boundary.SpecularReturn` closure, which
-        realizes through the same ``reflection_index`` table with the pairing
+        realizes through the same mirror MOTION (one spelling,
+        ``_mirror_motion``; the deck kernel derives the permutation from it
+        since G6.3 step 7) with the pairing
         in :math:`R` instead of :math:`G`. One certification, two laws —
         :mod:`~orpheus.geometry.boundary._specular`.
         """

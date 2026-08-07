@@ -221,10 +221,13 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
 
         **The specular clause is B3.4b's, and it closes a hole the phase would
         otherwise have opened.** ``AlbedoBoundary(α, SpecularReturn(axis))``
-        realizes through ``quadrature.reflection_index(axis)`` — the same table
-        :class:`ReflectiveBoundary` stands on, whose ERR-042/044/045 invariants
-        were that law's methods. Adding a specular closure without adding this
-        call would mean a wrong table is **caught on one route and silently
+        realizes through the mirror MOTION the closure names
+        (:attr:`~orpheus.geometry.boundary.SpecularReemission.motion` →
+        the deck kernel, G6.3 step 7 — the same element
+        :class:`ReflectiveBoundary`'s :math:`G` carries, read from one
+        spelling), whose ERR-042/044/045 invariants were that law's methods.
+        Adding a specular closure without adding this
+        call would mean a wrong pairing is **caught on one route and silently
         realized on the other**, which is precisely the twin-path failure this
         campaign exists to remove. The certification now belongs to the pairing
         (:mod:`~orpheus.geometry.boundary._specular`) and both carriers fire it.

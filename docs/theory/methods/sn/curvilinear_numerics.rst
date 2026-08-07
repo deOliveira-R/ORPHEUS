@@ -2224,12 +2224,13 @@ cross-level partner would couple two different axial directions and seed
 the outward sweep with a value from the *wrong* characteristic.
 
 **Why it holds by construction today.**  Two facts conspire.  First,
-``reflection_index("x")`` resolves to
-``reflection_partners[0] = _find_reflections(-mu_x, mu_y, mu_z, ...)``
-(:func:`orpheus.numerics.quadrature.directional._compute_sphere_reflection_partners`),
-which nearest-neighbour-matches each node against its image with
-**only** :math:`\mu_x` negated — :math:`\mu_y,\mu_z` are passed through
-unchanged.  Second, the cylinder/sphere level is grouped on the
+``reflection_index("x")`` reads the certified partner table built by
+:func:`orpheus.numerics.quadrature.directional._compute_sphere_reflection_partners`
+from ``RigidMotion.reflection(normal=ê_x)`` through the orbit-closure
+certificate (bijection + weights, since Q5.0.1 — the bare
+nearest-neighbour ``_find_reflections`` it replaced was ERR-074's site):
+the mirror's action negates **only** :math:`\mu_x` —
+:math:`\mu_y,\mu_z` are passed through unchanged.  Second, the cylinder/sphere level is grouped on the
 **axial** cosine: the level factories key ``level_indices`` on
 :math:`|\mu_z|` (sphere / level-symmetric — ``rules_sphere.py``) or hold
 :math:`\mu_z=\mu_{\rm GL}` fixed per level (product — ``rules_product.py``),
