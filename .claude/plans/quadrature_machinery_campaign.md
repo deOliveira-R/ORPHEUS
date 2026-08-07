@@ -29,10 +29,77 @@
 > | **Q5.E / E2** | `34a97f43` | `DiscreteMeasure` carries ONE claim; `tensor_with` vs the direct sum; the "6.2832 bug" re-measured and partly **inverted** |
 > | **Q5.E / E3** | `647ece5a` | `rules_circle.py` — the periodic trapezoid on `S^1`, shift as a `Fraction`, nodes as roots of unity |
 > | **Q5.E / E4** | `255a9f1c` | the sphere product theorem + the azimuthal substitution; #325's generator half closed |
-> | **Q5.0.2** | *this commit* | `Z2` RETIRED → `Mirror(axis)`; the 1-D and 3-D arms unified |
+> | **Q5.0.2** | `bfedc621` | `Z2` RETIRED → `Mirror(axis)`; the 1-D and 3-D arms unified *(hash filled at the 2026-08-07 reconciliation — the row shipped saying "this commit")* |
 >
 > **▶ NEXT = Q5.1** (`DiscreteMeasure.quotient`), then Q5.2–Q5.6. The full ladder with gates
 > is in §5's `Q5.E` and `Q5.2` blocks — read them, not this summary.
+>
+> ---
+> **⏱ RECONCILED AGAINST THE TREE 2026-08-07 — the G/P interlude landed
+> BETWEEN Q5.0.2 and Q5.1, and this plan predates all of it.** Track G
+> (geometric transformation consolidation, carved out AT `bfedc621` to land
+> before Q5.1 — G1–G6.5 COMPLETE) and track P (the affine boundary source
+> channel — COMPLETE) put ~170 commits on this branch that this anchor does
+> not know. The premise audit (every §5 forward step checked against the
+> tree) found the FOLD LADDER ITSELF SOUND — Q5.1–Q5.6 consume the
+> measure-side machinery (orbit certificate, Σ, `pushforward`+`consolidate`,
+> `periodic_trapezoid`, `AngularSymmetry`), none of which G/P touched
+> destructively — with these updates a resuming session MUST carry:
+>
+> 1. ⛔ **The reflection table is GONE** (G §7d.3, 2026-08-07):
+>    `reflection_index` / `reflection_partners` /
+>    `_compute_sphere_reflection_partners` are DELETED. The single source for
+>    "which permutation does a motion induce" is
+>    **`Quadrature.ordinate_permutation(motion)`** — derivation-at-need
+>    through the G2-verified `RigidMotion.preserves`, same embedding
+>    (`_embedded_nodes`) and windows as `_orbit_closure`, same three
+>    certifications (ERR-074/073/042), returning `None` for a non-symmetry.
+>    Every T-item citing `reflection_index` describes the pre-G tree
+>    (annotated in place at T8, T23, §7).
+> 2. ⭐ **T23's must-precede cleanup is DISCHARGED — beyond its ask.** The
+>    `r=0` pole map is now DERIVED per-quadrature at the mesh
+>    (`_ensure_pole_mirror` → `ordinate_permutation(SelfPairedDeck.mirror("x").motion)`,
+>    4 sites) and REFUSES when no pairing exists ("cannot seed the r = 0
+>    pole", pinned at `product(4,5)`+cylinder). Consequence for the fold: if
+>    folding ever produced a rule without σ_x-closure, the cylindrical sweep
+>    refuses LOUDLY instead of shipping the silent wrong pole map T23 feared.
+>    (Geometric expectation: the ξ-fold quotients by σ_y, and σ_x maps the
+>    half-range onto itself, so closure should SURVIVE folding — but the net
+>    exists if it does not. Gate it in Q5.6 rather than assuming.)
+> 3. **`symmetry.py` was rewired under Q's feet — for the better** (G3/G4):
+>    it speaks `RigidMotion` end-to-end; the 1-D/3-D arm split is DELETED
+>    (`_check_invariance_1d`/`_3d` no longer exist — a new family needs NO
+>    per-dimension arm, superseding the Q5.0.2 template's warning); the
+>    checker's `C_n`/`σ_v` are re-based on `roots_of_unity`; `Mirror(axis)`
+>    SURVIVED and is the 1-D invariance tag. `_NAMED_LATTICE`, `_GROUP_CACHE`
+>    (repr-keyed) and `_contains` survive as the template describes.
+> 4. **Three mirror spellings now coexist by design, one per tier**:
+>    `Mirror(axis)` (the SYMMETRY-GROUP member, numerics), 
+>    `SelfPairedDeck.mirror(axis)` (the boundary LAW's deck slot, geometry),
+>    `RigidMotion.reflection(normal)` (the MOTION, geometry core). The first
+>    two both RESOLVE to the third; the fold speaks the first
+>    (`AngularSymmetry` carries `SubgroupOfO3` values). Axis-letter →
+>    normal resolution is single-sourced per tier with ONE deliberately-local
+>    test-side cross-check (`tests/_harness/references.py::_AXIS_INDEX`,
+>    vv #22) — do not "deduplicate" it.
+> 5. **The red baseline is unchanged but is now TRACKED elsewhere**: the six
+>    SN reds + the geometry seventh below are task **#51**'s merge gate
+>    (with #33 for the geometry snapshot and **#333** for the three affine
+>    sha256 rows). The full wide slice has been externally stopped three
+>    times from background sessions — it runs at #51's merge, `| tee`d.
+> 6. **G-side contracts a Q session must not violate**: the SN deck arm
+>    REFUSES space-less method spaces (the refusal is the contract, G6.5);
+>    `TraceRestrictionOperator` cross-checks its gather against a bound
+>    codomain's `ordinate_indices` elementwise (ERR-077) — a fold that
+>    mints half-trace-like spaces must keep declared rows ≡ gather rows.
+> 7. **Sibling-matcher note for Q7/Q6 work**: `ordinate_permutation`
+>    (quadrature tier) and `_orbit_closure` (measure/group tier) are
+>    LAYERED, not twins — both consume the same embedding and windows, and
+>    the quadrature method documents the relationship in its docstring. A
+>    one-grep verification that `_orbit_closure` also routes through
+>    `RigidMotion.preserves` post-G3 is owed at Q7 pickup before touching
+>    either.
+> ---
 >
 > ⛔ **UNCOMMITTED AND UNCOMMITTABLE: ERR-074** was appended to
 > `.claude/skills/vv-principles/error_catalog.md` (user-authorised, 2026-08-02).
@@ -370,6 +437,18 @@ code uses `σ_x` (`loss_representation/__init__.py:4189` via
 `reflection_index("x")`). `[M]` They differ on **56 of 64 ordinates** and coincide
 **only on the quotient**. The tree is right by a coincidence whose precondition it
 has never taken.
+
+⛔ **MECHANISM SUPERSEDED by track G (annotated 2026-08-07); the THEOREM
+stands.** `reflection_index` is DELETED (§7d.3). The σ_x pole map is now
+DERIVED per-quadrature at the mesh — `_ensure_pole_mirror` →
+`Quadrature.ordinate_permutation(SelfPairedDeck.mirror("x").motion)`, four
+sites in `loss_representation` — certified at derivation (ERR-042/073/074)
+and REFUSING when the pairing does not exist ("cannot seed the r = 0 pole",
+pinned). So the "coincidence whose precondition it has never taken" now has
+its precondition TAKEN at every derivation: a rule not closed under σ_x
+cannot seed the pole at all, loudly. The fold's Q5.6 acceptance should gate
+that the FOLDED rule still derives its σ_x pairing (expected: yes — σ_x
+maps the ξ ≥ 0 half-range onto itself — but gate it, don't assume it).
 
 Corollary, and it corrects a plausible-sounding wrong claim: ERR-042 checks `σ_x`
 (`φ→π−φ`, needs even `n_φ`) — the **centreline's** condition. The ξ-fold closes
@@ -1197,6 +1276,18 @@ The fix is already in the tree and is one call: `[M]`
 gets the right answer where the nearest-neighbour matcher gets a silent wrong one.
 Same shape as ERR-072/073: *a certification claimed and never computed.*
 
+⛔ **THE MUST-PRECEDE IS DISCHARGED — TWICE OVER (annotated 2026-08-07).**
+Q5.0.1 certified the table (`a7695148`, catching the live odd-`n_φ` defect —
+ERR-074); then track G RETIRED the table entirely (§7d.3) onto
+`Quadrature.ordinate_permutation(motion)` — derivation-at-need through the
+G2-verified `RigidMotion.preserves`, carrying the same three certifications
+and returning `None` for a non-symmetry, with each caller owning its refusal
+("no specular pairing" at certification tier, "cannot seed the r = 0 pole"
+at sweep tier). `_find_reflections`, `reflection_index` and the
+`reflection_partners` field NO LONGER EXIST. T23's conclusion is UNCHANGED:
+the three xfail rows cannot adjudicate the fold, and the #229 floor is the
+acceptance.
+
 **The replacement acceptance test.** The non-vacuous prediction is already on the
 issue: a half-range level should **remove the #229 azimuthal error floor** and
 restore a convergence order to the anisotropic curvilinear MMS gate (today flat at
@@ -1669,11 +1760,14 @@ Ordered by (reach ÷ cost). **Item 1 first** — smallest change, largest reach.
    **⟹ DISSOLVED INTO Q2, not fixed here.** Per T14, membership is `π_M(i) == i`,
    an integer identity — so the ε-detectors do not get consolidated, they *cease
    to be ε-questions*. Naming and retirement ride on the Q2 certificate.
-2. **`DiscreteMeasure.consolidate()` — one missing verb.** `pushforward` already
+2. ✅ **`DiscreteMeasure.consolidate()` — one missing verb.** `pushforward` already
    exists and its own docstring documents the atom-merging case as
    *valid-but-unreduced*. The gap is one method, not a class hierarchy.
-3. **`degree_of_exactness` carries no subspace** (T2). `restrict`/`pushforward`
+   *(LANDED `e6f01d7e` — Q2.6.)*
+3. ✅ **`degree_of_exactness` carries no subspace** (T2). `restrict`/`pushforward`
    drop it, losing a provable claim. **That gap IS the `+2.94` failure mode.**
+   *(DISSOLVED by Q5.E — E1/E2 minted `ExactnessClaim(reference, degree)` and
+   wired it into `DiscreteMeasure`.)*
 4. **`SubgroupOfO3` has containment but no residual-group operation**, and
    `invariance_group=None` conflates *trivial* with *unknown* — which makes the
    mathematically-genuine second fold **non-composable in code**.
@@ -1683,10 +1777,17 @@ Ordered by (reach ÷ cost). **Item 1 first** — smallest change, largest reach.
    `(1/|G|)Σ gAg⁻¹`. Owes a negative test: a ξ-odd source must RAISE.
 6. **"half-range" already names the RESTRICTION** in `restrict`'s own docstring.
    Two operations, one word.
-7. **The two `LevelStructure` producers fiber over different invariants** (T7).
-   Clean-before-extend: fix this BEFORE folding anything.
-8. **`SO2` is documented in-tree as a "conservative upper bound" that is false at
+7. ✅ **The two `LevelStructure` producers fiber over different invariants** (T7).
+   Clean-before-extend: fix this BEFORE folding anything. *(LANDED `3afb52c2` —
+   Q4.)*
+8. ✅ **`SO2` is documented in-tree as a "conservative upper bound" that is false at
    finite `n_φ`**, and `_so2_representatives()` checks four rotations.
+   *(RESOLVED — annotated 2026-08-07: `_so2_representatives` is RETIRED
+   (`symmetry.py`'s own docstring records the replacement), and the
+   "conservative upper bound" prose survives only as a PAST-TENSE correction
+   note in `rules_product.py` ("Until 2026-08-02 this rule tagged SO(2) and
+   this paragraph defended it…"). Gap 8's content is done; Q7 keeps gaps 4,
+   5, 6.)*
 
 ### ⭐ The lesson that shrinks the work (new, L-013)
 
@@ -1931,15 +2032,21 @@ implemented and **no `D_6h`-invariant rule in tree**.
        **3 of the 5 existing `Z2` edges are dead code.**
      * ⚠ `_contains` ends in a bare `return False`, so `O3.contains(Mirror("x"))`
        measures **`False`** — wrong, and silent. Fix this in the same pass or the
-       new family inherits it.
+       new family inherits it. *(✅ fixed in this step's own landing — the
+       `Oh/O3/Dinfh ⊇ σ_a` facts are right BY THE ARM; see the Q5.0.2 record.)*
      * `_NAMED_LATTICE` is typed enum→enum, so parameterized families live
        entirely in `isinstance` arms — that is the pattern to follow.
+       *(✅ still true post-G, verified 2026-08-07.)*
      * `repr` is **load-bearing**: `_GROUP_CACHE` and the lattice walk's
-       `visited` set both key on it.
+       `visited` set both key on it. *(✅ still true post-G.)*
      * The 1-D arm (`_check_invariance_1d`) never touches `_realized_ops` /
        `_orbit_closure` (`[M]` 0 calls) and ends in `return False`, so a new tag
        **silently reports not-invariant** on every 1-D measure until its arm is
-       written.
+       written. *(⛔ STALE since track G's G3, 2026-08-03 — annotated
+       2026-08-07: the 1-D/3-D arm split is DELETED;
+       `_check_invariance_1d`/`_3d` no longer exist and matching routes
+       uniformly through the `RigidMotion` core over `_embedded_nodes`. A new
+       family needs NO per-dimension arm.)*
 
   ---
   **Q5.1 — `DiscreteMeasure.quotient(group)`.** Name the composite
@@ -2228,6 +2335,17 @@ implemented and **no `D_6h`-invariant rule in tree**.
   nodes/weights/group and leave the degree hand-written with a `[M]`-justified
   comment until it lands. Decide explicitly; do not let it drift.
 
+  ✅ **UNBLOCKED — Q5.E landed in FULL (E1–E4), and E4 already absorbed part
+  of this step** (annotated 2026-08-07). `[M]` against the tree:
+  `product_mu_phi` now composes the two registered rules internally and
+  DERIVES its degree through `spherical_product_claim` (steps 1 and 3's
+  degree-half are DONE), but its signature still takes the ORDERS
+  (`def product_mu_phi(` at `rules_product.py:215`) — so step 2 (the pair as
+  ARGUMENTS, the actual combinator seam) and step 3's group-computed /
+  Σ-downstream halves REMAIN, and the §6 "conservative"-word fix at `:238` is
+  still owed. Re-scope the residual at pickup against `rules_product.py`
+  itself (§7.2 — the plan's step boundaries no longer match the tree's).
+
   *Gates:* `Σ` **computed** as ∅ under the geometry's owed mirror; the group
   computed and equal to the previous declaration on every shipped order; nodes
   bit-identical when the same factors are passed (the un-welding alone must move
@@ -2399,7 +2517,12 @@ implemented and **no `D_6h`-invariant rule in tree**.
   three `xfail(strict=True)` rows XPASS "when the machinery is right". `[M]`
   **They cannot adjudicate the fold at all** — on the quotient the ξ-mirror
   partner is not in the node set, and `reflection_index("y")` returns a silent
-  many-to-one garbage map rather than raising. See **T23** for the measurement
+  many-to-one garbage map rather than raising. *(⛔ That mechanism sentence
+  was true when written and is doubly superseded — annotated 2026-08-07:
+  Q5.0.1 made an uncertified axis RAISE, then §7d.3 deleted the accessor;
+  the ξ-mirror question is now `ordinate_permutation(σ_y motion)`, which
+  honestly answers `None` on the quotient. The CONCLUSION stands.)* See
+  **T23** for the measurement
   and for the non-vacuous replacement (the #229 azimuthal floor).
   ⟹ #326 is now **subsumed by Q5** (the fold), not a separate item: it dissolves
   when a level becomes a single arc. See §5's Q5 block for the design of record.
