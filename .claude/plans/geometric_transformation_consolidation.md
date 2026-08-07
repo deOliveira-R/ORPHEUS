@@ -16,20 +16,26 @@
 > certifications and the sweep pole seed read the same source; the
 > reflection table is GONE — `ordinate_permutation` is structurally the
 > only path.
-> ✅ **G6.3b CLOSED BY RECONCILIATION 2026-08-07** — the §7.2 re-derivation
-> its own hazard mandated found BOTH halves already in the tree: the
-> "absorb `apply_transpose`" half dissolved at step 3b's factoring, and
-> **the flagship metric gate itself LANDED with steps 3 / 8.0 / 7** (the
-> G6.3b closure record at the END of file carries the demand→gate census,
-> the wide-slice measurement, and the stale-pointer round-2 lesson).
-> ▶ **RESUMES AT G6.5 — traversal moves onto the trace spaces,
-> boundary-scoped: the spaces own iteration, the axis, and the
-> local↔global index map** (task #46) — and track G is done, unblocking
-> Q5.1 (the carve-out condition).
-> **Read the G6.3b closure record (END of file) FIRST, then ⏸ COMPACTION
-> POINT #6** — #6's G6.3b hazards are DISCHARGED by the closure record,
-> but its gate costs, red baseline, and 7d.3 lessons stand — then §7d.3's
-> landing record and the G6 design rows :1496 / :1905-1945.
+> ✅ **G6.5 LANDED 2026-08-07 — TRACK G IS COMPLETE.** `0d99140c` (the
+> half-trace SPACE owns its local↔global map; the deck arm REQUIRES the
+> bound spaces, so its output is unconditionally fully bound;
+> `TraceRestrictionOperator.to_local` retired with claim-class test
+> migration) + `619a873d` (`_ORDINATE_AXIS` single-sources the packing
+> contract; the face-packing-order acceptance gate, bit-identity over
+> 4 laws × 2 quadratures). ✅ G6.3b closed by RECONCILIATION the same day
+> (the flagship gate was already landed — its closure record has the
+> census).
+> ▶ **Q5.1 UNBLOCKS — the quadrature campaign resumes; its plan
+> (`.claude/plans/quadrature_machinery_campaign.md`) is the authority
+> from here.** The G-adjacent remainder lives elsewhere: the tree-wide
+> space mandate, the lengths retirement, and the iteration primitive are
+> **#330**; the seven baseline reds + the owed wide slice are **task
+> #51**'s merge gate.
+> **Read the G6.5 LANDING RECORD (END of file) FIRST** — the census, the
+> two honest narrowings of the G6.5 row, and the §8 behavior-narrowing
+> audit — then the G6.3b closure record, ⏸ COMPACTION POINT #6 (gate
+> costs / red baseline / 7d.3 lessons), §7d.3's record, and the G6
+> design rows :1496 / :1905-1945.
 >
 > ⏸ #6 → #5 → #4 → #3 → #2 (each additive; #5's 7d.3 items and #4's
 > step-7 items are HISTORY but
@@ -1504,7 +1510,7 @@ tree-wide.
 | **G6.2** | carry the **restricted metric** onto each (`partial_current_metric` restricted to the tier) | so a half-trace pairing is PHYSICAL, not Euclidean — the ERR-067 family |
 | **G6.3** | bind the boundary tier: `γ± : Γ(f) → Γ±(f)`, `G : Γ₊(f) → Γ₋(f)`, `R : Γ₋(f) → Γ₋(f)`, and periodic's cross-face `G : Γ₊(f) → Γ₋(f_opp)` | the wrap is where a face-blind name silently passes. **Bind from the REALIZER, per law — never from the class** (§7g) |
 | **G6.3b** | **absorb `AngularAverageOperator.apply_transpose`** (the step its own docstring assigns to boundary phase B5) ✅ **CLOSED BY RECONCILIATION 2026-08-07 — BOTH halves were already landed**: the absorb half dissolved at step 3b's factoring; the flagship gate itself landed with steps 3 / 8.0 / 7 (see the G6.3b closure record, END of file) | user ruling: without it the flagship gate can only run on a stand-in, which is the proxy-evidence pattern `vv-principles` #12 forbids — **DISCHARGED**: the gate runs on `SNBoundaryRealizer().realize(...)`'s own output |
-| **G6.5** | move **traversal** onto the trace spaces: they own iteration, the axis, and the local↔global index map; boundary operators stop carrying `axis=` and the realizer stops doing `to_local` | the second half of the principle, **boundary-scoped**; the tree-wide sweep is #330 |
+| **G6.5** | move **traversal** onto the trace spaces: they own iteration, the axis, and the local↔global index map; boundary operators stop carrying `axis=` and the realizer stops doing `to_local` ✅ **LANDED 2026-08-07** (`0d99140c` + `619a873d`) with two MEASURED narrowings of this row's wording — the `axis=` parameter stays (a live non-boundary `axis=1` consumer refutes removal; the boundary tier single-sources the value as `_ORDINATE_AXIS` instead) and "iteration" is DEFERRED to #330 (one consumer; see the landing record, END of file) | the second half of the principle, **boundary-scoped**; the tree-wide sweep is #330 |
 | ~~G6.4~~ | ~~make the binding MANDATORY~~ | **MOVED TO #330** — see the re-scoping note above |
 
 ### ⭐ The acceptance test that actually falsifies the principle
@@ -3558,3 +3564,97 @@ code or test logic (docstring + plan + rules only).
 must stream to a file (`| tee <file>`) so a stop leaves the partial
 transcript as evidence. Same incremental-write discipline as the
 literature-agent rule, now measured on a test gate.
+
+## ✅ G6.5 — LANDED 2026-08-07 (`0d99140c` + `619a873d`): the space owns traversal, boundary-scoped. TRACK G COMPLETE.
+
+### What landed, by the row's three claims
+
+1. **"the local↔global index map" — DELIVERED in full.**
+   `AngularFaceTraceSpace.to_local` (searchsorted over `ordinate_indices`
+   with the ERR-045 crossed-set refusal) + a `__post_init__` guard making
+   the documented sorted/unique row-order invariant REAL (vv #14 — an
+   unsorted haystack returns silently wrong positions, not a raise).
+   `TraceRestrictionOperator.to_local` RETIRED. The §6b call-site set,
+   complete: realizer `_deck_kernel` (asks `Γ₊`), `SNBoundaryOperator`'s
+   row-restricted emission (asks `Γ₋`), 3 operator-battery gates
+   (re-homed to the space battery + 2 new: the construction-guard
+   refusals with a positive control, and the elementwise
+   `γ±.indices == Γ±.ordinate_indices` coherence gate the operator's
+   extent-only guard cannot see), the deck-kernel test's direction rows,
+   `_test_helpers.local_positions`' independence claim (new owner named;
+   the linear-scan reference stays structurally independent), 4 RST
+   sites + 4 docstring attributions discriminated BY TENSE (the
+   reemission-closure "fell through to" narration is past-tense history
+   and STAYS; realizer `:511`/`:515` are owner-neutral and stay TRUE).
+2. **"boundary operators stop carrying `axis=`" — NARROWED, measured.**
+   ⛔ Parameter removal is REFUTED: `[M]`
+   `tests/numerics/test_inverse_universal.py:83` composes
+   `PermutationOperator(_P4, axis=1)` inside a tensor product — a live
+   NON-boundary consumer, so `axis` stays generic numerics API. The
+   boundary tier's honest fix: `_ORDINATE_AXIS` — the realizer's five
+   `axis=0` literals now read one module constant carrying the packing
+   contract ("row order is the contract", the half-trace spaces' own
+   words). A space-declared axis PROPERTY was rejected: the trace-less
+   restriction arms have no space object, so it would have produced two
+   spellings of one fact — the exact disease.
+3. **"they own iteration" — DEFERRED to #330, with the reason.**
+   `[M]` the per-face iteration (face → domain_face, γ₊, γ₋) has ONE
+   consumer: `SNBoundaryOperator`'s loop, which already reads everything
+   from the trace + the certified `_face_domains` permutation. Minting an
+   iteration primitive for one consumer is the defer-until-2 violation;
+   the architecture is not vague — the consumer count is one. The
+   tree-wide sweep (#330) revisits when the bulk ladder binds.
+   Same disposition for the operator's `n_total`/`n_restricted` lengths:
+   `[M]` they cannot retire while binding is optional (the trace-less
+   arm must name its extent) — the operator's own "until G6.5" docstring
+   sentence was re-pointed to #330 with that reason.
+
+### ⭐ The behavior narrowing, audited per §8
+
+The deck arm now REQUIRES the bound half-trace spaces
+(isinstance-narrowed on `Γ₊`) and its output is **unconditionally fully
+bound** — where the trace-less path used to hand out a silently UNBOUND
+permutation (same gathered rows, no composability check, `.H` the bare
+Euclidean transpose — the ERR-076 degradation, previously PINNED as a
+contract row). Who consumed the degraded path: `[M]` zero production
+(SNMesh always binds via `for_face(trace=...)`), zero tests realizing a
+deck law trace-less to completion; ONE test pinned the degraded behavior
+(`test_a_traceless_method_space_yields_an_unbound_kernel`) — re-posed as
+the refusal pin with its positive-control half ("unbound, the square
+composes — so the module's refusals are about the SPACES") preserved on a
+directly-built `PermutationOperator`. The refusal sits AFTER the size
+check, so a lopsided pair keeps the sharper BIJECTION diagnosis. This is
+the B3.2 class (a LAW input requirement), not a reversal of the
+G6.4→#330 optional-binding ruling (which is about the base-tier default).
+
+### The acceptance gate (the plan's re-scoped criterion, now a test)
+
+`TestFacePackingOrderIsBookkeeping`: two traces differing ONLY in
+`FaceLayout` face order; {specular, lambertian, periodic, vacuum} ×
+{gauss_legendre(8), product(4,4)}; `apply` and the weighted `.H`
+**bit-identical** (`np.array_equal` — nothing arithmetic changed, so any
+drift is packing leaking into the math). Activation leg: the buffer
+genuinely moves (xmax offsets differ) while the per-face spaces compare
+equal with bit-identical metrics. `product(4,4)` mandatory (Mode 7 — the
+tangential band is where a silent reindex would hide). The "zero diff in
+any operator file" half of the criterion is the carve itself.
+
+### Landing gates `[M]`
+
+tests/sn/operators + the two numerics batteries: **1301 passed / 2
+failed** — the two failures are the pre-existing `cart2d_*` baseline pair
+(task #51). xref checker DEAD TARGETS 0; pyright ratchet green; sphinx
+`-W` clean (Unit 1; re-run with the close-out). The full wide slice
+remains task #51's merge-gate debt (unchanged by this step — the closure
+record above has the three-stops history).
+
+### What a cold session must not get wrong
+
+- **TRACK G IS COMPLETE.** Q5.1 unblocks; the quadrature campaign's own
+  plan is the authority from here. This plan goes dormant — its
+  remaining pointers are #330 (tree-wide mandate: lengths retirement,
+  iteration primitive, space-declared axis if ever) and task #51 (seven
+  reds + the wide slice at merge).
+- The deck arm REFUSES space-less method spaces since G6.5 — do not
+  "fix" the refusal back to the silent unbound path; the refusal is the
+  contract.
