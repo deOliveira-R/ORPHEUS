@@ -890,6 +890,9 @@ class TestTheRealizedLawIsMETRICCorrect:
         "lambertian_scaled": lambda: WhiteBoundary(
             axis="x", outward_sign=+1, albedo=0.4
         ),
+        # Joined at G6.3 step 7, the moment its binding landed — the row was
+        # unreachable while the link was an unbound identity.
+        "periodic": lambda: PeriodicBoundary(axis="x"),
     }
 
     @staticmethod
@@ -933,6 +936,45 @@ class TestTheRealizedLawIsMETRICCorrect:
         y = rng.standard_normal(op.codomain.shape)
         assert op.codomain.inner_product(op.apply(x), y) == pytest.approx(
             op.domain.inner_product(x, op.H.apply(y)), rel=1e-13,
+        )
+
+    def test_the_PERIODIC_metric_agrees_across_the_pair(self):
+        r"""``G_{Γ₊(xmin)} == G_{Γ₋(xmax)}`` — the opposite-normals theorem
+        at the METRIC tier, across two DIFFERENT faces.
+
+        The index-set half of the identification is certified by the deck
+        kernel at realization; this row asserts the half nothing else
+        reaches: the two half-trace spaces carry ONE metric array
+        (:math:`|\Omega\cdot\hat n|` flips sign with the normal, so its
+        modulus agrees; :math:`w_n` is shared), which is what makes
+        periodic — like the mirror, and unlike the Lambertian — a
+        metric-CANCELLING law: its weighted ``.H`` and its bare transpose
+        coincide. (Step-7 gap flagged in the test-architect's spec §6.1:
+        the row became reachable when the binding landed, and no gate
+        asserted it.)
+
+        Two assertions at two honest tiers. The metric AGREEMENT is
+        bit-exact (`[M]` max abs diff 0.0 — ``|Ω·n̂|`` is the modulus of a
+        sign flip and ``w_n`` is one array). The operator-level coincidence
+        is exact only analytically: ``_AdjointOperator`` computes
+        :math:`G_+^{-1}(R^{\mathsf T}(G_- y))` literally, and equal metrics
+        cancel through the algebra while their float shadow
+        :math:`(w\,y)/w` rounds — `[M]` 1 ULP (1.11e-16) on this fixture.
+        The nulp bound is the FP-non-associativity class, not a relaxed
+        method tolerance; the Lambertian control sits 15 orders away
+        (87 % relative), so the discrimination stands.
+        """
+        op, _ = self._realized("periodic")
+        np.testing.assert_array_equal(
+            op.domain.inner_product_weights,
+            op.codomain.inner_product_weights,
+        )
+        rng = np.random.default_rng(20260807)
+        y = rng.standard_normal(op.codomain.shape)
+        np.testing.assert_array_almost_equal_nulp(
+            np.asarray(op.H.apply(y)),
+            np.asarray(op.apply_transpose(y)),
+            nulp=4,
         )
 
     def test_the_LAMBERTIAN_fixture_can_tell_a_weighted_adjoint_from_a_bare_one(

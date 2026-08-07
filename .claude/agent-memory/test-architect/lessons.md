@@ -225,6 +225,54 @@ against a concrete row before trusting a green.
   boundary claim strictly degraded. **The strengthening axis must be the one the
   claim lives on** — here the trace's ANGULAR content (`b₀/a₀`), not `k`.
   → `L40b`
+- **⛔⛔ A type that spells two ACTIONS apart still has ONE method that conflates
+  them, and the sibling type's guard is what hides it.** `RigidMotion` spells
+  `on_points` vs `on_directions` so that applying an affine map to a direction is
+  unwriteable — but `permutes()` matches `on_points`, so `[M]` it returns `None`
+  for EVERY deck element carrying a translation (the wrap, a seated mirror, a
+  seated rotation, a glide) and the brief's contract was unrunnable on the one arm
+  the step existed to build. It had never bitten because the *sibling* type's
+  guard forbids the affine part. **When a plan says "call `X.permutes(...)`",
+  check WHICH action the method uses against the SEMANTIC CLASS of the arguments
+  the NEW consumer will pass** — and gate on the OBSERVABLE (two motions sharing a
+  linear part ⟹ bit-identical output), never on the spelling, so the gate survives
+  whichever way the fix lands. → `L41a`
+- **⛔ The fixture a brief NAMES for the keystone can be the degenerate one, and
+  the degeneracy is invisible until you compute the intermediate the keystone
+  asserts on.** `[M]` `product(4,4)`'s rotation-deck local permutation is exactly
+  `arange` — the shape a wrong implementation hard-codes — while `product(4,8)`
+  gives `[1,2,0,…]`. Sweep the family, pick the row where the asserted quantity is
+  structurally non-trivial, and KEEP the degenerate one as a labelled control that
+  says it proves nothing. → `L41b`
+- **⛔ An error class that manifests only as a REFUSAL cannot be credited to the
+  value row — ship a SECOND, in-range in-class mutation.** π-vs-π⁻¹ on any
+  non-involution deck is out of range *by a theorem*, so the obvious mutation reds
+  18 rows entirely by raising. Reversing the local assignment (right set, wrong
+  assignment) reds the same rows by COMPARING, 40 of them. Both, or the value
+  rows' catcher status is unproven. → `L41c`
+- **⛔ When a defect was closed STRUCTURALLY, the obvious mutation reds NOTHING
+  and the `catches` marker looks unearned.** `[M]` the textbook ERR-073 mutation
+  (bare `argmin`) reds 0 of 78, because the `Permutation` TYPE refuses a
+  non-bijection at construction one frame in; deleting the TYPE's clause reds
+  exactly 1. Target the type's invariant, not the consumer — and say so in the
+  marker's docstring, because that is a stronger claim than "the consumer checks".
+  Fixture note: duplicate a node AND its partner so `|Γ₊| = |Γ₋|` and the extent
+  guard cannot fire first. → `L41d`
+- **⛔ An INTROSPECTING test adapter written to survive an unknown signature
+  INFLATES the battery once the signature lands** — `inspect.signature` runs at
+  test-module import, i.e. AFTER the plugin installs the mutation, so every
+  `**kw` wrapper made it `pytest.fail` and unrelated rows "red": `[M]` 55/60/55
+  reported, 23/11/27 true. Anti-#17 in the *flattering* direction. Retiring the
+  adapter once the signature exists is both the elegance fix and the harness fix.
+  → `L41e`
+- **⛔ Grep where a PARAMETER is READ before designing a mutation around it.** A
+  `domain_face`-style argument that reaches only an f-string is not a lever —
+  `[M]` overriding it changed the binding not at all (0 reds); the defect had to
+  be injected at the object the binding is actually derived from. → `L41f`
+- **⛔ Bound an EXCLUSIVITY claim by running the sibling module, not by
+  reasoning.** "The only row in the tree that can see X" was measured two-part:
+  exclusive for the overlap/gap class tree-wide, but the sibling DOES catch a
+  one-sided relaxation. Put the measured table in the docstring. → `L41g`
 - **⛔ A convergence+value pair can be blind in a band where the error DECREASES.**
   `[M]` scaling the declared `q` by `(1+ε)`: at `ε ≤ 3e-4` the perturbation
   partially CANCELS the `O(h²)` truncation, so `L2(80)` drops to `0.6–0.8×` the

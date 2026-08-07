@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **8895**
+Total tests collected: **9039**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1274, 14.3%
-   L1, 1557, 17.5%
+   L0, 1274, 14.1%
+   L1, 1638, 18.1%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 5995, 67.4%
+   foundation, 6058, 67.0%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8811
+   explicit, 8955
    class-name, 46
    func-name, 0
    case, 33
@@ -268,6 +268,7 @@ Module × level grid
    geometry/test_geometry, 0, 0, 0, 0, 57, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
+   geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
@@ -367,6 +368,7 @@ Module × level grid
    operators/test_boundary_conditions, 0, 0, 0, 0, 13, 0
    operators/test_capability_survival, 0, 0, 0, 0, 12, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
+   operators/test_deck_kernel, 0, 78, 0, 0, 0, 0
    operators/test_declared_law_is_linear, 0, 0, 0, 0, 15, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
@@ -397,7 +399,7 @@ Module × level grid
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 55, 0
-   operators/test_sn_boundary_realizer, 0, 40, 0, 0, 0, 5
+   operators/test_sn_boundary_realizer, 0, 43, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
@@ -1459,10 +1461,10 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-070``, 4
    ``ERR-071``, 8
    ``ERR-072``, 3
-   ``ERR-073``, 2
-   ``ERR-074``, **0 (MISSING)**
+   ``ERR-073``, 3
+   ``ERR-074``, 1
    ``ERR-075``, 8
-   ``ERR-076``, 18
+   ``ERR-076``, 21
 
 Unmarked tests
 --------------

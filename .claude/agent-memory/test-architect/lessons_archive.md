@@ -3717,3 +3717,171 @@ for the channel row; `sn-mms-nonvacuum-{psi,qext,qext-mg}`
 `test_declared_inflow_reaches_the_rhs.py`; a duplicate is an unverified coverage
 claim unless the new row is separately mutation-proven against the exact
 documented double delivery.
+
+---
+
+## L41 — G6.3 step 7, the DECK-TRANSFORMATION UPLIFT: a type that spells two actions apart still has one method that conflates them
+
+**Carve shape.** `SpatialWrap(axis: str)` + `SelfPairedDeck(motion)` → one
+`PairedDeck(motion)` beside `SelfPairedDeck(motion)` (7a), and
+`_specular_kernel` (keyed on `quadrature.reflection_index(axis)`) + the periodic
+`IdentityOperator() & IdentityOperator()` arm → one `_deck_kernel` keyed on the
+rigid motion (7b). Delivered `tests/geometry/test_paired_deck.py` (63 rows) and
+`tests/sn/operators/test_deck_kernel.py` (78 rows); spec
+`scratch/step7_deck_uplift_verification_plan.md`. Both production halves landed
+DURING the dispatch (7a at `e13313a8`), so the plan is a POST-carve
+reconciliation with the gate matrix as the audit of record.
+
+### a. ⛔⛔ `RigidMotion.permutes` is the AFFINE action — the briefed contract could not run
+
+`RigidMotion` spells `on_points(x) = Qx + t` and `on_directions(v) = Qv`
+separately *precisely so that applying an affine map to a direction is
+unwriteable* — its own docstring says so. But `permutes(points)` matches
+`on_points(x)` against the set, and the deck kernel is its first consumer whose
+motions carry a **translation**. `[M]` 2026-08-07 on `gauss_legendre(8)` and
+`product(4,8)`:
+
+| motion | `motion.permutes` | `RigidMotion(motion.linear).permutes` |
+|---|---|---|
+| mirror-x | `perm` | `perm` (equal) |
+| mirror-x seated at 2.5 | ⛔ `None` | `perm` |
+| **wrap `t = ê_x`** | ⛔ **`None`** | `perm` = `arange` |
+| rotation 90° about z | `perm` | `perm` (equal) |
+| rotation 90° **seated** | ⛔ `None` | `perm` |
+| glide | ⛔ `None` | `perm` |
+
+So the brief's `pi = motion.permutes(embedded_nodes, atol=1e-13)` is correct for
+the specular arm — every element `SelfPairedDeck` admits is origin-fixing,
+because its guard FORBIDS the affine part — and **hard-fails on the one arm the
+step exists to build**. The blindness is structural: the sibling type's guard
+had been hiding the defect by never producing an input that could expose it.
+
+⭐ The main agent found it independently and landed
+`Quadrature.ordinate_permutation(motion)` →
+`motion3.linear_part.preserves(_embedded_nodes(measure), weights, …)`. The gate
+therefore had to be posed on the **OBSERVABLE**, not the spelling: two motions
+with the same linear part must produce **bit-identical** kernels (seated mirror
+≡ origin mirror; wrap `ê_x` ≡ wrap `17 ê_x`; seated rotation ≡ origin rotation).
+That holds for an inline `RigidMotion(m.linear)`, for `linear_part`, or for a
+future `permutes_directions`. `[M]` reverting to the affine spelling reds **26
+of 78** rows.
+
+### b. ⛔ The brief's nominated keystone fixture was the DEGENERATE one
+
+The brief said "on `product(4,4)`". `[M]` the rotation deck's **local**
+permutation there is exactly `[0,1,2,3]` — `arange`, the same shape the periodic
+wrap has and the shape a wrong implementation hard-codes (the retired periodic
+arm's own comment read *"the body is the IDENTITY on the local index"*).
+
+| fixture | \|Γ₋(xmin)\| | local perm | `== arange`? |
+|---|---|---|---|
+| `product(2,4)` | 2 | `[0,1]` | ⛔ yes |
+| `product(4,4)` | 4 | `[0,1,2,3]` | ⛔ yes |
+| **`product(4,8)`** | 12 | `[1,2,0,4,5,3,7,8,6,10,11,9]` | ✅ no |
+| `product(4,12)` | 20 | `[2,3,4,0,1,…]` | ✅ no |
+| `level_symmetric(6)` | 24 | `[8,9,10,11,4,5,6,7,0,1,2,3,…]` | ✅ no |
+| `lebedev(17)` | 49 | `[0..8,14,15,16,13,9,…]` | ✅ no |
+
+`[M]` `local := np.arange(n)` reds 23 rows on the shipped set and would have
+reddened only the equivalence rows had the keystone stayed on `product(4,4)`.
+The degenerate fixtures were KEPT as a labelled control whose docstring says it
+proves nothing about the remap.
+
+### c. ⭐ An error class that manifests only as a REFUSAL needs its own positive gate
+
+π-vs-π⁻¹ is out of range **by a theorem**: `h(Γ₋(f)) = h²(Γ₊(f'))`, which equals
+`Γ₊(f')` iff `h² = e` — i.e. only for the involutions, where the two conventions
+coincide anyway. `[M]` on all six admissible rotation fixtures the forward
+gather lands in `Γ₋(f')` and `to_local` refuses; on `product(4,4)`,
+`π⁻¹[inflow] = [3,7,11,15] = Γ₊(ymin)` exactly while `π[inflow] = [1,5,9,13]`.
+
+Consequence: the `π`-for-`π⁻¹` mutation reds 18 rows **entirely by RAISING**, so
+per the standing rule it has attributed nothing to the value rows. The repair is
+a SECOND, in-range in-class mutation — **reverse the local assignment** (right
+set, wrong assignment: the most dangerous silent bug) — under which the same
+rows red **by comparing**, 40 of them. Ship both or the value rows' catcher
+status is unproven. And the refusal itself earns a positive row
+(`test_the_forward_gather_is_OUT_of_range`), which doubles as the keystone's
+activation guard.
+
+### d. ⭐ When a defect is closed STRUCTURALLY, the obvious mutation reds nothing
+
+`[M]` replacing `ordinate_permutation` with a bare `argmin` (no injectivity
+check) — the textbook ERR-073 mutation — reds **0 of 78**. Reason: the
+`Permutation` TYPE asserts bijectivity at construction, so a non-injective match
+cannot be returned at all; a bare-argmin body still refuses, one frame in.
+
+⟹ the only mutation that can red an ERR-073 gate deletes
+`Permutation.__post_init__`'s clause, and `[M]` it then reds **exactly 1 row**.
+Rule: when a defect class was closed by making the illegal state
+unrepresentable, **the mutation must target the TYPE's invariant, not the
+consumer** — and the marker's docstring must say that, because "earned by
+deleting the type's guard" is a stronger and different claim from "the consumer
+checks".
+
+Fixture note for the ERR-073 row: duplicate a node **and its mirror partner**
+(GL(8) → 10 nodes) so `|Γ₊| = |Γ₋| = 5` and the kernel's extent guard cannot
+fire first — otherwise the refusal is attributed to the wrong clause.
+
+### e. ⭐ An introspecting test adapter INFLATES a battery once the signature lands
+
+The SN module opened with `_KERNEL_PARAMS = inspect.signature(_deck_kernel)`,
+written when the signature was unknown, filtering kwargs. `_KERNEL_PARAMS` is
+computed at **test-module import**, which happens AFTER the plugin installs a
+mutation — so every mutation whose wrapper had a `**kw` signature made the
+adapter `pytest.fail` and unrelated rows "red". `[M]` M2/M4/M5 first read
+**55 / 60 / 55**; true values **23 / 11 / 27**. `vv` anti-#17 in the
+**inflating** direction, which reads as *well covered* rather than as a broken
+instrument. Retiring the adapter for a direct call (the signature had landed)
+was both the elegance fix and the harness fix.
+
+### f. ⭐ Grep where a PARAMETER is READ before designing a mutation around it
+
+The landed kernel returns `PermutationOperator(..., domain=gamma_out_domain.codomain, ...)`
+— one source for the restriction's binding — so the `domain_face` argument
+reaches only an f-string. `[M]` overriding it to the wrong face changed the
+returned binding **not at all** (0 reds) and the wrong-partner defect had to be
+injected at the **restriction** instead (27 reds). A parameter that only reaches
+a message is not a lever.
+
+### g. ⭐ Bound an exclusivity claim by MEASURING both modules, not by reasoning
+
+The partition law "every rigid motion is admitted by exactly one deck type" was
+first written as *"the only row in the tree that can see the two guards drift"*.
+`[M]` run over `test_paired_deck.py` + `test_self_paired_deck.py`:
+
+| mutation | reds in the new module | reds in the sibling |
+|---|---|---|
+| `PairedDeck` threshold `fix >= d` (OVERLAP on the mirror) | P1 (2) + partition (4) | **0** |
+| `SelfPairedDeck` guard fully relaxed | **partition only (9)** | 5 |
+| `SelfPairedDeck` guard → "is it an involution?" | **partition only (3)** | 2 |
+
+So the honest claim is two-part: exclusive for the **overlap/gap** class
+tree-wide, and within THIS module the only row that sees a sibling drift at all.
+The stronger reading is false. The docstring now carries the table.
+
+### h. Exclusive catcher relationships, the strongest evidence in the battery
+
+Three single-row verdicts, each a claim no other row can make:
+
+| mutation | reds | the gate |
+|---|---|---|
+| `domain` ↔ `codomain` **swap** | 11 (all binding rows) | the `is`-identity rows — arithmetic-free, extent-legal |
+| periodic realizes through a **numerically identical private duplicate** | **1** | the Mode-11 wrap counter (`== 2`, never `> 0`) |
+| delete `Permutation`'s bijectivity clause | **1** | the ERR-073 row |
+
+### i. Tolerances, measured per law
+
+`[M]` witness residual `max|nodes[g] − h⁻¹·nodes[j]|`: **exactly 0.0** for the
+mirror (a signed permutation is IEEE-exact) and for the wrap (`on_directions` is
+the identity) ⟹ `array_equal`; **≤ 1.11e-16** for the 90° rotation
+(`cos(π/2)` round-off) ⟹ `atol=1e-15`, deliberately **not** the kernel's own
+`1e-11` node window, which is four orders looser than the code achieves.
+
+### j. Measured costs
+
+`tests/geometry/test_paired_deck.py` 63 rows / 0.34 s;
+`tests/sn/operators/test_deck_kernel.py` 78 rows / 0.95 s; pyright 0.
+Slice `tests/geometry tests/sn/operators -m "not slow"`: **1921 passed /
+15 failed / 28 s** — 3 pre-existing baseline reds + 12 from the main agent's
+in-flight `test_b3_domain_narrowing.py` edit; none mine.
