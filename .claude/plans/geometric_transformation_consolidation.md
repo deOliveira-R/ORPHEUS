@@ -3532,10 +3532,29 @@ carrying the same claim (Pattern 2's near-miss), and the in-tree ⛔ at
 would have been exactly the vv #12 stand-in the user ruling forbids. Cost:
 zero implementation waste. The loop closes with a clause instead of a casualty.
 
-### The owed wide slice — G6.3b's landing gate
+### The owed wide slice — externally stopped a THIRD time; debt reassigned to task #51
 
-⏳ PENDING AT WRITE TIME — launched after the reconciliation commit,
-uncontended; the `[M]` line is transcribed below when the output exists.
-Expectation (NOT a measurement): the pre-existing seven
-(2× `cart2d_*_principled_equiv` · 3× affine sha256 #333 ·
-`test_diamond spherical_inward` · `WhiteXminPartial03GLSnapshot` #33).
+⛔ **NOT MEASURED — closed out per the killed-slice protocol, no fourth
+launch.** Launched once after the reconciliation commit (`bdd5bccc`),
+uncontended, and externally stopped — the THIRD stop of this same
+measurement across the campaign (two in the 7d.3 stretch, one here). The
+7d.3 relaunch carried the explicit caveat "if the stop was deliberate on
+your side, stop this one too and I'll close out recording the slice as
+not-run" — and both it and this launch were stopped. That is the answer:
+**do not run the wide slice from this session; the debt moves to task #51**
+(green the seven reds + ff-merge), whose merge gate REQUIRES the full-tree
+run anyway — the natural owner, and `main`-is-always-green makes it
+unskippable there.
+
+Standing in lieu (all EXPECTATION, not measurement): last measured wide
+slice **7 failed / 6163 passed at `39b29b42`** (pre-7d.3); `[M]` touched
+batteries at `b5ac130e` = 4231/3 (exactly the reachable baseline reds);
+`[M]` this closure's six gate files 190 + 142 + 114 passed at
+`1727672d`/`bdd5bccc`. Nothing in the closure commit touches production
+code or test logic (docstring + plan + rules only).
+
+⭐ Operational lesson, measured here: the launch piped through
+`| tail -40`, so the kill preserved **zero bytes** — a long killable gate
+must stream to a file (`| tee <file>`) so a stop leaves the partial
+transcript as evidence. Same incremental-write discipline as the
+literature-agent rule, now measured on a test gate.
