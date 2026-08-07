@@ -8,11 +8,14 @@
 > ▶ **RESUMES AT STEP 7 — periodic**, now the ONLY unbound law and therefore
 > the one face-crossing the new check cannot police. Then G6.3b and G6.5.**
 >
-> **Read ⏸ COMPACTION POINT #3 at the END of this file FIRST** — it records what changed
-> under track G *while G was paused* (the Γ ladder grew a `directions` field; the
-> `level_symmetric` weights changed and the family now REFUSES above S12), gate costs,
-> and seven durable lessons. ⚠ **#3's "Step 8.0 — the next step" section is now
-> HISTORY** (it landed; §7h.4 is the record). Then ⏸ #2 (end of
+> **Read ⏸ COMPACTION POINT #4 at the END of this file FIRST** — it carries the
+> three things a cold session gets WRONG about step 7 (its cited line numbers had
+> rotted; the obvious means is BLOCKED because `IdentityOperator` cannot be bound;
+> a measured alternative exists), the gate that must flip when step 7 lands, gate
+> costs, and seven durable lessons. Then ⏸ **#3** for what changed under track G
+> *while G was paused* (the Γ ladder grew a `directions` field; the
+> `level_symmetric` weights changed and the family now REFUSES above S12) —
+> ⚠ #3's "Step 8.0 — the next step" section is HISTORY, it landed. Then ⏸ #2 (end of
 > §7h) for the red set and the five-times-refuted-scope lesson; step 5's own findings
 > are §7h.3. **#3 does not supersede #2 — it is additive.**
 > This file is the plan of record; it is written to survive a compaction and be
@@ -1961,7 +1964,7 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **4** | ✅ **DONE — but NOT as scoped; the premise was refuted, for the FOURTH time in this step** | see §7h.2 |
 | **5** | ✅ **DONE — and it refuted step 8, the FIFTH refutation in this step** | see §7h.3. The deck arm is bound `Γ₊(f) → Γ₋(f)`, `γ₊` with it, `is_involution` RETIRED; `TensorProductOperator` turns out to drop the binding, so **step 8 gains a substep** |
 | **6** | ✅ **DONE — landed inside the affine campaign's P3, `8d552395`** | ⭐ vacuum is NOT "the zero chain" as a distinct structure; it is a **length-1 chain whose single link is the zero morphism** (user, 2026-08-05) — same shape as step 5's deck arm, different kernel. `ZeroOperator` gained `domain`/`codomain`, bound in `_narrowed_zero_operator` via `checked_space_extent` against the half-trace index arrays, and gated by the NEW `tests/numerics/test_zero_operator_spaces.py` (which also inherited the `\|Γ₊\| ≠ \|Γ₋\|` Mode-12 discrimination from a retired operator — no face fixture can make it, since the two half-traces are equal-sized on every reachable face). Everything else about prescribed inflow lives in **`.claude/plans/affine_boundary_source_channel.md`** — read its ⏸ COMPACTION POINT #2. ⚠ **Do not re-plan vacuum/prescribed here** — that plan is the authority |
-| **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
+| **7** | ▶ **NEXT — periodic, now the ONLY unbound law** | the threading claim still holds: `_assert_wrap_identification` RETURNS the partner face and the call site discards it. ⛔ **its two line numbers were STALE** (`:512`/`:851`, re-measured 2026-08-07 as `:506`/`:970` — cite the SYMBOL, never the line). ⛔ **And the obvious means is BLOCKED** — see ⏸ COMPACTION POINT #4 |
 | **8.0** | ✅ **LANDED `72f5ce97` — and it was NOT the plumbing step this row said it was** | see §7h.4. The anchor flipped `XPASS(strict)` exactly as the flip-proof predicted. ⛔ **This row's framing was wrong**: it scoped 8.0 as an enabler for 8, so a session trusting it would have shipped a **live `.H` repair with zero gates** — `[M]` binding the product moved the realized *white* law's Hilbert adjoint by **87 % relative** (specular: **0.0**, its metric cancels) |
 | **8** | ✅ **LANDED `84d7861f` — the check now runs on the production path** | see §7h.5. `face_action = law @ γ₊`, ONE operator serving BOTH legs (`(law∘γ₊)ᵀ = γ₊ᵀ∘lawᵀ`). `[M]` bit-identical on all four shipped law kinds; flip-proof measured (reverting reddens the B3.4c re-injection gate, and **only** that one of 8) |
 
@@ -2577,3 +2580,150 @@ Only the re-capture and #333 remain, not investigation.
 7. ⭐ **Both-directions wrongness identifies a formula for a DIFFERENT object.**
    `level_symmetric` over-claimed from S6 and *under*-claimed at S2. A number
    wrong both ways is not a mis-calibrated measurement of this thing.
+
+---
+
+## ⏸ COMPACTION POINT #4 — track G resumes at G6.3 step 7 (periodic)
+
+Additive to #3 (which is additive to #2). Nothing in #2's red set or #3's
+"track G's own objects changed while paused" section is superseded — but #3's
+*"Step 8.0 — the next step"* block is now HISTORY, and so is step 8. A session
+picking up cold re-anchors from **this file + `git log`**, never a summary.
+
+### State
+
+**HEAD `811b6407`** on `refactor/operator-strategy-layers`. **Tree clean.**
+`[M]` all five commits of this stretch verified ancestors:
+
+| commit | what |
+|---|---|
+| `72f5ce97` | step 8.0 — the tensor product's spaces, by AGREEMENT |
+| `b89ccd2d` | its plan/rules/ERR-076 record |
+| `84d7861f` | step 8 — the face action is COMPOSED |
+| `4a87cc34` | its plan/rules record |
+| `811b6407` | V&V matrix regen |
+
+### ⛔⛔ READ FIRST — three things a cold session would get wrong about step 7
+
+1. ⛔ **The order-table row's line numbers were STALE and are now corrected.**
+   It cited `_assert_wrap_identification` at `:512` and its call site at
+   `:851`; `[M]` 2026-08-07 they are **`:506`** and **`:970`**. The *claims*
+   held (it does return the partner; the call site does discard it) — only the
+   anchors rotted. ⟹ **cite the SYMBOL, never the line.** A line number is the
+   one field in a plan that rots without anyone editing it.
+2. ⛔ **The obvious means is BLOCKED.** "Bind periodic's identities" cannot be
+   done: `[M]` `IdentityOperator` has no `__init__` of its own and
+   `IdentityOperator(domain=…)` raises `TypeError`, and the G6.0 survey
+   explicitly ruled **do not touch** it (11 production + 61 test sites). So
+   step 7 is NOT a binding-parameter edit; it is a change of what periodic
+   REALIZES TO.
+3. ⭐ **A verified alternative exists — measured 2026-08-07, so the step does
+   not start from zero.** Periodic's body is documented as *"the IDENTITY on
+   the local index, and that is EARNED"*; realize it as a bound **identity
+   permutation** instead of a bare identity:
+
+   ```python
+   PermutationOperator(np.arange(n_inflow), axis=0,
+                       domain=Γ₊(partner), codomain=Γ₋(face)) & IdentityOperator()
+   ```
+
+   `[M]` on a GL-8 2-group slab: `Γ₊(xmax)` and `Γ₋(xmin)` are both `(4, 2)`
+   so the CROSS-FACE binding is well-posed; the bound permutation is
+   **value-identical** to `IdentityOperator` on both `apply` and
+   `apply_transpose`; and the product `(bound_perm & I)` carries
+   `Γ₊(xmax) → Γ₋(xmin)` through step 8.0's agreement law. It also makes
+   periodic the same SHAPE as the specular arm, which is the elegance
+   argument independent of the binding.
+
+   ⚠ **The one measured difference:** `IdentityOperator().apply(x) is x` is
+   **True**; the permutation returns a **copy**. Anything relying on
+   identity-aliasing of the periodic face would change. Check before landing.
+
+*(Proposed means, 2026-08-07, NOT yet implemented — the measurements above are
+real, the design decision is not made.)*
+
+### The gate that will flip, and what it obliges
+
+`tests/sn/operators/test_sn_boundary_operator.py::TestTheFaceActionIsCOMPOSED::
+test_PERIODIC_is_the_one_law_the_check_cannot_police_yet` asserts periodic is
+UNBOUND. It is the transitional pin and it **must redden when step 7 lands**;
+its failure message says to re-scope, alongside it, the ⚠ note in
+`_reflect_trace`'s docstring that says the same thing. Two places, one claim.
+
+⭐ **Why periodic matters more than "the last arm".** It is the ONLY law whose
+domain face differs from its installation face — the only off-diagonal block of
+`B` — which makes it *exactly* the law step 8's composability check was
+designed to police, and the only one it currently cannot (one `None`
+short-circuits). Until step 7, the check is live on the four diagonal arms and
+absent on the one that historically carried the defect (B3.4c, `[M]` 98 %
+relative error when live).
+
+### Red baseline — UNCHANGED at 7, all pre-existing
+
+`[M]` `tests/{numerics,sn,transport,geometry,diffusion} -m "not slow"` =
+**7 failed / 6017 passed**, 19:59. Same seven as #2/#3: 2× `test_streaming_operator`
+`cart2d_*_principled_equiv` · 3× `test_affine_carve_bit_identity` (sha256, the
+instrument defect is **#333**) · 1× `test_diamond` `spherical_inward_bit_identical`
+· 1× `TestWhiteXminPartial03GLSnapshot` (task #33). Adjudicated and unblocked —
+`.claude/plans/green_the_seven_quadrature_reds.md`.
+
+### Gate costs, measured this stretch
+
+| gate | cost |
+|---|---|
+| wide slice `{numerics,sn,transport,geometry,diffusion} -m "not slow"` | **18–20 min** (18:15 / 19:59 — the spread is VARIANCE, see §7h.5) |
+| `tests/sn/operators + tests/geometry + tests/transport` | ≈50 s |
+| `tests/sn/operators + tests/geometry` | ≈25 s |
+| `sphinx -W` (incremental) | ≈1 min, 0 warnings |
+| pyright ratchet | ≈17 s |
+| `tools/check_docstring_xrefs.py orpheus tests docs` | DEAD TARGETS 0 |
+
+⛔ **The complement of the wide slice (`cp`, `moc`, `mc`, `derivations`, …)
+cannot be run whole**: `[M]` long background jobs are killed around the 50-min
+mark, and split into chunks the symbolic suites individually exceed the
+foreground cap. The proportionate substitute, used at step 8.0: **grep the
+reach**. `[M]` zero files in `cp/moc/mc/derivations` import `numerics.operator`,
+and only THREE import `orpheus.sn|diffusion|transport` at all — those three run
+in **5.7 s**. Chunks that DO fit: light dirs + root test files **684 passed /
+55 s**; `mc + moc` **140 passed / 8:23**; `derivations` files 1–35
+**538 passed / 7:12**.
+
+### ⭐⭐ Durable lessons from this stretch
+
+1. ⭐⭐ **A field a CONSUMER BRANCHES ON is an input, not metadata.** Now
+   `plan-authoring` §8. Step 8.0 was scoped as an enabler; `_AdjointOperator`
+   branches on `domain is None` to decide whether to apply metrics, so
+   populating it moved the realized white boundary's `.H` by **87 %** —
+   and **0.0** on the specular mirror, whose metric cancels. An unmeasured
+   change ships **ungated**: the boundary tier reddened nothing until
+   consequence gates were written for it. ERR-076.
+2. ⭐⭐ **Retiring a MESSAGE STRING: grep the SHORTEST distinctive fragment.**
+   `[M]` the audit grepped `requires equal domains`; two gates pin
+   `"equal domains"`. A longer pattern is *strictly less sensitive* than the
+   consumer's pin, so it returns a confident empty answer. Now in
+   `coding-standards`, with its twin: a retirement onto a SHARED helper moves
+   the raise's provenance one frame out, silently widening any
+   innermost-frame assertion.
+3. ⭐⭐ **Routing a call site through the ALGEBRA raises its operand
+   requirement from "has the verb" to "IS the type"** — and only duck-typed
+   test doubles notice, so it surfaces as a broken test rather than a contract
+   change. Fix the surrogate; never add a guard the type system now covers.
+4. ⭐ **Count the CATCHERS, not the green rows.** `[M]` reverting step 8
+   reddens **1 of its 8** new rows; the other seven gate the algebra beneath
+   it. Eight green rows read as eight guards unless the docstring says
+   otherwise (`vv-principles` #18).
+5. ⭐ **A number without its configuration mis-states its own claim.** Two
+   battery figures were measured on a 189-test slice and reported beside two
+   from a 199-test slice; re-measured on ONE 212-test slice they were **17 and
+   5**, not 7 and 3 — a 2.4× UNDER-statement, in the flattering direction.
+6. ⭐ **A liveness check must not be able to match itself.** `[M]`
+   `until ! pgrep -f "pytest tests/cp …"` matched the WAITER'S own command
+   line, so two monitors never terminated and the run they watched was killed
+   unobserved. Third instrument failure of the stretch, all anti-pattern #17,
+   all three by different mechanisms (see §7h.4's table). Belongs in
+   `vv-principles` #17 — **not yet added there**, because `SKILL.md` was on the
+   forbidden-to-commit list; it is recorded here instead.
+7. ⭐ **Measure the leaf, then measure it AT THE TIER THAT PAYS.** Composing
+   the face action is **1.50×** on the leaf and **0.42 %** of a solve. The
+   wide run's +1:44 was variance; a cache would have been machinery bought for
+   nothing.
