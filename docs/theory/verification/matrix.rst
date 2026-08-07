@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9021**
+Total tests collected: **9043**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1274, 14.1%
-   L1, 1621, 18.0%
+   L0, 1284, 14.2%
+   L1, 1622, 17.9%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6057, 67.1%
+   foundation, 6068, 67.1%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8937
+   explicit, 8959
    class-name, 46
    func-name, 0
    case, 33
@@ -309,7 +309,7 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 32, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
-   numerics/test_angular_face_trace_space, 0, 0, 0, 0, 114, 0
+   numerics/test_angular_face_trace_space, 0, 0, 0, 0, 128, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 56, 0
@@ -357,7 +357,7 @@ Module × level grid
    numerics/test_symmetry, 0, 0, 0, 0, 105, 0
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
-   numerics/test_trace_restriction_operator, 0, 0, 0, 0, 18, 0
+   numerics/test_trace_restriction_operator, 0, 0, 0, 0, 15, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
    numerics/test_zero_operator_spaces, 0, 0, 0, 0, 8, 0
@@ -399,7 +399,7 @@ Module × level grid
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 55, 0
-   operators/test_sn_boundary_realizer, 0, 44, 0, 0, 0, 5
+   operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
