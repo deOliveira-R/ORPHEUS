@@ -50,6 +50,7 @@ surprises cost to hit.
 | 2026-08-06 | A "forbidden to commit" note was a point-in-time snapshot; the work had been committed at `34af8474`. | §7.1 |
 | 2026-08-06 | A plan split one signature change into three steps. Step 2 was unlandable alone: the retired probe was one of the two call sites of the signature being changed. | §6b |
 | 2026-08-06 | A step was scoped as an *enabler* ("the binding is metadata, not enforcement"). The field was read by a consumer that BRANCHES on `is None`, so populating it moved a production adjoint by 87 %. | §8 |
+| 2026-08-07 | A table captioned "checked against every shipped law" mixed five MEASURED rows with one ASPIRATIONAL one. The step planned against it recorded the concept's own diagnosis as a blocker. | §2 |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -109,6 +110,32 @@ inherits a false premise.
 
 A bare number with no marker will be read as measured. If you did not measure
 it, say so or delete it.
+
+⭐ **This applies to TABLE ROWS, not only to numbers — and a table is where it
+bites hardest**, because a table headed by a property of the tree
+(`| law | chain | endomorphism? |`) reads *entirely* as a survey of what IS.
+One row that is a TARGET is then indistinguishable from the rows that are
+observations, and nothing in the layout hints at the difference.
+
+> `[M]` 2026-08-07, campaign G6.3. A table captioned *"Checked against every
+> shipped law"* listed `specular / periodic | Γ₊ → Γ₋`. Five of its rows were
+> measured; the periodic one was the design intent. In the tree periodic's link
+> is a bare `IdentityOperator` — the only one of six that is not a typed arrow
+> between the half-traces. The consequence was not abstract: the session
+> planning that step recorded *"`IdentityOperator` cannot be bound"* as a
+> **blocker to route around**, when read against the table's own concept it is
+> the **diagnosis** (an endomorphism `V→V` can never be an isomorphism between
+> two different spaces — so you replace the link, you do not annotate it). The
+> mis-framing survived into a compaction point and was caught only because the
+> user asked whether the work still matched the concept.
+
+⟹ mark aspirational rows in the row itself (`⛔ ASPIRATIONAL — [M] the tree has
+X; step N makes this true`), never in prose above or below the table. And when
+a plan states a CONCEPT, re-derive the step's goal from the concept before
+designing — a goal phrased against the current code ("bind periodic") can be
+the exact inverse of the goal phrased against the concept ("its link becomes a
+typed arrow like every other law's"), and only the second one tells you what to
+build.
 
 ## 3. A refuted premise is EDITED IN PLACE, never silently dropped
 

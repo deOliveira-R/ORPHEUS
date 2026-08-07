@@ -629,13 +629,24 @@ class TestTheFaceActionIsCOMPOSED:
             )
 
     def test_PERIODIC_is_the_one_law_the_check_cannot_police_yet(self) -> None:
-        """⚠ The honest scope statement, and it flips at step 7.
+        r"""⚠ The honest scope statement, and it flips at step 7.
 
-        Periodic realizes to an unbound ``IdentityOperator() & IdentityOperator()``,
-        so one ``None`` short-circuits the composability check — and periodic
-        is precisely the law whose domain face differs from its installation
-        face, i.e. the one this check was designed for. Binding it is step 7;
-        this row is the transitional pin that will redden when it lands.
+        Periodic realizes to ``IdentityOperator() & IdentityOperator()``, so
+        one ``None`` short-circuits the composability check — and periodic is
+        precisely the law whose domain face differs from its installation
+        face, i.e. the one this check was designed for.
+
+        ⭐ **The cause is structural, not a missing argument.** Every boundary
+        law is a ``@``-chain :math:`\Gamma_+ \to \Gamma_-` (degenerate at
+        length one for a deck transformation), and every law's link is a typed
+        arrow between the half-traces — except this one.
+        :class:`~orpheus.numerics.operator.IdentityOperator` is an
+        *endomorphism* :math:`V \to V`; a torus wrap needs an *isomorphism
+        between two different spaces*, :math:`\Gamma_+(f') \to \Gamma_-(f)`.
+        The identity names no spaces, so it can never be that arrow. Step 7
+        REPLACES the link (a permutation is the trivial relabelling between
+        two distinct index sets); it does not annotate this one. This row is
+        the transitional pin that reddens when it lands.
         """
         sn = TestPeriodicReadsThePartnerFace._periodic_slab()
         law = sn.bc["xmin"]

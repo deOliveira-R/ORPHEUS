@@ -1820,7 +1820,8 @@ chain*, never declared. Checked against every shipped law:
 
 | law | chain | endomorphism? |
 |---|---|---|
-| specular / periodic | `Γ₊ → Γ₋` | none |
+| specular | `Γ₊ → Γ₋` | none |
+| periodic | `Γ₊(f') → Γ₋(f)` — ⛔ **ASPIRATIONAL, not descriptive.** `[M]` 2026-08-07 its link is a bare `IdentityOperator`, the ONLY one of six that is not a typed arrow between the half-traces. Step 7 makes the row true | none |
 | white / Lambertian | `Γ₊ → S(f) → Γ₋` | none |
 | albedo + specular | `Γ₊ → Γ₋ → Γ₋` (or `Γ₊ → Γ₊ → Γ₋`) | exactly where one BELONGS — the scalar amplitude |
 | vacuum | the zero chain | none |
@@ -1964,7 +1965,7 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **4** | ✅ **DONE — but NOT as scoped; the premise was refuted, for the FOURTH time in this step** | see §7h.2 |
 | **5** | ✅ **DONE — and it refuted step 8, the FIFTH refutation in this step** | see §7h.3. The deck arm is bound `Γ₊(f) → Γ₋(f)`, `γ₊` with it, `is_involution` RETIRED; `TensorProductOperator` turns out to drop the binding, so **step 8 gains a substep** |
 | **6** | ✅ **DONE — landed inside the affine campaign's P3, `8d552395`** | ⭐ vacuum is NOT "the zero chain" as a distinct structure; it is a **length-1 chain whose single link is the zero morphism** (user, 2026-08-05) — same shape as step 5's deck arm, different kernel. `ZeroOperator` gained `domain`/`codomain`, bound in `_narrowed_zero_operator` via `checked_space_extent` against the half-trace index arrays, and gated by the NEW `tests/numerics/test_zero_operator_spaces.py` (which also inherited the `\|Γ₊\| ≠ \|Γ₋\|` Mode-12 discrimination from a retired operator — no face fixture can make it, since the two half-traces are equal-sized on every reachable face). Everything else about prescribed inflow lives in **`.claude/plans/affine_boundary_source_channel.md`** — read its ⏸ COMPACTION POINT #2. ⚠ **Do not re-plan vacuum/prescribed here** — that plan is the authority |
-| **7** | ▶ **NEXT — periodic, now the ONLY unbound law** | the threading claim still holds: `_assert_wrap_identification` RETURNS the partner face and the call site discards it. ⛔ **its two line numbers were STALE** (`:512`/`:851`, re-measured 2026-08-07 as `:506`/`:970` — cite the SYMBOL, never the line). ⛔ **And the obvious means is BLOCKED** — see ⏸ COMPACTION POINT #4 |
+| **7** | ▶ **NEXT — periodic's link becomes a typed arrow, like every other law's** | the threading claim still holds: `_assert_wrap_identification` RETURNS the partner face and the call site discards it. ⛔ **its two line numbers were STALE** (`:512`/`:851`, re-measured 2026-08-07 as `:506`/`:970` — cite the SYMBOL, never the line). ⛔ **And the obvious means is BLOCKED** — see ⏸ COMPACTION POINT #4 |
 | **8.0** | ✅ **LANDED `72f5ce97` — and it was NOT the plumbing step this row said it was** | see §7h.4. The anchor flipped `XPASS(strict)` exactly as the flip-proof predicted. ⛔ **This row's framing was wrong**: it scoped 8.0 as an enabler for 8, so a session trusting it would have shipped a **live `.H` repair with zero gates** — `[M]` binding the product moved the realized *white* law's Hilbert adjoint by **87 % relative** (specular: **0.0**, its metric cancels) |
 | **8** | ✅ **LANDED `84d7861f` — the check now runs on the production path** | see §7h.5. `face_action = law @ γ₊`, ONE operator serving BOTH legs (`(law∘γ₊)ᵀ = γ₊ᵀ∘lawᵀ`). `[M]` bit-identical on all four shipped law kinds; flip-proof measured (reverting reddens the B3.4c re-injection gate, and **only** that one of 8) |
 
@@ -2611,16 +2612,41 @@ picking up cold re-anchors from **this file + `git log`**, never a summary.
    held (it does return the partner; the call site does discard it) — only the
    anchors rotted. ⟹ **cite the SYMBOL, never the line.** A line number is the
    one field in a plan that rots without anyone editing it.
-2. ⛔ **The obvious means is BLOCKED.** "Bind periodic's identities" cannot be
-   done: `[M]` `IdentityOperator` has no `__init__` of its own and
-   `IdentityOperator(domain=…)` raises `TypeError`, and the G6.0 survey
-   explicitly ruled **do not touch** it (11 production + 61 test sites). So
-   step 7 is NOT a binding-parameter edit; it is a change of what periodic
-   REALIZES TO.
-3. ⭐ **A verified alternative exists — measured 2026-08-07, so the step does
-   not start from zero.** Periodic's body is documented as *"the IDENTITY on
-   the local index, and that is EARNED"*; realize it as a bound **identity
-   permutation** instead of a bare identity:
+2. ⛔⛔ **The goal is NOT "bind periodic" — that framing was mine and it was
+   backwards** (corrected 2026-08-07 after the user asked whether this session
+   contradicted the operation-chain concept). Under the concept a boundary law
+   is a **`@`-chain** from :math:`\Gamma_+` to :math:`\Gamma_-` and a deck
+   transformation is the degenerate **length-1** case
+   (corpus: `bc-deck-length-one-chain`). Periodic is such a case. So the
+   OUTCOME is: **periodic's single link becomes a typed arrow, the same kind of
+   object every other law's link already is.** The binding is what you GET from
+   that, not the objective.
+
+   `[M]` the survey that shows the gap — angular factor of each realized law:
+
+   | law | link | typed arrow? |
+   |---|---|---|
+   | specular, albedo-specular | `PermutationOperator` | ✅ |
+   | white / Lambertian | `OperatorProduct` (2 links) | ✅ |
+   | vacuum, prescribed | `ZeroOperator` | ✅ |
+   | **periodic** | **`IdentityOperator`** | ⛔ **the only one that is not** |
+
+3. ⭐⭐ **And that reframing DISSOLVES the "blocker" I first recorded here.**
+   The original note read *"`IdentityOperator` has no `__init__` and cannot be
+   bound, and G6.0 ruled do not touch it"* — true, and beside the point.
+   `IdentityOperator` is an **endomorphism** :math:`V \to V`; periodic needs an
+   **isomorphism between two DIFFERENT spaces**,
+   :math:`\Gamma_+(f') \to \Gamma_-(f)`. The identity is polymorphic
+   precisely *because* it names no spaces, so it can never be that arrow. You
+   do not bind it — you **replace it with the arrow**. ⟹ the unbindability is
+   not an obstacle to route around; it is the diagnosis. Conflating *"the
+   action is the identity"* with *"the operator is `IdentityOperator`"* is what
+   made this arm the odd one out.
+
+4. ⭐ **The arrow, measured 2026-08-07** — a permutation is the trivial
+   relabeling between two DISTINCT index sets, which is exactly what a torus
+   wrap induces (`_assert_wrap_identification` proves the local index needs no
+   relabelling, so the permutation is `arange`):
 
    ```python
    PermutationOperator(np.arange(n_inflow), axis=0,
@@ -2628,16 +2654,18 @@ picking up cold re-anchors from **this file + `git log`**, never a summary.
    ```
 
    `[M]` on a GL-8 2-group slab: `Γ₊(xmax)` and `Γ₋(xmin)` are both `(4, 2)`
-   so the CROSS-FACE binding is well-posed; the bound permutation is
-   **value-identical** to `IdentityOperator` on both `apply` and
-   `apply_transpose`; and the product `(bound_perm & I)` carries
-   `Γ₊(xmax) → Γ₋(xmin)` through step 8.0's agreement law. It also makes
-   periodic the same SHAPE as the specular arm, which is the elegance
-   argument independent of the binding.
+   so the CROSS-FACE arrow is well-posed; it is **value-identical** to
+   `IdentityOperator` on `apply` AND `apply_transpose`; and the product carries
+   `Γ₊(xmax) → Γ₋(xmin)` through step 8.0's agreement law. It also puts
+   periodic in the SAME SHAPE as specular — which is not a bonus, it is the
+   point: one body for every deck transformation.
 
    ⚠ **The one measured difference:** `IdentityOperator().apply(x) is x` is
    **True**; the permutation returns a **copy**. Anything relying on
    identity-aliasing of the periodic face would change. Check before landing.
+
+   ⚠ Threading: `_assert_wrap_identification` RETURNS the partner face and the
+   call site discards it — that part of the old row still holds.
 
 *(Proposed means, 2026-08-07, NOT yet implemented — the measurements above are
 real, the design decision is not made.)*
