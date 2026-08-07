@@ -2,9 +2,11 @@
 
 > **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–5 DONE; step 6 DONE (absorbed by the
 > affine campaign's P3 — bind `ZeroOperator`'s spaces); step 8.0 LANDED `72f5ce97`
-> (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing).
-> Steps 7 and 8 remain. ▶ RESUMES AT STEP 8 — "route `_reflect_trace` through `@`",
-> the one that matters, and its precondition is now discharged.**
+> (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing);
+> **step 8 LANDED** (§7h.5 — the check now runs on the production path, and the
+> transpose leg is DERIVED rather than written).
+> ▶ **RESUMES AT STEP 7 — periodic**, now the ONLY unbound law and therefore
+> the one face-crossing the new check cannot police. Then G6.3b and G6.5.**
 >
 > **Read ⏸ COMPACTION POINT #3 at the END of this file FIRST** — it records what changed
 > under track G *while G was paused* (the Γ ladder grew a `directions` field; the
@@ -1961,7 +1963,67 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **6** | ✅ **DONE — landed inside the affine campaign's P3, `8d552395`** | ⭐ vacuum is NOT "the zero chain" as a distinct structure; it is a **length-1 chain whose single link is the zero morphism** (user, 2026-08-05) — same shape as step 5's deck arm, different kernel. `ZeroOperator` gained `domain`/`codomain`, bound in `_narrowed_zero_operator` via `checked_space_extent` against the half-trace index arrays, and gated by the NEW `tests/numerics/test_zero_operator_spaces.py` (which also inherited the `\|Γ₊\| ≠ \|Γ₋\|` Mode-12 discrimination from a retired operator — no face fixture can make it, since the two half-traces are equal-sized on every reachable face). Everything else about prescribed inflow lives in **`.claude/plans/affine_boundary_source_channel.md`** — read its ⏸ COMPACTION POINT #2. ⚠ **Do not re-plan vacuum/prescribed here** — that plan is the authority |
 | **7** | **periodic LAST** — the only cross-face law | `[M]` threading is ONE token: `_assert_wrap_identification` already RETURNS the partner (`:512`) and the call site at `:851` discards it |
 | **8.0** | ✅ **LANDED `72f5ce97` — and it was NOT the plumbing step this row said it was** | see §7h.4. The anchor flipped `XPASS(strict)` exactly as the flip-proof predicted. ⛔ **This row's framing was wrong**: it scoped 8.0 as an enabler for 8, so a session trusting it would have shipped a **live `.H` repair with zero gates** — `[M]` binding the product moved the realized *white* law's Hilbert adjoint by **87 % relative** (specular: **0.0**, its metric cancels) |
-| **8** | ⭐ **route `_reflect_trace` through `@`** so the composability check FIRES | without this the binding is metadata, not enforcement — see the INERT measurement above. **Cannot fire until 8.0 lands** |
+| **8** | ✅ **LANDED `84d7861f` — the check now runs on the production path** | see §7h.5. `face_action = law @ γ₊`, ONE operator serving BOTH legs (`(law∘γ₊)ᵀ = γ₊ᵀ∘lawᵀ`). `[M]` bit-identical on all four shipped law kinds; flip-proof measured (reverting reddens the B3.4c re-injection gate, and **only** that one of 8) |
+
+### §7h.5 — step 8: the check fires, and what it does NOT reach
+
+✅ **LANDED `84d7861f`.**
+
+**Shipped.** `_reflect_trace` builds `face_action = law @ γ₊` per face and uses
+that ONE operator for both legs, because `(law ∘ γ₊)ᵀ = γ₊ᵀ ∘ lawᵀ` is
+`OperatorProduct`'s own transpose law. `[M]` forward and transpose
+bit-identical on all four shipped law kinds; the wide slice is **7 failed /
+6017 passed**, the same pre-existing seven.
+
+⭐ **The transpose leg is now DERIVED, not written**, and that is the real
+prize. The ⚠ trap the docstring had been carrying since B3.2 — *"the transpose
+must scatter over Γ₊, never Γ₋"*, whose violation is bit-identical for
+off-diagonal permutation laws and was caught historically only by one
+grid-reciprocity arm on a het-VACUUM sphere — is no longer a choice the code
+makes. γ₋ is not a factor of the thing being transposed.
+
+⚠ **But "unspellable" was an OVERCLAIM, caught in review of my own prose.** A
+hand-written `γ₋ᵀ(lawᵀ(·))` still runs silently, because `|Γ₊| = |Γ₋|` makes
+the shapes agree. The true, narrower claim: re-opening the trap now requires
+ABANDONING the composition — a visible structural edit — instead of choosing
+the wrong one of two adjacent names. Both docstrings say the narrow thing.
+
+**⛔ THE FINDING — composing NARROWS the contract from duck-type to morphism.**
+`[M]` `_reflect_trace` previously only ever called `law.apply`, so a bare class
+with an `apply` was a sufficient surrogate; `law @ γ₊` raises
+`TypeError: unsupported operand type(s) for @` on one. Production is
+unaffected (every `_face_laws` entry is realizer output, already an operator),
+so the fix was to make the test's `_NoTransposeLaw` subclass `LinearOperator`
+— i.e. honour the contract it stands in for — **not** to add a guard for a
+case the type system now covers. Generalisable: *routing a call site through
+the algebra silently raises its operand requirement from "has the verb" to "is
+the type", and the only consumers that notice are duck-typed test doubles.*
+
+**⭐ The flip-proof, and the honesty it forced.** Reverting `_reflect_trace` to
+the sequential spelling reddens **1 of the 8** new rows —
+`test_a_wrong_face_domain_map_now_RAISES_on_apply`, which re-injects B3.4c by
+swapping `_face_domains` on a NON-periodic mesh. The other seven gate the
+*algebra* the catcher rests on and cannot see the production change at all.
+That split is now stated in the class docstring, because eight green rows
+otherwise read as eight guards (`vv-principles` #18: *by what mechanism does
+THIS gate see THIS property?*).
+
+**`[M]` The cost, measured before anyone "optimizes" it away.** Composing per
+call is **1.50×** on the face action itself (2.79 µs vs 1.86 µs; 0.94 µs of
+pure `OperatorProduct` construction). At the tier that matters it is **0.42 %**
+of a representative solve — a 40-cell 2-group slab with one reflective face
+builds **530** face actions in 118 ms. ⚠ The step-8 wide run took **19:59**
+against 18:15 for step 8.0; that is **NOT this change** — even a suite
+consisting of nothing but that solve for 20 minutes would pay ≈5 s, not 104 s.
+Machine variance. Do not add a `face_action` cache for it.
+
+⚠ **Scope the check does NOT reach: periodic.** It realizes to an unbound
+`I & I`, so one `None` short-circuits — and periodic is precisely the law
+whose domain face differs from its installation face, i.e. the one the check
+was designed for. **Step 7** binds it;
+`test_PERIODIC_is_the_one_law_the_check_cannot_police_yet` is the transitional
+pin and its failure message tells the next session to re-scope the ⚠ note in
+`_reflect_trace`'s docstring alongside it.
 
 ### §7h.4 — step 8.0: the "plumbing" step that was carrying a live repair
 

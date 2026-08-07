@@ -137,6 +137,17 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   prefer **keeping the established vocabulary** over renaming it — the phrase is load-bearing
   provenance ("this guard fired, not some incidental raise"), and it is greppable precisely
   because it has not drifted.
+- **Routing a call site through the ALGEBRA silently raises its operand requirement from
+  "has the verb" to "IS the type" — and only duck-typed test doubles notice.** Re-spelling
+  `f.apply(g.apply(x))` as `(f @ g).apply(x)` is arithmetic-neutral by construction, so it
+  reads as a pure re-spelling; it is not. `@` needs `__matmul__`, i.e. a real operator,
+  where `.apply` needed only an attribute. Production is usually unaffected (its objects
+  come from a factory that already returns the type), which is exactly why the breakage
+  surfaces in a *test* and looks like a broken test rather than a contract change. Fix it
+  by making the surrogate honour the contract it stands in for; do NOT add a runtime guard
+  for a case the type system now covers (that is the harmful-stub anti-pattern). (2026-08-06,
+  G6.3 step 8: a `_NoTransposeLaw` stub with only `apply` hit
+  `TypeError: unsupported operand type(s) for @`.)
 - **And a retirement onto a SHARED helper moves the raise's provenance one frame out.** Any
   gate asserting the innermost traceback frame is now asserting the helper, which is
   reachable on behalf of *every* caller — so the gate silently widens from "this composite
