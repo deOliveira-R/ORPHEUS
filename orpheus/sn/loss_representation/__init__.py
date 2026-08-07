@@ -113,6 +113,7 @@ import numpy as np
 # lives IN this module — ``sweep.py`` dissolved; selector and bodies share
 # one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
+from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
     cell_moment_count,
@@ -3291,7 +3292,7 @@ class _OneDimScanWalk:
             # non-flat profiles (exact on flat ψ — which is why every
             # flat-flux gate stayed green) and is retired; this is the
             # #192-deferred "inward-determines-outward" pole condition.
-            pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]
+            pole_face_seed = outflow_at_inner.T[self._ensure_pole_mirror()]
         else:
             # Slab: read the GIVEN inner inflow trace (the forward sweep's
             # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
@@ -3466,8 +3467,9 @@ class _OneDimScanWalk:
         closure = sn_mesh.pole_angular_closure
         scheme = sn_mesh.scheme
         # Mirror-ordinate permutation for the coupled-pole seed adjoint
-        # (curvilinear only; cheap to build unconditionally).
-        mirror = quad.reflection_index("x")
+        # (curvilinear only; the mesh-stashed derivation makes the
+        # unconditional read a cache hit).
+        mirror = self._ensure_pole_mirror()
         A = sn_mesh.areas
         V = sn_mesh.volumes
         sgx = sigma                                  # (ng, nx)
@@ -3744,6 +3746,50 @@ class _OneDimScanWalk:
             cache = GeometryCoefficients.from_mesh_and_quad(self.mesh)
             self.mesh._geom_cache = cache  # type: ignore[attr-defined]
         return cache
+
+    def _ensure_pole_mirror(self) -> np.ndarray:
+        r"""The r = 0 coupled-pole mirror pairing, derived on first use.
+
+        The Carlson coupled-pole continuation :math:`\psi(0, +\mu) =
+        \psi(0, -\mu)` IS the r = 0 quotient's :math:`\sigma_x` deck
+        transformation, so its ordinate pairing is derived from the mirror
+        MOTION through the one source the boundary tier also reads
+        (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
+        G6.3 step 7d — until then these sites read the precomputed
+        ``reflection_index`` table, a second path for the same concept).
+        Derived ONCE and stashed on the mesh, the same idiom as
+        :meth:`_ensure_geom_cache`: the sweep bodies consume it
+        10²–10⁴ times per solve, and the O(N²) match is a
+        construction-time cost, not a per-iteration one.
+
+        Raises
+        ------
+        ValueError
+            When the quadrature is not closed under the x-mirror (no
+            bijective, weight-preserving match — e.g. an odd-``n_phi``
+            product rule): the pole continuation is then unrealizable,
+            and refusing HERE — at first use, before any march — replaces
+            the retired table's lookup miss with the pairing's own
+            diagnosis.
+        """
+        mirror = getattr(self.mesh, "_pole_mirror_cache", None)
+        if mirror is None:
+            pi = self.mesh.quad.ordinate_permutation(
+                SelfPairedDeck.mirror(axis="x").motion
+            )
+            if pi is None:
+                raise ValueError(
+                    "the coupled-pole continuation ψ(0,+μ) = ψ(0,−μ) "
+                    "needs the x-mirror ordinate pairing, and this "
+                    "quadrature is not closed under the x-mirror (no "
+                    "bijective, weight-preserving match of the ordinates "
+                    "onto their mirror images — e.g. an odd-n_phi product "
+                    "rule). A curvilinear sweep cannot seed the r = 0 "
+                    "pole on it."
+                )
+            mirror = pi.indices
+            self.mesh._pole_mirror_cache = mirror  # type: ignore[attr-defined]
+        return mirror
 
     def _ensure_coll_cache(
         self,
@@ -4186,7 +4232,7 @@ class _OneDimScanWalk:
             # ordinate — the r=0 continuity ψ(0, +μ) = ψ(0, −μ).  Mirror
             # partners share a level, and the M-M thread sweeps inward
             # ordinates first, so the captured value is always data.
-            mirror = self.mesh.quad.reflection_index("x")
+            mirror = self._ensure_pole_mirror()
             pole_outflow = np.zeros((mu.size, ng))
 
             for p_idx, level in enumerate(levels):
@@ -4590,7 +4636,7 @@ class _OneDimScanWalk:
             )
         weights = quad.weights
         sigma_gx = sigma                                         # (ng, nx)
-        mirror = quad.reflection_index("x")
+        mirror = self._ensure_pole_mirror()
         bc_outer_cot = boundary_cot.face_view("xmax")            # (N, ng)
         bc_outer_bar = m_boundary.face_view("xmax")              # (N, ng) — written
         pole_outflow_bar = np.zeros((mu.size, ng))               # reverse coupled-pole
