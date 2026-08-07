@@ -5,17 +5,20 @@
 > (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing);
 > **step 8 LANDED** (§7h.5 — the check now runs on the production path, and the
 > transpose leg is DERIVED rather than written).
-> ▶ **RESUMES AT STEP 7, RE-SCOPED 2026-08-07 by user ruling** — no longer
-> "bind periodic" but **uplift the deck transformation once**: mint
-> `PairedDeck` (translation + rotation; only the REFLECTION is self-paired),
-> derive the trace arrow from the motion via `RigidMotion.permutes`, and retire
-> `reflection_index` after the checks pass. **Read §7h.6.** Then G6.3b, G6.5.**
+> ▶ **RESUMES AT STEP 7's LAST SUBSTEP, §7d — the `reflection_index`
+> retirement audit** (the user's gate: retire after the checks pass — they
+> have). The step's REALIZATION phase LANDED 2026-08-07 (`e13313a8` +
+> `c3bb7341` + `635c22e5`): `PairedDeck` retired `SpatialWrap`; ONE kernel
+> derives every deck arrow from the motion via
+> `Quadrature.ordinate_permutation` (⛔ the earlier `RigidMotion.permutes`
+> spelling here was the AFFINE action — ordinates are directions; §7h.6's
+> landing note); periodic's link is the bound `PermutationOperator`.
+> **Read §7h.6 (its landing banner + §7d) FIRST.** Then G6.3b, G6.5.**
 >
-> **Read ⏸ COMPACTION POINT #4 at the END of this file FIRST** — it carries the
-> three things a cold session gets WRONG about step 7 (its cited line numbers had
-> rotted; the obvious means is BLOCKED because `IdentityOperator` cannot be bound;
-> a measured alternative exists), the gate that must flip when step 7 lands, gate
-> costs, and seven durable lessons. Then ⏸ **#3** for what changed under track G
+> **Then ⏸ COMPACTION POINT #4 at the END of this file** — its step-7 items
+> are now HISTORY (the chain-table gap is closed in place; the pins it said
+> must flip HAVE, and were re-scoped), but its gate costs and seven durable
+> lessons stand. Then ⏸ **#3** for what changed under track G
 > *while G was paused* (the Γ ladder grew a `directions` field; the
 > `level_symmetric` weights changed and the family now REFUSES above S12) —
 > ⚠ #3's "Step 8.0 — the next step" section is HISTORY, it landed. Then ⏸ #2 (end of
@@ -1968,11 +1971,46 @@ version sequenced "materialize `R : Γ₋→Γ₋`" as step 2; no such operator 
 | **4** | ✅ **DONE — but NOT as scoped; the premise was refuted, for the FOURTH time in this step** | see §7h.2 |
 | **5** | ✅ **DONE — and it refuted step 8, the FIFTH refutation in this step** | see §7h.3. The deck arm is bound `Γ₊(f) → Γ₋(f)`, `γ₊` with it, `is_involution` RETIRED; `TensorProductOperator` turns out to drop the binding, so **step 8 gains a substep** |
 | **6** | ✅ **DONE — landed inside the affine campaign's P3, `8d552395`** | ⭐ vacuum is NOT "the zero chain" as a distinct structure; it is a **length-1 chain whose single link is the zero morphism** (user, 2026-08-05) — same shape as step 5's deck arm, different kernel. `ZeroOperator` gained `domain`/`codomain`, bound in `_narrowed_zero_operator` via `checked_space_extent` against the half-trace index arrays, and gated by the NEW `tests/numerics/test_zero_operator_spaces.py` (which also inherited the `\|Γ₊\| ≠ \|Γ₋\|` Mode-12 discrimination from a retired operator — no face fixture can make it, since the two half-traces are equal-sized on every reachable face). Everything else about prescribed inflow lives in **`.claude/plans/affine_boundary_source_channel.md`** — read its ⏸ COMPACTION POINT #2. ⚠ **Do not re-plan vacuum/prescribed here** — that plan is the authority |
-| **7** | ▶ **NEXT — RE-SCOPED 2026-08-07 (user ruling): the deck transformation is UPLIFTED once, and periodic is the translational case** | ⛔ **no longer a periodic-only step** — see §7h.6. Mint `PairedDeck`; derive the bound ordinate arrow from the MOTION via `RigidMotion.permutes`; retire `reflection_index` once the checks pass. The threading claim still holds: `_assert_wrap_identification` RETURNS the partner face and the call site discards it. ⛔ **its two line numbers were STALE** (`:512`/`:851`, re-measured 2026-08-07 as `:506`/`:970` — cite the SYMBOL, never the line). ⛔ **And the obvious means is BLOCKED** — see ⏸ COMPACTION POINT #4 |
+| **7** | ✅ **LANDED 2026-08-07 (realization phase): the deck transformation is UPLIFTED once, and periodic is the translational case** | `e13313a8` + `c3bb7341` + `635c22e5` — `PairedDeck` minted (SpatialWrap retired); the arrow derived from the MOTION via `Quadrature.ordinate_permutation` → `RigidMotion.linear_part.preserves` (⛔ the plan's `RigidMotion.permutes` spelling was the AFFINE action — ordinates are directions; see §7h.6's landing note); `_assert_wrap_identification` dissolved INTO the kernel (its partner return is now consumed, closing the old threading claim). ▶ **REMAINING: §7d — the `reflection_index` retirement audit** (the user's gate; `[M]` 33 live refs, sweep pole seed included) |
 | **8.0** | ✅ **LANDED `72f5ce97` — and it was NOT the plumbing step this row said it was** | see §7h.4. The anchor flipped `XPASS(strict)` exactly as the flip-proof predicted. ⛔ **This row's framing was wrong**: it scoped 8.0 as an enabler for 8, so a session trusting it would have shipped a **live `.H` repair with zero gates** — `[M]` binding the product moved the realized *white* law's Hilbert adjoint by **87 % relative** (specular: **0.0**, its metric cancels) |
 | **8** | ✅ **LANDED `84d7861f` — the check now runs on the production path** | see §7h.5. `face_action = law @ γ₊`, ONE operator serving BOTH legs (`(law∘γ₊)ᵀ = γ₊ᵀ∘lawᵀ`). `[M]` bit-identical on all four shipped law kinds; flip-proof measured (reverting reddens the B3.4c re-injection gate, and **only** that one of 8) |
 
 ### §7h.6 — step 7 RE-SCOPED: uplift the deck transformation, once
+
+> ✅ **LANDED 2026-08-07 in three commits** — the realization phase is
+> COMPLETE; only the retirement substep (§7d below, appended at landing)
+> remains. 7a `e13313a8` (PairedDeck retires SpatialWrap; the guards are
+> complements of the fixed-subspace criterion; `RigidMotion.is_translation`);
+> 7b `c3bb7341` (`_deck_kernel` — one body from the motion for
+> reflective/albedo-specular/periodic; `Quadrature.ordinate_permutation`;
+> `_specular_kernel` + `_assert_wrap_identification` retired onto it;
+> periodic's link is the bound `PermutationOperator(arange)`
+> Γ₊(f')→Γ₋(f); both transitional pins flipped strictly ON LANDING and
+> were re-scoped); 7c `635c22e5` (142 gate rows; the π⁻¹ convention
+> pinned on `product(4,8)` — NOT `product(4,4)`, whose local permutation
+> is degenerately `arange`; the periodic metric row). Wide-slice result
+> recorded at ⏸ #5.
+>
+> ⭐ **The landing's own surprise — ordinates are DIRECTIONS.** `[M]`
+> `RigidMotion.permutes/preserves` match through `on_points` (the AFFINE
+> action), so the unit wrap translation matched to **None** — a false
+> "not a symmetry" — where the deck truth is the identity permutation.
+> Found twice independently (main-agent probe; test-architect's battery,
+> which pins it on the OBSERVABLE: motions sharing a linear part yield
+> bit-identical kernels, 26/78 rows red under the affine spelling). Fixed
+> by minting `RigidMotion.linear_part` (the E(d)→O(d) projection) and
+> matching through it. The plan's own sketch (`permutes() → Permutation`
+> below) carried the conflation — a proposed means, not a measured one,
+> and the labels held.
+>
+> ⚠ **Two behavior deltas, deliberate, no pins broken:** periodic no
+> longer demands the method space's OWN-face `outflow_indices` (its
+> domain is the PARTNER's Γ₊, derived from the face name); and a specular
+> law on a rule without mirror closure (odd-n_φ product) now raises the
+> kernel's `BoundaryError` at realization instead of `reflection_index`'s
+> `ValueError` lookup miss (`BoundaryError` subclasses `ValueError`, so
+> type-level pins held; the `test_quadrature_directional.py:294` message
+> pin is on the TABLE api, untouched until §7d).
 
 **USER RULING, 2026-08-07** (verbatim): *"for the periodic (translation rigid
 motion) and rotational symmetry (rotational rigid motion), we need a
@@ -2004,6 +2042,21 @@ motion** they carry — never in which code path realizes them.
    bijectivity-checked `Permutation`** — the exact guard whose absence was
    ERR-073. ⟹ **two paths for one concept, and the boundary tier is on the
    unhardened one.** Cardinal Rule 2.
+
+   ⛔ **REFUTED 2026-08-07 (reconciled against the tree at pick-up, §7
+   discipline) — the HAZARD half of this claim was STALE.** `[M]`
+   `_find_reflections` was retired at `a7695148` (2026-08-02, Q5.0.1):
+   the sphere table has been CERTIFIED since — built through
+   `_orbit_closure` → `RigidMotion.preserves` (bijection + weights, the
+   full ERR-073 discipline), and GL1D's is a closed form. What SURVIVED,
+   and what the step actually fixed: the **architectural** half —
+   realization read the axis LETTER and never consulted the law's own
+   motion (G5's deck slot unread), and only axis-aligned mirrors were
+   realizable at all (the table's `range(3)` loop). The fix landed in a
+   DIFFERENT campaign between this section's writing and its reading;
+   the ⛔ was true when written. The re-check cost minutes; trusting it
+   would have mis-framed the commit as a hardening instead of a
+   consolidation.
 
 #### The taxonomy, and the criterion that decides it
 
@@ -2062,22 +2115,47 @@ PairedDeck(motion)      SelfPairedDeck(motion)
 field** (`16835c68`, added for the inflow source) — exactly `permutes`'s
 argument. The uplift is cheaper now than when G5 ran.
 
-**Done when:** one body realizes every deck law; `SpatialWrap` carries a
-motion; the boundary tier no longer calls `reflection_index`; and — **the
-user's gate** — `reflection_index` is RETIRED across its consumers *after* the
-checks pass, not before.
+**Done when:** ✅ one body realizes every deck law (`_deck_kernel`,
+`c3bb7341`); ✅ the wrap deck carries a motion (`PairedDeck`, `e13313a8` —
+`SpatialWrap` retired outright rather than gaining a field); ✅ the boundary
+tier no longer calls `reflection_index` (`[M]` zero refs in
+`sn/boundary/realizer.py`); ⛔ **PENDING — the user's gate**:
+`reflection_index` RETIRED across its consumers — **§7d below.**
 
-⚠ **Retirement is NOT boundary-scoped.** `[M]` 10 call sites across 6 modules:
-`derivations/discrete/sn/sweep_acyclicity` (8), `geometry/boundary/_specular`
-(10 refs), `sn/boundary/realizer` (4), `sn/loss_representation` (4),
-`geometry/boundary/{albedo,reflective,_factors,__init__}`,
-`numerics/operator`, `numerics/quadrature/directional`. The sweep is in there.
-Sequence the retirement as its own substep with the three-search audit.
+#### §7d — the `reflection_index` retirement audit (the remaining substep)
 
-⚠ **The transitional pin flips here too:**
-`test_PERIODIC_is_the_one_law_the_check_cannot_police_yet` asserts periodic is
-unbound, and the ⚠ note in `_reflect_trace`'s docstring says the same. Both
-re-scope when this lands.
+*Goal:* one path for "ordinate permutation induced by a rigid motion" —
+`Quadrature.ordinate_permutation` (landed) is the source; the certified
+axis-mirror TABLE either becomes its private cache or its consumers
+re-derive. *The user's sequencing ruling:* retire only after the checks
+pass — they now have (142 rows green; wide slice at ⏸ #5).
+
+- ⛔ the §7h.6 header's "10 call sites across 6 modules" was the SYMBOL
+  grep of its day; `[M]` the test-architect's delivery audit counts **33
+  live refs** tree-wide. Re-measure at pick-up; the sweep's `r = 0` pole
+  seed (`sn/loss_representation`) and `derivations/` are the heavy
+  consumers, and the pole seed is HOT-path (per-sweep) where the table's
+  precompute amortizes — the cache-vs-rederive decision is THE design
+  question of the substep, not a detail.
+- When it retires: **delete**
+  `test_deck_kernel.py::TestTheSpecularArmInheritsTheRetiredTable` (its
+  docstring says so — a one-time equivalence claim against the retired
+  path); re-point `test_quadrature_directional.py:294`'s
+  `match="no precomputed reflection partner"` pin at whatever refusal
+  survives; full three-search audit + the message-string
+  shortest-fragment grep.
+
+✅ **The transitional pins flipped as designed** (2026-08-07): the
+boundary-operator pin reddened with its own re-scope message and is now
+the live wrong-face catcher; `test_b3_domain_narrowing`'s periodic xfail
+XPASSed(strict) and the todo-list mechanism retired with its last row —
+empty set, mechanism deleted, completion note in place. A THIRD flip the
+plan had not tracked: `TestSpecMutationsPropagate`'s wholesale
+`geometry_map → identity` mutations now redden at REALIZATION (the kernel
+refuses an incoherent mirror — itself the proof the realizer stopped
+reading the letter), so those probes moved one property up
+(`permutes_ordinates`, the flag the consumers actually read — vv #18's
+mutate-inside-the-legal-class).
 
 ### §7h.5 — step 8: the check fires, and what it does NOT reach
 
@@ -2739,7 +2817,7 @@ picking up cold re-anchors from **this file + `git log`**, never a summary.
    | specular, albedo-specular | `PermutationOperator` | ✅ |
    | white / Lambertian | `OperatorProduct` (2 links) | ✅ |
    | vacuum, prescribed | `ZeroOperator` | ✅ |
-   | **periodic** | **`IdentityOperator`** | ⛔ **the only one that is not** |
+   | **periodic** | ~~`IdentityOperator`~~ → `PermutationOperator(arange)`, bound Γ₊(f')→Γ₋(f) | ✅ **since `c3bb7341` — `[M]` all five arrows typed; the survey's gap is CLOSED** |
 
 3. ⛔⛔ **AND THE STEP WAS RE-SCOPED AGAIN, 2026-08-07 — read §7h.6 BEFORE
    anything below.** The user's question *"why does periodic need the identity
