@@ -308,3 +308,178 @@ def test_e4_the_level_order_tie_break_is_NAMED_not_round_off(
     assert ties, "no η-tie in this level — the gate would be vacuous"
     for i in ties:
         assert level[i] < level[i + 1]
+
+
+# ---------------------------------------------------------------------------
+# spherical_product — the combinator seam (campaign Q5.2)
+# ---------------------------------------------------------------------------
+#
+# `product_mu_phi` is now a named family OF the combinator: the pair of
+# factor rules arrives as ARGUMENTS, so the fold selects the staggered
+# circle rule by substitution — no `half_range=True` flag exists. The
+# result's group is DERIVED from three RigidMotion.preserves generator
+# checks on the factors (this module shipped three false symmetry
+# declarations: ERR-072/073/074), and the Hasse walk over the assembled
+# nodes is the independent realization that confirms the derivation.
+
+
+@pytest.mark.foundation
+def test_the_named_family_is_a_spherical_product_of_its_two_rules() -> None:
+    """Pass-through smoke: the wrapper IS the combinator at NODE_ALIGNED.
+
+    Both sides move together (the wrapper calls the combinator), so this
+    pins the API relationship, NOT the carve — the carve's independence
+    pin was the pre-carve capture, bit-identical on four configs
+    ([M] 2026-08-07, commit message of the Q5.2 landing).
+    """
+    from orpheus.numerics.quadrature import (
+        NODE_ALIGNED,
+        gauss_legendre_on_mu,
+        periodic_trapezoid,
+        spherical_product,
+    )
+
+    via_wrapper, s_wrapper = product_mu_phi(4, 8)
+    via_combinator, s_combinator = spherical_product(
+        gauss_legendre_on_mu(4), periodic_trapezoid(8, shift=NODE_ALIGNED)
+    )
+    np.testing.assert_array_equal(via_wrapper.nodes, via_combinator.nodes)
+    np.testing.assert_array_equal(via_wrapper.weights, via_combinator.weights)
+    assert via_wrapper.invariance_group == via_combinator.invariance_group
+    assert via_wrapper.exactness == via_combinator.exactness
+    for a, b in zip(s_wrapper.level_indices, s_combinator.level_indices):
+        np.testing.assert_array_equal(a, b)
+
+
+@pytest.mark.foundation
+def test_the_seam_selects_the_staggered_fiber_and_the_fold_composes() -> None:
+    r"""The Q5.2 -> Q5.1 handshake, with no flag anywhere.
+
+    Substituting the STAGGERED circle rule empties the singular set
+    (:math:`\Sigma = \emptyset`, T24's admissibility condition — by
+    integer equality, since roots-of-unity azimuths make on-axis sines
+    exactly 0.0), and the fold then composes straight through
+    ``DiscreteMeasure.quotient``: 32 -> 16 at uniform doubled weights.
+    NODE_ALIGNED, by contrast, puts two nodes per level ON the mirror.
+    """
+    from orpheus.numerics.quadrature import (
+        NODE_ALIGNED,
+        STAGGERED,
+        gauss_legendre_on_mu,
+        periodic_trapezoid,
+        spherical_product,
+    )
+    from orpheus.numerics.symmetry import singular_set
+
+    mirror = SubgroupOfO3.Mirror("y")
+    polar = gauss_legendre_on_mu(4)
+
+    aligned, _ = spherical_product(polar, periodic_trapezoid(8, shift=NODE_ALIGNED))
+    assert singular_set(aligned, mirror).size == 2 * 4  # phi=0 and pi per level
+
+    staggered, _ = spherical_product(polar, periodic_trapezoid(8, shift=STAGGERED))
+    assert singular_set(staggered, mirror).size == 0  # free — the fold's condition
+
+    folded = staggered.quotient(mirror)
+    assert folded.n_points == staggered.n_points // 2
+    # Weight multiset: every orbit is free, so each folded atom carries
+    # exactly twice one member's weight. `[::2]` is a valid one-member-
+    # per-orbit selection ONLY because weights are constant within a
+    # level and levels are contiguous blocks in construction order.
+    np.testing.assert_array_equal(
+        np.sort(folded.weights), np.sort(2.0 * staggered.weights[::2])
+    )
+    np.testing.assert_array_almost_equal_nulp(
+        np.array(folded.weights.sum()), np.array(staggered.weights.sum()), nulp=1
+    )
+
+
+@pytest.mark.foundation
+def test_the_derived_group_and_the_hasse_walk_verify_each_other() -> None:
+    """Two independent realizations of Sym(product): the construction
+    derives D_nh from three generator checks on the FACTORS; the walk
+    computes it from the ASSEMBLED nodes. Neither can be wrong alone
+    without this reddening."""
+    from orpheus.numerics.quadrature import (
+        STAGGERED,
+        gauss_legendre_on_mu,
+        periodic_trapezoid,
+        spherical_product,
+    )
+    from orpheus.numerics.symmetry import maximal_invariance_groups
+
+    for n_mu, n_phi, shift in [(2, 4, None), (4, 8, STAGGERED)]:
+        if shift is None:
+            measure, _ = product_mu_phi(n_mu, n_phi)
+        else:
+            measure, _ = spherical_product(
+                gauss_legendre_on_mu(n_mu),
+                periodic_trapezoid(n_phi, shift=shift),
+            )
+        assert measure.invariance_group == SubgroupOfO3.Dnh(n_phi)
+        walk = maximal_invariance_groups(measure)
+        assert SubgroupOfO3.Dnh(n_phi) in walk, (n_mu, n_phi, walk)
+
+
+@pytest.mark.foundation
+def test_a_factor_pair_with_an_unrealized_group_family_is_refused() -> None:
+    """An asymmetric polar factor would make the group C_nv, which
+    ``SubgroupOfO3`` does not realize — refused naming the family,
+    never tagged wrong-or-weaker (the field means MAXIMAL). Positive
+    control: the symmetric pair constructs."""
+    from orpheus.numerics.quadrature import (
+        NODE_ALIGNED,
+        gauss_legendre_on_mu,
+        periodic_trapezoid,
+        spherical_product,
+    )
+
+    azimuthal = periodic_trapezoid(8, shift=NODE_ALIGNED)
+    lopsided_polar = DiscreteMeasure(
+        nodes=np.array([-0.5, 0.2, 0.7]),
+        weights=np.array([0.6, 0.7, 0.7]),
+        support="[-1,1]",
+        exactness=gauss_legendre_on_mu(3).exactness,  # borrowed, valid-typed
+    )
+    with pytest.raises(ValueError, match=r"C_8v.*does not realize"):
+        spherical_product(lopsided_polar, azimuthal)
+
+    measure, _ = spherical_product(gauss_legendre_on_mu(3), azimuthal)
+    assert measure.invariance_group == SubgroupOfO3.Dnh(8)
+
+
+@pytest.mark.foundation
+def test_an_interval_rule_as_the_fiber_is_refused_by_its_space() -> None:
+    """E3's same-nodes/wrong-space confusion, unrepresentable end to
+    end: an interval rule carrying the azimuthal ANGLES is a different
+    object from the circle rule carrying the POINTS, and the support
+    tag is what discriminates them here."""
+    from orpheus.numerics.measure import equispaced
+    from orpheus.numerics.quadrature import gauss_legendre_on_mu, spherical_product
+
+    angles_as_interval_rule = equispaced(0.0, 2.0 * np.pi, 8)
+    with pytest.raises(ValueError, match="must be a circle rule"):
+        spherical_product(gauss_legendre_on_mu(4), angles_as_interval_rule)
+
+
+@pytest.mark.foundation
+def test_off_circle_fiber_nodes_are_refused() -> None:
+    """Non-unit circle nodes would embed to direction cosines with
+    ||Omega|| != 1 — refused at the door."""
+    from orpheus.numerics.measure import SPACE_CIRCLE
+    from orpheus.numerics.quadrature import (
+        NODE_ALIGNED,
+        gauss_legendre_on_mu,
+        periodic_trapezoid,
+        spherical_product,
+    )
+
+    honest = periodic_trapezoid(8, shift=NODE_ALIGNED)
+    inflated = DiscreteMeasure(
+        nodes=1.1 * honest.nodes,
+        weights=honest.weights,
+        support=SPACE_CIRCLE,
+        exactness=honest.exactness,
+    )
+    with pytest.raises(ValueError, match="unit"):
+        spherical_product(gauss_legendre_on_mu(4), inflated)
