@@ -3632,13 +3632,19 @@ G6.4→#330 optional-binding ruling (which is about the base-tier default).
 
 `TestFacePackingOrderIsBookkeeping`: two traces differing ONLY in
 `FaceLayout` face order; {specular, lambertian, periodic, vacuum} ×
-{gauss_legendre(8), product(4,4)}; `apply` and the weighted `.H`
-**bit-identical** (`np.array_equal` — nothing arithmetic changed, so any
-drift is packing leaking into the math). Activation leg: the buffer
-genuinely moves (xmax offsets differ) while the per-face spaces compare
-equal with bit-identical metrics. `product(4,4)` mandatory (Mode 7 — the
-tangential band is where a silent reindex would hide). The "zero diff in
-any operator file" half of the criterion is the carve itself.
+{gauss_legendre(8), product(4,4)}; `apply`, `apply_transpose` and the
+weighted `.H` **bit-identical** (`np.array_equal` — nothing arithmetic
+changed, so any drift is packing leaking into the math). Activation leg:
+the buffer genuinely moves (the per-face offset maps differ) while the
+per-face spaces compare equal with bit-identical metrics.
+⭐ **Post-qa upgrade**: the `product(4,4)` arm carries the FOUR faces
+with different-axis heads — `[M]` on a same-axis 2-face fixture the
+wrong-slot metric read (the only flat-offset read in the realization
+path) is Mode-12-invisible (slices bit-identical); with a y-face heading
+one ordering it moves `Γ₊(xmax)`'s weights by 0.963, and qa's `metric0`
+mutation goes 0/10 → 4/10 red. The criterion's other half — *a layout
+change diffs zero operator files* — is established by the carve's
+end-state (the carve itself edited operators to GET there).
 
 ### Landing gates `[M]`
 
@@ -3703,6 +3709,53 @@ process-discipline — inline-fix now vs cross-session follow-up — before
 any merge activity**, and do NOT attribute the two `cart2d_*` baseline
 reds to the carve. No `[M]` verdict is transcribed here because none
 existed at write time.
+
+✅ **RESOLVED before compaction — the verdict landed and every finding
+was fixed inline the same sitting** (the qa report:
+`$CLAUDE_JOB_DIR/tmp/qa_g65_review.md`). Verdicts: retirement
+completeness PASS (my tense judgments confirmed; 1 minor spelling);
+refusal blast radius PASS, MEASURED (1460 instrumented `_deck_kernel`
+entries, 3 guard-predicate-true, all refusal-expecting, zero
+success-consumers); `__post_init__` guard PASS under vv #16 (240
+canonical spaces, 0 refusals; disabling it reds exactly 1 test;
+`to_local → arange` reds 48). Two real findings, both fixed:
+
+1. ⭐⭐ **ERR-077 (F2)** — a guard DEMOTION my relocation introduced: the
+   remap's haystack (the space's `ordinate_indices`) and the gather's
+   `indices` became two arrays cross-checked only by EXTENT; `[M]` the
+   post-carve deck kernel ACCEPTED a hand-built divergent pair (emitting
+   `local_perm=[0,1,2,3]` against rows the gather never produces) where
+   the pre-carve operator-side `to_local` refused. Unreachable from the
+   canonical `for_face` path; reachable from the explicitly-supported
+   hand-built method space. FIX: `_checked_space` now compares
+   elementwise against a bound codomain's declared `ordinate_indices`
+   (duck-typed — numerics cannot import spaces); gated by
+   `test_a_codomain_declaring_DIFFERENT_rows_is_REFUSED`; catalogued
+   ERR-077 (uncommitted catalog, with ERR-074). Lesson: **a moved
+   method's preconditions do not travel — what the old host satisfied
+   by construction must be re-CHECKED where the two objects meet.**
+2. ⭐⭐ **The packing gate was Mode-12-blind to the only reachable
+   mutation class** — with both faces on ONE axis the two slots' metric
+   slices are bit-identical, so the wrong-slot metric read (`[M]` the
+   only flat-offset read in the realization path) reddened 0/10 rows.
+   FIX: the `product(4,4)` arm now carries the y-faces with
+   different-axis head faces; `[M]` re-running qa's own `metric0`
+   plugin: 0/10 → **4/10 red including lambertian** (the wrong slot
+   reaches white's `cos_w`), clean run 10/10. Plus qa's
+   vv-principles **#23** (an invariance gate's positive control must be
+   knob-dependent; the catastrophic control is invalid for it — it
+   correctly leaves an invariance gate green).
+
+Also fixed: the two stale "G6.5 retires the lengths" deferral contracts
+(`checked_space_extent`'s docstring + the space battery — falsified by
+this very carve's landing, the mirror-clause class); the two
+`γ₋.to_local` operator-attributed spellings in
+`test_sn_boundary_operator.py`; the "unspellable" overclaim; the
+missing `apply_transpose` leg (the bit-identity row now asserts all
+three verbs it names); the `Γ₊(f)`/`Γ₊(f')` drift on the self-paired
+reflective rows. `[M]` after fixes: touched + geometry = **2077 passed /
+3 failed** (the cart2d pair + the #33 snapshot — all documented
+baseline); xrefs 0; ratchet green; sphinx `-W` clean.
 
 ### ⛔ READ FIRST for the Q5.1 pick-up
 
