@@ -1217,3 +1217,98 @@ class TestVacuumTraceOrientationGuard:
         )
         with pytest.raises(ValueError, match="Unknown face name"):
             SNBoundaryRealizer().realize(VacuumInflow(), legacy)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 8. G6.5 acceptance — the face PACKING ORDER is book-keeping
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l0
+class TestFacePackingOrderIsBookkeeping:
+    r"""⭐ G6.5's acceptance gate: permute the face packing order — bit-identity.
+
+    The G6 principle's falsifiable half, as RE-SCOPED after the measured FP
+    ceiling (the plan's G6 acceptance section): an ordinate-STORAGE
+    permutation cannot be bit-stable (`[M]` a 49-term reduction reorders and
+    survives bit-identically only ~25 % of the time), but the face PACKING
+    ORDER moves only which flat offset each face's slot occupies —
+    book-keeping with no arithmetic content. So the same law realized on two
+    traces differing ONLY in layout order must produce per-face outputs
+    identical to the BIT, with zero edits in any operator file (that half of
+    the claim is the G6.5 carve itself; this gate holds the runtime half).
+
+    ``product(4,4)`` is mandatory here (Mode 7): ``gauss_legendre`` has no
+    tangential band, and the tangential rows are exactly where a packing
+    change could silently reindex without moving either half-trace.
+    """
+
+    _QUADS = {
+        "gauss_legendre(8)": lambda: Quadrature.gauss_legendre(n_ordinates=8),
+        "product(4,4)": lambda: Quadrature.product(n_mu=4, n_phi=4),
+    }
+    _LAWS = {
+        "specular": lambda: ReflectiveBoundary(axis="x"),
+        "lambertian": lambda: WhiteBoundary(axis="x", outward_sign=+1),
+        "periodic": lambda: PeriodicBoundary(axis="x"),
+        "vacuum": lambda: VacuumInflow(),
+    }
+    _FORWARD = ("xmin", "xmax")
+    _REVERSED = ("xmax", "xmin")
+
+    @pytest.mark.parametrize("quad_name", sorted(_QUADS))
+    def test_the_packing_order_genuinely_moves_the_buffer(self, quad_name):
+        """Activation: without this, the class could green on an ignored order.
+
+        The two orderings place ``xmax`` at different flat offsets (the
+        buffer MOVES), while the per-face spaces compare equal and carry
+        bit-identical metrics (the FACE does not) — which is precisely the
+        claim "packing is book-keeping" at the space tier.
+        """
+        quad = self._QUADS[quad_name]()
+        trace_a = face_trace(quad, self._FORWARD)
+        trace_b = face_trace(quad, self._REVERSED)
+
+        assert (
+            trace_a.layout.faces["xmax"].offset
+            != trace_b.layout.faces["xmax"].offset
+        ), "the two orderings packed xmax identically — the fixture is vacuous"
+
+        for face in self._FORWARD:
+            assert trace_a.outflow_space(face) == trace_b.outflow_space(face)
+            np.testing.assert_array_equal(
+                np.asarray(trace_a.outflow_space(face).inner_product_weights),
+                np.asarray(trace_b.outflow_space(face).inner_product_weights),
+            )
+            np.testing.assert_array_equal(
+                np.asarray(trace_a.outflow_space(face).ordinate_indices),
+                np.asarray(trace_b.outflow_space(face).ordinate_indices),
+            )
+
+    @pytest.mark.parametrize("quad_name", sorted(_QUADS))
+    @pytest.mark.parametrize("law_key", sorted(_LAWS))
+    def test_realized_law_is_bit_identical_across_packing_order(
+        self, quad_name, law_key
+    ):
+        """``apply``, ``apply_transpose`` and the weighted ``.H`` — all exact.
+
+        ``np.array_equal``, not ``allclose``: nothing arithmetic changed, so
+        any drift at all is a packing dependence leaking into the math.
+        """
+        quad = self._QUADS[quad_name]()
+        ops = []
+        for faces in (self._FORWARD, self._REVERSED):
+            ms = face_method_space(quad, face="xmax", faces=faces)
+            ops.append(
+                SNBoundaryRealizer().realize(self._LAWS[law_key](), ms)
+            )
+        op_a, op_b = ops
+
+        rng = np.random.default_rng(20260807)
+        x = rng.standard_normal(op_a.domain.shape)
+        y = rng.standard_normal(op_a.codomain.shape)
+
+        np.testing.assert_array_equal(op_a.apply(x), op_b.apply(x))
+        np.testing.assert_array_equal(
+            np.asarray(op_a.H.apply(y)), np.asarray(op_b.H.apply(y))
+        )

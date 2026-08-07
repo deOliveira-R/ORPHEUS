@@ -195,6 +195,17 @@ if TYPE_CHECKING:
 
 __all__ = ["SNBoundaryRealizer"]
 
+#: The ordinate axis of every per-face slot and half-trace tier: LEADING.
+#: One spelling of the trace tier's packing contract (G6.5) — the half-trace
+#: spaces state the same fact as "row order is the contract"
+#: (:attr:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.ordinate_indices`),
+#: and every restriction, permutation and space-extent check this module
+#: constructs gathers along it. Kept a module constant rather than a literal
+#: at each site so the contract has ONE name here; the ``axis`` parameter
+#: itself stays general-purpose numerics API (`[M]` a non-boundary consumer
+#: composes ``PermutationOperator(_P4, axis=1)`` inside a tensor product).
+_ORDINATE_AXIS: int = 0
+
 
 def _zero_rows(n_rows: int) -> "Callable[[object], np.ndarray]":
     r"""A :class:`ZeroOperator` space hook emitting ``n_rows`` ordinates.
@@ -262,7 +273,7 @@ def _outflow_restriction(
     return TraceRestrictionOperator(
         np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
         n_total=method_space.quadrature.N,
-        axis=0,
+        axis=_ORDINATE_AXIS,
         domain=gamma,
         codomain=gamma_plus,
     )
@@ -306,7 +317,7 @@ def _partner_outflow_restriction(
     return TraceRestrictionOperator(
         np.sort(outflow),
         n_total=quadrature.N,
-        axis=0,
+        axis=_ORDINATE_AXIS,
         domain=gamma,
         codomain=gamma_plus,
     )
@@ -379,11 +390,11 @@ def _narrowed_zero_operator(
             gamma_out.n_restricted
         ),
         domain=checked_space_extent(
-            gamma_out.codomain, gamma_out.n_restricted, axis=0,
+            gamma_out.codomain, gamma_out.n_restricted, axis=_ORDINATE_AXIS,
             owner="_narrowed_zero_operator", role="domain",
         ),
         codomain=checked_space_extent(
-            gamma_minus, n_inflow, axis=0,
+            gamma_minus, n_inflow, axis=_ORDINATE_AXIS,
             owner="_narrowed_zero_operator", role="codomain",
         ),
     )
@@ -633,7 +644,7 @@ def _deck_kernel(
     # face's Γ₋.
     return PermutationOperator(
         local_perm,
-        axis=0,
+        axis=_ORDINATE_AXIS,
         domain=gamma_plus,
         codomain=trace.inflow_space(face),
     )
