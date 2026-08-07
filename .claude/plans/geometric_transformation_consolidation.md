@@ -5,19 +5,22 @@
 > (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing);
 > **step 8 LANDED** (§7h.5 — the check now runs on the production path, and the
 > transpose leg is DERIVED rather than written).
-> ▶ **RESUMES AT §7d.3 — DELETE the `reflection_index` table and migrate
-> its test/doc tier** (`[M]` 27 files / ~140 lines; the worklist is
-> `scratch/audit_reflection_index_retirement.md`, untracked — §7d carries
-> the recoverable summary). Steps 7a–7c AND 7d.0–7d.2 LANDED 2026-08-07
+> ✅ **§7d.3 LANDED 2026-08-07** (`c7ca338e` test tier → successor;
+> `b5ac130e` the table DELETED + docs/label/markers migrated — see the
+> §7d.3 landing record for the audit trail). **STEP 7 IS COMPLETE.**
+> Steps 7a–7c AND 7d.0–7d.2 landed the same day
 > (`e13313a8` … `f11a129f`): `PairedDeck` retired `SpatialWrap`; ONE
 > kernel derives every deck arrow from the motion via
 > `Quadrature.ordinate_permutation` (⛔ the earlier `RigidMotion.permutes`
 > spelling here was the AFFINE action — ordinates are directions); the
-> certifications and the sweep pole seed read the same source; EVERY
-> production consumer of `reflection_index` is migrated — the table is
-> production-DEAD but deliberately API-alive until 7d.3.
+> certifications and the sweep pole seed read the same source; the
+> reflection table is GONE — `ordinate_permutation` is structurally the
+> only path.
+> ▶ **RESUMES AT G6.3b** (task #45: absorb
+> `AngularAverageOperator.apply_transpose` + the flagship metric gate),
+> then G6.5 — and track G is done, unblocking Q5.1.
 > **Read ⏸ COMPACTION POINT #5 (END of file) FIRST, then §7h.6's landing
-> banner + its §7d block.** Then G6.3b, G6.5.**
+> banner + its §7d block (incl. the 7d.3 landing record).**
 >
 > ⏸ #5 → #4 → #3 → #2 (each additive; #4's step-7 items are HISTORY but
 > its gate costs and lessons stand). #3 covers what changed under track G
@@ -2213,7 +2216,7 @@ table is production-DEAD but API-alive: its definition tier
 (`directional.py`), its own gates, and the test/doc mentions remain —
 a deliberate, coherent intermediate state.
 
-#### ▶ 7d.3 — the remaining piece: DELETE the table and migrate its tier
+#### ✅ 7d.3 — the remaining piece: DELETE the table and migrate its tier
 
 `[M]` remaining census (2026-08-07, post-7d.2): **27 files, ~140
 lines** — `tests/numerics/test_quadrature_directional.py` (20, the
@@ -2233,6 +2236,95 @@ re-poses; `docs/api/discrete_ordinates.rst:67` is the one RENDERED
 xref; ~21 doc mentions across 8 pages tense-discriminate. End with
 the three-search audit + shortest-fragment message grep + a full wide
 slice. The worklist is `scratch/audit_reflection_index_retirement.md`.
+
+✅ **LANDED 2026-08-07 in two green-tree commits** (§6b: the call-site
+set, not the description, drew the boundary — consumers first, then
+deletion+docs together because the xref checker gates red between):
+
+- **`c7ca338e` (7d.3a)** — every SURVIVING test consumer off the table,
+  discriminated by claim class: REFERENCE gates → the new independent
+  helper `tests/_harness/references.py::mirror_partner_indices` (pure
+  numpy negate-column + exact-match + injectivity; re-pointing them at
+  production's source would have been the rewire-demotion);
+  PRODUCTION-DATUM gates (coupled-pole contract, ξ-mirror battery,
+  phase-C reference sweep, MMS fixtures, the ERR-044 mutant base) →
+  the SAME expression production evaluates. The `:294` refusal pin's
+  successor minted at the sweep tier:
+  `test_a_rule_without_the_x_mirror_refuses_before_any_march`
+  (product(4,5) + cylinder solve → ValueError, fragment
+  `"cannot seed the r = 0 pole"` — that refusal was UNPINNED until
+  here).
+- **`b5ac130e` (7d.3b)** — definition tier deleted (`reflection_index`,
+  the `reflection_partners` FIELD (constructor audit: 1 omission-style
+  direct construction, safe; 4 factory passes died with the population),
+  `_compute_sphere_reflection_partners`, GL1D closed form,
+  `_resolve_axis_to_index` — its "Unknown axis label" refusal died with
+  it; the vocabulary lives on `_mirror_motion`, already gated in
+  `test_paired_deck`). Q4 gates re-posed keeping each claim (Q4.5 grew
+  per-row `expected_axes` so availability is explicit and the loop
+  cannot silently vacate; the witness now runs on the `(N,3)` embedding
+  so degenerate axes are exercised). The oracle class deleted per its
+  own docstring, tombstone comment naming the real surviving carriers.
+  Equation label `quadrature-reflection-index` →
+  `quadrature-ordinate-permutation` — ⭐ the old section still
+  documented the PRE-Q5.0.1 bare-argmin formula (ERR-074's own body)
+  and cited `_find_reflections`; the re-pose made the equation the
+  certified definition `Ω_π(n) = QΩ_n ∧ w_π(n) = w_n`, node degree 29
+  post-build. 8 pages + `_errors.py` tense-discriminated — ⭐ the three
+  `_errors.py` "reflection-index table" diagnostics were caught only by
+  the CONCEPT grep (hyphenated prose is invisible to the symbol grep).
+
+`[M]` audit at `b5ac130e`: symbol grep = past-tense history + the
+`sweep_acyclicity` PARAMETER name + negative mentions only;
+message-fragment greps ("precomputed reflection", "Unknown axis label")
+return only past-tense provenance; Nexus post-build: the resolved
+method node is GONE, 3 residual unresolved edges all in UNTRACKED
+`scratch/derivations/diagnostics/diag_issue168_*` (archaeology, not
+consumers); sphinx `-W` clean, matrix regenerated; pyright ratchet
+green; xref DEAD TARGETS 0. Touched batteries 4231 passed / 3 failed =
+exactly the pre-existing baseline (2× `cart2d_*_principled_equiv` +
+`WhiteXminPartial03GLSnapshot` #33).
+
+**(a) The wide slice at this HEAD was NOT measured** — launched twice
+in background (2026-08-07), externally stopped both times before
+completing; per the session's stated protocol the second stop was
+taken as deliberate and no third launch was made. ⚠ The full-slice
+measurement is OWED and is assigned to the NEXT wide run (G6.3b's
+landing gate, or task #51's green-the-baseline run — whichever comes
+first). Evidence in lieu, all `[M]`: the touched-directory batteries
+at `b5ac130e` (tests/numerics + geometry + sn/operators + sn/primitives
++ acyclicity + coupled-pole) = **4231 passed / 3 failed — exactly the
+pre-existing baseline reds**; the sweep/mms trio 29 passed / 7 xfailed
+(the #326 battery); every one of the census's 17 table-consuming test
+files was individually migrated AND re-run green; production has been
+table-free since `f11a129f`, whose wide slice measured 7/6163; and
+`fc5c7a67` on top is prose-only. The un-re-run remainder of tests/
+reaches 7d.3 only through production behavior, which 7d.3 did not
+change — an EXPECTATION, not a measurement.
+
+**(b) qa review returned 7/7 checklist PASS** (`[M]` demotion audit:
+21/21 in-class reds on the reference gates under a to_local mutation,
+none production-vs-itself; the refusal pin reds when the refusal is
+removed; the ERR-074 catcher live; no consumer reads a deleted symbol)
+with **eight prose-truth findings, all fixed at `fc5c7a67`** — four
+present-tense-false "precomputes the reflection-partner map" claims
+inside the gutted package (caught only by the FIELD-hyphenation concept
+grep; no build severity renders those modules), one half-done docstring
+correction, one false relative clause, one vocabulary-stale doc line,
+and ⭐⭐ the measured independence-narrowing: `[M]` an axis-letter swap
+inside `_mirror_motion` left `test_specular_response_pins_to_geometry`
+all-green while 78 sibling gates red — both its sides now consume ONE
+`SelfPairedDeck.mirror(axis).motion`, so it cross-checks the DERIVATION
+but no longer the letter→normal convention (that lives in the reference
+helper's deliberately-local `_AXIS_INDEX`). qa minted **vv-principles
+#22**: independence has TWO axes — derivation and INPUT resolution
+(the shared-constructed-input sibling of coding-standards'
+rewire-demotion clause). qa also confirmed item-7b's carrier split:
+the deleted oracle's mirror codomain-by-`is` leg rides on
+`TestPeriodicIsBoundToThePartner` ALONE (`[M]` M5: dropping the
+kernel's `codomain=` reds 5 periodic rows, split gate stays green —
+its codomain assertion is None/None-satisfiable); the tombstone
+comment says so.
 
 ✅ **The transitional pins flipped as designed** (2026-08-07): the
 boundary-operator pin reddened with its own re-scope message and is now
