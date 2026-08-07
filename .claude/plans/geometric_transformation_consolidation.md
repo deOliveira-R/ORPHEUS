@@ -16,9 +16,14 @@
 > certifications and the sweep pole seed read the same source; the
 > reflection table is GONE — `ordinate_permutation` is structurally the
 > only path.
-> ▶ **RESUMES AT G6.3b** (task #45: absorb
-> `AngularAverageOperator.apply_transpose` + the flagship metric gate),
-> then G6.5 — and track G is done, unblocking Q5.1.
+> ▶ **RESUMES AT G6.3b — the flagship metric gate on the factored
+> Lambertian** (task #45; ⛔ its original "absorb
+> `AngularAverageOperator.apply_transpose`" half is a STALE MECHANISM
+> TITLE — that operator was retired at step 3b, 2026-08-04, factored
+> into `IsotropicEmissionOperator @ PartialCurrentOperator` where each
+> link has one honest transpose, so the deferral DISSOLVED; re-derive
+> the remaining scope from the tree per §7.2 before designing), then
+> G6.5 — and track G is done, unblocking Q5.1.
 > **Read ⏸ COMPACTION POINT #5 (END of file) FIRST, then §7h.6's landing
 > banner + its §7d block (incl. the 7d.3 landing record).**
 >
