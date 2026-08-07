@@ -1,6 +1,16 @@
 # Geometric transformation machinery — consolidation campaign
 
-> **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–5 DONE; steps 6, 7, 8.0, 8 remain — and 8.0 is NEW, discovered by step 5 (`TensorProductOperator` drops the binding, so step 8 as written would gate nothing). Read ⏸ COMPACTION POINT #2 (end of §7h) FIRST — red set, gate costs, and the now five-times-refuted-scope lesson; step 5's own findings are §7h.3.**
+> **STATUS: G1–G5 · G6.0 · G6.1 LANDED. G6.3 steps 0–5 DONE; step 6 DONE (absorbed by the
+> affine campaign's P3 — bind `ZeroOperator`'s spaces); steps 7, 8.0, 8 remain, and
+> 8.0 is NEW, discovered by step 5 (`TensorProductOperator` drops the binding, so step 8
+> as written would gate nothing). ▶ RESUMES AT STEP 8.0.**
+>
+> **Read ⏸ COMPACTION POINT #3 at the END of this file FIRST** — it records what changed
+> under track G *while G was paused* (the Γ ladder grew a `directions` field; the
+> `level_symmetric` weights changed and the family now REFUSES above S12), the
+> re-verified step-8.0 anchor, gate costs, and seven durable lessons. Then ⏸ #2 (end of
+> §7h) for the red set and the five-times-refuted-scope lesson; step 5's own findings
+> are §7h.3. **#3 does not supersede #2 — it is additive.**
 > This file is the plan of record; it is written to survive a compaction and be
 > picked up cold. Verify every hash below with
 > `git merge-base --is-ancestor <hash> HEAD` before trusting this header — it is
@@ -2259,3 +2269,130 @@ negative structural finding deserves the same scrutiny as a positive one.**
   quadrature campaign is scoped to `tests/sn` — run `tests/geometry` too.**
 * pyright: **1 error**, the accepted #288 residual in
   `transport/operators/scattering.py:757`.
+
+---
+
+## ⏸ COMPACTION POINT #3 — track G resumes at G6.3 step 8.0
+
+A session picking up cold re-anchors from **this file + `git log`**, never from a
+conversation summary. This point does not supersede #2 — #2's red set, gate
+costs and scope lessons all stand. It records what changed **while track G was
+paused**, which is the part a cold reader cannot reconstruct.
+
+### State
+
+**HEAD `c3475228`** on `refactor/operator-strategy-layers`. Tree clean.
+Verify any hash with `git merge-base --is-ancestor <hash> HEAD`.
+
+### ⛔⛔ READ FIRST — track G's OWN objects changed while G was paused
+
+Two campaigns ran on this branch between #2 and here, and both reached into
+track-G surface. A cold session that assumes G's world is as it left it will be
+wrong about three things:
+
+1. **The Γ ladder grew a field.** `AngularTraceSpace` and
+   `AngularFaceTraceSpace` now carry **`directions`** — the ordinate
+   :math:`\Omega_n`, restricted per tier by the SAME expression the metric uses
+   (`16835c68`, affine-campaign P6 step 1). G6.1 minted that ladder; it is not
+   the object G6.1 left. `[M]` dimension-generic: `(m,)` in 1-D, `(m, 3)` in
+   3-D; all three tiers carry it; four gates in
+   `tests/numerics/test_angular_face_trace_space.py`.
+2. **`level_symmetric` weights CHANGED at S6 and above** (`df33913d`, #327 Fork
+   A). Per-:math:`O_h`-orbit moment-matched, degrees now 5/7/9/11 at
+   S6/S8/S10/S12. **S2 and S4 are bit-identical** (single orbit ⟹ forced), which
+   is why most of the tree did not move. ⛔ **The family now REFUSES above
+   S12** — `tests/numerics/test_symmetry.py` and `test_rules_sphere.py` had
+   their S16/S20 sweeps moved to S12, and
+   `tests/sn/mesh/test_radial_characteristic_slot_coordination.py` too. A
+   G-step that reaches for `level_symmetric(16)` will raise at COLLECTION time.
+3. **A new always-on rule exists**: `.claude/rules/plan-authoring.md`
+   (`f0c03984`), a LIVING document whose target is surprises-per-campaign → 0.
+   It governs how this file should be written from now on, and it already has a
+   clause (§6b) that bears on step 8.0 — see below.
+
+### Step 8.0 — the next step, verified ready
+
+**Goal.** `TensorProductOperator` derives `domain`/`codomain` from its factors,
+so the binding survives to the object the realizer hands out.
+
+**Why it blocks step 8.** `[M]` TP drops the binding, so
+`SNBoundaryRealizer.realize(...)` returns `domain=None`, and **one `None`
+short-circuits the composability check** — step 8 as written would land, pass,
+and gate nothing. `[M]` 4941 bindings measured, zero failures: a green that
+means nothing.
+
+**The anchor, re-verified at `c3475228`:**
+`tests/sn/operators/test_specular_deck_chain.py::test_the_realized_operator_carries_the_binding`
+is `@pytest.mark.xfail(strict=True)` and still **XFAIL** (not XPASS). Flip-proof
+already recorded in #2: patching `TensorProductOperator.domain -> ops[0].domain`
+turns it XPASS(strict).
+
+⚠ **TP is a SHARED numerics primitive** with consumers well beyond the boundary
+tier. It needs its own gate set and a **wide** re-run, not a boundary-scoped
+one. Enumerate its call sites before designing — and per
+`plan-authoring` §6b, **check whether the step boundary cuts across them**: if
+step 8.0 and step 8 turn out to share a call-site set, they are one step, not
+two. (That exact trap cost a cycle in the affine campaign's P6.)
+
+### The red baseline — UNCHANGED at 7, and now better understood
+
+`[M]` `tests/{numerics,sn,transport,geometry,diffusion} -m "not slow"` =
+**7 failed / 5988 passed**, ≈17–20 min. Same seven as #2:
+
+* 2× `test_streaming_operator` `cart2d_*_principled_equiv` (1152 / 296 ULP vs a
+  256 budget)
+* 3× `test_affine_carve_bit_identity` (**sha256** — no magnitude available; the
+  instrument defect is **#333**)
+* 1× `test_diamond` `spherical_inward_bit_identical`
+* 1× `TestWhiteXminPartial03GLSnapshot` (task #33)
+
+⭐ **They are now fully adjudicated and UNBLOCKED** — see
+`.claude/plans/green_the_seven_quadrature_reds.md`. Verification criterion (1)
+is discharged (L0 nodes vs `numpy.leggauss` 1–3 ULP; L0 exactness both at ε with
+**neither implementation dominating**; **462 L1/L2 SN tests green**). The
+"defer behind #327" rationale in that file is **REFUTED in place** — all four
+`level_symmetric`-riding reds use `sn_order=4`, where Fork A is bit-identical.
+Only the re-capture and #333 remain, not investigation.
+
+### Gate costs, measured this session
+
+| gate | cost |
+|---|---|
+| wide slice `{numerics,sn,transport,geometry,diffusion} -m "not slow"` | 17–20 min |
+| `tests/numerics` alone | ≈5.5 min |
+| `tests/sn -m "(l1 or l2) and not slow"` | 6.6 min, 462 passed |
+| `sphinx -E -W` | ≈4 min, 0 warnings |
+| pyright ratchet (`tests/test_pyright_ratchet.py`, NOT bare `npx pyright`) | ≈17 s |
+| `tools/check_docstring_xrefs.py orpheus tests docs` | DEAD TARGETS 0 |
+
+### ⭐⭐ Durable lessons from the paused interval
+
+1. ⭐⭐ **Ask what algebra the CARRIER has before asserting an algebraic law.**
+   P5's plan demanded `B(x+y) = B(x)+B(y)`; it RAISES — flux states are an
+   affine torsor with no origin. The honest law is base-point independence of
+   the increment. A spec written in the wrong algebra fails loudly if you are
+   lucky and silently if the carrier is permissive.
+2. ⭐⭐ **A guard whose subject can DECLINE it is not a guard.** `[M]` a source
+   returning zeros at the ERR-047 rank-1 probe and `7.0` at the delivery shape
+   skipped certification and delivered anyway. Retired by making the claim
+   structural, not by hardening the probe.
+3. ⭐⭐ **Count the ORBITS before costing a "re-implement this primitive" fix.**
+   Six lines of `np.unique` over sorted `|node|` triples refuted a committed
+   deferral rationale: S2/S4 are a single orbit, so the fix is *forced* to be a
+   no-op at the most-used order. Blast radius went from "~200 sites" to ONE
+   baseline.
+4. ⭐⭐ **The imperative `pytest.xfail()` can never XPASS.** It aborts
+   unconditionally, so a fixed rule with a stale tag keeps reporting XFAIL. Use
+   `pytest.mark.xfail(strict=True)` — and FLIP-PROOF it. #327's nine strict
+   xfails turned into nine XPASS failures the moment the weights landed, which
+   is what forced the tag correction into the same commit. **Step 8.0's anchor
+   is a mark, not imperative — confirmed at `c3475228`.**
+5. ⭐ **Capture full, filter at READ time.** A pytest log filtered at write time
+   showed "zero occurrences of the refusal message" and nearly produced a wrong
+   diagnosis; the evidence had been destroyed at capture.
+6. ⭐ **A symbol grep misses a value that is a LOOP VARIABLE.** `level_symmetric(16)`
+   found nothing at two sites spelled `for sn_order in (4, 8, 16)`. Same
+   subject-and-value-on-different-lines mechanic as `vv-principles` #21.
+7. ⭐ **Both-directions wrongness identifies a formula for a DIFFERENT object.**
+   `level_symmetric` over-claimed from S6 and *under*-claimed at S2. A number
+   wrong both ways is not a mis-calibrated measurement of this thing.
