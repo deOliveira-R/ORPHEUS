@@ -5,20 +5,22 @@
 > (see §7h.4 — it turned out to carry a live `.H` repair, not just plumbing);
 > **step 8 LANDED** (§7h.5 — the check now runs on the production path, and the
 > transpose leg is DERIVED rather than written).
-> ▶ **RESUMES AT STEP 7's LAST SUBSTEP, §7d — the `reflection_index`
-> retirement audit** (the user's gate: retire after the checks pass — they
-> have). The step's REALIZATION phase LANDED 2026-08-07 (`e13313a8` +
-> `c3bb7341` + `635c22e5`): `PairedDeck` retired `SpatialWrap`; ONE kernel
-> derives every deck arrow from the motion via
+> ▶ **RESUMES AT §7d.3 — DELETE the `reflection_index` table and migrate
+> its test/doc tier** (`[M]` 27 files / ~140 lines; the worklist is
+> `scratch/audit_reflection_index_retirement.md`, untracked — §7d carries
+> the recoverable summary). Steps 7a–7c AND 7d.0–7d.2 LANDED 2026-08-07
+> (`e13313a8` … `f11a129f`): `PairedDeck` retired `SpatialWrap`; ONE
+> kernel derives every deck arrow from the motion via
 > `Quadrature.ordinate_permutation` (⛔ the earlier `RigidMotion.permutes`
-> spelling here was the AFFINE action — ordinates are directions; §7h.6's
-> landing note); periodic's link is the bound `PermutationOperator`.
-> **Read §7h.6 (its landing banner + §7d) FIRST.** Then G6.3b, G6.5.**
+> spelling here was the AFFINE action — ordinates are directions); the
+> certifications and the sweep pole seed read the same source; EVERY
+> production consumer of `reflection_index` is migrated — the table is
+> production-DEAD but deliberately API-alive until 7d.3.
+> **Read ⏸ COMPACTION POINT #5 (END of file) FIRST, then §7h.6's landing
+> banner + its §7d block.** Then G6.3b, G6.5.**
 >
-> **Then ⏸ COMPACTION POINT #4 at the END of this file** — its step-7 items
-> are now HISTORY (the chain-table gap is closed in place; the pins it said
-> must flip HAVE, and were re-scoped), but its gate costs and seven durable
-> lessons stand. Then ⏸ **#3** for what changed under track G
+> ⏸ #5 → #4 → #3 → #2 (each additive; #4's step-7 items are HISTORY but
+> its gate costs and lessons stand). #3 covers what changed under track G
 > *while G was paused* (the Γ ladder grew a `directions` field; the
 > `level_symmetric` weights changed and the family now REFUSES above S12) —
 > ⚠ #3's "Step 8.0 — the next step" section is HISTORY, it landed. Then ⏸ #2 (end of
@@ -3042,3 +3044,155 @@ in **5.7 s**. Chunks that DO fit: light dirs + root test files **684 passed /
    the face action is **1.50×** on the leaf and **0.42 %** of a solve. The
    wide run's +1:44 was variance; a cache would have been machinery bought for
    nothing.
+
+---
+
+## ⏸ COMPACTION POINT #5 — track G resumes at §7d.3 (delete the table, migrate its tier)
+
+Additive to #4 (→ #3 → #2). #4's step-7 items are HISTORY — the chain-table
+gap is closed in place, the pins it said must flip HAVE flipped and were
+re-scoped — but its gate costs and durable lessons stand. A session picking
+up cold re-anchors from **§7h.6's landing banner + its §7d block + this
+file + `git log`**, never a summary.
+
+### State
+
+**Branch `refactor/operator-strategy-layers`, tree clean** (only untracked
+`scratch/`). The stretch after #4 landed THIRTEEN commits — verify each with
+`git merge-base --is-ancestor`:
+
+| commit | what |
+|---|---|
+| `e13313a8` | 7a — `PairedDeck` retires `SpatialWrap` (motion-typed deck tier; `RigidMotion.is_translation`) |
+| `c3bb7341` | 7b — `_deck_kernel`: one body for every deck arrow; `Quadrature.ordinate_permutation`; `RigidMotion.linear_part`; periodic BOUND |
+| `635c22e5` | 7c — 142 gate rows (test-architect + periodic metric row); V&V matrix |
+| `6d00e917` | plan: realization-phase landing record + the ERR-074 stale-hazard refutation in place |
+| `ae018628` | 7d.0 — four audit-found falsehoods fixed on sight; census recorded |
+| `a17771db` | 7d.1 — certifications derive from the motion; injection sites re-posed; realize-level refusal pin |
+| `f11a129f` | 7d.2 — pole seed hoisted to `_ensure_pole_mirror()` (mesh-stash) |
+| `ba775c4d` | plan: 7d.0–7d.2 record + 7d.3 census |
+| *(+ this checkpoint commit; earlier in the stretch: `72f5ce97` `b89ccd2d` `84d7861f` `4a87cc34` `811b6407` were #4's steps 8.0/8, already in its table)* | |
+
+### ⛔⛔ READ FIRST — what a cold session would get wrong about 7d.3
+
+1. ⛔⛔ **The table being alive is DELIBERATE, not an oversight.**
+   `reflection_index` / `reflection_partners` /
+   `_compute_sphere_reflection_partners` are production-DEAD (every
+   production consumer migrated at 7b/7d.1/7d.2) but API-alive with their
+   own green gates. Do NOT "fix" anything by rewiring production back onto
+   the table; 7d.3 is deletion + test/doc migration ONLY.
+2. ⛔ **The worklist file is UNTRACKED**:
+   `scratch/audit_reflection_index_retirement.md`. If it has evaporated,
+   the §7d block above carries the census summary and the re-grep is one
+   command (`grep -rn "reflection_index\|reflection_partners" --include="*.py" --include="*.rst" orpheus/ tests/ docs/ derivations/`).
+   `[M]` post-7d.2 census: **27 files / ~140 lines**, all test/doc tier +
+   the definition tier.
+3. ⛔ **`reflection_partners` is a DATACLASS FIELD** — deleting it changes
+   `Quadrature`'s constructor. The factories PASS it (breaks loudly); the
+   field has a default, so omission sites are safe; grep direct
+   `Quadrature(` constructions (the docstring blesses them for
+   restrict/pushforward wrappers) before deleting.
+4. ⛔ **The `:294` pin trap**: `test_quadrature_directional.py` pins
+   `pytest.raises(ValueError, match="no precomputed reflection partner")`.
+   `BoundaryError ⊂ ValueError`, so a lazy re-point stays green against
+   the WRONG refusal — pin the surviving refusal's own fragment (the
+   7d-era wording is `"no specular pairing"` at the certification tier,
+   `"cannot seed the r = 0 pole"` at the sweep tier).
+5. **`TestTheSpecularArmInheritsTheRetiredTable`** (in
+   `test_deck_kernel.py`) deletes outright per its own docstring — a
+   one-time equivalence claim against the retired path. Do not weaken it
+   into something else.
+6. **The equation node** `quadrature-reflection-index`
+   (`angular_quadrature.rst:239`) carries **23 `tests` edges** via the
+   file-level verifies list at `tests/sn/primitives/test_quadrature.py:35`
+   — the marker-migration surface. Re-pose the equation (the concept "the
+   ordinate permutation a mirror induces" survives as
+   `ordinate_permutation`) rather than silently dropping the edges.
+7. **Rendered-vs-grep-only docs**: `docs/api/discrete_ordinates.rst:67` is
+   the ONE Sphinx-rendered xref that dangles visibly on deletion; the
+   other ~20 doc mentions are invisible to every build severity — **grep
+   is the only gate** (the corpus-reference-integrity lesson).
+8. **Tense-discriminate the ~140 lines**: many are docstring/prose
+   mentions. Past-tense history ("read the table until 7d") STAYS;
+   present-tense claims re-point; imperative instructions are MUST-FIX.
+   Two intentional past-tense mentions were minted by 7d itself
+   (`_ensure_pole_mirror`'s and `_specular_pairing`'s docstrings).
+9. End of 7d.3 = the three-search audit + the shortest-fragment message
+   grep + a full wide slice + sphinx `-W` + xref checker + pyright.
+
+### Red baseline
+
+`[M]` at 7c (`635c22e5`): wide slice = **7 failed / 6159 passed**, 17:30 —
+the SAME pre-existing seven as #2/#3/#4 (2× `cart2d_*_principled_equiv` ·
+3× `test_affine_carve_bit_identity` sha256 (#333) · 1×
+`test_diamond spherical_inward` · 1× `WhiteXminPartial03GLSnapshot` (#33)).
+After 7d.0–7d.2 the focused batteries reproduce only baseline reds
+(geometry+sn/operators 1937/3 · sweep+solve+eigenvalue 938/4); the wide
+slice at THIS checkpoint's HEAD was launched with this checkpoint — its
+result lands in the line below.
+
+`[M]` wide slice at checkpoint HEAD (`ba775c4d` + this checkpoint's
+worktree): **7 failed / 6163 passed**, 21:41 — the SAME pre-existing
+seven; the passing count grew 6159 → 6163 with 7d.1's realize-level pin
+and the re-posed rows. The baseline has now been reproduced at FOUR
+consecutive states of this stretch (#4's, 7c's, the focused 7d
+batteries', and this one).
+
+### Gate costs (unchanged from #4 where re-measured)
+
+| gate | cost |
+|---|---|
+| wide slice | 17:30–19:59 (variance) |
+| `tests/sn/{sweep,solve,eigenvalue}` `-m "not slow"` | ≈7:50 |
+| `tests/geometry + tests/sn/operators` | ≈25 s |
+| sphinx `-W` incremental | ≈1 min |
+| pyright ratchet | ≈16 s |
+| `tools/check_docstring_xrefs.py orpheus tests docs` | DEAD TARGETS 0 |
+
+### ⭐⭐ Durable lessons of the 7a–7d.2 stretch
+
+1. ⭐⭐ **Ordinates are DIRECTIONS — feed the matcher the element that acts
+   on them.** `RigidMotion.permutes/preserves` match through `on_points`
+   (the affine action); the wrap translation matched to `None` — a false
+   "not a symmetry". Minted `RigidMotion.linear_part` (the E(d)→O(d)
+   projection) and match through it. General form: when a point-set
+   matcher is fed a set living in a quotient vocabulary, the acting
+   element is the PROJECTED one. Found independently twice (probe +
+   architect battery, 26/78 rows red under the affine spelling).
+2. ⭐⭐ **A certification and its realization must read ONE object — and
+   the injection surface must move WITH the read.** The certifications
+   certified the precomputed table while realization derived from the
+   motion: bit-identical by gate, structurally twinned. After the swap,
+   five `monkeypatch.setitem(reflection_partners, …)` sites poisoned a
+   table nothing read — the negatives would have gone silently vacuous
+   (vv #17's harness-lies-first, at the fixture tier). Re-posed onto
+   `ordinate_permutation`; the duck-typed fakes gained the new contract
+   door.
+3. ⭐⭐ **A mutation that makes a law INCOHERENT reds at realization —
+   probe consumers by mutating the PROPERTY they read** (vv #18,
+   mutate-inside-the-legal-class). `TestSpecMutationsPropagate`'s
+   wholesale `geometry_map → identity` mutations began reddening at mesh
+   construction (the kernel refuses an incoherent mirror — itself proof
+   the realizer stopped reading the letter); the probes moved one
+   property up to `permutes_ordinates`, the flag the consumers actually
+   read.
+4. ⭐ **A convention pin needs a fixture where the convention is
+   OBSERVABLE.** The π-vs-π⁻¹ keystone on `product(4,4)` was degenerate
+   (its local permutation is `arange`, same as the wrap's); moved to
+   `product(4,8)`. And a mutation that reds only by RAISING is attributed
+   to nothing — pair it with an in-range mutation that reds by VALUE.
+5. ⭐ **`BoundaryError ⊂ ValueError` makes type-only pins vacuous across
+   refusal migrations** — a re-pointed refusal gate must pin the
+   surviving message's distinctive fragment.
+6. ⭐ **The epistemic labels PAID**: the plan's own proposed means carried
+   the affine/linear conflation, and because it was labelled *proposed,
+   NOT verified*, the reader measured before building. Likewise §7
+   reconciliation caught a hazard claim (ERR-074 "unhardened") whose fix
+   had landed in a DIFFERENT campaign between writing and reading —
+   refuted in place, no new clause needed (the existing §3/§7.3 caught
+   it; logging a one-off would be the loop's failure mode (a)).
+7. ⭐ **A count's SCOPE is part of its configuration** (§4 applied to
+   censuses): "10 call sites" → "33 live refs" → "7 production + 44 test
+   lines + 21 doc mentions" were three DIFFERENT greps, each correct for
+   its pattern and scope. State what was counted, or the next reader
+   plans against the wrong magnitude.
