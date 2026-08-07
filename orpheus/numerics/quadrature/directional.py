@@ -4,13 +4,17 @@ ONE class — :class:`Quadrature` — wrapping a :class:`DiscreteMeasure`
 (the mathematical primitive) with the SN-side derived data used by
 the sweep, the BC realisers, and the harmonic-moment field:
 
-* **Reflection partners** — for each direction-cosine axis the measure
-  is actually CLOSED under, the partner-ordinate index. Computed once
-  at construction (the node match is O(N²); paying it per quadrature
-  is cheap, paying it per sweep call is not) and **certified**: an
-  axis whose reflection does not permute the nodes is omitted, so
-  asking for it raises rather than returning a silently-wrong map.
-  See :func:`_compute_sphere_reflection_partners`.
+* **Ordinate permutations** — :meth:`Quadrature.ordinate_permutation`
+  answers "which permutation does a rigid motion induce on this rule's
+  weighted ordinates?", certified (every image matches a node, the
+  match is a bijection, the matched weights are equal) or ``None``.
+  The boundary realizer, the specular certifications, and the
+  curvilinear pole seed all read this one source; consumers that pay
+  it per iteration hoist the derived ``.indices`` to construction
+  (e.g. ``_OneDimScanWalk._ensure_pole_mirror``). Until G6.3 §7d a
+  precomputed per-axis mirror table (``reflection_partners`` /
+  ``reflection_index``) carried the same answers for the three
+  axis-mirrors only; the general method retired it.
 * **Octant partition** — disjoint sign-of-direction decomposition
   of the sphere cubature. Cached lazily via the underlying
   :meth:`DiscreteMeasure.partition_by`.
@@ -36,8 +40,8 @@ Why a single class instead of free functions
 The :class:`DiscreteMeasure` primitive is enough mathematically; the
 class only adds:
 
-1. A *cache home* for reflection partners (O(N²) to compute on
-   sphere quadratures, called O(1) times per ordinate during a sweep).
+1. The *SN-side derived-data surface* (``ordinate_permutation``,
+   ``spherical_harmonics``, octants) over the one underlying measure.
 2. A *bundling* for the cylindrical-level side-channel
    (:class:`LevelStructure`) that one of two quadrature families
    carries.
@@ -68,7 +72,7 @@ named accessors are derived views with no separate storage.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -82,20 +86,18 @@ from orpheus.numerics.measure import (
     DiscreteMeasure,
     DiscreteMeasurePartition,
 )
-# The reflection-partner map is a group action on the measure, so it is
+# An ordinate permutation is a group action on the measure, so it is
 # certified by the SAME machinery that proves invariance — one source of
-# truth for "does this operator permute these nodes?" (see
-# ``_compute_sphere_reflection_partners``). ``ordinate_permutation`` asks
-# the same question of ONE arbitrary motion, with the same two windows and
-# the same canonical R³ embedding (``_embedded_nodes``).
-from orpheus.geometry.transformation import Permutation, RigidMotion
+# truth for "does this motion permute these weighted nodes?"
+# (``RigidMotion.preserves``), asked with the measure-level windows and
+# the canonical R³ embedding (``_embedded_nodes``).
 from orpheus.numerics.symmetry import (
     _NODE_WINDOW_FACTOR,
     _embedded_nodes,
-    _orbit_closure,
 )
 
 if TYPE_CHECKING:
+    from orpheus.geometry.transformation import Permutation, RigidMotion
     from orpheus.numerics.frame import GalerkinFrame
 
 from .rules_1d import gauss_legendre_on_mu
@@ -136,95 +138,13 @@ def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
     return out
 
 
-#: Node-match tolerance for certifying a reflection partner map. Passed
-#: straight to :func:`~orpheus.numerics.symmetry._orbit_closure`, which
-#: matches positions inside ``atol * _NODE_WINDOW_FACTOR`` and compares
-#: weights at ``atol``.
+#: Node-match tolerance for certifying an ordinate permutation. Passed to
+#: :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`, which
+#: matches positions inside ``atol`` (fed ``_REFLECTION_ATOL *
+#: _NODE_WINDOW_FACTOR`` below) and compares weights at ``weight_atol``
+#: (fed ``_REFLECTION_ATOL``) — the same two windows the measure-level
+#: orbit certification uses.
 _REFLECTION_ATOL = 1e-13
-
-
-def _resolve_axis_to_index(axis: int | str) -> int:
-    """Convert legacy ``'x'``/``'y'``/``'z'`` to ``0``/``1``/``2``.
-
-    The :meth:`Quadrature.reflection_index` accessor accepts either
-    a column index (dim-agnostic, preferred for new code) or the
-    legacy SN slab tag (back-compat for the unmigrated sweep paths).
-    """
-    if isinstance(axis, (int, np.integer)):
-        return int(axis)
-    if axis == "x":
-        return 0
-    if axis == "y":
-        return 1
-    if axis == "z":
-        return 2
-    raise ValueError(
-        f"Unknown axis label {axis!r}; expected 'x'/'y'/'z' or int 0/1/2."
-    )
-
-
-def _compute_sphere_reflection_partners(
-    measure: DiscreteMeasure,
-) -> dict[int, np.ndarray]:
-    r"""**Certified** reflection-partner indices for a 3-D sphere cubature.
-
-    An axis appears in the returned dict **only if the measure is
-    genuinely closed under that reflection**. An axis it is not closed
-    under is OMITTED, so :meth:`Quadrature.reflection_index` raises its
-    own ``ValueError`` instead of returning a map that is silently wrong.
-
-    Until 2026-08-02 this ran a bare ``argmin`` per node — no distance
-    threshold, no injectivity check, no weight comparison — and therefore
-    *asserted* a partner map it never verified. On a set the reflection
-    does not preserve, that returns the nearest node to a point which is
-    not in the set at all.
-
-    `[M]` The failure is live on this tree, not hypothetical. A product
-    rule's mirror planes sit at :math:`k\pi/n_\varphi`, so
-    :math:`\sigma_x` (:math:`\varphi \to \pi - \varphi`) needs a plane at
-    :math:`\pi/2`, i.e. :math:`k = n_\varphi/2` — an integer only for
-    **even** :math:`n_\varphi`. At ``product(4, 5/7/9)`` the shipped
-    axis-0 map was wrong by ``0.58 / 0.42 / 0.33`` in the direction
-    cosines — **and was still an involution**, so a self-inverse check
-    could not see it. That map feeds the :math:`r = 0` pole
-    continuation.
-
-    That "involutive but wrong" signature is exactly **ERR-042**, already
-    catalogued one layer up: ``geometry/boundary/_specular.py`` requires
-    THREE independent checks of a specular pairing (involution, measure
-    preservation, inflow→outflow) precisely because each passes a table
-    the others reject. This layer had none of the three.
-
-    The certificate supplies all of them at once.
-    :func:`~orpheus.numerics.symmetry._orbit_closure` already computes the
-    permutation while proving closure, and requires it to be a
-    **bijection** with matched positions AND equal weights (ERR-073) —
-    so the check is free and the permutation it returns IS the partner
-    map. This is the campaign's L-013 lesson applied: *a predicate that
-    internally builds the permutation is the missing primitive.*
-
-    Returns
-    -------
-    dict[int, np.ndarray]
-        Keyed by axis index, containing only certified axes. Every rule
-        shipped today keeps all three except odd-:math:`n_\varphi`
-        products, which lose axis 0 — the one case where the old map
-        was wrong.
-    """
-    partners: dict[int, np.ndarray] = {}
-    for axis in range(3):
-        # The mirror is named by its NORMAL — sigma_x reflects in the plane
-        # x = 0. This used to be a local `np.eye(3)` with one sign flipped,
-        # a fourth re-spelling of a reflection in a module that already
-        # imported the checker; the construction now comes from the one place
-        # that builds transformations.
-        reflection = RigidMotion.reflection(normal=np.eye(3)[axis])
-        certificate = _orbit_closure(
-            measure.nodes, measure.weights, (reflection,), _REFLECTION_ATOL,
-        )
-        if certificate is not None:
-            partners[axis] = certificate.permutations[0].indices
-    return partners
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -262,18 +182,12 @@ class Quadrature:
         polynomial-exactness metadata. **Single source of truth** —
         every other attribute on :class:`Quadrature` derives from
         this.
-    reflection_partners : dict[int, np.ndarray]
-        Maps axis index to the partner-ordinate index array under
-        reflection across that axis. Populated by the factory at
-        construction (eager precomputation pays the O(N²)
-        nearest-neighbour cost once instead of per sweep call).
     level_structure : LevelStructure | None
         Per-level metadata for the cylindrical SN sweep. ``None``
         for slab / 2-D quadratures.
     """
 
     measure: DiscreteMeasure
-    reflection_partners: dict[int, np.ndarray] = field(default_factory=dict)
     level_structure: LevelStructure | None = None
 
     # ────────────────────────────────────────────────────────────
@@ -407,32 +321,8 @@ class Quadrature:
         return self.axis_cosines(1)
 
     # ────────────────────────────────────────────────────────────
-    # Reflection partners
+    # Ordinate permutations
     # ────────────────────────────────────────────────────────────
-
-    def reflection_index(self, axis: int | str) -> np.ndarray:
-        r"""Partner-ordinate index under reflection across ``axis``.
-
-        ``axis`` accepts either a column index (``0`` / ``1`` /
-        ``2`` — dim-agnostic, preferred for new code) or the legacy
-        SN slab tag (``"x"`` / ``"y"`` / ``"z"`` — back-compat for
-        the unmigrated sweep paths).
-
-        For sphere cubatures (Lebedev / level-symmetric / product)
-        the partner indices are precomputed at construction via
-        nearest-neighbour matching against the reflected node
-        positions. For slab GL1D the partners are derived from the
-        :math:`i \leftrightarrow N - 1 - i` symmetry of the GL nodes.
-        """
-        axis_idx = _resolve_axis_to_index(axis)
-        try:
-            return self.reflection_partners[axis_idx]
-        except KeyError as exc:
-            raise ValueError(
-                f"Quadrature has no precomputed reflection partner for "
-                f"axis index {axis_idx}; available axes: "
-                f"{sorted(self.reflection_partners.keys())}."
-            ) from exc
 
     def ordinate_permutation(
         self, motion: "RigidMotion"
@@ -443,13 +333,12 @@ class Quadrature:
 
         **The single source for "which ordinate permutation does a rigid
         motion induce?"** (G6.3 step 7). Before this method the tree had two
-        paths to that answer — the certified axis-mirror table
-        (:meth:`reflection_index`, populated at construction through
-        :func:`~orpheus.numerics.symmetry._orbit_closure`) and nothing at
-        all for any other motion — so a translation deck element realized
-        through a hand-argued identity and a sector rotation had no path.
-        This method is the general question, asked with exactly the table's
-        discipline:
+        paths to that answer — a certified axis-mirror table
+        (``reflection_index``, precomputed at construction and retired at
+        §7d.3) and nothing at all for any other motion — so a translation
+        deck element realized through a hand-argued identity and a sector
+        rotation had no path. This method is the general question, asked
+        with exactly the discipline the table carried:
 
         * the same canonical :math:`\mathbb{R}^3` embedding
           (:func:`~orpheus.numerics.symmetry._embedded_nodes` — a polar
@@ -635,22 +524,13 @@ class Quadrature:
         Slab transport polar quadrature. ``N`` must be even for SN
         (half-range integration over each hemisphere).
 
-        The partner-under-x-reflection of ordinate :math:`i` is
-        :math:`N - 1 - i` by GL-node symmetry; the y- and z-axes
-        carry zero cosines (1-D), so every ordinate is its own
-        partner under those reflections.
+        The x-mirror pairs ordinate :math:`i` with :math:`N - 1 - i`
+        by GL-node symmetry; the y- and z-mirrors fix every ordinate
+        (1-D nodes embed as :math:`(\mu, 0, 0)`). Both facts are
+        DERIVED by :meth:`ordinate_permutation`, not stored.
         """
-        measure = gauss_legendre_on_mu(n_ordinates)
-        N = measure.n_points
-        identity = np.arange(N)
-        partners = {
-            0: identity[::-1].copy(),  # GL x-reflection: i ↔ N-1-i
-            1: identity,               # 1-D: mu_y == 0
-            2: identity,               # 1-D: mu_z == 0
-        }
         return cls(
-            measure=measure,
-            reflection_partners=partners,
+            measure=gauss_legendre_on_mu(n_ordinates),
             level_structure=None,
         )
 
@@ -666,11 +546,8 @@ class Quadrature:
 
         Weights sum to :math:`4\pi`.
         """
-        measure = lebedev_sphere(order)
-        partners = _compute_sphere_reflection_partners(measure)
         return cls(
-            measure=measure,
-            reflection_partners=partners,
+            measure=lebedev_sphere(order),
             level_structure=None,
         )
 
@@ -687,12 +564,7 @@ class Quadrature:
         :math:`O_h`-invariant; weights sum to :math:`4\pi`.
         """
         measure, structure = level_symmetric_sn(sn_order)
-        partners = _compute_sphere_reflection_partners(measure)
-        return cls(
-            measure=measure,
-            reflection_partners=partners,
-            level_structure=structure,
-        )
+        return cls(measure=measure, level_structure=structure)
 
     @classmethod
     def product(cls, n_mu: int = 8, n_phi: int = 8) -> "Quadrature":
@@ -713,12 +585,7 @@ class Quadrature:
         side-channel required by the cylindrical SN sweep.
         """
         measure, structure = product_mu_phi(n_mu, n_phi)
-        partners = _compute_sphere_reflection_partners(measure)
-        return cls(
-            measure=measure,
-            reflection_partners=partners,
-            level_structure=structure,
-        )
+        return cls(measure=measure, level_structure=structure)
 
 
 __all__ = ["Quadrature"]

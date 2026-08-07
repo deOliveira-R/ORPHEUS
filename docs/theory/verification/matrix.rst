@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9039**
+Total tests collected: **9021**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1274, 14.1%
-   L1, 1638, 18.1%
+   L1, 1621, 18.0%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6058, 67.0%
+   foundation, 6057, 67.1%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8955
+   explicit, 8937
    class-name, 46
    func-name, 0
    case, 33
@@ -113,7 +113,7 @@ Module × level grid
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_azimuthal_mirror_symmetry, 0, 5, 0, 0, 7, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
-   curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 12, 0
+   curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 13, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
    curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
@@ -340,7 +340,7 @@ Module × level grid
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
-   numerics/test_quadrature_directional, 0, 0, 0, 0, 41, 0
+   numerics/test_quadrature_directional, 0, 0, 0, 0, 39, 0
    numerics/test_registry, 0, 0, 0, 0, 45, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
@@ -368,7 +368,7 @@ Module × level grid
    operators/test_boundary_conditions, 0, 0, 0, 0, 13, 0
    operators/test_capability_survival, 0, 0, 0, 0, 12, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
-   operators/test_deck_kernel, 0, 78, 0, 0, 0, 0
+   operators/test_deck_kernel, 0, 60, 0, 0, 0, 0
    operators/test_declared_law_is_linear, 0, 0, 0, 0, 15, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
@@ -399,7 +399,7 @@ Module × level grid
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 55, 0
-   operators/test_sn_boundary_realizer, 0, 43, 0, 0, 0, 5
+   operators/test_sn_boundary_realizer, 0, 44, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
@@ -517,8 +517,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``self-sph``, 52
    ``chord-length``, 51
    ``flux-moments``, 51
+   ``quadrature-ordinate-permutation``, 49
    ``quadrature-product-weights``, 49
-   ``quadrature-reflection-index``, 49
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48

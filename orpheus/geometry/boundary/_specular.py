@@ -21,9 +21,9 @@ Two laws carry one, in **different tiers** of the affine form:
   polished surface's constitutive return.
 
 They realize to the same matrix and assert different physics (see
-:class:`~orpheus.geometry.boundary.SpecularReemission`), but the *table* they
-both stand on is one object with one set of invariants. This module is that
-one set.
+:class:`~orpheus.geometry.boundary.SpecularReemission`), but the *pairing*
+they both stand on is one object with one set of invariants. This module is
+that one set.
 
 Why the checks moved here (campaign phase B3.4b)
 ================================================
@@ -230,7 +230,7 @@ def assert_specular_pairing_involutive(
     Raises
     ------
     ReflectionNotInvolutiveError
-        When ``reflection_index(axis)`` is not its own inverse.
+        When the derived specular pairing is not its own inverse.
     """
     ref = _specular_pairing(quadrature, axis, law_key=law_key)
     if not np.array_equal(ref[ref], np.arange(quadrature.N)):

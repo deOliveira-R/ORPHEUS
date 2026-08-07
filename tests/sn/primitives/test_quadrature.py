@@ -33,7 +33,7 @@ pytestmark = [
         "wdd-closure",
         "wdd-face",
         "reflective-bc",
-        "quadrature-reflection-index",
+        "quadrature-ordinate-permutation",
         "flux-moments",
     ),
 ]

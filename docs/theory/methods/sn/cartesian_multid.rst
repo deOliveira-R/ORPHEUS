@@ -304,8 +304,9 @@ for ordinate :math:`n` is set to the outgoing flux of its reflected
 partner.  For the left/right boundaries (*x*-reflection), the partner
 is ``ref_x[n]`` (negating :math:`\mu_x`); for the top/bottom boundaries
 (*y*-reflection), the partner is ``ref_y[n]`` (negating :math:`\mu_y`).
-The reflection indices are precomputed by the quadrature's
-:meth:`reflection_index` method.  Crucially, the BC apply happens
+The pairings are derived from the mirror motions by the quadrature's
+:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
+at realization.  Crucially, the BC apply happens
 **once per octant per axis** (not once per ordinate per axis) —
 see :ref:`sweep-octant-dependency-graph-l7-trap` for the rationale.
 

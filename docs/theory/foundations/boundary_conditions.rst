@@ -1018,11 +1018,12 @@ obliged to answer for every future caller in every future binding state.
 Asking ``P @ P`` instead replaces a value that *can* be wrong with a
 composition that *cannot be formed*: the same claim, delivered by the
 algebra, with no second clause to keep in step. The involution that IS
-real lives one tier up, on the full-space table
-(:meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`), where
-domain and codomain coincide and ERR-044 gates it. **Two different claims
-had been sharing one predicate name across two tiers**, and the fix is to
-make the tier explicit rather than to tune the value.
+real lives one tier up, on the full-space mirror pairing
+(:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`'s
+derived :math:`\pi`), where domain and codomain coincide — asserted there
+by the ERR-044 certification. **Two different claims had been sharing one
+predicate name across two tiers**, and the fix is to make the tier
+explicit rather than to tune the value.
 
 .. note::
 
@@ -4588,7 +4589,10 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        — a 2-factor
        :class:`~orpheus.numerics.operator.TensorProductOperator` on the
        **reduced** ordinate axis, with
-       ``local_perm = γ₊.to_local(quadrature.reflection_index(axis)[inflow])``.
+       ``local_perm = γ₊.to_local(π⁻¹[inflow])`` where :math:`\pi` is the
+       mirror's derived ordinate permutation
+       (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`;
+       :math:`\pi^{-1} = \pi` for a mirror).
        Row :math:`j` reads the mirror of the :math:`j`-th inflow
        ordinate *at that ordinate's position inside* :math:`\Gamma_+`;
        ``to_local`` is mandatory because a slab mirror **reverses**
@@ -4711,8 +4715,9 @@ against the mirror isometry rather than a recording). The narrowing
 preserved that bit-identity and was **gated against the retired
 expression, not against the new code called twice**: the reference is
 materialised in numpy off the law *descriptor*
-(``α·np.take(ψ, reflection_index(axis), 0)[inflow]``, transpose via
-``argsort`` rather than production's cached table), compared with
+(``α·np.take(ψ, mirror_partner, 0)[inflow]``, the partner map from the
+independent geometric reference in ``tests/_harness/references.py``,
+transpose via ``argsort``), compared with
 ``np.array_equal`` over slab-asymmetric, slab-symmetric, sphere,
 cylinder ``product(2,4)`` and 2-D Cartesian ``level_symmetric(4)``.
 The gate was falsified independently — forcing the naive ``arange``
@@ -5355,7 +5360,7 @@ reflective but not for white).
    * - :meth:`ReflectiveBoundary.assert_is_involutive`
      - :class:`~orpheus.geometry.boundary.ReflectionNotInvolutiveError`
        (ERR-044)
-     - :class:`ReflectiveBoundary` (reflection-index table must
+     - :class:`ReflectiveBoundary` (the derived specular pairing must
        satisfy ``perm[perm] == arange``).
    * - :meth:`ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
      - :class:`~orpheus.geometry.boundary.ReflectionDidNotMapInflowToOutflowError`
@@ -5409,7 +5414,7 @@ shipped under :mod:`orpheus.geometry.boundary._errors` are:
      - Geometric map :math:`G` does not preserve
        :math:`w(\Omega) |\Omega \cdot \hat n|`.
      - #5 + #6
-     - Wrong reflection-index table or inconsistent quadrature
+     - Wrong specular pairing or inconsistent quadrature
        :math:`\mu_n` / weights.
    * - :class:`~orpheus.geometry.boundary.BoundaryResponseNotPositiveError`
        (ERR-043)
@@ -5422,8 +5427,8 @@ shipped under :mod:`orpheus.geometry.boundary._errors` are:
      - Reflection permutation is not its own inverse:
        :math:`\pi \circ \pi \neq \mathrm{id}`.
      - #5 (index)
-     - Wrong reflection axis or partial permutation in the
-       :meth:`quadrature.reflection_index` table.
+     - Wrong reflection axis or a non-involutive derived pairing
+       (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`).
    * - :class:`~orpheus.geometry.boundary.ReflectionDidNotMapInflowToOutflowError`
        (ERR-045)
      - Reflection maps an inflow ordinate to itself.

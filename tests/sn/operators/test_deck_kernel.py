@@ -391,75 +391,21 @@ class TestThePermutationIsTheLinearParts:
 
 
 # ============================================================================
-# A — the specular arm inherits the retired table, bit for bit
+# A — (retired) the specular arm's inheritance oracle
+#
+# ``TestTheSpecularArmInheritsTheRetiredTable`` lived here until §7d.3: a
+# one-time proof that the motion-derived arrow equalled the
+# ``reflection_index``-derived one (`[M]` bit-identical on 24/24
+# quadrature × axis pairs, including the shared product(4,5) omission).
+# It died WITH its oracle, per its own docstring — its surviving successor
+# is ``TestTheGatherIsThePreimage``'s witness-check below, which verifies
+# the claimed partner's COORDINATES instead of comparing derivations.
+# The binding claim its second row carried (Γ₊(f) → Γ₋(f), by ``is``) is
+# asserted independently by the self-paired/paired split gate at the end
+# of this module (``mirrored.domain is trace.outflow_space("xmin")``) and,
+# for the load-bearing off-diagonal case, by
+# ``TestPeriodicIsBoundToThePartner``.
 # ============================================================================
-
-
-class TestTheSpecularArmInheritsTheRetiredTable:
-    r"""The motion-derived arrow equals the ``reflection_index``-derived one.
-
-    ⏳ **SHELF LIFE — this class dies with its oracle.** The campaign retires
-    :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index` (10 call
-    sites, ERR-074's own site) once the checks pass, and the comparison then
-    becomes unwritable. It is a **one-time migration-inheritance** proof and,
-    per the campaign's own rule, inheritance is necessary-NOT-sufficient: it
-    says the uplift changed no numbers, never that the numbers were right.
-
-    Its successor is :class:`TestTheGatherIsThePreimage`'s witness-check, which
-    verifies the claimed partner's COORDINATES and survives the retirement.
-    When ``reflection_index`` goes, delete this class — do not weaken it, and
-    do not leave it importing a dead symbol.
-
-    `[M]` 2026-08-07, before 7b: the two paths already agree bit-identically on
-    24 of 24 ``(quadrature × axis)`` pairs at ``atol=1e-13``, including the one
-    omitted case (``product(4,5)`` axis-x is absent from BOTH). So this class
-    is expected green from the first commit; a red means the uplift picked a
-    different motion, not that the table was wrong.
-    """
-
-    @pytest.mark.parametrize("case", _MIRROR_CASES)
-    @pytest.mark.parametrize("face", ["xmin", "xmax"])
-    def test_the_local_permutation_matches_the_table(
-        self, case: str, face: str
-    ) -> None:
-        r"""``array_equal`` on integers — reduction depth 0, so a tolerance
-        here would admit the bug.
-
-        ⚠ **What this row can and cannot see.** It sees the MOTION choice (a
-        mirror about the wrong normal reds). It is structurally blind to the
-        gather DIRECTION, because a mirror is an involution and
-        :math:`\pi^{-1} = \pi`. That claim belongs to the rotation rows.
-        """
-        quad, _, method_space, gamma_out, _ = _deck_fixture(
-            case, face=face, domain_face=face
-        )
-        kernel = _kernel(quad, method_space, gamma_out, motion=_mirror("x"),
-                         domain_face=face, law_key="reflective")
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
-        expected_local = gamma_out.to_local(
-            quad.reflection_index("x")[inflow]
-        )
-        np.testing.assert_array_equal(kernel.perm, expected_local)
-
-    @pytest.mark.parametrize("case", _MIRROR_CASES)
-    def test_the_kernel_is_bound_to_this_faces_half_traces(
-        self, case: str
-    ) -> None:
-        r"""The self-paired arrow still ends where it did: :math:`\Gamma_+(f)
-        \to \Gamma_-(f)`, by ``is``.
-
-        ``==`` would accept a freshly-derived look-alike
-        (:meth:`FunctionSpace.__eq__` compares ``(name, shape)``), and a
-        ``domain``/``codomain`` swap is invisible to every shape check because
-        :math:`|\Gamma_+| = |\Gamma_-|` on every reachable face.
-        """
-        quad, trace, method_space, gamma_out, _ = _deck_fixture(
-            case, face="xmin", domain_face="xmin"
-        )
-        kernel = _kernel(quad, method_space, gamma_out, motion=_mirror("x"),
-                         domain_face="xmin", law_key="reflective")
-        assert kernel.domain is trace.outflow_space("xmin")
-        assert kernel.codomain is trace.inflow_space("xmin")
 
 
 # ============================================================================

@@ -13,9 +13,9 @@ Q2.x — axis_cosines(i) is dim-agnostic — works for 1-D scalar and
         multi-dim measures; out-of-range axes return zeros.
 Q3.x — Legacy mu_x/mu_y/mu_z are @property views — agreement with
         axis_cosines, no separate storage.
-Q4.x — reflection_index(axis): both int (0/1/2) and str ('x'/'y'/'z')
-        keys resolve to the same partner array; partners satisfy
-        the involution invariant `ref[ref[i]] == i`.
+Q4.x — ordinate_permutation(σ_a): the derived mirror permutations are
+        certified (involution, weights, the ACTUAL reflection) and exist
+        for exactly the axes each rule is closed under.
 Q5.x — spherical_harmonics: shape (N, L+1, 2L+1); P0 == 1/sqrt(4π);
         slab GL has only m=0 harmonics non-zero.
 Q6.x — Octants: disjoint, total mass preserved, label tuples match
@@ -29,6 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
 
@@ -160,87 +161,116 @@ def test_q3_3_cylindrical_eta_xi_aliases_agree_with_mu_x_mu_y() -> None:
     np.testing.assert_array_equal(q.xi, q.axis_cosines(1))
 
 
-# ─── Q4: Reflection partners ────────────────────────────────────────────
+# ─── Q4: Mirror-induced ordinate permutations ───────────────────────────
+#
+# Until G6.3 §7d.3 these rows gated the precomputed ``reflection_index``
+# table; they now gate the DERIVATION that replaced it
+# (``ordinate_permutation``), keeping each row's own claim. The axis-letter
+# sugar (Q4.1) and the axis-vocabulary refusal (Q4.4) died with the
+# accessor — the letter→mirror spelling lives on the deck tier
+# (``_mirror_motion``, gated in ``tests/geometry/test_paired_deck.py``).
 
 
-def test_q4_1_reflection_index_accepts_int_and_str() -> None:
-    """reflection_index('x') == reflection_index(0); same for y/z."""
-    q = Quadrature.lebedev(17)
-    np.testing.assert_array_equal(q.reflection_index("x"), q.reflection_index(0))
-    np.testing.assert_array_equal(q.reflection_index("y"), q.reflection_index(1))
-    np.testing.assert_array_equal(q.reflection_index("z"), q.reflection_index(2))
+def _mirror(axis_index: int) -> RigidMotion:
+    """σ_axis — the mirror whose plane is normal to the named axis."""
+    return RigidMotion.reflection(normal=np.eye(3)[axis_index])
 
 
-def test_q4_2_reflection_is_an_involution() -> None:
-    """For every axis, ref[ref[i]] == i (reflection composed twice is identity)."""
+def test_q4_2_mirror_permutation_is_an_involution() -> None:
+    """For every axis, pi[pi] == arange (a mirror composed twice is identity).
+
+    ERR-044's quadrature-tier home: ``preserves`` certifies bijection and
+    weight equality, NOT the involution — σ² = id is asserted ON the
+    derived π.
+    """
     for q in [Quadrature.lebedev(17), Quadrature.level_symmetric(4),
               Quadrature.product(n_mu=4, n_phi=4)]:
         for axis in (0, 1, 2):
-            ref = q.reflection_index(axis)
+            pi = q.ordinate_permutation(_mirror(axis))
+            assert pi is not None
+            ref = pi.indices
             np.testing.assert_array_equal(ref[ref], np.arange(q.N))
 
 
-def test_q4_3_gl1d_x_reflection_is_index_reversal() -> None:
-    """GL1D x-reflection: partner of i is N-1-i by GL-node symmetry."""
+def test_q4_3_gl1d_x_mirror_is_index_reversal() -> None:
+    """GL1D σ_x pairs i with N-1-i by GL-node symmetry; σ_y/σ_z fix every
+    ordinate (the 1-D embedding ``(μ, 0, 0)`` has zero y/z components).
+
+    Until §7d.3 these three maps were a stored closed form on the factory;
+    they are now DERIVED, and this row pins that the derivation reproduces
+    the closed form.
+    """
     q = Quadrature.gauss_legendre(8)
-    np.testing.assert_array_equal(q.reflection_index("x"), np.arange(8)[::-1])
-    # y/z reflections are identity (1-D).
-    np.testing.assert_array_equal(q.reflection_index("y"), np.arange(8))
-    np.testing.assert_array_equal(q.reflection_index("z"), np.arange(8))
+    x = q.ordinate_permutation(_mirror(0))
+    assert x is not None
+    np.testing.assert_array_equal(x.indices, np.arange(8)[::-1])
+    for axis in (1, 2):
+        pi = q.ordinate_permutation(_mirror(axis))
+        assert pi is not None
+        np.testing.assert_array_equal(pi.indices, np.arange(8))
 
 
-def test_q4_4_unknown_axis_label_raises() -> None:
-    """An unrecognized axis label raises ValueError."""
-    q = Quadrature.gauss_legendre(4)
-    with pytest.raises(ValueError, match="Unknown axis label"):
-        q.reflection_index("w")
-
-
-# ─── Q4.5+: the partner map is CERTIFIED, not merely involutive ─────────
+# ─── Q4.5+: the derived permutation is CERTIFIED, not merely involutive ─
 #
-# Campaign Q5.0.1. ``test_q4_2`` above checks only ``ref[ref[i]] == i`` —
-# which ``geometry/boundary/_specular.py`` documents as insufficient for
-# exactly this object: "the involution does not [catch it] (it can still
-# be its own inverse)". That is ERR-042, catalogued one layer up for
-# specular BC pairings; the quadrature layer carried none of that
-# module's three checks and reproduced the failure.
+# Campaign Q5.0.1 (re-posed at §7d.3). ``test_q4_2`` above checks only
+# ``ref[ref[i]] == i`` — which ``geometry/boundary/_specular.py`` documents
+# as insufficient for exactly this object: "the involution does not [catch
+# it] (it can still be its own inverse)". That is ERR-042, catalogued one
+# layer up for specular BC pairings; the pre-Q5.0.1 partner table carried
+# none of that module's three checks and reproduced the failure.
 
 
 _SHIPPED_RULES = [
-    ("lebedev(17)", lambda: Quadrature.lebedev(17)),
-    ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4)),
-    ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8)),
-    ("product(4,4)", lambda: Quadrature.product(n_mu=4, n_phi=4)),
-    ("product(4,8)", lambda: Quadrature.product(n_mu=4, n_phi=8)),
-    ("product(4,12)", lambda: Quadrature.product(n_mu=4, n_phi=12)),
-    # ODD n_phi belongs in this list even though the certification leaves
-    # it with only two axes: `[M]` with only even rows, restoring the
-    # pre-Q5.0.1 bare-argmin body left this gate GREEN — every map it
-    # inspected happened to be correct. The odd rows are what give it
-    # teeth against the defect it documents, because there the legacy body
-    # produces an axis-0 map whose reflection residual is 0.33-0.58.
-    ("product(4,5)", lambda: Quadrature.product(n_mu=4, n_phi=5)),
-    ("product(4,7)", lambda: Quadrature.product(n_mu=4, n_phi=7)),
-    ("gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8)),
+    ("lebedev(17)", lambda: Quadrature.lebedev(17), (0, 1, 2)),
+    ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4), (0, 1, 2)),
+    ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), (0, 1, 2)),
+    ("product(4,4)", lambda: Quadrature.product(n_mu=4, n_phi=4), (0, 1, 2)),
+    ("product(4,8)", lambda: Quadrature.product(n_mu=4, n_phi=8), (0, 1, 2)),
+    ("product(4,12)", lambda: Quadrature.product(n_mu=4, n_phi=12), (0, 1, 2)),
+    # ODD n_phi belongs in this list even though σ_x is refused on it:
+    # `[M]` with only even rows, restoring the pre-Q5.0.1 bare-argmin body
+    # left this gate GREEN — every map it inspected happened to be correct.
+    # The odd rows are what give it teeth against the defect it documents,
+    # because there the legacy body produced an axis-0 map whose reflection
+    # residual was 0.33-0.58.
+    ("product(4,5)", lambda: Quadrature.product(n_mu=4, n_phi=5), (1, 2)),
+    ("product(4,7)", lambda: Quadrature.product(n_mu=4, n_phi=7), (1, 2)),
+    ("gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8), (0, 1, 2)),
 ]
 
 
-@pytest.mark.parametrize("name,build", _SHIPPED_RULES, ids=[r[0] for r in _SHIPPED_RULES])
-def test_q4_5_every_stored_partner_map_really_is_its_reflection(name, build) -> None:
-    r"""Where a partner map EXISTS it must satisfy all three pairing checks.
+@pytest.mark.parametrize(
+    "name,build,expected_axes", _SHIPPED_RULES, ids=[r[0] for r in _SHIPPED_RULES],
+)
+def test_q4_5_every_derived_mirror_permutation_really_is_its_reflection(
+    name, build, expected_axes,
+) -> None:
+    r"""Where σ_a induces a permutation it satisfies all three pairing
+    checks — and it EXISTS for exactly the axes the rule is closed under.
 
-    The three are independent — each passes a table the other two reject
+    The three are independent — each passes a map the other two reject
     (``_specular.py``'s ERR-042 / ERR-044 / ERR-045 table):
 
     * **involution** — ``ref[ref[i]] == i``;
     * **the actual reflection** — ``R x_i == x_{ref[i]}``, which is the
-      one a garbage map fails and the involution cannot see;
+      one a garbage map fails and the involution cannot see (checked on
+      the full ``(N, 3)`` embedding, so degenerate axes are exercised
+      rather than skipped);
     * **measure preservation** — ``w_i == w_{ref[i]}``.
+
+    The per-row ``expected_axes`` makes the availability claim explicit —
+    a derivation that started answering ``None`` everywhere would red
+    here instead of silently vacating the loop.
     """
     q = build()
-    nodes = np.atleast_2d(q.measure.nodes.T).T if q.measure.nodes.ndim == 1 \
-        else q.measure.nodes
-    for axis, ref in q.reflection_partners.items():
+    nodes3 = np.column_stack([q.axis_cosines(a) for a in range(3)])
+    available = []
+    for axis in (0, 1, 2):
+        pi = q.ordinate_permutation(_mirror(axis))
+        if pi is None:
+            continue
+        available.append(axis)
+        ref = pi.indices
         np.testing.assert_array_equal(
             ref[ref], np.arange(q.N), err_msg=f"{name} axis {axis}: not an involution",
         )
@@ -248,32 +278,38 @@ def test_q4_5_every_stored_partner_map_really_is_its_reflection(name, build) -> 
             q.weights[ref], q.weights,
             err_msg=f"{name} axis {axis}: partners carry different weights",
         )
-        if axis < nodes.shape[1]:
-            reflected = nodes.copy()
-            reflected[:, axis] *= -1.0
-            residual = float(np.max(np.abs(reflected - nodes[ref])))
-            assert residual < 1e-11, (
-                f"{name} axis {axis}: the stored map is NOT the reflection — "
-                f"max |R x_i - x_ref[i]| = {residual:.4e}. An involutive but "
-                f"wrong map is ERR-042's signature."
-            )
+        reflected = nodes3.copy()
+        reflected[:, axis] *= -1.0
+        residual = float(np.max(np.abs(reflected - nodes3[ref])))
+        assert residual < 1e-11, (
+            f"{name} axis {axis}: the derived map is NOT the reflection — "
+            f"max |R x_i - x_ref[i]| = {residual:.4e}. An involutive but "
+            f"wrong map is ERR-042's signature."
+        )
+    assert tuple(available) == expected_axes, (
+        f"{name}: σ-mirror availability {tuple(available)} != expected "
+        f"{expected_axes}"
+    )
 
 
 @pytest.mark.parametrize("n_phi", [4, 6, 8, 12, 16])
-def test_q4_6_even_n_phi_products_keep_all_three_axes(n_phi: int) -> None:
+def test_q4_6_even_n_phi_products_keep_all_three_mirrors(n_phi: int) -> None:
     """The certification is a NO-OP on everything shipped with even ``n_phi``.
 
     Pins that Q5.0.1 tightened the contract without narrowing any rule the
-    tree actually uses.
+    tree actually uses — and that the §7d.3 derivation preserves that.
     """
     q = Quadrature.product(n_mu=4, n_phi=n_phi)
-    assert sorted(q.reflection_partners) == [0, 1, 2]
+    available = [
+        a for a in (0, 1, 2) if q.ordinate_permutation(_mirror(a)) is not None
+    ]
+    assert available == [0, 1, 2]
 
 
 @pytest.mark.parametrize("n_phi", [5, 7, 9])
-def test_q4_7_odd_n_phi_product_has_NO_x_reflection(n_phi: int) -> None:
+def test_q4_7_odd_n_phi_product_has_NO_x_mirror(n_phi: int) -> None:
     r"""An odd-:math:`n_\varphi` product is not :math:`\sigma_x`-closed, so
-    axis 0 is ABSENT and asking for it RAISES.
+    the derivation answers ``None`` for σ_x.
 
     Mechanism: a product rule's mirror planes sit at
     :math:`k\pi/n_\varphi`. :math:`\sigma_x` is :math:`\varphi \to \pi -
@@ -287,38 +323,43 @@ def test_q4_7_odd_n_phi_product_has_NO_x_reflection(n_phi: int) -> None:
     0.33`` in the direction cosines at ``n_phi = 5 / 7 / 9`` — **and was
     still an involution**, so ``test_q4_2`` passed on it. It feeds the
     :math:`r=0` pole continuation.
+
+    The RAISE this row used to pin ("no precomputed reflection partner" —
+    the table's lookup miss) retired with the table at §7d.3. ``None`` is
+    the derivation's honest answer here; the LOUD refusals are pinned at
+    the consumer tiers where they now live — "no specular pairing" at
+    ``realize()`` (``test_sn_boundary_realizer``) and "cannot seed the
+    r = 0 pole" at the curvilinear sweep
+    (``test_coupled_pole_mu_level_invariant``).
     """
     q = Quadrature.product(n_mu=4, n_phi=n_phi)
-    assert 0 not in q.reflection_partners
-    assert sorted(q.reflection_partners) == [1, 2]
-    with pytest.raises(ValueError, match="no precomputed reflection partner"):
-        q.reflection_index("x")
+    assert q.ordinate_permutation(_mirror(0)) is None
     # sigma_y survives — the fold does not depend on the parity.
-    q.reflection_index("y")
+    assert q.ordinate_permutation(_mirror(1)) is not None
 
 
-def test_q4_8_certification_drops_an_axis_when_closure_actually_breaks() -> None:
-    """Mutation control: perturb ONE node off the mirror and the axis goes.
+def test_q4_8_derivation_refuses_when_closure_actually_breaks() -> None:
+    """Mutation control: perturb ONE node off the mirror and σ_y answers
+    ``None``.
 
     Without this the parametrized rows above could all be passing because
     the certification never refuses anything.
     """
-    from orpheus.numerics.quadrature.directional import (
-        _compute_sphere_reflection_partners,
-    )
+    good = Quadrature.lebedev(17)
+    assert good.ordinate_permutation(_mirror(1)) is not None
 
-    good = Quadrature.lebedev(17).measure
-    assert sorted(_compute_sphere_reflection_partners(good)) == [0, 1, 2]
-
-    broken_nodes = good.nodes.copy()
+    broken_nodes = good.measure.nodes.copy()
     broken_nodes[0, 1] += 0.05  # move one node off the y-mirror orbit
-    broken = DiscreteMeasure(
-        nodes=broken_nodes, weights=good.weights, support=good.support,
+    broken = Quadrature(
+        measure=DiscreteMeasure(
+            nodes=broken_nodes,
+            weights=good.measure.weights,
+            support=good.measure.support,
+        )
     )
-    axes = sorted(_compute_sphere_reflection_partners(broken))
-    assert 1 not in axes, (
-        "perturbing a node off the y-mirror left axis 1 certified — the "
-        "closure check is not actually checking closure"
+    assert broken.ordinate_permutation(_mirror(1)) is None, (
+        "perturbing a node off the y-mirror still yielded a σ_y permutation "
+        "— the closure check is not actually checking closure"
     )
 
 

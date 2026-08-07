@@ -91,7 +91,7 @@ class BoundaryGeometryMapNotMeasurePreservingError(BoundaryError):
     For permutation-based maps (specular reflection) the
     direction-cosine measure :math:`w(\Omega)\,|\Omega\cdot n|`
     must be invariant under the map. Violation indicates a wrong
-    reflection-index table or a quadrature whose ``mu_n`` is
+    specular pairing or a quadrature whose ``mu_n`` is
     inconsistent with its weights.
     """
 
@@ -110,8 +110,8 @@ class ReflectionNotInvolutiveError(BoundaryError):
 
     For a clean axis reflection, applying the reflection twice
     must return every ordinate to itself. A non-involutive
-    reflection table is typically a bug in the reflection-index
-    construction (wrong axis, wrong ordering, or partial
+    pairing is typically a bug in how the specular pairing was
+    derived or injected (wrong axis, wrong ordering, or partial
     permutation).
     """
 
@@ -121,7 +121,7 @@ class ReflectionDidNotMapInflowToOutflowError(BoundaryError):
 
     For a clean axis reflection, every inflow ordinate at the face
     maps to an outflow ordinate (and vice versa). Violation
-    indicates a wrong reflection-index table or a non-axis-aligned
+    indicates a wrong specular pairing or a non-axis-aligned
     reflection that requires a different BC type (``SymmetryBoundary``
     in the future) rather than ``ReflectiveBoundary``.
     """

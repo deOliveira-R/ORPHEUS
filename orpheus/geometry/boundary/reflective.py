@@ -77,10 +77,10 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     Parameters
     ----------
     axis : str
-        Axis of reflection: ``"x"``, ``"y"``, or ``"z"``. The
-        :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`
-        method maps each ordinate to its reflected partner under this
-        axis.
+        Axis of reflection: ``"x"``, ``"y"``, or ``"z"`` — the mirror
+        plane's NORMAL. The ordinate pairing is derived from the mirror
+        motion via
+        :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`.
     albedo : float
         Specular albedo. Defaults to 1 (perfect reflection).
     """

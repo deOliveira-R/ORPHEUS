@@ -129,8 +129,10 @@ partner:
    \psi_n^{\rm in} = \psi_{n'}^{\rm out}
 
 where :math:`n'` is the reflected partner ordinate (negating the
-appropriate direction cosine).  Reflective partner indices are precomputed
-by each :term:`quadrature`'s :meth:`reflection_index` method.  This is the
+appropriate direction cosine).  The pairing is derived from the mirror
+motion by each :term:`quadrature`'s
+:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
+(:eq:`quadrature-ordinate-permutation`).  This is the
 default for eigenvalue problems (infinite lattice / infinite medium).
 The CP solver uses white (isotropic) BCs instead; see
 :ref:`white-bc-quality` for a comparison showing the ~1% gap between
@@ -372,11 +374,12 @@ realization body as its geometry-tier twin —
 .. note::
 
    **Where the pairing's invariants live.** The specular pairing
-   :math:`\pi = ` ``reflection_index(axis)`` carries three independent
+   :math:`\pi` (derived from the axis-mirror motion via
+   ``ordinate_permutation``) carries three independent
    invariants — measure preservation (ERR-042), involution (ERR-044)
    and inflow :math:`\to` outflow (ERR-045). They were methods on
    :class:`~orpheus.geometry.boundary.ReflectiveBoundary`, correct
-   while that was the only law standing on the table. With a specular
+   while that was the only law standing on the pairing. With a specular
    closure available on albedo they moved to the pairing itself
    (``orpheus.geometry.boundary._specular``), so **both** carriers fire
    the same certification. Leaving them where they were would have
@@ -484,7 +487,8 @@ at :ref:`bc-sweep-cycle`.
      - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - ``PermutationOperator(local_perm) & IdentityOperator()`` on the
        **reduced** ordinate axis, with ``local_perm =
-       γ₊.to_local(quadrature.reflection_index(axis)[inflow])``
+       γ₊.to_local(π⁻¹[inflow])`` — :math:`\pi` the mirror's derived
+       ordinate permutation (:math:`\pi^{-1} = \pi` for a mirror)
      - 1 (fast path)
    * - ``"reflective"``
      -

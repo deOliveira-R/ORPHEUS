@@ -223,8 +223,9 @@ sole bridge. The canonical SN-realised representation per law.
   **B3.2** narrowed the domain and left nothing for a projector to do.
 * :class:`ReflectiveBoundary(axis, albedo)` (registry key
   ``"reflective"``) — :math:`G = G_{\text{refl}}`, the ordinate
-  permutation ``quadrature.reflection_index(axis)``; :math:`R =
-  \alpha`. SN realises the composite to
+  permutation the axis-mirror induces (derived via
+  :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`);
+  :math:`R = \alpha`. SN realises the composite to
   :class:`~orpheus.numerics.operator.PermutationOperator` (α=1
   fast path) or
   ``ScaledOperator(α, PermutationOperator)`` (α ≠ 1).

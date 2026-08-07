@@ -535,9 +535,10 @@ def _deck_kernel(
     :class:`~orpheus.numerics.operator.PermutationOperator` no longer stores
     a ``bool`` about it — ``P @ P`` raises, which is the same claim delivered
     by the algebra. The involution that IS real lives one tier up, on the
-    full-space table
-    (:meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`), where
-    domain and codomain coincide and ERR-044 guards it.
+    full-space mirror pairing
+    (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`'s
+    derived π), where domain and codomain coincide — asserted there by the
+    ERR-044 certification in ``geometry/boundary/_specular.py``.
     """
     if method_space.inflow_indices is None:
         raise BoundaryError(

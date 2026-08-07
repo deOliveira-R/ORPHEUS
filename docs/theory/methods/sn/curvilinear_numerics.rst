@@ -2153,8 +2153,10 @@ emerges travelling outward along :math:`+\mu`, so
 .. vv-status: sn-err-058-coupled-pole-continuity documented
 
 The :math:`-1` (inward) sweep is therefore run FIRST.  Its pole-face
-outflow, read at the *mirror* ordinate
-``quad.reflection_index("x")``, seeds the :math:`+1` (outward) sweep.
+outflow, read at the *mirror* ordinate (the x-mirror pairing
+``_ensure_pole_mirror`` derives from
+:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`),
+seeds the :math:`+1` (outward) sweep.
 This is **data** — propagated from the outer boundary, lower-triangular
 in cell-visit order — not a self-reference.  It is the
 "inward-determines-outward" pole condition deferred at Phase C
@@ -2179,18 +2181,21 @@ The μ-level-preservation invariant the mirror seed relies on
 The coupled-pole continuity :eq:`sn-err-058-coupled-pole-continuity`
 seeds the outward (:math:`+\mu`) pole face from the inward (:math:`-\mu`)
 sweep's pole outflow read **at the mirror ordinate** — concretely,
-``pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]`` in
+``pole_face_seed = outflow_at_inner.T[self._ensure_pole_mirror()]`` in
 the fused matvec
 (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk` and
 its adjoint partner) and ``psi_in = pole_outflow[mirror[global_n]]`` in
-the SI sweep twin (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep`).
-That single index — ``reflection_index("x")[n]`` — is what makes the
+the SI sweep twin (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep`),
+with the pairing derived ONCE per mesh from the :math:`\sigma_x` mirror
+motion via
+:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`.
+That single index — ``mirror[n]`` — is what makes the
 seed correct, and it carries a load-bearing assumption that is invisible
 in the code but essential to the physics.
 
 **The invariant.**  For the mirror seed to realise
 :math:`\psi(0,+\mu_r)=\psi(0,-\mu_r)`, the partner
-``reflection_index("x")[n]`` MUST be the *intra-level sign-flip partner*
+``mirror[n]`` MUST be the *intra-level sign-flip partner*
 of ordinate :math:`n`: the ordinate in the **same** :math:`\mu`-level
 (same axial cosine :math:`\mu_z` — the level index) with the radial
 cosine :math:`\mu_x` negated and :math:`\mu_y,\mu_z` held.
@@ -2198,11 +2203,14 @@ cosine :math:`\mu_x` negated and :math:`\mu_y,\mu_z` held.
 .. math::
    :label: sn-coupled-pole-mu-level-invariant-eq
 
-   m \;=\; \mathrm{reflection\_index}(\text{"x"})[n]
+   m \;=\; \pi_{\sigma_x}(n)
    \;\Longrightarrow\;
    \mu_x[m] = -\,\mu_x[n],\quad
    \mu_y[m] = \mu_y[n],\quad
-   \mu_z[m] = \mu_z[n].
+   \mu_z[m] = \mu_z[n],
+
+where :math:`\pi_{\sigma_x}` is the x-mirror's derived ordinate
+permutation (:eq:`quadrature-ordinate-permutation`).
 
 .. (vv-status rationale) Structural / representational identity: the
    defining property the x-mirror partner MUST satisfy for the
@@ -2224,13 +2232,16 @@ cross-level partner would couple two different axial directions and seed
 the outward sweep with a value from the *wrong* characteristic.
 
 **Why it holds by construction today.**  Two facts conspire.  First,
-``reflection_index("x")`` reads the certified partner table built by
-:func:`orpheus.numerics.quadrature.directional._compute_sphere_reflection_partners`
-from ``RigidMotion.reflection(normal=ê_x)`` through the orbit-closure
-certificate (bijection + weights, since Q5.0.1 — the bare
-nearest-neighbour ``_find_reflections`` it replaced was ERR-074's site):
-the mirror's action negates **only** :math:`\mu_x` —
-:math:`\mu_y,\mu_z` are passed through unchanged.  Second, the cylinder/sphere level is grouped on the
+the seed derives its pairing (``_ensure_pole_mirror``, once per mesh)
+from the :math:`\sigma_x` mirror motion through
+:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation` —
+every image matched to a node, bijection, equal weights (the
+certification Q5.0.1 introduced; the bare nearest-neighbour
+``_find_reflections`` it replaced was ERR-074's site, and the
+precomputed ``reflection_index`` table that carried these answers until
+G6.3 §7d read the same certificate): the mirror's action negates
+**only** :math:`\mu_x` — :math:`\mu_y,\mu_z` are passed through
+unchanged.  Second, the cylinder/sphere level is grouped on the
 **axial** cosine: the level factories key ``level_indices`` on
 :math:`|\mu_z|` (sphere / level-symmetric — ``rules_sphere.py``) or hold
 :math:`\mu_z=\mu_{\rm GL}` fixed per level (product — ``rules_product.py``),
@@ -2243,11 +2254,11 @@ something either site enforces alone.
 .. warning::
 
    **This is a silent-corruption surface — a Mode-7 blind spot at the
-   operator-internals level.**  If ``reflection_index("x")`` ever
-   returned a **cross-level** partner — a future cubature whose
-   reflection table is built differently, or a refactor of
-   :func:`~orpheus.numerics.quadrature.directional._compute_sphere_reflection_partners`
-   that no longer holds :math:`\mu_z` — then
+   operator-internals level.**  If the derived pairing ever
+   returned a **cross-level** partner — a future cubature, or a
+   refactor of
+   :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`'s
+   match machinery that no longer holds :math:`\mu_z` — then
    ``pole_outflow[mirror[n]]`` would read a *different axial direction's*
    pole value, and the break would be **completely silent under the
    existing solver suite**.  The reason is the same blindness that hid

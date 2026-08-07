@@ -2321,10 +2321,12 @@ class PermutationOperator(LinearOperator):
     the flag's documented purpose (self-adjointness in the unweighted inner
     product) is undefined between two different spaces. Routing the
     question through ``@`` replaces a value that could be wrong with a
-    composition that cannot be formed. A full-space rule like
-    :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index` IS an
-    involution on :math:`\{0, \ldots, N-1\}`, and asks and answers as one;
-    periodic shifts and rotational reorderings are not.
+    composition that cannot be formed. A full-space rule like the mirror
+    pairing
+    :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
+    derives for a reflection IS an involution on
+    :math:`\{0, \ldots, N-1\}`, and asks and answers as one; periodic
+    shifts and rotational reorderings are not.
 
     A permutation is always invertible (:math:`P^{-1} = P^T`), and its
     inverse is ALGEBRA-CLOSED: :meth:`inverse` returns the inverse

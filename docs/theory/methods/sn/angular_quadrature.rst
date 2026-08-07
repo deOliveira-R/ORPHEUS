@@ -222,37 +222,61 @@ curvilinear :math:`\alpha`-recursion).
 Built by :meth:`Quadrature.product(n_mu, n_phi)
 <orpheus.numerics.quadrature.Quadrature.product>`.
 
-Reflection Index
------------------
+Ordinate Permutations
+---------------------
 
-Each quadrature implements a :meth:`reflection_index` method that
-returns an index array mapping each ordinate :math:`n` to its
-**mirror image** :math:`n'` obtained by negating the direction cosine
-along a specified axis.  For example, ``reflection_index("x")``
-finds the ordinate whose direction cosines match :math:`(-\mu_x, \mu_y, \mu_z)`.
-
-The implementation in :func:`_find_reflections` computes the
-Euclidean distance between the target direction (with one component
-negated) and all ordinate directions, then returns the closest match:
+:meth:`Quadrature.ordinate_permutation(motion)
+<orpheus.numerics.quadrature.Quadrature.ordinate_permutation>` answers
+"which permutation does a rigid motion induce on this rule's weighted
+ordinates?" — the single source read by the boundary realizer's deck
+kernel, the specular certifications, and the curvilinear :math:`r = 0`
+pole seed.  Writing :math:`Q` for the motion's **linear part**
+(ordinates are DIRECTIONS — a translation does not act on them, so a
+periodic wrap induces the identity), the returned permutation
+:math:`\pi` is defined by
 
 .. math::
-   :label: quadrature-reflection-index
+   :label: quadrature-ordinate-permutation
 
-   n' = \arg\min_j \bigl[
-       (\mu_{x,j} - (-\mu_{x,n}))^2
-       + (\mu_{y,j} - \mu_{y,n})^2
-       + (\mu_{z,j} - \mu_{z,n})^2
-   \bigr]
+   \Omega_{\pi(n)} = Q\,\Omega_n
+   \qquad\text{and}\qquad
+   w_{\pi(n)} = w_n
+   \qquad\text{for every } n,
 
-For Gauss--Legendre (1D), the reflection in *x* is simply
-:math:`n' = N - 1 - n` because the GL points are symmetric about
-zero.  Reflection in *y* is the identity since :math:`\mu_y = 0`.
+**certified at derivation**: every image must MATCH a node inside the
+certification window (no bare nearest-neighbour), the match must be a
+**bijection**, and the matched weights must be equal.  A motion that
+fails any clause answers ``None`` — the honest "this motion is not a
+symmetry of this rule"; each consumer owns its domain-specific refusal
+("no specular pairing" at the BC certification tier, "cannot seed the
+r = 0 pole" at the curvilinear sweep tier).
 
-For multi-dimensional quadratures (Lebedev, Level-Symmetric, Product),
-the reflection indices are precomputed at construction time for all
-three axes (*x*, *y*, *z*) and stored as ``_ref_x``, ``_ref_y``,
-``_ref_z``.  These indices are used by the sweep to implement
-:term:`reflective boundary conditions <reflective boundary condition>` (see :ref:`boundary-conditions`).
+For an axis mirror :math:`\sigma_a` the induced permutation is the
+classical *reflection partner* map used by
+:term:`reflective boundary conditions <reflective boundary condition>`
+(see :ref:`boundary-conditions`).  For Gauss--Legendre (1D, nodes
+embedded as :math:`(\mu, 0, 0)`) the x-mirror gives
+:math:`\pi(n) = N - 1 - n` by GL-node symmetry and the y/z mirrors fix
+every ordinate.  An odd-:math:`n_\varphi` product rule has NO x-mirror
+permutation: its mirror planes sit at :math:`k\pi/n_\varphi`, and
+:math:`\sigma_x` needs the :math:`k = n_\varphi/2` plane — an integer
+only for even :math:`n_\varphi` — so the derivation answers ``None``
+there.
+
+.. note::
+
+   **History (ERR-074).** Until G6.3 §7d (2026-08) the three axis-mirror
+   maps were a precomputed table (``reflection_index`` /
+   ``reflection_partners``), and until campaign Q5.0.1 (2026-08-02) that
+   table was built by a bare per-node ``argmin`` — no distance window, no
+   injectivity check, no weight comparison — which on a
+   :math:`\sigma_x`-unclosed rule silently returned the nearest WRONG
+   ordinate: at ``product(4, 5/7/9)`` the shipped axis-0 map was off by
+   ``0.58 / 0.42 / 0.33`` in the direction cosines *and still an
+   involution*, so a self-inverse check could not see it.  The
+   certification above is exactly what that defect class demanded; the
+   general motion-derived method then retired the table once every
+   consumer read it.
 
 Comparison Table
 -----------------

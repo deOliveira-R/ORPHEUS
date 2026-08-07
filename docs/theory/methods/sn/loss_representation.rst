@@ -2047,9 +2047,9 @@ DAG, forking **only** at orientation:
 * the boundary **in↔out swap** (forward reads inflow / writes outflow;
   the adjoint reads *outflow* cotangents / writes *inflow* cotangents);
 * the curvilinear **Carlson coupled-pole mirror routing** (the
-  :math:`\pm 1` sweeps couple cross-wise through
-  ``quad.reflection_index("x")``; the adjoint reverses that
-  cross-direction dependency); and
+  :math:`\pm 1` sweeps couple cross-wise through the x-mirror pairing
+  ``_ensure_pole_mirror`` derives from ``ordinate_permutation``; the
+  adjoint reverses that cross-direction dependency); and
 * the **second triangular factor** —
   :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.angular_adjoint`,
   the reverse of the Morel–Montry angular recurrence (zero for slab).
