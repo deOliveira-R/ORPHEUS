@@ -2182,12 +2182,55 @@ docstring carries its own deletion order); re-point the
 that dangles visibly (the other 20 doc mentions are grep-only); full
 three-search audit + shortest-fragment message grep at the end.
 
-✅ **7d.0 landed with this note**: the audit's four found falsehoods
+✅ **7d.0 landed** `ae018628`: the audit's four found falsehoods
 fixed on sight — two docstrings step 7 itself falsified
 (`albedo.py`/`reflective.py` "realizes through ``reflection_index``" →
 the motion spelling) and two `_find_reflections` citations dead since
 Q5.0.1 (`curvilinear_numerics.rst:2228`,
 `test_coupled_pole_mu_level_invariant.py:47`).
+
+✅ **7d.1 landed** `a17771db` — the WARM tier: the three certifications
+derive their array from the mirror motion (`_specular_pairing` →
+`ordinate_permutation`), each keeping ITS OWN claim (the audit's
+carrier findings honoured: the involution asserted on the derived π,
+the TRACE-measure check unchanged); the five `reflection_partners`
+injection sites re-posed onto `ordinate_permutation`
+(instance-scoped `setattr`), the two `_TableQuad` fakes converted, and
+the missing realize()-level refusal pin minted (message-fragment
+matched — `BoundaryError ⊂ ValueError`).
+
+✅ **7d.2 landed** `f11a129f` — the HOT tier: `_ensure_pole_mirror()`
+on `_OneDimScanWalk` (the `_ensure_geom_cache` mesh-stash idiom)
+derives the coupled-pole pairing ONCE from
+`SelfPairedDeck.mirror(axis="x").motion`; the four per-sweep sites
+read the stash. A rule with no x-mirror closure refuses at first use
+with the pairing's diagnosis.
+
+⟹ **EVERY production consumer of `reflection_index` is migrated.** The
+table is production-DEAD but API-alive: its definition tier
+(`directional.py`), its own gates, and the test/doc mentions remain —
+a deliberate, coherent intermediate state.
+
+#### ▶ 7d.3 — the remaining piece: DELETE the table and migrate its tier
+
+`[M]` remaining census (2026-08-07, post-7d.2): **27 files, ~140
+lines** — `tests/numerics/test_quadrature_directional.py` (20, the
+table's own gates → re-pose onto `ordinate_permutation` or delete),
+`directional.py` (18, the definition tier: `reflection_index`,
+`reflection_partners` field ⚠ a DATACLASS field — direct-constructor
+audit required, `_compute_sphere_reflection_partners`, the GL1D
+closed-form partners), the two curvilinear sweep test modules (14+14,
+mostly docstring mentions — tense-discriminate),
+`sweep_acyclicity.py` (8, the COLD parameter surface + its harness
+call), and ~12 smaller test/doc files. Plus:
+`TestTheSpecularArmInheritsTheRetiredTable` deletes per its own
+docstring; the `:294` message pin re-points; the Nexus equation node
+`quadrature-reflection-index` (`angular_quadrature.rst:239`, 23
+`tests` edges via `tests/sn/primitives/test_quadrature.py:35`)
+re-poses; `docs/api/discrete_ordinates.rst:67` is the one RENDERED
+xref; ~21 doc mentions across 8 pages tense-discriminate. End with
+the three-search audit + shortest-fragment message grep + a full wide
+slice. The worklist is `scratch/audit_reflection_index_retirement.md`.
 
 ✅ **The transitional pins flipped as designed** (2026-08-07): the
 boundary-operator pin reddened with its own re-scope message and is now
