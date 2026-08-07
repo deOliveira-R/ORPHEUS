@@ -594,28 +594,24 @@ def test_a_traceless_method_space_yields_an_unbound_kernel() -> None:
     assert squared.domain is None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "G6.3 step 8 (#330): TensorProductOperator does not derive its spaces "
-        "from its factors, so the binding is enforced at the inner "
-        "permutation and invisible at the object the realizer returns. The "
-        "committed step-3 Lambertian chain has the identical hole. Until this "
-        "flips, routing _reflect_trace through `@` gates nothing, because one "
-        "None short-circuits the composability check."
-    ),
-)
 def test_the_realized_operator_carries_the_binding() -> None:
-    r"""⛔ The hole step 8 must close, committed as a strict xfail.
+    r"""⭐ The hole step 8.0 closed — and the precondition step 8 needs.
 
-    Body kept to the two assertions so **exactly one statement can fail and
-    it is the documented one** — the operator is built above the xfail's
-    reach would be wrong here, so it is built inside, but every construction
-    step is independently exercised by the passing rows in this module.
+    Committed at step 5 as a strict xfail: ``TensorProductOperator`` derived
+    nothing from its factors, so the binding was enforced at the inner
+    permutation and INVISIBLE at the object the realizer returns, and one
+    ``None`` short-circuits the composability check — routing
+    ``_reflect_trace`` through ``@`` would have gated nothing. Step 8.0 gave
+    the tensor product the agreement law
+    (:func:`~orpheus.numerics.operator._agreed_space`) and the row flipped
+    ``XPASS(strict)``, which is what proved it measured the thing rather than
+    being ceremony.
 
-    Flip-proof `[M]`: teaching ``TensorProductOperator.domain`` to forward
-    ``ops[0].domain`` turns this row ``XPASS(strict)``, which is what proves
-    it measures the thing step 8 will change rather than being ceremony.
+    The assertions are ``is``-identities naming WHICH end is which, because a
+    ``domain``/``codomain`` swap is invisible to every shape check
+    (:math:`|\Gamma_+| = |\Gamma_-|` on every reachable face) and changes no
+    arithmetic — the mutation battery at step 5 measured it reddening nothing
+    outside the binding gates.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     layout = FaceLayout.from_named_shapes(

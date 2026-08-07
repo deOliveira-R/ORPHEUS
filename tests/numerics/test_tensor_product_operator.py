@@ -26,13 +26,16 @@ from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.numerics.operator import (
     DiagonalOperator,
     IdentityOperator,
+    IncompatibleOperatorComposition,
     NotInvertible,
+    PermutationOperator,
     RankOneOperator,
     SumOfTensorProductsOperator,
     TensorProductOperator,
     ZeroOperator,
     outer,
 )
+from orpheus.numerics.space import FunctionSpace
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -178,6 +181,141 @@ class TestTensorProductRequiresApply:
 
         with pytest.raises(TypeError, match="apply"):
             TensorProductOperator((FakeOp(),))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The spaces (G6.3 step 8.0) — resolved by AGREEMENT, never by position
+# ─────────────────────────────────────────────────────────────────────
+
+
+_V = FunctionSpace(name="V", shape=(3,))
+_W = FunctionSpace(name="W", shape=(3,))
+
+
+def _bound_swap(domain, codomain):
+    """A leaf that genuinely maps ``domain -> codomain`` (a 3-cycle on axis 0)."""
+    return PermutationOperator(
+        np.array([1, 2, 0]), axis=0, domain=domain, codomain=codomain,
+    )
+
+
+@pytest.mark.l0
+@pytest.mark.catches("ERR-076")
+class TestTensorProductSpaces:
+    r"""L0: :math:`A \otimes I` is bound exactly where :math:`A` is.
+
+    Before step 8.0 the product derived nothing, so a binding real at the
+    inner factor was invisible at the composite — and since
+    ``_AdjointOperator`` reads the spaces to apply the metrics, ``.H`` also
+    degraded silently to the Euclidean transpose.
+    """
+
+    def test_the_lone_bound_factor_supplies_both_ends(self):
+        r"""``is``-identity, and it names WHICH end is which.
+
+        A ``domain``/``codomain`` swap changes no arithmetic and no shape —
+        both ends are ``(3,)`` here, mirroring the real case where
+        :math:`|\Gamma_+| = |\Gamma_-|` on every reachable face — so an
+        identity assertion naming the ends is the only instrument that can
+        see it.
+        """
+        A = _bound_swap(_V, _W)
+        T = A & IdentityOperator()
+        assert T.domain is _V
+        assert T.codomain is _W
+
+    def test_the_derived_spaces_do_not_depend_on_factor_ORDER(self):
+        r"""⭐ The law that forced agreement over position.
+
+        The factors commute by contract — the class docstring's "the order
+        does not matter" — so a position-based rule (``ops[0].domain`` /
+        ``ops[-1].codomain``, which is what :class:`OperatorProduct` correctly
+        uses) would give an order-DEPENDENT answer for an order-INDEPENDENT
+        operator. Here it would have handed ``I & A`` a ``None`` domain.
+        """
+        A = _bound_swap(_V, _W)
+        forward, reversed_ = A & IdentityOperator(), IdentityOperator() & A
+        assert forward.domain is reversed_.domain is _V
+        assert forward.codomain is reversed_.codomain is _W
+
+    def test_silent_factors_leave_the_product_unbound(self):
+        """All-silent stays ``None`` — the transitional contract (#330).
+
+        Periodic realizes to ``I & I`` and the fission kernel to an unbound
+        rank-one dyad; neither declares a space, and neither may be given one
+        by inference.
+        """
+        assert (IdentityOperator() & IdentityOperator()).domain is None
+        assert (IdentityOperator() & IdentityOperator()).codomain is None
+        unbound = outer(
+            np.arange(3.0), InnerProductFunctional(np.arange(3.0), axis=0)
+        ) & IdentityOperator()
+        assert unbound.domain is None and unbound.codomain is None
+
+    def test_factors_that_AGREE_compose(self):
+        """The positive leg: agreement is not merely "no disagreement"."""
+        T = _bound_swap(_V, _W) & _bound_swap(_V, _W)
+        assert T.domain is _V and T.codomain is _W
+
+    @pytest.mark.parametrize(
+        "second, role",
+        [
+            (lambda: _bound_swap(_W, _W), "domain"),
+            (lambda: _bound_swap(_V, _V), "codomain"),
+        ],
+    )
+    def test_factors_that_DISAGREE_are_refused(self, second, role):
+        """Whole-space bindings that differ cannot both be the product's.
+
+        The refusal is the honest answer, not a fallback: picking one would
+        make the composite advertise a space it does not have. The message
+        names the machinery a legitimate per-axis case would need.
+
+        ⚠ The match carries the OWNER and the plural — ``codomain`` contains
+        ``domain``, so a bare role would let the domain row pass on a codomain
+        refusal and the parametrization would gate one branch twice; and the
+        law is shared with :class:`OperatorSum`, so the owner is what says
+        which composite refused.
+        """
+        with pytest.raises(
+            IncompatibleOperatorComposition,
+            match=f"TensorProductOperator requires equal {role}s",
+        ):
+            _ = _bound_swap(_V, _W) & second()
+
+    def test_the_inverse_INVERTS_the_binding(self):
+        r""":math:`(A \otimes I)^{-1} : W \to V` — ends swapped, not dropped."""
+        inv = (_bound_swap(_V, _W) & IdentityOperator()).inverse()
+        assert inv.domain is _W
+        assert inv.codomain is _V
+
+    def test_the_adjoint_SWAPS_the_binding(self):
+        r""":math:`(A \otimes I)^{*} : W \to V`, via the ``_AdjointOperator``."""
+        adj = (_bound_swap(_V, _W) & IdentityOperator()).adjoint()
+        assert adj.domain is _W
+        assert adj.codomain is _V
+
+
+@pytest.mark.l0
+class TestSumOfTensorProductsSpaces:
+    """L0: a sum of tensor products is a SUM — same agreement law."""
+
+    def test_the_summands_supply_the_spaces(self):
+        S = SumOfTensorProductsOperator(
+            (_bound_swap(_V, _W) & IdentityOperator(),
+             _bound_swap(_V, _W) & IdentityOperator())
+        )
+        assert S.domain is _V and S.codomain is _W
+
+    def test_disagreeing_summands_are_refused(self):
+        with pytest.raises(
+            IncompatibleOperatorComposition,
+            match="SumOfTensorProductsOperator requires equal codomains",
+        ):
+            SumOfTensorProductsOperator(
+                (_bound_swap(_V, _W) & IdentityOperator(),
+                 _bound_swap(_V, _V) & IdentityOperator())
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────

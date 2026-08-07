@@ -241,7 +241,9 @@ class SNBoundaryOperator(LinearOperator):
     ``B_b`` lives on ``radial_characteristic_field_space``. The two are placed
     at the (A,A) and (B,B) slots of the coupled grid; spelling ``B_a + B_b``
     raises :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`
-    (``OperatorSum`` requires equal domains) and always has, by design.
+    (``OperatorSum`` requires equal domains — the shared space-agreement law
+    :func:`~orpheus.numerics.operator._agreed_space` since G6.3 step 8.0) and
+    always has, by design.
 
     The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
     mesh's composite carrier

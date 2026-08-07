@@ -335,6 +335,69 @@ def _join_system_roles(
     return a if a is b else SystemRole.COUPLED
 
 
+def _agreed_space(
+    ops: tuple, role: str, owner: str,
+) -> Optional["FunctionSpace"]:
+    r"""The space a COMMUTATIVE composite's operands agree on, or ``None``.
+
+    The two composites whose operands commute — the sum :math:`A + B` and the
+    tensor product :math:`A \otimes B` on disjoint axes — cannot resolve their
+    spaces BY POSITION, because position is not part of their identity: if
+    ``(A & B).domain`` were ``ops[0].domain``, the derived space of an
+    order-INDEPENDENT operator would be order-DEPENDENT, contradicting the
+    type's own defining law. So they resolve by **agreement** instead, and this
+    is that law, written once:
+
+    * every operand that declares the space must declare the SAME one, else
+      the composite is ill-posed and this raises;
+    * an operand that declares nothing contributes nothing — silence is not
+      disagreement (the module-wide ``None`` semantics: spaces are optional
+      while the tree migrates, and a skipped check is never a failed one);
+    * all silent ⟹ ``None``, the composite is unbound like its operands.
+
+    Contrast :class:`OperatorProduct`, the one NON-commutative composite:
+    ``A @ B`` genuinely maps ``B.domain → A.codomain``, so it resolves by
+    position and an unbound factor there poisons that end. The law follows the
+    algebra in both cases.
+
+    ⚠ **Why agreement is enough, and where it would stop being enough.** A
+    factor's binding in this module is a WHOLE-space binding, not a per-leg
+    one: a :class:`PermutationOperator` with ``axis=0`` acting on a
+    ``(4, 3)`` trace declares ``domain.shape == (4, 3)`` — both axes — because
+    it broadcasts on the rest. So the factors of a tensor product are not
+    describing separate legs to be multiplied together; each bound factor is
+    describing the WHOLE space, and at most one of them can be non-trivial.
+    Should genuine per-leg bindings ever arrive (an energy-dependent group
+    kernel bound on its own axis), agreement becomes the wrong law and a
+    product-space constructor is what has to be built — which is what the
+    docstrings on the two tensor-product classes say, rather than silently
+    picking one leg.
+
+    ⚠ **The message keeps the phrase** ``equal <role>s`` **deliberately.** It
+    predates this helper (it was :class:`OperatorSum`'s own inline wording) and
+    two gates in ``tests/sn/operators/test_typed_residual_evaluation.py`` pin it
+    as the provenance marker that says *this* guard fired and not some
+    incidental raise elsewhere. ``owner`` is prefixed so the marker still
+    identifies WHICH composite refused now that the law is shared.
+    """
+    declared = [
+        (op, space)
+        for op in ops
+        if (space := getattr(op, role, None)) is not None
+    ]
+    if not declared:
+        return None
+    first_op, agreed = declared[0]
+    for op, space in declared[1:]:
+        if space != agreed:
+            raise IncompatibleOperatorComposition(
+                f"{owner} requires equal {role}s; "
+                f"{type(first_op).__name__} declares {agreed!r} while "
+                f"{type(op).__name__} declares {space!r}."
+            )
+    return agreed
+
+
 class _BlockRoleMeta(type):
     r"""Metaclass making ``isinstance(op, BulkOperator)`` read ``op.block_role``.
 
@@ -1363,25 +1426,14 @@ class OperatorSum(
                 f"OperatorSum requires apply on both operands; right "
                 f"operand {type(b).__name__} lacks 'apply'."
             )
-        # Domain/codomain compatibility check (skipped when either
-        # operand lacks function-space metadata — backward-compatible
-        # with operators that pre-date Issue 9.6).
-        a_dom, a_cod = getattr(a, "domain", None), getattr(a, "codomain", None)
-        b_dom, b_cod = getattr(b, "domain", None), getattr(b, "codomain", None)
-        if (
-            a_dom is not None and b_dom is not None and a_dom != b_dom
-        ):
-            raise IncompatibleOperatorComposition(
-                f"OperatorSum requires equal domains; got {a_dom!r} and "
-                f"{b_dom!r}."
-            )
-        if (
-            a_cod is not None and b_cod is not None and a_cod != b_cod
-        ):
-            raise IncompatibleOperatorComposition(
-                f"OperatorSum requires equal codomains; got {a_cod!r} and "
-                f"{b_cod!r}."
-            )
+        # Domain/codomain agreement, eager (skipped per-operand when one
+        # lacks function-space metadata — backward-compatible with operators
+        # that pre-date Issue 9.6). The law is :func:`_agreed_space`, shared
+        # with the other commutative composite (the tensor product): a sum
+        # commutes, so its spaces are what its summands AGREE on, never a
+        # function of which one was written first.
+        _agreed_space((a, b), "domain", "OperatorSum")
+        _agreed_space((a, b), "codomain", "OperatorSum")
         self._a: Final = a
         self._b: Final = b
         # Block role DERIVED from the operands: the sum touches the union
@@ -1409,13 +1461,14 @@ class OperatorSum(
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        a_dom = getattr(self.a, "domain", None)
-        return a_dom if a_dom is not None else getattr(self.b, "domain", None)
+        # The summands agreed at construction, so "the agreed one" and "the
+        # first that speaks" coincide — but only the former is the LAW, and
+        # spelling it twice is how the two drift.
+        return _agreed_space((self.a, self.b), "domain", "OperatorSum")
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        a_cod = getattr(self.a, "codomain", None)
-        return a_cod if a_cod is not None else getattr(self.b, "codomain", None)
+        return _agreed_space((self.a, self.b), "codomain", "OperatorSum")
 
     def apply(self, x: Domain, /) -> Codomain:
         return self.a.apply(x) + self.b.apply(x)
@@ -2860,6 +2913,14 @@ class TensorProductOperator(LinearOperator):
     * **Inverse on every axis**:
       :math:`(A \otimes B)^{-1} = A^{-1} \otimes B^{-1}` when both
       factors are invertible.
+    * **Spaces by AGREEMENT, not position** (:attr:`domain`): since the
+      factors commute, a position-based rule would give an
+      order-independent operator order-dependent spaces. Every factor
+      that declares a space must declare the same one; silence
+      contributes nothing; disagreement raises
+      :class:`IncompatibleOperatorComposition`. This is the law
+      :class:`OperatorSum` — the other commutative composite — already
+      obeyed, shared as :func:`_agreed_space`.
 
     Parameters
     ----------
@@ -2900,6 +2961,34 @@ class TensorProductOperator(LinearOperator):
                     f"{type(op).__name__} lacks it."
                 )
         self.ops: tuple = tuple(ops)
+        # Eager space agreement, for the same reason :class:`OperatorSum`
+        # checks it and by the same shared law: the factors COMMUTE, so the
+        # product's spaces cannot be a function of factor order.
+        _agreed_space(self.ops, "domain", "TensorProductOperator")
+        _agreed_space(self.ops, "codomain", "TensorProductOperator")
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        r"""The space the factors agree on — see :func:`_agreed_space`.
+
+        A factor that declares nothing (the group-axis
+        :class:`IdentityOperator` every shipped boundary law carries) leaves
+        the binding to the factor that does, so ``K_ω ⊗ I`` is bound exactly
+        where ``K_ω`` is. Before G6.3 step 8.0 this returned the base's
+        ``None``, which meant the binding was real at the inner factor and
+        INVISIBLE at the object a realizer hands out — and, because
+        :class:`_AdjointOperator` reads the spaces to apply the metrics, it
+        also meant ``(K_ω ⊗ I).H`` silently degraded to the Euclidean
+        transpose (`[M]` 87 % relative error against the weighted adjoint on
+        the Lambertian, exact only for the specular mirror, whose metric
+        cancels).
+        """
+        return _agreed_space(self.ops, "domain", "TensorProductOperator")
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        """The space the factors agree on — see :attr:`domain`."""
+        return _agreed_space(self.ops, "codomain", "TensorProductOperator")
 
     @staticmethod
     def _build(a: "LinearOperator", b: "LinearOperator") -> "TensorProductOperator":
@@ -3023,6 +3112,20 @@ class SumOfTensorProductsOperator(LinearOperator):
                     f"Use OperatorSum for general operator addition."
                 )
         self.summands: tuple = tuple(summands)
+        # A sum of tensor products is a sum: same agreement law as
+        # :class:`OperatorSum`, one spelling (G6.3 step 8.0).
+        _agreed_space(self.summands, "domain", "SumOfTensorProductsOperator")
+        _agreed_space(self.summands, "codomain", "SumOfTensorProductsOperator")
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        """The space the summands agree on — see :func:`_agreed_space`."""
+        return _agreed_space(self.summands, "domain", "SumOfTensorProductsOperator")
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        """The space the summands agree on — see :func:`_agreed_space`."""
+        return _agreed_space(self.summands, "codomain", "SumOfTensorProductsOperator")
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         out = self.summands[0].apply(x)

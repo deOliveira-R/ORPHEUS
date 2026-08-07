@@ -253,10 +253,19 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     matvec path (``L.apply - Σ gᵢ.apply``, no
     :class:`~orpheus.numerics.operator.OperatorSum`) is structurally blind to.
 
-    Mode-11 (vv-principles): the raise must come FROM the
-    :meth:`OperatorSum.__init__` guard, pinned by BOTH the message text
-    (``"equal domains"`` — unique to that guard) AND the traceback's innermost
-    frame — not incidentally elsewhere."""
+    Mode-11 (vv-principles): the raise must come FROM the sum's own
+    space-agreement guard, pinned by BOTH the message text AND the traceback —
+    not incidentally elsewhere.
+
+    ⚠ **The provenance pin moved one frame out at G6.3 step 8.0**, when the
+    check :meth:`OperatorSum.__init__` had written inline was retired onto the
+    shared law :func:`~orpheus.numerics.operator._agreed_space` (the tensor
+    product needed the same rule, and two transcriptions of one invariant is
+    how they drift). So the innermost frame is now ``_agreed_space`` and
+    ``OperatorSum.__init__`` is its CALLER — both asserted below, which is
+    strictly stronger than the single frame this row used to pin: the shared
+    helper alone could have been reached on behalf of any composite, and the
+    ``owner`` prefix in the message plus the caller frame say it was the sum."""
     solver, LC, S, B = _slab_2g_het_triple()
     ffs = solver.sn_mesh.full_field_space
     # Right shape, WRONG name — the discriminating mis-composition. Patch the
@@ -265,19 +274,27 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     with mock.patch.object(type(S), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(S), "codomain", property(lambda self: wrong)):
         with pytest.raises(
-            IncompatibleOperatorComposition, match="equal domains",
+            IncompatibleOperatorComposition,
+            match="OperatorSum requires equal domains",
         ) as ei:
             _ = LC - S - B
-    # Mode-11 provenance: the innermost frame IS the OperatorSum guard.
+    # Mode-11 provenance: the shared law raised, ON BEHALF OF the sum.
     innermost = ei.traceback[-1].frame.code
-    if innermost.raw.co_qualname != "OperatorSum.__init__":
+    if innermost.raw.co_qualname != "_agreed_space":
         raise AssertionError(
             f"raise came from {innermost.raw.co_qualname}, not "
-            "OperatorSum.__init__ — the named gate is not the catcher"
+            "_agreed_space — the named gate is not the catcher"
         )
     if not str(innermost.path).endswith("numerics/operator.py"):
         raise AssertionError(
             f"raise not from numerics/operator.py: {innermost.path}"
+        )
+    caller = ei.traceback[-2].frame.code
+    if caller.raw.co_qualname != "OperatorSum.__init__":
+        raise AssertionError(
+            f"the shared law was invoked from {caller.raw.co_qualname}, not "
+            "OperatorSum.__init__ — this row pins the SUM's guard, and the "
+            "helper is reachable on behalf of the tensor product too"
         )
 
 
@@ -300,7 +317,8 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     with mock.patch.object(type(C), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(C), "codomain", property(lambda self: wrong)):
         with pytest.raises(
-            IncompatibleOperatorComposition, match="equal domains",
+            IncompatibleOperatorComposition,
+            match="OperatorSum requires equal domains",
         ):
             _ = L + C
 

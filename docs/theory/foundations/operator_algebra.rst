@@ -3521,6 +3521,103 @@ three algebraic laws verified by tests
 .. vv-status: tensor-product-axis-wise-composition documented
 .. vv-status: tensor-product-inverse documented
 
+.. _tensor-product-spaces:
+
+The spaces: a commutative composite resolves them by AGREEMENT
+---------------------------------------------------------------
+
+The three laws above are about the *action*. There is a fourth, about
+the *typing*, and it is forced by the first sentence of the definition
+above — **the factors commute**.
+
+A composite has to answer ``domain`` and ``codomain`` from its
+operands, and there are only two ways to do it. The non-commutative
+composite :math:`A \circ B` answers **by position**: the input space is
+:math:`B`'s, the output space is :math:`A`'s, and that is exactly right
+because swapping the operands makes a different operator. Apply the
+same rule to :math:`A \otimes B` and it produces a contradiction —
+:math:`A \otimes I` would be bound at the domain and unbound at the
+codomain while :math:`I \otimes A` is the reverse, so an
+order-INDEPENDENT operator would carry order-DEPENDENT spaces.
+
+So the commutative composites — the sum and the tensor product —
+answer **by agreement** instead:
+
+.. math::
+   :label: tensor-product-space-agreement
+
+   \operatorname{dom}(A_1 \otimes \cdots \otimes A_k)
+   \;=\;
+   \begin{cases}
+     V & \text{if every factor that declares a domain declares } V \\
+     \text{undeclared} & \text{if no factor declares one} \\
+     \text{REFUSED} & \text{otherwise,}
+   \end{cases}
+
+and identically for the codomain. Silence is not disagreement: a factor
+that declares nothing contributes nothing, which is how
+:math:`K_\omega \otimes I` — every shipped SN boundary law, with the
+group factor an identity — is bound exactly where :math:`K_\omega` is.
+
+.. vv-status: tensor-product-space-agreement documented
+
+**Why agreement suffices, and where it would stop.** A factor's binding
+in this module is a WHOLE-space binding, not a per-leg one: a
+:class:`~orpheus.numerics.operator.PermutationOperator` tagged
+``axis=0`` acting on a :math:`(4, 3)` trace declares
+``domain.shape == (4, 3)`` — both axes — because it broadcasts on the
+rest. The factors are therefore not describing separate legs to be
+multiplied together; each bound factor describes the WHOLE space, and
+at most one of them can be non-trivial. Should genuine per-leg bindings
+ever arrive (an energy-dependent group kernel bound on its own axis),
+agreement becomes the wrong law and a **product-space constructor** is
+what has to be built — which is what the refusal says, rather than
+silently electing one leg.
+
+.. admonition:: Development history — G6.3 step 8.0, 2026-08-06
+   :class: note
+
+   Until 2026-08-06 the tensor product derived **nothing** from its
+   factors, inheriting the base class's ``None``. Two consequences, and
+   the second was live:
+
+   1. A binding real at the inner factor was **invisible at the object a
+      realizer hands out**, so the composability check
+      :math:`A.\mathrm{domain} = B.\mathrm{codomain}` — which skips
+      whenever either side is ``None`` — could not fire on it. ``[M]``
+      4941 bindings measured across the suite with **zero** failures:
+      a green that meant nothing.
+   2. ``[M]`` because
+      :meth:`_AdjointOperator.apply <orpheus.numerics.operator._AdjointOperator.apply>`
+      reads the spaces to decide whether to apply the metrics,
+      :math:`(K_\omega \otimes I)^{*}` silently degraded to the
+      **Euclidean transpose** — not a weaker adjoint, a different
+      operator. On a 3-group
+      ``gauss_legendre(8)`` xmin face it was **87 % relative** away
+      from the partial-current Hilbert adjoint for the Lambertian.
+
+   ⭐ **The specular mirror is exactly blind to (2)**, and that is why no
+   gate saw it: :math:`G_{\Gamma_-} = G_{\Gamma_+} \circ \pi`
+   bit-exactly, because a mirror preserves
+   :math:`|\Omega\cdot\hat n|\,w_n`, so the two metrics cancel and the
+   weighted and unweighted adjoints agree to **0.0**. A
+   reflective-only fixture certifies a Lambertian defect. The gate that
+   closed it therefore parametrizes both laws AND asserts that the
+   Lambertian fixture can still tell a weighted adjoint from a bare one
+   (:ref:`verification-anti-patterns`, Mode 12 — the measured
+   functional's invariance group contained the error class).
+
+   Gated by ``TestTensorProductSpaces`` /
+   ``TestSumOfTensorProductsSpaces`` in
+   :file:`tests/numerics/test_tensor_product_operator.py` (the law) and
+   ``TestTheRealizedLawIsMETRICCorrect`` in
+   :file:`tests/sn/operators/test_sn_boundary_realizer.py` (the
+   consequence, at the tier the physics lives in). ``[M]`` the mutation
+   battery: dropping the derivation reddens **18**, swapping
+   ``domain`` ↔ ``codomain`` reddens **8**, replacing agreement with the
+   position rule reddens **7**, and removing the disagreement refusal
+   reddens exactly the **3** refusal gates.
+
 
 Relation to numpy primitives
 -----------------------------

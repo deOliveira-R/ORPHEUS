@@ -841,6 +841,122 @@ class TestRealizePeriodic:
 
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-076")
+class TestTheRealizedLawIsMETRICCorrect:
+    r"""⭐ G6.3 step 8.0's consequence, gated at the tier the physics lives in.
+
+    :class:`~orpheus.numerics.operator._AdjointOperator` reads the operator's
+    spaces to apply the metrics, so an UNBOUND operator's ``.H`` is not a
+    weaker Hilbert adjoint — it is the **Euclidean transpose**, silently, with
+    no error and no warning. Until step 8.0 the realizer's own output was
+    exactly that: the binding was real at the inner factor and dropped by the
+    ``⊗ I`` wrapper, so ``realize(...).H`` was the unweighted shadow of the
+    partial-current adjoint the trace space installs.
+
+    `[M]` at the time of the fix, on a 3-group ``gauss_legendre(8)`` xmin
+    face: the two answers agreed to **0.0** for the specular mirror — whose
+    metric cancels exactly, :math:`G_{\Gamma_-} = G_{\Gamma_+}\circ\pi` — and
+    differed by **87 % relative** for the Lambertian. So a reflective-only
+    fixture cannot see this, which is why white is parametrized here and why
+    the twin below asserts the fixture can still tell the two apart.
+
+    This is the realizer-tier twin of
+    ``test_lambertian_factored.py::test_dropping_the_binding_BREAKS_the_weighted_law``
+    — that one proves the FACTORED chain needs its binding, this one proves
+    the object a caller actually receives kept it.
+    """
+
+    _LAWS = {
+        "specular": lambda: ReflectiveBoundary(axis="x"),
+        "lambertian": lambda: WhiteBoundary(axis="x", outward_sign=+1),
+        "specular_scaled": lambda: ReflectiveBoundary(axis="x", albedo=0.3),
+        "lambertian_scaled": lambda: WhiteBoundary(
+            axis="x", outward_sign=+1, albedo=0.4
+        ),
+    }
+
+    @staticmethod
+    def _realized(law_key, n_ordinates=8):
+        quad = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
+        ms = face_method_space(quad, face="xmax")
+        op = SNBoundaryRealizer().realize(
+            TestTheRealizedLawIsMETRICCorrect._LAWS[law_key](), ms
+        )
+        return op, quad
+
+    @pytest.mark.parametrize("law_key", sorted(_LAWS))
+    def test_the_realized_operator_carries_its_spaces(self, law_key):
+        """The precondition: without both ends, ``.H`` cannot be weighted."""
+        op, _ = self._realized(law_key)
+        assert op.domain is not None, f"{law_key} lost its domain"
+        assert op.codomain is not None, f"{law_key} lost its codomain"
+
+    @pytest.mark.parametrize("law_key", sorted(_LAWS))
+    def test_the_realized_operator_satisfies_the_WEIGHTED_adjoint_law(
+        self, law_key
+    ):
+        r""":math:`\langle Rx, y\rangle_{\Gamma_-} = \langle x, R^{*}y\rangle_{\Gamma_+}`
+        under the partial-current metric :math:`|\Omega\cdot\hat n|\,w_n`.
+
+        ⚠ **What this row actually gates is that the metric is REACHED**, not
+        the adjoint formula. Given
+        :math:`R^{*} = G_{\Gamma_+}^{-1} R^{\mathsf T} G_{\Gamma_-}`, the
+        identity is algebra for *any* :math:`R` — the two metrics cancel
+        through it. It discriminates because an operator with no spaces never
+        gets that far: :class:`_AdjointOperator` applies no metric at all and
+        :math:`R^{*}` collapses to the bare :math:`R^{\mathsf T}`, which does
+        NOT satisfy the weighted law. So the row is a probe for the binding
+        surviving to the realizer's output, worded as the physics it buys.
+        Its teeth are measured, not argued: dropping the tensor product's
+        space derivation reddens it.
+        """
+        op, _ = self._realized(law_key)
+        rng = np.random.default_rng(20260806)
+        x = rng.standard_normal(op.domain.shape)
+        y = rng.standard_normal(op.codomain.shape)
+        assert op.codomain.inner_product(op.apply(x), y) == pytest.approx(
+            op.domain.inner_product(x, op.H.apply(y)), rel=1e-13,
+        )
+
+    def test_the_LAMBERTIAN_fixture_can_tell_a_weighted_adjoint_from_a_bare_one(
+        self,
+    ):
+        """The discrimination check — without it the gate above may be blind.
+
+        A metric that cancels makes the weighted law hold for the UNWEIGHTED
+        operator too, which is exactly what happens for the specular mirror.
+        This asserts the Lambertian row is not in that regime, so its green
+        is evidence.
+        """
+        op, _ = self._realized("lambertian")
+        rng = np.random.default_rng(20260806)
+        y = rng.standard_normal(op.codomain.shape)
+        hilbert = np.asarray(op.H.apply(y))
+        euclidean = np.asarray(op.apply_transpose(y))
+        relative = np.abs(hilbert - euclidean).max() / np.abs(hilbert).max()
+        assert relative > 0.1, (
+            f"the Hilbert adjoint and the Euclidean transpose differ by only "
+            f"{relative:.2e} relative on this fixture, so the weighted-law "
+            f"row above would pass with the binding dropped"
+        )
+
+    def test_the_SPECULAR_mirror_is_the_documented_blind_case(self):
+        r"""And the negative leg: on the mirror the two coincide EXACTLY.
+
+        Not a defect — :math:`G_{\Gamma_-} = G_{\Gamma_+}\circ\pi` bit-exactly
+        because a mirror preserves :math:`|\Omega\cdot\hat n|\,w_n`. Pinned so
+        the discrimination check above is read as fixture-specific rather than
+        as a property of boundary operators in general.
+        """
+        op, _ = self._realized("specular")
+        rng = np.random.default_rng(20260806)
+        y = rng.standard_normal(op.codomain.shape)
+        np.testing.assert_array_equal(
+            np.asarray(op.H.apply(y)), np.asarray(op.apply_transpose(y))
+        )
+
+
+@pytest.mark.l1
 class TestRealizerIdentity:
     """The structural pins that replaced the registry-lookup pins when
     #290 P7b dissolved ``BoundaryRealizerRegistry``."""

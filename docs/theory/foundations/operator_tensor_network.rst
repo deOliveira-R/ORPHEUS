@@ -176,7 +176,8 @@ shape choice.
        (single TP), or a bare
        :class:`ZeroOperator` for
        vacuum
-     - ``PermutationOperator(local_perm, axis=0) &
+     - ``PermutationOperator(local_perm, axis=0,
+       domain=Γ₊(f), codomain=Γ₋(f)) &
        IdentityOperator()`` for specular, on the
        **reduced** ordinate axis :math:`\Gamma_+`;
        a two-hook ``ZeroOperator`` for vacuum
@@ -193,6 +194,13 @@ shape choice.
        (:ref:`bc-domain-narrowing`); vacuum has
        no non-trivial factor left to carry, so it
        drops out of the TP form entirely.
+       ⚠ **Carry the binding into the example you
+       copy.** The identity factor declares no
+       space, so the product takes the ordinate
+       factor's (:ref:`tensor-product-spaces`) —
+       and an unbound build is not merely
+       untyped, its ``.H`` degrades silently to
+       the Euclidean transpose.
    * - Fission (:math:`F`)
      - :class:`TensorProductOperator`
        (single rank-1 dyad)

@@ -4597,7 +4597,13 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        binding makes this the **one-link** case of the white arm's chain
        (:ref:`bc-deck-length-one-chain`) and costs zero arithmetic
        — `[M]` ``apply`` and ``apply_transpose`` bit-identical to the
-       unbound build on all five shipped quadratures.
+       unbound build on all five shipped quadratures. ⚠ **Read that as
+       the two verbs it names, not as "inert".** ``.H`` is a THIRD verb
+       and the binding does change it — from the Euclidean transpose to
+       the metric-weighted Hilbert adjoint
+       (:ref:`tensor-product-spaces`). It happens to be bit-identical
+       *for the mirror*, whose metric cancels, and is **87 %** away for
+       the Lambertian row below.
      - ``ScaledOperator(α, <that TP>)``
    * - :class:`WhiteBoundary(axis, outward_sign, α)` — **narrowed**
        (B3.4a), **factored** (G6.3 step 3b)
