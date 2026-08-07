@@ -80,6 +80,8 @@ from orpheus.numerics.operator import (
     BoundaryOperator,
     BulkOperator,
     FullOperator,
+    IncompatibleOperatorComposition,
+    LinearOperator,
     MissingAdjoint,
 )
 from orpheus.numerics.quadrature import Quadrature
@@ -466,9 +468,21 @@ class TestApplyTransposeCapability:
         sn = _sn("SLB", (BC.vacuum, BC.reflective))
         _n_inflow = sn.angular_trace.inflow_indices_for_face("xmin").size
 
-        class _NoTransposeLaw:
+        class _NoTransposeLaw(LinearOperator):
             # Honest per-axis predicates (the caps frozenset retired with
             # carve P4): apply-only — neither axis available.
+            #
+            # ⚠ Subclasses :class:`LinearOperator` since **G6.3 step 8**, and
+            # that is a real contract narrowing, not test scaffolding. Before
+            # step 8 ``_reflect_trace`` only ever called ``law.apply``, so a
+            # bare duck-type with an ``apply`` was a sufficient surrogate; the
+            # face action is now the COMPOSITION ``law @ γ₊``, and a thing that
+            # is not a morphism cannot be composed (`[M]` the bare stub raised
+            # ``TypeError: unsupported operand type(s) for @``). Production is
+            # unaffected — every ``_face_laws`` entry is realizer output and
+            # therefore already an operator — so the honest fix is to make the
+            # surrogate honour the contract it is standing in for, NOT to add
+            # a guard for a case the type system now covers.
             is_adjointable = False
             is_invertible = False
 
@@ -495,6 +509,143 @@ class TestApplyTransposeCapability:
         # ``_reflect_trace``'s guarded ``adjointable(law)`` narrowing).
         with pytest.raises(MissingAdjoint, match="no Euclidean"):
             B.apply_transpose(_random_state(sn))
+
+
+class TestTheFaceActionIsCOMPOSED:
+    r"""⭐ **G6.3 step 8** — the face action is ``law @ γ₊``, so the
+    composability check runs on the PRODUCTION path.
+
+    Before step 8 :meth:`_reflect_trace` spelled the action as a sequence of
+    ``.apply`` calls, which cannot check anything: the binding G6.3 put on the
+    law and on ``γ±`` was honest metadata that nothing consulted (`[M]` 4941
+    bindings across the suite, zero failures). Composing is what turns it into
+    enforcement.
+
+    The defect class it now refuses is **B3.4c's**: a law handed the wrong
+    face's :math:`\Gamma_+`. That is invisible to a shape check —
+    :math:`|\Gamma_+| = |\Gamma_-| = |\Gamma|/2` on every reachable face — and
+    was MEASURED at 98 % relative error when it was live, so "it would look
+    obviously wrong" is not a defence.
+
+    ⚠ **Exactly ONE row here is a catcher for step 8**, and the flip-proof
+    says so: reverting :meth:`_reflect_trace` to the sequential ``.apply``
+    spelling reddens ``test_a_wrong_face_domain_map_now_RAISES_on_apply`` and
+    **nothing else** (`[M]` 1 of 8). The other rows gate the *algebra* the
+    catcher rests on — that the composition types correctly, that it is
+    arithmetic-neutral, that the wrong restriction is refused, and how far the
+    guarantee currently reaches. That is the honest split, not a coverage gap:
+    asking "by what mechanism would THIS row see a change in
+    ``_reflect_trace``?" answers "it wouldn't" for seven of them, and a row
+    that cannot see the property must not be counted as guarding it
+    (:ref:`verification-anti-patterns`, #18).
+    """
+
+    @staticmethod
+    def _slab():
+        return _sn("SLB", (BC.vacuum, BC.reflective))
+
+    def test_a_wrong_face_domain_map_now_RAISES_on_apply(self) -> None:
+        """⭐ The mutation, run as a gate — B3.4c re-injected at its source.
+
+        Swapping ``_face_domains`` on a NON-periodic mesh is exactly the
+        pre-B3.4c wiring, and it is the one mutation that this step's
+        machinery exists to catch. Pre-step-8 it computed a plausible number;
+        now the composition refuses to be formed at all.
+        """
+        sn = self._slab()
+
+        class _BWithSwappedDomains(SNBoundaryOperator):
+            @property
+            def _face_domains(self):
+                return {"xmin": "xmax", "xmax": "xmin"}
+
+        with pytest.raises(IncompatibleOperatorComposition, match="A.domain"):
+            _BWithSwappedDomains(sn).apply(_random_state(sn))
+
+    def test_the_UNSWAPPED_map_composes(self) -> None:
+        """The positive control (vv anti-#11): the same path, right wiring."""
+        sn = self._slab()
+        assert SNBoundaryOperator(sn)._face_domains == {
+            "xmin": "xmin", "xmax": "xmax",
+        }
+        SNBoundaryOperator(sn).apply(_random_state(sn))  # MUST NOT raise
+
+    def test_the_transpose_leg_reuses_the_SAME_composed_operator(self) -> None:
+        r"""⭐ Why the ⚠ scatter trap stopped being a thing to remember.
+
+        The forward is ``ι₋ ∘ law ∘ γ₊`` and its Euclidean transpose is
+        ``ι₊ ∘ lawᵀ ∘ γ₋`` — the scatter must be over :math:`\Gamma_+`, and
+        output-projecting onto :math:`\Gamma_-` instead extracts the DIAGONAL
+        block (for vacuum, a spurious ``+1`` where the forward is ZERO). Both
+        spellings are bit-identical for off-diagonal permutation laws, which
+        is why every reflective fixture stayed green over the wrong one.
+
+        Since step 8 one composed ``face_action`` serves both legs, and
+        ``(law ∘ γ₊)ᵀ = γ₊ᵀ ∘ lawᵀ`` is the product's own transpose law, so
+        there is no index left to choose wrongly. ⚠ **This row does not claim
+        the trap is impossible** — a hand-written ``γ₋ᵀ(lawᵀ(·))`` would still
+        run silently (the shapes agree). It claims the narrower, true thing:
+        reaching for the wrong restriction *through the composition* is
+        refused, so re-opening the trap now requires abandoning the composed
+        form, which is a visible structural edit rather than a one-word slip.
+        """
+        sn = self._slab()
+        trace = sn.angular_trace
+        law = sn.bc["xmin"]
+        # The right one composes...
+        assert (law @ trace.outflow_restriction("xmin")).codomain is (
+            trace.inflow_space("xmin")
+        )
+        # ...and the wrong one cannot be formed.
+        with pytest.raises(IncompatibleOperatorComposition, match="A.domain"):
+            _ = law @ trace.inflow_restriction("xmin")
+
+    @pytest.mark.parametrize("case_id", list(_CASES))
+    def test_composing_changed_no_ARITHMETIC(self, case_id) -> None:
+        """`[M]` both legs bit-identical to the pre-step-8 sequential spelling.
+
+        The reference is written out here as the three separate ``.apply``
+        calls the method used before, so the two sides are genuinely different
+        expressions of the same algebra rather than one calling the other.
+        A one-time equivalence claim: step 8 is a re-spelling, and any drift
+        would mean ``@`` is not function composition.
+        """
+        sn = _sn(*_CASES[case_id])
+        trace = sn.angular_trace
+        rng = np.random.default_rng(11)
+        for face, law in ((f, sn.bc[f]) for f in trace.layout.faces):
+            gamma_out = trace.outflow_restriction(face)
+            gamma_in = trace.inflow_restriction(face)
+            composed = law @ gamma_out
+
+            face_in = rng.standard_normal(trace.layout.faces[face].shape)
+            np.testing.assert_array_equal(
+                composed.apply(face_in), law.apply(gamma_out.apply(face_in)),
+            )
+            y = rng.standard_normal(gamma_in.codomain.shape)
+            np.testing.assert_array_equal(
+                composed.apply_transpose(y),
+                gamma_out.apply_transpose(law.apply_transpose(y)),
+            )
+
+    def test_PERIODIC_is_the_one_law_the_check_cannot_police_yet(self) -> None:
+        """⚠ The honest scope statement, and it flips at step 7.
+
+        Periodic realizes to an unbound ``IdentityOperator() & IdentityOperator()``,
+        so one ``None`` short-circuits the composability check — and periodic
+        is precisely the law whose domain face differs from its installation
+        face, i.e. the one this check was designed for. Binding it is step 7;
+        this row is the transitional pin that will redden when it lands.
+        """
+        sn = TestPeriodicReadsThePartnerFace._periodic_slab()
+        law = sn.bc["xmin"]
+        assert law.domain is None and law.codomain is None, (
+            "periodic is bound now — step 7 landed; re-scope this row and the "
+            "⚠ note in _reflect_trace's docstring, which says the same thing"
+        )
+        # Consequently the cross-face composition is FORMED, not checked.
+        composed = law @ sn.angular_trace.outflow_restriction("xmax")
+        assert composed.codomain is None
 
 
 class TestNarrowedLawDomain:

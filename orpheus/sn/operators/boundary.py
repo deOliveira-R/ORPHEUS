@@ -483,6 +483,27 @@ class SNBoundaryOperator(LinearOperator):
         quantity carrying no ``B`` term at all — is **unrepresentable** rather
         than merely projected away.
 
+        Since **G6.3 step 8** the ``law ∘ γ₊`` half is a genuine composition —
+        ``face_action = law @ γ₊`` — not a sequence of ``.apply`` calls, so
+        :class:`~orpheus.numerics.operator.OperatorProduct`'s composability
+        check runs on every face of every call: ``law.domain`` must BE the
+        half-trace ``γ₊`` emits. What that buys, and what it does not:
+
+        * ⭐ **The transpose leg is derived, not written.** ``face_action``
+          serves BOTH legs, because ``(law ∘ γ₊)ᵀ = γ₊ᵀ ∘ lawᵀ`` is
+          :meth:`OperatorProduct.apply_transpose`. The ⚠ trap below therefore
+          stopped being a thing to remember — see there.
+        * The ``ι₋`` end stays an explicit ``γ₋`` verb rather than joining the
+          product, because the ``rows`` branch does not emit through a plain
+          scatter (it writes a SUBSET of Γ₋ via ``to_local``). Composing it
+          would need a second, row-restricted operator per call to say
+          something the whole-slot branch already says.
+        * ⚠ Periodic realizes to an unbound ``I & I``, so its check SKIPS
+          (one ``None`` short-circuits). Binding it is **step 7**; until then
+          the one law whose domain face differs from its installation face is
+          the one law this check cannot police, which is worth knowing because
+          it is also the law the check was designed for.
+
         Pre-B3.2 the law was a *full-face* operator and this method projected
         its image onto the inflow rows (``B_face = P_inflow ∘ law``), masking
         the input on the transpose leg. That slice-write was the root defect
@@ -490,16 +511,35 @@ class SNBoundaryOperator(LinearOperator):
         face slot while its physics was ``outflow → inflow``, and every symptom
         in the review's §4 followed from the mismatch.
 
-        ⚠ Retained from that era because the trap survives the narrowing: the
-        transpose must scatter over :math:`\Gamma_+`, never over
+        ⚠ **The trap, and why it is now unspellable rather than remembered.**
+        The transpose must scatter over :math:`\Gamma_+`, never over
         :math:`\Gamma_-`. Output-projecting ``lawᵀ`` onto the law's own
         codomain instead extracts its DIAGONAL block — for vacuum that spells a
         spurious ``+1`` where the forward is the ZERO map, and it was caught
         only by the A2a grid-reciprocity arm on the het-VACUUM sphere, because
         off-diagonal permutation laws are bit-identical under either spelling
-        and every reflective-fixture gate stayed green over the wrong one. The
-        metric-correct Hilbert adjoint ``B.H`` under ``|Ω·n|·w`` is separate;
-        this Euclidean ``apply_transpose`` is the un-weighted shadow.
+        and every reflective-fixture gate stayed green over the wrong one.
+        Step 8 removed the *choice*: the scatter is whatever the composed
+        ``face_action`` transposes to, and ``γ₋`` is not one of its factors,
+        so there is no index to get wrong here. ⚠ **Not the same as
+        impossible** — a future edit could still hand-write
+        ``γ₋ᵀ(lawᵀ(·))``, and `[M]` it would run silently, because
+        :math:`|\Gamma_+| = |\Gamma_-|` makes the shapes agree. What changed
+        is that re-opening the trap now takes *abandoning the composition*, a
+        visible structural edit, rather than choosing the wrong one of two
+        adjacent names. (Composing ``law @ γ₋`` instead — the other way to
+        reach for it — does raise
+        :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`.)
+        The failure mode is kept in the record because it is what a future
+        refactor must know not to re-open, and because a reader who sees only
+        the fix cannot tell which of the two spellings is the right one.
+
+        The metric-correct Hilbert adjoint ``B.H`` under ``|Ω·n|·w`` is
+        separate; this Euclidean ``apply_transpose`` is the un-weighted shadow.
+        ⚠ Note the composition does NOT change that: ``@`` is metric-neutral
+        (:meth:`OperatorProduct.apply` is plain function composition), so
+        routing through it leaves this leg Euclidean exactly as before —
+        which is why every value here is bit-identical across step 8.
 
         This is the **single source of truth** for the boundary reflection: both
         the full-field :meth:`apply` (lifted onto a zero-bulk carrier) and the
@@ -563,8 +603,17 @@ class SNBoundaryOperator(LinearOperator):
             face_in = boundary.face_view(domain_face)
             gamma_out = trace.outflow_restriction(domain_face)   # γ₊(domain)
             gamma_in = trace.inflow_restriction(face)            # γ₋(face)
+            # ⭐ G6.3 step 8 — COMPOSE the pair, do not apply it in sequence.
+            # ``law ∘ γ₊`` is one operator ``Γ(domain) → Γ₋(face)``, and
+            # building it runs the composability check that a sequence of
+            # ``.apply`` calls structurally cannot: ``law.domain`` must BE
+            # ``γ₊(domain_face).codomain``, so feeding a law the wrong face's
+            # half-trace — the B3.4c defect, invisible to a shape check
+            # because ``|Γ₊| == |Γ₋| == |Γ|/2`` on every reachable face —
+            # raises here instead of computing a plausible wrong answer.
+            face_action = law @ gamma_out
             if method == "apply":
-                image = law.apply(gamma_out.apply(face_in))
+                image = face_action.apply(face_in)
                 if rows is None:
                     out_boundary.face_view(face)[...] = (
                         gamma_in.apply_transpose(image)
@@ -614,8 +663,16 @@ class SNBoundaryOperator(LinearOperator):
                     masked = np.zeros_like(transposed_in)
                     masked[sel] = transposed_in[sel]
                     restricted = gamma_in.apply(masked)
+                # ⭐ step 8 — the SAME composed operator serves this leg,
+                # because ``(law ∘ γ₊)ᵀ = γ₊ᵀ ∘ lawᵀ`` falls out of
+                # :meth:`OperatorProduct.apply_transpose`. That is what makes
+                # the ⚠ trap above STRUCTURAL rather than remembered: the
+                # scatter is ``γ₊ᵀ`` *because γ₊ is the operator that was
+                # composed*, so there is no longer a spelling of this line
+                # that scatters over Γ₋. `[M]` bit-identical to the
+                # hand-written ``γ₊ᵀ(lawᵀ(·))`` on every shipped law.
                 out_boundary.face_view(domain_face)[...] = (
-                    gamma_out.apply_transpose(law.apply_transpose(restricted))
+                    face_action.apply_transpose(restricted)
                 )
         return out_boundary
 
