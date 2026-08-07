@@ -245,6 +245,10 @@ class DiscreteMeasure:
       preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
       the **caller's responsibility**: this is the φ-image semantics,
       not a Radon-Nikodym derivative against a reference measure.
+    - ``μ.quotient(G)`` — the fold: one atom per :math:`G`-orbit on
+      ``f"{μ.support}/{G.name}"``, carrying the summed orbit weight
+      :math:`W = w \cdot |G| / |\mathrm{Stab}|`. Mass is preserved;
+      refuses unless the measure is certified :math:`G`-invariant.
     - ``μ.restrict(E)`` — keep atoms where ``E(x)`` is true; drop the
       rest. Weights of kept atoms are preserved.
     """
@@ -843,6 +847,139 @@ class DiscreteMeasure:
             # integral, so the reference measure is untouched — the
             # same reason the degree survives.
         )
+
+    # ------------------------------------------------------------------
+    # Quotient by a symmetry group
+    # ------------------------------------------------------------------
+
+    def quotient(
+        self,
+        group: "SubgroupOfO3",
+        *,
+        atol: float = 1e-13,
+    ) -> DiscreteMeasure:
+        r"""The quotient measure :math:`\mu / G` on the orbifold
+        :math:`\mathcal{X}/G` — THE FOLD.
+
+        Names the composite both halves already document (the equation
+        renders as :eq:`discrete-measure-quotient` on the theory page —
+        this module is not rendered by Sphinx, so the label lives
+        there):
+
+        .. math::
+
+           \mu / G \;=\; \mathrm{pushforward}(\varphi_{\mathrm{rep}})
+           \texttt{.consolidate()},
+           \qquad
+           \varphi_{\mathrm{rep}}(x_i) = x_{\min(G \cdot i)},
+
+        where :math:`\varphi_{\mathrm{rep}}` sends every node to its
+        orbit's representative. The representative is the orbit's
+        first-appearing member — the only *group-generic* section (a
+        geometric section such as :math:`\xi \mapsto |\xi|` exists only
+        for a mirror; a rotation orbit has no sign to take the absolute
+        value of) — so the quotient's atoms appear in the parent's own
+        storage order.
+
+        **The defining law** (what makes this a quotient and not a
+        convention): for every :math:`G`-invariant :math:`f`,
+
+        .. math::
+
+           \int f \, d(\mu/G) \;=\; \int f \, d\mu ,
+
+        because each orbit's weights are *summed onto* the
+        representative, giving the orbit-stabilizer weight
+
+        .. math::
+
+           W \;=\; w \cdot |G| \, / \, |\mathrm{Stab}(x)|
+
+        — derived, not chosen. For a non-invariant :math:`f` the
+        quotient instead integrates :math:`f \circ \varphi_{\mathrm{rep}}`:
+        a :math:`\xi`-odd integrand that vanished on the full sphere by
+        cancellation is *reported differently* on the fold. That is the
+        quotient being honest about its smaller space, not an error —
+        consumers that need odd moments must keep the full measure.
+
+        **Total mass is preserved exactly** (weights are summed, never
+        dropped) — the in-tree discriminator between a QUOTIENT and a
+        :meth:`restrict`-style restriction. When the action is **free**
+        (empty singular set :math:`\Sigma = \varnothing`, i.e. no node
+        is fixed by a non-identity element), every orbit has length
+        exactly :math:`|G|` and the weights collapse to a uniform
+        :math:`|G| \cdot w` — no mixed :math:`w`/:math:`2w` sum. A free
+        action is the fold's well-posedness condition: a rule is
+        admissible for a fold iff it places no node on :math:`\Sigma`.
+
+        **Precondition by construction.** The quotient is defined only
+        on a :math:`G`-invariant measure; the certificate
+        (:func:`~orpheus.numerics.symmetry.orbit_certificate`) is the
+        proof, and it cannot be built for a non-invariant measure, a
+        CONTINUOUS group (no finite node permutation), or nodes without
+        a 3-D realization — all three refuse loudly here.
+
+        **The fold consumes the symmetry.** The result carries
+        ``invariance_group=None``: the representative section is not
+        :math:`G`-equivariant, so no residual invariance is guaranteed
+        (ask :func:`~orpheus.numerics.symmetry.maximal_invariance_groups`
+        of the result if one is needed). Consequently a SECOND
+        ``quotient(group)`` refuses — except in the degenerate case
+        where every node was fixed (the action was trivial), where the
+        quotient is the identity on ``(nodes, weights)`` and literally
+        idempotent. ``exactness`` is likewise dropped (through
+        :meth:`pushforward`): an honest claim would be against the
+        pushforward reference :math:`\varphi_* \lambda`, a type nothing
+        consumes yet — minting it on speculation is worse than silence
+        (the direct-sum precedent).
+
+        Parameters
+        ----------
+        group : SubgroupOfO3
+            The finite symmetry group to quotient by, e.g.
+            ``SubgroupOfO3.Mirror("y")`` for the cylindrical
+            :math:`\xi`-fold.
+        atol : float, optional
+            Node-matching tolerance for building the certificate — the
+            one honestly-numerical step. Orbit membership itself is an
+            integer identity on the resulting permutations.
+
+        Returns
+        -------
+        DiscreteMeasure
+            One atom per :math:`G`-orbit, at the orbit's first-appearing
+            node, carrying the summed orbit weight; ``support`` tagged
+            ``f"{support}/{group.name}"``.
+
+        Raises
+        ------
+        ValueError
+            If no certificate exists (measure not ``group``-invariant,
+            or ``group`` continuous / without a finite realization on
+            these nodes).
+        """
+        # Lazy import: ``symmetry`` imports FROM this module (it takes a
+        # DiscreteMeasure), so a module-level import here would be
+        # circular. Mirrors the ``space`` property's lazy import.
+        from orpheus.numerics.symmetry import orbit_certificate
+
+        certificate = orbit_certificate(self, group, atol=atol)
+        if certificate is None:
+            raise ValueError(
+                f"a quotient is defined only for a {group.name}-invariant "
+                f"measure with a finite realization; this measure is not "
+                f"{group.name}-invariant (or {group.name} is continuous, "
+                f"and a continuous group has no finite node permutation)"
+            )
+
+        representative = np.arange(self.n_points, dtype=np.int64)
+        for orbit in certificate.orbits():
+            representative[orbit] = orbit.min()
+
+        return self.pushforward(
+            lambda nodes: nodes[representative],
+            new_space=f"{self.support}/{group.name}",
+        ).consolidate()
 
     # ------------------------------------------------------------------
     # Restriction

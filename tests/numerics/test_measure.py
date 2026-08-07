@@ -722,6 +722,234 @@ def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> Non
     assert sum(1 for r in ratios if r == 1.0) == n_fixed
 
 
+# ============================================================================
+# quotient(G) — the verb naming the composite (Q5.1)
+# ============================================================================
+#
+# The test above spells the fold BY HAND with the geometric section ξ → |ξ|
+# (it predates the verb; it stays as the structurally-independent reference
+# realization). The verb uses the only group-generic section — the orbit's
+# first-appearing member — so the two produce the same quotient MEASURE
+# through different representatives. The gates below are the plan's own:
+# mass, orbit-stabilizer weights, idempotence, and the free-action
+# certificate (Σ = ∅ ⟹ every orbit has length |G|).
+
+
+def _fold_ring(n_phi: int = 8) -> DiscreteMeasure:
+    """A σ_y-FREE fixture: one z-level, azimuthal MIDPOINT nodes.
+
+    ``φ_k = (2k+1)π/n_phi`` never hits ``sin φ = 0``, so no node lies on
+    the ``y = 0`` mirror — the action of ``⟨σ_y⟩`` is free (T24's
+    admissibility condition, hand-built because the shipped product rule
+    is equispaced-LEFT and does place nodes on the mirror).
+    """
+    z = 0.5
+    r = np.sqrt(1.0 - z * z)
+    phi = (2.0 * np.arange(n_phi) + 1.0) * np.pi / n_phi
+    nodes = np.column_stack([r * np.cos(phi), r * np.sin(phi), np.full(n_phi, z)])
+    return DiscreteMeasure(
+        nodes=nodes,
+        weights=np.full(n_phi, 4.0 * np.pi / n_phi),
+        support="S^2",
+    )
+
+
+@pytest.mark.foundation
+def test_quotient_agrees_with_the_geometric_section_orbit_by_orbit() -> None:
+    r"""Two independent representative sections realize the SAME quotient.
+
+    The verb picks each orbit's first-appearing member; the hand-rolled
+    reference above picks the :math:`\xi \geq 0` member via
+    :math:`\xi \to |\xi|`. Different atoms as embedded point sets — the
+    same measure on :math:`S^2/\langle\sigma_y\rangle`: applying the
+    geometric section to the verb's atoms must land each one on a
+    reference atom carrying the SAME weight.
+    """
+    from orpheus.numerics.quadrature import Quadrature
+
+    mu = Quadrature.product(n_mu=4, n_phi=8).measure
+
+    folded = mu.quotient(SubgroupOfO3.Mirror("y"))
+
+    reference_nodes = mu.nodes.copy()
+    reference_nodes[:, 1] = np.abs(reference_nodes[:, 1])
+    reference = mu.pushforward(
+        lambda nodes: reference_nodes, new_space="S^2/sigma_y"
+    ).consolidate()
+
+    assert folded.n_points == reference.n_points == 20  # Burnside (32+8)/2
+    section_of_folded = folded.nodes.copy()
+    section_of_folded[:, 1] = np.abs(section_of_folded[:, 1])
+    for k in range(folded.n_points):
+        (match,) = np.flatnonzero(
+            np.linalg.norm(reference.nodes - section_of_folded[k], axis=1) < 1e-12
+        )
+        assert float(folded.weights[k]) == pytest.approx(
+            float(reference.weights[match]), rel=1e-14
+        )
+
+
+@pytest.mark.foundation
+def test_quotient_integrates_invariant_functions_like_the_parent() -> None:
+    r"""The defining law: :math:`\int f \, d(\mu/G) = \int f \, d\mu` for
+    :math:`G`-invariant :math:`f` — and ONLY for those.
+
+    The odd arm is the knob-dependent positive control: a
+    :math:`\xi`-odd integrand vanishes on the full sphere by
+    cancellation and is decidedly nonzero on the fold (the quotient
+    reporting its smaller space, plan §"the in-tree discriminator").
+    If ``quotient`` degenerated to the identity, the odd arm — not the
+    even one — reddens.
+    """
+    from orpheus.numerics.quadrature import Quadrature
+
+    mu = Quadrature.product(n_mu=4, n_phi=8).measure
+    folded = mu.quotient(SubgroupOfO3.Mirror("y"))
+
+    def f_even(x: np.ndarray) -> np.ndarray:  # cosh is even in y
+        return np.exp(x[:, 0]) * np.cosh(x[:, 1]) * (1.0 + x[:, 2] ** 2)
+
+    def f_odd(x: np.ndarray) -> np.ndarray:  # y^3 is odd in y
+        return x[:, 1] ** 3 * (1.0 + x[:, 0] ** 2)
+
+    assert float(folded.integrate(f_even)) == pytest.approx(
+        float(mu.integrate(f_even)), rel=1e-13
+    )
+    assert abs(float(mu.integrate(f_odd))) < 1e-13
+    assert abs(float(folded.integrate(f_odd))) > 1e-2
+
+
+@pytest.mark.foundation
+def test_quotient_weights_are_orbit_stabilizer_derived() -> None:
+    r"""Every folded weight is :math:`W = w \cdot |G|/|\mathrm{Stab}|`,
+    read off the CERTIFICATE — and mass is preserved (quotient, not
+    restriction)."""
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.numerics.symmetry import orbit_certificate
+
+    mu = Quadrature.product(n_mu=4, n_phi=8).measure
+    group = SubgroupOfO3.Mirror("y")
+
+    cert = orbit_certificate(mu, group)
+    assert cert is not None
+    order = len(cert.operators)  # |G| = 2 for a mirror
+    assert order == 2
+
+    folded = mu.quotient(group)
+    assert folded.n_points == len(cert.orbits())
+
+    stab = cert.stabilizer_order
+    for k in range(folded.n_points):
+        (rep,) = np.flatnonzero(
+            np.linalg.norm(mu.nodes - folded.nodes[k], axis=1) < 1e-14
+        )
+        predicted = float(mu.weights[rep]) * order / float(stab[rep])
+        assert float(folded.weights[k]) == pytest.approx(predicted, rel=1e-14)
+
+    np.testing.assert_array_almost_equal_nulp(
+        np.array(folded.weights.sum()), np.array(mu.weights.sum()), nulp=4
+    )
+
+
+@pytest.mark.foundation
+def test_a_free_action_folds_to_uniform_double_weights() -> None:
+    r"""T24, the free-action certificate: :math:`\Sigma = \varnothing`
+    :math:`\Longrightarrow` every orbit has length :math:`|G|`, and the
+    orbit-stabilizer weight collapses to a uniform :math:`|G| \cdot w` —
+    per-atom BIT-exact (``w + w`` never rounds), with no mixed
+    :math:`w/2w` sum."""
+    from orpheus.numerics.symmetry import orbit_certificate, singular_set
+
+    mu = _fold_ring(n_phi=8)
+    group = SubgroupOfO3.Mirror("y")
+
+    assert singular_set(mu, group).size == 0  # Σ = ∅ — the action is free
+    cert = orbit_certificate(mu, group)
+    assert cert is not None
+    assert all(orbit.size == len(cert.operators) for orbit in cert.orbits())
+
+    folded = mu.quotient(group)
+    assert folded.n_points == mu.n_points // 2
+    np.testing.assert_array_equal(
+        folded.weights, np.full(folded.n_points, 2.0 * (4.0 * np.pi / 8.0))
+    )
+    np.testing.assert_array_almost_equal_nulp(
+        np.array(folded.weights.sum()), np.array(mu.weights.sum()), nulp=1
+    )
+
+
+@pytest.mark.foundation
+def test_quotient_refuses_without_a_certificate() -> None:
+    """No certificate — no quotient, loudly: a non-invariant measure and a
+    continuous group both refuse (the precondition is the invariance
+    PROOF, enforced by construction). Positive control: the certified
+    fixture folds without raising."""
+    group = SubgroupOfO3.Mirror("y")
+
+    lopsided = DiscreteMeasure(
+        nodes=np.array([[0.6, 0.8, 0.0], [0.6, 0.5, 0.62449979983984]]),
+        weights=np.array([1.0, 1.0]),
+        support="S^2",
+    )
+    with pytest.raises(ValueError, match="is defined only for a sigma_y-invariant"):
+        lopsided.quotient(group)
+
+    with pytest.raises(ValueError, match="is defined only for a SO3-invariant"):
+        _fold_ring().quotient(SubgroupOfO3.SO3)
+
+    assert _fold_ring().quotient(group).n_points == 4  # the honest pair
+
+
+@pytest.mark.foundation
+def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() -> None:
+    r"""The quotient CHANGES the space (T5), so re-folding is ill-posed.
+
+    Free action: the folded measure keeps one member per mirror pair, so
+    it is no longer :math:`\sigma_y`-invariant — a second ``quotient``
+    REFUSES rather than silently halving again. Trivial action (every
+    node fixed, e.g. the slab embedding :math:`(\mu, 0, 0)`): the
+    quotient is the identity on ``(nodes, weights)`` and literally
+    idempotent."""
+    group = SubgroupOfO3.Mirror("y")
+
+    folded = _fold_ring().quotient(group)
+    assert folded.invariance_group is None  # the section is not equivariant
+    with pytest.raises(ValueError, match="is defined only for a sigma_y-invariant"):
+        folded.quotient(group)
+
+    slab = DiscreteMeasure(
+        nodes=np.column_stack(
+            [np.array([-0.7, 0.1, 0.9]), np.zeros(3), np.zeros(3)]
+        ),
+        weights=np.array([0.4, 1.1, 0.5]),
+        support="[-1,1]^slab",
+    )
+    once = slab.quotient(group)
+    np.testing.assert_array_equal(once.nodes, slab.nodes)
+    np.testing.assert_array_equal(once.weights, slab.weights)
+    twice = once.quotient(group)
+    np.testing.assert_array_equal(twice.nodes, once.nodes)
+    np.testing.assert_array_equal(twice.weights, once.weights)
+
+
+@pytest.mark.foundation
+def test_quotient_tags_the_orbifold_support_and_drops_both_claims() -> None:
+    """``support`` becomes the orbifold tag; ``invariance_group`` and
+    ``exactness`` are dropped (the fold consumed the symmetry; a claim
+    would be against the pushforward reference, a type with no consumer
+    yet — the direct-sum precedent)."""
+    from orpheus.numerics.quadrature import Quadrature
+
+    mu = Quadrature.product(n_mu=4, n_phi=8).measure
+    assert mu.invariance_group is not None  # the knob the drop is about
+
+    folded = mu.quotient(SubgroupOfO3.Mirror("y"))
+    assert folded.support == "S^2/sigma_y"
+    assert folded.invariance_group is None
+    assert folded.exactness is None
+    assert folded.degree_of_exactness is None
+
+
 # ---------------------------------------------------------------------------
 # The exactness claim is relative to a measure
 # ---------------------------------------------------------------------------

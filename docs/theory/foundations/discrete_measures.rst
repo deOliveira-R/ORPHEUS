@@ -10,6 +10,7 @@ Discrete Measures and Quadrature Composition
    ``.claude/plans/sn_reshape.md``. This stub installs the
    load-bearing equation labels (:eq:`discrete-measure-integrate`,
    :eq:`discrete-measure-pushforward`,
+   :eq:`discrete-measure-quotient`,
    :eq:`bundle-measure-disintegration`) and the cross-references
    that downstream theory pages and tests rely on.
 
@@ -21,7 +22,7 @@ Key Facts
   :math:`(\mathcal{X}, \Sigma)`. Lebesgue integration of a test
   function against :math:`\mu` is the familiar quadrature sum
   (:eq:`discrete-measure-integrate`).
-- Four canonical composition operations are exposed by the project's
+- The canonical composition operations exposed by the project's
   primitive :class:`~orpheus.numerics.measure.DiscreteMeasure`:
 
   - **Tensor product** ``μ * ν`` — product measure
@@ -31,6 +32,14 @@ Key Facts
     space; the foundation of composite (panelled) :term:`quadrature`.
   - **Pushforward** ``μ.pushforward(φ)`` — image measure
     :math:`\varphi_* \mu` (:eq:`discrete-measure-pushforward`).
+  - **Quotient** ``μ.quotient(G)`` — the fold
+    :math:`\mu/G` onto the orbifold :math:`\mathcal{X}/G`
+    (:eq:`discrete-measure-quotient`): pushforward onto orbit
+    representatives, then :meth:`consolidate
+    <orpheus.numerics.measure.DiscreteMeasure.consolidate>` of the
+    collapsed atoms. Refuses unless the measure is *certified*
+    :math:`G`-invariant. Mass is preserved — the discriminator
+    against restriction, which drops it.
   - **Restriction** ``μ.restrict(E)`` — indicator-multiplication
     :math:`\mathbf{1}_E \cdot \mu`; supports half-range SN :term:`sweeps <sweep>`
     and bundle cuts.
@@ -40,10 +49,12 @@ Key Facts
   measure on :math:`\mathcal{B}` plus, for each base point, a fiber
   measure on :math:`\pi^{-1}(b)`. SN does not consume bundles in the
   Wave A campaign; MoC ray-bundle quadratures (Wave 2) will.
-- The space tag is a runtime ``str`` — Python generics over a
-  measurable-space type are not expressive enough without runtime
-  overhead, so the project uses opaque string tags for sanity checks
-  and documentation only.
+- The support tag (``μ.support``) is a runtime ``str`` — Python
+  generics over a measurable-space type are not expressive enough
+  without runtime overhead, so the project uses opaque string tags
+  for sanity checks and documentation only. (Distinct from the
+  derived ``μ.space``, the induced discrete-:math:`L^2`
+  :class:`~orpheus.numerics.space.FunctionSpace`.)
 
 
 Definitions
@@ -110,6 +121,52 @@ caller wants Radon-Nikodym semantics
 :math:`|\det D\varphi|^{-1}` must be applied to the weights
 explicitly.
 
+Two derived operations build on it. **Consolidation**
+(:meth:`~orpheus.numerics.measure.DiscreteMeasure.consolidate`)
+merges coincident atoms by summing their weights — the reduction a
+non-invertible :math:`\varphi` leaves undone. It moves no node and
+changes no integral, so it is the one operation that *preserves*
+both metadata claims. **Quotient**
+(:meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`) is the
+composite of the two, with the defining law that makes it a quotient
+and not a convention:
+
+.. math::
+   :label: discrete-measure-quotient
+
+   \mu / G \;=\; \mathrm{pushforward}(\varphi_{\mathrm{rep}})
+   \texttt{.consolidate()},
+   \qquad
+   \int f \, d(\mu/G) \;=\; \int f \, d\mu
+   \quad \text{for every } G\text{-invariant } f,
+
+.. (vv-status rationale) discrete-measure-quotient: Verified by the
+   foundation gates in ``tests/numerics/test_measure.py`` — two
+   independent representative sections (the verb's first-appearing
+   member vs the geometric ξ → |ξ| reference) realize the same
+   quotient orbit-by-orbit; the G-invariant-integral law with a
+   ξ-odd knob-dependent control; orbit-stabilizer weights read off
+   the certificate plus the Burnside count; T24 free-action uniform
+   2w bit-exact; refusal without a certificate; and the
+   consumes-the-symmetry idempotence pair. Software invariants of
+   the measure composite, not a physics-equation claim with an
+   L0..L3 ladder slot.
+.. vv-status: discrete-measure-quotient documented
+
+where :math:`\varphi_{\mathrm{rep}}` sends each node to its orbit's
+first-appearing member (the only *group-generic* section — a
+geometric section such as :math:`\xi \to |\xi|` exists only for a
+mirror). The summed weights are the orbit-stabilizer weights
+:math:`W = w \cdot |G|/|\mathrm{Stab}(x)|`, derived rather than
+chosen. The quotient is defined only on a measure whose
+:math:`G`-invariance is *certified*
+(:func:`~orpheus.numerics.symmetry.orbit_certificate`); when the
+action is **free** — empty singular set :math:`\Sigma = \varnothing`
+— every orbit has length :math:`|G|` and the weights collapse to a
+uniform :math:`|G| \cdot w`, which is the fold's well-posedness
+condition: a rule is admissible for a fold iff it places no node on
+:math:`\Sigma`.
+
 For a fibered space :math:`\pi : \mathcal{X} \to \mathcal{B}`, the
 **disintegration theorem** (Bourbaki 1969, Intégration VI §3) gives
 
@@ -138,7 +195,7 @@ plus a lazy fiber-measure factory.
 Composition algebra — metadata propagation
 ==========================================
 
-The four composition operations propagate the
+The composition operations propagate the
 :class:`~orpheus.numerics.measure.DiscreteMeasure` metadata as
 follows. Where a field is marked **dropped**, the operation
 generally cannot guarantee the field is still meaningful, and the
@@ -150,13 +207,13 @@ result carries ``None`` until the caller re-asserts it via
    :widths: 18 18 16 16 16 16
 
    * - Operation
-     - ``space``
+     - ``support``
      - ``n_points``
      - ``dim``
      - ``degree_of_exactness``
      - ``invariance_group``
    * - tensor product ``μ * ν``
-     - ``f"{μ.space} × {ν.space}"``
+     - ``f"{μ.support} × {ν.support}"``
      - :math:`N_\mu \cdot N_\nu`
      - :math:`d_\mu + d_\nu`
      - :math:`\min(p_\mu, p_\nu)` if both set, else dropped
@@ -169,13 +226,30 @@ result carries ``None`` until the caller re-asserts it via
      - :math:`\min(p_\mu, p_\nu)` if both set, else dropped
      - dropped (concatenation generally breaks invariance)
    * - pushforward ``μ.pushforward(φ)``
-     - explicit ``new_space=`` argument or ``f"φ_*({μ.space})"``
+     - explicit ``new_space=`` argument or ``f"φ_*({μ.support})"``
      - unchanged
      - inferred from ``φ``'s output shape
      - dropped (φ-image of a polynomial-exact rule is not
        polynomial-exact in general — undefined unless ``φ`` is
        affine)
      - dropped (φ generally does not preserve a group action)
+   * - consolidate ``μ.consolidate()``
+     - unchanged
+     - one atom per distinct position (:math:`\leq N`)
+     - unchanged
+     - **preserved** (merging by position changes no integral)
+     - **preserved** (a group permuting the atoms still permutes
+       the merged ones)
+   * - quotient ``μ.quotient(G)``
+     - ``f"{μ.support}/{G.name}"``
+     - one atom per :math:`G`-orbit
+     - unchanged
+     - dropped (an honest claim would be against the pushforward
+       reference :math:`\varphi_* \lambda`, a type with no consumer
+       yet)
+     - dropped (the fold CONSUMES the symmetry: the representative
+       section is not :math:`G`-equivariant, so no residual
+       invariance is guaranteed)
    * - restriction ``μ.restrict(E)``
      - unchanged
      - ``mask.sum()``
@@ -194,7 +268,7 @@ with :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`.
 Partition by labelling predicate
 ================================
 
-The fifth composition operation (added in Wave 0 of the SN
+A further composition operation (added in Wave 0 of the SN
 performance plan, step C0.4) realises the **inverse** of direct sum:
 given a measure :math:`\mu` and a labelling map
 :math:`\ell : \mathcal{X} \to L` on the support points, recover the
