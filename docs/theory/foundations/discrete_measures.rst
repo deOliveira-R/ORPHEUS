@@ -571,14 +571,34 @@ Selection is fundamentally a **four-stage filter** in priority order:
 2. **V compatibility (polynomial exactness, Galerkin sense).** The
    rule's degree of exactness must reach the target: :math:`\deg(Q)
    \ge d`. Each rule's degree is parameter-dependent — :math:`2n - 1`
-   for Gauss-Legendre, :math:`N - 1` for level-symmetric :math:`S_N`
-   (conservative), ``order`` for Lebedev, :math:`\min(2 n_\mu - 1,
+   for Gauss-Legendre, :math:`\max(3,\, N - 1)` for level-symmetric
+   :math:`S_N`, ``order`` for Lebedev, :math:`\min(2 n_\mu - 1,
    n_\phi - 1)` for the product rule. The selector inverts each rule's
    formula and picks the smallest parameter set meeting the target.
    Lebedev's gap structure (no rules at orders 33, 37, 39, 43, 45, 49)
    is handled by rounding up to the next tabulated order; if the target
    exceeds the table's top end (47 in scipy's tabulation), the rule is
    rejected at this stage with a clear message.
+
+   ⚠ **Level-symmetric has a top end too, and it is** :math:`S_{12}`.
+   Above it the per-orbit moment-matched solve has no *positive*
+   solution (``[M]`` min weight :math:`-0.027` at :math:`S_{14}`), so
+   the rule does not exist and its inverter returns ``None`` — the same
+   "cannot reach the target with any supported parameters" channel
+   Lebedev uses past order 47. See :ref:`quadrature-ls-positivity`.
+   Unlike Lebedev's tabulated ceiling, this bound is **discovered by
+   attempting the construction** rather than compared against a
+   constant, so it cannot drift out of step with the node set.
+
+   ⛔ The level-symmetric entry read :math:`N - 1` **(conservative)**
+   until 2026-08-06.  It was neither: ``[M]`` the realized degree was
+   **3 at every order**, so the number over-claimed from :math:`S_6` up
+   (by 12 at :math:`S_{16}`) *and* under-claimed at :math:`S_2` — the
+   signature of a formula describing a different construction rather
+   than a cautious bound on this one.  Issue **#327** solved the weights
+   per :math:`O_h` orbit; the degree is now measured against the
+   closed-form monomial integral and the word "conservative" is retired
+   because the figure is exact.
 
 3. **Structural compatibility.** The consumer can request boolean
    flags that the rule must satisfy:

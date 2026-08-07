@@ -825,9 +825,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **0** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **1** of the testable equations found on theory pages are orphan.
 
-*(none — every testable theory equation has at least one verifying test)*
+- ``quadrature-sphere-monomial``
 
 Documented-only equations
 -------------------------
