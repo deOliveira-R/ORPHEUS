@@ -31,12 +31,14 @@
 > | **Q5.E / E4** | `255a9f1c` | the sphere product theorem + the azimuthal substitution; #325's generator half closed |
 > | **Q5.0.2** | `bfedc621` | `Z2` RETIRED → `Mirror(axis)`; the 1-D and 3-D arms unified *(hash filled at the 2026-08-07 reconciliation — the row shipped saying "this commit")* |
 > | **Q5.1** | `681bc49b` | `DiscreteMeasure.quotient(group)` — the composite named, weights orbit-stabilizer-derived, refusal off the certificate; the "idempotent" gate realized as TWO arms (see the block's landing note) |
+> | **Q5.2** | `e0554df9` | `spherical_product(polar, azimuthal)` — the combinator seam; group DERIVED at construction (3 `preserves` generator checks, refusal names the unrealized family); STAGGERED ⟹ `Σ = ∅` ⟹ the fold composes with NO flag |
 >
-> **▶ NEXT = Q5.2** (the derived offset). ⚠ Re-scope at pickup per the block's own
-> §7.2 instruction — the 2026-08-07 reconciliation measured that Q5.E/E4 already
-> absorbed its composition half; the residual is the signature-orders half at
-> `rules_product.py:215` + the one-word "conservative" fix at `:238`. Then
-> Q5.3–Q5.6. The full ladder with gates is in §5's `Q5.E` and `Q5.2` blocks —
+> **▶ NEXT = Q5.3** (a level becomes an ARC: on a folded measure `η` is strictly
+> monotone in `ω`, so `level_indices` and `fiber()` are the same order — the two
+> accessors MERGE, the retirement Q4 deferred). ⚠ Symbols existence-checked at
+> pointer-write (2026-08-07): `LevelStructure.fiber` lives at
+> `rules_sphere.py:215`, unmerged — the deliverable is genuinely open. Then
+> Q5.4–Q5.6. The full ladder with gates is in §5's `Q5.E` and `Q5.2` blocks —
 > read them, not this summary.
 >
 > ---
@@ -2386,6 +2388,43 @@ implemented and **no `D_6h`-invariant rule in tree**.
   Σ-downstream halves REMAIN, and the §6 "conservative"-word fix at `:238` is
   still owed. Re-scope the residual at pickup against `rules_product.py`
   itself (§7.2 — the plan's step boundaries no longer match the tree's).
+
+  ✅ **RESIDUAL LANDED `e0554df9` (2026-08-07) — Q5.2 COMPLETE.**
+  `spherical_product(polar, azimuthal) -> (DiscreteMeasure, LevelStructure)`,
+  the constructive twin of `spherical_product_claim`; `product_mu_phi` is the
+  named family (order guards + the two registered default factors + delegate).
+  The fold's spelling, flag-free:
+  `spherical_product(gauss_legendre_on_mu(n), periodic_trapezoid(m,
+  shift=STAGGERED))`.
+
+  * **Step 3's group-half:** `_derived_product_group` — three
+    `RigidMotion.preserves` generator checks ON THE FACTORS (C_n rotation +
+    vertical mirror on the circle rule; μ-mirror on the polar rule) ⟹
+    `Dnh(n_φ)`; an unrealized family (`C_nv`/`C_nh`/`C_n`) is REFUSED naming
+    it (the field means MAXIMAL — an under-claim is as false as an
+    over-claim). Inputs are MEASURED on the factors, never inherited from
+    their tags (ERR-072/073/074). The Hasse walk over the assembled nodes is
+    the committed independent realization; teeth `[M]`: hardcoding the
+    derivation reddens the refusal gate while walk-agreement stays green —
+    each gate catches its own failure direction.
+  * **Step 3's Σ-half — ⭐ REFUTED-AS-OWED:** Σ was ALREADY downstream (a
+    query via `singular_set`, nothing stored). Recorded in the combinator's
+    docstring; no code was owed.
+  * **The stated gates, all discharged `[M]`:** same-factors bit-identity —
+    pre-carve capture on (4,8)/(2,4)/(4,12)/(3,5), every array `array_equal`;
+    `Σ` computed as ∅ under σ_y at STAGGERED (integer equality) with the fold
+    composing end-to-end through `quotient` (32→16, mass exactly 4π — T24's
+    number) and `|Σ| = 2n_μ` at NODE_ALIGNED; derived group == the previous
+    declaration on every shipped order (the pre-existing 5-config
+    parameterized gate now exercises the derivation). **T16b respected: the
+    DEFAULT stays NODE_ALIGNED** — the offset became *selectable*, not
+    re-defaulted, so no consumer moved; flipping any consumer's default is
+    the fold-wiring steps' business, under the ruled snapshot re-baseline.
+  * E3's same-nodes/wrong-space confusion is now unrepresentable END TO END
+    (an interval rule as the fiber is refused BY ITS SUPPORT); off-circle
+    nodes refused; the "conservative" wording corrected to TIGHT; the module
+    head's "not verified at construction" deferral contract updated (it now
+    is — at construction, from the factors).
 
   *Gates:* `Σ` **computed** as ∅ under the geometry's owed mirror; the group
   computed and equal to the previous declaration on every shipped order; nodes
