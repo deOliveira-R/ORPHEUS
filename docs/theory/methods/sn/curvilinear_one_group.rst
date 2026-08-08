@@ -68,7 +68,12 @@ re-derived.
      machine zero, eliminating the M-M flux dip.  **Sphere
      unclamped**; **cylinder clipped** to :math:`[\tfrac12, 1]`
      (product :term:`quadratures <quadrature>` put :math:`\tau = 0` on the most-inward
-     azimuthal ordinate).
+     azimuthal ordinate).  T27/Q5.5: the clip is TWO objects — the
+     :math:`[0, 1]` membership now RAISES at the raw producer (an
+     ordinate outside its own angular cell = a mis-ordered level);
+     the :math:`[\tfrac12, 1]` absorption retires with the σ_y fold
+     (Q5.6), which bounds :math:`\tau_{\rm raw} \in [\tfrac15,
+     \tfrac45]` (:eq:`morel-montry-folded-arc`).
    * :math:`\tau` is an **angular-scheme property the closure owns**
      (#236 Phase 2): produced solely by the pole-angular closure and
      delivered to the stateless spatial scheme as
@@ -466,7 +471,16 @@ the Morel--Montry flux dip.
 **Clipping (geometry-dependent since W1, 2026-06-13).**  The raw
 weight :eq:`mm-weights` is the unique weight exact for a flux linear in
 :math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), admissible range
-:math:`\tau \in [0, 1]`.
+:math:`\tau \in [0, 1]` — enforced since Q5.5: the raw producer RAISES
+on :math:`\tau_{\rm raw} \notin [0, 1]`, because on a well-posed
+monotone march an out-of-range value certifies an ill-posed march:
+mis-ordered members (T22's ω-ordered mis-ordering measured
+:math:`\tau_{\rm raw} = 1.079`, which the pre-Q5.5 absorption silently
+laundered into a finite wrong answer) or a quadrature incompatible
+with the arm's edge convention (a raw 3-D ``level_symmetric`` rule on
+the 1-D spherical arm — 23 of 24 :math:`\tau` outside, previously
+consumed *unclamped*; #336, and the measured detail at the guard's
+doctrine home in :doc:`/theory/foundations/structured_geometry`).
 
 * **Sphere** uses :math:`\tau_n` **unclamped**.  On Gauss--Legendre
   quadrature :math:`\tau_n \in [0.39, 0.61]` (never 0), so the closure
@@ -479,7 +493,19 @@ weight :eq:`mm-weights` is the unique weight exact for a flux linear in
   quadratures give :math:`\tau_n = 0` exactly on the most-inward
   azimuthal ordinate (a structural :math:`\div 0` block; the alternating
   0.5 / 1.0 pattern described above is the clamp acting on these
-  zero-width angular cells).
+  zero-width angular cells).  T27 adjudicated the clip as TWO welded
+  objects — the :math:`[0, 1]` membership (promoted to the raising
+  guard, Q5.5) and a :math:`[\tfrac12, 1]` **absorption** that is NOT a
+  range statement (the sphere runs outside the box, correct) but a
+  division block for the edge-node march start
+  (``on_edge_node`` ⟹ :math:`\tau_{\rm raw,0} = 0` bit-exact, Q5.4).
+  On the σ_y-folded arc the absorption's reason is structurally gone —
+  the fold bounds :math:`\tau_{\rm raw} \in [\tfrac15, \tfrac45]` and
+  the clip would destroy the bit-exact reversal identity
+  :math:`\tau_m + \tau_{M-1-m} = 1` — so it retires with the fold
+  wiring (Q5.6).  Derivation, measurements, and gates:
+  :eq:`morel-montry-folded-arc` in
+  :doc:`/theory/foundations/structured_geometry`.
 
 The clamp lives **inside the angular closure**, in
 :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`

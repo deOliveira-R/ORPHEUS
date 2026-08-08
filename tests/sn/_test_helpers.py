@@ -1097,3 +1097,40 @@ def product_level_ordering(tie_break: str, *, exact_nodes: bool = True):
     finally:
         for module, original in saved:
             module.product_mu_phi = original
+
+
+def seam_quad(n_mu: int, n_phi: int, shift, *, folded: bool):
+    """A quad-like over the seam's ``(measure, structure)``, optionally σ_y-folded.
+
+    Builds ``spherical_product(gauss_legendre_on_mu(n_mu),
+    periodic_trapezoid(n_phi, shift=shift))`` and exposes the attribute
+    surface the pole-closure producers read (``mu_x``/``mu_y``/``mu_z``,
+    ``weights``, ``level_indices``).  With ``folded=True`` the measure is
+    quotiented by ``Mirror("y")`` and the level structure descends by
+    selection (Q5.1/Q5.3) — each level is then an ARC in march order
+    (T22b).  Shared by the march-start classification gates and the τ
+    arc-well-posedness gates.
+    """
+    from types import SimpleNamespace
+
+    from orpheus.numerics.quadrature import (
+        gauss_legendre_on_mu,
+        periodic_trapezoid,
+        spherical_product,
+    )
+    from orpheus.numerics.symmetry import SubgroupOfO3
+
+    measure, structure = spherical_product(
+        gauss_legendre_on_mu(n_mu), periodic_trapezoid(n_phi, shift=shift)
+    )
+    if folded:
+        quotient = measure.quotient(SubgroupOfO3.Mirror("y"))
+        structure = structure.quotient(parent=measure, onto=quotient)
+        measure = quotient
+    return SimpleNamespace(
+        mu_x=measure.nodes[:, 0],
+        mu_y=measure.nodes[:, 1],
+        mu_z=measure.nodes[:, 2],
+        weights=measure.weights,
+        level_indices=structure.level_indices,
+    )

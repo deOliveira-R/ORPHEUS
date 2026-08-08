@@ -295,7 +295,31 @@ top of it:
 
 The raw weight :math:`\tau_m^{\rm raw}` is the **unique** weight exact
 for a flux linear in :math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with
-admissible range :math:`\tau \in [0, 1]`.
+admissible range :math:`\tau \in [0, 1]` — **enforced since Q5.5
+(2026-08-07)**: the raw producer RAISES on
+:math:`\tau_{\rm raw} \notin [0, 1]`.  On a well-posed monotone march
+every ordinate lies inside its own angular cell, so membership
+certifies the march; a value outside certifies an ILL-POSED march.
+Both realized cases were caught by measurement: (a) mis-ordered
+members — T22's ω-ordered mis-ordering measured
+:math:`\tau_{\rm raw} = 1.079` at the producer before surfacing as a
+NaN 400 lines downstream, the pre-Q5.5 absorption silently laundering
+it into a finite wrong answer; (b) a quadrature incompatible with the
+arm's edge convention — a raw 3-D ``level_symmetric(4)`` rule fed to
+the 1-D spherical arm (24 unsorted ``mu_x`` with duplicates, weights
+summing to :math:`4\pi`) measured :math:`\tau_{\rm raw} \in
+[-20.3,\, 1.13]` with 23 of 24 ordinates outside, consumed SILENTLY by
+the *unclamped* sphere closure until the guard landed — seven
+operator-equivalence tests ran exactly this configuration and stayed
+green because both compared spellings share the :math:`\tau`
+(the Mode-12 annihilation).  Issue #336 tracks the refuse-or-reduce
+design for ``SNMesh`` on a spherical mesh with a non-μ-line rule.  The
+closed endpoints are legal march starts — ``0`` is an edge-node start
+and ``1`` an η-degenerate tie
+(:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`).
+The guard does NOT catch the double cover: a full-circle level's
+:math:`[0, 1, 0, 1, \ldots]` fingerprint is entirely inside
+:math:`[0, 1]`; that detector is the singular set :math:`\Sigma`.
 
 * **SPHERE** uses :math:`\tau_m^{\rm raw}` directly (since W1,
   2026-06-13).  On Gauss--Legendre quadrature
@@ -308,11 +332,75 @@ admissible range :math:`\tau \in [0, 1]`.
   :ref:`sn-curvilinear-aniso-norm-reconciliation` in
   :doc:`/theory/verification/sn`.
 * **CYLINDER** retains the clamp :math:`\tau_m =
-  \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)`: product / level-
+  \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)` — *pending retirement,
+  see the T27 adjudication below*: product / level-
   symmetric quadratures put the most-inward azimuthal ordinate exactly
   on :math:`\eta = -\sin\theta`, giving :math:`\tau_m^{\rm raw} = 0`
   exactly (a structural :math:`\div 0` block, tracked by
   `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_).
+
+**The clamp is TWO objects, and the fold retires one (T27, adjudicated
+2026-08-02; guard landed Q5.5, 2026-08-07).**  The fused cylinder
+expression ``max(0.5, min(1.0, τ_raw))`` welds the :math:`[0, 1]`
+*membership* (promoted to the raising guard above) to a
+:math:`[\tfrac12, 1]` *absorption* whose sole purpose is the edge-node
+division block.  The :math:`[\tfrac12, 1]` box is **not** the
+admissible range of :math:`\tau` — the sphere runs outside it,
+unclamped and correct.  On a σ_y-folded STAGGERED arc the absorption's
+reason is structurally removed: with midpoint nodes the smallest-η
+ordinate sits at :math:`\omega = \pi - \varepsilon`,
+:math:`\varepsilon = \pi/2n_\varphi`, so (per unit :math:`\sin\theta`
+— the polar factor cancels in the ratio)
+:math:`\eta_0 = -1 + \varepsilon^2/2`,
+:math:`\eta_1 = -1 + 9\varepsilon^2/2`,
+:math:`\eta_{1/2} = -1 + 5\varepsilon^2/2`, and
+
+.. math::
+   :label: morel-montry-folded-arc
+
+   \tau_{{\rm raw},0}
+   \;\xrightarrow[\;n_\varphi \to \infty\;]{}\;
+   \frac{\varepsilon^2/2}{5\varepsilon^2/2} \;=\; \frac15
+   \;\;\text{from inside},
+   \qquad
+   \tau_{{\rm raw},m} \in \Bigl[\tfrac15,\, \tfrac45\Bigr],
+   \qquad
+   \tau_{{\rm raw},m} + \tau_{{\rm raw},M-1-m} \;=\; 1 .
+
+`[M]` (Q5.5 probe, 2026-08-07, :math:`n_\mu = 4`): the folded staggered
+:math:`\tau_{\rm raw}` spans :math:`[0.2195, 0.7805]` at
+:math:`n_\varphi = 8` falling monotonically to
+:math:`[0.200289, 0.799711]` at :math:`n_\varphi = 64`, with
+:math:`|\Sigma| = 0` throughout — :math:`\tau = 0` is **structurally
+unreachable** on the fold.  The reversal identity holds **bit-exactly**
+(residual :math:`0.0` at every :math:`n_\varphi`): the staggered
+roots-of-unity η-grid is bit-antisymmetric under
+:math:`\omega \to \pi - \omega` and the fold descends by bit-copied
+selection (Q5.3) — T27's own hand-built pre-Q5.3 probe measured
+:math:`\sim 10^{-15}`, so the selection-descent design *upgraded* the
+identity to exact.  The absorption would DESTROY it (clamping
+:math:`\tau_0` to :math:`\tfrac12` breaks
+:math:`\tau_0 + \tau_{M-1} = 1`) — a symmetry-breaking defect of the
+same family as the double cover it used to hide (#326) — so it RETIRES
+with the fold wiring (Q5.6).  It must survive until then: production
+NODE_ALIGNED cylinders still start on an edge node
+(:math:`\tau_{\rm raw,0} = 0` bit-exact, the ``on_edge_node`` fact of
+Q5.4).
+
+.. (vv-status rationale) morel-montry-folded-arc: Verified by the Q5.5
+   foundation gates in ``tests/sn/sweep/test_tau_arc_wellposedness.py``
+   — ``test_the_fold_mechanism_is_an_empty_singular_set`` asserts the
+   MECHANISM (Σ = ∅, computed via ``singular_set``, never declared) and
+   ``test_the_folded_tau_is_bounded_with_the_reversal_identity`` the
+   CONSEQUENCE (τ_raw ⊂ [1/5, 4/5] per level plus the bit-exact
+   reversal identity), each at n_φ ∈ {8, 16, 32, 64} on the folded
+   staggered product (n_μ = 4).  Teeth measured 2026-08-07: reverting
+   Q5.2's offset to δ = 0 reds BOTH legs at every n_φ (8/10 red), which
+   attributes the pass to the mechanism; the [0, 1] guard's negative
+   companion reds alone under a no-opped guard (1/10 red).  A
+   geometry-of-the-rule invariant, not a physics-equation claim with an
+   L0..L3 ladder slot.
+.. vv-status: morel-montry-folded-arc documented
 
 For spherical geometry the cell-edge direction cosines
 :math:`\mu_{m+1/2}` are the partial weight sums

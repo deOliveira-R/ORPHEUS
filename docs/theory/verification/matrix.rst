@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9087**
+Total tests collected: **9097**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1622, 17.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6112, 67.3%
+   foundation, 6122, 67.3%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9003
+   explicit, 9013
    class-name, 46
    func-name, 0
    case, 33
@@ -462,6 +462,7 @@ Module × level grid
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
+   sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 3, 0
    test_layer_imports, 0, 0, 0, 0, 344, 0
@@ -678,6 +679,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-LpC``, 4
    ``loss-rep-walk-order-rows``, 4
    ``macro-sum``, 4
+   ``morel-montry-folded-arc``, 4
    ``peierls-greens-V-alpha-1``, 4
    ``peierls-greens-V-alpha-2``, 4
    ``peierls-vacuum-bc-slab``, 4
@@ -837,7 +839,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **530** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **531** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -1092,6 +1094,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``mode-conservation-target``
 - ``moment-projection-transpose-T``
 - ``morel-montry-clamp``
+- ``morel-montry-folded-arc``
 - ``multiplication-operator-action``
 - ``multiplication-operator-embedding``
 - ``nm1980-eq16-tau-zero``

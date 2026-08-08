@@ -29,42 +29,15 @@ CARRYING — pinned now, consumed when the fold reaches the solve (Q5.6).
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
 from orpheus.geometry import CoordSystem
-from orpheus.numerics.quadrature import (
-    NODE_ALIGNED,
-    STAGGERED,
-    Quadrature,
-    gauss_legendre_on_mu,
-    periodic_trapezoid,
-    spherical_product,
-)
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics.quadrature import NODE_ALIGNED, STAGGERED, Quadrature
 from orpheus.sn.sweep.pole_angular_closure import (
     march_start_structure_per_level,
     morel_montry_tau_raw_per_level,
 )
-
-
-def _seam_quad(n_mu: int, n_phi: int, shift, *, folded: bool):
-    """A quad-like over the seam's (measure, structure), optionally σ_y-folded."""
-    measure, structure = spherical_product(
-        gauss_legendre_on_mu(n_mu), periodic_trapezoid(n_phi, shift=shift)
-    )
-    if folded:
-        quotient = measure.quotient(SubgroupOfO3.Mirror("y"))
-        structure = structure.quotient(parent=measure, onto=quotient)
-        measure = quotient
-    return SimpleNamespace(
-        mu_x=measure.nodes[:, 0],
-        mu_y=measure.nodes[:, 1],
-        mu_z=measure.nodes[:, 2],
-        weights=measure.weights,
-        level_indices=structure.level_indices,
-    )
+from tests.sn._test_helpers import seam_quad
 
 
 # (label, quad builder, coord, expected (on_edge_node, degenerate))
@@ -100,7 +73,7 @@ _FAMILIES = [
     # the two most-negative-eta ordinates are mirror partners.
     (
         "product_staggered_full",
-        lambda: _seam_quad(4, 8, STAGGERED, folded=False),
+        lambda: seam_quad(4, 8, STAGGERED, folded=False),
         CoordSystem.CYLINDRICAL,
         (False, True),
     ),
@@ -126,14 +99,14 @@ _FAMILIES = [
     # a genuine off-node start — the cylinder starts carrying ψ½ state.
     (
         "folded_staggered",
-        lambda: _seam_quad(4, 8, STAGGERED, folded=True),
+        lambda: seam_quad(4, 8, STAGGERED, folded=True),
         CoordSystem.CYLINDRICAL,
         (False, False),
     ),
     # A folded NODE_ALIGNED rule keeps its Σ endpoints: start ON a node.
     (
         "folded_node_aligned",
-        lambda: _seam_quad(4, 8, NODE_ALIGNED, folded=True),
+        lambda: seam_quad(4, 8, NODE_ALIGNED, folded=True),
         CoordSystem.CYLINDRICAL,
         (True, False),
     ),

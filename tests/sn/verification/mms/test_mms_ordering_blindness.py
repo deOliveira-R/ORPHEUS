@@ -245,7 +245,11 @@ def test_the_degenerate_eta_pair_splits_tau_into_one_and_one_half():
 
     ``eta_edge[m+1] = (eta[m] + eta[m+1])/2 = eta[m]`` when the two are equal,
     so ``tau_raw`` is 1 for the lower partner and 0 for the upper, and the
-    structural ``[1/2, 1]`` clamp turns that into ``{1, 1/2}``.
+    ``[1/2, 1]`` absorber (T27; retires with the fold, Q5.6) turns that
+    into ``{1, 1/2}``.  The ``[0, 1]`` membership guard (Q5.5) passes
+    this pattern untouched — the double-cover fingerprint sits entirely
+    INSIDE the closed interval, which is exactly the guard's documented
+    blind spot (the detector for it is Σ / the fold criterion).
     """
     from orpheus.sn.sweep.pole_angular_closure import (
         morel_montry_tau_per_level, morel_montry_tau_raw_per_level,

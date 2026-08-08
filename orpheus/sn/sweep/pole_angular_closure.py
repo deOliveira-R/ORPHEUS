@@ -651,6 +651,38 @@ def march_start_structure_per_level(
     )
 
 
+def _assert_tau_within_unit_interval(
+    raw_levels: tuple[np.ndarray, ...],
+) -> None:
+    r"""The :math:`[0, 1]` membership guard on :math:`\tau_{\rm raw}` (Q5.5/T27).
+
+    On a well-posed monotone march every ordinate lies inside its own
+    angular cell, so :math:`\tau_{\rm raw} \in [0, 1]` by construction; a
+    value outside (or a NaN) certifies an ill-posed march upstream —
+    mis-ordered members (T22's ω-ordering), duplicated nodes, or a
+    quadrature incompatible with the arm's edge convention (a raw 3-D
+    rule on the 1-D spherical arm, #336).  Promoted from the
+    :math:`[\tfrac12, 1]` absorber's silent absorption, which is how
+    T22's mis-ordering laundered into a finite wrong answer instead of
+    stopping here.
+    """
+    for p, tau_level in enumerate(raw_levels):
+        inside = (tau_level >= 0.0) & (tau_level <= 1.0)
+        if not np.all(inside):
+            m = int(np.argmin(inside))
+            raise ValueError(
+                f"tau_raw[{m}] = {float(tau_level[m])!r} on level {p} lies "
+                f"outside [0, 1]: the ordinate sits outside its own angular "
+                f"cell, so the level is not a well-posed monotone march — "
+                f"its members are mis-ordered (T22's ω-ordering), "
+                f"duplicated, or the quadrature is not a μ-line rule "
+                f"compatible with this closure's edge convention (a raw "
+                f"3-D rule on the 1-D spherical arm reaches this; #336). "
+                f"Fix the quadrature or the level ordering upstream; do "
+                f"not absorb the value here."
+            )
+
+
 def morel_montry_tau_raw_per_level(
     quad: Any,
     coord: CoordSystem,
@@ -659,9 +691,9 @@ def morel_montry_tau_raw_per_level(
 
     :math:`\tau_{\rm raw,m} = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} -
     \mu_{m-1/2})` — the raw Bailey–Morel–Chang Eq. 43 value BEFORE the
-    cylinder's structural :math:`[\tfrac12, 1]` clamp.  Split out of
+    cylinder's :math:`[\tfrac12, 1]` absorber.  Split out of
     :func:`morel_montry_tau_per_level` because the raw value carries
-    structure the clamp destroys (it maps ``0 → ½``). Until Q5.4 it
+    structure the absorber destroys (it maps ``0 → ½``). Until Q5.4 it
     was also the R12a seed-presence predicate's input (``τ_raw,0 ∈
     (0, 1)`` exclusive); the predicate is now posed on the structural
     facts directly (:func:`march_start_structure_per_level`), and the
@@ -677,6 +709,28 @@ def morel_montry_tau_raw_per_level(
     the sphere; η-midpoint edges with ±sinθ endpoints per level for the
     cylinder; the ½ degenerate fallback where an angular cell has zero
     width belongs to the RAW value — a 0/0 regularization, not the clamp).
+
+    Raises
+    ------
+    ValueError
+        If any :math:`\tau_{\rm raw} \notin [0, 1]` — the membership
+        guard (Q5.5/T27).  On a well-posed monotone march every
+        ordinate lies inside its own angular cell, so an out-of-range
+        value certifies an ILL-POSED march: mis-ordered members (T22's
+        ω-ordering produced :math:`\tau_{\rm raw} = 1.079` here, then a
+        NaN 400 lines downstream), or a quadrature incompatible with
+        the arm's edge convention (a raw 3-D ``level_symmetric`` rule
+        on the 1-D spherical arm measured
+        :math:`\tau_{\rm raw} \in [-20.3,\, 1.13]`, 23 of 24 outside —
+        consumed SILENTLY by the unclamped sphere closure until this
+        guard landed; #336 tracks the refuse-or-reduce design).  The
+        closed endpoints are legal: ``0`` is an edge-node start and
+        ``1`` an η-degenerate tie
+        (:func:`march_start_structure_per_level`).  ⚠ The guard does
+        NOT catch the double cover — a full-circle level's
+        ``[0, 1, 0, 1, …]`` fingerprint is entirely INSIDE
+        :math:`[0, 1]`; that detector is the singular set
+        :math:`\Sigma` / the fold criterion (T24), not this.
     """
     if coord is CoordSystem.SPHERICAL:
         # Sphere τ (the former spherical_streaming producer, retired in
@@ -694,12 +748,14 @@ def morel_montry_tau_raw_per_level(
             tau_mm[n] = (
                 (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
             )
-        return (tau_mm,)
+        raw_levels = (tau_mm,)
+        _assert_tau_within_unit_interval(raw_levels)
+        return raw_levels
 
     if coord is CoordSystem.CYLINDRICAL:
         # Cylinder raw τ (the former cylindrical_streaming producer,
         # retired in Step C): η-midpoint edges with ±sinθ endpoints,
-        # per μ-level.  The structural [½, 1] clamp is applied by
+        # per μ-level.  The [½, 1] absorber is applied by
         # morel_montry_tau_per_level, NOT here.
         mu_z = quad.mu_z
         tau_per_level: list[np.ndarray] = []
@@ -719,7 +775,9 @@ def morel_montry_tau_raw_per_level(
                     (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
                 )
             tau_per_level.append(tau)
-        return tuple(tau_per_level)
+        raw_levels = tuple(tau_per_level)
+        _assert_tau_within_unit_interval(raw_levels)
+        return raw_levels
 
     raise ValueError(
         f"morel_montry_tau_raw_per_level supports SPHERICAL or CYLINDRICAL "
@@ -741,9 +799,9 @@ def morel_montry_tau_per_level(
     than on the streaming-geometry factory (Issue #236 Phase 2).
 
     The raw (unclamped) value comes from
-    :func:`morel_montry_tau_raw_per_level` — the single source shared
-    with the R12a seed-presence predicate (2.5d); this function applies
-    the cylinder's structural clamp on top.
+    :func:`morel_montry_tau_raw_per_level` — the single source, now
+    :math:`[0, 1]`-guarded at the producer (Q5.5/T27); this function
+    applies the cylinder's :math:`[\tfrac12, 1]` absorber on top.
 
     Parameters
     ----------
@@ -765,17 +823,30 @@ def morel_montry_tau_per_level(
     -----
     The sphere weight is **UNCLAMPED** (W1; the sphere dome is
     non-singular on GL, :math:`\tau_\text{raw} \in \sim[0.39, 0.61]`).
-    The cylinder weight is **CLAMPED** to :math:`[\tfrac12, 1]` — the
-    most-inward azimuthal ordinate of a *product* rule sits exactly on
-    the level boundary (:math:`\eta_0 = \eta_{1/2} = -\sin\theta`) so
-    its raw weight is :math:`\tau_\text{raw} = 0` bit-exactly; the
-    recurrence :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero
-    unclamped (structural; #229).
+    The cylinder weight passes through the :math:`[\tfrac12, 1]`
+    **absorber**.  T27 (2026-08-02) adjudicated the fused
+    ``max(0.5, min(1.0, ·))`` as TWO objects: a :math:`[0, 1]` range
+    membership — promoted to a raising guard on
+    :func:`morel_montry_tau_raw_per_level` (Q5.5) — and this
+    absorption, which exists for exactly one reason: an edge-node march
+    start (``on_edge_node``, :func:`march_start_structure_per_level`)
+    has :math:`\tau_{\rm raw,0} = 0` bit-exactly and the recurrence
+    :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero unclamped
+    (#229).  The :math:`[\tfrac12, 1]` box is NOT the admissible range
+    of :math:`\tau` — the sphere runs outside it, unclamped and
+    correct — and on a σ_y-folded arc the absorption would DESTROY the
+    bit-exact reversal identity :math:`\tau_m + \tau_{M-1-m} = 1`
+    while the fold bounds :math:`\tau_{\rm raw} \in [\tfrac15,
+    \tfrac45]` away from the singularity, removing the absorber's
+    reason (``docs/theory/foundations/structured_geometry.rst``
+    §morel-montry-folded-arc).  It RETIRES with the fold wiring
+    (Q5.6); it must survive until then because production NODE_ALIGNED
+    cylinders still start on an edge node.
     """
     raw = morel_montry_tau_raw_per_level(quad, coord)
     if coord is CoordSystem.SPHERICAL:
         return raw
-    # Cylinder: the structural [½, 1] clamp, element-wise (bit-identical
+    # Cylinder: the [½, 1] absorber, element-wise (bit-identical
     # to the pre-split inline ``max(0.5, min(1.0, tau_raw))``).
     clamped: list[np.ndarray] = []
     for tau_raw_level in raw:

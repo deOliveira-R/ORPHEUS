@@ -151,7 +151,15 @@ def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNMesh:
         bcs=(BC(bc),),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = Quadrature.level_symmetric(sn_order=4)
+    # Gauss-Legendre, NOT level_symmetric: the 1-D spherical closure's
+    # weight-sum edge convention needs a μ-LINE rule (sorted, Σw = 2).
+    # This fixture shipped with level_symmetric(4) — a raw 3-D rule whose
+    # 24 unsorted mu_x/4π-weights gave τ_raw ∈ [−20.3, 1.13] (23/24
+    # outside [0, 1]), consumed SILENTLY by the unclamped sphere closure;
+    # the equivalence claims here never saw it because both spellings
+    # share the τ.  Caught by the Q5.5 [0, 1] guard; issue #336 tracks
+    # the refuse-or-reduce design for SNMesh(SPH) + non-μ-line rules.
+    quad = Quadrature.gauss_legendre(4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
