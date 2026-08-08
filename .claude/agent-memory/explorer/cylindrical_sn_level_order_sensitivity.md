@@ -56,11 +56,29 @@ Flipping the within-mirror-pair order (cylinder, `product(n_mu=2, n_phi=8)`):
 - `level_symmetric` cylinder levels are **4-to-1** over eta (LS-4 level 0: 16
   ordinates, 4 distinct eta), so the ordering question is wider there, and its
   `tau_raw[0] = 1` exactly (vs `0` exactly for `product`).
-- Cylinder + `product` carries **NO** psi-half seed block:
+- Cylinder + `product` (NODE_ALIGNED) carries **NO** psi-half seed block:
   `SNMesh.radial_characteristic_levels == ()` because the R12a predicate is
-  `0 < tau_raw[0] < 1` and `tau_raw[0] = 0` bit-exactly. The sphere-GL is the
-  only carrying instance. So every `radial_characteristic*` seed path is
-  sphere-only in practice.
+  `0 < tau_raw[0] < 1` and `tau_raw[0] = 0` bit-exactly. ⛔ **EXPIRED as a
+  blanket claim 2026-08-07 (Q5.6a `folded_product`)**: the sigma_y-folded
+  staggered product carries on EVERY level (off-node march start), so System B
+  now activates on cylinders. Measured that day: the System-B VALUE machinery
+  is still sphere-hardcoded in 3 places while the predicate/closure tier is
+  fold-aware — (1) `source_from_angular` (radial_characteristic_field.py)
+  does a per-level Legendre analysis with raw S2 weights (sum W_p = 2pi*w_GL,
+  not 2) then the (2l+1)/2*(+-1)^l synthesis at mu=+-1 (outside the arc; the
+  cylinder target is eta = -sin(theta_p)) — reproduced the L0 flat-flux
+  failure in closed form: q-half = W_p/2 + (5/8)W_p(3sin^2(theta)-2) =
+  {+3.7217, -0.5801} per level family for isotropic q=1 (should be 1);
+  (2) `carlson_inward_sweep_from_source` has NO direction cosine (|mu|=1
+  implicit; the cylinder march needs dr*sigma/sin(theta_p) — flat-invisible,
+  bites every non-flat problem; `reduced.mu_start_per_level` already carries
+  -sin(theta_p)); (3) the cylinder [1/2,1] tau absorber
+  (`morel_montry_tau_per_level`) still clamps the folded arc's tau_raw
+  {.2195,.4142}→.5 despite its own retire-with-Q5.6 contract. All four
+  constructor guards + curvilinear_one_group.rst "only the sphere carries"
+  still SAY sphere-only. No test runs System B on a carrying cylinder (all
+  seed-value gates are sphere-GL; cylinders appear only as non-carrying
+  negative controls).
 - The degenerate pure-azimuthal ordinates (`|eta| < 1e-15`, `phi = pi/2, 3pi/2`)
   are on NO walk leg and take a volumetric per-cell path.
 

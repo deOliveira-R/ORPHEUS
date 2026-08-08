@@ -105,6 +105,12 @@ in the old index was a frozen carve-map and is proposed for retirement.
 - [HarmonicMomentField UNITS convention](harmonic_moment_field_units_convention.md)
   — why a stored SH moment carries SCALAR-flux units (no-prefactor SH, Y₀⁰=1,
   weights sum to 4π → sr cancels); R≠M*; the ERR-039/ERR-051 history behind it.
+- [Harmonic frame + folded-quadrature plumbing](harmonic_frame_folded_quadrature_plumbing.md)
+  — Q5.6: NO computed Gram on the kernel path (raw Y^TW analysis; R carries the
+  CONTINUUM (2l+1); exactness ASSUMED ⟹ the folded ξ-odd garbage); 3 shape-contract
+  tiers (table-derived adapts, L-derived + fixed-slot hardcode rectangular ⟹
+  zeroed-columns sub-basis, not flat); σ_y parity per slot (cos branch odd-m ∪ sin
+  branch even-|m|); cylinder-P1 gate is route-equivalent = folded-blind.
 - [Cylindrical SN level-order sensitivity (#326)](cylindrical_sn_level_order_sensitivity.md)
   — α IS `−W·ξ` at a half-angle boundary (Hébert 3.399, exact via Dirichlet kernel); the
   recursion is a cumulative integral in ω ⟹ the level must be a HALF range (Hébert
