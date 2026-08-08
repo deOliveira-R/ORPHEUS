@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9136**
+Total tests collected: **9206**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1309, 14.3%
-   L1, 1622, 17.8%
+   L0, 1309, 14.2%
+   L1, 1622, 17.6%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6136, 67.2%
+   foundation, 6206, 67.4%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9052
+   explicit, 9122
    class-name, 46
    func-name, 0
    case, 33
@@ -307,7 +307,7 @@ Module × level grid
    moc/test_quadrature, 44, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
-   numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 32, 0
+   numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 131, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
@@ -331,6 +331,7 @@ Module × level grid
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 24, 0
+   numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -347,7 +348,7 @@ Module × level grid
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 38, 0
-   numerics/test_rules_sphere, 0, 7, 0, 0, 59, 0
+   numerics/test_rules_sphere, 0, 7, 0, 0, 65, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
