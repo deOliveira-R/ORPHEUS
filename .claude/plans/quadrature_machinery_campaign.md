@@ -2653,13 +2653,33 @@ implemented and **no `D_6h`-invariant rule in tree**.
     closing exactly (the 6.4 gate's content); ⚠ **the ξ-carrying P1
     harmonic slot reads +6.49 GARBAGE on the folded rule for a FLAT
     flux** (T6: ξ-odd is not in the quotient's space — must be
-    EXCLUDED structurally, not computed; blocks the aniso acceptance —
-    6.2c, NOT yet landed).
-  * **Remaining ladder**: 6.2c the harmonic-frame ξ-even exclusion →
-    6.3 the flip (mesh refusal + call-site migration + snapshot
-    re-baselines + the LS ruling) → 6.4 acceptance (#229 falls; T3 α
-    gate; absorber retires — Q5.5's deferred half; τ ∉ {0,1}; the
-    three xfails re-posed) → 6.5 retirements + theory pass.
+    EXCLUDED structurally, not computed).
+  * ✅ **6.2c LANDED `b99fcbc3`** — the folded rule's harmonic
+    machinery binds the σ-EVEN sub-basis:
+    `MirrorEvenSphericalHarmonicBasis` (rectangular layout, odd
+    columns structurally zeroed — the same mechanism as the |m|>l
+    padding, so every shape contract survives; parity DERIVED by
+    mirror-evaluation, never hand-listed — ⚠ the basis measures
+    azimuth FROM μ_y, so "mask the sin branch" would zero the WRONG
+    slots); `Quadrature.folded_by` provenance marker (the measure
+    stays provenance-free per Q5.1); one seam covers the kernel + its
+    adjoint + future curvilinear DSA. `[M]` even-block Gram ==
+    continuum to 1.1e-15 on the quotient; the garbage slot bit-zero.
+    ⭐ **The explorer's stale-premise catch re-scoped the acceptance**:
+    the #229 aniso MMS is the aniso-ANSATZ case with ISOTROPIC
+    scattering — the ξ-odd defect never touched it; NO converged
+    P1-scattering cylinder test exists (the only P1 cylinder gate is
+    route-equivalent = folded-blind); the kernel-tier gates here are
+    the fix's coverage, and a converged P1 cylinder solve gate is 6.4+
+    material.
+  * **Remaining ladder**: 6.3 the flip (mesh refusal on the
+    march-start facts + call-site migration + snapshot re-baselines +
+    LS sites → folded_product per the user's ruling, with the
+    double-fold capability FILED not built; #327 is the NEXT Q-track
+    step after Q5.6 per the same ruling) → 6.4 acceptance (#229 falls
+    + recovers an order; T3 α gate; absorber retires — Q5.5's
+    deferred half; τ ∉ {0,1}; the three xfails re-posed) → 6.5
+    retirements + theory pass + #326 close.
 
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an

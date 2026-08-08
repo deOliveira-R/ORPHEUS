@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9112**
+Total tests collected: **9116**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1622, 17.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6132, 67.3%
+   foundation, 6136, 67.3%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9028
+   explicit, 9032
    class-name, 46
    func-name, 0
    case, 33
@@ -421,7 +421,7 @@ Module × level grid
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
    primitives/test_quadrature, 49, 0, 0, 0, 0, 0
-   primitives/test_quadrature_fold, 0, 0, 0, 0, 10, 0
+   primitives/test_quadrature_fold, 0, 0, 0, 0, 14, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 40, 0
