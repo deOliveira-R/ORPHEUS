@@ -35,35 +35,41 @@
 > | **Q5.2** | `e0554df9` | `spherical_product(polar, azimuthal)` — the combinator seam; group DERIVED at construction (3 `preserves` generator checks, refusal names the unrealized family); STAGGERED ⟹ `Σ = ∅` ⟹ the fold composes with NO flag |
 > | **Q5.3** | `65ff5bb0` | `fiber()` RETIRED → `LevelStructure.quotient(parent=, onto=)` — the structure DESCENDS by selection (charts bit-exact, level order = the parent's η-order RESTRICTED to survivors); fiberwise certified by per-level mass; ⛔ the plan's `==` gate spelling REFUTED (the two orders are exact REVERSES — see the block's landing note) |
 > | **Q5.4** | `679cba61` | the R12a predicate re-posed on TWO named integer facts — `MarchStart(on_edge_node, degenerate)`, carrying ⟺ neither; `_SEED_TAU_EPS` + the `(0,1)` interval RETIRED; the τ_raw trichotomy demoted to a bit-exact gated THEOREM; ⛔ T26's 5.6e-16 flip was PRE-E3 (see the block) — post-E3 the trichotomy is bit-exact at every parity; the theory page's "odd count would carry" falsehood corrected in place |
+> | **Q5.5** | `0ec701d4` | the clamp SPLIT per T27 — the `[0,1]` membership PROMOTED to a raising guard on the raw producer (`_assert_tau_within_unit_interval`, both arms; T22's ω-mis-ordering stops at source); the `[½,1]` absorber STAYS until Q5.6 (docstrings re-posed on the two-objects finding); the T27 mechanism gates at n_φ ∈ {8..64} (Σ=∅ COMPUTED + τ_raw ⊂ [1/5,4/5] + reversal identity BIT-EXACT — the Q5.3 selection descent upgraded T27's ~1e-15 to 0.0); label `morel-montry-folded-arc`; ⭐ the guard immediately CAUGHT a live latent defect (7 sphere_2g fixtures fed LS(4) raw 3-D to the sphere arm, τ ∈ [−20.3, 1.13] consumed silently — re-propped to GL(4), #336 filed) |
 >
-> **▶ NEXT = Q5.5** (the `[½,1]` clamp split per T27, ADJUDICATED — the
-> absorption retires, the `[0,1]` membership promotes to a guard that RAISES;
-> the T27 gate: folded+staggered at the largest n_φ, mechanism `Σ = ∅`
-> computed + consequence `τ_raw ⊂ [1/5, 4/5]` + the reversal identity, one
-> mutation δ=0 reddening both legs). ⚠ Symbols existence-checked at
-> pointer-write (2026-08-07): the clamp lives in `morel_montry_tau_per_level`'s
-> cylinder arm (`pole_angular_closure.py:775-787`, `max(0.5, min(1.0, …))`) —
-> open. ⚠ **Sequencing fact the pickup must design around (§6b):** the
-> absorber's own docstring is TRUE today — production NODE_ALIGNED cylinders
-> have `τ_raw,0 = 0` bit-exact and the recurrence `(ψ−(1−τ)ψ½)/τ` divides by
-> zero unclamped — so the ABSORBER's retirement is call-site-coupled to the
-> fold wiring (Q5.6); the GUARD promotion and the T27 gate can land first.
-> Then Q5.6 (acceptance). The full ladder with gates is in §5's `Q5.E` and
-> `Q5.2` blocks — read them, not this summary.
+> **▶ NEXT = Q5.6** (acceptance — the fold reaches the SOLVE; §5's Q5.6
+> block is the authority, read it, not this line). Deliverables
+> existence-checked at pointer-write (2026-08-07, post-Q5.5): the #229
+> anisotropic floor lives at
+> `tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`
+> (":266 floors at ~1.9e-2"); T3's α closed form has a live test file
+> `tests/sn/sweep/curvilinear/test_alpha_closed_form.py` (pre-fold); the
+> three strict xfails = `_XFAIL_326` in
+> `tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` (NOT in
+> `_test_helpers` — corrected here); the `eta_edge` twin is at
+> `orpheus/derivations/discrete/sn/contamination.py:45+`
+> (`_cell_edge_cosines` — the plan's earlier path lacked the `orpheus/`
+> prefix); `product_level_ordering`/`PRODUCT_LEVEL_ORDERINGS` at
+> `tests/sn/_test_helpers.py:983+`. ⚠ **§6b for the absorber retirement
+> (RULED at Q5.5):** the `[½,1]` absorption's retirement and the fold
+> wiring are ONE call-site set — production NODE_ALIGNED cylinders have
+> `τ_raw,0 = 0` bit-exact and divide by zero unclamped, so the absorber
+> falls only when the wired fold makes every consumed cylinder rule an
+> arc (τ ∈ [1/5, 4/5], :eq:`morel-montry-folded-arc`).
 >
-> `[M]` **Batteries at the 2026-08-07 Q5.5-compaction checkpoint** (HEAD
-> `be880734`, serial `-O`): `tests/sn -m "not slow"` **2861 passed / 6
-> failed** (18:09, at the Q5.4 close) — the six are EXACTLY the known
-> deliberate reds (T4b streaming snapshots ×2, affine-carve bit-identity ×3,
-> spherical-inward diamond), zero new; R12a consumer pins 48/48;
-> `tests/numerics` **2005 passed / 0 failed** (7:53, at the Q5.3 close —
-> Q5.4's only numerics touch was the `radial_characteristic_space.py`
-> docstring, not re-run after); `sphinx -W` clean (rebuilt after the final
-> edit); pyright ratchet green; xrefs 0 dead; the V&V matrix carries the two
-> new labels (`folded-level-arc` ×4, `sn-direct-seed-r12a-predicate` ×10 —
-> the latter from zero). The #33 Lambertian snapshot (7th red, slow set)
-> stands unmeasured since checkpoint #7. Uncommitted-by-policy set unchanged
-> (vv SKILL + catalog, qa lessons ×2).
+> `[M]` **Batteries at the Q5.5 close** (HEAD `0ec701d4`, serial `-O`):
+> `tests/sn -m "not slow"` **2871 passed / 6 failed** (37:57 under load)
+> — the six are EXACTLY the known deliberate reds (T4b streaming
+> snapshots ×2, affine-carve bit-identity ×3, spherical-inward diamond),
+> zero new; the first post-guard run had SEVEN more reds, ALL the guard
+> catching the LS-on-sphere latent defect (see the Q5.5 block) — cured
+> by the GL re-prop, verified by the full re-run. `tests/numerics`
+> untouched by Q5.5 (only orpheus/sn + tests/sn + docs edited; last
+> measured 2005/0 at the Q5.3 close). `sphinx -W` clean; pyright ratchet
+> green; xrefs 0 dead; the matrix carries `morel-montry-folded-arc` ×4.
+> The #33 Lambertian snapshot (7th red, slow set) stands unmeasured
+> since checkpoint #7. Uncommitted-by-policy set unchanged (vv SKILL +
+> catalog, qa lessons ×2).
 >
 > ---
 > **⏱ RECONCILED AGAINST THE TREE 2026-08-07 — the G/P interlude landed
@@ -1485,6 +1491,14 @@ n_phi=32                              8.216e-15                2.988e-01
    clamped : [0.5,      0.5,      0.585786, 0.780455]
 ```
 
+> `[M]` **Configuration note added at Q5.5 (2026-08-07):** the residuals
+> above were measured on this T-item's HAND-BUILT fold (pre-Q5.3 — no
+> production fold machinery existed). On the LANDED fold
+> (`LevelStructure.quotient`, selection descent, bit-copied charts) the
+> residual is **0.0 bit-exact at every n_φ ∈ {8..64}**, so the shipped
+> gate asserts the identity with NO epsilon. Same conclusion, stronger
+> — the design choice at Q5.3 is what upgraded it.
+
 The clamp is **asymmetric** (`[½,1]`, not `[0,1]`), so it destroys an identity the
 fold creates — **a symmetry-breaking defect of the same kind as #326, one level
 down.** Retiring it is not merely permitted; keeping it would reintroduce the
@@ -2547,6 +2561,56 @@ implemented and **no `D_6h`-invariant rule in tree**.
   membership becomes a guard that RAISES. The accompanying gate is specified in
   T27 and is reddenable by reverting Q5.2's offset.
 
+  ✅ **LANDED `0ec701d4` (2026-08-07) — the guard + gates half; the
+  absorber half is fold-coupled and falls at Q5.6.** The guard is
+  `_assert_tau_within_unit_interval` on `morel_montry_tau_raw_per_level`
+  (BOTH arms; closed interval — the {0,1} endpoints are legal march
+  starts per Q5.4 — NaN-catching; message fragment "outside its own
+  angular cell"). Gates: `tests/sn/sweep/test_tau_arc_wellposedness.py`
+  (10 items) — guard positive (the NODE_ALIGNED full circle ATTAINS
+  both closed endpoints) + negative (ω-ordered members ⟹ τ_raw = 1.079
+  ⟹ raises) + the T27 pair at n_φ ∈ {8,16,32,64}: mechanism (Σ = ∅
+  computed via `singular_set`) and consequence (τ_raw ⊂ [1/5, 4/5] +
+  the reversal identity `np.testing.assert_array_equal` — NO epsilon).
+  New label `morel-montry-folded-arc` (`structured_geometry.rst`, the τ
+  doctrine home; the SN page cross-references it) ×4 in the matrix.
+  `[M]` teeth: δ=0 (patch `orpheus.numerics.quadrature.STAGGERED` →
+  NODE_ALIGNED BEFORE collection) reds BOTH legs at every n_φ (8/10
+  red); a no-opped guard reds exactly the negative (1/10).
+  `seam_quad` promoted to `tests/sn/_test_helpers` (2 consumers).
+
+  ⭐ **The landed fold UPGRADED T27's identity.** Reversal residual
+  **0.0 bit-exact** at every n_φ — T27's `[M]` table (0 / 6.66e-16 /
+  8.22e-15) was measured on its HAND-BUILT pre-Q5.3 fold; the Q5.3
+  selection descent bit-copies the charts, so the landed machinery is
+  exact and the gate asserts with no epsilon (the campaign's
+  exact-by-construction discipline, same as the Q5.4 trichotomy).
+
+  ⭐⭐ **The guard's first catch was a LIVE latent defect, found by the
+  landing battery itself.** Seven operator-equivalence tests
+  (`test_removal_form_matvec_sweep.py` + `test_inverse_operator_equivalence.py`,
+  the `sphere_2g` rows) built `SNMesh(spherical 1-D, level_symmetric(4))`
+  — a raw 3-D rule (24 UNSORTED `mu_x` with duplicates, Σw = 4π) fed to
+  the sphere arm's weight-sum edge convention: `[M]` τ_raw ∈
+  [−20.310, 1.130] with **23 of 24 outside [0,1]**, consumed SILENTLY
+  by the *unclamped* sphere closure (a recurrence thread weight of
+  +21.3). The tests stayed green pre-guard because both compared
+  spellings SHARE the τ — the measured functional's invariance group
+  contains the defect (vv Mode 12). Fixtures re-propped onto
+  `gauss_legendre(4)` (their claims are quadrature-incidental; no
+  snapshots involved); **#336** tracks the refuse-or-reduce design for
+  `SNMesh(SPH)` + non-μ-line rules, incl. the march-start family
+  table's missing LS-on-sphere row.
+
+  ⚠ **Instrument (the vv #17 family's 4th appearance, NEW face):** the
+  first δ=0 teeth run measured **10/10 BLIND** — the driver had
+  imported `tests.sn.sweep.test_tau_arc_wellposedness` and patched ITS
+  `_FOLD_SHIFT`, while pytest (`--import-mode=importlib`; `tests/sn/`
+  has no `__init__.py`) built a FRESH twin module and ran that. Fix:
+  patch the mutation's SOURCE (`orpheus.numerics.quadrature.STAGGERED`)
+  before collection — in-process ≠ same-module; verify the patched
+  object is the one pytest runs.
+
   ---
   **Q5.6 — Acceptance** (T23 — the three xfail rows CANNOT serve).
 
@@ -2563,7 +2627,11 @@ implemented and **no `D_6h`-invariant rule in tree**.
      the quotient" (tautological, `vv-principles` Mode 8).
 
   **Retirement list** (a numbered deliverable, per `coding-standards.md`):
-  `[½,1]` clamp (if Q5.5 rules so) · ~~`LevelStructure.fiber()`~~ ✅ retired at
+  the `[½,1]` **absorber** (RULED at Q5.5 `0ec701d4`: the `[0,1]` membership
+  half is ALREADY promoted to the raising guard; the absorption half retires
+  HERE, call-site-coupled to the wiring — production NODE_ALIGNED cylinders
+  divide by zero unclamped until the wired fold makes every consumed
+  cylinder rule an arc) · ~~`LevelStructure.fiber()`~~ ✅ retired at
   Q5.3 `65ff5bb0` ·
   ~~the τ_raw trichotomy as the R12a predicate~~ ✅ retired at Q5.4 `679cba61`
   (the trichotomy survives as a gated theorem; the predicate is `MarchStart`) ·
