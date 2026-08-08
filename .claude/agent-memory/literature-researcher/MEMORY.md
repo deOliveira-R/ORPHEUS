@@ -8,7 +8,7 @@ decides whether to open it.
 
 ## 1. Lessons
 
-- [lessons.md](lessons.md) — READ FIRST. L1–L7, cited below as (L2), (L4).
+- [lessons.md](lessons.md) — READ FIRST. L1–L8, cited below as (L2), (L4). L8: OCR table bodies are in `.mocr.json`, not the sidecar.
 
 ## 2. Extraction inventory by topic
 
@@ -21,6 +21,9 @@ decides whether to open it.
 - [Central cell r=0 diamond](spherical_sn_central_cell_spatial_order.md) — Hébert §3.9.4 + Stacey §9.9 BOTH plain midpoint diamond; (3.430) φ = VOLUME-AVERAGE = the O(h) MMS gap.
 - [Origin spatial order](sphere_sn_spatial_order_at_origin.md) — NO canonical ref gives an O(h²) central-cell SPATIAL closure (Lathrop 2000 + BMC = ANGULAR only); lead Wu 1999 NSE99-A2095.
 - [Space ⊗ angle separability](space_angle_discretization_separability.md) — splits spatial (Larsen-Morel-Miller JCP 69 1987) vs angular (Bailey-Morel-Chang NSE 165 2010) → tensor-product architecture.
+
+### Angular quadrature
+- [LA-3186 + LA-4058 LS quadrature](la3186_level_symmetric_quadrature.md) — #337 FULL: axis-weight ansatz p{ijk}=aᵢ+aⱼ+aₖ = the systematic n>12 class rule; Table I = {4,6,8,12,16,20}, S20 p-column BLANK; "n>22 negative" = LEVEL weights; [M] point frontier S20 (+9.8e-4), S22 LP-infeasible; print μ₁ slips S6/S12/S16.
 
 ### SN solver / sweep theory
 - [DSA primaries](dsa_primaries_full_extraction.md) — issue #2, 7 sources → `.claude/plans/dsa_literature_memo.md`: Alcouffe 1977 NSE 64:344 (print sign slips; ⅓ not ½) · Larsen I NSE 82:47 (four-step, K_N Table I) · McCoy-Larsen II NSE 82:64 · Morel 1982 NSE 82:34 · A&L 2002 · Adams-Martin 1992 M4S NSE 111:145 · Warsa 2004 k-IRAM. ⚠ NSE-147 TWIN trap; Σw=1 vs A&L Σw=2; absent WWM-147(2) / Yavuz-Larsen'88.

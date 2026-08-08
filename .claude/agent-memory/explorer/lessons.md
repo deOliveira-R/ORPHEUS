@@ -680,6 +680,37 @@ Two corollaries that generalize past this audit:
 
 ---
 
+## L-022 -- On a "what REMAINS of issue X" recon, the highest-yield staleness class is the campaign's own MID-FLIGHT PROSE
+
+Mapping the #325/#326 remainders (2026-08-08) after a campaign had landed the
+fixes in steps, the four falsified-prose finds all had the same shape: an
+in-code note the campaign ITSELF wrote at an intermediate step, describing the
+then-true remainder — falsified by a LATER step of the same campaign. Found in
+one pass: a "See Also" saying the consumer is "today still welded in as
+`linspace`" (the repoint landed later); a `.. caution::` saying "the remaining
+half is the checker's own C_n/σ_v operators, which still [evaluate trig]" (the
+checker was repointed to the shared generator two steps later); a docstring
+citing a gate by a test name that never existed; a theory page still saying
+"reflection partners … cached at construction" (retired). L-020 says claims
+expire; this names the SEARCH STRATEGY for remainder recon: don't only re-run
+emptiness greps — grep the campaign's own interim honesty vocabulary ("today
+still", "remaining half", "until then", "not yet", the caution/note directives
+in the touched modules) and re-verify each hit against the tree. The notes
+written to be honest mid-flight are precisely the ones nobody returns to.
+
+Also from the same dispatch, two cheap reusable probes: (a) a "did the
+acceptance gate land?" check must read the gate's FIXTURE ENUMERATION, not its
+assertion — the eps-gap gate existed and still enumerated only GL+Lebedev,
+skipping the family (`product`) that motivated the issue (L-013's finding,
+still unfixed 7 days later — report it as the remainder, citing the earlier
+find); (b) when a brief hands you six "the campaign landed X @ hash" claims,
+verifying them costs one read each and all six held — but the SAME session's
+plan had already existence-checked its own NEXT pointer (per plan-authoring
+§1), which is why; trust rises with the tree's own hygiene, never with the
+brief's confidence.
+
+---
+
 ## L-021 -- A brief's TYPE table is a claim about MATERIALIZED objects; and an all-green "does it break?" run may have measured INERT, not SAFE
 
 Mapping the G6.3 boundary-operator binding sites (2026-08-04,

@@ -21,7 +21,8 @@
 > as Q5.E because T28 showed it is the root.
 >
 > **⏸ CHECKPOINT — 2026-08-02, extended 2026-08-07 twice (compaction before
-> Q5.3; compaction before Q5.5) and 2026-08-08 (compaction before #327).
+> Q5.3; compaction before Q5.5) and 2026-08-08 twice (compaction before
+> #327; compaction before 6.3 — after the #325/#337 interleave).
 > Landed so far, in order:**
 >
 > | step | commit | what |
@@ -98,7 +99,40 @@
 > battery M0/M1/M2 = 52/33/3 reds (the plan's predicted pattern).
 > **▶ NEXT remains Q5.6's 6.3 flip** — unchanged by the interleave;
 > cylinders still admit LS today and the CYL re-baselines are marked
-> re-baseline-now-retire-soon for exactly that step.
+> re-baseline-now-retire-soon for exactly that step. Pointer symbols
+> re-checked at this compaction (2026-08-08): `augmented_mesh.py`
+> reads `march_start_structure_per_level` (the R12a filter — 6.3's
+> deliverable is the ADMISSION refusal, NOT that call);
+> `Quadrature.folded_product` live and gated.
+>
+> ⚠ **NEW standing corrections for the 6.3 pickup (from the
+> interleave):** (a) `_CYL_LS` in
+> `tests/sn/mesh/test_radial_characteristic_slot_coordination.py:101`
+> now builds cylinder+LS meshes at orders `(2, 4, 8, 18)` — S18 was
+> added at #337; ALL its rows become refusal cases at the flip and
+> must re-pose or migrate with the call-site sweep. (b) The T4 capture
+> script (`tests/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py`)
+> and its T4c gates consume an LS4 CYLINDER — part of the migration
+> list, and the script must be RE-RUN (not hand-edited) after the
+> migration, per the stale-twin lesson at `ec076008`. (c) The
+> LS family now serves S2..S18, but NOTHING about the flip's refusal
+> logic changes: LS cylinder levels are `degenerate` (η 4-to-1) at
+> every order — the level structure is seed-independent (`[M]` gated
+> by the step-0 literals).
+>
+> **Batteries at this compaction (HEAD `34355c2a`):** 247 gate rows +
+> the 4433-test medium slice (numerics/geometry/sn-operators/
+> primitives/mesh, `-m "not slow"`, 7:15) + the 108-row artifact
+> re-run + the 54-row streaming file ALL GREEN; sphinx `-W` clean
+> every leg; xref 0 dead; ratchet green; mutation battery M0/M1/M2 =
+> 52/33/3 (the plan's predicted teeth). ⚠ tests/sn's FULL not-slow
+> slice was NOT re-run this leg (last full: 2890/6 at `fb38ab31`) —
+> the known-red set SHOULD now be the spherical-inward diamond alone
+> (T4b ×2 + affine-CYL ×2 + the GL 7th absorbed by the re-baselines),
+> but that count is INFERRED from the absorptions, not re-measured;
+> the 6.3 landing's own battery re-measures it. tests/numerics
+> not-slow ran green inside the medium slice; the WITH-slow battery
+> stays owed at the flip's close, as before.
 >
 > **Q5.6's remaining ladder (was parked at 6.3)** — its landed legs +
 > remaining ladder (6.3 flip: march-start refusal + call-site

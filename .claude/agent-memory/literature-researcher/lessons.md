@@ -117,6 +117,24 @@ approval, not agent autonomy (codified in `.claude/rules/delegation.md`).
 report "not in local folder; acquire it, or will you add it?" — do NOT
 unilaterally substitute a different source.
 
+## L-008 — Mistral-OCR table BODIES live in the .mocr.json, not the sidecar
+
+The sidecar markdown renders a table as a placeholder link
+(`[tbl-0.md](tbl-0.md)`); the actual markdown table content is in the
+raw cache at `pages[k]['tables'][j]['content']` of
+`scratch/literature_ocr/<stem>.mocr.json`.
+
+**Why:** grepping only the sidecar makes a tabulated report look
+value-free (LA-3186's 21 tables were all placeholder links); render-only
+transcription of dense number tables is slow and content-filter-risky.
+
+**How to apply:** grep the sidecar to LOCATE tables (`tbl-`), then dump
+bodies with a 5-line json loop over `pages[*].tables`; STILL verify
+load-bearing values on the rendered page (OCR dropped/garbled cells in
+LA-3186 Table I's n=20 rows). See [[la3186-level-symmetric-quadrature]]
+for the worked pattern. Suggest (user-owned tool): `ocr_literature.py`
+could inline `tables[].content` into the sidecar at emit time.
+
 ## L-007 — Recognize a dead Zotero server and fail over to Tier 2 immediately
 
 A Zotero MCP server that returns 0 hits on known-present items together

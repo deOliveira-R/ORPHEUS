@@ -2,7 +2,7 @@
 
 Read at the START of every dispatch. This is the **behavioral index**: one rule
 per entry, imperative and standalone. War stories, measured numbers and
-`file:line` detail live in **`lessons_archive.md`** (sections L1–L38) — open only
+`file:line` detail live in **`lessons_archive.md`** (sections L1–L42) — open only
 the section a pointer names. The failure-mode TAXONOMY (Modes 1–12, three
 pillars, anti-patterns #1–#17) lives in the preloaded **`vv-principles`** skill:
 **cite it, never restate it.** Reference inventory + XS mixtures → `AGENT.md`;
@@ -119,6 +119,28 @@ codes). → `L34d`, `L35l`
   per row. A mutated run that gets *slower* (garbage destroys convergence:
   3.4 s → 80 s) will blow a timeout sized on the baseline — budget mutation runs
   off the MUTATED cost, never the green one.
+- **⛔ A numeric table in MY OWN plan is a `[M]` claim — the obvious continuation
+  of an integer sequence is NOT a measurement.** I shipped orbit counts
+  `{14:6, 16:7, 18:8}`, extrapolated from a committed `1,1,2,3,4,5`; `[M]` the
+  truth is `{14:7, 16:8, 18:10}` — the count is `p₃(N/2−1)`, and the sequence
+  looks linear for exactly as long as the committed part shows it. Compute the
+  extension in the same probe that produced the committed rows, or mark the row
+  a placeholder. → `L42d`
+- **A pre-existing red must be CHARACTERISED, not counted — otherwise it masks
+  the change's own reds.** `[M]` the one red in the very file #337 re-baselines
+  is the **GL** case (1 ULP, 8/60 elements) while both **LS** cases pass —
+  i.e. it sits on the one rule the change does not touch. That detail yields an
+  instruction (`-k "LS4 or LS6"` when attributing; do NOT absorb it into the
+  re-baseline, which would hide an unrelated regression inside a legitimate
+  one); "1 pre-existing red" yields nothing. → `L42g`
+- **A test-design dispatch's prose grep is a free audit of the PREVIOUS
+  change's retirement pass — grep the CONCEPT, then sort hits by TENSE and read
+  the JUSTIFYING sentence, not just the number in it.** `[M]` grepping
+  `doe=3`/"degree 3" for #337 found 10 stale test comments AND two production
+  docstrings already present-tense-false from #327 two days earlier — plus one
+  hit that is a load-bearing ARGUMENT ("doe=3 EXACTLY integrates the degree-2
+  Y₁·Y₁ moment"), which survives but must be re-stated, never find-replaced.
+  → `L42f`
 - **MEASURE the reachable subset before rationing the battery — a brief's cost
   estimate names a DIRECTORY, not the tests the carve can reach.** A "≈5.5 min"
   budget measured **9.40 s** for the subset that mattered (35×), turning a
@@ -273,6 +295,15 @@ against a concrete row before trusting a green.
   reasoning.** "The only row in the tree that can see X" was measured two-part:
   exclusive for the overlap/gap class tree-wide, but the sibling DOES catch a
   one-sided relaxation. Put the measured table in the docstring. → `L41g`
+- **⛔⛔ The OBVIOUS keystone (a derived table) can be IDENTICAL before and after
+  the change at a subset of parameter rows — build BOTH configurations and
+  tabulate the derived quantity PER ROW before nominating it.** The #337 seed
+  change's headline is "the achieved degree rises", yet `[M]` at S12/S16/S18 the
+  old and new families reach the SAME degree (11/11, 15/15, 17/17), so the
+  degree table is blind to the whole change at 3 of 8 orders — and those are
+  exactly the orders where the value gate's tolerance is loosest. A closeout
+  saying "the table gates this at all eight orders" is false in a way that
+  survives review because the table *looks* complete (`vv` anti-#20). → `L42c`
 - **⛔ A convergence+value pair can be blind in a band where the error DECREASES.**
   `[M]` scaling the declared `q` by `(1+ε)`: at `ε ≤ 3e-4` the perturbation
   partially CANCELS the `O(h²)` truncation, so `L2(80)` drops to `0.6–0.8×` the
@@ -331,6 +362,28 @@ against a concrete row before trusting a green.
   yourself (`dir(module)`), never the brief's list.** When the refutation lands,
   the phase usually collapses from *build a new reference* to *re-route the
   existing one* — which is also the Pattern-2-correct answer. → `L40a`
+- **⛔⛔ "Solve for X on interval I" is a CONSTRUCTION only if the root is unique
+  there — run a sign-change scan and report the root COUNT before accepting the
+  design.** `[M]` #337's briefed "root-find over μ₁² ∈ (0, 1/3)" has **TWO**
+  roots at 4 of 9 orders, so `brentq` **raises before it starts** (same sign at
+  both ends) — the sentence is literally unrunnable there. Two roots ⟹ the plan
+  owes a SELECTION RULE with its own two-legged gate: (a) the shipped value is
+  the selected root, (b) the discarded root is exhibited and measured bad
+  (weights −0.6…−7.7). Leg (b) is what makes the rule a reason instead of a
+  coincidence — and note the obvious mutation reds by RAISING, so it attributes
+  nothing (`L31`/`L25`); only leg (b) is attributable. Also scan the inner
+  solve's TOTALITY over the same interval: `[M]` 31 % of the S20 bracket is
+  rank-deficient and the residual is DISCONTINUOUS where the row selection
+  changes. → `L42a`
+- **⭐ When a plan's blocker is "is this small number real or is it
+  arithmetic?", answer it with arbitrary precision instead of escalating —
+  one probe closed a blocking user ruling.** A frontier decided by
+  `+1.75e-4` vs `−2.19e-4` in an ill-conditioned solve looks exactly like a
+  float64 artifact; re-doing the WHOLE construction in mpmath at 50/60 dps
+  (exact targets, exact Gram–Schmidt, exact LU) agreed to every printed digit.
+  Keep the reasoning ✅ ANSWERED, not deleted (`plan-authoring` §3), and pin
+  the MARGIN VALUE beside the sign so a conditioning regression reds first.
+  → `L42e`
 - **⭐ The keystone's ORACLE choice decides whether it catches anything — same
   assertion shape, 8 orders of sensitivity apart.** `γ₋ψ == spec.evaluate(...)`
   is self-consistency: under a magnitude mutation BOTH sides move, green for
@@ -371,6 +424,16 @@ against a concrete row before trusting a green.
 - **⛔ Never assert TIGHTER than the type's own construction invariant** — split
   into a row on the type's promise and a stronger row on the constructors' actual
   quality (`vv` anti-#16). → `L35g`
+- **⛔⛔ For a ROOT-FIND gate the tolerance is `noise / slope`, and the slope can
+  collapse 4 orders across ONE parameter family — so a single rtol is a false
+  red at one end and a dead gate at the other.** `[M]` #337: the float64 root's
+  distance from a 50-digit re-solve runs **1.0 ULP at S4 → 40 653 ULP (8.7e-12)
+  at S18** as the residual slope collapses `1.03 → 1.7e-4`. The brief's `1e-7`
+  was 4 orders too loose; my own draft's `1e-12` was a FALSE RED at three
+  orders. Derive it: `Δx ≈ (evaluation noise)/|f'|` predicted within 5×.
+  Tabulate **per row**, ×10, decade-rounded; put the arbitrary-precision value
+  in the literal; and STATE what the floor leaves ungated (at S16/S18 a
+  sub-1e-10 error is invisible to all three gates). → `L42b`
 - **Gating a MORE-accurate implementation against the less-accurate one it
   replaces gates it against the error it exists to remove.** "≤1 ULP vs `np.cos`"
   FAILED at 3.75 ulp — but `np.cos(2πp/q)` is not the true value; against

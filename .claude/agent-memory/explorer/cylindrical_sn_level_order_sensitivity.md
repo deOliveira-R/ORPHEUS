@@ -202,6 +202,26 @@ is reachable by direct `SNMesh(...)` and is pinned by ~6 test modules. Its level
 analogue of "the omega=pi endpoint is already a node"), so LS needs its own ruling:
 fold-product-only-and-keep-LS-red, refuse-LS-on-cylinder, or accept carrying LS.
 
+**Update 2026-08-08 (#325/#326 remainder recon @ `2ea9612c`; full map =
+`scratch/issue_325_326_remainder_map.md`, transient).** Four claims above
+evolved: (i) ⛔ the "R12a predicate is `0 < tau_raw[0] < 1`" spelling describes
+the RETIRED encoding — T26 re-posed it as the two named integer facts
+`MarchStart(on_edge_node, degenerate)` with `consumes_independent_seed =
+not(either)` (`pole_angular_closure.py`, `march_start_structure_per_level`);
+the τ trichotomy is now a gated THEOREM per family, not the predicate.
+(ii) The producer tie-break is NAMED: `argsort(mu_x, kind="stable")` in
+`spherical_product` + a gate whose `n_phi >= 24` parameterization is
+load-bearing (default argsort agrees with stable below 24 — small arrays fall
+to insertion sort). The "decided by rounding noise" premise is DEAD (ties are
+exact post-E3). (iii) `_XFAIL_326` = 3 strict rows in
+`tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` (full product
+hom/het + LS4; a NON-xfailed reachability sibling pins defect ∈ (1e-13, 2.0]).
+(iv) LS keeps a BARE argsort (`rules_sphere.py`, exact 4-to-1 ties, no gate);
+the plan's ruling resolves LS-cylinder by MIGRATION to `folded_product` at the
+6.3 flip, not by fixing the sort. Still open regardless of the fold: the
+`radial_characteristic_field` argmin second tie-break, and a heterogeneous
+cylindrical PRODUCT/folded regression (het cyl exists only as LS4).
+
 **7. DOC FALSIFICATION (L33).** `curvilinear_one_group.rst`
 §`sn-direct-seed-circle-vs-interval` states the principle *"a periodic
 redistribution axis gives edge-inclusion for free; an interval axis makes you pay

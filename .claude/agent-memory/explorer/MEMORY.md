@@ -29,7 +29,10 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
   input that FAILS (L18)**; **a brief's TYPE table is a claim about MATERIALIZED objects
   (grep the accessor's return type before mapping construction sites), and an all-green
   "what breaks?" run may have measured INERT rather than SAFE — find the gate and check
-  the path routes through it (L21)**.
+  the path routes through it (L21)**; **a "what REMAINS of issue X" recon greps the
+  campaign's own MID-FLIGHT PROSE ("today still…", "remaining half…", cautions) — the
+  interim honesty notes are the falsified class; and an acceptance-gate check reads the
+  FIXTURE LIST, not the assertion (L22)**.
 
 ## 2. Active / in-flight state
 

@@ -3885,3 +3885,188 @@ the identity) ⟹ `array_equal`; **≤ 1.11e-16** for the 90° rotation
 Slice `tests/geometry tests/sn/operators -m "not slow"`: **1921 passed /
 15 failed / 28 s** — 3 pre-existing baseline reds + 12 from the main agent's
 in-flight `test_b3_domain_narrowing.py` edit; none mine.
+
+---
+
+## L42 — #337, the level-symmetric moment-matched node seed: a "root-find on (0, 1/3)" whose root is not unique, and a keystone that is blind at a third of its own rows
+
+**Dispatch (2026-08-08).** Design the PRE-implementation verification plan for
+upgrading `level_symmetric`'s node seed from the project convention
+`μ₁² = 4/(N(N+2))` to the moment-matched μ₁ (the published Carlson–Lathrop
+LQ_N family). Deliverable `scratch/issue_337_verification_plan.md`. Probes:
+`scratch/_probe_337_mu1.py`, `_probe_337_roots.py`, `_probe_337_precision.py`,
+`_probe_337_prec2.py` (all read-only on production).
+
+### L42a — ⛔⛔ "root-find over the interval (a, b)" is a construction only if the root is UNIQUE there. Count the roots before accepting the design.
+
+The design of record read: *"μ₁² becomes the root of the FIRST generically-
+unsatisfied ladder condition's residual (outer scalar root-find over
+μ₁² ∈ (0, 1/3))"*. That reads complete. It is not.
+
+`[M]` a 2500-point sign-change scan of the residual over the whole stated
+bracket: **two roots at N = 6, 10, 14, 18** (one at N = 4, 8, 12, 16, 20).
+
+| N | root 1 (μ₁) | min w | root 2 (μ₁) | min w |
+|---|---|---|---|---|
+| 6 | 0.2666354015 | +0.2469 | 0.4225186538 | **−0.5965** |
+| 10 | 0.1893213265 | +0.0708 | 0.3471231056 | **−1.0866** |
+| 14 | 0.1519858615 | +0.0130 | 0.3008785706 | **−3.4280** |
+| 18 | 0.1293445045 | +0.000175 | 0.2689383416 | **−7.6693** |
+
+Two roots ⟹ `f` has the **same sign at both endpoints** ⟹ `brentq(f, 0, 1/3)`
+does not converge to the wrong answer, it **raises before it starts**. So the
+briefed construction is literally unrunnable at 4 of 9 orders, and the failure
+is loud rather than silent — but only if someone tries it. A plan that shipped
+the sentence as written would have sent the implementer to debug scipy.
+
+**Rule.** For any plan sentence of the form *"solve for X on interval I"*,
+run a sign-change scan over I and report the root COUNT before accepting it.
+If > 1, the plan owes a **selection rule** and that rule owes its own gate — a
+two-legged one: (a) the shipped value IS the selected root, (b) the discarded
+root is genuinely bad (here: exhibit it and measure its weight negative). Leg
+(b) is what makes the rule a *reason* rather than a coincidence.
+
+⚠ And the obvious mutation for such a gate reds **by raising** (taking the
+larger root makes the whole construction refuse), which per L31/L25 has
+attributed nothing to the consumers it reddens. Only leg (b) is attributable.
+
+### L42b — ⛔⛔ The tolerance for a root-find gate is `noise / slope`, and the slope can collapse 4 orders across a parameter family. A single rtol is then a false red at one end and a dead gate at the other.
+
+The brief proposed `~1e-7`. My own first draft proposed `rtol = 1e-12`.
+**Both were wrong, in opposite directions**, and I only found out by measuring
+the float64 root-find against a 50-digit mpmath re-solve of the same equations:
+
+| N | float64 vs 50-digit | ULP | residual slope `d(res/want)/d(rel μ₁)` |
+|---|---|---|---|
+| 4 | 1.59e-16 | **1.0** | 1.03 |
+| 6 | 7.08e-15 | 34 | 7.3e-2 |
+| 8 | 1.88e-14 | 148 | 7.3e-2 |
+| 10 | 2.46e-13 | 1 678 | 9.7e-3 |
+| 12 | 3.82e-13 | 2 300 | 7.7e-3 |
+| 14 | 4.72e-12 | 25 838 | 1.3e-3 |
+| 16 | 3.57e-12 | 17 860 | 9.0e-4 |
+| 18 | **8.72e-12** | **40 653** | **1.7e-4** |
+
+`1e-12` is a **false red** at S14/S16/S18. `1e-7` is 4 orders too loose at S18.
+The spread is 5 orders of magnitude across ONE family, and it is **derivable**:
+`Δμ₁ ≈ (residual evaluation noise) / |dres/dμ₁|`; the noise is the FP floor of
+an `N(N+2)`-term positive sum (`κ=1`, measured 3.5e-16…7.7e-15 relative) and
+the slope collapses because the constraining condition flattens with N. The
+prediction (~4.5e-11 at S18) is within 5× of the measurement.
+
+**Rules.**
+1. **Per-order tolerance, tabulated from measurement × 10, decade-rounded** —
+   the memory §5 rule ("bit-exactness is EARNED PER LAW") extends to *earned
+   per ROW of a parameter family*.
+2. **The literal is the arbitrary-precision value, never the implementation's
+   own output.** Gating a float64 root-find against its own answer is the
+   value-compared-with-itself demotion; gating it against 50-digit mpmath is
+   the L34c rule ("state the criterion against the arbitrary-precision value").
+3. **Say what the floor leaves UNGATED.** At S16/S18 a sub-1e-10 μ₁ error is
+   invisible to G1 (rtol 1e-10), to the residual gate (floor 5.8e-10) and to
+   the degree table (L42c) — three independent gates, all blind. That is the
+   arithmetic floor of the formulation, not a plan defect, but it must be
+   *stated* or it gets discovered later as false coverage.
+
+### L42c — ⛔⛔ The obvious keystone (a derived table) can be IDENTICAL before and after the change at a subset of parameter values. Measure old-vs-new DISTINGUISHABILITY per row before nominating it.
+
+The change's headline consequence is "the achieved polynomial degree rises".
+So the degree table looks like the keystone. `[M]` it is not:
+
+| N | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 |
+|---|---|---|---|---|---|---|---|---|
+| deg NEW | 5 | 7 | 9 | 11 | **11** | 15 | **15** | **17** |
+| deg OLD | 3 | 5 | 7 | 9 | **11** | 13 | **15** | **17** |
+| distinguishes? | ✅ | ✅ | ✅ | ✅ | ⛔ | ✅ | ⛔ | ⛔ |
+
+**At S12, S16 and S18 the two families reach the same degree.** So the degree
+gate is structurally blind to the entire seed change at 3 of 8 orders — and
+those are exactly the orders where the value gate's tolerance is loosest
+(L42b). The keystone had to move to the μ₁ value plus the *residual of the one
+condition the seed is chosen to satisfy*.
+
+**Rule.** Before nominating any derived quantity as a carve's keystone, build
+BOTH configurations and tabulate the derived quantity per parameter row. A row
+where old == new is a `vv` anti-#20 non-catcher, and a closeout claiming "the
+degree table gates this at all eight orders" is false in a way that survives
+review because the table *looks* complete.
+
+### L42d — ⛔ I shipped a guessed integer sequence in my own first draft. The obvious continuation of an integer table is not a measurement.
+
+Draft §5 carried orbit counts `{14:6, 16:7, 18:8}` — extrapolated from the
+committed `{2:1, 4:1, 6:2, 8:3, 10:4, 12:5}` by continuing "…, 6, 7, 8".
+`[M]` the truth is **`{14:7, 16:8, 18:10}`**: the count is `p₃(N/2 − 1)`,
+partitions into at most three parts — `1,1,2,3,4,5,7,8,10`. The sequence looks
+linear for exactly as long as the committed table shows it.
+
+**Rule.** A numeric table in a plan is a `[M]` claim (`plan-authoring` §2). If
+the continuation was not computed, it is not a row — it is a placeholder, and
+it must be marked as one or omitted. Cheapest fix: compute the extension in the
+same probe that produced the committed part.
+
+### L42e — Answering a "is this margin real?" question with arbitrary precision is cheap, and it converts a blocking user ruling into a closed one.
+
+The new positivity frontier is decided by min-weight `+1.750e-4` at S18 vs
+`−2.191e-4` at S20 — a `4e-4` swing in a solve whose greedy row-selection is
+`[M]` rank-deficient over **31 %** of the S20 bracket. That is the exact shape
+of a float64 conditioning artifact, and I opened it as a blocking user ruling
+(U1: "do not ship a sign-of-a-tiny-number frontier without this answer").
+
+Then I ran the whole construction in mpmath at 50 and 60 dps — exact gamma
+targets, exact level recursion, exact Gram–Schmidt row selection, exact LU.
+`[M]` S18 `+0.0001750014795257`, S20 `−0.0002191020803263`, S22 `−1.5987e-2`,
+S24 `−2.2381e-2` — agreeing with float64 to every printed digit, and the
+float64 root's margin is `2.3e-11` from the exact one, i.e. the sign has ~7
+orders of headroom. **The frontier is a property of the family.** U1 closed,
+in one probe.
+
+**Rule.** When a plan's blocker is *"is this small number real or is it
+arithmetic?"*, the answer is usually one mpmath re-implementation away. Prefer
+answering it to escalating it — and keep the reasoning in the plan (marked
+✅ ANSWERED, not deleted) because it is why the check was worth running
+(`plan-authoring` §3). Corollary for the shipped gate: pin the MARGIN VALUE
+alongside the sign, so a conditioning regression reds before the frontier
+silently sheds an order.
+
+### L42f — Grepping the CONCEPT of the change found two production docstrings already present-tense-false from the PREVIOUS issue.
+
+Scoping #337's prose blast radius, I grepped the *concept* ("degree 3",
+"doe=3") rather than only the symbol. That surfaced 10 test-comment sites
+stating `level_symmetric(4) (O_h N=24 doe=3)` — which #337 makes false (S4
+becomes 5) — and, unexpectedly, **two production docstrings already false from
+#327, landed two days earlier**:
+`orpheus/numerics/measure.py:226` and
+`orpheus/numerics/generating_measure.py:126`, both stating in the present tense
+that `level_symmetric_sn` "assigns one weight to every ordinate by hand" and
+"**is** degree-3 at every order while claiming N−1".
+
+⚠ And one of the ten (`test_keff_2d.py:270`) is not a stale number but a
+load-bearing ARGUMENT — *"doe=3 EXACTLY integrates the degree-2 Y₁·Y₁ moment"*
+— which survives (5 ≥ 3) but must be re-stated, not find-replaced.
+
+**Rule.** A test-design dispatch's prose grep is also a free audit of the
+PREVIOUS change's retirement pass. Grep the concept, sort the hits by tense,
+and read the justifying sentence — not just the number in it.
+
+### L42g — A pre-existing red must be characterised, not merely counted, or it masks the change's own reds.
+
+`[M]` baselining `tests/geometry/test_bc_equivalence_snapshot.py` found
+`1 failed, 109 passed in 2.10 s`. The failure is
+`TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`
+— 8/60 elements, max abs diff `2.22e-16` (**1 ULP**). Critically it is the
+**GL** case; both `LS4` and `LS6` cases in that same file PASS. So the one red
+in the file #337 will re-baseline is on the ONE rule #337 does not touch.
+
+Recording "1 pre-existing red" would have been useless. Recording *which* row
+and *that it is the non-LS rule* is what lets the implementer attribute later
+reds without triage, and it produced a concrete instruction: run the file with
+`-k "LS4 or LS6"` when attributing, and do NOT absorb the GL red into the
+re-baseline (that would hide an unrelated regression inside a legitimate one).
+
+### L42h — Cost: measure the reachable subset; the directory estimate was useless.
+
+`[M]` the four fast gate files are **1.45 s** and **2.10 s**. `tests/numerics/`
+as a WHOLE did not finish in 120 s. The battery's per-mutation slice is ~3 s,
+so an 11-mutation battery is under a minute — there is no reason to ration it.
+A directory-level estimate would have over-stated the relevant cost by
+orders of magnitude (memory §2, measured again).
