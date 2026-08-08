@@ -70,7 +70,7 @@ def _cylinder_mesh() -> SNMesh:
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = Quadrature.product(n_mu=4, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=4)
     return SNMesh(mesh, quad, placeholder_materials())
 
 

@@ -208,11 +208,16 @@ class TestAlphaRedistribution:
     The resulting dome must be non-negative with α[0] = α[M] = 0.
     """
 
+    # Q5.6.3: the folded family SNMesh(CYLINDRICAL) admits.  Splits chosen
+    # for level-structure diversity (4×4, 8×8, 8×2, 6×6 angles/level), and
+    # folded(4,6) puts the surviving bit-exact μ_r = 0 degenerate ordinate
+    # (parent n_φ ≡ 2 mod 4) inside the dome.
     @pytest.mark.parametrize("factory,kwargs", [
-        (Quadrature.product, {"n_mu": 4, "n_phi": 8}),
-        (Quadrature.product, {"n_mu": 8, "n_phi": 16}),
-        (Quadrature.level_symmetric, {"sn_order": 4}),
-        (Quadrature.level_symmetric, {"sn_order": 6}),
+        (Quadrature.folded_product, {"n_mu": 4, "n_phi": 8}),
+        (Quadrature.folded_product, {"n_mu": 8, "n_phi": 16}),
+        (Quadrature.folded_product, {"n_mu": 8, "n_phi": 4}),
+        (Quadrature.folded_product, {"n_mu": 6, "n_phi": 12}),
+        (Quadrature.folded_product, {"n_mu": 4, "n_phi": 6}),
     ])
     def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
@@ -232,8 +237,8 @@ class TestAlphaRedistribution:
             )
 
     @pytest.mark.parametrize("factory,kwargs", [
-        (Quadrature.product, {"n_mu": 4, "n_phi": 8}),
-        (Quadrature.level_symmetric, {"sn_order": 4}),
+        (Quadrature.folded_product, {"n_mu": 4, "n_phi": 8}),
+        (Quadrature.folded_product, {"n_mu": 4, "n_phi": 6}),
     ])
     def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
@@ -303,7 +308,7 @@ class TestL0TermVerification:
         if coord == CoordSystem.SPHERICAL:
             quad = Quadrature.gauss_legendre(8)
         else:
-            quad = Quadrature.product(n_mu=4, n_phi=8)
+            quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
         tag = {
             CoordSystem.SPHERICAL: "SPH",
@@ -375,7 +380,7 @@ class TestL0TermVerification:
         if coord == CoordSystem.SPHERICAL:
             quad = Quadrature.gauss_legendre(4)
         else:
-            quad = Quadrature.product(n_mu=4, n_phi=8)
+            quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
         edges = mesh.edges
@@ -397,7 +402,7 @@ class TestL0TermVerification:
     def test_contamination_beta_cylindrical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
         from orpheus.derivations.discrete.sn.contamination import contamination_beta
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         betas = contamination_beta(quad, "cylindrical")
         assert np.all(np.abs(betas) < 1e-14), (
             f"Cylindrical β_max = {np.abs(betas).max():.2e}"

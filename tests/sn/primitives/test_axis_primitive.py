@@ -160,13 +160,13 @@ def test_f0_3_from_axes_2d_cartesian_shape_and_face_labels() -> None:
 
 @pytest.mark.parametrize("coord,make_quad", [
     (AxisCoord.RADIAL_SPHERICAL, lambda: Quadrature.gauss_legendre(n_ordinates=8)),
-    (AxisCoord.RADIAL_CYLINDRICAL, lambda: Quadrature.product(n_mu=2, n_phi=4)),
+    (AxisCoord.RADIAL_CYLINDRICAL, lambda: Quadrature.folded_product(n_mu=2, n_phi=4)),
 ])
 def test_f0_4_solid_radial_mesh_has_one_face_label(coord, make_quad) -> None:
     """Sphere / cylinder SNMesh has exactly 1 face label (``outer``).
 
     Sphere uses the polar GL quadrature; cylinder requires a level-
-    structured product quadrature (LS or Product) because the
+    structured quadrature (the folded product family) because the
     cylindrical streaming reduction depends on level partitioning.
     """
     axes = (

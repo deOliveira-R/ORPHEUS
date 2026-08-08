@@ -183,7 +183,7 @@ def test_from_axes_custom_labels_fail_loud() -> None:
     (
         AxisCoord.RADIAL_CYLINDRICAL,
         CoordSystem.CYLINDRICAL,
-        lambda: Quadrature.product(n_mu=2, n_phi=4),
+        lambda: Quadrature.folded_product(n_mu=2, n_phi=4),
     ),
 ])
 def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(

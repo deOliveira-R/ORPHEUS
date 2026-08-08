@@ -70,7 +70,8 @@ def _build_mesh(coord: str) -> SNMesh:
     )
     quad = (
         Quadrature.gauss_legendre(8)
-        if coord in ("slab", "sphere") else Quadrature.level_symmetric(4)
+        if coord in ("slab", "sphere")
+        else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
     return SNMesh(mesh, quad, placeholder_materials())
 
