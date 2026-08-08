@@ -165,7 +165,16 @@ def _make_sphere(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
 
 
 def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
-    quad = Quadrature.level_symmetric(4)
+    r"""Cylinder on the REGULAR folded rule (no degenerate ordinates).
+
+    ``folded_product(4, 8)``: staggered parent nodes at
+    :math:`\varphi = (k + \tfrac12)\pi/4` exclude :math:`\pi/2`, so every
+    ordinate has a genuine radial cosine — the counterpart of
+    :func:`_make_cyl_product`'s pure-azimuthal-bearing degenerate row.
+    (LS4 until Q5.6.3; this fixture feeds ``walk_matvec_cyl_2g.npz``,
+    re-captured with the swap.)
+    """
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     mesh = Mesh1D(
         edges=np.linspace(0.0, R, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),

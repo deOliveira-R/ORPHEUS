@@ -151,10 +151,10 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
         bcs=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
-    if quad_kind == "LS4":
-        quadrature = Quadrature.level_symmetric(sn_order=4)
-    elif quad_kind == "product_2x4":
-        quadrature = Quadrature.product(n_mu=2, n_phi=4)
+    if quad_kind == "folded_4x8":
+        quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
+    elif quad_kind == "folded_2x4":
+        quadrature = Quadrature.folded_product(n_mu=2, n_phi=4)
     else:
         raise ValueError(f"unknown cylinder quadrature kind: {quad_kind}")
     return dict(
@@ -180,10 +180,10 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
         geom,
         region_meshes=tuple(RegionMesh(n_cells=n) for n in n_per_region),
     )
-    if quad_kind == "LS4":
-        quadrature = Quadrature.level_symmetric(sn_order=4)
-    elif quad_kind == "product_2x4":
-        quadrature = Quadrature.product(n_mu=2, n_phi=4)
+    if quad_kind == "folded_4x8":
+        quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
+    elif quad_kind == "folded_2x4":
+        quadrature = Quadrature.folded_product(n_mu=2, n_phi=4)
     else:
         raise ValueError(f"unknown cylinder quadrature kind: {quad_kind}")
     return dict(
@@ -456,20 +456,26 @@ CASES: tuple[SnapshotCase, ...] = (
         "DD sphere fuel|moderator|fuel, 2G, GL-8, n=40",
         lambda: _sphere_3region("2g", 40),
     ),
+    # Q5.6.3: the cylinder cases ride the carrying folded family the
+    # admission accepts (LS4 -> folded_4x8, product(2,4) -> folded_2x4);
+    # artifacts re-captured with the swap, stamped INTERIM — the [1/2, 1]
+    # arc absorber still clamps folded levels, so these baselines move
+    # again at Q5.6.4 (the absorber retirement lands WITH its own
+    # acceptance instruments and re-captures these by name).
     SnapshotCase(
-        "cyl_1g_homogeneous_LS4_dd_n20",
-        "DD cylinder 1G homogeneous, LS_4 (12 ord), n=20",
-        lambda: _cylinder_homogeneous("1g", 20, "LS4"),
+        "cyl_1g_homogeneous_folded_4x8_dd_n20",
+        "DD cylinder 1G homogeneous, folded_product(4x8) (16 ord), n=20",
+        lambda: _cylinder_homogeneous("1g", 20, "folded_4x8"),
     ),
     SnapshotCase(
-        "cyl_1g_homogeneous_product_dd_n20",
-        "DD cylinder 1G homogeneous, ProductQuadrature(2x4) (8 ord), n=20",
-        lambda: _cylinder_homogeneous("1g", 20, "product_2x4"),
+        "cyl_1g_homogeneous_folded_2x4_dd_n20",
+        "DD cylinder 1G homogeneous, folded_product(2x4) (4 ord), n=20",
+        lambda: _cylinder_homogeneous("1g", 20, "folded_2x4"),
     ),
     SnapshotCase(
-        "cyl_2g_3reg_LS4_dd_n40",
-        "DD cylinder fuel|moderator|fuel, 2G, LS_4, n=40",
-        lambda: _cylinder_3region("2g", 40, "LS4"),
+        "cyl_2g_3reg_folded_4x8_dd_n40",
+        "DD cylinder fuel|moderator|fuel, 2G, folded_product(4x8), n=40",
+        lambda: _cylinder_3region("2g", 40, "folded_4x8"),
     ),
     SnapshotCase(
         "slab_2g_p1_aniso_dd_n20",

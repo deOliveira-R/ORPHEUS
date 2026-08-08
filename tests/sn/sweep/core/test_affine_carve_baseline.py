@@ -134,10 +134,11 @@ def _build_sn_mesh(geometry: str) -> SNMesh:
 
     Outer BC vacuum; the curvilinear inner edge (r=0) is the regularity
     pole, declared ``reflective`` per the project convention (NOT a BC —
-    a regularity condition).  Cylinder uses ``level_symmetric`` (the
-    curvilinear cubature the matvec serves); slab/sphere use
-    ``gauss_legendre`` — mirrors ``test_bc_extraction_matvec._build_sn_mesh``
-    so the A-NEW operands match the existing gate's geometry exactly.
+    a regularity condition).  Cylinder uses ``folded_product`` (the
+    carrying cubature family the matvec serves — LS until Q5.6.3);
+    slab/sphere use ``gauss_legendre`` — mirrors
+    ``test_bc_extraction_matvec._build_sn_mesh`` so the A-NEW operands
+    match the existing gate's geometry exactly.
     """
     mats = placeholder_materials(ng=_NG)
     if geometry == "SLB":
@@ -166,7 +167,7 @@ def _build_sn_mesh(geometry: str) -> SNMesh:
             bc_left=BC("reflective"),
             bc_right=BC("vacuum"),
         )
-        quad = Quadrature.level_symmetric(sn_order=_N_ORD)
+        quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=2 * _N_ORD)
     else:  # pragma: no cover - guarded by parametrize
         raise ValueError(geometry)
     return SNMesh(mesh, quad, mats)

@@ -158,7 +158,7 @@ def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNMesh:
 
 
 def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNMesh:
-    """Cylinder requires a level-structured quadrature (μ-levels)."""
+    """Cylinder on the carrying folded family (μ-levels; LS until Q5.6.3)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     mesh = Mesh1D(
         edges=np.linspace(0.0, 4.0, nx + 1),
@@ -167,7 +167,7 @@ def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNMesh:
         bc_left=BC("reflective"),  # pole
         bc_right=BC("vacuum"),
     )
-    quad = Quadrature.level_symmetric(sn_order=sn_order)
+    quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
     return SNMesh(mesh, quad, {0: mix})
 
 

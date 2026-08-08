@@ -16,9 +16,9 @@ Per the plan §1 coverage matrix:
   dominates; tolerance relaxed (see test docstring).
 - Snapshot 3 (sphere_2g_p1_aniso)     → routed to Gate 4.1 (P1 anisotropic;
   Variant α handles isotropic only).
-- Snapshot 4 (cyl_1g_homogeneous_LS4) → ``solve_greens_function_cylinder``
+- Snapshot 4 (cyl_1g_homogeneous_folded_4x8) → ``solve_greens_function_cylinder``
   at α=1 — V_α1_cyl identity, k=k_inf, rtol ≤ 1e-9.
-- Snapshot 5 (cyl_1g_homogeneous_product) → same continuous ref, rtol ≤ 1e-9.
+- Snapshot 5 (cyl_1g_homogeneous_folded_2x4) → same continuous ref, rtol ≤ 1e-9.
 - Snapshot 6 (cyl_2g_3reg)            → ``solve_greens_function_cylinder_mr``
   at α=1 — heterogeneous closed cylinder, SN spatial-discretisation error
   dominates; tolerance relaxed (see test docstring).
@@ -205,11 +205,14 @@ def _mr_xs_2g():
 # regression test at ``tests/sn/regression/test_dd_regression.py``
 # already pins the SN side to these snapshot values bit-identically.
 _SNAPSHOT_KEFFS = {
-    "sphere_2g_homogeneous_dd_n20":      1.8750000000162512,
-    "sphere_2g_3reg_dd_n40":             1.3578153065932639,
-    "cyl_1g_homogeneous_LS4_dd_n20":     1.5,
-    "cyl_1g_homogeneous_product_dd_n20": 1.5000000000000002,
-    "cyl_2g_3reg_LS4_dd_n40":            1.2284281074857448,
+    "sphere_2g_homogeneous_dd_n20":         1.8750000000162512,
+    "sphere_2g_3reg_dd_n40":                1.3578153065932639,
+    # Q5.6.3 INTERIM: the cylinder rows re-measured on the folded family
+    # at the snapshot re-capture (the [1/2, 1] arc absorber still clamps
+    # folded levels — these move again at Q5.6.4's absorber retirement).
+    "cyl_1g_homogeneous_folded_4x8_dd_n20": 1.5,
+    "cyl_1g_homogeneous_folded_2x4_dd_n20": 1.4999999999999996,
+    "cyl_2g_3reg_folded_4x8_dd_n40":        1.2302082296342958,
 }
 
 
@@ -312,23 +315,23 @@ _GATE_4_2_CASES: tuple[tuple[str, callable, float, str], ...] = (
         "MR closed sphere — composite-GL post-Phase-E (was 1e-1)",
     ),
     (
-        "cyl_1g_homogeneous_LS4_dd_n20",
+        "cyl_1g_homogeneous_folded_4x8_dd_n20",
         _run_cyl_1g_homogeneous_closed,
         1e-9,
         # V_α1_cyl closed-cylinder identity: at α=1 with uniform XS,
-        # k = k_∞ = νΣ_f/Σ_a EXACTLY. Quadrature kind LS4 vs Product
-        # gives identical k_∞ in the snapshot because k_∞ is
+        # k = k_∞ = νΣ_f/Σ_a EXACTLY. The folded 4x8 and 2x4 splits
+        # give identical k_∞ in the snapshot because k_∞ is
         # flux-shape independent on uniform reflective.
         "V_α1_cyl algebraic identity — k=k_∞ exact",
     ),
     (
-        "cyl_1g_homogeneous_product_dd_n20",
+        "cyl_1g_homogeneous_folded_2x4_dd_n20",
         _run_cyl_1g_homogeneous_closed,
         1e-9,
-        "V_α1_cyl algebraic identity — k=k_∞ exact (Product quadrature)",
+        "V_α1_cyl algebraic identity — k=k_∞ exact (folded 2x4 split)",
     ),
     (
-        "cyl_2g_3reg_LS4_dd_n40",
+        "cyl_2g_3reg_folded_4x8_dd_n40",
         _run_cyl_2g_3reg_closed,
         # Phase E composite per-region GL correction (cylinder analog
         # of snapshot 2's tightening).  Pre-Phase-E gap was ~8.7%
@@ -389,14 +392,14 @@ def test_phase_d_trajectory_resolvent_crosscheck(
       ~1.4e-2 worst-case across refinements {24, 36, 48} while still
       ruling out > 2% SN-vs-Variant-α drift.
 
-    * ``cyl_1g_homogeneous_LS4_dd_n20`` and
-      ``cyl_1g_homogeneous_product_dd_n20`` — V_α1_cyl closed-cylinder
-      identity. k_∞ is quadrature-family-independent on the SN side
+    * ``cyl_1g_homogeneous_folded_4x8_dd_n20`` and
+      ``cyl_1g_homogeneous_folded_2x4_dd_n20`` — V_α1_cyl closed-cylinder
+      identity. k_∞ is quadrature-split-independent on the SN side
       (snapshots 4 and 5 store k = 1.5 identically). Variant α
       `solve_greens_function_cylinder` at α=1 with uniform XS
       reproduces k_∞ at machine precision. ``rtol ≤ 1e-9``.
 
-    * ``cyl_2g_3reg_LS4_dd_n40`` — heterogeneous closed cylinder
+    * ``cyl_2g_3reg_folded_4x8_dd_n40`` — heterogeneous closed cylinder
       analogue of snapshot 2. Phase E composite per-region GL drops
       the empirical gap from ~9% pre-Phase-E to ~1.75e-2 post-Phase-E.
       Tolerance tightened from ``rtol ≤ 1e-1`` to ``rtol ≤ 3e-2``.
@@ -598,7 +601,7 @@ _GATE_4_2_FLUX_SHAPE_CASES: tuple[
         "MR closed sphere flux shape — composite-GL post-Phase-E",
     ),
     (
-        "cyl_2g_3reg_LS4_dd_n40",
+        "cyl_2g_3reg_folded_4x8_dd_n40",
         _run_cyl_2g_3reg_full,
         # Cylinder phase-space carries additional quadrature error
         # (axial + azimuthal); 12% bound accommodates that floor.

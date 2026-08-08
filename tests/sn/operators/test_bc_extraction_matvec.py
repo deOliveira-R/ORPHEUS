@@ -203,7 +203,7 @@ def _build_sn_mesh(
             bc_left=BC("reflective"),
             bc_right=bc_obj,
         )
-        quad = Quadrature.level_symmetric(sn_order=n_ord)
+        quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     else:
         raise ValueError(geometry)
     return SNMesh(mesh, quad, placeholder_materials())
