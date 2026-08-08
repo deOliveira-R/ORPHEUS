@@ -33,14 +33,16 @@
 > | **Q5.0.2** | `bfedc621` | `Z2` RETIRED → `Mirror(axis)`; the 1-D and 3-D arms unified *(hash filled at the 2026-08-07 reconciliation — the row shipped saying "this commit")* |
 > | **Q5.1** | `681bc49b` | `DiscreteMeasure.quotient(group)` — the composite named, weights orbit-stabilizer-derived, refusal off the certificate; the "idempotent" gate realized as TWO arms (see the block's landing note) |
 > | **Q5.2** | `e0554df9` | `spherical_product(polar, azimuthal)` — the combinator seam; group DERIVED at construction (3 `preserves` generator checks, refusal names the unrealized family); STAGGERED ⟹ `Σ = ∅` ⟹ the fold composes with NO flag |
+> | **Q5.3** | `65ff5bb0` | `fiber()` RETIRED → `LevelStructure.quotient(parent=, onto=)` — the structure DESCENDS by selection (charts bit-exact, level order = the parent's η-order RESTRICTED to survivors); fiberwise certified by per-level mass; ⛔ the plan's `==` gate spelling REFUTED (the two orders are exact REVERSES — see the block's landing note) |
 >
-> **▶ NEXT = Q5.3** (a level becomes an ARC: on a folded measure `η` is strictly
-> monotone in `ω`, so `level_indices` and `fiber()` are the same order — the two
-> accessors MERGE, the retirement Q4 deferred). ⚠ Symbols existence-checked at
-> pointer-write (2026-08-07): `LevelStructure.fiber` lives at
-> `rules_sphere.py:215`, unmerged — the deliverable is genuinely open. Then
-> Q5.4–Q5.6. The full ladder with gates is in §5's `Q5.E` and `Q5.2` blocks —
-> read them, not this summary.
+> **▶ NEXT = Q5.4** (the R12a predicate re-posed on the integer, T26 — decide
+> WHICH of the two conflated facts it wants first: Σ-occupancy vs the double
+> cover). ⚠ Symbols existence-checked at pointer-write (2026-08-07):
+> `morel_montry_tau_raw_per_level` lives at `pole_angular_closure.py:543` and
+> the trichotomy is still float-posed on `τ_raw` (`:991`, `:1007`) — the
+> deliverable is genuinely open. Then Q5.5 (adjudicated, T27) and Q5.6
+> (acceptance). The full ladder with gates is in §5's `Q5.E` and `Q5.2`
+> blocks — read them, not this summary.
 >
 > `[M]` **Batteries at the 2026-08-07 checkpoint** (HEAD `43b571a5`, serial
 > `-O`): `tests/numerics` **1998 passed / 0 failed** (5:36); measure suite 65,
@@ -2450,6 +2452,41 @@ implemented and **no `D_6h`-invariant rule in tree**.
   deliberately deferred.
   *Gate:* `level_indices[p] == fiber(p)` for every level of every folded rule —
   T22b's measurement promoted to a permanent test.
+  ⛔ **The gate's `==` spelling REFUTED 2026-08-07 at pickup** — `[M]` probe on
+  every level of folded staggered (4,8)/(2,4)/(3,6): the two accessors were
+  exact **REVERSES**, never equal. Both halves of the plan sentence were true
+  and the composition wasn't: T22b's "`[4 3 2 1 0]` both ways" compared
+  η-ascending against the **march** order (ω-DESCENDING, from Σ at ω=π toward
+  Σ at ω=0), while `fiber()`'s lexsort was the ω-ASCENDING chart. Same total
+  order, two charts, opposite orientation — `∂η/∂ω = −sinθ sinω < 0` is the
+  theorem, and it fixes the orientation the sentence elided. The landed gate
+  asserts the sharper form: strict η-injectivity AND strict ω-descent along
+  the stored order, per level, per config.
+
+  ✅ **LANDED `65ff5bb0` (2026-08-07) — Q5.3 COMPLETE.** `fiber()` deleted;
+  minted `LevelStructure.quotient(parent=, onto=)` — the structure **descends
+  by pure selection** along the quotient the measure already took (a quotient
+  never moves a node ⟹ charts descend bit-identically; each level's order is
+  the parent's η-order **restricted** to survivors, so the sort convention
+  stays spelled once, in the producer — no re-sort, no twin). Fiberwise
+  precondition certified per level by mass conservation; a level-merging fold
+  (σ_z) refused loudly; keyword-only measures (a positional swap of two
+  same-typed measures would be silent). Gates +7: the arc gate (staggered
+  (4,8)/(2,4)/(3,5)-with-Σ-endpoint + T22b's own NODE_ALIGNED (4,8), carrying
+  `verifies("folded-level-arc")` → the new labeled equation on the
+  discrete-measures page), the selection contract against an independently
+  re-derived node-bit map, the two refusal arms; the two `fiber()` tests
+  REWIRED (they assert chart injectivity — order-free). Teeth `[M]` 4/4
+  mutations caught by exactly their designed catchers (control 7 reds;
+  ascending-ω re-sort = the retired orientation → arc×4+selection;
+  guard-off → ONLY the merging refusal; arctan2 recomputation → ONLY the
+  selection gate, moving 4/16 azimuth entries on staggered(4,8), 2/9 on
+  (3,5) — measured, not assumed). ⚠ The teeth driver's first grep scanned
+  for `FAILED` lines that `-q --tb=no` never emits — vv #17's catalogued
+  instrument failure re-hit and re-fixed before any verdict was trusted.
+  `azimuth`/`hemisphere` FIELDS deliberately survive the accessor merge:
+  the ω-chart's imminent consumers are Q5.4–Q5.6 (arc endpoints, Δω, T3's
+  α closed form).
 
   **Q5.4 — Re-pose the R12a predicate on the integer** (T26). Replace
   `0 < τ_raw[0] < 1`, which decides a structural question on a `5.6e-16` gap AND
@@ -2479,7 +2516,8 @@ implemented and **no `D_6h`-invariant rule in tree**.
      the quotient" (tautological, `vv-principles` Mode 8).
 
   **Retirement list** (a numbered deliverable, per `coding-standards.md`):
-  `[½,1]` clamp (if Q5.5 rules so) · `LevelStructure.fiber()` (merges at Q5.3) ·
+  `[½,1]` clamp (if Q5.5 rules so) · ~~`LevelStructure.fiber()`~~ ✅ retired at
+  Q5.3 `65ff5bb0` ·
   the τ_raw trichotomy as the R12a predicate (Q5.4) ·
   `derivations/discrete/sn/contamination.py:45-90` (the `eta_edge` twin, whose
   docstring writes the double cover down as a feature) · `_XFAIL_326` + its three
