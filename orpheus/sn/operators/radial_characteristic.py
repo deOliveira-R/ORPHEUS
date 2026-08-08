@@ -536,7 +536,18 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             flux.interior.cells(level, -1)[...] = cells_minus
             flux.boundary.corner(level, -1)[...] = corner_in
             flux.interior.cells(level, +1)[...] = cells_plus_rev[:, ::-1]
-            flux.boundary.corner(level, +1)[...] = corner_out
+            # The outflow corner is the free-sign defect row (forward:
+            # ``streamed − stored = q_out``), so the exact inverse emits
+            # ``ψ_out = streamed − q_out`` — the same completion the
+            # System-A sweep's outflow restore got (ERR-071; this is its
+            # System-B twin, ERR-078). Every PHYSICAL rhs carries
+            # q_out = 0 (the defect row reads 0 = 0 at any fixed point),
+            # so production values are bit-unchanged; dropping the term
+            # made the coupled composite's inverse silently non-inverse
+            # on the per-level outflow slots.
+            flux.boundary.corner(level, +1)[...] = (
+                corner_out - comp.boundary.corner(level, +1)
+            )
         return flux
 
     def solve_transpose(
@@ -583,9 +594,11 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         -------
         RadialCharacteristicField
             The domain cotangent = the adjoint ray FLUX (flux members).
-            The :math:`\mu=+1` corner is unused by the march (the q½ fold
-            writes only cells + the :math:`\mu=-1` corner), so it stays
-            zero.
+            The :math:`\mu=+1` source corner carries
+            :math:`-\bar y_{\rm out}` — the transpose of the defect
+            row's :math:`-I` coupling (``ψ_out = streamed − q_out``,
+            ERR-078); the q½ fold's own writes remain cells + the
+            :math:`\mu=-1` corner.
         """
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
@@ -625,7 +638,11 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             src_bar.interior.cells(level, -1)[...] = q_minus_bar
             src_bar.interior.cells(level, +1)[...] = q_plus_bar
             src_bar.boundary.corner(level, -1)[...] = corner_in_bar
-            # source corner(+1) unused by the q½ fold → stays zero.
+            # The defect row's −I coupling (ψ_out = streamed − q_out,
+            # ERR-078): the outflow-flux cotangent feeds −1 into the
+            # outflow-SOURCE cotangent, alongside its march-threading
+            # path above.
+            src_bar.boundary.corner(level, +1)[...] = -corner_out_bar
         return src_bar
 
     # ── Internals ─────────────────────────────────────────────────────

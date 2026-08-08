@@ -882,7 +882,11 @@ def _two_leg_reference(op, source) -> RadialCharacteristicField:
         out.interior.cells(lv, -1)[...] = cells_minus
         out.boundary.corner(lv, -1)[...] = corner_in
         out.interior.cells(lv, +1)[...] = cells_plus_rev[:, ::-1]
-        out.boundary.corner(lv, +1)[...] = corner_out
+        # ERR-078: the exact inverse's outflow row is ψ_out = streamed −
+        # q_out (the defect row's completion) — the reference replays it.
+        out.boundary.corner(lv, +1)[...] = (
+            corner_out - source.boundary.corner(lv, +1)
+        )
     return out
 
 
@@ -948,9 +952,10 @@ class TestA_BB_RadialBVP:
         r"""``⟨solve(u), v⟩ = ⟨u, solve_transpose(v)⟩`` (Euclidean) to < 1e-11 on
         heterogeneous σ, ≥2 random draws — the PRIMARY solve/solve_transpose
         consistency gate (the resolvent adjoint is the reverse-mode transpose of
-        the two-leg march). The source ``μ = +1`` corner cotangent is EXACTLY
-        zero (the q½ fold writes only cells + the ``μ = -1`` corner, so the
-        outflow-corner source slot is unused — R13)."""
+        the two-leg march). The source ``μ = +1`` corner cotangent carries
+        EXACTLY ``−v̄_out`` — the transpose of the defect row's ``−I``
+        coupling (``ψ_out = streamed − q_out``, ERR-078; the pre-fix claim
+        "the slot stays 0" pinned the dropped-rhs hole)."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
         for seed in (1, 2, 3):                       # ≥2 draws
@@ -965,10 +970,11 @@ class TestA_BB_RadialBVP:
             src_bar = op.solve_transpose(_member(v))
             for lv in sn.radial_characteristic_levels:
                 np.testing.assert_array_equal(
-                    src_bar.boundary.corner(lv, +1), 0.0,
+                    src_bar.boundary.corner(lv, +1),
+                    -np.asarray(v.boundary.corner(lv, +1)),
                     err_msg=f"seed {seed} level {lv}: the source μ=+1 corner "
-                            f"cotangent is non-zero (it must stay 0 — the q½ fold "
-                            f"never writes that slot).")
+                            f"cotangent must be −v̄_out bit-exactly (the defect "
+                            f"row's −I coupling, ERR-078).")
 
     def test_adjoint_sign_flip_tooth(self, monkeypatch):
         r"""TOOTH for the adjoint gate: a sign flip in the reverse-mode
@@ -1252,10 +1258,12 @@ class TestA_BB_Forward:
     """
 
     def test_apply_is_the_exact_march_inverse(self):
-        # solve∘apply=id on the CONSISTENT subspace ψ0 = solve(q0) (the +1
-        # outflow corner is a FREE datum apply MEASURES / solve OVERWRITES — an
-        # arbitrary ψ falsely reds, refutation R2). Cells at rtol
-        # (principled-equiv, R1); the apply∘solve +1 corner closes bit-exact 0.
+        # solve∘apply=id on the CONSISTENT subspace ψ0 = solve(q0). Cells at
+        # rtol (principled-equiv, R1); the apply∘solve +1 corner closes to
+        # q0's OWN outflow datum bit-exactly — the identity, not the pre-fix
+        # 0 (ERR-078: ψ_out = streamed − q_out, so the defect row returns
+        # q_out; the old bit-zero closure was the dropped-rhs hole reading
+        # 0 = 0 on itself).
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
         for seed in range(2):
@@ -1268,8 +1276,12 @@ class TestA_BB_Forward:
                 rtol=1e-11, atol=1e-13)
             qr = op.apply(op.solve(q0))
             for p in sn.radial_characteristic_levels:
-                corner = qr.boundary.corner(p, +1)
-                np.testing.assert_array_equal(corner, np.zeros_like(corner))
+                np.testing.assert_array_equal(
+                    qr.boundary.corner(p, +1),
+                    np.asarray(q0.boundary.corner(p, +1)),
+                    err_msg=f"level {p}: apply∘solve must return the rhs's "
+                            f"own outflow datum (the defect-row identity, "
+                            f"ERR-078).")
 
     def test_apply_routes_through_the_shared_forward_kernel(self, monkeypatch):
         # Mode-11 anti-twin (operator side): A_BB.apply MUST enter the shared
