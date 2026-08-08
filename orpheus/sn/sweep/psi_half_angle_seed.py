@@ -62,9 +62,10 @@ starting-direction flux is now first-class STATE (the
 ``RadialCharacteristicField`` System-B composite of the coupled state,
 present per level under the R12a predicate), the SOLVE marches it directly from the TRUE
 q½ source through this function, and the APPLY reads the given carrier
-block.  On the non-carrying cylinder levels (R12a: product rules
-τ_raw = 0, level-symmetric rules τ_raw = 1) the closure inlines the
-2-point angular-edge extrapolation — see
+block.  On the non-carrying cylinder levels (R12a: product rules start
+ON an edge node, level-symmetric rules start η-degenerate — the
+τ_raw = 0 / τ_raw = 1 trichotomy is the gated consequence, Q5.4/T26)
+the closure inlines the 2-point angular-edge extrapolation — see
 :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
 
 References

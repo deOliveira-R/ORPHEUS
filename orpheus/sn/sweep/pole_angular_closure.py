@@ -540,6 +540,117 @@ class _MMHalfGrid:
 # the arithmetic below into a call to the reference.
 
 
+@dataclass(frozen=True)
+class MarchStart:
+    r"""Structural facts about a μ-level's angular-march START edge (R12a).
+
+    The two DISTINCT degeneracies that the raw first-ordinate
+    Morel–Montry weight used to conflate into one float (campaign
+    ruling T26 — ``τ_raw,0 = 0`` and ``τ_raw,0 = 1`` both read "not
+    carrying", for unrelated structural reasons). Each fact is posed
+    on the level's own realization, as a bit-exact identity — no
+    tolerance, no derived arithmetic:
+
+    Attributes
+    ----------
+    on_edge_node : bool
+        The march-start edge direction IS an ordinate: the level's
+        :math:`\eta`-minimum node lies on the singular set
+        :math:`\Sigma = \{\xi = 0\}` (the :math:`\omega = \pi`
+        most-inward direction; on the sphere, a node at
+        :math:`\mu = -1`). The seed slot is then a rank-duplicate of
+        :math:`\psi_0` — a bulk ordinate for free. [Cylinder
+        NODE_ALIGNED even :math:`n_\varphi`; a folded NODE_ALIGNED
+        rule; a future Gauss–Lobatto sphere.]
+    degenerate : bool
+        The :math:`\eta`-minimum is SHARED (:math:`\eta_0 = \eta_1`
+        bit-exactly) — a double-cover tie: mirror partners on a full
+        circle (products; odd :math:`n_\varphi` and STAGGERED
+        included), hemisphere partners on level-symmetric rules. The
+        midpoint edge collapses onto :math:`\eta_0`, so the seed's
+        only consumption path — the recurrence's :math:`(1-\tau_0)`
+        thread weight — vanishes. Dead state.
+
+    The bit-equalities are honest *because the shipped rules are
+    exact by construction*: roots-of-unity azimuths make mirror
+    :math:`\eta`-ties and the :math:`\Sigma` node's :math:`\xi = 0`
+    bit-exact (Q5.E/E3), and level-symmetric sign replication
+    bit-copies :math:`\eta` across hemispheres. A rule built from
+    sloppy trigonometry is classified as the realization it actually
+    is — the cure for the pre-E3 5.6e-16 flip was making the rules
+    exact, not tolerating the noise.
+    """
+
+    on_edge_node: bool
+    degenerate: bool
+
+    @property
+    def consumes_independent_seed(self) -> bool:
+        """Carrying ⟺ NEITHER degeneracy — a genuine off-node start.
+
+        The R12a predicate: the M-M half-angle recurrence consumes an
+        independent seed value iff the start edge is not itself an
+        ordinate AND the thread weight that would carry the seed does
+        not vanish. One name for the conjunction, two named conjuncts
+        — never one float.
+        """
+        return not (self.on_edge_node or self.degenerate)
+
+
+def march_start_structure_per_level(
+    quad: Any,
+    coord: CoordSystem,
+) -> tuple[MarchStart, ...]:
+    r"""The R12a facts per μ-level, read off the level's realization.
+
+    The integer re-pose of the seed-presence predicate (T26): the
+    consumer
+    (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`)
+    reads these two structural facts directly instead of deciding a
+    structural question on the raw M-M float. The former encoding —
+    ``τ_raw,0 ∈ (0,1)`` exclusive — is now a *theorem about the edge
+    arithmetic*, gated bit-exactly per family
+    (``on_edge_node ⟹ τ_raw,0 = 0``; ``degenerate ⟹ τ_raw,0 = 1``;
+    neither ⟹ strict interior) rather than being the predicate itself.
+
+    Level indexing matches :func:`morel_montry_tau_raw_per_level`:
+    the sphere is one level (the whole μ-ascending rule); cylinder
+    levels index ``quad.level_indices``, each in stored η-ascending
+    order.
+    """
+    if coord is CoordSystem.SPHERICAL:
+        mu = quad.mu_x
+        return (
+            MarchStart(
+                on_edge_node=bool(mu[0] == -1.0),
+                degenerate=bool(len(mu) > 1 and mu[0] == mu[1]),
+            ),
+        )
+
+    if coord is CoordSystem.CYLINDRICAL:
+        eta = quad.mu_x
+        xi = quad.mu_y
+        out: list[MarchStart] = []
+        for level_idx in quad.level_indices:
+            first = level_idx[0]
+            eta_level = eta[level_idx]
+            out.append(
+                MarchStart(
+                    on_edge_node=bool(xi[first] == 0.0),
+                    degenerate=bool(
+                        len(level_idx) > 1 and eta_level[0] == eta_level[1]
+                    ),
+                )
+            )
+        return tuple(out)
+
+    raise ValueError(
+        f"march_start_structure_per_level supports SPHERICAL or "
+        f"CYLINDRICAL coordinate systems; got {coord!r}. Cartesian has "
+        f"no angular march and no seed."
+    )
+
+
 def morel_montry_tau_raw_per_level(
     quad: Any,
     coord: CoordSystem,
@@ -550,15 +661,15 @@ def morel_montry_tau_raw_per_level(
     \mu_{m-1/2})` — the raw Bailey–Morel–Chang Eq. 43 value BEFORE the
     cylinder's structural :math:`[\tfrac12, 1]` clamp.  Split out of
     :func:`morel_montry_tau_per_level` because the raw value carries
-    structure the clamp destroys (it maps ``0 → ½``): it is the single
-    source for BOTH the production τ (this, then the clamp) AND the **R12a
-    seed-presence predicate**
-    (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
-    a level carries independent starting-direction state iff its
-    first-ordinate ``τ_raw ∈ (0, 1)`` exclusive.  Bit-exact trichotomy:
-    ``0`` on cylinder *product* rules, ``1`` on cylinder *level-symmetric*
-    rules, ``∈ (0,1)`` on the sphere-GL dome — the full table and its
-    rationale at
+    structure the clamp destroys (it maps ``0 → ½``). Until Q5.4 it
+    was also the R12a seed-presence predicate's input (``τ_raw,0 ∈
+    (0, 1)`` exclusive); the predicate is now posed on the structural
+    facts directly (:func:`march_start_structure_per_level`), and the
+    first-ordinate trichotomy — ``0`` where the start edge is a node,
+    ``1`` where the start is η-degenerate, strict interior where the
+    level genuinely consumes a seed — is a bit-exact gated CONSEQUENCE
+    of those facts, not their definition. The full table and its
+    rationale:
     ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-r12a``.
 
     Parameters and per-geometry edge conventions are those of
@@ -867,10 +978,11 @@ class MorelMontryAngularSweep(
         #
         # R12a (#282 route (a)): the carrying-level set — the levels whose
         # recurrence consumes independent starting-direction STATE.
-        # Single-sourced from the mesh predicate (which reads the raw producer
-        # ``morel_montry_tau_raw_per_level``); safe here because the predicate
-        # needs only ``(quad, coord)``, both bound before the closure is built.
-        # (The τ_raw ∈ (0,1) predicate: curvilinear_one_group.rst §sn-direct-seed-r12a.)
+        # Single-sourced from the mesh predicate (which reads the two
+        # march-start facts via ``march_start_structure_per_level``); safe
+        # here because the facts need only ``(quad, coord)``, both bound
+        # before the closure is built.
+        # (The predicate: curvilinear_one_group.rst §sn-direct-seed-r12a.)
         self._carrying_levels = frozenset(sn_mesh.radial_characteristic_levels)
 
         coord = sn_mesh.coord

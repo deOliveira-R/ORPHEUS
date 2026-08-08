@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9066**
+Total tests collected: **9087**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1284, 14.2%
-   L1, 1622, 17.9%
+   L0, 1284, 14.1%
+   L1, 1622, 17.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6091, 67.2%
+   foundation, 6112, 67.3%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 8982
+   explicit, 9003
    class-name, 46
    func-name, 0
    case, 33
@@ -460,6 +460,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
+   sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 3, 0
@@ -617,6 +618,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-vacuum-bc-row-sum-gate``, 10
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
+   ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
    ``p-transpose-flux-balance``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9

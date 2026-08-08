@@ -61,7 +61,7 @@ from ..sweep.pole_angular_closure import (
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
     default_angular_closure_class,
-    morel_montry_tau_raw_per_level,
+    march_start_structure_per_level,
 )
 
 if TYPE_CHECKING:
@@ -768,51 +768,42 @@ class SNMesh(MaterialMesh):
         """
         return self._trace
 
-    #: FP-noise guard for the R12a strict-interior test on the first-ordinate
-    #: raw M-M weight. The production instances are BIT-EXACT members of
-    #: {0, 1} (product rules: node ON the starting edge → τ_raw = 0;
-    #: level-symmetric rules: duplicate-η midpoint edge collapses onto η₀ →
-    #: τ_raw = 1) or safely interior (sphere-GL ≈ 0.39–0.42), so the guard
-    #: never decides a real case — it exists so a future quadrature whose
-    #: coincidence arithmetic differs by ULPs cannot flip presence, mirroring
-    #: the closure's own ``abs(dμ) > 1e-15`` degenerate-cell guard.
-    _SEED_TAU_EPS: ClassVar[float] = 1e-12
-
     @cached_property
     def radial_characteristic_levels(self) -> tuple[int, ...]:
         r"""μ-level indices that consume INDEPENDENT starting-direction state (R12a).
 
-        The seed-presence predicate of #282 route (a): a level carries a
-        ψ½ block iff its first-ordinate raw Morel–Montry weight
-        :math:`\tau_{\rm raw,0}` lies strictly in :math:`(0, 1)` — i.e.
-        the M-M half-angle recurrence genuinely consumes a seed value
-        that is neither a rank-duplicate of the level's first node
-        (:math:`\tau_{\rm raw} = 0`, cylinder product rules — the #229
-        clamp fact) nor dead under the recurrence's :math:`(1-\tau_0)`
-        thread weight (:math:`\tau_{\rm raw} = 1`, cylinder
-        level-symmetric rules — duplicate-η midpoint edges). Sphere-GL
-        is the carrying instance (one level, the whole quadrature,
-        :math:`\tau_{\rm raw,0} \approx 0.39\text{–}0.42`); Cartesian
-        never carries.
+        The seed-presence predicate of #282 route (a), posed on the two
+        structural facts of the level's march-start edge
+        (:class:`~orpheus.sn.sweep.pole_angular_closure.MarchStart`,
+        Q5.4/T26): a level carries a ψ½ block iff the M-M half-angle
+        recurrence genuinely consumes a seed value — i.e. the start
+        edge is NOT itself an ordinate (``on_edge_node``: an η-minimum
+        node on :math:`\Sigma`, cylinder product NODE_ALIGNED rules —
+        the #229 fact) AND the start is NOT η-degenerate
+        (``degenerate``: a double-cover tie killing the recurrence's
+        :math:`(1-\tau_0)` thread weight, cylinder level-symmetric
+        rules — measured 0.0-bit solve insensitivity). Sphere-GL is
+        the carrying instance (one level, the whole quadrature);
+        Cartesian never carries. A σ_y-FOLDED product rule carries on
+        every level — the arc's start is genuinely off-node (T22b).
 
         R12a refines the R12 letter ("μ_start ∉ the level's μ-nodes"),
-        whose claimed ⟺ with ``τ_raw ≠ 0`` fails on level-symmetric
-        cylinder rules (μ_start ∉ nodes there, yet the seed is dead —
-        measured 0.0-bit solve insensitivity). Single-sourced from
-        :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`
-        — the SAME edge construction the production τ clamp consumes.
-        Level indexing matches the closure's: the sphere's single M-M
-        level is index ``0``; cylinder levels index
-        ``quad.level_indices``.
+        which conflated the two facts: the letter fires on
+        level-symmetric cylinder rules where the seed is nonetheless
+        dead. Until Q5.4 the predicate read the raw M-M float
+        (``τ_raw,0 ∈ (0,1)`` exclusive, plus an FP-noise guard); the
+        first-ordinate trichotomy is now a bit-exact gated CONSEQUENCE
+        of the two facts, not the predicate. Level indexing matches
+        the closure's: the sphere's single M-M level is index ``0``;
+        cylinder levels index ``quad.level_indices``.
         """
         if self.curvature is None:
             return ()
         assert self.reduced is not None  # curvilinear ⇒ reduced populated
-        raw = morel_montry_tau_raw_per_level(self.quad, self.reduced.coord)
-        eps = self._SEED_TAU_EPS
+        starts = march_start_structure_per_level(self.quad, self.reduced.coord)
         return tuple(
-            p for p, tau_level in enumerate(raw)
-            if eps < float(tau_level[0]) < 1.0 - eps
+            p for p, start in enumerate(starts)
+            if start.consumes_independent_seed
         )
 
     def _radial_characteristic_for_levels_args(

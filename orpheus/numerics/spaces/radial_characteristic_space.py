@@ -13,33 +13,34 @@ back edge dissolves).
 Which levels carry a block (ruling R12a)
 ========================================
 
-Presence is keyed PER LEVEL by the structural predicate
+Presence is keyed PER LEVEL by two structural facts about the level's
+march-start edge
+(:class:`~orpheus.sn.sweep.pole_angular_closure.MarchStart`, Q5.4/T26):
+a level carries a block **iff the M-M half-angle recurrence genuinely
+consumes independent starting-direction state**, i.e. NEITHER
 
-    **the level's first-ordinate raw Morel–Montry weight
-    τ_raw ∈ (0, 1) exclusive**
+* ``on_edge_node`` — the start edge IS an ordinate (cylinder *product*
+  NODE_ALIGNED rules: the η-minimum node lies on :math:`\Sigma`,
+  :math:`\eta_0 = \eta_{1/2} = -\sin\theta` bit-exactly, the #229
+  fact). The seed would be a rank-duplicate of :math:`\psi_0` — NO
+  block; NOR
+* ``degenerate`` — the η-minimum is shared (cylinder *level-symmetric*
+  rules: duplicate-η hemisphere partners collapse the midpoint edge
+  onto :math:`\eta_0`), so the seed's only consumption path — the
+  recurrence weight :math:`(1-\tau_0)` — vanishes. The seed would be
+  dead state — NO block. (This is why the measured cylinder-LS seed
+  sensitivity is 0.0-bit.)
 
-— i.e. the M-M half-angle recurrence *genuinely consumes independent
-starting-direction state*. The trichotomy, bit-exact on the production
-quadratures (τ_raw from
-:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`):
-
-* ``τ_raw = 0`` — the starting direction coincides with the level's
-  first node (cylinder *product* rules: :math:`\eta_0 = \eta_{1/2} =
-  -\sin\theta` bit-exactly, the #229 clamp fact). The seed would be a
-  rank-duplicate of :math:`\psi_0` — NO block.
-* ``τ_raw = 1`` — the first node sits ON the level's second edge
-  (cylinder *level-symmetric* rules: duplicate-η nodes collapse the
-  midpoint edge onto :math:`\eta_0`), so the seed's only consumption
-  path — the recurrence weight :math:`(1-\tau_0)` — vanishes. The
-  seed would be dead state — NO block. (This is why the measured
-  cylinder-LS seed sensitivity is 0.0-bit.)
-* ``τ_raw ∈ (0,1)`` — the recurrence consumes the seed with a genuine
-  weight (sphere Gauss–Legendre: :math:`\tau_{\rm raw,0} \approx
-  0.39\text{–}0.42`). The level CARRIES the block.
+Sphere Gauss–Legendre is the carrying instance (a genuine off-node
+start), as is every level of a σ_y-folded product rule (the arc, T22b).
+The former encoding — the raw first-ordinate M-M weight ``τ_raw,0 ∈
+(0, 1)`` exclusive — is a bit-exact gated *consequence* of the facts
+(``on_edge_node ⟹ 0``, ``degenerate ⟹ 1``, neither ⟹ strict interior),
+no longer the predicate itself.
 
 R12a refines the R12 letter ("μ_start ∉ the level's μ-nodes"), whose
 claimed equivalence to ``τ_raw ≠ 0`` is empirically false on
-level-symmetric cylinder rules (μ_start ∉ nodes there, yet τ_raw = 1 —
+level-symmetric cylinder rules (μ_start ∉ nodes there, yet the seed is
 dead). The predicate is evaluated by
 :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`;
 this space is deliberately quadrature-blind (pure layout + metric).

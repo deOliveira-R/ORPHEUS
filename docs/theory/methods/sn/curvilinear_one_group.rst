@@ -3803,30 +3803,53 @@ Which levels carry a ψ½ block — the R12a predicate
 --------------------------------------------------
 
 A :math:`\mu`-level carries an **independent** starting-direction state
-block **iff** the M-M half-angle recurrence genuinely *consumes* it — a
-structural predicate on the level's first-ordinate **raw** (unclamped)
-Morel–Montry weight
-(:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`,
-read by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`):
+block **iff** the M-M half-angle recurrence genuinely *consumes* it.
+Since Q5.4 (campaign ruling T26) the predicate is posed on **two named
+structural facts** about the level's march-start edge
+(:class:`~orpheus.sn.sweep.pole_angular_closure.MarchStart`, produced by
+:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`,
+read by
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`)
+— each a bit-exact identity on the level's own realization, never a
+derived float:
 
 .. math::
    :label: sn-direct-seed-r12a-predicate
 
    \text{level } p \text{ carries a ψ½ block}
    \quad\Longleftrightarrow\quad
-   \tau_{{\rm raw},0}^{(p)} \,\in\, (0, 1)\ \text{exclusive.}
+   \neg\,\underbrace{\bigl(\eta_0 \text{ on the start edge}\bigr)}_{
+   \texttt{on\_edge\_node}:\ \xi_0 = 0}
+   \;\wedge\;
+   \neg\,\underbrace{\bigl(\eta_0 = \eta_1\bigr)}_{
+   \texttt{degenerate}:\ \text{double-cover tie}}
 
-.. (vv-status rationale) Structural predicate: the bit-exact rule keying which
-   μ-levels carry an independent starting-direction block (product→0,
-   level-symmetric→1, sphere-GL→(0,1)) — a derivation step whose terminal
-   consequence (route (a) is a genuine single-pass exact inverse: sphere
-   cold-start residual → 2.5×10⁻¹⁶, cylinder seed-sensitivity 0.0 bit) is
-   exercised by ``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
+.. (vv-status rationale) Structural predicate: the two bit-exact facts keying
+   which μ-levels carry an independent starting-direction block. Verified by
+   ``tests/sn/sweep/test_march_start_structure.py`` — per-family
+   classification over ten configurations (NODE_ALIGNED even/odd, STAGGERED
+   full, level-symmetric, sphere-GL, and both σ_y-folded variants) carrying
+   this label's marker, plus the bit-exact theorem gate demoting the former
+   τ_raw trichotomy to a consequence (0 / 1 / strict-interior with NO
+   epsilon). The terminal consequence (route (a) is a genuine single-pass
+   exact inverse: sphere cold-start residual → 2.5×10⁻¹⁶, cylinder
+   seed-sensitivity 0.0 bit) is exercised by
+   ``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
    and the ``@pytest.mark.foundation`` ``test_radial_characteristic_metric.py``
    suite.
 .. vv-status: sn-direct-seed-r12a-predicate documented
 
-The trichotomy is **bit-exact** on the production quadratures:
+The two conjuncts are DISTINCT degeneracies — until Q5.4 one float
+(the raw first-ordinate Morel–Montry weight
+:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`)
+conflated them as the interval test :math:`\tau_{{\rm raw},0} \in (0,1)`
+exclusive, deciding a structural question on derived float arithmetic
+(with an FP-noise guard whose need was itself a symptom). The
+trichotomy survives as a bit-exact gated **theorem** about the closure's
+edge arithmetic — ``on_edge_node`` :math:`\Rightarrow \tau_{{\rm raw},0}
+= 0` exactly, ``degenerate`` :math:`\Rightarrow \tau_{{\rm raw},0} = 1`
+exactly, neither :math:`\Rightarrow` strict interior — on the production
+quadratures:
 
 .. list-table:: The R12a carrying-level trichotomy
    :header-rows: 1
@@ -3836,22 +3859,29 @@ The trichotomy is **bit-exact** on the production quadratures:
      - Rule
      - Why the seed is (not) independent state
    * - :math:`= 0`
-     - cylinder **product** rules
+     - cylinder **product** rules, NODE_ALIGNED **even**
+       :math:`n_\varphi` (``on_edge_node``)
      - the starting direction coincides with the first ordinate
        (:math:`\eta_0 = \eta_{1/2} = -\sin\theta` bit-exactly, the #229
        clamp fact) — the seed is a rank-duplicate of :math:`\psi_0`.
        **No block.**
    * - :math:`= 1`
-     - cylinder **level-symmetric** rules
+     - cylinder **level-symmetric** rules; product rules at **odd**
+       :math:`n_\varphi` and **full STAGGERED** rules (``degenerate``)
      - duplicate-:math:`\eta` nodes collapse the midpoint edge onto
-       :math:`\eta_0`, so the seed's only consumption path — the
-       recurrence weight :math:`(1-\tau_0)` — vanishes.  Dead state.
-       **No block.** (This is why the measured cylinder-LS seed
-       sensitivity is :math:`0.0` bit.)
+       :math:`\eta_0` — hemisphere partners on level-symmetric rules,
+       the mirror pair straddling :math:`\varphi = \pi` on odd/staggered
+       products (bit-exact by roots-of-unity conjugacy, Q5.E/E3) — so
+       the seed's only consumption path, the recurrence weight
+       :math:`(1-\tau_0)`, vanishes.  Dead state.  **No block.** (This
+       is why the measured cylinder-LS seed sensitivity is :math:`0.0`
+       bit.)
    * - :math:`\in (0,1)`
-     - sphere **Gauss–Legendre**
+     - sphere **Gauss–Legendre**; every level of a
+       :math:`\sigma_y`-**folded** product rule (neither fact)
      - the recurrence consumes the seed with a genuine weight
-       (:math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`).  **Carries.**
+       (sphere-GL :math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`;
+       folded staggered :math:`\approx 0.22`).  **Carries.**
 
 So on production meshes **only the sphere carries the block**; every
 cylinder inlines the 2-point angular-edge extrapolation
@@ -3882,7 +3912,7 @@ Two orthogonal questions must be kept apart:
    **curvilinear vs Cartesian** (sphere **and** cylinder: yes;
    Cartesian: no).
 #. *Does the angular sweep need a separate, off-node starting DOF?* — this
-   is the τ_raw predicate (:ref:`sn-direct-seed-r12a`), which is
+   is the march-start predicate (:ref:`sn-direct-seed-r12a`), which is
    **quadrature-structural, not geometric**.
 
 ψ½ answers question 2, and the deciding fact is what the redistribution
@@ -3893,14 +3923,15 @@ cosine :math:`\mu_z = \cos\theta`, the cylinder redistributes across the
 **azimuthal angle** :math:`\varphi`, which lives on a **circle**
 :math:`[0, 2\pi)` — a *periodic* domain.  The production rule
 (:func:`~orpheus.numerics.quadrature.rules_product.product_mu_phi`) is
-Gauss–Legendre in :math:`\mu_z` **×** *equispaced* in :math:`\varphi`
-(``np.linspace(0, 2π, n_φ, endpoint=False)``).  Equispaced sampling of a
-smooth periodic function is the trapezoidal rule, which on a circle is
-**spectrally accurate** (its error decays faster than any power of
-:math:`1/n_\varphi`) — there is no accuracy penalty for the choice.  And
-crucially, for **even** :math:`n_\varphi` the grid hits
-:math:`\varphi = \pi` exactly (partition node :math:`k = n_\varphi/2`),
-where
+Gauss–Legendre in :math:`\mu_z` **×** the *periodic trapezoid* in
+:math:`\varphi`
+(:func:`~orpheus.numerics.quadrature.rules_circle.periodic_trapezoid`,
+NODE_ALIGNED — nodes as roots of unity since Q5.E/E3).  The trapezoid
+on a circle is **spectrally accurate** for smooth periodic integrands
+(its error decays faster than any power of :math:`1/n_\varphi`) —
+there is no accuracy penalty for the choice.  And crucially, for
+**even** :math:`n_\varphi` the grid hits :math:`\varphi = \pi` exactly
+(partition node :math:`k = n_\varphi/2`), where
 
 .. math::
 
@@ -3909,14 +3940,31 @@ where
 
 i.e. the **most-inward radial direction** of that level.  The
 starting-edge ordinate :math:`\eta_0 = -\sin\theta` therefore lands
-*exactly on a quadrature node* — :math:`\tau_{{\rm raw},0} = 0` — and the
-seed is a **bulk ordinate for free, at no accuracy cost**.  This is the
-structural content of #229: the cylinder's edge-inclusion is a property
-of the *circle*, **not** the :math:`[\tfrac12, 1]` Morel–Montry clamp
-(the clamp is a separate recurrence-weight stabiliser; the R12a predicate
-reads the *un*clamped :math:`\tau_{\rm raw}`).  It is contingent on
-**even** :math:`n_\varphi` — an odd azimuthal count would miss
-:math:`\varphi = \pi`, and the cylinder *would* then carry a seed.
+*exactly on a quadrature node* — ``on_edge_node``,
+:math:`\tau_{{\rm raw},0} = 0` — and the seed is a **bulk ordinate for
+free, at no accuracy cost**.  This is the structural content of #229:
+the cylinder's edge-inclusion is a property of the *circle*, **not**
+the :math:`[\tfrac12, 1]` Morel–Montry clamp (the clamp is a separate
+recurrence-weight stabiliser; the R12a facts are read off the level's
+realization directly).
+
+An odd azimuthal count misses :math:`\varphi = \pi` — but the cylinder
+does **not** then carry a seed.  The mirror pair *straddling*
+:math:`\pi` shares :math:`\eta` bit-exactly (roots-of-unity conjugacy,
+:math:`\cos\varphi_k = \cos\varphi_{n_\varphi - k}`), so the level is
+``degenerate`` instead: the seed's :math:`(1-\tau_0)` thread weight
+vanishes and the state would be dead.  *(This corrects an earlier
+version of this page, which claimed an odd count would carry — that
+claim described the pre-E3 ``linspace``+cos realization, whose
+5.6e-16 tie-breaking round-off flipped the float predicate; campaign
+ruling T26.)*  The two parities fail through the two DIFFERENT facts —
+a node ON the mirror plane at even :math:`n_\varphi`, a tie ACROSS it
+at odd — which is the sharp form of the circle principle: **on a full
+circle, the** :math:`\sigma_y` **mirror closes the march at every
+parity; only the quotient — the folded arc (T22b) — opens a genuine
+off-node start.**  A :math:`\sigma_y`-folded product rule carries on
+every level (`[M]` folded staggered :math:`\tau_{{\rm raw},0} \approx
+0.22`, strictly interior).
 
 **Sphere — the redistribution axis is an interval.**  The sphere
 redistributes across the **polar cosine** :math:`\mu \in [-1, 1]`, an
