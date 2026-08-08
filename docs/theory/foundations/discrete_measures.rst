@@ -1057,12 +1057,18 @@ rule:
   :meth:`Quadrature.product(n_mu, n_phi)
   <orpheus.numerics.quadrature.Quadrature.product>` — each returning
   a ``Quadrature`` around the canonical measure produced by the rule
-  function above, plus the SN-side derived data (reflection
-  partners, octant partition, level structure) cached at
-  construction. The legacy ``mu_x`` / ``mu_y`` / ``mu_z`` /
-  ``weights`` / ``N`` surface survives as ``@property`` views over
-  the underlying ``measure.nodes`` / ``measure.weights``, so the ~50
-  consumer sites see no API change.
+  function above, plus the SN-side derived data (octant partition,
+  level structure) cached at construction.  Reflection partners are
+  no longer precomputed: the ``reflection_index`` table was retired
+  (§7d.3), and a motion's ordinate permutation is derived on demand
+  by :meth:`Quadrature.ordinate_permutation
+  <orpheus.numerics.quadrature.Quadrature.ordinate_permutation>` —
+  a certified match (bijection, equal weights, no bare
+  nearest-neighbour) returning a typed permutation.  The legacy
+  ``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` / ``N`` surface
+  survives as ``@property`` views over the underlying
+  ``measure.nodes`` / ``measure.weights``, so the ~50 consumer sites
+  see no API change.
 
 .. note::
 

@@ -121,9 +121,11 @@ The converse is the diagnostic. A rule with no generating measure
 claim simply rests on external authority (a published table plus a
 citation) rather than on a construction in this codebase. That is a real
 distinction and it is why the field is optional. It is also how
-issue #327 was possible: ``level_symmetric_sn`` assigns one weight to
-every ordinate by hand, so nothing constrains its advertised degree, and
-`[M]` it is degree-3 at *every* order while claiming :math:`N-1`.
+issue #327 was possible: ``level_symmetric_sn`` assigned one weight to
+every ordinate by hand, so nothing constrained its advertised degree,
+and `[M]` it WAS degree-3 at *every* order while claiming :math:`N-1`
+(fixed 2026-08-06 — the weights are now per-orbit moment-solved and
+the advertised degree is gated both directions).
 
 What is deliberately NOT here
 -----------------------------

@@ -51,13 +51,16 @@ in ``tests/``, so the derivation and the walk verify each other.
    Lebedev's :math:`O_h` claim, by contrast, is exact on both sides
    because signed permutations are exact in IEEE.
 
-   Issue #325 named **two** halves for closing this gap, and as of
-   2026-08-02 the **generator half is done**: the :math:`\phi` grid is
-   :mod:`~orpheus.numerics.roots_of_unity`-generated, so this side of
-   the check no longer evaluates ``cos``/``sin`` at a sampled angle.
-   The remaining half is the **checker's** own :math:`C_n` and
-   :math:`\sigma_v` operators, which still do — so the window is still
-   load-bearing, now for one reason instead of two.
+   Issue #325 named **two** halves for closing this gap, and BOTH are
+   done: the :math:`\phi` grid is
+   :mod:`~orpheus.numerics.roots_of_unity`-generated (2026-08-02), and
+   the **checker's** own :math:`C_n` operators consume the SAME
+   generator (``symmetry._cyclic_ops`` builds each rotation from an
+   exact circle point, and the :math:`\sigma_v` mirrors are the coset
+   :math:`C_n \cdot \sigma_0` of a bit-exact signed diagonal — one
+   trigonometric spelling in the whole chain, not two). The window
+   survives for what remains genuinely numerical: the matrix-times-node
+   MULTIPLICATION round-off when an operator is applied to the nodes.
 
 .. note::
 

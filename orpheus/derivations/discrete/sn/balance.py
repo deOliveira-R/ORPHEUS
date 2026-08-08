@@ -362,13 +362,19 @@ def verify_alpha_closure():
         print(f"GL-{N}: Σ w·μ = {alpha_sum:.2e}")
         assert abs(alpha_sum) < 1e-14, f"GL antisymmetry violated: {alpha_sum}"
 
-    # Product quadrature (per level)
+    # Product quadrature (per level) — the azimuthal grid spelled
+    # exactly as production spells it: NODE_ALIGNED roots of unity
+    # (#325 repointed production off linspace+cos; the algebra of
+    # record must ride the SAME generator or its grid drifts a ULP
+    # away from the object it derives).
+    from orpheus.numerics.roots_of_unity import roots_of_unity
+
     for n_phi in [8, 16]:
-        phi = np.linspace(0, 2 * np.pi, n_phi, endpoint=False)
+        cos_phi, _sin_phi = roots_of_unity(np.arange(n_phi), n_phi)
         w_phi = 2 * np.pi / n_phi
         for mu_z in [0.34, 0.86]:
             sin_theta = np.sqrt(1 - mu_z**2)
-            eta = sin_theta * np.cos(phi)
+            eta = sin_theta * cos_phi
             alpha_sum = np.sum(w_phi * eta)
             print(f"Product n_phi={n_phi}, μ_z={mu_z}: Σ w·η = {alpha_sum:.2e}")
             assert abs(alpha_sum) < 1e-14

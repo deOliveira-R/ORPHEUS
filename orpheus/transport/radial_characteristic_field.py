@@ -360,6 +360,11 @@ class RadialCharacteristicField(
             inflow_at_outer = np.asarray(boundary_trace.face_view("xmax"))
             for p in seed.interior.space.levels:
                 ords = np.asarray(level_indices[p])
-                most_inward = ords[int(np.argmin(mu[ords]))]
+                # ords is stored eta-ascending (the level's SORT
+                # CONTRACT), so the most-inward member IS ords[0] — the
+                # one tie-break spelling. (An argmin re-derivation here
+                # was #326's "second independent tie-break": equivalent
+                # only by argmin's first-min convention.)
+                most_inward = ords[0]
                 seed.boundary.corner(p, -1)[...] = inflow_at_outer[most_inward, :]
         return seed

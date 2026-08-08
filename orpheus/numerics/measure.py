@@ -222,9 +222,13 @@ class DiscreteMeasure:
         construction. A rule without one rests on external authority (a
         published table plus a citation, as Lebedev and level-symmetric
         :math:`S_N` do). `[M]` That is exactly how issue #327 was
-        possible: ``level_symmetric_sn`` hand-assigns its weights, so
-        nothing constrains its advertised degree, and it is degree-3 at
-        every order while claiming :math:`N-1`.
+        possible: ``level_symmetric_sn`` hand-assigned one equal weight
+        to every ordinate, so nothing constrained its advertised
+        degree, and it WAS degree-3 at every order while claiming
+        :math:`N-1` — until 2026-08-06, when the weights became
+        per-:math:`O_h`-orbit moment-solved and the gate
+        (``tests/numerics/test_advertised_degree_is_measured.py``)
+        began asserting measured == advertised both directions.
 
     Notes
     -----

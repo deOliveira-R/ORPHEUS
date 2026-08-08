@@ -331,6 +331,27 @@ backward sweep).  Thus, only :math:`[0, \pi)` needs to be traced
 explicitly; the backward direction is obtained by reversing the
 segment order.
 
+.. note::
+
+   **The direction components are generated from the group action, not
+   by evaluating trig on the angles** (issue #325, migrated
+   2026-08-08).  The midpoint grid is the rational family
+   :math:`\varphi_m = 2\pi\,(2m-1)/(4N_\varphi)` — the upper half of
+   the STAGGERED periodic trapezoid on :math:`2N_\varphi` points — so
+   ``MOCQuadrature`` stores :math:`(\cos\varphi_m, \sin\varphi_m)`
+   produced by :func:`~orpheus.numerics.roots_of_unity.roots_of_unity`
+   (octant fold + integer-arithmetic fixed points) and the ray tracer
+   consumes the stored points.  Consequences, all bit-exact rather
+   than to rounding: the azimuthal mirror
+   :math:`\varphi \to \pi - \varphi` is the index map
+   :math:`m \mapsto N_\varphi - 1 - m` (``_reflected_azi_index`` is
+   index arithmetic — the nearest-angle ``argmin`` search it replaced
+   was the last approximate mirror in the tree), reflected partners
+   satisfy ``cos[n-1-m] == -cos[m]`` and ``sin[n-1-m] == sin[m]``
+   bit-for-bit, and odd :math:`N_\varphi`'s vertical member carries
+   :math:`\cos\varphi` exactly ``0.0``.  The stored ``phi`` array
+   remains as the human-facing angle chart of the exact points.
+
 Typical values: :math:`N_\varphi = 16, 32, 64` for increasing accuracy.
 
 Tabuchi-Yamamoto Polar Quadrature

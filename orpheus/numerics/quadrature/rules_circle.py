@@ -144,7 +144,9 @@ See Also
     Why a degree without its reference measure is half a claim.
 :func:`orpheus.numerics.quadrature.rules_product.product_mu_phi`
     The consumer this rule is built for — the azimuthal factor of the
-    sphere product rule, today still welded in as ``linspace``.
+    sphere product rule; ``spherical_product`` consumes this rule's
+    POINTS directly (the repoint landed with E4 — no trig is ever
+    re-evaluated on the stored chart).
 
 References
 ----------

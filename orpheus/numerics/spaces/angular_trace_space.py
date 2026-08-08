@@ -87,8 +87,14 @@ off-axis 1-D components, Lebedev axis nodes), while the smallest
 round-off floor and :math:`2.7\times10^{13}\times` below any genuine
 projection — making the inflow/outflow masks **bit-identical** to both
 the operator's former ``1e-15`` and the realizer's former ``1e-12``
-(the band ``(eps, 1e-12)`` is empty). :func:`test_eps_below_min_genuine_cosine`
-guards the gap so a future quadrature cannot silently violate it.
+(the band ``(eps, 1e-12)`` is empty). Since #325's node repoint every
+shipped rule's tangential cosines are EXACTLY ``0.0`` (group-action
+generation, no trig round-off), so the band ``(0, eps]`` is empty too
+and the selectors classify identically to a bare sign test: the eps is
+**demoted from classifier to provably-inert defensive guard**.
+:func:`test_eps_sits_in_the_round_off_to_genuine_gap` (in
+``tests/numerics/test_angular_trace_space.py``) pins the gap across
+every shipped family so a future quadrature cannot silently reopen it.
 
 Coord-system coverage
 =====================
@@ -168,8 +174,11 @@ TraceRole = Literal["full", "outflow", "inflow"]
 # Tangential tolerance for the unit-vector projection ``Ω · n``. A
 # safety factor (×4) over the IEEE-754 dot-product round-off bound for a
 # 3-component unit-vector inner product. Empirically bit-identical to
-# the legacy ``1e-15`` (operator) and ``1e-12`` (realizer) tolerances;
-# see the module docstring + :func:`test_eps_below_min_genuine_cosine`.
+# the legacy ``1e-15`` (operator) and ``1e-12`` (realizer) tolerances —
+# and since #325's node repoint a provably-inert defensive guard (every
+# shipped rule's tangential cosines are exactly 0.0, so the band
+# ``(0, eps]`` is empty); see the module docstring +
+# :func:`test_eps_sits_in_the_round_off_to_genuine_gap`.
 # Public: the ONE tangential threshold every trace-classification
 # consumer shares (the selectors below; the reflective law's
 # inflow→outflow invariant, ERR-045) — a second locally-minted epsilon

@@ -219,14 +219,20 @@ def _trace_single_ray(
 
 # ── Reflection helpers ──────────────────────────────────────────────
 
-def _reflected_azi_index(phi: np.ndarray, azi_index: int) -> int:
-    """Both vertical and horizontal reflections map phi -> pi - phi."""
-    phi_refl = np.pi - phi[azi_index]
-    if phi_refl < 0:
-        phi_refl += np.pi
-    if phi_refl >= np.pi:
-        phi_refl -= np.pi
-    return int(np.argmin(np.abs(phi - phi_refl)))
+def _reflected_azi_index(n_azi: int, azi_index: int) -> int:
+    """Both vertical and horizontal reflections map phi -> pi - phi.
+
+    On the midpoint grid :math:`\\varphi_k = \\pi(2k+1)/(2n)` the
+    reflection is a CHART identity, not a numerical question:
+    :math:`\\pi - \\varphi_k = \\pi(2(n-1-k)+1)/(2n) =
+    \\varphi_{n-1-k}`.  So the partner is INDEX ARITHMETIC — exact,
+    self-inverse, total — and the tolerance-free spelling replaces the
+    bare ``argmin`` nearest-angle search that stood here until #325's
+    MoC migration (the search was the last approximate mirror in the
+    tree; on a symmetry-defined node set the group action, not a
+    nearest-neighbour match, names the partner).
+    """
+    return n_azi - 1 - azi_index
 
 
 def _is_vertical(surface: int) -> bool:
@@ -313,11 +319,12 @@ class MOCMesh:
         """Generate tracks for all azimuthal angles."""
         pitch = self.pitch
         ts = self.ray_spacing
-        phi_arr = self.quad.phi
 
         for a_idx in range(self.quad.n_azi):
-            cos_phi = np.cos(phi_arr[a_idx])
-            sin_phi = np.sin(phi_arr[a_idx])
+            # The EXACT direction components stored on the quadrature
+            # (group-action-generated, #325) — never trig on the chart.
+            cos_phi = float(self.quad.cos_phi[a_idx])
+            sin_phi = float(self.quad.sin_phi[a_idx])
 
             corners = [(0, 0), (pitch, 0), (pitch, pitch), (0, pitch)]
             t_vals = [-c[0] * sin_phi + c[1] * cos_phi for c in corners]
@@ -376,21 +383,21 @@ class MOCMesh:
 
         In all cases the reflected angle is pi - phi.
         """
-        phi = self.quad.phi
+        n_azi = self.quad.n_azi
         n_tracks = len(self.tracks)
 
         for i in range(n_tracks):
             track = self.tracks[i]
 
             # Forward sweep exits at exit_point through exit_surface
-            fwd_refl_azi = _reflected_azi_index(phi, track.azi_index)
+            fwd_refl_azi = _reflected_azi_index(n_azi, track.azi_index)
             fwd_target_is_fwd = _is_vertical(track.exit_surface)
             fwd_link = self._find_link(
                 track.exit_point, fwd_refl_azi, fwd_target_is_fwd
             )
 
             # Backward sweep exits at entry_point through entry_surface
-            bwd_refl_azi = _reflected_azi_index(phi, track.azi_index)
+            bwd_refl_azi = _reflected_azi_index(n_azi, track.azi_index)
             bwd_target_is_fwd = not _is_vertical(track.entry_surface)
             bwd_link = self._find_link(
                 track.entry_point, bwd_refl_azi, bwd_target_is_fwd

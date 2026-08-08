@@ -336,6 +336,21 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
             quads.append(Quadrature.lebedev(order))
         except Exception:  # noqa: BLE001 — order may be unavailable
             pass
+    # The family that MOTIVATED #325 — product rules carried the
+    # trig-round-off tangential cosines this eps existed to absorb.
+    # Post-E3 (roots-of-unity nodes) their tangential set is EXACTLY
+    # 0.0, so they must sit in the same empty-band regime as GL and
+    # Lebedev; enumerating them here is what makes this gate a claim
+    # about EVERY shipped rule rather than the two families that were
+    # never at risk. Odd n_phi exercises the quarter-point zeros.
+    quads += [
+        Quadrature.product(4, 8),
+        Quadrature.product(6, 12),
+        Quadrature.product(4, 5),
+        Quadrature.folded_product(4, 8),
+        Quadrature.folded_product(4, 16),
+    ]
+    quads += [Quadrature.level_symmetric(n) for n in (2, 4, 8, 12)]
 
     min_genuine = np.inf
     for q in quads:
