@@ -76,6 +76,29 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   a blanket "the message names both completions" pins a FALSE reason on the α=0
   row, whose defect is different. Always pair with a positive control — else an
   arm that refuses everything also passes. → `L31`
+- **⛔ A new guard wired AFTER an existing one: the earlier guard's inputs are a
+  DISCRIMINATION row, not a negative row.** `[M]` slab GL on a cylinder is
+  classified `on_edge_node=True` by the predicate (it does NOT raise) yet is
+  intercepted by the older structure-less guard, so a row asserting the NEW
+  message is a false red and one asserting the OLD message twins two committed
+  gates. The honest row asserts, on that same input, **old fragment PRESENT +
+  new fragment ABSENT** — which pins the WIRING ORDER (move the helper one line
+  earlier ⟹ reds). Mint the two messages with disjoint fragments and assert the
+  disjointness once. → `L43c`
+- **⛔ A ∀-quantifier over a per-element predicate is UNGATE-ABLE when no factory
+  produces a MIXED input.** `[M]` every refused quadrature family had ALL levels
+  non-carrying and every admitted one ALL carrying ⟹ `all(...)` and `any(...)`
+  agree on every constructible input (Mode-12 at the FIXTURE). The fix is
+  architectural: split the pure predicate out so it takes the element tuple and
+  **returns the offending POSITIONS** (`vv` anti-#14), making a synthetic mixed
+  tuple a two-line unit test. Without the split the quantifier ships provably
+  ungated and the implementer is credited for it. → `L43d`
+- **⭐ Count the rows that REACH the assertion, not the rows that exist.** A
+  guard-clause early return (`if not seed_levels: check_absence(); return`) made
+  `[M]` **10 of 20** rows of a battery return after one check — the invariant the
+  test is NAMED for had only ever run on the other 6, each at a degenerate
+  one-element size. Anti-#20 row inflation wearing a guard clause; read the
+  early-exit branch before believing a parametrize count. → `L43f`
 - **REPAIRING blind gates (a different design problem from writing them).** Repair
   a decayed gate by re-posing onto a REGIME-INDEPENDENT mechanism, never by
   driving the fixture back into the regime: ERR-052's catastrophe was UNREACHABLE
@@ -304,6 +327,21 @@ against a concrete row before trusting a green.
   exactly the orders where the value gate's tolerance is loosest. A closeout
   saying "the table gates this at all eight orders" is false in a way that
   survives review because the table *looks* complete (`vv` anti-#20). → `L42c`
+- **⛔ A brief's REFUSED-family enumeration is a per-family CLAIM to measure.**
+  `[M]` "full NODE_ALIGNED product (edge-node + degenerate)" is
+  `on_edge_node=True, degenerate=False` — ONE fact. Transcribed, that pins a
+  FALSE reason on every product row (L31's blanket-reason trap). Measuring the
+  fact-pair per family is what makes "assert WHICH fact fired" writable AND
+  makes the two per-conjunct mutations (predicate reads only one conjunct) the
+  pair that proves both load-bearing — `[M]` exactly half the refused families
+  red under each. → `L43h`
+- **⛔ An ISOTROPIC-ansatz row is a provable NON-CATCHER for anything in the ξ /
+  azimuthal channel — parametrizing over both builders is necessary, not
+  sufficient.** `[M]` the isotropic cylindrical MMS ladder is identical to 3
+  s.f. across `folded_product(4,8)/(4,16)/(4,32)`, `product(4,8)` and the full
+  staggered rule: the fold is INVISIBLE to it (its source has no `ξ` term at
+  all). Declare per ROW which mutation each catches (`[M]` here: iso catches the
+  `η→ξ` swap at rel 1.46; only aniso catches `ξ²→ξ` at rel 0.36). → `L43i`
 - **⛔ A convergence+value pair can be blind in a band where the error DECREASES.**
   `[M]` scaling the declared `q` by `(1+ε)`: at `ε ≤ 3e-4` the perturbation
   partially CANCELS the `O(h²)` truncation, so `L2(80)` drops to `0.6–0.8×` the
@@ -362,6 +400,17 @@ against a concrete row before trusting a green.
   yourself (`dir(module)`), never the brief's list.** When the refutation lands,
   the phase usually collapses from *build a new reference* to *re-route the
   existing one* — which is also the Pattern-2-correct answer. → `L40a`
+  ⭐ **Widened, and it recurred within one dispatch:** the ask itself can LAND
+  mid-design. `[M]` HEAD moved twice while I wrote (`143e6e2a` → `ce6607f5`) and
+  one of three asks — the σ_y-parity gate — shipped, re-posed exactly as I was
+  deriving it. Deliverable collapsed from *design a gate* to *audit the landed
+  one*, which produced six residual gaps (a better deliverable). So: `git log` +
+  `git status` at the START **and** the END, and run an existence check per
+  promised DELIVERABLE, not only per named symbol. A useful side-observation:
+  the transient state had the module's SECTION-HEADER prose already claiming the
+  new behaviour while the function still returned the old one — no gate in the
+  tree could see that, which became residual gap "assert the builder ships what
+  its docstring says". → `L43a`, `L43j`
 - **⛔⛔ "Solve for X on interval I" is a CONSTRUCTION only if the root is unique
   there — run a sign-change scan and report the root COUNT before accepting the
   design.** `[M]` #337's briefed "root-find over μ₁² ∈ (0, 1/3)" has **TWO**
@@ -547,6 +596,36 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   **INVERT** (the gate pins the degradation as the contract). And
   `assert_array_equal` on ANY `.H` of a newly-bound operator breaks at **2 nulp**
   (`(g·x)/g` is not an IEEE identity) — grep them all first. → `L37`
+- **ADMISSION / REFUSAL carve (a constructor starts refusing a family of inputs).**
+  Three archetype-specific traps, all measured on Q5.6's cylindrical-quadrature
+  flip. **(a) ⭐⭐ If the input type carries a PROVENANCE field, provenance-keyed
+  admission is the cheapest wrong guard — kill it with a two-sided pincer, never
+  a single positive.** `Quadrature.quotient()` stamps `folded_by=group`, so
+  `if quad.folded_by is None: raise` passes every brief-suggested positive. The
+  measured pincer: a HAND-ASSEMBLED rule with `folded_by=None` whose arrays are
+  `array_equal` to the factory's MUST construct, and a GENUINE quotient of the
+  wrong parent (tag present, `on_edge_node` on every level) MUST refuse. Each row
+  asserts its own tag precondition in-test or it silently degrades into its
+  positive. **(b) the guard usually makes a production BRANCH unreachable — grep
+  the predicate's consumers for `if X: continue`.** `[M]` admitting only
+  all-carrying rules made the whole #280 direct-seed fold (its
+  `NotImplementedError` included) dead on every constructible mesh, and its
+  6-test battery lost its SUBJECT rather than needing a fixture swap. **(c) the
+  mesh-tier consequence of admission is the single-source proof** — assert
+  `carrying == tuple(range(n_levels))` on the admitted family; it is a theorem
+  only if the guard and the consumer read one producer. → `L43b`, `L43g`, `L43d`
+- **⛔⛔ "The index addresses the right object" gates: a SYMMETRIC generating rule
+  makes half the permutation group invisible.** `[M]` on a σ_y-folded product
+  every per-level geometric datum — start cosine, α, ΔA/w, per-level η and w —
+  is **bit-palindromic** under `p → n−1−p`, because the GL polar nodes are
+  ±symmetric. So the obvious coordination functional (the per-level march-ray
+  cosine the seed march divides by) is designed-green for the REVERSAL at every
+  mesh and order; only the SIGNED axial cosine and the ordinate index sets
+  escape the stabiliser. Ship TWO rows, one per side, and declare the blindness —
+  the cosine row still earns its place (it catches every non-reversal
+  permutation, `[M]` `s_p` 0.5084 ↔ 0.9404). Enumerate the per-index data the
+  consumer reads and test each for permutation-invariance BEFORE nominating a
+  functional. → `L43e`
 - **A binding added at a LEAF may not survive to the object the producer
   RETURNS — measure at the tier the CONSUMER sees, not at the construction
   site.** A `TensorProductOperator`/`&` wrapper derived no `domain`/`codomain`

@@ -385,7 +385,7 @@ Module × level grid
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_transpose_solve, 0, 0, 0, 0, 18, 0
+   operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
@@ -409,7 +409,7 @@ Module × level grid
    operators/test_streaming_collision_operator, 1, 10, 0, 0, 20, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
-   operators/test_sweep_inverse_identity, 0, 0, 0, 0, 7, 0
+   operators/test_sweep_inverse_identity, 0, 0, 0, 0, 9, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
@@ -689,6 +689,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-white-bc-slab``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
+   ``sn-dsa-sweep-inverse-identity``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
@@ -714,7 +715,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sigma-zero``, 3
    ``sn-dsa-consistent-low-order``, 3
    ``sn-dsa-s2-exactness``, 3
-   ``sn-dsa-sweep-inverse-identity``, 3
    ``sn-homogenization-rate-preservation``, 3
    ``sn-leakage-functional``, 3
    ``sn-mms-nonvacuum-qext-mg``, 3
@@ -1453,7 +1453,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-051``, 1
    ``ERR-052``, 2
    ``ERR-053``, 13
-   ``ERR-054``, 2
+   ``ERR-054``, 1
    ``ERR-055``, 2
    ``ERR-056``, 7
    ``ERR-057``, 1
@@ -1470,13 +1470,14 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-068``, 1
    ``ERR-069``, 2
    ``ERR-070``, 4
-   ``ERR-071``, 8
+   ``ERR-071``, 10
    ``ERR-072``, 3
    ``ERR-073``, 3
    ``ERR-074``, 1
    ``ERR-075``, 8
    ``ERR-076``, 21
    ``ERR-077``, 3
+   ``ERR-078``, 9
 
 Unmarked tests
 --------------

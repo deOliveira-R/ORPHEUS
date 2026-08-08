@@ -4070,3 +4070,206 @@ as a WHOLE did not finish in 120 s. The battery's per-mutation slice is ~3 s,
 so an 11-mutation battery is under a minute — there is no reason to ration it.
 A directory-level estimate would have over-stated the relevant cost by
 orders of magnitude (memory §2, measured again).
+
+## L43 — Q5.6 "6.3 flip" (cylindrical quadrature ADMISSION): a provenance field that invites the wrong guard, a ∀ nobody can falsify, and a palindrome that eats the obvious gate
+
+**Dispatch.** 2026-08-08, branch `refactor/operator-strategy-layers`. Design
+three gate sets for `SNMesh(CYLINDRICAL)` refusing every non-*carrying*
+quadrature (the Q5.4 R12a predicate: carrying ⟺ neither `on_edge_node` nor
+`degenerate`). Deliverable `scratch/q5_6_3_gate_design.md`. Substrate: the
+call-site map `scratch/q5_6_3_flip_call_sites.md`.
+
+### L43a — The tree moved TWICE mid-dispatch, and one whole ask had already landed
+
+Brief pinned HEAD `143e6e2a`. `[M]` at delivery HEAD was `ce6607f5` (two
+commits later) with 12 further test files uncommitted-modified. `ce6607f5`
+("6.3 leg 1 — the cylindrical MMS builders ride the fold") had **already
+shipped ask (b)'s σ_y-parity gate**, re-posed exactly as I was deriving it
+(evaluate on the fold's PARENT rule via `dataclasses.replace`, both builders
+parametrized, plus a restriction leg). Ask (b) collapsed from *design a gate*
+to *audit the landed one* — six residual gaps, which is a far better
+deliverable than the gate would have been.
+
+The transient state was itself informative: at 03:0x the module's SECTION
+HEADER comment already read "the case builders default to `folded_product`"
+while `build_cylindrical_mms_case` still returned `Quadrature.product`. A
+prose claim landed ahead of its code. `[M]` no gate in the tree could see that
+— which is exactly residual gap **G-b6** (assert `case.quadrature` nodes
+`array_equal` `folded_product(n_mu, n_phi)`).
+
+**Rule (reinforces `plan-authoring` §1 / L40a).** Re-`git log` + `git status`
+at the START and the END of a design dispatch, and run an existence check per
+promised DELIVERABLE, not only per named symbol.
+
+### L43b — ⭐⭐ A type carrying a PROVENANCE field makes provenance-keyed admission the cheapest wrong guard; kill it with a two-sided pincer
+
+`Quadrature.quotient()` stamps `folded_by=group` (`directional.py:443`). So
+"admit the fold" has an obvious, wrong one-liner: `if quad.folded_by is None:
+raise`. A brief asking only for "a hand-built quotient also constructs" does
+NOT kill it — a hand-built quotient is tagged too.
+
+`[M]` the pincer that does:
+
+| fixture | `folded_by` | carrying? | must |
+|---|---|---|---|
+| `Quadrature(measure=folded_m, level_structure=folded_s)` (hand-assembled, arrays `array_equal` to `folded_product(4,8)`) | `None` | all 4 | **construct** |
+| `Quadrature(GL(4)×trapezoid(8, NODE_ALIGNED)).quotient(Mirror("y"))` | `Mirror('y')` | none (`on_edge_node` ×4, N=20) | **refuse** |
+
+Either row alone leaves the tag-keyed guard green; together they are the only
+mutation-verified spelling of "admission by STRUCTURE, not provenance".
+⚠ Each row must assert its own precondition in-test (`assert quad.folded_by is
+None` / `is not None`) or a future tagging change silently turns the control
+into a duplicate of its positive (the L2 "build the control explicitly"
+discipline).
+
+**Rule.** Before designing a "by structure, not provenance" gate, grep the type
+for a field that RECORDS the provenance. If one exists, the gate is a two-sided
+pincer, never a single positive.
+
+### L43c — A guard wired AFTER an existing guard: that input is a DISCRIMINATION row, not a negative row
+
+The brief listed slab GL among the families the new refusal rejects. `[M]`:
+
+```
+GL level_structure: None
+GL level_indices  : [array([0, 1, 2, 3])]     # a FAKE single level
+GL march-start facts: (MarchStart(on_edge_node=True, degenerate=False),)   # does NOT raise
+GL SNMesh RAISES: ValueError | Cylindrical streaming requires a quadrature with level structure ...
+```
+
+Two facts collide: the classifier happily classifies GL (so the predicate would
+own it if wired one line earlier), but the structure-less guard at
+`reduced_operator.py:826` fires first. So a GL row asserting the NEW message is
+a false red, and one asserting the OLD message twins the two committed gates.
+
+The honest row asserts, on the same input, **old fragment PRESENT + new
+fragment ABSENT** — i.e. it pins the WIRING ORDER, which is a real
+mutation-testable claim (move the helper before `cylindrical_streaming` → reds).
+Corollary: the two messages must share no substring, asserted once.
+
+### L43d — ⛔ A ∀-quantifier is ungate-able when no factory produces a MIXED input — factor the pure predicate so the mixed case is synthesizable
+
+`[M]` every refused family has ALL levels non-carrying; every admitted family
+has ALL carrying (product/`quotient(NODE_ALIGNED)` → `(True,False)` on every
+level; staggered-unfolded/`level_symmetric` → `(False,True)` on every level;
+`folded_product` → `(False,False)` on every level). No shipped factory yields
+a mixed rule ⟹ `all(...)` vs `any(...)` in the admission agree on every
+constructible input. Mode-12 at the FIXTURE, not the functional.
+
+Fix is architectural, and it is the deliverable's strongest instruction: split
+
+```python
+def non_carrying_levels(starts: tuple[MarchStart, ...]) -> tuple[int, ...]   # pure; returns POSITIONS (vv anti-#14)
+def assert_carrying_quadrature(quad, coord) -> None                          # raises, single-sources the reporting
+```
+
+so a synthetic `(carrying, on_edge, carrying, degenerate)` tuple is a two-line
+unit test. Without the split the quantifier ships **provably ungated** and the
+implementer would be credited for it.
+
+### L43e — ⛔⛔ A symmetric polar rule makes EVERY per-level geometric datum bit-palindromic — the level-REVERSAL is invisible to the obvious coordination gate
+
+The natural gate for "slot key `p` addresses level `p`" is the per-level march
+ray cosine the seed march consumes (`psi_half_angle_seed.py:314`:
+`s_p = start_cosines[p]`, `two_over_dr = 2.0/(dr/s_p)`). `[M]` on
+`folded_product(4,8)`:
+
+```
+_march_start_cosines : {0: 0.5083741268536304, 1: 0.9404322888985427,
+                        2: 0.9404322888985427, 3: 0.5083741268536304}
+mu_start_per_level bit-palindromic: True     alpha_per_level: True
+redist_dAw:  True     per-level eta: True    per-level w: True
+mu_z per level: [-0.8611, -0.3400, +0.3400, +0.8611]  palindromic: False
+level_indices : [[3,2,1,0],[7,6,5,4],[11,10,9,8],[15,14,13,12]]
+```
+
+Because GL nodes are ±symmetric, levels `p` and `n−1−p` share **bit-identical**
+η, w, α, ΔA/w AND start cosine. So `p → n−1−p` is designed-green for the
+cosine functional at every mesh, order and tolerance; only the SIGNED axial
+cosine and the ordinate index sets escape the stabiliser. The cosine gate is
+still worth having — it catches every NON-reversal permutation (`[M]` `s_p`
+swings 0.5084 ↔ 0.9404, 1.85×) — but it needs a partner row on `mu_z`
+ordering, with the blindness declared.
+
+**Rule.** For a "the index addresses the right object" gate, list the
+per-index data the consumer reads and test each for invariance under the
+plausible permutations *before* nominating one as the functional. A symmetric
+generating rule makes half the permutation group invisible.
+
+### L43f — ⭐ Count the rows that REACH the assertion, not the rows that exist
+
+`test_gate_source_is_the_space_key_source` opens with
+`if not seed_levels: _require(space is None, ...); return`. `[M]` every
+cylinder rule yields `radial_characteristic_levels == ()` ⟹ **10 of its 20
+cylinder rows return after one check**, and the invariant the test is NAMED for
+has only ever run on the 6 sphere rows, each with a ONE-element key set. The
+flip does not damage this test — it gives the invariant its first multi-element
+key sets. An early-return branch is anti-#20 row inflation wearing a guard
+clause.
+
+### L43g — ⛔⛔ An ADMISSION change can make a whole production BRANCH unreachable — grep the predicate's consumers for `if X: continue`
+
+`loss_representation` `:4195-4212` (+ transpose twin `:4661-4678`) is the #280
+2.5b direct-seed fold: `if not is_sphere:` … `for p_fold, _level in
+enumerate(levels): if p_fold in seed_levels: continue` … else fold, else
+`raise NotImplementedError`. `not is_sphere` + curvilinear = cylinder;
+post-flip every admitted cylinder has ALL levels carrying (`[M]`
+`radial_characteristic_levels == (0,1,2,3)` on `folded_product(4,8)`), so the
+`continue` fires every iteration and the branch — refusal included — is
+unreachable on every constructible mesh (L43d: a mixed rule cannot be built).
+
+Consequence for test design: `tests/sn/sweep/test_cyl_direct_seed_fold.py`
+(6 `foundation` tests) does not need re-quadraturing, its SUBJECT is gone —
+4 retire with the fold, 2 (`cold_solve == matvec inverse` / `== SI fixed
+point`) are geometry-general and re-pose. Route the production-retirement
+decision to the user; the tests cannot stay either way.
+
+### L43h — The refused-family enumeration in a brief is a per-family CLAIM to measure
+
+Brief: "full NODE_ALIGNED product (edge-node + degenerate)". `[M]` it is
+`on_edge_node=True, degenerate=False` — ONE fact. Transcribed, that would have
+pinned a FALSE reason on every product row (L31's blanket-reason trap). The
+measured table (product & folded-NODE_ALIGNED → edge-node only; staggered-full
+& level_symmetric → degenerate only) is what makes the "assert WHICH fact
+fired" design possible AND makes the two per-conjunct mutations (predicate
+reads only `degenerate` / only `on_edge_node`) the pair that proves both
+conjuncts load-bearing — exactly half the refused families red under each.
+
+### L43i — Two MMS measurements worth keeping
+
+`[M]` volume-weighted L2(φ), `n_cells=[10,20,40]`, same case object with only
+`quadrature` swapped:
+
+```
+ANISO  folded_product(4,8)  N=16  [0.009511 0.004418 0.003651] orders [1.106 0.275]
+       product(4,8)         N=32  [0.022096 0.019504 0.019116] orders [0.180 0.029]
+       folded_product(4,16) N=32  [0.008520 0.002477 0.001007] orders [1.782 1.299]
+       folded_product(4,32) N=64  [0.008206 0.002140 0.000619] orders [1.939 1.789]
+ISO    every rule                 [0.00885  0.00219  0.000547] orders [2.013 2.003]
+```
+
+(a) The fold is a **19× improvement at equal ordinate count** on the #229
+azimuthal floor — but it can NEVER become a permanent gate, because post-flip
+the comparison arm (`product(4,8)`) refuses at construction. A one-time
+migration measurement belongs in the commit, not in a test.
+(b) The ISOTROPIC case is a perfect Mode-7 NULL for the ξ channel — identical
+to 3 s.f. across every rule, folded or not. An isotropic-only migration check
+proves nothing about the fold; the anisotropic row is the only catcher for the
+ξ-parity class (`[M]` parity deltas: honest `0.0` exactly; `ξ²→ξ` `0.0254`
+(rel 0.36); `η→ξ` `0.0852` (rel 1.21–1.46)).
+
+### L43j — The landed parity gate's six residual gaps (the audit shape)
+
+Worth keeping as a template for auditing a gate somebody else just landed:
+(1) tolerance not earned (`atol=1e-15` where `[M]` the delta is **exactly 0.0**
+and bit-exactness is a float THEOREM: `eta[π]==eta`, `xi[π]==-xi`, and IEEE
+`(-a)*(-a)==a*a`); (2) the node-level preconditions ungated, which also leaves
+a Mode-12 hole — `[M]` the manufactured source contains **no `mu_z` term**, so
+`Q[π]==Q` holds for the σ_z pairing too, and the gate's instrument legs
+(permutation + no fixed points) cannot discriminate; (3) the docstring claims
+parity for `psi_ref`, which is **signature-tautological** (`psi_exact(r,
+eta_n)` cannot receive ξ) and doubly false for the isotropic case, which has no
+`psi_exact` at all; (4) the negative control runs on a DIFFERENT fixture
+(NODE_ALIGNED) than the positive leg (STAGGERED); (5) parent and case coupled
+by coincident defaults, so a default change reds by RAISING (`IndexError`),
+attributing nothing; (6) nothing asserts the builder ships the fold.
