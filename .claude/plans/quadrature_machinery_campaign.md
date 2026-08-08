@@ -21,10 +21,12 @@
 > as Q5.E because T28 showed it is the root.
 >
 > **⏸ CHECKPOINT — 2026-08-02, extended 2026-08-07 twice (compaction before
-> Q5.3; compaction before Q5.5) and 2026-08-08 three times (compaction before
+> Q5.3; compaction before Q5.5) and 2026-08-08 four times (compaction before
 > #327; compaction before 6.3 — after the #325/#337 interleave; compaction
-> MID-6.3 after legs 1/2a/2b — the "6.3 LANDED SO FAR" ledger in §5's Q5.6
-> block is the per-hash authority for the flip's own legs).
+> MID-6.3 after legs 1/2a/2b; compaction POST-FLIP before leg 6 — legs
+> 2c/2d/2e/3/4 AND leg 5 THE FLIP are LANDED, `2befb14d`..`1689faf4`; the
+> "6.3 LANDED SO FAR" + "SECOND HALF" + "LEG 5 LANDED" ledger blocks in §5's
+> Q5.6 block are the per-hash authority for the flip's own legs).
 > Landed so far, in order:**
 >
 > | step | commit | what |

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9221**
+Total tests collected: **9197**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1309, 14.2%
-   L1, 1622, 17.6%
+   L1, 1617, 17.6%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6221, 67.5%
+   foundation, 6202, 67.4%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9137
+   explicit, 9113
    class-name, 46
    func-name, 0
    case, 33
@@ -111,7 +111,7 @@ Module × level grid
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
-   curvilinear/test_azimuthal_mirror_symmetry, 0, 5, 0, 0, 7, 0
+   curvilinear/test_azimuthal_mirror_symmetry, 0, 0, 0, 0, 4, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 17, 0
    curvilinear/test_cyl_sweep_regression, 3, 0, 4, 0, 0, 0
@@ -282,10 +282,11 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
-   mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 14, 0
-   mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 45, 0
-   mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 27, 0
-   mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 18, 0
+   mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
+   mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
+   mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
+   mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 23, 0
+   mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 17, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0
@@ -462,7 +463,6 @@ Module × level grid
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
-   sweep/test_cyl_direct_seed_fold, 0, 0, 0, 0, 6, 0
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
