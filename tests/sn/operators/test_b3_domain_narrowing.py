@@ -81,7 +81,7 @@ def _sn_1d(geometry: str, bcs: tuple, nx: int = 4, ng: int = 2) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = (
-        Quadrature.product(n_mu=2, n_phi=4)
+        Quadrature.folded_product(n_mu=2, n_phi=4)
         if geometry == "CYL"
         else Quadrature.gauss_legendre(n_ordinates=4)
     )

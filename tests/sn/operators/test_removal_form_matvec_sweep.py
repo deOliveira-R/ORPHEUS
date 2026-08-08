@@ -170,7 +170,7 @@ def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNMesh:
         bcs=(BC(bc),),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

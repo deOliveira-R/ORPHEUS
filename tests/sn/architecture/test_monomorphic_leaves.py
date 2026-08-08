@@ -402,7 +402,7 @@ def _cylinder() -> SNMesh:
         coord=CoordSystem.CYLINDRICAL, bc_right=BC("reflective"),
     )
     return SNMesh(
-        mesh, Quadrature.product(n_mu=4, n_phi=8), _two_region_fissile(),
+        mesh, Quadrature.folded_product(n_mu=4, n_phi=8), _two_region_fissile(),
     )
 
 

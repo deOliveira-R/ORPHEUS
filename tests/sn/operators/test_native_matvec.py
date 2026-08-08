@@ -123,7 +123,7 @@ def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
 
 
 def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
-    """1-D cylinder with reflective inner / vacuum outer + LS-4."""
+    """1-D cylinder with reflective inner / vacuum outer + the folded rule."""
     mesh = Mesh1D(
         edges=np.linspace(0.01, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -131,7 +131,7 @@ def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -289,7 +289,7 @@ def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNMesh(mesh, quad, placeholder_materials())
 
 

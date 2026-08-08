@@ -178,19 +178,27 @@ def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
 
 
 def _make_cyl_product(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
-    r"""Cylinder on the equispaced PRODUCT rule — the DEGENERATE-class row.
+    r"""Cylinder on a pure-azimuthal-bearing folded rule — the
+    DEGENERATE-class row.
 
-    ``Quadrature.product(n_mu=2, n_phi=4)`` samples φ ∈ {0, π/2, π, 3π/2},
-    so the φ = π/2, 3π/2 ordinates carry :math:`|\mu_x| \approx 6\cdot
-    10^{-17}` — genuinely degenerate pure-azimuthal ordinates whose cell
-    balance is volumetric (the matvec's degenerate branch, no face march).
-    The :func:`_make_cyl` ``level_symmetric`` rule has NO such ordinates,
-    so every pre-2.5a reciprocity row was structurally BLIND to the
-    degenerate rows of the transpose (which silently dropped them —
-    the #280 2.5a completion; vv Mode 7: this builder ACTIVATES the term
-    the level-symmetric rows null by quadrature choice).
+    ``Quadrature.folded_product(n_mu=2, n_phi=6)``: the staggered parent
+    at :math:`n_\varphi \equiv 2 \pmod 4` places a node at
+    :math:`\varphi = \pi/2` exactly, and the roots-of-unity circle (E3)
+    stores exact points — so one ordinate per level carries
+    :math:`\mu_x = 0.0` **bit-exactly** (`[M]` probed at the 6.3
+    migration; the pre-6.3 NODE_ALIGNED ``product(2, 4)`` fixture's
+    :math:`\varphi = \pi/2` ordinates carried
+    :math:`|\mu_x| \approx 6\cdot 10^{-17}` from float trig): genuinely
+    degenerate pure-azimuthal ordinates whose cell balance is
+    volumetric (the matvec's degenerate branch, no face march), now in
+    the family the cylinder mesh ADMITS. The :func:`_make_cyl` rule has
+    NO such ordinates, so every pre-2.5a reciprocity row was
+    structurally BLIND to the degenerate rows of the transpose (which
+    silently dropped them — the #280 2.5a completion; vv Mode 7: this
+    builder ACTIVATES the term the sibling rows null by quadrature
+    choice).
     """
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=2, n_phi=6)
     mesh = Mesh1D(
         edges=np.linspace(0.0, R, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),

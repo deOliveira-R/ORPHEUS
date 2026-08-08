@@ -79,31 +79,38 @@ def _sphere() -> SNMesh:
     )
 
 
-def _cyl_product() -> SNMesh:
-    # The MANDATORY cylinder config (#280 2.5b cyl reverse-scan): a PRODUCT
-    # quadrature has 8 pure-azimuthal DEGENERATE ordinates AND a LIVE seed-fold
-    # (t=0, c_in≠0, mm_a_in[m0]=1) — the two cylinder-specific transpose terms
-    # that ``level_symmetric`` simultaneously NULLS.
+def _cyl_degenerate() -> SNMesh:
+    # The MANDATORY cylinder config (#280 2.5b cyl reverse-scan), re-posed
+    # at the 6.3 flip onto the admitted family: ``folded_product(4, 6)`` —
+    # the staggered parent at n_φ ≡ 2 (mod 4) places φ = π/2 exactly, and
+    # the roots-of-unity circle (E3) makes those ordinates' μ_r = 0.0
+    # BIT-EXACT: one pure-azimuthal DEGENERATE ordinate per level, AND
+    # (like every admitted cylinder rule) a LIVE seed-fold — both
+    # cylinder-specific transpose terms active.
     return SNMesh(
         Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
                mat_ids=np.array([0, 1, 0]),
                bc_left=BC("reflective"), bc_right=BC("vacuum"),
                coord=CoordSystem.CYLINDRICAL),
-        Quadrature.product(n_mu=4, n_phi=8),
+        Quadrature.folded_product(n_mu=4, n_phi=6),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
 
 
-def _cyl_ls() -> SNMesh:
-    # The everything-nulled CONTROL: level_symmetric cyl has 0 degenerate ords
-    # and a DEAD seed-fold (c_in[m0]=0, mm_a_in[m0]=0) — it exercises only the
-    # multi-level bulk M-M thread transpose.
+def _cyl_regular() -> SNMesh:
+    # The degenerate-free CONTROL: an n_φ ≡ 0 (mod 4) folded rule has 0
+    # pure-azimuthal ordinates — it exercises only the multi-level bulk
+    # M-M thread transpose + the seed-fold. ⚠ The pre-6.3 control
+    # (level_symmetric) additionally NULLED the seed (mm_a_in[m0]=0);
+    # that dead-seed state is UNSPELLABLE in the admitted family — every
+    # carrying rule's seed is live, so the Mode-7 discrimination
+    # narrows to the degenerate axis (see G5).
     return SNMesh(
         Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
                mat_ids=np.array([0, 1, 0]),
                bc_left=BC("reflective"), bc_right=BC("vacuum"),
                coord=CoordSystem.CYLINDRICAL),
-        Quadrature.level_symmetric(8),
+        Quadrature.folded_product(n_mu=8, n_phi=16),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
 
@@ -127,7 +134,7 @@ def _ld_slab() -> SNMesh:
 
 _MESHES = {
     "slab": _slab, "sphere": _sphere,
-    "cyl_product": _cyl_product, "cyl_ls": _cyl_ls,
+    "cyl_degenerate": _cyl_degenerate, "cyl_regular": _cyl_regular,
     "ld_slab": _ld_slab,
 }
 
@@ -212,20 +219,22 @@ def _read_augmented(out, sn_mesh, g, ray=None) -> np.ndarray:
 
 
 def _source_carried_mask(sn_mesh) -> np.ndarray:
-    """Boolean mask (augmented layout) selecting source-carried slots — every
-    slot EXCEPT each seed leg's trailing outflow corner."""
+    """Boolean mask (augmented layout) selecting source-carried slots.
+
+    Since ERR-078's completion (``ψ_out = streamed − q_out`` — the
+    defect row's honest inverse) the seed leg's trailing outflow corner
+    IS source-carried, so every slot is kept: the pre-fix exclusion
+    (``leg[-1] = False``, "the outflow corner (free DOF)") was masking
+    exactly the dropped-rhs hole the fix closed.  The function survives
+    as the named seam so a future genuinely-free slot has a home."""
     N = sn_mesh.quad.n_ordinates
     nx = int(np.prod(sn_mesh.spatial_shape))
     tail = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
     if sn_mesh.radial_characteristic_field_space is None:
         return np.ones(N * nx * tail, dtype=bool)
     per = 2 * nx + 2  # seed leg: corner_in, cells⁻, cells⁺, corner_out
-    mask = []
-    for _ in sn_mesh.radial_characteristic_levels:
-        leg = np.ones(per, dtype=bool)
-        leg[-1] = False                       # the outflow corner (free DOF)
-        mask.append(leg)
-    return np.concatenate([np.concatenate(mask), np.ones(N * nx, dtype=bool)])
+    n_legs = len(sn_mesh.radial_characteristic_levels)
+    return np.ones(n_legs * per + N * nx, dtype=bool)
 
 
 # ── G1 — round-trip (bulk subspace) ────────────────────────────────────
@@ -345,7 +354,7 @@ def _fdot(x, y, sn) -> float:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("geom", ["slab", "cyl_product", "cyl_ls"])
+@pytest.mark.parametrize("geom", ["slab", "cyl_degenerate", "cyl_regular"])
 def test_g3_full_field_solve_reciprocity(geom):
     r"""``⟨A.solve(q), p⟩ = ⟨q, A.solve_transpose(p)⟩`` over bulk ⊕ boundary.
 
@@ -353,10 +362,13 @@ def test_g3_full_field_solve_reciprocity(geom):
     pairing fails at ~14–19 % (the boundary carries load-bearing inner-product
     mass), so a dropped/​wrong boundary cotangent reds here at O(1) while the
     bulk-only G1/G2 stay green (the #284 boundary subspace).  Caught the
-    degenerate-ord boundary passthrough drop (cyl_product 2.8e-2 → 0 exact).
+    degenerate-ord boundary passthrough drop (2.8e-2 → 0 exact, on the
+    pre-6.3 ``cyl_product`` fixture — now ``cyl_degenerate``).
 
-    Parametrized over the non-carrying configs + slab, where ``_fdot``
-    (bulk ⊕ boundary) is the complete Euclidean pairing.  The sphere's
+    ``_fdot`` (bulk ⊕ boundary) is the complete Euclidean pairing over
+    the BARE operator's own domain, so the claim is well-posed on every
+    row; since the 6.3 flip the two cylinder rows are carrying meshes,
+    exercising the bare (L+C) reciprocity there too.  The sphere's
     seed-carrying solve-reciprocity (the #284 seed free-DOF, Mode-12
     seed-blind) is the test-architect's #29 domain.
     """
@@ -379,28 +391,12 @@ def test_g3_full_field_solve_reciprocity(geom):
         )
 
 
-# ── G4 — the non-carrying-cylinder seed contract (m_seed = None) ───────
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize("geom", ["cyl_product", "cyl_ls"])
-def test_g4_cyl_returns_no_seed_cotangent(geom):
-    """The non-carrying cylinder's transpose-solve returns
-    ``radial_characteristic = None`` (``m_seed = None``) — the R12a contract, the
-    mirror of the forward's non-carrying refusal."""
-    sn = _MESHES[geom]()
-    if sn.radial_characteristic_field_space is not None:
-        pytest.fail(f"{geom} unexpectedly carries a starting-direction space")
-    A = _loss(sn)
-    p = _fresh(sn)
-    p.interior.values[:] = np.random.default_rng(1).random(p.interior.values.shape)
-    out = A.solve_transpose(p)
-    if type(out) is not FullField:
-        pytest.fail(f"{geom}: solve_transpose emitted {type(out).__name__}")
-    # B.2d: the R12a mirror is STRUCTURAL — the transposed ψ½ legs cannot
-    # even be BUILT on a non-carrying mesh (the leaf factories raise; pinned
-    # in test_radial_characteristic_carrier), so a silent None pass-through
-    # is unspellable. The live claim here is the clean 2-block run above.
+# (G4 — "the non-carrying cylinder's transpose-solve returns no seed
+# cotangent" — RETIRED at the 6.3 flip: a non-carrying cylinder is no
+# longer CONSTRUCTIBLE, so the state it pinned is unspellable. The
+# structural claim's successor is the admission-refusal gate module;
+# the carrying transpose path is exercised by G1/G2's carrying branches
+# on all four carrying geoms.)
 
 
 # ── G5 — the mandatory-config activation sentinel (Mode-7 pin) ─────────
@@ -418,27 +414,35 @@ def _m0_mm_a_in(sn) -> float:
 
 @pytest.mark.foundation
 def test_g5_mandatory_config_activates_cyl_terms():
-    """``cyl_product`` activates BOTH cylinder-specific transpose terms
-    (degenerate pure-azimuthal ords + a LIVE seed-fold); ``cyl_ls`` NULLS both.
+    """``cyl_degenerate`` activates BOTH cylinder-specific transpose
+    terms (degenerate pure-azimuthal ords + the seed-fold);
+    ``cyl_regular`` NULLS the degenerate term.
 
-    The Mode-7 activation pin: a future quadrature change cannot silently decay
-    the mandatory config into the blind control (the ERR-066 blindness that hid
-    the degenerate-drop in every ``level_symmetric`` row) without reddening
-    here."""
+    The Mode-7 activation pin: a future quadrature change cannot
+    silently decay the mandatory config into the blind control (the
+    ERR-066 blindness that hid the degenerate-drop in every pre-6.3
+    ``level_symmetric`` row) without reddening here.  Since the 6.3
+    flip the seed axis is UNCONDITIONAL — every admitted cylinder rule
+    carries a live seed, the dead-seed control state being unspellable
+    through SNMesh — so the control's discrimination narrows to the
+    degenerate axis, and the seed clause on BOTH rows pins the
+    unconditional activation instead."""
     from orpheus.sn.loss_representation import _OneDimScanWalk
-    sn_p = _cyl_product()
+    sn_p = _cyl_degenerate()
     n_deg_p = _OneDimScanWalk(sn_p)._degenerate_positions()[0].size
     if not (n_deg_p > 0 and _m0_mm_a_in(sn_p) != 0.0):
         pytest.fail(
-            f"cyl_product must activate BOTH terms: degenerate ords={n_deg_p}, "
-            f"seed mm_a_in[m0]={_m0_mm_a_in(sn_p)} (need >0 and ≠0)"
+            f"cyl_degenerate must activate BOTH terms: degenerate "
+            f"ords={n_deg_p}, seed mm_a_in[m0]={_m0_mm_a_in(sn_p)} "
+            f"(need >0 and ≠0)"
         )
-    sn_l = _cyl_ls()
+    sn_l = _cyl_regular()
     n_deg_l = _OneDimScanWalk(sn_l)._degenerate_positions()[0].size
-    if not (n_deg_l == 0 and _m0_mm_a_in(sn_l) == 0.0):
+    if not (n_deg_l == 0 and _m0_mm_a_in(sn_l) != 0.0):
         pytest.fail(
-            f"cyl_ls control must NULL BOTH terms: degenerate ords={n_deg_l}, "
-            f"seed mm_a_in[m0]={_m0_mm_a_in(sn_l)} (need 0 and 0)"
+            f"cyl_regular control must NULL the degenerate term with a "
+            f"LIVE seed: degenerate ords={n_deg_l}, "
+            f"seed mm_a_in[m0]={_m0_mm_a_in(sn_l)} (need 0 and ≠0)"
         )
 
 

@@ -298,7 +298,7 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
     cylinder = SNMesh(
         Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
                coord=CoordSystem.CYLINDRICAL),
-        Quadrature.level_symmetric(sn_order=4), placeholder_materials(),
+        Quadrature.folded_product(n_mu=4, n_phi=8), placeholder_materials(),
     )
     expected = {
         "slab": (slab, {"xmin", "xmax"}),
@@ -412,7 +412,7 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
         coord=CoordSystem.CYLINDRICAL,
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sn = SNMesh(mesh, quad, placeholder_materials())
     # ONE boundary: no inner-face entry at the pole (the bc_left
     # declaration on the mesh is ignored — the axis is the pole

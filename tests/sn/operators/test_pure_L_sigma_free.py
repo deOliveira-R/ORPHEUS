@@ -67,7 +67,7 @@ def _build_sn_mesh(geometry: str, *, n_cells: int = 5, n_ord: int = 4) -> SNMesh
             coord=CoordSystem.CYLINDRICAL,
             bc_left=BC("reflective"), bc_right=BC("reflective"),
         )
-        quad = Quadrature.level_symmetric(sn_order=n_ord)
+        quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     elif geometry == "CART":
         mesh = Mesh1D(
             edges=np.linspace(0.0, 2.0, n_cells + 1),

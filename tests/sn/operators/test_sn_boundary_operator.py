@@ -106,7 +106,7 @@ def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
     # Cylinder's angular redistribution needs a level-structured quadrature;
     # slab / sphere accept the 1-D Gauss–Legendre set.
     quad = (
-        Quadrature.product(n_mu=2, n_phi=4)
+        Quadrature.folded_product(n_mu=2, n_phi=4)
         if geometry == "CYL"
         else Quadrature.gauss_legendre(n_ordinates=4)
     )
