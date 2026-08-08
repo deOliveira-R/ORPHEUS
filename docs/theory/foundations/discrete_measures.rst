@@ -10,7 +10,7 @@ Discrete Measures and Quadrature Composition
    ``.claude/plans/sn_reshape.md``. This stub installs the
    load-bearing equation labels (:eq:`discrete-measure-integrate`,
    :eq:`discrete-measure-pushforward`,
-   :eq:`discrete-measure-quotient`,
+   :eq:`discrete-measure-quotient`, :eq:`folded-level-arc`,
    :eq:`bundle-measure-disintegration`) and the cross-references
    that downstream theory pages and tests rely on.
 
@@ -39,7 +39,11 @@ Key Facts
     <orpheus.numerics.measure.DiscreteMeasure.consolidate>` of the
     collapsed atoms. Refuses unless the measure is *certified*
     :math:`G`-invariant. Mass is preserved — the discriminator
-    against restriction, which drops it.
+    against restriction, which drops it. Sidecar level structure
+    *descends* along a fiberwise quotient by pure selection, and on
+    a mirror fold each polar level becomes a single **arc** whose
+    stored :math:`\eta`-order IS the fiber order in march
+    orientation (:eq:`folded-level-arc`).
   - **Restriction** ``μ.restrict(E)`` — indicator-multiplication
     :math:`\mathbf{1}_E \cdot \mu`; supports half-range SN :term:`sweeps <sweep>`
     and bundle cuts.
@@ -166,6 +170,60 @@ action is **free** — empty singular set :math:`\Sigma = \varnothing`
 uniform :math:`|G| \cdot w`, which is the fold's well-posedness
 condition: a rule is admissible for a fold iff it places no node on
 :math:`\Sigma`.
+
+A quadrature rule often travels with *sidecar structure* — for the
+SN product rules, the per-level metadata
+(:class:`~orpheus.numerics.quadrature.LevelStructure`) the
+cylindrical sweep marches by. That structure **descends along the
+quotient by pure selection** (:meth:`LevelStructure.quotient
+<orpheus.numerics.quadrature.rules_sphere.LevelStructure.quotient>`):
+a quotient never moves a node — every folded atom is an orbit
+representative, a bit-copy of a parent node — so the angular charts
+descend as selections and each level's order descends as a
+*restriction* (a subsequence of a sorted sequence is sorted; the
+sort convention is spelled once, in the producer). The descent is
+defined exactly when the action is **fiberwise**: it may permute a
+level's circle but must not move weight between levels, certified
+per level by mass conservation. A level-merging fold such as the
+:math:`\mu`-mirror :math:`\sigma_z` is refused.
+
+On the :math:`\sigma_y` mirror fold the descent has a sharp
+geometric consequence — **a level becomes an arc**. Each level's
+circle meets the singular set :math:`\Sigma = \{\xi = 0\}` at
+:math:`\omega \in \{0, \pi\}`, and the fold keeps a single arc
+between those points, on which
+
+.. math::
+   :label: folded-level-arc
+
+   \frac{\partial \eta}{\partial \omega}
+   \;=\; -\sin\theta \, \sin\omega \;<\; 0
+   \quad \text{on } \omega \in (0, \pi)
+   \qquad\Longrightarrow\qquad
+   \operatorname{sort}_{\uparrow \eta}
+   \;=\; \operatorname{traverse}_{\downarrow \omega} .
+
+.. (vv-status rationale) folded-level-arc: Verified by the Q5.3
+   foundation gates in ``tests/numerics/test_rules_sphere.py`` —
+   ``test_a_folded_level_is_an_arc_in_march_order`` asserts, per
+   level of four folded configs (staggered 4×8 / 2×4, staggered
+   3×5 with one Σ endpoint on the arc, node-aligned 4×8 with both),
+   strict η-injectivity AND strict ω-descent along the stored
+   order; the selection/restriction mechanics, the fiberwise mass
+   certificate, and both refusal arms are gated alongside. A
+   geometry-of-the-rule invariant, not a physics-equation claim
+   with an L0..L3 ladder slot.
+.. vv-status: folded-level-arc documented
+
+The :math:`\eta`-key — 2-to-1 on a full level, the mechanism behind
+issue #326 — is *injective* on the arc, so the stored
+:math:`\eta`-ascending order becomes a genuine ordering of the
+fiber: the arc traversed in strictly decreasing :math:`\omega`,
+which is the azimuthal march order. One order, seen through two
+charts. The two ordering accessors that the adjudication of #326
+had deliberately kept side by side merged on this theorem — the
+:math:`\omega`-ascending ``fiber()`` accessor retired as the same
+total order in the opposite orientation, with no consumer.
 
 For a fibered space :math:`\pi : \mathcal{X} \to \mathcal{B}`, the
 **disintegration theorem** (Bourbaki 1969, Intégration VI §3) gives

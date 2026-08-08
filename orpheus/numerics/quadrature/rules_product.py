@@ -497,11 +497,13 @@ def spherical_product(
         # round-off manufactured 8 fake distinctions and the sort never
         # saw a tie.
         #
-        # This is the 2-to-1-ness `LevelStructure.fiber` already names
-        # ("ordered by a projection that is 2-to-1 on it") made literal.
-        # With real ties the tie-break must be NAMED rather than left to
-        # the sort algorithm: stable keeps the construction order, i.e.
-        # increasing φ within an η-tie.
+        # This is the 2-to-1-ness the `LevelStructure.level_indices`
+        # warning names ("an ordering of the circle modulo the mirror")
+        # made literal. With real ties the tie-break must be NAMED
+        # rather than left to the sort algorithm: stable keeps the
+        # construction order, i.e. increasing φ within an η-tie. On a
+        # FOLDED level (one arc) the ties are gone and the key is
+        # injective — the T22b theorem the accessor merge rests on.
         level_arr = np.array(level_idx)
         order = np.argsort(mu_x[level_arr], kind="stable")
         level_indices.append(level_arr[order])
@@ -532,13 +534,17 @@ def spherical_product(
         # The fiber coordinate, as an angle in [0, 2π). Recovered from
         # the circle rule's components rather than kept as a second
         # spelling of the grid — the rule's nodes are POINTS, and the
-        # angle is a chart chosen by whoever needs one. `fiber()` needs
-        # one, because it orders by it.
+        # angle is a chart chosen by whoever needs one. The consumers
+        # are the arc gates (ω-monotonicity along a folded level) and
+        # the curvilinear closure re-pose (arc endpoints, Δω) — and
+        # the chart descends to a folded rule by bit-exact SELECTION
+        # (`LevelStructure.quotient`), so it is computed exactly once,
+        # here.
         #
         # `[M]` The round trip is exact where it matters: against the
         # 2π·m/n_φ grid it reproduces bit-identically at n_φ = 4 and 8
         # (0.0), and to 8.9e-16 at n_φ = 12 — with the ORDER, which is
-        # all `fiber()` consumes, preserved at every n_φ tested.
+        # all any consumer reads, preserved at every n_φ tested.
         azimuth=np.tile(
             np.mod(np.arctan2(sin_phi, cos_phi), 2.0 * np.pi), n_mu
         ),

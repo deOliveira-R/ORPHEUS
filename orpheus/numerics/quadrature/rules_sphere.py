@@ -42,7 +42,7 @@ References
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
 import numpy as np
@@ -174,16 +174,32 @@ class LevelStructure:
 
         .. warning::
 
-           That sort key is **2-to-1 on the fiber**. A level is a
-           circle, and :math:`\eta = \sin\theta\cos\varphi` is even in
+           On a **full** rule that sort key is **2-to-1 on the
+           fiber**. A level is a circle, and
+           :math:`\eta = \sin\theta\cos\varphi` is even in
            :math:`\varphi`, so ordering by it is an ordering of the
            circle *modulo the mirror* rather than of the circle.
            `[M]` On one level of ``product(2, 8)``, 8 ordinates give
            only 5 distinct :math:`\eta`, and the resulting order does
            not determine :math:`\operatorname{sign}(\xi)` — that
-           information is not in the key. Use :attr:`azimuth` when the
-           ordering must be a function of the fiber. This is the
-           mechanism behind issue #326.
+           information is not in the key. This is the mechanism
+           behind issue #326.
+
+           On a **folded** rule (:meth:`quotient` of a
+           :math:`\sigma_y` mirror fold) the disease is gone by
+           construction: a level is a single ARC, :math:`\eta` is
+           injective on it, and the stored order IS an ordering of
+           the fiber — the arc traversed in strictly *decreasing*
+           :math:`\omega`, which is the azimuthal march order (T22b:
+           one order seen through two charts; :math:`\eta`-ascending
+           and :math:`\omega`-descending are the same traversal
+           because :math:`\eta = \sin\theta\cos\omega` is strictly
+           decreasing in :math:`\omega` on the surviving arc). The
+           campaign's second accessor ``fiber()`` — an
+           :math:`\omega`-ascending ordering kept while #326 was
+           being adjudicated — retired on this theorem: on the object
+           the sweep will consume, the two orders differ only by
+           orientation, and the stored one is the march.
     level_mu : np.ndarray
         The invariant's value per level — read
         :attr:`polar_invariant` to know *which* invariant.
@@ -212,21 +228,117 @@ class LevelStructure:
     azimuth: np.ndarray
     hemisphere: np.ndarray
 
-    def fiber(self, level: int) -> np.ndarray:
-        """Ordinate indices of ``level``, ordered by the FIBER coordinate.
+    def quotient(
+        self,
+        *,
+        parent: DiscreteMeasure,
+        onto: DiscreteMeasure,
+        mass_rtol: float = 1e-12,
+    ) -> LevelStructure:
+        r"""Descend this structure along a quotient ``parent`` has taken.
 
-        Lexicographic in ``(hemisphere, azimuth)`` — an ordering that is
-        a function of the fiber, unlike :attr:`level_indices`, which is
-        ordered by a projection that is 2-to-1 on it.
+        The folded rule's structure, derived by **selection** — the
+        companion of :meth:`DiscreteMeasure.quotient
+        <orpheus.numerics.measure.DiscreteMeasure.quotient>`, which
+        folds the measure but cannot know about levels. A quotient
+        never moves a node: every atom of the folded measure is an
+        orbit representative, a bit-copy of one of ``parent``'s nodes.
+        So every per-ordinate field descends by pure selection, and the
+        level order descends by **restriction**:
 
-        Kept as a separate accessor rather than replacing the stored
-        order: the stored order is what the cylindrical sweep consumes
-        today, and changing it moves results (issue #326). This gives
-        the correct ordering a name and a home first.
+        * ``level_indices[p]`` — the parent's :math:`\eta`-sorted level,
+          restricted to the surviving representatives. A subsequence of
+          a sorted sequence is sorted, so the sort convention is
+          spelled ONCE (in the producer) and inherited here, never
+          re-derived.
+        * ``azimuth`` / ``hemisphere`` — selections of the parent's
+          charts, bit-identical. Nothing is recomputed, so nothing can
+          drift.
+        * ``n_levels`` / ``level_mu`` / ``polar_invariant`` — unchanged,
+          because the descent is defined exactly when the group action
+          is **fiberwise**: it may permute a level's circle but must
+          not move weight between levels.
+
+        The fiberwise precondition is *certified, not assumed*: a
+        quotient conserves mass level by level iff no orbit crosses a
+        level boundary, so each level's folded mass is checked against
+        its parent mass. A level-merging fold (e.g. the
+        :math:`\mu`-mirror :math:`\sigma_z`, which pairs the
+        :math:`\pm\mu_z` levels) is refused loudly.
+
+        Both measures arrive keyword-only: they share a type, and a
+        positional swap would be silent.
+
+        Parameters
+        ----------
+        parent : DiscreteMeasure
+            The rule this structure describes.
+        onto : DiscreteMeasure
+            The folded rule — ``parent.quotient(G)`` for a fiberwise
+            ``G``.
+        mass_rtol : float, optional
+            Relative tolerance of the per-level mass certificate. The
+            folded weights are the parent's addends re-associated
+            (orbit-stabilizer sums), so the honest gap is a few ULP.
+
+        Returns
+        -------
+        LevelStructure
+            The folded rule's structure. On a mirror fold its levels
+            are single ARCS: the :math:`\eta`-key is injective there,
+            so the stored order — 2-to-1 on a full level — becomes a
+            genuine ordering of the fiber, traversed in the march
+            orientation (see the :attr:`level_indices` warning).
         """
-        members = self.level_indices[level]
-        keys = np.lexsort((self.azimuth[members], self.hemisphere[members]))
-        return members[keys]
+        parent_nodes = np.ascontiguousarray(parent.nodes)
+        parent_index: dict[bytes, int] = {}
+        for i in range(parent.n_points):
+            key = parent_nodes[i].tobytes()
+            if key in parent_index:
+                raise ValueError(
+                    f"structure descent needs distinct parent nodes; "
+                    f"parent atoms {parent_index[key]} and {i} coincide"
+                )
+            parent_index[key] = i
+
+        onto_nodes = np.ascontiguousarray(onto.nodes)
+        old_of_new = np.empty(onto.n_points, dtype=np.intp)
+        for j in range(onto.n_points):
+            match = parent_index.get(onto_nodes[j].tobytes())
+            if match is None:
+                raise ValueError(
+                    f"not a selection of this structure's rule: folded "
+                    f"atom {j} matches no parent node bit-for-bit — a "
+                    f"quotient never moves a node, so `onto` is not a "
+                    f"quotient of `parent`"
+                )
+            old_of_new[j] = match
+        new_of_old = {int(i): j for j, i in enumerate(old_of_new)}
+
+        folded_levels: list[np.ndarray] = []
+        for p, members in enumerate(self.level_indices):
+            survivors = np.array(
+                [new_of_old[int(i)] for i in members if int(i) in new_of_old],
+                dtype=np.intp,
+            )
+            parent_mass = float(parent.weights[members].sum())
+            folded_mass = float(onto.weights[survivors].sum())
+            if not np.isclose(folded_mass, parent_mass, rtol=mass_rtol, atol=0.0):
+                raise ValueError(
+                    f"the quotient does not act on the fiber: level {p} "
+                    f"(invariant value {self.level_mu[p]}) has folded mass "
+                    f"{folded_mass} against parent mass {parent_mass} — an "
+                    f"orbit crossed a level boundary (e.g. a μ-mirror "
+                    f"fold), so the level decomposition does not descend"
+                )
+            folded_levels.append(survivors)
+
+        return replace(
+            self,
+            level_indices=folded_levels,
+            azimuth=self.azimuth[old_of_new],
+            hemisphere=self.hemisphere[old_of_new],
+        )
 
 
 def _even_monomial_conditions(max_degree: int) -> list[tuple[int, int, int]]:

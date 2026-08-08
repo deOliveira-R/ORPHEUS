@@ -19,10 +19,18 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
-from orpheus.numerics.quadrature import lebedev_sphere, level_symmetric_sn
-from orpheus.numerics.quadrature import product_mu_phi
+from orpheus.numerics.quadrature import (
+    NODE_ALIGNED,
+    STAGGERED,
+    Quadrature,
+    gauss_legendre_on_mu,
+    lebedev_sphere,
+    level_symmetric_sn,
+    periodic_trapezoid,
+    product_mu_phi,
+    spherical_product,
+)
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
 
 
@@ -369,15 +377,18 @@ def test_fiber_coordinate_is_injective_on_every_level(
 ) -> None:
     """``(hemisphere, azimuth)`` separates the ordinates of a level.
 
-    This is the property the stored ``level_indices`` order does NOT
-    have: its key ``eta = sin(theta) cos(phi)`` is even in ``phi``,
-    hence 2-to-1 on the fiber. An ordering by a non-injective key is
-    not an ordering of the fiber at all — it is an ordering of the
-    fiber modulo the mirror, which is the mechanism behind #326.
+    On a FULL rule this is the property the stored ``level_indices``
+    key does NOT have: ``eta = sin(theta) cos(phi)`` is even in
+    ``phi``, hence 2-to-1 on the fiber — the mechanism behind #326.
+    Injectivity is a property of the coordinate PAIR, not of any
+    ordering, so the members are enumerated through the stored order
+    (the ``fiber()`` accessor that once enumerated them here retired
+    at Q5.3: on a folded rule the stored key itself became injective,
+    see ``test_a_folded_level_is_an_arc_in_march_order``).
     """
     _, s = build()
     for level in range(s.n_levels):
-        members = s.fiber(level)
+        members = s.level_indices[level]
         pairs = np.stack([s.hemisphere[members], s.azimuth[members]], axis=1)
         assert len(np.unique(pairs, axis=0)) == len(members), (
             f"{label} level {level}: fiber coordinate repeats"
@@ -385,10 +396,9 @@ def test_fiber_coordinate_is_injective_on_every_level(
 
 
 @pytest.mark.foundation
-def test_projection_order_is_2_to_1_where_the_fiber_order_is_not() -> None:
+def test_projection_order_is_2_to_1_where_the_fiber_coordinate_is_not() -> None:
     """The measurement that makes the previous test's point concrete."""
-    _, s = product_mu_phi(n_mu=2, n_phi=8)
-    m, _ = product_mu_phi(n_mu=2, n_phi=8)
+    m, s = product_mu_phi(n_mu=2, n_phi=8)
     members = s.level_indices[0]
     eta = m.nodes[members, 0]
 
@@ -399,8 +409,152 @@ def test_projection_order_is_2_to_1_where_the_fiber_order_is_not() -> None:
     assert len(np.unique(xi_signs)) > 1
 
     # The fiber coordinate keeps all 8 apart.
-    fib = s.fiber(0)
-    assert len(np.unique(s.azimuth[fib])) == len(fib)
+    assert len(np.unique(s.azimuth[members])) == len(members)
+
+
+# ---------------------------------------------------------------------------
+# LevelStructure.quotient — the structure descends along the fold (Q5.3)
+# ---------------------------------------------------------------------------
+
+
+def _folded_pair(n_mu: int, n_phi: int, shift):
+    """A product rule, its σ_y fold, and both structures."""
+    parent, structure = spherical_product(
+        gauss_legendre_on_mu(n_mu), periodic_trapezoid(n_phi, shift=shift)
+    )
+    folded = parent.quotient(SubgroupOfO3.Mirror("y"))
+    descended = structure.quotient(parent=parent, onto=folded)
+    return parent, structure, folded, descended
+
+
+@pytest.mark.foundation
+@pytest.mark.verifies("folded-level-arc")
+@pytest.mark.parametrize(
+    ("label", "n_mu", "n_phi", "shift"),
+    [
+        ("staggered(4,8)", 4, 8, STAGGERED),
+        ("staggered(2,4)", 2, 4, STAGGERED),
+        # odd n_phi staggered: phi = pi survives as a Sigma point with
+        # |Stab| = 2, so the arc CONTAINS its omega = pi endpoint.
+        ("staggered(3,5)", 3, 5, STAGGERED),
+        # T22b's own fixture: NODE_ALIGNED has both Sigma endpoints
+        # (omega in {0, pi}) on every level — the arc is closed.
+        ("node_aligned(4,8)", 4, 8, NODE_ALIGNED),
+    ],
+)
+def test_a_folded_level_is_an_arc_in_march_order(
+    label: str, n_mu: int, n_phi: int, shift
+) -> None:
+    """T22b's measurement, promoted: on a fold the stored order IS the fiber order.
+
+    A σ_y fold keeps one representative per mirror orbit, so a level's
+    circle becomes a single ARC, on which ``eta = sin(theta) cos(omega)``
+    is strictly monotone. Two consequences, asserted per level:
+
+    * the eta key is INJECTIVE — the 2-to-1 disease of the full rule
+      (#326's mechanism) is gone by construction, not by tolerance;
+    * the eta-ascending stored order traverses the arc in strictly
+      DECREASING omega — it is an ordering of the fiber, in the march
+      orientation (omega: pi -> 0).
+
+    The campaign plan spelled this gate ``level_indices[p] == fiber(p)``.
+    That spelling is REFUTED as literal equality: `[M]` on every level
+    of every folded config the two accessors were exact REVERSES —
+    ``fiber()``'s lexsort was the omega-ASCENDING chart, the march is
+    omega-DESCENDING. Same total order, two charts, opposite
+    orientation; the merge keeps the production (march) orientation.
+    """
+    _, _, folded, descended = _folded_pair(n_mu, n_phi, shift)
+    assert descended.n_levels == n_mu
+    for p in range(descended.n_levels):
+        members = descended.level_indices[p]
+        eta = folded.nodes[members, 0]
+        omega = descended.azimuth[members]
+        assert np.all(np.diff(eta) > 0.0), (
+            f"{label} level {p}: eta not strictly increasing — the fold "
+            f"left a 2-to-1 tie"
+        )
+        assert np.all(np.diff(omega) < 0.0), (
+            f"{label} level {p}: the stored order is not the arc in "
+            f"march orientation (omega must strictly decrease)"
+        )
+
+
+@pytest.mark.foundation
+def test_the_structure_descends_by_selection_not_recomputation() -> None:
+    """The mechanical contract: descent selects, it never re-derives.
+
+    A quotient never moves a node, so the descended structure must be
+    reachable by pure index selection from the parent: charts
+    bit-identical to the parent's at the surviving atoms, the level
+    order the parent's eta-order RESTRICTED to survivors, and the
+    level decomposition itself untouched. The independent map here is
+    re-derived from node bits alone — if the implementation ever
+    re-computed a chart (arctan2 round-off) or re-sorted a level, a
+    bit somewhere would move.
+    """
+    parent, structure, folded, descended = _folded_pair(4, 8, STAGGERED)
+
+    lookup = {
+        parent.nodes[i].tobytes(): i for i in range(parent.n_points)
+    }
+    old_of_new = np.array(
+        [lookup[folded.nodes[j].tobytes()] for j in range(folded.n_points)]
+    )
+
+    np.testing.assert_array_equal(
+        descended.azimuth, structure.azimuth[old_of_new]
+    )
+    np.testing.assert_array_equal(
+        descended.hemisphere, structure.hemisphere[old_of_new]
+    )
+    assert descended.n_levels == structure.n_levels
+    np.testing.assert_array_equal(descended.level_mu, structure.level_mu)
+    assert descended.polar_invariant is structure.polar_invariant
+
+    new_of_old = {int(o): j for j, o in enumerate(old_of_new)}
+    for p in range(structure.n_levels):
+        expected = [
+            new_of_old[int(i)]
+            for i in structure.level_indices[p]
+            if int(i) in new_of_old
+        ]
+        np.testing.assert_array_equal(descended.level_indices[p], expected)
+
+    # The restriction partitions the folded rule — nothing dropped,
+    # nothing double-assigned.
+    total = sum(len(descended.level_indices[p]) for p in range(descended.n_levels))
+    assert total == folded.n_points
+
+
+@pytest.mark.foundation
+def test_a_level_merging_quotient_is_refused_by_the_structure() -> None:
+    """σ_z pairs the ±μ_z levels: the measure folds, the structure refuses.
+
+    The product measure IS Mirror("z")-invariant (symmetric GL polar),
+    so ``DiscreteMeasure.quotient`` folds it happily — but that fold
+    moves each level's mass onto its partner, and a level decomposition
+    does not descend along it. The per-level mass certificate is the
+    guard. (The positive arm — a fiberwise σ_y fold must NOT raise —
+    is exercised by every other gate in this section, per the
+    positive+negative guard-testing rule.)
+    """
+    parent, structure = spherical_product(
+        gauss_legendre_on_mu(4), periodic_trapezoid(8, shift=STAGGERED)
+    )
+    folded_z = parent.quotient(SubgroupOfO3.Mirror("z"))
+    with pytest.raises(ValueError, match="does not act on the fiber"):
+        structure.quotient(parent=parent, onto=folded_z)
+
+
+@pytest.mark.foundation
+def test_a_foreign_measure_is_refused_as_not_a_selection() -> None:
+    """A measure whose atoms are not the parent's cannot be a quotient of it."""
+    parent, structure = spherical_product(
+        gauss_legendre_on_mu(4), periodic_trapezoid(8, shift=STAGGERED)
+    )
+    with pytest.raises(ValueError, match="not a selection"):
+        structure.quotient(parent=parent, onto=lebedev_sphere(5))
 
 
 @pytest.mark.foundation
