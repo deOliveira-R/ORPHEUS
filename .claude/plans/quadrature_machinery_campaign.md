@@ -41,27 +41,38 @@
 > | **Q5.6b** | `70b5b6d2` | ⭐⭐ the System-B seed machinery was SPHERE-HARDCODED in 3 places, caught by the wiring's own L0 battery (82 %/158 % flat-equilibrium errors, Mode-12-masked in every two-spelling test): the q̄½ Legendre fold at μ=±1 → the arc's GC1 endpoint synthesis; the \|μ\|=1 march → PATH widths Δr/sinθ_p; the ½ emission → 1/Σw. Sphere byte-identical (243 regression green); **folded cylinders solve at machine L0 incl. scattering** |
 > | **Q5.6c** | `b99fcbc3` | the folded rule's harmonic machinery binds the σ-EVEN sub-basis (`MirrorEvenSphericalHarmonicBasis`, rectangular layout, odd columns zeroed, parity DERIVED by mirror-evaluation); `Quadrature.folded_by` provenance marker; the +6.49 ξ-moment garbage channel bit-closed; even-block Gram == continuum at 1e-15 |
 >
-> **▶ NEXT = #327's open remainder — the μ₁ seed's attribution is
-> VERIFIED against the primary source** (user sequencing 2026-08-08:
-> #327 BEFORE Q5.6's flip). Fork A is LANDED and git-verified at
-> pointer-write (`cf2e8a07` gate / `df33913d` weights / `c3475228`
-> docs — all ancestors of HEAD); the remainder is the CITATION half:
-> the seed `μ₁² = 4/(N(N+2))` (`rules_sphere.py:545`, spelled
-> `1.0 / (sn_order * (sn_order + 2) / 4)`) is attributed to
-> `CarlsonLathrop1965` UNVERIFIED, and the corpus says so at
-> `docs/theory/methods/sn/angular_quadrature.rst:43-50`. ⭐ **The
-> primary source is NOW LOCAL** (existence-checked 2026-08-08):
-> `scratch/literature/(TechReport_1965_LANL_LA-3251-MS)_Carlson-Lathrop_Transport_Theory.pdf`
-> — NO OCR sidecar yet: generate it FIRST
-> (`.venv/bin/python tools/ocr_literature.py`; the sidecar is the
-> search/quote surface, the SCAN is the SSOT for every load-bearing
-> equation). Wanted from the report (the topic file's list): the μ₁
-> table, the published weights + their normalisation, any stated
-> positivity limit — if their frontier exceeds our S12, OUR NODE SEED
-> is what limits the family. The corpus pending-marker resolves either
-> way (verified, or corrected-with-provenance) — it never stays.
+> **▶ NEXT = Q5.6 RESUMES at 6.3 (the flip) — `SNMesh(CYLINDRICAL)`
+> admits exactly the carrying rules.** Existence-checked at
+> pointer-write (2026-08-08): the mesh already READS the march-start
+> facts — `augmented_mesh.py:803` calls
+> `march_start_structure_per_level` as the R12a seed-presence filter
+> (which levels carry ψ½ blocks) — so 6.3's deliverable is NOT that
+> call; it is the ADMISSION refusal (a non-carrying rule on a
+> cylinder mesh REFUSES at construction, off the same two named
+> facts) plus the call-site migration onto `Quadrature.folded_product`
+> (both symbols exercised this session: the fold gate file imports
+> both). The ladder + standing warnings are in the block below and
+> §5's Q5.6 block.
 >
-> **Q5.6 is PARKED IN FLIGHT at 6.3 (the flip)** — its landed legs +
+> **#327 CLOSED @ `414f2cb6`** (the citation half; Fork A was
+> `cf2e8a07`/`df33913d`/`c3475228`): the seed `μ₁² = 4/(N(N+2))` is a
+> **PROJECT CONVENTION** — the source leaves μ₁ FREE (LA-3251-MS
+> printed p. 32, scan-verified; the report is the 1968 Greenspan
+> chapter's report form), the published tables are LA-3186's
+> moment-matched family (S4: `0.3500212` vs ours `0.4082483`, exact
+> contrast — single orbit forces the weights), and the
+> positivity-frontier hypothesis is **CONFIRMED**: theirs positive
+> through n = 22 vs our S12 ⟹ the seed, not the shape, limits the
+> family. Corpus note resolved in place; memo
+> `scratch/issue_327_mu1_provenance.md`; bib + `LathropCarlson1964`;
+> two present-tense-false docstrings fixed with it
+> (`level_symmetric_sn`'s equal-weight paragraph; both "Common
+> values: 4, 8, 16" traps — S16 refuses). The family upgrade
+> (moment-matched μ₁ per order, frontier S22) is **#337** — a NODE
+> change moving every LS consumer; NOT in this campaign's scope
+> unless the user pulls it in.
+>
+> **Q5.6's remaining ladder (was parked at 6.3)** — its landed legs +
 > remaining ladder (6.3 flip: march-start refusal + call-site
 > migration + snapshot re-baselines + LS sites → `folded_product`;
 > 6.4 acceptance: #229 falls + T3 α gate + the absorber retirement +
