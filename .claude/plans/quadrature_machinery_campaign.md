@@ -72,6 +72,34 @@
 > change moving every LS consumer; NOT in this campaign's scope
 > unless the user pulls it in.
 >
+> **THE QUADRATURE-ISSUES INTERLEAVE (user-ruled 2026-08-08, before 6.3): #325 + #326-hygiene + #337 — ALL LANDED.**
+> `bad5223e` #325 remainder (MoC rides the group action; last approximate
+> mirror → index arithmetic; derivations twin repointed; eps-gate
+> family-complete; #326's ords[0] second-tie-break collapsed) ·
+> `e76fd656` #337 step-0 pre-carve captures · `59bb38a0` **the
+> moment-matched seed** (μ₁ = smallest root of ∫μ_z^N exact; degrees
+> N+1 at S4–S10/S14; frontier S12→S18, 50-digit-confirmed; G1–G8 gates
+> + the derived per-order tolerance ladder) · `36f81d8f`/`be8f9dfb`/
+> `027ae222`/`ec5b905e`/`be52e3b8` the five re-baseline families (the
+> standing GL 1-ULP 7th red + the affine-CYL deliberate reds + the T4b
+> pair ABSORBED BY NAME — task #51's known-red set shrinks to the
+> spherical-inward diamond) · `ec076008` the T4 capture script was a
+> STALE TWIN of its gate's arm (missing #282 route-(a)'s block sum) —
+> caught because a re-capture greened every changed arm and reddened
+> the unchanged one · `0e102421` the closing docs (Closes #325, #337).
+> ⭐ The delegated S20/S22 re-evaluation closed BY MEASUREMENT: LA-3186's
+> axis-weight decomposition is derivable-systematic but reaches full 3-D
+> degree 11 at every order ≥14 (ours: 15/15/17); frontiers INTERLEAVE;
+> S22 LP-certified infeasible. Extractions:
+> `scratch/issue_337_la3186_la4058_extraction.md` + the verification
+> plan + `scratch/issue_325_326_remainder_map.md` (the #326 remainder
+> rides 6.4/6.5 as planned). Batteries: 247 gate rows + 4433-test
+> medium slice + the 108-row artifact re-run all green; mutation
+> battery M0/M1/M2 = 52/33/3 reds (the plan's predicted pattern).
+> **▶ NEXT remains Q5.6's 6.3 flip** — unchanged by the interleave;
+> cylinders still admit LS today and the CYL re-baselines are marked
+> re-baseline-now-retire-soon for exactly that step.
+>
 > **Q5.6's remaining ladder (was parked at 6.3)** — its landed legs +
 > remaining ladder (6.3 flip: march-start refusal + call-site
 > migration + snapshot re-baselines + LS sites → `folded_product`;
