@@ -34,15 +34,22 @@
 > | **Q5.1** | `681bc49b` | `DiscreteMeasure.quotient(group)` — the composite named, weights orbit-stabilizer-derived, refusal off the certificate; the "idempotent" gate realized as TWO arms (see the block's landing note) |
 > | **Q5.2** | `e0554df9` | `spherical_product(polar, azimuthal)` — the combinator seam; group DERIVED at construction (3 `preserves` generator checks, refusal names the unrealized family); STAGGERED ⟹ `Σ = ∅` ⟹ the fold composes with NO flag |
 > | **Q5.3** | `65ff5bb0` | `fiber()` RETIRED → `LevelStructure.quotient(parent=, onto=)` — the structure DESCENDS by selection (charts bit-exact, level order = the parent's η-order RESTRICTED to survivors); fiberwise certified by per-level mass; ⛔ the plan's `==` gate spelling REFUTED (the two orders are exact REVERSES — see the block's landing note) |
+> | **Q5.4** | `679cba61` | the R12a predicate re-posed on TWO named integer facts — `MarchStart(on_edge_node, degenerate)`, carrying ⟺ neither; `_SEED_TAU_EPS` + the `(0,1)` interval RETIRED; the τ_raw trichotomy demoted to a bit-exact gated THEOREM; ⛔ T26's 5.6e-16 flip was PRE-E3 (see the block) — post-E3 the trichotomy is bit-exact at every parity; the theory page's "odd count would carry" falsehood corrected in place |
 >
-> **▶ NEXT = Q5.4** (the R12a predicate re-posed on the integer, T26 — decide
-> WHICH of the two conflated facts it wants first: Σ-occupancy vs the double
-> cover). ⚠ Symbols existence-checked at pointer-write (2026-08-07):
-> `morel_montry_tau_raw_per_level` lives at `pole_angular_closure.py:543` and
-> the trichotomy is still float-posed on `τ_raw` (`:991`, `:1007`) — the
-> deliverable is genuinely open. Then Q5.5 (adjudicated, T27) and Q5.6
-> (acceptance). The full ladder with gates is in §5's `Q5.E` and `Q5.2`
-> blocks — read them, not this summary.
+> **▶ NEXT = Q5.5** (the `[½,1]` clamp split per T27, ADJUDICATED — the
+> absorption retires, the `[0,1]` membership promotes to a guard that RAISES;
+> the T27 gate: folded+staggered at the largest n_φ, mechanism `Σ = ∅`
+> computed + consequence `τ_raw ⊂ [1/5, 4/5]` + the reversal identity, one
+> mutation δ=0 reddening both legs). ⚠ Symbols existence-checked at
+> pointer-write (2026-08-07): the clamp lives in `morel_montry_tau_per_level`'s
+> cylinder arm (`pole_angular_closure.py:775-787`, `max(0.5, min(1.0, …))`) —
+> open. ⚠ **Sequencing fact the pickup must design around (§6b):** the
+> absorber's own docstring is TRUE today — production NODE_ALIGNED cylinders
+> have `τ_raw,0 = 0` bit-exact and the recurrence `(ψ−(1−τ)ψ½)/τ` divides by
+> zero unclamped — so the ABSORBER's retirement is call-site-coupled to the
+> fold wiring (Q5.6); the GUARD promotion and the T27 gate can land first.
+> Then Q5.6 (acceptance). The full ladder with gates is in §5's `Q5.E` and
+> `Q5.2` blocks — read them, not this summary.
 >
 > `[M]` **Batteries at the 2026-08-07 checkpoint** (HEAD `43b571a5`, serial
 > `-O`): `tests/numerics` **1998 passed / 0 failed** (5:36); measure suite 65,
@@ -2495,6 +2502,41 @@ implemented and **no `D_6h`-invariant rule in tree**.
   flips. ⚠ Requires first deciding **which** of the two facts R12a actually
   wants — do not port the conflation forward.
 
+  ✅ **LANDED `679cba61` (2026-08-07) — Q5.4 COMPLETE.** The adjudication
+  answered: R12a wants **BOTH facts, as separately-named conjuncts** (T26's
+  own closing line) — `MarchStart(on_edge_node, degenerate)` minted in
+  `pole_angular_closure`, carrying ⟺ neither; the consumer
+  (`radial_characteristic_levels`) reads the facts; `_SEED_TAU_EPS` and the
+  interval retire; the trichotomy (`on_edge_node ⟹ 0`, `degenerate ⟹ 1`,
+  neither ⟹ strict interior) is a bit-exact gated THEOREM with no epsilon.
+  * ⛔ **The step's "5.6e-16 gap" premise was STALE at pickup** — `[M]`
+    post-E3 (roots-of-unity azimuths) the trichotomy is ALREADY bit-exact at
+    every shipped `n_φ` including 5 and 7: T26's `0.9999999999999994` was
+    measured on the pre-E3 `linspace`+cos rule. The fragility half of T26 was
+    cured upstream by E3; what Q5.4 cured is the CONFLATION half + the eps
+    guard + the encoding. The theorem gate now pins the exactness (a
+    `linspace` regression reds it bit-exactly).
+  * ⛔ **A theory-page falsehood found and fixed in passing**: the
+    circle-vs-interval section claimed an odd azimuthal count "would then
+    carry a seed" — that documented the pre-E3 BUG as structure. `[M]` odd
+    `n_φ` is `degenerate` (the mirror pair straddling π shares η bit-exactly),
+    not carrying. Sharp corrected form now on the page: **on a full circle
+    σ_y closes the march at EVERY parity** (node ON the plane at even, tie
+    ACROSS it at odd); **only the folded arc opens a genuine off-node start**.
+  * `[M]` **The fold future pinned before wiring**: folded staggered reads
+    `τ_raw,0 ≈ 0.22` strictly interior on every level — CARRYING (the
+    sphere's structure); folded NODE_ALIGNED starts ON Σ — not carrying.
+    Ten-config classification gate carries
+    `verifies("sn-direct-seed-r12a-predicate")` — the label went from ZERO
+    verifying tests to ten.
+  * `[M]` Teeth: control/swap/drop-degenerate each caught by exactly their
+    designed catchers (the fact-swap leaves the carrier suite GREEN — the
+    consumer reads only the conjunction, which is why the fact-level gates
+    exist); the OLD eps-interval pose restored is measured **BLIND (35/35
+    green)** — extensionally equal on every shipped post-E3 realization, so
+    the step is behavior-neutral by measurement (`tests/sn -m "not slow"`
+    2861 passed / the 6 checkpoint reds, zero new).
+
   **Q5.5 — The `[½,1]` clamp: SPLIT it in two, retire one half, promote the
   other.** ✅ **ADJUDICATED — see T27.** The absorption retires; the `[0,1]`
   membership becomes a guard that RAISES. The accompanying gate is specified in
@@ -2518,7 +2560,8 @@ implemented and **no `D_6h`-invariant rule in tree**.
   **Retirement list** (a numbered deliverable, per `coding-standards.md`):
   `[½,1]` clamp (if Q5.5 rules so) · ~~`LevelStructure.fiber()`~~ ✅ retired at
   Q5.3 `65ff5bb0` ·
-  the τ_raw trichotomy as the R12a predicate (Q5.4) ·
+  ~~the τ_raw trichotomy as the R12a predicate~~ ✅ retired at Q5.4 `679cba61`
+  (the trichotomy survives as a gated theorem; the predicate is `MarchStart`) ·
   `derivations/discrete/sn/contamination.py:45-90` (the `eta_edge` twin, whose
   docstring writes the double cover down as a feature) · `_XFAIL_326` + its three
   rows · `_test_helpers.product_level_ordering` / `PRODUCT_LEVEL_ORDERINGS` (the
