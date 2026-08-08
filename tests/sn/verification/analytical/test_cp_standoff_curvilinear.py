@@ -69,7 +69,7 @@ def test_cross_check_with_cp_1g():
     mix = get_mixture("A", "1g")
 
     mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-    quad = Quadrature.product(n_mu=4, n_phi=8)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     result_sn = solve_sn({0: mix}, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 
@@ -99,7 +99,7 @@ def test_heterogeneous_sn_vs_cp_cross_check():
         outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(20, 20),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = Quadrature.product(n_mu=4, n_phi=8)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     result_sn = solve_sn(materials, mesh_sn, quad,
                          max_inner=500, inner_tol=1e-10)
 

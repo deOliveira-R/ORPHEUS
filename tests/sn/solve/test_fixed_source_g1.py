@@ -95,7 +95,7 @@ def _sphere_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
 
 
 def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
-    """Cylinder with reflective outer BC + LS-4 quadrature."""
+    """Cylinder with reflective outer BC + folded(2,4) quadrature."""
     mesh = Mesh1D(
         edges=np.linspace(0.01, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -103,7 +103,7 @@ def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     return mesh, quad
 
 

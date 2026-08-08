@@ -62,7 +62,7 @@ def _build_cylinder(nx: int, sn_order: int = 4) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = Quadrature.level_symmetric(sn_order=sn_order)
+    quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
     return SNMesh(mesh, quad, placeholder_materials())
 
 

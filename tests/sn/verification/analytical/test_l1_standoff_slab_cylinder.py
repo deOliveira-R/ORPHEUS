@@ -142,7 +142,7 @@ def _cylinder_k_ref() -> float:
 
 def _solve_cyl_via_krylov_unified(nx: int) -> float:
     mesh, materials = _build_cyl_mesh(nx=nx)
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sol = solve_sn(
             materials=materials, mesh=mesh, quadrature=quad,
             inner_solver="krylov",
@@ -154,7 +154,7 @@ def _solve_cyl_via_krylov_unified(nx: int) -> float:
 
 def _solve_cyl_via_sweep(nx: int) -> float:
     mesh, materials = _build_cyl_mesh(nx=nx)
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sol = solve_sn(
         materials=materials, mesh=mesh, quadrature=quad,
         inner_solver="source_iteration",

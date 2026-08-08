@@ -72,10 +72,13 @@ _SPH_VERIFIES = pytest.mark.verifies(
     "sn_slab_2eg_1rg",
     "sn_slab_4eg_1rg",
 ])
+# Two SPLITS of the admitted folded family (Q5.6.3 replaces the pre-flip
+# product-vs-LS pair): 4 levels × 4 angles vs 8 levels × 2 angles drive
+# different level bookkeeping through the full eigenvalue path.
 @pytest.mark.parametrize("quad_factory", [
-    lambda: Quadrature.product(n_mu=4, n_phi=8),
-    lambda: Quadrature.level_symmetric(4),
-], ids=["product", "level_sym"])
+    lambda: Quadrature.folded_product(n_mu=4, n_phi=8),
+    lambda: Quadrature.folded_product(n_mu=8, n_phi=4),
+], ids=["folded_4x8", "folded_8x4"])
 def test_homogeneous_exact(case_name, quad_factory):
     """Cylindrical SN on a homogeneous cylinder with reflective BC must
     match the analytical infinite-medium eigenvalue."""
@@ -94,9 +97,9 @@ def test_homogeneous_exact(case_name, quad_factory):
 @_CYL_VERIFIES
 @pytest.mark.l1
 @pytest.mark.parametrize("quad_factory", [
-    lambda: Quadrature.product(n_mu=4, n_phi=8),
-    lambda: Quadrature.level_symmetric(4),
-], ids=["product", "level_sym"])
+    lambda: Quadrature.folded_product(n_mu=4, n_phi=8),
+    lambda: Quadrature.folded_product(n_mu=8, n_phi=4),
+], ids=["folded_4x8", "folded_8x4"])
 def test_particle_balance(quad_factory):
     """For reflective BCs (no leakage), production / absorption = keff."""
     case = get("sn_slab_2eg_1rg")
@@ -126,7 +129,7 @@ def test_particle_balance(quad_factory):
 def test_flux_non_negative():
     mix = get_mixture("A", "1g")
     mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-    quad = Quadrature.product(n_mu=4, n_phi=8)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
     assert np.all(result.scalar_flux.values >= 0), (
@@ -154,7 +157,7 @@ class TestCylinderMultiGroupMultiRegion:
             outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
             coord=CoordSystem.CYLINDRICAL,
         )
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
@@ -164,15 +167,15 @@ class TestCylinderMultiGroupMultiRegion:
         assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of physical range"
 
     def test_2g_heterogeneous_product_different_resolutions(self):
-        """Product quadrature at two resolutions must give close keff."""
+        """Folded quadrature at two resolutions must give close keff."""
         fuel = get_mixture("A", "2g")
         mod = get_mixture("B", "2g")
         materials = {2: fuel, 0: mod}
 
         keffs = {}
         for label, quad in [
-            ("4×8", Quadrature.product(n_mu=4, n_phi=8)),
-            ("8×8", Quadrature.product(n_mu=8, n_phi=8)),
+            ("4×8", Quadrature.folded_product(n_mu=4, n_phi=8)),
+            ("8×8", Quadrature.folded_product(n_mu=8, n_phi=8)),
         ]:
             mesh = _two_region_mesh(
                 outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
@@ -195,7 +198,7 @@ class TestCylinderMultiGroupMultiRegion:
         """
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -222,7 +225,7 @@ class TestCylinderMultiGroupMultiRegion:
             outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
             coord=CoordSystem.CYLINDRICAL,
         )
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
@@ -252,7 +255,7 @@ class TestCylinderMultiGroupMultiRegion:
             outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
             coord=CoordSystem.CYLINDRICAL,
         )
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, materials)
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -278,7 +281,7 @@ class TestCylinderMultiGroupMultiRegion:
         mix_fuel = get_mixture("A", "1g")
         mix_mod = get_mixture("B", "1g")
         materials = {2: mix_fuel, 0: mix_mod}
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
         keffs = []
         for n_cells in [5, 10, 20]:
@@ -730,7 +733,7 @@ def test_si_krylov_eigenvalue_equivalence_cylinder():
         outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = Quadrature.product(n_mu=4, n_phi=8)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     maxmin = _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad)
     assert maxmin > 1.2, (
         f"cylinder flux too flat (group-0 max/min={maxmin:.3f}); redistribution "
