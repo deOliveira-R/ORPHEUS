@@ -2389,9 +2389,13 @@ from the bulk:
   (ERR-067).  The full M1/M2/M3 distinction is on
   :ref:`the discrete-ordinates page <sn-direct-seed-pole-state-metric>`.
 * **It is present per level by the R12a predicate**
-  (:ref:`sn-direct-seed-r12a`; :math:`\tau_{\rm raw} \in (0,1)`), **not** per
-  geometry — sphere-GL carries one block; every cylinder and every
-  Cartesian mesh carries none.
+  (:ref:`sn-direct-seed-r12a`; the level's march start consumes an
+  independent seed iff it is neither an edge-node start nor
+  η-degenerate — the two ``MarchStart`` facts of Q5.4, which retired
+  the earlier :math:`\tau_{\rm raw} \in (0,1)` float encoding), **not**
+  per geometry — sphere-GL carries one block; a σ_y-folded cylinder
+  rule carries one per level; full-circle and level-symmetric cylinder
+  rules and every Cartesian mesh carry none.
 
 The clean-bulk consequence is the load-bearing architecture.  The bulk
 :math:`V_{\rm bulk}` is what homogenization, condensation, and moment
