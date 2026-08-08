@@ -243,10 +243,28 @@ def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, MultiplicationOperat
 
 def _capture_apply(name: str, sn_mesh: SNMesh, *, seed: int,
                    snapshots: dict[str, np.ndarray]) -> None:
-    """Capture L.apply(ψ) bulk + boundary for one geometry arm."""
+    """Capture the joint σ-free streaming action, bulk + boundary.
+
+    #282 route (a): on a CARRYING mesh (the GL sphere) the action is the
+    BLOCK SUM ``L·ψ + Seeding·ψ½`` with the consistent edge-extrapolated
+    ψ½ seed — exactly the spelling the T4b/T4c gates re-run
+    (``test_streaming_operator.py::_capture_arm``). This function
+    carried the bare ``L.apply`` until 2026-08-08, a stale twin of the
+    test's arm discovered when a #337 re-capture flipped the sphere
+    rows RED while every #337-affected arm went green — the sphere is
+    the one arm the seed term touches and the one arm #337 does not.
+    """
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicSeeding,
+    )
+    from tests.sn._test_helpers import radial_characteristic_edge_seed
+
     L, _ = _build_L_C(sn_mesh)
     state = _make_state(sn_mesh, seed=seed)
+    sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
     out = L.apply(state)
+    if sd is not None:
+        out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
     snapshots[f"{name}_apply_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_apply_boundary"] = out.boundary.values.copy()
     snapshots[f"seed_psi_{name}"] = state.interior.values.copy()
