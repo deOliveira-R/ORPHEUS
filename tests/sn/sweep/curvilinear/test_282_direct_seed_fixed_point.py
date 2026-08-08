@@ -79,7 +79,8 @@ def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
         mat_ids=np.zeros(nx, dtype=int), coord=coord, **kw,
     )
     quad = (
-        Quadrature.level_symmetric(4) if coord is CoordSystem.CYLINDRICAL
+        Quadrature.folded_product(n_mu=4, n_phi=8)
+        if coord is CoordSystem.CYLINDRICAL
         else Quadrature.gauss_legendre(4)
     )
     sn = SNMesh(mesh, quad, {0: _mixture(sigma, 0.4 * sigma, ng=ng)})
@@ -93,10 +94,12 @@ def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
 def _random_source(sn, rng, ng: int = 2):
     r"""A 2-block volumetric source with ZEROED inflow trace + the q½ leaf
     folded from the bulk (the joint rhs legs on a carrying mesh; the q½
-    leaf is ``None`` on slab/cyl — B.2d: the legs are EXPLICIT kwargs)."""
+    leaf is ``None`` on the slab — since Q5.6.3 the folded cylinder
+    CARRIES, so slab is the only seedless geometry here — B.2d: the legs
+    are EXPLICIT kwargs)."""
     N, nx = sn.quad.N, sn.nx
     bvals = rng.standard_normal((N, ng, nx))
-    # source_from_angular returns None on a non-carrying mesh (slab/cyl).
+    # source_from_angular returns None on a non-carrying mesh (slab).
     q_half = RadialCharacteristicField.source_from_angular(bvals, sn)
     b = FullField(
         interior=AngularSourceSink.from_mesh(bvals, sn),
@@ -172,7 +175,11 @@ def test_ci_cold_residual_is_machine_zero(coord):
     FULL augmented field.  The keystone: pre-fix the sphere sat at
     5.18e5 (the ψ½ seed lag made the cold solve a non-inverse); route
     (a) marches the seed directly, so the cold solve is a single-pass
-    exact inverse (slab/cyl were already exact — they must STAY)."""
+    exact inverse.  At the time slab and cyl were seedless-exact (the
+    LS4 cylinder was non-carrying) and had to STAY; since Q5.6.3 the
+    folded cylinder rides the COUPLED branch like the sphere, so its
+    row now exercises the joint grid — including the ψ½ outflow row
+    ERR-078 repaired."""
     sn, A = _operator(coord, nx=4, sigma=0.5)
     rng = np.random.default_rng(282)
     bvals, b, q_half = _random_source(sn, rng)

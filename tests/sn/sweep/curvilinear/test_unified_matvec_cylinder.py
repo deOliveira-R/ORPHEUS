@@ -146,22 +146,24 @@ def _hand_reference_cyl_matvec(
     level_indices = quad.level_indices
 
     # #282 route (a) (#280 Phase 2.5d, 2026-07-04): the seed-strategy zoo
-    # + its per-level context object were retired.  The cylinder
-    # is a NON-carrying mesh (R12a: every production cylinder level has
-    # first-ordinate raw τ₀ ∈ {0, 1}, so ``radial_characteristic_space`` is
-    # None), and the mesh-bound closure's ``precompute_psi_state`` inlines
-    # the 2-point angular-edge-extrapolation seed internally — no context,
-    # no ``radial_characteristic``.  Consume that LIVE per-level half-angle
-    # grid (the SAME state the unified matvec reads via the walk), then
+    # + its per-level context object were retired.  Until Q5.6.3 the
+    # cylinder fixtures here were NON-carrying (LS/full-product rules with
+    # first-ordinate raw τ₀ ∈ {0, 1}), and ``precompute_psi_state`` inlined
+    # the 2-point angular-edge-extrapolation seed internally.  The folded
+    # fixtures are CARRYING, and BOTH comparison legs keep the same seed
+    # convention: ``legacy_proxy_matvec`` fills the walk's ψ½ block with
+    # the closure's edge extrapolation of ``psi_view``
+    # (``radial_characteristic_edge_seed`` — the pre-route-(a) convention),
+    # while this hand reference consumes ``precompute_psi_state``'s LIVE
+    # per-level half-angle grid built from the same ``psi_view``.  Then
     # apply the α·ΔA/w/V redistribution fold explicitly here.
     #
     # The hand reference's structural-independence claim is about the
     # ROUTING/scatter (each ordinate processed in its own scalar pass, no
     # bool-mask scatter into the legacy's misrouting ``ks``), NOT about the
-    # redistribution closure — so consuming the live seed grid is
-    # consistent (it mirrors the pre-#248 design, now driven directly off
-    # ``precompute_psi_state`` instead of the retired
-    # ``redistribution_via_live_path`` helper).
+    # redistribution closure — so sharing the edge-extrapolation seed
+    # convention with the proxy is consistent (independence lives in the
+    # per-ordinate walk, not in the seed the two sides agree to consume).
     closure = sn_mesh.pole_angular_closure
     psi_state = closure.precompute_psi_state(psi_view)
     redist_full = np.zeros((ng, N, nx))
@@ -252,10 +254,13 @@ def _hand_reference_cyl_matvec(
     strict=False,
 )
 @pytest.mark.l0
+# Q5.6.3: the carrying folded family replaces the pre-flip LS4 / LS6 /
+# product(2,4) rows under the standard migration (LS(n) → folded(n, 2n);
+# P(m, p) → folded(m, p) — parent azimuthal counts).
 @pytest.mark.parametrize("quad_factory", [
-    lambda: Quadrature.level_symmetric(sn_order=4),
-    lambda: Quadrature.level_symmetric(sn_order=6),
-    lambda: Quadrature.product(n_mu=2, n_phi=4),
+    lambda: Quadrature.folded_product(n_mu=4, n_phi=8),
+    lambda: Quadrature.folded_product(n_mu=6, n_phi=12),
+    lambda: Quadrature.folded_product(n_mu=2, n_phi=4),
 ])
 @pytest.mark.parametrize("n_cells", [3, 5, 10])
 @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -265,9 +270,10 @@ def test_unified_cylinder_matches_hand_reference(
     """Unified cylindrical matvec matches the per-ordinate hand reference.
 
     Promoted from ``derivations/diagnostics/diag_step3_cyl_unified_vs_hand_battery.py``
-    (numerics-investigator 2026-05-17 closeout). The hand reference is
-    structurally independent of the unified (no bool-mask scatter); both
-    agree at machine precision across LS4 / LS6 / ProductQuadrature ×
+    (numerics-investigator 2026-05-17 closeout, then LS4/LS6/product(2,4)
+    → the folded family at Q5.6.3). The hand reference is structurally
+    independent of the unified (no bool-mask scatter); both agree at
+    machine precision across folded(4,8) / folded(6,12) / folded(2,4) ×
     {3, 5, 10} cells × {0, 1, 2} seeds = 27 cases.
     """
     quad = quad_factory()
@@ -298,7 +304,7 @@ def test_unified_cylinder_matches_hand_reference(
 @pytest.mark.l0
 def test_unified_cylinder_zero_psi_gives_zero() -> None:
     """Linear operator: zero input → zero output."""
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sn_mesh = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx), 2.0)
@@ -313,7 +319,7 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     """At ψ = constant on homogeneous reflective cylinder, unified matvec
     returns σ_t · ψ. Sanity check — flat flux activates only the
     collision term in the per-cell balance."""
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sn_mesh = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t_val = 2.0
@@ -430,7 +436,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     redist closure, no shared boundary recurrence).
     """
     mesh, materials = _build_mr_cylinder_mesh(nx=40)
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
     sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
     ref = solve_greens_function_cylinder_mr(
@@ -490,7 +496,7 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
     sol = solve_sn(
             materials={0: mat},

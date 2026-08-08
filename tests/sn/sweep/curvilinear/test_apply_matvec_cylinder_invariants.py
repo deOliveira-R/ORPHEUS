@@ -62,7 +62,13 @@ from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 @pytest.mark.catches("ERR-048")
 @pytest.mark.parametrize("n_cells", [10, 20, 40])
 @pytest.mark.parametrize("n_mu", [2, 4])
-@pytest.mark.parametrize("n_phi", [2, 4])
+# n_phi is the folded rule's PARENT azimuthal count.  {4, 6} replaces the
+# pre-Q5.6.3 full-product {2, 4}: n_phi=6 ≡ 2 (mod 4) places one BIT-EXACT
+# μ_r = 0 pure-azimuthal ordinate per level (the degenerate class that
+# survives the fold — the redistribution telescoping must hold through
+# it), while an all-tangential folded(n, 2) rule cannot build an SNMesh at
+# all (`build_omega_dot_n` refuses a rule with no genuine μ_x cosine).
+@pytest.mark.parametrize("n_phi", [4, 6])
 def test_cylinder_apply_matvec_preserves_flat_psi(
     n_cells: int, n_mu: int, n_phi: int,
 ) -> None:
@@ -85,7 +91,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
+    quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
@@ -127,7 +133,9 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
 @pytest.mark.catches("ERR-048")
 @pytest.mark.parametrize("n_cells", [10, 20, 40])
 @pytest.mark.parametrize("n_mu", [2, 4])
-@pytest.mark.parametrize("n_phi", [2, 4])
+# Same folded grid as the flat-ψ invariant above (n_phi=6 carries the
+# surviving bit-exact μ_r = 0 degenerate class through both solvers).
+@pytest.mark.parametrize("n_phi", [4, 6])
 def test_cylinder_three_way_standoff(
     n_cells: int, n_mu: int, n_phi: int,
 ) -> None:
@@ -154,7 +162,7 @@ def test_cylinder_three_way_standoff(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
+    quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     N = quad.N
     nx = mesh.N
     ng = 1

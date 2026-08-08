@@ -52,7 +52,7 @@ class TestCylindricalSweepRegression:
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((1, *sn_mesh.spatial_shape), 0.5)  # (ng, *spatial)
@@ -69,7 +69,7 @@ class TestCylindricalSweepRegression:
         """Inner loop must stay bounded for multi-group."""
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
@@ -82,24 +82,18 @@ class TestCylindricalSweepRegression:
             f"Flux blew up to {phi_new.max():.2e}"
         )
 
-    def test_both_quadratures_agree(self):
-        """Product and level-symmetric must give close keff."""
-        mix = get_mixture("A", "1g")
-
-        keffs = {}
-        for label, quad in [
-            ("product", Quadrature.product(n_mu=4, n_phi=8)),
-            ("level_sym", Quadrature.level_symmetric(4)),
-        ]:
-            mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-            result = solve_sn({0: mix}, mesh, quad,
-                              max_inner=500, inner_tol=1e-10)
-            keffs[label] = result.keff
-
-        np.testing.assert_allclose(
-            keffs["product"], keffs["level_sym"], rtol=1e-6,
-            err_msg="Product and level-symmetric quadratures disagree",
-        )
+    # ``test_both_quadratures_agree`` (product(4,8) vs level_symmetric(4)
+    # keff at rtol=1e-6) RETIRED at Q5.6.3: (a) its subject — cross-FAMILY
+    # agreement on a cylinder — is unspellable once SNMesh(CYLINDRICAL)
+    # admits only the carrying folded_product family; (b) `[M]` 2026-08-08
+    # its fixture was Mode-12-degenerate all along: the homogeneous
+    # REFLECTIVE cylinder's keff is the flat k_inf = 1.5 exactly
+    # (quadrature-blind — product(4,8), LS4, folded(4,8), folded(8,4) and
+    # folded(4,16) all measured 1.500000000000), so the 1e-6 agreement
+    # never constrained either family's angular wiring.  The live
+    # cross-checks of the folded cylinder's angular fidelity are the
+    # trajectory_resolvent L1 gate (test_unified_matvec_cylinder) and the
+    # MMS σ_y-parity + azimuthal-floor gates (tests/sn/verification/mms).
 
     def test_requires_level_quadrature(self):
         """Cylindrical SNMesh with GL quadrature must raise ValueError."""
@@ -128,7 +122,7 @@ class TestAzimuthalRedistribution:
         """
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
@@ -145,7 +139,7 @@ class TestAzimuthalRedistribution:
         """
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
         # D-H.1d: Solution.angular_flux is TimedFullField; .interior.values.
@@ -165,7 +159,7 @@ class TestAzimuthalRedistribution:
 
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.full((1, *sn_mesh.spatial_shape), mix.SigT[0])  # (ng, *spatial)
@@ -194,7 +188,7 @@ class TestAzimuthalRedistribution:
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
-        quad = Quadrature.product(n_mu=4, n_phi=8)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)

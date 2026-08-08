@@ -99,8 +99,14 @@ def _seed_mirror(quad: Quadrature) -> np.ndarray:
 
 # Curvilinear-relevant cubatures.  Sphere/slab GL1D is single-level (the
 # intra-level leg is trivial; it still exercises the μ_x sign-flip leg).
-# Level-symmetric and product cubatures are the genuine multi-level cases the
-# cylinder uses — LS4 has 2 levels (16+8), product(4,8) has 4 levels of 8.
+# The FOLDED rows are the family SNMesh(CYLINDRICAL) admits (Q5.6.3 —
+# the production pole seed derives its pairing on these); the
+# level-symmetric and full-product rows stay as QUADRATURE-level
+# multi-level instances of the σ_x-closure contract (these foundation
+# tests never build an SNMesh, and the rules remain constructible —
+# only the cylindrical admission refuses them).  The fold quotients by
+# σ_y, so σ_x-closure survives it by construction; these gates measure
+# that it does.
 _CUBATURES = [
     pytest.param(lambda: Quadrature.gauss_legendre(8), id="gl8"),
     pytest.param(lambda: Quadrature.gauss_legendre(16), id="gl16"),
@@ -108,6 +114,12 @@ _CUBATURES = [
     pytest.param(lambda: Quadrature.level_symmetric(6), id="ls6"),
     pytest.param(lambda: Quadrature.product(n_mu=4, n_phi=8), id="product_4x8"),
     pytest.param(lambda: Quadrature.product(n_mu=8, n_phi=8), id="product_8x8"),
+    pytest.param(
+        lambda: Quadrature.folded_product(n_mu=4, n_phi=8), id="folded_4x8",
+    ),
+    pytest.param(
+        lambda: Quadrature.folded_product(n_mu=8, n_phi=8), id="folded_8x8",
+    ),
 ]
 
 

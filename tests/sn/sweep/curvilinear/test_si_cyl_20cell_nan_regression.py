@@ -8,9 +8,22 @@ cylindrical pole cell ``A_down = 0`` (the inner radial face at r=0
 has zero area); this makes ``a = 2|μ|·A_total / (dA_w·c_out + Σ_t·V)
 − 1`` vanish at every (μ, dr, Σ_t) triple that satisfies the
 algebraic identity ``2|μ|·A_total = dA_w·c_out + Σ_t·V``.  At the
-canonical resonance point (μ_x = 1/√20, dr = 0.1, Σ_t = 1.0 of
-mixture A group 1) ``a`` is bit-EXACTLY zero, and the cumprod
-collapses for the whole tail of the chain.
+then-canonical resonance point (μ_x = 1/√20 — an LS8 node of the
+pre-#337 project-convention seed, since retired: no shipped rule
+carries that node today; dr = 0.1, Σ_t = 1.0 of mixture A group 1)
+``a`` was bit-EXACTLY zero, and the cumprod collapsed for the whole
+tail of the chain.
+
+REACHABILITY TODAY (Q5.6.3, measured 2026-08-08): on the folded
+family ``SNMesh(CYLINDRICAL)`` admits, the pole-cell resonance is
+UNREACHABLE at physical cross sections — the per-ordinate resonant
+``Σ_t*`` solves ≤ 0 for every inward ordinate at every probed
+(order, mesh).  The reachability tripwire lives in
+``tests/sn/sweep/core/test_ordinate_scan_reset.py`` (it reds if the
+6.4 absorber retirement changes ``c_out`` enough to bring the
+resonance back); the ``a ∋ 0`` scan-form contract itself stays
+pinned QUADRATURE-FREE by the last test in this file.  The solver
+tests here keep their finite/k_inf pins on the admitted family.
 
 CLOSED-FORM v EXPLICIT LOOP.  The explicit recurrence
 ``ψ[i+1] = a·ψ[i] + b[i]`` is well-defined at a=0; it gives ``ψ = b``
@@ -68,7 +81,12 @@ pytestmark = [pytest.mark.regression, pytest.mark.foundation]
 
 @pytest.fixture
 def homog_cyl_2g_thick2_n20():
-    """The exact failing configuration from the bug report."""
+    """The bug report's spatial configuration (2 cm, 20 cells, mixture A
+    2g, reflective).  The quadrature was LS8 in the report and rode the
+    Q5.6.3 migration onto the admitted folded family; the resonance
+    node itself was an artifact of the retired pre-#337 LS8 seed (see
+    the module docstring), so the pins here are finite-ness and k_inf,
+    not resonance-landing."""
     fuel = get_mixture('A', '2g')
     geom = StructuredGeometry(
         geometry='CYL',
@@ -78,16 +96,17 @@ def homog_cyl_2g_thick2_n20():
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=20),),
     )
-    quad = Quadrature.level_symmetric(sn_order=8)
+    quad = Quadrature.folded_product(n_mu=8, n_phi=16)
     return fuel, mesh, quad
 
 
 def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
-    """SI must return a finite k_eff at the resonance configuration.
+    """SI must return a finite k_eff at the bug report's configuration.
 
-    Pre-fix (current state): this test FAILS with keff=NaN — pinning
-    the bug class.  Post-fix (when ``ordinate_scan`` no longer divides
-    by cumprod_a): this test passes with k_eff = k_inf = 1.875.
+    Pre-fix this test FAILED with keff=NaN — pinning the bug class.
+    Post-fix (the division-free pair-monoid backend, dispatched when
+    the closed form is non-finite) it passes with k_eff = k_inf =
+    1.875.
     """
     fuel, mesh, quad = homog_cyl_2g_thick2_n20
     # NaN appears in the FIRST inner iteration — small caps suffice.
@@ -114,8 +133,9 @@ def test_si_agrees_with_kinf_at_resonance(homog_cyl_2g_thick2_n20):
     Post-fix: this test passes within the eigenvalue tolerance.
     """
     fuel, mesh, quad = homog_cyl_2g_thick2_n20
-    # Post-fix this test pins SI ↔ k_inf convergence at the resonance
-    # point.  Pre-fix it FAILS with NaN before convergence is checked.
+    # Post-fix this test pins SI ↔ k_inf convergence on the bug
+    # report's spatial configuration.  Pre-fix it FAILED with NaN
+    # before convergence was checked.
     res = solve_sn(
         materials={0: fuel}, mesh=mesh, quadrature=quad,
         inner_solver='source_iteration',

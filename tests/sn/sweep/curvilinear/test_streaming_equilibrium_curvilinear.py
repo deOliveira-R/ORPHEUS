@@ -207,16 +207,17 @@ def test_homogeneous_streaming_equilibrium_cylinder(
 ) -> None:
     r"""Homogeneous reflective cylinder → analytical streaming equilibrium.
 
-    Cylindrical analog of the spherical test above.  Uses a
-    Product quadrature (GL radial × GL azimuthal) — the canonical
-    1-D cylindrical SN configuration with the M-M per-level azimuthal
-    redistribution sweep.
+    Cylindrical analog of the spherical test above.  Uses the folded
+    product quadrature (GL polar levels × the σ_y-quotiented staggered
+    azimuthal arc) — the carrying family SNMesh(CYLINDRICAL) admits,
+    with the M-M per-level azimuthal redistribution sweep marching the
+    ψ½ system directly (Q5.6.3).
 
     Both inner solvers must converge to ψ_n = φ/Σw at every cell.
-    Coverage: n_mu ∈ {4, 8} polar × n_phi = 4 azimuth (16 / 32 ordinates)
-    × 3 mesh sizes × 2 inner solvers = 12 cases.  Larger ordinate counts
-    add minutes per Krylov solve and provide no additional information
-    against the analytical limit.
+    Coverage: n_mu ∈ {4, 8} polar × parent n_phi = 4 azimuth (8 / 16
+    folded ordinates) × 3 mesh sizes × 2 inner solvers = 12 cases.
+    Larger ordinate counts add minutes per Krylov solve and provide no
+    additional information against the analytical limit.
     """
     fuel = get_mixture("B", "1g")
     geom = StructuredGeometry(
@@ -227,7 +228,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
-    quad = Quadrature.product(n_mu=n_mu, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=n_mu, n_phi=4)
     N = quad.N
     nx = mesh.N
     ng = 1
