@@ -74,11 +74,11 @@ def _sphere() -> SNMesh:
     return _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
 
 
-def _cyl_product() -> SNMesh:
-    return _mesh_1d(CoordSystem.CYLINDRICAL, Quadrature.product(n_mu=2, n_phi=4))
-
-
 def _slab() -> SNMesh:
+    # Since Q5.6.3 the slab is the only admitted non-carrying 1-D geometry
+    # (the file's former `_cyl_product` non-carrying fixture became
+    # unconstructible at the admission flip; its refusal is gated in
+    # ``test_cylindrical_quadrature_admission.py``).
     return _mesh_1d(CoordSystem.CARTESIAN, Quadrature.gauss_legendre(4))
 
 
@@ -122,7 +122,7 @@ class TestSplitLeafConstruction:
         # the (0,-1) cells block is the first (ng*nx) of the flat buffer
         np.testing.assert_array_equal(f.values[: _NG * _NX], np.full(_NG * _NX, 7.0))
 
-    @pytest.mark.parametrize("mesh_fn", [_cyl_product, _slab])
+    @pytest.mark.parametrize("mesh_fn", [_slab])
     @pytest.mark.parametrize(
         "cls",
         [

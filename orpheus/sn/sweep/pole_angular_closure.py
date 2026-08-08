@@ -653,6 +653,78 @@ def march_start_structure_per_level(
     )
 
 
+def non_carrying_levels(starts: tuple[MarchStart, ...]) -> tuple[int, ...]:
+    r"""The level POSITIONS whose march start does not consume an
+    independent seed.
+
+    Returns the offenders — positions, not a bool (vv anti-#14: return
+    the structure the docstring names) — so the caller reports WHICH
+    level and WHY (R12a).  An empty tuple means every level is carrying.
+    The MIXED case (some levels carrying, some not) is unreachable
+    through every shipped factory but is first-class here: each level
+    is judged on its own :class:`MarchStart` facts.
+    """
+    return tuple(
+        p for p, s in enumerate(starts) if not s.consumes_independent_seed
+    )
+
+
+def assert_carrying_quadrature(quad: Any, coord: CoordSystem) -> None:
+    r"""Raise unless EVERY mu-level of ``quad`` is carrying on ``coord``.
+
+    The cylindrical ``SNMesh`` admission (Q5.6 step 6.3): the
+    Morel--Montry azimuthal march is posed with an independent
+    :math:`\psi_{1/2}` seed per level (route (a) — the
+    :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
+    march from the true :math:`q_{1/2}` source), so a rule whose march
+    start is itself an ordinate, or whose seed thread weight vanishes,
+    has no honest seed state to march and is refused at construction
+    rather than silently mis-seeded.
+
+    Admission is decided by STRUCTURE, not provenance: the facts come
+    from :func:`march_start_structure_per_level` — the same producer
+    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`
+    reads — so a hand-built rule with carrying march starts is admitted
+    with no ``folded_by`` tag, and a tagged quotient with a node on the
+    mirror is refused.
+
+    Raises
+    ------
+    ValueError
+        Naming the FIRST offending level position and exactly the
+        facts that are true on it.  The message deliberately does NOT
+        contain the substring ``level structure`` — that fragment
+        belongs to the earlier structure-less guard in
+        :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`,
+        which keeps ownership of slab/sphere cubatures.
+    """
+    starts = march_start_structure_per_level(quad, coord)
+    offenders = non_carrying_levels(starts)
+    if not offenders:
+        return
+    p = offenders[0]
+    reasons = []
+    if starts[p].on_edge_node:
+        reasons.append(
+            "starts on an ordinate (xi = 0 at the most-inward node, so "
+            "the seed slot is a rank-duplicate of psi_0)"
+        )
+    if starts[p].degenerate:
+        reasons.append(
+            "has a shared eta-minimum (eta_0 == eta_1 bit-exactly, so "
+            "the (1 - tau_0) thread weight vanishes and the seed is dead)"
+        )
+    raise ValueError(
+        f"A cylindrical SNMesh admits only a quadrature whose every "
+        f"mu-level is CARRYING (the R12a march-start predicate): level "
+        f"{p} is non-carrying - it {' AND '.join(reasons)}. Use "
+        f"Quadrature.folded_product(n_mu, n_phi) (the sigma_y quotient "
+        f"of the staggered product) or any rule with the same "
+        f"march-start structure. This rule HAS the required per-level "
+        f"partitioning; the levels themselves are the problem."
+    )
+
+
 def _assert_tau_within_unit_interval(
     raw_levels: tuple[np.ndarray, ...],
 ) -> None:

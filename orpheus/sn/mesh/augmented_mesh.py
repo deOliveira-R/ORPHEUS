@@ -60,6 +60,7 @@ from ..sweep.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
+    assert_carrying_quadrature,
     default_angular_closure_class,
     march_start_structure_per_level,
 )
@@ -324,6 +325,17 @@ class SNMesh(MaterialMesh):
             case CoordSystem.CYLINDRICAL:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = cylindrical_streaming(mesh, quadrature)
+                # Q5.6 step 6.3 — cylindrical quadrature ADMISSION: every
+                # mu-level must be CARRYING (the R12a march-start
+                # predicate), so the psi-half seed is honest independent
+                # state marched by route (a).  Deliberately AFTER
+                # ``cylindrical_streaming``: its structure-less guard
+                # ("level structure") keeps ownership of slab/sphere
+                # cubatures with the more specific message; this guard
+                # refuses rules that HAVE levels but whose levels cannot
+                # carry (node-aligned products, unfolded staggered
+                # products, level-symmetric rules).
+                assert_carrying_quadrature(quadrature, self.coord)
                 self.curvature: str | None = "cylindrical"
                 # Cartesian-style per-axis streaming arrays not used here
                 # (curvilinear streaming lives in reduced.streaming_terms).
@@ -786,6 +798,13 @@ class SNMesh(MaterialMesh):
         the carrying instance (one level, the whole quadrature);
         Cartesian never carries. A σ_y-FOLDED product rule carries on
         every level — the arc's start is genuinely off-node (T22b).
+        Since Q5.6.3 the cylindrical ADMISSION
+        (:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`
+        in ``_init_core``) refuses any cylinder rule with a
+        non-carrying level, so on a constructed cylindrical SNMesh
+        this property is always the FULL level range; the non-carrying
+        cylinder families above are the refusal battery's negatives,
+        never live meshes.
 
         R12a refines the R12 letter ("μ_start ∉ the level's μ-nodes"),
         which conflated the two facts: the letter fires on

@@ -203,22 +203,27 @@ def test_x_reflection_is_an_involution(quad_factory):
 
 
 @pytest.mark.foundation
-def test_a_rule_without_the_x_mirror_refuses_before_any_march():
-    r"""A σ_x-unclosed rule refuses the curvilinear sweep LOUDLY, with the
-    pairing's own diagnosis — the pole seed never runs on a wrong partner.
+def test_a_sigma_x_unclosed_rule_refuses_through_the_public_funnel():
+    r"""A σ_x-unclosed rule refuses LOUDLY through the public ``solve_sn``
+    funnel — end-to-end, before any march.
 
     ``product(4, 5)`` (odd :math:`n_\varphi`) has no x-mirror closure — the
     ERR-074 fixture: its pre-certification partner table was wrong by 0.58
-    in the direction cosines *and still involutive*.  Until G6.3 §7d the
-    only barrier here was the retired ``reflection_index`` table's generic
-    lookup ``ValueError``, raised MID-ITERATION; since 7d.2 the seed derives
-    its pairing at first use (``_ensure_pole_mirror``) and refuses with the
-    coupled-pole continuation's own message, before any march.
+    in the direction cosines *and still involutive*.  Until Q5.6.3 the
+    refusal was the coupled-pole seed's own (``_ensure_pole_mirror``,
+    "cannot seed the r = 0 pole", derived at first use — G6.3 §7d.2);
+    since the admission flip this rule refuses EARLIER, at SNMesh
+    construction: its odd-n_φ NODE_ALIGNED levels start on an ordinate
+    (the R12a facts), and every σ_x-unclosed SHIPPED family is also
+    non-carrying, so admission subsumes the pairing refusal for every
+    constructible input — the seed's own guard stays behind it as
+    defense-in-depth.  This row keeps the END-TO-END claim: the public
+    funnel refuses with the admission diagnosis, never a mid-iteration
+    crash.
 
-    Pinned on the message FRAGMENT, not the exception type: this is the
-    re-point of the retired ``"no precomputed reflection partner"`` pin, and
-    ``BoundaryError ⊂ ValueError`` taught the campaign that a type-only
-    refusal pin stays green across the wrong refusal.
+    Pinned on the message FRAGMENT, not the exception type (the
+    ``BoundaryError ⊂ ValueError`` lesson: a type-only refusal pin stays
+    green across the wrong refusal).
     """
     nx = 4
     mesh = Mesh1D(
@@ -230,7 +235,7 @@ def test_a_rule_without_the_x_mirror_refuses_before_any_march():
     )
     quad = Quadrature.product(n_mu=4, n_phi=5)
     Q = np.full((quad.N, 1, nx), 1.0)
-    with pytest.raises(ValueError, match="cannot seed the r = 0 pole"):
+    with pytest.raises(ValueError, match="non-carrying"):
         solve_sn_fixed_source(
             {0: _make_1g_mixture(1.0, 0.5)}, mesh, quad, Q,
             max_inner=2, inner_tol=1e-13,

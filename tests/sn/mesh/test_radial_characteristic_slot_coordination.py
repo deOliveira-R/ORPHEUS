@@ -35,10 +35,10 @@ quadrature ever carries >1 level, this reddens — the trigger to re-examine")
 FIRED exactly as designed: the folded cylinder (``Quadrature.folded_product``)
 carries EVERY μ-level, so the multi-level case is now the admitted cylinder
 NORM, not a hypothetical. The battery below therefore splits by family:
-sphere → single slot ``(0,)``; folded cylinder → all level positions; the
-full-product / LS rows keep their dead-carrier ``()`` claim until the
-admission flip refuses them at construction (their rows then become the
-refusal battery's negatives). The multi-level coordination itself is verified
+sphere → single slot ``(0,)``; folded cylinder → all level positions.  The
+full-product / LS families REFUSE at construction since the flip landed —
+their negatives live in ``test_cylindrical_quadrature_admission.py``.
+The multi-level coordination itself is verified
 DIRECTLY (distinct per-(p_idx, sign) markers — chosen asymmetric across
 levels, because folded per-level data are bit-palindromic under the ξ-mirror
 and a p ↔ mirror(p) slot swap would be invisible to symmetric markers).
@@ -112,21 +112,13 @@ _CYL_FOLDED = [("cyl_folded_%dx%d" % (m, p), CoordSystem.CYLINDRICAL,
                 Quadrature.folded_product(n_mu=m, n_phi=p),
                 lambda sn: tuple(range(len(sn.quad.level_indices))))
                for m, p in ((2, 4), (4, 8), (4, 6), (6, 12))]
-# Pre-flip dead-seed families: every level's τ_raw,0 ∈ {0, 1} ⟹ carrier
-# ().  These rows INVERT into the admission-refusal battery's negatives
-# at the flip commit (SNMesh then refuses them at construction).
-_CYL_PRODUCT = [("cyl_product_%dx%d" % (m, p), CoordSystem.CYLINDRICAL,
-                 Quadrature.product(n_mu=m, n_phi=p), lambda sn: ())
-                for m in (2, 4, 6) for p in (4, 8)]
-# S18 is the TOP of the level-symmetric family's defined range, not an
-# arbitrary cap: the per-O_h-orbit solve (#327) on the moment-matched
-# nodes (#337) has no POSITIVE solution above S18 (`[M]` -2.191e-4 at
-# S20, 50-digit-confirmed), so the builder refuses there. The battery
-# wants "the largest available order", which moved 12 -> 18 at #337.
-_CYL_LS = [("cyl_LS_S%d" % s, CoordSystem.CYLINDRICAL,
-            Quadrature.level_symmetric(s), lambda sn: ())
-           for s in (2, 4, 8, 18)]
-_ALL = _SPHERES + _CYL_FOLDED + _CYL_PRODUCT + _CYL_LS
+# The pre-flip dead-seed families (full products, level-symmetric) held
+# ``()`` rows here until the Q5.6.3 admission flip made their SNMesh
+# construction REFUSE outright — their negatives now live one tier up,
+# in ``test_cylindrical_quadrature_admission.py`` (single source: the
+# refusal module owns "which rules are refused and why"; this battery
+# owns "what an ADMITTED mesh's carrier looks like").
+_ALL = _SPHERES + _CYL_FOLDED
 
 
 @pytest.mark.parametrize(

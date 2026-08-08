@@ -87,7 +87,7 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
-    """Cylindrical Mesh1D + Level-Symmetric SN-4 quadrature.
+    """Cylindrical Mesh1D + folded(4,8) quadrature (LS4 until Q5.6.3).
 
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
     """
@@ -98,7 +98,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 

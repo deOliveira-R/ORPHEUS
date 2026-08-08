@@ -4141,29 +4141,28 @@ class _OneDimScanWalk:
             # the closure is parsed to the M-M type loudly — a different
             # curvilinear closure would need its own scan choreography.
             #
-            # Per-level seed dispatch — the iterate plays NO role in EITHER
-            # arm: the curvilinear (L+C).solve is a direct inverse for every
-            # geometry (#282 route (a) for the sphere, #280 2.5b for the
-            # cylinder).
+            # Per-level seed dispatch — the iterate plays NO role: every
+            # ADMITTED curvilinear level is CARRYING (R12a; the Q5.6.3
+            # cylindrical admission refuses non-carrying rules at SNMesh
+            # construction), and the ψ½ legs are solved DIRECTLY, up
+            # front (before the level loop), by System B's NAMED
+            # resolvent ``A_BB.solve`` — the Hébert (3.434)-(3.435) DD
+            # march on the TRUE q½ source, inward from the seeded inflow
+            # corner, pole-continued, outward to the outflow corner
+            # (4e-e2: the walk routes THROUGH
+            # ``RadialCharacteristicOperator``) — and the marched inward
+            # cells ARE the recurrence seed.  So the curvilinear
+            # (L+C).solve is a direct inverse for every geometry: the
+            # sphere via #282 route (a), the folded cylinder via the
+            # same route on its multi-level carrier.
             #
-            # * CARRYING level (R12a — the sphere): the ψ½ legs are
-            #   solved DIRECTLY, up front (before the level loop), by
-            #   System B's NAMED resolvent ``A_BB.solve`` — the Hébert
-            #   (3.434)-(3.435) DD march on the TRUE q½ source, inward
-            #   from the seeded inflow corner, pole-continued, outward
-            #   to the outflow corner (4e-e2: the walk routes THROUGH
-            #   ``RadialCharacteristicOperator``) — and the marched
-            #   inward cells ARE the recurrence seed (the #282 seed
-            #   LAG is dead).
-            # * NON-carrying level (every production cylinder): the seed
-            #   ψ½ ≡ ψ̄_{m0} (product, t = 0, #229 — the first-swept
-            #   ordinate's own average) is a per-ordinate SELF-reference,
-            #   so its self-coupling (ΔA/w)·c_in folds into m0's cell
-            #   diagonal (``c_out → c_out − c_in``, the #280 2.5b
-            #   direct-seed fold precomputed as ``seed_fold`` below).  No
-            #   iterate read: the level solves single-pass exact.  Level-
-            #   symmetric rules have c_in = 0 (dead seed) so the fold is an
-            #   exact no-op there.
+            # HISTORY: until Q5.6.3, non-carrying NODE_ALIGNED-product
+            # cylinders were admitted and their t = 0 self-referential
+            # seed (ψ½ ≡ ψ̄_{m0}) was handled by the #280 2.5b
+            # "direct-seed fold" (c_out → c_out − c_in on the m0
+            # diagonal).  The admission flip made that configuration
+            # unconstructible, and the fold was RETIRED with its family
+            # (Q5.6.3 leg 5, user ruling on gate_design §6 Q3).
             from ..sweep.pole_angular_closure import MorelMontryAngularSweep
 
             closure = self.mesh.pole_angular_closure
@@ -4173,59 +4172,6 @@ class _OneDimScanWalk:
                     "Morel-Montry closure (its Carlson coupled-pole seed "
                     f"thread); got {type(closure).__name__}."
                 )
-            # ── #280 2.5b — the direct-seed fold (retires the iterate lag) ──
-            # A NON-carrying level's Morel–Montry starting direction ψ½ is not
-            # independent state: for a product quadrature ψ½ ≡ ψ̄_{m0} (t = 0,
-            # #229 — the first-swept ordinate's OWN cell average), so the seed
-            # is a per-ordinate self-reference.  Its self-coupling (ΔA/w)·c_in
-            # folds into m0's cell diagonal (c_out → c_out − c_in), exactly as
-            # self-scatter folds, and the level then solves in ONE cold pass —
-            # the cylinder analogue of the sphere's route-(a) starting-direction
-            # solve.  The iterate is NO LONGER read: with the sphere on route (a)
-            # and the cylinder on this fold, the curvilinear (L+C).solve is a
-            # TRUE direct inverse for every geometry.
-            #
-            # R12a trichotomy makes the fold total on non-carrying levels:
-            # PRODUCT rules give t = 0 (ψ½ ≡ ψ̄_{m0}, c_in live) and LEVEL-
-            # SYMMETRIC rules give c_in = 0 (dead seed — the fold is an exact
-            # no-op).  A non-carrying level with t ≠ 0 AND live c_in is outside
-            # the trichotomy (its two-point stencil couples m0 to m1); we refuse
-            # it loudly rather than fold a stencil we have not derived.
-            seed_fold: "dict[int, tuple[np.ndarray, np.ndarray]]" = {}
-            if not is_sphere:
-                fold_globals: list[int] = []
-                for p_fold, _level in enumerate(levels):
-                    if p_fold in seed_levels:
-                        continue                      # a carrying level — route (a)
-                    m0_local, _m1, t = closure._edge_seed_stencil(p_fold)
-                    m0_global = int(np.asarray(quad.level_indices[p_fold])[m0_local])
-                    if abs(t) > 1e-14 and geom.c_in[m0_global] != 0.0:
-                        raise NotImplementedError(
-                            "_OneDimScanWalk direct-seed fold: a non-carrying "
-                            f"level (p={p_fold}) has a LIVE two-point edge "
-                            f"stencil (t={t:.3e}, c_in={geom.c_in[m0_global]:.3e})"
-                            " — outside the R12a trichotomy (product t=0 / dead "
-                            "level-symmetric); the m0↔m1 seed fold is not derived."
-                        )
-                    fold_globals.append(m0_global)
-                if fold_globals:
-                    fi = np.asarray(fold_globals)
-                    # ONE call through the single-source DD coefficient formula
-                    # (Pattern 2) with the folded diagonal c_out − c_in.
-                    a_fold, inv_fold, _w_fold = self.mesh.scheme.affine_scan_coefficients(
-                        abs_mu=geom.abs_mu[fi],
-                        A_down=geom.A_down[fi],
-                        A_total=geom.A_total[fi],
-                        dA_w=geom.dA_w[fi],
-                        c_out=geom.c_out[fi] - geom.c_in[fi],
-                        V=geom.V[fi],
-                        reaction_xs=sigma_t_gx[:, geom.chain_idx[fi]].transpose(1, 0, 2),
-                    )
-                    seed_fold = {
-                        g: (a_fold[k], inv_fold[k])
-                        for k, g in enumerate(fold_globals)
-                    }
-
             # Carlson coupled-pole spatial seed (ERR-058, Issue #195): each
             # inward (μ<0) ordinate's pole-face outflow is captured here and
             # consumed as the spatial seed of its MIRROR outward (μ>0)
@@ -4313,25 +4259,13 @@ class _OneDimScanWalk:
                     # Non-degenerate fast path: per-ordinate scan (ng, nx).
                     # psi_angle on (ng, nx); chain reorders the nx axis.
                     psi_a_in_chain = psi_angle[:, chain].copy()      # (ng, nx)
-                    seed_coeffs = seed_fold.get(global_n)
-                    is_seed_ord = seed_coeffs is not None
-                    if is_seed_ord:
-                        # #280 2.5b direct seed: ψ½ ≡ ψ̄_{m0}.  The self-coupling
-                        # is folded into the cell diagonal (c_out − c_in), so
-                        # there is NO angular-upstream source and the coeffs are
-                        # the folded pair.  ``psi_a_in_chain`` (the zeroed thread
-                        # buffer) is unused here — m0's own average is the M-M
-                        # angular upstream (below).
-                        a_atten_p, inv_denom_p = seed_coeffs         # (ng, nx) each
-                        ang_contrib: "float | np.ndarray" = 0.0
-                    else:
-                        ang_contrib = (
-                            geom.dA_w[global_n] * geom.c_in[global_n]
-                        )[None, :] * psi_a_in_chain                   # (ng, nx)
-                        # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
-                        # Indexed slice [global_n] yields (ng, nx) — no transpose.
-                        inv_denom_p = coll.inverse_denom[global_n]   # (ng, nx)
-                        a_atten_p = coll.a_attenuation[global_n]     # (ng, nx)
+                    ang_contrib = (
+                        geom.dA_w[global_n] * geom.c_in[global_n]
+                    )[None, :] * psi_a_in_chain                       # (ng, nx)
+                    # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
+                    # Indexed slice [global_n] yields (ng, nx) — no transpose.
+                    inv_denom_p = coll.inverse_denom[global_n]       # (ng, nx)
+                    a_atten_p = coll.a_attenuation[global_n]         # (ng, nx)
                     w_p = coll.face_blend_weight[global_n]           # (ng, nx)
                     # Affine source emission b = (QV + angular)·inverse_denom/w
                     # (#158 coefficient model — the Morel–Montry angular
@@ -4363,14 +4297,13 @@ class _OneDimScanWalk:
                     # Principled view: (ng, nx).
                     psi_avg_chain_p = psi_avg_chain.T                # (ng, nx)
 
-                    # M-M angular thread (curvilinear-only).  The seed ordinate
-                    # reads its OWN cell average as the angular upstream
-                    # (ψ½ ≡ ψ̄_{m0}, #280 2.5b); bulk ordinates read the previous
-                    # ordinate's outgoing edge threaded through ``psi_angle``.
-                    mm_upstream = psi_avg_chain_p if is_seed_ord else psi_a_in_chain
+                    # M-M angular thread (curvilinear-only): every ordinate
+                    # reads the previous ordinate's outgoing edge threaded
+                    # through ``psi_angle`` (the level's first ordinate reads
+                    # the route-(a) marched ψ½ seed placed on the thread).
                     psi_angle_out_chain_p = (
                         geom.tau_inv[global_n] * psi_avg_chain_p
-                        - geom.mm_a_in_coeff[global_n] * mm_upstream
+                        - geom.mm_a_in_coeff[global_n] * psi_a_in_chain
                     )                                                 # (ng, nx)
                     psi_angle[:, chain] = psi_angle_out_chain_p
 
@@ -4641,13 +4574,13 @@ class _OneDimScanWalk:
         bc_outer_bar = m_boundary.face_view("xmax")              # (N, ng) — written
         pole_outflow_bar = np.zeros((mu.size, ng))               # reverse coupled-pole
 
-        # ── level structure + seed dispatch (mirror _run) ──
+        # ── level structure (mirror _run) ──
         # Sphere: the single carrying level, all N ordinates in μ-increasing
-        # order, ψ½ carried (route (a)).  Cylinder: multi-level, non-carrying —
-        # the m0 seed self-coupling folds into the cell diagonal, so there is NO
-        # seed carrier; the fold's transpose lives in the seed-ordinate branch of
-        # the ordinate loop, and ``m_seed`` stays ``None``.
-        seed_fold: "dict[int, tuple[np.ndarray, np.ndarray]]" = {}
+        # order, ψ½ carried (route (a)).  Cylinder: multi-level, every level
+        # carrying (Q5.6.3 admission) — the seed cotangents land on the
+        # output composite's radial_characteristic block via the closure's
+        # carrying branch.  (The retired #280 2.5b seed-fold transpose lived
+        # here until Q5.6.3 leg 5 — see ``_run``'s HISTORY note.)
         if is_sphere:
             levels: "list[int | None]" = [None]
             level_ordinates_list = [list(range(N))]
@@ -4655,40 +4588,6 @@ class _OneDimScanWalk:
             level_indices = quad.level_indices
             levels = list(range(len(level_indices)))
             level_ordinates_list = [list(li) for li in level_indices]
-            # The SAME direct-seed fold ``_run`` precomputes (c_out − c_in on the
-            # m0 diagonal): the transpose consumes the folded coeffs on the seed
-            # ordinate.  A non-carrying level outside the R12a trichotomy (a live
-            # two-point edge stencil) is refused loudly, exactly as in ``_run``.
-            fold_globals: list[int] = []
-            for p_fold, _lvl in enumerate(levels):
-                if p_fold in seed_levels:
-                    continue                     # a carrying level — route (a)
-                m0_local, _m1, t = closure._edge_seed_stencil(p_fold)
-                m0_global = int(np.asarray(quad.level_indices[p_fold])[m0_local])
-                if abs(t) > 1e-14 and geom.c_in[m0_global] != 0.0:
-                    raise NotImplementedError(
-                        "_OneDimScanWalk._run_transpose direct-seed fold: a non-"
-                        f"carrying level (p={p_fold}) has a LIVE two-point edge "
-                        f"stencil (t={t:.3e}, c_in={geom.c_in[m0_global]:.3e}) — "
-                        "outside the R12a trichotomy; the m0↔m1 seed-fold "
-                        "transpose is not derived."
-                    )
-                fold_globals.append(m0_global)
-            if fold_globals:
-                fi = np.asarray(fold_globals)
-                a_fold, inv_fold, _w_fold = self.mesh.scheme.affine_scan_coefficients(
-                    abs_mu=geom.abs_mu[fi],
-                    A_down=geom.A_down[fi],
-                    A_total=geom.A_total[fi],
-                    dA_w=geom.dA_w[fi],
-                    c_out=geom.c_out[fi] - geom.c_in[fi],
-                    V=geom.V[fi],
-                    reaction_xs=sigma_gx[:, geom.chain_idx[fi]].transpose(1, 0, 2),
-                )
-                seed_fold = {
-                    g: (a_fold[k], inv_fold[k])
-                    for k, g in enumerate(fold_globals)
-                }
 
         for p_idx, level in enumerate(levels):
             ordinates_in_level = level_ordinates_list[p_idx]
@@ -4742,31 +4641,18 @@ class _OneDimScanWalk:
                 chain = geom.chain_idx[global_n]
                 inv = geom.chain_idx_inv[global_n]
                 w_p = coll.face_blend_weight[global_n]
-                # Seed ordinate (cylinder m0): the direct-seed FOLD — the folded
-                # coeffs (c_out − c_in), and the M-M upstream is m0's OWN average
-                # (ψ½ ≡ ψ̄_{m0}), so the −mm_a_in term routes to psi_avg (not the
-                # thread) and there is NO ang_contrib source term.  Bulk ords
-                # (every sphere ord + every cyl non-m0 ord): cache coeffs + the
-                # M-M thread read/write.
-                seed_coeffs = seed_fold.get(global_n)
-                is_seed_ord = seed_coeffs is not None
-                if is_seed_ord:
-                    a_atten_p, inv_denom_p = seed_coeffs          # folded pair
-                else:
-                    inv_denom_p = coll.inverse_denom[global_n]    # (ng, nx)
-                    a_atten_p = coll.a_attenuation[global_n]
+                # Every ordinate: cache coeffs + the M-M thread read/write
+                # (the level's first ordinate reads the marched ψ½ seed
+                # placed on the thread — route (a)).
+                inv_denom_p = coll.inverse_denom[global_n]        # (ng, nx)
+                a_atten_p = coll.a_attenuation[global_n]
 
                 # reverse: psi_angle[:,chain] = psi_angle_out_chain_p.
                 out_bar_chain = psi_angle_bar[:, chain]          # (ng, nx)
-                # M-M thread: out = tau_inv·psi_avg_p − mm_a_in·mm_upstream, with
-                # mm_upstream = psi_avg_p (seed ord) or psi_a_in (bulk ord).
+                # M-M thread: out = tau_inv·psi_avg_p − mm_a_in·psi_a_in.
                 mm_bar = geom.mm_a_in_coeff[global_n] * out_bar_chain
                 psi_avg_chain_p_bar = geom.tau_inv[global_n] * out_bar_chain
-                if is_seed_ord:
-                    psi_avg_chain_p_bar = psi_avg_chain_p_bar - mm_bar
-                    psi_a_in_chain_bar = np.zeros((ng, nx))
-                else:
-                    psi_a_in_chain_bar = -mm_bar
+                psi_a_in_chain_bar = -mm_bar
                 # angular_flux[global_n] = psi_avg_chain_p[:, inv].
                 psi_avg_chain_p_bar = (
                     psi_avg_chain_p_bar + bulk_cot[global_n][:, chain]
@@ -4794,23 +4680,15 @@ class _OneDimScanWalk:
                 s_bar = scheme.source_emission(b_chain_bar, inv_denom_p, w_p)
                 # QV_chain = QV_full[:,chain]; QV_full = Q·V.
                 Q_bar[global_n] += s_bar[:, inv] * V[None, :]
-                if is_seed_ord:
-                    # The seed ord reads its OWN average, never the thread, so it
-                    # contributes NO cotangent to the pre-m0 psi_angle (a forward
-                    # constant = 0): reset the thread rather than propagate.  m0
-                    # is swept first ⇒ LAST in reverse, so this is discarded, but
-                    # the reset makes the seed-ord adjoint correct by position.
-                    psi_angle_bar = np.zeros((ng, nx))
-                else:
-                    # ang_contrib = (dA_w·c_in)·psi_a_in_chain (bulk only).
-                    ang_coeff = geom.dA_w[global_n] * geom.c_in[global_n]  # (nx,)
-                    psi_a_in_chain_bar = (
-                        psi_a_in_chain_bar + ang_coeff[None, :] * s_bar
-                    )
-                    # psi_a_in_chain = psi_angle[:,chain]; chain is a full perm,
-                    # so the OVERWRITE means the previous-state cotangent IS this
-                    # read's (scatter to cell order).
-                    psi_angle_bar = psi_a_in_chain_bar[:, inv]
+                # ang_contrib = (dA_w·c_in)·psi_a_in_chain.
+                ang_coeff = geom.dA_w[global_n] * geom.c_in[global_n]  # (nx,)
+                psi_a_in_chain_bar = (
+                    psi_a_in_chain_bar + ang_coeff[None, :] * s_bar
+                )
+                # psi_a_in_chain = psi_angle[:,chain]; chain is a full perm,
+                # so the OVERWRITE means the previous-state cotangent IS this
+                # read's (scatter to cell order).
+                psi_angle_bar = psi_a_in_chain_bar[:, inv]
                 # inflow: μ<0 = outer trace (passthrough + ψ_in cot); μ>0 = the
                 # mirror pole-continuation (reverse coupled-pole).
                 if mu_n < 0:

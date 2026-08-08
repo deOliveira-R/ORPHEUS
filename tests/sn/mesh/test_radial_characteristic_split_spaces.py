@@ -82,14 +82,15 @@ def _sphere() -> SNMesh:
     return _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
 
 
-def _cyl_product() -> SNMesh:
-    """Cylinder-product: τ_raw,0 = 0 — NO block."""
-    return _mesh_1d(CoordSystem.CYLINDRICAL, Quadrature.product(n_mu=2, n_phi=4))
+def _cyl_folded() -> SNMesh:
+    """Cylinder on the admitted folded family — carrying on EVERY level.
 
-
-def _cyl_level_symmetric() -> SNMesh:
-    """Cylinder-LS: τ_raw,0 = 1.0 — dead seed, NO block."""
-    return _mesh_1d(CoordSystem.CYLINDRICAL, Quadrature.level_symmetric(4))
+    (Until Q5.6.3 this file held the two non-carrying cylinder fixtures;
+    the admission flip made them unconstructible — their refusals are
+    gated in ``test_cylindrical_quadrature_admission.py``.)"""
+    return _mesh_1d(
+        CoordSystem.CYLINDRICAL, Quadrature.folded_product(n_mu=2, n_phi=4),
+    )
 
 
 def _slab() -> SNMesh:
@@ -242,9 +243,24 @@ class TestMeshPresence:
             (i.shape[0] + b.shape[0],), c.shape,
         )
 
-    @pytest.mark.parametrize(
-        "mesh_fn", [_cyl_product, _cyl_level_symmetric, _slab],
-    )
+    def test_folded_cylinder_carries_both_split_spaces_aligned_with_composite(
+        self,
+    ) -> None:
+        """Q5.6.3 — the multi-level twin of the sphere presence gate."""
+        sn = _cyl_folded()
+        i = sn.radial_characteristic_interior_space
+        b = sn.radial_characteristic_boundary_space
+        c = sn.radial_characteristic_field_space
+        if i is None or b is None or c is None:
+            pytest.fail("folded cylinder must carry the ψ½ spaces (R12a)")
+        n_levels = len(sn.quad.level_indices)
+        if i.levels != tuple(range(n_levels)) or b.levels != i.levels:
+            pytest.fail(f"level mismatch: {i.levels} / {b.levels}")
+        np.testing.assert_array_equal(
+            (i.shape[0] + b.shape[0],), c.shape,
+        )
+
+    @pytest.mark.parametrize("mesh_fn", [_slab])
     def test_noncarrying_meshes_have_no_split_spaces(self, mesh_fn) -> None:
         sn = mesh_fn()
         # The presence trichotomy is single-sourced: no composite → no split.

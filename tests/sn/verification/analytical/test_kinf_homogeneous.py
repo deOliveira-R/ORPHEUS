@@ -95,7 +95,7 @@ def _homogeneous_mesh(coord: str, n_cells: int, length: float, mat_id: int) -> M
 
 def _quadrature_for(coord: str):
     if coord == "cylinder":
-        return Quadrature.product(n_mu=2, n_phi=4)  # 8 ordinates, level_indices populated
+        return Quadrature.folded_product(n_mu=2, n_phi=4)  # 4 folded ordinates, level_indices populated
     return Quadrature.gauss_legendre(n_ordinates=8)
 
 

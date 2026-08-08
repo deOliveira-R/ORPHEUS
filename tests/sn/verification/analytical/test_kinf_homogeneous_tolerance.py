@@ -77,7 +77,7 @@ def _mesh(coord: str, mat_id: int, n_cells: int = 10, length: float = 2.0) -> Me
 
 def _quadrature(coord: str):
     if coord == "cylinder":
-        return Quadrature.product(n_mu=2, n_phi=4)
+        return Quadrature.folded_product(n_mu=2, n_phi=4)
     return Quadrature.gauss_legendre(n_ordinates=8)
 
 

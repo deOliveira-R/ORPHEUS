@@ -1177,9 +1177,12 @@ class TestA_BB_RadialBVP:
         each with ``match=`` the SPECIFIC message (a downstream crash would
         false-green a bare ``raises``):
 
-        * **non-carrying CONTROL** — a cylinder (level-symmetric) and a slab
-          (Cartesian) have ``radial_characteristic_space is None`` → the seedless
-          guard fires (before σ_t is even read);
+        * **non-carrying CONTROL** — the slab (Cartesian) has
+          ``radial_characteristic_space is None`` → the seedless guard fires
+          (before σ_t is even read).  (Until Q5.6.3 an LS cylinder was the
+          second control; the admission flip made a non-carrying cylinder
+          UNCONSTRUCTIBLE — its refusal moved one tier up, gated by
+          ``tests/sn/mesh/test_cylindrical_quadrature_admission.py``);
         * **foreign-mesh σ_t** — a ``CrossSectionField`` on a DIFFERENT sphere
           (same ``(ng, nx)``, different Δr) is refused by the mesh-identity
           invariant. THIS is the Pattern-4 illegal state the typed, mesh-bound
@@ -1189,24 +1192,15 @@ class TestA_BB_RadialBVP:
         * **σ_t ≤ 0** — the DD-denominator ``Δr·σ + 2`` guard.
 
         Positive control: a σ_t on THIS mesh constructs cleanly."""
-        # Non-carrying CONTROL — a cylinder (needs a level-structured quadrature).
-        cyl = SNMesh(
-            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
-            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        # Non-carrying CONTROL — the slab (the only admitted seedless geometry).
         slab = SNMesh(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        if cyl.radial_characteristic_field_space is not None:
-            pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
         if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         # The seedless guard fires before σ_t is read (a valid field on the mesh).
-        with pytest.raises(ValueError, match="carries no starting-direction ray"):
-            RadialCharacteristicOperator(
-                cyl, CrossSectionField.from_mesh(np.ones((2, 5)), cyl))
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicOperator(
                 slab, CrossSectionField.from_mesh(np.ones((2, 5)), slab))
@@ -1725,20 +1719,18 @@ class TestA_BA_SchurFold:
     # ── Gate 6 (LIVE): the non-carrying CONTROL (no ray, no fold) ──────────
 
     def test_non_carrying_control_no_ray_no_fold(self, monkeypatch):
-        r"""cylinder + slab are the non-carrying CONTROL (``radial_characteristic_
+        r"""The slab is the non-carrying CONTROL (``radial_characteristic_
         space is None`` — refutation #6, NOT "other geometries"): NO fold is
         invoked by the model-generic S (pure 2-block since B.2d — a ray arm
-        is unspellable). The live claim: the fold spy counter stays 0."""
-        cyl = SNMesh(
-            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
-            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        is unspellable). The live claim: the fold spy counter stays 0.
+        (Until Q5.6.3 an LS cylinder was the second control; a non-carrying
+        cylinder is unconstructible since the admission flip.)"""
         slab = SNMesh(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        for tag, sn in (("cylinder", cyl), ("slab", slab)):
+        for tag, sn in (("slab", slab),):
             if sn.radial_characteristic_field_space is not None:
                 pytest.fail(f"{tag} carries a ray space — the non-carrying CONTROL is invalid.")
             N, nx, ng = sn.quad.N, sn.nx, sn.ng
@@ -2723,27 +2715,21 @@ class TestA_AB_SeedInjection:
     # ── Non-carrying CONTROL + mesh-identity ───────────────────────────────
 
     def test_constructor_and_mesh_identity_reject_non_carrying(self):
-        r"""The guards, NET-NEW teeth (L4). Non-carrying CONTROL — a cylinder
-        (level-symmetric) and a slab (Cartesian) have
-        ``radial_characteristic_space is None`` → the seedless guard fires with
-        ``match=`` the specific message. Positive control — the sphere
-        constructs. Mesh-identity (Pattern 4) — ``apply`` / ``apply_transpose``
-        refuse a field on a DIFFERENT sphere."""
-        cyl = SNMesh(
-            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
-            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
+        r"""The guards, NET-NEW teeth (L4). Non-carrying CONTROL — the slab
+        (Cartesian) has ``radial_characteristic_space is None`` → the
+        seedless guard fires with ``match=`` the specific message.  (Until
+        Q5.6.3 an LS cylinder was the second control; a non-carrying
+        cylinder is unconstructible since the admission flip.)  Positive
+        control — the sphere constructs. Mesh-identity (Pattern 4) —
+        ``apply`` / ``apply_transpose`` refuse a field on a DIFFERENT
+        sphere."""
         slab = SNMesh(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        if cyl.radial_characteristic_field_space is not None:
-            pytest.fail("the cylinder carries a ray space — CONTROL invalid.")
         if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
-        with pytest.raises(ValueError, match="carries no starting-direction ray"):
-            RadialCharacteristicSeeding(cyl)
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicSeeding(slab)
         # Positive control + the mesh-identity guard (a field on ANOTHER sphere).
@@ -2973,11 +2959,20 @@ class TestCoupledBuilder:
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
-        cyl = SNMesh(
+        # Q5.6.3: the ADMITTED cylinder is folded = CARRYING, so its presence
+        # row joins the sphere's 2x2 leg; the slab is the only admitted
+        # 1x1 (non-carrying) geometry.
+        cyl_folded = SNMesh(
             Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
-            Quadrature.level_symmetric(4), {0: _mixture(1.0, 0.4, 2)})
-        for mesh, label in ((slab, "slab"), (cyl, "cylinder")):
+            Quadrature.folded_product(n_mu=4, n_phi=8),
+            {0: _mixture(1.0, 0.4, 2)})
+        op_cyl, _space_cyl = build_coupled_system(
+            cyl_folded, cyl_folded.material_xs_field())
+        if not (op_cyl.n_rows == op_cyl.n_cols == 2):
+            pytest.fail(f"carrying folded cylinder built "
+                        f"{op_cyl.n_rows}×{op_cyl.n_cols}, expected 2×2.")
+        for mesh, label in ((slab, "slab"),):
             op1, space1 = build_coupled_system(mesh, mesh.material_xs_field())
             if not (op1.n_rows == op1.n_cols == 1):
                 pytest.fail(f"non-carrying {label} built "

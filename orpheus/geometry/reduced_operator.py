@@ -825,7 +825,7 @@ def cylindrical_streaming(
     if getattr(angular_measure, "level_structure", None) is None:
         raise ValueError(
             "Cylindrical streaming requires a quadrature with level "
-            "structure (Quadrature.level_symmetric or .product); "
+            "structure (e.g. Quadrature.folded_product); "
             "slab quadratures (Quadrature.gauss_legendre) and pure "
             "sphere cubatures (Quadrature.lebedev) carry no "
             "LevelStructure side-channel."

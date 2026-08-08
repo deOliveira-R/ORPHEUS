@@ -97,19 +97,18 @@ def _sphere(ng: int = 2, nx: int = 4) -> SNMesh:
     )
 
 
-def _cyl_level_symmetric() -> SNMesh:
-    """Cylinder-LS: the R12a DISCRIMINATOR — μ_start ∉ the level μ-nodes
-    (the R12 letter would carry), but duplicate-η midpoint edges collapse
-    onto η₀ so τ_raw,0 = 1.0 bit-exact: the seed's thread weight (1−τ₀)
-    vanishes — dead state, NO block (measured 0.0-bit solve insensitivity)."""
-    return _mesh_1d(CoordSystem.CYLINDRICAL, Quadrature.level_symmetric(4))
+def _cyl_folded() -> SNMesh:
+    """Cylinder on the admitted folded family — CARRYING on every level.
 
-
-def _cyl_product() -> SNMesh:
-    """Cylinder-product: η₀ = η_{1/2} = −sinθ bit-exact (#229) → τ_raw,0 = 0
-    — the seed would be a rank-duplicate of ψ₀, NO block."""
+    Until Q5.6.3 this file held two NON-carrying cylinder fixtures
+    (`_cyl_level_symmetric`: the dead-seed τ_raw,0 = 1 discriminator;
+    `_cyl_product`: the edge-node τ_raw,0 = 0 rank-duplicate).  The
+    admission flip made both UNCONSTRUCTIBLE — their refusals, with the
+    per-family reasons, are gated one tier up in
+    ``test_cylindrical_quadrature_admission.py``; presence here covers
+    only meshes that exist."""
     return _mesh_1d(
-        CoordSystem.CYLINDRICAL, Quadrature.product(n_mu=2, n_phi=4),
+        CoordSystem.CYLINDRICAL, Quadrature.folded_product(n_mu=2, n_phi=4),
     )
 
 
@@ -151,20 +150,40 @@ class TestA1PresenceR12a:
             ray.to_flat().size, int(np.prod(cspace.shape)),
         )
 
+    def test_folded_cylinder_carries_every_level_and_constructs_system_b(self):
+        """Q5.6.3 — the admitted cylinder is a MULTI-LEVEL carrier: every
+        level position carries, the composite space exists, and the
+        System-B member constructs (the cylinder twin of the two sphere
+        presence gates above)."""
+        sn = _cyl_folded()
+        n_levels = len(sn.quad.level_indices)
+        np.testing.assert_array_equal(
+            sn.radial_characteristic_levels, tuple(range(n_levels)),
+        )
+        space = sn.radial_characteristic_field_space
+        if space is None:
+            pytest.fail("folded cylinder must carry a starting-direction space")
+        ray = RadialCharacteristicField.from_mesh(sn)
+        np.testing.assert_array_equal(ray.to_flat(), 0.0)
+        np.testing.assert_array_equal(
+            ray.to_flat().size, int(np.prod(space.shape)),
+        )
+
     @pytest.mark.parametrize(
         "builder",
-        [_cyl_level_symmetric, _cyl_product, _slab, cart2d_2g_nonsquare],
-        ids=["cyl_level_symmetric", "cyl_product", "slab", "cart2d"],
+        [_slab, cart2d_2g_nonsquare],
+        ids=["slab", "cart2d"],
     )
     def test_non_carrying_meshes_have_no_system_b(self, builder):
         """Absent-on-non-carrying, pinned positively (a future leak REDS here).
 
-        The cylinder-LS row is the R12a discriminator: the R12 letter
-        (μ_start ∉ μ-nodes) fires on it, so THIS row is what pins the
-        refined predicate — a re-spelling back to node membership grows
-        dead seed blocks on every level-symmetric cylinder and reds
-        this gate. B.2d: absence is SYSTEM-B NON-EXISTENCE (space None,
-        leaf factory raises, the composite unconstructable).
+        Since Q5.6.3 the Cartesian geometries are the ONLY admitted
+        non-carrying meshes (the non-carrying cylinder rows this test
+        held became unconstructible at the admission flip — their
+        refusal reasons are pinned in
+        ``test_cylindrical_quadrature_admission.py``). B.2d: absence is
+        SYSTEM-B NON-EXISTENCE (space None, leaf factory raises, the
+        composite unconstructable).
         """
         sn = builder()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, ())
