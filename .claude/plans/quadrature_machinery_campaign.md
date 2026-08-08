@@ -2980,16 +2980,55 @@ implemented and **no `D_6h`-invariant rule in tree**.
     COLLECTION 9221 tests / 0 errors; pyright ratchet green; xref 0
     dead; sphinx -W clean + V&V matrix regenerated. NOT run:
     tests/sn full not-slow + tests/numerics WITH-slow (owed at 6.3
-    close, as before). **▶ NEXT: leg 5 THE FLIP — STOPPED AT THE
-    USER BOUNDARY: gate_design §6's six questions are routed to the
-    user (⭐ Q3 retire-vs-keep the #280 2.5b fold decides
-    test_cyl_direct_seed_fold's fate; Q1's recommendation on the 6
-    below-admission `cylindrical_streaming` sites is open; Q5/Q6
-    are already answered by events — separate 6.3/6.4 windows with
-    INTERIM stamps landed, MMS n_phi=8 landed). The flip commit's
-    riders: mesh-simple trio, coupled_pole's P(4,5) pin,
-    azimuthal_mirror tombstones, slot-coordination's product/LS →
-    refusal-negative inversion, direct_seed_fold per Q3.**
+    close, as before). ⛔ the "STOPPED AT THE USER BOUNDARY" state
+    that stood here RESOLVED same-day — the user answered §6 and
+    ruled; superseded by the leg-5 landing record below.
+  * **LEG 5 LANDED `1689faf4` (2026-08-08) — THE FLIP IS IN.** The
+    user's §6 answers: Q1 YES (below-admission sites migrated,
+    `1f220c41`; the map missed the two kinf standoff files — found
+    by the tree-wide straggler sweep); Q2 {S4, S18} adopted as
+    principled (mechanism representative + the #337-pinned range
+    boundary); ⭐ Q3 RETIRE the #280 2.5b fold — ruled after the
+    disambiguated seed briefing + `[M]` the foreign-rule check
+    (`scratch/probe_foreign_gl_arc_rule.py`: a hand-built GL-in-φ
+    arc rule — non-uniform azimuthal nodes AND weights, no factory,
+    no `folded_by` tag — classifies carrying, admits, and the
+    route-(a) coupled COLD solve is a true inverse at 4.5e-16 with
+    k_inf exact; the user's GL×Gauss-Chebyshev example IS the
+    shipped staggered rule read in the angle variable). Landed:
+    `non_carrying_levels` + `assert_carrying_quadrature` (public,
+    Q4) wired AFTER `cylindrical_streaming`; the fold + transpose
+    twin + every `is_seed_ord` branch DELETED (behavior-neutral on
+    every admitted input — the fold never fired on carrying
+    meshes); the 16-row admission module with the architect's three
+    corrections + the §8.1 trace-tier row; `[M]` the 10-mutation
+    battery 10/10 with MA2 first — the control caught its own
+    broken parser TWICE (in-process `-q` emits no FAILED lines;
+    forced ANSI broke the match — vv anti-#17 verbatim); all
+    riders in the one commit (mesh-simple trio re-posed,
+    slot-coordination's product/LS rows → the admission module,
+    psi_half's four non-carrying-cylinder controls → slab-only +
+    a folded 2×2 presence leg, the P(4,5) pin re-posed onto the
+    admission fragment through the public funnel, azimuthal_mirror
+    tombstoned per §8.4, direct_seed_fold deleted). `[M]` the wide
+    slice's 20 reds ALL accounted: 14 = one straggler fixture
+    (fixed, 95 green with both kinf importers), 5 = the 2-D octant
+    family PRE-EXISTING (identical reds at `1f220c41` in a
+    throwaway worktree — the #51 known-red ledger, "known wrong by
+    ≥1", is now measured wrong by +5:
+    `test_2d_octant_sweep_equivalence` rows 01–05), 1 = the known
+    spherical-inward diamond. Collection 9197/0. The
+    Gauss-Lobatto × admission interaction FILED as #338 (the
+    sphere-side node-aligned case needs its own decision).
+    **▶ NEXT: leg 6 — docs + close: the 4 theory-page fold
+    references (curvilinear_one_group :3005/:3306,
+    curvilinear_numerics :650/:945; history.rst gets the flip
+    entry) + the R12a trichotomy rows + angular_quadrature +
+    structured_geometry; V&V matrix regen inside sphinx -W; the
+    owed batteries — tests/sn FULL not-slow (re-measures the
+    known-red set, now expected: the spherical diamond + the 5
+    octant rows) and tests/numerics WITH-slow; plan + memory
+    close-out; the LS double-fold capability issue.**
 
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an
