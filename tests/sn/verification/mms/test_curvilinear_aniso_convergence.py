@@ -109,11 +109,20 @@ def test_cyl_aniso_floor_scales_with_quadrature():
     cylindrical radial direction cosine is :math:`\eta = \sin\theta\cos\phi`
     and the M-M thread marches in azimuth :math:`\phi` on each polar
     :math:`\mu`-level, so the half-angle-thread interpolation floor is set
-    by the azimuthal resolution.  Measured 2026-06-13 (nx=80):
+    by the azimuthal resolution.  Measured 2026-06-13 (nx=80, FULL
+    NODE_ALIGNED product rule — the pre-6.3 fixture):
     ``n_phi`` 8→16→32 = 1.90e-2 → 7.37e-3 → 3.10e-3 (ratios 2.58×, 2.38×);
     holding ``n_phi`` fixed and varying ``n_mu`` 4→8→16 leaves the floor
     FLAT (1.90e-2, 1.91e-2, 1.91e-2) — the floor is azimuthal.  Gate doubles
     ``n_phi`` 8→16 with a 2.0× margin.
+
+    Re-measured 2026-08-08 at the 6.3 flip (``folded_product``, the
+    [½,1] absorber still live): ``n_phi`` 8→16 = 3.538e-3 → 6.782e-4
+    (ratio 5.22×) — the fold's carrying march start alone removes most
+    of the full-circle floor and STEEPENS the azimuthal scaling, before
+    6.4's honest-τ acceptance.  The 6.4 leg re-measures under the
+    retired absorber (#229's fall-and-recover-an-order claim lives
+    there).
     """
     nx = 80
     errors = {}

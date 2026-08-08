@@ -2017,7 +2017,9 @@ def build_spherical_mms_case(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Phase 3.4 — 1D Cylindrical MMS (1-group, Product quadrature)
+# Phase 3.4 — 1D Cylindrical MMS (1-group, σ_y-folded product quadrature
+# since Q5.6's 6.3 flip — SNMesh(CYLINDRICAL) admits exactly the
+# carrying rules, so the case builders default to folded_product)
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -2089,9 +2091,17 @@ def build_cylindrical_mms_case(
     mat_id: int = 1,
     name: str = "sn_mms_cylindrical_sin",
 ) -> SNCylindricalMMSCase:
-    r"""Build the canonical 1D cylindrical MMS case."""
+    r"""Build the canonical 1D cylindrical MMS case.
+
+    ``n_mu``/``n_phi`` are the PARENT rule's counts — the σ_y fold
+    keeps ``n_mu * n_phi / 2`` ordinates on the ξ > 0 half (``n_phi``
+    must be even; :meth:`Quadrature.folded_product
+    <orpheus.numerics.quadrature.Quadrature.folded_product>` refuses
+    odd). The ansatz is ξ-independent, hence trivially in the
+    quotient's ξ-even function space.
+    """
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
+    quadrature = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     return SNCylindricalMMSCase(
         name=name,
         sigma_t=sigma_t,
@@ -3730,12 +3740,18 @@ class SNCylindricalAnisotropicMMSCase:
     radial direction cosine for cylindrical 1D is :math:`\eta_n =
     \sin\theta_n\cos\varphi_n`; the partner :math:`\xi_n =
     \sin\theta_n\sin\varphi_n` enters the redistribution term.
-    Both are exposed by :meth:`Quadrature.product
-    <orpheus.numerics.quadrature.Quadrature.product>` as the ``mu_x``
-    and ``mu_y`` views respectively — ``@property`` reads of the
-    wrapped measure's node columns, not cached fields (the per-family
-    ``ProductQuadrature`` adapter that stored them was retired in R-1
-    Phase A detour-C).
+    Both are exposed by the :class:`Quadrature` ``mu_x`` and ``mu_y``
+    views — ``@property`` reads of the wrapped measure's node
+    columns, not cached fields (the per-family ``ProductQuadrature``
+    adapter that stored them was retired in R-1 Phase A detour-C) —
+    family-agnostic, so they read identically off the σ_y-folded
+    rule the builder defaults to since the 6.3 flip.
+
+    The manufactured fields live in the quotient's function space:
+    :math:`\psi = A + B\eta` carries no :math:`\xi`-odd content
+    (:math:`\eta` is σ_y-invariant), and the source enters through
+    :math:`\xi_n^2` only — both even under :math:`\xi \to -\xi`, so
+    restriction to the folded rule loses nothing.
     """
 
     name: str
@@ -3775,8 +3791,13 @@ class SNCylindricalAnisotropicMMSCase:
         )
 
     def phi_exact(self, r: np.ndarray) -> np.ndarray:
-        r"""Reference scalar flux :math:`\phi(r) = A(r)` (symmetric
-        ProductQuadrature gives :math:`\sum_n w_n \eta_n = 0`)."""
+        r"""Reference scalar flux :math:`\phi(r) = A(r)`.
+
+        :math:`\sum_n w_n \eta_n = 0` kills the :math:`B\eta` term:
+        the roots-of-unity azimuthal circle integrates
+        :math:`\cos\varphi` to zero, and the σ_y fold preserves the
+        sum exactly (:math:`\eta` is mirror-invariant, each kept
+        orbit carries the whole orbit weight :math:`2w`)."""
         return self.A(r)
 
     def psi_exact(self, r: np.ndarray, eta_n: float) -> np.ndarray:
@@ -3844,11 +3865,12 @@ def build_cylindrical_anisotropic_mms_case(
 ) -> SNCylindricalAnisotropicMMSCase:
     r"""Build the canonical anisotropic 1D cylindrical MMS case.
 
-    Defaults match :func:`build_cylindrical_mms_case`. Pairing both
-    cases narrows down failures: a passing isotropic + failing
-    anisotropic pinpoints the azimuthal redistribution path."""
+    Defaults match :func:`build_cylindrical_mms_case` (PARENT-count
+    semantics; even ``n_phi`` required). Pairing both cases narrows
+    down failures: a passing isotropic + failing anisotropic
+    pinpoints the azimuthal redistribution path."""
     materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
-    quadrature = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
+    quadrature = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     return SNCylindricalAnisotropicMMSCase(
         name=name,
         sigma_t=sigma_t,

@@ -94,7 +94,7 @@ Anisotropic cylindrical MMS, nx [10,20,40,80]::
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pytest
@@ -106,7 +106,13 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.geometry.boundary import SelfPairedDeck
-from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.quadrature import (
+    STAGGERED,
+    Quadrature,
+    gauss_legendre_on_mu,
+    periodic_trapezoid,
+    spherical_product,
+)
 from orpheus.sn import solve_sn_fixed_source
 
 
@@ -264,6 +270,20 @@ def test_the_degenerate_eta_pair_splits_tau_into_one_and_one_half():
 
 # ── 2. the ansatzes live inside the symmetric sector ────────────────────
 
+def _fold_parent(n_mu: int = 4, n_phi: int = 8) -> Quadrature:
+    """The σ_y-closed PARENT of the production default — the same
+    spelling :meth:`Quadrature.folded_product` quotients (GL(n_mu) ×
+    staggered trapezoid(n_phi)), built full so the mirror pairing
+    exists.  Staggered ⟹ Σ = ∅ ⟹ the pairing is a PERFECT matching
+    (no fixed points) — strictly stronger than the pre-6.3
+    NODE_ALIGNED fixture, whose Σ nodes were self-paired."""
+    measure, structure = spherical_product(
+        gauss_legendre_on_mu(n_mu),
+        periodic_trapezoid(n_phi, shift=STAGGERED),
+    )
+    return Quadrature(measure=measure, level_structure=structure)
+
+
 @pytest.mark.parametrize(
     "builder",
     [build_cylindrical_mms_case, build_cylindrical_anisotropic_mms_case],
@@ -275,13 +295,47 @@ def test_production_mms_source_is_identical_on_the_mirror_pair(builder):
     This is the Mode-7 declaration made executable: the ansatz does not merely
     make the ordering error small, it makes the two ordinates the ordering
     permutes CARRY THE SAME DATA.  Everything downstream follows from here.
+
+    Since the 6.3 flip the builders default to the σ_y-FOLDED rule, on
+    which no mirror partner exists to compare against (the quotient
+    keeps one representative per orbit) — so the parity claim is
+    evaluated on the fold's PARENT rule, through the same production
+    ``external_source`` path, on the same frozen case
+    (``dataclasses.replace`` swaps only the quadrature, re-running
+    construction).  A second leg pins the RESTRICTION: the folded
+    default evaluates bit-identically to the parent at the kept nodes,
+    so migrating the builders lost nothing.
     """
-    case = builder()
-    quad = case.quadrature
+    case = builder()                                  # folded default
+    parent_case = replace(case, quadrature=_fold_parent())
+    quad = parent_case.quadrature
     partner = _xi_mirror_pairing(quad)
-    Q = case.external_source(case.build_mesh(20))           # (N, ng, nx)
-    np.testing.assert_allclose(Q, Q[partner], rtol=0, atol=1e-15)
+    np.testing.assert_array_equal(
+        np.sort(partner), np.arange(len(partner)),
+    )  # a permutation…
+    assert not np.any(partner == np.arange(len(partner))), (
+        "staggered parent must have NO σ_y-fixed ordinate (Σ = ∅)"
+    )  # …with no fixed points
+    mesh = case.build_mesh(20)
+    Q_parent = parent_case.external_source(mesh)      # (2N, ng, nx)
+    np.testing.assert_allclose(Q_parent, Q_parent[partner], rtol=0, atol=1e-15)
     np.testing.assert_array_equal(quad.weights, quad.weights[partner])
+
+    # Restriction leg: each folded node IS a parent node (bit-exact
+    # representative selection, Q5.1/Q5.3), and the folded case's
+    # source rows equal the parent case's rows there — the σ_y-even
+    # closed form restricted, nothing recomputed differently.
+    folded = case.quadrature
+    parent_nodes = np.column_stack([quad.mu_x, quad.mu_y, quad.mu_z])
+    folded_nodes = np.column_stack(
+        [folded.mu_x, folded.mu_y, folded.mu_z]
+    )
+    fold_to_parent = np.array([
+        np.flatnonzero((parent_nodes == node).all(axis=1))[0]
+        for node in folded_nodes
+    ])
+    Q_folded = case.external_source(mesh)             # (N, ng, nx)
+    np.testing.assert_array_equal(Q_folded, Q_parent[fold_to_parent])
 
 
 # ── 3. the MMS ladders are invariant (the headline negative result) ─────

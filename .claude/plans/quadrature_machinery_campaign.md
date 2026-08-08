@@ -2782,6 +2782,66 @@ implemented and **no `D_6h`-invariant rule in tree**.
     + recovers an order; T3 α gate; absorber retires — Q5.5's
     deferred half; τ ∉ {0,1}; the three xfails re-posed) → 6.5
     retirements + theory pass + #326 close.
+  * **6.3 execution order (designed 2026-08-08 from the call-site map
+    `scratch/q5_6_3_flip_call_sites.md` — ~48 fixture sites / ~40
+    files / 13+ artifacts / 3 capture scripts / 2 production
+    builders).** Migrations FIRST, the refusal LAST — §6b: the wiring
+    commit must follow every call site's migration; the only green
+    ordering.
+    1. Production MMS builders → `folded_product(4,8)` + a σ_y-parity
+       gate (the ansatz `A + Bη` and its `ξ²B/r` source are ξ-even —
+       VERIFY by mirror evaluation on the parent rule, never assume:
+       the quotient computes GARBAGE, not zero, for excluded
+       functions) + the 5 consuming MMS gate files re-posed (#229
+       re-pinned at measured on the folded fixture; its floor FALLS
+       at 6.4, not here; the n_phi sweep keeps PARENT counts — the
+       factory's own parameter semantics).
+    2. Mechanical fixture sweeps by directory (operators, sweep/core,
+       sweep/curvilinear, eigenvalue, solve, primitives, mesh) — the
+       no-artifact families.
+    3. Snapshot families, each WITH its in-commit re-capture:
+       regression snapshots + walk baselines (`_make_cyl` is shared
+       with `_generate_walk_baselines` — coordinate, don't fork) +
+       affine-carve + bc_extraction + T4 (script migrated then
+       RE-RUN, never hand-edited — the `ec076008` stale-twin lesson)
+       + `test_phase_c_crosscheck` name-keyed dicts/literals. ⚠ All
+       6.3 captures are stamped INTERIM in provenance: `[M]` the
+       [½,1] absorber still clamps 4/4 folded levels (8 entries in
+       [1/5,½) per folded_product(4,8) — map §5), so every folded
+       cylinder artifact moves AGAIN at 6.4. Kept deliberately: the
+       un-clamp is a physics change and lands WITH its acceptance
+       instruments (plan-authoring §8), and 6.4's re-capture delta
+       then measures the absorber ALONE.
+    4. The three non-mechanical redesigns (map §9.1/9.2/9.3):
+       slot-coordination (its subject INVERTS — folded multi-level
+       is the admitted cylinder norm; its refusal rows land with
+       step 5), `test_cyl_direct_seed_fold` (subject unreachable
+       post-flip — re-pose or retire WITH marker migration),
+       `test_azimuthal_mirror_symmetry` (#326 — its fixtures refuse
+       at the flip, so its handling cannot ride to 6.4 unchanged;
+       decide at the file, re-poses recorded).
+    5. THE FLIP: a raising helper beside
+       `march_start_structure_per_level` + the CYLINDRICAL
+       `_init_core` arm wiring (after `cylindrical_streaming`, whose
+       structure-less guard fires first with the more specific
+       message) + the refusal gate module (positive folded admission
+       AND negative per family — vv #11; refusal is total by
+       structure: full NODE_ALIGNED = edge-node+degenerate, full
+       STAGGERED = mirror-tie degenerate, LS = hemisphere-tie
+       degenerate at every order, slab-GL = fake single level on Σ)
+       + `_CYL_LS`/`_CYL_PRODUCT` refusal rows + the staleness sweep
+       (`cylindrical_streaming` guard text + docstring recommend
+       exactly the refused families; `MarchStart` bracketed instance
+       lists; `radial_characteristic_levels` docstring).
+    6. Docs + close: theory pages (curvilinear_one_group R12a
+       trichotomy rows, angular_quadrature, structured_geometry),
+       the LS double-fold capability issue FILED, V&V matrix, plan +
+       batteries (tests/sn full not-slow re-measures the known-red
+       set; tests/numerics WITH-slow owed here).
+    Ruled at design (2026-08-08): admission stays **SNMesh-only**
+    (map §9.6 — the carrying predicate is M-M sweep semantics;
+    `cylindrical_streaming` is a shared geometry primitive and keeps
+    its family-agnostic contract; its 6 direct test consumers stay).
 
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an
