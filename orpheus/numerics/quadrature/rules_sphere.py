@@ -540,8 +540,16 @@ def _build_level_symmetric_arrays(
     n_half = sn_order // 2
 
     if n_half == 1:
+        # S_2 has no freedom: mu^2 = 1/3 is forced by the diffusion
+        # condition (LA-3251-MS printed p. 45).
         mu2_levels = np.array([1.0 / 3.0])
     else:
+        # The recursion is Carlson-Lathrop Eq. (3-52) (LA-3251-MS printed
+        # p. 32). The SEED is a PROJECT CONVENTION, not theirs: the source
+        # leaves mu_1 free ("Selection of mu_1 determines the spread"),
+        # and the published tables (LA-3186) moment-match it instead
+        # (mu_1 = 0.3500212 at S_4 vs our 0.4082483). Verified against
+        # the scan 2026-08-08, #327; the moment-matched upgrade is #337.
         mu1_sq = 1.0 / (sn_order * (sn_order + 2) / 4)
         delta = 2.0 * (1.0 - 3.0 * mu1_sq) / (sn_order - 2)
         mu2_levels = mu1_sq + np.arange(n_half) * delta
@@ -645,23 +653,30 @@ def level_symmetric_sn(
     Standard triangular discrete-ordinate quadrature with :math:`N/2`
     polar levels per hemisphere. The construction is
     :math:`O_h`-invariant: every octant carries the same set of
-    direction-cosine triples up to sign permutations, with equal
-    weights inside an octant.
+    direction-cosine triples up to sign permutations, with the weight
+    constant on each :math:`O_h` orbit (one free weight per orbit,
+    solved — see :func:`_moment_matched_octant_weights`; #327).
 
     Weight sum: :math:`\sum_i w_i = 4\pi`.
 
     Symmetry: :math:`O_h` — invariant under all 48 rotation /
     reflection elements of the octahedral group.
 
-    Polynomial exactness: depends on :math:`N`. For the simple
-    equal-weight construction implemented here (lifted byte-for-byte
-    from the retired ``orpheus/sn/quadrature.py`` builder), the rule is
-    exact at degree :math:`1` for :math:`N = 2` (zeroth and first
-    moments) and reaches degree :math:`N - 1` for higher orders under
-    the moment-conditions construction in Carlson & Lathrop 1968.
-    Conservatively, ``degree_of_exactness=N-1`` is recorded; consumers
-    that need a tighter guarantee should refer to Lewis & Miller
-    Table 4-2.
+    Polynomial exactness: ``max(3, N - 1)``, measured and gated both
+    directions (``tests/numerics/test_advertised_degree_is_measured.py``):
+    :math:`3` at :math:`S_2`/:math:`S_4`, where the single orbit leaves
+    the weight forced and the degree is the symmetry's; :math:`N - 1`
+    from :math:`S_6` through :math:`S_{12}`.
+
+    The node seed :math:`\mu_1^2 = 4/(N(N+2))` is a **project
+    convention**, not Carlson–Lathrop's: the source leaves
+    :math:`\mu_1` free (LA-3251-MS printed p. 32, after Eq. (3-52)),
+    and the published tables (LA-3186) moment-match it instead —
+    :math:`\mu_1 = 0.3500212` at :math:`S_4` vs our
+    :math:`0.4082483`. Verified against the scan 2026-08-08 (#327);
+    the corpus note in ``docs/theory/methods/sn/angular_quadrature.rst``
+    carries the full provenance, and #337 tracks the moment-matched
+    node upgrade (frontier :math:`S_{22}` on their seed).
 
     Returns the :class:`DiscreteMeasure` and a
     :class:`LevelStructure` capturing the per-level grouping needed by
@@ -670,16 +685,26 @@ def level_symmetric_sn(
     Parameters
     ----------
     sn_order : int
-        Even :math:`N \ge 2`. Common values: 4, 8, 16.
+        Even :math:`N \ge 2`, supported through :math:`S_{12}`.
+        Common values: 4, 8, 12.
 
     Returns
     -------
     DiscreteMeasure
         Nodes shape ``(N_total, 3)``, weights shape ``(N_total,)``.
         ``invariance_group=SubgroupOfO3.OctahedralOh``,
-        ``degree_of_exactness=sn_order-1``.
+        ``degree_of_exactness=max(3, sn_order-1)``.
     LevelStructure
         Per-level indexing metadata.
+
+    Raises
+    ------
+    ValueError
+        Above :math:`S_{12}` — the per-orbit weight solve yields a
+        negative weight on this node seed from :math:`S_{14}` (`[M]`
+        ``-0.027``), and positivity is not tradeable. The frontier is
+        computed from the solution's own sign, never hardcoded; the
+        full doctrine lives on :func:`_moment_matched_octant_weights`.
 
     See Also
     --------

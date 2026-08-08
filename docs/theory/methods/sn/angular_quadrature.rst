@@ -35,20 +35,46 @@ Level-Symmetric S\ :sub:`N`
 Standard triangular :term:`quadrature` with :math:`N/2` distinct :math:`\mu_z`
 values per hemisphere.  Ordinates on each level are permutations of the
 direction cosine set satisfying :math:`\eta^2 + \xi^2 + \mu^2 = 1`.
-Equal spacing in :math:`\mu^2` is used with :math:`\mu_1^2 = 4/(N(N+2))`
-:cite:`CarlsonLathrop1965`.
+Equal spacing in :math:`\mu^2` is the Carlson–Lathrop recursion
+:math:`\mu_i^2 = \mu_1^2 + (i-1)\,\Delta` with
+:math:`\Delta = 2(1 - 3\mu_1^2)/(N-2)` — Eq. (3-52), printed p. 32 of
+:cite:`CarlsonLathrop1965` — seeded with the **project convention**
+:math:`\mu_1^2 = 4/(N(N+2))`.
 
 .. note::
 
-   ⚠ **The** :math:`\mu_1` **seed's attribution is pending verification.**  The
-   *recursion* around it — :math:`\mu_i^2 = \mu_1^2 + (i-1)\,C` with
-   :math:`C = 2(1 - 3\mu_1^2)/(N-2)` — is the standard level-symmetric
-   construction and is not in doubt.  Whether the particular seed
-   :math:`\mu_1^2 = 4/(N(N+2))` (giving :math:`\mu_1 = 0.4082` at
-   :math:`S_4`, :math:`0.1179` at :math:`S_{16}`) is the one
-   :cite:`CarlsonLathrop1965` tabulates has **not** been checked against the
-   source.  Until it is, read the citation as covering the construction, not
-   the seed.  Issue **#327**.
+   **The seed's provenance, verified against the primary source**
+   (2026-08-08, the LA-3251-MS scan; issue #327).  Carlson–Lathrop leave
+   :math:`\mu_1` **free**: *"Selection of* :math:`\mu_1` *determines the
+   spread of direction cosines along the axes"* follows Eq. (3-52)
+   directly (printed p. 32), and no seed formula or numeric
+   :math:`\mu_1` table appears anywhere in the chapter.  Their tabulated
+   family lives in :cite:`LathropCarlson1964` (the chapter's Reference 5)
+   and instead picks :math:`\mu_1` to *"integrate as many even powers
+   of* :math:`\mu` *as possible"* (printed p. 33).  The two families
+   provably differ, exactly at :math:`S_4` where the single :math:`O_h`
+   orbit forces equal weights and :math:`\mu_1` is the *only* freedom:
+   max-moment matching makes :math:`\int\mu^4` exact, forcing
+   :math:`15\mu_1^4 - 10\mu_1^2 + 1 = 0`, i.e.
+   :math:`\mu_1 = \sqrt{(5-\sqrt{10})/15} = 0.3500212` — the classic
+   :math:`LQ_4` value — where our seed gives :math:`0.4082483`, a
+   measured 16.7 % relative :math:`\mu^4` defect.  The formula
+   :math:`4/(N(N+2))` is untraced to any publication (it entered with
+   the project's first quadrature commit, source-noteless), so the
+   citation covers the *construction* — the triangular grid, the
+   recursion, orbit-constant weights — never the seed.  (:math:`S_2` is
+   the exception with no freedom at all: :math:`\mu_1^2 = 1/3` is forced
+   by the diffusion condition, printed p. 45, and the code special-cases
+   exactly that value.)
+
+   **The seed is what sets the positivity frontier.**  The
+   max-moment-matched family stays positive through :math:`N = 22`
+   (printed p. 33: for :math:`n > 22` negative weights occur), while the
+   per-orbit weight solve on *our* nodes goes negative from
+   :math:`S_{14}` — so the :math:`S_{12}` refusal documented below is a
+   property of the seed, not of the level-symmetric shape.  Adopting the
+   moment-matched :math:`\mu_1` per order is a node change that moves
+   every LS consumer; issue **#337** tracks that upgrade.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
 needed by the cylindrical :term:`sweep`.  Unlike the product quadrature

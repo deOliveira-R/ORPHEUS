@@ -642,7 +642,11 @@ class Quadrature:
 
         ``sn_order`` (even :math:`\ge 2`) is the standard SN order;
         for :math:`S_N` the cubature has :math:`N (N + 2)`
-        ordinates. Common values: 4, 8, 16.
+        ordinates. Supported: :math:`S_2` through :math:`S_{12}` —
+        the family **refuses above** :math:`S_{12}` (the per-orbit
+        weight solve goes negative on this node seed from
+        :math:`S_{14}`; #327, and see
+        :func:`~orpheus.numerics.quadrature.rules_sphere.level_symmetric_sn`).
 
         Provides the per-level :math:`(\mu_p, \mathrm{indices})`
         side-channel required by the cylindrical SN sweep.
