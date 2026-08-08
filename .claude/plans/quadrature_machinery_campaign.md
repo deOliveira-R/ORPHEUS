@@ -21,8 +21,10 @@
 > as Q5.E because T28 showed it is the root.
 >
 > **⏸ CHECKPOINT — 2026-08-02, extended 2026-08-07 twice (compaction before
-> Q5.3; compaction before Q5.5) and 2026-08-08 twice (compaction before
-> #327; compaction before 6.3 — after the #325/#337 interleave).
+> Q5.3; compaction before Q5.5) and 2026-08-08 three times (compaction before
+> #327; compaction before 6.3 — after the #325/#337 interleave; compaction
+> MID-6.3 after legs 1/2a/2b — the "6.3 LANDED SO FAR" ledger in §5's Q5.6
+> block is the per-hash authority for the flip's own legs).
 > Landed so far, in order:**
 >
 > | step | commit | what |
@@ -2862,9 +2864,42 @@ implemented and **no `D_6h`-invariant rule in tree**.
     than the retired 6e-17 NODE_ALIGNED fixtures; sphere_gl coupled
     row added; loss_transpose G4 retired + G2's mask exclusion
     retired; b3's `_sn_2d` is 2-D-Cartesian — the map overcounted).
-    **Remaining legs:** 2b sweep/core+top · 2c sweep/curvilinear
-    (⚠ the P(4,5) odd row → (4,6)) · 2d eigenvalue+solve+analytical ·
-    2e primitives + mesh-simple → leg 3 snapshots (interim-stamped) →
+    `384d62e4` **leg 2b** (6 sweep-core/top files; ⭐ the #209
+    resonance re-posed to its measured truth — the old resonant node
+    was the OLD LS8 seed, ALREADY retired by #337 (a latent red the
+    inferred known-red count missed), and `[M]` the pole-cell a = 0
+    resonance is UNREACHABLE at physical Σ_t on the admitted folded
+    family (Σ* ≤ 0 for every inward ordinate, every probed mesh) —
+    now pinned as the 6.4 TRIPWIRE that reds if the absorber
+    retirement makes it reachable again; phase_c_gates' caller-less
+    `prod_2x4` arm retired; unified :424/:543 verified Cartesian).
+    **Remaining legs:** 2c sweep/curvilinear (⚠ the P(4,5) odd row →
+    (4,6); + the @slow `test_si_cyl_20cell_nan_regression` fixture —
+    same #209 family as 2b's re-pose) · 2d eigenvalue+solve+analytical
+    · 2e primitives (⚠ mesh-simple carrier/split_spaces/split_leaves
+    are FLIP-COMMIT family, not 2e — their cylinder fixtures are the
+    R12a NEGATIVE instances whose assertions invert; they ride leg 5
+    with slot-coordination) → leg 3 snapshots (interim-stamped) →
+    ⚠ 2c decide-at-file: `test_coupled_pole_mu_level_invariant`'s
+    P(4,5) row is SUBJECT-coupled (its docstring: odd n_φ has no
+    x-mirror closure — that property IS the row's point), and the
+    @slow `test_si_cyl_20cell_nan_regression.py` is the #209 family
+    2b re-posed (its k_inf pin's fixture migrates coherently with
+    2b's unreachability finding). ⚠ Renames of shared test fixtures
+    owe the L20 importer sweep — `[M]` the `_cyl_product` rename
+    broke `test_inverse_adjoint_coherence`'s cross-file import,
+    caught only by full COLLECTION (targeted per-file runs never
+    collect the importer; the V&V-matrix regen inside sphinx -W is
+    the gate that surfaced it). **Batteries at this checkpoint
+    (mid-6.3, HEAD after the coherence fix):** targeted per-leg
+    batteries green (leg 2a 461 rows / leg 2b 75 / MMS 40 / the
+    ERR-078 production-regression slice 140); full COLLECTION 9206
+    tests / 0 errors; pyright ratchet green; xref checker 0 dead;
+    sphinx -W clean (re-run after the coherence fix). NOT run:
+    tests/sn full not-slow (owed at 6.3 close — re-measures the
+    known-red set, already known wrong by ≥1: the latent #209
+    resonance red) and tests/numerics WITH-slow (owed at 6.3 close,
+    as before). →
     leg 4 redesigns → leg 5 THE FLIP — with the test-architect's
     three corrections (`scratch/q5_6_3_gate_design.md`; read its §6
     SIX user questions before leg 5): (i) the `folded_by`-provenance

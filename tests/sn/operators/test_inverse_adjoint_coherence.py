@@ -98,10 +98,11 @@ from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.full_field import FullField
 
 # Reuse the landed mesh/operator/field helpers — do NOT re-derive (2.5b keystone
-# file; ``_slab`` vacuum het 2G, ``_sphere`` GL seed-carrying, ``_cyl_product``
-# degenerate-ordinate + live seed-fold).
+# file; ``_slab`` vacuum het 2G, ``_sphere`` GL seed-carrying,
+# ``_cyl_degenerate`` folded degenerate-ordinate + live seed-fold — the
+# 6.3 migration's rename of the pre-flip ``_cyl_product``).
 from tests.sn.operators.test_loss_transpose_solve import (
-    _cyl_product,
+    _cyl_degenerate,
     _fresh,
     _loss,
     _sphere,
@@ -119,12 +120,12 @@ _RTOL = 1e-10
 #: ≥ 0.13; the clean gates sit at ≤ ~1e-15).
 _CAUGHT = 1e-6
 
-# Step 6 (R-6.2): the block swap-law rows run on the NON-carrying meshes;
-# on a carrying mesh the bare ``(L+C)`` is the honest ray-decoupled (A,A)
-# block and IS adjointable (the predicate row below), while the JOINT swap
-# law lives on the coupled sibling (the ``TestCoupledSwapLaw`` arm — the
-# same G1–G4 claims on ``M``).
-_MESHES = {"slab": _slab, "cyl_product": _cyl_product}
+# Step 6 (R-6.2): the block swap-law rows run on the bare ``(L+C)`` —
+# on a carrying mesh (both cylinder rows since the 6.3 flip) it is the
+# honest ray-decoupled (A,A) block and IS adjointable (the predicate row
+# below), while the JOINT swap law lives on the coupled sibling (the
+# ``TestCoupledSwapLaw`` arm — the same G1–G4 claims on ``M``).
+_MESHES = {"slab": _slab, "cyl_degenerate": _cyl_degenerate}
 
 
 def _rand_bulk(sn, seed: int) -> FullField:
