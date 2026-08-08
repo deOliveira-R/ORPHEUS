@@ -169,7 +169,7 @@ def test_multilevel_cylinder_production_stamp_matches_inline():
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     op = cylindrical_streaming(mesh, quad)
 

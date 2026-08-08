@@ -681,7 +681,7 @@ def test_282_augmented_walk_order_is_triangular(coord):
     quad = (
         Quadrature.gauss_legendre(n_ordinates=4)
         if coord is CoordSystem.SPHERICAL
-        else Quadrature.product(n_mu=4, n_phi=8)
+        else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
     sn_mesh = SNMesh(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},

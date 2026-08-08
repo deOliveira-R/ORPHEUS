@@ -2842,6 +2842,40 @@ implemented and **no `D_6h`-invariant rule in tree**.
     (map §9.6 — the carrying predicate is M-M sweep semantics;
     `cylindrical_streaming` is a shared geometry primitive and keeps
     its family-agnostic contract; its 6 direct test consumers stay).
+  * **6.3 LANDED SO FAR (2026-08-08):** `479c2a19` fix-on-sight
+    (loss_representation's R12a float spelling + "every cylinder
+    carries none") · `ce6607f5` **leg 1** (MMS builders →
+    folded_product; the σ_y-parity gate two-legged — parity on the
+    fold's PARENT + the restriction leg BIT-EQUAL; `[M]` #229 folded
+    floor 3.538e-3 → 6.782e-4 at n_φ 8→16, ratio 5.22× — most of the
+    full-circle floor falls at the fold, before 6.4's honest τ) ·
+    `f8ecb4f6` ⭐⭐ **ERR-078 FOUND AND FIXED** — the ψ½ march's
+    `solve` DROPPED the outflow-row rhs (ERR-071's mechanism verbatim
+    one system down; found by leg 2a's first coupled random-composite
+    round-trip, `back = 0.0` exact on one slot per level; production
+    bit-unchanged since physical q_out ≡ 0; THREE gates had pinned
+    the wrong contract, incl. an apply∘solve bit-zero closure that
+    was green BECAUSE of the bug — catalog entry ERR-078) ·
+    `b1539468` **leg 2a** (13 operator-tier files; ⭐ the degenerate
+    pure-azimuthal class SURVIVES the flip at folded n_φ ≡ 2 (mod 4)
+    — φ = π/2 exact by roots-of-unity, μ_r = 0.0 BIT-EXACT, stronger
+    than the retired 6e-17 NODE_ALIGNED fixtures; sphere_gl coupled
+    row added; loss_transpose G4 retired + G2's mask exclusion
+    retired; b3's `_sn_2d` is 2-D-Cartesian — the map overcounted).
+    **Remaining legs:** 2b sweep/core+top · 2c sweep/curvilinear
+    (⚠ the P(4,5) odd row → (4,6)) · 2d eigenvalue+solve+analytical ·
+    2e primitives + mesh-simple → leg 3 snapshots (interim-stamped) →
+    leg 4 redesigns → leg 5 THE FLIP — with the test-architect's
+    three corrections (`scratch/q5_6_3_gate_design.md`; read its §6
+    SIX user questions before leg 5): (i) the `folded_by`-provenance
+    pincer — a hand-built tag-less folded-equal rule MUST construct,
+    a `quotient(NODE_ALIGNED product)` (tag present, non-carrying)
+    MUST refuse; (ii) `[M]` NODE_ALIGNED product is edge-node-ONLY
+    (degenerate=False) — the two facts split the negatives, so
+    per-conjunct mutations each red exactly half; (iii) split
+    `non_carrying_levels()` out of the raiser or the ∀-quantifier
+    ships ungated; slab GL is the ORDER-discrimination row (the
+    structure-less guard fires first), never a refusal row → leg 6.
 
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an

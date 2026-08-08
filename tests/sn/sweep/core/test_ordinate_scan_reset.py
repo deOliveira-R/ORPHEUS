@@ -42,13 +42,16 @@ Two structurally-independent grounds (``vv-principles`` §1/§6):
   ground for the closed-form scan: a different algorithm (sequential
   fold, no division) for the same recurrence.  This catches the bug
   WITHOUT any solver in the loop.
-* **Solver-level pin** (``TestSICylinderResonance``).  SI must agree
-  with the structurally-independent Krylov solver at the resonance (the
-  matvec ``apply`` path never consumes ``ordinate_scan``); NaN is the
-  one failure mode that propagates to ``keff = NaN`` pre-fix.  The
-  closed-form ``k_inf = νΣ_f/Σ_a = 1.875`` eigenvalue pin lives in the
-  ``@slow`` solver gate
-  ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``.
+* **Solver-level tier** (``TestSICylinderResonance``).  Since the 6.3
+  flip the admitted cylinder family is the σ_y fold, where the
+  pole-cell resonance is UNREACHABLE at physical Σ_t (``[M]``
+  2026-08-08 — the per-ordinate resonant ``Σ_t*`` is ≤ 0 everywhere);
+  the class now pins that unreachability as the 6.4 tripwire (the
+  absorber retirement changes ``c_out``) plus a plain SI-vs-Krylov
+  agreement row.  The closed-form ``k_inf`` pin lives in the ``@slow``
+  solver gate
+  ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``
+  (its own fixture migrates with the curvilinear leg).
 
 The fast-path bit-identity gate (``test_fast_path_bit_identical``)
 guards the other half of the fix contract: when the chain has NO
@@ -237,13 +240,29 @@ class TestOrdinateScanDenormalUnderflow:
 
 @pytest.mark.l1
 class TestSICylinderResonance:
-    r"""The Issue #209 minimal reproducer at the exact resonance.
+    r"""Issue #209's pole-cell resonance — UNREACHABLE on the admitted family.
 
-    Cylinder (thick=2, n=20, reflective) × LevelSymmetric S8 × mixture
-    A 2G.  The smallest-|μ| ordinate ``μ_x = -1/√20`` hits the pole-cell
-    ``a = 0`` resonance bit-exactly.  Pre-fix ``inner_solver=
-    "source_iteration"`` returns ``keff = NaN``; ``"krylov"`` (which
-    never touches ``ordinate_scan``) returns the analytical ``k_inf``.
+    History in three states. (1) The pre-#337 fixture FOUND the
+    ``a = 0`` resonance at a numerical coincidence: the OLD
+    project-convention LS8 seed carried ``μ_x = −1/√20``, which solved
+    the pole-cell identity ``2|μ|·A_total = dA_w·c_out + Σ_t·V``
+    (ERR-054) bit-exactly at ``(thick=2, n=20, Σ_t=1)``.  (2) #337's
+    moment-matched seed retired that node (its μ₁² is 1/21) — the old
+    ordinate-present tripwire fired exactly as designed.  (3) At the
+    6.3 flip the admitted cylinder family is the σ_y fold, and there
+    the resonance is UNREACHABLE at physical cross sections: ``[M]``
+    (2026-08-08) the per-ordinate resonant ``Σ_t*`` — from the affine
+    ``1/(a+1)`` in ``Σ_t`` — is ≤ 0 for EVERY inward ordinate at
+    every probed ``(n, R)``, i.e. ``2|μ|·A_total ≤ dA_w·c_out`` on
+    every clamped folded arc, so ``a < 0`` for all ``Σ_t > 0``.
+
+    The unreachability test IS the tripwire: the [½,1] absorber's
+    retirement (6.4) changes ``c_out`` — if that makes the resonance
+    reachable again, the gate reds and 6.4 owes a live reproducer.
+    The ERR-054 class itself stays pinned by the quadrature-free
+    scan-form contract test above (``a[·] = 0`` chains fed directly);
+    the solver-level ``catches`` marker moved there with the
+    reachability.
     """
 
     @staticmethod
@@ -252,25 +271,52 @@ class TestSICylinderResonance:
         mesh = curvilinear_homogeneous_mesh(
             20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL,
         )
-        quad = Quadrature.level_symmetric(8)
+        quad = Quadrature.folded_product(n_mu=8, n_phi=16)
         return {0: mix}, mesh, quad
 
-    def test_resonant_ordinate_present(self) -> None:
-        r"""``μ_x = -1/√20`` is in S8 — the resonance is reachable."""
-        _, _, quad = self._build()
-        assert np.any(np.isclose(quad.mu_x, -1.0 / np.sqrt(20))), (
-            "LevelSymmetric S8 must carry the resonant ordinate "
-            "μ_x = -1/√20; without it the reproducer is inert"
+    def test_pole_resonance_unreachable_on_admitted_family(self) -> None:
+        r"""``Σ_t* ≤ 0`` for every inward ordinate — the ``a = 0``
+        pole-cell resonance cannot be assembled at physical Σ_t on the
+        folded rule.  REDS if a closure change (the 6.4 absorber
+        retirement) makes it reachable — then a live reproducer is
+        owed here again."""
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.sweep.cache import (
+            CollisionCache,
+            GeometryCoefficients,
         )
 
-    @pytest.mark.catches("ERR-054")
-    def test_si_agrees_with_krylov_at_resonance(self) -> None:
-        r"""SI and Krylov agree at the resonance to tight tolerance.
+        materials, mesh, quad = self._build()
+        probe = SNMesh(mesh, quad, materials)
+        geom = GeometryCoefficients.from_mesh_and_quad(probe)
+        mu = np.asarray(quad.mu_x)
+        inward = np.flatnonzero(mu < 0)
 
-        Krylov is the structurally-independent solver ground (the
-        matvec ``apply`` path never consumes ``ordinate_scan``).  Both
-        paths must converge to the same eigenvalue.
-        """
+        def _pole_a(ord_i: int, sig1: float) -> float:
+            sig_t = np.ones((probe.ng, probe.nx))
+            sig_t[0, :] = sig1
+            cache = CollisionCache.from_geometry(
+                geom, sig_t, probe.scheme,
+            )
+            return float(cache.a_attenuation[ord_i, 0, -1])
+
+        worst = -np.inf
+        for ord_i in map(int, inward):
+            f1 = 1.0 / (_pole_a(ord_i, 1.0) + 1.0)
+            f2 = 1.0 / (_pole_a(ord_i, 2.0) + 1.0)
+            worst = max(worst, 1.0 + (1.0 - f1) / (f2 - f1))
+        assert worst <= 1e-9, (
+            f"an inward ordinate admits a PHYSICAL resonant sigma_t* = "
+            f"{worst:.6g} on the admitted folded rule — the ERR-054 "
+            f"pole-cell resonance is reachable again (absorber "
+            f"retirement?); restore a live solver-level reproducer here"
+        )
+
+    def test_si_agrees_with_krylov(self) -> None:
+        r"""SI and Krylov agree on the folded cylinder to tight
+        tolerance — Krylov is the structurally-independent solver
+        ground (the matvec ``apply`` path never consumes
+        ``ordinate_scan``)."""
         materials, mesh, quad = self._build()
         si = solve_sn(
             materials, mesh, quad, inner_solver="source_iteration",

@@ -110,15 +110,17 @@ def _make_spherical_sn_mesh(
 def _make_cylindrical_sn_mesh(
     nx: int = 8,
     R: float = 1.0,
-    quad_name: str = "ls4",
+    quad_name: str = "folded_4x8",
     bc_outer: BC | None = None,
     pole_closure=None,
 ) -> tuple[SNMesh, np.ndarray]:
-    """Build a homogeneous-material cylindrical SNMesh + sig_t array."""
-    if quad_name == "ls4":
-        quad = Quadrature.level_symmetric(4)
-    elif quad_name == "prod_2x4":
-        quad = Quadrature.product(n_mu=2, n_phi=4)
+    """Build a homogeneous-material cylindrical SNMesh + sig_t array.
+
+    6.3 flip: the admitted cylinder family is the σ_y fold; the retired
+    ``ls4``/``prod_2x4`` arms (the latter caller-less) named rules the
+    mesh now refuses."""
+    if quad_name == "folded_4x8":
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     else:
         raise ValueError(quad_name)
     edges = np.linspace(0.0, R, nx + 1)

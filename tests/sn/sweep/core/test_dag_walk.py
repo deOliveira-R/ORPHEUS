@@ -154,7 +154,7 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
         mat_ids=np.zeros(8, dtype=int),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     for level_p in range(len(quad.level_indices)):
         for sign in (+1, -1):
@@ -184,7 +184,7 @@ def test_dag_walk_cylindrical_per_level_matches():
         mat_ids=np.zeros(8, dtype=int),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
     level_indices = quad.level_indices
@@ -245,7 +245,7 @@ def test_dag_walk_cylindrical_requires_level():
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CYLINDRICAL,
     )
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="mu_level_idx"):
         list(sn_mesh.dag_walk(direction_sign=+1))

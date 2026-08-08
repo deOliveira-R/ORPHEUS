@@ -110,7 +110,7 @@ def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNMesh(mesh, quad, placeholder_materials())
 
 
@@ -246,7 +246,7 @@ class TestHonestCurvilinearSchemeSelection:
         quad = (
             Quadrature.gauss_legendre(n_ordinates=8)
             if coord is CoordSystem.SPHERICAL
-            else Quadrature.level_symmetric(sn_order=4)
+            else Quadrature.folded_product(n_mu=4, n_phi=8)
         )
         mesh = Mesh1D(
             edges=np.linspace(0.0, 1.0, 9),
