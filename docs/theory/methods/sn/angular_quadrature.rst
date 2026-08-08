@@ -38,43 +38,66 @@ direction cosine set satisfying :math:`\eta^2 + \xi^2 + \mu^2 = 1`.
 Equal spacing in :math:`\mu^2` is the Carlson–Lathrop recursion
 :math:`\mu_i^2 = \mu_1^2 + (i-1)\,\Delta` with
 :math:`\Delta = 2(1 - 3\mu_1^2)/(N-2)` — Eq. (3-52), printed p. 32 of
-:cite:`CarlsonLathrop1965` — seeded with the **project convention**
-:math:`\mu_1^2 = 4/(N(N+2))`.
+:cite:`CarlsonLathrop1965` — seeded with the **moment-matched**
+:math:`\mu_1` (issue #337, 2026-08-08): the smallest root of *the rule
+integrates* :math:`\mu_z^N` *exactly*, root-found by the builder at
+construction.  This is the construction behind the published LA-3186
+tables, and it reproduces their :math:`\mu_1` to every printed digit at
+each tabulated order.
 
 .. note::
 
-   **The seed's provenance, verified against the primary source**
-   (2026-08-08, the LA-3251-MS scan; issue #327).  Carlson–Lathrop leave
-   :math:`\mu_1` **free**: *"Selection of* :math:`\mu_1` *determines the
-   spread of direction cosines along the axes"* follows Eq. (3-52)
-   directly (printed p. 32), and no seed formula or numeric
-   :math:`\mu_1` table appears anywhere in the chapter.  Their tabulated
-   family lives in :cite:`LathropCarlson1964` (the chapter's Reference 5)
-   and instead picks :math:`\mu_1` to *"integrate as many even powers
-   of* :math:`\mu` *as possible"* (printed p. 33).  The two families
-   provably differ, exactly at :math:`S_4` where the single :math:`O_h`
-   orbit forces equal weights and :math:`\mu_1` is the *only* freedom:
-   max-moment matching makes :math:`\int\mu^4` exact, forcing
-   :math:`15\mu_1^4 - 10\mu_1^2 + 1 = 0`, i.e.
+   **The seed's provenance — verified against the primary sources and
+   then adopted** (issues #327 → #337, 2026-08-08; the LA-3251-MS and
+   LA-3186 scans, all load-bearing values render-verified).
+   Carlson–Lathrop leave :math:`\mu_1` **free** in the chapter
+   (*"Selection of* :math:`\mu_1` *determines the spread of direction
+   cosines along the axes"*, printed p. 32); their tabulated family
+   lives in :cite:`LathropCarlson1964` and picks :math:`\mu_1` to
+   *"integrate as many even powers of* :math:`\mu` *as possible"*.
+   Until #337 ORPHEUS carried a **project convention**
+   :math:`\mu_1^2 = 4/(N(N+2))` (source-noteless since the first
+   quadrature commit, untraced to any publication) whose measured cost
+   was two-fold: a degree ceiling of :math:`N-1` (at :math:`S_4` the
+   single orbit forces equal weights, so :math:`\mu_1` is the only
+   freedom, and the convention's :math:`0.4082483` missed the
+   :math:`\int\mu^4` moment by 16.7 % where the matched
    :math:`\mu_1 = \sqrt{(5-\sqrt{10})/15} = 0.3500212` — the classic
-   :math:`LQ_4` value — where our seed gives :math:`0.4082483`, a
-   measured 16.7 % relative :math:`\mu^4` defect.  The formula
-   :math:`4/(N(N+2))` is untraced to any publication (it entered with
-   the project's first quadrature commit, source-noteless), so the
-   citation covers the *construction* — the triangular grid, the
-   recursion, orbit-constant weights — never the seed.  (:math:`S_2` is
-   the exception with no freedom at all: :math:`\mu_1^2 = 1/3` is forced
-   by the diffusion condition, printed p. 45, and the code special-cases
-   exactly that value.)
+   :math:`LQ_4` value — closes it in radicals), and a positivity
+   frontier of :math:`S_{12}` where the matched family reaches
+   :math:`S_{18}`.  (:math:`S_2` has no freedom at all:
+   :math:`\mu_1^2 = 1/3` is forced by the diffusion condition, printed
+   p. 45 — bit-identical across both seeds, the carve's regression
+   control.)
 
-   **The seed is what sets the positivity frontier.**  The
-   max-moment-matched family stays positive through :math:`N = 22`
-   (printed p. 33: for :math:`n > 22` negative weights occur), while the
-   per-orbit weight solve on *our* nodes goes negative from
-   :math:`S_{14}` — so the :math:`S_{12}` refusal documented below is a
-   property of the seed, not of the level-symmetric shape.  Adopting the
-   moment-matched :math:`\mu_1` per order is a node change that moves
-   every LS consumer; issue **#337** tracks that upgrade.
+   **LA-3186 Table I corroboration** (:math:`S_4/S_6/S_8/S_{12}/S_{16}/
+   S_{20}` tabulated): our 50-digit re-derivation agrees at every order
+   and is the *correctly rounded* value at three where the print
+   carries a one-ulp last-digit slip (:math:`S_6` prints …55 for …54,
+   :math:`S_{12}` …26 for …27, :math:`S_{16}` …68 for …69).
+   :math:`S_{10}/S_{14}/S_{18}` are untabulated anywhere in LA-3186;
+   their values rest on the re-derivation, independently reproduced
+   through the C-L level system.
+
+   **The point weights are ours, not LA-3186's — measured, deliberate.**
+   LA-3186 (p. 15) decomposes level weights by the axis-weight ansatz
+   :math:`p_{\{i,j,k\}} = a_i + a_j + a_k`, which constrains only the
+   *axial* moment content: `[M]` on the same nodes that decomposition
+   reaches full 3-D degree **11 at every order** :math:`\geq 14`, while
+   ORPHEUS's per-orbit cross-moment solve reaches **15/15/17** at
+   :math:`S_{14}/S_{16}/S_{18}`.  The two decompositions' positivity
+   frontiers *interleave*: the ansatz dies at :math:`S_{18}` and serves
+   :math:`S_{20}` (at degree 11 — strictly dominated by our
+   :math:`S_{14}`), ours serves :math:`S_{18}` and dies at
+   :math:`S_{20}`.  And :math:`S_{22}` is **intrinsically dead** for
+   the whole even-moment family: an LP over the full decomposition
+   kernel certifies no nonnegative point weights exist (best possible
+   min :math:`p = -0.0027`).  LA-3251-MS's *"for n > 22 negative
+   weights occur"* (printed p. 33) is a claim about LEVEL weights —
+   true (first negative level weight at :math:`n = 24`) — not about
+   realizable point weights; LA-3186 itself never publishes point
+   weights above :math:`n = 16`.  Extraction of record with page
+   cites: ``scratch/issue_337_la3186_la4058_extraction.md``.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
 needed by the cylindrical :term:`sweep`.  Unlike the product quadrature
@@ -117,7 +140,9 @@ against the closed form
 
 Only even triples constrain anything (sign-flip closure kills the odd ones),
 and permuted triples give the *same* equation, so the independent conditions
-are the even triples up to permutation.  ``[M]`` the resulting degrees:
+are the even triples up to permutation.  `[M]` the resulting degrees
+(2026-08-08, on the moment-matched nodes — #337; the earlier #327
+convention-seed table read degrees 3/3/5/7/9/11 with the S12 frontier):
 
 .. list-table::
    :header-rows: 1
@@ -133,42 +158,61 @@ are the even triples up to permutation.  ``[M]`` the resulting degrees:
      - 1.570796
    * - 4
      - 1
-     - 3
+     - 5
      - 0.523599
    * - 6
      - 2
-     - 5
-     - 0.201682
+     - 7
+     - 0.246940
    * - 8
      - 3
-     - 7
-     - 0.131132
+     - 9
+     - 0.142535
    * - 10
      - 4
-     - 9
-     - 0.057100
+     - 11
+     - 0.070755
    * - 12
      - 5
      - 11
-     - 0.027825
+     - 0.040607
+   * - 14
+     - 7
+     - 15
+     - 0.012990
+   * - 16
+     - 8
+     - 15
+     - 0.016300
+   * - 18
+     - 10
+     - 17
+     - 0.000175
 
-⭐ **At** :math:`S_2` **and** :math:`S_4` **the solve is provably a no-op.**
-Both node sets are a *single* orbit, so :math:`O_h`-invariance plus
-:math:`\sum w = 4\pi` determine the one weight uniquely — the equal-weight
-value was already correct, and degree 3 is the ceiling any rule on those nodes
-can reach.  This is why :math:`S_4`, the workhorse order, is bit-identical
-across the #327 fix.
+⭐ **At** :math:`S_2` **and** :math:`S_4` **the weight solve is provably a
+no-op.**  Both node sets are a *single* orbit, so :math:`O_h`-invariance plus
+:math:`\sum w = 4\pi` determine the one weight uniquely.  At :math:`S_2` the
+NODES are forced too (:math:`\mu^2 = 1/3`), which made it bit-identical across
+the #327 fix AND the #337 seed change — the family's standing regression
+control.  :math:`S_4` was bit-identical across #327 (same nodes, forced
+weight) but its nodes MOVED at #337 (:math:`0.4082 \to 0.3500`), taking the
+workhorse order from degree 3 to degree 5 — the largest single win of the
+seed adoption.
 
 .. _quadrature-ls-positivity:
 
-Why the family stops at :math:`S_{12}`
+Why the family stops at :math:`S_{18}`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``[M]`` the moment-matched solve yields a **negative** weight from
-:math:`S_{14}` upward on these levels (:math:`-0.027` at :math:`S_{14}`,
-:math:`-0.018` at :math:`S_{16}`, :math:`-0.142` at :math:`S_{20}`).
+`[M]` the per-orbit solve on the moment-matched nodes yields a **negative**
+weight from :math:`S_{20}` upward (:math:`-2.191\times 10^{-4}` at
+:math:`S_{20}`, 50-digit-confirmed — the sign has ~7 orders of margin over
+float64, so the flip is the family's, not the arithmetic's).
 :meth:`Quadrature.level_symmetric
 <orpheus.numerics.quadrature.Quadrature.level_symmetric>` **refuses** there.
+(Under the retired convention seed the frontier sat at :math:`S_{12}`:
+:math:`-0.027` at :math:`S_{14}` on those nodes — the seed, not the
+level-symmetric shape, sets it.)
 
 Positivity is not a preference to trade against accuracy.  The scalar flux is
 :math:`\phi = \sum_n w_n \psi_n`, so a negative weight lets a *non-negative*
@@ -184,7 +228,12 @@ a different :math:`\mu_1` seed pushes it up, the refusal moves with it and
 :func:`~orpheus.numerics.quadrature.registry.select_quadrature` follows,
 because its inverter **asks the family** (attempts the construction, returns
 the documented ``None`` on refusal) rather than consulting a second copy of the
-limit that would drift.  Above :math:`S_{12}`, use Lebedev or the product rule.
+limit that would drift.  Above :math:`S_{18}`, use Lebedev or the product rule
+— and :math:`S_{18}` is the end of the road for THIS family, not a solver
+limitation: :math:`S_{20}` is servable only by the axis-weight decomposition
+at full degree 11 (dominated by our :math:`S_{14}`), and :math:`S_{22}` is
+LP-certified infeasible for any nonnegative decomposition (the provenance
+note above).
 
 .. admonition:: Development history — #327, 2026-08-06
    :class: note
@@ -226,6 +275,31 @@ limit that would drift.  Above :math:`S_{12}`, use Lebedev or the product rule.
    measures every production family against
    :eq:`quadrature-sphere-monomial` with the other three rules swept by the
    same body as controls.
+
+.. admonition:: Development history — #337, 2026-08-08
+   :class: note
+
+   #327's citation verification (LA-3251-MS) revealed the node seed
+   :math:`\mu_1^2 = 4/(N(N+2))` was a source-noteless project convention —
+   Carlson–Lathrop leave :math:`\mu_1` free and their tables moment-match
+   it.  #337 adopted the moment-matched seed: :math:`\mu_1` is the smallest
+   root of the :math:`\int\mu_z^N` condition, root-found by the builder
+   (the residual has TWO roots at :math:`N = 6/10/14/18`; the larger one's
+   weight solve is strongly negative, which is why *smallest* is the rule).
+   Degrees rose :math:`N-1 \to N+1` at :math:`S_4`–:math:`S_{10}` and
+   :math:`S_{14}`; the positivity frontier moved :math:`S_{12} \to
+   S_{18}`; every LS consumer's nodes moved at :math:`S_4` and above
+   (:math:`S_2` bit-identical), re-baselined per principled-equivalence.
+
+   The verification instrument is three-cornered
+   (``tests/numerics/test_level_symmetric_nodes.py``): the build-measured
+   stamp, an independent monomial sweep, and frozen literals re-solved at
+   50 digits — because with a build-measured stamp, "measured ==
+   advertised" alone is two re-implementations of one gamma identity
+   agreeing.  The degree table is structurally BLIND to the seed at
+   :math:`S_{12}/S_{16}/S_{18}` (same degree under both seeds); those
+   orders are carried by the :math:`\mu_1` value gate and the axial
+   residual gate alone.
 
 Product Quadrature (GL x equispaced)
 -------------------------------------

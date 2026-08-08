@@ -191,25 +191,37 @@ def test_ls_sn_invert(target: int, expected_N: int) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("target", [13, 15, 21])
-def test_ls_sn_invert_REFUSES_above_the_positivity_frontier(target: int) -> None:
-    r"""⭐ RE-POSED at #327 — the ``(15, 16)`` row asserted the opposite.
+@pytest.mark.parametrize(
+    "target,expected", [(13, {"sn_order": 14}), (15, {"sn_order": 16})]
+)
+def test_ls_sn_invert_serves_the_moment_matched_frontier(
+    target: int, expected: "dict[str, int]",
+) -> None:
+    r"""⭐ RE-POSED at #337 — exactly as the #327 row's own docstring
+    predicted: "if a future node choice pushes the frontier up, the
+    inverter follows it and these targets start being served — at which
+    point this row reddens and says so, which is the correct outcome."
 
-    It read ``(15, 16),  # N=16 (deg 15)`` and pinned that the family serves
-    target degree 15 with :math:`S_{16}`. Since #327 the weights are solved per
-    :math:`O_h` orbit and the solve has no POSITIVE solution above
-    :math:`S_{12}` (`[M]` min weight ``-0.027`` at :math:`S_{14}`), so
-    :math:`S_{16}` does not exist and the inverter returns ``None`` — the
-    selector's documented "cannot reach target_degree with any supported
-    parameters" channel.
-
-    ⭐ The inverter discovers this by ATTEMPTING the construction, not by
-    comparing against a literal 12, so this row pins the BEHAVIOUR and not the
-    number. If a future node choice pushes the frontier up, the inverter
-    follows it and these targets start being served — at which point this row
-    reddens and says so, which is the correct outcome.
+    The moment-matched seed (#337) pushed the positivity frontier from
+    :math:`S_{12}` to :math:`S_{18}`, so targets 13 and 15 are served
+    again (:math:`S_{14}` achieves degree 15 and :math:`S_{16}` degree
+    15 — the ``n_min = target + 1`` inverse stays SAFE, if non-tight,
+    because ``deg(N) >= N - 1`` at every buildable order). The inverter
+    discovered this by ATTEMPTING the construction — no literal moved.
     """
-    assert _ls_sn_invert(target) is None
+    assert _ls_sn_invert(target) == expected
+
+
+@pytest.mark.foundation
+def test_ls_sn_invert_REFUSES_above_the_positivity_frontier() -> None:
+    r"""Above :math:`S_{18}` the solve has no POSITIVE solution
+    (`[M]` #337: −2.191e-4 at :math:`S_{20}`, 50-digit-confirmed), so
+    the inverter returns ``None`` — the selector's documented "cannot
+    reach target_degree with any supported parameters" channel. The
+    inverter discovers this by attempting the construction, never by
+    comparing against a literal frontier.
+    """
+    assert _ls_sn_invert(21) is None
 
 
 @pytest.mark.foundation

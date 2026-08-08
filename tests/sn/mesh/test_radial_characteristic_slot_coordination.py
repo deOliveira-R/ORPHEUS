@@ -93,14 +93,13 @@ _SPHERES = [("sphere_GL%d" % n, CoordSystem.SPHERICAL, Quadrature.gauss_legendre
 _CYL_PRODUCT = [("cyl_product_%dx%d" % (m, p), CoordSystem.CYLINDRICAL,
                  Quadrature.product(n_mu=m, n_phi=p))
                 for m in (2, 4, 6) for p in (4, 8)]
-# S12 is the TOP of the level-symmetric family's defined range, not an
-# arbitrary cap: #327 gave it per-O_h-orbit moment-matched weights, and the
-# solve has no POSITIVE solution above S12 on these levels (`[M]` min weight
-# -0.027 at S14), so the builder refuses there. This list was `(2, 4, 8, 16)`
-# and S16 now raises AT COLLECTION TIME — the battery wants "the largest
-# available order", which is 12.
+# S18 is the TOP of the level-symmetric family's defined range, not an
+# arbitrary cap: the per-O_h-orbit solve (#327) on the moment-matched
+# nodes (#337) has no POSITIVE solution above S18 (`[M]` -2.191e-4 at
+# S20, 50-digit-confirmed), so the builder refuses there. The battery
+# wants "the largest available order", which moved 12 -> 18 at #337.
 _CYL_LS = [("cyl_LS_S%d" % s, CoordSystem.CYLINDRICAL, Quadrature.level_symmetric(s))
-           for s in (2, 4, 8, 12)]
+           for s in (2, 4, 8, 18)]
 _ALL = _SPHERES + _CYL_PRODUCT + _CYL_LS
 
 

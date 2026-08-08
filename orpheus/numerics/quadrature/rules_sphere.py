@@ -44,6 +44,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 from enum import Enum
+from functools import lru_cache
 
 import numpy as np
 
@@ -377,6 +378,37 @@ def _sphere_monomial_integral(a: int, b: int, c: int) -> float:
     )
 
 
+def _measured_exactness_degree(
+    nodes: np.ndarray, weights: np.ndarray, *, atol: float = 1e-10,
+) -> int:
+    r"""The rule's polynomial exactness, MEASURED against the closed form.
+
+    The largest ``d`` with every monomial of total degree ``<= d``
+    integrated to ``atol`` — the same sweep, with the same tolerance,
+    that ``tests/numerics/test_advertised_degree_is_measured.py``
+    re-runs independently. Used to STAMP the level-symmetric claim
+    (#337): under the moment-matched seed the achieved degree is not a
+    clean formula of :math:`N`, so the honest stamp is a measurement
+    of the built rule, not an integer the construction hopes for.
+    """
+    x, y, z = nodes[:, 0], nodes[:, 1], nodes[:, 2]
+    degree = 0
+    while degree < 64:
+        d = degree + 1
+        for a in range(d + 1):
+            for b in range(d + 1 - a):
+                c = d - a - b
+                quadrature_sum = float(
+                    np.sum(weights * x**a * y**b * z**c)
+                )
+                if abs(
+                    quadrature_sum - _sphere_monomial_integral(a, b, c)
+                ) > atol:
+                    return degree
+        degree = d
+    return degree
+
+
 def _moment_matched_octant_weights(
     sn_order: int,
     octant_dirs: "list[tuple[float, float, float]]",
@@ -395,32 +427,38 @@ def _moment_matched_octant_weights(
     the lowest independent moment conditions for them is the classical
     construction the docstring has always cited.
 
-    ⭐ **At** :math:`S_2` **and** :math:`S_4` **this is provably a no-op.** Both
-    node sets are a SINGLE orbit, so invariance plus :math:`\sum w = 4\pi`
-    determine the weight uniquely — the old equal-weight value was already
-    right, and `[M]` the solve returns it bit-for-bit. That is the regression
-    control for this change, and it is why ~290 :math:`S_4` call sites and four
-    frozen baselines do not move.
+    ⭐ **At** :math:`S_2` **this is provably a no-op.** The node set is a
+    SINGLE orbit, so invariance plus :math:`\sum w = 4\pi` determine the
+    weight uniquely — bit-identical across #327 AND #337 (the pre-carve
+    capture in ``tests/numerics/test_level_symmetric_nodes.py`` pins it).
+    (:math:`S_4` was also a forced no-op at #327; #337 then moved its
+    NODES, so its weight — still forced — changed with the orbit sums.)
 
-    `[M]` 2026-08-06, achieved degree and positivity:
+    `[M]` 2026-08-08, on the moment-matched nodes (#337); the #327
+    convention-seed values are struck through in the corpus table:
 
-    ====  ======  ======  ============  ==========
-    N     orbits  degree  min weight    vs. before
-    ====  ======  ======  ============  ==========
-    2     1       3       1.570796      identical
-    4     1       3       0.523599      identical
-    6     2       5       0.201682      moves
-    8     3       7       0.131132      moves
-    10    4       9       0.057100      moves
-    12    5       11      0.027825      moves
-    ====  ======  ======  ============  ==========
+    ====  ======  ======  ============
+    N     orbits  degree  min weight
+    ====  ======  ======  ============
+    2     1       3       1.570796
+    4     1       5       0.523599
+    6     2       7       0.246940
+    8     3       9       0.142535
+    10    4       11      0.070755
+    12    5       11      0.040607
+    14    7       15      0.012990
+    16    8       15      0.016300
+    18    10      17      0.000175
+    ====  ======  ======  ============
 
     Raises
     ------
     ValueError
         When the solve yields a **non-positive** weight — measured, from
-        :math:`S_{14}` upward on this node set (`[M]` ``-0.027`` at
-        :math:`S_{14}`, ``-0.142`` at :math:`S_{20}`).
+        :math:`S_{20}` upward on the moment-matched nodes (`[M]`
+        ``-2.191e-4`` at :math:`S_{20}`, 50-digit-confirmed — the sign
+        has ~7 orders of margin over float64, so the flip is the
+        family's, not the arithmetic's).
 
         ⛔ **Positivity is not a preference.** :math:`\phi = \sum_n w_n \psi_n`
         must be non-negative for a non-negative angular flux, and the boundary
@@ -433,7 +471,62 @@ def _moment_matched_octant_weights(
 
         The frontier is **computed, never hardcoded**: it is read off the
         solution's own sign, so it tracks the node set instead of going stale
-        beside it. Today that puts it between :math:`S_{12}` and :math:`S_{14}`.
+        beside it. Today that puts it between :math:`S_{18}` and
+        :math:`S_{20}` — and it is the END of the road, not a solver
+        limitation: `[M]` :math:`S_{20}` is servable only by the
+        axis-weight decomposition at full degree 11 (dominated by our
+        :math:`S_{14}`), and at :math:`S_{22}` an LP over the whole
+        decomposition kernel certifies NO nonnegative point weights
+        exist for the even-moment family at all.
+    """
+    per_orbit, labels, conditions, system, targets = _greedy_orbit_solve(
+        sn_order, octant_dirs, octant_orbit,
+    )
+
+    if float(np.min(per_orbit)) <= 0.0:
+        raise ValueError(
+            f"level-symmetric S_{sn_order}: the moment-matched construction "
+            f"has no POSITIVE solution on this node set (min weight "
+            f"{float(np.min(per_orbit)):.6f}). phi = sum(w*psi) must stay "
+            f"non-negative for a non-negative angular flux, and the boundary "
+            f"response kernels assert it, so a negative weight is not a "
+            f"tolerable trade for the extra degree. The level-symmetric family "
+            f"is positive up to S_18 on the moment-matched levels; above it "
+            f"use Quadrature.lebedev(order) or Quadrature.product(n_mu, "
+            f"n_phi), both of which reach their advertised degree with "
+            f"positive weights (issues #327, #337)."
+        )
+
+    weight_of = dict(zip(labels, (float(w) for w in per_orbit)))
+    return [weight_of[label] for label in octant_orbit]
+
+
+def _greedy_orbit_solve(
+    sn_order: int,
+    octant_dirs: "list[tuple[float, float, float]]",
+    octant_orbit: "list[tuple[int, int, int]]",
+) -> "tuple[np.ndarray, list[tuple[int, int, int]], list[tuple[int, int, int]], np.ndarray, np.ndarray]":
+    r"""The per-orbit weight solve, WITHOUT the positivity contract.
+
+    Returns ``(per_orbit, labels, conditions, system, targets)`` — the
+    solved orbit weights plus the full condition ladder they were
+    solved inside, so a caller can evaluate the residual of any ladder
+    row NOT in the solved set. Two callers:
+
+    * :func:`_moment_matched_octant_weights` — adds the positivity
+      raise (the production contract);
+    * :func:`_axial_condition_residual` — the μ₁ root-find's objective
+      (#337), which must evaluate trial seeds whose weights may be
+      transiently negative or whose system may be rank-short. A trial
+      failure there is a NaN to step over, not a contract violation —
+      which is exactly why the raise cannot live in this core.
+
+    Raises
+    ------
+    ValueError
+        When fewer independent conditions than orbits exist in the
+        ladder at these nodes (a rank-short greedy — degenerate level
+        coincidences at pathological seeds).
     """
     orbits: "dict[tuple[int, int, int], list[int]]" = {}
     for index, label in enumerate(octant_orbit):
@@ -476,24 +569,163 @@ def _moment_matched_octant_weights(
             chosen = trial
         if len(chosen) == len(labels):
             break
-    per_orbit = np.linalg.solve(system[chosen], targets[chosen])
-
-    if float(np.min(per_orbit)) <= 0.0:
+    if len(chosen) != len(labels):
         raise ValueError(
-            f"level-symmetric S_{sn_order}: the moment-matched construction "
-            f"has no POSITIVE solution on this node set (min weight "
-            f"{float(np.min(per_orbit)):.6f}). phi = sum(w*psi) must stay "
-            f"non-negative for a non-negative angular flux, and the boundary "
-            f"response kernels assert it, so a negative weight is not a "
-            f"tolerable trade for the extra degree. The level-symmetric family "
-            f"is positive up to S_12 on these levels; above it use "
-            f"Quadrature.lebedev(order) or Quadrature.product(n_mu, n_phi), "
-            f"both of which reach their advertised degree with positive "
-            f"weights (issue #327)."
+            f"level-symmetric S_{sn_order}: only {len(chosen)} independent "
+            f"moment conditions found for {len(labels)} orbit weights at "
+            f"this seed (a rank-short greedy — degenerate level "
+            f"coincidence)."
         )
+    per_orbit = np.linalg.solve(system[chosen], targets[chosen])
+    return per_orbit, labels, conditions, system, targets
 
-    weight_of = dict(zip(labels, (float(w) for w in per_orbit)))
-    return [weight_of[label] for label in octant_orbit]
+
+def _axial_condition_residual(sn_order: int, mu1_sq: float) -> float:
+    r"""The :math:`\int_{S^2}\mu_z^N` defect of the trial seed ``mu1_sq``.
+
+    The moment-matched family's DEFINING equation (#337): with weights
+    solved per orbit, one condition remains for the node seed, and
+    `[M]` it is always the pure axial monomial ``(0, 0, N)`` — present
+    in the ladder at every order, outside the greedy's chosen set, and
+    generically unsatisfied. The seed therefore has a *name*: the rule
+    integrates :math:`\mu_z^N` exactly.
+
+    Returns NaN when the trial seed is unsolvable (rank-short greedy) —
+    the root-find steps over such points rather than crashing, because
+    `[M]` up to 31 % of the bracket is rank-deficient at S20.
+    """
+    try:
+        _mu_levels, octant_dirs, octant_orbit = _octant_directions(
+            sn_order, mu1_sq
+        )
+        per_orbit, _labels, conditions, system, targets = (
+            _greedy_orbit_solve(sn_order, octant_dirs, octant_orbit)
+        )
+    except (ValueError, np.linalg.LinAlgError):
+        return float("nan")
+    row = conditions.index((0, 0, sn_order))
+    return float(system[row] @ per_orbit - targets[row])
+
+
+@lru_cache(maxsize=None)
+def _moment_matched_mu1_sq(sn_order: int) -> float:
+    r"""The moment-matched seed: the SMALLEST root of the axial defect.
+
+    Root-finds :func:`_axial_condition_residual` over
+    :math:`\mu_1^2 \in (0, 1/3)` (issue #337 — the seed is no longer a
+    project convention but the choice that extends the exactly-held
+    moment set by :math:`\int\mu_z^N`, the construction behind the
+    published LA-3186 tables: `[M]` reproduces their :math:`\mu_1` to
+    every printed digit at S4/S6/S8/S12/S16).
+
+    Two measured hazards shape the algorithm:
+
+    * **The root is not unique** — at N = 6, 10, 14, 18 a SECOND root
+      exists in (0, 1/3), and its weight solve is strongly negative
+      (−0.6 … −7.7). The rule is **the smallest root**: scan LEFT to
+      right and bisect the first sign change.
+    * **The objective is not total** — the inner greedy is
+      rank-deficient on parts of the bracket (`[M]` 31 % at S20) and
+      its chosen-set switches make the residual discontinuous there.
+      NaN trial points are stepped over, never bracketed across.
+    """
+    lo, hi, n_scan = 1e-4, 1.0 / 3.0 - 1e-4, 512
+    xs = np.linspace(lo, hi, n_scan)
+    prev_x = prev_f = math.nan
+    for x in xs:
+        f = _axial_condition_residual(sn_order, float(x))
+        if not math.isfinite(f):
+            prev_x = prev_f = math.nan
+            continue
+        if math.isfinite(prev_f) and prev_f * f < 0.0:
+            a, b, fa = prev_x, float(x), prev_f
+            for _ in range(200):
+                mid = 0.5 * (a + b)
+                fm = _axial_condition_residual(sn_order, mid)
+                if not math.isfinite(fm):
+                    mid = a + 0.499 * (b - a)
+                    fm = _axial_condition_residual(sn_order, mid)
+                    if not math.isfinite(fm):
+                        break
+                if fa * fm <= 0.0:
+                    b = mid
+                else:
+                    a, fa = mid, fm
+                if b - a < 1e-17:
+                    break
+            return 0.5 * (a + b)
+        prev_x, prev_f = float(x), f
+    raise ValueError(
+        f"level-symmetric S_{sn_order}: the moment-matched seed equation "
+        f"(the integral of mu_z^{sn_order} exact) has no root in "
+        f"(0, 1/3) — the family is not realizable at this order."
+    )
+
+
+def _octant_directions(
+    sn_order: int, mu1_sq: float,
+) -> "tuple[np.ndarray, list[tuple[float, float, float]], list[tuple[int, int, int]]]":
+    r"""The triangular octant point set at a given seed.
+
+    The ONE producer of level-symmetric octant geometry, shared by the
+    builder and by the μ₁ root-find's trial evaluations (#337) — so the
+    trial nodes ARE the production nodes at that seed, by construction
+    rather than by a second spelling.
+
+    Levels follow Carlson–Lathrop Eq. (3-52) (LA-3251-MS printed
+    p. 32): :math:`\mu_i^2 = \mu_1^2 + (i-1)\Delta`,
+    :math:`\Delta = 2(1-3\mu_1^2)/(N-2)` (:math:`S_2`'s single level
+    is the seed itself — no recursion, no division by :math:`N-2`).
+    """
+    n_half = sn_order // 2
+    if n_half == 1:
+        mu_levels = np.sqrt(np.array([mu1_sq]))
+    else:
+        delta = 2.0 * (1.0 - 3.0 * mu1_sq) / (sn_order - 2)
+        mu_levels = np.sqrt(mu1_sq + np.arange(n_half) * delta)
+
+    # The defining property of a level-symmetric set: every ordinate's
+    # three direction cosines are drawn from the SAME level array, so
+    # the set is closed under permuting the axes. The level index of the
+    # third cosine is not free — it is fixed by the other two.
+    #
+    #   mu2[p] + mu2[k] + mu2[j] = 3*mu1_sq + (p + k + j)*delta = 1
+    #   and delta = 2(1 - 3*mu1_sq)/(N - 2)
+    #   =>  p + k + j = (1 - 3*mu1_sq)/delta = (N - 2)/2 = n_half - 1.
+    #
+    # So j is INDEX ARITHMETIC. Until 2026-08-02 this loop instead
+    # recovered the third cosine numerically as
+    # ``sqrt(1 - mu_z**2 - eta**2)``, which lands within ~1e-16 of
+    # ``mu_levels[j]`` but not ON it: `[M]` at N=16 the y-axis then
+    # carried 22 distinct magnitudes where the level array has 8, and
+    # only 8 of the 48 O_h operators mapped the node set onto itself
+    # bit-exactly — the 8 pure sign flips, since negation is exact in
+    # IEEE while a coordinate swap is only exact if the values match.
+    # The rule advertised O_h invariance and realized D_2h.
+    #
+    # Reading the level value instead makes all 48 exact, so the
+    # octahedral symmetry becomes an integer permutation of ordinate
+    # indices rather than a question about tolerances. It also retires
+    # the `xi_sq < -1e-14` guard: `j` is provably in range for every
+    # admissible (p, k), because p + k <= n_half - 1 by the loop bound.
+    octant_dirs: list[tuple[float, float, float]] = []
+    # ⭐ The O_h ORBIT of each octant direction, as EXACT index arithmetic.
+    #
+    # O_h contains the coordinate permutations and all sign flips, so two
+    # directions lie in the same orbit iff their |cosine| MULTISETS agree —
+    # and every cosine here is ``mu_levels[·]``, so the multiset is the sorted
+    # triple of LEVEL INDICES. That makes the orbit label an integer fact of
+    # the construction rather than a float comparison discovered afterwards
+    # (the same reasoning that made ``j`` index arithmetic above: a symmetry
+    # question answered by a loop that already knows the answer exactly).
+    octant_orbit: list[tuple[int, int, int]] = []
+    for p in range(n_half):
+        mu_z = mu_levels[p]
+        for k in range(n_half - p):
+            j = n_half - 1 - p - k
+            octant_dirs.append((mu_levels[k], mu_levels[j], mu_z))
+            octant_orbit.append(tuple(sorted((p, k, j))))  # type: ignore[arg-type]
+    return mu_levels, octant_dirs, octant_orbit
 
 
 def _build_level_symmetric_arrays(
@@ -542,61 +774,24 @@ def _build_level_symmetric_arrays(
     if n_half == 1:
         # S_2 has no freedom: mu^2 = 1/3 is forced by the diffusion
         # condition (LA-3251-MS printed p. 45).
-        mu2_levels = np.array([1.0 / 3.0])
+        mu1_sq = 1.0 / 3.0
     else:
-        # The recursion is Carlson-Lathrop Eq. (3-52) (LA-3251-MS printed
-        # p. 32). The SEED is a PROJECT CONVENTION, not theirs: the source
-        # leaves mu_1 free ("Selection of mu_1 determines the spread"),
-        # and the published tables (LA-3186) moment-match it instead
-        # (mu_1 = 0.3500212 at S_4 vs our 0.4082483). Verified against
-        # the scan 2026-08-08, #327; the moment-matched upgrade is #337.
-        mu1_sq = 1.0 / (sn_order * (sn_order + 2) / 4)
-        delta = 2.0 * (1.0 - 3.0 * mu1_sq) / (sn_order - 2)
-        mu2_levels = mu1_sq + np.arange(n_half) * delta
+        # The recursion is Carlson-Lathrop Eq. (3-52) (LA-3251-MS
+        # printed p. 32), and since #337 the SEED is MOMENT-MATCHED:
+        # the smallest root of "the rule integrates mu_z^N exactly" —
+        # the construction behind the published LA-3186 tables (`[M]`
+        # reproduces their mu_1 to every printed digit at
+        # S4/S6/S8/S12/S16). Until 2026-08-08 this line read the
+        # project convention 4/(N(N+2)), which limited the family by
+        # the seed alone (degree ceiling N-1; positivity frontier
+        # S_12); the corpus provenance note in angular_quadrature.rst
+        # carries the verification against the primary sources
+        # (#327, #337).
+        mu1_sq = _moment_matched_mu1_sq(sn_order)
 
-    mu_levels = np.sqrt(mu2_levels)
-
-    # The defining property of a level-symmetric set: every ordinate's
-    # three direction cosines are drawn from the SAME level array, so
-    # the set is closed under permuting the axes. The level index of the
-    # third cosine is not free — it is fixed by the other two.
-    #
-    #   mu2[p] + mu2[k] + mu2[j] = 3*mu1_sq + (p + k + j)*delta = 1
-    #   and delta = 2(1 - 3*mu1_sq)/(N - 2)
-    #   =>  p + k + j = (1 - 3*mu1_sq)/delta = (N - 2)/2 = n_half - 1.
-    #
-    # So j is INDEX ARITHMETIC. Until 2026-08-02 this loop instead
-    # recovered the third cosine numerically as
-    # ``sqrt(1 - mu_z**2 - eta**2)``, which lands within ~1e-16 of
-    # ``mu_levels[j]`` but not ON it: `[M]` at N=16 the y-axis then
-    # carried 22 distinct magnitudes where the level array has 8, and
-    # only 8 of the 48 O_h operators mapped the node set onto itself
-    # bit-exactly — the 8 pure sign flips, since negation is exact in
-    # IEEE while a coordinate swap is only exact if the values match.
-    # The rule advertised O_h invariance and realized D_2h.
-    #
-    # Reading the level value instead makes all 48 exact, so the
-    # octahedral symmetry becomes an integer permutation of ordinate
-    # indices rather than a question about tolerances. It also retires
-    # the `xi_sq < -1e-14` guard: `j` is provably in range for every
-    # admissible (p, k), because p + k <= n_half - 1 by the loop bound.
-    octant_dirs: list[tuple[float, float, float]] = []
-    # ⭐ The O_h ORBIT of each octant direction, as EXACT index arithmetic.
-    #
-    # O_h contains the coordinate permutations and all sign flips, so two
-    # directions lie in the same orbit iff their |cosine| MULTISETS agree —
-    # and every cosine here is ``mu_levels[·]``, so the multiset is the sorted
-    # triple of LEVEL INDICES. That makes the orbit label an integer fact of
-    # the construction rather than a float comparison discovered afterwards
-    # (the same reasoning that made ``j`` index arithmetic above: a symmetry
-    # question answered by a loop that already knows the answer exactly).
-    octant_orbit: list[tuple[int, int, int]] = []
-    for p in range(n_half):
-        mu_z = mu_levels[p]
-        for k in range(n_half - p):
-            j = n_half - 1 - p - k
-            octant_dirs.append((mu_levels[k], mu_levels[j], mu_z))
-            octant_orbit.append(tuple(sorted((p, k, j))))  # type: ignore[arg-type]
+    mu_levels, octant_dirs, octant_orbit = _octant_directions(
+        sn_order, mu1_sq
+    )
 
     w_octant_per_dir = _moment_matched_octant_weights(
         sn_order, octant_dirs, octant_orbit,
@@ -662,21 +857,30 @@ def level_symmetric_sn(
     Symmetry: :math:`O_h` — invariant under all 48 rotation /
     reflection elements of the octahedral group.
 
-    Polynomial exactness: ``max(3, N - 1)``, measured and gated both
-    directions (``tests/numerics/test_advertised_degree_is_measured.py``):
-    :math:`3` at :math:`S_2`/:math:`S_4`, where the single orbit leaves
-    the weight forced and the degree is the symmetry's; :math:`N - 1`
-    from :math:`S_6` through :math:`S_{12}`.
+    Polynomial exactness: BUILD-MEASURED (`[M]` :math:`3` at
+    :math:`S_2`; :math:`N+1` at :math:`S_4`–:math:`S_{10}` and
+    :math:`S_{14}`; :math:`N-1` at :math:`S_{12}`/:math:`S_{16}`/
+    :math:`S_{18}` — no clean formula of :math:`N`), gated three ways:
+    the stamp, an independent sweep, and frozen 50-digit-checked
+    literals (``tests/numerics/test_level_symmetric_nodes.py`` +
+    ``test_advertised_degree_is_measured.py``).
 
-    The node seed :math:`\mu_1^2 = 4/(N(N+2))` is a **project
-    convention**, not Carlson–Lathrop's: the source leaves
-    :math:`\mu_1` free (LA-3251-MS printed p. 32, after Eq. (3-52)),
-    and the published tables (LA-3186) moment-match it instead —
-    :math:`\mu_1 = 0.3500212` at :math:`S_4` vs our
-    :math:`0.4082483`. Verified against the scan 2026-08-08 (#327);
-    the corpus note in ``docs/theory/methods/sn/angular_quadrature.rst``
-    carries the full provenance, and #337 tracks the moment-matched
-    node upgrade (frontier :math:`S_{22}` on their seed).
+    The node seed is **moment-matched** (#337, 2026-08-08): the
+    smallest root of "the rule integrates :math:`\mu_z^N` exactly",
+    which reproduces the published LA-3186 :math:`\mu_1` to every
+    printed digit at each tabulated order (and beats the print at
+    three — one-ulp last-digit slips documented in the corpus). Our
+    POINT weights, however, are the per-orbit cross-moment solve, NOT
+    LA-3186's axis-weight decomposition (:math:`p = a_i + a_j + a_k`):
+    `[M]` on the same nodes the published decomposition reaches full
+    3-D degree 11 at every order :math:`\geq 14` while this solve
+    reaches 15/15/17 at 14/16/18 — and the two frontiers INTERLEAVE
+    (theirs dies at 18, serves 20 at degree 11; ours serves 18 and
+    dies at 20). :math:`S_{22}` is intrinsically dead for the whole
+    even-moment family (LP certificate: no nonnegative decomposition
+    exists). The corpus note in
+    ``docs/theory/methods/sn/angular_quadrature.rst`` carries the
+    full provenance and the comparison table.
 
     Returns the :class:`DiscreteMeasure` and a
     :class:`LevelStructure` capturing the per-level grouping needed by
@@ -725,25 +929,24 @@ def level_symmetric_sn(
         weights=w,
         support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
-        # ⭐ TRUE since #327 (2026-08-06), and gated:
-        # ``tests/numerics/test_advertised_degree_is_measured.py`` measures
-        # every production rule against the closed-form monomial integral and
-        # asserts BOTH directions — the promise is kept (measured ≥ advertised)
-        # and it is tight (measured == advertised).
+        # ⭐ BUILD-MEASURED since #337: the achieved degree is not a
+        # clean formula of N under the moment-matched seed (`[M]` N+1
+        # at 4/6/8/10/14, N-1 at 12/16/18, 3 at S_2), so the stamp is
+        # what THIS rule measures against the closed-form monomial
+        # integral — the same sweep the both-directions gate
+        # (``tests/numerics/test_advertised_degree_is_measured.py``)
+        # re-runs independently, with the gate's third corner a table
+        # of FROZEN literals cross-checked at 50 digits (so the stamp,
+        # the gate's sweep, and the literals must all three agree).
         #
-        # `[M]` achieved: S_2 → 3, S_4 → 3, S_6 → 5, S_8 → 7, S_10 → 9,
-        # S_12 → 11. So ``N-1`` from S_4 up, and ``3`` at S_2, where the single
-        # orbit over-delivers against the formula.
-        #
-        # ⛔ This read ``degree=sn_order - 1`` unconditionally and was FALSE:
-        # the weights were one equal value for every ordinate, which reaches
-        # degree 3 at every order (an over-claim of 12 at S_16) — while ALSO
-        # under-claiming at S_2, the tell that the integer was a formula for a
-        # rule this was not rather than a mis-measured property of this one.
-        # The weights are now solved per O_h orbit, so the authority the
-        # docstring cites is the authority the construction implements.
+        # History: ``degree=sn_order - 1`` unconditionally until #327
+        # (FALSE both ways — equal weights delivered 3 at every order
+        # while S_2 over-delivered); ``max(3, sn_order-1)`` until #337
+        # (true for the convention seed, an under-claim of 2 at
+        # S_4..S_10 under the moment-matched one).
         exactness=ExactnessClaim(
-            reference=UNIFORM_ON_SPHERE, degree=max(3, sn_order - 1),
+            reference=UNIFORM_ON_SPHERE,
+            degree=_measured_exactness_degree(nodes, w),
         ),
     )
     structure = LevelStructure(

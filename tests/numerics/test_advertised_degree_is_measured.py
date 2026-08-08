@@ -183,10 +183,13 @@ _RULES = [
     ("product(6,12)", lambda: Quadrature.product(n_mu=6, n_phi=12), 16),
     ("level_symmetric(2)", lambda: Quadrature.level_symmetric(2), 8),
     ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4), 10),
-    ("level_symmetric(6)", lambda: Quadrature.level_symmetric(6), 12),
-    ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 14),
-    ("level_symmetric(10)", lambda: Quadrature.level_symmetric(10), 16),
-    ("level_symmetric(12)", lambda: Quadrature.level_symmetric(12), 18),
+    ("level_symmetric(6)", lambda: Quadrature.level_symmetric(6), 14),
+    ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 18),
+    ("level_symmetric(10)", lambda: Quadrature.level_symmetric(10), 22),
+    ("level_symmetric(12)", lambda: Quadrature.level_symmetric(12), 26),
+    ("level_symmetric(14)", lambda: Quadrature.level_symmetric(14), 30),
+    ("level_symmetric(16)", lambda: Quadrature.level_symmetric(16), 34),
+    ("level_symmetric(18)", lambda: Quadrature.level_symmetric(18), 38),
 ]
 
 
@@ -278,16 +281,16 @@ def test_the_probe_itself_is_sound() -> None:
     The per-rule rows above would all read "pass" for a probe that could not
     detect anything — so this states, in one place and with values, that the
     probe DOES resolve a degree and that the three control families land exactly
-    on their claims. `[M]` 2026-08-06:
+    on their claims. `[M]` 2026-08-06 (#327) / 2026-08-08 (#337):
 
-    ==================  ==========  ====================  ===============
-    rule                advertised  measured (post-#327)  before #327
-    ==================  ==========  ====================  ===============
-    gauss_legendre(8)   15          15                    15
-    lebedev(17)         17          17                    17
-    product(6,12)       11          11                    11
-    level_symmetric(8)  7           **7**                 **3**
-    ==================  ==========  ====================  ===============
+    ==================  ==========  ==========  ==========  ===========
+    rule                advertised  post-#337   post-#327   before #327
+    ==================  ==========  ==========  ==========  ===========
+    gauss_legendre(8)   15          15          15          15
+    lebedev(17)         17          17          17          17
+    product(6,12)       11          11          11          11
+    level_symmetric(8)  9           **9**       **7**       **3**
+    ==================  ==========  ==========  ==========  ===========
 
     Without the first three, ``level_symmetric``'s number is a statement about
     this file. With them, it is a statement about the rule — and the last
@@ -298,7 +301,10 @@ def test_the_probe_itself_is_sound() -> None:
         ("gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8), 20, 15),
         ("lebedev(17)", lambda: Quadrature.lebedev(17), 22, 17),
         ("product(6,12)", lambda: Quadrature.product(n_mu=6, n_phi=12), 16, 11),
-        ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 14, 7),
+        # 7 under the convention seed (#327); 9 = N+1 under the
+        # moment-matched seed (#337) — the mu^N condition buys the
+        # extra even mu-moment and O_h oddness the odd degrees.
+        ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8), 14, 9),
     ):
         got = _measured_degree(build(), ceiling=ceiling)
         assert got == expected, (
@@ -309,8 +315,12 @@ def test_the_probe_itself_is_sound() -> None:
         )
 
 
-#: `[M]` 2026-08-06 — distinct weights == number of :math:`O_h` orbits.
-_ORBIT_COUNT = {2: 1, 4: 1, 6: 2, 8: 3, 10: 4, 12: 5}
+#: `[M]` 2026-08-06 (S2..S12) + 2026-08-08 (S14..S18, #337) — distinct
+#: weights == number of :math:`O_h` orbits. The sequence is
+#: :math:`p_3(N/2-1)` (partitions into at most 3 parts):
+#: 1, 1, 2, 3, 4, 5, 7, 8, 10 — NOT the {6, 7, 8} a reader extrapolates
+#: from the first six (measured; the plan's own first draft guessed).
+_ORBIT_COUNT = {2: 1, 4: 1, 6: 2, 8: 3, 10: 4, 12: 5, 14: 7, 16: 8, 18: 10}
 
 
 @pytest.mark.parametrize("n,orbits", sorted(_ORBIT_COUNT.items()))
@@ -357,19 +367,22 @@ def test_the_weights_are_ONE_PER_ORBIT_and_positive(n: int, orbits: int) -> None
 
 
 def test_the_family_REFUSES_where_it_has_no_positive_solution() -> None:
-    r"""⭐ Above :math:`S_{12}` the construction does not exist, and says so.
+    r"""⭐ Above :math:`S_{18}` the construction does not exist, and says so.
 
-    `[M]` the moment-matched solve yields a negative weight from :math:`S_{14}`
-    up (−0.027 at 14, −0.018 at 16, −0.142 at 20). Rather than ship a second
-    silent construction under one name, or a rule whose scalar flux can go
-    negative, the family is **defined exactly where it is valid**.
+    `[M]` under the moment-matched seed (#337) the per-orbit solve yields a
+    negative weight from :math:`S_{20}` up (−2.191e-4 at 20, −1.6e-2 at 22 —
+    cross-checked at 50 digits, so the flip is the family's, not float64's).
+    Under the retired convention seed the frontier sat at :math:`S_{12}`;
+    the seed, not the level-symmetric shape, sets it. Rather than ship a
+    second silent construction under one name, or a rule whose scalar flux
+    can go negative, the family is **defined exactly where it is valid**.
 
     ⭐ The frontier is COMPUTED, never hardcoded — the builder reads the sign of
     its own solution — so it tracks the node set instead of going stale beside
     it. This row therefore pins the BEHAVIOUR (refusal, with a message naming
-    positivity and an alternative), not the number 12.
+    positivity and an alternative), not the number 18.
     """
     with pytest.raises(ValueError, match="no POSITIVE solution"):
-        Quadrature.level_symmetric(14)
+        Quadrature.level_symmetric(20)
     with pytest.raises(ValueError, match="lebedev|product"):
-        Quadrature.level_symmetric(16)
+        Quadrature.level_symmetric(22)

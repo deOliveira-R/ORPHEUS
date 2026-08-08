@@ -128,16 +128,17 @@ def test_level_symmetric_returns_measure_and_structure(sn_order: int) -> None:
     assert m.nodes.shape[1] == 3
     assert m.support == SPACE_SPHERE
     assert m.invariance_group == SubgroupOfO3.OctahedralOh
-    # ``max(3, N-1)``, not ``N-1``, since #327 gave the rule per-O_h-orbit
-    # moment-matched weights: `[M]` S2 reaches degree 3, because its 8 nodes
-    # are a SINGLE orbit whose one free weight is already fixed by
-    # ``Σw = 4π`` — the rule over-delivers against the formula there and the
-    # old ``N-1`` UNDER-claimed it. That under-claim is what identified the
-    # tag as a formula for a different construction rather than a
-    # mis-measurement of this one; the value is measured against the
-    # closed-form monomial integral in
+    # BUILD-MEASURED since #337 (no clean formula of N under the
+    # moment-matched seed): `[M]` 3 at S2 (single orbit, weight forced
+    # by Σw = 4π), N+1 at S4/S6/S8 — the μ_z^N seed condition buys one
+    # even μ-moment past the weights and O_h oddness the odd degrees.
+    # History: this line asserted ``max(3, N-1)`` (the #327 convention-
+    # seed truth) and before that ``N-1`` (false both ways). The frozen
+    # third corner lives in
+    # ``tests/numerics/test_level_symmetric_nodes.py``; the
+    # both-directions sweep in
     # ``tests/numerics/test_advertised_degree_is_measured.py``.
-    assert m.degree_of_exactness == max(3, sn_order - 1)
+    assert m.degree_of_exactness == {2: 3, 4: 5, 6: 7, 8: 9}[sn_order]
 
     assert isinstance(s, LevelStructure)
     assert s.n_levels == sn_order // 2
@@ -262,12 +263,12 @@ def _oh_exactness(nodes: "np.ndarray") -> "tuple[float, int, int]":
 
 @pytest.mark.foundation
 # S12 caps every level-symmetric sweep in this module since #327: the
-# moment-matched solve has no POSITIVE solution above it (`[M]` min weight
-# -0.027 at S14, -0.142 at S20), so the builder refuses and the ORDERS
-# SIMPLY DO NOT EXIST. These rows gate NODE structure, which is unchanged
-# by #327 -- the coverage is not weakened, its subject is gone. If a future
-# node choice pushes the positivity frontier up, restore the orders here.
-@pytest.mark.parametrize("sn_order", [4, 6, 8, 10, 12])
+# moment-matched solve has no POSITIVE solution above it -- `[M]` #337:
+# -2.191e-4 at S20, 50-digit-confirmed -- so the builder refuses and the
+# ORDERS SIMPLY DO NOT EXIST. S14/S16/S18 were restored here 2026-08-08,
+# exactly as this banner's own closing sentence instructed, when the
+# moment-matched seed (#337) pushed the frontier from S12 to S18.
+@pytest.mark.parametrize("sn_order", [4, 6, 8, 10, 12, 14, 16, 18])
 def test_level_symmetric_is_EXACTLY_octahedral(sn_order: int) -> None:
     r"""All 48 :math:`O_h` operators map the node set onto itself bit-exactly.
 
@@ -294,7 +295,7 @@ def test_level_symmetric_is_EXACTLY_octahedral(sn_order: int) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("sn_order", [4, 8, 10, 12])
+@pytest.mark.parametrize("sn_order", [4, 8, 10, 12, 14, 16, 18])
 def test_level_symmetric_axes_share_one_magnitude_set(sn_order: int) -> None:
     """The defining property of a *level*-symmetric rule.
 
