@@ -585,7 +585,7 @@ def _build_cylinder_visits_and_inputs(
 ):
     """Build cylinder visits for one within-level ordinate (non-degenerate)."""
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
-    quad = Quadrature.product(n_mu=4, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=4)
     op = cylindrical_streaming(mesh, quad)
     direction_idx = 0
     mu_level_idx = 0

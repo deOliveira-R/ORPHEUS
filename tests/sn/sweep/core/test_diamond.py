@@ -560,7 +560,7 @@ class TestCylindricalDegenerate:
         synthetic geometry.
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
-        quad = Quadrature.product(n_mu=4, n_phi=4)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
 
         # Pull a real cylindrical streaming-terms packet, then
@@ -655,7 +655,7 @@ class TestCylindricalDegenerate:
         scaled probe.  Principled-equivalence per ``vv-principles``.
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
-        quad = Quadrature.product(n_mu=4, n_phi=4)
+        quad = Quadrature.folded_product(n_mu=4, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
         st_real = op.streaming_terms(
             cell_idx=1, direction_idx=0, mu_level_idx=0,
@@ -927,7 +927,7 @@ def _cylinder_visit_inputs(
 ]:
     """Cylinder (non-degenerate) visit + inputs for residual contract tests."""
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
-    quad = Quadrature.product(n_mu=4, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=4)
     op = cylindrical_streaming(mesh, quad)
     st = op.streaming_terms(
         cell_idx=cell_idx,
@@ -982,7 +982,7 @@ def _cylinder_degenerate_visit_inputs(
     :class:`TestCylindricalDegenerate` above.
     """
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
-    quad = Quadrature.product(n_mu=4, n_phi=4)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=4)
     op = cylindrical_streaming(mesh, quad)
     st_real = op.streaming_terms(
         cell_idx=cell_idx, direction_idx=0, mu_level_idx=0,

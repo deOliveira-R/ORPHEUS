@@ -40,9 +40,16 @@ WHAT THIS FILE IS BLIND TO
   and the cylindrical solve NaNs).  That adjudication lives in
   ``test_azimuthal_mirror_symmetry.py``.
 * The half-range rows are a DERIVATION of the constructive target (Hebert
-  §3.9.3's ``0 <= omega <= pi`` level).  Production does not run that
-  configuration, so those rows are ``foundation`` and carry no ``verifies``
-  edge — they must not be read as production coverage.
+  §3.9.3's ``0 <= omega <= pi`` level).  Since Q5.5/Q5.6 production DOES run
+  that configuration (``Quadrature.folded_product`` — and `[M]` 2026-08-08
+  the production folded α closes exactly, α[0] = α[M] = 0 machine-zero on
+  every level, with each level MONOTONE in ω so the 2-to-1 η collision that
+  breaks the closed form under the full-circle production ordering cannot
+  arise).  The closed-FORM identity on the production folded producer — the
+  arc's own staggered Dirichlet-kernel normalization — is the Q5.6.4 "T3 α
+  gate" deliverable; until it lands, these rows stay ``foundation`` and the
+  full-circle rows above remain the record of the ordering pathology the
+  fold dissolved.
 
 THE ``kappa`` TRAP
 ------------------

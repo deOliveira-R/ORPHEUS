@@ -93,7 +93,7 @@ def test_cyl_tau_clamp_is_the_only_difference_from_reference(n_phi):
     as a real transform, not an accident, AND proves the producer is not the
     naked unclamped reference.
     """
-    quad = Quadrature.product(n_mu=4, n_phi=n_phi)
+    quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
     tau_raw_ref = morel_montry_weights(quad, "cylindrical")  # list[(M,)], raw
     tau_clamped_ref = [np.clip(t, 0.5, 1.0) for t in tau_raw_ref]
     tau_close = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
