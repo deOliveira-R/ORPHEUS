@@ -161,3 +161,98 @@ class TestFoldedProduct:
         np.testing.assert_array_equal(
             pi.indices[pi.indices], np.arange(quad.N)
         )
+
+
+class TestFoldedHarmonics:
+    """The folded rule's harmonic machinery binds the σ-EVEN sub-basis (Q5.6).
+
+    On the quotient, σ_y-odd harmonics are not in the function space and
+    their raw ``YᵀW`` moments are GARBAGE, not zero (`[M]` pre-fix the
+    ξ-carrying l = 1 slot read +6.49 for a FLAT flux — the scattering
+    kernel has no Gram division anywhere to absorb it, so the garbage
+    reconstructs straight into the P1 source).  The restricted basis
+    keeps the rectangular (L+1, 2L+1) layout and structurally zeroes the
+    odd columns, so odd moments come out EXACT 0.0 and every shape
+    contract survives; the even block stays exactly orthogonal on the
+    quotient (even × even is even, which the fold integrates exactly).
+    """
+
+    def test_flat_moments_are_the_isotropic_moment_alone(self):
+        """Σ w Y ψ_flat = [4π at (0,0), EXACT 0.0 elsewhere] — the +6.49
+        garbage channel is structurally closed."""
+        fold = Quadrature.folded_product(4, 8)
+        Y = fold.spherical_harmonics(2)
+        M = np.einsum("n,nlm->lm", fold.weights, np.ones(fold.N)[:, None, None] * Y)
+        np.testing.assert_allclose(M[0, 0], 4.0 * np.pi, rtol=1e-14)
+        M_rest = M.copy()
+        M_rest[0, 0] = 0.0
+        # the masked (odd) slots are EXACT zeros; the surviving even
+        # slots vanish to quadrature exactness on the quotient.
+        assert float(np.abs(M_rest).max()) < 1e-12
+        assert float(M[1, 2]) == 0.0  # the measured garbage carrier, bit-zero
+
+    def test_even_slots_match_the_unrestricted_table(self):
+        """The mask touches ONLY the σ-odd columns — the even sector is
+        the parent basis bit-for-bit."""
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            MirrorEvenSphericalHarmonicBasis,
+            SphericalHarmonicBasis,
+        )
+
+        fold = Quadrature.folded_product(4, 8)
+        restricted = MirrorEvenSphericalHarmonicBasis(L=3, mirror_axis=1)
+        full = SphericalHarmonicBasis(L=3)
+        Yr = restricted.evaluate(fold.measure.nodes)
+        Yf = full.evaluate(fold.measure.nodes)
+        mask = restricted.even_slot_mask.astype(bool)
+        np.testing.assert_array_equal(Yr[:, mask], Yf[:, mask])
+        np.testing.assert_array_equal(
+            Yr[:, ~mask], np.zeros_like(Yr[:, ~mask])
+        )
+        # the derived odd-count per l is exactly l (the σ_y parity split);
+        # the l=1 masked slot is the measured ξ carrier [1, 2].
+        odd = ~mask
+        for l in range(4):
+            assert int(odd[l].sum()) == l, f"l={l}: odd-slot count != l"
+        assert odd[1, 2] and not odd[1, 0] and not odd[1, 1]
+
+    def test_even_block_gram_is_the_continuum_metric_on_the_quotient(self):
+        """The discriminating gate the route-equivalent P1 hand-ref cannot
+        be: the restricted basis's discrete Gram equals the CONTINUUM
+        metric diag(4π/(2l+1)) on the quotient (nonzero-diagonal block),
+        which is false for the unrestricted basis (the even-odd cross
+        block carries the +6.49)."""
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            MirrorEvenSphericalHarmonicBasis,
+        )
+
+        fold = Quadrature.folded_product(4, 8)
+        basis = MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=1)
+        g = basis.mass_matrix(fold.measure).reshape(15, 15)
+        mask = basis.even_slot_mask.reshape(-1).astype(bool)
+        g_even = g[np.ix_(mask, mask)]
+        ell = np.repeat(np.arange(3), 5)[mask]
+        expected = np.diag(4.0 * np.pi / (2.0 * ell + 1.0))
+        live = np.diag(g_even) > 1e-10          # drop |m|>l padding rows
+        np.testing.assert_allclose(
+            g_even[np.ix_(live, live)],
+            expected[np.ix_(live, live)],
+            rtol=0.0, atol=1e-12,
+        )
+
+    def test_the_folded_frame_analysis_is_isotropic_on_a_flat_flux(self):
+        """The PRODUCTION seam: ``ScatteringOperator.frame`` wraps exactly
+        ``quadrature.angular_frame(L)``, whose raw analysis face
+        (``YᵀW``, no Gram division) is where the +6.49 garbage entered.
+        On the folded rule that frame now binds the restricted basis:
+        a flat flux analyses to the isotropic moment ALONE, the
+        ξ-carrier slot bit-zero."""
+        fold = Quadrature.folded_product(4, 8)
+        frame = fold.angular_frame(1)
+        moments = frame.analysis.apply(np.ones(fold.N))
+        assert moments.shape == (2, 3)
+        np.testing.assert_allclose(moments[0, 0], 4.0 * np.pi, rtol=1e-14)
+        assert float(moments[1, 2]) == 0.0      # the garbage carrier
+        rest = moments.copy()
+        rest[0, 0] = 0.0
+        assert float(np.abs(rest).max()) < 1e-12

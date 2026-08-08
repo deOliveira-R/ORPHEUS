@@ -417,6 +417,22 @@ class SubgroupOfO3:
         convention."""
         return cls(Mirror(axis))
 
+    @property
+    def mirror_axis(self) -> int | None:
+        r"""The negated coordinate index for a single-mirror group, else None.
+
+        ``Mirror("x") → 0``, ``Mirror("y") → 1``, ``Mirror("z") → 2``;
+        every other subgroup (including those that CONTAIN mirrors)
+        answers ``None`` — the property identifies the group whose sole
+        non-identity element is one coordinate reflection, which is
+        what a fold-aware consumer (the folded quadrature's σ-even
+        harmonic sub-basis, Q5.6) needs to know.
+        """
+        tag = self._tag
+        if isinstance(tag, Mirror):
+            return {"x": 0, "y": 1, "z": 2}[tag.axis]
+        return None
+
     # --- Equality / hashing / repr --------------------------------------
 
     def __eq__(self, other: object) -> bool:

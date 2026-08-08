@@ -108,7 +108,7 @@ if TYPE_CHECKING:
     )
 
 
-__all__ = ["SphericalHarmonicBasis"]
+__all__ = ["MirrorEvenSphericalHarmonicBasis", "SphericalHarmonicBasis"]
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -376,6 +376,120 @@ class SphericalHarmonicBasis(Basis):
             SphericalHarmonicSpace,
         )
         return SphericalHarmonicSpace.from_L(self.L)
+
+
+# Deterministic generic direction set for the parity derivation — no
+# component zero, no two directions related by a coordinate symmetry, so
+# a harmonic that is neither even nor odd under the probed mirror cannot
+# masquerade as either (and a broken evaluate cannot classify cleanly).
+_PARITY_PROBE_DIRECTIONS = np.array(
+    [
+        [0.3, 0.5, 0.81],
+        [-0.7, 0.2, 0.4],
+        [0.1, -0.9, 0.3],
+        [0.6, 0.4, -0.63],
+        [-0.2, -0.5, 0.83],
+    ]
+)
+
+
+@dataclass(frozen=True)
+class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
+    r"""The σ-EVEN subspace of the degree-:math:`L` real SH basis — the
+    QUOTIENT's basis (Q5.6).
+
+    On a measure folded by a coordinate mirror :math:`\sigma_a`, the
+    σ-odd harmonics are *not in the quotient's function space*: their
+    discrete moments are garbage, not zero (`[M]` the ξ-carrying
+    :math:`l = 1` slot reads :math:`+6.49` for a FLAT flux on the
+    σ_y-folded product rule, where the full rule cancels to
+    :math:`10^{-16}` — the scattering kernel's raw :math:`Y^{\mathsf T}W`
+    analysis has no Gram division anywhere to absorb it).  The σ-EVEN
+    sub-basis stays **exactly orthogonal on the quotient** (even × even
+    products are even, which the fold integrates exactly), so the
+    restriction is the whole fix.
+
+    The restriction keeps the parent's rectangular
+    :math:`(L+1, 2L+1)` layout and structurally ZEROES the σ-odd table
+    columns — the same mechanism that already zeroes the
+    :math:`|m| > \ell` padding, so every consumer (the ``nlm``
+    einsums, the m-blind :math:`\Lambda`, the moment shapes, the
+    fixed-slot reads) flows through unchanged with the odd moments
+    coming out as EXACT ``0.0``.
+
+    The per-slot parity is **DERIVED**, never hand-listed: the parent
+    basis is evaluated at generic directions and at their σ-images,
+    and each slot classifies as even (all equal) or odd (all negated).
+    The hand rule is chart-subtle — this basis measures its azimuth
+    FROM :math:`\mu_y`, so the σ_y-odd set mixes the cos and sin
+    branches ({cos, m odd} ∪ {sin, |m| even}) and any "mask the sin
+    branch" shortcut would zero the wrong functions (ERR-072's
+    declared-not-computed family).
+
+    Parameters
+    ----------
+    L : int
+        Maximum harmonic degree (inherited).
+    mirror_axis : int
+        The coordinate index the fold's mirror negates (0 = x, 1 = y,
+        2 = z); ``SubgroupOfO3.mirror_axis`` supplies it.
+    """
+
+    mirror_axis: int = 1
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.mirror_axis not in (0, 1, 2):
+            raise ValueError(
+                f"MirrorEvenSphericalHarmonicBasis: mirror_axis must be "
+                f"0, 1 or 2; got {self.mirror_axis!r}."
+            )
+
+    @cached_property
+    def even_slot_mask(self) -> NDArray:
+        r"""``(L+1, 2L+1)`` float mask — 1.0 on σ-even slots, 0.0 on σ-odd.
+
+        Padding slots (:math:`|m| > \ell`, identically zero) classify
+        as even; a slot that is neither even nor odd under the mirror
+        raises (impossible for a coordinate mirror on real SH — such a
+        result certifies a broken evaluate, not a legal basis).
+        """
+        probe = _PARITY_PROBE_DIRECTIONS
+        mirrored = probe.copy()
+        mirrored[:, self.mirror_axis] *= -1.0
+        Y = _evaluate_real_sh(
+            self.L, probe[:, 0], probe[:, 1], probe[:, 2]
+        )
+        Y_m = _evaluate_real_sh(
+            self.L, mirrored[:, 0], mirrored[:, 1], mirrored[:, 2]
+        )
+        even = np.all(np.isclose(Y, Y_m, rtol=0.0, atol=1e-12), axis=0)
+        odd = np.all(np.isclose(Y, -Y_m, rtol=0.0, atol=1e-12), axis=0)
+        unclassified = ~(even | odd)
+        if np.any(unclassified):
+            raise RuntimeError(
+                f"MirrorEvenSphericalHarmonicBasis: slots "
+                f"{np.argwhere(unclassified).tolist()} are neither even "
+                f"nor odd under the axis-{self.mirror_axis} mirror — the "
+                f"parent evaluate is broken (a real SH is always one or "
+                f"the other under a coordinate reflection)."
+            )
+        # Padding (zero both ways) satisfies BOTH; keeping it unmasked is
+        # inert — the parent already zeroes it.
+        return even.astype(float)
+
+    def evaluate(self, directions: NDArray) -> NDArray:
+        table = super().evaluate(directions)
+        return table * self.even_slot_mask[None, :, :]
+
+    def evaluate_from_components(
+        self,
+        mu_x: NDArray,
+        mu_y: NDArray,
+        mu_z: NDArray,
+    ) -> NDArray:
+        table = super().evaluate_from_components(mu_x, mu_y, mu_z)
+        return table * self.even_slot_mask[None, :, :]
 
 
 # ─────────────────────────────────────────────────────────────────────

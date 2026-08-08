@@ -79,6 +79,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.numerics.basis.spherical_harmonic_basis import (
+    MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
 from orpheus.numerics.measure import (
@@ -191,6 +192,13 @@ class Quadrature:
 
     measure: DiscreteMeasure
     level_structure: LevelStructure | None = None
+    #: The symmetry subgroup this rule was QUOTIENTED by, or ``None`` for
+    #: an unfolded rule.  Set by :meth:`quotient`; consumed by the
+    #: harmonic machinery (:meth:`spherical_harmonics` /
+    #: :meth:`angular_frame`), which must bind the σ-EVEN sub-basis on a
+    #: folded rule — the σ-odd harmonics are not in the quotient's
+    #: function space and their raw moments are garbage, not zero (Q5.6).
+    folded_by: "SubgroupOfO3 | None" = None
 
     # ────────────────────────────────────────────────────────────
     # Canonical scalar / array accessors
@@ -430,12 +438,41 @@ class Quadrature:
             else None
         )
         return Quadrature(
-            measure=folded_measure, level_structure=folded_structure
+            measure=folded_measure,
+            level_structure=folded_structure,
+            folded_by=group,
         )
 
     # ────────────────────────────────────────────────────────────
     # Spherical harmonics evaluation
     # ────────────────────────────────────────────────────────────
+
+    def _harmonic_basis(self, L: int) -> SphericalHarmonicBasis:
+        r"""The harmonic basis this rule's function space admits.
+
+        An unfolded rule spans the full degree-:math:`L` real SH basis.
+        A FOLDED rule (:attr:`folded_by` set) is a quotient measure —
+        the σ-odd harmonics are not in its function space, and the raw
+        :math:`Y^{\mathsf T} W` analysis (which has no Gram division
+        anywhere on the scattering path) would return garbage for them,
+        not zero — so the fold binds the σ-EVEN sub-basis
+        (:class:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis`,
+        rectangular layout, odd columns structurally zeroed).  Only a
+        single-mirror fold has the ±parity split this realizes; folding
+        by any other group refuses here until a consumer exists.
+        """
+        if self.folded_by is None:
+            return SphericalHarmonicBasis(L=L)
+        axis = self.folded_by.mirror_axis
+        if axis is None:
+            raise NotImplementedError(
+                f"harmonic machinery on a rule folded by "
+                f"{self.folded_by.name}: only a single-mirror fold has "
+                f"the even/odd parity split the restricted sub-basis "
+                f"realizes; no consumer needs another group's quotient "
+                f"basis yet."
+            )
+        return MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=axis)
 
     def spherical_harmonics(self, L: int) -> np.ndarray:
         r"""Real spherical harmonics :math:`Y_l^m` evaluated at the
@@ -447,7 +484,7 @@ class Quadrature:
         polar). For sphere cubatures all :math:`(l, m)` pairs are
         evaluated.
         """
-        return SphericalHarmonicBasis(L=L).evaluate_from_components(
+        return self._harmonic_basis(L).evaluate_from_components(
             self.axis_cosines(0),
             self.axis_cosines(1),
             self.axis_cosines(2),
@@ -494,7 +531,7 @@ class Quadrature:
             weights=self.weights,
             support=SPACE_SPHERE,
         )
-        return GalerkinFrame(SphericalHarmonicBasis(L=L), s2_measure)
+        return GalerkinFrame(self._harmonic_basis(L), s2_measure)
 
     # ────────────────────────────────────────────────────────────
     # Octants (cached partition by sign-of-direction)
