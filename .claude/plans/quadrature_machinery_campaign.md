@@ -20,8 +20,8 @@
 > **pulled forward** into Q5.0.2; and the **exactness space is pulled forward**
 > as Q5.E because T28 showed it is the root.
 >
-> **⏸ CHECKPOINT — 2026-08-02, extended 2026-08-07 (compaction before Q5.3).
-> Landed so far, in order:**
+> **⏸ CHECKPOINT — 2026-08-02, extended 2026-08-07 twice (compaction before
+> Q5.3; compaction before Q5.5). Landed so far, in order:**
 >
 > | step | commit | what |
 > |---|---|---|
@@ -51,14 +51,19 @@
 > Then Q5.6 (acceptance). The full ladder with gates is in §5's `Q5.E` and
 > `Q5.2` blocks — read them, not this summary.
 >
-> `[M]` **Batteries at the 2026-08-07 checkpoint** (HEAD `43b571a5`, serial
-> `-O`): `tests/numerics` **1998 passed / 0 failed** (5:36); measure suite 65,
-> rules_product 41; `sphinx -W` clean; pyright ratchet green; xrefs 0 dead /
-> 7210 gated. `tests/sn` NOT re-run this session — Q5.2's carve is
-> bit-identical to the pre-carve capture on 4 configs (nodes/weights/levels
-> all `array_equal`), so SN sees literally identical arrays; the 6 deliberate
-> SN reds + the #33 snapshot stand as at checkpoint #7, unmeasured since.
-> Uncommitted-by-policy set unchanged (vv SKILL + catalog, qa lessons ×2).
+> `[M]` **Batteries at the 2026-08-07 Q5.5-compaction checkpoint** (HEAD
+> `be880734`, serial `-O`): `tests/sn -m "not slow"` **2861 passed / 6
+> failed** (18:09, at the Q5.4 close) — the six are EXACTLY the known
+> deliberate reds (T4b streaming snapshots ×2, affine-carve bit-identity ×3,
+> spherical-inward diamond), zero new; R12a consumer pins 48/48;
+> `tests/numerics` **2005 passed / 0 failed** (7:53, at the Q5.3 close —
+> Q5.4's only numerics touch was the `radial_characteristic_space.py`
+> docstring, not re-run after); `sphinx -W` clean (rebuilt after the final
+> edit); pyright ratchet green; xrefs 0 dead; the V&V matrix carries the two
+> new labels (`folded-level-arc` ×4, `sn-direct-seed-r12a-predicate` ×10 —
+> the latter from zero). The #33 Lambertian snapshot (7th red, slow set)
+> stands unmeasured since checkpoint #7. Uncommitted-by-policy set unchanged
+> (vv SKILL + catalog, qa lessons ×2).
 >
 > ---
 > **⏱ RECONCILED AGAINST THE TREE 2026-08-07 — the G/P interlude landed
