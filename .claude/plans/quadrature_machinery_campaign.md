@@ -2614,6 +2614,53 @@ implemented and **no `D_6h`-invariant rule in tree**.
   ---
   **Q5.6 — Acceptance** (T23 — the three xfail rows CANNOT serve).
 
+  ⏳ **IN FLIGHT (2026-08-08) — ladder + landed-so-far.** Rulings taken
+  (user, this session): the wiring shape is **primitive + named factory +
+  mesh refusal**; the factory is **`Quadrature.folded_product`** (the
+  quotient understanding ratified over "half-range" — T4/T5/T6 grounds);
+  the `SNMesh(CYLINDRICAL)` refusal predicate is **the Q5.4 march-start
+  facts** (every level carrying: `degenerate` catches the double cover,
+  `on_edge_node` the non-free fold).
+
+  * ✅ **6.0/6.1 LANDED `8416253c`** — `Quadrature.quotient(group)` (the
+    thin lift; delegates measure Q5.1 + structure Q5.3, owns no refusal)
+    + `folded_product(n_mu, n_phi)` (offset DERIVED per T25; odd n_φ
+    refused — `[M]` staggered odd puts |Σ| = 4, one node per level ON
+    the mirror); 10 gates incl. the σ_x pole map surviving the fold as
+    an involution (the reconciliation note's owed gate). `[M]` en route:
+    **σ_y-folded level_symmetric is NOT carrying** (its |μ_z|-keyed
+    levels keep η 2-to-1 from the ±μ_z pair) — the LS-on-cylinder
+    ruling (fold by the full vertical pair vs retire) is OPEN, owed to
+    the user before the migration.
+  * ✅ **6.2b LANDED `70b5b6d2`** — ⭐⭐ **the System-B seed machinery was
+    SPHERE-HARDCODED in three places**, caught by the wiring's own L0
+    battery (82 % / 158 % flat-equilibrium errors), diagnosed by the
+    explorer with a closed-form reproduction of the exact garbage seed
+    values (+3.7217/−0.5801 = the two GL level families under the
+    sphere's Legendre fold AT μ=±1, a point outside the arc;
+    Mode-12-masked in every two-spelling test): (1) the q̄½ source fold
+    → the arc's OWN Gauss family (GC1 in x = cosω, T25;
+    `T_k(±1) = (±1)^k` mirrors `P_ℓ(±1) = (±1)^ℓ`); (2) the DD march's
+    baked |μ|=1 → PATH widths `Δr/|η_start|` via
+    `_march_start_cosines` (flat-INVISIBLE — its catcher is the
+    linear-ψ½ term gate); (3) the Emission's hard ½ → the constant's
+    reproducing weight `1/Σw`. `[M]` flat L0 82 % → 2.8e-13; c = 0.4
+    → 158 % → 2.2e-13; sphere byte-identical (243 regression tests
+    green). The false "(the sphere)" guard texts corrected across 5
+    files + the theory ladder passage.
+  * `[M]` **consumer-audit measurements banked**: T3's α closed form
+    holds on the folded arc to ≤ 2.2e-16 per level with the dome
+    closing exactly (the 6.4 gate's content); ⚠ **the ξ-carrying P1
+    harmonic slot reads +6.49 GARBAGE on the folded rule for a FLAT
+    flux** (T6: ξ-odd is not in the quotient's space — must be
+    EXCLUDED structurally, not computed; blocks the aniso acceptance —
+    6.2c, NOT yet landed).
+  * **Remaining ladder**: 6.2c the harmonic-frame ξ-even exclusion →
+    6.3 the flip (mesh refusal + call-site migration + snapshot
+    re-baselines + the LS ruling) → 6.4 acceptance (#229 falls; T3 α
+    gate; absorber retires — Q5.5's deferred half; τ ∉ {0,1}; the
+    three xfails re-posed) → 6.5 retirements + theory pass.
+
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an
      order**. Structurally independent, manufactured-solution, not satisfiable by
