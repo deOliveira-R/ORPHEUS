@@ -21,7 +21,8 @@
 > as Q5.E because T28 showed it is the root.
 >
 > **⏸ CHECKPOINT — 2026-08-02, extended 2026-08-07 twice (compaction before
-> Q5.3; compaction before Q5.5). Landed so far, in order:**
+> Q5.3; compaction before Q5.5) and 2026-08-08 (compaction before #327).
+> Landed so far, in order:**
 >
 > | step | commit | what |
 > |---|---|---|
@@ -36,37 +37,65 @@
 > | **Q5.3** | `65ff5bb0` | `fiber()` RETIRED → `LevelStructure.quotient(parent=, onto=)` — the structure DESCENDS by selection (charts bit-exact, level order = the parent's η-order RESTRICTED to survivors); fiberwise certified by per-level mass; ⛔ the plan's `==` gate spelling REFUTED (the two orders are exact REVERSES — see the block's landing note) |
 > | **Q5.4** | `679cba61` | the R12a predicate re-posed on TWO named integer facts — `MarchStart(on_edge_node, degenerate)`, carrying ⟺ neither; `_SEED_TAU_EPS` + the `(0,1)` interval RETIRED; the τ_raw trichotomy demoted to a bit-exact gated THEOREM; ⛔ T26's 5.6e-16 flip was PRE-E3 (see the block) — post-E3 the trichotomy is bit-exact at every parity; the theory page's "odd count would carry" falsehood corrected in place |
 > | **Q5.5** | `0ec701d4` | the clamp SPLIT per T27 — the `[0,1]` membership PROMOTED to a raising guard on the raw producer (`_assert_tau_within_unit_interval`, both arms; T22's ω-mis-ordering stops at source); the `[½,1]` absorber STAYS until Q5.6 (docstrings re-posed on the two-objects finding); the T27 mechanism gates at n_φ ∈ {8..64} (Σ=∅ COMPUTED + τ_raw ⊂ [1/5,4/5] + reversal identity BIT-EXACT — the Q5.3 selection descent upgraded T27's ~1e-15 to 0.0); label `morel-montry-folded-arc`; ⭐ the guard immediately CAUGHT a live latent defect (7 sphere_2g fixtures fed LS(4) raw 3-D to the sphere arm, τ ∈ [−20.3, 1.13] consumed silently — re-propped to GL(4), #336 filed) |
+> | **Q5.6a** | `8416253c` | `Quadrature.quotient(group)` (the thin lift) + `folded_product(n_mu, n_phi)` (offset DERIVED per T25, odd n_φ refused, every level a carrying arc; the σ_x pole map gated as surviving the fold) |
+> | **Q5.6b** | `70b5b6d2` | ⭐⭐ the System-B seed machinery was SPHERE-HARDCODED in 3 places, caught by the wiring's own L0 battery (82 %/158 % flat-equilibrium errors, Mode-12-masked in every two-spelling test): the q̄½ Legendre fold at μ=±1 → the arc's GC1 endpoint synthesis; the \|μ\|=1 march → PATH widths Δr/sinθ_p; the ½ emission → 1/Σw. Sphere byte-identical (243 regression green); **folded cylinders solve at machine L0 incl. scattering** |
+> | **Q5.6c** | `b99fcbc3` | the folded rule's harmonic machinery binds the σ-EVEN sub-basis (`MirrorEvenSphericalHarmonicBasis`, rectangular layout, odd columns zeroed, parity DERIVED by mirror-evaluation); `Quadrature.folded_by` provenance marker; the +6.49 ξ-moment garbage channel bit-closed; even-block Gram == continuum at 1e-15 |
 >
-> **▶ NEXT = Q5.6** (acceptance — the fold reaches the SOLVE; §5's Q5.6
-> block is the authority, read it, not this line). Deliverables
-> existence-checked at pointer-write (2026-08-07, post-Q5.5): the #229
-> anisotropic floor lives at
-> `tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`
-> (":266 floors at ~1.9e-2"); T3's α closed form has a live test file
-> `tests/sn/sweep/curvilinear/test_alpha_closed_form.py` (pre-fold); the
-> three strict xfails = `_XFAIL_326` in
-> `tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` (NOT in
-> `_test_helpers` — corrected here); the `eta_edge` twin is at
-> `orpheus/derivations/discrete/sn/contamination.py:45+`
-> (`_cell_edge_cosines` — the plan's earlier path lacked the `orpheus/`
-> prefix); `product_level_ordering`/`PRODUCT_LEVEL_ORDERINGS` at
-> `tests/sn/_test_helpers.py:983+`. ⚠ **§6b for the absorber retirement
-> (RULED at Q5.5):** the `[½,1]` absorption's retirement and the fold
-> wiring are ONE call-site set — production NODE_ALIGNED cylinders have
-> `τ_raw,0 = 0` bit-exact and divide by zero unclamped, so the absorber
-> falls only when the wired fold makes every consumed cylinder rule an
-> arc (τ ∈ [1/5, 4/5], :eq:`morel-montry-folded-arc`).
+> **▶ NEXT = #327's open remainder — the μ₁ seed's attribution is
+> VERIFIED against the primary source** (user sequencing 2026-08-08:
+> #327 BEFORE Q5.6's flip). Fork A is LANDED and git-verified at
+> pointer-write (`cf2e8a07` gate / `df33913d` weights / `c3475228`
+> docs — all ancestors of HEAD); the remainder is the CITATION half:
+> the seed `μ₁² = 4/(N(N+2))` (`rules_sphere.py:545`, spelled
+> `1.0 / (sn_order * (sn_order + 2) / 4)`) is attributed to
+> `CarlsonLathrop1965` UNVERIFIED, and the corpus says so at
+> `docs/theory/methods/sn/angular_quadrature.rst:43-50`. ⭐ **The
+> primary source is NOW LOCAL** (existence-checked 2026-08-08):
+> `scratch/literature/(TechReport_1965_LANL_LA-3251-MS)_Carlson-Lathrop_Transport_Theory.pdf`
+> — NO OCR sidecar yet: generate it FIRST
+> (`.venv/bin/python tools/ocr_literature.py`; the sidecar is the
+> search/quote surface, the SCAN is the SSOT for every load-bearing
+> equation). Wanted from the report (the topic file's list): the μ₁
+> table, the published weights + their normalisation, any stated
+> positivity limit — if their frontier exceeds our S12, OUR NODE SEED
+> is what limits the family. The corpus pending-marker resolves either
+> way (verified, or corrected-with-provenance) — it never stays.
 >
-> `[M]` **Batteries at the Q5.5 close** (HEAD `0ec701d4`, serial `-O`):
-> `tests/sn -m "not slow"` **2871 passed / 6 failed** (37:57 under load)
-> — the six are EXACTLY the known deliberate reds (T4b streaming
-> snapshots ×2, affine-carve bit-identity ×3, spherical-inward diamond),
-> zero new; the first post-guard run had SEVEN more reds, ALL the guard
-> catching the LS-on-sphere latent defect (see the Q5.5 block) — cured
-> by the GL re-prop, verified by the full re-run. `tests/numerics`
-> untouched by Q5.5 (only orpheus/sn + tests/sn + docs edited; last
-> measured 2005/0 at the Q5.3 close). `sphinx -W` clean; pyright ratchet
-> green; xrefs 0 dead; the matrix carries `morel-montry-folded-arc` ×4.
+> **Q5.6 is PARKED IN FLIGHT at 6.3 (the flip)** — its landed legs +
+> remaining ladder (6.3 flip: march-start refusal + call-site
+> migration + snapshot re-baselines + LS sites → `folded_product`;
+> 6.4 acceptance: #229 falls + T3 α gate + the absorber retirement +
+> τ ∉ {0,1} + the three xfails re-posed; 6.5 retirements + theory
+> pass + #326 close) live in §5's Q5.6 block. ⚠ **§6b for the
+> absorber retirement (RULED at Q5.5):** its retirement and the fold
+> wiring are ONE call-site set — production NODE_ALIGNED cylinders
+> have `τ_raw,0 = 0` bit-exact and divide by zero unclamped, so the
+> absorber falls only when the wired fold makes every consumed
+> cylinder rule an arc. ⚠ The 2026-08-07 existence-check corrections
+> still hold: `_XFAIL_326` lives in
+> `tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` (NOT
+> `_test_helpers`); the `eta_edge` twin at
+> `orpheus/derivations/discrete/sn/contamination.py:45+`;
+> `product_level_ordering`/`PRODUCT_LEVEL_ORDERINGS` at
+> `tests/sn/_test_helpers.py:983+`.
+>
+> `[M]` **Batteries at the 2026-08-08 pre-#327 compaction checkpoint**
+> (HEAD `fb38ab31`, serial `-O`): `tests/sn -m "not slow"` **2890
+> passed / 6 failed** (35:10) — the six are EXACTLY the known
+> deliberate reds (T4b streaming snapshots ×2, affine-carve
+> bit-identity ×3, spherical-inward diamond), zero new; the +19 over
+> the Q5.5 close are the Q5.6 gates (fold lift/factory 10, folded
+> harmonics 4, System-B cylinder arm 5). `tests/numerics` untouched by
+> the Q5.6 legs' test additions (all under tests/sn; the
+> numerics-side PRODUCTION edits — directional.py, the basis, the
+> mirror_axis accessor — are exercised by the 81-item targeted
+> regression at the 6.2c close: SH-space ERR-039 Gram gate, scattering
+> kernel crosscheck, harmonic-moment-flux, scattering adjoint, all
+> green; the full tests/numerics battery was last run 2005/0 at the
+> Q5.3 close and is OWED at the Q5.6 flip's own close). `sphinx -W`
+> clean at every leg; pyright ratchet green (49-71 s runs at 6.2c and
+> Q5.5); xrefs 0 dead at the Q5.5 close (no docstring-xref-bearing
+> edits since were left unbuilt — every leg rebuilt sphinx -W clean).
 > The #33 Lambertian snapshot (7th red, slow set) stands unmeasured
 > since checkpoint #7. Uncommitted-by-policy set unchanged (vv SKILL +
 > catalog, qa lessons ×2).
