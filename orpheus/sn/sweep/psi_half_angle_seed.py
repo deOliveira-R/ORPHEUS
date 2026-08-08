@@ -62,10 +62,12 @@ starting-direction flux is now first-class STATE (the
 ``RadialCharacteristicField`` System-B composite of the coupled state,
 present per level under the R12a predicate), the SOLVE marches it directly from the TRUE
 q½ source through this function, and the APPLY reads the given carrier
-block.  On the non-carrying cylinder levels (R12a: product rules start
-ON an edge node, level-symmetric rules start η-degenerate — the
-τ_raw = 0 / τ_raw = 1 trichotomy is the gated consequence, Q5.4/T26)
-the closure inlines the 2-point angular-edge extrapolation — see
+block.  On the non-carrying cylinder levels (R12a: NODE_ALIGNED
+full-circle product rules start ON an edge node, level-symmetric and
+full STAGGERED rules start η-degenerate — the τ_raw = 0 / τ_raw = 1
+trichotomy is the gated consequence, Q5.4/T26; a σ_y-FOLDED cylinder
+has NO such levels — every arc carries, Q5.6) the closure inlines the
+2-point angular-edge extrapolation — see
 :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
 
 References
@@ -113,9 +115,13 @@ def carlson_inward_sweep_from_source(
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Run the Hébert §3.9.4 (3.434)-(3.435) starting-direction DD march.
 
-    The direct solver of the :math:`\mu = -1` starting-direction ODE —
+    The direct solver of the starting-direction ODE along the level's
+    own ray — the sphere's diameter (:math:`\mu = -1`) or a folded
+    cylinder level's ξ = 0 ray (:math:`\eta = -\sin\theta_p`, Q5.6) —
     marches INWARD from ``i = nx-1`` down to ``i = 0``, entering each
-    cell through its OUTER face.  The same recurrence marches the
+    cell through its OUTER face.  The engine is COSINE-AGNOSTIC: the
+    caller passes PATH widths (``Δr/|η_start|``; the sphere's ÷1.0 is
+    bit-exact), so one recurrence serves both families.  The same recurrence marches the
     OUTWARD :math:`\mu = +1` leg by reversing the cell axis of every
     input and un-reversing the output (orientation is carried by the
     DATA, never a flag — the 2.5a discipline):
@@ -138,7 +144,10 @@ def carlson_inward_sweep_from_source(
     sigma_t : np.ndarray, shape ``(ng, nx)``
         Cell-centred total cross-section, per-group, per-cell.
     dr : np.ndarray, shape ``(nx,)``
-        Radial cell widths.
+        PATH-length cell widths along the march ray — the radial widths
+        divided by the start ray's radial cosine (``Δr/|η_start|``;
+        the sphere's ray has :math:`|\mu| = 1` so its path widths ARE
+        the radial widths, bit-for-bit).
     bc_outer_value : np.ndarray, shape ``(ng,)``
         The ENTRY face value — for the inward leg the outer-face
         (r = R) angular flux at :math:`\mu = -1` (the inflow corner:
@@ -259,6 +268,7 @@ def radial_characteristic_forward_residual(
     interior_space: "RadialCharacteristicInteriorSpace",
     boundary_space: "RadialCharacteristicBoundarySpace",
     sigma: np.ndarray, dr: np.ndarray,
+    *, start_cosines: "dict[int, float] | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""The forward ``(L+C)`` action :math:`A_{BB}\,\psi_{1/2} =
     (\mu\,\partial_r + \sigma_t)\,\psi_{1/2}` on the starting-direction block —
@@ -290,21 +300,29 @@ def radial_characteristic_forward_residual(
     rows are affine in σ like the bulk walk).  Returns the
     ``(interior, boundary)`` residual buffer pair.
     """
-    two_over_dr = 2.0 / dr
     interior_out = np.zeros_like(interior_values)
     boundary_out = np.zeros_like(boundary_values)
     for p in interior_space.levels:
+        # Per-level PATH widths (Q5.6): the start ray at radial cosine s_p
+        # traverses Δr of radius over Δr/s_p of path.  Spelled dr/s_p (the
+        # same expression the solve's march uses) so the residual replays
+        # the march's exact arithmetic and the apply∘solve outflow-corner
+        # closure stays bit-exact.  ``None`` / the sphere's s = 1.0 divide
+        # bit-exactly — those paths are byte-identical to the pre-Q5.6 code.
+        s_p = 1.0 if start_cosines is None else start_cosines[p]
+        two_over_dr = 2.0 / (dr / s_p)
         c_minus = interior_space.slot_view(interior_values, p, -1)   # (ng, nx)
         k_minus = boundary_space.slot_view(boundary_values, p, -1)   # (ng,)
         c_plus = interior_space.slot_view(interior_values, p, +1)
         k_plus = boundary_space.slot_view(boundary_values, p, +1)
-        # inward (μ = −1) leg: enter at the outer corner; march the reversed
-        # data so the ascending helper covers outer→inner; exit face = pole.
+        # inward starting-direction leg: enter at the outer corner; march the
+        # reversed data so the ascending helper covers outer→inner; exit
+        # face = pole.
         rows_rev, f_pole = radial_characteristic_residual_march(
             sigma[:, ::-1], c_minus[:, ::-1], two_over_dr[::-1], k_minus,
         )
         interior_space.slot_view(interior_out, p, -1)[:] = rows_rev[:, ::-1]
-        # outward (μ = +1) leg: pole continuation ψ½⁺(0) = ψ½⁻(0).
+        # outward leg: pole continuation ψ½⁺(0) = ψ½⁻(0).
         rows_plus, f_outer = radial_characteristic_residual_march(
             sigma, c_plus, two_over_dr, f_pole,
         )
@@ -322,6 +340,7 @@ def radial_characteristic_forward_residual_transpose(
     interior_space: "RadialCharacteristicInteriorSpace",
     boundary_space: "RadialCharacteristicBoundarySpace",
     sigma: np.ndarray, dr: np.ndarray,
+    *, start_cosines: "dict[int, float] | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Euclidean transpose of :func:`radial_characteristic_forward_residual`
     — the PURE :math:`A_{BB}^{\mathsf T}` reverse-mode (NO ``A_AB`` coupling).
@@ -341,10 +360,13 @@ def radial_characteristic_forward_residual_transpose(
     pullback returns the ``(interior, boundary)`` pair; the reversal
     arithmetic is byte-identical to the retired unified spelling.
     """
-    two_over_dr = 2.0 / dr
     interior_out = np.zeros_like(interior_values)
     boundary_out = np.zeros_like(boundary_values)
     for p in interior_space.levels:
+        # Per-level PATH widths — the exact reverse-mode of the forward's
+        # dr/s_p spelling (see the forward's comment; sphere byte-identical).
+        s_p = 1.0 if start_cosines is None else start_cosines[p]
+        two_over_dr = 2.0 / (dr / s_p)
         mb_minus = interior_space.slot_view(interior_values, p, -1)  # m̄½⁻ (ng, nx)
         kb_minus = boundary_space.slot_view(boundary_values, p, -1)  # m̄k⁻ (ng,)
         mb_plus = interior_space.slot_view(interior_values, p, +1)

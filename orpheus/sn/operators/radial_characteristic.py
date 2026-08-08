@@ -141,6 +141,34 @@ if TYPE_CHECKING:
     )
 
 
+def _march_start_cosines(sn_mesh: "SNMesh") -> dict[int, float]:
+    r"""``|η_start|`` per carried level — the march ray's radial cosine.
+
+    The DD engine
+    (:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`)
+    marches in PATH length; every consumer divides the radial widths by
+    this cosine so the optical step is :math:`\Delta r\,\sigma/|\eta|` —
+    the ray at polar angle θ traverses :math:`\Delta r` of radius over
+    :math:`\Delta r/\sin\theta` of path.  Sphere: the diameter ray,
+    :math:`|\mu| = 1` (the historical hard-coded case — dividing by 1.0
+    is bit-exact, so every sphere path is byte-identical to the
+    pre-Q5.6 spelling).  Folded cylinder: level p's ξ = 0 start ray at
+    :math:`|\eta| = \sin\theta_p`.  Single-sourced from the reduced
+    operator's own start-direction fields (``mu_start`` /
+    ``mu_start_per_level``), never recomputed from the quadrature.
+    """
+    reduced = sn_mesh.reduced
+    assert reduced is not None  # carrying ⇒ 1-D curvilinear ⇒ reduced set
+    if reduced.mu_start_per_level is not None:
+        return {
+            p: abs(float(reduced.mu_start_per_level[p]))
+            for p in sn_mesh.radial_characteristic_levels
+        }
+    assert reduced.mu_start is not None  # spherical arm always sets it
+    diameter_ray = abs(float(reduced.mu_start))
+    return {p: diameter_ray for p in sn_mesh.radial_characteristic_levels}
+
+
 class _EmissionKernel(Protocol):
     r"""The isotropic :math:`\ell = 0` emission kernel — ``A_BA``'s factor between
     the angular integral and the fold: an ``ndarray → ndarray`` operator carrying
@@ -217,8 +245,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             raise ValueError(
                 "RadialCharacteristicOperator: the mesh carries no "
                 "starting-direction ray (the split ψ½ spaces are None) — a "
-                "seedless mesh (Cartesian / cylinder, R12a) has no System B. "
-                "A_BB exists only on a seed-carrying mesh (the sphere)."
+                "seedless mesh (Cartesian, or a cylinder whose levels start on "
+                "an edge node or an η-tie, R12a) has no System B. A_BB "
+                "exists only on a seed-carrying mesh — the GL sphere, the "
+                "σ_y-folded cylinder (Q5.6)."
             )
         # Mesh-identity invariant (Pattern 4 — make the illegal state
         # unrepresentable): the march reads THIS mesh's radial widths
@@ -342,6 +372,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             comp.interior.space, comp.boundary.space,
             self.total_cross_section.values,
             self.sn_mesh.axis_widths[0],
+            start_cosines=_march_start_cosines(self.sn_mesh),
         )
         return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
@@ -387,6 +418,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             comp.interior.space, comp.boundary.space,
             self.total_cross_section.values,
             self.sn_mesh.axis_widths[0],
+            start_cosines=_march_start_cosines(self.sn_mesh),
         )
         return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
@@ -479,20 +511,27 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             )
         sigma = self.total_cross_section.values
         dr = mesh.axis_widths[0]
+        start_cosines = _march_start_cosines(mesh)
 
         flux = RadialCharacteristicField.from_mesh(mesh)
         for level in comp.interior.space.levels:
+            # The engine marches in PATH length: the start ray at radial
+            # cosine |η_start| traverses Δr of radius over Δr/|η_start| of
+            # path (sphere: |μ| = 1, unchanged bit-for-bit; folded-cylinder
+            # level p rides its ξ = 0 ray at sinθ_p — Q5.6).
+            dr_path = dr / start_cosines[level]
             q_minus = comp.interior.cells(level, -1)
             q_plus = comp.interior.cells(level, +1)
             corner_in = comp.boundary.corner(level, -1)
-            # inward μ=−1 leg: enter at the r=R inflow corner, exit at the pole.
+            # inward starting-direction leg: enter at the r=R inflow corner,
+            # exit at the pole.
             cells_minus, pole_face = carlson_inward_sweep_from_source(
-                q_minus, sigma, dr, corner_in,
+                q_minus, sigma, dr_path, corner_in,
             )
-            # outward μ=+1 leg: the SAME engine on reversed data, entering at
+            # outward leg: the SAME engine on reversed data, entering at
             # the pole-continued face (ψ½⁺(0) = ψ½⁻(0)) and exiting at r=R.
             cells_plus_rev, corner_out = carlson_inward_sweep_from_source(
-                q_plus[:, ::-1], sigma[:, ::-1], dr[::-1], pole_face,
+                q_plus[:, ::-1], sigma[:, ::-1], dr_path[::-1], pole_face,
             )
             flux.interior.cells(level, -1)[...] = cells_minus
             flux.boundary.corner(level, -1)[...] = corner_in
@@ -556,11 +595,15 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         comp = self._require_member_composite(cotangent, "solve_transpose")
         sigma = self.total_cross_section.values
         dr = mesh.axis_widths[0]
+        start_cosines = _march_start_cosines(mesh)
 
         # Duality typing (#276 A4, docstring above): dual-of-source = the
         # adjoint ray FLUX — the flux-role zeros buffer.
         src_bar = RadialCharacteristicField.from_mesh(mesh)
         for level in comp.interior.space.levels:
+            # The transpose of the PATH-length march uses the same per-level
+            # path widths as the forward (sphere: ÷1.0, byte-identical).
+            dr_path = dr / start_cosines[level]
             cells_minus_bar = comp.interior.cells(level, -1)
             cells_plus_bar = comp.interior.cells(level, +1)
             corner_in_bar = comp.boundary.corner(level, -1).copy()
@@ -568,12 +611,13 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             # reverse the OUTWARD (+1) leg — marched on reversed data; its exit
             # corner cotangent seeds the pole-face cotangent for the inward leg.
             q_plus_rev_bar, pole_face_bar = carlson_inward_sweep_transpose(
-                cells_plus_bar[:, ::-1], corner_out_bar, sigma[:, ::-1], dr[::-1],
+                cells_plus_bar[:, ::-1], corner_out_bar, sigma[:, ::-1],
+                dr_path[::-1],
             )
             q_plus_bar = q_plus_rev_bar[:, ::-1]
             # reverse the INWARD (−1) leg — the pole face is its exit.
             q_minus_bar, corner_in_from_minus = carlson_inward_sweep_transpose(
-                cells_minus_bar, pole_face_bar, sigma, dr,
+                cells_minus_bar, pole_face_bar, sigma, dr_path,
             )
             # the r=R inflow corner both passes through to the flux corner AND
             # enters the inward leg — its cotangent is the sum of both paths.
@@ -672,8 +716,8 @@ class RadialCharacteristicSeeding(
         The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
         the ray carrier (the domain), the M-M closure ``pole_angular_closure``
         (the single-sourced kernel), the cell volumes ``volumes``, and the
-        quadrature ``quad``. A seedless mesh (Cartesian / cylinder) has NO
-        ray→bulk coupling: constructing over one is rejected. Unlike ``A_BB``,
+        quadrature ``quad``. A seedless mesh (Cartesian, or a non-carrying
+        cylinder) has NO ray→bulk coupling: constructing over one is rejected. Unlike ``A_BB``,
         ``A_AB`` needs NO :math:`\sigma_t` — with the bulk zeroed the
         collision/streaming terms drop out and only the σ-independent angular
         numerator survives.
@@ -689,9 +733,10 @@ class RadialCharacteristicSeeding(
             raise ValueError(
                 "RadialCharacteristicSeeding: the mesh carries no "
                 "starting-direction ray (the split ψ½ spaces are None) "
-                "— a seedless mesh (Cartesian / cylinder, R12a) has no System "
-                "B, hence no ray→bulk seed coupling to inject. A_AB exists "
-                "only on a seed-carrying mesh (the sphere)."
+                "— a seedless mesh (Cartesian, or a non-carrying cylinder, "
+                "R12a) has no System B, hence no ray→bulk seed coupling to "
+                "inject. A_AB exists only on a seed-carrying mesh — the GL "
+                "sphere, the σ_y-folded cylinder (Q5.6)."
             )
         #: The augmented geometry (ray carrier + the M-M closure + volumes).
         self.sn_mesh = sn_mesh
@@ -929,9 +974,10 @@ class RadialCharacteristicReconstruction(LinearOperator):
     Legendre projection — a different typed input, not a twin.)
 
     **Broadcast across levels.** The same moment source is folded onto every
-    carried level (exact for the isotropic emission); carrying meshes have
-    EXACTLY one level (R12a), so the transpose sums the per-level, per-sign
-    cotangents.  Corners stay zero: the fold writes only the cells legs (the
+    carried level (exact for the isotropic emission — a level-independent
+    value); the GL sphere carries ONE level, a σ_y-folded cylinder SEVERAL
+    (R12a / Q5.6), and the transpose sums the per-level, per-sign
+    cotangents either way.  Corners stay zero: the fold writes only the cells legs (the
     inflow-corner datum is the boundary block ``B_b``'s job).
 
     Parameters
@@ -953,18 +999,32 @@ class RadialCharacteristicReconstruction(LinearOperator):
     system_role = SystemRole.COUPLED
 
     def __init__(self, sn_mesh: "SNMesh", n_moments: int = 1) -> None:
+        from orpheus.geometry import CoordSystem
+
         space = sn_mesh.radial_characteristic_interior_space
         if space is None:
             raise ValueError(
                 "RadialCharacteristicReconstruction: the mesh carries no "
                 "radial-characteristic ray (the split ψ½ spaces are None) "
-                "— a seedless mesh (Cartesian / cylinder, R12a) has no "
-                "bulk→ray coupling to fold."
+                "— a seedless mesh (Cartesian, or a cylinder whose levels "
+                "start on an edge node or an η-tie, R12a) has no bulk→ray "
+                "coupling to fold."
             )
         if n_moments < 1:
             raise ValueError(
                 f"RadialCharacteristicReconstruction: n_moments must be ≥ 1 "
                 f"(at least the ℓ = 0 moment); got {n_moments!r}."
+            )
+        assert sn_mesh.reduced is not None  # carrying ⇒ curvilinear
+        arc_family = sn_mesh.reduced.coord is CoordSystem.CYLINDRICAL
+        if arc_family and n_moments > 1:
+            raise NotImplementedError(
+                f"RadialCharacteristicReconstruction: an arc-family "
+                f"(folded-cylinder) mesh reconstructs from the ℓ = 0 "
+                f"moment only (n_moments = 1); got {n_moments}. The "
+                f"Legendre reconstruction weights are the polar "
+                f"interval's — a folded arc's higher moments live in the "
+                f"Chebyshev basis (T25), a seam no consumer needs yet."
             )
         #: The augmented geometry (ray carrier + cells-leg layout).
         self.sn_mesh = sn_mesh
@@ -975,6 +1035,17 @@ class RadialCharacteristicReconstruction(LinearOperator):
         #: non-None by the ctor guard). The declared codomain is the member
         #: composite space.
         self._ray_space = space
+        #: The arc family's ℓ = 0 fold weight — the CONSTANT function's
+        #: reproducing weight ``1/Σw`` (a level-constant moment's value at
+        #: ANY direction is q₀/∫dμ; the sphere's Legendre (2·0+1)/2 = ½ is
+        #: the same identity at Σw = 2).  ``None`` selects the sphere's
+        #: Legendre kernel path.  Q5.6: the sphere's hard-coded ½ applied
+        #: to a folded cylinder (Σw = 4π) over-injected the ray scattering
+        #: source 2π-fold — `[M]` the c = 0.4 flat-flux equilibrium read
+        #: 158 % off before this weight, machine-exact after.
+        self._ell0_scale: float | None = (
+            1.0 / float(sn_mesh.quad.weights.sum()) if arc_family else None
+        )
 
     # ── Predicates / spaces ───────────────────────────────────────────
 
@@ -1038,9 +1109,17 @@ class RadialCharacteristicReconstruction(LinearOperator):
         seed = RadialCharacteristicField.source_zeros_on(self.sn_mesh)
         for level in self._ray_space.levels:
             for sign in (-1, +1):
-                seed.interior.cells(level, sign)[...] = (
-                    fold_moments_to_radial_characteristic(arr, sign)
-                )
+                if self._ell0_scale is not None:
+                    # Arc family: the ℓ = 0 constant's reproducing weight
+                    # 1/Σw — sign-independent (a constant's value at any
+                    # direction), guarded to n_moments = 1 at the ctor.
+                    seed.interior.cells(level, sign)[...] = (
+                        arr[0] * self._ell0_scale
+                    )
+                else:
+                    seed.interior.cells(level, sign)[...] = (
+                        fold_moments_to_radial_characteristic(arr, sign)
+                    )
         return seed
 
     # ── Euclidean transpose — inject a ray cotangent into moment space ─
@@ -1087,9 +1166,16 @@ class RadialCharacteristicReconstruction(LinearOperator):
         for level in self._ray_space.levels:
             for sign in (-1, +1):
                 cells_bar = cotangent.interior.cells(level, sign)
-                moment_bar += fold_moments_to_radial_characteristic_transpose(
-                    cells_bar, sign, self.n_moments,
-                )
+                if self._ell0_scale is not None:
+                    # Arc family: the exact transpose of the ℓ = 0
+                    # reproducing-weight forward (n_moments = 1 by ctor).
+                    moment_bar[0] += cells_bar * self._ell0_scale
+                else:
+                    moment_bar += (
+                        fold_moments_to_radial_characteristic_transpose(
+                            cells_bar, sign, self.n_moments,
+                        )
+                    )
         return moment_bar
 
     def __repr__(self) -> str:
@@ -1199,9 +1285,10 @@ class RadialCharacteristicEmission(LinearOperator):
             raise ValueError(
                 "RadialCharacteristicEmission: the mesh carries no "
                 "radial-characteristic ray (the split ψ½ spaces are None) "
-                "— a seedless mesh (Cartesian / cylinder, R12a) has no "
-                "System B, hence no bulk→ray emission coupling. A_BA exists "
-                "only on a seed-carrying mesh (the sphere)."
+                "— a seedless mesh (Cartesian, or a non-carrying cylinder, "
+                "R12a) has no System B, hence no bulk→ray emission "
+                "coupling. A_BA exists only on a seed-carrying mesh — the "
+                "GL sphere, the σ_y-folded cylinder (Q5.6)."
             )
         #: The augmented geometry (ray carrier + quadrature).
         self.sn_mesh = sn_mesh

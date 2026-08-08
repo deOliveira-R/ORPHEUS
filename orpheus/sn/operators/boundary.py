@@ -949,9 +949,10 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             raise ValueError(
                 "RadialCharacteristicBoundaryOperator: the mesh carries no "
                 "ψ½ ray (radial_characteristic_field_space is None) — a "
-                "seedless mesh (Cartesian / cylinder, R12a) has no System B, "
-                "hence no ray-corner boundary block. B_b exists only on a "
-                "seed-carrying mesh (the sphere)."
+                "seedless mesh (Cartesian, or a non-carrying cylinder, R12a) "
+                "has no System B, hence no ray-corner boundary block. B_b "
+                "exists only on a seed-carrying mesh — the GL sphere, the "
+                "σ_y-folded cylinder (Q5.6)."
             )
         self.sn_mesh = sn_mesh
 

@@ -201,19 +201,33 @@ class RadialCharacteristicField(
         reconstruction all route
         through here): ``None`` on a non-carrying mesh; on a carrying mesh
         (1-D curvilinear, R12a) the starting-direction legs receive the
-        value of the source at the starting direction :math:`\mu = \pm 1`,
-        reconstructed from ALL its Legendre moments (Hébert Eq. 3.432, the
-        R14 full :math:`(-1)^\ell` fold):
+        value of the source AT the level's start ray, synthesized from
+        the level's own orthogonal analysis — one shape, two families:
 
-        .. math::
+        * **SPHERE** (the polar interval): the Hébert Eq. 3.432 Legendre
+          fold at :math:`\mu = \pm 1` (the R14 full :math:`(-1)^\ell`
+          fold),
 
-           \bar q_{1/2}(\mu = \pm 1)
-             \;=\; \sum_\ell \tfrac{2\ell+1}{2}\,q_\ell\,(\pm 1)^\ell,
-           \qquad
-           q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
+          .. math::
 
-        via the R14 helper
-        (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`).
+             \bar q_{1/2}(\mu = \pm 1)
+               \;=\; \sum_\ell \tfrac{2\ell+1}{2}\,q_\ell\,(\pm 1)^\ell,
+             \qquad
+             q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
+
+          via the R14 helper
+          (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`).
+        * **FOLDED CYLINDER** (the arc, Q5.6): the same analysis-synthesis
+          in the arc's OWN Gauss family — the staggered arc is
+          Gauss–Chebyshev-1 in :math:`x = \cos\omega = \eta/\sin\theta_p`
+          (T25), so the endpoint synthesis uses
+          :math:`T_k(\pm 1) = (\pm 1)^k` with the weight-free GC1
+          discrete-orthogonality analysis
+          :math:`c_k = \tfrac{2 - \delta_{k0}}{M}\sum_n T_k(x_n)\,q_n`.
+          `[M]` the sphere's Legendre fold run on these levels produced
+          seed values of −0.58 / +3.72 on a flat unit problem (an 82 %
+          solution error, Mode-12-masked in every two-spelling test);
+          the arc fold restores the flat L0 to 2.8e-13.
         The full fold is REQUIRED for an anisotropic source: even an
         isotropic trial flux :math:`\psi = A(r)` streams to a
         :math:`\mu`-linear source :math:`q = \mu A'(r) + \sigma_t A(r)`,
@@ -270,6 +284,7 @@ class RadialCharacteristicField(
             whose source carries no boundary member (cold starts, the
             eigen fission seed).
         """
+        from orpheus.geometry import CoordSystem
         from orpheus.numerics.spaces.radial_characteristic_space import (
             fold_moments_to_radial_characteristic,
         )
@@ -287,21 +302,55 @@ class RadialCharacteristicField(
         mu = mesh.quad.mu_x
         weights = mesh.quad.weights
         level_indices = mesh.pole_angular_closure.level_indices
+        assert mesh.reduced is not None  # carrying ⇒ curvilinear ⇒ reduced
+        arc_family = mesh.reduced.coord is CoordSystem.CYLINDRICAL
         seed = cls.source_zeros_on(mesh)
         for p in seed.interior.space.levels:
             ords = np.asarray(level_indices[p])
             mu_p = mu[ords]
-            w_p = weights[ords]
             q_p = vals[ords]                                  # (M_p, ng, nx)
-            # Legendre moments of the source over the level's μ-nodes:
-            # q_ℓ = Σ_n w_n P_ℓ(μ_n) q_n, ℓ = 0 … M_p−1 (the full angular
-            # content the level resolves; the fold reconstructs q(μ=±1)).
-            legendre = np.polynomial.legendre.legvander(mu_p, ords.size - 1)
-            moments = np.einsum("n,nl,ngx->lgx", w_p, legendre, q_p)
-            for sign in _SIGNS:
-                seed.interior.cells(p, sign)[...] = (
-                    fold_moments_to_radial_characteristic(moments, sign)
+            if arc_family:
+                # The ARC family (Q5.6): a folded level's nodes are the
+                # Gauss-Chebyshev-1 angles in x = cos ω = η/sinθ_p (T25 —
+                # the staggered arc IS the GC1 rule), so the source's value
+                # at the start ray ω = π (x = −1) is the level's
+                # trigonometric interpolant synthesized at the endpoint —
+                # the exact arc analogue of the sphere's Legendre fold,
+                # with T_k(±1) = (±1)^k in place of P_ℓ(±1) = (±1)^ℓ and
+                # the GC1 discrete orthogonality
+                # Σ_n T_j(x_n) T_k(x_n) = (M/2)(1+δ_{k0}) δ_{jk}
+                # making the analysis weight-free:
+                # c_k = (2 − δ_{k0})/M · Σ_n T_k(x_n) q_n.  For a level-
+                # constant source c_0 = q and the fold returns q exactly.
+                mu_z0 = float(mesh.quad.mu_z[ords[0]])
+                sin_theta = float(np.sqrt(1.0 - mu_z0 * mu_z0))
+                x_p = mu_p / sin_theta
+                cheb = np.polynomial.chebyshev.chebvander(
+                    x_p, ords.size - 1
                 )
+                coeffs = np.einsum("nk,ngx->kgx", cheb, q_p) * (
+                    2.0 / ords.size
+                )
+                coeffs[0] *= 0.5
+                k = np.arange(ords.size)
+                for sign in _SIGNS:
+                    seed.interior.cells(p, sign)[...] = np.einsum(
+                        "k,kgx->gx", np.float64(sign) ** k, coeffs
+                    )
+            else:
+                w_p = weights[ords]
+                # Legendre moments of the source over the level's μ-nodes:
+                # q_ℓ = Σ_n w_n P_ℓ(μ_n) q_n, ℓ = 0 … M_p−1 (the full
+                # angular content the level resolves; the fold reconstructs
+                # q(μ=±1)).
+                legendre = np.polynomial.legendre.legvander(
+                    mu_p, ords.size - 1
+                )
+                moments = np.einsum("n,nl,ngx->lgx", w_p, legendre, q_p)
+                for sign in _SIGNS:
+                    seed.interior.cells(p, sign)[...] = (
+                        fold_moments_to_radial_characteristic(moments, sign)
+                    )
         if boundary_trace is not None:
             # The prescribed-inflow corner arm (three-arm law above): the
             # r = R inward-leg Dirichlet datum per carrying level = the

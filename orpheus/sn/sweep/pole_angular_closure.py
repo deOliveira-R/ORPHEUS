@@ -17,8 +17,10 @@ SAME algebra
 the sweep, lifted to operator level so the apply matvec and the sweep
 solve the **same** discrete fixed point.  Since Issue #282 route (a) the
 seed :math:`\phi_{1/2,i}` is first-class STATE marched directly from the
-source (carrying levels — the sphere), or the inlined 2-point
-angular-edge extrapolation on non-carrying cylinder levels; the retired
+source (carrying levels — the GL sphere and, since Q5.6, every level
+of a σ_y-folded cylinder), or the inlined 2-point angular-edge
+extrapolation on non-carrying cylinder levels (NODE_ALIGNED /
+level-symmetric full-circle rules); the retired
 pre-route-(a) :math:`\phi_{1/2,i} = 0` back edge survives only as the
 :math:`\psi`-independent coefficient state (a ``None`` seed).
 
@@ -1184,8 +1186,11 @@ class MorelMontryAngularSweep(
 
         Exact on angle-flat and linear-in-μ fields, O(Δμ²)-consistent, linear
         in the input.  Bit-identical to the retired ``AngularEdgeExtrapolation``
-        default on every production cylinder (product rules hit its t = 0
-        degenerate; level-symmetric rules have a dead seed weight); degenerate
+        default on every NON-CARRYING cylinder (NODE_ALIGNED full-circle
+        product rules hit its t = 0 degenerate; level-symmetric rules
+        have a dead seed weight; a σ_y-folded cylinder never reaches
+        this — its carrying levels march first-class ψ½ state, Q5.6);
+        degenerate
         single-direction levels fall back to constant extrapolation (t = 0).
         The R12a trichotomy: curvilinear_one_group.rst §sn-direct-seed-r12a.
         """

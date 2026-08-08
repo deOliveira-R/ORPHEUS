@@ -3385,8 +3385,9 @@ bulk and trace:
          \oplus\, V_{1/2,p}^{+}\bigr),
 
 one starting-direction block :math:`V_{1/2,p}^{\pm}` per **carrying**
-:math:`\mu`-level :math:`p` (R12a; on production meshes only the sphere
-carries — one level).  Each block holds the level's half-angle flux at
+:math:`\mu`-level :math:`p` (R12a; the GL sphere carries — one level —
+and, since Q5.6, every level of a σ_y-folded cylinder carries — its
+arcs start genuinely off-node, T22b).  Each block holds the level's half-angle flux at
 every radial cell (the **interior**
 :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`)
 plus its two :math:`r = R` corner slots (the **boundary**
