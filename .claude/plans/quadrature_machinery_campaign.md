@@ -2828,9 +2828,17 @@ implemented and **no `D_6h`-invariant rule in tree**.
        structure-less guard fires first with the more specific
        message) + the refusal gate module (positive folded admission
        AND negative per family — vv #11; refusal is total by
-       structure: full NODE_ALIGNED = edge-node+degenerate, full
-       STAGGERED = mirror-tie degenerate, LS = hemisphere-tie
-       degenerate at every order, slab-GL = fake single level on Σ)
+       structure: full NODE_ALIGNED = edge-node-ONLY (⛔ this line
+       read "edge-node+degenerate" until 2026-08-08 — REFUTED by the
+       test-architect's §1.1 measurement: `(on_edge_node=True,
+       degenerate=False)` on every product level; a gate transcribing
+       the old parenthetical would pin a FALSE reason on every
+       product row), full STAGGERED = mirror-tie degenerate, LS =
+       hemisphere-tie degenerate at every order, slab-GL = fake
+       single level on Σ; AND `[M]` leg 2c: all-tangential
+       folded(n,2) is refused EARLIER still, by the trace tier's
+       `build_omega_dot_n` — an order-discrimination row like
+       slab-GL, never a MarchStart-refusal row, gate_design §8.1)
        + `_CYL_LS`/`_CYL_PRODUCT` refusal rows + the staleness sweep
        (`cylindrical_streaming` guard text + docstring recommend
        exactly the refused families; `MarchStart` bracketed instance
@@ -2911,6 +2919,77 @@ implemented and **no `D_6h`-invariant rule in tree**.
     `non_carrying_levels()` out of the raiser or the ∀-quantifier
     ships ungated; slab GL is the ORDER-discrimination row (the
     structure-less guard fires first), never a refusal row → leg 6.
+  * **6.3 LANDED, SECOND HALF (2026-08-08 continuation — legs
+    2c/2d/2e/3/4 ALL LANDED; the "Remaining legs" block above is now
+    HISTORY):** `2befb14d` **leg 2c** (7 curvilinear files; ⭐ `[M]`
+    `test_both_quadratures_agree` RETIRED — its homogeneous
+    REFLECTIVE fixture is k_inf-blind, five rules all measured keff =
+    1.500000000000 exactly, so the 1e-6 cross-family agreement was
+    Mode-12-degenerate all along AND the subject dissolves post-flip;
+    ⭐ `[M]` folded(n,2) is INADMISSIBLE one tier BELOW the
+    march-start predicate — the all-tangential rule (every μ_x ==
+    0.0 bit-exact) is refused by the trace tier's
+    `build_omega_dot_n` while the MarchStart facts say carrying —
+    gate_design §8.1: an order-discrimination row like slab-GL,
+    never a MarchStart-refusal row, and "carrying ⟹ admitted" must
+    never be claimed (admission = the tier guards' CONJUNCTION in
+    firing order); the P(4,5) pre-march refusal pin is flip-commit
+    family (§8.2); 282's cyl row PROMOTED to the coupled branch
+    incl. the ERR-078 outflow row; the #206 battery stays honestly
+    xfail 27/27 on folded; apply_matvec's n_phi grid {2,4}→{4,6}
+    keeps the surviving bit-exact μ_r=0 degenerate class in the L0
+    batteries) · `569a75f2` **leg 2d** (5 files; keff_curvilinear's
+    two product-vs-LS param lists → two folded SPLITS 4x8/8x4 for
+    level-bookkeeping diversity; `[M]` the touched @slow cylinder
+    set 12 passed in 1:13:35 — sweep vs trajectory_resolvent in the
+    3% budget, twin-path 1e-5, refinement 20/40/80 both paths,
+    SI≡Krylov eigenpair, CP het) · `4afc8313` **leg 2e** (5
+    primitives files; α-dome over five folded splits incl. the
+    degenerate 4x6; contamination β machine-zero on folded;
+    quadrature-LEVEL family tests keep their LS/product rows — they
+    test those rules AS RULES, which stay constructible) ·
+    `c39b7d44` **leg 3** (23 files — every artifact family
+    re-captured on the fold, stamped INTERIM for the 6.4 absorber
+    double-move: the 3 regression snapshots RENAMED to honest folded
+    names + regenerated, `[M]` new keffs 1.5 exact / 1.5−2ulp /
+    3-region 1.2302082296342958 (was 1.2284281074857448 on LS4,
+    0.14%); walk_matvec_cyl_2g on folded(4,8) with `[M]`
+    slab/sphere/cart2d re-captures BYTE-IDENTICAL; bc_extraction 6 +
+    affine-carve 3 CYL baselines re-captured via --capture-baseline
+    (⚠ that flag re-captures EXISTING baselines too — verified no
+    non-CYL bytes moved); T4 script re-run, `pre_t4_walltime.json`
+    restored to HEAD (it measures an UNCHANGED slab fixture; the
+    fresh numbers were warm-machine noise); phase_c keys renamed +
+    literals re-measured; `[M]` the 4 phase_c @slow cylinder
+    cross-checks passed in 55:46) · `7c0db72f` **leg 4**
+    (slot-coordination's subject INVERTED — its own "if a future
+    quadrature ever carries >1 level" tripwire fired; folded rows
+    assert the multi-level carrier as the admitted norm; NEW
+    per-(p_idx,sign) disjoint-marker gate with LEVEL-ASYMMETRIC
+    markers 10p±1 defeating the bit-palindrome Mode-12 hazard;
+    product/LS rows keep () and INVERT into step 5's refusal
+    negatives; the other two redesigns RULED in gate_design §8.4 —
+    test_cyl_direct_seed_fold DEFERRED to leg 5 coupled to §6 Q3
+    (its six gates ARE Q3's "six tests"; green today),
+    azimuthal_mirror #326 rides the flip as retire-with-tombstone +
+    quadrature-level survivors, ⛔ superseding the old "re-poses at
+    6.4" schedule). **Batteries at this checkpoint (HEAD `7c0db72f`
+    + the matrix regen):** all touched-file batteries green (2c
+    92+27xf not-slow + 3 @slow 10:44 · 2d 44 + 12 @slow 1:13:35 ·
+    2e 122 · leg-3 consumers 111 + 4 @slow 55:46 · leg-4 45); full
+    COLLECTION 9221 tests / 0 errors; pyright ratchet green; xref 0
+    dead; sphinx -W clean + V&V matrix regenerated. NOT run:
+    tests/sn full not-slow + tests/numerics WITH-slow (owed at 6.3
+    close, as before). **▶ NEXT: leg 5 THE FLIP — STOPPED AT THE
+    USER BOUNDARY: gate_design §6's six questions are routed to the
+    user (⭐ Q3 retire-vs-keep the #280 2.5b fold decides
+    test_cyl_direct_seed_fold's fate; Q1's recommendation on the 6
+    below-admission `cylindrical_streaming` sites is open; Q5/Q6
+    are already answered by events — separate 6.3/6.4 windows with
+    INTERIM stamps landed, MMS n_phi=8 landed). The flip commit's
+    riders: mesh-simple trio, coupled_pole's P(4,5) pin,
+    azimuthal_mirror tombstones, slot-coordination's product/LS →
+    refusal-negative inversion, direct_seed_fold per Q3.**
 
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an

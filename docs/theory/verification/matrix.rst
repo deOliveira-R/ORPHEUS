@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9206**
+Total tests collected: **9221**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1622, 17.6%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6206, 67.4%
+   foundation, 6221, 67.5%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9122
+   explicit, 9137
    class-name, 46
    func-name, 0
    case, 33
@@ -113,8 +113,8 @@ Module × level grid
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_azimuthal_mirror_symmetry, 0, 5, 0, 0, 7, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
-   curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 13, 0
-   curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
+   curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 17, 0
+   curvilinear/test_cyl_sweep_regression, 3, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
    curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
@@ -283,7 +283,7 @@ Module × level grid
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 14, 0
-   mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 34, 0
+   mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 45, 0
    mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 27, 0
    mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 18, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
@@ -421,7 +421,7 @@ Module × level grid
    primitives/test_method_space, 5, 0, 0, 0, 0, 0
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
-   primitives/test_quadrature, 49, 0, 0, 0, 0, 0
+   primitives/test_quadrature, 50, 0, 0, 0, 0, 0
    primitives/test_quadrature_fold, 0, 0, 0, 0, 14, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
@@ -495,10 +495,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 228
-   ``mg-balance``, 183
+   ``matrix-eigenvalue``, 227
+   ``mg-balance``, 182
    ``peierls-unified``, 158
-   ``one-group-kinf``, 147
+   ``one-group-kinf``, 146
    ``peierls-rank-n-bc-closure``, 124
    ``alpha-recursion``, 115
    ``reflective-bc``, 113
@@ -506,7 +506,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``wdd-face``, 103
    ``alpha-cylindrical``, 95
    ``collision-rate``, 94
-   ``multigroup``, 83
+   ``multigroup``, 82
    ``mm-weights``, 75
    ``ki3-def``, 64
    ``fission-matrix``, 63
@@ -515,15 +515,15 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``transport-cartesian``, 60
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
-   ``balance-general``, 54
    ``hebert-3-432``, 54
    ``self-cyl``, 54
+   ``balance-general``, 53
    ``p-inf``, 53
+   ``flux-moments``, 52
    ``self-sph``, 52
    ``chord-length``, 51
-   ``flux-moments``, 51
-   ``quadrature-ordinate-permutation``, 49
-   ``quadrature-product-weights``, 49
+   ``quadrature-ordinate-permutation``, 50
+   ``quadrature-product-weights``, 50
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
@@ -553,7 +553,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-equation``, 33
    ``sigma-keff``, 33
    ``free-flight``, 31
-   ``transport-cylindrical``, 30
+   ``transport-cylindrical``, 29
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
