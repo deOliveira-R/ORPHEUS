@@ -93,6 +93,7 @@ from orpheus.numerics.measure import (
 # the canonical R³ embedding (``_embedded_nodes``).
 from orpheus.numerics.symmetry import (
     _NODE_WINDOW_FACTOR,
+    SubgroupOfO3,
     _embedded_nodes,
 )
 
@@ -101,7 +102,8 @@ if TYPE_CHECKING:
     from orpheus.numerics.frame import GalerkinFrame
 
 from .rules_1d import gauss_legendre_on_mu
-from .rules_product import product_mu_phi
+from .rules_circle import STAGGERED, periodic_trapezoid
+from .rules_product import product_mu_phi, spherical_product
 from .rules_sphere import LevelStructure, lebedev_sphere, level_symmetric_sn
 
 # Threshold below which a direction-cosine component is treated as
@@ -386,6 +388,52 @@ class Quadrature:
         )
 
     # ────────────────────────────────────────────────────────────
+    # The fold — quotient by a symmetry subgroup (Q5.6)
+    # ────────────────────────────────────────────────────────────
+
+    def quotient(
+        self, group: "SubgroupOfO3", *, atol: float = 1e-13
+    ) -> "Quadrature":
+        r"""The quotient quadrature :math:`\mu / G` — **THE FOLD**, lifted
+        to the :class:`Quadrature` tier.
+
+        Delegates both halves to the landed primitives and adds nothing:
+
+        * the **measure** folds by orbit-stabilizer
+          (:meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient` —
+          total mass preserved exactly, weights *derived* as
+          :math:`W = w \cdot |G| / |\mathrm{Stab}|`, the exactness claim
+          dropped, the symmetry consumed);
+        * the **level structure** DESCENDS by selection
+          (:meth:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure.quotient`
+          — charts bit-copied, each level's order the parent's η-order
+          RESTRICTED to the surviving representatives, fiberwise
+          certified by per-level mass).
+
+        Every refusal arm lives on those primitives (a non-invariant
+        measure, a continuous group, a 1-D measure without the 3-D
+        realization, a level-merging fold, a foreign measure); this
+        lift owns none.  A rule without a level structure (Lebedev)
+        folds its measure alone and keeps ``level_structure=None``.
+
+        For the cylindrical σ_y-fold with the DERIVED staggered offset,
+        use :meth:`folded_product` — it co-selects the offset the free
+        fold requires (T25) so the incoherent NODE_ALIGNED-plus-fold
+        combination is not spellable.
+        """
+        folded_measure = self.measure.quotient(group, atol=atol)
+        folded_structure = (
+            self.level_structure.quotient(
+                parent=self.measure, onto=folded_measure
+            )
+            if self.level_structure is not None
+            else None
+        )
+        return Quadrature(
+            measure=folded_measure, level_structure=folded_structure
+        )
+
+    # ────────────────────────────────────────────────────────────
     # Spherical harmonics evaluation
     # ────────────────────────────────────────────────────────────
 
@@ -586,6 +634,72 @@ class Quadrature:
         """
         measure, structure = product_mu_phi(n_mu, n_phi)
         return cls(measure=measure, level_structure=structure)
+
+    @classmethod
+    def folded_product(cls, n_mu: int = 8, n_phi: int = 8) -> "Quadrature":
+        r"""The σ_y-QUOTIENT of the staggered product rule — the
+        cylindrical fold.
+
+        Builds :math:`\mathrm{GL}(n_\mu) \times
+        \mathrm{trapezoid}(n_\varphi,\ \mathrm{STAGGERED})` on
+        :math:`S^2` and quotients it by the azimuthal mirror
+        :math:`\sigma_y` (:math:`\xi \to -\xi`).  ``n_phi`` counts the
+        PARENT circle's nodes; the fold keeps one representative per
+        mirror orbit, so the result carries
+        :math:`n_\mu \cdot n_\varphi / 2` ordinates on the
+        :math:`\xi > 0` half — each level a strictly η-monotone ARC in
+        march order (:eq:`folded-level-arc`).
+
+        **This is a QUOTIENT, not a half-range restriction**: each
+        orbit's representative carries the WHOLE orbit weight
+        (:math:`2w` — the action is free), so total mass stays
+        :math:`4\pi` bit-exactly and no consumer carries a
+        compensating factor.  ξ-odd functions are *not in the
+        quotient's space* — the honest phase space for 1-D
+        azimuthally-symmetric transport, where :math:`\psi` is ξ-even
+        by geometric theorem.
+
+        **The offset is DERIVED, not chosen** (T25): the fold is free
+        — no node fixed by the mirror, :math:`\Sigma = \emptyset` —
+        exactly when the azimuthal nodes straddle the mirror planes,
+        i.e. the STAGGERED shift at even :math:`n_\varphi`.  That is
+        why this factory exists rather than a ``fold=`` flag on
+        :meth:`product`: offset-selection and fold-intent must be
+        co-selected, or the incoherent NODE_ALIGNED-plus-fold
+        combination (a node ON :math:`\Sigma`, an edge-node march
+        start, the :math:`\tau = 0` division) becomes spellable.
+
+        Consequences on the M-M closure (all gated): every level
+        consumes an independent ψ½ seed
+        (:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`
+        — carrying), :math:`\tau_{\rm raw} \in [\tfrac15, \tfrac45]`
+        strictly away from the :math:`\{0, 1\}` singularities, and the
+        reversal identity :math:`\tau_m + \tau_{M-1-m} = 1` holds
+        bit-exactly (:eq:`morel-montry-folded-arc`).
+
+        Raises
+        ------
+        ValueError
+            If ``n_phi`` is odd: the staggered rule at odd
+            :math:`n_\varphi` places one node per level ON the mirror
+            (:math:`\varphi = \pi \in \Sigma`), so the fold is not
+            free and the arc would start on an edge node.
+        """
+        if n_phi % 2 != 0:
+            raise ValueError(
+                f"folded_product requires an even n_phi: the staggered "
+                f"circle rule at odd n_phi={n_phi} places one node per "
+                f"level ON the mirror plane (phi = pi is in Sigma), so "
+                f"the sigma_y fold is not free and the folded arc would "
+                f"start on an edge node (tau_raw = 0, the division the "
+                f"fold exists to remove)."
+            )
+        measure, structure = spherical_product(
+            gauss_legendre_on_mu(n_mu),
+            periodic_trapezoid(n_phi, shift=STAGGERED),
+        )
+        full = cls(measure=measure, level_structure=structure)
+        return full.quotient(SubgroupOfO3.Mirror("y"))
 
 
 __all__ = ["Quadrature"]
