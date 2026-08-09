@@ -785,8 +785,9 @@ class IterationRecord:
         which is silent on the case of **no criteria at all** — ``any(())`` is
         ``False``, so a level that iterated while declaring nothing to measure
         fell through to ``all(())`` and claimed convergence.  That is the same
-        vacuous-conjunction lie :func:`~orpheus.numerics.eigenvalue.
-        power_iteration` refuses at the producer, left open one layer down;
+        vacuous-conjunction lie the power-iteration loop
+        (:func:`~orpheus.numerics.eigenvalue.power_iteration`) refuses at the
+        producer, left open one layer down;
         `[M]` 2026-08-09 it was found by writing the neighbouring test, not by
         review.  Since criteria are co-indexed the two spellings agree
         wherever there IS a criterion, so widening to "no criterion was
