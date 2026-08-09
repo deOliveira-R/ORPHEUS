@@ -585,6 +585,81 @@ point; the Wave-D-era design in which they carried different spatial
 closures — and disagreed on coarse-mesh :math:`\keff` — is recorded
 in the two-closure history (:ref:`loss-rep-history`).
 
+.. _sn-convergence-contract:
+
+The convergence contract — a best-effort answer says so
+--------------------------------------------------------
+
+Every entry above can stop for two structurally different reasons: it
+**converged**, or its **budget ran out** and the returned field is a
+best-effort iterate, mid-descent.  Both come back as the same type from
+the same call, so the distinction has to be carried explicitly or it is
+lost.
+
+**Where the fact comes from.**  The loop that stops knows why it stopped,
+and since 2026-08-08 it says so rather than discarding it:
+
+* the **outer** (eigenvalue) fact is
+  :attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`,
+  recorded by :func:`~orpheus.numerics.eigenvalue.power_iteration` at the
+  ``break``;
+* the **inner** (fixed-source) fact is one shared predicate over the
+  residual history — strictly below tolerance, the same test the
+  within-group certificate uses to decide whether a claim exists at all.
+
+Both surface on :attr:`Solution.history.converged
+<orpheus.sn.solution.IterationHistory.converged>`, which is a **required**
+field: it has no default, so a producer cannot claim convergence by
+omission.
+
+.. warning::
+
+   **A value gate that does not assert convergence is asserting an
+   arbitrary iterate.**  This is not hypothetical.  `[M]`
+   ``test_d3_pure_absorber_per_ordinate_psi_exact`` asserted a closed-form
+   identity to ``rtol=1e-10`` on an all-reflective 3-D box that needs
+   **1631** sweeps, against a default ``max_inner`` of **1000**.  It read
+   the 999th iterate, never read the flag the solver had honestly set to
+   ``False``, and passed for months because the truncated error happened to
+   land inside the tolerance — until a *correct* quadrature change (#337)
+   moved it out.  The one-line defence is to assert
+   ``sol.history.converged`` **before** reading any value.
+
+   The diagnostic tell is worth memorising, because it points the wrong
+   way: the error was **bit-identical at every** ``inner_tol`` **from 1e-9
+   to 1e-15**, which reads as a discretization floor.  It is the opposite —
+   the running residual never fell below even the loosest tolerance, so
+   every run hit the same cap and returned the same bytes.
+   Tolerance-insensitivity means the tolerance never *bound*; read the
+   iteration count against the budget before concluding anything about the
+   discretization.
+
+**Loudness.**  A truncated exit emits
+:class:`~orpheus.numerics.convergence.ConvergenceWarning`, naming the
+budget that ran out, the tolerance missed, and how far the last iterate
+was — the distance between "one more sweep" and "diverging" wants opposite
+responses.  It is a warning rather than an exception by the ERR-053
+precedent (legitimate callers harvest the residual history of a
+deliberately-truncated solve), and it escalates to a hard failure with::
+
+    python -O -m pytest -W error::ConvergenceWarning
+
+**Budget sizing.**  ``max_inner`` is a fixed default, and the required
+budget is not: `[M]` an all-reflective box needs ~an order of magnitude
+more sweeps per added dimension (d=1 **32**, d=2 **258**, d=3 **1631**),
+and the cost scales as :math:`\Sigma_t \cdot n_{\rm inner} \approx`
+constant.  One vacuum face collapses the d=3 figure to 208 — the expensive
+corner is specifically zero-leakage, weakly-absorbing, and 3-D.  Deriving
+the default rather than hardcoding it is tracked on `Issue #340
+<https://github.com/deOliveira-R/ORPHEUS/issues/340>`_.
+
+Gates: ``tests/sn/solve/test_convergence_contract.py`` — each honesty claim
+is a PAIR (a converging configuration and a deliberately-starved one),
+because asserting ``converged is True`` on a solve that converges is
+satisfied by the very hardcoded ``True`` the contract forbids; it is the
+starved leg that has teeth.  `[M]` a 6-mutation battery, positive control
+first, reddens as designed — including re-introducing #342 verbatim.
+
 
 .. _sn-consuming-the-frame:
 

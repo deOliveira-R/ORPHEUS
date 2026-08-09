@@ -9,9 +9,25 @@ earlier draft targeted ``rho_GS ~ c^2`` (HALVE the count).  That is the
 SCATTERING Gauss-Seidel result — but the LANDED recovery folds only the
 BOUNDARY reflection ``B`` (``S`` stays a lagged gain), accelerating the
 boundary-layer transient, NOT the dominant within-group scattering ``c``-mode.
-MEASURED: a constant ~0.86-0.92x (regime-independent), NOT 0.5x.  The gates are
+NOT 0.5x.  The gates are
 re-scoped to the HONEST recovery: a STRICT improvement over the LIVE-measured
-Jacobi count, bracketed below by Krylov.  The c-independent (rho~0.22) win is
+Jacobi count, bracketed below by Krylov.
+
+⛔ SECOND PREMISE CORRECTION (2026-08-08, issue #341).  This module used to add
+"MEASURED: a constant ~0.86-0.92x (regime-independent)".  REFUTED: the effect is
+neither constant nor regime-independent and its SIGN flips with dimension —
+[M] a WIN at d=2 zero-leakage (0.40 on LS4 3x4; 0.92 on this module's own B-2g
+8x8 box, so even the d=2 magnitude is fixture-specific), a ~2x LOSS at d=3
+zero-leakage (1631 vs 838), and a wash (0.97-1.00) with ANY vacuum face at ANY
+dimension.  Mechanically consistent with G-S folding only B: its leverage IS
+the weight of the boundary coupling, which is maximal at zero leakage and
+collapses once anything escapes.  Table + mechanism: the "What the boundary-G-S
+rate actually depends on" section of docs/theory/methods/sn/cartesian_multid.
+
+⭐ This is WHY the gate below asserts `n_gs < n_jac` and NOT a ratio, and that
+choice is what kept it honest across the refutation: the inequality is the law,
+the ratio is a fixture reading.  A gate pinned to 0.86-0.92 would have been a
+false green at d=2 and a false red at d=3.  Keep it that way.  The c-independent (rho~0.22) win is
 consistent DSA (#2) or Krylov (already production, splitting-invariant,
 rate-optimal on every BC).
 
@@ -91,8 +107,10 @@ from orpheus.transport.source_sinks import AngularSourceSink
 # orientation only:
 #   SLAB_2G ≈ 655 · SLAB_4G ≈ 523 · BOX_2G ≈ 697 (Jacobi) / 641 (boundary G-S)
 #   VACUUM_2G ≈ 128 (coupling inactive — the G-4 negative control)
-# The boundary-G-S recovery is the MEASURED ~0.86–0.92× (NOT the c² halving an
-# earlier draft assumed — see §4.1); the c-independent win is DSA (#2) / Krylov.
+# The boundary-G-S recovery is NOT the c² halving an earlier draft assumed (see
+# §4.1), and NOT the "constant ~0.86–0.92×" a later one did (⛔ refuted, #341 —
+# 0.92 is THIS box's reading; the effect is fixture-dependent in magnitude and
+# dimension-dependent in SIGN); the c-independent win is DSA (#2) / Krylov.
 _N_JACOBI_VACUUM_2G = 144  # G-4 negative control (boundary coupling inactive)
 # 128 → 144 at step 5 (R-5.2/R-5.3): the SI stop re-posed onto the ρ-honest
 # equation residual ‖Σg·Δψ‖/‖q_ext‖ (was ‖Δψ‖/‖ψ‖) — a DELIBERATE tol
@@ -170,8 +188,9 @@ def _si_count(mats, mesh, quad, source, bc="reflective", tol=_TOL, schedule="gau
 # would HALVE the SI count (ρ_GS = c²).  That is the SCATTERING G-S result —
 # but the landed recovery folds only the BOUNDARY reflection ``B`` (``S`` stays
 # a lagged gain), which accelerates the boundary-layer transient, NOT the
-# dominant within-group scattering ``c``-mode.  MEASURED: a constant ~0.86–0.92×
-# (regime-independent), NOT 0.5×.  Folding the scattering ``c``-mode (the real
+# dominant within-group scattering ``c``-mode.  NOT 0.5×, and ⛔ NOT the
+# "constant ~0.86–0.92× (regime-independent)" this comment claimed until
+# 2026-08-08 (#341).  Folding the scattering ``c``-mode (the real
 # c-independent ρ≈0.22 win) is consistent DSA (#2) or Krylov (already
 # production, splitting-invariant, rate-optimal on every BC).  So the gate is
 # re-scoped to the HONEST recovery: a STRICT improvement over Jacobi, measured

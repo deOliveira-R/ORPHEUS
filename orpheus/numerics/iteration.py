@@ -140,10 +140,24 @@ Forward references
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable, Generic, Protocol, TypeGuard, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Protocol,
+    TypeGuard,
+    cast,
+)
 
 import numpy as np
 import scipy.sparse.linalg as spla
+
+if TYPE_CHECKING:
+    # Annotation only — the runtime import stays local inside ``solve`` so
+    # the "eigenvalue.py does not import iteration.py" acyclicity note there
+    # keeps holding in both directions.
+    from .eigenvalue import PowerIterationOutcome
 
 from .operator import (
     InverseWrapMixin,
@@ -1349,7 +1363,7 @@ class KEigenvalue(Generic[V]):
     def solve(
         self,
         initial_guess: V | None = None,
-    ) -> tuple[float, list[float], V]:
+    ) -> "PowerIterationOutcome[V]":
         r"""Run the eigenvalue solve via the canonical ``power_iteration`` loop.
 
         KEigenvalue realizes the

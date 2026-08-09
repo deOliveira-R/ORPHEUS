@@ -404,8 +404,9 @@ def solve_diffusion_1d(
     solver = DiffusionSolver(
         diffusion_mesh, keff_tol=keff_tol, flux_tol=flux_tol,
     )
-    keff, keff_history, flux_flat = power_iteration(
-        solver, max_iter=max_outer,
+    outcome = power_iteration(solver, max_iter=max_outer)
+    keff, keff_history, flux_flat = (
+        outcome.keff, outcome.keff_history, outcome.flux_distribution,
     )
     flux = solver.unflatten(flux_flat)
     current = solver.leakage.face_currents(flux)

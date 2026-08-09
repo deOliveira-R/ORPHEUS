@@ -879,7 +879,10 @@ def solve_cp(
     # OPTIONAL ProductionRateSolver member ``compute_production_rate`` by design
     # (it conditions via ``phi *= 1/max(phi)``), and ``power_iteration`` narrows
     # with ``isinstance(solver, ProductionRateSolver)`` and falls back when absent.
-    keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
+    outcome = power_iteration(solver, max_iter=params.max_outer)
+    keff, keff_history, phi = (
+        outcome.keff, outcome.keff_history, outcome.flux_distribution,
+    )
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
         phi, mesh.volumes, mesh.mat_ids)

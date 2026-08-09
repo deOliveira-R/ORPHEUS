@@ -134,7 +134,10 @@ def solve_moc(
         keff_tol=keff_tol, flux_tol=flux_tol,
         n_inner_sweeps=n_inner_sweeps,
     )
-    keff, keff_history, phi = power_iteration(solver, max_iter=max_outer)
+    outcome = power_iteration(solver, max_iter=max_outer)
+    keff, keff_history, phi = (
+        outcome.keff, outcome.keff_history, outcome.flux_distribution,
+    )
 
     # Post-processing: volume-averaged spectra per material
     nr = moc_mesh.n_regions

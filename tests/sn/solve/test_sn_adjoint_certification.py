@@ -418,7 +418,8 @@ def _sphere_daggered_run(sn_mesh):
     guess = CoupledField.from_flat(
         np.ones(template.to_flat().size), template,
     )
-    k_adj, _hist, psi_star = ke.solve(initial_guess=guess)
+    _out = ke.solve(initial_guess=guess)
+    k_adj, psi_star = _out.keff, _out.flux_distribution
     return float(k_adj), psi_star
 
 

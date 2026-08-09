@@ -443,7 +443,8 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
         max_outer=500, keff_tol=1e-12, flux_tol=1e-12,
         max_inner=500, inner_tol=1e-14,
     )
-    keff, keff_history, psi = ke.solve(initial_guess=initial)
+    _o = ke.solve(initial_guess=initial)
+    keff, keff_history, psi = _o.keff, _o.keff_history, _o.flux_distribution
 
     assert abs(keff - expected_keff) < 1e-9, (
         f"KEigenvalue keff={keff!r} expected≈{expected_keff!r}; "
@@ -731,7 +732,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
-    _keff_rayleigh, keff_history, phi_ke = ke.solve(initial_guess=initial)
+    _o = ke.solve(initial_guess=initial)
+    _keff_rayleigh, keff_history, phi_ke = _o.keff, _o.keff_history, _o.flux_distribution
 
     # The theorem-form assertion (R8): the flux fixed point is shared, so
     # the SN method-layer functional evaluated at KEigenvalue's converged
@@ -816,7 +818,8 @@ def test_keigenvalue_honest_composite_triple_matches_solve_sn():
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
-    keff, history, psi = ke.solve(initial_guess=guess)
+    _o = ke.solve(initial_guess=guess)
+    keff, history, psi = _o.keff, _o.keff_history, _o.flux_distribution
     np.testing.assert_allclose(
         keff, ref_keff, rtol=0, atol=1e-9,
         err_msg=f"honest-composite KEigenvalue k={keff!r} differs from "
@@ -865,7 +868,8 @@ def test_keigenvalue_daggered_triple_adjoint_smoke():
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
-    k_adj, history, psi_star = ke_adj.solve(initial_guess=guess)
+    _o = ke_adj.solve(initial_guess=guess)
+    k_adj, history, psi_star = _o.keff, _o.keff_history, _o.flux_distribution
     np.testing.assert_allclose(
         k_adj, ref_keff, rtol=0, atol=1e-9,
         err_msg=f"daggered-triple k_adj={k_adj!r} differs from the forward "

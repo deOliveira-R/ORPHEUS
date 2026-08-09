@@ -155,12 +155,25 @@ class IterationHistory:
     list pass through :func:`list` at the call site.
     """
 
+    converged: bool
+    """Whether the iteration met its tolerance — **required, no default**.
+
+    ⛔ This field defaulted to ``True`` until 2026-08-08, and that default
+    is the same defect as #342 (``solve_sn`` hardcoding ``converged=True``)
+    with the assertion moved into the type: a history built by a producer
+    that had not thought about convergence claimed it anyway.  A field
+    whose SAFE value is the optimistic one is a field that lies by
+    omission, so it is now positional and every producer must state it —
+    from the loop's own flag
+    (:attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`)
+    or from :func:`~orpheus.sn.solver._claims_convergence`, never by hand.
+    """
+
     keff_history: tuple[float, ...] = ()
     flux_residuals: tuple[float, ...] = ()
     n_inner: int | None = None
     total_inner_iterations: int | None = None
     n_outer: int | None = None
-    converged: bool = True
 
     def dominance_ratio(self) -> float | None:
         r"""Return :math:`|k_n - k_{n-1}| / |k_{n-1}|` in the late-iteration limit.
@@ -378,8 +391,16 @@ class SolutionBase:
         return self.history.dominance_ratio() if self.history else None
 
     def converged(self) -> bool:
-        """Return whether the solver iteration met its convergence tolerance."""
-        return self.history.converged if self.history else True
+        """Return whether the solver iteration met its convergence tolerance.
+
+        ⚠ A solution with **no history at all** answers ``False``.  This
+        used to answer ``True`` — the only production branch that asserted
+        convergence rather than reading it, and the same optimistic-default
+        defect as #342.  "Nobody recorded whether this converged" is not
+        evidence that it did; a caller gating on this method should treat an
+        unrecorded solve exactly as it treats a truncated one.
+        """
+        return self.history.converged if self.history else False
 
     def keff_history_list(self) -> list[float]:
         """Return the eigenvalue trajectory as a list (for plotting)."""

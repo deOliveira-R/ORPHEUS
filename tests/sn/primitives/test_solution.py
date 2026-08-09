@@ -87,7 +87,7 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
 class TestIterationHistory:
     def test_default_empty(self) -> None:
         """An IterationHistory with no entries has no dominance ratio."""
-        h = IterationHistory()
+        h = IterationHistory(converged=True)
         assert h.keff_history == ()
         assert h.flux_residuals == ()
         assert h.n_inner is None
@@ -98,11 +98,11 @@ class TestIterationHistory:
         assert h.latest_residual() is None
 
     def test_dominance_ratio_single_entry(self) -> None:
-        h = IterationHistory(keff_history=(1.234,))
+        h = IterationHistory(converged=True, keff_history=(1.234,))
         assert h.dominance_ratio() is None  # need ≥ 2
 
     def test_dominance_ratio_three_iters(self) -> None:
-        h = IterationHistory(keff_history=(1.0, 1.1, 1.10005))
+        h = IterationHistory(converged=True, keff_history=(1.0, 1.1, 1.10005))
         # |1.10005 - 1.1| / |1.1| ≈ 4.545e-5
         ratio = h.dominance_ratio()
         assert ratio is not None
@@ -110,26 +110,26 @@ class TestIterationHistory:
 
     def test_dominance_ratio_zero_prev(self) -> None:
         """A zero penultimate keff returns None to avoid divide-by-zero."""
-        h = IterationHistory(keff_history=(0.0, 1.0))
+        h = IterationHistory(converged=True, keff_history=(0.0, 1.0))
         assert h.dominance_ratio() is None
 
     def test_latest_keff(self) -> None:
-        h = IterationHistory(keff_history=(1.0, 1.1, 1.05))
+        h = IterationHistory(converged=True, keff_history=(1.0, 1.1, 1.05))
         assert h.latest_keff() == 1.05
 
     def test_latest_residual(self) -> None:
-        h = IterationHistory(flux_residuals=(1e-3, 1e-6, 1e-9))
+        h = IterationHistory(converged=True, flux_residuals=(1e-3, 1e-6, 1e-9))
         assert h.latest_residual() == 1e-9
 
     def test_frozen(self) -> None:
         """IterationHistory is frozen — fields cannot be reassigned."""
-        h = IterationHistory(keff_history=(1.0,))
+        h = IterationHistory(converged=True, keff_history=(1.0,))
         with pytest.raises((AttributeError, Exception)):
             h.keff_history = (1.0, 1.1)  # type: ignore[misc]
 
     def test_keff_history_is_tuple(self) -> None:
         """The trajectory MUST be a tuple — frozen-with-mutable-list anti-pattern."""
-        h = IterationHistory(keff_history=(1.0, 1.1))
+        h = IterationHistory(converged=True, keff_history=(1.0, 1.1))
         assert isinstance(h.keff_history, tuple)
         # Pinning the contract: a list passed in survives but the field
         # is documented as a tuple; consumers MUST treat it as immutable.
@@ -159,7 +159,7 @@ class TestSolutionConstruction:
     def test_construct_eigenvalue(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h = IterationHistory(keff_history=(1.0, 1.05), n_outer=2)
+        h = IterationHistory(converged=True, keff_history=(1.0, 1.05), n_outer=2)
         sol = Solution(
             angular_flux=psi, scalar_flux=phi,
             mesh=m, keff=1.05, history=h,
@@ -253,7 +253,7 @@ class TestSolutionDiagnostics:
         """Solution.dominance_ratio delegates to IterationHistory."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h = IterationHistory(keff_history=(1.0, 1.1, 1.10005))
+        h = IterationHistory(converged=True, keff_history=(1.0, 1.1, 1.10005))
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m, keff=1.10005, history=h)
         ratio = sol.dominance_ratio()
@@ -267,13 +267,27 @@ class TestSolutionDiagnostics:
                        mesh=m)
         assert sol.dominance_ratio() is None
 
-    def test_converged_no_history(self) -> None:
-        """A solution without history is assumed converged."""
+    def test_converged_no_history_is_not_a_convergence_claim(self) -> None:
+        """A solution with NO history answers ``False``, not ``True``.
+
+        ⛔ This gate asserted ``is True`` until 2026-08-08, under the
+        docstring *"a solution without history is assumed converged"*.  That
+        assumption is the #342 defect in its purest form: "nobody recorded
+        whether this converged" is not evidence that it did, and the
+        optimistic reading turned an ABSENCE of data into a positive claim
+        — the one production branch in the tree that asserted convergence
+        rather than reading it.
+
+        The honest answer for an unrecorded solve is the same one a
+        truncated solve gets, so a caller gating on this method treats both
+        alike.  Re-posed, not deleted: the behaviour is still pinned, with
+        the opposite expectation and the reason on the record.
+        """
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
-        assert sol.converged() is True
+        assert sol.converged() is False
 
     def test_converged_with_history(self) -> None:
         m = _slab_mesh()
@@ -295,7 +309,7 @@ class TestSolutionDiagnostics:
         """The legacy keff_history accessor returns a plain list."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h = IterationHistory(keff_history=(1.0, 1.05, 1.04))
+        h = IterationHistory(converged=True, keff_history=(1.0, 1.05, 1.04))
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m, keff=1.04, history=h)
         lst = sol.keff_history_list()

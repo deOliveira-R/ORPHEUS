@@ -33,9 +33,11 @@ configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Iterable
 from dataclasses import replace
 from functools import reduce
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
@@ -44,6 +46,7 @@ from scipy.sparse.linalg import gmres
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
+from orpheus.numerics.convergence import ConvergenceWarning
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.transport.operators.fission import FissionOperator
@@ -380,6 +383,80 @@ class ConvergenceCertificateError(RuntimeError):
 _CERTIFICATE_SAFETY = 10.0
 
 
+def _claims_convergence(residual_history: "Sequence[float]", tol: float) -> bool:
+    r"""Did an inner solve's residual history CLAIM convergence?
+
+    The single source of truth for the inner-based half of the convergence
+    question (the outer-based half is
+    :attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`,
+    recorded by the loop itself).
+
+    An empty history means the driver never iterated, which is not a claim.
+    A non-empty one claims convergence iff its last residual is STRICTLY
+    below the tolerance — strict because that is what
+    :func:`_certify_within_group_exit` has always used to decide whether
+    there is a claim worth certifying, and a predicate that disagrees with
+    its own certificate is a contradiction waiting to be measured.
+
+    ⛔ This predicate was transcribed THREE times before 2026-08-08, and the
+    copies had drifted: the adjoint fixed-source read ``<=`` where its
+    forward sibling and the certificate read ``<``, so on an exactly-equal
+    residual the adjoint claimed convergence that the certificate declined
+    to certify. FP equality makes that unreachable in practice — which is
+    precisely why it survived: an unreachable disagreement is invisible to
+    every test, and stays until someone reads all three spellings side by
+    side. Route new call sites through here rather than re-typing it.
+    """
+    return bool(residual_history) and residual_history[-1] < tol
+
+
+def _warn_if_unconverged(
+    history: "IterationHistory",
+    *,
+    where: str,
+    budget_name: str,
+    budget: int,
+    tol: float,
+) -> None:
+    r"""Make a best-effort exit AUDIBLE at a public entry.
+
+    The single emission point for
+    :class:`~orpheus.numerics.convergence.ConvergenceWarning`.  Every public
+    SN entry calls this after building its history, so a truncated solve
+    announces itself once, in one voice, wherever it came from.
+
+    Why a warning and not a raise: the ERR-053 / D-H.1e ruling (see the
+    :mod:`~orpheus.numerics.convergence` module docstring) — legitimate
+    callers harvest the residual history of a deliberately-truncated solve,
+    and `[M]` an audit found zero production and zero ``examples/`` callers
+    that depend on the answer of one.  Escalate in CI with
+    ``-W error::ConvergenceWarning``.
+
+    The message carries the budget that ran out, the tolerance that was not
+    reached, and how far away the last iterate was, because "one more sweep"
+    and "diverging" want opposite responses from the reader.
+    """
+    if history.converged:
+        return
+    if history.flux_residuals:
+        distance = f"last residual {history.flux_residuals[-1]:.3e}"
+    elif len(history.keff_history) >= 2:
+        dk = abs(history.keff_history[-1] - history.keff_history[-2])
+        distance = f"last |dk| {dk:.3e}"
+    else:
+        distance = "no residual recorded"
+    warnings.warn(
+        f"{where}: hit {budget_name}={budget} without reaching tol={tol:.3e} "
+        f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
+        f"not the converged answer. Raise {budget_name}, or read "
+        f"`solution.history.converged` and handle it. "
+        f"Silence this per-call with warnings.catch_warnings(); make it fatal "
+        f"everywhere with -W error::ConvergenceWarning.",
+        ConvergenceWarning,
+        stacklevel=3,
+    )
+
+
 def _certify_within_group_exit(
     loss_op: "LinearOperator",
     psi: "TimedFullField | CoupledField",
@@ -425,7 +502,7 @@ def _certify_within_group_exit(
     """
     if sn_mesh.scheme.spatial_basis_per_axis > 1:
         return  # moment-tailed scheme — the residual mint's un-built widening
-    if not residual_history or not (residual_history[-1] < tol):
+    if not _claims_convergence(residual_history, tol):
         return  # no convergence claim — nothing to certify
     residual = evaluate_residual(loss_op, psi, q_ext)
     r_norm = float(np.linalg.norm(np.asarray(residual.to_flat())))
@@ -2128,7 +2205,10 @@ def solve_sn(
         inner_schedule=inner_schedule,
     )
 
-    keff, keff_history, scalar_flux = power_iteration(solver, max_iter=max_outer)
+    outcome = power_iteration(solver, max_iter=max_outer)
+    keff, keff_history, scalar_flux = (
+        outcome.keff, outcome.keff_history, outcome.flux_distribution,
+    )
 
     # Final sweep to get angular flux.  Issue #196 PR-INDEX-5: every
     # array is principled — scalar_flux ``(ng, nx, ny)``, angular_flux
@@ -2262,10 +2342,21 @@ def solve_sn(
     # (B.2d — the marched ψ½ composite; None on non-carrying meshes).
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     history = IterationHistory(
+        # READ from the loop, never asserted here (#342).  This field said
+        # ``True`` unconditionally until 2026-08-08, so a forward eigenvalue
+        # solve could not report truncation at all — while its adjoint twin
+        # inferred it from ``len(keff_history) < max_outer``.  Both are now
+        # the SAME fact, recorded by ``power_iteration`` itself; the direct
+        # flag is also sharper than the inference, which misreports a solve
+        # that converges exactly on its last allowed outer.
+        converged=outcome.converged,
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
         total_inner_iterations=solver._total_inner_iterations,
-        converged=True,
+    )
+    _warn_if_unconverged(
+        history, where="solve_sn", budget_name="max_outer",
+        budget=max_outer, tol=keff_tol,
     )
     return _package_solution(
         _cell_average_angular(final_psi_a, sn_mesh),
@@ -2518,7 +2609,10 @@ def solve_sn_adjoint(
         if isinstance(template, CoupledField)
         else FullField.from_flat(ones, template)
     )
-    k_adj, keff_history, psi_star = ke.solve(initial_guess=guess)
+    outcome = ke.solve(initial_guess=guess)
+    k_adj, keff_history, psi_star = (
+        outcome.keff, outcome.keff_history, outcome.flux_distribution,
+    )
 
     # The coupled unpack rides the canonical member readers (B.2d).
     system_a = _system_a_member(psi_star)
@@ -2527,14 +2621,23 @@ def solve_sn_adjoint(
         if isinstance(psi_star, CoupledField)
         else None
     )
+    history = IterationHistory(
+        # The loop's own flag, not the ``len(keff_history) < max_outer``
+        # inference this used to carry — that inference is WRONG for a
+        # solve that converges exactly on its last allowed outer, and it
+        # was a second transcription of a fact the primitive already had.
+        converged=outcome.converged,
+        keff_history=tuple(keff_history),
+        n_outer=len(keff_history),
+    )
+    _warn_if_unconverged(
+        history, where="solve_sn_adjoint", budget_name="max_outer",
+        budget=max_outer, tol=keff_tol,
+    )
     return _package_adjoint_solution(
         system_a, adjoint_ray, sn_mesh,
         keff=float(k_adj),
-        history=IterationHistory(
-            keff_history=tuple(keff_history),
-            n_outer=len(keff_history),
-            converged=len(keff_history) < max_outer,
-        ),
+        history=history,
     )
 
 
@@ -2670,15 +2773,20 @@ def solve_sn_adjoint_fixed_source(
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
     # and trip the typed cross-class guard on the first displacement.
     psi_star, residuals = si.solve(q_star, initial_guess=template)
+    history = IterationHistory(
+        flux_residuals=tuple(residuals),
+        n_inner=len(residuals),
+        total_inner_iterations=len(residuals),
+        converged=_claims_convergence(residuals, inner_tol),
+    )
+    _warn_if_unconverged(
+        history, where="solve_sn_adjoint_fixed_source",
+        budget_name="max_inner", budget=max_inner, tol=inner_tol,
+    )
     return _package_adjoint_solution(
         psi_star, None, sn_mesh,
         keff=None,
-        history=IterationHistory(
-            flux_residuals=tuple(residuals),
-            n_inner=len(residuals),
-            total_inner_iterations=len(residuals),
-            converged=bool(residuals) and residuals[-1] <= inner_tol,
-        ),
+        history=history,
     )
 
 
@@ -3051,16 +3159,54 @@ def solve_sn_fixed_source(
         Source-iteration BOUNDARY splitting (Phase 3, ``inner_solver=
         "source_iteration"`` only).  ``"gauss_seidel"`` (default) folds the
         reflective coupling ``B`` into an octant-group Gauss-Seidel resolvent
-        (2-D Cartesian) — re-reflecting each octant group's outgoing reflective
-        faces between group sweeps so a later group reads the fresh
-        current-iterate inflow (a modest reflective-SI rate gain, ~0.86–0.92×
-        on B-mixture configs).  ``"jacobi"`` lags ``B`` fully (the
+        (multi-D Cartesian) — re-reflecting each octant group's outgoing
+        reflective faces between group sweeps so a later group reads the fresh
+        current-iterate inflow.  ``"jacobi"`` lags ``B`` fully (the
         splitting-invariant control).  The converged fixed point is IDENTICAL
         for both — this selects only the SI spectral rate.  1-D meshes always
         fall back to Jacobi (boundary G-S is a no-op on the scattering-
         dominated 1-D regime, and the scan is not a wavefront).  The dominant
         within-group SCATTERING rate is unchanged either way — that is what
         ``acceleration="dsa"`` deflates (issue #2).
+
+        ⚠ **The rate effect is NOT regime-independent, and its SIGN flips
+        with dimension.**  G-S folds only ``B``, so its leverage is exactly
+        the weight of the boundary coupling in the iteration — which is
+        maximal at ZERO leakage (nothing escapes, so the boundary is the
+        whole coupling) and collapses as soon as any face is vacuum.
+        `[M]` 2026-08-08, SI sweeps to ``inner_tol=1e-13``, LS4, 2-group,
+        ``n_GS / n_Jacobi``:
+
+        =========================== ============ ============ =======
+        configuration                     G-S       Jacobi     ratio
+        =========================== ============ ============ =======
+        d=2 all-reflective                    258          648   0.40
+        d=2 all-reflective, c=0.5             259          645   0.40
+        d=3 all-reflective                   1631          838   1.95
+        d=3 all-reflective, c=0.5            1598          832   1.92
+        d=2 one vacuum axis, c=0.5             34           35   0.97
+        d=3 one vacuum axis, c=0.5            208          214   0.97
+        d=3 two vacuum axes, c=0.5             33           33   1.00
+        =========================== ============ ============ =======
+
+        So: a WIN at d=2 zero-leakage, a LOSS at d=3 zero-leakage, and a
+        wash the moment anything leaks — at every dimension.  Scattering
+        does not change the picture (the ``c=0.5`` rows track the absorber
+        rows), which is consistent with G-S touching only ``B``.
+
+        ⚠ Only the SIGN and the leakage-dependence are robust; the
+        MAGNITUDE is fixture-specific.  A second d=2 zero-leakage point
+        (B-2g 8×8 ``product(2,4)``, in
+        ``test_si_convergence_rate.py::test_boundary_gs_recovers_reflective_2d_si``)
+        reads 641/697 = 0.92 against 0.40 here — same sign, >2× different
+        magnitude.  That is why that gate asserts the strict inequality
+        and not a ratio: **the inequality is the law, the ratio is a
+        fixture reading.**  The d=2-vs-d=3 sign flip is measured but NOT
+        explained — see issue #341 and
+        :ref:`sn-boundary-gs-rate-regime`.  Practical reading: with
+        leakage the choice is immaterial, and an all-reflective d=3 box
+        (a verification fixture more than a production configuration) is
+        the one place ``"jacobi"`` is worth asking for explicitly.
     acceleration : {"dsa", None}
         Within-group synthetic acceleration (issue #2).  ``"dsa"`` wires
         the consistent-DSA correction operator
@@ -3287,7 +3433,7 @@ def _solve_fixed_source_si(
             f"fixed-source SI: the converged iterate must echo the timed "
             f"template; got {type(psi_full).__name__}."
         )
-    converged_flag = bool(residuals) and residuals[-1] < inner_tol
+    converged_flag = _claims_convergence(residuals, inner_tol)
     flux_residuals = [float(r) for r in residuals]
 
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
@@ -3300,6 +3446,10 @@ def _solve_fixed_source_si(
         n_inner=len(residuals),
         total_inner_iterations=len(residuals),
         converged=converged_flag,
+    )
+    _warn_if_unconverged(
+        history, where="solve_sn_fixed_source", budget_name="max_inner",
+        budget=max_inner, tol=inner_tol,
     )
     # ``Solution.angular_flux`` must carry the FULL per-ordinate angular flux.
     # Un-windowed: ``psi_typed`` already IS it (return directly, exactly as the
@@ -3509,7 +3659,7 @@ def _solve_fixed_source_krylov(
     phi = _average_moment_scalar(
         bulk.integrate_angular().values, sn_mesh,
     )
-    converged_flag = bool(residuals) and residuals[-1] < inner_tol
+    converged_flag = _claims_convergence(residuals, inner_tol)
     n_outer = len(residuals)
     flux_residuals = [float(r) for r in residuals]
 
@@ -3523,6 +3673,10 @@ def _solve_fixed_source_krylov(
         n_inner=n_outer + 1,
         total_inner_iterations=n_outer + 1,
         converged=converged_flag,
+    )
+    _warn_if_unconverged(
+        history, where="solve_sn_fixed_source", budget_name="max_inner",
+        budget=max_inner, tol=inner_tol,
     )
     # D-H.1c stage 2 (2026-05-28): psi_full IS already a TimedFullField;
     # no adapter wrap at the Solution boundary.

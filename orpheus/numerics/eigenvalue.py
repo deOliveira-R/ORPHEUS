@@ -74,7 +74,8 @@ implemented; any other value raises at construction).
 from __future__ import annotations
 
 import warnings
-from typing import Protocol, cast, runtime_checkable
+from dataclasses import dataclass
+from typing import Generic, Protocol, cast, runtime_checkable
 
 import numpy as np
 
@@ -202,10 +203,53 @@ class ProductionRateSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
         ...
 
 
+@dataclass(frozen=True)
+class PowerIterationOutcome(Generic[Carrier]):
+    r"""What :func:`power_iteration` produced, INCLUDING why it stopped.
+
+    The loop knows whether it broke on the convergence test or ran out of
+    iterations.  Before this type existed the return was a bare
+    ``(keff, keff_history, flux)`` triple, so that fact was discarded at the
+    source and every one of the five consumers had to reconstruct it —
+    ``solve_sn_adjoint`` inferred it from ``len(keff_history) < max_outer``,
+    ``solve_sn`` hardcoded ``converged=True`` (issue #342), and CP / MoC /
+    diffusion did not report it at all.  A primitive that throws away a fact
+    its callers need does not have a documentation problem; it has a return
+    type problem.
+
+    ⚠ ``converged`` is recorded by the loop, NOT re-derived downstream, and
+    that is a strictly sharper statement than the inference it replaces:
+    ``len(keff_history) < max_iter`` is **false** for a solve that converges
+    exactly on its last allowed iteration, which the direct flag gets right.
+
+    Deliberately NOT tuple-unpackable.  Making it destructure like the old
+    triple would preserve the very idiom that lost the flag, and would let a
+    consumer keep ignoring it by accident.
+    """
+
+    keff: float
+    """Dominant eigenvalue :math:`k_{\\rm eff}`."""
+
+    keff_history: list[float]
+    """Eigenvalue estimate at each outer iteration, in order."""
+
+    flux_distribution: Carrier
+    """Fundamental mode (unit production rate where the solver supports it)."""
+
+    converged: bool
+    """``True`` iff the loop broke on ``solver.converged(...)``.
+
+    ``False`` means the iteration cap was reached with the criterion unmet
+    and :attr:`flux_distribution` is a **best-effort** iterate — mid-descent,
+    not the answer.  A caller that asserts physics against it is asserting an
+    arbitrary point on the trajectory.
+    """
+
+
 def power_iteration(
     solver: EigenvalueSolver[Carrier],
     max_iter: int = 500,
-) -> tuple[float, list[float], Carrier]:
+) -> PowerIterationOutcome[Carrier]:
     """Converge to the dominant eigenvalue and fundamental mode.
 
     Power iteration converges to the largest eigenvalue k_0 (= k_eff)
@@ -214,16 +258,18 @@ def power_iteration(
 
     Returns
     -------
-    keff : float
-        Dominant eigenvalue (k_eff).
-    keff_history : list[float]
-        Eigenvalue estimate at each outer iteration.
-    flux_distribution : np.ndarray
-        Fundamental mode (arbitrary normalization).
+    PowerIterationOutcome
+        The eigenpair, the eigenvalue trajectory, and — the reason this is
+        an object rather than a triple — whether the loop actually
+        converged or merely ran out of iterations.
     """
     flux_distribution = solver.initial_flux_distribution()
     keff = 1.0
     keff_history: list[float] = []
+    # Exhausting the budget is the DEFAULT outcome; only the convergence
+    # test below may claim otherwise.  Stated this way round so a future
+    # edit that adds an early exit cannot silently inherit a True.
+    converged = False
 
     for n in range(1, max_iter + 1):
         # Stash the previous iterate for the convergence test.  Typed
@@ -269,9 +315,15 @@ def power_iteration(
         keff_history.append(keff)
 
         if solver.converged(keff, keff_old, flux_distribution, flux_old, n):
+            converged = True
             break
 
-    return keff, keff_history, flux_distribution
+    return PowerIterationOutcome(
+        keff=keff,
+        keff_history=keff_history,
+        flux_distribution=flux_distribution,
+        converged=converged,
+    )
 
 
 def _sign_normalised(v: np.ndarray) -> np.ndarray:

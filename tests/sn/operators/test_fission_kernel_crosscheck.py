@@ -374,7 +374,8 @@ class TestFissionNdarrayArmIsKEigenvalueLive:
         # the live dispatch table mutated — Mode-11 probe hygiene).
         descriptor.register(np.ndarray, counting_ndarray_arm)
         try:
-            keff, history, _flux = power_iteration(solver_4g, max_iter=60)
+            _o = power_iteration(solver_4g, max_iter=60)
+            keff, history = _o.keff, _o.keff_history
         finally:
             descriptor.register(np.ndarray, ndarray_impl)
 

@@ -84,7 +84,8 @@ def _solve(materials, mesh, scattering_order=0):
         scattering_order=scattering_order,
         keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
     )
-    keff, _history, phi = power_iteration(solver, max_iter=2000)
+    _o = power_iteration(solver, max_iter=2000)
+    keff, phi = _o.keff, _o.flux_distribution
     return solver, keff, phi
 
 
@@ -147,7 +148,8 @@ def _d3_vacuum_solve():
         _d3_vacuum_sn_mesh(),
         keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
     )
-    keff, _history, phi = power_iteration(solver, max_iter=2000)
+    _o = power_iteration(solver, max_iter=2000)
+    keff, phi = _o.keff, _o.flux_distribution
     return solver, keff, phi
 
 

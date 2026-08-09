@@ -3997,10 +3997,8 @@ theory-page ``:label:`` and no ``verifies()``).
    The recovery folds **only** the boundary reflection :math:`B`.
    It therefore accelerates the *boundary-layer transient*, NOT the
    dominant flat *scattering* :math:`c`-mode of
-   :eq:`si-spectral-rate`.  The measured gain is a constant,
-   regime-independent **~0.86–0.92×** (e.g. :math:`n_{\rm GS}\approx
-   641` vs :math:`n_{\rm Jacobi}\approx 697` on a B-2g reflective
-   box), **not** the :math:`c^2`-halving (≈0.5×) one might naively
+   :eq:`si-spectral-rate`.  Whatever it does, it is
+   **not** the :math:`c^2`-halving (≈0.5×) one might naively
    expect from "Gauss-Seidel".  The :math:`c^2`-halving is the
    *scattering* Gauss-Seidel result, which does **not** apply to
    boundary-only G-S (the scattering :math:`S` is still fully
@@ -4011,6 +4009,119 @@ theory-page ``:label:`` and no ``verifies()``).
    **consistent DSA** (a future feature, GitHub issue #2, with
    :math:`\rho\approx0.22` independent of :math:`c`).  A future
    reader must not mistake boundary-G-S for a scattering accelerator.
+
+.. _sn-boundary-gs-rate-regime:
+
+What the boundary-G-S rate actually depends on
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+
+   ⛔ **REFUTED 2026-08-08.** An earlier version of the box above called
+   the gain *"a constant, regime-independent* **~0.86–0.92×**\ *"* (citing
+   :math:`n_{\rm GS}\approx641` vs :math:`n_{\rm Jacobi}\approx697` on a
+   B-2g reflective box).  It is neither constant nor regime-independent,
+   and its **sign flips with dimension**.  The refutation is kept beside
+   the claim because the *reason* it was wrong is the useful part: a
+   single 2-D measurement was generalised to a law.
+
+The predictive statement follows from what the splitting actually folds.
+Boundary G-S folds **only** :math:`B`, so its leverage is exactly the
+weight of the boundary coupling in the iteration.  That weight is maximal
+at **zero leakage** — with every face reflective nothing escapes, so
+:math:`B` *is* the whole inter-sweep coupling — and it collapses the
+moment any face is vacuum, because the escaping fraction is not iterated
+at all.
+
+`[M]` 2026-08-08, SI sweeps to ``inner_tol = 1e-13``, level-symmetric
+:math:`S_4`, 2 groups, extents :math:`(1,2)` / :math:`(1,2,3)`, cells
+:math:`(3,4)` / :math:`(3,4,5)`.  Probe:
+``scratch/probe_gs_vs_jacobi_rate.py``; its first row is a **control**
+reproducing, to the sweep, the independently measured 1631 of the d=3
+reflective budget study (``scratch/d3_absorber_diagnosis.md``, pinned by
+``derivations/diagnostics/diag_d3_absorber_02_si_rate_scaling.py``) —
+without that control the table below would be one more unverified
+instrument.
+
+.. list-table:: :math:`n_{\rm GS}` vs :math:`n_{\rm Jacobi}`
+   :header-rows: 1
+   :widths: 42 14 14 12 18
+
+   * - configuration
+     - G-S
+     - Jacobi
+     - ratio
+     - verdict
+   * - d=2 all-reflective, pure absorber
+     - 258
+     - 648
+     - **0.40**
+     - G-S 2.5× faster
+   * - d=2 all-reflective, :math:`c = 0.5`
+     - 259
+     - 645
+     - **0.40**
+     - G-S 2.5× faster
+   * - d=3 all-reflective, pure absorber
+     - 1631
+     - 838
+     - **1.95**
+     - G-S ~2× SLOWER
+   * - d=3 all-reflective, :math:`c = 0.5`
+     - 1598
+     - 832
+     - **1.92**
+     - G-S ~2× SLOWER
+   * - d=2, one vacuum axis, :math:`c = 0.5`
+     - 34
+     - 35
+     - 0.97
+     - a wash
+   * - d=3, one vacuum axis, :math:`c = 0.5`
+     - 208
+     - 214
+     - 0.97
+     - a wash
+   * - d=3, two vacuum axes, :math:`c = 0.5`
+     - 33
+     - 33
+     - 1.00
+     - a wash
+
+⚠ **The magnitudes above are fixture-specific; only the SIGN and the
+leakage-dependence are robust.**  The gate
+``tests/sn/verification/analytical/test_si_convergence_rate.py::
+test_boundary_gs_recovers_reflective_2d_si`` measures a *second* d=2
+zero-leakage point — B-2g, :math:`8\times8`, ``product(2,4)`` — and gets
+:math:`641/697 = 0.92`, against :math:`0.40` here.  Same sign, same
+regime, magnitude differing by more than 2×.  That is precisely why that
+gate asserts only the strict inequality :math:`n_{\rm GS} < n_{\rm
+Jacobi}` and not a ratio: **the inequality is the law, the ratio is a
+fixture reading.**  Any future gate on this effect should do the same.
+
+Three readings, in order of how much they should change what you do:
+
+#. **With any leakage the choice is immaterial** (0.97–1.00 at every
+   dimension).  Since essentially every *physical* configuration leaks
+   somewhere, the default rarely matters in production; it matters in
+   the all-reflective verification fixtures.
+#. **At zero leakage the splitting matters a lot, and the sign depends on
+   dimension** — a 2.5× win at d=2, a ~2× loss at d=3.  An all-reflective
+   d=3 box is the one configuration where ``inner_schedule="jacobi"`` is
+   worth asking for explicitly.
+#. **Scattering does not change the picture**: the :math:`c = 0.5` rows
+   track the pure-absorber rows to within 2 %.  That is exactly what the
+   "G-S touches only :math:`B`" scope claim predicts, so this measurement
+   *confirms* the honest-scope box even while refuting its number.
+
+⚠ The d=2-versus-d=3 **sign flip at zero leakage is measured but not
+explained**.  A plausible-sounding story (more octant groups ⟹ a longer
+serial chain in the forward substitution) is *not* verified, and the
+naive expectation runs the other way — more groups should mean more
+fresh-inflow reuse per sweep.  Do not repeat the mistake this box exists
+to record: **do not promote a mechanism to a law on one measurement.**
+Tracked as `Issue #341
+<https://github.com/deOliveira-R/ORPHEUS/issues/341>`_.
 
 The diagonal-cubature shared-face rule (ERR-056)
 ---------------------------------------------------
