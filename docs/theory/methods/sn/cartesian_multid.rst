@@ -64,10 +64,17 @@ re-derived.
      **windowed to harmonic moments** (:math:`N \to (L{+}1)(2L{+}1)`,
      2-D Cartesian only — the curvilinear Carlson seed and Krylov
      stay full-angular), and the reflective coupling runs the
-     **boundary Gauss-Seidel** regular splitting
+     **boundary Gauss-Seidel** splitting
      :math:`M = L+C-B_{\rm lower}`, each shared reflective face
      reduced after its LAST outflowing octant group (ERR-056) — a
      boundary-transient accelerator, NOT a scattering accelerator.
+   * That splitting is **not a** *regular* **splitting** in Varga's
+     sense, so **no comparison theorem bounds it**: the multi-D DD
+     face-to-face transmission has :math:`d-1` eigenvalues of exactly
+     :math:`-1` (:eq:`dd-face-transmission-spectrum`), and boundary G-S
+     is measured *slower* than Jacobi on some configurations
+     (:ref:`sn-boundary-gs-not-regular`). Only the fixed point is
+     schedule-invariant; the rate is not bounded either way.
    * Boundary conditions apply **once per octant per axis**, never per
      ordinate — the L7 trap (ERR-003): :term:`per-ordinate <ordinate>` BC application is
      redundant in cost and order-sensitive in correctness.
@@ -3807,8 +3814,9 @@ reused across every SI iterate (the same lifetime contract as
 
 The selection lives in :func:`~orpheus.sn.solver._select_si_splitting`:
 ``"gauss_seidel"`` on a multi-D Cartesian mesh returns
-``((L+C) - parts.lower, (S, parts.upper))`` — the regular splitting
-:math:`(L+C-B) = M - B_{\rm upper}`: the strictly-lower half
+``((L+C) - parts.lower, (S, parts.upper))`` — the splitting
+:math:`(L+C-B) = M - B_{\rm upper}` (a splitting, **not** a *regular*
+splitting — :ref:`sn-boundary-gs-not-regular`): the strictly-lower half
 :math:`B_{\rm lower}` folds *into* the reified forward :math:`M`
 (:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
 whose ``solve`` is the octant-group forward substitution) while the
@@ -3837,8 +3845,10 @@ operator — and the disagreement is measurable: its round-trip defect was
 **O(1)** (:math:`\lVert M^{-1}(M\psi)-\psi\rVert = 2.667`, the §17
 falsifier-3 finding).
 
-The boundary Gauss-Seidel is exactly a **regular matrix splitting** of the
-within-group loss:
+The boundary Gauss-Seidel is exactly a **matrix splitting** of the
+within-group loss (a *splitting*, not a **regular** splitting in Varga's
+sense — that stronger reading was published here until 2026-08-09 and is
+refuted in :ref:`sn-boundary-gs-not-regular`):
 
 .. math::
    :label: si-gauss-seidel-splitting
@@ -3848,10 +3858,14 @@ within-group loss:
    \qquad
    \psi_{k+1} \;=\; M^{-1}\bigl(q + S\,\psi_k + B_{\rm upper}\,\psi_k\bigr).
 
-.. (vv-status rationale) Governing regular-splitting identity
-   ((L+C-B) = M - N). Foundation-gated by the reified-splitting invariants
-   (tests/sn/solve/test_gauss_seidel_reification.py — the W2 round-trip,
-   the M-SPLIT mutations, and the FP-invariance gate), no isolated claim.
+.. (vv-status rationale) Governing splitting identity ((L+C-B) = M - N).
+   The identity itself is the governing one and is unchanged; what was
+   corrected 2026-08-09 (#341) is only its NAME — it was called a "regular
+   splitting", which is Varga's term for M^-1 >= 0 AND N >= 0 and does not
+   hold here (see sn-boundary-gs-not-regular). Foundation-gated by the
+   reified-splitting invariants (tests/sn/solve/test_gauss_seidel_reification.py
+   — the W2 round-trip, the M-SPLIT mutations, and the FP-invariance gate),
+   no isolated claim.
 .. vv-status: si-gauss-seidel-splitting documented
 
 The reified :math:`M`
@@ -4010,6 +4024,188 @@ theory-page ``:label:`` and no ``verifies()``).
    :math:`\rho\approx0.22` independent of :math:`c`).  A future
    reader must not mistake boundary-G-S for a scattering accelerator.
 
+.. _sn-boundary-gs-not-regular:
+
+Why it is a splitting but not a *regular* splitting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+
+   ⛔ **REFUTED 2026-08-09 (Issue #341).** :eq:`si-gauss-seidel-splitting`
+   and the coupled-block :math:`A = M - N` were both described as *the
+   regular splitting* — on this page, in
+   :doc:`/theory/foundations/coupled_block_operator`, in
+   :doc:`/theory/foundations/boundary_conditions`, in
+   :ref:`sn-development-history`, and at six code sites.  They are
+   **splittings**; neither is a *regular* splitting.  The word is dropped
+   everywhere and this section is the one place the reason lives.
+   Everything else about the splitting stands — see *What survives* below.
+
+**Regular splitting** is Varga's technical term, and it is load-bearing.
+:math:`A = M - N` is *regular* when :math:`M` is nonsingular with
+:math:`M^{-1} \ge 0` **and** :math:`N \ge 0`, elementwise.  Its payoff is
+the **comparison theorem**: for two regular splittings of the same
+:math:`A` with :math:`N_{\rm GS} \le N_{\rm J}` elementwise,
+
+.. math::
+
+   \rho\bigl(M_{\rm GS}^{-1} N_{\rm GS}\bigr)
+   \;\le\;
+   \rho\bigl(M_{\rm J}^{-1} N_{\rm J}\bigr).
+
+Boundary Gauss-Seidel and Jacobi differ by exactly the folded rows,
+:math:`N_{\rm J} - N_{\rm GS} = B_{\rm lower}`, whose entries are the
+non-negative specular-reflection weights.  So the comparison theorem is
+precisely the statement that boundary G-S is **never slower** than Jacobi
+— at every dimension, every octant order, every optical thickness.  That
+is the guarantee the word *regular* was silently asserting, and it is the
+only reason the word mattered.
+
+It is measurably false.  The table in :ref:`sn-boundary-gs-rate-regime`
+reads **1.95× slower** at d=3 all-reflective against **2.5× faster** at
+d=2 all-reflective — same solver, same quadrature, same tolerance.  Two
+splittings of one :math:`A` cannot straddle a theorem, so one of its
+hypotheses must fail, and it is :math:`N \ge 0`.
+
+The obstruction, in the limit where it is exact
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Take zero leakage — every face reflective — where the boundary coupling
+*is* the whole iteration and the failure is cleanest.  Specular reflection
+at face :math:`(a,\pm)` flips the :math:`a`-th direction cosine, so octant
+:math:`s \in \{\pm 1\}^d` feeds only :math:`s \oplus a`: :math:`B`'s
+**octant** action is the hypercube :math:`Q_d`, which is a permutation,
+and permutations are non-negative.  The negativity is one level down,
+*inside* an octant, in the closure itself.
+
+For one ordinate on one source-free homogeneous DD cell write
+:math:`w_a = 2|\mu_a| A_a = 2|\mu_a| V/\Delta_a` for the per-axis
+streaming weight (this is the :math:`s_a` of :eq:`dd-cartesian-2d`
+multiplied through by the cell volume) and
+:math:`D = \Sigt{} V + \sum_b w_b` for the DD denominator.  The balance
+:math:`\psi_c = \sum_b w_b \psi^{\rm in}_b / D` composed with the diamond
+closure :math:`\psi^{\rm out}_a = 2\psi_c - \psi^{\rm in}_a` gives the
+face-to-face transmission
+
+.. note::
+
+   **Two symbol overloads, local to this section.**  :math:`A_a` is the
+   *area* of the cell face normal to axis :math:`a` — it always carries
+   its axis subscript, and it is not the loss operator :math:`A = L+C-S-B`
+   that :math:`A = M - N` splits.  :math:`\Sigma` (no :math:`t`/:math:`s`
+   subscript, always with the face indices :math:`a \leftarrow b` or in
+   bare matrix form) is the **face-to-face transmission matrix**, not a
+   cross section.  Both spellings are kept because they are the ones the
+   construction site uses
+   (:func:`~orpheus.sn.coupled_system.build_within_group_system`), and
+   internal consistency between code and corpus outranks the local
+   awkwardness.
+
+.. math::
+   :label: dd-face-transmission-spectrum
+
+   \Sigma_{a \leftarrow b}
+   \;=\; \frac{\partial \psi^{\rm out}_a}{\partial \psi^{\rm in}_b}
+   \;=\; \frac{2 w_b}{D} - \delta_{ab},
+   \qquad\text{that is}\qquad
+   \Sigma \;=\; \frac{2}{D}\,\mathbf{1}\,\mathbf{w}^{\mathsf T} - I,
+
+.. (vv-status rationale) Structural identity: the linearisation of the
+   already-verified multi-D DD closure (dd-cartesian-2d) about a source-free
+   cell — an algebraic rearrangement of an equation the sweep and matvec
+   gates already pin, not a new solver claim. Its content is the SPECTRUM,
+   which is exact for a rank-one-minus-identity matrix and needs no fixture;
+   the closure it linearises is gated by the 2-D DD sweep/matvec suites.
+.. vv-status: dd-face-transmission-spectrum documented
+
+a **rank-one matrix minus the identity**, so its spectrum is immediate:
+
+.. list-table:: spectrum of the multi-D DD face-to-face transmission
+   :header-rows: 1
+   :widths: 22 26 14 38
+
+   * - eigenvalue
+     - eigenvector
+     - multiplicity
+     - meaning
+   * - :math:`1 - 2\,\Sigt{}V/D`
+     - :math:`\mathbf 1` (all faces equal)
+     - 1
+     - the physical, **absorption-damped** mode
+   * - :math:`-1`
+     - :math:`\{v : \mathbf{w}^{\mathsf T} v = 0\}`
+     - :math:`d-1`
+     - :math:`\psi_c = 0 \Rightarrow \psi^{\rm out}_a = -\psi^{\rm in}_a`:
+       an **undamped sawtooth**, invisible to :math:`\Sigt{}V\psi_c`
+
+Every :math:`d`-dimensional DD cell therefore carries a
+:math:`(d-1)`-dimensional subspace on which transmission is exactly
+:math:`-1` and which the collision term cannot see.  A channel with gain
+:math:`-1` is not elementwise non-negative, :math:`N \ge 0` fails, and the
+comparison theorem has nothing left to stand on.  Note the multiplicity
+:math:`d-1`: a 1-D DD cell has **no** such mode, so the obstruction is a
+strictly multi-D phenomenon — it could not have been observed before the
+schedule reached multi-D.  (That is *not* the reason 1-D falls back to
+Jacobi; that fallback is structural — a 1-D scan is not a wavefront, so
+there are no octant groups to order.)
+
+The undamped subspace is a property of the DIAMOND closure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Not of transport, and not of the boundary condition.  Run the same
+construction under **step** differencing (:math:`\psi^{\rm out}_a =
+\psi_c`, :math:`w'_a = |\mu_a| A_a`, :math:`D' = \Sigt{}V + \sum_b w'_b`)
+and the transmission is :math:`\Sigma_{\rm step} = (1/D')\,\mathbf 1
+\mathbf{w}'^{\mathsf T}` — rank one with **no** :math:`-I`, spectrum
+:math:`\{(D' - \Sigt{}V)/D'\} \cup \{0\}^{d-1}`.  The same :math:`d-1`
+modes are **maximally damped instead of undamped**.  DD's second-order
+accuracy and its undamped face sawtooth are one property seen twice: the
+closure pins the cell *average* and leaves the face *difference* free.
+
+That is not an abstraction — it is the slow mode measured in the d=3
+reflective-absorber budget study behind `Issue #340
+<https://github.com/deOliveira-R/ORPHEUS/issues/340>`_.  On the converged
+(:math:`n = 1631`) all-reflective pure-absorber state — extents
+:math:`(1,2,3)`, cells :math:`(3,4,5)`, :math:`\Sigt{} = (0.8, 1.6)`,
+:math:`\Sigma_s = 0`, ``level_symmetric`` :math:`S_4`, ``inner_tol`` 1e-13
+— the ``xmin`` trace of one ordinate alternates between ratios
+:math:`1.074414` and :math:`0.925586` of the intended uniform value, and
+the two sum to :math:`2.000000` **exactly**.  That is the eigenvector's
+signature, not a coincidence: :math:`\psi^{\rm in} + \psi^{\rm out} =
+2\psi_c` *is* the closure, so a face sawtooth about :math:`\psi^\ast`
+leaves every cell average at :math:`\psi^\ast`, the collision term never
+sees it, and it is damped only by the weak inter-axis balance mismatch
+around the reflective loop.  Hence :math:`\rho \to 1`, and hence 1631
+sweeps.
+
+What survives, and what this does not explain
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Survives, unchanged.**  :math:`A = M - N` is a perfectly valid
+splitting; the drivers consume it exactly as documented; the converged
+fixed point is **splitting-invariant** (any consistent splitting of
+:math:`A\psi = q` shares :math:`\psi^\ast` — the FP-invariance gate above,
+``vv-principles`` Mode 9); and the Hackbusch (2016) §11 citation, which is
+about **block partitionings**, is untouched.  Nothing in the construction,
+the reification, the row-split law or the ERR-056 fan-in rule depends on
+regularity.  What is void is one *inference* — that G-S cannot be slower —
+and every place that inference was implied by a word rather than argued.
+
+**Does not explain the sign.**  Losing the comparison theorem makes an
+inversion *possible*; it does not predict *which side* of the comparison
+a given configuration lands on.  That is decided by which edges the fold
+takes, and is the subject of :ref:`sn-boundary-gs-rate-regime` below.  Do
+not read this section as "boundary G-S is bad at d=3" — read it as
+"nothing bounds it either way, so the schedule is a question for
+measurement, not for a theorem."
+
+The construction site carries the same warning in prose:
+:func:`~orpheus.sn.coupled_system.build_within_group_system` (the one
+builder of the production :math:`A = M - N` record), with the selector
+:func:`~orpheus.sn.solver._select_si_splitting` and
+:class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule`
+pointing back to this section.
+
 .. _sn-boundary-gs-rate-regime:
 
 What the boundary-G-S rate actually depends on
@@ -4114,13 +4310,69 @@ Three readings, in order of how much they should change what you do:
    "G-S touches only :math:`B`" scope claim predicts, so this measurement
    *confirms* the honest-scope box even while refuting its number.
 
-⚠ The d=2-versus-d=3 **sign flip at zero leakage is measured but not
-explained**.  A plausible-sounding story (more octant groups ⟹ a longer
-serial chain in the forward substitution) is *not* verified, and the
-naive expectation runs the other way — more groups should mean more
-fresh-inflow reuse per sweep.  Do not repeat the mistake this box exists
-to record: **do not promote a mechanism to a law on one measurement.**
-Tracked as `Issue #341
+.. warning::
+
+   ⛔ **REFUTED 2026-08-09 (Issue #341) — reading 2's second clause.**
+   *"The sign depends on dimension"* is **not** a law; :math:`d` is not
+   the discriminating variable, and the reading above is kept verbatim
+   only because the way it was minted is the point (see the box below).
+   Readings 1 and 3, and every number in the table, stand.
+
+   `[M]` 2026-08-09, same probe construction as the table (SI sweeps to
+   ``inner_tol = 1e-13``, ``max_inner = 20000``, ``level_symmetric``
+   :math:`S_4`, 2-group pure absorber :math:`\Sigt{} = (0.8, 1.6)`,
+   :math:`\Sigma_s = 0`, all faces reflective, flat source
+   :math:`Q = (1.0, 0.5)/\!\sum_n \mathcal W_n`), varying **only** the
+   mesh — with the table's own d=3 row re-run first as a control:
+
+   .. list-table:: two **d=2** zero-leakage fixtures where boundary G-S LOSES
+      :header-rows: 1
+      :widths: 46 14 14 12 14
+
+      * - configuration
+        - G-S
+        - Jacobi
+        - ratio
+        - verdict
+      * - d=3 extents (1,2,3), cells (3,4,5) — **control**
+        - 1631
+        - 838
+        - 1.95
+        - reproduces the table row exactly
+      * - d=2 extents (1,2), cells (1,1)
+        - 202
+        - 38
+        - **5.32**
+        - G-S 5.3× SLOWER *at d=2*
+      * - d=2 extents (6,6), cells (2,2)
+        - 54
+        - 47
+        - **1.15**
+        - G-S slower *at d=2*
+
+   The first d=2 row is a **worse** loss than the d=3 row the dimension
+   story was built on, at the dimension the story calls a win — and the
+   **mesh alone**, at fixed cross sections, quadrature and tolerance,
+   moved the d=2 ratio from :math:`1.15` to :math:`5.32`, straddling and
+   then exceeding the d=3 value.  One counterexample is enough to kill a
+   law; three say :math:`d` was merely correlated with whatever the real
+   variable is on the fixtures first measured.  A natural place to look
+   is the per-cell :math:`\Sigt{}V/D`, the *only* parameter in the damped
+   eigenvalue of :eq:`dd-face-transmission-spectrum` and a quantity the
+   mesh moves directly — but that is a **hypothesis, not measured here**.
+   What is settled: **do not branch a production default on** ``ndim``.
+
+⚠ The **sign** at zero leakage is measured but still not *predicted*.
+What #341 did establish is the **structural obstruction**
+(:ref:`sn-boundary-gs-not-regular`): the splitting is not *regular*, so
+no comparison theorem bounds the two rates and an inversion is
+**permitted** in either direction.  What remains open is which side a
+given configuration lands on — a plausible-sounding story (more octant
+groups ⟹ a longer serial chain in the forward substitution) is *not*
+verified, and the naive expectation runs the other way.  Do not repeat
+the mistake this box exists to record: **do not promote a mechanism to a
+law on one measurement** — the refuted reading above is the second time
+that mistake was made on this very effect.  Tracked as `Issue #341
 <https://github.com/deOliveira-R/ORPHEUS/issues/341>`_.
 
 The diagonal-cubature shared-face rule (ERR-056)

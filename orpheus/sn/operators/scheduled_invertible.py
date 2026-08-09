@@ -1,7 +1,7 @@
 r"""The reified splitting matrix :math:`M = (L+C-B_{\rm lower})` — the
 schedule-folded sweep-invertible composite (#226 taxonomy step 2, §17 W2).
 
-The boundary Gauss-Seidel is a **regular matrix splitting** of the
+The boundary Gauss-Seidel is a **matrix splitting** of the
 within-group loss:
 
 .. math::
@@ -10,6 +10,15 @@ within-group loss:
               \;-\; \underbrace{B_{\rm upper}}_{N},
     \qquad
     \psi_{k+1} \;=\; M^{-1}\bigl(q + S\,\psi_k + B_{\rm upper}\,\psi_k\bigr).
+
+⛔ It is a *splitting*, **not** a "regular splitting" — this docstring said
+*regular matrix splitting* until 2026-08-09 (#341).  Varga's *regular*
+requires ``M⁻¹ ≥ 0`` AND ``N ≥ 0``; the multi-D DD face-to-face
+transmission has ``d−1`` eigenvalues of exactly ``−1``, so it is not a
+non-negative operator, the comparison theorem is void, and boundary G-S is
+NOT guaranteed to be at least as fast as Jacobi (it is measured slower on
+some configurations).  Full derivation + measurements:
+:ref:`sn-boundary-gs-not-regular`.
 
 ``B_lower`` is the whole-trace boundary law masked to the couplings the
 octant-group schedule realizes IN-sweep (rows whose octant group is swept

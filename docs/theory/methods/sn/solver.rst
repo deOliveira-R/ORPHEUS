@@ -642,7 +642,31 @@ responses.  It is a warning rather than an exception by the ERR-053
 precedent (legitimate callers harvest the residual history of a
 deliberately-truncated solve), and it escalates to a hard failure with::
 
-    python -O -m pytest -W error::ConvergenceWarning
+    python -O -m pytest -W error::orpheus.numerics.convergence.ConvergenceWarning
+
+.. warning::
+
+   ⛔ **The category must be DOTTED, and this page said otherwise until
+   2026-08-09.**  The recipe was published as ``-W
+   error::ConvergenceWarning`` here and at four code sites (one of them the
+   emitted warning message itself).  That string **does not parse** —
+   Python resolves an undotted ``-W`` category against ``builtins``, so
+   pytest exits at startup with ``AttributeError: module 'builtins' has no
+   attribute 'ConvergenceWarning'`` and collects **zero** tests.  The CI
+   contract was imaginary for exactly as long as it was documented.
+
+   It survived because the gate that appeared to prove it,
+   ``test_it_is_escalatable_to_an_error``, installs the filter through
+   ``warnings.simplefilter`` — a true claim about the *category* that says
+   nothing about the *spelling*.  The doc, the runtime message and the test
+   all agreed on a string no interpreter accepts.
+
+   The spelling is now derived from the class as
+   :data:`~orpheus.numerics.convergence.ESCALATION_FLAG`, and
+   ``test_the_published_escalation_flag_actually_parses`` consumes that
+   STRING through pytest's own parser.  General rule this earned: **for
+   every recipe a doc publishes as a command, one gate must consume the
+   string, not the API.**
 
 **Budget sizing.**  ``max_inner`` is a fixed default, and the required
 budget is not: `[M]` an all-reflective box needs ~an order of magnitude

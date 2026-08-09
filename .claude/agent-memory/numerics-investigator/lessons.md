@@ -576,3 +576,59 @@ promotion** (vv Mode 11). My α diagnostic ran a local copy of the recursion; th
 gate drives `cylindrical_streaming`, and the proof is a mutation applied through the test's
 OWN import binding (flip the production α sign → 20 L1 rows red, the 15 foundation
 derivation rows stay green — which also validates the L1-vs-foundation marker split).
+
+---
+
+## L19: An iterative-solver RATE question is a spectrum question — eigen-solve `M⁻¹N`, never re-time the solver; and a "G-S beats Jacobi" claim needs its comparison THEOREM checked, not its fixtures re-run
+
+#341 (2026-08-09, boundary Gauss-Seidel vs Jacobi inverting between d=2 and d=3 SN).
+Five transferable points, in order of leverage:
+
+1. **Build the iteration matrix, don't re-time.** Any `x ← A_inv.apply(Σ gᵢ.apply(x))`
+   driver IS a linear operator: wrap it over the composite's `to_flat`/`from_flat` as a
+   `scipy.sparse.linalg.LinearOperator` and run `eigs(which="LM")`. Cost ≈ a few hundred
+   sweeps for the whole spectrum vs thousands to converge one case, and it is **immune to
+   the stopping test** — so it cannot be contaminated by a ρ-blind stop (L11) or a
+   `max_inner` truncation (L10). Positive control: it must reproduce the ρ *fitted* from a
+   real residual history (measured 0.98552 vs 0.985348 and 0.97541 vs 0.975014, 4 decimals).
+   Ship two cheap linearity checks with it (`G(2x)=2G(x)`, `G(0)=0`) — they also prove the
+   `initial_guess=` seed is inert on the geometry under test.
+2. ⭐ **Before hunting for why a splitting comparison inverted, ask whether the theorem that
+   forbids it still applies.** Varga's comparison (`ρ_GS ≤ ρ_J` whenever `A = M−N` are
+   *regular* splittings with `N_GS ≤ N_J`) makes the inversion IMPOSSIBLE for a
+   non-negative iteration matrix — so an observed inversion is first of all evidence that
+   the operator is **not** non-negative, and the productive question is *which term is
+   negative and why*. Here: the multi-D diamond closure's face transmission is
+   `Σ = (2/D)·1wᵀ − I` (`w_a = 2|μ_a|A_a`, `D = Σ_tV + Σw_b`) — one damped eigenvalue
+   `1 − 2Σ_tV/D` plus **`d−1` eigenvalues exactly `−1`**: an *undamped* zero-cell-average
+   face sawtooth (`ψ_c = 0`, so `Σ_tVψ_c` cannot see it) whose dimension grows with `ndim`.
+   Step differencing would give the same `d−1` modes eigenvalue **0**. Any all-reflective
+   DD rate pathology should be read through that spectrum first.
+3. **A per-axis SIGN is usually a gauge — check before blaming signs.** On the octant
+   hypercube `Q_d` (specular reflection flips one cosine ⟹ the coupling graph IS `Q_d`),
+   flipping the sign of one axis's gain is a diagonal similarity, so both `ρ_J` and `ρ_GS`
+   are invariant (measured identical over all 8 sign patterns). Sign *indefiniteness* is
+   necessary to void the theorem; the sign *pattern* explains nothing. The same 2^d-scalar
+   model — full hypercube, exact fold, exact ordering — **never inverts**, which localises
+   the mechanism to the intra-octant `d×d` block the model discards. A model that fails to
+   reproduce the effect is worth as much as one that does: it deletes a whole hypothesis class.
+4. **Enumerate the discrete design space instead of sampling it.** The G-S fold here is
+   fully described by `L_a` = the constant-sign suffix run of the octant sweep order
+   (derived, then measured: `Σ L_a` implicit rows out of `d·2^d`). All `8!` orders collapse
+   to **25** patterns; measuring all 25 gave an exact separating law
+   (`LOSES ⟺ max_a L_a > Σ_{b≠a} L_b`, 25/25) and revealed a **2.5× spread** in the rate
+   with the shipped order 24th of 25. When a knob's reachable values are finite, sweep them
+   all — a sampled sweep would have produced a fitted story instead of a law.
+5. **Ask whether the two arms are racing the SAME mode before calling a change a "flip".**
+   Extract the dominant eigenvector and report where its mass sits (per face, per ordinate
+   class, spatial sign pattern). Measured: at d=2 both splittings race the same y-face
+   sawtooth; at d=3 G-S races the z faces and Jacobi the y faces — so it was two different
+   comparisons, and the deep fold had merely unmasked (and degraded) a different survivor.
+
+**Verdict discipline that generalises:** a production default must not branch on a variable
+you have only *correlated*. `ndim` was falsified on both sides by direct measurement (3 d=2
+fixtures where G-S loses, 3 d=3 where it wins) — optical thickness, mesh, aspect ratio,
+quadrature order and `c` all move the sign at fixed `ndim`, and near-critical `c ≥ 0.99`
+removes the effect entirely. Also worth the habit: when a docstring names a *theorem*
+("the regular splitting", "`ρ_GS ≈ ρ_J²`"), that word is a checkable claim, and here both
+were measurably false. Full record: `scratch/issue_341_gs_jacobi_mechanism.md`.

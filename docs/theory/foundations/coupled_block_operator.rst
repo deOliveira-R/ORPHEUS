@@ -410,8 +410,10 @@ The one production spelling — ``build_within_group_system``
 The joint system has exactly ONE construction site:
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
 returns the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
-record — the loss grid together with its **named regular splitting**
-:math:`A = M - N` (Hackbusch 2016 §11), all four members built from the
+record — the loss grid together with its **named splitting**
+:math:`A = M - N` (Hackbusch 2016 §11 — block partitionings; a
+*splitting*, **not** a *regular* splitting in Varga's sense, see
+:ref:`sn-boundary-gs-not-regular`), all four members built from the
 SAME piece objects (one ``L+C``, one ``S``, one ``B_a``, one ``B_b``, …).
 This builder is what retired the former ``_within_group_triple`` /
 ``_lagged_gains`` construction pair. The grid and its
@@ -441,7 +443,7 @@ gain, so the ray equation :math:`(A_{BB} - B_b)\psi_B -
 .. vv-status: coupled-loss-grid documented
 
 **The splitting.** The SI/Krylov drivers do not consume the loss grid
-raw — they consume its regular splitting :math:`A = M - N`,
+raw — they consume its splitting :math:`A = M - N`,
 
 .. math::
    :label: coupled-mn-splitting

@@ -75,7 +75,7 @@ The named splitting ``A = M − N`` (B.2d — the driver's system record)
 =====================================================================
 
 The SI/Krylov drivers do not consume the loss grid raw: they consume its
-**regular splitting** ``A = M − N`` (Hackbusch 2016 §11) — ``M`` the
+**splitting** ``A = M − N`` (Hackbusch 2016 §11) — ``M`` the
 sweepable part inverted every step, ``N`` the lagged coupling gains. Both
 are constructed HERE, from the SAME piece objects as the grid, and shipped
 together as the frozen :class:`WithinGroupSystem` record
@@ -108,6 +108,49 @@ On a seedless mesh the record degrades structurally: ``M`` is the plain
 (multi-D G-S split, 2-D windowing) consume those bare pieces ZERO-TOUCH
 (the B.2d DP-seedless ruling: the coupled carrier appears exactly where
 System B exists).
+
+.. warning::
+
+   ⛔ **It is a splitting, NOT a "regular splitting."** ``A = M − N`` was
+   described as *regular* here and at three further sites until 2026-08-09
+   (#341).  "Regular splitting" is Varga's technical term — ``M`` nonsingular
+   with ``M⁻¹ ≥ 0`` **and** ``N ≥ 0`` — and it is load-bearing, because its
+   payoff is the comparison theorem that would force ``ρ_GS ≤ ρ_J``
+   unconditionally.  The tree does not satisfy it.
+
+   `[M]` at zero leakage the boundary operator's octant action is the
+   hypercube ``Q_d``, and the intra-octant DD face-to-face transmission is
+   ``Σ = (2/D)·1wᵀ − I`` with ``w_a = 2|μ_a|A_a`` and ``D = Σ_t V + Σ_b w_b``
+   — rank-one minus identity.  Every ``v`` with ``wᵀv = 0`` gives
+   ``Σv = −v``, so the spectrum is one absorption-damped eigenvalue
+   ``1 − 2Σ_t V/D`` plus **d−1 eigenvalues exactly −1**.  Negative
+   eigenvalues ⟹ not a non-negative operator ⟹ no regular splitting ⟹ no
+   comparison theorem.  And the conclusion it would have licensed —
+   ``ρ_GS ≤ ρ_J`` always, i.e. G-S is *never slower* — is measurably false:
+   `[M]` boundary G-S takes **1631** sweeps against Jacobi's **838** on the
+   d=3 all-reflective box (extents (1,2,3), cells (3,4,5), Σ_t = (0.8,1.6),
+   LS4, ``inner_tol`` 1e-13).
+
+   ⚠ Do NOT read that as "d=3 is the slow case".  The sign is **not** a
+   function of dimension: on the same fixture family a d=2 box at extents
+   (1,2), cells (1,1) measures **202 vs 38 — G-S 5.3× slower**, worse than
+   any d=3 reading, while d=2 at (3,4) is 2.5× *faster*.  The mesh alone
+   moves it past the d=3 value.  The full treatment, including which claims
+   about this survived measurement and which were tombstoned, is
+   :ref:`sn-boundary-gs-not-regular` (with the rate regimes at
+   :ref:`sn-boundary-gs-rate-regime`).
+
+   The ``−1`` eigenvectors are weighted-zero-average across an octant's
+   faces — precisely the undamped face sawtooth (trace ratios
+   ``1.074414 / 0.925586``, summing to exactly 2) that ``Σ_t V ψ_c`` cannot
+   damp, which is the same object #340 measured as the slow mode costing
+   1631 sweeps.  Instruments: ``scratch/probe_341_iteration_spectrum.py``
+   (eigen-solves the production iteration matrix),
+   ``scratch/probe_inner_budget_law.py``.
+
+   The splitting is still perfectly valid and the fixed point is still
+   splitting-invariant.  What is void is only the *guarantee* — which is
+   exactly why the schedule choice had to be settled by measurement.
 
 References
 ==========

@@ -3138,8 +3138,12 @@ loss decomposition is the honest
 assembled once by the single-source-of-truth builder
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which returns
 the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record —
-the loss grid together with its **named regular splitting**
-:math:`A = M - N` (Hackbusch 2016 §11). On a seedless (slab / cylinder /
+the loss grid together with its **named splitting**
+:math:`A = M - N` (Hackbusch 2016 §11 — block partitionings; a
+*splitting*, **not** a *regular* splitting in Varga's sense, so the
+comparison theorem does **not** bound the boundary Gauss-Seidel rate
+against Jacobi's — :ref:`sn-boundary-gs-not-regular`). On a seedless
+(slab / cylinder /
 Cartesian) mesh the record degrades to exactly this triple: its ``implicit_operator``
 is :math:`M = (L+C)` — the invertible resolvent
 (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, ``.solve`` = the WDD

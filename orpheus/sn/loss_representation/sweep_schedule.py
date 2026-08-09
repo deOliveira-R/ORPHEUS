@@ -32,9 +32,40 @@ iterate (the same lifetime contract as
 
 The fixed point is INVARIANT under the schedule: any consistent splitting of
 ``(L+C−S−B)ψ=q`` shares the dominant solution ψ\* (at convergence the seed and
-all re-reflects equal ``B·ψ\*``). The schedule changes only the SI spectral rate
-(``ρ_J = c`` Jacobi vs ``ρ_GS ≈ c²`` for the symmetric reflective model problem).
+all re-reflects equal ``B·ψ\*``). The schedule changes only the SI spectral rate.
 Krylov is splitting-invariant and ignores the schedule entirely.
+
+.. warning::
+
+   ⛔ **REFUTED 2026-08-09 (#341).** This paragraph used to close with
+   *"(``ρ_J = c`` Jacobi vs ``ρ_GS ≈ c²`` for the symmetric reflective model
+   problem)"*.  That is the textbook result for **scattering** Gauss-Seidel,
+   and this schedule folds **B**, not **S** — the sweep never re-scatters
+   mid-sweep (see :func:`~orpheus.sn.solver._select_si_splitting`).  Quoting a
+   scattering-splitting rate for a boundary splitting imported a law from the
+   wrong operator.
+
+   `[M]` it fails in **both** directions.  Zero-leakage pure absorber,
+   Σ_t = (0.8, 1.6), level-symmetric S4, 2 groups
+   (``scratch/probe_inner_budget_law.py`` for ρ_GS,
+   ``scratch/probe_341_iteration_spectrum.py`` for ρ_J):
+
+   ===========  ==========  ==============  ============
+   geometry     ρ_GS meas.  ``ρ_J²`` claim  ρ_J measured
+   ===========  ==========  ==============  ============
+   d=2 (3,4)    0.90641     0.9286          0.9636
+   d=3 (3,4,5)  0.98538     0.9514          0.97541
+   ===========  ==========  ==============  ============
+
+   So G-S beats the claim at d=2 and **loses to it** at d=3.  The mechanism is
+   in :ref:`sn-boundary-gs-rate-regime`: at zero leakage ``B``'s octant action
+   is the hypercube ``Q_d``, whose intra-octant DD transmission
+   ``Σ = (2/D)·1wᵀ − I`` is rank-one-minus-identity — one absorption-damped
+   eigenvalue ``1 − 2Σ_tV/D`` plus **d−1 eigenvalues exactly −1** (the
+   undamped zero-cell-average face sawtooth, which ``Σ_t V ψ_c`` cannot see).
+   No single closed-form rate law survives that, which is why the honest
+   statement here is now the *invariance* of the fixed point and nothing about
+   the rate.
 
 See also
 ========
@@ -171,7 +202,7 @@ class SweepSchedule:
     def lower_inflow_rows(self, sn_mesh: "SNMesh") -> dict[str, np.ndarray]:
         r"""Per-face inflow ordinate rows that read the CURRENT iterate under
         this schedule — the row support of the strictly-lower boundary part
-        :math:`B_{\rm lower}` in the regular splitting
+        :math:`B_{\rm lower}` in the splitting
         :math:`(L+C-B) = \underbrace{(L+C-B_{\rm lower})}_{M} - B_{\rm upper}`.
 
         The split law (#226 §17 W2): face ``f`` is reflected exactly once,

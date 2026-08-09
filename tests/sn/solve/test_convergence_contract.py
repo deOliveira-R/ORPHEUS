@@ -23,7 +23,8 @@ The contract has three parts, and each gets a gate below:
    predicate) rather than transcribing their own.
 3. **A truncated exit is audible** — it emits
    :class:`~orpheus.numerics.convergence.ConvergenceWarning`, escalatable
-   to a hard failure with ``-W error::ConvergenceWarning``.
+   to a hard failure with
+   :data:`~orpheus.numerics.convergence.ESCALATION_FLAG`.
 
 ⭐ Every gate here is written to be REDDENABLE, which for a boolean-flag
 contract needs care: asserting ``converged is True`` on a solve that
@@ -42,7 +43,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
-from orpheus.numerics.convergence import ConvergenceWarning
+from orpheus.numerics.convergence import ESCALATION_FLAG, ConvergenceWarning
 from orpheus.numerics.eigenvalue import PowerIterationOutcome
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
@@ -215,9 +216,43 @@ class TestTruncationIsAudible:
         assert "BEST-EFFORT" in msg
 
     def test_it_is_escalatable_to_an_error(self) -> None:
-        """``-W error::ConvergenceWarning`` is the CI contract; prove the
-        category actually escalates rather than merely being emitted."""
+        """Prove the CATEGORY escalates rather than merely being emitted.
+
+        ⚠ This proves the mechanism, NOT the published recipe — it installs
+        the filter through the in-process API, so it is green for any
+        spelling whatsoever.  The string is a separate claim and has its own
+        gate below; read the two together.
+        """
         with warnings.catch_warnings():
             warnings.simplefilter("error", ConvergenceWarning)
             with pytest.raises(ConvergenceWarning):
                 _fixed_source(max_inner=50)
+
+    def test_the_published_escalation_flag_actually_parses(self) -> None:
+        """The CI contract is a STRING, and a string can be unspellable.
+
+        ⛔ 2026-08-09 (#340).  The recipe shipped as
+        ``-W error::ConvergenceWarning`` at four sites — including inside
+        the emitted warning message — and **it does not parse**: ``-W``
+        resolves an undotted category against ``builtins``, so pytest dies
+        at startup with ``AttributeError: module 'builtins' has no
+        attribute 'ConvergenceWarning'`` and collects ZERO tests.  The CI
+        contract was imaginary for as long as it was published, and the
+        sibling gate above stayed green throughout because it never touched
+        the string.
+
+        So this gate consumes the STRING, through pytest's own parser.
+        """
+        from _pytest.config import UsageError, parse_warning_filter
+
+        assert ESCALATION_FLAG.startswith("-W ")
+        spec = ESCALATION_FLAG.removeprefix("-W ")
+
+        # It parses, and resolves to the category we actually emit.
+        assert parse_warning_filter(spec, escape=False)[2] is ConvergenceWarning
+
+        # And the teeth: the short spelling that shipped must still be
+        # rejected, so a future "simplification" back to it reds here
+        # instead of silently disarming CI.
+        with pytest.raises(UsageError):
+            parse_warning_filter("error::ConvergenceWarning", escape=False)

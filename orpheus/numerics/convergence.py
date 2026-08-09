@@ -67,10 +67,31 @@ rather than a decoration.  ``pyproject.toml`` sets no ``filterwarnings`` and
 no ``-W error``, so emitting it costs nothing today, and CI (or any careful
 caller) turns the whole category into a hard failure with one flag::
 
-    python -O -m pytest -W error::ConvergenceWarning
+    python -O -m pytest -W error::orpheus.numerics.convergence.ConvergenceWarning
 
 That is the same named-warning + opt-in-escalation recipe the regression
 suite already uses for its bit-identity tripwire.
+
+.. important::
+
+   ⛔ **The category must be spelled DOTTED.**  This recipe shipped on
+   2026-08-09 as ``-W error::ConvergenceWarning`` at four sites (including
+   inside the emitted message itself) and **that string does not parse** —
+   Python resolves an undotted ``-W`` category against ``builtins``, so the
+   flag dies with ``AttributeError: module 'builtins' has no attribute
+   'ConvergenceWarning'`` and pytest collects **zero** tests.  The CI
+   contract was imaginary for as long as it was published.
+
+   It survived review because the gate that "proved" it,
+   ``test_it_is_escalatable_to_an_error``, installs the filter through
+   ``warnings.simplefilter`` — the in-process API.  That is a true claim
+   about the *category* and says nothing about the *spelling*, and the
+   doc, the runtime message and the test all agreed on a spelling no
+   interpreter accepts.
+
+   Hence :data:`ESCALATION_FLAG` below: the spelling is now **derived from
+   the class**, not retyped, so a module move or a rename cannot desync it,
+   and one gate parses the string itself.
 
 Related, and deliberately NOT merged with this
 ==============================================
@@ -87,7 +108,7 @@ Related, and deliberately NOT merged with this
 
 from __future__ import annotations
 
-__all__ = ["ConvergenceWarning"]
+__all__ = ["ESCALATION_FLAG", "ConvergenceWarning"]
 
 
 class ConvergenceWarning(RuntimeWarning):
@@ -104,5 +125,27 @@ class ConvergenceWarning(RuntimeWarning):
     converged the answer is — the distance between "one more sweep" and
     "diverging" is the whole diagnostic content.
 
-    Escalate to a hard failure with ``-W error::ConvergenceWarning``.
+    Escalate to a hard failure with :data:`ESCALATION_FLAG` (the category
+    must be DOTTED — see the module docstring for why the short spelling
+    silently was not a gate at all).
     """
+
+
+#: The published CI escalation recipe, as a VALUE rather than a spelling.
+#:
+#: ``-W`` resolves an undotted category against ``builtins``, so the short
+#: form ``error::ConvergenceWarning`` raises ``AttributeError`` and pytest
+#: collects nothing.  Deriving the path from the class instead of retyping
+#: it means a module move or a class rename cannot leave the documented
+#: recipe pointing at something that does not exist — the failure mode this
+#: constant exists to make unspellable (#340, 2026-08-09: the wrong spelling
+#: had propagated by copy to four sites, one of them the emitted message).
+#:
+#: Gated by ``test_the_published_escalation_flag_actually_parses``, which
+#: consumes this STRING through pytest's own parser rather than installing
+#: the filter through the in-process API — the two are different claims, and
+#: only the first one can fail in CI.
+ESCALATION_FLAG = (
+    f"-W error::{ConvergenceWarning.__module__}."
+    f"{ConvergenceWarning.__qualname__}"
+)

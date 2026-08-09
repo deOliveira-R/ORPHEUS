@@ -818,7 +818,9 @@ class SNBoundaryOperator(LinearOperator):
 
     def split(self, schedule: "SweepSchedule") -> "BoundarySplit":
         r"""Split ``B = B_lower + B_upper`` under ``schedule``'s octant order
-        (#226 §17 W2 — the regular matrix splitting of the boundary G-S).
+        (#226 §17 W2 — the matrix splitting of the boundary G-S; a
+        *splitting*, NOT a "regular splitting" — see #341 and
+        :ref:`sn-boundary-gs-not-regular`).
 
         ``B_lower`` carries exactly the (face, inflow-row) couplings the
         scheduled sweep realizes IN-sweep (rows whose octant group is swept

@@ -5,7 +5,7 @@ campaign detail lives in the topic files this index points to — never inline i
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — L1–L18, the diagnostic-cascade spine: never guess, isolate in
+- [lessons.md](lessons.md) — L1–L19, the diagnostic-cascade spine: never guess, isolate in
   cascade order, and a single mesh / flat flux / homogeneous case / two-probe agreement
   proves nothing. Index of the headlines:
   - L1 run the cascade in order · L2 curvilinear redistribution is the prime suspect
@@ -19,6 +19,7 @@ campaign detail lives in the topic files this index points to — never inline i
     `n_inner` vs `max_*` FIRST, a tol-sweep below the capped residual is a vacuous knob;
     **L10c** an all-reflective pure absorber is SI-hard (d=1 32 → d=3 1631 sweeps),
     `Σ_t·n_inner` is invariant, and a G-S-vs-Jacobi rate claim can INVERT with dimension
+    (mechanism + the refutation of `ndim` as the variable: **L19**)
   - L11 measure the residual r=Aψ−q for a ρ-honest stop, not the increment ‖Δψ‖
   - L12 an offline-isolated error is THE floor only after swap + silent control + AMPLIFY
   - L13 a greedy `(Ellipsis,*idx)` fancy-index mis-targets axes under a spectator axis
@@ -31,6 +32,10 @@ campaign detail lives in the topic files this index points to — never inline i
     GAUGE-FREE (any SPD); `G_block=0` is worse than blind
   - L18 to adjudicate a LABELING/ORDERING degeneracy the instrument is the operator's own
     SYMMETRY GROUP — MMS is exactly blind when its ansatz uses only the class invariants
+  - L19 a RATE question is a SPECTRUM question — eigen-solve `M⁻¹N` (immune to the stopping
+    test); a splitting inversion first says Varga's theorem no longer applies, so find the
+    NEGATIVE term (DD gives `d−1` undamped `−1` channels per cell); enumerate a finite knob
+    rather than sample it; never branch a default on a merely-correlated variable
 
 ## 2. Active / in-flight state
 
@@ -45,10 +50,15 @@ typing (#208), the S9 LD boundary-slope verdict.
 > acting — never trust a frozen "NOT landed".
 
 **Open, no active work** (pick up only if asked; breadcrumbs in §3): #326 (cylindrical
-ordering — adjudicated, remediation open), #123, #128, #132/#100, #129, #170.
+ordering — adjudicated, remediation open), **#341** (boundary-G-S rate — mechanism found,
+`ndim` refuted, default unchanged; docstring fixes + the octant-order issue owed),
+#123, #128, #132/#100, #129, #170.
 
 ## 3. Durable reference (one line each)
 
+- [issue_341_boundary_gs_rate.md](issue_341_boundary_gs_rate.md) — #341 verdict: DD's `d−1`
+  undamped `−1` channels void Varga ⟹ G-S may lose; `ndim` REFUTED as the predicate; the
+  real lever is the unowned octant ORDER (`max_a L_a > Σ_{b≠a} L_b`, 25/25). Backs L19.
 - [cylindrical_level_ordering_symmetry_adjudication.md](cylindrical_level_ordering_symmetry_adjudication.md)
   — #326 verdict: the curvilinear MMS is EXACTLY blind to the per-level tie-break; the
   ξ-mirror symmetry adjudicates and says the CLOSURE is broken, not the ordering. Backs L18.

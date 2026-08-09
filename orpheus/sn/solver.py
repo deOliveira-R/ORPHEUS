@@ -46,7 +46,7 @@ from scipy.sparse.linalg import gmres
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
-from orpheus.numerics.convergence import ConvergenceWarning
+from orpheus.numerics.convergence import ESCALATION_FLAG, ConvergenceWarning
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.transport.operators.fission import FissionOperator
@@ -172,7 +172,8 @@ from .solution import AdjointSolution, IterationHistory, Solution, SolutionBase
 
 
 # The within-group decomposition every solve consumes — the loss grid AND
-# its regular splitting ``A = M − N`` — is constructed ONCE by
+# its splitting ``A = M − N`` (a splitting, NOT a Varga "regular" one — see
+# the warning on that builder's module docstring, #341) — is constructed ONCE by
 # :func:`orpheus.sn.coupled_system.build_within_group_system` and shipped as
 # the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record.  Its
 # composition contract (why ``B`` is a separate first-class gain, RULING P1
@@ -430,7 +431,9 @@ def _warn_if_unconverged(
     callers harvest the residual history of a deliberately-truncated solve,
     and `[M]` an audit found zero production and zero ``examples/`` callers
     that depend on the answer of one.  Escalate in CI with
-    ``-W error::ConvergenceWarning``.
+    :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` — the DOTTED
+    category; the short spelling does not parse, so it was never a gate
+    (#340, 2026-08-09).
 
     The message carries the budget that ran out, the tolerance that was not
     reached, and how far away the last iterate was, because "one more sweep"
@@ -451,7 +454,7 @@ def _warn_if_unconverged(
         f"not the converged answer. Raise {budget_name}, or read "
         f"`solution.history.converged` and handle it. "
         f"Silence this per-call with warnings.catch_warnings(); make it fatal "
-        f"everywhere with -W error::ConvergenceWarning.",
+        f"everywhere with {ESCALATION_FLAG}.",
         ConvergenceWarning,
         stacklevel=3,
     )
@@ -798,7 +801,7 @@ def _select_si_splitting(
     * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B_a))``: the boundary
       lagged as an external gain (inter-sweep Jacobi — every geometry).
     * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
-      ``((L+C) - B_lower, (S, B_upper))``: the regular splitting
+      ``((L+C) - B_lower, (S, B_upper))``: the splitting
       ``(L+C−B) = M − B_upper`` (#226 §17 W2).  ``B`` splits under the
       octant-group schedule (:meth:`SNBoundaryOperator.split`); the
       strictly-lower half folds into the REIFIED forward
@@ -3169,30 +3172,48 @@ def solve_sn_fixed_source(
         within-group SCATTERING rate is unchanged either way — that is what
         ``acceleration="dsa"`` deflates (issue #2).
 
-        ⚠ **The rate effect is NOT regime-independent, and its SIGN flips
-        with dimension.**  G-S folds only ``B``, so its leverage is exactly
-        the weight of the boundary coupling in the iteration — which is
-        maximal at ZERO leakage (nothing escapes, so the boundary is the
-        whole coupling) and collapses as soon as any face is vacuum.
+        ⚠ **The rate effect is NOT regime-independent, and it is not
+        bounded in either direction** (the splitting is not a *regular*
+        splitting, so no comparison theorem applies —
+        :ref:`sn-boundary-gs-not-regular`).  G-S folds only ``B``, so its
+        leverage is exactly the weight of the boundary coupling in the
+        iteration — which is maximal at ZERO leakage (nothing escapes, so
+        the boundary is the whole coupling) and collapses as soon as any
+        face is vacuum.
         `[M]` 2026-08-08, SI sweeps to ``inner_tol=1e-13``, LS4, 2-group,
         ``n_GS / n_Jacobi``:
 
-        =========================== ============ ============ =======
-        configuration                     G-S       Jacobi     ratio
-        =========================== ============ ============ =======
-        d=2 all-reflective                    258          648   0.40
-        d=2 all-reflective, c=0.5             259          645   0.40
-        d=3 all-reflective                   1631          838   1.95
-        d=3 all-reflective, c=0.5            1598          832   1.92
-        d=2 one vacuum axis, c=0.5             34           35   0.97
-        d=3 one vacuum axis, c=0.5            208          214   0.97
-        d=3 two vacuum axes, c=0.5             33           33   1.00
-        =========================== ============ ============ =======
+        =========================== ==== ====== =====
+        configuration                G-S Jacobi ratio
+        =========================== ==== ====== =====
+        d=2 all-reflective           258    648  0.40
+        d=2 all-reflective, c=0.5    259    645  0.40
+        d=3 all-reflective          1631    838  1.95
+        d=3 all-reflective, c=0.5   1598    832  1.92
+        d=2 one vacuum axis, c=0.5    34     35  0.97
+        d=3 one vacuum axis, c=0.5   208    214  0.97
+        d=3 two vacuum axes, c=0.5    33     33  1.00
+        =========================== ==== ====== =====
 
-        So: a WIN at d=2 zero-leakage, a LOSS at d=3 zero-leakage, and a
-        wash the moment anything leaks — at every dimension.  Scattering
-        does not change the picture (the ``c=0.5`` rows track the absorber
+        So: a wash the moment anything leaks — at every dimension — and
+        at zero leakage a large effect of EITHER sign.  Scattering does
+        not change the picture (the ``c=0.5`` rows track the absorber
         rows), which is consistent with G-S touching only ``B``.
+
+        ⛔ **REFUTED 2026-08-09 (#341).** This paragraph read *"a WIN at
+        d=2 zero-leakage, a LOSS at d=3 zero-leakage"*, and the ⚠ above
+        read *"its SIGN flips with dimension"*.  ``ndim`` is NOT the
+        discriminating variable.  `[M]` same probe, same mixture/quad/tol,
+        varying only the mesh: d=2 all-reflective at extents (1,2) cells
+        (1,1) gives ``202 / 38 = 5.32`` and at extents (6,6) cells (2,2)
+        gives ``54 / 47 = 1.15`` — both LOSSES at d=2, the first worse
+        than the d=3 row the story was built on.  The effect is
+        continuous in the per-cell optical thickness and the mesh, which
+        merely correlate with ``ndim`` on the fixtures first measured.
+        **Do not branch a default on** ``ndim``.  The structural reason
+        an inversion is permitted at all — the splitting is a splitting
+        but NOT a *regular* one, so no comparison theorem bounds it — is
+        :ref:`sn-boundary-gs-not-regular`.
 
         ⚠ Only the SIGN and the leakage-dependence are robust; the
         MAGNITUDE is fixture-specific.  A second d=2 zero-leakage point
@@ -3201,12 +3222,13 @@ def solve_sn_fixed_source(
         reads 641/697 = 0.92 against 0.40 here — same sign, >2× different
         magnitude.  That is why that gate asserts the strict inequality
         and not a ratio: **the inequality is the law, the ratio is a
-        fixture reading.**  The d=2-vs-d=3 sign flip is measured but NOT
-        explained — see issue #341 and
+        fixture reading.**  Which SIDE a zero-leakage configuration lands
+        on is measured but not yet PREDICTED — see issue #341 and
         :ref:`sn-boundary-gs-rate-regime`.  Practical reading: with
-        leakage the choice is immaterial, and an all-reflective d=3 box
-        (a verification fixture more than a production configuration) is
-        the one place ``"jacobi"`` is worth asking for explicitly.
+        leakage the choice is immaterial, and at zero leakage neither
+        schedule is safe to assume — if the sweep count of an
+        all-reflective fixture matters, measure both arms (they share the
+        fixed point, so the comparison is free).
     acceleration : {"dsa", None}
         Within-group synthetic acceleration (issue #2).  ``"dsa"`` wires
         the consistent-DSA correction operator

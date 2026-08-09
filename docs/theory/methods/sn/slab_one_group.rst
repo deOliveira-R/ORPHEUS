@@ -567,11 +567,16 @@ multi-D machinery in :doc:`cartesian_multid`; the reified splitting matrix is
      scattering :math:`c`-mode.  **This is NOT the textbook
      scattering-G-S** :math:`c^2`-halving.  ⛔ this bullet claimed a
      *"measured, regime-independent* **~0.86–0.92×**\ *"* until
-     2026-08-08; that is REFUTED — the effect is a 2.5× win at d=2
-     zero-leakage, a ~2× LOSS at d=3 zero-leakage, and a wash (0.97)
-     with any leakage at any dimension.  Multi-D is not this page's
-     subject; the measured table and the mechanism live at
-     :ref:`sn-boundary-gs-rate-regime` in
+     2026-08-08; that is REFUTED — with any leakage it is a wash (0.97)
+     at every dimension, and at zero leakage it ranges from a 2.5× win
+     to a 5.3× loss.  ⛔ a follow-on wording *"a win at d=2, a loss at
+     d=3"* is ALSO refuted (2026-08-09, #341): ``ndim`` is not the
+     discriminating variable, and **the splitting is not a** *regular*
+     **splitting**, so no comparison theorem bounds the two rates in
+     either direction.  Multi-D is not this page's subject; the measured
+     table, the counterexamples and the structural obstruction live at
+     :ref:`sn-boundary-gs-rate-regime` and
+     :ref:`sn-boundary-gs-not-regular` in
      :doc:`/theory/methods/sn/cartesian_multid`.
    * The dominant within-group scattering rate is recovered ONLY by
      **Krylov** (already production — rate-optimal,

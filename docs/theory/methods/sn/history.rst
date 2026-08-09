@@ -277,9 +277,14 @@ merge hash or not at all).
        :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
        returns the frozen
        :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record — the
-       loss grid together with its Hackbusch regular splitting
+       loss grid together with its Hackbusch splitting
        :math:`A = M - N` (``resolvent`` = :math:`M`, the sweepable part
-       inverted each step; ``gains`` = :math:`N`, the lagged couplings). On
+       inverted each step; ``gains`` = :math:`N`, the lagged couplings —
+       both fields renamed at the 2026-07-28 row). This entry read
+       *"Hackbusch* **regular** *splitting"* until 2026-08-09 (#341); the
+       word is **struck**, not tombstoned, because it never described
+       anything that landed — it asserted a property the splitting does
+       not have (:ref:`sn-boundary-gs-not-regular`). On
        a carrying sphere :math:`M` is the honest upper-triangular grid
        ``[[LC, Seeding], [None, march]]``
        (:class:`~orpheus.numerics.coupled_system.CoupledOperator` — since
@@ -833,8 +838,11 @@ merge hash or not at all).
        ``apply``\ :math:`=(L+C)\psi` with
        ``solve``\ :math:`=(L+C-B_{\rm lower})^{-1}` — inverses of
        *different* operators, round-trip defect O(1) :math:`=2.667`)
-       dissolves into the honest **regular matrix splitting**
-       :math:`(L+C-B)=M-B_{\rm upper}`.  :math:`M=(L+C)-B_{\rm lower}` is
+       dissolves into the honest **matrix splitting**
+       :math:`(L+C-B)=M-B_{\rm upper}` (this entry said *regular* matrix
+       splitting until 2026-08-09; struck per #341 —
+       :ref:`sn-boundary-gs-not-regular`).
+       :math:`M=(L+C)-B_{\rm lower}` is
        reified as
        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
        (via :meth:`StreamingCollisionOperator.__sub__

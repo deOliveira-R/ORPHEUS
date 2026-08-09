@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9207**
+Total tests collected: **9208**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1617, 17.6%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6212, 67.5%
+   foundation, 6213, 67.5%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9123
+   explicit, 9124
    class-name, 46
    func-name, 0
    case, 33
@@ -440,7 +440,7 @@ Module × level grid
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
-   solve/test_convergence_contract, 0, 0, 0, 0, 9, 0
+   solve/test_convergence_contract, 0, 0, 0, 0, 10, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
@@ -843,7 +843,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **531** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **532** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -919,6 +919,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``cumulative-optical-path-slab``
 - ``dd-2d-balance-form``
 - ``dd-cartesian-2d-streaming-coeffs``
+- ``dd-face-transmission-spectrum``
 - ``dd-mm-angular-recurrence``
 - ``dd-mm-scan-split``
 - ``delta-tracking-collision-pdf``
