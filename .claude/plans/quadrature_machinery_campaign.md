@@ -3063,11 +3063,42 @@ implemented and **no `D_6h`-invariant rule in tree**.
     class) — the cosine sets are bit-exactly negation-closed, the x-mirror
     is an injective involution, partner weights differ by 0.0; and
     source-normalisation drift — Σw − 4π = 0.0 exactly. Under
-    `numerics-investigator` diagnosis (report lands at
-    `scratch/d3_absorber_diagnosis.md`); the live question is
-    whether the all-reflective solve exits without converging the BC (a
-    certificate hole, Cardinal-Rule-1 FIX) or 3.3e-10 is the true discrete
-    floor (gate re-derivation per vv anti-#16). Gates at this stamp:
+    ✅ **RESOLVED `11e78430` — and it was NEITHER hypothesis.** The
+    all-reflective pure absorber needs `[M]` **1631** sweeps against a
+    default `max_inner=1000`; the solve returns the 999th iterate flagged
+    `history.converged = False`, and the gate **never read the flag**. The
+    exact uniform field's residual is 1.06e-15 (the discretization is
+    fine) and a converged solve delivers 2.79e-14 — so `rtol=1e-10` was
+    the RIGHT number all along and is untouched; the fix grants the budget
+    and asserts convergence before reading any value. ⭐⭐⭐ **the ruling
+    banked three paragraphs above is ⛔ REFUTED by this**: "bit-identical
+    across a 6-decade tolerance sweep ⟹ not a convergence artifact" is
+    exactly BACKWARDS — the residual at k=999 (1.185e-09) sat above every
+    tol tested, so all four runs hit the same cap and returned the same
+    bytes. **Tolerance-insensitivity means the tolerance never BOUND; read
+    `n_inner` against the cap before concluding "floor".** The same trap
+    dressed the error MAP as a bias — the 8 |μ_x|-dominant ordinates are a
+    decaying MODE (shape cosine ≥ 0.9928 across `max_inner` 600→1400 at
+    constant ρ = 0.9853). ⭐⭐ **#337 EXONERATED**: the gate had ALWAYS
+    ridden a truncated exit, green pre-#337 only because the error landed
+    at 2.05e-11, inside `rtol=1e-10` by 5×; the ratified 6.4 % cosine rise
+    lifted the budget 1369→1631 and the error 16×, across the line. A
+    correct change stopped a test-design defect from hiding. Its docstring
+    premise WAS the defect — "c=0 needs no iteration" kills the SCATTERING
+    iteration, not the REFLECTIVE-BOUNDARY one. ⭐⭐ an audit plugin over
+    four reflective modules (52 solves, exactly 2 unconverged) caught the
+    SIBLING as a **latent false green** —
+    `test_d3_scattering_infinite_medium_matches_multigroup_balance` rode
+    the same truncation under a looser `rtol=1e-7`; both now carry the
+    budget and the flag check. `[M]` budget laws pinned in
+    `derivations/diagnostics/diag_d3_absorber_02`: ~an order per dimension
+    (d=1 32 · d=2 258 · d=3 1631) and `Σ_t · n_inner` INVARIANT. Filed,
+    not fixed (public-API contract, needs the wide slice): **#340** the
+    best-effort exit is indistinguishable from a certified one, **#341**
+    boundary G-S ~2× SLOWER than Jacobi at d=3 (its documented rate gain
+    was measured at d=2 and INVERTS), **#342** `solve_sn` hardcodes
+    `converged=True` while its adjoint twin is honest. Report:
+    `scratch/d3_absorber_diagnosis.md`. ⟹ the #51 ledger returns to NINE. Gates at this stamp:
     sphinx -W exit 0 on a FULL `-E` re-read, xref 0 dead / 940 files,
     pyright ratchet green, V&V matrix re-derived identical (9197 tests,
     336 equations). **#339 FILED** — the LS double-fold capability
