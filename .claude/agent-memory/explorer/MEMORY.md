@@ -35,7 +35,10 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
   the path routes through it (L21)**; **a "what REMAINS of issue X" recon greps the
   campaign's own MID-FLIGHT PROSE ("today still…", "remaining half…", cautions) — the
   interim honesty notes are the falsified class; and an acceptance-gate check reads the
-  FIXTURE LIST, not the assertion (L22)**.
+  FIXTURE LIST, not the assertion (L22)**; **a solver's NESTING/level shape is a
+  per-ENTRY-POINT fact (sibling entries of one solver nest differently) and is
+  Protocol-dispatch-invisible to `callers` — get it by RUNNING a `sys.setprofile`
+  probe, and check the per-level count against its budget (L24)**.
 
 ## 2. Active / in-flight state
 

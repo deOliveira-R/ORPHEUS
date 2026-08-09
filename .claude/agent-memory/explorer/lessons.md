@@ -809,3 +809,48 @@ Two cheaper corollaries from the same dispatch, both reusable:
   is *returned* by the guard the realizer already calls and *discarded* at the call
   site. Before writing "X would have to be threaded", read the helper's return
   statement.
+
+---
+
+## L-024 -- A solver's NESTING SHAPE is a per-ENTRY-POINT fact, never a per-module one — trace each entry, and trace it by RUNNING
+
+Surveying the #340 consumer landscape (2026-08-09, `refactor/operator-strategy-layers`),
+the brief asked for "the level tree for an SN k-eigenvalue solve" as if a module had
+ONE. It does not, and the difference is exactly what a recursive record has to model:
+
+- `solve_sn` → `power_iteration(SNSolver)` → `SNSolver.solve_fixed_source` →
+  `_solve_source_iteration`/`_solve_krylov` → `SourceIteration.solve`. The per-inner
+  residual list reaches SN code, which sums `len(...)` and drops the rest.
+- `solve_sn_adjoint` → `KEigenvalue.solve` → `power_iteration(KEigenvalue)` →
+  `KEigenvalue.solve_fixed_source` → `SourceIteration.solve`. **One frame deeper, and
+  the inner history is discarded INSIDE the shared numerics primitive** (`psi,
+  _inner_residuals = self._inner.solve(...)`), so it never reaches SN code at all.
+
+Two sibling public entries of the same solver, same math, structurally different
+trees — and a design that models "the" tree from either one alone is wrong for the
+other. Same shape one module over: CP nests outer → **per-group** inner (a loop the
+SN path does not have, because SN's "within-group" `S` is full-multigroup with no
+group loop); MoC's inner is a FIXED sweep count with no tolerance at all; diffusion's
+inner is one LU back-substitution, i.e. no inner level.
+
+**And the tree is not reliably readable from the static graph.** `SNSolver.converged`
+has **0 `callers`** in Nexus — it is reached polymorphically through the
+`EigenvalueSolver` Protocol inside `power_iteration`. A `callees`/`callers` walk of a
+Protocol-dispatched driver understates the tree by exactly the levels that matter.
+
+**How to apply.** For any "what is the iteration/level/stage structure?" question:
+(1) enumerate the PUBLIC ENTRIES first and expect them to differ; (2) get the tree by
+**running** — a ~30-line `sys.setprofile` probe filtered to 3 files and a `WATCH` name
+set prints the nesting, the per-level call counts, and the truncation evidence in one
+shot (cheaper and more honest than reading five call sites); (3) read the count against
+the budget — my probe's `total_inner_iterations=1470` over 30 outers at `max_inner=50`
+meant **30 of 30 inners hit the cap**, which no static read would have told me. Nexus
+`runtime_ingest` is the durable version of this when a `cProfile` artifact exists;
+`runtime_runs` returning `[]` means you write the probe yourself.
+
+Corollary, cheap and reusable: **when a status is derived from a LENGTH, check whether
+the length is injective.** `SourceIteration` appends one residual per iteration from
+the second onward, so `max_iter=50` yields `len(residuals)=49` both for "exhausted" and
+for "converged on the last possible check". A consumer reconstructing convergence from
+the count is guessing on the boundary case — which is precisely why the status has to
+be recorded, not recomputed.
