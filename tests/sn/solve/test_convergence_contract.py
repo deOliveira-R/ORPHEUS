@@ -435,8 +435,17 @@ class TestTruncationIsAudible:
         from orpheus.sn.solver import _warn_if_unconverged
 
         stalled = IterationHistory(
-            converged=False,
-            flux_residuals=tuple(1e-3 for _ in range(40)),  # rho == 1
+            record=IterationRecord(
+                label="inner(probe)",
+                criteria=(
+                    StoppingCriterion(
+                        name="residual",
+                        trajectory=tuple(1e-3 for _ in range(40)),  # rho == 1
+                        tolerance=1e-10,
+                    ),
+                ),
+                budget=40, iterations_run=40,
+            ),
         )
         with pytest.warns(ConvergenceWarning) as record:
             _warn_if_unconverged(
@@ -447,37 +456,106 @@ class TestTruncationIsAudible:
         assert "NOT" in msg and "contracting" in msg
         assert "set max_inner=" not in msg  # the advice must NOT be given
 
-    def test_it_REFUSES_to_project_off_a_criterion_that_already_cleared(
+    def test_it_speaks_for_the_criterion_that_FAILED_not_one_that_cleared(
         self,
     ) -> None:
-        """⛔ The regression for a lie this gate's own author shipped.
+        """⛔ The regression for a lie this gate's own author shipped — and
+        the SUCCESSOR to the stop-gap that first contained it.
 
         `[M]` 2026-08-09, caught by the wide run, not by review. The outer
-        stops on ``dk AND dphi``, but only ``keff_history`` survives into
-        ``IterationHistory`` (#340 F2 — ``dphi`` is computed inside
+        stops on ``dk AND dphi``, but only ``keff_history`` survived into the
+        flat ``IterationHistory`` (#340 F2 — ``dphi`` was computed inside
         ``SNSolver.converged`` and discarded). On the mutated heterogeneous
         slab, whose NEGATIVE dominant eigenvalue makes ``dphi`` sign-alternate
         forever, ``|dk|`` sits at ``3.3e-16`` against a ``1e-9`` tolerance —
         so the freshly-added projection answered **"set max_outer=1"**.
 
-        A confidently wrong number is worse than no number, and worse than
-        the vague "raise the budget" it replaced. When the recorded criterion
-        has cleared and the loop still did not converge, the binding one is
-        not in this history, and the message must say so.
+        ⛔ The first fix was a REFUSAL: detect that the recorded criterion had
+        cleared and decline to project ("no budget can honestly be projected
+        from what is here"). That branch is RETIRED with N2b-ii, and this test
+        is re-posed onto the successor rather than deleted — the situation it
+        guarded (*the failing criterion is absent from the history*) is now
+        unrepresentable, because the record carries every criterion the level
+        was judged on.
+
+        So the claim strengthens from "say nothing rather than something
+        wrong" to **"say the right thing"**: ``binding_criterion`` is the one
+        furthest from clearing, which IS the one that failed, and the message
+        must speak for it.
         """
         from orpheus.sn.solution import IterationHistory
         from orpheus.sn.solver import _warn_if_unconverged
 
-        # |dk| decays to 3.3e-16, far below the 1e-9 it is judged against;
-        # the loop is nonetheless unconverged, because dphi never cleared.
-        keffs = tuple(1.0 + 1e-3 * 0.5**k for k in range(40))
-        with pytest.warns(ConvergenceWarning) as record:
+        # dk decayed to ~1.8e-15 against 1e-9 — cleared long ago.
+        # dphi sits at 1e-3 against 1e-6 forever — rho == 1, never clears.
+        record_ = IterationRecord(
+            label="outer(power-iteration)",
+            criteria=(
+                StoppingCriterion(
+                    name="dk",
+                    trajectory=tuple(1e-3 * 0.5**k for k in range(40)),
+                    tolerance=1e-9,
+                ),
+                StoppingCriterion(
+                    name="dphi",
+                    trajectory=tuple(1e-3 for _ in range(40)),
+                    tolerance=1e-6,
+                ),
+            ),
+            budget=40, iterations_run=40, min_iterations=3,
+        )
+        assert record_.converged is False, "fixture drift"
+
+        with pytest.warns(ConvergenceWarning) as caught:
             _warn_if_unconverged(
-                IterationHistory(converged=False, keff_history=keffs),
+                IterationHistory(record=record_),
                 where="probe", budget_name="max_outer", budget=40, tol=1e-9,
             )
-        msg = str(record[0].message)
-        assert "ALREADY cleared" in msg
+        msg = str(caught[0].message)
+
+        assert "last dphi" in msg, (
+            "the message must name the criterion that FAILED; naming the "
+            "cleared one is how the 'set max_outer=1' lie was produced"
+        )
+        # dphi is not contracting, so there is still no budget to promise —
+        # but now that is a statement ABOUT dphi rather than a refusal to
+        # speak at all.
+        assert "NOT" in msg and "contracting" in msg
+        assert "set max_outer=" not in msg
+        assert "ALREADY cleared" not in msg, (
+            "the retired stop-gap's wording must not survive its branch"
+        )
+
+    def test_it_names_the_LOOP_when_every_criterion_cleared(self) -> None:
+        """The branch that replaced the stop-gap, and it is a different claim.
+
+        A level can fail to converge with every criterion cleared — the loop
+        refused, not a quantity: too few iterations to claim
+        (``min_iterations``). That is a real state, it is not a budget
+        problem, and naming it beats projecting a number at it.
+        """
+        from orpheus.sn.solution import IterationHistory
+        from orpheus.sn.solver import _warn_if_unconverged
+
+        record_ = IterationRecord(
+            label="outer(power-iteration)",
+            criteria=(
+                StoppingCriterion(
+                    name="dk", trajectory=(1e-12, 1e-14), tolerance=1e-9,
+                ),
+            ),
+            budget=2, iterations_run=2, min_iterations=3,
+        )
+        assert record_.converged is False and record_.criteria[0].cleared
+
+        with pytest.warns(ConvergenceWarning) as caught:
+            _warn_if_unconverged(
+                IterationHistory(record=record_),
+                where="probe", budget_name="max_outer", budget=2, tol=1e-9,
+            )
+        msg = str(caught[0].message)
+        assert "the refusal is the loop's" in msg
+        assert "2 of the 3 iterations" in msg
         assert "set max_outer=" not in msg
 
     def test_it_is_escalatable_to_an_error(self) -> None:

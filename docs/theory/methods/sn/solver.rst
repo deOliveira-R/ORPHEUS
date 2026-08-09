@@ -644,9 +644,27 @@ phantom truncations.  A record separates the two —
 discriminator.
 
 These surface on :attr:`Solution.history.converged
-<orpheus.sn.solution.IterationHistory.converged>`, which is a **required**
-field: it has no default, so a producer cannot claim convergence by
-omission.
+<orpheus.sn.solution.IterationHistory.converged>`, and
+:class:`~orpheus.sn.solution.IterationHistory` is itself a **view over the
+record** — every scalar it exposes is DERIVED, so there is one source of
+truth and the flat surface cannot drift from the tree it summarises.
+
+⛔ Until 2026-08-09 ``converged`` was a *field*, and this paragraph argued
+its honesty from the fact that it was **required**: no default, so a
+producer could not claim convergence by omission.  That was the right fix
+for the wrong layer — a required field still has to be WRITTEN, by hand,
+at every producer, and #342 was five such writes with one of them a literal
+``True``.  Deriving it removes the question of who writes it: there is no
+argument to pass, so there is nothing to get wrong.
+
+.. tip::
+
+   Read :attr:`Solution.history.record
+   <orpheus.sn.solution.IterationHistory.record>` for anything the flat
+   readings drop — which is most of it.  ``record.report()`` prints the
+   whole tree, level by level, with each criterion's last value, the
+   tolerance it was judged against, the observed rate, and the budget that
+   rate projects; it is written to be pasted into a bug report unedited.
 
 .. warning::
 

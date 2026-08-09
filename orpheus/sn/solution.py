@@ -88,6 +88,7 @@ import numpy as np
 if TYPE_CHECKING:
     from .mesh.augmented_mesh import SNMesh
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
+    from orpheus.numerics.convergence import IterationRecord
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import Mesh1D, Mesh2D
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -110,42 +111,37 @@ __all__ = [
 
 @dataclass(frozen=True)
 class IterationHistory:
-    r"""Convergence trajectory diagnostics for an SN solve.
+    r"""Convergence diagnostics for an SN solve — a **view** over the record.
 
-    Carries the per-outer / per-inner trajectory exposed by the legacy
-    ``SNResult.keff_history`` (list) plus the integer
-    ``SNFixedSourceResult.n_inner`` + ``residual`` scalars — now
-    bundled into one frozen container with method-style diagnostics.
+    The solve's truth is an
+    :class:`~orpheus.numerics.convergence.IterationRecord`: a tree of
+    iteration levels, each carrying the quantities it stopped on with the
+    tolerances it judged them against.  This type is the SN-facing reading
+    of that tree — every scalar below is DERIVED, so there is exactly one
+    source of truth and the flat surface cannot drift from the tree it
+    summarises.
+
+    ⛔ Until 2026-08-09 (#340 N2b-ii) these were six independent FIELDS and
+    each producer filled them in by hand.  That is how ``n_inner`` came to
+    mean ``len(residuals)`` on one path and ``len(residuals) + 1`` on the
+    other, undocumented and exactly backwards from the truth; and how
+    ``converged`` came to be written five times, once as a literal ``True``
+    (#342).  A projection maintained by hand at N sites is N chances to
+    disagree; a projection computed from one object is none.
 
     Parameters
     ----------
+    record : IterationRecord
+        What the solve measured — **required**, and the only input.  For a
+        fixed-source solve this is the inner driver's own record (a leaf);
+        for an eigenvalue solve it is the power iteration's outer record,
+        whose ``children`` are the per-outer inner solves.
     keff_history : tuple of float
-        Per-outer-iteration eigenvalue trajectory.  Empty tuple for
-        fixed-source problems (no eigenvalue to track).
-    flux_residuals : tuple of float
-        Per-iteration relative-flux residual trajectory
-        :math:`\lVert\phi_n - \phi_{n-1}\rVert / \lVert\phi_n\rVert`.
-        Empty when the solver does not track this signal.
-    n_inner : int or None
-        Number of inner (within-group) iterations consumed.  ``None``
-        for paths that do not surface this count (e.g. pure eigenvalue
-        outer iteration).
-    total_inner_iterations : int or None
-        Total inner (within-group) iterations summed across ALL outer
-        iterations.  Unlike :attr:`n_inner` (which is ``None`` on the
-        eigenvalue outer path — there is no single inner solve to point
-        at), this is populated by BOTH paths: the eigenvalue path
-        accumulates it across the power-iteration outer loop, the
-        fixed-source path sets it equal to :attr:`n_inner` (one inner
-        solve).  It is the measurand for the SI spectral-rate /
-        Gauss-Seidel-recovery diagnostics (Phase 3).  ``None`` only when
-        no path surfaced a count.
-    n_outer : int or None
-        Number of outer (power) iterations consumed.  ``None`` for
-        fixed-source problems.
-    converged : bool
-        ``True`` when the iteration met its convergence tolerance,
-        ``False`` when ``max_iter`` was exhausted.
+        Per-outer-iteration eigenvalue trajectory.  Empty for fixed-source
+        problems.  This is a **field, not a derived reading**, because it is
+        a physics output rather than a stopping criterion: what the outer
+        stop test reads is its per-iteration INCREMENT, which lives in the
+        record under the name the solver gave it (``dk``).
 
     Notes
     -----
@@ -153,35 +149,104 @@ class IterationHistory:
     with mutable fields are an anti-pattern (``coding-elegance``
     Pattern 4: illegal states unrepresentable).  Callers that want a
     list pass through :func:`list` at the call site.
+
+    ⭐ **Read :attr:`record` directly for anything this view flattens
+    away** — which is most of it.  The flat readings below exist for
+    established consumers; the record answers *which* criterion bound, at
+    what rate it was closing, what budget would reach it, and which nested
+    level actually failed.  Do not grow this surface: add the question to
+    :class:`~orpheus.numerics.convergence.IterationRecord`, where the tree
+    can answer it.
     """
 
-    converged: bool
-    """Whether the iteration met its tolerance — **required, no default**.
-
-    ⛔ This field defaulted to ``True`` until 2026-08-08, and that default
-    is the same defect as #342 (``solve_sn`` hardcoding ``converged=True``)
-    with the assertion moved into the type: a history built by a producer
-    that had not thought about convergence claimed it anyway.  A field
-    whose SAFE value is the optimistic one is a field that lies by
-    omission, so it is now positional and every producer must state it —
-    from the loop's own flag
-    (:attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`)
-    or from :attr:`~orpheus.numerics.convergence.IterationRecord.converged`,
-    never by hand.
-
-    ⛔ This line named ``orpheus.sn.solver._claims_convergence`` until
-    2026-08-09.  That predicate is RETIRED — the inner drivers now return an
-    :class:`~orpheus.numerics.convergence.IterationRecord` and the verdict is
-    derived from it, which also corrects the predicate's blind spot: it read
-    an EMPTY residual history as *not converged*, so a Krylov solve that
-    returned on its initial guess was indistinguishable from a truncation.
-    """
-
+    record: "IterationRecord"
     keff_history: tuple[float, ...] = ()
-    flux_residuals: tuple[float, ...] = ()
-    n_inner: int | None = None
-    total_inner_iterations: int | None = None
-    n_outer: int | None = None
+
+    # ── the verdict, derived ─────────────────────────────────────────────
+
+    @property
+    def converged(self) -> bool:
+        """Did the solve's TOP level meet its own criteria?
+
+        ⛔ A field until 2026-08-09, and before 2026-08-08 a field
+        *defaulting to* ``True`` — the same defect as #342 with the
+        assertion moved into the type: a history built by a producer that
+        had not thought about convergence claimed it anyway.  Deriving it
+        removes the question of who writes it.
+
+        ⚠ Scoped to the top level, which for an eigenvalue solve is the
+        OUTER.  A converged outer standing on a starved inner reads ``True``
+        here and ``False`` at :attr:`fully_converged`; that gap is the #340
+        headline, not a wart.  **A gate asserting physics wants
+        :attr:`fully_converged`.**
+        """
+        return self.record.converged
+
+    @property
+    def fully_converged(self) -> bool:
+        """Did EVERY level converge — the honest "can I trust this number?".
+
+        New with the record (#340): the flat history had no way to express
+        it, because it had already discarded the nested levels.
+        """
+        return self.record.fully_converged
+
+    # ── the flat readings established consumers still take ───────────────
+
+    @property
+    def _is_outer(self) -> bool:
+        """Does the top level drive nested solves, or IS it the solve?
+
+        The discriminator the readings below need, taken from the tree's own
+        STRUCTURE rather than from a label — a level with children is an
+        outer over inners; a leaf is the within-group solve itself.  Reading
+        it off ``label`` would be stringly-typed dispatch on a string chosen
+        for humans.
+        """
+        return bool(self.record.children)
+
+    @property
+    def flux_residuals(self) -> tuple[float, ...]:
+        r"""Per-iteration relative-flux residual trajectory
+        :math:`\lVert\phi_n - \phi_{n-1}\rVert / \lVert\phi_n\rVert`.
+
+        Empty on the eigenvalue path, whose top level stops on ``dk`` and
+        ``dphi`` rather than on a within-group residual — read
+        ``record.criteria`` (or ``record.children``) there.  That emptiness
+        is the pre-existing behaviour, kept deliberately: widening this name
+        to mean "``dphi`` when there is no residual" would silently re-point
+        every consumer that branches on it.
+        """
+        if self._is_outer:
+            return ()
+        criterion = self.record.binding_criterion
+        return () if criterion is None else criterion.trajectory
+
+    @property
+    def n_inner(self) -> int | None:
+        """Inner (within-group) iterations consumed by THE inner solve.
+
+        ``None`` on the eigenvalue path — there is no single inner solve to
+        point at, which is why :attr:`total_inner_iterations` exists.
+        """
+        return None if self._is_outer else self.record.n_iterations
+
+    @property
+    def total_inner_iterations(self) -> int | None:
+        """Inner iterations summed across ALL outer iterations.
+
+        Populated by both paths: the eigenvalue path sums its children, the
+        fixed-source path reports its single solve.  It is the measurand for
+        the SI spectral-rate / Gauss-Seidel-recovery diagnostics.
+        """
+        if self._is_outer:
+            return sum(child.n_iterations for child in self.record.children)
+        return self.record.n_iterations
+
+    @property
+    def n_outer(self) -> int | None:
+        """Outer (power) iterations consumed.  ``None`` for fixed-source."""
+        return self.record.n_iterations if self._is_outer else None
 
     def dominance_ratio(self) -> float | None:
         r"""Return :math:`|k_n - k_{n-1}| / |k_{n-1}|` in the late-iteration limit.

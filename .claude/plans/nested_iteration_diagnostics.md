@@ -240,7 +240,7 @@ makes the uncovered tail cheap — it tells that user the number.
 | N1 ✅ | `IterationRecord` + `StoppingCriterion` + their own laws | **LANDED** — see below |
 | N2a ✅ | **Producer-side retention** — the two drivers return a record | **LANDED** — see below |
 | N2b-i | **The OUTER stopping test reports what it measured** — see below; this row's original wording was too narrow | eigenvalue suites + new loop gates |
-| N2b-ii | SN's SOLUTION carries the record; `IterationHistory` composes it; flat accessors become derived | the 9-red baseline unchanged |
+| N2b-ii | SN's SOLUTION carries the record; `IterationHistory` becomes a VIEW; flat accessors derived | the 9-red baseline unchanged |
 | N3 | Derived budget + rate-aware message (3c) | contract suite + a NEW starved-projection gate |
 | N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
 | N5 | Outer certificate (F7/F7′) — residual `(A - F/k)psi` at exit | mutation battery |
@@ -474,6 +474,92 @@ V&V matrix 9327 → **9361**.
 ⛔ N5 is NOT plumbing. Per `plan-authoring` §8: today nothing branches on an
 outer residual, so adding one that RAISES changes behaviour at every eigenvalue
 call site. It ships behind the same warn-not-raise ruling as #340, or not at all.
+
+### N2b-ii — the solution carries the tree, not a flattened projection of it
+
+**Goal.** A caller holding a returned solution can ask "did this converge, and
+if not: which LEVEL, which criterion, how fast, what do I set" without reaching
+past the object it was given.
+
+**Means (user-ratified 2026-08-09: "iteration history as a view of iteration
+record is the right design").** `IterationHistory` keeps ONE field —
+`record` — plus `keff_history` (a physics output, not a stopping criterion).
+`converged`, `flux_residuals`, `n_inner`, `n_outer`,
+`total_inner_iterations` all become **derived properties**, and
+`fully_converged` is exposed for the first time because the flat type had no
+way to express it.
+
+⭐ **The leaf-vs-outer discriminator is STRUCTURAL, not a label.** `n_inner` is
+`None` on the eigenvalue path and `n_outer` is `None` on the fixed-source path,
+and the view decides which by asking *does the top level have children* — a
+level that drives nested solves is an outer; a leaf IS the solve. Reading it
+off `record.label` would be stringly-typed dispatch on a string chosen for
+humans.
+
+⚠ **`flux_residuals` deliberately stays empty on the eigenvalue path** even
+though `dphi` is now recorded there. Widening the name to "`dphi` when there is
+no residual" would silently re-point every consumer that branches on
+`if history.flux_residuals:`. The eigenvalue path's criteria are reachable —
+via `history.record` — which is the whole point of the view.
+
+**`_history_from_record` is RETIRED.** It existed to keep the lossy projection
+in one place; with the view there is no projection, so the three fixed-source
+entries construct `IterationHistory(record=record)` directly and the two
+eigenvalue entries add `keff_history`. All five now read identically, where
+before the two eigenvalue entries hand-wrote three facts in two different ways.
+
+**The temporary honesty patch is RETIRED** (`_warn_if_unconverged`'s
+"ALREADY cleared" branch). The warning now reads `record.binding_criterion` —
+the criterion furthest from clearing, i.e. the one that actually failed — so
+the situation the stop-gap guarded (*the failing criterion is absent from the
+history*) is *unrepresentable*. Its test is re-posed rather than deleted, and
+the claim strengthens from "say nothing rather than something wrong" to **"say
+the right thing"**: given `dk` cleared and `dphi` stalled, the message must
+name `dphi`. The replacement branch is a genuinely different claim — every
+criterion cleared yet the level did not converge means the LOOP refused
+(`min_iterations`), which is a state worth naming rather than a budget to
+project.
+
+⭐⭐ **A hole in the N1 primitive, found by writing the NEIGHBOURING test.**
+`IterationRecord.converged` guarded "a level that RAN and measured nothing"
+as `any(criterion.n_iterations == 0 …)` — which is silent on **no criteria at
+all**, because `any(())` is `False` and the rule then falls through to
+`all(())` and claims convergence. That is the identical vacuous-conjunction lie
+`power_iteration` refuses at the producer, left open one layer down. `[M]`
+found by writing the *pair* (converged-when-never-entered **and**
+not-converged-when-iterated), not by review: the first test passed, the second
+failed on correct-looking code. Widened to `not any(n_iterations > 0)`, which
+agrees with the old spelling wherever a criterion exists (criteria are
+co-indexed) and closes the zero-criteria case. ⟹ **vv #11's positive+negative
+pairing applies to a DERIVED PROPERTY too, and the pair is what finds the
+shape the rule forgot.**
+
+#### N2b-ii gates — `[M]` mutation battery 7/7, zero blind (after closing 2)
+
+MC0 positive control green. Two reddened nothing on the first run; both were
+real gaps in the DERIVED READINGS, and one carries a transferable lesson:
+
+⭐⭐ **MC3 — a `>=` gate is blind to any mutation that collapses one side onto
+the other.** Replacing `total_inner_iterations`'s sum-over-children with the
+outer's own count reddened **0**, and the near-miss is the point:
+`test_si_convergence_rate` asserts `total_inner >= n_outer > 0`, which *reads*
+like the guard for exactly this — and cannot be, because the mutation makes the
+two sides equal and `n >= n` holds. An ordering assertion between two
+quantities pins their ORDER, never their independence. The gate that works
+needs a fixture where the two genuinely differ (children that each ran 7
+passes, so 21 ≠ 3) plus an explicit `!=`.
+
+**MC4 — the deliberate non-widening of `flux_residuals` was ungated**, as
+predicted before the run. A design choice nothing gates is an ungated coverage
+claim, and this one is a one-line "improvement" away from silently re-pointing
+every `if history.flux_residuals:` consumer.
+
+Suites at the N2b-ii tree: `tests/sn/primitives` + `tests/sn/solve` +
+`tests/numerics` = **2280 passed**; `tests/sn/{solve,eigenvalue,acceleration,
+architecture,operators}` + `tests/diffusion` + `tests/moc` = **3 failed / 1811
+passed** (the 3 = the known #333 affine trio); pyright `orpheus/` **1 error**
+(the accepted #288 residual); xrefs **0 dead / 14 962**; V&V matrix
+9361 → **9366**.
 
 ---
 

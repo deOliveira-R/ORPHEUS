@@ -455,53 +455,52 @@ def _warn_if_unconverged(
     if history.converged:
         return
 
-    # The criterion the loop was actually judged on — named, so the rate and
-    # the projection below are properties of a quantity rather than of a
-    # bare list.  ``flux_residuals`` is the inner's; the outer records only
-    # ``keff_history``, whose INCREMENTS are what its stop test reads.
-    if history.flux_residuals:
-        criterion = StoppingCriterion(
-            name="residual", trajectory=tuple(history.flux_residuals),
-            tolerance=tol,
-        )
-        distance = f"last residual {criterion.last:.3e}"
-    elif len(history.keff_history) >= 2:
-        keffs = history.keff_history
-        criterion = StoppingCriterion(
-            name="|dk|",
-            trajectory=tuple(
-                abs(b - a) for a, b in zip(keffs[:-1], keffs[1:])
-            ),
-            tolerance=tol,
-        )
-        distance = f"last |dk| {criterion.last:.3e}"
-    else:
-        criterion = None
-        distance = "no residual recorded"
+    # The criterion that ACTUALLY bound — the one furthest from clearing,
+    # read straight off the record rather than reconstructed from a flat
+    # list (#340 N2b-ii).
+    #
+    # ⛔ Until 2026-08-09 this rebuilt a criterion by hand: `flux_residuals`
+    # when non-empty, else re-differencing `keff_history` into `|dk|`.  That
+    # could only ever recover ONE of the outer's two criteria, and it picked
+    # the wrong one exactly when it mattered.  `[M]` caught by the wide run,
+    # not by review: on the mutated heterogeneous slab, whose NEGATIVE
+    # dominant eigenvalue makes `dphi` alternate in sign forever, `|dk|` sat
+    # at 3.3e-16 against a 1e-9 tolerance — so the projection dutifully
+    # answered "you need 1 iteration" while the solve could never converge.
+    # The stop-gap was a branch that detected "the recorded quantity cleared"
+    # and refused to project; it is retired here, because the record carries
+    # BOTH criteria and `binding_criterion` picks the one that failed.
+    criterion = history.record.binding_criterion
+    distance = (
+        "no criterion recorded"
+        if criterion is None or criterion.last is None
+        else f"last {criterion.name} {criterion.last:.3e}"
+    )
 
     rate = None if criterion is None else criterion.rate
     projected = None if criterion is None else criterion.projected_iterations()
     if criterion is not None and criterion.cleared:
-        # ⛔ The recorded quantity DID clear, yet the loop did not converge —
-        # so the criterion that failed is one this history does not carry,
-        # and projecting off the one we have would be worse than silence.
+        # Every criterion cleared, yet the level did not converge — so the
+        # refusal came from the LOOP, not from a quantity: too few iterations
+        # to claim (`min_iterations`), or a level that ran and measured
+        # nothing.  Both are real states and neither is a budget problem, so
+        # naming the state beats projecting a number.
         #
-        # [M] 2026-08-09, caught by the wide run rather than by review: the
-        # outer stop test is `dk AND dphi`, and only `keff_history` survives
-        # into IterationHistory (#340 F2 — `dphi` is computed inside
-        # `SNSolver.converged` and discarded).  On the mutated heterogeneous
-        # slab, whose NEGATIVE dominant eigenvalue makes `dphi` alternate in
-        # sign forever, `|dk|` sits at 3.3e-16 against a 1e-9 tolerance — so
-        # the projection dutifully answered "you need 1 iteration".  An
-        # authoritative-looking wrong number is exactly the failure this
-        # campaign exists to remove; say what is actually known instead.
-        # Retiring this branch is N2a's job: record the criteria you judge on.
+        # ⚠ This is NOT the retired stop-gap it replaces.  That branch fired
+        # when the failing criterion was ABSENT from the history; this one
+        # fires only when there is no failing criterion at all, which is a
+        # statement the record can actually make.
+        shortfall = history.record.min_iterations
         advice = (
-            f"⚠ the recorded {criterion.name} has ALREADY cleared "
-            f"tol={tol:.3e}, so the criterion that did not is one this "
-            f"history does not carry (the outer stop test also requires "
-            f"flux_tol, whose increments are not recorded) — no budget can "
-            f"honestly be projected from what is here. Read"
+            f"every recorded criterion cleared, so the refusal is the loop's: "
+            f"it ran {history.record.n_iterations} of the {shortfall} "
+            f"iterations required before convergence may be claimed. Read"
+            if history.record.n_iterations < shortfall
+            else
+            f"every recorded criterion cleared but the level measured "
+            f"nothing — it ran {history.record.n_iterations} iterations "
+            f"without recording a value, so there is nothing to project "
+            f"from. Read"
         )
     elif rate is None:
         advice = f"Raise {budget_name}, or read"
@@ -595,29 +594,6 @@ def _certify_within_group_exit(
         )
 
 
-def _history_from_record(record: IterationRecord) -> "IterationHistory":
-    r"""Compose the SN-facing flat history from an inner driver's record.
-
-    The ONE place the flat carrier is derived from the recursive one, so the
-    three fixed-source entries cannot spell it three ways — which is how
-    ``n_inner`` came to mean ``len(residuals)`` on the SI path and
-    ``len(residuals) + 1`` on the Krylov path, undocumented and exactly
-    backwards from the truth (#340 F11: SI is the one whose count exceeds
-    its trajectory).
-
-    ⚠ This is a SEAM, not a destination. :class:`IterationHistory` is flat
-    and SN-local, so composing into it discards the tree — which is the
-    whole of #340's F6. It stays until N2b gives the solution object a
-    record of its own; keeping the projection in one function is what makes
-    that replacement a one-line change rather than a five-site hunt.
-    """
-    criterion = record.binding_criterion
-    return IterationHistory(
-        flux_residuals=() if criterion is None else criterion.trajectory,
-        n_inner=record.n_iterations,
-        total_inner_iterations=record.n_iterations,
-        converged=record.converged,
-    )
 
 
 def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
@@ -2477,20 +2453,14 @@ def solve_sn(
     # outflow = streamed); System B's converged state is its OWN member
     # (B.2d — the marched ψ½ composite; None on non-carrying meshes).
     from orpheus.transport.fields.scalar_flux import ScalarFlux
+    # The record IS the history (#340 N2b-ii).  Everything this used to
+    # spell out by hand — ``converged``, ``n_outer``,
+    # ``total_inner_iterations`` — is now READ from the tree the loop built,
+    # so no producer can write a verdict and none can disagree with another
+    # about what an iteration count means.  ``keff_history`` stays explicit:
+    # it is a physics output, not a stopping criterion.
     history = IterationHistory(
-        # READ from the loop, never asserted here (#342).  This field said
-        # ``True`` unconditionally until 2026-08-08, so a forward eigenvalue
-        # solve could not report truncation at all — while its adjoint twin
-        # inferred it from ``len(keff_history) < max_outer``.  Both are now
-        # the SAME fact, recorded by ``power_iteration`` itself; the direct
-        # flag is also sharper than the inference, which misreports a solve
-        # that converges exactly on its last allowed outer.
-        converged=outcome.converged,
-        keff_history=tuple(keff_history),
-        n_outer=len(keff_history),
-        total_inner_iterations=sum(
-            r.n_iterations for r in solver.inner_records
-        ),
+        record=outcome.record, keff_history=tuple(keff_history),
     )
     _warn_if_unconverged(
         history, where="solve_sn", budget_name="max_outer",
@@ -2759,20 +2729,15 @@ def solve_sn_adjoint(
         if isinstance(psi_star, CoupledField)
         else None
     )
+    # Identical to the forward entry's spelling, and that is the point: the
+    # two paths used to hand-write the same three facts in two different
+    # ways (this one INFERRED convergence from ``len(keff_history) <
+    # max_outer`` — wrong for a solve that converges on its last allowed
+    # outer — and reported no inner total at all, because ``KEigenvalue``
+    # discarded its inner trajectory inside ``numerics/``).  Both now read
+    # the one tree ``power_iteration`` built (#340 N2b-ii).
     history = IterationHistory(
-        # The loop's own flag, not the ``len(keff_history) < max_outer``
-        # inference this used to carry — that inference is WRONG for a
-        # solve that converges exactly on its last allowed outer, and it
-        # was a second transcription of a fact the primitive already had.
-        converged=outcome.converged,
-        keff_history=tuple(keff_history),
-        n_outer=len(keff_history),
-        # ⛔ Was ABSENT until 2026-08-09 — not by choice, but because
-        # ``KEigenvalue.solve_fixed_source`` discarded its inner trajectory
-        # inside ``numerics/``, so this entry had nothing to report and
-        # ``total_inner_iterations`` came back ``None`` where the forward
-        # path reported 1470 (#340).  The driver now keeps its records.
-        total_inner_iterations=sum(r.n_iterations for r in ke.inner_records),
+        record=outcome.record, keff_history=tuple(keff_history),
     )
     _warn_if_unconverged(
         history, where="solve_sn_adjoint", budget_name="max_outer",
@@ -2920,7 +2885,7 @@ def solve_sn_adjoint_fixed_source(
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
     # and trip the typed cross-class guard on the first displacement.
     psi_star, record = si.solve(q_star, initial_guess=template)
-    history = _history_from_record(record)
+    history = IterationHistory(record=record)
     _warn_if_unconverged(
         history, where="solve_sn_adjoint_fixed_source",
         budget_name="max_inner", budget=max_inner, tol=inner_tol,
@@ -3603,7 +3568,7 @@ def _solve_fixed_source_si(
     # Solution never consumed them; the typed fluxes carry the SNMesh
     # reference, which transitively exposes those handles via
     # ``.mesh.{mesh, quad, materials}``.)
-    history = _history_from_record(record)
+    history = IterationHistory(record=record)
     _warn_if_unconverged(
         history, where="solve_sn_fixed_source", budget_name="max_inner",
         budget=max_inner, tol=inner_tol,
@@ -3826,7 +3791,7 @@ def _solve_fixed_source_krylov(
     # undocumented, and BACKWARDS: it is SI whose pass count exceeds its
     # trajectory (it measures differences), while GMRES gets one callback
     # per iteration.  Both now read the producer's own count (#340 F11).
-    history = _history_from_record(record)
+    history = IterationHistory(record=record)
     _warn_if_unconverged(
         history, where="solve_sn_fixed_source", budget_name="max_inner",
         budget=max_inner, tol=inner_tol,

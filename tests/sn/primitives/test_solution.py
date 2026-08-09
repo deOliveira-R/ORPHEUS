@@ -28,6 +28,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -44,6 +45,82 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 pytestmark = pytest.mark.foundation
+
+
+def _history(
+    *,
+    converged: bool = True,
+    keff_history: tuple[float, ...] = (),
+    flux_residuals: tuple[float, ...] = (),
+) -> IterationHistory:
+    """Build a history that READS as requested, by stating a trajectory.
+
+    ⛔ ``converged`` stopped being a field on 2026-08-09 (#340 N2b-ii):
+    :class:`IterationHistory` is now a view over an
+    :class:`~orpheus.numerics.convergence.IterationRecord` and every verdict
+    is derived from what was measured.  So a test cannot assert the verdict
+    into existence — it has to do what a producer does and supply a
+    trajectory that clears (or does not) against a tolerance.
+
+    That is deliberately a little more work here, and it is the whole point:
+    the old spelling ``IterationHistory(converged=True)`` is exactly the
+    hand-written claim #342 was, and making it unspellable in TESTS too is
+    what stops a fixture from certifying a state the production types can no
+    longer produce.
+
+    Builds a LEAF record (a within-group solve), so ``n_inner`` is populated
+    and ``n_outer`` is ``None``.  A test that needs the eigenvalue shape
+    builds a record with children — see :func:`_outer_history`.
+    """
+    trajectory = tuple(flux_residuals) or ((0.0,) if converged else (1.0,))
+    # A tolerance above the whole trajectory clears; ``0.0`` is legal and,
+    # since ``cleared`` is a strict ``<``, never clears.
+    tolerance = (max(trajectory) + 1.0) if converged else 0.0
+    return IterationHistory(
+        record=IterationRecord(
+            label="inner(probe)",
+            criteria=(
+                StoppingCriterion(
+                    name="residual", trajectory=trajectory,
+                    tolerance=tolerance,
+                ),
+            ),
+            iterations_run=len(trajectory),
+        ),
+        keff_history=keff_history,
+    )
+
+
+def _outer_history(
+    *, keff_history: tuple[float, ...], n_outer: int,
+) -> IterationHistory:
+    """An EIGENVALUE-shaped history: an outer record over ``n_outer`` inners.
+
+    The shape is what makes ``n_outer`` non-``None`` and ``n_inner`` ``None``
+    — the view reads those off the tree's STRUCTURE (a level with children is
+    an outer; a leaf is the solve), never off a field a producer set.
+    """
+    inner = IterationRecord(
+        label="inner(probe)",
+        criteria=(
+            StoppingCriterion(name="residual", trajectory=(0.0,),
+                              tolerance=1.0),
+        ),
+        iterations_run=1,
+    )
+    return IterationHistory(
+        record=IterationRecord(
+            label="outer(probe)",
+            criteria=(
+                StoppingCriterion(
+                    name="dk", trajectory=(0.0,) * n_outer, tolerance=1.0,
+                ),
+            ),
+            iterations_run=n_outer,
+            children=(inner,) * n_outer,
+        ),
+        keff_history=keff_history,
+    )
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────
@@ -85,24 +162,180 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
 
 
 class TestIterationHistory:
-    def test_default_empty(self) -> None:
-        """An IterationHistory with no entries has no dominance ratio."""
-        h = IterationHistory(converged=True)
+    def test_a_record_that_measured_nothing_reads_empty(self) -> None:
+        """An empty record reads empty everywhere, and claims convergence.
+
+        ⛔ Was ``test_default_empty``, asserting the DEFAULTS of six fields.
+        There are no defaults now (#340 N2b-ii): the record is required and
+        every reading below is derived from it, so what this pins is the
+        derivation's behaviour on the degenerate tree rather than a
+        constructor's argument list.
+
+        ``converged is True`` on a level that never entered its loop is
+        deliberate and is the reading the retired ``_claims_convergence``
+        got backwards: a direct solve — a factorisation, a Krylov call
+        satisfied by its initial guess — did not FAIL to converge. The
+        neighbouring state (a level that RAN and measured nothing) is the one
+        that must not claim, and it is discriminated by ``iterated``.
+        """
+        h = IterationHistory(record=IterationRecord(label="inner(probe)"))
         assert h.keff_history == ()
         assert h.flux_residuals == ()
-        assert h.n_inner is None
-        assert h.n_outer is None
+        assert h.n_inner == 0
+        assert h.n_outer is None          # a leaf: no outer to report
+        assert h.total_inner_iterations == 0
         assert h.converged is True
+        assert h.fully_converged is True
+        assert h.record.iterated is False
         assert h.dominance_ratio() is None
         assert h.latest_keff() is None
         assert h.latest_residual() is None
 
+    def test_a_level_that_RAN_and_measured_nothing_does_not_claim(
+        self,
+    ) -> None:
+        """The neighbour of the case above, and it must read the other way.
+
+        Same empty criteria, but the level iterated — an SI capped at
+        ``max_iter=1`` measures no difference at all. Vacuous truth is right
+        for one of these two and wrong for the other, which is why the
+        discriminator is named rather than a side being picked.
+        """
+        h = IterationHistory(
+            record=IterationRecord(label="inner(probe)", iterations_run=1),
+        )
+        assert h.record.iterated is True
+        assert h.converged is False
+
+    def test_converged_answers_for_the_LEVEL_and_fully_converged_for_the_TREE(
+        self,
+    ) -> None:
+        """Two questions, two answers — on the fixture that separates them.
+
+        ⭐ Both are one-line delegations to the record, which is exactly why
+        they need a gate here rather than being taken on trust: `[M]` the same
+        conflation on ``PowerIterationOutcome`` reddened **0 of 249** tests,
+        because every other gate reached through to the record directly and
+        the fixtures in use had the level and the fold agreeing.  A delegating
+        property is only gated by a fixture where the delegate's two readings
+        DIFFER.
+
+        The state below is the #340 headline: an outer whose own criteria
+        cleared, standing on an inner that was truncated.
+        """
+        starved_inner = IterationRecord(
+            label="inner(probe)",
+            criteria=(
+                StoppingCriterion(name="residual", trajectory=(1.0,),
+                                  tolerance=1e-8),
+            ),
+            budget=1, iterations_run=1,
+        )
+        h = IterationHistory(
+            record=IterationRecord(
+                label="outer(probe)",
+                criteria=(
+                    StoppingCriterion(name="dk", trajectory=(0.0,) * 3,
+                                      tolerance=1.0),
+                ),
+                iterations_run=3, children=(starved_inner,) * 3,
+            ),
+        )
+
+        assert h.converged is True, "the outer's OWN criteria did clear"
+        assert h.fully_converged is False, (
+            "the AND-fold over the tree must refuse what the level alone "
+            "would claim — a value gate wants THIS one"
+        )
+        assert h.record.first_failure is not None
+        assert h.record.first_failure.label == "inner(probe)"
+
+    def test_the_inner_TOTAL_sums_the_children_not_the_outer_itself(
+        self,
+    ) -> None:
+        """``total_inner_iterations`` is a sum over children, and it must be
+        DISTINGUISHABLE from the outer's own count.
+
+        ⭐ This gate exists because a mutation found its absence, and the
+        near-miss is the instructive part. `[M]` replacing the sum with
+        ``record.n_iterations`` reddened **0** — including
+        ``test_si_convergence_rate``'s ``total_inner >= n_outer > 0``, which
+        LOOKS like the guard for exactly this and cannot be: the mutation
+        makes the two sides equal, and ``n >= n`` is true. **A ``>=`` between
+        two quantities is blind to any mutation that collapses one onto the
+        other.**
+
+        So the fixture is built with children that ran MORE than once, which
+        is the only shape where sum-over-children and count-of-outers differ.
+        """
+        inner = IterationRecord(
+            label="inner(probe)",
+            criteria=(
+                StoppingCriterion(name="residual", trajectory=(0.0,) * 7,
+                                  tolerance=1.0),
+            ),
+            iterations_run=7,
+        )
+        h = IterationHistory(
+            record=IterationRecord(
+                label="outer(probe)",
+                criteria=(
+                    StoppingCriterion(name="dk", trajectory=(0.0,) * 3,
+                                      tolerance=1.0),
+                ),
+                iterations_run=3, children=(inner,) * 3,
+            ),
+        )
+
+        assert h.n_outer == 3
+        assert h.total_inner_iterations == 21, "3 outers x 7 inner passes"
+        assert h.total_inner_iterations != h.n_outer, (
+            "the fixture must SEPARATE the two, or this gate is a tautology"
+        )
+        assert h.n_inner is None, "no single inner solve to point at"
+
+    def test_flux_residuals_stays_EMPTY_on_the_eigenvalue_path(self) -> None:
+        """Deliberately not widened to ``dphi`` — and the choice is gated.
+
+        ⭐ Also found blind by mutation. The outer DOES now record ``dphi``,
+        which is the same quantity ``flux_residuals`` names, so returning it
+        here is a tempting one-line "improvement". It would silently re-point
+        every consumer that branches on ``if history.flux_residuals:`` — the
+        DSA rate probes among them — from "this is a within-group solve" to
+        "this is any solve at all".
+
+        The eigenvalue path's criteria are not lost; they are one attribute
+        away on :attr:`IterationHistory.record`. A deliberate design choice
+        that nothing gates is an ungated coverage claim, so this is the gate.
+        """
+        h = IterationHistory(
+            record=IterationRecord(
+                label="outer(probe)",
+                criteria=(
+                    StoppingCriterion(name="dk", trajectory=(1e-3, 1e-6),
+                                      tolerance=1.0),
+                    StoppingCriterion(name="dphi", trajectory=(1e-2, 1e-5),
+                                      tolerance=1.0),
+                ),
+                iterations_run=2,
+                children=(IterationRecord(label="inner(probe)"),) * 2,
+            ),
+        )
+
+        assert h.flux_residuals == (), (
+            "the flat name means the WITHIN-GROUP residual; the outer's "
+            "criteria reach the caller through .record"
+        )
+        assert h.latest_residual() is None
+        # ...and the data is genuinely still available, one hop away.
+        assert [c.name for c in h.record.criteria] == ["dk", "dphi"]
+
     def test_dominance_ratio_single_entry(self) -> None:
-        h = IterationHistory(converged=True, keff_history=(1.234,))
+        h = _history(converged=True, keff_history=(1.234,))
         assert h.dominance_ratio() is None  # need ≥ 2
 
     def test_dominance_ratio_three_iters(self) -> None:
-        h = IterationHistory(converged=True, keff_history=(1.0, 1.1, 1.10005))
+        h = _history(converged=True, keff_history=(1.0, 1.1, 1.10005))
         # |1.10005 - 1.1| / |1.1| ≈ 4.545e-5
         ratio = h.dominance_ratio()
         assert ratio is not None
@@ -110,26 +343,26 @@ class TestIterationHistory:
 
     def test_dominance_ratio_zero_prev(self) -> None:
         """A zero penultimate keff returns None to avoid divide-by-zero."""
-        h = IterationHistory(converged=True, keff_history=(0.0, 1.0))
+        h = _history(converged=True, keff_history=(0.0, 1.0))
         assert h.dominance_ratio() is None
 
     def test_latest_keff(self) -> None:
-        h = IterationHistory(converged=True, keff_history=(1.0, 1.1, 1.05))
+        h = _history(converged=True, keff_history=(1.0, 1.1, 1.05))
         assert h.latest_keff() == 1.05
 
     def test_latest_residual(self) -> None:
-        h = IterationHistory(converged=True, flux_residuals=(1e-3, 1e-6, 1e-9))
+        h = _history(converged=True, flux_residuals=(1e-3, 1e-6, 1e-9))
         assert h.latest_residual() == 1e-9
 
     def test_frozen(self) -> None:
         """IterationHistory is frozen — fields cannot be reassigned."""
-        h = IterationHistory(converged=True, keff_history=(1.0,))
+        h = _history(converged=True, keff_history=(1.0,))
         with pytest.raises((AttributeError, Exception)):
             h.keff_history = (1.0, 1.1)  # type: ignore[misc]
 
     def test_keff_history_is_tuple(self) -> None:
         """The trajectory MUST be a tuple — frozen-with-mutable-list anti-pattern."""
-        h = IterationHistory(converged=True, keff_history=(1.0, 1.1))
+        h = _history(converged=True, keff_history=(1.0, 1.1))
         assert isinstance(h.keff_history, tuple)
         # Pinning the contract: a list passed in survives but the field
         # is documented as a tuple; consumers MUST treat it as immutable.
@@ -159,7 +392,7 @@ class TestSolutionConstruction:
     def test_construct_eigenvalue(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h = IterationHistory(converged=True, keff_history=(1.0, 1.05), n_outer=2)
+        h = _outer_history(keff_history=(1.0, 1.05), n_outer=2)
         sol = Solution(
             angular_flux=psi, scalar_flux=phi,
             mesh=m, keff=1.05, history=h,
@@ -253,7 +486,7 @@ class TestSolutionDiagnostics:
         """Solution.dominance_ratio delegates to IterationHistory."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h = IterationHistory(converged=True, keff_history=(1.0, 1.1, 1.10005))
+        h = _history(converged=True, keff_history=(1.0, 1.1, 1.10005))
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m, keff=1.10005, history=h)
         ratio = sol.dominance_ratio()
@@ -292,8 +525,8 @@ class TestSolutionDiagnostics:
     def test_converged_with_history(self) -> None:
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h_yes = IterationHistory(converged=True)
-        h_no = IterationHistory(converged=False)
+        h_yes = _history(converged=True)
+        h_no = _history(converged=False)
         sol_yes = Solution(
             angular_flux=psi, scalar_flux=phi,
             mesh=m, history=h_yes,
@@ -309,7 +542,7 @@ class TestSolutionDiagnostics:
         """The legacy keff_history accessor returns a plain list."""
         m = _slab_mesh()
         psi, phi, bf = _make_fluxes(m)
-        h = IterationHistory(converged=True, keff_history=(1.0, 1.05, 1.04))
+        h = _history(converged=True, keff_history=(1.0, 1.05, 1.04))
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m, keff=1.04, history=h)
         lst = sol.keff_history_list()
