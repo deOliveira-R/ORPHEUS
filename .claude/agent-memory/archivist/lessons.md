@@ -94,6 +94,21 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   construction — shapes, metrics, comparison — so the table regenerates from the page. Reproduce AND
   WIDEN every measured number a plan hands you (a 3-sample `|Γ₊|=|Γ₋|` claim became 6 quadratures ×
   every face). → L-048
+- **⭐⭐ A ratio is a ratio OF AN OBSERVABLE — name it before citing it.** A memo's `n_GS/n_J` was
+  ρ-DERIVED (`ln ρ_J/ln ρ_GS` from an eigen-solve) while every published table reported SWEEP
+  COUNTS. My control reproduced the published `1631/838` **exactly**, then **4 of 5** memo rows
+  disagreed in **SIGN** (`0.576` "wins" vs measured `2.503` "loses") — two individually sound
+  instruments, different observables, near-degenerate rates. Publish only the observable you
+  measured; never let a rate-ratio and a count-ratio share a column heading. → L-051
+- **"Already done in code" ≠ "gating green".** A brief's "don't redo the code" premise said nothing
+  about the build: the `-E` baseline carried an `ERROR: Malformed table` in the very docstring that
+  pass had just edited, so the brief's own `-W` gate could not have passed. Fixing it was blocking
+  AND in scope. Diagnose a simple table by rebuilding column spans from the `===` separator
+  (`re.finditer(r'=+', sep)`) and flagging non-space chars in the gaps. → L-051
+- **Importing algebra from code/memo imports its SYMBOL COLLISIONS** (`A_a` face-area vs the loss
+  operator `A`; `Σ` transmission vs `Σ_t`). KEEP the code's spelling — internal consistency outranks
+  local awkwardness — and pay with an explicit `.. note::` naming each overload AND its
+  disambiguator. Never silently rename into the docs: that mints a code↔corpus twin. → L-051
 
 ---
 

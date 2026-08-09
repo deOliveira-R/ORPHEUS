@@ -4542,6 +4542,115 @@ probes WITHOUT `-O`, or raise instead of asserting.
 
 ---
 
+## L-051 — a "measured, already-done" brief: reproduce it, and expect the
+## reproduction to move the SCOPE (#341 "regular splitting" corpus sweep)
+
+**Context.** Brief: strike the false term *regular splitting* at "seven
+live doc sites"; the code sites were "already done — do NOT redo"; the
+gate was `-W` EXIT 0. Delivered: 9 doc sites + 2 missed code sites + a
+blocking build ERROR + a second, independent false claim.
+
+**(a) A multi-word term takes an INFIX — grep each token, not the pair.**
+The brief's grep was `"regular splitting|regular-splitting"`. The corpus
+also spelled it **`regular matrix splitting`**, so two live present-tense
+sites were invisible: `cartesian_multid.rst:3840` ("exactly a **regular
+matrix splitting**") and `history.rst:836`. One `grep -rn "regular"` over
+`docs/theory` (37 hits, ~30 seconds to triage) found both. This is the
+cheap mechanic under theme 4's "grep the CONCEPT": for an
+`<adjective> <noun>` term, grep the ADJECTIVE alone and triage, because
+the noun phrase routinely grows a word in the middle.
+
+**(b) "Already done in code" ≠ "gating green" — measure the `-E` baseline
+before believing the brief's premise.** The `-E` baseline was **EXIT 0,
+1 diagnostic: `ERROR: Malformed table`** in
+`orpheus/sn/solver.py:docstring of solve_sn_fixed_source:86` — the ⚠ rate
+table the SAME upstream code pass had just added, with every data row's
+numerals straddling the `===`-defined column gaps (offsets 44 and 57).
+So the brief's own acceptance gate (`-W` EXIT 0) could not have passed on
+the tree it handed me. Fixing it was blocking AND in scope (same issue,
+doc-only). Diagnose a simple table by reconstructing the column spans
+from the separator with `re.finditer(r'=+', sep)` and flagging non-space
+characters inside the gaps — instant, and it names the offending offsets.
+
+**(c) ⭐⭐ A ratio is a ratio OF AN OBSERVABLE — ask which one before
+citing it.** The brief handed me a spectral result and an investigation
+memo whose §6 argued a conclusion from `n_GS/n_J` values. Those were
+**ρ-DERIVED** (`ln ρ_J / ln ρ_GS` from an ARPACK eigen-solve of `M⁻¹N`);
+every table already published in the corpus reports **SWEEP COUNTS** from
+a real solve. `[M]` I re-measured five memo rows as sweep counts with a
+control first: the control reproduced the published `1631 / 838 = 1.946`
+**exactly**, and then **4 of 5 rows disagreed in SIGN** (memo `0.576`
+"G-S wins" vs measured `1499/599 = 2.503` "G-S loses"). Both instruments
+are individually sound — the memo validates ρ against a fitted residual
+decay to 4 decimals. They simply measure different things: when
+`ρ_GS ≈ ρ_J` to a fraction of a percent, the asymptotic ratio is wildly
+sensitive while the sweep count is dominated by the transient, the
+residual constant, and (per the memo's own §1.3) a frozen null-space
+component the stopping test cannot see. **Rule: publish only the
+observable you measured, name it in the caption, and never let a
+rate-ratio and a count-ratio share a column heading.** The memo's
+CONCLUSION survived (I established it independently on the other side);
+its specific rows did not.
+
+**(d) A technical term with a theorem attached is the ONLY carrier —
+absence of a paraphrase is the finding, not reassurance.** I grepped
+`Varga`, `comparison theorem`, `Stein-Rosenberg`, `monotone`, `M-matrix`,
+`no slower than`, `never slower`, `at least as fast`, `ρ_GS`, `ρ_J` and
+every `splitting` in `docs/theory`. The corpus **never once** wrote the
+guarantee in prose. That is exactly why the word survived nine sites: a
+reader who knows Varga supplies `ρ_GS ≤ ρ_J` silently, and a reader who
+does not sees a decoration. So for a named theorem-bearing term, every
+occurrence is load-bearing and none can be dismissed as decoration —
+and the correction owes the corpus ONE place where the theorem is stated
+and its failing hypothesis named, or the next author re-adds the word.
+
+**(e) One home for the reason, `:ref:` from the rest.** The brief said
+"point at the canonical code warning rather than restate the derivation".
+Resolved by Cardinal Rule 3: a module docstring is a construction-site
+note, a theory page is the brain. New H3
+`sn-boundary-gs-not-regular` in `cartesian_multid.rst` (the page that
+owns the boundary-G-S schedule) carries the whole derivation; the other
+8 doc sites and 6 code sites `:ref:` it. Verified in built HTML: 5 of 5
+cross-doc referrers resolve to real `href`s (a cross-doc `:ref:` renders
+plain text with NO warning — the build cannot tell you this).
+
+**(f) Importing algebra from a memo/code into a theory page imports its
+SYMBOL COLLISIONS.** `A_a` (face area) collided with `A = L+C−S−B` (the
+loss operator the whole section is about); `Σ` (transmission matrix)
+collided with `Σ_t`. Resolution that satisfies the ratified
+internal-consistency directive: **keep the code's spelling** and pay for
+it with an explicit `.. note::` naming both overloads and their
+disambiguators ("`A_a` always carries its axis subscript"; "`Σ` never
+carries a `t`/`s` subscript"), stating that consistency with the
+construction site outranks the local awkwardness. Do not silently rename
+into the docs — that creates a code↔corpus spelling twin.
+
+**(g) `.. (vv-status rationale)` is NOT machine-read — verified, not
+assumed.** The scanner regex is `^\.\.\s+vv-status:(.*)$`
+(`tests/_harness/audit.py:405`), which the `.. (vv-status rationale)`
+comment does not match. So the rationale is free prose and the directive
+line is the contract. Self-check without pytest:
+`A._scan_theory_equations(Path("docs/theory"))` → fields
+`all_labels / documented / skipped / violations`; I read **0 violations,
+860 labels, 532 documented**, matching the auto-regenerated matrix
+(531 → 532 from my one new label).
+
+**(h) Scope ruling for an OPEN issue's investigation memo.** Published
+(i) what the brief handed me and I re-derived (the `Σ = (2/D)1wᵀ − I`
+spectrum; checked numerically at `d ∈ {2,3,4}`, plus the step-differencing
+contrast `{0}^{d−1} ∪ {(D'−Σ_tV)/D'}` which makes the undamped subspace a
+property of the DIAMOND closure, not of transport), and (ii) the two
+counterexamples I measured myself. **Withheld** the memo's octant-order
+law, its 25-pattern enumeration and its `max_a L_a > Σ_b L_b` predicate:
+live findings with an unacted recommendation on an OPEN issue are the
+main agent's to publish. Tombstoned, did not delete, the refuted
+`ndim` reading — in all three places it appeared (theory page, a sibling
+page's Key Facts, and the production docstring's user-facing
+recommendation), because a half-done correction leaves a page
+contradicting itself (vv anti-pattern #21's aggravator).
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:
