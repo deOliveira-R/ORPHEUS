@@ -3022,15 +3022,70 @@ implemented and **no `D_6h`-invariant rule in tree**.
     spherical-inward diamond. Collection 9197/0. The
     Gauss-Lobatto × admission interaction FILED as #338 (the
     sphere-side node-aligned case needs its own decision).
-    **▶ NEXT: leg 6 — docs + close: the 4 theory-page fold
-    references (curvilinear_one_group :3005/:3306,
-    curvilinear_numerics :650/:945; history.rst gets the flip
-    entry) + the R12a trichotomy rows + angular_quadrature +
-    structured_geometry; V&V matrix regen inside sphinx -W; the
-    owed batteries — tests/sn FULL not-slow (re-measures the
-    known-red set, now expected: the spherical diamond + the 5
-    octant rows) and tests/numerics WITH-slow; plan + memory
-    close-out; the LS double-fold capability issue.**
+  * **LEG 6 LANDED `6837a429` (2026-08-08) — 6.3 IS CLOSED.** The
+    theory corpus follows the flip, retirement-by-tense: the four #280
+    2.5b fold references go past-tense; `curvilinear_one_group`'s "only
+    the sphere carries the block; every cylinder inlines the 2-point
+    extrapolation" was the **exact inverse** of the tree and is now
+    "every ADMITTED level carries"; the R12a trichotomy's first two rows
+    are marked refused-at-admission (they survive as quadrature-level
+    classifications, not constructible meshes); the circle-vs-interval
+    conclusion inverted with it — the fold **renounces** the circle's
+    free edge-inclusion deliberately, because that freeness came bundled
+    with Σ-on-the-mirror, the #326 η-ties, and the τ=0 division block, so
+    the folded cylinder JOINS the sphere in paying one seed per level;
+    `angular_quadrature` gained the missing **Folded Product** section
+    (the admitted family) + an LS warning (`level_indices` is necessary,
+    NOT sufficient); the Gauss-Lobatto study's pole node re-framed as the
+    SAME non-carrying class, arising sphere-side (#338);
+    `structured_geometry`'s "the absorption must survive until the fold
+    wiring" ⛔ REFUTED in place — the wiring landed and dissolved that
+    reason; what keeps the clip alive to 6.4 is **baseline discipline,
+    not structure**. ⭐ `[M]` the CONCEPT grep caught what seven symbol
+    greps missed: `sn/index.rst:516` opened *"For cylindrical 1-D radial
+    sweeps with a product or level-symmetric quadrature"* — an
+    instruction naming exactly the two refused families (the
+    `coding-standards` "grep the CONCEPT, not only the symbol" clause,
+    earning its keep again).
+    `[M]` **both owed batteries measured**: tests/sn FULL not-slow
+    **2882 passed / 10 failed** (30:59) and tests/numerics WITH-slow
+    **2075 passed / 0 failed** (16:16). Nine of the ten reds are the
+    known ledger (3 affine sha256 = #333 · 5 octant · 1 spherical
+    diamond). ⚠ **the tenth is NEW and the full battery is what found
+    it** — `test_d3_admission.py::test_d3_pure_absorber_per_ordinate_psi_exact`,
+    `[M]` max rel **3.287e-10** vs its `rtol=1e-10`, and `[M]` **bit-
+    identical at every `inner_tol` from 1e-9 to 1e-15** ⟹ NOT a
+    convergence artifact; it lives on exactly the 8 |μ_x|-dominant
+    ordinates (the |μ_x|=0.3500 eight are exact at 1e-15) and only in the
+    low-Σt group. `git bisect run` ⟹ first-bad **`59bb38a0`** (#337's
+    moment-matched LS seed: S4 |cos| moved 0.4082/0.8165 → 0.3500/0.8689).
+    ⛔ REFUTED, with reasons: a broken/many-to-one mirror map (ERR-073
+    class) — the cosine sets are bit-exactly negation-closed, the x-mirror
+    is an injective involution, partner weights differ by 0.0; and
+    source-normalisation drift — Σw − 4π = 0.0 exactly. Under
+    `numerics-investigator` diagnosis (report lands at
+    `scratch/d3_absorber_diagnosis.md`); the live question is
+    whether the all-reflective solve exits without converging the BC (a
+    certificate hole, Cardinal-Rule-1 FIX) or 3.3e-10 is the true discrete
+    floor (gate re-derivation per vv anti-#16). Gates at this stamp:
+    sphinx -W exit 0 on a FULL `-E` re-read, xref 0 dead / 940 files,
+    pyright ratchet green, V&V matrix re-derived identical (9197 tests,
+    336 equations). **#339 FILED** — the LS double-fold capability
+    (quotient the vertical pair too; the σ_y fold alone does NOT repair
+    LS, since the `|μ_z|` grouping keeps the hemisphere pair's η-tie
+    through the ξ-fold).
+    **▶ NEXT: 6.4 acceptance.** ⚠ existence-checked 2026-08-08 against
+    the tree, and **one item of the list below is already DONE**: the
+    three `xfail(strict=True)` rows (item 4) were retired-with-tombstone
+    AT THE FLIP — `_XFAIL_326` now grep-hits *only* inside
+    `test_azimuthal_mirror_symmetry.py`'s tombstone docstring, past-tense.
+    Genuinely pending and verified live: the #229 floor (item 1); T3's α
+    closed form (item 2 — `test_alpha_closed_form.py` still calls it "the
+    Q5.6.4 T3 α" gate); τ ∉ {0,1} (item 3); and the **absorber
+    retirement**, confirmed live at
+    `orpheus/sn/sweep/pole_angular_closure.py:929`
+    (`tau[m] = max(0.5, min(1.0, ...))`) — it owns its own re-baseline
+    window because `[M]` it still moves 4/4 folded levels' τ at n_μ = 4.
 
   1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
      curvilinear MMS with no convergence order. It must **fall and recover an
