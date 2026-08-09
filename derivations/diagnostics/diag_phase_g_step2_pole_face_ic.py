@@ -29,7 +29,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn_fixed_source
 

@@ -381,7 +381,7 @@ def derive_T00_equals_P_ss_cylinder() -> dict:
     closed-form match (as sphere V_α2 does via the Hébert form). The
     rigorous V&V evidence comes from the numerical-primitive cross-
     check in
-    :func:`tests.derivations.test_trajectory_resolvent_cylinder_solver`
+    :mod:`tests.derivations.test_peierls_greens_function_cylinder_solver`
     (``test_v_alpha2_cyl_T00_equals_Pss_via_production_primitives``):
     the production functions :func:`compute_T_specular_cylinder_3d`
     and :func:`compute_P_ss_cylinder` are completely separate code

@@ -130,8 +130,29 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   ALLOWLIST. It skips UNQUALIFIED refs by design (Sphinx resolves those by module context), and it
   is blind to LITERALS — so after fixing a renamed symbol's roles, grep the OLD NAME tree-wide and
   adjudicate every ``literal`` by tense (`_select_si_resolvent`: 1 dead role + 3 live-prose
-  literals on two other pages). All three trees are now at 0: `tests/` 41 dead/62 sites,
-  `orpheus/` 30/37, `docs/` 20/24 in 15 pages. → L-045, L-046, L-047
+  literals on two other pages). → L-045, L-046, L-047
+- **⭐ NEVER say "all trees at 0" — say the TREES, the ROOTS and the SEMANTICS.** The gate walks
+  only `orpheus tests docs` (NOT `examples/`, top-level `derivations/`, `scratch/`, `tools/`) and
+  judges only `DECIDABLE_ROOTS` (which omits importable `tests`/`tools`/`derivations`); its NAME
+  also understates it — it DOES read whole `.rst`, so `doc:` sites ARE covered. Decisive: the gate
+  resolves by **IMPORT**, the `nexus dead-references` hook by **RENDERED TARGET**, so a live
+  un-`automodule`'d module is *resolved* to one and *dead* to the other. Both right — the SET
+  DIFFERENCE is the triage (hook-only ⇒ un-surfaced-but-live = #302; both ⇒ really moved/retired).
+  Measured 21/30 vs 0/14 914 on the same tree. → L-052
+- **Two gate false-negatives to know:** a **PEP-420 namespace package** (a dir with only a
+  `README.md`) IMPORTS fine (`__file__ is None`, 0 members) so `:mod:` refs at it read "resolved"
+  though Sphinx can never link them; and a role **wrapped INSIDE its dotted path**
+  (`:func:`~a.b.\n  c``) is skipped by the gate (whitespace ⇒ `extract_target` → `None`) AND
+  renders plain text. 15 such roles tree-wide; the discriminator is `\.\s*\n\s*\w` in the pre-`<`
+  head — ~180 multi-line roles that break at the `display <target>` seam are FINE. → L-052
+- **Before believing a dead target's NAME, read its graph EDGES**
+  (`SELECT source,type FROM edges WHERE target=?` on `graph.db`). A name can be an artifact minted
+  by a THIRD tree: six `orpheus.derivations.peierls_geometry.*` targets existed only because
+  `scratch/` scripts still import the deleted path, and nexus suffix-matched the theory pages'
+  unqualified roles onto it. Edge type decodes the site class: `documents`=page ·
+  `references`=docstring · `type_uses`=**a type annotation, i.e. a CODE bug** · `calls`=the import
+  that minted it. And nexus counts doc sites **per PAGE** (2 "sites" was 9 roles), while the unit
+  of repair is the TARGET tree-wide (3 reported sites, 13 real). → L-052
 - **Beyond AGENT.md's warn-list, two more DO warn:** a `:widths:`/column mismatch, and `ref.ref`
   "*A title or caption not found*" — a bare `:ref:` to an anchor sitting before a PARAGRAPH (fix:
   anchor a titled/captioned element, or use `` :ref:`text <label>` ``). Raw path strings in prose

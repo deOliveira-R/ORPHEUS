@@ -14,7 +14,7 @@ import numpy as np
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.quadrature import ProductQuadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.sweep.psi_half_angle_seed import carlson_inward_sweep_from_source
 from orpheus.transport.spatial.scheme import UpstreamState
 

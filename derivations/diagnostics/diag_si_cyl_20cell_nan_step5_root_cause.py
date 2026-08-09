@@ -40,7 +40,7 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.sweep.cache import GeometryCoefficients, CollisionCache
 from orpheus.sn.sweep.scan import ordinate_scan
 

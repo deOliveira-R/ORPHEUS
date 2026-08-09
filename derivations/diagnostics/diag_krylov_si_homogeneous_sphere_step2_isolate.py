@@ -60,7 +60,7 @@ def _manual_outer(
     optional warm-start cache.  Returns (keff, n_outer, keff_history,
     inner_iter_counts).
     """
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.sn.solver import SNSolver
 
     materials, mesh, quad = _build_problem()

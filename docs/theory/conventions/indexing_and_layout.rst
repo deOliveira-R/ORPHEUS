@@ -1178,12 +1178,12 @@ lives in scattered docstrings.
    * - :class:`SNSolver`.\ ``sig_t``, ``sig_a``, ``sig_p``, ``chi``
      - ``(ng, nx, ny)``
      - :meth:`SNSolver.__init__`
-   * - :class:`SNSolver`.\ ``scalar_flux``
+   * - :class:`~orpheus.sn.solution.Solution`.\ ``scalar_flux`` values
      - ``(ng, nx, ny)``
-     - :class:`SNResult`
-   * - :class:`SNSolver`.\ ``angular_flux``
+     - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
+   * - :class:`~orpheus.sn.solution.Solution`.\ ``angular_flux.interior``
      - ``(N, ng, nx, ny)``
-     - :class:`SNResult`
+     - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
    * - SN sweep input ``Q`` (isotropic source)
      - ``(ng, nx, ny)``
      - :meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`
@@ -1223,6 +1223,25 @@ lives in scattered docstrings.
    * - ``LegendreMomentScattering`` moment field
      - ``(L+1, 2L+1, ng, nx, ny)``
      - :mod:`orpheus.transport.operators.scattering`
+
+.. note:: **Two rows above were re-homed, one is still stale
+   (audit 2026-08-09).** The flux rows used to read
+   ``SNSolver.scalar_flux`` / ``SNSolver.angular_flux`` with the
+   definition site given as ``SNResult`` — a class RETIRED at Issue
+   #197 PR-TYPED-5 (see the PR-INDEX-5 changelog row above). The
+   *shapes* were and remain correct; only the carrier moved, to the
+   typed fields now shown. The first row, ``SNSolver.sig_t, sig_a,
+   sig_p, chi`` at ``(ng, nx, ny)`` defined by ``SNSolver.__init__``,
+   is **NOT yet reconciled**: measured 2026-08-09,
+   :meth:`SNSolver.__init__` takes ``(sn_mesh, inner_solver,
+   scattering_order, keff_tol, flux_tol, max_inner, inner_tol,
+   inner_schedule)`` and the solver carries no ``sig_*`` / ``chi``
+   attribute at all; the per-cell cross sections live on
+   :class:`~orpheus.data.macro_xs.cell_xs.CellXS`, whose arrays are
+   **cell-major** ``(nc, ng)`` — a different priority order from the
+   row's claim. Reconciling that row needs a trace of how the SN path
+   reshapes ``CellXS`` into the sweep's layout, which this audit did
+   not do; the row is preserved unmodified rather than guessed at.
 
 .. note:: A former row here recorded the FD-matvec packed-vector
    internal ``fi`` shape ``(ng, N, nx, ny)`` (``ng`` first, then ``N``,

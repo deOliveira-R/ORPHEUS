@@ -2,9 +2,13 @@ r"""Static metadata for the F_N method capability matrix.
 
 Companion to :mod:`orpheus.derivations.continuous.peierls_nystrom.cases`
 — exposes :func:`capability_rows`, the metadata-only function the
-capability-matrix infrastructure discovers (see
-:mod:`tools.verification.generate_fn_method_matrix` for the per-method
-generator and the meta-generator that supersedes it).
+capability-matrix infrastructure discovers. The discovering agent is
+the meta-generator :mod:`tools.verification.generate_capability_matrices`,
+which walks every package under ``orpheus.derivations.continuous``,
+calls whatever ``cases.capability_rows()`` it finds, and writes
+``docs/theory/references/_<package>_capability_matrix.inc.rst``. (It
+superseded the per-method generators — ``generate_fn_method_matrix``
+and its siblings — which were deleted at ``045afeca``.)
 
 The fn_method package ships three solver families anchored on the
 Sood/Forster/Parsons LA-13511 (1999) benchmark catalogue and the

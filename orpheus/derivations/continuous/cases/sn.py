@@ -53,7 +53,8 @@ The Phase 2.1b target problem is 1-group, two-region (fuel + moderator)
 at reflective BCs, :math:`S_8` quadrature — the configuration for which
 the ERR-025 diamond-difference bug in ``_sweep_1d_cumprod`` was
 diagnosed and fixed. This module produces that reference; the consumer
-test is :func:`tests.sn.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`.
+test is
+:func:`tests.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`.
 
 Multigroup extension is a mechanical generalisation: the slope matrix
 becomes block-diagonal in ordinate with per-group off-diagonal blocks

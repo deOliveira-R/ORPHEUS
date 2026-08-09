@@ -4651,6 +4651,132 @@ contradicting itself (vv anti-pattern #21's aggravator).
 
 ---
 
+## L-052 — two dead-ref instruments DISAGREE BY DESIGN; the disagreement IS the triage
+
+Task: the `nexus dead-references` SessionStart hook reported **21 targets /
+30 sites** while `tools/check_docstring_xrefs.py` reported **0 dead across
+14 914 roles**. The instinct is "one of them is broken". Neither was.
+
+**The three-part scope story (measured 2026-08-09, `refactor/operator-strategy-layers`):**
+
+1. **Trees.** The gate's default `roots = ["orpheus", "tests", "docs"]`
+   (`tools/check_docstring_xrefs.py:199`). `examples/`, top-level
+   `derivations/`, `scratch/` and `tools/` are never walked. Nexus walks
+   the whole project. ⇒ 7 of 30 sites invisible to the gate for this
+   reason alone. NOTE the gate's NAME understates it: it DOES read `.rst`
+   whole-file (`iter_text_blocks`), so `doc:` sites in theory pages ARE
+   in scope — "docstring" in the filename is wrong by omission.
+2. **Roots.** `DECIDABLE_ROOTS = ("orpheus","numpy","scipy","sympy","pytest","matplotlib")`
+   excludes `tests`, `tools`, `derivations` — all three ARE importable, so
+   this is a coverage gap, not an impossibility. And UNQUALIFIED refs
+   (`:func:`compute_G_bc``) are skipped BY DESIGN (the tool refuses to
+   emulate Sphinx's module-context resolution rather than manufacture
+   false positives). ⇒ 6 more targets.
+3. **⭐ The semantic split, and the one that matters.** The gate resolves
+   by **IMPORT**; nexus resolves by **RENDERED TARGET**. A live module
+   that no `api/` page `automodule`s is *resolved* to the gate and *dead*
+   to the hook. That is the ENTIRE bucket-C class (12 of 21 targets here),
+   and both tools are right: the symbol exists (gate) and the role has no
+   link target (hook). Neither number is a bug; **the set difference is
+   the triage** — hook-minus-gate ≈ "un-surfaced but live" (issue #302),
+   gate-and-hook-agree ≈ "genuinely retired or moved".
+
+⇒ never write "all trees at 0" in a memory index from a gate run. Write
+the trees, the roots, and the resolution SEMANTICS, or the claim is
+present-tense-false the day someone points a second instrument at it.
+
+**Two false-negative classes found in the gate while establishing this:**
+
+- **PEP-420 namespace packages resolve.** `orpheus/derivations/continuous/{pn_method,
+  spn_method,spectral_collocation,spectral_resolvent,escape_probability}/`
+  each contain ONLY a `README.md` — no `__init__.py`, no Python.
+  `importlib.import_module` succeeds anyway (`__file__ is None`, 0 members),
+  so `resolve()` returns True. A `:mod:` role at such a target can NEVER
+  resolve in Sphinx. Discriminator to add if the gate is ever hardened:
+  `mod.__file__ is None`.
+- **⭐ A role wrapped INSIDE its dotted path is invisible to BOTH tools.**
+  `:func:`~orpheus.numerics.eigenvalue.\n        power_iteration`` — docutils
+  collapses the newline+indent to a space, so the target becomes
+  `...eigenvalue. power_iteration` and never resolves; the gate's
+  `extract_target` returns `None` on any target containing whitespace, so
+  it SKIPS it. Measured tree-wide: **15 such roles** (orpheus ×13,
+  tests ×1, examples ×1). The discriminator is NOT "role spans lines" —
+  ~180 multi-line roles are FINE because they break at the
+  `display <target>` boundary. The regex that finds only the broken class:
+  `\.\s*\n\s*\w` (or `\w\s*\n\s*\.\w`) inside the pre-`<` head.
+
+**Bucket discipline that made the triage cheap.** (A) MOVED / (B) RETIRED
+/ (C) NEVER-AUTODOC'D is decided by TWO probes, not one: does the symbol
+import (A/B vs C), and is its module in the `automodule` set
+(`grep -o "automodule:: (\S+)"` over `docs/**/*.rst`, 49 here). Anything
+that imports AND is un-automodule'd is C — hands off, it is #302's.
+
+**⚠ The reported TARGET NAME can be an artifact of a THIRD tree.** Six
+"dead targets" were named `orpheus.derivations.peierls_geometry.*` — a
+module deleted at `bda76faf`. No doc page contains that string. The node
+exists ONLY because three `scratch/derivations/diagnostics/*.py` still
+`import` from the dead path, minting an `unresolved` ast_only node; nexus
+then attached the theory pages' UNQUALIFIED `:func:`compute_G_bc`` roles
+to it by suffix match. The functions are alive at
+`...peierls_nystrom.geometry`. ⇒ before believing a dead target's NAME,
+`SELECT source,type FROM edges WHERE target=?` on `graph.db` and read the
+edge TYPES: `documents` = a doc page, `references` = a docstring,
+`type_uses` = a **type annotation** (i.e. real code, not prose), `calls` =
+an import/call that MINTED the name.
+
+**A `type_uses` site is a CODE bug wearing a doc-ref costume.** Three of
+the 30 "sites" were `TYPE_CHECKING` imports in `examples/` and
+`derivations/`, i.e. `ModuleNotFoundError` at runtime (or a pyright red)
+— not prose at all. Fix the import, then ask whether the annotated body
+still matches the successor type: `examples/discrete_ordinates/plotting.py`
+annotated `result: SNResult`, and the live `Solution` has no `.geometry`,
+no `.eg`, and a `ScalarFlux` with **no `__getitem__`** — so a bare repoint
+would have replaced a dead name with a live LIE. Published the repoint
+PLUS a measured `.. warning::` naming the three surviving stale accesses.
+
+**The unit of repair is the TARGET, not the reported site.** Nexus counted
+3 sites for `orpheus.sn.geometry.SNMesh`; the live tree had **13**
+(12 × `derivations/diagnostics/*.py` + 1 × `examples/`), because
+dead-references only reports `documents`/`references`/`type_uses` edges
+and most were plain `import` statements. Fixing 3 and leaving 10 would
+have been the half-correction anti-pattern. Also: nexus counts doc sites
+**per PAGE**, so "compute_P_esc ×2 sites" was 9 role occurrences.
+
+**Adjacent classes found, REPORTED not fixed** (each is its own pass):
+(a) `derivations/diagnostics/` is broadly bit-rotted — after my repoint,
+**15 of 39** files still carry an unresolvable `orpheus` import
+(`orpheus.sn.quadrature`, `orpheus.sn.operator`, `orpheus.sn.boundary_realizer`
+are all gone); say so, or the repoint reads as "these scripts run now".
+(b) `docs/theory/references/trajectory_resolvent.rst` carries **31 stale
+`:file:` paths** — a page rename (`peierls_greens.rst` →
+`trajectory_resolvent.rst`) was applied to the TEST FILENAMES in prose,
+which were never renamed. Raw paths warn NOWHERE. Fixing the 1 in my
+brief and leaving 30 would have made the page contradict itself; report
+the class.
+
+**Concurrency hazard on a busy branch.** The after-measurement grew ONE
+new dead target that was not mine: another agent's #340 N2b docstring
+landed in `orpheus/cp/solver.py` mid-session with a wrapped role. `git
+status` at session start is the only way to attribute; state the
+before/after BOTH ways (raw, and net-of-not-mine). Same for
+`docs/theory/verification/matrix.rst`, which my `-E` rebuild regenerated
+to absorb their +1 foundation test — legitimate by-product, report it,
+never revert it.
+
+**Result.** 21 → 14 targets / 30 → 17 sites (13 + 1-not-mine); the 8
+cleared are exactly buckets A and B. Gate stayed at 0 dead. `-E -W`-clean
+baseline and after builds both EXIT 0 with a byte-identical (empty)
+WARNING/ERROR/CRITICAL set.
+
+**Quality self-assessment.** Derivation depth n/a · Cross-references 5 ·
+Numerical evidence 4 (before/after counts, per-tree measurements, the
+15-role scan — no convergence table is possible on a reference-integrity
+pass) · Failed approaches 4 (recorded WHY the peierls_geometry name is an
+artifact, and why 3 adjacent classes were left) · Code traceability 5 ·
+Derivation source n/a.
+
+---
+
 ## Quality self-assessment rubric (Directive 3)
 
 Rate each output 1–5 and log the weakest dimension in the return:

@@ -40,7 +40,7 @@ import numpy as np
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink

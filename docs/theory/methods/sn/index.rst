@@ -87,7 +87,7 @@ The sub-composite :math:`(L+C)` is lower-triangular under the upwind cell
 ordering, which is exactly why :math:`(L+C)^{-1}` **is** the transport :term:`sweep`
 (:doc:`/theory/methods/sn/loss_representation`).  :class:`SNSolver` satisfies
 the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol and
-:func:`solve_sn` returns an :class:`SNResult`.  Because the protocol places the
+:func:`solve_sn` returns a :class:`~orpheus.sn.solution.Solution`.  Because the protocol places the
 scattering source *inside* ``solve_fixed_source``, the inner source iteration
 (in-scatter + anisotropic convergence) stays encapsulated in the SN sweep,
 while the outer :func:`~numerics.eigenvalue.power_iteration` loop is the one
@@ -230,7 +230,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
                                 + alpha coefficients + resolved BCs)
                     |
                     v
-   solve_sn() --> SNResult
+   solve_sn() --> Solution
 
 Quadrature Dispatch
 -------------------

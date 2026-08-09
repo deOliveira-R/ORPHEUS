@@ -113,8 +113,8 @@ class IterationHistory:
     r"""Convergence trajectory diagnostics for an SN solve.
 
     Carries the per-outer / per-inner trajectory exposed by the legacy
-    :class:`SNResult.keff_history` (list) plus the integer
-    :attr:`SNFixedSourceResult.n_inner` + :attr:`residual` scalars — now
+    ``SNResult.keff_history`` (list) plus the integer
+    ``SNFixedSourceResult.n_inner`` + ``residual`` scalars — now
     bundled into one frozen container with method-style diagnostics.
 
     Parameters
@@ -423,7 +423,7 @@ class SolutionBase:
         plotting code) working without a one-by-one migration of ~10 call
         sites.  The trajectory is a list, not a tuple, so ``len`` and
         slice operations behave as they did under the legacy
-        :class:`SNResult.keff_history: list[float]`.
+        ``SNResult.keff_history: list[float]``.
         """
         return self.keff_history_list()
 

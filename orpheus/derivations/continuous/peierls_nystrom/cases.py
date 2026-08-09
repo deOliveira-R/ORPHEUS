@@ -60,11 +60,15 @@ dps=20``). The ``_SLAB_VIA_UNIFIED`` flag now **defaults to True**;
 set ``ORPHEUS_SLAB_VIA_E1=1`` to force the native path for
 bisection. Both paths remain exercised by the test suite: the
 unified path is the shipped registry route, and the native path is
-exercised by
-:mod:`tests.derivations.test_peierls_slab_reference` plus the
+exercised by every gate that calls
+:func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`
+directly — :mod:`tests.derivations.test_peierls_convergence` (L0
+self-convergence under panel refinement),
+:mod:`tests.derivations.test_peierls_multigroup` (including the
 diagnostic test
-:class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
-(now at ``rel_diff < 1e-10`` bound).
+:class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`,
+now at ``rel_diff < 1e-10`` bound), and
+:mod:`tests.derivations.test_peierls_greens_function_slab_solver`.
 """
 from __future__ import annotations
 

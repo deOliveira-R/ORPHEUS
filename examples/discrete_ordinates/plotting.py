@@ -1,6 +1,26 @@
 """Plotting for discrete ordinates (SN) results.
 
 Module-specific DO plots. Shared functions imported from tools.plotting.
+
+.. warning:: **This example is stale against the typed-field solution
+   API and does not run as written** (measured 2026-08-09). The
+   annotations below name the type :func:`orpheus.sn.solver.solve_sn`
+   actually returns today — :class:`orpheus.sn.solution.Solution`,
+   which replaced the retired ``SNResult`` / ``SNFixedSourceResult``
+   data bags at Issue #197 PR-TYPED-5 — but three accesses in the
+   bodies were never migrated with it:
+
+   * ``result.geometry`` — the carrier field is now ``result.mesh``;
+   * ``result.eg`` — the energy grid is no longer carried on the
+     solution and must come from the materials / mesh;
+   * ``result.scalar_flux[...]`` — ``scalar_flux`` is now a typed
+     :class:`orpheus.transport.fields.scalar_flux.ScalarFlux` field,
+     which is not subscriptable; the raw ``(ng, nx, ny)`` array is
+     reached through the field, not by indexing the field itself.
+
+   ``result.keff``, ``result.keff_history`` and ``result.mesh`` DO
+   survive on :class:`~orpheus.sn.solution.Solution`. Migrating the
+   three accesses above is the whole remaining repair.
 """
 
 from __future__ import annotations
@@ -15,8 +35,7 @@ from orpheus.plotting import plot_2d_field, plot_spectrum  # noqa: F401
 
 if TYPE_CHECKING:
     from orpheus.geometry import Mesh1D, Mesh2D
-    from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.solver import SNResult
+    from orpheus.sn.solution import Solution
 
 
 def plot_mesh_2d(
@@ -33,7 +52,7 @@ def plot_mesh_2d(
 
 
 def plot_do_convergence(
-    result: SNResult,
+    result: Solution,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot keff convergence history."""
@@ -51,7 +70,7 @@ def plot_do_convergence(
 
 
 def plot_do_spectra(
-    result: SNResult,
+    result: Solution,
     materials: dict,
     output_dir: Path | str = ".",
 ) -> None:
@@ -98,7 +117,7 @@ def plot_do_spectra(
 
 
 def plot_do_spatial_flux(
-    result: SNResult,
+    result: Solution,
     output_dir: Path | str = ".",
 ) -> None:
     """Plot thermal/resonance/fast flux along cell centerline and 2D."""

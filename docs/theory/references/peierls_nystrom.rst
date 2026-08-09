@@ -212,13 +212,31 @@ for geometry X at closure Y?"** this section is the canonical index.
 The table below enumerates every shipped Peierls continuous reference
 case with its production status, accuracy class, and the test label
 that gates regressions. The table body is auto-generated at Sphinx
-build time by
-:mod:`tools.verification.generate_peierls_nystrom_matrix` from the
+build time by the capability-matrix **meta-generator**
+:mod:`tools.verification.generate_capability_matrices` from the
 registry function
-:func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows` — if this
-table diverges from ``continuous_all()`` filtered to
-``operator_form == "integral-peierls"``, the capability-matrix
-cross-check test will fail.
+:func:`orpheus.derivations.continuous.peierls_nystrom.cases.capability_rows`.
+The meta-generator walks every package under
+``orpheus.derivations.continuous``, calls whatever
+``cases.capability_rows()`` it discovers, and writes one
+``_<package>_capability_matrix.inc.rst`` per package; it replaced the
+per-method generators (``generate_peierls_nystrom_matrix`` and
+siblings), which were deleted at ``045afeca``.
+
+.. note:: **What the capability-matrix gate does and does not check.**
+   ``tests/derivations/test_capability_matrices.py`` pins three
+   ``@pytest.mark.foundation`` software invariants of the
+   documentation infrastructure: the generator's ``--check`` mode
+   exits 0 only when the *checked-in* ``.inc.rst`` matches what
+   ``capability_rows()`` renders (so a hand-edited matrix reddens),
+   generation is byte-deterministic, and both ``peierls_nystrom`` and
+   ``fn_method`` are auto-discovered. It does **not** cross-check
+   ``capability_rows()`` against ``continuous_all()`` filtered to
+   ``operator_form == "integral-peierls"`` — no gate does, so a row
+   whose *metadata* drifts from the registered
+   :class:`~orpheus.derivations.common.continuous_reference.ContinuousReferenceSolution`
+   will not be caught here. These are foundation-level infrastructure
+   invariants, not a verification claim about any solver.
 
 .. include:: _peierls_nystrom_capability_matrix.inc.rst
 
