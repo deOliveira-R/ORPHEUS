@@ -680,6 +680,51 @@ Two corollaries that generalize past this audit:
 
 ---
 
+## L-023 -- "N spellings of one concept" is a SYMPTOM: find the primitive that DISCARDED the information. And a brief's named EXEMPLAR consumer is a claim to verify
+
+Auditing "convergence has three spellings in `sn/solver.py`" (2026-08-08), three
+moves reshaped the deliverable, and all three generalize to any
+"one concept, many transcriptions" brief:
+
+- **Count the spellings, then go UP one hop and ask who threw the answer away.**
+  There were FIVE, not three (the brief's own count was low: a 4th differed only
+  by `<=` vs `<`, a 5th was the Krylov arm). But the finding that changed the
+  scope was that `power_iteration` *knows* whether it broke out of its loop or
+  exhausted `max_iter` and **returns a 3-tuple with no flag**. Four production
+  solvers consume that tuple; one re-derives the fact correctly, one hardcodes
+  `True`, three don't try. **The N transcriptions are not N independent bugs —
+  they are N callers re-deriving a fact the callee already had.** So: for any
+  "why is this spelled N ways?" brief, read the CALLEE's `return` statement
+  before mapping the callers. If the callee computes and drops the quantity,
+  the fix is one hop up and the deliverable flips from "unify the N sites" to
+  "the primitive's return type is wrong". (Corollary that decided the
+  local-vs-shared scope: the eigenvalue path records only a COUNT, never the
+  inner residuals — so a derived flag there is structurally outer-only until
+  new plumbing lands. That constraint is invisible from the construction site.)
+- **A default value can be the mechanism behind the hardcoded lie.** The type's
+  own `converged: bool = True`, plus a delegate returning `True` when the
+  history is `None`, means "forgot the kwarg" and "no diagnostics" both read as
+  success. Grep the *defaults* of any boolean claim field before writing up its
+  hardcoded sites — the literal `=True` at one call site is usually the type's
+  posture made visible, and the type-level fix reds the unit tests that PIN the
+  default (find those; they are the contract change made visible, and they get
+  rewritten, not deleted).
+- **The brief's named EXEMPLAR is a claim, like its timeline (L-020).** The
+  brief said "`test_dsa_rate.py` caps `max_inner=50` on purpose" — measured, its
+  helper defaults to **4000** and the `=50` sites are HEADROOM on tests asserting
+  landing in 2–3 iterations. Had I inherited it, the opt-out population would
+  have been sized wrong in the direction that decides the default policy. One
+  `sed` of the helper's signature settled it. Same move as verifying an issue's
+  premise, applied to the one datum a brief states with most confidence.
+
+Cheapest high-leverage probe of the whole dispatch: **grep the pytest config for
+`filterwarnings`**. Zero occurrences ⟹ a `warn`-by-default policy costs *zero*
+test churn, which resolves the raise-vs-warn question that the rest of the audit
+could only frame. When a brief asks "should this raise or warn?", one grep of the
+consumer's escalation config often decides it outright.
+
+---
+
 ## L-022 -- On a "what REMAINS of issue X" recon, the highest-yield staleness class is the campaign's own MID-FLIGHT PROSE
 
 Mapping the #325/#326 remainders (2026-08-08) after a campaign had landed the

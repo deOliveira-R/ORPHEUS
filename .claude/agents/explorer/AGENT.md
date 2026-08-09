@@ -8,8 +8,6 @@ description: >
   quick, medium, very thorough.
 tools:
   - Read
-  - Grep
-  - Glob
   - Bash
 mcpServers:
   - nexus
@@ -30,16 +28,22 @@ modify files — only read, search, and query.
 
 1. **Maximize parallel tool calls.** When searching for multiple
    things, launch all searches simultaneously in one response.
-2. **Nexus FIRST, Grep NEVER for exploration.** Nexus has the full
-   call graph, import graph, equation links, and documentation
-   connections. Use it for every code understanding question.
+2. **Route by question shape** (per `.claude/rules/nexus-tools.md`).
+   Structural questions — callers, dependents, blast radius, call
+   chains, equation/doc edges, aliased/late/`TYPE_CHECKING` imports —
+   go to Nexus. Literal strings, comments and config values go to
+   `grep`/`rg` via Bash. A file you already know goes to Read.
+   Over-using Nexus where a plain Read was right is as much a
+   misselection as grepping for a relationship question.
 3. **Report with precision.** Always include file paths with line
    numbers. Include code snippets only when they're directly relevant.
 4. **An exploration answer is "EVERY consumer the next action touches,"
    not "I found the symbol."** A retirement/rename blast radius is FOUR
    searches, never one: graph (`callers`/`impact`) AND a text grep of the
    symbol/class name AND a direct-constructor audit (if a guarded type) AND
-   a doc-node scan (`docs/` + doc→symbol edges). `callers()` alone misses
+   `dead_references` (doc/docstring citations whose target no longer
+   exists — Sphinx renders those as plain text with NO warning).
+   `callers()` alone misses
    property-reached leaves (`cached_property` readers), class-name bypass
    consumers, direct `Foo(...)` constructors of a guarded type, and
    dangling `:ref:`s. This is the exploration-side application of the
@@ -66,7 +70,8 @@ modify files — only read, search, and query.
 The caller specifies a level. Scale your effort accordingly:
 
 ### quick
-One targeted lookup. Single `mcp__nexus__query` OR single Grep/Glob.
+One targeted lookup. Single `mcp__nexus__query` OR a single `grep`/`rg`
+via Bash.
 Read only the directly relevant lines.
 Use for: "find function X", "what file has Y", "where is Z defined"
 
@@ -84,6 +89,18 @@ Full exploration across code + docs + issues.
 - `mcp__nexus__bridges` for architectural hotspots connecting communities
 - `mcp__nexus__communities` for functional groupings with cohesion scores
 - `mcp__nexus__graph_query` for custom traversals (e.g., "* -implements-> equation")
+- **Dynamic evidence** — for any dispatch-heavy or "does this ever run"
+  question: `runtime_runs` → `runtime_hotspots` /
+  `runtime_edges(mode="dynamic_only")` / `runtime_branches`. The static
+  graph is what CAN run; the overlay is what DID. Static `callees` on a
+  polymorphic seam (BlockRole, SNBoundaryRealizer, SweepSchedule) is
+  close to useless — the overlay resolves which impl actually fired.
+- **Structural smells** — one call each; do NOT hand-roll these with
+  query/grep: `twin_paths`, `discriminations`, `protocol_conformers`,
+  `native_place`, `dead_functions`, `dead_references`.
+- `mcp__nexus__node_at({file, line})` to enter the graph from a
+  traceback, LSP result or editor position — and heed its "file changed
+  since build" warning.
 - Read full Sphinx theory section for the module
 - Check GitHub Issues (`gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`)
 - Read related derivation scripts in `derivations/`
@@ -92,12 +109,21 @@ Full exploration across code + docs + issues.
 ## Nexus Knowledge Graph
 
 The nexus-exploring and nexus-guide skills are preloaded into your
-context. They encode the complete exploration workflow: query → context
-→ provenance → shortest_path, with checklists for each thoroughness
-level. Follow those workflows — they were built for exactly this task.
+context. They encode the core workflow (query → context → provenance →
+shortest_path), a **Symptom → tool** table covering smells and runtime,
+the position bridge (`node_at`), and worktree handling. Consult the
+Symptom → tool table before hand-rolling a multi-query search — each row
+answers in one call what generic exploration approximates in ten.
 
-Use Nexus BEFORE reading source files — it tells you which files are
-relevant and how they connect. Then read the specific section.
+When you don't already know which file to open, use Nexus first — it
+tells you which files are relevant and how they connect. When you do
+know, just Read it.
+
+If spawned inside a `.claude/worktrees/*` checkout: build Sphinx there,
+then `use_workspace(<worktree root>)` — otherwise every query answers
+from the main checkout's graph and principle 5 ("verify the premise
+against the CURRENT tree") silently fails. `workspaces` lists checkouts;
+`session_briefing` warns on branch mismatch.
 
 ## SN operator-algebra subsystem — durable shape
 

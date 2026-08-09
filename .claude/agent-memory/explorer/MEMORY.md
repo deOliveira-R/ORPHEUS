@@ -16,7 +16,10 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
   boolean-presence ≠ integer-width before a typed probe-swap (L6); **the BRIEF's own
   timeline is a claim (verify commit dates vs the target doc's mtime), and a prior
   audit's "X cannot be expressed" EXPIRES when a SIBLING campaign lands a substrate —
-  read the new module, don't just re-run the emptiness greps (L20)**; **"what breaks
+  read the new module, don't just re-run the emptiness greps (L20)**; **"N spellings of
+  one concept" is a SYMPTOM — read the CALLEE's `return` for the primitive that DISCARDED
+  the answer; a claim field's DEFAULT is the mechanism behind its hardcoded lie; and the
+  brief's named EXEMPLAR consumer is a claim to verify (L23)**; **"what breaks
   if this numeric primitive changes?" → SWAP IT AND RUN; the dangerous assertion
   class is a FROZEN rhs, not an exact comparison (L13)**; **a "fold this redundant
   DOF" hypothesis is refuted (or not) by the FUNCTIONALS' parity, not the
