@@ -237,6 +237,48 @@ Two durable points:
    always pair the analytical anchor with a mesh-refinement leg.
 See [[krylov-restart-truncation-bug]].
 
+**L10b (2026-08-08) — the flag need not be DISCARDED; RECORDED-BUT-UNREAD gives the
+identical false fingerprint, and the tell is TOLERANCE-INSENSITIVITY.** A gate red at
+3.29e-10 was bit-identical across `inner_tol` ∈ {1e-9,1e-11,1e-13,1e-15} — read as "a
+real discretization floor, since the exit ignores the tolerance". It was the opposite:
+the running residual at the cap was 1.185e-09, i.e. ABOVE every tested tol including
+1e-9, so all four runs hit the SAME `max_inner` and returned the same iterate. **A
+tolerance sweep can only discriminate if at least one tol is LOOSER than the residual
+the capped run reaches — otherwise the sweep is a vacuous knob** (the L18
+verify-the-knob-is-reachable warning, in convergence clothing). FIRST read
+`history.converged` / `n_inner` and check them against `max_*`; a plateau at exactly
+`max_iter−1` is the whole diagnosis. Sharpenings: (a) the flag was honest and typed —
+the hole is the CONTRACT, a best-effort and a certified answer returning as the same
+type from the same call, so a certificate that no-ops on the unclaimed exit ("best-
+effort returns stay legal") leaves the class wide open; (b) the *shape* discriminator
+that kills "per-ordinate discretization bias" dead is a **max_iter sweep of the error
+MAP** — a bias is fixed, a mode decays geometrically at constant ρ with its shape
+preserved (measured ρ=0.9852±0.0008 over four intervals, shape cosine ≥0.993, the
+suspicious "8 of 24 ordinates" concentration constant at 100 % throughout); (c) audit
+the blast radius with an in-process pytest plugin wrapping the solver entries and
+printing every `converged=False` at `sessionfinish` — it found the red gate's SIBLING
+riding the same truncated exit while GREEN on a looser rtol (a latent false green), in
+one run.
+
+**L10c — an all-reflective (zero-leakage) pure absorber is SI-HARD, and the cost
+EXPLODES with dimension.** `[M]` d=1 32 → d=2 258 → **d=3 1631** sweeps at
+`inner_tol=1e-13`; one vacuum face collapses d=3 to 208. Mechanism: with `Σ_s=0` and no
+leakage the only coupling is the reflective boundary and the only damping is absorption,
+and the slow mode is the **DD face sawtooth** — faces alternating `ψ*(1±δ)` (measured
+ratios 1.074414/0.925586, summing to exactly 2) so the cell AVERAGE is exactly `ψ*`.
+Having zero cell average, the mode is invisible to the collision term `Σ_t V ψ_c`; it is
+damped only through the inter-axis balance mismatch. Consequence, measured and useful as
+a budget law: **`Σ_t · n_inner` is invariant** (0.4→3093, 0.8→1631, 1.6→850, 3.2→437;
+products flat to 13 %). So a FIXED `max_inner` default cannot serve d=1 and d=3 at once
+— derive it (Pattern 7). Corollary worth checking before trusting a d=3 rate default:
+**boundary-G-S is 2.5× FASTER than Jacobi at d=2 (258 vs 648) and 1.95× SLOWER at d=3
+(1631 vs 838)** — a rate claim measured at one dimension can INVERT at the next, so a
+`is_cartesian and not is_1d` schedule gate that was tuned at d=2 is unverified at d=3.
+Also: `ψ` flat does NOT imply the TRACE is flat — the converged trace kept an 11.26 %
+sawtooth while the exact-uniform state also had residual 1.06e-15, i.e. the all-
+reflective 3-D DD operator has a near-null space in the trace block (L6/H2 sharpened:
+"homogeneous nulls redistribution" has a twin — "flat cell averages null the face mode").
+
 ## L11: For a ρ-honest stopping/diagnostic, measure the residual r=Aψ−q — NOT the iterate increment ‖Δψ‖
 
 > **→ The standing rule is now in AGENT.md Step 3 (fixed-source

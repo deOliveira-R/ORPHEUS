@@ -14,7 +14,11 @@ campaign detail lives in the topic files this index points to — never inline i
   - L7 a per-ordinate moment must reach the GLOBAL frame before the angular reduction
   - L8 the project's own theory page can be the contaminated reference
   - L9 a "hang" may be fixture cost — bound the solver first
-  - L10 diverges-with-refinement + a discarded info-flag = an unconverged inner solve
+  - L10 diverges-with-refinement + a discarded info-flag = an unconverged inner solve;
+    **L10b** a RECORDED-BUT-UNREAD `converged` flag fakes the same floor — read
+    `n_inner` vs `max_*` FIRST, a tol-sweep below the capped residual is a vacuous knob;
+    **L10c** an all-reflective pure absorber is SI-hard (d=1 32 → d=3 1631 sweeps),
+    `Σ_t·n_inner` is invariant, and a G-S-vs-Jacobi rate claim can INVERT with dimension
   - L11 measure the residual r=Aψ−q for a ρ-honest stop, not the increment ‖Δψ‖
   - L12 an offline-isolated error is THE floor only after swap + silent control + AMPLIFY
   - L13 a greedy `(Ellipsis,*idx)` fancy-index mis-targets axes under a spectator axis
