@@ -597,17 +597,53 @@ the same call, so the distinction has to be carried explicitly or it is
 lost.
 
 **Where the fact comes from.**  The loop that stops knows why it stopped,
-and since 2026-08-08 it says so rather than discarding it:
+and since 2026-08-08 it says so rather than discarding it.  Since #340 it
+says so by **measuring**, never by asserting: each level reports the
+quantities it stops on — magnitude and tolerance together — as a
+:class:`~orpheus.numerics.convergence.StoppingCriterion`, and every
+convergence verdict in the stack is *derived* from those trajectories.
 
+* the **inner** (fixed-source) fact is the driver's own
+  :class:`~orpheus.numerics.convergence.IterationRecord`, returned by
+  :class:`~orpheus.numerics.iteration.SourceIteration` and
+  :class:`~orpheus.numerics.iteration.KrylovAcceleration` alongside the
+  iterate;
 * the **outer** (eigenvalue) fact is
-  :attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`,
-  recorded by :func:`~orpheus.numerics.eigenvalue.power_iteration` at the
-  ``break``;
-* the **inner** (fixed-source) fact is one shared predicate over the
-  residual history — strictly below tolerance, the same test the
-  within-group certificate uses to decide whether a claim exists at all.
+  :attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`, a
+  property over the outer record that
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` assembles from the
+  readings :meth:`SNSolver.measure_stopping_criteria
+  <orpheus.sn.solver.SNSolver.measure_stopping_criteria>` returns each
+  outer — ``dk`` against ``keff_tol``, ``dphi`` against ``flux_tol``;
+* the outer record carries the inner records as **children**, so the two
+  facts compose rather than collapsing.
 
-Both surface on :attr:`Solution.history.converged
+.. important::
+
+   The two questions are genuinely different and the difference is the
+   point.  ``record.converged`` asks whether THIS level met its own
+   criteria; :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
+   asks whether it and every level beneath it did.  An
+   increment-only outer stop cannot see an upstream throttle — a truncated
+   inner suppresses the very increments the outer reads, so the outer
+   stalls and calls the stall convergence.  `[M]` on a 20-cell 2-group
+   :math:`S_8` slab at ``max_inner=1`` the outer reports
+   ``converged=True`` with :math:`\keff` wrong by **11×** its own
+   ``keff_tol``; ``fully_converged`` is ``False`` and
+   :attr:`~orpheus.numerics.convergence.IterationRecord.first_failure`
+   names the starved inner.  **A value gate asserting physics must read
+   the fold, not the level.**
+
+⛔ Until 2026-08-09 the inner fact was "one shared predicate over the
+residual history" (``orpheus.sn.solver._claims_convergence``).  That
+predicate is retired: it read an EMPTY history as *not converged*, so a
+Krylov solve that returned on its initial guess was indistinguishable from
+a truncation, and reusing it as an audit instrument produced `[M]` 44 of 90
+phantom truncations.  A record separates the two —
+:attr:`~orpheus.numerics.convergence.IterationRecord.iterated` is the
+discriminator.
+
+These surface on :attr:`Solution.history.converged
 <orpheus.sn.solution.IterationHistory.converged>`, which is a **required**
 field: it has no default, so a producer cannot claim convergence by
 omission.

@@ -145,6 +145,7 @@ import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
+from orpheus.numerics.convergence import StoppingCriterion
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
@@ -313,23 +314,28 @@ class DiffusionSolver:
         loss_rate = self._volume_integral(self.loss.apply(psi).interior.values)
         return production / loss_rate
 
-    def converged(
+    def measure_stopping_criteria(
         self,
         keff: float,
         keff_old: float,
         flux_distribution: np.ndarray,
         flux_old: np.ndarray,
-        iteration: int,
-    ) -> bool:
-        r"""``|Δk| < keff_tol`` AND relative flux change ``< flux_tol``
-        (the SN convergence contract; no legacy ``print``)."""
-        if iteration <= 2:
-            return False
+    ) -> tuple[StoppingCriterion, ...]:
+        r"""``|Δk|`` against ``keff_tol`` and the relative flux change against
+        ``flux_tol`` (the SN convergence contract; no legacy ``print``).
+
+        ⛔ Was ``converged(...) -> bool`` until 2026-08-09 (#340 N2b); the
+        ``if iteration <= 2`` head is now
+        :data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS`.
+        """
         dk = abs(keff - keff_old)
         dphi = np.linalg.norm(flux_distribution - flux_old) / max(
             np.linalg.norm(flux_distribution), 1e-30,
         )
-        return bool(dk < self.keff_tol and dphi < self.flux_tol)
+        return (
+            StoppingCriterion.reading("dk", float(dk), self.keff_tol),
+            StoppingCriterion.reading("dphi", float(dphi), self.flux_tol),
+        )
 
 
 @dataclass(frozen=True, eq=False)

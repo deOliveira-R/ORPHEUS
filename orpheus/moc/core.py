@@ -15,6 +15,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.numerics.convergence import StoppingCriterion
 
 from .geometry import MOCMesh
 
@@ -239,18 +240,25 @@ class MOCSolver:
             removal_rate += (self.sig_a[i, :] - 2.0 * sig2_out) @ phi_i * A_i
         return p_rate / removal_rate if removal_rate > 0 else 1.0
 
-    def converged(
+    def measure_stopping_criteria(
         self,
         keff: float,
         keff_old: float,
         flux_distribution: np.ndarray,
         flux_old: np.ndarray,
-        iteration: int,
-    ) -> bool:
-        if iteration <= 2:
-            return False
+    ) -> tuple[StoppingCriterion, ...]:
+        r"""``|Δk|`` against ``keff_tol``, relative ``‖Δφ‖₂`` against ``flux_tol``.
+
+        ⛔ Was ``converged(...) -> bool`` until 2026-08-09 (#340 N2b); its
+        leading ``if iteration <= 2`` is now
+        :data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS`, stated
+        once for every solver instead of five times.
+        """
         dk = abs(keff - keff_old)
         dphi = np.linalg.norm(flux_distribution - flux_old) / max(
             np.linalg.norm(flux_distribution), 1e-30
         )
-        return bool(dk < self.keff_tol and dphi < self.flux_tol)
+        return (
+            StoppingCriterion.reading("dk", float(dk), self.keff_tol),
+            StoppingCriterion.reading("dphi", float(dphi), self.flux_tol),
+        )

@@ -1159,8 +1159,23 @@ class TestL0ProtocolCompliance:
         assert fs.shape == phi.shape
         assert np.all(np.isfinite(fs))
 
-    def test_converged_false_early(self):
-        """[L0] converged() returns False for iteration <= 2."""
+    def test_it_reports_both_criteria_it_stops_on(self):
+        """[L0] ``measure_stopping_criteria`` names ``dk`` AND ``dphi``, each
+        against its own tolerance.
+
+        ⛔ Was ``test_converged_false_early``, which pinned
+        ``solver.converged(..., iteration=1) is False`` — the ``iteration
+        <= 2`` guard, transcribed identically in all five realizers of
+        :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`.  #340 N2b
+        moved that rule to its one home
+        (:data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS`), so
+        the guard is no longer MoC's to own and pinning it here would pin a
+        transcription this solver no longer makes.  The successor gate for
+        the rule itself lives with the loop
+        (``tests/numerics/test_power_iteration_record.py``); what stays MoC's
+        own contract — and is what this now asserts — is WHICH quantities it
+        stops on, and against which tolerances.
+        """
         mat = get_mixture("A", "2g")
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=4, n_polar=1)
@@ -1168,8 +1183,15 @@ class TestL0ProtocolCompliance:
         solver = MOCSolver(moc_mesh, {0: mat})
 
         phi = solver.initial_flux_distribution()
-        assert solver.converged(1.0, 1.0, phi, phi, iteration=1) is False
-        assert solver.converged(1.0, 1.0, phi, phi, iteration=2) is False
+        readings = solver.measure_stopping_criteria(1.0, 1.0, phi, phi)
+
+        assert [r.name for r in readings] == ["dk", "dphi"]
+        assert [r.tolerance for r in readings] == [
+            solver.keff_tol, solver.flux_tol,
+        ]
+        # An unchanged iterate reads zero on both — and every reading is one
+        # iteration's worth, which is what lets the loop concatenate them.
+        assert [r.trajectory for r in readings] == [(0.0,), (0.0,)]
 
 
 # =====================================================================

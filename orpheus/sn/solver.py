@@ -1187,14 +1187,22 @@ class SNSolver:
         # become named attributes; typos surface as AttributeError.
         self._boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
 
-        # Phase 3 measurement seam: total inner (within-group) SI/Krylov
-        # iterations consumed across the eigenvalue outer loop — the
-        # measurand for the SI spectral-rate / Gauss-Seidel-recovery
-        # diagnostics.  Accumulated per outer step in
-        # ``_solve_source_iteration`` / ``_solve_krylov`` and read by
-        # ``solve_sn`` into ``IterationHistory.total_inner_iterations``.
-        # Fresh per solve (a new SNSolver is built per ``solve_sn`` call).
-        self._total_inner_iterations = 0
+        #: Inner records, newest last — one per within-group solve this
+        #: instance has run.  Appended in ``_solve_source_iteration`` /
+        #: ``_solve_krylov``; this is what makes ``SNSolver`` a
+        #: :class:`~orpheus.numerics.eigenvalue.RecordingSolver`, so the outer
+        #: record carries a SUBTREE and "the outer stalled because its inner
+        #: starved" is answerable from the returned solution.
+        #:
+        #: ⛔ Replaced the scalar ``_total_inner_iterations`` accumulator on
+        #: 2026-08-09 (#340 N2b).  That counter summed ``record.n_iterations``
+        #: as each record arrived and dropped the record — the same lossy
+        #: projection the campaign removes everywhere else, and the reason the
+        #: FORWARD eigenvalue path could report a total but not a tree while
+        #: its adjoint twin (``KEigenvalue``) could.  The total is now DERIVED
+        #: (``sum(r.n_iterations for r in inner_records)``), which also retires
+        #: the second spelling of it.
+        self.inner_records: list[IterationRecord] = []
 
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
@@ -1658,17 +1666,33 @@ class SNSolver:
         )
         return reduce(np.multiply.outer, transverse_widths)
 
-    def converged(
+    def measure_stopping_criteria(
         self, keff: float, keff_old: float,
         flux_distribution: np.ndarray, flux_old: np.ndarray,
-        iteration: int,
-    ) -> bool:
-        if iteration <= 2:
-            return False
-        dk = abs(keff - keff_old)
-        dphi = np.linalg.norm(flux_distribution - flux_old) / \
-            max(np.linalg.norm(flux_distribution), 1e-30)
-        return bool(dk < self.keff_tol and dphi < self.flux_tol)
+    ) -> tuple[StoppingCriterion, ...]:
+        r"""``|Δk|`` against ``keff_tol`` and relative ``‖Δφ‖₂`` against ``flux_tol``.
+
+        ⛔ Until 2026-08-09 (#340 N2b) this was ``converged(...) -> bool``: it
+        computed both magnitudes, compared both, and returned one bit.  ``dphi``
+        died here — which is why the truncation warning could only ever project
+        off ``|Δk|``, and on a solve whose ``|Δk|`` had cleared while ``dphi``
+        alternated in sign forever it dutifully answered "you need 1 more
+        iteration" (`[M]` the mutated heterogeneous slab, ``|Δk| = 3.3e-16``
+        against ``tol = 1e-9``).  Reporting BOTH is what retires that guess.
+        """
+        return (
+            StoppingCriterion.reading(
+                "dk", float(abs(keff - keff_old)), self.keff_tol,
+            ),
+            StoppingCriterion.reading(
+                "dphi",
+                float(
+                    np.linalg.norm(flux_distribution - flux_old)
+                    / max(np.linalg.norm(flux_distribution), 1e-30)
+                ),
+                self.flux_tol,
+            ),
+        )
 
     # ── Inner solver: source iteration ────────────────────────────────
 
@@ -1852,13 +1876,14 @@ class SNSolver:
                 sn_mesh=self.sn_mesh, record=record,
                 where="SNSolver._solve_source_iteration",
             )
-        # Phase 3 measurement seam: accumulate this outer step's inner SI
-        # iterate count (the eigenvalue path's only window onto the inner
-        # spectral rate — see IterationHistory.total_inner_iterations).
-        # ⭐ ``record.n_iterations`` is the loop's OWN pass count, not
-        # ``len(residual_history)`` — SI measures the difference between
-        # successive iterates, so the trajectory is one short (#340 F10).
-        self._total_inner_iterations += record.n_iterations
+        # Keep this outer step's inner record whole.  It used to be reduced to
+        # ``+= record.n_iterations`` right here — the count kept, the criteria,
+        # the rate and the status thrown away one line after the driver had
+        # gone to the trouble of measuring them (#340 F8).
+        # ⭐ The count that survives is ``record.n_iterations``, the loop's OWN
+        # pass count, not ``len(trajectory)`` — SI measures the difference
+        # between successive iterates, so the trajectory is one short (F10).
+        self.inner_records.append(record)
         self._psi_typed = psi_typed
 
         # Scalar flux for the eigenvalue outer's contract.  Windowed: the
@@ -2038,12 +2063,11 @@ class SNSolver:
             sn_mesh=self.sn_mesh, record=record,
             where="SNSolver._solve_krylov",
         )
-        # Phase 3 measurement seam: accumulate this outer step's inner
-        # Krylov iterate count (see IterationHistory.total_inner_iterations).
+        # Keep this outer step's inner record whole (see the SI arm above).
         # GMRES gets one callback per iteration, so here the count and the
-        # trajectory length agree — the opposite of SI's offset above, which
-        # is why each driver states its own (#340 F11).
-        self._total_inner_iterations += record.n_iterations
+        # trajectory length agree — the opposite of SI's offset, which is why
+        # each driver states its own (#340 F11).
+        self.inner_records.append(record)
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
@@ -2464,7 +2488,9 @@ def solve_sn(
         converged=outcome.converged,
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
-        total_inner_iterations=solver._total_inner_iterations,
+        total_inner_iterations=sum(
+            r.n_iterations for r in solver.inner_records
+        ),
     )
     _warn_if_unconverged(
         history, where="solve_sn", budget_name="max_outer",

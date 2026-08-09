@@ -1752,8 +1752,16 @@ Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
       :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
       fields — and unifying that is the #259 close-out follow-up.
 
-4. **Converge** (:meth:`CPSolver.converged`) when :math:`|\Delta k| <`
-   ``keff_tol`` and :math:`\|\Delta\phi\|_\infty <` ``flux_tol``.
+4. **Converge** when :math:`|\Delta k| <` ``keff_tol`` and
+   :math:`\|\Delta\phi\|_\infty <` ``flux_tol``.
+   :meth:`CPSolver.measure_stopping_criteria` *reports* the two magnitudes
+   against those tolerances and :func:`~orpheus.numerics.eigenvalue.power_iteration`
+   takes the conjunction.  Note the :math:`\ell^\infty` flux norm: SN, MoC
+   and diffusion judge the same quantity in relative :math:`\ell^2`, which
+   is exactly why the reading belongs to the solver rather than to the
+   shared loop.  ⛔ Until 2026-08-09 this was ``CPSolver.converged``, a
+   ``bool``-returning predicate that also announced the verdict on
+   ``stdout`` (#340).
 
 The power iteration algorithm is shared with all ORPHEUS eigenvalue
 solvers; see :ref:`power-iteration-algorithm` in the homogeneous theory

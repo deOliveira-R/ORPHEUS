@@ -874,9 +874,17 @@ logic into the outer eigenvalue loop (see :doc:`/api/numerics`).
 3. **Eigenvalue update** (:meth:`MOCSolver.compute_keff`):
    :eq:`moc-keff-update`.
 
-4. **Convergence** (:meth:`MOCSolver.converged`):
+4. **Convergence** (:meth:`MOCSolver.measure_stopping_criteria`):
    :math:`|\Delta k| < \texttt{keff\_tol}` and
    :math:`\|\Delta\phi\| / \|\phi\| < \texttt{flux\_tol}`.
+
+   The solver *reports* both magnitudes against their tolerances; the
+   conjunction — and the "no claim before the third outer" rule
+   (:data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS`) — are
+   evaluated once by :func:`~orpheus.numerics.eigenvalue.power_iteration`
+   for every solver.  ⛔ Until 2026-08-09 this was ``MOCSolver.converged``,
+   returning a bare ``bool`` and carrying its own copy of the min-outer
+   guard (#340).
 
 The power iteration algorithm is shared with all ORPHEUS eigenvalue
 solvers; see :ref:`power-iteration-algorithm` in the homogeneous theory

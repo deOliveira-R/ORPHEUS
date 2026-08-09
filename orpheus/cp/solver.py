@@ -44,6 +44,7 @@ from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.numerics.convergence import StoppingCriterion
 from orpheus.numerics.eigenvalue import power_iteration
 
 
@@ -719,20 +720,41 @@ class CPSolver:
 
         return float(production / net_removal)
 
-    def converged(
+    def measure_stopping_criteria(
         self, keff: float, keff_old: float,
         flux_distribution: np.ndarray, flux_old: np.ndarray,
-        iteration: int,
-    ) -> bool:
-        if iteration <= 2:
-            return False
+    ) -> tuple[StoppingCriterion, ...]:
+        r"""``|Δk|`` against ``keff_tol`` and relative ``‖Δφ‖_∞`` against
+        ``flux_tol``, plus this iterate's balance residual.
 
+        ⚠ CP judges the flux change in :math:`\ell^\infty` where SN / MoC /
+        diffusion use relative :math:`\ell^2`.  That difference is exactly why
+        the SOLVER reports the reading and the shared loop
+        (:func:`~orpheus.numerics.eigenvalue.power_iteration`) does not
+        compute it: a loop that measured the change itself would have to pick
+        one metric and would then be a twin of all five realizers.
+
+        ⛔ Was ``converged(...) -> bool`` until 2026-08-09 (#340 N2b).  Two
+        things went with the rename: the ``if iteration <= 2`` head (now
+        :data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS`, stated
+        once) and the ``"Converged."`` announcement — a method that only
+        MEASURES is not entitled to announce a verdict it no longer reaches,
+        and printing one from here would have been a second, un-derived claim
+        of exactly the kind #342 was about.  The per-iteration diagnostic line
+        stays: it logs what was measured, which is this method's own business.
+        """
         delta_k = abs(keff - keff_old)
         delta_phi = np.max(np.abs(flux_distribution - flux_old)) / \
             max(np.max(np.abs(flux_distribution)), 1e-30)
 
-        # Compute and store the neutron balance residual
+        # Compute and store the neutron balance residual.  One append per
+        # call, which is what makes the count below exact — this method is
+        # invoked once per outer, so the history's length IS the number of
+        # outers already measured.  (CP tracks the residual as a DIAGNOSTIC;
+        # it is not part of the stop test, so it is not returned as a
+        # criterion — a returned criterion is one the loop stops on.)
         residual = self._compute_balance_residual(flux_distribution, keff)
+        iteration = len(self.residual_history) + 1
         self.residual_history.append(residual)
 
         # Print diagnostics
@@ -746,11 +768,10 @@ class CPSolver:
                 msg += f"  inner(max/mean) = {n_in.max()}/{n_in.mean():.1f}"
             print(msg)
 
-        if delta_k < self.keff_tol and delta_phi < self.flux_tol:
-            print(f"    iter {iteration:4d}  keff = {keff:.6f}  "
-                  f"res = {residual:.2e}  Converged.")
-            return True
-        return False
+        return (
+            StoppingCriterion.reading("dk", float(delta_k), self.keff_tol),
+            StoppingCriterion.reading("dphi", float(delta_phi), self.flux_tol),
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -239,7 +239,8 @@ makes the uncovered tail cheap — it tells that user the number.
 |---|---|---|
 | N1 ✅ | `IterationRecord` + `StoppingCriterion` + their own laws | **LANDED** — see below |
 | N2a ✅ | **Producer-side retention** — the two drivers return a record | **LANDED** — see below |
-| N2b | SN produces the record; `IterationHistory` composes it; flat accessors become derived | the 9-red baseline unchanged |
+| N2b-i | **The OUTER stopping test reports what it measured** — see below; this row's original wording was too narrow | eigenvalue suites + new loop gates |
+| N2b-ii | SN's SOLUTION carries the record; `IterationHistory` composes it; flat accessors become derived | the 9-red baseline unchanged |
 | N3 | Derived budget + rate-aware message (3c) | contract suite + a NEW starved-projection gate |
 | N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
 | N5 | Outer certificate (F7/F7′) — residual `(A - F/k)psi` at exit | mutation battery |
@@ -325,6 +326,150 @@ guessing F10 measures. Same for F11's undocumented `+1`: two spellings of
 "iterations at this level" must become one before a record can carry it.
 
 N3 is independent of N1's consumers and can proceed on the landed primitive.
+
+### N2b-i — the outer stopping test reports what it MEASURED, not a verdict about it
+
+**Goal (domain terms).** A stopping criterion is a measured magnitude judged
+against a tolerance. A loop that keeps only the boolean cannot say which
+criterion failed, how fast it was closing, or what budget would reach it —
+so the object a user gets back cannot answer the question this campaign
+exists to answer.
+
+⛔ **The §3d row above said "SN produces the record", and that framing was too
+narrow — corrected 2026-08-09 in place per `plan-authoring` §3.** The producer
+is not SN. `EigenvalueSolver.converged(...) -> bool` is a `numerics/` protocol
+with FIVE realizers, and every one of them computes `|Δk|` and `‖Δφ‖`, compares
+both, and returns one bit. It is the *identical* lossy-return-type defect N2a
+fixed at the inner level, one level up — and the campaign's standing ruling
+(**structural, not SN-local**) already authorises fixing it where it lives.
+
+`[M]` blast radius at `bfd59dd9`, and it is why this is atomic:
+
+| | count | where |
+|---|---|---|
+| realizers of `converged` | **5** | `numerics/iteration.py:1435` · `sn/solver.py:1661` · `cp/solver.py:722` · `moc/core.py:242` · `diffusion/solver.py:316` |
+| production call sites | **1** | `numerics/eigenvalue.py:317` |
+| transcriptions of `if iteration <= 2: return False` | **5** | one per realizer, character-identical |
+
+Per `plan-authoring` §6b the unit of work is the call-site set, so 1–3 below
+cannot be split; the solution-object half genuinely can, and is **N2b-ii**.
+
+**Means (LANDED — see the block below for what measurement changed).**
+
+1. `converged(...) -> bool` becomes
+   `measure_stopping_criteria(...) -> tuple[StoppingCriterion, ...]`, one
+   single-point reading per criterion via a new `StoppingCriterion.reading()`
+   named constructor; the loop concatenates with `extended_with()`, which
+   routes through `replace()` so `__post_init__` re-fires (Pattern 4 ∩ 2).
+   **No new type**: a reading IS a criterion with a length-1 trajectory, and
+   minting `CriterionReading` would be the same object wearing a label
+   (`coding-standards` type-vs-property).
+2. The `iteration` **parameter is dropped**. A reading is a function of the two
+   iterates; keeping the parameter would leave the sixth transcription of the
+   guard spellable. The rule is a property of power iteration (two increments
+   are the minimum that can show a trend) and now lives once as
+   `MINIMUM_OUTER_ITERATIONS`, reaching the record as `min_iterations` — which
+   N1's own docstring had already named as its intended home.
+3. `PowerIterationOutcome` gains `record` and `converged` becomes a **derived
+   property**, so the outer level obeys the same rule as the inner one.
+
+⭐ **Two things the implementation found that the plan had not predicted:**
+
+- **The FORWARD path had no subtree.** `SNSolver` was not a recording solver:
+  `:1877`/`:2062` did `self._total_inner_iterations += record.n_iterations` —
+  the record in hand, reduced to a scalar and dropped, one line after the
+  driver measured it (F8). So the adjoint path could carry a tree and the
+  forward path could not. Retiring that counter onto `inner_records` (the total
+  becomes `sum(r.n_iterations for r in ...)`, which also kills the second
+  spelling of it) is what makes the headline work at all.
+- **F12 is fixed STRUCTURALLY, not by a reset.** The double-count defect was
+  "instance accumulator with no reset". Rather than ask five realizers each to
+  find a start-of-solve hook, `power_iteration` records `len(inner_records)` at
+  entry and slices from there — it takes the children *it* caused. A realizer's
+  reset hygiene can no longer corrupt the tree. `KEigenvalue`'s reset stays,
+  now only keeping its own public attribute honest.
+
+`[M]` **the headline, end to end, on a 20-cell 2-group S8 slab** — the first
+time the campaign's motivating question has an answer in the returned object:
+
+```
+max_inner=1   keff = 1.59689680      (honest: 1.59689789 — 11x keff_tol off)
+  outer.converged   = True                     <- the outer's OWN test is satisfied
+  fully_converged   = False                    <- the tree knows better
+  first_failure     = ('inner(source-iteration)', 'TRUNCATED')
+```
+
+Note the outer took **154** outers rather than 17: the starved inner throttled
+it, and the increment test eventually satisfied itself on a wrong answer —
+exactly F5's "an increment-only stopping test cannot see an upstream throttle".
+
+⚠ **Behaviour-neutrality of the derived `converged` is ARGUED, so it owes its
+own gate** (`plan-authoring` §8). The argument: the loop breaks iff all of this
+iteration's readings cleared, and each criterion's `last` IS that reading, so
+`all(c.cleared)` agrees; `n >= 3` holds on both sides by the same constant.
+Edge rows that must be gated, not assumed: `max_iter=0` (no criteria at all —
+`DIRECT`), `max_iter <= 2` (readings may clear while `min_iterations` refuses),
+and a solver returning **zero** criteria (refused outright — an empty
+conjunction is vacuously true and would manufacture a claim out of nothing).
+
+⚠ **CP's realizer is the un-pure one** and the rename made that louder: it
+appends to `residual_history` and prints. The per-iteration diagnostic line
+stays (it logs what was measured); the `"Converged."` **announcement was
+deleted** — a method that only measures is not entitled to announce a verdict
+it no longer reaches. Its iteration index now comes from
+`len(self.residual_history) + 1`, exact because the append is once per call.
+CP also judges `‖Δφ‖_∞` where the other four use relative `‖Δφ‖₂` — which is
+the concrete reason the SOLVER must report and the loop must not compute.
+
+**Also fixed in passing:** `IterationRecord.report()` printed `met` for a
+criterion with an EMPTY trajectory, so a `TRUNCATED` level's own report
+contradicted its status line. `cleared` is vacuously true there and that is
+correct for what it decides; the report now says `not measured`.
+
+#### N2b-i gates — `[M]` mutation battery 10/10, zero blind
+
+MB0 (unmutated) is the positive control. `tests/numerics/test_power_iteration_record.py`
+is new (the loop in isolation, on a SCRIPTED solver — a converging physics
+solve couples accumulation, verdict and tree assembly to physics that can mask
+an off-by-one in any of them).
+
+⭐⭐ **Two of the ten reddened NOTHING on the first run, and both were real
+gate gaps rather than harness faults — the distinction is the whole value of
+the run.** Recording both, because each generalises:
+
+1. **MB7 — `PowerIterationOutcome.converged` re-pointed at `fully_converged`
+   reddened 0 of 249.** Every gate read `outcome.record.…` directly; the one
+   that cross-checked the two surfaces used fixtures where the level and the
+   fold agree. ⟹ **reaching THROUGH a wrapper in every gate leaves the
+   wrapper's own surface — the one callers touch — ungated.** Only a
+   starved-inner fixture separates them.
+2. ⭐⭐ **MB9 — SN reporting only its FIRST criterion reddened 0 of 249**, and
+   this is the sharper, more transferable one: **a mutation that RELAXES a
+   conjunction is invisible to every gate that only checks the conjunction's
+   RESULT.** Dropping `dphi` makes convergence strictly easier, so every
+   outcome-level gate stays green while the solve is judged on half its
+   contract — which is *precisely* the pre-#340 state being restored. A
+   weakened stop test needs a gate on the REPORTED CRITERIA, not on the
+   verdict. (Same family as the campaign's "a boolean-contract gate needs
+   PAIRS": the starved leg carries the teeth.)
+
+Both are now gated, in tests that say in their own docstrings that a mutation
+found their absence.
+
+⚠ **And two of the ten were BLIND FOR A HARNESS REASON, which reads identically
+in the report and is the more dangerous confusion** (vv anti-#17, flattering
+direction). MB3/MB4 patched `ev.power_iteration`, but the test module had done
+`from ...eigenvalue import power_iteration` at import time, so its global still
+pointed at the original and the mutation never reached the call site. A
+"0 caught" that means *my instrument missed* looks exactly like a "0 caught"
+that means *my gates are fine*. ⟹ when a mutation reddens nothing, the FIRST
+question is "did it take?", answered by patching every already-bound name.
+
+Suites at the N2b-i tree: `tests/numerics` + `tests/sn/{solve,eigenvalue}` +
+`tests/diffusion` = **3 failed / 2506 passed** (the 3 = the known #333 affine
+trio, unchanged); `tests/moc` + the new gates = **249 passed**; pyright
+`orpheus/` **1 error** (the accepted #288 residual); xrefs **0 dead / 14 955**;
+V&V matrix 9327 → **9361**.
 
 ⛔ N5 is NOT plumbing. Per `plan-authoring` §8: today nothing branches on an
 outer residual, so adding one that RAISES changes behaviour at every eigenvalue

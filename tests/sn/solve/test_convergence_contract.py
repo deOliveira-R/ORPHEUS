@@ -46,12 +46,13 @@ from orpheus.geometry import BC
 from orpheus.numerics.convergence import (
     ESCALATION_FLAG,
     ConvergenceWarning,
+    IterationRecord,
     StoppingCriterion,
     default_iteration_budget,
 )
 from orpheus.numerics.eigenvalue import PowerIterationOutcome
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
+from orpheus.sn.solver import SNSolver, solve_sn, solve_sn_fixed_source
 from orpheus.transport.mesh.axis import AxisMesh
 
 _REFL = BC("reflective")
@@ -207,6 +208,73 @@ def _sn_mesh_for_budget_probe():
     )
 
 
+@pytest.mark.foundation
+class TestSNReportsBothCriteriaItStopsOn:
+    """``SNSolver`` stops on ``dk`` AND ``dphi``; it must REPORT both.
+
+    ⭐ This class exists because a mutation found its absence.  `[M]` patching
+    :meth:`SNSolver.measure_stopping_criteria` to return only its first
+    reading — which is *exactly* the pre-#340 state, where ``dphi`` was
+    computed inside the predicate and discarded — reddened **zero** of 249
+    tests.  Dropping the harder criterion makes convergence strictly EASIER,
+    so every outcome-level gate stays green and the loss is invisible.
+
+    The consequence is not hypothetical: with ``dphi`` unrecorded, the
+    truncation warning could only ever project off ``|dk|``, and on a solve
+    whose ``|dk|`` had cleared while ``dphi`` alternated in sign forever it
+    answered "you need 1 more iteration".
+    """
+
+    def test_it_names_dk_and_dphi_against_their_own_tolerances(self) -> None:
+        sn = _sn_mesh_for_budget_probe()
+        solver = SNSolver(sn, keff_tol=1e-7, flux_tol=1e-6)
+        phi = solver.initial_flux_distribution()
+
+        readings = solver.measure_stopping_criteria(1.0, 1.0, phi, phi)
+
+        assert [r.name for r in readings] == ["dk", "dphi"]
+        assert [r.tolerance for r in readings] == [1e-7, 1e-6], (
+            "each criterion must carry ITS OWN tolerance — a shared one would "
+            "make `cleared` and every projection off it meaningless"
+        )
+
+    def test_each_reading_is_one_iteration_worth(self) -> None:
+        """One reading per criterion per outer — what lets the loop
+        concatenate them into co-indexed trajectories."""
+        sn = _sn_mesh_for_budget_probe()
+        solver = SNSolver(sn)
+        phi = solver.initial_flux_distribution()
+
+        readings = solver.measure_stopping_criteria(1.0, 1.0, phi, phi)
+
+        for reading in readings:
+            assert reading.n_iterations == 1, (
+                f"{reading.name} reported {reading.n_iterations} values for "
+                f"one iterate"
+            )
+        # An unchanged iterate reads zero on both — magnitudes, never signed.
+        assert [r.last for r in readings] == [0.0, 0.0]
+
+    def test_the_readings_are_MAGNITUDES_of_a_real_step(self) -> None:
+        """A genuine step reports strictly positive, finite readings.
+
+        The positive control for the two gates above: without it they are
+        satisfied by a method pinned at zero, which would report two
+        beautifully-named criteria that never move.
+        """
+        sn = _sn_mesh_for_budget_probe()
+        solver = SNSolver(sn)
+        phi = solver.initial_flux_distribution()
+
+        readings = solver.measure_stopping_criteria(1.05, 1.0, phi, phi * 0.5)
+
+        for reading in readings:
+            assert reading.last is not None
+            assert 0.0 < reading.last < np.inf, (
+                f"{reading.name} read {reading.last!r} on a real step"
+            )
+
+
 # ─── 1. The primitive records the fact ───────────────────────────────────
 
 
@@ -224,18 +292,33 @@ class TestPowerIterationCarriesItsOutcome:
         """
         outcome = PowerIterationOutcome(
             keff=1.0, keff_history=[1.0], flux_distribution=np.ones(3),
-            converged=True,
+            record=IterationRecord(label="outer(probe)"),
         )
         with pytest.raises(TypeError):
             _a, _b, _c = outcome           # type: ignore[misc]
 
+    def test_the_outcome_cannot_be_HANDED_a_convergence_claim(self) -> None:
+        """``converged`` is derived from the record, so it is not a ctor arg.
+
+        The sharper half of #342's fix, and the reason this gate exists
+        separately from the value gates below: the defect was a hand-written
+        ``converged=True``, and a keyword that no longer EXISTS cannot be
+        hand-written.  A gate that only checked the value would stay green
+        against a re-introduced field defaulting to the optimistic answer.
+        """
+        with pytest.raises(TypeError):
+            PowerIterationOutcome(              # type: ignore[call-arg]
+                keff=1.0, keff_history=[1.0], flux_distribution=np.ones(3),
+                record=IterationRecord(label="outer(probe)"),
+                converged=True,
+            )
+
     def test_a_starved_budget_reports_not_converged(self) -> None:
         """max_outer=1 cannot satisfy a criterion needing >=3 outers.
 
-        The teeth of the whole file: ``SNSolver.converged`` returns False for
-        ``iteration <= 2`` by construction, so this outcome is structurally
-        unconverged and any hardcoded ``True`` anywhere on the path reds
-        here.
+        The teeth of the whole file: ``MINIMUM_OUTER_ITERATIONS`` is 3, so
+        this outcome is structurally unconverged and any hardcoded ``True``
+        anywhere on the path reds here.
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ConvergenceWarning)

@@ -168,7 +168,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 __all__ = [
     "ESCALATION_FLAG",
@@ -265,8 +265,9 @@ def _budget_from_law(
     integer (``ceil`` would return the index whose value EQUALS the
     tolerance, and a stopping test is strict).
 
-    Both users of the law route through here — :meth:`StoppingCriterion.
-    projected_iterations` fits ``(a, b)`` from an observed trajectory, and
+    Both users of the law route through here —
+    :meth:`StoppingCriterion.projected_iterations` fits ``(a, b)`` from an
+    observed trajectory, and
     :func:`default_iteration_budget` evaluates the same law a priori at the
     served rate.  They are the posterior and the prior of one statement, and
     a second spelling of it is a twin waiting to drift.
@@ -425,6 +426,60 @@ class StoppingCriterion:
                 f"{self.name}: a stopping criterion holds MAGNITUDES, so a "
                 f"negative entry is a producer bug; got {negative[0]!r}"
             )
+
+    # ── building one up, one iteration at a time ─────────────────────────
+
+    @classmethod
+    def reading(
+        cls, name: str, value: float, tolerance: float,
+    ) -> "StoppingCriterion":
+        """ONE iteration's reading of this quantity — a trajectory of length 1.
+
+        A stopping test is evaluated per iteration, but a criterion is a
+        *trajectory*; this is the named bridge between the two, so a producer
+        that measures ``|Δk|`` at one iterate says exactly that and the loop
+        accumulates with :meth:`extended_with`.  Spelling the same thing as
+        ``StoppingCriterion(name, (value,), tol)`` works and means the same —
+        the named constructor exists so the per-iteration convention is
+        greppable and so the realizers of
+        :meth:`~orpheus.numerics.eigenvalue.EigenvalueSolver.measure_stopping_criteria`
+        read like the domain::
+
+            return (
+                StoppingCriterion.reading("dk", abs(keff - keff_old), self.keff_tol),
+                StoppingCriterion.reading("dphi", dphi, self.flux_tol),
+            )
+        """
+        return cls(name=name, trajectory=(value,), tolerance=tolerance)
+
+    def extended_with(self, reading: "StoppingCriterion") -> "StoppingCriterion":
+        """This criterion's trajectory extended by a later reading of itself.
+
+        Routes through :func:`~dataclasses.replace`, so ``__post_init__``
+        re-fires on the result and the magnitude law is re-established for
+        free rather than restated here (``coding-elegance`` Pattern 4 ∩
+        Pattern 2 — an invariant with two spellings is an invariant that will
+        drift).
+
+        Refuses a reading of a DIFFERENT quantity, and refuses a tolerance
+        that moved mid-solve: a trajectory is only comparable against one
+        threshold, so a shifting tolerance silently invalidates
+        :attr:`cleared`, :attr:`distance` and every projection derived from
+        them.  Neither is reachable from the shipped loop; both are cheap to
+        refuse and would otherwise be silent.
+        """
+        if reading.name != self.name:
+            raise ValueError(
+                f"cannot extend criterion {self.name!r} with a reading of "
+                f"{reading.name!r} — trajectories are per-quantity"
+            )
+        if reading.tolerance != self.tolerance:
+            raise ValueError(
+                f"{self.name}: tolerance moved mid-solve "
+                f"({self.tolerance!r} → {reading.tolerance!r}) — the whole "
+                f"trajectory would no longer be judged against one threshold"
+            )
+        return replace(self, trajectory=self.trajectory + reading.trajectory)
 
     # ── what happened ────────────────────────────────────────────────────
 
@@ -617,9 +672,9 @@ class IterationRecord:
         in this tree: :class:`~orpheus.numerics.iteration.SourceIteration`
         measures the *difference* between successive iterates, so ``P``
         passes yield ``P - 1`` residuals and a run that exhausts
-        ``max_iter=50`` records 49; :class:`~orpheus.numerics.iteration.
-        KrylovAcceleration` gets one callback per iteration, so its counts
-        match.  Inferring one rule would silently mis-read the other — which
+        ``max_iter=50`` records 49;
+        :class:`~orpheus.numerics.iteration.KrylovAcceleration` gets one
+        callback per iteration, so its counts match.  Inferring one rule would silently mis-read the other — which
         is exactly what happened before the record existed, where the same
         ``n_inner`` field was written as ``len(residuals)`` by one driver and
         ``len(residuals) + 1`` by the other, undocumented.
@@ -837,10 +892,19 @@ class IterationRecord:
         ]
         binding = self.binding_criterion
         for criterion in self.criteria:
-            mark = "met" if criterion.cleared else "MISSED"
             tag = " <- binding" if criterion is binding else ""
             last = criterion.last
-            value = "n/a" if last is None else f"{last:.3e}"
+            # ⚠ An unmeasured criterion must NOT read "met" here.  `cleared`
+            # is vacuously True on an empty trajectory and that is correct for
+            # what it decides, but printing "met" beside a level whose own
+            # status line says TRUNCATED gives a reader two statements that
+            # cannot both be acted on.  The report's job is to be pasted into
+            # a bug report unedited, so it says which of the two it is.
+            if last is None:
+                value, mark = "n/a", "not measured"
+            else:
+                value = f"{last:.3e}"
+                mark = "met" if criterion.cleared else "MISSED"
             lines.append(
                 f"{pad}  {criterion.name}: {value} vs tol "
                 f"{criterion.tolerance:.3e}  {mark}{tag}"

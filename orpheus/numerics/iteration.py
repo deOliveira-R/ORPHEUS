@@ -432,8 +432,9 @@ def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
     Duck-typed on ``contraction_ratio`` (numerics MUST NOT import transport —
     the L1↛L2 layering), mirroring the ``_is_ravellable`` protocol check above.
 
-    A coupled block iterate (:class:`~orpheus.numerics.coupled_system.
-    CoupledField`) exposes ``systems`` instead of ``interior``; the finder
+    A coupled block iterate
+    (:class:`~orpheus.numerics.coupled_system.CoupledField`)
+    exposes ``systems`` instead of ``interior``; the finder
     recurses into the PRIMARY system (``systems[0]`` — the convention: the
     coupling's first member is the principal field whose bulk carries the
     convergence diagnostics; for the ψ½ instance that is System A's
@@ -1266,9 +1267,16 @@ class KEigenvalue(Generic[V]):
         self.max_inner = resolve_iteration_budget(max_inner, self.inner_tol)
         self.eigenvalue_method = eigenvalue_method
         #: Inner records, newest last — one per outer iteration.  Reset by
-        #: :meth:`solve` so a reused instance cannot double-count (the
-        #: defect #340 F12 measured on ``SNSolver._total_inner_iterations``,
-        #: which has no reset and silently accumulates across solves).
+        #: :meth:`solve` so this accessor reports the current solve.
+        #:
+        #: ⛔ #340 F12 measured the double-count on the scalar
+        #: ``SNSolver._total_inner_iterations``, which had no reset; that
+        #: counter was retired onto ``SNSolver.inner_records`` on 2026-08-09.
+        #: The reset here is no longer what protects the outer record's
+        #: subtree — :func:`~orpheus.numerics.eigenvalue.power_iteration`
+        #: slices off only what was appended during its own loop, so no
+        #: realizer's reset hygiene can corrupt the tree.  It still keeps
+        #: THIS attribute honest for anyone reading it directly.
         self.inner_records: list[IterationRecord] = []
 
         # Build the inner fixed-source step ONCE: the SOLVER (this posing
@@ -1432,20 +1440,23 @@ class KEigenvalue(Generic[V]):
         )
         return float(num / den)
 
-    def converged(
+    def measure_stopping_criteria(
         self, keff: float, keff_old: float,
         flux_distribution: V, flux_old: V,
-        iteration: int,
-    ) -> bool:
-        """≥3 outer iterations, then ``dk < keff_tol`` AND ``dφ < flux_tol``.
+    ) -> tuple[StoppingCriterion, ...]:
+        """``dk`` against ``keff_tol`` and relative ``dφ`` against ``flux_tol``.
 
         Carrier-honest (#276 A4): norms go through :func:`_l2_norm` (the
         ravellable protocol; bit-identical ``np.linalg.norm`` on a bare
         ndarray), and the iterate difference is the carrier's own
         :class:`~orpheus.numerics.vector.Vector` ``__sub__``.
+
+        ⛔ Was ``converged(...) -> bool`` with a leading ``if iteration <= 2``
+        until 2026-08-09 (#340 N2b).  That guard is a property of power
+        iteration, not of this solver, and now lives once at
+        :data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS`; the
+        magnitudes it used to consume and discard are the return value.
         """
-        if iteration <= 2:
-            return False
         dk = abs(keff - keff_old)
         norm = _l2_norm(flux_distribution)
         dphi = (
@@ -1453,7 +1464,10 @@ class KEigenvalue(Generic[V]):
             if norm > 0.0
             else _l2_norm(flux_distribution - flux_old)
         )
-        return dk < self.keff_tol and dphi < self.flux_tol
+        return (
+            StoppingCriterion.reading("dk", float(dk), self.keff_tol),
+            StoppingCriterion.reading("dphi", float(dphi), self.flux_tol),
+        )
 
     def solve(
         self,
@@ -1508,7 +1522,8 @@ class KEigenvalue(Generic[V]):
         from .eigenvalue import power_iteration
         # Reset before the loop, so a reused instance reports THIS solve's
         # inners rather than every solve it has ever run.  (#340 F12 measured
-        # the un-reset variant on ``SNSolver._total_inner_iterations``, where
-        # two power_iteration calls on one solver silently double-count.)
+        # the un-reset variant on the retired scalar
+        # ``SNSolver._total_inner_iterations``, where two power_iteration
+        # calls on one solver silently double-counted.)
         self.inner_records = []
         return power_iteration(self, max_iter=self.max_outer)

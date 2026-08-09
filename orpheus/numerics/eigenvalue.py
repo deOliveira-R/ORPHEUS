@@ -74,12 +74,31 @@ implemented; any other value raises at construction).
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Generic, Protocol, cast, runtime_checkable
 
 import numpy as np
 
+from .convergence import IterationRecord, StoppingCriterion
 from .vector import Carrier, Vector
+
+
+MINIMUM_OUTER_ITERATIONS = 3
+"""Outers below which power iteration refuses to claim convergence.
+
+The stop test reads INCREMENTS (``|Δk|``, ``‖Δφ‖/‖φ‖``), and one increment is
+a difference against an arbitrary initial guess — it can be small because the
+iteration is converging or because the guess happened to sit near the first
+iterate.  Two increments are the minimum that can show a trend, so the first
+claimable outer is the third.
+
+This is a property of the ALGORITHM, not of any solver, which is why it lives
+here and reaches :attr:`~orpheus.numerics.convergence.IterationRecord.min_iterations`
+from one place.  `[M]` 2026-08-09 it was transcribed as ``if iteration <= 2:
+return False`` in all five realizers of :class:`EigenvalueSolver` — identical
+in every one, and invisible to any single-file review.
+"""
 
 
 class EigenvalueSolver(Protocol[Carrier]):
@@ -157,15 +176,75 @@ class EigenvalueSolver(Protocol[Carrier]):
         """
         ...
 
-    def converged(
+    def measure_stopping_criteria(
         self,
         keff: float,
         keff_old: float,
         flux_distribution: Carrier,
         flux_old: Carrier,
-        iteration: int,
-    ) -> bool:
-        """Return True when the outer iteration has converged."""
+    ) -> tuple[StoppingCriterion, ...]:
+        r"""Read every quantity this solver stops on, at this iterate.
+
+        Returns one :meth:`~orpheus.numerics.convergence.StoppingCriterion.reading`
+        per criterion — the measured magnitude AND the tolerance it is judged
+        against, welded together so neither can travel without the other.
+        :func:`power_iteration` accumulates the readings into trajectories and
+        DERIVES the verdict; the solver states what it measured and does not
+        decide.
+
+        ⛔ This replaced ``converged(...) -> bool`` on 2026-08-09 (#340 N2b).
+        The predicate computed ``|Δk|`` and ``‖Δφ‖/‖φ‖``, compared both, and
+        returned one bit — so a stalled solve could not say WHICH criterion
+        was lagging, how fast it was closing, or what budget would reach it.
+        Same lossy-return-type defect the inner drivers carried until N2a
+        (`[M]` #340 F2), one level up.
+
+        Each solver reports in its own metric and that is the point: CP judges
+        the flux change in :math:`\ell^\infty`, SN / MoC / diffusion in
+        relative :math:`\ell^2`.  A loop that computed the readings itself
+        would have to pick one, and would then be a twin of all five.
+
+        ⚠ There is deliberately NO ``iteration`` parameter.  A reading is a
+        function of the two iterates and nothing else; the "don't claim
+        convergence before iteration 3" rule is a property of power iteration
+        (you need at least two increments to see a trend), not of any solver,
+        and it lives once in :data:`MINIMUM_OUTER_ITERATIONS`.  `[M]` it was
+        transcribed identically in all FIVE realizers before this change.
+        Removing the parameter is what makes the sixth transcription
+        unspellable.
+        """
+        ...
+
+
+@runtime_checkable
+class RecordingSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
+    """An :class:`EigenvalueSolver` that retains its inner solves' records.
+
+    The OPTIONAL extension that lets the outer record carry a subtree, modelled
+    exactly like :class:`ProductionRateSolver` below: solvers that keep their
+    inner trajectories (SN via
+    :class:`~orpheus.numerics.iteration.KEigenvalue`) expose them here and
+    :func:`power_iteration` narrows with ``isinstance``; CP / MoC / diffusion
+    conform to the base contract without it and plug in with no suppression.
+
+    Without this the outer level could only ever report itself, and "the outer
+    stalled because its inner starved" — the #340 failure that motivated the
+    whole campaign — would stay unanswerable from the returned object.
+    """
+
+    @property
+    def inner_records(self) -> Sequence[IterationRecord]:
+        """Every inner solve this instance has run, in order, appended-to.
+
+        ⚠ Deliberately NOT "the records of the current solve".  A realizer is
+        free to accumulate across solves — :func:`power_iteration` slices off
+        what was appended during ITS loop and never reads the earlier entries,
+        so an instance reused for two solves cannot contribute a stale child.
+        Requiring a reset instead would put the correctness of the tree in the
+        hands of five separate realizers, each of which would have to find its
+        own "start of solve" hook; `[M]` #340 F12 measured exactly that failure
+        (``SNSolver`` had no such hook and its counter double-counted).
+        """
         ...
 
 
@@ -217,11 +296,6 @@ class PowerIterationOutcome(Generic[Carrier]):
     its callers need does not have a documentation problem; it has a return
     type problem.
 
-    ⚠ ``converged`` is recorded by the loop, NOT re-derived downstream, and
-    that is a strictly sharper statement than the inference it replaces:
-    ``len(keff_history) < max_iter`` is **false** for a solve that converges
-    exactly on its last allowed iteration, which the direct flag gets right.
-
     Deliberately NOT tuple-unpackable.  Making it destructure like the old
     triple would preserve the very idiom that lost the flag, and would let a
     consumer keep ignoring it by accident.
@@ -231,19 +305,52 @@ class PowerIterationOutcome(Generic[Carrier]):
     """Dominant eigenvalue :math:`k_{\\rm eff}`."""
 
     keff_history: list[float]
-    """Eigenvalue estimate at each outer iteration, in order."""
+    """Eigenvalue estimate at each outer iteration, in order.
+
+    The eigenvalue's own trajectory — a physics output, NOT a stopping
+    criterion.  What the stop test reads is its per-iteration INCREMENT, which
+    lives in :attr:`record` under the name the solver gave it.  Keeping the two
+    apart is why the loop no longer has to re-difference this list to say what
+    it was judging (`[M]` #340: the warning path did exactly that, and could
+    only ever recover ONE of the two criteria that way).
+    """
 
     flux_distribution: Carrier
     """Fundamental mode (unit production rate where the solver supports it)."""
 
-    converged: bool
-    """``True`` iff the loop broke on ``solver.converged(...)``.
+    record: IterationRecord
+    """Everything the loop measured: per-criterion trajectories, the budget it
+    was given, and — for a :class:`RecordingSolver` — one child record per
+    inner solve.
 
-    ``False`` means the iteration cap was reached with the criterion unmet
-    and :attr:`flux_distribution` is a **best-effort** iterate — mid-descent,
-    not the answer.  A caller that asserts physics against it is asserting an
-    arbitrary point on the trajectory.
+    This is the object that answers "where did it stall, and what do I set".
+    :attr:`converged` is one bit of it.
     """
+
+    @property
+    def converged(self) -> bool:
+        """Did the OUTER loop meet all of its own criteria?
+
+        DERIVED from :attr:`record`, never stored — the campaign's founding
+        rule (#342).  A stored flag is a transcription, and a transcription of
+        a convergence verdict is the exact defect this type was minted to fix:
+        it was written by hand at five sites, one of them the literal
+        ``converged=True``.  Deriving it makes the sixth unspellable.
+
+        ``False`` means the iteration cap was reached with a criterion unmet
+        and :attr:`flux_distribution` is a **best-effort** iterate — mid-descent,
+        not the answer.  A caller that asserts physics against it is asserting
+        an arbitrary point on the trajectory.
+
+        ⚠ Scoped to THIS level.  A converged outer whose inners starved reads
+        ``True`` here and ``False`` at
+        :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`,
+        and that gap is not a wart — it is the #340 headline, since an
+        increment-only outer stop CANNOT see an upstream throttle (a truncated
+        inner suppresses the very increments the outer reads, so it stalls and
+        calls the stall convergence).
+        """
+        return self.record.converged
 
 
 def power_iteration(
@@ -266,10 +373,18 @@ def power_iteration(
     flux_distribution = solver.initial_flux_distribution()
     keff = 1.0
     keff_history: list[float] = []
-    # Exhausting the budget is the DEFAULT outcome; only the convergence
-    # test below may claim otherwise.  Stated this way round so a future
-    # edit that adds an early exit cannot silently inherit a True.
-    converged = False
+    # Accumulated per criterion NAME, so a solver may report any number of
+    # them and the loop never has to know which.  There is no `converged`
+    # local any more: exhausting the budget is not a flag to default to False,
+    # it is what the trajectories SAY when the last readings did not clear.
+    criteria: dict[str, StoppingCriterion] = {}
+    # How many inner records the solver had ALREADY accumulated before this
+    # loop began.  Slicing from here is what makes a reused solver instance
+    # unable to contribute a stale child, without asking any realizer to
+    # implement a reset hook (see RecordingSolver.inner_records).
+    inners_before = (
+        len(solver.inner_records) if isinstance(solver, RecordingSolver) else 0
+    )
 
     for n in range(1, max_iter + 1):
         # Stash the previous iterate for the convergence test.  Typed
@@ -314,15 +429,56 @@ def power_iteration(
         keff = solver.compute_keff(flux_distribution)
         keff_history.append(keff)
 
-        if solver.converged(keff, keff_old, flux_distribution, flux_old, n):
-            converged = True
+        readings = solver.measure_stopping_criteria(
+            keff, keff_old, flux_distribution, flux_old,
+        )
+        if not readings:
+            # An empty conjunction is vacuously true, so a solver that measures
+            # nothing would "converge" at MINIMUM_OUTER_ITERATIONS with an
+            # empty record to show for it — a #342-class lie assembled out of
+            # nothing.  Refuse instead of certifying silence.
+            raise ValueError(
+                f"{type(solver).__name__}.measure_stopping_criteria returned "
+                f"no criteria — a loop with nothing to measure cannot "
+                f"converge, and an empty conjunction would claim it did"
+            )
+        for reading in readings:
+            seen = criteria.get(reading.name)
+            criteria[reading.name] = (
+                reading if seen is None else seen.extended_with(reading)
+            )
+
+        # The verdict is the conjunction of THIS iteration's readings, and the
+        # min-outer rule is applied here rather than inside any solver (see
+        # MINIMUM_OUTER_ITERATIONS).  It is stated again as `min_iterations` on
+        # the record below, where it is the same number serving the same rule —
+        # `IterationRecord.converged` must reach the identical verdict off the
+        # trajectories alone, since that derived reading is what every consumer
+        # actually sees.
+        if n >= MINIMUM_OUTER_ITERATIONS and all(r.cleared for r in readings):
             break
 
     return PowerIterationOutcome(
         keff=keff,
         keff_history=keff_history,
         flux_distribution=flux_distribution,
-        converged=converged,
+        record=IterationRecord(
+            label="outer(power-iteration)",
+            criteria=tuple(criteria.values()),
+            budget=max_iter,
+            # One reading per outer, so this equals every criterion's length —
+            # stated anyway because only the producer knows that (the SI inner
+            # measures DIFFERENCES and runs one more pass than it records;
+            # #340 F10/F11).  The record's co-indexing invariant checks the two
+            # against each other.
+            iterations_run=len(keff_history),
+            min_iterations=MINIMUM_OUTER_ITERATIONS,
+            children=(
+                tuple(solver.inner_records[inners_before:])
+                if isinstance(solver, RecordingSolver)
+                else ()
+            ),
+        ),
     )
 
 
