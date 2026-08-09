@@ -93,6 +93,64 @@ suite already uses for its bit-identity tripwire.
    the class**, not retyped, so a module move or a rename cannot desync it,
    and one gate parses the string itself.
 
+What a stalled solve owes its caller
+====================================
+
+The warning above is the *loudness* half, and on its own it is thin: it says
+one level of one solve ran out of budget.  A real convergence problem is
+almost never legible at that resolution, because the object that failed is a
+**tree** — an outer power iteration over an inner fixed-source solve — and
+the question a user actually has is *which level* stalled, on *which
+criterion*, and *what budget would have sufficed*.
+
+The tree is **ragged, and its shape is a property of the ENTRY POINT rather
+than of the solver**, which is why the record is recursive instead of a fixed
+outer/inner pair.  `[M]` 2026-08-09, traced on real solves: SN is two levels
+deep and never three — ``build_within_group_system`` builds ONE
+:class:`~orpheus.numerics.iteration.SourceIteration` over the whole
+``(N, ng, nx, ny)`` state, so "within-group" there means *fission-external*,
+not *one group at a time*.  CP genuinely does loop per group.  MoC's inner is
+a fixed sweep count with no tolerance and no residual — a level with no
+criteria at all.  Diffusion's inner is one LU back-substitution, so its record
+is a **one-level** tree.  A type that assumed any single one of those shapes
+would have to grow an arm for each of the others.
+
+:class:`IterationRecord` is that tree, and :class:`StoppingCriterion` is one
+quantity-driven-below-one-tolerance within it.  The load-bearing property is
+that **nothing about convergence is stored** — every verdict is derived from
+the trajectory:
+
+* a fact you cannot transcribe cannot be transcribed *wrongly*, which is the
+  whole of #342 (five sites each spelling their own ``converged``, one of
+  them a hardcoded ``True``) made unspellable rather than merely fixed;
+* the derivation is the loop's own stopping predicate re-evaluated on the
+  final state, never a transcription of which way control flow left the loop.
+
+`[M]` 2026-08-09, the measured failure this shape exists to answer to: on a
+2-D all-reflective 2-group eigenvalue solve (LS-S4, ``keff_tol=1e-7``,
+``inner_tol=1e-10``) a throttled inner moved ``keff`` by **5.3x keff_tol**
+while the returned object reported ``converged = True`` and emitted nothing.
+The outer's stop test is *entirely increments* (``dk`` and ``dphi``), so a
+starved inner suppresses the very quantities the outer reads: it does not
+converge, it **stalls and reads its own stall as convergence**.  A flat
+boolean has nowhere to put that fact; :attr:`IterationRecord.fully_converged`
+is where it goes.
+
+One state per question, not one predicate for all of them
+---------------------------------------------------------
+
+`[M]` the same campaign's audit reused a production predicate as a detector
+and got **44 of 90 rows wrong**, all in the flattering direction: the
+predicate was also false for an *empty* history — which for GMRES means
+"converged on the initial guess", not "truncated".  A predicate is written to
+make one decision; it does not classify states.
+
+So the record exposes the states themselves — :attr:`~IterationRecord.iterated`,
+:attr:`~IterationRecord.converged`, :attr:`~IterationRecord.exhausted_budget`,
+:attr:`~IterationRecord.truncated` — and each consumer names the one it
+means.  Their four combinations are exactly the four ways a loop can stop,
+and :attr:`~IterationRecord.status` spells each one aloud.
+
 Related, and deliberately NOT merged with this
 ==============================================
 
@@ -108,7 +166,16 @@ Related, and deliberately NOT merged with this
 
 from __future__ import annotations
 
-__all__ = ["ESCALATION_FLAG", "ConvergenceWarning"]
+import math
+from collections.abc import Iterator
+from dataclasses import dataclass
+
+__all__ = [
+    "ESCALATION_FLAG",
+    "ConvergenceWarning",
+    "IterationRecord",
+    "StoppingCriterion",
+]
 
 
 class ConvergenceWarning(RuntimeWarning):
@@ -149,3 +216,436 @@ ESCALATION_FLAG = (
     f"-W error::{ConvergenceWarning.__module__}."
     f"{ConvergenceWarning.__qualname__}"
 )
+
+
+#: Fraction of a trajectory, measured from its END, used to estimate the rate.
+#:
+#: An iteration's EARLY residuals are dominated by the transient — whatever
+#: content the initial guess happened to carry in the sub-dominant modes —
+#: while the number that answers *"how many more sweeps?"* is the ASYMPTOTIC
+#: rate, i.e. the dominant eigenvalue of the iteration operator, which only
+#: the tail sees.  A half is the usual compromise: enough points to average
+#: out per-step noise, few enough that the transient does not tilt the slope.
+#: The fit always keeps at least two points, since a rate needs two.
+_RATE_FIT_TAIL_FRACTION = 0.5
+
+
+@dataclass(frozen=True)
+class StoppingCriterion:
+    r"""One quantity an iteration drives below one tolerance.
+
+    A stopping test is a conjunction of these — SN's k-eigenvalue outer stops
+    on ``dk < keff_tol`` **and** ``dphi < flux_tol``, and "which of the two is
+    lagging?" is a question users ask and a flat ``converged`` cannot answer.
+    Naming each one separately is what makes it answerable
+    (:attr:`IterationRecord.binding_criterion`).
+
+    The trajectory is the per-iteration history of the quantity, co-indexed
+    with its siblings on the same :class:`IterationRecord`.  It holds
+    MAGNITUDES (``|dk|``, ``||dphi||``, ``||r||``) — a negative entry is a
+    producer bug and is refused at construction.  ``nan`` and ``inf`` are
+    ACCEPTED: a diverging solve is a real state that must be recordable, and
+    since ``nan < tol`` is ``False`` such a criterion correctly never clears.
+
+    Attributes
+    ----------
+    name:
+        The quantity's name in the caller's own vocabulary — ``"dk"``,
+        ``"dphi"``, ``"residual"``.  It appears verbatim in
+        :meth:`IterationRecord.report`, so it should read like the domain.
+    trajectory:
+        One entry per iteration, oldest first.  Empty means the level never
+        iterated (see :attr:`cleared` for what that implies).
+    tolerance:
+        The threshold this quantity was judged against.  Strictly positive.
+    """
+
+    name: str
+    trajectory: tuple[float, ...]
+    tolerance: float
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("a stopping criterion must be named")
+        if not self.tolerance > 0.0:
+            raise ValueError(
+                f"{self.name}: tolerance must be strictly positive, got "
+                f"{self.tolerance!r}"
+            )
+        # `v < 0.0` is False for nan, so this admits nan/inf by construction.
+        negative = [v for v in self.trajectory if v < 0.0]
+        if negative:
+            raise ValueError(
+                f"{self.name}: a stopping criterion holds MAGNITUDES, so a "
+                f"negative entry is a producer bug; got {negative[0]!r}"
+            )
+
+    # ── what happened ────────────────────────────────────────────────────
+
+    @property
+    def n_iterations(self) -> int:
+        """How many iterations this quantity was measured over."""
+        return len(self.trajectory)
+
+    @property
+    def last(self) -> float | None:
+        """The final value, or ``None`` if the level never iterated."""
+        return self.trajectory[-1] if self.trajectory else None
+
+    @property
+    def cleared(self) -> bool:
+        """Did the final value fall below the tolerance?
+
+        Vacuously ``True`` for an empty trajectory, following ``all(())``:
+        a criterion that was never measured is not one that FAILED, and
+        conflating the two is precisely the misreading that turned "GMRES
+        returned on the initial guess" into 44 phantom truncations.  A
+        producer that considers zero iterations suspicious says so with
+        :attr:`IterationRecord.min_iterations`, which is a statement about
+        the LOOP, not about this quantity.
+        """
+        last = self.last
+        return last is None or last < self.tolerance
+
+    @property
+    def distance(self) -> float:
+        """How far the final value sits from clearing, as a ratio to tol.
+
+        Below one means cleared; the LARGEST ratio across a record's criteria
+        is the one that bound (whether it cleared last or failed worst), which
+        is what makes one definition serve both cases with no branch.  Zero
+        for an empty trajectory — nothing was measured, so nothing is blocking.
+        """
+        last = self.last
+        return 0.0 if last is None else last / self.tolerance
+
+    # ── what it would take ───────────────────────────────────────────────
+
+    def _log_fit(self) -> tuple[float, float] | None:
+        r"""Least-squares fit of :math:`\ln r_k = a + b k` over the tail.
+
+        Returns ``(a, b)`` with ``k`` indexed against the FULL trajectory, so
+        the intercept is the fitted value at iteration zero and
+        :meth:`projected_iterations` speaks in absolute iteration counts.
+
+        ``None`` when fewer than two usable points remain — usable meaning
+        finite and strictly positive, since a rate is a ratio of successive
+        residuals and ``ln 0`` is not a number.
+        """
+        n = len(self.trajectory)
+        if n < 2:
+            return None
+        first = min(int(n * (1.0 - _RATE_FIT_TAIL_FRACTION)), n - 2)
+        points = [
+            (float(k), math.log(v))
+            for k, v in enumerate(self.trajectory)
+            if k >= first and v > 0.0 and math.isfinite(v)
+        ]
+        if len(points) < 2:
+            return None
+
+        mean_index = sum(k for k, _ in points) / len(points)
+        mean_log_residual = sum(y for _, y in points) / len(points)
+        covariance = sum(
+            (k - mean_index) * (y - mean_log_residual) for k, y in points
+        )
+        variance = sum((k - mean_index) ** 2 for k, _ in points)
+        if variance == 0.0:
+            return None
+
+        log_rate = covariance / variance
+        return mean_log_residual - log_rate * mean_index, log_rate
+
+    @property
+    def rate(self) -> float | None:
+        r"""The observed geometric decay rate :math:`\rho` over the tail.
+
+        ``rho < 1`` contracts, ``rho >= 1`` does not.  ``None`` when the
+        trajectory is too short or too degenerate to support an estimate —
+        which is the honest answer, not a default of 1.
+        """
+        fit = self._log_fit()
+        return None if fit is None else math.exp(fit[1])
+
+    def projected_iterations(self, tolerance: float | None = None) -> int | None:
+        r"""Iterations the observed rate says are needed to clear ``tolerance``.
+
+        This is the number that turns *"raise the budget"* into *"set
+        ``max_inner=849``"*, and it is counted from iteration zero, so it is
+        directly comparable to :attr:`IterationRecord.budget`.
+
+        Derived by extrapolating the fitted line to the crossing:
+
+        .. math::
+
+           \ln r_k = a + b k, \qquad
+           N = \left\lfloor \frac{\ln \mathrm{tol} - a}{b} \right\rfloor + 2
+
+        ⭐ The **intercept is fitted, not assumed**.  Reading the law as
+        :math:`n = |\ln(\mathrm{tol}/r_0)| / |\ln\rho|` — with :math:`r_0` the
+        first residual — treats the initial transient as if it lay on the
+        asymptotic line.  `[M]` 2026-08-09 on the d=3 all-reflective control
+        that offset is **403 of 1473 iterations, i.e. 27 %**, and a rate-only
+        comparison of two splittings flipped SIGN on 4 of 5 configurations
+        when re-measured as sweep counts.  A spectral radius predicts a RATE;
+        only the fit predicts a COST.
+
+        Returns ``None`` when no rate is estimable, and — deliberately — also
+        when the trajectory is NOT decaying.  At :math:`\rho \ge 1` no budget
+        suffices, and answering with a large number would be a lie: `[M]` the
+        campaign found a mutated heterogeneous slab whose NEGATIVE dominant
+        eigenvalue makes the increment sign-alternate, so its stop test is
+        unsatisfiable *forever* and raising the budget is futile.  That is a
+        different failure from a shortfall and must not be reported as one.
+
+        Parameters
+        ----------
+        tolerance:
+            Target to project against; defaults to this criterion's own.
+            Passing a looser one answers *"what would I get for my budget?"*.
+        """
+        fit = self._log_fit()
+        if fit is None:
+            return None
+        intercept, log_rate = fit
+        if log_rate >= 0.0:
+            return None
+        target = self.tolerance if tolerance is None else tolerance
+        crossing = (math.log(target) - intercept) / log_rate
+        return max(1, math.floor(crossing) + 2)
+
+
+@dataclass(frozen=True)
+class IterationRecord:
+    r"""One LEVEL of an iterative solve: what it wanted, what it got, why it
+    stopped — and, recursively, the same for every level beneath it.
+
+    An SN k-eigenvalue solve is not one loop but a tree of them, and every
+    diagnostic question worth asking is about a NODE of that tree: *which*
+    level stalled, on *which* criterion, needing *what* budget.  A flat record
+    answers none of them, and its ``converged`` silently comes to mean "the
+    outermost one" — which is how a solve whose inner starved reports success
+    (see the module docstring's measured 5.3x ``keff_tol``).
+
+    ⭐ **Nothing here is stored; every verdict is derived.**  There is no
+    ``converged`` field to set, so there is no ``converged=True`` to hardcode
+    (#342) and no sixth spelling to drift (``... and iteration > 5``).  This
+    is ``coding-elegance`` Pattern 4 applied to a boolean: the illegal state
+    is not rejected at runtime, it is unrepresentable.
+
+    Attributes
+    ----------
+    label:
+        This level's name in the domain's vocabulary — ``"outer(power)"``,
+        ``"inner(within-group g=1)"``, ``"krylov(gmres)"``.  It is what the
+        reader sees first in :meth:`report`, so it should say which loop this
+        is, not which function implements it.
+    criteria:
+        The conjunction this level stops on.  All co-indexed: one entry per
+        criterion per iteration, enforced at construction, because they are
+        measurements of the SAME iterations and a length mismatch means a
+        producer dropped one.
+    budget:
+        The iteration cap this level was given, so
+        :attr:`exhausted_budget` is answerable without the caller having to
+        remember what it passed.
+    min_iterations:
+        Iterations below which this level refuses to claim convergence.  The
+        home for a guard like SN's ``iteration <= 2``, and the honest way for
+        a producer to say "zero iterations is not success here" without
+        distorting what :attr:`StoppingCriterion.cleared` means.
+    children:
+        The levels nested inside one iteration of this one.
+    """
+
+    label: str
+    criteria: tuple[StoppingCriterion, ...] = ()
+    budget: int = 0
+    min_iterations: int = 0
+    children: tuple[IterationRecord, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.label:
+            raise ValueError("an iteration record must be labelled")
+        if self.budget < 0:
+            raise ValueError(f"{self.label}: budget must be >= 0, got {self.budget}")
+        if self.min_iterations < 0:
+            raise ValueError(
+                f"{self.label}: min_iterations must be >= 0, got "
+                f"{self.min_iterations}"
+            )
+        names = [criterion.name for criterion in self.criteria]
+        if len(set(names)) != len(names):
+            raise ValueError(
+                f"{self.label}: criterion names must be unique, got {names}"
+            )
+        lengths = {criterion.n_iterations for criterion in self.criteria}
+        if len(lengths) > 1:
+            raise ValueError(
+                f"{self.label}: criteria are co-indexed by iteration, so their "
+                f"trajectories must be the same length; got "
+                + ", ".join(
+                    f"{c.name}={c.n_iterations}" for c in self.criteria
+                )
+            )
+
+    # ── the four states a loop can stop in ───────────────────────────────
+
+    @property
+    def n_iterations(self) -> int:
+        """Iterations this level ran (zero if it never entered its loop)."""
+        return self.criteria[0].n_iterations if self.criteria else 0
+
+    @property
+    def iterated(self) -> bool:
+        """Did this level iterate at all?
+
+        A direct solve — a factorisation, a closed form, a Krylov call that
+        was satisfied by its initial guess — records ``False`` here and
+        ``True`` for :attr:`converged`.  The two are different questions and
+        collapsing them is what manufactures phantom truncations.
+        """
+        return self.n_iterations > 0
+
+    @property
+    def converged(self) -> bool:
+        """Did THIS level meet all of its own criteria?
+
+        Says nothing about the levels beneath it — that is
+        :attr:`fully_converged`, and keeping them separate is what lets a
+        caller tell "the outer stalled because an inner starved" from "the
+        outer is genuinely non-critical".
+        """
+        return self.n_iterations >= self.min_iterations and all(
+            criterion.cleared for criterion in self.criteria
+        )
+
+    @property
+    def exhausted_budget(self) -> bool:
+        """Did this level stop because it ran out of iterations?"""
+        return self.budget > 0 and self.n_iterations >= self.budget
+
+    @property
+    def truncated(self) -> bool:
+        """Budget gone, criterion unmet — the #340 defect, named.
+
+        The returned iterate is mid-descent and arbitrary; any value asserted
+        against it is green or red by luck.
+        """
+        return self.exhausted_budget and not self.converged
+
+    @property
+    def status(self) -> str:
+        """The state, in one word, for a human: the four cases spelled aloud."""
+        if not self.iterated:
+            return "DIRECT"
+        if self.converged:
+            return "CONVERGED"
+        if self.truncated:
+            return "TRUNCATED"
+        return "STOPPED"
+
+    # ── the tree ─────────────────────────────────────────────────────────
+
+    @property
+    def fully_converged(self) -> bool:
+        """Did this level AND every level beneath it converge?
+
+        **The honest answer to "can I trust this number?"** — and the one a
+        value gate must assert before asserting physics.
+        """
+        return self.converged and all(
+            child.fully_converged for child in self.children
+        )
+
+    @property
+    def first_failure(self) -> IterationRecord | None:
+        """The deepest, earliest level that did not converge — the CAUSE.
+
+        Children are searched before ``self``, so a starved inner is reported
+        rather than the outer it starved.  This runs even when ``self``
+        converged, because that is exactly the measured failure: an outer
+        whose increment-only stop test is suppressed BY the starved inner
+        reports success while carrying its error.
+        """
+        for child in self.children:
+            found = child.first_failure
+            if found is not None:
+                return found
+        return None if self.converged else self
+
+    def walk(self) -> Iterator[IterationRecord]:
+        """Every record in the tree, this level first, then depth-first."""
+        yield self
+        for child in self.children:
+            yield from child.walk()
+
+    # ── what bound, and what it would have taken ─────────────────────────
+
+    @property
+    def binding_criterion(self) -> StoppingCriterion | None:
+        """The criterion furthest from clearing — the one that bound.
+
+        If this level converged it is the one that cleared LAST (the
+        rate-limiting one); if it did not, it is the one that failed worst.
+        One ratio, :attr:`StoppingCriterion.distance`, answers both.
+        """
+        return max(self.criteria, key=lambda c: c.distance, default=None)
+
+    @property
+    def rate(self) -> float | None:
+        """The binding criterion's observed decay rate."""
+        binding = self.binding_criterion
+        return None if binding is None else binding.rate
+
+    def projected_iterations(self) -> int | None:
+        """The budget that would have sufficed for the binding criterion.
+
+        ``None`` when unknowable or when no budget suffices — see
+        :meth:`StoppingCriterion.projected_iterations`.
+        """
+        binding = self.binding_criterion
+        return None if binding is None else binding.projected_iterations()
+
+    # ── the thing you paste into an issue ────────────────────────────────
+
+    def report(self, *, _depth: int = 0) -> str:
+        """The tree, human-readable, one level per indented block.
+
+        Written to be pasted verbatim into a bug report: every number a
+        reader needs to tell "one more sweep" from "diverging" is on the
+        page, with no re-run.
+        """
+        pad = "  " * _depth
+        lines = [
+            f"{pad}{self.label}: {self.status} "
+            f"({self.n_iterations}/{self.budget} iterations)"
+        ]
+        binding = self.binding_criterion
+        for criterion in self.criteria:
+            mark = "met" if criterion.cleared else "MISSED"
+            tag = " <- binding" if criterion is binding else ""
+            last = criterion.last
+            value = "n/a" if last is None else f"{last:.3e}"
+            lines.append(
+                f"{pad}  {criterion.name}: {value} vs tol "
+                f"{criterion.tolerance:.3e}  {mark}{tag}"
+            )
+            if criterion is binding and not criterion.cleared:
+                rate = criterion.rate
+                needed = criterion.projected_iterations()
+                if rate is None:
+                    lines.append(f"{pad}    rate: not estimable")
+                elif needed is None:
+                    lines.append(
+                        f"{pad}    rate: {rate:.6f} — NOT contracting; "
+                        f"no budget suffices at this rate"
+                    )
+                else:
+                    lines.append(
+                        f"{pad}    rate: {rate:.6f} — needs ~{needed} "
+                        f"iterations for tol {criterion.tolerance:.3e}"
+                    )
+        for child in self.children:
+            lines.append(child.report(_depth=_depth + 1))
+        return "\n".join(lines)
