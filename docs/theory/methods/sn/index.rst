@@ -513,10 +513,14 @@ dispatch.
 Cylindrical pure-azimuthal degenerate case
 -------------------------------------------
 
-For cylindrical 1-D radial sweeps with a product or level-symmetric
-quadrature, ordinates with axial direction cosine
+For cylindrical 1-D radial sweeps, ordinates with axial direction cosine
 :math:`|\mu_z| \to 1` have radial direction cosine
-:math:`|\eta| = \sqrt{1 - \mu_z^2} \to 0`.  In this limit the cell
+:math:`|\eta| = \sqrt{1 - \mu_z^2} \to 0`.  This is a property of the
+polar level, not of any one rule family: it holds on the admitted
+:math:`\sigma_y`-folded product family exactly as it did on the
+full-circle product and level-symmetric rules those replaced (refused at
+cylindrical ``SNMesh`` admission since Q5.6.3 —
+:ref:`sn-direct-seed-r12a`).  In this limit the cell
 has **no radial face flow** — the streaming term
 :math:`\mu_x \cdot \partial_r` vanishes — and the cell-update
 algebra collapses to the redistribution-only form

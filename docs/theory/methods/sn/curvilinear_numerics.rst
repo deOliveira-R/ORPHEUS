@@ -647,7 +647,10 @@ level.  (This was originally read as per-:math:`\mu`-level
 2.5b corrected that — it is a dead weight, level-symmetric-only, and
 **false for a product quadrature**, where the seed is a live
 self-coupling and the cold solve was seed-lagged until the
-direct-seed fold.)  The sphere cascade has no equivalent dead-seed
+direct-seed fold.  Both regimes are historical since Q5.6.3:
+cylindrical ``SNMesh`` admission refuses every non-carrying rule, and
+the fold was retired with its subjects — see
+:ref:`sn-direct-seed-r12a`.)  The sphere cascade has no equivalent dead-seed
 weight — a wrong seed propagates directly to a wrong fixed point.  Phase D's fix
 updates the cylindrical path too for **structural alignment with
 the canonical form** (architectural correctness), but cylindrical
@@ -953,6 +956,17 @@ solve.
    :math:`\sum_n w_n \psi_n`, which is why **scalar / balance** V&V
    gates are blind to a wrong per-ordinate seed (anti-pattern #8) —
    that blindness statement is unaffected by this correction.
+
+   **Closure (Q5.6.3, ``1689faf4``).**  The fold this correction
+   documents was itself retired: cylindrical ``SNMesh`` admission now
+   refuses every non-carrying rule
+   (:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`),
+   so neither the dead-weight regime nor the live self-coupling the
+   fold absorbed is constructible.  Every admitted cylinder level
+   carries an independent seed resolved by route (a)'s forward
+   substitution — the correction's *content* (which mechanism operated
+   on which rule class, and the blindness statement) stands as the
+   record of why the refused classes were refused.
 
 .. _sn-phase-d-gate-1-5-capture-and-compare:
 
@@ -2064,7 +2078,9 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
       source rather than the falsified proxy, no opt-in), plus the
       inlined
       :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
-      for non-carrying cylinder levels.  See
+      for non-carrying cylinder levels — a class no ``SNMesh``-admitted
+      cylinder has since Q5.6.3, leaving that inline unreachable
+      through the mesh.  See
       :ref:`sn-direct-seed-strategy-zoo`.
 
    The **anisotropic** curvilinear MMS gates improved :math:`\sim 50\times`
@@ -2699,7 +2715,8 @@ oracle), ERR-058 deletes no correct machinery:
    :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
    (now the SOLVE driver, on the **true** q½ source) and the inlined
    :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
-   (non-carrying cylinder levels).  The coupled-pole spatial seed row is
+   (non-carrying cylinder levels — unconstructible through ``SNMesh``
+   since the Q5.6.3 admission).  The coupled-pole spatial seed row is
    unaffected.  See :ref:`sn-direct-seed-strategy-zoo`.
 
 Open research paths

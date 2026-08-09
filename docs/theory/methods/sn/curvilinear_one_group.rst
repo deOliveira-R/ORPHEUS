@@ -502,9 +502,15 @@ doctrine home in :doc:`/theory/foundations/structured_geometry`).
   On the σ_y-folded arc the absorption's reason is structurally gone —
   the fold bounds :math:`\tau_{\rm raw} \in [\tfrac15, \tfrac45]` and
   the clip would destroy the bit-exact reversal identity
-  :math:`\tau_m + \tau_{M-1-m} = 1` — so it retires with the fold
-  wiring (Q5.6).  Derivation, measurements, and gates:
-  :eq:`morel-montry-folded-arc` in
+  :math:`\tau_m + \tau_{M-1-m} = 1` — so it retires in Q5.6's
+  absorber step (6.4).  The fold *wiring* landed first (Q5.6.3,
+  ``1689faf4``): since then no admitted cylinder rule reaches the
+  edge-node division the absorption exists for, so the clip is pure
+  behavioural debt — it still alters every folded level's
+  :math:`\tau` (`[M]` 4/4 at :math:`n_\mu = 4`), which is why its
+  removal is sequenced with its own re-baseline window rather than
+  bundled into the admission commit.  Derivation, measurements, and
+  gates: :eq:`morel-montry-folded-arc` in
   :doc:`/theory/foundations/structured_geometry`.
 
 The clamp lives **inside the angular closure**, in
@@ -2400,7 +2406,10 @@ the **dead first-ordinate weight** (:math:`c_{\rm in}[m_0]=0`) in a
 way the spherical case does not — see the Gate 1.1 finding below
 (and its #280 Phase 2.5b correction: this is level-symmetric-only,
 NOT :math:`\alpha`-dome telescoping, and false for a product
-quadrature).
+quadrature).  Historical mechanics: since Q5.6.3 a cylindrical
+``SNMesh`` refuses both of those rule classes at construction
+(:ref:`sn-direct-seed-r12a`), so the tolerate-a-wrong-seed regime is
+unconstructible on the live tree.
 
 .. _sn-apply-sweep-equivalence:
 
@@ -3003,6 +3012,11 @@ recurrence's half-angle face flux at the pole:
      is a **live self-coupling**, and the cold cylinder
      ``(L+C).solve`` was seed-**lagged** until the #280 2.5b
      direct-seed fold.  See the ERR-026 crosstab correction note.
+     Since Q5.6.3 (``1689faf4``) the whole regime is historical:
+     cylindrical ``SNMesh`` admission refuses every non-carrying
+     rule (:ref:`sn-direct-seed-r12a`), and the 2.5b fold — whose
+     only subjects were exactly these refused configurations — was
+     retired with them.
 
 * **Spherical case** has **no equivalent telescoping**. The
   spherical pole-face is a single point (the centre :math:`r=0`),
@@ -3307,7 +3321,12 @@ sphere.
    (:math:`c_{\rm out}\to c_{\rm out}-c_{\rm in}`) folded it onto the
    diagonal, making it a single-pass direct inverse — resolved by the
    SAME forward substitution the sphere route (a) certifies, not by any
-   telescoping.
+   telescoping.  The fold itself was **retired at Q5.6.3**
+   (``1689faf4``): cylindrical ``SNMesh`` admission now refuses every
+   non-carrying rule (:ref:`sn-direct-seed-r12a`), so the self-coupled
+   seed the fold absorbed is unconstructible — every admitted cylinder
+   level carries a genuine independent seed, resolved by the same
+   route-(a) forward substitution with no folded correction.
 
 The pole is a straight characteristic — the physics beneath the direct solve
 ----------------------------------------------------------------------------
@@ -3887,7 +3906,8 @@ quadratures:
      - Why the seed is (not) independent state
    * - :math:`= 0`
      - cylinder **product** rules, NODE_ALIGNED **even**
-       :math:`n_\varphi` (``on_edge_node``)
+       :math:`n_\varphi` (``on_edge_node``) — *refused at cylindrical*
+       ``SNMesh`` *admission since Q5.6.3*
      - the starting direction coincides with the first ordinate
        (:math:`\eta_0 = \eta_{1/2} = -\sin\theta` bit-exactly, the #229
        clamp fact) — the seed is a rank-duplicate of :math:`\psi_0`.
@@ -3895,6 +3915,7 @@ quadratures:
    * - :math:`= 1`
      - cylinder **level-symmetric** rules; product rules at **odd**
        :math:`n_\varphi` and **full STAGGERED** rules (``degenerate``)
+       — *refused at cylindrical* ``SNMesh`` *admission since Q5.6.3*
      - duplicate-:math:`\eta` nodes collapse the midpoint edge onto
        :math:`\eta_0` — hemisphere partners on level-symmetric rules,
        the mirror pair straddling :math:`\varphi = \pi` on odd/staggered
@@ -3910,10 +3931,29 @@ quadratures:
        (sphere-GL :math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`;
        folded staggered :math:`\approx 0.22`).  **Carries.**
 
-So on production meshes **only the sphere carries the block**; every
-cylinder inlines the 2-point angular-edge extrapolation
-(:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
-— harmless and bit-exact by the trichotomy above).  R12a **refines** the
+**Since Q5.6.3 (``1689faf4``) the predicate is not only a classifier —
+it is the cylindrical admission law.**  ``SNMesh`` construction on a
+cylindrical mesh calls
+:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`
+(offender positions from
+:func:`~orpheus.sn.sweep.pole_angular_closure.non_carrying_levels`),
+which raises on the first non-carrying level, naming exactly the facts
+true on it and the remedy
+(:meth:`Quadrature.folded_product
+<orpheus.numerics.quadrature.Quadrature.folded_product>`).  The
+decision reads the **structure** (the two ``MarchStart`` facts on the
+rule's own realization), never a provenance tag — a hand-built
+σ_y-quotient with the right arrays admits; a full-circle rule refuses
+no matter how it was made.  So on production meshes **every admitted
+level carries the block**: the sphere's GL levels and every level of a
+folded cylinder rule alike ride route (a)'s forward substitution with
+a genuine independent seed.  The first two trichotomy rows survive as
+quadrature-level classifications (and as the admission's refusal
+messages), not as constructible meshes; the 2-point angular-edge
+extrapolation
+(:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`)
+that non-carrying cylinder levels used to inline is no longer reachable
+through any ``SNMesh``.  R12a **refines** the
 earlier R12 letter ("μ_start ∉ the level's μ-nodes"), whose claimed
 equivalence to :math:`\tau_{\rm raw} \ne 0` is empirically **false** on
 level-symmetric cylinder rules (μ_start ∉ nodes there, yet
@@ -3948,8 +3988,10 @@ axis *is*.
 **Cylinder — the redistribution axis is a circle.**  At a fixed polar
 cosine :math:`\mu_z = \cos\theta`, the cylinder redistributes across the
 **azimuthal angle** :math:`\varphi`, which lives on a **circle**
-:math:`[0, 2\pi)` — a *periodic* domain.  The production rule
-(:func:`~orpheus.numerics.quadrature.rules_product.product_mu_phi`) is
+:math:`[0, 2\pi)` — a *periodic* domain.  The full-circle parent rule
+(:func:`~orpheus.numerics.quadrature.rules_product.product_mu_phi`;
+since Q5.6.3 the *parent* of the admitted cylinder family, no longer
+itself admissible on a cylindrical ``SNMesh``) is
 Gauss–Legendre in :math:`\mu_z` **×** the *periodic trapezoid* in
 :math:`\varphi`
 (:func:`~orpheus.numerics.quadrature.rules_circle.periodic_trapezoid`,
@@ -4012,11 +4054,20 @@ nodes (:math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`), and a
      - Optimal rule
      - Edge-inclusive?
      - Seed?
-   * - **Cylinder**
+   * - **Cylinder, full circle** (*the parent — refused at*
+       ``SNMesh`` *admission since Q5.6.3*)
      - azimuth :math:`\varphi` — a **circle** (periodic)
      - equispaced (trapezoidal, spectral)
      - **yes** (even :math:`n_\varphi` hits :math:`\varphi=\pi`)
-     - no — :math:`\tau_{\rm raw}=0`
+     - no — :math:`\tau_{\rm raw}=0` (or a dead :math:`\tau_{\rm raw}=1`
+       tie at odd/staggered parity)
+   * - **Cylinder, folded arc** (*the admitted production family,
+       Q5.6.3*)
+     - arc angle :math:`\omega` — an **interval** :math:`[0, \pi]`
+       (the :math:`\sigma_y` quotient)
+     - staggered midpoints (≡ Gauss–Chebyshev-1 in :math:`\cos\omega`)
+     - **no** (midpoint rule, no endpoint node)
+     - yes — :math:`\tau_{\rm raw}\in[\tfrac15,\tfrac45]`, every level
    * - **Sphere**
      - polar :math:`\mu` — an **interval** :math:`[-1,1]`
      - Gauss–Legendre (open)
@@ -4025,10 +4076,21 @@ nodes (:math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`), and a
 
 The principle in one line: **a periodic redistribution axis gives
 edge-inclusion for free; an interval axis makes you pay for it with a
-separate seed.**  The cylinder is the existence proof that "seed = a bulk
-edge-ordinate" *works* — it works there precisely because the axis is a
-circle.  The sphere pays because its axis has physical endpoints and the
-best interior rule refuses to stand on them.
+separate seed.**  The full-circle cylinder was the existence proof that
+"seed = a bulk edge-ordinate" *works* — it worked there precisely
+because the axis is a circle.  But the free edge-inclusion came bundled
+with what the circle also forces: the singular set :math:`\Sigma` on
+the mirror, the double-cover η-ties (#326), and the :math:`\tau = 0`
+division block the :math:`[\tfrac12, 1]` absorption existed to hide.
+The Q5.6 fold **deliberately renounces the free edge-inclusion**: the
+:math:`\sigma_y` quotient turns the axis into an interval (the arc), so
+the folded cylinder *joins the sphere* in paying one independent seed
+per level — the price route (a) resolves exactly, with
+:math:`\Sigma = \varnothing` and the bit-exact reversal identity as
+what the payment buys.  The sphere pays because its axis has physical
+endpoints and the best interior rule refuses to stand on them; the
+folded cylinder pays because standing on the edge was never free — it
+was the degeneracy.
 
 .. _sn-direct-seed-lobatto-study:
 
@@ -4065,12 +4127,18 @@ rank-deficient too.
 the first-ordinate weight :math:`\tau_{{\rm raw},0} = 0` — and the
 production Morel–Montry recurrence :eq:`pole-mm-recurrence` **divides its
 first step by that weight**, so the recurrence is *singular*; separately,
-the R12a presence predicate keys on :math:`\tau_{\rm raw} \in (0,1)`,
-which a pole node also fails.  Adopting a pole-node quadrature is
-therefore **not** a quadrature swap — it *requires* the same
-seed→bulk-ordinate restructure the cylinder already uses (make the pole
+the R12a ``on_edge_node`` fact fires (the march start IS an ordinate),
+so the level classifies **non-carrying** — the same class the Q5.6.3
+cylindrical admission refuses, now arising on the *sphere* side.
+Adopting a pole-node quadrature is
+therefore **not** a quadrature swap — it *requires* the
+seed→bulk-ordinate restructure the pre-fold full-circle cylinder used
+(make the pole
 node the seed, straight-characteristic-solved, and start the recurrence
-*from* it).
+*from* it), and it must be reconciled with the admission machinery that
+now encodes "non-carrying ⟹ refuse" for cylinders — the interaction is
+tracked as `Issue #338
+<https://github.com/deOliveira-R/ORPHEUS/issues/338>`_.
 
 **Ruling: affordable but architecturally declined.**  The fold-in was
 **not** adopted, and the reason is architectural, not numerical.  The bulk
@@ -4147,7 +4215,10 @@ places, both correct on their own:
   — the 2-point angular-edge extrapolation, inlined **verbatim** for the
   non-carrying cylinder levels (where the R12a trichotomy makes it
   bit-identical to the retired default: :math:`t = 0` exact on product
-  rules, dead seed weight on level-symmetric rules).
+  rules, dead seed weight on level-symmetric rules).  Since Q5.6.3 no
+  ``SNMesh``-admitted cylinder has a non-carrying level, so this inline
+  is unreachable through the mesh — its non-carrying branches are
+  Q5.6.5 retirement-audit material.
 
 .. _sn-direct-seed-numerical-evidence:
 

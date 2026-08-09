@@ -2395,7 +2395,9 @@ from the bulk:
   the earlier :math:`\tau_{\rm raw} \in (0,1)` float encoding), **not**
   per geometry — sphere-GL carries one block; a σ_y-folded cylinder
   rule carries one per level; full-circle and level-symmetric cylinder
-  rules and every Cartesian mesh carry none.
+  rules and every Cartesian mesh carry none (and since Q5.6.3 the two
+  non-carrying cylinder classes are refused at ``SNMesh`` admission,
+  so every *constructible* curvilinear mesh carries on every level).
 
 The clean-bulk consequence is the load-bearing architecture.  The bulk
 :math:`V_{\rm bulk}` is what homogenization, condensation, and moment

@@ -100,11 +100,29 @@ each tabulated order.
    cites: ``scratch/issue_337_la3186_la4058_extraction.md``.
 
 Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
-needed by the cylindrical :term:`sweep`.  Unlike the product quadrature
+the cylindrical :term:`sweep` reads.  Unlike the product quadrature
 (which has one level per :math:`\mu_z` value), the Level-Symmetric
 quadrature groups both :math:`+\mu_z` and :math:`-\mu_z` hemispheres
 on the same level (grouped by :math:`|\mu_z|`).  Within each level,
 ordinates are sorted by increasing :math:`\eta` for the azimuthal sweep.
+
+.. warning::
+
+   Having the level structure is **necessary but not sufficient** for
+   cylindrical use.  Since Q5.6.3 a cylindrical ``SNMesh`` admits only
+   **carrying** rules (the R12a march-start predicate,
+   :ref:`sn-direct-seed-r12a`), and *every* Level-Symmetric level is
+   non-carrying: the :math:`|\mu_z|` grouping puts the hemisphere pair
+   on one level, so the two smallest :math:`\eta` values tie
+   (``degenerate``) and the seed's :math:`(1-\tau_0)` thread weight
+   vanishes.  The :math:`\sigma_y` fold does **not** repair this — the
+   hemisphere pair survives the ξ-fold, so a σ_y-folded LS rule is
+   still non-carrying (`[M]` Q5.6a).  A carrying LS-family rule needs
+   the **double-fold** (quotient by the vertical pair as well) —
+   filed-not-built as `Issue #339
+   <https://github.com/deOliveira-R/ORPHEUS/issues/339>`_.  On
+   cylinders today, use :meth:`Quadrature.folded_product
+   <orpheus.numerics.quadrature.Quadrature.folded_product>`.
 
 Built by :meth:`Quadrature.level_symmetric(sn_order)
 <orpheus.numerics.quadrature.Quadrature.level_symmetric>`.
@@ -307,7 +325,11 @@ Product Quadrature (GL x equispaced)
 Tensor product of Gauss--Legendre in :math:`\mu = \cos\theta` (polar)
 and equispaced points in :math:`\varphi` (azimuthal).  Each :math:`\mu`
 level has the same number of azimuthal points, giving a clean level
-structure ideal for the cylindrical sweep.  Weights:
+structure — the **parent** of the cylindrical production family (its
+:math:`\sigma_y` quotient below; the full-circle rule itself is refused
+at cylindrical ``SNMesh`` admission since Q5.6.3, because every level's
+march start is an edge node or a mirror tie —
+:ref:`sn-direct-seed-r12a`).  Weights:
 
 .. math::
    :label: quadrature-product-weights
@@ -321,6 +343,43 @@ curvilinear :math:`\alpha`-recursion).
 
 Built by :meth:`Quadrature.product(n_mu, n_phi)
 <orpheus.numerics.quadrature.Quadrature.product>`.
+
+.. _quadrature-folded-product:
+
+Folded Product (the σ_y quotient — the cylindrical production family)
+---------------------------------------------------------------------
+
+The rule a cylindrical ``SNMesh`` actually admits (Q5.6.3):
+the :math:`\sigma_y` **quotient** of the staggered full-circle product.
+The 1-D cylindrical transport problem is invariant under
+:math:`\mu_y \to -\mu_y`, so the physical angular domain is the
+half-sphere orbifold; the fold keeps one representative per mirror
+orbit (weights doubled off the mirror plane), turning each level's
+azimuthal **circle** into an **arc** :math:`\omega \in (0, \pi)`.
+Structurally (Q5.2/Q5.3): the parent is the STAGGERED product (midpoint
+azimuthal nodes, offset *derived* — campaign ruling T25), the quotient
+descends by **bit-copied selection** (never recomputation), and odd
+:math:`n_\varphi` is refused (a staggered odd count puts one node per
+level ON the mirror — :math:`|\Sigma| = n_\mu \ne 0`).  The arc's midpoint nodes
+are Gauss–Chebyshev (first kind) in :math:`x = \cos\omega` — the arc's
+own Gauss family, mirroring the sphere's Legendre structure.
+
+What the fold buys is exactly the R12a carrying property on **every**
+level (:ref:`sn-direct-seed-r12a`): the singular set is empty, the raw
+march-start weights satisfy :math:`\tau_{\rm raw} \in [\tfrac15,
+\tfrac45]` with the bit-exact reversal identity
+:math:`\tau_m + \tau_{M-1-m} = 1` (:eq:`morel-montry-folded-arc` in
+:doc:`/theory/foundations/structured_geometry`), and each level's
+ψ½ seed is a genuine independent unknown solved exactly by route (a)'s
+forward substitution.  Admission reads this **structure**, never a
+provenance tag — a hand-built rule with the same arrays admits
+identically
+(:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`).
+
+Built by :meth:`Quadrature.folded_product(n_mu, n_phi)
+<orpheus.numerics.quadrature.Quadrature.folded_product>` (the general
+quotient primitive is :meth:`Quadrature.quotient
+<orpheus.numerics.quadrature.Quadrature.quotient>`).
 
 Ordinate Permutations
 ---------------------

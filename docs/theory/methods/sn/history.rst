@@ -30,6 +30,37 @@ merge hash or not at all).
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-08
+     - **The cylindrical admission flip — SNMesh(CYLINDRICAL) admits
+       exactly the carrying quadrature rules** (Q5.6.3, the quadrature
+       machinery campaign).  The R12a march-start predicate was
+       promoted from a classifier to the **admission law**:
+       ``SNMesh`` construction calls
+       :func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`
+       (offender positions via
+       :func:`~orpheus.sn.sweep.pole_angular_closure.non_carrying_levels`),
+       refusing any cylinder rule with a non-carrying μ-level and
+       naming the facts true on the first offender plus the remedy
+       (:meth:`Quadrature.folded_product
+       <orpheus.numerics.quadrature.Quadrature.folded_product>`).
+       Admission reads **structure, never provenance** — a hand-built
+       σ_y-quotient with the right arrays admits; a tagged quotient of
+       a node-aligned parent refuses (pinned by the admission module's
+       pincer pair, plus a foreign hand-built GL-in-φ arc rule that
+       admits and cold-solves as a true inverse at 4.5e-16).  With
+       every admitted level carrying, the **#280 2.5b direct-seed fold
+       was retired** with its whole family (builders, transpose twin,
+       every ``is_seed_ord`` branch): its precondition — a
+       non-carrying admitted cylinder — became unrepresentable, so
+       every admitted geometry rides route (a)'s forward substitution
+       with genuine independent seeds.  Guarded by the 16-row
+       admission module
+       (``tests/sn/mesh/test_cylindrical_quadrature_admission.py``)
+       and a 10/10 mutation battery (positive control first).
+       Follow-ons filed: #338 (Gauss–Lobatto sphere-side admission
+       interaction), #339 (the LS double-fold capability).
+     - #280 · #326
+     - ``1689faf4`` · ``1f220c41``
    * - 2026-07-28
      - **Naming honesty in the operator algebra — three symbols stopped
        lying about what they hold** (Tier 1 of the operator-realization

@@ -333,11 +333,16 @@ The guard does NOT catch the double cover: a full-circle level's
   :doc:`/theory/verification/sn`.
 * **CYLINDER** retains the clamp :math:`\tau_m =
   \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)` — *pending retirement,
-  see the T27 adjudication below*: product / level-
+  see the T27 adjudication below*: full-circle product / level-
   symmetric quadratures put the most-inward azimuthal ordinate exactly
   on :math:`\eta = -\sin\theta`, giving :math:`\tau_m^{\rm raw} = 0`
   exactly (a structural :math:`\div 0` block, tracked by
   `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_).
+  Since Q5.6.3 those rule classes are **refused at cylindrical**
+  ``SNMesh`` **admission**, so the :math:`\tau^{\rm raw} = 0` trigger
+  the absorption exists for is unreachable through any mesh — the clip
+  survives as pure behavioural debt (it still alters every folded
+  level's :math:`\tau`), scheduled for its own re-baseline window.
 
 **The clamp is TWO objects, and the fold retires one (T27, adjudicated
 2026-08-02; guard landed Q5.5, 2026-08-07).**  The fused cylinder
@@ -382,10 +387,16 @@ identity to exact.  The absorption would DESTROY it (clamping
 :math:`\tau_0` to :math:`\tfrac12` breaks
 :math:`\tau_0 + \tau_{M-1} = 1`) — a symmetry-breaking defect of the
 same family as the double cover it used to hide (#326) — so it RETIRES
-with the fold wiring (Q5.6).  It must survive until then: production
-NODE_ALIGNED cylinders still start on an edge node
-(:math:`\tau_{\rm raw,0} = 0` bit-exact, the ``on_edge_node`` fact of
-Q5.4).
+in Q5.6's absorber step (6.4).  (An earlier version of this passage
+said it "must survive until the fold wiring: production NODE_ALIGNED
+cylinders still start on an edge node."  The wiring landed at Q5.6.3
+(``1689faf4``) and dissolved that reason — no admitted cylinder rule
+has an edge-node or degenerate march start any more.  What keeps the
+clip alive until 6.4 is baseline discipline, not structure: `[M]` it
+still alters every folded level's :math:`\tau` (4/4 at
+:math:`n_\mu = 4`), so its removal moves every folded-cylinder
+baseline and owns its own re-capture window rather than riding the
+admission commit.)
 
 .. (vv-status rationale) morel-montry-folded-arc: Verified by the Q5.5
    foundation gates in ``tests/sn/sweep/test_tau_arc_wellposedness.py``
