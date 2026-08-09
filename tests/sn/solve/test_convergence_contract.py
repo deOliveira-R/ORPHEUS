@@ -43,7 +43,12 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
-from orpheus.numerics.convergence import ESCALATION_FLAG, ConvergenceWarning
+from orpheus.numerics.convergence import (
+    ESCALATION_FLAG,
+    ConvergenceWarning,
+    StoppingCriterion,
+    default_iteration_budget,
+)
 from orpheus.numerics.eigenvalue import PowerIterationOutcome
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
@@ -112,6 +117,93 @@ def _fixed_source(max_inner: int, **kw):
         external_source=_uniform_source(quad, (3, 4, 5)),
         boundary_condition="reflective",
         inner_tol=1e-13, max_inner=max_inner, **kw,
+    )
+
+
+# ─── 0. The budget itself is derived, at every entry ─────────────────────
+
+
+@pytest.mark.foundation
+class TestEveryEntryDerivesItsBudget:
+    """#340 N3: ``max_inner=None`` means *derive from the tolerance*.
+
+    Six hardcoded constants shipped in three ``(budget, tolerance)``
+    combinations, and `[M]` all of them were SHORT on the d=3 all-reflective
+    absorber — the configuration whose truncated exit opened this issue.  A
+    constant cannot track a tolerance it does not know about.
+
+    These rows gate the WIRING (does each entry actually resolve?), which is
+    a different claim from the law itself — that lives in
+    ``tests/numerics/test_default_iteration_budget.py``.
+    """
+
+    @pytest.mark.parametrize("inner_tol", [1e-8, 1e-12])
+    def test_the_solver_resolves_none_to_the_derived_budget(
+        self, inner_tol: float
+    ) -> None:
+        from orpheus.sn.solver import SNSolver
+
+        mesh = _sn_mesh_for_budget_probe()
+        assert (
+            SNSolver(mesh, inner_tol=inner_tol).max_inner
+            == default_iteration_budget(inner_tol)
+        )
+
+    def test_an_explicit_budget_survives_untouched(self) -> None:
+        """The deliberate-starvation path stays exactly as it was — `[M]` all
+        7 truncations #340's audit found pass an explicit budget, so a
+        resolution that second-guessed them would silently retune the lot."""
+        from orpheus.sn.solver import SNSolver
+
+        assert SNSolver(_sn_mesh_for_budget_probe(), max_inner=7).max_inner == 7
+
+    def test_the_keigenvalue_posing_layer_derives_too(self) -> None:
+        """The SIXTH constant, and the only one outside SN — a third
+        ``(1000, 1e-8)`` pair no SN entry spelled.  #340's plan counted five
+        and missed it, so it gets its own row rather than riding the others.
+        """
+        import inspect
+
+        from orpheus.numerics.iteration import KEigenvalue
+
+        assert (
+            inspect.signature(KEigenvalue.__init__).parameters["max_inner"].default
+            is None
+        )
+
+    @pytest.mark.parametrize(
+        "entry",
+        ["solve_sn", "solve_sn_adjoint", "solve_sn_fixed_source",
+         "solve_sn_adjoint_fixed_source"],
+    )
+    def test_no_public_entry_still_ships_a_hardcoded_budget(
+        self, entry: str
+    ) -> None:
+        """The retirement half: a constant left at ONE entry is the twin that
+        reopens the whole defect, and it would be invisible to the rows above
+        (which each exercise a different entry)."""
+        import inspect
+
+        import orpheus.sn.solver as solver_module
+
+        default = (
+            inspect.signature(getattr(solver_module, entry))
+            .parameters["max_inner"]
+            .default
+        )
+        assert default is None, f"{entry} still hardcodes max_inner={default}"
+
+
+def _sn_mesh_for_budget_probe():
+    """Smallest well-formed mesh — the budget rows care about resolution
+    arithmetic, not about physics."""
+    from orpheus.sn.solver import _as_sn_mesh
+
+    return _as_sn_mesh(
+        (AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=_REFL, bc_high=_REFL),),
+        Quadrature.level_symmetric(sn_order=2),
+        {0: _absorber_2g()},
+        "reflective",
     )
 
 
@@ -214,6 +306,96 @@ class TestTruncationIsAudible:
         assert "tol=" in msg
         assert "last residual" in msg
         assert "BEST-EFFORT" in msg
+
+    def test_the_message_names_the_BUDGET_TO_SET_not_just_a_direction(
+        self,
+    ) -> None:
+        """⭐ #340 N3: "raise max_inner" is not advice, it is a direction.
+
+        Against a ``rho = 0.985`` mode a reader's guess is wrong by a factor
+        of six, so the message must carry the OBSERVED rate and the budget
+        that rate projects.  The number is checked against the projection the
+        same trajectory yields, so this gate cannot be satisfied by printing
+        an arbitrary integer.
+
+        ⚠ It reads LOW from inside the transient, and says "so far" for that
+        reason — `[M]` on this fixture at budget 50 it projects 586 against a
+        true 1631, sharpening to 1618 by budget 200 (0.8 %).  It converges
+        from BELOW, so following the advice yields a bigger number next time
+        rather than a wrong answer.
+        """
+        with pytest.warns(ConvergenceWarning) as record:
+            sol = _fixed_source(max_inner=50)
+        msg = str(record[0].message)
+
+        assert sol.history is not None
+        projected = StoppingCriterion(
+            name="residual",
+            trajectory=tuple(sol.history.flux_residuals),
+            tolerance=1e-13,
+        ).projected_iterations()
+        assert projected is not None
+        assert f"set max_inner={projected}" in msg
+        assert "rho=" in msg
+
+    def test_a_NON_CONTRACTING_solve_is_told_no_budget_will_help(self) -> None:
+        """The other arm, and it must not be the same advice.
+
+        `[M]` #340 found a configuration whose NEGATIVE dominant eigenvalue
+        makes the increment sign-alternate, so its stop test is unsatisfiable
+        *forever*: telling that reader to raise the budget sends them down a
+        road with no end.  Driven here through the shared warning helper with
+        a synthetic non-decaying history, because the arm is a property of
+        the MESSAGE, not of any one solver configuration.
+        """
+        from orpheus.sn.solution import IterationHistory
+        from orpheus.sn.solver import _warn_if_unconverged
+
+        stalled = IterationHistory(
+            converged=False,
+            flux_residuals=tuple(1e-3 for _ in range(40)),  # rho == 1
+        )
+        with pytest.warns(ConvergenceWarning) as record:
+            _warn_if_unconverged(
+                stalled, where="probe", budget_name="max_inner",
+                budget=40, tol=1e-10,
+            )
+        msg = str(record[0].message)
+        assert "NOT" in msg and "contracting" in msg
+        assert "set max_inner=" not in msg  # the advice must NOT be given
+
+    def test_it_REFUSES_to_project_off_a_criterion_that_already_cleared(
+        self,
+    ) -> None:
+        """⛔ The regression for a lie this gate's own author shipped.
+
+        `[M]` 2026-08-09, caught by the wide run, not by review. The outer
+        stops on ``dk AND dphi``, but only ``keff_history`` survives into
+        ``IterationHistory`` (#340 F2 — ``dphi`` is computed inside
+        ``SNSolver.converged`` and discarded). On the mutated heterogeneous
+        slab, whose NEGATIVE dominant eigenvalue makes ``dphi`` sign-alternate
+        forever, ``|dk|`` sits at ``3.3e-16`` against a ``1e-9`` tolerance —
+        so the freshly-added projection answered **"set max_outer=1"**.
+
+        A confidently wrong number is worse than no number, and worse than
+        the vague "raise the budget" it replaced. When the recorded criterion
+        has cleared and the loop still did not converge, the binding one is
+        not in this history, and the message must say so.
+        """
+        from orpheus.sn.solution import IterationHistory
+        from orpheus.sn.solver import _warn_if_unconverged
+
+        # |dk| decays to 3.3e-16, far below the 1e-9 it is judged against;
+        # the loop is nonetheless unconverged, because dphi never cleared.
+        keffs = tuple(1.0 + 1e-3 * 0.5**k for k in range(40))
+        with pytest.warns(ConvergenceWarning) as record:
+            _warn_if_unconverged(
+                IterationHistory(converged=False, keff_history=keffs),
+                where="probe", budget_name="max_outer", budget=40, tol=1e-9,
+            )
+        msg = str(record[0].message)
+        assert "ALREADY cleared" in msg
+        assert "set max_outer=" not in msg
 
     def test_it_is_escalatable_to_an_error(self) -> None:
         """Prove the CATEGORY escalates rather than merely being emitted.

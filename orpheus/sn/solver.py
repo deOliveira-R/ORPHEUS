@@ -46,7 +46,12 @@ from scipy.sparse.linalg import gmres
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
-from orpheus.numerics.convergence import ESCALATION_FLAG, ConvergenceWarning
+from orpheus.numerics.convergence import (
+    ESCALATION_FLAG,
+    ConvergenceWarning,
+    StoppingCriterion,
+    resolve_iteration_budget,
+)
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.transport.operators.fission import FissionOperator
@@ -438,20 +443,110 @@ def _warn_if_unconverged(
     The message carries the budget that ran out, the tolerance that was not
     reached, and how far away the last iterate was, because "one more sweep"
     and "diverging" want opposite responses from the reader.
+
+    ⭐ And it carries the OBSERVED rate with the budget that rate projects,
+    so the advice is a number rather than a direction.  *"Raise max_inner"*
+    leaves the reader to guess, and a guess against a ``rho = 0.985`` mode is
+    wrong by a factor of six; *"set max_inner=1343"* is actionable in one
+    step.  The projection is fitted, not assumed — see
+    :meth:`~orpheus.numerics.convergence.StoppingCriterion.projected_iterations`
+    for why the intercept matters (`[M]` 27 % of the count on the d=3
+    control).
+
+    ⚠ The projection is only as sharp as the tail it was measured on, and it
+    reads LOW when the budget was cut inside the transient — the message says
+    "so far" for exactly that reason.  It converges fast, though, and it
+    converges from below, so a reader who follows the advice gets a bigger
+    number next time rather than a wrong answer.  `[M]` 2026-08-09 on the d=3
+    all-reflective absorber (``inner_tol=1e-13``, true count **1631**):
+
+    ======  =========  =========
+    budget  observed   projected
+    ======  =========  =========
+    50      0.956890         586
+    200     0.985181        1618
+    800     0.985388        1634
+    4000    0.985399        1633
+    ======  =========  =========
+
+    At the *old* default of 200 the projection is already within **0.8 %** of
+    the truth; only the deep-transient row under-reads.
+
+    The **non-contracting** case is reported differently on purpose.  When
+    the observed rate is ``>= 1`` no budget suffices, and telling that reader
+    to raise the budget would send them down a road with no end: `[M]` #340
+    found a configuration whose NEGATIVE dominant eigenvalue makes the
+    increment sign-alternate, so its stop test is unsatisfiable forever.
     """
     if history.converged:
         return
+
+    # The criterion the loop was actually judged on — named, so the rate and
+    # the projection below are properties of a quantity rather than of a
+    # bare list.  ``flux_residuals`` is the inner's; the outer records only
+    # ``keff_history``, whose INCREMENTS are what its stop test reads.
     if history.flux_residuals:
-        distance = f"last residual {history.flux_residuals[-1]:.3e}"
+        criterion = StoppingCriterion(
+            name="residual", trajectory=tuple(history.flux_residuals),
+            tolerance=tol,
+        )
+        distance = f"last residual {criterion.last:.3e}"
     elif len(history.keff_history) >= 2:
-        dk = abs(history.keff_history[-1] - history.keff_history[-2])
-        distance = f"last |dk| {dk:.3e}"
+        keffs = history.keff_history
+        criterion = StoppingCriterion(
+            name="|dk|",
+            trajectory=tuple(
+                abs(b - a) for a, b in zip(keffs[:-1], keffs[1:])
+            ),
+            tolerance=tol,
+        )
+        distance = f"last |dk| {criterion.last:.3e}"
     else:
+        criterion = None
         distance = "no residual recorded"
+
+    rate = None if criterion is None else criterion.rate
+    projected = None if criterion is None else criterion.projected_iterations()
+    if criterion is not None and criterion.cleared:
+        # ⛔ The recorded quantity DID clear, yet the loop did not converge —
+        # so the criterion that failed is one this history does not carry,
+        # and projecting off the one we have would be worse than silence.
+        #
+        # [M] 2026-08-09, caught by the wide run rather than by review: the
+        # outer stop test is `dk AND dphi`, and only `keff_history` survives
+        # into IterationHistory (#340 F2 — `dphi` is computed inside
+        # `SNSolver.converged` and discarded).  On the mutated heterogeneous
+        # slab, whose NEGATIVE dominant eigenvalue makes `dphi` alternate in
+        # sign forever, `|dk|` sits at 3.3e-16 against a 1e-9 tolerance — so
+        # the projection dutifully answered "you need 1 iteration".  An
+        # authoritative-looking wrong number is exactly the failure this
+        # campaign exists to remove; say what is actually known instead.
+        # Retiring this branch is N2a's job: record the criteria you judge on.
+        advice = (
+            f"⚠ the recorded {criterion.name} has ALREADY cleared "
+            f"tol={tol:.3e}, so the criterion that did not is one this "
+            f"history does not carry (the outer stop test also requires "
+            f"flux_tol, whose increments are not recorded) — no budget can "
+            f"honestly be projected from what is here. Read"
+        )
+    elif rate is None:
+        advice = f"Raise {budget_name}, or read"
+    elif projected is None:
+        advice = (
+            f"⛔ the observed rate is rho={rate:.6f} — this iteration is NOT "
+            f"contracting, so NO {budget_name} suffices and raising it will "
+            f"not help. Check the problem, not the budget. Or read"
+        )
+    else:
+        advice = (
+            f"At the rate observed so far (rho={rate:.6f}) this needs about "
+            f"{projected} iterations: set {budget_name}={projected}. Or read"
+        )
+
     warnings.warn(
         f"{where}: hit {budget_name}={budget} without reaching tol={tol:.3e} "
         f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
-        f"not the converged answer. Raise {budget_name}, or read "
+        f"not the converged answer. {advice} "
         f"`solution.history.converged` and handle it. "
         f"Silence this per-call with warnings.catch_warnings(); make it fatal "
         f"everywhere with {ESCALATION_FLAG}.",
@@ -991,7 +1086,11 @@ class SNSolver:
     inner_solver : "source_iteration" or "krylov".
     scattering_order : int — Legendre order for scattering (0 = P0).
     keff_tol, flux_tol : outer iteration convergence.
-    max_inner, inner_tol : inner iteration parameters.
+    inner_tol : the inner iteration's convergence tolerance.
+    max_inner : the inner iteration's budget.  ``None`` (the default) DERIVES
+        it from ``inner_tol`` at the served rate — see
+        :func:`~orpheus.numerics.convergence.default_iteration_budget`.  An
+        explicit int is a deliberate cap and is never second-guessed.
     """
 
     def __init__(
@@ -1001,7 +1100,7 @@ class SNSolver:
         scattering_order: int = 0,
         keff_tol: float = 1e-7,
         flux_tol: float = 1e-6,
-        max_inner: int = 200,
+        max_inner: int | None = None,
         inner_tol: float = 1e-8,
         inner_schedule: str = "jacobi",
     ):
@@ -1037,7 +1136,11 @@ class SNSolver:
         self.scattering_order = scattering_order
         self.keff_tol = keff_tol
         self.flux_tol = flux_tol
-        self.max_inner = max_inner
+        # Resolved ONCE, here, so `self.max_inner` is always a live int: every
+        # downstream reader (the two drivers, the truncation warning) sees the
+        # budget that actually bound rather than a `None` it would have to
+        # re-resolve — Pattern 7, and the reason the warning can name a number.
+        self.max_inner = resolve_iteration_budget(max_inner, inner_tol)
         self.inner_tol = inner_tol
 
         # ``materials`` + ``ng`` are the single source of truth on the mesh
@@ -2111,7 +2214,7 @@ def solve_sn(
     max_outer: int = 500,
     keff_tol: float = 1e-7,
     flux_tol: float = 1e-6,
-    max_inner: int = 200,
+    max_inner: int | None = None,
     inner_tol: float = 1e-8,
     inner_schedule: str = "jacobi",
     mat_map: "np.ndarray | None" = None,
@@ -2541,7 +2644,7 @@ def solve_sn_adjoint(
     max_outer: int = 500,
     keff_tol: float = 1e-7,
     flux_tol: float = 1e-6,
-    max_inner: int = 200,
+    max_inner: int | None = None,
     inner_tol: float = 1e-8,
     mat_map: "np.ndarray | None" = None,
 ) -> AdjointSolution:
@@ -2651,7 +2754,7 @@ def solve_sn_adjoint_fixed_source(
     detector_response: "np.ndarray | FullField",
     boundary_condition: str = "vacuum",
     scattering_order: int = 0,
-    max_inner: int = 1000,
+    max_inner: int | None = None,
     inner_tol: float = 1e-12,
     mat_map: "np.ndarray | None" = None,
     scheme: "DiscretizationSchemeBase | None" = None,
@@ -2713,6 +2816,9 @@ def solve_sn_adjoint_fixed_source(
     meshes, gated by the P1.3 sphere leg); it lands with its first
     consumer rather than shipping unexercised.
     """
+    # Resolve BEFORE anything reads it, so the truncation warning below can
+    # name the budget that actually bound (`None` in a message is useless).
+    max_inner = resolve_iteration_budget(max_inner, inner_tol)
     sn_mesh = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme,
@@ -3089,7 +3195,7 @@ def solve_sn_fixed_source(
     external_source: "np.ndarray | TimedFullField",
     boundary_condition: str = "vacuum",
     scattering_order: int = 0,
-    max_inner: int = 1000,
+    max_inner: int | None = None,
     inner_tol: float = 1e-12,
     inner_solver: str | None = None,
     inner_schedule: str = "gauss_seidel",
@@ -3255,6 +3361,11 @@ def solve_sn_fixed_source(
     section of the discrete-ordinates theory page.
     """
     t_start = time.perf_counter()
+
+    # Resolve BEFORE anything reads it: the budget reaches both the SNSolver
+    # and the two driver helpers, and the truncation warning must be able to
+    # name the number that actually bound.
+    max_inner = resolve_iteration_budget(max_inner, inner_tol)
 
     # Normalize the geometry declaration (legacy mesh OR axis tuple —
     # the only 3-D entry; C5.5 #225) into the SN phase space;

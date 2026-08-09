@@ -202,6 +202,31 @@ projection, turning *"raise the budget"* into *"set `max_inner=1710`"*. This is
 what makes the default's exact value stop being load-bearing — and F3 is what
 makes the projection honest rather than a guess.
 
+✅ **N3 LANDED 2026-08-09** — and the acceptance evidence is stronger than
+the plan asked for. `[M]` real converged solves of the d=3 all-reflective
+absorber (the configuration whose truncated exit opened #340), `NEEDED` read
+off `len(history.flux_residuals)` on a run with `converged is True`:
+
+| `inner_tol` | NEEDED | shipped 1000 | derived |
+|---|---|---|---|
+| 1e-9 | **1007** | ✗ | 1471 ✓ |
+| 1e-12 | 1473 | ✗ | 1961 ✓ |
+| 1e-13 | 1631 | ✗ | 2125 ✓ |
+| 1e-15 | 2031 | ✗ | 2451 ✓ |
+
+⭐ **The derived budget covers every row; the shipped constant covers none** —
+and the first miss is by **seven sweeps**, which is the margin the founding
+defect's gate rode for months. The law's own ratio checks out too: derived
+`1e-12 / 1e-8 = 1.499` against the theoretical `1.500`, where the tree
+shipped `5.0`.
+
+`[M]` the rate-aware message validates against the same solves — it projects
+**1618** from a 200-iteration tail against a true **1631** (0.8 %), and 1633
+from a long one. It reads LOW only from deep inside the transient (586 at
+budget 50) and converges **from below**, so following its advice yields a
+bigger number next time rather than a wrong answer. The message says "at the
+rate observed so far" for exactly that reason.
+
 ⚠ `_SERVED_RATE = 0.986` covers the representative d=3 worst (`rho = 0.9854`)
 but **NOT** `Sigma_t/4` (`rho = 0.99575`, needs 5171 @1e-12). That is a
 deliberate, stated limit, not an oversight: serving 0.996 means a *stuck* d=1

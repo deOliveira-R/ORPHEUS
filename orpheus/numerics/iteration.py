@@ -159,6 +159,7 @@ if TYPE_CHECKING:
     # keeps holding in both directions.
     from .eigenvalue import PowerIterationOutcome
 
+from .convergence import resolve_iteration_budget
 from .operator import (
     InverseWrapMixin,
     LinearOperator,
@@ -1116,9 +1117,17 @@ class KEigenvalue(Generic[V]):
     keff_tol, flux_tol : float, optional
         Outer convergence tolerances.  Defaults match
         :class:`~orpheus.sn.solver.SNSolver` (``1e-7`` / ``1e-6``).
-    max_inner : int, optional
-        Inner :class:`SourceIteration` ``max_iter`` budget.  Default
-        ``1000``.
+    max_inner : int or None, optional
+        Inner :class:`SourceIteration` ``max_iter`` budget.  ``None`` (the
+        default) DERIVES it from ``inner_tol`` via
+        :func:`~orpheus.numerics.convergence.default_iteration_budget`; an
+        explicit int is a deliberate cap.
+
+        ⛔ This was the **sixth** hardcoded budget in the tree and the only
+        one outside SN — a third ``(1000, 1e-8)`` combination that no SN
+        entry spelled, reachable whenever ``KEigenvalue`` is constructed
+        directly.  #340's plan counted five and missed it; a constant that
+        does not move with its tolerance cannot be right for both.
     inner_tol : float, optional
         Inner :class:`SourceIteration` ``tol``.  Default ``1e-8``.
     eigenvalue_method : str, optional
@@ -1158,7 +1167,7 @@ class KEigenvalue(Generic[V]):
         max_outer: int = 500,
         keff_tol: float = 1e-7,
         flux_tol: float = 1e-6,
-        max_inner: int = 1000,
+        max_inner: int | None = None,
         inner_tol: float = 1e-8,
         eigenvalue_method: str = "power",
     ) -> None:
@@ -1188,8 +1197,8 @@ class KEigenvalue(Generic[V]):
         self.max_outer = int(max_outer)
         self.keff_tol = float(keff_tol)
         self.flux_tol = float(flux_tol)
-        self.max_inner = int(max_inner)
         self.inner_tol = float(inner_tol)
+        self.max_inner = resolve_iteration_budget(max_inner, self.inner_tol)
         self.eigenvalue_method = eigenvalue_method
 
         # Build the inner fixed-source step ONCE: the SOLVER (this posing

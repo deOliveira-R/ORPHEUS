@@ -175,6 +175,8 @@ __all__ = [
     "ConvergenceWarning",
     "IterationRecord",
     "StoppingCriterion",
+    "default_iteration_budget",
+    "resolve_iteration_budget",
 ]
 
 
@@ -228,6 +230,139 @@ ESCALATION_FLAG = (
 #: out per-step noise, few enough that the transient does not tilt the slope.
 #: The fit always keeps at least two points, since a rate needs two.
 _RATE_FIT_TAIL_FRACTION = 0.5
+
+
+#: The slowest per-iteration contraction the DEFAULT budget promises to serve.
+#:
+#: `[M]` 2026-08-09 the representative worst case in the suite is the d=3
+#: all-reflective box at ``rho = 0.9854`` (the undamped DD face sawtooth —
+#: see ``derivations/sn_dd_face_transmission.py`` for why diamond alone
+#: carries it).  ``0.986`` covers that with a hair of margin.
+#:
+#: ⚠ It deliberately does **NOT** cover ``Sigma_t/4`` (``rho = 0.99575``,
+#: needing 5171 sweeps at ``1e-12``).  That is a stated limit, not an
+#: oversight: serving ``0.996`` would make a genuinely *stuck* 1-D slab churn
+#: ~6900 sweeps before admitting defeat, and the cost of a too-small budget
+#: is now one warning that names the number to set — while the cost of a
+#: too-large one is paid by every solve that was never going to converge.
+_SERVED_RATE = 0.986
+
+
+def _budget_from_law(
+    *, log_initial: float, log_rate: float, tolerance: float
+) -> int:
+    r"""The geometric budget law, in ONE place.
+
+    Smallest ``N`` such that the ``N``-th entry of ``r_k = e^{a} e^{bk}``
+    lies strictly below ``tolerance``:
+
+    .. math::
+
+       N = \left\lfloor \frac{\ln \mathrm{tol} - a}{b} \right\rfloor + 2
+
+    The ``+2`` rather than a ``ceil`` is not a fudge: it is what makes the
+    expression correct with no branch when the crossing lands exactly on an
+    integer (``ceil`` would return the index whose value EQUALS the
+    tolerance, and a stopping test is strict).
+
+    Both users of the law route through here — :meth:`StoppingCriterion.
+    projected_iterations` fits ``(a, b)`` from an observed trajectory, and
+    :func:`default_iteration_budget` evaluates the same law a priori at the
+    served rate.  They are the posterior and the prior of one statement, and
+    a second spelling of it is a twin waiting to drift.
+    """
+    return max(1, math.floor((math.log(tolerance) - log_initial) / log_rate) + 2)
+
+
+def default_iteration_budget(
+    tolerance: float, *, served_rate: float = _SERVED_RATE
+) -> int:
+    r"""How many iterations a tolerance needs, at the rate we promise to serve.
+
+    ⭐ The point is not that this number is *right* — no single number can
+    be, since the required count depends on a spectral radius the caller
+    does not know.  The point is that it is **derived from a stated
+    promise** instead of chosen, so it moves coherently with the tolerance
+    and can be argued with.
+
+    `[M]` 2026-08-09 the tree shipped five hardcoded budgets in SN plus a
+    sixth in :class:`~orpheus.numerics.iteration.KEigenvalue`, in three
+    ``(budget, tolerance)`` combinations.  The two SN families differed by
+    **5x** where the law says the factor between ``1e-8`` and ``1e-12``
+    should be ``ln(1e-12)/ln(1e-8) = 1.5``, and BOTH were **short** at d=3
+    zero-leakage: 830 needed at ``1e-8`` against 200 shipped, 1441 at
+    ``1e-12`` against 1000.  A constant cannot track a tolerance it does not
+    know about.
+
+    `[M]` 2026-08-09, measured end-to-end on the very configuration that
+    opened this module — the d=3 all-reflective pure absorber, whose
+    truncated exit is the founding defect described at the top of the file.
+    Each row is a real converged solve, so ``NEEDED`` is observed, not fitted:
+
+    =========  ======  =========  =========
+    inner_tol  NEEDED  shipped    derived
+    =========  ======  =========  =========
+    1e-9         1007  1000  ✗       1471  ✓
+    1e-12        1473  1000  ✗       1961  ✓
+    1e-13        1631  1000  ✗       2125  ✓
+    1e-15        2031  1000  ✗       2451  ✓
+    =========  ======  =========  =========
+
+    **The derived budget covers every row; the shipped constant covers
+    none.**  Note how thin the first miss is — 1007 needed against 1000
+    shipped, a shortfall of *seven sweeps*.  That is the margin on which the
+    original gate read green for months, and it is the clearest statement of
+    why a constant is the wrong shape here: nothing about ``1000`` knows
+    that the answer moves by ~500 sweeps per four decades of tolerance.
+
+    Parameters
+    residual, and conservative whenever it is smaller (`[M]` the d=3 probe
+    starts at ``3.7e-2``, so this over-budgets it by ~234 sweeps).  Erring
+    long is the safe direction for a default precisely because the shortfall
+    is what corrupts an answer, while the excess only costs time on a solve
+    that was already failing — and :meth:`IterationRecord.projected_iterations`
+    then tells that caller the number to set.
+
+    Parameters
+    ----------
+    tolerance:
+        The convergence tolerance the budget must serve.  Strictly positive
+        and below one — a tolerance at or above the assumed unit initial
+        residual is already met before the first iteration.
+    served_rate:
+        Contraction factor to size against; defaults to :data:`_SERVED_RATE`.
+        Pass a measured ``rho`` to size a budget for a KNOWN problem.
+    """
+    if not 0.0 < tolerance < 1.0:
+        raise ValueError(
+            f"tolerance must lie in (0, 1) — a budget is sized against a "
+            f"unit initial residual; got {tolerance!r}"
+        )
+    if not 0.0 < served_rate < 1.0:
+        raise ValueError(
+            f"served_rate must lie in (0, 1) to contract; got {served_rate!r}"
+        )
+    return _budget_from_law(
+        log_initial=0.0, log_rate=math.log(served_rate), tolerance=tolerance
+    )
+
+
+def resolve_iteration_budget(max_iter: int | None, tolerance: float) -> int:
+    """``None`` means *derive from the tolerance*; an int is a deliberate cap.
+
+    Every entry point that takes an iteration budget performs exactly this
+    resolution, so it is spelled once here rather than six times across two
+    packages.  That matters beyond tidiness: a behavioural ``None`` default
+    encodes an assumption about its surroundings, and an assumption restated
+    at N call sites is an assumption that will differ at one of them
+    (``[[lessons-L19]]``).  Here the assumption has a single home and a
+    single docstring.
+
+    Passing an explicit int is not deprecated and never will be — a caller
+    who KNOWS their spectral radius, or who is deliberately starving a solve
+    to measure its truncated exit, is exercising the API correctly.
+    """
+    return default_iteration_budget(tolerance) if max_iter is None else int(max_iter)
 
 
 @dataclass(frozen=True)
@@ -410,9 +545,11 @@ class StoppingCriterion:
         intercept, log_rate = fit
         if log_rate >= 0.0:
             return None
-        target = self.tolerance if tolerance is None else tolerance
-        crossing = (math.log(target) - intercept) / log_rate
-        return max(1, math.floor(crossing) + 2)
+        return _budget_from_law(
+            log_initial=intercept,
+            log_rate=log_rate,
+            tolerance=self.tolerance if tolerance is None else tolerance,
+        )
 
 
 @dataclass(frozen=True)
