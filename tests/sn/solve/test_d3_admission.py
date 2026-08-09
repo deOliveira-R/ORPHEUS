@@ -128,10 +128,37 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
 def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
     """Pure absorber, all-reflective: ψ_{n,g} = Q_g/(W·Σ_{t,g}) per ordinate.
 
-    The sharpest Mode-1/3/4 probe: DD is exact for flat flux and c=0
-    needs no iteration, so EVERY ordinate must carry the closed-form
-    value to solver-tolerance precision. Per-group distinct Q and
-    distinct Σ_t make a group swap observable.
+    The sharpest Mode-1/3/4 probe: DD is exact for flat flux, so EVERY
+    ordinate must carry the closed-form value to solver-tolerance
+    precision. Per-group distinct Q and distinct Σ_t make a group swap
+    observable.
+
+    ⛔ An earlier docstring justified the tolerance with "c=0 needs no
+    iteration".  That is FALSE here and it was the test-design defect:
+    ``c = 0`` kills the SCATTERING iteration, not the REFLECTIVE-BOUNDARY
+    one.  With every face reflective there is no leakage and no
+    scattering, so the only coupling left is the boundary and the only
+    damping is absorption — the DD face sawtooth decays at `[M]`
+    ρ ≈ 0.9853 per sweep and needs **1631** sweeps at this Σ_t.  Against
+    the default ``max_inner=1000`` the solve therefore truncated at 999,
+    returned an honest ``history.converged = False``, and this gate — which
+    never read that flag — asserted an arbitrary mid-descent iterate.  It
+    was green only by luck: pre-#337 the 999th iterate happened to sit at
+    2.05e-11, inside ``rtol=1e-10`` by 5×; #337's (correct, ratified)
+    quadrature change raised the largest cosine 6.4 %, lifting the sweep
+    count 1369 → 1631 and the truncated error to 3.29e-10, across the line.
+
+    So the budget is granted explicitly and **convergence is asserted
+    before any value is read**.  The tolerance is unchanged: a converged
+    solve delivers `[M]` 2.79e-14, so ``rtol=1e-10`` keeps ~3.5 orders of
+    margin and stays a real catcher.  Relaxing it to accommodate the
+    truncated iterate would have been ``vv-principles`` anti-pattern #16 —
+    asserting around a producer defect instead of quoting its guarantee.
+
+    Diagnosis of record: ``scratch/d3_absorber_diagnosis.md``.  The
+    remaining production hole — a best-effort ``max_inner`` exit is
+    indistinguishable from a certified one at the public entries — is
+    tracked separately; this gate defends itself by checking the flag.
     """
     quad = Quadrature.level_symmetric(sn_order=4)
     mix = make_mixture(
@@ -152,7 +179,11 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
         {0: mix}, _d3_axes(), quad,
         external_source=q, boundary_condition="reflective",
         inner_tol=1e-13,
+        max_inner=4000,          # [M] 1631 sweeps needed here; ~2.5x headroom
     )
+    # Read the flag BEFORE any value: an unconverged solve returns a
+    # best-effort iterate that is indistinguishable from a certified one.
+    np.testing.assert_equal(bool(sol.history.converged), True)
     psi = np.asarray(sol.angular_flux.interior.values)   # (N, ng, 3, 4, 5)
     sig_t = np.asarray(mix.SigT)
     for g in range(2):
@@ -188,7 +219,14 @@ def test_d3_scattering_infinite_medium_matches_multigroup_balance() -> None:
         {0: mix}, _d3_axes(), quad,
         external_source=q, boundary_condition="reflective",
         inner_tol=1e-13,
+        # Same all-reflective boundary iteration as the pure-absorber gate
+        # above, with a scattering iteration ON TOP, so the budget is
+        # strictly larger than that one's measured 1631 sweeps. The looser
+        # rtol below was absorbing a truncated iterate; the flag check is
+        # what makes a truncation loud instead of silent.
+        max_inner=4000,
     )
+    np.testing.assert_equal(bool(sol.history.converged), True)
     phi = np.asarray(sol.scalar_flux.values)
     sig_s0 = np.asarray(mix.SigS[0].todense())
     A = np.diag(np.asarray(mix.SigT)) - sig_s0.T
