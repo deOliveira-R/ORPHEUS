@@ -57,7 +57,13 @@ test = [
 docs = [
     "sphinx>=7",
     "sphinx-rtd-theme",
-    "sphinxcontrib-nexus>=0.3",
+    # Floor is 0.16: earlier releases declare `mcp>=1.0` unbounded, so a
+    # fresh resolve picks up mcp 2.x — which removed `mcp.server.fastmcp`
+    # — and the Nexus MCP server then fails at import. The package still
+    # installs and the CLI still works, so the only symptom is that every
+    # graph tool silently disappears from the session. 0.16 targets the
+    # mcp 2.x API and requires it explicitly.
+    "sphinxcontrib-nexus>=0.16",
     "sphinxcontrib-bibtex>=2.6",  # central refs.bib -> Nexus citation nodes (#231 D)
     "sphinx-design>=0.6",         # dropdowns/cards for machine header + gotchas (#231)
     "sympy>=1.13",
