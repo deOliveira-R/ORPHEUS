@@ -36,6 +36,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.coupled_system import build_within_group_system
@@ -150,11 +151,32 @@ def test_certificate_is_a_noop_without_a_convergence_claim():
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )
+    # Both no-op arms, now stated as RECORDS (#340 N2a — the certificate
+    # reads the driver's own record rather than re-deriving the claim from
+    # a bare list, so `_claims_convergence` could retire).
+    def _record(trajectory: tuple[float, ...], **kw) -> IterationRecord:
+        return IterationRecord(
+            label="inner(probe)",
+            criteria=(
+                StoppingCriterion(
+                    name="residual", trajectory=trajectory, tolerance=1e-8,
+                ),
+            ),
+            **kw,
+        )
+
+    # (a) the level never entered its loop — nothing measured, nothing to
+    #     certify.  ⚠ This arm's MEANING changed with the record: the old
+    #     predicate read an empty history as "did not converge", which is
+    #     wrong for a driver that returned on its initial guess.  It is a
+    #     no-op either way here, but for opposite reasons — worth stating,
+    #     because the two readings differ wherever a claim IS made.
     _certify_within_group_exit(
         system.loss, None, None,  # type: ignore[arg-type]
-        sn_mesh=sn, residual_history=[], tol=1e-8, where="noop-test",
+        sn_mesh=sn, record=_record(()), where="noop-test",
     )
+    # (b) a genuine truncation: measured 1.0 against tol 1e-8, no claim.
     _certify_within_group_exit(
         system.loss, None, None,  # type: ignore[arg-type]
-        sn_mesh=sn, residual_history=[1.0], tol=1e-8, where="noop-test",
+        sn_mesh=sn, record=_record((1.0,), iterations_run=1), where="noop-test",
     )

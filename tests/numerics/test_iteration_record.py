@@ -79,10 +79,30 @@ class TestStoppingCriterionRefusesWhatItCannotMean:
         with pytest.raises(ValueError, match="MAGNITUDES"):
             _criterion(trajectory=(1e-2, -1e-4), tolerance=1e-5)
 
-    @pytest.mark.parametrize("tolerance", [0.0, -1e-8])
-    def test_a_nonpositive_tolerance_is_refused(self, tolerance: float) -> None:
-        with pytest.raises(ValueError, match="strictly positive"):
+    @pytest.mark.parametrize("tolerance", [-1e-8, math.nan])
+    def test_a_negative_or_nan_tolerance_is_refused(
+        self, tolerance: float
+    ) -> None:
+        with pytest.raises(ValueError, match="non-negative"):
             _criterion(trajectory=(1e-2,), tolerance=tolerance)
+
+    def test_a_ZERO_tolerance_is_legal_and_never_clears(self) -> None:
+        """⛔ The guard first shipped demanding a strictly positive tolerance,
+        and two PRODUCTION paths could then not build a record at all:
+        ``GreenOperator(tol=0)`` is how the unsatisfiability guard is
+        exercised, and GMRES's exact-breakdown path reaches a literal ``0.0``
+        residual.  A type must not assert more than its callers promise (vv
+        anti-pattern #16, in the direction that breaks production rather than
+        the direction that yields a false red).
+
+        Nothing about the comparison changed: the test stays strict, so a
+        zero tolerance never clears — exactly as the retired
+        ``_claims_convergence`` behaved.
+        """
+        criterion = _criterion(trajectory=(1e-2, 0.0), tolerance=0.0)
+        assert criterion.cleared is False
+        assert criterion.distance == math.inf  # keeps the two spellings tied
+        assert criterion.projected_iterations() is None  # no finite count
 
     def test_an_unnamed_criterion_is_refused(self) -> None:
         with pytest.raises(ValueError, match="named"):
@@ -117,7 +137,8 @@ class TestClearedAndDistanceAreOneStatement:
 
     @pytest.mark.parametrize(
         "last, tolerance",
-        [(1e-9, 1e-8), (1e-8, 1e-8), (1e-7, 1e-8), (0.0, 1e-8)],
+        [(1e-9, 1e-8), (1e-8, 1e-8), (1e-7, 1e-8), (0.0, 1e-8),
+         (0.0, 0.0), (1e-9, 0.0)],
     )
     def test_the_two_spellings_agree(self, last: float, tolerance: float) -> None:
         criterion = _criterion(trajectory=(1e-2, last), tolerance=tolerance)
@@ -475,6 +496,36 @@ class TestTheFourStatesAreExhaustiveAndDistinct:
         assert record.converged is True
         assert record.truncated is False
 
+    def test_a_level_that_RAN_and_measured_NOTHING_cannot_claim(self) -> None:
+        """⭐ Absence of evidence is not evidence of convergence.
+
+        An empty trajectory is vacuously ``cleared``, which is right when
+        the loop never entered (GMRES on its initial guess) and WRONG when
+        it entered and never got to measure — a ``SourceIteration`` given
+        ``max_iter=1`` makes one pass and records no residual, because its
+        stop compares successive iterates.
+
+        `[M]` this is the exact regression the retirement of
+        ``_claims_convergence`` would otherwise have shipped: that predicate
+        returned ``False`` on an empty history, so a one-pass SI solve read
+        as unconverged; the naive replacement reads it as converged.  Both
+        readings are wrong in the OTHER case, and ``iterated`` is the
+        discriminator that makes one rule serve both.
+        """
+        unmeasured = _criterion(trajectory=(), tolerance=1e-10)
+        ran = IterationRecord(
+            label="inner", criteria=(unmeasured,), budget=1, iterations_run=1
+        )
+        assert ran.iterated is True
+        assert ran.converged is False
+        assert ran.truncated is True
+
+        never_entered = IterationRecord(
+            label="inner", criteria=(unmeasured,), budget=200
+        )
+        assert never_entered.iterated is False
+        assert never_entered.converged is True  # nothing ran; nothing failed
+
     def test_min_iterations_withholds_a_premature_claim(self) -> None:
         """The home for SN's ``iteration <= 2`` guard — a statement about the
         LOOP, kept out of what ``cleared`` means for a quantity."""
@@ -593,6 +644,43 @@ class TestRecordConstructionEnforcesItsInvariants:
                     _criterion(name="dk", trajectory=(1e-9,), tolerance=1e-8),
                     _criterion(name="dk", trajectory=(1e-9,), tolerance=1e-8),
                 ),
+            )
+
+    def test_the_producer_may_state_a_count_that_EXCEEDS_its_measurements(
+        self,
+    ) -> None:
+        """The offset is a per-producer fact and cannot be inferred.
+
+        `[M]` both conventions ship: ``SourceIteration`` measures the
+        DIFFERENCE between successive iterates, so an exhausted
+        ``max_iter=50`` run records 49 residuals; ``KrylovAcceleration``
+        gets one callback per iteration and records 50.  Before the record,
+        the same ``n_inner`` field carried both — SI writing ``len`` and
+        Krylov writing ``len + 1``, undocumented and exactly backwards.
+        """
+        criterion = _criterion(trajectory=tuple(1e-1 for _ in range(49)),
+                               tolerance=1e-10)
+        si_like = IterationRecord(
+            label="inner(source-iteration)", criteria=(criterion,),
+            budget=50, iterations_run=50,
+        )
+        assert si_like.n_iterations == 50
+        assert si_like.exhausted_budget is True  # would read False from len()
+        assert si_like.truncated is True
+
+        krylov_like = IterationRecord(
+            label="inner(gmres)", criteria=(criterion,), budget=50,
+        )
+        assert krylov_like.n_iterations == 49  # defaults to the measurements
+        assert krylov_like.exhausted_budget is False
+
+    def test_a_count_BELOW_the_measurements_is_refused(self) -> None:
+        """You cannot measure a criterion more often than you iterated."""
+        with pytest.raises(ValueError, match="fewer than"):
+            IterationRecord(
+                label="inner",
+                criteria=(_criterion(trajectory=(1e-1, 1e-2), tolerance=1e-8),),
+                iterations_run=1,
             )
 
     def test_an_unlabelled_record_is_refused(self) -> None:

@@ -133,7 +133,8 @@ def test_source_iteration_recovers_direct_solve(rng):
     expected = np.linalg.solve(A_mat - S_mat, q)
 
     si = SourceIteration(A.inverse(), S, F, max_iter=1000, tol=1e-14)
-    psi, residuals = si.solve(q)
+    psi, record = si.solve(q)
+    residuals = _trajectory(record)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
     # Residual history must be monotonically (or near-monotonically)
@@ -230,10 +231,11 @@ def test_krylov_acceleration_recovers_direct_solve(rng):
     expected = np.linalg.solve(A_mat - S_mat, q)
 
     krylov = KrylovAcceleration(A, S, F, max_iter=200, tol=1e-12)
-    psi, residuals = krylov.solve(q)
+    psi, record = krylov.solve(q)
+    residuals = _trajectory(record)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
-    assert residuals, "GMRES callback never fired"
+    assert record.iterated, "GMRES callback never fired"
     assert residuals[-1] < 1e-8, (
         f"GMRES residual did not reach 1e-8; final={residuals[-1]:.2e}"
     )
@@ -343,17 +345,22 @@ def test_krylov_acceleration_high_scattering_beats_source_iteration():
     q = np.arange(1.0, n + 1.0)
 
     si = SourceIteration(A.inverse(), S, F, max_iter=500, tol=1e-10)
-    _, si_residuals = si.solve(q)
+    _, si_record = si.solve(q)
 
     krylov = KrylovAcceleration(A, S, F, max_iter=500, tol=1e-10)
-    _, kr_residuals = krylov.solve(q)
+    _, kr_record = krylov.solve(q)
 
     # GMRES should converge in well under SI's iteration count.  The
     # exact ratio is problem-dependent; pin the qualitative gap at 5×.
-    assert len(kr_residuals) < len(si_residuals) / 5, (
-        f"KrylovAcceleration ({len(kr_residuals)} iters) was not "
+    # ⭐ Counts, not trajectory lengths.  The two drivers use DIFFERENT
+    # conventions (SI measures differences, so its pass count exceeds its
+    # trajectory by one; GMRES gets one callback per iteration), and this
+    # comparison was silently mixing them until each driver began stating
+    # its own count (#340 F11).
+    assert kr_record.n_iterations < si_record.n_iterations / 5, (
+        f"KrylovAcceleration ({kr_record.n_iterations} iters) was not "
         f"meaningfully faster than SourceIteration "
-        f"({len(si_residuals)} iters) at c=0.9 — the algorithmic win "
+        f"({si_record.n_iterations} iters) at c=0.9 — the algorithmic win "
         f"that motivates the sibling primitive is missing."
     )
 
@@ -750,6 +757,19 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     )
 
 
+def _trajectory(record) -> list[float]:
+    """The single criterion's trajectory — what ``solve`` returned as a bare
+    list before #340 N2a gave the drivers an
+    :class:`~orpheus.numerics.convergence.IterationRecord`.
+
+    Not a compatibility shim: these rows are ABOUT the residual sequence, so
+    naming the extraction keeps them reading that way.  Rows that are about
+    the iteration COUNT read ``record.n_iterations`` directly instead —
+    the two are not interchangeable across drivers.
+    """
+    return list(record.criteria[0].trajectory)
+
+
 def _sn_composite_triple():
     r"""The HONEST typed-composite SN operator triple + solve_sn reference.
 
@@ -936,10 +956,17 @@ def _singular_consistent() -> tuple[MatrixOperator, np.ndarray]:
 
 
 def _krylov_warnings(krylov: KrylovAcceleration, b: np.ndarray):
-    """Run ``krylov.solve(b)`` recording only this boundary's RuntimeWarnings."""
+    """Run ``krylov.solve(b)`` recording only this boundary's RuntimeWarnings.
+
+    Returns the pr_norm TRAJECTORY (not the record): all three callers are
+    ERR-053 gates asserting on the residual tail, which is the trajectory's
+    job.  ``solve`` began returning an
+    :class:`~orpheus.numerics.convergence.IterationRecord` at #340 N2a.
+    """
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        x, history = krylov.solve(b)
+        x, record = krylov.solve(b)
+        history = _trajectory(record)
     ours = [
         w for w in caught
         if issubclass(w.category, RuntimeWarning)
@@ -1092,7 +1119,8 @@ def test_stop_is_the_free_identity_residual_elementwise(rng):
     S, F = MatrixOperator(S_mat), MatrixOperator(F_mat)
     q = 200.0 * (rng.random(n) + 0.5)  # ‖q‖ scale ≫ tol, ≠ ‖ψ‖ scale
     si = SourceIteration(A_inv, S, F, max_iter=200, tol=1e-10)
-    psi, history = si.solve(q)
+    psi, record = si.solve(q)
+    history = _trajectory(record)
 
     if not history or not history[-1] < 1e-10:
         pytest.fail("fixture did not converge — the rows below assume the "
@@ -1167,7 +1195,8 @@ def test_zero_gain_exits_after_one_apply_with_exact_residual(rng):
     A_inv = _RecordingInverse(A_mat)
     q = rng.random(n) + 0.5
     si = SourceIteration(A_inv, max_iter=50, tol=1e-12)
-    psi, history = si.solve(q)
+    psi, record = si.solve(q)
+    history = _trajectory(record)
     if len(A_inv.rhs_seen) != 1:
         pytest.fail(
             f"zero-gain SI ran {len(A_inv.rhs_seen)} inverse applies — "
@@ -1187,7 +1216,8 @@ def test_zero_source_zero_start_exits_clean():
     A_inv = _RecordingInverse(np.eye(n) * 2.0)
     S = MatrixOperator(0.3 * np.eye(n))
     si = SourceIteration(A_inv, S, max_iter=50, tol=1e-12)
-    psi, history = si.solve(np.zeros(n))
+    psi, record = si.solve(np.zeros(n))
+    history = _trajectory(record)
     np.testing.assert_array_equal(np.asarray(psi), 0.0)
     if history != [0.0]:
         pytest.fail(f"zero-source history {history} — expected [0.0]")

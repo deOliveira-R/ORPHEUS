@@ -530,10 +530,24 @@ class TestS2Exactness:
     """The sharpest whole-chain unit test: for S2-GL the two-moment
     reduction closes the transport system EXACTLY (K₂ = 0), so one DSA
     correction annihilates the error — and each LAGGED reflective wall
-    costs exactly one extra iteration before the same machine-zero
-    landing (the trace arm feeds the corrected outflow; the second
-    pass closes). A wrong sign anywhere in T, G, A_edge, the Marshak
-    row, the trace arm, or the (28a) update breaks the exact landing.
+    costs exactly one extra PASS before the same machine-zero landing
+    (the trace arm feeds the corrected outflow; the second pass closes).
+    A wrong sign anywhere in T, G, A_edge, the Marshak row, the trace
+    arm, or the (28a) update breaks the exact landing.
+
+    ⚠ **Unit change, NOT a physics change (2026-08-09, #340 N2a).** These
+    counts were 2 / 3 / 3 until the drivers began reporting their own pass
+    count.  ``SourceIteration``'s stop compares SUCCESSIVE iterates, so it
+    records ``P - 1`` residuals for ``P`` passes, and ``n_inner`` used to
+    carry the residual count on this path (while the Krylov path carried
+    ``len + 1`` — two conventions, one field, undocumented and backwards;
+    #340 F11).  Every number here moved by exactly +1 and nothing else did:
+    `[M]` the machine-zero landing is unchanged at 3.20e-15 (vacuum) and
+    6.20e-15 (one reflective wall), and the DELTA the class actually claims
+    — one extra pass per lagged wall — reads identically as 3 → 4 → 4.
+
+    The gate keeps its teeth: the count is still an EXACT equality, so a
+    real change in how many corrections the synthesis needs still reds.
     """
 
     pytestmark = pytest.mark.l1
@@ -541,9 +555,9 @@ class TestS2Exactness:
     @pytest.mark.parametrize(
         "bc,n_expected",
         [
-            (("vacuum", "vacuum"), 2),
-            (("reflective", "vacuum"), 3),
-            (("reflective", "reflective"), 3),
+            (("vacuum", "vacuum"), 3),
+            (("reflective", "vacuum"), 4),
+            (("reflective", "reflective"), 4),
         ],
     )
     @pytest.mark.verifies("sn-dsa-s2-exactness")
@@ -555,8 +569,8 @@ class TestS2Exactness:
         if not (n == n_expected and res[-1] < 1e-13):
             pytest.fail(
                 f"S2 exactness broken ({bc}): n = {n} (expect exactly "
-                f"{n_expected} — one correction + one lagged pass per "
-                f"reflective wall), final residual {res[-1]:.2e} "
+                f"{n_expected} PASSES — one correction + one lagged pass "
+                f"per reflective wall), final residual {res[-1]:.2e} "
                 f"(expect machine zero < 1e-13)"
             )
 
@@ -580,7 +594,7 @@ class TestS2Exactness:
             acceleration="dsa",
         )
         res = _residuals(sol)
-        if not (_inners(sol) == 3 and res[-1] < 1e-13):
+        if not (_inners(sol) == 4 and res[-1] < 1e-13):
             pytest.fail(
                 f"heterogeneous S2 exactness broken: n = {_inners(sol)}, "
                 f"final = {res[-1]:.2e}"
@@ -664,7 +678,7 @@ class TestP1DSAArm:
 
     @pytest.mark.parametrize(
         "bc,n_expected",
-        [(("vacuum", "vacuum"), 2), (("reflective", "vacuum"), 3)],
+        [(("vacuum", "vacuum"), 3), (("reflective", "vacuum"), 4)],
     )
     @pytest.mark.verifies("sn-dsa-synthesis")
     def test_s2_exactness_with_l1_scattering(self, bc, n_expected):

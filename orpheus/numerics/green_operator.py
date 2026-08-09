@@ -320,8 +320,13 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         psi: Any = initial_guess
         steps = 0
         while True:
-            psi, history = self._driver.solve(q, initial_guess=psi)
-            steps += max(len(history), 1)
+            psi, record = self._driver.solve(q, initial_guess=psi)
+            # The driver's OWN pass count, not its trajectory length — the
+            # two differ by one for SourceIteration (#340 F10), and this
+            # loop's budget is spent in passes.  ``max(_, 1)`` survives as
+            # the guarantee that a driver returning nothing still advances
+            # the outer counter, so the while-loop cannot spin forever.
+            steps += max(record.n_iterations, 1)
             true_res = self._true_relative_residual(psi, q)
             # NaN-safe promise test (spelled "converged", never "above
             # tol"): a hard-divergent split overflows the iterate — or,
@@ -334,7 +339,12 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
             if true_res < self.tol:
                 return psi
             if steps >= self.max_iter or not math.isfinite(true_res):
-                increment = history[-1] if history else float("nan")
+                criterion = record.binding_criterion
+                increment = (
+                    float("nan")
+                    if criterion is None or criterion.last is None
+                    else criterion.last
+                )
                 raise ConvergenceFailure(
                     f"GreenOperator: splitting iteration did not reach the "
                     f"promise — TRUE relative residual ‖(A-B)ψ − q‖/‖q‖ = "

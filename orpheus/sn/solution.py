@@ -166,7 +166,15 @@ class IterationHistory:
     omission, so it is now positional and every producer must state it —
     from the loop's own flag
     (:attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`)
-    or from :func:`~orpheus.sn.solver._claims_convergence`, never by hand.
+    or from :attr:`~orpheus.numerics.convergence.IterationRecord.converged`,
+    never by hand.
+
+    ⛔ This line named ``orpheus.sn.solver._claims_convergence`` until
+    2026-08-09.  That predicate is RETIRED — the inner drivers now return an
+    :class:`~orpheus.numerics.convergence.IterationRecord` and the verdict is
+    derived from it, which also corrects the predicate's blind spot: it read
+    an EMPTY residual history as *not converged*, so a Krylov solve that
+    returned on its initial guess was indistinguishable from a truncation.
     """
 
     keff_history: tuple[float, ...] = ()

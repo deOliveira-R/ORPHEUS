@@ -377,8 +377,10 @@ def solve_case_method_slab_critical(
     # not a transcription of which way control flow left the loop, and not
     # `iters < max_bisect` (which misreports a bisection that tightens
     # exactly on its last allowed step).  Same discipline as
-    # ``orpheus.sn.solver._claims_convergence``: derive the fact from the
-    # state, so there is nothing to transcribe wrongly.
+    # ``orpheus.numerics.convergence.IterationRecord.converged``: derive the
+    # fact from the state, so there is nothing to transcribe wrongly.
+    # (Named ``orpheus.sn.solver._claims_convergence`` until 2026-08-09; that
+    # predicate retired when the drivers began returning records.)
     converged = bool(d_hi - d_lo < bisect_tol * max(1.0, d_lo))
 
     return CaseMethodSlabResult(

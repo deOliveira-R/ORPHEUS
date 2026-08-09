@@ -238,7 +238,7 @@ makes the uncovered tail cheap — it tells that user the number.
 | step | scope | gate |
 |---|---|---|
 | N1 ✅ | `IterationRecord` + `StoppingCriterion` + their own laws | **LANDED** — see below |
-| N2a | **Producer-side retention** (the F9/F10/F2 prerequisite) — the two drivers keep and return what they already know | driver-level gates |
+| N2a ✅ | **Producer-side retention** — the two drivers return a record | **LANDED** — see below |
 | N2b | SN produces the record; `IterationHistory` composes it; flat accessors become derived | the 9-red baseline unchanged |
 | N3 | Derived budget + rate-aware message (3c) | contract suite + a NEW starved-projection gate |
 | N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
@@ -269,6 +269,51 @@ dies with the local `si` (F9), `KrylovAcceleration.solve` never returns
 scipy's `info`, and `KEigenvalue.solve_fixed_source` drops its inner history
 inside `numerics/` (§1b). N2a is that retention pass; only then can N2b
 compose a record.
+
+**N2a landed 2026-08-09.** `SourceIteration.solve` and
+`KrylovAcceleration.solve` return `(state, IterationRecord)` instead of
+`(state, list[float])`; 7 production unpack sites migrated;
+`_claims_convergence` **retired** (zero production callers) with both prose
+survivors repointed by tense; `_history_from_record` is the ONE place the flat
+carrier is derived from the recursive one. `[M]` mutation battery **15/15
+caught, zero blind** (74 gates; positive control reds 12).
+
+Four things it fixed that the plan had only recorded as facts:
+
+- **F10/F11 dissolve into one rule** — each driver states its own count.
+  `iterations_run` is the one thing the record cannot derive, because the
+  offset is per-producer. ⭐ And the tree's two conventions were **backwards**:
+  SI wrote `len(residuals)` where its pass count is `len + 1`, Krylov wrote
+  `len + 1` where its counts match.
+- **F9** — the rate is now retained: it derives from the record's trajectory.
+- **The adjoint eigenvalue inner is no longer lost inside `numerics/`**
+  (`KEigenvalue` accumulates `inner_records`, reset per `solve`, so F12's
+  double-count cannot recur). `total_inner_iterations` stops being `None`.
+- **The `cleared`-guard branch in `_warn_if_unconverged` is still live** —
+  it retires when N2b records `dphi`.
+
+⛔ **Two corrections the tests forced, both worth carrying:**
+
+1. **`StoppingCriterion` first shipped demanding a strictly positive
+   tolerance, and TWO production paths could then not build a record**
+   (`GreenOperator(tol=0)`, GMRES exact-breakdown). A type asserting more
+   than its callers promise — vv anti-pattern #16 in the direction that
+   breaks production. `0.0` is now legal and never clears; `distance`
+   returns `inf` there so `cleared ⟺ distance < 1` still holds.
+2. **A level that RAN and measured nothing must not claim convergence.**
+   `cleared` is vacuously true on an empty trajectory — right when the loop
+   never entered (GMRES on its initial guess), wrong when it entered and
+   never measured (SI at `max_iter=1`). The retired predicate was wrong the
+   *other* way. `iterated` is the discriminator; one rule serves both.
+
+`[M]` **the only test-visible consequence was a +1 relabel**, re-baselined
+with its rationale recorded at the claim: `test_dsa_rate.py`'s S2-exactness
+counts went 2/3/3 → 3/4/4 and 2/3 → 3/4. The physics is untouched (machine-
+zero landing unchanged at 3.20e-15 / 6.20e-15) and the DELTA the class
+actually claims — one extra pass per lagged reflective wall — reads
+identically. Gates: `tests/sn/{solve,architecture,acceleration,operators,
+eigenvalue}` + rate + solution = **3 failed / 1571 passed**, the 3 being the
+known #333 affine trio; `tests/numerics` 2204 passed.
 
 ⛔ **N2a owes a producer-side normalisation, not a consumer-side workaround**
 (`coding-elegance` Pattern 7). Per F10, a trajectory that starts at the

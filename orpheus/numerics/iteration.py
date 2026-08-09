@@ -159,7 +159,11 @@ if TYPE_CHECKING:
     # keeps holding in both directions.
     from .eigenvalue import PowerIterationOutcome
 
-from .convergence import resolve_iteration_budget
+from .convergence import (
+    IterationRecord,
+    StoppingCriterion,
+    resolve_iteration_budget,
+)
 from .operator import (
     InverseWrapMixin,
     LinearOperator,
@@ -648,7 +652,7 @@ class SourceIteration(Generic[V]):
         self,
         q_ext: V,
         initial_guess: V | None = None,
-    ) -> tuple[V, list[float]]:
+    ) -> "tuple[V, IterationRecord]":
         r"""Run fixed-point iteration to convergence.
 
         Parameters
@@ -667,10 +671,22 @@ class SourceIteration(Generic[V]):
         psi : np.ndarray
             Converged iterate (or the final iterate if ``max_iter``
             was hit before tolerance was reached).
-        residual_history : list[float]
-            Relative residual at every iteration.  Useful for
-            plotting convergence and for diagnosing stalled
-            iterations.
+        record : IterationRecord
+            What this level wanted, what it got, and why it stopped —
+            the relative-residual trajectory, the budget, and the loop's
+            OWN pass count, from which ``converged`` / ``truncated`` /
+            ``rate`` / ``projected_iterations`` all derive.
+
+            ⚠ ``record.n_iterations`` is NOT the trajectory length here.
+            The stop compares SUCCESSIVE iterates, so ``P`` passes yield
+            ``P - 1`` residuals; the record carries the pass count because
+            only this loop knows that offset (#340 F10).
+
+            ⛔ Returned a bare ``list[float]`` until 2026-08-09.  Every
+            consumer then re-derived convergence from it — five sites, one
+            of which read an EMPTY history as "not converged" when it means
+            "returned on the initial guess".  The fact travels with the
+            answer now, so there is nothing left to re-derive.
         """
         # R-1 Step 4a — ravellable protocol: typed flux containers
         # (:class:`AngularFlux`) and bare ndarrays both work.  ``psi``
@@ -701,9 +717,18 @@ class SourceIteration(Generic[V]):
         # solution, caught at the first comparison).
         q_norm = max(_l2_norm(q_ext), 1e-30)
         rhs_prev = None
+        # The loop's OWN pass count.  It is NOT ``len(residual_history)``:
+        # the stop measures the DIFFERENCE between successive iterates, so
+        # P passes yield P-1 residuals and an exhausted ``max_iter=50`` run
+        # records 49.  Only this loop knows that offset, which is why the
+        # record takes it rather than inferring it (#340 F10/F11 — the same
+        # `n_inner` field used to be written with both conventions, one of
+        # them an undocumented `+1`).
+        iterations_run = 0
 
         for _ in range(self.max_iter):
             psi_prev = psi
+            iterations_run += 1
 
             # Build the RHS of the fixed-point step: the external source
             # plus every lagged coupling ``g·ψ_n``.  The gains are
@@ -760,7 +785,18 @@ class SourceIteration(Generic[V]):
                 _prev_disp_leaf = disp_leaf
                 self.last_displacement = disp_leaf
 
-        return psi, residual_history
+        return psi, IterationRecord(
+            label="inner(source-iteration)",
+            criteria=(
+                StoppingCriterion(
+                    name="residual",
+                    trajectory=tuple(residual_history),
+                    tolerance=self.tol,
+                ),
+            ),
+            budget=self.max_iter,
+            iterations_run=iterations_run,
+        )
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -916,7 +952,7 @@ class KrylovAcceleration(Generic[V]):
         self,
         q_ext: V,
         initial_guess: V | None = None,
-    ) -> tuple[V, list[float]]:
+    ) -> "tuple[V, IterationRecord]":
         r"""Run GMRES on :math:`(A - \sum_i g_i)\,\psi = q_{\rm ext}` to convergence.
 
         Parameters
@@ -933,10 +969,18 @@ class KrylovAcceleration(Generic[V]):
         -------
         psi : np.ndarray
             Converged solution, shape ``q_ext.shape``.
-        residual_history : list[float]
-            Preconditioned residual norm at every GMRES inner iteration
-            (scipy's ``callback_type='pr_norm'``).  Empty if GMRES
-            returned in zero iterations.
+        record : IterationRecord
+            What this level wanted, what it got, and why it stopped.  Its
+            criterion is the preconditioned residual at every GMRES inner
+            iteration (scipy's ``callback_type='pr_norm'``, which is
+            RELATIVE to ``‖b‖`` — measured 2026-08-09, so judging it against
+            ``rtol`` is dimensionally right).
+
+            An EMPTY trajectory means GMRES returned in zero iterations,
+            i.e. the initial guess already satisfied the tolerance.  The
+            record reports that as ``iterated=False`` and ``converged=True``
+            — two separate questions, because conflating them is what
+            turned 44 such rows into phantom truncations in #340's audit.
         """
         # R-1 Step 4a — ravellable protocol: when ``q_ext`` is a typed
         # flux container (:class:`AngularFlux`), the ravel/unravel goes
@@ -1053,7 +1097,28 @@ class KrylovAcceleration(Generic[V]):
                 stacklevel=2,
             )
 
-        return _unravel_like(solution_template, solution), residual_history
+        return _unravel_like(solution_template, solution), IterationRecord(
+            label="inner(gmres)",
+            criteria=(
+                StoppingCriterion(
+                    # scipy's ``callback_type='pr_norm'`` reports the
+                    # preconditioned residual RELATIVE to ``‖b‖`` — measured
+                    # 2026-08-09 across three ‖b‖ scales, where the callback
+                    # value matched ``‖b − Ax‖/‖b‖`` exactly.  So judging it
+                    # against ``self.tol`` (an ``rtol``) is dimensionally
+                    # right, and the long-standing ``_claims_convergence``
+                    # comparison at the SN call sites was never a units bug.
+                    name="pr_residual",
+                    trajectory=tuple(residual_history),
+                    tolerance=self.tol,
+                ),
+            ),
+            budget=self.max_iter,
+            # One callback per iteration here, so the counts DO match — the
+            # opposite convention from SourceIteration above, which is why
+            # neither can be inferred by the record.
+            iterations_run=len(residual_history),
+        )
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -1200,6 +1265,11 @@ class KEigenvalue(Generic[V]):
         self.inner_tol = float(inner_tol)
         self.max_inner = resolve_iteration_budget(max_inner, self.inner_tol)
         self.eigenvalue_method = eigenvalue_method
+        #: Inner records, newest last — one per outer iteration.  Reset by
+        #: :meth:`solve` so a reused instance cannot double-count (the
+        #: defect #340 F12 measured on ``SNSolver._total_inner_iterations``,
+        #: which has no reset and silently accumulates across solves).
+        self.inner_records: list[IterationRecord] = []
 
         # Build the inner fixed-source step ONCE: the SOLVER (this posing
         # layer) builds the inverse operator, the driver applies it (#226
@@ -1275,10 +1345,26 @@ class KEigenvalue(Generic[V]):
         :meth:`SNSolver._solve_source_iteration` uses.  The inner solve has a
         single coupling gain ``S`` (zero within-group fission — the eigen-source
         ``F·ψ/k`` is the EXTERNAL ``q``, not a within-group term).
+
+        ⛔ Until 2026-08-09 this method did ``psi, _inner_residuals =
+        ...; return psi`` — discarding the inner trajectory INSIDE a shared
+        numerics primitive, so the adjoint eigenvalue path's inner level was
+        unrecoverable from ``orpheus/sn/`` at any level of effort.  `[M]`
+        ``solve_sn_adjoint`` reported ``total_inner_iterations is None``
+        where the forward path reported 1470.  The records now accumulate on
+        the instance (reset per :meth:`solve`), which is the same shape
+        ``SNSolver`` already uses for its inner counter.
+
+        ⚠ An accumulator, not a return value, is a way-station: the honest
+        home is the outer's own record, and that arrives with #340 N2b when
+        ``PowerIterationOutcome`` learns to carry children.  It is recorded
+        here rather than deferred because a discarded trajectory cannot be
+        recovered later, while a mis-homed one can be moved.
         """
-        psi, _inner_residuals = self._inner.solve(
+        psi, record = self._inner.solve(
             fission_source, initial_guess=flux_distribution,
         )
+        self.inner_records.append(record)
         return psi
 
     def compute_production_rate(self, flux_distribution: V) -> float:
@@ -1420,4 +1506,9 @@ class KEigenvalue(Generic[V]):
         # Delegate the loop to the canonical algorithm.  No import cycle:
         # eigenvalue.py does not import iteration.py.
         from .eigenvalue import power_iteration
+        # Reset before the loop, so a reused instance reports THIS solve's
+        # inners rather than every solve it has ever run.  (#340 F12 measured
+        # the un-reset variant on ``SNSolver._total_inner_iterations``, where
+        # two power_iteration calls on one solver silently double-count.)
+        self.inner_records = []
         return power_iteration(self, max_iter=self.max_outer)

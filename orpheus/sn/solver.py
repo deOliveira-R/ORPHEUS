@@ -49,6 +49,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.convergence import (
     ESCALATION_FLAG,
     ConvergenceWarning,
+    IterationRecord,
     StoppingCriterion,
     resolve_iteration_budget,
 )
@@ -389,33 +390,6 @@ class ConvergenceCertificateError(RuntimeError):
 _CERTIFICATE_SAFETY = 10.0
 
 
-def _claims_convergence(residual_history: "Sequence[float]", tol: float) -> bool:
-    r"""Did an inner solve's residual history CLAIM convergence?
-
-    The single source of truth for the inner-based half of the convergence
-    question (the outer-based half is
-    :attr:`~orpheus.numerics.eigenvalue.PowerIterationOutcome.converged`,
-    recorded by the loop itself).
-
-    An empty history means the driver never iterated, which is not a claim.
-    A non-empty one claims convergence iff its last residual is STRICTLY
-    below the tolerance — strict because that is what
-    :func:`_certify_within_group_exit` has always used to decide whether
-    there is a claim worth certifying, and a predicate that disagrees with
-    its own certificate is a contradiction waiting to be measured.
-
-    ⛔ This predicate was transcribed THREE times before 2026-08-08, and the
-    copies had drifted: the adjoint fixed-source read ``<=`` where its
-    forward sibling and the certificate read ``<``, so on an exactly-equal
-    residual the adjoint claimed convergence that the certificate declined
-    to certify. FP equality makes that unreachable in practice — which is
-    precisely why it survived: an unreachable disagreement is invisible to
-    every test, and stays until someone reads all three spellings side by
-    side. Route new call sites through here rather than re-typing it.
-    """
-    return bool(residual_history) and residual_history[-1] < tol
-
-
 def _warn_if_unconverged(
     history: "IterationHistory",
     *,
@@ -561,8 +535,7 @@ def _certify_within_group_exit(
     q_ext: "FullField | CoupledField",
     *,
     sn_mesh: "SNMesh",
-    residual_history: "list[float]",
-    tol: float,
+    record: IterationRecord,
     where: str,
 ) -> None:
     r"""The end-of-solve convergence CERTIFICATE — one honest residual.
@@ -600,8 +573,12 @@ def _certify_within_group_exit(
     """
     if sn_mesh.scheme.spatial_basis_per_axis > 1:
         return  # moment-tailed scheme — the residual mint's un-built widening
-    if not _claims_convergence(residual_history, tol):
+    if not record.converged:
         return  # no convergence claim — nothing to certify
+    criterion = record.binding_criterion
+    if criterion is None or criterion.last is None:
+        return  # nothing was measured — see IterationRecord.iterated
+    tol = criterion.tolerance
     residual = evaluate_residual(loss_op, psi, q_ext)
     r_norm = float(np.linalg.norm(np.asarray(residual.to_flat())))
     q_norm = max(float(np.linalg.norm(np.asarray(q_ext.to_flat()))), 1e-30)
@@ -609,13 +586,38 @@ def _certify_within_group_exit(
     if defect > _CERTIFICATE_SAFETY * tol:
         raise ConvergenceCertificateError(
             f"{where}: the within-group solve claimed convergence "
-            f"(running residual {residual_history[-1]:.3e} < tol {tol:.1e}) "
+            f"(running residual {criterion.last:.3e} < tol {tol:.1e}) "
             f"but the honest equation residual is ‖Aψ − q‖/‖q‖ = "
             f"{defect:.3e} — the iteration's fixed point does not solve "
             f"the equation (the #282 lag-death class: a stale/lagged "
             f"block inside M; the free-identity stop is structurally "
             f"blind to it)."
         )
+
+
+def _history_from_record(record: IterationRecord) -> "IterationHistory":
+    r"""Compose the SN-facing flat history from an inner driver's record.
+
+    The ONE place the flat carrier is derived from the recursive one, so the
+    three fixed-source entries cannot spell it three ways — which is how
+    ``n_inner`` came to mean ``len(residuals)`` on the SI path and
+    ``len(residuals) + 1`` on the Krylov path, undocumented and exactly
+    backwards from the truth (#340 F11: SI is the one whose count exceeds
+    its trajectory).
+
+    ⚠ This is a SEAM, not a destination. :class:`IterationHistory` is flat
+    and SN-local, so composing into it discards the tree — which is the
+    whole of #340's F6. It stays until N2b gives the solution object a
+    record of its own; keeping the projection in one function is what makes
+    that replacement a one-line change rather than a five-site hunt.
+    """
+    criterion = record.binding_criterion
+    return IterationHistory(
+        flux_residuals=() if criterion is None else criterion.trajectory,
+        n_inner=record.n_iterations,
+        total_inner_iterations=record.n_iterations,
+        converged=record.converged,
+    )
 
 
 def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
@@ -1837,7 +1839,7 @@ class SNSolver:
             )
             if coupled else q_ext_composite
         )
-        psi_typed, _residuals = si.solve(
+        psi_typed, record = si.solve(
             q_driver, initial_guess=initial_guess,
         )
         # The end-of-solve CERTIFICATE (step 5, R-5.2) — full-angular arms
@@ -1847,14 +1849,16 @@ class SNSolver:
             _certify_within_group_exit(
                 system.loss if coupled else _bare_loss_arm(system),
                 psi_typed, q_driver,
-                sn_mesh=self.sn_mesh,
-                residual_history=_residuals, tol=self.inner_tol,
+                sn_mesh=self.sn_mesh, record=record,
                 where="SNSolver._solve_source_iteration",
             )
         # Phase 3 measurement seam: accumulate this outer step's inner SI
         # iterate count (the eigenvalue path's only window onto the inner
         # spectral rate — see IterationHistory.total_inner_iterations).
-        self._total_inner_iterations += len(_residuals)
+        # ⭐ ``record.n_iterations`` is the loop's OWN pass count, not
+        # ``len(residual_history)`` — SI measures the difference between
+        # successive iterates, so the trajectory is one short (#340 F10).
+        self._total_inner_iterations += record.n_iterations
         self._psi_typed = psi_typed
 
         # Scalar flux for the eigenvalue outer's contract.  Windowed: the
@@ -2020,7 +2024,7 @@ class SNSolver:
             )
             if coupled else q_ext_composite
         )
-        psi_typed, _residuals = krylov.solve(
+        psi_typed, record = krylov.solve(
             q_driver, initial_guess=initial_guess,
         )
         # The end-of-solve CERTIFICATE (step 5, R-5.2) — the Krylov path is
@@ -2031,13 +2035,15 @@ class SNSolver:
         _certify_within_group_exit(
             system.loss if coupled else _bare_loss_arm(system),
             psi_typed, q_driver,
-            sn_mesh=self.sn_mesh,
-            residual_history=_residuals, tol=self.inner_tol,
+            sn_mesh=self.sn_mesh, record=record,
             where="SNSolver._solve_krylov",
         )
         # Phase 3 measurement seam: accumulate this outer step's inner
         # Krylov iterate count (see IterationHistory.total_inner_iterations).
-        self._total_inner_iterations += len(_residuals)
+        # GMRES gets one callback per iteration, so here the count and the
+        # trajectory length agree — the opposite of SI's offset above, which
+        # is why each driver states its own (#340 F11).
+        self._total_inner_iterations += record.n_iterations
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
@@ -2735,6 +2741,12 @@ def solve_sn_adjoint(
         converged=outcome.converged,
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
+        # ⛔ Was ABSENT until 2026-08-09 — not by choice, but because
+        # ``KEigenvalue.solve_fixed_source`` discarded its inner trajectory
+        # inside ``numerics/``, so this entry had nothing to report and
+        # ``total_inner_iterations`` came back ``None`` where the forward
+        # path reported 1470 (#340).  The driver now keeps its records.
+        total_inner_iterations=sum(r.n_iterations for r in ke.inner_records),
     )
     _warn_if_unconverged(
         history, where="solve_sn_adjoint", budget_name="max_outer",
@@ -2881,13 +2893,8 @@ def solve_sn_adjoint_fixed_source(
     # Flux-classed zero start (the template) — the daggered iterate is an
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
     # and trip the typed cross-class guard on the first displacement.
-    psi_star, residuals = si.solve(q_star, initial_guess=template)
-    history = IterationHistory(
-        flux_residuals=tuple(residuals),
-        n_inner=len(residuals),
-        total_inner_iterations=len(residuals),
-        converged=_claims_convergence(residuals, inner_tol),
-    )
+    psi_star, record = si.solve(q_star, initial_guess=template)
+    history = _history_from_record(record)
     _warn_if_unconverged(
         history, where="solve_sn_adjoint_fixed_source",
         budget_name="max_inner", budget=max_inner, tol=inner_tol,
@@ -3541,7 +3548,7 @@ def _solve_fixed_source_si(
         initial_guess = _coupled_flux_state(cold, sn_mesh) if coupled else cold
     # ``q_ext_composite`` is already driver-ready (the coupled pair on a
     # carrying mesh — built once by :func:`_build_fixed_source_rhs`).
-    psi_typed, residuals = si.solve(
+    psi_typed, record = si.solve(
         q_ext_composite, initial_guess=initial_guess,
     )
     # The end-of-solve CERTIFICATE (step 5, R-5.2) — full-angular arms only
@@ -3551,8 +3558,7 @@ def _solve_fixed_source_si(
         _certify_within_group_exit(
             system.loss if coupled else _bare_loss_arm(system),
             psi_typed, q_ext_composite,
-            sn_mesh=sn_mesh,
-            residual_history=residuals, tol=inner_tol,
+            sn_mesh=sn_mesh, record=record,
             where="solve_sn_fixed_source[source_iteration]",
         )
     # System A's converged member feeds the Solution contract; System B's
@@ -3566,20 +3572,12 @@ def _solve_fixed_source_si(
             f"fixed-source SI: the converged iterate must echo the timed "
             f"template; got {type(psi_full).__name__}."
         )
-    converged_flag = _claims_convergence(residuals, inner_tol)
-    flux_residuals = [float(r) for r in residuals]
-
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
     # (The former mesh / quadrature / materials parameters retired in C4 —
     # Solution never consumed them; the typed fluxes carry the SNMesh
     # reference, which transitively exposes those handles via
     # ``.mesh.{mesh, quad, materials}``.)
-    history = IterationHistory(
-        flux_residuals=tuple(flux_residuals),
-        n_inner=len(residuals),
-        total_inner_iterations=len(residuals),
-        converged=converged_flag,
-    )
+    history = _history_from_record(record)
     _warn_if_unconverged(
         history, where="solve_sn_fixed_source", budget_name="max_inner",
         budget=max_inner, tol=inner_tol,
@@ -3756,7 +3754,7 @@ def _solve_fixed_source_krylov(
         corrector=corrector,
     )
 
-    psi_typed, residuals = krylov.solve(
+    psi_typed, record = krylov.solve(
         q_ext_composite, initial_guess=krylov_cold_start,
     )
     # The end-of-solve CERTIFICATE (step 5, R-5.2) — the Krylov path is
@@ -3765,8 +3763,7 @@ def _solve_fixed_source_krylov(
     _certify_within_group_exit(
         system.loss if coupled else _bare_loss_arm(system),
         psi_typed, q_ext_composite,
-        sn_mesh=sn_mesh,
-        residual_history=residuals, tol=inner_tol,
+        sn_mesh=sn_mesh, record=record,
         where="solve_sn_fixed_source[krylov]",
     )
     # System A's converged member feeds the Solution contract; System B's
@@ -3792,21 +3789,18 @@ def _solve_fixed_source_krylov(
     phi = _average_moment_scalar(
         bulk.integrate_angular().values, sn_mesh,
     )
-    converged_flag = _claims_convergence(residuals, inner_tol)
-    n_outer = len(residuals)
-    flux_residuals = [float(r) for r in residuals]
-
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
     # R-1 Step 4 G1 — ``psi_full`` carries the Krylov-converged
     # composite with the matvec's B1'' face residual on its boundary;
     # reuse directly. (The former mesh / quadrature / materials
     # parameters retired in C4 — Solution never consumed them.)
-    history = IterationHistory(
-        flux_residuals=tuple(flux_residuals),
-        n_inner=n_outer + 1,
-        total_inner_iterations=n_outer + 1,
-        converged=converged_flag,
-    )
+    #
+    # ⛔ This site used to write ``n_inner = len(residuals) + 1`` while its
+    # SI sibling wrote ``len(residuals)`` — two conventions for one field,
+    # undocumented, and BACKWARDS: it is SI whose pass count exceeds its
+    # trajectory (it measures differences), while GMRES gets one callback
+    # per iteration.  Both now read the producer's own count (#340 F11).
+    history = _history_from_record(record)
     _warn_if_unconverged(
         history, where="solve_sn_fixed_source", budget_name="max_inner",
         budget=max_inner, tol=inner_tol,

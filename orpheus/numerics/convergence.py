@@ -392,7 +392,18 @@ class StoppingCriterion:
         One entry per iteration, oldest first.  Empty means the level never
         iterated (see :attr:`cleared` for what that implies).
     tolerance:
-        The threshold this quantity was judged against.  Strictly positive.
+        The threshold this quantity was judged against.  Non-negative.
+
+        ``0.0`` is legal and means *unsatisfiable by a strict test* — a real
+        production input, not a degenerate one: ``GreenOperator(tol=0)`` is
+        how the unsatisfiability guard is exercised, and GMRES's
+        exact-breakdown path reaches a literal ``0.0`` residual.  `[M]`
+        2026-08-09 this class first shipped demanding a strictly positive
+        tolerance and two production paths refused to build a record — the
+        vv anti-pattern #16 shape, a type asserting more than its callers
+        actually promise.  Nothing about the comparison changed: ``cleared``
+        stays strict, so a zero tolerance never clears, exactly as the
+        retired ``_claims_convergence`` behaved.
     """
 
     name: str
@@ -402,9 +413,9 @@ class StoppingCriterion:
     def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("a stopping criterion must be named")
-        if not self.tolerance > 0.0:
+        if self.tolerance < 0.0 or math.isnan(self.tolerance):
             raise ValueError(
-                f"{self.name}: tolerance must be strictly positive, got "
+                f"{self.name}: tolerance must be non-negative, got "
                 f"{self.tolerance!r}"
             )
         # `v < 0.0` is False for nan, so this admits nan/inf by construction.
@@ -450,9 +461,17 @@ class StoppingCriterion:
         is the one that bound (whether it cleared last or failed worst), which
         is what makes one definition serve both cases with no branch.  Zero
         for an empty trajectory — nothing was measured, so nothing is blocking.
+
+        Infinite against a zero tolerance, because a strict test can never
+        clear one — which keeps ``cleared`` and ``distance < 1`` two
+        spellings of one statement in every case, including that one.
         """
         last = self.last
-        return 0.0 if last is None else last / self.tolerance
+        if last is None:
+            return 0.0
+        if self.tolerance == 0.0:
+            return math.inf
+        return last / self.tolerance
 
     # ── what it would take ───────────────────────────────────────────────
 
@@ -545,6 +564,8 @@ class StoppingCriterion:
         intercept, log_rate = fit
         if log_rate >= 0.0:
             return None
+        if (self.tolerance if tolerance is None else tolerance) <= 0.0:
+            return None  # no finite count reaches an exactly-zero residual
         return _budget_from_law(
             log_initial=intercept,
             log_rate=log_rate,
@@ -586,6 +607,28 @@ class IterationRecord:
         The iteration cap this level was given, so
         :attr:`exhausted_budget` is answerable without the caller having to
         remember what it passed.
+    iterations_run:
+        How many times the loop actually iterated, when that differs from
+        the number of criterion measurements.  ``None`` (the default) means
+        *the same*, which is the common case.
+
+        ⭐ This is the ONE thing the record cannot derive, because the offset
+        is a **per-producer fact**.  `[M]` 2026-08-09, both conventions ship
+        in this tree: :class:`~orpheus.numerics.iteration.SourceIteration`
+        measures the *difference* between successive iterates, so ``P``
+        passes yield ``P - 1`` residuals and a run that exhausts
+        ``max_iter=50`` records 49; :class:`~orpheus.numerics.iteration.
+        KrylovAcceleration` gets one callback per iteration, so its counts
+        match.  Inferring one rule would silently mis-read the other — which
+        is exactly what happened before the record existed, where the same
+        ``n_inner`` field was written as ``len(residuals)`` by one driver and
+        ``len(residuals) + 1`` by the other, undocumented.
+
+        It is an OBSERVATION, not a verdict.  The distinction this class
+        rests on is that no *convergence judgement* may be stored; measured
+        data plainly must be.  The construction invariant keeps the two
+        consistent: you cannot measure a criterion more often than you
+        iterated.
     min_iterations:
         Iterations below which this level refuses to claim convergence.  The
         home for a guard like SN's ``iteration <= 2``, and the honest way for
@@ -598,6 +641,7 @@ class IterationRecord:
     label: str
     criteria: tuple[StoppingCriterion, ...] = ()
     budget: int = 0
+    iterations_run: int | None = None
     min_iterations: int = 0
     children: tuple[IterationRecord, ...] = ()
 
@@ -625,12 +669,27 @@ class IterationRecord:
                     f"{c.name}={c.n_iterations}" for c in self.criteria
                 )
             )
+        if self.iterations_run is not None:
+            measured = max(lengths, default=0)
+            if self.iterations_run < measured:
+                raise ValueError(
+                    f"{self.label}: iterations_run={self.iterations_run} is "
+                    f"fewer than the {measured} criterion measurements — a "
+                    f"loop cannot measure more often than it iterates"
+                )
 
     # ── the four states a loop can stop in ───────────────────────────────
 
     @property
     def n_iterations(self) -> int:
-        """Iterations this level ran (zero if it never entered its loop)."""
+        """Iterations this level ran (zero if it never entered its loop).
+
+        The producer's own count when it stated one, else the number of
+        criterion measurements — see :attr:`iterations_run` for why only the
+        producer can know the difference.
+        """
+        if self.iterations_run is not None:
+            return self.iterations_run
         return self.criteria[0].n_iterations if self.criteria else 0
 
     @property
@@ -652,10 +711,28 @@ class IterationRecord:
         :attr:`fully_converged`, and keeping them separate is what lets a
         caller tell "the outer stalled because an inner starved" from "the
         outer is genuinely non-critical".
+
+        ⭐ **A level that RAN and measured nothing cannot claim convergence.**
+        :attr:`StoppingCriterion.cleared` is vacuously ``True`` on an empty
+        trajectory, which is the right reading when the loop never entered —
+        GMRES returning on its initial guess *did* converge, and calling
+        that a truncation is the misreading that produced 44 phantom rows in
+        #340's audit.  It is the WRONG reading when the loop iterated and
+        simply never got to measure: a `SourceIteration` given
+        ``max_iter=1`` makes one pass and records no residual, because its
+        stop compares SUCCESSIVE iterates.  There is no evidence there, and
+        absence of evidence must not read as convergence.
+
+        :attr:`iterated` is exactly the discriminator between those two, so
+        the rule needs no special case beyond naming it.
         """
-        return self.n_iterations >= self.min_iterations and all(
-            criterion.cleared for criterion in self.criteria
-        )
+        if self.n_iterations < self.min_iterations:
+            return False
+        if self.iterated and any(
+            criterion.n_iterations == 0 for criterion in self.criteria
+        ):
+            return False
+        return all(criterion.cleared for criterion in self.criteria)
 
     @property
     def exhausted_budget(self) -> bool:
