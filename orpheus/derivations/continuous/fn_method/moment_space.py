@@ -312,7 +312,11 @@ class MomentSpace:
             eigenvalue_kind="k_eff",
             parameter_value=float(res.a_critical_mfp),
             parameter_kind="half_thickness_mfp",
-            converged=True,  # bisection always converges given bracket
+            # READ from the bisection (#340).  This said ``True`` with the
+            # comment "bisection always converges given bracket" until
+            # 2026-08-09 — present-tense false, since ``max_bisect`` is
+            # caller-tunable and forwarded right above.
+            converged=bool(res.converged),
             metadata={
                 "n_groups": 1,
                 "method": "solve_fn_slab_bare_critical",
@@ -344,7 +348,9 @@ class MomentSpace:
             eigenvalue_kind="k_eff",
             parameter_value=float(res.R_critical_mfp),
             parameter_kind="radius_mfp",
-            converged=True,
+            # scipy's own OptimizeResult.success, threaded through (#340).
+            # It was read and branched on inside the solver, then dropped.
+            converged=bool(res.converged),
             metadata={
                 "n_groups": 1,
                 "method": "solve_fn_sphere_bare_critical",

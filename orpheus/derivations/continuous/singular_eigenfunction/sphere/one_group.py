@@ -64,6 +64,12 @@ class CaseMethodSphereResult:
         Bracket-scan size.
     n_bisect_iters : int
         Bisection iterations.
+    converged : bool
+        Whether the bisection met ``bisect_tol`` — **required, no
+        default** (#340).  The bracket width is the witness, not
+        ``eq54_residual`` (which has no stated threshold; deriving from
+        it would mean inventing a tolerance).  See the twin note on
+        :class:`~orpheus.derivations.continuous.singular_eigenfunction.slab.one_group.CaseMethodSlabResult`.
     """
 
     R_critical_mfp: float
@@ -77,6 +83,7 @@ class CaseMethodSphereResult:
     eq54_residual: float
     n_bracket_points: int
     n_bisect_iters: int
+    converged: bool
 
 
 def _eq54_residual(
@@ -248,6 +255,10 @@ def solve_case_method_sphere_critical(
         r_crit, c=c, R_refl=R_refl, f1=f1, u0=u0, nu_bar=nu_bar, z0=z0,
     )
 
+    # The loop's OWN stop predicate on the final bracket — see the twin in
+    # ``..slab.one_group`` for why the bracket width and not eq54_residual.
+    converged = bool(r_hi - r_lo < bisect_tol * max(1.0, r_lo))
+
     return CaseMethodSphereResult(
         R_critical_mfp=float(r_crit),
         c=float(c), R_refl=float(R_refl), f1=float(f1),
@@ -256,4 +267,5 @@ def solve_case_method_sphere_critical(
         eq54_residual=float(final_resid),
         n_bracket_points=n_bracket,
         n_bisect_iters=iters,
+        converged=converged,
     )

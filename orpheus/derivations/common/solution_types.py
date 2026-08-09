@@ -192,7 +192,19 @@ class CriticalSolution:
     eigenvalue_kind: str
     parameter_value: float
     parameter_kind: ParameterKind
-    converged: bool = True
+    converged: bool
+    """Whether the producing solve met its tolerance — **required, no default**.
+
+    ⛔ This defaulted to ``True`` until 2026-08-09.  That is the same defect
+    as #342 with the assertion moved into the type: a producer that never
+    thought about convergence claimed it anyway.  A field whose SAFE value
+    is the optimistic one lies by omission.
+
+    `[M]` removing the default cost **zero** churn — all 33 construction
+    sites already passed it explicitly, so the default protected nothing
+    and only stood ready to hide the next producer that forgot.  Twin of
+    :attr:`orpheus.sn.solution.IterationHistory.converged`.
+    """
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

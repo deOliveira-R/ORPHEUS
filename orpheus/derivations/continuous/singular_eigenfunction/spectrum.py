@@ -816,7 +816,13 @@ class Spectrum:
             eigenvalue_kind="k_eff",
             parameter_value=float(res.d_critical_mfp),
             parameter_kind="half_thickness_mfp",
-            converged=True,
+            # READ from the bisection, never asserted here (#340).  This
+            # said ``True`` unconditionally until 2026-08-09 while the
+            # cylinder sibling below already read its solver's flag — a
+            # twin divergence whose only cause was that the cylinder
+            # author reached for ``brentq(..., full_output=True)`` and got
+            # the fact handed to them.
+            converged=bool(res.converged),
             metadata={
                 "n_groups": 1,
                 "method": "solve_case_method_slab_critical",
@@ -869,7 +875,7 @@ class Spectrum:
             eigenvalue_kind="k_eff",
             parameter_value=float(res.R_critical_mfp),
             parameter_kind="radius_mfp",
-            converged=True,
+            converged=bool(res.converged),          # READ, never asserted (#340)
             metadata={
                 "n_groups": 1,
                 "method": "solve_case_method_sphere_critical",

@@ -130,7 +130,19 @@ def test_certificate_is_a_noop_without_a_convergence_claim():
     """A ``max_iter``-hit best-effort exit makes NO claim — the
     certificate must not raise (legal non-converged returns stay legal).
     The ψ/q sentinels are ``None``: a no-op that touched them would
-    explode, so the silent pass proves the claim-gate short-circuits."""
+    explode, so the silent pass proves the claim-gate short-circuits.
+
+    ⚠ Read this as HALF the contract, not the project's whole position
+    on truncation.  The certificate audits a *claim*, so no claim means
+    nothing to audit — but since #340 a best-effort exit is legal **and
+    audible**: the public entry emits
+    :class:`~orpheus.numerics.convergence.ConvergenceWarning`, and the
+    caller can read ``solution.history.converged``.  The silence proven
+    here belongs to the certificate alone; the entry point is loud.
+    That other half is gated in
+    ``tests/sn/solve/test_convergence_contract.py`` (deliberately NOT
+    duplicated here — one contract, one home).
+    """
     from orpheus.sn.solver import _certify_within_group_exit
 
     sn = _sphere()

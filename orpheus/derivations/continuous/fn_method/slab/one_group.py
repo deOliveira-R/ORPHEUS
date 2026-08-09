@@ -84,6 +84,18 @@ class SlabFNResult:
         be small (complex magnitude :math:`\lesssim 10^{-10}`).
     n_bracket_points : int
         Number of points used in the initial determinant scan.
+    converged : bool
+        Whether the bisection met ``bisect_tol`` — **required, no
+        default** (#340).
+
+        ⛔ The consumer at
+        :meth:`orpheus.derivations.continuous.fn_method.moment_space`
+        asserted ``converged=True`` here until 2026-08-09, justified by
+        the comment *"bisection always converges given bracket"*.  That
+        is false: ``max_bisect`` is a caller-tunable parameter and is
+        forwarded, so the loop can exhaust.  The bracket width is the
+        witness — not ``determinant_residual``, whose spec is only
+        "should be small".
     """
 
     a_critical_mfp: float
@@ -94,6 +106,7 @@ class SlabFNResult:
     coefficients_a: np.ndarray
     determinant_residual: complex
     n_bracket_points: int
+    converged: bool
 
 
 def _build_fn_matrix(a: float, N: int, xis: np.ndarray, c: float) -> np.ndarray:
@@ -247,6 +260,12 @@ def solve_fn_slab_bare_critical(
     if abs(coefficients[0]) > 1e-30:
         coefficients = coefficients / coefficients[0]
 
+    # The loop's OWN stop predicate on the final bracket (#340) — not
+    # "did we break", and not an appeal to bisection's guaranteed
+    # asymptotic convergence, which says nothing about a FINITE
+    # ``max_bisect``.
+    converged = bool(a_hi - a_lo < bisect_tol * max(1.0, a_lo))
+
     return SlabFNResult(
         a_critical_mfp=float(a_crit),
         c=c,
@@ -256,6 +275,7 @@ def solve_fn_slab_bare_critical(
         coefficients_a=coefficients,
         determinant_residual=det_residual,
         n_bracket_points=n_bracket,
+        converged=converged,
     )
 
 

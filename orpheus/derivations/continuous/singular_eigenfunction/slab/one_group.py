@@ -106,6 +106,22 @@ class CaseMethodSlabResult:
         Number of points used in the initial bracket scan.
     n_bisect_iters : int
         Bisection iterations.
+    converged : bool
+        Whether the bisection met ``bisect_tol`` — **required, no
+        default** (#340).
+
+        The bracket width is the witness, NOT ``eq46_residual``: the
+        residual's documented spec is *"Should be small"* with no
+        threshold stated anywhere, so deriving convergence from it
+        would mean inventing a tolerance — the exact "assert a number
+        nobody measured" move #340 exists to remove.  ``bisect_tol``
+        is a real, caller-supplied parameter, so the honest predicate
+        is the loop's own: ``d_hi - d_lo < bisect_tol * max(1, d_lo)``,
+        re-evaluated on the final bracket.
+
+        A field whose safe value is the optimistic one lies by
+        omission, so this one has no default and every producer must
+        state it.
     """
 
     d_critical_mfp: float
@@ -119,6 +135,7 @@ class CaseMethodSlabResult:
     eq46_residual: float
     n_bracket_points: int
     n_bisect_iters: int
+    converged: bool
 
 
 def _eq46_residual(
@@ -356,6 +373,14 @@ def solve_case_method_slab_critical(
         dps=dps, maxdegree=maxdegree, branch_sign=branch_sign,
     )
 
+    # The loop's OWN stop predicate, re-evaluated on the final bracket —
+    # not a transcription of which way control flow left the loop, and not
+    # `iters < max_bisect` (which misreports a bisection that tightens
+    # exactly on its last allowed step).  Same discipline as
+    # ``orpheus.sn.solver._claims_convergence``: derive the fact from the
+    # state, so there is nothing to transcribe wrongly.
+    converged = bool(d_hi - d_lo < bisect_tol * max(1.0, d_lo))
+
     return CaseMethodSlabResult(
         d_critical_mfp=float(d_crit),
         c=float(c), R=float(R), f1=float(f1),
@@ -364,4 +389,5 @@ def solve_case_method_slab_critical(
         eq46_residual=float(final_residual),
         n_bracket_points=n_bracket,
         n_bisect_iters=iters,
+        converged=converged,
     )

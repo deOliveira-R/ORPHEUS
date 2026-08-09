@@ -135,6 +135,15 @@ class SphereFNResult:
         Value of :math:`\det M(R)` at the converged :math:`R`.
     n_bracket_points : int
         Number of points used in the initial determinant scan.
+    converged : bool
+        Whether the Brent minimisation met ``xtol`` within
+        ``max_bisect`` — **required, no default** (#340).
+
+        This is ``scipy``'s own ``OptimizeResult.success``.  It was
+        already being read, branched on, and then **discarded** until
+        2026-08-09, so a radius found by an exhausted minimiser was
+        reported to :class:`~orpheus.derivations.common.solution_types.CriticalSolution`
+        as converged.  The flag is the fact; it is not a switch.
 
     Notes
     -----
@@ -155,6 +164,7 @@ class SphereFNResult:
     coefficients_a: np.ndarray
     determinant_residual: complex
     n_bracket_points: int
+    converged: bool
 
 
 def _build_fn_matrix_sphere(
@@ -362,6 +372,23 @@ def solve_fn_sphere_bare_critical(
     else:
         R_crit = float(result.x)
 
+    # ``result.success`` is a FACT about this solve, not merely a switch:
+    # it is reported out (#340).  Until 2026-08-09 it was read, branched
+    # on, and then dropped, so an exhausted minimisation reached
+    # ``CriticalSolution(converged=True)``.
+    converged = bool(result.success)
+
+    # ⚠ OPEN, tracked separately: the fallback above is measurably WORSE
+    # than the iterate it rejects.  `[M]` 2026-08-09, at ``max_bisect=5``
+    # scipy's budget-exhausted iterate is accurate to 8.4e-5 while
+    # ``R_guess`` is off by 7.0e-3 — 83x worse.  ``success=False`` from
+    # ``maxiter`` exhaustion means "not yet converged", NOT "garbage", and
+    # the two are being conflated.  Left as-is here deliberately: changing
+    # which radius is returned is a numerical change to a REFERENCE solver
+    # and needs its own verification pass, not a ride-along in a reporting
+    # fix.  The dangerous half — the silence — is closed by ``converged``
+    # above, so the bad value can no longer pass as a certified one.
+
     M_crit = _build_fn_matrix_sphere(R_crit, n_modes, xis, c)
     det_residual = complex(np.linalg.det(M_crit))
 
@@ -380,4 +407,5 @@ def solve_fn_sphere_bare_critical(
         coefficients_a=coefficients,
         determinant_residual=det_residual,
         n_bracket_points=n_bracket,
+        converged=converged,
     )
