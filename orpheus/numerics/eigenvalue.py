@@ -358,6 +358,7 @@ class PowerIterationOutcome(Generic[Carrier]):
 def power_iteration(
     solver: EigenvalueSolver[Carrier],
     max_iter: int = 500,
+    budget_name: str = "max_iter",
 ) -> PowerIterationOutcome[Carrier]:
     """Converge to the dominant eigenvalue and fundamental mode.
 
@@ -468,6 +469,7 @@ def power_iteration(
             label="outer(power-iteration)",
             criteria=tuple(criteria.values()),
             budget=max_iter,
+            budget_name=budget_name,
             # One reading per outer, so this equals every criterion's length —
             # stated anyway because only the producer knows that (the SI inner
             # measures DIFFERENCES and runs one more pass than it records;

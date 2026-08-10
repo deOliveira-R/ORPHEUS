@@ -613,6 +613,7 @@ class SourceIteration(Generic[V]):
         max_iter: int = 1000,
         tol: float = 1e-8,
         corrector: "LinearOperator | None" = None,
+        budget_name: str = "max_iter",
     ) -> None:
         # Apply-guards at construction so a downstream caller never sees
         # a stub failure mid-iteration (Wave A philosophy, kept through
@@ -644,6 +645,11 @@ class SourceIteration(Generic[V]):
         self.corrector = corrector
         self.max_iter = int(max_iter)
         self.tol = float(tol)
+        # What the CALLER calls ``max_iter``.  Only the construction site knows
+        # whether this loop is somebody's ``max_inner`` or its own thing, and
+        # the advice in a ConvergenceWarning has to name a knob the reader can
+        # actually type (#340 N6).
+        self.budget_name = str(budget_name)
         # Convergence diagnostics — populated by :meth:`solve` (#208). Declared
         # here so a pre-solve read returns empty rather than ``AttributeError``.
         self.contraction_ratios: list[float] = []
@@ -796,6 +802,7 @@ class SourceIteration(Generic[V]):
                 ),
             ),
             budget=self.max_iter,
+            budget_name=self.budget_name,
             iterations_run=iterations_run,
         )
 
@@ -916,6 +923,7 @@ class KrylovAcceleration(Generic[V]):
         max_iter: int = 1000,
         tol: float = 1e-8,
         restart: int = 50,
+        budget_name: str = "max_iter",
     ) -> None:
         if not callable(getattr(A, "apply", None)):
             raise TypeError(
@@ -935,6 +943,9 @@ class KrylovAcceleration(Generic[V]):
         self.max_iter = int(max_iter)
         self.tol = float(tol)
         self.restart = int(restart)
+        # See SourceIteration.__init__ — the caller's name for ``max_iter``,
+        # so the ConvergenceWarning names a knob the reader can type (#340 N6).
+        self.budget_name = str(budget_name)
 
         # Pin the preconditioner choice at construction.  If caller
         # supplied one, use it.  Otherwise, fall back to applying A's
@@ -1115,6 +1126,7 @@ class KrylovAcceleration(Generic[V]):
                 ),
             ),
             budget=self.max_iter,
+            budget_name=self.budget_name,
             # One callback per iteration here, so the counts DO match — the
             # opposite convention from SourceIteration above, which is why
             # neither can be inferred by the record.
@@ -1293,6 +1305,7 @@ class KEigenvalue(Generic[V]):
         self._inner = SourceIteration(
             seeded_inverse(self.A), self.S,
             max_iter=self.max_inner, tol=self.inner_tol,
+            budget_name="max_inner",
         )
         # F (the outer eigen-operator F·ψ) needs apply.
         if not callable(getattr(self.F, "apply", None)):
@@ -1526,4 +1539,6 @@ class KEigenvalue(Generic[V]):
         # ``SNSolver._total_inner_iterations``, where two power_iteration
         # calls on one solver silently double-counted.)
         self.inner_records = []
-        return power_iteration(self, max_iter=self.max_outer)
+        return power_iteration(
+            self, max_iter=self.max_outer, budget_name="max_outer"
+        )

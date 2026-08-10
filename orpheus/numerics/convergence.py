@@ -136,6 +136,18 @@ converge, it **stalls and reads its own stall as convergence**.  A flat
 boolean has nowhere to put that fact; :attr:`IterationRecord.fully_converged`
 is where it goes.
 
+⭐ **And a level owes the reader one fact its trajectory cannot supply: the
+NAME of the knob that capped it** (:attr:`IterationRecord.budget_name`, #340
+N6).  Everything else in a diagnostic is derivable — which level, which
+criterion, how far, what rate, what budget would have sufficed — but *"set
+what?"* is answerable only by the site that constructed the level, because
+the same :class:`~orpheus.numerics.iteration.SourceIteration` is somebody's
+``max_inner`` here and its own ``max_iter`` there.  So the producer states it
+and every consumer reads it, rather than each consumer being handed a name
+that describes the level IT was thinking about — which is the defect N6
+removed: the SN entries passed their own top-level knob, so on a tree the
+advice named a knob that could not help.
+
 One state per question, not one predicate for all of them
 ---------------------------------------------------------
 
@@ -662,6 +674,38 @@ class IterationRecord:
         The iteration cap this level was given, so
         :attr:`exhausted_budget` is answerable without the caller having to
         remember what it passed.
+    budget_name:
+        What the CALLER's API calls the knob that set :attr:`budget` —
+        ``"max_inner"``, ``"max_outer"``, or the default ``"max_iter"``, which
+        is the honest answer for every level whose producer was driven
+        directly rather than through an SN entry point.
+
+        `[M]` the three shipped spellings are exactly
+        ``{max_inner, max_outer, max_iter}``: a ``{max_inner, max_outer}``
+        whitelist would refuse
+        :class:`~orpheus.numerics.green_operator.GreenOperator`, whose own
+        knob IS ``max_iter`` (``green_operator.py:277``) — the same shape as
+        the ``GreenOperator(tol=0)`` refusal this campaign already had to back
+        out (vv anti-pattern #16, in the direction that breaks production).
+        So the field is a free ``str`` and the ONLY illegal value is the empty
+        one, mirroring :attr:`label`'s invariant: a level always has *some*
+        knob, and advice with no token to type is not advice.
+
+        ⭐ It is here, and not inferred by the reader, because advice needs a
+        token the caller can actually type.  A diagnostic that says *"set
+        max_outer=838"* about a starved INNER sends the reader to the wrong
+        knob — and worse than wrong, because with a starved inner raising
+        ``max_outer`` cannot help at all (the outer's stop test is entirely
+        increments, which the starved inner suppresses; #340 F2).
+
+        ⚠ It is NOT derivable from :attr:`label`.  That string is chosen for
+        humans, and reading a control decision off it is the stringly-typed
+        dispatch :attr:`orpheus.sn.solution.IterationHistory._is_outer`
+        already refuses.  Nor is it derivable from depth: the same
+        :class:`~orpheus.numerics.iteration.SourceIteration` is the *inner*
+        of an eigenvalue solve and the *whole* of a fixed-source one.  Only
+        the site that CONSTRUCTED the level knows which of its own parameters
+        supplied the cap, so that site states it.
     iterations_run:
         How many times the loop actually iterated, when that differs from
         the number of criterion measurements.  ``None`` (the default) means
@@ -696,6 +740,7 @@ class IterationRecord:
     label: str
     criteria: tuple[StoppingCriterion, ...] = ()
     budget: int = 0
+    budget_name: str = "max_iter"
     iterations_run: int | None = None
     min_iterations: int = 0
     children: tuple[IterationRecord, ...] = ()
@@ -703,6 +748,12 @@ class IterationRecord:
     def __post_init__(self) -> None:
         if not self.label:
             raise ValueError("an iteration record must be labelled")
+        if not self.budget_name:
+            raise ValueError(
+                f"{self.label}: budget_name must name the caller's knob — it "
+                f"is what the advice tells the reader to set, and an empty "
+                f"one leaves nothing to type"
+            )
         if self.budget < 0:
             raise ValueError(f"{self.label}: budget must be >= 0, got {self.budget}")
         if self.min_iterations < 0:

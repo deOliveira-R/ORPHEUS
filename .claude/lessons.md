@@ -1184,3 +1184,55 @@ both green on the frozen tree, 33/33.)
 Cross-reference: the nohup/E-core pacing note (`reference_test_execution_env`) — long
 runs invite parallel work; this lesson bounds WHICH work is safe (non-imported files
 only).
+
+## L38 — A deliberate mutation in the SHARED working tree is indistinguishable from a production bug to a parallel agent (2026-08-10)
+
+[[lessons-L37]] says Python sources are FROZEN while a long gate runs, and bounds
+which work is safe. This is its multi-agent twin, and it bites in the opposite
+direction: not "my edit false-reds a running test" but **"my edit makes a parallel
+agent report a defect that does not exist."**
+
+#340 N6. I flipped one production line to measure a mutation's blast radius —
+`if history.converged:` → `if history.fully_converged:  # M8 PROBE — REVERT ME` —
+and ran a 4-minute slice. A `test-architect` was concurrently writing gates against
+the same tree. It read the guard, then watched a solve with `converged=True` emit a
+warning that the guard it had just read says is impossible, and was one step from
+reporting **"the landed guard is broken."** It was saved only by running
+`inspect.getsource` on the anomaly, which showed it the probe comment and an mtime
+of 05:59:29.
+
+The failure is *mine*, and the near-miss is instructive about which half I got
+wrong. I DID warn it — "I am running your M8 pre-measurement myself right now …
+Do not run M8 yourself — you would collide with my run." That warns about
+**duplicated work**. It says nothing about **a mutated file**, and the agent had
+no reason to read "collide" as "the source you are about to read is lying."
+
+> **Rule: a mutation to a tracked file is a change to every concurrent reader's
+> ground truth. Before mutating, either (a) serialise — no agent dispatches live;
+> or (b) state the mutation explicitly in every live agent's brief: the file, the
+> line, the exact replacement text, and when it reverts.** "I am running an
+> experiment" is not that statement. A comment marker in the mutated line
+> (`# M8 PROBE — REVERT ME`) is necessary and was what actually rescued this, but
+> it only helps an agent that already suspects the source and goes looking.
+
+Corollary for the reader, which generalises past mutations: **when an observation
+contradicts source you have read, re-read the source with `inspect.getsource`
+before concluding the code is wrong.** Your file read and the running process can
+disagree — because another agent edited between them, because an untracked shadow
+copy serves the import (the `coding-standards` mass-delete hazard), or because the
+module was imported before the edit. All three look identical from the seat of the
+agent forming a verdict, and all three are cheap to discriminate and expensive to
+get wrong.
+
+⭐ The collision also handed the campaign M8 for free — the agent's bracketed
+re-measurement of the flipped guard (`130 passed`) independently reproduced mine.
+That is luck, not a mitigation.
+
+Cross-reference: `[[lessons-L37]]` (the single-agent form — edits under a running
+gate); `[[lessons-L22]]` (you and a sub-agent read different trees — same
+"confirm you share ground truth before accusing" reflex); `[[lessons-L12]]`
+(sub-agent fabrication — here the agent was RIGHT to doubt itself, and the
+discipline that saved it was verification, not caution);
+`.claude/rules/process-discipline.md` (mutation-testing an uncommitted file:
+never `git checkout` to revert — this adds *never mutate silently beside a live
+agent*).

@@ -689,10 +689,34 @@ argument to pass, so there is nothing to get wrong.
    discretization.
 
 **Loudness.**  A truncated exit emits
-:class:`~orpheus.numerics.convergence.ConvergenceWarning`, naming the
-budget that ran out, the tolerance missed, and how far the last iterate
-was — the distance between "one more sweep" and "diverging" wants opposite
-responses.  It is a warning rather than an exception by the ERR-053
+:class:`~orpheus.numerics.convergence.ConvergenceWarning`, naming **the level
+that failed** and the budget *that level* ran out of, the tolerance *its*
+binding criterion missed, and how far its last iterate was — the distance
+between "one more sweep" and "diverging" wants opposite responses.  The level
+matters because a solve is a tree: on an eigenvalue run it is usually the
+*inner* that starved, and until #340 N6 the message quoted the entry's own
+``max_outer`` instead — a knob that cannot help, since the outer's stop test
+is entirely increments and the starved inner is what suppresses them.
+
+.. warning::
+
+   **A truncated INNER under a converged outer is still silent** (#340 N6,
+   commit 1).  The emission is guarded on the TOP level's verdict, so
+   ``solution.history.converged`` being ``True`` is what suppresses it —
+   while ``solution.history.fully_converged`` is ``False`` and
+   ``solution.history.record.first_failure`` names the starved inner.  `[M]`
+   2026-08-10: 20 tests in the shipped suite sit in exactly that state, at
+   observed rates :math:`\rho` between 0.889 and 0.993.
+
+   **Until the guard widens, ask**
+   :attr:`~orpheus.sn.solution.IterationHistory.fully_converged`, **not**
+   ``converged``, before asserting physics against a result.  Widening it is
+   gated on the outer residual certificate, because without one there is no
+   way to tell a truncation that corrupted the answer from one that did not —
+   and a warning that fires on both is filtered, which is how the next real
+   truncation goes unnoticed.
+
+It is a warning rather than an exception by the ERR-053
 precedent (legitimate callers harvest the residual history of a
 deliberately-truncated solve), and it escalates to a hard failure with::
 

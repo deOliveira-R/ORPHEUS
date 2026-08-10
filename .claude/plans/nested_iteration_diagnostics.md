@@ -65,6 +65,24 @@ ORPHEUS frame.
 | `solve_sn` (SI or Krylov) | 2 | `power_iteration` → `SNSolver.solve_fixed_source` → `_solve_source_iteration` / `_solve_krylov` |
 | `solve_sn_adjoint` | 2, **one frame deeper** | `KEigenvalue.solve` → `power_iteration` → `KEigenvalue.solve_fixed_source` |
 | CP | 2, **per-group** | outer → `for g: for n_in:` — the only family already reporting a per-outer × per-group inner *count* (`CPResult.n_inner`), still status-free |
+
+⛔ **THE CP ROW IS TWICE WRONG** — corrected 2026-08-10 by survey against the tree
+(`scratch/n4_iteration_record_surface.md`). Both corrections make CP *easier*, not
+harder, so the row was mis-scoping N4 pessimistically:
+
+1. **CP's inner is NOT "a count only".** It has a real tolerance and budget
+   (`inner_tol=1e-8`, `max_inner=100`) and it *computes a residual* `res_in`,
+   tests it, and throws it away — `cp/solver.py:595-600`. CP is the family
+   **closest** to expressible: two lines of capture, no design decision.
+2. **CP's level count is MODE-DEPENDENT, and the shallow mode is the DEFAULT.**
+   2 levels under Gauss-Seidel, **1 under Jacobi** — and Jacobi is what ships
+   (`_solve_fixed_source_jacobi`, `cp/solver.py:510-537`, has no inner loop at all
+   and leaves `n_inner is None`). N4 must model both, so "CP is 2-deep" would have
+   built a shape the default path cannot fill.
+
+⚠ And CP inherits F10's disease independently: `for n_in in range(1, max_inner+1):
+… if res < tol: break` makes `n_in == max_inner` mean "converged exactly at the
+cap" **or** "exhausted" — not injective, same as `len(residual_history)`.
 | MoC | 2, **no criterion** | `for _inner in range(n_inner_sweeps)` — a fixed count, no tolerance, no residual |
 | Diffusion | **1** | one LU back-substitution; no inner level exists |
 
@@ -244,6 +262,15 @@ makes the uncovered tail cheap — it tells that user the number.
 | N3 | Derived budget + rate-aware message (3c) | contract suite + a NEW starved-projection gate |
 | N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
 | N5 | Outer certificate (F7/F7′) — residual `(A - F/k)psi` at exit | mutation battery |
+| **N6a** | **The warning speaks for the level that FAILED** — see §N6. Found 2026-08-10 by existence-checking this plan's own Done-when; it is NOT in the original decomposition because the original assumed the report was the hard part and the delivery was free | G1–G9 + a 12-mutation battery |
+| **N6b** | The guard widens to `fully_converged` — **rides N5**, because the certificate is what separates a corrupting truncation from a benign one | the `xfail(strict=True)` marker XPASSes |
+
+⭐ **N6 splits for the same reason N2 did, and it is worth naming the pattern:
+retention/reporting must precede the decision that consumes it.** N2a had to
+retain before N2b could compose; N6a has to make the message *correct for an
+inner* before N6b can make it *fire for an inner*. Flipping the guard first
+would have shipped a message that names the entry's `max_outer` for a starved
+inner — advice pointing at a knob that cannot help — to 20 more call sites.
 
 **N1 landed 2026-08-09.** `orpheus/numerics/convergence.py` +
 `tests/numerics/test_iteration_record.py`, 68 gates. `[M]` mutation battery
@@ -560,6 +587,150 @@ architecture,operators}` + `tests/diffusion` + `tests/moc` = **3 failed / 1811
 passed** (the 3 = the known #333 affine trio); pyright `orpheus/` **1 error**
 (the accepted #288 residual); xrefs **0 dead / 14 962**; V&V matrix
 9361 → **9366**.
+
+---
+
+### N6 — the record ANSWERS the done-when; nothing SAYS it
+
+⭐ Found 2026-08-10 by existence-checking the plan's own **Done when** against the
+tree (`plan-authoring` §1), not by planning the next step. The done-when was
+written before N1–N3 landed, so the honest first question was *"does the tree
+already say this?"* — and the answer is **half yes**, in a way that no step in
+§3d's table covers.
+
+**`[M]` `scratch/probe_340_done_when.py`, HEAD `52650a86`.** Configuration:
+d=3 extents `(1.0, 2.0, 3.0)`, cells `(3, 4, 5)`, **all six faces reflective**,
+LS-S4, 2 groups, fissile `c=0.5`, `max_inner=200`, `inner_tol=1e-8`, source
+iteration on a `gauss_seidel` schedule.
+
+| the done-when asks | the object answers | ✓ |
+|---|---|---|
+| WHICH level failed | `inner(source-iteration)` | ✅ |
+| WHICH criterion bound it | `residual` | ✅ |
+| HOW FAR it got | `200/200`, `exhausted_budget=True`, `status='TRUNCATED'` | ✅ |
+| WHAT BUDGET would suffice | `rho=0.984928` ⟹ `projected_iterations()=838` | ✅ |
+| is it TRUSTWORTHY | `fully_converged=False` (while flat `converged=True`) | ✅ |
+| **…and the user is TOLD** | **0 warnings emitted** | ⛔ |
+
+⟹ **F1's "…and emitting nothing" is STILL LIVE.** Every fact the done-when
+demands is already on the returned object; the reader has to know to ask for it.
+
+**The mechanism, one line.** `orpheus/sn/solver.py:455`:
+
+```python
+if history.converged:      # the TOP level only
+    return
+```
+
+`converged` is the outermost level; `fully_converged` is the tree. A converged
+outer standing on a truncated inner takes the early return, in silence — from
+the function whose own docstring says *"so a truncated solve announces itself
+once, in one voice, wherever it came from."* That sentence is present-tense
+FALSE for every non-leaf tree.
+
+**⛔ NOT a regression — and the attribution matters** (`[M]` `git log -L 455,456`).
+The guard has read `history.converged` since `d9b027d7`, the FIRST #340 commit,
+when it was the only property that existed. `fully_converged` arrived with
+**N2b-ii** (`fab9e82a`) — which minted the tree-wide property and did **not**
+re-point the one consumer whose entire job is making that gap audible. This is
+the `coding-standards` retirement-MIRROR rule ("landing a deferred capability
+stales its deferral contract") firing inside our own campaign.
+
+**⚠ The existing audibility gates cannot see this, by construction.**
+`TestTruncationIsAudible` (`tests/sn/solve/test_convergence_contract.py:361`) has
+four fixtures and **all four** route through `_fixed_source` →
+`solve_sn_fixed_source`, which §1b measures as a **1-level** tree. On a leaf,
+`converged ≡ fully_converged` identically, so no fixture in the class can
+distinguish the two properties. Mode-12 exactly: the measured functional
+annihilates the property. The eigenvalue path — the only shape with a tree — has
+**no audibility gate at all**.
+
+**⛔ §4's "warn per truncated inner" rejection does NOT cover this.** That row
+names a MECHANISM (warn once per inner, "fires up to `max_outer` times") and
+rejects it on frequency. Warning **once at the public entry when the TREE did
+not converge** fires exactly once per solve — the same cadence as today's
+warning — so the stated reason does not apply. The row also cites
+`test_converged_solve_is_SILENT` as "already gated"; that gate is one of the
+four leaf fixtures above and is structurally blind to the case. Left unmarked,
+the row would tell the next session this whole area was settled.
+
+**⚠ The design is NOT a one-token flip, for two reasons.**
+
+1. **The message would lie.** `where`/`budget_name`/`budget`/`tol` are passed in
+   by the caller and describe its **top** level — the eigenvalue entries pass
+   `max_outer`/`keff_tol` (`solver.py:2465, 2742`). Reporting an inner failure
+   through them says *"hit max_outer=500 without reaching tol=1e-07"* about a
+   solve whose outer converged fine. Everything needed is already on
+   `first_failure` (`budget`, and `tolerance` off `binding_criterion`) — the ONE
+   fact the record lacks is the caller-facing **knob name** for that level. It
+   belongs on the record, not threaded from the entry: reading it off `label`
+   would be the stringly-typed dispatch `solution.py:203` already rejects. Land
+   it and three parameters retire from five call sites
+   ([[feedback-lossy-return-type-is-the-root-cause]] — the consumer was handed
+   facts the producer already knew).
+2. **⭐ `[M]` THE POPULATION IS 25 CALLS ACROSS 20 TESTS** — full slice
+   `tests/{sn,numerics,cp,moc,diffusion}` at `-m "not slow"`, SERIAL, 2026-08-10,
+   HEAD `52650a86`; run outcome **9 failed / 5501 passed** in 1492.92 s, the 9
+   being the known task-#51 baseline, so the instrument perturbed nothing. Full
+   table: `scratch/issue_340_truncated_inner_population.md`. **Every one is
+   `inner(source-iteration)`** — zero `inner(gmres)`, zero CP/MoC/diffusion
+   (those carry no record yet: N4). ρ ranges 0.889–0.993.
+   (An earlier `-x` run reported 11; it stopped at the first baseline red. The
+   11 is a LOWER BOUND and is superseded by the 20.)
+
+   ⚠ **And R2 is the same population viewed twice.** Four of the twenty are
+   `test_inner_tol_bias_collapses_at_1e_12[...]` — a test whose PURPOSE is to
+   study inner-tolerance bias, so its starved inner is the fixture, not a
+   defect. R2's "declare the 7 deliberate truncations in-test" is therefore the
+   mechanism that lets commit 2 stay silent about the intentional ones **on
+   purpose** rather than by accident. Do R2 before flipping the guard.
+
+3. **Noise is a real risk and my own fixture argues for it.** `[M]` same probe:
+   at `max_inner=200`, with 3 of 3 inners TRUNCATED, `keff` is still correct to
+   **2.5e-11** against the independent 0-D `k_inf` (`solve_homogeneous_infinite`,
+   `0.43846153846153835`); at `max_inner=1000` it is `3.2e-13` and
+   `fully_converged` flips True. So a truncated inner is sometimes **benign** —
+   and warning on all of them is the noise `test_converged_solve_is_SILENT`'s
+   docstring warns produces filtered warnings.
+
+**⛔ CORRECTED 2026-08-10, mid-design — `first_failure` is CHILDREN-FIRST, and
+that changes commit 1's blast radius.** I designed the split below believing it
+checked self before children (a misreading of N1's MA3 *mutation*, which is the
+thing that reddened 0 — the shipped order is the opposite). The code is explicit
+(`convergence.py:844-851`): *"Children are searched before `self`… This runs even
+when `self` converged, because that is exactly the measured failure."* Two
+consequences:
+
+- **Good:** `first_failure` is ALREADY built for N6. Nothing about it needs
+  changing; only the guard and the message's sourcing do.
+- **⚠ So commit 1 is NOT behaviour-neutral by construction.** Whenever the top
+  level fails *and* a child also fails, the guard already lets the warning
+  through, and re-sourcing the message from `first_failure` re-points it at the
+  child. `[M]` constructed: `solve_sn(max_outer=3, keff_tol=1e-12,
+  max_inner=200, inner_tol=1e-8)` warns today as *"hit max_outer=3 … tol=1e-12"*
+  and under N6 reads *"inner(source-iteration) … max_inner=200 … tol=1e-8"*.
+  **The new message is the correct one** — with a starved inner, raising
+  `max_outer` cannot help (F2), so today's advice points at the wrong knob.
+- **`[M]` and in the measured slice the change is nil**: every currently-warning
+  solve in `tests/sn`+`tests/numerics` is a `solve_sn_fixed_source` **leaf**
+  (2 of 2 warnings), where `first_failure is record` and the message is
+  byte-identical. So commit 1 is behaviour-neutral **as measured**, not by
+  construction — and that distinction is the gate to write: a fixture where the
+  top AND a child both fail is the one that separates the two sourcings.
+
+⭐ **Which reframes N5.** What separates F1's corrupting truncation from this
+probe's benign one is a question about the ANSWER, not about iteration counts —
+and only a residual certificate can ask it. N5 is therefore not "an extra check";
+it is **the discriminator that makes this warning non-noisy**. The two compose:
+N6 makes the report honest now ("the outer's stop test reads INCREMENTS, which a
+starved inner suppresses, so this keff *may* be a stall"); N5 later turns *may*
+into *is* / *is not*.
+
+⚠ **And N6 is coupled to N4's MoC decision.** Per the N4 survey, MoC's inner has
+no criterion at all, which `IterationRecord.converged` deliberately refuses
+(`convergence.py:798-801`) — so recording MoC as-is makes `fully_converged`
+**False on every MoC solve forever**. Under a tree-wide guard that is a warning
+on every MoC solve. N4's MoC arm and N6's guard must be decided together.
 
 ---
 

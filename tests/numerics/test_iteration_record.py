@@ -687,6 +687,37 @@ class TestRecordConstructionEnforcesItsInvariants:
         with pytest.raises(ValueError, match="labelled"):
             IterationRecord(label="")
 
+    def test_an_unnamed_budget_knob_is_refused(self) -> None:
+        """The advice has to give the reader a token to type (#340 N6).
+
+        ``budget_name`` is what a ``ConvergenceWarning`` puts after "set",
+        so an empty one degrades the message to ``hit =50`` — the same class
+        of defect as an unlabelled record, and refused the same way.
+        """
+        with pytest.raises(ValueError, match="budget_name"):
+            IterationRecord(label="level", budget_name="")
+
+    def test_the_knob_defaults_to_the_PRIMITIVE_s_own_parameter_name(
+        self,
+    ) -> None:
+        """The positive leg — and the reason there is no whitelist.
+
+        ⛔ `[M]` 2026-08-10 the three spellings actually shipped are
+        ``{max_inner, max_outer, max_iter}``: a ``{max_inner, max_outer}``
+        whitelist would refuse
+        :class:`~orpheus.numerics.green_operator.GreenOperator`, whose own
+        knob IS ``max_iter``.  That is ``vv`` anti-pattern #16 pointing the
+        expensive way — a type asserting more than its callers promise —
+        and this campaign already had to back one of those out
+        (``GreenOperator(tol=0)``).  So the field is a free ``str`` whose
+        default is the honest answer for a primitive nobody re-named.
+        """
+        assert IterationRecord(label="level").budget_name == "max_iter"
+        assert (
+            IterationRecord(label="level", budget_name="max_inner").budget_name
+            == "max_inner"
+        )
+
     @pytest.mark.parametrize("kw", [{"budget": -1}, {"min_iterations": -1}])
     def test_negative_counts_are_refused(self, kw) -> None:
         with pytest.raises(ValueError, match=">= 0"):

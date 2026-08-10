@@ -121,6 +121,57 @@ def _fixed_source(max_inner: int, **kw):
     )
 
 
+def _two_group_reflective_2d():
+    """The cheap 2-D all-reflective box the #340 N6 tree fixtures share."""
+    return tuple(
+        AxisMesh(edges=np.linspace(0.0, e, n + 1), bc_low=_REFL, bc_high=_REFL)
+        for e, n in zip((2.0, 1.5), (4, 3))
+    )
+
+
+def _nested_failure_eigenvalue():
+    """BOTH levels fail, and every fact differs between them (#340 N6).
+
+    The discriminating end-to-end fixture: the outer runs out of outers AND
+    each inner runs out of inners, so ``first_failure`` is the child and the
+    message must re-point to it.  `[M]` 2026-08-10 the seven candidate facts
+    are pairwise distinct — knob (max_outer|max_inner), budget (3|20),
+    tolerance (1e-12|1e-10), criterion (dphi|residual), last
+    (6.308e-02|2.971e-01), rho (0.153338|0.962217), projection (17|586) — so
+    each assertion in the consuming gate is individually attributable.
+
+    `[M]` 0.18 s.  The d=3 all-reflective box discriminates identically and
+    costs ~200x more; this one is the routine gate.
+    """
+    return solve_sn(
+        {0: get_mixture("A", "2g")},
+        _two_group_reflective_2d(),
+        Quadrature.level_symmetric(sn_order=4),
+        max_outer=3, keff_tol=1e-12, flux_tol=1e-12,
+        max_inner=20, inner_tol=1e-10,
+    )
+
+
+def _starved_inner_converged_outer():
+    """The outer MEETS its criteria while standing on 24 starved inners.
+
+    `[M]` 2026-08-10, 0.31 s: ``converged=True``, ``fully_converged=False``,
+    24 outers, 24 of 24 children TRUNCATED at 8/8.  This is #340 F1 in
+    miniature — the increment-only outer stop test cannot see an upstream
+    throttle, so the stall reads as convergence.
+
+    It is the ONLY shape that separates the two guards, which is why both
+    the commit-1 scope row and its commit-2 xfail sibling ride it.
+    """
+    return solve_sn(
+        {0: get_mixture("A", "2g")},
+        _two_group_reflective_2d(),
+        Quadrature.level_symmetric(sn_order=4),
+        max_outer=200, keff_tol=1e-8, flux_tol=1e-6,
+        max_inner=8, inner_tol=1e-10,
+    )
+
+
 # ─── 0. The budget itself is derived, at every entry ─────────────────────
 
 
@@ -307,10 +358,10 @@ class TestPowerIterationCarriesItsOutcome:
         against a re-introduced field defaulting to the optimistic answer.
         """
         with pytest.raises(TypeError):
-            PowerIterationOutcome(              # type: ignore[call-arg]
+            PowerIterationOutcome(
                 keff=1.0, keff_history=[1.0], flux_distribution=np.ones(3),
                 record=IterationRecord(label="outer(probe)"),
-                converged=True,
+                converged=True,  # type: ignore[call-arg]
             )
 
     def test_a_starved_budget_reports_not_converged(self) -> None:
@@ -444,14 +495,11 @@ class TestTruncationIsAudible:
                         tolerance=1e-10,
                     ),
                 ),
-                budget=40, iterations_run=40,
+                budget=40, budget_name="max_inner", iterations_run=40,
             ),
         )
         with pytest.warns(ConvergenceWarning) as record:
-            _warn_if_unconverged(
-                stalled, where="probe", budget_name="max_inner",
-                budget=40, tol=1e-10,
-            )
+            _warn_if_unconverged(stalled, where="probe")
         msg = str(record[0].message)
         assert "NOT" in msg and "contracting" in msg
         assert "set max_inner=" not in msg  # the advice must NOT be given
@@ -502,20 +550,34 @@ class TestTruncationIsAudible:
                     tolerance=1e-6,
                 ),
             ),
-            budget=40, iterations_run=40, min_iterations=3,
+            budget=40, budget_name="max_outer", iterations_run=40,
+            min_iterations=3,
         )
         assert record_.converged is False, "fixture drift"
 
         with pytest.warns(ConvergenceWarning) as caught:
-            _warn_if_unconverged(
-                IterationHistory(record=record_),
-                where="probe", budget_name="max_outer", budget=40, tol=1e-9,
-            )
+            _warn_if_unconverged(IterationHistory(record=record_),
+                                 where="probe")
         msg = str(caught[0].message)
 
         assert "last dphi" in msg, (
             "the message must name the criterion that FAILED; naming the "
             "cleared one is how the 'set max_outer=1' lie was produced"
+        )
+        # ⭐ #340 N6 — and it must quote THAT criterion's tolerance.  Until
+        # 2026-08-10 the tolerance was a hand-passed argument describing the
+        # ENTRY, so this very message printed `tol=1.000e-09` (dk's) beside
+        # `last dphi` (whose tolerance is 1e-6) — a mismatched pair that no
+        # assertion here caught, because nothing asserted `tol=` at all.  The
+        # negative leg is the one with teeth: it fails the moment the
+        # tolerance stops being read off the binding criterion.
+        assert "tol=1.000e-06" in msg, (
+            "the tolerance must be the BINDING criterion's (dphi @ 1e-6), "
+            "not whatever the caller happened to pass"
+        )
+        assert "1.000e-09" not in msg, (
+            "dk's tolerance belongs to the criterion that CLEARED; quoting "
+            "it beside 'last dphi' is the mismatched pair N6 removed"
         )
         # dphi is not contracting, so there is still no budget to promise —
         # but now that is a statement ABOUT dphi rather than a refusal to
@@ -544,19 +606,285 @@ class TestTruncationIsAudible:
                     name="dk", trajectory=(1e-12, 1e-14), tolerance=1e-9,
                 ),
             ),
-            budget=2, iterations_run=2, min_iterations=3,
+            budget=2, budget_name="max_outer", iterations_run=2,
+            min_iterations=3,
         )
         assert record_.converged is False and record_.criteria[0].cleared
 
         with pytest.warns(ConvergenceWarning) as caught:
-            _warn_if_unconverged(
-                IterationHistory(record=record_),
-                where="probe", budget_name="max_outer", budget=2, tol=1e-9,
-            )
+            _warn_if_unconverged(IterationHistory(record=record_),
+                                 where="probe")
         msg = str(caught[0].message)
         assert "the refusal is the loop's" in msg
         assert "2 of the 3 iterations" in msg
         assert "set max_outer=" not in msg
+
+    # ── #340 N6: the message speaks for the level that FAILED ────────────
+
+    def test_the_message_speaks_for_the_FAILING_LEVEL_not_the_entry(
+        self,
+    ) -> None:
+        """⭐ THE KEYSTONE of #340 N6, and the only gate that can see it.
+
+        `[M]` 2026-08-10: all four audibility fixtures above route through
+        ``solve_sn_fixed_source``, which is a **1-level tree**, so
+        ``first_failure is record`` holds by *object identity* and six of the
+        seven facts below are one object's attributes read twice.  No input
+        can make the two sourcings differ there — the leaf rows are
+        annihilated for this claim, not merely under-tested.  A synthetic
+        two-level record is the cheapest shape that separates them.
+
+        The claim is that EVERY fact is read off ``record.first_failure`` —
+        not just the three that used to be caller-passed.  A partial
+        re-point is *worse* than none: it welds the inner's knob and budget
+        to the OUTER's criterion, rate and projection, which is a message
+        where every number is real, every pairing is wrong, and the result
+        reads as level-correct.  Hence the paired legs — each fact asserted
+        PRESENT with the failing level's value and ABSENT with the top's.
+
+        Trajectories are exact geometrics so ``rho`` and the projection are
+        analytically determined (0.9 / 0.5) rather than solve-dependent; the
+        assertions still RECOMPUTE them from the record, because a literal
+        ``189`` would be a false red the day the rate-fit tail changes.
+        """
+        from orpheus.sn.solution import IterationHistory
+        from orpheus.sn.solver import _warn_if_unconverged
+
+        inner = IterationRecord(
+            label="inner(within-group)",
+            criteria=(
+                StoppingCriterion(
+                    name="residual",
+                    trajectory=tuple(3.7e-2 * 0.9**k for k in range(30)),
+                    tolerance=1e-10,
+                ),
+            ),
+            budget=30, budget_name="max_inner", iterations_run=30,
+        )
+        outer = IterationRecord(
+            label="outer(power-iteration)",
+            criteria=(
+                StoppingCriterion(
+                    name="dk",
+                    trajectory=tuple(1e-2 * 0.5**k for k in range(6)),
+                    tolerance=1e-9,
+                ),
+                StoppingCriterion(
+                    name="dphi",
+                    trajectory=tuple(1e-3 * 0.5**k for k in range(6)),
+                    tolerance=1e-7,
+                ),
+            ),
+            budget=6, budget_name="max_outer", iterations_run=6,
+            min_iterations=3, children=(inner,),
+        )
+
+        # ── leg 0: ACTIVATION.  Every fact must DIFFER between the two
+        # levels, or the leg asserting it silently stops discriminating and
+        # goes green forever (Mode 12, at the fixture rather than the
+        # functional).  A fixture edit that collapses any pair reds HERE.
+        assert outer.first_failure is inner, "fixture drift: the inner must fail"
+        top, failing = outer.binding_criterion, inner.binding_criterion
+        assert top is not None and failing is not None
+        for fact, pair in {
+            "knob": (outer.budget_name, inner.budget_name),
+            "budget": (outer.budget, inner.budget),
+            "tolerance": (top.tolerance, failing.tolerance),
+            "criterion": (top.name, failing.name),
+            "last value": (top.last, failing.last),
+            "rate": (outer.rate, inner.rate),
+            "projection": (outer.projected_iterations(),
+                           inner.projected_iterations()),
+        }.items():
+            assert pair[0] != pair[1], (
+                f"fixture drift: outer and failing inner agree on {fact} "
+                f"({pair[0]!r}); the leg asserting it cannot discriminate"
+            )
+
+        with pytest.warns(ConvergenceWarning) as caught:
+            _warn_if_unconverged(IterationHistory(record=outer),
+                                 where="solve_sn")
+        msg = str(caught[0].message)
+
+        # level + knob + budget, in one substring so a mixed sourcing cannot
+        # satisfy it by accident.
+        assert f"{inner.label} hit {inner.budget_name}={inner.budget}" in msg
+        assert "max_outer" not in msg, "the top level's knob must not appear"
+        assert outer.label not in msg, "the top level is not the failing one"
+
+        assert f"tol={failing.tolerance:.3e}" in msg
+        assert f"tol={top.tolerance:.3e}" not in msg
+
+        assert f"last {failing.name}" in msg
+        assert f"last {top.name}" not in msg
+
+        assert f"rho={inner.rate:.6f}" in msg
+        assert f"rho={outer.rate:.6f}" not in msg
+
+        assert f"set {inner.budget_name}={inner.projected_iterations()}" in msg
+
+        # ``where`` is the ONE thing the caller still supplies, and it names
+        # the ENTRY, not a level — it must NOT re-point.
+        assert msg.startswith("solve_sn:")
+
+    def test_a_LEAF_message_names_no_level_at_all(self) -> None:
+        """The other half of the pair: on a 1-level tree nothing is prefixed.
+
+        The level prefix exists to say "this is not the level you asked
+        about".  On a leaf the failing level IS the record, so prefixing it
+        would be noise — and the discriminator is an ``is`` identity, which
+        no value comparison can stand in for.  Without this row the prefix
+        could be emitted unconditionally and the whole suite would stay
+        green (the tree row above asserts only that it IS present).
+        """
+        with pytest.warns(ConvergenceWarning) as caught:
+            sol = _fixed_source(max_inner=50)
+        msg = str(caught[0].message)
+
+        assert sol.history is not None
+        record = sol.history.record
+        assert record.first_failure is record, "fixture drift: not a leaf"
+        assert msg.startswith("solve_sn_fixed_source: hit "), (
+            "a leaf has no level to disambiguate, so the message goes "
+            f"straight to the budget; got {msg[:60]!r}"
+        )
+        assert record.label not in msg
+
+    def test_a_level_with_NO_criteria_quotes_no_tolerance(self) -> None:
+        """A level that measures nothing has no tolerance to name.
+
+        MoC's inner is a fixed sweep count — no tolerance, no residual — so
+        ``binding_criterion`` is ``None`` and the ``without reaching tol=``
+        clause is DROPPED rather than faked with a zero.  Faking it would
+        put a number in the reader's hands that no code ever compared
+        anything against.
+        """
+        from orpheus.sn.solution import IterationHistory
+        from orpheus.sn.solver import _warn_if_unconverged
+
+        bare = IterationRecord(
+            label="inner(moc-sweeps)", budget=4, budget_name="max_inner",
+            iterations_run=4,
+        )
+        assert bare.binding_criterion is None and bare.converged is False
+
+        with pytest.warns(ConvergenceWarning) as caught:
+            _warn_if_unconverged(IterationHistory(record=bare), where="probe")
+        msg = str(caught[0].message)
+
+        assert "hit max_inner=4 (no criterion recorded)" in msg
+        assert "tol=" not in msg, "there is no tolerance to quote"
+        assert "rho=" not in msg, "there is no trajectory to fit"
+
+    def test_a_real_nested_solve_reports_its_STARVED_INNER(self) -> None:
+        """The same claim, end to end — what the synthetic row cannot see.
+
+        The keystone above proves the CONSUMER's routing on a record built
+        by hand.  It is structurally blind to whether production actually
+        builds a nested record and stamps the caller-facing knob on the
+        CHILD (``vv`` Mode 11).  This row runs the real eigenvalue entry and
+        navigates the reference by hand through ``record.children[0]`` — a
+        different route into the same object than the SUT's
+        ``first_failure``, which is exactly the claim.
+
+        `[M]` 2026-08-10, 0.18 s: outer TRUNCATED 3/3 binding ``dphi`` @
+        1e-12 (rho 0.153338, projects 17); all three children TRUNCATED
+        20/20 binding ``residual`` @ 1e-10 (rho 0.962217, projects 586).
+        Deterministic — ``max_outer=3`` equals ``MINIMUM_OUTER_ITERATIONS``,
+        so the loop always runs exactly three outers.
+
+        ⚠ Asserts NOTHING about ``keff``: three starved inners make it an
+        arbitrary mid-descent number (`[M]` 1.874, against a true 1.875).
+        """
+        with pytest.warns(ConvergenceWarning) as caught:
+            sol = _nested_failure_eigenvalue()
+        msg = str(caught[0].message)
+
+        assert sol.history is not None
+        record = sol.history.record
+        child = record.children[0]
+        assert record.first_failure is child, "fixture drift: the inner must fail"
+        assert record.binding_criterion is not None
+
+        assert f"{child.label} hit {child.budget_name}={child.budget}" in msg
+        assert "max_outer" not in msg
+        criterion = child.binding_criterion
+        assert criterion is not None
+        assert f"tol={criterion.tolerance:.3e}" in msg
+        assert f"last {criterion.name}" in msg
+        assert f"set max_inner={child.projected_iterations()}" in msg
+        assert msg.startswith("solve_sn:")
+
+    def test_a_converged_outer_on_a_starved_inner_is_STILL_SILENT(
+        self,
+    ) -> None:
+        """⛔ COMMIT 2 INVERTS THIS ROW.
+
+        It pins the SCOPE of #340 N6 commit 1 — that the guard did not move
+        — NOT the correctness of the silence.  The silence IS the #340
+        headline defect (F1); making it audible is commit 2, gated on N5's
+        residual certificate, and its arrival must delete this row and
+        un-xfail its sibling below.
+
+        Why it exists at all: `[M]` 2026-08-10, flipping the guard to
+        ``fully_converged`` reds **0 of 130** across this file plus both
+        numerics record files.  Three measured facts explain that —
+        ``pyproject.toml:86`` sets no ``filterwarnings``, every
+        ``ConvergenceWarning`` assertion in the tree lives in this one file,
+        and its only silence gate (``test_converged_solve_is_SILENT``) rides
+        a LEAF where ``converged`` and ``fully_converged`` coincide.  So
+        without this row an accidental guard flip ships undetected.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
+            probe = _starved_inner_converged_outer()
+        assert probe.history is not None
+        assert probe.history.converged is True, "fixture drift: outer must converge"
+        assert probe.history.fully_converged is False, (
+            "fixture drift: an inner must be starved, or this row degenerates "
+            "into test_converged_solve_is_SILENT"
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", ConvergenceWarning)
+            _starved_inner_converged_outer()   # must not raise
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="#340 N6 commit 2 — the guard flips to fully_converged once "
+               "N5's residual certificate can tell a corrupting truncation "
+               "from a benign one. Deliberately deferred, not forgotten.",
+    )
+    def test_the_tree_wide_truncation_is_audible(self) -> None:
+        """The commit-2 todo marker: it XPASSes the day the guard flips.
+
+        The sibling above pins today's silence so an ACCIDENTAL flip reds;
+        this one makes the DELIBERATE flip self-announcing, because
+        ``strict=True`` turns the resulting XPASS into a failure that forces
+        both rows to be revisited in the same change.
+        """
+        with pytest.warns(ConvergenceWarning):
+            _starved_inner_converged_outer()
+
+    def test_the_level_facts_are_GONE_from_the_warning_signature(self) -> None:
+        """The retirement half — a defaulted survivor is the twin.
+
+        ``budget_name`` / ``budget`` / ``tol`` described the CALLER's top
+        level.  Left on the signature with defaults, every call site would
+        still compile while one of them quietly kept passing its own knob,
+        and the re-sourcing would be cosmetic at that entry.  Set equality,
+        not membership: it also catches a fact re-added under a new name.
+        """
+        import inspect
+
+        from orpheus.sn.solver import _warn_if_unconverged
+
+        parameters = set(inspect.signature(_warn_if_unconverged).parameters)
+        assert parameters == {"history", "where"}, (
+            "the failing level's facts are read off the record, so the only "
+            f"thing a caller still supplies is WHERE it was called; got "
+            f"{sorted(parameters)}"
+        )
 
     def test_it_is_escalatable_to_an_error(self) -> None:
         """Prove the CATEGORY escalates rather than merely being emitted.
@@ -599,3 +927,178 @@ class TestTruncationIsAudible:
         # instead of silently disarming CI.
         with pytest.raises(UsageError):
             parse_warning_filter("error::ConvergenceWarning", escape=False)
+
+
+# ─── 4. The advice names a knob the reader can actually type ─────────────
+
+
+def _tiny_slab_inputs():
+    """The smallest well-formed 1-D problem, shared by the knob sweep.
+
+    Four cells, GL-4, two groups — `[M]` 0.01-0.20 s per entry.  The knob is
+    stamped on every record whether or not the level truncates, so these
+    configurations deliberately CONVERGE: the claim is about the label the
+    producer wrote, not about a warning.
+    """
+    axes = (
+        AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=_REFL, bc_high=_REFL),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    source = np.broadcast_to(
+        (np.array([1.0, 0.5]) / float(np.sum(quad.weights)))[None, :, None],
+        (quad.N, 2, 4),
+    ).copy()
+    return axes, quad, source
+
+
+def _fixed_source_slab(inner_solver: str):
+    axes, quad, source = _tiny_slab_inputs()
+    return solve_sn_fixed_source(
+        {0: _absorber_2g()}, axes, quad, external_source=source,
+        boundary_condition="reflective", inner_solver=inner_solver,
+    )
+
+
+def _eigenvalue_slab(inner_solver: str):
+    axes, quad, _ = _tiny_slab_inputs()
+    return solve_sn(
+        {0: get_mixture("A", "2g")}, axes, quad, inner_solver=inner_solver,
+    )
+
+
+def _adjoint_eigenvalue_slab():
+    from orpheus.sn.solver import solve_sn_adjoint
+
+    axes, quad, _ = _tiny_slab_inputs()
+    return solve_sn_adjoint({0: get_mixture("A", "2g")}, axes, quad)
+
+
+def _adjoint_fixed_source_slab():
+    """⚠ This entry takes a DETECTOR RESPONSE shaped ``(ng, *spatial)`` —
+    NOT the angular ``(N, ng, *spatial)`` its forward sibling takes.
+    `[M]` 2026-08-10, passing the angular shape raises ``ValueError``."""
+    from orpheus.sn.solver import solve_sn_adjoint_fixed_source
+
+    axes, quad, _ = _tiny_slab_inputs()
+    return solve_sn_adjoint_fixed_source(
+        {0: _absorber_2g()}, axes, quad,
+        detector_response=np.ones((2, 4)),
+        boundary_condition="reflective",
+    )
+
+
+#: ``(id, run the entry, the entry itself, the knob its TOP level must name)``.
+#:
+#: The entry is carried as the FUNCTION, not a name to ``getattr`` and not a
+#: tag to branch on: the row IS the call, so the knob-membership reference
+#: below reads the signature of the very callable the row invoked, and every
+#: argument is spelled explicitly rather than splatted from an untyped dict
+#: (``coding-elegance`` anti-#4 — a tag plus a ``**kw`` splat is stringly-typed
+#: dispatch, and pyright cannot check which parameter it lands on).
+#:
+#: `[M]` the fixed-source entries expose only ``max_inner``; the eigenvalue
+#: entries expose BOTH ``max_outer`` and ``max_inner`` — which is exactly why
+#: the membership leg alone cannot catch a SWAP, and why the second row below
+#: exists.  Measured: under a swap, membership reds only the two fixed-source
+#: rows; the four eigenvalue rows are caught by the exact-expectation leg
+#: alone.
+_KNOB_ROWS = [
+    ("fixed_source-si",
+     lambda: _fixed_source_slab("source_iteration"),
+     solve_sn_fixed_source, "max_inner"),
+    ("fixed_source-krylov",
+     lambda: _fixed_source_slab("krylov"),
+     solve_sn_fixed_source, "max_inner"),
+    ("eigenvalue-si",
+     lambda: _eigenvalue_slab("source_iteration"), solve_sn, "max_outer"),
+    ("eigenvalue-krylov",
+     lambda: _eigenvalue_slab("krylov"), solve_sn, "max_outer"),
+    ("adjoint_eigenvalue", _adjoint_eigenvalue_slab, None, "max_outer"),
+    ("adjoint_fixed_source", _adjoint_fixed_source_slab, None, "max_inner"),
+]
+
+
+def _entry_of(row_id: str, declared):
+    """The entry function a row drives — resolved late for the adjoints.
+
+    The two adjoint entries are imported inside their runners (the module
+    keeps its import surface small), so their rows declare ``None`` and the
+    function is fetched here rather than at table-definition time.
+    """
+    if declared is not None:
+        return declared
+    import orpheus.sn.solver as solver_module
+
+    return getattr(
+        solver_module,
+        "solve_sn_adjoint" if row_id == "adjoint_eigenvalue"
+        else "solve_sn_adjoint_fixed_source",
+    )
+
+
+@pytest.mark.foundation
+class TestEveryEntryStampsItsCallerFacingKnob:
+    """#340 N6: ``budget_name`` names a parameter of the entry that emitted it.
+
+    The knob is the one fact in the warning that the record could not
+    already answer, so it is the one a producer can silently FORGET — and
+    the default (``"max_iter"``) is a plausible-looking string that is a
+    parameter of **no** public SN entry.  A forgotten stamp therefore ships
+    advice telling the reader to set something that does not exist, and no
+    value gate anywhere can see it.
+
+    The reference is ``inspect.signature`` of the public entry — the API
+    itself, structurally independent of the record under test.
+    """
+
+    @pytest.mark.parametrize(
+        "row_id,run,declared_entry,expected", _KNOB_ROWS,
+        ids=[row[0] for row in _KNOB_ROWS],
+    )
+    def test_every_level_names_a_knob_this_entry_actually_has(
+        self, row_id: str, run, declared_entry, expected: str
+    ) -> None:
+        import inspect
+
+        solution = run()
+        assert solution.history is not None
+        entry = _entry_of(row_id, declared_entry)
+        knobs = set(inspect.signature(entry).parameters)
+
+        for level in solution.history.record.walk():
+            assert level.budget_name in knobs, (
+                f"{entry.__name__} returned a level advising `set "
+                f"{level.budget_name}=...`, which is not one of its "
+                f"parameters — the reader has nothing to type"
+            )
+
+    @pytest.mark.parametrize(
+        "row_id,run,declared_entry,expected", _KNOB_ROWS,
+        ids=[row[0] for row in _KNOB_ROWS],
+    )
+    def test_the_knob_is_the_RIGHT_one_at_each_depth(
+        self, row_id: str, run, declared_entry, expected: str
+    ) -> None:
+        """The membership leg above is blind to a SWAP; this one is not.
+
+        `[M]` 2026-08-10 ``solve_sn`` exposes BOTH ``max_outer`` and
+        ``max_inner``, so a producer that stamped them the wrong way round
+        satisfies "is a parameter of this entry" perfectly while sending
+        every eigenvalue reader to the knob that cannot help them.  Measured
+        under exactly that swap: membership reddened only the two
+        fixed-source rows (whose entries have no ``max_outer`` to be wrong
+        about); all four eigenvalue rows were caught here and nowhere else.
+        """
+        solution = run()
+        assert solution.history is not None
+        record = solution.history.record
+
+        assert record.budget_name == expected, (
+            f"{row_id}: the top level is governed by {expected}, not "
+            f"{record.budget_name!r}"
+        )
+        for child in record.children:
+            assert child.budget_name == "max_inner", (
+                f"{row_id}: an inner level is governed by max_inner, not "
+                f"{child.budget_name!r}"
+            )

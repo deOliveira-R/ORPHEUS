@@ -394,9 +394,6 @@ def _warn_if_unconverged(
     history: "IterationHistory",
     *,
     where: str,
-    budget_name: str,
-    budget: int,
-    tol: float,
 ) -> None:
     r"""Make a best-effort exit AUDIBLE at a public entry.
 
@@ -404,6 +401,18 @@ def _warn_if_unconverged(
     :class:`~orpheus.numerics.convergence.ConvergenceWarning`.  Every public
     SN entry calls this after building its history, so a truncated solve
     announces itself once, in one voice, wherever it came from.
+
+    ⛔ **Scope, as of #340 N6 commit 1: "a truncated solve" means a solve whose
+    TOP level did not converge.**  The guard below is
+    ``history.converged``, so an outer that met its own criteria while
+    standing on a TRUNCATED inner still returns in SILENCE — the record knows
+    (``fully_converged`` is ``False``, ``first_failure`` names the inner), and
+    nothing says so.  `[M]` 2026-08-10, 20 tests in the shipped suite are in
+    exactly that state.  Widening the guard to ``fully_converged`` is commit
+    2, deliberately gated on N5's residual certificate: `[M]` the flip reds
+    nothing today but emits 27 further warnings, and without a certificate to
+    separate a *corrupting* truncation from a *benign* one those are noise —
+    and filtered noise is how the next real truncation goes unnoticed.
 
     Why a warning and not a raise: the ERR-053 / D-H.1e ruling (see the
     :mod:`~orpheus.numerics.convergence` module docstring) — legitimate
@@ -413,6 +422,17 @@ def _warn_if_unconverged(
     :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` — the DOTTED
     category; the short spelling does not parse, so it was never a gate
     (#340, 2026-08-09).
+
+    ⭐ **It speaks for the level that FAILED, not for the entry that was
+    called** (#340 N6, 2026-08-10).  ``where`` names the entry — the only
+    thing the caller still supplies — and everything else is read off
+    ``record.first_failure``, which searches CHILDREN FIRST.  So a starved
+    inner is named, with ITS budget, ITS knob and ITS tolerance, even when the
+    outer standing on it met its own criteria.  The three arguments this
+    function used to take for those facts (``budget_name``, ``budget``,
+    ``tol``) are retired: each entry was describing its own TOP level, so on a
+    tree they described the wrong one, and the advice pointed at a knob that
+    cannot help (F2).
 
     The message carries the budget that ran out, the tolerance that was not
     reached, and how far away the last iterate was, because "one more sweep"
@@ -455,6 +475,31 @@ def _warn_if_unconverged(
     if history.converged:
         return
 
+    # ⭐ #340 N6: every fact below is read off the level that FAILED, which is
+    # not necessarily the level the caller asked about.  ``first_failure``
+    # searches CHILDREN FIRST, so a starved inner is named rather than the
+    # outer it starved.
+    #
+    # ⛔ Until 2026-08-10 the budget, its NAME and the tolerance were passed in
+    # by each entry point and described that entry's TOP level, while the rate
+    # and projection below were already read off the record.  On any solve
+    # whose inner starved, that welded one level's knob to another level's
+    # trajectory: every number real, every pairing wrong, and — worst —
+    # the result LOOKS level-correct.  It also advised the wrong knob, because
+    # with a starved inner raising ``max_outer`` cannot help at all (the
+    # outer's stop test is entirely increments, and the starved inner is what
+    # suppresses them — F2).
+    #
+    # The ``or`` arm is unreachable while this function is guarded on
+    # ``history.converged``: ``first_failure`` returns ``None`` only when the
+    # whole tree converged.  It is here so the level is a non-optional value
+    # for every read below, and it stays correct if the guard later widens to
+    # ``fully_converged`` (the N5-gated flip).
+    failing = history.record.first_failure or history.record
+    level = "" if failing is history.record else f"{failing.label} "
+    budget_name = failing.budget_name
+    budget = failing.budget
+
     # The criterion that ACTUALLY bound — the one furthest from clearing,
     # read straight off the record rather than reconstructed from a flat
     # list (#340 N2b-ii).
@@ -470,11 +515,17 @@ def _warn_if_unconverged(
     # The stop-gap was a branch that detected "the recorded quantity cleared"
     # and refused to project; it is retired here, because the record carries
     # BOTH criteria and `binding_criterion` picks the one that failed.
-    criterion = history.record.binding_criterion
+    criterion = failing.binding_criterion
     distance = (
         "no criterion recorded"
         if criterion is None or criterion.last is None
         else f"last {criterion.name} {criterion.last:.3e}"
+    )
+    # A level with no criteria at all (MoC's fixed sweep count) has no
+    # tolerance to quote, so the clause is dropped rather than faked.
+    against = (
+        "" if criterion is None
+        else f" without reaching tol={criterion.tolerance:.3e}"
     )
 
     rate = None if criterion is None else criterion.rate
@@ -490,15 +541,15 @@ def _warn_if_unconverged(
         # when the failing criterion was ABSENT from the history; this one
         # fires only when there is no failing criterion at all, which is a
         # statement the record can actually make.
-        shortfall = history.record.min_iterations
+        shortfall = failing.min_iterations
         advice = (
             f"every recorded criterion cleared, so the refusal is the loop's: "
-            f"it ran {history.record.n_iterations} of the {shortfall} "
+            f"it ran {failing.n_iterations} of the {shortfall} "
             f"iterations required before convergence may be claimed. Read"
-            if history.record.n_iterations < shortfall
+            if failing.n_iterations < shortfall
             else
             f"every recorded criterion cleared but the level measured "
-            f"nothing — it ran {history.record.n_iterations} iterations "
+            f"nothing — it ran {failing.n_iterations} iterations "
             f"without recording a value, so there is nothing to project "
             f"from. Read"
         )
@@ -517,7 +568,7 @@ def _warn_if_unconverged(
         )
 
     warnings.warn(
-        f"{where}: hit {budget_name}={budget} without reaching tol={tol:.3e} "
+        f"{where}: {level}hit {budget_name}={budget}{against} "
         f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
         f"not the converged answer. {advice} "
         f"`solution.history.converged` and handle it. "
@@ -668,6 +719,7 @@ def _within_group_krylov(
         preconditioner=preconditioner,
         tol=tol, max_iter=max_iter,
         restart=n_dof,
+        budget_name="max_inner",
     )
 
 
@@ -1002,7 +1054,7 @@ def _within_group_si(
             )
         si = SourceIteration(
             system.implicit_operator.inverse(), *system.explicit_gains,
-            max_iter=max_iter, tol=tol,
+            max_iter=max_iter, tol=tol, budget_name="max_inner",
         )
         return si, system.implicit_operator, system.explicit_gains, False
     # Seedless: the record's explicit_gains are the (S, B_a) pair — loud on drift.
@@ -1025,6 +1077,7 @@ def _within_group_si(
         )
     si = SourceIteration(
         step, *gains, max_iter=max_iter, tol=tol, corrector=corrector,
+        budget_name="max_inner",
     )
     return si, base_implicit, gains, windowed
 
@@ -2317,7 +2370,7 @@ def solve_sn(
         inner_schedule=inner_schedule,
     )
 
-    outcome = power_iteration(solver, max_iter=max_outer)
+    outcome = power_iteration(solver, max_iter=max_outer, budget_name="max_outer")
     keff, keff_history, scalar_flux = (
         outcome.keff, outcome.keff_history, outcome.flux_distribution,
     )
@@ -2463,8 +2516,7 @@ def solve_sn(
         record=outcome.record, keff_history=tuple(keff_history),
     )
     _warn_if_unconverged(
-        history, where="solve_sn", budget_name="max_outer",
-        budget=max_outer, tol=keff_tol,
+        history, where="solve_sn",
     )
     return _package_solution(
         _cell_average_angular(final_psi_a, sn_mesh),
@@ -2740,8 +2792,7 @@ def solve_sn_adjoint(
         record=outcome.record, keff_history=tuple(keff_history),
     )
     _warn_if_unconverged(
-        history, where="solve_sn_adjoint", budget_name="max_outer",
-        budget=max_outer, tol=keff_tol,
+        history, where="solve_sn_adjoint",
     )
     return _package_adjoint_solution(
         system_a, adjoint_ray, sn_mesh,
@@ -2879,7 +2930,7 @@ def solve_sn_adjoint_fixed_source(
 
     si = SourceIteration(
         seeded_inverse(implicit_operator.H), gain.H,
-        max_iter=max_inner, tol=inner_tol,
+        max_iter=max_inner, tol=inner_tol, budget_name="max_inner",
     )
     # Flux-classed zero start (the template) — the daggered iterate is an
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
@@ -2888,7 +2939,6 @@ def solve_sn_adjoint_fixed_source(
     history = IterationHistory(record=record)
     _warn_if_unconverged(
         history, where="solve_sn_adjoint_fixed_source",
-        budget_name="max_inner", budget=max_inner, tol=inner_tol,
     )
     return _package_adjoint_solution(
         psi_star, None, sn_mesh,
@@ -3570,8 +3620,7 @@ def _solve_fixed_source_si(
     # ``.mesh.{mesh, quad, materials}``.)
     history = IterationHistory(record=record)
     _warn_if_unconverged(
-        history, where="solve_sn_fixed_source", budget_name="max_inner",
-        budget=max_inner, tol=inner_tol,
+        history, where="solve_sn_fixed_source",
     )
     # ``Solution.angular_flux`` must carry the FULL per-ordinate angular flux.
     # Un-windowed: ``psi_typed`` already IS it (return directly, exactly as the
@@ -3793,8 +3842,7 @@ def _solve_fixed_source_krylov(
     # per iteration.  Both now read the producer's own count (#340 F11).
     history = IterationHistory(record=record)
     _warn_if_unconverged(
-        history, where="solve_sn_fixed_source", budget_name="max_inner",
-        budget=max_inner, tol=inner_tol,
+        history, where="solve_sn_fixed_source",
     )
     # D-H.1c stage 2 (2026-05-28): psi_full IS already a TimedFullField;
     # no adapter wrap at the Solution boundary.
