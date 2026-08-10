@@ -734,6 +734,111 @@ on every MoC solve. N4's MoC arm and N6's guard must be decided together.
 
 ---
 
+### N5 — ⛔ REFUTED AS A GATE, 2026-08-10. The residual cannot discriminate.
+
+**Goal (unchanged).** A caller can tell a truncation that *corrupted the
+answer* from one that did not.
+
+**Proposed means (2026-08-09) — ⛔ REFUTED.** *"Outer certificate (F7/F7′) —
+residual `(A − F/k)ψ` at exit."* The §3d row and the N6 section's *"N5 is the
+discriminator that makes this warning non-noisy"* both rest on it. They are
+wrong, and the text stays so the next session does not re-derive the dead end.
+
+`[M]` `scratch/n5_outer_certificate_measurement.md`, **38 solves** — 8
+geometries (leaking d1/d2/d2-thick/d2-all-vacuum/d3 + all-reflective
+d1/d2/d3) × 3 mixtures, `keff_tol = 1e-7`. Defect `= ‖A_lossψ − Fφ/k‖ /
+‖Fφ/k‖`:
+
+| population | n | defect range |
+|---|---|---|
+| CORRUPTING | 16 | 1.185e-07 … 1.934e-04 |
+| BENIGN | 22 | 6.108e-10 … 7.511e-05 |
+
+**A 634× overlap.** A threshold admitting every benign case misses **15 of
+16** corrupting ones — including F1, the case it was proposed for. Robust to
+the classification standard (relative: 698×, misses 18/19). It is not even
+**monotone**: `mi=10` reads a defect 1.8× HIGHER than `mi=3` while the keff
+error is 6× LOWER, and `mi=20` reads a defect *below* the fully-converged
+reference (1.18e-07 vs 3.47e-07) — so it does not order truncated-vs-converged
+at all. `T=1e-7` reaches 16/16 only at a **59 %** false-alarm rate.
+
+⭐ **The structural reason, measured not inferred.** `‖r‖` is up to **99.995 %**
+reflective-trace rows, and a reflective inflow-trace defect in a zero-leakage
+system carries **no net current** — so `k = production/absorption` is blind to
+it *by conservation*. The transfer gain `|Δk|/defect` therefore spans
+**1.16e5×** (1.15e-05 on all-reflective d=3 → 1.34 on the all-vacuum slab,
+where the trace fraction is 0). **No constant can convert a flux-space
+residual bound into an eigenvalue-space one.**
+
+This is `vv-principles` **Mode 12 in the MIRROR**, and it is worth naming as a
+distinct shape: the usual Mode-12 failure is a gate that is BLIND to the error
+class. Here the gate is *sighted* on a class **the contract is blind to** — it
+measures real defect that the measured functional annihilates. Both directions
+produce a useless gate; only the second one produces a gate that also looks
+busy and reports numbers.
+
+Two further refutations from the same measurement:
+
+- ⛔ **`_CERTIFICATE_SAFETY × tol` is the wrong constant AND the wrong
+  quantity.** The outer's binding criterion is `dphi` in *every* solve
+  measured, so copying `record.binding_criterion.tolerance` silently picks the
+  **looser** of the two (5× weaker). Literal transfer catches 2/16 at 2/22 FA,
+  and misses the population's largest keff error (`|dk| = 23.7 × keff_tol`).
+- ⛔ **The null case is not a floor.** A fully-converged solve reads
+  `3.47e-07 = 3.47 × keff_tol`, and it falls 8 decades under tightening. A
+  two-legged sweep localises it: `inner_tol` 1e-8→1e-14 at fixed outer moves it
+  **0.2 %**; the outer at fixed inner moves it **6 decades**. It is the power
+  iteration's own increment-stop slack, not the inner's.
+- ⛔ **An adjoint SHORTCUT is worse than nothing.** First-order perturbation
+  theory is the right statistic, but with a spatially-FLAT 0-D adjoint
+  (positive-controlled: `|k_pencil − k_inf| = 0`) the overlap *degrades*
+  4.64× → **128.95×**. A signed projection against a wrong weight manufactures
+  near-cancellations — i.e. false NEGATIVES. Only a spatially-resolved adjoint
+  could gate, at one adjoint solve per certificate.
+
+### N6b — the guard widens UNCONDITIONALLY; the projection is a NUMBER, not a gate
+
+**User ruling 2026-08-10**, taken after the refutation above: *flip it, and
+report the balance projection.*
+
+**Goal.** A solve whose subtree did not converge says so, once, at the entry —
+and carries the one statistic that actually correlates with the error the
+caller cares about, labelled as a diagnostic rather than a verdict.
+
+**Means.**
+
+1. `_warn_if_unconverged`'s guard becomes `history.fully_converged`. `[M]` this
+   reds **nothing** today and emits **27** further warnings.
+2. The message carries the **balance projection**
+   `R_g = Σ_n w_n Σ_i V_i r[n,g,i]` — the residual projected onto the
+   functional `keff` actually reads. `[M]` it cuts the overlap 634× → **4.64×**
+   (14/16 at 2/22 FA), which is exactly what the structural argument predicts:
+   projecting onto the functional removes the trace rows the functional
+   annihilates. ⚠ Ship it as a **number in the message**, never as a
+   threshold — 4.64× still overlaps.
+3. The ~20 rows in `scratch/issue_340_truncated_inner_population.md` get R2
+   declarations. `[M]` one is already done (R4, `3f76d651`).
+4. `test_a_converged_outer_on_a_starved_inner_is_STILL_SILENT` is **deleted**
+   and its `xfail(strict=True)` sibling `test_the_tree_wide_truncation_is_
+   audible` becomes an ordinary passing row. They were committed as a pair for
+   exactly this moment.
+
+⚠ **Where the projection LIVES is the one open design question.** `[M]`
+`solve_sn` discards the solver it builds, and `Solution` carries neither
+`mat_xs` nor `scattering_op` nor `fission_op` — so the projection cannot be
+computed at the entry from public state, only where the operators are still in
+scope. It therefore belongs as a measured field on **`IterationHistory`** (SN
+local — it needs volumes and quadrature weights, which `numerics` has no
+business knowing), NOT on `IterationRecord`.
+
+That re-adds a stored field to the view N2b-ii deliberately emptied, and the
+campaign's own rule is what licenses it: *no convergence **verdict** may be
+stored; measured data plainly must be* (the same licence `iterations_run`
+already holds). Keep the distinction explicit at the field, or the next
+reader will read it as the drift N2b-ii removed.
+
+---
+
 ## 4. Refuted / rejected candidates — with the structural reason
 
 | candidate | why it fails |
