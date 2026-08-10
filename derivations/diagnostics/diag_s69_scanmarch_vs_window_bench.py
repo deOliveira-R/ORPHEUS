@@ -6,6 +6,21 @@ SWEEP and the MATVEC (loss_action) for all three 2-D representations
 group grid, plus tracemalloc peak for the sweep, plus one end-to-end
 ``solve_sn_fixed_source`` (window default vs ScanMarch forced).
 
+The published table lives in ``docs/theory/methods/sn/loss_representation.rst``
+(full grid in #222 comment 4683241855); this script is the instrument behind
+it, so it must stay runnable — see #347.
+
+⚠ **The matvec leg's spelling changed, 2026-08-09 (#347).**  It read
+``rep.loss_action(L, psi)`` with an ``L = StreamingOperator(sn)``; the
+#257 S8b σ-free-streaming carve re-signed the verb to
+``loss_action(sigma, psi)``, so the operator argument no longer exists.
+The leg now calls ``rep.loss_action(sig_t, psi)`` — the FULL
+:math:`(L+C)` action, which is exactly what ``StreamingOperator.apply``
+delegates to (``orpheus/sn/operators/streaming.py:678``), evaluated at the
+real :math:`\\sigma_t` rather than at zero.  Per-representation *ratios*
+— the quantity the doc's table publishes — are unaffected: every row
+times the same call on the same input.
+
 Run:  .venv/bin/python -O derivations/diagnostics/diag_s69_scanmarch_vs_window_bench.py
 """
 from __future__ import annotations
@@ -26,7 +41,6 @@ from orpheus.sn.loss_representation import (
     MovingFrontierWindow,
     ScanMarch,
 )
-from orpheus.sn.operator import StreamingOperator
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -86,16 +100,16 @@ def bench_kernels():
     summary = {}
     for nx, ny, lvl, ng in grid:
         sn, sig_t, Q = build(nx, ny, lvl, ng)
-        L = StreamingOperator(sn)          # pure σ-free streaming (#257 S8b)
-        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
-        psi.bulk.values[...] = np.random.default_rng(3).standard_normal(
-            psi.bulk.values.shape)
+        psi = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+        psi.interior.values[...] = np.random.default_rng(3).standard_normal(
+            psi.interior.values.shape)
         rows = {}
         for name, cls in REPS.items():
             rep = cls(sn)
             bf = AngularBoundaryFlux.zeros_on(sn)
             t_sweep = median_time(lambda: rep.sweep(Q, sig_t, bf))
-            t_mv = median_time(lambda: rep.loss_action(L, psi))
+            t_mv = median_time(lambda: rep.loss_action(sig_t, psi))
             m_sweep = peak_mem(lambda: rep.sweep(Q, sig_t, AngularBoundaryFlux.zeros_on(sn)))
             rows[name] = (t_sweep, t_mv, m_sweep)
             print(f"{f'{nx}x{ny} LS{lvl} {ng}g':<22}{name:<11}"

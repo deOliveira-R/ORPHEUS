@@ -307,9 +307,12 @@ class TestTransportSweep:
         §bit-identity, the regenerated values were verified against a
         structurally-independent reference: a from-scratch per-cell-loop
         2-D DD sweep (no shared code with the production
-        windowed-frontier kernel) agrees to max |Δψ| = 3.5e-17,
+        windowed-frontier kernel) agreeing to max |Δψ| = 3.5e-17,
         rel |Δφ| ≤ 9.8e-16. Re-run the diagnostic before any future
-        regeneration.
+        regeneration; it carries the standing readings table, and its
+        2026-08-09 row (``2.776e-17`` / ``5.152e-16``, taken through
+        ``(L + C).solve``) re-confirms the same agreement on today's
+        operator-algebra production path.
         """
         solver, _, sn_mesh, quad = solver_2g
         np.random.seed(7)

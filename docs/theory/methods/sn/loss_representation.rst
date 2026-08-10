@@ -2637,6 +2637,36 @@ Three findings shaped the decision:
    that surrounds the within-group solve, so the wall-clock win on a full
    fixed-source solve is smaller than the bare-sweep ratio.
 
+.. note:: Re-measured 2026-08-09 (#347) — the three findings hold, the
+   end-to-end **number** does not.
+
+   The benchmark was unrunnable between the 2026-04 restructuring and
+   #347 (dead ``orpheus.sn.operator`` import; the ``loss_action`` verb
+   had been re-signed by the #257 S8b σ-free carve). Re-run on the
+   repointed instrument, same grid, ``python -O``:
+
+   * **Findings 1 and 2 reproduce.** Peak-memory parity ``0.98–1.00``;
+     sweep ratios ``0.57–0.83`` against the published ``0.57–0.84``,
+     with the same LS4 → LS16 narrowing.
+   * ⛔ **Finding 3's value is stale: the end-to-end ratio now measures
+     1.00×**, not ``0.82×`` (48×48 LS8 2G het, median of 3 —
+     ``38.85 s`` window vs ``38.78 s`` ScanMarch). The finding's
+     *direction* is unchanged and in fact sharper — the surrounding
+     scattering / moment-projection / reflect work now dilutes the
+     kernel win **completely**. Treat ``0.82×`` as a 2026-06-11 reading,
+     not a current one. (The absolute times are ~3× the 2026-06 ones;
+     that gap is unattributed — this run was not on a quiesced machine,
+     so it is not evidence of a regression either way.)
+   * ⚠ A full-grid run also produced a single ``2.02×`` sweep outlier at
+     96×96 LS4 2g. It is **noise, not a signal**: three focused repeats
+     of that one config read ``0.74 / 0.63 / 0.77``. Recorded because
+     one back-to-back grid pass is not a reliable instrument at the
+     largest config — repeat before believing any single row.
+
+   None of this disturbs the Fork-B2 decision below: it turned on the
+   memory parity (finding 1) and on keeping two genuinely-different
+   schedules, neither of which is a wall-clock claim.
+
 The decision (Fork-B2, USER, 2026-06-11):
 
 .. admonition:: Fork-B2 decision (verbatim)

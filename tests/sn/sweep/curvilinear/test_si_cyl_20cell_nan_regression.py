@@ -119,8 +119,11 @@ def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
     assert np.isfinite(res.keff), (
         f"SI returned non-finite k_eff: {res.keff}.  Bug class: "
         f"ordinate_scan Blelloch-form NaN at pole-cell algebraic "
-        f"resonance.  See "
-        f"derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py"
+        f"resonance (ERR-054; its denormal-underflow sibling is "
+        f"ERR-057).  The scan-form contract and the reachability "
+        f"tripwire live in "
+        f"tests/sn/sweep/core/test_ordinate_scan_reset.py; the "
+        f"division-free backend is orpheus/sn/sweep/scan.py."
     )
 
 

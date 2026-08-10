@@ -7,8 +7,13 @@ GitHub issues: `#209 <https://github.com/deOliveira-R/ORPHEUS/issues/209>`_
 
 Promoted from the numerics-investigator diagnostic cascade
 (``derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py``
-+ ``..._step5_root_cause.py``) per the ERR-054 catalog entry.  This
-file pins the load-bearing contract for the bug class
++ ``..._step5_root_cause.py``) per the ERR-054 catalog entry.  The
+``_step5_root_cause`` half was **retired 2026-08-09** (#347): the
+division-free backend below inverted its central "the scan NaNs"
+assertion — exactly the retirement trigger its own docstring named —
+and its ``μ_x = 1/√20`` fixture no longer exists in any shipped rule.
+This file and ``test_si_cyl_20cell_nan_regression.py`` are its
+successors.  This one pins the load-bearing contract for the bug class
 
     "Blelloch closed-form first-order linear-recurrence scan divides by
     the cumulative product ``cumprod_a``; an exact chain reset

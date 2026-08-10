@@ -28,12 +28,37 @@ values; the broader correctness of the production sweep family is
 anchored by the streaming-equilibrium L0 gates and the 2-D MMS L1
 convergence suite.
 
-Run:  .venv/bin/python derivations/diagnostics/diag_175_sweep_snapshot_regen.py [--write]
+Standing readings
+-----------------
+
+Each is the cross-check against the hand sweep on the same fixture, and
+each records the tree it was taken on — the production sweep has been
+re-spelled twice since the first, so a bare number would be unreadable.
+
+===========  ====================================  ==============  ==============
+date         production leg                        ``max |Δψ|``    ``rel |Δφ|``
+===========  ====================================  ==============  ==============
+2026-06-12   ``transport_sweep`` (operator-free)    ``3.5e-17``     ``9.8e-16``
+2026-08-09   ``sweep_once`` → ``(L + C).solve``     ``2.776e-17``   ``5.152e-16``
+===========  ====================================  ==============  ==============
+
+Both are ULP-scale, so the 2026-08-09 row is *also* a live re-verification
+of the whole operator-algebra carve against a reference that shares no
+code with it (#347 — the script had been unrunnable since the 2026-04
+restructuring retired ``transport_sweep``).
+
+Run:  .venv/bin/python -O derivations/diagnostics/diag_175_sweep_snapshot_regen.py [--write]
 """
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+# Run as a plain script, ``sys.path[0]`` is THIS directory, so the repo-root
+# ``tests`` package (imported below for the production sweep the consuming
+# test calls) is invisible.  ``orpheus`` resolves regardless — it is installed.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 
@@ -41,9 +66,16 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
+
+# The PRODUCTION leg.  ``sweep_once`` is the typed successor of the retired
+# operator-free ``transport_sweep`` this script used until 2026-08-09 (#347);
+# it routes the same physics through ``(L + C).solve``.  Importing the very
+# helper the consuming test calls is deliberate — the regenerated snapshot
+# must come from the path the test compares against, not a second spelling
+# of it (Pattern 2).  The INDEPENDENCE lives in ``hand_sweep`` below.
+from tests.sn._test_helpers import SN_TESTS_ROOT, sweep_once
 
 
 def build_fixture() -> tuple[SNMesh, np.ndarray, np.ndarray]:
@@ -120,7 +152,7 @@ def hand_sweep(
 def main() -> int:
     sn_mesh, sig_t, Q = build_fixture()
 
-    ang, phi_prod = transport_sweep(
+    ang, phi_prod = sweep_once(
         AngularSourceSink.from_isotropic(Q, sn_mesh),
         sig_t,
         sn_mesh,
@@ -144,9 +176,7 @@ def main() -> int:
         if not ok:
             print("REFUSING to write snapshot: cross-check failed.")
             return 1
-        from pathlib import Path
-
-        out = Path(__file__).parents[2] / "tests" / "sn" / "sweep_ref_2g.npy"
+        out = SN_TESTS_ROOT / "sweep_ref_2g.npy"
         np.save(out, phi_prod)
         print(f"wrote {out}")
     return 0 if ok else 1

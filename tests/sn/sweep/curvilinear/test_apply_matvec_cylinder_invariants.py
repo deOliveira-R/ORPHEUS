@@ -1,8 +1,10 @@
 r"""L0 apply-matvec flat-flux invariant — cylinder (Phase G Step 2 cylinder fix).
 
 Issue #196 Phase G Step 2 cylinder fix (2026-05-13).  Promoted from the
-numerics-investigator's diagnostic
-``derivations/diagnostics/diag_phase_g_step2_cyl_residual_pytest.py``.
+numerics-investigator's diagnostic ``diag_phase_g_step2_cyl_residual_pytest.py``,
+which named this file as its own promotion target and was **retired with the
+rest of the Phase G Step 2 probe cluster on 2026-08-09** (#347) once the
+promotion landed — this module is its successor, not its copy.
 
 Test premise
 ------------

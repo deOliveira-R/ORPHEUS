@@ -4908,5 +4908,8 @@ __all__ = [
     "FullFieldWavefront",
     "MovingFrontierWindow",
     "ScanMarch",
-    # the public sweep entry (relocated from the dissolved ``sweep.py``)
+    # (No sweep entry point.  ``transport_sweep`` — the operator-free verb
+    # this list once relocated here from the dissolved ``sweep.py`` — was
+    # itself retired: the sweep is ``(L + C).solve(q)``, spelled through the
+    # operator algebra, and there is no free function to export.)
 ]
