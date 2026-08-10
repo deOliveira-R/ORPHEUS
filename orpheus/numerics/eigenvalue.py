@@ -60,9 +60,11 @@ here (single source of truth — one loop).
 
 The eigenvector is a **flux distribution** — its shape is determined but its
 absolute scale is arbitrary.  Per-step renormalization to unit production rate
-(:meth:`EigenvalueSolver.compute_production_rate`) keeps the iterate at
-:math:`O(1)` (ERR-052); rescaling to an absolute flux at a target reactor power
-is a single multiplication (a future ``target_power`` hook).
+(:meth:`ProductionRateSolver.compute_production_rate` — the OPTIONAL extension
+of the base contract, deliberately *not* a member of it) keeps the iterate at
+:math:`O(1)` (ERR-052); a solver still outside that contract falls back to the
+un-normalised trajectory.  Rescaling to an absolute flux at a target reactor
+power is a single multiplication (a future ``target_power`` hook).
 
 Future solution algorithms (full-spectrum Arnoldi / Krylov--Schur,
 shift-invert / FEAST for interior eigenvalues) slot in at this same boundary,

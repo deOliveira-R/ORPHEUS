@@ -8,9 +8,10 @@ Escape-probability methods (reserved)
 
    **Stub-grade theory page — implementation deferred.** Reserves
    ``:label:`` anchors for the escape-probability reference-solver
-   theory. Python folder:
-   :mod:`orpheus.derivations.continuous.escape_probability` (empty;
-   README pins canonical references).
+   theory. Python folder ``orpheus.derivations.continuous.escape_probability``
+   is **reserved, not yet implemented** — a README pinning canonical
+   references and no module, so it is named as a literal rather than a
+   ``:mod:`` role.
 
 
 Why this folder exists

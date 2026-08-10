@@ -8,9 +8,10 @@ Spectral collocation — Chebyshev / Gegenbauer / Jacobi (reserved)
 
    **Stub-grade theory page — implementation deferred (no concrete
    reference selected yet).** Reserves ``:label:`` anchors for a
-   future spectral-collocation reference-solver theory. Python
-   folder: :mod:`orpheus.derivations.continuous.spectral_collocation`
-   (empty; README pins candidate references).
+   future spectral-collocation reference-solver theory. Python folder
+   ``orpheus.derivations.continuous.spectral_collocation`` is **reserved,
+   not yet implemented** — a README pinning candidate references and no
+   module, so it is named as a literal rather than a ``:mod:`` role.
 
 
 Why this folder exists

@@ -9,9 +9,11 @@ Spectral resolvent — closed-form scalar Green's kernel (reserved)
    **Stub-grade theory page — implementation deferred.** This page
    reserves ``:label:`` anchors and the canonical-references
    bibliography for the spectral-resolvent reference solver. The
-   Python folder exists at
-   :mod:`orpheus.derivations.continuous.spectral_resolvent` with a
-   README pinning the literature; the implementation is queued.
+   Python folder ``orpheus/derivations/continuous/spectral_resolvent/``
+   holds a README pinning the literature and **nothing else** —
+   ``orpheus.derivations.continuous.spectral_resolvent`` is **reserved,
+   not yet implemented**, and is written as a literal here precisely
+   because there is no module for a ``:mod:`` role to reach.
 
    When implementation lands, the archivist will expand this page with
    full derivations, V&V evidence tables, and structural-independence

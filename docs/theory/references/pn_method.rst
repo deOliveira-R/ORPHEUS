@@ -8,8 +8,9 @@ P_N method — spherical-harmonics expansion (reserved)
 
    **Stub-grade theory page — implementation deferred.** Reserves
    ``:label:`` anchors for the P_N reference-solver theory. Python
-   folder: :mod:`orpheus.derivations.continuous.pn_method` (empty;
-   README pins canonical references).
+   folder ``orpheus.derivations.continuous.pn_method`` is **reserved, not
+   yet implemented** — a README pinning canonical references and no
+   module, so it is named as a literal rather than a ``:mod:`` role.
 
 
 Why this folder exists

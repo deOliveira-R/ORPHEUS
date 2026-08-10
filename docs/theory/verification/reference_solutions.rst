@@ -131,9 +131,10 @@ detail at :ref:`reference-solvers-three-meanings`. In V&V terms:
 * **Meaning (β) — spectral resolvent.** Constructs the *same* scalar
   kernel via closed-form spectral μ-integration of the within-medium
   angular Green's function (Sanchez 1986 Eq. A6 / PS-1982 Eq. 21).
-  Reserved at
-  :mod:`orpheus.derivations.continuous.spectral_resolvent`; the direct
-  evaluator is the headline implementation gap. Pillar:
+  **Reserved, not yet implemented** — the folder
+  ``orpheus.derivations.continuous.spectral_resolvent`` is a README-only
+  placeholder, so it is named as a literal rather than a ``:mod:`` role;
+  the direct evaluator is the headline implementation gap. Pillar:
   semi-analytical (closed-form integrand + 1-D quadrature).
 
 * **Meaning (γ) — singular-eigenfunction angular Green's.**
