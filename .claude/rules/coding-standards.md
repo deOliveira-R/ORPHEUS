@@ -95,6 +95,36 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   snapshots pin this" is worthless if those snapshots were re-baselined BY the same carve
   (measured 2026-08-03: three `cyl_*` snapshots cited as the pre-carve anchor had all been
   re-captured by the consolidation commit itself).
+- **⭐ SINGLE-SOURCING A DUPLICATE DEMOTES EVERY GATE THAT COMPARED ITS COPIES — and this
+  is the case where the demotion is CORRECT, so it is the one you must not resolve by
+  backing out.** The two clauses above cover a survivor that *calls* the other side; the
+  `vv-principles` #22 sibling covers a test that *hands one object to both* sides. This
+  third case has neither tell: nothing calls anything, no object is shared, and the gate's
+  body is untouched. What changed is that the two things it compares are now **derived from
+  one constant or one rule**, so no input exists that could make them disagree.
+  Prevention beats detection (Patterns 2 and 4), so the fix stays — **the gate's
+  DESCRIPTION is what must move.** The decision procedure, in order:
+  1. **Ask what input could still make the two sides differ.** "None" ⟹ tautological. It
+     is a *design-time* question, not a mutation question — an in-class mutation reddens it
+     for the wrong reason, since mutating the single source moves both sides together.
+  2. **Hunt for an EXTERNAL hand-written pin before concluding you lost coverage.** If some
+     test already asserts the set/values against a literal authored independently of the
+     new single source, the carve cost nothing. If none exists, you traded a real gate for
+     none and owe a replacement — that is the whole risk of this move.
+  3. **Keep the gate only for what it still tests, and say so in its own docstring** — not
+     in a plan, not in the commit. A gate wearing an authoritative name for a comparison
+     that cannot fail is worse than no gate: it is a coverage claim an audit will trust.
+  > `[M]` 2026-08-09, #345. `capability_rows()` and the reference registry were two
+  > hand-written enumerations, and their `r_0` name tags had *already* diverged
+  > (`round(r0*100)` vs `round(r0/R_out*100)`, agreeing only because every shipped
+  > `R_out` is `1.0`). Writing the promised row→registry join would have detected that;
+  > hoisting the grid to one constant + one `reference_name()` made it **unspellable** —
+  > and made the join tautological in the same commit. Step 2 saved it:
+  > `test_builder_keyset_is_the_shipped_class_a_inventory` already pinned all 13 names
+  > against a literal written independently of both, so the name set stayed anchored. The
+  > join was kept, re-described in its docstring as testing the *discovery-and-registration
+  > path* (which has no other catcher), and explicitly disclaimed as no longer able to
+  > catch a spelling divergence.
 - **The retirement audit's blast radius is THREE searches, not one** (4–5 agents converged on
   this independently): (1) **graph callers** (`nexus impact`/`callers`) — necessary but NOT
   sufficient; the call graph misses property-reached leaves (`callers()==0` but live via a
