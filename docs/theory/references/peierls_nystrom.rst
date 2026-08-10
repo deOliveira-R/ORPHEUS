@@ -224,19 +224,48 @@ per-method generators (``generate_peierls_nystrom_matrix`` and
 siblings), which were deleted at ``045afeca``.
 
 .. note:: **What the capability-matrix gate does and does not check.**
-   ``tests/derivations/test_capability_matrices.py`` pins three
-   ``@pytest.mark.foundation`` software invariants of the
-   documentation infrastructure: the generator's ``--check`` mode
-   exits 0 only when the *checked-in* ``.inc.rst`` matches what
-   ``capability_rows()`` renders (so a hand-edited matrix reddens),
-   generation is byte-deterministic, and both ``peierls_nystrom`` and
-   ``fn_method`` are auto-discovered. It does **not** cross-check
-   ``capability_rows()`` against ``continuous_all()`` filtered to
-   ``operator_form == "integral-peierls"`` — no gate does, so a row
-   whose *metadata* drifts from the registered
-   :class:`~orpheus.derivations.common.continuous_reference.ContinuousReferenceSolution`
-   will not be caught here. These are foundation-level infrastructure
-   invariants, not a verification claim about any solver.
+   ``tests/derivations/test_capability_matrices.py`` pins
+   ``@pytest.mark.foundation`` software invariants of the documentation
+   infrastructure: the generator's ``--check`` mode exits 0 only when the
+   *checked-in* ``.inc.rst`` matches what ``capability_rows()`` renders (so a
+   hand-edited matrix reddens), generation is byte-deterministic, both
+   ``peierls_nystrom`` and ``fn_method`` are auto-discovered, every published
+   row name is unique and identifies exactly one row, and every row of a
+   *registry-keyed* package resolves against the continuous-reference
+   registry. These are infrastructure invariants, not a verification claim
+   about any solver.
+
+   ⛔ **This note asked for a different gate until 2026-08-09** (`#345
+   <https://github.com/deOliveira-R/ORPHEUS/issues/345>`_). It read: *"It does
+   not cross-check ``capability_rows()`` against ``continuous_all()`` filtered
+   to ``operator_form == 'integral-peierls'`` — no gate does, so a row whose
+   metadata drifts from the registered ``ContinuousReferenceSolution`` will
+   not be caught here."* Both halves were right, and measuring the gap
+   changed what the fix should be.
+
+   **The drift was already real.** The matrix computed its :math:`r_0` name
+   tag as ``round(r0 · 100)`` while the registry used
+   ``round(r0/R_{\rm out} · 100)`` — two hand-written spellings of one rule,
+   agreeing only because every shipped outer radius is ``1.0``. So the
+   remedy was not to add a comparison between two enumerations, but to stop
+   having two: the shipped grid is now
+   :data:`~orpheus.derivations.continuous.peierls_nystrom.cases.SHIPPED_CLASS_A`
+   and the name rule is
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.naming.reference_name`,
+   both walked by the eager builder, the lazy-builder map and
+   ``capability_rows()`` alike. A row and its registry key **cannot** disagree
+   about identity; the class the note worried about is unspellable rather than
+   merely detected.
+
+   ⚠ **What that leaves genuinely ungated: per-FIELD agreement.** Whether a
+   row's ``n_groups`` matches the built reference's still has no gate, and the
+   mechanism this note originally proposed cannot supply one — ``continuous_all()``
+   forces every lazy builder, and each Peierls reference is an
+   :math:`O(\text{minutes})` adaptive-``mpmath`` eigenvalue solve (`#212
+   <https://github.com/deOliveira-R/ORPHEUS/issues/212>`_ exists because of
+   exactly that cost). The identity fields are now safe by construction; the
+   prose columns (accuracy class, production status) have no registry
+   counterpart to drift from.
 
 .. include:: _peierls_nystrom_capability_matrix.inc.rst
 

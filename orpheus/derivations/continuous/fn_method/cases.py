@@ -116,8 +116,15 @@ def capability_rows() -> list[dict[str, object]]:
             "(URRb-2-0-IN, URRc-2-0-IN)"
         ),
     })
+    # Both rows realise the SAME mG family (``compute_kinf_mg``, Sood
+    # Eq 76) at different group counts. They carried the identical label
+    # ``k_inf — mG general (Sood Eq 76)`` until 2026-08-09 (#345): only
+    # the ``n_g`` column told them apart, which is off-pattern against
+    # every sibling above (``1G isotropic``, ``2G no-upscatter``,
+    # ``2G general``) and makes ``name`` unusable as a key. Naming the
+    # order restores both.
     rows.append({
-        "name": "k_inf — mG general (Sood Eq 76)",
+        "name": "k_inf — 3G general (Sood Eq 76)",
         "geometry": "infinite",
         "n_groups": 3,
         "n_regions": 0,
@@ -128,7 +135,7 @@ def capability_rows() -> list[dict[str, object]]:
         "status": "shipped — LA-13511 URR-3-0-IN (3G)",
     })
     rows.append({
-        "name": "k_inf — mG general (Sood Eq 76)",
+        "name": "k_inf — 6G general (Sood Eq 76)",
         "geometry": "infinite",
         "n_groups": 6,
         "n_regions": 0,

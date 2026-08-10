@@ -52,6 +52,7 @@ from .geometry import (
     lagrange_basis_on_panels,
     map_gl_to,
 )
+from .naming import reference_name
 
 # Orbit-space M/G class — slab has two parallel boundary faces at x=0
 # and x=L, so M/G (the 1-D quotient under R²-translation) is an
@@ -676,7 +677,7 @@ def _build_peierls_slab_case(
     }
 
     return ContinuousReferenceSolution(
-        name=f"peierls_slab_{ng}eg_{n_regions}rg",
+        name=reference_name("slab", n_groups=ng, n_regions=n_regions),
         problem=ProblemSpec(
             materials=materials,
             geometry_type="slab",

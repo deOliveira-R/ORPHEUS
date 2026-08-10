@@ -71,6 +71,7 @@ from dataclasses import replace
 import numpy as np
 
 from . import geometry as _pg
+from .naming import reference_name
 from ...common.continuous_reference import (
     ContinuousReferenceSolution,
     ProblemSpec,
@@ -150,7 +151,7 @@ def _build_peierls_sphere_case(
     }
 
     return ContinuousReferenceSolution(
-        name=f"peierls_sph1D_{ng}eg_{n_regions}rg",
+        name=reference_name("sphere-1d", n_groups=ng, n_regions=n_regions),
         problem=ProblemSpec(
             materials=materials,
             geometry_type="sphere-1d",
@@ -294,9 +295,11 @@ def _build_peierls_sphere_hollow_f4_case(
         for i, region in enumerate(layout)
     }
 
-    r0_tag = f"{int(round(r0_over_R * 100)):02d}"
     return ContinuousReferenceSolution(
-        name=f"peierls_sph1D_hollow_{ng}eg_{n_regions}rg_r0_{r0_tag}",
+        name=reference_name(
+            "sphere-1d", n_groups=ng, n_regions=n_regions,
+            r0_over_R=r0_over_R,
+        ),
         problem=ProblemSpec(
             materials=materials,
             geometry_type="sphere-1d",

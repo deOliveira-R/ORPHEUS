@@ -45,7 +45,7 @@
      - yes
      - shipped — 2 LA-13511 with-upscatter cases (URRb-2-0-IN, URRc-2-0-IN)
      - exact (2x2 dominant eigenvalue)
-   * - k_inf — mG general (Sood Eq 76)
+   * - k_inf — 3G general (Sood Eq 76)
      - infinite
      - 3
      - 0
@@ -54,7 +54,7 @@
      - yes
      - shipped — LA-13511 URR-3-0-IN (3G)
      - exact (GxG dominant eigenvalue)
-   * - k_inf — mG general (Sood Eq 76)
+   * - k_inf — 6G general (Sood Eq 76)
      - infinite
      - 6
      - 0

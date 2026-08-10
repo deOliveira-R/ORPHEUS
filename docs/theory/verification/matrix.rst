@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9397**
+Total tests collected: **9428**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1617, 17.2%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6402, 68.1%
+   foundation, 6433, 68.2%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9313
+   explicit, 9344
    class-name, 46
    func-name, 0
    case, 33
@@ -138,7 +138,7 @@ Module × level grid
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
    derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
    derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
-   derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
+   derivations/test_capability_matrices, 0, 0, 0, 0, 10, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
    derivations/test_carlvik_galerkin_sood_registry, 0, 5, 0, 0, 2, 0
    derivations/test_carlvik_galerkin_sphere, 0, 18, 0, 0, 0, 0
@@ -214,6 +214,7 @@ Module × level grid
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
    derivations/test_peierls_reference, 40, 25, 0, 0, 16, 0
+   derivations/test_peierls_reference_naming, 0, 0, 0, 0, 23, 0
    derivations/test_peierls_slab_legacy_aggregate, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_specular_bc, 0, 0, 0, 0, 27, 0
    derivations/test_peierls_specular_continuous_mu_symbolic, 0, 0, 0, 0, 4, 0
@@ -473,7 +474,7 @@ Module × level grid
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 3, 0
-   test_layer_imports, 0, 0, 0, 0, 345, 0
+   test_layer_imports, 0, 0, 0, 0, 346, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0

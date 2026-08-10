@@ -75,6 +75,7 @@ from __future__ import annotations
 import os as _os
 from collections.abc import Callable
 
+from .naming import ShippedReference
 from ...common.continuous_reference import ContinuousReferenceSolution
 
 # Issue #130 Phase G.5 routing switch. Defaults to True (unified
@@ -96,7 +97,7 @@ def build_two_surface_case(
     ng_key: str = "1g",
     n_regions: int = 1,
     *,
-    inner_radius: float | None = None,
+    r0_over_R: float | None = None,
 ) -> ContinuousReferenceSolution:
     r"""Build a Class-A (two-surface) continuous reference.
 
@@ -105,11 +106,11 @@ def build_two_surface_case(
 
     - ``"slab"`` — calls
       :func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_peierls_slab_case`.
-      ``inner_radius`` is ignored (slab has two parallel faces at
+      ``r0_over_R`` is ignored (slab has two parallel faces at
       :math:`x=0` and :math:`x=L`, not a cavity).
-    - ``"cylinder-1d"`` — requires ``inner_radius > 0``; calls
+    - ``"cylinder-1d"`` — requires ``r0_over_R``; calls
       :func:`orpheus.derivations.continuous.peierls_nystrom.cylinder._build_peierls_cylinder_hollow_f4_case`.
-    - ``"sphere-1d"`` — requires ``inner_radius > 0``; calls
+    - ``"sphere-1d"`` — requires ``r0_over_R``; calls
       :func:`orpheus.derivations.continuous.peierls_nystrom.sphere._build_peierls_sphere_hollow_f4_case`.
 
     Parameters
@@ -124,17 +125,29 @@ def build_two_surface_case(
         Number of radial regions. Hollow curvilinear cases support
         1-region only today (single annular shell). Slab supports
         1/2/4.
-    inner_radius
-        Cavity radius :math:`r_0` for curvilinear hollow cases.
-        **Required** for ``"cylinder-1d"`` / ``"sphere-1d"``; must
-        be strictly between 0 and the outer radius. Ignored for slab.
+    r0_over_R
+        The **dimensionless** cavity ratio :math:`r_0/R` for curvilinear
+        hollow cases — **required** for ``"cylinder-1d"`` /
+        ``"sphere-1d"``, ignored for slab. Forwarded to the hollow-F.4
+        builders unchanged, because a ratio is what they take.
+
+        .. note:: **This was ``inner_radius``, an absolute length, until
+           2026-08-09 (#345).** Every caller and every docstring in the
+           family described the sweep as :math:`r_0/R \in \{0.1, 0.2,
+           0.3\}` — a ratio — while the parameter declared a length and
+           the body divided by ``R_out`` to recover the ratio. The two
+           coincided only at :math:`R = 1`, which every entry of the
+           shipped ``_RADII`` tables happens to be, so the mismatch was
+           inert and invisible. Naming the ratio makes the intended
+           quantity the one the signature accepts, and removes the
+           division that was silently un-doing a unit error.
 
     Raises
     ------
     ValueError
-        For curvilinear shapes when ``inner_radius`` is missing or
-        not in ``(0, R_outer)``. Use
-        :func:`build_one_surface_compact_case` for solid geometry.
+        For curvilinear shapes when ``r0_over_R`` is missing, or is not a
+        ratio in ``(0, 1)``. Use :func:`build_one_surface_compact_case`
+        for solid geometry.
     """
     if shape == "slab":
         if _SLAB_VIA_UNIFIED:
@@ -143,37 +156,34 @@ def build_two_surface_case(
         return _build_peierls_slab_case(
             ng_key, n_regions,
         )
-    if shape == "cylinder-1d":
-        if inner_radius is None:
+    if shape in ("cylinder-1d", "sphere-1d"):
+        if r0_over_R is None:
             raise ValueError(
-                "cylinder-1d is a Class A (two-surface) case only "
-                "when inner_radius > 0. Use build_one_surface_compact_case "
-                "for solid cylinder."
+                f"{shape} is a Class A (two-surface) case only when it has "
+                f"a cavity: pass r0_over_R (the dimensionless ratio r_0/R). "
+                f"Use build_one_surface_compact_case for the solid shape."
             )
-        from .cylinder import _build_peierls_cylinder_hollow_f4_case
-        # The hollow-f4 builder takes r_0_over_R (unitless), not
-        # absolute inner_radius. The single shipped outer radius for
-        # 1g 1-region is R=1 (from cp_cylinder._RADII[1][-1]) so the
-        # two are numerically equal when R=1 — but be explicit.
-        from ..flat_source_cp.cylinder import _RADII as _CYL_RADII
-        R_out = float(_CYL_RADII[n_regions][-1])
-        return _build_peierls_cylinder_hollow_f4_case(
-            r0_over_R=float(inner_radius) / R_out,
-            ng_key=ng_key,
-        )
-    if shape == "sphere-1d":
-        if inner_radius is None:
+        # Refuse AT THE BOUNDARY, before the O(minutes) mpmath solve.
+        # ``reference_name`` enforces the same range, but it is called by the
+        # stamp at the very END of the build — so without this the caller pays
+        # a full solve on a geometry whose cavity is outside its own shell and
+        # then gets an error about *naming*. Same law, right layer (Pattern 4).
+        if not 0.0 < r0_over_R < 1.0:
             raise ValueError(
-                "sphere-1d is a Class A (two-surface) case only "
-                "when inner_radius > 0. Use build_one_surface_compact_case "
-                "for solid sphere."
+                f"{shape}: r0_over_R must be a RATIO in (0, 1), got "
+                f"{r0_over_R!r}. The cavity lies strictly inside the outer "
+                f"surface; a value at or above 1 is almost always an absolute "
+                f"radius passed where the dimensionless r_0/R belongs (the "
+                f"#345 unit error — see the parameter's note above)."
+            )
+        if shape == "cylinder-1d":
+            from .cylinder import _build_peierls_cylinder_hollow_f4_case
+            return _build_peierls_cylinder_hollow_f4_case(
+                r0_over_R=float(r0_over_R), ng_key=ng_key,
             )
         from .sphere import _build_peierls_sphere_hollow_f4_case
-        from ..flat_source_cp.sphere import _RADII as _SPH_RADII
-        R_out = float(_SPH_RADII[n_regions][-1])
         return _build_peierls_sphere_hollow_f4_case(
-            r0_over_R=float(inner_radius) / R_out,
-            ng_key=ng_key,
+            r0_over_R=float(r0_over_R), ng_key=ng_key,
         )
     raise ValueError(
         f"build_two_surface_case: unknown shape {shape!r}; "
@@ -351,38 +361,59 @@ def build_one_surface_compact_case(
 # ---------------------------------------------------------------------
 
 
+#: The shipped Class-A references, enumerated ONCE (#345).
+#:
+#: Three consumers used to re-spell this grid independently —
+#: :func:`_class_a_cases` (eager build), :func:`continuous_case_builders`
+#: (lazy keys) and :func:`capability_rows` (the published matrix) — under a
+#: comment asking humans to keep them synchronised. They had already drifted:
+#: the matrix computed its ``r_0`` tag as ``round(r0 * 100)`` where the other
+#: two used ``round(r0/R_out * 100)``, agreeing only because every shipped
+#: outer radius is ``1.0``. One grid makes that disagreement unspellable.
+#:
+#: The order here is the published row order of
+#: ``_peierls_nystrom_capability_matrix.inc.rst`` — slab, then cylinder then
+#: sphere, each ascending in :math:`r_0/R` with 1G before 2G. Reordering this
+#: tuple reorders the rendered matrix, which the generator's ``--check`` mode
+#: will catch.
+#:
+#: Each entry carries IDENTITY only. Per-row prose (accuracy class, closure
+#: label, production status) legitimately differs per consumer and stays with
+#: the consumer.
+SHIPPED_CLASS_A: tuple[ShippedReference, ...] = (
+    # Slab: 2G 2-region (current shipped default — native E₁ Nyström
+    # path per the module docstring).
+    ShippedReference("slab", n_groups=2, n_regions=2),
+    # Hollow cylinder then sphere, F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G + 2G.
+    *(
+        ShippedReference(shape, n_groups=ng, n_regions=1, r0_over_R=r0)
+        for shape in ("cylinder-1d", "sphere-1d")
+        for r0 in (0.1, 0.2, 0.3)
+        for ng in (1, 2)
+    ),
+)
+
+
+def _build(case: ShippedReference) -> ContinuousReferenceSolution:
+    """Materialise one grid entry. The single construction call."""
+    return build_two_surface_case(
+        case.shape, case.ng_key, case.n_regions, r0_over_R=case.r0_over_R,
+    )
+
+
 def _class_a_cases() -> list[ContinuousReferenceSolution]:
     """Class A — two-surface cases. Slab + hollow cylinder/sphere F.4.
 
+    Enumerated by :data:`SHIPPED_CLASS_A`.
+
     Multi-group hollow cyl/sph references were added in Issue #104
     (2026-04-24) once the unified :func:`peierls_geometry.solve_peierls_mg`
-    path landed. Each ``r_0/R`` sweep entry now ships a 1G and 2G
-    variant — the 1G residuals against :math:`k_\\infty` are
-    reference-stable (1.4 % / 5.4 % / 13 % cyl; 0.4 % / 1.2 % / 3.3 %
-    sph); the 2G variants inherit the same F.4 scalar rank-2 per-face
-    closure applied group-wise.
+    path landed. Each ``r_0/R`` sweep entry ships a 1G and 2G variant —
+    the 1G residuals against :math:`k_\\infty` are reference-stable
+    (1.4 % / 5.4 % / 13 % cyl; 0.4 % / 1.2 % / 3.3 % sph); the 2G variants
+    inherit the same F.4 scalar rank-2 per-face closure applied group-wise.
     """
-    refs: list[ContinuousReferenceSolution] = []
-    # Slab: 2G 2-region (current shipped default — native E₁ Nyström
-    # path per peierls_cases module docstring).
-    refs.append(build_two_surface_case("slab", "2g", 2))
-    # Hollow cylinder F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G and 2G variants.
-    for r0 in (0.1, 0.2, 0.3):
-        refs.append(build_two_surface_case(
-            "cylinder-1d", "1g", 1, inner_radius=r0,
-        ))
-        refs.append(build_two_surface_case(
-            "cylinder-1d", "2g", 1, inner_radius=r0,
-        ))
-    # Hollow sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G and 2G variants.
-    for r0 in (0.1, 0.2, 0.3):
-        refs.append(build_two_surface_case(
-            "sphere-1d", "1g", 1, inner_radius=r0,
-        ))
-        refs.append(build_two_surface_case(
-            "sphere-1d", "2g", 1, inner_radius=r0,
-        ))
-    return refs
+    return [_build(case) for case in SHIPPED_CLASS_A]
 
 
 def _class_b_cases() -> list[ContinuousReferenceSolution]:
@@ -419,48 +450,34 @@ def continuous_case_builders() -> dict[str, Callable[[], ContinuousReferenceSolu
 
     The thunks delegate to :func:`build_two_surface_case`, so each *built*
     reference's :attr:`~ContinuousReferenceSolution.name` is authoritative.
-    The keys here are derived by the **same** formula the inner builders stamp
-    onto that attribute (``peierls_slab_{ng}eg_{nr}rg`` and
-    ``peierls_{cyl1D,sph1D}_hollow_{ng}eg_1rg_r0_{r0_tag}`` with
-    ``r0_tag = round(r0/R_out · 100)``); the equivalence
-    ``set(continuous_case_builders()) == {c.name for c in continuous_cases()}``
-    is pinned by ``tests/derivations/test_continuous_registry_lazy.py`` so the
-    cheap keys can never silently drift from the built names.
+    Both the key here and that stamp come from
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.naming.reference_name`
+    (#345) — before that they were two hand-written formulas, and the
+    equivalence ``set(continuous_case_builders()) ==
+    {c.name for c in continuous_cases()}`` pinned by
+    ``tests/derivations/test_continuous_registry_lazy.py`` was carrying the
+    risk. That test now guards the *enumeration* (does every grid entry build,
+    and does the built object stamp the grid's name) rather than a race
+    between two spellings.
 
-    Mirrors the :func:`_class_a_cases` loop exactly — any new shipped Class-A
-    reference must be added in both places (the drift-guard test enforces it).
+    Enumerated by :data:`SHIPPED_CLASS_A` — the same grid :func:`_class_a_cases`
+    and :func:`capability_rows` walk, so a new shipped reference is added in
+    exactly one place.
     """
     from functools import partial
 
-    from ..flat_source_cp.cylinder import _RADII as _CYL_RADII
-    from ..flat_source_cp.sphere import _RADII as _SPH_RADII
-
-    builders: dict[str, Callable[[], ContinuousReferenceSolution]] = {}
-
-    # Slab — 2G 2-region (the single shipped slab default).
-    builders["peierls_slab_2eg_2rg"] = partial(build_two_surface_case, "slab", "2g", 2)
-
-    # Hollow cylinder / sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G + 2G.
-    cyl_R_out = float(_CYL_RADII[1][-1])
-    sph_R_out = float(_SPH_RADII[1][-1])
-    for r0 in (0.1, 0.2, 0.3):
-        cyl_tag = f"{int(round((r0 / cyl_R_out) * 100)):02d}"
-        sph_tag = f"{int(round((r0 / sph_R_out) * 100)):02d}"
-        for ng_key, ng in (("1g", 1), ("2g", 2)):
-            builders[f"peierls_cyl1D_hollow_{ng}eg_1rg_r0_{cyl_tag}"] = partial(
-                build_two_surface_case, "cylinder-1d", ng_key, 1, inner_radius=r0,
-            )
-            builders[f"peierls_sph1D_hollow_{ng}eg_1rg_r0_{sph_tag}"] = partial(
-                build_two_surface_case, "sphere-1d", ng_key, 1, inner_radius=r0,
-            )
-    return builders
+    return {
+        case.name: partial(_build, case) for case in SHIPPED_CLASS_A
+    }
 
 
 # ---------------------------------------------------------------------
-# Metadata-only enumeration (no eigenvalue solves). Source of truth
-# for the Sphinx §theory-peierls-capabilities matrix. Keep this list
-# synchronised with the ``_class_{a,b}_cases()`` loops above — any
-# new shipped reference must appear in both. See
+# Metadata-only enumeration (no eigenvalue solves) — the PROSE half of
+# the Sphinx §theory-peierls-capabilities matrix. Its IDENTITY half is
+# ``SHIPPED_CLASS_A`` above, walked in order, so a new shipped reference
+# is added in exactly ONE place. (Until #345 this carried a second
+# hand-written copy of the grid under a comment asking humans to keep
+# the two synchronised; they had already drifted.) See
 # ``tools/verification/generate_capability_matrices.py`` for the
 # consumer (the meta-generator that auto-discovers ``cases.py`` across
 # every ``orpheus.derivations.continuous`` package).
@@ -501,90 +518,49 @@ def capability_rows() -> list[dict[str, object]]:
     shipped_status = "shipped (registry-anchored)"
 
     rows: list[dict[str, object]] = []
+    tol_by_shape = {"cylinder-1d": _F4_CYL_TOL, "sphere-1d": _F4_SPH_TOL}
+    cp_ref_by_shape = {"cylinder-1d": "cp_cylinder", "sphere-1d": "cp_sphere"}
 
-    # Class A — slab (single shipped entry: 2G, 2-region, native E₁
-    # path OR unified-adaptive depending on ``_SLAB_VIA_UNIFIED``; the
-    # closure class and matrix column are identical either way).
-    rows.append({
-        "name": "``peierls_slab_2eg_2rg``",
-        "geometry": "slab",
-        "n_groups": 2,
-        "n_regions": 2,
-        "r0_over_R": None,
-        "closure": rank2_label,
-        "accuracy": "O(h²), Wigner-Seitz exact",
-        "orbit_space_class": "A",
-        "bc": bc_white,
-        "status": shipped_status,
-    })
-
-    # Class A — hollow cylinder F.4 at r_0/R ∈ {0.1, 0.2, 0.3} × {1G, 2G}.
-    for r0 in (0.1, 0.2, 0.3):
-        r0_tag = f"{int(round(r0 * 100)):02d}"
-        tol_1g = _F4_CYL_TOL[r0]
-        rows.append({
-            "name": f"``peierls_cyl1D_hollow_1eg_1rg_r0_{r0_tag}``",
-            "geometry": "cylinder-1d",
-            "n_groups": 1,
-            "n_regions": 1,
-            "r0_over_R": r0,
-            "closure": f4_label,
-            "accuracy": f"~{tol_1g} structural (scalar mode)",
+    for case in SHIPPED_CLASS_A:
+        row: dict[str, object] = {
+            # IDENTITY — from the grid, so the published name is the
+            # registry name by construction, not by agreement.
+            "name": f"``{case.name}``",
+            "geometry": case.shape,
+            "n_groups": case.n_groups,
+            "n_regions": case.n_regions,
+            "r0_over_R": case.r0_over_R,
             "orbit_space_class": "A",
-            "bc": bc_f4,
-            "status": shipped_status,
-        })
-        rows.append({
-            "name": f"``peierls_cyl1D_hollow_2eg_1rg_r0_{r0_tag}``",
-            "geometry": "cylinder-1d",
-            "n_groups": 2,
-            "n_regions": 1,
-            "r0_over_R": r0,
-            "closure": f4_label,
-            "accuracy": (
-                f"2G builds, finite k_eff (``TestMG2GHollowRegistration``); "
-                f"k_eff vs ``cp_cylinder`` analytical not yet gated; "
-                f"structural residual expected ~{tol_1g} (group-local closure, "
-                f"unverified) — Issue #104 AC"
-            ),
-            "orbit_space_class": "A",
-            "bc": bc_f4,
-            "status": "shipped (k_eff gate pending — Issue #104)",
-        })
-
-    # Class A — hollow sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3} × {1G, 2G}.
-    for r0 in (0.1, 0.2, 0.3):
-        r0_tag = f"{int(round(r0 * 100)):02d}"
-        tol_1g = _F4_SPH_TOL[r0]
-        rows.append({
-            "name": f"``peierls_sph1D_hollow_1eg_1rg_r0_{r0_tag}``",
-            "geometry": "sphere-1d",
-            "n_groups": 1,
-            "n_regions": 1,
-            "r0_over_R": r0,
-            "closure": f4_label,
-            "accuracy": f"~{tol_1g} structural (scalar mode)",
-            "orbit_space_class": "A",
-            "bc": bc_f4,
-            "status": shipped_status,
-        })
-        rows.append({
-            "name": f"``peierls_sph1D_hollow_2eg_1rg_r0_{r0_tag}``",
-            "geometry": "sphere-1d",
-            "n_groups": 2,
-            "n_regions": 1,
-            "r0_over_R": r0,
-            "closure": f4_label,
-            "accuracy": (
-                f"2G builds, finite k_eff (``TestMG2GHollowRegistration``); "
-                f"k_eff vs ``cp_sphere`` analytical not yet gated; "
-                f"structural residual expected ~{tol_1g} (group-local closure, "
-                f"unverified) — Issue #104 AC"
-            ),
-            "orbit_space_class": "A",
-            "bc": bc_f4,
-            "status": "shipped (k_eff gate pending — Issue #104)",
-        })
+        }
+        if case.r0_over_R is None:
+            # Slab — rank-2 white closure at both parallel faces.
+            row |= {
+                "closure": rank2_label,
+                "accuracy": "O(h²), Wigner-Seitz exact",
+                "bc": bc_white,
+                "status": shipped_status,
+            }
+        else:
+            # Hollow curvilinear — F.4 closes the cavity face.
+            tol_1g = tol_by_shape[case.shape][case.r0_over_R]
+            row |= {"closure": f4_label, "bc": bc_f4}
+            if case.n_groups == 1:
+                row |= {
+                    "accuracy": f"~{tol_1g} structural (scalar mode)",
+                    "status": shipped_status,
+                }
+            else:
+                row |= {
+                    "accuracy": (
+                        f"{case.n_groups}G builds, finite k_eff "
+                        f"(``TestMG2GHollowRegistration``); k_eff vs "
+                        f"``{cp_ref_by_shape[case.shape]}`` analytical not yet "
+                        f"gated; structural residual expected ~{tol_1g} "
+                        f"(group-local closure, unverified) — Issue #104 AC"
+                    ),
+                    "status": "shipped (k_eff gate pending — Issue #104)",
+                }
+        rows.append(row)
 
     # Class B — one-surface compact. No shipped references today
     # (rank-1 Mark floor is too loose; see Issues #101 / #103).
