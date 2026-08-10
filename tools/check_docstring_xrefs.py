@@ -55,7 +55,13 @@ What it decides, and what it declines
 
 A target is judged only when it can be *decided*. Two shapes are decidable:
 
-**Absolute** — rooted in a known top-level package (:data:`DECIDABLE_ROOTS`).
+**Absolute** — rooted in something the interpreter can produce: a builtin, or
+an importable top-level module (:func:`_root_is_resolvable`). This is *computed*,
+not curated. It used to be a hand-written root tuple, and a curated list does not
+announce what it is missing: that one omitted ``mpmath`` — the dependency the
+whole Peierls reference family rests on — along with ``functools`` /
+``dataclasses`` / ``typing`` and every builtin, which between them were **86 of
+the 90** roles the tool had been dismissing as foreign.
 
 **Relative, resolved in the prose's own namespace.** ``:meth:`Quadrature.product```
 is resolved by Sphinx against the current module; this tool derives that
@@ -98,9 +104,11 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import enum
 import functools
 import importlib
+import importlib.util
 import inspect
 import io
 import pathlib
@@ -121,18 +129,54 @@ ROLE_PATTERN = re.compile(r":(func|class|meth|mod|attr|exc|data|obj):`([^`]+)`")
 #: fails the pattern instead of being silently mangled into a plausible path.
 DOTTED_PATH = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\Z")
 
-#: Only refs rooted here are decidable by import. Extend as dependencies grow.
-DECIDABLE_ROOTS = (
-    "orpheus",
-    "tests",
-    "tools",
-    "examples",
-    "numpy",
-    "scipy",
-    "sympy",
-    "pytest",
-    "matplotlib",
-)
+#: ⛔ RETIRED 2026-08-10 — was a hand-curated tuple of "roots decidable by
+#: import" (``orpheus``, ``tests``, ``tools``, ``examples``, ``numpy``,
+#: ``scipy``, ``sympy``, ``pytest``, ``matplotlib``). It was a hardcoded
+#: enumeration standing in for a property that :func:`_root_is_resolvable`
+#: computes in one line — and the list silently omitted **mpmath**, the
+#: dependency the entire Peierls reference family is built on (28 sites), plus
+#: ``functools`` / ``dataclasses`` / ``typing`` and every builtin. `[M]` those
+#: omissions were 86 of the 90 roles this tool had been reporting as
+#: "foreign, therefore nobody's problem".
+#:
+#: The lesson is the generic one: a curated list approximating a decidable
+#: predicate does not announce what it is missing. The predicate does.
+
+
+@functools.lru_cache(maxsize=None)
+def _root_is_resolvable(root: str) -> bool:
+    """True if ``root`` names something the interpreter can produce.
+
+    Two ways: a **builtin** (``ValueError``, ``property``) or an **importable
+    top-level module** (``orpheus``, ``mpmath``, ``functools``). Between them
+    they are the whole decidable universe, so this replaces the curated root
+    list rather than extending it.
+
+    ``find_spec`` locates without importing, so this costs a stat walk per
+    distinct root and never executes third-party module bodies.
+
+    ⚠ It answers only about the ROOT, and an import **alias** is not a root:
+    ``np`` in ``:func:`np.array_equal``` names nothing importable, which is
+    exactly why Sphinx cannot resolve that role either.
+
+    ⛔ But do NOT read that as "so this tool catches it". It does not, and the
+    reason is the honest limit of resolving by import. On an ``.rst`` page the
+    alias makes the target *relative*, and a page has no namespace, so it is
+    DECLINED. In a ``.py`` docstring it is worse: the module very likely did
+    ``import numpy as np``, so ``getattr(module, "np")`` **succeeds** and the
+    target reads ALIVE — correct for this tool's question ("does the name
+    resolve?") and wrong for Sphinx's ("does the role link?"). An alias in a
+    role is a real defect that belongs to the *graph* instrument, which resolves
+    against registered targets and has no node for ``np`` (`[M]` 2026-08-10:
+    766 ``external`` nodes, none of them ``np.*``). Another instance of the
+    standing rule that the two instruments' blind spots are complementary.
+    """
+    if hasattr(builtins, root):
+        return True
+    try:
+        return importlib.util.find_spec(root) is not None
+    except (ImportError, ValueError, ModuleNotFoundError, AttributeError, TypeError):
+        return False
 
 #: Targets that are legitimately unresolvable — keep EMPTY if at all possible,
 #: and always with a comment saying why. An allowlist is where a gate goes to die.
@@ -200,6 +244,17 @@ def resolve(dotted: str) -> tuple[bool, str | None]:
     attribute genuinely is not there.
     """
     parts = dotted.split(".")
+    if hasattr(builtins, parts[0]):
+        # `ValueError`, `dict.get`, `property.setter` — the interpreter carries
+        # these, no module hosts them, and the import loop below would report
+        # every one of them missing.
+        obj: object = getattr(builtins, parts[0])
+        for attribute in parts[1:]:
+            try:
+                obj = getattr(obj, attribute)
+            except AttributeError:
+                return False, "missing"
+        return True, None
     for split in range(len(parts), 0, -1):
         module_name = ".".join(parts[:split])
         try:
@@ -433,14 +488,29 @@ def _attribute_comment_blocks(source: str, namespace_at):
         yield ProseBlock(start, "\n".join(run), namespace_at(start))
 
 
-def candidate_paths(target: str, namespaces: tuple[str, ...]) -> tuple[str, ...]:
+def candidate_paths(
+    target: str, namespaces: tuple[str, ...], role: str | None = None
+) -> tuple[str, ...]:
     """Every absolute path ``target`` could name, innermost namespace first.
 
     An absolute target means itself and nothing else. A relative one means
     whatever the prose's namespaces make of it — and with no namespaces (an
     ``.rst`` page) it means nothing this tool can decide.
+
+    "Absolute" is decided by :func:`_root_is_resolvable`, not by a curated list
+    (see the retirement note on ``DECIDABLE_ROOTS``).
+
+    ⚠ One guard the curated list did not need. A **single-segment** target that
+    resolves *as a module* is almost never a module reference: ``:class:`array```
+    means a local class, and stdlib has an ``array`` module, so treating it as
+    absolute would report ALIVE for a role Sphinx leaves broken. A bare module
+    name is legitimate only under ``:mod:``, so that is the one role allowed to
+    take this path. Builtins are exempt — ``:exc:`ValueError``` is single-segment
+    and genuinely absolute.
     """
-    if target.startswith(DECIDABLE_ROOTS):
+    root = target.split(".")[0]
+    bare_module_guess = "." not in target and role != "mod" and not hasattr(builtins, root)
+    if _root_is_resolvable(root) and not bare_module_guess:
         return (target,)
     return tuple(f"{namespace}.{target}" for namespace in namespaces)
 
@@ -468,7 +538,12 @@ class Judgement:
     problem: str | None = None  # why, when DEAD or UNIMPORTABLE
 
 
-def judge(target: str, namespaces: tuple[str, ...], lookup=None) -> Judgement:
+def judge(
+    target: str,
+    namespaces: tuple[str, ...],
+    lookup=None,
+    role: str | None = None,
+) -> Judgement:
     """Decide ``target``, read in ``namespaces``, or decline to.
 
     Extracted from the scan loop so the gate's teeth are provable in-process:
@@ -480,7 +555,7 @@ def judge(target: str, namespaces: tuple[str, ...], lookup=None) -> Judgement:
     memo across many calls.
     """
     lookup = lookup or resolve
-    candidates = candidate_paths(target, namespaces)
+    candidates = candidate_paths(target, namespaces, role)
     if not candidates:
         return Judgement(Outcome.DECLINED)  # relative, no namespace to read it in
     if any(lookup(candidate)[0] for candidate in candidates):
@@ -493,7 +568,7 @@ def judge(target: str, namespaces: tuple[str, ...], lookup=None) -> Judgement:
     # an external, or prose — not ours to judge. Declining here is what keeps
     # the gate credible; reporting it is how a gate earns the right to be ignored.
     head = target.split(".")[0]
-    if not any(lookup(c)[0] for c in candidate_paths(head, namespaces)):
+    if not any(lookup(c)[0] for c in candidate_paths(head, namespaces, role)):
         return Judgement(Outcome.DECLINED)
     return Judgement(Outcome.DEAD, candidates[0], problems[0] or "missing")
 
@@ -544,7 +619,7 @@ def main() -> int:
                     target = extract_target(raw)
                     if target is None or target in ALLOWLIST:
                         continue
-                    verdict = judge(target, block.namespaces, lookup)
+                    verdict = judge(target, block.namespaces, lookup, role)
                     if verdict.outcome is Outcome.DECLINED:
                         continue
                     if verdict.outcome is Outcome.UNIMPORTABLE:

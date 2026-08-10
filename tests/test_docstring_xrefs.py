@@ -184,14 +184,56 @@ class TestTheInstrumentHasTeeth:
         verdict = judge("Hashable", ("orpheus.numerics.face_layout",))
         assert verdict.outcome is Outcome.ALIVE, verdict
 
-    def test_a_builtin_is_DECLINED_not_reported(self) -> None:
-        """The credibility leg: what the tool must stay silent about.
+    @pytest.mark.parametrize(
+        "target",
+        [
+            "NotImplementedError",  # builtin, single-segment
+            "TypeError",
+            "dict.get",  # builtin, with an attribute walk
+            "mpmath.quad",  # 3rd-party — 28 sites the curated root list missed
+            "functools.lru_cache",  # stdlib
+            "typing.overload",
+        ],
+    )
+    def test_a_builtin_or_foreign_target_is_DECIDED(self, target: str) -> None:
+        """⛔ This leg previously asserted these were DECLINED. That was the bug.
 
-        ``:exc:`NotImplementedError``` appears 40× in this tree. Reporting it
-        would flood the gate on day one, and a flooding gate gets ignored.
+        The old contract declined anything outside a hand-curated root tuple, on
+        the reasoning that reporting builtins "would flood the gate". True of
+        reporting them DEAD — but they are ALIVE, and deciding them correctly
+        floods nothing. `[M]` 2026-08-10 the curated list omitted ``mpmath``
+        (the dependency the whole Peierls reference family rests on),
+        ``functools``, ``dataclasses``, ``typing`` and every builtin: **86 of
+        the 90** roles the tool had been dismissing as foreign.
+
+        The lesson is general enough to be the reason this leg is parametrised
+        rather than merged into one assertion: **a curated list approximating a
+        decidable predicate does not announce what it is missing.**
         """
-        verdict = judge("NotImplementedError", ("orpheus.numerics.eigenvalue",))
+        verdict = judge(target, ("orpheus.numerics.eigenvalue",))
+        assert verdict.outcome is Outcome.ALIVE, verdict
+
+    def test_an_unknown_bare_name_is_DECLINED(self) -> None:
+        """The surviving credibility leg, and the tool's honest limit.
+
+        A bare name that is neither local, nor a builtin, nor an importable
+        module cannot be told apart from "a type the reader is expected to know"
+        — so it is declined rather than reported. This is the same limit that
+        leaves the ``.rst`` relative bucket ungated.
+        """
+        verdict = judge("NoSuchTypeAnywhereInTheTree", ("orpheus.numerics.eigenvalue",))
         assert verdict.outcome is Outcome.DECLINED, verdict
+
+    def test_a_bare_module_name_under_a_class_role_is_DECLINED(self) -> None:
+        """The guard the curated list never needed.
+
+        Computing decidability means stdlib module names become "absolute" — so
+        ``:class:`array``` would resolve as the stdlib ``array`` MODULE and read
+        ALIVE, for a role Sphinx leaves broken. A bare module name is legitimate
+        only under ``:mod:``, so only that role takes the absolute path.
+        """
+        assert judge("array", (), role="class").outcome is Outcome.DECLINED
+        assert judge("array", (), role="mod").outcome is Outcome.ALIVE
 
     def test_a_relative_target_with_no_namespace_is_DECLINED(self) -> None:
         """An ``.rst`` page has no module context, so nothing is decidable.
