@@ -571,7 +571,12 @@ The eigenvalue cross-check (the closed-form :math:`\kinf = \nu\Sigma_f /
 self-scatter folded into :math:`\sigma_r`,
 ``test_removal_form_kinf_independent_reference_2g``) is the *structurally
 independent* reference required by vv criterion 2 for the removal regime; it is
-``xfail`` until the #200 solver entry exists. The blast-radius split is itself
+``xfail`` until the #200 solver entry exists. Since 2026-08-10 (issue #340,
+step R5) that deferral is a **declarative** ``@pytest.mark.xfail(strict=True)``
+over a capability probe rather than an imperative ``pytest.xfail()`` call: the
+strict marker turns the day #200's solver entry appears into an ``XPASS``, i.e.
+a FAILURE, so the stub cannot outlive its blocker unnoticed. The blast-radius
+split is itself
 the structural-independence evidence that the apply re-baseline is principled:
 APPLY-path snapshots (the cyl/2-D matvec golden) re-associate by :math:`\le 5`
 ULP, but SWEEP/SOLVE snapshots (slab/sphere) stay **bit-identical** — they ride

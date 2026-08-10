@@ -51,15 +51,55 @@ def axes():
 
 
 def fissile(c=0.5, sig_t=(0.8, 1.6)):
-    """A 2-group fissile mixture with real down-scatter coupling."""
+    r"""A 2-group fissile mixture with real down-scatter coupling.
+
+    ⛔ **CORRECTED 2026-08-10 — this function shipped with the scattering
+    matrix TRANSPOSED, and the probe's own headline number came from a
+    hand-corrected variant that was never written back here.**  The bug and
+    all three of its symptoms, measured:
+
+    ``make_mixture`` reads ``sig_s[g_from, g_to]``; the original wrote
+    ``[g_to, g_from]`` (its own comment said ``s[1,0] = 0 -> 1 downscatter``,
+    which is the transposed reading) and removed out-scatter with
+    ``s.sum(axis=0)`` — the correct row sum for THAT convention, so the two
+    errors were self-consistent and neither showed up as an exception:
+
+    * ``sigma_t = [0.8, 1.6]`` against ``sigma_c + sigma_f + outscatter =
+      [0.68, 1.32]`` — **inconsistent by [+0.12, -0.52]**.  An inconsistent
+      total makes the two zero-leakage expressions for :math:`k` *different
+      numbers*, which is why the probe read ``0.2999999999999999`` while the
+      0-D reference read ``0.2307692307692307``.  Neither solver was wrong.
+    * ``SigS[0, 1] = 0.0`` — group 0 never feeds group 1, so ``phi_1 = 0``
+      identically and the "2-group" fixture was **1-group in disguise**
+      (`vv-principles` anti-pattern #3: a 1-group eigenvalue proves nothing
+      about transport, because :math:`k = \nu\Sigma_f/\Sigma_a` is
+      flux-shape independent).
+    * ``fissile(c=0.9)`` gave ``sigma_c = -0.14`` — a negative capture
+      cross-section, admitted silently.
+
+    The repaired fixture DOES show the pole this probe exists to
+    demonstrate: `[M]` ``keff = 0.43846153845055`` against
+    ``solve_homogeneous_infinite(mix).k_inf = 0.43846153846154``, i.e.
+    :math:`|\Delta k| = 1.1\times10^{-11}`, with 4 of 4 inners TRUNCATED
+    200/200 at :math:`\rho \approx 0.985` — a truncation that is genuinely
+    **benign for keff**.
+
+    ⭐ The lesson is not "transposes are easy to get wrong".  It is that a
+    mixture whose channels do not sum to its total is an ILLEGAL state that
+    every consumer reads differently, and nothing refused it.  A three-line
+    consistency check belongs in the test suite.
+    """
     sig_t = np.asarray(sig_t, dtype=float)
-    s = np.zeros((2, 2))
+    s = np.zeros((2, 2))                  # [g_from, g_to] — the library's order
     s[0, 0] = c * sig_t[0] * 0.7
-    s[1, 0] = c * sig_t[0] * 0.3          # 0 -> 1 downscatter
+    s[0, 1] = c * sig_t[0] * 0.3          # 0 -> 1 DOWNSCATTER: row = source group
     s[1, 1] = c * sig_t[1]
     sig_f = np.array([0.05, 0.30])
+    sig_c = sig_t - s.sum(axis=1) - sig_f  # row sum = total out-scatter from g
+    if not (sig_c > 0.0).all():
+        raise ValueError(f"unphysical mixture: sigma_c = {sig_c}")
     return make_mixture(
-        sig_t=sig_t, sig_c=sig_t - s.sum(axis=0) - sig_f,
+        sig_t=sig_t, sig_c=sig_c,
         sig_f=sig_f, nu=np.array([2.4, 2.4]),
         chi=np.array([1.0, 0.0]), sig_s=s,
     )

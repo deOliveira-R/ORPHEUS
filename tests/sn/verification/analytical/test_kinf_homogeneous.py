@@ -28,6 +28,51 @@ Catches: any sign-flip / variable-swap / convention-drift bug that
 disturbs ``A^{-1}F`` assembly or its dominant eigenvector — including
 the eigenvector-flip class invisible to a 1G k_inf test (which is
 flux-shape independent per the 1-group-degeneracy rule).
+
+History — the retired ``sphere-4eg-krylov`` exclusion (both tests)
+------------------------------------------------------------------
+From 2026-05-19 (R-1 Step D) until 2026-08-10, both tests in this module
+imperatively xfailed the ``sphere × 4eg × krylov`` combination, on the
+grounds that unpreconditioned GMRES on the sphere pole "exceeds the
+``max_inner=300`` budget without converging" and that issue #200 (the
+block-inverse face preconditioner) would re-enable it.
+
+That exclusion was **retired as healed**, and #200 was not what healed it.
+#200 is still open — :func:`orpheus.sn.solver._within_group_krylov` still
+runs GMRES with an explicit identity preconditioner. What cured the stall is
+the GMRES ``restart``-sizing lineage, in two steps, neither of them #200:
+
+* **ERR-053** (caught 2026-05-28) removed the ``restart=min(50, full_size)``
+  clamp, which structurally truncated the Krylov subspace on any mesh with
+  more than 50 unknowns.
+* **#282 / #280 route (a)** (2026-07-04) sized ``restart`` from the FULL
+  augmented ravel (bulk ⊕ trace ⊕ ψ½-seed) rather than the bulk alone; its
+  own gate, ``test_krylov_restart_covers_augmented_composite``, records that
+  the bulk-only count left "the poorly-conditioned curvilinear-eigenvalue
+  inner" stalling and returning a WRONG keff on the sphere — this symptom,
+  named.
+
+Which of the two was decisive here is not discriminated (that would need a
+production revert); the attributable fact is that the cure lives in the
+restart sizing and not in the preconditioner the exclusion waited for.
+Measured 2026-08-10 with the imperative xfail neutralised: both rows pass,
+``keff`` agreeing with the closed-form reference at ``rel = 3.6e-15``, and
+with no :class:`~orpheus.numerics.convergence.ConvergenceWarning` emitted
+(instrument confirmed live by a deliberately-truncated SI control, which
+both warns and moves ``keff`` by ``1.1e-2``).
+
+Note also that ``max_inner`` is *not* an iteration count on the krylov
+path: it becomes scipy's ``maxiter``, which counts restart CYCLES, and
+``restart == n_dof`` — so one cycle spans the full Krylov space and no
+value of ``max_inner >= 1`` can truncate this fixture (measured: the same
+solve at ``max_inner=2`` returns the ``max_inner=1000`` answer). The
+budget named in the retired reason string was never the live knob.
+
+Nine days separated the cure from the exclusion, and nobody found out for
+eleven weeks — because ``pytest.xfail()`` called imperatively reports
+``xfail`` unconditionally and can never report ``XPASS``. Use
+``@pytest.mark.xfail(strict=True)`` for any future exclusion here, so the
+marker retires itself the day the defect does (issue #340, step R5).
 """
 from __future__ import annotations
 
@@ -124,8 +169,16 @@ _TIGHT_KW = dict(
     # under-converged result, and the outer iteration accumulates ~2.4e-7
     # drift in keff.  With max_inner=1000 every (coord, ng, inner_solver)
     # variant reaches FP-precision; the rtol=1e-10 keff and rtol=1e-9
-    # spectrum gates hold for all 28 cases.  Issue #200 (block-inverse
+    # spectrum gates hold for all 30 cases (was 28 until 2026-08-10, when
+    # the two sphere-4eg-krylov exclusions were retired as healed — see the
+    # module docstring's "History" section).  Issue #200 (block-inverse
     # preconditioner) will eventually let us reduce this back to 300.
+    #
+    # NOTE (2026-08-10) on the krylov path specifically: ``max_inner``
+    # becomes scipy's ``maxiter``, which counts restart CYCLES, and
+    # ``restart == n_dof`` (ERR-053), so one cycle already spans the full
+    # Krylov space and this budget cannot truncate a krylov inner solve on
+    # these fixtures.  The 300-vs-1000 story above is the SI path's.
     max_inner=1000, inner_tol=1e-12,
 )
 
@@ -144,30 +197,11 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
     symmetric-closure path and provides structural independence — the
     two paths must reach the SAME k_inf to better than ``rtol=1e-10``.
     """
-    # R-1 Step D (2026-05-19) — the carved ``_solve_krylov`` runs GMRES
-    # UNPRECONDITIONED on curvilinear meshes (sphere / cylinder) per
-    # the user's R-1 direction "no preconditioner; consolidating the
-    # foundational architecture first".  The default sweep-as-
-    # preconditioner cannot be used because GMRES feeds residual
-    # vectors that have no ``rhs(1)`` history, so the curvilinear
-    # Carlson coupled-pole seed (Hébert §3.9.4) falls back to the
-    # in-iteration-source default — not the algebraic inverse of
-    # ``(L+C).apply``.  Unpreconditioned GMRES converges on
-    # ``sphere-1g/-2g`` and ``cylinder-1g/-2g/-4g`` within the
-    # ``max_inner=300`` budget, but ``sphere-4g`` is too ill-
-    # conditioned (the 4-group cross-section coupling on the sphere
-    # pole inflates the spectral radius beyond what 300 GMRES iters
-    # can resolve).  Tracked by issue #200 — the block-inverse face
-    # preconditioner will re-enable this case once it lands.
-    if coord == "sphere" and ng_key == "4eg" and inner_solver == "krylov":
-        pytest.xfail(
-            "R-1 — unpreconditioned GMRES on sphere-4g exceeds the "
-            "max_inner=300 budget without converging.  Issue #200 "
-            "tracks the block-inverse face preconditioner that "
-            "re-enables Krylov on curvilinear multi-group at high "
-            "scattering ratio."
-        )
-
+    # GMRES runs UNPRECONDITIONED on every mesh here (explicit identity —
+    # issue #200 tracks the block-inverse face preconditioner).  EVERY
+    # combination is gated, ``sphere-4eg-krylov`` included: see the module
+    # docstring's "History" section for the exclusion that used to sit on
+    # this line and why it was retired as healed.
     case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))
 
@@ -222,16 +256,8 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str, inner_solver: str) -
     spectrum is solved at TIGHT tolerances so the SI inner-residual
     amplification does not bias the dominant eigenvector recovery.
     """
-    # R-1 Step D — see ``test_kinf_homogeneous`` for the structural
-    # rationale.  Sphere-4g unpreconditioned GMRES does not converge
-    # within ``max_inner=300``.  Issue #200 tracks the fix.
-    if coord == "sphere" and ng_key == "4eg" and inner_solver == "krylov":
-        pytest.xfail(
-            "R-1 — unpreconditioned GMRES on sphere-4g exceeds the "
-            "max_inner=300 budget without converging.  Issue #200 "
-            "tracks the block-inverse face preconditioner."
-        )
-
+    # ``sphere-4eg-krylov`` is gated here too — see the module docstring's
+    # "History" section for the retired exclusion.
     case = _get_continuous_case(ng_key)
     ng = case.problem.n_groups
     mat_id = next(iter(case.problem.materials.keys()))

@@ -224,13 +224,26 @@ def test_c5b_driver_reattach_recovers_kinf(coord: str, inner_solver: str) -> Non
     the driver).  Verified against the STRUCTURALLY-INDEPENDENT closed-form
     ``k_inf = nu*Sigma_f / Sigma_a`` (the eigenvalue ground — MMS does not
     prove eigenvalues), NOT an old-vs-new ULP proximity.
+
+    History — the retired ``sphere-krylov`` exclusion.  Until 2026-08-10 this
+    row imperatively xfailed ``sphere × krylov`` as "ill-conditioned at high
+    scattering ratio (issue #200 — same exclusion as test_kinf_homogeneous)".
+    It was NOT the same exclusion: that module excluded only
+    ``sphere-4eg-krylov``, while this row is fixed at **2eg** and its condition
+    named no group count at all, so it excluded a combination its own cited
+    authority never did — ``test_kinf_homogeneous[sphere-2eg-krylov]`` has
+    passed throughout.  Retired as healed: measured with the imperative xfail
+    neutralised, the row passes with ``rel = 1.184e-14`` against the
+    closed-form reference (gate: ``rtol=1e-10``) and emits no
+    :class:`~orpheus.numerics.convergence.ConvergenceWarning`.  The underlying
+    sphere Krylov stall was cured by the GMRES ``restart``-sizing lineage
+    (ERR-053, then #282 / #280 route (a)), not by #200, which is still open;
+    the "History" section of
+    ``tests/sn/verification/analytical/test_kinf_homogeneous.py`` carries the
+    full account.  Any future exclusion here uses
+    ``@pytest.mark.xfail(strict=True)`` so it retires itself — the imperative
+    form can never report ``XPASS`` (issue #340, R5).
     """
-    if coord == "sphere" and inner_solver == "krylov":
-        pytest.xfail(
-            "unpreconditioned GMRES on the sphere pole is ill-conditioned at "
-            "high scattering ratio (issue #200 — same exclusion as "
-            "test_kinf_homogeneous)."
-        )
     case = _get_continuous_case("2eg")
     mat_id = next(iter(case.problem.materials.keys()))
     mesh = _homogeneous_mesh(coord, mat_id)

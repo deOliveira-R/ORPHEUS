@@ -460,6 +460,53 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     )
 
 
+#: Spellings that would identify a removal-form / σ_r-fold solver entry.
+#: #200's own body names the capability "the σ_r foldable preconditioner
+#: (Adams & Larsen 2002 §III)" / "fold within-group self-scatter into the
+#: diagonal collision term", so one of these two words is expected in
+#: whatever spelling lands.
+_REMOVAL_FORM_SPELLINGS = ("removal", "fold")
+
+
+def _removal_form_solver_entry() -> str | None:
+    """The #200 removal-form SOLVER entry, or ``None`` while it is absent.
+
+    A concept-level capability probe, NOT a guessed symbol name: any public
+    :mod:`orpheus.sn.solver` ``solve_*`` name, or any :func:`solve_sn`
+    parameter, whose spelling contains a word from
+    :data:`_REMOVAL_FORM_SPELLINGS`.  The σ_r machinery already exists at the
+    OPERATOR tier (:meth:`ScatteringOperator.foldable_part`,
+    :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.foldable_sigma`);
+    what #200 owes is a solver entry that consumes it, which is what the
+    eigenvalue claim below needs in order to be posable at all.
+
+    .. warning::
+
+       If #200 lands under a spelling containing neither ``removal`` nor
+       ``fold``, this probe will not see it and the ``strict=True`` xfail below
+       will not flip.  Grep this module when closing #200.
+    """
+    import inspect
+
+    from orpheus.sn import solver as sn_solver
+
+    candidates = [n for n in dir(sn_solver) if n.startswith("solve")]
+    candidates += list(inspect.signature(sn_solver.solve_sn).parameters)
+    for name in candidates:
+        if any(word in name.lower() for word in _REMOVAL_FORM_SPELLINGS):
+            return name
+    return None
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "removal-form k_inf recovery needs the #200 solver entry (fold "
+        "within-group self-scatter into the diagonal). The Step-B operator "
+        "round-trip + M(σ_r) value gate are the landable grounds; this "
+        "eigenvalue cross-check lands with #200."
+    ),
+)
 def test_removal_form_kinf_independent_reference_2g():
     r"""[L1] Structurally-independent eigenvalue ground for the removal-form sweep.
 
@@ -474,18 +521,35 @@ def test_removal_form_kinf_independent_reference_2g():
 
     STUB: requires a fissile 2G mixture whose within-group self-scatter is
     folded into σ_r and whose remaining (down/up)-scatter feeds S. This wires
-    through ``solve_sn`` with the removal-form inner operator. Marked xfail
-    until the removal-form solver entry exists (issue #200 — "fold within-group
-    self-scatter into the diagonal collision term"); the OPERATOR-level
-    round-trip (above) is the landable Step-B ground, the SOLVER-level k_inf
-    is the #200 follow-on. Pillar: closed-form.
+    through ``solve_sn`` with the removal-form inner operator, which does not
+    exist yet (issue #200 — "fold within-group self-scatter into the diagonal
+    collision term"); the OPERATOR-level round-trip (above) is the landable
+    Step-B ground, the SOLVER-level k_inf is the #200 follow-on. Pillar:
+    closed-form.
+
+    The marker is DECLARATIVE ``xfail(strict=True)``, deliberately not the
+    imperative ``pytest.xfail(...)`` this row carried until 2026-08-10 (issue
+    #340, step R5). The imperative call aborts the body and reports ``xfail``
+    unconditionally, so it can NEVER report ``XPASS`` — a deferral that no
+    event can retire. Under the strict marker the body carries exactly ONE
+    statement that can fail, and it is the documented reason (the solver entry
+    is absent); the day the entry lands the body falls through, the row turns
+    ``XPASS(strict)`` → FAILED, and the failure IS the instruction to write the
+    real k_inf cross-check here and delete this marker.
     """
-    pytest.xfail(
-        "removal-form k_inf recovery needs the #200 solver entry (fold "
-        "within-group self-scatter into the diagonal). The Step-B operator "
-        "round-trip + M(σ_r) value gate are the landable grounds; this "
-        "eigenvalue cross-check lands with #200."
-    )
+    entry = _removal_form_solver_entry()
+    if entry is None:
+        pytest.fail(
+            "no removal-form solver entry exists yet (#200): no public "
+            "`orpheus.sn.solver.solve_*` name and no `solve_sn` parameter "
+            "selects the σ_r-folded within-group form, so the SOLVER-level "
+            "closed-form k_inf cross-check cannot be posed. This is the "
+            "documented reason for the strict xfail on this row."
+        )
+    # The entry EXISTS — fall through and pass, so `strict=True` converts this
+    # row into a FAILURE that forces the stub to be written for real.  This
+    # fall-through is the whole point of the declarative marker; do not add an
+    # assertion here, add the k_inf cross-check the docstring specifies.
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -83,10 +83,11 @@ cross-reference:
      The curvilinear MMS family is **1-group only** — an honest gap;
      the multigroup chain rides eigenvalue and analytical gates.
    * The group count *does* interact with iteration **behavior** (not
-     with the walk): the sphere-4G unpreconditioned-GMRES budget
-     (`#200 <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_)
-     and the inner-tolerance amplification
-     :math:`\rho/(1-\rho)` into :math:`\kinf`.
+     with the walk): the inner-tolerance amplification
+     :math:`\rho/(1-\rho)` into :math:`\kinf`.  (The sphere-4G
+     unpreconditioned-GMRES budget was the second such interaction until
+     2026-08-10, when it was retired as healed — see the Gotcha admonition
+     below; every cell of the grid is now gated.)
 
 
 The posing: energy on the curvilinear invariant
@@ -317,22 +318,37 @@ curvilinear problem with no new code path.
    not the walk
    :class: warning
 
-   Two real multigroup :math:`\times` curvilinear interactions exist,
-   and both live in the *iteration*, not the discretization:
+   One real multigroup :math:`\times` curvilinear interaction remains, and
+   it lives in the *iteration*, not the discretization.  A second was
+   retired as healed on 2026-08-10; it is kept below because the *reason*
+   it survived eleven weeks past its own cure is the transferable lesson.
 
-   * **Sphere-4G Krylov budget** (`#200
-     <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_): the
-     4-group homogeneous sphere exceeds the unpreconditioned GMRES
-     iteration budget in the :math:`\kinf` recovery matrix — the
-     xfail'd cell of the coordinates × groups × drivers grid
-     (:file:`tests/sn/verification/analytical/test_kinf_homogeneous.py`).
-     More groups means a larger, worse-conditioned monolithic state;
-     the cure is the sweep preconditioner, not a group loop.
    * **Inner-tolerance amplification**: the SI stopping residual
      propagates into :math:`\kinf` amplified by
      :math:`\rho/(1-\rho)` with :math:`\rho` the scattering-iteration
      dominance ratio — documented at the head of the same test file.
      Multigroup data moves :math:`\rho`; the walk is untouched.
+   * **Sphere-4G Krylov budget** (`#200
+     <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_) — **no longer
+     a live limitation, retired 2026-08-10.** From 2026-05-19 the 4-group
+     homogeneous sphere was the xfail'd cell of the coordinates × groups ×
+     drivers grid in
+     :file:`tests/sn/verification/analytical/test_kinf_homogeneous.py`, on
+     the grounds that it exceeded the unpreconditioned GMRES iteration
+     budget.  The cell now passes and is gated like every other, agreeing
+     with the closed-form reference at :math:`\mathrm{rel} = 3.6\times
+     10^{-15}`.  The cure was **not** the preconditioner: #200 is still
+     open and ``_within_group_krylov`` still ships an explicit identity.
+     What healed it is the GMRES ``restart``-sizing lineage — ERR-053
+     (2026-05-28) removing the ``restart=min(50, full_size)`` clamp, then
+     #282 / #280 route (a) (2026-07-04) sizing ``restart`` from the full
+     augmented ravel.  The stated budget was never even the live knob on
+     this path: ``max_inner`` becomes scipy's ``maxiter``, which counts
+     restart CYCLES, and one cycle spans the whole Krylov space when
+     ``restart == n_dof``.  See that test module's "History" section; the
+     lesson the eleven-week delay bought is recorded under issue #340 —
+     an imperative ``pytest.xfail()`` can never report ``XPASS``, so the
+     exclusion could not retire itself.
 
 
 Verification

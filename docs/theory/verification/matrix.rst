@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9491**
+Total tests collected: **9492**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1617, 17.0%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6496, 68.4%
+   foundation, 6497, 68.4%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9407
+   explicit, 9408
    class-name, 46
    func-name, 0
    case, 33
@@ -334,7 +334,7 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 3, 0, 0, 24, 0
+   numerics/test_iteration, 0, 3, 0, 0, 25, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 76, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
@@ -1459,7 +1459,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-050``, 10
    ``ERR-051``, 1
    ``ERR-052``, 2
-   ``ERR-053``, 13
+   ``ERR-053``, 14
    ``ERR-054``, 1
    ``ERR-055``, 2
    ``ERR-056``, 7

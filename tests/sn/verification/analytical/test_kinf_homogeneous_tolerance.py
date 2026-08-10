@@ -43,6 +43,33 @@ changed.  Either (a) the convergence-criterion semantics flipped
 changed enough to make the amplification factor different; or
 (c) ``inner_solver="krylov"`` no longer routes through the
 symmetric-closure L operator.  Investigate before adjusting bounds.
+
+History — the retired ``sphere-4eg`` exclusion
+----------------------------------------------
+From 2026-05-19 (R-1 Step D) until 2026-08-10,
+``test_krylov_inner_matches_tight_si`` imperatively xfailed the
+``sphere × 4eg`` row on the grounds that unpreconditioned GMRES "exceeds
+the ``max_inner=100`` budget without converging", pending issue #200 (the
+block-inverse face preconditioner).
+
+Retired as healed 2026-08-10, and #200 was not what healed it — #200 is
+still open and GMRES here still runs with an explicit identity
+preconditioner.  The cure lives in the GMRES ``restart``-sizing lineage:
+**ERR-053** (2026-05-28) removed the ``restart=min(50, full_size)`` clamp,
+and **#282 / #280 route (a)** (2026-07-04) sized ``restart`` from the full
+augmented ravel instead of the bulk alone.  See the "History" section of
+``test_kinf_homogeneous.py`` for the full account.  Measured with the
+imperative xfail neutralised, at
+this test's OWN budget (``max_inner=100``, ``inner_tol=1e-9`` — the exact
+configuration the retired reason string named): the row passes with
+``rel = 4.462e-13`` against the closed-form reference, four orders inside
+its own ``1e-8`` bound, and with no
+:class:`~orpheus.numerics.convergence.ConvergenceWarning`.
+
+The exclusion outlived its cause by eleven weeks because
+``pytest.xfail()`` called imperatively reports ``xfail`` unconditionally and
+can never report ``XPASS``.  Any future exclusion here uses
+``@pytest.mark.xfail(strict=True)``, which retires itself (issue #340, R5).
 """
 from __future__ import annotations
 
@@ -136,17 +163,8 @@ def test_krylov_inner_matches_tight_si(coord, ng_key):
     Krylov route through structurally different operators (a closure
     drift). At the time of writing, agreement is to ~1e-9 absolute.
     """
-    # R-1 Step D — see ``test_kinf_homogeneous`` for the rationale.
-    # Sphere-4g unpreconditioned GMRES does not converge within the
-    # max_inner=100 budget at default tolerances.  Issue #200 tracks
-    # the block-inverse face preconditioner.
-    if coord == "sphere" and ng_key == "4eg":
-        pytest.xfail(
-            "R-1 — unpreconditioned GMRES on sphere-4g exceeds the "
-            "max_inner=100 budget without converging.  Issue #200 "
-            "tracks the block-inverse face preconditioner."
-        )
-
+    # ``sphere-4eg`` is gated here too — see the module docstring's
+    # "History" section for the retired exclusion.
     case = _BUILDERS[ng_key]()
     mat_id = next(iter(case.problem.materials.keys()))
     mesh = _mesh(coord, mat_id)
