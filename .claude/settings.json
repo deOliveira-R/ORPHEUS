@@ -177,6 +177,11 @@
           },
           {
             "type": "command",
+            "command": "bash .claude/hooks/nexus-dead-refs.sh",
+            "timeout": 60
+          },
+          {
+            "type": "command",
             "command": "cat .claude/hooks/session-start.txt"
           }
         ]
