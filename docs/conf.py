@@ -95,7 +95,15 @@ nexus_extra_source_dirs = ['tests']
 # both the orpheus.* class and the tutorial duplicate to every
 # api/*.rst page, inflating the graph and triggering false staleness
 # flags whenever a tutorial file is touched.
-nexus_source_exclude_patterns = ['student_resources/*']
+#
+# scratch/ is the prototyping bench: throwaway probes and archived
+# diagnostics that are kept for the record but are not the codebase.
+# Several still import module paths retired long ago
+# (orpheus.derivations.peierls_geometry), which minted 850 scratch.*
+# nodes and a family of placeholder targets that bare :func:` ` roles
+# on theory pages then suffix-matched onto — reporting live symbols as
+# dead references. Prototypes should not define the graph's namespace.
+nexus_source_exclude_patterns = ['student_resources/*', 'scratch/*']
 
 # -- Options for autodoc -----------------------------------------------
 
