@@ -135,7 +135,7 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   — a 10³-10⁴× improvement over rank-1 Mark at L ≲ 1 MFP. The
   tensor form
   :math:`K_{\rm bc} = G \cdot R \cdot P` reproduces the legacy
-  :mod:`peierls_slab` :math:`E_2` / :math:`E_3` bilinear form
+  :mod:`~orpheus.derivations.continuous.peierls_nystrom.slab` :math:`E_2` / :math:`E_3` bilinear form
   bit-exactly (rtol 1e-13) — see
   ``tests/derivations/test_peierls_rank2_bc.py``. Solid cyl/sph
   with ``reflection="white"`` collapse to the rank-1 Mark form
@@ -760,8 +760,8 @@ slab branch against the Wigner–Seitz-exact
 
 .. _theory-peierls-slab-polar-retirement:
 
-Subsection — Retention of :mod:`peierls_slab` (the native E₁ Nyström)
-----------------------------------------------------------------------
+Subsection — Retention of ``peierls_nystrom.slab`` (the native E₁ Nyström)
+--------------------------------------------------------------------------
 
 The legacy module
 :mod:`orpheus.derivations.continuous.peierls_nystrom.slab` is **retained indefinitely**,
@@ -1099,7 +1099,7 @@ Phase B (lift ``_basis_kernel_weights`` into the unified slab
 branch, delete ``_build_kernel_matrix`` / ``_build_system_matrices``,
 deprecate ``solve_peierls_eigenvalue``) becomes safe to execute.
 
-Until then, modifications to :mod:`peierls_slab` should preserve
+Until then, modifications to :mod:`~orpheus.derivations.continuous.peierls_nystrom.slab` should preserve
 its bit-exact parity with the unified path on the shipped fixtures.
 
 
@@ -1701,7 +1701,7 @@ comes from the small-:math:`z` asymptote
    \qquad z \to 0^{+},
 
 (A&S 5.1.11, :cite:`AbramowitzStegun1964`), which is the log singularity
-handled in :mod:`peierls_slab` by the singularity-subtraction /
+handled in :mod:`~orpheus.derivations.continuous.peierls_nystrom.slab` by the singularity-subtraction /
 product-integration recipe :cite:`Atkinson1997`.
 
 Cylinder geometry — the :math:`\mathrm{Ki}_1` kernel
@@ -1974,7 +1974,7 @@ For :math:`d=1` the :math:`\rho^{d-1} = \rho^{0} = 1` volume factor
 does *not* cancel a denominator because :math:`E_1(\tau)` has no
 :math:`1/\rho` factor — the slab point kernel is already 1-D native.
 The :math:`-\ln\tau` singularity of :math:`E_1` therefore remains,
-and :mod:`peierls_slab` addresses it via product-integration
+and :mod:`~orpheus.derivations.continuous.peierls_nystrom.slab` addresses it via product-integration
 weights on the diagonal panel.
 
 .. note::
@@ -2445,7 +2445,7 @@ particular API shape.
 .. note::
 
    The current code does *not* implement this Protocol. Both
-   :mod:`peierls_slab` and :mod:`peierls_cylinder` inline the
+   :mod:`~orpheus.derivations.continuous.peierls_nystrom.slab` and :mod:`~orpheus.derivations.continuous.peierls_nystrom.cylinder` inline the
    geometry-specific pieces. The refactor is a known improvement
    goal, tracked as a follow-up; the important point from this
    section is that the Protocol *exists conceptually* — the
@@ -6846,9 +6846,10 @@ transform is a *constructor* of that contract — :func:`gauss_legendre`,
 ``q.integrate(f)`` (callable broadcast at the nodes) or
 ``q.integrate_array(values)`` (precomputed values), composing
 panels via the ``q1 | q2`` operator. Three geometry-aware recipes
-(:func:`chord_quadrature`, :func:`observer_angular_quadrature`,
-:func:`surface_centred_angular_quadrature` in
-:mod:`._quadrature_recipes`) compose these primitives into the
+(:func:`~orpheus.derivations.common.quadrature_recipes.chord_quadrature`,
+:func:`~orpheus.derivations.common.quadrature_recipes.observer_angular_quadrature`,
+:func:`~orpheus.derivations.common.quadrature_recipes.surface_centred_angular_quadrature` in
+:mod:`orpheus.derivations.common.quadrature_recipes`) compose these primitives into the
 recurring ORPHEUS chord-and-angular patterns. The contract details
 and design rationale are documented in the
 :class:`~orpheus.derivations.common.quadrature.Quadrature1D` docstring.
@@ -8511,7 +8512,7 @@ re-derivation.
    :func:`orpheus.derivations.common.kernels.e_n_mp`,
    :func:`orpheus.derivations.common.kernels.ki_n_mp` — canonical
    arbitrary-precision mpmath evaluators for :math:`E_n` and
-   :math:`\mathrm{Ki}_n`. The former :class:`BickleyTables`
+   :math:`\mathrm{Ki}_n`. The former ``BickleyTables``
    tabulation is retired (Issue #94) — double-precision
    :math:`\mathrm{Ki}_3` goes through
    :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`.

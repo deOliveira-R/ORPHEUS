@@ -985,7 +985,8 @@ exact value the matvec passes into the BC trace law:
    C4 / #220, see :ref:`bc-face-name-carve`) to capture every input
    array passed to it during one matvec call.
 #. Independently reconstruct the WDD-propagated outflow trace via
-   a reference implementation (:func:`_outflow_at_boundary_for_sphere`).
+   a reference implementation
+   (:func:`tests.sn.sweep.core.test_phase_c_gates._outflow_at_boundary_for_sphere_from_bulk`).
 #. Assert the captured BC apply input matches the reference to
    ``rtol=1e-14`` — exactly bit-equal up to FP non-associativity.
 
@@ -1753,7 +1754,7 @@ Files touched by Phase F
   Carlson seed call (uses ``bc_outer_obj.apply(bc_outer)`` to
   derive ``bc_outer_value`` at the most-inward ordinate, mirror
   of the apply-path's Phase D logic);
-  :func:`_sweep_1d_cylindrical` lines ≈ 678–714: per-level
+  ``_sweep_1d_cylindrical`` lines ≈ 678–714: per-level
   Carlson seed inside the :math:`\mu`-level loop, replaces
   the inline level-zero init.
 

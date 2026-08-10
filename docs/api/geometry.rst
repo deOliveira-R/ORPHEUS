@@ -160,7 +160,9 @@ exported from :mod:`orpheus.geometry` for convenience:
    )
 
 Three convenience class-level instances are pre-defined:
-:obj:`BC.vacuum`, :obj:`BC.reflective`, and :obj:`BC.white`.
+:obj:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>`,
+:obj:`BC.reflective <orpheus.geometry.mesh.BC.reflective>`, and
+:obj:`BC.white <orpheus.geometry.mesh.BC.white>`.
 These are ordinary ``BC`` instances, not subclasses — they exist
 solely to avoid spelling out ``BC("vacuum")`` at every call site.
 

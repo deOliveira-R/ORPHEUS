@@ -173,13 +173,15 @@ mesh) is shared with :ref:`theory-collision-probability` and
 2. **Augmented geometry** --- :class:`SNMesh` pairs the spatial mesh
    with an angular :term:`quadrature`, precomputing the coordinate-specific
    streaming stencil.  Its **primary representation is the per-axis
-   tuple** :attr:`SNMesh.axes` (the SN phase space factors as a tensor
+   tuple** :attr:`SNMesh.axes <orpheus.sn.mesh.augmented_mesh.SNMesh.axes>` (the SN phase space factors as a tensor
    product of per-axis 1-D meshes): a legacy ``Mesh1D`` / ``Mesh2D`` is
    converted to axes **once** at the inbound boundary, and
    :meth:`SNMesh.from_axes` stores the caller's tuple verbatim. After
-   C5 (:ref:`sn-axis-primary-c5`) :attr:`SNMesh.mesh` is *inbound
+   C5 (:ref:`sn-axis-primary-c5`) the ``mesh`` attribute is *inbound
    provenance only* — ``None`` for an axis-native :math:`d \ge 3` mesh,
-   which carries no legacy mesh at all.  It also **resolves boundary
+   which carries no legacy mesh at all.  (A literal, not an ``:attr:``
+   role: the base ``MaterialMesh`` sets it on the instance, so there is
+   no autodoc target to link.)  It also **resolves boundary
    conditions**: each ``BC`` tag
    on the mesh is looked up in :attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` and converted
    to a validated kind string (``"vacuum"`` or ``"reflective"``)
@@ -690,13 +692,20 @@ M-M angular closure remains active.
   :math:`\psi_{\rm out} = 2\overline{\psi} - \psi_{\rm in}` produces
   negative outgoing flux from positive inputs.
 
-Wave C-extension and Wave D will ship
-:class:`Step` (positivity-preserving, :math:`\mathcal{O}(\Delta x)`),
-:class:`LinearDiscontinuous` (:math:`\mathcal{O}(\Delta x^2)`,
-better robustness in optically-thick cells), and
-:class:`ExponentialCharacteristic` (positivity-preserving by
-construction) as alternatives, each with its own MMS spatial-
-convergence verification.
+Of the three planned alternatives, one has landed:
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`
+(:math:`\mathcal{O}(\Delta x^2)`, better robustness in optically-thick
+cells) ships today under the registry key ``"linear_discontinuous"``,
+with its own MMS spatial-convergence gates
+(``tests/sn/verification/mms/test_mms_ld_slab.py`` and
+``test_mms_ld_2d.py``); see :ref:`ld-ubld-multidim` for the derivation
+and the multi-dimensional wiring.  The other two are still **reserved,
+not yet implemented**, and are therefore written as literals rather than
+``:class:`` roles — a live role would assert a class that does not
+exist: ``Step`` (positivity-preserving,
+:math:`\mathcal{O}(\Delta x)`) and ``ExponentialCharacteristic``
+(positivity-preserving by construction).  Each lands with its own MMS
+spatial-convergence verification.
 
 References
 ----------
@@ -843,12 +852,15 @@ unified sweep dispatches via ``scheme.update(...)``.  See
 :class:`~orpheus.transport.spatial.diamond.DiamondDifference` for the
 DD scalar form.
 
-Wave C-extension will ship :class:`Step`, :class:`LinearDiscontinuous`,
-and :class:`ExponentialCharacteristic` as positivity-preserving /
-higher-order alternatives; the unified dispatch infrastructure is
-in place to receive them — users will pass
-``scheme=LinearDiscontinuous()`` etc. at
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` construction.
+:class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`
+has since landed on exactly this dispatch: a user selects it today by
+passing ``scheme=LinearDiscontinuous()`` at
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` construction
+(``augmented_mesh.py`` records the same recipe at the ``self.scheme``
+default).  ``Step`` and ``ExponentialCharacteristic`` remain
+**reserved, not yet implemented** — literals rather than ``:class:``
+roles for that reason — and the unified dispatch infrastructure is in
+place to receive them.
 
 The 1-D cumprod fast path (DD-only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

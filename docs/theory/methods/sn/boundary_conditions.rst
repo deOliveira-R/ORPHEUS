@@ -23,9 +23,9 @@ mechanics (how to enforce it in the :term:`sweep`).
   (e.g. ``{"albedo": 0.7}``).
 
 Convenience instances are available for the common cases:
-:attr:`BC.vacuum <geometry.mesh.BC.vacuum>`,
-:attr:`BC.reflective <geometry.mesh.BC.reflective>`, and
-:attr:`BC.white <geometry.mesh.BC.white>`.
+:attr:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>`,
+:attr:`BC.reflective <orpheus.geometry.mesh.BC.reflective>`, and
+:attr:`BC.white <orpheus.geometry.mesh.BC.white>`.
 When a face is left as ``None``, the solver applies its own default
 (reflective for the SN solver, matching the infinite-lattice /
 eigenvalue convention).
@@ -614,7 +614,7 @@ shim pairs the result back with the law it was realized from; its
    coord-system gating — but **no production code ever read them**
    (a 1-D mesh's ``trace.layout.faces`` is ``("xmin", "xmax")``).
    C4 makes them unrepresentable: a slab has no y-axis in its
-   :attr:`~SNMesh.axes` tuple, so
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.axes` tuple, so
    :func:`~orpheus.transport.mesh.axis.face_labels` emits no y-label and
    :attr:`SNMesh.bc` has no y-entry — ``slab.bc["ymin"]`` is a
    :class:`KeyError`, not a no-op. See

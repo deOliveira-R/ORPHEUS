@@ -860,27 +860,70 @@ MMS (:ref:`sn-mms-curvilinear-aniso-verification`), which exercises the
 full curvilinear :math:`(L+C)` end-to-end.
 
 
-The 2-D Cartesian hybrid (Q1)
------------------------------
+The 2-D Cartesian path (Q1) and its trace semantics
+---------------------------------------------------
 
-T.4 lifted the 1-D path only. The 2-D Cartesian path
-(:meth:`StreamingOperator._apply_2d_cartesian`) remains procedural
+.. note:: **Retraction (2026-08-10, Issue #346).**  This section
+   described the 2-D Cartesian matvec as a procedural hybrid whose
+   boundary trace was *passive*, and named
+   ``StreamingOperator._apply_2d_cartesian`` as its body.  Both claims
+   are stale.  ``_apply_2d_cartesian`` was retired at S6.4(a) — the name
+   resolves nowhere in the tree — and the trace is now the matvec's
+   inflow **source** as well as the carrier of its output residual.  The
+   Wave-T reasoning is preserved below in past tense; the shipped
+   contract is stated first.
+
+**The shipped contract.**  The Cartesian apply frame is
+dimension-generic: :meth:`~orpheus.sn.loss_representation._OctantWalk.loss_action`
+in :mod:`orpheus.sn.loss_representation` walks the octants over the
+sweep-dependency graph and every loss representation supplies only its
+interior kernel.  Its boundary semantics are **bare** (O.4b Phase E),
+and the trace is active on both sides:
+
+* each octant reads its **inflow from the given trace**
+  ``psi.boundary`` — there is no ``bc.apply`` inside the matvec,
+  because the reflective coupling is the sibling :math:`-B` operator
+  (:ref:`bc-realizer-layer`);
+* the domain-edge outflow is captured into ``streamed`` (OUTFLOW slots
+  only), and the **output** boundary block is the O.4b active-trace
+  residual — OUTFLOW slots carry the defect ``streamed − given``,
+  INFLOW slots the identity ``given``.
+
+The bulk therefore no longer proxies for the trace in either direction:
+:math:`(L+C)` reads the trace, writes a trace-block residual, and
+:math:`-B` supplies the re-entry.
+
+**What this section said before, and why (Wave T, ~2026-04).**  T.4
+lifted the 1-D path only.  The 2-D Cartesian path was then procedural
 cell-centred upwind FD with **cell-centre-proxy boundary semantics**:
-the matvec body reads ``psi.bulk.values[:, :, 0, iy]`` as the outgoing
-trace at xmin and the BC's :meth:`apply(outgoing)` fills the
-incoming-direction bulk cells. The
-:attr:`psi.boundary.face_view` is currently **passive**: its values
-do not enter the bulk computation.
+the matvec body read ``psi.bulk.values[:, :, 0, iy]`` as the outgoing
+trace at xmin and the BC's ``apply(outgoing)`` filled the
+incoming-direction bulk cells, leaving the face views of
+``psi.boundary`` passive — their values did not enter the bulk
+computation.
 
 The trace-correct face_view formulation (face_view enters the bulk
 computation as the boundary trace, with a boundary residual driving
 face_view ↔ bulk consistency) caused a 10% k_inf drift in
 experiments (recorded during the pre-reorganisation ``orpheus/sn/operator.py``
-work, since split into ``orpheus/sn/operators/``). That rewire requires the BC
-realizers to gain a "proper composable algebra" — a payload distinct
-from T.4's per-direction lift. Bundling the two would violate the
-``feedback_unify_after_two_instances`` discipline (only one working
-2-D path exists; unify after ≥2 working instances).
+work, since split into ``orpheus/sn/operators/``).  That rewire was
+therefore deferred: it required the BC realizers to gain a "proper
+composable algebra" — a payload distinct from T.4's per-direction lift
+— and bundling the two would have violated the
+unify-after-two-instances discipline (only one working 2-D path existed
+at the time).
+
+⚠ **Status.**  The prerequisite landed.  The "proper composable
+algebra" is the descriptor / realizer / operator architecture of
+:ref:`bc-realizer-layer`, with the rank-N descriptor algebra at
+:ref:`bc-rank-n-algebra`; the trace-correct formulation is the shipped
+contract stated at the head of this section.  The recorded 10% drift
+belongs to the pre-algebra attempt, and **no post-landing reproduction
+of it is on record** — what is on record is that the current path is
+gated by the closed-form :math:`k_\infty` pillar
+(``tests/sn/verification/analytical/test_kinf_homogeneous.py``).  A
+future session wanting the causal story has to re-run the experiment on
+the landed form; this page does not answer it.
 
 **Defensive A2D-1 source-hash pin**. T.4d added a structural
 regression test that recorded the source-code signature of
@@ -902,14 +945,14 @@ Wave T's verification chain combines three independent grounds:
    :math:`(\text{seed}, \text{mesh}, \text{material})` triples across
    slab, sphere, cylinder, and 2-D Cartesian, plus 1G / 2G / asymmetric
    :math:`\Sigma_s` / vacuum / white / specular variants. Each
-   subsequent T.4 substep is gated on :func:`np.array_equal` against
+   subsequent T.4 substep is gated on :func:`numpy.array_equal` against
    those snapshots — the existing numerics are the local
    bit-identity reference.
 
 2. **Principled-equivalence ULP** for cases where reductions reorder.
    Per the ``vv-principles`` skill §"Bit-identity
    vs principled-equivalence": when the operator-algebra fold inserts
-   a :func:`np.add` at a different position than the legacy fused
+   a :func:`numpy.add` at a different position than the legacy fused
    einsum, the new value is verified by the three-criteria gate
    (principled at every step / structurally-independent reference /
    FP-non-associativity dimensionally explainable). For the
@@ -942,12 +985,18 @@ Wave T's verification chain combines three independent grounds:
 4. **Algebraic-identity gates** (new in Wave T). Each touched
    operator passes the algebra contracts:
 
-   - :meth:`TensorProductOperator.assert_separable` passes on every
-     TP-shaped operator (BC realizers, fission). This is structurally
-     inapplicable to :class:`OperatorSum`-of-bespoke-leaves (T.3
-     scattering kernel; the T.4 streaming matvec, fused since #238) —
-     see the "out of scope" note in
-     ``.claude/plans/wave_t_tensor_network.md`` §6 T.5.
+   - :meth:`~orpheus.numerics.operator.SumOfTensorProductsOperator.assert_separable`
+     passes on every TP-shaped operator (BC realizers, fission). The
+     method's home is the SUM-of-tensor-products operator, not the bare
+     :class:`~orpheus.numerics.operator.TensorProductOperator`: a single
+     tensor product is the one-term case of the sum, and the separability
+     contract is stated once, on the type that can hold either. It stays
+     structurally inapplicable to :class:`OperatorSum`-of-bespoke-leaves
+     (T.3 scattering kernel; the T.4 streaming matvec, fused since #238)
+     — see the T.5.1 deviation note in
+     ``.claude/plans/archive/wave_t_tensor_network.md`` §6, which records
+     that Q6/Q1–Q5 shipped ``OperatorSum``-of-bespoke-leaves instead of
+     the spec's sum-of-tensor-products for those two leaves.
 
    - **(#238 retired)** the Wave-T algebra-decomposition invariant
      :math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi +

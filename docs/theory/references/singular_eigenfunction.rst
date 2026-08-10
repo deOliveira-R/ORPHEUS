@@ -570,8 +570,10 @@ solve outside the bound.
 
 The cylinder pillar (WM-72) is **isotropic only**. Linearly-
 anisotropic cylinder is research-grade and not in the package.
-:class:`Spectrum.from_problem` rejects cylinder + non-zero
-:math:`f_1` at construction for this reason — surfacing the
+:class:`~orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum`
+rejects cylinder + non-zero :math:`f_1` in its ``__post_init__``
+(a :class:`NotImplementedError` on any non-zero ``SigS[1]``) for this
+reason — surfacing the
 out-of-pillar status at the facade boundary so callers know the
 geometry/material combination is not shippable.
 
@@ -1367,7 +1369,7 @@ Atalay's tabulated Eq 46 critical thicknesses:
      - 0.14491
 
 The Branch-2 solver
-(:func:`...slab.solve_case_method_slab_critical`) reproduces these
+(:func:`~orpheus.derivations.continuous.singular_eigenfunction.slab.one_group.solve_case_method_slab_critical`) reproduces these
 to ≤ 5e-2 absolute, with the residual gap explained as a paper
 precision floor at small thicknesses (see
 :ref:`theory-se-precision-floor`).

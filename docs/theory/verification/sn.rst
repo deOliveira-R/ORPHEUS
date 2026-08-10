@@ -95,7 +95,7 @@ boundary conditions are applied via the mesh-level BC infrastructure
 described in :ref:`boundary-conditions`:
 :func:`solve_sn_fixed_source` defaults its ``boundary_condition``
 parameter to ``"vacuum"`` and the internal helper
-``_apply_default_bcs`` stamps :attr:`BC.vacuum <geometry.mesh.BC.vacuum>`
+``_apply_default_bcs`` stamps :attr:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>`
 onto every face of the mesh that lacks an explicit BC declaration.
 :class:`SNMesh` then resolves these to the ``"vacuum"`` kind string,
 which the sweep reads directly.  In the 1-D cumprod path, the

@@ -582,7 +582,7 @@ operator contract.
 
 Wave E Round 2 (Issue #164) wired the operator algebra
 :math:`(A, S, F)` into :class:`SNSolver` and replaced the legacy
-BiCGSTAB inner-solver path with Krylov-on-:meth:`A.apply` (GMRES
+BiCGSTAB inner-solver path with Krylov-on-``A.apply`` (GMRES
 with the sweep as preconditioner).  The
 ``build_transport_linear_operator*`` and ``build_rhs*`` helpers
 were retired; the per-method delegators on

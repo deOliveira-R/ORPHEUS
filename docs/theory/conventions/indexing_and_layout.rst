@@ -1328,17 +1328,62 @@ The three types
      - Boundary :math:`\psi` at every face plus curvilinear pole state.
        Replaces the stringly-typed ``psi_bc: dict``.
 
-Factory methods (:class:`SNMesh`)
----------------------------------
+Zero-field factories live on the LEAF, not on the mesh
+------------------------------------------------------
 
-The :class:`SNMesh` carries factory methods that allocate zero-initialised
-instances sized to its phase space:
+.. note:: **Correction (2026-08-10, Issue #346).**  This section was
+   headed *"Factory methods (SNMesh)"* and stated that
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` carries
+   ``zeros_angular_flux`` / ``zeros_scalar_flux`` /
+   ``zeros_boundary_flux``.  It does not, and the capability was not
+   renamed — it **changed owner**.  ``[M]``
+   ``[n for n in dir(SNMesh) if "zero" in n.lower()] == []``.
 
-* :meth:`SNMesh.zeros_angular_flux` → ``(N, ng, nx, ny)`` zeros.
-* :meth:`SNMesh.zeros_scalar_flux` → ``(ng, nx, ny)`` zeros.
-* :meth:`SNMesh.zeros_boundary_flux` → only the buffers the mesh's
-  geometry consumes (slab → two 1-D faces; curvilinear → one outer
-  face; 2-D Cartesian → the two persistent buffers).
+The zero allocator is a **leaf-side classmethod**, one per field family,
+taking the mesh as an argument rather than living on it:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - Allocator
+     - Argument
+     - Measured shape (slab, ``N = 4``, ``ng = 2``, ``nx = 4``)
+   * - :meth:`AngularFlux.zeros_on <orpheus.transport.fields.angular_flux.AngularFlux.zeros_on>`
+     - an :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+     - ``(4, 2, 4)`` — i.e. rank-honest ``(N, ng, *spatial_shape)``,
+       **not** a phantom-``ny`` ``(N, ng, nx, 1)``
+   * - :meth:`ScalarFlux.zeros_on <orpheus.transport.fields.scalar_flux.ScalarFlux.zeros_on>`
+     - any ``MaterialMesh`` (the angular axis is already integrated out)
+     - ``(2, 4)`` — ``(ng, *spatial_shape)``
+   * - :meth:`AngularBoundaryFlux.zeros_on <orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.zeros_on>`
+     - any ``MaterialMesh``
+     - ``(16,)`` — the FLAT trace buffer over the faces the geometry
+       actually carries (here ``N × ng × 2`` faces), sourced from the
+       family's cached face space
+
+Why the ownership moved is the architecturally interesting part, and it
+is the same reasoning as the C5.2 rank-honesty carve
+(:ref:`sn-c5-phantom-retirement`): a mesh-side ``zeros_angular_flux``
+has to know the *storage layout of every leaf type*, so each new leaf
+(or each new trailing axis — the ``spatial_moments`` factor of #240
+D5b-S3) grows another method on the mesh.  A leaf-side ``zeros_on``
+inverts that: the leaf derives its own space from the mesh
+(``cls._space_for_mesh(mesh, …)``) and delegates to the single
+:meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` on the base,
+so the mesh stays layout-blind and there is exactly one allocator body.
+The production docstrings say so in as many words — *"the uniform
+leaf-side allocator … replaces the retired* ``SNMesh.zeros_*`` *mesh-side
+factories"*.
+
+A whole composite is allocated one level up, by naming the two leaf
+types instead of calling each of their allocators:
+:meth:`FullField.zeros <orpheus.transport.full_field.FullField.zeros>`
+and
+:meth:`TimedFullField.zeros <orpheus.transport.timed_full_field.TimedFullField.zeros>`
+take ``interior=``/``boundary=`` leaf classes plus the mesh (and, for
+the timed carrier, a ``history_depth``) and call the leaves'
+``zeros_on`` internally.
 
 Mutability discipline
 ---------------------

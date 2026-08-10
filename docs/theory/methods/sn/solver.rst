@@ -134,7 +134,7 @@ Beyond driving the within-group inner solve, the :math:`(L+C,\ S,\ F)`
 framing organises the solver's outer API surface:
 
 * :meth:`SNSolver.compute_fission_source` returns
-  :math:`F\,\phi/k` — a thin delegator to :meth:`F.apply` with the
+  :math:`F\,\phi/k` — a thin delegator to ``F.apply`` with the
   :math:`1/k` outer-loop scaling applied at the solver level.
 * :meth:`SNSolver.solve_fixed_source` solves
   :math:`(L+C-S-B)\,\psi = q_{\rm ext}` (with :math:`q_{\rm ext}` the

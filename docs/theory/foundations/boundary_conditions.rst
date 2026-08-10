@@ -3319,7 +3319,7 @@ and the new trace-only leaf
 route through it (Wave O step O.2a, commit ``8563f4b``).
 
 The leaf exists because the direct helper does not need a full field.
-:meth:`B.apply` operates on a :class:`~orpheus.transport.full_field.FullField`
+:meth:`B.apply <orpheus.sn.operators.boundary.SNBoundaryOperator.apply>` operates on a :class:`~orpheus.transport.full_field.FullField`
 (zero bulk, trace populated) — the timeless, history-blind operator carrier
 (:meth:`SNBoundaryOperator.apply <orpheus.sn.operators.boundary.SNBoundaryOperator.apply>`
 is the base arrow ``FullField -> FullField``; the comonad lives on the
@@ -3555,7 +3555,7 @@ vacuum path is **bit-identical** to the pre-extraction matvec. Verified
 by:
 
 - the matvec 18-baseline snapshot
-  (:func:`np.array_equal` against the pre-O.4a.2 captures across
+  (:func:`numpy.array_equal` against the pre-O.4a.2 captures across
   slab / sphere / cylinder × 1G / 2G / asymmetric :math:`\Sigma_s` ×
   vacuum / white / specular), and
 - the end-to-end regression snapshots.
@@ -6116,11 +6116,15 @@ paths are the load-bearing intellectual content of the close-out
 see why every alternative failed.
 
 **Option A** (Issue #176 / C176.3, ~2026-04). Concrete BC
-:meth:`apply` methods kept a keyword-optional
+``apply`` methods kept a keyword-optional
 ``quadrature: AngularQuadrature | None = None`` parameter with
-defensive errors:
+defensive errors. Every ``apply`` named in this subsection is written
+as a literal, not a role: the descriptor classes carry no ``apply``
+today — that is the whole point of the bullet above — so a live
+``:meth:`` role here would advertise a link to a method the type
+system deliberately removed.
 
-* :class:`ReflectiveBoundary.apply` / :class:`WhiteBoundary.apply`
+* ``ReflectiveBoundary.apply`` / ``WhiteBoundary.apply``
   raised :class:`BoundaryError` when ``quadrature is None``
   because their geometric / response operators needed the
   quadrature to construct themselves.
@@ -6589,7 +6593,7 @@ The pre-Phase-D Gate 1.5 test was a "round-trip" check: invoke
 matvec's observable output.  Phase D **strengthens** the gate to a
 capture-and-compare check that audits the *exact* value the matvec
 passes into the BC trace law — necessary because the matvec now
-calls :meth:`bc.apply` twice and the test must locate Call #2 (the
+calls ``bc.apply`` twice and the test must locate Call #2 (the
 §16A.3 call) unambiguously.
 
 The Phase D test
@@ -6758,7 +6762,10 @@ Curvilinear realizer unification
 ================================
 
 The pre-cleanup architecture carried a **Cartesian / curvilinear
-split** at :meth:`SNMesh._resolve_one`: the slab and 2-D Cartesian
+split** at the mesh-side resolver then named ``SNMesh._resolve_one``
+(retired at #290 P7b — the shipped hook is
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`):
+the slab and 2-D Cartesian
 paths constructed a trace space (then named ``InflowTraceSpace``,
 unified into :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 post-#188 and made geometry-blind in C5.3) and routed the BC through
@@ -6794,7 +6801,7 @@ unchanged. The factory's curvilinear guard was lifted; only 2-D
 cylindrical :class:`Mesh2D` (which has no SN sweep in ORPHEUS
 today) continues to raise :class:`NotImplementedError`.
 
-Issue #188 / C188.3 then collapsed :meth:`SNMesh._resolve_one`
+Issue #188 / C188.3 then collapsed ``SNMesh._resolve_one``
 to a single path: every supported mesh (1-D Cartesian / spherical
 / cylindrical + 2-D Cartesian) builds an
 :class:`SNMethodSpace.for_face` and routes through
@@ -6965,7 +6972,7 @@ The derivation chain — face_labels → {layout, bc}
 
 The SN phase space factors as a tensor product of per-axis 1-D
 meshes (grand report §15.1). The axis tuple
-:attr:`SNMesh.axes` is therefore the root of every boundary-keyed
+:attr:`SNMesh.axes <orpheus.sn.mesh.augmented_mesh.SNMesh.axes>` is therefore the root of every boundary-keyed
 structure:
 
 .. code-block:: text
@@ -7005,9 +7012,17 @@ entry. The resolution loop is one comprehension:
 
 ``None`` on an axis defaults to ``BC("reflective")`` (the
 infinite-lattice / eigenvalue convention). Each declaration is
-realized by :meth:`SNMesh._resolve_one`, whose realizer plumbing
-(registry → :meth:`SNMethodSpace.for_face` →
-:class:`SNBoundaryRealizer` → :class:`_BoundBoundaryOperator`) is
+realized by
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`
+— the SN arm of the :class:`~orpheus.transport.method.TransportMethod`
+hook, driven per face by the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions` body
+(the C4-era spelling was the mesh-private ``SNMesh._resolve_one``,
+which owned the per-face loop itself; #290 P7b moved the loop up and
+renamed the hook). Its realizer plumbing
+(registry → ``SNMethodSpace.for_face`` →
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` →
+``_BoundBoundaryOperator``) is
 **unchanged** from the pre-C4 path — C4 changed only the *keying and
 storage*, not the *realization*. Hence the resolved operators are
 bit-identical objects to the pre-C4 ones (see
@@ -7085,7 +7100,7 @@ producer writes a slot or entry for it.
 The latent d=3 axis-dispatch bug, closed by construction
 --------------------------------------------------------
 
-Before C4, :meth:`SNMesh._resolve_one` derived a reflective law's
+Before C4, ``SNMesh._resolve_one`` derived a reflective law's
 reflection axis from a hand-listed membership test::
 
     axis = "y" if face in ("ymin", "ymax") else "x"
@@ -7194,7 +7209,7 @@ very desync the carve removes):
   y-face. The placeholders were a uniformity affordance with no
   consumer — exactly the kind of dead realized state the
   face-labels-derived dict makes unrepresentable: a slab has no
-  y-axis in its :attr:`~SNMesh.axes` tuple, so
+  y-axis in its :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.axes` tuple, so
   :func:`~orpheus.transport.mesh.axis.face_labels` emits no y-label, so
   :attr:`bc` has no y-entry, so ``slab.bc["ymin"]`` is a
   :class:`KeyError`. (Pre-C4 design rationale for *why the
@@ -7221,9 +7236,13 @@ the realized operators or any numerical value. The verification
 strategy reflects that:
 
 * **Bit-identity by inheritance.** A BC realization is object
-  construction; :meth:`_resolve_one`'s realizer plumbing (registry
-  → :meth:`SNMethodSpace.for_face` → :class:`SNBoundaryRealizer` →
-  :class:`_BoundBoundaryOperator`) is unchanged. The resolved
+  construction; the realizer plumbing (registry →
+  ``SNMethodSpace.for_face`` →
+  :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` →
+  ``_BoundBoundaryOperator``) is unchanged — it is reached today
+  through
+  :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law`
+  rather than the C4-era ``_resolve_one``. The resolved
   operators are the same objects as before, so every solver test
   that exercises them inherits its prior verification. The affine
   ``sha256`` goldens stayed byte-identical; the broad sweep /
@@ -7365,7 +7384,7 @@ Pre-C5: the lossy axes → mesh → axes round-trip
 The SN phase space factors as a tensor product of per-axis 1-D meshes
 (grand report §15.1); the natural primary representation of an
 :class:`SNMesh` is therefore its **axes tuple**
-:attr:`SNMesh.axes`. Pre-C5.1 the constructor did not treat it that
+:attr:`SNMesh.axes <orpheus.sn.mesh.augmented_mesh.SNMesh.axes>`. Pre-C5.1 the constructor did not treat it that
 way. :meth:`SNMesh.from_axes` *synthesized a legacy*
 :class:`~orpheus.geometry.mesh.Mesh1D` / :class:`~orpheus.geometry.mesh.Mesh2D`
 from the caller's axes (via ``legacy_mesh_from_axes``), handed that
@@ -7455,13 +7474,19 @@ bytes. The whole-mesh coordinate system is likewise derived from the
 per-axis coordinates by a new pure primitive
 :func:`~orpheus.transport.mesh.axis.coord_system` (a multi-axis mesh must be
 all-Cartesian); the constructor's reduced-operator dispatch and the
-pole-closure default now read the **axis-derived** :attr:`SNMesh.coord`,
+pole-closure default now read the **axis-derived** :attr:`SNMesh.coord <orpheus.sn.mesh.augmented_mesh.SNMesh.coord>`,
 not ``mesh.coord``.
 
-After C5.1, :attr:`SNMesh.mesh` is **inbound provenance only** — it
-records *which legacy mesh the caller passed, if any*. It is ``None``
-when the mesh was built from axes at :math:`d \ge 3` (no legacy mesh
-exists to record). A handful of :math:`d \le 2` consumers (the 1-D
+After C5.1, the ``mesh`` attribute of
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is **inbound provenance
+only** — it records *which legacy mesh the caller passed, if any*. It is
+``None`` when the mesh was built from axes at :math:`d \ge 3` (no legacy
+mesh exists to record; ``augmented_mesh.py`` spells the branch
+``legacy_mesh_from_axes(axes, mat_map=mat_map) if len(axes) <= 2 else
+None``). It is written here as a literal rather than an ``:attr:`` role
+because the base ``MaterialMesh`` sets it on the *instance* with no
+class-level annotation, so autodoc mints no target for it and a role
+would render as unlinked text. A handful of :math:`d \le 2` consumers (the 1-D
 reduced streaming constructors, the trace build, realizer metadata)
 still read ``self.mesh`` at C5.1; each dissolves across C5.2–C5.5 as
 its datum is repointed to an axis-native source. ``legacy_mesh_from_axes``
@@ -7491,7 +7516,7 @@ that masking is gone.)
 The phantom shims retire (ny, dy, dx)
 -------------------------------------
 
-With per-axis widths and the rank-generic :attr:`SNMesh.spatial_shape`
+With per-axis widths and the rank-generic :attr:`SNMesh.spatial_shape <orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape>`
 now native, the legacy phantom-bearing metadata retires. Every spatial
 read becomes rank-honest:
 
@@ -7506,16 +7531,16 @@ read becomes rank-honest:
      - At :math:`d = 1` these **lied** — ``ny`` returned a phantom
        ``1`` and ``dy`` a phantom ``[1.0]`` (the Issue #214 phantom
        class), and at :math:`d \ge 3` they underspecify the mesh.
-     - :attr:`SNMesh.spatial_shape` (the per-axis cell counts) and
-       :attr:`SNMesh.axis_widths` (per-axis widths). ``AttributeError``
+     - :attr:`SNMesh.spatial_shape <orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape>` (the per-axis cell counts) and
+       :attr:`SNMesh.axis_widths <orpheus.sn.mesh.augmented_mesh.SNMesh.axis_widths>` (per-axis widths). ``AttributeError``
        on the retired names.
    * - ``SNMesh.dx``
      - A duplicate spelling of the per-axis widths.
-     - :attr:`SNMesh.axis_widths` — promoted from the private
+     - :attr:`SNMesh.axis_widths <orpheus.sn.mesh.augmented_mesh.SNMesh.axis_widths>` — promoted from the private
        ``_axis_widths`` to **the** single public spelling of per-axis
        cell widths.
    * - ``SNMesh.nx``
-     - (kept) Documented :attr:`spatial_shape[0] <SNMesh.spatial_shape>`
+     - (kept) Documented :attr:`spatial_shape[0] <orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape>`
        sugar — honest at any :math:`d`, with a broad legitimate 1-D
        consumer base.
      - unchanged.
@@ -7528,9 +7553,9 @@ the masquerade at the metadata source.
 The two production ``dr`` consumers (the
 :mod:`~orpheus.sn.loss_representation` 1-D bare sweep and the
 :mod:`~orpheus.sn.sweep.pole_angular_closure` Carlson preamble) repoint
-from ``.dx`` to :attr:`SNMesh.axis_widths`. The
+from ``.dx`` to :attr:`SNMesh.axis_widths <orpheus.sn.mesh.augmented_mesh.SNMesh.axis_widths>`. The
 field / cross-section / scattering read-through chains collapse to the
-rank-generic :attr:`spatial_shape <SNMesh.spatial_shape>`:
+rank-generic :attr:`spatial_shape <orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape>`:
 
 * :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (and the
   ``BulkField`` base) **retire** their ``nx`` / ``ny`` read-throughs.
@@ -7541,9 +7566,9 @@ rank-generic :attr:`spatial_shape <SNMesh.spatial_shape>`:
 * :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` and
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator` collapse their
   ``nx`` / ``ny`` reads to **one** rank-generic
-  :attr:`spatial_shape <SNMesh.spatial_shape>` read-through each.
+  :attr:`spatial_shape <orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape>` read-through each.
 
-Finally, a new :attr:`SNMesh.volume_measure` property gives the
+Finally, a new :attr:`SNMesh.volume_measure <orpheus.sn.mesh.augmented_mesh.SNMesh.volume_measure>` property gives the
 SN-side ``keff`` rate consumers (the production / absorption rates in
 :mod:`~orpheus.sn.solver`) a native source: they read it instead of
 reaching through ``sn_mesh.mesh.volume_measure``. While the
@@ -7697,7 +7722,7 @@ None``) on the d-generic
 * **Axis-native arms.** The cell-volume array is the iterated outer
   product of the per-axis widths,
   :math:`V[i,j,k] = \mathrm{d}x_i\,\mathrm{d}y_j\,\mathrm{d}z_k`; the
-  :attr:`volume_measure <SNMesh.volume_measure>` is the rank-:math:`d`
+  :attr:`volume_measure <orpheus.sn.mesh.augmented_mesh.SNMesh.volume_measure>` is the rank-:math:`d`
   meshgrid-of-centers
   :class:`~orpheus.numerics.measure.DiscreteMeasure` (the natural
   rank-:math:`d` generalization of the ``Mesh2D`` analogue).
@@ -7893,7 +7918,7 @@ re-attempt them:
    name-lookup to keep populated and no import-side-effect timing
    to defend.
 6. **Cartesian-vs-curvilinear bypass in
-   :meth:`SNMesh._resolve_one` + dual-mode shim.** Pre Issue #188
+   ``SNMesh._resolve_one`` + dual-mode shim.** Pre Issue #188
    shape: curvilinear ``Mesh1D`` bypassed the realizer and wrapped
    the bare 2-arg law in
    ``_BoundBoundaryOperator(law, quadrature=self.quad)``, while

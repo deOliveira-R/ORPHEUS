@@ -60,7 +60,7 @@ import pytest
 from tools.check_docstring_xrefs import (
     Outcome,
     _is_empty_namespace_package,
-    _self_annotations,
+    _self_attributes,
     extract_target,
     iter_text_blocks,
     judge,
@@ -331,7 +331,7 @@ class TestTheTwoHalvesOfTheInterlock:
             "premise: `bc` is per-instance. If it became a class attribute, "
             "this interlock no longer exists and this class can retire."
         )
-        assert "bc" in _self_annotations(SNMesh)
+        assert "bc" in _self_attributes(SNMesh)
         assert resolve(self.CITATION) == (True, None)
 
     def test_disabling_half_two_MANUFACTURES_the_false_red(
@@ -348,9 +348,9 @@ class TestTheTwoHalvesOfTheInterlock:
         """
         from tools import check_docstring_xrefs as checker
 
-        monkeypatch.setattr(checker, "_self_annotations", lambda _: frozenset())
+        monkeypatch.setattr(checker, "_self_attributes", lambda _: frozenset())
         assert checker.resolve(self.CITATION) == (False, "missing"), (
-            "blinding _self_annotations did NOT redden the citation — the "
+            "blinding _self_attributes did NOT redden the citation — the "
             "interlock this class documents is not where it claims to be."
         )
 
@@ -358,7 +358,27 @@ class TestTheTwoHalvesOfTheInterlock:
         """The negative leg: the AST scan must not report everything present."""
         from orpheus.sn.mesh.augmented_mesh import SNMesh
 
-        assert "no_such_attribute_anywhere" not in _self_annotations(SNMesh)
+        assert "no_such_attribute_anywhere" not in _self_attributes(SNMesh)
+
+    def test_an_UNANNOTATED_instance_attribute_also_resolves(self) -> None:
+        """The second shape, and it was a latent false red until 2026-08-10.
+
+        ``SNMesh.mesh`` is assigned by ``MaterialMesh._init_data`` with **no**
+        annotation, so neither ``getattr`` on the class nor a ``self.x: T`` scan
+        can see it — yet it reads as a live ``Mesh2D`` on any instance. It was
+        latent rather than active only because every citation of it happened to
+        be unqualified; the first contributor to qualify one would have been
+        handed a false red on a correct reference.
+
+        Found during #346 W1 when a sub-agent's instance-level check contradicted
+        my class-level probe. The class-level probe was the wrong instrument —
+        the same mistake, in the same campaign, for the third time.
+        """
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
+
+        assert not hasattr(SNMesh, "mesh"), "premise: `mesh` is per-instance"
+        assert "mesh" in _self_attributes(SNMesh)
+        assert resolve("orpheus.sn.mesh.augmented_mesh.SNMesh.mesh") == (True, None)
 
 
 class TestTheTargetIsReadTheWaySphinxReadsIt:

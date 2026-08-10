@@ -439,7 +439,7 @@ Per-case provenance + cross-method status:
 
 * **PUa-1-0-IN**: Sood Eq 19 + 20; verified by V_fn1.1 + V_fn1.2 at
   the algebra level; verified by the Branch-2
-  :func:`...fn_method.multi_group.compute_kinf_1g` numerically;
+  :func:`~orpheus.derivations.continuous.fn_method.multi_group.k_inf.compute_kinf_1g` numerically;
   cross-checked against
   :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
   ≥ 12 digits.
@@ -450,7 +450,7 @@ Per-case provenance + cross-method status:
   the corrected form. Sood Eq 29 (printed correctly) is verified via
   V_fn2.2; the flux ratio Eq 32 is verified via V_fn2.3.
 * **Ua-1-0-SL**: KLL 1974 NSE 54 truth source. Slab F_N solver
-  (:func:`...fn_method.slab.solve_fn_slab_bare_critical`,
+  (:func:`~orpheus.derivations.continuous.fn_method.slab.one_group.solve_fn_slab_bare_critical`,
   Siewert-Benoist 1979 + Grandjean-Siewert 1979) reproduces at
   ≤ 5e-6 absolute on :math:`a_c`. Cross-checked against Variant α
   slab at 5e-5.
@@ -461,7 +461,7 @@ Per-case provenance + cross-method status:
   3e-7 relative). Cross-checked against Variant α cylinder at 8.5e-6.
 * **Ua-1-0-SP**: KLL 1974 + Siewert-Thomas 1986 truth sources. Sphere
   F_N solver
-  (:func:`...fn_method.sphere.solve_fn_sphere_bare_critical`,
+  (:func:`~orpheus.derivations.continuous.fn_method.sphere.one_group.solve_fn_sphere_bare_critical`,
   Siewert-Thomas 1986 1G specialisation of the 2G F_N) reproduces at
   3.6e-8 absolute. Cross-checked against Variant α sphere at 4.2e-6.
   KLL Table VII flux ratios populated from KLL 1974 Table VII c=1.30

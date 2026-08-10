@@ -1892,7 +1892,7 @@ with
 
 The kernel matrix is assembled by ``build_volume_kernel`` in
 :mod:`orpheus.derivations.continuous.peierls_nystrom.sphere`, which dispatches to
-:func:`peierls_geometry.build_volume_kernel` with the sphere
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel` with the sphere
 geometry singleton pre-bound. The per-sample optical depth
 :math:`\tau_{ikm}` is computed by the shared multi-annulus walker,
 identical to the cylinder case — the 1-D radial annulus crossings
@@ -2179,7 +2179,7 @@ The implementation is thin: :func:`build_white_bc_correction` in
 :func:`compute_G_bc`, :func:`compute_P_esc`, and assembles the
 rank-1 outer product with the geometry-aware divisor — all via the
 unified :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
-dispatch in :func:`peierls_geometry.build_white_bc_correction`.
+dispatch in :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`.
 
 .. _issue-100-retraction:
 

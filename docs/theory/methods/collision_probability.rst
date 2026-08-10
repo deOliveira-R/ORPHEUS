@@ -867,7 +867,7 @@ symbolically. It builds the exact double integral of the transmission
 kernel over source position :math:`s` and collision position :math:`t`,
 substitutes the antiderivative identity, and checks that the result
 matches the four-term second-difference pattern for a generic
-:math:`F`. The same :class:`Delta2` structure emerges independent of
+:math:`F`. The same :math:`\Delta^{2}` structure emerges independent of
 whether :math:`F = E_3`, :math:`\text{Ki}_4`, or :math:`e^{-\tau}` —
 proving that the three geometries share one algebraic form::
 
@@ -1180,9 +1180,17 @@ with :math:`R_0 = 0`.
   region :math:`k` --- no inner intersection.
 - **Case 3** (:math:`y \ge R_k`): Chord misses region :math:`k` entirely.
 
-Computed by :func:`_chord_half_lengths` (solver) and independently by
-``orpheus/derivations/continuous/flat_source_cp/cylinder.py::_chord_half_lengths`` (derivation).  Both
-return shape ``(N, n_y)``.
+Computed by
+:func:`~orpheus.derivations.common.kernels.chord_half_lengths` — one shared primitive, imported by
+both the solver (``orpheus/cp/solver.py``, in
+``CPMesh._setup_radial_quadrature``) and the semi-analytical derivation,
+returning shape ``(N, n_y)``.  It was two private twins
+(``CPMesh._chord_half_lengths`` and a ``cylinder.py``-local
+``_chord_half_lengths``) until the helper was hoisted to
+:mod:`~orpheus.derivations.common.kernels`; the two sides now share one body, so
+this paragraph's "independently" no longer describes an independent
+implementation — see
+:ref:`the Bickley-index caveat <cp-cylindrical-kernel-index-caveat>`.
 
 **Optical half-thickness:** ``tau = sig_t_g[:, None] * chords``.
 
@@ -1191,7 +1199,7 @@ gives :math:`\sqrt{-y^2}` (imaginary).  Both implementations handle this
 with a ``r_in = 0`` / ``r_in > 0`` branch that skips the subtraction.
 
 **Implicit zero-padding.**  When :math:`y \ge R_k`,
-:func:`_chord_half_lengths` returns :math:`\ell_k = 0`, so
+:func:`~orpheus.derivations.common.kernels.chord_half_lengths` returns :math:`\ell_k = 0`, so
 :math:`\tau_k = 0`.  Boundary positions collapse and the
 second-difference evaluates to zero --- no explicit conditional logic is
 needed to skip non-intersecting regions.
@@ -1325,8 +1333,12 @@ Slab Geometry: The :math:`E_3` Kernel
 
 The 1D slab half-cell extends from the reflective centre (:math:`x = 0`)
 to the cell edge (:math:`x = L`).  Geometry built via
-:func:`~geometry.factories.pwr_slab_half_cell` with
-``coord = CoordSystem.CARTESIAN``.
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
+and meshed through
+:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`; the Cartesian
+coordinate system is intrinsic to that factory rather than a parameter
+of it (Phase F retired the free-function
+``geometry.factories.pwr_slab_half_cell`` that took a ``coord``).
 
 .. plot::
    :caption: Slab half-cell: fuel, cladding, and coolant with reflective (left) and white (right) boundary conditions.
@@ -1480,8 +1492,8 @@ Geometry built via :meth:`~orpheus.geometry.structured_geometry.StructuredGeomet
 
 The CP matrix integrates :math:`\text{Ki}_4` second-differences over
 chord heights using composite Gauss--Legendre quadrature
-(:func:`_composite_gauss_legendre`) with breakpoints at each annular
-boundary to capture chord-length discontinuities.
+(:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`) with breakpoints at each
+annular boundary to capture chord-length discontinuities.
 
 Second-Difference Formula (Cylindrical)
 ---------------------------------------
@@ -1522,9 +1534,52 @@ The :math:`y`-integration is performed with composite Gauss--Legendre
 quadrature, with breakpoints at each annular boundary to capture the
 chord-length discontinuities.
 
-Implemented in :meth:`CPMesh._compute_radial_rcp` with
-``self._kernel = Ki_4``.  Verified against
-``orpheus/derivations/continuous/flat_source_cp/cylinder.py::_cylinder_cp_matrix``.
+Implemented in :meth:`CPMesh._compute_radial_rcp`, whose ``self._kernel``
+is :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`.
+Verified against
+:func:`~orpheus.derivations.continuous.flat_source_cp.cylinder._cylinder_cp_matrix`.
+
+.. _cp-cylindrical-kernel-index-caveat:
+
+.. warning::
+
+   **Bickley-index caveat — this page's** :math:`\text{Ki}_n` **is one
+   order BELOW the code's, and the two names collide.**  Measured
+   2026-08-10 (Issue #346 corpus pass):
+
+   * The shipped cylindrical kernel is
+     :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`
+     (a degree-63 Chebyshev interpolant of
+     :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`).  ``[M]``
+     ``_ki3_mp(0) = 0.7853961``, ``_ki3_mp(1) = 0.2378450`` — i.e. the
+     **standard** :math:`\mathrm{Ki}_3`, whose
+     ``mpmath`` values are :math:`\pi/4 = 0.7853982` and
+     :math:`0.2378450`.
+   * This page's :eq:`ki3-def` defines
+     :math:`\text{Ki}_3(\tau) = \int_0^{\pi/2} e^{-\tau/\sin\theta}
+     \sin\theta\,d\theta`, which is the **standard**
+     :math:`\mathrm{Ki}_2` (one power of :math:`\sin\theta` short of
+     the standard :math:`\mathrm{Ki}_3`).  Its once-integrated
+     partner — the :math:`\text{Ki}_4` used in :eq:`second-diff-cyl`
+     and :eq:`self-cyl` — is therefore the standard
+     :math:`\mathrm{Ki}_3`, i.e. **exactly the function the code
+     evaluates**.
+
+   So the second-difference *structure* on this page is right and the
+   *symbol* is off by one against ``orpheus`` and against the standard
+   Bickley recurrence.  ⛔ The bodies of :eq:`ki3-def`,
+   :eq:`second-diff-cyl` and :eq:`self-cyl` are **deliberately left
+   unchanged here**: they are ``@pytest.mark.verifies`` targets (64 / 24
+   / 54 tests respectively per :doc:`/theory/verification/matrix`), and
+   re-indexing them is a numerics adjudication — a one-power edit to
+   :eq:`ki3-def` and an index shift across ~30 corpus sites — not a
+   cross-reference repair.  Two further stale claims in the same family,
+   recorded so the adjudication has the full list: the Key Facts line
+   still advertises a *"20 000-point lookup table"* (retired at Phase
+   B.4 / Issue #94 in favour of the Chebyshev interpolant), and the
+   ``F(0)`` cell of :ref:`the geometry comparison <cp-geometry-comparison>`
+   read :math:`\approx 0.4244` — a value equal to :math:`4/(3\pi)` and
+   consistent with **neither** convention.
 
 
 Concentric Spherical Geometry: The Exponential Kernel
@@ -1577,6 +1632,8 @@ cylindrical and spherical, parameterised by kernel and weights.
 Verified against ``orpheus/derivations/continuous/flat_source_cp/sphere.py::_sphere_cp_matrix``.
 
 
+.. _cp-geometry-comparison:
+
 Geometry Comparison
 ====================
 
@@ -1590,11 +1647,17 @@ Geometry Comparison
      - Sphere
    * - Kernel :math:`F(\tau)`
      - :math:`E_3` (:func:`_e3`)
-     - :math:`\text{Ki}_4` (:func:`_ki4_lookup`)
+     - this page's :math:`\text{Ki}_4`, shipped as
+       :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`
+       (:ref:`index caveat <cp-cylindrical-kernel-index-caveat>`)
      - :math:`e^{-\tau}`
    * - :math:`F(0)`
      - :math:`1/2`
-     - :math:`\approx 0.4244`
+     - ``[M]`` :math:`0.785396` — the shipped kernel at
+       :math:`\tau = 0`, i.e. :math:`\pi/4` to the interpolant's
+       :math:`10^{-6}` accuracy.  (This cell read
+       :math:`\approx 0.4244` until 2026-08-10; that value matches
+       neither Bickley index convention.)
      - :math:`1`
    * - Quadrature weight
      - none (scalar)
@@ -2004,7 +2067,7 @@ precision (:math:`\mathrm{Ki}_3(50) \approx 3\times 10^{-23}`).
 ``6badbe5``, the kernel tabulation lived in two places that had to
 stay in sync:
 
-1. :func:`_build_ki_tables` on :class:`orpheus.cp.solver.CPMesh`
+1. ``CPMesh._build_ki_tables`` on :class:`orpheus.cp.solver.CPMesh`
    (solver side) and
 2. The ``BickleyTables`` class in :mod:`orpheus.derivations.common.kernels`
    (derivation side).

@@ -1104,7 +1104,7 @@ extends to:
    F_N reference solver and Variant α reference solver agree on the
    same physics to ≥ 5 digits for every overlapping LA-13511 case
    (sphere primary, cylinder via :ref:`theory-singular-eigenfunction`,
-   slab via :func:`...slab.solve_fn_slab_bare_critical`).
+   slab via :func:`~orpheus.derivations.continuous.fn_method.slab.one_group.solve_fn_slab_bare_critical`).
 
 This is the structurally-independent cross-check the verification
 strategy needs and is the strategic motivation for the F_N project as
@@ -1537,7 +1537,7 @@ The Wiener-Hopf X-function (Case 1960; Case-Zweifel 1967 § 4)
                        \int_0^1 \arg\Lambda^{+}(\tau)\,
                        \frac{d\tau}{\tau - z}\right]
 
-.. (vv-status rationale) governing: Wiener-Hopf X-function definition (Case 1960; Case-Zweifel 1967 § 4); verified geometry-independent by V_fn-sphere-fn.5 (test_v_fn_sphere_fn_5_x_function_geometry_independence). Numerical accuracy at the Branch-2 evaluator (fn_method.core.x_function) is the responsibility of the underlying scipy.integrate.quad / mpmath.quad backend.
+.. (vv-status rationale) governing: Wiener-Hopf X-function definition (Case 1960; Case-Zweifel 1967 § 4); verified geometry-independent by V_fn-sphere-fn.5 (test_v_fn_sphere_fn_5_x_function_geometry_independence). Numerical accuracy at the Branch-2 evaluators (the F_N KLL form in fn_method.slab.flux_reconstruction; the Case form in singular_eigenfunction.core.x_function.atalay_X_function) is the responsibility of the underlying scipy.integrate.quad / mpmath.quad backend.
 .. vv-status: fn-x-function documented
 
 depends only on the dispersion function
@@ -1549,14 +1549,37 @@ depends only on the dispersion function
 which is a **medium-only quantity** (depends on :math:`c` and
 :math:`z`, no geometry parameter). SymPy verifies that the integrand
 has no :math:`R` or :math:`a` symbols. This justifies reusing the
-slab X-function machinery for sphere verbatim — the X-function is
-shared between :ref:`theory-fn-method` and
-:ref:`theory-singular-eigenfunction` because both methods depend on
-the **same** medium-property dispersion function. This is the
-classic case of "shared upstream library OK as long as it is
-trusted-library-line" (see ``algebra-of-record`` § "Structural
-independence applies above the trusted-library line"). The
-X-function evaluator is in :mod:`...fn_method.core.x_function`.
+slab X-function machinery for sphere verbatim: the sphere solver
+imports it, at
+:mod:`~orpheus.derivations.continuous.fn_method.sphere.flux_reconstruction`
+``from ..slab.flux_reconstruction import …``. That reuse is the
+"shared upstream library OK as long as it is trusted-library-line"
+case (see ``algebra-of-record`` § "Structural independence applies
+above the trusted-library line") — one evaluator, two geometries of
+the *same* method.
+
+.. note::
+
+   **The X-function is NOT shared across the two methods** — this page
+   said it was until 2026-08-10 (Issue #346), and the claim is false in
+   both directions. F_N carries its own evaluator inside
+   :mod:`~orpheus.derivations.continuous.fn_method.slab.flux_reconstruction`
+   (the KLL :math:`\Gamma`-integral form, ``_X_negative_real_axis`` /
+   ``_gamma_kll``); the Case-method evaluator is
+   :func:`~orpheus.derivations.continuous.singular_eigenfunction.core.x_function.atalay_X_function`,
+   consumed only inside its own package. There is no
+   ``fn_method.core.x_function`` module (``fn_method/core/`` holds
+   ``dispersion``, ``fn_matrix``, ``moments``).
+
+   The correction *strengthens* the F_N ↔ Case cross-check rather than
+   weakening it: the two evaluators are separate implementations of the
+   same mathematical object. Be precise about how much that buys —
+   they still both rest on the dispersion function :math:`\Lambda`, so
+   the independence is **procedural**, and ``vv-principles`` L11 /
+   ERR-032 is explicit that procedural independence is not structural
+   independence. Two evaluators agreeing does not license a
+   correctness claim that a shared error in :math:`\Lambda` would
+   survive.
 
 Cross-check claim — second slice
 ==================================

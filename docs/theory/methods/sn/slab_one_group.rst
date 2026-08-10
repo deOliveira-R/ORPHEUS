@@ -410,7 +410,10 @@ Then the incoming face flux at cell :math:`i+1` is:
 
 and the cell-average flux is :math:`\psi_{\rm avg}^{(i)} = \frac{1}{2}(\psi_{\rm in}^{(i)} + \psi_{\rm out}^{(i)})`.
 
-The implementation in :func:`_sweep_1d_cumprod` computes :math:`C` and
+The implementation in
+:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep` (the
+free-function ``_sweep_1d_cumprod`` of the dissolved ``sweep.py``)
+computes :math:`C` and
 :math:`R` via ``np.cumprod`` and ``np.cumsum``, giving an
 :math:`O(N \cdot n_x)` **vectorised** sweep --- all spatial cells for a
 given ordinate are resolved simultaneously in numpy array operations,

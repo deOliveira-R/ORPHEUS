@@ -2015,7 +2015,7 @@ resumed:
    **structural inconsistency** between the pre-Phase-C apply
    matvec's boundary closure and the :ref:`affine-bc-form` (§16A.3).
    The apply matvec was passing **cell-centre** values to
-   :meth:`bc_outer.apply`, whereas §16A.3 requires the boundary
+   ``bc_outer.apply``, whereas §16A.3 requires the boundary
    face TRACE :math:`\gamma_+ \psi`. The cross-domain-attacker's
    "sweep / wavefront frame" naming gave the rewrite its
    architectural shape: the apply matvec is one sweep iteration

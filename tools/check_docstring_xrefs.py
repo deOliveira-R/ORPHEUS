@@ -277,7 +277,7 @@ def resolve(dotted: str) -> tuple[bool, str | None]:
                     # and the xref resolves. Treating this as dead would delete
                     # live cross-references — the inverse of the tool's purpose.
                     return True, None
-                if isinstance(obj, type) and attribute in _self_annotations(obj):
+                if isinstance(obj, type) and attribute in _self_attributes(obj):
                     return True, None
                 return False, "missing"
         return True, None
@@ -328,25 +328,39 @@ def _is_annotated_attribute(owner: object, attribute: str) -> bool:
 
 
 @functools.lru_cache(maxsize=None)
-def _self_annotations(klass: type) -> frozenset[str]:
-    """Attribute names annotated on ``self`` anywhere in ``klass``'s MRO source.
+def _self_attributes(klass: type) -> frozenset[str]:
+    """Attribute names assigned to ``self`` anywhere in ``klass``'s MRO source.
 
     The complement of :func:`_is_annotated_attribute`, and the reason it is
-    needed: **PEP 526 records ``self.x: T`` nowhere at runtime.** Those
-    annotations are function-local and discarded, so the attribute is absent
-    from ``getattr`` on the class *and* from every ``__annotations__`` in the
-    MRO — while autodoc reads it from source and the xref resolves. Deciding
-    such a target by import alone is a false DEAD.
+    needed: an instance attribute is **invisible to ``getattr`` on the class**,
+    so deciding such a target by import alone is a false DEAD — the failure
+    direction that makes a tool delete correct cross-references.
 
-    Worked (2026-08-10): ``orpheus/numerics/face_layout.py:89`` cites
-    ``:attr:`SNMesh.bc``` and ``SNMesh`` sets ``self.bc: dict[...] = ...`` in
-    ``__init__``. That citation sits inside a ``#:`` block, so widening the
-    scanned surface to ``#:`` runs WITHOUT this function would have made its
-    first output a false red — and the natural "fix" for a false red is
-    deleting a correct cross-reference.
+    Two shapes, and both are needed because they fail for different reasons:
+
+    ``self.x: T = ...``
+        **PEP 526 records this nowhere at runtime.** The annotation is
+        function-local and discarded, so the name is absent from ``getattr``
+        on the class *and* from every ``__annotations__`` in the MRO, while
+        autodoc reads it from source and the xref resolves.
+        Worked (2026-08-10): ``orpheus/numerics/face_layout.py:89`` cites
+        ``:attr:`SNMesh.bc``` and ``SNMesh`` sets ``self.bc: dict[...] = ...``.
+        That citation lives inside a ``#:`` block, so widening the scanned
+        surface WITHOUT this function would have made the gate's very first
+        output a false red.
+
+    ``self.x = ...``
+        Plain assignment, no annotation — invisible to the clause above too.
+        `[M]` 2026-08-10: ``SNMesh.mesh`` is set unannotated by
+        ``MaterialMesh._init_data`` and reads as a live ``Mesh2D`` on any
+        instance, yet ``resolve`` called it *missing*. It was latent rather
+        than active only because every citation of it happened to be
+        unqualified; the first person to qualify one would have been handed a
+        false red on a correct reference. Found while adjudicating #346 W1,
+        where a sub-agent's tree check contradicted my class-level probe.
 
     Any method is scanned, not only ``__init__``: autodoc documents an instance
-    attribute annotated wherever it is first assigned.
+    attribute wherever it is first assigned.
     """
     names: set[str] = set()
     for owner in getattr(klass, "__mro__", ()):
@@ -355,14 +369,19 @@ def _self_annotations(klass: type) -> frozenset[str]:
         except (OSError, TypeError, SyntaxError, IndentationError):
             continue  # C-implemented, dynamically built, or otherwise sourceless
         for node in ast.walk(tree):
-            target = getattr(node, "target", None)
-            if (
-                isinstance(node, ast.AnnAssign)
-                and isinstance(target, ast.Attribute)
-                and isinstance(target.value, ast.Name)
-                and target.value.id == "self"
-            ):
-                names.add(target.attr)
+            if isinstance(node, ast.AnnAssign):
+                targets = [node.target]
+            elif isinstance(node, ast.Assign):
+                targets = list(node.targets)
+            else:
+                continue
+            for target in targets:
+                if (
+                    isinstance(target, ast.Attribute)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "self"
+                ):
+                    names.add(target.attr)
     return frozenset(names)
 
 
