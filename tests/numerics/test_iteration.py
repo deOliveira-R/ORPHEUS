@@ -1223,3 +1223,62 @@ def test_zero_source_zero_start_exits_clean():
         pytest.fail(f"zero-source history {history} — expected [0.0]")
     if not np.isfinite(history).all():
         pytest.fail("the q≈0 guard leaked a non-finite residual")
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-053")
+def test_the_gmres_nonconvergence_warning_is_ESCALATABLE(monkeypatch) -> None:
+    r"""#340 R3 — the tree's only non-convergence announcement from inside
+    ``numerics`` must answer to the PUBLISHED escalation flag.
+
+    ``ESCALATION_FLAG`` is
+    ``-W error::orpheus.numerics.convergence.ConvergenceWarning``, and a
+    filter names a category: a bare ``RuntimeWarning`` does not match it.
+    So until 2026-08-10 a CI run could be configured to make truncation
+    fatal, PASS, and still have swallowed this one — a gate not covering
+    what its own recipe claims, which is the defect class #340 exists to
+    remove.
+
+    ⭐ The teeth are in the SECOND leg, and only there.  Asserting that the
+    warning is caught by a ``RuntimeWarning`` filter is satisfied by the
+    pre-fix code (``ConvergenceWarning`` IS a ``RuntimeWarning``), so that
+    leg cannot discriminate and is not written.  Asserting the category is
+    ``ConvergenceWarning`` reds the moment anyone widens it back — which is
+    the regression this row exists to catch, and the one a reviewer would
+    wave through as "it's only a warning category".
+
+    The narrowing is one-directional and safe by construction: every
+    existing consumer filters on the BASE class (``_krylov_warnings`` above
+    matches ``issubclass(w.category, RuntimeWarning)``), so it keeps
+    matching.  Widening back would break only this row.
+    """
+    import orpheus.numerics.iteration as iteration_mod
+    from orpheus.numerics.convergence import ConvergenceWarning
+
+    monkeypatch.setattr(
+        iteration_mod.spla, "gmres",
+        _stub_gmres_returning(info=7, pr_norm_tail=0.37),
+    )
+    A_op, b = _singular_consistent()
+
+    def _fresh_krylov():
+        return KrylovAcceleration(
+            A_op, preconditioner=lambda q: q,
+            tol=1e-12, max_iter=30, restart=2,
+        )
+
+    # leg 1 — the category IS the escalatable one, not merely a RuntimeWarning.
+    with pytest.warns(ConvergenceWarning) as caught:
+        _fresh_krylov().solve(b)
+    assert any("ERR-053" in str(w.message) for w in caught), (
+        "the escalatable warning must still carry its ERR-053 pointer — the "
+        "category is what CI filters on, the pointer is what a human follows"
+    )
+
+    # leg 2 — the escalation the published flag performs, done in-process:
+    # the SAME solve must RAISE once that category is an error.  This is the
+    # leg with teeth; it reds on any widening of the category.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", ConvergenceWarning)
+        with pytest.raises(ConvergenceWarning):
+            _fresh_krylov().solve(b)

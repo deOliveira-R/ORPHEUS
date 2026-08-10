@@ -160,6 +160,7 @@ if TYPE_CHECKING:
     from .eigenvalue import PowerIterationOutcome
 
 from .convergence import (
+    ConvergenceWarning,
     IterationRecord,
     StoppingCriterion,
     resolve_iteration_budget,
@@ -1105,7 +1106,20 @@ class KrylovAcceleration(Generic[V]):
                 f"{residual_history[-3:] if residual_history else '[]'}.  "
                 f"Tighten ``restart`` to ``n`` (full size) if the Krylov "
                 f"subspace is being truncated; see ERR-053.",
-                RuntimeWarning,
+                # ⛔ A bare ``RuntimeWarning`` until 2026-08-10 (#340 R3),
+                # which put the tree's ONLY non-convergence announcement from
+                # inside ``numerics`` outside the escalation net: the published
+                # recipe is ``-W error::…convergence.ConvergenceWarning``, and
+                # a bare RuntimeWarning does not match it.  A CI run could
+                # therefore be configured to make truncation fatal, pass, and
+                # still have swallowed this one — the exact
+                # "the gate does not cover what it claims" defect #340 exists
+                # to remove.  ``ConvergenceWarning`` subclasses
+                # ``RuntimeWarning``, so every existing consumer that filters
+                # on the base class (the ERR-053 gates match with
+                # ``issubclass(w.category, RuntimeWarning)``) is unaffected;
+                # the category is strictly narrowed, never widened.
+                ConvergenceWarning,
                 stacklevel=2,
             )
 

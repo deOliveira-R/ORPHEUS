@@ -61,9 +61,6 @@ The architectural fix point is the C5 retirement of the
 ``angular_flux.py`` legacy buffer; consider landing the scan fix
 alongside.
 """
-import warnings
-warnings.filterwarnings('ignore')
-
 import numpy as np
 import pytest
 
@@ -100,6 +97,9 @@ def homog_cyl_2g_thick2_n20():
     return fuel, mesh, quad
 
 
+@pytest.mark.filterwarnings(
+    "ignore::orpheus.numerics.convergence.ConvergenceWarning"
+)
 def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
     """SI must return a finite k_eff at the bug report's configuration.
 
@@ -107,6 +107,21 @@ def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
     Post-fix (the division-free pair-monoid backend, dispatched when
     the closed form is non-finite) it passes with k_eff = k_inf =
     1.875.
+
+    ⭐ **The truncation is the FIXTURE, and it is declared** (#340 R2/R4).
+    ``max_inner=3`` is deliberate: the NaN this row pins appears in the
+    FIRST inner iteration, so a converged solve would only make the test
+    slower without making it sharper.  The solve therefore exits truncated
+    and says so — which is correct, and is why the suppression above names
+    the ONE category this row expects rather than silencing the module.
+
+    ⛔ Until 2026-08-10 that suppression was a module-level, category-less
+    ``warnings.filterwarnings('ignore')``, evaluated at IMPORT — so it
+    silenced every warning of every category, and `[M]` the only thing it
+    was actually hiding was this ``ConvergenceWarning``
+    (``inner(source-iteration) hit max_inner=3 … set max_inner=1093``).
+    A global silencer installed to hide one expected line is how the next
+    UNexpected one goes unnoticed; `[M]` removing it left all 4 rows green.
     """
     fuel, mesh, quad = homog_cyl_2g_thick2_n20
     # NaN appears in the FIRST inner iteration — small caps suffice.
