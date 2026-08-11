@@ -462,6 +462,29 @@ CASES: tuple[SnapshotCase, ...] = (
     # arc absorber still clamps folded levels, so these baselines move
     # again at Q5.6.4 (the absorber retirement lands WITH its own
     # acceptance instruments and re-captures these by name).
+    #
+    # ⛔ Q5.6.4 LANDED (2026-08-11) and that prediction was WRONG: `[M]`
+    # only ONE of the three cylinder DD cases moved
+    # (cyl_2g_3reg_folded_4x8_dd_n40, re-captured). The two 1G HOMOGENEOUS
+    # cases did NOT, for two different reasons worth knowing before
+    # crediting either as a cylinder-closure catcher:
+    #
+    #   * folded_2x4 has M = 2 ordinates per level, and `[M]` the new
+    #     omega-midpoint partition is BIT-IDENTICAL to the retired
+    #     eta-midpoint one at M = 2 (the single interior chord midpoint
+    #     (eta_0+eta_1)/2 = 0 IS the arc edge at omega = pi/2). They
+    #     diverge only from M = 3. So this case's tau did not change at
+    #     all, and no M = 2 fixture can ever see a partition change.
+    #   * folded_4x8 DID get a new tau, but `[M]` its flux moves only
+    #     1.14e-10 under a deliberate tau := 0.7 mutation (vs 8.78e-02 for
+    #     the 2G 3-region case) — a homogeneous medium's angular flux is
+    #     near-flat, which nulls the angular redistribution the closure
+    #     feeds (vv-principles anti-pattern #4). Effectively blind at
+    #     snapshot tolerance.
+    #
+    # ⟹ of the four cylinder artifacts, ONLY cyl_2g_3reg_folded_4x8_dd_n40
+    # and walk_matvec_cyl_2g are genuine angular-closure catchers. Do not
+    # read a green homogeneous cylinder snapshot as evidence about tau.
     SnapshotCase(
         "cyl_1g_homogeneous_folded_4x8_dd_n20",
         "DD cylinder 1G homogeneous, folded_product(4x8) (16 ord), n=20",
