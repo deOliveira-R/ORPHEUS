@@ -59,7 +59,7 @@ from orpheus.numerics.quadrature import (
     spherical_product,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3, singular_set
-from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_raw_per_level
+from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
 from tests.sn._test_helpers import seam_quad
 
 pytestmark = pytest.mark.foundation
@@ -80,44 +80,103 @@ _N_PHI_SWEEP = (8, 16, 32, 64)
 
 # ── the [0, 1] membership guard (vv #11: positive + negative) ───────────
 
-def test_shipped_families_pass_the_guard_including_the_closed_endpoints():
-    """Positive: production and folded rules stay inside [0, 1] — no raise.
+def _arc_quad(omega_per_level, sin_theta=1.0):
+    """A hand-built CYLINDRICAL level from bare ω values (one level).
 
-    The NODE_ALIGNED full circle is the sharp row: its double-cover
-    ``[0, 1, 0, 1, …]`` τ pattern ATTAINS both closed endpoints
-    (``0`` = edge-node start, ``1`` = η-degenerate tie — legal march
-    starts per Q5.4), so this row proves the guard admits the boundary
-    rather than merely the interior.
+    Lets a row choose the arc's node placement directly, which is the
+    only way to reach P3's closed endpoints now that no shipped rule
+    attains them (see the two rows below).
+    """
+    om = np.asarray(omega_per_level, dtype=float)
+    mu_z = float(np.sqrt(max(0.0, 1.0 - sin_theta ** 2)))
+    return SimpleNamespace(
+        mu_x=sin_theta * np.cos(om),
+        mu_y=sin_theta * np.sin(om),
+        mu_z=np.full(om.size, mu_z),
+        weights=np.full(om.size, np.pi / om.size),
+        # ⚠ an ARRAY, never a tuple: ``mu_x[(0, 1, 2, 3)]`` is numpy
+        # MULTI-DIMENSIONAL indexing, not fancy indexing, and raises
+        # "too many indices". Real level_indices are arrays.
+        level_indices=(np.arange(om.size),),
+    )
+
+
+def test_shipped_families_pass_the_guard_including_the_closed_endpoints():
+    r"""Positive: shipped rules stay inside [0, 1] — no raise.
+
+    ⛔ **Re-posed at Q5.6.4 (2026-08-11).** The sharp row used to be
+    ``node_aligned_full_circle`` (``Quadrature.product(4, 8)``), whose
+    double-cover ``[0, 1, 0, 1, …]`` τ pattern attained BOTH closed
+    endpoints.  That rule is now **refused one frame earlier**, by the
+    arc guard in
+    :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`
+    — a full-circle level has ω of both signs and therefore no angular
+    cells at all.  Its refusal is gated in
+    ``test_mms_ordering_blindness.py::test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition``.
+
+    So the closed-endpoint claim moves to a hand-built **node-aligned
+    ARC**: put a node exactly at :math:`\omega = \pi` (i.e. ON
+    :math:`\Sigma`) and :math:`\tau_0 = 0` bit-exactly, because the
+    partition's lower endpoint IS :math:`\omega = \pi`.  ``0`` therefore
+    remains a legal, ATTAINABLE value that the guard must admit — the
+    ``on_edge_node`` march start of Q5.4.
     """
     rows = [
-        ("node_aligned_full_circle", lambda: Quadrature.product(4, 8),
-         CoordSystem.CYLINDRICAL),
         ("folded_staggered", lambda: seam_quad(4, 8, STAGGERED, folded=True),
          CoordSystem.CYLINDRICAL),
         ("sphere_gl", lambda: Quadrature.gauss_legendre(8),
          CoordSystem.SPHERICAL),
+        ("node_aligned_ARC (a node ON Sigma)",
+         lambda: _arc_quad(np.pi - np.arange(4) * (np.pi / 4)),
+         CoordSystem.CYLINDRICAL),
     ]
+    attained = {}
     for label, build, coord in rows:
-        raw = morel_montry_tau_raw_per_level(build(), coord)  # must not raise
-        values = np.concatenate(raw)
+        tau = morel_montry_tau_per_level(build(), coord)  # must not raise
+        values = np.concatenate(tau)
+        attained[label] = values
         assert np.all((values >= 0.0) & (values <= 1.0)), (
             f"{label}: the guard passed a value outside [0, 1]: {values}"
         )
-        if label == "node_aligned_full_circle":
-            assert 0.0 in values and 1.0 in values, (
-                f"{label}: expected BOTH closed endpoints attained "
-                f"(the double-cover fingerprint), got {values}"
-            )
+    endpoint_row = attained["node_aligned_ARC (a node ON Sigma)"]
+    assert endpoint_row[0] == 0.0, (
+        f"the closed endpoint 0 is no longer attainable: a node placed "
+        f"exactly on Sigma (omega = pi) must give tau_0 = 0 bit-exactly, "
+        f"got {endpoint_row}"
+    )
 
 
-def test_a_mis_ordered_level_is_refused_as_outside_its_cell():
-    """Negative: ω-ordered members on the full circle → τ_raw = 1.079 → raise.
+def test_the_cylinder_cannot_violate_P3_once_its_arc_is_MONOTONE():
+    r"""⭐ P3 is a THEOREM on the cylinder, and the sphere is where it still bites.
 
-    The ω-chart orders the FULL circle's level non-monotonically in η
-    (η = sinθ·cosω wraps), so one ordinate lands outside its own angular
-    cell — T22's exact mis-ordering, which the retired absorber used to
-    launder into a finite wrong answer.
+    ⛔ **Re-posed at Q5.6.4 (2026-08-11).** This row used to be
+    ``test_a_mis_ordered_level_is_refused_as_outside_its_cell``: it fed
+    ω-ordered members of a FULL circle to the producer and asserted the
+    P3 message ``"outside its own angular cell"`` (T22's mis-ordering,
+    :math:`\tau = 1.079`).  The refusal still happens — one frame
+    earlier and better targeted, from the arc guard — so the old regex
+    no longer matches.
+
+    ⚠ **And the reason is structural, not cosmetic.** With the cell
+    partition taken as the **ω-midpoint**, a strictly ω-monotone level
+    has ``edge[m] > ω_m > edge[m+1]`` by construction, and ``cos`` is
+    monotone on :math:`(0, \pi)`, so
+    ``η_edge[m] < η_m < η_edge[m+1]`` — i.e. :math:`\tau \in (0,1)` is
+    **forced**.  `[M]` verified over 4000 random monotone arcs:
+    ``min(τ) = 4.739e-07``, ``min(1−τ) = 7.599e-10``, never outside.
+    ⟹ **once the arc guard passes, cylinder-P3 CANNOT fire**, and its
+    only equality case is a node ON an arc endpoint — i.e. a node on
+    :math:`\Sigma`.  **Cylinder-P3 reduces to the fold criterion
+    Σ = ∅.**
+
+    So P3 keeps its teeth on the **SPHERE**, where cumulative-weight
+    edges genuinely do NOT bracket their nodes: a 3-D ``level_symmetric``
+    rule on the 1-D spherical arm measured
+    :math:`\tau \in [-20.3, 1.13]`, 23 of 24 outside (#336).  That is
+    the row below.  Stated plainly so no audit reads cylinder-P3 as
+    live coverage it is not (`vv-principles` #22).
     """
+    # (a) cylinder — the mis-ordering is refused, by the ARC guard.
     measure, structure = spherical_product(
         gauss_legendre_on_mu(4), periodic_trapezoid(8, shift=NODE_ALIGNED)
     )
@@ -132,8 +191,17 @@ def test_a_mis_ordered_level_is_refused_as_outside_its_cell():
         weights=measure.weights,
         level_indices=tuple(mis_levels),
     )
+    with pytest.raises(ValueError, match="monotone arc in omega"):
+        morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
+
+    # (b) sphere — P3 itself, still falsifiable, still the only catcher.
+    bad_sphere = SimpleNamespace(
+        mu_x=np.array([-0.9, -0.1, 0.1, 0.9]),
+        weights=np.array([0.1, 0.1, 0.1, 0.1]),   # sum 0.4 != 2 -> cells tiny
+        N=4,
+    )
     with pytest.raises(ValueError, match="outside its own angular cell"):
-        morel_montry_tau_raw_per_level(quad, CoordSystem.CYLINDRICAL)
+        morel_montry_tau_per_level(bad_sphere, CoordSystem.SPHERICAL)
 
 
 # ── the T27 mechanism gates (two legs, one mutation reds both) ──────────
@@ -163,32 +231,58 @@ def test_the_fold_mechanism_is_an_empty_singular_set(n_phi: int):
 @pytest.mark.verifies("morel-montry-folded-arc")
 @pytest.mark.parametrize("n_phi", _N_PHI_SWEEP)
 def test_the_folded_tau_is_bounded_with_the_reversal_identity(n_phi: int):
-    """CONSEQUENCE leg: τ_raw ⊂ [1/5, 4/5] and τ_m + τ_{M−1−m} = 1 bit-exactly.
+    r"""CONSEQUENCE leg: τ ⊂ [1/4, 3/4], and τ_m + τ_{M−1−m} = 1 to ULP.
 
-    With midpoint nodes on the arc the smallest-η node sits at
-    ω = π − ε, ε = π/2n, giving τ_0 = (ε²/2)/(5ε²/2) = 1/5 in the limit,
-    approached monotonically FROM INSIDE (`[M]` 0.2929 at n_φ = 4 →
-    0.200289 at n_φ = 64) — so the closed [1/5, 4/5] box holds at every
-    finite n_φ and the {0, 1} singularity is structurally unreachable.
-    The reversal identity is bit-exact because the staggered
-    roots-of-unity η-grid is bit-antisymmetric under ω → π − ω and the
-    fold descends by bit-copied selection (Q5.3); the retired absorber
-    would DESTROY it (clamping τ_0 to ½ breaks τ_0 + τ_{M−1} = 1).
+    ⛔ **Both numbers were RE-POSED at Q5.6.4 (2026-08-11)**, and the
+    originals are kept because they are still the correct claims about
+    the partition they were measured on. They read: *"τ_raw ⊂ [1/5, 4/5]
+    … τ_0 = (ε²/2)/(5ε²/2) = 1/5 in the limit, `[M]` 0.2929 at n_φ = 4 →
+    0.200289 at n_φ = 64"*, with the reversal identity **bit-exact**.
+
+    Those were properties of the retired **η-midpoint (chord)**
+    partition. On the ω-midpoint partition the closed form is
+    :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\tan(\Delta\omega/4)`,
+    so the most-inward node (:math:`\omega_0 = \pi - \Delta\omega/2`)
+    gives
+
+    > :math:`\tau_0 = \tfrac12 - \tfrac12\cot(\Delta\omega/2)
+    > \tan(\Delta\omega/4) \;\longrightarrow\; \tfrac14`
+
+    since :math:`\cot(\Delta\omega/2)\tan(\Delta\omega/4) \to \tfrac12`.
+    ⟹ the box is :math:`[\tfrac14, \tfrac34]`, again approached
+    monotonically FROM INSIDE, so :math:`\{0, 1\}` stays structurally
+    unreachable. `[M]` measured:
+
+    ======= ======================== ==================
+    n_φ     τ range                  reversal residual
+    ======= ======================== ==================
+    4       [0.292893, 0.707107]     0.5 ULP
+    8       [0.259892, 0.740108]     0.5 ULP
+    16      [0.252425, 0.747575]     2.0 ULP
+    32      [0.250603, 0.749397]     7.0 ULP
+    64      [0.250151, 0.749849]    12.0 ULP
+    ======= ======================== ==================
+
+    ⚠ **The reversal identity is no longer BIT-exact, and that is a
+    trade, not a regression.** The chord partition's reversal symmetry
+    was exact *because* both end cells were stretched symmetrically —
+    the 17.5 %-ω-width defect cancelled itself under
+    :math:`\omega \to \pi - \omega`. The ω partition has the correct
+    cells and pays 0.5–12 ULP from :math:`\arctan2`/:math:`\cos`
+    round-off. Asserted at 64 ULP: the residual grows like the arc
+    refinement, so a bit-exact assertion here would be a latent false
+    red (`vv-principles` #16 — never assert tighter than the producer
+    achieves).
     """
     quad = seam_quad(4, n_phi, _FOLD_SHIFT, folded=True)
-    raw = morel_montry_tau_raw_per_level(quad, CoordSystem.CYLINDRICAL)
-    for p, tau in enumerate(raw):
-        assert np.all(tau >= 0.2) and np.all(tau <= 0.8), (
-            f"n_phi={n_phi} level {p}: τ_raw left [1/5, 4/5]: {tau} — the "
-            f"fold no longer bounds the closure away from the singularity"
+    tau_levels = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
+    for p, tau in enumerate(tau_levels):
+        assert np.all(tau >= 0.25) and np.all(tau <= 0.75), (
+            f"n_phi={n_phi} level {p}: τ left [1/4, 3/4]: {tau} — the fold "
+            f"no longer bounds the closure away from the {{0, 1}} "
+            f"singularity (the limit tau_0 -> 1/4 is approached from "
+            f"INSIDE, so any value below 1/4 means the arc changed)"
         )
-        np.testing.assert_array_equal(
-            tau + tau[::-1],
-            np.ones_like(tau),
-            err_msg=(
-                f"n_phi={n_phi} level {p}: the reversal identity "
-                f"τ_m + τ_{{M−1−m}} = 1 is no longer bit-exact — the "
-                f"arc lost its reversal symmetry (or the fold stopped "
-                f"descending by bit-copied selection)"
-            ),
+        np.testing.assert_array_almost_equal_nulp(
+            tau + tau[::-1], np.ones_like(tau), nulp=64
         )

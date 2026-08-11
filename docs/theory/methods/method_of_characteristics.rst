@@ -918,9 +918,10 @@ logic into the outer eigenvalue loop (see :doc:`/api/numerics`).
    A starved MoC inner leaves :math:`\phi` looking converged to machine zero,
    ``keff`` looking settled, and the returned flux wrong — so every
    instrument a user would naturally reach for is inside the error's
-   stabiliser.  A warning that fires off :attr:`~orpheus.numerics.convergence
-   .IterationRecord.fully_converged` is not a nicety here; it is the only
-   channel through which that failure can reach a caller at all.
+   stabiliser.  A warning that fires off
+   :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
+   is not a nicety here; it is the only channel through which that failure
+   can reach a caller at all.
 
    **Boundary flux persistence:** The angular fluxes at track
    entry/exit points (``_fwd_bflux``, ``_bwd_bflux``) persist between

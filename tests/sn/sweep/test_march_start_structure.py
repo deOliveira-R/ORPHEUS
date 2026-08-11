@@ -35,7 +35,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import NODE_ALIGNED, STAGGERED, Quadrature
 from orpheus.sn.sweep.pole_angular_closure import (
     march_start_structure_per_level,
-    morel_montry_tau_raw_per_level,
+    morel_montry_tau_per_level,
 )
 from tests.sn._test_helpers import seam_quad
 
@@ -143,20 +143,63 @@ def test_the_two_facts_classify_every_family(
 def test_the_tau_trichotomy_is_a_theorem_about_the_facts(
     label: str, build, coord, expected: tuple[bool, bool]
 ) -> None:
-    """The old encoding is the facts' bit-exact consequence — no epsilon.
+    r"""The facts' bit-exact τ consequence, where a τ exists at all.
 
-    ``on_edge_node ⟹ τ_raw,0 == 0.0`` (the start edge and the first
-    node coincide bit-for-bit, so the numerator is exactly zero);
-    ``degenerate ⟹ τ_raw,0 == 1.0`` (η₀ == η₁ makes the midpoint edge
-    exactly η₀, so numerator == denominator); neither ⟹ strictly
-    interior. This gate is ALSO the post-E3 exactness pin: under the
-    pre-E3 linspace+cos azimuths the odd-n_φ rows read
-    0.9999999999999994 (T26) and this comparison fails bit-exactly.
+    ``on_edge_node ⟹ τ_0 == 0.0`` (the start edge and the first node
+    coincide bit-for-bit, so the numerator is exactly zero);
+    ``degenerate ⟹ τ_0 == 1.0``; neither ⟹ strictly interior.  This
+    gate is ALSO the post-E3 exactness pin: under the pre-E3
+    linspace+cos azimuths the odd-n_φ rows read 0.9999999999999994
+    (T26) and this comparison fails bit-exactly.
+
+    ⛔ **NARROWED at Q5.6.4 (2026-08-11), and the narrowing is the
+    point.** The trichotomy above was a theorem about the retired
+    **η-midpoint** cell partition — in particular ``degenerate ⟹
+    τ_0 == 1`` held *because* ``eta_edge[m+1] = (η_m + η_{m+1})/2``
+    collapses to ``η_0`` when the two coincide.  The cylinder partition
+    is now the midpoint in **ω**
+    (:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`),
+    and a level that is not a monotone ω-arc has **no angular cells at
+    all** — so for those families there is no τ to make a claim about,
+    and the producer REFUSES.  That is asserted here instead of the
+    trichotomy, which keeps the family coverage rather than deleting
+    the rows.
+
+    `[M]` Which arm each family lands in, on this tree:
+
+    * **sphere GL** — cumulative-weight edges, ``μ_{1/2} = −1``, so
+      ``on_edge_node`` (``μ_0 == −1``) still gives ``τ_0 == 0``
+      bit-exactly.  The trichotomy is LIVE here.
+    * **folded arcs** — every level is carrying (``Σ = ∅``), so only the
+      strict-interior arm is reachable.  ⚠ And it is reachable
+      *necessarily*, not contingently: on a monotone arc the ω-midpoint
+      edges bracket their own node, so ``τ ∈ (0,1)`` is forced (see
+      ``test_tau_arc_wellposedness.py::test_the_cylinder_cannot_violate_P3_once_its_arc_is_MONOTONE``).
+    * **full-circle products / level_symmetric** — REFUSED at the
+      partition.  These are also inadmissible for a cylindrical
+      ``SNMesh`` since the 6.3 flip, so no production path loses a
+      claim.
     """
     quadlike = build()
     starts = march_start_structure_per_level(quadlike, coord)
-    raw = morel_montry_tau_raw_per_level(quadlike, coord)
-    for p, (start, tau_level) in enumerate(zip(starts, raw, strict=True)):
+    try:
+        tau_levels = morel_montry_tau_per_level(quadlike, coord)
+    except ValueError as exc:
+        # No angular cells ⟹ no τ ⟹ no trichotomy. Pin the refusal and
+        # its REASON, so this row still fails if the producer silently
+        # starts accepting a non-arc level again.
+        assert "not a monotone arc in omega" in str(exc), (
+            f"{label}: the producer refused, but not for the reason this "
+            f"row pins (expected a non-monotone-arc refusal): {exc}"
+        )
+        assert coord is CoordSystem.CYLINDRICAL, (
+            f"{label}: only a CYLINDRICAL level can fail to be an arc; a "
+            f"spherical rule has one level and no ω. Got {coord!r}: {exc}"
+        )
+        return
+    for p, (start, tau_level) in enumerate(
+        zip(starts, tau_levels, strict=True)
+    ):
         t0 = float(tau_level[0])
         if start.on_edge_node:
             assert t0 == 0.0, f"{label} level {p}: expected exact 0, got {t0!r}"

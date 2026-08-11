@@ -130,11 +130,16 @@ def mm_constants_for_ordinate(
             )
         if op.alpha_per_level is None:
             raise ValueError("cylindrical operator missing alpha_per_level.")
-        # Independent reference is UNCLAMPED; the production cylinder τ is
-        # clamped to [½, 1] (structural ÷0 block at the most-inward
-        # ordinate; see cylindrical_streaming / #229).
-        tau_raw = morel_montry_weights(quad, "cylindrical")  # list[(M,)], raw
-        tau = float(np.clip(tau_raw[mu_level_idx][direction_idx], 0.5, 1.0))
+        # ⛔ Q5.6.4 (2026-08-11): this line used to be
+        #     tau = float(np.clip(tau_raw[...], 0.5, 1.0))
+        # under a comment asserting "Independent reference is UNCLAMPED" —
+        # i.e. the supposedly INDEPENDENT oracle re-implemented the very
+        # [½,1] absorber it was standing in judgement over (a Pattern-2
+        # twin that no symbol grep could find; only the CONCEPT grep did).
+        # The absorber is retired, so the clip is deleted rather than
+        # mirrored: this reference is now genuinely unclamped.
+        tau_raw = morel_montry_weights(quad, "cylindrical")  # list[(M,)]
+        tau = float(tau_raw[mu_level_idx][direction_idx])
         alpha_lv = op.alpha_per_level[mu_level_idx]
         alpha_in = float(alpha_lv[direction_idx])
         alpha_out = float(alpha_lv[direction_idx + 1])

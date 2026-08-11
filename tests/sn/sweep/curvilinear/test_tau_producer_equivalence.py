@@ -8,20 +8,33 @@ reading it back from the streaming-GEOMETRY factory (``reduced_operator.py``).
 Step C (the geometry-τ retirement) deleted the geometry-side τ producer, so
 the former ``*_equals_geometry_factory_0ulp`` legs (closure τ vs
 ``spherical_streaming(...).tau_mm`` / ``cylindrical_streaming(...).tau_mm_per_level``)
-are now vacuous and have been removed.  The structural-independence floor is
-carried entirely by the surviving legs below — the closure τ producer is
-pinned against the STRUCTURALLY-INDEPENDENT ``contamination.morel_montry_weights``
-(a DIFFERENT code path to the same BMC-2010-Eq.43 weight; vv-principles L11),
-which never depended on the geometry producer.
+are now vacuous and have been removed.  The independence floor is carried
+entirely by the surviving legs below, and **the two arms now use two
+DIFFERENT references** — a distinction that must not be flattened again:
+
+* **SPHERE** → ``contamination.morel_montry_weights``.  Still valid: that
+  module's spherical arm is the cumulative-weight recursion (BMC 2010
+  Eq. 12/42), the same convention production uses, reached by a different
+  code path.  This is PROCEDURAL independence (`vv-principles` L11).
+* **CYLINDER** → the **analytic closed form**
+  :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\tan(\Delta\omega/4)`.
+  ⛔ ``contamination.morel_montry_weights`` is NOT usable here: `[M]` its
+  cylindrical arm still builds the **RETIRED η-midpoint (chord)** edges
+  (``contamination.py:64-66``), so as of Q5.6.4 it disagrees with
+  production by construction.  Migrating it is tracked with the analysis
+  module; until then it serves as this gate's NEGATIVE control rather
+  than its reference.  The closed form is STRUCTURAL independence — it
+  shares no code path with the producer at all, which is a strictly
+  stronger footing than the procedural twin it replaced.
 
 This gate proves the closure-produced τ:
 
-* equals a STRUCTURALLY-INDEPENDENT reference
-  (``contamination.morel_montry_weights`` — a different code path to the SAME
-  BMC-2010-Eq.43 weight; vv-principles L11);
-* on the cylinder, equals ``clamp(reference τ_raw)`` and NOT the raw reference
-  — the clamp is a real producer-side transform, pinned by a NEGATIVE control
-  (vv anti-pattern #11);
+* equals a structurally- (cylinder) or procedurally- (sphere) INDEPENDENT
+  reference;
+* on the cylinder, DIFFERS from the retired chord convention — a negative
+  control (`vv-principles` #19), without which the row would pass equally
+  against the partition the Q5.6.4 carve replaced and so could not be
+  evidence about the partition choice;
 * on Cartesian, is the neutral τ = 1.0 produced WITHOUT a geometry branch
   (the closure TYPE is the dispatch — Pattern 4).
 
@@ -82,54 +95,82 @@ def test_sphere_tau_matches_independent_reference(N):
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("n_phi", [8, 16])
-def test_cyl_tau_clamp_is_the_only_difference_from_reference(n_phi):
-    """Cylinder: closure τ == ``clamp(contamination τ_raw)``, NOT the raw τ.
+def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
+    n_phi,
+):
+    r"""Cylinder: closure τ == the ANALYTIC P2 closed form on the arc.
 
-    NEGATIVE-control companion (vv anti-pattern #11): the independent
-    reference is the UNCLAMPED τ_raw; the closure τ must equal
-    ``clip(τ_raw, ½, 1)`` everywhere, and must DIFFER from the raw reference
-    exactly where the clamp bites (τ_raw < ½, at the most-inward ordinate
-    where ``eta == eta_edge == -sinθ`` so τ_raw = 0).  This pins the clamp
-    as a real transform, not an accident, AND proves the producer is not the
-    naked unclamped reference.
+    ⛔ **Re-posed at Q5.6.4 (2026-08-11).** This row was
+    ``test_cyl_tau_clamp_is_the_only_difference_from_reference``, and its
+    whole thesis — *"closure τ == clip(reference τ_raw, ½, 1), and must
+    DIFFER from the raw reference where the clamp bites"* — became
+    vacuous when the ``[½, 1]`` absorber retired: there is no clamp left
+    to be the only difference.  It is **kept, not deleted**, because it
+    is the cylinder's only vv-L11 producer gate (two independently
+    produced sides).
+
+    ⭐ **What changed about the INDEPENDENCE, and it is an upgrade.** The
+    old reference was ``contamination.morel_montry_weights`` — a second
+    *procedural* implementation of the same edge recursion, i.e. only
+    procedural independence (`vv-principles` L11).  The reference is now
+    the **analytic closed form** obtained by putting the ω-midpoint
+    partition through P2 (BMC Eq. 43):
+
+    > :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\,
+    > \tan(\Delta\omega/4)`
+
+    derived by hand from the arc geometry, sharing no code path with the
+    producer.  That is *structural* independence.
+
+    ⚠ **NEGATIVE control (`vv-principles` #19 — the positive leg alone
+    cannot show a gate is loaded on the structure it is credited with).**
+    The retired **chord** (η-midpoint) convention is computed inline
+    below and the closed form must DIFFER from it — otherwise this row
+    would pass just as happily against the partition the carve replaced,
+    and would be certifying nothing about the partition choice.
+
+    ⚠ ``contamination.morel_montry_weights`` still carries the RETIRED
+    η-midpoint convention, so it is deliberately NOT used as the
+    reference here; it appears only as the negative control's sibling
+    (see the module-level note).
     """
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
-    tau_raw_ref = morel_montry_weights(quad, "cylindrical")  # list[(M,)], raw
-    tau_clamped_ref = [np.clip(t, 0.5, 1.0) for t in tau_raw_ref]
     tau_close = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
 
-    # Guard-the-guard: the clamp MUST bite on at least one level, else the
-    # negative control is vacuous (it would compare τ against itself).
-    assert any(t.min() < 0.5 for t in tau_raw_ref), (
-        "fixture too weak — clamp never bites; pick a quadrature where the "
-        f"most-inward ordinate has τ_raw < ½ (n_phi={n_phi}); "
-        f"mins={[float(t.min()) for t in tau_raw_ref]}"
-    )
+    for p, level_idx in enumerate(quad.level_indices):
+        eta = quad.mu_x[level_idx]
+        xi = quad.mu_y[level_idx]
+        sin_theta = float(np.sqrt(1.0 - quad.mu_z[level_idx[0]] ** 2))
+        M = len(level_idx)
+        omega = np.arctan2(xi, eta)
+        d_omega = np.pi / M
 
-    clamp_bites_somewhere = False
-    for p, (tc, t_raw, t_clamped) in enumerate(
-        zip(tau_close, tau_raw_ref, tau_clamped_ref)
-    ):
-        # The closure τ equals the CLAMPED reference, level by level.
-        assert np.array_equal(tc, t_clamped), (
-            f"cylinder level {p}: closure τ != clamp(reference τ_raw) "
-            f"(n_phi={n_phi})\nclosure={tc}\nclamp(ref)={t_clamped}"
+        # (a) the ANALYTIC reference — hand-derived, no shared code path.
+        closed_form = 0.5 + 0.5 / np.tan(omega) * np.tan(d_omega / 4.0)
+        np.testing.assert_allclose(
+            tau_close[p], closed_form, rtol=0.0, atol=1e-13,
+            err_msg=(
+                f"cylinder level {p} (n_phi={n_phi}): production τ departs "
+                f"from the analytic P2 closed form "
+                f"½ + ½·cot(ω)·tan(Δω/4)\n"
+                f"production ={tau_close[p]}\nclosed form={closed_form}"
+            ),
         )
-        # Where the clamp bit, the closure τ must DIFFER from the raw
-        # reference — proving the closure is NOT the naked unclamped τ.
-        bit = t_raw < 0.5
-        if np.any(bit):
-            clamp_bites_somewhere = True
-            assert not np.array_equal(tc[bit], t_raw[bit]), (
-                f"cylinder level {p}: closure τ == raw reference where the "
-                f"clamp should bite (n_phi={n_phi}) — the clamp is missing "
-                f"from the producer\nclosure={tc[bit]}\nraw={t_raw[bit]}"
-            )
 
-    assert clamp_bites_somewhere, (
-        "no level exercised the clamp-difference branch; negative control "
-        f"vacuous (n_phi={n_phi})"
-    )
+        # (b) NEGATIVE control: the RETIRED chord (η-midpoint) partition.
+        chord_edge = np.empty(M + 1)
+        chord_edge[0] = -sin_theta
+        chord_edge[M] = sin_theta
+        chord_edge[1:M] = 0.5 * (eta[:-1] + eta[1:])
+        chord_tau = (eta - chord_edge[:-1]) / np.diff(chord_edge)
+        gap = float(np.max(np.abs(closed_form - chord_tau)))
+        assert gap > 1e-3, (
+            f"cylinder level {p} (n_phi={n_phi}): the analytic reference is "
+            f"indistinguishable from the RETIRED chord convention "
+            f"(max gap {gap:.3e}) — this row cannot then be evidence about "
+            f"the partition choice, which is the thing the carve changed"
+        )
+
 
 
 # ═══════════════════════════════════════════════════════════════════════

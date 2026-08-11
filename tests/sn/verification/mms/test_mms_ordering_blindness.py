@@ -224,7 +224,21 @@ def test_production_now_has_exact_ties_and_a_NAMED_tie_break():
 # ── 1. the tie-break cannot move alpha or tau ───────────────────────────
 
 def test_alpha_and_tau_are_bit_identical_across_tie_breaks():
-    """The geometry coefficients do not see the tie-break at all."""
+    r"""The geometry coefficients do not see the tie-break at all.
+
+    ⛔ **Narrowed at Q5.6.4 (2026-08-11).** The τ half used to compare two
+    τ ARRAYS on this full-circle fixture.  The cell partition is now the
+    ω-midpoint, and a full-circle level has no angular cells, so there is
+    no τ array to compare — the producer refuses.  The claim survives in
+    the form that is still meaningful and is arguably sharper: **the
+    REFUSAL is itself tie-break-invariant**.  If a tie-break could turn a
+    refusal into an acceptance (or vice versa), the ordering would be
+    reaching the closure, which is exactly what this file exists to deny.
+
+    α is unaffected and still compared bit-for-bit — it is computed
+    inline here from ``(eta, w)``, needs no cell partition, and is the
+    coefficient the tie-break could most plausibly move.
+    """
     from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
 
     def coefficients(tie_break):
@@ -237,35 +251,67 @@ def test_alpha_and_tau_are_bit_identical_across_tie_breaks():
                 for m in range(len(level)):
                     alpha[m + 1] = alpha[m] - w[m] * eta[m]
                 alphas.append(alpha)
-            taus = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
-        return np.array(alphas), np.array(taus)
+            try:
+                morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
+                tau_verdict = "accepted"
+            except ValueError as exc:
+                tau_verdict = f"refused: {'monotone arc' in str(exc)}"
+        return np.array(alphas), tau_verdict
 
     alpha_lex, tau_lex = coefficients("lexsort")
     alpha_stable, tau_stable = coefficients("stable")
     np.testing.assert_array_equal(alpha_lex, alpha_stable)   # bit-identical
-    np.testing.assert_array_equal(tau_lex, tau_stable)
+    assert tau_lex == tau_stable == "refused: True", (
+        f"the cell partition's verdict is tie-break DEPENDENT — lexsort "
+        f"gave {tau_lex!r}, stable gave {tau_stable!r}. The per-level "
+        f"ordering must not be able to decide whether a level has angular "
+        f"cells."
+    )
 
 
-def test_the_degenerate_eta_pair_splits_tau_into_one_and_one_half():
-    """The MECHANISM: a mirror pair's shared ``eta`` collapses its angular cell.
+def test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition():
+    r"""The full-circle level has no angular cells, and saying so is the fix.
 
-    ``eta_edge[m+1] = (eta[m] + eta[m+1])/2 = eta[m]`` when the two are equal,
-    so ``tau_raw`` is 1 for the lower partner and 0 for the upper, and the
-    ``[1/2, 1]`` absorber (T27; retires with the fold, Q5.6) turns that
-    into ``{1, 1/2}``.  The ``[0, 1]`` membership guard (Q5.5) passes
-    this pattern untouched — the double-cover fingerprint sits entirely
-    INSIDE the closed interval, which is exactly the guard's documented
-    blind spot (the detector for it is Σ / the fold criterion).
+    ⛔ **Retired-with-tombstone at Q5.6.4 (2026-08-11):** this row used to
+    be ``test_the_degenerate_eta_pair_splits_tau_into_one_and_one_half``,
+    which asserted that a mirror pair's shared ``eta`` collapses its
+    angular cell (``eta_edge[m+1] = (eta[m]+eta[m+1])/2 = eta[m]``,
+    giving ``tau_raw`` the ``[0,1,0,1,…]`` double-cover fingerprint) and
+    that the ``[1/2, 1]`` absorber then laundered it into
+    ``{1, 1/2}``.  **Both halves of that thesis are gone:** the absorber
+    RETIRED, and the cell partition is no longer taken in ``eta`` at all
+    (:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`
+    takes the midpoint in :math:`\omega`), so a shared ``eta`` no longer
+    collapses anything — the two mirror partners have DIFFERENT
+    :math:`\omega`.
+
+    The successor claim is strictly stronger, and it is what this file is
+    about: the double cover is now **refused at the partition**, with a
+    message naming the cause, rather than being silently laundered into a
+    finite wrong answer 400 lines downstream.  A full-circle level
+    carries :math:`\omega` of both signs, so "the midpoint in
+    :math:`\omega`" is undefined for it — that is not a tolerance
+    question, and no epsilon appears below.
+
+    ⚠ Note ``product(2, 8)`` is ALSO refused earlier, at cylindrical
+    ``SNMesh`` admission (``assert_carrying_quadrature``).  This row
+    exercises the partition producer DIRECTLY, so it still pins the
+    inner guard for any caller that reaches it without a mesh.
     """
     from orpheus.sn.sweep.pole_angular_closure import (
-        morel_montry_tau_per_level, morel_montry_tau_raw_per_level,
+        angular_cell_edges_per_level,
+        morel_montry_tau_per_level,
     )
     quad = Quadrature.product(n_mu=2, n_phi=8)
-    raw = morel_montry_tau_raw_per_level(quad, CoordSystem.CYLINDRICAL)[0]
-    clamped = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)[0]
-    print(f"tau_raw={raw}\ntau_clamped={clamped}")
-    np.testing.assert_allclose(raw, [0, 1, 0, 1, 0, 1, 0, 1], atol=1e-14)
-    np.testing.assert_allclose(clamped, [0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1])
+    omega = np.arctan2(quad.mu_y[quad.level_indices[0]],
+                       quad.mu_x[quad.level_indices[0]])
+    assert np.any(omega < 0.0) and np.any(omega > 0.0), (
+        f"fixture is not a double cover any more: omega={omega} has one "
+        f"sign, so it cannot exercise the refusal this row pins"
+    )
+    for producer in (angular_cell_edges_per_level, morel_montry_tau_per_level):
+        with pytest.raises(ValueError, match="not a monotone arc in omega"):
+            producer(quad, CoordSystem.CYLINDRICAL)
 
 
 # ── 2. the ansatzes live inside the symmetric sector ────────────────────
@@ -470,40 +516,40 @@ def test_xi_odd_companion_source_DOES_differ_on_the_mirror_pair():
     )
 
 
-@pytest.mark.slow
-def test_xi_odd_companion_sees_the_tie_break_but_does_not_adjudicate_it():
-    """The companion ansatz separates the orderings — then reunites them.
+def test_the_xi_odd_companion_fixture_is_INADMISSIBLE_since_the_63_flip():
+    r"""⛔ RETIRED-WITH-TOMBSTONE — the adjudicator outlived its question.
 
-    Measured 2026-08-01 (``product(4, 8)``, nx [10,20,40,80]):
-      lexsort [0.0727, 0.0790, 0.0806, 0.0810]  orders [-0.12, -0.03, -0.007]
-      stable  [0.0877, 0.0827, 0.0815, 0.0812]  orders [+0.08, +0.02, +0.005]
-    20.6 % apart at nx=10, 0.28 % apart at nx=80, spatial order ~0 for both:
-    they converge to the SAME angular floor from opposite sides.  Neither is
-    "correct"; the floor is the defect.
+    This row was
+    ``test_xi_odd_companion_sees_the_tie_break_but_does_not_adjudicate_it``
+    (``@pytest.mark.slow``), and it RAN A SOLVE on ``product(4, 8)`` — a
+    FULL-CIRCLE rule.  Its record, kept because the measurement was real
+    and is the reason #326's ordering question closed the way it did:
+
+        Measured 2026-08-01 (``product(4, 8)``, nx [10,20,40,80]):
+          lexsort [0.0727, 0.0790, 0.0806, 0.0810]  orders [-0.12, -0.03, -0.007]
+          stable  [0.0877, 0.0827, 0.0815, 0.0812]  orders [+0.08, +0.02, +0.005]
+        20.6 % apart at nx=10, 0.28 % apart at nx=80, spatial order ~0 for
+        both: they converge to the SAME angular floor from opposite sides.
+        Neither is "correct"; the floor is the defect.
+
+    **Two independent reasons it is retired, and it should have ridden the
+    6.3 flip commit** (task #22 scheduled exactly this class — "the 3
+    ``_XFAIL_326`` rows + mechanism tests RIDE THE 6.3 FLIP COMMIT as
+    retire-with-tombstone"); it was missed because it is ``slow``-marked
+    and the `-m "not slow"` ledger never selected it:
+
+    1. `[M]` its fixture is **inadmissible**: a cylindrical ``SNMesh``
+       refuses a full-circle rule at construction
+       (``assert_carrying_quadrature``, the 6.3 flip), so the solve raises
+       before any coefficient is computed.  ⚠ This has been RED in the
+       slow tier since the flip, uncounted by the #51 ledger — found
+       2026-08-11 while re-running the τ slice without the marker filter.
+    2. Its question is **closed**: T22 adjudicated the per-level ordering
+       (the fold makes the η-tie unspellable on arcs), so there is nothing
+       left for an adjudicator to decide.
+
+    The successor claim is the refusal itself — which is the honest
+    statement, and it is fast, so the ``slow`` marker goes too.
     """
-    n_cells = [10, 20, 40, 80]
-    got = {}
-    for tie_break in ("lexsort", "stable"):
-        with product_level_ordering(tie_break):
-            got[tie_break] = _ladder(_build_xi_odd_case(), n_cells)
-    coarse = abs(got["lexsort"][0] - got["stable"][0]) / got["lexsort"][0]
-    fine = abs(got["lexsort"][-1] - got["stable"][-1]) / got["lexsort"][-1]
-    orders = {k: np.log2(v[:-1] / v[1:]) for k, v in got.items()}
-    print(f"lexsort={got['lexsort']} orders={orders['lexsort']}")
-    print(f"stable ={got['stable']} orders={orders['stable']}")
-    print(f"coarse gap={coarse:.4e}  fine gap={fine:.4e}")
-
-    assert coarse > 1e-2, (
-        f"the xi-odd companion did NOT separate the orderings ({coarse:.3e}); "
-        f"it is then no better an adjudicator than the production ansatz"
-    )
-    assert fine < coarse / 10.0, (
-        f"the orderings did NOT reunite under refinement "
-        f"(coarse {coarse:.3e}, fine {fine:.3e}) — one ordering may genuinely "
-        f"converge to a different limit; RE-ADJUDICATE #326"
-    )
-    for tie_break, order in orders.items():
-        assert abs(order).max() < 0.5, (
-            f"{tie_break}: the xi-odd ladder acquired a spatial convergence "
-            f"order {order} — the angular floor lifted; re-adjudicate #326"
-        )
+    with pytest.raises(ValueError, match="CARRYING"):
+        _ladder(_build_xi_odd_case(), [10])

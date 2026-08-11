@@ -3152,6 +3152,447 @@ implemented and **no `D_6h`-invariant rule in tree**.
      (manufactured-solution, not satisfiable by construction) and it is still
      the acceptance test — but the baseline it moves from is `3.538e-3`, not
      `1.9e-2`.
+
+     ⛔ **REFUTED 2026-08-11 — retiring the absorber makes the floor WORSE, and
+     the acceptance test as stated cannot be met.** `[M]` the aniso cylinder
+     MMS, `nx=80`, volume-weighted L2, probe
+     `$CLAUDE_JOB_DIR/tmp/q64_absorber_ladder.py` (the ABSORBER-LIVE row
+     reproduces this gate's own docstring to every printed digit, so the
+     instrument is sound):
+
+     | τ convention | `n_phi`=8 | 16 | 32 |
+     |---|---|---|---|
+     | chord-midpoint + `[½,1]` absorber (HEAD production) | `3.5384e-3` | `6.7824e-4` | `2.4837e-4` |
+     | chord-midpoint, **unclamped** (the naive retirement) | `6.2244e-3` | `2.3020e-3` | `6.0065e-4` |
+     | arc ω half-angle edges, unclamped | `3.1503e-3` | `1.1326e-3` | `3.2611e-4` |
+     | cumulative-WEIGHT edges (the SPHERE's convention) | `1.9252e-2` | **diverges (nan)** | **diverges (nan)** |
+     | ⚠ CONTROL `τ ≡ ½` (angular diamond) | `3.4055e-3` | `3.7443e-4` | `1.3279e-4` |
+
+     ⟹ the naive retirement is **1.8–3.4× worse** at every rung. And the
+     CONTROL discriminates the tempting rescue: `τ ≡ ½` beats every
+     *principled* convention everywhere, so the absorber is **not**
+     "accidentally approximating the right thing" — it is partial movement
+     toward angular diamond, and diamond is simply more accurate on this
+     fixture. (Divergence of the sphere's convention was announced by the
+     #340 N4.7 warning, unprompted: `hit max_inner=500 … last residual nan`.)
+
+     ⛔ **THAT LAST SENTENCE IS ITSELF REFUTED, same day, by two further
+     controls.** `τ ≡ ½` is not "angular diamond beating the principled
+     conventions" — **it IS the principled convention**, and the table above
+     was read on a contaminated fixture. Both corrections below.
+
+     ⛔ **(i) `nx=80` DOES NOT ISOLATE THE ANGULAR FLOOR** — the table above,
+     and this gate's whole "fixed-fine `nx=80`" framing, mix a spatial error
+     into a claim about angular closure. `[M]` probe
+     `$CLAUDE_JOB_DIR/tmp/q64_is_the_floor_spatial.py`, HEAD convention:
+
+     | `n_phi` | nx=40 | 80 | 160 | 320 | spatial orders |
+     |---|---|---|---|---|---|
+     | 32 | `6.1936e-4` | `2.4837e-4` | `1.6358e-4` | `1.4449e-4` | 1.32 · 0.60 · 0.18 |
+     | 64 | `5.3570e-4` | `1.5503e-4` | `6.1967e-5` | `4.0491e-5` | 1.79 · 1.32 · 0.61 |
+     | 128 | `5.1562e-4` | `1.3397e-4` | `3.8772e-5` | `1.5488e-5` | 1.94 · 1.79 · 1.32 |
+
+     At `n_phi=128` refining the mesh still drops the error 8.6× from `nx=80`,
+     so the `≈1.3e-4` that every convention "saturated" to at `nx=80` is the
+     **MESH**, not the closure. The `n_phi` 8→16 leg the shipped gate asserts
+     IS angular-dominated (`3.5e-3 ≫ 1.3e-4`), so the gate is not wrong — but
+     anything read at `n_phi ≥ 32, nx = 80` is mixed, and **"the cylinder has
+     no O(h²) window / the floor dominates" needs re-examination**: at
+     `nx=320` the angular error converges at a clean ~O(n_φ⁻²) with no flat
+     floor in range.
+
+     ⭐⭐ **(ii) THE CLEAN COMPARISON, and it names the real defect: THE
+     CLOSURE INTERPOLATES IN THE WRONG VARIABLE.** `[M]` probe
+     `$CLAUDE_JOB_DIR/tmp/q64_angular_isolated.py`, `nx=320` (spatial
+     contribution ≤ `1.5e-5`, so 1e-4…3e-3 is angular):
+
+     | τ convention | 8 | 16 | 32 | 64 | orders in `n_phi` |
+     |---|---|---|---|---|---|
+     | chord-midpoint + absorber (HEAD) | `3.5111e-3` | `5.8890e-4` | `1.4449e-4` | `4.0491e-5` | 2.58 · 2.03 · 1.84 |
+     | chord-midpoint, unclamped | `6.2063e-3` | `2.2824e-3` | `5.7024e-4` | `1.4175e-4` | 1.44 · 2.00 · 2.01 |
+     | arc ω half-angle edges (in η) | `3.1281e-3` | `1.1078e-3` | `2.8285e-4` | `7.1658e-5` | 1.50 · 1.97 · 1.98 |
+     | **fractional position in ω** | `3.4258e-3` | `3.4907e-4` | **`3.9321e-5`** | **`9.1485e-6`** | 3.29 · 3.15 · 2.10 |
+
+     **4.4–15× better at `n_phi=64`, with a better order, across the whole
+     clean ladder — not a pre-asymptotic accident.** And it is not a tuned
+     constant: `[M]` probe `$CLAUDE_JOB_DIR/tmp/q64_omega_fractional_position.py`
+
+     | `n_phi` | `max｜τ_ω − ½｜` | `max｜τ_η,arc − ½｜` | `max｜τ_η,chord − ½｜` |
+     |---|---|---|---|
+     | 8 | **`0.000e+00`** | 0.240108 | 0.280455 |
+     | 16 | `5.551e-16` | 0.247575 | 0.295311 |
+     | 32 | `3.442e-15` | 0.249397 | 0.298839 |
+     | 64 | `2.276e-15` | 0.249849 | 0.299711 |
+
+     ⟹ **τ is the fractional position of the ordinate inside its own angular
+     cell, measured in the variable the march marches in.** T22b already
+     established that the azimuthal march is *a march in ω, arc by arc*; Q5.2's
+     STAGGERED offset then puts every node exactly at the midpoint of its own
+     ω-cell (`ω_j = (j+½)Δω`, cell `[jΔω,(j+1)Δω]`), so the fractional
+     position in ω is `½` **bit-exactly** — while the same quantity measured
+     in `η` is wrong by a permanent O(1) `0.25`–`0.30`, because `η = sinθ·cosω`
+     is nonlinear. The `[½,1]` absorber was dragging the η-value crudely back
+     toward the ω-value; that is the whole of what it was doing, and why
+     retiring it alone regresses.
+
+     ✅ Bonus consistency: `τ ≡ ½` keeps `τ_m + τ_{M−1−m} = 1` **bit-exactly**
+     (`½+½`), so the landed T27 gate
+     (`test_tau_arc_wellposedness.py::test_the_folded_tau_is_bounded_with_the_reversal_identity`,
+     which asserts with `assert_array_equal`, NO epsilon) stays green. ⚠ the
+     arc-in-η candidate would RED it at `1.11e-16` — a concrete reason to
+     prefer the ω pose over the η-arc repair beyond the accuracy margin. But
+     ⚠ that gate ALSO asserts `τ_raw ⊂ [1/5, 4/5]`, which becomes vacuous at
+     `τ ≡ ½`; re-pose it, do not just watch it stay green (`vv-principles` #22).
+
+     ⚠ **The fix is NOT "hardcode ½".** `½` is the *value on this rule family*
+     (staggered fold ⟹ midpoint nodes). The DELIVERABLE is that the closure
+     computes the fractional position in the march variable, so a
+     non-midpoint azimuthal rule gets the right answer too — otherwise the
+     campaign trades a wrong constant for a lucky one.
+
+     ⚠ **UNSETTLED — do NOT touch the sphere on this evidence.** The sphere
+     marches in `μ` with cumulative-weight edges. Whether ITS march variable
+     should be `θ` rather than `μ` is the same question one dimension over,
+     and nothing here measures it. (`[M]` the reverse transplant — the
+     sphere's convention onto the cylinder — DIVERGES, so the two arms are not
+     interchangeable in either direction.)
+
+     ---
+
+     ⛔⛔ **(iii) THE LITERATURE REFUTES (ii)'s CONCLUSION, AND THE MMS WAS
+     MODE-12 BLIND THE WHOLE TIME.** Deliverable:
+     `scratch/q64_tau_edge_convention_literature.md` (Bailey–Morel–Chang 2010
+     + Hébert 2009 Ch.3 + Lathrop 2000, all local, load-bearing equations
+     scan-verified). Four corrections, in descending importance:
+
+     1. ⛔ **`τ ≡ ½` is NOT "the principled convention in disguise" — it is
+        HÉBERT'S DIAMOND SCHEME, and it has the WRONG DIFFUSION LIMIT.**
+        Lathrop's `δ` is τ affinely (`τ = (1+δ)/2`), and Lathrop states both
+        halves two pages apart, both scan-verified: p.245 *"only with
+        `μ_m = μ̄` (`δ=0`) is the truncation order `O(Δμ²)`"*; p.249→250
+        *"`δ = 0` … would not have `c = ⅔` and hence would not give the
+        correct diffusion limit"*. ⟹ **`τ=½` optimises exactly the quantity my
+        L2 ladder measures and breaks exactly the quantity τ exists to fix.**
+        The `nx=320` table above is not evidence for `τ=½`; it is a textbook
+        Mode-12 result — the measured functional's stabiliser contains the
+        error class. `[[feedback-nsweep-discriminator-closure-repose]]` said
+        so in advance and I ran the ladder anyway.
+     2. ⛔ **"α and τ should read ONE partition object" is REFUTED as a
+        MEANS** (the goal survives; the mechanism does not). They *share* the
+        partition but impose **different conditions on it**: α accumulates the
+        FIRST moment, the τ edges the ZEROTH (Lathrop (22)/(25)/(26):
+        `α = 1−μ_edge²` **iff `δ=0`**, else `α = 1−μ²+β` with
+        `β_{m+1/2}−β_{m−1/2} = −δΔμ²/2`). **Unifying them naively silently
+        re-imposes `τ=½`** — i.e. the elegant-looking single-source carve is
+        the wrong-diffusion-limit scheme wearing a Pattern-2 badge. ⚠ Also:
+        Hébert's `η_{p,q±1/2}` is a *constant-flux conservation recursion*
+        (3.398, after Alcouffe & O'Dell), **not** a trig evaluation at a
+        bisected ω — so T3's closed form is a THEOREM about our equispaced-ω
+        rule, not the literature's definition of the partition.
+     3. ⛔ **The code's own citation is wrong.** It cites Hébert Eqs.
+        3.437/3.439 for the M-M τ; those are **`τ=½` extrapolations** carrying
+        zero information about angular cell edges (they differ only in the
+        SPATIAL half, inward vs outward sweep). The τ actually implemented is
+        BMC-shaped. Same disease as #327 — a scheme wearing another paper's
+        name. Fix the citation regardless of which way the closure lands.
+     4. ✅ **The absorber is refuted by the source directly**: no reference
+        prescribes ANY limiter, the admissible range is `[0,1]`, and BMC's own
+        S₂ example gives `τ₁ = μ₁+1 = 1−1/√3 ≈ 0.4226 < ½` (Eq. 47,
+        scan-verified). `max(0.5,·)` contradicts the published scheme and
+        re-introduces exactly the `β` contamination τ exists to remove. **The
+        retirement is CORRECT; only my justification for it was wrong.**
+
+     ⭐⭐⭐ **(iv) THE ACTUAL BLOCKER, and it is bigger than τ: OUR AZIMUTHAL
+     RULE IS INCOMPATIBLE WITH THE LITERATURE'S CLOSURE.** The literature
+     convention is **(C) cumulative-weight edges in the radial cosine, for
+     BOTH arms** — sphere BMC Eq. (12) `[VERIFIED-ON-SCAN p.5]`, cylinder BMC
+     Eq. (52) per ξ-level with weights renormalised to `Σw̄ = 2√(1−ξ²)`
+     `[p.10]`, τ by Eq. (74) ≡ (42). So **ORPHEUS's sphere is verbatim
+     correct**, ORPHEUS's cylinder chord-midpoint is **nobody's convention**,
+     and **the sphere/cylinder asymmetry is ORPHEUS's own, not the
+     literature's**.
+
+     But (C) cannot simply be adopted. `[M]` probe
+     `$CLAUDE_JOB_DIR/tmp/q64_convention_C_applicability.py`, `folded_product(n_mu=4)`,
+     level 0 — Lathrop's admissibility condition is that the ordinate lie
+     INSIDE its own cell:
+
+     | `n_phi` | M | min `τ_C` | max `τ_C` | ordinates OUTSIDE their own cell |
+     |---|---|---|---|---|
+     | 8 | 4 | 0.1522 | 0.8478 | 0 — admissible |
+     | 16 | 8 | **−0.3259** | **1.3259** | **4/8** |
+     | 32 | 16 | **−1.1841** | **2.1841** | **12/16** |
+     | 64 | 32 | **−2.8552** | **3.8552** | **28/32** |
+
+     **Why, structurally:** (C) presupposes an azimuthal rule whose per-level
+     weights ARE the η-cell widths. Ours is equispaced in **ω** with EQUAL
+     weights ⟹ equal η-cells — while the nodes `η = sinθ·cos ω` are
+     cos-CLUSTERED toward `±sinθ`. Equal cells + clustered nodes ⟹ from
+     `n_phi=16` most ordinates sit outside their own cell. (This also explains
+     the `nan` in (i)'s table: not a probe bug, and NOT the missing
+     renormalisation the literature memo hypothesised — the probe already
+     renormalised to `2sinθ`.) The incompatibility WORSENS with `n_phi`.
+
+     ⟹ **the fork is between the CLOSURE and the RULE, and it is the user's
+     call** — the equispaced-ω rule is what the entire fold / `Σ=∅` / orbit /
+     T22b–T25 machinery is built on, so "just switch to an η-partitioning
+     azimuthal rule" is not a local edit. Options, none yet chosen:
+     (a) keep the ω rule, accept the closure is NOT BMC's, and **name +
+     verify it on its own terms**; (b) change the azimuthal rule so weights
+     partition η, and pay the fold machinery's re-derivation; (c) a
+     per-level re-weighting that reconciles the two.
+
+     ⭐ **AND THE INSTRUMENT IS NOW KNOWN — STOP USING THE MMS FOR THIS.**
+     BMC Eq. (75)'s **`β`** is a SOLVE-FREE oracle: a pure function of the
+     quadrature and the α/edge recursions, `≈` round-off for a correct
+     convention (BMC Table II: `−4.12E−16 … −1.55E−15`) and `O(10⁻²–10⁰)` for
+     a wrong one. It sees the diffusion limit the L2 ladder is blind to. **The
+     next measurement in this item is β, not another solve.**
+
+     ⭐⭐⭐ **(v) THE RESOLUTION — THE FOLD ALREADY DOES THE M-M τ'S JOB, SO τ
+     IS FREE AND GOES TO TRUNCATION ORDER.** (User steer, 2026-08-11: *"fix our
+     own before changing to any other implementation … what we need might not
+     be their closure or method but the CONCEPT they used to make it accurate.
+     That is probably transferable."* — and the user then pointed at the
+     in-tree instrument: `orpheus/derivations/discrete/sn/contamination.py`,
+     written when M-M was implemented.)
+
+     The transferable concept is **β = 0 ⟺ diffusion-limit consistency**
+     (BMC Eq. 41 sphere / Eq. 75 cylinder). That module's own docstring states
+     the design intent: *"Implementing Morel–Montry angular weights (Bailey
+     Eq. 74) forces β = 0 exactly"*. β is a pure function of
+     (nodes, weights, EDGES) — **no solve** — so "which edges?" becomes
+     "which edges give β = 0?".
+
+     ⭐ **It also already CONTAINS the correct diagnosis of (iv)**, at
+     `contamination.py:64-66`: *"the weight-sum approach is wrong for
+     cylindrical because weights are uniform in φ-space, not η-space."* The
+     original implementer saw the incompatibility I re-measured in (iv). The
+     DIAGNOSIS was right; the chord-midpoint SUBSTITUTE was never checked
+     against β. So check it.
+
+     `[M]` probe `$CLAUDE_JOB_DIR/tmp/q64_beta_per_convention.py`,
+     `folded_product(n_mu=4)`, max |β| over levels:
+
+     | `n_phi` | chord (HEAD) | arc ω | weight-sum | node-centred (τ≡½) |
+     |---|---|---|---|---|
+     | 8 | `5.55e-17` | `6.94e-18` | `1.11e-16` | `5.55e-17` |
+     | 16 | `6.94e-18` | `5.55e-17` | `3.47e-18` | `5.55e-17` |
+     | 32 | `1.39e-16` | `7.49e-16` | `2.78e-17` | `5.55e-17` |
+     | 64 | `6.94e-17` | `2.78e-16` | `4.86e-16` | `2.36e-16` |
+
+     **All four at round-off — including the weight-sum convention that
+     `[M]` DIVERGES the solve at `n_phi≥16` with τ outside [0,1].** An
+     instrument that certifies a divergent scheme is not measuring, so per
+     `vv-principles` #17 the instrument was validated on a known-positive
+     before any negative was trusted. `[M]` probe
+     `$CLAUDE_JOB_DIR/tmp/q64_beta_is_blind.py`, `n_phi=16` level 0:
+
+     | edge set | β |
+     |---|---|
+     | chord (production) | `+6.94e-18` |
+     | GARBAGE — edges scaled 0.5× | `+3.47e-18` |
+     | GARBAGE — edges CUBED | `+1.73e-18` |
+     | GARBAGE — random, antisymmetrised | `−3.47e-18` |
+     | one edge nudged (breaks antisymmetry) | **`−3.53e-03`** |
+
+     ⟹ **β is a SYMMETRY IDENTITY on the folded arc.** The proof is two lines:
+     the fold makes nodes antisymmetric (`[M]` `max|η + η[::-1]| = 0.000e+00`)
+     and the α dome symmetric (`[M]` `2.78e-17`), so for ANY antisymmetric
+     edge set `e`,
+     `term_{M−1−m} = (−η_m)(α_m(−e_m) − α_{m+1}(−e_{m+1})) = −term_m`
+     and the sum cancels pairwise. β sees **only** whether the edges are
+     antisymmetric; random garbage passes.
+
+     ⭐⭐ **The physics reading, and it is the item's answer.** β = 0 is the
+     entire reason the M-M τ exists (BMC choose τ precisely to zero it). On
+     the σ_y-folded arc, **the fold delivers β = 0 structurally, for free,
+     independent of τ** — so on OUR rule the M-M τ has no job left to do, and
+     τ is a FREE parameter that must be fixed by the NEXT criterion. That
+     criterion is truncation order, and Lathrop p.245 names the optimum:
+     *"only with `μ_m = μ̄` (`δ=0`) is the truncation order `O(Δμ²)`"* —
+     i.e. **`τ = ½`**.
+
+     ⟹ the two independent lines CONVERGE: the structural argument says τ is
+     free and truncation order picks `τ=½`; the `nx=320` angular-isolated
+     ladder in (ii) measured `τ≡½` best by **4.4–15×** with a better order.
+     And **Lathrop's objection to `δ=0` is DISARMED HERE, not ignored**: it
+     says `δ=0` "would not give the correct diffusion limit" — true on the
+     UNFOLDED sphere, where β=0 must be BOUGHT with `δ≠0`. On the folded arc
+     the symmetry buys β=0 for free, so `δ=0` costs nothing. ⟹ (ii)'s
+     measurement was not Mode-12 blind after all; it was measuring the only
+     criterion still live. **(iii).1's refutation of (ii) is itself now
+     narrowed to the unfolded case** — the τ=½ ⟹ wrong-diffusion-limit
+     implication does NOT transfer to a rule whose fold already zeroes β.
+
+     ⛔ **(v) IS REFUTED — its premise (b) was false, and the τ≡½ conclusion
+     is DEAD.** The literature follow-up resolved the tension as **two objects
+     sharing a letter**, `[SCAN-VERIFIED]`, and the agent **reproduced BMC
+     Table I to every printed digit** (step `7.698004e-01…`; diamond
+     `2.06E-01, −3.57E-03, −4.57E-05, −1.21E-05`; MM `~1e-16`) — so the
+     mechanism is verified, not argued:
+
+     | | BMC Eq. 41/75 | Lathrop Eq. 25 |
+     |---|---|---|
+     | is | **one scalar** — the `J⁽²⁾` contamination coefficient | **a sequence** — α's pointwise defect |
+     | zero iff | `τ =` Morel–Montry | `δ ≡ 0 ⟺ τ ≡ ½` |
+
+     And BMC's `η_{m±½}` inside β are **not** cumulative-weight edges — they
+     are the edges the scheme's **τ IMPLIES** via Eq. (43). So my β probe fed
+     it the wrong quantity. (The blindness finding SURVIVES — the agent
+     re-measured it independently and got round-off for (A),(B),(C) *and*
+     `τ≡½`, blind by Lathrop's own oddness argument on a symmetric
+     equispaced-ω level. ⟹ β stays unusable as a gate here, for the right
+     reason.) Also: Lathrop's `δ=0 ⟹ c≠⅔` is about **the NODES `δ=0`
+     implies** (midpoints), and `c ≡ Σ w_m η_m² = ⅔` is **quadrature-only —
+     no edges, no τ**. Our nodes are fixed and satisfy it regardless, so
+     "the fold frees τ" was answering a question β never asked.
+
+     ✅ **(vi) THE RESOLUTION, RATIFIED — use (B), and P2 DETERMINES τ.**
+     Q1's rule-agnostic predicate ladder (Lathrop Eqs. 53/54, `[SCAN p.12]`;
+     the P₁ pair is recovered iff `3c/2 = 1`):
+
+     | | condition | order |
+     |---|---|---|
+     | **P0** | `Σw = |range|`, `Σ w η = 0` (α closes) | — |
+     | **P1** | `c ≡ Σ w_m η_m² = ⅔` | LEADING; **quadrature only** |
+     | **P2** | `η_m = τ_m e_{m+½} + (1−τ_m) e_{m−½}` pointwise (BMC 43 = Lathrop 23) | FIRST |
+     | **P3** | `η_m ∈ [e_{m−½}, e_{m+½}] ⟺ τ ∈ [0,1]` | well-posedness |
+     | **P4** | `α_{m+½} = α_{m−½} − k w_m η_m`, seeded geometric (Hébert 3.397-9) | — |
+
+     ⟹ **cumulative-weight edges are ONE SOLUTION, not the system** — BMC
+     Eq. (52) is merely the statement that *in their* quadrature the weight
+     equals the cell's η-measure. `[M]` on OUR arc the cell's η-measure is
+     `2sinθ·sin(ω_m)·sin(Δω/2) ∝ sin ω_m`, **not constant** (ratio 0.30→1.53),
+     which is why (C) violates P3 and worsens with refinement — the same
+     4/8→28/32 ladder measured in (iv), now explained. **This is exactly the
+     user's "take the CONCEPT, not their closure" instruction discharged.**
+
+     **The decision:** the **arc ω half-angle partition (B)** — chosen because
+     it satisfies **P3** for our nodes, not on BMC's authority — and **P2 then
+     DETERMINES τ**, closed form `[M]` verified to `1.7e-16`:
+
+     > **`τ_m = ½ + ½ cot(ω_m) · tan(Δω/4)`**
+
+     giving `[0.259892, 0.458804, 0.541196, 0.740108]` at `n_phi=8` — the arc
+     values measured in (ii). `[M]` **(A) is (B) in disguise**: its interior
+     edges are `cos(Δω/2) ×` (B)'s to `1e-16` with the END CELLS STRETCHED —
+     precisely the ~17.5 % ω-width defect of (iii)'s table. Prefer (B).
+
+     ⭐⭐ **THE GATE — ν-CLOSURE, and it is the instrument this item was
+     missing.** The march implied BY τ (`ν_{½}=−sinθ`,
+     `ν_{m+½} = (η_m − (1−τ_m)ν_{m−½})/τ_m`) must land on `+sinθ`. Solve-free,
+     no MMS, and it separates a DERIVED τ from a fabricated one. `[M]` probe
+     `$CLAUDE_JOB_DIR/tmp/q64_verify_verdict.py`, `ν/sinθ` at close:
+
+     | `n_phi` | arc | chord | **clamped (HEAD)** | **τ ≡ ½** |
+     |---|---|---|---|---|
+     | 8 | `1.000000` | `1.000000` | **`1.016389`** | **`1.164784`** |
+     | 16 | `1.000000` | `1.000000` | `1.001930` | `1.039182` |
+     | 32 | `1.000000` | `1.000000` | `1.000238` | `1.009677` |
+     | 64 | `1.000000` | `1.000000` | `1.000030` | `1.002412` |
+
+     ⟹ **the `[½,1]` absorber and `τ≡½` correspond to NO partition of the
+     level** — their implied march overshoots the level's own endpoint by
+     1.6 % and 16.5 %. That condemns the absorber on principle with zero
+     reference to any MMS, and it is the honest replacement for the refuted
+     "the floor falls" acceptance test. **Ship this as 6.4's gate.**
+
+     ⚠ **ACCEPT THE ACCURACY TRADE, DO NOT RE-LITIGATE IT.** `[M]` at
+     `nx=320`, (B) is BETTER at `n_phi=8` (`3.128e-3` vs `3.511e-3`) and
+     ~1.8–2× WORSE at 16/32/64 than the clamped baseline. Per
+     `[[feedback-principled-over-bit-identical]]` and
+     `[[feedback-nsweep-discriminator-closure-repose]]` (*principled ≠ more
+     accurate*), the scheme that satisfies P2/P3 wins over the one with the
+     smaller number on one manufactured fixture. **Re-baseline; document the
+     ladder honestly in the gate's docstring; do NOT keep the clamp for its
+     L2.**
+
+     ⚠ **Retirement is now doubly-motivated, and `τ ∈ [0,1]` gets PROMOTED to
+     P3 as a named predicate** — the existing raising guard IS P3; say so.
+     `[M]` at S₈ Gauss–Legendre **four of eight** MM τ are below ½, so the
+     `[½,1]` box was never the admissible range in either arm.
+
+     ⚠ **Still open / not ours yet:** whether a *third* floated partition
+     beats (B) is an **original-work gap, unsettled anywhere in the corpus**;
+     **Morel & Montry (1984) TTSP 13(5):615** remains the one unacquired
+     primary source. And a printed-constant discrepancy: Lathrop Eq. (26)
+     gives `−δΔμ²/2` where its own Eqs. (19)+(23) yield `−δΔμ²` (structure
+     unaffected).
+
+     ⚠ **And β must NOT be shipped as the gate for this** — on the folded arc
+     it is green for random garbage. If a gate cites β for the cylinder, it
+     is a coverage claim an audit will trust and it cannot fail
+     (`coding-standards`' tautological-gate rule). Either gate β on the
+     UNFOLDED parent (where antisymmetry does not cancel it) or gate the
+     antisymmetry itself and say that is what it tests.
+
+     ⚠ `contamination.py`'s sphere arm has **API bit-rot** (#347 family):
+     `contamination_beta(gauss_legendre_on_mu(N), "spherical")` raises
+     `AttributeError: 'DiscreteMeasure' object has no attribute 'mu_x'`. The
+     sphere control could not be run. Fix before citing the module anywhere.
+
+     ⚠ **Two literature hazards recorded** (`scratch/q64_tau_edge_convention_literature.md`):
+     BMC Eq. (52) line 1 is a **typo in the printed journal** (`μ_{m+1/2} =
+     μ_{m+1/2} + w̄`; RHS must be `m−1/2`, proven by the correctly-printed
+     sphere twin Eq. 12 + non-vacuity) — a scan match proves the OCR faithful,
+     not the equation correct. And **`μ`/`η` are SWAPPED vs ORPHEUS**: BMC's
+     and Hébert's `μ` is our `η`. Morel & Montry (1984) TTSP 13(5):615 and
+     Alcouffe & O'Dell are **not local** — MM-1984 is the one remaining place
+     a statement about τ's admissible range could live.
+
+     ⚠ **And the MMS is the WRONG INSTRUMENT for this choice anyway** —
+     `[[feedback-nsweep-discriminator-closure-repose]]`: *principled ≠ more
+     accurate*, and a τ change is a CLOSURE re-pose, so an MMS-floor
+     comparison measures error cancellation, not correctness. Do not let this
+     table pick a convention; it is here to refute a claim, not to found one.
+
+     ⭐⭐ **THE STRUCTURAL FINDING, which needs no accuracy argument.** α and τ
+     both reference ONE physical object — the boundary between azimuthal cell
+     `m` and `m+1` — and they DERIVE IT INDEPENDENTLY, in disagreement
+     (Cardinal Rule 2 / elegance Pattern 2, two spellings of one concept):
+
+     * **α** (gated by T3, `test_alpha_closed_form.py:113`) puts the boundary
+       at the real half-angle `ω_{k−1/2} = (k−½)Δω`, so its radial cosine is
+       `sinθ·cos(ω_{k−1/2})`.
+     * **τ** (`pole_angular_closure.py:840-844`) puts it at the CHORD midpoint
+       `(η_m + η_{m+1})/2`. `cos` is nonlinear, so these are different numbers.
+
+     `[M]` probe `$CLAUDE_JOB_DIR/tmp/q64_cell_partition_disagreement.py`,
+     `folded_product(n_mu=4)`, level 0:
+
+     | `n_phi` | max rel η disagreement | implied ω-width spread of τ's partition | quadrature's own weight spread |
+     |---|---|---|---|
+     | 8 | `5.3825e-2` | **18.71 %** | `0.00e+00` |
+     | 16 | `1.7752e-2` | **17.59 %** | `0.00e+00` |
+     | 32 | `4.7227e-3` | **17.48 %** | `0.00e+00` |
+     | 64 | `1.1987e-3` | **17.46 %** | `0.00e+00` |
+
+     The quadrature's cells are bit-exactly equal (45.000° each at `n_phi=8`,
+     weight spread `0.0`); τ's partition implies **49.211°, 40.789°, 40.789°,
+     49.211°**. The η disagreement vanishes as `Δω→0` but **the ω-width spread
+     does NOT** — it converges to ≈17.45 %, an O(1) inconsistency at every
+     azimuthal order. The algebra: for interior edges the chord midpoint is
+     exactly `cos(Δω/2) ×` the arc edge (the κ prefactor's sibling), while the
+     ENDPOINTS are pinned at `∓sinθ` and left unscaled, so the outermost cells
+     stretch to absorb the shrink. **That is what the `[½,1]` absorber was
+     compensating for**: the chord partition drives `τ_0` to `0.2195` where the
+     arc value is `0.2599`, and clamping to `½` crudely shoves it back.
+
+     ⚠ **Fixing the partition alone does NOT recover the floor** (`[M]` the arc
+     row above is still worse than production at `n_phi` 16/32), so the floor
+     has a second, unattributed contributor. Do not close 6.4 on the partition
+     repair and claim the floor.
+
+     **⟹ 6.4's goal, RESTATED IN DOMAIN TERMS** (`plan-authoring` §5, §1): *a
+     polar level's azimuthal cells are ONE partition, derived once from the
+     quadrature that defines them, and every coefficient that references a cell
+     boundary reads it from there.* The absorber retirement is a CONSEQUENCE of
+     that, not a step of its own. **Open, and blocking the means (not the
+     goal):** which partition the literature prescribes — the sphere uses
+     cumulative-WEIGHT edges and the cylinder chord-midpoint, and it is not yet
+     established whether that asymmetry is the literature's or ORPHEUS's own
+     (dispatched; deliverable `scratch/q64_tau_edge_convention_literature.md`).
   2. **T3's α closed form** holds exactly on the arc
      (`α_k = −w_gl·κ·[ξ(ω_{k−1/2}) − ξ(ω_{−1/2})]`, `κ = Δω/(2 sin(Δω/2))`).
      ⚠ Do NOT gate a bare `α == −ξ`: `κ` is 2.6 % off 1 at `n_φ = 8`.

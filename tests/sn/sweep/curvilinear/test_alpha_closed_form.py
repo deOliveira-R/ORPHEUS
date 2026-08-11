@@ -228,7 +228,7 @@ def test_production_alpha_is_a_non_negative_closing_dome(n_mu, n_phi):
 def test_azimuthal_ordering_breaks_the_alpha_dome_positivity(n_phi):
     """The omega ordering makes ``alpha`` change sign — so it is NOT a drop-in.
 
-    Downstream, ``morel_montry_tau_raw_per_level`` builds ``eta_edge`` as
+    Downstream, ``morel_montry_tau_per_level`` builds ``eta_edge`` as
     midpoints of CONSECUTIVE ordinates bracketed by ``-sin_theta`` and
     ``+sin_theta``, and ``cylindrical_streaming`` publishes
     ``mu_start_per_level = -sin_theta``; both presume a monotone ascending

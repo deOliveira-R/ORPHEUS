@@ -615,7 +615,7 @@ def march_start_structure_per_level(
     (``on_edge_node ⟹ τ_raw,0 = 0``; ``degenerate ⟹ τ_raw,0 = 1``;
     neither ⟹ strict interior) rather than being the predicate itself.
 
-    Level indexing matches :func:`morel_montry_tau_raw_per_level`:
+    Level indexing matches :func:`morel_montry_tau_per_level`:
     the sphere is one level (the whole μ-ascending rule); cylinder
     levels index ``quad.level_indices``, each in stored η-ascending
     order.
@@ -757,17 +757,176 @@ def _assert_tau_within_unit_interval(
             )
 
 
-def morel_montry_tau_raw_per_level(
+def angular_cell_edges_per_level(
     quad: Any,
     coord: CoordSystem,
 ) -> tuple[np.ndarray, ...]:
-    r"""Produce the **UNCLAMPED** Morel–Montry raw weight :math:`\tau_{\rm raw}` per μ-level.
+    r"""The ANGULAR CELL PARTITION of each μ-level, in radial cosine.
 
-    :math:`\tau_{\rm raw,m} = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} -
-    \mu_{m-1/2})` — the raw Bailey–Morel–Chang Eq. 43 value BEFORE the
-    cylinder's :math:`[\tfrac12, 1]` absorber.  Split out of
-    :func:`morel_montry_tau_per_level` because the raw value carries
-    structure the absorber destroys (it maps ``0 → ½``). Until Q5.4 it
+    One object, one producer.  A level's ordinates each own an angular
+    *cell*; this returns that cell partition as ``(M+1,)`` edge arrays of
+    the **radial** direction cosine (:math:`\mu` sphere, :math:`\eta`
+    cylinder), so edge ``m`` is the boundary below ordinate ``m`` and
+    edge ``M`` closes the level.
+
+    Every coefficient that references "the boundary between cell
+    :math:`m` and :math:`m+1`" must read it HERE — the partition is a
+    *shared* structure on which the scheme then imposes **two different
+    conditions**, and conflating those conditions is a live hazard:
+
+    * :math:`\tau` imposes the **zeroth**-moment condition (P2, the
+      barycentric coordinate — :func:`morel_montry_tau_per_level`);
+    * :math:`\alpha` imposes the **first**-moment conservation recursion
+      (P4, Hébert 3.397–3.399, after Alcouffe & O'Dell).
+
+    ⚠ **Do NOT "unify" α and τ onto a single expression.** They share the
+    partition, not the condition; forcing α to equal the geometric
+    tangential cosine at these edges silently drives
+    :math:`\delta \to 0`, i.e. :math:`\tau \to \tfrac12` — the angular
+    *diamond* scheme, a different method (Hébert 3.406/3.431).
+
+    Per-geometry conventions, and both are *derived*, not conventional:
+
+    **Sphere** — cumulative-WEIGHT edges from :math:`\mu_{1/2} = -1`
+    (:math:`\mu_{m+1/2} = \mu_{m-1/2} + w_m`, so a cell's width IS its
+    quadrature weight).  This is Bailey–Morel–Chang 2010 Eq. (12)
+    verbatim, corroborated independently by Lathrop 2000 p. 249
+    (:math:`\sum \Delta\mu_m = 2`).  It works because a Gauss–Legendre
+    weight *is* the cell's :math:`\mu`-measure.
+
+    **Cylinder** — the **midpoint in** :math:`\omega`, with the level's
+    endpoints at :math:`\omega = \pi` and :math:`\omega = 0` (hence
+    :math:`\eta = \mp\sin\theta`).  The azimuthal march is a march in
+    :math:`\omega`, arc by arc (T22b), so the cell boundary is the
+    midpoint in :math:`\omega` and its radial cosine is
+    :math:`\sin\theta\cos\omega_{m\pm1/2}`.  On an equispaced-:math:`\omega`
+    rule this is exactly the half-angle boundary
+    :math:`\omega_m \pm \Delta\omega/2`; taking the midpoint of the
+    *stored* :math:`\omega` values keeps it correct for any monotone arc.
+
+    ⛔ **Two conventions were REFUTED here, both measured (Q5.6.4,
+    2026-08-11).**
+
+    *The sphere's convention does not transplant.* Accumulating weights
+    in :math:`\eta` (even correctly renormalised to
+    :math:`\sum \bar{w} = 2\sin\theta`, BMC Eq. 52) violates P3 on this
+    rule and **worsens with refinement**: ordinates outside their own
+    cell go 0/4 → 4/8 → 12/16 → 28/32 at
+    :math:`n_\varphi = 8/16/32/64`, and the solve diverges (NaN) from
+    :math:`n_\varphi \ge 16`.  The reason is structural and is stated in
+    ``derivations/discrete/sn/contamination.py`` — *"weights are uniform
+    in* :math:`\varphi` *-space, not* :math:`\eta` *-space"*: an arc
+    cell's :math:`\eta`-measure is
+    :math:`2\sin\theta\sin\omega_m\sin(\Delta\omega/2) \propto
+    \sin\omega_m`, **not** constant (spread 0.30→1.53), while the
+    trapezoid weight is.  ⟹ BMC Eq. (52) is not a law; it is the
+    statement that *in their* quadrature the weight equals the cell's
+    :math:`\eta`-measure.  Ours does not, so we satisfy the same
+    *predicate* by a different partition.
+
+    *The η-midpoint (chord) partition, which this code used until
+    2026-08-11, is this partition with its END CELLS STRETCHED.* Its
+    interior edges are exactly :math:`\cos(\Delta\omega/2) \times` these
+    (measured agreement 1e-16 — the identity is
+    :math:`\tfrac12[\cos\omega_a + \cos\omega_b] =
+    \cos(\tfrac{\omega_a+\omega_b}{2})\cos(\tfrac{\Delta\omega}{2})`,
+    the :math:`\kappa` prefactor's sibling), while the endpoints stay
+    pinned at :math:`\mp\sin\theta` **unscaled** — so the outermost cells
+    stretch to absorb the shrink.  The :math:`\eta` error vanishes as
+    :math:`\Delta\omega \to 0`, but the implied :math:`\omega`-width
+    spread does **NOT**: it converges to :math:`\approx 17.45\,\%`
+    (18.71 / 17.59 / 17.48 / 17.46 at
+    :math:`n_\varphi = 8/16/32/64`) against a quadrature whose own cells
+    are bit-exactly equal.  That O(1) inconsistency is what the retired
+    :math:`[\tfrac12, 1]` absorber was compensating for.
+
+    Returns
+    -------
+    tuple of ``(M_p + 1,)`` arrays, one per μ-level, ascending in the
+    radial cosine.  Sphere is a single level; cylinder is one array per
+    azimuthal level, indexed as ``quad.level_indices``.
+    """
+    if coord is CoordSystem.SPHERICAL:
+        w = quad.weights
+        N = quad.N
+        mu_edge = np.zeros(N + 1)
+        mu_edge[0] = -1.0
+        for n in range(N):
+            mu_edge[n + 1] = mu_edge[n] + w[n]
+        return (mu_edge,)
+
+    if coord is CoordSystem.CYLINDRICAL:
+        mu_z = quad.mu_z
+        edges: list[np.ndarray] = []
+        for level_idx in quad.level_indices:
+            eta = quad.mu_x[level_idx]
+            xi = quad.mu_y[level_idx]
+            M = len(level_idx)
+            sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
+            # Stored order is η-ascending, i.e. ω-DESCENDING from near π
+            # (most inward) to near 0 (most outward).
+            omega = np.arctan2(xi, eta)
+            # An ω-midpoint partition is only MEANINGFUL on a monotone
+            # arc inside (0, π) — one traversal of the half-circle.  A
+            # full-circle level carries ω of BOTH signs (the σ_y double
+            # cover), for which "the midpoint in ω" is not defined and a
+            # silent wrong answer is the alternative.  Refuse it HERE,
+            # naming the cause, instead of letting the P3 guard report an
+            # arbitrary out-of-range τ several frames later.
+            if M > 1 and not np.all(np.diff(omega) < 0.0):
+                raise ValueError(
+                    f"angular_cell_edges_per_level: level {len(edges)} is "
+                    f"not a monotone arc in omega (omega = {omega}), so its "
+                    f"angular cells are not defined. The azimuthal march "
+                    f"runs arc by arc, and a FULL-CIRCLE level covers each "
+                    f"arc twice (omega of both signs — the sigma_y double "
+                    f"cover). Use Quadrature.folded_product(n_mu, n_phi), "
+                    f"or any rule whose levels are monotone half-circle "
+                    f"arcs. A cylindrical SNMesh already refuses this rule "
+                    f"at admission (assert_carrying_quadrature)."
+                )
+            edge_omega = np.empty(M + 1)
+            edge_omega[0] = np.pi
+            edge_omega[1:M] = 0.5 * (omega[:-1] + omega[1:])
+            edge_omega[M] = 0.0
+            edges.append(sin_theta * np.cos(edge_omega))
+        return tuple(edges)
+
+    raise ValueError(
+        f"angular_cell_edges_per_level supports SPHERICAL or CYLINDRICAL "
+        f"coordinate systems; got {coord!r}. Cartesian has no angular "
+        f"march and hence no angular cell partition."
+    )
+
+
+def morel_montry_tau_per_level(
+    quad: Any,
+    coord: CoordSystem,
+) -> tuple[np.ndarray, ...]:
+    r"""The Morel–Montry angular closure weight :math:`\tau` per μ-level.
+
+    ⚠ **``tau`` is overloaded three ways in this codebase.** THIS one is
+    the **angular closure weight**: a dimensionless barycentric
+    coordinate in :math:`[0, 1]`, one per ordinate. It is NOT the optical
+    depth :math:`\Sigma_t s` (``peierls_nystrom``, MoC — also spelled
+    ``tau``), and NOT the critical half-thickness in mean free paths
+    (``fn_method``). See :mod:`orpheus.derivations.discrete.sn.angular_differencing`
+    for the full nomenclature table.
+
+    :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`
+    (Bailey–Morel–Chang 2010 Eq. 43 = Lathrop 2000 Eq. 23) — the
+    predicate **P2**: :math:`\tau_m` is the *barycentric coordinate of
+    the ordinate between the two edges of its own angular cell*,
+    equivalently the UNIQUE closure weight exact for a flux **affine in
+    the radial cosine**.  The cell edges come from the single partition
+    producer :func:`angular_cell_edges_per_level`; P2 itself carries no
+    geometry, so ONE body serves both arms.
+
+    ⭐ **This is the whole τ — there is no "raw" and no "clamped".** The
+    cylinder's :math:`[\tfrac12, 1]` absorber RETIRED at Q5.6.4
+    (2026-08-11) and ``morel_montry_tau_raw_per_level`` retired with it
+    (the distinction it named no longer exists); the ``[0, 1]``
+    membership half became the P3 guard below.  Until Q5.4 this value
     was also the R12a seed-presence predicate's input (``τ_raw,0 ∈
     (0, 1)`` exclusive); the predicate is now posed on the structural
     facts directly (:func:`march_start_structure_per_level`), and the
@@ -778,11 +937,22 @@ def morel_montry_tau_raw_per_level(
     rationale:
     ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-r12a``.
 
-    Parameters and per-geometry edge conventions are those of
-    :func:`morel_montry_tau_per_level` (weight-sum edges from −1.0 for
-    the sphere; η-midpoint edges with ±sinθ endpoints per level for the
-    cylinder; the ½ degenerate fallback where an angular cell has zero
-    width belongs to the RAW value — a 0/0 regularization, not the clamp).
+    Parameters
+    ----------
+    quad :
+        Quadrature exposing ``mu_x`` (radial cosine — :math:`\mu` sphere,
+        :math:`\eta` cylinder), ``weights``, ``mu_y``/``mu_z`` and
+        ``level_indices`` (cylinder only).  This is ``sn_mesh.quad``.
+    coord :
+        :class:`~orpheus.geometry.CoordSystem` — ``SPHERICAL`` or
+        ``CYLINDRICAL``.  Selects only the cell PARTITION (delegated);
+        the τ formula is geometry-free.
+
+    Returns
+    -------
+    tuple of ``(M_p,)`` arrays, one per μ-level.  Sphere is a single
+    level ``(N,)``; cylinder is one ``(M_p,)`` array per azimuthal level,
+    indexed as ``quad.level_indices``.
 
     Raises
     ------
@@ -806,129 +976,73 @@ def morel_montry_tau_raw_per_level(
         :math:`[0, 1]`; that detector is the singular set
         :math:`\Sigma` / the fold criterion (T24), not this.
     """
-    if coord is CoordSystem.SPHERICAL:
-        # Sphere τ (the former spherical_streaming producer, retired in
-        # Step C): weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
-        mu = quad.mu_x
-        w = quad.weights
-        N = quad.N
-        mu_edge = np.zeros(N + 1)
-        mu_edge[0] = -1.0
-        for n in range(N):
-            mu_edge[n + 1] = mu_edge[n] + w[n]
-        tau_mm = np.empty(N)
-        for n in range(N):
-            dmu = mu_edge[n + 1] - mu_edge[n]
-            tau_mm[n] = (
-                (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
-            )
-        raw_levels = (tau_mm,)
-        _assert_tau_within_unit_interval(raw_levels)
-        return raw_levels
+    if coord not in (CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL):
+        raise ValueError(
+            f"morel_montry_tau_per_level supports SPHERICAL or CYLINDRICAL "
+            f"coordinate systems; got {coord!r}. Cartesian uses the neutral "
+            f"τ = 1.0 supplied by IdentityAngularClosure."
+        )
 
-    if coord is CoordSystem.CYLINDRICAL:
-        # Cylinder raw τ (the former cylindrical_streaming producer,
-        # retired in Step C): η-midpoint edges with ±sinθ endpoints,
-        # per μ-level.  The [½, 1] absorber is applied by
-        # morel_montry_tau_per_level, NOT here.
-        mu_z = quad.mu_z
-        tau_per_level: list[np.ndarray] = []
-        for level_idx in quad.level_indices:
-            eta = quad.mu_x[level_idx]
-            M = len(level_idx)
-            sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
-            eta_edge = np.zeros(M + 1)
-            eta_edge[0] = -sin_theta
-            for m in range(M - 1):
-                eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
-            eta_edge[M] = sin_theta
-            tau = np.empty(M)
-            for m in range(M):
-                deta = eta_edge[m + 1] - eta_edge[m]
-                tau[m] = (
-                    (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
-                )
-            tau_per_level.append(tau)
-        raw_levels = tuple(tau_per_level)
-        _assert_tau_within_unit_interval(raw_levels)
-        return raw_levels
-
-    raise ValueError(
-        f"morel_montry_tau_raw_per_level supports SPHERICAL or CYLINDRICAL "
-        f"coordinate systems; got {coord!r}. Cartesian uses the neutral "
-        f"τ = 1.0 supplied by IdentityAngularClosure."
+    # ⭐ ONE generic body, both geometries (Q5.6.4, 2026-08-11).  P2 — the
+    # barycentric coordinate of the ordinate between its own cell's two
+    # edges — carries NO geometry; the geometry lives entirely in the cell
+    # partition, which :func:`angular_cell_edges_per_level` owns.  Until
+    # 2026-08-11 the sphere and cylinder each re-derived their own edges
+    # inline here, which is how they came to disagree about what an
+    # angular cell IS.
+    cosines: tuple[np.ndarray, ...] = (
+        (quad.mu_x,)
+        if coord is CoordSystem.SPHERICAL
+        else tuple(quad.mu_x[idx] for idx in quad.level_indices)
     )
+    tau_per_level: list[np.ndarray] = []
+    for mu, mu_edge in zip(
+        cosines, angular_cell_edges_per_level(quad, coord)
+    ):
+        M = len(mu)
+        tau = np.empty(M)
+        for m in range(M):
+            dmu = mu_edge[m + 1] - mu_edge[m]
+            # The ½ fallback is a 0/0 regularization for a zero-width
+            # cell (an η-degenerate tie), NOT a limiter on τ.
+            tau[m] = (
+                (mu[m] - mu_edge[m]) / dmu if abs(dmu) > 1e-15 else 0.5
+            )
+        tau_per_level.append(tau)
+    levels = tuple(tau_per_level)
+    _assert_tau_within_unit_interval(levels)
+    return levels
 
 
-def morel_montry_tau_per_level(
-    quad: Any,
-    coord: CoordSystem,
-) -> tuple[np.ndarray, ...]:
-    r"""Produce the Morel–Montry angular weight :math:`\tau` per μ-level.
-
-    :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`
-    (Bailey–Morel–Chang 2010 Eq. 43) — the UNIQUE weight exact for a
-    flux linear in :math:`\mu`.  This is a property of the angular
-    quadrature only; it is produced HERE on the angular closure rather
-    than on the streaming-geometry factory (Issue #236 Phase 2).
-
-    The raw (unclamped) value comes from
-    :func:`morel_montry_tau_raw_per_level` — the single source, now
-    :math:`[0, 1]`-guarded at the producer (Q5.5/T27); this function
-    applies the cylinder's :math:`[\tfrac12, 1]` absorber on top.
-
-    Parameters
-    ----------
-    quad :
-        Quadrature exposing ``mu_x`` (radial cosine / η), ``weights``,
-        ``mu_z`` (axial cosine, cylinder only), and ``level_indices``
-        (cylinder only).  This is ``sn_mesh.quad``.
-    coord :
-        :class:`~orpheus.geometry.CoordSystem` — ``SPHERICAL`` or
-        ``CYLINDRICAL``.  The closure TYPE already dispatches on
-        geometry; this branch only selects the edge convention.
-
-    Returns
-    -------
-    tuple of ``(M_p,)`` arrays, one per μ-level.  Sphere is a single
-    level ``(N,)``; cylinder is one ``(M_p,)`` array per azimuthal level.
-
-    Notes
-    -----
-    The sphere weight is **UNCLAMPED** (W1; the sphere dome is
-    non-singular on GL, :math:`\tau_\text{raw} \in \sim[0.39, 0.61]`).
-    The cylinder weight passes through the :math:`[\tfrac12, 1]`
-    **absorber**.  T27 (2026-08-02) adjudicated the fused
-    ``max(0.5, min(1.0, ·))`` as TWO objects: a :math:`[0, 1]` range
-    membership — promoted to a raising guard on
-    :func:`morel_montry_tau_raw_per_level` (Q5.5) — and this
-    absorption, which exists for exactly one reason: an edge-node march
-    start (``on_edge_node``, :func:`march_start_structure_per_level`)
-    has :math:`\tau_{\rm raw,0} = 0` bit-exactly and the recurrence
-    :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero unclamped
-    (#229).  The :math:`[\tfrac12, 1]` box is NOT the admissible range
-    of :math:`\tau` — the sphere runs outside it, unclamped and
-    correct — and on a σ_y-folded arc the absorption would DESTROY the
-    bit-exact reversal identity :math:`\tau_m + \tau_{M-1-m} = 1`
-    while the fold bounds :math:`\tau_{\rm raw} \in [\tfrac15,
-    \tfrac45]` away from the singularity, removing the absorber's
-    reason (``docs/theory/foundations/structured_geometry.rst``
-    §morel-montry-folded-arc).  It RETIRES with the fold wiring
-    (Q5.6); it must survive until then because production NODE_ALIGNED
-    cylinders still start on an edge node.
-    """
-    raw = morel_montry_tau_raw_per_level(quad, coord)
-    if coord is CoordSystem.SPHERICAL:
-        return raw
-    # Cylinder: the [½, 1] absorber, element-wise (bit-identical
-    # to the pre-split inline ``max(0.5, min(1.0, tau_raw))``).
-    clamped: list[np.ndarray] = []
-    for tau_raw_level in raw:
-        tau = np.empty_like(tau_raw_level)
-        for m in range(tau_raw_level.size):
-            tau[m] = max(0.5, min(1.0, float(tau_raw_level[m])))
-        clamped.append(tau)
-    return tuple(clamped)
+# ⛔ RETIRED 2026-08-11 (Q5.6.4): ``morel_montry_tau_per_level`` used to be
+# a WRAPPER that applied a cylinder-only ``max(0.5, min(1.0, τ))``
+# absorber on top of a "raw" producer.  Both halves are gone and the two
+# functions are now ONE (the name above is the survivor):
+#
+#   * the ``[0, 1]`` MEMBERSHIP half was already promoted at Q5.5 to the
+#     raising guard ``_assert_tau_within_unit_interval`` — that guard IS
+#     the predicate **P3** (an ordinate lies inside its own angular cell);
+#   * the ``[½, 1]`` ABSORPTION half is RETIRED.  It never had a source:
+#     `[M]` no reference prescribes any limiter on τ, the admissible range
+#     is ``[0, 1]``, and BMC's own S₂ example gives
+#     ``τ₁ = μ₁ + 1 = 1 − 1/√3 ≈ 0.4226 < ½`` (Eq. 47) — as does our own
+#     sphere arm, where 4 of 8 τ sit below ½ at S₈ Gauss–Legendre.
+#
+#   ⭐ What it was actually compensating for: the η-midpoint cell
+#   partition it sat on (see ``angular_cell_edges_per_level``), whose end
+#   cells are stretched ~17.5 % in ω.  With the partition taken in ω the
+#   compensation has nothing left to correct.  `[M]` and the absorber is
+#   condemned on its own terms, with no MMS involved: the march implied
+#   BY a clamped τ (ν-closure, BMC Eq. 43) OVERSHOOTS the level's own
+#   endpoint by 1.6 % / 0.19 % / 0.024 % at n_φ = 8/16/32 where a derived
+#   τ closes exactly — i.e. the clamped values correspond to no partition
+#   of the level at all.
+#
+#   ⚠ Honest cost, ratified rather than hidden: on the anisotropic
+#   cylindrical MMS at nx=320 the principled τ is BETTER at n_φ=8
+#   (3.128e-3 vs 3.511e-3) and ~1.8–2× WORSE at n_φ = 16/32/64.
+#   Principled ≠ more accurate; the scheme that satisfies P2/P3 wins over
+#   one with a smaller number on a single manufactured fixture.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1628,8 +1742,10 @@ __all__ = [
     "IdentityAngularClosure",
     "MorelMontryAngularSweep",
     "PoleAngularClosureBase",
+    "angular_cell_edges_per_level",
+    "assert_carrying_quadrature",
     "compute_psi_half_per_level",
     "default_angular_closure_class",
+    "march_start_structure_per_level",
     "morel_montry_tau_per_level",
-    "morel_montry_tau_raw_per_level",
 ]
