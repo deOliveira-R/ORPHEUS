@@ -12,20 +12,21 @@ are now vacuous and have been removed.  The independence floor is carried
 entirely by the surviving legs below, and **the two arms now use two
 DIFFERENT references** — a distinction that must not be flattened again:
 
-* **SPHERE** → ``contamination.morel_montry_weights``.  Still valid: that
-  module's spherical arm is the cumulative-weight recursion (BMC 2010
-  Eq. 12/42), the same convention production uses, reached by a different
-  code path.  This is PROCEDURAL independence (`vv-principles` L11).
+⛔ ``angular_differencing.morel_montry_weights`` **DELEGATES to the
+production producer** (Q5.6.4) — deliberately, so a "reference" can never
+drift into a second definition of the angular cell, which is exactly how
+its cylinder arm had gone wrong.  It is therefore **no longer an
+independent reference for τ at all**, and both arms below now use
+hand-authored references instead:
+
+* **SPHERE** → a hand-written cumulative-weight expression, inline.  BMC
+  2010 Eq. 12/42: ``mu_edge[n+1] = mu_edge[n] + w[n]`` from ``-1``, then
+  P2.  Authored here, independent of the producer.
 * **CYLINDER** → the **analytic closed form**
-  :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\tan(\Delta\omega/4)`.
-  ⛔ ``contamination.morel_montry_weights`` is NOT usable here: `[M]` its
-  cylindrical arm still builds the **RETIRED η-midpoint (chord)** edges
-  (``contamination.py:64-66``), so as of Q5.6.4 it disagrees with
-  production by construction.  Migrating it is tracked with the analysis
-  module; until then it serves as this gate's NEGATIVE control rather
-  than its reference.  The closed form is STRUCTURAL independence — it
-  shares no code path with the producer at all, which is a strictly
-  stronger footing than the procedural twin it replaced.
+  :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\tan(\Delta\omega/4)`,
+  hand-derived from the arc geometry.  STRUCTURAL independence — it shares
+  no code path with the producer, a strictly stronger footing than the
+  procedural twin it replaces.
 
 This gate proves the closure-produced τ:
 
@@ -49,7 +50,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.discrete.sn.contamination import morel_montry_weights
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -68,22 +68,61 @@ from tests.sn._test_helpers import placeholder_materials
 @pytest.mark.foundation
 @pytest.mark.parametrize("N", [8, 16])
 def test_sphere_tau_matches_independent_reference(N):
-    """Closure-produced τ == ``contamination.morel_montry_weights`` (sphere).
+    r"""Closure-produced τ == a HAND-WRITTEN cumulative-weight reference.
 
-    Structurally-independent leg (vv-principles L11): contamination.py is a
-    DIFFERENT code path to the SAME unclamped BMC weight.  Sphere is
-    UNCLAMPED on both sides ⇒ exact (0-ULP) equality.
+    ⛔ **Reference replaced at Q5.6.4 (2026-08-11).** This row compared
+    against ``contamination.morel_montry_weights``, described as "a
+    DIFFERENT code path to the SAME unclamped BMC weight".  That module's
+    successor **delegates to production**, so the comparison would now be
+    τ against itself through a wrapper — green forever, and unable to
+    detect the drift its name advertises (`coding-standards`: a rewire can
+    demote a gate's claim class without touching one line of the body).
+
+    The reference is therefore authored HERE: BMC 2010 Eq. 12 —
+    :math:`\mu_{1/2} = -1`, :math:`\mu_{m+1/2} = \mu_{m-1/2} + w_m` — then
+    P2 (Eq. 42).
+
+    ⚠ **Not bit-exact, and the reason is the independence itself.**
+    ``np.cumsum`` sums pairwise while the producer accumulates
+    sequentially, so the two edge ladders differ by FP association — which
+    is precisely what makes this a second computation rather than a copy.
+    `[M]` the gap GROWS with N, because the edges near :math:`\mu = 0` are
+    built by cancellation:
+
+    ===== ===================  ==========
+    N     max|ref − prod|      ULP
+    ===== ===================  ==========
+    4     ``0.000e+00``            0
+    8     ``1.776e-15``           16
+    16    ``6.550e-15``           59
+    32    ``6.106e-15``           55
+    64    ``2.247e-13``         2024
+    ===== ===================  ==========
+
+    Asserted at ``atol=1e-13``, comfortable for the N ∈ {8, 16} rows here.
+    ⛔ **A new row at N ≥ 64 must widen it** — do not read the current
+    bound as a claim that holds at every order (`vv-principles` #16: never
+    assert tighter than the producer achieves).
+
+    ⚠ It is worth stating what this leg does NOT establish: the sphere's
+    cumulative-weight partition is the convention the literature confirms
+    verbatim, so this pins the *implementation*, not the *choice*.  The
+    choice is argued in
+    :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`.
     """
     quad = Quadrature.gauss_legendre(N)
-    tau_ref = morel_montry_weights(quad, "spherical")
+    # Hand-written reference: cumulative-weight edges from −1, then P2.
+    w = np.asarray(quad.weights)
+    mu_edge = np.concatenate(([-1.0], -1.0 + np.cumsum(w)))
+    tau_ref = (np.asarray(quad.mu_x) - mu_edge[:-1]) / np.diff(mu_edge)
     (tau_close,) = morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)
 
-    np.testing.assert_array_equal(
-        tau_close,
-        tau_ref,
+    np.testing.assert_allclose(
+        tau_close, tau_ref, rtol=0.0, atol=1e-13,
         err_msg=(
-            f"sphere closure τ != independent reference τ (N={N}); both are "
-            f"unclamped BMC-2010-Eq.43 weights and must agree exactly"
+            f"sphere closure τ != the hand-written cumulative-weight "
+            f"reference (N={N}); both are unclamped BMC-2010 Eq.12/42 "
+            f"weights and must agree to FP-association noise"
         ),
     )
 
@@ -112,7 +151,8 @@ def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
     ⭐ **What changed about the INDEPENDENCE, and it is an upgrade.** The
     old reference was ``contamination.morel_montry_weights`` — a second
     *procedural* implementation of the same edge recursion, i.e. only
-    procedural independence (`vv-principles` L11).  The reference is now
+    procedural independence (`vv-principles` L11), and one that silently
+    became WRONG when the partition moved.  The reference is now
     the **analytic closed form** obtained by putting the ω-midpoint
     partition through P2 (BMC Eq. 43):
 
@@ -129,10 +169,9 @@ def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
     would pass just as happily against the partition the carve replaced,
     and would be certifying nothing about the partition choice.
 
-    ⚠ ``contamination.morel_montry_weights`` still carries the RETIRED
-    η-midpoint convention, so it is deliberately NOT used as the
-    reference here; it appears only as the negative control's sibling
-    (see the module-level note).
+    ⚠ ``angular_differencing.morel_montry_weights`` is NOT used here: it
+    delegates to production, so comparing against it would be comparing τ
+    with itself through a wrapper (see the module-level note).
     """
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
     tau_close = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)

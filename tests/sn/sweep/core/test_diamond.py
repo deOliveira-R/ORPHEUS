@@ -67,7 +67,7 @@ from orpheus.transport.spatial.scheme import CellVisit
 # triple (was a private byte-identical copy here; unified with
 # ``test_cell_balance_for_streaming.py`` and the production-stamp catcher).
 # Step C: τ now comes from the structurally-independent
-# ``contamination.morel_montry_weights`` (geometry-τ retired); α from the
+# ``angular_differencing.morel_montry_weights`` (geometry-τ retired); α from the
 # operator's surviving dome.
 from tests.sn.sweep.core._c_surrogate import (
     c_from_constants,

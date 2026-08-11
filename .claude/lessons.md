@@ -1469,3 +1469,142 @@ would print exactly what it just printed".
 Sibling of [[lessons-L38]] (a mutation in a shared tree is indistinguishable
 from a production bug) — both are about the *evidence pipeline* failing while
 the code under test is fine.
+
+## L45 — A DIAGNOSTIC can be annihilated by the very symmetry the design introduced (2026-08-11)
+
+The instrument was right, the code was right, and the reading was worthless.
+
+`[M]` Q5.6.4. BMC's contamination factor **β** is *the* diffusion-limit
+diagnostic for an SN angular differencing scheme — zeroing it is the entire
+reason the Morel–Montry τ exists. The in-tree evaluator existed and ran
+clean. It reported **round-off for every candidate cell-edge convention**,
+including one that provably **diverges the solve** (NaN from `n_φ ≥ 16`, τ
+outside `[0,1]`). That contradiction is what forced a control:
+
+| edge set fed to β | β |
+|---|---|
+| production | `+6.94e-18` |
+| garbage — edges scaled 0.5× | `+3.47e-18` |
+| garbage — edges **cubed** | `+1.73e-18` |
+| garbage — **random**, antisymmetrised | `−3.47e-18` |
+| one edge nudged (breaks antisymmetry) | **`−3.53e-03`** |
+
+**β on a σ_y-folded arc is a symmetry identity, not a measurement.** The fold
+makes the nodes antisymmetric and the α dome symmetric, so
+`term_{M−1−m} = −term_m` and the sum cancels pairwise for ANY antisymmetric
+edge set. β could only ever see antisymmetry.
+
+⭐ **The generalisable shape, and it is nastier than ordinary Mode-12
+blindness:** the blinding structure was introduced *by the campaign's own
+central achievement*. The σ_y fold is the thing we built; it silently
+annihilated the functional that would have judged what we built next. So the
+question to ask after ANY symmetry-introducing carve is not "does my
+diagnostic still run?" but **"is my diagnostic still a function of the thing I
+am about to vary?"** — and the cheapest way to answer it is to feed the
+diagnostic deliberate garbage in the varied slot (`vv-principles` #17,
+extended from harnesses to *analytic* instruments).
+
+⚠ Corollary for gates: a β gate on a folded cylinder rule would be green
+forever while wearing an authoritative name. Either gate the UNFOLDED parent,
+or gate the antisymmetry and say that is what you tested.
+
+The replacement that DOES discriminate was in the same literature and needed
+no solve — **ν-closure**: the cell march implied *by* τ must land on the
+level's far endpoint. `[M]` `1.000000` for any derived τ, `1.016389` for the
+retired clamp, `1.164784` for `τ ≡ ½`. Both of the latter correspond to no
+partition of the level at all.
+
+## L46 — TWO OBJECTS SHARING A LETTER, and the summary that contained both without noticing (2026-08-11)
+
+`[M]` Q5.6.4. A literature memo returned, in the same report, both:
+
+* *"τ was chosen to zero β"* (BMC Table II: β at round-off for the correct τ), and
+* *"δ = 0 … would not give the correct diffusion limit"* where `δ = 2τ − 1`,
+  and Lathrop's own recursion makes `δ ≡ 0 ⟹ β ≡ 0`.
+
+Read together: the correct scheme both has and has not β = 0. I built a design
+on the reading that fit my hypothesis, and it was the wrong one.
+
+**They are two different quantities wearing one letter, and they are
+near-OPPOSITES:** BMC's β is ONE SCALAR (the `J⁽²⁾` contamination), zero iff τ
+is Morel–Montry; Lathrop's β is A SEQUENCE (α's pointwise defect), zero iff
+`τ ≡ ½` — the *diamond* scheme. They also live at different orders: leading
+(diffusion limit) vs first (truncation).
+
+⭐ **The rule: when a summary of a source contains an internal tension, the
+tension IS the finding — resolve it at the source before designing.** Do not
+pick the branch that fits the hypothesis in flight; that is exactly when the
+cost is highest, because the design is already leaning on it. The resolution
+here also came with independent verification: reproducing BMC's Table I to
+every printed digit proved which definition was live.
+
+⚠ Same family as the three-way `tau` overload in this codebase (closure
+weight / optical depth / critical half-thickness in mfp). When a symbol is
+overloaded, **say which sense you mean at every use site**, and give the
+nomenclature its own documented home — `derivations/discrete/sn/angular_differencing.py`
+now carries it.
+
+## L47 — A FIXTURE can be structurally incapable of seeing what its gate is credited with (2026-08-11)
+
+`[M]` Q5.6.4. After re-posing the cylinder cell partition from η-midpoint to
+ω-midpoint, `test_cell_visit_c_stamp`'s cylinder row stayed **green under
+`assert_array_equal`** — bit-exact, no tolerance — while its oracle's τ
+disagreed with production by `4.46e-2`.
+
+Not a tolerance leak: its fixture is `folded_product(n_mu=2, n_phi=4)`, i.e.
+**M = 2 ordinates per level**, and at M = 2 the interior chord midpoint
+`(η₀+η₁)/2 = 0` **IS** the arc edge at `ω = π/2`. The two partitions are
+**bit-identical** there, diverging only from M = 3 (`3.17e-02`, `4.46e-02`,
+`6.82e-02` at M = 3/4/6).
+
+⭐ **A green bit-exact gate is not evidence that its fixture can see the thing
+you changed.** Before crediting (or blaming) a gate for a change, ask what the
+SMALLEST fixture it runs is, and whether the change is even expressible there.
+Degenerate small cases collapse distinctions — M = 2 has one interior edge, and
+one interior edge is where every reasonable partition agrees.
+
+⚠ The dual is the trap that bit me first: the same row went RED at an
+intermediate state (oracle clamped, production unclamped) and GREEN after I
+removed the clamp — which *reads* as "the fix worked" when the truth was "the
+disagreement shrank below what this fixture can express". A red that turns
+green is not proof of correctness; check whether the discriminating power was
+ever there.
+
+## L48 — Take the PREDICATE, not the recipe: how to port a literature scheme whose mechanism does not fit (2026-08-11)
+
+User instruction, Q5.6.4, on being told our azimuthal rule is incompatible
+with the literature's angular closure: *"Let's try to fix our own before
+changing to any other implementation. We should be able to get this right, and
+even if the literature suggests another method or closure, what we need might
+not be their closure or method but the CONCEPT they used to make it accurate.
+That is probably transferable."*
+
+`[M]` It was exactly right, and the shape is reusable. The literature's
+cell edges (cumulative quadrature weight in the radial cosine) are
+**inapplicable** to our rule: ordinates land outside their own cells, worsening
+with refinement (0/4 → 4/8 → 12/16 → 28/32), and the solve diverges. The
+reason is one line: their construction presumes *the weight equals the cell's
+measure in the marching variable*, and our equispaced-ω rule has equal weights
+while an arc cell's η-measure ∝ `sin ω`.
+
+⟹ **their edge recursion is one SOLUTION to a predicate system, not the
+system.** Extracting the predicates (P0 α-closure, P1 `c = Σwη² = ⅔`
+diffusion, P2 barycentric τ, P3 ordinate-inside-its-own-cell, P4 conservation)
+made the port trivial: choose the partition that satisfies **P3** for OUR
+nodes (the ω-midpoint), and **P2 then DETERMINES τ** with no freedom left —
+`τ_m = ½ + ½·cot(ω_m)·tan(Δω/4)`, verified to `1.67e-16`.
+
+⭐ **The procedure, when a published mechanism does not fit your
+discretisation:** (1) find what CONDITION the mechanism was built to satisfy;
+(2) check whether the condition is even stated separately from the mechanism —
+usually it is, a few equations earlier; (3) evaluate the condition on your own
+construction; (4) satisfy it your own way. Copying the mechanism is what
+produces a "faithful" port that diverges; copying the condition is what
+transfers.
+
+⚠ And a bonus that fell out: **P3 became a THEOREM** on the new partition (on
+a monotone arc the ω-midpoint edges bracket their own node, so `τ ∈ (0,1)` is
+forced — `[M]` 4000 random arcs), whose only equality case is a node on Σ. So
+cylinder-P3 reduces to the fold's own well-posedness criterion `Σ = ∅`. When a
+port is right, the predicates tend to collapse into each other rather than
+multiply.

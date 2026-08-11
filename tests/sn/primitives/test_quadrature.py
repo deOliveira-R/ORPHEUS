@@ -393,7 +393,7 @@ class TestL0TermVerification:
     @pytest.mark.verifies("sn-contamination-factor")
     def test_contamination_beta_spherical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
-        from orpheus.derivations.discrete.sn.contamination import contamination_beta
+        from orpheus.derivations.discrete.sn.angular_differencing import contamination_beta
         quad = Quadrature.gauss_legendre(8)
         beta = contamination_beta(quad, "spherical")
         assert abs(beta) < 1e-14, f"Spherical β = {beta:.2e}"
@@ -401,7 +401,7 @@ class TestL0TermVerification:
     @pytest.mark.verifies("sn-contamination-factor")
     def test_contamination_beta_cylindrical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
-        from orpheus.derivations.discrete.sn.contamination import contamination_beta
+        from orpheus.derivations.discrete.sn.angular_differencing import contamination_beta
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         betas = contamination_beta(quad, "cylindrical")
         assert np.all(np.abs(betas) < 1e-14), (

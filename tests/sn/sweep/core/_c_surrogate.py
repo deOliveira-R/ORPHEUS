@@ -28,14 +28,47 @@ Before Step C the surrogate read τ/α straight off a ``StreamingTerms``
 packet (``st.tau_mm`` / ``st.alpha_in`` / ``st.alpha_out``).  Step C
 RETIRES those three fields from ``StreamingTerms`` (and the geometry-side
 τ producer that baked them), so the surrogate can no longer take a bare
-``st``.  The independent τ now comes from the structurally-independent
-``morel_montry_weights`` (``contamination.py`` — a DIFFERENT code path to
-the SAME BMC-2010-Eq.43 weight; vv L11) WITH the production clamp applied
-(spherical UNCLAMPED, cylindrical ``clip(τ_raw, ½, 1)`` — mirroring the
-streaming factories), and α comes from the SURVIVING dome arrays on the
+``st``.  τ now comes from ``angular_differencing.morel_montry_weights``
+(see the correction below), and α comes from the SURVIVING dome arrays on the
 ``ReducedStreamingOperator`` (``alpha_half`` for spheres,
 ``alpha_per_level`` for cylinders; α is NOT retired, only its
 ``StreamingTerms`` packing is).
+
+⛔ **WHAT THIS SURROGATE IS AND IS NOT INDEPENDENT OF (corrected
+2026-08-11, Q5.6.4).** Two claims that used to sit here are now FALSE, and
+are recorded rather than quietly dropped:
+
+1. *"WITH the production clamp applied (… cylindrical ``clip(τ_raw, ½,
+   1)``)"* — the ``[½, 1]`` absorber is **RETIRED**.  Worse, this file had
+   *re-implemented* it (``np.clip(tau_raw, 0.5, 1.0)``) inside the
+   supposedly independent oracle, directly under a comment claiming the
+   reference was UNCLAMPED — a Pattern-2 twin of the very thing it stood
+   in judgement over, which no symbol grep could find (only the CONCEPT
+   grep did).  Deleted.
+2. *"the structurally-independent ``morel_montry_weights`` — a DIFFERENT
+   code path to the SAME weight (vv L11)"* — it no longer is.  That
+   function now **delegates to the production producer**, deliberately, so
+   that a "reference" can never drift into a second definition of the
+   angular cell — which is exactly how its cylinder arm went wrong.
+
+⟹ **the τ leg of any gate built on this surrogate is now TAUTOLOGICAL**:
+production τ compared with itself through a wrapper.  Do not read it as
+coverage.  What this surrogate still tests honestly:
+
+* :func:`c_from_constants` — the hand-transcribed
+  ``c_out = α_out/τ``, ``c_in = (1-τ)/τ·α_out + α_in``, which shares no
+  code with the closure and IS genuinely independent;
+* the (cell, ordinate) → (level, within-level) **gather/permutation**,
+  which is what ``test_cell_visit_c_stamp.py`` exists to catch.
+
+τ itself is pinned independently elsewhere —
+``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (the
+analytic closed form on the cylinder, a hand-written cumulative-weight
+expression on the sphere).  That is the gate to consult for τ, not this
+one.  ⚠ And note the c-stamp cylinder fixture is ``folded_product(2, 4)``,
+i.e. M = 2 per level — `[M]` the ω-midpoint and retired chord partitions
+are **bit-identical** at M = 2, so that fixture could not see a partition
+change even if this leg were independent.
 
 Two entry points:
 
@@ -58,7 +91,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.discrete.sn.contamination import morel_montry_weights
+from orpheus.derivations.discrete.sn.angular_differencing import morel_montry_weights
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.reduced_operator import ReducedStreamingOperator
 
@@ -85,7 +118,7 @@ def mm_constants_for_ordinate(
     r"""Resolve the M-M ``(tau, alpha_in, alpha_out)`` for one ordinate.
 
     The independent τ comes from
-    :func:`~orpheus.derivations.discrete.sn.contamination.morel_montry_weights`
+    :func:`~orpheus.derivations.discrete.sn.angular_differencing.morel_montry_weights`
     (a structurally-independent code path to the BMC-2010-Eq.43 weight;
     vv L11) WITH the production clamp — spheres UNCLAMPED, cylinders
     ``clip(τ_raw, ½, 1)``.  α comes from the operator's surviving dome
