@@ -108,16 +108,50 @@ def _quadrature(coord: str):
     return Quadrature.gauss_legendre(n_ordinates=8)
 
 
+@pytest.mark.filterwarnings(
+    "ignore::orpheus.numerics.convergence.ConvergenceWarning"
+)
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
 @pytest.mark.parametrize("coord", ["sphere", "cylinder"])
 @pytest.mark.parametrize("ng_key", ["2eg", "4eg"])
 def test_inner_tol_bias_collapses_at_1e_12(coord, ng_key):
     """k_inf drift drops below 1e-11 when inner_tol is tightened to 1e-12.
 
-    Pins the inner-SI under-convergence model: at default ``inner_tol=1e-9``
-    the drift is ~1e-7; tightening to 1e-12 collapses it. If a future
+    Pins the inner-SI under-convergence model: at ``inner_tol=1e-9`` the
+    drift is `[M]` 3.9e-11 … 7.5e-11 across the four parametrisations;
+    tightening to 1e-12 collapses it to 6.5e-14 … 8.4e-14. If a future
     refactor breaks this contract (e.g., a sweep change that makes the
     inner converge by a different metric), this test surfaces it.
+
+    ⛔ Until 2026-08-10 the paragraph above said the loose drift is
+    ``~1e-7`` — **four orders too large**, and never measured.  The
+    contrast the test rests on is real but is ~3 orders, not the ~4+ the
+    old prose implied.  A stale magnitude in a bias-model docstring is
+    exactly the number a future session would design a tolerance against.
+
+    ⭐ **The LOOSE leg's truncation is the FIXTURE, and it is declared**
+    (#340 R2).  ``max_inner=100`` at ``inner_tol=1e-9`` is deliberately
+    starved: the under-converged inner IS the bias this test exhibits, so
+    the loose solve exits truncated and says so.  `[M]` 2026-08-10, 3–4 of
+    its 6–8 inners hit the cap at ρ ≈ 0.89–0.93; converging it would need
+    ``max_inner ≈ 190–320`` and would collapse ``drift_loose`` onto
+    ``drift_tight``, deleting the contrast the test is built on.  The
+    suppression above therefore names the ONE category this row expects
+    rather than silencing the module.
+
+    ⚠ **The suppression is per-TEST and this test runs TWO solves**, so it
+    covers the TIGHT leg as well — which is why the tight leg is budgeted
+    to actually converge.  `[M]` until 2026-08-10 ``max_inner=300`` left
+    the tight inner truncated in three of the four parametrisations
+    (``2eg-sphere`` 2/6, ``2eg-cylinder`` 2/5, ``4eg-sphere`` 2/5; only
+    ``4eg-cylinder`` was clean), so the *reference* half of a bias
+    measurement was itself biased — and a bare marker would have silenced
+    that too.  ``max_inner=420`` covers the measured worst case (409) with
+    headroom, and `[M]` at 420 all four parametrisations run 0 truncated
+    inners.  ``drift_tight`` is unmoved in magnitude — 6.3e-14 … 8.2e-14
+    at 300 against 6.5e-14 … 8.4e-14 at 420, both three orders inside the
+    1e-11 bar — and ``4eg-cylinder``, the one that never truncated, is
+    bit-identical at 6.253e-14 either way.
     """
     case = _BUILDERS[ng_key]()
     mat_id = next(iter(case.problem.materials.keys()))
@@ -132,7 +166,10 @@ def test_inner_tol_bias_collapses_at_1e_12(coord, ng_key):
     r_tight = solve_sn(
         case.problem.materials, mesh, quad,
         max_outer=1000, keff_tol=1e-14, flux_tol=1e-12,
-        max_inner=300, inner_tol=1e-12,
+        # 420, not 300: the tight leg is the REFERENCE this test measures
+        # the loose leg against, so it must actually converge.  Measured
+        # worst case across the four params is 409 (#340 R2).
+        max_inner=420, inner_tol=1e-12,
     )
 
     drift_loose = abs(r_loose.keff - case.k_eff) / case.k_eff

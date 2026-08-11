@@ -187,6 +187,9 @@ def test_two_strata_independence_by_ng_axis() -> None:
 
 
 @pytest.mark.l0
+@pytest.mark.filterwarnings(
+    "ignore::orpheus.numerics.convergence.ConvergenceWarning"
+)
 def test_collision_cache_invariance_under_source_iteration() -> None:
     """Test #4 (CARDINAL) — :meth:`CollisionCache.from_geometry` called ONCE per σ_t epoch.
 
@@ -202,12 +205,36 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
 
     A heterogeneous 2G case is used deliberately: a homogeneous-reflective
     slab is a degenerate eigenvalue problem (flat flux, k = νΣ_f/Σ_a is
-    shape-independent) and the power iteration converges in ~3 outer steps
-    regardless of tolerance — too few to meaningfully exercise the Picard
-    loop.  The fuel|moderator|fuel slab carries a genuine spatial +
-    spectral flux shape that the power iteration must settle over ~7
-    outer steps, so the once-per-epoch cache invariant is tested across a
-    real iteration history (the >= 5 floor is comfortably cleared).
+    shape-independent), so the fuel|moderator|fuel slab is what gives the
+    flux a genuine spatial + spectral shape for the Picard loop to settle.
+
+    ⭐ **The truncation is the FIXTURE, and it is declared** (#340 R2).
+    ``max_inner=50`` at ``inner_tol=1e-8`` is far short of what this slab
+    costs — `[M]` 2026-08-10 all 7 inners hit the cap at ρ ≈ 0.958 — and
+    **the >= 5 outer floor below depends on that starvation.**  A starved
+    inner suppresses the outer increments (the #340 F2 mechanism), which
+    is what stretches this solve to 7 outer steps; `[M]` at
+    ``max_inner=425`` the SAME heterogeneous slab converges in **3**
+    outers and the floor assertion FAILS.  The cardinal invariant
+    (``_build_count == 1``) is unaffected either way — σ_t is bound once
+    at ``SNSolver.__init__`` — so the truncation costs the gate nothing
+    and buys it the long Picard history it asserts against.
+
+    ⛔ Until 2026-08-10 this paragraph credited the ~7 outer steps to the
+    fixture's heterogeneity.  They do not come from it; they come from the
+    starved inner.  The distinction says which knob is load-bearing: raise
+    ``max_inner`` and this test goes red on its own non-degeneracy floor,
+    not on its cardinal assertion.
+
+    ⚠ **The floor may be measuring the wrong quantity — filed as #351.**
+    The cardinal claim is that no sweep path rebuilds the cache, which is
+    a *sweep*-count claim, not an outer-count one.  `[M]` at
+    ``max_inner=425`` this solve performs **972** sweeps against **350**
+    today, so the invariant is exercised ~2.8× HARDER at the budget that
+    breaks the floor.  Re-founding the non-degeneracy floor on sweeps (or
+    on the cache call count) would let the budget rise while the gate gets
+    stronger — but that changes the assertion, not just the budget, so it
+    is deliberately out of scope for an R2 declaration pass.
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import Region, RegionMesh, StructuredGeometry

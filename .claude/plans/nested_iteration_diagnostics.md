@@ -837,6 +837,33 @@ stored; measured data plainly must be* (the same licence `iterations_run`
 already holds). Keep the distinction explicit at the field, or the next
 reader will read it as the drift N2b-ii removed.
 
+> ⛔ **REFUTED 2026-08-10 — the `[M]` above is FALSE, and it is the sentence
+> the whole design rested on.** `solve_sn` does NOT discard its solver:
+> `solver` is bound at `orpheus/sn/solver.py:2364` and still consumed at
+> 2422 (`solver.mat_xs`, `solver.scattering_op`), 28 lines above the warning;
+> `final_implicit` (the within-group system) is at 2421 and the typed iterate
+> `final_psi_a` at 2494/2497. Measured with a frame-locals spy: **38 locals at
+> line 2518, `solver : SNSolver` among them**, on both inner drivers — and all
+> **five** warning sites can build the residual from local names. Full map:
+> `scratch/n6b_exit_residual_scope.md`.
+>
+> ⭐ **What was actually measured was a DIFFERENT claim.** `Solution` really
+> does not carry `mat_xs` / `scattering_op` / `fission_op` — that half is
+> true and was measured. The sentence it got attached to ("the projection
+> cannot be computed at the entry") is about the *local frame*, which was
+> never measured at all. The `[M]` certified the half that was checked and
+> lent its authority to the half that was not. See `plan-authoring` §2's
+> 2026-08-10 sharpening.
+>
+> ⟹ **The stored field survives, but on a different argument, and the old
+> one must not be re-cited.** Scope does not require it. What requires it is
+> that the number is a **user-facing diagnostic**: a caller who gets a
+> best-effort iterate should be able to *read* how far it is from solving its
+> equation, and a warning string is not a return channel. It sits beside
+> `keff_history` for exactly the reason that field states — a physics
+> measurement, not a stopping criterion — and that is what the field's own
+> docstring must say.
+
 #### ⭐ Existence-check of the deliverable, 2026-08-10 — two findings
 
 Run before freezing this pointer (`plan-authoring` §1: a grep per symbol AND a
@@ -876,6 +903,113 @@ explicit that an **approximated** adjoint is worse than none — a flat 0-D
 weight degrades the overlap 4.64× → 128.95× by manufacturing false negatives.
 The note exists so that whoever revisits #350 prices the real option
 correctly, not so N6b grows a third arm.
+
+#### Design pass, 2026-08-10 — five findings before a line was written
+
+Taken on pick-up, re-deriving the step from the concept rather than from the
+means above (`plan-authoring` §2). Three of the five change the design.
+
+**1. ⛔ `IterationHistory`'s own docstring FORBIDS what §N6b proposes — read
+the exemption or drop the field.** `orpheus/sn/solution.py:153` carries a
+landed ⭐ instruction: *"Do not grow this surface: add the question to
+`IterationRecord`, where the tree can answer it."* The §N6b text above
+proposes a new field there and never reconciles with it. The exemption is
+real but it must be **stated at the field**, not assumed: `keff_history` is
+already a field on that type, and its docstring says why — *"a **field**, not
+a derived reading, because it is a **physics output** rather than a stopping
+criterion."* The balance projection is the same kind of thing (a measured
+rate defect), so it sits with `keff_history` and not with the derived
+verdicts. ⟹ the rule the type actually enforces is **no stored convergence
+VERDICT**, and the docstring's prohibition is about flat re-readings of the
+record. Say so in the field's own docstring or the next reader reads it as
+the drift N2b-ii removed.
+
+**2. ⛔ The projection is a property of the RETURNED ITERATE, not of the
+failing level — and pairing it with the failing level's facts recreates
+exactly the defect N6a fixed.** `first_failure` is children-first, so on an
+eigenvalue solve it names **outer-iteration 1's** inner. The residual is
+evaluated once, on the iterate that was actually returned — the **last**
+one. Both numbers are real; presenting them as one level's is the
+"every number real, every pairing wrong" shape, and it *looks* level-correct
+(the N6a lesson verbatim). ⟹ the message must carry it as a **separate
+sentence with its own subject** ("the returned iterate's per-group balance
+defect is …"), never appended to the failing level's clause.
+
+**3. ⛔ The within-group certificate's residual is NOT the residual N5
+measured — reusing it silently invalidates the 4.64×. ✅ CONFIRMED BY
+MEASUREMENT.** `_certify_within_group_exit` looks like the natural home (it
+already calls `evaluate_residual`, and it returns EARLY on
+`not record.converged`, i.e. precisely the truncated case). But it measures
+`A_loss ψ − q_driver` with `q_driver` the **lagged** fission source from the
+previous outer iterate (chain: `numerics/eigenvalue.py:404` builds it from
+the *previous* iterate and *previous* keff → `solver.py:1729` receives it →
+`1805` wraps it verbatim), while `scratch/n5_outer_cert_lib.py` measured
+`A_loss ψ − Fφ(ψ)/k` with `φ` **recomputed from the returned ψ**. They
+coincide only at outer convergence — exactly the case that does not warn.
+`[M]` on the same ψ, Krylov inner, outer #1: certificate defect **9.46e-09**
+vs outer defect **9.21e-03** — **six orders of magnitude apart**. ⟹ evaluate
+the outer residual at the top-level exit. Do not substitute one for the
+other, and if a future step ever does, it must re-measure the overlap and
+quote THAT number.
+
+**6. ⛔ Two paths cannot carry the number at all — and one of them is a
+fixable ORDERING defect, not a capability gap.** (Both from
+`scratch/n6b_exit_residual_scope.md`.)
+
+* **LD / moment-tailed schemes: genuinely not computable.**
+  `evaluate_residual` raises
+  `ValueError: AngularResidual: values.shape (8, 2, 40, 2) does not match
+  space.shape (8, 2, 40)` — the residual mint does not admit the trailing
+  spatial-moment axis. This is the SAME un-built widening
+  `_certify_within_group_exit` already exempts in its docstring, so the
+  projection inherits that exemption verbatim rather than inventing a new
+  one. `[M]` reach is bounded: neither eigenvalue entry takes a `scheme=`
+  parameter and the adjoint fixed-source entry raises earlier, so the hole is
+  exactly the two `solve_sn_fixed_source` arms.
+* **Windowed 2-D SI at `solver.py:3622`: the warning fires 28 lines too
+  early.** `psi_typed.interior` is a `HarmonicMomentFlux` `(1,1,2,8,8)` at
+  that point; the full-angular reconstruction `angular_out` is bound at 3656
+  and `[M]` absent from `f_locals` at 3622. Moving the call below 3656 fixes
+  it. ⚠ Moving a warning changes WHEN it fires relative to everything
+  between — check the intervening lines before moving, do not assume it is
+  inert. For contrast `solve_sn`'s own exit is windowing-**immune**: `[M]`
+  full-angular `(14,2,8,8)` measured on a 2-D windowed solve.
+
+**7. ✅ Cost is ~1 %, and the shape of the cost is the useful part.** `[M]`
+`evaluate_residual` ≈ **2.1 ms**, whole diagnostic ≈ **2.2 ms**, on a 1-D
+slab, 2 regions × 20 cells, 2 g, GL S8, reflective/reflective, DD,
+`inner_tol=1e-8`, medians of 20 reps, Python 3.14 host `.venv`. The scaling
+law is **≈ 3 inner iterations**, so the fraction is `≈ 3 / n_inner_total`:
+7.38 % at 30 inners, 2.56 % at 120, **0.72 % at 400**. ⟹ it is cheapest
+exactly where it is needed, because a solve that warns is by construction one
+that ran its budget out. (Aside worth keeping: the prototype's from-scratch
+`SNSolver(sn_mesh)` rebuild costs **2.59 ms** — *more* than the residual it
+exists to enable. Another reason not to reconstruct what is already in
+scope.)
+
+**4. ✅ The typed angular reduction IS the probe's arithmetic — the number
+transfers.** `[M]` `AngularFlux.integrate_angular` is documented and
+implemented as `φ = Σ_n w_n ψ_n`, a bare contraction over the leading `N`
+axis with the quadrature weights, through the one shared body
+`AngularField._integrate_angular_values` — no `4π`, no `1/W`. That is
+`_balance_project`'s `np.tensordot(w, x, axes=(0, 0))` exactly. So the
+composition can use the typed reduction (Patterns 2 and 3) without moving
+the measured 4.64×.
+
+**5. ⚠ Step 4's DELETED row carries two load-bearing assertions that must
+MIGRATE, not die with it.**
+`test_a_converged_outer_on_a_starved_inner_is_STILL_SILENT` asserts
+`converged is True` and `fully_converged is False` under
+"fixture drift" messages. Its surviving sibling
+`test_the_tree_wide_truncation_is_audible` is only
+`with pytest.warns(ConvergenceWarning): _starved_inner_converged_outer()` —
+which is green under the flip AND green if the fixture drifts so the
+**outer** stops converging, in which case the old guard would have warned
+too and the row tests nothing (`vv-principles` #19: a positive reading that
+cannot discriminate). ⟹ the survivor inherits both fixture-integrity
+assertions, and gains a third the pair never had: that the message names the
+**inner** — which is what makes it the *right* warning rather than merely a
+warning.
 
 ---
 

@@ -35,6 +35,30 @@ P1-anisotropic fixed-source flux against the closed-form flat
 infinite-medium solution ``(diag(Σ_t) − Σ_{s0}^T)^{-1} Q``; the slab
 vacuum fixed-source against global ``source = absorption + leakage``.
 
+**Truncated inners are part of the frozen state** (#340 R2).  Five cases —
+``2d_2g_LS4_dd_8x4_het_si``, ``cyl_2g_3reg_folded_4x8_dd_n40``,
+``slab_2g_3reg_dd_n40``, ``sphere_2g_3reg_dd_n40``,
+``sphere_2g_homogeneous_dd_n20`` — reach ``max_inner`` on at least one
+inner before ``inner_tol`` is met, at ρ ≈ 0.93–0.99.  That is not a defect
+in the snapshot: the generator and the test share one ``run_case`` /
+``run_config`` path, so the *truncated* trajectory is deterministic and is
+exactly what the ``.npz`` froze.  `[M]` 2026-08-10 all five reproduce their
+snapshot **bit-identically** (``|Δk| = 0.0``, ``max|Δφ| = 0.0``).  Their
+``ConvergenceWarning`` is suppressed at the parametrize site, per case —
+never at function level, so a SIXTH truncating case announces itself.
+
+⛔ **Raising ``max_inner`` re-baselines this suite, and for two rows it is a
+hard failure rather than a drift.**  `[M]` at ``max_inner=2400``:
+``sphere_2g_homogeneous_dd_n20`` moves ``|Δk| = 2.45e-11`` and
+``slab_2g_3reg_dd_n40`` moves ``|Δk| = 1.81e-11``, both at or past the
+correctness gate ``SAFETY × keff_tol = 1e-11``.  The other three stay
+inside the correctness gate but every one of the five loses bit-identity,
+so ``-W error::DriftWarning`` — the strict gate documented above — would
+fail on all five.  Any budget change here is a snapshot regeneration with
+the independent-corroboration discipline re-run, never a tolerance nudge.
+(``2d_2g_LS4_dd_8x4_het_si`` is the stubborn one: ρ ≈ 0.994 leaves it still
+truncated at 2400.)
+
 Tests are skipped if the snapshot file is not yet present — this lets the
 regression infrastructure land before the snapshots themselves.
 
@@ -65,7 +89,31 @@ from ._regression_assert import assert_regression
 pytestmark = [pytest.mark.regression, pytest.mark.foundation]
 
 
-@pytest.mark.parametrize("case", CASES, ids=lambda c: c.name)
+#: The cases whose snapshot was CAPTURED with a truncated inner (#340 R2) —
+#: see the module docstring's "Truncated inners are part of the frozen
+#: state".  Not a suppression of convenience: the truncation is IN the
+#: frozen artefact, and raising the budget is a re-baseline (a hard
+#: correctness failure for two of these five).  Scoped per case rather than
+#: per function so that a sixth truncating case starts warning.
+_TRUNCATED_INNER_CASES = frozenset({
+    "2d_2g_LS4_dd_8x4_het_si",
+    "cyl_2g_3reg_folded_4x8_dd_n40",
+    "slab_2g_3reg_dd_n40",
+    "sphere_2g_3reg_dd_n40",
+    "sphere_2g_homogeneous_dd_n20",
+})
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(c, marks=pytest.mark.filterwarnings(
+            "ignore::orpheus.numerics.convergence.ConvergenceWarning"))
+        if c.name in _TRUNCATED_INNER_CASES else c
+        for c in CASES
+    ],
+    ids=lambda c: c.name,
+)
 def test_dd_regression(case: SnapshotCase) -> None:
     """Re-run case and assert principled agreement with the frozen snapshot.
 
