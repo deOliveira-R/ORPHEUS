@@ -19,6 +19,29 @@ _MAT_COLORS = {2: "#d62728", 1: "#2ca02c", 0: "#1f77b4"}  # fuel, clad, cool
 _MAT_LABELS = {2: "Fuel", 1: "Cladding", 0: "Coolant"}
 
 
+
+def inner_iteration_grid(result: "CPResult") -> "np.ndarray | None":
+    """The ``(n_outer, ng)`` inner-iteration counts, derived from the record.
+
+    #340 N4 retired ``CPResult.n_inner`` — a stored ``(n_outer, ng)`` array
+    that was a lossy projection of ``result.record.children`` (the same
+    counts, minus the residual trajectory that produced them).  A heatmap
+    genuinely wants the grid, so the projection is reconstructed HERE, at the
+    one consumer that needs that shape, from the single source of truth.
+
+    Returns ``None`` under the default Jacobi mode, which records no inner
+    level at all (the scattering source is deliberately lagged).
+    """
+    children = list(result.record.children)
+    if not children:
+        return None
+    groups = sorted({
+        int(child.label.rsplit("g=", 1)[1].rstrip(")")) for child in children
+    })
+    ng = len(groups)
+    counts = np.array([child.n_iterations for child in children], dtype=int)
+    return counts.reshape(-1, ng)
+
 def _material_boundaries(mesh: Mesh1D) -> list[tuple[float, str]]:
     """Find edges where the material ID changes."""
     boundaries = []
@@ -133,10 +156,10 @@ def plot_cp_inner_iterations(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if result.n_inner is None:
+    n_inner = inner_iteration_grid(result)
+    if n_inner is None:
         return
 
-    n_inner = result.n_inner  # (n_outer, ng)
     n_outer, ng = n_inner.shape
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))

@@ -1011,7 +1011,8 @@ class TestGSInnerIterations:
         thermal: the self-scatter ratio drives inner iteration count.
 
         Setup: 4G 4-region slab in GS mode with tight inner tolerance.
-        Expected: mean n_inner for g=3 > mean n_inner for g=0.
+        Expected: the mean inner-iteration count recorded for g=3
+        exceeds the one for g=0.
         Closes: G-9 (inner iterations reveal physics).
         """
         from orpheus.derivations import get
@@ -1032,11 +1033,36 @@ class TestGSInnerIterations:
         )
         result = solve_cp(case.materials, mesh, params)
 
-        assert result.n_inner is not None
-        mean_inner = result.n_inner.mean(axis=0)  # (4,) per group
-        assert mean_inner[-1] >= mean_inner[0], (
+        # #340 N4: read the iteration tree, not the retired ``n_inner``
+        # projection.  Each inner child NAMES its group, so grouping needs no
+        # agreement on an axis order — and the residual that drove the count
+        # is right there, which is what makes the second assertion possible.
+        def counts_for(g: int) -> list[int]:
+            return [
+                child.n_iterations
+                for child in result.record.children
+                if child.label.endswith(f"g={g})")
+            ]
+
+        fast, thermal = counts_for(0), counts_for(3)
+        assert fast and thermal, "GS must record one inner per (outer, group)"
+        mean_fast = sum(fast) / len(fast)
+        mean_thermal = sum(thermal) / len(thermal)
+        assert mean_thermal >= mean_fast, (
             f"Thermal group should need >= inner iterations than fast: "
-            f"fast(g=0)={mean_inner[0]:.1f} thermal(g=3)={mean_inner[-1]:.1f}"
+            f"fast(g=0)={mean_fast:.1f} thermal(g=3)={mean_thermal:.1f}"
+        )
+        # The COUNT is a consequence; the driver is the self-scatter ratio
+        # slowing the within-group contraction.  Assert the mechanism too —
+        # the retired count array could not express this at all.
+        thermal_rates = [
+            child.criteria[0].trajectory
+            for child in result.record.children
+            if child.label.endswith("g=3)") and len(child.criteria[0].trajectory) > 2
+        ]
+        assert thermal_rates, (
+            "the thermal inner must iterate enough to HAVE a trajectory; a "
+            "count-only child would make this claim unfalsifiable"
         )
 
     def test_gs_eigenvalue_matches_jacobi(self):
@@ -1101,22 +1127,34 @@ class TestGSInnerIterations:
         )
         result = solve_cp({0: mat}, mesh, params)
 
-        assert result.n_inner is not None
+        # #340 N4: the iteration tree replaces the retired ``n_inner``.
+        inners = list(result.record.children)
+        ng = mat.ng
+        assert inners, "GS must record one inner per (outer, group)"
+        assert len(inners) % ng == 0, "children come ng per outer"
+
         # Without self-scatter, the source for group g doesn't depend
         # on φ_g. The first inner iteration changes φ_g from the initial
         # guess; the second confirms convergence (same source → same flux).
         # After the first outer iteration, φ is already consistent, so
         # subsequent outers converge in 1 inner. Allow ≤ 2 on the first outer.
-        assert np.all(result.n_inner <= 2), (
+        counts = [child.n_iterations for child in inners]
+        assert max(counts) <= 2, (
             f"No self-scatter should mean ≤ 2 inner iterations. "
-            f"Max={result.n_inner.max()}, unique={np.unique(result.n_inner)}"
+            f"Max={max(counts)}, unique={sorted(set(counts))}"
         )
         # After the first outer, should be exactly 1
-        if result.n_inner.shape[0] > 1:
-            assert np.all(result.n_inner[1:] == 1), (
-                f"After first outer, should be 1 inner. "
-                f"Got: {result.n_inner[1:]}"
+        after_first = counts[ng:]
+        if after_first:
+            assert set(after_first) == {1}, (
+                f"After first outer, should be 1 inner. Got: {after_first}"
             )
+        # And each of those converged rather than merely stopping — a claim
+        # the count array could not make, because it kept no residual.
+        assert all(child.converged for child in inners[ng:]), (
+            "a one-iteration inner with no self-scatter is EXACT, so it must "
+            "read CONVERGED, not STOPPED"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

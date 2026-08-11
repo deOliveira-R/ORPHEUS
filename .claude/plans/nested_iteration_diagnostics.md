@@ -260,7 +260,7 @@ makes the uncovered tail cheap — it tells that user the number.
 | N2b-i | **The OUTER stopping test reports what it measured** — see below; this row's original wording was too narrow | eigenvalue suites + new loop gates |
 | N2b-ii | SN's SOLUTION carries the record; `IterationHistory` becomes a VIEW; flat accessors derived | the 9-red baseline unchanged |
 | N3 | Derived budget + rate-aware message (3c) | contract suite + a NEW starved-projection gate |
-| N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
+| N4 | **Trust is a property of the ITERATION, not the METHOD** — CP / MoC / diffusion answer `fully_converged` from their own record (F6). ⛔ this row read "carry it (F6)" until 2026-08-11; that named the MECHANISM (§1). Six sub-steps, and the MoC arm turned out to be a live correctness repair, not plumbing — see §N4 | their own smokes + the knob gate generalised to all four families |
 | N5 | Outer certificate (F7/F7′) — residual `(A - F/k)psi` at exit | mutation battery |
 | **N6a** | **The warning speaks for the level that FAILED** — see §N6. Found 2026-08-10 by existence-checking this plan's own Done-when; it is NOT in the original decomposition because the original assumed the report was the hard part and the delivery was free | G1–G9 + a 12-mutation battery |
 | **N6b** | ✅ **COMPLETE.** The guard widens to `fully_converged` — ⛔ NO LONGER rides N5 (refuted; see §N5), widened UNCONDITIONALLY per the 2026-08-10 ruling — plus `Solution.converged()`, the R2 declarations, and the balance projection as a reported NUMBER at 4 of 5 entries (#353 is the fifth) | the `xfail(strict=True)` marker XPASSes — ✅ it did, and the row is now an ordinary passing gate carrying the retired sibling's fixture-drift assertions; the projection adds 5 rows, `[M]` 4/4 mutations caught |
@@ -1081,6 +1081,230 @@ warning.
 
 ---
 
+### N4 — whether a solve can be trusted is a property of the ITERATION, not of the METHOD
+
+**Goal.** A CP, MoC, or diffusion solve that stood on a starved inner is as
+audible as an SN one. Today all three build a correct `IterationRecord` and
+**drop it three lines later**, so `converged` is unanswerable outside SN (F6)
+and the diagnostic contract is accidentally SN-local.
+
+**Done when:** `CPResult` / `MoCResult` / `DiffusionResult` each answer
+`fully_converged` from their own record; every level in every one of those
+records names a knob its own entry point actually exposes; and the shipped
+`tests/moc/test_verification.py` fixtures pass with MoC's inner **certified**
+rather than merely counted.
+
+⚠ **N4 delivers the record and the gate; it does NOT deliver the warning** —
+so "as audible as an SN one" is half-met and the goal paragraph above would
+overclaim if read alone. A CP/MoC/diffusion caller can now ASK
+(`result.record.fully_converged`, `first_failure`, `projected_iterations()`);
+nothing yet TELLS them unasked. SN's `_warn_if_unconverged` lives at
+`orpheus/sn/solver.py:~440-610` and is SN-local — the F6 problem one level up,
+since everything it reads except the balance clause is a property of the
+RECORD, not of SN. Relocating it into `numerics` and re-pointing all four
+families is **N4.7**, deliberately not fused here: it is a carve across the
+campaign's most heavily gated surface (the landed 12-mutation battery + the
+whole SN contract module), and it does not block anything N4 promised.
+
+⚠ **Design pass, 2026-08-11 — reconciled against the tree before any code.**
+`scratch/n4_iteration_record_surface.md` (2026-08-10) was re-derived at
+`4aff0d4e`; the reconciliation is `scratch/n4_reconciliation_2026_08_11.md`.
+Claims A–G held with line drift only in `numerics/`; H/I/J were partially
+refuted (see that file). Two things the survey could not have known:
+
+1. ⭐ **`budget_name` landed AFTER the survey (`6cb5e519`) and all three
+   families are already getting it wrong.** `[M]` measured on real solves of CP
+   (both modes), MoC and diffusion: `record.budget_name == "max_iter"`, while
+   the knob each entry actually exposes is `max_outer`. This is the *same*
+   defect N6a fixed for SN — advice naming a parameter that does not exist —
+   left live in the other three. It is currently **latent, not user-visible**,
+   because the only reader of `budget_name` is
+   `orpheus/sn/solver.py:521`; carrying the record is what makes it observable,
+   so the fix and the wiring are ONE step (§6b: the call-site set is the unit).
+2. ⛔ **`solve_cp` exposes no `max_outer` at all** — it takes
+   `params: CPParams` (`cp/solver.py:813-816`), and `max_outer` is a *field of
+   that dataclass* (`:59`). So the existing knob gate's reference
+   (`inspect.signature(entry).parameters`,
+   `tests/sn/solve/test_convergence_contract.py:1073`) does not generalise: it
+   would refuse a correct CP stamp. The gate's reference must become "a knob
+   the caller can REACH from this entry" — parameters, plus the fields of any
+   parameter that is a dataclass — which is a strictly better question than the
+   one it asks today.
+
+#### The MoC ruling (user, 2026-08-11): give the inner a real stopping rule
+
+MoC's inner was `for _inner in range(15)` — no tolerance, no residual, no
+break (`moc/core.py:111`) — the one family whose inner had no contract, where
+CP has `inner_tol`/`max_inner` and SN has `tol`/`max_inner`. The primitive
+refuses to let a level that RAN and MEASURED NOTHING claim convergence
+(`convergence.py:849-852`), so N4 could not wire MoC without ruling on it.
+Rejected alternatives are in §4.
+
+`[M]` **Measured, all on `n_azi=8, n_polar=3, ray_spacing=0.05`, 1 region,
+`flux_tol=1e-5`** — probes 1/3/4/5 in `$CLAUDE_JOB_DIR/tmp`, exact
+reconstruction by `deepcopy`-per-`k` off one base solver (see the hazard note
+below):
+
+| case | first outer (cold ψ_b), k=15 | converged outer, k=15 | sweeps needed at convergence |
+|---|---|---|---|
+| `moc_cyl1D_1eg_1rg` | `1.35e-16` ✅ | `1.35e-16` ✅ | **1** |
+| `moc_cyl1D_2eg_1rg` | `1.44e-02` ❌ | `8.40e-10` ✅ | **1** |
+| `moc_cyl1D_4eg_1rg` | `1.19e-02` ❌ | `1.75e-09` ✅ | **1** |
+
+⟹ the fixed schedule is wrong in **both directions at once**: starved on the
+first outer, and **15×** wasteful on every outer after it. A magic constant
+with measured evidence on both sides.
+
+⛔⭐ **THE FINDING THAT CHANGED THE DESIGN — the obvious criterion is
+Mode-12-BLIND to the mode that actually binds.** The natural choice was
+`‖Δφ‖_F/‖φ‖_F`, because that is what MoC's OUTER already measures
+(`moc/core.py:258`, relative **Frobenius**, CURRENT iterate in the
+denominator, `1e-30` floor). It is the wrong criterion, and on the *simplest*
+fixture it fails hardest. `[M]` `moc_cyl1D_1eg_1rg`, cold start:
+
+| k | `‖Δφ‖/‖φ‖` | `‖Δψ_b‖/‖ψ_b‖` |
+|---|---|---|
+| 4 | **`0.000000e+00`** | `3.488e-02` |
+| 12 | `0.000000e+00` | `3.104e-04` |
+| 18 | — | first `< 1e-5` |
+
+φ is **machine zero from k=4** while the boundary angular flux is still four
+orders from converged; φ clears at **k=2**, ψ_b at **k=18**. A break on φ alone
+would stop the loop with its own stated job (`moc/core.py:97`, `solve_moc`'s
+docstring: sweeps "to converge the boundary angular fluxes") unfinished. The
+mechanism: φ is a **volume moment**, and the cyclic-track closure's slow mode
+lies in that functional's stabiliser — 1-group has no group coupling to
+iterate, so Δφ collapses in one pass while the geometric feedback around
+reflective tracks is untouched. This is `vv-principles` Mode 12 applied to a
+**stopping criterion** rather than to a test, and it generalises: *the quantity
+a loop is cheapest to measure on is not necessarily a quantity that can see
+what the loop is for.*
+
+⟹ **MoC's inner declares BOTH readings** (`dphi` and `dpsi_boundary`) and
+breaks on `all(cleared)`. `IterationRecord.criteria` is already a tuple, so
+this is free structurally, it is faithful to the loop's purpose, and it makes
+*which mode binds* visible instead of assumed.
+
+⚠ **Probe hazard, recorded because it produced a wrong number I nearly
+shipped.** `MOCSolver._fwd_bflux` / `_bwd_bflux` are carried ACROSS outers.
+A probe that rebuilds the solver per `k` silently resets them, so probe 2
+measured a cold-boundary transient while claiming to measure the converged
+state and reported `2.48e-03` where the truth is `8.40e-10` — off by seven
+orders, in the alarming direction. Correct method: `deepcopy` one converged
+instance per `k`.
+
+**Budget.** `[M]` the cold first outer clears `1e-5` at k ≈ **80–110**
+(2g: no at 80, YES at 110; 4g: no at 60, YES at 80), both modes decaying
+geometrically in lockstep. Default becomes `max_inner_sweeps = 200` — ~2×
+headroom on the measured cold requirement.
+
+> ⛔ **REFUTED 2026-08-11, by the implementation's own acceptance run.** This
+> paragraph continued: *"and nearly free because the break makes every later
+> outer 1–2 sweeps. Expected total ≈ 105–110 sweeps against today's 7 × 15 =
+> 105: **the same cost, now certified.**"* That was wrong, and the error was
+> mine for extrapolating from the CONVERGED-outer measurement (1 sweep) while
+> the *cold* outers are the ones that dominate. Measured after the carve, via
+> `inner_tol=0.0, max_inner_sweeps=15` (unsatisfiable tolerance ⟹ exactly the
+> pre-carve fixed schedule, reproduced through the NEW code, which is also the
+> characterization that isolates the stopping rule from the sweep arithmetic):
+>
+> | case | regime | outers | sweeps | keff err | certified |
+> |---|---|---|---|---|---|
+> | 2g | OLD, 15 fixed | 7 | 105 | **9.68e-10** | ⛔ False |
+> | 2g | `inner_tol=1e-5` | 6 | 204 | 2.62e-06 | ✅ |
+> | 2g | `inner_tol=1e-6` | 3 | 251 | 5.94e-07 | ✅ |
+> | 2g | `inner_tol=1e-8` | 3 | **351** | 5.98e-09 | ✅ |
+> | 4g | OLD, 15 fixed | 7 | 105 | 5.74e-08 | ⛔ False |
+> | 4g | `inner_tol=1e-8` | 3 | **259** | **3.84e-09** | ✅ |
+>
+> ⟹ the true cost is **2.5–3.3×** more sweeps, not parity.
+
+⭐⭐ **And the table says something sharper than a cost, which is why it is
+worth keeping in full: the carve buys CERTIFICATION, not accuracy.** The old
+fixed schedule's eigenvalue was already excellent — on 2g it is **more**
+accurate than the certified result (9.68e-10 vs 5.98e-09), and both are four
+orders inside the shipped `err < 1e-4` gate. So no accuracy argument justifies
+this change, and anyone re-deriving it from error magnitudes alone will
+conclude it was unnecessary. The justification is that **the old regime had no
+way to KNOW it was accurate**: `converged` was a claim with no evidence
+underneath it, and it was right by luck of the fixture. That is #340's whole
+thesis, and it is the same shape as the issue's own founding SN measurement
+(*"the gate had ALWAYS ridden an unconverged exit"* — the truncated error
+happened to sit inside `rtol` by 5×, until #337 moved it out).
+
+⚠ Note the outer count **halves, 7 → 3**, once the inner is certified — the
+starved inner was inflating the outer count (plan §F2). So the 2.5–3.3× is
+already net of that saving.
+
+**Why `inner_tol = 1e-8` and not the cheaper `1e-5`.** The inner must be
+tighter than the outer or the outer's stop test is measuring inner noise, and
+the measured non-monotonicity proves it is not hypothetical: at `1e-5`
+(= `flux_tol`, i.e. NO gap) the outer stops at 6 iterations with `err =
+2.62e-06`, three orders WORSE than the old regime. `1e-8` is the same
+three-decade gap CP ships (`inner_tol=1e-8` under `flux_tol=1e-5`), so the two
+families now state the same relationship instead of two unrelated numbers.
+
+#### Steps — drawn along CALL-SITE sets, not along descriptions (§6b)
+
+| step | scope | why this boundary |
+|---|---|---|
+| **N4.1** | `budget_name="max_outer"` at the three `power_iteration` calls (`cp:903`, `moc:137`, `diffusion:413`) + a `record` field and a `converged` view on all three result types + generalise the knob gate's reference to reach dataclass-parameter fields | the wrong knob is only *observable* through a carried record, so the stamp and the wiring cannot be separate steps |
+| **N4.2** | CP: capture the `res_in` it already computes (`cp/solver.py:595-597`) and declare `inner_records`; both modes (Jacobi 1-deep — **the default** — and Gauss-Seidel 2-deep) | one solver, one property, both trees; splitting by mode would leave `inner_records` half-populated |
+| **N4.3** | Diffusion: an explicit `DIRECT` child (`label="inner(exact resolvent, LU)"`) | free and strictly more informative; `tests/numerics/test_iteration_record.py:465-483` already cites diffusion by name for this exact status |
+| **N4.4** | MoC: `inner_tol` + rename `n_inner_sweeps` → `max_inner_sweeps`, both readings, break on `all(cleared)`, `inner_records` | ⚠ **fused deliberately.** The rename's call-site set is `moc/core.py:38,43,111`, `moc/solver.py:78,102,135`, `tests/moc/test_verification.py:164,275,450`, `tests/moc/test_properties.py:84`, `docs/…/method_of_characteristics.rst:865`. Landing the tolerance without the rename leaves a name that lies (it is a budget, not a count); landing the rename without the tolerance leaves a budget with nothing to stop it |
+| **N4.5** | Retire `CPResult.n_inner` onto the record (user ruling, 2026-08-11) | it is the lossy projection §2 is about. Blast radius `[M]`: **two** `@pytest.mark.catches("ERR-016")` markers (`tests/cp/test_verification.py:1006,1072`), 2 `examples/` readers (`examples/collision_probability/plotting.py:136,139`; `demo_cp_concentric.py:78-83`), `docs/…/collision_probability.rst:1928-1930`, and the generated matrix count at `matrix.rst:1426`. Markers MIGRATE to the successor assertions — a delete-only retirement drops the ERR-016 edge |
+| **N4.7** | ⏸ NOT IN N4 — relocate `_warn_if_unconverged` from `orpheus/sn/solver.py` into `numerics` and re-point all four families, so a starved solve TELLS rather than only answering when asked | the SN 12-mutation battery must stay green; new per-family warning rows |
+| **N4.6** | Docs + the one rendered falsehood | ⛔ `orpheus/numerics/eigenvalue.py:229-230` ("CP / MoC / diffusion conform to the base contract without it") goes present-tense-FALSE the moment any of them declares `inner_records`, and it **is** rendered (`docs/api/numerics.rst:507`) |
+
+⚠ `tests/moc/test_verification.py:275` (`n_inner_sweeps=1`) and `:450`
+(`=5`) were read before designing: `:275` asserts equilibrium preservation on a
+pure scatterer (break-insensitive — Δ is 0, so it breaks after the sweep it
+would have run anyway) and `:450` asserts only finiteness/non-negativity. The
+re-baseline surface is `_quick_solve`'s keff assertions (`:159-166`), which are
+`rel=1e-3`-class and should *improve*.
+
+#### ⭐ N4.4's own discovery — the normalisation acted on HALF the solution
+
+The 2.5–3.3× cost above is real but it was not intrinsic. Chasing *why* outer 2
+cost as much as outer 1 (2g: `[172, 176, 3]`) with the boundary flux carried,
+the answer turned out to be a genuine convention defect that the campaign's own
+instrumentation made visible for the first time:
+
+`MOCSolver.solve_fixed_source` ends with `phi *= 1/total_prod` and leaves the
+carried `_fwd_bflux` / `_bwd_bflux` untouched. But `(φ, ψ_b)` is ONE solution
+vector of a linear fixed-source problem, and a global rescale is a symmetry of
+the **pair** — applying it to one factor only splits the solution's scale in
+two, so every outer handed its inner a boundary condition inconsistent with its
+own flux and the inner walked the gap back from scratch.
+
+`[M]` 2026-08-11, rescaling both (2 lines), total sweeps to a certified solve:
+
+| case | old fixed schedule | N4 as ruled | + scale fix | keff err (scale fix) |
+|---|---|---|---|---|
+| 1eg | 45 | 64 | **32** | `0.000e+00` exactly |
+| 2eg | 105 | 351 | **177** | 3.21e-09 (was 5.98e-09) |
+| 4eg | 105 | 259 | **128** | 2.75e-09 (was 3.84e-09) |
+
+⟹ cost falls to **1.2–1.7×** of the pre-carve regime (and 1-group is now
+*cheaper* than before), with accuracy unchanged-or-better everywhere.
+
+⚠ **A probe hazard that produced a wrong mechanism first.** The fixed-source
+probe (one instance, `q` held constant, repeated `solve_fixed_source`) shows
+**176 sweeps on every call BOTH before and after the fix** — because holding
+`q` fixed while `phi` is renormalised is itself an inconsistency the probe
+introduces, and it swamps the one under study. The fix only shows up
+end-to-end, where the outer recomputes `q` from the normalised flux. First
+reading of that probe was "hypothesis refuted"; the honest conclusion was
+"this probe cannot see it". ⟹ when a probe holds one half of a coupled pair
+fixed, ask whether the freeze is itself the dominant term.
+
+⛔ Do NOT add anything named `converged` to `CPSolver` / `MOCSolver` /
+`DiffusionSolver`. `tests/numerics/test_power_iteration_record.py:156-191`
+asserts `not hasattr(cls, "converged")` over **five** solver classes — the
+N2b twin-retirement pin. The view belongs on the RESULT.
+
+---
+
 ## 4. Refuted / rejected candidates — with the structural reason
 
 | candidate | why it fails |
@@ -1088,6 +1312,10 @@ warning.
 | `n_truncated_inners` field on the flat type | §2: keeps the lossy projection; cannot say WHICH level, WHICH criterion, or WHAT TO SET |
 | Make `converged` the conjunction outright | Loses the per-level fact. "Did the outer converge?" becomes unanswerable — needed to tell "inner starved" from "genuinely non-critical" |
 | Warn per truncated inner | Fires up to `max_outer` times. A warning that always fires is filtered, and the next truncation goes unnoticed — the MA4 mutation lesson, already gated by `test_converged_solve_is_SILENT` |
+| **MoC: accept `converged=False` forever** (record the count only) | Zero code change, and honest — but `fully_converged` becomes a CONSTANT for MoC, so the trust predicate carries no per-solve information. It is also *wrong on 1-group*, where `[M]` the inner reaches `1.35e-16` and genuinely IS converged |
+| **MoC: measure `dphi`, do not break** | Bit-identical and needs no new parameter, but `[M]` the cold first outer still cannot clear in 15 sweeps, so `fully_converged` is False on every multigroup solve anyway — C's defect with better diagnostics |
+| **MoC: express the schedule AS the criterion** (`sweeps_remaining → 0`) | Satisfies the invariant while measuring the loop instead of the physics. The criterion cannot fail by construction, so it is a tautological gate wearing an authoritative name — the `coding-standards` single-sourcing hazard |
+| **MoC: break on `‖Δφ‖` alone** (the obvious criterion) | ⛔ **Mode-12 blind to the binding mode.** `[M]` 1-group cold start: φ is machine-zero at k=4 and clears at k=2 while ψ_b clears at k=18 — the volume moment cannot see the cyclic-track slow mode. Would have shipped a loop that stops with its own stated job unfinished. See §N4 |
 | Branch the budget on `ndim` | #341 falsified `ndim` as the discriminating variable **both ways** (d=2 G-S loses 2.86x; d=3 G-S wins 0.58x). Encoding a proxy for a variable we now understand is stringly-typed dispatch |
 | Derive the budget by fitting the 3 dimension points | 3 points, no mechanism. F3 gives a LAW with R2 >= 0.9956 — fit the law, not the samples |
 | Use `eq46_residual` as the `derivations/` convergence witness | No threshold exists anywhere for it ("Should be small"). Picking one is the "assert a number nobody measured" move this campaign removes. The bisection's own `bisect_tol` (`slab/one_group.py:211`) is the real witness |

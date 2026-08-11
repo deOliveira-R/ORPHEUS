@@ -862,14 +862,75 @@ logic into the outer eigenvalue loop (see :doc:`/api/numerics`).
    (forward + backward), accumulate :math:`\Delta\psi` into
    ``delta_phi``, update :math:`\phi` from :eq:`boyd-eq-45`.
 
-   The method performs ``n_inner_sweeps`` transport sweeps per outer
-   iteration to converge the boundary angular fluxes.  Within each
-   sweep, the scattering source is updated from the latest flux.
+   The method sweeps until the inner is **certified**: both the scalar-flux
+   increment :math:`\|\Delta\phi\|/\|\phi\|` and the boundary-angular-flux
+   increment :math:`\|\Delta\psi_b\|/\|\psi_b\|` fall below ``inner_tol``,
+   or the ``max_inner_sweeps`` budget runs out.  Within each sweep, the
+   scattering source is updated from the latest flux.
+
+   .. _moc-inner-two-readings:
+
+   **Why the inner declares TWO readings.** The natural criterion is
+   :math:`\|\Delta\phi\|`, because it is what the outer already measures —
+   and it is *blind to the mode this loop exists to converge*. Measured
+   2026-08-11 on ``moc_cyl1D_1eg_1rg`` from a cold boundary flux:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 12 30 30
+
+      * - sweep
+        - :math:`\|\Delta\phi\|/\|\phi\|`
+        - :math:`\|\Delta\psi_b\|/\|\psi_b\|`
+      * - 4
+        - :math:`0.0` (machine zero)
+        - :math:`3.49\times10^{-2}`
+      * - 12
+        - :math:`0.0`
+        - :math:`3.10\times10^{-4}`
+      * - first :math:`< 10^{-5}`
+        - **2**
+        - **18**
+
+   The scalar flux is a *volume moment*, and a 1-group problem has no group
+   coupling to iterate, so :math:`\Delta\phi` collapses in a single pass
+   while the geometric feedback around the reflective tracks is untouched —
+   the closure's slow mode lies in that functional's stabiliser (the
+   Mode-12 lens of :doc:`../verification/principles`, applied to a stopping
+   criterion rather than to a test).  A break on :math:`\|\Delta\phi\|`
+   alone would return with the method's own convergence claim four orders
+   unfinished.
+
+   ⛔ Until 2026-08-11 this was a fixed ``n_inner_sweeps = 15`` count with
+   no tolerance, no residual and no break (#340 N4).  The schedule was wrong
+   in both directions at once: measured, a converged outer needs **1** sweep
+   and took 15, while a cold boundary flux needs **80–110** and took 15.
 
    **Boundary flux persistence:** The angular fluxes at track
    entry/exit points (``_fwd_bflux``, ``_bwd_bflux``) persist between
    outer iterations.  This allows the reflective BCs to converge
-   progressively without explicit cyclic tracking.
+   progressively without explicit cyclic tracking — and it is why the
+   inner's own convergence must be measured on them.
+
+   .. _moc-normalisation-acts-on-the-pair:
+
+   **The normalisation acts on the PAIR** :math:`(\phi, \psi_b)`, not on
+   :math:`\phi` alone.  ``solve_fixed_source`` renormalises its returned flux
+   (``phi *= 1/total_prod``, to prevent overflow across outers), and the
+   carried boundary angular flux is rescaled by the same factor.  This is
+   forced by the mathematics rather than chosen: the fixed-source problem is
+   **linear**, so a global rescale is a symmetry of the solution *pair* —
+   applying it to one factor only splits one solution's scale in two, and the
+   next outer then inherits a boundary condition inconsistent with its own
+   flux.
+
+   ⛔ Until 2026-08-11 only :math:`\phi` was rescaled, and the inner spent
+   every outer walking that gap back.  Measured on total sweeps to a certified
+   solve (1-group / 2-group / 4-group): **64 → 32**, **351 → 177**,
+   **259 → 128**, with the eigenvalue error unchanged or better (1-group
+   reaches exactly ``0.0``).  The defect was invisible until #340 N4 made
+   per-outer sweep counts readable at all — the fixed 15-sweep schedule simply
+   never resolved the gap, and nothing reported that.
 
 3. **Eigenvalue update** (:meth:`MOCSolver.compute_keff`):
    :eq:`moc-keff-update`.

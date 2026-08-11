@@ -77,14 +77,24 @@ def main():
     print(f"  Outer iterations: {len(result.keff_history)}")
     if result.residual_history:
         print(f"  Final balance residual: {result.residual_history[-1]:.2e}")
-    if result.n_inner is not None:
-        n_in = result.n_inner
+    # #340 N4: the iteration tree replaced the retired ``n_inner`` array.
+    # Each inner child names its own group, so the worst group needs no axis
+    # convention -- and the record also says whether it CONVERGED.
+    inners = list(result.record.children)
+    if inners:
+        ng = len({child.label for child in inners})
+        last_outer = inners[-ng:]
+        counts = [child.n_iterations for child in last_outer]
         print(f"  Inner iterations (last outer): "
-              f"max={n_in[-1].max()}, mean={n_in[-1].mean():.1f}")
-        # Identify groups needing most inner iterations
-        worst_g = n_in[-1].argmax()
-        print(f"  Most inner iterations in group {worst_g} "
-              f"({n_in[-1, worst_g]} iters)")
+              f"max={max(counts)}, mean={sum(counts) / len(counts):.1f}")
+        worst = max(last_outer, key=lambda child: child.n_iterations)
+        print(f"  Most inner iterations in {worst.label} "
+              f"({worst.n_iterations} iters, {worst.status})")
+    failure = result.record.first_failure
+    if failure is not None:
+        print(f"  [!] NOT fully converged -- {failure.label} "
+              f"{failure.status}; set {failure.budget_name}="
+              f"{failure.projected_iterations()}")
     print(f"  Wall time: {result.elapsed_seconds:.1f}s")
 
     # 5. Plots

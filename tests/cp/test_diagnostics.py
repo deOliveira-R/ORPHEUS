@@ -48,7 +48,7 @@ def _tolerance_for(case):
 
 @pytest.mark.l0
 class TestJacobiDiagnostics:
-    """Verify residual_history is populated and n_inner is None in Jacobi mode."""
+    """Jacobi: residual_history is populated and there is NO inner level."""
 
     @pytest.fixture()
     def result(self):
@@ -65,9 +65,17 @@ class TestJacobiDiagnostics:
         res, _ = result
         assert res.residual_history[-1] < 1e-3
 
-    def test_n_inner_is_none(self, result):
+    def test_jacobi_records_no_inner_level(self, result):
+        """#340 N4: successor to the retired ``n_inner is None`` assertion.
+
+        The absence is DELIBERATE, and the record states it structurally
+        rather than by a sentinel: Jacobi lags the scattering source, so no
+        inner level exists to converge and an empty ``children`` is the
+        honest tree.
+        """
         res, _ = result
-        assert res.n_inner is None
+        assert res.record.children == ()
+        assert res.record.fully_converged is res.record.converged
 
     def test_keff_matches_analytical(self, result):
         res, case = result
@@ -101,16 +109,30 @@ class TestGaussSeidelDiagnostics:
             f"GS keff={res.keff:.10f} analytical={case.k_inf:.10f} err={err:.2e}"
         )
 
-    def test_n_inner_populated(self, result):
+    def test_gs_records_one_inner_per_outer_per_group(self, result):
+        """#340 N4: successor to the retired ``n_inner.shape`` assertion."""
         res, _ = result
-        assert res.n_inner is not None
-        n_outer, ng = res.n_inner.shape
-        assert n_outer > 0
-        assert ng == 2  # 2 energy groups
+        record = res.record
+        ng = 2  # 2 energy groups
+        assert record.n_iterations > 0
+        assert len(record.children) == ng * record.n_iterations
+        assert {
+            child.label.rsplit("g=", 1)[1].rstrip(")")
+            for child in record.children
+        } == {str(g) for g in range(ng)}
 
-    def test_n_inner_values_positive(self, result):
+    def test_every_inner_ran_AND_measured_something(self, result):
+        """Counts positive, AND a residual behind each one.
+
+        The retired array could only say ``>= 1``.  A count-only child cannot
+        claim convergence at all (the primitive refuses it), so asserting the
+        trajectory exists is asserting the thing that makes a count mean
+        anything.
+        """
         res, _ = result
-        assert np.all(res.n_inner >= 1)
+        for child in res.record.children:
+            assert child.n_iterations >= 1
+            assert child.criteria[0].trajectory
 
     def test_residual_history_populated(self, result):
         res, _ = result
@@ -163,12 +185,21 @@ def test_thermal_group_needs_more_inner_iterations():
     )
     result = solve_cp(case.materials, mesh, params)
 
-    assert result.n_inner is not None
-    # Average inner iterations per group across all outer iterations
-    mean_inner = result.n_inner.mean(axis=0)  # shape (4,)
+    # #340 N4: group by each child's own LABEL — the retired ``n_inner``
+    # array needed an agreed axis order; the record carries the group itself.
+    def mean_count(g: int) -> float:
+        counts = [
+            child.n_iterations
+            for child in result.record.children
+            if child.label.endswith(f"g={g})")
+        ]
+        assert counts, f"no inner records for group {g}"
+        return sum(counts) / len(counts)
+
+    fast, thermal = mean_count(0), mean_count(3)
 
     # Thermal group (g=3) should need >= inner iters than fast group (g=0)
-    assert mean_inner[-1] >= mean_inner[0], (
+    assert thermal >= fast, (
         f"Expected thermal group to need more inner iterations: "
-        f"fast(g=0)={mean_inner[0]:.1f} thermal(g=3)={mean_inner[-1]:.1f}"
+        f"fast(g=0)={fast:.1f} thermal(g=3)={thermal:.1f}"
     )

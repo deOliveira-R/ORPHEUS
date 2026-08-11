@@ -21,6 +21,7 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.numerics.convergence import IterationRecord
 from orpheus.numerics.eigenvalue import power_iteration
 
 from .geometry import MOCMesh
@@ -43,6 +44,18 @@ class MoCResult:
     moc_mesh: MOCMesh
     eg: np.ndarray | None     # (ng+1,) energy boundaries, or None for synthetic XS
     elapsed_seconds: float
+
+    record: IterationRecord
+    """The iteration tree this solve actually ran (#340 N4).
+
+    Ask :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
+    to learn whether the returned eigenvalue can be trusted — it answers for
+    the outer AND every inner beneath it, which a single ``converged`` flag
+    structurally cannot (#340 F1).  The children are the per-outer sweep
+    loops, each declaring BOTH readings it is driven by: the scalar-flux
+    increment and the boundary angular flux increment (see
+    :meth:`MOCSolver.solve_fixed_source`).
+    """
 
     @property
     def ng(self) -> int:
@@ -75,7 +88,8 @@ def solve_moc(
     max_outer: int = 500,
     keff_tol: float = 1e-6,
     flux_tol: float = 1e-5,
-    n_inner_sweeps: int = 15,
+    inner_tol: float = 1e-8,
+    max_inner_sweeps: int = 200,
 ) -> MoCResult:
     """Run the 2D Method of Characteristics transport calculation.
 
@@ -98,9 +112,18 @@ def solve_moc(
     max_outer : int
         Maximum number of outer (power) iterations.
     keff_tol, flux_tol : float
-        Convergence tolerances.
-    n_inner_sweeps : int
-        Number of transport sweeps per outer iteration.
+        Outer convergence tolerances (``|Δk|`` and relative ``‖Δφ‖``).
+    inner_tol : float
+        Inner convergence tolerance, applied to BOTH the scalar-flux and
+        the boundary-angular-flux increments (#340 N4).  Mirrors CP's
+        ``inner_tol``: three decades tighter than the outer, so the
+        outer's stop test is not measuring inner noise.
+    max_inner_sweeps : int
+        Budget on transport sweeps per outer iteration — a CAP, not a
+        schedule (⛔ was a fixed ``n_inner_sweeps=15`` count with no
+        stopping test until 2026-08-11).  `[M]` a converged outer needs 1
+        sweep; a cold boundary flux needs 80–110, so the default carries
+        ~2x headroom and costs nothing once the loop can stop early.
     """
     t_start = time.perf_counter()
 
@@ -132,9 +155,9 @@ def solve_moc(
     solver = MOCSolver(
         moc_mesh, materials,
         keff_tol=keff_tol, flux_tol=flux_tol,
-        n_inner_sweeps=n_inner_sweeps,
+        inner_tol=inner_tol, max_inner_sweeps=max_inner_sweeps,
     )
-    outcome = power_iteration(solver, max_iter=max_outer)
+    outcome = power_iteration(solver, max_iter=max_outer, budget_name="max_outer")
     keff, keff_history, phi = (
         outcome.keff, outcome.keff_history, outcome.flux_distribution,
     )
@@ -166,4 +189,5 @@ def solve_moc(
         moc_mesh=moc_mesh,
         eg=eg,
         elapsed_seconds=elapsed,
+        record=outcome.record,
     )

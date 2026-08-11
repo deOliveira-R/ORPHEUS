@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from collections.abc import Sequence
 from typing import Callable
 
 import numpy as np
@@ -44,7 +45,7 @@ from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.numerics.convergence import StoppingCriterion
+from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.eigenvalue import power_iteration
 
 
@@ -83,8 +84,26 @@ class CPResult:
     geometry: Mesh1D
     eg: np.ndarray | None  # (ng+1,) energy boundaries, or None for synthetic XS
     elapsed_seconds: float
+
+    record: IterationRecord
+    """The iteration tree this solve actually ran (#340 N4).
+
+    Ask :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
+    to learn whether the returned eigenvalue can be trusted — it answers for
+    the outer AND every inner beneath it, which a single ``converged`` flag
+    structurally cannot (#340 F1).  Under Gauss-Seidel the children are the
+    per-group inner solves, one per (outer, group); under the default Jacobi
+    mode there is no inner level and the tree is one deep.
+    """
+
     residual_history: list[float] = field(default_factory=list)
-    n_inner: np.ndarray | None = None  # (n_outer, ng) inner iteration counts
+
+    # ⛔ ``n_inner`` — an ``(n_outer, ng)`` count array — was retired here on
+    # 2026-08-11 (#340 N4).  It was a LOSSY projection of ``record.children``:
+    # the same counts, minus the residual trajectory that produced them, minus
+    # which level bound, minus what to set.  Consumers read the children
+    # instead, and the group is in each child's LABEL, so nothing has to agree
+    # on an axis order any more.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -489,7 +508,30 @@ class CPSolver:
 
         # Convergence diagnostics (populated during iteration)
         self.residual_history: list[float] = []
-        self.n_inner_history: list[np.ndarray] = []  # list of (ng,) arrays
+        # #340 N4: one record per (outer, group) inner solve, in order.
+        # APPEND-ONLY across solves — ``power_iteration`` takes a high-water
+        # mark before its loop and slices from it, so resetting this would
+        # hand the next outer loop somebody else's children.
+        self._inner_records: list[IterationRecord] = []
+
+    @property
+    def inner_records(self) -> Sequence[IterationRecord]:
+        """Every inner solve this instance has run, in order (#340 N4).
+
+        Satisfies the optional
+        :class:`~orpheus.numerics.eigenvalue.RecordingSolver` member, so
+        :func:`~orpheus.numerics.eigenvalue.power_iteration` splices these in
+        as the outer record's children and ``fully_converged`` starts
+        answering for the inners too.
+
+        Under Gauss-Seidel there are ``ng`` entries per outer — one per group's
+        within-group scattering solve.  Under the default Jacobi mode the list
+        stays EMPTY, and that is the honest answer rather than an omission: the
+        within-group scattering source is deliberately lagged, so no inner
+        level exists to converge.  (Contrast diffusion, whose inner is an exact
+        LU solve and therefore DOES record, as ``DIRECT``.)
+        """
+        return self._inner_records
 
     def initial_flux_distribution(self) -> np.ndarray:
         return np.ones((self.N, self.ng))
@@ -551,7 +593,6 @@ class CPSolver:
         """
         N, ng = self.N, self.ng
         phi = flux_distribution.copy()  # start from previous estimate
-        n_inner_this_outer = np.zeros(ng, dtype=int)
 
         for g in range(ng):
             # Bind the inner-iteration count for every path: when
@@ -559,6 +600,11 @@ class CPSolver:
             # body never runs, so without this the post-loop read would raise
             # NameError.  ``0`` then truthfully records "no inner iterations".
             n_in = 0
+            # #340 N4: the residual below was computed, compared, and thrown
+            # away.  Keeping the trajectory is what lets the record project a
+            # sufficient ``max_inner`` instead of only reporting that the
+            # budget ran out.
+            inner_residuals: list[float] = []
             for n_in in range(1, self.max_inner + 1):
                 phi_g_old = phi[:, g].copy()
 
@@ -595,13 +641,26 @@ class CPSolver:
                 phi_g_norm = np.linalg.norm(phi_g_new)
                 res_in = (np.linalg.norm(phi_g_new - phi_g_old)
                           / max(phi_g_norm, 1e-30))
+                inner_residuals.append(float(res_in))
 
                 if res_in < self.inner_tol:
                     break
 
-            n_inner_this_outer[g] = n_in
-
-        self.n_inner_history.append(n_inner_this_outer.copy())
+            # The group index, not the outer index: which group has strong
+            # self-scatter is the actionable fact, and a label stable across
+            # outers makes a repeated starvation read as ONE level failing
+            # repeatedly rather than as many distinct levels.
+            self._inner_records.append(IterationRecord(
+                label=f"inner(within-group scatter, g={g})",
+                criteria=(StoppingCriterion(
+                    name="dphi_g",
+                    trajectory=tuple(inner_residuals),
+                    tolerance=self.inner_tol,
+                ),),
+                budget=self.max_inner,
+                budget_name="params.max_inner",
+                iterations_run=n_in,
+            ))
 
         # Numerical conditioning
         phi *= 1.0 / np.max(phi)
@@ -762,9 +821,12 @@ class CPSolver:
             msg = (f"    iter {iteration:4d}  keff = {keff:.6f}  "
                    f"dk = {delta_k:.2e}  dphi = {delta_phi:.2e}  "
                    f"res = {residual:.2e}")
-            if (self.solver_mode == "gauss_seidel"
-                    and self.n_inner_history):
-                n_in = self.n_inner_history[-1]
+            # The last outer's per-group inners are the final ``ng``
+            # records this solver appended (Jacobi appends none).
+            if self.solver_mode == "gauss_seidel" and self._inner_records:
+                n_in = np.array([
+                    r.n_iterations for r in self._inner_records[-self.ng:]
+                ])
                 msg += f"  inner(max/mean) = {n_in.max()}/{n_in.mean():.1f}"
             print(msg)
 
@@ -900,18 +962,15 @@ def solve_cp(
     # OPTIONAL ProductionRateSolver member ``compute_production_rate`` by design
     # (it conditions via ``phi *= 1/max(phi)``), and ``power_iteration`` narrows
     # with ``isinstance(solver, ProductionRateSolver)`` and falls back when absent.
-    outcome = power_iteration(solver, max_iter=params.max_outer)
+    outcome = power_iteration(
+        solver, max_iter=params.max_outer, budget_name="params.max_outer",
+    )
     keff, keff_history, phi = (
         outcome.keff, outcome.keff_history, outcome.flux_distribution,
     )
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
         phi, mesh.volumes, mesh.mat_ids)
-
-    # Collect inner iteration diagnostics (GS mode only)
-    n_inner = None
-    if solver.n_inner_history:
-        n_inner = np.array(solver.n_inner_history)  # (n_outer, ng)
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
@@ -920,6 +979,6 @@ def solve_cp(
         keff=keff, keff_history=keff_history, flux=phi,
         flux_fuel=flux_fuel, flux_clad=flux_clad, flux_cool=flux_cool,
         geometry=mesh, eg=eg, elapsed_seconds=elapsed,
+        record=outcome.record,
         residual_history=solver.residual_history,
-        n_inner=n_inner,
     )

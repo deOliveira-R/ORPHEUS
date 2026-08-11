@@ -81,7 +81,7 @@ def test_heterogeneous_flux_depression():
     result = solve_moc(
         {2: fuel, 0: cool}, mesh,
         n_azi=16, n_polar=3, ray_spacing=0.03,
-        max_outer=200, n_inner_sweeps=15,
+        max_outer=200, max_inner_sweeps=15,
     )
 
     # Thermal group (last) flux should be higher in coolant than fuel

@@ -222,12 +222,28 @@ class EigenvalueSolver(Protocol[Carrier]):
 class RecordingSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
     """An :class:`EigenvalueSolver` that retains its inner solves' records.
 
-    The OPTIONAL extension that lets the outer record carry a subtree, modelled
-    exactly like :class:`ProductionRateSolver` below: solvers that keep their
-    inner trajectories (SN via
-    :class:`~orpheus.numerics.iteration.KEigenvalue`) expose them here and
-    :func:`power_iteration` narrows with ``isinstance``; CP / MoC / diffusion
-    conform to the base contract without it and plug in with no suppression.
+    Structurally OPTIONAL, modelled exactly like :class:`ProductionRateSolver`
+    below — :func:`power_iteration` narrows with ``isinstance`` and falls back
+    to an empty subtree — but as of #340 N4 **every shipped family declares
+    it**, because a family that does not is a family whose starved inner is
+    invisible:
+
+    * SN, via :class:`~orpheus.numerics.iteration.KEigenvalue`;
+    * CP — ``ng`` children per outer under Gauss-Seidel (the per-group
+      within-group scatter solves); NONE under the default Jacobi mode, which
+      is the honest answer rather than an omission, since Jacobi deliberately
+      LAGS the scattering source and has no inner level to converge;
+    * MoC — one child per outer, declaring BOTH readings its sweep loop is
+      driven by (scalar flux AND boundary angular flux);
+    * diffusion — one ``DIRECT`` child per outer: an exact LU
+      back-substitution did not iterate and DID converge, recorded so that
+      *"no inner level"* stays distinguishable from *"never recorded"*.
+
+    ⛔ Until 2026-08-11 this paragraph read "CP / MoC / diffusion conform to
+    the base contract without it and plug in with no suppression". That was
+    true, and it was the #340 F6 hole stated as a design: all three built a
+    correct record and dropped it three lines later, so ``converged`` was
+    unanswerable outside SN.
 
     Without this the outer level could only ever report itself, and "the outer
     stalled because its inner starved" — the #340 failure that motivated the

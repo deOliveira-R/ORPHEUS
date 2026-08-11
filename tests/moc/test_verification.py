@@ -161,7 +161,7 @@ def _quick_solve(materials, mesh, n_azi=8, n_polar=3, ray_spacing=0.05,
     return solve_moc(
         materials, mesh,
         n_azi=n_azi, n_polar=n_polar, ray_spacing=ray_spacing,
-        max_outer=max_outer, n_inner_sweeps=n_inner,
+        max_outer=max_outer, max_inner_sweeps=n_inner,
         keff_tol=keff_tol, flux_tol=flux_tol,
     )
 
@@ -272,7 +272,7 @@ class TestL0EquilibriumFlux:
         quad = MOCQuadrature.create(n_azi=8, n_polar=3)
         moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
 
-        solver = MOCSolver(moc_mesh, {0: mat}, n_inner_sweeps=1)
+        solver = MOCSolver(moc_mesh, {0: mat}, max_inner_sweeps=1)
 
         nr = moc_mesh.n_regions
         phi_uniform = np.ones((nr, 1))  # uniform flux
@@ -447,7 +447,7 @@ class TestL0SourceTermIsolation:
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=8, n_polar=3)
         moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
-        solver = MOCSolver(moc_mesh, {0: mat}, n_inner_sweeps=5)
+        solver = MOCSolver(moc_mesh, {0: mat}, max_inner_sweeps=5)
 
         phi = solver.initial_flux_distribution()
         # With zero fission source, solve_fixed_source should still work

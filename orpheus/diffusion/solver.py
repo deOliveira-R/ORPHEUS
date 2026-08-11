@@ -139,13 +139,14 @@ Verification (the P5 gates, ``tests/diffusion/test_solver.py``)
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
-from orpheus.numerics.convergence import StoppingCriterion
+from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
@@ -252,6 +253,10 @@ class DiffusionSolver:
             FlattenedOperator(self.loss, self.template)
         )
         self._n_flat = int(np.asarray(self.template.to_flat()).size)
+        # #340 N4: one DIRECT record per exact inner solve, in order.
+        # APPEND-ONLY across solves (``power_iteration`` slices from a
+        # high-water mark it takes before its own loop).
+        self._inner_records: list[IterationRecord] = []
 
     # ── Flat ↔ typed conversion ────────────────────────────────────────
 
@@ -285,11 +290,35 @@ class DiffusionSolver:
         psi = self.unflatten(flux_distribution)
         return np.asarray(self.fission.apply(psi).to_flat()) / keff
 
+    @property
+    def inner_records(self) -> "Sequence[IterationRecord]":
+        r"""Every inner solve this instance has run, in order (#340 N4).
+
+        Satisfies the optional
+        :class:`~orpheus.numerics.eigenvalue.RecordingSolver` member. Each
+        entry reads ``DIRECT`` — *did not iterate, DID converge* — because
+        the inner is one LU back-substitution.
+
+        Recording an exact level looks redundant and is not: without it the
+        tree is one deep, and *"diffusion has no inner level"* is then
+        indistinguishable from *"diffusion's inner was never recorded"*.
+        The ``DIRECT`` child says which. It also means diffusion's
+        ``fully_converged`` can only ever fail at the outer, which is the
+        true statement about this method.
+        """
+        return self._inner_records
+
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
         r"""EXACT inner solve :math:`\psi = A^{-1} q` — one LU
         back-substitution; the initial guess is irrelevant."""
+        # ``budget`` stays 0: an exact solve has no iteration budget, so
+        # ``exhausted_budget`` is False by construction and ``budget_name``
+        # is inert — nothing will ever advise setting it.
+        self._inner_records.append(
+            IterationRecord(label="inner(exact resolvent, LU)")
+        )
         return np.asarray(
             self.resolvent.apply(np.asarray(fission_source, dtype=float))
         )
@@ -357,6 +386,16 @@ class DiffusionResult:
     keff_history: "list[float]"
     mesh: "DiffusionMesh"
 
+    record: IterationRecord
+    """The iteration tree this solve actually ran (#340 N4).
+
+    Ask :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
+    to learn whether the returned eigenvalue can be trusted.  Diffusion's
+    inner is one LU back-substitution, so each child reads ``DIRECT`` — it
+    did not iterate and DID converge — and the only level that can fail is
+    the outer power iteration.
+    """
+
 
 def solve_diffusion_1d(
     materials: "dict[int, Mixture]",
@@ -410,7 +449,7 @@ def solve_diffusion_1d(
     solver = DiffusionSolver(
         diffusion_mesh, keff_tol=keff_tol, flux_tol=flux_tol,
     )
-    outcome = power_iteration(solver, max_iter=max_outer)
+    outcome = power_iteration(solver, max_iter=max_outer, budget_name="max_outer")
     keff, keff_history, flux_flat = (
         outcome.keff, outcome.keff_history, outcome.flux_distribution,
     )
@@ -422,4 +461,5 @@ def solve_diffusion_1d(
         current=current,
         keff_history=keff_history,
         mesh=diffusion_mesh,
+        record=outcome.record,
     )

@@ -1925,9 +1925,42 @@ Thermal groups (ratio ~0.6--0.9) need 3--8 inner iterations; fast groups
    * - ``residual_history``
      - ``(n_outer,)``
      - Neutron balance residual :math:`\|\Sigt{} V \phi - P^T V Q\|_2` per outer (both modes)
-   * - ``n_inner``
-     - ``(n_outer, ng)``
-     - Inner iteration count per group per outer (GS only; ``None`` in Jacobi)
+   * - ``record``
+     - tree
+     - The iteration tree this solve actually ran (#340 N4) — see below
+
+⛔ A third field, ``n_inner`` — an ``(n_outer, ng)`` count array — was
+retired on 2026-08-11 (#340 N4). It was a lossy projection of ``record``:
+the same counts, minus the residual trajectory that produced them, minus which
+criterion bound, minus what to set. Consumers read the children, and the group
+is in each child's **label**, so nothing has to agree on an axis order.
+
+**The record is the one that answers "can I trust this?"** (#340 N4). Ask
+:attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged` and it
+answers for the outer **and** every inner beneath it; the flat fields above are
+projections of it. Under Gauss-Seidel the children are the per-group
+within-group solves — one per ``(outer, group)`` — each judging the residual
+:math:`\|\phi_g^{(n+1)} - \phi_g^{(n)}\| / \|\phi_g^{(n+1)}\|` that CP already
+computed, tested, and used to discard. Under Jacobi there are no children at
+all, which is the honest tree: the scattering source is deliberately lagged, so
+no inner level exists to converge.
+
+⚠ **Measured 2026-08-11, on the shipped ``cp_slab_2eg_2rg`` fixture under
+Gauss-Seidel: the thermal group's inner hits ``max_inner = 100`` on outers 1
+and 2**, and before N4 the solve reported ``converged`` with nothing to
+contradict it. The record now says so, and says what to set:
+
+.. code-block:: text
+
+   outer(power-iteration): CONVERGED (3/500 iterations)
+     dk: 8.186e-08 vs tol 1.000e-06  met <- binding
+     inner(within-group scatter, g=1): TRUNCATED (100/100 iterations)
+       dphi_g: 8.387e-05 vs tol 1.000e-08  MISSED <- binding
+         rate: 0.950674 — needs ~279 iterations for tol 1.000e-08
+
+The eigenvalue was accurate anyway (the shipped tolerance passes), which is
+exactly why this class of defect survives: **the old answer was right by luck of
+the fixture, and had no way to know it.** See :doc:`../verification/principles`.
 
 Both modes converge to the **same eigenvalue and flux distribution**
 (``tests/cp/test_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
