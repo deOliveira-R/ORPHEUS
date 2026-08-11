@@ -815,56 +815,63 @@ class TestTruncationIsAudible:
         assert f"set max_inner={child.projected_iterations()}" in msg
         assert msg.startswith("solve_sn:")
 
-    def test_a_converged_outer_on_a_starved_inner_is_STILL_SILENT(
-        self,
-    ) -> None:
-        """⛔ COMMIT 2 INVERTS THIS ROW.
+    def test_the_tree_wide_truncation_is_audible(self) -> None:
+        """⭐ THE #340 HEADLINE: a converged outer on a starved inner SPEAKS.
 
-        It pins the SCOPE of #340 N6 commit 1 — that the guard did not move
-        — NOT the correctness of the silence.  The silence IS the #340
-        headline defect (F1); making it audible is commit 2, gated on N5's
-        residual certificate, and its arrival must delete this row and
-        un-xfail its sibling below.
+        This is F1 in one row.  The outer meets its own criteria, so the
+        flat ``converged`` reads ``True`` and every increment-based stop
+        test is satisfied — while 24 of 24 inners sat at their cap.  Until
+        2026-08-10 that solve returned in total silence; the guard is now
+        ``fully_converged``, so it does not.
 
-        Why it exists at all: `[M]` 2026-08-10, flipping the guard to
-        ``fully_converged`` reds **0 of 130** across this file plus both
-        numerics record files.  Three measured facts explain that —
-        ``pyproject.toml:86`` sets no ``filterwarnings``, every
-        ``ConvergenceWarning`` assertion in the tree lives in this one file,
-        and its only silence gate (``test_converged_solve_is_SILENT``) rides
-        a LEAF where ``converged`` and ``fully_converged`` coincide.  So
-        without this row an accidental guard flip ships undetected.
+        ⛔ **Three assertions, and the last two are why this row is not
+        tautological.** ``pytest.warns`` alone would also pass if the
+        fixture drifted so the OUTER stopped converging — in which case the
+        OLD guard would have warned too and this row would be testing
+        nothing (`vv-principles` #19: a positive reading that cannot
+        discriminate).  The fixture-integrity pair below is inherited from
+        the retired ``…_is_STILL_SILENT`` sibling, which is where it was
+        load-bearing first; deleting that row without carrying them here
+        would have quietly demoted this one.
+
+        ⭐ And the third claim — that the message names the INNER — is what
+        separates *a* warning from the *right* warning.  Its sibling
+        ``test_a_real_nested_solve_reports_its_STARVED_INNER`` makes the
+        same naming claim, but on a fixture whose outer ALSO failed, so the
+        old guard already warned there.  Here the warning exists only
+        because of the widening, which makes this the one row where the
+        naming and the flip are tested together.
+
+        `[M]` 2026-08-10: ``converged=True``, ``fully_converged=False``,
+        24 outers, 24 of 24 children truncated at 8/8.
         """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", ConvergenceWarning)
+        with pytest.warns(ConvergenceWarning) as caught:
             probe = _starved_inner_converged_outer()
+
         assert probe.history is not None
-        assert probe.history.converged is True, "fixture drift: outer must converge"
+        assert probe.history.converged is True, (
+            "fixture drift: the outer must CONVERGE, or this row stops "
+            "testing the widened guard — the old one would have warned too"
+        )
         assert probe.history.fully_converged is False, (
-            "fixture drift: an inner must be starved, or this row degenerates "
-            "into test_converged_solve_is_SILENT"
+            "fixture drift: an inner must be starved, or this row "
+            "degenerates into test_converged_solve_is_SILENT"
         )
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", ConvergenceWarning)
-            _starved_inner_converged_outer()   # must not raise
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="#340 N6 commit 2 — the guard flips to fully_converged once "
-               "N5's residual certificate can tell a corrupting truncation "
-               "from a benign one. Deliberately deferred, not forgotten.",
-    )
-    def test_the_tree_wide_truncation_is_audible(self) -> None:
-        """The commit-2 todo marker: it XPASSes the day the guard flips.
-
-        The sibling above pins today's silence so an ACCIDENTAL flip reds;
-        this one makes the DELIBERATE flip self-announcing, because
-        ``strict=True`` turns the resulting XPASS into a failure that forces
-        both rows to be revisited in the same change.
-        """
-        with pytest.warns(ConvergenceWarning):
-            _starved_inner_converged_outer()
+        failing = probe.history.record.first_failure
+        assert failing is not None and failing is not probe.history.record, (
+            "fixture drift: the failure must be a CHILD, not the top level"
+        )
+        msg = str(caught[0].message)
+        assert f"{failing.label} hit {failing.budget_name}={failing.budget}" in msg
+        assert "max_outer" not in msg, (
+            "the advice must not point at the outer's knob — with a starved "
+            "inner, raising max_outer cannot help at all (#340 F2)"
+        )
+        assert "`solution.history.fully_converged`" in msg, (
+            "the message must send the reader to the predicate that can SEE "
+            "this — the flat `converged` reads True on exactly this solve"
+        )
 
     def test_the_level_facts_are_GONE_from_the_warning_signature(self) -> None:
         """The retirement half — a defaulted survivor is the twin.

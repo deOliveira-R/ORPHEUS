@@ -538,6 +538,50 @@ class TestSolutionDiagnostics:
         assert sol_yes.converged() is True
         assert sol_no.converged() is False
 
+    def test_converged_asks_the_TREE_not_the_top_level(self) -> None:
+        """A converged outer on a starved inner must answer ``False``.
+
+        ⛔ The pair above cannot see this, and that is the point.  Both its
+        histories are LEAVES, where ``converged`` and ``fully_converged``
+        coincide by construction — so they stayed green through the
+        2026-08-10 flip of :meth:`Solution.converged` from the top-level
+        reading to the tree-wide one, and would stay green if it were
+        flipped back.  This row is the discriminator they were missing.
+
+        The shape is #340 F1: the outer meets its own criteria on
+        increments that the starved inner suppressed, so the top level
+        reports success while carrying the inner's error.
+        """
+        outer = IterationRecord(
+            label="outer(power-iteration)", budget=50, budget_name="max_outer",
+            iterations_run=3,
+            criteria=(StoppingCriterion(
+                name="dk", tolerance=1e-6, trajectory=(1e-3, 1e-5, 1e-8)),),
+            children=(IterationRecord(
+                label="inner(source-iteration)", budget=8,
+                budget_name="max_inner", iterations_run=8,
+                criteria=(StoppingCriterion(
+                    name="residual", tolerance=1e-10,
+                    trajectory=(1e-2, 1e-3, 1e-4)),),
+            ),),
+        )
+        assert outer.converged is True, "fixture drift: the outer must clear"
+        assert outer.fully_converged is False, (
+            "fixture drift: the inner must be starved, or this row "
+            "degenerates into the leaf pair above"
+        )
+
+        m = _slab_mesh()
+        psi, phi, bf = _make_fluxes(m)
+        sol = Solution(
+            angular_flux=psi, scalar_flux=phi, mesh=m,
+            history=IterationHistory(record=outer),
+        )
+        assert sol.converged() is False, (
+            "Solution.converged() must answer the TREE — an outer standing "
+            "on a starved inner is not a trustworthy answer (#340 F1)"
+        )
+
     def test_keff_history_list(self) -> None:
         """The legacy keff_history accessor returns a plain list."""
         m = _slab_mesh()

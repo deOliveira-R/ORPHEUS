@@ -402,17 +402,29 @@ def _warn_if_unconverged(
     SN entry calls this after building its history, so a truncated solve
     announces itself once, in one voice, wherever it came from.
 
-    ⛔ **Scope, as of #340 N6 commit 1: "a truncated solve" means a solve whose
-    TOP level did not converge.**  The guard below is
-    ``history.converged``, so an outer that met its own criteria while
-    standing on a TRUNCATED inner still returns in SILENCE — the record knows
-    (``fully_converged`` is ``False``, ``first_failure`` names the inner), and
-    nothing says so.  `[M]` 2026-08-10, 20 tests in the shipped suite are in
-    exactly that state.  Widening the guard to ``fully_converged`` is commit
-    2, deliberately gated on N5's residual certificate: `[M]` the flip reds
-    nothing today but emits 27 further warnings, and without a certificate to
-    separate a *corrupting* truncation from a *benign* one those are noise —
-    and filtered noise is how the next real truncation goes unnoticed.
+    ⭐ **Scope: "a truncated solve" means a solve ANY of whose levels did not
+    converge** (#340 N6b, 2026-08-10).  The guard below is
+    ``history.fully_converged``, so an outer that met its own criteria while
+    standing on a TRUNCATED inner is AUDIBLE — which is the whole of the #340
+    headline defect (F1): the record always knew (``fully_converged`` was
+    ``False``, ``first_failure`` named the inner) and nothing said so.
+
+    ⛔ Until 2026-08-10 the guard was ``history.converged`` — the TOP level
+    only — and `[M]` 20 tests in the shipped suite returned silently while
+    standing on a starved inner.  Those 20 were adjudicated before the flip
+    (`scratch/n6b_r2_adjudication.md`): 10 declare their truncation as the
+    fixture and suppress this ONE category in-test, and 10 are now audible on
+    purpose, tracked with measured budgets in
+    `#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
+
+    ⚠ The flip was originally scheduled to ride an N5 residual certificate
+    that would separate a *corrupting* truncation from a *benign* one.  `[M]`
+    that certificate was REFUTED by measurement: the raw defect's benign and
+    corrupting populations overlap **634×** and it misses 15 of 16 corrupting
+    cases, so it cannot gate.  The user's ruling (2026-08-10) was to widen the
+    guard unconditionally and report the balance projection as a DIAGNOSTIC
+    number rather than a threshold — a truncation the caller has not declared
+    is worth saying out loud whether or not we can yet say how much it cost.
 
     Why a warning and not a raise: the ERR-053 / D-H.1e ruling (see the
     :mod:`~orpheus.numerics.convergence` module docstring) — legitimate
@@ -472,7 +484,7 @@ def _warn_if_unconverged(
     found a configuration whose NEGATIVE dominant eigenvalue makes the
     increment sign-alternate, so its stop test is unsatisfiable forever.
     """
-    if history.converged:
+    if history.fully_converged:
         return
 
     # ⭐ #340 N6: every fact below is read off the level that FAILED, which is
@@ -490,11 +502,15 @@ def _warn_if_unconverged(
     # outer's stop test is entirely increments, and the starved inner is what
     # suppresses them — F2).
     #
-    # The ``or`` arm is unreachable while this function is guarded on
-    # ``history.converged``: ``first_failure`` returns ``None`` only when the
-    # whole tree converged.  It is here so the level is a non-optional value
-    # for every read below, and it stays correct if the guard later widens to
-    # ``fully_converged`` (the N5-gated flip).
+    # ⭐ The ``or`` arm is now PROVABLY dead, and that is the point of the
+    # widened guard: ``fully_converged`` is ``self.converged and all(child
+    # .fully_converged)`` and ``first_failure`` returns ``None`` iff
+    # ``self.converged`` and every child's does — complementary by induction,
+    # so past the guard above ``first_failure`` is never ``None``.  Under the
+    # OLD ``history.converged`` guard the arm was also dead, but only
+    # incidentally (a failing top level always names itself); the two
+    # predicates now coincide exactly.  Kept so the level is a non-optional
+    # value for every read below rather than a defended-against one.
     failing = history.record.first_failure or history.record
     level = "" if failing is history.record else f"{failing.label} "
     budget_name = failing.budget_name
@@ -571,7 +587,11 @@ def _warn_if_unconverged(
         f"{where}: {level}hit {budget_name}={budget}{against} "
         f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
         f"not the converged answer. {advice} "
-        f"`solution.history.converged` and handle it. "
+        # ``fully_converged``, not ``converged``: this warning now fires for
+        # ANY level, and on a starved-inner solve the flat ``converged`` reads
+        # True — so the old text sent the reader to the one predicate that
+        # cannot see what they were just warned about (#340 N6b).
+        f"`solution.history.fully_converged` and handle it. "
         f"Silence this per-call with warnings.catch_warnings(); make it fatal "
         f"everywhere with {ESCALATION_FLAG}.",
         ConvergenceWarning,

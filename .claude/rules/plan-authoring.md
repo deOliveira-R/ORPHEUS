@@ -53,6 +53,7 @@ surprises cost to hit.
 | 2026-08-07 | A table captioned "checked against every shipped law" mixed five MEASURED rows with one ASPIRATIONAL one. The step planned against it recorded the concept's own diagnosis as a blocker. | §2 |
 | 2026-08-07 | A RESUME POINTER (task subject + plan header + both memory surfaces) said "absorb `AngularAverageOperator.apply_transpose`" — a mechanism a landed step of the SAME campaign had dissolved 3 days earlier (the operator was retired; its factoring made the transpose a theorem). The close-out that wrote the pointer reconciled ITS OWN step against the tree (§7.2) but copied the NEXT step's title from the frozen task list. Caught by the user asking what the operator was; the grep answered "nothing — it is gone". | §1 (widened) |
 | 2026-08-07 | The SAME pointer's DELIVERABLE half ("the flagship metric gate") instructed building a gate that had landed 3 days earlier across three files. The same-day correction of its SYMBOL half ran the mandated grep and stopped there — the deliverable is a CONCEPT, not a symbol, and no existence-check was run. Caught at design time by the checkpoint's own §7.2 re-derivation instruction: zero implementation waste, one fully-derived twin gate discarded on discovery. | §1 (widened again: existence-check per promised deliverable) |
+| 2026-08-10 | A plan sentence marked `[M]` — "`solve_sn` discards the solver it builds, **so** the projection cannot be computed at the entry" — was FALSE, and it was the sentence the step's whole design rested on. What had been measured was the *other* half of the same sentence (`Solution` really does not carry the operators). The frame-local question was never measured at all; the marker certified the checked half and lent its authority to the unchecked one. | §2 (the `[M]`-scope sharpening) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -131,6 +132,34 @@ inherits a false premise.
 
 A bare number with no marker will be read as measured. If you did not measure
 it, say so or delete it.
+
+⭐ **And the dual, which is worse because it wears a badge: `[M]` certifies
+that a measurement HAPPENED, not that it answers the sentence it is attached
+to.** The clause above guards the *absence* of a marker; this guards its
+*presence*. The failure is not a wrong number — it is a right number under
+the wrong proposition, and the marker makes the pair unreadable as two claims.
+
+The shape to watch for is a sentence with a **"so" or "therefore" in it**,
+where the measured half sits on one side and the load-bearing half on the
+other. Write the two as separate claims with separate markers, or mark only
+the half you ran.
+
+> `[M]` 2026-08-10, campaign #340 N6b. A plan read: *"`[M]` `solve_sn`
+> discards the solver it builds, and `Solution` carries neither `mat_xs` nor
+> `scattering_op` nor `fission_op` — **so** the projection cannot be computed
+> at the entry from public state."* The `Solution` half was measured and true.
+> The frame-local half was never measured, and is false: `solver` is bound at
+> `solver.py:2364` and still consumed 28 lines above the call site — 38 locals
+> in that frame, all five warning sites able to build the residual from local
+> names. The design that followed (a stored field, argued from necessity) was
+> reached by an argument that did not hold. The field survived on a *different*
+> argument, which is the tell: when the stated reason for a decision
+> evaporates and the decision still looks right, the real reason was never
+> written down.
+
+⟹ Before inheriting an `[M]`, ask **what command produced it** — the same
+question `plan-authoring` §4 asks of the *configuration*, applied to the
+*proposition*. If the plan does not say, treat the claim as unmarked.
 
 ⭐ **This applies to TABLE ROWS, not only to numbers — and a table is where it
 bites hardest**, because a table headed by a property of the tree

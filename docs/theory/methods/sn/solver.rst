@@ -677,7 +677,10 @@ argument to pass, so there is nothing to get wrong.
    ``False``, and passed for months because the truncated error happened to
    land inside the tolerance — until a *correct* quadrature change (#337)
    moved it out.  The one-line defence is to assert
-   ``sol.history.converged`` **before** reading any value.
+   ``sol.history.fully_converged`` **before** reading any value — the
+   TREE-wide predicate, because on an eigenvalue solve the flat
+   ``converged`` reads ``True`` while an inner starves (see *Loudness*
+   below).
 
    The diagnostic tell is worth memorising, because it points the wrong
    way: the error was **bit-identical at every** ``inner_tol`` **from 1e-9
@@ -698,23 +701,36 @@ matters because a solve is a tree: on an eigenvalue run it is usually the
 ``max_outer`` instead — a knob that cannot help, since the outer's stop test
 is entirely increments and the starved inner is what suppresses them.
 
-.. warning::
+The guard is
+:attr:`~orpheus.sn.solution.IterationHistory.fully_converged` — **every**
+level, not the top one — so a converged outer standing on a starved inner is
+audible.  That case is the whole of the #340 headline defect, and it is not
+exotic: `[M]` 2026-08-10, **20 tests in the shipped suite** sat in exactly
+that state, at observed rates :math:`\rho` between 0.889 and 0.993, every one
+of them silent.
 
-   **A truncated INNER under a converged outer is still silent** (#340 N6,
-   commit 1).  The emission is guarded on the TOP level's verdict, so
-   ``solution.history.converged`` being ``True`` is what suppresses it —
-   while ``solution.history.fully_converged`` is ``False`` and
-   ``solution.history.record.first_failure`` names the starved inner.  `[M]`
-   2026-08-10: 20 tests in the shipped suite sit in exactly that state, at
-   observed rates :math:`\rho` between 0.889 and 0.993.
+.. note::
 
-   **Until the guard widens, ask**
-   :attr:`~orpheus.sn.solution.IterationHistory.fully_converged`, **not**
-   ``converged``, before asserting physics against a result.  Widening it is
-   gated on the outer residual certificate, because without one there is no
-   way to tell a truncation that corrupted the answer from one that did not —
-   and a warning that fires on both is filtered, which is how the next real
-   truncation goes unnoticed.
+   **Ask** :attr:`~orpheus.sn.solution.IterationHistory.fully_converged`,
+   **not** ``converged``, before asserting physics against a result.  The two
+   differ precisely on the starved-inner solve: the flat ``converged`` reads
+   ``True`` there, because the outer really did meet its own criteria — it
+   just met them on increments an upstream throttle had suppressed.
+
+⛔ Until 2026-08-10 the guard was ``converged``, the TOP level only, and the
+widening was scheduled to ride an *outer residual certificate* that would
+separate a truncation which corrupted the answer from one that did not.  `[M]`
+that certificate was **refuted by measurement**: the benign and corrupting
+populations overlap **634×** and it misses 15 of 16 corrupting cases.
+Projecting the residual onto the functional :math:`\keff` actually reads — the
+per-group balance defect — cuts the overlap to **4.64×**, which is a genuine
+signal and still an overlap, so it ships as a reported NUMBER and never as a
+threshold.  The ruling that followed was to widen the guard *unconditionally*:
+a truncation the caller has not declared is worth saying out loud whether or
+not we can yet say what it cost.  The 20 silent tests were adjudicated in the
+same change — 10 declare the truncation as their fixture and suppress this one
+category in-test, 10 are audible on purpose and tracked with measured budgets
+in `#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
 
 It is a warning rather than an exception by the ERR-053
 precedent (legitimate callers harvest the residual history of a

@@ -431,7 +431,7 @@ Module × level grid
    primitives/test_quadrature_fold, 0, 0, 0, 0, 14, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
-   primitives/test_solution, 0, 0, 0, 0, 44, 0
+   primitives/test_solution, 0, 0, 0, 0, 45, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
@@ -445,7 +445,7 @@ Module × level grid
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
-   solve/test_convergence_contract, 0, 0, 0, 0, 45, 0
+   solve/test_convergence_contract, 0, 0, 0, 0, 44, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0

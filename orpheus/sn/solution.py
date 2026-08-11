@@ -464,7 +464,23 @@ class SolutionBase:
         return self.history.dominance_ratio() if self.history else None
 
     def converged(self) -> bool:
-        """Return whether the solver iteration met its convergence tolerance.
+        """Can this answer be trusted — did EVERY level of the solve converge?
+
+        The tree-wide question (:attr:`IterationHistory.fully_converged`),
+        because that is what a caller holding a :class:`Solution` is actually
+        asking.  The narrower per-level readings stay available on
+        :attr:`history`.
+
+        ⛔ Until 2026-08-10 this delegated to
+        :attr:`IterationHistory.converged` — the TOP level only — so on an
+        eigenvalue solve standing on a starved inner it answered ``True``
+        (#340 F1).  That is the campaign's headline defect wearing the most
+        user-facing name in the package: the outer genuinely met its own
+        criteria, having met them on increments the starved inner suppressed.
+        Flipped in the same change that widened the
+        :class:`~orpheus.numerics.convergence.ConvergenceWarning` guard —
+        leaving them disagreeing would have shipped a warning that routes the
+        reader AROUND this accessor.
 
         ⚠ A solution with **no history at all** answers ``False``.  This
         used to answer ``True`` — the only production branch that asserted
@@ -473,7 +489,7 @@ class SolutionBase:
         evidence that it did; a caller gating on this method should treat an
         unrecorded solve exactly as it treats a truncated one.
         """
-        return self.history.converged if self.history else False
+        return self.history.fully_converged if self.history else False
 
     def keff_history_list(self) -> list[float]:
         """Return the eigenvalue trajectory as a list (for plotting)."""

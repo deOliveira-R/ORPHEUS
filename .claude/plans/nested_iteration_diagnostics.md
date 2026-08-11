@@ -263,7 +263,7 @@ makes the uncovered tail cheap — it tells that user the number.
 | N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
 | N5 | Outer certificate (F7/F7′) — residual `(A - F/k)psi` at exit | mutation battery |
 | **N6a** | **The warning speaks for the level that FAILED** — see §N6. Found 2026-08-10 by existence-checking this plan's own Done-when; it is NOT in the original decomposition because the original assumed the report was the hard part and the delivery was free | G1–G9 + a 12-mutation battery |
-| **N6b** | The guard widens to `fully_converged` — **rides N5**, because the certificate is what separates a corrupting truncation from a benign one | the `xfail(strict=True)` marker XPASSes |
+| **N6b** | The guard widens to `fully_converged` — ⛔ NO LONGER rides N5 (refuted; see §N5), widened UNCONDITIONALLY per the 2026-08-10 ruling. ✅ guard + `Solution.converged()` + the R2 declarations LANDED; the balance projection (step 2) remains | the `xfail(strict=True)` marker XPASSes — ✅ it did, and the row is now an ordinary passing gate carrying the retired sibling's fixture-drift assertions |
 
 ⭐ **N6 splits for the same reason N2 did, and it is worth naming the pattern:
 retention/reporting must precede the decision that consumes it.** N2a had to
@@ -805,7 +805,20 @@ report the balance projection.*
 and carries the one statistic that actually correlates with the error the
 caller cares about, labelled as a diagnostic rather than a verdict.
 
-**Means.**
+**Means.** ✅ Steps 3, 1 and 4 LANDED 2026-08-10 (step 3 as `5b766861`;
+steps 1 + 4 in the commit that follows it). Step 2 remains.
+
+⭐ **Step 1 grew a fifth deliverable that the plan did not anticipate, and it
+was the same defect at a more user-facing surface.** `Solution.converged()`
+(`orpheus/sn/solution.py:466`) delegated to `history.converged` — the TOP
+level — so the public "did my solve converge?" answered **True** on exactly
+the starved-inner solve the warning now flags. Leaving it would have shipped
+a warning that routes the reader AROUND our own accessor. Flipped in the same
+commit; blast radius measured first and found tiny (3 call sites, one test
+file, zero docs). ⚠ All three existing asserts ride a LEAF record, where the
+two predicates coincide **by construction**, so they stayed green through the
+flip AND would stay green if it were reverted — a discriminating row on a
+nested record was added, and mutation-verified as the only one that reds.
 
 1. `_warn_if_unconverged`'s guard becomes `history.fully_converged`. `[M]` this
    reds **nothing** today and emits **27** further warnings.
