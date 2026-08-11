@@ -166,11 +166,20 @@ Three convenience class-level instances are pre-defined:
 These are ordinary ``BC`` instances, not subclasses — they exist
 solely to avoid spelling out ``BC("vacuum")`` at every call site.
 
+.. Deliberately INDEXED (no ``:noindex:``, unlike its neighbours): this is
+   the one directive that registers ``BC`` and its three tag constants in
+   the Python domain, so ``:obj:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>```
+   above — and every other qualified reference to them — resolves to a link
+   instead of rendering as plain text.  The ``automodule`` below keeps its
+   ``:noindex:``, so it re-renders ``BC`` without claiming the entry, and
+   there is no duplicate-object warning.  (#302's general case is unfixed:
+   `[M]` 2026-08-10 the whole built inventory is 1014 entries because nearly
+   every api page is ``:noindex:``.)
+
 .. autoclass:: orpheus.geometry.mesh.BC
    :members:
    :undoc-members:
    :show-inheritance:
-   :noindex:
 
 
 Mesh

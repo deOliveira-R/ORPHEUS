@@ -22,7 +22,7 @@ about cell counts.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 import numpy as np
 
@@ -105,6 +105,33 @@ class BC:
     kind: str
     params: dict[str, float] = field(default_factory=dict)
 
+    # ── the three parameter-free tags, as named constants ────────────────
+    #
+    # Declared here and BOUND after the class body (a class cannot
+    # instantiate itself inside its own body).  ``ClassVar`` is what keeps
+    # them out of the dataclass field list — and what makes them real
+    # documented attributes: an annotation in the class body lands in
+    # ``__annotations__``, so autodoc emits a ``py:attribute`` for each and
+    # ``:obj:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>``` resolves.
+    #
+    # ⛔ Until 2026-08-10 these existed ONLY as post-class assignments
+    # carrying ``# type: ignore[attr-defined]``.  Every consequence of that
+    # was invisible until an instrument looked: the type checker had to be
+    # silenced three times, autodoc had nothing to document, and every
+    # cross-reference to them — 7 sites over 3 pages — rendered as plain
+    # text.  #346 W1 (`52650a86`) then QUALIFIED those references to the
+    # full dotted path, which is the right spelling and made the graph
+    # report them DEAD: a bare ``BC.vacuum`` had been resolvable by
+    # Sphinx's suffix search, a qualified one needs a real object.  The
+    # honest fix is not to un-qualify the references; it is to make the
+    # attribute exist to the tooling, which is what these three lines do.
+    vacuum: ClassVar["BC"]
+    """The no-return tag :math:`\\alpha = 0` — nothing enters from outside."""
+    reflective: ClassVar["BC"]
+    """The specular tag :math:`\\alpha = 1` — every ordinate mirrors back."""
+    white: ClassVar["BC"]
+    """The isotropic-return tag — the re-emission closure, not a mirror."""
+
     def __repr__(self) -> str:
         if self.params:
             return f"BC({self.kind!r}, {self.params!r})"
@@ -162,10 +189,13 @@ class BC:
         )
 
 
-# Convenience instances — tab-completable, zero-import overhead.
-BC.vacuum = BC("vacuum")  # type: ignore[attr-defined]
-BC.reflective = BC("reflective")  # type: ignore[attr-defined]
-BC.white = BC("white")  # type: ignore[attr-defined]
+# The bindings for the three ClassVars declared in the class body — see the
+# note there for why the declaration and the binding are separated, and for
+# what the three retired ``# type: ignore[attr-defined]`` comments were
+# hiding.
+BC.vacuum = BC("vacuum")
+BC.reflective = BC("reflective")
+BC.white = BC("white")
 
 
 # ═══════════════════════════════════════════════════════════════════════
