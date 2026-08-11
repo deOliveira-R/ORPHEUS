@@ -1499,7 +1499,27 @@ PROSE; anchor on the syntax, not the token.** Same family as L42 (a probe under
 `-O`) and as the "all sites OK" print that ran while three fixtures had raised:
 in all three the instrument failed in the flattering direction.
 
-### A defect found in passing, filed not fixed — #357
+### A defect found in passing — re-derived, and it was ALREADY FILED as #349
+
+⛔ **I filed it as #357 without checking the open #340-family issues, and then
+closed it as a duplicate.** #349 (2026-08-10) is the same defect with a sharper
+measurement (`max_inner=5` → `n_iterations=732`) and three candidate
+resolutions, one of which — give the record an explicit budget-UNIT so the
+mismatch is unrepresentable — is better than either option I had reached for.
+`process-discipline` says *find an appropriate existing issue OR create one*;
+I did the second without the first. The commit message landed naming #357 and
+is not rewritten (go-forward only); this note is the correction of record.
+
+⟹ **the cheap habit that would have prevented it:** `gh issue list` filtered to
+the campaign's number range BEFORE filing, not after. A campaign that has
+accumulated a dozen filed follow-ups is exactly where a re-derived finding
+looks new.
+
+The one detail #357 carried that #349 lacked is now a comment there: ERR-053
+forces `restart` to cover the FULL ravel, so the over-provisioning factor on an
+SN composite is `n_dof`, not the shipped `restart=50` — which argues for the
+explicit-unit resolution over `max_iter * restart` (the latter is `n`-dependent
+and therefore not portable across meshes).
 
 `[M]` the krylov arm's record pairs `budget = self.max_iter` (scipy `maxiter`,
 in **restart CYCLES**) with `iterations_run = len(residual_history)` (**inner
