@@ -207,12 +207,29 @@ def _mr_xs_2g():
 _SNAPSHOT_KEFFS = {
     "sphere_2g_homogeneous_dd_n20":         1.8750000000162512,
     "sphere_2g_3reg_dd_n40":                1.3578153065932639,
-    # Q5.6.3 INTERIM: the cylinder rows re-measured on the folded family
-    # at the snapshot re-capture (the [1/2, 1] arc absorber still clamps
-    # folded levels — these move again at Q5.6.4's absorber retirement).
+    # ⛔ Q5.6.4 LANDED (2026-08-11): the ω-partition carve. The Q5.6.3 note
+    # here said all three cylinder rows "move again at Q5.6.4's absorber
+    # retirement". `[M]` only ONE did:
+    #
+    #   cyl_2g_3reg_folded_4x8_dd_n40  1.2302082296342958 -> 1.2310212585879858
+    #                                  (Δ = 8.13e-4, rel 6.6e-4)
+    #
+    # ⚠ And the two that did not are **structurally incapable** of moving,
+    # which matters because a green row here reads as coverage:
+    # `k_eff = 1.5` IS `k_∞ = νΣ_f/Σ_a` for a 1-group HOMOGENEOUS medium —
+    # **flux-shape independent**, hence independent of the angular closure
+    # by construction (`vv-principles` anti-pattern #3: a 1-group
+    # eigenvalue is degenerate). The `…2x4` row's `1.4999999999999996` is
+    # the same number one ULP down. `[M]` corroborated dynamically: their
+    # flux moves 1.14e-10 / 1.07e-11 under a deliberate τ := 0.7 mutation,
+    # against 8.78e-02 for the 2G 3-region row.
+    #
+    # ⟹ of these three, ONLY the 2G 3-region row is a cylinder
+    # angular-closure catcher. Do not cite the homogeneous rows as τ or
+    # partition coverage.
     "cyl_1g_homogeneous_folded_4x8_dd_n20": 1.5,
     "cyl_1g_homogeneous_folded_2x4_dd_n20": 1.4999999999999996,
-    "cyl_2g_3reg_folded_4x8_dd_n40":        1.2302082296342958,
+    "cyl_2g_3reg_folded_4x8_dd_n40":        1.2310212585879858,
 }
 
 
