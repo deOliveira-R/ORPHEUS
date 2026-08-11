@@ -727,6 +727,125 @@ and is independent of the SN quadrature, so one cached reference grades every
 rung. A flat tail marks the reference's own error floor; past that rung the
 column grades the reference, not the convention.
 
+### 9bis.9 ⭐⭐ THE LITERATURE — and a production citation that is false three ways
+
+Deliverable: `scratch/q64_cylinder_closure_literature.md`. All three sources were
+LOCAL; nothing acquired. **Every claim below I re-verified myself** in
+`scratch/literature_ocr/Hebert(2009)Chapter3.md` (line numbers are that file's).
+
+⛔ **Two premises of my own brief were wrong, and correcting them is the answer:**
+
+1. **Hébert's cylinder is §3.9.3, not §3.9.4.** `[M]` sidecar line 2796 =
+   *"3.9.3 The difference relations in 1D **cylindrical** geometry"*, line 2946 =
+   *"3.9.4 … 1D **spherical**"*. The whole 3.418–3.439 range is **spherical**.
+2. **Eqs. 3.437/3.439 are NOT a weighted recurrence.** `[M]` line 3053 reads
+   `φ_{n+1/2,i} = 2φ_{n,i} − φ_{n−1/2,i}` — that IS `τ ≡ ½`, being (3.431)
+   rearranged for the sweep. The cylinder's azimuthal counterpart is (3.412)/
+   **(3.414)** at line 2919: `φ_{p,q+1/2,i} = 2φ_{p,q,i} − φ_{p,q−1/2,i}`.
+   **Hébert defines no τ anywhere in chapter 3, in either geometry.**
+
+`[M]` the two defining diamonds, verbatim from the sidecar:
+* line 2876, **§3.9.3 CYLINDER, Eq. (3.406)**:
+  `φ_{p,q,i} = ½(φ_{p,q,i−1/2} + φ_{p,q,i+1/2}) = ½(φ_{p,q−1/2,i} + φ_{p,q+1/2,i})`
+  — the second equality is the diamond **in the azimuthal index q**.
+* line 3010, **§3.9.4 SPHERE, Eq. (3.431)**: the identical statement in the
+  polar index n.
+* line 2839, **§3.9.3, Eq. (3.399)**: `α_{p,q+1/2} = α_{p,q−1/2} + W_{p,q} μ_{p,q}`
+  — the α recursion, cylinder, indices (level, azimuthal). Sign opposite to ours;
+  the crosswalk is `conventions/normalization.rst §normalization-alpha-crosswalk`.
+
+#### ⛔⛔ A PRODUCTION CITATION THAT IS FALSE THREE WAYS — and it is the ROOT CAUSE
+
+`orpheus/sn/sweep/pole_angular_closure.py` module docstring, lines 10–14, claims:
+
+> *"The production closure is the per-cell Morel--Montry **weighted**-DD angular
+> recurrence of **Hébert Eqs. 3.437 / 3.439**,
+> `φ_{n+1/2,i} = (φ_{n,i} − (1−τ_n)φ_{n−1/2,i})/τ_n`"*
+
+1. 3.437/3.439 are **§3.9.4 SPHERICAL**, cited as the source for a module whose
+   whole point is that one strategy covers **both** curvilinear arms.
+2. They are **not weighted** — they are `2φ_n − φ_{n−1/2}`, i.e. `τ ≡ ½` exactly.
+3. Hébert writes **no τ**, so the weighted formula is attributed to an author who
+   does not state it. Its real sources are BMC Eq. 43 / Lathrop Eq. 23 (and
+   before them Morel & Montry 1984, **not in the local library**).
+
+⭐ **This is the causal account of the whole affair.** Someone read "Hébert 3.439
+is the angular recurrence" (true), transcribed it as "the *weighted* recurrence
+with a τ" (false), and then needed a τ — which arrived from BMC's
+**µ**-barycentric formula, written for a **different quadrature**. The citation
+defect and the design defect are one defect. Fixing the citation is mandatory
+under EVERY outcome, because "weighted-DD … of Hébert 3.437/3.439" is false
+whether we keep a weighted τ or not.
+
+#### The reconciliation: each source's recipe is the PREDICATE on ITS OWN rule
+
+| source | geometry | its quadrature | its τ |
+|---|---|---|---|
+| **Hébert** §3.9.3 (3.406/3.412/3.414) | cylinder | **equispaced ω, weight = the cell's ω-measure** — `[M]` (3.370)/(3.375) reduce exactly to `ω_q = π(q−½)/M` (≤4.4e-16, N=4…32) | **`τ ≡ ½`**, his default and only scheme |
+| **Hébert** §3.9.4 (3.431/3.437/3.439) | sphere | his own | `τ ≡ ½` |
+| **BMC** Eq. 43 (sphere) / **Eq. 74** (cylinder, printed p. 160, *"analogous to Eq. (42)"*) | both | cumulative-**weight** edges, Eq. 52, per-level renormalised to `2√(1−ξ²)` | barycentric in the **radial cosine µ**; ω never appears in (53)/(74)/(75) |
+| **Lathrop** Eq. 23 | ⚠ **sphere only** — `[M]` "cylind" count = **0** | cumulative-weight in µ | barycentric in µ; `τ ≡ ½` is a **deficiency** |
+
+⭐⭐ **The decisive fact: Hébert's own recommended cylindrical quadrature places
+every ordinate at the exact ω-midpoint of an equal-ω cell weighted by that
+cell's ω-measure.** That is *our* `folded_product` rule. So on the rule we ship,
+`τ ≡ ½` **IS** BMC-43 / Lathrop-23 — the barycentric predicate — merely read in
+the variable the cells are equal in. And the mirror: `[M]` BMC's Eq.-52 cosine
+partition on that same rule drives τ to `[−0.33, 1.33] → [−1.18, 2.18] →
+[−2.86, 3.86]` at M = 8/16/32, i.e. **outside the admissible `[0,1]`, worse with
+refinement** — an independent reproduction of §4.4, with the mechanism named:
+an equal-ω cell's µ-measure ∝ sin ω, spreading `5.0× / 10.2× / 20.4×` (≈ 2M/π).
+
+⟹ **`τ ≡ ½` on the cylinder is not a foreign method** (P-F's charge). It is this
+project's own predicate realized on the quadrature its own primary source
+recommends. This is `lessons-L48` — *take the PREDICATE, not the recipe* —
+applied to the exact case that produced the campaign's own ruling.
+
+#### ⭐ LATHROP'S DEFICIENCY IS BOUNDED, AND IT IS ABSENT HERE — measured
+
+Lathrop condemns `τ ≡ ½` twice (printed pp. 245 and 249–250), and the argument
+runs through the **NODES**: `δ = 0` *implies* the ordinates are cell midpoints,
+and midpoint nodes give **Eq. (63)** `c = ⅔(1 − 1/N²) ≠ ⅔`, missing the
+diffusion condition. It is an argument against *choosing your nodes* to make
+τ ≡ ½ on a cumulative-weight-in-µ partition.
+
+Our cylinder nodes are fixed by the quadrature and are midpoints **in ω**, not in
+the cosine — and `[M]` 2026-08-11 they satisfy the condition **exactly**:
+
+| rule | rel err, 2nd moment vs `w_gl sin²θ · π/2` | 0th moment |
+|---|---|---|
+| `folded_product(2, 4…64)` | `2.1e-16 … 0.0e+00` | `0.000e+00` |
+| `folded_product(4, 4…64)` | `1.2e-16 … 2.0e-16` | `0.000e+00` |
+
+The mechanism: `cos²ω = ½(1 + cos 2ω)`, and the ω-midpoint rule annihilates the
+`cos 2ω` term exactly on an equispaced grid over the half-circle. **Lathrop's
+`⅔(1 − 1/N²)` deficit is a property of midpoints in the COSINE; ours are
+midpoints in the ANGLE, and they are exact.** This is also why probe D found P1
+τ-blind: it grades the nodes, and the nodes are already right.
+
+#### What the literature does NOT say — record it, do not paper over it
+
+* **No source prescribes any clamp or limiter on τ.** Range is `[0,1]`
+  everywhere; Lathrop *derives* it from node ∈ cell. Positivity is analysed only
+  for the **spatial** diamond (Hébert 3.387–3.389). ⟹ the absorber retirement
+  stands on the literature. ⚠ **And §9bis.5's `τ ≥ ½ ⟺ non-amplifying` argument
+  is in NO source** — BMC even print the amplifying recurrence (their Eq. 54)
+  and say nothing about it. It is an ORPHEUS observation, measured and true;
+  label it as ours, never cite it as literature.
+* `[M]` **BMC Eq. (47) CONFIRMED**: S₂ Gauss–Legendre gives
+  `τ₁ = 1 − 1/√3 = 0.42265 < ½`, and exactly **half** the set is sub-½ at every
+  order — so a universal `τ ≥ ½` was never the admissible range in either arm.
+* **Neither source discusses the ω-vs-µ choice explicitly.** The answer is
+  reconstructed from which quadrature each one assumes, as above.
+* ⚠ **Three published typos**, verified on the rendered pages: BMC Eqs. (50) and
+  (52) both print self-referential RHS subscripts (`m+1/2` must be `m−1/2`), and
+  BMC printed p. 156's coordinate line prints `η = sinθ cos ω` where it must be
+  `sin ω` (else `η ≡ µ`). Do not "correct" our code to match those as printed.
+* ▶ **Not local, and it is the one place a clamp/positivity argument could
+  live: Morel & Montry (1984), TTSP 13(5):615** — the primary τ source that both
+  BMC and Lathrop only cite. Also absent: Alcouffe & O'Dell (Hébert ref. [36]),
+  Reed & Lathrop (Lathrop ref. 7). **Acquiring these is the user's call.**
+
 ---
 
 ## 9. TRAPS FOR THE NEXT SESSION
