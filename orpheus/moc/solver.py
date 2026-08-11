@@ -21,7 +21,7 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.numerics.convergence import IterationRecord
+from orpheus.numerics.convergence import IterationRecord, warn_if_unconverged
 from orpheus.numerics.eigenvalue import power_iteration
 
 from .geometry import MOCMesh
@@ -180,6 +180,19 @@ def solve_moc(
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
+
+    # ⭐ #340 N4.7 — see the note at the identical call in
+    # :func:`~orpheus.cp.solver.solve_cp` for why this sits directly in the
+    # entry and passes no ``balance_defect``.
+    #
+    # ⚠ MoC is the family where this warning has the most to say: its inner
+    # is a *within-outer sweep* loop whose binding mode is the CYCLIC TRACK
+    # boundary flux, not the volume moment (#340 N4 — the ‖Δφ‖-only criterion
+    # was Mode-12 BLIND to it, `[M]` φ machine-zero at sweep 4 while ψ_b was
+    # still at 1e-3).  A starved MoC inner therefore looks fine in every
+    # volume diagnostic, which is exactly the class this warning exists for.
+    # ``balance_defect=None`` explicitly — see the note at ``solve_cp``.
+    warn_if_unconverged(outcome.record, where="solve_moc", balance_defect=None)
 
     return MoCResult(
         keff=keff_history[-1],

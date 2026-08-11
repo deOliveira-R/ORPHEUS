@@ -1180,6 +1180,32 @@ relative flux change. There is no inner-iteration noise to sit below
 the discretisation error, so the :math:`\mathcal{O}(h^2)` order is
 recovered at the default tolerances with no knob to tune.
 
+⭐ **And the failure this bug taught is now self-reporting** (#340 N4/N4.7,
+2026-08-11). :func:`~orpheus.diffusion.solver.solve_diffusion_1d` returns an
+:class:`~orpheus.numerics.convergence.IterationRecord` and calls
+:func:`~orpheus.numerics.convergence.warn_if_unconverged` before it returns,
+so an outer that exhausts ``max_outer`` announces itself once, naming
+``max_outer`` and the count its observed rate projects. **Diffusion's tree can
+only fail at the outer**, and that is a structural statement rather than an
+untested one: the inner is the exact LU resolvent, recorded with ``budget =
+0`` — a ``DIRECT`` level, which by construction can never be TRUNCATED. So
+the warning here is always about the power iteration, and ``max_outer`` is
+always the knob it names.
+
+⚠ Which makes diffusion the awkward family to *starve on purpose*, and the
+awkwardness is itself the finding. `[M]` 2026-08-11: with
+``max_outer = 3`` the solve **converges** —
+:data:`~orpheus.numerics.eigenvalue.MINIMUM_OUTER_ITERATIONS` is also 3 — so
+no budget can starve it, and ``keff_tol = 1e-15`` does not
+either, because an exact resolvent drives :math:`|\Delta k|` to
+:math:`\sim10^{-16}` immediately. The only reliable way to hold this level
+open is an unsatisfiable tolerance (``keff_tol = 0.0``, which
+:class:`~orpheus.numerics.convergence.StoppingCriterion` documents as its
+never-clears input). A method whose failure mode is *hard to provoke* is a
+good method and a badly-covered one; the fixture is spelled out in
+``tests/numerics/test_family_convergence_contract.py`` so the next reader
+does not rediscover all three dead ends.
+
 The general lesson **transfers** to any iterative solver even though
 this specific bug is now moot: when a convergence-order verification
 test plateaus, check both the inner and outer solver tolerances before

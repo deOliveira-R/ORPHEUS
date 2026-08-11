@@ -49,6 +49,7 @@ from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
     default_iteration_budget,
+    warn_if_unconverged,
 )
 from orpheus.numerics.eigenvalue import PowerIterationOutcome
 from orpheus.numerics.quadrature import Quadrature
@@ -482,24 +483,19 @@ class TestTruncationIsAudible:
         a synthetic non-decaying history, because the arm is a property of
         the MESSAGE, not of any one solver configuration.
         """
-        from orpheus.sn.solution import IterationHistory
-        from orpheus.sn.solver import _warn_if_unconverged
-
-        stalled = IterationHistory(
-            record=IterationRecord(
-                label="inner(probe)",
-                criteria=(
-                    StoppingCriterion(
-                        name="residual",
-                        trajectory=tuple(1e-3 for _ in range(40)),  # rho == 1
-                        tolerance=1e-10,
-                    ),
+        stalled = IterationRecord(
+            label="inner(probe)",
+            criteria=(
+                StoppingCriterion(
+                    name="residual",
+                    trajectory=tuple(1e-3 for _ in range(40)),  # rho == 1
+                    tolerance=1e-10,
                 ),
-                budget=40, budget_name="max_inner", iterations_run=40,
             ),
+            budget=40, budget_name="max_inner", iterations_run=40,
         )
         with pytest.warns(ConvergenceWarning) as record:
-            _warn_if_unconverged(stalled, where="probe")
+            warn_if_unconverged(stalled, where="probe")
         msg = str(record[0].message)
         assert "NOT" in msg and "contracting" in msg
         assert "set max_inner=" not in msg  # the advice must NOT be given
@@ -531,8 +527,6 @@ class TestTruncationIsAudible:
         furthest from clearing, which IS the one that failed, and the message
         must speak for it.
         """
-        from orpheus.sn.solution import IterationHistory
-        from orpheus.sn.solver import _warn_if_unconverged
 
         # dk decayed to ~1.8e-15 against 1e-9 — cleared long ago.
         # dphi sits at 1e-3 against 1e-6 forever — rho == 1, never clears.
@@ -556,8 +550,7 @@ class TestTruncationIsAudible:
         assert record_.converged is False, "fixture drift"
 
         with pytest.warns(ConvergenceWarning) as caught:
-            _warn_if_unconverged(IterationHistory(record=record_),
-                                 where="probe")
+            warn_if_unconverged(record_, where="probe")
         msg = str(caught[0].message)
 
         assert "last dphi" in msg, (
@@ -596,8 +589,6 @@ class TestTruncationIsAudible:
         (``min_iterations``). That is a real state, it is not a budget
         problem, and naming it beats projecting a number at it.
         """
-        from orpheus.sn.solution import IterationHistory
-        from orpheus.sn.solver import _warn_if_unconverged
 
         record_ = IterationRecord(
             label="outer(power-iteration)",
@@ -612,8 +603,7 @@ class TestTruncationIsAudible:
         assert record_.converged is False and record_.criteria[0].cleared
 
         with pytest.warns(ConvergenceWarning) as caught:
-            _warn_if_unconverged(IterationHistory(record=record_),
-                                 where="probe")
+            warn_if_unconverged(record_, where="probe")
         msg = str(caught[0].message)
         assert "the refusal is the loop's" in msg
         assert "2 of the 3 iterations" in msg
@@ -647,8 +637,6 @@ class TestTruncationIsAudible:
         assertions still RECOMPUTE them from the record, because a literal
         ``189`` would be a false red the day the rate-fit tail changes.
         """
-        from orpheus.sn.solution import IterationHistory
-        from orpheus.sn.solver import _warn_if_unconverged
 
         inner = IterationRecord(
             label="inner(within-group)",
@@ -702,8 +690,7 @@ class TestTruncationIsAudible:
             )
 
         with pytest.warns(ConvergenceWarning) as caught:
-            _warn_if_unconverged(IterationHistory(record=outer),
-                                 where="solve_sn")
+            warn_if_unconverged(outer, where="solve_sn")
         msg = str(caught[0].message)
 
         # level + knob + budget, in one substring so a mixed sourcing cannot
@@ -759,8 +746,6 @@ class TestTruncationIsAudible:
         put a number in the reader's hands that no code ever compared
         anything against.
         """
-        from orpheus.sn.solution import IterationHistory
-        from orpheus.sn.solver import _warn_if_unconverged
 
         bare = IterationRecord(
             label="inner(moc-sweeps)", budget=4, budget_name="max_inner",
@@ -769,7 +754,7 @@ class TestTruncationIsAudible:
         assert bare.binding_criterion is None and bare.converged is False
 
         with pytest.warns(ConvergenceWarning) as caught:
-            _warn_if_unconverged(IterationHistory(record=bare), where="probe")
+            warn_if_unconverged(bare, where="probe")
         msg = str(caught[0].message)
 
         assert "hit max_inner=4 (no criterion recorded)" in msg
@@ -868,9 +853,20 @@ class TestTruncationIsAudible:
             "the advice must not point at the outer's knob — with a starved "
             "inner, raising max_outer cannot help at all (#340 F2)"
         )
-        assert "`solution.history.fully_converged`" in msg, (
+        # ⛔ This asserted the literal ``solution.history.fully_converged``
+        # until 2026-08-11 (#340 N4.7).  That string guessed the CALLER's local
+        # variable name — a fact no library can know — and it was outright
+        # wrong for the three families whose entries return a ``*Result``.  The
+        # CLAIM is unchanged and is what this row still tests: the reader is
+        # sent to the predicate that can SEE a starved inner, never to the flat
+        # ``converged`` (which reads True on exactly this solve).
+        assert "`fully_converged`" in msg and "IterationRecord" in msg, (
             "the message must send the reader to the predicate that can SEE "
             "this — the flat `converged` reads True on exactly this solve"
+        )
+        assert "solution.history" not in msg, (
+            "the advice must not guess the caller's variable name; three of "
+            "the four families have no `solution` at all (#340 N4.7)"
         )
 
     def test_the_level_facts_are_GONE_from_the_warning_signature(self) -> None:
@@ -881,16 +877,45 @@ class TestTruncationIsAudible:
         still compile while one of them quietly kept passing its own knob,
         and the re-sourcing would be cosmetic at that entry.  Set equality,
         not membership: it also catches a fact re-added under a new name.
+
+        ⭐ Re-posed 2026-08-11 (#340 N4.7) when the helper moved to
+        :mod:`orpheus.numerics.convergence` and became family-agnostic.  The
+        parameter set grew by one, and the CLAIM had to grow with it or the
+        set-equality would have been a false red.  The claim is now two-part
+        and the second half is what keeps the first honest:
+
+        1. Nothing a LEVEL knows may be a parameter — those come off
+           ``record.first_failure``.
+        2. Every parameter names something the record structurally CANNOT
+           know: ``where`` (the entry, chosen by the caller) and
+           ``balance_defect`` (a property of the RETURNED ITERATE, not of the
+           iteration — see the helper's docstring for why it is deliberately
+           not a record field).
+
+        ⚠ So ``balance_defect`` is admitted by the second criterion, not
+        grandfathered.  A future parameter that fails it — ``budget=``,
+        ``tol=``, ``label=`` under any spelling — is the retired defect
+        returning, which is exactly what the frozen set catches.
         """
         import inspect
 
-        from orpheus.sn.solver import _warn_if_unconverged
-
-        parameters = set(inspect.signature(_warn_if_unconverged).parameters)
-        assert parameters == {"history", "where"}, (
+        parameters = set(inspect.signature(warn_if_unconverged).parameters)
+        assert parameters == {"record", "where", "balance_defect"}, (
             "the failing level's facts are read off the record, so the only "
-            f"thing a caller still supplies is WHERE it was called; got "
-            f"{sorted(parameters)}"
+            "things a caller still supplies are WHERE it was called and a "
+            f"diagnostic about the returned iterate; got {sorted(parameters)}"
+        )
+        # The level-fact names, spelled out so the pin fails LOUDLY rather
+        # than just differing by a set element nobody reads.
+        level_facts = {
+            "budget", "budget_name", "tol", "tolerance", "label",
+            "min_iterations", "n_iterations", "iterations_run", "criterion",
+            "criteria", "rate", "projected", "history",
+        }
+        assert not (parameters & level_facts), (
+            "a level's own fact came back onto the signature: "
+            f"{sorted(parameters & level_facts)} — read it off "
+            "`record.first_failure` instead (#340 F2/N6a)"
         )
 
     def test_it_is_escalatable_to_an_error(self) -> None:
@@ -991,6 +1016,32 @@ def _adjoint_fixed_source_slab():
         {0: _absorber_2g()}, axes, quad,
         detector_response=np.ones((2, 4)),
         boundary_condition="reflective",
+    )
+
+
+# The STARVED siblings of the two adjoint slabs.  The rows above deliberately
+# CONVERGE (they gate the knob a producer stamped, not a warning); the
+# attribution gates need the same entries with a level held open, because a
+# silent solve says nothing about where a warning would have been blamed.
+def _starved_adjoint_eigenvalue():
+    from orpheus.sn.solver import solve_sn_adjoint
+
+    axes, quad, _ = _tiny_slab_inputs()
+    return solve_sn_adjoint(
+        {0: get_mixture("A", "2g")}, axes, quad,
+        max_outer=2, keff_tol=1e-14,
+    )
+
+
+def _starved_adjoint_fixed_source():
+    from orpheus.sn.solver import solve_sn_adjoint_fixed_source
+
+    axes, quad, _ = _tiny_slab_inputs()
+    return solve_sn_adjoint_fixed_source(
+        {0: _absorber_2g()}, axes, quad,
+        detector_response=np.ones((2, 4)),
+        boundary_condition="reflective",
+        max_inner=2, inner_tol=1e-13,
     )
 
 
@@ -1303,4 +1354,101 @@ class TestExitBalanceDefect:
             "a converged exit is CERTIFIED, not diagnosed — reporting a "
             "defect here means the guard was dropped and every converged "
             "solve is now paying for a residual it does not need"
+        )
+
+
+@pytest.mark.foundation
+class TestTheWarningBlamesTheCallerAtEverySNEntry:
+    """⭐ ``stacklevel=3`` must point at the USER's line, at every SN entry.
+
+    ⛔ **This was a LIVE defect until 2026-08-11** (#340 N4.7), and SN was the
+    only family with it.  ``solve_sn_fixed_source`` dispatches to
+    ``_solve_fixed_source_si`` / ``_solve_fixed_source_krylov``, and the
+    emission sat inside those private arms — so frame 3 was the entry's own
+    ``return _solve_fixed_source_si(`` line, and `[M]` the warning blamed
+    ``orpheus/sn/solver.py:3541``.  A file the reader did not write.
+
+    It survived because it is invisible to every other kind of gate: the
+    warning still appeared, still named the right level, still carried the
+    right budget and projection.  Only the *attribution* was wrong, and
+    `[M]` ``grep -rn stacklevel tests/`` had exactly ONE hit before this
+    class, unrelated.
+
+    The fix was to hoist the call into the public entry — reading the record
+    off the ``Solution`` about to be returned, which also collapsed two mirror
+    emission points into one — and NOT to pass a per-call ``stacklevel``: a
+    frame COUNT is a fact about the call chain asserted at the call site, and
+    it rots the moment a helper is interposed.
+
+    ⚠ The companion source gate
+    (``tests/numerics/test_family_convergence_contract.py::
+    TestEveryEntryCallsTheHelperCorrectly``) refuses a call from a private
+    function outright.  `[M]` run against ``git show HEAD:`` before the fix, it
+    fails on both arms — so the pair is: this class sees the SYMPTOM, that one
+    forbids the CAUSE.
+    """
+
+    @pytest.mark.parametrize(
+        "row_id,run",
+        [
+            ("solve_sn", lambda: _eigenvalue(max_outer=2, keff_tol=1e-14)),
+            ("solve_sn_fixed_source[si]", lambda: _fixed_source(max_inner=2)),
+            ("solve_sn_adjoint", _starved_adjoint_eigenvalue),
+            ("solve_sn_adjoint_fixed_source", _starved_adjoint_fixed_source),
+        ],
+    )
+    def test_the_warning_is_attributed_outside_orpheus(self, row_id, run):
+        from pathlib import Path
+
+        import orpheus
+
+        root = Path(orpheus.__file__).parent.resolve()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            run()
+        conv = [w for w in caught
+                if issubclass(w.category, ConvergenceWarning)]
+        assert conv, f"{row_id}: the fixture must starve a level"
+        for w in conv:
+            assert not Path(w.filename).resolve().is_relative_to(root), (
+                f"{row_id}: blamed {w.filename}:{w.lineno}, inside orpheus/ — "
+                "the emission is being made from a private helper again "
+                "(#340 N4.7)"
+            )
+
+    def test_the_warning_names_the_EXACT_call_line(self) -> None:
+        """⭐⭐ The sharp leg, and why containment alone is not enough.
+
+        `[M]` a ``stacklevel`` that is too LARGE also escapes ``orpheus/`` — it
+        lands on the caller's *caller*.  So the row above is structurally
+        incapable of seeing an over-deep frame count; it is Mode-12 blind to
+        half the failure class.  Measured by mutation: ``stacklevel=4`` leaves
+        the containment rows GREEN and reds only this one.
+
+        ⚠ The call below MUST be literal, one line under the ``f_lineno``
+        read.  Routing it through ``_fixed_source(...)`` would pin the
+        HELPER's line — a true statement about nothing.
+        """
+        import inspect
+
+        quad = Quadrature.level_symmetric(sn_order=4)
+        frame = inspect.currentframe()
+        assert frame is not None, "CPython always provides one here"
+        expected = frame.f_lineno + 3
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solve_sn_fixed_source(
+                {0: _absorber_2g()}, _d3_reflective_axes(), quad,
+                external_source=_uniform_source(quad, (3, 4, 5)),
+                boundary_condition="reflective",
+                inner_tol=1e-13, max_inner=2,
+            )
+        conv = [w for w in caught
+                if issubclass(w.category, ConvergenceWarning)]
+        assert len(conv) == 1
+        assert conv[0].filename == __file__
+        assert conv[0].lineno == expected, (
+            f"attributed to line {conv[0].lineno}, the call opens at "
+            f"{expected} — stacklevel is off by "
+            f"{conv[0].lineno - expected} lines' worth of frames"
         )

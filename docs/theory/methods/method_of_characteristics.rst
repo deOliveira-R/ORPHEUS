@@ -906,6 +906,22 @@ logic into the outer eigenvalue loop (see :doc:`/api/numerics`).
    in both directions at once: measured, a converged outer needs **1** sweep
    and took 15, while a cold boundary flux needs **80–110** and took 15.
 
+   ⭐ **And a starved inner is now audible** (#340 N4.7, 2026-08-11).
+   :func:`~orpheus.moc.solver.solve_moc` calls
+   :func:`~orpheus.numerics.convergence.warn_if_unconverged` before it
+   returns, so a sweep loop that ran out of ``max_inner_sweeps`` emits one
+   :class:`~orpheus.numerics.convergence.ConvergenceWarning` naming that
+   level, that knob, and the count its observed rate projects.
+
+   MoC is the family where this matters most, and the table above is why: the
+   binding mode is :math:`\psi_b`, which appears in **no volume diagnostic**.
+   A starved MoC inner leaves :math:`\phi` looking converged to machine zero,
+   ``keff`` looking settled, and the returned flux wrong — so every
+   instrument a user would naturally reach for is inside the error's
+   stabiliser.  A warning that fires off :attr:`~orpheus.numerics.convergence
+   .IterationRecord.fully_converged` is not a nicety here; it is the only
+   channel through which that failure can reach a caller at all.
+
    **Boundary flux persistence:** The angular fluxes at track
    entry/exit points (``_fwd_bflux``, ``_bwd_bflux``) persist between
    outer iterations.  This allows the reflective BCs to converge

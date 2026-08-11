@@ -93,6 +93,39 @@ suite already uses for its bit-identity tripwire.
    the class**, not retyped, so a module move or a rename cannot desync it,
    and one gate parses the string itself.
 
+Two emission points, at two different levels
+============================================
+
+⛔ **This category is raised from exactly two places, and they must NOT be
+consolidated** (#340 N4.7, 2026-08-11).  They answer different questions and
+a pass that "unifies the ConvergenceWarning emission points" — a natural
+tidying instinct, since the category is shared — would destroy one of them:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 30 58
+
+   * - level
+     - site
+     - the proposition it asserts
+   * - **ENTRY**
+     - :func:`warn_if_unconverged`, called by every public solver entry
+     - *"the iteration TREE this call returns is not fully converged"* —
+       names the level that failed (``first_failure`` searches children
+       first), its budget, its knob, and the budget its observed rate
+       projects.  Fires **at most once per solve.**
+   * - **LEAF**
+     - :meth:`~orpheus.numerics.iteration.KrylovAcceleration.solve`
+     - *"SciPy's ``gmres`` returned ``info != 0`` for THIS inner solve"* —
+       mechanism-specific, and the only place that fact is observable.
+       Fires per inner solve.
+
+Merging them either drowns the tree verdict in per-inner noise (if the leaf
+wins) or silently discards the only report of a SciPy-level failure (if the
+entry wins).  The right relationship is the one that exists: the leaf reports
+a mechanism, the entry reports a contract, and the entry's record is what
+carries the leaf's truncation up to the caller.
+
 What a stalled solve owes its caller
 ====================================
 
@@ -179,6 +212,7 @@ Related, and deliberately NOT merged with this
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
@@ -189,6 +223,7 @@ __all__ = [
     "StoppingCriterion",
     "default_iteration_budget",
     "resolve_iteration_budget",
+    "warn_if_unconverged",
 ]
 
 
@@ -990,3 +1025,303 @@ class IterationRecord:
         for child in self.children:
             lines.append(child.report(_depth=_depth + 1))
         return "\n".join(lines)
+
+
+def warn_if_unconverged(
+    record: IterationRecord,
+    *,
+    where: str,
+    balance_defect: float | None = None,
+) -> None:
+    r"""Make a best-effort exit AUDIBLE at a public entry, in ANY family.
+
+    The single ENTRY-LEVEL emission point for :class:`ConvergenceWarning`.
+    Every public solver entry — :func:`~orpheus.sn.solver.solve_sn` and its
+    four siblings, :func:`~orpheus.cp.solver.solve_cp`,
+    :func:`~orpheus.moc.solver.solve_moc`,
+    :func:`~orpheus.diffusion.solver.solve_diffusion_1d` — calls this after
+    building its record, so a truncated solve announces itself once, in one
+    voice, wherever it came from.
+
+    ⛔ **There are TWO ConvergenceWarning emission points in this package and
+    they must NOT be consolidated** (#340 N4.7, 2026-08-11).  This one is
+    ENTRY-level: it speaks about an iteration TREE at the boundary where a
+    caller receives a result.  The other,
+    :meth:`~orpheus.numerics.iteration.KrylovAcceleration.solve`
+    (``iteration.py``), is LEAF-level and mechanism-specific: it reports that
+    SciPy's ``gmres`` returned ``info != 0`` for one inner solve.  A pass that
+    "unifies the ConvergenceWarning emission points" would destroy the leaf's
+    mechanism detail, or drown the entry's tree verdict in per-inner noise.
+    Two levels, two warnings, both correct.
+
+    ⭐ **Scope: "a truncated solve" means a solve ANY of whose levels did not
+    converge** (#340 N6b, 2026-08-10).  The guard below is
+    :attr:`IterationRecord.fully_converged`, so an outer that met its own
+    criteria while standing on a TRUNCATED inner is AUDIBLE — which is the
+    whole of the #340 headline defect (F1): the record always knew
+    (``fully_converged`` was ``False``, ``first_failure`` named the inner) and
+    nothing said so.
+
+    ⛔ Until 2026-08-10 the guard was the TOP level only (``converged``) and
+    `[M]` 20 tests in the shipped suite returned silently while standing on a
+    starved inner.  Those 20 were adjudicated before the flip
+    (`scratch/n6b_r2_adjudication.md`): 10 declare their truncation as the
+    fixture and suppress this ONE category in-test, and 10 are now audible on
+    purpose, tracked with measured budgets in
+    `#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
+
+    ⚠ The flip was originally scheduled to ride an N5 residual certificate
+    that would separate a *corrupting* truncation from a *benign* one.  `[M]`
+    that certificate was REFUTED by measurement: the raw defect's benign and
+    corrupting populations overlap **634×** and it misses 15 of 16 corrupting
+    cases, so it cannot gate.  The user's ruling (2026-08-10) was to widen the
+    guard unconditionally and report the balance projection as a DIAGNOSTIC
+    number rather than a threshold — a truncation the caller has not declared
+    is worth saying out loud whether or not we can yet say how much it cost.
+
+    Why a warning and not a raise: the ERR-053 / D-H.1e ruling (see this
+    module's docstring) — legitimate callers harvest the residual history of a
+    deliberately-truncated solve, and `[M]` an audit found zero production and
+    zero ``examples/`` callers that depend on the answer of one.  Escalate in
+    CI with :data:`ESCALATION_FLAG` — the DOTTED category; the short spelling
+    does not parse, so it was never a gate (#340, 2026-08-09).
+
+    ⭐ **It speaks for the level that FAILED, not for the entry that was
+    called** (#340 N6, 2026-08-10).  ``where`` names the entry — the only
+    thing the caller still supplies — and everything else is read off
+    :attr:`IterationRecord.first_failure`, which searches CHILDREN FIRST.  So
+    a starved inner is named, with ITS budget, ITS knob and ITS tolerance,
+    even when the outer standing on it met its own criteria.  The three
+    arguments this function used to take for those facts (``budget_name``,
+    ``budget``, ``tol``) are retired: each entry was describing its own TOP
+    level, so on a tree they described the wrong one, and the advice pointed
+    at a knob that cannot help (F2).
+
+    ⭐ **That retirement is also why there is no per-family "read this
+    attribute" argument** (#340 N4.7, 2026-08-11).  Until this function left
+    ``sn/solver.py`` its closing advice was the literal string
+    ``solution.history.fully_converged`` — which presumes the caller named
+    their local variable ``solution``, a fact the library cannot know, and
+    which is simply wrong for the three families whose entries return a
+    ``*Result``.  Threading a per-entry spelling in as a parameter would
+    re-commit exactly the retired defect above: a fact asserted by the call
+    site, free to drift from the object it describes.  The message names the
+    ATTRIBUTE and its TYPE instead, which is true in every family and which
+    each result type's own ``record`` docstring already points at.
+
+    Parameters
+    ----------
+    record : IterationRecord
+        The solve's iteration tree.  Read-only; nothing here mutates it.
+    where : str
+        The public entry's name, for the message's subject.  The only
+        caller-supplied fact left, because it is the only one the record
+        cannot know.
+    balance_defect : float or None, optional
+        ``‖R_g‖/‖Q_g‖`` for the RETURNED iterate, when the family computes
+        one.  SN supplies it (see
+        :func:`~orpheus.sn.solver._exit_balance_defect`); CP, MoC and
+        diffusion do not yet, and pass ``None``.  ``None`` renders as an
+        ABSENT clause rather than the words "unavailable", because an empty
+        clause cannot be misread as a measurement.
+
+    Notes
+    -----
+    The message carries the budget that ran out, the tolerance that was not
+    reached, and how far away the last iterate was, because "one more sweep"
+    and "diverging" want opposite responses from the reader.
+
+    ⭐ And it carries the OBSERVED rate with the budget that rate projects,
+    so the advice is a number rather than a direction.  *"Raise max_inner"*
+    leaves the reader to guess, and a guess against a ``rho = 0.985`` mode is
+    wrong by a factor of six; *"set max_inner=1343"* is actionable in one
+    step.  The projection is fitted, not assumed — see
+    :meth:`StoppingCriterion.projected_iterations` for why the intercept
+    matters (`[M]` 27 % of the count on the d=3 control).
+
+    ⚠ The projection is only as sharp as the tail it was measured on, and it
+    reads LOW when the budget was cut inside the transient — the message says
+    "so far" for exactly that reason.  It converges fast, though, and it
+    converges from below, so a reader who follows the advice gets a bigger
+    number next time rather than a wrong answer.  `[M]` 2026-08-09 on the d=3
+    all-reflective absorber (``inner_tol=1e-13``, true count **1631**):
+
+    ======  =========  =========
+    budget  observed   projected
+    ======  =========  =========
+    50      0.956890         586
+    200     0.985181        1618
+    800     0.985388        1634
+    4000    0.985399        1633
+    ======  =========  =========
+
+    At the *old* default of 200 the projection is already within **0.8 %** of
+    the truth; only the deep-transient row under-reads.
+
+    The **non-contracting** case is reported differently on purpose.  When
+    the observed rate is ``>= 1`` no budget suffices, and telling that reader
+    to raise the budget would send them down a road with no end: `[M]` #340
+    found a configuration whose NEGATIVE dominant eigenvalue makes the
+    increment sign-alternate, so its stop test is unsatisfiable forever.
+
+    ``stacklevel=3`` attributes the warning to the entry's CALLER — frame 1 is
+    this function, frame 2 the public entry, frame 3 user code.
+
+    ⛔ **That is a PRECONDITION on the call site, and it was violated at two of
+    the eight sites when N4.7 first landed** (`[M]` 2026-08-11; corrected the
+    same day).  ``solve_sn_fixed_source`` dispatches to
+    ``_solve_fixed_source_si`` / ``_solve_fixed_source_krylov``, and the call
+    lived inside those private arms — so frame 3 was the entry's own
+    ``return _solve_fixed_source_si(`` dispatch line, and the warning pointed
+    the reader at ``sn/solver.py``, a file they did not write.  The fix was to
+    hoist the call into the public entry (reading the record off the
+    ``Solution`` being returned), **not** to pass a per-call ``stacklevel``: a
+    frame COUNT is a fact about the call chain asserted at the call site, and
+    it rots silently the moment a helper is interposed — the same defect class
+    as the retired ``budget_name``/``budget``/``tol`` arguments above.
+
+    ⟹ **Call this DIRECTLY from a public entry, one frame deep.** Anything
+    else re-blames ``orpheus``.
+
+    ⚠ And the obvious gate for it is **Mode-12 blind to half the class**.  A
+    check of the form *"the warning is not attributed inside ``orpheus/``"*
+    catches ``stacklevel`` being too SMALL (which lands in the package) and is
+    structurally incapable of catching it being too LARGE (which lands in the
+    caller's caller — still outside the package, still wrong).  A gate here
+    must assert the exact ``filename`` **and** ``lineno``, not a containment
+    predicate.
+    """
+    if record.fully_converged:
+        return
+
+    # ⭐ #340 N6: every fact below is read off the level that FAILED, which is
+    # not necessarily the level the caller asked about.  ``first_failure``
+    # searches CHILDREN FIRST, so a starved inner is named rather than the
+    # outer it starved.
+    #
+    # ⛔ Until 2026-08-10 the budget, its NAME and the tolerance were passed in
+    # by each entry point and described that entry's TOP level, while the rate
+    # and projection below were already read off the record.  On any solve
+    # whose inner starved, that welded one level's knob to another level's
+    # trajectory: every number real, every pairing wrong, and — worst —
+    # the result LOOKS level-correct.  It also advised the wrong knob, because
+    # with a starved inner raising ``max_outer`` cannot help at all (the
+    # outer's stop test is entirely increments, and the starved inner is what
+    # suppresses them — F2).
+    #
+    # ⭐ The ``or`` arm is now PROVABLY dead, and that is the point of the
+    # widened guard: ``fully_converged`` is ``self.converged and all(child
+    # .fully_converged)`` and ``first_failure`` returns ``None`` iff
+    # ``self.converged`` and every child's does — complementary by induction,
+    # so past the guard above ``first_failure`` is never ``None``.  Under the
+    # OLD ``converged`` guard the arm was also dead, but only incidentally (a
+    # failing top level always names itself); the two predicates now coincide
+    # exactly.  Kept so the level is a non-optional value for every read below
+    # rather than a defended-against one.
+    failing = record.first_failure or record
+    level = "" if failing is record else f"{failing.label} "
+    budget_name = failing.budget_name
+    budget = failing.budget
+
+    # The criterion that ACTUALLY bound — the one furthest from clearing,
+    # read straight off the record rather than reconstructed from a flat
+    # list (#340 N2b-ii).
+    #
+    # ⛔ Until 2026-08-09 this rebuilt a criterion by hand: `flux_residuals`
+    # when non-empty, else re-differencing `keff_history` into `|dk|`.  That
+    # could only ever recover ONE of the outer's two criteria, and it picked
+    # the wrong one exactly when it mattered.  `[M]` caught by the wide run,
+    # not by review: on the mutated heterogeneous slab, whose NEGATIVE
+    # dominant eigenvalue makes `dphi` alternate in sign forever, `|dk|` sat
+    # at 3.3e-16 against a 1e-9 tolerance — so the projection dutifully
+    # answered "you need 1 iteration" while the solve could never converge.
+    # The stop-gap was a branch that detected "the recorded quantity cleared"
+    # and refused to project; it is retired here, because the record carries
+    # BOTH criteria and `binding_criterion` picks the one that failed.
+    criterion = failing.binding_criterion
+    distance = (
+        "no criterion recorded"
+        if criterion is None or criterion.last is None
+        else f"last {criterion.name} {criterion.last:.3e}"
+    )
+    # A level with no criteria at all has no tolerance to quote, so the clause
+    # is dropped rather than faked.
+    against = (
+        "" if criterion is None
+        else f" without reaching tol={criterion.tolerance:.3e}"
+    )
+
+    rate = None if criterion is None else criterion.rate
+    projected = None if criterion is None else criterion.projected_iterations()
+    if criterion is not None and criterion.cleared:
+        # Every criterion cleared, yet the level did not converge — so the
+        # refusal came from the LOOP, not from a quantity: too few iterations
+        # to claim (`min_iterations`), or a level that ran and measured
+        # nothing.  Both are real states and neither is a budget problem, so
+        # naming the state beats projecting a number.
+        #
+        # ⚠ This is NOT the retired stop-gap it replaces.  That branch fired
+        # when the failing criterion was ABSENT from the history; this one
+        # fires only when there is no failing criterion at all, which is a
+        # statement the record can actually make.
+        shortfall = failing.min_iterations
+        advice = (
+            f"every recorded criterion cleared, so the refusal is the loop's: "
+            f"it ran {failing.n_iterations} of the {shortfall} "
+            f"iterations required before convergence may be claimed. Read"
+            if failing.n_iterations < shortfall
+            else
+            f"every recorded criterion cleared but the level measured "
+            f"nothing — it ran {failing.n_iterations} iterations "
+            f"without recording a value, so there is nothing to project "
+            f"from. Read"
+        )
+    elif rate is None:
+        advice = f"Raise {budget_name}, or read"
+    elif projected is None:
+        advice = (
+            f"⛔ the observed rate is rho={rate:.6f} — this iteration is NOT "
+            f"contracting, so NO {budget_name} suffices and raising it will "
+            f"not help. Check the problem, not the budget. Or read"
+        )
+    else:
+        advice = (
+            f"At the rate observed so far (rho={rate:.6f}) this needs about "
+            f"{projected} iterations: set {budget_name}={projected}. Or read"
+        )
+
+    # ⭐ Its OWN sentence, with its own subject, and deliberately not folded
+    # into the clause above.  Every other number in this message belongs to
+    # ``failing`` — the level ``first_failure`` named, which on an eigenvalue
+    # solve is outer-iteration ONE's inner.  The balance defect belongs to
+    # the RETURNED ITERATE, i.e. the last one.  Both are real; appending it
+    # to the failing level's clause would read as one level's facts and be
+    # the exact "every number real, every pairing wrong" defect N6a removed.
+    # Absent (LD schemes, zero source, and every family but SN) it says
+    # nothing rather than "unavailable" — an empty clause cannot be misread
+    # as a measurement.
+    balance = (
+        "" if balance_defect is None else
+        f"The returned iterate leaves a per-group balance defect of "
+        f"‖R_g‖/‖Q_g‖ = {balance_defect:.3e} — a DIAGNOSTIC "
+        f"magnitude, NOT a verdict: it tracks the error in keff better than "
+        f"the raw residual does, but benign and corrupting solves overlap, "
+        f"so weigh it and do not threshold it. "
+    )
+    warnings.warn(
+        f"{where}: {level}hit {budget_name}={budget}{against} "
+        f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
+        f"not the converged answer. {balance}{advice} "
+        # ``fully_converged``, not ``converged``: this warning fires for ANY
+        # level, and on a starved-inner solve the flat ``converged`` reads
+        # True — so naming that one would send the reader to the single
+        # predicate that cannot see what they were just warned about (#340
+        # N6b).  Named as ATTRIBUTE-on-TYPE rather than as a variable path,
+        # for the reason in this function's docstring.
+        f"`fully_converged` on the IterationRecord this solve returned, "
+        f"and handle it. "
+        f"Silence this per-call with warnings.catch_warnings(); make it fatal "
+        f"everywhere with {ESCALATION_FLAG}.",
+        ConvergenceWarning,
+        stacklevel=3,
+    )

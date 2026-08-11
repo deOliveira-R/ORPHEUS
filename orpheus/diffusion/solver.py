@@ -146,7 +146,11 @@ import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
-from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
+from orpheus.numerics.convergence import (
+    IterationRecord,
+    StoppingCriterion,
+    warn_if_unconverged,
+)
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
@@ -455,6 +459,20 @@ def solve_diffusion_1d(
     )
     flux = solver.unflatten(flux_flat)
     current = solver.leakage.face_currents(flux)
+
+    # ⭐ #340 N4.7 — see the note at the identical call in
+    # :func:`~orpheus.cp.solver.solve_cp` for why this sits directly in the
+    # entry and passes no ``balance_defect``.
+    #
+    # Diffusion's tree can only fail at the OUTER: its inner is an exact LU
+    # resolvent, recorded with ``budget = 0`` (a DIRECT level, never
+    # truncated).  So this warning is strictly about the power iteration —
+    # which is also why ``max_outer`` is always the knob it names here.
+    # ``balance_defect=None`` explicitly — see the note at ``solve_cp``.
+    warn_if_unconverged(
+        outcome.record, where="solve_diffusion_1d", balance_defect=None,
+    )
+
     return DiffusionResult(
         keff=keff,
         flux=flux,

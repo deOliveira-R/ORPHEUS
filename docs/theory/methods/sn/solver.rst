@@ -729,6 +729,32 @@ say what it cost.  The 20 silent tests were adjudicated in the same change —
 in-test, 10 are audible on purpose and tracked with measured budgets in
 `#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
 
+.. note::
+
+   **This machinery is no longer SN's** (#340 N4.7, 2026-08-11).  The emitter
+   left ``sn/solver.py`` for
+   :func:`~orpheus.numerics.convergence.warn_if_unconverged`, and CP, MoC and
+   1-D diffusion now call it from their own public entries.  Nothing about
+   SN's behaviour changed — `[M]` the emitted message is character-identical
+   across all four advice arms plus the nested and balance-defect cases,
+   verified against the pre-move function lifted out of git — but two facts
+   about the SHAPE of the diagnostic are worth carrying:
+
+   * The helper was already ~90 % family-agnostic. Every fact it reads off the
+     failing level is a generic
+     :class:`~orpheus.numerics.convergence.IterationRecord` member; only
+     ``balance_defect`` was SN's, and it is now an optional keyword that the
+     other three pass as ``None`` (rendering an *absent* clause, never the
+     word "unavailable").
+   * ⛔ Its closing advice used to name the literal string
+     ``solution.history.fully_converged``.  That is a guess at the CALLER's
+     local variable name — a fact no library can know — and it was outright
+     wrong for the three families whose entries return a ``*Result``.  It now
+     names the attribute and its type.  A per-entry spelling passed in as an
+     argument was considered and **rejected**: it would re-commit the exact
+     defect N6a retired, a fact asserted by the call site and free to drift
+     from the object it describes.
+
 The balance projection
 ----------------------
 

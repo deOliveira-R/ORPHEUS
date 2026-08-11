@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9519**
+Total tests collected: **9544**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1310, 13.8%
-   L1, 1617, 17.0%
+   L0, 1310, 13.7%
+   L1, 1617, 16.9%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6523, 68.5%
+   foundation, 6548, 68.6%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9435
+   explicit, 9460
    class-name, 46
    func-name, 0
    case, 33
@@ -325,7 +325,7 @@ Module × level grid
    numerics/test_face_layout_typed_key, 0, 0, 0, 0, 5, 0
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
-   numerics/test_family_convergence_contract, 0, 0, 0, 0, 21, 0
+   numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
@@ -446,7 +446,7 @@ Module × level grid
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
-   solve/test_convergence_contract, 0, 0, 0, 0, 49, 0
+   solve/test_convergence_contract, 0, 0, 0, 0, 54, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0

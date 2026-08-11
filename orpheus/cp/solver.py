@@ -45,7 +45,11 @@ from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
+from orpheus.numerics.convergence import (
+    IterationRecord,
+    StoppingCriterion,
+    warn_if_unconverged,
+)
 from orpheus.numerics.eigenvalue import power_iteration
 
 
@@ -974,6 +978,23 @@ def solve_cp(
 
     elapsed = time.perf_counter() - t_start
     print(f"  Elapsed: {elapsed:.1f}s")
+
+    # ⭐ #340 N4.7: CP has been able to ANSWER "can this solve be trusted?"
+    # since N4 (the record carries the outer and every within-group inner);
+    # this is where it finally SAYS so unasked.  Called directly from the
+    # entry, one frame deep, because the helper's ``stacklevel=3`` attributes
+    # the warning to whoever called ``solve_cp`` — interposing a helper here
+    # would silently re-blame ``orpheus`` itself.
+    #
+    # No ``balance_defect``: CP computes no equation residual for the returned
+    # iterate yet, and the clause is ABSENT rather than "unavailable" (an empty
+    # clause cannot be misread as a measurement).  The concept is not
+    # SN-specific — CP's collision-probability balance is expressible — so
+    # this is a gap, not a boundary.
+    # ``balance_defect=None`` is passed EXPLICITLY, never defaulted: an omitted
+    # argument cannot be told apart from a forgotten one, and SN's five sites do
+    # have a number to pass.  Stated, so it is a claim rather than a silence.
+    warn_if_unconverged(outcome.record, where="solve_cp", balance_defect=None)
 
     return CPResult(
         keff=keff, keff_history=keff_history, flux=phi,

@@ -33,7 +33,6 @@ configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
 from __future__ import annotations
 
 import time
-import warnings
 from collections.abc import Iterable
 from dataclasses import replace
 from functools import reduce
@@ -47,11 +46,10 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.convergence import (
-    ESCALATION_FLAG,
-    ConvergenceWarning,
     IterationRecord,
     StoppingCriterion,
     resolve_iteration_budget,
+    warn_if_unconverged,
 )
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
@@ -393,232 +391,6 @@ class ConvergenceCertificateError(RuntimeError):
 #: lag-death (O(1) defect — #282 measured 5e5) clears this by orders of
 #: magnitude while exact-M exits never trip it.
 _CERTIFICATE_SAFETY = 10.0
-
-
-def _warn_if_unconverged(
-    history: "IterationHistory",
-    *,
-    where: str,
-) -> None:
-    r"""Make a best-effort exit AUDIBLE at a public entry.
-
-    The single emission point for
-    :class:`~orpheus.numerics.convergence.ConvergenceWarning`.  Every public
-    SN entry calls this after building its history, so a truncated solve
-    announces itself once, in one voice, wherever it came from.
-
-    ⭐ **Scope: "a truncated solve" means a solve ANY of whose levels did not
-    converge** (#340 N6b, 2026-08-10).  The guard below is
-    ``history.fully_converged``, so an outer that met its own criteria while
-    standing on a TRUNCATED inner is AUDIBLE — which is the whole of the #340
-    headline defect (F1): the record always knew (``fully_converged`` was
-    ``False``, ``first_failure`` named the inner) and nothing said so.
-
-    ⛔ Until 2026-08-10 the guard was ``history.converged`` — the TOP level
-    only — and `[M]` 20 tests in the shipped suite returned silently while
-    standing on a starved inner.  Those 20 were adjudicated before the flip
-    (`scratch/n6b_r2_adjudication.md`): 10 declare their truncation as the
-    fixture and suppress this ONE category in-test, and 10 are now audible on
-    purpose, tracked with measured budgets in
-    `#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
-
-    ⚠ The flip was originally scheduled to ride an N5 residual certificate
-    that would separate a *corrupting* truncation from a *benign* one.  `[M]`
-    that certificate was REFUTED by measurement: the raw defect's benign and
-    corrupting populations overlap **634×** and it misses 15 of 16 corrupting
-    cases, so it cannot gate.  The user's ruling (2026-08-10) was to widen the
-    guard unconditionally and report the balance projection as a DIAGNOSTIC
-    number rather than a threshold — a truncation the caller has not declared
-    is worth saying out loud whether or not we can yet say how much it cost.
-
-    Why a warning and not a raise: the ERR-053 / D-H.1e ruling (see the
-    :mod:`~orpheus.numerics.convergence` module docstring) — legitimate
-    callers harvest the residual history of a deliberately-truncated solve,
-    and `[M]` an audit found zero production and zero ``examples/`` callers
-    that depend on the answer of one.  Escalate in CI with
-    :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` — the DOTTED
-    category; the short spelling does not parse, so it was never a gate
-    (#340, 2026-08-09).
-
-    ⭐ **It speaks for the level that FAILED, not for the entry that was
-    called** (#340 N6, 2026-08-10).  ``where`` names the entry — the only
-    thing the caller still supplies — and everything else is read off
-    ``record.first_failure``, which searches CHILDREN FIRST.  So a starved
-    inner is named, with ITS budget, ITS knob and ITS tolerance, even when the
-    outer standing on it met its own criteria.  The three arguments this
-    function used to take for those facts (``budget_name``, ``budget``,
-    ``tol``) are retired: each entry was describing its own TOP level, so on a
-    tree they described the wrong one, and the advice pointed at a knob that
-    cannot help (F2).
-
-    The message carries the budget that ran out, the tolerance that was not
-    reached, and how far away the last iterate was, because "one more sweep"
-    and "diverging" want opposite responses from the reader.
-
-    ⭐ And it carries the OBSERVED rate with the budget that rate projects,
-    so the advice is a number rather than a direction.  *"Raise max_inner"*
-    leaves the reader to guess, and a guess against a ``rho = 0.985`` mode is
-    wrong by a factor of six; *"set max_inner=1343"* is actionable in one
-    step.  The projection is fitted, not assumed — see
-    :meth:`~orpheus.numerics.convergence.StoppingCriterion.projected_iterations`
-    for why the intercept matters (`[M]` 27 % of the count on the d=3
-    control).
-
-    ⚠ The projection is only as sharp as the tail it was measured on, and it
-    reads LOW when the budget was cut inside the transient — the message says
-    "so far" for exactly that reason.  It converges fast, though, and it
-    converges from below, so a reader who follows the advice gets a bigger
-    number next time rather than a wrong answer.  `[M]` 2026-08-09 on the d=3
-    all-reflective absorber (``inner_tol=1e-13``, true count **1631**):
-
-    ======  =========  =========
-    budget  observed   projected
-    ======  =========  =========
-    50      0.956890         586
-    200     0.985181        1618
-    800     0.985388        1634
-    4000    0.985399        1633
-    ======  =========  =========
-
-    At the *old* default of 200 the projection is already within **0.8 %** of
-    the truth; only the deep-transient row under-reads.
-
-    The **non-contracting** case is reported differently on purpose.  When
-    the observed rate is ``>= 1`` no budget suffices, and telling that reader
-    to raise the budget would send them down a road with no end: `[M]` #340
-    found a configuration whose NEGATIVE dominant eigenvalue makes the
-    increment sign-alternate, so its stop test is unsatisfiable forever.
-    """
-    if history.fully_converged:
-        return
-
-    # ⭐ #340 N6: every fact below is read off the level that FAILED, which is
-    # not necessarily the level the caller asked about.  ``first_failure``
-    # searches CHILDREN FIRST, so a starved inner is named rather than the
-    # outer it starved.
-    #
-    # ⛔ Until 2026-08-10 the budget, its NAME and the tolerance were passed in
-    # by each entry point and described that entry's TOP level, while the rate
-    # and projection below were already read off the record.  On any solve
-    # whose inner starved, that welded one level's knob to another level's
-    # trajectory: every number real, every pairing wrong, and — worst —
-    # the result LOOKS level-correct.  It also advised the wrong knob, because
-    # with a starved inner raising ``max_outer`` cannot help at all (the
-    # outer's stop test is entirely increments, and the starved inner is what
-    # suppresses them — F2).
-    #
-    # ⭐ The ``or`` arm is now PROVABLY dead, and that is the point of the
-    # widened guard: ``fully_converged`` is ``self.converged and all(child
-    # .fully_converged)`` and ``first_failure`` returns ``None`` iff
-    # ``self.converged`` and every child's does — complementary by induction,
-    # so past the guard above ``first_failure`` is never ``None``.  Under the
-    # OLD ``history.converged`` guard the arm was also dead, but only
-    # incidentally (a failing top level always names itself); the two
-    # predicates now coincide exactly.  Kept so the level is a non-optional
-    # value for every read below rather than a defended-against one.
-    failing = history.record.first_failure or history.record
-    level = "" if failing is history.record else f"{failing.label} "
-    budget_name = failing.budget_name
-    budget = failing.budget
-
-    # The criterion that ACTUALLY bound — the one furthest from clearing,
-    # read straight off the record rather than reconstructed from a flat
-    # list (#340 N2b-ii).
-    #
-    # ⛔ Until 2026-08-09 this rebuilt a criterion by hand: `flux_residuals`
-    # when non-empty, else re-differencing `keff_history` into `|dk|`.  That
-    # could only ever recover ONE of the outer's two criteria, and it picked
-    # the wrong one exactly when it mattered.  `[M]` caught by the wide run,
-    # not by review: on the mutated heterogeneous slab, whose NEGATIVE
-    # dominant eigenvalue makes `dphi` alternate in sign forever, `|dk|` sat
-    # at 3.3e-16 against a 1e-9 tolerance — so the projection dutifully
-    # answered "you need 1 iteration" while the solve could never converge.
-    # The stop-gap was a branch that detected "the recorded quantity cleared"
-    # and refused to project; it is retired here, because the record carries
-    # BOTH criteria and `binding_criterion` picks the one that failed.
-    criterion = failing.binding_criterion
-    distance = (
-        "no criterion recorded"
-        if criterion is None or criterion.last is None
-        else f"last {criterion.name} {criterion.last:.3e}"
-    )
-    # A level with no criteria at all (MoC's fixed sweep count) has no
-    # tolerance to quote, so the clause is dropped rather than faked.
-    against = (
-        "" if criterion is None
-        else f" without reaching tol={criterion.tolerance:.3e}"
-    )
-
-    rate = None if criterion is None else criterion.rate
-    projected = None if criterion is None else criterion.projected_iterations()
-    if criterion is not None and criterion.cleared:
-        # Every criterion cleared, yet the level did not converge — so the
-        # refusal came from the LOOP, not from a quantity: too few iterations
-        # to claim (`min_iterations`), or a level that ran and measured
-        # nothing.  Both are real states and neither is a budget problem, so
-        # naming the state beats projecting a number.
-        #
-        # ⚠ This is NOT the retired stop-gap it replaces.  That branch fired
-        # when the failing criterion was ABSENT from the history; this one
-        # fires only when there is no failing criterion at all, which is a
-        # statement the record can actually make.
-        shortfall = failing.min_iterations
-        advice = (
-            f"every recorded criterion cleared, so the refusal is the loop's: "
-            f"it ran {failing.n_iterations} of the {shortfall} "
-            f"iterations required before convergence may be claimed. Read"
-            if failing.n_iterations < shortfall
-            else
-            f"every recorded criterion cleared but the level measured "
-            f"nothing — it ran {failing.n_iterations} iterations "
-            f"without recording a value, so there is nothing to project "
-            f"from. Read"
-        )
-    elif rate is None:
-        advice = f"Raise {budget_name}, or read"
-    elif projected is None:
-        advice = (
-            f"⛔ the observed rate is rho={rate:.6f} — this iteration is NOT "
-            f"contracting, so NO {budget_name} suffices and raising it will "
-            f"not help. Check the problem, not the budget. Or read"
-        )
-    else:
-        advice = (
-            f"At the rate observed so far (rho={rate:.6f}) this needs about "
-            f"{projected} iterations: set {budget_name}={projected}. Or read"
-        )
-
-    # ⭐ Its OWN sentence, with its own subject, and deliberately not folded
-    # into the clause above.  Every other number in this message belongs to
-    # ``failing`` — the level ``first_failure`` named, which on an eigenvalue
-    # solve is outer-iteration ONE's inner.  The balance defect belongs to
-    # the RETURNED ITERATE, i.e. the last one.  Both are real; appending it
-    # to the failing level's clause would read as one level's facts and be
-    # the exact "every number real, every pairing wrong" defect N6a removed.
-    # Absent (LD schemes, zero source) it says nothing rather than
-    # "unavailable" — an empty clause cannot be misread as a measurement.
-    balance = (
-        "" if history.balance_defect is None else
-        f"The returned iterate leaves a per-group balance defect of "
-        f"‖R_g‖/‖Q_g‖ = {history.balance_defect:.3e} — a DIAGNOSTIC "
-        f"magnitude, NOT a verdict: it tracks the error in keff better than "
-        f"the raw residual does, but benign and corrupting solves overlap, "
-        f"so weigh it and do not threshold it. "
-    )
-    warnings.warn(
-        f"{where}: {level}hit {budget_name}={budget}{against} "
-        f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
-        f"not the converged answer. {balance}{advice} "
-        # ``fully_converged``, not ``converged``: this warning now fires for
-        # ANY level, and on a starved-inner solve the flat ``converged`` reads
-        # True — so the old text sent the reader to the one predicate that
-        # cannot see what they were just warned about (#340 N6b).
-        f"`solution.history.fully_converged` and handle it. "
-        f"Silence this per-call with warnings.catch_warnings(); make it fatal "
-        f"everywhere with {ESCALATION_FLAG}.",
-        ConvergenceWarning,
-        stacklevel=3,
-    )
 
 
 def _residual_is_expressible(sn_mesh: "SNMesh") -> bool:
@@ -2797,8 +2569,9 @@ def solve_sn(
         record=outcome.record, keff_history=tuple(keff_history),
         balance_defect=balance_defect,
     )
-    _warn_if_unconverged(
-        history, where="solve_sn",
+    warn_if_unconverged(
+        history.record, where="solve_sn",
+        balance_defect=history.balance_defect,
     )
     return _package_solution(
         _cell_average_angular(final_psi_a, sn_mesh),
@@ -3086,8 +2859,9 @@ def solve_sn_adjoint(
     history = IterationHistory(
         record=outcome.record, keff_history=tuple(keff_history),
     )
-    _warn_if_unconverged(
-        history, where="solve_sn_adjoint",
+    warn_if_unconverged(
+        history.record, where="solve_sn_adjoint",
+        balance_defect=history.balance_defect,
     )
     return _package_adjoint_solution(
         system_a, adjoint_ray, sn_mesh,
@@ -3240,8 +3014,9 @@ def solve_sn_adjoint_fixed_source(
         sn_mesh=sn_mesh, record=record,
     )
     history = IterationHistory(record=record, balance_defect=balance_defect)
-    _warn_if_unconverged(
-        history, where="solve_sn_adjoint_fixed_source",
+    warn_if_unconverged(
+        history.record, where="solve_sn_adjoint_fixed_source",
+        balance_defect=history.balance_defect,
     )
     return _package_adjoint_solution(
         psi_star, None, sn_mesh,
@@ -3763,21 +3538,55 @@ def solve_sn_fixed_source(
     q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
 
     if inner_solver == "source_iteration":
-        return _solve_fixed_source_si(
+        solution = _solve_fixed_source_si(
             solver, sn_mesh, q_ext_composite,
             t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
             corrector=corrector,
         )
+    else:
+        # Krylov path.  We solve T·ψ = b directly via GMRES, where b carries
+        # the external per-ordinate source plus any in-scatter / (n,2n) terms
+        # built from the converged scalar flux.  Wrapping that in an outer
+        # source iteration converges scattering self-consistently.
+        solution = _solve_fixed_source_krylov(
+            solver, sn_mesh, q_ext_composite,
+            t_start, max_inner, inner_tol,
+            corrector=corrector,
+        )
 
-    # Krylov path.  We solve T·ψ = b directly via GMRES, where b carries
-    # the external per-ordinate source plus any in-scatter / (n,2n) terms
-    # built from the converged scalar flux.  Wrapping that in an outer
-    # source iteration converges scattering self-consistently.
-    return _solve_fixed_source_krylov(
-        solver, sn_mesh, q_ext_composite,
-        t_start, max_inner, inner_tol,
-        corrector=corrector,
-    )
+    # ⭐ #340 N4.7 (2026-08-11): the emission lives HERE, in the PUBLIC entry,
+    # and NOT in the two private arms this dispatches to.
+    #
+    # ⛔ Until 2026-08-11 both arms called it themselves, and `[M]` that made
+    # this the one entry of eight whose warning blamed ORPHEUS instead of the
+    # caller: :func:`warn_if_unconverged` uses ``stacklevel=3`` (helper →
+    # public entry → user code), so from inside a private arm frame 3 is this
+    # function's own ``return _solve_fixed_source_si(`` dispatch line.  The
+    # warning appeared, named the right level, and pointed the reader at
+    # ``sn/solver.py`` — a file they did not write.  Reproduced at
+    # ``max_inner`` in {1, 2, 5, 50} on two fixtures.
+    #
+    # ⚠ The tempting alternative — pass a per-call ``stacklevel`` — is the
+    # defect one layer up: a frame COUNT is a fact about the call chain that
+    # the call site asserts and that silently rots the moment a helper is
+    # interposed.  Hoisting makes the depth structurally true instead.
+    #
+    # ⭐ And it is strictly better than the arms were: reading the record off
+    # the Solution about to be RETURNED makes "the warning and the returned
+    # object describe the same solve" a theorem rather than a convention, and
+    # collapses two mirror emission points into one (Cardinal Rule 2).
+    #
+    # ``history`` is Optional on :class:`~orpheus.sn.solution.Solution`
+    # because other producers build one without a solve; both arms above
+    # always construct it.  When it is genuinely absent there is nothing to
+    # say about convergence, so silence is the honest answer — the same
+    # reading :attr:`~orpheus.sn.solution.SolutionBase.converged` takes.
+    if solution.history is not None:
+        warn_if_unconverged(
+            solution.history.record, where="solve_sn_fixed_source",
+            balance_defect=solution.history.balance_defect,
+        )
+    return solution
 
 
 def _solve_fixed_source_si(
@@ -3992,9 +3801,6 @@ def _solve_fixed_source_si(
         sn_mesh=sn_mesh, record=record,
     )
     history = IterationHistory(record=record, balance_defect=balance_defect)
-    _warn_if_unconverged(
-        history, where="solve_sn_fixed_source",
-    )
     return Solution(
         angular_flux=angular_out,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
@@ -4174,9 +3980,6 @@ def _solve_fixed_source_krylov(
     # trajectory (it measures differences), while GMRES gets one callback
     # per iteration.  Both now read the producer's own count (#340 F11).
     history = IterationHistory(record=record, balance_defect=balance_defect)
-    _warn_if_unconverged(
-        history, where="solve_sn_fixed_source",
-    )
     # D-H.1c stage 2 (2026-05-28): psi_full IS already a TimedFullField;
     # no adapter wrap at the Solution boundary.
     return Solution(

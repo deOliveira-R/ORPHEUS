@@ -1962,6 +1962,34 @@ The eigenvalue was accurate anyway (the shipped tolerance passes), which is
 exactly why this class of defect survives: **the old answer was right by luck of
 the fixture, and had no way to know it.** See :doc:`../verification/principles`.
 
+⭐ **And since #340 N4.7 (2026-08-11) you no longer have to ask.**
+:func:`~orpheus.cp.solver.solve_cp` calls
+:func:`~orpheus.numerics.convergence.warn_if_unconverged` before it returns, so
+the tree above is emitted as a
+:class:`~orpheus.numerics.convergence.ConvergenceWarning` — once per solve,
+naming the level that failed, its knob, and the budget its observed rate
+projects. On this very fixture, at shipped defaults, that reads::
+
+   solve_cp: inner(within-group scatter, g=1) hit params.max_inner=100
+   without reaching tol=1.000e-08 (last dphi_g 8.387e-05). Returning a
+   BEST-EFFORT iterate — it is mid-descent, not the converged answer. At
+   the rate observed so far (rho=0.950674) this needs about 279
+   iterations: set params.max_inner=279. ...
+
+The distinction N4 drew and N4.7 closes is worth keeping straight, because it
+is the difference between two properties a diagnostic can have. N4 made the
+truncation **answerable** — the fact existed on the result, for a caller who
+thought to look. N4.7 makes it **audible** — the caller who did not think to
+look finds out anyway. A fact nobody reads is not a diagnostic, and every
+consumer of this solver had been not-reading it since the solver was written.
+
+⚠ No ``balance_defect`` clause appears in CP's message, because CP computes no
+equation residual for the *returned iterate* (``residual_history`` is per
+outer, and the warning's balance sentence is deliberately about the last
+iterate — see :func:`~orpheus.numerics.convergence.warn_if_unconverged`). That
+is a gap, not a boundary: CP's collision-probability balance is expressible,
+and SN already ships the analogous number.
+
 Both modes converge to the **same eigenvalue and flux distribution**
 (``tests/cp/test_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
 
