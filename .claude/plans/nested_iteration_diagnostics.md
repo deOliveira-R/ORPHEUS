@@ -1253,7 +1253,7 @@ families now state the same relationship instead of two unrelated numbers.
 | **N4.3** | Diffusion: an explicit `DIRECT` child (`label="inner(exact resolvent, LU)"`) | free and strictly more informative; `tests/numerics/test_iteration_record.py:465-483` already cites diffusion by name for this exact status |
 | **N4.4** | MoC: `inner_tol` + rename `n_inner_sweeps` → `max_inner_sweeps`, both readings, break on `all(cleared)`, `inner_records` | ⚠ **fused deliberately.** The rename's call-site set is `moc/core.py:38,43,111`, `moc/solver.py:78,102,135`, `tests/moc/test_verification.py:164,275,450`, `tests/moc/test_properties.py:84`, `docs/…/method_of_characteristics.rst:865`. Landing the tolerance without the rename leaves a name that lies (it is a budget, not a count); landing the rename without the tolerance leaves a budget with nothing to stop it |
 | **N4.5** | Retire `CPResult.n_inner` onto the record (user ruling, 2026-08-11) | it is the lossy projection §2 is about. Blast radius `[M]`: **two** `@pytest.mark.catches("ERR-016")` markers (`tests/cp/test_verification.py:1006,1072`), 2 `examples/` readers (`examples/collision_probability/plotting.py:136,139`; `demo_cp_concentric.py:78-83`), `docs/…/collision_probability.rst:1928-1930`, and the generated matrix count at `matrix.rst:1426`. Markers MIGRATE to the successor assertions — a delete-only retirement drops the ERR-016 edge |
-| **N4.7** | ⏸ NOT IN N4 — relocate `_warn_if_unconverged` from `orpheus/sn/solver.py` into `numerics` and re-point all four families, so a starved solve TELLS rather than only answering when asked | the SN 12-mutation battery must stay green; new per-family warning rows |
+| **N4.7** | ⏸ **THE ONLY REMAINDER.** A non-converged tree announces itself at EVERY public entry, in every family. ⛔ this row said "relocate `_warn_if_unconverged` into `numerics`" until 2026-08-11 — a MECHANISM title naming a move that is not the work (`numerics` already warns at the LEAF; the obstacle is the argument TYPE). See §N4.7 | the SN 12-mutation battery stays green; new per-family warning rows; expect `-W error::…ConvergenceWarning` reds to adjudicate |
 | **N4.6** | Docs + the one rendered falsehood | ⛔ `orpheus/numerics/eigenvalue.py:229-230` ("CP / MoC / diffusion conform to the base contract without it") goes present-tense-FALSE the moment any of them declares `inner_records`, and it **is** rendered (`docs/api/numerics.rst:507`) |
 
 ⚠ `tests/moc/test_verification.py:275` (`n_inner_sweeps=1`) and `:450`
@@ -1302,6 +1302,103 @@ fixed, ask whether the freeze is itself the dominant term.
 `DiffusionSolver`. `tests/numerics/test_power_iteration_record.py:156-191`
 asserts `not hasattr(cls, "converged")` over **five** solver classes — the
 N2b twin-retirement pin. The view belongs on the RESULT.
+
+---
+
+## ⏸ COMPACTION POINT — after N4, before N4.7 (2026-08-11)
+
+**Reconcile against git, not against this text.** Every hash below is verifiable
+with `git merge-base --is-ancestor <hash> HEAD`.
+
+| step | commit | one line |
+|---|---|---|
+| N1 | ✅ landed 2026-08-09 | `IterationRecord` + `StoppingCriterion` + 68 gates, 12/12 mutations caught |
+| N2a / N2b-i / N2b-ii | ✅ landed | retention, the outer reports what it MEASURED, the solution carries the tree |
+| N6a | ✅ `6cb5e519` | the warning speaks for the level that FAILED; `budget_name` minted |
+| N6b | ✅ `5b766861`·`28435e11`·`b0137171`·`a6fd7a08`·`4aff0d4e` | guard → `fully_converged`, `Solution.converged()` asks the tree, the balance projection as a NUMBER |
+| **N4** | ✅ **`5dea0dec`** (citation repairs) + **`0b263fef`** (the campaign) | CP / MoC / diffusion answer `fully_converged` from their own record |
+| lessons | ✅ `1712346c` | L40, L41, the plan-authoring surprise row |
+| N5 | ⛔ **REFUTED AS A GATE** — see §N5. Not a remainder; a closed question |
+| **N4.7** | ⏸ **THE ONLY REMAINDER** — see below |
+
+**Gates at `1712346c`:** `tests/moc + tests/cp + tests/diffusion + tests/numerics`
+**2599 passed / 0 failed** · `sphinx -E -W` exit 0 · pyright ratchet **1** (the
+accepted #288 residual) · V&V matrix **9519** (9498 + 21 = the new module),
+`ERR-016` still **2**.
+
+⚠ **Debt, stated so it is not mistaken for coverage:** the four
+`tests/cp/test_peierls*` modules were DESELECTED for that run. Justified —
+`[M]` zero hits across all four for `gauss_seidel` / `n_inner` / `.record` /
+`inner_records` / `max_inner`, and both their `solve_cp` calls use default
+Jacobi, which appends no records — but they have still never run against these
+changes. Owed at the task-#51 merge gate. Why they were dropped: an **uncached
+mpmath Peierls reference** burns >20 min on ONE test, filed as **#356**.
+
+**User rulings that a fresh session must not re-litigate:**
+1. **The MoC changes STAY** (2026-08-11). Both the inner stopping rule and the
+   pair-normalisation fix. *"There is no need for MoC to stay frozen. We're just
+   not actively developing it yet."*
+2. **CP / MoC / MC are not under active development.** SN, diffusion and
+   homogeneous are sharpened first; those three follow as targeted campaigns
+   recycling the machinery (the MoC ray becomes a **Volterra operator**).
+   Harmonization is welcome; improving them on their own terms is not — FILE it.
+   Worked refusals this session: **#355** (derive the TY quadrature table),
+   **#356** (the Peierls cache).
+
+### N4.7 — a non-converged tree announces itself at EVERY public entry, in every family
+
+**Goal.** A caller who does not ask still finds out. N4 made a starved solve
+*answerable* in all four families (`record.fully_converged`, `first_failure`,
+`projected_iterations()`); only SN *tells* them.
+
+⛔ **This step's own pointer was WRONG until 2026-08-11, and the §1
+existence-check is what caught it.** The pointer read *"relocate
+`_warn_if_unconverged` from `orpheus/sn/solver.py` into `numerics`"* — a
+MECHANISM title, and one that names a move which is **not the work**:
+
+- `[M]` **`numerics` ALREADY emits `ConvergenceWarning`** — `iteration.py:1100`,
+  inside `KrylovAcceleration.solve`, about `scipy` gmres returning `info != 0`.
+  ⚠ **That is a LEAF-level, mechanism-specific warning and must NOT be merged
+  with the entry-level one.** A future pass that "consolidates the
+  `ConvergenceWarning` emission points" would destroy it. Two levels, two
+  warnings, both correct.
+- `[M]` The real obstacle is the helper's **argument TYPE, not its location**.
+  `_warn_if_unconverged(history: IterationHistory, *, where: str)`
+  (`sn/solver.py:398`) reads only: `history.record`, `history.converged`,
+  `history.fully_converged`, `history.balance_defect`, and — off the failing
+  level — `binding_criterion`, `budget`, `budget_name`, `label`,
+  `min_iterations`, `n_iterations`. **Every one of those except
+  `balance_defect` is a generic `IterationRecord` member**, and
+  `IterationHistory` is documented at `sn/solution.py:114` as *"a **view** over
+  the record"*. So the helper is already ~90 % family-agnostic; it is bound to
+  SN by one field and one type annotation.
+
+**Proposed means** (2026-08-11, NOT verified): narrow the parameter to
+`IterationRecord`; make the balance clause an optional caller-supplied extra
+(SN passes its projection; the other three have none *yet* — diffusion and CP
+could both compute one later); home it in
+`orpheus/numerics/convergence.py`, where `ConvergenceWarning` and
+`ESCALATION_FLAG` are already defined — **not** `iteration.py`, which owns the
+leaf warning above.
+
+**Done when:** `solve_cp`, `solve_moc` and `solve_diffusion_1d` emit exactly one
+`ConvergenceWarning` on a starved solve, naming the failing level and a knob the
+caller can reach; and the SN battery is unchanged.
+
+⚠ **Call-site set (§6b — this is ONE step, not several):** 5 existing SN sites
+(`sn/solver.py:2800, 3089, 3243, 3995, 4177`) + 3 new (`cp/solver.py`,
+`moc/solver.py`, `diffusion/solver.py` entries). Changing the signature without
+all 8 leaves the tree broken.
+
+⛔ **Blast radius — the reason this was NOT fused into N4.** `[M]` 10 test
+modules reference `_warn_if_unconverged` / `ConvergenceWarning`, including the
+landed 12-mutation battery, the whole `tests/sn/solve/test_convergence_contract.py`
+surface, and 10 shipped tests that deliberately suppress this ONE category as
+their fixture (adjudicated in `scratch/n6b_r2_adjudication.md`; the other 10 are
+tracked with measured budgets in **#352**). Adding three new emission points
+will make previously-silent CP/MoC/diffusion tests warn — expect reds under
+`-W error::orpheus.numerics.convergence.ConvergenceWarning`, and adjudicate them
+the same way N6b's R2 did rather than blanket-suppressing.
 
 ---
 
