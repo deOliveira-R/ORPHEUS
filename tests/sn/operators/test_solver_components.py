@@ -244,6 +244,59 @@ class TestComputeGroupRates:
                                    rtol=1e-13,
                                    err_msg="group absorption rate sum")
 
+    def test_integrate_per_group_is_the_volume_integral_itself(self, solver_2g):
+        r"""The extracted primitive's DEFINING property, not its callers'.
+
+        ``integrate_per_group`` is :math:`R_g = \int_V d_g\,dV`, and the two
+        reaction-rate methods are compositions of a cross-section weighting
+        with it.  Both of those are pinned above against an ``einsum``
+        reference — but only through their OWN weighting, so neither can
+        say whether the integral is right for a density with no cross
+        section in it, which is exactly how #340 N6b uses it (the per-group
+        balance defect of a residual field).
+
+        Two claims:
+
+        * a density of **1** integrates to the total volume, per group —
+          that is what makes it *the* volume integral rather than some
+          other weighted sum;
+        * it is **linear**, so the callers' compositions are sound.
+
+        ⛔ **What this row canNOT catch, stated because both claims look
+        stronger than they are.** Neither survives contact with an
+        AXIS-ORDER error: a constant field is invariant under every
+        permutation, and linearity holds for any linear map including a
+        wrongly-ordered one. `[M]` 2026-08-10, dropping the ``moveaxis``
+        (the classic ``(ng, *spatial)`` vs ``(N_cells, ng)`` confusion, and
+        a shape-compatible mutation on this 2×6×4 fixture) leaves this row
+        **green** — the ordering is caught by the two reaction-rate rows
+        above, whose references are explicit-index ``einsum``s.  What this
+        row IS loaded on is the MEASURE: `[M]` replacing ``volume_measure``
+        with a counting measure — still linear, still a weighted sum, so an
+        in-class mutation — reds it along with both siblings.
+        """
+        solver, *_ = solver_2g
+        ng = solver.ng
+        total_volume = float(np.sum(solver.volume))
+
+        ones = np.ones((ng, *solver.sn_mesh.spatial_shape))
+        integrated_ones = solver.integrate_per_group(ones)
+        assert integrated_ones.shape == (ng,)
+        np.testing.assert_allclose(
+            integrated_ones, np.full(ng, total_volume), rtol=1e-13,
+            err_msg="∫1 dV must be the total volume in EVERY group",
+        )
+
+        rng = np.random.default_rng(20260810)
+        a = rng.random((ng, *solver.sn_mesh.spatial_shape))
+        b = rng.random((ng, *solver.sn_mesh.spatial_shape))
+        np.testing.assert_allclose(
+            solver.integrate_per_group(3.0 * a - 2.0 * b),
+            3.0 * solver.integrate_per_group(a)
+            - 2.0 * solver.integrate_per_group(b),
+            rtol=1e-13, err_msg="the integral must be linear",
+        )
+
     def test_homogeneous_keff_matches_analytical_kinf(self):
         """Independent reference: homogeneous reflective slab has k_eff = k_inf
         regardless of FP reduction order, mesh resolution, or quadrature.
