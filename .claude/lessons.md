@@ -1283,3 +1283,73 @@ Cross-reference: `vv-principles` #17 (verify the instrument on a known positive
 before trusting a negative — here the instrument was the *reasoning*, and the
 known positive was a mesh class the partner never reached); `[[lessons-L30]]`
 (same data, different operation — its sibling: same call, different states).
+
+## L40 — A STOPPING CRITERION can be Mode-12 blind to the very mode its loop exists to converge (2026-08-11)
+
+**Context.** #340 N4 gave MoC's inner sweep loop a real stopping rule. The
+obvious criterion was `‖Δφ‖_F/‖φ‖_F` — the quantity MoC's OUTER already
+measures, already implemented, free to reuse.
+
+**`[M]` It is nearly blind, and on the SIMPLEST fixture it fails hardest.**
+`moc_cyl1D_1eg_1rg`, cold boundary flux:
+
+| sweep | `‖Δφ‖/‖φ‖` | `‖Δψ_b‖/‖ψ_b‖` |
+|---|---|---|
+| 4 | **`0.000000e+00`** | `3.488e-02` |
+| 12 | `0.000000e+00` | `3.104e-04` |
+| first `< 1e-5` | **2** | **18** |
+
+A break on `‖Δφ‖` alone stops at sweep 2 with the boundary angular flux four
+orders from converged — and the loop's own docstring says it exists "to
+converge the boundary angular fluxes".
+
+**The mechanism, and why it generalises.** φ is a **volume moment**; the
+cyclic-track closure's slow mode lies in that functional's stabiliser. A
+1-group problem has no group coupling to iterate, so Δφ collapses in one pass
+while the geometric feedback around reflective tracks is untouched. This is
+`vv-principles` **Mode 12** applied to a *stopping criterion* instead of a
+*test*: the standard question is "can this gate SEE the error?"; the same
+question belongs to every convergence test — **"can this criterion see what
+the loop is FOR?"**
+
+**The discriminator, and it is cheap.** Compare the loop's measured quantity
+against the loop's **carried STATE**. If the state is bigger than the
+measurement — MoC carries `_fwd_bflux`/`_bwd_bflux` across outers while
+measuring only a volume moment of φ — then some component of the state is
+unmeasured, and it is exactly where a slow mode hides. `IterationRecord.criteria`
+is a TUPLE precisely so a level can declare more than one; declaring both makes
+*which mode binds* readable instead of assumed.
+
+⚠ The counter-intuitive part worth remembering: the fixture where the blindness
+was total was the **1-group** one, i.e. the case a reviewer would reach for as
+the easy sanity check. Simplicity removed the coupling that would have made the
+proxy work.
+
+## L41 — A probe that FREEZES one half of a coupled pair can be measuring its own freeze (2026-08-11)
+
+**Context.** After N4, MoC's outer 2 cost as much as outer 1 (`[172, 176, 3]`)
+even though the boundary angular flux is carried across outers. To isolate the
+cause from the outer's physics, I probed with a **fixed** fission source:
+repeated `solve_fixed_source` on one instance.
+
+**`[M]` The probe read 176 sweeps per call — identically BEFORE and AFTER the
+real fix.** First reading: "hypothesis refuted." Correct reading: *this probe
+cannot see it.* `solve_fixed_source` renormalises the flux it returns, so
+holding `q` fixed while φ is rescaled is itself an inconsistency the probe
+introduced — and it dominated the one under study. The genuine defect (the
+normalisation rescaled φ but not the carried ψ_b, splitting one solution
+vector's scale in half) shows up only end-to-end, where the outer recomputes
+`q` from the normalised flux: **64 → 32, 351 → 177, 259 → 128** sweeps.
+
+**The rule.** Freezing a variable is the standard way to isolate a term, and it
+is safe only when the frozen variable is genuinely INDEPENDENT of the one under
+study. When the two are coupled by a shared normalisation, an update rule, or a
+conservation constraint, the freeze introduces a NEW inconsistency whose size is
+unknown — and a null result then says nothing about the hypothesis. Before
+believing a refutation from a frozen-variable probe, ask: **what does the freeze
+itself break, and is that bigger than the effect I am looking for?**
+
+Sibling of `vv-principles` #17 (verify the instrument on a known-positive before
+trusting a negative): here the instrument was not broken, it was
+*mis-configured* — and the failure direction was the flattering one, "your
+hypothesis is wrong" rather than "your probe is blind".
