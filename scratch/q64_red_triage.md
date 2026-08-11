@@ -85,3 +85,42 @@ would assert WRONG VALUES rather than get a clear refusal. Keep it.
 * **the SPHERE is untouched** — τ still equals the cumulative-weight reference
   (1.8e-15), and `[M]` 4/8 of its τ are below ½ at S₈ (8/16 at S₁₆), which is
   the literature's own point that `[½,1]` was never the admissible range.
+
+---
+
+## D. ⚠ OPEN — an INDEPENDENT-REFERENCE cross-check went red after the re-baseline
+
+`tests/sn/verification/analytical/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_folded_4x8_dd_n40]`
+
+`[M]` per-group max `|Δφ_norm|` = `[0.1268, 0.0134]`, overall `1.268e-01`
+against `tol_per_cell = 1e-01`. The other 7 rows in that module PASS (the
+k_eff literal update is correct — `1.2302082296342958 → 1.2310212585879858`).
+
+**Why this is different from every other red in this file.** It is not a
+snapshot, not a tolerance, not a re-pose. The test compares the SN cylinder
+flux SHAPE against the **trajectory-resolvent** reference — a genuinely
+different method (L1-class, structurally independent). So it is a claim about
+correctness, not about frozen state.
+
+**Mechanism:** the test reads the FROZEN SNAPSHOT's `scalar_flux`, so
+re-baselining swapped the new flux in. `[M]` old→new flux change is
+`4.38e-02` max-relative, which is the right order to push a ~10 % agreement
+over a 10 % bar.
+
+⚠ **DO NOT relax `tol_per_cell`.** If the carve moved the flux AWAY from an
+independent reference, that is evidence to weigh against the partition change,
+and the honest options are (a) accept with a stated, understood reason, (b)
+re-open the partition question, or (c) show the resolvent reference itself
+carries error at this level. Loosening the bar would erase the signal.
+
+**IN FLIGHT:** probe `$CLAUDE_JOB_DIR/tmp/q64_phaseE_old_vs_new.py` computes
+BOTH snapshots against the SAME resolvent reference, to establish direction and
+magnitude. Until it reports, the sign of this finding is UNKNOWN — do not
+assume the carve caused it (the old margin may already have been ~9.9 %) and do
+not assume it did not.
+
+⭐ Note the asymmetry that makes this worth chasing rather than filing: the
+carve's justification is *structural* (P2/P3 satisfied, ν-closure exact), and
+its accepted cost was an MMS-floor regression at n_φ≥16. An INDEPENDENT-METHOD
+disagreement is a different and stronger class of evidence than an MMS floor,
+because it cannot be dismissed as truncation-order bookkeeping.

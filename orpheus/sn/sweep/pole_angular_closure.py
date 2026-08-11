@@ -814,15 +814,29 @@ def angular_cell_edges_per_level(
     cell go 0/4 → 4/8 → 12/16 → 28/32 at
     :math:`n_\varphi = 8/16/32/64`, and the solve diverges (NaN) from
     :math:`n_\varphi \ge 16`.  The reason is structural and is stated in
-    ``derivations/discrete/sn/contamination.py`` — *"weights are uniform
-    in* :math:`\varphi` *-space, not* :math:`\eta` *-space"*: an arc
-    cell's :math:`\eta`-measure is
+    ``derivations/discrete/sn/angular_differencing.py`` — *"weights are
+    uniform in* :math:`\varphi` *-space, not* :math:`\eta` *-space"*: an
+    arc cell's :math:`\eta`-measure is
     :math:`2\sin\theta\sin\omega_m\sin(\Delta\omega/2) \propto
-    \sin\omega_m`, **not** constant (spread 0.30→1.53), while the
-    trapezoid weight is.  ⟹ BMC Eq. (52) is not a law; it is the
-    statement that *in their* quadrature the weight equals the cell's
-    :math:`\eta`-measure.  Ours does not, so we satisfy the same
-    *predicate* by a different partition.
+    \sin\omega_m`, **not** constant, while the trapezoid weight is.  `[M]`
+    the mismatch (cell :math:`\eta`-measure ÷ its mean, so a constant
+    weight would need ``1.0`` everywhere) **WIDENS with refinement**:
+
+    ==========  ==========================
+    n_φ         ratio range over the level
+    ==========  ==========================
+    8           ``[0.5858, 1.4142]``
+    16          ``[0.3045, 1.5307]``
+    32          ``[0.1537, 1.5607]``
+    64          ``[0.0770, 1.5683]``
+    ==========  ==========================
+
+    ⟹ BMC Eq. (52) is not a law; it is the statement that *in their*
+    quadrature the weight equals the cell's :math:`\eta`-measure.  Ours
+    does not — and increasingly does not — so we satisfy the same
+    *predicate* by a different partition.  This is also the mechanism
+    behind the worsening P3 violation above: the two disagree more at
+    every order.
 
     *The η-midpoint (chord) partition, which this code used until
     2026-08-11, is this partition with its END CELLS STRETCHED.* Its

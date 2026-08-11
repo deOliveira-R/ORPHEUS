@@ -147,7 +147,28 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   retirements ARE gated by `-W`; the silent class is the Python-domain roles, plus **raw path
   strings** in prose/docstrings, which no build ever checks. A path assembled from segments —
   `REPO_ROOT / "docs" / "theory"` — is invisible to a path-grep too; grep the **last
-  segment**.) **Grep the CONCEPT, not only the symbol:** a field/flag is documented in two
+  segment**.) ⭐ **A MATH symbol has THREE spellings, and a number is a fourth.** The
+  concept-grep rule below tells you to widen the vocabulary; this says the
+  *same symbol* is already spelled three incompatible ways in one repo, so a
+  grep for any one of them returns a confident partial answer: the **ASCII
+  identifier** (`tau_raw`), the **Unicode prose** form (`τ_raw`), and the
+  **LaTeX role body** (`\tau_{\rm raw}`) — which matches neither of the others.
+  Grep all three, and then grep the **NUMBER** the claim carries, because a
+  stale figure often outlives every spelling of its symbol.
+  (2026-08-11, Q5.6.4: a retirement sweep briefed with `tau_raw` + `τ_raw`
+  reported clean. `docs/theory/methods/sn/angular_quadrature.rst:369` still
+  asserted *"`\tau_{\rm raw} \in [1/5, 4/5]` with the **bit-exact** reversal
+  identity"* — both halves present-tense-false after the ω-partition carve.
+  It was found only by grepping `tfrac15|tfrac45`, i.e. the NUMBER in its
+  LaTeX spelling. The page was also absent from the audit's own file list,
+  because that list was built by the same two-spelling grep.)
+  ⚠ Dual hazard, same measurement: the audit's file list was simultaneously
+  **over**-counted ~3× because `absorber` is also a *material* (`pure
+  absorber`, `cavity-absorber`) and `clamp` is also a GMRES `restart` clamp —
+  11 of 17 flagged pages were false positives. A concept grep needs its hits
+  triaged by MEANING before any of them is called a site.
+
+**Grep the CONCEPT, not only the symbol:** a field/flag is documented in two
   registers — by NAME, which greps, and by PARAPHRASE, which does not. A `list-table`
   column headed "Sweep-cycle flag" carries per-law values with no symbol in any cell; one
   audit's 7 exact hits missed 17 further cells. After the symbol grep, grep the

@@ -714,10 +714,17 @@ class Quadrature:
         Consequences on the M-M closure (all gated): every level
         consumes an independent ψ½ seed
         (:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`
-        — carrying), :math:`\tau_{\rm raw} \in [\tfrac15, \tfrac45]`
+        — carrying), :math:`\tau \in [\tfrac14, \tfrac34]`
         strictly away from the :math:`\{0, 1\}` singularities, and the
-        reversal identity :math:`\tau_m + \tau_{M-1-m} = 1` holds
-        bit-exactly (:eq:`morel-montry-folded-arc`).
+        reversal identity :math:`\tau_m + \tau_{M-1-m} = 1` holds to
+        0.5--12 ULP (:eq:`morel-montry-folded-arc`).
+
+        ⚠ Both numbers were **re-posed at Q5.6.4** (2026-08-11), when the
+        azimuthal cell partition moved from the η-midpoint (chord) to the
+        midpoint in ω.  They read :math:`[\tfrac15, \tfrac45]` and
+        *bit-exact* on the chord partition — whose reversal symmetry was
+        exact precisely because its two end cells were stretched
+        symmetrically, cancelling a 17.5 % ω-width defect against itself.
 
         Raises
         ------

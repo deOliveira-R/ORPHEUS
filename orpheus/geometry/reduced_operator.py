@@ -102,43 +102,43 @@ carries its own :math:`(M+1)`-tuple of :math:`\alpha` with
 where :math:`\eta` is the radial direction cosine.
 
 The Morel--Montry angular closure weight (Bailey-Morel-Chang 2010
-Eq. 43) is the *fractional position* of the ordinate :math:`\mu_m` in
-its half-angle interval :math:`[\mu_{m-1/2}, \mu_{m+1/2}]`:
+Eq. 43 = Lathrop 2000 Eq. 23) is the *barycentric coordinate* of the
+ordinate :math:`\mu_m` between the two edges of its own angular cell
+:math:`[\mu_{m-1/2}, \mu_{m+1/2}]`:
 
 .. math::
 
    \tau_m = \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}}.
 
-This raw weight is the UNIQUE choice exact for a flux linear in
-:math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with admissible range
-:math:`\tau \in [0, 1]`.  The canonical definition-of-record, the
-:math:`[1/2, 1]`-clamp history, the W1 mis-citation finding, and the
-geometry split are on the theory page — see
-:eq:`morel-montry-clamp` (the equation-of-record) in
-:doc:`/theory/foundations/structured_geometry` and the comprehensive vindication
-at :ref:`sn-curvilinear-aniso-norm-reconciliation` in
+It is the UNIQUE choice exact for a flux affine in the radial cosine,
+with admissible range :math:`\tau \in [0, 1]`.  The formula carries **no
+geometry**: the geometry lives entirely in the *angular cell partition*
+it reads.  The canonical definition-of-record and the partition are on
+the theory page — see :eq:`morel-montry-closure` (the closure) and
+:eq:`angular-cell-partition` (the partition) in
+:doc:`/theory/foundations/structured_geometry`, the retired-absorber
+account at :ref:`sn-tau-absorber-retirement`, and the comprehensive W1
+vindication at :ref:`sn-curvilinear-aniso-norm-reconciliation` in
 :doc:`/theory/verification/sn`.
 
-**Geometry split (W1, 2026-06-13; see** :func:`spherical_streaming` /
-:func:`cylindrical_streaming` **for the implementations).**
+**No clamp, in either arm** (sphere unclamped at W1, 2026-06-13;
+cylinder at Q5.6.4, 2026-08-11).  On Gauss--Legendre the sphere's
+:math:`\tau_m \in [0.39, 0.61]`; on the shipped folded cylinder arc
+:math:`\tau_m \in [\tfrac14, \tfrac34]`.  The former
+:math:`[\tfrac12, 1]` clamp was an over-conservative positivity floor
+(mis-cited to Lewis & Miller §4.5) on the sphere, and on the cylinder a
+compensation for a *wrong cell partition* — the retired chord-midpoint
+edges, which disagreed with :math:`\alpha`'s half-angle edges by
+~17.5 % in :math:`\omega`-width.  ``morel_montry_tau_raw_per_level``
+retired with it: there is one :math:`\tau`.
 
-* **SPHERE** uses the raw :math:`\tau_m` above directly — unclamped.
-  The former :math:`[1/2, 1]` clamp was an over-conservative
-  positivity floor (mis-cited to Lewis & Miller §4.5) that re-floored
-  the anisotropic solution while being 100 % spurious on physical
-  fields (unclamped sphere SI is stable + strictly positive on
-  thick-absorber / near-vacuum / :math:`c = 0.999` / S64 stress
-  configs).  On Gauss--Legendre quadrature :math:`\tau_{m}^{\rm raw}
-  \in [0.39, 0.61]` (never 0), so the unclamped weight is always
-  admissible.
-* **CYLINDER** retains the clamp
-  :math:`\tau_m = \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)`,
-  because product / level-symmetric quadratures place the most-inward
-  azimuthal ordinate exactly on :math:`\eta = -\sin\theta`, giving
-  :math:`\tau_m^{\rm raw} = 0` exactly — a structural :math:`\div 0`
-  block in the unclamped recurrence.  Removing the clamp here needs a
-  2-D :math:`(\eta, \varphi)` angular closure (out of scope), tracked
-  by Issue #229.
+⚠ This module no longer produces :math:`\tau` at all — #236 Step C
+excised the geometry-side producer.  :math:`\tau` is single-sourced in
+:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`,
+reading
+:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`.
+What stays here is genuinely geometric: the :math:`\alpha`-dome, the
+redistribution factor, the face areas, and the starting-direction edges.
 
 References
 ==========

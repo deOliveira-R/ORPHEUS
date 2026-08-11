@@ -217,8 +217,8 @@ SN, MoC, and CP curvilinear :term:`sweeps <sweep>` all march through the same da
   :term:`per-ordinate <ordinate>` flat-flux consistency,
 * **the Bailey 2009 dome recursion** for :math:`\alpha`, and
 * **the Morel--Montry angular closure** :math:`\tau_{mm}`
-  (unclamped raw weight on the sphere; :math:`[1/2, 1]`-clamped on the
-  cylinder — see :eq:`morel-montry-clamp` below).
+  (one geometry-free formula :eq:`morel-montry-closure`, read against a
+  per-geometry cell partition :eq:`angular-cell-partition` — see below).
 
 Per Cardinal Rule 2 (architecture is critical), the same data **MUST
 NOT** be duplicated across solvers.
@@ -247,31 +247,130 @@ The cylindrical analog runs **per-:math:`\mu`-level**: each level
 where :math:`\eta` is the radial direction cosine and :math:`M` is the
 number of azimuthal ordinates on that level.
 
-The Morel--Montry closure (Bailey-Morel-Chang 2010 Eq. 43) is the raw
-*fractional position* of the ordinate :math:`\mu_m` in its half-angle
-interval; the production code applies a **geometry-dependent** clamp on
-top of it:
+The Morel--Montry closure weight is the **barycentric coordinate of the
+ordinate between the two edges of its own angular cell** — predicate
+**P2**, :cite:`BaileyMorelChang2010` Eq. 43 = Lathrop 2000 Eq. 23 —
+equivalently the UNIQUE closure weight exact for an angular flux affine
+in the radial cosine:
 
 .. math::
-   :label: morel-montry-clamp
+   :label: morel-montry-closure
 
-   \tau_m^{\rm raw} = \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}},
-   \qquad
-   \tau_m = \begin{cases}
-     \tau_m^{\rm raw} & \text{sphere (unclamped, since W1)} \\[4pt]
-     \mathrm{clip}\!\left(\tau_m^{\rm raw},\;\tfrac12,\;1\right)
-       & \text{cylinder}
+   \tau_m
+     \;=\; \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}} .
+
+.. vv-status: morel-montry-closure documented
+   Rationale: this is the literature-transcribed definition of the M-M
+   angular closure weight (Bailey-Morel-Chang 2010 Eq. 43 = Lathrop 2000
+   Eq. 23); it is a representational identity, not a solver claim. The
+   verifiable content is the producer-equivalence gate
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (both
+   arms now compare against HAND-AUTHORED references — the analytic arc
+   closed form on the cylinder, an inline cumulative-weight expression on
+   the sphere) plus the ν-closure and P3 gates in
+   ``tests/sn/sweep/test_tau_arc_wellposedness.py``.  τ is closure-owned,
+   NOT a reduced-operator field — see the τ-ownership note below.
+
+⭐ **There is no "raw" and no "clamped" τ** (Q5.6.4, 2026-08-11): the
+:math:`[\tfrac12, 1]` absorber RETIRED, ``morel_montry_tau_raw_per_level``
+retired with it, and :eq:`morel-montry-closure` carries **no geometry**.
+One generic body serves both arms — the geometry lives entirely in the
+**cell partition**, which is a separate object with its own producer.
+
+.. _angular-cell-partition-section:
+
+The angular cell partition — where the geometry actually lives
+--------------------------------------------------------------
+
+A level's ordinates each own an angular *cell*; the partition is the
+:math:`(M+1)` cell edges in the radial direction cosine
+(:math:`\mu` sphere, :math:`\eta` cylinder), and it is the object
+:eq:`morel-montry-closure` reads:
+
+.. math::
+   :label: angular-cell-partition
+
+   \mu_{m+1/2} \;=\;
+   \begin{cases}
+     \mu_{m-1/2} + w_m, \qquad \mu_{1/2} = -1
+       & \text{sphere: cumulative WEIGHT} \\[8pt]
+     \sin\theta\,\cos\omega_{m+1/2},\quad
+       \omega_{m+1/2} = \tfrac12\bigl(\omega_m + \omega_{m+1}\bigr),
+       \;\; \omega_{1/2} = \pi,\;\; \omega_{M+1/2} = 0
+       & \text{cylinder: MIDPOINT in }\omega
    \end{cases}
 
-.. vv-status: morel-montry-clamp documented
-   Rationale: this is the literature-transcribed definition of the M-M
-   angular closure weight (Bailey-Morel-Chang 2010 Eq. 43) plus the
-   production clamp policy; it is a representational identity, not a
-   solver claim. The verifiable content is the producer-equivalence
-   gate ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
-   (τ is closure-owned, NOT a reduced-operator field — see the
-   τ-ownership note below) and the W1 clamp-silence + positivity gates
-   named at :ref:`sn-curvilinear-aniso-norm-reconciliation`.
+.. vv-status: angular-cell-partition documented
+   Rationale: a geometry-of-the-rule construction, not a physics-equation
+   claim with an L0..L3 ladder slot — the partition is a property of the
+   quadrature, produced solve-free.  The verifiable content is
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (the
+   analytic arc closed form BELOW is the cylinder arm's
+   structurally-independent reference, with the retired chord convention
+   as its negative control per ``vv-principles`` #19),
+   ``tests/sn/sweep/test_tau_arc_wellposedness.py`` (the P3 theorem and
+   the attainable closed endpoint) and
+   ``tests/sn/verification/mms/test_mms_ordering_blindness.py``
+   ``::test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition``
+   (the non-monotone-arc refusal).  Both are ``foundation`` gates —
+   software/structural invariants of a discrete construction.
+
+Both branches are **derived, not conventional**, and they are derived
+from *different* facts:
+
+* **Sphere** — a Gauss--Legendre weight *is* the cell's
+  :math:`\mu`-measure, so accumulating weights from :math:`\mu_{1/2} = -1`
+  partitions :math:`[-1, 1]` exactly.  This is
+  :cite:`BaileyMorelChang2010` Eq. (12) **verbatim**, corroborated
+  independently by Lathrop 2000 p. 249 (:math:`\sum \Delta\mu_m = 2`).
+  Unchanged by Q5.6.4.
+* **Cylinder** — the azimuthal march is a march in :math:`\omega`,
+  **arc by arc**, so the cell boundary is the midpoint *in the variable
+  the march marches in*.  Taking the midpoint of the **stored**
+  :math:`\omega` values keeps it correct for any monotone arc; on an
+  equispaced-:math:`\omega` rule it is exactly the half-angle boundary
+  :math:`\omega_m \pm \Delta\omega/2`.
+
+Feeding the equispaced-:math:`\omega` case of
+:eq:`angular-cell-partition` through :eq:`morel-montry-closure` gives a
+closed form, which is the cylinder arm's **structurally independent**
+reference in the producer-equivalence gate (it shares no code path with
+the producer):
+
+.. math::
+
+   \tau_m \;=\; \tfrac12
+     \;+\; \tfrac12\,\cot\omega_m\,\tan\!\bigl(\Delta\omega/4\bigr) .
+
+`[M]` (2026-08-11) agreement with the producer on
+``folded_product(n_mu=4, n_phi)``, maximised over all four levels:
+:math:`1.1\mathrm{e}{-16}` / :math:`2.2\mathrm{e}{-16}` /
+:math:`7.8\mathrm{e}{-16}` / :math:`7.4\mathrm{e}{-15}` /
+:math:`2.3\mathrm{e}{-14}` at :math:`n_\varphi = 4/8/16/32/64`.  ⚠ It
+**degrades with refinement** (:math:`\arctan2`/:math:`\cos` round-off in
+both paths), so the gate asserts ``atol=1e-13`` rather than a
+machine-epsilon bound; a row beyond :math:`n_\varphi = 64` must widen it
+(``vv-principles`` #16 — never assert tighter than the producer
+achieves).
+
+.. warning:: **Do NOT "unify"** :math:`\alpha` **and** :math:`\tau`
+   **onto one expression.**
+
+   Both reference the same partition — that is the point of
+   :eq:`angular-cell-partition`, and deriving it twice is exactly the
+   defect Q5.6.4 fixed.  But they impose **two different conditions** on
+   it: :math:`\tau` the **zeroth** moment (P2, above), :math:`\alpha` the
+   **first**-moment conservation recursion (P4,
+   :eq:`bailey-dome-recursion`; Hébert 3.397--3.399, after Alcouffe &
+   O'Dell).  Forcing :math:`\alpha` to equal the geometric tangential
+   cosine at these edges silently drives Lathrop's defect
+   :math:`\delta \to 0`, i.e. :math:`\tau \to \tfrac12` — the angular
+   *diamond* scheme (Hébert 3.406/3.431), a **different method** with a
+   different diffusion limit.  ⚠ Hébert's own
+   :math:`\eta_{p,q\pm1/2}` is a constant-flux conservation recursion,
+   **not** a trig evaluation at a bisected :math:`\omega`; the closed
+   form above is a theorem about *our* equispaced-:math:`\omega` rule,
+   not the literature's definition of the partition.
 
 .. _tau-ownership-note:
 
@@ -283,142 +382,275 @@ top of it:
    coefficients (``face_areas``, ``delta_A``, ``alpha_half``,
    ``redist_dAw``, ``mu_start`` and their ``*_per_level`` cylindrical
    siblings) and nothing else; the M-M closure weight is produced by
-   :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_raw_per_level`
-   (raw) and
    :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`
-   (the clamp policy applied), which :class:`SNMesh` calls against the
-   quadrature and ``self.reduced.coord``.  The split is deliberate: τ
-   is a property of the *angular closure scheme*, selectable per mesh,
-   while the curvature coefficients are a property of the *geometry*.
-   Statements elsewhere in the corpus describing ``tau_mm`` /
-   ``tau_mm_per_level`` as factory outputs predate that move.
+   reading the single partition producer
+   :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`,
+   which :class:`SNMesh` calls against the quadrature and
+   ``self.reduced.coord``.  The split is deliberate: τ is a property of
+   the *angular closure scheme*, selectable per mesh, while the curvature
+   coefficients are a property of the *geometry*.  Statements elsewhere
+   in the corpus describing ``tau_mm`` / ``tau_mm_per_level`` as factory
+   outputs predate that move, and any naming
+   ``morel_montry_tau_raw_per_level`` predate Q5.6.4.
 
-The raw weight :math:`\tau_m^{\rm raw}` is the **unique** weight exact
-for a flux linear in :math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with
-admissible range :math:`\tau \in [0, 1]` — **enforced since Q5.5
-(2026-08-07)**: the raw producer RAISES on
-:math:`\tau_{\rm raw} \notin [0, 1]`.  On a well-posed monotone march
-every ordinate lies inside its own angular cell, so membership
-certifies the march; a value outside certifies an ILL-POSED march.
-Both realized cases were caught by measurement: (a) mis-ordered
-members — T22's ω-ordered mis-ordering measured
-:math:`\tau_{\rm raw} = 1.079` at the producer before surfacing as a
-NaN 400 lines downstream, the pre-Q5.5 absorption silently laundering
-it into a finite wrong answer; (b) a quadrature incompatible with the
-arm's edge convention — a raw 3-D ``level_symmetric(4)`` rule fed to
-the 1-D spherical arm (24 unsorted ``mu_x`` with duplicates, weights
-summing to :math:`4\pi`) measured :math:`\tau_{\rm raw} \in
-[-20.3,\, 1.13]` with 23 of 24 ordinates outside, consumed SILENTLY by
-the *unclamped* sphere closure until the guard landed — seven
-operator-equivalence tests ran exactly this configuration and stayed
-green because both compared spellings share the :math:`\tau`
-(the Mode-12 annihilation).  Issue #336 tracks the refuse-or-reduce
-design for ``SNMesh`` on a spherical mesh with a non-μ-line rule.  The
-closed endpoints are legal march starts — ``0`` is an edge-node start
-and ``1`` an η-degenerate tie
+The admissible range is :math:`\tau \in [0, 1]` — predicate **P3**, an
+ordinate lies inside its own angular cell — **enforced since Q5.5
+(2026-08-07)**: the producer RAISES on :math:`\tau \notin [0, 1]`.  On a
+well-posed monotone march membership certifies the march; a value outside
+certifies an ILL-POSED march.  Both realized cases were caught by
+measurement: (a) mis-ordered members — T22's ω-ordered mis-ordering
+measured :math:`\tau = 1.079` at the producer before surfacing as a NaN
+400 lines downstream, the pre-Q5.5 absorption silently laundering it into
+a finite wrong answer; (b) a quadrature incompatible with the arm's edge
+convention — a raw 3-D ``level_symmetric(4)`` rule fed to the 1-D
+spherical arm (24 unsorted ``mu_x`` with duplicates, weights summing to
+:math:`4\pi`) measured :math:`\tau \in [-20.3,\, 1.13]` with 23 of 24
+ordinates outside, consumed SILENTLY by the *unclamped* sphere closure
+until the guard landed — seven operator-equivalence tests ran exactly
+this configuration and stayed green because both compared spellings share
+the :math:`\tau` (the Mode-12 annihilation).  Issue #336 tracks the
+refuse-or-reduce design for ``SNMesh`` on a spherical mesh with a
+non-μ-line rule.  The closed endpoints are legal march starts — ``0`` is
+an edge-node start and ``1`` an η-degenerate tie
 (:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`).
 The guard does NOT catch the double cover: a full-circle level's
 :math:`[0, 1, 0, 1, \ldots]` fingerprint is entirely inside
-:math:`[0, 1]`; that detector is the singular set :math:`\Sigma`.
+:math:`[0, 1]`; that detector is the singular set :math:`\Sigma`, and
+since Q5.6.4 the non-monotone arc is refused one frame earlier still, by
+:eq:`angular-cell-partition`'s own producer (a full-circle level carries
+:math:`\omega` of both signs, so "the midpoint in :math:`\omega`" is not
+defined for it).
 
-* **SPHERE** uses :math:`\tau_m^{\rm raw}` directly (since W1,
-  2026-06-13).  On Gauss--Legendre quadrature
-  :math:`\tau_m^{\rm raw} \in [0.39, 0.61]` — always interior to
-  :math:`[0,1]` — so the closure stays positive without a clamp.  The
-  former :math:`[1/2, 1]` clamp was an over-conservative,
-  mis-cited (to Lewis & Miller §4.5) positivity floor that was 100 %
-  spurious on physical fields and re-floored the anisotropic solution.
-  The full vindication is at
-  :ref:`sn-curvilinear-aniso-norm-reconciliation` in
-  :doc:`/theory/verification/sn`.
-* **CYLINDER** retains the clamp :math:`\tau_m =
-  \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)` — *pending retirement,
-  see the T27 adjudication below*: full-circle product / level-
-  symmetric quadratures put the most-inward azimuthal ordinate exactly
-  on :math:`\eta = -\sin\theta`, giving :math:`\tau_m^{\rm raw} = 0`
-  exactly (a structural :math:`\div 0` block, tracked by
-  `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_).
-  Since Q5.6.3 those rule classes are **refused at cylindrical**
-  ``SNMesh`` **admission**, so the :math:`\tau^{\rm raw} = 0` trigger
-  the absorption exists for is unreachable through any mesh — the clip
-  survives as pure behavioural debt (it still alters every folded
-  level's :math:`\tau`), scheduled for its own re-baseline window.
+⭐ **On the cylinder, P3 is now a THEOREM.**  With the partition taken as
+the ω-midpoint, a strictly ω-monotone level has
+:math:`\omega_{m-1/2} > \omega_m > \omega_{m+1/2}` by construction, and
+:math:`\cos` is monotone on :math:`(0, \pi)`, so
+:math:`\eta_{m-1/2} < \eta_m < \eta_{m+1/2}` — :math:`\tau \in (0, 1)` is
+**forced** (`[M]` 4000 random monotone arcs: :math:`\min\tau =
+4.739\mathrm{e}{-7}`, :math:`\min(1-\tau) = 7.599\mathrm{e}{-10}`, never
+outside).  Its only equality case is a node ON an arc endpoint, i.e. a
+node on :math:`\Sigma` — so **cylinder-P3 reduces to the fold criterion**
+:math:`\Sigma = \emptyset`.  P3 keeps its teeth on the **sphere**, where
+cumulative-weight edges genuinely need not bracket their nodes (case (b)
+above).  Stated plainly so no audit reads cylinder-P3 as live coverage it
+is not.
 
-**The clamp is TWO objects, and the fold retires one (T27, adjudicated
-2026-08-02; guard landed Q5.5, 2026-08-07).**  The fused cylinder
-expression ``max(0.5, min(1.0, τ_raw))`` welds the :math:`[0, 1]`
-*membership* (promoted to the raising guard above) to a
-:math:`[\tfrac12, 1]` *absorption* whose sole purpose is the edge-node
-division block.  The :math:`[\tfrac12, 1]` box is **not** the
-admissible range of :math:`\tau` — the sphere runs outside it,
-unclamped and correct.  On a σ_y-folded STAGGERED arc the absorption's
-reason is structurally removed: with midpoint nodes the smallest-η
-ordinate sits at :math:`\omega = \pi - \varepsilon`,
-:math:`\varepsilon = \pi/2n_\varphi`, so (per unit :math:`\sin\theta`
-— the polar factor cancels in the ratio)
-:math:`\eta_0 = -1 + \varepsilon^2/2`,
-:math:`\eta_1 = -1 + 9\varepsilon^2/2`,
-:math:`\eta_{1/2} = -1 + 5\varepsilon^2/2`, and
+.. _sn-tau-absorber-retirement:
+
+The retired :math:`[\tfrac12, 1]` absorber — what it was compensating for
+-------------------------------------------------------------------------
+
+**The clamp was TWO objects welded together** (T27, adjudicated
+2026-08-02; membership guard landed Q5.5, 2026-08-07; absorber retired
+Q5.6.4, 2026-08-11).  The cylinder-only expression
+``max(0.5, min(1.0, τ_raw))`` fused the :math:`[0, 1]` *membership* — now
+the P3 guard above — to a :math:`[\tfrac12, 1]` *absorption* whose stated
+purpose was blocking an edge-node division.  The
+:math:`[\tfrac12, 1]` box was **never** the admissible range of
+:math:`\tau`: the sphere ran outside it, unclamped and correct, and `[M]`
+at :math:`S_8` Gauss--Legendre **four of eight** M-M τ sit below
+:math:`\tfrac12`.  :cite:`BaileyMorelChang2010`'s own :math:`S_2` example
+gives :math:`\tau_1 = \mu_1 + 1 = 1 - 1/\sqrt3 \approx 0.4226 < \tfrac12`
+(their Eq. 47).  **No source prescribes any limiter on** :math:`\tau`.
+
+⭐ **What it was actually compensating for was a WRONG PARTITION, and
+that is why retiring it alone made things worse.**  Until 2026-08-11 the
+cylinder edges were taken at the midpoint of consecutive :math:`\eta`
+values — the **chord** midpoint — with the endpoints pinned at
+:math:`\mp\sin\theta`.  That partition is :eq:`angular-cell-partition`
+*with its end cells stretched*.  The identity
+
+.. math::
+
+   \tfrac12\bigl[\cos\omega_a + \cos\omega_b\bigr]
+     \;=\; \cos\!\Bigl(\tfrac{\omega_a+\omega_b}{2}\Bigr)
+            \cos\!\Bigl(\tfrac{\Delta\omega}{2}\Bigr)
+
+(the :math:`\kappa` prefactor's sibling) makes every *interior* chord
+edge exactly :math:`\cos(\Delta\omega/2) \times` the arc edge (`[M]`
+agreement :math:`10^{-16}`), while the two endpoints stay **unscaled** —
+so the outermost cells stretch to absorb the shrink.  The :math:`\eta`
+error vanishes as :math:`\Delta\omega \to 0`, but the implied
+:math:`\omega`-width spread does **not**: it converges to
+:math:`\approx 17.45\,\%` (`[M]` 18.71 / 17.59 / 17.48 / 17.46 % at
+:math:`n_\varphi = 8/16/32/64`) against a quadrature whose own cells are
+bit-exactly equal.  That :math:`O(1)` inconsistency — one object, the
+"boundary between azimuthal cell :math:`m` and :math:`m+1`", derived
+independently by :math:`\alpha` (at the real half-angle
+:math:`\omega_{m-1/2}`) and by :math:`\tau` (at the chord midpoint), in
+disagreement — is what the absorber hid.
+
+**The absorber is condemned on its own terms, with no MMS involved.**  The
+ν-closure diagnostic marches the level *implied by* :math:`\tau`
+(:math:`\nu_{1/2} = -\sin\theta`,
+:math:`\nu_{m+1/2} = (\eta_m - (1-\tau_m)\nu_{m-1/2})/\tau_m`) and asks
+whether it lands on :math:`+\sin\theta`.  It is solve-free and it
+separates a derived τ from a fabricated one — `[M]`
+:math:`\nu/\sin\theta` at close:
+
+.. list-table:: ν-closure: does the march implied BY τ close the level?
+   :header-rows: 1
+   :widths: 16 21 21 21 21
+
+   * - :math:`n_\varphi`
+     - arc ω (production)
+     - chord (retired)
+     - clamped (retired)
+     - :math:`\tau \equiv \tfrac12`
+   * - 8
+     - ``1.000000``
+     - ``1.000000``
+     - **``1.016389``**
+     - **``1.164784``**
+   * - 16
+     - ``1.000000``
+     - ``1.000000``
+     - ``1.001930``
+     - ``1.039182``
+   * - 32
+     - ``1.000000``
+     - ``1.000000``
+     - ``1.000238``
+     - ``1.009677``
+   * - 64
+     - ``1.000000``
+     - ``1.000000``
+     - ``1.000030``
+     - ``1.002412``
+
+⟹ the clamped values and :math:`\tau \equiv \tfrac12` correspond to **no
+partition of the level at all** — their implied march overshoots the
+level's own endpoint by 1.6 % and 16.5 % respectively.  (:math:`\tau
+\equiv \tfrac12` is Hébert's angular *diamond* scheme; it is listed here
+because it is the tempting rescue, and because it optimises truncation
+order while breaking the diffusion limit :math:`\tau` exists to fix.)
+
+**Why the sphere's convention cannot simply be transplanted.**
+Accumulating weights in :math:`\eta` — even correctly renormalised to
+:math:`\sum \bar w = 2\sin\theta`, :cite:`BaileyMorelChang2010` Eq. 52 —
+violates **P3** on our rule and **worsens with refinement**: `[M]`
+ordinates outside their own cell go 0/4 → 4/8 → 12/16 → 28/32 at
+:math:`n_\varphi = 8/16/32/64` **per level** (`[M]` 0/16, 16/32, 48/64,
+112/128 over the four levels of ``folded_product(n_mu=4, n_phi)``, with
+:math:`\tau` ranging out to :math:`[-2.86,\, 3.86]` at
+:math:`n_\varphi = 64`), and the solve diverges (NaN) from
+:math:`n_\varphi \ge 16`.  The reason is structural: an arc cell's
+:math:`\eta`-measure is
+:math:`2\sin\theta\,\sin\omega_m\,\sin(\Delta\omega/2) \propto
+\sin\omega_m`, **not** constant — `[M]` at :math:`n_\varphi = 16` it
+spans :math:`0.30`--:math:`1.53 \times` the uniform width across one
+level (and :math:`0.08`--:math:`1.57\times` at
+:math:`n_\varphi = 64`) — while a trapezoid weight is.  ⟹ Eq. (52) is
+not a law; it is the
+statement that *in their* quadrature the weight equals the cell's
+:math:`\eta`-measure.  Ours does not, so we satisfy the same **predicate**
+by a different partition.  (This diagnosis is not new — it was written
+into the original M-M implementation as *"weights are uniform in*
+:math:`\varphi` *-space, not* :math:`\eta` *-space"*, and is preserved
+verbatim in
+:mod:`orpheus.derivations.discrete.sn.angular_differencing`.  The
+diagnosis was right; the chord-midpoint *substitute* was never checked
+against a partition predicate.)
+
+**On the σ_y-folded arc the absorption's reason is structurally gone.**
+With midpoint nodes the smallest-η ordinate sits at
+:math:`\omega_0 = \pi - \Delta\omega/2`, so the closed form above gives
 
 .. math::
    :label: morel-montry-folded-arc
 
-   \tau_{{\rm raw},0}
-   \;\xrightarrow[\;n_\varphi \to \infty\;]{}\;
-   \frac{\varepsilon^2/2}{5\varepsilon^2/2} \;=\; \frac15
+   \tau_0
+     \;=\; \tfrac12 - \tfrac12\cot\!\bigl(\Delta\omega/2\bigr)
+            \tan\!\bigl(\Delta\omega/4\bigr)
+   \;\xrightarrow[\;n_\varphi \to \infty\;]{}\; \tfrac14
    \;\;\text{from inside},
    \qquad
-   \tau_{{\rm raw},m} \in \Bigl[\tfrac15,\, \tfrac45\Bigr],
+   \tau_m \in \Bigl[\tfrac14,\, \tfrac34\Bigr],
    \qquad
-   \tau_{{\rm raw},m} + \tau_{{\rm raw},M-1-m} \;=\; 1 .
+   \tau_m + \tau_{M-1-m} \;=\; 1 ,
 
-`[M]` (Q5.5 probe, 2026-08-07, :math:`n_\mu = 4`): the folded staggered
-:math:`\tau_{\rm raw}` spans :math:`[0.2195, 0.7805]` at
-:math:`n_\varphi = 8` falling monotonically to
-:math:`[0.200289, 0.799711]` at :math:`n_\varphi = 64`, with
-:math:`|\Sigma| = 0` throughout — :math:`\tau = 0` is **structurally
-unreachable** on the fold.  The reversal identity holds **bit-exactly**
-(residual :math:`0.0` at every :math:`n_\varphi`): the staggered
-roots-of-unity η-grid is bit-antisymmetric under
-:math:`\omega \to \pi - \omega` and the fold descends by bit-copied
-selection (Q5.3) — T27's own hand-built pre-Q5.3 probe measured
-:math:`\sim 10^{-15}`, so the selection-descent design *upgraded* the
-identity to exact.  The absorption would DESTROY it (clamping
-:math:`\tau_0` to :math:`\tfrac12` breaks
-:math:`\tau_0 + \tau_{M-1} = 1`) — a symmetry-breaking defect of the
-same family as the double cover it used to hide (#326) — so it RETIRES
-in Q5.6's absorber step (6.4).  (An earlier version of this passage
-said it "must survive until the fold wiring: production NODE_ALIGNED
-cylinders still start on an edge node."  The wiring landed at Q5.6.3
-(``1689faf4``) and dissolved that reason — no admitted cylinder rule
-has an edge-node or degenerate march start any more.  What keeps the
-clip alive until 6.4 is baseline discipline, not structure: `[M]` it
-still alters every folded level's :math:`\tau` (4/4 at
-:math:`n_\mu = 4`), so its removal moves every folded-cylinder
-baseline and owns its own re-capture window rather than riding the
-admission commit.)
+since :math:`\cot(\Delta\omega/2)\tan(\Delta\omega/4) \to \tfrac12`.
+`[M]` (2026-08-11, :math:`n_\mu = 4`, folded staggered), with
+:math:`|\Sigma| = 0` throughout — :math:`\tau \in \{0, 1\}` is
+**structurally unreachable** on the fold:
+
+.. list-table:: Folded-arc τ box and the reversal identity
+   :header-rows: 1
+   :widths: 20 45 35
+
+   * - :math:`n_\varphi`
+     - τ range
+     - reversal residual
+   * - 4
+     - ``[0.292893, 0.707107]``
+     - 0.5 ULP
+   * - 8
+     - ``[0.259892, 0.740108]``
+     - 0.5 ULP
+   * - 16
+     - ``[0.252425, 0.747575]``
+     - 2.0 ULP
+   * - 32
+     - ``[0.250603, 0.749397]``
+     - 7.0 ULP
+   * - 64
+     - ``[0.250151, 0.749849]``
+     - 12.0 ULP
+
+.. note:: **Retraction (2026-08-11, Q5.6.4).**  Until Q5.6.4 this
+   equation read :math:`\tau_{{\rm raw},0} \to \tfrac15`,
+   :math:`\tau_{{\rm raw},m} \in [\tfrac15, \tfrac45]`, with the
+   reversal identity holding **bit-exactly** (residual :math:`0.0` at
+   every :math:`n_\varphi`; measured :math:`[0.2195, 0.7805]` at
+   :math:`n_\varphi = 8` falling to :math:`[0.200289, 0.799711]` at 64).
+   Those numbers are correct — *for the retired chord partition they were
+   measured on*.  The box is now :math:`[\tfrac14, \tfrac34]`.
+
+   ⚠ **And the reversal identity is no longer bit-exact: that is a trade,
+   not a regression.**  The chord partition's reversal symmetry was exact
+   *because* both end cells were stretched symmetrically — the 17.5 %
+   ω-width defect cancelled itself under
+   :math:`\omega \to \pi - \omega`.  The ω partition has the correct cells
+   and pays 0.5--12 ULP of :math:`\arctan2` / :math:`\cos` round-off.  The
+   gate asserts 64 ULP, because the residual grows with arc refinement and
+   a bit-exact assertion would be a latent false red
+   (``vv-principles`` #16 — never assert tighter than the producer
+   achieves).
 
 .. (vv-status rationale) morel-montry-folded-arc: Verified by the Q5.5
-   foundation gates in ``tests/sn/sweep/test_tau_arc_wellposedness.py``
-   — ``test_the_fold_mechanism_is_an_empty_singular_set`` asserts the
+   mechanism gates in ``tests/sn/sweep/test_tau_arc_wellposedness.py``,
+   re-posed at Q5.6.4 —
+   ``test_the_fold_mechanism_is_an_empty_singular_set`` asserts the
    MECHANISM (Σ = ∅, computed via ``singular_set``, never declared) and
    ``test_the_folded_tau_is_bounded_with_the_reversal_identity`` the
-   CONSEQUENCE (τ_raw ⊂ [1/5, 4/5] per level plus the bit-exact
-   reversal identity), each at n_φ ∈ {8, 16, 32, 64} on the folded
-   staggered product (n_μ = 4).  Teeth measured 2026-08-07: reverting
-   Q5.2's offset to δ = 0 reds BOTH legs at every n_φ (8/10 red), which
-   attributes the pass to the mechanism; the [0, 1] guard's negative
-   companion reds alone under a no-opped guard (1/10 red).  A
-   geometry-of-the-rule invariant, not a physics-equation claim with an
-   L0..L3 ladder slot.
+   CONSEQUENCE (τ ⊂ [1/4, 3/4] per level plus the reversal identity at
+   64 ULP), each at n_φ ∈ {8, 16, 32, 64} on the folded staggered product
+   (n_μ = 4).  Teeth measured 2026-08-07: reverting Q5.2's offset to
+   δ = 0 reds BOTH legs at every n_φ (8/10 red), which attributes the
+   pass to the mechanism; the [0, 1] guard's negative companion reds
+   alone under a no-opped guard (1/10 red).  A geometry-of-the-rule
+   invariant, not a physics-equation claim with an L0..L3 ladder slot.
 .. vv-status: morel-montry-folded-arc documented
 
-For spherical geometry the cell-edge direction cosines
-:math:`\mu_{m+1/2}` are the partial weight sums
-:math:`\sum_{n \le m} w_n` shifted by :math:`\mu_{1/2} = -1`; for
-cylindrical geometry the weights live in :math:`\varphi`-space rather
-than :math:`\eta`-space, so the cell edges are taken at the midpoints
-of consecutive :math:`\eta` values with endpoints at :math:`\pm\sin\theta`.
+**The honest accuracy cost, ratified rather than hidden.**  The
+principled partition is not uniformly more accurate on the one
+manufactured fixture available: `[M]` on the anisotropic cylindrical MMS
+at :math:`n_x = 320` it is BETTER at :math:`n_\varphi = 8`
+(:math:`3.128\mathrm{e}{-3}` vs :math:`3.511\mathrm{e}{-3}`) and
+:math:`\sim 1.8`--:math:`2\times` WORSE at :math:`n_\varphi = 16/32/64`.
+Principled :math:`\ne` more accurate: a scheme satisfying P2/P3 wins over
+one with a smaller number on a single MMS, and the L2 norm measures
+truncation order — exactly what :math:`\tau \equiv \tfrac12` optimises
+and exactly the quantity that is blind to the diffusion limit
+:math:`\tau` exists to fix.  The full ladder, and why the MMS is the
+wrong instrument for this decision, is at
+:ref:`sn-cylinder-angular-floor` in :doc:`/theory/verification/sn`.
+
+The predicate ladder (P0--P4) these decisions are made against, the
+:math:`\tau`/:math:`\beta` nomenclature (both letters are overloaded, and
+both collisions have cost real time), and a written record of **which
+diagnostics are blind on which rules** live in
+:mod:`orpheus.derivations.discrete.sn.angular_differencing`.
 
 API surface
 -----------
@@ -434,7 +666,7 @@ per coordinate system:
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
   with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
-  closure :eq:`morel-montry-clamp`.  ``requires_upstream_angular_state =
+  closure :eq:`morel-montry-closure`.  ``requires_upstream_angular_state =
   True``, ``angular_marching_axis = "mu"``.
 * :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D

@@ -365,11 +365,15 @@ are Gauss–Chebyshev (first kind) in :math:`x = \cos\omega` — the arc's
 own Gauss family, mirroring the sphere's Legendre structure.
 
 What the fold buys is exactly the R12a carrying property on **every**
-level (:ref:`sn-direct-seed-r12a`): the singular set is empty, the raw
-march-start weights satisfy :math:`\tau_{\rm raw} \in [\tfrac15,
-\tfrac45]` with the bit-exact reversal identity
-:math:`\tau_m + \tau_{M-1-m} = 1` (:eq:`morel-montry-folded-arc` in
-:doc:`/theory/foundations/structured_geometry`), and each level's
+level (:ref:`sn-direct-seed-r12a`): the singular set is empty, the
+march-start weights satisfy :math:`\tau \in [\tfrac14, \tfrac34]`
+with the reversal identity
+:math:`\tau_m + \tau_{M-1-m} = 1` to 0.5--12 ULP
+(:eq:`morel-montry-folded-arc` in
+:doc:`/theory/foundations/structured_geometry`; both numbers were
+:math:`[\tfrac15, \tfrac45]` and *bit-exact* until the Q5.6.4 partition
+fix, whose retraction note explains why the older reading was exact —
+its two end cells were stretched symmetrically), and each level's
 ψ½ seed is a genuine independent unknown solved exactly by route (a)'s
 forward substitution.  Admission reads this **structure**, never a
 provenance tag — a hand-built rule with the same arrays admits

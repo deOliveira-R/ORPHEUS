@@ -2435,14 +2435,23 @@ back to the sphere value.
   :class:`MorelMontryAngularSweep` swaps both the forward and reverse
   maps at once.
 
-.. note::
+.. note:: **The clamp that used to spoil this is gone (Q5.6.4,
+   2026-08-11).**
 
-   The :math:`\tau`-clamp
-   (:math:`\tau \to \max(0.5,\min(1.0,\tau_{\rm raw}))`,
-   Bailey–Morel–Chang) breaks the *exact* linear-in-:math:`\mu`
-   threading wherever it is active.  This is part of the residual
-   anisotropic angular floor quantified at :ref:`Issue #229
-   <sn-err-058-aniso-floor>` below — NOT a wrong-fixed-point defect.
+   The cylinder's :math:`\tau`-absorber
+   (:math:`\tau \to \max(0.5,\min(1.0,\tau))`) broke the *exact*
+   linear-in-:math:`\mu` threading wherever it was active, contributing a
+   constant to the residual anisotropic angular floor below — never a
+   wrong-fixed-point defect.  It is **retired in both arms** (sphere at
+   W1, 2026-06-13; cylinder at Q5.6.4), so the parenthetical
+   "*(for unclamped* :math:`\tau`)" above is now unconditional.
+
+   ⚠ It was **never** Bailey–Morel–Chang's: an earlier revision of this
+   note attributed the clamp to them, and they prescribe no limiter at
+   all — their admissible range is :math:`[0, 1]` and their own
+   :math:`S_2` example gives :math:`\tau_1 \approx 0.4226 < \tfrac12`.
+   See :ref:`sn-tau-absorber-retirement` in
+   :doc:`/theory/foundations/structured_geometry`.
 
 Why every gate stayed green — the blindness analysis
 -------------------------------------------------------
@@ -2623,7 +2632,11 @@ The anisotropic angular floor — deferred to Issue #229
    mis-cited and 100 % spurious; see
    :ref:`sn-tau-clamp-vindication`), which cleaned the coarse rate but,
    surprisingly, *raised* the S16 fine floor (the prior lower floor was
-   a fortuitous cancellation, not a gain).  The numbers preserved below
+   a fortuitous cancellation, not a gain).  The **cylinder** half
+   followed at Q5.6.4 (2026-08-11), with the same accuracy signature and
+   a deeper cause — a wrong angular cell partition the absorber was
+   compensating; see the same research-path item below.  The numbers
+   preserved below
    are correct historical evidence; the comprehensive treatment and the
    per-error production decisions are at the reconciliation section.
 
@@ -2664,12 +2677,15 @@ angular-thread attribution:
      - :math:`n_x` 40→80: ``7.50e-3 → 7.39e-3``
        (floor drops :math:`\sim 2.6\times` per :math:`n_\mu` doubling)
 
-The :math:`\tau`-clamp (above) contributes a constant to this floor by
-breaking the exact linear-in-:math:`\mu` threading where active.  The
-quadrature-aware retune (raise the case quadrature, or split the claim
-into a pre-floor spatial-O(h²) segment + a separate
-angular-convergence assertion) is `Issue #229
-<https://github.com/deOliveira-R/ORPHEUS/issues/229>`_.
+The :math:`\tau`-clamp (above) contributed a constant to this floor by
+breaking the exact linear-in-:math:`\mu` threading where active — `[M]`
+quantified at Q5.6.4 and **retired** in both arms (see the note above).
+The quadrature-aware retune (raise the case quadrature, or split the
+claim into a pre-floor spatial-O(h²) segment + a separate
+angular-convergence assertion) landed as W3 under `Issue #229
+<https://github.com/deOliveira-R/ORPHEUS/issues/229>`_, **now CLOSED**
+(2026-06-13) — that issue is the measurement record for this floor, not
+an open work item.
 
 Infrastructure retained
 -------------------------
@@ -2743,14 +2759,39 @@ isotropic O(h²) result:
    (not just a better strategy) to kill the walk-order back edge that
    made the *solve* non-direct.  See
    :ref:`sn-direct-seed-solve`.
-#. **Unclamped-:math:`\tau` threading on a linear-in-:math:`\mu` shell.**
-   The exact linear-:math:`\mu` threading (above) holds only for
-   unclamped :math:`\tau`; quantify the clamp's contribution to the
-   floor and, where the cell is well-resolved
-   (:math:`\tau_{\rm raw}\in[0.5,1.0]`), thread unclamped to recover the
-   exact P1 admission.  Likely probe: the
-   :ref:`Issue #229 <sn-err-058-aniso-floor>` floor table with the clamp
-   disabled on resolved cells.
+#. **Unclamped-:math:`\tau` threading on a linear-in-:math:`\mu` shell**
+   — **LANDED, and the prediction was half right** (sphere at W1
+   2026-06-13; cylinder at Q5.6.4 2026-08-11).  The path as written read:
+   *"quantify the clamp's contribution to the floor and, where the cell
+   is well-resolved (*\ :math:`\tau_{\rm raw}\in[0.5,1.0]`\ *), thread
+   unclamped to recover the exact P1 admission.  Likely probe: the floor
+   table with the clamp disabled on resolved cells."*
+
+   The probe was run exactly as proposed, and it **refuted the expected
+   outcome**: disabling the clamp on the then-current cylinder partition
+   made the anisotropic floor :math:`1.8`--:math:`3.4\times` **worse**,
+   not better.  Two things were wrong with the framing, and finding them
+   is the actual result:
+
+   * :math:`[0.5, 1.0]` **is not a "well-resolved" criterion.**  The
+     admissible range of :math:`\tau` is :math:`[0, 1]` (predicate P3);
+     :math:`[\tfrac12, 1]` was the absorber's own box, with no source
+     behind it.
+   * **The clamp was compensating a wrong angular cell partition**, not
+     merely truncating a resolved value.  The cylinder's edges were taken
+     at the *chord* midpoint while :math:`\alpha` used the real
+     half-angle — a permanent :math:`\approx 17.5\,\%` disagreement in
+     :math:`\omega`-width.  Taking the partition in :math:`\omega`
+     removes the disagreement and leaves nothing to clamp.
+
+   ⟹ the exact P1 admission is recovered, and the honest cost is stated
+   rather than hidden: the principled weight is
+   :math:`\sim 1.8`--:math:`2\times` *worse* in L2 at
+   :math:`n_\varphi \ge 16` on this MMS, because the L2 norm measures
+   truncation order — the thing :math:`\tau \equiv \tfrac12` optimises and
+   the thing that is blind to the diffusion limit :math:`\tau` exists to
+   fix.  Full account: :ref:`sn-tau-absorber-retirement` in
+   :doc:`/theory/foundations/structured_geometry`.
 
 Session trail (V&V audit trail)
 ---------------------------------

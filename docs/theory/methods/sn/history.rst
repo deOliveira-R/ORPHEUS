@@ -30,6 +30,84 @@ merge hash or not at all).
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-11
+     - **The azimuthal cell partition is taken in ω, not in η — and the
+       :math:`[\tfrac12, 1]` absorber retired with the defect it was
+       hiding** (Q5.6.4, the quadrature machinery campaign).  The
+       campaign's own acceptance test — *"retire the absorber and the
+       azimuthal floor falls"* — was **REFUTED by measurement**: the
+       naive retirement makes the anisotropic cylinder MMS floor
+       :math:`1.8`--:math:`3.4\times` WORSE at every rung.  Chasing that
+       found the real defect, one level below.  :math:`\alpha` and
+       :math:`\tau` both reference **ONE object** — the boundary between
+       azimuthal cell :math:`m` and :math:`m+1` — and each derived it
+       independently, in disagreement: :math:`\alpha` at the real
+       half-angle :math:`\omega_{m-1/2}`, :math:`\tau` at the CHORD
+       midpoint :math:`(\eta_m + \eta_{m+1})/2`.  Because
+       :math:`\cos` is nonlinear, every interior chord edge is
+       :math:`\cos(\Delta\omega/2) \times` the arc edge while the two
+       ENDPOINTS stay pinned at :math:`\mp\sin\theta` unscaled — so the
+       outer cells stretch to absorb the shrink.  `[M]` the :math:`\eta`
+       error vanishes as :math:`\Delta\omega \to 0` but the implied
+       :math:`\omega`-width spread does NOT: it converges to
+       :math:`\approx 17.45\,\%` (18.71 / 17.59 / 17.48 / 17.46 % at
+       :math:`n_\varphi = 8/16/32/64`) against a quadrature whose own
+       cells are bit-exactly equal.  **That** :math:`O(1)`
+       **inconsistency is what the absorber was compensating for**, which
+       is why removing it alone regressed.  The fix is one word in the
+       right vocabulary: the azimuthal march is a march in
+       :math:`\omega`, arc by arc, so the cell boundary is the
+       **midpoint in** :math:`\omega`.  With a partition chosen,
+       predicate **P2** (BMC Eq. 43 = Lathrop Eq. 23 — :math:`\tau` is
+       the barycentric coordinate of the ordinate between its own cell's
+       edges) *determines* :math:`\tau`; closed form `[M]` verified to
+       :math:`1.67\mathrm{e}{-16}`:
+       :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\tan(\Delta\omega/4)`.
+       ⟹ **one partition producer**
+       (:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`,
+       the only place a cell boundary is defined) and **one τ producer
+       with a geometry-FREE body** — ``morel_montry_tau_raw_per_level``
+       retired, because the raw/clamped distinction it named no longer
+       exists.  Verified solve-free by the **ν-closure** diagnostic (does
+       the march implied BY :math:`\tau` land on the level's own
+       endpoint?): ``1.000000000000`` for the derived :math:`\tau`, where
+       the clamp overshoots by 1.6 % and :math:`\tau \equiv \tfrac12` by
+       16.5 % — i.e. neither corresponds to any partition of the level.
+       The SPHERE is untouched (cumulative-WEIGHT edges, BMC Eq. 12
+       verbatim, literature-confirmed); the sphere's convention provably
+       cannot be transplanted (an arc cell's :math:`\eta`-measure
+       :math:`\propto \sin\omega` while a trapezoid weight is constant, so
+       accumulating weights in :math:`\eta` violates P3 and worsens with
+       refinement — `[M]` 0/4 → 4/8 → 12/16 → 28/32 ordinates outside
+       their own cell, NaN from :math:`n_\varphi \ge 16`).  ⭐ Cylinder-P3
+       became a **theorem** (on a monotone arc the ω-midpoint edges
+       bracket their own node, so :math:`\tau \in (0,1)` is forced), which
+       reduces it to the fold criterion :math:`\Sigma = \emptyset`; a
+       non-monotone (full-circle) level is now refused *by the partition
+       producer*, naming the double cover.  ⚠ **Honest cost, ratified not
+       hidden**: at :math:`n_x = 320` the principled :math:`\tau` is
+       BETTER at :math:`n_\varphi = 8` (3.128e-3 vs 3.511e-3) and
+       :math:`\sim 1.8`--:math:`2\times` WORSE at 16/32/64.  Principled
+       :math:`\ne` more accurate — and the L2 norm measures truncation
+       order, which is exactly what :math:`\tau \equiv \tfrac12`
+       optimises and exactly what is blind to the diffusion limit
+       :math:`\tau` exists to fix.  ⚠ **α and τ must NOT be "unified"**:
+       they share the partition but impose different conditions (α the
+       first moment, τ the zeroth); forcing α onto the geometric
+       tangential cosine drives :math:`\delta \to 0`, i.e. the angular
+       *diamond* scheme.  Companion commit gave quadrature/closure
+       analysis a home
+       (:mod:`orpheus.derivations.discrete.sn.angular_differencing` — the
+       P0--P4 predicate ladder, the τ/β nomenclature, and a written record
+       of which diagnostics are BLIND on which rules) and retired
+       ``contamination.py``, whose cylindrical arm had become
+       present-tense wrong (it built the retired η-midpoint edges, so
+       `[M]` its τ disagreed with production by up to 6.8e-2).  Full
+       treatment: :ref:`sn-tau-absorber-retirement` and
+       :eq:`angular-cell-partition` in
+       :doc:`/theory/foundations/structured_geometry`.
+     - #229 (record) · #327 (naming)
+     - ``3dda18ca`` · ``d5067c4d``
    * - 2026-08-08
      - **The cylindrical admission flip — SNMesh(CYLINDRICAL) admits
        exactly the carrying quadrature rules** (Q5.6.3, the quadrature

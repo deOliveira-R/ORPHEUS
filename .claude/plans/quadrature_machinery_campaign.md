@@ -3470,7 +3470,14 @@ implemented and **no `D_6h`-invariant rule in tree**.
 
      **The decision:** the **arc ω half-angle partition (B)** — chosen because
      it satisfies **P3** for our nodes, not on BMC's authority — and **P2 then
-     DETERMINES τ**, closed form `[M]` verified to `1.7e-16`:
+     DETERMINES τ**, closed form ⛔ (this line first read *"`[M]` verified to
+     `1.7e-16`"` — a SINGLE-FIXTURE reading published as if it were a
+     machine-epsilon identity. `[M]` corrected: the agreement DEGRADES two
+     orders under refinement — `1.1e-16 / 2.2e-16 / 7.8e-16 / 7.4e-15 /
+     2.3e-14` at `n_φ = 4/8/16/32/64`, max over all four levels. The
+     shipped gate already knew, at `atol=1e-13`; the plan did not. Same
+     defect class as §4's configuration rule, one level down: a number
+     measured at one order, quoted without its order):
 
      > **`τ_m = ½ + ½ cot(ω_m) · tan(Δω/4)`**
 

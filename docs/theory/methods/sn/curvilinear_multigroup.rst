@@ -192,6 +192,17 @@ construction:
    #236 τ-campaign of :doc:`curvilinear_one_group` is the derivation
    that earned :math:`\tau` this ownership.)
 
+   ⚠ The trap has **three** horns, not two, and the full nomenclature
+   table — the closure weight (this one), the optical depth
+   :math:`\Sigma_t s` of ``peierls_nystrom`` / MoC / the ``transport``
+   spatial schemes, and the critical half-thickness in mean free paths of
+   ``fn_method`` — is in
+   :mod:`orpheus.derivations.discrete.sn.angular_differencing`, alongside
+   the matching two-sense split of :math:`\beta`.  Note also that
+   ``tau_inv`` in :mod:`orpheus.sn.sweep.cache` is :math:`1/\tau` of
+   *this* sense, sitting a few files from code using the optical-depth
+   sense.
+
 Group-diagonal data riding the walk
 -----------------------------------
 

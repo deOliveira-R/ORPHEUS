@@ -1041,14 +1041,18 @@ The curvilinear anisotropic-MMS "floor", reconciled (W1–W5)
      :ref:`sn-pole-cell-spatial-closure`.
    - **(b) Sphere angular** :math:`\tau`-**clamp floor** — fixed by W1
      (the clamp was mis-cited and 100 % spurious on physical fields).
-     The sphere now uses the raw Bailey-Morel-Chang 2010 Eq. 43 weight.
-     See :ref:`sn-tau-clamp-vindication`.
-   - **(c) Cylinder angular floor (#229)** — the half-angle-thread
-     INTERPOLATION floor; scales with the **azimuthal** quadrature
-     :math:`n_\varphi`, structurally blocked (needs a 2-D
-     :math:`(\eta, \varphi)` closure).  The sphere has a pre-floor
-     :math:`\mathcal{O}(h^2)` window (clean at S32); the cylinder does
-     **not** at any practical quadrature.  See
+     The sphere uses the Bailey-Morel-Chang 2010 Eq. 43 weight
+     unclamped; **so does the cylinder since Q5.6.4** — there is one
+     :math:`\tau` and no clamp in either arm.  See
+     :ref:`sn-tau-clamp-vindication`.
+   - **(c) Cylinder angular floor** (the floor measured in #229, CLOSED)
+     — the half-angle-thread INTERPOLATION floor; scales with the
+     **azimuthal** quadrature :math:`n_\varphi`.  Reduced twice
+     (Q5.6.3's σ_y fold, Q5.6.4's cell-partition fix) and **not
+     closed**: the residual limitation is that a 1-D
+     :math:`\eta`-thread cannot represent a genuinely 2-D
+     :math:`(\eta, \varphi)` field.  The sphere has a pre-floor
+     :math:`\mathcal{O}(h^2)` window (clean at S32).  See
      :ref:`sn-cylinder-angular-floor`.
    - **Two unrelated "anisotropic" paths** (Issue #9): Path-(I) =
      geometric angular redistribution :math:`(1-\mu^2)/r\,\partial_\mu`
@@ -1125,7 +1129,10 @@ probe found a first-order pole cell.
      - Cylinder angular floor
      - both
      - yes (azimuthal :math:`n_\varphi`)
-     - **structurally blocked (#229)**
+     - **reduced twice, not closed** — Q5.6.3's fold took it
+       :math:`5.4\times` down; Q5.6.4 retired the clamp compensating a
+       wrong cell partition.  The residual 1-D-:math:`\eta`-thread
+       limitation stands (:ref:`sn-cylinder-angular-floor`)
 
 The remainder of this section treats each error in turn, then the two
 unrelated anisotropic paths (Issue #9).
@@ -1140,23 +1147,32 @@ The spherical Morel--Montry :term:`weighted-diamond <weighted diamond difference
 .. math::
    :label: sn-tau-mm-raw
 
-   \tau_n^{\rm raw}
+   \tau_n
        \;=\; \frac{\mu_n - \mu_{n-1/2}}{\mu_{n+1/2} - \mu_{n-1/2}}
        \;\in\; [0, 1],
 
 .. (vv-status rationale) definition: the literature-transcribed Morel-Montry
 .. weighted-diamond weight (BaileyMorelChang2010 Eq. 43), the SAME object as
-.. :eq:`mm-weights` (the unclamped raw form discussed in the W1 clamp
-.. vindication). Definitional; the WDD closure it names is verified wherever
-.. :eq:`mm-weights` is exercised.
+.. :eq:`mm-weights` and as :eq:`morel-montry-closure` (the equation-of-record
+.. on the structured-geometry page). Definitional; the WDD closure it names is
+.. verified wherever :eq:`mm-weights` is exercised.
+.. NOTE 2026-08-11: the LABEL still spells "raw" although the raw/clamped
+.. distinction retired at Q5.6.4 (there is one tau). Kept rather than renamed
+.. because a label rename has a V&V-matrix footprint and was out of scope for
+.. the Q5.6.4 docs pass; a follow-on rename to sn-tau-mm-weight would touch
+.. this label, this directive, and the :eq: site in the W1-W5 evidence table.
 .. vv-status: sn-tau-mm-raw documented
 
 the **unique** weight exact for an angular flux linear in :math:`\mu`
 (:cite:`BaileyMorelChang2010` Eq. 43; the same object as
 :eq:`mm-weights`).  The production code had wrapped it in a
 :math:`[\tfrac12, 1]` clamp,
-:math:`\tau_n = \mathrm{clip}(\tau_n^{\rm raw}, \tfrac12, 1)`, cited
-to Lewis & Miller §4.5.
+:math:`\tau_n \to \mathrm{clip}(\tau_n, \tfrac12, 1)`, cited
+to Lewis & Miller §4.5.  W1 (2026-06-13) removed that clamp on the
+sphere; Q5.6.4 (2026-08-11) retired it on the cylinder too, so **the
+superscripted** :math:`\tau^{\rm raw}` **spelling used throughout this
+section is historical** — there is now one :math:`\tau` and no clamp
+anywhere.
 
 W1 established, by three independent lines of evidence, that the clamp
 is **mis-cited and 100 % spurious on physical fields**:
@@ -1199,16 +1215,50 @@ is **mis-cited and 100 % spurious on physical fields**:
    inherited by every consumer (the SI sweep and the Krylov matvec
    both), so both twins stay linear and stay identical.
 
-**Geometry split.**  W1 removed the clamp for the **sphere only**.  The
-**cylinder keeps** it: product / level-symmetric quadratures place the
-most-inward azimuthal ordinate exactly on :math:`\eta = -\sin\theta`,
-giving :math:`\tau^{\rm raw} = 0` **exactly** (bit-exact, not "near
-zero") — an unclamped recurrence divides by zero there.  This is a
-genuine *structural* singularity the sphere provably lacks; the
-cylinder's real fix is a 2-D :math:`(\eta, \varphi)` closure
-(:ref:`sn-cylinder-angular-floor`), not unclamping.  See
-:eq:`morel-montry-clamp` in :doc:`/theory/foundations/structured_geometry` for the
-equation-of-record carrying both branches.
+**Geometry split — closed at Q5.6.4 (2026-08-11); there is no longer a
+split.**  W1 removed the clamp for the **sphere only**, and the cylinder
+kept it for four more sessions.  The reason given at the time was that
+product / level-symmetric quadratures place the most-inward azimuthal
+ordinate exactly on :math:`\eta = -\sin\theta`, giving
+:math:`\tau^{\rm raw} = 0` **exactly** (bit-exact, not "near zero"), so
+an unclamped recurrence divides by zero there.  Both halves of that
+reason have since dissolved, in two steps:
+
+* **Q5.6.3 (2026-08-08)** made the full-circle rule classes
+  *unrepresentable* — a cylindrical ``SNMesh`` now refuses any rule with a
+  non-carrying μ-level, so the :math:`\tau = 0` trigger is unreachable
+  through any mesh.
+* **Q5.6.4 (2026-08-11)** retired the absorber itself, after finding that
+  the thing it was compensating for was not a singularity at all but a
+  **wrong angular cell partition**: the cylinder's edges were taken at the
+  midpoint of consecutive :math:`\eta` (the *chord* midpoint) while
+  :math:`\alpha` used the real half-angle, so the two disagreed about the
+  same object by a permanent :math:`\approx 17.5\,\%` in
+  :math:`\omega`-width.  Taking the partition in :math:`\omega` — the
+  variable the azimuthal march marches in — removes the disagreement, and
+  then P2 *determines* :math:`\tau` with nothing left to clamp.
+
+⭐ **This subsection's own prediction was right, for a reason it did not
+know.**  It used to close: *"the cylinder's real fix is a 2-D
+:math:`(\eta, \varphi)` closure, not unclamping."*  `[M]` confirmed at
+Q5.6.4: unclamping the chord partition **alone** makes the anisotropic
+cylinder MMS floor **1.8--3.4× worse** at every rung
+(:math:`3.5384\mathrm{e}{-3} \to 6.2244\mathrm{e}{-3}` at
+:math:`n_\varphi = 8`; :math:`6.7824\mathrm{e}{-4} \to
+2.3020\mathrm{e}{-3}` at 16; :math:`2.4837\mathrm{e}{-4} \to
+6.0065\mathrm{e}{-4}` at 32, :math:`n_x = 80`).  So "not unclamping" was
+the correct verdict.  ⚠ But the actual fix was the **PARTITION**, not a
+2-D closure and not unclamping: a 1-D :math:`\omega`-march with the right
+cells satisfies P2/P3 and closes its own level exactly.  A 2-D
+:math:`(\eta, \varphi)` closure remains a *separate* open question about
+the residual azimuthal floor (:ref:`sn-cylinder-angular-floor`), no
+longer a prerequisite for retiring the clamp.  The equation-of-record now
+carries the geometry in the **partition**
+(:eq:`angular-cell-partition`), not in the closure
+(:eq:`morel-montry-closure`) — see
+:doc:`/theory/foundations/structured_geometry`, whose
+:ref:`sn-tau-absorber-retirement` section holds the full refutation, the
+solve-free ν-closure evidence, and the honest accuracy trade.
 
 **Mixed accuracy signature (the gotcha).**  Unclamping does NOT
 uniformly improve the anisotropic solve.  It *cleans the coarse
@@ -1235,8 +1285,25 @@ the S16 fine-mesh floor* (:math:`7.3\mathrm{e}{-4} \to 1.2\mathrm{e}{-3}`):
 The lower *clamped* floor was a **fortuitous cancellation**, not a
 genuine accuracy gain — the clamp's constant bias happened to partly
 offset the angular-thread interpolation floor at S16.  Removing it
-exposes the true #229 floor (next subsection), which is what the
-unclamped weight should converge to.  Iso solves are unchanged in real
+exposes the true floor measured in #229 (next subsection), which is what
+the unclamped weight should converge to.
+
+⭐ **The cylinder repeated this signature two months later, and the
+mechanism is the same one.**  At Q5.6.4 retiring the cylinder's
+:math:`[\tfrac12, 1]` absorber *also* raised the anisotropic MMS floor
+(:math:`3.128\mathrm{e}{-3}` vs :math:`3.511\mathrm{e}{-3}` better at
+:math:`n_\varphi = 8`, then :math:`\sim 1.8`--:math:`2\times` **worse** at
+16/32/64, :math:`n_x = 320`), for the same reason: a fixed closure bias
+that partly cancels an interpolation floor is not an accuracy gain, and
+the L2 norm cannot tell the two apart.  Do NOT read either table as
+evidence for keeping a clamp — read them together as the reason the L2
+norm is the wrong instrument for a closure decision.  The cylinder's
+side of the story, including the solve-free ν-closure diagnostic that
+*can* discriminate a derived τ from a fabricated one, is at
+:ref:`sn-tau-absorber-retirement` in
+:doc:`/theory/foundations/structured_geometry`.
+
+Iso solves are unchanged in real
 arithmetic (the clamp is silent on flat-in-:math:`\mu` fields) but
 **not bit-identical** at IEEE-754: the closure
 :math:`(\overline\psi - (1-\tau)\psi_{\rm in})/\tau` returns
@@ -1278,9 +1345,10 @@ the spatial error drops below it.
 load-bearing physical fact (and a correction to an earlier mislabel):
 the radial direction cosine is :math:`\eta = \sin\theta\,\cos\varphi`,
 so the M-M thread marches in azimuth :math:`\varphi` *per polar
-:math:`\mu`-level*.  Measured at :math:`n_x = 80`:
+:math:`\mu`-level*.  Measured 2026-06-13 at :math:`n_x = 80` on the
+**full** ``NODE_ALIGNED`` product rule:
 
-.. list-table:: Cylinder aniso floor vs azimuthal quadrature (:math:`n_x = 80`, volume-weighted L2)
+.. list-table:: Cylinder aniso floor vs azimuthal quadrature (:math:`n_x = 80`, volume-weighted L2, the pre-Q5.6.3 fixture)
    :header-rows: 1
    :widths: 25 25 50
 
@@ -1298,7 +1366,35 @@ so the M-M thread marches in azimuth :math:`\varphi` *per polar
      - drops :math:`2.38\times`
 
 while :math:`n_\mu` (polar) refinement at fixed :math:`n_\varphi`
-leaves the floor **flat**.
+leaves the floor **flat** (`[M]` 1.90e-2, 1.91e-2, 1.91e-2 at
+:math:`n_\mu = 4/8/16`).
+
+.. note:: **Configuration, 2026-08-11.**  The rule the table above was
+   measured on — the full-circle ``NODE_ALIGNED`` product — is
+   **refused at cylindrical** ``SNMesh`` **admission since Q5.6.3**, so
+   the numbers are correct history for a fixture that no longer ships.
+   The floor moved twice since:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 44 36 20
+
+      * - fixture
+        - :math:`n_\varphi` 8→16
+        - ratio
+      * - `[M]` 2026-06-13, full ``NODE_ALIGNED`` product
+        - 1.90e-2 → 7.37e-3
+        - 2.58×
+      * - `[M]` 2026-08-08, ``folded_product``
+        - 3.538e-3 → 6.782e-4
+        - 5.22×
+
+   The fold's carrying march start alone took the floor down
+   :math:`5.4\times` at :math:`n_\varphi = 8` and *steepened* the
+   azimuthal scaling, before the Q5.6.4 τ work touched anything.  The
+   live ladder is the gate's own docstring
+   (``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``)
+   — read it there rather than trusting a copy on this page.
 
 **Why it is structurally blocked.**  Product and level-symmetric
 quadratures carry **duplicate azimuthal** :math:`\eta`: ordinates come
@@ -1308,26 +1404,72 @@ opposite :math:`\xi` (e.g. :math:`\varphi = \pi/4` and
 :math:`\eta = \sin\theta/\sqrt 2`).  The M-M thread marches in
 :math:`\eta` alone, so a field whose true variation is in the full
 :math:`(\eta, \varphi)` plane is **not threadable exactly** by a 1-D
-:math:`\eta`-march — a structural mismatch, not a tuning problem.  No
-partition (midpoint / cumulative-weight / ordinate-interior) gives
-:math:`\tau^{\rm raw} \in [\tfrac12, 1]` with bounded edges; the
-cumulative-weight partition is exact on level-symmetric but needs
-:math:`\tau^{\rm raw} \in [-4.5, 5.5]` (edges outside the level).
-Closing the cylinder floor requires a genuine 2-D
-:math:`(\eta, \varphi)` angular closure — **out of scope**, tracked by
-`Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_.
+:math:`\eta`-march — a structural mismatch, not a tuning problem.
+Closing the cylinder floor entirely would require a genuine 2-D
+:math:`(\eta, \varphi)` angular closure — still **out of scope**.
+
+.. note:: **Retraction (2026-08-11, Q5.6.4).**  This paragraph used to
+   continue: *"No partition (midpoint / cumulative-weight /
+   ordinate-interior) gives* :math:`\tau^{\rm raw} \in [\tfrac12, 1]`
+   *with bounded edges; the cumulative-weight partition is exact on
+   level-symmetric but needs* :math:`\tau^{\rm raw} \in [-4.5, 5.5]`
+   *(edges outside the level)."*  Two things are wrong with it now.
+
+   #. :math:`[\tfrac12, 1]` **was never a requirement** — it was the
+      retired absorber's box, not the admissible range of :math:`\tau`,
+      which is :math:`[0, 1]` (predicate P3).  The search it describes was
+      for a partition satisfying a condition no reference imposes.
+   #. **A partition satisfying the real predicates exists and shipped**:
+      the :math:`\omega`-midpoint partition
+      (:eq:`angular-cell-partition`) satisfies P3 *as a theorem* on any
+      monotone arc, and P2 then determines :math:`\tau` uniquely.  The
+      cumulative-weight observation survives, sharpened: it fails **P3**
+      (not a :math:`[\tfrac12, 1]` box), with `[M]` 0/4 → 4/8 → 12/16 →
+      28/32 ordinates outside their own cell at
+      :math:`n_\varphi = 8/16/32/64` and a divergent (NaN) solve from
+      :math:`n_\varphi \ge 16`, because an arc cell's
+      :math:`\eta`-measure :math:`\propto \sin\omega_m` is not constant
+      while a trapezoid weight is.
+
+   What survives unchanged is the **azimuthal-duplication argument above**
+   (a 1-D :math:`\eta`-march cannot thread a genuinely 2-D
+   :math:`(\eta,\varphi)` field) — that is a statement about the *march*,
+   independent of which partition the march uses.  Issue #229 is
+   **CLOSED** (2026-06-13); it is the measurement record that named this
+   floor and attributed it to half-angle-thread interpolation, not an open
+   work item.  Full treatment:
+   :ref:`sn-tau-absorber-retirement` in
+   :doc:`/theory/foundations/structured_geometry`.
 
 **The sphere–cylinder asymmetry.**  The sphere DOES have a pre-floor
 :math:`\mathcal{O}(h^2)` window: at S16 the coarse orders clear 1.99 and
 the floor (:math:`\approx 2.9\mathrm{e}{-4}` at S32, :math:`n_x = 160`)
 sits below the segment's finest spatial error, so the clean
 second-order window extends to :math:`n_x = 80` at S32.  The cylinder
-has **no** such window at *any* practical quadrature — even
+has **no** such window at the *shipped* quadratures — even
 :math:`n_\mu = 16` (:math:`N = 512`) reaches only order 1.80 on the
 coarsest :math:`\{5, 10, 20\}` segment before the angular floor
 dominates.  The mathematics, not runtime, is the blocker.
 
-**W3 gate retune (Issue #229).**  Per the vv-principles anti-pattern
+.. warning:: **Do not read "no** :math:`\mathcal{O}(h^2)` **window" as
+   "the cylinder saturates at a floor"** — the two are different claims
+   and the Q5.6.4 probes separated them (2026-08-11).  At the fixed-fine
+   :math:`n_x = 80` used by the floor tables above, the :math:`\approx
+   1.3\mathrm{e}{-4}` that every :math:`\tau` convention "saturated" to
+   at :math:`n_\varphi \ge 32` is the **MESH**, not the closure: `[M]` at
+   :math:`n_\varphi = 128`, refining :math:`n_x` 80 → 320 still drops the
+   error :math:`8.6\times` (:math:`1.3397\mathrm{e}{-4} \to
+   1.5488\mathrm{e}{-5}`).  Conversely at :math:`n_x = 320` (spatial
+   contribution :math:`\le 1.5\mathrm{e}{-5}`) the **angular** error
+   converges at a clean :math:`\sim \mathcal{O}(n_\varphi^{-2})` with no
+   flat floor in range.  ⟹ any number read at
+   :math:`n_\varphi \ge 32,\; n_x = 80` is a MIXED spatial+angular
+   quantity.  The shipped gate's :math:`n_\varphi` 8→16 leg is
+   angular-dominated (:math:`3.5\mathrm{e}{-3} \gg 1.3\mathrm{e}{-4}`)
+   and is therefore sound; the "no window at any quadrature" phrasing was
+   over-general and is narrowed here to the shipped set.
+
+**W3 gate retune (the #229 retune).**  Per the vv-principles anti-pattern
 "a claim that cannot hold MUST NOT be asserted; pin what IS true
 instead", W3 removed all five aniso xfail markers and migrated the six
 equation labels to green tests:
@@ -1630,16 +1772,24 @@ machinery:
    * - Primitive
      - Status
      - Why kept / what changed
-   * - Spherical :math:`\tau_m^{\rm raw}` (unclamped)
+   * - Spherical :math:`\tau_m` (unclamped)
      - **production**
-     - W1: the unique exact-on-linear weight; single-sourced in
-       :func:`~orpheus.geometry.reduced_operator.spherical_streaming`,
-       inherited by SI sweep + Krylov matvec.
+     - W1: the unique exact-on-linear weight.  ⚠ **Ownership moved after
+       W1** — #236 Step C excised the geometry-side τ producer, so τ is
+       now single-sourced in the *angular closure*
+       (:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`),
+       not in
+       :func:`~orpheus.geometry.reduced_operator.spherical_streaming`;
+       SI sweep + Krylov matvec still inherit one value.
    * - Cylindrical :math:`\tau_m` clamp
-     - **production**
-     - Retained — the :math:`\tau^{\rm raw} = 0` structural
-       :math:`\div 0` block; removing it needs a 2-D
-       :math:`(\eta,\varphi)` closure (#229).
+     - ⛔ **retired** (Q5.6.4, 2026-08-11)
+     - Was retained here as the :math:`\tau = 0` structural
+       :math:`\div 0` block, "removable only with a 2-D
+       :math:`(\eta,\varphi)` closure".  Both clauses fell: Q5.6.3 made
+       the :math:`\tau = 0` rule classes inadmissible, and Q5.6.4 found
+       the absorber was compensating a **wrong cell partition**, not a
+       singularity.  Retired with ``morel_montry_tau_raw_per_level``; see
+       :ref:`sn-tau-absorber-retirement`.
    * - Pole-cell characterization gate
      - **regression net**
      - Pins the inherent :math:`\mathcal{O}(h)` pole limitation
@@ -1665,13 +1815,24 @@ Open research paths (research-tag, not production-blocking)
    pole-cell per-cell rate under the shell-average reference, holding
    quadrature fixed.
 #. **2-D** :math:`(\eta, \varphi)` **cylinder angular closure** (lifts
-   the #229 cylinder floor).  The 1-D :math:`\eta`-thread cannot
-   represent the duplicate-azimuthal-:math:`\eta` variation of product /
-   level-symmetric quadratures; a genuine 2-D angular closure (or a
-   Gauss-type azimuthal quadrature with distinct :math:`\eta` values,
-   GitHub Issue #1) is required.  Likely probe: the floor-scaling table
-   above with the azimuthal quadrature replaced by a distinct-:math:`\eta`
-   set.
+   the cylinder floor measured in #229).  The 1-D :math:`\eta`-thread
+   cannot represent the duplicate-azimuthal-:math:`\eta` variation of
+   product / level-symmetric quadratures; a genuine 2-D angular closure
+   (or a Gauss-type azimuthal quadrature with distinct :math:`\eta`
+   values, GitHub Issue #1) is required.  Likely probe: the floor-scaling
+   table above with the azimuthal quadrature replaced by a
+   distinct-:math:`\eta` set.
+
+   ⚠ **Two things this path is NOT, both settled since it was written.**
+   (a) It is no longer a *prerequisite* for retiring the cylinder clamp —
+   Q5.6.4 did that with a 1-D :math:`\omega`-march by fixing the cell
+   partition (:eq:`angular-cell-partition`).  (b) The duplicate-azimuthal
+   rule classes it describes are **inadmissible** at cylindrical
+   ``SNMesh`` since Q5.6.3; the shipped ``folded_product`` is a σ_y
+   quotient whose levels are monotone half-circle arcs, so the residual
+   floor to be lifted is the one measured on *that* fixture
+   (`[M]` 3.538e-3 → 6.782e-4 at :math:`n_\varphi` 8→16), not the
+   1.9e-2 of the retired full-circle rule.
 
 Session trail (V&V audit trail)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

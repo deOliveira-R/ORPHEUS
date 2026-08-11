@@ -850,13 +850,14 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **532** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **533** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
 - ``affine-true-error``
 - ``affine-typed-residual-eq``
+- ``angular-cell-partition``
 - ``angular-windowing-aniso-factoring``
 - ``angular-windowing-moment-iterate``
 - ``angular-windowing-moment-projection``
@@ -1105,7 +1106,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``moc-scalar-flux-reconstruction``
 - ``mode-conservation-target``
 - ``moment-projection-transpose-T``
-- ``morel-montry-clamp``
+- ``morel-montry-closure``
 - ``morel-montry-folded-arc``
 - ``multiplication-operator-action``
 - ``multiplication-operator-embedding``
