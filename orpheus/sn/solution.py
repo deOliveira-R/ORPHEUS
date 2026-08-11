@@ -142,6 +142,39 @@ class IterationHistory:
         a physics output rather than a stopping criterion: what the outer
         stop test reads is its per-iteration INCREMENT, which lives in the
         record under the name the solver gave it (``dk``).
+    balance_defect : float or None
+        The returned iterate's **relative per-group neutron-balance
+        defect**, :math:`\lVert R_g\rVert / \lVert Q_g\rVert` with
+        :math:`R_g = \int_V \int_{4\pi} (A\psi - q)\, d\Omega\, dV` — see
+        :func:`~orpheus.sn.solver._exit_balance_defect`.
+
+        ``None`` in five cases, and they mean different things.  Three are
+        "there is nothing to report": the tree **fully converged** (the
+        within-group certificate has already asserted the residual, so no
+        forward apply is spent here), the **source integrates to zero** so
+        the ratio is undefined, or a **moment-tailed (LD) scheme** whose
+        residual the mint cannot express at all.  Two are open work, each
+        named at its call site: a **carrying (curvilinear) mesh** at
+        :func:`~orpheus.sn.solver.solve_sn`, where a bare System-A residual
+        would omit :math:`r_B` (`#354`), and the **daggered eigenvalue
+        entry** :func:`~orpheus.sn.solver.solve_sn_adjoint` (`#353`).
+
+        ⟹ ``None`` therefore means *"not measured"*, never *"measured and
+        small"*.  Do not read it as a clean bill of health.
+
+        A **field, like** :attr:`keff_history` **and for the same reason**:
+        it is a measured physics output, not a stopping criterion, and the
+        rule this type enforces is that no convergence VERDICT may be
+        stored.  Every verdict below is still derived from
+        :attr:`record`; this is data the record never saw, because it is a
+        property of the returned ITERATE rather than of any iteration
+        level (#340 N6b).
+
+        ⚠ It is a **diagnostic magnitude, never a threshold.** `[M]` the
+        benign and corrupting populations overlap 4.64×, which is a real
+        signal and still an overlap — a gate that branches on this number
+        will be wrong in both directions.  The refuted attempt to make it
+        a gate is #340 N5.
 
     Notes
     -----
@@ -161,6 +194,7 @@ class IterationHistory:
 
     record: "IterationRecord"
     keff_history: tuple[float, ...] = ()
+    balance_defect: float | None = None
 
     # ── the verdict, derived ─────────────────────────────────────────────
 

@@ -1109,3 +1109,198 @@ class TestEveryEntryStampsItsCallerFacingKnob:
                 f"{row_id}: an inner level is governed by max_inner, not "
                 f"{child.budget_name!r}"
             )
+
+
+# ─── The exit balance projection (#340 N6b step 2) ───────────────────────
+
+
+@pytest.mark.foundation
+class TestExitBalanceDefect:
+    r"""The number the warning reports, and what it is allowed to claim.
+
+    :math:`R_g = \int_V \int_{4\pi} (A\psi - q)_g \, d\Omega \, dV`,
+    reported as :math:`\lVert R_g \rVert / \lVert R_g(q) \rVert`.  It exists
+    because the RAW residual cannot discriminate — `[M]` #340 N5 measured a
+    634× overlap between benign and corrupting truncations, missing 15 of 16
+    — while projecting onto the functional :math:`k` actually reads cuts
+    that to 4.64×.
+
+    ⚠ **4.64× is still an overlap, so nothing here asserts a THRESHOLD.**
+    These rows pin the arithmetic, the plumbing and the message; the one
+    thing they deliberately never do is assert that a defect above some
+    value means the answer is wrong.  A gate that did would be the refuted
+    N5 wearing a different name.
+    """
+
+    def test_the_projection_is_angle_then_volume(self) -> None:
+        """Arithmetic, against a reference written independently here.
+
+        Production composes two canonical reductions
+        (``AngularField._integrate_angular_values`` then
+        ``MaterialMesh.integrate_per_group``); this row re-expresses the
+        same definition as one explicit ``einsum`` over the weights and
+        volumes, so a transposed axis or a dropped measure has nowhere to
+        hide.  Not a tolerance check — the two spellings are the same
+        arithmetic and are expected to agree to a few ULP.
+        """
+        from orpheus.sn.solver import _balance_projection
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
+            sol = _starved_inner_converged_outer()
+        sn_mesh = sol.mesh
+        field = sol.angular_flux
+
+        produced = _balance_projection(field, sn_mesh=sn_mesh)
+
+        values = np.asarray(field.interior.values)      # (N, ng, *spatial)
+        weights = np.asarray(sn_mesh.quad.weights)      # (N,)
+        volumes = np.asarray(sn_mesh.volumes)           # spatial
+        # An explicit double loop, not a vectorised restatement: the thing
+        # most likely to be wrong is an AXIS, and a loop indexed by name
+        # cannot inherit production's axis convention the way a clever
+        # `einsum` can.
+        reference = np.array([
+            sum(
+                float(weights[n]) * float(np.sum(values[n, g] * volumes))
+                for n in range(values.shape[0])
+            )
+            for g in range(sn_mesh.ng)
+        ])
+        assert produced.shape == (sn_mesh.ng,)
+        np.testing.assert_allclose(
+            produced, reference, rtol=1e-13,
+            err_msg="R_g must be Σ_n w_n Σ_i V_i x[n, g, i]",
+        )
+
+    def test_a_truncated_eigenvalue_solve_CARRIES_the_number(self) -> None:
+        """End to end: the field is populated and the message quotes it.
+
+        The two halves are one row on purpose — a populated field the
+        message never prints, or a printed number the caller cannot read
+        back, would each satisfy half the deliverable and neither is the
+        deliverable.
+        """
+        with pytest.warns(ConvergenceWarning) as caught:
+            sol = _starved_inner_converged_outer()
+
+        assert sol.history is not None
+        defect = sol.history.balance_defect
+        assert defect is not None, (
+            "a truncated eigenvalue exit must carry the balance defect"
+        )
+        assert np.isfinite(defect) and defect >= 0.0
+
+        msg = str(caught[0].message)
+        assert f"{defect:.3e}" in msg, (
+            "the message must quote the number the history carries — not a "
+            "separately-formatted one that could drift from it"
+        )
+        assert "DIAGNOSTIC" in msg and "NOT a verdict" in msg, (
+            "the number must be labelled: it overlaps, so a reader who "
+            "thresholds it will be wrong in both directions"
+        )
+
+    def test_it_is_its_OWN_sentence_not_the_failing_level_s(self) -> None:
+        """⭐ The pairing claim — the defect belongs to the RETURNED iterate.
+
+        ``first_failure`` is children-first, so on an eigenvalue solve every
+        other number in the message belongs to outer-iteration ONE's inner,
+        while the defect is measured on the LAST iterate.  Both are real;
+        presenting them as one level's facts is the "every number real,
+        every pairing wrong" defect N6a removed.  So the defect must appear
+        in a sentence whose subject is the iterate, and must NOT sit inside
+        the ``hit <knob>=<budget> …`` clause.
+        """
+        with pytest.warns(ConvergenceWarning) as caught:
+            sol = _starved_inner_converged_outer()
+        assert sol.history is not None
+        msg = str(caught[0].message)
+        defect_text = f"{sol.history.balance_defect:.3e}"
+
+        head, _, tail = msg.partition("Returning a BEST-EFFORT iterate")
+        assert defect_text not in head, (
+            "the defect must not appear in the failing LEVEL's clause — "
+            "that clause's numbers are the starved inner's, and this one "
+            "is the returned iterate's"
+        )
+        assert "The returned iterate leaves" in tail and defect_text in tail
+
+    def test_a_CARRYING_mesh_warns_WITHOUT_a_number(self) -> None:
+        """⛔ The curvilinear exemption, pinned so it cannot drift silently.
+
+        ``evaluate_residual`` REFUSES a bare System-A residual on a mesh
+        with starting-direction levels, because it would omit ``r_B``.  The
+        ``solve_sn`` exit assembles exactly that bare shape, so on a
+        carrying mesh it reports no number — deliberately, and tracked as
+        #354.
+
+        ⭐ This row exists because the omission was found by a suite run,
+        not by review: `[M]` 2026-08-10 the first wiring took the slice
+        from 9 to **25** reds, all 16 new ones curvilinear solves raising
+        out of ``evaluate_residual``.  Nothing in review caught it because
+        ``_certify_within_group_exit`` calls the same function on the same
+        meshes and never hits it — it is guarded on ``record.converged``
+        and returns early on precisely the truncated solves this runs on.
+        The complement of a guard reaches states its partner never visits.
+
+        Both halves are asserted: the solve is still AUDIBLE (the omission
+        must cost the number, never the warning), and the number is absent
+        rather than wrong.
+        """
+        from orpheus.geometry import Mesh1D, Region, RegionMesh, StructuredGeometry
+
+        geom = StructuredGeometry(
+            geometry="SPH",
+            regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
+            bcs=(BC.reflective,),
+        )
+        mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=20),))
+        with pytest.warns(ConvergenceWarning) as caught:
+            sol = solve_sn(
+                {0: get_mixture("A", "2g")}, mesh,
+                Quadrature.gauss_legendre(n_ordinates=8),
+                inner_solver="source_iteration",
+                max_outer=3, max_inner=4, inner_tol=1e-12,
+                keff_tol=1e-10, flux_tol=1e-9,
+            )
+        assert sol.mesh.radial_characteristic_field_space is not None, (
+            "fixture drift: this row needs a CARRYING mesh, or it is "
+            "silently re-testing the Cartesian path"
+        )
+        assert sol.history is not None
+        assert sol.history.fully_converged is False
+        assert sol.history.balance_defect is None, (
+            "a bare System-A residual on a carrying mesh would omit r_B; "
+            "the exit must report no number rather than a partial one (#354)"
+        )
+        assert "balance defect" not in str(caught[0].message), (
+            "no number ⟹ no clause — an 'unavailable' string would read as "
+            "a measurement to anyone skimming"
+        )
+
+    def test_a_CONVERGED_solve_neither_WARNS_nor_PAYS(self) -> None:
+        """No warning, no number — and the second half is the cost claim.
+
+        ``_exit_balance_defect`` returns ``None`` on a fully-converged tree
+        BEFORE evaluating anything, so the happy path keeps exactly the
+        cost it had before N6b.  That guard is the complement of
+        ``_certify_within_group_exit``'s: the certificate fires when the
+        solve claimed convergence and asserts, this fires when it did not
+        and reports, and no solve pays for both forward applies.
+
+        ⚠ ``balance_defect is None`` is therefore load-bearing, not
+        incidental — a change that computed it unconditionally would leave
+        every assertion here green while silently adding a forward apply
+        to every converged solve in the suite.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", ConvergenceWarning)
+            sol = _fixed_source(max_inner=2000)
+        assert sol.history is not None
+        assert sol.history.fully_converged is True
+        assert sol.history.balance_defect is None, (
+            "a converged exit is CERTIFIED, not diagnosed — reporting a "
+            "defect here means the guard was dropped and every converged "
+            "solve is now paying for a residual it does not need"
+        )

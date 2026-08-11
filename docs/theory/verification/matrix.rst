@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9492**
+Total tests collected: **9498**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1309, 13.8%
+   L0, 1310, 13.8%
    L1, 1617, 17.0%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6497, 68.4%
+   foundation, 6502, 68.5%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9408
+   explicit, 9414
    class-name, 46
    func-name, 0
    case, 33
@@ -409,7 +409,7 @@ Module × level grid
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 55, 0
    operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
-   operators/test_solver_components, 27, 0, 0, 0, 0, 0
+   operators/test_solver_components, 28, 0, 0, 0, 0, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
    operators/test_streaming_collision_operator, 1, 10, 0, 0, 20, 0
@@ -445,7 +445,7 @@ Module × level grid
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
-   solve/test_convergence_contract, 0, 0, 0, 0, 44, 0
+   solve/test_convergence_contract, 0, 0, 0, 0, 49, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
@@ -841,9 +841,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **1** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **2** of the testable equations found on theory pages are orphan.
 
 - ``quadrature-sphere-monomial``
+- ``sn-exit-balance-defect``
 
 Documented-only equations
 -------------------------

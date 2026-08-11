@@ -1236,3 +1236,50 @@ discipline that saved it was verification, not caution);
 `.claude/rules/process-discipline.md` (mutation-testing an uncommitted file:
 never `git checkout` to revert — this adds *never mutate silently beside a live
 agent*).
+
+---
+
+## L39 — The COMPLEMENT of a guard reaches the states its partner never visits (2026-08-10)
+
+`[M]` #340 N6b step 2. `_certify_within_group_exit` had been calling
+`evaluate_residual` on every mesh in the suite for months, guarded on
+`record.converged`. The new exit diagnostic was written as its deliberate
+complement — same operator, same iterate, same rhs shape, guarded on
+`not record.fully_converged` — on the reasoning that a call already proven safe
+under one guard is safe under the other.
+
+It is not. `evaluate_residual` REFUSES a bare System-A residual on a mesh that
+carries starting-direction levels (it would silently omit `r_B` — the Mode-12
+blindness the split-residual mint exists to prevent). The certificate had never
+met that refusal, because on curvilinear meshes the truncated solves are exactly
+the ones it returns early from. **The complement inherits the partner's code
+path and NONE of its field coverage.** The slice went **9 → 25** reds, all 16
+new ones curvilinear.
+
+> **Rule: when you add a consumer as the complement of an existing guard, its
+> preconditions are UNVERIFIED for your call, however long the partner has run.
+> Enumerate the callee's own refusals — read its guard clauses, not just its
+> signature — and ask which of them the partner's guard has been hiding.**
+
+Three things make this worth its own entry rather than a footnote:
+
+1. **It is invisible to review by construction.** "This exact call already
+   exists twenty lines up and has run for months" is a *true* statement that
+   points the wrong way. The diff shows a duplicated call; what changed is the
+   set of states it runs in, which the diff cannot show.
+2. **The tell is available for free, before any run** — the callee raises, and
+   its `raise` sites enumerate its preconditions. One read of
+   `evaluate_residual`'s guards would have surfaced both the LD refusal (which
+   an agent DID find, because it is documented in the partner's docstring) and
+   the carrying-mesh refusal (which nobody found, because it is not).
+   ⭐ A precondition documented only in the *callee's* raise is exactly the one a
+   partner's docstring will not warn you about.
+3. **Guard-complementarity is otherwise a GOOD pattern** and this is not an
+   argument against it. The certificate asserts when convergence was claimed,
+   the diagnostic reports when it was not; no solve pays for both applies. Keep
+   the shape — just do not let "complementary guards" read as "shared coverage".
+
+Cross-reference: `vv-principles` #17 (verify the instrument on a known positive
+before trusting a negative — here the instrument was the *reasoning*, and the
+known positive was a mesh class the partner never reached); `[[lessons-L30]]`
+(same data, different operation — its sibling: same call, different states).

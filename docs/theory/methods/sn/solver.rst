@@ -721,16 +721,76 @@ of them silent.
 widening was scheduled to ride an *outer residual certificate* that would
 separate a truncation which corrupted the answer from one that did not.  `[M]`
 that certificate was **refuted by measurement**: the benign and corrupting
-populations overlap **634×** and it misses 15 of 16 corrupting cases.
-Projecting the residual onto the functional :math:`\keff` actually reads — the
-per-group balance defect — cuts the overlap to **4.64×**, which is a genuine
-signal and still an overlap, so it ships as a reported NUMBER and never as a
-threshold.  The ruling that followed was to widen the guard *unconditionally*:
-a truncation the caller has not declared is worth saying out loud whether or
-not we can yet say what it cost.  The 20 silent tests were adjudicated in the
-same change — 10 declare the truncation as their fixture and suppress this one
-category in-test, 10 are audible on purpose and tracked with measured budgets
-in `#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
+populations overlap **634×** and it misses 15 of 16 corrupting cases.  The
+ruling that followed was to widen the guard *unconditionally* — a truncation
+the caller has not declared is worth saying out loud whether or not we can yet
+say what it cost.  The 20 silent tests were adjudicated in the same change —
+10 declare the truncation as their fixture and suppress this one category
+in-test, 10 are audible on purpose and tracked with measured budgets in
+`#352 <https://github.com/deOliveira-R/ORPHEUS/issues/352>`_.
+
+The balance projection
+----------------------
+
+The refutation left a real question standing — *how much did this truncation
+cost?* — and the answer the warning carries is the **per-group neutron-balance
+defect of the returned iterate**, reported on
+:attr:`~orpheus.sn.solution.IterationHistory.balance_defect`:
+
+.. math::
+   :label: sn-exit-balance-defect
+
+   R_g \;=\; \int_V \int_{4\pi} \bigl(A\psi - q\bigr)_g \, d\Omega \, dV,
+   \qquad
+   \text{reported as } \;\frac{\lVert R_g \rVert}{\lVert R_g(q) \rVert}
+
+**Why the projection and not the residual norm** — and the reason is
+structural, not statistical.  Up to **99.995 %** of :math:`\lVert r \rVert` is
+reflective-trace rows, and a reflective inflow-trace defect in a zero-leakage
+system carries **no net current**, so a balance-based :math:`\keff` is blind
+to it *by conservation*; `[M]` the transfer gain
+:math:`\lvert\Delta k\rvert / \text{defect}` spans **1.16 × 10⁵**.  Integrating
+over angle and volume annihilates exactly those rows, because that is the
+functional :math:`\keff` itself reads.  `[M]` the overlap falls **634× →
+4.64×**.
+
+.. warning::
+
+   **4.64× is still an overlap.  This is a diagnostic magnitude, never a
+   threshold.**  Do not branch on it, and do not assert on it in a test — a
+   gate that did would be the refuted certificate wearing a different name.
+   It is reported so a reader who has been told their solve truncated can
+   weigh how much that is likely to have cost.
+
+   ⛔ Nor can it be sharpened with a cheap adjoint: `[M]` a spatially-flat
+   0-D weight makes it **worse**, 4.64× → **128.95×**, because a signed
+   projection against a wrong weight manufactures near-cancellations, i.e.
+   false negatives.  The weighting channel already exists
+   (:meth:`IntegratedReactionRate.evaluate` takes ``adjoint=``); what a real
+   gate needs is the adjoint *solve*
+   (`#350 <https://github.com/deOliveira-R/ORPHEUS/issues/350>`_).
+
+It is computed **only on the exit that warns** — the exact complement of the
+within-group certificate, which fires when the solve *claimed* convergence and
+raises.  One equation, two verbs, complementary guards, so no solve pays for
+both forward applies and the converged path costs what it always did.  `[M]`
+one residual evaluation is ≈ 3 inner iterations, i.e. **0.72 %** of a
+400-iteration truncated solve.
+
+Two entries report ``None`` rather than a number, and the omission is silent
+by design — an empty clause cannot be misread as a measurement:
+
+* **Moment-tailed (LD) schemes**, on both fixed-source arms: the residual mint
+  does not admit the trailing :math:`2^d` spatial-moment axis, so no residual
+  exists to project.  This is the same un-built widening the within-group
+  certificate already exempts (#310's deferred-out list), reached through one
+  shared predicate rather than two copies of the test.
+* **The daggered eigenvalue entry** ``solve_sn_adjoint``: the rhs
+  :math:`F^\dagger\psi^*/k` would have to be assembled for the first time
+  here, and N5's population is forward-only — so there is no reference against
+  which a plausible number could be checked.  Deferred deliberately as
+  `#353 <https://github.com/deOliveira-R/ORPHEUS/issues/353>`_ rather than
+  guessed.
 
 It is a warning rather than an exception by the ERR-053
 precedent (legitimate callers harvest the residual history of a

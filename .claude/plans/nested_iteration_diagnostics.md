@@ -263,7 +263,7 @@ makes the uncovered tail cheap — it tells that user the number.
 | N4 | CP / MoC / diffusion carry it (F6) | their own smokes |
 | N5 | Outer certificate (F7/F7′) — residual `(A - F/k)psi` at exit | mutation battery |
 | **N6a** | **The warning speaks for the level that FAILED** — see §N6. Found 2026-08-10 by existence-checking this plan's own Done-when; it is NOT in the original decomposition because the original assumed the report was the hard part and the delivery was free | G1–G9 + a 12-mutation battery |
-| **N6b** | The guard widens to `fully_converged` — ⛔ NO LONGER rides N5 (refuted; see §N5), widened UNCONDITIONALLY per the 2026-08-10 ruling. ✅ guard + `Solution.converged()` + the R2 declarations LANDED; the balance projection (step 2) remains | the `xfail(strict=True)` marker XPASSes — ✅ it did, and the row is now an ordinary passing gate carrying the retired sibling's fixture-drift assertions |
+| **N6b** | ✅ **COMPLETE.** The guard widens to `fully_converged` — ⛔ NO LONGER rides N5 (refuted; see §N5), widened UNCONDITIONALLY per the 2026-08-10 ruling — plus `Solution.converged()`, the R2 declarations, and the balance projection as a reported NUMBER at 4 of 5 entries (#353 is the fifth) | the `xfail(strict=True)` marker XPASSes — ✅ it did, and the row is now an ordinary passing gate carrying the retired sibling's fixture-drift assertions; the projection adds 5 rows, `[M]` 4/4 mutations caught |
 
 ⭐ **N6 splits for the same reason N2 did, and it is worth naming the pattern:
 retention/reporting must precede the decision that consumes it.** N2a had to
@@ -805,8 +805,63 @@ report the balance projection.*
 and carries the one statistic that actually correlates with the error the
 caller cares about, labelled as a diagnostic rather than a verdict.
 
-**Means.** ✅ Steps 3, 1 and 4 LANDED 2026-08-10 (step 3 as `5b766861`;
-steps 1 + 4 in the commit that follows it). Step 2 remains.
+**Means.** ✅ **ALL FOUR STEPS LANDED 2026-08-10.** Step 3 `5b766861`;
+steps 1 + 4 `28435e11`; step 2 in the commit following `a6fd7a08` (with its
+two prerequisites, `b0137171` + `a6fd7a08`, naming and relocating the
+per-group volume integral).
+
+⭐ **Step 2's shape, as built, differs from the sketch above in four ways —
+each forced by a measurement, and each recorded where it was decided:**
+
+1. **It is computed ONLY on the exit that warns**, guarded on
+   `record.fully_converged` inside the helper. That makes it the exact
+   complement of `_certify_within_group_exit` — one equation, two verbs
+   (the certificate *asserts* when convergence was claimed; this *reports*
+   when it was not), complementary guards, so no solve pays for both
+   forward applies and the converged path costs what it always did. The
+   first draft computed it unconditionally and would have added ≈3 inner
+   iterations to **every** solve in the suite.
+2. **Four of five sites, not five.** `solve_sn_adjoint` is deferred as
+   **#353**, deliberately: its rhs `F†ψ*/k` would be assembled for the
+   first time there (crossing the affine-torsor rules for scaling a field),
+   and N5's population is forward-only, so nothing could check the answer.
+   ⛔ The plan's "all five sites can compute it" is true of *scope* and was
+   never a claim that all five can be VERIFIED.
+3. **The LD exemption is one named predicate**, `_residual_is_expressible`,
+   not a second copy of `spatial_basis_per_axis > 1`. Two consumers now
+   share it.
+4. **`integrate_per_group` ended up on `MaterialMesh`**, not `SNSolver` —
+   three of the sites hold a mesh and no solver, and `DiffusionMesh` is the
+   same base.
+
+`[M]` **the production number is BIT-IDENTICAL to
+`scratch/n5_outer_cert_lib.py`** at `max_inner ∈ {20, 50, 200}`
+(`1.442216725327e-05`, `4.679802010559e-07`, `5.431351248689e-08`,
+`rel_diff = 0.000e+00`). That is the check that matters: the 4.64× overlap
+was measured with the prototype's arithmetic, so a production number that
+differed would have silently voided every claim resting on it.
+
+⛔ **A FIFTH difference, found by the suite and not by review — and it is
+the most instructive thing this step produced.** The first wiring took the
+slice from **9 → 25** reds. All 16 new ones were curvilinear solves raising
+`ValueError: evaluate_residual: this mesh carries starting-direction
+levels`: the function REFUSES a bare System-A residual on a carrying mesh
+because it would omit `r_B`, and the `solve_sn` exit assembles exactly that
+bare shape. Exempted (→ **#354**, which also records what closing it needs:
+the coupled rhs through `_coupled_source_state`), and pinned by a row that
+asserts the solve is still audible while the number is absent.
+
+⟹ The generalisable half is now `[[lessons-L39]]`: **the complement of a
+guard reaches the states its partner never visits.** `_certify_within_group
+_exit` had made this identical call on these identical meshes for months —
+and never met the refusal, because it returns early on precisely the
+truncated curvilinear solves the new diagnostic runs on. "This call already
+exists twenty lines up" is true and points the wrong way; the diff shows a
+duplicated call, and what changed is the state set, which a diff cannot
+show. The scope agent found the LD refusal (documented in the partner's
+docstring) and missed this one (documented only in the callee's `raise`) —
+which is the sharp form: **a precondition living only in the callee's raise
+is exactly the one the partner's docstring will not warn you about.**
 
 ⭐ **Step 1 grew a fifth deliverable that the plan did not anticipate, and it
 was the same defect at a more user-facing surface.** `Solution.converged()`

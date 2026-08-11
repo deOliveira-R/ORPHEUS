@@ -240,7 +240,12 @@ def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
 
 def evaluate_residual(
     loss_op: "LinearOperator",
-    psi: "TimedFullField | CoupledField",
+    # ``FullField``, not ``TimedFullField``: the rolling-window history is
+    # irrelevant to a single apply, and the #340 N6b exit defect evaluates
+    # this on a reconstruction sweep's bare output.  Widened to the type
+    # the body actually requires (``TimedFullField`` is a subclass, so
+    # every existing caller still type-checks).
+    psi: "FullField | CoupledField",
     q_ext: "FullField | CoupledField",
 ) -> "FullField | CoupledField":
     r"""The typed equation residual :math:`r = A\,\psi - q`, per system.
@@ -583,10 +588,27 @@ def _warn_if_unconverged(
             f"{projected} iterations: set {budget_name}={projected}. Or read"
         )
 
+    # ⭐ Its OWN sentence, with its own subject, and deliberately not folded
+    # into the clause above.  Every other number in this message belongs to
+    # ``failing`` — the level ``first_failure`` named, which on an eigenvalue
+    # solve is outer-iteration ONE's inner.  The balance defect belongs to
+    # the RETURNED ITERATE, i.e. the last one.  Both are real; appending it
+    # to the failing level's clause would read as one level's facts and be
+    # the exact "every number real, every pairing wrong" defect N6a removed.
+    # Absent (LD schemes, zero source) it says nothing rather than
+    # "unavailable" — an empty clause cannot be misread as a measurement.
+    balance = (
+        "" if history.balance_defect is None else
+        f"The returned iterate leaves a per-group balance defect of "
+        f"‖R_g‖/‖Q_g‖ = {history.balance_defect:.3e} — a DIAGNOSTIC "
+        f"magnitude, NOT a verdict: it tracks the error in keff better than "
+        f"the raw residual does, but benign and corrupting solves overlap, "
+        f"so weigh it and do not threshold it. "
+    )
     warnings.warn(
         f"{where}: {level}hit {budget_name}={budget}{against} "
         f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
-        f"not the converged answer. {advice} "
+        f"not the converged answer. {balance}{advice} "
         # ``fully_converged``, not ``converged``: this warning now fires for
         # ANY level, and on a starved-inner solve the flat ``converged`` reads
         # True — so the old text sent the reader to the one predicate that
@@ -597,6 +619,192 @@ def _warn_if_unconverged(
         ConvergenceWarning,
         stacklevel=3,
     )
+
+
+def _residual_is_expressible(sn_mesh: "SNMesh") -> bool:
+    r"""Can this mesh's iterate be turned into a typed equation residual?
+
+    ``False`` for a **moment-tailed (LD) scheme**: the residual mint
+    (:class:`~orpheus.transport.residuals.AngularResidual` ``from_balance``)
+    does not admit the trailing ``2^d`` spatial-moment axis, so
+    :func:`evaluate_residual` raises rather than returning a field.  That
+    is an un-built widening of the residual family, NOT a threat gap — the
+    carrying production family is DD — and it lands with the LD residual
+    carve (#310's deferred-out list).
+
+    Named because TWO consumers need the same precondition and must not
+    drift apart: :func:`_certify_within_group_exit` (which skips its
+    correctness assertion) and :func:`_exit_balance_defect` (which reports
+    no number).  Spelled inline in the first until 2026-08-10; the second
+    would have been a second copy of the same `> 1` test, one rename away
+    from disagreeing about which schemes are exempt.
+    """
+    return sn_mesh.scheme.spatial_basis_per_axis == 1
+
+
+def _angular_moment_values(
+    field: "FullField | TimedFullField | CoupledField",
+) -> np.ndarray:
+    r"""The zeroth angular moment of a composite's bulk, as a raw array.
+
+    :math:`\phi_g(\mathbf{r}) = \sum_n w_n \, x[n, g, \mathbf{r}]`, shape
+    ``(ng, *spatial)``.  :func:`_system_a_member` handles the coupled/bare
+    split first, so a carrying mesh's
+    :class:`~orpheus.numerics.coupled_system.CoupledField` reduces its
+    System A member.
+
+    ⚠ **The private ``_integrate_angular_values`` is reached deliberately,
+    and the reason is a real gap rather than convenience.**  It is the ONE
+    angular-reduction body, but only two of the four angular ROLES wrap it
+    in a public ``integrate_angular`` — the two that have a scalar sibling
+    TYPE to return.  A residual and a source-sink have none, and minting
+    ``ScalarResidual`` for a single consumer fails the type-vs-property
+    test (one realization, no non-identity morphism applied).  The only
+    alternative is hand-rolling ``tensordot(w, x)``, which is a second
+    spelling of a body whose whole purpose is being single — strictly
+    worse.  If a third consumer ever wants this, promote the base method
+    rather than adding a third caller of the private one.
+
+    The narrowing below is not defensive: ``FullField.interior`` is typed
+    as the broader ``BulkField``, and the angular reduction is exactly what
+    distinguishes a BALANCE projection from a bare volume integral.  A
+    moment-tailed interior can only arrive here if
+    :func:`_residual_is_expressible` was widened without widening this, so
+    the error names that rather than dying on a missing attribute.
+    """
+    from orpheus.transport.fields._bases import AngularField
+
+    interior = _system_a_member(field).interior
+    if not isinstance(interior, AngularField):
+        raise TypeError(
+            f"_angular_moment_values needs a per-ordinate interior to "
+            f"integrate over angle; got {type(interior).__name__}. If the "
+            f"residual mint has grown a moment-tailed arm, this reduction "
+            f"needs its matching angular counterpart before anything can "
+            f"report on one."
+        )
+    return np.asarray(interior._integrate_angular_values())
+
+
+def _balance_projection(
+    field: "FullField | TimedFullField | CoupledField", *, sn_mesh: "SNMesh",
+) -> np.ndarray:
+    r"""Project a per-ordinate field onto the per-group BALANCE functional.
+
+    .. math::
+
+        R_g \;=\; \int_V \int_{4\pi} x(\mathbf{r}, \mathbf{\Omega})_g
+                  \, d\Omega \, dV
+              \;=\; \sum_n w_n \sum_i V_i \, x[n, g, i]
+
+    Angle first (the quadrature weights), then space (the cell volumes) —
+    returning ``(ng,)``, a rate per group.  Both reductions are the
+    canonical ones: the angular contraction is
+    ``AngularField._integrate_angular_values`` (the ONE reduction body,
+    shared with :meth:`AngularFlux.integrate_angular`) and the spatial one
+    is
+    :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.integrate_per_group`.
+
+    ⚠ **The private access is deliberate.** Only two of the four angular
+    ROLES ship a public ``integrate_angular`` — the ones with a scalar
+    sibling type to wrap the result in.  A residual and a source-sink have
+    none, and minting ``ScalarResidual`` for this single consumer would
+    fail the type-vs-property test (one realization, no non-identity
+    morphism).  The alternative is hand-rolling ``tensordot(w, x)``, which
+    is a second spelling of a body whose whole point is being single.  So:
+    reach for the shared body, and say why.
+
+    :func:`_system_a_member` handles the coupled/bare split — on a carrying
+    mesh the driver state is a
+    :class:`~orpheus.numerics.coupled_system.CoupledField` whose System A
+    member is the composite this projects.
+    """
+    return sn_mesh.integrate_per_group(_angular_moment_values(field))
+
+
+def _exit_balance_defect(
+    loss_op: "LinearOperator",
+    psi: "FullField | TimedFullField | CoupledField",
+    q: "FullField | CoupledField",
+    *,
+    sn_mesh: "SNMesh",
+    record: IterationRecord,
+) -> float | None:
+    r"""The returned iterate's RELATIVE per-group neutron-balance defect.
+
+    .. math::
+
+        \frac{\lVert R_g(A\psi - q)\rVert}{\lVert R_g(q)\rVert},
+        \qquad
+        R_g(x) = \int_V \int_{4\pi} x_g \, d\Omega \, dV
+
+    A dimensionless magnitude: the net per-group imbalance the returned
+    iterate leaves in its own equation, as a fraction of the per-group
+    source rate.
+
+    ⭐ **The exact complement of :func:`_certify_within_group_exit`, and
+    the pair is deliberate.**  Both take a ``record`` and one forward
+    apply; the certificate fires when the solve CLAIMED convergence and
+    *asserts* (raising on a defect beyond ``_CERTIFICATE_SAFETY × tol``),
+    this fires when it did not and *reports*.  One equation, two verbs,
+    complementary guards — so no solve pays for both, and the happy path
+    keeps exactly the cost it had before N6b.
+
+    ``None`` in three cases HERE, each meaning something different: the
+    tree fully converged (the certificate has it), the scheme cannot
+    express a residual at all (:func:`_residual_is_expressible`), or the
+    source integrates to zero so the ratio is undefined.  Two further
+    ``None`` cases live at CALL SITES rather than in this body, because
+    they are about what the caller can assemble rather than what this can
+    compute — a carrying mesh at :func:`solve_sn` (#354) and the daggered
+    eigenvalue entry (#353).  The full list is on
+    :attr:`~orpheus.sn.solution.IterationHistory.balance_defect`, which is
+    what a reader holding a ``None`` will actually be looking at.
+
+    **Why this projection and not the residual norm.**  `[M]` #340 N5: the
+    raw defect :math:`\lVert r \rVert / \lVert q \rVert` cannot tell a
+    truncation that corrupted :math:`k` from one that did not — the benign
+    and corrupting populations overlap **634×** and a threshold admitting
+    every benign case misses **15 of 16** corrupting ones.  The reason is
+    structural, not statistical: up to **99.995 %** of :math:`\lVert r
+    \rVert` is reflective-trace rows, and a reflective inflow-trace defect
+    in a zero-leakage system carries **no net current**, so a balance-based
+    :math:`k` is blind to it *by conservation*.  Projecting onto
+    :math:`R_g` — the functional :math:`k` actually reads — annihilates
+    exactly those rows, and `[M]` cuts the overlap to **4.64×**.
+
+    ⚠ **4.64× is still an overlap.  This is a DIAGNOSTIC, never a gate.**
+    Do not branch on it, do not threshold it, do not assert on its
+    magnitude in a test.  It is reported so a reader can weigh a truncation
+    they have been told about; the attempt to make it a verdict is the
+    refuted N5, and the refutation is in the plan beside the text it
+    refutes.
+
+    ⛔ And do not reach for an adjoint weight to sharpen it without solving
+    for one: `[M]` a spatially-flat 0-D adjoint makes it **worse**, 4.64× →
+    **128.95×**, because a signed projection against a wrong weight
+    manufactures near-cancellations, i.e. false negatives.  The weighting
+    machinery already exists
+    (:meth:`IntegratedReactionRate.evaluate` takes ``adjoint=``); what a
+    real gate would need is the adjoint SOLVE (#350).
+
+    The equation is whatever the calling entry solved: :math:`q` is the
+    fission source :math:`F\phi(\psi)/k` at an eigenvalue exit and the
+    given :math:`q_{\rm ext}` at a fixed-source one.  Only the eigenvalue
+    form inherits the 4.64× figure above — that is the population N5
+    measured.
+    """
+    if record.fully_converged:
+        return None
+    if not _residual_is_expressible(sn_mesh):
+        return None
+    source_rate = _balance_projection(q, sn_mesh=sn_mesh)
+    denominator = float(np.linalg.norm(np.asarray(source_rate)))
+    if denominator == 0.0:
+        return None
+    residual = evaluate_residual(loss_op, psi, q)
+    defect_rate = _balance_projection(residual, sn_mesh=sn_mesh)
+    return float(np.linalg.norm(np.asarray(defect_rate))) / denominator
 
 
 def _certify_within_group_exit(
@@ -641,7 +849,7 @@ def _certify_within_group_exit(
       with the LD residual carve (step-5 close-out note; on #310's
       deferred-out list).
     """
-    if sn_mesh.scheme.spatial_basis_per_axis > 1:
+    if not _residual_is_expressible(sn_mesh):
         return  # moment-tailed scheme — the residual mint's un-built widening
     if not record.converged:
         return  # no convergence claim — nothing to certify
@@ -2433,9 +2641,13 @@ def solve_sn(
     # construction (B_a / B_b are gains), exactly as the bare sweep did
     # — the −B coupling arrives as GIVEN data through the reflect below.
     q_final_per_ord = AngularSourceSink.from_isotropic(Q_final, sn_mesh)
-    final_implicit = build_within_group_system(
+    # The SYSTEM is kept, not just its implicit operator: the #340 N6b exit
+    # balance defect needs the LOSS arm (``L+C−S−B``) of this same system,
+    # and it was already being built and thrown away one attribute deep.
+    final_system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
-    ).implicit_operator
+    )
+    final_implicit = final_system.implicit_operator
     converged_ray = (
         _system_b_member(converged) if converged is not None else None
     )
@@ -2527,8 +2739,63 @@ def solve_sn(
     # so no producer can write a verdict and none can disagree with another
     # about what an iteration count means.  ``keff_history`` stays explicit:
     # it is a physics output, not a stopping criterion.
+    # #340 N6b — the exit balance defect of the iterate the user RECEIVES.
+    #
+    # The rhs is REBUILT from the returned ψ (``Fφ(ψ)/k``), not snapshotted
+    # from ``Q_final`` above, and the distinction is not cosmetic: the two
+    # answer different questions.  ``Q_final`` came from the power
+    # iteration's converged scalar, so it measures how well the RECONSTRUCTED
+    # angular flux solves the equation the reconstruction was GIVEN;
+    # recomputing from ``final_psi_a`` asks the closed question — does the
+    # object I was handed satisfy its own equation?  The second is what
+    # `scratch/n5_outer_cert_lib.py` measured the 4.64× against, and taking
+    # the first would silently substitute its ``defect_pi`` variant.
+    # `[M]` the rebuild costs 0.05 ms.
+    #
+    # ⛔ NOT ``q_final_per_ord``: that is the TOTAL reconstruction source
+    # (fission + P0 scatter + (n,2n)), `[M]` 13.7× larger than the fission
+    # source alone, and against ``A = L+C−S−B`` it double-counts scattering.
+    # ⛔ CARRYING MESHES ARE EXEMPT HERE, and the reason is a real refusal
+    # rather than a missing feature on our side.  `evaluate_residual`
+    # rejects a BARE System-A residual whenever the mesh carries
+    # starting-direction levels, because it would silently omit r_B — the
+    # Mode-12 blindness the split-residual mint exists to prevent.  What
+    # this site assembles IS bare (a System-A ψ against a System-A fission
+    # rhs), so on a carrying mesh the honest answer is "no number", not a
+    # residual missing a block.
+    #
+    # `[M]` 2026-08-10, and it is why this exemption exists at all: without
+    # it the slice went 9 → 25 reds, every one of the 16 a curvilinear
+    # solve raising out of `evaluate_residual`.  The fixed-source arms are
+    # unaffected — they already pass the COUPLED pair when the mesh carries.
+    # Extending this entry to do the same needs the coupled rhs (the
+    # fission source AND the seed source, through `_coupled_source_state`);
+    # tracked as #354 rather than assembled here from plausibility.
+    #
+    # ⭐ Worth naming, because it is why no existing gate caught it in
+    # review: `_certify_within_group_exit` calls the same function on the
+    # same meshes and has never hit this, because it is guarded on
+    # `record.converged` and returns early on exactly the truncated solves
+    # this runs on.  The complement of a guard reaches the states its
+    # partner never visits.
+    balance_defect = None
+    if sn_mesh.radial_characteristic_field_space is None:
+        exit_rhs = FullField(
+            interior=AngularSourceSink.from_isotropic(
+                solver.compute_fission_source(
+                    _angular_moment_values(final_psi_a), keff,
+                ),
+                sn_mesh,
+            ),
+            boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        )
+        balance_defect = _exit_balance_defect(
+            _bare_loss_arm(final_system),
+            final_psi_a, exit_rhs, sn_mesh=sn_mesh, record=outcome.record,
+        )
     history = IterationHistory(
         record=outcome.record, keff_history=tuple(keff_history),
+        balance_defect=balance_defect,
     )
     _warn_if_unconverged(
         history, where="solve_sn",
@@ -2803,6 +3070,19 @@ def solve_sn_adjoint(
     # outer — and reported no inner total at all, because ``KEigenvalue``
     # discarded its inner trajectory inside ``numerics/``).  Both now read
     # the one tree ``power_iteration`` built (#340 N2b-ii).
+    # ⛔ #340 N6b: this entry carries NO balance defect, and the omission is
+    # deliberate rather than overlooked.  Every other entry's rhs is either
+    # already in hand or rebuilt through a factory whose convention is
+    # measured; the daggered eigenvalue rhs ``F_posed.H ψ*/k_adj`` would
+    # have to be assembled here for the first time — the operator is right
+    # there at :func:`_adjoint_posing_parts`, but the ``1/k`` scaling of a
+    # field crosses the affine-torsor arithmetic rules (a flux state is not
+    # a vector; see the affine-boundary campaign), and N5 never measured
+    # the adjoint population, so there is no reference to check the result
+    # against.  Assembling it from plausibility is exactly the ERR-032
+    # class.  Tracked as #353; until then this path warns with everything
+    # EXCEPT the number, which is why the clause is omitted rather than
+    # printed as "unavailable".
     history = IterationHistory(
         record=outcome.record, keff_history=tuple(keff_history),
     )
@@ -2951,7 +3231,15 @@ def solve_sn_adjoint_fixed_source(
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
     # and trip the typed cross-class guard on the first displacement.
     psi_star, record = si.solve(q_star, initial_guess=template)
-    history = IterationHistory(record=record)
+    # #340 N6b — the exit defect of the DAGGERED equation, which is the one
+    # this entry solved: ``A^† ψ* − q*`` with the same operator the driver
+    # was handed.  No reconstruction and no rebuilt rhs here; both are
+    # already the driver's own arguments.
+    balance_defect = _exit_balance_defect(
+        implicit_operator.H - gain.H, psi_star, q_star,
+        sn_mesh=sn_mesh, record=record,
+    )
+    history = IterationHistory(record=record, balance_defect=balance_defect)
     _warn_if_unconverged(
         history, where="solve_sn_adjoint_fixed_source",
     )
@@ -3633,10 +3921,6 @@ def _solve_fixed_source_si(
     # Solution never consumed them; the typed fluxes carry the SNMesh
     # reference, which transitively exposes those handles via
     # ``.mesh.{mesh, quad, materials}``.)
-    history = IterationHistory(record=record)
-    _warn_if_unconverged(
-        history, where="solve_sn_fixed_source",
-    )
     # ``Solution.angular_flux`` must carry the FULL per-ordinate angular flux.
     # Un-windowed: ``psi_typed`` already IS it (return directly, exactly as the
     # fixed-source Krylov path does; the boundary trace lives on
@@ -3686,6 +3970,30 @@ def _solve_fixed_source_si(
         )
     phi = _average_moment_scalar(
         angular_bulk.integrate_angular().values, sn_mesh,
+    )
+    # ⛔ The warning is emitted HERE, not before the reconstruction above,
+    # and the reason is the balance defect (#340 N6b).  On the WINDOWED arm
+    # ``psi_typed.interior`` is a ``HarmonicMomentFlux`` — an angular-moment
+    # iterate, which the projection cannot integrate over angle — while
+    # ``angular_out`` is the full-angular reconstruction.  Warning before
+    # line ~3806 would have silently dropped the number on exactly one arm,
+    # and it is the arm a reader would least suspect, because the sibling
+    # Krylov path and the eigenvalue entry both work on the same 2-D mesh.
+    #
+    # Which iterate: ``angular_out`` when windowed, ``psi_typed`` otherwise.
+    # The two cases are disjoint by construction — windowing is 2-D
+    # Cartesian hence seedless, so a windowed solve is never coupled (the
+    # guard above says so) — which is why the coupled composite and the
+    # reconstruction never both apply.
+    balance_defect = _exit_balance_defect(
+        system.loss if coupled else _bare_loss_arm(system),
+        angular_out if windowed else psi_typed,
+        q_ext_composite,
+        sn_mesh=sn_mesh, record=record,
+    )
+    history = IterationHistory(record=record, balance_defect=balance_defect)
+    _warn_if_unconverged(
+        history, where="solve_sn_fixed_source",
     )
     return Solution(
         angular_flux=angular_out,
@@ -3821,6 +4129,16 @@ def _solve_fixed_source_krylov(
         sn_mesh=sn_mesh, record=record,
         where="solve_sn_fixed_source[krylov]",
     )
+    # The same triple, one line later, answering the OTHER question (#340
+    # N6b).  The certificate asserts when the solve CLAIMED convergence and
+    # is a no-op otherwise; this measures when it did not, and reports.
+    # They are not folded together because the certificate raises and this
+    # returns a number — one guard, two verbs.
+    balance_defect = _exit_balance_defect(
+        system.loss if coupled else _bare_loss_arm(system),
+        psi_typed, q_ext_composite,
+        sn_mesh=sn_mesh, record=record,
+    )
     # System A's converged member feeds the Solution contract; System B's
     # rides ``Solution.radial_characteristic`` (B.2d DP-Solution).
     psi_full = _system_a_member(psi_typed)
@@ -3855,7 +4173,7 @@ def _solve_fixed_source_krylov(
     # undocumented, and BACKWARDS: it is SI whose pass count exceeds its
     # trajectory (it measures differences), while GMRES gets one callback
     # per iteration.  Both now read the producer's own count (#340 F11).
-    history = IterationHistory(record=record)
+    history = IterationHistory(record=record, balance_defect=balance_defect)
     _warn_if_unconverged(
         history, where="solve_sn_fixed_source",
     )
