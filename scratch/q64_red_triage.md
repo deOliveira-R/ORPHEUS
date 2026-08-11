@@ -124,3 +124,59 @@ carve's justification is *structural* (P2/P3 satisfied, ν-closure exact), and
 its accepted cost was an MMS-floor regression at n_φ≥16. An INDEPENDENT-METHOD
 disagreement is a different and stronger class of evidence than an MMS floor,
 because it cannot be dismissed as truncation-order bookkeeping.
+
+### D-ANSWER `[M]` 2026-08-11 — the carve moved the flux AWAY from the reference, by 1.92×
+
+Probe `$CLAUDE_JOB_DIR/tmp/q64_phaseE_old_vs_new.py`, BOTH snapshots against the
+SAME resolvent reference (tolerance `1.000e-01`):
+
+| τ convention | per-group max `|Δφ_norm|` | max |
+|---|---|---|
+| OLD chord + `[½,1]` absorber | `[0.06593, 0.01335]` | **`6.593e-02`** |
+| NEW ω partition, no clamp | `[0.12676, 0.01341]` | **`1.268e-01`** |
+
+⟹ the old margin was **6.6 %, comfortably inside** — not the ~9.9 % I
+speculated. The carve **nearly doubled** the disagreement with an independent
+method. Two independent instruments now agree the new τ is less accurate (MMS
+floor ~1.8–2× worse at n_φ≥16; resolvent shape 1.92× worse), and the resolvent
+one is NOT dismissible as truncation-order bookkeeping on a manufactured
+fixture.
+
+⛔⛔ **THE STRUCTURAL ARGUMENT FOR THE ω PARTITION RESTS ON A FALSE PREMISE, and
+the literature memo said so in a sentence I under-weighted.**
+`scratch/q64_tau_edge_convention_literature.md:943`:
+
+> *"the **recursion-defined edge** — which is what α *is*, by definition, in
+> both sources — and the geometric arc-half-angle edge, **which no source
+> uses**."*
+
+My case was: T3 gates α at the arc half-angle boundaries ⟹ τ must use the same
+partition. **But T3's closed form is `α = −w_gl·κ·ξ(ω_{k−1/2})`, and the κ IS
+the discrepancy between α's actual (recursion-defined) edge and the geometric
+arc edge.** So α does NOT live at the geometric arc boundary; it lives at a
+κ-scaled one. I unified τ onto the partition α *doesn't* use.
+
+⭐ **This re-reads the whole session.** The chord partition may be *closer to
+α's recursion-defined edges* than the arc one is — in which case it was
+approximately RIGHT, and the `[½,1]` absorber was patching its endpoint
+pathology (`τ→0` at an edge node) rather than compensating a wrong partition.
+That is the opposite of this campaign's stated finding.
+
+⚠ Caveat, stated so it is not over-read: the resolvent reference carries its own
+discretisation error, and this is an L∞-normalised SHAPE comparison on a
+heterogeneous 3-region closed cylinder at a loose 1e-1 bar. It is not a gold
+standard. But it is INDEPENDENT, and 1.92× is not noise.
+
+**NEXT MEASUREMENT (do this before any decision):** build τ on the
+**recursion-defined** edges — the ν ladder from α's own recursion, BMC Eq. 43
+read forward — and re-run both instruments. That is the partition that makes α
+and τ genuinely share one object, which was the campaign's actual goal; the
+geometric arc was a mis-identification of it. Three candidates now have to be
+measured on the same two instruments: chord (+absorber), geometric arc,
+recursion-defined.
+
+⚠ **DO NOT relax `tol_per_cell`** and do not close 6.4 until this is settled.
+The commits `3dda18ca`/`d5067c4d`/`39b46a31`/`c9bb61b4` are all on the branch,
+so a revert is cheap and available — but the recursion-defined partition may
+well be the answer both the structure AND the numbers want, which would make a
+revert premature.
