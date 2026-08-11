@@ -247,13 +247,20 @@ class TestComputeGroupRates:
     def test_integrate_per_group_is_the_volume_integral_itself(self, solver_2g):
         r"""The extracted primitive's DEFINING property, not its callers'.
 
-        ``integrate_per_group`` is :math:`R_g = \int_V d_g\,dV`, and the two
-        reaction-rate methods are compositions of a cross-section weighting
-        with it.  Both of those are pinned above against an ``einsum``
-        reference — but only through their OWN weighting, so neither can
-        say whether the integral is right for a density with no cross
-        section in it, which is exactly how #340 N6b uses it (the per-group
-        balance defect of a residual field).
+        :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.integrate_per_group`
+        is :math:`R_g = \int_V d_g\,dV`, and the two reaction-rate methods
+        are compositions of a cross-section weighting with it.  Both of
+        those are pinned above against an ``einsum`` reference — but only
+        through their OWN weighting, so neither can say whether the
+        integral is right for a density with no cross section in it, which
+        is exactly how #340 N6b uses it (the per-group balance defect of a
+        residual field).
+
+        It lives on :class:`MaterialMesh` — the base shared with
+        :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` — so it is
+        one implementation with one test; this row exercises it through the
+        SN mesh deliberately, to sit next to the two compositions whose
+        ``einsum`` references cover what it cannot (see below).
 
         Two claims:
 
@@ -280,7 +287,7 @@ class TestComputeGroupRates:
         total_volume = float(np.sum(solver.volume))
 
         ones = np.ones((ng, *solver.sn_mesh.spatial_shape))
-        integrated_ones = solver.integrate_per_group(ones)
+        integrated_ones = solver.sn_mesh.integrate_per_group(ones)
         assert integrated_ones.shape == (ng,)
         np.testing.assert_allclose(
             integrated_ones, np.full(ng, total_volume), rtol=1e-13,
@@ -291,9 +298,9 @@ class TestComputeGroupRates:
         a = rng.random((ng, *solver.sn_mesh.spatial_shape))
         b = rng.random((ng, *solver.sn_mesh.spatial_shape))
         np.testing.assert_allclose(
-            solver.integrate_per_group(3.0 * a - 2.0 * b),
-            3.0 * solver.integrate_per_group(a)
-            - 2.0 * solver.integrate_per_group(b),
+            solver.sn_mesh.integrate_per_group(3.0 * a - 2.0 * b),
+            3.0 * solver.sn_mesh.integrate_per_group(a)
+            - 2.0 * solver.sn_mesh.integrate_per_group(b),
             rtol=1e-13, err_msg="the integral must be linear",
         )
 

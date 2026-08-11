@@ -367,6 +367,43 @@ class MaterialMesh:
         """Cell volumes, shape ``spatial_shape`` (rank ``ndim``)."""
         return self._volumes
 
+    def integrate_per_group(self, density: np.ndarray) -> np.ndarray:
+        r"""Volume-integrate a per-group cell density into a per-group rate.
+
+        .. math::
+
+            R_g \;=\; \int_V d_g(\mathbf{r})\, dV \;=\; \sum_i V_i \, d[g, i]
+
+        ``density`` is a principled ``(ng, *spatial_shape)`` field; the
+        result is ``(ng,)``.  The integral IS :attr:`volume_measure` — this
+        method owns only the axis bookkeeping that measure needs (it
+        consumes a flat ``(N_cells, ng)`` view, Issue 9.6 wiring), so the
+        cell weights have exactly one source.
+
+        ⭐ **It is the INTEGRAL, deliberately not "the reaction rate".**
+        :meth:`~orpheus.sn.solver.SNSolver.compute_group_production_rate`
+        and its absorption sibling integrate a reaction-rate *density*
+        :math:`\Sigma_x \phi` — they are the composition of a
+        cross-section weighting with this.  Other consumers integrate a
+        density with no cross section in it at all (the per-group balance
+        defect of a residual field, #340 N6b).  Folding them onto one
+        "reaction rate" name would be the [[lessons-L30]] error — same
+        data, different operation.
+
+        ⛔ Lives on :class:`MaterialMesh`, NOT on a solver, because it
+        needs exactly :attr:`ng` and :attr:`volume_measure` and both are
+        the mesh's.  It shipped on ``SNSolver`` for one commit
+        (`b0137171`) and moved here the same day: three of the five #340
+        N6b call sites hold a mesh and no solver, and
+        :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` is the
+        same base, so a solver-side home would have been a twin the
+        moment a second method wanted it.
+        """
+        ng = self.ng
+        return self.volume_measure(
+            np.moveaxis(np.asarray(density, dtype=float), 0, -1).reshape(-1, ng)
+        )
+
     @property
     def volume_measure(self):
         r"""Cell-volume :class:`~orpheus.numerics.measure.DiscreteMeasure`.

@@ -1366,37 +1366,6 @@ class SNSolver:
         """
         return np.ones((self.ng, *self.sn_mesh.spatial_shape))
 
-    def integrate_per_group(self, density: np.ndarray) -> np.ndarray:
-        r"""Volume-integrate a per-group cell density into a per-group rate.
-
-        .. math::
-
-            R_g \;=\; \int_V d_g(\mathbf{r})\, dV
-                  \;=\; \sum_i V_i \, d[g, i]
-
-        ``density`` is a principled ``(ng, *spatial)`` field; the result is
-        ``(ng,)``.  The integral is the mesh's own
-        :attr:`~orpheus.sn.mesh.SNMesh.volume_measure` — the single source
-        of the cell-volume weights — which consumes a flat
-        ``(N_cells, ng)`` view, hence the axis move (Issue 9.6 wiring).
-
-        This is the shape-dance that
-        :meth:`compute_group_production_rate` and
-        :meth:`compute_group_absorption_rate` each spelled inline; it is
-        named here because it is a **different operation from either of
-        them**.  Both of those integrate a *reaction rate density*
-        :math:`\Sigma_x \phi` — they are the composition of a cross-section
-        weighting with this integral.  The integral alone takes any
-        per-group density, including one with no cross section in it at
-        all (the per-group balance defect of a residual field, #340 N6b).
-        Folding the three onto one "reaction rate" name would be the
-        [[lessons-L30]] error — same data, different operation.
-        """
-        ng = self.ng
-        return self.sn_mesh.volume_measure(
-            np.moveaxis(np.asarray(density, dtype=float), 0, -1).reshape(-1, ng)
-        )
-
     def compute_fission_source(
         self, flux_distribution: np.ndarray, keff: float,
     ) -> np.ndarray:
@@ -1457,12 +1426,13 @@ class SNSolver:
         # ``flux_distribution`` are principled ``(ng, nx, ny)``.  The
         # named intermediate ``per_cell_per_group`` has units ``[1/s]``
         # per cell per group (a reactor-physics quantity — coding-
-        # elegance Pattern 3); :meth:`integrate_per_group` owns the
-        # volume integral and the flat-view reshape it needs.
+        # elegance Pattern 3);
+        # :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.integrate_per_group`
+        # owns the volume integral and the flat-view reshape it needs.
         per_cell_per_group = np.einsum(
             "g...,g...->g...", self.mat_xs.fission_production, flux_distribution,
         )
-        rate = self.integrate_per_group(per_cell_per_group)
+        rate = self.sn_mesh.integrate_per_group(per_cell_per_group)
 
         # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
         # dispatch loop lives ONLY inside
@@ -1491,7 +1461,7 @@ class SNSolver:
         per_cell_per_group = np.einsum(
             "g...,g...->g...", self.mat_xs.absorption_cross_section, flux_distribution,
         )
-        return self.integrate_per_group(per_cell_per_group)
+        return self.sn_mesh.integrate_per_group(per_cell_per_group)
 
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
         r"""Total volume-integrated neutron production rate (scalar).
