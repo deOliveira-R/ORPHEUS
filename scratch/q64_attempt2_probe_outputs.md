@@ -322,3 +322,73 @@ n_phi = 32 held FIXED; sweeping nx.  Does the ~2.8e-2 floor move?
   If they are FLAT, 2.8e-2 is the trajectory-resolvent reference's own
   error and NO refinement of the SN side can grade a closure past it.
 ```
+
+## probe G — the REALISABLE basis {cos m*omega}, and the odd-M parity check
+```text
+========================================================================================
+G0 — is the stored xi even or odd?  (the fold stores |xi|)
+========================================================================================
+  folded_product(4,16)     sum(w*xi) = +6.361910   min(xi) = +0.0992
+  product(4,16) unfolded   sum(w*xi) = +0.000000   min(xi) = -0.9404
+
+  A folded rule stores only xi >= 0, so sum(w*xi) != 0: the SIGNED xi is
+  not represented at all.  A physical psi is EVEN in xi (that is what the
+  fold quotients), so its omega-expansion is COSINE-only and sin(omega)
+  is not a realisable mode.  Feeding xi through the closure grades a mode
+  the solution cannot have.
+
+========================================================================================
+G1 — closure defect on the REALISABLE basis {cos m*omega}
+========================================================================================
+
+  ── n_phi = 8  (M = 4) ──────────────────────────────────────────────
+      convention                          cos0w      cos1w      cos2w      cos3w      cos4w         MAX
+      (1)  chord                      0.000e+00  5.383e-02  3.341e-01  1.105e+00  4.027e+00   4.027e+00
+      (1c) chord+absorber             0.000e+00  1.407e-01  8.284e-01  2.011e+00  8.011e-01   2.011e+00
+      (2)  arc, P2 in eta [LANDED]    2.220e-16  4.227e-16  3.914e-01  1.332e+00  2.359e+00   2.359e+00
+      (C)  arc, P2 in omega           0.000e+00  1.648e-01  8.284e-01  3.226e+00  2.220e-15   3.226e+00
+
+  ── n_phi = 16  (M = 8) ──────────────────────────────────────────────
+      convention                          cos0w      cos1w      cos2w      cos3w      cos4w         MAX
+      (1)  chord                      4.441e-16  1.775e-02  8.305e-02  2.377e-01  5.161e-01   5.161e-01
+      (1c) chord+absorber             0.000e+00  3.769e-02  1.648e-01  3.460e-01  8.284e-01   8.284e-01
+      (2)  arc, P2 in eta [LANDED]    2.220e-16  2.785e-16  8.279e-02  1.978e-01  4.430e-01   4.430e-01
+      (C)  arc, P2 in omega           2.220e-16  3.918e-02  1.648e-01  4.054e-01  8.284e-01   8.284e-01
+
+  ── n_phi = 32  (M = 16) ──────────────────────────────────────────────
+      convention                          cos0w      cos1w      cos2w      cos3w      cos4w         MAX
+      (1)  chord                      4.441e-16  4.723e-03  2.014e-02  5.520e-02  1.064e-01   1.064e-01
+      (1c) chord+absorber             0.000e+00  9.584e-03  3.918e-02  8.657e-02  1.648e-01   1.648e-01
+      (2)  arc, P2 in eta [LANDED]    5.551e-16  1.121e-15  1.971e-02  4.714e-02  8.584e-02   8.584e-02
+      (C)  arc, P2 in omega           0.000e+00  9.677e-03  3.918e-02  8.999e-02  1.648e-01   1.648e-01
+
+  ── n_phi = 64  (M = 32) ──────────────────────────────────────────────
+      convention                          cos0w      cos1w      cos2w      cos3w      cos4w         MAX
+      (1)  chord                      6.661e-16  1.199e-03  4.933e-03  1.333e-02  2.517e-02   2.517e-02
+      (1c) chord+absorber             0.000e+00  2.406e-03  9.677e-03  2.167e-02  3.918e-02   3.918e-02
+      (2)  arc, P2 in eta [LANDED]    8.882e-16  2.120e-15  4.854e-03  1.132e-02  1.994e-02   1.994e-02
+      (C)  arc, P2 in omega           2.220e-16  2.412e-03  9.677e-03  2.188e-02  3.918e-02   3.918e-02
+
+  READ: m=1 IS mu/sin(theta), so the m=1 column is BMC Eq. (43) itself.
+
+========================================================================================
+G2 — the odd-M parity check on my C3 claim
+========================================================================================
+
+   n_phi    M  parity        kappa    edges with NO real position
+  ------------------------------------------------------------------
+       6    3     ODD  1.047197551                         0 of 4
+       8    4    even  1.026172153                         1 of 5
+      10    5     ODD  1.016640738                         0 of 6
+      12    6    even  1.011515160                         1 of 7
+      14    7     ODD  1.008442088                         0 of 8
+      16    8    even  1.006454543                         1 of 9
+      18    9     ODD  1.005095058                        0 of 10
+      32   16    even  1.001608189                        1 of 17
+      33    -       -            -   REFUSED: ValueError: folded_product requires an even n_phi: the staggered circle 
+      64   32    even  1.000401708                        1 of 33
+
+  If odd M gives 0, my 'at every quadrature order' was an EVEN-M parity
+  artefact -- the honest claim is 'on every SHIPPED rule', since every
+  shipped n_phi is even (M = n_phi/2 even for n_phi = 4,8,16,32,64).
+```

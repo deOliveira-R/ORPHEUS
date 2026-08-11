@@ -16,13 +16,22 @@ Companion documents (all committed):
 
 ---
 
-> ⛔⛔ **THIS MEMO HAS TWO LAYERS. READ §9bis BEFORE §2–§8.**
-> §1–§9 are attempt 1 (2026-08-11, pre-compaction). §9bis is attempt 2 (same
-> day, post-compaction) and it **refutes attempt 1's own diagnosis**: candidate
-> (3) is ill-posed, the PARTITION was right, and the defect is that the
-> partition is read in ω while the weight is read in η. Attempt 1's text is
-> preserved in place with per-claim refutation markers (§2's table is the map).
-> The **numbers** in §4 all stand; only their interpretation moved.
+> ⛔⛔⛔ **THIS MEMO HAS THREE LAYERS. READ §9bis.10 FIRST — IT IS THE VERDICT.**
+> * **§1–§9** = attempt 1 (2026-08-11, pre-compaction). Its diagnosis is refuted.
+> * **§9bis.1–.9** = attempt 2, which refuted attempt 1 and then proposed
+>   re-posing τ into ω. **That proposal is ALSO refuted.**
+> * **§9bis.10** = the verdict: **the landed carve is CORRECT and stays.** It is
+>   the first time the cylinder satisfies BMC Eq. (43) exactly. The accuracy
+>   regression is the recurrence's transient error amplification, which the
+>   retired `[½,1]` absorber had been masking by forfeiting Eq. (43).
+>
+> Every **NUMBER** in §4 and §9bis stands. What moved, twice, is the
+> interpretation. Refuted claims are preserved in place with markers (§2's table
+> and each section's banner are the map) — per `plan-authoring` §3, because the
+> two wrong frames are what a fresh reader would otherwise re-derive.
+>
+> ⛔ **Settled, do not reopen:** candidate (3) is not a definition; τ is NOT
+> re-posed into ω; the absorber is NOT restored; Hébert is NOT cited against BMC.
 
 ## 0. ⭐ READ THIS FIRST — the one-paragraph state
 
@@ -798,7 +807,145 @@ is 1.5× closer to the resolvent reference than (C). On the MMS at that same
 4.4× ahead by `n_φ = 64`. Two different fixtures — and the coarsest rung is
 where an asymptotic argument has least force.
 
-### 9bis.9 ⭐⭐ THE LITERATURE — and a production citation that is false three ways
+### 9bis.10 ⛔⛔⛔ THE VERDICT — (C) IS REFUTED AND THE LANDED CARVE IS CORRECT
+
+**Read this before §9bis.3 through §9bis.9.** An adversarial review
+(`scratch/q64_attempt2_qa_review.md`) broke the chain at C6, and re-reading BMC
+directly confirms it. Every number in §9bis stands; two of my inferences do not.
+
+#### The three sentences that decide it, `[M]` read myself in the BMC sidecar
+
+`scratch/literature_ocr/Bailey-Morel-Chang(2010)…md`:
+
+* **line 366, Eq. (41)**: `Σ_m μ_m[α_{m+1/2}μ_{m+1/2} − α_{m−1/2}μ_{m−1/2}] = 0`
+  — the first-order condition. **Genuinely τ-free**, so §9bis.4's *measurement*
+  is right.
+* **line 372/376, Eqs. (42)/(43)**:
+  `τ_m = (μ_m − μ_{m−1/2})/(μ_{m+1/2} − μ_{m−1/2})`, i.e.
+  `μ_m = τ_m μ_{m+1/2} + (1−τ_m)μ_{m−1/2}`.
+* **line 657**: *"…the same factor that Morel and Montry forced to be zero to
+  preserve the Galerkin diffusion approximation. **Forcing this β factor to be
+  zero determines the Morel and Montry weights.**"*
+
+⟹ ⛔ **§9bis.4's INFERENCE is wrong.** β is τ-free *by construction*: β = 0 is a
+condition on `(α, edges)`, and **τ is then DEFINED by Eq. 42 as the barycentric
+coordinate of those edges.** τ is *downstream* of β, not an input to it. "τ-free
+functional" therefore does NOT mean "cannot grade a τ" — it means **τ is
+determined, not chosen.**
+
+⟹ ⛔⛔ **§9bis.3's whole framing collapses.** There is no "chart freedom".
+**Eq. 43 interpolates μ — the radial cosine — full stop.** So P2-in-η IS BMC
+verbatim, and the LANDED convention is the literature's own closure on the
+correct partition. My "the partition is read in ω and the weight in η, two charts
+on one level" was not a defect; it was the published requirement.
+
+#### And BMC refute (C) explicitly, in their own CYLINDER section
+
+* `[M]` **line ~382, Eq. (53)** is the cylinder closure, and the next sentence
+  reads: *"As in the spherical-geometry case, `τ = 1` gives the step scheme and
+  **`τ = ½` gives the diamond scheme**."* So (C) is, in BMC's own cylinder
+  section, named the diamond.
+* `[M]` **line 172**: *"…only the **weighted** diamond difference discretization
+  developed by Morel and Montry produces a good diffusion approximation for the
+  **first-order** scalar flux… preserving first-order consistency eliminates the
+  flux dip **in general**, while preserving leading-order consistency only
+  eliminates the flux dip in highly diffusive problems."*
+* `[M]` **lines 408 / 637**: *"as the number of quadrature points is increased
+  with these methods [step and diamond], their respective solutions approach the
+  correct diffusive behavior through first order."*
+
+⟹ **§9bis.9's literature defence is REFUTED.** Hébert 2009 presents the plain
+diamond; **BMC 2010 exists precisely to show the diamond is insufficient in
+curvilinear geometry.** Citing the textbook against the paper that improved on it
+is backwards. `beta_first_order_consistent = True` on the M-M closure is exactly
+BMC's first-order property, and (C) would forfeit it.
+
+⭐ **Lines 408/637 also explain the MMS ladder that had favoured (C).** The
+diamond's contamination → 0 as M grows, so at fine `n_φ` the distinction BMC care
+about *vanishes* — which is exactly the regime §4.5 measures (`nx=320`,
+`n_φ` up to 64). The MMS L2 ladder is Mode-12 blind to first-order
+consistency, and BMC state the mechanism themselves.
+
+#### My C6 instrument was wrong in its BASIS, and corrected it inverts
+
+A 1-D cylindrical flux is **even in ξ** — that is exactly what the σ_y fold
+quotients — so its ω-expansion is **cosine-only**: `ψ ~ Σ a_m cos mω`, with
+`η = sinθ cos ω` the **m = 1** harmonic and `ξ = sinθ sin ω` **not a realisable
+mode at all**. `[M]` probe G0: a folded rule stores only `ξ ≥ 0`, so
+`Σwξ = +6.703` folded vs `0.000` unfolded — the signed ξ is not represented.
+§9bis.6 fed ξ through the closure and *weighted by it*: it graded a mode the
+solution cannot have. (The review also tested five weightings — the ranking was
+stable, so the weighting was not the defect.)
+
+`[M]` probe G1, re-run on `{cos mω}`, max over m = 0…4:
+
+| `n_φ` | (1) chord | (1c) chord+abs | **(2) arc, P2 in η (LANDED)** | (C) arc, P2 in ω |
+|---|---|---|---|---|
+| 16 | `5.161e-01` | `8.284e-01` | **`4.430e-01`** | `8.284e-01` |
+| 32 | `1.064e-01` | `1.648e-01` | **`8.584e-02`** | `1.648e-01` |
+| 64 | `2.517e-02` | `3.918e-02` | **`1.994e-02`** | `3.918e-02` |
+
+and on the **m = 1 column, which IS BMC Eq. (43)**, (2) is EXACT —
+`4.2e-16 / 2.8e-16 / 1.1e-15 / 2.1e-15` at `n_φ = 8/16/32/64` — while chord
+reads `5.4e-2 → 1.2e-3`, the absorber `1.4e-1 → 2.4e-3` and (C)
+`1.6e-1 → 2.4e-3`. ⟹ ⛔ **§9bis.6's "the convention made one basis function
+exact and was then certified by the instrument measuring it" is WRONG.** That
+basis function is `μ`, and reproducing `μ` at the faces is the *published
+requirement*. (2) meets it to machine precision; nothing else comes within 12
+orders. (⚠ at `n_φ = 8`, M = 4, the m ≥ 3 columns exceed the rule's resolving
+power and are meaningless — read only m ≤ 2 there.)
+
+#### My other two overreaches, corrected
+
+* ⛔ **§9bis.1's "at every quadrature order" is FALSE — an even-M parity
+  artefact.** `[M]` probe G2: `0 of M+1` failing edges at **odd** M
+  (`n_φ = 6/10/14/18`, all constructible), `1 of M+1` at even M. At even M an
+  edge sits exactly at `ω = π/2` where ξ is maximal; at odd M the edges straddle
+  it. The honest claim: **on every rule with even M — which is every shipped
+  fixture (`n_φ = 4/8/16/32/64 ⟹ M = 2/4/8/16/32`) — one edge has no real
+  recursion-defined position.** Candidate (3) stays disqualified (a definition
+  that exists for some legal rules and not others is not a definition), but my
+  quantifier was wrong, in a memo about exactly that. → `plan-authoring` §2.
+* ⛔ **§9bis.5 is mis-scoped in BOTH directions.** The END-TO-END product
+  `Π|(1−τ)/τ|` is exactly `1.000000` for chord, arc **and** `τ ≡ ½` — because
+  `τ(π−ω) = 1−τ(ω)` telescopes. What my table reports is the worst **transient
+  partial** product (still real: every intermediate face is consumed by its
+  neighbours' redistribution). The only genuinely **dissipative** convention is
+  chord+absorber (`2.45e-02`, 40×). And positivity is **inverted** from what I
+  implied: `τ ≡ ½` is the *safest* derived candidate (`min ψ̂ = −24.2` vs arc
+  `−77.2` vs chord `−230`). ⚠ **No gate covers ψ̂ positivity on either arm** —
+  the two curvilinear positivity gates are both on the sphere's converged
+  *scalar* flux.
+
+#### ⟹ THE DECISION: KEEP THE LANDED CARVE
+
+**Q5.6.4's partition change is correct and is the first time this codebase
+satisfies BMC Eq. (43) exactly on the cylinder.** The chord+absorber it replaced
+does not (ν-closure `1.016`), and (C) does not (`1.039`).
+
+**The measured accuracy regression is NOT the closure being wrong.** The review
+found the four candidates' accuracy ranking in *perfect rank correlation with the
+recurrence's transient error amplification* and *inverted against closure
+fidelity*. The retired `[½,1]` absorber bought damping by **forfeiting Eq. 43** —
+it traded the published correctness property for stability, silently. So the
+carve did not introduce a defect; **it removed a mask and exposed a pre-existing
+amplification problem.**
+
+▶ **The real remaining work is therefore the amplification / the march SEED, not
+τ.** The review's unexamined third option — hold the arc closure and sweep
+`MorelMontryAngularSweep.psi_half_seed` — is the one candidate that could recover
+the accuracy *without* giving up Eq. 43. That is the next experiment.
+
+⛔ **DO NOT** re-pose τ to ω; **DO NOT** restore the `[½,1]` absorber; **DO NOT**
+cite Hébert against BMC. All three are now measured errors, not open options.
+
+### 9bis.9 ⭐⭐ THE LITERATURE — Hébert's side, and a production citation that is false three ways
+
+⛔⛔ **THIS SECTION'S CONCLUSION IS REFUTED BY §9bis.10** — it reads Hébert
+without BMC's refutation of exactly Hébert's scheme. Its *factual* content
+stands and matters (the section numbers, the equation identities, the
+quadrature-reduction measurement, and above all the false production citation);
+its inference — "⟹ `τ ≡ ½` on the cylinder is not a foreign method" — does not.
 
 Deliverable: `scratch/q64_cylinder_closure_literature.md`. All three sources were
 LOCAL; nothing acquired. **Every claim below I re-verified myself** in
