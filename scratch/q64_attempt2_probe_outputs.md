@@ -258,3 +258,67 @@ E3 — the guards and the R12a facts under tau == 1/2
   bit-exactly -- they never consulted tau (Q5.4/T26).  A tau re-pose
   cannot move them, so R12a admission is untouched.
 ```
+
+## probe C2 — the converged n_phi ladder
+```text
+computing the trajectory-resolvent reference (~600 s) ...
+  done in 600.5 s, cached
+
+============================================================================================
+resolvent flux-SHAPE cross-check vs an INDEPENDENT method — CONVERGED, laddered in n_phi
+cyl_2g_3reg n=40, folded_product(4, n_phi), max_inner=4000, gate tol 1.2e-01
+============================================================================================
+
+── n_phi = 8  (M = 4 per level) ────────────────────────────────────────
+  (1)  chord, unclamped                      max=1.4409e-01  [0.14409, 0.01305]  k=1.2308955887  converged  (6.2s)
+  (1c) chord + [1/2,1] absorber [PRE-CARVE]  max=6.5934e-02  [0.06593, 0.01335]  k=1.2302082296  converged  (5.6s)
+  (2)  arc, P2 in eta         [LANDED]       max=1.2676e-01  [0.12676, 0.01341]  k=1.2310212586  converged  (5.5s)
+  (C)  arc, P2 in omega  (march variable)    max=1.0181e-01  [0.10181, 0.01507]  k=1.2313562779  converged  (6.3s)
+
+── n_phi = 16  (M = 8 per level) ────────────────────────────────────────
+  (1)  chord, unclamped                      max=4.6313e-02  [0.04631, 0.01407]  k=1.2320667835  converged  (8.6s)
+  (1c) chord + [1/2,1] absorber [PRE-CARVE]  max=3.7739e-02  [0.03774, 0.01332]  k=1.2310522045  converged  (6.2s)
+  (2)  arc, P2 in eta         [LANDED]       max=2.2008e-02  [0.02201, 0.01406]  k=1.2317849752  converged  (6.2s)
+  (C)  arc, P2 in omega  (march variable)    max=3.1985e-02  [0.03198, 0.01400]  k=1.2314501898  converged  (6.3s)
+
+── n_phi = 32  (M = 16 per level) ────────────────────────────────────────
+  (1)  chord, unclamped                      max=2.9175e-02  [0.02918, 0.01333]  k=1.2314967227  converged  (7.9s)
+  (1c) chord + [1/2,1] absorber [PRE-CARVE]  max=3.0323e-02  [0.03032, 0.01329]  k=1.2313157277  converged  (8.4s)
+  (2)  arc, P2 in eta         [LANDED]       max=2.7606e-02  [0.02761, 0.01332]  k=1.2314579474  converged  (7.9s)
+  (C)  arc, P2 in omega  (march variable)    max=2.7626e-02  [0.02763, 0.01331]  k=1.2314306419  converged  (7.9s)
+
+============================================================================================
+LADDER — max|d phi_norm| against the independent reference
+============================================================================================
+  convention                                            8           16           32
+  ---------------------------------------------------------------------------------
+  (1)  chord, unclamped                        1.4409e-01   4.6313e-02   2.9175e-02
+  (1c) chord + [1/2,1] absorber [PRE-CARVE]    6.5934e-02   3.7739e-02   3.0323e-02
+  (2)  arc, P2 in eta         [LANDED]         1.2676e-01   2.2008e-02   2.7606e-02
+  (C)  arc, P2 in omega  (march variable)      1.0181e-01   3.1985e-02   2.7626e-02
+
+  A flat tail means the REFERENCE's own discretisation error has been
+  reached -- past that rung the column grades the reference, not the
+  convention.  Read the ranking rung by rung, and note where it stops
+  moving.
+```
+
+## probe F — whose error is the floor?
+```text
+reference from cache; ng=2
+
+====================================================================================
+n_phi = 32 held FIXED; sweeping nx.  Does the ~2.8e-2 floor move?
+====================================================================================
+
+  convention                                 nx=40         nx=80        nx=160
+  ----------------------------------------------------------------------------
+  (1c) chord + absorber                 3.0323e-02    3.2314e-02    3.3682e-02
+  (2)  arc, P2 in eta   [LANDED]        2.7606e-02    2.9204e-02    2.9234e-02
+  (C)  arc, P2 in omega                 2.7626e-02    2.9655e-02    3.1045e-02
+
+  If the columns FALL with nx, the ~2.8e-2 was the SN's own SPATIAL
+  error and the instrument still has angular range at finer meshes.
+  If they are FLAT, 2.8e-2 is the trajectory-resolvent reference's own
+  error and NO refinement of the SN side can grade a closure past it.
+```

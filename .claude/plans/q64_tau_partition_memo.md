@@ -720,12 +720,83 @@ probably robust — but it is **not** established until re-run converged.
 regression artifact AND on the L1 gate that consumes it — file it separately;
 it is not caused by, and does not depend on, anything in Q5.6.4.
 
-▶ **Probe C2** (`$CLAUDE_JOB_DIR/tmp/q64_probeC2_resolvent_ladder.py`) re-runs
-this at `max_inner = 4000` with the `fully_converged` flag PRINTED per row, as
-a **ladder in `n_φ` = 8/16/32** — the resolvent reference is a different method
-and is independent of the SN quadrature, so one cached reference grades every
-rung. A flat tail marks the reference's own error floor; past that rung the
-column grades the reference, not the convention.
+### 9bis.8b ⛔⛔ THE RESOLVENT CROSS-CHECK IS REFERENCE-LIMITED — §4.6 IS NOT DECISIVE
+
+`[M]` probe C2, re-run at `max_inner = 4000` with **every row reporting
+`fully_converged`**, as a ladder in `n_φ`. One cached reference grades every
+rung (the trajectory-resolvent method is independent of the SN quadrature):
+
+| convention | `n_φ`=8 | 16 | 32 |
+|---|---|---|---|
+| (1) chord, unclamped | `1.4409e-01` | `4.6313e-02` | `2.9175e-02` |
+| (1c) chord + `[½,1]` absorber | `6.5934e-02` | `3.7739e-02` | `3.0323e-02` |
+| (2) arc, P2 in η **(LANDED)** | `1.2676e-01` | **`2.2008e-02`** | `2.7606e-02` |
+| (C) arc, P2 in ω (march variable) | `1.0181e-01` | `3.1985e-02` | `2.7626e-02` |
+
+⚠ The **converged** `n_φ=8` column is bit-identical to §9bis.8's starved one to
+every printed digit — so the starvation was NOT driving that ranking. And (2) is
+**non-monotone** (`2.20e-2 → 2.76e-2`): it undershoots at 16 by error
+cancellation against the reference, then settles.
+
+⭐ **All four collapse to ≈2.8–3.0e-2 by `n_φ = 32`, within 10 % of each other.**
+`[M]` probe F decides WHOSE error that is — hold `n_φ = 32`, sweep `nx`:
+
+| convention | `nx`=40 | 80 | 160 |
+|---|---|---|---|
+| (1c) chord + absorber | `3.0323e-02` | `3.2314e-02` | `3.3682e-02` |
+| (2) arc, P2 in η | `2.7606e-02` | `2.9204e-02` | `2.9234e-02` |
+| (C) arc, P2 in ω | `2.7626e-02` | `2.9655e-02` | `3.1045e-02` |
+
+⟹ **the floor does not fall — it RISES, monotonically, in every column.**
+Refining the SN mesh 4× makes the agreement *worse*. That is the signature of a
+comparison in which **the SN side is converging past the reference**: the floor
+is the **trajectory-resolvent reference's OWN discretisation error**
+(`n_r=24, n_mu_axial=16, n_phi_az=32, n_traj_quad=64`), not the SN's spatial
+error, and **no refinement on the SN side can push past it.**
+
+⛔ **Consequences, and the first retires the memo's own §4.6 framing:**
+
+1. **§4.6 is NOT "THE DECISIVE MEASUREMENT".** It is one coarse rung
+   (`n_φ = 8`) read against a reference whose own error is `≈3e-2` — **20–40 %
+   of the difference it is used to grade.** Its dynamic range for an angular
+   claim is exhausted by `n_φ = 16`.
+2. It does carry real signal AT `n_φ = 8` (SN error `6.6e-2 … 1.44e-1` exceeds
+   the floor), and there it ranks `(1c) ≺ (C) ≺ (2) ≺ (1)`.
+3. ⚠ **A finding about the L1 gate itself:**
+   `test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_folded_4x8_dd_n40]`
+   carries `tol_per_cell = 1.2e-1` against a reference floor of `≈3e-2`. The
+   gate **cannot be tightened by improving the SN** — only by refining the
+   *reference*. Its docstring credits it with pinning "the resulting shape
+   agreement"; that claim is bounded by the reference and the bound is nowhere
+   stated. It is also pinned to the single coarsest cylinder rule, which is the
+   only rule at which it can still see a closure at all.
+4. ⟹ **§5's instrument table needs a demotion**: the resolvent's blind spot is
+   not merely "own discretisation error; loose bar; shape-only" — it is a **hard
+   floor that SN-side refinement moves the WRONG WAY**.
+
+### 9bis.8c THE VERDICT ACROSS ALL INSTRUMENTS
+
+| instrument | can it grade a τ? | ranking |
+|---|---|---|
+| P1 `c = Σwη²`, BMC β, Lathrop β | ⛔ **τ-blind** — garbage-identical (§9bis.4) | — |
+| ν-closure | ⛔ chart-relative label only (§9bis.3) | — |
+| resolvent shape | ⚠ only at `n_φ=8`, its own error 20–40 % of signal | `(1c) ≺ (C) ≺ (2) ≺ (1)` |
+| MMS aniso-cyl, `nx=320` (§4.5) | ✅ range to `9e-6`, 3 orders below the resolvent floor | `(C) ≺ (1c) ≺ (2) ≺ (1)`; (C) best order (3.29/3.15/2.10) |
+| P1 closure defect (§9bis.6) | ✅ structural, no fixture | `(C) ≺ (1c) ≺ (2) ≺ (1)` |
+| amplification (§9bis.5) | ✅ the `τ ≥ ½` half | `(1c) = (C) ≺ (2) ≺ (1)` |
+
+⭐ **Every discriminating instrument ranks the LANDED convention (2) below both
+(1c) and (C), so the landed state must change regardless.** Three of the four
+rank **(C) first**; the fourth is reference-limited and speaks only at the
+coarsest rule. With the literature (§9bis.9 — Hébert's own rule *and* his own
+closure ARE (C), both arms verbatim, Lathrop's objection measured absent), the
+decision is **(C)**.
+
+⚠ The one dissenting number, stated plainly: at `n_φ = 8` chord+absorber really
+is 1.5× closer to the resolvent reference than (C). On the MMS at that same
+`n_φ = 8` the two sit within 2.5 % (`3.4258e-3` vs `3.5111e-3`), and (C) pulls
+4.4× ahead by `n_φ = 64`. Two different fixtures — and the coarsest rung is
+where an asymptotic argument has least force.
 
 ### 9bis.9 ⭐⭐ THE LITERATURE — and a production citation that is false three ways
 
