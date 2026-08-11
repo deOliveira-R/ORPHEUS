@@ -1373,13 +1373,154 @@ MECHANISM title, and one that names a move which is **not the work**:
   the record"*. So the helper is already ~90 % family-agnostic; it is bound to
   SN by one field and one type annotation.
 
-**Proposed means** (2026-08-11, NOT verified): narrow the parameter to
+**Means, IMPLEMENTED 2026-08-11** (was "proposed, NOT verified" until the
+work ran; the shape survived contact): narrow the parameter to
 `IterationRecord`; make the balance clause an optional caller-supplied extra
 (SN passes its projection; the other three have none *yet* — diffusion and CP
 could both compute one later); home it in
 `orpheus/numerics/convergence.py`, where `ConvergenceWarning` and
 `ESCALATION_FLAG` are already defined — **not** `iteration.py`, which owns the
 leaf warning above.
+
+Final signature: `warn_if_unconverged(record, *, where, balance_defect=None)`,
+public, in `__all__`.
+
+⭐ **The one design question the plan did not anticipate, and its ruling.**
+The old message ended `"... Or read `solution.history.fully_converged` and
+handle it."` — a **literal string naming the caller's local variable**. The
+obvious fix was a fourth parameter (`verdict=`) so each entry could name the
+path on its own return type. **Rejected**, and the reason is the campaign's
+own precedent: N6a retired `budget_name`/`budget`/`tol` *precisely because*
+they were facts asserted by the call site that described the wrong level on a
+tree. A per-entry verdict spelling is the same construction — a call-site
+assertion free to drift from the object it describes — and it would have been
+re-introduced into the very function that was cleaned of them. The message
+now names the ATTRIBUTE and its TYPE (`fully_converged` on the
+`IterationRecord` this solve returned), which is true in all four families and
+which each result type's own `record` docstring already points at. **Zero new
+parameters.** ⟹ the general form: *when a library is about to describe the
+caller's own variable, it has crossed a boundary it cannot see across.*
+
+**`[M]` MEASURED 2026-08-11 — the whole hazard set, before any gate was
+written** (probes: `$CLAUDE_JOB_DIR/tmp/n4_7_message_parity.py`,
+`n4_7_new_sites.py`):
+
+| hazard | result |
+|---|---|
+| **H3** SN message bit-identity | **7/7 character-identical** modulo the one intended clause, over all four advice arms + nested + balance-defect. Old function lifted out of `git show HEAD:` via `ast` and exec'd — no checkout, no worktree |
+| **H4** exactly one warning | 1 per starved solve, **0** per converged solve, all four families |
+| **H2** `stacklevel=3` | ⛔ **THIS ROW WAS FALSE AS WRITTEN** — see the correction below |
+| **H5** reachable knob | `params.max_inner` · `max_inner_sweeps` · `params.max_outer` · `max_outer`, each present in the message AND in `reachable_knobs(entry)` |
+| **H6** silence when converged | cp-jacobi, moc, diffusion all silent |
+| **H1** two emission points | both survive, distinguishably; documented as a `list-table` in the `convergence` module docstring so a "consolidate the emission points" pass is refused at the doc it would read first |
+
+⚠ **A trap worth carrying: I ran the parity probe under `-O` first, and three
+of its own assertions were silently stripped** — including the
+converged-silence check. The project's canonical `python -O -m pytest` is safe
+*only* because pytest rewrites assertions in test modules; a **standalone
+probe under `-O` has no assertions at all**. The printed output looked
+identical. This is `vv-principles` #17 (verify the instrument before trusting
+its negative) in its cheapest possible form.
+
+⭐ **Finding, 2026-08-11: `cp-gauss_seidel` at shipped defaults is listed in
+`_CONVERGING` (`tests/numerics/test_family_convergence_contract.py:95`) and
+`[M]` is NOT converging** — `fully_converged = False`, `inner(within-group
+scatter, g=1)` hits `params.max_inner=100` at `dphi_g = 8.387e-05` against
+`tol = 1e-8`, `rho = 0.950674`, needs ~279. This is the live starved inner N4
+found, now audible unasked — the feature working. The list NAME is the defect;
+it is mine, from `0b263fef`, and it owes a rename. Neither test consuming
+`_CONVERGING` asserts convergence, so nothing was green-by-luck — but a fresh
+reader would have believed the name.
+
+### ⛔ H2 REFUTED, then repaired — 2 of the 8 sites blamed the library
+
+**The false claim, left in place per §3:** the table row above read *"attributed
+to the **caller** in every family, never inside `orpheus/`"*. I measured it on
+the three NEW families only (the probe's own output named three probe lines),
+and wrote the row as though it covered all eight sites. A `test-architect`
+dispatch measured all eight and refuted it.
+
+`[M]` 2026-08-11: `solve_sn_fixed_source` dispatches to
+`_solve_fixed_source_si` / `_solve_fixed_source_krylov`, and the emission sat
+**inside those private arms**. `stacklevel=3` counts helper → public entry →
+user code, so from inside a private arm frame 3 is the entry's own
+`return _solve_fixed_source_si(` line ⟹ the warning blamed
+**`orpheus/sn/solver.py:3541`** (and `:3552` for krylov), a file the reader did
+not write. Reproduced at `max_inner ∈ {1,2,5,50}` on two fixtures. **Ungated:**
+`grep -rn stacklevel tests/` had exactly ONE hit, unrelated.
+
+⟹ **Repaired by HOISTING the call into the public entry**, reading the record
+off the `Solution` about to be returned. Deliberately NOT by passing a per-call
+`stacklevel`: a frame COUNT is a fact about the call chain asserted at the call
+site, and it rots the moment a helper is interposed — the same defect class as
+the retired `budget_name`/`budget`/`tol` arguments, i.e. the thing this step
+already refused once for the verdict spelling. The hoist is also strictly
+better than the arms were: it makes *"the warning and the returned object
+describe the same solve"* a theorem, and collapses two mirror emissions into
+one (Cardinal Rule 2).
+
+⭐ **The lesson generalises past this bug: `stacklevel` is a claim about the
+CALL CHAIN, so it cannot be verified at the function that uses it.** Only a
+call-site gate can. Hence both a source gate (no emission from a private
+function) and a behavioural one (attribution outside `orpheus/`).
+
+⭐⭐ **And the obvious behavioural gate is Mode-12 blind to half the class.**
+`[M]` by mutation: `stacklevel → 2` lands inside `orpheus/` (containment gate
+reds, correctly), but `stacklevel → 4` lands on the caller's *caller* —
+**still outside the package**, so the containment gate stays **GREEN** while
+the attributed line is wrong. Measured on both modules: M2 reds 5/5 SN rows and
+5 family rows; **M2b reds exactly ONE row in each, the exact-`lineno` leg.**
+That is the entire justification for the sharp leg existing beside the portable
+one, and it is why the gate asserts `filename` **and** `lineno` rather than a
+containment predicate.
+
+**`[M]` The site count is 7, not 8** — and the gate caught my own stale
+expectation. Seven emission SITES serve eight (entry × inner-arm)
+combinations, because the hoist gave `solve_sn_fixed_source`'s two arms one
+shared emission. I wrote the assertion as `== 8` from the pre-hoist count; it
+failed on the first run, which is the gate reading the tree rather than my
+memory of it.
+
+**`[M]` Retro-check — would the source gate have caught the real bug?** Run
+against `git show HEAD:orpheus/sn/solver.py` (no checkout): both
+`_solve_fixed_source_si` and `_solve_fixed_source_krylov` are private ⟹ the
+private-function leg **fails on the pre-fix tree**. That is stronger evidence
+than a synthetic mutation, because the bug it catches actually shipped.
+
+⚠ **A harness failure worth recording, because it is the third in this step.**
+The first battery run reported M2 and M2b as **41 passed / no reds**, which
+reads as "both attribution gates are blind". They were not — the mutation never
+touched the code. `.replace("stacklevel=3", …, 1)` hit the **docstring**, which
+now documents this very precondition four times over, and the harness's
+"target present" guard passed on the wrong occurrence. Anchoring on
+`"ConvergenceWarning,\n        stacklevel=3"` fixed it. ⟹ **an anchor that
+asserts its own presence is not enough when the target string also appears in
+PROSE; anchor on the syntax, not the token.** Same family as L42 (a probe under
+`-O`) and as the "all sites OK" print that ran while three fixtures had raised:
+in all three the instrument failed in the flattering direction.
+
+### A defect found in passing, filed not fixed — #357
+
+`[M]` the krylov arm's record pairs `budget = self.max_iter` (scipy `maxiter`,
+in **restart CYCLES**) with `iterations_run = len(residual_history)` (**inner
+ITERATIONS**): measured `budget=1` against `n_iterations=24`, which is only
+possible if the units differ. `exhausted_budget` then compares cycles to
+iterations, and `projected_iterations()` renders `set max_inner=<N>` with N in
+the wrong unit — off by the restart factor (50 shipped, `n_dof` for the SN
+composite). Pre-existing (from N1/N2), one production consumer
+(`sn/solver.py:717`), and the fix needs a ruling on what `max_inner` should
+MEAN on that arm ⟹ **filed as #357**, not fixed inline.
+
+⭐ **Side effect worth its own line: `orpheus/numerics/convergence.py` was
+rendered by NO Sphinx page.** `[M]` 2026-08-11 — the module that owns the
+entire #340 contract (`IterationRecord`, `StoppingCriterion`,
+`ConvergenceWarning`, `ESCALATION_FLAG`) had no `automodule` anywhere, so its
+whole docstring was invisible to every build at every severity, and `[M]` **33
+corpus reference sites** pointing into it could not resolve (the
+`coding-standards` "Sphinx can only nitpick what it RENDERS" clause, hit
+head-on). Added at `docs/api/numerics.rst`; `[M]` the object inventory went to
+**1062** entries, 39 of them from this module, and `sphinx -E -W` stayed at
+exit 0 with no new warnings. Directly relevant to **#302**.
 
 **Done when:** `solve_cp`, `solve_moc` and `solve_diffusion_1d` emit exactly one
 `ConvergenceWarning` on a starved solve, naming the failing level and a knob the

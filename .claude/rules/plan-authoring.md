@@ -55,6 +55,7 @@ surprises cost to hit.
 | 2026-08-07 | The SAME pointer's DELIVERABLE half ("the flagship metric gate") instructed building a gate that had landed 3 days earlier across three files. The same-day correction of its SYMBOL half ran the mandated grep and stopped there — the deliverable is a CONCEPT, not a symbol, and no existence-check was run. Caught at design time by the checkpoint's own §7.2 re-derivation instruction: zero implementation waste, one fully-derived twin gate discarded on discovery. | §1 (widened again: existence-check per promised deliverable) |
 | 2026-08-11 | A plan's cost claim — *"the same cost, now certified"* — was extrapolated from a measurement of the CONVERGED outer (1 sweep) onto the regime that dominates (the COLD outer, 80–176 sweeps). The true cost was 2.5–3.3×. The estimate was labelled as unverified and the plan said "verify from the record"; the loop worked, and the label is what made the refutation cheap. | §4 (the configuration was *converged outer*; reusing the number outside that configuration is the same defect as reusing a fixture's number) |
 | 2026-08-10 | A plan sentence marked `[M]` — "`solve_sn` discards the solver it builds, **so** the projection cannot be computed at the entry" — was FALSE, and it was the sentence the step's whole design rested on. What had been measured was the *other* half of the same sentence (`Solution` really does not carry the operators). The frame-local question was never measured at all; the marker certified the checked half and lent its authority to the unchecked one. | §2 (the `[M]`-scope sharpening) |
+| 2026-08-11 | A hazard table row read "attributed to the caller **in every family**, never inside `orpheus/`". It was measured on the 3 NEW families (3 of 8 emission sites); the 2 unmeasured SN fixed-source sites were the ones that were BROKEN, blaming `orpheus/sn/solver.py`. The row's own author wrote it minutes after running the probe. | §2 (the QUANTIFIER/denominator sharpening) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -161,6 +162,31 @@ the half you ran.
 ⟹ Before inheriting an `[M]`, ask **what command produced it** — the same
 question `plan-authoring` §4 asks of the *configuration*, applied to the
 *proposition*. If the plan does not say, treat the claim as unmarked.
+
+⭐ **The quantifier case, which needs no "so" to go wrong: a claim about EVERY
+member must carry the DENOMINATOR it was measured over.** "every family", "all
+entries", "each site", "none of the callers" — each is a universal, and a probe
+almost never covers the whole set. Write `[M] 3 of 3 new families` or
+`[M] 5 of 8 sites`, never a bare "every". The count is one extra token and it
+makes the gap visible on sight; without it, the sentence silently promotes a
+sample to a population, and **the unmeasured members are exactly where a defect
+survives** — they are unmeasured *because* nobody thought about them.
+
+> `[M]` 2026-08-11, campaign #340 N4.7. A hazard table read *"**H2**
+> `stacklevel=3` | attributed to the **caller** in every family, never inside
+> `orpheus/`"*. The probe behind it exercised the three NEW families — 3 of the
+> 8 emission sites. The 5 SN sites were never measured, and **2 of them were
+> broken**: the emission sat inside `_solve_fixed_source_si` /
+> `_solve_fixed_source_krylov`, so the warning blamed
+> `orpheus/sn/solver.py:3541`. The row was written by the same agent, in the
+> same turn as the measurement, and its parenthetical even named the three
+> probe lines — the prose said "every family" anyway. Caught by a sub-agent
+> that enumerated all eight.
+
+⟹ and the reason this is worth its own clause rather than folding into the
+sharpening above: there was **no** "so"/"therefore" to inspect, and the marker
+was honestly earned for what it covered. The defect is entirely in the
+quantifier, which reads as a summary rather than as a claim.
 
 ⭐ **This applies to TABLE ROWS, not only to numbers — and a table is where it
 bites hardest**, because a table headed by a property of the tree

@@ -1353,3 +1353,119 @@ Sibling of `vv-principles` #17 (verify the instrument on a known-positive before
 trusting a negative): here the instrument was not broken, it was
 *mis-configured* — and the failure direction was the flattering one, "your
 hypothesis is wrong" rather than "your probe is blind".
+
+## L42 — `python -O script.py` strips the probe's OWN assertions; the canonical `-O` is safe only inside pytest (2026-08-11)
+
+**Context.** #340 N4.7 moved the ConvergenceWarning emitter out of `sn/solver.py`.
+The bit-identity gate was a standalone probe: lift the OLD function's source out
+of `git show HEAD:` with `ast`, exec it, and compare its message against the new
+one across every advice arm. I ran it the way this project runs everything —
+`.venv/bin/python -O probe.py`.
+
+**`[M]` It printed `7/7 character-identical` and `both versions SILENT on a
+fully-converged tree`. Three of its own checks had not executed.** `-O` sets
+`__debug__ = False` and the compiler **omits every `assert` statement**, so
+`assert len(caught) == 1`, `assert old_msg != new_msg` (the check that the
+intended clause changed AT ALL) and `assert not caught` (the entire
+converged-silence claim) were absent from the bytecode. The output was
+byte-identical to a genuine pass. Re-run without `-O`: all three fire, all three
+green — but that was luck, not evidence.
+
+**Why this is a trap specific to THIS project.** `.claude/rules/vv-testing.md`
+makes `python -O -m pytest` canonical *and states why it is safe*: pytest
+AST-rewrites assertions inside test modules, so `-O` strips only production
+(`orpheus/`) asserts. That reasoning is correct and it **does not transfer one
+inch outside a pytest-collected test module**. A scratch probe, a `tools/`
+script, a `__main__` block, and `tests/_harness/` helpers (which is exactly why
+they already use explicit `raise`) all get silently disarmed.
+
+**The rule.** A verification instrument that is not a collected pytest test must
+either (a) run WITHOUT `-O`, or (b) use `if not cond: raise AssertionError(...)`.
+Never `assert` in a standalone probe you intend to trust. And when a probe
+reports a clean pass, ask whether its checks could have run at all — the
+`vv-principles` #17 discipline (verify the instrument before trusting its
+verdict) applies to the probe's *execution model*, not only to its logic.
+
+⚠ The failure direction is the flattering one, as always: a disarmed probe never
+reports a failure, so it looks like confirmation.
+
+## L43 — A library message that names the CALLER's variable has crossed a boundary it cannot see across — and parameterising the name is the WRONG fix (2026-08-11)
+
+**Context.** SN's truncation warning ended: *"... Or read
+`solution.history.fully_converged` and handle it."* Perfectly helpful, shipped
+for months, and **wrong in two independent ways**: it presumes the caller named
+their variable `solution` (a fact no library can know), and #340 N4.7 was about
+to make the same emitter serve CP, MoC and diffusion — whose entries return a
+`*Result` and have no `solution` anywhere.
+
+**The tempting fix, and why it is a trap.** Add a `verdict=` parameter so each
+public entry passes the path on its own return type. It is one line per call
+site and it reads as obviously correct. It is the **exact construction that step
+N6a had just retired**: `budget_name` / `budget` / `tol` were also per-entry
+facts passed in by the call site, and they were removed *because* a fact
+asserted at a call site drifts from the object it describes — on a tree they
+described the wrong level, every number real and every pairing wrong. A verdict
+spelling is the same object with a different name, and it would have been
+re-introduced into the very function that was cleaned of them.
+
+**The rule.** When a diagnostic wants to tell the reader *how to interrogate the
+result*, name the **attribute and its TYPE**, never a variable path — the type
+is a fact the library owns, the variable name belongs to the caller. Here:
+"read `fully_converged` on the `IterationRecord` this solve returned". True in
+every family, no parameter, and each result type's own `record` docstring
+already carries the last hop.
+
+**Generalisation, and the grep for it.** Any message, docstring or error string
+containing a dotted path whose FIRST segment is a plausible local-variable name
+(`solution.`, `result.`, `solver.`, `mesh.`, `cfg.`) is a candidate. The
+discriminator: *could this library have chosen that name?* If not, it is
+guessing. Sibling of `feedback-lossy-return-type-is-the-root-cause` — both are
+about a producer asserting something only the consumer can know.
+
+## L44 — Three ways a verification instrument silently disarms itself, all in one step, all flattering (2026-08-11)
+
+**Context.** #340 N4.7. Landing the carve needed three instruments: a
+message-parity probe, an eight-site attribution probe, and a mutation battery.
+**All three reported success while not measuring what they claimed**, and none
+of the three failures announced itself.
+
+| # | mechanism | what it printed | what was true |
+|---|---|---|---|
+| 1 | ran the standalone probe under `python -O` | `7/7 identical` + `both versions SILENT` | three `assert`s absent from the bytecode, incl. the entire silence claim (→ [[lessons-L42]]) |
+| 2 | `except Exception: print(...); continue` in the site loop | `all sites: exactly one warning, attributed OUTSIDE orpheus/` | **3 of 7 sites raised in their fixture and were never measured** — the skip did not reach the failure list |
+| 3 | mutation anchored on the bare token `"stacklevel=3"` | `41 passed` for both attribution mutants ⟹ "the gates are blind" | `.replace(…, 1)` hit the **docstring**, which documents `stacklevel=3` four times; the code was never mutated |
+
+**The common shape, and it is not "be careful".** Each failure made the
+instrument report the *reassuring* verdict: (1) a check that cannot fail, (2) a
+gap that reads as coverage, (3) a blind gate that reads as a blind gate — which
+is the nastiest, because #3 would have been *acted on*: the honest response to
+"41 passed under a mutation" is to strengthen or delete the gate, and I would
+have weakened a gate that was already correct.
+
+**Three rules, each grep-checkable:**
+
+1. **A standalone probe must not use `assert`** — `if not cond: raise
+   AssertionError(...)`, or run without `-O`. (L42 has the project-specific why:
+   the canonical `python -O -m pytest` is safe only because pytest rewrites
+   assertions *inside collected test modules*.)
+2. **A skipped case is a FAILURE, never a `continue`.** Any loop that measures
+   N things and can bail on one must append to the failure list on the bail
+   path. "Not measured" and "measured OK" must never print the same.
+3. **A mutation anchor must match SYNTAX, not a token** — anchor on
+   `"ConvergenceWarning,\n        stacklevel=3"`, not `"stacklevel=3"`. And note
+   the aggravator: **a well-documented function is MORE likely to defeat a
+   token anchor**, because the prose discusses the very constant the mutation
+   targets. Asserting "the target string was present" does not help — it was
+   present, in the docstring.
+
+**The generalisation worth carrying past these three.** `vv-principles` #17
+says verify the instrument on a known-positive before trusting a negative.
+This step says the same thing about the instrument's *plumbing* rather than its
+logic: **ask what this probe would print if it measured nothing at all.** If
+that output is indistinguishable from success, the probe has no negative leg
+and its green is worth nothing. In all three cases above the answer was "it
+would print exactly what it just printed".
+
+Sibling of [[lessons-L38]] (a mutation in a shared tree is indistinguishable
+from a production bug) — both are about the *evidence pipeline* failing while
+the code under test is fine.
