@@ -837,6 +837,46 @@ stored; measured data plainly must be* (the same licence `iterations_run`
 already holds). Keep the distinction explicit at the field, or the next
 reader will read it as the drift N2b-ii removed.
 
+#### ⭐ Existence-check of the deliverable, 2026-08-10 — two findings
+
+Run before freezing this pointer (`plan-authoring` §1: a grep per symbol AND a
+check per *deliverable*, because a deliverable is a CONCEPT and greps miss it).
+All five named symbols verified live. The deliverable check found two things
+that change how N6b should be built:
+
+⚠ **1. `R_g` is NOT expressible as the existing integrated functional — and
+saying why is the point.** `orpheus/transport/reaction_rate_functional.py:118`
+ships `IntegratedReactionRate`, `R_x(φ) = ∫_V Σ_g' Σ_{x,g'} φ_g' dV`, which
+contracts **group AND space to a scalar** and consumes a `ScalarFlux`.
+`R_g = Σ_n w_n Σ_i V_i r[n,g,i]` **keeps the group index** and contracts
+**angle and space**. Same data, different contraction — exactly the
+[[lessons-L30]] trap ("verify N call sites share the same OPERATION, not just
+the same data"), which killed a previous attempt to fold seven `compute_keff`
+functionals onto one type. **Do not force the fold.**
+
+⟹ But do NOT hand-roll the arithmetic either: reuse the angular→scalar
+reduction that already turns an angular field into a `ScalarFlux`, and the
+mesh's canonical **`volume_measure`** (the same measure
+`SNSolver.compute_group_production_rate` uses) for the spatial integral. What
+N6b writes is the per-group *composition*, not either reduction.
+
+⭐ **2. The adjoint-weighting channel ALREADY EXISTS — which makes the one
+gating option that measurement endorsed far cheaper than it was costed.** The
+N5 measurement's recommendation 3 was *"only a spatially-resolved
+adjoint-weighted residual could gate, one adjoint solve per certificate"*, and
+it was priced as new machinery. It is not: `IntegratedReactionRate.evaluate`
+takes an **`adjoint=`** argument (the importance `φ*`), and its docstring
+states the unweighted call is the **`φ†=1` degenerate** of the bilinear
+`⟨φ†, M[Σ_x] φ⟩` — **LIVE since P6 / #281**. So a future adjoint-weighted
+residual gate needs the adjoint SOLVE (real cost) but none of the weighting
+machinery.
+
+⛔ Do not read this as licence to reach for it in N6b. The measurement is
+explicit that an **approximated** adjoint is worse than none — a flat 0-D
+weight degrades the overlap 4.64× → 128.95× by manufacturing false negatives.
+The note exists so that whoever revisits #350 prices the real option
+correctly, not so N6b grows a third arm.
+
 ---
 
 ## 4. Refuted / rejected candidates — with the structural reason
