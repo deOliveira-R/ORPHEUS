@@ -3118,10 +3118,40 @@ implemented and **no `D_6h`-invariant rule in tree**.
     (`tau[m] = max(0.5, min(1.0, ...))`) — it owns its own re-baseline
     window because `[M]` it still moves 4/4 folded levels' τ at n_μ = 4.
 
-  1. **The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
-     curvilinear MMS with no convergence order. It must **fall and recover an
-     order**. Structurally independent, manufactured-solution, not satisfiable by
-     construction. This is the acceptance test.
+  1. **The #229 azimuthal floor** — ⛔ **THIS ITEM'S TEXT WAS STALE IN TWO WAYS;
+     both corrected 2026-08-11 by an existence-check, original kept per
+     `plan-authoring` §3.** It read: *"today flat at `≈1.9e-2` on the
+     anisotropic curvilinear MMS with no convergence order. It must fall and
+     recover an order. … This is the acceptance test."*
+
+     ⛔ **(a) `#229` is CLOSED** (2026-06-13), and it never was the work item —
+     it is the **measurement record** that named the floor and attributed it to
+     half-angle-thread interpolation. A fresh session running `gh issue view
+     229` sees CLOSED and concludes this item is done. ⟹ read every bare `#229`
+     here as *"the floor measured in #229"*, never as an open issue.
+
+     ⛔ **(b) `1.9e-2` is the PRE-6.3 configuration** (`[M]` 2026-06-13, FULL
+     `NODE_ALIGNED` product rule) and quoting it as "today" is the
+     §4 numbers-carry-their-configuration failure. The tree's own gate
+     docstring (`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`)
+     carries the live ladder:
+
+     | when | fixture | `n_phi` 8→16 | ratio |
+     |---|---|---|---|
+     | `[M]` 2026-06-13 | full `NODE_ALIGNED` product | `1.90e-2 → 7.37e-3` (→ `3.10e-3` at 32) | 2.58× |
+     | `[M]` 2026-08-08, at the 6.3 flip | `folded_product`, **absorber still live** | **`3.538e-3 → 6.782e-4`** | **5.22×** |
+
+     ⟹ **the fold ALREADY took the floor down 5.4× at `n_phi=8` and steepened
+     the azimuthal scaling**, before 6.4 touches anything. The floor is
+     azimuthal, not polar: `[M]` holding `n_phi` and sweeping `n_mu` 4→8→16
+     leaves it flat (1.90e-2, 1.91e-2, 1.91e-2).
+
+     **What 6.4 actually owes, restated as an outcome:** re-measure this ladder
+     under the **RETIRED `[½,1]` absorber** and show the floor falls again AND
+     an order is recovered. The gate is structurally independent
+     (manufactured-solution, not satisfiable by construction) and it is still
+     the acceptance test — but the baseline it moves from is `3.538e-3`, not
+     `1.9e-2`.
   2. **T3's α closed form** holds exactly on the arc
      (`α_k = −w_gl·κ·[ξ(ω_{k−1/2}) − ξ(ω_{−1/2})]`, `κ = Δω/(2 sin(Δω/2))`).
      ⚠ Do NOT gate a bare `α == −ξ`: `κ` is 2.6 % off 1 at `n_φ = 8`.

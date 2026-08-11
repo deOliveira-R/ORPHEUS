@@ -56,6 +56,7 @@ surprises cost to hit.
 | 2026-08-11 | A plan's cost claim — *"the same cost, now certified"* — was extrapolated from a measurement of the CONVERGED outer (1 sweep) onto the regime that dominates (the COLD outer, 80–176 sweeps). The true cost was 2.5–3.3×. The estimate was labelled as unverified and the plan said "verify from the record"; the loop worked, and the label is what made the refutation cheap. | §4 (the configuration was *converged outer*; reusing the number outside that configuration is the same defect as reusing a fixture's number) |
 | 2026-08-10 | A plan sentence marked `[M]` — "`solve_sn` discards the solver it builds, **so** the projection cannot be computed at the entry" — was FALSE, and it was the sentence the step's whole design rested on. What had been measured was the *other* half of the same sentence (`Solution` really does not carry the operators). The frame-local question was never measured at all; the marker certified the checked half and lent its authority to the unchecked one. | §2 (the `[M]`-scope sharpening) |
 | 2026-08-11 | A hazard table row read "attributed to the caller **in every family**, never inside `orpheus/`". It was measured on the 3 NEW families (3 of 8 emission sites); the 2 unmeasured SN fixed-source sites were the ones that were BROKEN, blaming `orpheus/sn/solver.py`. The row's own author wrote it minutes after running the probe. | §2 (the QUANTIFIER/denominator sharpening) |
+| 2026-08-11 | A step's acceptance test was titled "**The #229** azimuthal floor — today flat at `≈1.9e-2` … must fall and recover an order". `#229` had been **CLOSED for 2 months** (it is a measurement RECORD, not a work item), and `1.9e-2` was the **pre-6.3** fixture's number — the tree's own gate docstring already carried `3.538e-3` post-fold. Two independent staleness classes in one four-line item. | §9 |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -330,3 +331,45 @@ same 87 % was exactly **0.0** for the specular mirror, whose metric cancels by
 symmetry. A reflective-only measurement would have confirmed the plan's
 "neutral" framing with a real number attached (`vv-principles` Mode 12 — the
 measured functional's invariance group contained the error class).
+
+## 9. Do not COPY what the tree already tracks — point at it
+
+A plan restates two kinds of thing it does not own, and both rot on their own
+schedule while the plan sits still:
+
+**(a) A measurement the TREE re-measures.** When a gate's docstring carries a
+live ladder — a table it is obliged to update whenever the gate is re-run — the
+plan must **cite the gate**, never copy its numbers. The person who re-measures
+is editing the *test*; they have no reason to look in your plan, so a copied
+figure is guaranteed to go stale and is guaranteed to look authoritative
+(`plan-authoring` §4's configuration problem, with the fix already living
+somewhere else). This is the Pattern-2 single-source rule applied to plans: the
+gate is the source, the plan is a consumer.
+
+**(b) An ISSUE NUMBER used as if it were a work item.** `#NN` in a plan is
+ambiguous between *"the open issue tracking this work"* and *"the record where
+this was measured / decided"* — and the two read identically. Say which:
+"the floor measured in #229 (CLOSED)" versus "blocked on #229". Otherwise the
+next session runs `gh issue view` and takes a CLOSED state as evidence the item
+is done. (Companion to `process-discipline`'s rule that a plan's internal task
+numbers collide with real issue numbers — same family: a bare `#N` is not
+self-describing.)
+
+> `[M]` 2026-08-11, quadrature campaign 6.4. The step's **acceptance test** read
+> *"**The #229 azimuthal floor** — today flat at `≈1.9e-2` on the anisotropic
+> curvilinear MMS with no convergence order. It must fall and recover an order.
+> … This is the acceptance test."* Both halves were false. **#229 closed
+> 2026-06-13** — it is the issue that *characterised* the floor as
+> half-angle-thread interpolation, not a work item, so `gh issue view 229`
+> reads CLOSED and invites "already done". And `1.9e-2` is the **pre-6.3**
+> fixture; `tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`'s
+> own docstring already recorded `3.538e-3 → 6.782e-4` (ratio 5.22×) measured
+> at the 6.3 flip — the fold had taken the floor down **5.4×** before 6.4
+> touched anything. A session designing to the plan's number would have
+> measured 3.538e-3 and concluded something unexpected had happened.
+
+⟹ The check is cheap and mechanical: **for every number in a plan, ask whether
+a test asserts or prints it.** If one does, replace the number with the
+`file:line` and let the reader run it. Keep the copy only when the plan's number
+is a *historical* claim ("was `1.9e-2` before the fold"), and then tense it and
+date it so it cannot be read as current.
