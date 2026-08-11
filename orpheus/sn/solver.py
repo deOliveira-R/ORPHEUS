@@ -2371,7 +2371,7 @@ class SNSolver:
         :class:`AngularSourceSink` via ``.values`` so the bare-ndarray
         external contract is preserved for legacy consumers in
         :func:`_solve_fixed_source_si` and the verification probes in
-        :mod:`tests.sn.test_scattering_operator`.
+        :mod:`tests.sn.operators.test_scattering_operator`.
         """
         if angular_flux is None:
             return None

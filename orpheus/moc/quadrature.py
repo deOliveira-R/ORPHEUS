@@ -16,8 +16,37 @@ from orpheus.numerics.roots_of_unity import roots_of_unity
 
 # ── Tabuchi-Yamamoto tables ─────────────────────────────────────────
 # Each entry: (sin_theta, weight) for one polar angle per half-space.
-# Weights sum to 0.5 (one hemisphere); full-sphere sum is 1.0.
-# Source: Yamamoto et al. (2007), Table 2; also Knott & Yamamoto (2010).
+#
+# Source, VERIFIED 2026-08-11 against the paper (now in the library, with an
+# OCR sidecar): Yamamoto, Tabuchi, Sugimura, Ushio & Mori, "Derivation of
+# Optimum Polar Angle Quadrature Set for the Method of Characteristics Based
+# on Approximation Error for the Bickley Function", J. Nucl. Sci. Technol.
+# 44(2), 129-136 (2007), doi:10.3327/jnst.44.129 — **Table 1**, "Tabuchi and
+# Yamamoto (TY)" column, printed p. 133 (PDF p. 6).
+#   ⛔ This comment said "Table 2" until 2026-08-11. Table 2 is a C5G7
+#      k-effective comparison and carries no quadrature. The AUTHOR
+#      attribution was right; only the table number was wrong.
+#
+# CONVENTION: the published weights sum to 1.000000 (the mass of
+# `sin_theta d_theta` on (0, pi/2)), and the values below are those weights
+# HALVED, so they sum to 0.5 per hemisphere and 1.0 over the full sphere.
+# The published `sin theta` values are stored verbatim, unhalved.
+#
+# HOW THE PAPER DERIVED THEM (`[M]` printed p. 133, and §II): minimize the
+# MAXIMUM absolute error of Ki_3 -- the paper's `E_{3,max}` -- by steepest
+# descent from an initial guess; its Figs. 2-4 plot that residual over
+# x in [0, 5], one decade smaller per added division. Our own residual against
+# `orpheus.derivations.common.kernels.ki_n` reproduces exactly that: `[M]`
+# max|r| = 1.279e-02 (L=1), 4.123e-04 (L=2), 3.361e-05 (L=3), and at L=3 it
+# EQUIOSCILLATES with six alternations at ~3.35e-05 -- the Chebyshev signature
+# of a minimax fit. ⟹ these 12 literals are DERIVABLE, and #355 is the issue
+# to replace them with the derivation plus its own machine-checkable claim.
+# (The 1- and 3-division Leonard columns of the same Table 1 were re-derived
+# by these authors against `E_{2,max}`, i.e. Ki_2 -- a second target family.)
+#
+# See also Knott & Yamamoto, "Lattice Physics Computations", Handbook of
+# Nuclear Engineering ch. 9 (2010), doi:10.1007/978-0-387-98149-9_9, which
+# re-tabulates the set; it is what OpenMOC cites for its `TYPolarQuad`.
 
 _TY_TABLES: dict[int, tuple[np.ndarray, np.ndarray]] = {
     1: (
