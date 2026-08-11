@@ -16,6 +16,14 @@ Companion documents (all committed):
 
 ---
 
+> ⛔⛔ **THIS MEMO HAS TWO LAYERS. READ §9bis BEFORE §2–§8.**
+> §1–§9 are attempt 1 (2026-08-11, pre-compaction). §9bis is attempt 2 (same
+> day, post-compaction) and it **refutes attempt 1's own diagnosis**: candidate
+> (3) is ill-posed, the PARTITION was right, and the defect is that the
+> partition is read in ω while the weight is read in η. Attempt 1's text is
+> preserved in place with per-claim refutation markers (§2's table is the map).
+> The **numbers** in §4 all stand; only their interpretation moved.
+
 ## 0. ⭐ READ THIS FIRST — the one-paragraph state
 
 The cylinder's Morel–Montry angular closure weight τ was re-posed from a
@@ -68,23 +76,34 @@ is false and it is not the last one.
 
 | # | premise | status |
 |---|---|---|
-| **P-A** | α and τ both reference "the boundary between azimuthal cell m and m+1", derive it independently, and DISAGREE | ✅ **TRUE** — and it is a genuine Cardinal-Rule-2 defect. `[M]` §4.2 |
-| **P-B** | α lives at the **geometric** arc half-angle boundary `ω_{k−1/2}` | ⛔ **FALSE** — see §3. This is the fatal link. |
-| **P-C** | ∴ τ must be built on the geometric arc partition | ⛔ **INVALID** — follows only from P-B |
-| **P-D** | the `[½,1]` absorber exists to compensate the chord partition's stretched end cells | ⚠ **UNPROVEN, possibly inverted** — see §3 |
-| **P-E** | ν-closure `= 1.000000` validates the arc partition | ⛔ **INVALID AS VALIDATION** — see §5.3. It is necessary, not sufficient. |
-| **P-F** | `τ ≡ ½` is the principled M-M value expressed in ω | ⛔ **REFUTED** — it is Hébert's *diamond* scheme (Eqs. 3.406/3.431), a different method, and `[M]` it fails ν-closure by 16.5 % |
-| **P-G** | BMC's β is the diffusion-limit oracle that adjudicates a partition | ⚠ **TRUE in general, BLIND here** — see §5.2 |
-| **P-H** | the literature's cumulative-weight edges can be transplanted to the cylinder | ⛔ **REFUTED** — violates P3, worsening with refinement. §4.4 |
+| **P-A** | α and τ both reference "the boundary between azimuthal cell m and m+1", derive it independently, and DISAGREE | ⛔ **REFUTED as a DUPLICATION claim, 2026-08-11 (§9bis.2)** — α derives no boundary at all: it derives edge-INDEXED amplitudes from `(w, η)`. There was no twin derivation. (Was: ✅ TRUE, a genuine Cardinal-Rule-2 defect, `[M]` §4.2.) |
+| **P-B** | α lives at the **geometric** arc half-angle boundary `ω_{k−1/2}` | ⛔ **the REFUTATION is itself refuted, 2026-08-11** — `[M]` §9bis.1: α ∝ `ξ(e_arc)` to `1e-16`; κ is an AMPLITUDE, not a displacement. TRUE in shape. (Was: ⛔ FALSE, "the fatal link" — see §3, now superseded.) |
+| **P-C** | ∴ τ must be built on the geometric arc partition | ✅ **REINSTATED 2026-08-11** on a different ground: not "α lives at the arc edge" but "α's *shape* is the arc-edge dome". The PARTITION was right. (Was: ⛔ INVALID.) |
+| **P-D** | the `[½,1]` absorber exists to compensate the chord partition's stretched end cells | ⛔ **REFUTED 2026-08-11 (§9bis.5)** — it is a **non-amplification guard**: `τ ≥ ½ ⟺ \|(1−τ)/τ\| ≤ 1`. `[M]` worst running product `1.000000` clamped vs `40.7` (chord) / `9.44` (arc) at `n_φ = 64`. |
+| **P-E** | ν-closure `= 1.000000` validates the arc partition | ⛔ **INVALID AS VALIDATION**, and worse than §5.3 said — `[M]` §9bis.3 it is **CHART-RELATIVE**: it reports which variable you ran it in, nothing else. |
+| **P-F** | `τ ≡ ½` is the principled M-M value expressed in ω | ⛔ **the REFUTATION is itself refuted, 2026-08-11** — `[M]` §9bis.3: `τ ≡ ½` closes ν-closure **exactly** in ω at every order, and it is P2 in the MARCH variable (§9bis.7), not a foreign method. (Was: ⛔ REFUTED — Hébert's diamond, fails ν-closure by 16.5 %; that 16.5 % was the η reading.) |
+| **P-G** | BMC's β is the diffusion-limit oracle that adjudicates a partition | ⛔ **STRONGER THAN §5.2 SAID** — `[M]` §9bis.4 BMC β takes τ **nowhere**; it is a function of `(quadrature, partition)` only, so it cannot grade a τ on ANY fixture, folded or not. Same for P1 `c` and Lathrop β. |
+| **P-H** | the literature's cumulative-weight edges can be transplanted to the cylinder | ⛔ **REFUTED** — violates P3, worsening with refinement. §4.4. *(unchanged)* |
 
-⭐ **P-A survived and P-C did not.** The defect is real; the fix was aimed at the
-wrong target. A fresh session should NOT conclude "the chord partition was fine
-all along" — it should conclude "α and τ must share a partition, and we have not
-yet identified which one α actually uses."
+⛔⛔ **THE 2026-08-11 RE-READING SUPERSEDES THE PARAGRAPH BELOW.** The defect is
+NOT "α and τ disagree about the partition" — they agree (P-C). It is that the
+**partition is read in ω and the WEIGHT in η**: two charts on one level
+(§9bis.3). Kept for the record because the wrong frame is what produced §8:
+
+> ⭐ **P-A survived and P-C did not.** The defect is real; the fix was aimed at
+> the wrong target. A fresh session should NOT conclude "the chord partition was
+> fine all along" — it should conclude "α and τ must share a partition, and we
+> have not yet identified which one α actually uses."
 
 ---
 
 ## 3. ⛔ HOW P-B IS FALSE — the sentence that refutes the design
+## ⛔⛔ **THIS WHOLE SECTION IS REFUTED — 2026-08-11, `[M]` §9bis.1/§9bis.2.**
+## κ is an AMPLITUDE defect of the quadrature, not a displacement of the edge:
+## α ∝ ξ(e_arc) to `1e-16`, so α DOES reference the arc partition. The section
+## is kept verbatim (plan-authoring §3) because it is the argument a fresh
+## reader would otherwise re-derive, and because its own ⚠ process note below
+## is the lesson that repeated itself.
 
 The literature deliverable, `scratch/q64_tau_edge_convention_literature.md:943`:
 
@@ -354,7 +373,14 @@ On an equispaced-ω rule this equals `ω_m ± Δω/2`, and P2 gives the closed f
 `1.1e-16 / 2.2e-16 / 7.8e-16 / 7.4e-15 / 2.3e-14` at `n_φ = 4/8/16/32/64`
 (⚠ the agreement DEGRADES two orders; the gate uses `atol=1e-13`).
 
-**(3) RECURSION-DEFINED — NOT YET MEASURED. This is the next step.**
+**(3) RECURSION-DEFINED —** ⛔ **ILL-POSED. DO NOT ATTEMPT. `[M]` §9bis.1:**
+exactly one edge per level (the mid-level one, where `κξ > sinθ`) has no real
+solution, at every quadrature order. α is the arc-edge dome scaled by κ — an
+amplitude, not a displaced position. The text below is preserved because it is
+what a reader would otherwise re-derive; its premise is the refuted P-B.
+⟹ **the live candidate is (C): P2 in the MARCH variable — see §9bis.7.**
+
+*(superseded text follows)* **NOT YET MEASURED. This is the next step.**
 The edge α's own recursion implies. Two equivalent routes, and they should be
 checked against each other:
 * invert α: from `α_{m+1/2} = α_{m−1/2} − w_m η_m` with `α_{1/2} = 0`, the edge
@@ -422,6 +448,16 @@ do not treat it as the whole tree.**
 
 ## 8. THE DECISION, AND WHAT TO DO NEXT
 
+⛔⛔ **§8 IS ANSWERED AND ITS INSTRUCTION IS VOID — 2026-08-11, see §9bis.**
+The answer to its own opening question is the SECOND branch: *the arc partition
+is right and something else must move with it* — the CHART the weight is read
+in. Candidate (3), which the rest of this section instructs you to build, is
+ill-posed (§9bis.1). **Go to §9bis.7 for the live candidate.** Preserved below
+because §9bis's whole argument is a correction OF this text, and because the
+probe shape in the second paragraph is still the right shape.
+
+*(superseded text follows)*
+
 **The open question:** is the geometric arc partition wrong, or is it right and
 something else must move with it?
 
@@ -453,6 +489,243 @@ Then one of:
 
 ⛔ **DO NOT:** relax `tol_per_cell`; close Q5.6.4; re-baseline the resolvent
 comparison; or cite `τ ≡ ½` as principled. Any of those erases the signal.
+
+---
+
+## 9bis. ⭐⭐ ATTEMPT 2 (2026-08-11, after the compaction) — §8's experiment
+## could not be run, and the reason rewrites §2 and §3
+
+Raw probe output: `scratch/q64_attempt2_probe_outputs.md` (committed).
+Probes: `$CLAUDE_JOB_DIR/tmp/q64_probe{A,B,C,D,E}_*.py` (**ephemeral**; each
+one's purpose and shape is described below well enough to rebuild).
+
+### 9bis.1 ⛔ CANDIDATE (3) IS ILL-POSED — there is no "recursion-defined edge"
+
+§6's candidate (3) — "the edge α's own recursion implies" — presumes α has an
+edge POSITION. It does not. `[M]` probe B1, `folded_product(4, n_φ)`, level 0:
+
+| `n_φ` | rel spread of `α_prod / ξ(e_arc)` over interior edges | fitted constant |
+|---|---|---|
+| 8 | `1.555e-16` | `0.713918 = κ · 0.695709690275` |
+| 16 | `1.110e-15` | `0.700200 = κ · 0.695709690275` |
+| 32 | `1.912e-15` | `0.696829 = κ · 0.695709690275` |
+| 64 | `2.313e-14` | `0.695989 = κ · 0.695709690275` |
+
+α's **shape is exactly ξ at the geometric arc edges** and its **amplitude is
+κ times the exact dome** — the fitted `w_gl` is the same number to 12 digits at
+every order, which is the level's polar weight. An amplitude is not a position.
+Asking "at which edge does the exact dome take the value α has?" means solving
+`ξ(ẽ) = κ · ξ(e_arc)`, and `[M]` probe A2: **exactly one edge per level has no
+real solution — the mid-level one, where ξ is maximal and `κξ > sinθ`** (min RHS
+`−1.371e-02 / −3.347e-03 / −8.319e-04 / −2.077e-04` at `n_φ = 8/16/32/64`). It
+fails at every quadrature order, and refining does not rescue it.
+
+⟹ **§8's stated next step cannot be taken.** Not "was measured and lost" —
+*is not a well-formed question*.
+
+### 9bis.2 ⛔ §3 IS ITSELF REFUTED: P-B is TRUE in shape
+
+§3 concluded from T3's `κ ≠ 1` that "α is **not** at the geometric arc
+boundary". B1 measures the opposite where it matters: α is proportional to
+`ξ(e_arc)` to `1e-16`, i.e. **α references exactly the arc partition**, and κ is
+an amplitude defect the *quadrature* carries (midpoint-rule vs exact integral of
+`cos ω` over the cell), not a displacement of the edge. The literature sentence
+at `scratch/q64_tau_edge_convention_literature.md:943` distinguishes a
+recursion-defined edge from the geometric one *in general*; on OUR rule the two
+coincide up to that scalar, so the distinction has no numerical content here.
+
+⟹ **the carve's PARTITION choice (2) was correct**, and §2's P-C is reinstated
+on a different ground than P-B: not "α lives at the arc edge" but "α's shape is
+the arc-edge dome". P-A, however, is refuted as a *duplication* claim: α never
+derives a boundary. It derives edge-INDEXED amplitudes from `(w, η)` by the
+recursion `α_{m+1/2} = α_{m−1/2} − w_m η_m`. There was never a second derivation
+of the same object, so there was no Cardinal-Rule-2 twin to collapse — though
+naming the partition once was still right.
+
+### 9bis.3 ⭐⭐ THE REAL DEFECT: the partition is read in ω, the WEIGHT in η
+
+The landed convention takes the cell boundaries in ω (correct, §9bis.2) and then
+takes P2 — the barycentric coordinate — **in η**. Those are two different charts
+on the same level, and the mismatch is the whole regression.
+
+`[M]` probe A3, ν-closure run in BOTH variables (`0` / `1.000000` = exact close):
+
+| `n_φ` | convention | in η | in ω |
+|---|---|---|---|
+| 8 | chord | `1.000000` | `0.159076` |
+| 8 | chord + `[½,1]` absorber | `1.016389` | `0.079538` |
+| 8 | arc / ω-mid (LANDED) | `1.000000` | `0.148847` |
+| 8 | `τ ≡ ½` | `1.164784` | **`0.000000`** |
+| 64 | chord | `1.000000` | `0.020411` |
+| 64 | arc / ω-mid (LANDED) | `1.000000` | `0.018719` |
+| 64 | `τ ≡ ½` | `1.002412` | **`0.000000`** |
+
+⟹ **§5.3's reading of ν-closure was chart-relative.** It says "τ came from a
+contiguous partition **in the variable you ran it in**" — nothing more. §2's P-F
+condemned `τ ≡ ½` for failing it by 16.5 %; run in the march variable, `τ ≡ ½`
+closes **exactly** at every order and the other three fail. The instrument
+cannot adjudicate; it only reports which chart you chose.
+
+### 9bis.4 ⭐⭐ THREE OF THE FIVE INSTRUMENTS ARE τ-BLIND — measured with garbage
+
+§5's table lists blind spots per instrument. The sharper fact, `[M]` probe D on
+`folded_product(4,16)` level 0 with the quadrature and partition held FIXED and
+τ replaced by garbage:
+
+| instrument | production (arc) | `τ ≡ ½` | GARBAGE `τ ≡ 0.7` | GARBAGE random |
+|---|---|---|---|---|
+| P1 `c = Σwη²` | `0.282432589924` | `0.282432589924` | `0.282432589924` | `0.282432589924` |
+| **BMC β** (Eq. 41/75) | `0` | `0` | `0` | `0` |
+| **Lathrop β** (α defect, Eq. 25) | `0.741555747146` | `0.741555747146` | `0.741555747146` | `0.741555747146` |
+| ν-closure (in η) | `1` | `1.03918231642` | `1.01319215547` | `0.972815198734` |
+| ⭐ amplification (new) | `4.72887003107` | `1` | `0.428571428571` | `2.18309886184` |
+| ⭐ P1 closure defect (new) | `0.139106457701` | `0.00777890941286` | `0.0211225798756` | `0.274253487045` |
+
+⟹ **P1, BMC β and Lathrop β are functions of `(quadrature, partition)` ONLY.**
+They take τ nowhere. No fixture, tolerance, or refinement can make them grade a
+τ — they certify a random τ as readily as the production one. That is why 6.4
+could reach a worse answer with every structural instrument green: **the whole
+published suite was τ-blind, and the one instrument that sees τ (ν-closure)
+was read in the chart the chosen convention had just made exact.** Mode 12,
+applied to the adjudication apparatus rather than to a gate.
+
+### 9bis.5 ⭐ WHAT THE `[½,1]` ABSORBER ACTUALLY WAS: a non-amplification guard
+
+Not "compensating the chord partition's stretched end cells" (§2's P-D). The
+angular recurrence is `ψ̂_{m+1/2} = (ψ_m − (1−τ_m)ψ̂_{m−1/2})/τ_m`, so an
+upstream error reaches the next face multiplied by `−(1−τ_m)/τ_m`:
+
+> **`τ_m ≥ ½ ⟺ |(1−τ_m)/τ_m| ≤ 1 ⟺ the recurrence does not amplify.`**
+
+`[M]` probe B2, worst running product `Π|(1−τ)/τ|` over the level:
+
+| `n_φ` | chord | chord + absorber | arc (LANDED) | `τ ≡ ½` | #τ<½ (chord / arc) |
+|---|---|---|---|---|---|
+| 8 | `5.03` | **`1.000000`** | `3.36` | **`1.000000`** | 2 / 2 of 4 |
+| 16 | `1.02e+01` | **`1.000000`** | `4.73` | **`1.000000`** | 4 / 4 of 8 |
+| 32 | `2.04e+01` | **`1.000000`** | `6.68` | **`1.000000`** | 8 / 8 of 16 |
+| 64 | `4.07e+01` | **`1.000000`** | `9.44` | **`1.000000`** | 16 / 16 of 32 |
+
+min τ → `1/5` (chord) and `1/4` (arc) as `n_φ → ∞`; the amplification grows
+**∝ M** for both. This explains, with one mechanism, every number in §4:
+retiring the absorber alone made the MMS floor 1.8–3.4× worse (§4.1 — the
+amplification was unleashed); the arc is worse than chord+absorber (§4.5/§4.6 —
+`9.44` vs `1.0`); and `τ ≡ ½` sits exactly at the non-amplifying boundary.
+
+⚠ Honest caveat: `τ ≡ ½` is *marginally* non-amplifying (product exactly 1 —
+errors neither grow nor decay), and `ψ̂_{m+1/2} = 2ψ_m − ψ̂_{m−1/2}` is linear
+extrapolation, so it has the diamond scheme's usual positivity exposure. `τ > ½`
+damps. That is a real trade to state, not a refutation.
+
+### 9bis.6 ⭐ THE HONEST τ INSTRUMENT: the P1 closure defect at the arc faces
+
+Near the diffusion limit `ψ` is affine in the direction cosines
+(`ψ = a + bη + cξ`), so feed `η` and `ξ` through the closure and compare the
+produced face values against their true values at the arc edges — weighted by
+`ξ(e_arc)`, the coefficient α actually multiplies in the balance. `[M]` probe B3:
+
+| `n_φ` | convention | max\|Δη\| | max\|Δξ\| | ξ-weighted |
+|---|---|---|---|---|
+| 64 | chord | `6.09e-04` | `6.64e-01` | `3.37e-01` |
+| 64 | chord + absorber | `1.22e-03` | `1.63e-02` | `5.79e-04` |
+| 64 | arc (LANDED) | **`6.94e-16`** | `1.42e-01` | `7.16e-02` |
+| 64 | `τ ≡ ½` | `1.23e-03` | `6.13e-04` | **`4.79e-04`** |
+
+⭐ Read the LANDED row: it is exact on η **by construction** — it is P2-in-η on
+its own partition — and pays with a ξ defect that barely converges
+(`3.89e-1 → 1.42e-1` over an 8× refinement, ≈ O(M^−½)). **The convention made
+one basis function exact and was then certified by the instrument measuring that
+same basis function.** `τ ≡ ½` is the balanced choice, both defects O(M⁻²).
+
+No single τ can be exact for both: requiring it gives
+`sin p + sin q = sin(p+q)` for the two half-cell angles, whose only solutions
+are `p = 0` or `q = 0` (the node ON an edge). So a τ closure is intrinsically
+first-order-in-one-chart, and the choice of chart IS the design decision.
+
+### 9bis.7 THE RE-POSE — one rule, both arms, no clamp
+
+Not "hardcode ½ on the cylinder". The rule is:
+
+> **τ is the barycentric coordinate of the ordinate between its own cell's two
+> edges, measured in the variable the level's angular march RUNS IN.**
+> Sphere: the march is in μ. Cylinder: the march is in ω, arc by arc (T22b).
+
+`[M]` probe E:
+* **E1 — the sphere does not move: `0.000e+00` at N = 4/8/16/32/64.** BMC Eq. 12
+  stays verbatim, because there the march variable *is* the radial cosine.
+* **E2 — the cylinder gives `max|P2_in_ω − ½| = 0.0 … 9.0e-15`** on every
+  shipped `folded_product(n_mu ∈ {2,4}, n_φ ∈ {4..64})`. So ½ is a
+  **consequence** on equispaced arcs, never an assertion — and on a deliberately
+  non-equispaced monotone arc the body returns a non-trivial
+  `[0.408, 0.700, 0.250, 0.581, 0.481]`, all inside `[0,1]`.
+* **E3 — R12a is untouched**: the march-start facts are integer facts read off
+  `ξ = 0` and `η_0 = η_1` bit-exactly (Q5.4/T26) and never consulted τ.
+  `_assert_tau_within_unit_interval` passes trivially, and the chord partition's
+  `τ_0 = 0` endpoint pathology (§6, the thing the absorber was blocking) becomes
+  **unspellable**: τ is ½, never 0. No clamp, no endpoint guard.
+
+⟹ this **keeps** the carve (one named partition producer, the collapsed τ body,
+the nomenclature, the analysis module, the corpus work) and changes the CHART
+the partition and the weight are read in. `angular_cell_edges_per_level` should
+return the partition **in the level's march variable** (μ sphere, ω cylinder)
+instead of projecting the cylinder's to `sinθ cos ω_edge`; consumers that need
+the radial cosine (BMC's β functionals) convert there, where the cosine is the
+functional's own variable. That also makes the carve's existing claim — *"P2
+carries no geometry, so ONE body serves both arms"* — true, which today it is
+not: one body reads both arms in the radial cosine, and only the sphere marches
+in it.
+
+### 9bis.8 THE DECISIVE ROW — the independent method
+
+Probe C re-solves `cyl_2g_3reg_folded_4x8_dd_n40` under each convention and
+compares the flux SHAPE against the trajectory-resolvent reference (computed
+once, reused), exactly as
+`test_phase_e_trajectory_resolvent_flux_shape_crosscheck` does but with a live
+solve in place of the frozen snapshot. Gate tolerance `1.2e-1`.
+
+**⭐ The instrument is VALIDATED**: it reproduces both of §4.6's anchors to
+every printed digit *and* both k_eff values to all 16 — `6.5934e-02` /
+`1.2302082296342958` for chord+absorber and `1.2676e-01` /
+`1.2310212585879858` for the landed arc. Whatever it says about the other rows
+can be trusted to the same standard.
+
+`[M]` 2026-08-11, `folded_product(4, 8)`, `n = 40`, per-group max
+`|Δφ_norm|` after L∞ normalisation, tol `1.2e-1`:
+
+| convention | τ (level 0) | per group | max | verdict |
+|---|---|---|---|---|
+| **(1c) chord + `[½,1]` absorber** | `0.500, 0.500, 0.586, 0.780` | `[0.06593, 0.01335]` | **`6.593e-02`** | PASS ✅ **best** |
+| **(C) `τ ≡ ½`** | `0.500, 0.500, 0.500, 0.500` | `[0.10181, 0.01507]` | **`1.018e-01`** | PASS |
+| (2) arc, P2 in η (LANDED) | `0.260, 0.459, 0.541, 0.740` | `[0.12676, 0.01341]` | `1.268e-01` | **RED** |
+| (1) chord, unclamped | `0.220, 0.414, 0.586, 0.780` | `[0.14409, 0.01305]` | `1.441e-01` | **RED** |
+
+⚠⚠ **THE RANKING DISAGREES WITH THE OTHER TWO INSTRUMENTS, and this is the
+open question of attempt 2.** `τ ≡ ½` passes but is 1.54× worse here, while
+§4.5's MMS ladder puts it 4.4× *better* and §9bis.6's closure defect 1.2×
+better. All three agree on the bottom two, and in the same order. So the live
+disagreement is exactly `τ ≡ ½` vs `chord + absorber`, on a **single coarse
+rung** (`n_φ = 8`, where `κ − 1 = 2.6 %` is largest).
+
+⛔⛔ **AND THE ROWS ABOVE ARE STARVED SOLVES.** `[M]` every one of the four
+emitted
+`ConvergenceWarning: inner(source-iteration) hit max_inner=300 without reaching
+tol=1e-10 (last residual ≈1.9e-06) … needs about 528`. The residuals are
+near-identical across rows (`1.913 / 1.886 / 1.906 / 1.893 e-06`) and are five
+orders below the `1e-1` shape differences being graded, so the ranking is
+probably robust — but it is **not** established until re-run converged.
+
+⟹ ⭐ **A finding in its own right, independent of τ: the shipped fixture
+`cyl_2g_3reg_folded_4x8_dd_n40` is a starved solve at the snapshot defaults**
+(`max_inner = 300`, needs ≈528). That is a live #340-class defect on a
+regression artifact AND on the L1 gate that consumes it — file it separately;
+it is not caused by, and does not depend on, anything in Q5.6.4.
+
+▶ **Probe C2** (`$CLAUDE_JOB_DIR/tmp/q64_probeC2_resolvent_ladder.py`) re-runs
+this at `max_inner = 4000` with the `fully_converged` flag PRINTED per row, as
+a **ladder in `n_φ` = 8/16/32** — the resolvent reference is a different method
+and is independent of the SN quadrature, so one cached reference grades every
+rung. A flat tail marks the reference's own error floor; past that rung the
+column grades the reference, not the convention.
 
 ---
 
