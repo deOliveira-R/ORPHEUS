@@ -564,16 +564,29 @@ class TestBitIdenticalCurvilinear:
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
+        # An inward curvilinear visit MUST produce all three outputs; a None
+        # here is a contract breach, not a tolerance question. Narrowed
+        # explicitly because ``assert_array_almost_equal_nulp`` types its
+        # arguments more strictly than ``np.array_equal`` did, and
+        # ``CellResult.outgoing_*`` are ``ndarray | None``.
+        spat_out = result.outgoing_spatial_flux
+        ang_out = result.outgoing_angular_state
+        if spat_out is None or ang_out is None:
+            raise AssertionError(
+                "inward curvilinear visit returned no outgoing state "
+                f"(spatial={spat_out!r}, angular={ang_out!r})"
+            )
+
         # nULP, not array_equal — see "Why this row asserts nULP" above.
         # np.testing.* raises unconditionally, so this survives -O.
         np.testing.assert_array_almost_equal_nulp(
             result.cell_average_flux, ref_psi_avg, nulp=8,
         )
         np.testing.assert_array_almost_equal_nulp(
-            result.outgoing_spatial_flux, ref_psi_spat_out, nulp=8,
+            spat_out, ref_psi_spat_out, nulp=8,
         )
         np.testing.assert_array_almost_equal_nulp(
-            result.outgoing_angular_state, ref_psi_angle_out, nulp=8,
+            ang_out, ref_psi_angle_out, nulp=8,
         )
 
 
