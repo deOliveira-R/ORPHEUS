@@ -453,6 +453,53 @@ class TestBitIdenticalCurvilinear:
         :meth:`SNMesh.dag_walk`) resolves the downstream face
         before issuing the visit, so the strategy sees no
         sign-of-:math:`\\mu` branching.
+
+        Why this row asserts nULP and not ``array_equal``
+        -------------------------------------------------
+        The reference below sums the numerator left-to-right,
+        ``(source + spatial) + angular``; production groups the two
+        inflow terms, ``source + (spatial + angular)``
+        (``cell_balance.py`` → ``diamond.py``).  Identical in exact
+        arithmetic, and the ONLY difference between the two sides.
+
+        ⭐ The bit-identity this row used to assert was a **numerical
+        coincidence, never a guarantee**: with the pre-``579d5eaf``
+        Gauss-Legendre nodes the two associations happened to round
+        the same way.  ``579d5eaf`` moved the GL nodes/weights by
+        3/17 ULP (a verified improvement — the new GL8 integrates the
+        exact rational moments 5.8× better than ``numpy.leggauss``,
+        winning 7 of 7 non-trivial even moments), and the coincidence
+        stopped holding.  Nothing about the cell-update algebra moved.
+
+        ``[M]`` 2026-08-12, this fixture: the association hypothesis is
+        PROVEN, not inferred — ``array_equal(production, right-assoc)``
+        is ``True`` while ``array_equal(production, left-assoc)`` is
+        ``False``.  Drift, and its propagation from the single 1-ULP
+        numerator difference:
+
+        =========================  ====  ==========
+        quantity                   ULP   rel
+        =========================  ====  ==========
+        ``cell_average_flux``      1     2.059e-16
+        ``outgoing_spatial_flux``  2     2.528e-16
+        ``outgoing_angular_state`` 4     6.807e-16
+        =========================  ====  ==========
+
+        The amplification is dimensionally explainable:
+        ``2·avg − ψ_in`` carries a mild cancellation factor
+        (≈1.23), and ``(avg − (1−τ)ψ)/τ`` divides by τ ≈ ½.
+        ``nulp=8`` is 2× the worst measured value — headroom for
+        platform FP variation, and the same order as the
+        ``< 8 × ulp`` contract ``tests/numerics/test_rules_1d.py``
+        already pins Gauss-Legendre against ``numpy`` with.
+
+        ⚠ This relaxation costs the gate **no catch power**: it exists
+        to catch a wrong cell-update algebra (sign flip, wrong
+        downstream face, wrong M-M closure constant), every one of
+        which is an O(1) error, not an O(ULP) one.  The outward
+        sibling still asserts strict ``array_equal`` — it is
+        unaffected only by ordinate-index luck, so if it ever reddens
+        at this scale, read this note before touching production.
         """
         mesh = _spherical_mesh(nx=5, radius=1.0)
         quad = Quadrature.gauss_legendre(8)
@@ -517,9 +564,17 @@ class TestBitIdenticalCurvilinear:
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
-        assert np.array_equal(result.cell_average_flux, ref_psi_avg)
-        assert np.array_equal(result.outgoing_spatial_flux, ref_psi_spat_out)
-        assert np.array_equal(result.outgoing_angular_state, ref_psi_angle_out)
+        # nULP, not array_equal — see "Why this row asserts nULP" above.
+        # np.testing.* raises unconditionally, so this survives -O.
+        np.testing.assert_array_almost_equal_nulp(
+            result.cell_average_flux, ref_psi_avg, nulp=8,
+        )
+        np.testing.assert_array_almost_equal_nulp(
+            result.outgoing_spatial_flux, ref_psi_spat_out, nulp=8,
+        )
+        np.testing.assert_array_almost_equal_nulp(
+            result.outgoing_angular_state, ref_psi_angle_out, nulp=8,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
