@@ -16,7 +16,19 @@ Companion documents (all committed):
 
 ---
 
-> ⛔⛔⛔ **THIS MEMO HAS THREE LAYERS. READ §9bis.10 FIRST — IT IS THE VERDICT.**
+> ✅✅ **CLOSED 2026-08-11 ON THE PRIMARY SOURCE — READ §9bis.12 FIRST.**
+> Morel & Montry 1984's cylinder appendix (A2)–(A4) **IS** what the carve
+> implements: `[M]` production reproduces all four properties their appendix
+> states, including `τ₁ → ¼`, `τ_M → ¾`, sinθ-independence, and
+> `(τ₁−½)/w = −M/4`. The endpoint behaviour earlier layers diagnosed as the
+> defect is the primary's own designed value, and the BMC-43-vs-R&L-16 tension
+> is the trade M&M **announce** (printed 616–617): R&L buy second-order angle
+> by moving the ordinates; M&M buy diffusion-limit consistency on an arbitrary
+> quadrature and pay in order. **The design question is settled; only the SEED
+> remains** (§9bis.12's last section quantifies the lever).
+>
+> ⛔⛔⛔ **THIS MEMO HAS FOUR LAYERS. §9bis.10 was the verdict; §9bis.12 is the
+> primary-source confirmation AND one correction to §9bis.10's own reasoning.**
 > * **§1–§9** = attempt 1 (2026-08-11, pre-compaction). Its diagnosis is refuted.
 > * **§9bis.1–.9** = attempt 2, which refuted attempt 1 and then proposed
 >   re-posing τ into ω. **That proposal is ALSO refuted.**
@@ -938,6 +950,130 @@ the accuracy *without* giving up Eq. 43. That is the next experiment.
 
 ⛔ **DO NOT** re-pose τ to ω; **DO NOT** restore the `[½,1]` absorber; **DO NOT**
 cite Hébert against BMC. All three are now measured errors, not open options.
+
+### 9bis.12 ⭐⭐⭐ MOREL & MONTRY 1984 — THE PRIMARY SOURCE. Q5.6.4 IS CLOSED.
+
+J. E. Morel & G. R. Montry, *Analysis and Elimination of the Discrete-Ordinates
+Flux Dip*, TTSP 13(5):615-633 (1984). Local since 2026-08-11; findings
+`scratch/q64_morel_montry_findings.md`. Page map: **printed = PDF + 613**.
+
+#### ⭐⭐⭐ THE LANDED CARVE IS MOREL & MONTRY'S OWN CYLINDER APPENDIX
+
+Their appendix states the structural fact outright (printed 632): for the
+cylinder the cell-edge **cosines** are NOT weight partial sums — the cell-edge
+**AZIMUTHS** are. (A4) partitions in φ by cumulative weight from
+`φ_{1/2} = −π`; (A3) maps `μ = sinθ_ℓ cos φ`; (A2) is barycentric **in the
+radial cosine**. On an equal-weight level (A4) collapses to **equispaced-ω
+midpoints**, and (A2)–(A4) give exactly
+`τ_m = ½ ∓ ½ cot(φ_m) tan(Δφ/4)` (sign = march orientation).
+
+`[M]` production against the four properties M&M's appendix states:
+
+| `n_φ` | M | `τ₁` (→¼) | `τ_M` (→¾) | sinθ-independent? | `(τ₁−½)/w` | `−M/4` |
+|---|---|---|---|---|---|---|
+| 8 | 4 | `0.259892` | `0.740108` | spread `1.67e-16` | `−0.9604` | `−1.00` |
+| 16 | 8 | `0.252425` | `0.747575` | `5.55e-16` | `−1.9806` | `−2.00` |
+| 32 | 16 | `0.250603` | `0.749397` | `7.16e-15` | `−3.9903` | `−4.00` |
+| 64 | 32 | `0.250151` | `0.749849` | `2.11e-14` | `−7.9952` | `−8.00` |
+| 128 | 64 | `0.250038` | `0.749962` | `8.45e-14` | `−15.9976` | `−16.00` |
+
+⟹ **all four reproduced.** ⭐ **The `τ → ¼` endpoint value that §9bis.11
+diagnosed as the accuracy defect is Morel & Montry's own designed value, and
+`(τ₁−½)/w = −M/4` is their formula's own O(M) divergence.** The carve did not
+introduce it and no τ choice inside this method removes it.
+
+#### ⭐⭐ THE BMC-43 vs R&L-16 CONFLICT IS THE PRIMARY'S ANNOUNCED TRADE
+
+Not an open question. M&M cite **Reed & Lathrop as their reference 1**, reject
+them at **printed 616** — R&L's *induced* quadratures cannot integrate degree
+> 3, so conservation breaks under anisotropic scattering — and concede in the
+next sentence, **printed 617** (verified on the scan), that unlike R&L theirs
+works with **any** S_N quadrature set but is **"only first-order accurate."**
+
+> **R&L buy second-order angle by MOVING THE ORDINATES. M&M buy
+> diffusion-limit consistency on an ARBITRARY quadrature and pay in order.**
+
+⟹ §9bis.11's "genuine conflict at the arc endpoints" is real but **already
+adjudicated by the primary, deliberately**. Clamping τ toward ½ would trade
+away β = 0 — the paper's entire result — for an accuracy order the paper never
+claims. **Q5.6.4's design question is CLOSED.**
+
+#### ⛔ A correction to §9bis.10's own reasoning (the decision is unchanged)
+
+§9bis.10 argued "β = 0 *determines* τ, so τ is downstream, not chosen",
+quoting BMC's line 657. `[M]` **that sentence of BMC's is false by dimension**:
+β is ONE scalar over an (N−1)-dimensional solution family — three τ-vectors were
+found with `β = O(1e-16)` at `‖τ − τ_MM‖_∞ = 0.238 / 0.308 / 0.242`.
+
+What actually determines τ in the primary is **per-ordinate coincidence of the
+scheme-implied edges (4a) with the weight-defined edges (15) — N equations**,
+inverted to give (16b); **β = 0 then FOLLOWS by parity** (17a)–(19). It is a
+consequence, not the defining condition, and the derivation is a one-term
+ansatz `ψ_m = φ + 3Jμ_m` under the three standard quadrature requirements —
+**not Galerkin**.
+
+⟹ the conclusion (barycentric-in-μ is right) stands and is now better founded:
+N per-ordinate equations, not one scalar condition. And §9bis.4's measurement is
+fully explained — β cannot grade a τ because it is one scalar over a family,
+which is a stronger statement than "τ-free".
+
+#### The clamp question is now CLOSED at 5 of 5
+
+`[M]` **NOT ADDRESSED** in M&M — τ is introduced bare at (16b)/(A2) and never
+bounded, sign-conditioned, or special-cased; `τ ∈ (0,1)` follows automatically
+from a monotone edge march plus node-in-cell. **Five of five primaries (M&M,
+R&L, BMC, Hébert, Lathrop) prescribe no limiter.** The absorber retirement is
+settled on the whole literature, and its origin is the Grant spatial-weight
+transplant (§9bis.11).
+
+#### Positivity: no authority either way — our gate stays a CHARACTERISATION
+
+`[M]` **NOT ADDRESSED.** The only negativity M&M analyse is of the **diffusion
+coefficient** via `β < 0`: `r_D = −2β/σ_t` is where D blows up and the slope
+reverses. **That IS the dip — a scalar-flux local minimum, not a negative
+angular flux.** So our `min ψ̂ ≈ −77` has no literature bearing in either
+direction, and the ψ̂ gate must pin behaviour, not certify a contract.
+
+#### ⭐ THE SEED LEVER, QUANTIFIED — this is the remaining work
+
+M&M analyse the starting direction in depth (Miller–Alcouffe, Eqs. 10–14).
+`[M]` **Eq. (14) admits an arbitrary edge-march seed `μ_s`, and for Gauss-S₂
+diamond `β(μ_s) = μ_s + 2/√3` — LINEAR, UNIT GAIN, no damping, and
+SIGN-DETERMINING:**
+
+* underestimate ⟹ `β < 0` ⟹ **the flux dip**;
+* overestimate ⟹ `β > 0` ⟹ no dip, **but the diffusion limit is lost**.
+
+Their diagnostic is the *effective starting cosine* (10). Also printed 629: the
+spatial truncation is `Δr²/r²` for the weighted fluxes vs `Δr²` for the
+starting flux. ⟹ **the seed controls β directly and linearly; there is a
+two-sided target, not a "make it more accurate" direction.** Both terminal
+conditions are printed on one line (`α_{1/2} = 0` and `α_{N+1/2} = 0`) but
+M&M say **nothing** about march direction or conditioning — that part remains
+R&L's (§9bis.11).
+
+#### ⚠ Four hazards to carry
+
+1. **Notation collision across the three primaries.** M&M cylinder: `μ` radial,
+   `φ` azimuth. BMC cylinder: `η` radial, `ω` azimuth. Ours: `η` radial, `ω`
+   azimuth. Reading an M&M equation with BMC letters silently swaps the roles.
+2. `[M]` **M&M normalise `Σ W = 1`, so their weight is HALF the cell μ-measure**
+   (hence the `2W_m` in their Eq. 15 and the `2/r` in Eq. 1). Any factor-of-2
+   comparison against our weights must account for it.
+3. **"weight = cell μ-measure" is SPHERE-ONLY** — the primary says so directly
+   (printed 632). §4.4 measured this from the other side.
+4. ⛔ **New published typo (L-010 class): M&M Eq. (1)'s two ψ half-indices are
+   CROSSED** (`α_{m+1/2}` printed against `ψ_{m−1/2}`). Their own (4)/(6a) are
+   uncrossed, and only the uncrossed form telescopes under the zeroth moment —
+   which is what makes (5) the exact continuity equation. Do not "fix" our code
+   to match Eq. (1) as printed.
+
+#### Lead, UNREAD
+
+M&M's in-text "Miller–Alcouffe" credit resolves to their reference 2 =
+**Dudziak, O'Dell & Alcouffe, LA-7911-PR (July 1979)** — no Miller in the author
+list. Strong candidate for Hébert's unresolved ref. [36]. ⛔ The OSTI client
+hit `ConnectionResetError` twice; this is a LEAD, not a source.
 
 ### 9bis.11 ⭐⭐⭐ REED & LATHROP 1970 — the absorber's origin, and the criterion we lacked
 
