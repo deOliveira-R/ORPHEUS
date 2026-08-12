@@ -939,6 +939,109 @@ the accuracy *without* giving up Eq. 43. That is the next experiment.
 ⛔ **DO NOT** re-pose τ to ω; **DO NOT** restore the `[½,1]` absorber; **DO NOT**
 cite Hébert against BMC. All three are now measured errors, not open options.
 
+### 9bis.11 ⭐⭐⭐ REED & LATHROP 1970 — the absorber's origin, and the criterion we lacked
+
+Source: W. H. Reed and K. D. Lathrop, *"Truncation Error Analysis of Finite
+Difference Approximations to the Transport Equation,"* NSE **41**, 237 (1970).
+Local since 2026-08-11; sidecar
+`scratch/literature_ocr/07-Truncation Error Analysis…md`. Findings:
+`scratch/q64_reed_lathrop_findings.md`. ⚠ the sidecar misreads a half-integer
+subscript `1` as `3` on PDF p. 3 — the print is right.
+
+#### ⭐⭐⭐ THE ABSORBER'S ORIGIN — a SPATIAL interval transplanted onto the ANGULAR weight
+
+`[M]` **read on the rendered page** (PDF p. 4 = printed p. 239), footnote 8:
+
+> *"Page 393 of Ref. 6 Grant lets the **a** weights (which he calls θ) depend on
+> the sign of **a**, but this is necessary only to keep **a** between ½ and 1.
+> Grant does not determine angular weights and limits his degrees of freedom by
+> assuming an explicit form for α."*
+
+On that same page, R&L's notation is unambiguous: **`a_{i+1/2}` is the SPATIAL
+weighted-diamond parameter** (Eqs. 5a/5b expand `ψ_{i±1}` in `Δr` with it, and
+Eq. 11 gives `a_{i+1/2} = ½ + ⅙(r_{i+1}−r_i)/(r_{i+1}+r_i)`), while **`τ_m` is
+the ANGULAR weight** (Eqs. 6a/6b, in `w_m ∂ψ/∂μ`) and `α_{m±1/2}` is the
+redistribution coefficient. The footnote's closing clause says outright that
+Grant *does not determine angular weights at all*.
+
+⟹ **ORPHEUS's retired `[½,1]` absorber was Grant's SPATIAL weighted-diamond
+interval applied to the ANGULAR closure weight.** The retirement is therefore
+not merely "uncited" — it corrected a transplant between two different schemes.
+That is the origin story, sourced, and it closes P-D for good.
+
+#### The R&L / Morel–Montry fork — the same closure, one extra equation
+
+Both use the identical closure and the identical barycentric node — `[M]` R&L
+**Eq. 13c** `μ_m = τ_m μ_{m+1/2} + (1−τ_m)μ_{m−1/2}` **is BMC Eq. 43, forty
+years earlier** — both crediting Grant 1968. The fork is a THIRD equation R&L
+impose and M–M do not: **Eq. 13b** `(1−τ_m)α_{m+1/2} + τ_m α_{m−1/2} =
+(1−μ_m²)/2`. With it the triple becomes a quadratic in the ORDINATE, marched
+from `α_{1/2}=0` — R&L take the μ mesh as given and solve for `(α, μ_m, τ)`,
+i.e. **edges in, ordinates out**. That is Lathrop-2000's "fixes a quadrature",
+and R&L admit the cost themselves (printed p. 248): 4th and higher even moments
+are not integrated correctly, *"<3 % for the fourth moment and S₈ Gauss
+weights"*. **We take the quadrature as given and solve for τ — the M–M branch.**
+
+#### ⭐⭐ THE INSTRUMENT WE LACKED, and it diagnoses the arc
+
+`[M]` **Eq. 15**: `τ_m = ½ − (1/2w_m)(μ_{m+1/2} + μ_{m−1/2} − 2μ_m)`, and
+**Eq. 16**: the angular truncation error is second order **iff**
+`μ_m = ½(μ_{m+1/2} + μ_{m−1/2}) + O(w_m²)` — the ordinate must be the **μ-midpoint
+of its own cell**, equivalently `τ = ½ + O(w)`. Otherwise the angular term's
+coefficient `[(1−τ)²α_{m+1/2} − τ²α_{m−1/2}]/w_m` is `O(1/w)` and the scheme
+degrades to first order.
+
+⭐ Unlike BMC's β this is **POINTWISE**, so the σ_y fold does not annihilate it.
+It is solve-free. `[M]` on `folded_product(4, n_φ)`, level 0:
+
+| `n_φ` | END cell μ-width ÷ Δω² | INTERIOR ÷ Δω | min τ | **max\|τ−½\|/w** |
+|---|---|---|---|---|
+| 8 | `0.2414` | `0.4577` | `0.259892` | `4.394e-01` |
+| 16 | `0.2509` | `0.4954` | `0.252425` | `9.062e-01` |
+| 32 | `0.2534` | `0.5051` | `0.250603` | `1.826e+00` |
+| 64 | `0.2540` | `0.5076` | `0.250151` | `3.658e+00` |
+| 128 | `0.2541` | `0.5082` | `0.250038` | `7.319e+00` |
+
+⟹ **the endpoint cells are QUADRATICALLY narrow in μ (`∝ Δω²`) while carrying
+LINEAR weight (`∝ Δω`)**, so the node cannot be their μ-midpoint to `O(w²)`:
+`τ → ¼` there, refinement-INDEPENDENT, and `|τ−½|/w` **doubles every
+refinement** — `O(M)` divergence.
+
+⭐⭐ **This is the accuracy loss, named and sourced: it is GEOMETRIC, it lives at
+the GRAZING ordinates, and no τ choice removes it** — the same `∝ sin ω`
+cell-measure fact as §4.4, now with a primary-source criterion and a stated
+consequence (second order → first). BMC Eq. 43 and R&L Eq. 16 **genuinely
+conflict at the arc endpoints**; the absorber "resolved" it by forcing τ=½ there
+and silently forfeiting Eq. 43. **That conflict is the real content of Q5.6.4,
+and it is a design question, not a defect.**
+
+#### For the seed experiment, and two citation upgrades
+
+* `[M]` printed p. 239: *"If the M directions are ordered so that neutrons flow
+  out of, but not into, the first μ cell, then `α_{1/2} = 0`. If neutrons flow
+  into, but not out of, the last cell, then `α_{M+1/2} = 0`."* ⟹ **α is known
+  at BOTH ends and R&L march from either**; a one-sided march is the
+  ill-conditioned choice. Production marches once. **This is the concrete,
+  sourced candidate for the seed work.**
+* `[M]` R&L call the α recursion (their Eq. 9 = 13a, `α_{m+1/2} − α_{m−1/2} =
+  −μ_m w_m`) *"a requirement commonly invoked"*, citing **K. Lathrop and
+  B. Carlson, J. Comp. Phys. **1**, 173 (1966)** — a more specific primary
+  source for our recursion than Alcouffe & O'Dell. Neither is local.
+* ⭐ `[M]` **Eq. 28b** (their 3-D CYLINDER section — R&L DO treat cylinders,
+  contra Lathrop 2000) keeps the weight `w` and the cell width `Δμ` **separate**:
+  `[(1−τ)α_{m+1/2} + τα_{m−1/2}]Δμ = η²w`. **Primary-source licence for
+  weight ≠ cell-measure**, which is §4.4's finding from the other side.
+* ⚠ **Grant 1968, JCP **2**(4):381–402, DOI `10.1016/0021-9991(68)90044-2`** is
+  the origin of BOTH the weighted-diamond ansatz AND the `[½,1]` interval. NOT
+  local, closed access. Acquiring it is the user's call.
+
+⚠ **What cuts against us, recorded honestly:** R&L's second-order result is a
+**pro-midpoint** argument, and their measured accuracy is dominated by the
+quadrature's second moment (5.3× at S₈) with τ worth ~11 %. But `[M]` their own
+τ never leaves `[0.44, 0.56]`, capping their transient amplification at ~1.8 —
+so their configuration *cannot* exhibit our 9× transient, and their silence
+about it is not evidence of absence.
+
 ### 9bis.9 ⭐⭐ THE LITERATURE — Hébert's side, and a production citation that is false three ways
 
 ⛔⛔ **THIS SECTION'S CONCLUSION IS REFUTED BY §9bis.10** — it reads Hébert
