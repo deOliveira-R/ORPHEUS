@@ -45,6 +45,103 @@ Companion documents (all committed):
 > ⛔ **Settled, do not reopen:** candidate (3) is not a definition; τ is NOT
 > re-posed into ω; the absorber is NOT restored; Hébert is NOT cited against BMC.
 
+## 0a. ▶▶ WHERE TO RESUME — the SEED, and nothing about τ
+
+**Everything about the τ partition is finished.** Landed, literature-ratified,
+gated, citations repaired. `[M]` commits on `refactor/operator-strategy-layers`:
+`3dda18ca` (carve) · `d5067c4d` (analysis module) · `39b46a31` (snapshots) ·
+`c9bb61b4`+`c33178ef` (corpus + gates) · memo layers `1a0bad08` · `8db88596` ·
+`4e1c6090` · `3ae4ac70` · `b77ce7bd` · `6cd1d20e` · pointers `9412ee81`.
+`main` is untouched. Verify any of these with
+`git merge-base --is-ancestor <hash> HEAD`.
+
+### The open problem, stated in the domain's terms
+
+A curvilinear level's angular march needs a starting value at the most-inward
+direction (`μ = −1` sphere, `ω = π` per cylinder level). **That seed's error
+does not decay** — it is carried through the whole level by the M-M recurrence,
+and it is the last unexamined term in the cylinder's accuracy.
+
+### Why it is the seed and not the closure — the evidence, in one place
+
+* **All four accuracy rankings track the recurrence's transient amplification
+  and are INVERTED against closure fidelity** (§9bis.8c). The closure is right;
+  something feeding it is not.
+* `[M]` **the τ → ¼ endpoint behaviour is Morel & Montry's own designed value**
+  (§9bis.12) — `τ₁ → ¼`, `τ_M → ¾`, `(τ₁−½)/w = −M/4`, all four reproduced.
+  Not a defect to fix.
+* `[M]` **ψ̂'s sign is a property of SEED CONSISTENCY** (§9bis.5 correction):
+  production seed ⟹ ψ̂ positive; zero seed ⟹ negative, bounded by `A(M)`.
+  The seed is already demonstrably the controlling term.
+
+### ⭐ THE LEVER IS QUANTIFIED AND TWO-SIDED — this is the whole design constraint
+
+`[M]` M&M Eq. (14) admits an **arbitrary edge-march seed `μ_s`**, and for
+Gauss-S₂ diamond **`β(μ_s) = μ_s + 2/√3`** — linear, **unit gain, no damping**,
+and **sign-determining**:
+
+| seed | β | consequence |
+|---|---|---|
+| **under**estimate | `β < 0` | **the flux dip** |
+| exact | `β = 0` | the M-M property |
+| **over**estimate | `β > 0` | no dip, **but the diffusion limit is LOST** |
+
+⟹ **there is a two-sided target, not a "make it more accurate" direction.** Any
+sweep of the seed must report β's SIGN, not just an error norm. Their own
+diagnostic is the *effective starting cosine* (their Eq. 10).
+
+### The concrete candidate, from the primary
+
+`[M]` Reed & Lathrop printed p. 239: **α is known at BOTH ends** —
+`α_{1/2} = 0` when neutrons flow out of but not into the first cell, and
+`α_{M+1/2} = 0` at the last — *"either `α_{m+1/2}` or `α_{m−1/2}` is known,
+depending on the direction in which the equations are being solved."* R&L march
+from either end. **Production marches ONCE, one-sided**
+(`orpheus/sn/sweep/psi_half_angle_seed.py`,
+`MorelMontryAngularSweep.psi_half_seed`, route (a) since #282).
+⟹ **the experiment is a two-ended march against the one-sided one.**
+⚠ M&M say **nothing** about march direction or conditioning; that claim is
+R&L's alone, and "ill-conditioned" is *their* framing, not a measurement of
+ours. Measure it before repeating it.
+
+### The instruments that now exist and WORK (three of the old five do not)
+
+| use this | for | where |
+|---|---|---|
+| **R&L Eqs. 15/16** — `(τ_m−½)/w_m` bounded ⟺ node is the μ-midpoint to `O(w²)` | second-order angular accuracy. **POINTWISE**, so the σ_y fold cannot annihilate it | §9bis.11 |
+| **`A(M) = max_m Π(1−τ)/τ`** (`2.41 … 9.44`, M = 2…32) | the transient amplification bound | `test_psi_half_positivity.py` |
+| **the seed-regime pair** (marched vs zero) | ψ̂ sign | same module |
+| MMS aniso-cyl at **`nx = 320`** | truncation order in `n_φ`, range to `9e-6` | §4.5 |
+
+⛔ **DEAD instruments — do not reach for them:** P1 `c = Σwη²`, BMC β and
+Lathrop β are **τ-blind** (bit-identical under garbage τ, §9bis.4); ν-closure
+only reports which CHART you ran it in (§9bis.3); and the trajectory-resolvent
+cross-check is **REFERENCE-limited** at `≈3e-2` — refining the SN side moves it
+the WRONG way (§9bis.8b).
+
+### ⛔ Settled — re-opening any of these is re-doing measured work
+
+1. τ is **not** re-posed into ω (that is BMC's *diamond*, leading-order only).
+2. Candidate (3), "τ on α's recursion-defined edges", is **not a definition**.
+3. The `[½,1]` absorber is **not** restored — 5 of 5 primaries prescribe no
+   limiter, and the interval is Grant's on the **spatial** weight.
+4. Hébert is **never** cited against BMC, nor as the source of any τ.
+5. The `tol_per_cell` on the resolvent gate is **not** relaxed, and that gate is
+   **not** re-baselined.
+
+### Open, tracked elsewhere
+
+* **#352** — the resolvent fixture is a starved solve (`max_inner=300`, needs
+  ≈528); the re-baseline must ride whatever moves that snapshot.
+* The resolvent L1 gate is reference-limited and its docstring does not say so.
+* `bailey-dome-recursion` still encodes a refuted attribution (2 definitions,
+  6 `:eq:` consumers, a `vv-status`, a V&V-matrix row) — its own pass.
+* Not local, not read: **Grant 1968** (need the TITLE for a bib entry),
+  **Alcouffe & O'Dell 1986** (user has a scan awaiting OCR), **Lathrop &
+  Carlson 1966**, and the lead **Dudziak/O'Dell/Alcouffe LA-7911-PR (1979)**.
+
+---
+
 ## 0. ⭐ READ THIS FIRST — the one-paragraph state
 
 The cylinder's Morel–Montry angular closure weight τ was re-posed from a

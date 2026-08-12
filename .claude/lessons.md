@@ -1608,3 +1608,91 @@ forced — `[M]` 4000 random arcs), whose only equality case is a node on Σ. So
 cylinder-P3 reduces to the fold's own well-posedness criterion `Σ = ∅`. When a
 port is right, the predicates tend to collapse into each other rather than
 multiply.
+
+---
+
+## L49 — An instrument can be REFERENCE-limited, and the tell is that refining the SUT makes agreement WORSE (2026-08-11)
+
+A cross-method comparison has TWO error sources, and the usual mental model —
+"the reference is right, the SUT converges toward it" — silently assumes one of
+them is zero. When it is not, the comparison has a **floor**, and past that
+floor the number grades the reference, not the code.
+
+**The tell is counter-intuitive and unmistakable once you look for it: refine
+the SUT and the agreement gets WORSE.** That is the SUT converging *past* the
+reference. Monotone improvement means you are still above the floor; monotone
+degradation means you are below it and measuring the reference's own error.
+
+> `[M]` 2026-08-11, Q5.6.4. The trajectory-resolvent flux-shape cross-check was
+> the memo's capital-letters *"THE DECISIVE MEASUREMENT"* and the sole evidence
+> for a `1.92× worse` verdict that nearly reverted a correct carve. Laddered in
+> `n_φ`, all four τ conventions collapsed to `≈2.8–3.0e-2` by `n_φ = 32`, within
+> 10 % of each other. Holding `n_φ = 32` and sweeping `nx` 40 → 80 → 160 then
+> decided whose error that was: chord+absorber `3.03 → 3.23 → 3.37e-2`, arc
+> `2.76 → 2.92 → 2.92e-2`, ω `2.76 → 2.97 → 3.10e-2` — **rising, monotonically,
+> in every column.** The floor is the reference's own discretisation, and NO
+> refinement on the SN side can push past it. Its dynamic range for an angular
+> claim was exhausted by `n_φ = 16`; the only rung where it could rank anything
+> was the coarsest, where its own error is 20–40 % of the signal it was grading.
+
+**The procedure, and it is cheap.** Before crediting a cross-method comparison:
+sweep the SUT's own resolution against the FIXED reference. Falls ⟹ still
+above the floor, the number is about your code. Flat ⟹ at the floor. **Rises ⟹
+below it, and every ranking you read there is noise plus reference error.**
+
+⚠ **The consequence for the GATE, not just the investigation.** A
+reference-limited gate cannot be tightened by improving the SUT — only by
+refining the *reference* — and its tolerance is therefore a statement about the
+reference that its docstring almost never makes. Ours carried
+`tol_per_cell = 1.2e-1` against a `≈3e-2` floor while claiming to pin "the
+resulting shape agreement". Say the bound, or the next person will read a pass
+as evidence about the code.
+
+Sibling of L47 (a fixture structurally unable to see what its gate is credited
+with) and of the Mode-12 family: this is the same blindness located in the
+REFERENCE rather than in the fixture or the functional.
+
+---
+
+## L50 — Two parallel sub-agents: one reads the other's UNCOMMITTED output as established fact (2026-08-12)
+
+Dispatching agents in parallel is the standing posture (`delegation`), and it is
+right. But agents share one working tree, and **an untracked file written by
+agent A is indistinguishable, to agent B, from a landed artefact** — same path,
+same content, same apparent authority. B has no way to ask "is this committed?"
+unless told to, and the failure is silent and confident.
+
+> `[M]` 2026-08-12, Q5.6.4. An `archivist` and a `test-architect` ran
+> concurrently. The archivist had drafted a correct line — *"no ψ̂ positivity
+> gate exists"* — then found `tests/sn/sweep/curvilinear/test_psi_half_positivity.py`,
+> concluded *"the gate landed 2026-08-11"*, and **withdrew its own correct
+> draft**. `git ls-files` says the path *"did not match any file(s) known to
+> git"*: it was the test-architect's in-flight work, created minutes earlier in
+> response to the main agent's brief, which had itself asserted the gate was
+> missing. A closed loop of three, none of it checked.
+
+⭐ The substance survived — the numbers in that module were right — which is
+exactly what makes this dangerous: **a provenance error with correct content
+leaves no symptom.** Had the test-architect's module been wrong or abandoned,
+the archivist's report would have cited a file that never landed.
+
+**The rules that follow:**
+
+1. **A brief that states a NEGATIVE about the tree** ("X has no gate", "nothing
+   asserts Y", "there is no consumer") must be re-verified by the recipient, and
+   the brief should say so. It is the class of claim most likely to be stale by
+   the time the agent reads it — including because of another agent you
+   dispatched in the same turn.
+2. **Before an agent credits a file as established, it checks tracked status.**
+   `git ls-files --error-unmatch <path>` is one call. Anything untracked is a
+   LIVE RESULT, never a landed gate, and must be reported as such.
+3. **The main agent owns deconfliction**, because only it knows the full
+   dispatch set. Scope parallel agents to disjoint trees (this session: the
+   archivist was explicitly fenced out of `tests/`, which is the only reason the
+   collision was a misreading rather than a merge conflict) — and when two
+   agents *must* touch overlapping ground, tell each what the other is doing.
+
+⚠ Generated artefacts are the second-order case: the `-E` Sphinx build
+regenerated the V&V matrix and absorbed rows from the other agent's untracked
+tests, so committing the docs pass alone would have pinned a matrix referencing
+files git did not know about. **Regenerate once, after all parallel work lands.**

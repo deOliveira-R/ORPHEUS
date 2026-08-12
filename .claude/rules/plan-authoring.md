@@ -57,6 +57,8 @@ surprises cost to hit.
 | 2026-08-10 | A plan sentence marked `[M]` — "`solve_sn` discards the solver it builds, **so** the projection cannot be computed at the entry" — was FALSE, and it was the sentence the step's whole design rested on. What had been measured was the *other* half of the same sentence (`Solution` really does not carry the operators). The frame-local question was never measured at all; the marker certified the checked half and lent its authority to the unchecked one. | §2 (the `[M]`-scope sharpening) |
 | 2026-08-11 | A hazard table row read "attributed to the caller **in every family**, never inside `orpheus/`". It was measured on the 3 NEW families (3 of 8 emission sites); the 2 unmeasured SN fixed-source sites were the ones that were BROKEN, blaming `orpheus/sn/solver.py`. The row's own author wrote it minutes after running the probe. | §2 (the QUANTIFIER/denominator sharpening) |
 | 2026-08-11 | A step's acceptance test was titled "**The #229** azimuthal floor — today flat at `≈1.9e-2` … must fall and recover an order". `#229` had been **CLOSED for 2 months** (it is a measurement RECORD, not a work item), and `1.9e-2` was the **pre-6.3** fixture's number — the tree's own gate docstring already carried `3.538e-3` post-fold. Two independent staleness classes in one four-line item. | §9 |
+| 2026-08-11 | ⚠ **REPEAT of §2's quantifier clause, by its own author, the same day it was written.** A memo asserted "exactly one edge per level has no real position, **at every quadrature order**" from a probe over `n_φ = 8/16/32/64` — all EVEN `M`. `[M]` at odd `M` (`n_φ = 6/10/14/18`, all constructible) it is **0 of M+1**. The honest claim was "every rule with even M". Nothing new is absent; §2 already says write the denominator. | §2 (no new clause — the log row IS the measurement) |
+| 2026-08-12 | ⚠ **REPEAT of §4's sub-agent clause, amplified by RELAY.** A `qa` agent's measured `min ψ̂ = −77.2` was adopted without reading its configuration, then **passed into two further sub-agent briefs and two user-facing reports as a production property**. It was an inconsistent-seed probe; on the production value path ψ̂ is POSITIVE. §4 already says read a sub-agent's configuration — what it did not say is that relaying strips it. | §4 (the relay sharpening) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -239,6 +241,32 @@ wrongly*. State what was measured, on what, with what settings.
 
 Same rule for a sub-agent's number: **read its configuration before adopting its
 value.**
+
+⭐ **And the sharpening that the repeat produced: RELAYING a number strips its
+configuration and replaces its provenance with YOURS.** The clause above guards
+adoption; this guards re-emission. When a sub-agent's measurement is quoted
+onward — into another agent's brief, into a plan, into a report — it arrives
+carrying the main agent's authority and none of the fixture that produced it,
+and the recipient cannot ask the original prober anything. Every downstream
+reader then treats it as established.
+
+⟹ **A relayed number travels with its configuration or it does not travel.**
+One clause: *"`min ψ̂ = −77` — [M] `qa` probe, `folded_product(4,32)` level 0,
+`exp(−6cos ω)` field with a positive CONSTANT seed"* would have made the defect
+visible on sight, because "constant seed" is not what production does.
+
+> `[M]` 2026-08-12, Q5.6.4. `min ψ̂ = −77.2` was measured by a `qa` agent under
+> an **inconsistent seed**, adopted by the main agent as a property of the
+> shipped closure, and relayed into a `test-architect` brief, an `archivist`
+> brief, a durable memo, and two user-facing reports. On the production value
+> path — converged flux plus the marched route-(a) seed — `[M]` ψ̂ is
+> **positive** (`+0.1337 … +0.1287`, within 12 % of `min ψ`); `−76.9`
+> reproduces only with a random ψ AND a zero seed. **The sign is a property of
+> seed consistency, not of the closure.** Caught only because the
+> `test-architect` had been asked to mutation-verify its own gates and could
+> not reproduce the number it had been handed. A brief that asserts a
+> measurement is asking the recipient to build on it — see also `lessons-L50`
+> on briefs that assert a NEGATIVE about the tree.
 
 ## 5. State the goal in the DOMAIN's terms, not the tree's
 
