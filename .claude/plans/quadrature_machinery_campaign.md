@@ -3118,16 +3118,35 @@ implemented and **no `D_6h`-invariant rule in tree**.
     (`tau[m] = max(0.5, min(1.0, ...))`) — it owns its own re-baseline
     window because `[M]` it still moves 4/4 folded levels' τ at n_μ = 4.
 
-  ⛔⛔ **STOP — READ `.claude/plans/q64_tau_partition_memo.md` FIRST.** Q5.6.4 is
-  LANDED on this branch (5 commits) with **ONE RED** and its **structural
-  premise REFUTED**. `[M]` the chosen partition moved the cylinder flux
-  **1.92× AWAY** from an independent-method reference (`6.593e-02 →
-  1.268e-01` vs a `1e-01` bar). The memo is self-contained: every premise with
-  its status, every measurement with its configuration, the three candidate
-  partitions defined for re-implementation, and the next experiment specified.
+  ✅ **Q5.6.4's PARTITION IS DECIDED AND STAYS** (2026-08-11, verdict in
+  `.claude/plans/q64_tau_partition_memo.md` **§9bis.10 — read that section
+  first, not the memo's §1–§9**). The carve is **BMC Eq. (43) verbatim** and
+  the first time the cylinder satisfies it exactly: `[M]` the closure
+  reproduces μ at the faces to `2e-15`, where chord+absorber reads `2.4e-3`
+  and `τ ≡ ½` `2.4e-3`.
+
+  ⛔ **Two frames were tried and BOTH refuted** — do not re-open either:
+  candidate (3), "τ on α's recursion-defined edges", is **not a definition**
+  (α is the arc-edge dome scaled by κ — an amplitude, and on every even-M rule
+  one edge has no real position); and re-posing τ into ω is **BMC's own
+  "diamond scheme"**, which their cylinder section (Eq. 53 + line 172) proves
+  is leading-order only. Hébert §3.9.3 ships the plain diamond; BMC 2010 exists
+  to show it insufficient. Do not cite Hébert against BMC.
+
+  ⚠ **THE ONE RED IS REAL BUT IS NOT THE CLOSURE.** `[M]` the accuracy ranking
+  of the four candidates is in perfect rank correlation with the angular
+  recurrence's **transient error amplification** and INVERTED against closure
+  fidelity. The retired `[½,1]` absorber bought damping by silently forfeiting
+  Eq. (43); the carve removed a mask and exposed a pre-existing problem.
+  ⟹ **the remaining work is the amplification / the march SEED
+  (`MorelMontryAngularSweep.psi_half_seed`), not τ.**
+
+  ⚠ Also `[M]`: the resolvent cross-check that produced the red is
+  **REFERENCE-limited** — its floor is `≈3e-2` and refining the SN side moves
+  it the WRONG way, so it cannot grade a closure past `n_φ = 16`.
+
   Everything below this banner is the ORIGINAL item plus its in-place
-  refutations — still accurate as history, but do NOT design from it without
-  the memo.
+  refutations — accurate as history, but design from §9bis.10.
 
   1. **The #229 azimuthal floor** — ⛔ **THIS ITEM'S TEXT WAS STALE IN TWO WAYS;
      both corrected 2026-08-11 by an existence-check, original kept per
