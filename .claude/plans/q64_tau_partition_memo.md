@@ -121,7 +121,22 @@ the WRONG way (§9bis.8b).
 
 ### ⛔ Settled — re-opening any of these is re-doing measured work
 
-1. τ is **not** re-posed into ω (that is BMC's *diamond*, leading-order only).
+1. ⛔⛔ **REFUTED 2026-08-12 — was:** *"τ is **not** re-posed into ω
+   (that is BMC's *diamond*, leading-order only)."* The ruling conflated
+   two orderings: BMC's "leading-order" is about the **diffusion limit**,
+   not about **truncation order**. `[M]` Lathrop (2000) NSE 134 Eq. (30),
+   LOCAL and scan-verified — with δ = 2τ−1 the truncation is
+   `O(δΔμ + Δμ²)` and *only* δ = 0 (the midpoint node) gives `O(Δμ²)`;
+   every weighted diamond is FIRST order. `[M]` our ω-edges are exactly
+   equispaced (4.4e-16) and each node is exactly its cell's ω-midpoint
+   (1.6e-15), so τ-in-ω would be exactly ½ — yet τ-in-η reads [0.25, 0.75]
+   and `(τ−½)/w` is unbounded (= M/4). `[M]` at spatially-converged
+   nx=320 the measured angular orders are **1.83 (shipped) vs 2.88
+   (τ≡½)**, an 8× accuracy gap at n_φ=64. §9bis.3 had already named the
+   mechanism ("the partition is read in ω, the WEIGHT in η") and then
+   ruled the fix out. **Re-posing τ into ω is a LIVE candidate**, gated on
+   the diffusion-limit trade (#319). Full chain:
+   `.claude/plans/issue_235_angular_accuracy_campaign.md` §4bis.
 2. Candidate (3), "τ on α's recursion-defined edges", is **not a definition**.
 3. The `[½,1]` absorber is **not** restored — 5 of 5 primaries prescribe no
    limiter, and the interval is Grant's on the **spatial** weight.

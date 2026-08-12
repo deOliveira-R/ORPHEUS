@@ -135,9 +135,80 @@ Whatever is replaced gets the 3-search audit; theory pages follow.
 
 ---
 
+## 4bis. ⭐⭐⭐ PHASE 0 RESULT (2026-08-12) — the closure measures
+## midpoint-ness in the WRONG VARIABLE, and it costs exactly one order
+
+Two perspectives converged on this independently (literature + structural
+frame attack); every link below is verified by the main agent directly.
+
+**The chain, each link measured:**
+
+1. `[M]` Production's angular cell edges are **exactly equispaced in ω**
+   — `max|e_ω − linspace(π,0)| = 4.4e-16` at M = 4/8/16.
+2. `[M]` Each ordinate is **exactly the midpoint of its own cell in ω** —
+   `max|ω_m − ½(e_m+e_{m+1})| = 1.6e-15`. Equivalently
+   `ω_k = (k+½)π/M` to 2e-15 (⟹ the nodes are the roots of `T_M`;
+   Chebyshev–Gauss).
+3. ⟹ **τ measured in ω would be exactly ½.**
+4. `[M]` But the shipped τ is the barycentric coordinate in
+   **η = sinθ·cos ω** — a *nonlinear* reparameterisation — so it reads
+   `[0.2506, 0.7494]` at M=16, deviation → **¼**, not 0.
+5. `[M]` Hence `(τ−½)/w` is **UNBOUNDED**: `0.96 → 1.98 → 3.99 → 8.00` at
+   M = 4/8/16/32 (exactly `M/4`), and on the sphere `0.43 → 0.88 → 1.76
+   → 3.53` at N = 8/16/32/64. `max|τ−½|` converges to ≈0.25 / ≈0.11 —
+   it does **not** go to zero.
+6. **Lathrop (2000) NSE 134:239–264 Eq. (30)** — LOCAL, verified against
+   the scan — with `δ = 2τ−1` the truncation is `O(δΔμ + Δμ²)` and
+   *"only with μ_m = μ̄ (δ = 0) is the truncation order O(Δμ²)"*; §IV:
+   *"Even if Reed's 'optimum' weighted diamond difference relations are
+   used, the truncation errors are O(δΔμ + Δμ²)."*
+   ⟹ **every weighted diamond is FIRST-order in angle.** This is the
+   same criterion as R&L Eqs. 15/16, which §0a already listed as a LIVE
+   instrument — it was never run against the shipped τ.
+7. `[M]` **The predicted consequence, measured at spatially-converged
+   nx = 320** (aniso-cyl MMS, each τ re-solved to its own fixed point,
+   all converged):
+
+| τ | n_φ=8 | 16 | 32 | 64 | local orders | global |
+|---|---|---|---|---|---|---|
+| shipped (M-M weighted) | 3.1281e-3 | 1.1078e-3 | 2.8285e-4 | 7.1658e-5 | 1.50, 1.97, 1.98 | **1.83** |
+| plain diamond τ ≡ ½ | 3.4258e-3 | 3.4907e-4 | 3.9321e-5 | **9.1485e-6** | 3.29, 3.15, 2.10 | **2.88** |
+
+⟹ a **~one-order gap**, and diamond is **8×** better at n_φ=64.
+
+⛔ **AND IT REFUTES #235's OWN PREMISE.** Neither scheme flatlines, so
+there is **no 2-D (η,φ) obstruction** visible: the angular error
+converges. The "floor" the campaign has been chasing was measured at
+**nx = 80**, where `[M]` both schemes read ~1.5 because the SPATIAL error
+dominates — diamond's fine-end order collapses to **0.06** there, purely
+from hitting the spatial floor. **The measurement the whole issue rests
+on was spatially contaminated.**
+
+⚠ **What this does NOT settle, and why nothing may be switched yet.**
+M&M/BMC chose the η-weighting to buy **first-order diffusion-limit
+consistency**. The trade on the table is therefore *one order of angular
+accuracy away from the diffusion limit, in exchange for correct behaviour
+in it*. #319's flux-dip experiment (running) tests whether that purchase
+is real. **Do not recommend τ ≡ ½ until it lands.**
+
+Note also the arms differ: `[M]` GL nodes on the **sphere** are NOT their
+cells' midpoints (`1.09e-2 / 2.98e-3 / 7.73e-4` at N = 8/16/32, ~1/N²), so
+δ ≠ 0 is *forced* there and weighting is unavoidable. The cylinder's arc
+rule is the equal-interval case where δ = 0 is available for free. **A
+per-arm answer is likely the right one.**
+
 ## 5. Settled — re-opening any of these is re-doing measured work
 
-1. τ is **not** re-posed into ω (that is BMC's *diamond*, leading-order).
+1. ⛔⛔ **REFUTED 2026-08-12 — was: "τ is *not* re-posed into ω (that is
+   BMC's *diamond*, leading-order only)."** The ruling conflated two
+   different orderings: BMC's "leading-order" is about the **diffusion
+   limit**, not about **truncation order**, and Lathrop Eq. (30) says the
+   midpoint diamond is the only *second*-order option while every
+   weighted diamond is first. §4bis measures the consequence: 1.83 vs
+   2.88. The memo's §9bis.3 had already named the mechanism — *"the
+   partition is read in ω, the WEIGHT in η"* — and then ruled the fix out.
+   Re-posing τ into ω is now a **live candidate**, gated on the
+   diffusion-limit trade.
 2. The `[½,1]` absorber is **not** restored (no primary prescribes a
    limiter; the interval is Grant's on the **spatial** weight).
 3. Hébert is **never** cited as the source of any τ — he defines none.
