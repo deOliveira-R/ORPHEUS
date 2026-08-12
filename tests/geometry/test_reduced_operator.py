@@ -215,12 +215,24 @@ class TestSNMeshBindsCylindricalFactory:
 
     Routing claim only — see :class:`TestSNMeshBindsSphericalFactory`
     and the module docstring.
+
+    **Why ``folded_product`` and not ``product``** (Q5.6): a cylindrical
+    :class:`SNMesh` admits only a rule whose every μ-level is CARRYING
+    (``assert_carrying_quadrature``, the R12a march-start predicate).  An
+    unquotiented ``product`` rule puts an ordinate at ξ = 0 on the most
+    inward node of level 0, so the seed slot is a rank-duplicate of ψ₀ and
+    admission REFUSES it.  The σ_y quotient is the fix the guard itself
+    names.  The routing claim under test is indifferent to which rule is
+    used — both sides receive the same ``quad`` — so this is a fixture
+    repair, not a change of claim.  Admissibility of all three shapes below
+    is pinned independently by
+    ``tests/sn/mesh/test_cylindrical_quadrature_admission.py``.
     """
 
     @pytest.fixture
     def pair(self):
         mesh = _cylindrical_mesh()
-        quad = Quadrature.product(n_mu=2, n_phi=4)
+        quad = Quadrature.folded_product(n_mu=2, n_phi=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         return sn_mesh, reduced
@@ -268,7 +280,7 @@ class TestSNMeshBindsCylindricalFactory:
     def test_factory_binding_holds_across_quadrature_shape(self, n_mu, n_phi):
         """The routing claim is not an artefact of one quadrature shape."""
         mesh = _cylindrical_mesh()
-        quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
+        quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(
