@@ -1183,16 +1183,139 @@ is **mis-cited and 100 % spurious on physical fields**:
    weight; Hébert §3.9.4 uses pure diamond (:math:`\tau = \tfrac12`),
    no clamp.  Lewis & Miller §4.5 does **not** prescribe the
    :math:`[\tfrac12, 1]` clamp — the citation was wrong.
-#. **Positivity is never needed.** On every realistic converged solve
-   (smooth MMS, homogeneous eigenvalue :math:`k_{\rm eff} = 1`, thick
-   absorber) there are ZERO negative half-angle fluxes, clamped or
-   unclamped — every clamp activation is spurious (measured: 160 / 320
-   / 80 / 240 activations across stress configs, 0 protective).  The
-   half-flux negativity that *does* transiently appear in early SI
-   iterates is inherited from a negative *input* :math:`\psi` and the
-   clamp barely reduces it.  On Gauss--Legendre quadrature
+#. **The clamp buys no positivity on the SPHERE'S converged solve.** On
+   every realistic converged **spherical** solve W1 exercised (smooth
+   MMS, homogeneous eigenvalue :math:`k_{\rm eff} = 1`, thick absorber)
+   there are ZERO negative half-angle fluxes, clamped or unclamped —
+   every clamp activation is spurious (measured: 160 / 320 / 80 / 240
+   activations across stress configs, 0 protective).  The half-flux
+   negativity that *does* transiently appear in early SI iterates is
+   inherited from a negative *input* :math:`\psi` and the clamp barely
+   reduces it.  On Gauss--Legendre quadrature
    :math:`\tau^{\rm raw} \in [0.39, 0.61]` (never 0), so the unclamped
    weight is always interior to :math:`[0, 1]`.
+
+   .. warning:: **Scope correction, 2026-08-11 — the old heading said
+      "Positivity is never needed", and "never" is too strong.**
+
+      Read as written, the item claims **zero negative half-angle
+      fluxes**.  Its evidence is the **sphere**: W1's stress configs and
+      its clamp-activation census.  The M-M angular recurrence is not
+      positivity-preserving in general — it is a first-order linear
+      recursion with amplification factor :math:`-(1-\tau_m)/\tau_m`,
+      and no source read for this seam
+      (:cite:`ReedLathrop1970`, :cite:`BaileyMorelChang2010`, Lathrop
+      2000, :cite:`Hebert2009`) states a positivity condition for the
+      ANGULAR recurrence at all; the positivity literature is about the
+      SPATIAL closure.
+
+      What the cylinder actually does was measured and committed on the
+      same day, in
+      ``tests/sn/sweep/curvilinear/test_psi_half_positivity.py``
+      (19 ``foundation`` rows; a CHARACTERISATION module — no row
+      carries ``verifies(...)``, because there is no equation whose
+      truth they establish).  On a heterogeneous 2-region, 2-group
+      vacuum-outer cylinder, `[M]` reproduced 2026-08-11:
+
+      .. list-table:: :math:`\min\hat\psi` on a converged cylinder solve
+         :header-rows: 1
+         :widths: 12 8 18 26 20 16
+
+         * - :math:`n_\varphi`
+           - :math:`M`
+           - :math:`\min\psi`
+           - :math:`\min\hat\psi`, MARCHED seed
+           - :math:`\div \min\psi`
+           - :math:`\min\hat\psi`, ZERO seed
+         * - 6
+           - 3
+           - ``+0.151231``
+           - ``+0.133705``
+           - 0.8841
+           - ``-12.089129``
+         * - 8
+           - 4
+           - ``+0.137569``
+           - ``+0.128600``
+           - 0.9348
+           - ``-16.351438``
+         * - 16
+           - 8
+           - ``+0.130781``
+           - ``+0.128651``
+           - 0.9837
+           - ``-25.890124``
+
+      ⟹ **the sign is a property of the SEED's consistency, not of the
+      scheme.**  On the production value path — where the seed is the
+      composite's marched :math:`\psi_{1/2}` state (#282 route (a)) —
+      :math:`\hat\psi` is strictly positive, within 12 % of
+      :math:`\min\psi` itself.  The zero seed is the legitimate
+      :math:`\psi`-independent COEFFICIENT state (the transpose walk's
+      ``denom``-only build, where these faces are never read as fluxes);
+      used as an *inconsistent-seed* control it goes negative, bounded
+      by the worst partial amplification
+      :math:`A(M) = \max_m \prod_{k \le m}(1-\tau_k)/\tau_k`
+      (`[M]` 2.732051 / 3.359161 / 4.728870).  Any headline figure of
+      the form "``min psi_hat ≈ -77``" is an inconsistent-seed
+      statement, not a production one.
+
+      **The clamp was never what protected this, so W1's conclusion
+      stands.**  `[M]` 2026-08-11, feeding a strictly positive analytic
+      shadow profile :math:`\exp(-6\cos\omega)` through the production
+      kernel
+      :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+      on level 0 of ``Quadrature.folded_product(4, 32)``
+      (:math:`M = 16`) with a positive constant seed — i.e. squarely in
+      the inconsistent-seed regime — all four :math:`\tau` conventions
+      go negative:
+
+      .. list-table:: :math:`\min\hat\psi` over the 17 half-angle faces, inconsistent seed
+         :header-rows: 1
+         :widths: 44 18 19 19
+
+         * - :math:`\tau` convention
+           - :math:`\tau` range
+           - :math:`\min\hat\psi`
+           - negative faces
+         * - chord (η-midpoint) edges, retired
+           - :math:`[0.201, 0.799]`
+           - :math:`-229.7`
+           - 7 / 17
+         * - chord + :math:`[\tfrac12, 1]` absorber, retired
+           - :math:`[0.500, 0.799]`
+           - :math:`-23.3`
+           - 6 / 17
+         * - **arc (ω-midpoint) edges — SHIPPED**
+           - :math:`[0.251, 0.749]`
+           - :math:`-77.2`
+           - 7 / 17
+         * - :math:`\tau \equiv \tfrac12` (Hébert's plain diamond)
+           - :math:`[0.500, 0.500]`
+           - :math:`-24.2`
+           - 6 / 17
+
+      The absorber cuts the excursion :math:`\approx 10\times` but does
+      not remove it (6 of 17 faces still negative), and neither does
+      :math:`\tau \equiv \tfrac12`.  The destabilising coefficient is
+      :math:`(1-\tau)/\tau`, so the exposure belongs to the *angular
+      diamond family*, not to the clamp: retiring the clamp did not
+      create it and keeping it would not have cured it.  The shipped arc
+      chart is the more exposed of the two derived candidates because
+      its :math:`\tau` reaches lower — an honest cost of the principled
+      partition, ratified alongside the accuracy cost recorded at
+      :ref:`sn-tau-absorber-retirement`.
+
+      **What is gated, and where.**  The two curvilinear *scalar*-flux
+      positivity gates
+      (``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
+      ``::test_ciii_coarse_sphere_fixed_source_finite_positive``,
+      ``tests/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py``
+      ``::test_unclamped_sphere_flux_strictly_positive``) are **sphere
+      only** — they are what item 3 below rests on.  The
+      :math:`\hat\psi` sign, on both seed regimes and on both arms, is
+      owned by ``test_psi_half_positivity.py``; read it, not this item,
+      for the half-angle flux.
 #. **Stability without it.** Unclamped sphere source iteration
    converges with strictly positive, finite scalar flux on every
    stress config (thick absorber, near-vacuum, :math:`c = 0.999`, S64);

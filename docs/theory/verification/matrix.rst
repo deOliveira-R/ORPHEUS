@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9544**
+Total tests collected: **9628**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1310, 13.7%
-   L1, 1617, 16.9%
+   L0, 1310, 13.6%
+   L1, 1617, 16.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6548, 68.6%
+   foundation, 6632, 68.9%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9460
+   explicit, 9544
    class-name, 46
    func-name, 0
    case, 33
@@ -117,10 +117,11 @@ Module × level grid
    curvilinear/test_cyl_sweep_regression, 3, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
    curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
+   curvilinear/test_psi_half_positivity, 0, 0, 0, 0, 19, 0
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
-   curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 5, 0
+   curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 14, 0
    curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
@@ -469,6 +470,7 @@ Module × level grid
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 21, 0
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
+   sweep/test_angular_cell_partition, 0, 0, 0, 0, 56, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
@@ -560,6 +562,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-equation``, 33
    ``sigma-keff``, 33
    ``free-flight``, 31
+   ``angular-cell-partition``, 30
    ``transport-cylindrical``, 29
    ``chi-sampling``, 28
    ``decompose``, 28

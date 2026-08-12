@@ -692,8 +692,12 @@ class RadialCharacteristicSeeding(
     exists ONLY on a seed-carrying mesh (the sphere, R12a).
 
     **A CELL-LOCAL ANGULAR coupling.** At each radial cell :math:`i` the ray
-    value :math:`\psi_{1/2}(i)` is the seed of the Morel–Montry angular
-    recurrence (Hébert §3.9.4), run over ORDINATES at a FIXED cell; the
+    value :math:`\psi_{1/2}(i)` is the seed of the Morel–Montry **weighted**
+    angular recurrence (Morel & Montry 1984; implemented form
+    Bailey--Morel--Chang 2010 Eqs. (42)/(43) — Hébert §3.9.4 is the
+    authority for the Carlson march that PRODUCES this seed, Eqs.
+    3.432-3.435, not for the recurrence it feeds), run over ORDINATES at a
+    FIXED cell; the
     upstream half-flux :math:`\psi_{m-1/2,\,i}` then enters that cell's balance
     as the angular numerator :math:`(\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2,\,i}`.
     So the seed at cell :math:`i` couples ONLY to the bulk ordinates at the

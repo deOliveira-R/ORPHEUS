@@ -2704,9 +2704,16 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
 #
 # References (carried with the 1-D body):
 #
-# * Hébert, A. (2009). *Applied Reactor Physics*. Ch. 3 §3.9.4
-#   (pp. 141-144) — curvilinear SN cell-balance + DD difference relations.
-# * Bailey, Morel & Chang (2010). NSE 165(2):149-169 — M-M clamp.
+# * Hébert, A. (2009). *Applied Reactor Physics*. Ch. 3 §3.9.3 (cylinder,
+#   pp. 137-141) / §3.9.4 (sphere, pp. 141-144) — curvilinear SN
+#   cell-balance, sweep ordering, Carlson starting direction.  NOT the
+#   source of the weighted tau (he defines none; he ships the plain
+#   angular diamond).
+# * Morel, J. E., & Montry, G. R. (1984). TTSP 13(5):615-633 — the
+#   weighted angular closure tau, PRIMARY.
+# * Bailey, Morel & Chang (2010). NSE 165(2):149-169 — Eqs. (42)/(43),
+#   the form of tau this code implements (their Eq. (41), beta = 0, is
+#   what determines it).
 # * Lewis & Miller (1984). *Computational Methods of Neutron Transport.*
 #   §4.5 (curvilinear DD); §5.3 (DD/WDD/Step/LD); §6.4 (sweep ordering).
 # * Blelloch (1990). CMU-CS-90-190 §1.5 — first-order linear recurrence
@@ -3846,9 +3853,8 @@ class _OneDimScanWalk:
 
         * **CURVILINEAR** (sphere/cylinder, per-ordinate): the M-M angular
           thread couples ordinates sequentially within a μ-level (the
-          Hébert §3.9.4 Eqs. 3.437/3.439 recurrence reads
-          ``psi_angle[chain]`` updated by the *previous* ordinate in the
-          level).  One ``ordinate_scan`` per ordinate per level — unchanged
+          Morel--Montry weighted recurrence reads ``psi_angle[chain]``
+          updated by the *previous* ordinate in the level).  One ``ordinate_scan`` per ordinate per level — unchanged
           from PR-INDEX-1's pre-state.  A future parallel-prefix
           reformulation of the M-M recurrence could unlock joint-batch for
           curvilinear too (research-level; deferred per plan §7).

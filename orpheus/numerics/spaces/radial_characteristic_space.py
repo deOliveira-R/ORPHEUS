@@ -167,7 +167,9 @@ References
 * Hébert, A. (2009). *Applied Reactor Physics*. §3.9.4 (the
   starting-direction equation, Eqs. 3.432–3.435).
 * GH #282 (the spherical seed lag), #280 (the walk unification), #229
-  (the cylinder τ clamp fact).
+  (the cylinder azimuthal floor — its structural content is the level's
+  edge-inclusion, a property of the CIRCLE, not of the
+  :math:`[\tfrac12, 1]` absorber retired at Q5.6.4).
 * ``.claude/plans/stencil_assembly_dsa_roadmap.md`` — rulings R12/R12a,
   R13; ``a3_solve_transpose_verification.md`` §16.A (the carrier gates).
 """

@@ -7,9 +7,13 @@ the spherical :math:`(1-\mu^2)/r\,\partial_\mu` and cylindrical
 **the same connection-coefficient operator** on SO(3) viewed in two
 coordinate charts (polar-on-sphere vs. azimuthal-on-cylinder).  Each
 solver — SN, MoC, CP — needs the same numerical data: chord lengths,
-face areas, the :math:`\Delta A/w` geometry factor, the Bailey 2009
-:math:`\alpha` dome recursion, and the Morel--Montry angular closure
-weights :math:`\tau_{mm}`.
+face areas, the :math:`\Delta A/w` geometry factor, and the
+:math:`\alpha` dome recursion (Hébert Eqs. 3.423-3.424, after Lathrop &
+Carlson 1966 — **not** "Bailey 2009", the wrong-paper citation this
+module's References corrected at Issue #168 Phase B).  The Morel--Montry
+angular closure weight :math:`\tau` is a *consumer* of these, not a
+product of this module — see the ⚠ note at the end of "Mathematical
+content".
 
 Per Cardinal Rule 2 (architecture), this primitive **MUST NOT** be
 duplicated across solvers.  The historical home was a pair of in-line
@@ -143,20 +147,47 @@ redistribution factor, the face areas, and the starting-direction edges.
 References
 ==========
 
-* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 §3.9.4 (pp.
-  141-144), Eqs. 3.418-3.439.  **Primary source** for the curvilinear
-  S\ :sub:`N` discretization (cell balance + DD difference relations
-  + Carlson starting-direction).  Local copy:
+* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 — **§3.9.3
+  (cylinder, printed pp. 137-141)** and **§3.9.4 (sphere, printed pp.
+  141-144)**; the whole Eq. 3.418-3.439 range is *spherical*.  The
+  authority for the curvilinear S\ :sub:`N` **cell balance, DD difference
+  relations, sweep ordering and Carlson starting direction** — i.e. for
+  everything this module still produces.  He defines **no**
+  :math:`\tau` anywhere in chapter 3, in either geometry, so he is
+  **not** an authority for the weighted angular closure above; that
+  mis-citation produced a wrong cylinder :math:`\tau` and is recorded at
+  ``docs/theory/methods/sn/curvilinear_one_group.rst
+  §sn-citation-corrections``.  Local copy:
   ``scratch/literature/Hebert(2009)Chapter3.pdf``.
-* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *Asymptotic
+* Morel, J. E., & Montry, G. R. (1984).  *Analysis and Elimination of
+  the Discrete-Ordinates Flux Dip*.  Transport Theory and Statistical
+  Physics 13(5):615-633, doi:10.1080/00411458408211661.  **PRIMARY**
+  source for the weighted angular closure :math:`\tau` above.  Local
+  copy: ``scratch/literature/Morel-Montry(1984)Analysis and elimination
+  of the discrete-ordinates flux dip.pdf``.
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *The Asymptotic
   Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*.
   NSE 165(2):149-169 (LLNL preprint LLNL-JRNL-420356; OA at
-  https://www.osti.gov/servlets/purl/1020346).  **Eq. 43** gives the
-  Morel--Montry weight :math:`\tau_m` above as the unique weight exact
-  for a flux linear in :math:`\mu`, admissible range :math:`\tau \in
-  [0, 1]` — the W1 source for dropping the spherical clamp.  The paper
-  also frames the :math:`\beta`-contamination diffusion-limit analysis
-  via formal-:math:`\varepsilon` expansion.
+  https://www.osti.gov/servlets/purl/1020346).  **Eqs. (42)/(43)** are
+  the form implemented: the Morel--Montry weight :math:`\tau_m` above as
+  the unique weight exact for a flux affine in the radial cosine,
+  admissible range :math:`\tau \in [0, 1]` — the W1 source for dropping
+  the spherical clamp.  Their **Eq. (41)** is the first-order
+  diffusion-limit condition :math:`\beta = 0`, and forcing it to zero is
+  what DETERMINES the weights; the paper frames that
+  :math:`\beta`-contamination analysis via formal-:math:`\varepsilon`
+  expansion, and its Eq. 53 names :math:`\tau = \tfrac12` "the diamond
+  scheme".
+* Reed, W. H., & Lathrop, K. D. (1970).  *Truncation Error Analysis of
+  Finite Difference Approximations to the Transport Equation*.  NSE
+  41(2):237-248, doi:10.13182/NSE70-A20710.  Their **Eq. (13c)** IS BMC
+  Eq. (43), forty years earlier; their **Eqs. (15)/(16)** give the
+  sharpest accuracy criterion on :math:`\tau` — second order iff the
+  ordinate is the :math:`\mu`-midpoint of its own cell to
+  :math:`O(w^2)`, i.e. iff :math:`\tau = \tfrac12 + O(w)`.  Unlike
+  :math:`\beta` that criterion is POINTWISE.  Local copy:
+  ``scratch/literature/07-Truncation Error Analysis of Finite Difference
+  Approximations to the Transport Equation.pdf``.
 
   *Citation correction (Issue #168 Phase B)*: this module's
   pre-Phase-B docstring cited "Bailey, T. S., Adams, M. L., Yang, B.,
@@ -170,7 +201,12 @@ References
   Neutron Transport*.  §4.5 — angular redistribution closure.  (NB:
   the historical :math:`[1/2, 1]` clamp was MIS-cited to this §4.5 —
   L&M §4.5 does not prescribe it; W1 traced the exact-on-linear weight
-  to Bailey-Morel-Chang 2010 Eq. 43.)
+  to Bailey-Morel-Chang 2010 Eq. 43.  ⭐ The interval's real origin is
+  Grant, I. P. (1968), *J. Comp. Phys.* 2(4):381-402,
+  doi:10.1016/0021-9991(68)90044-2, where :math:`[\tfrac12, 1]` bounds
+  the **SPATIAL** weighted-diamond parameter; Reed & Lathrop's footnote
+  8 says so and adds that "Grant does not determine angular weights".
+  ⚠ Grant 1968 is not in the local library and has not been read.)
 
 See also
 ========
@@ -285,7 +321,8 @@ class StreamingTerms:
       the always-populated ``chord_length``, ``mu``, ``volume``,
       ``abs_mu``.
     * **Sphere / cylinder**: physically-populated curvature fields
-      from the dome recursion + M-M clamp.
+      from the dome recursion (the M-M angular weight is closure-owned,
+      not carried here — Issue #236 Step C).
 
     Cylindrical ``mu`` / ``abs_mu`` are read from the global ordinate
     ``mu_x[level_indices[mu_level_idx][direction_idx]]`` because
@@ -628,8 +665,9 @@ class ReducedStreamingOperator:
             # ``level_indices``.  ``mu_x[global_n]`` carries η (the
             # radial direction cosine).  The Morel–Montry α / τ are NO
             # LONGER packed here (Issue #236 Step C): the angular closure
-            # owns τ (with the cylinder clamp) and the derived c, stamped
-            # on CellVisit; this packet carries geometry only.
+            # owns τ and the derived c, stamped on CellVisit; this packet
+            # carries geometry only.  (There is no clamp on either arm —
+            # the cylinder [1/2, 1] absorber retired at Q5.6.4.)
             level_indices = self._quadrature.level_indices
             global_n = int(level_indices[mu_level_idx][direction_idx])
             eta_n = float(self._quadrature.eta[global_n])
@@ -699,10 +737,11 @@ def spherical_streaming(
     r"""Build the spherical :class:`ReducedStreamingOperator`.
 
     Implements Hébert (2009) §3.9.4 Eqs. 3.423-3.424 (α-dome
-    recursion, in the ORPHEUS factor-of-2-absorbed normalization) +
-    Bailey-Morel-Chang (2010) Eq. 5 (Morel--Montry :math:`\tau`
-    clamp), producing arrays bit-identical to the retired
-    ``SNMesh._setup_spherical`` it replaced.
+    recursion, in the ORPHEUS factor-of-2-absorbed normalization),
+    producing arrays bit-identical to the retired
+    ``SNMesh._setup_spherical`` it replaced.  It does **not** produce the
+    Morel--Montry angular weight :math:`\tau` — that moved to the angular
+    closure at Issue #236 Step C (see the body comment below).
 
     The :math:`\Delta A/w` geometry factor (Cardinal Rule 2 — the
     connection-coefficient data, common to SN/MoC/CP) is precomputed
@@ -835,7 +874,13 @@ def cylindrical_streaming(
     delta_A = face_areas[1:] - face_areas[:-1]
 
     # Per-level azimuthal redistribution coefficients
-    # Hébert §3.9.4 (cylindrical analog): α_{m+1/2} = α_{m-1/2} − w_m · η_m
+    # Per-level α-dome, cylindrical analog of Hébert §3.9.4 Eqs. 3.423-3.424
+    # (his cylinder is §3.9.3; he credits the η_{p,q±1/2} construction to
+    # Alcouffe & O'Dell 1986 — not local, not read).  The recursion itself
+    # traces to Lathrop & Carlson, J. Comp. Phys. 1:173 (1966) — likewise
+    # not local, not read; cited by Reed & Lathrop 1970 (their ref. 7) as
+    # "a requirement commonly invoked to define the α coefficients".
+    #     α_{m+1/2} = α_{m-1/2} − w_m · η_m
     # Ordinates are ordered by increasing η within each level.
     alpha_per_level: list[np.ndarray] = []
     for level_idx in angular_measure.level_indices:
@@ -861,9 +906,10 @@ def cylindrical_streaming(
     # thread's seed flux lives at.  The Morel–Montry angular weight τ is NO
     # LONGER produced here (Issue #236 Step C): τ is an angular-scheme
     # property owned by the MorelMontryAngularSweep angular closure
-    # (``morel_montry_tau_per_level``, where the cylinder [½, 1] clamp now
-    # lives) and stamped on each CellVisit.  This factory keeps the GEOMETRY
-    # data only.
+    # (``morel_montry_tau_per_level``) and stamped on each CellVisit.  This
+    # factory keeps the GEOMETRY data only.  (The cylinder [½, 1] absorber
+    # that used to live alongside that producer retired at Q5.6.4 — there
+    # is one τ, unclamped, on both arms.)
     mu_z = angular_measure.mu_z
     mu_start_per_level: list[float] = []
     for level_idx in angular_measure.level_indices:

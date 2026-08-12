@@ -929,6 +929,38 @@ power and are meaningless — read only m ≤ 2 there.)
   the two curvilinear positivity gates are both on the sphere's converged
   *scalar* flux.
 
+  ⛔⛔ **THE `−77` NUMBERS ARE MIS-SCOPED — corrected 2026-08-11, and this is
+  MY error, propagated into two sub-agent briefs before it was caught.** They
+  come from a probe driving the recurrence with an **inconsistent seed** (a
+  positive constant seed against an `exp(−6cos ω)` field), not from the
+  production value path. `[M]` I then re-measured and reproduced `−0.149` with
+  120/400 faces negative on the shipped `cyl_2g_3reg_folded_4x8_dd_n40`
+  fixture — **but that run passed `radial_characteristic=None`, which the
+  method's own docstring says seeds at ZERO and is "legitimate only for the
+  ψ-independent COEFFICIENT use".** So my re-measurement is the same class of
+  artefact and settles nothing either.
+
+  ⚠ **What IS established:** the exposure is `(1−τ)/τ`, a property of the
+  angular-diamond FAMILY, and `[M]` **the retired absorber was never a
+  positivity guarantee** — under the inconsistent seed it cuts the magnitude
+  ~10× (`−23.3` vs arc `−77.2`) and still leaves 6/17 faces negative, and
+  `τ ≡ ½` behaves the same (`−24.2`). That comparison is valid because all
+  four conventions were driven identically.
+
+  ✅ **SETTLED 2026-08-12, and it settles AGAINST the `−77`.** `[M]` on the
+  production value path — converged flux plus the marched route-(a) ψ½ state —
+  **ψ̂ is POSITIVE**: `+0.1337 / +0.1286 / +0.1287` at `n_φ = 6/8/16`, within
+  12 % of `min ψ`. `−76.9` reproduces **only** with a random ψ AND a zero seed.
+  ⟹ **the sign is a property of SEED CONSISTENCY, not of the closure.** Both
+  regimes are now pinned separately, with the amplification `A(M)` (`2.41 …
+  9.44` at `M = 2…32`) as the stated bound on the zero-seed one:
+  `tests/sn/sweep/curvilinear/test_psi_half_positivity.py`.
+
+  ⚠ **Standing rule from this episode: never cite a ψ̂ positivity number
+  without stating which seed produced it.** Two sub-agent briefs and two
+  user-facing reports carried the `−77` as a production property before it was
+  caught.
+
 #### ⟹ THE DECISION: KEEP THE LANDED CARVE
 
 **Q5.6.4's partition change is correct and is the first time this codebase

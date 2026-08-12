@@ -104,8 +104,11 @@ re-derived.
    * The pole/axis is **intrinsic geometry** (a coordinate-system
      singularity, not a BC): the angular closure is the strategy ABC
      :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`,
-     whose sole production strategy is the Hébert §3.9.4 M-M
-     recurrence :eq:`pole-mm-recurrence`.
+     whose sole production strategy is the Morel--Montry **weighted**
+     angular recurrence :eq:`pole-mm-recurrence` (:cite:`MorelMontry1984`;
+     implemented form :cite:`BaileyMorelChang2010` Eqs. (42)/(43) —
+     Hébert defines no :math:`\tau`, see
+     :ref:`sn-tau-source-of-record`).
    * The apply matvec is **one sweep iteration semantically**
      (:eq:`phase-c-wdd-recurrence`): apply and solve consume the
      same three primitives — the WDD closure, the direction-keyed
@@ -409,6 +412,8 @@ computes :math:`\beta` for any quadrature and geometry
 With the correct :math:`\Delta A/w` factor AND Morel--Montry weights,
 :math:`\beta \sim 10^{-16}` (machine zero) for both spherical and
 cylindrical.
+
+.. _sn-tau-beta-diagnostic-blind:
 
 .. warning:: **β is BLIND on a σ_y-folded cylindrical arc — never gate a
    cylinder partition on it** (`[M]` 2026-08-11, Q5.6.4).
@@ -1873,8 +1878,10 @@ Phase B addresses **Defect 3** of Issue #168 — the angular-redistribution
 truncation gap on angularly-varying :math:`\psi`.  The pre-Phase-B
 operator carried inline τ-symmetric interpolation
 :math:`\psi_{n+1/2} \approx \tau_n\,\psi_{n+1} + (1-\tau_n)\,\psi_n`,
-which is the **flat-flux collapse** of Hébert (2009) §3.9.4
-Eqs. 3.428 + 3.437/3.439 — exact when :math:`\psi` is constant in
+which is the **flat-flux collapse** of the curvilinear cell balance
+(:cite:`Hebert2009` Eq. 3.428) closed with the Morel--Montry weighted
+angular recurrence (:cite:`MorelMontry1984`; :cite:`BaileyMorelChang2010`
+Eqs. (42)/(43)) — exact when :math:`\psi` is constant in
 :math:`\mu`, but only :math:`\mathcal{O}(1)` accurate on
 angularly-varying :math:`\psi`.  Phase B lifts this evaluation into
 a :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
@@ -1918,8 +1925,11 @@ flat-flux invariance, and asymptotic accuracy:
   flat-flux invariant in unit tests.
 
 * :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
-  — the canonical Hébert §3.9.4 per-cell M-M weighted DD angular
-  recurrence:
+  — the canonical per-cell Morel--Montry **weighted**-DD angular
+  recurrence (:cite:`MorelMontry1984`; the implemented form is
+  :cite:`BaileyMorelChang2010` Eqs. (42)/(43) — see
+  :ref:`sn-tau-source-of-record`, and note that Hébert ships the *plain*
+  angular diamond, not this):
 
   .. math::
      :label: pole-mm-recurrence
@@ -1931,10 +1941,17 @@ flat-flux invariance, and asymptotic accuracy:
 
   At :math:`\tau_n = 1/2` the recurrence
   reduces to pure DD angular :math:`\phi_{n+1/2,i,g} = 2\,\phi_{n,i,g}
-  - \phi_{n-1/2,i,g}` (Hébert Eqs. 3.437 / 3.439) — the angular
-  *diamond* scheme, which is a **different method**: it optimises
-  truncation order and breaks the diffusion limit the M-M weight exists
-  to fix.  Any :math:`\tau \in [0, 1] \setminus \{\tfrac12\}` gives
+  - \phi_{n-1/2,i,g}` — which is exactly what
+  :cite:`Hebert2009` Eqs. 3.437/3.439 (sphere) and Eqs. 3.412/3.414
+  (cylinder) write, and what :cite:`BaileyMorelChang2010` Eq. 53 names
+  "the diamond scheme".  It is a **different method**: it is the
+  pointwise truncation-order optimum (:cite:`ReedLathrop1970`
+  Eqs. (15)/(16) — second order iff :math:`\tau = \tfrac12 + O(w)`), but
+  BMC prove it is diffusion-limit consistent only to LEADING order,
+  whereas the *weighted* diamond is the only member of the family
+  correct through **first** order — and that first-order consistency is
+  what removes the flux dip in general.  Any
+  :math:`\tau \in [0, 1] \setminus \{\tfrac12\}` gives
   weighted-DD; the admissible range is :math:`[0, 1]` and both arms run
   the derived weight unclamped (see the geometry-split subsection above —
   :math:`\tfrac12` is *not* a lower bound and never was).  The same
@@ -1970,42 +1987,159 @@ cross-source picture — the same recursion spelled four ways across
 three texts, plus the review literature's :math:`\beta` spelling — is
 tabulated at :ref:`normalization-alpha-crosswalk`.
 
-Citation correction
--------------------
+.. _sn-citation-corrections:
 
-Pre-Phase-B the codebase cited "Bailey, T. S., Adams, M. L., Yang,
-B., & Zika, M. R. (2009). *A piecewise linear finite element
-discretization of the diffusion equation for arbitrary polyhedral
-grids*. JCP 227, 3738-3757" for the curvilinear S\ :sub:`N`
-:math:`\alpha`-recursion.  This is the **wrong Bailey paper** —
-Bailey-Adams-Yang-Zika is a piecewise-linear FE diffusion paper
-unrelated to S\ :sub:`N`.  The intended reference is **Bailey,
-Morel & Chang (2010)**, NSE 165(2):149-169, "Asymptotic
-Diffusion-Limit Accuracy of Sn Angular Differencing Schemes"
+Citation corrections
+--------------------
+
+Two corrections, three years apart in the literature they touch.  Both
+are the same disease — *a scheme wearing another paper's name* (the #327
+family) — and the second one produced a wrong cylinder :math:`\tau`
+before it was caught, so the record is kept in full.
+
+Correction 1 — the wrong Bailey paper (Issue #168 Phase B)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pre-Phase-B the codebase cited "Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R.
+(2009). *A piecewise linear finite element discretization of the
+diffusion equation for arbitrary polyhedral grids*. JCP 227, 3738-3757"
+for the curvilinear S\ :sub:`N` :math:`\alpha`-recursion.  This is the
+**wrong Bailey paper** — Bailey-Adams-Yang-Zika is a piecewise-linear FE
+diffusion paper unrelated to S\ :sub:`N`.  The intended reference is
+:cite:`BaileyMorelChang2010`, NSE 165(2):149-169, "The Asymptotic
+Diffusion-Limit Accuracy of :math:`S_N` Angular Differencing Schemes"
 (LLNL preprint LLNL-JRNL-420356; OA at
-https://www.osti.gov/servlets/purl/1020346).  Phase B corrects the
+https://www.osti.gov/servlets/purl/1020346).  Phase B corrected the
 citations in :mod:`orpheus.geometry.reduced_operator`,
-``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``), :mod:`orpheus.transport.spatial.diamond`, and the
-new :mod:`orpheus.sn.sweep.pole_angular_closure` module.  Hébert
-(2009) §3.9.4 is the **primary source** for the curvilinear S\ :sub:`N`
-discretization in this codebase; Bailey-Morel-Chang 2010 is the
-auxiliary justification for the M-M weighted-diamond :math:`\tau`
-itself (their Eq. 43, the barycentric coordinate).
+``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``),
+:mod:`orpheus.transport.spatial.diamond`, and the new
+:mod:`orpheus.sn.sweep.pole_angular_closure` module.
 
-.. warning:: **A second citation correction, 2026-08-11 (Q5.6.4).**  An
-   earlier revision of the sentence above credited BMC 2010 as the
-   justification for *"the M-M weighted-diamond* :math:`\tau` *clamp"*.
-   :cite:`BaileyMorelChang2010` prescribes **no clamp** — the admissible
-   range they state is :math:`[0, 1]`, and their own :math:`S_2` example
-   gives :math:`\tau_1 = 1 - 1/\sqrt3 \approx 0.4226 < \tfrac12`
-   (their Eq. 47), which the retired :math:`[\tfrac12, 1]` absorber would
-   have clipped.  Separately, the code's own citation of Hébert
-   Eqs. 3.437/3.439 for :math:`\tau` was wrong in the same family: those
-   are the :math:`\tau = \tfrac12` *extrapolations* and carry zero
-   information about angular cell edges (they differ only in the SPATIAL
-   half, inward vs outward sweep).  The :math:`\tau` actually implemented
-   is BMC-shaped.  Same disease as #327 — a scheme wearing another
-   paper's name.
+.. _sn-tau-source-of-record:
+
+Correction 2 — Hébert is not the source of the weighted :math:`\tau`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`[M]` all three claims below verified against the rendered pages,
+2026-08-11.  Sources are listed by WHAT they are the authority for,
+because the weighted :math:`\tau`, the
+:math:`\alpha`-recursion and the sweep mechanics come from three
+different places and conflating them is the error class this page has
+already paid for:
+
+.. list-table:: Source of record, per object
+   :header-rows: 1
+   :widths: 26 34 40
+
+   * - Object
+     - Authority
+     - What it says
+   * - The weighted :math:`\tau` — **primary**
+     - :cite:`MorelMontry1984`
+     - *Analysis and Elimination of the Discrete-Ordinates Flux Dip*,
+       TTSP 13(5):615-633.  The scheme this closure implements, and the
+       reason the family is named "Morel--Montry".
+   * - The weighted :math:`\tau` — **the form we implement**
+     - :cite:`BaileyMorelChang2010` Eqs. (42)/(43)
+     - :math:`\tau_m` is the barycentric coordinate of the ordinate
+       between its own cell's two edges, in the radial direction cosine
+       (:eq:`morel-montry-closure`).  Their Eq. (41) is the first-order
+       diffusion-limit condition :math:`\beta = 0`, and forcing
+       :math:`\beta = 0` is what **determines** these weights — so
+       :math:`\tau` is derived, not chosen.
+   * - The same condition, 40 years earlier
+     - :cite:`ReedLathrop1970` Eq. (13c)
+     - Identical to BMC Eq. (43).  Their Eqs. (15)/(16) add the sharpest
+       accuracy criterion available on :math:`\tau` — see
+       :ref:`sn-tau-pointwise-second-order` below.
+   * - The :math:`\alpha` recursion
+       :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - \mu_m w_m`
+     - Lathrop, K., & Carlson, B. (1966), *J. Comp. Phys.* 1:173
+     - Cited by :cite:`ReedLathrop1970` (their ref. 7) as "a requirement
+       commonly invoked to define the :math:`\alpha` coefficients".
+       Hébert credits the cylindrical :math:`\eta_{p,q\pm1/2}`
+       construction to Alcouffe, R. E., & O'Dell, R. D. (1986),
+       *Transport Calculations for Nuclear Reactors*, CRC Handbook of
+       Nuclear Reactors Calculations Vol. I (Y. Ronen, ed.).
+       ⚠ **Neither is in the local library and neither has been read**;
+       both are recorded as attributions, not as consulted sources.
+   * - The cell balance, the sweep ordering, the Carlson starting
+       direction
+     - :cite:`Hebert2009` **§3.9.3** (cylinder, printed pp. 137-141) and
+       **§3.9.4** (sphere, printed pp. 141-144)
+     - Authority for the cell-balance layout, the :math:`\Delta A/w`
+       factor, the sweep ordering and the :math:`\alpha_{1/2} = 0`
+       initialisation — and **not** for :math:`\tau`.
+
+The three specific claims that were false, each verified against the
+rendered pages on 2026-08-11:
+
+#. **§3.9.4 is the SPHERE.** Hébert's cylinder is **§3.9.3**; the whole
+   Eq. 3.418-3.439 range is spherical.  A cylinder claim carrying a
+   §3.9.4 citation is citing the wrong geometry.
+#. **Eqs. 3.437/3.439 are not weighted.**  Eq. 3.439 reads
+   :math:`\phi_{n+1/2,i} = 2\phi_{n,i} - \phi_{n-1/2,i}` — Eq. 3.431
+   rearranged for the sweep, i.e. :math:`\tau \equiv \tfrac12` exactly.
+   The cylinder's azimuthal counterparts, Eqs. 3.412/3.414, have the
+   identical shape.  (Citing 3.437/3.439 for the :math:`\tau = \tfrac12`
+   *reduction* is therefore correct; citing them for :math:`\tau` itself
+   is not.)
+#. **Hébert defines no** :math:`\tau` **anywhere in chapter 3**, in
+   either geometry.  He ships the *plain* angular diamond.
+
+.. warning:: **Never cite Hébert against BMC here, and never call BMC
+   "auxiliary".**  Until 2026-08-11 the paragraph above read *"Hébert
+   (2009) §3.9.4 is the primary source for the curvilinear S*\
+   :sub:`N` *discretization in this codebase; Bailey-Morel-Chang 2010 is
+   the auxiliary justification for the M-M weighted-diamond* :math:`\tau`
+   *itself"* — and an earlier revision still said *"the M-M
+   weighted-diamond* :math:`\tau` *clamp"*.  Both are retracted.
+
+   :cite:`BaileyMorelChang2010` is not auxiliary: it is the form the code
+   implements, and they prove (their Eq. 53 and §I) that the plain
+   diamond Hébert ships is diffusion-limit consistent only to LEADING
+   order, while the *weighted* diamond is the only member of the family
+   correct through **first** order — and first-order consistency is what
+   removes the flux dip in general.  Their Eq. 53 explicitly names
+   :math:`\tau = \tfrac12` "the diamond scheme".  BMC also prescribe
+   **no clamp**: the admissible range they state is :math:`[0, 1]`, and
+   their own :math:`S_2` example gives
+   :math:`\tau_1 = 1 - 1/\sqrt3 \approx 0.4226 < \tfrac12` (their
+   Eq. 47), which the retired :math:`[\tfrac12, 1]` absorber would have
+   clipped.  The absorber's own provenance is at
+   :ref:`sn-tau-absorber-retirement`.
+
+.. _sn-tau-pointwise-second-order:
+
+The pointwise accuracy criterion on :math:`\tau` (Reed & Lathrop)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:cite:`ReedLathrop1970` reach BMC Eq. (43) as their Eq. (13c) forty
+years earlier, and go one step further.  They additionally impose their
+Eq. (13b), which turns the pair into a quadratic for the **ordinate**
+(edges in, ordinates out) — a different branch that fixes the
+*quadrature*, and not the one this codebase takes.  What transfers
+directly is their **Eqs. (15)/(16)**: the angular truncation error is
+second order **iff the ordinate is the** :math:`\mu`-**midpoint of its
+own angular cell to** :math:`O(w^2)`, i.e. iff
+:math:`\tau = \tfrac12 + O(w)`.
+
+Two properties make this the sharpest criterion available on
+:math:`\tau`:
+
+* It is **pointwise**, not integrated.  Unlike BMC's :math:`\beta`
+  (a diffusion-limit functional obtained by summing over the level), it
+  is a statement about one ordinate in one cell — so a
+  :math:`\sigma_y`-folded cylinder level, whose symmetry annihilates
+  :math:`\beta`, does **not** annihilate it.  (That annihilation is the
+  Mode-12 hazard recorded in
+  :ref:`the β-blindness warning <sn-tau-beta-diagnostic-blind>`.)
+* It explains why *both* shipped arms are legitimate without either
+  being "the accurate one": the sphere's Gauss--Legendre
+  :math:`\tau \in [0.39, 0.61]` and the folded cylinder's
+  :math:`\tau \in [\tfrac14, \tfrac34]` are both
+  :math:`\tfrac12 + O(w)`, while the retired :math:`[\tfrac12, 1]`
+  absorber's one-sided box is not centred on :math:`\tfrac12` at all.
 
 ERR-026 closure status after the pole closure
 ---------------------------------------------
@@ -3051,7 +3185,7 @@ practical mesh refinement levels.
 Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
 **gains a tests edge transitively** through the Phase D fix: once
 ``MorelMontryAngularSweep`` becomes the default and Gates 3.1 / 3.2
-xpass, the canonical Hébert §3.9.4 angular recurrence is exercised
+xpass, the canonical Morel--Montry angular recurrence is exercised
 by the apply matvec and pinned by an L1 test chain. Through Phase C
 the label remains tested only via the Phase B foundation suite
 (:file:`tests/sn/sweep/curvilinear/test_pole_angular_closure.py`); the L1
@@ -3074,7 +3208,7 @@ specification.
 The empirical outcome decides the **default flip** per the user's
 explicit constraint 7 (the "do not flip without empirical
 evidence" sequencing). The decisive subset is the (geometry,
-pole-closure) crosstab on the canonical Hébert M–M angular closure
+pole-closure) crosstab on the canonical Morel--Montry angular closure
 strategy
 (:class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`):
 

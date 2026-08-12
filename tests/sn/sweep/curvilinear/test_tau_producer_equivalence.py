@@ -44,6 +44,31 @@ Mode-8 discipline: every numeric assertion is ``np.testing`` /
 invocation.  The two guard-the-guard predicates use bare ``assert`` (pytest
 rewrites those in test modules so they fire regardless of ``-O``); the VALUE
 checks never rely on a bare assert.
+
+⭐ **Widened and re-derived 2026-08-11.**  Both ladders grew (sphere
+N ∈ {4,8,16,32,64}, cylinder n_φ ∈ {4,6,8,10,16,18,32,64} — **both
+parities of M**, where the committed pair {8,16} was a single congruence
+class), both flat tolerances became DERIVED functions of the mechanism
+(:func:`_sphere_tau_atol` / :func:`_cyl_tau_atol` — the old
+``atol=1e-13`` was a latent FALSE RED at N ≥ 64, `[M]` 2.247e-13), and
+the sphere row gained the negative control it lacked.
+
+Mutation-proof — measured 2026-08-11 (13 in-process mutations, 298-row
+scope; definitions in
+``tests/sn/sweep/test_angular_cell_partition.py``):
+
+====================================  == == == == === == == == == == ==
+row                                   MC M1 M2 M3 M3b M4 M5 M6 M7 M8 M9
+====================================  == == == == === == == == == == ==
+``sphere_tau_matches…reference``       5  5  5  5   .  .  .  .  .  5  5
+``cyl_tau_equals_the_ANALYTIC…``       7  .  .  .   .  7  8  8  8  8  8
+====================================  == == == == === == == == == == ==
+
+⛔ The **cylinder** row is one of only **6 pre-existing catchers (of 298
+rows)** for each of the chord-partition revert (M4), the shifted-edge
+partition (M7) and the orientation flip (M8) — and before the widening
+it contributed **2** of those.  That is the measurement the new
+``test_angular_cell_partition.py`` module exists to change.
 """
 from __future__ import annotations
 
@@ -59,6 +84,73 @@ from orpheus.sn.sweep.pole_angular_closure import (
 )
 from tests.sn._test_helpers import placeholder_materials
 
+_EPS = float(np.finfo(float).eps)
+
+
+def _sphere_tau_atol(weights: np.ndarray) -> float:
+    r"""Derived tolerance for the sphere τ row: :math:`16\,\varepsilon /
+    w_{\min}`.
+
+    τ divides an edge difference by the cell width, so an edge
+    discrepancy of :math:`O(\varepsilon)` (the pairwise-vs-sequential
+    summation noise that IS this reference's independence) is amplified
+    by :math:`1/w_m`, and the narrowest Gauss–Legendre cell sits at the
+    poles.  `[M]` 2026-08-11 the measured ratio
+    ``max|ref − prod| ÷ (eps/w_min)``:
+
+    ====  ============  ==================
+    N     max gap       gap ÷ (eps/w_min)
+    ====  ============  ==================
+    4     ``0.000e+00``  0.00
+    8     ``1.776e-15``  0.81
+    16    ``6.550e-15``  0.80
+    32    ``6.106e-15``  0.19
+    64    ``2.247e-13``  1.81
+    128   ``1.880e-12``  3.81
+    ====  ============  ==================
+
+    ⟹ the factor 16 carries ≥ 4× margin at N = 128 and ≥ 8× at every
+    order this module runs.  ⛔ **This replaces a flat ``atol=1e-13``**,
+    which was simultaneously ~450× too loose at N = 8 and a **false red**
+    from N = 64 (measured ``2.247e-13``) — the very widening its own
+    docstring warned a future row would need.
+    """
+    return 16.0 * _EPS / float(np.min(weights))
+
+
+def _cyl_tau_atol(M: int) -> float:
+    r"""Derived tolerance for the cylinder τ row: :math:`40\,M\,
+    \varepsilon`.
+
+    :math:`\tau_m - \tfrac12 = \tfrac12\cot\omega_m\tan(\Delta\omega/4)`,
+    and near the arc's endpoints :math:`\cot` has condition
+    :math:`\csc^2\omega \approx (2M/\pi)^2` while
+    :math:`\tan(\Delta\omega/4) \approx \pi/(4M)` — so an
+    :math:`O(\varepsilon)` error in :math:`\omega` (from ``arctan2``)
+    reaches τ multiplied by :math:`\approx M/(2\pi)`.  The agreement
+    therefore DEGRADES linearly in :math:`M`; `[M]` 2026-08-11:
+
+    =======  ====  ============  =================
+    n_φ      M     max gap       gap ÷ (M·eps)
+    =======  ====  ============  =================
+    4        2     ``1.110e-16``  0.25
+    6        3     ``1.110e-16``  0.17
+    8        4     ``2.220e-16``  0.25
+    10       5     ``4.441e-16``  0.40
+    16       8     ``7.772e-16``  0.44
+    18       9     ``5.551e-16``  0.28
+    26       13    ``3.664e-15``  1.27
+    32       16    ``7.438e-15``  2.09
+    64       32    ``2.270e-14``  3.20
+    128      64    ``1.135e-13``  7.99
+    =======  ====  ============  =================
+
+    ⟹ the factor 40 carries ≥ 5× margin at M = 64 and ≥ 12× at every
+    order this module runs, while a flat ``atol`` would be a false red
+    somewhere above M = 64.
+    """
+    return 40.0 * M * _EPS
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # SPHERE — closure producer == structurally-independent reference (0-ULP)
@@ -66,7 +158,7 @@ from tests.sn._test_helpers import placeholder_materials
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("N", [8, 16])
+@pytest.mark.parametrize("N", [4, 8, 16, 32, 64])
 def test_sphere_tau_matches_independent_reference(N):
     r"""Closure-produced τ == a HAND-WRITTEN cumulative-weight reference.
 
@@ -86,8 +178,9 @@ def test_sphere_tau_matches_independent_reference(N):
     ``np.cumsum`` sums pairwise while the producer accumulates
     sequentially, so the two edge ladders differ by FP association — which
     is precisely what makes this a second computation rather than a copy.
-    `[M]` the gap GROWS with N, because the edges near :math:`\mu = 0` are
-    built by cancellation:
+    `[M]` the gap GROWS with N, because τ divides that
+    :math:`O(\varepsilon)` edge noise by the cell width and the narrowest
+    Gauss–Legendre cell narrows with N:
 
     ===== ===================  ==========
     N     max|ref − prod|      ULP
@@ -97,34 +190,62 @@ def test_sphere_tau_matches_independent_reference(N):
     16    ``6.550e-15``           59
     32    ``6.106e-15``           55
     64    ``2.247e-13``         2024
+    128   ``1.880e-12``        16930
     ===== ===================  ==========
 
-    Asserted at ``atol=1e-13``, comfortable for the N ∈ {8, 16} rows here.
-    ⛔ **A new row at N ≥ 64 must widen it** — do not read the current
-    bound as a claim that holds at every order (`vv-principles` #16: never
-    assert tighter than the producer achieves).
+    ⛔ **The flat ``atol=1e-13`` this row used until 2026-08-11 was a
+    FALSE RED from N = 64** (measured ``2.247e-13``) — exactly the
+    widening its own docstring predicted a future row would need.  The
+    bound is now DERIVED, :func:`_sphere_tau_atol`
+    (:math:`16\varepsilon/w_{\min}`), which tracks the mechanism instead
+    of a magic floor, and the ladder runs to N = 64.
 
-    ⚠ It is worth stating what this leg does NOT establish: the sphere's
-    cumulative-weight partition is the convention the literature confirms
-    verbatim, so this pins the *implementation*, not the *choice*.  The
-    choice is argued in
-    :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`.
+    **Leg (b) — NEGATIVE control** (`vv-principles` #19), new at
+    2026-08-11.  Until now this row pinned the *implementation* of the
+    cumulative-weight partition and carried **zero** information about
+    the *choice*: it would have passed identically had the producer used
+    equal-width cells, because the reference would have been re-derived
+    from … the same wrong convention only if a human wrote it that way.
+    The plausible-wrong alternative — ``linspace(-1, 1, N+1)`` — is
+    computed inline and τ must DIFFER from it (`[M]` by 0.159 / 0.646 /
+    1.525 / 3.206 at N = 4/8/16/32).
+
+    **Cannot catch**: the convention *being wrong in the literature's own
+    terms* — BMC 2010 Eq. 12 is transcribed here as well as in
+    production, so a mis-reading of the source is shared.  The corroborating
+    check is Lathrop 2000's :math:`\sum\Delta\mu_m = 2`, gated as the
+    closing identity in
+    ``tests/sn/sweep/test_angular_cell_partition.py``.
     """
     quad = Quadrature.gauss_legendre(N)
-    # Hand-written reference: cumulative-weight edges from −1, then P2.
+    # (a) hand-written reference: cumulative-weight edges from −1, then P2.
     w = np.asarray(quad.weights)
     mu_edge = np.concatenate(([-1.0], -1.0 + np.cumsum(w)))
     tau_ref = (np.asarray(quad.mu_x) - mu_edge[:-1]) / np.diff(mu_edge)
     (tau_close,) = morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)
 
     np.testing.assert_allclose(
-        tau_close, tau_ref, rtol=0.0, atol=1e-13,
+        tau_close, tau_ref, rtol=0.0, atol=_sphere_tau_atol(w),
         err_msg=(
             f"sphere closure τ != the hand-written cumulative-weight "
             f"reference (N={N}); both are unclamped BMC-2010 Eq.12/42 "
             f"weights and must agree to FP-association noise"
         ),
     )
+
+    # (b) NEGATIVE control: the naive equal-width partition.
+    uniform_edge = np.linspace(-1.0, 1.0, N + 1)
+    tau_uniform = (
+        (np.asarray(quad.mu_x) - uniform_edge[:-1]) / np.diff(uniform_edge)
+    )
+    gap = float(np.max(np.abs(tau_ref - tau_uniform)))
+    if gap <= 0.1:
+        pytest.fail(
+            f"sphere N={N}: the cumulative-weight reference is "
+            f"indistinguishable from the naive EQUAL-WIDTH partition "
+            f"(max gap {gap:.3e}) — leg (a) cannot then be evidence "
+            f"about the partition CONVENTION, only about its arithmetic"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -133,7 +254,7 @@ def test_sphere_tau_matches_independent_reference(N):
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("n_phi", [8, 16])
+@pytest.mark.parametrize("n_phi", [4, 6, 8, 10, 16, 18, 32, 64])
 def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
     n_phi,
 ):
@@ -172,6 +293,36 @@ def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
     ⚠ ``angular_differencing.morel_montry_weights`` is NOT used here: it
     delegates to production, so comparing against it would be comparing τ
     with itself through a wrapper (see the module-level note).
+
+    ⭐ **Widened at 2026-08-11** from ``n_phi ∈ {8, 16}`` (both
+    :math:`M` EVEN) to ``{4, 6, 8, 10, 16, 18, 32, 64}``, i.e.
+    :math:`M \in \{2,3,4,5,8,9,16,32\}` — **both parities**.  An
+    all-even ladder is a single congruence class (`vv-principles` #13's
+    refinement-ladder sharpening): odd :math:`M` puts an ordinate exactly
+    at :math:`\omega = \pi/2`, where :math:`\cot\omega = 6.1e{-17}` and
+    :math:`\tau - \tfrac12` is :math:`0.0` or :math:`\pm 1.1e{-16}` — the
+    one place the closed form is evaluated at a near-cancellation, and
+    the equality case of the orientation law in
+    ``tests/sn/sweep/test_angular_cell_partition.py``.  The tolerance is
+    now DERIVED (:func:`_cyl_tau_atol`) rather than a flat ``1e-13``,
+    because the agreement degrades like :math:`M\varepsilon`.
+
+    ⚠ **The** :math:`M = 2` **row (n_phi = 4) is a labelled NON-catcher
+    for leg (b)** and skips it: there the chord and ω-midpoint partitions
+    coincide to 1 ULP, so no ``folded_product(·, 4)`` fixture can see the
+    partition choice at all.  It is kept for leg (a) (the closed form
+    still holds) and the degeneracy itself is gated in
+    ``test_angular_cell_partition.py::test_the_M2_fold_is_BLIND_to_the_partition_choice``.
+
+    **Cannot catch**: a producer wrong only on a NON-equispaced arc (the
+    reference is the equispaced closed form, and every shipped rule is
+    equispaced in :math:`\varphi`); anything on the sphere arm; and — for
+    leg (a) alone — a march-orientation flip is caught, but only because
+    the closed form is *signed*: the three properties the fold gates
+    assert (:math:`\tau \in [0,1]`, :math:`\tau \in [\tfrac14,\tfrac34]`,
+    :math:`\tau_m + \tau_{M-1-m} = 1`) are ALL invariant under
+    :math:`\tau \to 1-\tau`.  That Mode-12 hole has its own dedicated
+    catcher in ``test_angular_cell_partition.py``.
     """
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
     tau_close = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
@@ -187,28 +338,40 @@ def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
         # (a) the ANALYTIC reference — hand-derived, no shared code path.
         closed_form = 0.5 + 0.5 / np.tan(omega) * np.tan(d_omega / 4.0)
         np.testing.assert_allclose(
-            tau_close[p], closed_form, rtol=0.0, atol=1e-13,
+            tau_close[p], closed_form, rtol=0.0, atol=_cyl_tau_atol(M),
             err_msg=(
-                f"cylinder level {p} (n_phi={n_phi}): production τ departs "
-                f"from the analytic P2 closed form "
+                f"cylinder level {p} (n_phi={n_phi}, M={M}): production τ "
+                f"departs from the analytic P2 closed form "
                 f"½ + ½·cot(ω)·tan(Δω/4)\n"
                 f"production ={tau_close[p]}\nclosed form={closed_form}"
             ),
         )
 
         # (b) NEGATIVE control: the RETIRED chord (η-midpoint) partition.
+        #     Structurally VACUOUS at M = 2 (the two coincide) — skipped
+        #     there rather than asserted with a threshold it cannot meet.
+        if M < 3:
+            continue
         chord_edge = np.empty(M + 1)
         chord_edge[0] = -sin_theta
         chord_edge[M] = sin_theta
         chord_edge[1:M] = 0.5 * (eta[:-1] + eta[1:])
         chord_tau = (eta - chord_edge[:-1]) / np.diff(chord_edge)
         gap = float(np.max(np.abs(closed_form - chord_tau)))
-        assert gap > 1e-3, (
-            f"cylinder level {p} (n_phi={n_phi}): the analytic reference is "
-            f"indistinguishable from the RETIRED chord convention "
-            f"(max gap {gap:.3e}) — this row cannot then be evidence about "
-            f"the partition choice, which is the thing the carve changed"
-        )
+        # `[M]` 2026-08-11 the τ-space gap GROWS with refinement (unlike
+        # the edge-space gap, which shrinks like M⁻²): 3.166e-2 (M=3) /
+        # 4.459e-2 (4) / 6.050e-2 (5) / 7.514e-2 (8) / 7.694e-2 (9) /
+        # 8.137e-2 (16) / 8.285e-2 (32) / 8.321e-2 (64), identical on
+        # every level (τ is sinθ-independent).  1e-2 ⇒ ≥ 3× margin at the
+        # tightest row and no upper-order false red.
+        if gap <= 1e-2:
+            pytest.fail(
+                f"cylinder level {p} (n_phi={n_phi}, M={M}): the analytic "
+                f"reference is indistinguishable from the RETIRED chord "
+                f"convention (max gap {gap:.3e}) — this row cannot then be "
+                f"evidence about the partition choice, which is the thing "
+                f"the carve changed"
+            )
 
 
 

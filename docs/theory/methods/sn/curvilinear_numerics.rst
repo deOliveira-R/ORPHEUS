@@ -2334,7 +2334,11 @@ immediately, *before* any solver ever runs.
 Manifestation (b) — the angular half-angle thread seed (the dominant defect)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Morel–Montry angular recurrence (Hébert §3.9.4 Eqs. 3.437/3.439)
+The Morel–Montry **weighted** angular recurrence
+(:cite:`MorelMontry1984`; implemented form :cite:`BaileyMorelChang2010`
+Eqs. (42)/(43) — *not* Hébert, whose Eqs. 3.437/3.439 are the plain
+:math:`\tau \equiv \tfrac12` diamond; see
+:ref:`sn-tau-source-of-record`)
 threads the half-angle face fluxes
 :math:`\psi_{m\pm 1/2,i}` across a :math:`\mu`-level and needs a starting
 seed :math:`\psi_{1/2,i}` at the level's most-inward angular edge.  The

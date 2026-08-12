@@ -93,8 +93,11 @@ References
   Transport*.  §5.3 — the transmission-emission pair ``(a, b)`` for DD.
 * Blelloch, G. E. (1990). *Prefix Sums and Their Applications*. CMU-CS-90-190.
   §1.5 — first-order linear recurrence closed form.
-* Hébert, A. (2009). *Applied Reactor Physics*. §3.9.4 — curvilinear DD with
-  Morel-Montry angular closure.
+* Hébert, A. (2009). *Applied Reactor Physics*. §3.9.3 (cylinder) / §3.9.4
+  (sphere) — the curvilinear DD cell balance and sweep mechanics.  The
+  Morel-Montry weighted angular closure the DD update composes with is
+  NOT his: see Morel & Montry (1984), TTSP 13(5):615-633, and
+  Bailey-Morel-Chang (2010), NSE 165(2):149-169 Eqs. (42)/(43).
 """
 
 from __future__ import annotations

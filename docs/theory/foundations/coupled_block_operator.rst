@@ -202,7 +202,10 @@ The seed block :math:`A_{AB}` — a σ-independent cell-local angular coupling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 At each radial cell :math:`i`, the ray value :math:`\psi_{1/2}(i)` seeds
-the Morel–Montry angular recurrence (Hébert §3.9.4)
+the Morel–Montry **weighted** angular recurrence
+(:cite:`MorelMontry1984`; implemented form :cite:`BaileyMorelChang2010`
+Eqs. (42)/(43) — Hébert defines no :math:`\tau`, see
+:ref:`sn-tau-source-of-record`)
 
 .. math::
    :label: coupled-ab-seed

@@ -304,16 +304,34 @@ A level's ordinates each own an angular *cell*; the partition is the
    Rationale: a geometry-of-the-rule construction, not a physics-equation
    claim with an L0..L3 ladder slot — the partition is a property of the
    quadrature, produced solve-free.  The verifiable content is
-   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (the
-   analytic arc closed form BELOW is the cylinder arm's
-   structurally-independent reference, with the retired chord convention
-   as its negative control per ``vv-principles`` #19),
+   ``tests/sn/sweep/test_angular_cell_partition.py`` — the **direct**
+   value gate on the producer, both arms, added 2026-08-11: a
+   hand-written cumulative-weight reference (sphere) and the analytic
+   equispaced-arc closed form :math:`e_k = \sin\theta\cos(\pi - k\Delta
+   \omega)` (cylinder), each with a negative control (the uniform
+   partition; the retired chord partition) per ``vv-principles`` #19,
+   plus the closing identities, the march-orientation sign law, and a
+   labelled control recording that :math:`M = 2` — i.e. every
+   ``folded_product(·, 4)`` fixture — is structurally BLIND to the
+   partition choice.  Then
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
+   (:math:`\tau` = P2 applied to the partition, same two references),
    ``tests/sn/sweep/test_tau_arc_wellposedness.py`` (the P3 theorem and
    the attainable closed endpoint) and
    ``tests/sn/verification/mms/test_mms_ordering_blindness.py``
    ``::test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition``
-   (the non-monotone-arc refusal).  Both are ``foundation`` gates —
+   (the non-monotone-arc refusal).  All are ``foundation`` gates —
    software/structural invariants of a discrete construction.
+
+   ⚠ Until 2026-08-11 the partition producer had **no value gate at
+   all**: every listed test read :math:`\tau`, which is P2 *applied* to
+   the partition, so a wrong partition that kept :math:`\tau` inside
+   :math:`[0,1]` was visible only to the two cylinder :math:`\tau` rows.
+   The recurrence's worst partial amplification
+   :math:`A(M) = \max_m \prod_{k\le m}(1-\tau_k)/\tau_k` — the number
+   quoted as "recurrence error-amplification" in the Q5.6.4
+   adjudication — is likewise now committed, in
+   ``tests/sn/sweep/curvilinear/test_psi_half_positivity.py``.
 
 Both branches are **derived, not conventional**, and they are derived
 from *different* facts:
@@ -452,6 +470,34 @@ at :math:`S_8` Gauss--Legendre **four of eight** M-M τ sit below
 :math:`\tfrac12`.  :cite:`BaileyMorelChang2010`'s own :math:`S_2` example
 gives :math:`\tau_1 = \mu_1 + 1 = 1 - 1/\sqrt3 \approx 0.4226 < \tfrac12`
 (their Eq. 47).  **No source prescribes any limiter on** :math:`\tau`.
+
+.. _sn-tau-absorber-provenance:
+
+Where the number :math:`[\tfrac12, 1]` actually came from
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"No source prescribes it" is the weaker statement.  The stronger one,
+established 2026-08-11: the interval is real, it is **Grant's**, and it
+is on a **different parameter**.
+
+:cite:`ReedLathrop1970` carry two independent weighted-diamond
+parameters — a **spatial** weight :math:`a_{i+1/2}` (their Eqs. 5a/5b
+and 11) and an **angular** weight :math:`\tau_m` (their Eqs. 6a/6b).
+Their footnote 8 (printed p. 239) discusses Grant's choice for the
+*spatial* one: Grant lets that weight depend on the sign of its
+argument, and Reed & Lathrop note this "is necessary only to keep
+[it] between :math:`\tfrac12` and 1" — then add, decisively, that
+**Grant does not determine angular weights at all**.
+
+So :math:`[\tfrac12, 1]` is a bound on the SPATIAL weighted-diamond
+parameter of Grant, I. P. (1968), *J. Comp. Phys.* 2(4):381-402,
+doi:10.1016/0021-9991(68)90044-2.  ⚠ **Grant 1968 is not in the local
+library and has not been read**; the attribution rests on Reed &
+Lathrop's footnote, read on the rendered page.  Transplanting that
+interval onto the angular :math:`\tau` is exactly what the retired
+cylinder absorber did — the number was inherited across a parameter
+boundary, which is why no search of the angular literature could ever
+find its source.
 
 ⭐ **What it was actually compensating for was a WRONG PARTITION, and
 that is why retiring it alone made things worse.**  Until 2026-08-11 the

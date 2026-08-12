@@ -263,9 +263,10 @@ shape choice.
      - The per-cell M-M contribution from
        :meth:`PoleAngularClosureBase.cell_contribution`,
        added to the cell balance during the walk
-     - **MA-Q1 fallback**: the M-M half-grid
-       recurrence (Hébert 2009 §3.9.4
-       Eqs. 3.432-3.435) sequentially couples
+     - **MA-Q1 fallback**: the Carlson
+       starting-direction march (Hébert 2009
+       §3.9.4 Eqs. 3.432-3.435) that seeds the
+       M-M half-grid sequentially couples
        angular ordinates ``α_{m+1/2}`` from
        ``α_{m-1/2}`` with σ_t-dependent
        absorption coefficients. Not a diagonal
@@ -323,12 +324,16 @@ cross-sections does not admit it for scattering and streaming.
    :class:`LinearOperator` — not a factor on a per-cell tensor axis.
 
 3. **M-M half-grid recurrence** (T.4 streaming, curvilinear angular).
-   The Carlson-Morel-Montry α-coefficients (Hébert 2009 §3.9.4
-   Eqs. 3.432-3.435) recur sequentially along the angular axis within
-   each μ-level: :math:`\alpha_{m+1/2}` depends on
-   :math:`\alpha_{m-1/2}` and on σ_t. The leaf factor is the entire
-   recurrence — a single :class:`LinearOperator` — not a diagonal
-   angular operator.
+   The Carlson starting-direction march (Hébert 2009 §3.9.4
+   Eqs. 3.432-3.435) that seeds it recurs sequentially along the angular
+   axis within each μ-level, each face depending on the previous one and
+   on σ_t. The leaf factor is the entire recurrence — a single
+   :class:`LinearOperator` — not a diagonal angular operator.
+   (Provenance, for the record: the :math:`\alpha`-dome recursion
+   :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - \mu_m w_m` is Hébert's
+   Eqs. 3.423-3.424 and carries **no** σ_t; the weighted :math:`\tau`
+   the half-grid recurrence uses is Morel--Montry's, not Hébert's — see
+   :ref:`sn-tau-source-of-record`.)
 
 In each case, the algebraic home is the SAME — :class:`OperatorSum`
 over bespoke :class:`LinearOperator` summands — and the
@@ -744,8 +749,9 @@ half-angle fluxes :math:`\psi_{m\pm 1/2}` are not free unknowns: they are
 fixed by a closure that ties each half-angle to its neighbour, which is
 the source of the sequential coupling below.
 
-**Why not a tensor product**. Per Hébert 2009 §3.9.4, Eqs. 3.432-3.435,
-the M-M closure produces an angular recurrence
+**Why not a tensor product**. The Carlson starting-direction march
+(Hébert 2009 §3.9.4, Eqs. 3.432-3.435) and the Morel--Montry closure it
+seeds together produce an angular recurrence
 
 .. math::
    :label: mm-half-grid-recurrence

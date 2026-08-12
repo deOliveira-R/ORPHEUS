@@ -7,15 +7,42 @@ sub-domains.  They are NOT cell-centre values and cannot be computed
 from cell-centres without a **closure**; this module supplies that
 closure as a strategy family.
 
-The production closure is the per-cell Morel--Montry weighted-DD angular
-recurrence of Hébert Eqs. 3.437 / 3.439,
+The production closure is the per-cell Morel--Montry **weighted**-DD
+angular recurrence
 :math:`\phi_{n+1/2,i} = (\phi_{n,i} - (1-\tau_n)\phi_{n-1/2,i})/\tau_n`,
 seeded at the Carlson starting direction :math:`\mu = -1` (where the
 redistribution weight vanishes, :math:`\alpha_{1/2} = 0`).  It runs the
 SAME algebra
 :class:`~orpheus.transport.spatial.diamond.DiamondDifference` runs inside
 the sweep, lifted to operator level so the apply matvec and the sweep
-solve the **same** discrete fixed point.  Since Issue #282 route (a) the
+solve the **same** discrete fixed point.
+
+.. warning::
+
+   ⛔ **The weighted recurrence above is NOT Hébert's.** Until 2026-08-11
+   this docstring attributed it to "Hébert Eqs. 3.437 / 3.439", which was
+   false three ways and is recorded here because the mis-citation is what
+   produced a wrong cylinder :math:`\tau` (Q5.6.4):
+
+   * §3.9.4 is Hébert's **SPHERE**; his cylinder is §3.9.3.  The whole
+     3.418--3.439 range is spherical.
+   * Eqs. 3.437 / 3.439 are **not weighted** — 3.439 reads
+     :math:`\phi_{n+1/2,i} = 2\phi_{n,i} - \phi_{n-1/2,i}`, i.e. Eq. 3.431
+     rearranged for the sweep, which is :math:`\tau \equiv \tfrac12`
+     exactly.  The cylinder's azimuthal counterparts, 3.412 / 3.414, have
+     the identical shape.
+   * **Hébert defines no** :math:`\tau` **anywhere in chapter 3**, in
+     either geometry.
+
+   Hébert therefore ships the *plain* angular diamond, which this module
+   deliberately does **not** use: Bailey--Morel--Chang 2010 prove
+   (their Eq. 53 + §I) that the plain diamond is diffusion-limit
+   consistent only to LEADING order, while the weighted diamond is the
+   only member of the family correct through FIRST order — and that
+   first-order consistency is what removes the flux dip in general.
+   Never cite Hébert against BMC here.
+
+Since Issue #282 route (a) the
 seed :math:`\phi_{1/2,i}` is first-class STATE marched directly from the
 source (carrying levels — the GL sphere and, since Q5.6, every level
 of a σ_y-folded cylinder), or the inlined 2-point angular-edge
@@ -66,22 +93,72 @@ Protocol it mirrored, the Protocol→ABC retype (#236 Phase 2 B2), and the
 Issue #248 retirement of the divergent ``PoleAngularClosure`` Protocol +
 the legacy ``__call__`` bundle + the ``LegacyTauSymmetricInterpolation``
 / ``BaileyFlatFluxRedist`` ablation strategies — is the record at
-``docs/theory/methods/sn/curvilinear_one_group.rst §sn-pole-angular-closure-protocol``
-(which also carries the Hébert citation correction: the primary source is
-Hébert §3.9.4; Bailey--Morel--Chang 2010 is the auxiliary M-M-clamp
-justification, not the wrong 2009 Bailey FE-diffusion paper the
-pre-Phase-B geometry docstrings cited).
+``docs/theory/methods/sn/curvilinear_one_group.rst §sn-pole-angular-closure-protocol``.
+The citation record is a section of its own on the same page,
+``§sn-citation-corrections`` — the wrong 2009 Bailey FE-diffusion paper the
+pre-Phase-B geometry docstrings cited (Issue #168 Phase B), and the
+Hébert-vs-BMC attribution of the weighted :math:`\tau` (Q5.6.4, the warning
+above).  The per-object authority table is ``§sn-tau-source-of-record``.
 
 References
 ==========
 
-* Hébert, A. (2009). *Applied Reactor Physics*.  Chapter 3 §3.9.4
-  (pp. 141-144), Eqs. 3.418-3.439.  **Primary source** for the
-  per-cell DD angular recurrence and the Carlson starting-direction
-  initialisation.  Local copy: ``scratch/literature/Hebert(2009)Chapter3.pdf``.
-* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010). *Asymptotic
-  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*. NSE
-  165(2):149-169.  Auxiliary justification for the M-M clamp.
+Sources are listed by WHAT they are the authority for; the weighted
+:math:`\tau`, the :math:`\alpha` recursion and the sweep mechanics come
+from three different places, and conflating them is the ERR-class this
+module has already paid for once (see the warning above).
+
+* **The weighted** :math:`\tau` **— PRIMARY:** Morel, J. E., & Montry,
+  G. R. (1984). *Analysis and Elimination of the Discrete-Ordinates Flux
+  Dip*. Transport Theory and Statistical Physics 13(5):615-633.
+  doi:10.1080/00411458408211661.  Local copy:
+  ``scratch/literature/Morel-Montry(1984)Analysis and elimination of the discrete-ordinates flux dip.pdf``.
+* **The weighted** :math:`\tau` **— the form we implement:** Bailey,
+  T. S., Morel, J. E., & Chang, J. H. (2010). *Asymptotic Diffusion-Limit
+  Accuracy of Sn Angular Differencing Schemes*. NSE 165(2):149-169.
+  **Eqs. (42)/(43)** define :math:`\tau_m` as the barycentric coordinate
+  of the ordinate between its own cell's two edges **in the radial
+  direction cosine**; their Eq. (41) is the first-order diffusion-limit
+  condition :math:`\beta = 0`, and forcing it to zero is what DETERMINES
+  these weights (so :math:`\tau` is derived, not chosen).  Eq. (12) is the
+  sphere's cumulative-weight cell partition, implemented verbatim in
+  :func:`angular_cell_edges_per_level`.
+* **The same barycentric condition, 40 years earlier:** Reed, W. H., &
+  Lathrop, K. D. (1970). *Truncation Error Analysis of Finite Difference
+  Approximations to the Transport Equation*. NSE 41:237.  Their Eq. (13c)
+  IS BMC Eq. (43).  They additionally impose Eq. (13b), which turns the
+  system into a quadratic for the ORDINATE (edges in, ordinates out) — a
+  DIFFERENT branch that fixes the quadrature, and not ours.  ⭐ Their
+  **Eqs. (15)/(16)** are the sharpest available accuracy criterion on
+  :math:`\tau`: the angular truncation error is second order iff the
+  ordinate is the :math:`\mu`-MIDPOINT of its own cell to
+  :math:`O(w^2)`, i.e. iff :math:`\tau = \tfrac12 + O(w)`.  Unlike
+  :math:`\beta` this is POINTWISE, so a :math:`\sigma_y`-folded level does
+  not annihilate it.
+* **The** :math:`\alpha` **recursion** :math:`\alpha_{m+1/2} =
+  \alpha_{m-1/2} - \mu_m w_m`: Lathrop, K., & Carlson, B. (1966). *J.
+  Comp. Phys.* 1:173 — cited by Reed & Lathrop (their ref. 7) as "a
+  requirement commonly invoked to define the :math:`\alpha`
+  coefficients".  Hébert credits the cylindrical
+  :math:`\eta_{p,q\pm1/2}` construction to Alcouffe, R. E., & O'Dell,
+  R. D. (1986), *Transport Calculations for Nuclear Reactors*, in the CRC
+  Handbook of Nuclear Reactors Calculations Vol. I (Y. Ronen, ed.).
+  ⚠ **Neither is in the local library and neither has been read.**
+* **The sweep mechanics and the Carlson starting direction:** Hébert, A.
+  (2009). *Applied Reactor Physics*, Chapter 3 — **§3.9.3 (cylinder,
+  printed pp. 137-141)** and **§3.9.4 (sphere, printed pp. 141-144)**.
+  Local copy: ``scratch/literature/Hebert(2009)Chapter3.pdf``.  Authority
+  for the cell-balance layout, the sweep ordering and the
+  :math:`\alpha_{1/2} = 0` initialisation — **NOT** for the weighted
+  :math:`\tau` (see the warning above).
+* Grant, I. P. (1968). *J. Comp. Phys.* 2(4):381-402,
+  doi:10.1016/0021-9991(68)90044-2 — the origin of the weighted-diamond
+  ansatz that BOTH branches credit, and of the
+  :math:`[\tfrac12, 1]` interval.  ⚠ **That interval is on the SPATIAL
+  weight**, not on the angular :math:`\tau` (Reed & Lathrop footnote 8,
+  read on the rendered page); transplanting it onto :math:`\tau` is
+  exactly what the retired cylinder "absorber" did.  Not in the local
+  library.
 * ``docs/theory/methods/sn/curvilinear_one_group.rst`` — the pole
   angular closure (Issue #168 Phase B) and the α-recursion crosswalk
   (``docs/theory/conventions/normalization.rst §normalization-alpha-crosswalk``).
@@ -1063,7 +1140,7 @@ def morel_montry_tau_per_level(
 # The M-M recurrence kernel — pure algebra, module level
 # ═══════════════════════════════════════════════════════════════════════
 #
-# The Hébert Eqs. 3.437 / 3.439 half-angle recurrence is pure algebra — all
+# The Morel--Montry weighted half-angle recurrence is pure algebra — all
 # data (``ψ_level``, ``τ_level``, an optional seed) via arguments, no mesh
 # state.  The mesh-bound strategy composes it (``_psi_half_grid_for_level``
 # reads τ from ``self`` and delegates); algebraic-identity tests call
@@ -1080,10 +1157,14 @@ def _psi_half_grid_single_level(
 
     Returns the half-angle grid :math:`\phi_{m\pm 1/2, i, g}` of
     shape ``(ng, M+1, nx)`` from cell-centres ``psi_level`` shape
-    ``(ng, M, nx)`` and τ clamp ``tau_level`` shape ``(M,)``.
+    ``(ng, M, nx)`` and the angular closure weight ``tau_level`` shape
+    ``(M,)``.
     ``psi_half[:, 0, :]`` is the recurrence seed (Phase D Carlson
     if supplied, else Phase B zero); subsequent slices are the
-    downstream half-faces produced by Hébert Eqs. 3.437 / 3.439:
+    downstream half-faces produced by the Morel--Montry weighted
+    recurrence (BMC 2010 Eqs. (42)/(43); at :math:`\tau \equiv \tfrac12`
+    this degenerates to Hébert's plain angular diamond, Eqs. 3.437/3.439
+    sphere / 3.412/3.414 cylinder):
     ``ψ_{m+1/2,i,g} = (ψ_{m,i,g} - (1-τ_m)·ψ_{m-1/2,i,g}) / τ_m``.
 
     Pure kernel — accepts all data via arguments.  Used by the public
@@ -1134,8 +1215,9 @@ def compute_psi_half_per_level(
         ordinate; cylinder: a per-:math:`\mu`-level azimuthal
         subset).
     tau_level :
-        Shape ``(M_p,)``: Morel-Montry :math:`\tau` clamp values
-        for the level.
+        Shape ``(M_p,)``: the Morel-Montry angular closure weights
+        :math:`\tau` for the level (there is no clamp — the
+        :math:`[\tfrac12, 1]` absorber retired at Q5.6.4).
     psi_half_seed :
         The half-angle face flux seed VALUES :math:`\phi_{1/2,i,g}`,
         shape ``(ng, nx)``.  ``None`` seeds the recurrence at zero.
@@ -1175,11 +1257,16 @@ class MorelMontryAngularSweep(
     # 2-point angular-edge extrapolation of the input field is inlined
     # (:meth:`edge_extrapolated_seed`).  The trichotomy and the retired
     # ``PsiHalfAngleSeed`` zoo: curvilinear_one_group.rst §sn-direct-seed-r12a.
-    r"""Canonical Hébert §3.9.4 per-cell M-M weighted DD angular recurrence.
+    r"""Canonical per-cell Morel--Montry weighted-DD angular recurrence.
+
+    The weighted :math:`\tau` is Morel--Montry's (1984), in the
+    Bailey--Morel--Chang 2010 Eqs. (42)/(43) form; Hébert supplies the cell
+    balance and the sweep mechanics but **no** :math:`\tau` — see the
+    module docstring's References and its warning.
 
     The Phase-B default for the curvilinear FD operator's angular
     redistribution.  Bound to an SNMesh at construction: all M-M coefficients
-    (α-dome, ΔA/w, τ clamp, c_in, c_out, level partition) are precomputed
+    (α-dome, ΔA/w, τ, c_in, c_out, level partition) are precomputed
     eagerly from the mesh's
     :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`, and
     the mesh-bound methods (:meth:`precompute_psi_state`,
@@ -1192,14 +1279,16 @@ class MorelMontryAngularSweep(
     class-level note) and its redistribution fold
     :math:`R_{n,i,g} = (\Delta A/w)_{i,n}/V_i\,[\alpha_{n+1/2}\phi_{n+1/2,i,g}
     - \alpha_{n-1/2}\phi_{n-1/2,i,g}]` reduce to pure DD at :math:`\tau = 1/2`
-    (the M-M clamp keeps :math:`\tau \in [1/2, 1]`).  The SAME recurrence runs
+    (the admissible range is :math:`[0, 1]` and BOTH arms run the derived
+    weight unclamped; the cylinder's :math:`[\tfrac12, 1]` absorber retired
+    at Q5.6.4).  The SAME recurrence runs
     inside :class:`~orpheus.transport.spatial.diamond.DiamondDifference`, so
     the apply matvec and the sweep solve the same discrete fixed point (pinned
     by :file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`;
     derivation + apply↔sweep equivalence:
     ``docs/theory/methods/sn/curvilinear_one_group.rst §pole-mm-recurrence``
     and ``§sn-apply-sweep-equivalence``).  Cylinder loops the recurrence per
-    :math:`\mu`-level (each with its own α-dome, ΔA/w, τ clamp); sphere is the
+    :math:`\mu`-level (each with its own α-dome, ΔA/w, τ); sphere is the
     single-level (``M_p = N``) case.
 
     Parameters
@@ -1207,7 +1296,7 @@ class MorelMontryAngularSweep(
     sn_mesh : SNMesh
         The mesh + quadrature + materials bundle this strategy binds to
         (REQUIRED — the family's ``cls(sn_mesh)`` construction contract).
-        M-M precomputes α-dome, ΔA/w, τ clamp, c_in, c_out, level partition,
+        M-M precomputes α-dome, ΔA/w, τ, c_in, c_out, level partition,
         μ_x, weights, Δr at construction; the strategy methods read these
         from ``self`` (no M-M data through arguments).  Tests that need the
         recurrence under hand-built coefficient arrays use the module-level

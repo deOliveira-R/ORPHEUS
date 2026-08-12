@@ -266,9 +266,11 @@ class SNMesh(MaterialMesh):
         )
         # Angular-redistribution closure.  The default is
         # :class:`MorelMontryAngularSweep` for curvilinear (the canonical
-        # Hébert §3.9.4 per-cell M-M weighted-DD angular recurrence with the
-        # Carlson coupled-pole seed) and :class:`IdentityAngularClosure` for
-        # Cartesian (flat geometry has no §3.9.4 term).  Derivation + the
+        # per-cell Morel--Montry weighted-DD angular recurrence — BMC 2010
+        # Eqs. (42)/(43), NOT Hébert, who ships the plain angular diamond —
+        # with the Carlson coupled-pole seed of Hébert §3.9.4) and
+        # :class:`IdentityAngularClosure` for Cartesian (flat geometry has
+        # no angular-redistribution term at all).  Derivation + the
         # ERR-026 closure: curvilinear_numerics.rst
         # §sn-phase-d-carlson-coupled-pole-sweep.
         #

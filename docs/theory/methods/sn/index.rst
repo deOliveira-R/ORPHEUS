@@ -71,8 +71,9 @@ radial, a single :math:`\alpha`-redistribution dome coupling all ordinates in
 :math:`\mu`), and **cylindrical** (1-D radial, an independent :math:`\alpha`
 dome per :math:`\mu`-level).  All three share a geometry factor
 :math:`\Delta A / w` that guarantees per-ordinate flat-flux consistency; the
-curvilinear formulation follows :cite:`BaileyMorelChang2010` (Eq. 43, the
-Morel–Montry angular-closure weight — unique exact-on-linear-in-:math:`\mu`),
+curvilinear formulation follows :cite:`MorelMontry1984` in the
+:cite:`BaileyMorelChang2010` Eqs. (42)/(43) form (the Morel–Montry
+angular-closure weight — unique exact-on-linear-in-:math:`\mu`),
 the general framework :cite:`LewisMiller1984`, and the angular discretisation
 :cite:`CaseZweifel1967` / :cite:`Hebert2009` (§3.9.4).
 

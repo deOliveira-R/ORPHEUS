@@ -29,18 +29,43 @@ not the geometry kind.
 References
 ==========
 
-* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 §3.9.4 —
-  primary source for the curvilinear S\ :sub:`N` cell-balance + DD
-  difference relations.
-* Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
-  Neutron Transport*.  §4.5 (Morel–Montry angular closure feeding
-  the curvilinear DD update); §5.3 (Diamond Difference, weighted-DD,
-  Step, Linear Discontinuous; the negative-flux failure mode).
-* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *Asymptotic
+Sources are listed by WHAT they are the authority for.  The **spatial**
+DD relations, the curvilinear cell balance and the weighted **angular**
+:math:`\tau` come from three different places; conflating them is the
+error class this file has already paid for (theory-page record:
+``docs/theory/methods/sn/curvilinear_one_group.rst
+§sn-citation-corrections``).
+
+* Hébert, A. (2009). *Applied Reactor Physics*.  Ch. 3 **§3.9.3
+  (cylinder, pp. 137-141)** and **§3.9.4 (sphere, pp. 141-144)** —
+  the curvilinear S\ :sub:`N` cell-balance, the :math:`\Delta A/w`
+  factor, the sweep ordering and the Carlson starting direction.
+  **NOT** the source of the weighted angular :math:`\tau`: he defines
+  no :math:`\tau` anywhere in chapter 3 and ships the *plain* angular
+  diamond (Eqs. 3.437/3.439 sphere, 3.412/3.414 cylinder, i.e.
+  :math:`\tau \equiv \tfrac12`).
+* Morel, J. E., & Montry, G. R. (1984).  *Analysis and Elimination of
+  the Discrete-Ordinates Flux Dip*.  Transport Theory and Statistical
+  Physics 13(5):615-633, doi:10.1080/00411458408211661.  **PRIMARY**
+  for the weighted angular closure this file's step 3 applies.
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *The Asymptotic
   Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*.
-  NSE 165(2):149-169 (LLNL preprint LLNL-JRNL-420356).  Auxiliary
-  justification for the M-M weighted-diamond :math:`\tau` clamp via
-  formal-:math:`\varepsilon` asymptotic-diffusion-limit analysis.
+  NSE 165(2):149-169 (LLNL preprint LLNL-JRNL-420356).  **Eqs. (42)/(43)
+  are the form of** :math:`\tau` **implemented here** — the barycentric
+  coordinate of the ordinate between its own angular cell's two edges;
+  their Eq. (41) is the first-order diffusion-limit condition
+  :math:`\beta = 0`, and forcing it to zero is what DETERMINES the
+  weights (:math:`\tau` is derived, not chosen).  Their Eq. 53 + §I show
+  the plain diamond is diffusion-limit consistent only to LEADING order
+  while the weighted one is correct through FIRST order — so BMC is not
+  an "auxiliary" justification, it is the scheme.
+* Lewis, E. E., & Miller, W. F. (1984).  *Computational Methods of
+  Neutron Transport*.  §4.5 (curvilinear angular redistribution);
+  §5.3 (Diamond Difference, weighted-DD, Step, Linear Discontinuous;
+  the negative-flux failure mode).  ⚠ §4.5 does **not** prescribe the
+  retired :math:`[\tfrac12, 1]` clamp — that mis-citation is recorded at
+  ``docs/theory/foundations/structured_geometry.rst
+  §sn-tau-absorber-retirement``.
 
 See also
 ========
@@ -572,8 +597,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         the σ_t-stratum cache, and through it the ``CumprodScan`` / ``ScanMarch``
         sweep bodies.
 
-        The math (Lewis & Miller §5.3; Hébert §3.9.4 for the curvilinear
-        curvature/M-M terms):
+        The math (Lewis & Miller §5.3; Hébert §3.9.3/§3.9.4 for the
+        curvilinear curvature terms; the M-M weight :math:`\tau` entering
+        through ``c_in`` / ``c_out`` is BMC 2010 Eqs. (42)/(43) — see the
+        module References):
 
         .. math::
 

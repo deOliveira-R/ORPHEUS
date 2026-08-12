@@ -11,8 +11,11 @@ branch on geometry kind.
 Mathematical content
 ====================
 
-The canonical Hébert §3.9.4 / Lewis-Miller §6.1 curvilinear DD
-balance with Morel-Montry angular closure:
+The canonical curvilinear DD cell balance (Hébert §3.9.3 cylinder /
+§3.9.4 sphere; Lewis-Miller §6.1), closed with the Morel-Montry
+weighted angular closure (Morel & Montry 1984; implemented form
+Bailey-Morel-Chang 2010 Eqs. (42)/(43) — Hébert defines no tau and
+ships the plain angular diamond):
 
 .. math::
 
