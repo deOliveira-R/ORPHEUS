@@ -134,8 +134,19 @@ the WRONG way (§9bis.8b).
    nx=320 the measured angular orders are **1.83 (shipped) vs 2.88
    (τ≡½)**, an 8× accuracy gap at n_φ=64. §9bis.3 had already named the
    mechanism ("the partition is read in ω, the WEIGHT in η") and then
-   ruled the fix out. **Re-posing τ into ω is a LIVE candidate**, gated on
-   the diffusion-limit trade (#319). Full chain:
+   ruled the fix out. ⛔⛔ **AND THAT REFUTATION IS ITSELF REFUTED, same day.** The
+   accuracy inference rested on `build_cylindrical_anisotropic_mms_case`,
+   whose exact solution `A(r) + B(r)η` (sn.py:3803) lies **in the
+   closure's kernel** — τ is the barycentric coordinate, so the closure
+   is exact on `span{1, η}` by construction. On a fixture that actually
+   EXCITES the closure (`CylHarmonicMMS`, h₁+h₂), `[M]` the SHIPPED τ
+   **wins** by 34 % / 12 % at n_φ = 16 / 32 and ties at 64, spatially
+   converged (nx = 80/160/320 agree to 3 digits). **The original ruling
+   — do not re-pose τ into ω — STANDS, now on measurement as well as on
+   Morel & Montry's appendix.** Lathrop Eq. (30) remains true about the
+   EQUATION's truncation order; it is not a ranking of solution accuracy.
+   Full chain + both fixtures:
+   `.claude/plans/issue_235_angular_accuracy_campaign.md` §4bis. Full chain:
    `.claude/plans/issue_235_angular_accuracy_campaign.md` §4bis.
 2. Candidate (3), "τ on α's recursion-defined edges", is **not a definition**.
 3. The `[½,1]` absorber is **not** restored — 5 of 5 primaries prescribe no

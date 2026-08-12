@@ -208,7 +208,55 @@ makes `φ_exact = A(r)` closed-form is the same identity that annihilates
 the angular defect in φ. Every gate in `tests/sn/verification/mms/` grades
 the scalar flux.
 
-### ⚠ OPEN CONTRADICTION — do not resolve it by picking a side
+### ⛔⛔⛔ RESOLVED, AND IT INVERTS THE CONCLUSION — the fixture was the difference, not nx
+
+`[M]` 2026-08-12, main agent, running the **test-architect's** harmonic
+fixture (`CylHarmonicMMS`, `h₁+h₂`, σ_t=5, c=0.5) across nx, ψ-L2, ratio
+`err_shipped / err_diamond` (**< 1 means SHIPPED wins**), all converged:
+
+| n_φ | nx=80 | nx=160 | nx=320 |
+|---|---|---|---|
+| 16 | 0.746 | 0.743 | **0.742** |
+| 32 | 0.910 | 0.896 | **0.892** |
+| 64 | 1.052 | 1.031 | **1.022** |
+
+**Spatially converged to three digits — nx is NOT the confound**, and these
+are the exact reciprocals of the test-architect's `1.34 / 1.10 / 0.95`, so
+two independent measurements agree. The difference is **the FIXTURE**:
+
+| fixture | angular content | verdict at n_φ = 16 / 32 / 64 |
+|---|---|---|
+| shipped `build_cylindrical_anisotropic_mms_case` | `A + Bη` — **IN the closure's kernel** | diamond better, 1.7× / 2.4× / **3.2×**, growing |
+| `CylHarmonicMMS` `h₁+h₂` | **EXCITES the closure** | **SHIPPED better by 34 % / 12 %**, equal at 64 |
+
+⟹ ⛔ **MY CONCLUSION OF THIS MORNING IS REFUTED.** "Plain diamond converges
+faster / the shipped scheme is one order down / re-posing τ into ω is a
+live candidate on accuracy grounds" was a property of **a fixture that is
+blind to the operator under test**. On a fixture that actually excites the
+angular closure, **the shipped Morel–Montry τ WINS at the orders that
+matter** and is level at n_φ=64.
+
+⭐ **What survives, and what does not:**
+
+* ✅ Lathrop Eq. (30) is still a true statement about the *equation's*
+  truncation order. ✅ `(τ−½)/w` is still unbounded (`= M/4`). ✅ The
+  affine-fixture ladder (1.83 vs 2.88 scalar / 1.85 vs 2.44 angular) is
+  still a correct measurement **of that fixture**.
+* ⛔ The **inference** from those to "the shipped scheme is worse" does
+  **not** hold. A truncation-order statement about the equation is not a
+  ranking of solution accuracy, and the fixture that appeared to confirm
+  it cannot see the closure at all.
+* ⭐ **Q5.6.4's landed carve is now vindicated by MEASUREMENT**, not only
+  by Morel & Montry's appendix — on the only fixture built to see it.
+
+⭐⭐ **The campaign's real prize, and it is a methodological one:** the
+manufactured fixture that has graded this campaign for months lies in the
+**kernel of the operator it grades**. Every accuracy conclusion ever drawn
+from it *about the angular closure* is void — including one I drew, with
+confidence, three hours before this measurement. `Σ_n w_n cos(mω_n) = 0`
+and `psi_exact = A(r) + B(r)η` are the two identities that did it.
+
+### ⚠ ORIGINAL OPEN-CONTRADICTION NOTE (superseded by the block above; kept per plan-authoring §3)
 
 The `test-architect`'s **purpose-built** fixture (harmonics
 `h_m = Re[(η+iξ)^m]`, graded on ψ) reportedly does **NOT** resolve shipped
