@@ -172,6 +172,7 @@ __all__ = [
     "alpha_dome",
     "contamination_beta",
     "diffusion_limit_c",
+    "morel_montry_beta",
     "morel_montry_weights",
     "nu_closure_residual",
 ]
@@ -319,6 +320,68 @@ def contamination_beta(quad, geometry: str = "spherical"):
             for m in range(mu.size)
         )))
     return out[0] if coord is CoordSystem.SPHERICAL else np.array(out)
+
+
+def morel_montry_beta(
+    mu: np.ndarray, w: np.ndarray, tau: np.ndarray,
+) -> float:
+    r"""**β₃ — M&M Eq. (6a) on the cell edges IMPLIED BY τ.** One scalar.
+
+    .. math::
+
+        \tilde\mu_{m+1/2} = \frac{\mu_m - (1-\tau_m)\,\tilde\mu_{m-1/2}}
+                                 {\tau_m},
+        \qquad \tilde\mu_{1/2} = -1
+
+        \beta = 3 \sum_m \mu_m\bigl(\alpha_{m+1/2}\tilde\mu_{m+1/2}
+                                  - \alpha_{m-1/2}\tilde\mu_{m-1/2}\bigr)
+
+    with the standard recursion :math:`\alpha_{m+1/2} = \alpha_{m-1/2}
+    - \mu_m W_m`, :math:`\alpha_{1/2} = 0`.  It is the :math:`2\beta/r`
+    corruption of the S\ :sub:`N` diffusion coefficient
+    :math:`D = 1/(3(\sigma_t + 2\beta/r))` (M&M Eq. 7a) — the flux dip.
+
+    ``mu`` ascending; weights are renormalised here to :math:`\sum W = 1`
+    (M&M's convention, in which the diffusion condition reads
+    :math:`\sum \mu^2 W = 1/3`).
+
+    ⭐⭐ **THE DIFFERENCE FROM ITS SIBLING** :func:`contamination_beta`
+    **is the EDGE SET, and it is the whole reason one is τ-blind and this
+    one is not.** Feeding the STANDARD weight-partition edges
+    :math:`\mu_{m+1/2} = \mu_{m-1/2} + 2W_m` into Eq. (6a) **is** M&M's
+    own proof that β = 0 (their Eqs. 17–19) — so a β built that way is
+    blind to τ *by construction*, not by accident, and that is exactly
+    why it sits in the campaign's instrument graveyard. The τ-IMPLIED
+    edges above are what make this one read τ.
+
+    `[M]` 2026-08-12: exactly zero (``< 1e-13``) for the shipped τ at
+    Gauss S2/4/8/16/32, and non-zero for τ ≡ ½ — falling ~4 orders per
+    doubling of N. It **catches** the ``τ → 1−τ`` reflection that the
+    membership guard, the fold box and the reversal gates are all blind
+    to (a Mode-12 stabiliser hole).
+
+    ⛔ **Sphere only.** `[M]` on a σ_y-folded cylinder arc it is
+    identically zero for BOTH the shipped τ and τ ≡ ½ at every
+    :math:`n_\varphi` — refuted there, for the same antisymmetry reason
+    that kills :func:`contamination_beta`.
+
+    Gated by ``tests/sn/sweep/curvilinear/test_angular_beta_identity.py``
+    (positive + negative legs); evidence
+    ``scratch/q68_flux_dip_discriminator.md``.
+    """
+    mu = np.asarray(mu, dtype=float)
+    tau = np.asarray(tau, dtype=float)
+    normalized = np.asarray(w, dtype=float)
+    normalized = normalized / normalized.sum()
+    alpha = alpha_dome(mu, normalized)
+    implied = np.zeros(mu.size + 1)
+    implied[0] = -1.0
+    for m in range(mu.size):
+        implied[m + 1] = (mu[m] - (1.0 - tau[m]) * implied[m]) / tau[m]
+    return float(
+        3.0 * np.sum(mu * (alpha[1:] * implied[1:]
+                           - alpha[:-1] * implied[:-1]))
+    )
 
 
 def alpha_defect_beta(quad, geometry: str = "spherical"):

@@ -381,10 +381,19 @@ construction** — that substitution *is* M&M's β = 0 proof.
   251-solve record plus the gate. Note the #340 warning machinery caught my
   error instantly and printed the required iteration count: N4.7 paying off.
 
-### Deliverable to promote
+### ✅ Deliverable PROMOTED 2026-08-12 (the diagnostic is RETIRED — no twin)
 
 `derivations/diagnostics/diag_q68_angular_diffusion_limit_consistency.py`
-(12 gates, 29 s) — a solve-free β identity with a negative leg
+(12 gates, 29 s) has been split and deleted. Successors — **17 gates**:
+
+* the shared instrument →
+  :func:`orpheus.derivations.discrete.sn.angular_differencing.morel_montry_beta`,
+  beside its τ-BLIND sibling `contamination_beta`, with the edge-set
+  distinction documented on it (that is the whole difference);
+* `tests/sn/sweep/curvilinear/test_angular_beta_identity.py` — solve-free,
+  `foundation`, 14 rows incl. a NEW `τ → 1−τ` reflection leg;
+* `tests/sn/verification/analytical/test_angular_diffusion_limit_consistency.py`
+  — `l1`/`slow`, 3 rows — a solve-free β identity with a negative leg
 (→ `tests/sn/sweep/`), the M&M Fig. 4 literature gate, the mesh-refinement
 discriminator, and `test_optical_thickness_is_NOT_the_discriminating_axis`,
 which **pins this report's own refutation** so the decay-rate framing

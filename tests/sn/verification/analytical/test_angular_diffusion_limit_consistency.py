@@ -1,43 +1,40 @@
-r"""Diagnostic: is the shipped curvilinear angular weighting τ the
-DIFFUSION-LIMIT-CONSISTENT one, and is τ ≡ ½ measurably not?
+r"""L1: the shipped curvilinear angular weighting recovers the diffusion limit
+under SPATIAL refinement, and plain angular diamond does not — against Morel &
+Montry's own published figures.
 
-Created by numerics-investigator on 2026-08-12 for issue #319 (the flux-dip
-discriminator); full evidence in ``scratch/q68_flux_dip_discriminator.md``.
+Promoted 2026-08-12 from
+``derivations/diagnostics/diag_q68_angular_diffusion_limit_consistency.py``
+(retired in the same commit — no twin). Evidence
+``scratch/q68_flux_dip_discriminator.md`` (251 solves, all ``converged`` AND
+``fully_converged``, zero warnings, ``max|balance_defect| = 0``); campaign
+``.claude/plans/issue_235_angular_accuracy_campaign.md``.
 
 Reference (PRIMARY, structurally independent of ORPHEUS): Morel, J. E. &
 Montry, G. R. (1984), *Analysis and Elimination of the Discrete-Ordinates
-Flux Dip*, Transport Theory and Statistical Physics 13(5):615–633.  Local
-scan ``scratch/literature/Morel-Montry(1984)…pdf``; OCR sidecar
-``scratch/literature_ocr/Morel-Montry(1984)…md``.
+Flux Dip*, Transport Theory and Statistical Physics **13**(5):615–633. Local
+scan ``scratch/literature/Morel-Montry(1984)…pdf``. Fig. 4 reports the
+angular-diamond effective starting cosine reaching ≈ −1.35 at the origin;
+Fig. 6 reports the weighted-diamond curve at "an essentially constant value
+of −1"; p. 16 states that the S_N equations approach the diffusion equation
+**as the spatial mesh is refined**.
 
-Three legs, in increasing cost:
+⭐⭐ **THE AXIS IS h, NOT OPTICAL THICKNESS — and the second row here pins
+that as a refutation.** GitHub #319 proposed the dip's *decay rate with
+optical thickness* as the discriminator. `[M]` it is not one: at constant
+cells-per-mfp the defect is thickness-independent to four figures for the
+shipped τ, for τ ≡ ½, **and for a garbage control**. Worse, #319's literal
+design self-destructs — at fixed ``c`` the absorption optical depth grows
+with thickness, the interior becomes a source plateau, and all schemes agree
+to three figures, so a naive run reports "equal ⟹ REFUTED" for a reason
+having nothing to do with angular differencing.
+:func:`test_optical_thickness_is_NOT_the_discriminating_axis` exists so that
+framing cannot be silently re-adopted.
 
-``TestBetaIdentity``
-    SOLVE-FREE.  M&M Eq. (6a) evaluated with the cell-edge cosines IMPLIED by
-    τ must vanish identically for the shipped weighting — that is their
-    Eqs. (17)–(19), the whole point of the scheme — and must NOT vanish for
-    the plain angular diamond τ ≡ ½ (the negative leg, vv-principles #11/#19:
-    a positive reading alone cannot show the gate is loaded on τ).
-
-``TestEffectiveStartingCosineAgainstMorelMontryFigure4``
-    L1 against a PUBLISHED FIGURE.  On M&M's own fixture (pure-scattering
-    10-mfp sphere, Gauss-S2, 100 zones) their Fig. 4 reports the
-    angular-diamond effective starting cosine reaching ≈ −1.35 at the origin,
-    and their Fig. 6 reports the weighted-diamond curve at an "essentially
-    constant value of −1".
-
-``TestAngularDefectVanishesUnderSpatialRefinement``
-    THE DISCRIMINATOR.  M&M's summary (p. 16): the S_N equations become
-    equivalent to the diffusion equation in the diffusive limit **as the
-    spatial mesh is refined**.  So the shipped τ's starting-cosine defect must
-    CONVERGE TO ZERO with h, while τ ≡ ½'s must converge to a finite non-zero
-    limit.  This is the axis that separates the two schemes — NOT optical
-    thickness, which separates them not at all (measured: the defect is
-    constant to four figures over Σ_t·R = 5…50 at fixed cells-per-mfp).
-
-If these catch a real bug, promote to ``tests/sn/`` — the natural homes are
-``tests/sn/sweep/`` (the closure seam) for the first leg and
-``tests/sn/verification/analytical/`` for the other two.
+**What these rows CANNOT do.** They are a *constraint* — "does the scheme
+preserve the diffusion limit?" — never a ranker. `[M]` on a fixture far from
+the diffusion limit (the shipped aniso-cyl MMS is ``c = 0.5``, ``Σ_a·R =
+2.5``) the plain diamond can be the *more accurate* scheme. Do not cite
+these in an accuracy argument.
 """
 
 from __future__ import annotations
@@ -46,75 +43,36 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry.mesh import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
+
+pytestmark = pytest.mark.l1
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# the instruments
+# the instrument: Morel–Montry's effective starting cosine, their Eq. (10)
 # ─────────────────────────────────────────────────────────────────────────
-def morel_montry_beta(mu: np.ndarray, w: np.ndarray, tau: np.ndarray) -> float:
-    r"""Morel–Montry Eq. (6a) with the cell-edge cosines IMPLIED by ``tau``.
-
-    .. math::
-
-        \tilde\mu_{m+1/2} = \frac{\mu_m - (1-\tau_m)\,\tilde\mu_{m-1/2}}{\tau_m},
-        \qquad \tilde\mu_{1/2} = -1
-
-        \beta = 3 \sum_m \mu_m\bigl(\alpha_{m+1/2}\tilde\mu_{m+1/2}
-                                  - \alpha_{m-1/2}\tilde\mu_{m-1/2}\bigr)
-
-    with the standard weight recursion :math:`\alpha_{m+1/2} =
-    \alpha_{m-1/2} - \mu_m W_m`, :math:`\alpha_{1/2} = 0`.  ``beta`` is the
-    :math:`2\beta/r` corruption of the S\ :sub:`N` diffusion coefficient
-    :math:`D = 1/(3(\sigma_t + 2\beta/r))` (their Eq. 7a) — the flux dip.
-
-    ``mu`` ascending; weights renormalised to :math:`\sum W = 1` (M&M's
-    convention, in which the diffusion condition reads
-    :math:`\sum \mu^2 W = 1/3`).
-
-    ⚠ A ``beta`` built instead from the STANDARD weight-partition edges
-    :math:`\mu_{m+1/2} = \mu_{m-1/2} + 2W_m` is τ-BLIND by construction —
-    substituting them into Eq. (6a) IS M&M's proof that β = 0.  The τ-loaded
-    quantity is the one above.
-    """
-    mu = np.asarray(mu, dtype=float)
-    tau = np.asarray(tau, dtype=float)
-    weights = np.asarray(w, dtype=float)
-    normalized = weights / weights.sum()
-    n = mu.size
-    alpha = np.zeros(n + 1)
-    for m in range(n):
-        alpha[m + 1] = alpha[m] - mu[m] * normalized[m]
-    implied = np.zeros(n + 1)
-    implied[0] = -1.0
-    for m in range(n):
-        implied[m + 1] = (mu[m] - (1.0 - tau[m]) * implied[m]) / tau[m]
-    return float(
-        3.0 * np.sum(mu * (alpha[1:] * implied[1:] - alpha[:-1] * implied[:-1]))
-    )
-
-
 def effective_starting_cosine(solution, quad) -> np.ndarray:
-    r"""Morel–Montry's effective starting cosine, Eq. (10), level-locally.
+    r"""M&M Eq. (10), evaluated LEVEL-LOCALLY.
 
     The diffusion limit makes the angular flux affine in the level's own
     angular coordinate, :math:`\psi_{\ell,m} = a_\ell + k_\ell c_m` with
     :math:`c_m = \mu_m/\sin\theta_\ell`, and puts the starting direction at
-    :math:`c = -1`.  So
+    :math:`c = -1`. So
 
     .. math::
 
         c_s(r) = \frac{\psi_{1/2}(r) - a(r)}{k(r)} \;\longrightarrow\; -1 .
 
-    On the sphere this is M&M Eq. (10) verbatim.  The level-LOCAL moments are
-    mandatory on a cylinder: its on-axis flux is azimuth-independent but
-    genuinely polar-angle dependent (M&M appendix), so the all-level form
-    reads a large artefact there.
+    On the sphere this is Eq. (10) verbatim. ⚠ The level-LOCAL moments are
+    **mandatory** on a cylinder: its on-axis flux is azimuth-independent but
+    genuinely polar-angle dependent (M&M's appendix), so the all-level form
+    reads a large artefact there (`[M]` ``+2.76``).
     """
-    psi = np.asarray(solution.angular_flux.interior.values, dtype=float).sum(axis=1)
+    psi = np.asarray(
+        solution.angular_flux.interior.values, dtype=float
+    ).sum(axis=1)
     weights = np.asarray(quad.weights, dtype=float)
     mu_radial = np.asarray(quad.mu_x, dtype=float)
     interior = solution.radial_characteristic.interior
@@ -147,11 +105,17 @@ def _pure_scatterer(sigma_t: float):
     return mixture
 
 
-def solve_uniform_source_ball(*, sigma_t, radius, nx, quad, tau_transform=None):
+def solve_uniform_source_ball(*, sigma_t, radius, nx, quad,
+                              tau_transform=None):
     """Uniform isotropic source in a homogeneous pure-scattering ball.
 
     ``tau_transform`` monkeypatches the angular weighting IN PROCESS (the
-    only supported swap); it is always restored.
+    only supported swap — never a git-level revert); it is always restored.
+
+    ⚠ ``max_inner`` is deliberately enormous. Source iteration's spectral
+    radius here is ``c → 1``, so a "reasonable" budget silently returns a
+    mid-descent iterate and every number below becomes a statement about
+    the stopping test. The explicit ``converged`` assertion is the backstop.
     """
     from orpheus.sn.sweep import pole_angular_closure as pac
 
@@ -180,56 +144,14 @@ def solve_uniform_source_ball(*, sigma_t, radius, nx, quad, tau_transform=None):
     return solution
 
 
-_DIAMOND = staticmethod(lambda t: np.full(t.size, 0.5))
+def _diamond(t):
+    return np.full(t.size, 0.5)
 
 
 # ─────────────────────────────────────────────────────────────────────────
-class TestBetaIdentity:
-    r"""Solve-free: β ≡ 0 for the shipped τ, β ≠ 0 for τ ≡ ½."""
-
-    @pytest.mark.parametrize("n", [2, 4, 8, 16, 32])
-    def test_shipped_tau_annihilates_beta(self, n: int) -> None:
-        quad = Quadrature.gauss_legendre(n)
-        order = np.argsort(quad.mu_x)
-        tau = np.asarray(
-            morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)[0], float
-        )
-        beta = morel_montry_beta(quad.mu_x[order], quad.weights[order], tau)
-        assert abs(beta) < 1e-13, (
-            f"GL-S{n}: the shipped tau gives beta = {beta:.6e}, but "
-            "Morel-Montry Eqs. (17)-(19) prove it is identically zero — a "
-            "non-zero value means the shipped tau is NOT the barycentric "
-            "coordinate of the ordinate between the standard weight-partition "
-            "edges, i.e. the angular scheme is no longer the first-order "
-            "diffusion-limit-consistent one."
-        )
-
-    @pytest.mark.parametrize(
-        "n, beta_min",
-        [(2, 1e-1), (4, 1e-3), (8, 1e-5), (16, 1e-7)],
-    )
-    def test_plain_diamond_does_not(self, n: int, beta_min: float) -> None:
-        """NEGATIVE leg — without it the gate above is not shown to be
-        LOADED on tau (vv-principles #19)."""
-        quad = Quadrature.gauss_legendre(n)
-        order = np.argsort(quad.mu_x)
-        beta = morel_montry_beta(
-            quad.mu_x[order], quad.weights[order], np.full(n, 0.5)
-        )
-        assert abs(beta) > beta_min, (
-            f"GL-S{n}: plain angular diamond gives beta = {beta:.6e}, which "
-            f"should exceed {beta_min:.0e}. beta falls ~4 orders per doubling "
-            "of N, so a too-small value here means the instrument stopped "
-            "reading tau, not that the diamond became consistent."
-        )
-
-
 class TestEffectiveStartingCosineAgainstMorelMontryFigure4:
-    r"""L1 against the published figures of Morel & Montry (1984).
-
-    Fixture is theirs: pure scattering (c = 1), 10-mfp sphere, Gauss-S2,
-    100 spatial zones, spatial diamond, vacuum surface.
-    """
+    r"""L1 against the published figures. Fixture is theirs: pure scattering
+    (c = 1), 10-mfp sphere, Gauss-S2, 100 zones, vacuum surface."""
 
     @pytest.mark.slow
     def test_weighted_diamond_reaches_minus_one_and_plain_diamond_does_not(
@@ -240,21 +162,18 @@ class TestEffectiveStartingCosineAgainstMorelMontryFigure4:
         shipped = effective_starting_cosine(
             solve_uniform_source_ball(**kw), quad)
         diamond = effective_starting_cosine(
-            solve_uniform_source_ball(**kw, tau_transform=_DIAMOND), quad)
+            solve_uniform_source_ball(**kw, tau_transform=_diamond), quad)
 
-        # M&M Fig. 6: the weighted-diamond curve sits at "an essentially
-        # constant value of -1" in the interior.
         interior = slice(1, 60)          # 0.15 .. 5.95 mfp from the origin
         assert np.max(np.abs(shipped[interior] + 1.0)) < 2e-2, (
             "shipped tau: max |c_s + 1| over the interior = "
             f"{np.max(np.abs(shipped[interior] + 1.0)):.4e} (measured 1.1e-3 "
             "on 2026-08-12); Morel-Montry Fig. 6 requires ~ -1."
         )
-        # M&M Fig. 4: the angular-diamond curve reaches ~ -1.35 at the origin.
         assert -1.45 < diamond[0] < -1.25, (
             f"plain diamond: c_s(r_0) = {diamond[0]:.4f}; Morel-Montry Fig. 4 "
             "reports 'a minimum value at the origin of approximately -1.35' "
-            "(measured -1.3157 on 2026-08-12)."
+            "(measured -1.3157 on 2026-08-12, i.e. 2.5 % from the figure)."
         )
         assert abs(diamond[0] + 1.0) > 25.0 * abs(shipped[0] + 1.0), (
             "the two schemes' origin defects are not separated: "
@@ -264,14 +183,7 @@ class TestEffectiveStartingCosineAgainstMorelMontryFigure4:
 
 
 class TestAngularDefectVanishesUnderSpatialRefinement:
-    r"""THE discriminator: refine h, not the optical thickness.
-
-    Morel-Montry p. 16 (SUMMARY): the S_N equations become equivalent to the
-    diffusion equation in the diffusive limit **as the spatial mesh is
-    refined**.  ⟹ the shipped tau's defect must go to zero with h (measured:
-    first order, rate -0.95); tau = 1/2's must saturate (measured: it GROWS,
-    rate +0.24, to a limit of ~0.39).
-    """
+    r"""THE discriminator: refine h, not the optical thickness."""
 
     @pytest.mark.slow
     def test_shipped_converges_and_diamond_saturates(self) -> None:
@@ -285,7 +197,7 @@ class TestAngularDefectVanishesUnderSpatialRefinement:
                     solve_uniform_source_ball(**kw), quad)[0] + 1.0))
             diamond.append(abs(
                 effective_starting_cosine(
-                    solve_uniform_source_ball(**kw, tau_transform=_DIAMOND),
+                    solve_uniform_source_ball(**kw, tau_transform=_diamond),
                     quad)[0] + 1.0))
 
         h = np.log(1.0 / np.asarray(meshes, dtype=float))
@@ -317,7 +229,7 @@ class TestAngularDefectVanishesUnderSpatialRefinement:
         At CONSTANT cells-per-mfp the angular-consistency defect is
         thickness-independent to four figures for BOTH schemes, so their
         decay RATES with optical thickness are identical (zero) and cannot
-        separate them.  If this ever stops holding, the framing in
+        separate them. If this ever stops holding, the framing in
         ``scratch/q68_flux_dip_discriminator.md`` needs revisiting.
         """
         quad = Quadrature.gauss_legendre(2)
@@ -331,7 +243,7 @@ class TestAngularDefectVanishesUnderSpatialRefinement:
                     solve_uniform_source_ball(**kw), quad)[0] + 1.0)
             defects["diamond"].append(
                 effective_starting_cosine(
-                    solve_uniform_source_ball(**kw, tau_transform=_DIAMOND),
+                    solve_uniform_source_ball(**kw, tau_transform=_diamond),
                     quad)[0] + 1.0)
         for name, values in defects.items():
             spread = np.ptp(values) / np.abs(np.mean(values))

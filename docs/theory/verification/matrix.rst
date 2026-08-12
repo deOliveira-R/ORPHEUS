@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9646**
+Total tests collected: **9663**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1310, 13.6%
-   L1, 1617, 16.8%
+   L1, 1620, 16.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6650, 68.9%
+   foundation, 6664, 69.0%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9562
+   explicit, 9579
    class-name, 46
    func-name, 0
    case, 33
@@ -50,6 +50,7 @@ Module × level grid
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
    acceleration/test_dsa_low_order, 0, 0, 0, 0, 13, 0
    acceleration/test_dsa_rate, 0, 62, 2, 0, 6, 0
+   analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
@@ -110,6 +111,7 @@ Module × level grid
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
+   curvilinear/test_angular_beta_identity, 0, 0, 0, 0, 14, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_azimuthal_mirror_symmetry, 0, 0, 0, 0, 4, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
