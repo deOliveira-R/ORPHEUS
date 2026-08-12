@@ -475,6 +475,30 @@ CASES: tuple[SnapshotCase, ...] = (
     #     (eta_0+eta_1)/2 = 0 IS the arc edge at omega = pi/2). They
     #     diverge only from M = 3. So this case's tau did not change at
     #     all, and no M = 2 fixture can ever see a partition change.
+    #
+    #     ⛔ REFUTED 2026-08-12 — the second sentence is FALSE, and it is
+    #     the load-bearing one. The PARTITION half is correct (`[M]` the
+    #     two partitions agree to 5.0e-17 at M = 2). But tau DID change:
+    #     `[M]` 0.292893 -> 0.5, delta = 2.071e-01. The partition is not
+    #     tau's only input — the SAME commit ALSO retired the [1/2, 1]
+    #     absorber, and that clamp was BINDING at M = 2. So a claim about
+    #     the partition cannot conclude anything about tau, and "no M = 2
+    #     fixture can ever see a partition change" (true) was silently
+    #     doing duty as "no M = 2 fixture can ever see a tau change"
+    #     (false).
+    #
+    #     ⟹ the enclosing conclusion (only ONE of the three cylinder DD
+    #     cases moved) still HOLDS — but not "for two different reasons".
+    #     Both 1G homogeneous cases are blind for the SAME reason, the one
+    #     spelled out in the next bullet: a homogeneous medium's angular
+    #     flux is near-flat, which nulls the angular redistribution the
+    #     closure feeds. The M = 2 partition identity is a true but
+    #     IRRELEVANT observation about this case.
+    #
+    #     The generalisable lesson (now `vv-principles` #25): when one
+    #     commit bundles several changes, a per-artefact "this did not
+    #     move" reason must be checked against EVERY mechanism the commit
+    #     retired, not just the headline one.
     #   * folded_4x8 DID get a new tau, but `[M]` its flux moves only
     #     1.14e-10 under a deliberate tau := 0.7 mutation (vs 8.78e-02 for
     #     the 2G 3-region case) — a homogeneous medium's angular flux is

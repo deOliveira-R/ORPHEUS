@@ -863,10 +863,34 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
     atol=1e-14`` accordingly.  L1 closed-form k_∞ + L1 MMS gates
     remain the structural-independence ground.
 
-    **Sphere arms re-baselined 2026-06-26 (closes #250).**  The CYLINDER
-    arms remain frozen at their last refresh (current ≡ frozen to
-    ``rtol=1e-13``), so they still witness the operator-algebra campaign's
-    numerical inertness.  The SPHERE snapshot, however, went stale across a
+    **Sphere arms re-baselined 2026-06-26 (closes #250).**
+
+    ⛔ **Cylinder BULK arms re-baselined 2026-08-12.**  Until then this
+    paragraph read *"the CYLINDER arms remain frozen at their last refresh
+    (current ≡ frozen to ``rtol=1e-13``), so they still witness the
+    operator-algebra campaign's numerical inertness"* — present-tense FALSE.
+    ``3dda18ca`` (the ω-partition carve) moved the cylinder τ, and
+    ``[M]`` 640/640 of ``cyl_2g_apply_bulk`` and 320/320 of
+    ``cyl_1g_apply_bulk`` mismatched (rel 3.862e+00 / 9.563e-01).
+
+    ⭐ Only the **bulk** keys moved: ``[M]`` ``cyl_1g_apply_boundary`` and
+    ``cyl_2g_apply_boundary`` are BIT-IDENTICAL (0 of 16 / 0 of 32
+    mismatched), which is the signature of an interior angular-closure
+    change rather than a trace change.  The same split shows in
+    ``test_bc_extraction_matvec``, whose CYL *boundary* baselines are also
+    bit-identical while its CYL *bulk* ones moved.  2 of 47 bundle keys were
+    replaced; ``[M]`` the other 45 are byte-identical, so the sphere / slab /
+    cart2d arms keep their own provenance.
+
+    The re-baseline is licensed by the τ change being independently pinned:
+    ``test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention``
+    asserts the new τ against an analytic closed form (with a retired-chord
+    negative control) at the very ``n_φ`` these fixtures use.  ⚠ Note the
+    flat-flux L0 anchors CANNOT see it — the M-M recurrence gives
+    ``(ψ − (1−τ)ψ)/τ = ψ`` for **every** τ, so a streaming-equilibrium gate
+    is structurally blind to a τ move (`vv-principles` Mode 12).
+
+    The SPHERE snapshot, however, went stale across a
     real closure change: ``b2d8a6d`` (Bailey Eq. 43, Refs #229) unclamped
     the spherical Morel–Montry WDD weight τ AFTER this store's last refresh
     but updated only its own targeted snapshot (#240 later re-captured
@@ -949,7 +973,13 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
 
     def test_cylinder_1g_apply_bit_identical(self, snapshots):
-        """L4-3 — cylinder 1G P0 level-symmetric quad."""
+        """L4-3 — cylinder 1G P0 on the carrying FOLDED family.
+
+        (Said "level-symmetric quad" until 2026-08-12; the fixture moved to
+        ``Quadrature.folded_product`` at ``c39b7d44`` — an LS rule is refused
+        at cylindrical admission, so the old wording named an inadmissible
+        rule.)
+        """
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _cylinder_mesh,
         )
@@ -963,7 +993,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
 
     def test_cylinder_2g_apply_bit_identical(self, snapshots):
-        """L4-3 — cylinder 2G P1 asymmetric SigS, multi-level quad."""
+        """L4-3 — cylinder 2G P1 asymmetric SigS, multi-level FOLDED quad."""
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _cylinder_mesh,
         )
