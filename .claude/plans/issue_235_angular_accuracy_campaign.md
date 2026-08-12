@@ -302,6 +302,107 @@ cells' midpoints (`1.09e-2 / 2.98e-3 / 7.73e-4` at N = 8/16/32, ~1/N²), so
 rule is the equal-interval case where δ = 0 is available for free. **A
 per-arm answer is likely the right one.**
 
+## 4ter. ⏹ PHASE 0 CLOSED (2026-08-12) — the shipped scheme is VINDICATED,
+## and the campaign's problem was never the instrument's reference
+
+### #319's prediction is REFUTED on the axis it named
+
+`[M]` `numerics-investigator`, 251 solves, **all `converged` AND
+`fully_converged`, zero warnings, `max|balance_defect| = 0`**, every variant
+re-solved to its own fixed point. Record:
+`scratch/q68_flux_dip_discriminator.md`, raw
+`$CLAUDE_JOB_DIR/tmp/q68_results.jsonl`.
+
+* At constant cells-per-mfp the angular-consistency defect is **constant to
+  four significant figures** over `Σ_t·R = 5…50` — for the shipped τ, for
+  `τ ≡ ½`, **and for the garbage control**. Fitted decay rate `0.000` for
+  all three. The dip proper decays for (A) but **changes sign** mid-range
+  for (B)/(C), with a *steeper* pre-crossing slope — the opposite of
+  "persists".
+* ⛔ Morel & Montry themselves (p. 13) call the diamond dip *"much more
+  severe for this optically thin problem"* — **#319's framing contradicted
+  its own primary source.**
+* ⛔ **#319's literal design self-destructs**: at fixed `c`, `Σ_a·R` grows
+  with thickness, the interior becomes a source plateau, and at
+  `c = 0.99, Σ_t·R = 100` all three schemes agree to three significant
+  figures. A naive run reports "equal ⟹ REFUTED" for a reason unrelated to
+  angular differencing. Correct scaling: `Σ_t = 1/ε, Σ_a = ε, Q = ε`.
+
+### …but the angular-consistency reading SURVIVES — the axis was `h → 0`
+
+* `[M]` the shipped τ's defect vanishes at **exactly first order in h**
+  while `τ ≡ ½` **saturates**: ratio `3.2× → 8.8× → 21× → 46× → 98× →
+  204×` over 2→64 cells/mfp.
+* `[M]` a λ-continuum `τ(λ) = λ τ_MM + (1−λ)/2` has its optimum converge to
+  **λ = 1 exactly** (`0.748→0.993` and `1.300→1.001`, **two independent
+  instruments**), and the anomaly is **linear in M&M's β**, whose zero is
+  at the shipped τ by their own identity.
+* This is verbatim M&M p. 16: consistency is recovered *"as the spatial
+  mesh is refined"*. Their Fig. 4/6 reproduced to 2.5 %
+  (`c_s(r_0) = −1.3157` vs their ≈ −1.35).
+
+### The #235 reconciliation, and it is two-part
+
+1. ✅ **Verified by the main agent from the case's own attributes**: the
+   aniso-cyl fixture is `sigma_t = 1.0`, `sigma_s = 0.5`, `radius = 5.0`
+   ⟹ **`c = 0.5`, `Σ_a·R = 2.5`**. Half of every collision is an
+   absorption — **it is nowhere near the diffusion limit**, which is where
+   the weighted τ's advantage lives.
+2. `[M]` Even *in* the diffusion limit the benefit **decays with angular
+   order and inverts**: sphere `14× (S2) → 1.4× (S4) → 0.9× (S8/S16)`;
+   cylinder `5.4× (n_φ=8) → 2.3× (n_φ=16)`. **That is #235's own
+   crossover**, reproduced on a different fixture, observable and geometry.
+
+⟹ Combined with §4bis's kernel finding, the flagship fixture failed the
+campaign **twice over, independently**: its exact solution is in the
+closure's kernel, *and* its material is far from the regime where the
+scheme's advantage exists.
+
+### A cheap reference-free τ instrument DOES exist — on the sphere only
+
+`[M]` M&M's β evaluated with the **τ-implied** edge cosines: solve-free,
+**exactly zero** for the shipped τ at S2/4/8/16, and it catches `τ→1−τ`
+(the Mode-12 reflection the membership / fold-box / reversal gates are all
+blind to). ⛔ **Identically zero for both schemes on the folded cylinder at
+every n_φ — refuted there.** This does not contradict the graveyard's "BMC
+β is τ-blind": a β built from the *standard* partition edges is blind **by
+construction** — that substitution *is* M&M's β = 0 proof.
+
+### Main-agent verification status — stated because it is uneven
+
+* ✅ **Verified directly**: the fixture's `c = 0.5 / Σ_a·R = 2.5` (read from
+  source); the committed gate runs — `12 passed in 28.6 s` under
+  `python -O -m pytest`.
+* ⚠ **NOT independently reproduced**: the `h → 0` separation and the λ→1
+  optimum. My own quick check was **starved** (`ρ = 0.999553`, needed
+  ≈61 694 iterations, I budgeted 6 000) and used a wrong analytic reference
+  (`φ_∞` does not hold at `Σ_a·R = 0.08`, which is leakage-dominated).
+  Inconclusive — **not** a refutation. Those claims rest on the agent's
+  251-solve record plus the gate. Note the #340 warning machinery caught my
+  error instantly and printed the required iteration count: N4.7 paying off.
+
+### Deliverable to promote
+
+`derivations/diagnostics/diag_q68_angular_diffusion_limit_consistency.py`
+(12 gates, 29 s) — a solve-free β identity with a negative leg
+(→ `tests/sn/sweep/`), the M&M Fig. 4 literature gate, the mesh-refinement
+discriminator, and `test_optical_thickness_is_NOT_the_discriminating_axis`,
+which **pins this report's own refutation** so the decay-rate framing
+cannot be silently re-adopted (→ `tests/sn/verification/analytical/`, slow).
+
+### ⭐⭐ PHASE 0's ANSWER, and it is not the one the phase was set up to find
+
+The campaign's problem was **never** that its instruments lacked a
+trustworthy reference. The MMS reference was analytic and sound the whole
+time. The problem is that **nobody asked whether the fixture's content
+intersects the operator's kernel, or whether its material sits in the
+regime where the scheme's advantage exists.** Both checks are cheap,
+design-time, and would have been decisive years of campaign-time ago.
+
+⟹ **Phase 1 does not open on "replace the closure".** The shipped scheme
+is the measured λ-optimum. What opens instead is: promote the gate, and
+make the two entry checks mandatory for every future fixture.
+
 ## 5. Settled — re-opening any of these is re-doing measured work
 
 1. ⛔⛔ **REFUTED 2026-08-12 — was: "τ is *not* re-posed into ω (that is
