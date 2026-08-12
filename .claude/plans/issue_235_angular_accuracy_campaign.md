@@ -176,6 +176,63 @@ frame attack); every link below is verified by the main agent directly.
 
 ⟹ a **~one-order gap**, and diamond is **8×** better at n_φ=64.
 
+### ⛔ CORRECTION (same day) — that 8× is FUNCTIONAL-specific; the honest number is 3.2×
+
+The `test-architect` pass found that the **graded functional** matters more
+than the fixture, and it applies to the table above. Two verifications by
+the main agent:
+
+* ✅ **The closure is exact on `span{1, η}` BY CONSTRUCTION** — pure algebra,
+  no run: τ *is* the barycentric coordinate, so
+  `τη₊ + (1−τ)η₋ ≡ η_m` and `τ·1 + (1−τ)·1 ≡ 1`. **A seventh blindness
+  mechanism**, and the one that explains the graveyard: any instrument whose
+  signal lives in `span{1, η}` is structurally τ-blind.
+* ✅ **The flagship fixture's exact solution IS in that kernel** — verified
+  from the source, not inferred: `sn.py:3803`
+  `psi_exact(r, eta_n) = self.A(r) + self.B(r) * eta_n`, i.e. exactly affine
+  in η (`[M]` residual ≤ 4.4e-16 at r = 0.3/0.7/1.3/1.9).
+
+`[M]` Re-grading the SAME solves on the **angular** flux instead of the
+scalar flux, nx=320:
+
+| functional | shipped order | diamond order | ratio s/d at n_φ = 8/16/32/64 |
+|---|---|---|---|
+| scalar flux (as first reported) | 1.83 | 2.88 | 0.91 / 3.17 / 7.19 / **7.83** |
+| angular flux | 1.85 | 2.44 | 0.94 / 1.69 / 2.40 / **3.24** |
+
+⟹ **The DIRECTION survives** (diamond converges faster in both; the
+advantage grows monotonically with n_φ). **The MAGNITUDE was inflated
+≈2.4×** by the scalar-flux functional, and the order gap is **≈0.6, not
+≈1.05**. Mechanism: `Σ_n w_n cos(m ω_n) = 0` — the quadrature identity that
+makes `φ_exact = A(r)` closed-form is the same identity that annihilates
+the angular defect in φ. Every gate in `tests/sn/verification/mms/` grades
+the scalar flux.
+
+### ⚠ OPEN CONTRADICTION — do not resolve it by picking a side
+
+The `test-architect`'s **purpose-built** fixture (harmonics
+`h_m = Re[(η+iξ)^m]`, graded on ψ) reportedly does **NOT** resolve shipped
+vs diamond (`1.34 / 1.10 / 0.95×`, sign-flipping). The table above, on the
+**shipped** fixture graded on ψ, gives `3.24×` monotone. Both cannot be a
+property of "the schemes"; at least one is a property of its fixture.
+**Unresolved as of 2026-08-12.** Read `scratch/q68_angular_instrument_design.md`
+§7 and reconcile the configurations before either number is used.
+
+### ⭐ The synthesis that dissolves the apparent conflict with #319
+
+`[M]`/derived: the diffusion limit's angular content **is** `span{1, μ}`
+(`ψ → φ/4π + 3μJ/4π`), which is exactly the closure's kernel. So the
+barycentric τ is exact there and τ≡½ is not ⟹ **#319's flux-dip test is
+structurally biased toward the incumbent.** That does not make it
+worthless — it makes it a **CONSTRAINT** (does the scheme preserve the
+diffusion limit? pass/fail), never a **RANKER**.
+
+⟹ The two instruments answer different questions, and the trade is real:
+**M-M passes the constraint and loses the convergence ranking; τ≡½ may win
+the ranking and fail the constraint.** That vindicates Q5.6.4's
+literature route as sound rather than a fallback — while showing the cost
+it ratified is larger and better-characterised than recorded.
+
 ⛔ **AND IT REFUTES #235's OWN PREMISE.** Neither scheme flatlines, so
 there is **no 2-D (η,φ) obstruction** visible: the angular error
 converges. The "floor" the campaign has been chasing was measured at
