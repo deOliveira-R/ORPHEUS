@@ -356,6 +356,82 @@ only those pre-existing reds.
 
 ---
 
+## F10. ⛔⛔ THE DECIDING EXPERIMENT: `D` IS **NOT** A PROXY FOR ACCURACY
+
+F7 established `D` as a **discriminator** (it sees τ; it ranks garbage
+2.6–45× above the shipped partition). It did **not** establish `D` as a
+**selection criterion** — that lower `D` means a more accurate solution.
+Probe I tests exactly that, against a **structurally independent**
+reference: the anisotropic cylindrical MMS
+(`build_cylindrical_anisotropic_mms_case`), whose reference is **analytic**,
+not another ORPHEUS solver — so it is not the L49 reference-limited trap.
+
+`[M]` nx = 80, `max_inner=500`, `inner_tol=1e-13`, all 12 solves
+`converged=True`. Harness validated: the fixture is a **folded** rule (all
+ξ > 0, 4 levels × M = n_φ/2, **all 4 carrying**), so `D` is the same object
+probes A–G measured; and the shipped MMS numbers reproduce the tree's own
+record — `1.1326e-3` at n_φ=16 is **1.67×** the gate docstring's pre-6.4
+`6.782e-4`, matching the retirement note's stated "1.8–2× worse".
+
+| n_φ | ranks agreeing | Pearson r on log(metric) |
+|---|---|---|
+| 8 | 2 / 4 | **+0.7515** |
+| 16 | 0 / 4 | **+0.2608** |
+| 32 | 0 / 4 | **+0.0630** |
+
+⟹ **The correlation degrades monotonically with angular refinement, to
+essentially zero.** At coarse angle both metrics are dominated by the same
+gross error; as that resolves they decouple completely.
+
+Per-variant MMS L2 (the independent metric), rank in brackets:
+
+| τ variant | n_φ=8 | n_φ=16 | n_φ=32 |
+|---|---|---|---|
+| shipped (Q5.6.4) | **3.1503e-3** [1] | 1.1326e-3 [2] | 3.2611e-4 [3] |
+| diamond τ ≡ ½ | 3.4055e-3 [2] | **3.7443e-4** [1] | **1.3279e-4** [1] |
+| reversed | 7.2701e-3 [3] | 1.2548e-3 [3] | 2.9387e-4 [2] |
+| shuffled | 1.7521e-2 [4] | 3.4577e-3 [4] | 8.5636e-4 [4] |
+
+**⟹ `D` MAY NOT VOTE ON τ. Decided, negatively, in one 20-minute
+experiment — before any machinery was built on it.**
+
+### Reading the τ column honestly
+
+* The **diamond beats shipped by 3.0× / 2.5× at n_φ = 16 / 32**. This is
+  **not news**: it is the *already-ratified* honest cost of the Q5.6.4
+  carve, recorded in `pole_angular_closure.py`'s own retirement comment
+  ("~1.8–2× WORSE at n_φ = 16/32/64 … Principled ≠ more accurate; the
+  scheme that satisfies P2/P3 wins over one with a smaller number on a
+  single manufactured fixture"). Probe I reproduces it against a
+  *different* alternative and at a different nx, which strengthens the
+  record rather than disturbing it.
+* ⚠ **The n_φ=32 shipped-vs-reversed inversion is 1.11×** (`3.26e-4` vs
+  `2.94e-4`) and **no claim is built on it.** An 11 % gap on one
+  manufactured fixture is not evidence that a permuted τ is a better
+  scheme; it is evidence that at n_φ=32 this fixture no longer separates
+  these two.
+
+### What this does and does not do to `D`
+
+`D` remains what it was measured to be: a **cheap, reference-free,
+pointwise consistency residual** for a boundary condition production
+computes and discards. What it is NOT is an accuracy indicator — and that
+distinction is now a *measurement*, not a caution.
+
+⭐ **This is the L49 failure mode caught prospectively.** Had step 2 of the
+proposed plan run first, `D` would have "confirmed" the landed carve
+(F7's 2.6–45× ranking) using an instrument that does not track accuracy,
+and the confirmation would have entered the record as evidence. The
+campaign's τ-blind trio and the reference-limited resolvent both got that
+far. This one was stopped by asking what the instrument measures *before*
+letting it decide anything.
+
+⛔ **Standing consequence: the campaign still has NO reference-free
+instrument that can rank τ.** §9bis.8c's situation is unchanged by this
+session. Any future `D`-based τ argument must cite this section first.
+
+---
+
 ## What this changes for the campaign
 
 The memo's §9bis.8c recorded that **all four** surviving accuracy
@@ -365,6 +441,18 @@ literature ratification (M&M's own cylinder appendix) rather than on a
 measurement. `D` is the first instrument that is **not** inverted, and it
 is the first that needs **no reference at all** (contrast the resolvent
 cross-check, reference-limited at ≈3e-2 — [[lessons-L49]]).
+
+⛔ **REFUTED as a campaign advance — see F10 (2026-08-12).** The paragraph
+above is true as written and irrelevant as an argument: `D` being
+"not inverted" is worthless once measured against an independent
+reference, because `[M]` `D` does not track accuracy at all
+(Pearson r on log = **+0.06** at n_φ=32, 0/4 ranks agreeing). An
+instrument that ranks the landed carve first while being uncorrelated
+with accuracy is not evidence for the carve. **§9bis.8c stands
+unchanged: there is still no reference-free instrument that can rank τ.**
+What `D` genuinely is: a consistency residual for a discarded boundary
+condition, worth gating on its own terms and forbidden from voting on a
+scheme.
 
 ## Open / not done
 
