@@ -553,15 +553,26 @@ run under ``-O``):
      - Level / pillar
      - What it proves
    * - ``test_affine_carve_bit_identity.py`` (``foundation``)
-     - regression by inheritance
-     - The converged ``psi`` / ``phi`` bytes hash to a frozen
-       ``sha256`` taken at the pre-carve commit ``63719a2``, for the
-       windowed-moment SI path (``si_2d_p1_aniso_het``), the
-       full-angular Krylov path (``krylov_2d_p1_aniso_het``), and the
-       1-D ``AngularFlux``-bulk SI path (``si_slab_2g_het``). A drift
-       here means the carve changed the numerics — sub-ULP, sharper
-       than the ``≈1e-11`` DD regression snapshots (which already
-       pre-drift ~6920 ULP from Phase 5b/5c).
+     - regression against a stored reference
+     - The converged ``psi`` / ``phi`` reproduce **stored reference
+       arrays**, for the windowed-moment SI path
+       (``si_2d_p1_aniso_het``), the full-angular Krylov path
+       (``krylov_2d_p1_aniso_het``), and the 1-D ``AngularFlux``-bulk
+       SI path (``si_slab_2g_het``). Hard-fails above the solver's own
+       stopping criterion (``SAFETY × conv_tol``), with a
+       ``DriftWarning`` tripwire on ANY movement below it
+       (``-W error::DriftWarning`` restores a strict gate).
+
+       ⛔ **Until 2026-08-12 this row read "the bytes hash to a frozen
+       sha256 taken at the pre-carve commit 63719a2 … sub-ULP, sharper
+       than the ≈1e-11 DD snapshots".** That was true of the
+       predecessor instrument and is no longer true of this one. #333
+       retired the digests: a hash cannot report a MAGNITUDE, so when
+       four verified quadrature commits legitimately moved the values,
+       1 ULP and a catastrophic error were the same red. #208's
+       zero-numerical-change claim is now **historical** — verified at
+       ``63719a2``, not re-verifiable, because only hashes were kept.
+       The re-pose is a deliberate WEAKENING; see the module docstring.
    * - ``test_flux_displacement_diagnostics.py`` (``l1``)
      - closed-form (:math:`\rho = c`)
      - ``SourceIteration.contraction_ratios`` :math:`\to \rho \approx

@@ -11,20 +11,63 @@ evaluation (Piece 3) add **ZERO numerical change** to the converged flux:
 * The residual evaluation is additive / diagnostic — never in the convergence
   path.
 
-So the converged flux MUST be **byte-identical** to the pre-carve value. This
-test freezes a ``sha256`` of the converged ``angular_flux.interior.values`` and
-``scalar_flux.values``, generated once at the pre-carve commit ``63719a2`` and
-committed WITH Piece 1.
+That claim was verified at the pre-carve commit ``63719a2`` by freezing a
+``sha256`` of the converged ``angular_flux.interior.values`` and
+``scalar_flux.values``.
 
-Why a dedicated golden, not the DD regression snapshots
-=======================================================
+⛔ #333 re-pose (2026-08-12) — the sha256 instrument is RETIRED
+===============================================================
+
+**#208's zero-numerical-change claim above is now HISTORICAL.** It is
+past-tense record, not a live assertion: it was true and verified at
+``63719a2``, and this module no longer re-verifies it.
+
+The ``sha256`` was the sharpest instrument available for a zero-change claim,
+and the choice was defensible when it was made (see "Why a dedicated golden"
+below).  Its defect is structural rather than a mistake: a zero-change claim
+pinned against a FROZEN PAST has a shelf life.  It is falsified by the first
+legitimate change anywhere upstream, and at that moment the instrument gives
+no way to decide whether the new value is fine — **the magnitude cannot be
+computed, because the old VALUES were never stored.  1 ULP and a catastrophic
+error are the same red.**
+
+That is exactly what happened.  Four quadrature commits moved these values,
+every one of them a verified improvement:
+
+* ``d6f53afe`` — LS derived nodes, 16 of 24 ordinates, **1 ULP** (rules now
+  IMPOSE their symmetry, so derived ordinates are bit-copies of the seed
+  octant).  Reddens the two 2-D arms.
+* ``579d5eaf`` — ``gauss_legendre`` nodes AND weights, 3 ULP / 17 ULP.
+  Reddens the slab arm.  [M] the new GL8 integrates the exact rational
+  moments **5.8× better** than ``numpy.leggauss``, winning 7 of 7
+  non-trivial even moments.
+* ``df33913d`` (#327) / ``59bb38a0`` (#337) — the LS weights and the μ₁ seed,
+  replacing a self-declared house convention (``1/√6``) with the
+  Lewis & Miller / LA-3186 moment-matched value.
+
+The re-pose stores VALUES and budgets against the solver's own stopping
+criterion.  **It IS a weakening** — see the test's own docstring, which states
+what is and is not asserted now.
+
+⚠ The predecessor was ALSO re-baselined three times before this (the
+regeneration history below), each with a written justification.  That history
+is kept deliberately: it records why each move was legitimate, and that
+reasoning outlives the instrument it was written for.
+
+Why a dedicated golden, not the DD regression snapshots (the ORIGINAL rationale)
+================================================================================
 
 ``tests/sn/regression/test_dd_regression.py`` compares iterative results at
 ``SAFETY × conv_tol ≈ 1e-11`` (escalatable to strict only via
 ``-W error::DriftWarning``), and the ``2d_2g_p1_aniso_dd_8x4_het_si`` snapshot
 ALREADY pre-drifts ~6920 ULP / ~9.8e-13 (Phase-5b/5c inheritance) — so the
 snapshot suite CANNOT verify this carve's stronger zero-change claim. A
-``sha256`` of the raw bytes is the sharpest (sub-ULP) bit-identity assertion.
+``sha256`` of the raw bytes was the sharpest (sub-ULP) bit-identity assertion.
+
+⚠ Read honestly, that rationale now argues the re-posed gate overlaps the DD
+suite's tolerance. What it still adds: three DIFFERENT drivers (2-D SI, 2-D
+Krylov, 1-D slab SI) pinned with stored values and an any-movement
+``DriftWarning`` tripwire, which the DD suite does not cover for these configs.
 
 Coverage (Cardinal-6 ≥2G + heterogeneous; vv-principles §H1/H2)
 ===============================================================
@@ -43,7 +86,7 @@ is inherited from the pre-carve reference), not a physics ``:label:`` claim.
 """
 from __future__ import annotations
 
-import hashlib
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -53,6 +96,8 @@ from orpheus.geometry import BC, Mesh1D
 from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
+from tests.sn._test_helpers import SN_TESTS_ROOT
+from tests.sn.regression._regression_assert import assert_regression
 
 
 pytestmark = pytest.mark.foundation
@@ -120,25 +165,61 @@ pytestmark = pytest.mark.foundation
 #   anchor walls held green through the change. The KRYLOV hashes are
 #   UNTOUCHED — the stop change's blast radius is SI-only, which is
 #   exactly the pin (GMRES was already residual-stopped).
-GOLDEN = {
-    "si_2d_p1_aniso_het_psi_sha":
-        "fe0ae4d5e86a535501f171f52793cbe87fd38eb60a88db3158bcedbb5977c2f2",
-    "si_2d_p1_aniso_het_phi_sha":
-        "aa02d0f9134c8e623d7de6eff15e4fc053f3c1f1245b6d6e0ee4ef1e5b3dea0f",
-    "krylov_2d_p1_aniso_het_psi_sha":
-        "ae9b35efb3b4f3b09411db1dcd9d1201a60985bb7cbd7087e6dddbcba0a1a196",
-    "krylov_2d_p1_aniso_het_phi_sha":
-        "0c8a6ce13c9fcdd831fe421e59a5d24cc6571bb5b323edf2063571bda6cca749",
-    "si_slab_2g_het_psi_sha":
-        "daa4f33b87adb8db870d7f65fc406af11ecde7fa8cde6c697c3b83097f4da534",
-    "si_slab_2g_het_phi_sha":
-        "cd5328649e0ccf1d0e3cb56bba231cab39864b072faf6bdf64b3a881b73db7e0",
-}
+# * 2026-08-12 (#333) — THE sha256 ERA ENDS HERE. The six digests above were
+#   deleted and the gate re-posed onto stored VALUES; see the "#333 re-pose"
+#   section of the module docstring. The history above is kept because it
+#   records WHY each regeneration was legitimate — that reasoning outlives the
+#   instrument it was written for.
+
+# ─────────────────────────────────────────────────────────────────────
+# #333 — stored VALUES, not digests.  Reuses the ROOT conftest's
+# ``--capture-baseline`` flag (the same switch
+# ``tests/sn/sweep/core/test_affine_carve_baseline.py`` uses) rather than
+# minting a second capture mechanism.
+# ─────────────────────────────────────────────────────────────────────
+_BASELINE_DIR = SN_TESTS_ROOT / "_data" / "affine_carve_converged"
+
+#: The solver's OWN stopping criterion for these runs.  ``assert_regression``
+#: requires ``conv_tol`` to be read off the run config, never hardcoded at the
+#: call site — so the solves below and the gate share this one name.
+_INNER_TOL = 1e-12
+_MAX_INNER = 3000
 
 
-def _sha(arr: np.ndarray) -> str:
-    a = np.ascontiguousarray(np.asarray(arr, dtype=np.float64))
-    return hashlib.sha256(a.tobytes()).hexdigest()
+def _capturing(request) -> bool:
+    return bool(request.config.getoption("--capture-baseline", default=False))
+
+
+def _baseline_path(case: str, quantity: str) -> Path:
+    return _BASELINE_DIR / f"{case}_{quantity}.npy"
+
+
+def _capture_or_assert(request, case: str, quantity: str, actual) -> bool:
+    """WRITE under ``--capture-baseline``, else READ + assert.
+
+    Returns ``True`` if it WROTE.  The caller skips ONCE at the end when
+    any leg captured — calling ``pytest.skip`` in here would short-circuit
+    the remaining legs (the bug a multi-array gate must avoid).
+    """
+    arr = np.ascontiguousarray(np.asarray(actual, dtype=np.float64))
+    path = _baseline_path(case, quantity)
+    if _capturing(request):
+        _BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+        np.save(path, arr)
+        return True
+    if not path.exists():
+        pytest.fail(
+            f"missing baseline {path}; run with --capture-baseline to write it."
+        )
+    assert_regression(
+        arr,
+        np.load(path),
+        conv_tol=_INNER_TOL,
+        case_name=f"{case}:{quantity}",
+        kind="iterative",
+        quantity=quantity,
+    )
+    return False
 
 
 def _build_2d():
@@ -184,19 +265,19 @@ def _solve_case(case: str):
         mats, mesh, quad, q = _build_2d()
         return solve_sn_fixed_source(
             mats, mesh, quad, q, scattering_order=1,
-            inner_solver="source_iteration", max_inner=3000, inner_tol=1e-12,
+            inner_solver="source_iteration", max_inner=_MAX_INNER, inner_tol=_INNER_TOL,
         )
     if case == "krylov_2d_p1_aniso_het":
         mats, mesh, quad, q = _build_2d()
         return solve_sn_fixed_source(
             mats, mesh, quad, q, scattering_order=1,
-            inner_solver="krylov", max_inner=3000, inner_tol=1e-12,
+            inner_solver="krylov", max_inner=_MAX_INNER, inner_tol=_INNER_TOL,
         )
     if case == "si_slab_2g_het":
         mats, mesh, quad, q = _build_slab()
         return solve_sn_fixed_source(
             mats, mesh, quad, q, scattering_order=1,
-            inner_solver="source_iteration", max_inner=3000, inner_tol=1e-12,
+            inner_solver="source_iteration", max_inner=_MAX_INNER, inner_tol=_INNER_TOL,
         )
     raise ValueError(f"unknown case {case!r}")
 
@@ -205,28 +286,50 @@ def _solve_case(case: str):
     "case",
     ["si_2d_p1_aniso_het", "krylov_2d_p1_aniso_het", "si_slab_2g_het"],
 )
-def test_converged_flux_bit_identical_after_affine_carve(case: str) -> None:
-    r"""The converged flux is BIT-IDENTICAL to the pre-carve (63719a2) golden.
+def test_converged_flux_matches_stored_reference(request, case: str) -> None:
+    r"""The converged ψ / φ reproduce the stored reference arrays.
 
-    The affine typing + the SI displacement retype + the residual evaluation
-    add ZERO numerical change; the converged ``psi`` / ``phi`` bytes hash to the
-    frozen pre-carve ``sha256``. A drift here means the carve changed the
-    numerics (the DD snapshot suite, gated at ``≈1e-11`` and pre-drifting, would
-    NOT catch a sub-1e-11 regression — this dedicated gate does, sub-ULP).
+    ⛔ **This is deliberately a WEAKER claim than the gate it replaces**, and
+    the weakening is irreversible (#333).  The predecessor asserted
+    byte-equality against a ``sha256`` frozen at pre-carve ``63719a2``; the
+    pre-carve VALUES were never stored, so when a legitimate upstream change
+    moved the bytes there was no way to ask *by how much*.  1 ULP and a
+    catastrophic error were the same red.  The information needed to do
+    better was discarded in 2026-06; no amount of care here recovers it.
+
+    **#208's zero-numerical-change claim is therefore HISTORICAL.** It was
+    verified at ``63719a2`` and is recorded in the module docstring and the
+    regeneration history above.  It is *not* re-verifiable from this gate and
+    this gate no longer asserts it.  What this gate asserts now:
+
+    * the converged values reproduce a **stored reference** — so a red
+      reports a magnitude and is diagnosable;
+    * hard-failing above the solver's OWN stopping criterion
+      (``SAFETY × conv_tol``, ``conv_tol = _INNER_TOL`` read off the run
+      config).  A budget tighter than that would assert precision the solver
+      never promised; a budget fitted to today's observed drift would assert
+      nothing at all (the refuted candidate in #333);
+    * a :class:`~tests.sn.regression._regression_assert.DriftWarning`
+      tripwire on ANY movement below that floor, so a sub-tolerance drift
+      stays AUDIBLE.  ``pytest -W error::DriftWarning`` restores a strict
+      bit-identity gate for anyone who wants one.
+
+    The three configs are kept unchanged — the fixture was never the problem
+    (2-D 2G P1-aniso het under SI *and* Krylov, plus the 1-D slab whose
+    ``AngularFlux``-bulk SI path is the multi-D flip's blast-radius pin).
+
+    Regenerate with ``--capture-baseline``.
     """
     sol = _solve_case(case)
     if not sol.history.converged:
         raise AssertionError(f"{case}: solve did not converge")
-    psi_sha = _sha(sol.angular_flux.interior.values)
-    phi_sha = _sha(sol.scalar_flux.values)
-    if psi_sha != GOLDEN[f"{case}_psi_sha"]:
-        raise AssertionError(
-            f"{case}: converged psi NOT bit-identical to pre-carve golden "
-            f"(sha {psi_sha} != {GOLDEN[f'{case}_psi_sha']}) — the carve "
-            f"changed the numerics."
-        )
-    if phi_sha != GOLDEN[f"{case}_phi_sha"]:
-        raise AssertionError(
-            f"{case}: converged phi NOT bit-identical to pre-carve golden "
-            f"(sha {phi_sha} != {GOLDEN[f'{case}_phi_sha']})."
-        )
+    captured = [
+        _capture_or_assert(
+            request, case, "angular_flux", sol.angular_flux.interior.values,
+        ),
+        _capture_or_assert(
+            request, case, "scalar_flux", sol.scalar_flux.values,
+        ),
+    ]
+    if any(captured):
+        pytest.skip(f"{case}: baseline captured (--capture-baseline)")

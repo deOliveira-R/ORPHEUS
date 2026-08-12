@@ -1259,10 +1259,12 @@ likewise re-associates as it joins the ÷V ``residual_kernel_batch`` reduction.
      SI, GMRES-tol :math:`\times` ULP for Krylov);
    * **the 1-D scan path is byte-identical** — it already rode
      :math:`\times\,\mathrm{inverse\_denom}`, so the fold did not touch it.
-     This is the **negative control**: the slab SHA in
-     ``test_affine_carve_bit_identity.py`` is byte-unchanged, proving the
-     re-baseline is confined to the 2-D path the division-to-reciprocal switch
-     actually moved.
+     This was the **negative control**: at D5a the slab SHA in
+     ``test_affine_carve_bit_identity.py`` *was* byte-unchanged, proving the
+     re-baseline was confined to the 2-D path the division-to-reciprocal switch
+     actually moved. (Both halves are now history: #333 retired that module's
+     digests for stored values, and ``579d5eaf`` has since moved the slab arm
+     too — by 3/17 ULP in the Gauss-Legendre nodes/weights, unrelated to D5a.)
 
 This matches the affine-carve file's own history: the 2-D Krylov golden hashes
 re-baselined at #240 Phase 2 Step B for the apply re-association; D5a extends
@@ -1293,10 +1295,13 @@ division to the reciprocal.
        post-D5a value (the regenerate-in-commit discipline,
        :ref:`loss-rep-bit-vs-principled`), boundary byte-identical.
    * - ``test_affine_carve_bit_identity.py``
-     - regression (strict)
-     - the negative control — the 1-D slab SHA is byte-unchanged; the two
-       2-D SHAs (``si_2d_p1_aniso_het``, ``krylov_2d_p1_aniso_het``)
-       re-baselined off the division-to-reciprocal switch.
+     - regression (stored reference; strict until #333)
+     - *at D5a* the negative control — the 1-D slab SHA was byte-unchanged
+       while the two 2-D SHAs (``si_2d_p1_aniso_het``,
+       ``krylov_2d_p1_aniso_het``) re-baselined off the
+       division-to-reciprocal switch. ⛔ The SHAs no longer exist: #333
+       re-posed this module onto stored VALUES because a digest cannot
+       report a magnitude.
 
 The two equation labels :eq:`loss-rep-scanmarch-solve` and
 :eq:`loss-rep-scanmarch-apply` are the gate's ``verifies(...)`` targets, so the
@@ -2799,15 +2804,26 @@ oracles:
   reduction tree every byte-identity anchor inherits from.
 
 * **the affine converged-bytes golden** —
-  ``test_affine_carve_bit_identity.py`` freezes a ``sha256`` of the
+  ``test_affine_carve_bit_identity.py`` *froze a* ``sha256`` of the
   production default's converged ``angular_flux`` / ``scalar_flux``
   bytes. At the Fork-B2 flip the four 2-D hashes were **regenerated in
   the flip commit** (a schedule change shifts the converged bytes at
   FP-association level — principled-equivalent, not a numerics change),
   with a history block naming the output-identity evidence (the G4
   Mode-9 gates + the G2.c nulp oracle); the 1-D slab hashes were
-  byte-unchanged (the flip's blast-radius pin). The discipline is
-  **regenerate-in-commit, never pin stale**.
+  byte-unchanged (the flip's blast-radius pin). The discipline was
+  **regenerate-in-commit, never pin stale**, and it was followed three
+  times.
+
+  ⛔ **The digests were retired 2026-08-12 (#333); the module now stores
+  VALUES.** The discipline was sound but the *instrument* had a shelf
+  life: a zero-change claim pinned against a frozen past is falsified by
+  the first legitimate upstream change, and a hash cannot then say
+  whether the new value is fine — the magnitude is uncomputable because
+  the old values were never kept. Regenerate-in-commit survives as the
+  discipline; a source hash is only defensible where the hashed thing is
+  itself the contract (the kernel-source pin above), not where it stands
+  in for a numerical value.
 
 Structural spies
 ----------------
