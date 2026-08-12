@@ -1779,3 +1779,44 @@ the literature statement was **true**, the numerical measurement was
 **correct**, and the conclusion was still **false**. Two sound inputs, one
 invalid join. When a literature result and a measurement agree, check that
 they are about the same object before treating the agreement as corroboration.
+
+## L53 — A stale INVENTORY is a silent denominator: 11 directories in neither column (2026-08-12)
+
+Task #51's red inventory was carefully written, `[M]`-marked, and explicitly
+honest about its limits: it named the two slices it HAD measured and listed the
+seven directories it had NOT. Both lists were true. The defect was the **gap
+between them** — `find tests -mindepth 1 -type d` returns 11 directories that
+appear in *neither*, so they were not "unmeasured", they were **uncounted**.
+
+`[M]` The uncounted set: `_harness`, `_mutation`, `cross_method`, `derivations`,
+`homogeneous`, `numerics`, `transport`, `sn/acceleration`, `sn/architecture`,
+`sn/l1_analytical`, `sn/regression`, `sn/solve`. One of them held **3 further
+reds** (`sn/solve`, the #333 sha256 gate — and OPEN issue #333 had said so since
+2026-08-06, in writing). The reported denominator was 20; the true one was 23.
+
+⚠ **Why the honest caveat made it worse, not better.** A note saying "NOT
+measured: A, B, C" reads as a complete statement of ignorance, so the next
+session budgets for A, B, C and treats everything else as covered. An inventory
+with no caveat at all would have prompted "what about the rest?"; this one
+answered that question wrongly and authoritatively. Same family as
+`plan-authoring` §2's quantifier rule (a universal claim carries its
+denominator), one level up: here the *partition itself* was incomplete, and
+neither list was individually false.
+
+⟹ **The check is mechanical and costs one command: enumerate the universe, then
+subtract both lists.** For a test inventory that is `find tests -type d`; for a
+call-site audit it is the full `grep`, not the union of the files you happened
+to open. Write the leftover set explicitly, even (especially) when it is empty —
+"measured A+B, not-measured C, leftover ∅" is a *different and stronger* claim
+than "measured A+B, not-measured C", and only the first one can be checked.
+
+**Corollary — reconcile against the issue tracker, not only against the tree.**
+#333 named its own red arms and its own blocker ("Blocked on #327", long since
+closed at `414f2cb6`). One `gh issue list` cross-read would have surfaced the
+missing rows before any measurement. Cardinal Rule 4 says issues ARE the log;
+that cuts both ways — an inventory that does not consult them is re-deriving,
+badly, what the log already knows.
+
+`[M]` Closed out: 3403 + 2194 + 3446 passed across the previously-uncounted and
+re-verified slices, 0 reds. Every one of the 23 was PRE-EXISTING (byte-identical
+failure sets at detached worktree `adb73fd5`); none was a regression.

@@ -143,6 +143,29 @@ path. Retirement is a first-class deliverable, not optional cleanup.
      test already asserts the set/values against a literal authored independently of the
      new single source, the carve cost nothing. If none exists, you traded a real gate for
      none and owe a replacement — that is the whole risk of this move.
+     ⭐ **And the pin you reach for FIRST is the one most likely to be blind — check that
+     it MOVES under the old value before citing it.** This applies to every re-baseline,
+     not only to single-sourcing: the candidate reference that comes to mind is
+     "green, authoritative, and nearby", and *nearby* is the problem — a gate in the same
+     module as the moved values is usually built on the same simplifying fixture that
+     makes the change invisible. A green reading is compatible with *loaded* and with
+     *blind* (`vv-principles` #19), so it is the OLD-value reading that licenses a
+     re-baseline. One in-process mutation answers it; skip it and you record a false
+     justification, which is worse than recording none because an audit will trust it.
+     > `[M]` 2026-08-12, task #51 — **twice in one session, two unrelated blindness
+     > mechanisms, both in the failing rows' own file.** (a) Cartesian octant: the
+     > obvious licence was `test_2d_octant_sweep_closed_form_anchor` (`φ = Q/Σ_t`), green
+     > at HEAD — but it is an all-reflective FLAT infinite medium, so it reads the
+     > quadrature *only* through the total weight. `sum(w) = 4π` to **0.000e+00**
+     > (bit-exact) at LS4/LS6/LS8 before AND after, while `μ₁` moved
+     > `0.408248290463863 → 0.350021174581541` (14 %). It is a Σw-normalisation gate
+     > (ERR-004/025), structurally blind to node PLACEMENT. The real licence was the LS
+     > moment-exactness / advertised-degree suite. (b) Cylinder τ: every flat-flux L0
+     > anchor is blind because the M-M recurrence gives `(ψ−(1−τ)ψ)/τ = ψ` for **every**
+     > τ — including the `@verifies("streaming-equilibrium")` gate sitting in the same
+     > file as three of the failing rows. The real licence was
+     > `test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention`, 1 of the
+     > 32 gates a whole-suite old-τ mutation actually reddens.
   3. **Keep the gate only for what it still tests, and say so in its own docstring** — not
      in a plan, not in the commit. A gate wearing an authoritative name for a comparison
      that cannot fail is worse than no gate: it is a coverage claim an audit will trust.
