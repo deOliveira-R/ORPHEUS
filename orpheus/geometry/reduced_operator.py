@@ -689,6 +689,148 @@ class ReducedStreamingOperator:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# The α-dome — ONE recursion, and its admission contract
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Both curvilinear factories below need the Lathrop--Carlson angular
+# redistribution coefficients, and until 2026-08-12 each spelled the
+# recursion out in its own body (sphere and cylinder, identical arithmetic
+# — the sphere IS the cylinder's single-level case).  That twin path is
+# why the closure contract was enforced on ONE arm only, and why the one
+# check that did exist was a bare ``assert`` (see below).  Cardinal Rule 2:
+# one concept, one body.
+#
+# The RECURSION and the CONTRACT are deliberately two functions, not one.
+# ``orpheus.derivations.discrete.sn.angular_differencing`` explores
+# hypothetical and deliberately-non-closing measures (its P0/P4 predicate
+# ladder) and must be able to run the recursion on them; a guard welded
+# into the recursion would make that analysis unspellable.  The contract
+# belongs at the production ADMISSION point — the factories — where a
+# non-closing measure is genuinely illegal.
+
+
+def alpha_dome(
+    cosines: np.ndarray,
+    weights: np.ndarray,
+) -> np.ndarray:
+    r"""The Lathrop--Carlson angular redistribution recursion.
+
+    .. math::
+       \alpha_{m+1/2} \;=\; \alpha_{m-1/2} \;-\; w_m\,\mu_m ,
+       \qquad \alpha_{1/2} = 0
+
+    in the ORPHEUS factor-of-2-absorbed normalization (Hébert 2009
+    §3.9.4 Eqs. 3.423-3.424 for the sphere; his cylinder is §3.9.3, where
+    the :math:`\eta_{p,q\pm1/2}` construction is credited to Alcouffe &
+    O'Dell 1986 — not local, not read).  The recursion itself traces to
+    Lathrop & Carlson, *J. Comp. Phys.* **1**:173 (1966) — likewise not
+    local, not read; cited by Reed & Lathrop 1970 (their ref. 7) as "a
+    requirement commonly invoked to define the α coefficients".
+
+    ⭐ **The recursion is strictly ONE-SIDED**: :math:`\alpha_{1/2} = 0` is
+    an axiom of the construction, but the closure at the far end,
+    :math:`\alpha_{M+1/2} = 0`, is **not** — it is a *consequence* of the
+    measure's antisymmetry, i.e. a genuine contract on every admitted
+    quadrature, and nothing here enforces it.  Callers that require a
+    physically admissible dome must run
+    :func:`_assert_alpha_dome_closes` on the result.
+
+    Parameters
+    ----------
+    cosines :
+        Shape ``(M,)`` — the marching direction cosine per ordinate,
+        **ordered by increasing cosine**: :math:`\mu` on the sphere, the
+        radial :math:`\eta` within one :math:`\mu`-level on the cylinder.
+    weights :
+        Shape ``(M,)`` — the matching quadrature weights (the level's
+        azimuthal share on the cylinder).
+
+    Returns
+    -------
+    np.ndarray
+        Shape ``(M+1,)``, the dome on the angular EDGES, with
+        ``alpha[0] == 0.0`` exactly.
+    """
+    cosines = np.asarray(cosines, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    alpha = np.zeros(cosines.size + 1)
+    for m in range(cosines.size):
+        alpha[m + 1] = alpha[m] - weights[m] * cosines[m]
+    return alpha
+
+
+#: Closure tolerance for :func:`_assert_alpha_dome_closes`.  `[M]` 2026-08-12
+#: the worst residual over the shipped rules is ``2.78e-16``
+#: (``folded_product(4, 32)``); Gauss--Legendre reads ``5.6e-17`` (N=4)
+#: … ``8.2e-17`` (N=64), i.e. ≈ 1 ULP of the dome peak and not drifting
+#: with N.  ``1e-12`` therefore clears every shipped rule by ~4 orders
+#: while still refusing any real antisymmetry violation.
+_ALPHA_CLOSURE_ATOL = 1e-12
+
+
+def _assert_alpha_dome_closes(
+    alpha: np.ndarray,
+    *,
+    coord: CoordSystem,
+    level: int | None = None,
+) -> None:
+    r"""The admission contract :math:`\alpha_{M+1/2} = 0`.
+
+    A dome that does not close means the measure's marching cosines are
+    not antisymmetric about the level's centre — a mis-ordered, truncated,
+    duplicated or simply inadmissible rule.  The consequence is not a
+    small error, and it is not local: the closure's coefficient
+    precompute reads :math:`\alpha_{M+1/2}` as the LAST entry of its
+    ``alpha_out`` slice, so it lands in **both** cell-balance
+    coefficients of the final ordinate —
+    ``c_out[M-1] = α_{M+1/2}/τ`` (a denominator term) and
+    ``c_in[M-1] = (1-τ)/τ·α_{M+1/2} + α_{M-1/2}`` (an
+    upstream-numerator term); see
+    :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`'s
+    ``_c_in_per_level`` / ``_c_out_per_level`` precompute.  A closing dome
+    makes that denominator term vanish — angular redistribution stops at
+    the level's top edge, which is the whole point of the edge.  A
+    non-zero value instead redistributes flux past it, into nothing.
+    Refuse it here.
+
+    ⛔ **This guard replaced a bare ``assert`` on 2026-08-12, and the
+    ``assert`` was INERT where it mattered.** The sphere arm carried
+    ``assert abs(alpha[N]) < 1e-12``; the cylinder arm carried nothing at
+    all.  The project's canonical runner is ``python -O -m pytest``
+    (``.claude/rules/vv-testing.md``), and ``-O`` sets ``__debug__ =
+    False`` and strips every ``assert`` statement — so on the one arm that
+    had a check, that check did not run in the canonical test suite.
+    `[M]` measured on the verbatim recursion: a measure closing at
+    ``alpha[N] = +0.2000`` is REFUSED under plain ``python`` and
+    **ACCEPTED** under ``python -O``.  A contract that a compiler flag can
+    remove is not a contract; this raises.
+
+    Sibling of
+    :func:`~orpheus.sn.sweep.pole_angular_closure._assert_tau_within_unit_interval`
+    — the same shape (an admission predicate on the angular scheme that
+    refuses upstream rather than absorbing downstream), for the same
+    reason.
+    """
+    residual = float(abs(alpha[-1]))
+    if not residual < _ALPHA_CLOSURE_ATOL:
+        where = "" if level is None else f" on level {level}"
+        raise ValueError(
+            f"the alpha dome does not close{where}: "
+            f"alpha[M+1/2] = {float(alpha[-1])!r}, which exceeds the "
+            f"{_ALPHA_CLOSURE_ATOL:g} admission tolerance for a "
+            f"{coord.name} rule. The recursion "
+            f"alpha_{{m+1/2}} = alpha_{{m-1/2}} - w_m*mu_m starts at "
+            f"alpha_1/2 = 0 and can only return there if the marching "
+            f"cosines are antisymmetric about the level's centre, so a "
+            f"non-zero endpoint certifies an inadmissible measure — "
+            f"mis-ordered, truncated, or duplicated ordinates upstream. "
+            f"alpha[M+1/2] multiplies the last ordinate's outflow "
+            f"half-face, so absorbing it here would leak flux out of the "
+            f"level's top edge. Fix the quadrature upstream."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Factory: slab
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -762,7 +904,6 @@ def spherical_streaming(
 
     mu = angular_measure.mu_x
     w = angular_measure.weights
-    N = angular_measure.N
 
     # Cell face areas: A_{i+1/2} = 4πr² at each edge — sourced from the
     # mesh, which routes through coord.compute_areas_1d().
@@ -771,19 +912,12 @@ def spherical_streaming(
     # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
     delta_A = face_areas[1:] - face_areas[:-1]
 
-    # Hébert (2009) §3.9.4 Eqs. 3.423-3.424 α-dome recursion (ORPHEUS
-    # factor-of-2-absorbed normalization):
-    # α_{n+1/2} = α_{n-1/2} − w_n μ_n
-    # For GL quadrature, this gives a non-negative dome closing to 0
-    # at α_{N+1/2} by GL antisymmetry.
-    alpha = np.zeros(N + 1)
-    for n in range(N):
-        alpha[n + 1] = alpha[n] - w[n] * mu[n]
-
-    # Verify GL antisymmetry: α_{N+1/2} ≈ 0
-    assert abs(alpha[N]) < 1e-12, (
-        f"GL antisymmetry violated: α_{{N+1/2}} = {alpha[N]:.2e}"
-    )
+    # The α-dome (:func:`alpha_dome`) — for GL this is a non-negative dome
+    # closing to 0 at α_{N+1/2} by GL antisymmetry.  The sphere is the
+    # single-level case of the cylinder's per-level dome; both arms run the
+    # ONE recursion, and both are held to the ONE contract.
+    alpha = alpha_dome(mu, w)
+    _assert_alpha_dome_closes(alpha, coord=CoordSystem.SPHERICAL)
 
     # ΔA_i / w_n — the geometry redistribution factor (nx, N).
     redist_dAw = delta_A[:, None] / w[None, :]
@@ -873,23 +1007,26 @@ def cylindrical_streaming(
     face_areas = mesh.areas  # (nx+1,)
     delta_A = face_areas[1:] - face_areas[:-1]
 
-    # Per-level azimuthal redistribution coefficients
-    # Per-level α-dome, cylindrical analog of Hébert §3.9.4 Eqs. 3.423-3.424
-    # (his cylinder is §3.9.3; he credits the η_{p,q±1/2} construction to
-    # Alcouffe & O'Dell 1986 — not local, not read).  The recursion itself
-    # traces to Lathrop & Carlson, J. Comp. Phys. 1:173 (1966) — likewise
-    # not local, not read; cited by Reed & Lathrop 1970 (their ref. 7) as
-    # "a requirement commonly invoked to define the α coefficients".
-    #     α_{m+1/2} = α_{m-1/2} − w_m · η_m
+    # Per-level azimuthal redistribution coefficients — the SAME
+    # :func:`alpha_dome` recursion the sphere runs, once per μ-level, on
+    # the level's radial cosine η and its azimuthal weight share.
     # Ordinates are ordered by increasing η within each level.
+    #
+    # ⭐ Each level is held to the closure contract INDIVIDUALLY (the arm
+    # carried no check at all until 2026-08-12 — see
+    # :func:`_assert_alpha_dome_closes`).  A per-level raise is what makes
+    # the failure locatable: a folded-product rule closes on every level
+    # or on none, but a level-symmetric rule can lose antisymmetry on one
+    # level alone, and a whole-measure check would only say "somewhere".
     alpha_per_level: list[np.ndarray] = []
-    for level_idx in angular_measure.level_indices:
-        eta = angular_measure.mu_x[level_idx]
-        w = angular_measure.weights[level_idx]
-        M = len(level_idx)
-        alpha = np.zeros(M + 1)
-        for m in range(M):
-            alpha[m + 1] = alpha[m] - w[m] * eta[m]
+    for p, level_idx in enumerate(angular_measure.level_indices):
+        alpha = alpha_dome(
+            angular_measure.mu_x[level_idx],
+            angular_measure.weights[level_idx],
+        )
+        _assert_alpha_dome_closes(
+            alpha, coord=CoordSystem.CYLINDRICAL, level=p,
+        )
         alpha_per_level.append(alpha)
 
     # Per-level ΔA_i / w_m — same factor structure as sphere, but the

@@ -161,6 +161,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.geometry import CoordSystem
+from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_dome
 from orpheus.sn.sweep.pole_angular_closure import (
     angular_cell_edges_per_level,
     morel_montry_tau_per_level,
@@ -208,12 +209,20 @@ def alpha_dome(mu: np.ndarray, w: np.ndarray) -> np.ndarray:
 
     Returns ``(M+1,)`` with :math:`\alpha_0 = 0` and, when P0 holds,
     :math:`\alpha_M \approx 0` — the dome closes.
+
+    ⭐ This is the analysis-facing name for the PRODUCTION recursion
+    (:func:`orpheus.geometry.reduced_operator.alpha_dome`), which both
+    curvilinear streaming factories run.  It was an independent third
+    spelling of the same arithmetic until 2026-08-12; nothing compared
+    the copies, so collapsing them demoted no gate.
+
+    ⚠ It deliberately does NOT carry the production ADMISSION contract
+    (``_assert_alpha_dome_closes``): this module's P0/P4 predicate ladder
+    exists precisely to characterise measures whose dome does **not**
+    close, and a guard welded into the recursion would make that
+    analysis unspellable.  Ask :func:`alpha_defect_beta` for the defect.
     """
-    mu = np.asarray(mu, dtype=float)
-    alpha = np.zeros(mu.size + 1)
-    for m in range(mu.size):
-        alpha[m + 1] = alpha[m] - w[m] * mu[m]
-    return alpha
+    return _production_alpha_dome(mu, w)
 
 
 def diffusion_limit_c(quad, geometry: str = "spherical") -> np.ndarray:
