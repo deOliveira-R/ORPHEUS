@@ -48,6 +48,38 @@ same object wearing a label. The decidable (grep-checkable) criterion: mint a ty
   at runtime is stringly-typed dispatch — `replace(obj, tag=Other)` type-checks and walks
   straight through the gate the type was minted to be.
 
+## A bare `assert` in `orpheus/` is not a contract — the canonical runner strips it
+
+`.claude/rules/vv-testing.md` makes **`python -O -m pytest`** canonical, and `-O` sets
+`__debug__ = False` and removes every `assert` statement at compile time. So a numerical or
+domain contract expressed as a bare `assert` in production **does not run in the suite that
+matters**, and the code ships accepting exactly the input the assert was written to refuse.
+
+- **The discriminator is what the assert is FOR**, and it is grep-checkable — run
+  `grep -n "^\s*assert " orpheus/` and sort the hits:
+  - **type-narrowing** (`assert x is not None` for pyright) — fine to strip; the failure
+    downstream is an immediate `AttributeError`, and the assert was never the guard.
+  - **a numerical / domain / admission contract** (a tolerance, an invariant, an
+    antisymmetry, a shape law) — **MUST be a real `raise`.** Model it on the nearest
+    existing admission guard so the vocabulary stays greppable
+    (`_assert_tau_within_unit_interval`, `_assert_alpha_dome_closes`).
+- **Prove it, don't argue it.** The demonstration is four lines: run the guard's own
+  arithmetic on a deliberately-bad input under plain `python` and under `python -O`. If the
+  second one returns instead of raising, the contract is inert.
+- ⚠ Corollary for the retirement audit: converting one costs a 3-search pass like any other
+  retirement, **and the shortest distinctive fragment of the old assert's message is what
+  tests pin** — grep that, not your new wording.
+
+> `[M]` 2026-08-12. `α_{M+1/2} = 0` is a genuine admission contract on every curvilinear
+> quadrature (it is a *consequence* of the measure's antisymmetry, not an axiom of the
+> one-sided Lathrop–Carlson recursion). It was enforced on the **sphere** by
+> `assert abs(alpha[N]) < 1e-12` and on the **cylinder** by nothing at all. Demonstrated on
+> the verbatim recursion: a measure closing at `alpha[N] = +0.2000` is REFUSED under plain
+> `python` and **ACCEPTED** under `python -O`. Fixed at `bea6a367` — but note the fix was
+> *not* "add a check to the cylinder arm": the recursion had **three** copies, which is
+> precisely why the contract could live on one arm only. Cardinal Rule 2 first, then the
+> guard.
+
 ## Retire as you go (aggressive retirement)
 
 Superseded code is **noise that obscures signal** — it makes the codebase harder to read,

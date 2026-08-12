@@ -1696,3 +1696,86 @@ the archivist's report would have cited a file that never landed.
 regenerated the V&V matrix and absorbed rows from the other agent's untracked
 tests, so committing the docs pass alone would have pinned a matrix referencing
 files git did not know about. **Regenerate once, after all parallel work lands.**
+
+---
+
+## L51 — An instrument has a TYPE: CONSTRAINT, RANKER, or DIAGNOSTIC. Using one as another is the error (2026-08-12)
+
+**Context.** The SN #235 angular-closure campaign had killed five τ instruments
+for blindness and needed a sixth. Two candidates arrived the same day and
+*both* were misclassified — in opposite directions — by people (me included)
+who had each verified the instrument was measuring *something* real.
+
+**The taxonomy, and it is the whole lesson:**
+
+| type | answers | may it rank designs? |
+|---|---|---|
+| **CONSTRAINT** | "does this scheme satisfy property P?" pass/fail | ⛔ never |
+| **RANKER** | "which of these schemes is more accurate?" ordering | ✅ that is its job |
+| **DIAGNOSTIC** | "how large is residual R?" a number | ⛔ never, until correlated |
+
+**The two founding misclassifications:**
+
+* `[M]` **#319's diffusion-limit flux-dip test was proposed as a RANKER; it is
+  a CONSTRAINT, and one *structurally biased toward the incumbent*.** The
+  diffusion limit's angular content is `span{1, μ}`, which is exactly the
+  closure's kernel — the barycentric τ is exact there *by construction*, so
+  the test scores the shipped scheme zero and every alternative positive, at
+  every order, on every material. It is a perfectly good pass/fail question and
+  can never order two schemes.
+* `[M]` **the endpoint defect `D` was proposed as a RANKER; it is a
+  DIAGNOSTIC.** Reference-free, pointwise, genuinely τ-loaded (ranks garbage
+  2.6–45× above production) — and **uncorrelated with accuracy**: Pearson r on
+  log = `+0.75 → +0.26 → +0.06` at `n_φ = 8/16/32` against an analytic MMS,
+  with 0/4 ranks agreeing at the two finer orders. "It moves when τ moves" is
+  necessary and nowhere near sufficient.
+
+**Why the two errors look identical from inside.** In both cases the
+instrument *is* sensitive to the parameter, the numbers *are* real, and the
+ordering *is* stable. What fails is the inference from "sensitive to τ" to
+"ranks τ by accuracy". Sensitivity is about the instrument; ranking is a claim
+about the world.
+
+⟹ **Declare the type BEFORE the first number, in the instrument's own
+docstring.** It costs one line, it is unfalsifiable-by-drift (unlike a
+tolerance), and it is the only thing standing between a constraint and a
+design decision built on it. Both promoted gates from this campaign now carry
+an explicit "what this CANNOT do" paragraph naming the type.
+
+Companion to `vv-principles` #24 (which supplies the four checks an instrument
+must pass to be a ranker at all) and to [[lessons-L49]] (reference-limited).
+
+---
+
+## L52 — A truncation-order statement about the EQUATION is not a ranking of solution ACCURACY (2026-08-12)
+
+**The failure, mine, and it survived three hours and one confident report.**
+Lathrop (2000) NSE 134 Eq. (30) proves that with `δ = 2τ−1` the curvilinear
+angular truncation is `O(δΔμ + Δμ²)`, so *"only with `μ_m = μ̄` (`δ = 0`) is the
+truncation order `O(Δμ²)`"* — every weighted diamond is first-order in angle.
+`[M]` our shipped τ has `(τ−½)/w` unbounded (`= M/4`), so it is squarely in the
+first-order class. I inferred: **therefore the shipped scheme is worse than
+plain diamond**, and reported it with a measured 8× to back it.
+
+⛔ **The inference is invalid, and the measurement that "confirmed" it came
+from a fixture in the scheme's own kernel.** On a fixture built to excite the
+closure, the shipped scheme **wins** by 34 % / 12 % at `n_φ = 16 / 32`.
+
+**Why the two are not the same claim.** A truncation order bounds the *local
+residual* the discrete equation leaves when the exact solution is substituted.
+Solution accuracy is that residual propagated through the operator's inverse
+and measured in some norm on some problem. Between them sit: the amplification
+of the inverse, the other error channels the scheme also controls (here, the
+diffusion limit), the norm, and the fixture. Any of the four can dominate, and
+in this case two did.
+
+⟹ **A published order statement is a hypothesis about accuracy, never a
+measurement of it.** Cite it to *predict*, then measure — and per
+`vv-principles` #24(d)/(e), measure on a fixture that is neither in the
+scheme's kernel nor outside the regime where its advantage lives.
+
+⚠ The generalisation that makes this worth a lesson rather than a footnote:
+the literature statement was **true**, the numerical measurement was
+**correct**, and the conclusion was still **false**. Two sound inputs, one
+invalid join. When a literature result and a measurement agree, check that
+they are about the same object before treating the agreement as corroboration.

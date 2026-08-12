@@ -59,6 +59,8 @@ surprises cost to hit.
 | 2026-08-11 | A step's acceptance test was titled "**The #229** azimuthal floor — today flat at `≈1.9e-2` … must fall and recover an order". `#229` had been **CLOSED for 2 months** (it is a measurement RECORD, not a work item), and `1.9e-2` was the **pre-6.3** fixture's number — the tree's own gate docstring already carried `3.538e-3` post-fold. Two independent staleness classes in one four-line item. | §9 |
 | 2026-08-11 | ⚠ **REPEAT of §2's quantifier clause, by its own author, the same day it was written.** A memo asserted "exactly one edge per level has no real position, **at every quadrature order**" from a probe over `n_φ = 8/16/32/64` — all EVEN `M`. `[M]` at odd `M` (`n_φ = 6/10/14/18`, all constructible) it is **0 of M+1**. The honest claim was "every rule with even M". Nothing new is absent; §2 already says write the denominator. | §2 (no new clause — the log row IS the measurement) |
 | 2026-08-12 | ⚠ **REPEAT of §4's sub-agent clause, amplified by RELAY.** A `qa` agent's measured `min ψ̂ = −77.2` was adopted without reading its configuration, then **passed into two further sub-agent briefs and two user-facing reports as a production property**. It was an inconsistent-seed probe; on the production value path ψ̂ is POSITIVE. §4 already says read a sub-agent's configuration — what it did not say is that relaying strips it. | §4 (the relay sharpening) |
+| 2026-08-12 | A plan's whole §4bis was built on `[M]` numbers that were **correct measurements of a fixture in the SUT's own kernel** — `psi_exact = A(r)+B(r)η` against a closure defined to be exact on `span{1,η}`. Every marker was honest; the fixture was the lie. The conclusion ("the shipped scheme is one order down, re-posing τ is live") was reported with confidence and retracted three hours later when a closure-*exciting* fixture inverted it. | no new plan-authoring clause — this is `vv-principles` #24(d)/(e), and the plan-side duty it implies (state the fixture's kernel and regime beside any `[M]` that ranks a design) is already covered by §4's "numbers carry their CONFIGURATION". The log row IS the measurement that the existing clause needs to be read more widely: *configuration* includes **what the fixture is blind to**, not only its settings. |
+| 2026-08-12 | Verifying a relayed claim, my own reproduction **failed** — and the failure was mine (starved solves, wrong analytic reference), not the claim's. Reporting it as a discrepancy would have impeached a correct 251-solve result. | §4 (the VERIFY sharpening) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -254,6 +256,28 @@ reader then treats it as established.
 One clause: *"`min ψ̂ = −77` — [M] `qa` probe, `folded_product(4,32)` level 0,
 `exp(−6cos ω)` field with a positive CONSTANT seed"* would have made the defect
 visible on sight, because "constant seed" is not what production does.
+
+⭐ **And the third move, after adopt and relay: VERIFY — where the trap is that
+your own check can fail for YOUR reasons.** A failed reproduction is not a
+refutation until you have diagnosed whose failure it is. Report it as
+*inconclusive*, and say what was wrong with your attempt; a bare "I could not
+reproduce it" impeaches a correct result and is itself an unmarked claim.
+
+> `[M]` 2026-08-12, #235 Phase 0. Checking a sub-agent's diffusion-limit
+> result, I built a quick sphere fixture and got **both schemes identical to 4
+> figures** — superficially a clean refutation of its headline. It was my
+> fixture that was broken, two ways: the solves were **starved** (SI's spectral
+> radius at `c = 0.9996` is ~`c`; the #340 machinery printed
+> `rho=0.999553 … needs about 61694 iterations` and I had budgeted 6 000), and
+> my analytic reference was wrong for the configuration (`φ_∞` does not hold at
+> `Σ_a·R = 0.08`, which is leakage-dominated). The agent's own run used
+> `max_inner = 400_000` and 251 solves that all reported `converged` AND
+> `fully_converged`. **The cheaper verification was of the ARTEFACT, not the
+> prose:** it had committed a runnable gate — 12 rows, 29 s, green.
+>
+> Mirror case, same session: a relayed "correction" said `refs.bib` carried the
+> wrong DOI for Bailey–Morel–Chang. One grep: the tree already had the right
+> one. **Verifying cost less than relaying would have.**
 
 > `[M]` 2026-08-12, Q5.6.4. `min ψ̂ = −77.2` was measured by a `qa` agent under
 > an **inconsistent seed**, adopted by the main agent as a property of the
