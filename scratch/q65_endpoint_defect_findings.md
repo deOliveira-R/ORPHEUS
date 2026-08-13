@@ -101,9 +101,26 @@ a constraint on the interior solution, not an equation for a free seed.
 ⟹ ⛔ **`D` must NOT be used to "correct" the seed.** There is no free
 parameter, and zeroing `D` would only force the marched endpoint onto the
 directly-marched one with no evidence the latter is the better of the
-two — the L49 reference-limited trap, one campaign step later. `D`'s role
+two — the L49 reference-limited trap, one campaign step later. ~~`D`'s role
 is **a-posteriori error indication**, and that is a structural conclusion,
-not a cautious one.
+not a cautious one.~~
+
+⛔ **THAT LAST SENTENCE IS REFUTED BY THIS MEMO'S OWN §F10** (annotated
+2026-08-13; struck rather than deleted, per plan-authoring §3). *A-posteriori
+error indicator* is the term of art for a computable quantity that **tracks
+the true error**, which is precisely what F10 measured `D` **not** to do
+(Pearson r on log = `+0.06` at n_φ=32, 0/4 ranks agreeing, correlation
+degrading monotonically under angular refinement). The refutation was already
+written into F10 and into "What this changes for the campaign" — it was never
+propagated back to the sentence that states the ROLE, which is the sentence a
+reader looking for the role will find first.
+
+⟹ The correct role statement, and it is structural: `D` is a **consistency
+residual between two discretizations of one point of phase space**. It must
+be `D = e₁ − e₂`, a DIFFERENCE of two truncation errors — hence small when
+both are large and equal, and hence not a bound, estimate, or ranking of
+either. Everything the over-determination argument above establishes is
+unaffected; only the name of what `D` is *for* was wrong.
 
 ## F4. The sign is systematic — and it is NOT a seed offset
 
@@ -456,12 +473,36 @@ scheme.
 
 ## Open / not done
 
+⚠ **This section is FORWARD-looking and therefore goes stale in the opposite
+direction from an errata section: it lists work that LATER sections of this
+same memo went on to do.** Annotated 2026-08-13; two of its four bullets were
+already false when the memo was committed.
+
 * `D` is not computed, named, or gated anywhere in production. Whether it
   should be a first-class named quantity is the open design question.
-* The vacuum-surface angular boundary layer (F6) is a real, unquantified
-  accuracy limiter at the outermost cell. Plausibly related to the #229
+  ✅ Still true (re-verified 2026-08-13).
+* ~~The vacuum-surface angular boundary layer (F6) is a real, unquantified
+  accuracy limiter at the outermost cell.~~ Plausibly related to the #229
   azimuthal-floor story; **not** established — no measurement links them.
-* Only the σ_y-folded **cylinder** was measured. The sphere arm has the
-  same two-endpoint structure and was not probed.
+  ⛔ **"accuracy limiter" OVERSTATES what F6 measured.** F6 measures
+  `L∞(D)`, and F10 measured `D` not to track accuracy — so what F6
+  establishes is that the *inconsistency* concentrates at, and fails to
+  converge on, the vacuum surface. The grazing-discontinuity MECHANISM is a
+  real accuracy mechanism and the reflective control is good evidence for
+  it, but "D concentrates here" ⟹ "error concentrates here" is exactly the
+  inference F10 forbids. Honest form: **an unconverged consistency defect
+  localised at the vacuum surface, with a plausible and controlled mechanism,
+  whose accuracy consequence is unmeasured.** Measuring it needs a reference,
+  i.e. a different instrument than `D`.
+* ~~Only the σ_y-folded **cylinder** was measured. The sphere arm has the
+  same two-endpoint structure and was not probed.~~
+  ⛔ **REFUTED BY THIS MEMO'S OWN F8/F8b**, which probed the sphere
+  extensively: `L2(D)` over N = 4…64 at nx = 12/48/96, the hot-cell
+  locations, and the `r/seed` parity table. The bullet was written before
+  F8 was appended and never revisited. What IS still cylinder-only is the
+  **τ ranking (F7)** and the **second-order L2 claim (F5)** — F8's own ⟹
+  says so explicitly. Do not read this bullet as "the sphere is unexplored";
+  read F8 and F8b.
 * `_carrying_levels`, `_tau_per_level` are private; a production
-  realization needs a public surface.
+  realization needs a public surface. ✅ Still true (25 hits, all internal;
+  re-verified 2026-08-13).

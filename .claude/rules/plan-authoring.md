@@ -61,6 +61,7 @@ surprises cost to hit.
 | 2026-08-12 | ⚠ **REPEAT of §4's sub-agent clause, amplified by RELAY.** A `qa` agent's measured `min ψ̂ = −77.2` was adopted without reading its configuration, then **passed into two further sub-agent briefs and two user-facing reports as a production property**. It was an inconsistent-seed probe; on the production value path ψ̂ is POSITIVE. §4 already says read a sub-agent's configuration — what it did not say is that relaying strips it. | §4 (the relay sharpening) |
 | 2026-08-12 | A plan's whole §4bis was built on `[M]` numbers that were **correct measurements of a fixture in the SUT's own kernel** — `psi_exact = A(r)+B(r)η` against a closure defined to be exact on `span{1,η}`. Every marker was honest; the fixture was the lie. The conclusion ("the shipped scheme is one order down, re-posing τ is live") was reported with confidence and retracted three hours later when a closure-*exciting* fixture inverted it. | no new plan-authoring clause — this is `vv-principles` #24(d)/(e), and the plan-side duty it implies (state the fixture's kernel and regime beside any `[M]` that ranks a design) is already covered by §4's "numbers carry their CONFIGURATION". The log row IS the measurement that the existing clause needs to be read more widely: *configuration* includes **what the fixture is blind to**, not only its settings. |
 | 2026-08-12 | Verifying a relayed claim, my own reproduction **failed** — and the failure was mine (starved solves, wrong analytic reference), not the claim's. Reporting it as a discrepancy would have impeached a correct 251-solve result. | §4 (the VERIFY sharpening) |
+| 2026-08-13 | A resume pointer reconciled against the TREE the day before (every `file:line` re-verified, §7.2 ritual run) still carried two present-tense-false claims — false against its own CITED MEMO, whose §F10 refuted the F3/F7 sections the pointer had been summarised from. §3 mandates the refuted text stay, so the memo held both versions with the false one first. | §3 (the read-the-END-first sharpening — the hazard §3 itself creates) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -229,6 +230,39 @@ learned. The falsified text plus its refutation is worth more than either alone.
 
 This is the plan-side twin of the `coding-standards` retirement rule: past-tense
 history stays, present-tense falsehood is a MUST-FIX.
+
+⭐ **And the hazard THIS RULE ITSELF CREATES: a document that honours §3 contains
+both the false claim and its refutation, and the false claim comes FIRST.** A
+memo written over one session refutes its own earlier sections as the
+investigation turns; by §3 those sections stay. So the document is lossless and
+*unsafe to read partially* — and the partial read is the normal one, because a
+summariser reads top-down until they have enough.
+
+⟹ **When a pointer SUMMARISES a document, reconcile it against that document's
+LAST section first.** The errata live at the end, structurally: a refutation
+cannot precede what it refutes. Grep the document for `⛔`/`REFUTED`/`~~` before
+writing one line of summary, and treat any section that carries such a banner as
+the authority over every earlier section it names.
+
+⚠ This is the gap §7 does not cover, and it is not covered by §1's grep either.
+Both of those are **TREE** checks — hashes, symbols, deliverables, file:line. A
+pointer can pass every one of them and still be false against the *memo* it
+cites, because nothing in the tree knows what the memo concluded.
+
+> `[M]` 2026-08-13, task #67. The task was reconciled against the tree the day
+> before: every `file:line` re-verified, the green baseline restated, the
+> §7.2 ritual run. It still asserted *"`D` is the campaign's FIRST reference-free
+> τ-loaded instrument … this **REVERSES** memo 9bis.8c"* and *"`D`'s role is
+> **a-posteriori error indication**"*. Its own cited memo refutes both: §F10
+> measured `D` against an analytic MMS (Pearson r on log `+0.75 → +0.26 →
+> +0.06` over n_φ 8/16/32, **0 of 4** ranks agreeing at 16 and 32) and the
+> memo's closing section says verbatim *"§9bis.8c stands unchanged."* The task
+> had been summarised from F3 and F7 — the memo's middle — and F10 is its end.
+> Sharpest detail: *a-posteriori error indicator* is the term of art for a
+> quantity that **tracks the true error**, i.e. the summary named `D` by exactly
+> the property the memo had measured it not to have. Cost: none, because the
+> design had not started — but the next step was "build machinery for the
+> campaign's first reference-free τ ranker", which is not a thing that exists.
 
 ## 4. Numbers carry their CONFIGURATION
 
