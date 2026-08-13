@@ -236,6 +236,18 @@ class TestRecurrenceFormula:
 
     pytestmark = pytest.mark.verifies("pole-mm-recurrence")
 
+    # ⚠ This class verifies the RECURRENCE STEP — the equation's SECOND line.
+    # Its rows pass no seed, so they exercise the kernel's zero DEFAULT, which
+    # is NOT what the equation's first line states (φ_{1/2} = ψ_{1/2}, the
+    # marched starting-direction flux). The first line is verified by
+    # :class:`TestSeedContract`, which carries the same ``verifies`` marker for
+    # exactly that reason. Neither class covers the label alone.
+    #   ⛔ Until 2026-08-13 this was the SOLE holder of the marker, while
+    #   :eq:`pole-mm-recurrence` still read ``φ_{1/2} = 0`` — so the V&V matrix
+    #   reported the equation covered by rows asserting the kernel default,
+    #   and the equation agreed with them and disagreed with production.
+    #   Correcting the equation is what exposed the split.
+
     @pytest.mark.l0
     def test_recurrence_at_tau_half_zero_seed(self) -> None:
         """At τ=1/2 (Hébert canonical) the recurrence is pure DD:
@@ -245,7 +257,8 @@ class TestRecurrenceFormula:
         psi_level = rng.random((ng, M, nx))
         tau_level = np.full(M, 0.5)
         psi_half = compute_psi_half_per_level(psi_level, tau_level)
-        # Zero seed: φ_{1/2} = 0.
+        # The kernel's zero DEFAULT (no seed passed) — an API contract, not the
+        # scheme's seed. Production always passes the marched ψ_{1/2}.
         assert np.array_equal(psi_half.faces[:, 0, :], np.zeros((ng, nx)))
         # Verify pure-DD recurrence φ_{m+1/2} = 2φ_m − φ_{m-1/2}.
         for m in range(M):
@@ -255,8 +268,16 @@ class TestRecurrenceFormula:
     @pytest.mark.l0
     @pytest.mark.parametrize("tau_value", [0.5, 0.6, 0.75, 0.9, 1.0])
     def test_recurrence_at_arbitrary_tau(self, tau_value: float) -> None:
-        """For any τ ∈ [1/2, 1] the M-M weighted DD recurrence
-        holds: ``ψ_{m+1/2} = (ψ_m − (1−τ)·ψ_{m-1/2})/τ``."""
+        """For any τ the M-M weighted DD recurrence holds:
+        ``ψ_{m+1/2} = (ψ_m − (1−τ)·ψ_{m-1/2})/τ``.
+
+        ⛔ This docstring read "For any **τ ∈ [1/2, 1]**" until 2026-08-13.
+        The admissible range is ``[0, 1]``: the cylinder's ``[½, 1]`` absorber
+        was RETIRED at Q5.6.4 and ``½`` is not a lower bound and never was
+        (both arms run the derived weight unclamped).  The rows below happen
+        to sample ``[½, 1]``, which is why the stale bound looked like the
+        contract — the recurrence identity holds for every admissible ``τ``.
+        """
         ng, M, nx = 2, 6, 12
         rng = np.random.default_rng(seed=2)
         psi_level = rng.random((ng, M, nx))
@@ -277,10 +298,30 @@ class TestRecurrenceFormula:
 
 
 class TestSeedContract:
-    """The ``psi_half_seed`` parameter switches between the Phase B
-    zero seed (when ``None``) and an explicit ``(ng, nx)`` seed array
+    r"""The ``psi_half_seed`` parameter switches between the kernel's zero
+    DEFAULT (when ``None``) and an explicit ``(ng, nx)`` seed array
     (#282 route (a): the strategy indirection is retired — the seed is
-    the raw array)."""
+    the raw array).
+
+    ⭐ This class verifies the **first line** of :eq:`pole-mm-recurrence`,
+    :math:`\phi_{1/2,i,g} = \psi_{1/2,i,g}` — that the grid's leading face IS
+    the seed it is handed, which is the kernel half of that claim.  The
+    production half (that the seed is the *marched* starting-direction flux
+    rather than anything read off the iterate) is #282 route (a), gated under
+    ``curvilinear/test_282_direct_seed_fixed_point.py``.
+    :class:`TestRecurrenceFormula` verifies the equation's SECOND line, and
+    carries the same marker; see the note there for why neither class covers
+    the label alone.
+
+    ⚠ "the Phase B zero seed" is what this docstring said until 2026-08-13.
+    Accurate as history, misleading as an API description: the ``None`` branch
+    is a *kernel default* for ψ-independent coefficient use, not the scheme's
+    seed.  Phase B's zero WAS the scheme's seed, and that is the ERR-026
+    term-initialisation bug — so naming the live default after it invites
+    reading a retired bug as the current contract.
+    """
+
+    pytestmark = pytest.mark.verifies("pole-mm-recurrence")
 
     @pytest.mark.l0
     def test_none_seed_gives_zero_seed(self) -> None:
