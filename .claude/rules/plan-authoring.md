@@ -61,6 +61,7 @@ surprises cost to hit.
 | 2026-08-12 | ⚠ **REPEAT of §4's sub-agent clause, amplified by RELAY.** A `qa` agent's measured `min ψ̂ = −77.2` was adopted without reading its configuration, then **passed into two further sub-agent briefs and two user-facing reports as a production property**. It was an inconsistent-seed probe; on the production value path ψ̂ is POSITIVE. §4 already says read a sub-agent's configuration — what it did not say is that relaying strips it. | §4 (the relay sharpening) |
 | 2026-08-12 | A plan's whole §4bis was built on `[M]` numbers that were **correct measurements of a fixture in the SUT's own kernel** — `psi_exact = A(r)+B(r)η` against a closure defined to be exact on `span{1,η}`. Every marker was honest; the fixture was the lie. The conclusion ("the shipped scheme is one order down, re-posing τ is live") was reported with confidence and retracted three hours later when a closure-*exciting* fixture inverted it. | no new plan-authoring clause — this is `vv-principles` #24(d)/(e), and the plan-side duty it implies (state the fixture's kernel and regime beside any `[M]` that ranks a design) is already covered by §4's "numbers carry their CONFIGURATION". The log row IS the measurement that the existing clause needs to be read more widely: *configuration* includes **what the fixture is blind to**, not only its settings. |
 | 2026-08-12 | Verifying a relayed claim, my own reproduction **failed** — and the failure was mine (starved solves, wrong analytic reference), not the claim's. Reporting it as a discrepancy would have impeached a correct 251-solve result. | §4 (the VERIFY sharpening) |
+| 2026-08-13 | A permanent ⛔ banner ("swap to **the fiber ordering** ⟹ NaN", true of ω-PRIMARY ordering) would have read as condemning a change that landed 3 days later keeping η primary and using the fiber only as a TIE-BREAK — `[M]` bit-identical on 13 configs. One name, two designs, one refuted; §3 guarantees the refutation survives to be misread. | §3 (the AMBIGUOUS-NAME sharpening) |
 | 2026-08-13 | A resume pointer reconciled against the TREE the day before (every `file:line` re-verified, §7.2 ritual run) still carried two present-tense-false claims — false against its own CITED MEMO, whose §F10 refuted the F3/F7 sections the pointer had been summarised from. §3 mandates the refuted text stay, so the memo held both versions with the false one first. | §3 (the read-the-END-first sharpening — the hazard §3 itself creates) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
@@ -248,6 +249,32 @@ the authority over every earlier section it names.
 Both of those are **TREE** checks — hashes, symbols, deliverables, file:line. A
 pointer can pass every one of them and still be false against the *memo* it
 cites, because nothing in the tree knows what the memo concluded.
+
+⭐ **The second hazard §3 creates: a refutation attached to an AMBIGUOUS NAME
+refutes more than it measured.** The clause above is about position (errata sit
+at the end); this is about reference. §3 says the falsified text STAYS — so a
+campaign accumulates permanent banners of the form "⛔ X was tried; it NaNs". If
+a later, *different* design shares X's name, that banner now reads as condemning
+the design that shipped, and the next session either re-derives a landed decision
+or backs it out.
+
+⟹ **When a refuted design and a live one share a name, disambiguate at the
+BANNER, not at the new work.** The banner is what gets read; the new work is what
+has to be discovered. Name the discriminating property in both, and prefer
+naming it by the property rather than by the family ("ordered BY the fiber" vs
+"η-ordered, ties broken by the fiber", not "the old fiber ordering" vs "the new
+fiber ordering" — *old/new* rots the moment there is a third).
+
+> `[M]` 2026-08-13, quadrature campaign. A memory banner read *"a prior version
+> said NEXT = #326: swap `level_indices` to **the fiber ordering** … BOTH HALVES
+> ARE FALSE … `[M]` that swap makes the cylindrical solve produce NaN"*. True,
+> and about **ω-primary** ordering: the march needs η monotone along a level and
+> the fiber order's η sequence is a dome. Three days later a change landed that
+> keeps η **primary** and uses the fiber coordinate only to break η's ties —
+> `[M]` bit-identical on 13 configurations. Same three words, opposite verdicts,
+> and the refuted one is the one wearing the ⛔ that a summariser will carry
+> forward. Caught while writing the close-out, before the banner had misled
+> anything; the fix was one paragraph naming the discriminator.
 
 > `[M]` 2026-08-13, task #67. The task was reconciled against the tree the day
 > before: every `file:line` re-verified, the green baseline restated, the
