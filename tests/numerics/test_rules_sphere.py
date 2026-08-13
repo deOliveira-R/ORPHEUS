@@ -378,9 +378,21 @@ def test_fiber_coordinate_is_injective_on_every_level(
 ) -> None:
     """``(hemisphere, azimuth)`` separates the ordinates of a level.
 
-    On a FULL rule this is the property the stored ``level_indices``
-    key does NOT have: ``eta = sin(theta) cos(phi)`` is even in
-    ``phi``, hence 2-to-1 on the fiber — the mechanism behind #326.
+    ``eta = sin(theta) cos(phi)`` is even in ``phi``, hence 2-to-1 on the
+    fiber of a FULL rule — the mechanism behind #326. This pair is what
+    ``eta`` alone is not: injective, on every level, under either polar
+    invariant.
+
+    Since 2026-08-13 that is not merely a *available* coordinate but the
+    ORDERING CONTRACT: ``LevelStructure.from_level_membership`` keys the
+    stored order on ``(eta, azimuth, hemisphere)`` and REFUSES a level on
+    which the triple repeats, so this test is the positive leg of that
+    contract over the shipped producers (negative leg:
+    ``test_from_level_membership_REFUSES_a_level_with_no_order``).
+    Before that, the stored key was ``eta`` alone and this property was
+    an unused affordance — which is exactly how the two producers came
+    to break the resulting ties two different ways.
+
     Injectivity is a property of the coordinate PAIR, not of any
     ordering, so the members are enumerated through the stored order
     (the ``fiber()`` accessor that once enumerated them here retired
@@ -398,12 +410,17 @@ def test_fiber_coordinate_is_injective_on_every_level(
 
 @pytest.mark.foundation
 def test_projection_order_is_2_to_1_where_the_fiber_coordinate_is_not() -> None:
-    """The measurement that makes the previous test's point concrete."""
+    """The measurement that makes the previous test's point concrete.
+
+    This is why the ordering key cannot be :math:`\\eta` alone — stated
+    as a property of :math:`\\eta`, not of the stored order, which since
+    2026-08-13 is keyed on the full triple.
+    """
     m, s = product_mu_phi(n_mu=2, n_phi=8)
     members = s.level_indices[0]
     eta = m.nodes[members, 0]
 
-    # The stored key collapses 8 ordinates onto 5 values...
+    # eta collapses 8 ordinates onto 5 values...
     assert len(np.unique(np.round(eta, 12))) < len(members)
     # ...and cannot recover the sign of xi, which the sweep needs.
     xi_signs = np.sign(m.nodes[members, 1])
@@ -411,6 +428,123 @@ def test_projection_order_is_2_to_1_where_the_fiber_coordinate_is_not() -> None:
 
     # The fiber coordinate keeps all 8 apart.
     assert len(np.unique(s.azimuth[members])) == len(members)
+
+
+@pytest.mark.foundation
+def test_from_level_membership_REFUSES_a_level_with_no_order() -> None:
+    r"""The negative leg: a degenerate fiber key is refused, not sorted.
+
+    ``from_level_membership`` promises that the stored order is a
+    property of the RULE — no sort algorithm contributes. That promise is
+    exactly co-extensive with the key being injective, so a level on
+    which it repeats has no order the rule determines, and tolerating it
+    would silently reinstate the accident the constructor exists to
+    remove (``np.lexsort`` is stable, so the fallback would be
+    *construction* order — plausible, undocumented, and a different
+    answer for a differently-built rule).
+
+    The fixture is the ERR-073 shape: a bit-identical duplicated node,
+    which is the realistic way a rule acquires a repeated fiber point.
+    No tolerance games — the duplicate is a bit-copy.
+    """
+    m, s = level_symmetric_sn(4)
+    nodes, azimuth, hemisphere = m.nodes, s.azimuth, s.hemisphere
+
+    # Positive control FIRST: the honest membership is accepted, so a
+    # RED below cannot be "the call signature is wrong".
+    honest = [np.sort(np.asarray(lvl)) for lvl in s.level_indices]
+    rebuilt = LevelStructure.from_level_membership(
+        honest,
+        nodes=nodes,
+        level_mu=s.level_mu,
+        polar_invariant=s.polar_invariant,
+        azimuth=azimuth,
+        hemisphere=hemisphere,
+    )
+    for got, exp in zip(rebuilt.level_indices, s.level_indices, strict=True):
+        np.testing.assert_array_equal(got, exp)
+
+    # Now duplicate one ordinate of level 0 INTO that same level.
+    victim = int(honest[0][0])
+    dup_nodes = np.vstack([nodes, nodes[victim]])
+    dup_azimuth = np.append(azimuth, azimuth[victim])
+    dup_hemisphere = np.append(hemisphere, hemisphere[victim])
+    poisoned = [np.append(honest[0], len(nodes)), *honest[1:]]
+
+    with pytest.raises(ValueError, match="fiber key is not injective"):
+        LevelStructure.from_level_membership(
+            poisoned,
+            nodes=dup_nodes,
+            level_mu=s.level_mu,
+            polar_invariant=s.polar_invariant,
+            azimuth=dup_azimuth,
+            hemisphere=dup_hemisphere,
+        )
+
+
+@pytest.mark.foundation
+def test_the_azimuth_component_of_the_key_is_LOAD_BEARING_not_decorative() -> None:
+    r"""What would change if :math:`\varphi` were dropped from the key.
+
+    Per ``vv-principles`` #19, the positive reading of an ordering gate
+    carries no information about whether the order is *keyed* on what it
+    claims: a blind gate reads identically. So this is the negative leg,
+    and its answer is **asymmetric between the producers** — which is the
+    honest reason the ``level_symmetric`` side is where the convention is
+    gated at all.
+
+    ``np.lexsort`` is itself STABLE, so dropping a key component does not
+    fall back to an arbitrary order — it falls back to CONSTRUCTION
+    order. On ``product_mu_phi`` the construction order within an
+    :math:`\eta`-tie already IS increasing :math:`\varphi` (the
+    ``for m in range(n_phi)`` loop), so on that producer every component
+    of the key is unobservable: `[M]` dropping :math:`\varphi`, dropping
+    :math:`\operatorname{sign}\mu_z`, or dropping both leaves the stored
+    order bit-identical at ``product(4,8)``, ``(4,24)``, ``(6,32)`` and
+    at ``folded_product(4,16)``, ``(4,32)``. The key there is a written
+    statement of what construction already gives — worth writing down,
+    but it cannot be gated by consequence.
+
+    On ``level_symmetric_sn`` it can: the sign-replication nests
+    ``s_xi`` outside ``s_mu``, so construction order within an
+    :math:`\eta`-tie runs :math:`\varphi` DESCENDING, and dropping
+    :math:`\varphi` moves every level. That is what this asserts.
+
+    ⚠ The :math:`\operatorname{sign}\mu_z` component behaves differently
+    again, and the distinction is worth carrying because it looks like
+    dead weight. Removing it *from the ordering key alone* is
+    unobservable on BOTH producers (`[M]` S4/S8/S12 and product/folded
+    all bit-identical), for the same construction-order reason: within an
+    :math:`(\eta, \varphi)` tie the two hemispheres are consecutive
+    construction indices in ascending order. So it buys no different
+    ANSWER — it buys the CONTRACT, by making the key injective.
+
+    That is not a soft claim: removing it *everywhere* (key and
+    injectivity check together, the honest way one would "simplify" it)
+    makes ``from_level_membership`` **refuse every level-symmetric rule
+    at every order** — `[M]` S2/S4/S6/S8/S12 all raise "not injective on
+    level 0", ~60 reds across this module and
+    ``test_level_symmetric_nodes.py``, while ``product_mu_phi`` still
+    builds (inert there, as above). The component is therefore not
+    droppable, and the thing that stops it is
+    ``test_from_level_membership_REFUSES_a_level_with_no_order``, not
+    this test.
+    """
+    m, s = level_symmetric_sn(8)
+    # azimuth deliberately NOT bound: dropping it is the mutation.
+    eta, hemi = m.nodes[:, 0], s.hemisphere
+
+    moved = 0
+    for lvl in s.level_indices:
+        base = np.sort(np.asarray(lvl))
+        eta_and_hemi_only = base[np.lexsort((hemi[base], eta[base]))]
+        if not np.array_equal(np.asarray(lvl), eta_and_hemi_only):
+            moved += 1
+    assert moved == s.n_levels, (
+        f"dropping the azimuth key changed only {moved} of {s.n_levels} "
+        f"levels — if this is 0 the key has stopped being observable and "
+        f"this gate has stopped being a gate"
+    )
 
 
 # ---------------------------------------------------------------------------

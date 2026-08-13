@@ -475,7 +475,7 @@ def spherical_product(
     mu_y = np.empty(n_total)
     mu_z = np.empty(n_total)
     weights = np.empty(n_total)
-    level_indices: list[np.ndarray] = []
+    level_membership: list[np.ndarray] = []
 
     idx = 0
     for p in range(n_mu):
@@ -489,27 +489,31 @@ def spherical_product(
             weights[idx] = w_gl[p] * w_phi[m]
             level_idx.append(idx)
             idx += 1
-        # Sort by increasing η (mu_x) for cylindrical sweep convention.
+        # MEMBERSHIP ONLY — the ordering belongs to the fiber, and
+        # `LevelStructure.from_level_membership` owns it.
         #
-        # `kind="stable"` is load-bearing, and became so the moment the
-        # azimuths turned exact. η = sinθ·cos φ, and `cos φ_m = cos
-        # φ_{n_φ−m}` holds BIT-exactly for roots of unity — so a level's
-        # η values come in genuine ties, `[M]` only ⌊n_φ/2⌋+1 distinct
-        # values among n_φ ordinates (5 of 8 at n_φ=8). Under the
-        # `linspace`+`cos` azimuths this rule used until 2026-08-02,
-        # round-off manufactured 8 fake distinctions and the sort never
-        # saw a tie.
+        # η = sinθ·cos φ, and `cos φ_m = cos φ_{n_φ−m}` holds BIT-exactly
+        # for roots of unity, so a level's η values come in genuine
+        # ties: `[M]` only ⌊n_φ/2⌋+1 distinct values among n_φ ordinates
+        # (5 of 8 at n_φ=8). Under the `linspace`+`cos` azimuths this
+        # rule used until 2026-08-02, round-off manufactured 8 fake
+        # distinctions and the sort never saw a tie. This is the
+        # 2-to-1-ness the `LevelStructure.level_indices` warning names
+        # ("an ordering of the circle modulo the mirror") made literal.
         #
-        # This is the 2-to-1-ness the `LevelStructure.level_indices`
-        # warning names ("an ordering of the circle modulo the mirror")
-        # made literal. With real ties the tie-break must be NAMED
-        # rather than left to the sort algorithm: stable keeps the
-        # construction order, i.e. increasing φ within an η-tie. On a
-        # FOLDED level (one arc) the ties are gone and the key is
-        # injective — the T22b theorem the accessor merge rests on.
-        level_arr = np.array(level_idx)
-        order = np.argsort(mu_x[level_arr], kind="stable")
-        level_indices.append(level_arr[order])
+        # Until 2026-08-13 this loop closed with
+        # `np.argsort(mu_x[level_arr], kind="stable")`, and the comment
+        # here argued that `kind="stable"` was load-bearing. It was — as
+        # a REPAIR. Stable keeps the construction order, i.e. increasing
+        # φ within an η-tie, which is precisely the fiber key with the φ
+        # component left implicit in the loop nesting instead of written
+        # down. Naming φ retires the repair: the key is injective, so no
+        # tie survives for any algorithm to break. `[M]` the re-route is
+        # bit-identical on 8 product configurations (n_μ ∈ {2,3,4,5,6},
+        # n_φ ∈ {6,8,10,16,24,32}) and on 5 folded ones — on a FOLDED
+        # level η is injective by itself (the T22b theorem the accessor
+        # merge rests on), so the fold never saw the tie-break either.
+        level_membership.append(np.array(level_idx))
 
     nodes = np.column_stack([mu_x, mu_y, mu_z])  # (N, 3)
     measure = DiscreteMeasure(
@@ -525,9 +529,9 @@ def spherical_product(
         # states what a polar × azimuthal embedding into S^2 is exact on.
         exactness=claim,
     )
-    structure = LevelStructure(
-        n_levels=n_mu,
-        level_indices=level_indices,
+    structure = LevelStructure.from_level_membership(
+        level_membership,
+        nodes=nodes,
         level_mu=mu_gl,
         # SIGNED: each polar node is its own level, so the levels run
         # over all of [-1, 1] and a level's fiber is ONE circle. The

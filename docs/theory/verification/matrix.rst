@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9669**
+Total tests collected: **9671**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1620, 16.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6670, 69.0%
+   foundation, 6672, 69.0%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9585
+   explicit, 9587
    class-name, 46
    func-name, 0
    case, 33
@@ -359,7 +359,7 @@ Module × level grid
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 38, 0
-   numerics/test_rules_sphere, 0, 7, 0, 0, 65, 0
+   numerics/test_rules_sphere, 0, 7, 0, 0, 67, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
@@ -638,6 +638,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
    ``p-transpose-flux-balance``, 9
+   ``pole-mm-recurrence``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
@@ -670,7 +671,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``peierls-greens-slab-T``, 6
-   ``pole-mm-recurrence``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5

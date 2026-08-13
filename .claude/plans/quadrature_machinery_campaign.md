@@ -3782,6 +3782,35 @@ implemented and **no `D_6h`-invariant rule in tree**.
   and for the non-vacuous replacement (the #229 azimuthal floor).
   ⟹ #326 is now **subsumed by Q5** (the fold), not a separate item: it dissolves
   when a level becomes a single arc. See §5's Q5 block for the design of record.
+
+  ✅ **CLOSED-OUT 2026-08-13 — and T22 had a missing half nobody had noticed.**
+  T22's "every η-ascending ordering is bit-identical" was measured on the
+  PRODUCT producer only: `[M]` `tests/sn/_test_helpers.product_level_ordering`
+  builds its own GL×trapezoid rule with `PolarInvariant.SIGNED_MU_Z`, and
+  **there was no LS-side ordering harness anywhere in the tree.** The LS-side
+  analogue now exists and AGREES — the per-level `(η, w)` sequence is
+  bit-identical under any η-ascending re-order, because within an η-tie the
+  weights are equal (one `O_h` orbit ⟹ one `w_dir`), so α/τ/cell-edges are
+  bit-invariant (`[M]` `max|Δα| = 0.000e+00`) and only the slot→ordinate LABEL
+  map moves.
+
+  The remaining item (the LS bare `argsort`) was resolved **not** by the
+  campaign's recorded plan of "name the tie-break" but by removing the need for
+  one: `LevelStructure.from_level_membership` keys the order on the fiber's own
+  coordinate `(η, φ, sign μ_z)` — which the type had shipped and documented as
+  injective since Q4 without ever ordering by it — and REFUSES a level where the
+  key repeats. Both producers now hand over a partition; `kind="stable"` is gone
+  from the product side rather than added to the sphere side. `[M]` bit-identical
+  on 8 product + 5 folded configs; LS moves at every order; blast radius **1 red
+  / 3385 green**, the one frozen literal, whose seed-independence claim was
+  re-earned (nodes move under the pre-#337 seed, level structure does not).
+
+  ⚠ Cost, recorded because it is invisible otherwise: this **DEMOTED**
+  `test_e4_the_level_order_tie_break_is_NAMED_not_round_off`. `np.lexsort` is
+  stable, so dropping a key component falls back to construction order — which
+  on the product producer already IS increasing φ, so `[M]` no in-class key
+  mutation can redden it. The φ convention is now gated on the LS side, where
+  dropping φ moves every level. Last bare `argsort` on a level → **#361**.
 - **The boundary campaign** (B3.3, B3.5, B4–B7) — resumes after Q7.
 
 ### ⚠ Two claims that must NOT be inherited

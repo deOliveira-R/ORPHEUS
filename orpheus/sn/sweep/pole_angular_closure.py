@@ -1578,6 +1578,19 @@ class MorelMontryAngularSweep(
         Degenerate single-direction levels return ``(m0, m0, 0.0)``.
         """
         mu = self._mu_x[np.asarray(self.level_indices[level_idx_p])]
+        # ⚠ #361 — the LAST bare `argsort` on a level in `orpheus/`, and
+        # it re-derives an ordering the producer already made: since the
+        # 2026-08-13 fiber-key carve `level_indices` is eta-primary, so
+        # `mu` arrives non-decreasing here. `[M]` `order[0] == 0` on
+        # every shipped rule (so `m0` is right), but argsort is NOT the
+        # identity on tied levels — it permutes within tied blocks, so
+        # `m1` below is an arbitrary member of the next eta-group, and
+        # m0/m1 index FLUX SLOTS. Not fixed with the carve because the
+        # SPHERE arm passes `level_indices = (arange(N),)` (genuinely
+        # unsorted), where the sort IS load-bearing; the fix needs the
+        # trivial level's semantics decided with #336, and reachability
+        # established first (this path may be dead on the cylinder arm,
+        # in which case the answer is retirement, not repair).
         order = np.argsort(mu)
         m0 = int(order[0])
         for cand in order[1:]:

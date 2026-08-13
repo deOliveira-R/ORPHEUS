@@ -285,16 +285,41 @@ def test_e4_the_level_order_tie_break_is_NAMED_not_round_off(
     rule used until 2026-08-02, round-off manufactured :math:`n_\varphi`
     fake distinctions and the intra-pair order was decided by noise.
 
-    The tie-break is now *stable*, i.e. increasing :math:`\varphi` within
-    an η-tie — which this asserts by index, so it cannot silently revert
-    to whatever the sort algorithm happens to do.
+    The order is increasing :math:`\varphi` within an η-tie, which this
+    asserts by index.
 
-    ⚠ ``n_phi >= 24`` is load-bearing in the parameterisation, and the
-    first draft of this test did not have it. `[M]` numpy's default
-    (unstable) ``argsort`` AGREES with ``kind="stable"`` at
-    :math:`n_\varphi \in \{4, 8, 12\}` — small arrays fall to insertion
-    sort — so at those sizes alone the gate passes with the tie-break
-    removed and asserts nothing. It first diverges at 24.
+    ⛔ **This gate was DEMOTED on 2026-08-13 and the demotion is
+    correct** — read before crediting it with more than it has. It was
+    written against ``kind="stable"``, and it had real teeth: `[M]`
+    numpy's default (unstable) ``argsort`` AGREES with stable at
+    :math:`n_\varphi \in \{4, 8, 12\}` (small arrays fall to insertion
+    sort) and first DIVERGES at 24, which is why ``n_phi >= 24`` is in
+    the parameterisation and why the first draft of this test, without
+    it, asserted nothing. There is now no ``kind=`` to remove: the
+    producer routes through
+    :meth:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure.from_level_membership`,
+    whose key :math:`(\eta, \varphi, \operatorname{sign}\mu_z)` is
+    injective, so no tie survives for any algorithm to break.
+
+    The cost of that fix is this gate's teeth, and it is unavoidable
+    rather than an oversight: ``np.lexsort`` is itself stable, so
+    dropping a key component falls back to CONSTRUCTION order — and on
+    this producer construction order within an η-tie already IS
+    increasing :math:`\varphi` (the ``for m in range(n_phi)`` loop). So
+    the order here is now over-determined three ways and `[M]` NO
+    in-class mutation of the key can redden this: dropping
+    :math:`\varphi`, dropping :math:`\operatorname{sign}\mu_z`, or
+    dropping both leaves the stored order bit-identical at
+    ``product(4,8)``, ``(4,24)``, ``(6,32)``, ``folded(4,16)``,
+    ``(4,32)``.
+
+    What it still tests, and what nothing else does: that **the ties are
+    REAL** (the ``unique`` count — a claim about the rule's exact
+    azimuths, which would fail again under a ``linspace``+``cos``
+    regression) and that the level is η-sorted. The φ CONVENTION is
+    gated where it is observable, on the other producer:
+    ``tests/numerics/test_rules_sphere.py::
+    test_the_azimuth_component_of_the_key_is_LOAD_BEARING_not_decorative``.
     """
     _, structure = product_mu_phi(2, n_phi)
     level = structure.level_indices[0]

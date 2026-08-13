@@ -42,6 +42,7 @@ References
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from enum import Enum
 from functools import lru_cache
@@ -169,14 +170,28 @@ class LevelStructure:
         product-quadrature variant).
     level_indices : list[np.ndarray]
         For each level :math:`p`, the indices into the flattened node
-        array of ordinates on that level, sorted by increasing
-        :math:`\eta = \mu_x` (the radial cosine — the cylindrical
-        sweep convention from Bailey et al. 2009 Eq. 50).
+        array of ordinates on that level, ordered by the **fiber's own
+        coordinate**: primarily by increasing :math:`\eta = \mu_x` (the
+        radial cosine — the cylindrical sweep convention from Bailey
+        et al. 2009 Eq. 50), ties broken by increasing :math:`\varphi`
+        then increasing :math:`\operatorname{sign}(\mu_z)`.
+
+        :meth:`from_level_membership` is the constructor that
+        establishes that order, and it REFUSES a level on which the key
+        repeats — so the order is a property of the rule, with no sort
+        algorithm contributing. Until 2026-08-13 the key was
+        :math:`\eta` ALONE, which the warning below explains cannot
+        order a full rule's fiber; the two producers were then obliged
+        to break the resulting ties, and did so differently
+        (``product_mu_phi`` named its tie-break ``kind="stable"``;
+        ``level_symmetric_sn`` left it to :func:`numpy.argsort`'s
+        introsort partition).
 
         .. warning::
 
-           On a **full** rule that sort key is **2-to-1 on the
-           fiber**. A level is a circle, and
+           :math:`\eta` ALONE is **2-to-1 on the fiber** of a **full**
+           rule — the reason the key needs its other two components.
+           A level is a circle, and
            :math:`\eta = \sin\theta\cos\varphi` is even in
            :math:`\varphi`, so ordering by it is an ordering of the
            circle *modulo the mirror* rather than of the circle.
@@ -228,6 +243,106 @@ class LevelStructure:
     polar_invariant: PolarInvariant
     azimuth: np.ndarray
     hemisphere: np.ndarray
+
+    @classmethod
+    def from_level_membership(
+        cls,
+        membership: Sequence[np.ndarray],
+        *,
+        nodes: np.ndarray,
+        level_mu: np.ndarray,
+        polar_invariant: PolarInvariant,
+        azimuth: np.ndarray,
+        hemisphere: np.ndarray,
+    ) -> LevelStructure:
+        r"""Build from unordered level MEMBERSHIP; the type orders it.
+
+        The producers of a levelled rule know which ordinates share a
+        level — that is index arithmetic on their own construction. They
+        do NOT get to decide what "the order of a level" means, because
+        that is a property of the fiber, and the fiber's chart lives
+        here (:attr:`azimuth`, :attr:`hemisphere`). So ``membership`` is
+        a **partition** — its intra-level order is read and discarded —
+        and the canonical order is established once, in this body.
+
+        The order is the fiber's own coordinate, lexicographically:
+
+        1. :math:`\eta = \mu_x` **ascending** — the cylindrical sweep
+           convention (Bailey et al. 2009 Eq. 50), and the only
+           component any consumer's arithmetic reads;
+        2. :math:`\varphi` **ascending** — the fiber angle;
+        3. :math:`\operatorname{sign}(\mu_z)` **ascending** — which
+           circle of the fiber, needed only under
+           :attr:`PolarInvariant.ABS_MU_Z`, where a level carries two.
+
+        Components 2-3 are the pair the class docstring names as
+        injective on a level, so **the key admits no tie** and no sort
+        algorithm can contribute to the answer. That is the whole point:
+        this replaces two producers that sorted on :math:`\eta` alone
+        and therefore *had* to break ties somehow — the product rule
+        named its tie-break (``kind="stable"``), the level-symmetric
+        rule left it to :func:`numpy.argsort`'s introsort partition,
+        which is neither documented nor stable across array sizes
+        (`[M]` numpy falls to insertion sort at :math:`\le 16` elements,
+        so the two agreed on small levels and diverged from 24 up).
+
+        Injectivity is **certified, not assumed** — see
+        :meth:`quotient` for the same discipline on the fiberwise
+        precondition. A degenerate key would silently reinstate exactly
+        the accident this constructor exists to remove, so it is refused
+        rather than tolerated. Spelled as a ``raise`` because production
+        ``assert`` vanishes under ``-O``, which is this project's
+        canonical test invocation.
+
+        Parameters
+        ----------
+        membership
+            One index array per level, in level order. Treated as a
+            SET per level; any incoming order is discarded.
+        nodes
+            The companion measure's ``(N, 3)`` direction cosines. Only
+            column 0 (:math:`\eta`) is read — the primary sort key.
+        level_mu, polar_invariant, azimuth, hemisphere
+            Passed through to the corresponding attributes.
+
+        Raises
+        ------
+        ValueError
+            If the fiber key is not injective on some level, i.e. two
+            ordinates of one level share :math:`(\eta, \varphi,
+            \operatorname{sign}\mu_z)` — then "the order of that level"
+            is not defined by the rule.
+        """
+        eta = nodes[:, 0]
+        ordered: list[np.ndarray] = []
+        for p, members in enumerate(membership):
+            level = np.asarray(members)
+            key = np.stack([eta[level], azimuth[level], hemisphere[level]])
+            distinct_fiber_points = int(np.unique(key, axis=1).shape[1])
+            if distinct_fiber_points != level.size:
+                raise ValueError(
+                    f"the fiber key is not injective on level {p}: "
+                    f"{level.size} ordinates share only "
+                    f"{distinct_fiber_points} distinct "
+                    f"(eta, phi, sign mu_z) triples, so the level has no "
+                    f"order the rule determines. A levelled rule must "
+                    f"place distinct ordinates at distinct points of its "
+                    f"fiber; duplicated nodes are the usual cause "
+                    f"(cf. ERR-073)."
+                )
+            ordered.append(level[np.lexsort((key[2], key[1], key[0]))])
+
+        return cls(
+            # DERIVED, never passed: a structure whose n_levels
+            # disagrees with its own level count is unspellable through
+            # this constructor.
+            n_levels=len(ordered),
+            level_indices=ordered,
+            level_mu=level_mu,
+            polar_invariant=polar_invariant,
+            azimuth=azimuth,
+            hemisphere=hemisphere,
+        )
 
     def quotient(
         self,
@@ -731,37 +846,55 @@ def _octant_directions(
 def _build_level_symmetric_arrays(
     sn_order: int,
 ) -> tuple[
-    np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, np.ndarray,
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray,
     list[np.ndarray], np.ndarray, np.ndarray,
 ]:
-    """Construct level-symmetric :math:`S_N` quadrature arrays.
+    r"""Construct level-symmetric :math:`S_N` quadrature arrays.
 
     This body was lifted byte-for-byte from the private
     ``_build_level_symmetric`` of the now-retired
     ``orpheus/sn/quadrature.py`` (R-1 Phase A detour-C), and is today
     the ONE producer of level-symmetric ordinates in the tree. The
     old side-by-side bit-identity comparison is therefore no longer
-    expressible — what pins this node order against the pre-carve
-    behaviour is the cylindrical regression snapshots
-    (``tests/sn/regression/snapshots/cyl_*_LS4_*.npz``); the
-    foundation tests at ``tests/numerics/test_rules_sphere.py`` pin
-    that :meth:`Quadrature.level_symmetric
-    <orpheus.numerics.quadrature.Quadrature.level_symmetric>` reads
-    these columns in the order the sweep expects.
+    expressible, and **nothing witnesses that the carve preserved the
+    node order** — the honest statement, which the companion gate
+    ``tests/numerics/test_rules_sphere.py::
+    test_level_symmetric_bit_identical_to_legacy_adapter`` already
+    carries in its own docstring. What exists going forward is a
+    POST-carve floor: the frozen literal in
+    ``tests/numerics/test_level_symmetric_nodes.py`` (nodes at S2, the
+    level partition at S4..S12).
+
+    ⛔ Until 2026-08-13 this paragraph named
+    ``tests/sn/regression/snapshots/cyl_*_LS4_*.npz`` as the pin. That
+    was false twice over. Those three files were **deleted** at
+    ``c39b7d44`` when the cylinder snapshot families were re-captured on
+    the σ_y fold (Q5.6.3) — the survivors are ``cyl_*_folded_*``. And
+    the mechanism it presumed is refused: a level-symmetric rule cannot
+    reach the cylindrical sweep at all, because an ``ABS_MU_Z`` level
+    carries both hemispheres, so :math:`\eta` is 4-fold degenerate and
+    ``assert_carrying_quadrature`` refuses on ``eta_level[0] ==
+    eta_level[1]`` (`[M]` at every order S2..S12, on the spherical arm
+    too via :math:`\tau_{\rm raw} \notin [0, 1]`; #336 tracks the
+    refuse-or-reduce design). The claim's correction had already landed
+    on the TEST-side twin and never reached this producer.
 
     Returns
     -------
     mu_x, mu_y, mu_z, weights : np.ndarray
         Direction cosines and weights, shape ``(N,)`` each.
-    n_levels : int
-        Number of polar levels per hemisphere.
     level_mu : np.ndarray
         Polar cosine per level.
-    level_indices : list[np.ndarray]
-        Per-level ordinate indices, sorted by increasing ``mu_x``.
+    level_membership : list[np.ndarray]
+        Per-level ordinate indices as a PARTITION — unordered. The
+        canonical intra-level order is established by
+        :meth:`LevelStructure.from_level_membership`, which is where
+        the fiber's chart lives; this function must not pre-empt it.
+        The level COUNT is not returned either: it is ``len()`` of this,
+        and a second spelling of it is a second thing to keep in sync.
     azimuth, hemisphere : np.ndarray
-        The fiber coordinate (Q4): :math:`\\varphi \\in [0, 2\\pi)` and
-        :math:`\\operatorname{sign}(\\mu_z)` per ordinate. The annotation
+        The fiber coordinate (Q4): :math:`\varphi \in [0, 2\pi)` and
+        :math:`\operatorname{sign}(\mu_z)` per ordinate. The annotation
         omitted these two from 2026-08-02 (`3afb52c2`) until the exactness
         carve, while the body returned all nine — a stale signature the
         Sphinx build could not see and the tests could not fail on.
@@ -817,7 +950,7 @@ def _build_level_symmetric_arrays(
 
     n_levels = n_half
     level_mu_vals = mu_levels
-    level_indices: list[np.ndarray] = []
+    level_membership: list[np.ndarray] = []
     for p in range(n_levels):
         # EXACT membership. The 8-fold sign replication above copies
         # mu_z straight out of `mu_levels`, so |mu_z| IS the level value
@@ -825,9 +958,20 @@ def _build_level_symmetric_arrays(
         # neighbourhood test. This carried `tol = 1e-12` until
         # 2026-08-02 — a symmetry question answered by float comparison
         # in a loop that already knew the answer exactly.
-        idx = np.where(np.abs(mu_z_arr) == level_mu_vals[p])[0]
-        order = np.argsort(mu_x[idx])
-        level_indices.append(idx[order])
+        #
+        # MEMBERSHIP ONLY: this loop answers "which ordinates share a
+        # level", which is index arithmetic on the replication above.
+        # It does NOT order them — that is a property of the fiber, and
+        # `LevelStructure.from_level_membership` owns it. Until
+        # 2026-08-13 the next line was a bare `np.argsort(mu_x[idx])`,
+        # and eta is 4-fold degenerate on an ABS_MU_Z level (the ±xi,
+        # ±mu_z replications), so the intra-level order was introsort's
+        # partition detail — `[M]` reproduced verbatim in the frozen
+        # literal of `tests/numerics/test_level_symmetric_nodes.py`,
+        # where S6 level 0 read `..., 0, 3, 2, 1, 6, 5, 4, 7, ...`.
+        level_membership.append(
+            np.where(np.abs(mu_z_arr) == level_mu_vals[p])[0]
+        )
 
     # The fiber coordinate: azimuth about the polar axis. Distinct
     # ordinates on a level sit at distinct phi, which is what makes an
@@ -836,8 +980,8 @@ def _build_level_symmetric_arrays(
     azimuth = np.mod(np.arctan2(mu_y, mu_x), 2.0 * np.pi)
     hemisphere = np.sign(mu_z_arr).astype(np.int64)
 
-    return (mu_x, mu_y, mu_z_arr, weights, n_levels, level_mu_vals,
-            level_indices, azimuth, hemisphere)
+    return (mu_x, mu_y, mu_z_arr, weights, level_mu_vals,
+            level_membership, azimuth, hemisphere)
 
 
 def level_symmetric_sn(
@@ -889,26 +1033,50 @@ def level_symmetric_sn(
     Parameters
     ----------
     sn_order : int
-        Even :math:`N \ge 2`, supported through :math:`S_{12}`.
-        Common values: 4, 8, 12.
+        Even :math:`N \ge 2`, supported through :math:`S_{18}`.
+        Common values: 4, 8, 12. (Read ``S_{12}`` here until 2026-08-13
+        — the pre-#337 convention seed's frontier, superseded by the
+        moment-matched one; see ``Raises``.)
 
     Returns
     -------
     DiscreteMeasure
-        Nodes shape ``(N_total, 3)``, weights shape ``(N_total,)``.
-        ``invariance_group=SubgroupOfO3.OctahedralOh``,
-        ``degree_of_exactness=max(3, sn_order-1)``.
+        Nodes shape ``(N_total, 3)``, weights shape ``(N_total,)``,
+        ``invariance_group=SubgroupOfO3.OctahedralOh``. The
+        ``degree_of_exactness`` is **build-measured**, not a formula of
+        :math:`N` — see the stamp's own comment in the body.
+
+        ⛔ Read ``max(3, sn_order-1)`` here until 2026-08-13. Same
+        staleness as the frontier above and from the same cause: the
+        formula was true for the pre-#337 convention seed, and under the
+        moment-matched one it UNDER-claims by 2 wherever it is wrong.
+        `[M]` measured / formula: S4 **5**/3, S6 **7**/5, S8 **9**/7,
+        S14 **15**/13 — and it happens to agree at S2, S12, S16, S18, so
+        a spot-check on the wrong order confirms it. The body has said
+        the degree is build-measured since #337; this block did not.
     LevelStructure
         Per-level indexing metadata.
 
     Raises
     ------
     ValueError
-        Above :math:`S_{12}` — the per-orbit weight solve yields a
-        negative weight on this node seed from :math:`S_{14}` (`[M]`
-        ``-0.027``), and positivity is not tradeable. The frontier is
-        computed from the solution's own sign, never hardcoded; the
-        full doctrine lives on :func:`_moment_matched_octant_weights`.
+        Above :math:`S_{18}` — the per-orbit weight solve has no
+        POSITIVE solution on this node seed from :math:`S_{20}`, and
+        positivity is not tradeable. `[M]` 2026-08-13:
+        :math:`S_{14}/S_{16}/S_{18}` build with smallest weight
+        ``0.012990`` / ``0.016300`` / ``1.75e-4``;
+        :math:`S_{20}`/:math:`S_{22}` refuse. The frontier is computed
+        from the solution's own sign, never hardcoded; the full doctrine
+        lives on :func:`_moment_matched_octant_weights`.
+
+        ⛔ This block read "Above :math:`S_{12}` … a negative weight …
+        from :math:`S_{14}` (`[M]` ``-0.027``)" until 2026-08-13. That
+        measurement was correct **for the pre-#337 convention seed**
+        :math:`\mu_1^2 = 4/(N(N+2))`, whose positivity frontier really
+        was :math:`S_{12}`; #337 replaced the seed with the
+        moment-matched root and moved the frontier to :math:`S_{18}`,
+        without updating this docstring. The number was never wrong —
+        its CONFIGURATION stopped being the shipped one.
 
     See Also
     --------
@@ -920,9 +1088,8 @@ def level_symmetric_sn(
     (``orpheus.sn.quadrature.LevelSymmetricSN``) was retired into a
     classmethod factory on the one ``Quadrature`` type.
     """
-    mu_x, mu_y, mu_z, w, n_levels, level_mu, level_indices, azimuth, hemisphere = (
-        _build_level_symmetric_arrays(sn_order)
-    )
+    (mu_x, mu_y, mu_z, w, level_mu, level_membership,
+     azimuth, hemisphere) = _build_level_symmetric_arrays(sn_order)
     nodes = np.column_stack([mu_x, mu_y, mu_z])  # (N, 3)
     measure = DiscreteMeasure(
         nodes=nodes,
@@ -949,10 +1116,16 @@ def level_symmetric_sn(
             degree=_measured_exactness_degree(nodes, w),
         ),
     )
-    structure = LevelStructure(
-        n_levels=n_levels,
-        level_indices=level_indices,
+    structure = LevelStructure.from_level_membership(
+        level_membership,
+        nodes=nodes,
         level_mu=level_mu,
+        # ABS_MU_Z: levels are indexed by |mu_z|, so each carries BOTH
+        # hemispheres and its fiber is two circles. That is exactly why
+        # `sign(mu_z)` is load-bearing in the ordering key here and inert
+        # for `product_mu_phi` — `[M]` every eta-tie on a level of
+        # S2..S12 holds two phi-collisions that only the hemisphere
+        # separates, against zero on the product side.
         polar_invariant=PolarInvariant.ABS_MU_Z,
         azimuth=azimuth,
         hemisphere=hemisphere,

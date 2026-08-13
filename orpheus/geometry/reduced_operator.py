@@ -1015,9 +1015,18 @@ def cylindrical_streaming(
     # ⭐ Each level is held to the closure contract INDIVIDUALLY (the arm
     # carried no check at all until 2026-08-12 — see
     # :func:`_assert_alpha_dome_closes`).  A per-level raise is what makes
-    # the failure locatable: a folded-product rule closes on every level
-    # or on none, but a level-symmetric rule can lose antisymmetry on one
-    # level alone, and a whole-measure check would only say "somewhere".
+    # the failure LOCATABLE: a whole-measure check would only say
+    # "somewhere", and per-level costs nothing.
+    #
+    # ⛔ The justification here used to be "a level-symmetric rule can
+    # lose antisymmetry on one level alone".  That is unreachable prose:
+    # a level-symmetric rule cannot get this far, because an ABS_MU_Z
+    # level carries both hemispheres, so η is 4-fold degenerate and
+    # `assert_carrying_quadrature` refuses on `eta_level[0] ==
+    # eta_level[1]` (`[M]` every order S2..S12, both coord systems;
+    # #336 tracks the refuse-or-reduce design for the sphere arm).  The
+    # per-level form is still right — locatability is reason enough —
+    # but it is not held up by that case.
     alpha_per_level: list[np.ndarray] = []
     for p, level_idx in enumerate(angular_measure.level_indices):
         alpha = alpha_dome(

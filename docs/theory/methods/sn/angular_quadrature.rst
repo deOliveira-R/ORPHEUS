@@ -99,12 +99,29 @@ each tabulated order.
    weights above :math:`n = 16`.  Extraction of record with page
    cites: ``scratch/issue_337_la3186_la4058_extraction.md``.
 
-Weights sum to :math:`4\pi`.  Provides the ``level_indices`` structure
-the cylindrical :term:`sweep` reads.  Unlike the product quadrature
-(which has one level per :math:`\mu_z` value), the Level-Symmetric
-quadrature groups both :math:`+\mu_z` and :math:`-\mu_z` hemispheres
-on the same level (grouped by :math:`|\mu_z|`).  Within each level,
-ordinates are sorted by increasing :math:`\eta` for the azimuthal sweep.
+Weights sum to :math:`4\pi`.  Carries a ``level_indices`` structure of
+the same shape the cylindrical :term:`sweep` consumes — though *this*
+family is refused there; see the warning below.  Unlike the product
+quadrature (which has one level per :math:`\mu_z` value), the
+Level-Symmetric quadrature groups both :math:`+\mu_z` and :math:`-\mu_z`
+hemispheres on the same level (grouped by :math:`|\mu_z|`).
+
+Within each level, ordinates are ordered by the **fiber's own
+coordinate**: primarily by increasing :math:`\eta` (the azimuthal-sweep
+convention), with ties broken by increasing :math:`\varphi` and then by
+increasing :math:`\operatorname{sign}(\mu_z)`.  Naming the tie-break is
+not decoration — because a level here spans both hemispheres, each
+:math:`\eta` value is **4-fold degenerate** (the :math:`\pm\xi`,
+:math:`\pm\mu_z` sign replications).  So :math:`\eta` alone orders a
+level only down to *blocks of four*, and which member of each block
+comes first was, until 2026-08-13, :func:`numpy.argsort`'s introsort
+partition — an implementation detail that is not even consistent across
+array sizes (numpy falls back to insertion sort at :math:`\le 16`
+elements, so small levels came out stable and larger ones did not).
+The full triple is injective on every level of every shipped rule, and
+:meth:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure.from_level_membership`
+refuses a level where it is not, so the order is a property of the rule
+rather than of a sort algorithm.
 
 .. warning::
 
