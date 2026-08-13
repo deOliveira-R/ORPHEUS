@@ -231,6 +231,28 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   the retired thing inherits its wrongness — re-verify that prose against the replacement
   rather than only deleting the dead name from it. (3) **direct constructors** of any guarded type (a guard-at-source change
   reaches every `T(...)` caller, not just the factory path). Run all three, then retire.
+- ⭐ **A LABELLED EQUATION is an API, and correcting the prose around it does not correct
+  it.** The message-string clause below says a string becomes an API the moment a test pins
+  it; a `.. math:: :label:` is an API the moment anything writes `:eq:`. The failure mode is
+  specific and it is invisible to every gate: a page learns something, records the
+  correction **in prose**, and leaves the labelled equation stating the original claim — so
+  the page now carries both, and every `:eq:` citer inherits the false one. Sphinx cannot
+  help: the reference RESOLVES (the label exists), so `-W` is silent at any severity, and
+  the V&V matrix will happily report the label as covered.
+  ⟹ When a correction touches a claim that any equation states, grep `:eq:`<label>`` and
+  read **every** citer, then fix the equation itself — not only the paragraph you were
+  looking at. And check the label's `verifies()` marker still means what it says: a test can
+  legitimately verify the *kernel's API default* while the equation now states the
+  *scheme's* value, and those are different claims wearing one label.
+  > `[M]` 2026-08-13, task #67. `pole-mm-recurrence`'s first line read
+  > `\phi_{1/2,i,g} = 0` while production marches the seed as an ODE. The page had ALREADY
+  > condemned it twice — "replacing the hardcoded zero that Phase B had baked in" and a
+  > `ZeroSeed` row reading "the pre-ERR-026 term-initialisation bug … wrong off flat flux" —
+  > and a sibling page carried a subsection titled "The bug Phase B baked in". All ~2500
+  > lines from the equation, none of it reaching it. Four sites inherited the zero,
+  > including the page's own **Key Facts** card. Sphinx built clean throughout, and the
+  > sole `verifies()` marker on the label was a suite that passes NO seed, so the matrix
+  > reported the equation covered while the covering rows asserted the kernel default.
 - **Retiring a MESSAGE STRING: grep the SHORTEST distinctive fragment, never the full
   sentence.** An exception/log message is an API the moment a test pins it, and tests pin
   **substrings**. A grep for your own longer wording is strictly LESS sensitive than the
