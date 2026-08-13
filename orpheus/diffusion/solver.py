@@ -317,9 +317,10 @@ class DiffusionSolver:
     ) -> np.ndarray:
         r"""EXACT inner solve :math:`\psi = A^{-1} q` — one LU
         back-substitution; the initial guess is irrelevant."""
-        # ``budget`` stays 0: an exact solve has no iteration budget, so
-        # ``exhausted_budget`` is False by construction and ``budget_name``
-        # is inert — nothing will ever advise setting it.
+        # The default ``IterationBudget()`` has ``limit=0``: an exact solve
+        # has no iteration budget, so ``exhausted_budget`` is False by
+        # construction and the knob name is inert — nothing will ever advise
+        # setting it.
         self._inner_records.append(
             IterationRecord(label="inner(exact resolvent, LU)")
         )

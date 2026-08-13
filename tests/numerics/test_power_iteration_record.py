@@ -32,7 +32,11 @@ import inspect
 import numpy as np
 import pytest
 
-from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
+from orpheus.numerics.convergence import (
+    IterationBudget,
+    IterationRecord,
+    StoppingCriterion,
+)
 from orpheus.numerics.eigenvalue import (
     MINIMUM_OUTER_ITERATIONS,
     PowerIterationOutcome,
@@ -126,7 +130,9 @@ class _RecordingScriptedSolver(_ScriptedSolver):
                         tolerance=1e-8,
                     ),
                 ),
-                budget=1 if not self._inner_converges else 100,
+                budget=IterationBudget(
+                    1 if not self._inner_converges else 100
+                ),
                 iterations_run=1,
             )
         )
@@ -493,7 +499,7 @@ class TestTheReportDoesNotContradictItsOwnStatus:
                 StoppingCriterion(name="residual", trajectory=(),
                                   tolerance=1e-8),
             ),
-            budget=1,
+            budget=IterationBudget(1),
             iterations_run=1,
         )
         text = record.report()

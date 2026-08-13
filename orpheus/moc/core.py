@@ -17,7 +17,11 @@ from collections.abc import Sequence
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
+from orpheus.numerics.convergence import (
+    IterationBudget,
+    IterationRecord,
+    StoppingCriterion,
+)
 
 from .geometry import MOCMesh
 
@@ -298,8 +302,9 @@ class MOCSolver:
         self._inner_records.append(IterationRecord(
             label="inner(transport sweeps)",
             criteria=criteria,
-            budget=self.max_inner_sweeps,
-            budget_name="max_inner_sweeps",
+            # One unit of ``max_inner_sweeps`` is one transport sweep, so the
+            # identity conversion is the honest statement.
+            budget=IterationBudget(self.max_inner_sweeps, "max_inner_sweeps"),
             iterations_run=sweeps_run,
         ))
 

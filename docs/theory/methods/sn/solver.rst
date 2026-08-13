@@ -691,6 +691,17 @@ argument to pass, so there is nothing to get wrong.
    iteration count against the budget before concluding anything about the
    discretization.
 
+   ⚠ Read it against
+   :attr:`~orpheus.numerics.convergence.IterationBudget.in_iterations`, not
+   against the raw knob you passed. The two coincide for source iteration,
+   the power outer, CP and MoC, and they do **not** for Krylov: ``max_inner``
+   there is scipy's restart-CYCLE cap, while the recorded trajectory counts
+   inner Arnoldi steps, and one cycle buys ``restart`` of them (which
+   :func:`~orpheus.sn.solver` sizes to the full ``n_dof``). Comparing the raw
+   pair is ERR-079 (#349) — it read a healthy converged solve as
+   having run out. :meth:`~orpheus.numerics.convergence.IterationRecord.report`
+   already prints the honest ceiling, so prefer it to hand arithmetic.
+
 **Loudness.**  A truncated exit emits
 :class:`~orpheus.numerics.convergence.ConvergenceWarning`, naming **the level
 that failed** and the budget *that level* ran out of, the tolerance *its*

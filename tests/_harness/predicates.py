@@ -130,7 +130,7 @@ def assert_inverse_adjoint_contract(
 # ───────────────────────────────────────────────────────────────────────
 # #340 N4 — the caller-facing knob contract, shared by every entry point.
 #
-# ``IterationRecord.budget_name`` is the ONE fact in a convergence warning
+# ``IterationRecord.budget.name`` is the ONE fact in a convergence warning
 # that the record cannot derive for itself, so it is the one a producer can
 # silently forget — and the default (``"max_iter"``) is a plausible-looking
 # string that is a parameter of NO public ORPHEUS entry.  A forgotten stamp
@@ -195,12 +195,12 @@ def assert_every_budgeted_level_names_a_reachable_knob(
     """
     knobs = reachable_knobs(entry)
     for level in record.walk():
-        if level.budget <= 0:
+        if not level.budget.is_budgeted:
             continue
-        if level.budget_name not in knobs:
+        if level.budget.name not in knobs:
             raise AssertionError(
                 f"{getattr(entry, '__name__', entry)} returned level "
-                f"{level.label!r} advising `set {level.budget_name}=...`, "
+                f"{level.label!r} advising `set {level.budget.name}=...`, "
                 f"which is not a knob its caller can reach. Reachable: "
                 f"{sorted(knobs)}"
             )

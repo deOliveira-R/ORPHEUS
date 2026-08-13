@@ -161,6 +161,7 @@ if TYPE_CHECKING:
 
 from .convergence import (
     ConvergenceWarning,
+    IterationBudget,
     IterationRecord,
     StoppingCriterion,
     resolve_iteration_budget,
@@ -802,8 +803,10 @@ class SourceIteration(Generic[V]):
                     tolerance=self.tol,
                 ),
             ),
-            budget=self.max_iter,
-            budget_name=self.budget_name,
+            # No conversion: one unit of ``max_iter`` IS one fixed-point
+            # pass, so the identity ``iterations_per_unit`` is the honest
+            # statement and the comparison against the trajectory is sound.
+            budget=IterationBudget(self.max_iter, self.budget_name),
             iterations_run=iterations_run,
         )
 
@@ -892,14 +895,28 @@ class KrylovAcceleration(Generic[V]):
         GMRES left preconditioner.  See above.  When ``None`` and
         ``A`` is not invertible, runs GMRES without preconditioner.
     max_iter : int, optional
-        Maximum GMRES iterations (``maxiter`` in scipy).  Default
+        Maximum GMRES **restart cycles** (``maxiter`` in scipy).  Default
         ``1000``.
+
+        ⛔ It read *"Maximum GMRES iterations"* until 2026-08-13, and that
+        one missing word is the likeliest origin of #349: scipy runs an
+        OUTER loop of ``maxiter`` restart cycles, each an INNER Arnoldi loop
+        of up to ``restart`` steps, so this bounds ITERATIONS only when
+        ``restart == 1``.  The two are related by ``restart`` exactly —
+        `[M]` 2026-08-13, scipy 1.17.1, 12 of 12 non-converging rows gave
+        ``callbacks == maxiter * restart``.  The record states that exchange
+        rate on its
+        :class:`~orpheus.numerics.convergence.IterationBudget` so the
+        comparison it feeds is dimensionally sound.
     tol : float, optional
         GMRES relative residual tolerance (``rtol`` in scipy).
         Default ``1e-8``.
     restart : int, optional
-        GMRES restart length.  Default ``50``.  Clamped to ``n`` at
-        :meth:`solve` time.
+        GMRES restart length — the Arnoldi steps ONE ``max_iter`` unit
+        buys.  Default ``50``.  Clamped to ``n`` at :meth:`solve` time, and
+        the SN caller passes ``n_dof`` (``sn/solver.py:721``, the ERR-053
+        fix), so on that path one cycle admits the FULL problem dimension
+        and ``max_iter`` effectively never binds.
 
     Raises
     ------
@@ -1061,11 +1078,18 @@ class KrylovAcceleration(Generic[V]):
         # over-broad ``except TypeError`` masked a B.5.2 matvec cross-class
         # regression as a misleading "tol" error. The ``scipy>=1.14`` floor
         # makes ``rtol`` the only spelling.)
+        # The Arnoldi steps ONE ``max_iter`` unit buys, named once and read
+        # three times below (the call, the warning, and the record's budget).
+        # It is the exchange rate between this method's two currencies, and
+        # leaving it as a thrice-spelled ``min(...)`` is what let #349 ship:
+        # an un-named conversion is one nobody thinks to apply.
+        iterations_per_cycle = min(self.restart, n)
+
         solution, info = spla.gmres(
             A_scipy, b, x0=x0, M=M_scipy,
             rtol=self.tol, atol=0.0,
             maxiter=self.max_iter,
-            restart=min(self.restart, n),
+            restart=iterations_per_cycle,
             callback=callback,
             callback_type='pr_norm',
         )
@@ -1100,7 +1124,7 @@ class KrylovAcceleration(Generic[V]):
             warnings.warn(
                 f"KrylovAcceleration.solve: scipy.sparse.linalg.gmres "
                 f"returned info={info} (not converged within "
-                f"maxiter={self.max_iter}; restart={min(self.restart, n)}; "
+                f"maxiter={self.max_iter}; restart={iterations_per_cycle}; "
                 f"rtol={self.tol}).  Returning best-effort iterate; "
                 f"residual_history tail = "
                 f"{residual_history[-3:] if residual_history else '[]'}.  "
@@ -1139,11 +1163,23 @@ class KrylovAcceleration(Generic[V]):
                     tolerance=self.tol,
                 ),
             ),
-            budget=self.max_iter,
-            budget_name=self.budget_name,
-            # One callback per iteration here, so the counts DO match — the
-            # opposite convention from SourceIteration above, which is why
-            # neither can be inferred by the record.
+            # ⭐ The ONE producer in the tree whose knob and trajectory count
+            # different things: ``max_iter`` is scipy's restart-CYCLE cap,
+            # while the callback fires per inner Arnoldi step.  Stating the
+            # exchange rate is what makes ``exhausted_budget`` answerable —
+            # before it, a converged 91-callback solve under ``max_inner=5``
+            # reported that it had run out (#349).
+            budget=IterationBudget(
+                self.max_iter,
+                self.budget_name,
+                iterations_per_unit=iterations_per_cycle,
+            ),
+            # One callback per Arnoldi step here, so this matches the
+            # TRAJECTORY — the opposite convention from SourceIteration
+            # above, which is why neither can be inferred by the record.
+            # (It says nothing about the BUDGET; that is the budget's job,
+            # and reading this line as covering both is exactly the
+            # misreading #349 rode in on.)
             iterations_run=len(residual_history),
         )
 

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9671**
+Total tests collected: **9730**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1310, 13.5%
-   L1, 1620, 16.8%
+   L1, 1620, 16.6%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6672, 69.0%
+   foundation, 6731, 69.2%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9587
+   explicit, 9646
    class-name, 46
    func-name, 0
    case, 33
@@ -339,8 +339,8 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 3, 0, 0, 25, 0
-   numerics/test_iteration_record, 0, 0, 0, 0, 76, 0
+   numerics/test_iteration, 0, 3, 0, 0, 28, 0
+   numerics/test_iteration_record, 0, 0, 0, 0, 132, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
@@ -1496,6 +1496,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-076``, 21
    ``ERR-077``, 3
    ``ERR-078``, 9
+   ``ERR-079``, 58
 
 Unmarked tests
 --------------

@@ -92,9 +92,14 @@ def main():
               f"({worst.n_iterations} iters, {worst.status})")
     failure = result.record.first_failure
     if failure is not None:
+        # ``covering`` converts the projection (in the level's own iteration
+        # units) into the units the knob takes.  Identity for CP, whose
+        # ``max_inner`` is one within-group pass; it is the Krylov arm where
+        # the two differ (#349).
+        needed = failure.projected_iterations()
         print(f"  [!] NOT fully converged -- {failure.label} "
-              f"{failure.status}; set {failure.budget_name}="
-              f"{failure.projected_iterations()}")
+              f"{failure.status}; set {failure.budget.name}="
+              f"{failure.budget.covering(needed) if needed else '?'}")
     print(f"  Wall time: {result.elapsed_seconds:.1f}s")
 
     # 5. Plots

@@ -238,7 +238,7 @@ class TestTheTreeHasTheShapeEachDesignImplies:
         for child in record.children:
             assert child.status == "DIRECT"
             assert child.converged is True
-            assert child.budget == 0, (
+            assert child.budget.limit == 0, (
                 "an exact solve has no iteration budget, and a nonzero one "
                 "would make it advise a knob that cannot help"
             )
@@ -330,7 +330,7 @@ class TestAStarvedLevelIsAudibleInEveryFamily:
         assert failure is not None
         assert failure.label.startswith("inner(within-group scatter, g=")
         assert failure.status == "TRUNCATED"
-        assert failure.budget_name == "params.max_inner"
+        assert failure.budget.name == "params.max_inner"
 
     def test_moc_starved_inner(self) -> None:
         record = _moc(max_inner_sweeps=2).record
@@ -339,7 +339,7 @@ class TestAStarvedLevelIsAudibleInEveryFamily:
         assert failure is not None
         assert failure.label == "inner(transport sweeps)"
         assert failure.status == "TRUNCATED"
-        assert failure.budget_name == "max_inner_sweeps"
+        assert failure.budget.name == "max_inner_sweeps"
 
     @pytest.mark.parametrize(
         "row_id,run",
@@ -366,7 +366,7 @@ class TestAStarvedLevelIsAudibleInEveryFamily:
             "inner failed — for diffusion that is structural"
         )
         assert record.status == "TRUNCATED"
-        assert record.budget_name in reachable_knobs(
+        assert record.budget.name in reachable_knobs(
             solve_cp if row_id == "cp-jacobi" else solve_diffusion_1d
         )
 

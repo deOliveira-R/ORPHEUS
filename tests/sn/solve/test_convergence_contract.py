@@ -46,6 +46,7 @@ from orpheus.geometry import BC
 from orpheus.numerics.convergence import (
     ESCALATION_FLAG,
     ConvergenceWarning,
+    IterationBudget,
     IterationRecord,
     StoppingCriterion,
     default_iteration_budget,
@@ -492,7 +493,7 @@ class TestTruncationIsAudible:
                     tolerance=1e-10,
                 ),
             ),
-            budget=40, budget_name="max_inner", iterations_run=40,
+            budget=IterationBudget(40, "max_inner"), iterations_run=40,
         )
         with pytest.warns(ConvergenceWarning) as record:
             warn_if_unconverged(stalled, where="probe")
@@ -544,7 +545,7 @@ class TestTruncationIsAudible:
                     tolerance=1e-6,
                 ),
             ),
-            budget=40, budget_name="max_outer", iterations_run=40,
+            budget=IterationBudget(40, "max_outer"), iterations_run=40,
             min_iterations=3,
         )
         assert record_.converged is False, "fixture drift"
@@ -597,7 +598,7 @@ class TestTruncationIsAudible:
                     name="dk", trajectory=(1e-12, 1e-14), tolerance=1e-9,
                 ),
             ),
-            budget=2, budget_name="max_outer", iterations_run=2,
+            budget=IterationBudget(2, "max_outer"), iterations_run=2,
             min_iterations=3,
         )
         assert record_.converged is False and record_.criteria[0].cleared
@@ -647,7 +648,7 @@ class TestTruncationIsAudible:
                     tolerance=1e-10,
                 ),
             ),
-            budget=30, budget_name="max_inner", iterations_run=30,
+            budget=IterationBudget(30, "max_inner"), iterations_run=30,
         )
         outer = IterationRecord(
             label="outer(power-iteration)",
@@ -663,7 +664,7 @@ class TestTruncationIsAudible:
                     tolerance=1e-7,
                 ),
             ),
-            budget=6, budget_name="max_outer", iterations_run=6,
+            budget=IterationBudget(6, "max_outer"), iterations_run=6,
             min_iterations=3, children=(inner,),
         )
 
@@ -675,7 +676,7 @@ class TestTruncationIsAudible:
         top, failing = outer.binding_criterion, inner.binding_criterion
         assert top is not None and failing is not None
         for fact, pair in {
-            "knob": (outer.budget_name, inner.budget_name),
+            "knob": (outer.budget.name, inner.budget.name),
             "budget": (outer.budget, inner.budget),
             "tolerance": (top.tolerance, failing.tolerance),
             "criterion": (top.name, failing.name),
@@ -695,7 +696,7 @@ class TestTruncationIsAudible:
 
         # level + knob + budget, in one substring so a mixed sourcing cannot
         # satisfy it by accident.
-        assert f"{inner.label} hit {inner.budget_name}={inner.budget}" in msg
+        assert f"{inner.label} hit {inner.budget}" in msg
         assert "max_outer" not in msg, "the top level's knob must not appear"
         assert outer.label not in msg, "the top level is not the failing one"
 
@@ -708,7 +709,19 @@ class TestTruncationIsAudible:
         assert f"rho={inner.rate:.6f}" in msg
         assert f"rho={outer.rate:.6f}" not in msg
 
-        assert f"set {inner.budget_name}={inner.projected_iterations()}" in msg
+        # ⭐ ``covering`` and not the raw projection (#349): the projection is
+        # in TRAJECTORY units and the knob may not take those.  Here the inner
+        # is a SourceIteration, so the conversion is the identity and this
+        # assertion reads exactly as it did before — which is the point.  The
+        # unit-carrying arm is gated directly on the type, in
+        # ``tests/numerics/test_iteration_record.py``.
+        projected = inner.projected_iterations()
+        assert projected is not None, (
+            "the fixture must project — an unprojectable level takes the "
+            "'no budget suffices' arm and this assertion would be vacuous"
+        )
+        setting = inner.budget.covering(projected)
+        assert f"set {inner.budget.name}={setting}" in msg
 
         # ``where`` is the ONE thing the caller still supplies, and it names
         # the ENTRY, not a level — it must NOT re-point.
@@ -748,7 +761,7 @@ class TestTruncationIsAudible:
         """
 
         bare = IterationRecord(
-            label="inner(moc-sweeps)", budget=4, budget_name="max_inner",
+            label="inner(moc-sweeps)", budget=IterationBudget(4, "max_inner"),
             iterations_run=4,
         )
         assert bare.binding_criterion is None and bare.converged is False
@@ -791,7 +804,7 @@ class TestTruncationIsAudible:
         assert record.first_failure is child, "fixture drift: the inner must fail"
         assert record.binding_criterion is not None
 
-        assert f"{child.label} hit {child.budget_name}={child.budget}" in msg
+        assert f"{child.label} hit {child.budget}" in msg
         assert "max_outer" not in msg
         criterion = child.binding_criterion
         assert criterion is not None
@@ -848,7 +861,7 @@ class TestTruncationIsAudible:
             "fixture drift: the failure must be a CHILD, not the top level"
         )
         msg = str(caught[0].message)
-        assert f"{failing.label} hit {failing.budget_name}={failing.budget}" in msg
+        assert f"{failing.label} hit {failing.budget}" in msg
         assert "max_outer" not in msg, (
             "the advice must not point at the outer's knob — with a starved "
             "inner, raising max_outer cannot help at all (#340 F2)"
@@ -1124,9 +1137,9 @@ class TestEveryEntryStampsItsCallerFacingKnob:
         knobs = set(inspect.signature(entry).parameters)
 
         for level in solution.history.record.walk():
-            assert level.budget_name in knobs, (
+            assert level.budget.name in knobs, (
                 f"{entry.__name__} returned a level advising `set "
-                f"{level.budget_name}=...`, which is not one of its "
+                f"{level.budget.name}=...`, which is not one of its "
                 f"parameters — the reader has nothing to type"
             )
 
@@ -1151,14 +1164,14 @@ class TestEveryEntryStampsItsCallerFacingKnob:
         assert solution.history is not None
         record = solution.history.record
 
-        assert record.budget_name == expected, (
+        assert record.budget.name == expected, (
             f"{row_id}: the top level is governed by {expected}, not "
-            f"{record.budget_name!r}"
+            f"{record.budget.name!r}"
         )
         for child in record.children:
-            assert child.budget_name == "max_inner", (
+            assert child.budget.name == "max_inner", (
                 f"{row_id}: an inner level is governed by max_inner, not "
-                f"{child.budget_name!r}"
+                f"{child.budget.name!r}"
             )
 
 

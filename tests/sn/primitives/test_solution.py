@@ -28,7 +28,11 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
+from orpheus.numerics.convergence import (
+    IterationBudget,
+    IterationRecord,
+    StoppingCriterion,
+)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -229,7 +233,7 @@ class TestIterationHistory:
                 StoppingCriterion(name="residual", trajectory=(1.0,),
                                   tolerance=1e-8),
             ),
-            budget=1, iterations_run=1,
+            budget=IterationBudget(1), iterations_run=1,
         )
         h = IterationHistory(
             record=IterationRecord(
@@ -553,13 +557,14 @@ class TestSolutionDiagnostics:
         reports success while carrying the inner's error.
         """
         outer = IterationRecord(
-            label="outer(power-iteration)", budget=50, budget_name="max_outer",
+            label="outer(power-iteration)",
+            budget=IterationBudget(50, "max_outer"),
             iterations_run=3,
             criteria=(StoppingCriterion(
                 name="dk", tolerance=1e-6, trajectory=(1e-3, 1e-5, 1e-8)),),
             children=(IterationRecord(
-                label="inner(source-iteration)", budget=8,
-                budget_name="max_inner", iterations_run=8,
+                label="inner(source-iteration)",
+                budget=IterationBudget(8, "max_inner"), iterations_run=8,
                 criteria=(StoppingCriterion(
                     name="residual", tolerance=1e-10,
                     trajectory=(1e-2, 1e-3, 1e-4)),),

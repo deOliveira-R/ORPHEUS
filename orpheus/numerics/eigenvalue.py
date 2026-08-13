@@ -82,7 +82,7 @@ from typing import Generic, Protocol, cast, runtime_checkable
 
 import numpy as np
 
-from .convergence import IterationRecord, StoppingCriterion
+from .convergence import IterationBudget, IterationRecord, StoppingCriterion
 from .vector import Carrier, Vector
 
 
@@ -484,8 +484,9 @@ def power_iteration(
         record=IterationRecord(
             label="outer(power-iteration)",
             criteria=tuple(criteria.values()),
-            budget=max_iter,
-            budget_name=budget_name,
+            # One unit of ``max_iter`` is one outer, so the identity
+            # conversion is the honest statement here.
+            budget=IterationBudget(max_iter, budget_name),
             # One reading per outer, so this equals every criterion's length —
             # stated anyway because only the producer knows that (the SI inner
             # measures DIFFERENCES and runs one more pass than it records;

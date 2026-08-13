@@ -1282,3 +1282,142 @@ def test_the_gmres_nonconvergence_warning_is_ESCALATABLE(monkeypatch) -> None:
         warnings.simplefilter("error", ConvergenceWarning)
         with pytest.raises(ConvergenceWarning):
             _fresh_krylov().solve(b)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# ERR-079 / #349 — the budget and the trajectory count the SAME thing
+# ───────────────────────────────────────────────────────────────────────
+#
+# ⭐ These are the gates whose ABSENCE let ERR-079 ship.  `[M]` 2026-08-13:
+# every one of the 58 `IterationRecord`s in the suite was hand-built, so no
+# gate had ever read `budget` / `n_iterations` / `exhausted_budget` off a
+# record produced by a real `KrylovAcceleration.solve` — including the
+# fixture LABELLED `inner(gmres)`, which omits `iterations_run` and so does
+# not even reproduce the producer's shape.  A synthetic record cannot catch a
+# producer's units error, because the test author picks both numbers.
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-079")
+def test_a_CONVERGED_gmres_solve_did_not_exhaust_its_budget():
+    """A healthy Krylov solve must not report that it ran out (#349).
+
+    ⛔ The defect, verbatim: ``exhausted_budget`` was
+    ``n_iterations >= budget`` over a pair in different units — scipy's
+    ``maxiter`` counts restart CYCLES while the ``pr_norm`` callback fires per
+    inner ARNOLDI STEP.  Raising the knob did not help, because the two
+    numbers were never commensurable.
+
+    ⭐ The fixture is sized so the OLD spelling would say the opposite, and
+    that precondition is ASSERTED rather than assumed — a row that silently
+    stopped discriminating would otherwise go on reading green forever
+    (``vv`` #19: only the reading under the wrong structure carries
+    information).  `[M]` 30 distinct eigenvalues need 29 Arnoldi steps
+    against a budget of 5 cycles, so ``n_iterations >= limit`` holds by a
+    factor of ~6 while the honest ceiling is 150.
+    """
+    n = 30
+    A = MatrixOperator(np.diag(np.linspace(1.0, 10.0, n)), can_solve=True)
+    max_iter, restart = 5, 30
+
+    krylov = KrylovAcceleration(
+        A, ZeroOperator(), preconditioner=lambda q: q,
+        max_iter=max_iter, tol=1e-12, restart=restart,
+    )
+    _, record = krylov.solve(np.ones(n))
+    budget = record.budget
+
+    # The producer states the exchange rate, and it is scipy's own.
+    assert budget.iterations_per_unit == min(restart, n)
+    assert budget.limit == max_iter
+    assert budget.in_iterations == max_iter * min(restart, n)
+
+    # ⚠ The anti-dud precondition: without this, the row below could pass on a
+    # fixture that never entered the defect's regime at all.
+    assert record.n_iterations >= budget.limit, (
+        f"fixture no longer discriminates — it ran "
+        f"{record.n_iterations} steps against a limit of {budget.limit}, so "
+        f"the retired `n_iterations >= budget` spelling would have agreed "
+        f"with the correct one and this gate would be vacuous"
+    )
+
+    assert record.converged is True
+    assert record.exhausted_budget is False, (
+        "a solve whose criterion cleared did not stop because it ran out"
+    )
+    assert record.truncated is False
+    assert record.status == "CONVERGED"
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-079")
+def test_a_gmres_solve_that_really_DID_run_out_still_says_so():
+    """The negative leg — without it, ``exhausted_budget = False`` passes.
+
+    ``vv`` #11: the row above validates that the property stops crying wolf;
+    only this one validates that it can still cry.  ``restart=1`` collapses
+    the cycle and the step to the same thing, so the honest ceiling IS the
+    knob and a hard system exhausts it.
+    """
+    n = 30
+    rng_local = np.random.default_rng(0)
+    hard = np.eye(n) + 0.9 * rng_local.standard_normal((n, n)) / np.sqrt(n)
+    A = MatrixOperator(hard, can_solve=True)
+    max_iter = 4
+
+    krylov = KrylovAcceleration(
+        A, ZeroOperator(), preconditioner=lambda q: q,
+        max_iter=max_iter, tol=1e-14, restart=1,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        _, record = krylov.solve(np.ones(n))
+
+    assert record.budget.iterations_per_unit == 1
+    assert record.budget.in_iterations == max_iter
+    assert record.n_iterations == max_iter
+    assert record.converged is False
+    assert record.exhausted_budget is True
+    assert record.truncated is True
+    assert record.status == "TRUNCATED"
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-079")
+def test_the_advice_names_a_setting_in_the_KNOBs_units_not_the_trajectorys():
+    """*"set max_inner=N"* must be typeable into ``max_inner`` (#349).
+
+    ``projected_iterations`` fits the observed rate over the TRAJECTORY, so
+    its answer is in Arnoldi steps; the knob takes cycles.  Before the fix
+    both halves of *"needs about N iterations: set X=N"* printed the same N,
+    which on this arm over-states the required setting by ``restart``.
+
+    The two numbers below must DIFFER for the gate to mean anything, so that
+    is asserted too — on a unit-consistent producer they coincide by design
+    and the row would be a tautology.
+    """
+    n = 30
+    rng_local = np.random.default_rng(1)
+    hard = np.eye(n) + 0.9 * rng_local.standard_normal((n, n)) / np.sqrt(n)
+    A = MatrixOperator(hard, can_solve=True)
+
+    krylov = KrylovAcceleration(
+        A, ZeroOperator(), preconditioner=lambda q: q,
+        max_iter=2, tol=1e-14, restart=8,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        _, record = krylov.solve(np.ones(n))
+
+    projected = record.projected_iterations()
+    assert projected is not None, "the fixture must be projectable"
+    setting = record.budget.covering(projected)
+
+    assert setting != projected, (
+        "this arm's knob and trajectory are in different units, so a gate "
+        "where the two coincide is not testing the conversion"
+    )
+    # The recommendation must actually BUY what was projected...
+    assert setting * record.budget.iterations_per_unit >= projected
+    # ...and not a cycle more than needed.
+    assert (setting - 1) * record.budget.iterations_per_unit < projected

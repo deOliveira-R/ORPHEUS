@@ -46,6 +46,7 @@ from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.convergence import (
+    IterationBudget,
     IterationRecord,
     StoppingCriterion,
     warn_if_unconverged,
@@ -661,8 +662,9 @@ class CPSolver:
                     trajectory=tuple(inner_residuals),
                     tolerance=self.inner_tol,
                 ),),
-                budget=self.max_inner,
-                budget_name="params.max_inner",
+                # One unit of ``max_inner`` is one within-group pass, so the
+                # identity conversion is the honest statement.
+                budget=IterationBudget(self.max_inner, "params.max_inner"),
                 iterations_run=n_in,
             ))
 

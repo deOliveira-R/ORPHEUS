@@ -170,7 +170,7 @@ boolean has nowhere to put that fact; :attr:`IterationRecord.fully_converged`
 is where it goes.
 
 ⭐ **And a level owes the reader one fact its trajectory cannot supply: the
-NAME of the knob that capped it** (:attr:`IterationRecord.budget_name`, #340
+NAME of the knob that capped it** (:attr:`IterationBudget.name`, #340
 N6).  Everything else in a diagnostic is derivable — which level, which
 criterion, how far, what rate, what budget would have sufficed — but *"set
 what?"* is answerable only by the site that constructed the level, because
@@ -219,6 +219,7 @@ from dataclasses import dataclass, replace
 __all__ = [
     "ESCALATION_FLAG",
     "ConvergenceWarning",
+    "IterationBudget",
     "IterationRecord",
     "StoppingCriterion",
     "default_iteration_budget",
@@ -627,8 +628,19 @@ class StoppingCriterion:
         r"""Iterations the observed rate says are needed to clear ``tolerance``.
 
         This is the number that turns *"raise the budget"* into *"set
-        ``max_inner=849``"*, and it is counted from iteration zero, so it is
-        directly comparable to :attr:`IterationRecord.budget`.
+        ``max_inner=849``"*, and it is counted from iteration zero — so it is
+        directly comparable to :attr:`IterationBudget.in_iterations`.
+
+        ⛔ **NOT to :attr:`IterationBudget.limit`.**  This sentence read
+        *"directly comparable to ``IterationRecord.budget``"* until
+        2026-08-13, and it was the sentence the actionable advice rested on:
+        the count here is in TRAJECTORY units, while the limit is in the
+        caller's KNOB units, and the two coincide only when
+        :attr:`IterationBudget.iterations_per_unit` is 1.  On the GMRES arm
+        it is ``restart`` = ``n_dof``, so the advice printed an Arnoldi-step
+        count against a restart-cycle knob (#349).  Route the conversion
+        through :meth:`IterationBudget.covering`, which is the identity
+        wherever the old sentence was true.
 
         Derived by extrapolating the fitted line to the crossing:
 
@@ -676,6 +688,225 @@ class StoppingCriterion:
 
 
 @dataclass(frozen=True)
+class IterationBudget:
+    r"""A ceiling, the knob that set it, and **what one unit of it buys**.
+
+    A budget and an iteration count are comparable only when they count the
+    same thing.  For five of the tree's six producers they trivially do — a
+    :class:`~orpheus.numerics.iteration.SourceIteration` pass, a
+    power-iteration outer, a CP within-group pass, an MoC transport sweep are
+    each one unit of their own ``max_iter``.  For
+    :class:`~orpheus.numerics.iteration.KrylovAcceleration` they do **not**,
+    and the gap is not a detail of bookkeeping — it is a factor of ``n_dof``.
+
+    The GMRES asymmetry, measured
+    =============================
+
+    scipy's ``gmres(maxiter=m, restart=r)`` runs an OUTER loop of ``m``
+    **restart cycles**, each an INNER Arnoldi loop of up to ``r`` steps, and
+    under ``callback_type='pr_norm'`` the callback fires once per **inner**
+    step.  So the trajectory this record carries is in Arnoldi steps while
+    the caller's knob is in restart cycles, and one cycle buys ``r`` of them.
+
+    `[M]` 2026-08-13, scipy 1.17.1, a dense ``60x60`` system, 12 of 12
+    non-converging rows over ``m ∈ {1,2,3,5} x r ∈ {4,7,20}``:
+
+    ===========  ===========  =========  =======
+    ``maxiter``  ``restart``  callbacks  ``m*r``
+    ===========  ===========  =========  =======
+    1            4            4          4
+    2            7            14         14
+    3            20           60         60
+    5            20           100        100
+    ===========  ===========  =========  =======
+
+    Exact in every row, with ``info == maxiter``; the two CONVERGING rows
+    fall short (8 callbacks of 100, 8 of 300, ``info == 0``).  So the
+    exchange rate is ``r``, exactly, and "the loop ran out" is
+    ``callbacks >= m*r``.
+
+    ⛔ **The defect this type exists to make unspellable** (#349, `[M]`
+    reproduced at ``7b1618ab``): ``exhausted_budget`` was
+    ``n_iterations >= budget`` over the raw pair, so a 1-group ``nx=16``
+    GL(8) vacuum slab solved with ``inner_solver="krylov", max_inner=5``
+    returned ``budget=5, n_iterations=91, status=CONVERGED`` — and
+    ``exhausted_budget=True``.  The solve was healthy (its ``pr_residual``
+    criterion cleared at ``9.4465e-11 < 1e-10``, zero warnings); the
+    *property meaning "it stopped because it ran out"* was simply reading
+    91 Arnoldi steps against 5 restart cycles.  Raising the knob 10x to
+    ``max_inner=50`` did not fix it, because the two numbers were never
+    commensurable.
+
+    Why a TYPE and not a third int on the record
+    ============================================
+
+    ``.claude/rules/coding-standards.md`` makes this decidable: mint a type
+    iff there are ≥2 non-isomorphic realizations of the concept AND a
+    non-identity morphism is applied to it.  Both hold — restart cycles and
+    fixed-point passes are the two realizations, and cycles → Arnoldi steps
+    is the non-identity morphism, applied in :meth:`exhausted_by` and
+    **inverted** in :meth:`covering`.  That inverse is the load-bearing half:
+    the actionable advice (#340 N3) projects a count off the trajectory, in
+    Arnoldi steps, and must hand the reader a number to type into a knob
+    that takes cycles.  Before this type that conversion did not exist
+    anywhere — an un-named welded operation, which is the failure mode
+    Cardinal Rule 2 names.
+
+    ⚠ What this does NOT do: it does not make a WRONG
+    :attr:`iterations_per_unit` unspellable.  A producer can still pass the
+    default ``1`` when its loop buys more, and no invariant here can catch
+    that — only the producer knows.  What the type does is force the
+    producer to have an opinion, and give the conversion a name that a
+    reader can check.  The honest claim is *"unspellable without saying so"*,
+    not *"impossible"*.
+
+    ⭐ Note the deliberate NON-relationship to :func:`default_iteration_budget`
+    despite the shared word.  That function answers *"how many ITERATIONS
+    does this tolerance need?"* from the geometric rate law, so its output is
+    in iteration units and is a correct :attr:`limit` only when
+    :attr:`iterations_per_unit` is 1.  `[M]` on the Krylov path it is not:
+    ``sn/solver.py:1174`` resolves ``max_inner=None`` through it and hands the
+    result to scipy's ``maxiter``, so a derived budget of ~1471 becomes 1471
+    *cycles* of ``n_dof`` steps each.  That over-provisions, which is the safe
+    direction and is left alone here — but it is the same confusion, and it
+    is why ``max_inner`` effectively never binds a Krylov inner.
+
+    Attributes
+    ----------
+    limit:
+        The ceiling, **in the caller's knob units** — the number the caller
+        actually passed, so a diagnostic can quote it back verbatim.  Zero
+        means *no budget*, which is how a direct solve (an LU resolvent) says
+        it cannot be truncated; :attr:`exhausted_by` is then always ``False``.
+    name:
+        What the CALLER's API calls the knob that set :attr:`limit` —
+        ``"max_inner"``, ``"max_outer"``, or the default ``"max_iter"``.
+        Absorbed here from the record's retired ``budget_name`` field,
+        because a limit and the knob that spells it are one fact: advice
+        that says *"set X=N"* needs both halves or neither.
+
+        `[M]` the shipped spellings are exactly
+        ``{max_inner, max_outer, max_iter, max_inner_sweeps, params.max_inner}``.
+        The field is a free ``str`` and the ONLY illegal value is the empty
+        one — a whitelist would refuse
+        :class:`~orpheus.numerics.green_operator.GreenOperator`, whose own
+        knob IS ``max_iter`` (``green_operator.py:277``), the same shape as
+        the ``GreenOperator(tol=0)`` refusal this campaign already had to
+        back out (vv anti-pattern #16, in the direction that breaks
+        production).  A level always has *some* knob, and advice with no
+        token to type is not advice.
+
+        ⭐ It is stated by the producer, not inferred by the reader, because
+        advice needs a token the caller can actually type.  A diagnostic that
+        says *"set max_outer=838"* about a starved INNER sends the reader to
+        the wrong knob — and worse than wrong, because with a starved inner
+        raising ``max_outer`` cannot help at all (the outer's stop test is
+        entirely increments, which the starved inner suppresses; #340 F2).
+
+        ⚠ It is NOT derivable from :attr:`IterationRecord.label`.  That
+        string is chosen for humans, and reading a control decision off it is
+        the stringly-typed dispatch
+        :attr:`orpheus.sn.solution.IterationHistory._is_outer` already
+        refuses.  Nor is it derivable from depth: the same
+        :class:`~orpheus.numerics.iteration.SourceIteration` is the *inner*
+        of an eigenvalue solve and the *whole* of a fixed-source one.  Only
+        the site that CONSTRUCTED the level knows which of its own parameters
+        supplied the cap, so that site states it.
+    iterations_per_unit:
+        How many RECORDED iterations one unit of :attr:`limit` buys.  ``1``
+        (the default) is the identity conversion and the honest answer for
+        every producer whose loop counter *is* its knob.  GMRES states its
+        ``restart`` here.
+
+        ⚠ It is not derivable and never will be.  Only the site that drove
+        the loop knows how its library spends a budget unit — the same
+        argument that puts :attr:`IterationRecord.iterations_run` on the
+        producer rather than on the record.
+    """
+
+    limit: int = 0
+    name: str = "max_iter"
+    iterations_per_unit: int = 1
+
+    def __post_init__(self) -> None:
+        if self.limit < 0:
+            raise ValueError(f"budget limit must be >= 0, got {self.limit}")
+        if not self.name:
+            raise ValueError(
+                "budget name must name the caller's knob — it is what the "
+                "advice tells the reader to set, and an empty one leaves "
+                "nothing to type"
+            )
+        if self.iterations_per_unit < 1:
+            raise ValueError(
+                f"iterations_per_unit must be >= 1 — one unit of a budget "
+                f"buys at least one iteration, or the budget cannot bind; "
+                f"got {self.iterations_per_unit}"
+            )
+
+    @property
+    def is_budgeted(self) -> bool:
+        """Is there a cap at all?
+
+        ``limit == 0`` is how a DIRECT level says it cannot be truncated — an
+        LU back-substitution, a closed form.  The question is asked by
+        :meth:`exhausted_by` and by every consumer that skips unbudgeted
+        levels before advising a knob, so it is named once here rather than
+        spelled ``limit > 0`` at each of them.
+        """
+        return self.limit > 0
+
+    @property
+    def in_iterations(self) -> int:
+        """The ceiling in TRAJECTORY units — the only form a count may meet.
+
+        This is the single site where the exchange rate is spent.  Every
+        comparison against an iteration count goes through here, so there is
+        no second spelling of the conversion to drift (Pattern 2).
+        """
+        return self.limit * self.iterations_per_unit
+
+    def exhausted_by(self, n_iterations: int) -> bool:
+        """Did a loop that ran ``n_iterations`` stop because it ran out?
+
+        ``limit == 0`` means *unbudgeted*, and an unbudgeted loop can never
+        be truncated however long it ran — that is what a ``DIRECT`` level
+        (:class:`~orpheus.diffusion.solver` 's LU resolvent) relies on.
+        """
+        return self.is_budgeted and n_iterations >= self.in_iterations
+
+    def covering(self, n_iterations: int) -> int:
+        """The smallest setting of :attr:`name` that buys ``n_iterations``.
+
+        The inverse of :attr:`in_iterations`, and the number that belongs in
+        *"set {name}={this}"*.  Ceiling division, because a partial budget
+        unit cannot be bought: 800 Arnoldi steps at 128 per cycle needs
+        **7** cycles, not 6.25 and not 800.
+
+        Rounds up to at least 1 whenever any iterations are wanted, so the
+        advice never tells a reader to set a knob to zero.
+        """
+        if n_iterations <= 0:
+            return 0
+        return max(1, -(-n_iterations // self.iterations_per_unit))
+
+    def __str__(self) -> str:
+        """``max_inner=5`` — or ``max_inner=5 (x128 = 640 iterations)``.
+
+        The conversion is printed ONLY when it is not the identity, so the
+        five unit-consistent producers read exactly as they did before this
+        type existed and the one asymmetric producer declares itself.
+        """
+        head = f"{self.name}={self.limit}"
+        if self.iterations_per_unit == 1:
+            return head
+        return (
+            f"{head} (x{self.iterations_per_unit} = "
+            f"{self.in_iterations} iterations)"
+        )
+
+
+@dataclass(frozen=True)
 class IterationRecord:
     r"""One LEVEL of an iterative solve: what it wanted, what it got, why it
     stopped — and, recursively, the same for every level beneath it.
@@ -706,41 +937,21 @@ class IterationRecord:
         measurements of the SAME iterations and a length mismatch means a
         producer dropped one.
     budget:
-        The iteration cap this level was given, so
+        The cap this level was given — the limit, the NAME of the knob that
+        set it, and what one unit of that knob buys — so
         :attr:`exhausted_budget` is answerable without the caller having to
-        remember what it passed.
-    budget_name:
-        What the CALLER's API calls the knob that set :attr:`budget` —
-        ``"max_inner"``, ``"max_outer"``, or the default ``"max_iter"``, which
-        is the honest answer for every level whose producer was driven
-        directly rather than through an SN entry point.
+        remember what it passed.  See :class:`IterationBudget`, which carries
+        the whole fact including the exchange rate that makes the comparison
+        dimensionally sound (#349).
 
-        `[M]` the three shipped spellings are exactly
-        ``{max_inner, max_outer, max_iter}``: a ``{max_inner, max_outer}``
-        whitelist would refuse
-        :class:`~orpheus.numerics.green_operator.GreenOperator`, whose own
-        knob IS ``max_iter`` (``green_operator.py:277``) — the same shape as
-        the ``GreenOperator(tol=0)`` refusal this campaign already had to back
-        out (vv anti-pattern #16, in the direction that breaks production).
-        So the field is a free ``str`` and the ONLY illegal value is the empty
-        one, mirroring :attr:`label`'s invariant: a level always has *some*
-        knob, and advice with no token to type is not advice.
-
-        ⭐ It is here, and not inferred by the reader, because advice needs a
-        token the caller can actually type.  A diagnostic that says *"set
-        max_outer=838"* about a starved INNER sends the reader to the wrong
-        knob — and worse than wrong, because with a starved inner raising
-        ``max_outer`` cannot help at all (the outer's stop test is entirely
-        increments, which the starved inner suppresses; #340 F2).
-
-        ⚠ It is NOT derivable from :attr:`label`.  That string is chosen for
-        humans, and reading a control decision off it is the stringly-typed
-        dispatch :attr:`orpheus.sn.solution.IterationHistory._is_outer`
-        already refuses.  Nor is it derivable from depth: the same
-        :class:`~orpheus.numerics.iteration.SourceIteration` is the *inner*
-        of an eigenvalue solve and the *whole* of a fixed-source one.  Only
-        the site that CONSTRUCTED the level knows which of its own parameters
-        supplied the cap, so that site states it.
+        ⛔ Until 2026-08-13 this was a bare ``int`` beside a separate
+        ``budget_name: str``, and ``exhausted_budget`` compared it directly
+        against :attr:`n_iterations`.  That is sound for five of the six
+        producers and wrong for GMRES by a factor of ``restart``; the
+        measurement and the reasoning are on :class:`IterationBudget`.  Both
+        fields are absorbed there — a limit, the knob that spells it, and the
+        rate that makes it comparable are ONE fact, and splitting them across
+        loose ints is what let the mismatch ship.
     iterations_run:
         How many times the loop actually iterated, when that differs from
         the number of criterion measurements.  ``None`` (the default) means
@@ -753,10 +964,20 @@ class IterationRecord:
         passes yield ``P - 1`` residuals and a run that exhausts
         ``max_iter=50`` records 49;
         :class:`~orpheus.numerics.iteration.KrylovAcceleration` gets one
-        callback per iteration, so its counts match.  Inferring one rule would silently mis-read the other — which
+        callback per inner Arnoldi step, so its count matches its own
+        TRAJECTORY.  Inferring one rule would silently mis-read the other — which
         is exactly what happened before the record existed, where the same
         ``n_inner`` field was written as ``len(residuals)`` by one driver and
         ``len(residuals) + 1`` by the other, undocumented.
+
+        ⛔ That last clause read *"so its counts match"* until 2026-08-13, and
+        the missing word cost a merge cycle.  It is true of *count vs
+        trajectory* — the only pair this attribute is about — and it READS as
+        true of *count vs budget*, which is the pair it says nothing about
+        and which for GMRES is off by ``restart``.  It is the sentence most
+        likely to talk a reader out of suspecting #349.  The budget half of
+        the question lives on :class:`IterationBudget`; this attribute is
+        silent on it by construction, and now says so.
 
         It is an OBSERVATION, not a verdict.  The distinction this class
         rests on is that no *convergence judgement* may be stored; measured
@@ -774,8 +995,7 @@ class IterationRecord:
 
     label: str
     criteria: tuple[StoppingCriterion, ...] = ()
-    budget: int = 0
-    budget_name: str = "max_iter"
+    budget: IterationBudget = IterationBudget()
     iterations_run: int | None = None
     min_iterations: int = 0
     children: tuple[IterationRecord, ...] = ()
@@ -783,14 +1003,12 @@ class IterationRecord:
     def __post_init__(self) -> None:
         if not self.label:
             raise ValueError("an iteration record must be labelled")
-        if not self.budget_name:
-            raise ValueError(
-                f"{self.label}: budget_name must name the caller's knob — it "
-                f"is what the advice tells the reader to set, and an empty "
-                f"one leaves nothing to type"
-            )
-        if self.budget < 0:
-            raise ValueError(f"{self.label}: budget must be >= 0, got {self.budget}")
+        # ⭐ The budget's own invariants (non-negative limit, non-empty knob
+        # name, a conversion that buys at least one iteration) live on
+        # :class:`IterationBudget.__post_init__`, not here.  They moved with
+        # the concept: a record is not the only thing that can hold a budget,
+        # and restating them would be the Pattern-2 duplicate that
+        # `coding-elegance` warns produces two spellings of one law.
         if self.min_iterations < 0:
             raise ValueError(
                 f"{self.label}: min_iterations must be >= 0, got "
@@ -889,8 +1107,13 @@ class IterationRecord:
 
     @property
     def exhausted_budget(self) -> bool:
-        """Did this level stop because it ran out of iterations?"""
-        return self.budget > 0 and self.n_iterations >= self.budget
+        """Did this level stop because it ran out of iterations?
+
+        The comparison is the budget's to make, not the record's: only
+        :class:`IterationBudget` knows the exchange rate between the caller's
+        knob and the trajectory this record counts (#349).
+        """
+        return self.budget.exhausted_by(self.n_iterations)
 
     @property
     def truncated(self) -> bool:
@@ -984,9 +1207,25 @@ class IterationRecord:
         page, with no re-run.
         """
         pad = "  " * _depth
+        # ⭐ Against ``in_iterations``, never the raw ``limit``.  The two differ
+        # exactly when the knob's unit is not the trajectory's, and printing
+        # the raw pair is what rendered a healthy GMRES leaf as the
+        # self-contradicting ``CONVERGED (91/5 iterations)`` (#349).  The knob
+        # is appended ONLY in that case, so every unit-consistent producer's
+        # line is byte-identical to what it printed before this type existed —
+        # including the ``(200/200 iterations)`` a committed gate pins.
+        scale = (
+            ""
+            if self.budget.iterations_per_unit == 1
+            else (
+                f" [{self.budget.name}={self.budget.limit}"
+                f" x {self.budget.iterations_per_unit}]"
+            )
+        )
         lines = [
             f"{pad}{self.label}: {self.status} "
-            f"({self.n_iterations}/{self.budget} iterations)"
+            f"({self.n_iterations}/{self.budget.in_iterations} "
+            f"iterations{scale})"
         ]
         binding = self.binding_criterion
         for criterion in self.criteria:
@@ -1220,8 +1459,8 @@ def warn_if_unconverged(
     # rather than a defended-against one.
     failing = record.first_failure or record
     level = "" if failing is record else f"{failing.label} "
-    budget_name = failing.budget_name
     budget = failing.budget
+    budget_name = budget.name
 
     # The criterion that ACTUALLY bound — the one furthest from clearing,
     # read straight off the record rather than reconstructed from a flat
@@ -1285,9 +1524,18 @@ def warn_if_unconverged(
             f"not help. Check the problem, not the budget. Or read"
         )
     else:
+        # ⛔ ``projected`` is fitted over the TRAJECTORY, so it is a count of
+        # recorded iterations — and ``budget_name`` names a knob that may not
+        # take those.  Until 2026-08-13 both halves of "needs about N: set
+        # X=N" printed the same N, which on the GMRES arm handed the reader
+        # an Arnoldi-step count to type into a restart-cycle knob, over by a
+        # factor of ``restart`` = ``n_dof`` (#349).  ``covering`` is the
+        # conversion, and it is the identity for every unit-consistent
+        # producer — so the two numbers still coincide wherever they should.
+        setting = budget.covering(projected)
         advice = (
             f"At the rate observed so far (rho={rate:.6f}) this needs about "
-            f"{projected} iterations: set {budget_name}={projected}. Or read"
+            f"{projected} iterations: set {budget_name}={setting}. Or read"
         )
 
     # ⭐ Its OWN sentence, with its own subject, and deliberately not folded
@@ -1309,7 +1557,12 @@ def warn_if_unconverged(
         f"so weigh it and do not threshold it. "
     )
     warnings.warn(
-        f"{where}: {level}hit {budget_name}={budget}{against} "
+        # ``{budget}`` renders as ``max_inner=200`` for every unit-consistent
+        # producer — byte-identical to the retired ``{budget_name}={budget}``
+        # over the raw int pair — and as ``max_inner=5 (x128 = 640
+        # iterations)`` for GMRES, which is the one arm where the knob alone
+        # does not say what the loop was allowed to do (#349).
+        f"{where}: {level}hit {budget}{against} "
         f"({distance}). Returning a BEST-EFFORT iterate — it is mid-descent, "
         f"not the converged answer. {balance}{advice} "
         # ``fully_converged``, not ``converged``: this warning fires for ANY

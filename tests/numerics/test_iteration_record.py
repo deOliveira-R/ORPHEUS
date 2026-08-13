@@ -33,7 +33,11 @@ import math
 
 import pytest
 
-from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
+from orpheus.numerics.convergence import (
+    IterationBudget,
+    IterationRecord,
+    StoppingCriterion,
+)
 
 
 def _geometric(r0: float, rho: float, n: int) -> tuple[float, ...]:
@@ -308,6 +312,118 @@ class TestTheProjectionRoundTrips:
         assert criterion.projected_iterations() is None
 
 
+# ─── 2b. The budget is a ceiling IN A UNIT (#349 / ERR-079) ──────────────
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-079")
+class TestTheBudgetOwnsItsExchangeRate:
+    r"""The DEFINING laws of :class:`IterationBudget`, as a math object.
+
+    It is a ceiling ``L`` in the caller's knob units together with a rate
+    ``p`` converting one knob unit into recorded iterations, so it names the
+    map :math:`L \mapsto L\,p` and its inverse
+    :math:`n \mapsto \lceil n/p \rceil`.  These rows gate that pair — not a
+    sample of usage — because the pair IS the type's reason to exist: before
+    it, the forward map was welded into a comparison and the inverse did not
+    exist at all, which is ERR-079.
+    """
+
+    @pytest.mark.parametrize("per_unit", [1, 2, 8, 144])
+    @pytest.mark.parametrize("wanted", [1, 7, 63, 64, 65, 800])
+    def test_covering_buys_what_was_asked_and_not_a_unit_more(
+        self, per_unit: int, wanted: int,
+    ) -> None:
+        """``covering`` is the least ``L`` with ``L*p >= n`` — both halves.
+
+        The upper half alone is satisfied by "recommend a huge number"; the
+        lower half alone by "recommend zero".  Only the pair pins the ceiling
+        division, and it is the pair a reader relies on when they type the
+        advised setting: it must WORK, and it must not over-provision by a
+        whole cycle (which on the SN arm is ``n_dof`` iterations).
+        """
+        budget = IterationBudget(0, "knob", iterations_per_unit=per_unit)
+        setting = budget.covering(wanted)
+        assert setting * per_unit >= wanted, "the advice must actually buy it"
+        assert (setting - 1) * per_unit < wanted, "and not a unit more"
+
+    def test_covering_round_trips_an_exact_multiple(self) -> None:
+        """No off-by-one at the boundary, which is where ceiling division
+        goes wrong: ``covering(k*p) == k`` exactly, never ``k+1``."""
+        budget = IterationBudget(0, "knob", iterations_per_unit=8)
+        for k in (1, 2, 5, 17):
+            assert budget.covering(k * 8) == k
+
+    def test_wanting_no_iterations_advises_no_budget(self) -> None:
+        """The degenerate end, stated rather than left to the arithmetic:
+        ``-(-0 // p)`` is 0 and the ``max(1, ...)`` floor must not turn a
+        request for nothing into a recommendation of one."""
+        assert IterationBudget(0, "knob", iterations_per_unit=8).covering(0) == 0
+
+    def test_the_ceiling_binds_at_in_iterations_not_at_the_limit(self) -> None:
+        """⛔ ERR-079 in one row: the boundary is ``L*p``, never ``L``.
+
+        `[M]` the shipped defect read ``exhausted`` at 91 steps against a
+        limit of 5; here the same shape is checked at every neighbouring
+        count, so an off-by-one in either direction reds.
+        """
+        budget = IterationBudget(5, "max_inner", iterations_per_unit=30)
+        assert budget.in_iterations == 150
+        assert budget.exhausted_by(5) is False    # the retired reading
+        assert budget.exhausted_by(149) is False
+        assert budget.exhausted_by(150) is True
+        assert budget.exhausted_by(151) is True
+
+    @pytest.mark.parametrize("limit", [1, 2, 50, 1000])
+    @pytest.mark.parametrize("ran", [0, 1, 49, 50, 51, 1001])
+    def test_the_identity_rate_REPRODUCES_the_retired_int_comparison(
+        self, limit: int, ran: int,
+    ) -> None:
+        """The compatibility law, and the reason five producers changed by
+        nothing.
+
+        ``iterations_per_unit=1`` must agree with the retired
+        ``budget > 0 and n_iterations >= budget`` on EVERY input, so the
+        carve is behaviour-preserving for `SourceIteration`, power iteration,
+        CP, MoC and diffusion by construction rather than by inspection of
+        their messages.  Only GMRES, which states a rate ≠ 1, moves.
+        """
+        retired = limit > 0 and ran >= limit
+        assert IterationBudget(limit, "knob").exhausted_by(ran) is retired
+
+    @pytest.mark.parametrize("ran", [0, 1, 10**6])
+    def test_an_UNBUDGETED_level_is_never_exhausted_however_long_it_ran(
+        self, ran: int,
+    ) -> None:
+        """``limit == 0`` is how a DIRECT solve says it cannot be truncated.
+
+        Diffusion's inner is one LU back-substitution and relies on exactly
+        this; a rate of any size must not resurrect a ceiling from a limit of
+        zero (``0 * p == 0``, which a naive ``>=`` would read as *always*
+        exhausted — the inverse of ERR-079 and the reason
+        :attr:`is_budgeted` guards the comparison).
+        """
+        for per_unit in (1, 144):
+            budget = IterationBudget(0, "knob", iterations_per_unit=per_unit)
+            assert budget.is_budgeted is False
+            assert budget.exhausted_by(ran) is False
+
+    def test_it_renders_the_conversion_ONLY_when_it_is_not_the_identity(
+        self,
+    ) -> None:
+        """``__str__`` is consumed by the ConvergenceWarning's subject line.
+
+        The identity case must stay byte-identical to the retired
+        ``f"{budget_name}={budget}"`` over the raw int pair — that is what
+        keeps five families' messages unchanged — while the one arm where the
+        knob does not say what the loop was allowed to do declares itself.
+        """
+        assert str(IterationBudget(200, "max_inner")) == "max_inner=200"
+        assert str(IterationBudget(5, "max_inner", iterations_per_unit=144)) == (
+            "max_inner=5 (x144 = 720 iterations)"
+        )
+
+
 # ─── 3. The record is a tree with a monotone fold ────────────────────────
 
 
@@ -315,7 +431,7 @@ def _leaf(label: str, *, last: float, tol: float, budget: int) -> IterationRecor
     return IterationRecord(
         label=label,
         criteria=(_criterion(trajectory=(1e-1, last), tolerance=tol),),
-        budget=budget,
+        budget=IterationBudget(budget),
     )
 
 
@@ -325,13 +441,13 @@ def _three_level_tree(*, deep_last: float) -> IterationRecord:
     inner_b = IterationRecord(
         label="inner(within-group g=1)",
         criteria=(_criterion(trajectory=(1e-1, 1e-11), tolerance=1e-10),),
-        budget=200,
+        budget=IterationBudget(200),
         children=(krylov,),
     )
     return IterationRecord(
         label="outer(power)",
         criteria=(_criterion(name="dk", trajectory=(1e-1, 1e-9), tolerance=1e-8),),
-        budget=500,
+        budget=IterationBudget(500),
         children=(_leaf("inner(within-group g=0)", last=1e-11, tol=1e-10,
                         budget=200), inner_b),
     )
@@ -404,7 +520,7 @@ class TestFirstFailureLocatesTheDEEPESTCause:
             label="outer(power)",
             criteria=(_criterion(name="dk", trajectory=(1e-1, 1e-2),
                                  tolerance=1e-8),),
-            budget=2,
+            budget=IterationBudget(2),
             children=(child,),
         )
         assert parent.converged is False  # BOTH levels failed
@@ -459,7 +575,9 @@ class TestTheFourStatesAreExhaustiveAndDistinct:
             if criteria == ()
             else (_criterion(trajectory=criteria[0], tolerance=criteria[1]),)
         )
-        record = IterationRecord(label="level", criteria=built, budget=budget)
+        record = IterationRecord(
+            label="level", criteria=built, budget=IterationBudget(budget),
+        )
         assert record.status == expected
 
     def test_a_direct_solve_did_not_iterate_but_DID_converge(self) -> None:
@@ -490,7 +608,7 @@ class TestTheFourStatesAreExhaustiveAndDistinct:
         record = IterationRecord(
             label="level",
             criteria=(_criterion(trajectory=(1e-1, 1e-11), tolerance=1e-10),),
-            budget=2,
+            budget=IterationBudget(2),
         )
         assert record.exhausted_budget is True
         assert record.converged is True
@@ -514,14 +632,15 @@ class TestTheFourStatesAreExhaustiveAndDistinct:
         """
         unmeasured = _criterion(trajectory=(), tolerance=1e-10)
         ran = IterationRecord(
-            label="inner", criteria=(unmeasured,), budget=1, iterations_run=1
+            label="inner", criteria=(unmeasured,),
+            budget=IterationBudget(1), iterations_run=1,
         )
         assert ran.iterated is True
         assert ran.converged is False
         assert ran.truncated is True
 
         never_entered = IterationRecord(
-            label="inner", criteria=(unmeasured,), budget=200
+            label="inner", criteria=(unmeasured,), budget=IterationBudget(200)
         )
         assert never_entered.iterated is False
         assert never_entered.converged is True  # nothing ran; nothing failed
@@ -550,7 +669,7 @@ class TestTheBindingCriterionIsTheFurthestFromClearing:
                 _criterion(name="dk", trajectory=(1e-2, 1e-12), tolerance=1e-8),
                 _criterion(name="dphi", trajectory=(1e-2, 5e-9), tolerance=1e-8),
             ),
-            budget=500,
+            budget=IterationBudget(500),
         )
         assert record.converged is True
         assert record.binding_criterion is not None
@@ -563,7 +682,7 @@ class TestTheBindingCriterionIsTheFurthestFromClearing:
                 _criterion(name="dk", trajectory=(1e-2, 1e-7), tolerance=1e-8),
                 _criterion(name="dphi", trajectory=(1e-2, 1e-3), tolerance=1e-8),
             ),
-            budget=2,
+            budget=IterationBudget(2),
         )
         assert record.truncated is True
         assert record.binding_criterion is not None
@@ -619,7 +738,7 @@ class TestRecordConstructionEnforcesItsInvariants:
                 _criterion(name="dk", trajectory=(1e-2, 1e-9), tolerance=1e-8),
                 _criterion(name="dphi", trajectory=(1e-2, 1e-9), tolerance=1e-8),
             ),
-            budget=500,
+            budget=IterationBudget(500),
         )
         assert record.n_iterations == 2
 
@@ -662,14 +781,15 @@ class TestRecordConstructionEnforcesItsInvariants:
                                tolerance=1e-10)
         si_like = IterationRecord(
             label="inner(source-iteration)", criteria=(criterion,),
-            budget=50, iterations_run=50,
+            budget=IterationBudget(50), iterations_run=50,
         )
         assert si_like.n_iterations == 50
         assert si_like.exhausted_budget is True  # would read False from len()
         assert si_like.truncated is True
 
         krylov_like = IterationRecord(
-            label="inner(gmres)", criteria=(criterion,), budget=50,
+            label="inner(gmres)", criteria=(criterion,),
+            budget=IterationBudget(50),
         )
         assert krylov_like.n_iterations == 49  # defaults to the measurements
         assert krylov_like.exhausted_budget is False
@@ -690,12 +810,38 @@ class TestRecordConstructionEnforcesItsInvariants:
     def test_an_unnamed_budget_knob_is_refused(self) -> None:
         """The advice has to give the reader a token to type (#340 N6).
 
-        ``budget_name`` is what a ``ConvergenceWarning`` puts after "set",
-        so an empty one degrades the message to ``hit =50`` — the same class
-        of defect as an unlabelled record, and refused the same way.
+        The knob name is what a ``ConvergenceWarning`` puts after "set", so
+        an empty one degrades the message to ``hit =50`` — the same class of
+        defect as an unlabelled record, and refused the same way.
+
+        ⛔ The invariant MOVED on 2026-08-13 (#349): it used to live on
+        ``IterationRecord.__post_init__`` and guard a ``budget_name: str``
+        field, and it now lives on :class:`IterationBudget`, which owns the
+        whole (limit, knob, exchange-rate) fact.  So the refusal fires at the
+        BUDGET's construction, one frame earlier than it used to — which is
+        the point of the move, since a budget can now be built and passed
+        around without a record to hold it.
         """
-        with pytest.raises(ValueError, match="budget_name"):
-            IterationRecord(label="level", budget_name="")
+        with pytest.raises(ValueError, match="budget name"):
+            IterationBudget(50, "")
+
+    def test_a_budget_unit_that_buys_no_iterations_is_refused(self) -> None:
+        """The exchange rate must be able to bind (#349).
+
+        A unit that buys zero iterations makes ``in_iterations`` zero for
+        ANY limit, so ``exhausted_by`` would read ``True`` on a loop that
+        ran once — the inverse of the defect this type was minted to fix,
+        and worth refusing at the same door.  Negative is likewise nonsense.
+        """
+        for bad in (0, -1):
+            with pytest.raises(ValueError, match="iterations_per_unit"):
+                IterationBudget(50, "max_inner", iterations_per_unit=bad)
+
+    def test_a_negative_limit_is_refused(self) -> None:
+        """The positive leg of the pair lives in the state table above; this
+        is the negative one, and it moved off the record with its concept."""
+        with pytest.raises(ValueError, match="limit must be >= 0"):
+            IterationBudget(-1)
 
     def test_the_knob_defaults_to_the_PRIMITIVE_s_own_parameter_name(
         self,
@@ -712,16 +858,32 @@ class TestRecordConstructionEnforcesItsInvariants:
         (``GreenOperator(tol=0)``).  So the field is a free ``str`` whose
         default is the honest answer for a primitive nobody re-named.
         """
-        assert IterationRecord(label="level").budget_name == "max_iter"
+        assert IterationRecord(label="level").budget.name == "max_iter"
+        assert IterationBudget(50).name == "max_iter"
         assert (
-            IterationRecord(label="level", budget_name="max_inner").budget_name
+            IterationRecord(
+                label="level", budget=IterationBudget(50, "max_inner"),
+            ).budget.name
             == "max_inner"
         )
 
-    @pytest.mark.parametrize("kw", [{"budget": -1}, {"min_iterations": -1}])
-    def test_negative_counts_are_refused(self, kw) -> None:
+    def test_a_negative_min_iterations_is_refused(self) -> None:
+        """⛔ This was parametrized over ``{"budget": -1}`` too, until #349
+        made ``budget`` an :class:`IterationBudget` rather than an ``int``.
+
+        The ``budget=-1`` row did not simply move — it stopped being a
+        question this class can be ASKED.  A dataclass does not type-check
+        its fields at runtime, so ``IterationRecord(budget=-1)`` now builds
+        happily and fails later at the first ``.budget.exhausted_by(...)``;
+        the guard against it is pyright, not a raise, and adding an
+        ``isinstance`` here would be the harmful-stub anti-pattern
+        (``coding-standards``: no runtime guard for a case the type system
+        covers).  The VALUE invariant it used to assert lives on the type,
+        in :meth:`test_a_negative_limit_is_refused` above — where it also
+        covers budgets built without a record to hold them.
+        """
         with pytest.raises(ValueError, match=">= 0"):
-            IterationRecord(label="level", **kw)
+            IterationRecord(label="level", min_iterations=-1)
 
     def test_replace_RE_RUNS_the_invariant(self) -> None:
         """``dataclasses.replace`` routes back through ``__post_init__``, so
@@ -764,14 +926,14 @@ class TestTheReportCarriesWhatTheReaderMustAct_ON:
             criteria=(
                 _criterion(trajectory=_geometric(r0, rho, 200), tolerance=tol),
             ),
-            budget=200,
+            budget=IterationBudget(200),
         )
         outer = IterationRecord(
             label="outer(power)",
             criteria=(
                 _criterion(name="dk", trajectory=(1e-2, 1e-9), tolerance=1e-8),
             ),
-            budget=500,
+            budget=IterationBudget(500),
             children=(inner,),
         )
         report = outer.report()
@@ -789,7 +951,7 @@ class TestTheReportCarriesWhatTheReaderMustAct_ON:
             criteria=(
                 _criterion(trajectory=_geometric(1e-3, 1.0, 40), tolerance=1e-10),
             ),
-            budget=40,
+            budget=IterationBudget(40),
         )
         assert "no budget suffices" in record.report()
 
