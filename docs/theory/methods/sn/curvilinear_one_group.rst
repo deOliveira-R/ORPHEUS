@@ -28,8 +28,10 @@ The chain of the book repeats on the new axis:
    invariant;
 2. **the operator** — :math:`A = L + C - S - B` keeps its honest shape
    and :math:`L+C` stays **lower-triangular**: :term:`sweep` order now threads
-   the angular cascade (seeded at each level's :term:`starting direction`,
-   with :math:`\alpha_{1/2} = 0` closing the recursion) through the
+   the angular cascade (:math:`\alpha_{1/2} = 0` **seeds** the recursion at
+   each level's :term:`starting direction`; :math:`\alpha_{M+1/2} = 0`
+   **closes** it at the far edge — two different statements, and only the
+   first is an axiom) through the
    radial march;
 3. **the matrix picture** — the per-cell system gains one more
    upstream state (the angular half-flux :math:`\psi_{n-1/2}`) and
@@ -57,6 +59,11 @@ re-derived.
      consistency, not optional (without it the solver manufactures
      angular anisotropy that *worsens* under refinement near
      :math:`r = 0`; failure mode #3).
+   * The dome **closes**, :math:`\alpha_{M+1/2} = 0`
+     (:eq:`alpha-dome-closure`), on both arms — a *theorem about the
+     quadrature*, not an axiom of the one-sided recursion, and therefore an
+     **admission contract** a bad rule can violate.  It raises at
+     construction (:ref:`sn-alpha-dome-closes`).
    * The **streaming-equilibrium identity** :eq:`streaming-equilibrium`
      (:math:`\phi = Q/(\Sigma_t(1-c))`, :math:`\psi_n = \phi/W`) is
      the canonical L0 gate — asserted **per ordinate**, never via
@@ -108,7 +115,19 @@ re-derived.
      angular recurrence :eq:`pole-mm-recurrence` (:cite:`MorelMontry1984`;
      implemented form :cite:`BaileyMorelChang2010` Eqs. (42)/(43) —
      Hébert defines no :math:`\tau`, see
-     :ref:`sn-tau-source-of-record`).
+     :ref:`sn-tau-source-of-record`), **seeded at the marched**
+     :math:`\psi_{1/2}` (the bullet below; the Phase-B
+     :math:`\phi_{1/2} = 0` was a wrong-term initialisation, not a
+     convention).
+   * The march has **two** endpoint conditions, not one — the
+     redistribution coefficient vanishes at both
+     (:math:`\alpha_{1/2} = \alpha_{M+1/2} = 0`), so production ODE-solves
+     both ends with one engine and the recurrence *also* predicts the far
+     one.  Their disagreement is the named residual
+     :math:`D` (:eq:`sn-angular-endpoint-defect-eq`,
+     :ref:`sn-angular-endpoint-defect`): a reference-free **consistency**
+     diagnostic, ⛔ **not** an error estimator and ⛔ **not** a voter on
+     :math:`\tau`.
    * The apply matvec is **one sweep iteration semantically**
      (:eq:`phase-c-wdd-recurrence`): apply and solve consume the
      same three primitives — the WDD closure, the direction-keyed
@@ -226,7 +245,10 @@ defined recursively:
 
    \alpha_{n+\frac12} = \alpha_{n-\frac12} - w_n \mu_n
 
-with the boundary condition :math:`\alpha_{1/2} = 0`.
+seeded at :math:`\alpha_{1/2} = 0`.  The recursion is **strictly
+one-sided** — it marches from the seed and never consults the far end —
+which is why the far end is a separate statement and not a corollary
+(:ref:`sn-alpha-dome-closes`).
 
 For **spherical** geometry, all :math:`N` ordinates form a single
 sequence sorted by :math:`\mu` (most negative to most positive).
@@ -259,12 +281,108 @@ Each level's :math:`\alpha` values form an independent dome from
   quadratures have narrower but taller domes.
 - Non-negativity ensures the denominator of the DD equation is
   unconditionally positive, guaranteeing numerical stability.
+- **The dome CLOSES**: :math:`\alpha_{M+1/2} = 0` at the far end of every
+  level, on **both** arms — see :ref:`sn-alpha-dome-closes`, which is where
+  that belongs, because it is an admission contract rather than a shape.
 
 The code stores these on the reduced streaming operator —
 ``mesh.reduced.alpha_half`` (spherical, shape ``(N+1,)``) and
 ``mesh.reduced.alpha_per_level`` (cylindrical, list of ``(M+1,)``
 arrays); they are genuinely geometric and stay on the geometry side
-(:ref:`sn-tau-step-c-closeout`).
+(:ref:`sn-tau-step-c-closeout`).  One body computes them —
+:func:`~orpheus.geometry.reduced_operator.alpha_dome` — which both
+curvilinear factories call and which the derivations-side name delegates
+to; before ``bea6a367`` (2026-08-12) the recursion had **three** spellings,
+and that is exactly why its closure contract could live on one of them
+only.
+
+.. _sn-alpha-dome-closes:
+
+The dome closes — :math:`\alpha_{M+1/2} = 0` as an admission contract
+----------------------------------------------------------------------
+
+The recursion :eq:`alpha-recursion` is one-sided: given
+:math:`\alpha_{1/2} = 0` and the marching cosines it produces *some*
+:math:`\alpha_{M+1/2}`, whatever the rule happens to be.  Telescoping the
+recursion over the level gives that value in closed form,
+
+.. math::
+   :label: alpha-dome-closure
+
+   \alpha_{M+\frac12} \;=\; \alpha_{\frac12} \;-\; \sum_{m} w_m\,c_m
+   \;=\; -\sum_{m} w_m\,c_m ,
+
+where :math:`c_m` is the level's **marching cosine** (:math:`\mu` on the
+sphere, :math:`\eta` on a cylinder level).  So the dome closes **iff the
+marching cosines are antisymmetric about the level's centre**, i.e. iff the
+measure's first moment in the marching coordinate vanishes.  Two readings
+follow, and keeping them apart is the whole point:
+
+* :math:`\alpha_{1/2} = 0` is an **axiom** — a definition that seeds the
+  recursion, true by fiat in every published convention
+  (:ref:`normalization-alpha-crosswalk`).
+* :math:`\alpha_{M+1/2} = 0` is a **theorem about the quadrature**, and
+  therefore a **contract the quadrature can violate**.  A non-zero endpoint
+  does not mean the recursion is wrong; it certifies that the measure
+  handed to it is inadmissible — mis-ordered, truncated, or duplicated
+  ordinates upstream.
+
+.. vv-status: alpha-dome-closure documented
+   Rationale: the telescoped closed form of the one-sided Lathrop–Carlson
+   recursion at the far endpoint — a representational identity of the
+   recursion, not a solver claim with an L0..L3 ladder slot.  The verifiable
+   content is the admission guard
+   ``orpheus.geometry.reduced_operator._assert_alpha_dome_closes`` (a real
+   raise, per level on the cylinder), gated by an explicit positive+negative
+   pair in ``tests/geometry/test_reduced_operator.py`` (vv-principles #11):
+   ``test_every_shipped_gauss_legendre_dome_closes`` and
+   ``test_every_shipped_folded_product_dome_closes_on_every_level`` admit
+   every shipped rule on both arms (and assert the PRODUCERS' ~1e-16 floor
+   separately from the guard's 1e-12 admission band, vv-principles #16),
+   while ``test_a_dome_that_does_not_close_is_refused`` requires the refusal
+   under ``python -O`` — the row the retired bare ``assert`` could not carry.
+
+**Why it must REFUSE rather than absorb.**  :math:`\alpha_{M+1/2}` is not
+inert.  It is the last entry of the ``alpha_out`` slice, so it lands in
+*both* cell-balance coefficients of the final ordinate —
+:math:`c_{\rm out}[M-1] = \alpha_{M+1/2}/\tau` (a **denominator** term) and
+:math:`c_{\rm in}[M-1] = \bigl((1-\tau)/\tau\bigr)\alpha_{M+1/2} +
+\alpha_{M-1/2}` (an upstream-numerator term); see
+:ref:`sn-closure-c-constants-owned`.  A closing dome makes that denominator
+term vanish, which is what "angular redistribution stops at the level's top
+edge" *means* mechanically.  A non-zero value instead redistributes flux
+past the top edge, into nothing — a leak, not a small error.
+
+.. warning:: **The contract existed on one arm and did not run
+   (``bea6a367``, 2026-08-12).**
+
+   Enforcement before that commit was: sphere — a bare
+   ``assert abs(alpha[N]) < 1e-12``; cylinder — nothing at all.  The
+   canonical test invocation in this project is ``python -O``, and ``-O``
+   sets ``__debug__ = False`` and strips every ``assert`` **statement** at
+   compile time, so the one check that existed did not run in the suite that
+   matters.  `[M]` on the verbatim recursion: a measure closing at
+   ``alpha[N] = +0.2000`` is REFUSED under plain ``python`` and **ACCEPTED**
+   under ``python -O``.
+
+   The reusable lesson is not "add a check to the cylinder arm" — that
+   would have guarded a *duplicate*.  The recursion had three spellings,
+   which is precisely how a contract comes to live on one of them; Cardinal
+   Rule 2 first (one :func:`~orpheus.geometry.reduced_operator.alpha_dome`
+   body), then the guard
+   (:func:`~orpheus.geometry.reduced_operator._assert_alpha_dome_closes`, a
+   real ``raise``, **per level** on the cylinder so the failure is
+   locatable).  Recursion and contract stay separate functions deliberately:
+   a derivation that wants to *study* a non-closing measure may call the
+   recursion without being refused by it.  Sibling guard, same shape:
+   ``pole_angular_closure._assert_tau_within_unit_interval``.
+
+   ⚠ Generalise it: **a numerical or domain contract expressed as a bare
+   ``assert`` in** ``orpheus/`` **does not run under the canonical runner.**
+   The discriminator is what the assert is *for* — type-narrowing for a type
+   checker is fine to strip; an admission predicate must be a real
+   ``raise``.  (``.claude/rules/coding-standards.md``; ``vv-principles``
+   Mode 8.)
 
 The Geometry Factor and Why It Is Needed
 =========================================
@@ -1046,7 +1164,8 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
 
 .. (vv-status rationale) Representational identity: the scalar cell-update
    spelling of the Morel–Montry angular recurrence.  It is algebraically the
-   SAME operator as :eq:`pole-mm-recurrence` (genuinely wired to
+   SAME recurrence STEP as :eq:`pole-mm-recurrence` (its seed line is a
+   separate statement — this spelling carries no seed; genuinely wired to
    ``test_compute_psi_half_per_level.py::TestRecurrenceFormula``) and
    :eq:`dd-mm-scan-split`, applied in the ``DiamondDifference.update`` frame;
    the bit-identity across the three consumer frames is the L21 twin-path
@@ -1076,8 +1195,9 @@ and precomputes the split
    \texttt{mm\_a\_in\_coeff} = \frac{1 - \tau}{\tau},
 
 .. (vv-status rationale) Representational identity: the precomputed-split
-   (vectorized-scan) spelling of the same Morel–Montry recurrence as
-   :eq:`dd-mm-angular-recurrence` / :eq:`pole-mm-recurrence` — a
+   (vectorized-scan) spelling of the same Morel–Montry recurrence STEP as
+   :eq:`dd-mm-angular-recurrence` / :eq:`pole-mm-recurrence` (the seed is a
+   separate statement, carried only by the latter) — a
    perform-once-at-construction hoist (L16) of 1/τ and (1−τ)/τ, algebraically
    identical to the scalar recurrence.  The scalar↔scan bit-identity is pinned
    by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
@@ -1934,10 +2054,53 @@ flat-flux invariance, and asymptotic accuracy:
   .. math::
      :label: pole-mm-recurrence
 
-     \phi_{1/2,i,g} &= 0, \\
+     \phi_{1/2,i,g} &= \psi_{1/2,i,g}, \\
      \phi_{n+1/2,i,g} &= \frac{\phi_{n,i,g}
                               \;-\; (1 - \tau_n)\,\phi_{n-1/2,i,g}}{\tau_n},
-     \qquad n = 1, \ldots, N.
+     \qquad n = 1, \ldots, M_p .
+
+  The march runs over the level's own :math:`M_p` ordinates — the sphere is
+  the single-level case :math:`M_p = N`, the cylinder loops it per
+  :math:`\mu`-level, each with its own :math:`\alpha`-dome,
+  :math:`\Delta A/w` and :math:`\tau`.
+
+  **The seed** :math:`\psi_{1/2,i,g}` is the level's **starting-direction
+  flux**: the value of the field on the closed ray at the level's
+  most-inward angular edge :math:`\mu_{\rm start}` (sphere: :math:`\mu =
+  -1`).  It is not free and it is not a closure choice — it solves a
+  transport problem of its own, the plain radial ODE the balance collapses
+  to where the redistribution coefficient vanishes.  Since #282 route (a)
+  production **marches** it directly from the within-group source
+  :math:`\bar q_{1/2}` and carries it as first-class typed state; the full
+  account, including why reading it off the iterate was a walk-order back
+  edge, is :ref:`sn-direct-seed-solve`.
+
+  .. note:: **⛔ The seed was** :math:`\phi_{1/2,i,g} = 0` **until Phase D,
+     and that zero was a bug — not a convention.**
+
+     Phase B hardcoded it, justified as "the unique choice consistent with
+     :math:`\alpha_{1/2} = 0`".  The justification is wrong twice over: the
+     product :math:`\alpha_{1/2}\,\phi_{1/2}` vanishes for *any*
+     :math:`\phi_{1/2}` precisely because :math:`\alpha_{1/2} = 0`, so that
+     argument constrains nothing — and the seed *also* enters the
+     denominator-propagation chain, reaching every downstream half-face
+     through the :math:`(1-\tau_n)` weight.  It is a wrong-term
+     initialisation, ``vv-principles`` failure Mode 3, catalogued as part of
+     ERR-026 and dissected at :ref:`sn-phase-d-carlson-coupled-pole-sweep`
+     ("The bug Phase B baked in").
+
+     ⚠ **One live path still seeds at zero, legitimately, and it is not this
+     one.**  The ray-**decoupled** :math:`(A,A)` diagonal block substitutes a
+     zero seed by construction — there is no fold entry on that block, so the
+     M-M thread has nothing to read and its cotangent propagates nowhere
+     (:ref:`sn-loss-rep-ray-decoupled-block`).  The kernel
+     :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+     therefore keeps ``psi_half_seed=None`` → zero as its API default, and
+     that default — **not** the shipped scheme — is what the equation's
+     ``verifies`` gates in
+     :file:`tests/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
+     exercise.  On the coupled production path the seed is the marched
+     state.
 
   At :math:`\tau_n = 1/2` the recurrence
   reduces to pure DD angular :math:`\phi_{n+1/2,i,g} = 2\,\phi_{n,i,g}
@@ -1957,12 +2120,25 @@ flat-flux invariance, and asymptotic accuracy:
   :math:`\tfrac12` is *not* a lower bound and never was).  The same
   recurrence runs
   inside :class:`~orpheus.transport.spatial.diamond.DiamondDifference` (the
-  sweep's cell update); applying this strategy in the apply matvec
-  brings the apply and sweep to the same angular closure, but the
-  **spatial** closures still differ (apply uses arithmetic averages
-  + DD extrapolation; sweep uses WDD).  Full ERR-026 closure on the
-  apply matvec requires aligning the spatial closure also (a
-  follow-up beyond Phase B's scope — design memo §6.4 / §11).
+  sweep's cell update).
+
+  ⛔ **REFUTED by Phase C (2026-05; this bullet said the opposite until
+  2026-08-13).**  The text here read: *"applying this strategy in the apply
+  matvec brings the apply and sweep to the same angular closure, but the*
+  **spatial** *closures still differ (apply uses arithmetic averages + DD
+  extrapolation; sweep uses WDD).  Full ERR-026 closure on the apply matvec
+  requires aligning the spatial closure also."*  That was true **of Phase
+  B**, and it is exactly what Phase C then shipped: the matvec was rewritten
+  into the sweep frame, so ``apply`` and ``solve`` now consume the **same
+  three primitives** — the WDD closure :eq:`phase-c-wdd-recurrence`, the
+  direction-keyed DAG walk, and the BC trace law at the boundary edge — and
+  agree on what :math:`L + C` *is* by construction
+  (:ref:`sn-apply-sweep-equivalence`).  No arithmetic-average face closure
+  survives anywhere in ``orpheus``.  The sentence is preserved because it
+  records *why* the canonical angular form could not be made the default in
+  Phase B alone: an angular fix paired with a mismatched spatial closure
+  measurably made the operator **worse** on flat :math:`\psi`
+  (:ref:`sn-superseded-arithmetic-spatial-closure`).
   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
   was therefore **opt-in** in Phase B (the default was then
   ``LegacyTauSymmetricInterpolation``); it has since become the sole
@@ -2144,6 +2320,20 @@ Two properties make this the sharpest criterion available on
 ERR-026 closure status after the pole closure
 ---------------------------------------------
 
+.. note:: **Read this subsection as the PHASE-B-era status (2026-05).**
+   Every present-tense claim below was true then and has since been
+   discharged: Phase C aligned the apply matvec's spatial closure with the
+   sweep's WDD form (:ref:`sn-apply-sweep-equivalence`),
+   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+   duly became the default and then the **sole** production closure, the
+   four ``xfail-strict`` curvilinear MMS tripwires were retired, and
+   ERR-058 (Issue #195, CLOSED 2026-06-12) showed the residual wrong fixed
+   point was the *closure-seed* family rather than a boundary-truncation
+   order.  It is preserved because the reason Phase B **declined** to flip
+   the default — an angular fix paired with a mismatched spatial closure is
+   worse than neither — is the load-bearing lesson, and it is the same
+   pairing argument the seed correction later needed.
+
 Phase B ships the architectural infrastructure for closing Defect 3
 (the :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
 Protocol + canonical
@@ -2300,6 +2490,8 @@ resumed:
    conventions" (cross-domain-attacker Smell 16) is the trigger for
    the unification.
 
+.. _sn-superseded-arithmetic-spatial-closure:
+
 The superseded arithmetic spatial closure
 -----------------------------------------
 
@@ -2322,16 +2514,30 @@ pairing the canonical
 :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
 angular closure with arithmetic-average spatial closure produces a
 **worse** operator on flat :math:`\psi` than the legacy
-:math:`\tau`-symmetric interpolation. The canonical M–M form
-produces half-angle face fluxes oscillating as
-:math:`0, 2c, 0, 2c, \ldots` on flat :math:`\psi` (this is the
-correct DD-angular behaviour when seeded with the Carlson starting
-direction :math:`\psi_{1/2} = 0`), and the arithmetic spatial
+:math:`\tau`-symmetric interpolation. Under the **Phase-B zero seed** the
+canonical M–M form produces half-angle face fluxes oscillating as
+:math:`0, 2c, 0, 2c, \ldots` on flat :math:`\psi` — read
+:eq:`pole-mm-recurrence` at :math:`\tau = \tfrac12` from
+:math:`\phi_{1/2} = 0` and the alternation is immediate — and the
+arithmetic spatial
 average then combines these oscillating angular face fluxes with
 interior-averaged spatial face fluxes into garbage. Phase B's
 empirical test ``test_apply_spherical_constant_flux_under_morel_montry_canonical_form``
 saw :math:`\phi` range across [0.6, 1.004] on a flat-:math:`\psi`
 input that analytical balance demands give exactly :math:`1.0`.
+
+.. note:: **Read this diagnosis with its seed attached.**  The alternation
+   above is a property of the *zero* seed, not of the M-M closure: a seed
+   consistent with the field it marches gives :math:`\phi_{m+1/2} = c` at
+   every face on flat :math:`\psi` (the recurrence's flat fixed point), and
+   no alternation to combine with anything.  Phase D measured the two
+   candidate injection points separately and found the **angular** seed was
+   the binding one — replacing it closed the flat-:math:`\psi` residual to
+   :math:`1.78\times10^{-15}` while replacing the WDD spatial seed changed
+   nothing (the ``[A]``/``[B]``/``[C]``/``[D]`` sweep at
+   :ref:`sn-phase-d-carlson-coupled-pole-sweep`).  Both closures were
+   nevertheless wrong, and both were fixed: Phase C aligned the spatial
+   closure, Phase D and then #282 route (a) fixed the seed.
 
 The fix is to align the spatial closure with the sweep: use the
 WDD recurrence
@@ -2558,9 +2764,18 @@ What stays
   :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
   closure contract (the ABC, since Issue #248) stays. The sphere
   centre / cylinder axis is **intrinsic geometry** (a coordinate-system
-  singularity, not an external BC), so the three-strategy angular
-  closure is the right shape; only the **default** is under question,
-  and that is the Phase D decision point.
+  singularity, not an external BC), so a *strategy* keyed on the
+  coordinate system — rather than a boundary law — is the right shape.
+  (Phase C wrote "the **three**-strategy angular closure … only the
+  default is under question, and that is the Phase D decision point".
+  ⛔ Both clauses are spent: Phase D flipped the default, and the two
+  ablation strategies were retired at PR-TYPED-6c Step 7 / #248, leaving
+  :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+  for curvilinear and
+  :class:`~orpheus.sn.sweep.pole_angular_closure.IdentityAngularClosure`
+  for Cartesian — two members because there are two geometries, not
+  three because there were three candidate schemes.  The shape claim
+  survives; the census does not.)
 * The :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose`
   machinery via dense-probe construction stays. Linearity of the
   rewritten :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
@@ -2575,8 +2790,35 @@ What stays
   contract is exactly what the matvec consumes at the boundary
   edge.
 
-The pole-face Carlson starting direction
-------------------------------------------
+The pole-face initial condition — Carlson seed, then mirror continuation
+--------------------------------------------------------------------------
+
+.. attention:: **⛔ The Carlson cell-centre seed derived in this subsection
+   is RETIRED** (⛔ REFUTED 2026-06-12 — ERR-058 manifestation (a),
+   Issue #195).
+
+   Everything from "The single largest architectural deviation" down to the
+   cylindrical analogue is the **Phase C** reasoning, preserved because it is
+   *why* anyone reached for a cell-centre pole seed, and because its
+   flat-:math:`\psi` algebra is precisely the blindness that let the wrong
+   seed survive every flat-flux gate in the tree.  The **shipped** pole-face
+   initial condition is the :math:`r = 0` characteristic continuation
+   :math:`\psi(0, +\mu) = \psi(0, -\mu)`
+   (:eq:`sn-err-058-coupled-pole-continuity`), stated as a contract under
+   :ref:`sn-pole-face-mirror-continuation` below.  Read this subsection for
+   the history; read that one for the current contract.
+
+   ⚠ **Two different objects share the name "Carlson" on this page, and only
+   one of them was retired.**  The *spatial* pole-face seed below — an
+   initial value for the outward **radial** WDD march — is retired.  The
+   *angular* starting-direction solve — the Hébert §3.9.4
+   :eq:`hebert-3-434`–:eq:`hebert-3-435` inward march that produces
+   :math:`\psi_{1/2}` and seeds the M-M **angular** recurrence
+   :eq:`pole-mm-recurrence` — is production, and is the subject of
+   :ref:`sn-direct-seed-solve`.  Phase D's own diagnostic separated them:
+   *the seed lives in the M-M angular recurrence, not in the WDD spatial
+   pole-face IC* (the ``[A]``/``[B]`` intervention sweep,
+   :ref:`sn-phase-d-carlson-coupled-pole-sweep`).
 
 The single largest architectural deviation between the Phase C plan
 and the shipped code is the **pole-face initial condition** for the
@@ -2617,12 +2859,25 @@ invariant on **all three** Phase B pole-closure strategies:
    gates.
 .. vv-status: phase-c-wdd-oscillation documented
 
-The correct initial condition is the **Carlson starting-direction
-seed** of :cite:`LewisMiller1984` §4.5 (paraphrased in Hébert §3.9.4
+Phase C's answer was the **Carlson starting-direction seed** of
+:cite:`LewisMiller1984` §4.5 (paraphrased in Hébert §3.9.4
 Eqs. 3.432–3.435 for the angular analogue):
 :math:`\psi^{\text{face}}_{\text{in}}(\text{pole}) =
-\psi^{\text{cell}}(\text{first cell})`. For true flat :math:`\psi`
-this yields
+\psi^{\text{cell}}(\text{first cell})`.
+
+⛔ **REFUTED 2026-06-12 (ERR-058 manifestation (a), Issue #195); retired
+from production.**  Reading the innermost *cell centre* as if it were the
+*face* value is a half-cell offset — the cell centre sits at
+:math:`r = \Delta r/2`, not at :math:`r = 0` — so the seed is
+:math:`\mathcal{O}(h)`-wrong on every non-flat radial profile, and the DD
+face chain then propagates that seed error outward as an undamped odd–even
+alternation which the area weighting amplifies as :math:`A/V \sim 1/r` near
+the pole (:ref:`sn-err-058-manifestation-a`).  The flat-:math:`\psi` algebra
+below is *exactly* why that survived: on flat :math:`\psi` the offset is
+invisible, so every flat-flux gate in the tree stayed green.  What shipped is
+:ref:`sn-pole-face-mirror-continuation`.
+
+For true flat :math:`\psi` the Phase C seed yields
 
 .. math::
 
@@ -2651,14 +2906,24 @@ separable function of
 the inward and outward ordinate cones meet there. Lewis–Miller's
 "starting direction" handles this by introducing a half-step inward
 sweep at :math:`\mu = -1` that initialises the
-:math:`\alpha`-cascade and propagates to the outward sweep; the
-Carlson seed is the natural anchor for that half-step in the
-cell-by-cell WDD formulation. The same logic applies to the
-cylindrical axis: the per-level azimuthal-DAG topology has a
+:math:`\alpha`-cascade and propagates to the outward sweep; Phase C
+took the Carlson cell-centre read to be the natural anchor for that
+half-step in the cell-by-cell WDD formulation. The same logic applies
+to the cylindrical axis: the per-level azimuthal-DAG topology has a
 half-step inward-zero-weight ordinate at :math:`\mu_x = -1` that
 anchors each level's :math:`\alpha`-cascade.
 
-The cylindrical analogue uses the identical Carlson seed per level:
+⚠ **Which half of that paragraph survived.**  Lewis–Miller's
+*starting direction* — a half-step solve at the pole cosine that
+initialises the :math:`\alpha`-cascade — is **production**, and
+:ref:`sn-direct-seed-solve` is its modern form (marched directly from the
+within-group source, promoted to first-class state).  What did **not**
+survive is the last clause: the *spatial* WDD pole-face anchor is not the
+Carlson cell-centre read; it is the mirror continuation.  Lewis–Miller
+never asked the starting direction to supply a radial face value — that
+conflation was Phase C's, not the literature's.
+
+Phase C's cylindrical analogue used the identical Carlson seed per level:
 :math:`\psi^{\text{face}}_{\text{in,level}}(\text{pole}) =
 \psi^{\text{cell}}(\text{first cell at level})`. For a
 level-symmetric quadrature the cylinder tolerates a wrong seed via
@@ -2670,6 +2935,78 @@ quadrature).  Historical mechanics: since Q5.6.3 a cylindrical
 ``SNMesh`` refuses both of those rule classes at construction
 (:ref:`sn-direct-seed-r12a`), so the tolerate-a-wrong-seed regime is
 unconstructible on the live tree.
+
+.. _sn-pole-face-mirror-continuation:
+
+What shipped instead — the r = 0 mirror continuation
+-----------------------------------------------------
+
+The shipped pole-face initial condition is not a closure at all.  It is an
+**identity of the geometry**, and recognising that is what makes it exact
+where every extrapolant is not.
+
+**The physics.**  A straight flight line does not terminate at the origin;
+it passes through and re-emerges on the far side.  In the 1-D reduced
+coordinate the ray that arrives at :math:`r = 0` with radial cosine
+:math:`-\mu` leaves with :math:`+\mu` — the inward and outward
+characteristics are *one* characteristic, cut in half by the coordinate
+chart rather than by the physics.  Hence
+
+.. math::
+
+   \psi(0,\,+\mu) \;=\; \psi(0,\,-\mu),
+
+which is :eq:`sn-err-058-coupled-pole-continuity`, derived in full at
+:ref:`sn-err-058-manifestation-a`.  It is the :math:`r = 0` quotient's
+:math:`\sigma_x` **deck transformation** — the same mirror motion the
+boundary tier realizes for a specular face — so the codebase derives its
+ordinate pairing from one source
+(:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
+applied to the x-mirror motion) rather than from a hand-written table.
+
+**What the outward sweep therefore reads.**  Run the inward
+(:math:`-\mu`) sweep FIRST; its pole-face *outflow*, gathered at the
+mirror ordinate, IS the outward (:math:`+\mu`) sweep's pole-face inflow.
+The production line is one gather —
+``pole_face_seed = outflow_at_inner.T[self._ensure_pole_mirror()]`` in
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`, with
+the SI sweep twin reading ``pole_outflow[mirror[global_n]]``.  The
+per-ordinate invariant the gather relies on — the partner must be the
+*intra-level* :math:`\mu_x` sign-flip, :math:`\mu_y` and :math:`\mu_z`
+held — is stated and gated at
+:ref:`sn-coupled-pole-mu-level-invariant`.
+
+Three properties, and each one is the answer to a way the Phase C seed
+failed:
+
+* **Exact, not :math:`\mathcal{O}(h)`.**  There is no truncation to make:
+  the value is *already computed*, at the face, in the same solve.  The
+  Carlson cell-centre read had to guess :math:`\psi(0)` from
+  :math:`\psi(\Delta r/2)`; the continuation does not guess.
+* **Lower-triangular — it is data, not a self-reference.**  The inward leg
+  completes before the outward leg opens, so the pole handoff is a DAG edge
+  in cell-visit order and the operator stays forward-substitutable.  This is
+  the "inward-determines-outward" pole condition deferred at Phase C
+  (`Issue #192 <https://github.com/deOliveira-R/ORPHEUS/issues/192>`_) and
+  landed by ERR-058.
+* **Realizability is enforced, not assumed.**  A quadrature not closed under
+  the :math:`\sigma_x` mirror has no bijective weight-preserving pairing, so
+  the continuation is unrealizable on it;
+  :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._ensure_pole_mirror`
+  raises at first use with that diagnosis rather than silently mispairing.
+
+.. warning::
+
+   **No flat-flux gate can ever see this.**  On a flat :math:`\psi` the two
+   candidate seeds coincide exactly — :math:`\psi^{\text{cell}}[0] =
+   \psi(0,-\mu) = c` — so the per-ordinate flat-flux invariant, the
+   streaming-equilibrium identity :eq:`streaming-equilibrium`, and every
+   flat-:math:`\psi` L0 anchor in the tree are **structurally blind** to the
+   difference (a Mode-12 stabiliser, not a tolerance question).  That is not
+   a historical curiosity: it is why the wrong seed shipped through Phases
+   B, C, D and F.  A gate that is to constrain the pole face must run a
+   **non-flat radial profile** — the manufactured :math:`A(r) = \sin(\pi
+   r/R)` ansatz, or a heterogeneous vacuum problem.
 
 .. _sn-apply-sweep-equivalence:
 
@@ -2707,12 +3044,11 @@ the same WDD recurrence the sweep walks. The structural-frame
 identity is the load-bearing acceptance criterion for
 preconditioned-Krylov stability — when ``apply`` is the loss
 operator :math:`L+C` and the sweep is :math:`(L+C)^{-1}`
-(approximately), they must agree on what :math:`L+C` **is**. Foundation tests in
-:file:`tests/sn/test_phase_c_gates.py` pin this via
-``np.array_equal`` on:
+(approximately), they must agree on what :math:`L+C` **is**. The Phase-C
+gate set lives in :file:`tests/sn/sweep/core/test_phase_c_gates.py`:
 
-* **Gate 1.2** (apply determinism) — repeat-call invariance
-  ``apply(ψ) == apply(ψ)`` bit-identical across two invocations.
+* **Gate 1.2** — ``apply(ψ) == apply(ψ)`` bit-identical across two
+  invocations of the composite, on ``interior`` **and** ``boundary``.
 * **Gate 1.3** (apply ↔ apply_transpose reciprocity)
   :math:`\langle (L+C)\psi, \phi \rangle = \langle \psi, (L+C)^T\phi \rangle`
   to ``rtol=1e-12, atol=1e-13``. Free if Gate 1.4 (linearity)
@@ -2721,6 +3057,25 @@ operator :math:`L+C` and the sweep is :math:`(L+C)^{-1}`
   = \alpha (L+C)\psi + \beta (L+C)\phi` to ``rtol=1e-13``.
   **Precondition** for Gates 1.2 + 1.3 + the dense-probe
   ``apply_transpose`` construction.
+
+.. warning:: **Gate 1.2 does NOT pin the face-flux propagation identity —
+   it pins determinism**, and the distinction matters because the identity
+   is the load-bearing claim of this subsection.  Its test is named for the
+   identity and its own docstring concedes the shape: *"The structural
+   identity is built by construction.  We pin it via a deterministic
+   input."*  A repeat-call comparison runs the same code twice, so it is
+   structurally incapable of reddening for a wrong shared closure
+   (``vv-principles`` #23 — an invariance gate's coverage is exactly the set
+   of lines that read the varied knob, and nothing here varies).  What
+   actually holds the two paths together is **single-sourcing**: both call
+   :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
+   and :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`, so there is
+   no second closure to drift — the identity is prevented rather than
+   detected (``coding-standards``: single-sourcing a duplicate demotes every
+   gate that compared its copies, and that is the *correct* trade).  The
+   independent value evidence for the pair is the SI ≡ Krylov equivalence
+   gate (:ref:`sn-issue-196-eigenvalue-equivalence`), which compares two
+   genuinely different *solvers* over the one operator.
 
 .. _bc-trace-contract-respected-by-matvec:
 
@@ -3652,6 +4007,91 @@ deeper structural reason :math:`\mu = \pm 1` is the *only* admissible
 starting direction in any curvilinear geometry is set out under
 :ref:`sn-phase-d-pomraning-structural-singularity`.
 
+.. _sn-angular-endpoint-defect:
+
+Both ends of the march are straight characteristics — and the defect between
+-----------------------------------------------------------------------------
+
+Read :eq:`sn-direct-seed-pole-straight-characteristic` again and notice the
+sign it carries: :math:`\mu = \mp 1`.  The argument that decouples the pole
+ODE is :math:`(1-\mu^2) = 0`, and that is true at **both** poles.  The
+:math:`\alpha`-dome says the same thing in the discrete language —
+:math:`\alpha_{1/2} = \alpha_{M+1/2} = 0` (:ref:`sn-alpha-dome-closes`) — so
+the cell balance decouples into a plain radial DD ODE at each end of the
+level's angular march, not only at the start.
+
+Production solves both, with one engine.
+:meth:`RadialCharacteristicOperator.solve <orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve>`
+calls
+:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
+**twice** per carrying level: the inward :math:`\mu = -1` leg, whose cells
+become the M-M recurrence's seed, and — after the pole continuation
+:math:`\psi^{+}_{1/2}(0) = \psi^{-}_{1/2}(0)` — the outward :math:`\mu = +1`
+leg, stored as ``cells(p, +1)``.
+
+That makes the march **over-determined**, and the over-determination had
+gone unnamed.  The recurrence, marched from the seed across all :math:`M`
+ordinates, arrives at the far edge and predicts :math:`\psi_{M+1/2}` a
+*second* time — the slice
+:attr:`~orpheus.sn.sweep.pole_angular_closure._MMHalfGrid.trailing_face`.
+Only one of the two is imposed.  The difference is a first-class quantity:
+
+.. math::
+   :label: sn-angular-endpoint-defect-eq
+
+   D_p \;:=\; \psi_{M+\frac12}\big|_p \;-\; \psi^{\text{marched}}_p(+1)
+
+per carrying level, computed by
+:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.angular_endpoint_defect_per_level`.
+Non-carrying levels have no :math:`D` at all — their seed is an
+*interpolation* (:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`),
+not a solved endpoint, so there is no second computation to compare against
+and :math:`D` is **undefined rather than zero**.
+
+**Why the far end carries no coefficient, and why that is correct.**  Nothing
+consumes :attr:`trailing_face <orpheus.sn.sweep.pole_angular_closure._MMHalfGrid.trailing_face>`
+in the balance.  The M-M closure is substituted *into* the cell balance —
+that substitution is where :math:`c_{\rm in}` / :math:`c_{\rm out}` come
+from (:ref:`sn-closure-c-constants-owned`) — so a half-angle face appears
+only as some ordinate's **upstream** datum, and the last ordinate's outgoing
+coefficient is :math:`c_{\rm out}[M-1] = \alpha_{M+1/2}/\tau = 0` because the
+dome closes.  The face is computed and then annihilated.  The adjoint agrees
+independently: ``angular_adjoint`` seeds ``psi_half_bar[:, :M, :]`` only,
+leaving index :math:`M` at zero, so the last ordinate has no path at all
+through the angular channel.  This is why
+:attr:`~orpheus.sn.sweep.pole_angular_closure._MMHalfGrid.upstream_per_ordinate`
+returns ``faces[:, :-1, :]``: the trailing slice is real, correct, and not
+anyone's upstream.
+
+.. warning:: **⛔** :math:`D` **is a consistency residual.  It is NOT an
+   error estimator, and it may not vote on** :math:`\tau`.
+
+   This is a measurement, not a caution.  `[M]` 2026-08-12, against the
+   **analytic** anisotropic cylindrical MMS (an analytic reference, not a
+   second ORPHEUS solver), the Pearson correlation of :math:`\log D` with
+   :math:`\log` of the true MMS error across four :math:`\tau` variants runs
+   :math:`+0.7515 / +0.2608 / +0.0630` at :math:`n_\varphi = 8 / 16 / 32`,
+   with :math:`2/4 \to 0/4 \to 0/4` rank agreement — it **degrades
+   monotonically to zero** as angle refines.  Structurally it must:
+   :math:`D = e_1 - e_2` is a *difference of two truncation errors*, hence
+   small exactly when both are large and equal.  :math:`D` does rank the
+   shipped Q5.6.4 angular cell partition first, by 2.6–45× over garbage
+   :math:`\tau` — and that ranking is **not** evidence for the partition,
+   because the instrument is uncorrelated with accuracy (``vv-principles``
+   #24(b): a metric in rank correlation with a mechanism nobody is debating
+   cannot adjudicate the one they are).  The campaign still has **no**
+   reference-free instrument that can rank :math:`\tau`; any future
+   :math:`D`-based :math:`\tau` argument must cite that first.
+
+   ⛔ :math:`D` **must also not be used to CORRECT the seed.**  The march's
+   linear part is exactly :math:`(-1)^M I` — it follows from
+   :math:`\prod_m (1-\tau_m)/\tau_m = 1`, gated on both arms — and BOTH
+   endpoint values come from physics.  Imposing both is an
+   over-determination, i.e. a constraint on the interior solution, not an
+   equation for a free parameter; zeroing :math:`D` would merely force the
+   marched endpoint onto the directly-marched one with no evidence the
+   latter is the better of the two.
+
 ψ½ as first-class state — the augmented composite (System A ⊕ System B)
 --------------------------------------------------------------------------
 
@@ -4243,14 +4683,31 @@ and since Q5.6.4 there is only one producer, unabsorbed by construction.
 
 .. _sn-direct-seed-circle-vs-interval:
 
-Why the sphere pays for the pole and the cylinder does not — circle vs interval
--------------------------------------------------------------------------------
+Who pays for the pole, and why — circle vs interval
+-----------------------------------------------------
 
-The R12a trichotomy raises a deeper question: *why* does the sphere carry
-an independent seed while the cylinder never does?  The answer is neither
-"sphere vs cylinder" nor "curvilinear vs Cartesian" — it is the
+The R12a trichotomy raises a deeper question: *why* does a level need an
+independent seed at all, and what decides which rules do?  The answer is
+neither "sphere vs cylinder" nor "curvilinear vs Cartesian" — it is the
 **topology of the redistribution axis**, and it is the single most
 clarifying fact about the whole ψ½ apparatus.
+
+.. note:: **⛔ This section was titled "Why the sphere pays for the pole
+   and the cylinder does not" and opened "why does the sphere carry an
+   independent seed while the cylinder never does?" until 2026-08-13.
+   Both were false at the time of writing** — refuted by the section's own
+   closing paragraph and by the Q5.6 fold two screens earlier.  A
+   :math:`\sigma_y`-**folded** product rule — the *only* cylinder family a
+   cylindrical :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` admits since
+   Q5.6.3 — carries an independent seed on **every** level, because folding
+   turns the azimuthal circle into an arc, i.e. an interval, and puts the
+   cylinder in exactly the sphere's position.  What is true, and what the
+   section actually argues, is that a **full-circle** cylinder does not pay:
+   the payment is owed by an *interval* axis, and the fold is the moment the
+   cylinder chose to start paying.  The framing is kept as history because
+   the full-circle rule was the existence proof that "seed = a bulk
+   edge-ordinate" can work, and that is why the trade the fold makes is
+   worth stating at all.
 
 Two orthogonal questions must be kept apart:
 
@@ -4563,6 +5020,67 @@ the very method the walk routes through); **Mode 10** — zeroing
 the q½ source block **moves** the sphere solve (the carrier is not inert);
 **Mode 12** — with the :math:`V_{\rm cell}` state metric the G-reciprocity
 gate now *catches* a seed-row flip (the closure, ERR-067; gotcha below).
+
+The far endpoint — what the two-ended march is measured by
+------------------------------------------------------------
+
+Every gate in the table above measures the **near** end: whether the seed
+is right, whether the solve that produces it is a single pass, whether the
+carrier is inert.  None of them looks at the far end, and until 2026-08-13
+nothing did — the second endpoint condition
+:eq:`sn-angular-endpoint-defect-eq` was computed on every curvilinear solve
+since route (a) landed and **compared by nothing**
+(:ref:`sn-angular-endpoint-defect`).
+
+Its gates live in
+:file:`tests/sn/sweep/curvilinear/test_angular_endpoint_defect.py` — six
+``foundation`` rows on a **heterogeneous, two-group, vacuum** curvilinear
+problem, on both arms.  The fixture discipline is structural, not
+decoration:
+
+* a **flat-in-angle** fixture is *provably* blind, because the recurrence's
+  flat fixed point makes the two endpoints coincide exactly.  That is the
+  module's positive control (``vv-principles`` #11) *and* the reason no flat
+  gate anywhere in the tree could ever have caught the omission;
+* a **1-group / homogeneous** fixture nulls the redistribution terms the
+  march is made of (``vv-principles`` #3/#4);
+* a **reflective** outer face is NOT blind — `[M]` ``max|D|`` under
+  reflection is comparable to vacuum.  What reflection removes is the
+  *divergence* of :math:`L^\infty(D)` (Issue #360), not the defect.
+
+What the rows pin, in the module's own words rather than repeated numbers
+(``plan-authoring`` §9 — the gate re-measures its ladder, so it owns it):
+that ``trailing_face`` is the slice
+:attr:`upstream_per_ordinate <orpheus.sn.sweep.pole_angular_closure._MMHalfGrid.upstream_per_ordinate>`
+drops; that :math:`D` is that slice minus the marched outward leg; that
+:math:`D` is exactly zero when the endpoints agree; that :math:`D` falls at
+**~2nd order in** :math:`n_\varphi` on the cylinder; that on the sphere its
+apparent non-convergence is a **spatial** floor whose turnover moves out
+with ``nx``; and that it responds to the angular cell *partition*, not
+merely to the product :math:`\prod_m (1-\tau_m)/\tau_m` that the reversal
+identity pins.
+
+.. note:: **Two of the six survive two of the three mutations, and that is
+   reported rather than hidden** (``vv-principles`` #19/#20 — a row that
+   cannot see a property must not be counted as covering it).  The
+   subtraction row reads ``trailing_face`` on *both* sides, so it is a
+   tautology with respect to *which slice* the property returns and can only
+   ever test the subtraction; the slice itself is covered by the identity
+   row.  The flat-flux zero row survives a face-index error and a
+   seed-vs-far-endpoint swap because a flat flux collapses every face to the
+   same constant — which is the same blindness that row exists to document,
+   now measured rather than argued.
+
+.. warning:: **The sphere's :math:`D` looked like it did not converge in
+   angle.  It does — twice-measured and twice-wrong before that was
+   established.**  At a coarse spatial grid :math:`D` falls from
+   :math:`N = 4` to :math:`N = 8` and then *rises*; refine the mesh and the
+   same ladder falls monotonically, the turnover having moved out past
+   :math:`N = 32`.  A turnover point that moves out with ``nx`` is the
+   textbook signature of a **spatially-set floor**, not of an angular
+   inconsistency — and reading the coarse ladder alone gives exactly the
+   opposite conclusion.  Any future claim that the curvilinear angular march
+   fails to converge in :math:`N` must first vary ``nx``.
 
 The eigenvalue re-pose — an N-sweep, not h→0
 --------------------------------------------

@@ -1923,6 +1923,40 @@ machinery:
      - The Hébert-3.430 finite-volume unknown; the principled MMS
        reference that removes the :math:`\sim 75\,\%` comparison
        artifact.  Built from ``scipy.integrate.quad``.
+   * - Angular endpoint defect :math:`D`
+       (:eq:`sn-angular-endpoint-defect-eq`)
+     - **diagnostic** — ⛔ *not* a ranker
+     - The over-determination residual between the angular march's two
+       endpoint conditions (:ref:`sn-angular-endpoint-defect`).  Kept
+       because it is a cheap, **reference-free**, pointwise consistency
+       residual whose refinement behaviour is a property of the scheme,
+       and because computing it costs nothing — the recurrence already
+       fills the far face.  ⛔ It is **not** an error estimator: see the
+       ruling below before using it for anything comparative.
+
+.. warning:: **⛔** :math:`D` **may not be used to rank** :math:`\tau`, and
+   this row is the place a future session would reach for it.
+
+   :math:`D` is reference-free, pointwise, tight, honestly
+   parameter-loaded, and it ranks the shipped Q5.6.4 angular cell partition
+   first by 2.6–45× over garbage :math:`\tau`.  Every one of those
+   properties is what an adjudicating instrument is supposed to have, and
+   the ranking is still worthless as evidence: `[M]` 2026-08-12 against the
+   **analytic** anisotropic cylindrical MMS, the Pearson correlation of
+   :math:`\log D` with :math:`\log` of the true MMS error runs
+   :math:`+0.7515 / +0.2608 / +0.0630` at :math:`n_\varphi = 8/16/32`
+   (:math:`2/4 \to 0/4 \to 0/4` rank agreement) — **degrading monotonically
+   to zero** as angle refines.  Structurally it must: :math:`D = e_1 - e_2`
+   is a difference of two truncation errors, hence smallest exactly when
+   both are largest and equal.
+
+   This is ``vv-principles`` #24 applied to a *new* candidate instrument —
+   an instrument that decides a design owes the BASIS, RANK-CORRELATION,
+   ZERO-SET and REGIME checks before its verdict is quoted, and :math:`D`
+   fails the rank-correlation one outright.  ⟹ **The campaign has no
+   reference-free instrument that can rank** :math:`\tau`.  That gap is the
+   standing state; any future :math:`D`-based :math:`\tau` argument must
+   cite it before making its case.
 
 Open research paths (research-tag, not production-blocking)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

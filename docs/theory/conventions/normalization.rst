@@ -158,8 +158,13 @@ acknowledges another spelling exists — plus a fifth spelling in the
 review literature under a *different letter*. The factor of two and
 the sign **move between the recursion and the balance-equation
 divisor**; neither half is meaningful alone. The invariants that hold
-across every row: :math:`\alpha_{1/2} = 0` seeds the recursion, and
+across every row: :math:`\alpha_{1/2} = 0` seeds the recursion,
+:math:`\alpha_{M+1/2} = 0` closes it at the far end, and
 the resulting system is lower-triangular (a direct one-pass :term:`sweep`).
+The two zeros are not the same kind of statement — the seed is an axiom of
+every spelling, the closure is a *theorem about the quadrature* and hence a
+contract a bad rule can violate
+(:ref:`sn-alpha-dome-closes`).
 
 .. list-table::
    :header-rows: 1

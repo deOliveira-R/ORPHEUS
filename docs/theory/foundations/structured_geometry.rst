@@ -245,7 +245,29 @@ The cylindrical analog runs **per-:math:`\mu`-level**: each level
 :math:`p` carries its own :math:`(M+1)`-tuple of
 :math:`\alpha^{(p)}_{m+1/2} = \alpha^{(p)}_{m-1/2} - w_m\,\eta_m`,
 where :math:`\eta` is the radial direction cosine and :math:`M` is the
-number of azimuthal ordinates on that level.
+number of azimuthal ordinates on that level — **and it closes on that arm
+too**, :math:`\alpha^{(p)}_{M+1/2} = 0` on every level, for the same reason
+and by the same telescoping.
+
+⭐ **Both ends are zero, and only one of them is an axiom.**  The recursion
+is strictly one-sided — it is seeded at :math:`\alpha_{1/2} = 0` and never
+consults the far end — so telescoping it over the level gives
+:math:`\alpha_{M+1/2} = -\sum_m w_m c_m` in the level's marching cosine
+:math:`c` (:math:`\mu` sphere, :math:`\eta` cylinder).  The far endpoint
+therefore vanishes **iff the measure's first moment in the marching
+coordinate does**, which makes it a *property of the quadrature* — a real
+admission contract a bad rule can violate — rather than a property of the
+recursion.  One body computes the dome
+(:func:`~orpheus.geometry.reduced_operator.alpha_dome`, called by both
+curvilinear factories, with the derivations-side name delegating to it) and
+one guard refuses a non-closing measure
+(``_assert_alpha_dome_closes``, per level on the cylinder so the offending
+level is named).  Until ``bea6a367`` (2026-08-12) the contract was a bare
+``assert`` on the sphere arm and *nothing* on the cylinder — and a bare
+``assert`` is stripped by the canonical ``python -O`` runner, so it did not
+run at all.  Full account, including why the fix had to start with
+de-duplicating three copies of the recursion:
+:ref:`sn-alpha-dome-closes`.
 
 The Morel--Montry closure weight is the **barycentric coordinate of the
 ordinate between the two edges of its own angular cell** — predicate

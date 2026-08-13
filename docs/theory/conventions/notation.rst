@@ -169,7 +169,10 @@ Discretization factors
        :math:`\alpha_{1/2} = 0` seeds the recursion in **every**
        published convention — the recursion's *spelling* varies by
        source (crosswalk row 5 and
-       :ref:`normalization-alpha-crosswalk`).
+       :ref:`normalization-alpha-crosswalk`).  The far end
+       :math:`\alpha_{M+1/2} = 0` also holds in every spelling, but as a
+       *consequence* of the measure's antisymmetry rather than a seed — an
+       admission contract, not an axiom (:ref:`sn-alpha-dome-closes`).
    * - :math:`\tau`
      - In the S\ :sub:`N` sweep: the :term:`weighted-diamond <weighted diamond difference>` **closure
        weight** (:cite:`BaileyMorelChang2010` Eq. (15);

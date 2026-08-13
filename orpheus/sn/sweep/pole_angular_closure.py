@@ -1341,11 +1341,37 @@ class MorelMontryAngularSweep(
     weight unclamped; the cylinder's :math:`[\tfrac12, 1]` absorber retired
     at Q5.6.4).  The SAME recurrence runs
     inside :class:`~orpheus.transport.spatial.diamond.DiamondDifference`, so
-    the apply matvec and the sweep solve the same discrete fixed point (pinned
-    by :file:`tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py`;
-    derivation + apply↔sweep equivalence:
+    the apply matvec and the sweep solve the same discrete fixed point.
+
+    ⚠ **That equivalence is PREVENTED, not detected** — say it that way,
+    because the difference decides what a green suite is evidence of.  There
+    is one recurrence body (:func:`_psi_half_grid_single_level`) and one
+    coefficient pair (``c_in`` / ``c_out``, precomputed here and read through
+    :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
+    by both consumers), so no input exists on which the two paths could
+    disagree about the ANGULAR closure; there is no second definition to
+    drift.  What still has teeth, and what to cite instead of an equivalence
+    gate:
+
+    * ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py`` — the
+      scalar recurrence against its precomputed-split vectorized scan,
+      bit-identical across the three consumer frames (two genuinely distinct
+      float programs over the one algebra).
+    * ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py`` — the
+      end-to-end SI-vs-Krylov consistency leg: two different *solvers* over
+      the one operator, which is where an apply-vs-sweep divergence would
+      actually surface.
+    * ``tests/sn/sweep/core/test_phase_c_gates.py`` — Gate 1.3 reciprocity
+      and Gate 1.4 linearity on the composite.
+
+    ⛔ This paragraph cited ``tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py``
+    until 2026-08-13.  That file **has never existed** in this repository's
+    history — a coverage claim with no gate behind it, which is worse than no
+    claim because an audit trusts it.
+
+    Derivation + apply↔sweep equivalence:
     ``docs/theory/methods/sn/curvilinear_one_group.rst §pole-mm-recurrence``
-    and ``§sn-apply-sweep-equivalence``).  Cylinder loops the recurrence per
+    and ``§sn-apply-sweep-equivalence``.  Cylinder loops the recurrence per
     :math:`\mu`-level (each with its own α-dome, ΔA/w, τ); sphere is the
     single-level (``M_p = N``) case.
 

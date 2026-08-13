@@ -625,8 +625,9 @@ How the wrong seed survived Phase B
 ------------------------------------
 
 The zero seed survived Phase B's L1 flat-flux-identity test
-(:file:`tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`,
-since retired with the Legacy/BFF closures it compared)
+(``tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py``,
+deleted with the Legacy/BFF closures it compared — a path literal, not a
+live file)
 because that test compared the three closures (Legacy / BFF /
 M-M) **against each other on flat ψ**, NOT against the closed-form
 fixed-point identity :math:`L \cdot \psi = \Sigma_t \cdot \psi`.
@@ -1149,7 +1150,8 @@ The full Phase D footprint (per the closeout memo at
   :class:`MorelMontryAngularSweep`.
 * :mod:`orpheus.sn.solver` — curvilinear default ``inner_solver``
   flipped to ``"krylov"``.
-* :file:`tests/sn/test_phase_c_gates.py` — Gate 1.5 strengthened
+* :file:`tests/sn/sweep/core/test_phase_c_gates.py` (``tests/sn/`` at the
+  time; moved by the taxonomy reorg ``105ce125``) — Gate 1.5 strengthened
   with capture-and-compare.
 * :file:`tests/sn/test_streaming_operator.py` (post-D-K successor
   to the retired ``test_snstreamingoperator.py``) — 3 tests updated

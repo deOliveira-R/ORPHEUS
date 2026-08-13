@@ -283,6 +283,7 @@ def test_the_trailing_face_is_the_slice_upstream_per_ordinate_drops():
         )
 
 
+@pytest.mark.verifies("sn-angular-endpoint-defect-eq")
 def test_the_defect_is_the_trailing_face_minus_the_marched_endpoint():
     r"""``D_p = trailing_face - cells(p, +1)``, over the CARRYING levels only.
 

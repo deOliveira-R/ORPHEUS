@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9663**
+Total tests collected: **9669**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1310, 13.6%
+   L0, 1310, 13.5%
    L1, 1620, 16.8%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6664, 69.0%
+   foundation, 6670, 69.0%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9579
+   explicit, 9585
    class-name, 46
    func-name, 0
    case, 33
@@ -112,6 +112,7 @@ Module × level grid
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_angular_beta_identity, 0, 0, 0, 0, 14, 0
+   curvilinear/test_angular_endpoint_defect, 0, 0, 0, 0, 6, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_azimuthal_mirror_symmetry, 0, 0, 0, 0, 4, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
@@ -825,6 +826,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
    ``sn-adjoint-duality``, 1
+   ``sn-angular-endpoint-defect-eq``, 1
    ``sn-dsa-cell-update``, 1
    ``sn-dsa-coefficients``, 1
    ``sn-dsa-correction-vanishes``, 1
@@ -855,13 +857,14 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **533** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **534** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
 - ``affine-true-error``
 - ``affine-typed-residual-eq``
+- ``alpha-dome-closure``
 - ``angular-cell-partition``
 - ``angular-windowing-aniso-factoring``
 - ``angular-windowing-moment-iterate``

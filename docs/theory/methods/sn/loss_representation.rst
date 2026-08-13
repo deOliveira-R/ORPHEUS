@@ -2508,6 +2508,8 @@ rather than a forced one.
    mesh's DOF enumeration directly, rather than the mesh and the composite
    agreeing by separate construction.
 
+.. _sn-loss-rep-ray-decoupled-block:
+
 How the walk sees ψ½ — the ray-decoupled block (step 6)
 ------------------------------------------------------------
 
