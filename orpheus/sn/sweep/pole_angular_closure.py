@@ -494,9 +494,19 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 #
 # The underscore prefix declares "module-private": consumers (matvec, sweep,
 # tests) see only the public API of :class:`MorelMontryAngularSweep` and treat
-# the half-grid as opaque strategy state. The redistribution body inside the
-# M-M class accesses the raw :attr:`faces` array directly; external code
-# consumes via :meth:`upstream` / :attr:`upstream_per_ordinate` accessors.
+# the half-grid as opaque strategy state; external code consumes via the
+# :meth:`upstream` / :attr:`upstream_per_ordinate` / :attr:`trailing_face`
+# accessors.
+#
+# ⛔ This comment claimed until 2026-08-13 that "the redistribution body inside
+# the M-M class accesses the raw :attr:`faces` array directly".  That consumer
+# does NOT exist and has not for some time: the paired ``(m, m+1)`` access it
+# described was folded into the ``c_in`` / ``c_out`` constants (see the
+# derivation at the head of this module), so :meth:`cell_contribution` reads
+# :attr:`upstream_per_ordinate` ALONE.  Recorded rather than deleted because
+# the claim was load-bearing — it was the stated justification for exposing the
+# raw array at all, and a reader who believed it would have preserved that
+# exposure on the next carve.
 
 
 @dataclass(frozen=True, slots=True)
@@ -511,15 +521,24 @@ class _MMHalfGrid:
     of ordinate m-1), ``faces[g, M, i] = ψ_{M+1/2, i, g}`` (downstream of the
     last ordinate).
 
-    Two distinct consumers need DIFFERENT slices of this grid:
+    Distinct consumers need DIFFERENT slices of this grid:
 
-    * The **redistribution fold** — :math:`R_m = (\Delta A/w)/V \cdot
-      (\alpha_{m+1/2} \phi_{m+1/2} - \alpha_{m-1/2} \phi_{m-1/2})` — uses the
-      paired ``(m, m+1)`` access. Use :attr:`faces` directly.
     * The **unified matvec** consumes the upstream-per-ordinate slice — one
       ``(ng, nx)`` block per ordinate for ``cell_balance_for_streaming``'s
       ``psi_angular_upstream`` argument. Use :meth:`upstream` (single
-      ordinate) or :attr:`upstream_per_ordinate` (all ordinates).
+      ordinate) or :attr:`upstream_per_ordinate` (all ordinates).  This is
+      the ONLY production consumer (:meth:`cell_contribution`).
+    * The **endpoint defect** reads the far end alone. Use
+      :attr:`trailing_face`.
+
+    ⛔ A third bullet stood here until 2026-08-13: *"the redistribution fold
+    — :math:`R_m = (\Delta A/w)/V (\alpha_{m+1/2}\phi_{m+1/2} -
+    \alpha_{m-1/2}\phi_{m-1/2})` — uses the paired ``(m, m+1)`` access; use
+    :attr:`faces` directly."*  **No such consumer exists.**  That pairing was
+    folded into the ``c_in`` / ``c_out`` constants, so the redistribution
+    never touches two faces at once and :meth:`cell_contribution` reads
+    :attr:`upstream_per_ordinate` alone.  Kept as a record because it was the
+    stated reason the raw array is exposed.
 
     The off-by-one trap (``faces[g, m, i]`` vs ``faces[g, m+1, i]``) is
     impossible by API design when consumers use :meth:`upstream` — the
@@ -568,9 +587,48 @@ class _MMHalfGrid:
         slice as ``psi_angular_upstream`` (one ``(ng, nx)`` block per
         ordinate). Excludes the trailing face ``faces[:, M, :]`` which
         is the downstream of the last ordinate (not consumed as anyone's
-        upstream).
+        upstream) — see :attr:`trailing_face`.
         """
         return self.faces[:, :-1, :]
+
+    @property
+    def trailing_face(self) -> np.ndarray:
+        r"""Shape ``(ng, nx)`` — :math:`\psi_{M+1/2}`, the level's FAR
+        angular endpoint.
+
+        ``faces[:, M, :]``: the downstream face of the last ordinate, and
+        the one slice of this grid that enters no cell balance.
+
+        **Why nothing consumes it, and why that is correct.** The M-M
+        closure is substituted INTO the balance — that substitution is
+        precisely where the :math:`c_{\rm in}` / :math:`c_{\rm out}`
+        constants come from — so a half-angle face appears only as some
+        ordinate's UPSTREAM datum.  For the last ordinate the outgoing
+        coefficient is :math:`c_{\rm out}[M-1] = \alpha_{M+1/2}/\tau = 0`,
+        because the :math:`\alpha`-dome closes: a contract enforced at
+        admission by
+        :func:`~orpheus.geometry.reduced_operator._assert_alpha_dome_closes`
+        and itself a CONSEQUENCE of the measure's antisymmetry, not an axiom
+        of the (strictly one-sided) Lathrop--Carlson recursion.  So this face
+        is computed and then annihilated.  :meth:`angular_adjoint` agrees
+        independently: it seeds ``psi_half_bar[:, :M, :]`` only, leaving
+        index ``M`` at zero, so the last ordinate has no path at all through
+        the angular channel.
+
+        **What it is FOR.** It is one of the level's TWO angular endpoints.
+        The redistribution coefficient vanishes at both
+        (:math:`\alpha_{1/2} = \alpha_{M+1/2} = 0`), so the balance decouples
+        into a plain radial DD ODE at each, and production solves both — the
+        near end becomes this grid's seed, the far end is marched directly
+        into ``cells(p, +1)``.  Only one is imposed; their disagreement is
+        the over-determination residual
+        :meth:`MorelMontryAngularSweep.angular_endpoint_defect_per_level`.
+
+        Reading this costs nothing: the recurrence already fills it
+        (:func:`_psi_half_grid_single_level`'s loop writes ``m + 1`` for
+        ``m = 0 … M-1``).
+        """
+        return self.faces[:, -1, :]
 
     @property
     def downstream_per_ordinate(self) -> np.ndarray:
@@ -1595,6 +1653,99 @@ class MorelMontryAngularSweep(
         ]
         upstream_numer_term = dAw[None, :] * c_in[None, :] * psi_ang  # (ng, n_mask)
         return denom_term, upstream_numer_term
+
+    def angular_endpoint_defect_per_level(
+        self,
+        psi_state: "tuple[_MMHalfGrid, ...]",
+        radial_characteristic: "RadialCharacteristicInteriorField",
+    ) -> dict[int, np.ndarray]:
+        r"""``D_p`` — the over-determination residual of level ``p``'s angular march.
+
+        .. math::
+
+           D_p \;:=\; \psi_{M+1/2}\big|_p \;-\; \psi^{\text{marched}}_p(+1)
+
+        per carrying level, shape ``(ng, nx)`` each, keyed by level position.
+
+        The level's angular march has **two** endpoints, not one.  The
+        redistribution coefficient vanishes at each
+        (:math:`\alpha_{1/2} = \alpha_{M+1/2} = 0`), so the cell balance
+        decouples there into a plain radial DD ODE, and production solves
+        **both** with one engine
+        (:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+        called twice from
+        :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve`):
+        the inward leg becomes this grid's seed, the outward leg is stored as
+        ``cells(p, +1)``.  The M-M recurrence, marched from the seed across
+        all ``M`` ordinates, **also** predicts the far end — as
+        :attr:`_MMHalfGrid.trailing_face`.  Only one of the two is imposed;
+        ``D`` is what the unimposed one is violated by.
+
+        Two structurally different discretizations of ONE point of phase
+        space, previously computed and never compared.
+
+        ⛔ **``D`` MUST NOT be used to correct the seed.**  The map's linear
+        part is exactly :math:`(-1)^M I` (it follows from
+        :math:`\prod_m (1-\tau_m)/\tau_m = 1`, gated on both arms in
+        ``tests/sn/sweep/curvilinear/test_psi_half_positivity.py``), and BOTH
+        endpoint values come from physics — so imposing both is an
+        **over-determination**, a constraint on the interior solution, not an
+        equation for a free parameter.  Zeroing ``D`` would merely force the
+        marched endpoint onto the directly-marched one with no evidence the
+        latter is the better of the two.
+
+        ⛔ **``D`` IS NOT AN ERROR ESTIMATOR, AND MAY NOT VOTE ON**
+        :math:`\tau`.  This is a measurement, not a caution.  `[M]` 2026-08-12
+        against the **analytic** anisotropic cylindrical MMS
+        (``build_cylindrical_anisotropic_mms_case``; nx = 80,
+        ``inner_tol = 1e-13``, all 12 solves converged) the Pearson
+        correlation of :math:`\log D` with :math:`\log` (true MMS error)
+        across four :math:`\tau` variants runs ``+0.7515 / +0.2608 /
+        +0.0630`` at :math:`n_\varphi` = 8 / 16 / 32, with 2/4 → 0/4 → 0/4
+        rank agreement — i.e. it **degrades monotonically to zero** as angle
+        refines.  Structurally it must: :math:`D = e_1 - e_2`, a DIFFERENCE
+        of two truncation errors, hence small whenever both are large and
+        equal.  ``D`` ranks the shipped partition first by 2.6–45× while
+        being uncorrelated with accuracy; that ranking is therefore **not**
+        evidence for the partition.  (Record:
+        ``scratch/q65_endpoint_defect_findings.md`` §F7/§F10.)
+
+        ⟹ What it legitimately is: a cheap, reference-free, pointwise
+        **consistency** residual.  Its convergence under angular refinement
+        is a property of the scheme worth pinning, and it is pinned — see
+        ``tests/sn/sweep/curvilinear/test_angular_endpoint_defect.py``, which
+        owns the measured ladder (do not copy those numbers here; that gate
+        re-measures them).
+
+        Parameters
+        ----------
+        psi_state :
+            The per-level half-angle grids from :meth:`precompute_psi_state`.
+        radial_characteristic :
+            The composite's typed ψ½ block — the SAME object that seeded
+            ``psi_state``.  Non-optional, unlike every sibling signature in
+            this module: those accept ``None`` because they have a real
+            fallback (a zero or edge-extrapolated seed), and this has none.
+            Without the marched state there is no second endpoint, so the
+            defect is **undefined**, not zero.  That is a typing contract,
+            deliberately not a runtime ``raise`` — a "not ``None``" check
+            here would be type-narrowing wearing a contract's clothes
+            (``.claude/rules/coding-standards.md``), and the downstream
+            ``AttributeError`` is immediate.
+
+        Returns
+        -------
+        dict[int, np.ndarray]
+            ``{level_position: D_p}`` over the **carrying** levels only.
+            Empty on a mesh with no carrying level (no such level has two
+            endpoints).  A non-carrying level seeds from
+            :meth:`edge_extrapolated_seed`, which is an interpolation and not
+            a solved endpoint, so no comparison is defined for it.
+        """
+        return {
+            p: psi_state[p].trailing_face - radial_characteristic.cells(p, +1)
+            for p in sorted(self._carrying_levels)
+        }
 
     def angular_adjoint(
         self,
