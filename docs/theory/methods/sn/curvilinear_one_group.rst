@@ -1234,17 +1234,17 @@ reference.  Migrate-then-delete preserved the floor:
    ``derivations/discrete/sn/contamination.py`` is **retired**; its
    successor is
    :mod:`orpheus.derivations.discrete.sn.angular_differencing`, where
-   :func:`~orpheus.derivations.discrete.sn.angular_differencing.morel_montry_weights`
-   survives by name but **DELEGATES to the production producer** — a
+   ``morel_montry_weights`` survived by name for a while but
+   **DELEGATED to the production producer** — a
    deliberate choice, so that a "reference" can never silently drift into
    a second definition of the angular cell.  That is exactly how the old
    module's cylinder arm went wrong: it kept building the retired
    η-midpoint edges, so `[M]` its :math:`\tau` disagreed with production
    by up to :math:`6.8\mathrm{e}{-2}`.
 
-   ⛔ **It is therefore no longer an independent reference for**
+   ⛔ **It was therefore no longer an independent reference for**
    :math:`\tau`, and any sentence above crediting it as one describes the
-   state before Q5.6.4.  Comparing against it now would be comparing
+   state before Q5.6.4.  Comparing against it would have been comparing
    :math:`\tau` with itself through a wrapper — green forever, and unable
    to detect the drift its name advertises (``coding-standards``: a rewire
    can demote a gate's claim class without touching one line of the

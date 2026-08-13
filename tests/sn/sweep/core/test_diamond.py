@@ -66,9 +66,13 @@ from orpheus.transport.spatial.scheme import CellVisit
 # surrogate for the M-M ``(c_in, c_out)`` constants and the ``(τ, α)``
 # triple (was a private byte-identical copy here; unified with
 # ``test_cell_balance_for_streaming.py`` and the production-stamp catcher).
-# Step C: τ now comes from the structurally-independent
-# ``angular_differencing.morel_montry_weights`` (geometry-τ retired); α from the
-# operator's surviving dome.
+# Step C: the geometry-side τ producer is retired; α comes from the
+# operator's surviving dome.  τ comes from production
+# (``pole_angular_closure.morel_montry_tau_per_level``) — this said "the
+# structurally-independent ``angular_differencing.morel_montry_weights``"
+# until 2026-08-12, which was wrong twice over: that wrapper was retired,
+# and it had already stopped being independent (it delegated).  The τ leg
+# of this surrogate is TAUTOLOGICAL; see ``_c_surrogate``'s header.
 from tests.sn.sweep.core._c_surrogate import (
     c_from_constants,
     mm_constants_for_ordinate,

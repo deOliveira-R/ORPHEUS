@@ -12,11 +12,14 @@ are now vacuous and have been removed.  The independence floor is carried
 entirely by the surviving legs below, and **the two arms now use two
 DIFFERENT references** — a distinction that must not be flattened again:
 
-⛔ ``angular_differencing.morel_montry_weights`` **DELEGATES to the
+⛔ ``angular_differencing.morel_montry_weights`` **DELEGATED to the
 production producer** (Q5.6.4) — deliberately, so a "reference" can never
 drift into a second definition of the angular cell, which is exactly how
-its cylinder arm had gone wrong.  It is therefore **no longer an
-independent reference for τ at all**, and both arms below now use
+its cylinder arm had gone wrong.  It was therefore **never again an
+independent reference for τ**, and it was RETIRED outright on
+2026-08-12 (its body was an ``orpheus.sn`` import, an edge
+``tests/test_layer_imports.py`` forbids from ``derivations/``).  Both
+arms below use
 hand-authored references instead:
 
 * **SPHERE** → a hand-written cumulative-weight expression, inline.  BMC
@@ -290,9 +293,10 @@ def test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention(
     would pass just as happily against the partition the carve replaced,
     and would be certifying nothing about the partition choice.
 
-    ⚠ ``angular_differencing.morel_montry_weights`` is NOT used here: it
-    delegates to production, so comparing against it would be comparing τ
-    with itself through a wrapper (see the module-level note).
+    ⚠ ``angular_differencing.morel_montry_weights`` is not used here — it
+    delegated to production, so comparing against it would have been
+    comparing τ with itself through a wrapper (see the module-level note).
+    It was retired outright on 2026-08-12.
 
     ⭐ **Widened at 2026-08-11** from ``n_phi ∈ {8, 16}`` (both
     :math:`M` EVEN) to ``{4, 6, 8, 10, 16, 18, 32, 64}``, i.e.

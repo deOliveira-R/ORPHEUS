@@ -162,18 +162,41 @@ import numpy as np
 
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_dome
-from orpheus.sn.sweep.pole_angular_closure import (
-    angular_cell_edges_per_level,
-    morel_montry_tau_per_level,
-)
 
+# ⛔ NOTHING FROM ``orpheus.sn`` MAY BE IMPORTED HERE.
+#
+# This module is L0 (``derivations/``); ``sn`` is L3, and
+# ``tests/test_layer_imports.py`` forbids the edge. Until 2026-08-12 this
+# file imported ``angular_cell_edges_per_level`` and
+# ``morel_montry_tau_per_level`` from ``orpheus.sn.sweep.pole_angular_closure``
+# to fetch the very quantities it then GRADED.
+#
+# The fix is NOT to move those producers down a layer: τ is a *scheme*
+# parameter — how the SN angular differencing interpolates between angular
+# cell edges — so ``sn`` is its correct home. The defect was L0 reaching UP
+# for it. These diagnostics now ACCEPT ``tau`` / ``edges`` as keyword
+# arguments, which is also the more honest signature: a function that grades
+# a closure should be handed the closure, not go shopping for one. The
+# caller (a test, or the sn side) supplies the production values and may
+# import ``pole_angular_closure`` freely — the layer rule constrains
+# ``orpheus/`` packages, not ``tests/``.
+
+# ``morel_montry_weights`` was RETIRED 2026-08-12 with the sn import above.
+# Its entire body was `morel_montry_tau_per_level(quad, coord)` plus a
+# sphere/cylinder reshape — i.e. it WAS the forbidden fetch, so there was
+# nothing left to parameterize. Its own docstring already recorded that it
+# had stopped being an independent reference ("it no longer is … delegates
+# to the production producer"), and `_c_surrogate.py` already recorded that
+# the τ leg riding on it was TAUTOLOGICAL. Removing the wrapper therefore
+# costs no coverage; callers now name the production producer directly,
+# which also makes the tautology visible at the call site instead of hidden
+# one frame down.
 __all__ = [
     "alpha_defect_beta",
     "alpha_dome",
     "contamination_beta",
     "diffusion_limit_c",
     "morel_montry_beta",
-    "morel_montry_weights",
     "nu_closure_residual",
 ]
 
@@ -258,38 +281,17 @@ def diffusion_limit_c(quad, geometry: str = "spherical") -> np.ndarray:
     ])
 
 
-def morel_montry_weights(quad, geometry: str = "spherical"):
-    r"""**P2** — the closure weight τ, per level.
-
-    ⚠ **This DELEGATES to production** (Cardinal Rule 2). The retired
-    ``contamination.morel_montry_weights`` re-derived the edges itself and
-    thereby became a second, divergent definition of the angular cell —
-    `[M]` disagreeing with production by up to 6.8e-2 once the partition
-    moved to ω. A "reference" that can drift is not a reference.
-
-    ⟹ **Consequence for gates, stated so nobody has to rediscover it:**
-    this is NO LONGER an independent reference for τ. A gate needing
-    independence must use one of
-
-    * the **analytic closed form** on a folded arc (structural
-      independence, no shared code path)::
-
-          tau_m = 1/2 + 1/2 * cot(omega_m) * tan(d_omega / 4)
-
-    * or, on the sphere, a hand-written cumulative-weight expression.
-
-    It remains useful as the τ *input* to the diagnostics below, which is
-    what the surviving consumers want.
-
-    Returns ``(N,)`` for the sphere, a list of ``(M_p,)`` for the cylinder
-    (list, not tuple, to match the retired module's contract).
-    """
-    coord = _coord_of(geometry)
-    tau = morel_montry_tau_per_level(quad, coord)
-    return tau[0] if coord is CoordSystem.SPHERICAL else list(tau)
+# ── ``morel_montry_weights`` lived here until 2026-08-12. See the note on
+#    ``__all__`` above for why it is gone rather than parameterized, and
+#    what to use for an INDEPENDENT τ reference (it was never one):
+#      * the analytic closed form on a folded arc, which shares no code path
+#        with the closure::  tau_m = 1/2 + 1/2*cot(omega_m)*tan(d_omega/4)
+#      * or, on the sphere, a hand-written cumulative-weight expression.
+#    A caller that just wants production τ should say so out loud:
+#      from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
 
 
-def contamination_beta(quad, geometry: str = "spherical"):
+def contamination_beta(quad, geometry: str = "spherical", *, edges):
     r"""**β₁ — the BMC contamination coefficient.** One scalar per level.
 
     BMC 2010 Eq. 41 (sphere) / Eq. 75 (cylinder)::
@@ -306,9 +308,16 @@ def contamination_beta(quad, geometry: str = "spherical"):
 
     Returns a float for the sphere, ``(n_levels,)`` for the cylinder —
     the retired module's contract, preserved.
+
+    :param edges: the angular cell partition per μ-level, as
+        ``angular_cell_edges_per_level(quad, coord)`` produces it.
+        **Keyword-only and required**: L0 may not import ``orpheus.sn``, so
+        the caller supplies the closure being graded (see the import note at
+        the top of this module). A default that fetched would reinstate the
+        forbidden edge; a default that guessed would silently grade the
+        wrong partition.
     """
     coord = _coord_of(geometry)
-    edges = angular_cell_edges_per_level(quad, coord)
     out = []
     for mu, w, e in zip(
         _levels(quad, coord), _weights(quad, coord), edges
@@ -384,7 +393,7 @@ def morel_montry_beta(
     )
 
 
-def alpha_defect_beta(quad, geometry: str = "spherical"):
+def alpha_defect_beta(quad, geometry: str = "spherical", *, edges):
     r"""**β₂ — the Lathrop α-defect.** A SEQUENCE per level, not a scalar.
 
     Lathrop 2000 Eq. 25: :math:`\alpha_{m+1/2} = 1 - \eta^2_{m+1/2}
@@ -401,6 +410,9 @@ def alpha_defect_beta(quad, geometry: str = "spherical"):
     near-opposites — see the module docstring's nomenclature section.
 
     Returns one ``(M+1,)`` array per level.
+
+    :param edges: the angular cell partition per μ-level (keyword-only,
+        required — see :func:`contamination_beta`).
     """
     coord = _coord_of(geometry)
     return tuple(
@@ -408,12 +420,14 @@ def alpha_defect_beta(quad, geometry: str = "spherical"):
         for mu, w, e in zip(
             _levels(quad, coord),
             _weights(quad, coord),
-            angular_cell_edges_per_level(quad, coord),
+            edges,
         )
     )
 
 
-def nu_closure_residual(quad, geometry: str = "spherical") -> np.ndarray:
+def nu_closure_residual(
+    quad, geometry: str = "spherical", *, tau, edges,
+) -> np.ndarray:
     r"""⭐ The discriminator that survives the fold. One value per level.
 
     BMC Eq. 43 read as a RECURSION: given τ, the cell edges it implies are
@@ -441,16 +455,22 @@ def nu_closure_residual(quad, geometry: str = "spherical") -> np.ndarray:
     ⟹ the clamp and the diamond weight correspond to **no partition of
     the level**; that is the principled condemnation of the absorber, and
     it references no MMS.
+
+    :param tau: the closure weight per μ-level, as
+        ``morel_montry_tau_per_level(quad, coord)`` produces it.
+    :param edges: the angular cell partition per μ-level.
+
+    Both are keyword-only and required (see :func:`contamination_beta`).
+    ⭐ Passing them explicitly is what makes this function usable as a
+    RANKER: the ladder in the table above is produced by handing it three
+    DIFFERENT τ's against the same quadrature. When it fetched its own τ it
+    could only ever grade the shipped one.
     """
     coord = _coord_of(geometry)
     residuals = []
-    for mu, tau, e in zip(
-        _levels(quad, coord),
-        (morel_montry_tau_per_level(quad, coord)),
-        angular_cell_edges_per_level(quad, coord),
-    ):
+    for mu, tau_lv, e in zip(_levels(quad, coord), tau, edges):
         nu = float(e[0])
         for m in range(mu.size):
-            nu = (mu[m] - (1.0 - tau[m]) * nu) / tau[m]
+            nu = (mu[m] - (1.0 - tau_lv[m]) * nu) / tau_lv[m]
         residuals.append(nu / float(e[-1]))
     return np.array(residuals)

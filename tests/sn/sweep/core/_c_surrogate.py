@@ -28,8 +28,9 @@ Before Step C the surrogate read τ/α straight off a ``StreamingTerms``
 packet (``st.tau_mm`` / ``st.alpha_in`` / ``st.alpha_out``).  Step C
 RETIRES those three fields from ``StreamingTerms`` (and the geometry-side
 τ producer that baked them), so the surrogate can no longer take a bare
-``st``.  τ now comes from ``angular_differencing.morel_montry_weights``
-(see the correction below), and α comes from the SURVIVING dome arrays on the
+``st``.  τ now comes straight from the production producer
+``pole_angular_closure.morel_montry_tau_per_level`` (see the correction
+below), and α comes from the SURVIVING dome arrays on the
 ``ReducedStreamingOperator`` (``alpha_half`` for spheres,
 ``alpha_per_level`` for cylinders; α is NOT retired, only its
 ``StreamingTerms`` packing is).
@@ -47,9 +48,16 @@ are recorded rather than quietly dropped:
    grep did).  Deleted.
 2. *"the structurally-independent ``morel_montry_weights`` — a DIFFERENT
    code path to the SAME weight (vv L11)"* — it no longer is.  That
-   function now **delegates to the production producer**, deliberately, so
+   function delegated to the production producer, deliberately, so
    that a "reference" can never drift into a second definition of the
    angular cell — which is exactly how its cylinder arm went wrong.
+   ⛔ **It was RETIRED 2026-08-12** and this file now calls
+   ``pole_angular_closure.morel_montry_tau_per_level`` directly. The
+   wrapper lived in ``derivations/`` (L0), and its body WAS an
+   ``orpheus.sn`` import — an edge ``tests/test_layer_imports.py``
+   forbids. Nothing is lost: the delegation it performed is exactly what
+   the direct call performs, and naming production at the call site makes
+   the tautology recorded below visible HERE rather than one frame down.
 
 ⟹ **the τ leg of any gate built on this surrogate is now TAUTOLOGICAL**:
 production τ compared with itself through a wrapper.  Do not read it as
@@ -91,9 +99,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.discrete.sn.angular_differencing import morel_montry_weights
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.reduced_operator import ReducedStreamingOperator
+from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
 
 
 def c_from_constants(
@@ -117,13 +125,25 @@ def mm_constants_for_ordinate(
 ) -> tuple[float, float, float]:
     r"""Resolve the M-M ``(tau, alpha_in, alpha_out)`` for one ordinate.
 
-    The independent τ comes from
-    :func:`~orpheus.derivations.discrete.sn.angular_differencing.morel_montry_weights`
-    (a structurally-independent code path to the BMC-2010-Eq.43 weight;
-    vv L11) WITH the production clamp — spheres UNCLAMPED, cylinders
-    ``clip(τ_raw, ½, 1)``.  α comes from the operator's surviving dome
+    τ comes from the production producer
+    :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`,
+    unclamped on both arms.  α comes from the operator's surviving dome
     (``alpha_half`` / ``alpha_per_level``).  Slab is the neutral element
     τ = 1, α = 0.
+
+    ⛔ This paragraph carried THREE falsehoods until 2026-08-12, each
+    already refuted by this module's own header — recorded rather than
+    quietly dropped, because a docstring that contradicts its own file is
+    exactly what a reader trusts:
+
+    1. it named
+       ``angular_differencing.morel_montry_weights``, RETIRED that day
+       (its body was an ``orpheus.sn`` import, which L0 may not make);
+    2. it called that "a structurally-independent code path … vv L11" —
+       header §2 says it is not, and the τ leg here is TAUTOLOGICAL;
+    3. it claimed "WITH the production clamp — cylinders
+       ``clip(τ_raw, ½, 1)``" — header §1 says the ``[½, 1]`` absorber is
+       retired and this file's re-implementation of it was DELETED.
 
     Parameters mirror
     :meth:`ReducedStreamingOperator.streaming_terms`: ``direction_idx``
@@ -150,7 +170,12 @@ def mm_constants_for_ordinate(
     if op.coord is CoordSystem.SPHERICAL:
         if op.alpha_half is None:
             raise ValueError("spherical operator missing alpha_half dome.")
-        tau_ref = morel_montry_weights(quad, "spherical")  # (N,), unclamped
+        # Production τ, named at the call site (2026-08-12): the L0 wrapper
+        # ``angular_differencing.morel_montry_weights`` was retired because
+        # its body WAS an ``orpheus.sn`` import, which L0 may not make. It
+        # added nothing but a reshape, and the tautology it hid is stated
+        # below. A test file may import ``sn`` freely.
+        tau_ref = morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)[0]
         tau = float(tau_ref[direction_idx])
         alpha_in = float(op.alpha_half[direction_idx])
         alpha_out = float(op.alpha_half[direction_idx + 1])
@@ -171,7 +196,9 @@ def mm_constants_for_ordinate(
         # twin that no symbol grep could find; only the CONCEPT grep did).
         # The absorber is retired, so the clip is deleted rather than
         # mirrored: this reference is now genuinely unclamped.
-        tau_raw = morel_montry_weights(quad, "cylindrical")  # list[(M,)]
+        tau_raw = morel_montry_tau_per_level(  # tuple[(M_p,), ...]
+            quad, CoordSystem.CYLINDRICAL,
+        )
         tau = float(tau_raw[mu_level_idx][direction_idx])
         alpha_lv = op.alpha_per_level[mu_level_idx]
         alpha_in = float(alpha_lv[direction_idx])
