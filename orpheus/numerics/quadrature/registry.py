@@ -40,12 +40,33 @@ order:
    false: ``product_mu_phi`` advertised :math:`SO(2)`, which no finite
    point set on :math:`S^2` can satisfy, and that falsehood was the
    only reason this gate admitted the product rule for a cylinder.
-2. **V compatibility** (polynomial exactness, "vague" / Galerkin sense).
-   :math:`\deg(Q) \ge d` — the rule's degree of exactness must reach at
-   least the target. Most rules have a parameter-dependent degree
-   (:math:`2n - 1` for Gauss-Legendre, ``order`` for Lebedev), and the
-   selector inverts this to choose the smallest parameter set satisfying
-   the constraint. ⚠ Level-symmetric :math:`S_N` has **no formula**: its
+2. **V compatibility** (exactness).
+   :math:`\mathcal{E}(Q) \succeq (\lambda_{\text{geom}}, d)` — the rule's
+   exactness **claim** must dominate the query's, where one claim dominates
+   another iff they are against the **same reference measure** and the
+   degree is at least as large.
+
+   The reference is not decoration. A degree is an *index into the
+   orthogonal system of a measure*, so the same integer means different
+   things against different measures, and a rule can match on space, on
+   system and on degree while being exact against the wrong thing: `[M]`
+   Gauss-Legendre and Gauss-Chebyshev at :math:`n = 4` agree on all three
+   and differ by **0.696** on :math:`\int_{-1}^{1} x^6 dx`. Transport
+   integrates :math:`\phi = \int \psi \, d\Omega` unweighted, so
+   :math:`\lambda_{\text{geom}}` is Lebesgue measure on the geometry's
+   angular domain — derived from the spent group by
+   :attr:`AngularSymmetry.reference`, exactly as the domain is.
+
+   ⛔ This conjunct read :math:`\deg(Q) \ge d` until 2026-08-14 and was
+   never *checked* at all — the stage only **inverted**, asking each spec
+   for parameters and trusting the answer. Both halves are now verified
+   against the claim the built rule carries: see the two-part evaluation
+   note below.
+
+   Most rules have a parameter-dependent degree (:math:`2n - 1` for
+   Gauss-Legendre, ``order`` for Lebedev), and the selector inverts this to
+   choose the smallest parameter set satisfying the constraint.
+   ⚠ Level-symmetric :math:`S_N` has **no formula**: its
    realized degree is build-measured, and :math:`N - 1` is only a lower
    bound the inversion uses — see :func:`_ls_sn_invert` for the measured
    table and the over-shoot it causes. (This list read ":math:`N - 1` for
@@ -71,7 +92,7 @@ Formally,
    Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
    \mathcal{D}_Q = S^2 / G^0_{\text{geom}}
    \;\wedge\; \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)
-   \;\wedge\; \deg(Q) \ge d
+   \;\wedge\; \mathcal{E}(Q) \succeq (\lambda_{\text{geom}},\, d)
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
 
@@ -81,20 +102,50 @@ where :math:`n(Q)` is the number of nodes,
 continuous and discrete halves of the geometry's angular symmetry
 (:class:`AngularSymmetry`), :math:`\operatorname{Sym}(Q)` is the group
 the rule's nodes are actually invariant under,
-:math:`\deg(Q)` is the polynomial-exactness degree, and
+:math:`\mathcal{E}(Q)` is the rule's exactness claim
+(:class:`~orpheus.numerics.exactness.ExactnessClaim` — a reference
+measure together with a degree against it),
+:math:`\lambda_{\text{geom}}` is the measure the geometry integrates
+against, and
 :math:`F_Q \subseteq \{\text{positive\_weights}, \text{axis\_aligned},
 \text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
-structural-flag set.
+structural-flag set. **Domination** is
 
-The conjunction is order-free, but the *evaluation* is not: the
-symmetry conjunct needs the rule's nodes, and the nodes need the
-parameters that only the V stage determines. So ``select_quadrature``
-evaluates V first, instantiates, and then applies stages 0 and 1. This
-is a real consequence of the theorem, not an implementation detail —
-a rule's invariance group is **parameter-dependent** (the product
-rule's is :math:`D_{n_\phi h}`), so no parameter-free field on
-:class:`QuadratureSpec` can express it, and the older design that
-tried to had to lie.
+.. math::
+
+   \mathcal{E}(Q) \succeq (\lambda, d)
+   \quad\Longleftrightarrow\quad
+   \operatorname{ref}\mathcal{E}(Q) = \lambda
+   \;\wedge\;
+   \deg\mathcal{E}(Q) \ge d ,
+
+a partial order, not a total one: two claims against different
+references are simply **incomparable**, which is the whole point —
+:math:`\deg = 7` against ``chebyshev_t`` is neither better nor worse
+than :math:`\deg = 7` against ``legendre``, it is an answer to a
+different question.
+
+The conjunction is order-free, but the *evaluation* is not, and it
+splits **one conjunct across two moments**:
+
+* :math:`\mathcal{E}(Q)` is a property of an instantiated rule, and the
+  nodes need parameters that only the V constraint determines. So the V
+  stage runs **first as an inversion** (ask the spec for the smallest
+  parameters reaching :math:`d`), the rule is built, and then the claim
+  it actually carries is **verified** against
+  :math:`(\lambda_{\text{geom}}, d)`.
+* The verification runs *after* stages 0 and 1 rather than immediately,
+  because :math:`\lambda_{\text{geom}}` encodes :math:`\mathcal{D}_Q`: a
+  rule on the wrong space fails both, and the domain stage gives the
+  better diagnosis. What the verification uniquely catches is a rule on
+  the **right** space carrying the **wrong measure**.
+
+This split is a real consequence of the theorem, not an implementation
+detail. Likewise a rule's invariance group is **parameter-dependent**
+(the product rule's is :math:`D_{n_\phi h}`), so no parameter-free field
+on :class:`QuadratureSpec` can express it, and the older design that
+tried to had to lie. The same is true of the claim: it is read off the
+built measure, never declared on the spec.
 
 The :func:`select_quadrature` function returns both the chosen measure
 **and** a :class:`SelectionLog` listing every rejected candidate with
@@ -248,6 +299,8 @@ from dataclasses import dataclass, field
 from functools import cache
 from typing import Any, Callable
 
+from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
+from ..generating_measure import LEGENDRE
 from ..measure import SPACE_INTERVAL_M11, SPACE_SPHERE, DiscreteMeasure
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
@@ -768,6 +821,44 @@ class AngularSymmetry:
             f"extend AngularSymmetry.support when a geometry first spends it"
         )
 
+    @property
+    def reference(self) -> ReferenceMeasure:
+        r"""The measure a degree must be **against** — derived, not declared.
+
+        Transport integrates :math:`\phi = \int \psi \, d\Omega`
+        **unweighted**, so the reference is Lebesgue measure on whatever
+        angular domain the dimensional reduction left behind. Like
+        :attr:`support`, it is a function of the spent group alone: the
+        domain and the measure on it are one fact, and storing a second
+        column would let them drift.
+
+        ⭐ Why this is not redundant with :attr:`support`. The support says
+        *which space*; the reference says *which measure on that space*, and
+        a rule can get the first right and the second wrong. That is not
+        hypothetical — it is the defect this property exists to make
+        unspellable: `[M]` Gauss-Legendre and Gauss-Chebyshev at :math:`n=4`
+        agree on support (:math:`[-1,1]`), on orthogonal system
+        (``ALGEBRAIC``) **and** on degree (7). They differ only in the
+        reference, and integrating :math:`x^6` against the *unweighted*
+        measure the transport equation actually asks for, Legendre gives
+        :math:`0.285714` (exact :math:`2/7`) while Chebyshev gives
+        :math:`0.981748` — off by **0.696**, at full advertised degree.
+
+        ``LEGENDRE`` is Lebesgue measure on :math:`[-1,1]`: its weight is
+        :math:`w(x) = 1`, and `[M]` its mass is exactly 2. It is named for
+        the polynomial family it generates, not for a weighting.
+        """
+        spent = self.continuous_isotropy
+        if spent == SubgroupOfO3.SO2:
+            return LEGENDRE
+        if spent == SubgroupOfO3.Trivial:
+            return UNIFORM_ON_SPHERE
+        raise NotImplementedError(
+            f"no exactness reference is defined for the quotient "
+            f"S^2/{spent.name}; extend AngularSymmetry.reference when a "
+            f"geometry first spends it"
+        )
+
     def admits_domain(self, measure: DiscreteMeasure) -> bool:
         """Stage 0 — does the rule live on this geometry's angular domain?"""
         return measure.support == self.support
@@ -1044,17 +1135,74 @@ def select_quadrature(
         # ---- Stage 1: the owed discrete symmetry ----------------------
         #
         # Computed from the instantiated nodes. Note this is NOT
-        # `residual.is_subgroup_of(measure.invariance_group)`: a rule's
-        # declared tag need not be its MAXIMAL group (the 1-D rule
-        # declares SO(2), the group its domain was quotiented BY), so
-        # the lattice route would wrongly reject Gauss-Legendre for a
-        # slab. Asking the nodes directly cannot go wrong that way.
+        # `residual.is_subgroup_of(measure.invariance_group)`: a declared
+        # tag is only required to be TRUE of the nodes, never maximal, so
+        # the lattice route can reject a rule that satisfies the owed
+        # symmetry perfectly well. Asking the nodes directly cannot go
+        # wrong that way.
+        #
+        # ⛔ This cited "the 1-D rule declares SO(2), the group its domain
+        # was quotiented BY" as the worked example until 2026-08-14. `[M]`
+        # gauss_legendre_on_mu(8).invariance_group is Mirror('x') — the
+        # 2026-08-02 slab/sphere correction reached the rule's declared tag
+        # too — and `[M]` walking maximal_invariance_groups over all four
+        # registry rules, 0 of 4 are true-but-not-maximal today. The
+        # argument stands on the CONTRACT (a declaration may be modest);
+        # the example it used to lean on no longer exists.
         if not angular_symmetry.admits_symmetry(measure):
             rejected.append((
                 spec.name,
                 f"symmetry mismatch: geometry {geometry!r} owes "
                 f"{angular_symmetry.discrete_residual.name}, which the rule's "
                 f"nodes at {params} are not invariant under",
+            ))
+            continue
+
+        # ---- Stage 2 (second half): the V conjunct, checked WHOLE -----
+        #
+        # Stage 2 above only INVERTED — it asked the spec for parameters
+        # and trusted the answer. A degree is not a claim on its own: it
+        # is an index into the orthogonal system of a REFERENCE MEASURE,
+        # and the same integer means different things against different
+        # measures (see orpheus.numerics.exactness). So the claim the
+        # built rule actually carries is verified here, against the claim
+        # the query asked for.
+        #
+        # It runs AFTER stages 0 and 1, not before, because the reference
+        # encodes the domain: a rule on the wrong space fails both, and
+        # the domain stage gives the better message. What can only be
+        # caught here is a rule on the RIGHT space carrying the WRONG
+        # measure — Gauss-Chebyshev for a slab, which matches on support,
+        # on orthogonal system and on degree.
+        claim = measure.exactness
+        wanted = angular_symmetry.reference
+        if claim is None:
+            rejected.append((
+                spec.name,
+                f"V mismatch: the rule carries no exactness claim, so "
+                f"nothing certifies it integrates anything exactly against "
+                f"{wanted.name}",
+            ))
+            continue
+        if claim.reference != wanted:
+            rejected.append((
+                spec.name,
+                f"V mismatch: the rule is exact against "
+                f"{claim.reference.name}, but geometry {geometry!r} "
+                f"integrates against {wanted.name}. A degree is an index "
+                f"into its reference's orthogonal system, so "
+                f"{claim.degree} against {claim.reference.name} is not "
+                f"{claim.degree} against {wanted.name}",
+            ))
+            continue
+        if claim.degree < target_degree:
+            rejected.append((
+                spec.name,
+                f"V mismatch: the rule built at {params} is exact only to "
+                f"degree {claim.degree} against {wanted.name}, short of "
+                f"target_degree={target_degree} — the spec's inversion "
+                f"promised a parameter set that its own rule does not "
+                f"deliver",
             ))
             continue
 

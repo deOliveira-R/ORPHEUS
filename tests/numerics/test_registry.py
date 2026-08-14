@@ -25,8 +25,13 @@ structure) carry their own L1 tests in
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+import numpy as np
 import pytest
 
+from orpheus.numerics.exactness import UNIFORM_ON_SPHERE
+from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
     GEOMETRY_ANGULAR_SYMMETRY,
@@ -205,6 +210,260 @@ def test_lebedev_invert_too_high_returns_none() -> None:
     )
     assert _lebedev_invert(top + 1) is None
     assert _lebedev_invert(top + 1000) is None
+
+
+def _gauss_chebyshev_spec() -> QuadratureSpec:
+    """A Gauss-Chebyshev entry, shaped exactly like the shipped GL one.
+
+    Deliberately NOT registered in production: it could never be selected
+    for any transport geometry (they all integrate unweighted), so a
+    permanent entry would be a rule that builds on every call and can never
+    win. It lives here, where the selector's own ``registry=`` override
+    puts it in front of the stage that must refuse it.
+    """
+    return QuadratureSpec(
+        name="GaussChebyshev1D",
+        factory=CHEBYSHEV_T.gauss,
+        parameters={"n": int},
+        degree_of_exactness_for=_gl1d_invert,   # same deg = 2n - 1
+        positive_weights=True,
+        axis_aligned=True,
+        level_structured=False,
+        half_range_clean=True,
+    )
+
+
+@pytest.mark.foundation
+def test_gauss_chebyshev_clears_every_stage_except_the_reference() -> None:
+    r"""The reference conjunct is LOAD-BEARING: nothing else catches this.
+
+    Following ``test_the_two_stages_are_independent_and_both_load_bearing``:
+    a conjunct earns its place by exhibiting an input the *other* conjuncts
+    admit. `[M]` 2026-08-14, ``CHEBYSHEV_T.gauss(4)`` against ``slab``:
+
+    ==================  =======================================  ========
+    stage               reading                                  verdict
+    ==================  =======================================  ========
+    0 domain            ``support == '[-1,1]'``                  **admits**
+    1 symmetry          nodes invariant under the owed           **admits**
+                        :math:`\sigma_x` (computed, not
+                        declared)
+    2 degree            ``2n - 1 = 7 >= 5``                      **admits**
+    3 structural        positive weights, axis-aligned,          **admits**
+                        half-range clean
+    2' **reference**    exact against ``chebyshev_t``, query     **REFUSES**
+                        wants ``legendre``
+    ==================  =======================================  ========
+
+    So without this conjunct the rule is admissible, and list position
+    alone decides whether it wins.
+
+    What it would cost: `[M]` at :math:`n = 4` both rules advertise
+    algebraic degree 7, and on :math:`q(x) = x^6` — comfortably inside that
+    degree — Legendre returns :math:`0.285714` (exact :math:`2/7`) while
+    Chebyshev returns :math:`0.981748`. An error of **0.696**, roughly
+    :math:`3.4\times` the true value, from a rule that is not broken and is
+    delivering its full advertised accuracy against the measure it was
+    built for.
+    """
+    slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+    gc = CHEBYSHEV_T.gauss(4)
+
+    assert slab.admits_domain(gc), "premise: stage 0 must admit it"
+    assert slab.admits_symmetry(gc), "premise: stage 1 must admit it"
+    assert gc.exactness is not None
+    assert gc.exactness.degree >= 5, "premise: stage 2 must admit it"
+    assert bool((gc.weights > 0).all()), "premise: stage 3 must admit it"
+
+    # ...and the reference is the one thing that differs.
+    assert gc.exactness.reference != slab.reference
+    assert gc.exactness.reference.name == "chebyshev_t"
+    assert slab.reference.name == "legendre"
+
+    # The quantified consequence, recomputed here rather than quoted.
+    q = LEGENDRE.gauss(4)
+    exact_unweighted = 2.0 / 7.0
+    legendre_value = float(np.sum(q.weights * q.nodes**6))
+    chebyshev_value = float(np.sum(gc.weights * gc.nodes**6))
+    assert legendre_value == pytest.approx(exact_unweighted, abs=1e-14)
+    assert abs(chebyshev_value - exact_unweighted) == pytest.approx(
+        0.696, abs=1e-3
+    )
+
+
+@pytest.mark.foundation
+def test_a_rule_exact_against_the_wrong_measure_is_refused() -> None:
+    """The selector must reject Gauss-Chebyshev for an unweighted query.
+
+    Two registries, because the two failure modes are different: alone it
+    must be REFUSED (not merely out-competed), and beside Gauss-Legendre it
+    must still be refused rather than winning on a tie-break.
+    """
+    gc_only = [_gauss_chebyshev_spec()]
+    with pytest.raises(QuadratureSelectionError) as excinfo:
+        select_quadrature("slab", target_degree=5, registry=gc_only)
+
+    reason = next(
+        r for name, r in excinfo.value.log.rejected
+        if name == "GaussChebyshev1D"
+    )
+    assert "V mismatch" in reason
+    assert "chebyshev_t" in reason and "legendre" in reason
+
+    # Chebyshev FIRST, so registry order would hand it the win if the
+    # conjunct were absent (ties break on order, and both cost 4 nodes).
+    both = [_gauss_chebyshev_spec()] + [
+        s for s in quadrature_registry if s.name == "GaussLegendre1D"
+    ]
+    measure, log = select_quadrature("slab", target_degree=5, registry=both)
+    assert log.chosen_spec is not None
+    assert log.chosen_spec.name == "GaussLegendre1D"
+    assert "GaussChebyshev1D" in {name for name, _ in log.rejected}
+    assert measure.exactness is not None
+    assert measure.exactness.reference == GEOMETRY_ANGULAR_SYMMETRY[
+        "slab"
+    ].reference
+
+
+@pytest.mark.foundation
+def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
+    r"""No claim is not a weak claim — it is no certification whatsoever.
+
+    A measure may carry ``exactness=None``. Nothing then establishes that
+    it integrates *anything* exactly, so it cannot satisfy a V constraint
+    at any target degree, including 0.
+
+    ⚠ **This arm is reachable, but not by any rule the registry ships**, so
+    it needs a constructed witness or it would be an unfalsifiable guard —
+    `[M]` 2026-08-14, disabling it in-process left all 54 gates green
+    before this test existed, which is precisely the "cannot fail, wearing
+    an authoritative name" shape.
+
+    The real future occupant is ``Quadrature.folded_product``: `[M]` it is
+    the one shipped angular family whose measure carries
+    ``exactness=None`` (and ``invariance_group=None``, on support
+    ``'S^2/sigma_y'``). It cannot be registered today — its quotient
+    support matches no geometry, so stage 0 would refuse it first — but
+    when that is resolved this arm is what stops it being selected on a
+    degree it never claimed.
+    """
+    claimless = QuadratureSpec(
+        name="ClaimlessGL",
+        factory=lambda n: replace(LEGENDRE.gauss(n), exactness=None),
+        parameters={"n": int},
+        degree_of_exactness_for=_gl1d_invert,
+        positive_weights=True,
+        axis_aligned=True,
+        level_structured=False,
+        half_range_clean=True,
+    )
+    # It clears every other stage: same nodes, same support, same symmetry.
+    probe = claimless.build({"n": 4})
+    slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+    assert slab.admits_domain(probe) and slab.admits_symmetry(probe)
+    assert probe.exactness is None
+
+    for target in (0, 5):
+        with pytest.raises(QuadratureSelectionError) as excinfo:
+            select_quadrature(
+                "slab", target_degree=target, registry=[claimless]
+            )
+        reason = next(
+            r for name, r in excinfo.value.log.rejected
+            if name == "ClaimlessGL"
+        )
+        assert "V mismatch" in reason
+        assert "no exactness claim" in reason
+
+
+@pytest.mark.foundation
+def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
+    """A spec cannot talk its way past the V stage.
+
+    ``degree_of_exactness_for`` is a per-spec callable the selector used to
+    take on faith: it returned parameters, and the rule built from them was
+    assumed to meet the target. It is a *search hint*, and the authority is
+    the claim the built rule carries.
+
+    Here a spec's inversion always answers ``n = 1`` — Gauss-Legendre at one
+    node is exact to degree 1 — while claiming to serve any target. The
+    selector must refuse it rather than return a rule three degrees short.
+
+    ⭐ This is the arm that would have caught ``_ls_sn_invert`` had its
+    ``N - 1`` inversion erred the other way. `[M]` it over-shoots (returns
+    an order 2 higher than needed at 6 of 9 buildable orders), which is safe
+    and merely expensive; the same class of staleness pointing the other
+    direction returns a rule that silently misses the requested accuracy,
+    and nothing downstream re-checks.
+    """
+    lying = QuadratureSpec(
+        name="OverPromisingGL",
+        factory=LEGENDRE.gauss,
+        parameters={"n": int},
+        degree_of_exactness_for=lambda _target: {"n": 1},
+        positive_weights=True,
+        axis_aligned=True,
+        level_structured=False,
+        half_range_clean=True,
+    )
+    with pytest.raises(QuadratureSelectionError) as excinfo:
+        select_quadrature("slab", target_degree=5, registry=[lying])
+
+    reason = next(
+        r for name, r in excinfo.value.log.rejected
+        if name == "OverPromisingGL"
+    )
+    assert "V mismatch" in reason
+    assert "degree 1" in reason and "target_degree=5" in reason
+
+    # And the honest twin passes, so the gate is not just refusing everything.
+    honest = replace(lying, name="HonestGL", degree_of_exactness_for=_gl1d_invert)
+    measure, log = select_quadrature("slab", target_degree=5, registry=[honest])
+    assert log.chosen_spec is not None and log.chosen_spec.name == "HonestGL"
+    assert measure.exactness is not None
+    assert measure.exactness.degree >= 5
+
+
+@pytest.mark.foundation
+def test_every_registered_rule_speaks_one_of_the_two_reference_measures(
+) -> None:
+    r"""Close the reference vocabulary, and gate the closure.
+
+    The conjunct compares references with ``==``, and that is sound here
+    only because the registry's references are drawn from the two
+    canonical constants a geometry can ask for. It is **not** sound in
+    general: `[M]` 2026-08-14 the tree spells "Lebesgue on :math:`[-1,1]`"
+    three mutually-unequal ways — ``LEGENDRE`` (``'legendre'``),
+    ``LEGENDRE.on(-1, 1)`` (``'legendre_on[-1.0,1.0]'``, because the
+    identity case does not canonicalise) and the anonymous
+    ``UniformMeasure`` that ``equispaced`` builds
+    (``'uniform([-1.0,1.0])'``). All three denote the same measure; none
+    compares equal to another, and cross-class ``__eq__`` returns ``False``
+    before it looks at a single field.
+
+    ⟹ this gate makes the assumption explicit and enforced instead of
+    accidental. The day a rule arrives spelling its reference the third
+    way, it reddens **here, at registration**, rather than being silently
+    mis-selected somewhere downstream. Repairing ``ReferenceMeasure``
+    equality across realizations is the real fix and is filed separately;
+    until then this is the fence around the shortcut.
+    """
+    admissible = {LEGENDRE, UNIFORM_ON_SPHERE}
+    for spec in quadrature_registry:
+        params = spec.degree_of_exactness_for(5)
+        assert params is not None
+        claim = spec.build(params).exactness
+        assert claim is not None, (
+            f"{spec.name} carries no exactness claim, so no query can ever "
+            f"establish that its degree is against the right measure"
+        )
+        assert claim.reference in admissible, (
+            f"{spec.name} is exact against {claim.reference.name!r}, which is "
+            f"outside the closed vocabulary {{legendre, uniform(S^2)}} the "
+            f"reference conjunct compares by equality. Either it is a rule "
+            f"no geometry can ask for, or it spells a canonical measure a "
+            f"second way -- and the second case is a silent mis-selection"
+        )
 
 
 @pytest.mark.foundation
