@@ -62,7 +62,10 @@ surprises cost to hit.
 | 2026-08-12 | A plan's whole §4bis was built on `[M]` numbers that were **correct measurements of a fixture in the SUT's own kernel** — `psi_exact = A(r)+B(r)η` against a closure defined to be exact on `span{1,η}`. Every marker was honest; the fixture was the lie. The conclusion ("the shipped scheme is one order down, re-posing τ is live") was reported with confidence and retracted three hours later when a closure-*exciting* fixture inverted it. | no new plan-authoring clause — this is `vv-principles` #24(d)/(e), and the plan-side duty it implies (state the fixture's kernel and regime beside any `[M]` that ranks a design) is already covered by §4's "numbers carry their CONFIGURATION". The log row IS the measurement that the existing clause needs to be read more widely: *configuration* includes **what the fixture is blind to**, not only its settings. |
 | 2026-08-12 | Verifying a relayed claim, my own reproduction **failed** — and the failure was mine (starved solves, wrong analytic reference), not the claim's. Reporting it as a discrepancy would have impeached a correct 251-solve result. | §4 (the VERIFY sharpening) |
 | 2026-08-13 | A permanent ⛔ banner ("swap to **the fiber ordering** ⟹ NaN", true of ω-PRIMARY ordering) would have read as condemning a change that landed 3 days later keeping η primary and using the fiber only as a TIE-BREAK — `[M]` bit-identical on 13 configs. One name, two designs, one refuted; §3 guarantees the refutation survives to be misread. | §3 (the AMBIGUOUS-NAME sharpening) |
+| 2026-08-13 | An issue's headline conjoined a VALUE claim and a BEHAVIOUR claim, both honestly `[M]` on 2026-08-10. Two steps of its own campaign landed **the same day**; the value half still reproduces to 3 s.f., the behaviour half is false, and one of the issue's three options had silently become a description of what already ships. | §2 (the shelf-life sharpening) |
 | 2026-08-13 | A resume pointer reconciled against the TREE the day before (every `file:line` re-verified, §7.2 ritual run) still carried two present-tense-false claims — false against its own CITED MEMO, whose §F10 refuted the F3/F7 sections the pointer had been summarised from. §3 mandates the refuted text stay, so the memo held both versions with the false one first. | §3 (the read-the-END-first sharpening — the hazard §3 itself creates) |
+| 2026-08-13 | An issue's remedy option quoted its plan's FACT rows (`the tree ships 5×`, `have 200`, `have 1000`) as live defects. A step of that same plan had REPEALED them **the day before the issue was filed** — the fact rows never learned, because nothing in §3 says a fact can die by being FIXED. | §3 (the REMEDIED-fact sharpening) |
+| 2026-08-13 | A blocker named "build the independent **α** reference". I hypothesised three 2026-08 commits had dissolved it — they are a DIFFERENT α (angular-redistribution coefficient vs time eigenvalue). The mandated grep would have CONFIRMED the error: `alpha` hits both. | §1 (the ONE-LETTER-SYMBOL sharpening) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -121,6 +124,33 @@ hand-rolled spec into production.
   pointer because the gate is a concept; it had landed 3 days earlier across
   three files. Caught at design time by the checkpoint's mandated §7.2 tree
   re-derivation — zero cost, but only because that instruction was carried).
+- ⭐ **And the case where the mandated grep ACTIVELY MISLEADS: a ONE-LETTER
+  symbol.** The clause above says one grep per symbol a pointer names. For
+  `α`, `β`, `λ`, `σ`, `τ`, `φ`, `ψ`, `k` — the whole working vocabulary of
+  physics code — that grep returns *hits*, and the hits are the wrong
+  referent. So the check does not merely fail to catch the error; it
+  **certifies** it, and it certifies whichever meaning a RECENT campaign made
+  salient, because that is the one the reader's context is primed for.
+  ⟹ **A pointer naming a one-letter symbol must state the referent's
+  STRUCTURE, not its spelling** — its *index* (what does it range over?) and
+  its *co-operator* (what is it paired with?). Two quantities can share a
+  letter; they cannot share an index set and a pairing.
+
+  > `[M]` 2026-08-13, campaign O-4. The blocker read *"build the independent
+  > **α** reference"*. Dispatching the reconciliation I hypothesised that
+  > `bea6a367` ("the α contract"), `dde93b64` and `60aacf18` — all landed
+  > 2026-08, all touching α — had dissolved it. They could not have: O-4's α
+  > is the **time/prompt eigenvalue** of `(L+C−S−F−B)ψ = −α·T·ψ`, a single
+  > **scalar** paired with `M = 1/v` over a `G×G` **energy** pencil; those
+  > commits are the **angular-redistribution coefficient** `α_{q±1/2}`,
+  > per-**level**, per-**ordinate**, paired with the angular measure, and
+  > **not an eigenproblem at all**. The quadrature campaign had made the
+  > second one salient for weeks. `[M]` O-4 is untouched — `pose_alpha`,
+  > `GeneralizedEigenPencil`, `class TimeMassOperator` all **0 hits**. Caught
+  > only because the brief asked "*does the α reference O-4 wants now
+  > exist?*" instead of "*did these commits close O-4?*" — i.e. by asking
+  > after the OBJECT, which §5 already tells you to do.
+
 - A means proposed before the investigation is a **hypothesis**. Label it, date
   it, and say it is unverified. An unlabelled means reads as a decision.
 - **Done-when is a checkable predicate**, not a feeling. Prefer one that a
@@ -169,6 +199,39 @@ the half you ran.
 ⟹ Before inheriting an `[M]`, ask **what command produced it** — the same
 question `plan-authoring` §4 asks of the *configuration*, applied to the
 *proposition*. If the plan does not say, treat the claim as unmarked.
+
+⭐ **And the shelf-life case, where BOTH halves were honestly measured and only
+one rots: a claim about VALUES and a claim about the TREE'S BEHAVIOUR keep
+different clocks, so a sentence conjoining them cannot be re-checked as one
+unit.** This is not §2's "so/therefore" defect — no half is lending authority
+to an unmeasured half; both were run, both were right. What differs is *what
+would have to change to falsify each*. A number falls out of the numerics and
+survives until the numerics move; "and nothing warns about it" is a statement
+about code that any later commit can repeal — including a commit from **the
+same campaign, on the same day**.
+
+⟹ **Split a compound `[M]` by what could falsify it, and re-check only the
+tree half on pick-up.** The cheap tell that the tree half is stale is a date
+collision: if the measurement's date equals or precedes the landing date of
+any step of its own campaign, assume the behaviour clause is void until
+re-run. Re-running the value half as well is usually waste — and on an
+expensive fixture, waste that discourages doing the check at all.
+
+> `[M]` 2026-08-13, #350. The issue read *"in 16 of the 38, the converged
+> `keff` is further from its reference than `keff_tol` — and all 16 report
+> `converged=True` **and emit nothing**"*, measured 2026-08-10. N6a
+> (`6cb5e519`) and N6b (`4aff0d4e`) both landed **2026-08-10**, the same day.
+> Re-measured on 3 of the 16 at HEAD: the value half reproduces to 3 s.f.
+> (`23.70× / 3.52× / 4.17×` against the recorded `2.370e+01 / 3.519e+00 /
+> 4.173e+00`), and the behaviour half is **false** — every corrupting row now
+> emits exactly one actionable warning, `fully_converged` and
+> `Solution.converged()` both read `False`, and a benign control row emits
+> none. The issue's three options were still framed against the old behaviour,
+> so **option 1 ("accept it and rely on audibility") had silently become a
+> description of what already ships** rather than a proposal. A session that
+> picked the plan up in good faith would have built audibility that was
+> already there. Cost: none, because the check was run before designing —
+> and it was run only because the two dates were compared.
 
 ⭐ **The quantifier case, which needs no "so" to go wrong: a claim about EVERY
 member must carry the DENOMINATOR it was measured over.** "every family", "all
@@ -275,6 +338,39 @@ fiber ordering" — *old/new* rots the moment there is a third).
 > and the refuted one is the one wearing the ⛔ that a summariser will carry
 > forward. Caught while writing the close-out, before the banner had misled
 > anything; the fix was one paragraph naming the discriminator.
+
+⭐ **The third case, and it is the one §3 does not name at all: a fact can die
+by being FIXED.** §3 is written entirely about *refutation* — a claim that turns
+out to have been wrong. But a plan's fact table records **defects**, and the
+whole point of the campaign is to repair them. When a step lands the repair, the
+fact row is now describing a tree that no longer exists — and it is not refuted,
+it was *true*, which is exactly why nothing prompts anyone to touch it. The
+falsehood is purely tense.
+
+⟹ **The step that repeals a recorded fact owes that fact's row its edit, in the
+same commit.** Not a note in the step's own section 180 lines below — the row
+itself, `✅ REMEDIED <date> by <step> @ <hash>`. A fact table is read as a
+description of the present tree; a work log is read as history. They keep
+separate clocks, and only the fact table lies when they diverge.
+
+⚠ The tell for a reader, and it is the same date-collision check §2's
+shelf-life clause already teaches: **if a fact's date precedes any of its own
+campaign's landings, do not quote it without re-grepping the tree.** One grep
+answers it.
+
+> `[M]` 2026-08-13, #350. The issue's **option 3** read "re-derive the shipped
+> explicit budgets per F3/F5", quoting the plan's fact rows verbatim — *"the
+> tree ships **5×**"*, *"`have 200`"*, *"`have 1000`"*. Step **N3 landed
+> 2026-08-09**, the day *before* the issue was filed, and the plan records it
+> at `:223-252`. `[M]` at HEAD `grep -rn "max_inner" orpheus/` returns **no
+> `200`/`1000` literal on any SN path**; every entry ships `max_inner: int |
+> None = None` and derives 1308/1961, ratio **1.4992** against F5's own target
+> of ~1.5. **The option had no target.** F4 and F5 were never annotated, and
+> the issue's own body even says N3 "addresses the DEFAULT path" — the author
+> knew, and still quoted the repealed numbers one paragraph later, because the
+> rows they were copied from still read as current. Cost was one grep only
+> because the ruling was pre-checked; a session that had trusted the option
+> would have gone looking for literals that do not exist.
 
 > `[M]` 2026-08-13, task #67. The task was reconciled against the tree the day
 > before: every `file:line` re-verified, the green baseline restated, the

@@ -9,8 +9,23 @@
 > Tier 1 (the naming-honesty carve) **merged to `main` @ `b0a003b4`**; the three
 > ruling commits (`9cc69420`, `6946fe30`, `360a8087`) sit on top.
 >
-> **P0 is COMPLETE on branch `refactor/operator-strategy-layers`** (8 commits,
-> `9a546640..9ff86469`). **O-1, O-2, O-3 and O-6 are all DISCHARGED.**
+> ✅ **P0 is COMPLETE and MERGED TO `main`** — `[M]` 2026-08-13 at `0f5ca91c`, all
+> **16 of 16** hashes this plan names are ancestors of HEAD (`git merge-base
+> --is-ancestor`), zero NOT-MERGED, zero unknown. *(This line read "COMPLETE on branch
+> `refactor/operator-strategy-layers`" until 2026-08-13 — the snapshot that lies forward
+> this file's own next paragraph warns about. ⚠ That branch has since been **reused**:
+> its head is now `60aacf18`, the Q5.6.5b merge, NOT the P0 tip. Do not diff against it.)*
+> 8 commits, `9a546640..9ff86469`, plus `3e55fcf1`. **O-1, O-2, O-3 and O-6 are all
+> DISCHARGED.**
+>
+> `[M]` **the numbers below still reproduce EXACTLY at HEAD** — `105 passed, 21 xfailed`
+> in 1.83 s, 344 commits later. Only one post-P0 change touched
+> `tests/sn/architecture/`: `b1539468` (2026-08-08, quadrature 6.3) swapped the
+> `_cylinder()` fixture's `Quadrature.product` → `folded_product`; counts unmoved.
+> ⚠ The compaction check further down (*"`git log -12` → expect 9 P0 commits"*) and
+> (*"`git status --porcelain -- orpheus` empty ⟹ P1 hasn't started"*) are both **void**
+> now — 344 commits, and the tree carries unrelated edits. P1 genuinely has not started;
+> verify that from the `Optional` leaf domains, not from `git status`.
 > `tests/sn/architecture/` carries AC-b (R7 pinned), AC-b′, M-5/M-6/M-7, the leaf
 > gates G1.1/G1.3/G1.4/G1.5, and the P-1/P-2/P-3 performance harness with its
 > baseline — **105 passed, 21 xfailed, pyright 0 errors**, every number MEASURED.
@@ -77,6 +92,18 @@
 > how many `xfail(strict=True)` markers it deletes.
 >
 > ### At risk if the working tree is disturbed
+> ⛔ **REFUTED 2026-08-13 — the stated JUSTIFICATION below is false; the HAZARD is real
+> for a different reason.** `[M]` both files are **TRACKED**
+> (`git ls-files --error-unmatch` succeeds), with history at `b89ccd2d` / `d3066188` /
+> `8d552395`, and **all four additions tabulated below are COMMITTED** (identical grep
+> counts in `HEAD:<path>` and the working tree). So "no git history to recover from" is
+> void, and the recovery note at the end of this block is unnecessary for those four.
+> What survives: `[M]` **449 uncommitted insertions** across the two files at that date,
+> which a `git checkout`/`restore`/`stash`/`clean` still destroys irreversibly. The
+> prohibition stands; the reason changed. ⚠ Do not read the correction as "these paths
+> are now safe to `git checkout`" — they are not.
+>
+> *(Original text, preserved per `plan-authoring` §3:)*
 > `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` are **forbidden to commit**
 > by standing policy, so they exist ONLY in the working tree with **no git history to
 > recover from**. A `git checkout` / `restore` / `stash` / `clean` on those paths destroys
@@ -479,10 +506,49 @@ P4. MMS cannot prove an eigenvalue (pillar rule), so without it the first α num
 code produces becomes its own baseline. It has **zero** dependency on P1–P3 — it can be
 built at any time, and earlier is strictly better.
 
+> ⛔⛔ **`α` NAMES TWO UNRELATED QUANTITIES IN THIS REPO. Do not resolve O-4 by grepping
+> `alpha`.** `[M]` 2026-08-13 — a session reconciling this plan hypothesised that the
+> 2026-08 curvilinear commits (`bea6a367` "the α contract", `dde93b64`, `60aacf18`) had
+> dissolved O-4. **They had not, and could not have.**
+>
+> | | O-4's α | the curvilinear α |
+> |---|---|---|
+> | what | the **time / prompt eigenvalue** of `(L+C−S−F−B)ψ = −α·T·ψ` | the **angular-redistribution coefficient** `α_{q±1/2}` (Lathrop–Carlson) |
+> | index | a single **scalar**, over a `G×G` **energy** pencil | per-**level**, per-**ordinate** |
+> | co-operator | paired with `M = T = 1/v` | paired with the angular measure; `alpha_dome` closure |
+> | eigenproblem? | **yes, it is one** | **no — not an eigenproblem at all** |
+>
+> ⟹ **the discriminator is the INDEX and the CO-OPERATOR, not the letter.** A cold
+> pick-up resolves a one-letter symbol to whichever meaning a RECENT campaign made
+> salient, and the quadrature campaign made the curvilinear one very salient. Cost if
+> unchecked: a full design cycle spent "finishing" something already done, or declaring
+> O-4 discharged when nothing touched it.
+>
+> `[M]` **O-4 is OPEN, unstarted, untouched at `0f5ca91c`**, and the tree says so in its
+> own present tense: `orpheus/numerics/eigenvalue.py:34-36` ("*the α row remains a
+> documented future seam*"); `docs/theory/foundations/operator_algebra.rst:4288`,
+> `:4306-4310`, `:4357-4360` ("*the α-row is Not built (only the k-row exists)*").
+> Probes, all **0 hits**: `pose_alpha` / `pose_k`, `GeneralizedEigenPencil`,
+> `class TimeMassOperator`, `velocit` anywhere in `orpheus/data/`, and no α sibling to
+> `k_inf.py` in `derivations/continuous/fn_method/multi_group/`.
+>
+> ⚠ **O-5 is also undischarged and is NOT in the cold-pickup marker** —
+> `campaign_verification_plan.md:606`, G2.1's leaf-identity-set assertion before the
+> pencil. Same P4-blocker family. `[M]` `v_g` must come in as fixture data: **the data
+> layer carries no velocity**, so O-4 owes a fixture as well as ~15 lines.
+
 ### ⬢ P2 — The realizer seam *(the root, second half)*
 
 * **P2a — relocate the C/F/S cores** (#261 steps 1–2). Respect its named L3 blocker.
   Λ's natural form is #260's sum-of-tensor-products.
+  > ⛔ **PREMISE MOVED — re-read #261's body before designing this.** `[M]` 2026-08-13:
+  > the *relocation* has already happened. `fission.py`, `scattering.py`,
+  > `multiplication_operator.py` and `isotropic_scattering.py` are **already** in
+  > `orpheus/transport/operators/`. And #261's "lone L3 blocker", `MaterialXSField`,
+  > already lives at `orpheus/transport/mesh/material_xs_field.py` — moved at
+  > `a799e92f` (2026-06-28), i.e. **before this plan was written** — and still names
+  > `SNMesh`. ⟹ P2a's residual scope is the **core/adapter split**, not the directory
+  > move, and the blocker is not where the plan says it is.
 * **P2b — `SNReactionRealizer`**, on the `SNBoundaryRealizer` precedent. Each method
   builds its own monomorphic realized operator as a composition
   `j_bulk ∘ E₀ ∘ F_G ∘ M₀ ∘ π_bulk`. **Composition is the algebra of record and the

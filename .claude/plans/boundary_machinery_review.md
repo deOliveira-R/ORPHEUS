@@ -2,12 +2,25 @@
 
 > ## ⏸ COMPACTION POINT — cold-pickup anchor (2026-08-01, fourth rewrite)
 >
-> **B0, B1, B2, B3.0–B3.4c and the snapshot re-anchoring are ALL landed.
-> B3.4 is COMPLETE — every law is narrowed. NEXT = #325, then B4.**
+> **B0, B1, B2, B3.0–B3.5 and the snapshot re-anchoring are ALL landed and
+> MERGED to `main` — every claimed hash is an ancestor of HEAD (`[M]`
+> 2026-08-14). B3.4 is COMPLETE — every law is narrowed.**
+>
+> ⛔ **This anchor said `NEXT = #325, then B4` until 2026-08-14. #325 CLOSED
+> 2026-08-13 — so it lied forward for a THIRD time, exactly as the warning
+> below predicted.** The pointer is therefore GONE rather than updated: git and
+> the task list hold what is next and update themselves
+> (`.claude/rules/plan-authoring.md` §6). What is TRUE and durable: **B3 is
+> finished; B4 is the next substantive phase and is not started.**
 >
 > ⚠ This block is rewritten at every compaction. An anchor still saying
 > "NEXT = X" after X has landed **lies forward** and costs a session — it has
-> now done so twice in this campaign. Trust `git log`, never this file.
+> now done so THREE times in this campaign. Trust `git log`, never this file.
+>
+> ⚠ **The branch pointer in this file is dead too.**
+> `refactor/operator-strategy-layers` has been REUSED; its head is now
+> `60aacf18` (a 2026-08-13 quadrature commit), NOT any B-phase tip. Do not diff
+> against it. All B work is on `main`.
 >
 > **Verify against the tree, in this order:**
 > 1. `git log --oneline main..HEAD` on `refactor/operator-strategy-layers`. The
@@ -126,7 +139,11 @@
 **Status:** ✅ **MAPPING COMPLETE** — all four review quadrants closed and
 reconciled (diffusion arm · SN composite · law layer · test teeth). Every claim
 carries an evidence tag; every **[U]** has been raised or deleted; **[X]**
-corrections are recorded in §9. **B0 + B1 LANDED; B2 measured, not started.**
+corrections are recorded in §9. ~~**B0 + B1 LANDED; B2 measured, not
+started.**~~ ⛔ **STALE — this is the file's ORIGINAL status header and was
+never rewritten.** It is contradicted by this document's own §B2 ("**B2 —
+RESULT ✅**", 2026-07-31) and by the compaction anchor at the top. **The later
+sections win**: B2 landed. Ignore this line and the branch pointer below it.
 **Objective (user, 2026-07-30):** perfect this subsystem — make it do what it
 should do *and* what it promises to do. This report is the factual substrate; it
 becomes an action plan only once the mapping is complete and contradiction-free.

@@ -1586,7 +1586,19 @@ it is a false coverage claim):
   one step later.
 * **Wire the SCC criterion** (#324). B3.4c makes it buildable (§17.6); periodic
   still lags into `B_upper`, which is correct-but-not-minimal.
-  `SpatialWrap.permutes_ordinates` stays **`False`** — that is what keeps
-  periodic out of `_reflective_faces`, hence out of `B_lower`, hence the forward
-  substitution triangular. `tests/geometry/test_reemission_closure.py:1134-1141`
-  is the existing tripwire on that `False`.
+  ~~`SpatialWrap.permutes_ordinates` stays **`False`** … `tests/geometry/
+  test_reemission_closure.py:1134-1141` is the existing tripwire on that
+  `False`.~~
+  ⛔ **BOTH SYMBOLS ARE STALE — corrected 2026-08-14.** (a) **`SpatialWrap` is
+  RETIRED** (`e13313a8`, "the deck tier is typed by the MOTION — PairedDeck
+  retires SpatialWrap"); `tests/geometry/test_paired_deck.py:646` is now a gate
+  asserting it is gone. The *predicate* survives on `PairedDeck` /
+  `SelfPairedDeck` (`orpheus/geometry/boundary/_factors.py:385,745,936`) and is
+  **derived from the motion**, no longer hand-declared — `_factors.py:289`
+  names hand-declaring it as a second source of truth. (b) **The cited tripwire
+  address no longer holds the cited claim**: those lines are now
+  `test_the_predicate_is_NOT_constant` (a non-vacuity gate on
+  `law_permutes_ordinates`), not a pin on `permutes_ordinates is False`.
+  The *reasoning* stands — a non-permuting periodic link is what keeps it out
+  of `_reflective_faces`, hence out of `B_lower`, hence the forward
+  substitution triangular — only the two names and the address are wrong.
