@@ -974,13 +974,39 @@ def test_every_registry_rule_declares_a_symmetry_it_actually_has() -> None:
     this is that re-posing, so the gate is inverted rather than deleted.
 
     The claim tested is deliberately WEAKER than equality with the computed
-    maximal group, because a declaration is allowed to be true-but-not-maximal
-    and one shipped rule genuinely is: ``gauss_legendre_on_mu`` declares
-    :math:`SO(2)`, the group its domain was quotiented BY. That tag is not an
-    over-claim -- :math:`SO(2)` acts trivially on :math:`\mu`, so the marginal
-    satisfies it -- and demanding maximality would wrongly convict it. What is
-    forbidden is a declaration the nodes do NOT satisfy, which is exactly what
-    :math:`SO(2)` on :math:`S^2` was.
+    maximal group, and the justification is the CONTRACT, not an example.
+    ``DiscreteMeasure.invariance_group`` is a claim the measure makes about
+    its own nodes; this gate exists to forbid a claim the nodes do NOT
+    satisfy. It must not also forbid a claim that is true but modest, because
+    the type permits that and a gate may not assert more than the type
+    promises (``vv-principles`` #16). Strengthening to equality would convict
+    a legitimate value.
+
+    ⭐ ``gauss_legendre_on_mu`` shows why equality is not even well-POSED
+    here: `[M]` its maximal invariance groups are
+    :math:`\{\sigma_x, \sigma_y, \sigma_z\}` -- **three** of them, because the
+    polar marginal embeds as :math:`(\mu, 0, 0)` so :math:`\sigma_y` and
+    :math:`\sigma_z` fix every node pointwise. There is no single "the
+    maximal group" to compare against, so an equality gate would have to pick
+    one arbitrarily.
+
+    ⛔ This paragraph justified the weakness differently until 2026-08-14:
+    *"one shipped rule genuinely is [true-but-not-maximal]:
+    ``gauss_legendre_on_mu`` declares* :math:`SO(2)`\ *, the group its domain
+    was quotiented BY."* Both halves are now false. `[M]`
+    ``gauss_legendre_on_mu(8).invariance_group`` is
+    ``SubgroupOfO3.Mirror('x')`` -- the 2026-08-02 correction that replaced
+    the slab/sphere residual :math:`Z_2` with :math:`\sigma_x` reached the
+    rule's declared tag too -- and `[M]` walking
+    :func:`~orpheus.numerics.symmetry.maximal_invariance_groups` over all four
+    registry rules, **0 of 4** are true-but-not-maximal (GL declares
+    :math:`\sigma_x`, one of its three; Lebedev and LS_N declare
+    :math:`O_h`; the product rule declares :math:`D_{6h}`).
+    ⟹ the gate is unchanged and still correct; what was repaired is its
+    EVIDENCE. A weakness argued from a single example silently becomes
+    unjustified the moment that example moves, and the shape of this failure
+    is that nothing goes red -- the gate kept passing for the whole time its
+    stated reason was false.
     """
     from orpheus.numerics.quadrature.registry import quadrature_registry
 

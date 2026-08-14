@@ -66,6 +66,9 @@ surprises cost to hit.
 | 2026-08-13 | A resume pointer reconciled against the TREE the day before (every `file:line` re-verified, §7.2 ritual run) still carried two present-tense-false claims — false against its own CITED MEMO, whose §F10 refuted the F3/F7 sections the pointer had been summarised from. §3 mandates the refuted text stay, so the memo held both versions with the false one first. | §3 (the read-the-END-first sharpening — the hazard §3 itself creates) |
 | 2026-08-13 | An issue's remedy option quoted its plan's FACT rows (`the tree ships 5×`, `have 200`, `have 1000`) as live defects. A step of that same plan had REPEALED them **the day before the issue was filed** — the fact rows never learned, because nothing in §3 says a fact can die by being FIXED. | §3 (the REMEDIED-fact sharpening) |
 | 2026-08-13 | A blocker named "build the independent **α** reference". I hypothesised three 2026-08 commits had dissolved it — they are a DIFFERENT α (angular-redistribution coefficient vs time eigenvalue). The mandated grep would have CONFIRMED the error: `alpha` hits both. | §1 (the ONE-LETTER-SYMBOL sharpening) |
+| 2026-08-14 | A step added a GATE (the quadrature reference stage) and its WITNESS (the Gauss-Chebyshev entry that the gate rejects) to two different steps. `[M]` alone, the gate is inert on all 16 (geometry × rule) rows — domain already implies reference for every shipped rule. It would have landed green, authoritative, and unable to fail. | §6c (new — the same defect as §6b with a *witness* in place of a call site) |
+| 2026-08-14 | A plan said "follow `SubgroupOfO3` — private Enum, **frozen** dataclasses, a **frozen** wrapper, a **registering** constructor" and, separately, "**no precedent exists**". `[M]` 4 of 6 structural claims false (not a dataclass, not frozen — `g._tag = 'MUTATED'` succeeds; no registry, no `create`), and a precedent shipped one package over (`AlbedoBoundary(BoundaryTraceLaw, key="albedo")`, frozen, parameterized, registered). The symbol existed; every property claimed of it was wrong. | §1 (the PRECEDENT sharpening) |
+| 2026-08-14 | A docstring paragraph warning that *"a literal `12` here would be a second copy of a frontier that lives in the solve, and the two would drift"* sat **eight lines below a `12` that had drifted** (`S_12` → `S_18` at #337). The ruling was vindicated by a real event — the inverter tracked the frontier with no literal moved — while the prose above it became the exact failure it predicted. ⚠ The aggravator: the displayed methodological care makes the *neighbouring* stale measurement read as more trustworthy, not less. | §2 (the shelf-life clause — a RULING and the NUMBER offered as its evidence keep different clocks, inside one docstring). No new clause; the log row is the measurement. |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -150,6 +153,34 @@ hand-rolled spec into production.
   > only because the brief asked "*does the α reference O-4 wants now
   > exist?*" instead of "*did these commits close O-4?*" — i.e. by asking
   > after the OBJECT, which §5 already tells you to do.
+
+- ⭐ **And the third thing a pointer names, after symbols and deliverables: a
+  PRECEDENT.** "Model this on `X`" is the highest-leverage sentence in a design
+  step, because the next session builds to the plan's *description* of `X` rather
+  than to `X`. And the existence-check §1 already mandates does not help here —
+  the symbol exists; what is wrong is every **property** claimed of it. A
+  precedent is cited from memory of its *shape*, and shape is exactly what
+  drifts: frozen or not, dataclass or not, does it actually register, is the
+  member a singleton or a constructor.
+  ⟹ **Read the precedent's first 30 lines and check each adjective**, and pair it
+  with the dual question — *does a BETTER precedent already ship?* — because
+  "no precedent exists" is a universal (§2's quantifier clause) and is almost
+  never measured before it is written.
+
+  > `[M]` 2026-08-14, campaign Q6. A step read: follow `SubgroupOfO3` — *"private
+  > `_NamedSubgroup(Enum)`, separate **frozen** dataclasses for parameterized
+  > members, a public **frozen** wrapper, a **registering** constructor"* — and,
+  > two clauses earlier, *"**no precedent exists**"*. Measured: the wrapper is
+  > **not a dataclass and not frozen** (`g = SubgroupOfO3.Mirror('z');
+  > g._tag = 'MUTATED'` **succeeds**), and it **registers nothing** — no
+  > `create`, no `registry`, no key; its 7 named members are `ClassVar`
+  > singletons assigned at module scope. 4 of 6 structural claims false. And a
+  > precedent for exactly the wanted shape shipped one package over:
+  > `@dataclass(frozen=True) class AlbedoBoundary(BoundaryTraceLaw, key="albedo")`
+  > — frozen, parameterized, registered. A session building to the plan's text
+  > would have hand-rolled a weaker version of something already in the tree,
+  > and inherited a mutability bug from a model that does not have the property
+  > it was cited for.
 
 - A means proposed before the investigation is a **hypothesis**. Label it, date
   it, and say it is unverified. An unlabelled means reads as a decision.
@@ -490,6 +521,42 @@ tree does not compile (or worse, compiles and fails at runtime) between them.
 Corollary for the plan text: when steps ARE fused this way, say so where the
 step is defined, not only in the commit. The next reader is planning against
 the plan, not against your commit history.
+
+### 6c. A step that adds a GATE must land with the case the gate CATCHES
+
+The same defect as §6b, with a **witness** in place of a call site — and it is
+harder to see, because a gate with no witness does not break the tree. It ships
+**green**, wearing an authoritative name, structurally unable to fail. Nothing
+in the diff, the test count, or the suite says so; the step reads as *done*.
+
+**The check is one question, asked at design time, before the step is written:**
+*what input, existing in the tree at the moment this lands, does this gate
+reject?* If the honest answer is "none — the thing it rejects arrives in a later
+step", the two steps are one step. Splitting them buys a tidy narrative and pays
+for it with an interval during which the campaign believes it has coverage it
+does not have.
+
+⚠ Note this is **not** answerable by mutation testing, and reaching for mutation
+here is the trap: mutating the SUT reddens the gate and *confirms* it has teeth,
+because the mutation manufactures the witness the registry lacks. The question is
+about the **shipped inputs**, not about the code — the same distinction
+`coding-standards` draws for a tautological gate, where an in-class mutation also
+answers the wrong question.
+
+> `[M]` 2026-08-14, campaign Q6. The plan made "Q6.0 — the reference axis" a
+> PREREQUISITE for "Q6.4 — register the Gauss families", which is the right
+> dependency and the wrong boundary. The stage rejects a rule whose exactness
+> reference differs from the query's; the only such rule is **Gauss-Chebyshev**,
+> which Q6.4 registers. Measured on the shipped 4-rule registry: domain (stage 0)
+> already implies reference on **all 16** (geometry × rule) rows, so the new stage
+> could not reject anything. Landing Q6.0 alone would have added a stage, a
+> docstring, and a passing test that jointly assert the 0.696-error defect is
+> prevented — while the defect remained perfectly spellable until Q6.4.
+
+Corollary, and it is the cheap version of this check: **a plan that names a
+gate should name its first red in the same line.** "Done when: a
+`GaussChebyshev1D` entry is REJECTED for slab with a stage-naming reason" is
+checkable; "done when the selector is reference-aware" is not.
 
 ## 7. Before resuming a plan, reconcile it against the tree
 

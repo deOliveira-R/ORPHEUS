@@ -182,10 +182,29 @@ def test_lebedev_invert_too_high_returns_none() -> None:
         (1, 2),     # min even N=2
         (3, 4),     # N=4
         (4, 6),     # need N>=5; round up to even -> 6
-        (11, 12),   # N=12 — the LAST order the family can serve
+        (11, 12),   # N=12 — see the docstring: NOT the family's last order
     ],
 )
 def test_ls_sn_invert(target: int, expected_N: int) -> None:
+    r"""The ``N - 1`` inversion, pinned at four targets.
+
+    ⛔ The last row's comment read "N=12 — the LAST order the family can
+    serve" until 2026-08-14. `[M]` the family serves through :math:`S_{18}`
+    (:math:`S_{20}` is the smallest even order whose per-orbit weight solve
+    goes negative), and the very next test in this file
+    (``test_ls_sn_invert_serves_the_moment_matched_frontier``) asserts
+    :math:`S_{14}` and :math:`S_{16}` — so the refutation was already sitting
+    twenty lines below the claim. ``12`` was the pre-#337 convention seed's
+    frontier; #337 moved it and this comment did not follow.
+
+    ⚠ These rows pin the inversion, **not** the cheapest order that meets the
+    target. `[M]` the two differ at 6 of the 9 buildable orders because the
+    realized degree is build-measured and exceeds :math:`N - 1`: target 4 is
+    met by :math:`S_4` (realized degree 5, 24 nodes) and this returns
+    :math:`S_6` (48 nodes). See :func:`_ls_sn_invert`'s docstring — the
+    over-shoot is a known cost defect, and these rows will need re-posing when
+    it is fixed.
+    """
     params = _ls_sn_invert(target)
     assert params == {"sn_order": expected_N}
 

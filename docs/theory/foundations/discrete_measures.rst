@@ -552,19 +552,15 @@ When this holds, integrating any :math:`G`-invariant integrand
 no spurious low-order asymmetry leaks from the quadrature rule into
 moments where physics demands their absence.
 
-Quadrature selection in ORPHEUS therefore reduces to a containment
-check: given a geometry with natural symmetry group
-:math:`G_{\text{geom}}` (slab :math:`\to SO(2) \times \sigma_x`,
-sphere :math:`\to O(3)`, hexagonal lattice :math:`\to D_{6h}`, …)
-and a candidate quadrature with invariance group
-:math:`G_{\text{quad}}`, the rule is
+The groups themselves carry an order relation — containment in the
+:math:`O(3)` lattice. For two subgroups :math:`H, K \subseteq O(3)`,
 
 .. math::
    :label: subgroup-of-o3-containment
 
-   G_{\text{geom}} \subseteq G_{\text{quad}}
+   H \subseteq K
    \;\Longleftrightarrow\;
-   \forall g \in G_{\text{geom}},\; g \in G_{\text{quad}}.
+   \forall g \in H,\; g \in K.
 
 .. (vv-status rationale) subgroup-of-o3-containment: Verified
    transitively by the foundation tests in
@@ -580,10 +576,38 @@ and a candidate quadrature with invariance group
 .. vv-status: subgroup-of-o3-containment documented
 
 The "if and only if" is the standard set-theoretic definition of a
-subgroup; the value here is the *application* — guaranteeing that
-selecting a quadrature whose invariance group contains the geometry's
-symmetry group is sufficient to preserve every symmetry the geometry
-exhibits.
+subgroup; what it buys is a *decidable* order over the named entries
+and the parameterised families, implemented by
+:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.contains` and its
+reverse-direction synonym ``is_subgroup_of``.
+
+.. warning::
+
+   **This relation is not the quadrature-selection gate**, and reading
+   it as one is precisely the error the selector shipped until
+   2026-08-02. Two things break when it is used that way. Whether a
+   *rule* carries a symmetry is a question about its **nodes** —
+   answered by :eq:`discrete-measure-g-invariance` through
+   :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant` —
+   whereas a lattice query can only consult a *declared* tag, which may
+   be false or merely under-claimed. And the geometry side is not one
+   group at all: it splits into the continuous half the dimensional
+   reduction spends (which fixes the angular **domain**) and the
+   discrete half still owed (which the nodes must realize as a
+   permutation). Both corrections are set out under
+   :ref:`quadrature-selection-algorithm`.
+
+   ⛔ This paragraph read that "quadrature selection in ORPHEUS
+   therefore reduces to a containment check", with the geometry side
+   given as its whole natural symmetry group (slab
+   :math:`\to SO(2) \times \sigma_x`, sphere :math:`\to O(3)`,
+   hexagonal lattice :math:`\to D_{6h}`), and closed by claiming that
+   containment "is sufficient to preserve every symmetry the geometry
+   exhibits". Those readings were retired on 2026-08-02 and survived
+   here until 2026-08-14, three screens above the section that
+   describes what replaced them — which is the worse failure mode,
+   because a page that contradicts itself can be cited for either
+   sentence.
 
 ORPHEUS's relevant sub-lattice of :math:`O(3)` is **finite and
 small**. Slab, sphere, 1-D / 2-D Cartesian geometries combined with
@@ -678,59 +702,167 @@ re-stamped on tensor-product results via
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`
 when the caller knows the result is invariant.
 
+.. _quadrature-selection-algorithm:
+
 Quadrature selection algorithm
 ==============================
 
-Issue 5 of the SN reshape campaign installs a tagged registry on top of
-the four quadrature-rule primitives, plus a selector that picks the
-right :class:`~orpheus.numerics.measure.DiscreteMeasure` for a
-geometry-and-target-degree pair. The selector lives at
-:mod:`orpheus.numerics.quadrature.registry`.
+Issue 5 of the SN reshape campaign installs a tagged registry over four
+of the quadrature-rule primitives — Gauss-Legendre on :math:`\mu`,
+Lebedev, level-symmetric :math:`S_N`, and the polar-times-azimuthal
+product rule — plus a selector that picks the right
+:class:`~orpheus.numerics.measure.DiscreteMeasure` for a
+geometry-and-target-degree pair. The registry entries are the four
+:class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` values in
+:data:`~orpheus.numerics.quadrature.registry.quadrature_registry`; the
+selector lives at :mod:`orpheus.numerics.quadrature.registry`.
 
-Selection is fundamentally a **four-stage filter** in priority order:
+Selection is fundamentally a **five-stage filter** in priority order.
+The stages are numbered here exactly as the selector numbers them, so a
+rejection message read off a
+:class:`~orpheus.numerics.quadrature.registry.SelectionLog` — which
+always names its stage — points at the paragraph that explains it.
 
-1. **G compatibility (symmetry).** The rule's invariance group must
-   contain every symmetry of the geometry —
-   :math:`G_{\text{geom}} \subseteq G_Q`. A quadrature with **less**
-   symmetry than the geometry imprints spurious low-order asymmetry
-   on a symmetric problem (Lebedev 1976, §1; Stiefel & Fässler 1979
-   Ch. 5). A quadrature with **more** symmetry is harmless — the
-   extra symmetry is unused, never violated. The lattice
-   :eq:`subgroup-of-o3-containment` drives this filter; see
-   :class:`~orpheus.numerics.symmetry.SubgroupOfO3` for the
-   containment table.
+0. **Domain compatibility.** The rule's nodes must live on the angular
+   domain the geometry's *dimensional reduction* left behind:
+   :math:`\mathcal{D}_Q = S^2 / G^0_{\text{geom}}`. A slab integrates
+   the azimuth out analytically, so its angular variable is
+   :math:`\mu = \cos\theta` on :math:`[-1,1]`, and a rule whose nodes
+   are points of :math:`S^2` is the **wrong shape of object** — not an
+   over-resolved one, not an expensive one, but a rule for a different
+   integral. A cylinder retains both angular degrees of freedom and
+   wants :math:`S^2`.
+
+   This stage is **not** a refinement of the symmetry stage below. It
+   is the other half of the same decomposition of the geometry's
+   angular symmetry (see
+   :class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`, and
+   the subsection *Spent and owed* below), and the two conjuncts are
+   logically independent: without stage 0, the symmetry stage alone
+   admits a Lebedev rule for a slab, because an :math:`O_h`-invariant
+   rule certainly satisfies the :math:`\sigma_x` a slab owes.
+
+1. **G compatibility (symmetry).** The rule's node set must be closed
+   under the geometry's *discrete residual* symmetry —
+   :math:`\Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
+   half of the geometry's symmetry group that survives the reduction
+   and must therefore be realized as a permutation of the ordinates. A
+   quadrature with **less** symmetry imprints spurious low-order
+   asymmetry on a symmetric problem (Lebedev 1976, §1; Stiefel &
+   Fässler 1979 Ch. 5) and cannot represent a reflecting boundary
+   exactly: the face reflection maps ordinate :math:`m` to ordinate
+   :math:`m'` *exactly* only if the node set is closed under it. A
+   quadrature with **more** symmetry is fine — the extra symmetry is
+   unused, not violated.
+
+   :math:`\operatorname{Sym}(Q)` is **computed from the rule's nodes**
+   by :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`
+   applied to a generating set (:eq:`discrete-measure-g-invariance`),
+   never read from a declared tag. The containment lattice
+   :eq:`subgroup-of-o3-containment` is the order relation *on the
+   groups*; it is not the gate, and routing the gate through it fails
+   in **both** directions:
+
+   - A declaration can be **false**, and then the gate passes on a lie.
+     ``product_mu_phi`` advertised :math:`SO(2)`, which no finite point
+     set on :math:`S^2` can satisfy, and that single falsehood was the
+     only reason this gate admitted the product rule for a cylinder.
+   - A declaration can be **true but not maximal**, and then the gate
+     rejects a rule it must accept. Every measure is
+     ``Trivial``-invariant, so tagging Gauss-Legendre ``Trivial`` is not
+     a lie — and ``[M]`` a lattice query against that tag answers
+     ``False`` for the slab's owed :math:`\sigma_x`, while
+     ``admits_symmetry``, which asks the nodes, answers ``True``. The
+     rule the slab must accept would be the one rejected.
+
+   Asking the nodes cannot go wrong either way: a computed group cannot
+   lie about the object it was computed from. This is pinned by
+   ``test_selector_asks_the_nodes_not_the_declared_tag``, which injects
+   the understated-but-true declaration precisely so the gate is not
+   defended by a counter-example that a later bug fix could dissolve.
+   All four shipped rules now declare their maximal group honestly —
+   ``[M]`` :math:`\sigma_x`, :math:`O_h`, :math:`O_h` and
+   :math:`D_{n_\varphi h}` — so on today's registry the two routes
+   agree. That agreement is a property of today's tags, not of the
+   design, which is why the principle is stated rather than measured.
+
+   ⛔ This stage required :math:`G_{\text{geom}} \subseteq G_Q`, the
+   geometry's whole group inside the rule's **declared** group, and
+   named :eq:`subgroup-of-o3-containment` as the mechanism that drove
+   it, until 2026-08-14. Every clause of that was retired on
+   2026-08-02. :math:`G_{\text{geom}}` recorded the **spent**
+   continuous half and became :math:`\Gamma_{\text{geom}}`, the
+   **owed** discrete half; :math:`G_Q`, a declared parameter-free field
+   on the spec, became :math:`\operatorname{Sym}(Q)`, computed from the
+   instantiated nodes; and the lattice stopped being the mechanism. The
+   retired gate was unsatisfiable by any discrete azimuthal rule and
+   could only ever pass on a false declaration — see the admonition
+   under *Geometry → angular-symmetry assignment* below for the
+   compensating pair of errors that made it look healthy.
 
 2. **V compatibility (polynomial exactness, Galerkin sense).** The
    rule's degree of exactness must reach the target: :math:`\deg(Q)
    \ge d`. Each rule's degree is parameter-dependent — :math:`2n - 1`
-   for Gauss-Legendre, :math:`\max(3,\, N - 1)` for level-symmetric
-   :math:`S_N`, ``order`` for Lebedev, :math:`\min(2 n_\mu - 1,
-   n_\phi - 1)` for the product rule. The selector inverts each rule's
-   formula and picks the smallest parameter set meeting the target.
+   for Gauss-Legendre, ``order`` for Lebedev, :math:`\min(2 n_\mu - 1,
+   n_\phi - 1)` for the product rule, and **build-measured** (no
+   formula of :math:`N`) for level-symmetric :math:`S_N`. The selector
+   inverts each rule's formula and picks the smallest parameter set
+   meeting the target.
    Lebedev's gap structure (no rules at orders 33, 37, 39, 43, 45, 49)
    is handled by rounding up to the next tabulated order; if the target
    exceeds the table's top end (47 in scipy's tabulation), the rule is
    rejected at this stage with a clear message.
 
-   ⚠ **Level-symmetric has a top end too, and it is** :math:`S_{12}`.
-   Above it the per-orbit moment-matched solve has no *positive*
-   solution (``[M]`` min weight :math:`-0.027` at :math:`S_{14}`), so
-   the rule does not exist and its inverter returns ``None`` — the same
-   "cannot reach the target with any supported parameters" channel
-   Lebedev uses past order 47. See :ref:`quadrature-ls-positivity`.
-   Unlike Lebedev's tabulated ceiling, this bound is **discovered by
-   attempting the construction** rather than compared against a
-   constant, so it cannot drift out of step with the node set.
+   ⚠ **Level-symmetric has a top end too, and it is** :math:`S_{18}`:
+   from :math:`S_{20}` the per-orbit weight solve has no *positive*
+   solution **on this node seed**, so the rule does not exist and its
+   inverter returns ``None`` — the same "cannot reach the target with
+   any supported parameters" channel Lebedev uses past order 47. The
+   frontier belongs to the seed, not to the level-symmetric shape,
+   which is why it has moved once already and may move again. The
+   measurements, and why positivity is not tradeable, are at
+   :ref:`quadrature-ls-positivity` and are deliberately not restated
+   here: the frontier is **discovered by attempting the construction**
+   rather than compared against a constant, and a second copy of the
+   limit — in this page, or in the inverter — is exactly the thing that
+   drifts away from the node set. The ⛔ below is that drift, measured.
 
-   ⛔ The level-symmetric entry read :math:`N - 1` **(conservative)**
-   until 2026-08-06.  It was neither: ``[M]`` the realized degree was
-   **3 at every order**, so the number over-claimed from :math:`S_6` up
-   (by 12 at :math:`S_{16}`) *and* under-claimed at :math:`S_2` — the
-   signature of a formula describing a different construction rather
-   than a cautious bound on this one.  Issue **#327** solved the weights
-   per :math:`O_h` orbit; the degree is now measured against the
-   closed-form monomial integral and the word "conservative" is retired
-   because the figure is exact.
+   ⛔ This bullet gave the level-symmetric degree as
+   :math:`\max(3,\, N - 1)`, and the paragraph above it put the top end
+   at :math:`S_{12}` with ``[M]`` a minimum weight of :math:`-0.027` at
+   :math:`S_{14}`, until 2026-08-14. Both were true of the pre-#337
+   node seed :math:`\mu_1^2 = 4/(N(N+2))` and were falsified on
+   2026-08-08, when **#337** replaced it with the moment-matched root.
+   ``[M]`` the measured degree is now :math:`3, 5, 7, 9, 11, 11, 15,
+   15, 17` at :math:`S_2 \ldots S_{18}` — no clean formula in
+   :math:`N` — so :math:`\max(3, N-1)` *under*-claims by 2 wherever it
+   is wrong; and ``[M]`` the smallest weight at :math:`S_{14}` is
+   :math:`+0.01299` — positive — with the first negative one appearing
+   at :math:`S_{20}`. Neither number was ever mismeasured. Their
+   **configuration** stopped being the shipped one, which is the
+   failure mode a copied measurement has and a pointer to the producing
+   gate does not.
+
+   ⚠ **The retired formula is a spot-check trap**, which is worth
+   knowing before reaching for one: :math:`\max(3, N-1)` happens to be
+   *right* at :math:`S_2`, :math:`S_{12}`, :math:`S_{16}` and
+   :math:`S_{18}`, and wrong at :math:`S_4`, :math:`S_6`, :math:`S_8`,
+   :math:`S_{10}` and :math:`S_{14}`. Four of the nine buildable orders
+   confirm it — including :math:`S_{12}`, the order the retired
+   frontier made salient. Checking one order is not checking a formula;
+   the gate that decides this sweeps every order against the
+   closed-form monomial integral
+   (``tests/numerics/test_advertised_degree_is_measured.py``).
+
+   ⛔ Earlier still, the level-symmetric entry read :math:`N - 1`
+   **(conservative)** until 2026-08-06.  It was neither: ``[M]`` the
+   realized degree was **3 at every order**, so the number over-claimed
+   from :math:`S_6` up (by 12 at :math:`S_{16}`) *and* under-claimed at
+   :math:`S_2` — the signature of a formula describing a different
+   construction rather than a cautious bound on this one.  Issue
+   **#327** solved the weights per :math:`O_h` orbit; the degree became
+   measured against the closed-form monomial integral, and the word
+   "conservative" was retired because the figure is exact.
 
 3. **Structural compatibility.** The consumer can request boolean
    flags that the rule must satisfy:
@@ -749,10 +881,11 @@ Selection is fundamentally a **four-stage filter** in priority order:
    Only flags passed with value ``True`` constrain the search; ``False``
    and missing keys are interpreted as "don't care."
 
-4. **Minimum points (cost).** Among candidates passing 1-3, pick the
+4. **Minimum points (cost).** Among candidates passing 0-3, pick the
    smallest :math:`N`. Each ordinate is a sweep direction in the SN
    solver, and sweeps dominate the runtime — the cheapest valid rule
-   wins.
+   wins. The sort is stable, so an exact tie in node count is broken by
+   position in :data:`~orpheus.numerics.quadrature.registry.quadrature_registry`.
 
 Formally, the selection criterion is
 
@@ -760,7 +893,8 @@ Formally, the selection criterion is
    :label: quadrature-selection-criterion
 
    Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
-   G_{\text{geom}} \subseteq G_Q
+   \mathcal{D}_Q = S^2 / G^0_{\text{geom}}
+   \;\wedge\; \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)
    \;\wedge\; \deg(Q) \ge d
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
@@ -768,12 +902,22 @@ Formally, the selection criterion is
 .. (vv-status rationale) quadrature-selection-criterion: Verified
    transitively by the foundation tests in
    :file:`tests/numerics/test_registry.py` — every stage of the
-   four-stage filter has a happy-path test
+   five-stage filter has a happy-path test
    (``test_select_slab_returns_gauss_legendre``,
    ``test_select_sphere_returns_gauss_legendre``,
    ``test_select_cylinder_with_level_structured_returns_product``,
-   ``test_select_cartesian2d_prefers_lebedev_over_ls_sn``) and a
-   negative path (``test_no_rule_fits_raises_with_log``,
+   ``test_select_cartesian2d_prefers_lebedev_over_ls_sn``); the two
+   conjuncts added on 2026-08-02 carry their own gates
+   (``test_support_is_derived_from_the_spent_group_not_declared`` for
+   the derived domain,
+   ``test_the_two_stages_are_independent_and_both_load_bearing`` for
+   their independence,
+   ``test_owed_symmetry_selects_by_azimuthal_parity`` and
+   ``test_select_cylinder_rejects_odd_azimuthal_product_rule`` for what
+   the owed group discriminates, and
+   ``test_selector_asks_the_nodes_not_the_declared_tag`` for
+   computed-not-declared); and there is a negative path
+   (``test_no_rule_fits_raises_with_log``,
    ``test_truly_incompatible_flags_raises``). Tagged ``foundation``
    rather than carrying a verification ladder slot because the
    selection chain is a software invariant (the predicate
@@ -787,6 +931,9 @@ Formally, the selection criterion is
 
 where :math:`n(Q)` is the number of nodes,
 :math:`\mathcal{D}_Q` is the domain the rule's nodes live on,
+:math:`G^0_{\text{geom}}` and :math:`\Gamma_{\text{geom}}` are the
+continuous and discrete halves of the geometry's angular symmetry
+(:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`),
 :math:`\operatorname{Sym}(Q) \subseteq O(3)` is the group the rule's
 nodes are **computed** to be invariant under,
 :math:`\deg(Q)` is the polynomial-exactness degree, and
@@ -794,23 +941,196 @@ nodes are **computed** to be invariant under,
 \text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
 structural-flag set.
 
+.. admonition:: The equation stated the retired predicate for twelve
+                days after the prose around it had been corrected
+   :class: warning
+
+   Until 2026-08-14 the body of :eq:`quadrature-selection-criterion`
+   read
+
+   .. math::
+
+      Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
+      G_{\text{geom}} \subseteq G_Q
+      \;\wedge\; \deg(Q) \ge d
+      \;\wedge\; F_{\text{req}} \subseteq F_Q
+      \,\Bigr\},
+
+   that is, three conjuncts instead of four, with the domain conjunct
+   absent entirely and the symmetry conjunct in its retired
+   declared-tag form. The 2026-08-02 change that split spent from owed
+   rewrote the geometry table, the worked examples, the rejection
+   messages **and the predicate quoted inside this equation's own
+   vv-status rationale**, and left the labelled equation alone.
+
+   **The tell was legible without reading any code.** The "where" list
+   directly beneath the equation defined :math:`\mathcal{D}_Q` and
+   :math:`\operatorname{Sym}(Q)` — two symbols that did not occur in
+   the equation it annotated — and did not define :math:`G_Q`, which
+   did. A definition list that does not match its own equation is
+   reporting a correction that stopped one line short.
+
+   **No build could have caught it.** The label existed, so every
+   :eq:`quadrature-selection-criterion` reference resolved and Sphinx
+   was silent at every severity, nitpicky mode included; the V&V matrix
+   listed the label as covered, because coverage is recorded against
+   the *label*, not against what the label says. A labelled equation is
+   an API — correcting the prose around it does not correct it, and the
+   equation is where a reader in a hurry actually looks.
+
+Spent and owed: why the domain and the symmetry are two stages
+--------------------------------------------------------------
+
+A geometry's angular symmetry group :math:`G \subseteq O(3)` does not
+act on the angular variable as one undifferentiated thing. It splits by
+**how the action is used**, and the two halves place two different
+demands on a quadrature
+(:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`):
+
+* :math:`G^0`, the continuous part, is **spent** by the dimensional
+  reduction. A slab is invariant under every rotation about :math:`z`,
+  so :math:`\psi` depends on :math:`\Omega` only through
+  :math:`\mu = \Omega\cdot\hat z`; the azimuth is integrated out
+  analytically and never discretised. What this half determines is the
+  *domain* — the angular variable lives on the quotient
+  :math:`S^2/G^0`. In curvilinear geometry the spent half is not free:
+  its non-trivial fiber action reappears in the sweep as the
+  angular-redistribution (:math:`\alpha`) term, which is where the
+  reduction is paid for.
+* :math:`\Gamma = G/G^0`, the finite residual, is still **owed**. It
+  cannot be integrated away, so a quadrature must realize it as a
+  permutation of the ordinates. This is the half a reflecting boundary
+  condition consumes.
+
+The two demands are of different **kinds**, and that is the structural
+reason one stage cannot carry both. Stage 0 is a question about the
+*carrier*: is this node set even a set of points of the right space? It
+compares a tag on the measure against the derived quotient, and its
+answer is a type, not a tolerance. Stage 1 is a question about the
+*arrangement of the nodes within that carrier*: given that they are
+points of the right space, is the set closed under a finite group
+action? Its answer is a permutation-existence check
+(:eq:`discrete-measure-g-invariance`) run against the nodes. Folding
+the two into one predicate over one group would require comparing
+:math:`G^0`, which is continuous, against a finite point set — and that
+comparison has no true instances, which is exactly the shape the
+retired gate had.
+
+**The domain is derived, never stored.**
+:attr:`AngularSymmetry.support
+<orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
+computes :math:`S^2/G^0` from the spent group rather than holding a
+second, independent column, so there is no state in which the domain
+and the spent group disagree — they are one fact. An unmapped quotient
+raises :exc:`NotImplementedError` rather than guessing, because a wrong
+domain answer silently admits a rule of the wrong dimensionality. Both
+halves are pinned by
+``test_support_is_derived_from_the_spent_group_not_declared``.
+
+**Neither conjunct implies the other**, measured on the shipped
+registry — drop either stage and the gate admits something wrong:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 14 14 10 10 30
+
+   * - Candidate
+     - Geometry
+     - Nodes live on
+     - Stage 0
+     - Stage 1
+     - What the missing stage would have let through
+   * - ``lebedev_sphere(order=5)``
+     - ``"slab"``
+     - :math:`S^2`
+     - ✗
+     - ✓
+     - An :math:`S^2` cubature serving a :math:`\mu`-marginal: being
+       :math:`O_h`-invariant, it is certainly
+       :math:`\sigma_x`-closed.
+   * - ``gauss_legendre_on_mu(n=8)``
+     - ``"cylinder"``
+     - :math:`[-1,1]`
+     - ✗
+     - ✓
+     - A polar marginal serving a geometry whose two angular degrees
+       of freedom both survive.
+   * - ``product_mu_phi(3, 5)``
+     - ``"cylinder"``
+     - :math:`S^2`
+     - ✓
+     - ✗
+     - An odd-:math:`n_\varphi` grid, on which no reflecting
+       :math:`x` or :math:`y` face is representable as an ordinate
+       permutation (ERR-042, stated structurally).
+   * - ``product_mu_phi(3, 6)``
+     - ``"cylinder"``
+     - :math:`S^2`
+     - ✓
+     - ✓
+     - Admitted — the control row.
+
+The first three rows are the content of
+``test_the_two_stages_are_independent_and_both_load_bearing`` and
+``test_owed_symmetry_selects_by_azimuthal_parity``, and they are why
+the split is not a refactor of one predicate into two: a single
+"symmetry" stage is a strictly weaker gate than either of these
+columns, admitting the union of both failure sets.
+
+Why the stages do not evaluate in their own order
+--------------------------------------------------
+
+The conjunction in :eq:`quadrature-selection-criterion` is order-free —
+a conjunction has no order — but the *evaluation* is not, and
+:func:`~orpheus.numerics.quadrature.registry.select_quadrature`
+evaluates **V first**, instantiates the rule, and only then applies
+stages 0 and 1.
+
+This is a consequence of the theorem rather than an implementation
+detail. Stages 0 and 1 are questions about a rule's *nodes*; a rule has
+no nodes until its parameters are fixed; and the only stage that fixes
+parameters is V, which inverts the degree formula to find the smallest
+parameter set reaching :math:`d`. The order is forced by what each
+predicate must look at, not chosen for speed.
+
+The deeper reason the symmetry conjunct cannot be hoisted above the
+build is that **a rule's invariance group is parameter-dependent**. The
+product rule's is :math:`D_{n_\varphi h}` — ``[M]`` :math:`D_{5h}` at
+``(n_mu=3, n_phi=5)`` and :math:`D_{6h}` at ``(3, 6)``, which is
+precisely why the cylinder refuses the first and admits the second. No
+parameter-free field on
+:class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` can state
+that truthfully, which is why the spec deliberately carries **no**
+invariance group, and why the older design that tried to had to lie.
+The rule's own measure keeps its ``invariance_group`` metadata as the
+single source of that tag; duplicating it on the spec was a twin source
+of truth.
+
+The domain conjunct is a weaker case of the same argument — every
+shipped rule's ``support`` happens to be parameter-independent, so it
+*could* have been a field — but since stage 1 forces the build anyway,
+the selector reads both facts off the one constructed object, and the
+winning candidate's measure is carried forward rather than rebuilt.
+There is therefore exactly one construction of the measure the selector
+returns, and no second, divergence-capable one.
+
+The cost of building a candidate before rejecting it is real and
+accepted: ``[M]``
+:func:`~orpheus.numerics.quadrature.registry.select_quadrature` has no
+production consumer today — ``solve_sn`` takes an explicit quadrature,
+for the reasons under *Why a registry and not a hardcoded ladder*
+below — so selection is not a hot path, and paying a construction to
+ask an honest question is the right trade against caching a claim that
+can go stale.
+
 Geometry → angular-symmetry assignment
 --------------------------------------
 
 The selector's static geometry table
 (:data:`~orpheus.numerics.quadrature.registry.GEOMETRY_ANGULAR_SYMMETRY`)
-records **both halves** of each geometry's angular symmetry, because
-the two halves place two different demands on a quadrature.
-
-A geometry's symmetry group :math:`G` splits by how the action is
-used. The continuous part :math:`G^0` is **spent** by the dimensional
-reduction — a slab integrates the azimuth out analytically — and what
-it determines is the angular *domain*, the quotient :math:`S^2/G^0`.
-The finite residual :math:`\Gamma = G/G^0` is still **owed**: it
-cannot be integrated away, so a quadrature must realize it as a
-permutation of the ordinates. This is the half a reflecting boundary
-consumes — the face reflection maps ordinate :math:`m` to ordinate
-:math:`m'` exactly only when the node set is closed under it.
+records **both halves** of each geometry's angular symmetry, for the
+reasons set out under *Spent and owed* above. One row per supported
+geometry; a new geometry is added here, never in the selector itself:
 
 .. list-table::
    :header-rows: 1
@@ -970,9 +1290,30 @@ Why a registry and not a hardcoded ladder
 explicit is better than implicit, and a quadrature is a load-bearing
 modelling choice the user must own. The registry is **opt-in
 convenience** — a default for prototyping and a documentation
-artifact. The structural-flag tags double as Sphinx teaching content;
-each :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec`
-docstring narrates the trade-off in the rule's design space.
+artifact. What the registry carries per rule is the structural-flag
+*values* in the four
+:class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` entries,
+each annotated by a one-line comment at its assignment site; the prose
+explaining what the flags *mean* is the ``Attributes`` section of the
+single ``QuadratureSpec`` class docstring, and stage 3 above.
+
+⛔ This paragraph said that each ``QuadratureSpec`` docstring narrates
+the trade-off in the rule's design space, until 2026-08-14. It promised
+a mechanism that cannot exist. ``QuadratureSpec`` is a dataclass, so
+its four *instances* share one class docstring: ``[M]``
+``spec.__doc__ is type(spec).__doc__`` is ``True`` for all four, and no
+instance carries a ``__doc__`` of its own. Nor does anything in
+:mod:`orpheus.numerics.quadrature.registry` become a Sphinx table row,
+because the module is deliberately not ``automodule``-rendered — it
+carries ``.. math:: :label:`` docstrings that would collide with this
+page's labels. **This page is the rendered narration**, which is why a
+drift like this has to be caught by reading, never by a build.
+
+The promise was minted twice: the module's own docstring stated it more
+concretely still, as "every entry's docstring becomes a Sphinx table
+row". That duplication is itself the tell — a claim about a *rendering*
+mechanism had never been checked against the rendering, and the module
+asserting it is the one that is not rendered.
 
 Domain-specific quadrature: the Quadrature class
 ================================================

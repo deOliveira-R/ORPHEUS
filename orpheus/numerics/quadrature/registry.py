@@ -102,9 +102,23 @@ Why a registry, not a hardcoded ladder
 explicit is better than implicit, and a quadrature is a load-bearing
 modelling choice the user must own. The registry adds
 :func:`select_quadrature` as **opt-in convenience**: a default for
-"run this geometry with target degree :math:`d`" prototyping, and a
-documentation artifact — every entry's docstring becomes a Sphinx
-table row narrating the trade-off.
+"run this geometry with target degree :math:`d`" prototyping.
+
+⛔ This paragraph also claimed the registry was "a documentation artifact —
+every entry's docstring becomes a Sphinx table row narrating the trade-off"
+until 2026-08-14. That described a mechanism that **cannot exist**:
+:class:`QuadratureSpec` is a dataclass, so its four *instances* share the class
+docstring (`[M]` ``spec.__doc__ is type(spec).__doc__`` for all four) and an
+instance cannot carry prose of its own — the entries at
+:data:`quadrature_registry` carry inline ``#`` comments, which no builder reads.
+And nothing here renders: this module has **no** ``automodule`` directive
+(deliberately — see ``docs/api/discrete_ordinates.rst``, which cross-references
+it rather than rendering it to avoid duplicate-label collisions with the theory
+pages), so no docstring in this file becomes a table row at any severity.
+⟹ the per-rule narration lives in the theory page
+:doc:`/theory/foundations/discrete_measures`, and a rule's own docstring is on
+its factory in ``rules_*.py``. If per-entry narration is ever wanted *here*, it
+needs a field to live in — it cannot be inferred from a shared class docstring.
 
 Geometry → angular-symmetry assignment
 --------------------------------------
@@ -211,9 +225,13 @@ References
 
 See Also
 --------
-:ref:`discrete-measures` (theory page) — the "Quadrature selection
-algorithm" section narrates the four-stage precedence chain in
-prose.
+:ref:`quadrature-selection-algorithm` (theory page) — narrates the
+five-stage precedence chain in prose, with the worked examples and the
+independence witnesses. It is the RENDERED statement of this design; this
+module is deliberately not ``automodule``-rendered, so the page is what a
+reader sees. (Read "the four-stage precedence chain" here until
+2026-08-14 — the count predates stage 0, and the anchor was the whole
+page rather than the section.)
 """
 
 from __future__ import annotations
@@ -299,8 +317,25 @@ class QuadratureSpec:
         tabulated 47).
     expected_node_count : callable
         Maps a parameter dict to the resulting number of nodes. Used
-        by the **minimum-points** tie-break stage. Always pure (does
-        not call :attr:`factory`) so the selector stays cheap.
+        by the **minimum-points** tie-break stage. Always pure — it does
+        not call :attr:`factory`.
+
+        ⛔ This entry read "…so the selector stays cheap" until 2026-08-14.
+        The purity is real; the consequence is not, and has not been since
+        two independent changes put construction on the selection path:
+        :func:`select_quadrature` **instantiates every surviving candidate**
+        (stages 0 and 1 need the nodes), and :func:`_ls_sn_invert` builds a
+        rule to discover the family's frontier. `[M]` 2026-08-14, wall-clock
+        per call at ``target_degree=31``: slab **26.985 s**, sphere
+        **32.419 s**, cylinder **29.040 s**, cartesian2d **28.987 s** — and a
+        *slab* pays 27 s to construct a level-symmetric rule it can never
+        select, because the V stage runs before the domain stage. Below
+        degree 21 every geometry is under 0.8 s.
+        ⟹ the honest statement is the one already made on
+        :func:`_ls_sn_invert`: selection is not a hot path (`[M]` zero
+        production consumers), so the construction cost is affordable. This
+        docstring asserted cheapness while that one asserted affordability —
+        two claims about the same fact, one of them false, 157 lines apart.
     positive_weights : bool
         Are all weights non-negative? Standard for Gauss-Legendre,
         Lebedev, level-symmetric :math:`S_N`, product. Negative-weight
@@ -433,36 +468,78 @@ def _lebedev_node_count(params: dict[str, Any]) -> int:
 
 
 def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
-    r"""Level-symmetric :math:`S_N`: conservative ``deg = N - 1``.
+    r"""Level-symmetric :math:`S_N`: invert the ``N - 1`` LOWER bound.
 
     Carlson-Lathrop's level-symmetric rule has parameter-dependent
-    exactness; the rule-side wrapper records ``degree_of_exactness =
-    N - 1`` as a conservative lower bound (see
+    exactness. This inversion picks the smallest even
+    :math:`N \ge \mathrm{target\_degree} + 1`, i.e. it inverts
+    :math:`\deg = N - 1` — which is a genuine **lower** bound on what the
+    rule delivers, so the parameter it returns always meets the target.
+
+    ⚠ **But the realized degree is BUILD-MEASURED, not** :math:`N - 1`, and
+    this inversion does not ask for it — so it OVER-SHOOTS. `[M]` 2026-08-14,
+    realized degree by order: :math:`S_2 \to 3`, :math:`S_4 \to 5`,
+    :math:`S_6 \to 7`, :math:`S_8 \to 9`, :math:`S_{10} \to 11`,
+    :math:`S_{12} \to 11`, :math:`S_{14} \to 15`, :math:`S_{16} \to 15`,
+    :math:`S_{18} \to 17` — no clean formula of :math:`N` (the rule-side
+    docstring on
     :func:`~orpheus.numerics.quadrature.rules_sphere.level_symmetric_sn`
-    docstring). To meet ``target_degree``, choose the smallest even
-    :math:`N \ge \mathrm{target\_degree} + 1`.
+    carries the same table and its provenance). Feeding each realized degree
+    back through this inverter returns an order **2 higher than the one that
+    achieves it, at 6 of the 9 buildable orders** — e.g. target degree 5 is met
+    by :math:`S_4` (24 nodes) and this returns :math:`S_6` (48 nodes).
+    ⟹ the consequence is **cost, not correctness**: stage 4 ranks by
+    :func:`_ls_sn_node_count`, so the family is systematically priced at up to
+    :math:`2\times` its true cost and can lose the minimum-points tie-break to
+    a rule it should beat. Tracked as a follow-up; the fix is to read
+    ``degree_of_exactness`` off the build this function already performs and
+    step down while the target is still met — the same "ask the family, never
+    tabulate" ruling below, applied to the DEGREE as well as the frontier.
+
+    ⛔ The summary line read *"conservative ``deg = N - 1``"* and the body
+    claimed the wrapper *"records ``degree_of_exactness = N - 1`` as a
+    conservative lower bound"* until 2026-08-14. The wrapper has recorded a
+    build-measured degree since #337; "conservative" named the over-shoot above
+    without recognising it as one.
 
     ⛔ **The family is BOUNDED, and the bound is asked of the family rather
     than tabulated here.** Since #327 the weights are solved per :math:`O_h`
-    orbit, and the solve has no POSITIVE solution above :math:`S_{12}` on these
-    levels (`[M]` min weight ``-0.027`` at :math:`S_{14}`). Above it the rule
-    does not exist, so this inverter returns ``None`` — the selector's own
-    "cannot reach target_degree with any supported parameters" channel — and
-    the caller falls through to Lebedev or the product rule.
+    orbit, and the solve has no POSITIVE solution from :math:`S_{20}` on this
+    node seed. `[M]` 2026-08-13: :math:`S_{14}/S_{16}/S_{18}` build with
+    smallest weight ``0.012990`` / ``0.016300`` / ``1.75e-4``;
+    :math:`S_{20}`/:math:`S_{22}` refuse. Above the frontier the rule does not
+    exist, so this inverter returns ``None`` — the selector's own "cannot reach
+    target_degree with any supported parameters" channel — and the caller falls
+    through to Lebedev or the product rule.
 
     ⚠ The bound is discovered by ATTEMPTING the construction, not by comparing
-    against a constant. A literal ``12`` here would be a second copy of a
-    frontier that lives in the solve, and the two would drift the first time
-    the node set changes — the selector would then either refuse a rule that
-    works or hand back one that raises. Selection is not a hot path (`[M]` the
-    selector has no production consumers at all today), so the honest check is
+    against a constant. A literal here would be a second copy of a frontier
+    that lives in the solve, and the two would drift the first time the node
+    set changes — the selector would then either refuse a rule that works or
+    hand back one that raises. Selection is not a hot path (`[M]` the selector
+    has no production consumers at all today), so the honest check is
     affordable.
+
+    ⭐ **That ruling was VINDICATED by a real event, and its own prose was the
+    casualty.** #337 (``59bb38a0``) moved the frontier :math:`S_{12} \to S_{18}`
+    **without touching this file**, and the inverter tracked it correctly
+    because it holds no literal. Meanwhile the paragraph above it read *"no
+    POSITIVE solution above* :math:`S_{12}` *(*``[M]`` *min weight* ``-0.027``
+    *at* :math:`S_{14}`*)"* until 2026-08-14 — a stale ``12`` sitting eight
+    lines above the warning that a literal ``12`` would drift. The number was
+    never wrong; it was measured on the **pre-#337 convention seed**
+    :math:`\mu_1^2 = 4/(N(N+2))`, whose positivity frontier really was
+    :math:`S_{12}`, and it stopped describing the shipped configuration.
+    ⟹ when citing this ruling as precedent, cite the ⚠ paragraph **and** this
+    one: the CODE half was right, the PROSE half became the failure it
+    predicted, and the displayed rigour is exactly what makes a stale
+    neighbouring measurement read as trustworthy.
 
     ⛔ This docstring previously read *"The construction supports any even
     N ≥ 2. There is no upper bound here, but in practice N ≥ 24 runs into
     moment-condition algebra that the simple equal-weight construction in this
     module does not capture."* Three things were wrong: there IS an upper
-    bound, it is 12 and not 24, and the construction is no longer equal-weight.
+    bound, it is not 24, and the construction is no longer equal-weight.
     """
     if target_degree < 0:
         return None
@@ -812,9 +889,18 @@ def select_quadrature(
 
     Implements :eq:`quadrature-selection-criterion` over the global
     :data:`quadrature_registry` (or a caller-supplied ``registry`` for
-    testing). The four-stage filter — G, V, structural, minimum-points —
-    runs in priority order and produces an explainability log alongside
-    the chosen measure.
+    testing). The **five**-stage filter — domain, symmetry, V, structural,
+    minimum-points — runs in priority order and produces an explainability
+    log alongside the chosen measure.
+
+    ⛔ This read *"The four-stage filter — G, V, structural,
+    minimum-points"* until 2026-08-14. Both halves were wrong, and in the
+    same way: **stage 0 (domain) is missing**. It was added 2026-08-02 as
+    the other half of the geometry's angular-symmetry decomposition —
+    :math:`G^0` spent by the dimensional reduction, :math:`\Gamma` still
+    owed to the quadrature — and without it the symmetry stage alone admits
+    a Lebedev rule for a slab. See the module docstring's stages 0-4, and
+    :ref:`quadrature-selection-algorithm` for the measured witness.
 
     Parameters
     ----------
@@ -988,9 +1074,20 @@ def select_quadrature(
             log,
         )
 
-    # Stage 4 tie-break: smallest node count wins. Ties broken by
-    # registry order (stable sort), which puts the most specialised
-    # rule first when costs match.
+    # Stage 4 tie-break: smallest node count wins. Equal costs are broken
+    # by registry order, because `list.sort` is stable.
+    #
+    # ⛔ This comment claimed registry order "puts the most specialised rule
+    # first" until 2026-08-14. Nothing establishes that: the order is
+    # GaussLegendre1D, LebedevSphere, LevelSymmetricSN, ProductQuadrature,
+    # and no docstring, test, or commit states a specialisation ranking it
+    # is meant to encode. `[M]` no test exercises the tie-break at all — no
+    # shipped pair of rules produces an equal node count on any geometry —
+    # so the policy is both unstated and unpinned. Stability is a real
+    # guarantee and is worth keeping; the rationale offered for it was not
+    # a claim about this code. If registry order is to MEAN something, it
+    # has to be said and gated (cf. LOSS_REPRESENTATIONS, whose own comment
+    # states "the registry ORDER is the default-selection policy").
     candidates.sort(key=lambda c: c[2])
     chosen_spec, chosen_params, _, measure = candidates[0]
 

@@ -26,27 +26,41 @@ Usage
 
 A registry root inherits :class:`RegistryMixin` and overrides
 :meth:`_registry_base` to return itself; concrete subclasses pass
-``key=...`` in their class statement::
+``key=...`` in their class statement. This is the tree's largest live
+root, quoted rather than invented
+(:class:`~orpheus.geometry.boundary._base.BoundaryTraceLaw`)::
 
-    class BoundaryOperator(LinearOperator, RegistryMixin, ABC):
-        registry: ClassVar[dict[str, type["BoundaryOperator"]]] = {}
+    class BoundaryTraceLaw(RegistryMixin, ABC):
+        registry: ClassVar[dict[str, type["BoundaryTraceLaw"]]] = {}
 
         @classmethod
         def _registry_base(cls) -> type:
-            return BoundaryOperator
+            return BoundaryTraceLaw
 
         # ... rest of the abstract base ...
 
-    class VacuumBoundaryOperator(BoundaryOperator, key="vacuum"):
+    class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
         ...
-    class SpecularBoundaryOperator(BoundaryOperator, key="reflective"):
+    @dataclass(frozen=True)
+    class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
         ...
 
-After import, ``BoundaryOperator.registry`` contains
-``{"vacuum": VacuumBoundaryOperator, "reflective":
-SpecularBoundaryOperator, ...}`` and
-``BoundaryOperator.create("vacuum")`` returns a fresh
-``VacuumBoundaryOperator``.
+After import, ``BoundaryTraceLaw.registry`` contains
+``{"vacuum": VacuumInflow, "albedo": AlbedoBoundary, ...}`` (7 laws
+today) and ``BoundaryTraceLaw.create("vacuum")`` returns a fresh
+``VacuumInflow``. Note ``AlbedoBoundary`` is a **frozen dataclass with
+constructor parameters** — a registered member is not required to be
+parameter-free.
+
+⛔ This example was written against a hypothetical
+``BoundaryOperator(LinearOperator, RegistryMixin, ABC)`` root with
+``VacuumBoundaryOperator`` / ``SpecularBoundaryOperator`` members until
+2026-08-14. No such root has ever existed. Worse than a dangling name:
+`[M]` :class:`orpheus.numerics.operator.BoundaryOperator` **does** exist —
+as a ``_BlockRoleMeta`` class with no ``registry`` and no ``create`` — so a
+reader who greps the example's root **finds** a class and is confirmed in
+the wrong model. An illustrative example that names real symbols is
+strictly better than an invented one: it stays checkable.
 
 Abstract intermediate classes (those that should not be reachable
 via :meth:`create`) omit the ``key=`` kwarg — :meth:`__init_subclass__`
