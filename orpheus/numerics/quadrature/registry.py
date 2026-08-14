@@ -245,6 +245,7 @@ page rather than the section.)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cache
 from typing import Any, Callable
 
 from ..measure import SPACE_INTERVAL_M11, SPACE_SPHERE, DiscreteMeasure
@@ -255,19 +256,81 @@ from .rules_sphere import lebedev_sphere, level_symmetric_sn
 
 
 # ---------------------------------------------------------------------------
-# Available Lebedev orders (scipy's tabulated subset)
+# Available Lebedev orders — ASKED of SciPy, never tabulated
 # ---------------------------------------------------------------------------
-#
-# scipy.integrate.lebedev_rule supports a fixed set of orders. Using an
-# unsupported order raises NotImplementedError; the selector must avoid
-# those gaps when inverting the degree-of-exactness constraint.
-#
-# Source: probed at registry-construction time on the SciPy installed
-# in this dev container; matches the published Lebedev 1976 / Lebedev &
-# Laikov 1999 tabulation.
-_LEBEDEV_ORDERS: tuple[int, ...] = (
-    3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 35, 41, 47,
-)
+
+#: Upper bound of the discovery sweep in :func:`_lebedev_orders`. A **search
+#: window**, not a claim about what SciPy serves — the difference matters,
+#: because a claim can be wrong and a window can only be too small, which
+#: :func:`_lebedev_orders` refuses rather than silently truncating. Generous
+#: because it is free: `[M]` 2026-08-14 sweeping to 1001 costs **16.6 ms**,
+#: identical to sweeping to 201, since an unavailable order raises
+#: immediately without constructing anything.
+_LEBEDEV_SEARCH_CEILING = 1001
+
+
+@cache
+def _lebedev_orders() -> tuple[int, ...]:
+    r"""The Lebedev orders the **installed** SciPy actually serves.
+
+    ``scipy.integrate.lebedev_rule`` serves a fixed, gappy set of odd orders
+    and raises ``NotImplementedError`` outside it, with no public accessor
+    for the set (`[M]` ``scipy.integrate._lebedev`` exposes only functions;
+    the orders live inside their bodies). So the set is discovered the only
+    way SciPy offers: by asking.
+
+    ⭐ This is the same ruling :func:`_ls_sn_invert` already states for the
+    level-symmetric frontier — *ask the family, never tabulate* — applied to
+    the family next door, and it is applied here because the tabulated twin
+    had already gone stale exactly as that ruling predicts.
+
+    ⛔ Until 2026-08-14 this was a literal 18-tuple topping at **47**, whose
+    own comment read *"probed at registry-construction time on the SciPy
+    installed in this dev container"*. That probe is ``60f9fb29``,
+    **2026-05-06**, and was never re-run. `[M]` the installed SciPy 1.17.1
+    serves **32** orders topping at **131**, so the selector refused degrees
+    the tree could deliver: ``_lebedev_invert(53)`` returned ``None`` while
+    ``lebedev_sphere(53)`` builds 974 nodes summing to :math:`4\pi`. A
+    frozen probe is a measurement whose configuration (the installed SciPy)
+    can change underneath it without anything going red.
+
+    Cost is paid at most once per process, and only if selection is used
+    (`[M]` the selector has zero production consumers). `[M]` 16.6 ms.
+
+    Raises
+    ------
+    RuntimeError
+        If the largest order found equals :data:`_LEBEDEV_SEARCH_CEILING` —
+        the window is then binding and the answer would be a silent
+        truncation, which is the failure this function exists to remove.
+    """
+    orders = tuple(
+        n for n in range(3, _LEBEDEV_SEARCH_CEILING + 1, 2)
+        if _lebedev_order_is_available(n)
+    )
+    if orders and orders[-1] == _LEBEDEV_SEARCH_CEILING:
+        raise RuntimeError(
+            f"the Lebedev discovery sweep hit its ceiling "
+            f"({_LEBEDEV_SEARCH_CEILING}): SciPy serves that order, so the "
+            f"window is binding and larger orders may exist but go unseen. "
+            f"Raise _LEBEDEV_SEARCH_CEILING — it is a search bound, not a "
+            f"claim, and widening it is free."
+        )
+    return orders
+
+
+def _lebedev_order_is_available(order: int) -> bool:
+    """Does the installed SciPy serve this Lebedev order?
+
+    Asked by attempting the construction, which is how SciPy answers.
+    `[M]` a miss costs ~0 s (it raises before building) and the largest
+    hit — order 131, 5810 nodes — costs 1.85 ms.
+    """
+    try:
+        lebedev_sphere(order)
+    except NotImplementedError:
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -434,17 +497,23 @@ def _gl1d_invert(target_degree: int) -> dict[str, Any] | None:
 
 
 def _lebedev_invert(target_degree: int) -> dict[str, Any] | None:
-    """Lebedev: ``deg = order``; pick the smallest tabulated order.
+    r"""Lebedev: ``deg = order``; pick the smallest order SciPy serves.
 
-    SciPy supports a fixed set of Lebedev orders (see
-    :data:`_LEBEDEV_ORDERS`). If no tabulated order reaches
-    ``target_degree``, the rule cannot satisfy the constraint and
+    The admissible set is gappy and is discovered by
+    :func:`_lebedev_orders`, never tabulated here. If no available order
+    reaches ``target_degree``, the rule cannot satisfy the constraint and
     the inversion returns ``None`` (the selector then rejects this
     spec at the V-compatibility stage with a clear message).
+
+    ⛔ Read ``_LEBEDEV_ORDERS``, a frozen 18-tuple topping at 47, until
+    2026-08-14. `[M]` that made this return ``None`` for every target in
+    :math:`(47, 131]` — degrees the installed SciPy serves and
+    :func:`~orpheus.numerics.quadrature.rules_sphere.lebedev_sphere`
+    builds. See :func:`_lebedev_orders` for the measurement.
     """
     if target_degree < 0:
         return None
-    for order in _LEBEDEV_ORDERS:
+    for order in _lebedev_orders():
         if order >= target_degree:
             return {"order": order}
     return None

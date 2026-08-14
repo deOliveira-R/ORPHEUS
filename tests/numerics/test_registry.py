@@ -40,6 +40,7 @@ from orpheus.numerics.quadrature import (
 from orpheus.numerics.quadrature.registry import (
     _gl1d_invert,
     _lebedev_invert,
+    _lebedev_orders,
     _ls_sn_invert,
     _product_invert,
 )
@@ -182,10 +183,90 @@ def test_lebedev_invert(target: int, expected_order: int) -> None:
 
 @pytest.mark.foundation
 def test_lebedev_invert_too_high_returns_none() -> None:
-    """target_degree above the highest tabulated Lebedev order has no
-    solution — the inverter MUST return ``None`` (not raise)."""
-    assert _lebedev_invert(48) is None
-    assert _lebedev_invert(100) is None
+    r"""A target above every order SciPy serves has no solution — the
+    inverter MUST return ``None`` (not raise).
+
+    The threshold is **derived** from the discovered set, so this proves a
+    refusal whatever SciPy's table is, instead of pinning a number that
+    expires the next time SciPy grows one.
+
+    ⛔ This asserted ``_lebedev_invert(48) is None`` and
+    ``_lebedev_invert(100) is None`` until 2026-08-14, against a frozen
+    18-tuple topping at order 47. `[M]` SciPy 1.17.1 serves 32 orders to
+    **131**, so both were pinning the defect: at HEAD 48 resolves to order
+    53 and 100 to order 101, both of which build. The gate was *correct
+    about the code and wrong about the world* — exactly what a stale
+    tabulation buys, and the reason the set is now asked rather than
+    stored.
+    """
+    top = max(_lebedev_orders())
+    assert _lebedev_invert(top) == {"order": top}, (
+        "the largest discovered order must itself be reachable"
+    )
+    assert _lebedev_invert(top + 1) is None
+    assert _lebedev_invert(top + 1000) is None
+
+
+@pytest.mark.foundation
+def test_the_discovered_lebedev_set_matches_what_scipy_advertises() -> None:
+    r"""Two independent channels of SciPy's own truth must agree.
+
+    :func:`_lebedev_orders` discovers the admissible set by **constructing**
+    — it asks for each odd order and keeps the ones that succeed. SciPy
+    also **advertises** the set, in the ``NotImplementedError`` it raises
+    for an unavailable order. Those are different code paths reading
+    different data, so agreement is evidence and disagreement localises the
+    fault:
+
+    * discovery is a strict subset ⟹ the search window is truncating;
+    * discovery is a strict superset ⟹ an order builds that SciPy does not
+      list, i.e. our wrapper is reaching something undocumented.
+
+    ⭐ This is the gate that makes the discovery trustworthy, and it is
+    why the refusal gates above are allowed to derive their thresholds from
+    :func:`_lebedev_orders` without becoming self-referential: those check
+    the *inverter* against the set, this checks the *set* against SciPy.
+    Without it, a discovery that silently returned a truncated tuple would
+    keep every other Lebedev gate green — which is precisely the failure
+    the frozen 18-tuple shipped from 2026-05-06 to 2026-08-14.
+
+    ⭐ **This gate and the ceiling guard inside** :func:`_lebedev_orders`
+    **catch disjoint halves of the same defect, and neither covers both.**
+    `[M]` 2026-08-14, shrinking the search window in-process:
+
+    ==============  ==================  ==================================
+    ceiling         guard               this gate
+    ==============  ==================  ==================================
+    47 (a served    **FIRES** — the     never reached
+    order)          window is provably
+                    binding
+    49, 51 (in the  **silent** — the    **BITES** — discovers max 47
+    47→53 gap)      last order found    against an advertised 131
+                    is 47, not the
+                    ceiling
+    ==============  ==================  ==================================
+
+    So the guard is sound but incomplete: it can only notice a window that
+    ends exactly on a served order. A ceiling that happens to land in one
+    of SciPy's gaps truncates silently, and only comparing against the
+    advertised list catches it. Do not retire either as redundant.
+    """
+    import re
+
+    from scipy.integrate import lebedev_rule
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        lebedev_rule(4)  # 4 is even, so never available in any SciPy
+    advertised = {int(m) for m in re.findall(r"\d+", str(excinfo.value))}
+    advertised.discard(4)  # the order we asked for, echoed in the message
+
+    discovered = set(_lebedev_orders())
+    assert discovered == advertised, (
+        f"discovery and SciPy's advertised list disagree.\n"
+        f"  only discovered: {sorted(discovered - advertised)}\n"
+        f"  only advertised: {sorted(advertised - discovered)}"
+    )
+    assert discovered, "SciPy advertised no Lebedev orders at all"
 
 
 @pytest.mark.foundation
@@ -584,15 +665,25 @@ def test_no_rule_fits_raises_with_log() -> None:
 
     Forcing this state with the full registry is awkward because LS_N
     inversion accepts arbitrarily large :math:`N`. Instead we override
-    the registry to contain only Lebedev (which tops out at order 47)
-    and ask for ``target_degree=100``, which forces a V-stage rejection.
+    the registry to contain only Lebedev and ask for a degree beyond
+    everything the installed SciPy serves, which forces a V-stage
+    rejection.
+
+    ⛔ This asked for ``target_degree=100`` against a Lebedev "which tops
+    out at order 47" until 2026-08-14. `[M]` SciPy 1.17.1 serves order
+    **101**, so the selection succeeded and this gate stopped proving a
+    refusal — it would have gone red on the fix, for the right reason.
+    The target is now **derived** from the discovered set, so the gate
+    keeps proving a refusal when SciPy's table grows instead of pinning
+    a number that expires.
     """
+    beyond_scipy = max(_lebedev_orders()) + 2
     only_lebedev = [
         s for s in quadrature_registry if s.name == "LebedevSphere"
     ]
     with pytest.raises(QuadratureSelectionError) as excinfo:
         select_quadrature(
-            "cartesian2d", target_degree=100, registry=only_lebedev
+            "cartesian2d", target_degree=beyond_scipy, registry=only_lebedev
         )
 
     assert excinfo.value.log is not None
