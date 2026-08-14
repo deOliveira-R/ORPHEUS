@@ -297,6 +297,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import cache
+from collections.abc import Sequence
 from typing import Any, Callable
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
@@ -574,39 +575,41 @@ def _lebedev_invert(target_degree: int) -> dict[str, Any] | None:
 
 
 def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
-    r"""Level-symmetric :math:`S_N`: invert the ``N - 1`` LOWER bound.
+    r"""Level-symmetric :math:`S_N`: the CHEAPEST order meeting the target.
 
     Carlson-Lathrop's level-symmetric rule has parameter-dependent
-    exactness. This inversion picks the smallest even
-    :math:`N \ge \mathrm{target\_degree} + 1`, i.e. it inverts
-    :math:`\deg = N - 1` — which is a genuine **lower** bound on what the
-    rule delivers, so the parameter it returns always meets the target.
-
-    ⚠ **But the realized degree is BUILD-MEASURED, not** :math:`N - 1`, and
-    this inversion does not ask for it — so it OVER-SHOOTS. `[M]` 2026-08-14,
-    realized degree by order: :math:`S_2 \to 3`, :math:`S_4 \to 5`,
+    exactness with **no formula in** :math:`N`. `[M]` 2026-08-14 the realized
+    degree by order is :math:`S_2 \to 3`, :math:`S_4 \to 5`,
     :math:`S_6 \to 7`, :math:`S_8 \to 9`, :math:`S_{10} \to 11`,
     :math:`S_{12} \to 11`, :math:`S_{14} \to 15`, :math:`S_{16} \to 15`,
-    :math:`S_{18} \to 17` — no clean formula of :math:`N` (the rule-side
-    docstring on
+    :math:`S_{18} \to 17` (the rule-side docstring on
     :func:`~orpheus.numerics.quadrature.rules_sphere.level_symmetric_sn`
-    carries the same table and its provenance). Feeding each realized degree
-    back through this inverter returns an order **2 higher than the one that
-    achieves it, at 6 of the 9 buildable orders** — e.g. target degree 5 is met
-    by :math:`S_4` (24 nodes) and this returns :math:`S_6` (48 nodes).
-    ⟹ the consequence is **cost, not correctness**: stage 4 ranks by the built
-    measure's node count, so the family is systematically priced at up to
-    :math:`2\times` its true cost and can lose the minimum-points tie-break to
-    a rule it should beat. Tracked as a follow-up; the fix is to read
-    ``degree_of_exactness`` off the build this function already performs and
-    step down while the target is still met — the same "ask the family, never
-    tabulate" ruling below, applied to the DEGREE as well as the frontier.
+    carries the same table and its provenance). So the degree is **asked of
+    each candidate**, exactly as the frontier is.
+
+    The search window is two orders wide, and both ends are theorems rather
+    than guesses: :math:`\deg(N) \ge N - 1` always, so any order from
+    :math:`d + 1` up that builds meets the target and there is no reason to
+    look higher; and `[M]` :math:`\deg(N) \le N + 1` on every buildable
+    order, so nothing below :math:`d - 1` can reach it. At most two builds.
+
+    ⛔ This inverted :math:`\deg = N - 1` directly until 2026-08-14 —
+    smallest even :math:`N \ge d + 1`, one build, no question asked. That is
+    **safe**, since :math:`N - 1` is a true lower bound, and it was
+    **expensive**: `[M]` it returned an order two higher than the one that
+    achieves the target at **6 of the 9 buildable orders**. Target 3 was met
+    by :math:`S_2` (8 nodes) and it returned :math:`S_4` (24) — 3×; target
+    15 by :math:`S_{14}` (224) and it returned :math:`S_{16}` (288), which
+    `[M]` achieves only degree 15 as well, so those 64 nodes bought nothing
+    whatsoever. Stage 4 ranks by node count, so the over-shoot priced the
+    family above its true cost and could lose it a minimum-points tie-break
+    it should win.
 
     ⛔ The summary line read *"conservative ``deg = N - 1``"* and the body
     claimed the wrapper *"records ``degree_of_exactness = N - 1`` as a
-    conservative lower bound"* until 2026-08-14. The wrapper has recorded a
-    build-measured degree since #337; "conservative" named the over-shoot above
-    without recognising it as one.
+    conservative lower bound"*. The wrapper has recorded a build-measured
+    degree since #337; "conservative" named the over-shoot without
+    recognising it as one.
 
     ⛔ **The family is BOUNDED, and the bound is asked of the family rather
     than tabulated here.** Since #327 the weights are solved per :math:`O_h`
@@ -649,19 +652,33 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
     """
     if target_degree < 0:
         return None
-    n_min = target_degree + 1
-    if n_min < 2:
-        n_min = 2
-    if n_min % 2 == 1:
-        n_min += 1
-    try:
-        level_symmetric_sn(n_min)
-    except ValueError:
-        # No positive moment-matched solution at this order — the family
-        # cannot serve this target. Not an error: it is exactly what the
-        # ``None`` contract is for.
-        return None
-    return {"sn_order": n_min}
+
+    def _even_at_least(value: int) -> int:
+        floor = max(2, value)
+        return floor + 1 if floor % 2 == 1 else floor
+
+    # The search window is two orders wide, and both ends are theorems
+    # about the family rather than guesses. deg(N) >= N - 1 always (the
+    # moment conditions the construction solves), so every order from
+    # target + 1 upward that BUILDS meets the target — no need to look
+    # past it. And `[M]` deg(N) <= N + 1 on every buildable order, so no
+    # order below target - 1 can reach it.
+    candidate = _even_at_least(target_degree - 1)
+    ceiling = _even_at_least(target_degree + 1)
+
+    while candidate <= ceiling:
+        try:
+            measure, _ = level_symmetric_sn(candidate)
+        except ValueError:
+            # Above the positivity frontier. Every larger order is too, so
+            # the family cannot serve this target — exactly what the
+            # ``None`` contract is for.
+            return None
+        degree = measure.degree_of_exactness
+        if degree is not None and degree >= target_degree:
+            return {"sn_order": candidate}
+        candidate += 2
+    return None
 
 
 def _product_invert(target_degree: int) -> dict[str, Any] | None:
@@ -700,7 +717,41 @@ def _product_invert(target_degree: int) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
-quadrature_registry: list[QuadratureSpec] = [
+def _registry(*specs: QuadratureSpec) -> tuple[QuadratureSpec, ...]:
+    r"""Freeze the registry and refuse duplicate names, at import.
+
+    Two guarantees the bare literal did not give:
+
+    **Immutability.** `[M]` 2026-08-14 ``quadrature_registry`` was the only
+    module-level *list*-shaped registry in ``orpheus/``; every sibling
+    (``LOSS_REPRESENTATIONS``, ``SHIPPED_CLASS_A``, …) is a ``tuple``. A
+    mutable global that a selector reads is an invitation to append at
+    runtime and get a different answer per import order.
+
+    **Unique names.** :attr:`QuadratureSpec.name` is not merely a label —
+    it is what :class:`SelectionLog` reports rejections under, and the
+    theory page teaches ``dict(log.rejected)["ProductQuadrature"]`` as the
+    way to read one. `dict` keeps the LAST value for a repeated key, so two
+    rules sharing a name would make one rejection **silently vanish** from
+    that view while the log itself still listed both. Nothing would warn.
+
+    ⟹ raise here, at import, rather than gate it in a test: the failure is
+    a property of the registry's construction, and the earliest possible
+    refusal is the one that cannot be skipped.
+    """
+    names = [spec.name for spec in specs]
+    duplicated = sorted({n for n in names if names.count(n) > 1})
+    if duplicated:
+        raise ValueError(
+            f"quadrature registry has duplicate spec name(s) {duplicated}; "
+            f"names must be unique because SelectionLog reports rejections "
+            f"under them and dict(log.rejected) would silently drop all but "
+            f"the last"
+        )
+    return specs
+
+
+quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     QuadratureSpec(
         name="GaussLegendre1D",
         factory=gauss_legendre_on_mu,
@@ -741,7 +792,7 @@ quadrature_registry: list[QuadratureSpec] = [
         level_structured=True,     # n_mu polar levels by construction
         half_range_clean=True,     # GL polar half restricted cleanly to mu>0
     ),
-]
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1006,7 +1057,7 @@ def select_quadrature(
     geometry: str,
     target_degree: int,
     *,
-    registry: list[QuadratureSpec] | None = None,
+    registry: Sequence[QuadratureSpec] | None = None,
     **structural: bool,
 ) -> tuple[DiscreteMeasure, SelectionLog]:
     r"""Pick the cheapest registered quadrature satisfying every constraint.
@@ -1038,7 +1089,7 @@ def select_quadrature(
         Minimum polynomial-exactness degree :math:`d` required.
         :math:`d = 0` accepts any rule that integrates constants
         exactly.
-    registry : list[QuadratureSpec], optional
+    registry : Sequence[QuadratureSpec], optional
         Override the global registry — primarily for unit tests.
         Defaults to :data:`quadrature_registry`.
     **structural : bool

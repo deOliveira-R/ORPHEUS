@@ -42,12 +42,14 @@ from orpheus.numerics.quadrature import (
     quadrature_registry,
     select_quadrature,
 )
+from orpheus.numerics.quadrature.rules_sphere import level_symmetric_sn
 from orpheus.numerics.quadrature.registry import (
     _gl1d_invert,
     _lebedev_invert,
     _lebedev_orders,
     _ls_sn_invert,
     _product_invert,
+    _registry,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
 
@@ -467,6 +469,40 @@ def test_every_registered_rule_speaks_one_of_the_two_reference_measures(
 
 
 @pytest.mark.foundation
+def test_the_registry_is_frozen_and_cannot_carry_a_duplicate_name() -> None:
+    r"""Two rules cannot share a name, and the tuple cannot be appended to.
+
+    ``name`` is not merely a label: :class:`SelectionLog` reports every
+    rejection under it, and the theory page teaches
+    ``dict(log.rejected)["ProductQuadrature"]`` as the way to read one.
+    ``dict`` keeps the LAST value for a repeated key, so two rules sharing
+    a name make one rejection **silently vanish** from that view while the
+    log still lists both — a disappearing diagnostic, with nothing warning.
+
+    `[M]` 2026-08-14 ``quadrature_registry`` was also the only module-level
+    *list*-shaped registry in ``orpheus/``; every sibling
+    (``LOSS_REPRESENTATIONS`` and friends) is a ``tuple``.
+
+    The refusal is at **import**, not here — this test only proves it
+    fires. A construction-time invariant that lives in a test can be
+    skipped; one that raises on import cannot.
+    """
+    assert isinstance(quadrature_registry, tuple)
+    with pytest.raises(AttributeError):
+        quadrature_registry.append(_gauss_chebyshev_spec())  # type: ignore[attr-defined]
+
+    names = [s.name for s in quadrature_registry]
+    assert len(names) == len(set(names))
+
+    twin = replace(quadrature_registry[0])
+    with pytest.raises(ValueError, match="duplicate spec name"):
+        _registry(*quadrature_registry, twin)
+
+    # ...and the honest case is accepted, so the guard is not refusing all.
+    assert _registry(*quadrature_registry) == quadrature_registry
+
+
+@pytest.mark.foundation
 def test_the_discovered_lebedev_set_matches_what_scipy_advertises() -> None:
     r"""Two independent channels of SciPy's own truth must agree.
 
@@ -532,39 +568,80 @@ def test_the_discovered_lebedev_set_matches_what_scipy_advertises() -> None:
 @pytest.mark.parametrize(
     "target,expected_N",
     [
-        (1, 2),     # min even N=2
-        (3, 4),     # N=4
-        (4, 6),     # need N>=5; round up to even -> 6
-        (11, 12),   # N=12 — see the docstring: NOT the family's last order
+        (1, 2),     # deg(S_2) = 3
+        (3, 2),     # deg(S_2) = 3 — exactly meets it
+        (4, 4),     # deg(S_4) = 5
+        (11, 10),   # deg(S_10) = 11 — S_12 also gives 11, and costs more
     ],
 )
 def test_ls_sn_invert(target: int, expected_N: int) -> None:
-    r"""The ``N - 1`` inversion, pinned at four targets.
+    r"""The inversion returns the CHEAPEST order that meets the target.
 
-    ⛔ The last row's comment read "N=12 — the LAST order the family can
-    serve" until 2026-08-14. `[M]` the family serves through :math:`S_{18}`
+    ⛔ These rows read ``(3, 4)``, ``(4, 6)``, ``(11, 12)`` until
+    2026-08-14, pinning an inversion that literally inverted
+    :math:`\deg = N - 1`. That formula is a true **lower** bound, so the
+    answers were safe — and `[M]` too expensive at 6 of the 9 buildable
+    orders, because the realized degree is build-measured and exceeds
+    :math:`N - 1`. Target 3 is met by :math:`S_2` (8 nodes) and the old
+    inversion returned :math:`S_4` (24) — **3×**; target 11 by
+    :math:`S_{10}` (120) against :math:`S_{12}` (168).
+
+    Stage 4 ranks by node count, so the over-shoot was not cosmetic: it
+    priced the family above its true cost and could lose it a
+    minimum-points tie-break it should win.
+
+    ⛔ The last row's comment also read "N=12 — the LAST order the family
+    can serve". `[M]` the family serves through :math:`S_{18}`
     (:math:`S_{20}` is the smallest even order whose per-orbit weight solve
-    goes negative), and the very next test in this file
-    (``test_ls_sn_invert_serves_the_moment_matched_frontier``) asserts
-    :math:`S_{14}` and :math:`S_{16}` — so the refutation was already sitting
-    twenty lines below the claim. ``12`` was the pre-#337 convention seed's
-    frontier; #337 moved it and this comment did not follow.
-
-    ⚠ These rows pin the inversion, **not** the cheapest order that meets the
-    target. `[M]` the two differ at 6 of the 9 buildable orders because the
-    realized degree is build-measured and exceeds :math:`N - 1`: target 4 is
-    met by :math:`S_4` (realized degree 5, 24 nodes) and this returns
-    :math:`S_6` (48 nodes). See :func:`_ls_sn_invert`'s docstring — the
-    over-shoot is a known cost defect, and these rows will need re-posing when
-    it is fixed.
+    goes negative), and the very next test in this file asserted
+    :math:`S_{14}` — the refutation was sitting twenty lines below the
+    claim. ``12`` was the pre-#337 convention seed's frontier.
     """
     params = _ls_sn_invert(target)
     assert params == {"sn_order": expected_N}
 
 
 @pytest.mark.foundation
+@pytest.mark.parametrize("target", list(range(0, 18)))
+def test_ls_sn_invert_is_minimal_and_never_short(target: int) -> None:
+    r"""The two halves of "cheapest that meets it", checked directly.
+
+    Rather than pinning a table (which is what went stale), assert the
+    *property*: whatever order comes back must (a) actually deliver the
+    target degree, and (b) have no cheaper buildable order that also does.
+    Node count :math:`N(N+2)` is increasing in :math:`N`, so "cheaper"
+    is "smaller :math:`N`".
+
+    ⭐ This is the gate that would have caught the over-shoot, and it is
+    written against the *contract* rather than against measured values so
+    that a future seed change moves it automatically — the same reason
+    :func:`_ls_sn_invert` asks the family for the frontier instead of
+    tabulating it.
+    """
+    params = _ls_sn_invert(target)
+    if params is None:
+        pytest.skip(f"family cannot serve degree {target}")
+    chosen = params["sn_order"]
+
+    measure, _ = level_symmetric_sn(chosen)
+    assert measure.degree_of_exactness is not None
+    assert measure.degree_of_exactness >= target, "returned order is SHORT"
+
+    for smaller in range(2, chosen, 2):
+        cheaper, _ = level_symmetric_sn(smaller)
+        assert (
+            cheaper.degree_of_exactness is None
+            or cheaper.degree_of_exactness < target
+        ), (
+            f"S_{smaller} ({smaller * (smaller + 2)} nodes) also reaches "
+            f"degree {target}, so S_{chosen} "
+            f"({chosen * (chosen + 2)} nodes) is not minimal"
+        )
+
+
+@pytest.mark.foundation
 @pytest.mark.parametrize(
-    "target,expected", [(13, {"sn_order": 14}), (15, {"sn_order": 16})]
+    "target,expected", [(13, {"sn_order": 14}), (15, {"sn_order": 14})]
 )
 def test_ls_sn_invert_serves_the_moment_matched_frontier(
     target: int, expected: "dict[str, int]",
@@ -576,10 +653,21 @@ def test_ls_sn_invert_serves_the_moment_matched_frontier(
 
     The moment-matched seed (#337) pushed the positivity frontier from
     :math:`S_{12}` to :math:`S_{18}`, so targets 13 and 15 are served
-    again (:math:`S_{14}` achieves degree 15 and :math:`S_{16}` degree
-    15 — the ``n_min = target + 1`` inverse stays SAFE, if non-tight,
-    because ``deg(N) >= N - 1`` at every buildable order). The inverter
-    discovered this by ATTEMPTING the construction — no literal moved.
+    again. The inverter discovered this by ATTEMPTING the construction —
+    no literal moved.
+
+    ⭐ **Both targets are now served by the same order**, and that is the
+    point of the second re-pose. :math:`S_{14}` achieves degree **15**, so
+    it meets 13 *and* 15; the old ``n_min = target + 1`` inversion sent
+    target 15 to :math:`S_{16}` (288 nodes) purely because it inverted a
+    lower bound instead of asking what the rule delivers. `[M]`
+    :math:`S_{16}` also achieves only degree 15 — so the old answer paid
+    **64 extra nodes for nothing at all**, not even a degree it could use.
+
+    ⛔ The expected value for target 15 read ``{"sn_order": 16}`` until
+    2026-08-14, and the docstring justified it as "SAFE, if non-tight".
+    Safe it was; the non-tightness was a live cost defect, because stage 4
+    ranks by node count.
     """
     assert _ls_sn_invert(target) == expected
 
