@@ -469,21 +469,39 @@ The tests run on Lebedev orders 5, 9, and 17 under the octant-sign
 predicate and on a randomised generic predicate.
 
 
+.. _1-d-primitive-constructors:
+
 1-D primitive constructors
 ==========================
 
 The module ships three 1-D primitives:
 
 - :func:`~orpheus.numerics.measure.gauss_legendre`
-  ``(n)`` — Gauss-Legendre on :math:`[-1, 1]`,
-  ``degree_of_exactness = 2n - 1``, weights sum to 2.
+  ``(n)`` — Gauss-Legendre on :math:`[-1, 1]`, exact to algebraic
+  degree :math:`2n - 1` **against** ``legendre``; weights sum to 2.
 - :func:`~orpheus.numerics.measure.gauss_chebyshev`
-  ``(n)`` — Gauss-Chebyshev (first kind) on :math:`[-1, 1]` with
-  weight :math:`(1 - x^2)^{-1/2}`, ``degree_of_exactness = 2n - 1``
-  (in the weighted sense), weights sum to :math:`\pi`.
+  ``(n)`` — Gauss-Chebyshev (first kind) on :math:`[-1, 1]`, exact to
+  algebraic degree :math:`2n - 1` **against** ``chebyshev_t``, whose
+  weight is :math:`(1 - x^2)^{-1/2}`; weights sum to :math:`\pi`.
 - :func:`~orpheus.numerics.measure.equispaced`
-  ``(a, b, n)`` — midpoint rule on :math:`[a, b]`,
-  ``degree_of_exactness = 1``, weights sum to :math:`b - a`.
+  ``(a, b, n)`` — midpoint rule on :math:`[a, b]`, exact to algebraic
+  degree 1 against ``uniform([a,b])``; weights sum to :math:`b - a`.
+
+.. important::
+
+   **The first two agree on every attribute a reader would think to
+   compare, and integrate differently.** ``[M]`` at :math:`n = 4` both
+   carry support :math:`[-1,1]`, orthogonal system ``ALGEBRAIC`` and
+   degree 7 — and on the *unweighted* :math:`\int_{-1}^{1} x^6 dx`,
+   Legendre gives :math:`0.285714` (exactly :math:`2/7`) while
+   Chebyshev gives :math:`0.981748`. The **reference measure** is the
+   only thing that distinguishes them, which is why a degree is stored
+   as half of an :class:`~orpheus.numerics.exactness.ExactnessClaim`
+   rather than as a bare integer, and why the quadrature selector's V
+   conjunct compares claims rather than degrees
+   (:ref:`quadrature-selection-algorithm`, stage 2). A degree is an
+   index into the orthogonal system *of a measure*; the integer alone
+   does not say which.
 
 Higher-dimensional rules are built by composition. The tensor product
 ``gauss_legendre(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
@@ -800,18 +818,78 @@ always names its stage — points at the paragraph that explains it.
    under *Geometry → angular-symmetry assignment* below for the
    compensating pair of errors that made it look healthy.
 
-2. **V compatibility (polynomial exactness, Galerkin sense).** The
-   rule's degree of exactness must reach the target: :math:`\deg(Q)
-   \ge d`. Each rule's degree is parameter-dependent — :math:`2n - 1`
-   for Gauss-Legendre, ``order`` for Lebedev, :math:`\min(2 n_\mu - 1,
-   n_\phi - 1)` for the product rule, and **build-measured** (no
-   formula of :math:`N`) for level-symmetric :math:`S_N`. The selector
-   inverts each rule's formula and picks the smallest parameter set
-   meeting the target.
+2. **V compatibility (exactness).** The rule's exactness **claim** must
+   dominate the query's:
+   :math:`\mathcal{E}(Q) \succeq (\lambda_{\text{geom}},\, d)`. One
+   claim dominates another iff it is against the **same reference
+   measure** *and* its degree is at least as large — the domination
+   display under :eq:`quadrature-selection-criterion` states it
+   formally.
+
+   **The reference is not decoration.** A degree is an *index into the
+   orthogonal system of a measure*, so the same integer means different
+   things against different measures, and a rule can match on space, on
+   orthogonal system **and** on degree while being exact against the
+   wrong thing. That is not hypothetical, and this page's own two
+   :ref:`1-D primitives <1-d-primitive-constructors>` are the witness:
+   ``[M]`` :func:`~orpheus.numerics.measure.gauss_legendre` and
+   :func:`~orpheus.numerics.measure.gauss_chebyshev` at :math:`n = 4`
+   agree on all three (support :math:`[-1,1]`, system ``ALGEBRAIC``,
+   degree 7) and differ on the **unweighted**
+   :math:`\int_{-1}^{1} x^6 \, dx` — a monomial comfortably inside that
+   degree — by **0.696**: Legendre returns :math:`0.285714`, which is
+   exactly :math:`2/7`, while Chebyshev returns :math:`0.981748`, about
+   :math:`3.4\times` the true value. Neither rule is broken; each is
+   delivering its full advertised accuracy against the measure it was
+   built for.
+
+   Transport integrates :math:`\phi = \int \psi \, d\Omega`
+   **unweighted**, so :math:`\lambda_{\text{geom}}` is Lebesgue measure
+   on whatever angular domain the reduction left behind — ``legendre``
+   on :math:`[-1,1]`, ``uniform(S^2)`` on the sphere. It is *derived
+   from the spent group*, by :attr:`AngularSymmetry.reference
+   <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
+   exactly as the domain is (see *Spent and owed* below).
+
+   Most rules have a parameter-dependent degree — :math:`2n - 1` for
+   Gauss-Legendre, ``order`` for Lebedev,
+   :math:`\min(2 n_\mu - 1,\, n_\phi - 1)` for the product rule — and
+   the selector **inverts** it to pick the smallest parameter set
+   reaching :math:`d`. ⚠ Level-symmetric :math:`S_N` has **no formula**:
+   its realized degree is build-measured, and :math:`N - 1` is only the
+   lower bound the inversion uses, which is why the inversion
+   over-shoots (see the ⛔ blocks below for the measured table).
    Lebedev's gap structure (no rules at orders 33, 37, 39, 43, 45, 49)
    is handled by rounding up to the next tabulated order; if the target
    exceeds the table's top end (47 in scipy's tabulation), the rule is
    rejected at this stage with a clear message.
+
+   **An inversion is a request, not evidence.** So the claim the *built*
+   rule actually carries is verified, and there are three ways to fail
+   it, each with its own gate in
+   :file:`tests/numerics/test_registry.py`: the rule carries **no
+   claim** at all (``test_a_rule_with_no_exactness_claim_at_all_is_refused``);
+   its claim is against the **wrong reference**
+   (``test_a_rule_exact_against_the_wrong_measure_is_refused``); or its
+   degree falls **short of the target**, which is a spec whose own
+   inversion over-promised and is therefore caught rather than trusted
+   (``test_an_inversion_that_over_promises_is_caught_not_trusted``).
+   Each arm is mutation-verified to bite — disabling it reddens exactly
+   one gate (measured at the change, 2026-08-14; the unmutated control
+   leaves 55 passing).
+
+   ⛔ This conjunct read :math:`\deg(Q) \ge d` until 2026-08-14, and it
+   was never *checked*. The stage only **inverted**: it asked each spec
+   for parameters and trusted the answer, so nothing in the selector
+   ever compared a built rule against the target at all. Both halves of
+   that are now repaired, and they are separate defects — a bare integer
+   is not a claim (it omits the measure that gives it meaning), and an
+   unverified request is not a verification (a spec that over-promises
+   was believed). The witness for the first half is
+   ``test_gauss_chebyshev_clears_every_stage_except_the_reference``: on
+   a slab query, Gauss-Chebyshev at :math:`n = 4` is **admitted by
+   stages 0, 1, 2-as-degree and 3** and refused by the reference alone,
+   so without this conjunct list position decides whether it wins.
 
    ⚠ **Level-symmetric has a top end too, and it is** :math:`S_{18}`:
    from :math:`S_{20}` the per-orbit weight solve has no *positive*
@@ -886,6 +964,9 @@ always names its stage — points at the paragraph that explains it.
    solver, and sweeps dominate the runtime — the cheapest valid rule
    wins. The sort is stable, so an exact tie in node count is broken by
    position in :data:`~orpheus.numerics.quadrature.registry.quadrature_registry`.
+   The count is read off the **built** measure that stages 0 and 1
+   already forced into existence, never from a parallel formula that
+   could drift from it.
 
 Formally, the selection criterion is
 
@@ -895,7 +976,7 @@ Formally, the selection criterion is
    Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
    \mathcal{D}_Q = S^2 / G^0_{\text{geom}}
    \;\wedge\; \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)
-   \;\wedge\; \deg(Q) \ge d
+   \;\wedge\; \mathcal{E}(Q) \succeq (\lambda_{\text{geom}},\, d)
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
 
@@ -923,10 +1004,18 @@ Formally, the selection criterion is
    selection chain is a software invariant (the predicate
    :math:`\mathcal{D}_Q = S^2/G^0_{\text{geom}} \wedge
    \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q) \wedge
-   \deg(Q) \ge d \wedge
+   \mathcal{E}(Q) \succeq (\lambda_{\text{geom}}, d) \wedge
    F_{\text{req}} \subseteq F_Q`), not a physics-equation claim with
    an L0..L3 ladder slot — the ladder lives on the rules themselves
-   (``test_rules_*.py``).
+   (``test_rules_*.py``). The exactness conjunct's own three rejection
+   arms carry a gate each
+   (``test_a_rule_with_no_exactness_claim_at_all_is_refused``,
+   ``test_a_rule_exact_against_the_wrong_measure_is_refused``,
+   ``test_an_inversion_that_over_promises_is_caught_not_trusted``),
+   with ``test_gauss_chebyshev_clears_every_stage_except_the_reference``
+   as the independence witness for the reference half and
+   ``test_every_registered_rule_speaks_one_of_the_two_reference_measures``
+   pinning the shipped registry against the two derived references.
 .. vv-status: quadrature-selection-criterion documented
 
 where :math:`n(Q)` is the number of nodes,
@@ -936,10 +1025,29 @@ continuous and discrete halves of the geometry's angular symmetry
 (:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`),
 :math:`\operatorname{Sym}(Q) \subseteq O(3)` is the group the rule's
 nodes are **computed** to be invariant under,
-:math:`\deg(Q)` is the polynomial-exactness degree, and
+:math:`\mathcal{E}(Q)` is the rule's exactness **claim**
+(:class:`~orpheus.numerics.exactness.ExactnessClaim` — a reference
+measure together with a degree against it),
+:math:`\lambda_{\text{geom}}` is the measure the geometry integrates
+against, and
 :math:`F_Q \subseteq \{\text{positive\_weights}, \text{axis\_aligned},
 \text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
-structural-flag set.
+structural-flag set. **Domination** is
+
+.. math::
+
+   \mathcal{E}(Q) \succeq (\lambda, d)
+   \quad\Longleftrightarrow\quad
+   \operatorname{ref}\mathcal{E}(Q) = \lambda
+   \;\wedge\;
+   \deg\mathcal{E}(Q) \ge d ,
+
+a **partial** order, not a total one: two claims against different
+references are simply **incomparable**, which is the whole point.
+:math:`\deg = 7` against ``chebyshev_t`` is neither better nor worse
+than :math:`\deg = 7` against ``legendre`` — it is an answer to a
+different question, and a selector that ranked them would be ranking
+answers to two questions on one scale.
 
 .. admonition:: The equation stated the retired predicate for twelve
                 days after the prose around it had been corrected
@@ -962,6 +1070,13 @@ structural-flag set.
    rewrote the geometry table, the worked examples, the rejection
    messages **and the predicate quoted inside this equation's own
    vv-status rationale**, and left the labelled equation alone.
+
+   The V conjunct then moved later the same day, from
+   :math:`\deg(Q) \ge d` to the claim-domination form above, for an
+   unrelated reason — it was a bare integer compared across measures
+   that give it different meanings, and it was never checked at all.
+   That history is in the ⛔ under stage 2; the two corrections are
+   separate events that happen to share a date.
 
    **The tell was legible without reading any code.** The "where" list
    directly beneath the equation defined :math:`\mathcal{D}_Q` and
@@ -1016,7 +1131,7 @@ the two into one predicate over one group would require comparing
 comparison has no true instances, which is exactly the shape the
 retired gate had.
 
-**The domain is derived, never stored.**
+**The domain is derived, never stored — and so is the measure on it.**
 :attr:`AngularSymmetry.support
 <orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
 computes :math:`S^2/G^0` from the spent group rather than holding a
@@ -1026,6 +1141,29 @@ raises :exc:`NotImplementedError` rather than guessing, because a wrong
 domain answer silently admits a rule of the wrong dimensionality. Both
 halves are pinned by
 ``test_support_is_derived_from_the_spent_group_not_declared``.
+
+:attr:`AngularSymmetry.reference
+<orpheus.numerics.quadrature.registry.AngularSymmetry.reference>` is
+the same construction one level down, and it answers the question the
+support cannot: **the support says which space, the reference says
+which measure on it.** ``[M]`` :math:`SO(2)` spent :math:`\to`
+``legendre``; nothing spent :math:`\to` ``uniform(S^2)``; anything else
+raises :exc:`NotImplementedError`. Both are Lebesgue measure on the
+domain the reduction left, because transport integrates
+:math:`\phi = \int \psi \, d\Omega` unweighted — and ``legendre``
+**is** Lebesgue on :math:`[-1,1]`: its weight is :math:`w(x) = 1` and
+``[M]`` its mass is exactly :math:`2`. The name records the polynomial
+family the measure generates, not a weighting.
+
+A rule can get the space right and the measure wrong — that is exactly
+the gap stage 2's reference conjunct exists to close, and the
+Gauss-Chebyshev witness above is what it looks like. ``[M]`` on the
+shipped registry the two facts happen to travel together
+(``GaussLegendre1D`` claims ``legendre``; ``LebedevSphere``,
+``LevelSymmetricSN`` and ``ProductQuadrature`` all claim
+``uniform(S^2)``), which is *why* the witness has to be constructed
+rather than found — and why a conjunct with no shipped counter-example
+still earns its place.
 
 **Neither conjunct implies the other**, measured on the shipped
 registry — drop either stage and the gate admits something wrong:
@@ -1081,17 +1219,40 @@ Why the stages do not evaluate in their own order
 --------------------------------------------------
 
 The conjunction in :eq:`quadrature-selection-criterion` is order-free —
-a conjunction has no order — but the *evaluation* is not, and
-:func:`~orpheus.numerics.quadrature.registry.select_quadrature`
-evaluates **V first**, instantiates the rule, and only then applies
-stages 0 and 1.
+a conjunction has no order — but the *evaluation* is not, and it splits
+**one conjunct across two moments**:
 
-This is a consequence of the theorem rather than an implementation
-detail. Stages 0 and 1 are questions about a rule's *nodes*; a rule has
-no nodes until its parameters are fixed; and the only stage that fixes
-parameters is V, which inverts the degree formula to find the smallest
-parameter set reaching :math:`d`. The order is forced by what each
-predicate must look at, not chosen for speed.
+* The V constraint runs **first, as an inversion**: ask each spec for
+  the smallest parameters reaching :math:`d`. Then the rule is built.
+  Then stages 0 and 1 interrogate its nodes.
+* The V constraint runs **again, as a verification**, *after* stages 0
+  and 1 — checking that the claim the built rule actually carries
+  dominates :math:`(\lambda_{\text{geom}}, d)`. Then stage 3, then
+  stage 4.
+
+The first half is forced: :math:`\mathcal{E}(Q)` is a property of an
+*instantiated* rule, stages 0 and 1 are questions about a rule's
+*nodes*, and a rule has no nodes until its parameters are fixed — which
+only the V constraint does. The order follows from what each predicate
+must look at, not from a speed argument.
+
+The second half is a *placement* choice, and it has a reason worth
+stating because it looks arbitrary: :math:`\lambda_{\text{geom}}`
+**encodes** :math:`\mathcal{D}_Q` — the reference and the support are
+both derived from the same spent group — so a rule on the wrong space
+fails the reference conjunct *and* the domain conjunct, and the domain
+stage gives the better diagnosis ("your nodes live on :math:`S^2`, this
+geometry discretises :math:`[-1,1]`" beats "your measure is
+``uniform(S^2)``, we wanted ``legendre``"). Running the verification
+after stages 0 and 1 therefore reserves it for the case it *uniquely*
+catches: **a rule on the right space carrying the wrong measure.** That
+case has no shipped instance, which is exactly why it needs a
+constructed witness and a stated reason rather than a comment.
+
+⛔ This subsection described the V constraint as a single moment — "V
+first, then instantiate, then stages 0 and 1" — until 2026-08-14,
+because until then the stage genuinely was one moment: it inverted and
+never verified.
 
 The deeper reason the symmetry conjunct cannot be hoisted above the
 build is that **a rule's invariance group is parameter-dependent**. The
@@ -1109,10 +1270,13 @@ of truth.
 The domain conjunct is a weaker case of the same argument — every
 shipped rule's ``support`` happens to be parameter-independent, so it
 *could* have been a field — but since stage 1 forces the build anyway,
-the selector reads both facts off the one constructed object, and the
-winning candidate's measure is carried forward rather than rebuilt.
-There is therefore exactly one construction of the measure the selector
-returns, and no second, divergence-capable one.
+the selector reads every such fact off the one constructed object: the
+support, the computed invariance group, the exactness claim, **and the
+node count stage 4 sorts on**. The winning candidate's measure is then
+carried forward rather than rebuilt. There is therefore exactly one
+construction of the measure the selector returns, and no second,
+divergence-capable one — the same single-source argument that makes the
+spec carry no invariance group and no parallel node-count formula.
 
 The cost of building a candidate before rejecting it is real and
 accepted: ``[M]``
@@ -1334,18 +1498,23 @@ rule:
 
 * The publication-grade quadrature *rules* live in
   :mod:`orpheus.numerics.quadrature` as free functions returning
-  :class:`DiscreteMeasure` instances tagged with
-  ``invariance_group`` and ``degree_of_exactness``:
+  :class:`DiscreteMeasure` instances tagged with ``invariance_group``
+  and ``exactness`` — the latter a whole
+  :class:`~orpheus.numerics.exactness.ExactnessClaim` (a reference
+  measure *and* a degree against it), of which ``degree_of_exactness``
+  is a derived view:
 
   - :func:`~orpheus.numerics.quadrature.gauss_legendre_on_mu` —
-    1-D rule on :math:`\mu \in [-1, 1]`,
-    :math:`SO(2)`-invariant, ``degree_of_exactness = 2n - 1``.
+    1-D rule on :math:`\mu \in [-1, 1]`, :math:`\sigma_x`-invariant,
+    exact to algebraic degree :math:`2n - 1` against ``legendre``.
   - :func:`~orpheus.numerics.quadrature.lebedev_sphere` —
-    Lebedev rule on :math:`S^2`, :math:`O_h`-invariant,
-    ``degree_of_exactness = order``.
+    Lebedev rule on :math:`S^2`, :math:`O_h`-invariant, exact to
+    spherical-harmonic degree ``order`` against ``uniform(S^2)``.
   - :func:`~orpheus.numerics.quadrature.level_symmetric_sn` —
     Carlson-Lathrop level-symmetric :math:`S_N` rule on
-    :math:`S^2`, :math:`O_h`-invariant.
+    :math:`S^2`, :math:`O_h`-invariant, against ``uniform(S^2)``;
+    its degree is build-measured, with no formula in :math:`N`.
+
   - :func:`~orpheus.numerics.quadrature.periodic_trapezoid` — the
     :math:`n`-point rule on the circle :math:`S^1`, exact for
     *trigonometric* polynomials of degree :math:`n - 1`. The
@@ -1353,6 +1522,21 @@ rule:
   - :func:`~orpheus.numerics.quadrature.product_mu_phi` — the
     polar-times-azimuthal product rule used by the cylindrical SN
     sweep.
+
+  .. note::
+
+     ⛔ The Gauss-Legendre entry read ":math:`SO(2)`-invariant" until
+     2026-08-14 — the last surviving copy on this page of the claim
+     retired on 2026-08-02, that a finite point set can be closed under
+     a continuous group. ``[M]``
+     ``gauss_legendre_on_mu(8).invariance_group`` is :math:`\sigma_x`,
+     the mirror through the plane normal to :math:`x`, which is what
+     :math:`\mu \to -\mu` becomes once the polar marginal is embedded
+     as :math:`(\mu, 0, 0)`. And the bare integer
+     ``degree_of_exactness`` was the whole exactness tag until the
+     reference joined it; reading it alone is reading half a claim,
+     which is precisely the state that let a Gauss-Legendre and a
+     Gauss-Chebyshev degree look interchangeable.
 
   The circle rule is worth reading closely even though it is
   one-dimensional, because it is where two of this page's

@@ -253,6 +253,26 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   > including the page's own **Key Facts** card. Sphinx built clean throughout, and the
   > sole `verifies()` marker on the label was a suite that passes NO seed, so the matrix
   > reported the equation covered while the covering rows asserted the kernel default.
+- ⭐ **A CROSS-REFERENCE is a load-bearing dependency: repairing a claim obliges you to
+  check the section you point readers AT.** The clause above is about a correction that
+  stops short of an equation in the same page; this is about one that stops at the page
+  boundary. When you strengthen an argument and cite another section for the details, that
+  section is now carrying part of your claim — and if it still states the version you just
+  retired, your repair has *imported* the falsehood rather than fixing it, while reading as
+  more rigorous for having a citation. Neither Sphinx nor grep helps: the reference
+  RESOLVES, and the cited text contains none of your new vocabulary.
+  ⟹ the check is mechanical and cheap: **for every `:ref:`/`:doc:`/`:eq:` you ADD or LEAN
+  ON while making a correction, read the target and ask whether it still says the old
+  thing.** Bounded — you are checking the handful you cite, not the page's whole reference
+  graph.
+  > `[M]` 2026-08-14, quadrature Q6-C. The theory page's stage-2 argument was rewritten to
+  > say a degree means nothing without its reference measure, and cross-referenced the
+  > *1-D primitive constructors* section for the Gauss rules. That section still stated
+  > **both** rules as "`degree_of_exactness = 2n - 1`", with the Chebyshev one qualified
+  > only by the prose "in the weighted sense" — i.e. exactly the bare-integer half-claim
+  > the new argument exists to refute, sitting at the end of its own citation. Found by
+  > the agent doing the repair, not by any build: `-W` was clean throughout, and the
+  > section contains neither "reference" nor "claim" for a grep to catch.
 - **Retiring a MESSAGE STRING: grep the SHORTEST distinctive fragment, never the full
   sentence.** An exception/log message is an API the moment a test pins it, and tests pin
   **substrings**. A grep for your own longer wording is strictly LESS sensitive than the
