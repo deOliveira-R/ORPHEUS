@@ -3,7 +3,7 @@ r"""B3.2 mutation harness — an in-process pytest plugin proving gate teeth.
 Usage (SERIAL, canonical ``-O``)::
 
     ORPHEUS_B32=N1 .venv/bin/python -O -m pytest tests/sn/operators \
-        -p no:randomly -p scratch.b3_2_mutations -q
+        -p no:randomly -p tests._harness.mutation_batteries.b3_2_boundary -q
 
 ``ORPHEUS_B32`` unset ⇒ the CONTROL leg: nothing is patched, everything must be
 GREEN. Any other value installs the named mutation by monkeypatching
@@ -19,6 +19,14 @@ catches 30/31") lived only in a job-scratch directory and evaporated with the
 session — so the gate was unrunnable by the next reader. Every mutation that
 justifies a B3.2 gate's teeth lives here instead, next to the memo that reports
 its measured colour (``scratch/b3_2_migration.md`` §2).
+
+Moved out of ``scratch/`` at **B3.5** (2026-08-14): tracked-but-in-a-holding-pen
+is not discoverable, and `[M]` the evaporation failure had by then happened a
+SECOND time — ``tests/sn/operators/__pycache__/`` still carries
+``conftest_mutate_kernel.*.pyo`` and ``conftest_mutate_pr.*.pyo`` whose sources
+were never tracked at all. See ``README.md`` in this package for the mechanism's
+boundary against ``tests/_mutation/`` (cosmic-ray), which is a different tool
+answering a different question and whose revert step is a ``git checkout``.
 
 Each mutation is the plausible transcription of a real B3.2 hazard, NOT an
 arbitrary perturbation:
@@ -183,18 +191,47 @@ def _mutate_realizer(mut: str) -> None:
 
 def _mutate_to_local() -> None:
     """N9 — the reflective narrowing reaches for ``arange`` instead of the
-    restriction's own ``to_local``.
+    half-trace space's own ``to_local``.
 
-    Patched on ``TraceRestrictionOperator`` rather than in the realizer body so
-    the mutation is EXACTLY the code a call site would have written by hand if
-    the remap had not been owned by the operator (crosswalk §9: owning it there
-    is what makes this failure mode unspellable in production — this harness
-    re-spells it to measure what the gates would have caught).
+    Patched on the OWNER of the remap rather than in the realizer body, so the
+    mutation is EXACTLY the code a call site would have written by hand if the
+    remap had not been owned (crosswalk §9: owning it is what makes this
+    failure mode unspellable in production — this harness re-spells it to
+    measure what the gates would have caught).
+
+    ⛔ **REPOINTED 2026-08-14 (B3.5), and it had been silently INERT.** This
+    patched ``TraceRestrictionOperator.to_local`` until now. G6.5 (``0d99140c``)
+    moved the remap onto :class:`AngularFaceTraceSpace` — "the operator is the
+    *arrow*, but which global row sits where is a fact about the SUBSPACE" —
+    and a bare class-attribute assignment **creates** a missing attribute
+    rather than failing, so this leg installed a method nobody calls.
+    `[M]` before the repoint: ``ORPHEUS_B32=N9`` gave *1167 passed*, byte-
+    identical to CONTROL. A reader would have taken that green as "the gates
+    are blind to the reflective-remap hazard" — a harness lying in the
+    safe-looking direction (``vv-principles`` #17).
+
+    The existence check below is what stops that recurring, and it is a
+    ``raise`` rather than an ``assert`` **on purpose**: the canonical runner is
+    ``python -O``, which strips ``assert`` at compile time, so an asserted
+    guard here would be exactly as inert as the bug it guards against
+    (``coding-standards``: a bare assert is not a contract).
     """
-    from orpheus.numerics import operator as _op
+    from orpheus.numerics.spaces.angular_trace_space import (
+        AngularFaceTraceSpace,
+    )
 
-    _op.TraceRestrictionOperator.to_local = (
-        lambda self, g: np.arange(np.asarray(g).size)
+    if not hasattr(AngularFaceTraceSpace, "to_local"):
+        raise RuntimeError(
+            "N9 cannot install: AngularFaceTraceSpace has no `to_local`. The "
+            "remap has moved again — find its new owner and repoint this "
+            "mutation. Do NOT leave this leg patching a name that is not "
+            "there: assigning it would CREATE a dead attribute and the leg "
+            "would run green, which reads as 'the gates are blind' rather "
+            "than 'the mutation never happened'."
+        )
+
+    AngularFaceTraceSpace.to_local = (
+        lambda self, global_rows: np.arange(np.asarray(global_rows).size)
     )
 
 

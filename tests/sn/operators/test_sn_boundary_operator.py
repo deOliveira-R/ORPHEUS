@@ -738,17 +738,31 @@ class TestNarrowedLawDomain:
             "The composite never spells it (it always composes γ₊ first), so "
             "no value moves today — but 'hand the law the full face' stays a "
             "silent wrong answer until the guard lands. Delete this marker "
-            "when it does."
+            "when it does. "
+            "OWNER = campaign phase B4 (RE-ATTRIBUTED 2026-08-14). The "
+            "crosswalk parked this in B3.4 as 'the one place the guard "
+            "belongs — the phase that restructures around R o G'. B3.4a/b/c "
+            "LANDED and did NOT restructure around R o G; that is B4, which "
+            "owns the generic factor-reading dispatch this guard belongs in. "
+            "So the phase name was wrong, not the reasoning."
         ),
     )
     @pytest.mark.parametrize("case_id", list(_CASES))
     def test_realized_law_refuses_a_full_face_input(self, case_id: str) -> None:
-        r"""**RG-3b** — the negative test for the domain guard B3 owes.
+        r"""**RG-3b** — the negative test for the domain guard **B4** owes.
 
         This is the gate that makes "hand the law the full face" UNSPELLABLE
         rather than merely wrong. It is a deliberate strict xfail: the marker
         set IS the todo list, so the guard cannot land silently and this row
         cannot rot into a green that means nothing.
+
+        ⛔ **Re-attributed from B3.4 to B4 on 2026-08-14.** The crosswalk
+        placed it in B3.4 because that was to be "the phase that restructures
+        around :math:`R \circ G`". B3.4a/b/c landed and did **not** do that —
+        the generic factor-reading dispatch is B4's, and a domain guard added
+        anywhere else would be a per-law arm of exactly the ``isinstance``
+        ladder B4 exists to collapse. The reasoning was right; only the phase
+        name was wrong.
 
         Structured so that EXACTLY ONE statement can fail and it is the
         documented one (vv Mode 8, class 4): the fixture work is done first and

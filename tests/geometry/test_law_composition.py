@@ -61,12 +61,22 @@ from tests.sn._test_helpers import face_method_space
 #: markers that stood here were deleted when B3.4a landed, exactly as their own
 #: reason text instructed.
 #:
-#: They must NOT be re-posed over **albedo** or **periodic**. Those two are
-#: still full-face endomorphisms (B3.4b / B3.4c), and because ``|Γ₊| == |Γ₋|``
-#: on every quadrature × face in the tree, a sum mixing one of them with a
-#: narrowed leaf does not RAISE — it runs and is silently wrong (vv Mode 12).
-#: A gate here over ``0.3 * spec + 0.7 * albedo`` would be green and worthless
-#: until B3.4b lands.
+#: ⛔ **CORRECTED 2026-08-14 — the blocker below is DISCHARGED.** This read
+#: "they must NOT be re-posed over **albedo** or **periodic**; those two are
+#: still full-face endomorphisms (B3.4b / B3.4c) … a gate here over
+#: ``0.3 * spec + 0.7 * albedo`` would be green and worthless until B3.4b
+#: lands." **B3.4b (``943b37c1``) and B3.4c (``79b5affe``) both landed
+#: 2026-08-01**, and `[M]` both laws narrow at HEAD: albedo through
+#: ``_outflow_restriction(method_space, "albedo")``
+#: (``sn/boundary/realizer.py:970``), periodic to :math:`\Gamma_+(\text{partner})
+#: \to \Gamma_-(\text{face})` (``:1049``).
+#:
+#: The hazard the old note described was real and is worth keeping in view:
+#: because ``|Γ₊| == |Γ₋|`` on every quadrature × face in the tree, a sum
+#: mixing an un-narrowed leaf with a narrowed one does not RAISE — it runs and
+#: is silently wrong (vv Mode 12). That is why the gate had to wait. It no
+#: longer does: **a mixed ``0.3 * spec + 0.7 * albedo`` gate is now stateable
+#: and is not yet written.**
 
 
 # ═════════════════════════════════════════════════════════════════════
