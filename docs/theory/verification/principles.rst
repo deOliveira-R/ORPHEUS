@@ -706,11 +706,16 @@ Every verification case defines three things:
    * - CP slab
      - < 10⁻⁶
      - Power iteration
-     - Solver keff_tol=10⁻⁷ bounds the error
+     - The gates pass ``keff_tol`` **explicitly** at 10⁻⁷–10⁻⁸; the
+       shipped default is 10⁻⁶ (``CPParams.keff_tol``). ⛔ An increment
+       test does not *bound* the error — see the cross-family note below
    * - CP cylinder
      - < 10⁻⁵
-     - Power iteration + Ki₄ interpolation
-     - Solver keff_tol=10⁻⁶ plus Ki₄ table resolution
+     - Power iteration + cylinder-kernel interpolation
+     - Same explicit gate tolerances, plus the interpolant's fixed
+       precision (⛔ the 20 000-point Ki lookup table was superseded by a
+       fixed-precision Chebyshev interpolant at Phase B.4, #94 —
+       ``orpheus/cp/solver.py:68-70``)
    * - SN (homogeneous)
      - < 10⁻⁸
      - Power iteration

@@ -21,12 +21,13 @@ Key Facts
 - Convention: ``P[i,j]`` = birth in *j*, collision in *i*; flux update uses :math:`P^T` (see :ref:`scattering-matrix-convention`)
 - Row sums = 1 (conservation), reciprocity: :math:`\Sigma_{t,i} V_i P(i,j) = \Sigma_{t,j} V_j P(j,i)`
 - **Slab**: :math:`E_3` exponential-integral kernel (``scipy.special.expn``)
-- **Cylinder**: :math:`\text{Ki}_4` Bickley-Naylor kernel (20,000-point lookup table)
+- **Cylinder**: Bickley-Naylor kernel (⛔ the 20 000-point lookup table was superseded at Phase B.4 by a fixed-precision Chebyshev interpolant in ``orpheus.derivations.continuous.flat_source_cp.geometry``, #94; ``CPParams.n_ki_table``/``ki_max`` are retained for backwards compatibility only — ``orpheus/cp/solver.py:68-70``. ⚠ which Bickley index the shipped kernel is, is #348)
 - **Sphere**: exponential kernel
 - White-BC approximation: isotropic return at cell boundary → ~1% gap vs reflective SN
 - Inner iteration IS needed: self-scatter :math:`\Sigma_s(g \to g) \cdot \phi_g` makes source depend on solution
 - **Gotcha**: tautological residual if checking ``denom * phi - transported`` (ERR-016)
-- Power iteration tolerance ``keff_tol=1e-7`` bounds eigenvalue error to ~1e-6
+- Power iteration stops on the **increment** :math:`|\Delta k| <` ``keff_tol``. CP ships ``keff_tol=1e-6`` (:class:`~orpheus.cp.solver.CPParams`); the verification suite passes ``1e-7``/``1e-8`` explicitly rather than relying on the default
+- **Gotcha**: an increment test does **not** bound the eigenvalue error — a throttled inner suppresses the very increment the outer reads. `[M]` on SN (same shared :func:`~orpheus.numerics.eigenvalue.power_iteration` stop test), a converged ``keff`` was measured up to **23.7 ×** ``keff_tol`` from its reference under a starved inner (#350). Gate on ``fully_converged``, never on the increment
 - Gauss-Seidel update uses latest flux immediately; Jacobi uses previous iteration
 - Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 

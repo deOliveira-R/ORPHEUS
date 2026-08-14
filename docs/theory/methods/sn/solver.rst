@@ -672,7 +672,9 @@ argument to pass, so there is nothing to get wrong.
    arbitrary iterate.**  This is not hypothetical.  `[M]`
    ``test_d3_pure_absorber_per_ordinate_psi_exact`` asserted a closed-form
    identity to ``rtol=1e-10`` on an all-reflective 3-D box that needs
-   **1631** sweeps, against a default ``max_inner`` of **1000**.  It read
+   **1631** sweeps, against the **then-default** ``max_inner`` of **1000**
+   (hardcoded; the default has been derived from the tolerance since #340
+   N3 landed 2026-08-09).  It read
    the 999th iterate, never read the flag the solver had honestly set to
    ``False``, and passed for months because the truncated error happened to
    land inside the tolerance — until a *correct* quadrature change (#337)
@@ -859,14 +861,28 @@ deliberately-truncated solve), and it escalates to a hard failure with::
    every recipe a doc publishes as a command, one gate must consume the
    string, not the API.**
 
-**Budget sizing.**  ``max_inner`` is a fixed default, and the required
-budget is not: `[M]` an all-reflective box needs ~an order of magnitude
-more sweeps per added dimension (d=1 **32**, d=2 **258**, d=3 **1631**),
-and the cost scales as :math:`\Sigma_t \cdot n_{\rm inner} \approx`
-constant.  One vacuum face collapses the d=3 figure to 208 — the expensive
-corner is specifically zero-leakage, weakly-absorbing, and 3-D.  Deriving
-the default rather than hardcoding it is tracked on `Issue #340
-<https://github.com/deOliveira-R/ORPHEUS/issues/340>`_.
+**Budget sizing.**  ``max_inner`` is **derived from the tolerance**, and it
+had to be: `[M]` an all-reflective box needs ~an order of magnitude more
+sweeps per added dimension (d=1 **32**, d=2 **258**, d=3 **1631**), and the
+cost scales as :math:`\Sigma_t \cdot n_{\rm inner} \approx` constant.  One
+vacuum face collapses the d=3 figure to 208 — the expensive corner is
+specifically zero-leakage, weakly-absorbing, and 3-D.  **A constant cannot
+track a tolerance it does not know about**, so ``max_inner=None`` — the
+default at every SN entry — resolves through
+:func:`~orpheus.numerics.convergence.resolve_iteration_budget` to
+:func:`~orpheus.numerics.convergence.default_iteration_budget`, which
+inverts the geometric budget law at a stated served rate.  An explicit
+``int`` is still honoured untouched: a caller who knows their spectral
+radius, or who is deliberately starving a solve to measure its truncated
+exit, is exercising the API correctly.
+
+⛔ *Until #340 N3 landed (2026-08-09) the default WAS a hardcoded constant*
+— five of them in SN plus a sixth in ``KEigenvalue`` — and `[M]` **both**
+SN families were short at d=3 zero-leakage: 830 sweeps needed at
+``inner_tol=1e-8`` against 200 shipped, 1441 at ``1e-12`` against 1000.
+The two families also differed by **5×** where the law puts the factor at
+:math:`\ln(10^{-12})/\ln(10^{-8}) = 1.5`; `[M]` the shipped ratio is now
+``1308 : 1961 = 1.4992``.
 
 Gates: ``tests/sn/solve/test_convergence_contract.py`` — each honesty claim
 is a PAIR (a converging configuration and a deliberately-starved one),

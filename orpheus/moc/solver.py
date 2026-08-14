@@ -115,9 +115,19 @@ def solve_moc(
         Outer convergence tolerances (``|Δk|`` and relative ``‖Δφ‖``).
     inner_tol : float
         Inner convergence tolerance, applied to BOTH the scalar-flux and
-        the boundary-angular-flux increments (#340 N4).  Mirrors CP's
-        ``inner_tol``: three decades tighter than the outer, so the
-        outer's stop test is not measuring inner noise.
+        the boundary-angular-flux INCREMENTS (#340 N4).  The inner must be
+        tighter than the outer or the outer's stop test is measuring inner
+        noise: `[M]` with no gap at all (``inner_tol = flux_tol = 1e-5``)
+        the outer stops after 6 iterations at ``err = 2.62e-06``, three
+        orders WORSE.
+
+        ⚠ The gap is three decades *here* (``1e-8`` under
+        ``flux_tol=1e-5``) and **two** in SN — there is no cross-family
+        rule, and an earlier version of this docstring claimed one.
+        ⛔ And this is an INCREMENT where SN's ``inner_tol`` is an
+        equation RESIDUAL: `[M]` the two differ by exactly
+        :math:`1/(1-\\rho)`, so the same literal is a ~1000x looser
+        true-error claim at :math:`\\rho = 0.999` (#364).
     max_inner_sweeps : int
         Budget on transport sweeps per outer iteration — a CAP, not a
         schedule (⛔ was a fixed ``n_inner_sweeps=15`` count with no
