@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9730**
+Total tests collected: **9718**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1310, 13.5%
-   L1, 1620, 16.6%
+   L0, 1297, 13.3%
+   L1, 1620, 16.7%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6731, 69.2%
+   foundation, 6732, 69.3%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9646
+   explicit, 9634
    class-name, 46
    func-name, 0
    case, 33
@@ -335,7 +335,6 @@ Module × level grid
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
-   numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
@@ -369,7 +368,7 @@ Module × level grid
    numerics/test_symmetry, 0, 0, 0, 0, 105, 0
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
-   numerics/test_trace_restriction_operator, 0, 0, 0, 0, 15, 0
+   numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
    numerics/test_zero_operator_spaces, 0, 0, 0, 0, 8, 0

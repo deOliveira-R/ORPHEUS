@@ -176,7 +176,6 @@ __all__ = [
     "ZeroOperator",
     "PermutationOperator",
     "TraceRestrictionOperator",
-    "IncomingOrdinateMaskTensor",
     "DiagonalOperator",
     "RankOneOperator",
     "outer",
@@ -2565,8 +2564,16 @@ class TraceRestrictionOperator(LinearOperator):
     ================================================  ==================
     a slice-write ``out[sel] = full[sel]``             :math:`\iota_S \circ \gamma_S`
     a dense diagonal multiply by an inflow mask        :math:`\iota_S \circ \gamma_S`
-    ``IncomingOrdinateMaskTensor`` (zeroes the inflow) :math:`I - \iota_S \circ \gamma_S`
+    a sparse tensor zeroing the inflow rows            :math:`I - \iota_S \circ \gamma_S`
     ================================================  ==================
+
+    (That third spelling was a class of its own, ``IncomingOrdinateMaskTensor``,
+    until campaign phase **B3.3** retired it: once B3.2 narrowed the SN law's
+    domain to :math:`\Gamma_+`, the rows it preserved left the operator's
+    domain and it lost its last construction site. Note it is
+    :math:`I - \iota_S \circ \gamma_S`, whose range is
+    :math:`\Gamma_+ \oplus \Gamma_{\text{tan}}` — the face partition is
+    THREE-way, so "not inflow" was never "outflow".)
 
     and the observation that ``P_in ∘ P_out = 0`` stops being a curiosity:
     it is :math:`\gamma_- \circ \iota_+ = 0`, true because two disjoint
@@ -2774,128 +2781,6 @@ class TraceRestrictionOperator(LinearOperator):
     @property
     def is_adjointable(self) -> bool:
         return True
-
-
-class IncomingOrdinateMaskTensor(LinearOperator):
-    r"""Sparse inflow-ordinate mask: zeroes selected entries along an axis.
-
-    For SN vacuum BCs at face :math:`f`, the inflow ordinate set is
-    :math:`\{n : \mathrm{sign}(\Omega_n \cdot \hat n_f) < 0\}`. The
-    canonical vacuum-trace representation (Grand Report v3 §16A.10
-    line 3165) is the operator that ZEROES those inflow entries while
-    leaving the outflow entries untouched:
-
-    .. math::
-
-        (M\,\psi)_n \;=\;
-        \begin{cases}
-            0      & n \in \mathcal{I}_{\text{in}} \\
-            \psi_n & \text{otherwise}
-        \end{cases}
-
-    Distinct from :class:`ZeroOperator` (which zeroes ALL entries):
-    the sparse mask leaves the outflow trace bit-identical.
-
-    .. deprecated:: B3.2
-
-       **This class has no production consumer and retires in B3.3.**
-       Campaign phase B3.2 narrowed the SN boundary law's domain to
-       :math:`\Gamma_+`, so vacuum now realizes to the honest zero map
-       :math:`\Gamma_+ \to \Gamma_-` and the rows this mask preserved are
-       outside the operator's domain entirely. Use
-       :class:`TraceRestrictionOperator` — every spelling this class was
-       reached for is a composition of that restriction and its scatter.
-
-    .. warning::
-
-       **This mask is NOT "projection onto the outflow subspace"**, and
-       earlier revisions of this docstring said it was. **[M]** Measured on a
-       production cylinder mesh under ``Quadrature.product(n_mu=2, n_phi=4)``,
-       four of eight ordinates at ``xmax`` are **tangential**
-       (:math:`|\Omega\cdot\hat n| \le` ``TANGENTIAL_EPS``), and this mask
-       preserves them along with the outflow rows. So it is
-       :math:`I - P_{\text{in}}`, whose range is
-       :math:`\Gamma_+ \oplus \Gamma_{\text{tan}}` — strictly larger than
-       :math:`\Gamma_+`. The two coincide only where the quadrature carries
-       no tangential ordinate, which among the production quadratures is
-       ``gauss_legendre`` at even order and nothing else.
-
-       The face partition is **three-way**. "Not inflow" is not "outflow", and
-       a gate written on the two-way assumption is blind by construction.
-
-    Self-adjoint (:math:`M = M^T = M^* = M^{1/2}`). Idempotent
-    (:math:`M^2 = M`) — the projection onto
-    :math:`\Gamma_+ \oplus \Gamma_{\text{tan}}` along
-    :math:`\Gamma_-`. The apply action returns a copy; original input is
-    unmodified.
-
-    STRUCTURALLY non-invertible — the mask is rank-deficient (it
-    projects) — so it declares no ``inverse()``; misuse is a static
-    error (Design C). Self-adjoint on the Euclidean axis, so
-    ``apply_transpose`` is honest.
-
-    Parameters
-    ----------
-    inflow_indices
-        1-D integer array of ordinate indices to zero. May be empty
-        (then the operator is identity on the chosen axis).
-        Duplicates and out-of-range entries are rejected at
-        construction.
-    n_ordinates
-        Length of the masked axis. Indices must satisfy
-        ``0 <= idx < n_ordinates``.
-    axis
-        Tensor axis along which the mask acts.
-    """
-
-    def __init__(
-        self,
-        inflow_indices: np.ndarray,
-        n_ordinates: int,
-        axis: int = 0,
-    ) -> None:
-        inflow_indices = np.asarray(inflow_indices, dtype=np.intp)
-        if inflow_indices.ndim != 1:
-            raise ValueError(
-                f"IncomingOrdinateMaskTensor inflow_indices must be 1-D; "
-                f"got shape {inflow_indices.shape}"
-            )
-        if inflow_indices.size > 0:
-            if inflow_indices.min() < 0 or inflow_indices.max() >= n_ordinates:
-                raise ValueError(
-                    f"IncomingOrdinateMaskTensor inflow_indices out of range "
-                    f"[0, {n_ordinates}); got min={int(inflow_indices.min())}, "
-                    f"max={int(inflow_indices.max())}"
-                )
-            if np.unique(inflow_indices).size != inflow_indices.size:
-                raise ValueError(
-                    "IncomingOrdinateMaskTensor inflow_indices contains duplicates"
-                )
-        self.inflow_indices = inflow_indices
-        self.n_ordinates = int(n_ordinates)
-        self.axis = int(axis)
-
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        out = np.asarray(x).copy()
-        if self.inflow_indices.size == 0:
-            return out
-        if self.axis == 0:
-            out[self.inflow_indices] = 0.0
-        else:
-            idx: list = [slice(None)] * out.ndim
-            idx[self.axis] = self.inflow_indices
-            out[tuple(idx)] = 0.0
-        return out
-
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        # Self-adjoint: same code path.
-        return self.apply(x)
-
-    @property
-    def is_adjointable(self) -> bool:
-        return True  # M = M^T (self-adjoint projection)
-
-    # is_invertible inherits the base ``False`` — the mask is rank-deficient.
 
 
 class TensorProductOperator(LinearOperator):

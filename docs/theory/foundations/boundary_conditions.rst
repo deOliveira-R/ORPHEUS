@@ -138,7 +138,7 @@ Key Facts
   (a :class:`~orpheus.numerics.operator.ZeroOperator` carrying both
   space hooks). Vacuum's whole content is :math:`R = 0`; with the
   domain narrowed there is nothing else to represent. Pre-B3.2 it
-  realized to an :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+  realized to an ``IncomingOrdinateMaskTensor``
   — a full-face projector onto the *outflow* subspace whose preserved
   rows the consumer then discarded. That mask, and the "which rows does
   it preserve?" question two campaign phases had documented as having
@@ -1428,10 +1428,14 @@ own:
        :math:`|\Gamma_-|` shape one tier out, by
        :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
        — see :ref:`bc-affine-source-channel`
-   * - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+   * - ``IncomingOrdinateMaskTensor`` (**retired**)
      - :math:`I - \iota_- \circ \gamma_-`
-     - **off the vacuum path** at B3.2; the class itself retires at
-       B3.3 with its ten-test suite migrating
+     - taken **off the vacuum path** at B3.2 and **deleted at B3.3**.
+       Of its thirteen tests, twelve asserted either the masking
+       semantics the narrowing removed or a law
+       :class:`~orpheus.numerics.operator.TraceRestrictionOperator`'s
+       own battery already gates; only the non-aliasing claim was
+       genuinely uncovered, and it migrated
 
 and ``P_in ∘ P_out = 0`` stops being a curiosity: it is
 :math:`\gamma_- \circ \iota_+ = 0`, true because two disjoint index
@@ -5835,7 +5839,7 @@ the BC has no physical interpretation for (vacuum says nothing
 about :math:`\gamma_+ \psi`; it only sets :math:`\gamma_- \psi = 0`).
 
 The post-Wave-8 SN realizer's vacuum branch therefore returned an
-:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor` — a
+``IncomingOrdinateMaskTensor`` — a
 sparse mask that zeroed **only the inflow ordinates** and preserved the
 outflow trace. That was read as the §16A.10 *trace-correct*
 representation: a projector onto the outflow ordinate subspace, which
@@ -6034,7 +6038,7 @@ The Wave 7 brief considered three migration strategies for the
 :meth:`apply(psi_out, quad)` whose body was
 ``np.zeros_like(psi_out)`` (the pre-§16A.5 zeros-all form), and
 the realizer path produced the inflow-only-mask form via
-:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`.
+``IncomingOrdinateMaskTensor``.
 The two paths agreed on inflow rows (the production-relevant
 subset) and diverged on outflow rows.
 
@@ -6145,7 +6149,7 @@ three architectural costs that made Option A unsustainable:
 2. **Vacuum two-paths-divergence.** Direct ``VacuumInflow.apply(psi)``
    returned ``np.zeros_like(psi)`` (the pre-§16A.5 zeros-all body).
    The realizer-routed path returned
-   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
+   ``IncomingOrdinateMaskTensor``
    output (the §16A.5 inflow-only mask). The two paths agreed on
    inflow rows (the production-relevant subset; see
    :ref:`bc-vacuum-semantic-correction`) but diverged on outflow
@@ -6557,7 +6561,7 @@ The two calls are **structurally distinct**:
 * **Call #1** is a Phase D-specific use of the BC operator as a
   *linear-in-ψ* construction of the inward-zero-weight ordinate's
   outer-face flux.  For vacuum BC the then-realized
-  :class:`IncomingOrdinateMaskTensor` zeroed the inflow ordinate,
+  ``IncomingOrdinateMaskTensor`` zeroed the inflow ordinate,
   giving ``bc_outer_value = 0``; for reflective BC the
   :class:`PermutationOperator` mirrors outgoing :math:`\leftrightarrow`
   incoming, giving ``bc_outer_value = ψ_cell[N-1]`` (i.e. the
@@ -6624,7 +6628,7 @@ C call provided its content matches the WDD reference.
 Both ``vacuum`` and ``reflective`` parametrised cases pass.  The
 ``vacuum`` case was the load-bearing check because Call #1 produced
 non-trivial output under vacuum (the then-realized
-:class:`IncomingOrdinateMaskTensor` zeroed inflow ordinates, so the
+``IncomingOrdinateMaskTensor`` zeroed inflow ordinates, so the
 extracted ``bc_outer_value`` was zero — but the **input** to Call #1
 was the outer cell-centre value, which is **not** zero on a
 non-trivial :math:`\psi`).  Locating Call #2 unambiguously required

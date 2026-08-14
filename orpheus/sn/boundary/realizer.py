@@ -32,7 +32,7 @@ suffices for the two laws below.
   carrying both space hooks). Vacuum's whole content is :math:`R = 0`; with
   the domain narrowed there is nothing else to represent.
 
-  Pre-B3.2 this was an :class:`IncomingOrdinateMaskTensor` — a full-face
+  Pre-B3.2 this was an ``IncomingOrdinateMaskTensor`` — a full-face
   projector onto the OUTFLOW subspace whose preserved rows the consumer then
   discarded. Two campaign phases documented that survival as having "no
   consumer today"; the narrowing removes the question rather than answering

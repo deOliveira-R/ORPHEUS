@@ -34,8 +34,9 @@ a realized operator:
 * **Structural-predicate delegation** to the wrapped operator so
   consumers composing the shim with other Wave-0 primitives inherit
   the right two-axis truth (e.g. a :class:`PermutationOperator` brings
-  invertibility + a working ``apply_transpose``, an
-  :class:`IncomingOrdinateMaskTensor` only adjointability).
+  invertibility + a working ``apply_transpose``, a
+  :class:`TraceRestrictionOperator` only adjointability — it discards
+  rows, so its transpose is the scatter and never an inverse).
 
 History
 =======

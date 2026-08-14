@@ -548,9 +548,12 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     WDD-propagated outflow face values (not cell-centres) and
     produces the inflow face values that the inward sweep consumes.
 
-    For vacuum BC: realize() = IncomingOrdinateMaskTensor which
-    zeroes the inflow ordinates. So the inward sweep at the
-    boundary should see psi_face_in = 0 for all incoming ordinates.
+    For vacuum BC: realize() is the narrowed zero map
+    :math:`\Gamma_+ \to \Gamma_-` (a ``ZeroOperator`` between the two
+    half-traces since B3.2 ``7f02de15``; pre-B3.2 it was a full-face
+    inflow-zeroing mask). So the inward sweep at the boundary should
+    see psi_face_in = 0 for all incoming ordinates — the conclusion is
+    unchanged, only the operator that delivers it.
 
     The behaviourally-observable consequence: if we apply L to a
     purely outgoing ψ on a vacuum-BC sphere, the inward ordinates'

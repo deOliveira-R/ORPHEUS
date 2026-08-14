@@ -24,13 +24,12 @@ import pytest
 from orpheus.numerics.operator import (
     DiagonalOperator,
     IdentityOperator,
-    IncomingOrdinateMaskTensor,
     LinearOperator,
     MissingAdjoint,
-    OperatorProduct,
     PermutationOperator,
     ScaledOperator,
     TensorProductOperator,
+    TraceRestrictionOperator,
     ZeroOperator,
 )
 from tests._harness.predicates import (
@@ -55,16 +54,13 @@ class _ApplyOnly(LinearOperator):
 _C = np.array([1.0, 2.0, 3.0])
 _CZ = np.array([1.0, 0.0, 3.0])  # a zero entry → singular
 
-# Representative leaves spanning the (invertible × adjointable) quadrants.
-_LEAVES = [
-    IdentityOperator(),                            # both
-    ZeroOperator(),                                # adjointable, NOT invertible
-    DiagonalOperator(_C),                          # both
-    DiagonalOperator(_CZ),                         # adjointable, NOT invertible (min|f|=0)
-    PermutationOperator(np.array([1, 0, 2])),      # both
-    IncomingOrdinateMaskTensor(np.array([0]), 3),  # adjointable, NOT invertible (rank-deficient)
-    _ApplyOnly(),                                  # neither
-]
+# NOTE (B3.3): a ``_LEAVES`` inventory used to sit here, spanning the same
+# (invertible × adjointable) quadrants. It was deleted with
+# ``IncomingOrdinateMaskTensor``, and the deletion cost nothing: `[M]` it had
+# ZERO consumers — nothing in this module or any other read it — while
+# ``_CONTRACT_ROWS`` below covers the same leaves AND is actually
+# parametrized over. It was a Pattern-2 duplicate that happened to be the
+# unexercised copy.
 
 
 def test_asymmetry_fixtures_break_the_axis_coincidence():
@@ -186,7 +182,14 @@ _CONTRACT_ROWS = [
     ("Diagonal", DiagonalOperator(_C), True, True, INVERTIBLE),
     ("Diagonal-singular", DiagonalOperator(_CZ), False, True, VALUE_RAISE),
     ("Permutation", PermutationOperator(np.array([1, 0, 2])), True, True, INVERTIBLE),
-    ("Mask", IncomingOrdinateMaskTensor(np.array([0]), 3), False, True, STRUCTURAL_ABSENT),
+    # The rank-deficient-but-adjointable representative. Was
+    # ``IncomingOrdinateMaskTensor`` until B3.3 retired it; the successor
+    # occupies the same quadrant for the same structural reason (a
+    # restriction discards rows, so it is never invertible, and its
+    # transpose is the scatter, so it is always adjointable). The row still
+    # MOVES: the two are independent implementations, and the successor
+    # declares both predicates on its own.
+    ("TraceRestriction", TraceRestrictionOperator(np.array([0]), 3), False, True, STRUCTURAL_ABSENT),
     ("ApplyOnly", _ApplyOnly(), False, False, STRUCTURAL_ABSENT),
     # Composites — every arm of the recursive laws:
     ("Sum-leading-invertible", IdentityOperator() + DiagonalOperator(_C), True, True, INVERTIBLE),

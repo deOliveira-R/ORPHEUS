@@ -26,10 +26,18 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     :eq:`bc-tensor-decomposition`.
 
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
-    no ``apply`` method. The SN realisation is an
-    :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
-    that zeroes the per-face inflow ordinates only (the §16A.5
-    trace-correct semantics). Realise via:
+    no ``apply`` method. The SN realisation is the **narrowed zero
+    map** :math:`\Gamma_+ \to \Gamma_-`: vacuum returns nothing for
+    any outflow, so the honest realization is a
+    :class:`~orpheus.numerics.operator.ZeroOperator` *between* the two
+    half-traces, whose symmetric space hooks emit the zero of
+    :math:`\Gamma_-` forward and the zero of :math:`\Gamma_+` on the
+    transpose.
+
+    ⛔ Pre-B3.2 this was a full-face projector onto the outflow
+    subspace whose preserved rows the sweep then discarded. Narrowing
+    the domain at ``7f02de15`` made that discard dissolve — the rows
+    are no longer in the operator's domain at all. Realise via:
 
     .. code-block:: python
 

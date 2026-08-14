@@ -570,7 +570,7 @@ Cross-references
   realisation: every realised BC IS a Wave-0
   :class:`LinearOperator` composable with the rest of the algebra.
 * :mod:`orpheus.numerics.operator` — Wave-0 primitives
-  (:class:`PermutationOperator`, :class:`IncomingOrdinateMaskTensor`,
+  (:class:`PermutationOperator`, :class:`TraceRestrictionOperator`,
   :class:`IdentityOperator`, :class:`ZeroOperator`, plus the
   :class:`OperatorSum` / :class:`ScaledOperator` composers that
   appear in the *operator* tree).

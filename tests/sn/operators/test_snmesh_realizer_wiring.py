@@ -98,7 +98,7 @@ def quad_1d():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 2-D Cartesian: realizer wiring + §16A.5 inflow-only mask
+# 2-D Cartesian: realizer wiring + the narrowed zero map Γ₊ → Γ₋
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -348,7 +348,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
 
     RE-POSED at **B3.2**: the realizer's vacuum branch returns the zero map
     :math:`\Gamma_+ \to \Gamma_-` (a :class:`ZeroOperator`), not an
-    :class:`IncomingOrdinateMaskTensor` lifted into a tensor product. The
+    ``IncomingOrdinateMaskTensor`` lifted into a tensor product. The
     routing claim — curvilinear meshes go through the SAME realizer path as
     Cartesian ones — is what this test is for and it is unchanged; only the
     object at the end of that path moved.

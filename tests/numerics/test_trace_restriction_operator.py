@@ -145,6 +145,35 @@ def test_declares_adjointable_and_structurally_non_invertible() -> None:
     assert not hasattr(gamma, "inverse")
 
 
+def test_neither_direction_aliases_its_input() -> None:
+    """Both directions return FRESH storage — the caller's array is safe.
+
+    Migrated at B3.3 from ``IncomingOrdinateMaskTensor``'s suite, which is
+    the only one of its thirteen tests asserting a claim this battery did
+    not already make. It is not idle defensiveness: ``§17.6`` recorded
+    :class:`~orpheus.numerics.operator.IdentityOperator` returning its
+    input **by reference**, so "an operator hands back fresh storage" is a
+    real per-operator distinction in this package rather than a universal.
+
+    Asserted both ways round — a mutation of the *output* must not reach
+    back into the input, which `assert_array_equal` on the input alone
+    would miss if the two shared a buffer.
+    """
+    gamma = TraceRestrictionOperator(np.array([0, 2]), n_total=4)
+
+    x = np.array([1.0, 2.0, 3.0, 4.0])
+    gathered = gamma.apply(x)
+    assert not np.shares_memory(gathered, x)
+    gathered[0] = -99.0
+    assert np.array_equal(x, np.array([1.0, 2.0, 3.0, 4.0]))
+
+    y = np.array([7.0, 8.0])
+    scattered = gamma.apply_transpose(y)
+    assert not np.shares_memory(scattered, y)
+    scattered[0] = -99.0
+    assert np.array_equal(y, np.array([7.0, 8.0]))
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # The guards — each one prevents a measured failure mode
 # ═══════════════════════════════════════════════════════════════════════

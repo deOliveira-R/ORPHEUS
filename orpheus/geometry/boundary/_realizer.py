@@ -11,9 +11,11 @@ The three-layer split matters because the same physical law (vacuum,
 specular reflection, white, …) is realized by **structurally
 different** linear operators in each transport method:
 
-* SN realizes vacuum as a sparse per-ordinate
-  :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor` on
-  the inflow ordinates of the affected face;
+* SN realizes vacuum as the **narrowed zero map**
+  :math:`\Gamma_+ \to \Gamma_-` — a
+  :class:`~orpheus.numerics.operator.ZeroOperator` between the two
+  half-traces of the affected face (pre-B3.2 it was a full-face
+  projector onto the outflow subspace);
 * diffusion realizes the same vacuum law as the Marshak albedo row
   :math:`J^- = 0` (the :class:`~orpheus.numerics.operator.ZeroOperator`
   collapse);

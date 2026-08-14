@@ -127,7 +127,7 @@ class TestRealizeVacuum:
     r"""Vacuum realizes to the ZERO MAP :math:`\Gamma_+ \to \Gamma_-`.
 
     RE-POSED at campaign phase **B3.2** (C-1). The pre-B3.2 realization was an
-    :class:`IncomingOrdinateMaskTensor` — a FULL-FACE projector that zeroed the
+    ``IncomingOrdinateMaskTensor`` — a FULL-FACE projector that zeroed the
     inflow rows and *preserved* the outflow ones — and these tests asserted
     that pass-through. Two campaign phases documented the preserved rows as
     having "no consumer today"; B3.2 removes the question instead of answering
