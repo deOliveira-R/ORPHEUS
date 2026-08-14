@@ -43,17 +43,25 @@ order:
 2. **V compatibility** (polynomial exactness, "vague" / Galerkin sense).
    :math:`\deg(Q) \ge d` — the rule's degree of exactness must reach at
    least the target. Most rules have a parameter-dependent degree
-   (:math:`2n - 1` for Gauss-Legendre, :math:`N - 1` for level-symmetric
-   :math:`S_N`, ``order`` for Lebedev), and the selector inverts this
-   to choose the smallest parameter set satisfying the constraint.
+   (:math:`2n - 1` for Gauss-Legendre, ``order`` for Lebedev), and the
+   selector inverts this to choose the smallest parameter set satisfying
+   the constraint. ⚠ Level-symmetric :math:`S_N` has **no formula**: its
+   realized degree is build-measured, and :math:`N - 1` is only a lower
+   bound the inversion uses — see :func:`_ls_sn_invert` for the measured
+   table and the over-shoot it causes. (This list read ":math:`N - 1` for
+   level-symmetric :math:`S_N`" as though it were the degree, until
+   2026-08-14.)
 3. **Structural compatibility**.
    Boolean flags the consumer can request (``positive_weights``,
    ``axis_aligned``, ``level_structured``, ``half_range_clean``) — the
    rule's flag set must be a superset of the requested set.
 4. **Minimum points**.
-   Among rules passing 1-3, pick the smallest :math:`N`. This is the
+   Among rules passing 0-3, pick the smallest :math:`N`. This is the
    cost minimisation: each ordinate is a sweep direction in the SN
-   solver, and sweeps dominate the runtime.
+   solver, and sweeps dominate the runtime. The count is read off the
+   **built** measure, which stages 0 and 1 have already forced into
+   existence — never from a parallel formula that could drift from it.
+   (Read "passing 1-3" here until 2026-08-14, from before stage 0.)
 
 Formally,
 
@@ -271,10 +279,24 @@ _LEBEDEV_ORDERS: tuple[int, ...] = (
 class QuadratureSpec:
     r"""Tagged registry entry for a single quadrature rule.
 
-    Each spec captures what :func:`select_quadrature` needs to *rank*
-    the rule without instantiating it: the polynomial-exactness degree
-    formula, the structural flags, the node-count formula, the
-    parameter-inversion logic.
+    Each spec captures what :func:`select_quadrature` needs to reach a
+    candidate rule: the parameter-inversion logic, the structural flags,
+    and the factory.
+
+    ⛔ It read "…needs to *rank* the rule **without instantiating it**:
+    … the node-count formula …" until 2026-08-14, and carried an
+    ``expected_node_count`` callable to serve that. The premise had not
+    held since the 2026-08-02 stage-0/1 rework: :func:`select_quadrature`
+    **must** instantiate every surviving candidate, because stages 0 and 1
+    ask the nodes. So the cost was computed twice — once as a formula here,
+    once implicitly by the measure the selector was already holding — and
+    `[M]` the two agreed on all 25 shipped configurations, which is exactly
+    what makes a twin source dangerous rather than safe. The rank now reads
+    :attr:`~orpheus.numerics.measure.DiscreteMeasure.n_points` off the built
+    measure, so a formula cannot drift from the rule it claims to describe.
+    (The first family that would have broken it already exists:
+    ``folded_product`` quotients by a mirror, so ``n_mu * n_phi``
+    over-counts it by 2×.)
 
     It deliberately carries **no invariance group**. A rule's symmetry
     is parameter-dependent (``product_mu_phi``'s is
@@ -315,27 +337,6 @@ class QuadratureSpec:
         no parameter combination supported by this rule reaches the
         target degree (e.g., a Lebedev order higher than scipy's
         tabulated 47).
-    expected_node_count : callable
-        Maps a parameter dict to the resulting number of nodes. Used
-        by the **minimum-points** tie-break stage. Always pure — it does
-        not call :attr:`factory`.
-
-        ⛔ This entry read "…so the selector stays cheap" until 2026-08-14.
-        The purity is real; the consequence is not, and has not been since
-        two independent changes put construction on the selection path:
-        :func:`select_quadrature` **instantiates every surviving candidate**
-        (stages 0 and 1 need the nodes), and :func:`_ls_sn_invert` builds a
-        rule to discover the family's frontier. `[M]` 2026-08-14, wall-clock
-        per call at ``target_degree=31``: slab **26.985 s**, sphere
-        **32.419 s**, cylinder **29.040 s**, cartesian2d **28.987 s** — and a
-        *slab* pays 27 s to construct a level-symmetric rule it can never
-        select, because the V stage runs before the domain stage. Below
-        degree 21 every geometry is under 0.8 s.
-        ⟹ the honest statement is the one already made on
-        :func:`_ls_sn_invert`: selection is not a hot path (`[M]` zero
-        production consumers), so the construction cost is affordable. This
-        docstring asserted cheapness while that one asserted affordability —
-        two claims about the same fact, one of them false, 157 lines apart.
     positive_weights : bool
         Are all weights non-negative? Standard for Gauss-Legendre,
         Lebedev, level-symmetric :math:`S_N`, product. Negative-weight
@@ -368,7 +369,6 @@ class QuadratureSpec:
     factory: Callable[..., Any]
     parameters: dict[str, type]
     degree_of_exactness_for: Callable[[int], dict[str, Any] | None]
-    expected_node_count: Callable[[dict[str, Any]], int]
     positive_weights: bool
     axis_aligned: bool
     level_structured: bool
@@ -433,10 +433,6 @@ def _gl1d_invert(target_degree: int) -> dict[str, Any] | None:
     return {"n": n_min}
 
 
-def _gl1d_node_count(params: dict[str, Any]) -> int:
-    return int(params["n"])
-
-
 def _lebedev_invert(target_degree: int) -> dict[str, Any] | None:
     """Lebedev: ``deg = order``; pick the smallest tabulated order.
 
@@ -453,18 +449,6 @@ def _lebedev_invert(target_degree: int) -> dict[str, Any] | None:
             return {"order": order}
     return None
 
-
-# Lebedev node count per order — taken from the SciPy tabulation so
-# the selector knows how cheap each candidate is without instantiating.
-_LEBEDEV_NODE_COUNTS: dict[int, int] = {
-    3: 6, 5: 14, 7: 26, 9: 38, 11: 50, 13: 74, 15: 86, 17: 110,
-    19: 146, 21: 170, 23: 194, 25: 230, 27: 266, 29: 302, 31: 350,
-    35: 434, 41: 590, 47: 770,
-}
-
-
-def _lebedev_node_count(params: dict[str, Any]) -> int:
-    return _LEBEDEV_NODE_COUNTS[int(params["order"])]
 
 
 def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
@@ -488,8 +472,8 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
     back through this inverter returns an order **2 higher than the one that
     achieves it, at 6 of the 9 buildable orders** — e.g. target degree 5 is met
     by :math:`S_4` (24 nodes) and this returns :math:`S_6` (48 nodes).
-    ⟹ the consequence is **cost, not correctness**: stage 4 ranks by
-    :func:`_ls_sn_node_count`, so the family is systematically priced at up to
+    ⟹ the consequence is **cost, not correctness**: stage 4 ranks by the built
+    measure's node count, so the family is systematically priced at up to
     :math:`2\times` its true cost and can lose the minimum-points tie-break to
     a rule it should beat. Tracked as a follow-up; the fix is to read
     ``degree_of_exactness`` off the build this function already performs and
@@ -558,18 +542,6 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
     return {"sn_order": n_min}
 
 
-def _ls_sn_node_count(params: dict[str, Any]) -> int:
-    """Level-symmetric :math:`S_N` total node count.
-
-    Carlson-Lathrop construction: per octant there are
-    :math:`(N/2)(N/2 + 1)/2 = N(N + 2)/8` ordinates; total over the
-    8 octants is :math:`N(N + 2)`. Verified against the rule-side
-    constructor for :math:`N = 4, 8, 16` (4·6=24, 8·10=80, 16·18=288).
-    """
-    n = int(params["sn_order"])
-    return n * (n + 2)
-
-
 def _product_invert(target_degree: int) -> dict[str, Any] | None:
     """Product GL :math:`\\times` equispaced :math:`\\phi`.
 
@@ -601,10 +573,6 @@ def _product_invert(target_degree: int) -> dict[str, Any] | None:
     return {"n_mu": n_mu_min, "n_phi": n_phi_min}
 
 
-def _product_node_count(params: dict[str, Any]) -> int:
-    return int(params["n_mu"]) * int(params["n_phi"])
-
-
 # ---------------------------------------------------------------------------
 # Registry population
 # ---------------------------------------------------------------------------
@@ -616,7 +584,6 @@ quadrature_registry: list[QuadratureSpec] = [
         factory=gauss_legendre_on_mu,
         parameters={"n": int},
         degree_of_exactness_for=_gl1d_invert,
-        expected_node_count=_gl1d_node_count,
         positive_weights=True,
         axis_aligned=True,        # 1-D nodes ARE the axis (μ-axis)
         level_structured=False,    # no per-mu sub-levels (it IS the mu axis)
@@ -627,7 +594,6 @@ quadrature_registry: list[QuadratureSpec] = [
         factory=lebedev_sphere,
         parameters={"order": int},
         degree_of_exactness_for=_lebedev_invert,
-        expected_node_count=_lebedev_node_count,
         positive_weights=True,
         axis_aligned=True,         # Lebedev grids include axis-aligned orbits
         level_structured=False,    # no polar-level structure (Oh orbits)
@@ -638,7 +604,6 @@ quadrature_registry: list[QuadratureSpec] = [
         factory=level_symmetric_sn,
         parameters={"sn_order": int},
         degree_of_exactness_for=_ls_sn_invert,
-        expected_node_count=_ls_sn_node_count,
         positive_weights=True,
         axis_aligned=False,        # LS_N nodes never lie on coordinate axes
         level_structured=True,     # canonical N/2 polar levels per hemisphere
@@ -649,7 +614,6 @@ quadrature_registry: list[QuadratureSpec] = [
         factory=product_mu_phi,
         parameters={"n_mu": int, "n_phi": int},
         degree_of_exactness_for=_product_invert,
-        expected_node_count=_product_node_count,
         positive_weights=True,
         axis_aligned=False,        # depends on phi grid; conservatively False
         level_structured=True,     # n_mu polar levels by construction
@@ -1040,8 +1004,10 @@ def select_quadrature(
             continue
 
         # ---- Stage 4: cost (minimum points) tracked here -------------
-        n_nodes = spec.expected_node_count(params)
-        candidates.append((spec, params, n_nodes, measure))
+        # The cost is the measure's OWN node count. Stages 0 and 1 have
+        # already built it, so a second, formula-shaped source for the same
+        # number would be a twin that can only ever drift.
+        candidates.append((spec, params, measure.n_points, measure))
 
     def _selection_log(
         chosen_spec: QuadratureSpec | None,

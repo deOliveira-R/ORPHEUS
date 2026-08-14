@@ -65,18 +65,31 @@ def test_registry_population() -> None:
 
 @pytest.mark.foundation
 def test_registry_specs_are_well_formed() -> None:
-    """Every spec must have callable inversion / node-count.
+    """Every spec must have a callable factory and inversion.
 
     A spec deliberately carries NO invariance group: a rule's symmetry
     is parameter-dependent, so a parameter-free field cannot state it
     truthfully. The selector computes it from the built measure.
+
+    ⭐ It carries no ``expected_node_count`` either, for the same reason
+    one level down. The cost is a property of the rule the selector has
+    *already built* (stages 0 and 1 force the instantiation), so a
+    formula-shaped second source could only ever drift from it. `[M]`
+    2026-08-14 the two agreed on all 25 shipped configurations — which is
+    what makes a twin dangerous rather than safe — and the first family
+    that would have broken it already exists: ``folded_product``
+    quotients by a mirror, so ``n_mu * n_phi`` over-counts it by 2x.
+
+    Both absence assertions below are the load-bearing half of this
+    gate: they are what stops either field being re-added by a
+    contributor who reads the selector and reaches for a cheap tag.
     """
     for spec in quadrature_registry:
         assert isinstance(spec, QuadratureSpec)
         assert callable(spec.factory)
         assert callable(spec.degree_of_exactness_for)
-        assert callable(spec.expected_node_count)
         assert not hasattr(spec, "invariance_group")
+        assert not hasattr(spec, "expected_node_count")
         assert isinstance(spec.parameters, dict)
         assert all(isinstance(t, type) for t in spec.parameters.values())
         # Structural-flags accessor must surface the four flags.
@@ -357,6 +370,63 @@ def test_select_cylinder_rejects_odd_azimuthal_product_rule() -> None:
     )
     assert log_even.chosen_spec is not None
     assert log_even.chosen_spec.name == "ProductQuadrature"
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "geometry", ["slab", "sphere", "cylinder", "cartesian2d"],
+)
+def test_the_winner_really_is_the_argmin_over_the_survivors(
+    geometry: str,
+) -> None:
+    r"""Stage 4 states :math:`\arg\min\{n(Q)\}` — pin the ``argmin``.
+
+    The four ``test_select_*`` gates pin stage 4 by EXAMPLE (Lebedev's 14
+    nodes beat 48 and 18 on ``cartesian2d``). This pins the *criterion*:
+    across every geometry, no rule that survived stages 0-3 has fewer
+    nodes than the one that was returned.
+
+    The survivor set is read from the log's own rejection list rather than
+    re-derived here, so this does not re-implement the filter — it checks
+    only the minimisation, which is the one part of the criterion no
+    per-example gate states in general.
+
+    Independent of the cost SOURCE by construction: it would redden for a
+    reversed sort, an off-by-one in the tie-break, or a candidate tuple
+    whose cost slot drifted away from the measure it accompanies.
+
+    ⚠ **2 of these 4 rows cannot catch an argmin bug, and say so here
+    rather than being counted as coverage** (``vv-principles`` #20). `[M]`
+    2026-08-14 at ``target_degree=5``: ``slab`` and ``sphere`` leave a
+    **singleton** survivor set (only ``GaussLegendre1D``, 4 nodes — the
+    three :math:`S^2` rules are rejected on domain), so no ordering over it
+    can be wrong and the loop's assertion is trivially true. Only
+    ``cylinder`` and ``cartesian2d`` have a real choice
+    (``LebedevSphere``\ =14, ``ProductQuadrature``\ =18,
+    ``LevelSymmetricSN``\ =48; winner 14).
+    ⟹ mutation-verified at **2 rows**, not 4: `[M]` replacing the stage-4
+    sort with ``reverse=True`` reddens 3 gates (both real rows here, plus
+    ``test_select_cartesian2d_prefers_lebedev_over_ls_sn``) and leaves the
+    two singleton rows green. The singleton rows are kept anyway — they
+    still assert that every geometry admits *something* and that each
+    survivor's inversion is non-``None`` — but they are not evidence about
+    the minimisation.
+    """
+    measure, log = select_quadrature(geometry, target_degree=5)
+    rejected_names = {name for name, _ in log.rejected}
+    survivors = [s for s in quadrature_registry if s.name not in rejected_names]
+    assert survivors, f"{geometry}: nothing survived, so there is no argmin"
+
+    for spec in survivors:
+        params = spec.degree_of_exactness_for(5)
+        assert params is not None, (
+            f"{spec.name} survived stage 2 but its inversion returns None"
+        )
+        assert measure.n_points <= spec.build(params).n_points, (
+            f"{geometry}: {log.chosen_spec.name if log.chosen_spec else '?'} "
+            f"was returned with {measure.n_points} nodes, but {spec.name} "
+            f"survived every stage with fewer"
+        )
 
 
 @pytest.mark.foundation
