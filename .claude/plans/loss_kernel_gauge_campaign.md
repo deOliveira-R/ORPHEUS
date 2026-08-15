@@ -24,7 +24,7 @@ is on `main`** — the whole campaign is unmerged. Re-check; do not trust this l
 | **3** — `InverseMetricOperator` | ✅ LANDED `5def63b0` | `numerics/operator.py` |
 | **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
 | **5** — fire it, warn, record | ✅ LANDED `b51bc802` | `sn/solver.py` ×5, `sn/solution.py`, +9 doc files |
-| **6** — the two operator-algebra holes | ▢ **RE-SCOPED — read the pointer** | user ruled: fix both |
+| **6** — the two operator-algebra holes | ⏹ **CLOSED BY FILING** 2026-08-15 | #375 + #374; #213 corrected. ⛔ its own title was wrong — see §Step 6 |
 | **7** — promote the characterization suite | ▢ **RE-SCOPED — read the pointer** | task #78 |
 
 `[M]` **the green baseline at `b51bc802`**, which is what a regression is measured
@@ -35,6 +35,34 @@ V&V matrix **9837** (= a live `--collect-only`; keep them equal).
 ⚠ The wide gate has NOT been run since Step 3 — budget ≥ 90 min before merging.
 
 ---
+
+### ⏹ STEP 6 — CLOSED BY FILING, 2026-08-15 (user ruling). Not built here.
+
+**Resolution.** Both holes are filed with their measured demonstrations and are
+**out of this campaign's scope**: `[M]` neither has a consumer here, both are
+shared numerics needing their own gate sets plus a wide re-run, and the campaign
+had no reason to carry them into an unrelated merge.
+
+* **#375** — the `_AdjointOperator` dead end (`A.H.H` unreachable).
+* **#374** — `OperatorSum.is_invertible` answers a different question than its name.
+* **#213** — the principled home for both; its body was corrected in place
+  (`[M]` its described `CAP_*`/`_has`/`MissingCapability` mechanism is **0 hits**
+  in `orpheus/`, retired at #226 — building to it as written would chase a
+  mechanism that no longer exists).
+
+⛔ **And the step's own TITLE was wrong** — `plan-authoring` §1. *"An operator
+cannot CLAIM an inverse or adjoint it does not have"* describes **Hole 2 only**.
+`[M]` `LinearOperator.is_adjointable` defaults to `False` and `_AdjointOperator`
+does not override it, so the wrapper reports `is_adjointable = False` **and then
+raises** — advertisement and behaviour AGREE. Hole 1 is an honest capability gap
+(a raising stub where the base declares no method at all, plus an algebra that
+does not close), never a mis-claim. A session building to the title would have
+gone looking for a predicate bug that does not exist. The original framing is
+kept below, per §3.
+
+---
+
+*Original text, kept as the record of what was asked:*
 
 ### ▶ STEP 6 — the outcome: an operator cannot CLAIM an inverse it does not have
 
