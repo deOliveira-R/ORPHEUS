@@ -21,7 +21,7 @@ merged — verify with `git merge-base --is-ancestor <hash> HEAD`.
 | **1** — single-source `Solution` construction | ⛔ **WITHDRAWN**, premise refuted | see §Step 1 below |
 | **2** — the derived predicate (both halves) | ✅ LANDED `5def63b0` | `transport/spatial/scheme.py`, `sn/mesh/augmented_mesh.py` |
 | **3** — `InverseMetricOperator` | ✅ LANDED `5def63b0` | `numerics/operator.py` |
-| **4** — `LossKernelGauge` | ▢ not started | — |
+| **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
 | **5** — fire it + the warning + the record | ▢ not started | — |
 | **6** — the two operator-algebra holes | ▢ not started | user ruled: fix both |
 | **7** — promote the characterization suite | ▢ designed + measured, NOT executed | task #78 |
@@ -31,13 +31,52 @@ clean.** Neighbourhood 281 passed / 1 skipped, 22.78 s; `npx pyright` 0 errors
 on the three production files. **Pure addition — nothing consumes either
 surface yet, so no behaviour changed.**
 
-### ▶ Where work resumes — Step 4, and what it may now assume
+`[M]` `f934ff57` (Step 4): **51 gates, 12-leg mutation battery, control clean,
+every arm attributed to the gate it reddens.** Neighbourhood 3741 passed /
+1 skipped / 5 xfailed; Sphinx `-W` clean; `npx pyright` clean. **Still pure
+addition — nothing fires the gauge yet.**
 
-The predicate is callable and gated. `Π = R ∘ G⁻¹ ∘ M` is now *spellable*:
-`frame.conjugate(InverseMetricOperator(frame.gram))`, gated by
-`test_the_frame_can_now_spell_its_own_projector`. What remains is the
-`LossKernelBasis` (the closed-form modes as a `Basis`), the caching, and the
-firing.
+### ▶ Where work resumes — Step 5: FIRE it, warn, and record
+
+`mesh.loss_kernel_gauge` is built, cached and gated; `gauge_freedom(mesh)`
+answers the three-state predicate with a sentence to quote. **Nothing calls
+either.** Step 5 is the wiring:
+
+1. **Fire** `gauge.gauge(boundary.values)` at each public exit that returns a
+   trace. Follow the `_exit_balance_defect` pattern (`[M]` 4 call sites — N
+   invocations of one function is the house pattern, not a twin path; Step 1's
+   "unify the construction sites" premise was withdrawn on evidence, see below).
+2. ⚠ **The coverage gate that replaces the withdrawn Step 1.** A gauge MUTATES
+   where those hooks only REPORT, so a forgotten site returns a silently
+   ungauged answer. Enumerate the public entries and assert each one gauges.
+3. **Warn** per ruling R2b, and **loudly on UNDETERMINED** — `GaugeFreedom.because`
+   is written to be quoted verbatim. Follow the #340 `ConvergenceWarning` family.
+4. **Record** on `IterationHistory` following the `balance_defect` precedent
+   (`solution.py:197`), with the same `None`-means-*not-measured* discipline.
+5. ⚠ **Decide the Krylov arm explicitly.** Its returned `boundary` is *"the
+   matvec's B1'' face residual"* by the code's own comment, not a flux trace.
+   Projecting a **defect** off `ker A` is a no-op by residual-neutrality — so
+   either it is the wrong thing to return, or it must be exempted. Say which,
+   **in the code**.
+
+**What Step 4 established that Step 5 may assume** (do not re-derive):
+
+- `LossKernelGauge` is an endomorphism of the **trace** space, carrier = the
+  flat `boundary.values` array. It is NOT a full-field operator: `[M]`
+  `FullFieldSpace`'s carrier is the typed composite, so a `np.take` gather
+  declaring it as domain is *a lie that the `(name, shape)` composability guard
+  cannot catch*.
+- A **zero-block** gauge is the honest answer to a non-singular configuration —
+  `gauge()` is then the identity. **No consumer needs a `None` branch.**
+- Residual-neutrality is **gated**, not assumed
+  (`test_gauging_cannot_move_any_convergence_certificate`, all 6 fixtures), so
+  firing at a converged exit cannot move a certificate.
+- Component **T** is left bit-unchanged, gated under `product(4,4)` where half
+  the trace rows are tangential.
+- `[M]` cost, single-process: build **4.0 ms** (d2 (3,4)) / **22.3 ms**
+  (d3 (3,4,5)); apply **97.8 µs** / **215.8 µs**. ⚠ These SUPERSEDE the relayed
+  `0.094 ms`, which did not reproduce. Build is 1.8× faster than the memo's
+  41.1 ms (the fused SVD); apply is 2.3× slower (the frame chain).
 
 ⚠ **Existence-check before designing** (`plan-authoring` §1): `LossKernelGauge`,
 `LossKernelBasis` — `[M]` **0 hits in `orpheus/`** as of `5def63b0`. Neither
