@@ -9,7 +9,125 @@
 
 ---
 
-## ⏸ COMPACTION POINT — 2026-08-14. Steps 0, 2, 3 LANDED. Step 1 WITHDRAWN.
+## ⏸ COMPACTION POINT #2 — 2026-08-15. Steps 0–5 LANDED. Only 6 and 7 remain.
+
+**Re-anchor from THIS FILE + `git log`, never from a conversation summary.**
+Branch `refactor/track-b-remainder`, **16 commits** ahead of `main`.
+`[M]` `5def63b0`, `f934ff57`, `b51bc802` are all ancestors of HEAD and **none
+is on `main`** — the whole campaign is unmerged. Re-check; do not trust this line.
+
+| step | state | where |
+|---|---|---|
+| **0** — does the finalize sweep carry `ker A`? | ✅ YES | `scratch/probe_344_step0_finalize_sweep.py` |
+| **1** — single-source `Solution` construction | ⛔ WITHDRAWN, premise refuted | §Step 1 below |
+| **2** — the derived predicate | ✅ LANDED `5def63b0` | `transport/spatial/scheme.py`, `sn/mesh/augmented_mesh.py` |
+| **3** — `InverseMetricOperator` | ✅ LANDED `5def63b0` | `numerics/operator.py` |
+| **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
+| **5** — fire it, warn, record | ✅ LANDED `b51bc802` | `sn/solver.py` ×5, `sn/solution.py`, +9 doc files |
+| **6** — the two operator-algebra holes | ▢ **RE-SCOPED — read the pointer** | user ruled: fix both |
+| **7** — promote the characterization suite | ▢ **RE-SCOPED — read the pointer** | task #78 |
+
+`[M]` **the green baseline at `b51bc802`**, which is what a regression is measured
+against: `tests/sn` **3119 passed / 1 skipped / 57 xfailed**, 14:40;
+`tests/transport + numerics + derivations` **4449 passed / 14 skipped /
+11 xfailed**, 46:32. Sphinx `-W` **exit 0, zero output**. `npx pyright` clean.
+V&V matrix **9837** (= a live `--collect-only`; keep them equal).
+⚠ The wide gate has NOT been run since Step 3 — budget ≥ 90 min before merging.
+
+---
+
+### ▶ STEP 6 — the outcome: an operator cannot CLAIM an inverse it does not have
+
+⚠ **Its stated motive evaporated. Re-justify before building.** The plan says
+Hole 1 is needed because *"a self-adjoint projector is that consumer"*. `[M]`
+at `b51bc802`, instrumenting `_AdjointOperator.__init__` across the gauge's
+build + `apply` + `gauge` + `apply_transpose`: **0 constructions**.
+`LossKernelGauge` implements `apply_transpose` directly (`Πᵀ = Π` is a theorem
+here, and routing through the adjoint machinery would be slower and no more
+correct). **The gauge is NOT Hole 1's consumer.** Both holes are still real
+defects in shared numerics; neither is blocked-on by this campaign, so this
+step is now *elective* and should be justified on its own terms or dropped.
+
+**Hole 1** — `[M]` still present at `b51bc802`:
+`orpheus/numerics/operator.py:1239` `class _AdjointOperator`, whose
+`apply_transpose` raises `NotImplementedError` *"until a consumer demands it"*,
+and which does not override `is_adjointable`. ⚠ Shared numerics with consumers
+far beyond this campaign — needs its own gates and a wide re-run.
+
+**Hole 2** — the fix is a **typed complement**, NOT a change to
+`OperatorSum.is_invertible`. `[M]` that predicate returns the left-spine head
+and is *deliberate*: its docstring at `operator.py:~1497` documents the
+canonical-ordering contract designating the splitting's `GreenOperator`
+preconditioner. `[M]` no typed complement exists — the only
+`is_invertible → False` in the module is `TraceRestrictionOperator:2779`, which
+is the ABSENCE-spelling precedent `LossKernelGauge` already follows.
+
+▸ **And file the general defect**, which predates all of this: `I + (−1)·I`
+is the zero map and reports `is_invertible = True`. `[M]` **not filed** — a
+`gh issue list --search "invertible sum"` at `b51bc802` returns nothing
+relevant. Invertibility is spectral, not structural, so this is a real
+mis-claim the type system cannot currently refuse.
+
+### ▶ STEP 7 — the outcome: the #344 characterization runs in CI, and its names are true
+
+`[M]` **the diagnostic is NOT broken by Step 5 — but two of its names now are.**
+Run at `b51bc802`:
+`.venv/bin/python -O -m pytest derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py`
+→ **24 passed in 165 s (2:45)**.
+
+⚠ **Task #78's numbers are stale**: it says *"40 tests ≈ 53 s"*. `[M]` **24
+tests, 165 s**. Re-measure before deciding `slow`; 165 s is over most budgets.
+
+⛔ **Two test NAMES describe a defect Step 5 repealed** (`plan-authoring` §3's
+"a fact can die by being FIXED"). They still pass, and legitimately — `[M]`
+both call `_solve(...)`, the SI **driver**, never a public entry (`:510`,
+`:571`, `:605`), so they measure the ungauged driver, which is unchanged:
+
+* `test_the_returned_boundary_trace_depends_on_the_SPLITTING` (`:493`) — the
+  **returned** trace no longer does; the *driver's* does. Promoted verbatim,
+  this lands an authoritative name asserting a user-visible defect that no
+  longer reaches users.
+* `test_the_gauss_seidel_trace_error_is_first_order_in_h` (`:582`) — same tier
+  confusion.
+
+⟹ **re-title both to name the DRIVER**, and add the missing counterpart: that
+the *public entry* no longer has the property. (`tests/sn/solve/test_every_entry_gauges_its_trace.py`
+already asserts the repaired side.)
+
+✅ **What Step 7 still genuinely adds** — `[M]` of the diagnostic's 13 test
+functions, these have **no** counterpart in the two committed suites and are
+the reason to promote it at all:
+
+| diagnostic test | why it is not already covered |
+|---|---|
+| `test_product_quadrature_kernel_splits_into_tangential_plus_a_remainder` | the `dim ker = T + R` table; the shipped suites scope to **R only** |
+| `test_both_convergence_functionals_are_blind_to_ker_A_but_not_to_a_control` | blindness of residual + balance **with a positive control** |
+| `test_the_trace_metric_SEES_ker_A_even_though_it_annihilates_tangential_rows` | the R/T separation by the metric's zero-set |
+| `test_the_exact_solution_is_the_minimum_G_norm_member_of_the_manifold` | the **canonicality theorem** — why the gauge is not a convention |
+| `test_both_schedules_are_splittings_of_the_SAME_A` | `M − N ≡ A` bit-exactly |
+| `test_the_gauss_seidel_inverse_is_exact_on_the_DRIVER_RHS_subspace` | the coherence of the splitting |
+| `test_kernel_free_configs_give_the_SAME_TRACE_under_both_schedules` | the negative control on the whole disposition |
+| `test_the_err056_first_group_reflect_mutation_reddens_the_coherence_gate` | the ERR-056 mutation control |
+
+The other 5 ARE covered (counting law, vacuum-face collapse, LS-has-no-tangential,
+and the two re-titled above) — do not duplicate them.
+
+▸ ⚠ `docs/theory/verification/matrix.rst` is a committed generated artifact.
+Regenerate (`sphinx-build`) and stage it, and check the collected count matches.
+
+### ▶ Also outstanding, not part of 6 or 7
+
+* **The changelog row is written but NOT landed** — `docs/theory/methods/sn/history.rst`
+  requires a merge hash (*"or not at all"*) and there is none. The ready-to-paste
+  row is in the archivist's Step-5 report; land it in the merging session.
+* `[M]` **`scratch/issue_344_kernel_basis.md` is still untracked.** Its §3
+  13-configuration dense-SVD table is now folded into
+  `tests/sn/operators/test_loss_kernel_gauge.py`'s module docstring, so the
+  oracle is safe; the rest is derivation history that will evaporate.
+
+---
+
+## ⏸ COMPACTION POINT #1 (superseded) — 2026-08-14. Steps 0, 2, 3 LANDED. Step 1 WITHDRAWN.
 
 **Re-anchor from THIS FILE + `git log`, never from a conversation summary.**
 Branch `refactor/track-b-remainder`, **12 commits** ahead of `main`, ⚠ not
@@ -114,7 +232,7 @@ and unfalsifiable (`plan-authoring` §6c). This is `vv-principles` #13's
 congruence-class trap for the SECOND time in this campaign — the first was
 `sawtooth_sign_always_positive` failing to redden `(2,2,2)`.
 
-### ▶ Where work resumes — Step 5: FIRE it, warn, and record
+### ✅ Step 5 — LANDED `b51bc802`. Pointer kept as the record of what was asked.
 
 `mesh.loss_kernel_gauge` is built, cached and gated; `gauge_freedom(mesh)`
 answers the three-state predicate with a sentence to quote. **Nothing calls
