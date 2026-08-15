@@ -908,6 +908,47 @@ class SNMesh(MaterialMesh):
         )
 
     @cached_property
+    def reflective_axis_pairs(self) -> int:
+        r"""How many axes are reflective at BOTH endpoints.
+
+        The geometry half of the gauge-freedom predicate; the closure
+        half is
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`.
+        An undamped face mode only closes into a null vector if it can
+        return to itself, which needs a **closed** reflective loop —
+        one axis reflective at both ends gives a there-and-back path,
+        and `[M]` (#344) two such axes are what the loss operator's
+        kernel actually requires: at ``d = 2`` a single vacuum face
+        collapses ``dim ker A`` from 12 to 0.
+
+        Counts PAIRS, not faces, and that distinction is load-bearing:
+        a *mixed* axis (one face reflective, one vacuum) contributes
+        nothing, because the outbound leg escapes.  Derived from
+        :attr:`bc` through :attr:`FaceLabel.face_name` — the same
+        single-sourced crosswalk the trace layout and the sweep
+        schedule key on — so a face inventory that grows a dimension
+        is counted correctly with no edit here.
+
+        ⚠ Reads the *realized law*, not the tag a caller passed:
+        ``resolve_boundary_conditions`` fills unset faces with
+        ``BC("reflective")``, so a bare ``SNMesh(mesh, quad, mats)`` is
+        all-reflective and this returns :attr:`ndim`.
+        """
+        from orpheus.geometry.boundary.reflective import ReflectiveBoundary
+
+        by_axis: dict[int, list[bool]] = {}
+        for label in self.face_labels:
+            bound = self.bc.get(label.face_name)
+            by_axis.setdefault(label.axis_index, []).append(
+                bound is not None
+                and isinstance(bound.law, ReflectiveBoundary)
+            )
+        return sum(
+            1 for faces in by_axis.values()
+            if len(faces) == 2 and all(faces)
+        )
+
+    @cached_property
     def radial_characteristic_field_space(self) -> "FullFieldSpace | None":
         r"""System B's member space — the ψ½ ``interior ⊕ boundary`` composite, or ``None``.
 

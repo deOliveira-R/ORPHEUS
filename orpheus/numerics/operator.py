@@ -176,6 +176,7 @@ __all__ = [
     "ZeroOperator",
     "PermutationOperator",
     "TraceRestrictionOperator",
+    "InverseMetricOperator",
     "DiagonalOperator",
     "RankOneOperator",
     "outer",
@@ -3066,6 +3067,92 @@ class SumOfTensorProductsOperator(LinearOperator):
         # is. (Solve does not propagate through sums, so is_invertible
         # inherits the base ``False``.)
         return all(s.is_adjointable for s in self.summands)
+
+
+class InverseMetricOperator(LinearOperator):
+    r"""A :class:`~orpheus.numerics.space.FunctionSpace`'s inverse metric, as an OPERATOR.
+
+    :math:`G^{+} : V^{*} \to V` — the adapter that lets a space's metric
+    enter the operator algebra instead of only being *applied* to arrays.
+
+    **Why this exists (the one missing link).** The projection algebra is
+    already factored, and the tree says so:
+    :math:`\Pi = R \circ G^{-1} \circ M` — reconstruction ∘ inverse-Gram ∘
+    analysis (:mod:`orpheus.numerics.frame`,
+    :class:`~orpheus.numerics.basis.IndicatorBasis`).  But
+    :attr:`~orpheus.numerics.frame.FrameBase.gram` returns a
+    ``FunctionSpace``, and :meth:`~orpheus.numerics.frame.FrameBase.conjugate`
+    takes a ``LinearOperator`` — so :math:`G^{-1}` could not be *spelled*,
+    and :meth:`~orpheus.numerics.frame.FrameBase.project` had to stop at
+    coefficients (it is :math:`G^{-1}M`, never :math:`R\,G^{-1}M`).  With
+    this adapter ``frame.conjugate(InverseMetricOperator(frame.gram))`` IS
+    the G-orthogonal projector onto ``span(basis)``, built from machinery
+    that already exists and already carries spaces.
+
+    **The arithmetic is the SPACE's, not ours** (Cardinal Rule 2): every
+    apply delegates to
+    :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric`, so
+    the Moore–Penrose masking on a degenerate metric —
+    :math:`1/G` where :math:`G \neq 0`, **0** on
+    :math:`\ker G` — is single-sourced there and cannot drift.  That
+    masking is not academic: `[M]` the SN trace metric
+    :math:`G = |\Omega\cdot\hat n|\,w_n` is **exactly zero** on tangential
+    ordinates — 50 % of rows under ``product(4,4)``, 16 % under
+    ``lebedev(11)``, 0 % under ``level_symmetric``.
+
+    ⛔ **Not invertible, and it says so by ABSENCE.** On a degenerate
+    metric this is a pseudo-inverse, so ``G⁺G ≠ I`` and there is no
+    ``inverse()`` method to call — the
+    :class:`TraceRestrictionOperator` spelling, not a raising stub
+    (:attr:`is_invertible` stays ``False``).  ⚠ Consequently
+    ``InverseMetricOperator(space)`` composed with a forward metric does
+    **not** cancel; if you want the round trip, assert it on a field you
+    know is off the null space.
+
+    Self-adjoint: the metric is a positive-semi-definite diagonal weight,
+    so :math:`(G^{+})^{\mathsf T} = G^{+}` and ``apply_transpose`` is
+    ``apply``.
+
+    Parameters
+    ----------
+    space :
+        The space whose metric to invert.  Serves as BOTH ``domain`` and
+        ``codomain`` — the metric is an endomorphism of the carrier's
+        shape (it re-weights, it does not move between spaces), and
+        binding both ends is what lets
+        :class:`OperatorProduct`'s compatibility guard check the
+        composition.
+    """
+
+    def __init__(self, space: FunctionSpace) -> None:
+        self._space = space
+
+    @property
+    def space(self) -> FunctionSpace:
+        """The space whose metric this inverts."""
+        return self._space
+
+    @property
+    def domain(self) -> Optional[FunctionSpace]:
+        return self._space
+
+    @property
+    def codomain(self) -> Optional[FunctionSpace]:
+        return self._space
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        return self._space.apply_inverse_metric(x)
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        # Self-adjoint: a real diagonal weight is its own transpose.
+        return self._space.apply_inverse_metric(x)
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+    def __repr__(self) -> str:
+        return f"InverseMetricOperator({self._space!r})"
 
 
 class DiagonalOperator(LinearOperator):

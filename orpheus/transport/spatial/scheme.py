@@ -61,6 +61,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
+from functools import cache
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
@@ -256,6 +258,163 @@ class CellResult:
     cell_average_flux: np.ndarray
     outgoing_spatial_flux: np.ndarray | None = None
     outgoing_angular_state: np.ndarray | None = None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Face-transmission damping — the gauge-freedom half that belongs to the
+# CLOSURE (the other half is the boundary set; see
+# ``SNMesh.reflective_axis_pairs``)
+# ═══════════════════════════════════════════════════════════════════════
+
+class FaceModeDamping(Enum):
+    r"""Does this closure damp every mode of its own face transmission?
+
+    The three states are genuinely distinct and the third is not a
+    failure to be swallowed: ``UNDETERMINED`` means *we could not ask*,
+    which is neither "there is freedom" nor "there is none".
+    """
+
+    DAMPED = "damped"
+    r"""Every face mode decays.  A reflective loop cannot sustain one."""
+
+    UNDAMPED = "undamped"
+    r"""Some face mode survives transmission unattenuated (:math:`|\lambda| = 1`).
+    Around a closed reflective loop it returns to itself, so the assembled
+    loss operator acquires a null space — a GAUGE FREEDOM."""
+
+    UNDETERMINED = "undetermined"
+    r"""The closure could not be driven at this dimension.  Callers MUST
+    treat this as "unknown", never as :attr:`DAMPED` — the honest response
+    is to say so and leave the answer ungauged."""
+
+
+@dataclass(frozen=True, slots=True)
+class FaceTransmissionSpectrum:
+    r"""The measured verdict of :meth:`DiscretizationSchemeBase.face_transmission_spectrum`.
+
+    Attributes
+    ----------
+    damping :
+        The three-state verdict.
+    spectral_radius :
+        :math:`\rho(\Sigma)` — the measured number the verdict rests on.
+        ``None`` iff :attr:`FaceModeDamping.UNDETERMINED` (nothing was
+        measured; per the ``balance_defect`` discipline, ``None`` means
+        *not measured*, never *measured and small*).
+    undetermined_because :
+        Why the closure could not be driven — carried so the caller's
+        warning can name the real obstruction instead of guessing.
+        ``None`` unless ``UNDETERMINED``.
+    """
+
+    damping: FaceModeDamping
+    spectral_radius: float | None = None
+    undetermined_because: str | None = None
+
+
+# ``rho`` is measured EXACTLY 1.0 for an undamped closure (the sawtooth
+# eigenvalue is -1 by construction, not by cancellation), so the tolerance
+# only absorbs the eigensolver's own noise.
+_UNDAMPED_ATOL = 1e-9
+
+# Two deliberately DIFFERENT probe cells.  The classification is a property
+# of the CLOSURE, not of a cell — so the two must agree, and a scheme whose
+# verdict is cell-dependent is reported UNDETERMINED rather than classified
+# from a single lucky draw (`vv-principles` #13: one sample is not a survey).
+# `[M]` 2026-08-14 diamond_difference reads rho = 1.0000000000 on BOTH;
+# linear_discontinuous reads 0.6373008435 / 0.8607021518 — the margin moves
+# with the cell, the verdict does not.
+_PROBE_CELLS: tuple[tuple[tuple[float, float, float], float], ...] = (
+    ((0.7, 1.3, 0.4), 0.9),   # asymmetric streaming, thick
+    ((1.0, 1.0, 1.0), 0.3),   # symmetric streaming, thin
+)
+
+
+def _face_transmission_matrix(
+    scheme: "DiscretizationSchemeBase",
+    ndim: int,
+    w: tuple[float, ...],
+    sigma_t_volume: float,
+) -> np.ndarray:
+    r"""Assemble :math:`\Sigma` by driving the closure one unit inflow at a time.
+
+    Column :math:`j` is the outgoing face vector produced by a
+    source-free cell whose inflow is the :math:`j`-th face-moment unit
+    vector — i.e. the closure's own kernel IS the definition, read
+    column by column.  Square of side ``ndim * moments_per_face``.
+    """
+    moments_per_face = scheme.spatial_basis_per_axis ** (ndim - 1)
+    face_shape = (
+        (1, 1, 1, moments_per_face) if moments_per_face > 1 else (1, 1, 1)
+    )
+    s_axes = tuple(np.full((1, 1, 1), float(w[a])) for a in range(ndim))
+    reaction_xs = np.full((1, 1), float(sigma_t_volume))
+    q_cells = np.zeros((1, 1))
+
+    columns = []
+    for j in range(ndim * moments_per_face):
+        inflow_axis, moment = divmod(j, moments_per_face)
+        psi_in = []
+        for axis in range(ndim):
+            face = np.zeros(face_shape)
+            if axis == inflow_axis:
+                face.reshape(-1)[moment] = 1.0
+            psi_in.append(face)
+        _avg, psi_out = scheme.cell_kernel_batch(
+            psi_in=tuple(psi_in), s_axes=s_axes,
+            reaction_xs=reaction_xs, Q_cells=q_cells,
+        )
+        columns.append(np.concatenate([np.ravel(o) for o in psi_out]))
+    return np.asarray(columns).T
+
+
+@cache
+def _face_transmission_spectrum(
+    scheme_type: "type[DiscretizationSchemeBase]", ndim: int,
+) -> FaceTransmissionSpectrum:
+    r"""Cached per ``(closure, ndim)`` — see :meth:`face_transmission_spectrum`.
+
+    Keyed on the TYPE, not the instance: the verdict is a property of the
+    closure and `[M]` does not move with the probe cell, so one
+    eigendecomposition serves every mesh, group and iterate.
+    """
+    scheme = scheme_type()
+    radii: list[float] = []
+    for w, sigma_t_volume in _PROBE_CELLS:
+        try:
+            sigma = _face_transmission_matrix(
+                scheme, ndim, w[:ndim], sigma_t_volume,
+            )
+        except Exception as exc:  # the closure cannot be driven here
+            return FaceTransmissionSpectrum(
+                damping=FaceModeDamping.UNDETERMINED,
+                undetermined_because=(
+                    f"{scheme_type.__name__} could not be driven at "
+                    f"ndim={ndim}: {type(exc).__name__}: {exc}"
+                ),
+            )
+        radii.append(float(np.abs(np.linalg.eigvals(sigma)).max()))
+
+    verdicts = {r >= 1.0 - _UNDAMPED_ATOL for r in radii}
+    if len(verdicts) != 1:
+        # A cell-DEPENDENT verdict means this predicate does not describe
+        # the closure, only the draw — refuse rather than pick one.
+        return FaceTransmissionSpectrum(
+            damping=FaceModeDamping.UNDETERMINED,
+            undetermined_because=(
+                f"{scheme_type.__name__} at ndim={ndim} classifies "
+                f"differently on the two probe cells (rho = "
+                f"{', '.join(f'{r:.10f}' for r in radii)}), so the damping "
+                f"is a property of the cell rather than of the closure."
+            ),
+        )
+    return FaceTransmissionSpectrum(
+        damping=(
+            FaceModeDamping.UNDAMPED if verdicts.pop()
+            else FaceModeDamping.DAMPED
+        ),
+        spectral_radius=max(radii),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -748,6 +907,71 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         ``is not None`` at a streaming octant and to the 1-D scan's
         ``moment_tail != ()`` width-presence test."""
         return self.spatial_basis_per_axis > 1
+
+    def face_transmission_spectrum(self, ndim: int) -> FaceTransmissionSpectrum:
+        r"""Does this closure leave any face mode UNDAMPED? — ASKED, never declared.
+
+        Drives the scheme's own :meth:`cell_kernel_batch` on a
+        source-free probe cell, one unit inflow face-moment at a time, to
+        assemble the face-to-face transmission :math:`\Sigma` and return
+        :math:`\rho(\Sigma)`.  Nothing is tabulated: a future closure
+        answers for itself with no edit here (the *ask-don't-tabulate*
+        ruling, Q6-E — the sibling of :attr:`has_transpose_kernel`'s
+        "DERIVED, never declared", one level up: that one reads which
+        methods exist, this one reads what they compute).
+
+        **Why the spectral radius is the whole question.**  For a
+        single-moment closure the transmission is
+        :math:`\Sigma = (2/D)\,\mathbf{1}w^{\mathsf T} - I` with
+        :math:`w_a = 2|\mu_a|A_a`, :math:`D = \Sigma_t V + \sum_b w_b`,
+        whose spectrum is
+
+        =========================  ==============================  =============
+        eigenvalue                 eigenvector                     multiplicity
+        =========================  ==============================  =============
+        :math:`1 - 2\Sigma_t V/D`  :math:`\mathbf 1`                          1
+        :math:`-1`                 :math:`\{v: w^{\mathsf T}v = 0\}`  :math:`d-1`
+        =========================  ==============================  =============
+
+        The first is the physical, **absorption-damped** mode.  The
+        second is a **cell-average-blind sawtooth**: it drives
+        :math:`\psi_c = 0`, so the absorption term :math:`\Sigma_t V\psi_c`
+        never sees it and it transmits at unit magnitude.  So
+        :math:`\rho(\Sigma) \ge 1` **iff** some mode is undamped — no
+        subspace restriction is needed, which is what lets this work
+        unchanged on a moment-tailed face (LD's face carries
+        ``spatial_basis_per_axis ** (ndim - 1)`` moments) and makes
+        ``ndim = 1`` fall out on its own rather than as a special case.
+
+        Around a **closed reflective loop** two :math:`-1`\ s compose to
+        :math:`+1`, so an undamped mode returns to itself and the
+        assembled loss operator :math:`A = L + C - S - B` acquires a null
+        space.  That — together with the boundary set
+        (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axis_pairs`)
+        — is the gauge freedom the :class:`LossKernelGauge` fixes.
+
+        `[M]` 2026-08-14, on both probe cells:
+
+        ==================== ============ ============ ==================
+        scheme               ``ndim=1``   ``ndim=2``   ``ndim=3``
+        ==================== ============ ============ ==================
+        diamond_difference   damped       **1.0**      **1.0**
+        linear_discontinuous damped       0.637/0.861  ``UNDETERMINED``
+        ==================== ============ ============ ==================
+
+        Diamond reads **exactly** ``1.0000000000`` on both probes; LD's
+        margin moves with the cell but its verdict does not — the
+        classification is a property of the CLOSURE, which is why two
+        probe cells are run and required to agree.
+
+        ⚠ ``UNDETERMINED`` is a third state, not a synonym for
+        :attr:`FaceModeDamping.DAMPED`.  LD at ``ndim = 3`` raises from
+        its own ``assemble_inflow_axis`` (``axis in {0, d-1}`` only) — a
+        pre-existing LD limitation.  A caller that cannot classify MUST
+        say so and leave the answer ungauged; silently assuming "damped"
+        is the blindness this whole surface exists to remove.
+        """
+        return _face_transmission_spectrum(type(self), int(ndim))
 
     @classmethod
     def _registry_base(cls) -> type:
