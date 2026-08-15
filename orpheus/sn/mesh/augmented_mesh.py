@@ -909,8 +909,8 @@ class SNMesh(MaterialMesh):
         )
 
     @cached_property
-    def reflective_axis_pairs(self) -> int:
-        r"""How many axes are reflective at BOTH endpoints.
+    def reflective_axes(self) -> tuple[int, ...]:
+        r"""WHICH axes are reflective at BOTH endpoints — the closable loops.
 
         The geometry half of the gauge-freedom predicate; the closure
         half is
@@ -922,18 +922,28 @@ class SNMesh(MaterialMesh):
         kernel actually requires: at ``d = 2`` a single vacuum face
         collapses ``dim ker A`` from 12 to 0.
 
-        Counts PAIRS, not faces, and that distinction is load-bearing:
-        a *mixed* axis (one face reflective, one vacuum) contributes
-        nothing, because the outbound leg escapes.  Derived from
-        :attr:`bc` through :attr:`FaceLabel.face_name` — the same
+        Reports closed PAIRS, not faces, and that distinction is
+        load-bearing: a *mixed* axis (one face reflective, one vacuum)
+        contributes nothing, because the outbound leg escapes.  Derived
+        from :attr:`bc` through :attr:`FaceLabel.face_name` — the same
         single-sourced crosswalk the trace layout and the sweep
-        schedule key on — so a face inventory that grows a dimension
-        is counted correctly with no edit here.
+        schedule key on — so a face inventory that grows a dimension is
+        handled correctly with no edit here.
+
+        Returns the axis INDICES, ascending, because that is what the
+        consumers need: :attr:`reflective_axis_pairs` wants only how
+        many, but
+        :func:`~orpheus.sn.operators.loss_kernel_gauge._reflection_orbits`
+        must know *which* axes generate the mirror group.  Both read
+        this one body — until 2026-08-15 the gauge carried a
+        line-for-line twin of it, and `[M]` widening either copy alone
+        was **inert** (0 of 25 gates red) because the survivor guarded
+        the gate.
 
         ⚠ Reads the *realized law*, not the tag a caller passed:
         ``resolve_boundary_conditions`` fills unset faces with
         ``BC("reflective")``, so a bare ``SNMesh(mesh, quad, mats)`` is
-        all-reflective and this returns :attr:`ndim`.
+        all-reflective and this returns every axis.
         """
         from orpheus.geometry.boundary.reflective import ReflectiveBoundary
 
@@ -944,10 +954,21 @@ class SNMesh(MaterialMesh):
                 bound is not None
                 and isinstance(bound.law, ReflectiveBoundary)
             )
-        return sum(
-            1 for faces in by_axis.values()
+        return tuple(
+            axis for axis, faces in sorted(by_axis.items())
             if len(faces) == 2 and all(faces)
         )
+
+    @cached_property
+    def reflective_axis_pairs(self) -> int:
+        r"""How many axes are reflective at BOTH endpoints.
+
+        The count of :attr:`reflective_axes`, which owns the criterion
+        and the reasoning behind it.  Kept as its own name because the
+        gauge-freedom predicate asks a *cardinality* question
+        (``pairs >= 2``) and reads better spelled that way.
+        """
+        return len(self.reflective_axes)
 
     @cached_property
     def loss_kernel_gauge(self) -> "LossKernelGauge":

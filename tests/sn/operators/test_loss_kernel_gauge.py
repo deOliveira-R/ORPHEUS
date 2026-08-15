@@ -25,31 +25,55 @@ the construction was originally validated against **13**, and the rest are
 recorded here because their fixtures are too large to re-solve every run and
 the table is otherwise only in an untracked scratch memo. ``mine`` = the
 closed form's column count, ``law`` = the combinatorial count computed by a
-separate function that builds no vector, ``svd`` = dense SVD of the assembled
-:math:`A`; ``gap`` = :math:`\lVert(I - P_{\rm mine})P_{\rm svd}\rVert_2`.
+separate function that builds no vector — **both of these are** :math:`R`
+**alone**; ``T`` = the tangential slots; ``svd`` = dense SVD of the assembled
+:math:`A`, which sees the WHOLE kernel, so the table's own identity is
+:math:`{\rm svd} = T + R`. ``gap`` =
+:math:`\lVert(I - P_{\rm mine})P_{\rm svd}\rVert_2`, meaningful only where
+:math:`T = 0` (see below).
 
-====================================  ====================  ====  ====  ====  =========  =========
-case                                  quadrature            mine   law   svd    max res       gap
-====================================  ====================  ====  ====  ====  =========  =========
-d2 (3,4) refl abs ng=2                level_symmetric(S4)     12    12    12   2.80e-16  1.288e-14
-d2 (3,4) refl abs ng=2                level_symmetric(S2)      4     4     4   2.21e-16  2.220e-14
-d2 (5,6) refl c=0.9 ng=3              level_symmetric(S4)     18    18    18   4.16e-16  2.049e-14
-d2 (3,4) refl abs ng=2                product(4,4)           224   224   224   0.00e+00  4.981e-15
-d2 (3,4) refl abs ng=2                product(8,8)           464   464   464   3.99e-16  1.426e-14
-d2 (3,4) refl abs ng=2                lebedev(11)            242   242   242   2.71e-16  1.346e-14
-d2 (3,4) GRADED refl abs ng=2         level_symmetric(S4)     12    12    12   5.37e-16  1.416e-14
-d2 (3,4) x-VAC y-refl ng=2            level_symmetric(S4)      0     0     0   0.00e+00        n/a
-d3 (2,2,2) refl abs ng=1              level_symmetric(S4)     33    33    33   1.50e-16  9.801e-15
-d3 (2,2,3) refl abs ng=1              level_symmetric(S4)     39    39    39   1.39e-16  1.018e-14
-d3 (2,2,2) refl abs ng=2              level_symmetric(S2)     22    22    22   1.49e-16  5.790e-15
-d3 (2,2,2) refl abs ng=1              product(4,4)           136   136   136   0.00e+00  9.034e-15
-d3 (2,2,2) xy-refl z-VAC ng=1         level_symmetric(S4)     12    12    12   0.00e+00  1.526e-14
-====================================  ====================  ====  ====  ====  =========  =========
+====================================  ====================  ====  ====  ====  ====  ===========  =========
+case                                  quadrature            mine   law     T   svd      max res        gap
+====================================  ====================  ====  ====  ====  ====  ===========  =========
+d2 (3,4) refl abs ng=2                level_symmetric(S4)     12    12     0    12     2.80e-16  1.288e-14
+d2 (3,4) refl abs ng=2                level_symmetric(S2)      4     4     0     4     2.21e-16  2.220e-14
+d2 (5,6) refl c=0.9 ng=3              level_symmetric(S4)     18    18     0    18     4.16e-16  2.049e-14
+d2 (3,4) refl abs ng=2                product(4,4)             0     0   224   224  n/a (empty)        n/a
+d2 (3,4) refl abs ng=2                product(8,8)            16    16   448   464     9.90e-16        n/a
+d2 (3,4) refl abs ng=2                lebedev(11)             18    18   224   242     8.08e-16        n/a
+d2 (3,4) GRADED refl abs ng=2         level_symmetric(S4)     12    12     0    12     5.37e-16  1.416e-14
+d2 (3,4) x-VAC y-refl ng=2            level_symmetric(S4)      0     0     0     0     0.00e+00        n/a
+d3 (2,2,2) refl abs ng=1              level_symmetric(S4)     33    33     0    33     1.50e-16  9.801e-15
+d3 (2,2,3) refl abs ng=1              level_symmetric(S4)     39    39     0    39     1.39e-16  1.018e-14
+d3 (2,2,2) refl abs ng=2              level_symmetric(S2)     22    22     0    22     1.49e-16  5.790e-15
+d3 (2,2,2) refl abs ng=1              product(4,4)             8     8   128   136     4.00e-16        n/a
+d3 (2,2,2) xy-refl z-VAC ng=1         level_symmetric(S4)     12    12     0    12     0.00e+00  1.526e-14
+====================================  ====================  ====  ====  ====  ====  ===========  =========
 
-Note the two structural rows: ``product(4,4)`` at d=2 is **pure T** (224
-tangential, ``R = 0``), and the mixed-BC row is a negative control where the
-correct answer is 0 — the construction returns an empty basis rather than
-manufacturing spurious modes.
+Note the structural rows: ``product(4,4)`` at d=2 is **pure T** (224
+tangential, ``R = 0``, so the construction correctly returns an EMPTY basis and
+``max res`` has no modes to range over), and the mixed-BC row is a negative
+control where the correct answer is 0 — an empty basis rather than manufactured
+spurious modes.
+
+⛔ **This table was WRONG when it landed at** ``f934ff57``, **and the correction
+is instructive.** Every T-bearing row recorded :math:`T + R` under the ``mine``
+and ``law`` columns — ``224 / 464 / 242 / 136`` where the true :math:`R` is
+``0 / 16 / 18 / 8``. It contradicted its own prose three lines below (which said
+``R = 0``) and ``docs/theory/methods/sn/cartesian_multid.rst`` (which was
+correct). ``[M]`` re-measured 2026-08-15: **4 of 4** T-bearing rows, not the
+3 first reported — the ``d3 (2,2,2) product(4,4)`` row is the one an audit
+scanning only the d=2 block misses. The ``gap`` column was wrong for the same
+reason and is now ``n/a`` there *by construction*: :math:`P_{\rm mine}` spans
+:math:`R` and :math:`P_{\rm svd}` spans :math:`T \oplus R`, so a whole-space
+projector distance between them is :math:`\approx 1` and says nothing about the
+closed form. Containment — the claim that actually matters — is carried by
+``max res`` on every row and by
+:func:`test_EVERY_basis_vector_is_annihilated_by_the_production_matvec`.
+The gate that would have caught this is
+``tests/sn/operators/test_loss_nullspace_reflective_box.py``'s T+R row, which
+did not exist until Step 7; every ``_SINGULAR`` fixture here is
+``level_symmetric``, where :math:`T = 0` and the error is unspellable.
 
 ⚠ **The load-bearing gate is**
 :func:`test_each_block_gram_is_the_identity_which_is_what_earns_DIAGONAL`.
@@ -677,6 +701,13 @@ def test_a_quadrature_not_closed_under_a_mirror_is_REFUSED():
     # A stub carrying exactly what `_reflection_orbits` reads — a real mesh
     # cannot hold this state, which is the point: the refusal must fire before
     # anything downstream trusts the orbit decomposition.
+    #
+    # ⚠ `reflective_axes` is read from the MESH, not recomputed here, and that
+    # is deliberate: the criterion is single-sourced on
+    # `SNMesh.reflective_axes` (2026-08-15 — it used to be a twin inside this
+    # module). A surrogate must honour the contract it stands in for, so it
+    # forwards the real mesh's answer rather than re-deriving one; the thing
+    # this stub perturbs is the QUADRATURE, and nothing else.
     broken = SimpleNamespace(
         quad=SimpleNamespace(
             mu_x=mu_x,
@@ -685,6 +716,7 @@ def test_a_quadrature_not_closed_under_a_mirror_is_REFUSED():
         ),
         face_labels=mesh.face_labels,
         bc=mesh.bc,
+        reflective_axes=mesh.reflective_axes,
     )
     with pytest.raises(ValueError, match="not closed under the axis-0 mirror"):
         _reflection_orbits(broken)  # type: ignore[arg-type]  # deliberate stub

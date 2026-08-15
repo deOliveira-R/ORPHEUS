@@ -611,22 +611,6 @@ def _direction_cosines(sn_mesh: "SNMesh") -> NDArray:
     )
 
 
-def _reflective_axes(sn_mesh: "SNMesh") -> tuple[int, ...]:
-    """Axes whose BOTH faces carry a reflective law — the closable loops."""
-    from orpheus.geometry.boundary.reflective import ReflectiveBoundary
-
-    by_axis: dict[int, list[bool]] = {}
-    for label in sn_mesh.face_labels:
-        bound = sn_mesh.bc.get(label.face_name)
-        by_axis.setdefault(label.axis_index, []).append(
-            bound is not None and isinstance(bound.law, ReflectiveBoundary)
-        )
-    return tuple(
-        axis for axis, faces in sorted(by_axis.items())
-        if len(faces) == 2 and all(faces)
-    )
-
-
 def _reflection_orbits(
     sn_mesh: "SNMesh",
 ) -> tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]:
@@ -644,7 +628,7 @@ def _reflection_orbits(
         is a genuine admission refusal, not a limitation of the construction.
     """
     mu = _direction_cosines(sn_mesh)
-    reflective = _reflective_axes(sn_mesh)
+    reflective = sn_mesh.reflective_axes
     node_of = {tuple(np.round(row, 10)): n for n, row in enumerate(mu)}
 
     partners: dict[int, NDArray] = {}

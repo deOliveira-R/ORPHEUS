@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9837**
+Total tests collected: **9862**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1297, 13.2%
-   L1, 1620, 16.5%
-   L2, 64, 0.7%
+   L1, 1620, 16.4%
+   L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6851, 69.6%
+   foundation, 6876, 69.7%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9753
+   explicit, 9778
    class-name, 46
    func-name, 0
    case, 33
@@ -398,6 +398,7 @@ Module × level grid
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_loss_kernel_gauge, 0, 0, 0, 0, 51, 0
+   operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
@@ -452,6 +453,7 @@ Module × level grid
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
+   solve/test_boundary_gs_is_a_coherent_splitting, 0, 0, 0, 0, 13, 0
    solve/test_convergence_contract, 0, 0, 0, 0, 54, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
@@ -599,6 +601,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 19
+   ``dd-null-counting-law``, 18
    ``energy-condensation-rate-preservation``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
@@ -631,7 +634,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
    ``sn-homogenization-bilinear``, 11
-   ``dd-null-counting-law``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -656,6 +658,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bare-slab-diffusion-equation``, 7
    ``bare-slab-eigenfunction``, 7
    ``bare-slab-keff``, 7
+   ``dd-null-sawtooth``, 7
    ``dd-solve``, 7
    ``diffusion-M-matrix``, 7
    ``diffusion-back-substitution``, 7
@@ -670,15 +673,14 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``diffusion-trigonometric-branch``, 7
    ``gauss-legendre-visibility-cone``, 7
    ``inverse-as-operator``, 7
+   ``sn-loss-kernel-gauge-projection``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
-   ``dd-null-sawtooth``, 6
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
-   ``sn-loss-kernel-gauge-projection``, 6
    ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
@@ -736,6 +738,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-dsa-consistent-low-order``, 3
    ``sn-dsa-s2-exactness``, 3
    ``sn-homogenization-rate-preservation``, 3
+   ``sn-kernel-mirror-blindness``, 3
    ``sn-leakage-functional``, 3
    ``sn-mms-nonvacuum-qext-mg``, 3
    ``sn-space-angle-cross-term``, 3
@@ -839,7 +842,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-dsa-correction-vanishes``, 1
    ``sn-dsa-marshak``, 1
    ``sn-homogenization-balance-preservation``, 1
-   ``sn-kernel-mirror-blindness``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
@@ -1486,7 +1488,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-053``, 14
    ``ERR-054``, 1
    ``ERR-055``, 2
-   ``ERR-056``, 7
+   ``ERR-056``, 8
    ``ERR-057``, 1
    ``ERR-058``, 5
    ``ERR-059``, 4

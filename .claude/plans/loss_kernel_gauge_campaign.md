@@ -25,7 +25,7 @@ is on `main`** — the whole campaign is unmerged. Re-check; do not trust this l
 | **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
 | **5** — fire it, warn, record | ✅ LANDED `b51bc802` | `sn/solver.py` ×5, `sn/solution.py`, +9 doc files |
 | **6** — the two operator-algebra holes | ⏹ **CLOSED BY FILING** 2026-08-15 | #375 + #374; #213 corrected. ⛔ its own title was wrong — see §Step 6 |
-| **7** — promote the characterization suite | ▢ **RE-SCOPED — read the pointer** | task #78 |
+| **7** — promote the characterization suite | ✅ **LANDED** 2026-08-15 | 2 new modules + a shared builder; found 2 defects in LANDED work |
 
 `[M]` **the green baseline at `b51bc802`**, which is what a regression is measured
 against: `tests/sn` **3119 passed / 1 skipped / 57 xfailed**, 14:40;
@@ -95,6 +95,60 @@ is the zero map and reports `is_invertible = True`. `[M]` **not filed** — a
 `gh issue list --search "invertible sum"` at `b51bc802` returns nothing
 relevant. Invertibility is spectral, not structural, so this is a real
 mis-claim the type system cannot currently refuse.
+
+### ✅ STEP 7 — LANDED 2026-08-15. Delivered, plus two defects in ALREADY-COMMITTED work.
+
+**Delivered.** `tests/sn/_singular_loss_box.py` (shared non-collected builders),
+`tests/sn/operators/test_loss_nullspace_reflective_box.py` (12 rows — facts
+about `ker A` as a subspace), `tests/sn/solve/test_boundary_gs_is_a_coherent_splitting.py`
+(13 rows — facts about the splitting and the driver). Split by *what the claim
+is about*, following the tree's role-keyed convention; `tests/sn/characterization/`
+was rejected because characterization is a CLAIM CLASS (already spelled by
+omitting `verifies`), not a subsystem. `[M]` **83 passed**, 1:13, with the two
+shipped gauge suites; nothing earns `slow` (slowest row 12.05 s). V&V matrix
+**9837 → 9862**, equal to a live `--collect-only`. Sphinx `-W` exit 0. `npx
+pyright` **0 errors** on all six touched files.
+
+⛔ **Defect 1, in `f934ff57` — MINE.** The Step-4 module docstring's dense-SVD
+table recorded `T + R` under the `mine`/`law` columns, which are `R` by
+construction: `224 / 464 / 242 / 136` where `[M]` the true `R` is
+**`0 / 16 / 18 / 8`**. It contradicted its own prose three lines below AND
+`cartesian_multid.rst`, which was correct. **4 of 4** T-bearing rows — the
+first report said 3, missing the `d3 (2,2,2) product(4,4)` row, which is the one
+an audit scanning only the d=2 block misses (`plan-authoring` §2's quantifier
+clause, again). The `gap` column was wrong for the same reason and is now `n/a`
+there *by construction*. Fixed, with a `T` column added so `svd = T + R` is
+visible. **Why it survived:** every `_SINGULAR` fixture in that suite is
+`level_symmetric`, where `T = 0` and the error is unspellable — the gate that
+catches it is Step 7's own T+R row.
+
+⛔ **Defect 2 — a Pattern-2 twin, found BY a mutation arm that reddened nothing.**
+`SNMesh.reflective_axis_pairs` and `loss_kernel_gauge._reflective_axes` were a
+line-for-line duplicate of the same `len(faces) == 2 and all(faces)` test over
+the same `by_axis` loop. `[M]` widening **either alone was inert (0 red)**
+because the survivor guarded the gate. Repaired: `SNMesh.reflective_axes` owns
+the criterion, `reflective_axis_pairs` is its `len`, `_reflection_orbits` reads
+the property. `[M]` the ONE-edit mutation now reddens **4 of 83**.
+⭐ **The transferable lesson: a mutation arm that reddens nothing is evidence
+about the SOURCE, not only about the gate.** Read `vv-principles` #17's "an arm
+that reddens nothing is a guard with no witness" with this — sometimes it is a
+guard with a *twin*.
+⚠ And the retirement had one consumer nothing greps: a `SimpleNamespace` **test
+double** that carried `face_labels`/`bc` but not the new property — the
+`coding-standards` "routing a call site through the algebra raises its operand
+requirement from *has the verb* to *IS the type*, and only duck-typed doubles
+notice" clause, exactly. Fixed at the surrogate, not with a runtime guard.
+
+▸ **The diagnostic is NOT deleted, and that is the policy-correct call.**
+`tests/derivations/_promotion_policy.md`'s own "still active" test is *"the
+referenced GitHub issue is still open"* — `[M]` **#344 is OPEN**. It carries a
+triage header saying so and is deleted by the merging commit that lands
+`Closes #344`. Its two tier-false names were re-titled in place so no falsehood
+survives the interval; `[M]` still **24 passed**, 2:30.
+
+---
+
+*Original pointer, kept as the record of what was asked:*
 
 ### ▶ STEP 7 — the outcome: the #344 characterization runs in CI, and its names are true
 

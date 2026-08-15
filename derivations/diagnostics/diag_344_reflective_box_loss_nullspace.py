@@ -1,6 +1,24 @@
 """Diagnostic: is ``A = L + C - S - B``'s singularity on an all-reflective
 Cartesian box tangential-slot bookkeeping, or real trace underdetermination?
 
+⏹ **TRIAGED 2026-08-15 — fully promoted; DELETE when #344 closes.**
+All 13 tests were triaged against ``tests/derivations/_promotion_policy.md``:
+8 promoted in substance into
+``tests/sn/operators/test_loss_nullspace_reflective_box.py`` and
+``tests/sn/solve/test_boundary_gs_is_a_coherent_splitting.py``, 5 already
+covered by ``tests/sn/operators/test_loss_kernel_gauge.py`` /
+``tests/sn/solve/test_every_entry_gauges_its_trace.py``.  This file survives
+ONLY because the policy's "still active" test is *"the referenced GitHub issue
+is still open"* and **#344 is open** pending the campaign merge; the merging
+commit that carries ``Closes #344`` deletes it.  Do not extend it — add to the
+promoted modules instead.
+
+⚠ Two tests were RE-TITLED in that triage, because Step 5 (``b51bc802``) made
+their old names false at the tier a user sees: the gauge now fires at every
+public entry, so the *returned* trace no longer depends on the splitting.  Both
+measure the **SI driver**, which is ungauged and unchanged — the names now say
+so.  (``plan-authoring`` §3: a fact can die by being FIXED.)
+
 Created by numerics-investigator on 2026-08-14 for GitHub issue #344
 (the structural by-product recorded in ``scratch/issue_341_gs_jacobi_mechanism.md``
 §1.3 and ``scratch/d3_absorber_diagnosis.md`` §4).
@@ -490,7 +508,7 @@ def _solve(system, sn_mesh, template, q_field, n, schedule, tol=1e-13):
 
 
 @pytest.mark.parametrize("cells", [(3, 4), (3, 3), (5, 4)])
-def test_the_returned_boundary_trace_depends_on_the_SPLITTING(cells):
+def test_the_UNGAUGED_SI_driver_returns_a_splitting_dependent_trace(cells):
     """A splitting cannot change the equation — but it selects which member
     of the SOLUTION MANIFOLD is returned.
 
@@ -579,7 +597,7 @@ def test_the_exact_solution_is_the_minimum_G_norm_member_of_the_manifold():
     )
 
 
-def test_the_gauss_seidel_trace_error_is_first_order_in_h():
+def test_the_UNGAUGED_gauss_seidel_driver_trace_error_is_first_order_in_h():
     """``err * n`` is CONSTANT on the ODD-cell family — the error is O(h).
 
     The error CONVERGES — so this is not a "converges to the wrong limit"
