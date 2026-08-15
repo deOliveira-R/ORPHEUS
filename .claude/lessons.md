@@ -1820,3 +1820,53 @@ badly, what the log already knows.
 `[M]` Closed out: 3403 + 2194 + 3446 passed across the previously-uncounted and
 re-verified slices, 0 reds. Every one of the 23 was PRE-EXISTING (byte-identical
 failure sets at detached worktree `adb73fd5`); none was a regression.
+
+## L54 — An instrument that never RAN reports in the safe-looking direction; verify execution before reading output (2026-08-15)
+
+L49/L51 and `vv-principles` #24 all concern an instrument that **runs** and
+measures the wrong thing. This is the prior failure: the command **never
+executed at all**, and what the harness printed *read like a result*. Three
+instances in one session, three different mechanisms, all pointing the
+flattering way:
+
+1. **zsh does not word-split an unquoted `$VAR`.** `T="a.py b.py c.py"; pytest
+   $T` passes ONE argument — a path that does not exist. pytest printed
+   `1 warning in 0.01s` and exited 0. That reads as a fast clean run; **zero
+   tests were collected.** (Bash *would* have split it, so the idiom is
+   correct-looking and shell-dependent. This is the same defect the SN #344
+   campaign had already logged once, where a quoted `"$T"` collapsed three test
+   paths into one.)
+2. **`pytest -p <path>` silently loads nothing.** `-p` takes an importable
+   MODULE NAME; given a filesystem path it does not error. The mutation plugin
+   never installed, the grep matched nothing, and the empty output was
+   indistinguishable from "the mutation reddened nothing" — i.e. from a real
+   verdict of *blind*. Fix: `PYTHONPATH=<dir> ... -p <module_name>`, and have
+   the plugin **print a banner** so its absence is visible.
+3. **A `pgrep -f <pattern>` guard inside a command whose own command line
+   contains `<pattern>` matches ITSELF**, so the condition never becomes false
+   and an `until` loop hangs forever. A hang reads as "still running", which is
+   the one status nobody investigates.
+
+**The unifying tell: the output was EMPTY or trivially short, and empty was
+interpreted as a measurement.** Absence of failure is not evidence of success;
+absence of *anything* is not evidence at all.
+
+**How to apply — three checks, each one line:**
+
+- **Assert the denominator.** Every pytest invocation whose result you will
+  quote must have its **collected count** read, not just its exit status. `N
+  passed` where you expected ~83 is a red flag; `1 warning in 0.01s` is a dead
+  run. (`vv-principles` #17's "check the collected count", generalised past
+  mutation batteries.)
+- **Make the instrument announce itself.** A mutation plugin, a monitor, a
+  census hook — each prints one banner line on activation. Then "no banner" and
+  "no findings" are different observations.
+- **A guard must be able to become false.** Before an `until`/`while` loop,
+  ask what event terminates it, and check the guard cannot be satisfied by the
+  loop's own process. Prefer waiting on a **PID** (`ps -p $PID`) over a
+  `pgrep -f` pattern match.
+
+Cross-reference: `vv-principles` #17 (the harness lies before the code does, and
+in the safe-looking direction) — this is that principle applied one step
+earlier, to whether the harness ran; `[[lessons-L12]]` (paste-back — a verbatim
+summary line makes a zero-collection run visible where a paraphrase hides it).
