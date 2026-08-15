@@ -41,11 +41,40 @@ firing.
 
 ⚠ **Existence-check before designing** (`plan-authoring` §1): `LossKernelGauge`,
 `LossKernelBasis` — `[M]` **0 hits in `orpheus/`** as of `5def63b0`. Neither
-exists; both are to be written. The *basis construction* exists twice in
+exists; both are to be written. ✅ Re-verified 2026-08-14 at `839c36e9`.
+
+⛔ **REFUTED 2026-08-14, before any edit — the MODEL half of this pointer was
+false.** Original text, kept per §3: *"The basis construction exists twice in
 throwaway form — `scratch/probe_344_kernel_basis.py` (563 lines) and, derived
 independently, inside
 `derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` (~50 lines,
-the compact re-derivation). **Use the compact one as the model.**
+the compact re-derivation). **Use the compact one as the model.**"*
+
+`[M]` the diagnostic contains **no closed-form basis at all**. All 8 of its
+null-space uses route through `_null_basis(A)` (`:122-126`) — a **dense
+`np.linalg.svd` of an `A` assembled column-by-column** by `_dense()`
+(`:100-109`, `n` matvecs). That is the exact route a closed form exists to
+replace, and the memo prices it at **23.0 s vs 0.00 s** at `ndof = 3744`.
+
+⟹ **The only closed form in the tree is the file this pointer forbids**:
+`scratch/probe_344_kernel_basis.py::closed_form_kernel_basis` (`:306-358`,
+helpers `:162-305`). It is **~145 lines**, not 50, and it *does* call
+`np.linalg.svd` — but on the tiny per-orbit **coefficient** matrix, to reduce
+an over-complete generating set (§2.3 of the memo: `2Σn` generators → `2Σn−1`
+rank, exactly one relation). That is a legitimate and cheap use; it is not an
+SVD of `A`.
+
+▶ **The real model is the MEMO, not either file**: `scratch/issue_344_kernel_basis.md`
+(714 lines, status COMPLETE) — §1.4 is the closed-form basis, §2 the
+construction recipe in 5 steps, §6.2 the blocked representation that makes it
+scale, §6.3 the two hazards. The memo is what the probe was written from.
+
+⚠ Mechanism, for the surprise log: this is `plan-authoring` §1's **PRECEDENT**
+clause — *"model this on X"*, where the symbol exists and every property
+claimed of it is wrong — repeating **the same day the clause was written**, in
+a different campaign. The §1 existence-check I did run (does `LossKernelBasis`
+exist?) passed and is what made the pointer *feel* verified; the model claim
+was never checked, and nothing in the pointer's shape distinguished the two.
 
 ### Three findings from the landed work that change nothing in the plan but would cost a re-derivation
 
@@ -144,11 +173,60 @@ for "say what it cost and what to do".
 
 ## Measured findings that de-risk the build
 
-- ⭐ **The Gram is EXACTLY diagonal.** `[M]` `max|offdiag|/max|diag| = 0.000e+00`,
-  `cond = 1.60` (LS4) / `2.10` (lebedev(11)). The closed-form modes are already
-  G-orthogonal (disjoint supports). ⟹ `GramStructure.DIAGONAL`, which
-  `FrameBase.gram` accepts — **#275 (the dense-Gram seam) does NOT block this** —
-  and **no QR is needed**, killing the second-largest cost (44 ms / 748 ms).
+- ⛔ **REFUTED 2026-08-14 — the DIAGONAL claim was a d=2 reading promoted to a
+  universal, and acting on it would have shipped a silently WRONG projector.**
+  Original text, kept per §3: *"⭐ **The Gram is EXACTLY diagonal.** `[M]`
+  `max|offdiag|/max|diag| = 0.000e+00`, `cond = 1.60` (LS4) / `2.10`
+  (lebedev(11)). The closed-form modes are already G-orthogonal (disjoint
+  supports). ⟹ `GramStructure.DIAGONAL`, which `FrameBase.gram` accepts —
+  **#275 (the dense-Gram seam) does NOT block this** — and **no QR is needed**,
+  killing the second-largest cost (44 ms / 748 ms)."*
+
+  `[M]` `$CLAUDE_JOB_DIR/tmp/probe_gram_diagonality.py`, on the raw pair-generator
+  basis, `max|offdiag| / max|diag|` of `BᵀGB`:
+
+  | configuration | per-orbit rank | WHOLE | worst BLOCK |
+  |---|---|---|---|
+  | d=2 (3,4) LS4 ng=2 | **1** | `0.000000e+00` | `0.000000e+00` |
+  | d=3 (2,2,2) LS4 ng=1 | 11 | `1.723861e-01` | `1.914395e-01` |
+  | d=3 (3,4,5) LS4 ng=2 | 23 | `4.045273e-01` | `4.312919e-01` |
+
+  ⭐ **Why the original reading was vacuous:** at d=2 `κ({x,y}) = 1`, so each
+  orbit carries exactly **ONE** mode — a 1×1 Gram is diagonal for free, and
+  `cond = 1.60` is the spread *across* blocks, not evidence of orthogonality
+  *within* one. At d=3 an orbit carries `2Σn − 1` modes and they are **not**
+  G-orthogonal: the `{a,b}` and `{a,c}` pair generators both live on the `a`
+  faces. `plan-authoring` §2's QUANTIFIER clause — the denominator was
+  "the only shipped rank-1 case".
+
+  ⚠ **The consequence is not a bad constant, it is a wrong answer.** `frame.gram`
+  computes its diagonal by the row-sum probe `analysis(reconstruction(ones))`,
+  which equals `Σ_j (MR)_{kj}` — the row sum, correct *only* if `MR` is
+  diagonal. Declaring `DIAGONAL` on a 43 %-off-diagonal Gram normalises every
+  coefficient by the wrong number, and nothing raises. This is precisely the
+  refusal `GramStructure`'s own docstring exists to enforce.
+
+  ✅ **FIX, measured — one `sqrt(G)`-weighted SVD per block, which REPLACES both
+  of the memo's factorisations rather than adding a third.** The memo runs an
+  SVD in the coefficient space (to cut the over-complete generators) *and* a
+  QR in the state space (to G-orthonormalise). Fusing them: `U, s, _ =
+  svd(√G · B_gen)`; keep `rank = #{s > 1e-10·s₀}`; `Φ = U[:, :rank] / √G`. Then
+  `ΦᵀGΦ = I` — so `DIAGONAL` becomes **true by construction**, `G⁻¹` is the
+  identity, and the rank the SVD finds IS the counting law (a free gate).
+  `[M]` `$CLAUDE_JOB_DIR/tmp/probe_fused_orthonormal.py`:
+
+  | configuration | rank == dim_R | `‖ΦᵀGΦ − I‖∞` | span vs `B_R` |
+  |---|---|---|---|
+  | d=2 (3,4) LS4 ng=2 | 12 ✅ | `4.441e-16` | `8.063e-16` |
+  | d=3 (2,2,2) LS4 ng=1 | 33 ✅ | `2.220e-15` | `3.188e-15` |
+  | d=3 (3,4,5) LS4 ng=2 | 138 ✅ | `1.132e-14` | `1.580e-14` |
+  | d=2 (3,4) lebedev(11) ng=2 | 18 ✅ (T = 224) | `8.882e-16` | `1.182e-15` |
+
+  ⟹ **`LossKernelBasis` IS the G-orthonormal basis, not the pair generators.**
+  The generators are the *construction*; the orthonormal frame is the *object*.
+  The `√G` inverse is well-posed only because R has no support on `G == 0` rows
+  (the next bullet) — `[M]` re-verified as an explicit precondition on all four
+  rows above, including the lebedev row where `T = 224`.
 - ⭐ **`R` and `T` are separated by the metric's zero-set.** `[M]`
   `max|B_R|` on `G == 0` rows is **`0.000000e+00`** on LS4, product(4,4) AND
   lebedev(11). So `T = ker A ∩ ker G` and `R ⊆ (ker G)^⊥`. The gauge is
@@ -157,9 +235,29 @@ for "say what it cost and what to do".
 - **The basis never reads a cross-section** (`[M]` fissile vs absorber
   bit-identical `2.799e-16`) ⟹ Stratum-1 cacheable, per
   `orpheus/sn/sweep/cache.py:121` (`GeometryCoefficients`).
-- The `test-architect` **independently re-derived the basis in ~50 lines** and
-  reproduced the numbers bit-for-bit — a second, structurally independent
-  construction exists.
+- ⛔ **REFUTED 2026-08-14 — this is the source of the false model pointer
+  above, and the claim itself does not survive.** Original text, kept per §3:
+  *"The `test-architect` **independently re-derived the basis in ~50 lines**
+  and reproduced the numbers bit-for-bit — a second, structurally independent
+  construction exists."*
+
+  `[M]` **no such construction is in the tree.** Searched every `.py` under
+  `scratch/`, `derivations/`, `tests/`, `orpheus/` and every `.md` under
+  `.claude/agent-memory/`: exactly ONE function builds a kernel basis without
+  an SVD of `A` — `scratch/probe_344_kernel_basis.py::closed_form_kernel_basis`.
+  What the diagnostic agent *did* produce independently is the dense-SVD
+  **ground truth** the closed form was verified AGAINST (memo §3.1/§3.2: 13
+  configurations, subspace gap `≤ 2.2e-14`), and the counting-law evaluator
+  `predicted_dim` (`probe:370`) which never builds a vector. Those ARE two
+  genuine independent checks — one numerical, one combinatorial — so the
+  *verification* claim stands in a stronger form than written. The
+  **construction** claim does not: there is one construction, not two.
+
+  ⚠ The consequence for Step 4 is a real one, not bookkeeping: I believed a
+  second implementation existed to cross-check the port against. It does not,
+  so the port's oracle has to be **the dense SVD on the small fixtures** (which
+  is exactly what `diag_344`'s `_null_basis` provides, at d=2/small-d=3 sizes)
+  plus **the counting law** — never "the other implementation".
 
 ---
 

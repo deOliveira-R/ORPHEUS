@@ -157,3 +157,37 @@ the operator-algebra posing and the campaign plan
    :members:
    :show-inheritance:
    :noindex:
+
+
+The Loss-Kernel Gauge (``Pi``)
+-------------------------------
+
+The :mod:`~orpheus.sn.operators.loss_kernel_gauge` module is not a leaf of
+:math:`A` but a statement *about* :math:`A`: on an all-reflective Cartesian box
+closed by diamond differencing, :math:`A = L + C - S - B` is **exactly
+singular**, so the boundary trace a solve returns is a function of the cold
+start rather than of the problem (#344 — ``[M]`` up to 27.3 % apart, with both
+convergence functionals blind to the difference).
+
+:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge` is the
+:math:`G`-orthogonal projector onto :math:`\ker A`, built in **closed form** —
+no eigensolve and no SVD of :math:`A`. Its applicability is *derived*, never
+tabulated: :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` asks
+the spatial closure whether it leaves a face mode undamped
+(:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
+and asks the mesh how many reflective axis pairs close
+(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axis_pairs`), so a
+discretization added tomorrow answers for itself — and "switch to a closure
+without the undamped mode" is a real remedy at the root rather than a
+coincidence.
+
+The module docstring carries the full derivation: the diamond face involution
+that makes every null vector a bulk-zero face sawtooth, the substitution that
+empties the cell balance of all physics and leaves a purely combinatorial
+identity, the character/ANOVA solution and its pair generators, both counting
+laws as theorems, and the blocked :math:`G`-orthonormal representation that
+makes the projector shippable.
+
+.. automodule:: orpheus.sn.operators.loss_kernel_gauge
+   :members:
+   :show-inheritance:

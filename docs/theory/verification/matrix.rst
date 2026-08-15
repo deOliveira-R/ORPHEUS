@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9747**
+Total tests collected: **9825**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 13.3%
-   L1, 1620, 16.6%
+   L0, 1297, 13.2%
+   L1, 1620, 16.5%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6761, 69.4%
+   foundation, 6839, 69.6%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9663
+   explicit, 9741
    class-name, 46
    func-name, 0
    case, 33
@@ -156,7 +156,7 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
-   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 31, 0
+   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 32, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
@@ -293,6 +293,7 @@ Module × level grid
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
    mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 23, 0
    mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 17, 0
+   mesh/test_reflective_axis_pairs, 0, 0, 0, 0, 7, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0
@@ -337,6 +338,7 @@ Module × level grid
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
+   numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 132, 0
@@ -395,6 +397,7 @@ Module × level grid
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
+   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 51, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
@@ -466,6 +469,7 @@ Module × level grid
    solve/test_sn_adjoint_certification, 0, 13, 0, 0, 2, 0
    solve/test_sn_adjoint_entries, 0, 6, 0, 0, 0, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
+   spatial/test_face_transmission_damping, 0, 0, 0, 0, 9, 0
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 8, 0
@@ -479,7 +483,7 @@ Module × level grid
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 45, 0
-   test_layer_imports, 0, 0, 0, 0, 346, 0
+   test_layer_imports, 0, 0, 0, 0, 347, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0

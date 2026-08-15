@@ -74,6 +74,7 @@ if TYPE_CHECKING:
         RadialCharacteristicBoundarySpace,
         RadialCharacteristicInteriorSpace,
     )
+    from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
     # NOTE (B.5.A): the mesh provides shape data only and does NOT import
     # transport-field types — zero-allocation lives on the field types
     # (``Field.zeros`` / ``<Leaf>.zeros_on`` / ``TimedFullField.zeros(...)``).
@@ -947,6 +948,39 @@ class SNMesh(MaterialMesh):
             1 for faces in by_axis.values()
             if len(faces) == 2 and all(faces)
         )
+
+    @cached_property
+    def loss_kernel_gauge(self) -> "LossKernelGauge":
+        r"""The :math:`G`-orthogonal projector onto :math:`\ker(L + C - S - B)`.
+
+        Cached HERE, on the mesh, because the kernel is a **Stratum-1**
+        (geometry-only) object: it is determined by the boundary laws, the
+        quadrature and the cell edges, and never reads a cross-section — ``[M]``
+        (#344) an absorber and a fissile mixture on the same box give
+        bit-identical residuals (:math:`2.799\times10^{-16}`).  So one build
+        serves every group, every outer and every eigenvalue iterate, which is
+        what amortises the setup to nothing (``[M]`` 4.0 ms at d=2 ``(3,4)``,
+        22.3 ms at d=3 ``(3,4,5)``, single-process).
+
+        The mesh is the right owner rather than
+        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+        (which is geometry-blind since C5.3 and cannot see the boundary laws)
+        or :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        (whose ``__eq__`` is ``(name, shape)``, so two meshes with different
+        BCs and the same DOF count compare equal — a cache keyed there would be
+        keyed on a size).  It sits beside
+        :attr:`reflective_axis_pairs`, which is the geometry half of its own
+        applicability predicate.
+
+        ⚠ **Zero blocks when there is nothing to fix** — a non-singular
+        configuration yields the zero projector, so :meth:`LossKernelGauge.gauge`
+        is the identity and no consumer needs a ``None`` branch.  Ask
+        :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` for the
+        reason (and for the warning owed when a closure is UNDETERMINED).
+        """
+        from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
+
+        return LossKernelGauge.for_mesh(self)
 
     @cached_property
     def radial_characteristic_field_space(self) -> "FullFieldSpace | None":
