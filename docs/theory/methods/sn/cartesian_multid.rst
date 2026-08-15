@@ -73,8 +73,12 @@ re-derived.
      face-to-face transmission has :math:`d-1` eigenvalues of exactly
      :math:`-1` (:eq:`dd-face-transmission-spectrum`), and boundary G-S
      is measured *slower* than Jacobi on some configurations
-     (:ref:`sn-boundary-gs-not-regular`). Only the fixed point is
-     schedule-invariant; the rate is not bounded either way.
+     (:ref:`sn-boundary-gs-not-regular`). The rate is not bounded
+     either way; the **bulk** fixed point is schedule-invariant, and
+     the **trace** is not — close :math:`\ge 2` reflective axis pairs
+     and :math:`A` is *exactly singular*, so the schedule selects a
+     member of a solution manifold rather than a point, and the solver
+     returns the canonical one (:ref:`sn-loss-kernel-gauge`).
    * Boundary conditions apply **once per octant per axis**, never per
      ordinate — the L7 trap (ERR-003): :term:`per-ordinate <ordinate>` BC application is
      redundant in cost and order-sensitive in correctness.
@@ -1807,7 +1811,11 @@ Most changes to the iteration machinery — a Gauss-Seidel splitting, a σ\
 change the converged fixed point; they change only the *rate* at which the
 iteration reaches it.  The correctness gate for such a change is
 **FP-invariance**: the accelerated solve and the plain solve converge to the
-same flux (`vv-principles` Mode 9).
+same flux (`vv-principles` Mode 9).  (⚠ That presupposes a fixed *point*
+exists.  When :math:`A` is singular the invariant is the solution **set**
+and two correct splittings may return different members — the exception,
+and the three checks that separate it from a genuine splitting bug, are at
+:ref:`sn-loss-kernel-gauge`.)
 
 The :math:`\Sigma_s \otimes I_{\rm spatial}` slope source is **not** that
 kind of change.  S2 and S3 solve DIFFERENT operators:
@@ -4005,6 +4013,23 @@ differs).  All gates live in ``tests/sn/solve/test_gauss_seidel_reification.py``
 (``@pytest.mark.foundation`` — software invariants of the splitting, no
 theory-page ``:label:`` and no ``verifies()``).
 
+.. note::
+
+   ⚠ **That sentence needs a qualifier that was missing until 2026-08-15
+   (#344), and this gate does not need re-scoping.**  A fixed *point*
+   exists only when :math:`A` is nonsingular.  Close :math:`\ge 2`
+   reflective axis pairs under diamond differencing and it is **exactly
+   singular**, so two correct splittings legitimately return different
+   **members** of a solution manifold — ``[M]`` a boundary-G-S and a
+   Jacobi trace differing by :math:`0.124184`, with **100.0000 %** of
+   the difference inside :math:`\ker A`.  What stays invariant is the
+   **bulk**, which is what this gate measures.  Its fixture is
+   *vacuum-x / reflective-y*, i.e. **one** reflective axis pair, and
+   ``[M]`` :math:`\dim\ker A = 0` there — so the gate is kernel-free
+   and its claim is intact.  Full treatment, and the discriminator
+   against a genuinely incoherent splitting, at
+   :ref:`sn-loss-kernel-gauge`.
+
 .. warning::
 
    **Honest scope — boundary G-S is NOT a scattering accelerator.**
@@ -4183,13 +4208,29 @@ What survives, and what this does not explain
 
 **Survives, unchanged.**  :math:`A = M - N` is a perfectly valid
 splitting; the drivers consume it exactly as documented; the converged
-fixed point is **splitting-invariant** (any consistent splitting of
-:math:`A\psi = q` shares :math:`\psi^\ast` — the FP-invariance gate above,
-``vv-principles`` Mode 9); and the Hackbusch (2016) §11 citation, which is
-about **block partitionings**, is untouched.  Nothing in the construction,
-the reification, the row-split law or the ERR-056 fan-in rule depends on
-regularity.  What is void is one *inference* — that G-S cannot be slower —
-and every place that inference was implied by a word rather than argued.
+**bulk** is **splitting-invariant** (any consistent splitting of
+:math:`A\psi = q` shares the solution *set* — the FP-invariance gate
+above, ``vv-principles`` Mode 9); and the Hackbusch (2016) §11 citation,
+which is about **block partitionings**, is untouched.  Nothing in the
+construction, the reification, the row-split law or the ERR-056 fan-in
+rule depends on regularity.  What is void is one *inference* — that G-S
+cannot be slower — and every place that inference was implied by a word
+rather than argued.
+
+⛔ **The word "bulk" in that sentence is load-bearing, and it was
+"fixed point" until 2026-08-15 (#344).**  A consistent splitting shares
+the solution **set**; it shares a *point* only when :math:`A` is
+nonsingular, and the very configuration this subsection analyses — every
+face reflective, so the undamped mode has nowhere to leak — is the one
+where it is not.  The :math:`-1` eigenvalue above is not merely weakly
+damped there: closed around a reflective loop its round-trip gain is
+exactly :math:`+1`, so :math:`\rho \to 1` understates it and a subspace
+of the trace is **frozen** rather than slowly converging — the iteration
+converges anyway because that subspace is invisible to the residual.
+``[M]`` the boundary-G-S and Jacobi traces differ by :math:`0.124184`
+with :math:`\lVert\Pi d\rVert/\lVert d\rVert = 1.000000`.  The bulk
+statement is unaffected (the kernel is pure-trace, bulk share
+:math:`1.1\times10^{-28}`); see :ref:`sn-loss-kernel-gauge`.
 
 **Does not explain the sign.**  Losing the comparison theorem makes an
 inversion *possible*; it does not predict *which side* of the comparison
@@ -4449,9 +4490,10 @@ go stale).
      - 697
      - 641
      - 0.92×
-     - Same fixed point: scalar-flux rel-L\ :sub:`∞`
+     - Same **bulk** fixed point: scalar-flux rel-L\ :sub:`∞`
        :math:`4.86\times10^{-8}` (rate-only, ``vv-principles``
-       Mode 9).
+       Mode 9).  The box is all-reflective, so the *trace* agrees
+       only up to :math:`\ker A` (:ref:`sn-loss-kernel-gauge`).
    * - B-2g reflective **slab** (1-D, ``inner_tol`` 1e-8)
      - 655
      - 655
@@ -4492,6 +4534,937 @@ slab (:math:`\rho\approx0.22`), but a *naive* finite-difference DSA
 that DSA needs the consistent diffusion operator the σ\ :sub:`r`-fold
 trap (:doc:`slab_one_group`) already implied.
 
+
+.. _sn-loss-kernel-gauge:
+
+The loss operator is SINGULAR on a closed reflective box
+=========================================================
+
+The previous section closed on a *local* fact and used it only
+negatively: every multi-D diamond cell carries a
+:math:`(d-1)`-dimensional face subspace on which transmission is exactly
+:math:`-1` (:eq:`dd-face-transmission-spectrum`), invisible to
+:math:`\Sigt{}V\psi_c`, so :math:`N \ge 0` fails and no comparison
+theorem bounds the schedule.
+
+Close the mesh on itself and the same mode becomes something stronger
+than an obstruction to a rate proof.  With **at least two axes
+reflective at both ends** the sawtooth has nowhere to leak: it returns
+to itself, its round-trip gain is exactly :math:`+1`, and the slow mode
+of :ref:`sn-boundary-gs-rate-regime` becomes an **exact null vector**.
+On any :math:`d \ge 2` Cartesian diamond-difference mesh with
+:math:`\ge 2` reflective axis pairs the within-group loss operator
+
+.. math::
+
+   A \;=\; L + C - S - B
+
+is **exactly singular**.  ``Aψ = q`` then has a solution *manifold*, not
+a solution, and a converged solve returns whichever member the iteration
+happened to freeze — a function of the cold start and of the schedule,
+not of the problem.  That is not a corner case: :func:`~orpheus.sn.solver.solve_sn`
+has no ``boundary_condition`` parameter at all and a bare
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` resolves to all-reflective,
+so this **is** the standard :math:`\kinf` lattice.
+
+Three facts make it tractable rather than alarming, and this section is
+their derivation, their evidence and their remedy:
+
+#. the kernel is a **pure-trace** object with a **closed form** — no
+   eigensolve and no SVD of :math:`A`;
+#. every mirror-**even** functional annihilates it *by theorem*, so
+   :math:`\keff`, the scalar flux, every reaction rate and every normal
+   current are untouched — and so is the exact solution, which is why
+   the minimum-norm member **is** the physical answer;
+#. what is *not* untouched is the one class of functional that is
+   mirror-**odd**, and there the un-gauged solve reports a quantity that
+   cannot physically exist.
+
+.. admonition:: Key result
+   :class: tip
+
+   ``[M]`` all-reflective 2-D box, extents :math:`(1, 2)`, cells
+   :math:`(3,4)`, 2-group pure absorber :math:`\Sigt{} = (0.8, 1.6)`,
+   :math:`\Sigma_s = 0`, ``level_symmetric`` :math:`S_4`, **uniform
+   isotropic source** :math:`q_n = 1/W` (so the exact flux is flat and
+   *every* current is zero), SI + boundary Gauss-Seidel,
+   ``inner_tol = 1e-13``.
+
+   The returned boundary trace is :math:`6.09\times10^{-2}` (relative)
+   away from the analytic answer, and **100.00000000 %** of that
+   deviation lies in :math:`\ker A`.  It surfaces as a
+   :math:`+7.381060\times10^{-2}` net current running **sideways along a
+   mirror face**.  Projecting the kernel component out recovers the
+   analytic trace to :math:`1.04\times10^{-13}` relative and drops the
+   tangential current to :math:`\sim10^{-14}`, while the normal
+   currents, :math:`\keff`, and every summed face moment do not move.
+
+From an undamped face mode to a null vector of A
+-------------------------------------------------
+
+``[M]`` the bulk share of the null projector is :math:`1.1\times10^{-28}`,
+so set :math:`\psi_c \equiv 0` and read off what survives of the diamond
+closure and the cell balance in a source-free cell:
+
+.. math::
+
+   \psi_{{\rm out},a} = 2\psi_c - \psi_{{\rm in},a}
+   \;\;\xrightarrow{\;\psi_c = 0\;}\;\;
+   \psi_{{\rm out},a} = -\psi_{{\rm in},a} ,
+   \qquad
+   \sum_a |\mu^n_a| \, A_a(i_\perp) \, \psi^n_{{\rm in},a}(i) = 0 .
+
+The first relation is **direction-independent** — :math:`s_a = +1` reads
+it left to right and :math:`s_a = -1` right to left, and it is the same
+relation — so along every mesh line the face values simply alternate and
+the whole face field on axis :math:`a` collapses to ONE function of the
+transverse index, the **sawtooth**
+
+.. math::
+   :label: dd-null-sawtooth
+
+   \psi^n_a(k, i_\perp) \;=\; (-1)^k \, \varphi^n_a(i_\perp) ,
+
+.. (vv-status rationale) Structural identity: the null-space specialisation of
+   the already-verified multi-D DD closure (dd-cartesian-2d) at psi_c = 0 — an
+   algebraic rearrangement, not a new solver claim. Its content is that every
+   null vector has this SHAPE, which is asserted end-to-end by the foundation
+   suite tests/sn/operators/test_loss_kernel_gauge.py: the constructed basis is
+   annihilated by the PRODUCTION matvec
+   (test_EVERY_basis_vector_is_annihilated_by_the_production_matvec) and its
+   dimension equals a dense SVD of the assembled operator
+   (test_the_dimension_matches_a_DENSE_SVD_of_the_assembled_operator).
+.. vv-status: dd-null-sawtooth documented
+
+with :math:`k \in \{0, \dots, n_a\}` the face index along axis :math:`a`
+and :math:`i_\perp` the transverse cell index.  **This is why the kernel
+is a trace object**, and why the two boundary closures reduce to one
+condition each: specular on axis :math:`a` gives
+:math:`\varphi^n_a = \varphi^{R_a n}_a` (both faces give the *same*
+condition — the far face's :math:`(-1)^{n_a}` cancels between the two
+sides), and vacuum gives :math:`\varphi^n_a \equiv 0`.
+
+One substitution empties the balance of all physics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Insert :eq:`dd-null-sawtooth` into the balance.  The inflow face index
+is :math:`k = i_a` for :math:`\mu_a > 0` and :math:`k = i_a + 1` for
+:math:`\mu_a < 0`, so
+:math:`\psi^n_{{\rm in},a}(i) = s_a (-1)^{i_a} \varphi^n_a(i_\perp)` with
+:math:`s_a = \operatorname{sign}\mu^n_a`.  Multiply through by
+:math:`(-1)^{\sum_b i_b}` and absorb every coefficient into
+
+.. math::
+
+   Y^n_a(i_\perp) \;:=\;
+   |\mu^n_a| \; A_a(i_\perp) \; (-1)^{\sum_{b \neq a} i_b}
+   \; \varphi^n_a(i_\perp) .
+
+Every factor on the right depends only on :math:`i_\perp` — the face
+area :math:`A_a(i_\perp) = \prod_{b \neq a} h_b(i_b)` included, **which
+is why a graded mesh needs no separate treatment**.  What is left is
+
+.. math::
+   :label: dd-null-balance-combinatorial
+
+   \sum_{a \in S} s_a \, Y_a\bigl(s_{\neq a} ;\, i_{\neq a}\bigr)
+   \;=\; 0 ,
+
+.. (vv-status rationale) Structural identity: the substitution image of the
+   cell balance under dd-null-sawtooth — a change of variables, not a new
+   solver claim. Its consequences ARE gated by the foundation suite
+   tests/sn/operators/test_loss_kernel_gauge.py, which asserts that the basis
+   built from this equation's solution set is annihilated by the production
+   matvec and spans a dense SVD's null space; the physics-independence it
+   predicts is pinned by test_the_basis_never_reads_a_CROSS_SECTION.
+.. vv-status: dd-null-balance-combinatorial documented
+
+where
+
+* :math:`S` is the set of axes that are **simultaneously reflective and
+  non-tangential** for that ordinate — a vacuum axis drops out because
+  its :math:`\varphi \equiv 0`, a tangential axis because its
+  :math:`|\mu_a|` is zero;
+* :math:`s_{\neq a}` and :math:`i_{\neq a}` are the ordinate's signs and
+  the cell index on the *other* axes: :math:`Y_a` is blind to
+  :math:`i_a` (it is a function on the face) and blind to :math:`s_a`
+  (that is exactly the specular condition).
+
+Read it in words: *a sum of functions, each blind to one coordinate and
+one sign, vanishing identically.*  The cross sections, the mesh
+spacings, the quadrature weights and the scattering ratio have all
+cancelled.  That is the structural reason the dimension is
+mesh-independent at :math:`d = 2`, independent of :math:`c`, and exactly
+proportional to :math:`n_g`; ``[M]`` an absorber and a fissile mixture
+on the same box give **bit-identical** residuals
+(:math:`2.799\times10^{-16}`), which is what makes the kernel a
+**Stratum-1** geometry-only object, cached once per mesh on
+:attr:`SNMesh.loss_kernel_gauge <orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge>`
+and reused across every group, every outer and every eigenvalue iterate.
+
+Both counting laws, as theorems
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Expanding each :math:`Y_a` in the sign characters
+:math:`\chi_T(s) = \prod_{b \in T} s_b` splits
+:eq:`dd-null-balance-combinatorial` into one independent equation per
+subset :math:`U \subseteq S`.  :math:`|U| \le 1` contributes nothing;
+:math:`|U| \ge 2` is the classical additive-separable (ANOVA) problem
+whose solution space has dimension
+
+.. math::
+
+   \kappa(U) \;=\;
+   \sum_{a \in U} \prod_{b \in U \setminus a} n_b
+   \;-\; \prod_{b \in U} n_b
+   \;+\; \prod_{b \in U} (n_b - 1)
+   \qquad\Longrightarrow\qquad
+   \begin{cases}
+     \kappa(\{a,b\}) = 1, \\[2pt]
+     \kappa(\{a,b,c\}) = n_a + n_b + n_c - 1 .
+   \end{cases}
+
+Summing over :math:`U`, over the free spectator axes and over the
+ordinate **orbits** under the reflection group
+:math:`\langle R_a : a \text{ reflective}\rangle`:
+
+.. math::
+   :label: dd-null-counting-law
+
+   \dim \ker A
+   \;=\;
+   n_g \sum_{\rm orbits} \;
+   \sum_{\substack{U \subseteq S({\rm orbit}) \\ |U| \ge 2}}
+   \kappa(U) \prod_{c \notin U} n_c
+   \;+\; \#\{\text{tangential trace DOFs}\}
+
+.. (vv-status rationale) Structural identity: a combinatorial count derived
+   from dd-null-balance-combinatorial, carrying no solver claim. It is
+   nonetheless doubly gated by the foundation suite
+   tests/sn/operators/test_loss_kernel_gauge.py — the law is evaluated without
+   building a vector by predicted_kernel_dimension and compared BOTH against the
+   rank the construction's SVD finds
+   (test_the_dimension_matches_the_combinatorial_counting_law) and against a
+   dense SVD of the assembled operator
+   (test_the_dimension_matches_a_DENSE_SVD_of_the_assembled_operator), with the
+   two closed-form specialisations pinned separately
+   (test_the_counting_law_reproduces_the_two_closed_form_specialisations).
+.. vv-status: dd-null-counting-law documented
+
+and the specialisations fall out.  Note the **orbit** count: at
+:math:`d = 2` the group is :math:`\langle R_x, R_y\rangle` of order 4,
+:math:`\mu_z` is *not* flipped (z is not a mesh axis), so the count uses
+the full 3-D ordinate count :math:`N` and reads :math:`N/4`.
+
+.. list-table:: ``dim ker A``, closed form vs the construction, measured 2026-08-15
+   :header-rows: 1
+   :widths: 34 22 11 11 22
+
+   * - configuration (all 2-group unless noted)
+     - quadrature
+     - built
+     - law
+     - closed form
+   * - :math:`d=2` :math:`(3,4)`, all reflective
+     - ``level_symmetric(4)``
+     - 12
+     - 12
+     - :math:`n_g N/4`
+   * - :math:`d=2` :math:`(5,6)`, all reflective
+     - ``level_symmetric(4)``
+     - 12
+     - 12
+     - mesh-**independent**
+   * - :math:`d=2` :math:`(3,4)` **graded** (non-uniform :math:`h`)
+     - ``level_symmetric(4)``
+     - 12
+     - 12
+     - the area cancels
+   * - :math:`d=2` :math:`(3,4)`, all reflective
+     - ``lebedev(11)``
+     - 18
+     - 18
+     - (+ 224 in **T**)
+   * - :math:`d=2` :math:`(3,4)`, all reflective
+     - ``product(4,4)``
+     - **0**
+     - 0
+     - pure **T** (224)
+   * - :math:`d=2` :math:`(3,4)`, x-**vacuum** / y-reflective
+     - ``level_symmetric(4)``
+     - **0**
+     - 0
+     - one pair is not enough
+   * - :math:`d=2` :math:`(3,4)`, **linear-discontinuous** closure
+     - ``level_symmetric(4)``
+     - **0**
+     - —
+     - the closure damps it
+   * - :math:`d=3` :math:`(2,2,2)`, all reflective
+     - ``level_symmetric(4)``
+     - 66
+     - 66
+     - :math:`n_g (N/8)(2\textstyle\sum n - 1)`
+   * - :math:`d=3` :math:`(3,4,5)`, all reflective
+     - ``level_symmetric(4)``
+     - 138
+     - 138
+     - :math:`2\cdot3\cdot23`
+   * - :math:`d=3` :math:`(3,4,5)`, z-vacuum
+     - ``level_symmetric(4)``
+     - 60
+     - 60
+     - :math:`n_g (N/4)\, n_c`
+   * - :math:`d=3` :math:`(3,4,5)`, x-vacuum
+     - ``level_symmetric(4)``
+     - 36
+     - 36
+     - :math:`n_c = 3`
+   * - :math:`d=1` :math:`(8,)`, reflective
+     - ``level_symmetric(4)``
+     - **0**
+     - 0
+     - :math:`|S| \le 1`, no :math:`U`
+
+The two columns are computed by structurally different routes and that
+is the point: ``law`` is
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_kernel_dimension`,
+which walks the combinatorics of :eq:`dd-null-counting-law` and **builds
+no vector at all**, while ``built`` is the rank the construction's
+weighted SVD finds.  A bookkeeping error in either would separate them.
+The small rows are additionally pinned against a dense SVD of the
+assembled :math:`A`; the large ones are not, because they cannot be —
+the dense factorisation is :math:`O(n_{\rm dof}^3)` and already costs
+``[M]`` **23 s** at :math:`n_{\rm dof} = 3744` against a closed-form
+build the driver reports as ``0.00 s``.
+
+The full construction — the **pair generators** that span the solution
+set of :eq:`dd-null-balance-combinatorial`, the blocked direct sum over
+(ordinate orbit, group) that keeps a :math:`(12,12,12)` :math:`S_8`
+:math:`n_g{=}4` projector at ``[M]`` **150 MiB** where a dense basis
+would be **17.6 GiB**, and the single :math:`\sqrt G`-weighted SVD that
+does the rank reduction and the :math:`G`-orthonormalisation together —
+is the derivation of record in the module docstring of
+:mod:`~orpheus.sn.operators.loss_kernel_gauge` and is not repeated here.
+
+.. _sn-loss-kernel-what-a-user-sees:
+
+What a user actually sees
+--------------------------
+
+On the Key-result fixture the exact flux is flat, so **every** current
+component is zero everywhere.  The solver already gets the *normal*
+currents right.  What it reports un-gauged is a net current running
+**parallel to a mirror surface** — a quantity that cannot exist.
+
+.. list-table:: :math:`J_b = \sum_n w_n \mu_b \psi_n` summed over each face, un-gauged :math:`\to` gauged
+   :header-rows: 1
+   :widths: 22 16 31 31
+
+   * - quadrature
+     - face
+     - :math:`J_{\rm tangential}`
+     - :math:`J_{\rm normal}` (control)
+   * - ``level_symmetric(4)``
+     - ``ymin``
+     - :math:`+7.381060\times10^{-2} \to +1.55\times10^{-14}`
+     - :math:`-2.00\times10^{-15}`, unmoved
+   * - ``level_symmetric(4)``
+     - ``ymax``
+     - :math:`+7.381060\times10^{-2} \to -1.57\times10^{-14}`
+     - :math:`+1.08\times10^{-14}`, unmoved
+   * - ``level_symmetric(4)``
+     - ``xmin`` / ``xmax``
+     - :math:`-4.44\times10^{-16}`, unmoved
+     - :math:`0.0` / :math:`-7.27\times10^{-15}`, unmoved
+   * - ``lebedev(11)``
+     - ``ymin``
+     - :math:`+5.650846\times10^{-2} \to +1.94\times10^{-15}`
+     - :math:`-3.33\times10^{-16}`, unmoved
+   * - ``lebedev(11)``
+     - ``ymax``
+     - :math:`+5.650846\times10^{-2} \to -1.82\times10^{-14}`
+     - :math:`+5.27\times10^{-15}`, unmoved
+
+The normal currents are not decoration: they are the **negative
+control**.  Without them the gate would be satisfied by any
+transformation that merely shrinks the trace.
+
+.. _sn-loss-kernel-blindness:
+
+Why no scalar summary reveals it — a blindness theorem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every generator of the kernel carries a **non-trivial sign character on
+every axis it touches**: its :math:`Y_a \propto \chi_{U\setminus\{a\}}(s)`
+with :math:`U \setminus \{a\}` non-empty, because it always contains the
+partner axis.  Over one ordinate orbit the quadrature weight :math:`w_n`
+and the cosine magnitudes :math:`|\mu_a|` are **constant**, so for any
+angular weight :math:`F` that is *even* under the reflection group
+
+.. math::
+   :label: sn-kernel-mirror-blindness
+
+   \sum_{n \in {\rm orbit}} F(n)\, \chi_{U \setminus \{a\}}\bigl(s(n)\bigr)
+   \;=\; 0
+   \qquad\text{exactly, at every mesh, order and quadrature.}
+
+.. (vv-status rationale) Structural identity: a character-orthogonality
+   statement over a finite reflection group, carrying no solver claim — it says
+   which functionals CANNOT see the kernel, and it is what makes
+   psi_exact G-orthogonal to ker A (hence the minimum-norm gauge canonical
+   rather than conventional). Both faces are gated by the foundation suite
+   tests/sn/solve/test_every_entry_gauges_its_trace.py: the mirror-ODD
+   tangential current collapses while the mirror-EVEN normal currents do not
+   move (test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone), and
+   keff is unchanged against an independent analytic k_inf anchor
+   (test_the_bulk_and_keff_are_untouched).
+.. vv-status: sn-kernel-mirror-blindness documented
+
+So **every mirror-even functional annihilates the whole R component of**
+:math:`\ker A` — not below a tolerance, not at this order: exactly.  A
+functional summed over a face is mirror-even.  Measured on the
+Key-result fixture, un-gauged versus gauged:
+
+.. list-table:: mirror-EVEN functionals are bit-invariant under the gauge, while the trace moves 6.08 %
+   :header-rows: 1
+   :widths: 30 24 23 23
+
+   * - functional
+     - parity
+     - ``level_symmetric(4)``
+     - ``lebedev(11)``
+   * - :math:`|\Omega\cdot n|^0` face moment (4 faces)
+     - EVEN
+     - :math:`0.0` on 3, :math:`8.9\times10^{-16}` on 1
+     - :math:`0.0` on all 4
+   * - outgoing partial current :math:`J^+` (4 faces)
+     - EVEN
+     - :math:`0.0` on all 4
+     - :math:`0.0` on 3, :math:`2.2\times10^{-16}` on 1
+   * - :math:`G`-weighted total over :math:`\Gamma`
+     - EVEN
+     - :math:`3.6\times10^{-15}`
+     - :math:`3.6\times10^{-15}`
+   * - :math:`\keff` (eigenvalue entry)
+     - EVEN
+     - unchanged, :math:`= 1.875` to :math:`10^{-9}`
+     - —
+   * - :math:`J_{\rm tangential}` on a mirror face
+     - **ODD**
+     - :math:`7.4\times10^{-2} \to 10^{-14}`
+     - :math:`5.7\times10^{-2} \to 10^{-14}`
+
+The theorem also settles *why the gauge is canonical rather than
+conventional*.  :math:`\psi_{\rm exact}` on this configuration is a
+constant — the most mirror-even state there is — so it is
+:math:`G`-orthogonal to :math:`\ker A` (``[M]`` :math:`1.27\times10^{-15}`;
+directly, the projector annihilates a uniform trace at ``[M]``
+:math:`5.0\times10^{-18}` relative).  The **minimum-**\ :math:`\lVert\cdot\rVert_G`
+member of the solution manifold therefore *is* the physical answer, and
+the projection **recovers** it rather than choosing among equals.
+
+.. warning::
+
+   ⚠ **Two limits on the safe list, and both are measured.**
+
+   *First*, the theorem covers component **R**.  The tangential
+   component **T** — trace slots with :math:`\Omega\cdot n = 0`, whose
+   rows *and* columns of :math:`A` are identically zero — is a
+   different object, and there the :math:`|\Omega\cdot n|^0` face moment
+   is **NOT** blind (``[M]`` :math:`2.99\times10^{-2}` on
+   ``lebedev(11)``).  Any functional carrying at least one power of
+   :math:`|\Omega\cdot n|` kills **T**; the *unweighted* angular
+   integral at a face — a half-range scalar flux, a face-averaged
+   reaction rate — does not.  ⟹ the honest safe condition is
+   **mirror-even in the angle AND carrying** :math:`\ge 1` **power of**
+   :math:`|\Omega\cdot n|`, i.e. a current-type functional.  On the
+   default ``level_symmetric`` path ``[M]`` :math:`\dim T = 0` and
+   :math:`p = 0` is safe; on ``product`` and ``lebedev`` it is not
+   (``[M]`` :math:`\dim T = 224` on both, at :math:`(3,4)`
+   :math:`n_g{=}2`).
+
+   *Second*, an odd weight is not automatically a **sighted** test: on
+   the :math:`a`-face the mode carries character
+   :math:`\chi_{U\setminus\{a\}}`, and a weight pairs non-zero only when
+   its own character matches.  ``[M]`` a :math:`\operatorname{sign}(\mu_x\mu_y)`
+   weight reads :math:`1.9\times10^{-18}` (blind) where
+   :math:`\operatorname{sign}(\mu_x)` reads :math:`4.4\times10^{-2}`.
+   The reliably sighted probes are a single-ordinate reading and the
+   tangential current.
+
+.. _sn-loss-kernel-parity:
+
+The excitation is a PARITY effect — and it is not a property of the mesh
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A singular operator is a statement about the *equation*.  Whether a
+given solve actually **lands** off the canonical member is a separate
+question, and its answer is the sharpest argument for warning at run
+time rather than documenting and moving on.
+
+``[M]`` 2026-08-15, :func:`~orpheus.sn.solver.solve_sn`, all-reflective
+2-D box extents :math:`(1,2)`, 2-group **fissile** mixture,
+``level_symmetric`` :math:`S_4`, SI + ``gauss_seidel``,
+``inner_tol = 1e-13``; the reading is
+:math:`\lVert\Pi t\rVert / \lVert t\rVert` on the **returned** trace:
+
+.. list-table:: the same physics, eleven meshes
+   :header-rows: 1
+   :widths: 14 12 14 30 30
+
+   * - cells
+     - :math:`n_x`
+     - :math:`n_y`
+     - ``gauss_seidel``
+     - ``jacobi`` (control)
+   * - :math:`(3,3)`
+     - odd
+     - odd
+     - :math:`6.822354\times10^{-2}`
+     - :math:`\sim10^{-15}`
+   * - :math:`(3,4)`
+     - odd
+     - even
+     - :math:`6.080483\times10^{-2}`
+     - :math:`1.17\times10^{-15}`
+   * - :math:`(3,2)`
+     - odd
+     - even
+     - :math:`7.824118\times10^{-2}`
+     - :math:`\sim10^{-15}`
+   * - :math:`(5,4)`
+     - odd
+     - even
+     - :math:`4.436713\times10^{-2}`
+     - :math:`\sim10^{-15}`
+   * - :math:`(5,5)`
+     - odd
+     - odd
+     - :math:`4.099523\times10^{-2}`
+     - :math:`1.11\times10^{-15}`
+   * - :math:`(4,3)`
+     - even
+     - odd
+     - :math:`1.01\times10^{-14}`
+     - :math:`\sim10^{-15}`
+   * - :math:`(4,4)`
+     - even
+     - even
+     - :math:`5.05\times10^{-15}`
+     - :math:`\sim10^{-15}`
+   * - :math:`(4,5)` / :math:`(2,3)` / :math:`(2,2)` / :math:`(6,5)`
+     - even
+     - —
+     - :math:`2.1\times10^{-15} \dots 7.6\times10^{-15}`
+     - :math:`\sim10^{-15}`
+
+Every row returns :math:`\keff = 1.8750000000`, the analytic
+:math:`\kinf = \nu\Sigma_f/\Sigma_a` — the blindness theorem,
+end to end.
+
+⟹ **on these symmetric fixtures the excitation is present iff the FIRST
+axis has an ODD cell count**; :math:`n_y`'s parity is irrelevant, and
+the two populations are separated by **13 orders**, so any warning
+threshold in :math:`[10^{-12}, 10^{-4}]` gives the same verdict.  The
+mechanism is the schedule: boundary Gauss-Seidel groups octants in the
+quadrature's own order, which is lexicographic in the sign signature
+with :math:`\operatorname{sign}\mu_x` slowest-varying (``[M]``
+``(-1,-1,-1), (-1,-1,+1), \dots`` — x is the outer axis), and the mode's
+:math:`(-1)^k` alternation closes with net :math:`+1` over an even cell
+count while leaving a residual sign flip over an odd one.  A different
+octant order therefore moves the excited axis, which couples this to
+`#343 <https://github.com/deOliveira-R/ORPHEUS/issues/343>`_.
+
+.. warning::
+
+   ⛔ **"Even** :math:`n_x` **is safe" is FALSE as a statement about the
+   mesh, and reading it that way builds an inert gate.**  Parity governs
+   **excitation**, never the kernel.  ``[M]`` :math:`\dim \ker A = 12`
+   at :math:`(2,2)`, :math:`(3,4)`, :math:`(4,4)`, :math:`(5,6)` **and**
+   :math:`(6,8)` alike, and the even-\ :math:`n_x` box is excited the
+   moment the source stops being symmetric:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 18 34 24
+
+      * - cells
+        - source
+        - :math:`\lVert\Pi t\rVert/\lVert t\rVert`
+      * - :math:`(3,4)`
+        - uniform isotropic
+        - :math:`6.080483\times10^{-2}`
+      * - :math:`(3,4)`
+        - anisotropic :math:`(1+\mu_x)/W`
+        - :math:`5.815861\times10^{-2}`
+      * - :math:`(4,4)`
+        - uniform isotropic
+        - :math:`6.7\times10^{-14}`
+      * - :math:`(4,4)`
+        - anisotropic :math:`(1+\mu_x)/W`
+        - :math:`1.756363\times10^{-2}`
+
+   This is ``vv-principles`` #13's congruence-class trap: a refinement
+   ladder of :math:`4, 8, 16, 32` is a **single parity class**, and a
+   gate written on it is green, authoritative and structurally unable to
+   fail.  It has already fired twice in this campaign — an exit map
+   probed only :math:`4\times4` and :math:`6\times6` and concluded the
+   gauge could not bite at the eigenvalue entry at all.  **Assert**
+   ``dim ker == 0``, never infer kernel-freedom from a mesh property.
+
+   ⟹ the user-facing statement, and it is stronger than
+   non-determinism: **a** :math:`3\times N` **mesh reports a**
+   :math:`\sim 7\,\%` **spurious tangential current, and a**
+   :math:`4\times N` **mesh reports none.**
+   The defect appears and vanishes under a mesh change that
+   alters nothing qualitative, so it is **not discoverable by
+   inspection** — which is why the solver says so out loud instead of
+   leaving it to this page.
+
+.. _sn-loss-kernel-the-gauge:
+
+The gauge — returning the canonical member
+-------------------------------------------
+
+:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge` is the
+:math:`G`-orthogonal projector :math:`\Pi` onto :math:`\ker A`, and the
+operation the solver performs at every exit that returns a trace is
+
+.. math::
+   :label: sn-loss-kernel-gauge-projection
+
+   \psi \;\longmapsto\; \psi - \Pi\psi ,
+   \qquad
+   A(\psi - \Pi\psi) \;=\; A\psi
+   \quad\text{because}\quad \Pi\psi \in \ker A .
+
+.. (vv-status rationale) Structural/representational: the definition of the
+   shipped operation plus its residual-neutrality identity, which follows from
+   the definition of a kernel and carries no solver claim of its own. Both are
+   gated by the foundation suite tests/sn/operators/test_loss_kernel_gauge.py —
+   idempotence and G-self-adjointness
+   (test_it_is_an_idempotent_G_self_adjoint_projector) and the
+   no-certificate-may-move contract on all six fixtures
+   (test_gauging_cannot_move_any_convergence_certificate) — and end to end by
+   tests/sn/solve/test_every_entry_gauges_its_trace.py.
+.. vv-status: sn-loss-kernel-gauge-projection documented
+
+The right-hand identity is the whole safety argument: the projection is
+**residual-neutral by construction**, so firing it at a converged exit
+**cannot move any convergence certificate**.  ``[M]`` on a deliberately
+truncated SI solve the exit balance defect reads ``0.3111434602740818``
+on the raw and on the gauged iterate alike, while the gauge correction
+goes :math:`3.59\times10^{-2} \to 4.9\times10^{-17}`.  It is applied
+*after* the defect is measured, so the number reported describes the
+object the caller actually receives.
+
+Scope is **component R only**.  :math:`\ker A` splits as
+:math:`T \oplus R`, separated exactly by the metric's zero set (``[M]``
+:math:`\max|B_R|` on :math:`G = 0` rows is :math:`0.000000\times10^{0}`
+on ``level_symmetric``, ``product(4,4)`` *and* ``lebedev(11)``):
+
+* **R** — the genuine trace underdetermination, on current-carrying
+  ordinates.  Its modes carry non-zero trace metric, so the
+  minimum-:math:`G`-norm member is unique and the projection is
+  well-posed.
+* **T** — the tangential slots.  ⛔ They lie in :math:`\ker G` (``[M]``
+  :math:`\max|G|` on them is :math:`0.000000\times10^{0}` against
+  :math:`\min|G| = 2.78\times10^{-1}` / :math:`7.64\times10^{-2}` on the
+  rest), so *every* value has the same — zero — :math:`G`-norm and there
+  is no minimum-norm representative to choose.  :math:`B^{\mathsf T} G B`
+  is **singular** the moment :math:`T \neq 0`, so R and T must never be
+  orthonormalised together.  T is left **untouched**, which is the
+  correct action and not an omission: :math:`Gt = 0` makes
+  :math:`t \perp_G \operatorname{span} R`, so :math:`(I - \Pi)t = t`.
+  Typing T away so the directions are unrepresentable is filed
+  separately.
+
+What ships
+~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - surface
+     - what it is
+   * - :attr:`SNMesh.loss_kernel_gauge <orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge>`
+     - the cached projector.  On the mesh because the kernel is
+       geometry-only; **zero blocks** on a non-singular configuration,
+       so :meth:`gauge <orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge.gauge>`
+       is the identity and no consumer needs a ``None`` branch
+   * - :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom`
+     - a **three-state** verdict — present / absent / **UNDETERMINED** —
+       with a sentence naming the deciding conjunct.  Both conjuncts are
+       *derived*: the closure is asked whether it leaves a face mode
+       undamped, the mesh is asked how many reflective axis pairs close
+   * - :class:`~orpheus.sn.operators.loss_kernel_gauge.GaugeFreedomWarning`
+     - fires when the trace was **repaired**, or when the closure could
+       not be classified.  Deliberately **not** a
+       :class:`~orpheus.numerics.convergence.ConvergenceWarning`: the
+       solve converged perfectly and the ambiguity is in the *equation*
+   * - :attr:`IterationHistory.gauge_correction <orpheus.sn.solution.IterationHistory.gauge_correction>`
+     - the measured :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert`.
+       ``None`` means **not measured**, never *"measured and zero"* — the
+       :attr:`balance_defect <orpheus.sn.solution.IterationHistory.balance_defect>`
+       discipline
+
+The three-state predicate is not ceremony.  ``[M]``
+``linear_discontinuous`` **damps** the face mode at :math:`d=2`
+(spectral radius :math:`0.860702 < 1`) and is **UNDETERMINED** at
+:math:`d=3` — its ``assemble_inflow_axis`` defers the general
+interior-axis interleave, so the closure cannot be driven and its
+damping is unknown.  A caller who read UNDETERMINED as *absent* would
+skip the gauge on a scheme nobody examined; instead the solver warns
+loudly and states that the trace was **not** gauge-fixed.
+
+.. list-table:: cost, single-process, measured 2026-08-15
+   :header-rows: 1
+   :widths: 26 16 12 12 16 18
+
+   * - configuration
+     - trace DOFs
+     - blocks
+     - :math:`\dim\Pi`
+     - build (cached)
+     - apply
+   * - :math:`d=2` :math:`(3,4)` :math:`S_4` :math:`n_g{=}2`
+     - 672
+     - 12
+     - 12
+     - 3.0 ms
+     - 85 µs
+   * - :math:`d=3` :math:`(3,4,5)` :math:`S_4` :math:`n_g{=}2`
+     - 4512
+     - 6
+     - 138
+     - 22.0 ms
+     - 184 µs
+
+Against solves that take seconds and :math:`O(10^3\!-\!10^4)` sweeps on
+the same fixtures, and with the build amortised over every group, outer
+and eigenvalue iterate, the projection is well under 0.2 % of one solve.
+
+Every public entry gauges — including the two that cannot be exercised
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The gauge is the sibling of the exit balance defect
+(:eq:`sn-exit-balance-defect`) with one sharpening that changes the
+verification obligation: **that one REPORTS and this one MUTATES.**  A
+forgotten balance-defect site loses a diagnostic; a forgotten gauge site
+silently returns a non-physical answer.  Both fixed-source arms project
+— SI *and* Krylov, the latter's own comment notwithstanding (it
+described the returned boundary as "the matvec's :math:`B_1''` face
+residual", which is the boundary block of :math:`A\psi`, a different
+object from the solution vector's; ``[M]`` it is a flux trace, and the
+sentence has been corrected).  ``solve_sn_adjoint`` and
+``solve_sn_adjoint_fixed_source`` are wired for uniformity and are
+**structurally inert**: the adjoint routes through :math:`(L+C)^{\mathsf H}`,
+whose transpose solve is 1-D-scan-only, and a 1-D problem has at most
+one reflective axis pair.
+
+.. note::
+
+   ⚠ **Do not read a green adjoint test as evidence the gauge works** —
+   that is *inert*, not *verified*.  Coverage is gated by
+   ``tests/sn/solve/test_every_entry_gauges_its_trace.py``, whose entry
+   list is **derived from the module** rather than hand-written, so a
+   new ``solve_sn*`` entry that forgets to gauge cannot pass by being
+   unknown to the gate.
+
+.. _sn-loss-kernel-remedies:
+
+The remedy hierarchy
+---------------------
+
+The gauge is a *repair*, and the solver's warning says so: it names what
+would remove the freedom **at the root**, asked of the closure registry
+rather than tabulated, so a closure added tomorrow appears in that
+sentence with no edit anywhere.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 6 30 64
+
+   * - #
+     - remedy
+     - what it costs, and when it is available
+   * - 1
+     - **Change the spatial closure** — the root fix
+     - The freedom is a property of the *diamond* closure, not of
+       transport and not of the boundary condition.  ``[M]``
+       ``linear_discontinuous`` gives :math:`\dim\ker A = 0` on the
+       identical box at :math:`d=2`.  ⚠ At :math:`d=3` **no closure in
+       this build damps the mode** — LD is UNDETERMINED there — so at
+       :math:`d=3` this remedy is not currently available and the
+       warning says exactly that.
+   * - 2
+     - **Break one reflective axis pair**
+     - A mode needs a closed loop to return to itself; ``[M]`` at
+       :math:`d=2` a single vacuum face collapses :math:`\dim\ker A`
+       from 12 to 0.  Only available if the physics allows it — an
+       infinite-lattice :math:`\kinf` calculation is all-reflective by
+       definition.
+   * - 3
+     - **Gauge it** — what ships
+     - Exact by construction, not by fixture; recovers
+       :math:`\psi_{\rm exact}`'s member; bulk bit-untouched; no
+       certificate moves; ``[M]`` well under 0.2 % of one solve.
+   * - 4
+     - ⛔ **Switch the default schedule to Jacobi** — REJECTED
+     - ``jacobi`` does land on the canonical member (``[M]``
+       :math:`\sim10^{-15}` on every row above), and so does Krylov
+       (``[M]`` :math:`4.1\times10^{-14}`).  But this is a **rate**
+       decision taken for a **correctness** reason, it re-opens the
+       schedule question of :ref:`sn-boundary-gs-rate-regime`
+       (``[M]`` Jacobi is 2.5× *slower* at :math:`d=2` and 2.3× *faster*
+       at :math:`d=3`), and its correctness rests on five fixtures
+       rather than on a theorem.  The projection is the only option that
+       is exact by construction.
+   * - 5
+     - ⛔ **Dense SVD of** :math:`A` **for the null space** — REJECTED
+     - Exact, and priced out: ``[M]`` **23.0 s** at
+       :math:`n_{\rm dof} = 3744` against a sub-10 ms closed-form build
+       — :math:`\ge 2000\times` at the one size where both were run —
+       with the dense matrix alone :math:`O(n_{\rm dof}^2)` (5.5 TB at
+       :math:`(12,12,12)` :math:`S_8` :math:`n_g{=}4`).
+
+.. _sn-loss-kernel-corrections:
+
+What this corrects, and what was tried and failed
+---------------------------------------------------
+
+.. attention::
+
+   ⛔ **RETRACTION (2026-08-15, #344) — "the converged fixed point is
+   splitting-invariant" is FALSE as an unqualified universal**, and this
+   page asserted it in three places: the Key Facts card, the
+   FP-invariance paragraph of :ref:`sn-boundary-gs-not-regular`'s
+   verification subsection, and its *What survives* summary.  The
+   companion claim on :ref:`sn-solver-operator-algebra-coordinator` —
+   that source iteration and Krylov "converge to the same fixed point" —
+   is the same statement and had the same defect.
+
+   Every one of them presupposes that a fixed **point** exists.  When
+   :math:`A` is singular there is a fixed **manifold**: :math:`\ker A`
+   is splitting-invariant, but the *complementary* invariant subspace is
+   not, so the oblique projector whose range the iteration freezes
+   differs by schedule and two perfectly correct splittings legitimately
+   return **different members**.  ``[M]`` on the Key-result fixture, the
+   boundary-Gauss-Seidel and Jacobi traces differ by
+   :math:`\lVert d\rVert = 0.124184` with
+   :math:`\lVert\Pi d\rVert/\lVert d\rVert = 1.000000` — the difference
+   is *entirely* kernel content, with :math:`1.77\times10^{-13}` outside
+   it.
+
+   **What survives, and it is most of the claim.** The bulk *is*
+   invariant — ``[M]`` the scalar flux, :math:`\keff` and every reaction
+   rate are unchanged, because the kernel is pure-trace — and every
+   citation of splitting-invariance in this book rests on a bulk or
+   eigenvalue measurand.  The three sentences are now scoped to say
+   *which* object is invariant, and the gates they cite are unaffected:
+   ``test_w2_fixed_point_equivalence_diagonal_cubature`` runs on a
+   heterogeneous vacuum-x / reflective-y box, which closes **one**
+   reflective axis pair, and ``[M]`` :math:`\dim\ker A = 0` there.
+
+   The corpus statement of the underlying doctrine is
+   :ref:`the Mode-9 entry <verification-test-design-modes>`, which now
+   carries the premise clause.
+
+⚠ The discriminator matters, because *"the boundary moved and the bulk
+did not"* is **also** the signature of a genuinely incoherent schedule —
+one whose :math:`M - N \neq A`, the ERR-056 family.  Three checks
+separate them, and all three were run: (a) :math:`M - N \equiv A`
+bit-exactly for both splittings; (b) with the kernel removed the two
+schedules agree on the **boundary** as well as the bulk; (c) the
+difference lies in :math:`\ker A` (``[M]`` :math:`1.000000`).  An
+incoherent splitting moves the bulk too.
+
+.. list-table:: refuted candidates, kept with the structural reason each failed
+   :header-rows: 1
+   :widths: 34 66
+
+   * - candidate
+     - why it fails
+   * - ":math:`N/4` counts ordinate **quartets within one octant**"
+     - :math:`N/4` is the **orbit** count of
+       :math:`\langle R_x, R_y\rangle` acting on the FULL 3-D ordinate
+       set.  Decisive: at :math:`d=2` the ordinates
+       :math:`(\mu_x,\mu_y,+\mu_z)` and :math:`(\mu_x,\mu_y,-\mu_z)` lie
+       in **different** orbits and give **independent** modes — the
+       quartet reading predicts 3 where the measurement is 12.
+   * - "the modes are spatially **uniform** on each face"
+     - The balance forces the *checkerboard-weighted* function to be
+       constant, so the raw face profile is :math:`(-1)^{i_\perp}`.  A
+       uniform ansatz has :math:`\lVert Ab\rVert/\lVert b\rVert = O(1)`,
+       not :math:`10^{-16}`.  The uniform reading came from summing the
+       projector diagonal over an orthonormal basis of a symmetric
+       space — a **mass**, not a mode.
+   * - "a loop/cocycle **parity** condition on closed reflective loops"
+     - The :math:`(-1)^{n_a}` accumulated around a loop **cancels
+       identically** between the two sides of the specular
+       identification, so the loop imposes no condition at all.  Had it
+       imposed one, :math:`\dim\ker A` would depend on cell-count
+       parity; ``[M]`` it does not — :math:`12` at :math:`(2,2)`
+       through :math:`(6,8)`.
+   * - "one mode **per ordinate**, not per orbit"
+     - Over-complete by :math:`2^d`: the specular condition
+       :math:`\varphi^n_a = \varphi^{R_a n}_a` collapses each orbit's
+       ordinate-local solutions onto ONE.  It destroys *independence*,
+       not the residual — which is why every verification row reports
+       :math:`\sigma_{\min}` of the stacked basis, not only
+       :math:`\lVert Ab\rVert`.
+   * - "treat the tangential slots **with the same machinery** as R"
+     - The construction divides by :math:`|\mu_a|`; for a tangential
+       ordinate that is :math:`0/0`.  Worse, T sits in :math:`\ker G`,
+       so one :math:`B^{\mathsf T} G B` orthonormalisation over
+       :math:`R \oplus T` is **singular**.
+   * - "a refinement fit :math:`\dim \propto n_x n_y n_z`"
+     - The law is :math:`2\sum n - 1`, a **sum**, because the free
+       functions live on **planes** of cells indexed by one coordinate,
+       never on the full cell set.
+   * - "#344 reading 1 — the singularity is **tangential-slot
+       bookkeeping**"
+     - Both readings are real and they are a **direct sum**: they are
+       the :math:`|S| \ge 2` and the :math:`|S| < 2`-with-a-free-slot
+       branches of the same equation.  ``[M]`` ``product(4,4)`` at
+       :math:`d=2` is pure T (:math:`R = 0`); ``level_symmetric`` is
+       pure R (:math:`T = 0`).
+   * - ⛔ "the even-\ :math:`n_x` split is **detector blindness** — the
+       mode is present but the :math:`(-1)^{i_\perp}` profile makes a
+       uniform detector read zero"
+     - A true statement about detectors, and **not** the explanation.
+       ``[M]`` at even :math:`n_x` the returned deviation has norm
+       :math:`2.2\times10^{-13}\dots4.6\times10^{-13}` and is only
+       15–31 % inside :math:`\ker A` — the mode is **absent from the
+       iterate**, not hidden from the probe.  Two mechanisms share one
+       parity fingerprint, and only a *kernel-content* measurement (not
+       a deviation measurement) tells them apart.
+
+.. warning::
+
+   ⛔ **The first witness gate designed for this defect could not have
+   failed, and it is worth knowing why.**  The proposed acceptance test
+   was *"the* :math:`|\Omega\cdot n|^0` *full-face moment moves, and
+   only where the quadrature has tangential ordinates"*.  ``[M]`` the
+   moment moves **nowhere** — not under ``lebedev`` either — and it
+   **could not have**, by :eq:`sn-kernel-mirror-blindness`: a
+   face-summed moment is mirror-even and every kernel mode is
+   mirror-odd.  The gate would have shipped green, authoritative and
+   structurally unfalsifiable (``plan-authoring`` §6c), reached by
+   reasoning from a hunch instead of from a theorem the same document
+   already contained.  The witness that works is the mirror-**odd**
+   tangential current of :ref:`sn-loss-kernel-what-a-user-sees`.
+
+   The same trap sits one level down in the construction: the modes'
+   Gram was measured **exactly diagonal** and the reading was
+   *vacuous* — at :math:`d=2` each orbit carries exactly one mode, and a
+   :math:`1\times1` Gram is diagonal for free.  ``[M]`` at
+   :math:`d \ge 3` it is **43 % off-diagonal**, and declaring
+   ``DIAGONAL`` there would have normalised every coefficient by the
+   wrong number, silently.  The module docstring's §5 carries the
+   measurement and the fix.
 
 What broadens next
 ==================

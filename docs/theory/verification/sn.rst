@@ -4466,6 +4466,13 @@ with lagged gains :math:`S, B_{\rm upper}`), and Krylov (the matvec
 affine fixed point :math:`(L+C-S-B)\psi = q`, so they MUST reach the
 same :math:`\psi` (``vv-principles`` Mode 9 — verify splittings reach
 the same fixed point under anisotropic / :math:`B\neq 0` stressing).
+⚠ *"the same* :math:`\psi`\ *"* is legitimate here because both T4
+configs are **kernel-free** — ``slab_1d`` is :math:`d=1` and
+``cart2d_reflective_y`` closes **one** reflective axis pair, and a
+solution *point* exists only when :math:`A` is nonsingular.  Close two
+pairs under diamond differencing and it is not (:ref:`sn-loss-kernel-gauge`),
+so a future config added to this row must either stay kernel-free or
+compare the **gauged** trace.
 This is a **foundation** test, not an L1 claim: no theory-page
 :math:`:label:` is being verified — it pins that three reduction trees
 of one affine operator agree on one RHS, which is a software invariant

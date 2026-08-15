@@ -19,6 +19,38 @@ it is not a universal absorber                 the Jacobi control, which already
                                                the correct member and must be left alone
 ============================================  ==========================================
 
+**The dense-SVD ground truth, in full.** Four configurations re-run the SVD
+live (:func:`test_the_dimension_matches_a_DENSE_SVD_of_the_assembled_operator`);
+the construction was originally validated against **13**, and the rest are
+recorded here because their fixtures are too large to re-solve every run and
+the table is otherwise only in an untracked scratch memo. ``mine`` = the
+closed form's column count, ``law`` = the combinatorial count computed by a
+separate function that builds no vector, ``svd`` = dense SVD of the assembled
+:math:`A`; ``gap`` = :math:`\lVert(I - P_{\rm mine})P_{\rm svd}\rVert_2`.
+
+====================================  ====================  ====  ====  ====  =========  =========
+case                                  quadrature            mine   law   svd    max res       gap
+====================================  ====================  ====  ====  ====  =========  =========
+d2 (3,4) refl abs ng=2                level_symmetric(S4)     12    12    12   2.80e-16  1.288e-14
+d2 (3,4) refl abs ng=2                level_symmetric(S2)      4     4     4   2.21e-16  2.220e-14
+d2 (5,6) refl c=0.9 ng=3              level_symmetric(S4)     18    18    18   4.16e-16  2.049e-14
+d2 (3,4) refl abs ng=2                product(4,4)           224   224   224   0.00e+00  4.981e-15
+d2 (3,4) refl abs ng=2                product(8,8)           464   464   464   3.99e-16  1.426e-14
+d2 (3,4) refl abs ng=2                lebedev(11)            242   242   242   2.71e-16  1.346e-14
+d2 (3,4) GRADED refl abs ng=2         level_symmetric(S4)     12    12    12   5.37e-16  1.416e-14
+d2 (3,4) x-VAC y-refl ng=2            level_symmetric(S4)      0     0     0   0.00e+00        n/a
+d3 (2,2,2) refl abs ng=1              level_symmetric(S4)     33    33    33   1.50e-16  9.801e-15
+d3 (2,2,3) refl abs ng=1              level_symmetric(S4)     39    39    39   1.39e-16  1.018e-14
+d3 (2,2,2) refl abs ng=2              level_symmetric(S2)     22    22    22   1.49e-16  5.790e-15
+d3 (2,2,2) refl abs ng=1              product(4,4)           136   136   136   0.00e+00  9.034e-15
+d3 (2,2,2) xy-refl z-VAC ng=1         level_symmetric(S4)     12    12    12   0.00e+00  1.526e-14
+====================================  ====================  ====  ====  ====  =========  =========
+
+Note the two structural rows: ``product(4,4)`` at d=2 is **pure T** (224
+tangential, ``R = 0``), and the mixed-BC row is a negative control where the
+correct answer is 0 — the construction returns an empty basis rather than
+manufacturing spurious modes.
+
 ⚠ **The load-bearing gate is**
 :func:`test_each_block_gram_is_the_identity_which_is_what_earns_DIAGONAL`.
 ``[M]`` the *raw pair generators* — the natural thing to ship — have a Gram that
@@ -141,6 +173,7 @@ _DENSE_SVD_VIABLE = {
 # 1. the dimension, against two independent oracles
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.foundation
+@pytest.mark.verifies("dd-null-counting-law")
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR,
                          ids=[row[0] for row in _SINGULAR])
 def test_the_dimension_matches_the_combinatorial_counting_law(
@@ -159,6 +192,7 @@ def test_the_dimension_matches_the_combinatorial_counting_law(
 
 
 @pytest.mark.foundation
+@pytest.mark.verifies("dd-null-counting-law")
 @pytest.mark.parametrize(
     "label,cells,bcs,kwargs",
     [row for row in _SINGULAR if row[0] in _DENSE_SVD_VIABLE],
@@ -228,6 +262,7 @@ def test_the_anova_dimension_is_the_separable_equation_solution_count():
 # 2. the vectors are in ker A — every one of them, via the production matvec
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.foundation
+@pytest.mark.verifies("dd-null-sawtooth")
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR,
                          ids=[row[0] for row in _SINGULAR])
 def test_EVERY_basis_vector_is_annihilated_by_the_production_matvec(
@@ -408,6 +443,7 @@ def test_no_inverse_and_it_is_spelled_by_ABSENCE():
 # 5. residual-neutrality — no convergence certificate may move
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.foundation
+@pytest.mark.verifies("sn-loss-kernel-gauge-projection")
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR,
                          ids=[row[0] for row in _SINGULAR])
 def test_gauging_cannot_move_any_convergence_certificate(

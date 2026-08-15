@@ -53,6 +53,7 @@ from orpheus.numerics.convergence import (
 )
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
+from orpheus.sn.operators.loss_kernel_gauge import warn_if_gauge_freedom
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
@@ -577,6 +578,80 @@ def _exit_balance_defect(
     residual = evaluate_residual(loss_op, psi, q)
     defect_rate = _balance_projection(residual, sn_mesh=sn_mesh)
     return float(np.linalg.norm(np.asarray(defect_rate))) / denominator
+
+
+#: Either flavour of the System-A composite — both carry a ``.boundary``.
+#: A TypeVar rather than a union so the gauged result keeps the caller's exact
+#: type: the fixed-source arms hand their return straight to ``Solution``.
+_TraceCarrier = TypeVar("_TraceCarrier", "FullField", "TimedFullField")
+
+
+def _exit_gauge_trace(
+    psi: _TraceCarrier,
+    *,
+    sn_mesh: "SNMesh",
+) -> "tuple[_TraceCarrier, float | None]":
+    r"""Return the CANONICAL member of the returned trace's solution manifold.
+
+    On an all-reflective Cartesian box closed by diamond differencing,
+    :math:`A = L + C - S - B` is **exactly singular** (#344), so a converged
+    solve lands on an arbitrary member of a solution manifold rather than on a
+    point.  This projects the kernel component out —
+    :math:`\psi \mapsto \psi - \Pi\psi` — leaving the minimum-:math:`G`-norm
+    member, which is where the exact solution sits (a theorem, not a
+    convention: every kernel mode is mirror-ODD, so any mirror-even functional
+    annihilates it, and :math:`\psi_{\rm exact}` is one).
+
+    Returns the gauged composite and
+    :math:`\lVert \Pi\psi \rVert / \lVert \psi \rVert` for
+    :attr:`~orpheus.sn.solution.IterationHistory.gauge_correction` — ``None``
+    when there was no freedom to measure, never *"measured and zero"*.
+
+    ⭐ **The sibling of** :func:`_exit_balance_defect` **with one sharpening:
+    that one REPORTS and this one MUTATES.**  A forgotten balance-defect site
+    loses a diagnostic; a forgotten gauge site silently returns a
+    non-physical answer.  The structural guarantee a single construction site
+    would have given is not available (`[M]` the two fixed-source arms
+    deliberately bypass :func:`_package_solution` to keep their DG slope
+    structure, :ref:`the note below <no-label>` at the arms), so coverage is
+    GATED instead — see
+    ``tests/sn/solve/test_every_entry_gauges_its_trace.py``.
+
+    ⛔ **Rebuilds, never mutates in place.**  `[M]` on the Krylov arm the bulk
+    and trace are two views into ONE flat buffer
+    (``psi_full.boundary.values.base is psi_full.interior.values.base`` →
+    ``True``), which ``psi_typed`` also references and which is still read
+    after this point; on the un-windowed SI arm ``angular_out IS psi_typed``,
+    the very object :func:`_exit_balance_defect` already measured.  An in-place
+    write would reach backwards through both.  ``dataclasses.replace`` also
+    re-runs ``__post_init__``, so the leaf's block invariants re-fire — where
+    ``Composite._recombine`` would silently drop ``_history``.
+
+    **Residual-neutral by construction**, so it is safe at a converged exit:
+    :math:`A(\psi - \Pi\psi) = A\psi` because :math:`\Pi\psi \in \ker A`.  `[M]`
+    on a truncated SI solve ``_exit_balance_defect`` reads
+    ``0.3111434602740818`` on both the raw and the gauged iterate while
+    ``gauge_correction`` goes ``3.592e-2 → 4.91e-17``.  Call it AFTER the
+    defect anyway, so the reported number describes the object the caller
+    actually receives.
+
+    ⚠ Takes the **System-A member**, not a ``CoupledField``: only the transport
+    bulk⊕trace block carries a boundary at all (a ``CoupledField`` has no
+    ``.boundary``), and every exit already unpacks it with
+    :func:`_system_a_member` before reading the trace.
+    """
+    gauge = sn_mesh.loss_kernel_gauge
+    if not gauge.blocks:
+        return psi, None
+
+    boundary = psi.boundary
+    values = np.asarray(boundary.values, dtype=float)
+    gauged = gauge.gauge(values)
+    scale = float(np.linalg.norm(values))
+    correction = (
+        float(np.linalg.norm(values - gauged)) / scale if scale > 0.0 else 0.0
+    )
+    return replace(psi, boundary=replace(boundary, values=gauged)), correction
 
 
 def _certify_within_group_exit(
@@ -2565,13 +2640,22 @@ def solve_sn(
             _bare_loss_arm(final_system),
             final_psi_a, exit_rhs, sn_mesh=sn_mesh, record=outcome.record,
         )
+    # #344 — AFTER the balance defect, so the number reported describes the
+    # object the caller receives (residual-neutral either way; see the helper).
+    final_psi_a, gauge_correction = _exit_gauge_trace(
+        final_psi_a, sn_mesh=sn_mesh,
+    )
     history = IterationHistory(
         record=outcome.record, keff_history=tuple(keff_history),
         balance_defect=balance_defect,
+        gauge_correction=gauge_correction,
     )
     warn_if_unconverged(
         history.record, where="solve_sn",
         balance_defect=history.balance_defect,
+    )
+    warn_if_gauge_freedom(
+        sn_mesh, history.gauge_correction, where="solve_sn",
     )
     return _package_solution(
         _cell_average_angular(final_psi_a, sn_mesh),
@@ -2623,15 +2707,39 @@ def _package_solution(
     history: IterationHistory,
     cls: "type[SolutionT]",
 ) -> SolutionT:
-    r"""The ONE :class:`SolutionBase` construction convention.
+    r"""The CELL-AVERAGE :class:`SolutionBase` construction convention.
 
-    The single boundary where converged iterates become the typed
-    return (#197 PR-TYPED-5): the cell-average angular view + the
-    converged boundary trace wrap once into the ``TimedFullField``
-    composite carrier (D-H.1c stage 2 — ``_history=()``,
-    ``history_depth=2`` — spelled HERE and nowhere else), alongside the
-    scalar member, eigenvalue, iteration history, and System B's ray
-    member (``None`` on non-carrying meshes, B.2d).
+    Where the eigenvalue and adjoint entries turn converged iterates into the
+    typed return (#197 PR-TYPED-5): the cell-average angular view + the
+    converged boundary trace wrap into the ``TimedFullField`` composite carrier
+    (D-H.1c stage 2 — ``_history=()``, ``history_depth=2``), alongside the
+    scalar member, eigenvalue, iteration history, and System B's ray member
+    (``None`` on non-carrying meshes, B.2d).
+
+    ⛔ **This docstring read "The ONE ``SolutionBase`` construction convention …
+    spelled HERE and nowhere else" until 2026-08-15. That was present-tense
+    FALSE**, and it is the kind of falsehood that costs a later change real
+    work: it invites installing a cross-cutting hook here and believing every
+    entry is covered.
+
+    `[M]` **3 of the 4 public entries route through this** —
+    :func:`solve_sn` directly, and both adjoints via
+    :func:`_package_adjoint_solution`. The **fixed-source family bypasses it
+    entirely, once per arm**, building ``Solution(...)`` inline in
+    :func:`_solve_fixed_source_si` and :func:`_solve_fixed_source_krylov`.
+
+    The bypass is **deliberate, not drift**, and unifying it would be a
+    regression: this tail routes the bulk through :func:`_cell_average_angular`,
+    which strips a multi-moment closure to its ``AVERAGE_MOMENT`` slot, whereas
+    the fixed-source arms return ``angular_out`` **whole** — a DG closure's
+    :math:`\hat\varphi` slopes are internal structure, not the scalar flux the
+    ``Solution`` reports (see the note in ``_solve_fixed_source_si``, #240
+    D5b-S3). Two conventions, because there are two different returns.
+
+    ⟹ **anything that must reach every entry belongs at the entries, not
+    here** — see :func:`_exit_balance_defect` (4 sites) and
+    :func:`_exit_gauge_trace` (5, because the fixed-source family has two
+    arms), each one named, single-sourced, and invoked per exit.
 
     SCALAR- and ROLE-AGNOSTIC by design: the caller supplies the scalar
     member (forward — the power iteration's converged scalar; adjoint —
@@ -2856,12 +2964,24 @@ def solve_sn_adjoint(
     # class.  Tracked as #353; until then this path warns with everything
     # EXCEPT the number, which is why the clause is omitted rather than
     # printed as "unavailable".
+    # #344 — wired for uniformity, and `[M]` INERT on every configuration this
+    # entry can run: the adjoint routes through (L+C)^H, whose transpose solve
+    # is 1-D-scan-only (#280 Phase 2.5b), and a 1-D problem has at most ONE
+    # reflective axis pair, so `gauge_freedom(...).present` is False and this is
+    # exactly the identity. ⚠ Do NOT read a green adjoint test as evidence the
+    # gauge works — that is `inert`, not `verified`; the acceptance gate lives
+    # on the forward entries.
+    system_a, gauge_correction = _exit_gauge_trace(system_a, sn_mesh=sn_mesh)
     history = IterationHistory(
         record=outcome.record, keff_history=tuple(keff_history),
+        gauge_correction=gauge_correction,
     )
     warn_if_unconverged(
         history.record, where="solve_sn_adjoint",
         balance_defect=history.balance_defect,
+    )
+    warn_if_gauge_freedom(
+        sn_mesh, history.gauge_correction, where="solve_sn_adjoint",
     )
     return _package_adjoint_solution(
         system_a, adjoint_ray, sn_mesh,
@@ -2875,7 +2995,7 @@ def solve_sn_adjoint_fixed_source(
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: Quadrature,
     detector_response: "np.ndarray | FullField",
-    boundary_condition: str = "vacuum",
+    boundary_condition: "str | None" = "vacuum",
     scattering_order: int = 0,
     max_inner: int | None = None,
     inner_tol: float = 1e-12,
@@ -3013,10 +3133,21 @@ def solve_sn_adjoint_fixed_source(
         implicit_operator.H - gain.H, psi_star, q_star,
         sn_mesh=sn_mesh, record=record,
     )
-    history = IterationHistory(record=record, balance_defect=balance_defect)
+    # #344 — see the note at `solve_sn_adjoint`: structurally inert here too
+    # (1-D-only transpose solve ⟹ at most one reflective axis pair), wired so
+    # the seam cannot rot.
+    psi_star, gauge_correction = _exit_gauge_trace(psi_star, sn_mesh=sn_mesh)
+    history = IterationHistory(
+        record=record, balance_defect=balance_defect,
+        gauge_correction=gauge_correction,
+    )
     warn_if_unconverged(
         history.record, where="solve_sn_adjoint_fixed_source",
         balance_defect=history.balance_defect,
+    )
+    warn_if_gauge_freedom(
+        sn_mesh, history.gauge_correction,
+        where="solve_sn_adjoint_fixed_source",
     )
     return _package_adjoint_solution(
         psi_star, None, sn_mesh,
@@ -3319,7 +3450,7 @@ def solve_sn_fixed_source(
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: Quadrature,
     external_source: "np.ndarray | TimedFullField",
-    boundary_condition: str = "vacuum",
+    boundary_condition: "str | None" = "vacuum",
     scattering_order: int = 0,
     max_inner: int | None = None,
     inner_tol: float = 1e-12,
@@ -3372,7 +3503,7 @@ def solve_sn_fixed_source(
           (the affine-BC inhomogeneous term :math:`q`, consumed by the sweep
           as the inflow seed). The legacy array form is exactly the
           bulk-only / vacuum special case of this composite.
-    boundary_condition : {"vacuum", "reflective"}
+    boundary_condition : {"vacuum", "reflective"} or None
         Applied to all faces when the mesh has no explicit BC
         declarations (``bc_left`` etc. are ``None``).  When the mesh
         carries explicit :class:`~orpheus.geometry.mesh.BC` fields,
@@ -3585,6 +3716,15 @@ def solve_sn_fixed_source(
         warn_if_unconverged(
             solution.history.record, where="solve_sn_fixed_source",
             balance_defect=solution.history.balance_defect,
+        )
+        # #344 — HOISTED here on purpose. Both arms project, but neither may
+        # warn: from inside an arm this sits two frames below the entry, so
+        # `stacklevel=3` blames `orpheus/sn/solver.py` rather than the caller
+        # (#340 N4.7, ⛔ above). The verdict needs only the mesh, and the
+        # magnitude rides `history`, so the entry can say it for either arm.
+        warn_if_gauge_freedom(
+            sn_mesh, solution.history.gauge_correction,
+            where="solve_sn_fixed_source",
         )
     return solution
 
@@ -3800,7 +3940,22 @@ def _solve_fixed_source_si(
         q_ext_composite,
         sn_mesh=sn_mesh, record=record,
     )
-    history = IterationHistory(record=record, balance_defect=balance_defect)
+    # #344 — the PROJECTION fires here, because this is where the trace is; the
+    # WARNING must NOT. This is a private arm, two frames below the public
+    # entry, so `stacklevel=3` would blame `orpheus/sn/solver.py` instead of the
+    # caller — verbatim the defect #340 N4.7 measured and fixed by hoisting.
+    # It is emitted by `solve_sn_fixed_source` off `history.gauge_correction`.
+    #
+    # ⛔ `_exit_gauge_trace` REBUILDS rather than writing in place: on the
+    # un-windowed path `angular_out IS psi_typed`, which `_exit_balance_defect`
+    # has already measured and `_system_b_member` is about to read.
+    angular_out, gauge_correction = _exit_gauge_trace(
+        angular_out, sn_mesh=sn_mesh,
+    )
+    history = IterationHistory(
+        record=record, balance_defect=balance_defect,
+        gauge_correction=gauge_correction,
+    )
     return Solution(
         angular_flux=angular_out,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
@@ -3969,17 +4124,38 @@ def _solve_fixed_source_krylov(
         bulk.integrate_angular().values, sn_mesh,
     )
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
-    # R-1 Step 4 G1 — ``psi_full`` carries the Krylov-converged
-    # composite with the matvec's B1'' face residual on its boundary;
-    # reuse directly. (The former mesh / quadrature / materials
-    # parameters retired in C4 — Solution never consumed them.)
+    # R-1 Step 4 G1 — ``psi_full`` is the Krylov-converged composite; reuse
+    # directly. (The former mesh / quadrature / materials parameters retired
+    # in C4 — Solution never consumed them.)
+    #
+    # ⛔ This comment used to read "with the matvec's B1'' face residual on its
+    # boundary". `[M]` #344, three ways: GMRES unravels into the flux
+    # `solution_template` whose boundary is `AngularBoundaryFlux.zeros_on(...)`;
+    # on a reflective/vacuum slab the trace reads |·|max = 5.213675 against a
+    # bulk max of 5.259936 with the VACUUM-face inflow rows exactly 0.0 and the
+    # reflective ones not (a residual block would be ≈0 on the reflective
+    # face); and `test_declared_inflow_reaches_the_rhs.py` asserts this arm's
+    # γ₋(xmin) equals the DECLARED inflow 2.5 to 18 ULP. It is a FLUX TRACE.
+    # The residual reading describes the boundary block of the matvec's OUTPUT
+    # (Aψ, which by BlockRole is a face residual) — a different object from the
+    # solution vector's. Left uncorrected it is the one sentence that would make
+    # a reader exempt this arm from the gauge below.
+    #
+    # #344 — projection here, warning at the public entry (see the SI arm).
+    # ⛔ Rebuild, never in-place: `[M]` this arm's bulk and trace are two VIEWS
+    # into one flat buffer that `psi_typed` also references and `:_system_b_member`
+    # still reads.
+    psi_full, gauge_correction = _exit_gauge_trace(psi_full, sn_mesh=sn_mesh)
     #
     # ⛔ This site used to write ``n_inner = len(residuals) + 1`` while its
     # SI sibling wrote ``len(residuals)`` — two conventions for one field,
     # undocumented, and BACKWARDS: it is SI whose pass count exceeds its
     # trajectory (it measures differences), while GMRES gets one callback
     # per iteration.  Both now read the producer's own count (#340 F11).
-    history = IterationHistory(record=record, balance_defect=balance_defect)
+    history = IterationHistory(
+        record=record, balance_defect=balance_defect,
+        gauge_correction=gauge_correction,
+    )
     # D-H.1c stage 2 (2026-05-28): psi_full IS already a TimedFullField;
     # no adapter wrap at the Solution boundary.
     return Solution(

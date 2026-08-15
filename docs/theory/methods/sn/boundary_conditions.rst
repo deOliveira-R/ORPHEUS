@@ -138,6 +138,25 @@ The CP solver uses white (isotropic) BCs instead; see
 :ref:`white-bc-quality` for a comparison showing the ~1% gap between
 the two approaches.
 
+.. warning::
+
+   ⚠ **Two reflective axis pairs plus diamond differencing make the
+   within-group loss operator EXACTLY SINGULAR** (#344).  A specular
+   face is a *closed* boundary for the diamond closure's undamped face
+   sawtooth, so with :math:`\ge 2` axes reflective at both ends
+   :math:`A = L+C-S-B` has a non-trivial kernel — ``[M]``
+   :math:`\dim\ker A = 12` on a 2-D ``level_symmetric`` :math:`S_4`
+   2-group box, :math:`138` at :math:`d=3` :math:`(3,4,5)` — and the
+   returned boundary trace is one member of a solution manifold.  This
+   is the DEFAULT for :func:`~orpheus.sn.solver.solve_sn`, which has no
+   ``boundary_condition`` parameter, and for any bare
+   :class:`SNMesh`.  Nothing a user normally checks reveals it — every
+   mirror-even functional is blind by theorem — and the solver projects
+   the trace onto the canonical member and says so.  ⚠ ``_apply_default_bcs``
+   fills only when **all** faces are ``None``, so a *partial* declaration
+   silently leaves the rest reflective.  Full treatment:
+   :ref:`sn-loss-kernel-gauge` in :doc:`cartesian_multid`.
+
 **Vacuum** (zero incoming flux).
 All incoming angular fluxes at the face are set to zero:
 

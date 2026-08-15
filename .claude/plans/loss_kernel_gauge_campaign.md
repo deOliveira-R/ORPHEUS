@@ -22,7 +22,7 @@ merged — verify with `git merge-base --is-ancestor <hash> HEAD`.
 | **2** — the derived predicate (both halves) | ✅ LANDED `5def63b0` | `transport/spatial/scheme.py`, `sn/mesh/augmented_mesh.py` |
 | **3** — `InverseMetricOperator` | ✅ LANDED `5def63b0` | `numerics/operator.py` |
 | **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
-| **5** — fire it + the warning + the record | ▢ not started | — |
+| **5** — fire it + the warning + the record | ✅ LANDED (see below) | `sn/solver.py` ×5 sites, `sn/solution.py`, `loss_kernel_gauge.py` |
 | **6** — the two operator-algebra holes | ▢ not started | user ruled: fix both |
 | **7** — promote the characterization suite | ▢ designed + measured, NOT executed | task #78 |
 
@@ -35,6 +35,84 @@ surface yet, so no behaviour changed.**
 every arm attributed to the gate it reddens.** Neighbourhood 3741 passed /
 1 skipped / 5 xfailed; Sphinx `-W` clean; `npx pyright` clean. **Still pure
 addition — nothing fires the gauge yet.**
+
+### ⭐ Step 5 reconnaissance — where the gauge actually BITES (measured 2026-08-15)
+
+⚠ **A sub-agent exit map reported the gauge INERT at `solve_sn`** (`[M]`
+`‖Πt‖/‖t‖ = 7.07e-15`), concluding the acceptance gate could not live at the
+eigenvalue entry. **REFUTED** — it probed **4×4 and 6×6**, both EVEN, and the
+excitation is a pure parity effect. Its own §14 stated the scope honestly
+(`plan-authoring` §2's quantifier clause), which is what made the refutation one
+probe deep.
+
+`[M]` `$CLAUDE_JOB_DIR/tmp/parity_rule.py` — `solve_sn`, all-reflective LS4 2g
+**fissile** (mixture `"A"`; `"B"` does not fission), `gauss_seidel`,
+`inner_tol=1e-13`, `‖Πt‖/‖t‖` on the RETURNED `boundary_flux`:
+
+| cells | `n_x` | `n_y` | `‖Πt‖/‖t‖` | |
+|---|---|---|---|---|
+| (3,3) | odd | odd | `6.822354e-02` | **BITES** |
+| (3,4) | odd | even | `6.080483e-02` | **BITES** |
+| (3,2) | odd | even | `7.824118e-02` | **BITES** |
+| (5,4) | odd | even | `4.436713e-02` | **BITES** |
+| (5,5) | odd | odd | `4.099523e-02` | **BITES** |
+| (4,3) | even | odd | `1.006431e-14` | inert |
+| (4,4) | even | even | `5.073923e-15` | inert |
+| (4,5) | even | odd | `4.628486e-15` | inert |
+| (2,3) | even | odd | `2.081929e-15` | inert |
+| (2,2) | even | even | `3.974497e-15` | inert |
+| (6,5) | even | odd | `7.577462e-15` | inert |
+
+⟹ *(as written 2026-08-15)* **excited iff `n_x` is ODD.** `n_y`'s parity is
+irrelevant; `jacobi` is `~1e-15` on every row (it already lands on the
+canonical member). 6 bite, 5 do not, and the gap between the two populations is
+**13 orders** — so any warning threshold in `[1e-12, 1e-4]` gives the same
+verdict. *(The threshold conclusion survives; the rule does not.)*
+
+⛔ **REFUTED the same day, by the archivist, and the error is MINE.** Every row
+above was measured with a **uniform isotropic source** — a denominator I did
+not write down, then generalised away. `[M]` re-measured and reproduced to 7
+significant figures:
+
+| cells | `n_x` | source | `dim ker A` | `gauge_correction` |
+|---|---|---|---|---|
+| (3,4) | odd | uniform iso | 12 | `6.080483e-02` **excited** |
+| (3,4) | odd | anisotropic | 12 | `5.815861e-02` **excited** |
+| (4,4) | even | uniform iso | 12 | `6.735136e-14` |
+| **(4,4)** | **even** | **anisotropic `(1+μ_x)/W`** | **12** | **`1.756363e-02` EXCITED** |
+| (2,2) | even | anisotropic | 12 | `3.603322e-02` **excited** |
+| (6,8) | even | anisotropic | 12 | `1.028513e-02` **excited** |
+
+⟹ **`dim ker A` is the SAME at every parity — the operator is always singular
+when the predicate says so.** Parity governs only whether a *symmetric* source
+excites the kernel; break the symmetry and an even mesh is excited too. The
+corrected imperative is the archivist's: **never infer kernel-freedom from a
+mesh property — ask the predicate, or assert `dim ker == 0`.**
+
+⚠ **This is `plan-authoring` §2's quantifier clause, third instance in this
+campaign, and the worst of the three** — the first two were sub-agents' and
+were caught by reading the denominator; this one was mine, was promoted to a ⛔
+IMPERATIVE ("state `n_x` and its parity in every acceptance fixture"), and
+would have aimed every future session at the wrong property. Pinned now by
+`test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric`.
+
+**Why x:** G-S sweeps octants in **lex** order, making x the outer axis; the
+mode's `(−1)^k` alternation closes with net `+1` over an even cell count and
+leaves a residual sign flip over an odd one. ⟹ this is coupled to **#343** — a
+different octant order moves the excited axis.
+
+⭐ **The user-facing statement this licenses**, and it is stronger than
+non-determinism: *a 3×N mesh reports a ~7 % spurious tangential current along a
+mirror face and a 4×N mesh reports none.* The defect appears and disappears
+under a mesh change that alters nothing qualitative, so it is **not
+predictable by inspection** — which is the argument for R2b's warning over
+documentation.
+
+⛔ **Consequence for every acceptance fixture in this campaign: state `n_x`,
+its parity AND THE SOURCE'S SYMMETRY** (corrected — see the refutation above). A gate written on an even-`n_x` mesh is inert and will ship green
+and unfalsifiable (`plan-authoring` §6c). This is `vv-principles` #13's
+congruence-class trap for the SECOND time in this campaign — the first was
+`sawtooth_sign_always_positive` failing to redden `(2,2,2)`.
 
 ### ▶ Where work resumes — Step 5: FIRE it, warn, and record
 
@@ -53,11 +131,37 @@ either.** Step 5 is the wiring:
    is written to be quoted verbatim. Follow the #340 `ConvergenceWarning` family.
 4. **Record** on `IterationHistory` following the `balance_defect` precedent
    (`solution.py:197`), with the same `None`-means-*not-measured* discipline.
-5. ⚠ **Decide the Krylov arm explicitly.** Its returned `boundary` is *"the
-   matvec's B1'' face residual"* by the code's own comment, not a flux trace.
-   Projecting a **defect** off `ker A` is a no-op by residual-neutrality — so
-   either it is the wrong thing to return, or it must be exempted. Say which,
-   **in the code**.
+5. ✅ **The Krylov arm is DECIDED: it gauges like every other. Its own comment
+   was wrong.** Original framing, kept per §3: *"Its returned `boundary` is 'the
+   matvec's B1'' face residual' by the code's own comment, not a flux trace.
+   Projecting a defect off `ker A` is a no-op by residual-neutrality — so either
+   it is the wrong thing to return, or it must be exempted."*
+
+   ⛔ **REFUTED 2026-08-15.** `solver.py:3971-3975` does say *"``psi_full``
+   carries the Krylov-converged composite with the matvec's B1'' face residual
+   on its boundary"*, and `[M]` it is a **flux trace**, measured three
+   independent ways: (a) GMRES unravels into the flux `solution_template` whose
+   boundary is `AngularBoundaryFlux.zeros_on(...)` (`:806`); (b) on a slab with
+   `xmin` reflective / `xmax` vacuum the trace reads `|·|max = 5.213675` against
+   a bulk max of `5.259936`, and the **vacuum**-face inflow rows are exactly
+   `0.0` while the reflective ones are not — a residual block would be ≈0 on the
+   reflective face; (c) the tree's own gate
+   `test_declared_inflow_reaches_the_rhs.py:323` asserts the Krylov arm's
+   `γ₋(xmin)` equals the **declared inflow value** `2.5` (`[M]` 18 ULP).
+
+   The comment plausibly describes the boundary block of the **matvec's output**
+   (`Aψ`, which by `BlockRole` *is* a face residual) — a different object from
+   the **solution vector's** boundary block. ⚠ It is present-tense misleading
+   and is the exact sentence that would make a reader exempt this arm: **fix it
+   in the same commit.**
+
+   `[M]` the two arms return **different members of the solution set**: on a
+   heterogeneous all-reflective 2-D fixture, `‖t_SI − t_Krylov‖ = 1.320828` and
+   `‖Π(t_SI − t_Krylov)‖ = 1.320828` — the difference is *entirely* in `ker A`,
+   with `3.38e-11` outside. SI carries `‖Πt‖/‖t‖ = 2.855e-2`; Krylov carries
+   `1.236e-12`. ⟹ gauge **both**: on Krylov it is a ~1e-12 no-op, and exempting
+   it would leave the two arms' post-gauge status decided by an accident of the
+   driver — re-introducing the very asymmetry the gauge removes.
 
 **What Step 4 established that Step 5 may assume** (do not re-derive):
 
@@ -488,13 +592,62 @@ generated artifact counting foundation tests — regenerate and stage it.
   `sha256` pins: none survive as frozen references (#333 ended that era).
 - ⛔ **…and that is the finding: the change ships ENTIRELY UNGATED.** `[M]` zero
   production consumers of `boundary_flux`; `Solution.compare()` diffs
-  `interior.values` only. Per `plan-authoring` §6c the change owes a **witness**,
-  and the enumeration hands us its design: the `|Ω·n|^0` full-face moment is the
-  *only* functional that moves, and only where the quadrature has **tangential**
-  ordinates — and `[M]` **no shipped all-reflective 2-D fixture uses one** (all
-  are `level_symmetric`). ⟹ the gate is an all-reflective 2-D DD solve under
-  **`lebedev`**, asserting the full-face `|Ω·n|^0` moment against a pre-gauge
-  literal, **paired with a `level_symmetric` control that must NOT move**.
+  `interior.values` only. Per `plan-authoring` §6c the change owes a **witness**.
+
+  ⛔ **The witness DESIGN below is REFUTED, 2026-08-15 — the proposed gate could
+  not have failed.** Original text, kept per §3: *"the enumeration hands us its
+  design: the `|Ω·n|^0` full-face moment is the only functional that moves, and
+  only where the quadrature has tangential ordinates — and `[M]` no shipped
+  all-reflective 2-D fixture uses one (all are `level_symmetric`). ⟹ the gate is
+  an all-reflective 2-D DD solve under **`lebedev`**, asserting the full-face
+  `|Ω·n|^0` moment against a pre-gauge literal, paired with a `level_symmetric`
+  control that must NOT move."*
+
+  `[M]` `$CLAUDE_JOB_DIR/tmp/witness_design.py`, production G-S solve on the
+  uniform-source fixture, before vs after gauging:
+
+  | quadrature | `dim ker(R)` | `‖Δψ‖/‖ψ‖` | `\|Ω·n\|⁰` moment | partial current | G-total over Γ |
+  |---|---|---|---|---|---|
+  | `level_symmetric(4)` | 12 | `6.080e-02` | `0.0` on 7 of 8 faces, `1.6e-16` | `0.0` | `0.000e+00` |
+  | `product(4,4)` | **0** | `0.0` | `0.0` | `0.0` | `0.000e+00` |
+  | `lebedev(11)` | 18 | `5.204e-02` | `0.0` / `1.8e-16` | `0.0` / `3.2e-16` | `2.741e-16` |
+
+  The moment moves **nowhere** — not "only without tangential ordinates", and
+  not under `lebedev` either. ⭐ **And it could not have**, by the campaign's own
+  blindness theorem: a face-summed moment is **mirror-EVEN**, every kernel mode
+  is mirror-ODD, so every summed functional annihilates it *by construction*.
+  The refuted design would have shipped green, authoritative and unfalsifiable —
+  the exact §6c defect, reached by reasoning from a hunch instead of from the
+  theorem the same document already contains.
+
+  ✅ **THE REAL WITNESS — the TANGENTIAL current, and it is a physical defect,
+  not merely an observable.** If mirror-even functionals are blind, the witness
+  must be mirror-ODD. On face `a` a kernel mode carries character
+  :math:`\chi_U(s)` with some `b ≠ a` in `U`, so it is odd in `sign(μ_b)` — i.e.
+  the current component **parallel** to the face sees it. `[M]`
+  `$CLAUDE_JOB_DIR/tmp/witness_odd.py`:
+
+  | quadrature | `J_x` on ymin | `J_x` on ymax | normal currents |
+  |---|---|---|---|
+  | `level_symmetric(4)` | `+7.381060e-02` → `+2.6e-14` | `+7.381060e-02` → `−8.4e-15` | `~1e-15`, unmoved |
+  | `lebedev(11)` | `+5.650846e-02` → `+6.7e-15` | `+5.650846e-02` → `+6.8e-15` | `~1e-15`, unmoved |
+
+  ⭐⭐ **This upgrades the disposition's user-facing cost.** On an all-reflective
+  box with a uniform isotropic source the exact flux is flat, so EVERY current
+  component is zero everywhere. The solver already gets the **normal** currents
+  right (`~1e-15`). The un-gauged solve reports a **spurious 7.4 % net current
+  flowing sideways along a mirror surface** — a quantity that cannot exist — and
+  the gauge drives it to round-off. #344 is therefore not only a determinism
+  defect; there is a physically meaningless quantity in the output, and **no
+  scalar summary a user would normally check reveals it.** That is the argument
+  for R2b's warning: the defect is not discoverable by inspection.
+
+  ⟹ the gate is an all-reflective 2-D DD solve **through a public entry**,
+  asserting the tangential current collapses from ~`7.4e-02` to round-off, with
+  the **normal** currents as the built-in negative control that must NOT move.
+  ⚠ `product(4,4)` has `dim ker(R) = 0` — it is a second negative control (all
+  its kernel is `T`), NOT the tangential-bearing positive case the refuted
+  design assumed.
 - ⚠ **Decide before gauging the Krylov arm:** its returned `boundary` is *"the
   matvec's B1'' face residual"* by the code's own comment, not a flux trace.
   Projecting a **defect** off `ker A` is a different operation, and by

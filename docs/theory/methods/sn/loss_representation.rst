@@ -2737,10 +2737,15 @@ cross-schedule gates are therefore:
 
 * **solver-tol Mode-9 FP-invariance** —
   ``test_scan_march_end_to_end.py`` drives the full production solvers
-  with the schedules swapped and asserts the **converged fixed point** is
-  schedule-invariant to solver tolerance (a row-march MUST NOT move
-  :math:`\psi^*` or :math:`k` — only the per-sweep FP-association, which
-  the outer iteration washes out). Per vv-principles failure Mode 9, the
+  with the schedules swapped and asserts the **converged scalar flux**
+  is schedule-invariant to solver tolerance (a row-march MUST NOT move
+  the bulk :math:`\phi` or :math:`k` — only the per-sweep
+  FP-association, which the outer iteration washes out).  ⚠ The
+  measurand is the **bulk**, deliberately: G4.b is all-reflective, so
+  ``[M]`` :math:`A` is exactly singular there and the boundary *trace*
+  is only invariant up to :math:`\ker A` (:ref:`sn-loss-kernel-gauge`);
+  the bulk is unaffected because the kernel is pure-trace.
+  Per vv-principles failure Mode 9, the
   FP-invariance is verified on configs that *break* the degenerate
   coincidence, never the isotropic-reflective box:
 

@@ -282,10 +282,22 @@ wavefront sweep,
 re-reflecting each octant group's outgoing reflective faces between octant
 sweeps so a later octant reads the fresh current-iterate inflow. This is a
 purely **angular** acceleration of the within-group source iteration; its
-converged fixed point is **identical** to the plain (Jacobi) sweep — only
-the iteration rate changes (it is splitting-invariant in the sense of
+converged **bulk** is identical to the plain (Jacobi) sweep — only the
+iteration rate changes (it is splitting-invariant in the sense of
 ``vv-principles`` Mode 9). It does **not** touch the energy index, and it
 does **not** cascade across the spectrum.
+
+.. note::
+
+   ⛔ *"Converged fixed point is identical"* until 2026-08-15 (#344).
+   The **bulk** claim is right and is what every gate measures; the
+   **trace** claim is not, whenever :math:`A = L+C-S-B` is singular —
+   which it exactly is on a diamond-difference mesh closing
+   :math:`\ge 2` reflective axis pairs.  There the two schedules
+   legitimately return different **members** of a solution manifold
+   (``[M]`` differing by :math:`0.124184`, **100 %** of it inside
+   :math:`\ker A`), and the solver gauges the returned trace onto the
+   canonical member.  See :ref:`sn-loss-kernel-gauge`.
 
 .. note::
 

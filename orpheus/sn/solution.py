@@ -176,6 +176,40 @@ class IterationHistory:
         will be wrong in both directions.  The refuted attempt to make it
         a gate is #340 N5.
 
+    gauge_correction : float | None
+        :math:`\lVert \Pi\psi \rVert / \lVert \psi \rVert` — the fraction of
+        the returned boundary trace that lay in :math:`\ker(L+C-S-B)` and was
+        projected out (:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge`,
+        #344).
+
+        On an all-reflective diamond-difference box that operator is **exactly
+        singular**, so a converged solve lands on an arbitrary member of a
+        solution *manifold*.  This is how far the returned member was from the
+        canonical (minimum-:math:`G`-norm) one, which is where the exact
+        solution sits.
+
+        ``None`` means **not measured**, never *"measured and zero"* — the
+        same discipline as :attr:`balance_defect`.  Two cases produce it: the
+        configuration has no gauge freedom to measure, and the spatial closure
+        could not be classified (a warning fires for the second).  A measured
+        ``0.0``-ish value is a different statement: the freedom is there and
+        the solve happened to land on the canonical member anyway (``jacobi``
+        does; `[M]` ``~1e-15``).
+
+        ⚠ **A magnitude, not a verdict** — for the same reason
+        :attr:`balance_defect` is.  It is also NOT a convergence quantity: the
+        configuration where it is largest reports ``fully_converged = True``.
+        The solve is fine; the *equation* is degenerate.
+
+        `[M]` #344, ``solve_sn``, all-reflective LS4 2-group fissile,
+        ``gauss_seidel``, **uniform isotropic source**: ``4.1e-02 .. 7.8e-02``
+        when the first axis has an ODD cell count and ``~1e-15`` when it is
+        even. ⚠ That parity split is a property of the SOURCE's symmetry, not
+        of the operator — `[M]` ``dim ker A`` is the same at every parity, and
+        an anisotropic source excites an even-``n_x`` mesh too
+        (``1.756363e-02`` at ``(4,4)``). Either way it cannot be predicted by
+        inspection, which is why it warns.
+
     Notes
     -----
     The trajectories are **tuple** rather than list — frozen dataclasses
@@ -195,6 +229,7 @@ class IterationHistory:
     record: "IterationRecord"
     keff_history: tuple[float, ...] = ()
     balance_defect: float | None = None
+    gauge_correction: float | None = None
 
     # ── the verdict, derived ─────────────────────────────────────────────
 

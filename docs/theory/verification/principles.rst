@@ -930,6 +930,8 @@ written months apart. Every caught instance is catalogued as an
 ``ERR-NNN`` entry (:ref:`the error-catalog contract
 <verification-error-catalog-vocabulary>`).
 
+.. _verification-test-design-modes:
+
 Test-design modes (7–12) — the test cannot see the bug
 ------------------------------------------------------
 
@@ -968,6 +970,38 @@ Defense: gate fixed-point invariance on a configuration that
 *breaks* the degeneracy (anisotropic flux; diagonal cubature),
 asserting equality with the un-accelerated fixed point separately
 from any rate claim.
+
+⭐ **And the premise itself can fail.** Every clause above guards a
+false GREEN; this one guards a false RED and an ill-posed claim.
+"A splitting must not change the converged fixed POINT"
+presupposes that a fixed point *exists*. If the operator is
+**singular** there is a fixed **manifold**: :math:`\ker A` is
+splitting-invariant, but the complementary invariant subspace is
+not — so the oblique projector whose range the iteration freezes
+differs by splitting, and two perfectly correct splittings
+legitimately return **different members**. The gate then reds with
+no bug present, and the received wisdom is exactly what makes that
+red look like a defect worth chasing. ⚠ The discriminator is *not*
+"the bulk did not move": manifold selection and a genuinely
+**incoherent** schedule (:math:`M - N \neq A`, the ERR-056 family)
+present the same signature from a distance. Three checks separate
+them — (a) :math:`M - N \equiv A` bit-exactly for both splittings;
+(b) with the kernel **removed**, do the schedules agree on the
+*boundary* as well as the bulk; (c) is
+:math:`\psi_A - \psi_B` actually in :math:`\ker A`. An incoherent
+splitting moves the bulk too. ⟹ **before writing any FP-invariance
+gate, ask whether the operator is singular on that gate's own
+fixture**; if it is, gate a functional that is
+:math:`\perp \ker A` (equivalently: gate the quotient), or pin the
+gauge explicitly — never the raw state. The worked ORPHEUS instance
+is #344, the SN within-group loss operator on a closed reflective
+diamond box (:ref:`sn-loss-kernel-gauge`), where two further traps
+travel with it: :math:`\ker A` is **pure-trace**, so every bulk gate
+is silent by construction; and the excitation is a **parity** effect,
+so a :math:`4, 8, 16, 32` refinement ladder is a single congruence
+class and reports "no effect" — a refinement ladder must break the
+arithmetic pattern of its own step before any universal is claimed
+over it (:ref:`verification-anti-patterns`).
 
 **Mode 10 — activated but unconstrained.** The term's code path
 genuinely runs, yet flipping its sign moves nothing: the term

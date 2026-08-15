@@ -76,8 +76,12 @@ inner (:meth:`SNSolver._solve_krylov`), and both fixed-source paths.
      :math:`1/k`-scaled outer source.
    * Both inner paths — source iteration and Krylov — consume that SAME
      decomposition over the SAME one-walk discretization (matvec ≡
-     :term:`sweep`, #206 Phase C): the same fixed point, different rate and
-     memory.
+     :term:`sweep`, #206 Phase C): the same solution **set**, different
+     rate and memory.  On a closed reflective diamond box that set is a
+     *manifold*, not a point — :math:`A` is exactly singular there — so
+     the two arms return different **members** and every exit projects
+     onto the canonical one (:ref:`sn-loss-kernel-gauge`,
+     :ref:`sn-exit-gauge`).
    * :meth:`~orpheus.sn.solver.SNSolver.compute_keff` reports **fission
      production over net removal** (:eq:`sn-keff-update`) — the
      eigenvalue of the map the inner solve actually poses (#291, #259).
@@ -580,10 +584,28 @@ path with this Krylov path.  See the Krylov alternative in
 :doc:`slab_one_group` for the full discussion.
 
 The two paths share the **one** loss-representation discretization
-(matvec ≡ sweep, #206 Phase C), so they converge to the same fixed
-point; the Wave-D-era design in which they carried different spatial
-closures — and disagreed on coarse-mesh :math:`\keff` — is recorded
-in the two-closure history (:ref:`loss-rep-history`).
+(matvec ≡ sweep, #206 Phase C), so they solve the same system and
+converge to the same **solution set**; the Wave-D-era design in which
+they carried different spatial closures — and disagreed on coarse-mesh
+:math:`\keff` — is recorded in the two-closure history
+(:ref:`loss-rep-history`).
+
+.. note::
+
+   ⛔ **That read "the same fixed point" until 2026-08-15 (#344), and a
+   set is not a point.**  On a closed reflective diamond box
+   :math:`A = L+C-S-B` is **exactly singular**, so the two arms
+   legitimately return different members of a solution manifold:
+   ``[M]`` on an all-reflective 2-D absorber box with a uniform
+   isotropic source, source iteration under boundary Gauss-Seidel
+   returns a trace carrying :math:`6.08\times10^{-2}` of
+   :math:`\ker A` while Krylov carries :math:`4.1\times10^{-14}`, and
+   the difference between them lies **entirely** in :math:`\ker A`
+   (:math:`\lVert\Pi d\rVert/\lVert d\rVert = 1.000000`).  The **bulk**
+   really is arm-invariant — the kernel is pure-trace — and every entry
+   now projects the returned trace onto the canonical member, so the
+   sentence is true again of what a caller receives.  Derivation:
+   :ref:`sn-loss-kernel-gauge`; exit behaviour: :ref:`sn-exit-gauge`.
 
 .. _sn-convergence-contract:
 
@@ -891,6 +913,86 @@ satisfied by the very hardcoded ``True`` the contract forbids; it is the
 starved leg that has teeth.  `[M]` a 6-mutation battery, positive control
 first, reddens as designed — including re-introducing #342 verbatim.
 
+.. _sn-exit-gauge:
+
+The exit gauge — a converged solve can still be one of many
+------------------------------------------------------------
+
+The convergence contract answers *"did the iteration finish?"*.  There
+is a second, structurally different way for a returned field to be
+unsatisfying, and no convergence certificate can see it: the **equation**
+may not have a unique answer.  On a closed reflective Cartesian box under
+diamond differencing :math:`A = L+C-S-B` is **exactly singular**, so
+:math:`A\psi = q` has a solution *manifold* and the iteration freezes an
+arbitrary member of it.  The derivation, the counting laws, the evidence
+and the remedy hierarchy are at :ref:`sn-loss-kernel-gauge`; what belongs
+here is the exit behaviour.
+
+Every entry that returns a trace applies the :math:`G`-orthogonal
+projection :math:`\psi \mapsto \psi - \Pi\psi`
+(:eq:`sn-loss-kernel-gauge-projection`) and records the magnitude it
+removed on
+:attr:`~orpheus.sn.solution.IterationHistory.gauge_correction`.  The
+gauge is the **sibling** of the balance projection with one sharpening
+that changes what verification it owes: :eq:`sn-exit-balance-defect`
+*reports*, and this one *mutates*.  A forgotten balance-defect site
+loses a diagnostic; a forgotten gauge site silently returns a
+non-physical answer.  Coverage is therefore gated by an enumeration
+**derived from the module** rather than hand-listed
+(``tests/sn/solve/test_every_entry_gauges_its_trace.py``).
+
+Three properties make firing it at a converged exit safe, and each is
+asserted rather than assumed:
+
+* **Residual-neutral.**  :math:`A(\psi - \Pi\psi) = A\psi`, so **no
+  convergence certificate can move**.  ``[M]`` on a deliberately
+  truncated SI solve the balance defect reads ``0.3111434602740818``
+  before and after, while the correction goes
+  :math:`3.59\times10^{-2} \to 4.9\times10^{-17}`.  It is applied
+  **after** the defect is measured, so the reported number describes the
+  object the caller receives.
+* **Bulk-invariant.**  The kernel is pure-trace (``[M]`` bulk share
+  :math:`1.1\times10^{-28}`), so :math:`\keff`, the scalar flux and
+  every reaction rate are untouched — ``[M]`` :math:`\keff` reproduces
+  the analytic :math:`\kinf = 1.875` on every mesh, gauged or not.
+* **Not a universal absorber.**  ``jacobi`` already lands on the
+  canonical member, and there the gauge must remove *nothing*: ``[M]``
+  :math:`\sim10^{-15}`, and the pre-gauge deviation measures
+  :math:`1.0000` **out of** span.
+
+:attr:`~orpheus.sn.solution.IterationHistory.gauge_correction` follows
+the :attr:`~orpheus.sn.solution.IterationHistory.balance_defect`
+discipline exactly: ``None`` means **not measured**, never *"measured
+and zero"*.  A measured :math:`\sim10^{-15}` is the different — and
+useful — statement that the freedom is real and the solve landed on the
+canonical member anyway.
+
+.. warning::
+
+   :class:`~orpheus.sn.operators.loss_kernel_gauge.GaugeFreedomWarning`
+   is **deliberately not** a
+   :class:`~orpheus.numerics.convergence.ConvergenceWarning`, and the
+   distinction is not cosmetic.  That family means *"an iterative solve
+   exhausted its budget; the answer is best-effort"*.  This is the
+   opposite situation: ``[M]`` the configuration where it fires hardest
+   reports ``fully_converged = True`` and ``balance_defect = None``.
+   The solve is fine; the **equation** is degenerate.  Reusing the
+   category would also make every caller who escalates
+   :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` start failing
+   on an unrelated condition.
+
+   It reports an **action taken**, not a configuration property — which
+   is what keeps it off the standard all-reflective :math:`\kinf`
+   lattice, where it would otherwise fire on every solve.  It escalates
+   with :data:`~orpheus.sn.operators.loss_kernel_gauge.GAUGE_ESCALATION_FLAG`,
+   whose value is **derived from the class** rather than retyped: the
+   category must be DOTTED, for the reason the balance-projection
+   section records above.
+
+   The third state is the one a caller must not collapse: an
+   **UNDETERMINED** closure — one whose face-mode damping could not be
+   classified — warns loudly and is **not** gauged.  ``[M]``
+   ``linear_discontinuous`` at :math:`d=3` is exactly that.
 
 .. _sn-consuming-the-frame:
 

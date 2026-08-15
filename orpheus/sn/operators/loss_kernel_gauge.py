@@ -195,12 +195,17 @@ zero-set (``[M]`` :math:`\max|B_R|` on ``G == 0`` rows is ``0.000000e+00`` on
   :math:`t \perp_G \operatorname{span} R`, so :math:`(I - \Pi)t = t`).
   On the default ``level_symmetric`` path ``T`` is empty.
 
-See :doc:`/theory/methods/sn/boundary_conditions` and GitHub #344.
+The physics, the consequence a user observes, the parity rule, the evidence
+and the remedy hierarchy are the theory-page half of this module:
+:ref:`sn-loss-kernel-gauge` (in :doc:`/theory/methods/sn/cartesian_multid`,
+one hop downstream of the local face-mode spectrum it closes), with the exit
+behaviour at :ref:`sn-exit-gauge`.  GitHub #344.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+import warnings
 from itertools import combinations, product as iter_product
 from typing import TYPE_CHECKING, Optional
 
@@ -223,12 +228,25 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 __all__ = [
+    "GAUGE_ESCALATION_FLAG",
     "GaugeFreedom",
+    "GaugeFreedomWarning",
     "LossKernelBasis",
     "LossKernelGauge",
     "gauge_freedom",
     "predicted_kernel_dimension",
+    "warn_if_gauge_freedom",
 ]
+
+#: Below this relative correction the returned trace was ALREADY the canonical
+#: member, so the gauge did nothing and there is nothing to tell the user.
+#:
+#: Not a tuning knob — the two populations are separated by **13 orders**.
+#: ``[M]`` on `solve_sn`, all-reflective LS4 2-group fissile, ``gauss_seidel``:
+#: an excited configuration reads ``4.1e-02 .. 7.8e-02`` (5 of 11 meshes) and an
+#: unexcited one ``2.1e-15 .. 1.0e-14`` (6 of 11), with ``jacobi`` at ``~1e-15``
+#: throughout. Any threshold in ``[1e-12, 1e-4]`` gives the same verdict.
+_GAUGE_AUDIBLE_FLOOR = 1e-10
 
 #: A direction cosine below this is TANGENTIAL to that axis, so the axis leaves
 #: the ordinate's active set ``S``. Matches the trace layer's own threshold
@@ -243,6 +261,53 @@ _TANGENTIAL_MU = 4.0 * float(np.finfo(np.float64).eps)
 #: the same rank — and the rank is independently checked against the counting
 #: law by :func:`predicted_kernel_dimension`.
 _RANK_RTOL = 1e-10
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The warning — the freedom must be AUDIBLE, and the root fix named
+# ─────────────────────────────────────────────────────────────────────
+class GaugeFreedomWarning(RuntimeWarning):
+    r"""The returned trace was repaired, or could not be classified.
+
+    ⚠ **Deliberately NOT a**
+    :class:`~orpheus.numerics.convergence.ConvergenceWarning`. That family
+    means *"an iterative solve exhausted its budget; the answer is
+    best-effort"*, and this is the opposite situation: the solve converged
+    perfectly, and the ambiguity is in the **equation**, not the iteration.
+    `[M]` the configuration where this fires hardest reports
+    ``fully_converged = True`` and ``balance_defect = None``. Reusing that
+    category would also make every user who escalates
+    :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` start failing on an
+    unrelated condition.
+
+    **Why this is worth a warning rather than a doc note.** On an
+    all-reflective diamond-difference box the loss operator is exactly
+    singular, so the returned trace is one member of a solution *manifold*.
+    Every mirror-EVEN functional of it is blind to which member (a theorem —
+    see the module docstring), so a user checking currents, leakage or
+    :math:`k` sees nothing wrong. `[M]` what they would see, if they looked
+    at the one class of functional that is not blind, is a **spurious ~7 %
+    net current flowing sideways along a mirror face** — a quantity that
+    cannot physically exist.
+
+    And it is not predictable by inspection: `[M]` the excitation is a parity
+    effect, present at ``n_x = 3`` and absent at ``n_x = 4``, so it appears
+    and vanishes under a mesh change that alters nothing qualitative.
+
+    Escalate to a hard failure with :data:`GAUGE_ESCALATION_FLAG` (the
+    category must be DOTTED — ``-W`` resolves an undotted one against
+    ``builtins``, so the short spelling is not a filter at all).
+    """
+
+
+#: The CI escalation recipe as a VALUE, derived from the class rather than
+#: retyped — a module move or rename cannot leave it pointing at nothing.
+#: Mirrors :data:`~orpheus.numerics.convergence.ESCALATION_FLAG`, including the
+#: reason its short spelling silently gates nothing (#340, 2026-08-09).
+GAUGE_ESCALATION_FLAG = (
+    f"-W error::{GaugeFreedomWarning.__module__}."
+    f"{GaugeFreedomWarning.__qualname__}"
+)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -355,6 +420,110 @@ def gauge_freedom(sn_mesh: "SNMesh") -> GaugeFreedom:
             f"undamped (spectral radius {spectrum.spectral_radius:.6f}) and "
             f"the problem closes {pairs} reflective axis pairs"
         ),
+    )
+
+
+def _damping_alternatives(ndim: int) -> str:
+    """The shipped closures that would remove the freedom at the root.
+
+    ⭐ **ASKED of the registry, never tabulated** — the same ruling that shapes
+    :func:`gauge_freedom`. A closure added tomorrow appears in this sentence
+    with no edit here, and one that stops damping disappears from it; a hand-
+    written list would rot in exactly the direction that matters (naming a
+    remedy that is not one).
+    """
+    from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
+
+    damping = sorted(
+        key
+        for key, scheme_type in DiscretizationSchemeBase.registry.items()
+        if scheme_type().face_transmission_spectrum(ndim).damping
+        is FaceModeDamping.DAMPED
+    )
+    if not damping:
+        return (
+            "no closure registered in this build damps the face mode at "
+            f"ndim={ndim}, so the only root fix here is to break a reflective "
+            "axis pair"
+        )
+    return (
+        f"switch to a spatial closure that damps it — {', '.join(damping)} "
+        f"(`scheme=` on the entry) — or break one reflective axis pair"
+    )
+
+
+def warn_if_gauge_freedom(
+    sn_mesh: "SNMesh", correction: float | None, *, where: str,
+) -> None:
+    r"""Say that the trace was repaired, or that the closure was unclassifiable.
+
+    ⚠ **MUST be called DIRECTLY from a public entry, one frame deep.**
+    ``stacklevel=3`` counts: frame 1 here, frame 2 the entry, frame 3 the user.
+    Called from a private arm it blames ``orpheus/sn/solver.py`` — verbatim the
+    defect #340 N4.7 measured at 2 of 8 emission sites and fixed by hoisting the
+    call, and the reason a per-call ``stacklevel=`` argument is the wrong repair
+    (a frame count asserted at the call site rots the moment a helper is
+    interposed).
+
+    **Three outcomes, and silence is one of them.**
+
+    * **UNDETERMINED** — warn loudly and say the trace was NOT gauged. This is
+      the user ruling: an unclassified closure is a third state, never merged
+      into "no freedom".
+    * **Repaired** — the gauge moved the trace by more than
+      :data:`_GAUGE_AUDIBLE_FLOOR`. Say by how much, and name the root fix.
+    * **Silent** — either there is no freedom, or there is and the returned
+      trace was ALREADY the canonical member (``jacobi`` lands there;
+      ``[M]`` ``~1e-15``). Nothing was done, so there is nothing to report — and
+      the configuration's degeneracy is still legible in
+      :attr:`~orpheus.sn.solution.IterationHistory.gauge_correction`, which
+      carries the measured number either way.
+
+    The warning reports an **action taken**, not a configuration property. That
+    is what keeps it off the standard ``k_inf`` lattice, which is all-reflective
+    by default and would otherwise warn on every solve.
+    """
+    verdict = gauge_freedom(sn_mesh)
+
+    if verdict.undetermined:
+        warnings.warn(
+            f"{where}: the spatial closure could not be classified, so whether "
+            f"the loss operator L+C-S-B is SINGULAR here is unknown and the "
+            f"returned boundary trace was NOT gauge-fixed. {verdict.because}. "
+            f"If it is singular, that trace is one arbitrary member of a "
+            f"solution manifold: the bulk, k and every mirror-even functional "
+            f"are still correct, but a mirror-odd one — a current tangential "
+            f"to a reflective face — may be meaningless. To settle it, "
+            f"{_damping_alternatives(int(sn_mesh.ndim))}. "
+            f"Silence this per-call with warnings.catch_warnings(); make it "
+            f"fatal everywhere with {GAUGE_ESCALATION_FLAG}.",
+            GaugeFreedomWarning,
+            stacklevel=3,
+        )
+        return
+
+    if not verdict.present or correction is None:
+        return
+    if correction <= _GAUGE_AUDIBLE_FLOOR:
+        return
+
+    warnings.warn(
+        f"{where}: the returned boundary trace was GAUGE-FIXED — "
+        f"{correction:.2%} of it lay in ker(L+C-S-B), which is exactly "
+        f"singular here, so the solve had converged to an arbitrary member of "
+        f"a solution manifold rather than to a point. {verdict.because}. The "
+        f"trace returned is now the canonical minimum-norm member (the one the "
+        f"exact solution sits at); the bulk, k and every reaction rate are "
+        f"unchanged, and no convergence certificate moved. "
+        f"⚠ Nothing you could have checked would have shown this: every summed "
+        f"functional of the trace is blind to the kernel by symmetry, so the "
+        f"error surfaces only in a current TANGENTIAL to a reflective face. "
+        f"To remove the freedom at the root instead of projecting it out, "
+        f"{_damping_alternatives(int(sn_mesh.ndim))}. "
+        f"Silence this per-call with warnings.catch_warnings(); make it fatal "
+        f"everywhere with {GAUGE_ESCALATION_FLAG}.",
+        GaugeFreedomWarning,
+        stacklevel=3,
     )
 
 

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9825**
+Total tests collected: **9837**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1620, 16.5%
    L2, 64, 0.7%
    L3, 0, 0.0%
-   foundation, 6839, 69.6%
+   foundation, 6851, 69.6%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9741
+   explicit, 9753
    class-name, 46
    func-name, 0
    case, 33
@@ -457,6 +457,7 @@ Module × level grid
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
    solve/test_declared_law_survives_the_public_entry, 0, 6, 0, 0, 0, 0
+   solve/test_every_entry_gauges_its_trace, 0, 0, 0, 0, 12, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
@@ -630,6 +631,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
    ``sn-homogenization-bilinear``, 11
+   ``dd-null-counting-law``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -671,10 +673,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
+   ``dd-null-sawtooth``, 6
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
+   ``sn-loss-kernel-gauge-projection``, 6
    ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
@@ -835,6 +839,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-dsa-correction-vanishes``, 1
    ``sn-dsa-marshak``, 1
    ``sn-homogenization-balance-preservation``, 1
+   ``sn-kernel-mirror-blindness``, 1
    ``sn-mms-2d-2g-qext``, 1
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
@@ -860,7 +865,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **534** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **539** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-contraction-ratio``
@@ -941,6 +946,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``dd-face-transmission-spectrum``
 - ``dd-mm-angular-recurrence``
 - ``dd-mm-scan-split``
+- ``dd-null-balance-combinatorial``
+- ``dd-null-counting-law``
+- ``dd-null-sawtooth``
 - ``delta-tracking-collision-pdf``
 - ``diagonal-operator-action``
 - ``diffusion-albedo-law``
@@ -1322,6 +1330,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-keff-cell-balance``
 - ``sn-keff-old-bias``
 - ``sn-keff-old-n2n``
+- ``sn-kernel-mirror-blindness``
+- ``sn-loss-kernel-gauge-projection``
 - ``sn-mg-eigenvalue-posing-eq``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``

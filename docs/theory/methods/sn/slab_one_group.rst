@@ -590,7 +590,12 @@ multi-D machinery in :doc:`cartesian_multid`; the reified splitting matrix is
    * The converged fixed point is **invariant** under the schedule
      (any consistent splitting of :math:`(L+C-S-B)\psi=q` shares
      :math:`\psi^\ast`); only the SI spectral rate changes.  Krylov
-     ignores the schedule entirely.
+     ignores the schedule entirely.  ⚠ That holds here because a slab
+     is **kernel-free** — ``[M]`` :math:`\dim\ker A = 0` at
+     :math:`d=1`, where no zero-mean face mode exists.  At
+     :math:`d \ge 2` with :math:`\ge 2` reflective axis pairs
+     :math:`A` is *singular* and the splittings share a solution
+     **set**, not a point (:ref:`sn-loss-kernel-gauge`).
    * 1-D meshes always fall back to Jacobi (the 1-D scan is not a
      wavefront; the regime is scattering-dominated — boundary G-S is
      a no-op).

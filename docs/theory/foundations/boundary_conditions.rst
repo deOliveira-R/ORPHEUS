@@ -7698,10 +7698,28 @@ Phase-3 narration**: :attr:`SweepSchedule.gauss_seidel
 (``_sweep_scheduled``) have been **d-generic since C3**, so the
 resolvent is constructible at :math:`d = 3`. The narration is corrected
 in C5.4; the actual :math:`d = 3` boundary-G-S *fixed-point invariance*
-(that G-S and Jacobi converge to the **same** flux) is **value-gated**
+(that G-S and Jacobi converge to the **same bulk** flux) is
+**value-gated**
 by the C5.5 Mode-9 mixed-BC box (:ref:`sn-c5-value-gates`) before any
 :math:`d = 3` G-S solve is trusted — the Mode-9 discipline made
 operative: never gate a splitting's FP-invariance on a degenerate box.
+
+.. note::
+
+   ⚠ **The word "bulk" above is load-bearing, added 2026-08-15 (#344),
+   and this gate does not need re-scoping — but its measurands do need
+   naming.**  The C5.5 box is x-reflective / y-vacuum / z-reflective,
+   i.e. it closes **two** reflective axis pairs, and ``[M]`` that makes
+   :math:`A = L+C-S-B` **exactly singular** there: :math:`\dim\ker A =
+   36` at cells :math:`(5,3,4)`, ``level_symmetric`` :math:`S_4`,
+   :math:`n_g = 2` (:math:`= n_g (N/4)\, n_y`).  So G-S and Jacobi do
+   **not** return the same boundary trace on it.  The gate is sound
+   because what it asserts — :math:`k_{\rm eff}` and the normalized
+   flux *shape* — is mirror-even, and every mirror-even functional
+   annihilates :math:`\ker A` by theorem
+   (:eq:`sn-kernel-mirror-blindness`).  ⟹ a future strengthening of
+   this gate must not reach for the raw trace without gauging it
+   first.  Derivation: :ref:`sn-loss-kernel-gauge`.
 
 The one ``reduced is not None`` branch that **stays** is the 1-D
 sweep-cache: there the predicate keys on the *availability of the data
@@ -7803,10 +7821,11 @@ distinct failure class:
        Measured max relative error :math:`2.6\times 10^{-9}` — this is
        **SI-convergence-limited, not a discretization error** (DD is
        flat-flux exact on a homogeneous box).
-   * - **Mode-9 G-S ≡ Jacobi FP-invariance**
+   * - **Mode-9 G-S ≡ Jacobi FP-invariance** (of the **bulk** — the
+       box is kernel-BEARING, see the note above)
      - L2 (integration)
      - Boundary-Gauss–Seidel and Jacobi converge to the **same** d=3
-       fixed point on a box that **breaks every degenerate
+       bulk on a box that **breaks every degenerate
        coincidence**: mixed BCs (x-reflective / y-vacuum / z-reflective
        — axis-asymmetric, so a wrong reflection partner shifts the
        answer), ``nx ≠ ny ≠ nz`` (5, 3, 4), a heterogeneous 2-G split
