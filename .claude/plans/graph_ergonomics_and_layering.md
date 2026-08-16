@@ -3,24 +3,40 @@
 **Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
 sections marked `[M]` carry the command or query that produced them.
 
-## ⏸ COMPACTION POINT #2 — 2026-08-16, Track 0 COMPLETE
+## ⏸ COMPACTION POINT #3 — 2026-08-16, Track 0 COMPLETE (0.1–0.6)
 
-**Track 0 (0.1–0.5) has landed**; Track 1 has not started. Work is on branch
+**Track 0 has landed**; Track 1 has not started. Work is on branch
 `feat/config-and-ontology` in `~/git/sphinxcontrib-nexus` (ours — a folder
 change, not a hand-off) and `chore/nexus-project-config` in ORPHEUS. `main` is
-untouched in both.
+untouched in both. Terminal commits: nexus `c51672c`, ORPHEUS `4c3c46b3`.
+⚠ Trust `git merge-base --is-ancestor`, not this line.
 
-⚠ **Every graph number in this plan is an instance count from one build of
-`docs/_build/html/graph/graph.db` and moves on every rebuild.** The before/after
-pairs in the resume table are the exception — each was measured across a real
-rebuild and is a *delta*, which is what makes it re-checkable.
+⚠ **Every graph number in this plan is an instance count from one build and
+moves on every rebuild.** The before/after pairs in the resume table are the
+exception — each was measured across a real rebuild and is a *delta*, which is
+what makes it re-checkable.
 
-<details><summary>superseded — compaction point #1, "before any code is written"</summary>
+⭐ **The graph store MOVED on 2026-08-16 (Track 0.6).** It is now
+`<project root>/.nexus/graph.db`, derived — never declared. Any older text in
+this plan naming `docs/_build/html/{_nexus,graph}/graph.db` is describing a
+path that no longer exists; ask `nexus config db`. `.nexus/traces/` holds the
+runtime overlays and is DURABLE — it is not in the build tree precisely so a
+clean build cannot delete it.
 
-**Nothing in this plan has been implemented.** What exists is measurement, four
-filed issues, and two user decisions. Re-verify against the tree before acting:
-the numbers are instance counts from one build of
-`docs/_build/html/graph/graph.db` and move on every rebuild.
+**Environment, verified after the 0.6 landing:** the MCP server was restarted
+and now reports `db = <root>/.nexus/graph.db`, `has_graph: true`, provenance
+stamped at `f81e3258`, and **23013 nodes / 206868 edges** — matching disk. If a
+future session sees the server's counts disagree with `nexus status`, it is
+serving a frozen snapshot; reconnect it, `use_workspace` cannot self-heal that.
+
+<details><summary>superseded — compaction points #1 and #2</summary>
+
+**#1, "before any code is written":** Nothing in this plan has been
+implemented. What exists is measurement, four filed issues, and two user
+decisions.
+
+**#2, "Track 0 COMPLETE":** said 0.1–0.5. Track 0.6 landed the same day, from
+a question asked at the Track 1.1 design checkpoint — see the 0.6 row.
 
 </details>
 
@@ -41,12 +57,90 @@ deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
 `plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
 the next reader nothing about how they happen.
 
-### ▶ RESUMES AT: Track 1.1 — `ProjectView`, graph + working tree as one object
+### ▶ RESUMES AT: Track 1.1 — a query knows which working tree it answers about
 
-⭐ **TRACK 0 IS COMPLETE** (0.1–0.5). Track 1 is the reshape proper, and its
-first item is the one with `✅ verified` evidence in the gate table below —
-`ProjectView`. `PositionIndex`, `Evidence` and `Diagnostic` are still ⬜
-**relayed, not reproduced**; do not design one until its own measurement is.
+⭐ **TRACK 0 IS COMPLETE** (0.1–0.6). Track 1 is the reshape proper.
+`PositionIndex`, `Evidence` and `Diagnostic` are still ⬜ **relayed, not
+reproduced**; do not design one until its own measurement is.
+
+> ⛔ **This heading read *"Track 1.1 — `ProjectView`, graph + working tree as
+> one object"* until 2026-08-16, and the mechanism is REFUTED.** Do not mint
+> `ProjectView`. `workspace.Workspace` is already documented, verbatim, as
+> *"One checkout paired with its graph database"* — the identical concept, so a
+> new wrapper would be the **fourth** spelling in this file family
+> ([[lessons-L57]]) and would leave `project_root` still travelling per-call.
+> By the concept-count test it ADDS a layer. The goal in the title is the
+> durable half and it stands; the means is to **bind the type that exists**.
+
+**The design, decided 2026-08-16 and measured, not proposed:**
+
+`GraphQuery.__init__(self, graph)` takes no workspace (`query.py:711`), so the
+server holds `_query` and `_workspace` as **two module globals for one
+object** — and they have already disagreed in production: the server answered
+from a snapshot while `_workspace.db_path` pointed at a deleted file, so
+`_reload_if_stale()` failed its `stat`, logged at `debug`, returned, and the
+server could never reload while reporting `has_graph: false`. That is this
+step's motivating defect, observed live rather than argued.
+
+⟹ `GraphQuery` carries the `Workspace` it was loaded from; `project_root`
+leaves the public signatures; `_active_root()` becomes a read off the query.
+
+**The precedent, with every adjective checked at HEAD** (§1's PRECEDENT
+clause — a cited shape is what drifts):
+
+| claim about `Workspace` | verified |
+|---|---|
+| `@dataclass(frozen=True)`, `workspace.py:318` | ✅ `w.root = …` raises `FrozenInstanceError` |
+| two fields: `db_path: Path` required, `root: Path \| None = None` | ✅ `[f.name for f in fields(w)] == ['db_path', 'root']` |
+| carries `db_relpath` + `sibling()` (the worktree transplant) | ✅ both present and working |
+| `root` is OPTIONAL by design — a bare `--db` server has a graph but no tree | ✅ its own docstring says why |
+
+⚠ That last row is the constraint on the binding: `workspace=None` must stay
+legal, because **176 of the 178 `GraphQuery(...)` construction sites are in
+tests** and most pass a bare graph. The parameter is additive or the change is
+a 176-site migration.
+
+⭐ A fresh precedent for the *shape* of the repair landed in 0.6:
+`RuntimeStore.beside(db_path)` — the CLI and the server each had their own
+`db_path.parent / "traces"`, and the fix was one home both read.
+
+**Evidence re-derived at HEAD 2026-08-16, with the FILTER beside each
+fraction** (a fraction without its predicate is not re-runnable — the
+`10 of 56` below read as refuted last compaction for exactly that reason):
+
+| claim | at HEAD | how to re-run |
+|---|---|---|
+| `ProjectView` does not exist | **0 hits** | `grep -rn ProjectView sphinxcontrib/ tests/` |
+| `GraphQuery` methods taking `project_root` | **10 of 56** — 7 public (`detect_changes`, `node_at`, `rename`, `retest`, `session_briefing`, `staleness`, `verification_audit`) + 3 private (`_apply_renames`, `_git_changed_files`, `_git_file_timestamps`) | AST-walk `query.py`, arg name exactly `project_root` |
+| MCP tools | **40** carry `@nexus_tool` | AST-walk `server.py` decorators |
+| …that consult staleness | **1** — `_position_staleness_warning`, defined `server.py:217`, called at `:428` only, inside `node_at` | `grep -n _position_staleness_warning server.py` |
+| …that take a position as INPUT | **3** — `node_at`, `ingest`, `runtime_ingest` | AST-walk for an arg in `{file, file_path, artifact}` |
+| producers EMITTING `(file_path, lineno)` | **51** `_node_result` call sites | `grep -c _node_result query.py` |
+| `GraphQuery(...)` construction sites | **178** — 176 tests, 3 `server.py`, 1 `cli.py` | AST-walk the repo for `GraphQuery(` calls |
+
+⛔ **The step's own done-when was REFUTED before design began.** §6ter said
+*"staleness is applied by construction, and the count is 40 of 40."* Only
+**3 of 40** tools take a position as input, so 37 have nothing for a
+position-staleness warning to apply to; the number silently changed what it
+counted, from tools that APPLY it to tools that SHOULD. The real exposure is
+the **51** emitters, whose `(file_path, lineno)` `NodeResult`'s own docstring
+invites feeding straight to `Read`. Logged as a `plan-authoring` surprise.
+
+✅ **USER RULING 2026-08-16 on the replacement scope:** bind, then attach
+staleness **once at the `@nexus_tool` boundary** — the wrapper scans the
+outgoing payload and appends a line only when a returned file is genuinely
+stale. One site, not 51; absent entirely when the graph is fresh, so it costs
+nothing against **#67**. New done-when: *every tool that returns a position
+says so when the position is stale, and the fresh-graph payload is byte-identical
+to today's.*
+
+⚠ **A control this step needs, and it is not a mutation.** `[M]` at the time
+of writing **11564 of 11564** stored positions still land on their own
+`def`/`class`, because the graph is fresh — so a green staleness gate proves
+nothing until a file is *made* stale. The positive leg is worthless here
+(vv #19); the gate must be built around an edited file. Note also the one
+existing consumer had been **inert** on this project: `_files_changed_since_build`
+returns `None` without a provenance stamp, and the server was reporting none.
 
 **Landed 2026-08-16, each mutation-verified, all on `feat/config-and-ontology`:**
 
@@ -59,8 +153,11 @@ first item is the one with `✅ verified` evidence in the gate table below —
 | **0.6** `c51672c` | the graph lives with the project, not with the build output | store → `<root>/.nexus/`; `[graph].db` RETIRED (derivable); `traces/` out of the directory a clean build empties; `find_project_root` bounded at `$HOME` + the checkout; `DEFAULT_OUTPUT` single-sourced. `[M]` rebuild **23013 / 206868**, identical to the 0.4 baseline, 5 runtime runs still binding; suite **777 passed / 1 skipped** |
 
 Net over 0.2–0.4: nodes **24307 → 23013**, edges **215226 → 206868**, and every
-removed item was something the graph had asserted and could not support. Sphinx
-clean throughout; nexus suite **773 passed / 1 skipped**.
+removed item was something the graph had asserted and could not support. 0.6
+moved the store without touching content — the rebuild lands on **exactly**
+that 23013 / 206868, which is what makes it a re-runnable check rather than a
+claim. Sphinx clean throughout; nexus suite **777 passed / 1 skipped** (was 773
+before 0.6 added four boundary gates).
 
 ⚠ 0.5 ships the **mechanism only** — the extension tier still has zero
 production consumers. Its first are §5.1 `exercises` and §5.4 `layer`.
@@ -174,10 +271,16 @@ byte counts alone.
 
 ---
 
-## 2. Measured baseline — `[M]` 2026-08-16, `docs/_build/html/graph/graph.db`
+## 2. Measured baseline — `[M]` 2026-08-16, pre-Track-0
 
-Graph: **24,307 nodes / 215,226 edges**. Queries below are against that file;
+Graph: **24,307 nodes / 215,226 edges**. Queries below are against that build;
 re-measure after any rebuild, since these are instance counts, not schema facts.
+
+⚠ Measured at `docs/_build/html/graph/graph.db`, **a path that no longer
+exists** — Track 0.6 moved the store to `<root>/.nexus/graph.db`. Kept as the
+provenance of these numbers, not as a location: ask `nexus config db`. The
+current graph is **23013 / 206868**; every number in this section predates
+Track 0's removals and is a *starting* count, not a description of the tree.
 
 ### 2.1 Node and edge population `[M]`
 
@@ -465,7 +568,18 @@ the join). Do not design that now.
 a schema and its migrations (the blob had none), and `ATTACH`'s same-filesystem
 constraint (the deferred CI question).
 
-### 5.3a ⛔ The store is in the WRONG PLACE today, and choosing a DB is when to fix it
+### 5.3a ✅ REMEDIED 2026-08-16 by Track 0.6 (`c51672c`) — the store is in the WRONG PLACE today, and choosing a DB is when to fix it
+
+> ✅ **The relocation half of this section has LANDED, ahead of the DB choice.**
+> `traces/` now lives at `<root>/.nexus/traces/`, outside the build output, and
+> the 5 runs were copied and byte-compared across the move. The section's
+> diagnosis was right and its *timing* was wrong — it said the fix should ride
+> along with choosing a database; it did not need to, and waiting would have
+> left the near-miss below live for another campaign. What remains open here is
+> only the DB-vs-blob question (§5.3), not the location.
+>
+> Read the rest of this section as the argument that produced the move, not as
+> a description of the tree.
 
 `[M]` 2026-08-16 — the trace sidecars live at
 `docs/_build/html/graph/traces/*.json`. That path is **inside `docs/_build/`**,
@@ -914,6 +1028,15 @@ separately; they are one fix at one producer.
    tree as an optional kwarg it is something every tool author must remember, so
    it landed at **1 of 40**. Self-contained; touches no ids.
 
+   > ⛔ **MECHANISM REFUTED 2026-08-16** — the *outcome* stands, the named type
+   > must not be built. `workspace.Workspace` already IS "one checkout paired
+   > with its graph database" (its own docstring), so `ProjectView` would be a
+   > fourth spelling and would leave `project_root` travelling per-call. Bind
+   > `Workspace` into `GraphQuery` instead. Full reasoning, the verified
+   > precedent table, and the live defect that motivates it are in the
+   > **RESUMES AT** block at the top of this plan; do not design from this
+   > section alone.
+
    ✅ **RE-DERIVED AT HEAD 2026-08-16, at the compaction point** — both halves
    reproduce, and the units are now written out because the first re-derivation
    *appeared* to refute the number:
@@ -931,7 +1054,14 @@ separately; they are one fix at one producer.
    arg-name heuristic wide enough to catch `start` also catches
    `_dominant_call_chain`, whose `start` is a **graph node id**, not a path.
    ⟹ state the FILTER beside the fraction, not just the two numbers.
-   *Done when:* staleness is applied by construction, and the count is 40 of 40.
+
+   > ⛔ *Done when:* **"staleness is applied by construction, and the count is
+   > 40 of 40"** — REFUTED 2026-08-16, before design. `[M]` only **3 of 40**
+   > tools take a position as INPUT, so 37 have nothing for a position-staleness
+   > warning to apply to; the target silently changed the predicate its own
+   > `1 of 40` measurement had counted. The real exposure is the **51**
+   > `_node_result` producers that EMIT `(file_path, lineno)`. Replacement
+   > done-when (user-ruled) is in the **RESUMES AT** block.
 2. **`PositionIndex`** (F2) — collapses the three disagreeing (file, line) → node
    implementations into one. **A prerequisite for the test-state work**, which
    needs exactly this binder; adding it as a fourth consumer of a three-way
@@ -953,7 +1083,7 @@ measurement is reproduced.**
 
 | object | evidence | status |
 |---|---|---|
-| `ProjectView` (R1) | `[M]` mine, by AST: 56 methods / 10 take a working-tree arg | ✅ verified |
+| ~~`ProjectView`~~ → **bind `Workspace`** (R1) | `[M]` mine, by AST: **10 of 56** `GraphQuery` methods (7 public + 3 private) take a `project_root` arg; **178** construction sites, 176 in tests | ✅ verified, re-derived at HEAD 2026-08-16; ⛔ the TYPE is refuted, the outcome is not |
 | `NodeId` (R2) | `[M]` mine: `py:func` 206 / `std:doc` 94 / 527 duplicated names; one-sided map at `ast_analyzer.py:920`+`:947` vs `extractors.py:402` | ✅ verified |
 | `PositionIndex` (F2) | relayed: 3 implementations disagreeing on 3 of 4 probed positions | ⬜ **reproduce the 4 probes first** |
 | `Evidence` | relayed only | ⬜ **re-derive** |
