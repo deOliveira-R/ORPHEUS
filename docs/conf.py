@@ -84,26 +84,13 @@ html_css_files = ['sortable.css']
 # -- Options for autodoc -----------------------------------------------
 
 # -- Options for Nexus knowledge graph ------------------------------------
-
-nexus_extra_source_dirs = ['tests']
-
-# Exclude pedagogical tutorial scripts from the Nexus knowledge graph.
-# student_resources/ contains reduced re-implementations whose class
-# names intentionally shadow orpheus.* (CPParams, CPResult, TwoGroupXS,
-# HomogeneousResult, MCParams, FuelBehaviourResult, KineticsResult).
-# Without this exclusion, Sphinx's py-domain xref resolver attaches
-# both the orpheus.* class and the tutorial duplicate to every
-# api/*.rst page, inflating the graph and triggering false staleness
-# flags whenever a tutorial file is touched.
 #
-# scratch/ is the prototyping bench: throwaway probes and archived
-# diagnostics that are kept for the record but are not the codebase.
-# Several still import module paths retired long ago
-# (orpheus.derivations.peierls_geometry), which minted 850 scratch.*
-# nodes and a family of placeholder targets that bare :func:` ` roles
-# on theory pages then suffix-matched onto — reporting live symbols as
-# dead references. Prototypes should not define the graph's namespace.
-nexus_source_exclude_patterns = ['student_resources/*', 'scratch/*']
+# Settings live in ``.nexus/config.toml`` at the repository root, NOT here.
+# The CLI and the MCP server cannot read conf.py, so a setting declared here
+# is invisible to two of the three surfaces that need it — which is how the
+# graph's path came to be declared in three places at once.
+#
+# The rationale for each value moved with it; read that file.
 
 # -- Options for autodoc -----------------------------------------------
 

@@ -2,12 +2,16 @@
 # the MCP server alike. Precedence: explicit flag > this file > conf.py >
 # built-in default.
 #
-# ⚠ TRANSITION (2026-08-15). `docs/conf.py` still carries the equivalent
-# `nexus_*` options and they are deliberately NOT removed yet. The values
-# here MIRROR them exactly, so the graph this produces must match the one
-# conf.py produces — which is the point: `output = "graph"` writes to a
-# second location so the two can be compared before conf.py's copies are
-# retired. Do not let the two drift while both are live.
+# ⚠ TRANSITION (2026-08-15). `output = "graph"` still writes BESIDE the
+# pre-config graph at `docs/_build/html/_nexus/` rather than over it, so the
+# two remain comparable. `_nexus/` is now FROZEN — no build writes there —
+# and should be deleted once the transition is closed, or it becomes a stale
+# graph someone points a tool at.
+#
+# `docs/conf.py`'s `nexus_*` options were RETIRED once the config-driven
+# graph was proven byte-for-byte equivalent (0 symmetric difference across
+# node ids, node rows, edge multiset, node attrs and edge attrs, on
+# 24307 nodes / 215226 edges).
 
 [graph]
 # During the transition this is "graph", not "_nexus", so the config-driven
@@ -21,11 +25,48 @@ output = "graph"
 # knows. The build warns if it writes somewhere else.
 db = "docs/_build/html/graph/graph.db"
 
-# Mirrors docs/conf.py:88 — tests/ is analysed so test nodes are first-class.
+# `infer_implements` is deliberately LEFT AT ITS DEFAULT (true), measured
+# 2026-08-15 rather than assumed. Turning it off is surgical — `[M]` it
+# changes ONLY `implements` edges (13968), zero node difference — but it is
+# not free:
+#
+#   inference ON : 13968 implements, of which 13968 inferred, 0 declared
+#   inference OFF: 0
+#   equations with a code link: 632 of 903  →  0 of 903
+#
+# ORPHEUS has never authored a single `.. implements::`, so switching it off
+# trades a NOISY code↔maths surface for NO code↔maths surface. The inference
+# is genuinely weak (87.5 % of edges rest on a single shared token, at
+# confidence 0.7) — but the defect that makes it dangerous is downstream:
+# consumers do not filter on `confidence`. `verification_coverage` reports
+# status="verified" whenever any test edge exists, with no floor.
+#
+# ⟹ the fix belongs in the CONSUMER (a confidence floor) and in AUTHORING
+# (declare `.. implements::`, which lands at 1.0 and suppresses inference for
+# that pair), not in this switch. Revisit once declared coverage is real.
+
+# tests/ is analysed, so test functions are first-class graph nodes. This is
+# why tests/ docstrings become Nexus nodes while NOT being autodoc pages.
 extra_source_dirs = ["tests"]
 
-# Mirrors docs/conf.py:106. Both directories mint placeholder nodes that bare
-# references elsewhere would otherwise bind to.
+# Both directories mint placeholder nodes that bare references elsewhere then
+# bind to. The rationale, moved here from docs/conf.py when it was retired:
+#
+#   student_resources/ holds pedagogical re-implementations whose class names
+#   intentionally shadow orpheus.* (CPParams, CPResult, TwoGroupXS,
+#   HomogeneousResult, MCParams, FuelBehaviourResult, KineticsResult).
+#   Without the exclusion, Sphinx's py-domain xref resolver attaches BOTH the
+#   orpheus.* class and the tutorial duplicate to every api/*.rst page —
+#   inflating the graph and triggering false staleness flags whenever a
+#   tutorial file is touched.
+#
+#   scratch/ is the prototyping bench: throwaway probes and archived
+#   diagnostics kept for the record but which are not the codebase. Several
+#   still import module paths retired long ago
+#   (orpheus.derivations.peierls_geometry), which minted 850 scratch.* nodes
+#   and a family of placeholder targets that bare :func:` ` roles on theory
+#   pages then suffix-matched onto — reporting LIVE symbols as dead
+#   references. Prototypes should not define the graph's namespace.
 exclude_patterns = ["student_resources/*", "scratch/*"]
 
 [scope]
