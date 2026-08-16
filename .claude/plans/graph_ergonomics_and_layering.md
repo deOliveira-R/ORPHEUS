@@ -1317,12 +1317,24 @@ What survives is not a spelling problem at all:
 | `doc` + `std:doc` | 94 | — | the `std:doc:` half is **inert** (`out={}`), i.e. 94 orphan duplicates |
 | `math:equation` + `std:label` | 10 | — | |
 
+⚠ **CORRECTION 2026-08-16 — "143" was the top FOUR shapes, reported as the
+total.** `[M]` re-derived independently: **174** `py` names carry more than one
+objtype; the four shapes tabulated above sum to **144** (`function + method` is
+17, not 16). The tail is 30 more names across 11 further shapes. ⭐ This is
+`plan-authoring` §2's quantifier defect — *mine*, in a design document, hours
+after writing [[lessons-L59]] about exactly this class. The tell was available
+and I did not look: I summed a `most_common(4)` and wrote the sum as though it
+were `len()`.
+
 ⭐⭐ **The consequence, and it is the one that matters for this project: for
-84 symbols the CALL graph and the DOCUMENTATION graph hang off different
+85 symbols the CALL graph and the DOCUMENTATION graph hang off different
 nodes.** `orpheus…Mixture.ng` has `calls`/`type_uses` on `py:method:…ng` and
-`documents` on `py:property:…ng`. So `impact` and `documents` coverage can
-never see each other for those symbols, and which answer you get depends on
-which spelling you happen to ask with.
+`documents` on `py:property:…ng`. `[M]` aggregated over all 68 property pairs:
+the method-spelled half holds `references 109 / type_uses 84 / calls 55`, the
+property-spelled half holds `documents 55`. **Even the `contains` parents
+differ** — the class contains the method node, the doc page contains the
+property node, so a class's member list and its own doc page's member list are
+disjoint views of one symbol.
 
 ⛔ **This means minting a `NodeId` type is NOT sufficient, and the original
 charter mis-states the fix.** The producers do not disagree about how to
@@ -1338,9 +1350,138 @@ objtype lattice and which producer wins when two disagree (`property` refines
 `method`; `module` is never a `function`); `NodeId` is the type that cannot be
 constructed without asking it. Producers-first, ~45 minting sites.
 
-⚠ Related and already filed: **nexus #71** — the same producer-disagreement
-family, seen from the attribute side (a `source=both` node loses its whole
-decorator block). Both are "two producers, one symbol, no arbiter."
+⚠ Related and already filed: **nexus #71** — ⛔ **NOT the same defect**, and I
+guessed that it was. `[M]` **1 of 185** lost-decorator names is a split name,
+against a 2 % base rate among the 3345 that kept theirs. Independent; neither
+fix helps the other, and #71 is **not** a prerequisite. (The issue's own stated
+mechanism was also too strong and has been corrected in a comment: `source=both`
+is necessary, not sufficient — 185 of 2812, 6.6 %.)
+
+#### The design — `[M]` 2026-08-16
+
+**The 143 are FOUR defects, not one.** Decomposed by what the halves actually
+*are* (the `type` attribute), rather than by id prefix:
+
+| n | the two halves | family |
+|---|---|---|
+| 94 | `file` + `file` | **A — two id NAMESPACES for one concept** (`doc:X` vs `std:doc:X`) |
+| 73 | `attribute` + `method` | **B — two producers TYPE one symbol differently** (`@property`) |
+| 44 | `external` + `external` | D — one builtin used two ways (`int` annotated vs `int()` called) |
+| 17 + 7 + 6 | placeholder + real | C — a phantom that never folded onto its definition |
+| 16 | `unresolved` ×2 | D |
+| 10 | `equation` + `section` | out of scope — a labelled equation is also a `:ref:` target |
+| 2 | `class` + `exception` | B |
+
+⟹ **A and B are this step. C and D are not** (C is `_canonicalize_phantoms`'s
+job and D may be legitimate), and saying so is the point — the original charter
+would have had me fix all 143 with one instrument.
+
+**The invariant that makes A checkable, and it is one number.** A node's `type`
+is EITHER the type segment of its own id, OR a declared placeholder state.
+`unresolved` is a *resolution state*, not a kind — `py:function:foo` with
+`type=unresolved` is correct by design, and the ontology already marks those
+`placeholder = true`. `[M]` at HEAD:
+
+| | count |
+|---|---|
+| id type-segment **==** node type | 17456 |
+| differs, but type is a **placeholder** | 4595 — correct by design |
+| **VIOLATIONS** | **962**, in exactly 5 shapes |
+
+| n | shape |
+|---|---|
+| 680 | id says `label`, type is `section` |
+| 94 | id has **no type segment** (`doc:api/data`), type is `file` |
+| 94 | id says `doc`, type is `file` |
+| 68 | id says `property`, type is `attribute` |
+| 26 | id has no type segment (`citation:<key>`), type is `unresolved` |
+
+⭐ `property`, `label` and `doc` are **not declared node types** — the ontology
+declares `section`, `file`, `attribute`, `method`. So the producers are minting
+ids in a vocabulary the ontology does not have, and nothing refuses them. That
+is the whole defect in one sentence, and it is Pattern 4: the illegal state is
+representable because an id is a **string built at ~45 sites**.
+
+**Two parts, separable, in this order** (the plan's own objection-(a) precedent,
+vindicated by 0.3 landing the fix ahead of the refactor):
+
+**1 — `NodeId`, the type.** A frozen `(domain, type, name)` whose constructor
+refuses a `type` the ontology does not declare, plus `parse()`/`__str__` so the
+string form round-trips. Producers translate their own vocabulary through the
+map Track 0.3 already established as its one home (`REFTYPE_OBJTYPE_MAP` in
+`_mappings.py`) *before* minting; an unmapped producer word then fails **loudly
+at mint time** instead of silently opening a new id namespace. Fixes family A
+by construction — `doc:X` and `std:doc:X` cannot both exist when one type builds
+both.
+*Done when:* the invariant gate reads **0** violations, and `grep` finds no
+`f"py:{...}:"`-style construction outside `NodeId`.
+
+**2 — the arbiter.** Fixes family B, which part 1 does **not**: once `property`
+maps to a declared type, both halves become individually *valid* and still two
+nodes. Something must decide which type a symbol IS when producers disagree.
+The ruling, from `coding-standards`' type-minting criterion (mint a type iff
+≥2 non-isomorphic realizations AND a non-identity morphism): a Python property
+has one realization and no morphism, so **it is a `method` with a flag, not a
+type**. It has a body, a file position and callers; `attribute` nodes have none
+of those. So `property` → `method`, `is_property` in metadata, and the two
+halves merge — uniting 68 symbols' `calls`/`type_uses` with their `documents`.
+*Done when:* `[M]` the 75 family-B duplications are 0, and
+`orpheus…Mixture.ng` has both its call edges and its doc edges on one node.
+
+**The invariant is not a new idea — it is a PUBLISHED PROMISE the tree breaks.**
+`server.py:1606` advertises to every MCP client:
+`"node_id_format": "<domain>:<type>:<qualified_name>"`. That says the middle
+segment IS the type. 962 nodes say otherwise. So part 1 is not "impose a new
+rule", it is "make the tree honour the contract it already ships" — which is
+also why no consumer can be blamed for trusting it.
+
+**`[M]` the id↔type correspondence is currently encoded in NINE places**, which
+is the argument for the type in one line: three producer-private helpers
+(`extractors._node_id` `:32`, `extractors._doc_node_id` `:36`,
+`PyASTAnalyzer._node_id` `:857` — none imported by the other producer), **27**
+inline construction sites across 8 modules, **38** helper call sites, plus
+lookup tables that must stay in step (`_ID_PREFIX_TO_TYPE`
+`ast_analyzer.py:1621`, the candidate-objtype loop `_mappings.py:361`, and a
+consumer at `directives.py:133` that *guesses* by trying
+`py:function:`/`py:method:`/`py:class:` in turn — which is why it can never
+find a `@property`).
+
+⭐ **The one site that IS the whole family**, `extractors.py:71-76`: the type is
+the MAPPED value and the id is built from the RAW one.
+```python
+node_type = DOMAIN_TYPE_MAP.get((domain_name, obj_type), obj_type)
+node_id   = _node_id(domain_name, obj_type, name)   # <- raw, unmapped
+```
+`py:property:`, `std:doc:` and `cite:p:` all come from this line pair.
+
+⚠ **Blast radius — SMALLER than I warned, and measured.** I wrote that 962
+nodes changing id would cost committed test literals. `[M]` `tests/` carries
+1171 id literals over 423 distinct strings, but the two spellings this step
+actually retires appear **0 times**: `py:property:` is 0 in `tests/`,
+`sphinxcontrib/` and `docs/`; `std:doc:` is 0 in `tests/` and `sphinxcontrib/`.
+Retiring them pins against nothing. The costly ones are the spellings we do NOT
+have to touch — `py:method:` (69 literals), `py:attribute:` (24), `doc:` (~68).
+
+⟹ **that reopens a design choice I had closed.** Family A can be fixed two ways:
+- **strict** — every id gets a type segment, so `doc:api/data` becomes
+  `std:file:api/data`. Honours the published grammar exactly; costs ~68 test
+  literals and touches the 120-node `doc:` namespace that currently carries all
+  the traffic.
+- **minimal** — retire the inert `std:doc:` twin (94 nodes, `out={}`) onto
+  `doc:`, and declare `doc:<name>` a documented two-segment exception in the
+  grammar.
+`[M]` the minimal option costs 0 test literals and removes 94 duplicate nodes;
+the strict option additionally fixes 680 `std:label:`→`section` and the 26
+`citation:` ids, i.e. it is the only one that reaches **0 violations**.
+**Proposed (2026-08-16, NOT ruled on): strict, because a published grammar with
+a documented exception is a grammar nothing can be validated against** — and an
+exception is exactly how `py:property:` got in.
+
+⚠ Also found, informational: **72 `cite:p:<key>` nodes** exist because
+`extractors.py:363` special-cases `refdomain == "citation"` while
+`sphinxcontrib-bibtex` emits `refdomain="cite", reftype="p"` — so the branch
+never fires and the generic path mints a fourth namespace. Same defect class,
+own fix.
 4. **`Evidence` / `Diagnostic`** — the diagnostics family, once the vocabulary
    exists. `[M]` 285 lines of adapter across two surfaces, with each diagnostic's
    contract written twice in different words (`native_place`'s ranking rule is in
