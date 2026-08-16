@@ -24,8 +24,14 @@ conversation summary.**
 | hash | outcome |
 |---|---|
 | `046f0a5e` | the graph's settings live in `.nexus/`, declared once |
-| `89f4e0c3` | retire `conf.py`'s nexus options, and measure the one knob left |
-| (plan commit) | this file |
+| `e2b25e3c` | retire `conf.py`'s nexus options, and measure the one knob left |
+| `f59d107e` | this compaction point + `lessons` L55 |
+
+⚠ `[M]` every hash above verified with `git merge-base --is-ancestor <h> HEAD`
+in its own repo. An earlier draft of this table carried `89f4e0c3` for the
+retirement — the pre-amend hash, dead the moment trailers were added. A
+compaction point with a wrong hash is worse than none, so re-verify rather
+than copy forward.
 
 ### Measured state — the transition is CLOSED and neutral
 
