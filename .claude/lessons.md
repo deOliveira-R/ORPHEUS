@@ -2177,3 +2177,45 @@ the wrong thing, and both fail green. Promoted to `vv-principles` **#26**,
 which is where the review-time form lives; it is #19's discrimination rule
 (a positive reading cannot separate loaded from blind) moved from a gate's
 *sensitivity* to a function's *route*. Landed nexus `8de24ec`.
+
+## L59 — A fixture is blind on the axis where its author had only ONE example in front of them, and that is predictable BEFORE the mutation (2026-08-16)
+
+`vv-principles` #24(d)/(e) says the fixture can be the lie, and #17's
+per-arm battery is how you find out. This is the sharpening the graph
+campaign paid for **four times in three days**: you do not have to wait
+for the battery, because *which* axis a fixture cannot see is
+predictable. It is the axis the author never had to think about — the one
+where every example available to them looked the same.
+
+| the blind fixture | the axis it could not see | what its author had in front of them |
+|---|---|---|
+| `rich_graph` spelling `file_path` as `"alpha.py"` | absolute vs relative stored paths | one graph, hand-written, relative |
+| the byte-identity done-when | the fresh path (an edited file cannot reach it) | a dirty tree, because that is what the feature is for |
+| every graph fixture in `test_runtime_ingest` | absolute vs relative stored paths, **again** | Sphinx builds, which are always absolute |
+| the decorator gate's defs at 10 / 30 / 52 | siblings within `DECORATOR_WINDOW = 8` | a fixture written for readability, where you space things out |
+
+`[M]` the last two were arms **6 of 6** of a battery whose other four
+reddened cleanly; both mutations were **no-ops against the fixture**, so
+both reported GREEN and would have read as "well covered".
+
+⭐ **The rule, and it is one question asked at fixture-writing time:**
+*what did I have only one of when I wrote this?* One path spelling, one
+graph state, one parity, one ordering, one file layout, one seed. That
+is the axis the gate is about to certify without testing. Either add the
+second example or write in the docstring that the axis is unexercised —
+what must not happen is a green battery arm being read as coverage.
+
+⚠ The tell that makes it findable in review, before any mutation: **the
+fixture is more regular than the world.** Real `@property` blocks sit 5
+lines apart; the fixture spaced them 20. Real graphs mix absolute and
+relative; the fixture picked one. Regularity is what makes a fixture
+readable and it is exactly what makes it blind — so the readability that
+recommends a fixture is a *warning sign* about it, not a defence.
+
+Cross-reference: `vv-principles` #24(d)/(e) (configuration includes what
+the fixture cannot see), #17 (per-arm granularity, which is how these
+surfaced), #13's refinement-ladder disguise — `8/16/32/64` is the same
+defect wearing arithmetic, a single congruence class the author never
+had a reason to break. Sibling of [[lessons-L57]]: there the *defect*
+hides where the wrong answer is invisible, here the *gap* hides where the
+fixture is uniform. Landed nexus `7db466d` / `c497ddb`.

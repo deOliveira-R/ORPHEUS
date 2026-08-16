@@ -118,8 +118,11 @@ both worth carrying:**
    to `vv-principles` **#26**: gate a claim about the PATH by
    instrumenting the path, never by asserting the output.
 
-**Next is Track 1.2 `PositionIndex`.** ⬜ **Relayed, not reproduced** — as
-are `Evidence` and `Diagnostic`. Reproduce the 4 probes before designing.
+**Track 1.2 is LANDED** (see its block below). `NodeId`, `Evidence` and
+`Diagnostic` remain ⬜ **relayed, not reproduced** — reproduce each one's own
+measurement before designing it. That gate has now paid for itself twice:
+both reproductions so far REFUTED the step's stated done-when before any
+code was written.
 
 > ⛔ **This heading read *"Track 1.1 — `ProjectView`, graph + working tree as
 > one object"* until 2026-08-16, and the mechanism is REFUTED.** Do not mint
@@ -211,6 +214,143 @@ done-when is a claim about the FRESH path, where an edited file cannot
 reach. ⟹ the caution above covers the flag's presence; the promise that it
 costs nothing needed its own instrument (a parse counter) and its own
 configuration (dirty tree, unaffected file). `vv-principles` **#26**.
+
+### ▶ Track 1.2 `PositionIndex` — the gate is SATISFIED, and it moved the step
+
+`[M]` 2026-08-16, `scratchpad/probe_position_index.py` + `…_theft_exact.py`,
+against ORPHEUS's real graph (`23013 / 206868`). ⚠ The relayed measurement
+never recorded WHICH 4 positions, so this is a **re-measurement, not a
+replication** — positions were derived from the AST of
+`orpheus/numerics/measure.py`, not copied.
+
+| probe | line | `query.node_at` (A) | `resolve_node` (B) | |
+|---|---|---|---|---|
+| inside a method body | 267 | `DiscreteMeasure.__post_init__` | `DiscreteMeasure.__post_init__` | ✅ |
+| class body, no method | 144 | `DiscreteMeasure` (class) | `None` | ≠ |
+| module scope (import) | 75 | `orpheus.numerics.measure` | `None` | ≠ |
+| decorator line | 288 | `DiscreteMeasure` (class) | `DiscreteMeasure.dim` | ≠ |
+
+⟹ **3 of 4 — the relayed count reproduces on independently-chosen positions.**
+
+⛔ **But the relayed FRAMING is wrong, and it would have misdirected the
+design.** It is not "three implementations of `(file, line) → node`". It is
+**two concepts, each duplicated**, and the third cited site answers a
+different question entirely:
+
+| concept | spellings | agree today? |
+|---|---|---|
+| **path → comparable key** | 3 — `node_at._norm`, `_in_file_node_ids._norm` (its own comment says *"keep the two in lockstep"*), `NodeBinder._abs` — ✅ **REMEDIED 2026-08-16 @ `7db466d`**: one `workspace.canonical_path` | ✅ yes, by hand |
+| **span search** | 2 — A (all types, smallest span, module fallback) vs B (function/method only, latest start, decorator window, no fallback) — ✅ **REMEDIED 2026-08-16 @ `c497ddb`**: one `PositionIndex._innermost`, two verbs over it | ⛔ no |
+| `brief._in_file_node_ids` | is `(file) → nodes`, **not** a position lookup | `[M]` **56 = 56**, set-equal to A's `_norm` match |
+
+`[M]` B returns `None` where A and C succeed when the query is spelled
+**relatively** — B's index keys are the raw stored paths, so its
+normalization lives in its *caller*. Invisible on this graph
+(`[M]` **16527 of 16527** stored `file_path` are absolute), which is why it
+needs saying rather than probing.
+
+⛔ **The step's own done-when is REFUTED, the same way Track 1.1's was.**
+*"one implementation, and the 4 probed positions agree"* — two of the three
+disagreements are B's **deliberate design**: classes are excluded because they
+would shadow their own methods, and a trace record has no module to bind to.
+Forcing agreement would break the runtime join. What must be single-sourced is
+the **key space and the span data**, not the resolution policy.
+
+⭐⭐ **And the third disagreement is a LIVE DEFECT, in the tool this campaign
+runs on.** `resolve_node` writes the window and the body test as one
+condition — `ln - WINDOW <= ask <= end` — so a *later sibling* can claim a
+line above an earlier def, and "latest start wins" hands it the answer:
+
+```
+ask = 288 (the decorator of n_points)
+   289-291  n_points   <- the decorator's OWN def
+   294-301  dim        <- 294-8 <= 288 <= 301, scanned later, WINS
+```
+
+`[M]` cProfile reports `co_firstlineno`, which for a decorated def is the
+**first decorator line** — so this is the production path, not a corner.
+Measured over the whole graph, with the predicate stated (`plan-authoring` §2):
+
+| population | count |
+|---|---|
+| indexed `function`/`method` nodes | 10207 |
+| …of which **decorated** (by AST, own def line indexed) | 3530 |
+| …… bound to the **right** node | 2969 |
+| …… bound to the **wrong** node | **456** — 12.9 % of decorated |
+| …… bound to nothing | 105 |
+
+291 of the 456 are `@property` — the exact node class `runtime_hotspots`
+advertises (*"a property called 10k×/run = a caching opportunity"*). The theft
+is always to the **next sibling**, so a run's counts are shifted one property
+down the file: plausible numbers on the wrong node, i.e. [[lessons-L57]]'s
+invisible-wrong-answer again.
+
+⚠ **Its gate is green and cannot fail — the fixture is blind to the only axis
+that matters.** `test_resolve_decorator_line_above_def` spaces its defs at
+**10, 30, 52** (gaps of 20 and 22) against `DECORATOR_WINDOW = 8`, so no
+sibling can ever reach another's decorator line. Real `@property` blocks sit
+5 lines apart (`mixture.py`: 108/113/118/123). Third blind fixture in this
+campaign, after `rich_graph`'s relative paths and the byte-identity witness —
+`vv-principles` #24(d)/(e).
+
+**Replacement done-when** (the refuted one is struck above):
+1. **one** path→key implementation — `grep -c "def _norm" sphinxcontrib/` is 0;
+2. **two** named span verbs, and no third — navigation vs trace-binding, each
+   saying which question it answers;
+3. `[M]` the 456 misbindings go to **0**, and the decorator fixture is re-spaced
+   so the existing gate *can* fail (`plan-authoring` §6c — the gate lands with
+   the case it catches).
+
+### ✅ Track 1.2 LANDED 2026-08-16 — all three met
+
+| | outcome | `[M]` |
+|---|---|---|
+| **1.2a** `7db466d` | one contract decides when two paths are the same file | 3 private realizations → `workspace.canonical_path`; `grep "def _norm"` **0**; 8 hand-written contract gates replace the demoted copy-comparison; suite **790 → 798** |
+| **1.2b** `c497ddb` | a position resolves one way, and decorators land on their own def | misbindings **456 → 0**, unbound **105 → 6**; `decorator_lineno` recorded at the producer; graph **23013 / 206868** unchanged; suite **798 → 803** |
+
+`[M]` both joins run against the **same rebuilt graph**, so the comparison
+isolates the join, not the graph:
+
+| join | RIGHT | WRONG | NONE |
+|---|---|---|---|
+| the retired `resolve_node` | 2969 | **456** | 105 |
+| `PositionIndex.defined_at` | **3524** | **0** | 6 |
+
+⭐ **The repair was at the PRODUCER, not in a better heuristic.** The analyzer
+already walked `decorator_list` and kept only the rendered *names* — it knew
+where the definition started and threw the number away, so the consumer had to
+guess with an 8-line window. This is [[feedback-lossy-return-type-is-the-root-cause]]
+exactly: triage one hop UP, and the guess becomes an exact match.
+
+⭐⭐ **Two duplications were found by MEASURING rather than arguing, and both
+were mine, written the same hour:**
+1. the exact-match-first pass I put in `defined_at` — `[M]` **0 of 1 830 000**
+   realizable positions changed answer, so it was a copy of the search beneath
+   it. Deleted, with the measurement in the docstring so it is not "restored";
+2. the two verbs' innermost rules (smallest extent vs latest start) — `[M]`
+   agree on **all 1 830 000**; they can differ only for extents that overlap
+   without nesting, which no source file produces. One `_innermost`.
+
+⚠ **The blind-arm count was 2 of 6, and both were the FIXTURE again** — the
+third and fourth instances in this campaign. Every graph fixture stored
+ABSOLUTE paths, so mutating the index's key canonicalisation was a *no-op*;
+and no fixture had a decorator stack longer than the window, so removing
+`decorator_lineno` was *rescued by the fallback*. Witnesses built for both. The
+pattern is now unmistakable enough to state as a rule: **a fixture inherits the
+one spelling its author had in front of them, and that is the axis the gate
+cannot see.**
+
+⚠ **The old decorator gate could not fail.** Its fixture spaced defs at
+10/30/52 — gaps of 20 and 22 against `DECORATOR_WINDOW = 8` — so no sibling
+could reach another's decorator lines. Re-spaced to real `@property` spacing.
+
+⭐ **Filed, not fixed here: nexus #71.** The residual 6 unbound are all
+`source = both` nodes, and the merge drops their whole decorator block —
+costing `[M]` **36 of 420** `@pytest.mark.verifies` declarations their `tests`
+edge, i.e. **8.6 % of ORPHEUS's declared V&V links are missing from the
+coverage matrix**. Error direction is the safer one (false MISSING, not false
+COVERED), but `verification_audit` is exactly the tool an auditor trusts.
+Separate defect, separate blast radius, own issue.
 
 **Landed 2026-08-16, each mutation-verified, all on `feat/config-and-ontology`:**
 
@@ -1138,11 +1278,14 @@ separately; they are one fix at one producer.
    > `1 of 40` measurement had counted. The real exposure is the **51**
    > `_node_result` producers that EMIT `(file_path, lineno)`. Replacement
    > done-when (user-ruled) is in the **RESUMES AT** block.
-2. **`PositionIndex`** (F2) — ▶ **NEXT.** Collapses the three disagreeing
-   (file, line) → node implementations into one. **A prerequisite for the test-state work**, which
-   needs exactly this binder; adding it as a fourth consumer of a three-way
-   disagreement makes it four-way.
-   *Done when:* one implementation, and the 4 probed positions agree.
+2. **`PositionIndex`** (F2) — ✅ **LANDED 2026-08-16** @ `7db466d` + `c497ddb`.
+   **A prerequisite for the test-state work**, which needs exactly this binder;
+   adding it as a fourth consumer of a three-way disagreement would have made it
+   four-way. ⛔ *Done when: the 4 probed positions agree* — **REFUTED before
+   design**: two of the three disagreements are the trace join's deliberate
+   policy (no module to bind to, classes shadow their methods), and forcing
+   agreement would have broken it. See the Track 1.2 block at the top for what
+   replaced it and what landed.
 3. **`NodeId`** — producers first, per (b).
    *Done when:* an id cannot be constructed except through the type.
 4. **`Evidence` / `Diagnostic`** — the diagnostics family, once the vocabulary
@@ -1161,7 +1304,7 @@ measurement is reproduced.**
 |---|---|---|
 | ~~`ProjectView`~~ → **bind `Workspace`** (R1) | `[M]` mine, by AST: **10 of 56** `GraphQuery` methods (7 public + 3 private) take a `project_root` arg; **178** construction sites, 176 in tests | ✅ verified, re-derived at HEAD 2026-08-16; ⛔ the TYPE is refuted, the outcome is not |
 | `NodeId` (R2) | `[M]` mine: `py:func` 206 / `std:doc` 94 / 527 duplicated names; one-sided map at `ast_analyzer.py:920`+`:947` vs `extractors.py:402` | ✅ verified |
-| `PositionIndex` (F2) | relayed: 3 implementations disagreeing on 3 of 4 probed positions | ⬜ **reproduce the 4 probes first** |
+| `PositionIndex` (F2) | ~~relayed: 3 implementations disagreeing on 3 of 4 probed positions~~ → `[M]` mine 2026-08-16: **3 of 4** reproduces, but the framing was wrong — **2 concepts each duplicated** (path-key ×3, span search ×2), the third cited site answers `(file) → nodes` and agrees exactly (56 = 56). Live defect found: **456 of 3530** decorated defs mis-bind | ✅ **reproduced** — see the Track 1.2 block at the top |
 | `Evidence` | relayed only | ⬜ **re-derive** |
 | `Diagnostic` | relayed: 285 lines of adapter, contract written twice per diagnostic (docstring similarity 0.05–0.67) | ⬜ **re-derive** |
 
