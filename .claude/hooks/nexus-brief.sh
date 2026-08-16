@@ -47,9 +47,16 @@ while [ "$root" != "/" ]; do
   root=$(dirname "$root")
 done
 [ "$root" != "/" ] || exit 0
-[ -f "$root/docs/_build/html/_nexus/graph.db" ] || exit 0
 nexus_bin="$root/.venv/bin/nexus"
 [ -x "$nexus_bin" ] || exit 0
+
+# Ask nexus where this checkout's graph is rather than hardcoding it —
+# the path is declared in .nexus/config.toml, and a copy here is a
+# second declaration free to drift. `--project-root "$root"` keeps the
+# worktree guarantee above intact: the answer is anchored to the
+# checkout we just walked up to, never to the caller's directory.
+db=$("$nexus_bin" config db --project-root "$root" 2>/dev/null) || exit 0
+[ -f "$db" ] || exit 0
 
 # Once per file per session: the first edit briefs, later ones stay
 # quiet — repeated context injection is noise, not ambience.
@@ -60,7 +67,7 @@ stamp="$dedup_dir/$(printf '%s' "$file" | /usr/bin/shasum | cut -d' ' -f1)"
 : > "$stamp"
 
 brief_out=$("$nexus_bin" file-brief "$file" \
-  --db "$root/docs/_build/html/_nexus/graph.db" \
+  --db "$db" \
   --project-root "$root" 2>/dev/null) || exit 0
 [ -n "$brief_out" ] || exit 0
 

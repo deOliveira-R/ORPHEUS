@@ -13,7 +13,9 @@
 # Cloud (Claude Code on the web): set the environment's "Setup script" field to
 #   bash scripts/setup.sh
 # It satisfies all three things the nexus MCP server needs in a fresh VM:
-# a .venv, the installed `nexus` console script, and docs/_build/html/_nexus/graph.db.
+# a .venv, the installed `nexus` console script, and the graph itself — which
+# lands wherever .nexus/config.toml's [graph] table says, not at a path this
+# script gets to choose. Ask for it with: .venv/bin/nexus config db
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root of THIS checkout (works from a worktree too)
 
@@ -32,9 +34,14 @@ else
 fi
 
 if [[ "${1:-}" != "--no-docs" ]]; then
-    echo "==> Building Sphinx docs → writes the Nexus graph (docs/_build/html/_nexus/graph.db)"
+    echo "==> Building Sphinx docs → writes the Nexus graph"
     .venv/bin/python -m orpheus.derivations.generate_rst
     .venv/bin/python -m sphinx -b html docs docs/_build/html
+    # Report the graph's location by ASKING, never by restating it. The path
+    # is declared once, in .nexus/config.toml; a copy here would be a second
+    # declaration, and the copies that used to live in three hooks all went
+    # stale the day [graph].output moved.
+    echo "    graph → $(.venv/bin/nexus config db 2>/dev/null || echo '(unresolved)')"
 fi
 
 echo "✓ Done. import orpheus → this checkout. Activate with:  source .venv/bin/activate"

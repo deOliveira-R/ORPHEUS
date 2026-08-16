@@ -26,14 +26,22 @@
 set -u
 
 root="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-db="${NEXUS_DB:-$root/docs/_build/html/_nexus/graph.db}"
 limit="${NEXUS_DEAD_REFS_LIMIT:-15}"
 
-[ -f "$db" ] || exit 0
-
+# The binary must be found BEFORE the graph, because it is what knows
+# where the graph is. Asking `nexus config db` instead of hardcoding a
+# path is not a style choice: the path is declared in .nexus/config.toml
+# and a copy here is a second declaration that drifts silently. It did —
+# when [graph].output moved, this hook's hardcoded `_nexus/graph.db`
+# stopped existing and the `[ -f ]` guard below turned the mistake into
+# a quiet `exit 0`, indistinguishable from "this project has no graph".
 nexus_bin="$root/.venv/bin/nexus"
 [ -x "$nexus_bin" ] || nexus_bin="$(command -v nexus 2>/dev/null)"
 [ -n "$nexus_bin" ] && [ -x "$nexus_bin" ] || exit 0
+
+db="${NEXUS_DB:-$("$nexus_bin" config db --project-root "$root" 2>/dev/null)}"
+[ -n "$db" ] || exit 0
+[ -f "$db" ] || exit 0
 
 # --quiet-when-clean: a clean project must cost zero context, or the
 # hook trains agents to skim past it.

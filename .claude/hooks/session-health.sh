@@ -56,13 +56,23 @@ fi
 echo "PYRIGHT: $pyright_status"
 
 # ── Gate 2: NEXUS (loaded + executable BEFORE session_briefing) ─────────────
-db="$root/docs/_build/html/_nexus/graph.db"
+# The binary is checked FIRST because it is what knows where the graph
+# is: the path is declared in .nexus/config.toml, and `nexus config db`
+# is the one way to read it without re-implementing the precedence chain
+# in shell. A hardcoded copy lived here until 2026-08-16 and went stale
+# the moment [graph].output moved — the gate then reported PROBLEM every
+# session and prescribed a rebuild that wrote somewhere else, so the
+# remediation could never clear it. Quote the RESOLVED path in every
+# message below, so a stale answer is visible instead of inferred.
 nexus_bin="$root/.venv/bin/nexus"
 nexus_status="UNKNOWN"
-if [ ! -f "$db" ]; then
-  nexus_status="PROBLEM — no graph DB at docs/_build/html/_nexus/graph.db. session_briefing will answer from nothing. REMEDIATION: sphinx-build docs docs/_build/html (the build writes the graph; the MCP server auto-reloads)."
-elif [ ! -x "$nexus_bin" ]; then
-  nexus_status="PROBLEM — graph DB exists but the nexus package is not installed (.venv/bin/nexus missing). REMEDIATION: bash scripts/setup.sh --no-docs (installs sphinxcontrib-nexus into .venv)."
+db=""
+if [ ! -x "$nexus_bin" ]; then
+  nexus_status="PROBLEM — the nexus package is not installed (.venv/bin/nexus missing), so neither the graph nor its location can be read. REMEDIATION: bash scripts/setup.sh --no-docs (installs sphinxcontrib-nexus into .venv)."
+elif ! db=$("$nexus_bin" config db --project-root "$root" 2>/dev/null) || [ -z "$db" ]; then
+  nexus_status="PROBLEM — nexus could not resolve a graph path. Usually a malformed .nexus/config.toml. REMEDIATION: run '.venv/bin/nexus config --project-root .' and fix what it reports."
+elif [ ! -f "$db" ]; then
+  nexus_status="PROBLEM — no graph DB at $db (the path .nexus/config.toml declares). session_briefing will answer from nothing. REMEDIATION: sphinx-build docs docs/_build/html (the build writes the graph; the MCP server auto-reloads)."
 else
   db_ok=$("$py" -c 'import sqlite3,sys
 try:

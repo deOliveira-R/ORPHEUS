@@ -8,11 +8,11 @@ invoked. It is a finding, not a suggestion to go look for one.
 
 ## Dead documentation references
 
-!`N="${CLAUDE_PROJECT_DIR:-.}/.venv/bin/nexus"; [ -x "$N" ] || N="$(command -v nexus 2>/dev/null)"; D="${NEXUS_DB:-${CLAUDE_PROJECT_DIR:-.}/docs/_build/html/_nexus/graph.db}"; if [ -n "$N" ] && [ -f "$D" ]; then "$N" dead-references --db "$D" --format text --limit 25; else echo "(nexus or graph not found — run 'nexus setup' and build the docs; set NEXUS_DB to override the graph path)"; fi`
+!`cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0; N=".venv/bin/nexus"; [ -x "$N" ] || N="$(command -v nexus 2>/dev/null)"; if [ -z "$N" ]; then echo "(nexus not installed — run: bash scripts/setup.sh --no-docs)"; else D="${NEXUS_DB:-$("$N" config db 2>/dev/null)}"; if [ -f "$D" ]; then "$N" dead-references --db "$D" --format text --limit 25; else echo "(no graph at ${D:-<unresolved — check .nexus/config.toml>} — build it: sphinx-build docs docs/_build/html)"; fi; fi`
 
 ## Timestamp drift
 
-!`N="${CLAUDE_PROJECT_DIR:-.}/.venv/bin/nexus"; [ -x "$N" ] || N="$(command -v nexus 2>/dev/null)"; D="${NEXUS_DB:-${CLAUDE_PROJECT_DIR:-.}/docs/_build/html/_nexus/graph.db}"; if [ -n "$N" ] && [ -f "$D" ]; then "$N" staleness --db "$D" 2>/dev/null | head -40; fi`
+!`cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0; N=".venv/bin/nexus"; [ -x "$N" ] || N="$(command -v nexus 2>/dev/null)"; [ -n "$N" ] || exit 0; D="${NEXUS_DB:-$("$N" config db 2>/dev/null)}"; [ -f "$D" ] || exit 0; "$N" staleness --db "$D" --project-root . 2>/dev/null | head -40`
 
 ---
 
