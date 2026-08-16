@@ -54,7 +54,12 @@ principles, harness, and the auto-generated V&V matrix — lives at
 Knowledge Graph
 ================
 
-`Open interactive graph explorer <_nexus/graph.html>`_ — visualize the full code + documentation connectivity graph with filtering, search, and node inspection.
+.. The href below is a raw path into the build output, so nothing verifies
+   it — Sphinx does not check relative hyperlinks, at any severity. It must
+   mirror ``[graph].output`` in ``.nexus/config.toml``; if that setting
+   moves, this link moves with it or it 404s silently.
+
+`Open interactive graph explorer <graph/graph.html>`_ — visualize the full code + documentation connectivity graph with filtering, search, and node inspection.
 
 
 Indices and tables

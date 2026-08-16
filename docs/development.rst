@@ -15,8 +15,9 @@ Core principles
 ---------------
 
 1. **``main`` is always green.** Always buildable, always Nexus-reloadable,
-   tests passing. The Nexus MCP server reads from ``docs/_build/html/_nexus/graph.db``
-   live, so a broken ``main`` poisons every future agent session until
+   tests passing. The Nexus MCP server reads the knowledge graph live —
+   from wherever ``.nexus/config.toml`` declares it, which ``nexus config db``
+   prints — so a broken ``main`` poisons every future agent session until
    it is fixed. Never commit directly to ``main``.
 
 2. **History tells a story.** Commits within a branch should be

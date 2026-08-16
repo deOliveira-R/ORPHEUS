@@ -113,23 +113,27 @@ Wildcards: `*` matches any type. `name=prefix*` for prefix match.
 
 ## CLI Commands (for ! injection)
 
-All output JSON to stdout. Default db: `_nexus/graph.db`.
+All output JSON to stdout. The graph is resolved from `[graph].db` in
+`.nexus/config.toml` (run `nexus config db` to print it), so `--db` is
+optional everywhere below — pass it only to point at a DIFFERENT graph.
+A project with no `.nexus/config.toml` falls back to `_nexus/graph.db`,
+relative to the working directory.
 
 ```bash
-nexus callers <node_id> --db <path> [--transitive] [--max-depth 3]
-nexus callees <node_id> --db <path> [--transitive] [--max-depth 3]
-nexus audit --db <path> [--project-root .]
-nexus briefing --db <path>
-nexus context <node_id> --db <path>
-nexus neighbors <node_id> --db <path> [--direction in|out|both] [--edge-types calls,imports]
-nexus god-nodes --db <path> [--top-n 10]
-nexus communities --db <path> [--min-size 3]
-nexus bridges --db <path> [--top-n 10]
-nexus processes --db <path> [--min-length 3]
-nexus shortest-path <source> <target> --db <path> [--max-hops 8]
-nexus graph-query "<pattern>" --db <path> [--limit 50]
-nexus trace <test_node_id> --db <path>
-nexus retest --db <path> [--project-root .] [--scope all|staged|unstaged|branch]
-nexus changes --db <path> [--project-root .] [--scope all|staged|unstaged|branch]
-nexus rename <old> <new> --db <path> [--project-root .] [--apply]
+nexus callers <node_id> [--transitive] [--max-depth 3]
+nexus callees <node_id> [--transitive] [--max-depth 3]
+nexus audit [--project-root .]
+nexus briefing
+nexus context <node_id>
+nexus neighbors <node_id> [--direction in|out|both] [--edge-types calls,imports]
+nexus god-nodes [--top-n 10]
+nexus communities [--min-size 3]
+nexus bridges [--top-n 10]
+nexus processes [--min-length 3]
+nexus shortest-path <source> <target> [--max-hops 8]
+nexus graph-query "<pattern>" [--limit 50]
+nexus trace <test_node_id>
+nexus retest [--project-root .] [--scope all|staged|unstaged|branch]
+nexus changes [--project-root .] [--scope all|staged|unstaged|branch]
+nexus rename <old> <new> [--project-root .] [--apply]
 ```

@@ -33,6 +33,11 @@ pyrightconfig.json
 # Secrets — API keys live here, never committed
 .env
 
+# coverage.py's data file. Produced at the repo root by any `coverage run`,
+# including the runs that feed `nexus runtime-ingest --kind coverage`.
+.coverage
+.coverage.*
+
 # Local literature corpus (~215 MB of copyrighted PDFs + their OCR sidecars).
 # The user maintains this locally; it is a read surface, never a deliverable.
 # Ignored so `git add -A` cannot pull it into the index.
