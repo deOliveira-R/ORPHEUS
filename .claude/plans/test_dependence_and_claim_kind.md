@@ -69,22 +69,54 @@ pytest COLLECTION manifest · **#62** `retest` truncates at `max_depth=3` ·
 surface (this work). ORPHEUS **#358** carries the synthesis comment; **#377**
 is the `RigidMotion.determinant` perf finding.
 
-### ▶ RESUMES AT: an ingest that joins nothing says so (nexus #56)
+### ✅ #56 CLOSED 2026-08-16 @ nexus `5796c6d` — an ingest that joins nothing says so
 
-**Goal (outcome, not mechanism).** A runtime ingest that binds no records
-reports that, instead of printing `nodes: 0 / edges: 0 / unresolved: 0` and
-exiting 0.
-**`[M]` unstarted as of this checkpoint** — `grep -c -i context runtime.py`
-is still 0 and `overlay_coverage` still reads four keys; nothing in
-`runtime.py` normalizes path keys.
-**Then** #55 (the resolver), **then** #57 (`exercises`). That order is
-deliberate: fix the instrument, then the resolver, then add the capability.
-Measuring with a broken instrument is worse than not measuring, because the
-result gets recorded.
+`NodeBinder` + `JoinLedger` now own the key space, the scope test and the
+drop accounting for all three backends. `[M]` the same ORPHEUS artifact goes
+**0 → 1691** bound nodes (158 of 158 coverage keys were relative); a zero-join
+exits 1, names its root, and is **not stored**. `[M]` 739 passed / 1 skipped
+(was 726); both structural changes mutation-verified, one red each.
 
-⚠ Before designing #56, re-read §2.2 here and the issue body — the
-relative-vs-absolute key finding is the whole diagnosis and it is easy to
-mistake for a general "paths are hard" problem.
+⛔ **Two of the issue's own premises were REFUTED** — recorded on the issue
+rather than routed around. (a) The suggested fix said to read the rundir from
+`coverage json`'s `meta`; `[M]` meta carries only
+`format/version/timestamp/branch_coverage/show_contexts` and records it
+**nowhere**, so it must be supplied — hence `--root`. (b) The issue said the
+multi-prefix trap was "filed separately"; `[M]` no such issue exists, so it
+was folded in. Also: `coverage json --branch` is rejected — `--branch`
+belongs to `coverage run`.
+
+Two further instances of the same defect fell out: `--kind viztracer` reached
+the **coverage** ingester (a binary dispatch over three registered choices),
+and `len(calls) or len(coverage)` read `nodes: 0` for a *successful*
+viztracer run. Filed while here: **#65** (the tool reference documents 29 of
+40 tools, missing both worktree-hazard tools) and **#66** (`--db` declared 42×
+per-subparser; `status` rejects `--project-root`).
+
+### ▶ RESUMES AT: one method is one node, however its receiver is spelled (nexus #55)
+
+**Goal (outcome, not mechanism).** A call to `X.foo()` binds to the same node
+regardless of how the receiver was spelled at the call site, so `callers`
+answers a question instead of returning `[]`.
+
+**`[M]` unstarted** as of 2026-08-16 — verify before designing; the fix for
+#56 touched `runtime.py`, `cli.py` and `server.py`, and **not** the AST call
+resolver.
+
+**Then** #57 (`exercises` from coverage contexts). The order is deliberate:
+instrument, then resolver, then capability — measuring with a broken
+instrument is worse than not measuring, because the result gets recorded.
+
+⚠ Read §2.2 here first. The diagnosis is *a phantom per receiver spelling* —
+one method fragmenting into five nodes, 20 948 of 121 788 calls landing on
+`unresolved`. Nexus already solved this class for **doc** references in #37
+and never applied it to the call resolver; that prior art is the starting
+point, not a general "name resolution is hard" problem.
+
+⚠ And #55 is where [[lessons-L56]] bites hardest: `callers` returning `[]`
+is the flagship instance of "an empty answer and a broken one look alike"
+(nexus #59). Fixing the resolver without also making `[]` self-describing
+leaves the next reader with the same unanswerable output.
 
 ---
 
