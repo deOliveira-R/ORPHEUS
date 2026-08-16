@@ -27,7 +27,25 @@ deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
 `plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
 the next reader nothing about how they happen.
 
-### ▶ RESUMES AT: Track 0.2 — a call edge is never fabricated (§6ter)
+### ▶ RESUMES AT: Track 0.4 — an id is never built from raw text (§6ter)
+
+**Landed 2026-08-16, both mutation-verified, both on `feat/config-and-ontology`:**
+
+| | outcome | `[M]` on ORPHEUS's rebuilt graph |
+|---|---|---|
+| **0.2** `3e137ff` | the graph never claims a call the source does not make | `calls` pairs **53117 → 51376** (−1741, **0 added**); 291 of the removed pointed at a real symbol; fabricated self-loops **57 → 5**; 94 real symbols had no un-fabricated incoming call; `dead_functions` candidates **2919 → 2967** |
+| **0.3** `2ddf61b` | one symbol, one id, on both producers | short-prefix ids **316 → 0**; symbols carrying both spellings **263 → 0**; nodes 24214 → 23971 as the halves merged; Sphinx clean |
+
+⚠ Those 94 symbols are **not** thereby dead — most are protocol-typed methods
+reached by dynamic dispatch, which the static graph cannot see either way (the
+co-execution ruling). What changed is that it stopped presenting invention as
+evidence: a candidate list may be wrong, a call edge may not.
+
+**Next is 0.4**, then 0.5 (#69), then Track 1 — and read the ⛔⛔ block under
+the Track 0 table before pricing 0.4, because both landed items refuted their
+own size estimate by the same mechanism.
+
+<details><summary>superseded pointer — Track 0.2 (kept per <code>plan-authoring</code> §3)</summary>
 
 ⚠ **The sequencing CHANGED 2026-08-16 and this pointer supersedes the earlier
 one.** #68 was first; the **nexus reshape is now first** (user: *"better to do
@@ -50,6 +68,16 @@ re-measured this one myself.
 
 Then 0.3 (apply `py_type_map` on the xref path, 2 lines), 0.4 (id
 normalisation = #68 + the 13 newline ids), then Track 1 in the stated order.
+
+⛔ **REFUTED 2026-08-16, and the caution above is what caught it.** The
+mechanism was right; *"a one-line fix"* was wrong, and so was "2 lines" for
+0.3 — see the ⛔⛔ block under the Track 0 table. The relayed *"8 of 13"* was
+never reproduced as stated: it was measured on **nexus's own** graph, and my
+re-measurement was on **ORPHEUS's**, where the worst single case is 6 of 8
+(`_CompositeLeaf.values`). Not a contradiction — a different denominator — but
+it is why the number is not quoted forward.
+
+</details>
 
 Work is in `~/git/sphinxcontrib-nexus` (ours; a folder change, not a hand-off),
 branch `feat/config-and-ontology`.
@@ -734,11 +762,26 @@ independently valuable:
 
 | # | item | size | done when |
 |---|---|---|---|
-| 0.1 | ✅ **Ontology wired** — `_infer_implements` consults it | LANDED | `merge.py` holds no copy of the rule |
-| 0.2 | `_unparse_attribute` fabricating `calls` edges (F1) | 1 line | `get_thing().method()` mints no edge |
-| 0.3 | Apply `py_type_map` on the xref path (R2's fix half) | 2 lines | `py:func`/`py:meth`/`py:attr` id counts → 0 |
+| 0.1 | ✅ **Ontology wired** — `_infer_implements` consults it | LANDED `37bad88` | `merge.py` holds no copy of the rule |
+| 0.2 | ✅ **A call edge is never fabricated** — the truncating twin RETIRED | LANDED `3e137ff` | `get_thing().method()` mints no edge |
+| 0.3 | ✅ **A Python id is spelled with the objtype on both producers** | LANDED `2ddf61b` | `[M]` short-prefix ids **316 → 0**, split symbols **263 → 0** |
 | 0.4 | **Normalise raw text out of ids** — covers **#68** *and* R3 | small | 0 ids containing whitespace; `math:equation:*` holds only declared labels |
 | 0.5 | **`extend` verb for the ontology** (**#69**) — a project may WIDEN a base edge's domain/range, never narrow it | small | a project extension can add `equation` to `implements`.range; narrowing still raises; monotonicity asserted |
+
+⛔⛔ **BOTH LANDED ITEMS REFUTED THEIR OWN SIZE ESTIMATE, THE SAME WAY.** 0.2
+was priced at "1 line", 0.3 at "2 lines". Neither was a line count — each was a
+**duplication**, and the reported defect was the copy that happened to be wrong:
+
+| item | the reported fix | what it actually was |
+|---|---|---|
+| 0.2 | make `_unparse_attribute` return `None` | `_dotted_name`, **360 lines above in the same file**, already did — retire the twin (−28 lines) |
+| 0.3 | apply `py_type_map` on the xref path | the map was a dict **local to one producer** — hoist to `_mappings.REFTYPE_OBJTYPE_MAP`, both read it |
+
+⟹ **Do not inherit 0.4's "small".** It is filed as *"an id built from raw text
+with no normalisation"* — which is already the language of a producer with more
+than one spelling. Enumerate the id-minting sites FIRST (0.4's own note says
+~45 across `extractors.py` + `ast_analyzer.py`), and expect the repair to be
+"one home" rather than "one edit". Promoted to [[lessons-L57]].
 
 ⭐ **0.4 absorbs #68.** The prose leak (inline math minted as an equation
 *label*) and the 13 newline-bearing ids are the **same defect**: an id built from

@@ -2002,3 +2002,68 @@ also the standing form of [[lessons-L54]] (the instrument that never ran)
 
 Cross-reference: nexus #59 (the same defect surveyed across `callers` and
 the whole `runtime-*` family), nexus #56 (fixed, `5796c6d`).
+
+## L57 — Of two twins, the bug lives in the one whose wrong answer is INVISIBLE; so a defect report naming a helper is first a question about DUPLICATION (2026-08-16)
+
+A review reported nexus's `_unparse_attribute` as fabricating `calls` edges
+and priced the repair at **one line** (make it return `None` on an
+unresolvable root). The mechanism was right and the framing was wrong: the
+function should not have existed. `_dotted_name` — **360 lines above, in the
+same file** — is the same computation and *already* returned `None` on an
+unresolvable root. Landing the reported one-line fix would have left two
+implementations of "reconstruct a dotted name", which is the condition that
+produced the bug. The correct repair was a **retirement**, and it removed 28
+production lines while dissolving the `Name`-vs-`Attribute` branch at the call
+site as a by-product.
+
+⭐ **The transferable part is WHICH twin carried the defect, because it was
+predictable.** The two had different consumers, and the consumers had very
+different feedback loops:
+
+| twin | consumer | a truncated answer is… |
+|---|---|---|
+| `_dotted_name` | decorator/marker parsing | **visible** — `@pytest.mark.l0` stops being recognised |
+| `_unparse_attribute` | call-target resolution | **invisible** — it mints a plausible edge nobody checks |
+
+The duplicate serving the *low-feedback* consumer is where the bug survives,
+and it survives *for as long as the duplication does*. So the twins do not
+merely risk drifting — the drift is **biased**, toward whichever copy nobody
+can see is wrong.
+
+⟹ Two rules, both cheap:
+1. **Before fixing a named helper, grep its own file for a function that does
+   the same job.** One grep. A defect in a helper is evidence about the
+   helper's *uniqueness* before it is evidence about its logic.
+2. **When you do find twins, suspect the one with the weakest feedback loop
+   first**, and fix by retiring toward the one whose consumer would have
+   screamed — it is the one with the better-tested contract.
+
+⚠ **And the direction of failure decides the priority.** This one failed
+false-**ALIVE**: it invented callers. `[M]` on ORPHEUS's graph — 1741 `calls`
+pairs removed and **0 added**, 291 of them pointing at a real indexed symbol,
+57 → 5 fabricated self-loops (the graph claimed
+`SumOfTensorProductsOperator.apply` calls itself), 94 real symbols whose
+incoming call edges were **all** fabricated, `dead_functions` candidates
+2919 → **2967**. A false-alive defect is strictly worse than a gap: a gap
+announces itself when you go looking, while fabricated evidence *answers the
+question* — and answers it plausibly. Note those 94 are **not** thereby dead;
+most are protocol-typed methods reached by dynamic dispatch, which the static
+graph cannot see either way. What changed is that it stopped presenting
+invention as evidence.
+
+⭐ **The same session produced the same shape a second time**, which is why
+this is a lesson and not a note: the role→objtype map (`func` → `function`)
+was a **local dict** inside the docstring scanner, so the doctree walker built
+ids from the raw role. `[M]` 316 short-prefix nodes and **265 symbols carrying
+both spellings at once**, each holding part of the symbol's edges. Same cause
+(one concept, two homes), same invisibility (a split id resolves to *something*),
+same repair (hoist to one home — `_mappings.REFTYPE_OBJTYPE_MAP` — and let both
+producers read it). Two instances in one file family in one afternoon is a
+statement about the module, not about luck.
+
+Cross-reference: `coding-elegance` Pattern 2 (single source of truth) — this is
+its *diagnostic* direction, running from a bug report back to the duplication
+rather than from duplication forward to a predicted bug; `[[lessons-L56]]`
+(a defect that reports in the reassuring direction); `.claude/rules/coding-standards.md`
+(retirement as a first-class deliverable). Landed nexus `3e137ff` + the
+follow-up spelling commit.
