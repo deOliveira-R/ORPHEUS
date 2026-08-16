@@ -1,8 +1,55 @@
 # A graph query returns what an agent needs to ACT, not everything the graph knows
 
-**Status: DRAFT — an active design conversation, not an approved plan.** Nothing
-here is scheduled. Sections marked *proposed* are hypotheses; sections marked
-`[M]` carry the command or query that produced them.
+**Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
+sections marked `[M]` carry the command or query that produced them.
+
+## ⏸ COMPACTION POINT — 2026-08-16, before any code is written
+
+**Nothing in this plan has been implemented.** What exists is measurement, four
+filed issues, and two user decisions. Re-verify against the tree before acting:
+the numbers are instance counts from one build of
+`docs/_build/html/graph/graph.db` and move on every rebuild.
+
+### User decisions, 2026-08-16
+
+| decision | status |
+|---|---|
+| Fix the prose-symbol leak (**#68**) **FIRST**, before the rest | ✅ APPROVED — next work item |
+| `layer` as a node property (§5.4 / §6.1) | ✅ **APPROVED** |
+| §5.3 observed-state store: DB vs JSON, `ATTACH`, CI | ⏸ **DEFERRED** — "think about it when it becomes a concern". Do NOT design it now; the measurement stands, the decision does not. |
+| §5.1 `exercises`, §5.2 halo demotion | *proposed*, not yet ruled on |
+
+### ▶ RESUMES AT: the equation namespace holds only real equations (nexus #68)
+
+**Goal (outcome, not mechanism).** `math:equation:*` contains the 903 declared
+equations and nothing else, so any count, traversal or coverage denominator over
+that namespace is trustworthy.
+
+**`[M]` unstarted** — verify before designing. Work is in
+`~/git/sphinxcontrib-nexus` (ours; a folder change, not a hand-off), on branch
+`feat/config-and-ontology`, which already carries the config/ontology layer and
+the #56 runtime fix.
+
+⚠ **Read §3.2 before designing, including its ⛔.** My first stated cause was
+wrong (I blamed `default_role`, which is not set) and the real one — inline
+`:math:` minted as an equation *label* — implies a different fix in a different
+extractor. The issue body carries the corrected taxonomy.
+
+⚠ `[M]` **run the nexus suite with the NEXUS venv**, not ORPHEUS's: the latter
+lacks the optional `sphinx-proof` and `test_proof_relations.py` importorskips at
+module level, dropping **36 tests** from collection — a green 691 that looks
+identical to a green 727.
+
+### Where the work is tracked
+
+Filed from this conversation: **#67** (payload is 5× its information content),
+**#68** (the prose leak — first). Adjacent, filed earlier the same day: **#65**
+(the tool reference documents 29 of 40 tools), **#66** (`--db` declared 42×
+per-subparser). Pre-existing and relevant: **#55** (call-resolution
+fragmentation), **#16** (annotation-mediated dispatch), **#57** (per-test
+attribution), **#58** (`bridges`/`communities` do not complete), **#59** (an
+empty result is indistinguishable from a broken one), **#60** (a cone needs an
+antisymmetric relation), **#20** (filtered subgraph → graphviz render).
 
 **Started 2026-08-16** from the question *"is a query a context bomb because of
 the tests, or naturally?"* — and the measured answer refuted the premise of the
@@ -171,20 +218,42 @@ method scattered across receiver spellings).
 `py:function:…AngularBoundaryFlux` does not exist at all, and the prefix class
 totals only 359 edges. The real cause was inheritance.
 
-### 3.2 The `references` phantoms — a DOCS defect wearing a code type
+### 3.2 The `references` phantoms — FILED as **#68**, and first in the queue
 
-`[M]` the top targets are: `R` (169), `N` (139), `q` (119), `O_h` (95), `n` (91),
-`k` (79), `M` (65), `L` (60), `c` (58), `S^2` (56), `A` (54), `[0, 1]` (44).
+⛔ **My first statement of the cause was WRONG, and the correction matters.** I
+wrote: *"single-backtick text in RST/docstrings is being bound as a Python
+cross-reference and minted as a code node when it fails"*, and inferred a
+`default_role` misconfiguration. `[M]` **`default_role` is not set in
+`docs/conf.py` at all**, and the phantom ids are not py-domain: they are
+`math:equation:R`, `math:equation:[0, 1]`, `math:equation:c > 1`,
+`math:equation:SO(2)`.
 
-These are **math symbols in prose**. Single-backtick text in RST/docstrings is
-being bound as a Python cross-reference and minted as a code node when it fails.
-Also in this bucket: **citation keys** (`AdamsLarsen2002`, `Askew1972`,
-`Alcouffe1977`) and **bare numbers** (`0.285714`, `0.35`, `S = (0.5, 1.0, 1.5)`).
+`[M]` the true breakdown of the 5,276 `references`-origin phantom edges:
 
-⟹ These should not be code nodes **at any confidence**. A math symbol is a
-docs-layer object; a citation is a bibliography object (`ontology.toml` already
-flags citation-as-`unresolved` as a modelling smell). This is a distinct fix from
-#55/#16 and probably a cheaper one.
+| sub-defect | edges | share | what it is |
+|---|---:|---:|---|
+| **inline math minted as an equation LABEL** | 4,383 | 83.1% | ``:math:`R` `` → `math:equation:R` |
+| **unqualified py-domain role** | ~659 | 12.5% | ``:meth:`apply` `` → `py:method:apply` (33) |
+| **citations typed `unresolved`** | 156 | 3.0% | `cite:p:Hebert2009` (12) |
+
+`math:equation:c > 1` is the tell — that is not a label anyone could declare, it
+is the **body** of an inline expression. A real labelled equation is
+`.. math:: :label: sn-within-group-system`, cited with `:eq:`. Inline `:math:`
+has no label and should mint nothing.
+
+⚠ **Why it costs more than its node count:** `math:equation:*` is the identifier
+space that `implements`, `equation_ref`, `provenance_chain` and
+`verification_coverage` all traverse. ORPHEUS has **903 real equation nodes**;
+these phantoms add ~4.4k more, so any "how many equations / how many verified"
+denominator computed from node counts is wrong.
+
+Citations already carry a distinct `cite:p:` prefix, so that third of the fix is
+a node-**typing** change, not a resolution change — and it would make `cites` a
+traversable edge (currently 0 instantiated despite the project having a
+bibliography). `ontology.toml` already flags citation-as-`unresolved` as a smell.
+
+⟹ Distinct from #55/#16, which are `calls`-origin and need type inference. This
+is entirely `references`-origin and needs none.
 
 ⚠ **Consequence for §5.2:** the halo is NOT homogeneous, so "drop terminal
 non-ORPHEUS nodes" is too blunt. `external` is safe to demote; `unresolved`
@@ -260,7 +329,13 @@ failed to bind. Those want **repair** (§5.1's double-duty principle), not
 demotion. Likely also unblocks **#58** (`bridges`/`communities` not completing at
 215k edges) — that is a *compute* blow-up, and this is the input-size lever.
 
-### 5.3 Observed state lives in a store, not in the graph — *proposed, shape OPEN*
+### 5.3 Observed state lives in a store, not in the graph — ⏸ **DEFERRED 2026-08-16**
+
+> **User ruling: "we will think about CI and ATTACH when it becomes a concern."**
+> The §4 lifetime argument stands and is not in question — observed state does
+> not belong in a rebuilt file. What is deferred is the *shape*: DB-vs-JSON,
+> `ATTACH`, and the CI/visual consumer. Do not design it now. The measurements
+> below are kept because they are cheap to lose and expensive to re-derive.
 
 **Goal.** Test status (green / red + the error / untested) and runtime overlays
 survive a `sphinx-build`, and are queryable *with* the graph.
@@ -299,9 +374,24 @@ a `kind` column, or one per species? *Leaning: one — `RuntimeRun` is already
 documented as "a bag of orthogonal overlays, not a tagged union", and test status
 is a fifth family in that bag.*
 
-### 5.4 `layer` as a node property + `scope=` on queries — *proposed*
+### 5.4 `layer` as a node property + `scope=` on queries — ✅ **APPROVED 2026-08-16**
 
-Expanded at the user's request; see §6.
+Design detail in §6.1. Approved as a direction, not yet as an implementation —
+the open sub-questions are still open:
+
+- **What are the layer values?** `{code, docs, test, external}` is what the
+  measurement used. Is `external` a layer, or is it the *reachability* axis
+  (§5.2) wearing a layer label? They coincide today; they are different concepts.
+- **Where is it computed?** Derived at build time from `is_test` + node type +
+  source directory. It must stay derived — a hand-maintained layer is a second
+  source of truth for something the extractor already knows.
+- **`scope=` on which queries?** Everything that traverses. Note `--db`'s history
+  (#66): declaring a parameter per-subparser 42× is how the last one drifted.
+- ⚠ **Does `scope=` compose with `edge_types=` or duplicate it?** §5.1 makes
+  layers readable from the edge type; if that lands, `scope="test"` and
+  `edge_types=["exercises"]` may answer the same question two ways. They are
+  claimed to be complementary (node-kind vs relation-kind) — verify that on a
+  real query before shipping both, or this becomes a double-duty seam of its own.
 
 ### 5.5 Payload ergonomics — **FILED as #67**
 
@@ -376,18 +466,29 @@ Consequences for the design, to be held against every proposal here:
 
 ---
 
-## 7. Open questions for the user
+## 7. Open questions
 
-1. **§5.3 shape** — DB-backed observed store, or keep JSON sidecars and add
-   indices only if a real bottleneck appears? The visual/CI consumer is the
-   strongest argument for a DB; is that consumer near-term or speculative?
-2. **§5.1 scope** — retype `calls`→`exercises` only for test→code, or take the
-   double-duty principle further in the same pass (`contains`, the `id`'s
-   type prefix)?
-3. **§3.2** — is the prose-symbol leak (`R`, `N`, `q`, citations) worth its own
-   issue now? It is 1,282 nodes of pure noise and looks independent of #55/#16.
-4. **Sequencing** — none of this is scheduled. The nexus queue already holds
-   #55 → #57, plus #58/#59/#60/#65/#66/#67.
+**Answered 2026-08-16:** §5.3's shape is DEFERRED; §5.4 is APPROVED; §3.2 is
+filed as **#68** and goes FIRST.
+
+Still open:
+
+1. **§5.1 scope** — retype `calls`→`exercises` only for test→code, or take the
+   double-duty principle further in the same pass (`contains` at 35.4% cross,
+   the `id`'s type prefix)? The prefix one is implicated in #55's fragmentation,
+   so they may not be separable.
+2. **§5.1 identity** — is static `exercises` (test calls production) the same
+   edge as runtime `exercises` (#57, from coverage contexts), distinguished by
+   `confidence`/`source` as `implements` already distinguishes declared 1.0 from
+   inferred 0.7? *Leaning yes.*
+3. **§5.2 boundary** — `external` demotes safely, but `unresolved` holds real
+   ORPHEUS symbols. Does #68 (and then #55/#16) shrink `unresolved` enough that
+   the question dissolves, or is a `terminal` flag needed regardless?
+4. **§6.2 ranking** — `limit_per_type` truncates by insertion order. What should
+   it rank by? Degree is available and **wrong** (it favours hubs, which is the
+   opposite of relevance). Candidates: same-module first, `type_uses`/`inherits`
+   over `calls`, runtime-confirmed over static. **Unmeasured — this needs an
+   eval, not an opinion**, and the eval is the §1 acceptance test.
 
 ---
 
@@ -404,3 +505,23 @@ Consequences for the design, to be held against every proposal here:
 | 2026-08-16 | 1,282 phantoms are prose math symbols and citations, not code | §3.2 |
 | 2026-08-16 | Payload is 5× its information content | §2.4, #67 |
 | 2026-08-16 | Separate the duties, wherever a node or edge does two jobs | §5.1 ⭐ |
+| 2026-08-16 | 83% of the prose leak is inline math minted as an equation LABEL — **not** the py-domain cause I first claimed | §3.2 ⛔, #68 |
+| 2026-08-16 | The phantoms pollute the namespace `verification_coverage` counts over | §3.2 ⚠ |
+
+### Surprises this conversation produced (`plan-authoring` §-loop)
+
+Two of my own claims were refuted by the next measurement, both stated with
+more confidence than they had earned:
+
+1. **The constructor/type-prefix hypothesis** for the `AngularBoundaryFlux`
+   phantom. `[M]` `py:function:…AngularBoundaryFlux` does not exist; the prefix
+   class totals 359 edges. The real cause was **inheritance** (MRO not walked).
+2. **The `default_role` hypothesis** for the prose leak. `[M]` `default_role` is
+   not set in `docs/conf.py`; the ids are `math:equation:*`, not py-domain.
+
+⭐ Both share one shape, and it is worth carrying: **I named a plausible
+mechanism from the SHAPE of the symptom before querying the actual node ids.**
+The id was one query away in both cases, and in both cases it named a different
+subsystem than the one I had reached for. ⟹ *when a defect is identified by a
+node's NAME, read its full ID before proposing the cause* — the id carries the
+namespace, and the namespace is the subsystem.
