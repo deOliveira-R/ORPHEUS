@@ -197,11 +197,37 @@ and the two re-titled above) — do not duplicate them.
 ▸ ⚠ `docs/theory/verification/matrix.rst` is a committed generated artifact.
 Regenerate (`sphinx-build`) and stage it, and check the collected count matches.
 
-### ▶ Also outstanding, not part of 6 or 7
+### ⏹ CAMPAIGN COMPLETE — closed out 2026-08-15
 
-* **The changelog row is written but NOT landed** — `docs/theory/methods/sn/history.rst`
-  requires a merge hash (*"or not at all"*) and there is none. The ready-to-paste
-  row is in the archivist's Step-5 report; land it in the merging session.
+`[M]` **wide gate GREEN at `1a2be025`: 9540 passed, 0 failed, 0 errors,
+19 skipped, 227 deselected (`slow`), 76 xfailed, 1:03:06** —
+`python -O -m pytest -m "not slow"`, SERIAL, detached. Arithmetic reconciles:
+9862 collected − 227 − 19 − 76 = 9540.
+
+⭐ **The most informative line in that log is not the count.** `GaugeFreedomWarning`
+fires in FOUR pre-existing suites that nobody wrote for it —
+`test_2d_octant_sweep_equivalence` (**7.09 %**, 2 pairs),
+`test_convergence_contract` and `test_d3_admission` (**6.13 %**, d=3, 3 pairs),
+`test_scan_march_end_to_end` (**0.20 %**) — every one still passing. The defect
+was live across the shipped suite, the repair works on inputs it was not
+designed against, and the d=3 rows correctly report that no registered closure
+damps the face mode at `ndim = 3`, so the only root fix there is breaking a
+reflective axis pair.
+
+✅ **The changelog row LANDED**, citing the campaign's four commits
+(`docs/theory/methods/sn/history.rst`, top of the table). Original note kept:
+*"requires a merge hash (or not at all) and there is none"* — resolved by the
+`--ff-only` convention, where the merge tip IS the branch tip, so the row names
+the commits the work lives in, exactly as the page's own preamble specifies.
+
+✅ **The diagnostic is DELETED** in the `Closes #344` commit, per
+`tests/derivations/_promotion_policy.md`. `[M]` its one collected case
+(`test_diagnostics_resolve_their_imports` globs the folder) took the total
+9862 → **9861**, matched by a regenerated matrix and a live `--collect-only`.
+`[M]` no Python consumer — the two surviving hits are past-tense provenance in
+the promoted modules, now annotated so a reader does not chase a dead path.
+
+### ▶ Also outstanding, not part of 6 or 7
 * `[M]` **`scratch/issue_344_kernel_basis.md` is still untracked.** Its §3
   13-configuration dense-SVD table is now folded into
   `tests/sn/operators/test_loss_kernel_gauge.py`'s module docstring, so the

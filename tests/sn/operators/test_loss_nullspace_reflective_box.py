@@ -31,6 +31,9 @@ member?                                           for the gauge; asserting it wi
 
 Promoted 2026-08-15 from ``derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py``
 (GitHub #344), which ``pyproject.toml``'s ``testpaths = ["tests"]`` never ran.
+That diagnostic was DELETED in the same change that closed #344, per
+``tests/derivations/_promotion_policy.md``; ``git log`` holds the investigation
+record.
 These are **characterization** gates in the `vv` sense — they pin what the
 discretization does today so a change to the boundary closure or the spatial
 scheme cannot move it silently — and every one of them is mutation-verified

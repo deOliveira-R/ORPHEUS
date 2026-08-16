@@ -26,6 +26,7 @@ a ``ker A`` shift, and the driver's manifold selection is first-order in ``h``.
 (:func:`test_the_PUBLIC_ENTRY_returns_the_SAME_trace_under_BOTH_schedules`) and
 is the repaired counterpart of the driver row directly above it. Two of these
 gates arrived from ``derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py``
+(deleted in the same change that closed #344; it lives in ``git log``)
 under names that read as claims about what a USER receives — they were true when
 written and Step 5 of the campaign repealed them (`plan-authoring` §3, *"a fact
 can die by being FIXED"*). They are re-titled here to name the tier they

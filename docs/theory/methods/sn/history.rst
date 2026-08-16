@@ -30,6 +30,75 @@ merge hash or not at all).
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-15
+     - **The reflective boundary trace has a canonical value, and every solve
+       exit returns it.**  :math:`A = L + C - S - B` is **exactly singular** on
+       any :math:`d \geq 2` Cartesian **diamond-difference** mesh with
+       :math:`\geq 2` reflective axis pairs — which is the default
+       :math:`k_\infty` lattice, so this was the ordinary case, not a corner.
+       `[M]` :math:`\dim\ker A = 12` at d=2 LS4 ng=2 (**mesh-independent**:
+       :math:`n_g N/4`) and :math:`138` at d=3 (3,4,5).  **Mechanism:** with
+       :math:`\psi_c \equiv 0` the DD closure
+       :math:`\psi_{\rm out} = 2\psi_c - \psi_{\rm in}` degenerates to the
+       involution :math:`\psi_{\rm out} = -\psi_{\rm in}`, so the face-to-face
+       transmission :math:`\Sigma = (2/D)\mathbf{1}w^{\mathsf T} - I` carries
+       eigenvalue :math:`-1` with multiplicity :math:`d-1` on
+       :math:`\{v : w^{\mathsf T}v = 0\}` — an undamped **face sawtooth**
+       :math:`\psi_a(k, i_\perp) = (-1)^k \varphi_a(i_\perp)` invisible to
+       :math:`\Sigma_t V \psi_c`, and around a closed reflective loop the
+       :math:`-1`\ s compose to :math:`+1`.  `[M]`
+       :class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`
+       on the IDENTICAL box has :math:`\dim\ker A = 0` — that substitution is
+       what proves the mechanism rather than arguing it.  **What a user saw:**
+       the returned boundary trace was a function of the cold start, up to
+       **27.3 %** apart between starts differing only inside :math:`\ker A`,
+       while the bulk was bit-stable at :math:`7\mathrm{e}{-16}` and BOTH
+       convergence certificates read converged — a spurious current
+       *tangential* to a mirror face, which is physically impossible.
+       ⭐ **The repair is CANONICAL, not conventional, and that is a theorem:**
+       every kernel mode carries a non-trivial sign character on every axis, so
+       every **mirror-even** functional annihilates :math:`\ker A` exactly;
+       :math:`\psi_{\rm exact}` is mirror-even, hence :math:`G`-orthogonal to
+       the kernel (`[M]` :math:`1.27\mathrm{e}{-15}`), hence the
+       **minimum-**\ :math:`\lVert\cdot\rVert_G` **member IS the physical
+       answer**.  That same theorem explains why nothing could have caught it:
+       every summed trace functional is blind by symmetry.
+       ⟹ :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge`, a
+       :math:`G`-orthogonal projector built from a **closed form** (the ANOVA
+       pair generators — no SVD of :math:`A`), as a **direct sum over
+       (ordinate orbit** :math:`\times` **group) blocks** with disjoint
+       supports, each block :math:`G`-orthonormalised by one fused
+       :math:`\sqrt{G}`-weighted SVD that does rank reduction and
+       orthonormalisation together — which is what earns
+       ``GramStructure.DIAGONAL``.  Applicability is **DERIVED, never
+       tabulated** (the ask-don't-tabulate ruling): the closure is asked
+       whether it leaves a zero-mean face mode undamped
+       (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
+       and the mesh is asked how many axis pairs close
+       (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axes`), so a
+       future scheme answers for itself with no edit.  The gauge fires at
+       **all four public entries**, records its magnitude on
+       :class:`~orpheus.sn.solution.IterationHistory`, and emits a
+       ``GaugeFreedomWarning`` that names the **root** fix (switch to a damping
+       closure, or break a reflective axis pair) rather than only reporting the
+       projection.  Scope is the underdetermined remainder :math:`R`; the
+       tangential component :math:`T` (where :math:`G \equiv 0`) has no
+       minimum-norm representative and is deliberately untouched.
+       ⛔ **Two premises of the campaign's own plan were refuted by
+       measurement** and the corrections are the durable part: "excited iff the
+       first axis has an ODD cell count" was drawn from 11 meshes that all
+       carried a *uniform isotropic source* — `[M]` :math:`\dim\ker A` is the
+       same at **every** parity, and an anisotropic source excites an even
+       (4,4) mesh at :math:`1.756\mathrm{e}{-02}`, so **kernel-freedom is never
+       inferable from a mesh property**; and the Krylov arm's returned boundary
+       was documented as a "face residual" when `[M]` it is a flux trace,
+       measured three independent ways.
+     - #344
+     - ``5def63b0`` (the derived predicate +
+       :class:`~orpheus.numerics.operator.InverseMetricOperator`),
+       ``f934ff57`` (the closed-form kernel + the gauge), ``b51bc802`` (fired
+       at every exit, warned, recorded), ``1a2be025`` (the characterization
+       promoted into CI)
    * - 2026-08-11
      - **The azimuthal cell partition is taken in ω, not in η — and the
        :math:`[\tfrac12, 1]` absorber retired with the defect it was
