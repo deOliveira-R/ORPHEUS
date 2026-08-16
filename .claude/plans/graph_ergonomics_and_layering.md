@@ -401,9 +401,70 @@ untracked file is fine and is the normal shape for this.
 **Open (first design question when this starts):** one DB for all observed
 families with a `kind` column, or one per species (runtime / test-state)? The
 `ATTACH` limit of 10 argues for few; the two consumers differ (runtime → Sphinx
-docs, test state → CI visualization) which argues for two. *Leaning one:*
-`RuntimeRun` is already documented as *"a bag of orthogonal overlays, not a
-tagged union"*, and test status is a fifth family in that bag.
+docs, test state → CI visualization) which argues for two.
+
+⛔ **My earlier reasoning here was bad and the user caught it.** I wrote
+*"leaning one: `RuntimeRun` is already documented as a bag of orthogonal
+overlays, and test status is a fifth family in that bag."* That argues from a
+docstring which is **itself the smell** — see §5.3b. A bag of optional fields is
+a missing type, not a justification for adding a sixth optional field.
+
+### 5.3b Look in the bag first — `[M]` 2026-08-16
+
+> **User:** *"If `RuntimeRun` is a bag of orthogonal overlays, first you need to
+> look into the bag and check if something is misplaced. `RuntimeRun` has a name
+> strongly associated with runtime, so we don't want to mix a bunch of concepts
+> in a single place."*
+
+`RuntimeRun` (`runtime.py:299`) holds `name`, `kind`, `meta`, and five payloads.
+Three measured defects, before any new family is added:
+
+**(a) `edges` is the misplaced thing.** `calls`, `coverage` and `timeline` are
+all `dict[node_id, metrics]` — **node** overlays. `edges` is
+`list[(src, tgt, count)]` — an **edge** overlay. So the "orthogonal overlays"
+claim is already false: the bag holds *two species*, and the difference is not
+cosmetic — `merge_runs` special-cases it (`runtime.py:393-398` builds an
+`edge_counts` dict then rebuilds the list) and `from_dict` must re-`tuple()` it.
+
+**(b) `kind` is a discriminant's NAME on a field nothing discriminates by.**
+`[M]` `grep -rn "run\.kind|r\.kind|\.kind =="` over the package returns **one**
+hit — `server.py:804`, which merely echoes it back in the response. Zero
+behavioural reads. The `KIND_*` constants are used at `server.py:784-786`, but as
+keys of a table dispatching on the **CLI argument**, not on `run.kind`. And
+`merge_runs` overwrites it with `KIND_MERGED` (`runtime.py:392-393`), destroying
+the provenance of what was merged — so the field fails at its only remaining job.
+
+**(c) The metric records are a missing type, already duplicated.** `[M]`
+`{"ncalls": 0, "tottime": 0.0, "cumtime": 0.0}` is written literally at
+`runtime.py:399` and `:481`, with a third statement of the same shape in the
+field docstring at `:315`. Three copies of one record. `run.calls[nid]["ncals"]`
+is a runtime `KeyError`, and `{"ncalls": "hello"}` is constructible.
+
+**(d) The deeper one — `merge_runs` knows every family's algebra.** `[M]` 64
+lines (`runtime.py:386-450`) containing the sum/max rule for `calls`, the sum
+rule for `edges`, the intersection rule for `coverage`, and the *refusal* rule
+for `timeline`. **Adding a fifth family means editing it** — an open-closed
+violation, and precisely the edit I was about to make for test status.
+
+⭐⭐ **Why this converges with the DB decision instead of competing with it: in a
+DB, `merge_runs` DISSOLVES.** A run becomes a row (`name`, tool, command,
+captured_at, ledger); an overlay becomes a table keyed by `(run, node_id)` or
+`(run, src, tgt)`; and merging becomes a `GROUP BY` across runs. Every current
+rule is expressible as an aggregate — `SUM(ncalls)`, `MAX(cumtime)`,
+`SUM(count)`, and coverage's intersection as *"no run in the set hit this arc"*,
+which reads more clearly in SQL than in the current Python. Test status ("red in
+any run") is one more aggregate. **A new family then adds a table, not a branch.**
+
+⟹ So the answer to *"one DB or two?"* is not yet the right question. The right
+first question is **what the species are** — run-provenance, node-overlay,
+edge-overlay — and the type that is missing is `Overlay` (a payload plus its own
+merge algebra), not a container. Settle that, and the file-count question
+answers itself.
+
+⚠ **Scope check before acting:** `RuntimeRun` is 745 lines of `runtime.py`, but
+the store, the CLI's five `runtime-*` verbs, six MCP tools and four `GraphQuery`
+methods consume it. A restructure is a real retirement audit, not a rename —
+and four ingested sidecars exist on disk in the old JSON shape.
 
 **Goal.** Test status (green / red + the error / untested) and runtime overlays
 survive a `sphinx-build`, and are queryable *with* the graph.
