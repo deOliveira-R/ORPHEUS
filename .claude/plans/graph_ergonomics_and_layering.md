@@ -1483,6 +1483,59 @@ exception is exactly how `py:property:` got in.
 never fires and the generic path mints a fourth namespace. Same defect class,
 own fix.
 
+### ✅ Track 1.3 LANDED 2026-08-16 — the id says what the node is, and one symbol is one node
+
+Six commits on `feat/config-and-ontology`, each mutation-verified per arm:
+
+| | outcome | `[M]` |
+|---|---|---|
+| `30f5e0c` | a cited work is a bibliographic entity, not a failed lookup | `citation` type; `unresolved` 3914 → 3842 (exactly −72); nodes unchanged. Found: only `refdomain=="citation"` was matched, so **every** bibtex citation had missed the branch — the special case had never once fired |
+| `2db33ea` | a type's declared origin must name a producer that can emit it | landed RED on `exception` + `type`, both claiming `ast` while only Sphinx can assign them |
+| `522f147` | a test declares what it CATCHES, and that has somewhere to land | `error` type + `.. error-entry::` + `catches` edge; 243 markers / 78 entries were pointing at nothing |
+| `fc0af46` | an id's type segment IS the node's type | grammar violations **936 → 0**; nodes 23013 → 22919 as the 94 doc twins merged; `prf` resolution 15-way scan → one lookup |
+| `33a267e` | what the AST knows survives a symbol Sphinx has also seen | declared `verifies` markers with a `tests` edge **384/420 → 420/420** (closes nexus #71) |
+| `b142ffc` + `b3cb57a` | a property is a method; `exception` retires | duplicated names **279 → 115**; `exception` nodes 2 → 0 |
+
+⭐⭐ **The arc: 279 duplicated names → 115, and every remaining one is a
+DIFFERENT defect class** (44 builtins used two ways, 40 phantom-fold misses,
+10 equation/section, 16 bare-name phantoms). Not one of them is a producer
+disagreeing about a symbol it can see.
+
+⭐ **Three findings worth carrying past this campaign:**
+
+1. **The invariant was a PUBLISHED PROMISE, not a new rule.** `server.py:1606`
+   has always advertised `"<domain>:<type>:<qualified_name>"` to every MCP
+   client; 936 nodes broke it. Enforcing an existing contract is a much easier
+   argument than imposing a new one — and it means no consumer was ever wrong
+   to trust it.
+2. **`origin` was already in the ontology and nothing checked it.** The gate
+   that surfaced `exception` did not need a new concept; it needed the existing
+   declaration to be *checkable*. ⟹ when a vocabulary already records who owns
+   what, gate that before inventing anything.
+3. ⛔ **A "kind" stored in the id is a second source of truth, and it always
+   bills.** `prf:theorem:X` kept the environment in the id AND in
+   `metadata["prf_type"]` — so a bare `:prf:ref:`, which names the label but
+   not the environment, had to try 15 prefixes and then scan the whole graph.
+   Same shape as `py:property:` and `py:exception:`. The type segment is for
+   the TYPE; a kind goes in metadata, once.
+
+⚠ **Two defects only became reachable BECAUSE the merge happened**, which is
+the argument for doing it rather than tolerating twins: 94 `contains`
+**self-loops** (the std domain reports a document as an object *of* that
+document — the edge used to run between the twins, so it looked like structure,
+not a loop), and an `UnboundLocalError` (`for node_id in nxgraph` made the
+module-level id builder local to its whole function). ⭐ **Pyright flagged the
+second and I dismissed it as the known cross-tree noise. It was right** — the
+SessionStart gate says verify a real concern with the CLI, not assume.
+
+⚠ **Two gates I wrote were structurally unable to fail, both caught by the
+battery, both mine:** a `dead_references` citation gate (the scanner excludes a
+citation twice over, so no mutation could redden it — and the *production*
+special-case it protected had been dead code for the same reason), and a
+property-merge gate that derived both node ids from `DOMAIN_TYPE_MAP`, so
+flipping the map moved both sides together. That is the `coding-standards`
+single-sourcing demotion, hand-built. Running the battery is what found both.
+
 #### The vocabulary itself — evaluated `[M]` 2026-08-16 (user ruling: strict, and audit the types)
 
 ⭐⭐ **The ontology already encodes the answer, and nothing checks it.** Every
