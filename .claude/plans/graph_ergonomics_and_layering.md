@@ -1482,6 +1482,82 @@ exception is exactly how `py:property:` got in.
 `sphinxcontrib-bibtex` emits `refdomain="cite", reftype="p"` — so the branch
 never fires and the generic path mints a fourth namespace. Same defect class,
 own fix.
+
+#### The vocabulary itself — evaluated `[M]` 2026-08-16 (user ruling: strict, and audit the types)
+
+⭐⭐ **The ontology already encodes the answer, and nothing checks it.** Every
+`[node.*]` declares an `origin` — `sphinx`, `ast`, or `derived`. **Two are
+FALSE**, and both falsehoods are the defect this step is chasing:
+
+| type | declared `origin` | who can actually assign it | `[M]` result |
+|---|---|---|---|
+| `exception` | **`ast`** | **Sphinx only** — `("py","exception")` in `DOMAIN_TYPE_MAP`. `NodeType.EXCEPTION` appears in `ast_analyzer.py` only inside `_CANONICAL_TYPES` and `_ID_PREFIX_TO_TYPE`; **no assignment site** | **2** nodes — and 24 more exception classes in `orpheus/` are typed `class`. Both of the 2 are `source=None` + a `docname`, i.e. Sphinx-only, and both are halves of a `class`+`exception` split |
+| `type` | **`ast`** | Sphinx only — `("py","type")`, plus C/C++ typedefs | **0** nodes |
+| `property` | **not declared at all** | Sphinx only | 68 nodes, all split |
+
+⟹ **the missing rule, and it is checkable statically: the producer that OWNS
+the fact must be able to assign the type.** Whether a class is an exception is
+a fact about its *bases*; whether a method is a property is a fact about its
+*decorators* — and the AST analyzer already records `decorators`
+(`ast_analyzer.py:1290`) and throws the conclusion away. The ontology says
+`origin = "ast"` for both; the AST delivers neither.
+
+**Rulings, each by `coding-standards`' type-minting criterion** (mint a type
+iff ≥2 non-isomorphic realizations AND a non-identity morphism is applied):
+
+- **`exception` → RETIRE as a type; it is a property of `class`.** An exception
+  *is* a class: one realization, no morphism. It is currently assigned by
+  whether autodoc happened to document it, which is not a fact about the
+  object. `[M]` 2 of 26.
+- **`property` → never mint it; it is a property of `method`.** Already ruled.
+- **`type` → KEEP, and fix its `origin` to `sphinx`.** A type alias is used in
+  annotations and never called or read as a value — that *is* a different
+  morphism, and the C/C++ typedef entries make it multi-language. Its only
+  defect is a mislabelled origin, not existence. ⚠ This is where the user's
+  point bites: a declared-but-unused type is not waste, it tells an author
+  `.. py:type::` will be understood.
+- **`attribute` vs `data`** — NOT duplicates: class/instance scope vs module
+  scope, both populated (2387 / 1676).
+- **`external` vs `unresolved`** — NOT duplicates: "defined elsewhere" vs
+  "defined nowhere". But `unresolved` is CONFLATED (below).
+
+**Two types are genuinely MISSING, and one of them is what this project runs
+on:**
+
+1. ⭐⭐ **`error` / defect.** `[M]` 224 nodes carry a `catches` marker naming
+   **78 distinct `ERR-NNN` entries**, and **0 of those 78 exist as a node**.
+   Compare the sibling marker: `verifies` (856 nodes) resolves to **2639
+   `tests` edges** into real `equation` nodes. So the V&V triangle is
+   **equation ✅ / test ✅ / defect ❌** — the error catalog is a first-class
+   concept in this project (`vv-principles/error_catalog.md`) and the graph
+   cannot express it. `catches` should be an EDGE into an `error` node, not a
+   string in an attribute. This is the gap that makes "which tests catch
+   ERR-051?" unanswerable by the graph today.
+2. **`citation`.** 72 `cite:p:<key>` nodes typed `unresolved`. The ontology's
+   own comment under `[node.unresolved]` already says this is wrong — *"a cited
+   work is a real bibliographic entity, not a dangling reference, so it inflates
+   the `unresolved` count and falls inside `dead_references`' phantom set…
+   Modelling it as its own node type is a candidate change, not a described
+   one."* The comment has been waiting for this step.
+
+**What "test needs types properly" resolves to** — `[M]` the test layer today
+is `is_test` (7305) / `in_test_file` (9530) / `vv_level` (1490) / `verifies`
+(856) / `catches` (224), all **node attributes**. A test function IS a function
+(same realization, has callers and a body), so `test` fails the minting
+criterion and stays a property. What is missing is not a *test* type — it is
+the `error` node its `catches` marker points at, plus the `exercises` edge
+already accepted in §5.1. ⟹ the test layer needs **one node type and one edge
+retype**, not a parallel vocabulary.
+
+**The enforcement the user asked for — three gates, cheap:**
+1. **mint-time** — `NodeId` refuses an undeclared type (part 1). Turns a silent
+   new namespace into an error at the producer.
+2. **build-time warning** — an id whose type segment is not a declared type
+   warns during `sphinx-build`. This is the half that serves doc authoring: an
+   author writing a directive nexus does not know gets told so.
+3. **origin gate** — for every `[node.X]`, some producer of its declared
+   `origin` must be able to emit it. `[M]` this fails today on `exception` and
+   `type`, which is how a type gets declared, documented, and never produced.
 4. **`Evidence` / `Diagnostic`** — the diagnostics family, once the vocabulary
    exists. `[M]` 285 lines of adapter across two surfaces, with each diagnostic's
    contract written twice in different words (`native_place`'s ranking rule is in
