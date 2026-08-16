@@ -118,11 +118,20 @@ both worth carrying:**
    to `vv-principles` **#26**: gate a claim about the PATH by
    instrumenting the path, never by asserting the output.
 
-**Track 1.2 is LANDED** (see its block below). `NodeId`, `Evidence` and
-`Diagnostic` remain ⬜ **relayed, not reproduced** — reproduce each one's own
-measurement before designing it. That gate has now paid for itself twice:
-both reproductions so far REFUTED the step's stated done-when before any
-code was written.
+**Track 1.2 is LANDED** (see its block below). Next is **`NodeId`**, whose
+evidence is ✅ **verified, mine** — but it was measured *before* Track 0.3
+landed, and 0.3's own outcome line is "one symbol, one id, on both producers".
+⟹ **reconcile the NodeId evidence against the tree before designing**
+(`plan-authoring` §3's REMEDIED-fact clause: a fact can die by being FIXED, and
+this campaign is the thing that fixed it). `Evidence` and `Diagnostic` remain
+⬜ **relayed, not reproduced**.
+
+> ⚠ **This paragraph said "`NodeId` … remain ⬜ relayed" until 2026-08-16 and
+> that was wrong** — the evidence table at `:1306` marks R2 ✅ verified with my
+> own measurement. Written in the same session that landed 1.2, i.e. by an
+> author who had just read the table. Kept per §3: the failure mode is a
+> *summary line* drifting from the table it summarises, which is what every
+> resume pointer is.
 
 > ⛔ **This heading read *"Track 1.1 — `ProjectView`, graph + working tree as
 > one object"* until 2026-08-16, and the mechanism is REFUTED.** Do not mint
@@ -1286,8 +1295,52 @@ separately; they are one fix at one producer.
    policy (no module to bind to, classes shadow their methods), and forcing
    agreement would have broken it. See the Track 1.2 block at the top for what
    replaced it and what landed.
-3. **`NodeId`** — producers first, per (b).
-   *Done when:* an id cannot be constructed except through the type.
+3. **`NodeId`** — producers first, per (b). ▶ **NEXT**, and **re-chartered
+   2026-08-16 after reconciling against the tree** — see the block below; the
+   original evidence was measured before Track 0.3 repaired half of it.
+   *Done when:* an id cannot be constructed except through the type, **and the
+   143 same-domain duplications are 0**.
+
+#### `NodeId` re-chartered — `[M]` 2026-08-16, ORPHEUS graph 23013 / 206868
+
+Track 0.3 (`2ddf61b`) fixed the **spelling** disagreement in the `py` domain
+(role `func` vs objtype `function`), and said so in its own commit: *"applied
+only when `refdomain == 'py'`"*. `[M]` role-spelled `py:` ids are now **0**.
+What survives is not a spelling problem at all:
+
+| shape | names | both halves carry edges | what is split |
+|---|---|---|---|
+| `py:method` + `py:property` | **68** | **68 of 68** | AST node holds `calls`/`type_uses`; Sphinx node holds `documents` |
+| `py:class` + `py:function` | 43 | 43 | builtins — `int` as annotation (3271 `type_uses`) vs `int()` called (809 `calls`) |
+| `py:function` + `py:method` | **16** | **16 of 16** | same split as the properties, e.g. `AngularBoundaryFlux.zeros_on`: 252 `calls` on one, `documents` on the other |
+| `py:function` + `py:module` | 16 | 16 | a test module documented as a function |
+| `doc` + `std:doc` | 94 | — | the `std:doc:` half is **inert** (`out={}`), i.e. 94 orphan duplicates |
+| `math:equation` + `std:label` | 10 | — | |
+
+⭐⭐ **The consequence, and it is the one that matters for this project: for
+84 symbols the CALL graph and the DOCUMENTATION graph hang off different
+nodes.** `orpheus…Mixture.ng` has `calls`/`type_uses` on `py:method:…ng` and
+`documents` on `py:property:…ng`. So `impact` and `documents` coverage can
+never see each other for those symbols, and which answer you get depends on
+which spelling you happen to ask with.
+
+⛔ **This means minting a `NodeId` type is NOT sufficient, and the original
+charter mis-states the fix.** The producers do not disagree about how to
+*spell* an objtype — 0.3 settled that. They disagree about **what the objtype
+IS**: the AST sees a `method`, the Sphinx domain sees a `property`. A type that
+validates spelling would happily mint both. What is needed is a **single
+authority on a symbol's objtype**, and that is the ontology — which is
+objection (c)'s point (*"`NodeId` and `Ontology` are the same layer"*) arriving
+with a measurement behind it.
+
+⟹ *Proposed means (2026-08-16, NOT yet verified):* the ontology declares the
+objtype lattice and which producer wins when two disagree (`property` refines
+`method`; `module` is never a `function`); `NodeId` is the type that cannot be
+constructed without asking it. Producers-first, ~45 minting sites.
+
+⚠ Related and already filed: **nexus #71** — the same producer-disagreement
+family, seen from the attribute side (a `source=both` node loses its whole
+decorator block). Both are "two producers, one symbol, no arbiter."
 4. **`Evidence` / `Diagnostic`** — the diagnostics family, once the vocabulary
    exists. `[M]` 285 lines of adapter across two surfaces, with each diagnostic's
    contract written twice in different words (`native_place`'s ranking rule is in
@@ -1303,7 +1356,7 @@ measurement is reproduced.**
 | object | evidence | status |
 |---|---|---|
 | ~~`ProjectView`~~ → **bind `Workspace`** (R1) | `[M]` mine, by AST: **10 of 56** `GraphQuery` methods (7 public + 3 private) take a `project_root` arg; **178** construction sites, 176 in tests | ✅ verified, re-derived at HEAD 2026-08-16; ⛔ the TYPE is refuted, the outcome is not |
-| `NodeId` (R2) | `[M]` mine: `py:func` 206 / `std:doc` 94 / 527 duplicated names; one-sided map at `ast_analyzer.py:920`+`:947` vs `extractors.py:402` | ✅ verified |
+| `NodeId` (R2) | ~~`[M]` mine: `py:func` 206 / `std:doc` 94 / 527 duplicated names; one-sided map at `ast_analyzer.py:920`+`:947` vs `extractors.py:402`~~ — ✅ **PARTLY REMEDIED 2026-08-16 @ `2ddf61b` (Track 0.3)**, which landed exactly the "two lines" objection (a) said must not wait. `[M]` re-derived at HEAD: role-spelled `py:` ids **206 → 0**. The defect CLASS survives one domain over and is re-chartered below | ✅ verified, then reconciled |
 | `PositionIndex` (F2) | ~~relayed: 3 implementations disagreeing on 3 of 4 probed positions~~ → `[M]` mine 2026-08-16: **3 of 4** reproduces, but the framing was wrong — **2 concepts each duplicated** (path-key ×3, span search ×2), the third cited site answers `(file) → nodes` and agrees exactly (56 = 56). Live defect found: **456 of 3530** decorated defs mis-bind | ✅ **reproduced** — see the Track 1.2 block at the top |
 | `Evidence` | relayed only | ⬜ **re-derive** |
 | `Diagnostic` | relayed: 285 lines of adapter, contract written twice per diagnostic (docstring similarity 0.05–0.67) | ⬜ **re-derive** |
