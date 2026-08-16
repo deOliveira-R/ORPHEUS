@@ -1870,3 +1870,48 @@ Cross-reference: `vv-principles` #17 (the harness lies before the code does, and
 in the safe-looking direction) — this is that principle applied one step
 earlier, to whether the harness ran; `[[lessons-L12]]` (paste-back — a verbatim
 summary line makes a zero-collection run visible where a paraphrase hides it).
+
+## L55 — A census is only as wide as its SPELLING; for a code construct, use a parser (2026-08-15)
+
+[[lessons-L54]] is about an instrument that never RAN. This is the next
+failure along: the instrument runs, matches, and reports a confident
+number — while structurally unable to see one of the forms it is
+censusing. **Three instances in one session, all mine, all reporting the
+reassuring answer.**
+
+| # | the census | what it could not see | cost |
+|---|---|---|---|
+| 1 | `grep 'app\.config\.nexus_'` to prove "all config reads are routed" | `getattr(app.config, "nexus_infer_implements", True)` — the name is a **string** there, not an attribute access | 2 settings stayed unrouted while the census printed clean; a config key shipped **inert** |
+| 2 | exact-string `replace_all` of a multi-line `"--db", type=Path, default=Path(...),` | six **single-line** `add_argument("--db", type=Path, default=Path(...))` — no trailing comma, closing paren instead | every `runtime-*` verb ignored the config and returned `[]`, which reads exactly like "nothing ingested" |
+| 3 | `ls -d ~/a ~/b /x/*/c` to locate a checkout | zsh `nomatch` **aborts the whole command line** on the failed glob, so the `ls` never ran | reported "no local checkout" of a repo that was right there |
+
+⭐ **The rule, and it is mechanical: to census a CODE CONSTRUCT, walk the
+AST, not the text.** An `ast.walk` for `add_argument("--db", …)` sees the
+call however it is line-broken, spaced, or aliased; a grep sees only the
+spellings someone thought of. The gate that now pins case 2 is exactly
+that, and it is mutation-verified — re-introducing the missed single-line
+form reddens it.
+
+⚠ And the reason this is not merely "grep harder": **the failure direction
+is always flattering.** A census that misses a form reports FEWER
+offenders, i.e. "you are done". Same shape as
+[[lessons-L44]]'s three disarmed instruments and `vv-principles` #17 — ask
+of any census *"what would this print if it matched nothing, and is that
+distinguishable from success?"*
+
+⭐ Two more from the same session, worth carrying because both return
+EMPTY rather than erroring:
+
+- **SQLite double quotes bind to COLUMNS, not strings.** `where a.key="source"`
+  joined against a table that HAS a `source` column resolves to that column
+  and returns zero rows. Single-quote every string literal. (Cost: one false
+  "this edge type has no provenance" reading.)
+- **`grep -c 'X'` proving a retirement is clean** is the same defect as case 1
+  whenever `X` has a second spelling — `.claude/rules/coding-standards.md`
+  already carries the three-spellings-of-a-math-symbol rule; this is its
+  code-construct twin.
+
+Cross-reference: [[lessons-L54]] (the instrument never ran — this is the
+instrument running half-blind); [[lessons-L25]] (`replace_all` is safe only
+if every occurrence is the target concept — case 2 is its dual: safe on what
+it matched, and it did not match everything).

@@ -1,5 +1,87 @@
 # A red partitions the suite, and a coverage claim can be falsified
 
+---
+
+## ⏸ COMPACTION POINT — 2026-08-15
+
+**Read this section, then `git log`, then §6. Do not reconstruct state from a
+conversation summary.**
+
+### What LANDED (verify with `git merge-base --is-ancestor <hash> HEAD`)
+
+**`~/git/sphinxcontrib-nexus`, branch `feat/config-and-ontology`** (4 commits,
+`[M]` 720 passed / 1 skipped):
+
+| hash | outcome |
+|---|---|
+| `47693d8` | a project's graph settings and vocabulary get a home — `project.py`, `ontology.py`, `ontology.toml`; Python floor 3.10 → 3.11 so `tomllib` is stdlib |
+| `dd36241` | the extension, the CLI and the server all read the same file |
+| `0a209dc` | two settings were reached by `getattr` and my census missed them |
+| `206f2d6` | six `--db` defaults survived the sweep in a different spelling |
+
+**ORPHEUS, branch `chore/nexus-project-config`** (3 commits, `main` untouched):
+
+| hash | outcome |
+|---|---|
+| `046f0a5e` | the graph's settings live in `.nexus/`, declared once |
+| `89f4e0c3` | retire `conf.py`'s nexus options, and measure the one knob left |
+| (plan commit) | this file |
+
+### Measured state — the transition is CLOSED and neutral
+
+`[M]` Three full ORPHEUS rebuilds, each compared on five dimensions
+(node id set / node rows / edge multiset / node attrs / edge attrs):
+
+| comparison | result |
+|---|---|
+| conf.py-driven **vs** config-driven | **0** difference ×5 |
+| conf.py options present **vs** RETIRED | **0** difference ×5 |
+| inference ON **vs** OFF | ONLY `implements` changes (13968); 0 node difference |
+
+Only `build_time`/`provenance` ever differ — which is the differential's own
+positive control, proving it is not comparing a file with itself.
+
+`[M]` Current graph: `docs/_build/html/graph/graph.db`, **24307 nodes /
+215226 edges**, resolved with no `--db` anywhere (CLI from any subdirectory,
+and the MCP server via `--project-root`). Four runtime traces re-bound at
+`graph/traces/` after a copy AND two rebuilds.
+
+⚠ `docs/_build/html/_nexus/` (frozen pre-config baseline) and
+`graph_noinfer/` (the inference experiment) still exist — deletion was
+declined at the permission prompt. Both gitignored; traces already copied
+out, so `_nexus/` is safe to remove.
+
+### Issues filed (nexus repo unless noted)
+
+**#55** call resolution mints a phantom per receiver SPELLING · **#56** ingest
+can join nothing and exit 0 · **#57** coverage ingest discards dynamic
+contexts · **#58** `bridges`/`communities` time out at 24k nodes · **#59** an
+empty result is indistinguishable from "not applicable" · **#60** the
+antisymmetric `subject` relation (the blocker) · **#61** lift markers from a
+pytest COLLECTION manifest · **#62** `retest` truncates at `max_depth=3` ·
+**#63** `catches` is a string while `verifies` is an edge · **#64** the config
+surface (this work). ORPHEUS **#358** carries the synthesis comment; **#377**
+is the `RigidMotion.determinant` perf finding.
+
+### ▶ RESUMES AT: an ingest that joins nothing says so (nexus #56)
+
+**Goal (outcome, not mechanism).** A runtime ingest that binds no records
+reports that, instead of printing `nodes: 0 / edges: 0 / unresolved: 0` and
+exiting 0.
+**`[M]` unstarted as of this checkpoint** — `grep -c -i context runtime.py`
+is still 0 and `overlay_coverage` still reads four keys; nothing in
+`runtime.py` normalizes path keys.
+**Then** #55 (the resolver), **then** #57 (`exercises`). That order is
+deliberate: fix the instrument, then the resolver, then add the capability.
+Measuring with a broken instrument is worse than not measuring, because the
+result gets recorded.
+
+⚠ Before designing #56, re-read §2.2 here and the issue body — the
+relative-vs-absolute key finding is the whole diagnosis and it is easy to
+mistake for a general "paths are hard" problem.
+
+---
+
 **Campaign home for ORPHEUS #358.** Work happens in **two repos**:
 `~/git/sphinxcontrib-nexus` (the graph capability) and `ORPHEUS` (the authoring
 that uses it). Nexus is ours, so this is a folder change, not a hand-off.
