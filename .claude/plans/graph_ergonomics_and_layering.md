@@ -27,7 +27,12 @@ deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
 `plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
 the next reader nothing about how they happen.
 
-### ▶ RESUMES AT: Track 0.5 — a project ontology can WIDEN a base edge (#69)
+### ▶ RESUMES AT: Track 1.1 — `ProjectView`, graph + working tree as one object
+
+⭐ **TRACK 0 IS COMPLETE** (0.1–0.5). Track 1 is the reshape proper, and its
+first item is the one with `✅ verified` evidence in the gate table below —
+`ProjectView`. `PositionIndex`, `Evidence` and `Diagnostic` are still ⬜
+**relayed, not reproduced**; do not design one until its own measurement is.
 
 **Landed 2026-08-16, each mutation-verified, all on `feat/config-and-ontology`:**
 
@@ -36,10 +41,14 @@ the next reader nothing about how they happen.
 | **0.2** `3e137ff` | the graph never claims a call the source does not make | `calls` pairs **53117 → 51376** (−1741, **0 added**); 291 of the removed pointed at a real symbol; fabricated self-loops **57 → 5**; 94 real symbols had no un-fabricated incoming call; `dead_functions` candidates **2919 → 2967** |
 | **0.3** `2ddf61b` | one symbol, one id, on both producers | short-prefix ids **316 → 0**; symbols carrying both spellings **263 → 0**; nodes 24214 → 23971 as the halves merged |
 | **0.4** `090a793` | the equation namespace holds declared labels, not LaTeX | `math:equation:*` **1860 → 903**, all 903 declared (was 51 % LaTeX); newline ids **13 → 0**; `dead_references` **0 → 0**; nodes added **0** |
+| **0.5** `7882dba` | a project may WIDEN a base edge, never narrow it | `[extend.edge.X]` unions `domain`/`range`/`sources`/`attributes`; scalars and `forbid_source_attr` refused; monotonicity gated over every node type |
 
-Net over the three: nodes **24307 → 23013**, edges **215226 → 206868**, and
-every removed item was something the graph had asserted and could not support.
-Sphinx clean throughout; nexus suite **766 passed / 1 skipped**.
+Net over 0.2–0.4: nodes **24307 → 23013**, edges **215226 → 206868**, and every
+removed item was something the graph had asserted and could not support. Sphinx
+clean throughout; nexus suite **773 passed / 1 skipped**.
+
+⚠ 0.5 ships the **mechanism only** — the extension tier still has zero
+production consumers. Its first are §5.1 `exercises` and §5.4 `layer`.
 
 ⚠ Those 94 symbols are **not** thereby dead — most are protocol-typed methods
 reached by dynamic dispatch, which the static graph cannot see either way (the
@@ -771,7 +780,7 @@ independently valuable:
 | 0.2 | ✅ **A call edge is never fabricated** — the truncating twin RETIRED | LANDED `3e137ff` | `get_thing().method()` mints no edge |
 | 0.3 | ✅ **A Python id is spelled with the objtype on both producers** | LANDED `2ddf61b` | `[M]` short-prefix ids **316 → 0**, split symbols **263 → 0** |
 | 0.4 | ✅ **The equation namespace holds declared labels, not LaTeX** (**#68** CLOSED) | LANDED `090a793` | `[M]` `math:equation:*` **1860 → 903**, all declared; newline ids **13 → 0** |
-| 0.5 | **`extend` verb for the ontology** (**#69**) — a project may WIDEN a base edge's domain/range, never narrow it | small | a project extension can add `equation` to `implements`.range; narrowing still raises; monotonicity asserted |
+| 0.5 | ✅ **A project may WIDEN a base edge, never narrow it** (**#69** CLOSED) | LANDED `7882dba` | `[extend.edge.implements] range = [...]` widens; narrowing raises; monotonicity asserted over every node type |
 
 ⛔⛔ **BOTH LANDED ITEMS REFUTED THEIR OWN SIZE ESTIMATE, THE SAME WAY.** 0.2
 was priced at "1 line", 0.3 at "2 lines". Neither was a line count — each was a
