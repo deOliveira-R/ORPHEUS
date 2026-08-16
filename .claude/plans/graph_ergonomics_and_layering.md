@@ -57,11 +57,43 @@ deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
 `plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
 the next reader nothing about how they happen.
 
-### ▶ RESUMES AT: Track 1.1 — a query knows which working tree it answers about
+### ✅ Track 1.1 LANDED 2026-08-16 — a query knows which working tree it answers about
 
-⭐ **TRACK 0 IS COMPLETE** (0.1–0.6). Track 1 is the reshape proper.
-`PositionIndex`, `Evidence` and `Diagnostic` are still ⬜ **relayed, not
-reproduced**; do not design one until its own measurement is.
+Two commits on `feat/config-and-ontology`, both mutation-verified per arm:
+
+| | outcome | `[M]` |
+|---|---|---|
+| **1.1a** `35d5d31` | the binding — `GraphQuery` carries its `Workspace` | `project_root` off all 7 public signatures; server globals **2 → 1**; `_changed_cache` retired (the query IS the key); `graph_db_in` single-sources the 0.6 convention; suite **777 → 786** |
+| **1.1b** `8de24ec` | every returned position says when it may be wrong | staleness applied by **1 of 40 tools → the `@nexus_tool` boundary, once**; fresh-graph payload byte-identical (identity, not equality); **0.00 ms** fresh vs **35.2 ms** on a 2059 KiB payload with 30 files dirty; suite **786 → 790** |
+
+`[M]` ORPHEUS rebuild after the carve: **23013 / 206868** — unchanged from
+the 0.4/0.6 baseline, so it is content-neutral by measurement, not by
+argument. Sphinx clean under `-W`.
+
+⚠ **The running MCP server predates this and must be reconnected** before
+its answers carry the new staleness flags (it loaded `server.py` at
+startup; `use_workspace` cannot reload code).
+
+⭐ **Two things this step got wrong first, both caught by instruments and
+both worth carrying:**
+
+1. **The subdirectory control passed against the configuration it exists
+   to condemn.** `rich_graph` spells `file_path` *relatively*
+   (`"alpha.py"`), which happens to equal git's repository-relative
+   output, so its nodes match whatever root they are asked about. `[M]`
+   **16527 of 16527** `file_path` values in ORPHEUS's real graph are
+   ABSOLUTE — 0 relative. The fixture was blind to the very axis the
+   test varies (`vv-principles` #24(d)/(e); the configuration includes
+   *what the fixture cannot see*).
+2. **The byte-identity done-when had NO WITNESS**, and the first mutation
+   battery said so — GREEN on two arms. Identity cannot distinguish "did
+   not parse" from "parsed and returned the original", and the
+   re-serialisation branch is unreachable from the fresh case. Promoted
+   to `vv-principles` **#26**: gate a claim about the PATH by
+   instrumenting the path, never by asserting the output.
+
+**Next is Track 1.2 `PositionIndex`.** ⬜ **Relayed, not reproduced** — as
+are `Evidence` and `Diagnostic`. Reproduce the 4 probes before designing.
 
 > ⛔ **This heading read *"Track 1.1 — `ProjectView`, graph + working tree as
 > one object"* until 2026-08-16, and the mechanism is REFUTED.** Do not mint
@@ -72,7 +104,11 @@ reproduced**; do not design one until its own measurement is.
 > By the concept-count test it ADDS a layer. The goal in the title is the
 > durable half and it stands; the means is to **bind the type that exists**.
 
-**The design, decided 2026-08-16 and measured, not proposed:**
+**The design, decided 2026-08-16 and measured, not proposed.** ✅ **BUILT AS
+WRITTEN** at `35d5d31`/`8de24ec` — every FACT below describes the tree
+*before* that landing and is now past tense. Kept per `plan-authoring` §3:
+the rows are what the design was reasoned from, and the ones marked
+✅ REMEDIED are the ones the campaign repealed rather than refuted.
 
 `GraphQuery.__init__(self, graph)` takes no workspace (`query.py:711`), so the
 server holds `_query` and `_workspace` as **two module globals for one
@@ -110,13 +146,13 @@ fraction** (a fraction without its predicate is not re-runnable — the
 
 | claim | at HEAD | how to re-run |
 |---|---|---|
-| `ProjectView` does not exist | **0 hits** | `grep -rn ProjectView sphinxcontrib/ tests/` |
-| `GraphQuery` methods taking `project_root` | **10 of 56** — 7 public (`detect_changes`, `node_at`, `rename`, `retest`, `session_briefing`, `staleness`, `verification_audit`) + 3 private (`_apply_renames`, `_git_changed_files`, `_git_file_timestamps`) | AST-walk `query.py`, arg name exactly `project_root` |
+| `ProjectView` does not exist | **0 hits** — ✅ and it never will; `Workspace` was bound instead | `grep -rn ProjectView sphinxcontrib/ tests/` |
+| `GraphQuery` methods taking `project_root` | **10 of 56** — 7 public (`detect_changes`, `node_at`, `rename`, `retest`, `session_briefing`, `staleness`, `verification_audit`) + 3 private (`_apply_renames`, `_git_changed_files`, `_git_file_timestamps`) — ✅ **REMEDIED 2026-08-16 @ `35d5d31`**: all 7 public dropped it; the 3 private stay, they are pure functions of a root and take `self.project_root` | AST-walk `query.py`, arg name exactly `project_root` |
 | MCP tools | **40** carry `@nexus_tool` | AST-walk `server.py` decorators |
-| …that consult staleness | **1** — `_position_staleness_warning`, defined `server.py:217`, called at `:428` only, inside `node_at` | `grep -n _position_staleness_warning server.py` |
+| …that consult staleness | **1** — `_position_staleness_warning`, defined `server.py:217`, called at `:428` only, inside `node_at` — ✅ **REMEDIED 2026-08-16 @ `8de24ec`**: that helper is RETIRED; `_mark_stale_positions` runs in the `@nexus_tool` wrapper, so the count is the boundary itself | `grep -n _mark_stale_positions server.py` |
 | …that take a position as INPUT | **3** — `node_at`, `ingest`, `runtime_ingest` | AST-walk for an arg in `{file, file_path, artifact}` |
 | producers EMITTING `(file_path, lineno)` | **51** `_node_result` call sites | `grep -c _node_result query.py` |
-| `GraphQuery(...)` construction sites | **178** — 176 tests, 3 `server.py`, 1 `cli.py` | AST-walk the repo for `GraphQuery(` calls |
+| `GraphQuery(...)` construction sites | **178** — 176 tests, 3 `server.py`, 1 `cli.py`. This is why the parameter had to be ADDITIVE, and it held: ✅ 2026-08-16, **9** sites migrated, the rest untouched | AST-walk the repo for `GraphQuery(` calls |
 
 ⛔ **The step's own done-when was REFUTED before design began.** §6ter said
 *"staleness is applied by construction, and the count is 40 of 40."* Only
@@ -141,6 +177,14 @@ nothing until a file is *made* stale. The positive leg is worthless here
 (vv #19); the gate must be built around an edited file. Note also the one
 existing consumer had been **inert** on this project: `_files_changed_since_build`
 returns `None` without a provenance stamp, and the server was reporting none.
+
+✅ **HEEDED, and it was not enough** (2026-08-16 @ `8de24ec`). Every gate is
+built around an edited file, as instructed — and the mutation battery still
+came back GREEN on two arms, because the *byte-identity* half of the
+done-when is a claim about the FRESH path, where an edited file cannot
+reach. ⟹ the caution above covers the flag's presence; the promise that it
+costs nothing needed its own instrument (a parse counter) and its own
+configuration (dirty tree, unaffected file). `vv-principles` **#26**.
 
 **Landed 2026-08-16, each mutation-verified, all on `feat/config-and-ontology`:**
 
@@ -1028,6 +1072,12 @@ separately; they are one fix at one producer.
    tree as an optional kwarg it is something every tool author must remember, so
    it landed at **1 of 40**. Self-contained; touches no ids.
 
+   ✅ **DONE 2026-08-16** as Track 1.1 — `35d5d31` (bind `Workspace`) +
+   `8de24ec` (staleness at the tool boundary). The diagnosis in this row is
+   exactly right and is why the step paid: "something every tool author must
+   remember" is the whole defect, and the repair was to make it something no
+   author has to. Read the ✅ block at the top of this plan, not this section.
+
    > ⛔ **MECHANISM REFUTED 2026-08-16** — the *outcome* stands, the named type
    > must not be built. `workspace.Workspace` already IS "one checkout paired
    > with its graph database" (its own docstring), so `ProjectView` would be a
@@ -1062,8 +1112,8 @@ separately; they are one fix at one producer.
    > `1 of 40` measurement had counted. The real exposure is the **51**
    > `_node_result` producers that EMIT `(file_path, lineno)`. Replacement
    > done-when (user-ruled) is in the **RESUMES AT** block.
-2. **`PositionIndex`** (F2) — collapses the three disagreeing (file, line) → node
-   implementations into one. **A prerequisite for the test-state work**, which
+2. **`PositionIndex`** (F2) — ▶ **NEXT.** Collapses the three disagreeing
+   (file, line) → node implementations into one. **A prerequisite for the test-state work**, which
    needs exactly this binder; adding it as a fourth consumer of a three-way
    disagreement makes it four-way.
    *Done when:* one implementation, and the 4 probed positions agree.

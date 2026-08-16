@@ -2124,3 +2124,56 @@ rather than from duplication forward to a predicted bug; `[[lessons-L56]]`
 (a defect that reports in the reassuring direction); `.claude/rules/coding-standards.md`
 (retirement as a first-class deliverable). Landed nexus `3e137ff`, the
 follow-up spelling commit, and `c51672c` (the store move + the two bounds).
+
+---
+
+## L58 — A promise that code did NOT do something cannot be gated by what the code returns (2026-08-16)
+
+Nexus Track 1.1 added a staleness pass to the MCP tool boundary, promising it
+would be **absent to the byte** when the graph is fresh: check a cached set,
+and if nothing changed hand back the *original* payload string rather than a
+re-serialisation. Two gates asserted that promise — one by object identity,
+one by the flag's absence — and both were green.
+
+`[M]` The mutation battery came back **GREEN on the two arms those gates
+exist to cover**:
+
+| mutation | why the gate could not see it |
+|---|---|
+| delete the fresh-graph early return | the walk then runs, marks nothing, and returns the same object anyway — identity still holds |
+| re-serialise even when nothing was marked | unreachable from a fresh graph: the early return preempts it |
+
+Both gates were about a **route**, and both asserted an **output**. A
+correct implementation and one that does the work and throws it away are
+indistinguishable in the return value, so the gate is green under either —
+wearing a name that says the promise is covered.
+
+⭐ **The general shape, which is broader than caching.** Any promise of the
+form *"this does not do X when Y"* — a short-circuit, a memo, a fast lane, a
+no-op guard, "costs nothing when there is nothing to do" — is a claim about
+what the code SKIPPED. Skipping leaves no trace in the result. That is the
+whole point of skipping.
+
+⟹ **Two moves, both cheap:**
+
+1. **Instrument the route, not the output.** Monkeypatch the expensive call
+   *in the module's own namespace* and assert the call list is empty. Pick
+   the cheapest observable on the skipped path — the parse, the subprocess,
+   the `stat` — never a timing measurement, which is a flaky proxy for the
+   same question. Here: a `json.loads` counter, and `parses == []`.
+2. **Gate BOTH sides of the branch.** The case that exercises a fast lane's
+   *fallback* is not the case the promise is about. The re-serialisation
+   mutation only became visible from a **dirty tree with an unaffected
+   file** — the one configuration that reaches the walk and marks nothing.
+   A single gate on the happy side can never reach the other arm.
+
+⚠ **And assert identity, not equality, whenever the promise is "unchanged".**
+`to_json(json.loads(x)) == x` for anything `to_json` produced, so equality
+cannot see a needless round-trip. `is` can.
+
+Sibling of `[[lessons-L54]]` (an instrument that never RAN reports in the safe
+direction) — there the instrument was dead, here it was alive and pointed at
+the wrong thing, and both fail green. Promoted to `vv-principles` **#26**,
+which is where the review-time form lives; it is #19's discrimination rule
+(a positive reading cannot separate loaded from blind) moved from a gate's
+*sensitivity* to a function's *route*. Landed nexus `8de24ec`.
