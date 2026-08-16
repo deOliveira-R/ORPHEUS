@@ -846,6 +846,106 @@ ORPHEUS must not declare it. The extension tier is for genuinely
 project-specific vocabulary (`err:`, V&V levels), not for anything nexus should
 know about all projects.
 
+### 5.3d The two tiers, derived from nexus-as-a-generic-project — *proposed*
+
+> **User, 2026-08-16:** *"Nexus needs a relatively basic ontology.toml, and
+> ORPHEUS expands it. At the very least, there should be 1 intra-connection for
+> each [doc, code, test] and 1 inter-connection between [doc, code, test]…
+> Nexus is dogfed to itself, so it's a good generic base to derive the base
+> ontology from."*
+
+**The method works, with one caveat stated below.** `[M]` nexus's self-graph
+(3,309 nodes, 826 of them tests) is a Python project with docs and tests and no
+scientific domain, so what it populates is what any project populates.
+
+#### The criterion, measured against nexus
+
+| cell | edges | via | verdict |
+|---|---:|---|---|
+| **INTRA** code→code | 2520 | `contains`, `calls`, `type_uses` | ✅ |
+| **INTRA** docs→docs | 19 | `contains`, `references` | ✅ |
+| **INTRA** test→test | 50 | `contains`, `calls` (helpers/fixtures) | ✅ |
+| inter docs↔code | 43 | `documents` | ✅ |
+| inter test→code | 1588 | `calls` | ⚠ present but **mistyped** — this is §5.1's `exercises` |
+| **inter test↔docs** | **0** | — | ❌ **the missing pairwise link** |
+| inter docs→test | 0 | — | not needed; the pair is covered by test→docs |
+
+⟹ **All three intra-connections already exist generically.** Of the three
+pairwise inter-connections, doc↔code holds, test↔code exists but wears the wrong
+type, and **test↔docs is genuinely absent** in a generic project. That third one
+is `tests` (ORPHEUS 2,748 / nexus 4) — *"this test verifies this documented
+claim"* — and it is the edge the base tier most needs to name properly.
+
+⚠ **Artefact to fix, not a finding:** `[M]` code→test shows 799 edges, of which
+796 are `contains`. That is a *test module* containing test functions — the
+module node does not carry `is_test` while its functions do. **The layer
+assignment is inconsistent at module level**, which matters directly for §5.4's
+`layer` property: it must be derived from the file, not from a per-symbol flag.
+
+#### What ORPHEUS adds, measured
+
+`[M]` types with **zero** instances in nexus and many in ORPHEUS:
+`implements` (0 / 13,968), `equation_ref` (0 / 543), `exception` (0 / 2),
+`term` (0 / 15). Everything else is exercised by both.
+
+⚠ **The caveat on the method: "nexus does not instantiate it" ≠ "not
+universal".** `term` is a Sphinx **glossary** entry — universal to any documented
+project; nexus simply has no glossary. `exception` likewise. The base/extension
+cut is *conceptual universality*, with nexus's graph as evidence that a type is
+**reachable** generically, not as the definition.
+
+By that test the genuinely domain-specific vocabulary is the **mathematical**
+one: `equation`, `proof_object`, `equation_ref`, and `implements` in its
+"code *is* this equation" reading.
+
+#### ⛔ Two things block this being a config change
+
+**(a) `equation` is not a vocabulary entry — it is woven through the package.**
+`[M]` 220 mentions across **14 of nexus's 22 modules** (`query.py`, `merge.py`,
+`extractors.py`, `directives.py`, `registry.py`, `visualize.py`, `server.py`,
+`brief.py`, `ingest.py`, `_mappings.py`, …), plus `implements` at 62 across 14.
+`provenance_chain` and `verification_coverage` are *named for* it. So "move the
+math vocabulary to the extension tier" is a **reshape**, not a TOML edit — and
+it is the deepest instance of the review's *"still shaped by what it was"*: nexus
+was built for ORPHEUS and its base vocabulary is ORPHEUS's domain.
+
+**(b) The extension tier can ADD a type but cannot EXTEND a base one.**
+`[M]` `_guard_redefinition` (`ontology.py:281`) refuses any project redefinition
+of a base entry. So ORPHEUS can declare an `equation` **node**, and then cannot
+say *"`equation` is a valid target of `implements`"* — that would redefine the
+base edge's `range`. The only escape today is the `ANY = "*"` wildcard
+(`ontology.py:49`, already used by 7 base entries), which buys openness by giving
+up all range checking.
+
+⟹ **The mechanism needs a third verb.** Today: `add` (new name) and `redefine`
+(refused). It needs **extend** — a project may *widen* a base edge's
+`domain`/`range` with its own node types, never narrow it or change its meaning.
+That is monotone, so it cannot invalidate anything the base promised, and it is
+exactly what a two-tier vocabulary requires.
+
+#### Proposed base (nexus) — *not yet ratified*
+
+- **nodes** — code: `module`, `class`, `function`, `method`, `attribute`,
+  `data`, `exception`; docs: `document`, `section`, `term`; resolution:
+  `external`, `unresolved`; meta: `tag`
+- **edges** — intra-code: `contains`, `calls`, `imports`, `inherits`,
+  `type_uses`; intra-docs: `contains`, `references`; intra-test: `contains`,
+  `calls`; **inter: `documents`** (docs→code), **`exercises`** (test→code, new),
+  **`verifies`** (test→docs, generalising today's `tests`), and `implements`
+  (code→docs) in the weaker universal reading *"this code realises this
+  documented statement"*
+
+#### Proposed ORPHEUS extension — *not yet ratified*
+
+- **nodes**: `equation`, `proof_object`, `err` (the `ERR-NNN` catalogue, #63)
+- **edges**: `equation_ref`, `catches` (#63)
+- **extends**: `implements`.range += `equation`; `verifies`.range += `equation`
+  — ⛔ **blocked on (b) above**
+
+⚠ Sequencing: this sits **after** Track 1's `NodeId`, because the valid type set
+an id may be built from is the same vocabulary question. Attempting the tier
+split before then means doing it twice.
+
 ## 7. Open questions
 
 **Answered 2026-08-16:** §5.3's shape is DEFERRED; §5.4 is APPROVED; §3.2 is
