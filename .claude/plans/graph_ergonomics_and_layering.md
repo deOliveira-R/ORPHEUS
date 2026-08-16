@@ -3,12 +3,26 @@
 **Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
 sections marked `[M]` carry the command or query that produced them.
 
-## ⏸ COMPACTION POINT — 2026-08-16, before any code is written
+## ⏸ COMPACTION POINT #2 — 2026-08-16, Track 0 COMPLETE
+
+**Track 0 (0.1–0.5) has landed**; Track 1 has not started. Work is on branch
+`feat/config-and-ontology` in `~/git/sphinxcontrib-nexus` (ours — a folder
+change, not a hand-off) and `chore/nexus-project-config` in ORPHEUS. `main` is
+untouched in both.
+
+⚠ **Every graph number in this plan is an instance count from one build of
+`docs/_build/html/graph/graph.db` and moves on every rebuild.** The before/after
+pairs in the resume table are the exception — each was measured across a real
+rebuild and is a *delta*, which is what makes it re-checkable.
+
+<details><summary>superseded — compaction point #1, "before any code is written"</summary>
 
 **Nothing in this plan has been implemented.** What exists is measurement, four
 filed issues, and two user decisions. Re-verify against the tree before acting:
 the numbers are instance counts from one build of
 `docs/_build/html/graph/graph.db` and move on every rebuild.
+
+</details>
 
 ### User decisions, 2026-08-16
 
@@ -103,14 +117,25 @@ identical to a green 727.
 
 ### Where the work is tracked
 
-Filed from this conversation: **#67** (payload is 5× its information content),
-**#68** (the prose leak — first). Adjacent, filed earlier the same day: **#65**
-(the tool reference documents 29 of 40 tools), **#66** (`--db` declared 42×
-per-subparser). Pre-existing and relevant: **#55** (call-resolution
-fragmentation), **#16** (annotation-mediated dispatch), **#57** (per-test
-attribution), **#58** (`bridges`/`communities` do not complete), **#59** (an
-empty result is indistinguishable from a broken one), **#60** (a cone needs an
-antisymmetric relation), **#20** (filtered subgraph → graphviz render).
+⚠ Every `#N` below is a **nexus** issue (`deOliveira-R/sphinxcontrib-nexus`),
+never an ORPHEUS one — the two number spaces collide.
+
+**CLOSED by this campaign:** **#56** (`5796c6d`), **#64** (the config file —
+`.nexus/{config,ontology}.toml`, plus the `nexus config` verb), **#68** (the
+prose leak — `090a793`), **#69** (the ontology `extend` verb — `7882dba`).
+
+**Still open, and the ones this plan will reach:** **#67** (payload is 5× its
+information content — §5.5), **#55** (call-resolution fragmentation — Track 1's
+`NodeId`), **#59** (an empty result is indistinguishable from a broken one),
+**#57** (per-test attribution), **#63** (`catches` is a string, not an edge —
+wants the ontology extension tier 0.5 just built).
+
+**Open and adjacent, not scheduled here:** **#65** (the tool reference documents
+29 of 40 tools), **#66** (`--db` declared 42× per-subparser), **#16**
+(annotation-mediated dispatch), **#58** (`bridges`/`communities` do not
+complete), **#60** (a cone needs an antisymmetric relation), **#61** (markers
+from a collection manifest), **#62** (`retest` truncates at depth 3), **#20**
+(filtered subgraph → graphviz render).
 
 **Started 2026-08-16** from the question *"is a query a context bomb because of
 the tests, or naturally?"* — and the measured answer refuted the premise of the
@@ -652,7 +677,18 @@ Consequences for the design, to be held against every proposal here:
 ## 6bis. Nexus's own architecture — adversarial review, 2026-08-16
 
 Full report: `scratch/nexus_architecture_review.md` (untracked working space —
-the verified essentials are distilled here so they survive it).
+the verified essentials are distilled here so they survive it). A second copy
+of the survey is at
+`.claude/agent-memory/elegance-enforcer/nexus_architecture_survey.md`.
+
+⛔⛔ **DO NOT re-derive the ordering from that report.** It was written under
+the constraint described in the method note below, so it still carries
+*"sound layering, loose vocabulary, do NOT restructure"* as its verdict —
+the framing that was **corrected mid-flight and superseded**. A cold reader
+landing in it will find an authoritative-sounding conclusion that this plan
+contradicts, and nothing inside the report says so. **§6ter's order is
+MINE, not the review's**, and its three objections to the review's order are
+measured. Read §6ter; use the report only for the raw findings it enumerates.
 
 **Method note, because it changed the answer.** The first pass was briefed with
 *"say what is well-factored"* in the same breath as the findings, and returned
@@ -826,12 +862,40 @@ totals close or they do not, and it costs one query.
 raw text with no normalisation. They were filed separately because I found them
 separately; they are one fix at one producer.
 
+> ⛔ **REFUTED 2026-08-16 by doing it** — the conclusion (fold #68 into 0.4)
+> was right, the reasoning was wrong in both of its clauses. They are **not**
+> the same defect: 12 of the 13 newline ids were inline math (a *semantic*
+> error — `:math:` is not a reference), and **1** was the doctree walker
+> missing a wrap-normalisation (a *normalisation* error). Nor is it **one
+> producer**: it is two, and the fix is two, in two different modules. Kept
+> because the shape recurs — "these were filed separately, so they are
+> probably one thing" is a hypothesis, and here it was 12/13 right and
+> 0/2 right about the mechanism.
+
 **Track 1 — the reshape, reordered by leverage and stability:**
 
 1. **`ProjectView`** (R1) — graph + working tree as one object. Highest
    *correctness* leverage of the five: staleness needs both states, and with the
    tree as an optional kwarg it is something every tool author must remember, so
    it landed at **1 of 40**. Self-contained; touches no ids.
+
+   ✅ **RE-DERIVED AT HEAD 2026-08-16, at the compaction point** — both halves
+   reproduce, and the units are now written out because the first re-derivation
+   *appeared* to refute the number:
+
+   | claim | at HEAD | how to re-run |
+   |---|---|---|
+   | `ProjectView` does not exist | **0 hits** in `sphinxcontrib/` + `tests/` | `grep -rn "ProjectView"` |
+   | 10 of 56 `GraphQuery` methods take a working-tree arg | **10 of 56** — 7 public (`detect_changes`, `node_at`, `rename`, `retest`, `session_briefing`, `staleness`, `verification_audit`) + 3 private (`_apply_renames`, `_git_changed_files`, `_git_file_timestamps`) | AST-walk `query.py`, arg name `project_root` |
+   | staleness is applied by 1 of 40 MCP tools | **1 of 40** — `_position_staleness_warning` is defined at `server.py:217` and called at `:428` only, inside `node_at`; 40 functions carry `@nexus_tool` | `grep -c "@nexus_tool"`, `grep -n "_position_staleness_warning"` |
+
+   ⚠ **The unit was ambiguous and it cost a reconciliation cycle.** "56 methods
+   / 10" does not say whether *methods* means public or all. Filtering to
+   **public** gives **7**, which reads as a refutation of the plan; the 10 is
+   right and counts private helpers too. A second trap sits beside it: an
+   arg-name heuristic wide enough to catch `start` also catches
+   `_dominant_call_chain`, whose `start` is a **graph node id**, not a path.
+   ⟹ state the FILTER beside the fraction, not just the two numbers.
    *Done when:* staleness is applied by construction, and the count is 40 of 40.
 2. **`PositionIndex`** (F2) — collapses the three disagreeing (file, line) → node
    implementations into one. **A prerequisite for the test-state work**, which
