@@ -1911,7 +1911,94 @@ EMPTY rather than erroring:
   already carries the three-spellings-of-a-math-symbol rule; this is its
   code-construct twin.
 
+### Two more, 2026-08-16 — the census was *right* and still incomplete
+
+Cases 1–3 all missed a SPELLING. These two missed nothing of the sort; the
+pattern was correct and the answer was still partial, which is why they need
+separate naming.
+
+- ⭐⭐ **A census keyed to one member of a FAMILY misses the family.** Moving
+  the nexus graph, I censused `grep -rln "graph\.db"` and adjudicated every
+  hit. What moved was the **directory**, which holds `graph.db`, `graph.json`
+  AND `graph.html` — and `docs/index.rst` linked the explorer at
+  `<_nexus/graph.html>`, so the shipped homepage rendered a **404**. Nothing
+  catches it: a raw relative hyperlink is checked by Sphinx at *no* severity
+  (unlike `:doc:`/`:ref:`). ⟹ when a **container** moves, census the
+  container, not the one file you were thinking about: anchor on the
+  separator — `grep -rnE "_nexus/|graph\.(db|json|html)"`. (⚠ and the bare
+  container name was useless here: `_nexus` matches every `mcp__nexus__*`
+  tool name, 559 KB of output — which is *why* the narrower `graph.db`
+  looked like the sensible choice.)
+- ⭐ **`head -N` on your own census turns a complete result into a confident
+  partial one.** I piped a `grep -rn` through `head -20`, read the 20 lines
+  as the answer, and concluded a file was clean that has **8 hits** — it sat
+  below the cut, in traversal order, not alphabetical. ⟹ census with
+  `grep -rln` (file list, no bodies) or pipe through `wc -l` first; reserve
+  `head` for *reading* hits, never for *counting* them.
+
 Cross-reference: [[lessons-L54]] (the instrument never ran — this is the
 instrument running half-blind); [[lessons-L25]] (`replace_all` is safe only
 if every occurrence is the target concept — case 2 is its dual: safe on what
-it matched, and it did not match everything).
+it matched, and it did not match everything); [[lessons-L56]] (what the
+half-blind census then FAILS to notice, because the broken consumer went
+quiet instead of loud).
+
+---
+
+## L56 — "nothing found" and "I looked in the wrong place" must not print the same thing (2026-08-16)
+
+[[lessons-L55]] is about a search that cannot see part of what it looks
+for. This is its consumer-side twin: the search is fine, the **reader of
+its result** cannot tell an empty answer from a broken one — so a
+misconfiguration is delivered as a fact.
+
+**Four instances in one session, three of them independent code paths,
+all failing in the reassuring direction.**
+
+| the consumer | what it printed when MISCONFIGURED | what that is indistinguishable from |
+|---|---|---|
+| `runtime-ingest --kind coverage` | `nodes: 0 / edges: 0 / unresolved: 0`, **exit 0** | a workload that genuinely touched nothing indexed |
+| `nexus-brief.sh`, `nexus-dead-refs.sh` | nothing at all (`[ -f "$db" ] \|\| exit 0`) | a project with no graph built |
+| `/doc-health` | `(nexus or graph not found — build the docs)` | docs never built |
+| `nexus status` from outside the project | `does not exist / run 'nexus analyze' first` | a graph that was never built |
+
+The shared mechanic: each has a **legitimate empty case**, and the
+failure path was routed into it. A hook whose contract is "quiet exit 0
+when there is no graph" cannot express "I looked in the wrong place" —
+so when `[graph].output` moved, two of three hooks went **dark rather
+than red**, and the breakage presented as an absence for as long as
+nobody wondered why the briefs had stopped.
+
+⭐ **The rule, and it is one line of output: a failure must name the
+thing it looked for.** Every message above became actionable by adding
+the resolved path — `no graph at <path> (the path .nexus/config.toml
+declares)`. That is what makes a stale path *visible* instead of
+inferred; the old messages named no path at all, which is precisely why
+a wrong one could survive a campaign.
+
+⭐⭐ **And the design rule underneath it: a count of drops is not enough —
+tally them BY REASON.** `unresolved: 0` was true and useless, because the
+coverage records were discarded *upstream* of that counter. The repair
+was a `JoinLedger` with `outside_scope` / `unindexed_file` /
+`no_enclosing_node`, since those three have three different remedies and
+one number collapses them. `[M]` the same artifact went 0 → **1691** bound
+nodes; the ledger then reads `bound: 121 / unindexed: 37 / outside: 0`
+over 158 files, and the wrong-root case reads `unindexed: 158` — a
+signature you can diagnose on sight.
+
+⚠ **The asymmetry that hides this class, and the reason a green
+neighbour proves nothing:** cProfile's `co_filename` and viztracer's
+event names are **absolute**, so neither backend ever hit the relative-key
+path. A clean cProfile ingest was not evidence that coverage ingest
+worked — exactly `vv-principles` #19's "a positive reading cannot
+discriminate loaded from blind", applied to a sibling code path instead
+of to a gate.
+
+⟹ **The question to ask of any consumer that can return empty:** *what
+does this print when its input is misconfigured, and is that
+distinguishable from success?* If not, it is not an instrument. This is
+also the standing form of [[lessons-L54]] (the instrument that never ran)
+— there the run was missing, here the *reason* is.
+
+Cross-reference: nexus #59 (the same defect surveyed across `callers` and
+the whole `runtime-*` family), nexus #56 (fixed, `5796c6d`).
