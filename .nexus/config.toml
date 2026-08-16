@@ -2,11 +2,18 @@
 # the MCP server alike. Precedence: explicit flag > this file > conf.py >
 # built-in default.
 #
-# ⚠ TRANSITION (2026-08-15). `output = "graph"` still writes BESIDE the
-# pre-config graph at `docs/_build/html/_nexus/` rather than over it, so the
-# two remain comparable. `_nexus/` is now FROZEN — no build writes there —
-# and should be deleted once the transition is closed, or it becomes a stale
-# graph someone points a tool at.
+# ✅ TRANSITION CLOSED (2026-08-16). The graph STORE — `graph.db`, its JSON
+# export and the `traces/` overlay sidecar — now lives in THIS directory,
+# `.nexus/`, root-relative and derivable. Only the served explorer page stays
+# under the Sphinx HTML output. History, kept because the prediction landed:
+#
+#   The 2026-08-15 note here said `_nexus/` was frozen "and should be deleted
+#   … or it becomes a stale graph someone points a tool at." It was deleted —
+#   and the tool pointing at it was the running MCP server, launched with the
+#   old path. It answered from a snapshot it could never reload while
+#   reporting `has_graph: false, provenance: null` and advising a rebuild that
+#   would not have helped. A path that can be declared can be declared stale;
+#   a derived one cannot.
 #
 # `docs/conf.py`'s `nexus_*` options were RETIRED once the config-driven
 # graph was proven byte-for-byte equivalent (0 symmetric difference across
@@ -14,16 +21,15 @@
 # 24307 nodes / 215226 edges).
 
 [graph]
-# During the transition this is "graph", not "_nexus", so the config-driven
-# build lands beside the conf.py-driven one instead of replacing it. It also
-# removes the one-character collision between `.nexus/` (this directory,
-# tracked, an input) and `_nexus/` (build output, gitignored, derived).
+# Where the interactive explorer PAGE is written, relative to the Sphinx HTML
+# output — and nothing else. `graph.html` is the one artefact that has to live
+# there, because `docs/index.rst` links it and `.. nexus-graph::` iframes it.
+#
+# There is deliberately no `db` key any more. The database is a CONVENTION
+# (`<project root>/.nexus/graph.db`), so every surface derives it from the
+# root it already found this file in, and there is no second declaration to
+# fall out of step with the build. Ask for it with `nexus config db`.
 output = "graph"
-
-# Where the CLI and the MCP server should look. They cannot derive it: the
-# artefacts land under the Sphinx output directory, which only the build
-# knows. The build warns if it writes somewhere else.
-db = "docs/_build/html/graph/graph.db"
 
 # `infer_implements` is deliberately LEFT AT ITS DEFAULT (true), measured
 # 2026-08-15 rather than assumed. Turning it off is surgical — `[M]` it

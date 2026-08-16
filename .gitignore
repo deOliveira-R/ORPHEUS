@@ -33,6 +33,20 @@ pyrightconfig.json
 # Secrets — API keys live here, never committed
 .env
 
+# The nexus graph STORE. `.nexus/` is tracked because config.toml and
+# ontology.toml are INPUTS; these three are not. Listed separately rather
+# than ignoring `.nexus/*` so that adding a new tracked input needs no
+# un-ignore, and so the split between input and artefact stays legible.
+#
+#   graph.db / graph.json — derived, rewritten by every `sphinx-build`
+#   traces/               — DURABLE: an ingested runtime overlay costs
+#                           minutes of profiled test run to reproduce, which
+#                           is why it lives here and not in the build tree
+#                           that `rm -rf docs/_build` empties
+.nexus/graph.db
+.nexus/graph.json
+.nexus/traces/
+
 # coverage.py's data file. Produced at the repo root by any `coverage run`,
 # including the runs that feed `nexus runtime-ingest --kind coverage`.
 .coverage

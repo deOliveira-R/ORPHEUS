@@ -2093,9 +2093,34 @@ identifier** and walked it through that gate. `[M]` 48 junk classes minted
    and no gate I had written would have caught it, because I had not thought to
    assert a *direction*.
 
+⭐⭐ **A FIFTH instance, and it sharpens the principle past twins: the SAME
+code path survives a defect for as long as its output is unobservable — so
+turning a READ into a WRITE is a diagnostic move.** The four cases above are
+two copies with unequal feedback. This one has no copy. `find_project_root`
+walked up looking for `.nexus/`, and `~/.nexus/` exists on every machine that
+has run the MCP server, because that is where `usage.jsonl` lives. So **every
+project without a config of its own resolved its root to `$HOME`** and read
+the wrong project's settings — for months, silently, because a wrong answer
+about "which project am I in" still *looks* like an answer. Moving the graph
+store into `.nexus/` turned that same resolution into a file write, and
+`graph.db` appeared in the home directory within one test run. `[M]`
+`find_project_root("<repo>/tests/roots")` → `/Users/rodrigo`.
+
+⟹ **When a resolver has been trusted for a long time and never checked, ask
+what would make its answer VISIBLE**, and arrange that once. A read is
+checked only by someone who already suspects it; a write checks itself.
+
+⚠ And the root cause is worth naming on its own, because it is a naming
+defect and it recurs: **one directory name carried two scopes** — `.nexus/`
+as a *project's* settings and `.nexus/` as the *machine's* state. No walk can
+tell those apart, so the search had to be BOUNDED (at `$HOME`, and at a
+checkout) rather than made smarter. Sibling of [[lessons-L46]] (two objects
+sharing a letter): when one name spans two scopes, the fix is a boundary, not
+a better lookup.
+
 Cross-reference: `coding-elegance` Pattern 2 (single source of truth) — this is
 its *diagnostic* direction, running from a bug report back to the duplication
 rather than from duplication forward to a predicted bug; `[[lessons-L56]]`
 (a defect that reports in the reassuring direction); `.claude/rules/coding-standards.md`
-(retirement as a first-class deliverable). Landed nexus `3e137ff` + the
-follow-up spelling commit.
+(retirement as a first-class deliverable). Landed nexus `3e137ff`, the
+follow-up spelling commit, and `c51672c` (the store move + the two bounds).

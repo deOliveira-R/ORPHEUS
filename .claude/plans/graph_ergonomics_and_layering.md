@@ -56,6 +56,7 @@ first item is the one with `✅ verified` evidence in the gate table below —
 | **0.3** `2ddf61b` | one symbol, one id, on both producers | short-prefix ids **316 → 0**; symbols carrying both spellings **263 → 0**; nodes 24214 → 23971 as the halves merged |
 | **0.4** `090a793` | the equation namespace holds declared labels, not LaTeX | `math:equation:*` **1860 → 903**, all 903 declared (was 51 % LaTeX); newline ids **13 → 0**; `dead_references` **0 → 0**; nodes added **0** |
 | **0.5** `7882dba` | a project may WIDEN a base edge, never narrow it | `[extend.edge.X]` unions `domain`/`range`/`sources`/`attributes`; scalars and `forbid_source_attr` refused; monotonicity gated over every node type |
+| **0.6** `c51672c` | the graph lives with the project, not with the build output | store → `<root>/.nexus/`; `[graph].db` RETIRED (derivable); `traces/` out of the directory a clean build empties; `find_project_root` bounded at `$HOME` + the checkout; `DEFAULT_OUTPUT` single-sourced. `[M]` rebuild **23013 / 206868**, identical to the 0.4 baseline, 5 runtime runs still binding; suite **777 passed / 1 skipped** |
 
 Net over 0.2–0.4: nodes **24307 → 23013**, edges **215226 → 206868**, and every
 removed item was something the graph had asserted and could not support. Sphinx
@@ -69,9 +70,16 @@ reached by dynamic dispatch, which the static graph cannot see either way (the
 co-execution ruling). What changed is that it stopped presenting invention as
 evidence: a candidate list may be wrong, a call edge may not.
 
-**Next is 0.5 (#69)**, then Track 1 — and read the ⛔⛔ block under the Track 0
-table first. All three landed items refuted their stated size the same way, and
-0.4 refuted this plan's *description* of its own defect as well.
+**Read the ⛔⛔ block under the Track 0 table before sizing anything.** All three
+of 0.2/0.3/0.4 refuted their stated size the same way, and 0.4 refuted this
+plan's *description* of its own defect as well.
+
+> ⛔ This line read *"Next is 0.5 (#69), then Track 1"* until 2026-08-16. 0.5
+> landed the same day, at `7882dba`, two rows above in this very table — the
+> `plan-authoring` §1 pointer rot, inside a compaction point whose own table
+> already contradicted it. Kept because the shape is the point: a pointer and
+> the table it sits beside keep different clocks, and the pointer is the half
+> that is read.
 
 <details><summary>superseded pointer — Track 0.2 (kept per <code>plan-authoring</code> §3)</summary>
 
@@ -817,6 +825,33 @@ independently valuable:
 | 0.3 | ✅ **A Python id is spelled with the objtype on both producers** | LANDED `2ddf61b` | `[M]` short-prefix ids **316 → 0**, split symbols **263 → 0** |
 | 0.4 | ✅ **The equation namespace holds declared labels, not LaTeX** (**#68** CLOSED) | LANDED `090a793` | `[M]` `math:equation:*` **1860 → 903**, all declared; newline ids **13 → 0** |
 | 0.5 | ✅ **A project may WIDEN a base edge, never narrow it** (**#69** CLOSED) | LANDED `7882dba` | `[extend.edge.implements] range = [...]` widens; narrowing raises; monotonicity asserted over every node type |
+| 0.6 | ✅ **The graph lives with the project, not with the build output** | LANDED `c51672c` | `nexus config db` → `<root>/.nexus/graph.db`; `[graph].db` is a REFUSED key; a clean build no longer destroys `traces/` |
+
+**0.6 was not in this plan — it came from the user asking, at the Track 1.1
+design checkpoint, "why is the graph in `docs/`? Shouldn't it be in
+`.nexus/`?"** The answer was "because nexus is a Sphinx extension and
+`output` resolves against `app.outdir`", and checking it turned up a
+data-loss bug: `RuntimeStore` sat at `db_path.parent / "traces"`, i.e. inside
+the directory `rm -rf docs/_build` empties, while `runtime.py`'s own docstring
+says the sidecar exists precisely to survive the rebuild. Three lifetimes in
+one directory — derived / served / **durable** — and a directory's lifetime is
+its most-derived member's.
+
+⭐ **`project.py`'s module docstring had already said the graph belongs there**
+(*"the directory also holds `ontology.toml` and (once built) the graph and its
+overlays"*). The convention was documented and never implemented, so this was
+honouring a stated design, not inventing one. ⟹ when a layout question comes
+up, read the module docstring of the thing that owns the layout *before*
+designing — the intent may already be written down, and then the work is to
+make the code match rather than to choose.
+
+⛔⛔ **Two pre-existing defects fell out, and one of them was mine.**
+
+| | what | how it was caught |
+|---|---|---|
+| **pre-existing** | `find_project_root` walked past every boundary into `$HOME`, because `~/.nexus/` exists on any machine that has run the MCP server (it holds `usage.jsonl`). `[M]` `find_project_root("<nexus repo>/tests/roots")` → `/Users/rodrigo`. Every unconfigured tree under `$HOME` had been READING the wrong project's config, silently. | only when the store move turned that read into a **write** and `graph.db` appeared in `~`. Promoted to [[lessons-L57]] |
+| **pre-existing** | the `output` default was spelled **twice** — the `pick()` fallback and the `nexus_output` config value. | changing one silently relocated every unanchored project's graph; 26 tests reddened. Now one `DEFAULT_OUTPUT` |
+| **mine, caught by the tests** | my first design anchored the store to the root `find_project_root` discovers. For a docs *fixture* that walks out of the fixture entirely, so a test build would write into the repository source tree — or, given the bug above, into `~`. | the suite. Corrected to: a project is **ANCHORED** only when it declares itself with a `.nexus/`; unanchored, `root` is a guess and the store stays with the build |
 
 ⛔⛔ **BOTH LANDED ITEMS REFUTED THEIR OWN SIZE ESTIMATE, THE SAME WAY.** 0.2
 was priced at "1 line", 0.3 at "2 lines". Neither was a line count — each was a
