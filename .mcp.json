@@ -4,8 +4,6 @@
       "command": "${CLAUDE_PROJECT_DIR:-.}/.venv/bin/nexus",
       "args": [
         "serve",
-        "--db",
-        "${CLAUDE_PROJECT_DIR:-.}/docs/_build/html/_nexus/graph.db",
         "--project-root",
         "${CLAUDE_PROJECT_DIR:-.}"
       ]

@@ -1,0 +1,46 @@
+# Nexus project configuration — read by the Sphinx extension, the CLI and
+# the MCP server alike. Precedence: explicit flag > this file > conf.py >
+# built-in default.
+#
+# ⚠ TRANSITION (2026-08-15). `docs/conf.py` still carries the equivalent
+# `nexus_*` options and they are deliberately NOT removed yet. The values
+# here MIRROR them exactly, so the graph this produces must match the one
+# conf.py produces — which is the point: `output = "graph"` writes to a
+# second location so the two can be compared before conf.py's copies are
+# retired. Do not let the two drift while both are live.
+
+[graph]
+# During the transition this is "graph", not "_nexus", so the config-driven
+# build lands beside the conf.py-driven one instead of replacing it. It also
+# removes the one-character collision between `.nexus/` (this directory,
+# tracked, an input) and `_nexus/` (build output, gitignored, derived).
+output = "graph"
+
+# Where the CLI and the MCP server should look. They cannot derive it: the
+# artefacts land under the Sphinx output directory, which only the build
+# knows. The build warns if it writes somewhere else.
+db = "docs/_build/html/graph/graph.db"
+
+# Mirrors docs/conf.py:88 — tests/ is analysed so test nodes are first-class.
+extra_source_dirs = ["tests"]
+
+# Mirrors docs/conf.py:106. Both directories mint placeholder nodes that bare
+# references elsewhere would otherwise bind to.
+exclude_patterns = ["student_resources/*", "scratch/*"]
+
+[scope]
+# Path prefixes considered in-scope for runtime ingestion. A LIST, because no
+# single prefix works: profiling the suite produces tests → orpheus edges, and
+# either directory alone drops one endpoint of every one of them, while the
+# repository root sweeps in .venv.
+#
+# ⚠ Consumed by nexus once multi-prefix `--source-prefix` lands
+# (deOliveira-R/sphinxcontrib-nexus#56). Stated here now so the value has one
+# home rather than being retyped per invocation.
+prefixes = ["orpheus", "tests"]
+
+[catalog]
+# The L0 error catalogue. Unblocks `err:ERR-NNN` nodes and a real `catches`
+# edge (deOliveira-R/sphinxcontrib-nexus#63); `nexus gaps` currently reports
+# `error_catalog_size: None` because nothing tells it where this lives.
+errors = ".claude/skills/vv-principles/error_catalog.md"
