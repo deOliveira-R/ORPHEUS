@@ -2061,6 +2061,38 @@ same repair (hoist to one home — `_mappings.REFTYPE_OBJTYPE_MAP` — and let b
 producers read it). Two instances in one file family in one afternoon is a
 statement about the module, not about luck.
 
+⭐⭐ **A THIRD and FOURTH instance the same day, and the fourth carries the
+sharper rule.** #68's equation-namespace leak was again two sibling branches in
+ONE function with unequal discipline: the `:math:` branch guarded by a
+**blocklist** (reject `\`, `{`, `}`) three lines above a Python branch asking
+the opposite, stronger question (`_is_dotted_identifier` — *is this a
+well-formed name?*). Inline math clears a blocklist trivially, so `math:equation:*`
+was **51 % LaTeX** (`[M]` 956 of 1860 unresolved). And its newline half was the
+doctree walker missing the wrap-normalisation the docstring scanner had always
+had — the same one-of-two-producers split as the objtype map.
+
+⚠ **The fourth instance also shows the cost of fixing one by SHARING**, which is
+the right repair and is not free: hoisting `_normalize_wrapped_target` so both
+producers read it exposed that the function was *already wrong*. It collapsed
+ALL whitespace whenever the result matched the dotted shape — and a sentence of
+letters plus a full stop matches once its spaces are gone. Downstream,
+`_classify_unresolved` refuses a non-identifier as napoleon noise, so prose was
+already being dropped correctly; normalising first **disguised prose as an
+identifier** and walked it through that gate. `[M]` 48 junk classes minted
+(`py:class:allkeyvariables.`, `py:class:dictmappingmaterialIDtoMixture.`).
+
+⟹ Two rules fall out, both cheap:
+3. **Never normalise before classifying.** A normaliser makes strings *look
+   more like* what a classifier accepts, so running it first can only ever
+   widen the classifier's acceptance — never narrow it. If a gate downstream
+   rejects malformed input, normalisation belongs *after* it.
+4. **When a pass is meant to be purely subtractive, check that its node delta
+   IS purely subtractive.** This one was found by arithmetic, not by a test:
+   957 nodes dropped, net **−910** — so 48 appeared, and a pass that only
+   removes things cannot add any. One query. The suite was green throughout,
+   and no gate I had written would have caught it, because I had not thought to
+   assert a *direction*.
+
 Cross-reference: `coding-elegance` Pattern 2 (single source of truth) — this is
 its *diagnostic* direction, running from a bug report back to the duplication
 rather than from duplication forward to a predicted bug; `[[lessons-L56]]`

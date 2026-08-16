@@ -27,23 +27,28 @@ deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
 `plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
 the next reader nothing about how they happen.
 
-### ▶ RESUMES AT: Track 0.4 — an id is never built from raw text (§6ter)
+### ▶ RESUMES AT: Track 0.5 — a project ontology can WIDEN a base edge (#69)
 
-**Landed 2026-08-16, both mutation-verified, both on `feat/config-and-ontology`:**
+**Landed 2026-08-16, each mutation-verified, all on `feat/config-and-ontology`:**
 
 | | outcome | `[M]` on ORPHEUS's rebuilt graph |
 |---|---|---|
 | **0.2** `3e137ff` | the graph never claims a call the source does not make | `calls` pairs **53117 → 51376** (−1741, **0 added**); 291 of the removed pointed at a real symbol; fabricated self-loops **57 → 5**; 94 real symbols had no un-fabricated incoming call; `dead_functions` candidates **2919 → 2967** |
-| **0.3** `2ddf61b` | one symbol, one id, on both producers | short-prefix ids **316 → 0**; symbols carrying both spellings **263 → 0**; nodes 24214 → 23971 as the halves merged; Sphinx clean |
+| **0.3** `2ddf61b` | one symbol, one id, on both producers | short-prefix ids **316 → 0**; symbols carrying both spellings **263 → 0**; nodes 24214 → 23971 as the halves merged |
+| **0.4** `090a793` | the equation namespace holds declared labels, not LaTeX | `math:equation:*` **1860 → 903**, all 903 declared (was 51 % LaTeX); newline ids **13 → 0**; `dead_references` **0 → 0**; nodes added **0** |
+
+Net over the three: nodes **24307 → 23013**, edges **215226 → 206868**, and
+every removed item was something the graph had asserted and could not support.
+Sphinx clean throughout; nexus suite **766 passed / 1 skipped**.
 
 ⚠ Those 94 symbols are **not** thereby dead — most are protocol-typed methods
 reached by dynamic dispatch, which the static graph cannot see either way (the
 co-execution ruling). What changed is that it stopped presenting invention as
 evidence: a candidate list may be wrong, a call edge may not.
 
-**Next is 0.4**, then 0.5 (#69), then Track 1 — and read the ⛔⛔ block under
-the Track 0 table before pricing 0.4, because both landed items refuted their
-own size estimate by the same mechanism.
+**Next is 0.5 (#69)**, then Track 1 — and read the ⛔⛔ block under the Track 0
+table first. All three landed items refuted their stated size the same way, and
+0.4 refuted this plan's *description* of its own defect as well.
 
 <details><summary>superseded pointer — Track 0.2 (kept per <code>plan-authoring</code> §3)</summary>
 
@@ -765,7 +770,7 @@ independently valuable:
 | 0.1 | ✅ **Ontology wired** — `_infer_implements` consults it | LANDED `37bad88` | `merge.py` holds no copy of the rule |
 | 0.2 | ✅ **A call edge is never fabricated** — the truncating twin RETIRED | LANDED `3e137ff` | `get_thing().method()` mints no edge |
 | 0.3 | ✅ **A Python id is spelled with the objtype on both producers** | LANDED `2ddf61b` | `[M]` short-prefix ids **316 → 0**, split symbols **263 → 0** |
-| 0.4 | **Normalise raw text out of ids** — covers **#68** *and* R3 | small | 0 ids containing whitespace; `math:equation:*` holds only declared labels |
+| 0.4 | ✅ **The equation namespace holds declared labels, not LaTeX** (**#68** CLOSED) | LANDED `090a793` | `[M]` `math:equation:*` **1860 → 903**, all declared; newline ids **13 → 0** |
 | 0.5 | **`extend` verb for the ontology** (**#69**) — a project may WIDEN a base edge's domain/range, never narrow it | small | a project extension can add `equation` to `implements`.range; narrowing still raises; monotonicity asserted |
 
 ⛔⛔ **BOTH LANDED ITEMS REFUTED THEIR OWN SIZE ESTIMATE, THE SAME WAY.** 0.2
@@ -782,6 +787,30 @@ with no normalisation"* — which is already the language of a producer with mor
 than one spelling. Enumerate the id-minting sites FIRST (0.4's own note says
 ~45 across `extractors.py` + `ast_analyzer.py`), and expect the repair to be
 "one home" rather than "one edit". Promoted to [[lessons-L57]].
+
+⛔ **0.4 CONFIRMED IT, and refuted this plan's own description of the defect.**
+It is **not** a normalisation defect — it is a *semantic* one, plus a
+duplication. `:eq:` REFERENCES a label; `:math:` TYPESETS an expression and
+references nothing. The scanner routes both into the equation namespace on
+purpose (forgiving a common authoring slip); its guard was a **blocklist**
+(reject `\`, `{`, `}`) sitting three lines above a Python branch asking the
+opposite, stronger question (`_is_dotted_identifier`). Inline math clears a
+blocklist trivially. The 13 newline ids were **12 + 1**, not 13 of a kind: 12
+inline math, and **1** the doctree walker missing the wrap-normalisation the
+docstring scanner has always had — the *same* one-of-two-producers split as
+0.3, now the fourth instance in this file family.
+
+⚠⚠ **And the repair introduced a regression that only the arithmetic caught.**
+Sharing `_normalize_wrapped_target` with a second producer exposed that it was
+already wrong: it collapsed ALL whitespace whenever the result matched the
+dotted shape, and a sentence of letters plus a full stop matches once its
+spaces are gone. `_classify_unresolved` refuses a non-identifier as napoleon
+noise — so prose was already being dropped correctly, and collapsing first
+*disguised prose as an identifier* and walked it through that gate. `[M]` 48
+junk classes minted (`py:class:allkeyvariables.`). Found by noticing 957 nodes
+dropped but net −910, i.e. **48 appeared**. ⟹ **when a pass is meant to be
+purely subtractive, check that its node delta is purely subtractive** — the
+totals close or they do not, and it costs one query.
 
 ⭐ **0.4 absorbs #68.** The prose leak (inline math minted as an equation
 *label*) and the 13 newline-bearing ids are the **same defect**: an id built from
