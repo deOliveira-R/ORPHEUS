@@ -14,8 +14,9 @@ the numbers are instance counts from one build of
 
 | decision | status |
 |---|---|
-| Fix the prose-symbol leak (**#68**) **FIRST**, before the rest | ✅ APPROVED — next work item |
-| `layer` as a node property (§5.4 / §6.1) | ✅ **APPROVED** |
+| ⭐ **The nexus RESHAPE goes FIRST** — before #68 and before `layer` (§6ter) | ✅ **APPROVED 2026-08-16**, supersedes the ordering below |
+| Fix the prose-symbol leak (**#68**) | ✅ approved — **folded into Track 0.4**, no longer standalone |
+| `layer` as a node property (§5.4 / §6.1) | ✅ **APPROVED** — now behind the reshape |
 | §5.1 retype test→code `calls` as `exercises` | ✅ **ACCEPTED** |
 | §5.3 observed state is a **DATABASE**, not a JSON blob | ✅ **CHOSEN** — only the CI story is deferred |
 | §5.2 halo demotion | *proposed*, not yet ruled on |
@@ -26,21 +27,32 @@ deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
 `plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
 the next reader nothing about how they happen.
 
-### ▶ RESUMES AT: the equation namespace holds only real equations (nexus #68)
+### ▶ RESUMES AT: Track 0.2 — a call edge is never fabricated (§6ter)
 
-**Goal (outcome, not mechanism).** `math:equation:*` contains the 903 declared
-equations and nothing else, so any count, traversal or coverage denominator over
-that namespace is trustworthy.
+⚠ **The sequencing CHANGED 2026-08-16 and this pointer supersedes the earlier
+one.** #68 was first; the **nexus reshape is now first** (user: *"better to do
+this first so we can build on top of better foundations"*). #68 has been folded
+into **Track 0.4**, because it and the newline-bearing ids are the same defect at
+the same producer. **Read §6ter for the full order and the critique of the
+order the review proposed** — I do not accept that order and the reasons are
+measured.
 
-**`[M]` unstarted** — verify before designing. Work is in
-`~/git/sphinxcontrib-nexus` (ours; a folder change, not a hand-off), on branch
-`feat/config-and-ontology`, which already carries the config/ontology layer and
-the #56 runtime fix.
+**Track 0.1 is ✅ LANDED** (nexus `37bad88`, bit-identical, 195 refusals).
 
-⚠ **Read §3.2 before designing, including its ⛔.** My first stated cause was
-wrong (I blamed `default_role`, which is not set) and the real one — inline
-`:math:` minted as an equation *label* — implies a different fix in a different
-extractor. The issue body carries the corrected taxonomy.
+**Next is Track 0.2.** *Goal (outcome):* the graph never claims a call that the
+source does not make. `ast_analyzer._unparse_attribute` fabricates `calls` edges
+— `get_thing().method()` mints an edge to a bare `method` — and it fails in the
+false-**alive** direction, so it inflates `impact`/`retest` and *rescues*
+genuinely dead functions from `dead_functions`. `[M]` 8 of 13 incoming `calls`
+on one function in nexus's own graph are fabricated. Reported as a one-line fix;
+**verify that before believing it**, and check what the suite pins — I have not
+re-measured this one myself.
+
+Then 0.3 (apply `py_type_map` on the xref path, 2 lines), 0.4 (id
+normalisation = #68 + the 13 newline ids), then Track 1 in the stated order.
+
+Work is in `~/git/sphinxcontrib-nexus` (ours; a folder change, not a hand-off),
+branch `feat/config-and-ontology`.
 
 ⚠ `[M]` **run the nexus suite with the NEXUS venv**, not ORPHEUS's: the latter
 lacks the optional `sphinx-proof` and `test_proof_relations.py` importorskips at
@@ -680,6 +692,114 @@ otherwise. Either wire `check_edge` into `_finalize_graph` **and** retire
 performs this join"* — measured over the three **runtime** backends;
 `query.py:757 node_at` is a fourth. `plan-authoring` §2's quantifier defect, in a
 docstring, by its own scribe.
+
+## 6ter. ▶ THE RESHAPE IS THE FIRST TASK — ordering, critiqued
+
+**User ruling 2026-08-16:** the nexus reshape goes **before** #68 and before the
+`layer` property — *"better to do this first so we can build on top of better
+foundations."* Everything in §5 now sits behind it.
+
+The review proposed: `NodeId` → `ProjectView` → `PositionIndex` → `Evidence` →
+`Diagnostic` → wire `Ontology`. I do **not** accept that order. Three objections,
+each measured.
+
+**(a) It bundles a 2-line correctness fix into a 68-site refactor.** R2's
+*defect* is one-sided normalisation — the `py_type_map` at
+`ast_analyzer.py:920` is applied on the AST path (`:947`) and not on the Sphinx
+xref path (`extractors.py:402`). Applying it on both is **two lines** and fixes
+the fragmentation today. Minting a `NodeId` *type* is the reshape that prevents
+recurrence. They are separable, and the fix must not wait for the refactor.
+
+**(b) `NodeId` first maximises time on unstable ground.** `[M]` 68 id-construction
+sites across 10 modules — the largest blast radius of the five — plus heavy
+test-literal pinning (`test_dead_references.py` 111, `test_ast_analyzer.py` 67,
+… and 17 in ORPHEUS itself). It also changes the graph's *identity space*, which
+every stored sidecar and every committed expectation rests on. Doing it first
+means the other four are built on a foundation that is still moving.
+⟹ when it does happen, scope it **producers-first** (the ~45 minting sites in
+`extractors.py` + `ast_analyzer.py`), because normalising at the producer is what
+makes the defect unspellable; consumer adoption can follow incrementally.
+
+**(c) `Ontology` last is backwards — it is a foundation, not a capstone.** It is
+the *admission authority*: it decides which edges may exist. Landing it after the
+extractions means each is built without it and may then be rejected by it. It is
+also the natural home of the vocabulary the review says is missing (`NodeId`'s
+valid type set, `implements`'s domain), so `NodeId` and `Ontology` are the **same
+layer**, not opposite ends. ✅ Partly done already — see below.
+
+### The order I would run instead
+
+**Track 0 — correctness now, prejudging no reshape.** Each is small, local, and
+independently valuable:
+
+| # | item | size | done when |
+|---|---|---|---|
+| 0.1 | ✅ **Ontology wired** — `_infer_implements` consults it | LANDED | `merge.py` holds no copy of the rule |
+| 0.2 | `_unparse_attribute` fabricating `calls` edges (F1) | 1 line | `get_thing().method()` mints no edge |
+| 0.3 | Apply `py_type_map` on the xref path (R2's fix half) | 2 lines | `py:func`/`py:meth`/`py:attr` id counts → 0 |
+| 0.4 | **Normalise raw text out of ids** — covers **#68** *and* R3 | small | 0 ids containing whitespace; `math:equation:*` holds only declared labels |
+
+⭐ **0.4 absorbs #68.** The prose leak (inline math minted as an equation
+*label*) and the 13 newline-bearing ids are the **same defect**: an id built from
+raw text with no normalisation. They were filed separately because I found them
+separately; they are one fix at one producer.
+
+**Track 1 — the reshape, reordered by leverage and stability:**
+
+1. **`ProjectView`** (R1) — graph + working tree as one object. Highest
+   *correctness* leverage of the five: staleness needs both states, and with the
+   tree as an optional kwarg it is something every tool author must remember, so
+   it landed at **1 of 40**. Self-contained; touches no ids.
+   *Done when:* staleness is applied by construction, and the count is 40 of 40.
+2. **`PositionIndex`** (F2) — collapses the three disagreeing (file, line) → node
+   implementations into one. **A prerequisite for the test-state work**, which
+   needs exactly this binder; adding it as a fourth consumer of a three-way
+   disagreement makes it four-way.
+   *Done when:* one implementation, and the 4 probed positions agree.
+3. **`NodeId`** — producers first, per (b).
+   *Done when:* an id cannot be constructed except through the type.
+4. **`Evidence` / `Diagnostic`** — the diagnostics family, once the vocabulary
+   exists. `[M]` 285 lines of adapter across two surfaces, with each diagnostic's
+   contract written twice in different words (`native_place`'s ranking rule is in
+   `query.py` and **absent** from the MCP docstring an agent actually reads).
+   *Done when:* a new diagnostic is one object, registered once.
+
+⚠ **What I have NOT verified** and a fresh session must, before building any of
+Track 1: that these five objects are the right five. They come from one review.
+The two I re-measured myself (R1's 56/10 split, R2's one-sided map) are solid;
+`Evidence` and `Diagnostic` I have only relayed.
+
+### ✅ 0.1 LANDED — the ontology has a production consumer
+
+`_infer_implements` (`merge.py`) now asks the ontology what it is allowed to
+infer, instead of restating it. **Three duplicates removed**, all of which were
+copies of `[edge.implements]`:
+
+| was hardcoded in `merge.py` | now read from the declaration |
+|---|---|
+| `code_types = {"function", "method", "class"}` | `spec.domain` |
+| `and not tgt_attrs.get("in_test_file")` | `forbid_source_attr` via `check_edge` |
+| `confidence=0.7` | `spec.default_confidence` |
+
+The check sits **at the producer**, not as a post-hoc validation pass: an edge
+that should not exist must never be created, and the ontology's `implements`
+enforcement is `warn`, so a validate-after design would have logged the violation
+and shipped the edge anyway — strictly worse than the hardcoded filter it
+replaces. No declaration ⟹ no inference. Refusals are counted and logged, because
+a filter that drops silently is indistinguishable from one that never fires
+([[lessons-L56]]).
+
+`[M]` **Verified two ways, because a bit-identical diff is compatible with "the
+check works" AND with "the check is inert"** (`vv-principles` #19):
+- differential rebuild of the whole ORPHEUS graph — **24307 nodes symdiff 0,
+  215226 edges equal, 13968 `implements` equal**, confidence values `{0.7}`
+  unchanged, 0 Sphinx warnings;
+- the guard is **load-bearing** — re-running the inference on the stripped
+  production graph reports **195 candidates REFUSED** and re-creates exactly
+  13968 edges. A direct probe refuses a test-file source *and* an out-of-domain
+  source while admitting a production class.
+
+Landed nexus `37bad88`. `[M]` 739 passed / 1 skipped.
 
 ## 7. Open questions
 
