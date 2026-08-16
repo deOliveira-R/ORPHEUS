@@ -595,6 +595,92 @@ Consequences for the design, to be held against every proposal here:
 
 ---
 
+## 6bis. Nexus's own architecture — adversarial review, 2026-08-16
+
+Full report: `scratch/nexus_architecture_review.md` (untracked working space —
+the verified essentials are distilled here so they survive it).
+
+**Method note, because it changed the answer.** The first pass was briefed with
+*"say what is well-factored"* in the same breath as the findings, and returned
+*"sound layering, loose vocabulary, do NOT restructure"*. That verdict was then
+(by me) fed back as a **constraint** on the adversarial pass — a Phase-2
+conclusion bounding Phase 1. Both errors corrected mid-flight; with the
+constraint lifted, the answer changed. See
+[[feedback-adversarial-phase-before-balance]].
+
+### Verified independently (I re-measured these; they are not relayed on trust)
+
+**R1 — `GraphQuery` has TWO states, and one is an optional keyword argument.**
+`[M]` by AST over `query.py`: **56 methods, 10 take a working-tree argument**
+(`node_at`, `detect_changes`, `rename`, `verification_audit`, `staleness`,
+`retest`, `session_briefing`, + 3 private). So it is not "a namespace over
+`self._g`" — it is a procedural module over *two* states, one held and one
+threaded. That is the user's *"data and functions that share a context,
+un-consolidated"* case exactly.
+
+⭐ **The causal payoff:** a staleness check needs *both* states. With the tree as
+an optional kwarg, applying it is something every tool author must remember — so
+it landed at **1 of 40** tools. With graph+tree as one object it is paid at
+construction and becomes unforgettable. `Workspace`, `GitProvenance` and
+`stamp_provenance` already exist, unassembled.
+
+**R2 — the node id is a Sphinx *artefact* key, not a symbol identity.** `[M]` on
+ORPHEUS's graph: ids carrying a Sphinx **role** spelling rather than the
+canonical **objtype** — `py:func` 206, `std:doc` 94, `py:property` 68, `py:meth`
+23, `py:attr` 22, `py:obj` 8. `[M]` **527 names are carried by more than one node
+id**; `ValueError` exists under four (`class` / `exc` / `exception` /
+`function`).
+
+`[M]` **Cause is exactly one-sided, and it is two lines.** The role→objtype map
+lives at `ast_analyzer.py:920` (`{"func": "function", "meth": "method", …}`) and
+is applied on the **AST** minting path at `:947`. The **Sphinx xref** path at
+`extractors.py:402-404` puts the raw `reftype` straight into the id:
+`_node_id(refdomain or "std", reftype or "any", reftarget)`. One normalisation,
+two doors, applied at one.
+
+⟹ This is the same root as **§3.1's** type-prefix fragmentation and **§5.1's**
+double-duty principle: the id carries identity AND type, and the type has two
+spellings.
+
+**R3 — ids are built from raw text with no normalisation at all.** `[M]` 13 node
+ids contain a **literal newline**, e.g.
+`math:equation:(P_1 P_2) x =\nP_1(P_2 x)`. All are `math:equation:` — i.e. the
+same defect as **#68**, wearing a different symptom. An id is a key; keys are
+normalised at the producer (Pattern 7) or every consumer pays.
+
+### The revised verdict
+
+*File* rearrangement stays rejected — `[M]` the layering has no inversions, and a
+seven-file split of `query.py` adds seven concepts and removes none. **Object
+extraction is not the same question**, and it survives: `NodeId`, `ProjectView`,
+`PositionIndex`, `Evidence`, `Diagnostic` — five objects latent in
+`GraphQuery` / `workspace.py` / `server.py` / `runtime.py`, all already
+half-built, with the concept count going **down**.
+
+⚠ **Two live correctness defects, both invisible to the suite** (`[M]` 739
+passed / 1 skipped at review time):
+- `ast_analyzer._unparse_attribute` fabricates `calls` edges —
+  `get_thing().method()` mints an edge to a bare `method`. `[M]` 8 of 13
+  incoming `calls` on one function in nexus's own graph are fabricated. Fails in
+  the false-**alive** direction, so it inflates `impact`/`retest` and *rescues*
+  dead functions from `dead_functions`. One-line fix.
+- Three implementations of "(file, line) → node" disagreeing on 3 of 4 probed
+  positions (`query.node_at`, `runtime.build_node_index`+`resolve_node`,
+  `brief._in_file_node_ids`).
+
+⛔ **And one thing I shipped this week that must not stay as-is:** `ontology.py`
+has `[M]` **zero production consumers** (only its own test imports it), while
+`merge.py:248` still ships the hardcoded `not tgt_attrs.get("in_test_file")` rule
+its docstring claims was dissolved into a declared constraint. I took the
+concept count from 2 to **3** and wrote a present-tense-false docstring saying
+otherwise. Either wire `check_edge` into `_finalize_graph` **and** retire
+`merge.py:248` in one commit, or hold the module.
+
+⚠ Likewise `NodeBinder`'s docstring (mine, this week) says *"**Every** backend
+performs this join"* — measured over the three **runtime** backends;
+`query.py:757 node_at` is a fourth. `plan-authoring` §2's quantifier defect, in a
+docstring, by its own scribe.
+
 ## 7. Open questions
 
 **Answered 2026-08-16:** §5.3's shape is DEFERRED; §5.4 is APPROVED; §3.2 is
