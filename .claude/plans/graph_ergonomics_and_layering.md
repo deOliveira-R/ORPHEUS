@@ -801,6 +801,51 @@ check works" AND with "the check is inert"** (`vv-principles` #19):
 
 Landed nexus `37bad88`. `[M]` 739 passed / 1 skipped.
 
+#### ⚠ …and the same defect one level down: the EXTENSION is still inert
+
+`[M]` 2026-08-16, prompted by the user asking why `ORPHEUS/.nexus/ontology.toml`
+does not exist.
+
+**It does not exist by design** — the ontology has two tiers: a **base**
+shipping inside the package (`sphinxcontrib/nexus/ontology.toml`, the 16 node /
+16 edge vocabulary) and an **optional project extension** at
+`<root>/.nexus/ontology.toml` (`PROJECT_ONTOLOGY`, `ontology.py:46`). ORPHEUS
+has declared nothing of its own yet, so it has only `config.toml`. Nothing is
+missing.
+
+But the question exposed that **the extension mechanism has no reachable
+production effect**, which is the defect I had just "fixed" one level up:
+
+1. `[M]` the only production call was `merge.py:219 Ontology.load()` — **no
+   argument**, which the method documents as *"loads the base alone"*. Every
+   call passing a root was in the test. Fixed at `c6c51dc` by threading
+   `settings.project.root`.
+2. ⚠ **That fix is behaviourally inert today, and I am not claiming otherwise.**
+   `[M]` `_guard_redefinition` (`ontology.py:281`) enforces that an extension
+   *"may add, never silently redefine a base entry"*, and `implements` is
+   base-declared — so both loads yield an identical spec. The threading is
+   correct (a consumer should hold the full vocabulary, and it would have been a
+   live silent bug the moment this pass consulted an addable type), but the
+   extension tier still has **zero** production consumers: it can only ADD
+   types, and no production path consults an added type.
+
+⟹ **The extension gets its first real consumer from the plan itself**, which is
+the answer to *"is it part of what we execute?"* — **yes**, at these points:
+
+| plan item | what ORPHEUS's `.nexus/ontology.toml` would declare |
+|---|---|
+| §5.1 `exercises` | the new test→code edge — `domain`, `range`, antisymmetry, `sources` (static AST vs runtime coverage). ⭐ `[M]` `tests/test_ontology.py:145` already uses `exercises` as its worked extension example |
+| §5.4 `layer` | the layer vocabulary and which node types carry which value |
+| §6ter Track 1 `NodeId` | the valid type set an id may be built from — the review's "missing vocabulary layer" is ontology data |
+| nexus #63 | ORPHEUS's `err:ERR-NNN` nodes and a real `catches` edge — project-specific, so extension-tier by definition |
+
+⚠ Which raises a design question to settle **before** writing one: is
+`exercises` a *base* edge (nexus-wide — every project has tests) or a *project*
+extension? Base, most likely — and then the `_guard_redefinition` rule means
+ORPHEUS must not declare it. The extension tier is for genuinely
+project-specific vocabulary (`err:`, V&V levels), not for anything nexus should
+know about all projects.
+
 ## 7. Open questions
 
 **Answered 2026-08-16:** §5.3's shape is DEFERRED; §5.4 is APPROVED; §3.2 is
