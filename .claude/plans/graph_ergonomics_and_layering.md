@@ -738,6 +738,7 @@ independently valuable:
 | 0.2 | `_unparse_attribute` fabricating `calls` edges (F1) | 1 line | `get_thing().method()` mints no edge |
 | 0.3 | Apply `py_type_map` on the xref path (R2's fix half) | 2 lines | `py:func`/`py:meth`/`py:attr` id counts → 0 |
 | 0.4 | **Normalise raw text out of ids** — covers **#68** *and* R3 | small | 0 ids containing whitespace; `math:equation:*` holds only declared labels |
+| 0.5 | **`extend` verb for the ontology** (**#69**) — a project may WIDEN a base edge's domain/range, never narrow it | small | a project extension can add `equation` to `implements`.range; narrowing still raises; monotonicity asserted |
 
 ⭐ **0.4 absorbs #68.** The prose leak (inline math minted as an equation
 *label*) and the 13 newline-bearing ids are the **same defect**: an id built from
@@ -764,10 +765,23 @@ separately; they are one fix at one producer.
    `query.py` and **absent** from the MCP docstring an agent actually reads).
    *Done when:* a new diagnostic is one object, registered once.
 
-⚠ **What I have NOT verified** and a fresh session must, before building any of
-Track 1: that these five objects are the right five. They come from one review.
-The two I re-measured myself (R1's 56/10 split, R2's one-sided map) are solid;
-`Evidence` and `Diagnostic` I have only relayed.
+⚠⚠ **GATE ON TRACK 1 — evidence status per object.** These five come from ONE
+review. Two I re-measured myself; three I have only relayed, and a relayed
+measurement travels with the reviewer's authority and none of its fixture
+(`plan-authoring` §4). **Do not design an object marked ⬜ until its own
+measurement is reproduced.**
+
+| object | evidence | status |
+|---|---|---|
+| `ProjectView` (R1) | `[M]` mine, by AST: 56 methods / 10 take a working-tree arg | ✅ verified |
+| `NodeId` (R2) | `[M]` mine: `py:func` 206 / `std:doc` 94 / 527 duplicated names; one-sided map at `ast_analyzer.py:920`+`:947` vs `extractors.py:402` | ✅ verified |
+| `PositionIndex` (F2) | relayed: 3 implementations disagreeing on 3 of 4 probed positions | ⬜ **reproduce the 4 probes first** |
+| `Evidence` | relayed only | ⬜ **re-derive** |
+| `Diagnostic` | relayed: 285 lines of adapter, contract written twice per diagnostic (docstring similarity 0.05–0.67) | ⬜ **re-derive** |
+
+The same applies to Track 0.2 (`_unparse_attribute`, "8 of 13 fabricated",
+reported as a one-line fix) — **relayed, not reproduced.** It is the next work
+item, so reproducing it is the first thing that happens, not an optional check.
 
 ### ✅ 0.1 LANDED — the ontology has a production consumer
 
@@ -920,8 +934,14 @@ up all range checking.
 ⟹ **The mechanism needs a third verb.** Today: `add` (new name) and `redefine`
 (refused). It needs **extend** — a project may *widen* a base edge's
 `domain`/`range` with its own node types, never narrow it or change its meaning.
-That is monotone, so it cannot invalidate anything the base promised, and it is
-exactly what a two-tier vocabulary requires.
+Widening is **monotone**: anything the base admitted it still admits, so no
+consumer's expectation can be invalidated — which is why it is safe where
+redefinition is not, and is the property to assert in a test
+(`base.admits_target(t) ⟹ extended.admits_target(t)`, ∀ t).
+
+✅ **FILED as nexus #69** and approved for implementation (user, 2026-08-16).
+Scope is the **mechanism only** — the vocabulary split itself is larger and
+blocked on (a).
 
 #### Proposed base (nexus) — *not yet ratified*
 
