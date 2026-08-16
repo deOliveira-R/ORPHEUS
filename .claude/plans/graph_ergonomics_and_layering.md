@@ -70,9 +70,35 @@ Two commits on `feat/config-and-ontology`, both mutation-verified per arm:
 the 0.4/0.6 baseline, so it is content-neutral by measurement, not by
 argument. Sphinx clean under `-W`.
 
-⚠ **The running MCP server predates this and must be reconnected** before
-its answers carry the new staleness flags (it loaded `server.py` at
-startup; `use_workspace` cannot reload code).
+✅ **VERIFIED ON THE LIVE MCP SERVER 2026-08-16, both directions.** A green
+reading could not have discriminated a working pass from a dead one
+(vv #19), so a positive control was forced. Same server, same edit, the
+only variable being the age of the query object:
+
+| step | result |
+|---|---|
+| `session_briefing`, clean tree | no flags — and this call CACHES the changed-set |
+| edit `orpheus/numerics/measure.py`, then `query("DiscreteMeasure")` | ⛔ **no `stale` key** on any of 3 |
+| `touch .nexus/graph.db` (content unchanged → new `GraphQuery`), same edit | ✅ all 3 flagged, naming commit `7593db5e` |
+| restore the file, `touch` again | ✅ flags gone |
+
+⟹ the pass is alive and per-file; what is frozen is the **changed-set**.
+`files_changed_since_build` is cached per query object, and a query object
+outlives working-tree edits — so in a live session the set freezes at the
+FIRST tool call. **Filed as nexus #70**, with the measured cost of the
+obvious fix (`changed_files` is `[M]` 25.1 ms on ORPHEUS, 1.00 s across a
+40-call session if run unconditionally).
+
+⚠ **NOT a regression** — the retired `_changed_cache` key was
+`(root, db_mtime, commit)`, which does not include working-tree state
+either. What changed is reach: 1 tool → 40. ⚠ And note the existing gates
+**cannot** see it: every one builds a fresh query after the edit, which is
+exactly the configuration that hides it. Same shape as the byte-identity
+blindness above, one layer out — [[lessons-L58]] earned its keep twice in
+one step.
+
+⚠ **A reconnect is needed after ANY nexus commit** — the server serves the
+code it imported at startup, and `use_workspace` does not re-import.
 
 ⭐ **Two things this step got wrong first, both caught by instruments and
 both worth carrying:**
