@@ -16,8 +16,15 @@ the numbers are instance counts from one build of
 |---|---|
 | Fix the prose-symbol leak (**#68**) **FIRST**, before the rest | ✅ APPROVED — next work item |
 | `layer` as a node property (§5.4 / §6.1) | ✅ **APPROVED** |
-| §5.3 observed-state store: DB vs JSON, `ATTACH`, CI | ⏸ **DEFERRED** — "think about it when it becomes a concern". Do NOT design it now; the measurement stands, the decision does not. |
-| §5.1 `exercises`, §5.2 halo demotion | *proposed*, not yet ruled on |
+| §5.1 retype test→code `calls` as `exercises` | ✅ **ACCEPTED** |
+| §5.3 observed state is a **DATABASE**, not a JSON blob | ✅ **CHOSEN** — only the CI story is deferred |
+| §5.2 halo demotion | *proposed*, not yet ruled on |
+
+⚠ I recorded the first two of these wrongly on 2026-08-16 and the user
+corrected both: `exercises` had been accepted ("a good suggestion"), and §5.3's
+deferral was only ever about **CI**, not about DB-vs-JSON. Kept visible per
+`plan-authoring` §3 — a plan that silently repairs its own misreadings teaches
+the next reader nothing about how they happen.
 
 ### ▶ RESUMES AT: the equation namespace holds only real equations (nexus #68)
 
@@ -289,10 +296,21 @@ already has that pattern — `runtime.py`'s own docstring:
 
 ## 5. The proposals
 
-### 5.1 Retype test→code `calls` as `exercises` — *proposed*
+### 5.1 Retype test→code `calls` as `exercises` — ✅ **ACCEPTED 2026-08-16**
+
+> **User:** *"We do need a type that differentiates code→code from code→test."*
 
 **Goal.** `calls` means one thing (code→code architecture), and "what exercises
 this?" is a different question with a different answer.
+
+⚠ **Direction, because getting it backwards is a real bug and the phrasing is
+easy to flip.** `[M]` the edge runs **test → code**: source is the test function,
+target is the production symbol it calls (`calls` dominant pair `test->code`,
+27,647 edges). The existing `tests` edge type already runs the same way
+(`test->docs`, 2,745), so test→X is the established convention. The relation
+reads *"this test exercises that symbol"*, and its **antisymmetry is the whole
+point** — that is what `calls` reachability lacks (#60) and what a dependence
+cone needs.
 
 **Why.** `[M]` §2.3 — `calls` is the only edge type that is majority
 cross-layer, and its cross half is exactly test→code (27,647 edges). Fixing it
@@ -329,13 +347,63 @@ failed to bind. Those want **repair** (§5.1's double-duty principle), not
 demotion. Likely also unblocks **#58** (`bridges`/`communities` not completing at
 215k edges) — that is a *compute* blow-up, and this is the input-size lever.
 
-### 5.3 Observed state lives in a store, not in the graph — ⏸ **DEFERRED 2026-08-16**
+### 5.3 Observed state is a DATABASE — ✅ **CHOSEN 2026-08-16**; only CI is deferred
 
-> **User ruling: "we will think about CI and ATTACH when it becomes a concern."**
-> The §4 lifetime argument stands and is not in question — observed state does
-> not belong in a rebuilt file. What is deferred is the *shape*: DB-vs-JSON,
-> `ATTACH`, and the CI/visual consumer. Do not design it now. The measurements
-> below are kept because they are cheap to lose and expensive to re-derive.
+> **User:** *"If we chose DB, we can use ATTACH when we're developing (like now).
+> With JSON we don't seem to gain any benefit. So even if … the CI has partial
+> functionality compared to when we're developing and have both DBs, it at least
+> provides more benefits when we're developing. So we don't seem to have lost
+> anything by choosing DB."*
+
+**The argument, and it is a dominance argument rather than a trade-off.** During
+development both files sit on one filesystem, so `ATTACH` is available and the
+DB strictly beats the blob (joins, indices, partial reads). In CI the join may
+not be available — but a JSON blob would not have offered it *either*. There is
+no configuration in which JSON wins, so the choice costs nothing to make now and
+the CI story can be solved later with more information.
+
+⏸ **DEFERRED, specifically:** how CI gets at the store when the two files are not
+co-located (artifact fetch, export view, a merge step, or simply doing without
+the join). Do not design that now.
+
+**What is decided:**
+- observed state (runtime overlays **and** test status) lives in a SQLite DB;
+- `ATTACH` is the development-time join mechanism `[M]` (verified this session:
+  cross-file join works, default limit 10 `SQLITE_MAX_ATTACHED`, sqlite 3.51.3);
+- `RuntimeRun` becomes a **query interface over the store**, not the store
+  itself (user, 2026-08-16) — today it is a Python object serialised wholesale,
+  so a CI pane wanting 30 rows loads a ~900 kB blob.
+
+**Obligations this takes on**, stated so they are not rediscovered as surprises:
+a schema and its migrations (the blob had none), and `ATTACH`'s same-filesystem
+constraint (the deferred CI question).
+
+### 5.3a ⛔ The store is in the WRONG PLACE today, and choosing a DB is when to fix it
+
+`[M]` 2026-08-16 — the trace sidecars live at
+`docs/_build/html/graph/traces/*.json`. That path is **inside `docs/_build/`**,
+i.e. the Sphinx **output** directory, for data whose entire design rationale is
+*"survives a rebuild"*. `.gitignore:7` ignores `docs/_build/`, which is correct
+for derived artefacts and exactly wrong for observed ones.
+
+⚠ **This is not hypothetical — it nearly happened in the session that found it.**
+When `[graph].output` moved from `_nexus/` to `graph/`, the four existing traces
+(a 251-solve coverage run and three cProfile runs) sat under the old directory
+and would have been destroyed by the `rm -rf docs/_build/html/_nexus` that
+cleaned it up. They survived only because they were copied out by hand first.
+
+⟹ The observed store belongs **outside the build output**. `.nexus/` is the
+natural home — it is the project-owned, non-derived directory the config and
+ontology already live in — with the DB itself gitignored (`.nexus/*.db`), since
+it is machine-local and potentially large. A tracked directory holding an
+untracked file is fine and is the normal shape for this.
+
+**Open (first design question when this starts):** one DB for all observed
+families with a `kind` column, or one per species (runtime / test-state)? The
+`ATTACH` limit of 10 argues for few; the two consumers differ (runtime → Sphinx
+docs, test state → CI visualization) which argues for two. *Leaning one:*
+`RuntimeRun` is already documented as *"a bag of orthogonal overlays, not a
+tagged union"*, and test status is a fifth family in that bag.
 
 **Goal.** Test status (green / red + the error / untested) and runtime overlays
 survive a `sphinx-build`, and are queryable *with* the graph.
@@ -471,6 +539,9 @@ Consequences for the design, to be held against every proposal here:
 **Answered 2026-08-16:** §5.3's shape is DEFERRED; §5.4 is APPROVED; §3.2 is
 filed as **#68** and goes FIRST.
 
+**Answered 2026-08-16 (second pass):** §5.1 is ACCEPTED; §5.3's store is a
+**DB** — only the CI story is deferred.
+
 Still open:
 
 1. **§5.1 scope** — retype `calls`→`exercises` only for test→code, or take the
@@ -507,6 +578,8 @@ Still open:
 | 2026-08-16 | Separate the duties, wherever a node or edge does two jobs | §5.1 ⭐ |
 | 2026-08-16 | 83% of the prose leak is inline math minted as an equation LABEL — **not** the py-domain cause I first claimed | §3.2 ⛔, #68 |
 | 2026-08-16 | The phantoms pollute the namespace `verification_coverage` counts over | §3.2 ⚠ |
+| 2026-08-16 | DB-vs-JSON is a **dominance** argument, not a trade-off — JSON wins in no configuration | §5.3 |
+| 2026-08-16 | The observed store sits INSIDE the build output it was designed to outlive | §5.3a ⛔ |
 
 ### Surprises this conversation produced (`plan-authoring` §-loop)
 
