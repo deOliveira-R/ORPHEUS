@@ -632,3 +632,380 @@ quadrature order and `c` all move the sign at fixed `ndim`, and near-critical `c
 removes the effect entirely. Also worth the habit: when a docstring names a *theorem*
 ("the regular splitting", "`ρ_GS ≈ ρ_J²`"), that word is a checkable claim, and here both
 were measurably false. Full record: `scratch/issue_341_gs_jacobi_mechanism.md`.
+
+---
+
+## L20: A RESIDUAL cannot gate an EIGENVALUE contract — measure the TRANSFER GAIN before proposing any residual threshold, and never approximate a signed adjoint projection
+
+#340 N5 (2026-08-10): does an outer certificate `defect = ‖Aψ − Fφ(ψ)/k‖/‖Fφ/k‖` (the
+production within-group `_certify_within_group_exit` lifted one level) discriminate a
+*corrupting* truncated inner from a *benign* one? **REFUTED**, on 38 solves / 8 geometries /
+3 mixtures. Five transferable points.
+
+1. ⭐⭐ **The one number that decides any "can statistic X gate contract Y?" question is the
+   TRANSFER GAIN `|Δy| / X`, measured across configurations — compute it FIRST, before any
+   threshold hunt.** A threshold on `X` bounds `|Δy|` only through that gain, so if the gain
+   is unbounded no constant exists and the tuning exercise is void. `[M]` `|Δk|/defect` spans
+   `1.152e-05 … 1.340` = **1.16e+05×** ⟹ populations overlap **634×**; a zero-false-alarm
+   threshold misses **15 of 16** corrupting cases, and the whole trade-off curve is
+   unusable (100 % sensitivity costs a **59 %** false-alarm rate). This is vv **Mode 12 read
+   in the MIRROR**: the usual failure is a gate BLIND to the error class; here the gate is
+   SIGHTED on a class the contract is blind to. `‖r‖` is up to **99.995 %** reflective-trace
+   rows (`bnd_frac`), and a reflective inflow-trace defect in a zero-leakage system carries
+   no net current ⟹ `k = production/absorption` cannot see it by conservation. Two
+   functionals, different invariance groups, neither containing the other ⟹ simultaneously
+   OVER- and UNDER-sensitive (a truncated row read a *lower* defect than the fully-converged
+   one). The cure is to project onto the functional the contract reads: the angle+volume
+   integrated per-group rate defect `R_g = Σ_n w_n Σ_i V_i r` cut the overlap 634× → **4.64×**
+   (14/16 caught at 2/22 FA) — good enough to REPORT as a number, still not a GATE.
+2. ⭐ **A SIGNED projection against an approximate weight is WORSE than no weight** — it
+   manufactures accidental near-cancellations, i.e. false NEGATIVES. First-order perturbation
+   theory (`δk/k = ⟨ψ†,r⟩/⟨ψ†,Fφ/k⟩`) is the correct statistic, but with a spatially-FLAT 0-D
+   adjoint it degraded the overlap 4.64× → **128.95×** and the gain spread to **2.27e+05×**
+   (one CORRUPT row collapsed 46×, gain 20.6). The weight was *verified* (`|k_pencil − k_inf|
+   = 0.00e+00`, the hand-built `A⁻¹F` pencil as its own positive control) — it was correct
+   for the WRONG PROBLEM. So: either pay for the real adjoint or use the unsigned norm; never
+   the cheap signed shortcut.
+3. **Answer the NULL case before the discrimination question, and separate the two levels'
+   slack with a two-legged tolerance sweep.** The certificate's "pass" value was **3.47e-07 =
+   3.47 × keff_tol** — not machine-zero. Sweeping `inner_tol` 1e-08→1e-14 at fixed outer moved
+   it **0.2 %**; sweeping the outer at fixed inner moved it **6 decades** (→3.79e-15). So it
+   was the OUTER's own increment-stop slack (L11), not a floor, and not the inner's. Without
+   both legs the 3.47e-07 reads as a structural floor and the whole study is mis-anchored.
+4. **When lifting a production certificate one level, the CONSTANT does not come with it —
+   and copying `record.binding_criterion.tolerance` silently picks the LOOSER criterion.** The
+   eigenvalue outer's binding criterion was `dphi` (tol `flux_tol`) in *every* solve measured,
+   never `dk`: `SAFETY × keff_tol = 1e-6` catches 8/16, `SAFETY × flux_tol = 1e-5` catches
+   **2/16**. A residual bar scaled by an INCREMENT tolerance is a category error twice over.
+5. ⭐ **Gate every verification fixture on the mixture's own consistency
+   `σ_t == σ_c + σ_f + Σ_to SigS[0][g,:]` — an inconsistent mixture makes two legitimate
+   references DISAGREE with no bug in either.** The brief's benign pole ("keff correct to
+   2.5e-11 vs `k_inf`") did not reproduce: `|k − k_inf| = 6.9e-02` (30 %). Cause: the fixture
+   wrote `sig_s` in `[to,from]` (its own `# 0 -> 1` comment says so, and `σ_c = σ_t −
+   s.sum(axis=0)` is the correct removal for that) while `make_mixture` reads
+   `SigS[g_from,g_to]` ⟹ `σ_t` off by **±0.12**. In a zero-leakage medium the transport
+   balance (removal `σ_t`) gives `0.23076923076923` and production/absorption gives
+   `0.30000000000000`; the SN reports the second, `solve_homogeneous_infinite` the first. Two
+   further poisons rode along: `φ₁ ≡ 0` (effectively **1-group**, vv anti-#3) and `c = 0.9`
+   giving `σ_c = −0.14`. One character (`sig_s=s.T`) repairs everything — and the repaired
+   fixture DOES exhibit the intended benign pole (`|Δk| = 1.10e-11`, 4/4 inners truncated at
+   200/200, `ρ ≈ 0.985`). **Never trust a brief's reference value on a hand-built mixture
+   until the consistency identity is printed.** Full record:
+   `scratch/n5_outer_certificate_measurement.md`.
+
+## L21: An ANGULAR-consistency claim is separated by `h → 0`, not by the physical parameter it is named after — and a "sweep the regime" design can self-destruct
+
+#319 / #235 flux-dip discriminator, 2026-08-12, 251 solves all `converged` (record:
+`scratch/q68_flux_dip_discriminator.md`). Six transferable points.
+
+1. ⭐⭐ **When a scheme claims consistency in the limit of ANOTHER discretisation
+   (angular consistency "in the diffusion limit"), the axis that separates it from a
+   rival is the OTHER mesh going to zero — because the claim is exact only there.**
+   `[M]` sweeping optical thickness at fixed cells-per-mfp separates the shipped
+   Morel–Montry τ from plain diamond **not at all**: the defect is constant to FOUR
+   figures over `Σ_t·R = 5…50` for BOTH (fitted decay rate `0.000`), on sphere and
+   cylinder. Refining `h` at fixed physics separates them **without bound**: the good
+   scheme's defect → 0 at exactly first order, the rival's SATURATES, ratio
+   `3.2× → 204×` over 2 → 64 cells/mfp. Ask "which limit is the claim exact in?" before
+   choosing the sweep axis.
+2. ⭐⭐ **A regime sweep at fixed `c` self-destructs: `Σ_a·R = Σ_t·R(1−c)` grows with it,
+   the interior becomes a source plateau, the current at the origin dies, and every
+   scheme agrees for a reason unrelated to the question.** `[M]` at `c=0.99,
+   Σ_t·R=100` three τ schemes agreed to **3 significant figures**; at 300 the metric
+   was `2e-10` for all. Reading that as "equal ⟹ hypothesis refuted" is the trap. Use
+   the ε-scaling `Σ_t=1/ε, Σ_a=ε, Q=ε` (holds `Σ_a·R = O(1)`) and **carry a
+   fixture-liveness column** (the smooth profile's own variation over the first few
+   mfp) that declares when the fixture stopped posing the question.
+3. ⭐ **Build a λ-CONTINUUM through the two candidates, not an A/B.** `τ(λ)=λτ_A+(1−λ)τ_B`
+   turns "A beats B" into "is A the MINIMISER?", and `λ_opt(h)` is then a falsifiable
+   curve. `[M]` sphere: `λ_opt → 0.993 / 1.001` (two instruments) as `h→0` ⟹ the shipped
+   τ is the optimum of the family, and any apparent optimum below 1 on a coarse mesh is
+   spatial. Cylinder: `λ_opt → 0.73`, and the two instruments DISAGREE ⟹ no optimum
+   claimed — the disagreement is itself the finding (two consistency conditions that
+   coincide on the sphere decouple there = a missing angular DOF).
+4. ⭐ **A theory scalar can be τ-loaded or τ-blind depending on which EDGES you feed it,
+   and the blind version is the natural one to write.** M&M's `β` (Eq. 6a) built from the
+   STANDARD weight-partition edges is τ-blind *by construction* (that substitution IS
+   their β=0 proof); built from the edges the CLOSURE implies
+   (`μ̃_{m+½}=(μ_m−(1−τ_m)μ̃_{m−½})/τ_m`, `μ̃_½=−1`) it is solve-free, exactly zero for the
+   shipped sphere τ at every order, and the measured anomaly is LINEAR in it. It also
+   catches `τ→1−τ` (the Mode-12 reflection the membership/fold-box/reversal gates are
+   exactly blind to). ⛔ But it is **identically zero for BOTH schemes on a folded
+   cylinder at every `n_φ`** — a spherical invariant does not transfer to a geometry
+   whose angular derivative is in a different variable.
+5. ⭐ **A literature diagnostic transfers between geometries only in its LEVEL-LOCAL
+   form.** M&M's effective starting cosine `(ψ_s−φ)/(3J)` reads a `+2.76` artefact on a
+   cylinder because the on-axis flux is azimuth-independent but genuinely POLAR-angle
+   dependent; rebuilt from the level's own zeroth/first azimuthal moments it reduces to
+   the published formula on the sphere bit-for-bit and gives sane cylinder values.
+   ⚠ It is an S2/S4-class instrument — it presumes ψ affine in the level's angle, so at
+   S8/S16 the genuine curvature dominates and it reports a fixed bias, not a defect.
+6. **The benefit of a low-order-consistency fix DECAYS WITH ANGULAR ORDER and can
+   invert.** `[M]` sphere `14× (S2) → 1.4× (S4) → 0.9× (S8, A worse) → 0.9× (S16)`,
+   tracking `β(B)` falling 5 orders; cylinder `5.4× (n_φ=8) → 2.3× (n_φ=16)`. So an
+   accuracy comparison run only at high N will report the principled scheme as a
+   regression — correctly, and for a reason that is not a bug.
+
+## L22: A frozen reference is stale by MAGNITUDE CLASS, and the nulp count tells you neither
+
+Triaging 9 "bit-identity" reds (2026-08-12, task 51: 5 Cartesian LS snapshot rows, 1 sphere
+DD gate, 3 affine-carve sha256 arms) — all 9 were stale references, none a regression, in
+two magnitude classes that the failure messages could not distinguish.
+
+1. ⭐⭐ **A nulp count is uninterpretable in BOTH directions — always report
+   `max|a−b| / max|b|` FIRST.** The received warning is "huge nulp near zero is nothing".
+   The dual bites just as hard: `[M]` `1.04e+15` nulp here meant the values differ by
+   **8 %** (`rel 4.3e-02 … 8.9e-02`, 216/216 elements), while the sphere's
+   `array_equal → False` on two arrays that PRINT identically was **1 ULP**
+   (`rel 2.06e-16`). One measurement re-sorted the whole investigation and took 5 minutes.
+2. ⭐⭐ **The quadrature-family split IS the discriminator, and the passing sibling is the
+   evidence.** `[M]` 5 of 5 failing rows used `level_symmetric`; 1 of 1 passing used
+   `lebedev`, bit-identical at 0/126 elements — through the *same* sweep, dispatch and
+   reflect helper. A shared-machinery bug cannot be family-selective, so that single green
+   row refuted "the sweep regressed" instantly. Ask what the green rows have in common
+   before bisecting anything.
+3. ⭐ **A gross move in the SCALAR flux refutes an ordering hypothesis on sight.**
+   `φ = Σ_n w_n ψ_n` is permutation-invariant to `N × ULP`; if φ moved 2.8–6.2 %, the rule's
+   VALUES moved, not its order. (And the ordering hypothesis was right about scale and
+   mechanism elsewhere: `[M]` the real 1-ULP mover permuted nothing — imposing a rule's
+   declared symmetry makes derived ordinates bit-copies of the seed octant, changing the
+   last bit of 16 of 24 nodes with the order untouched.)
+4. ⭐⭐ **A rule-tier TOLERANCE pin can never warn about a consumer-tier BIT-IDENTITY pin —
+   the gap is structural, not an oversight.** `[M]` `gauss_legendre` is gated against
+   numpy's `leggauss` at `< 8 * ulp` (correct: neither construction is "the" answer). A
+   3-ULP change is INSIDE that contract and OUTSIDE every downstream `array_equal` /
+   `sha256` consumer, simultaneously. The only instrument that closes it is a **byte-level
+   fingerprint beside the tolerance pin**, whose sole job is "the bytes moved — re-baseline
+   the consumers".
+5. ⭐⭐ **A declared re-baseline's blast radius is the set of FROZEN REFERENCES, not the set
+   of `.npz` FILES.** The causing commit said "those baselines are re-captured in the
+   following commit, not silenced" and that commit re-captured 22 snapshots — but missed a
+   `sha256` hex string living in a `.py` module and a hand-written arithmetic expression
+   living in a test body. Neither is a file a regeneration script can see. Enumerate frozen
+   references by KIND (stored array / digest literal / in-test formula) before declaring a
+   re-baseline done.
+6. ⭐ **A gate whose reference is a different FP ASSOCIATION of production's own expression
+   is a coin flip, not a contract.** `[M]` production computes `src + (A + B)` (the helper
+   returns `A+B`); the test writes `src + A + B` = `(src + A) + B`. Over the full
+   (5 cells × 8 ordinates × 2 groups) grid: **68 of 80 slots bit-identical, 12 differ, max
+   ULP = 1**. The passing sibling passes by ordinate-index luck. Re-baselining the number
+   leaves the fragility; the reference must be re-associated or the assertion demoted.
+7. ⚠ **Two probe-harness self-inflicted failures, both in the flattering direction.**
+   (a) `grep -cE "^FAILED"` reported `nfailed=0` at 9 of 9 commits including two already
+   measured RED — pytest's ANSI codes precede `FAILED` (`vv-principles` #17, third class).
+   Use `--color=no`. (b) `python -c` prepends **CWD** to `sys.path[0]`, AHEAD of
+   `PYTHONPATH`, so a worktree probe silently imported the MAIN tree and printed HEAD's
+   values for every commit. Run probe **script files** located outside the repo, and make
+   every probe print `module.__file__`.
+
+---
+
+## L23: A discrete operator's SINGULARITY is a two-question object — measure `dim ker`
+## against the count of the "benign" rows, and REFUSE the either/or the brief hands you
+
+#344 (2026-08-14, `A = L + C − S − B` on an all-reflective Cartesian box). The brief
+offered two exclusive readings — "benign tangential-slot bookkeeping" vs "real trace
+underdetermination". `[M]` **both are true and additive**, and on the fixture the whole
+campaign had measured (`level_symmetric`) the benign one contributes **exactly zero**.
+Six transferable points.
+
+1. ⭐⭐ **When a claim is "the null space IS class X", the decisive number is
+   `dim ker` MINUS `|X|`, and you must measure `|X|` — not assume it exists.** `[M]`
+   `dim ker A = 12` (d=2) / `138` (d=3) against **0** tangential `(face, ordinate)`
+   pairs, because a **level-symmetric rule places every cosine on a shell `|μ| ≥ μ₁ > 0`
+   and CANNOT produce `Ω·n = 0`**. The brief (and the issue) asserted the opposite family
+   property. One line — `min |omega_dot_n|` — refuted the framing before any solve.
+   `dim ker = |X| + R` held **exactly** on 9 (geometry × quadrature) rows, which is what
+   turned an either/or into a decomposition: `product(4,4)` is `R = 0`, `level_symmetric`
+   is `|X| = 0`, `lebedev(11)` and `product(8,8)` carry both.
+2. ⭐⭐ **A dense SVD through the production builders is CHEAP and settles rank questions
+   that ARPACK only bounds.** The prior record said "3 unit modes at d=2, ≥6 at d=3" from
+   `eigs(G, k=12)` — a **lower bound**, and the true answers are 12 and 138. `[M]` unit-vector
+   probing of the composite `to_flat()`: 1248 dof → 2.0 s build; 7392 dof → 30 s build +
+   124 s SVD (437 MB). Report the **singular-value GAP** (`σ[-13]/σ[-12] = 9.5e+12`) so the
+   rank threshold is visibly not arbitrary — a threshold anywhere in `[1e-13, 1e-2]` gave
+   the same rank.
+3. ⭐⭐ **Two blindness mechanisms that look alike are told apart by the METRIC, and that
+   difference decides the remedy.** A tangential slot carries `G = |Ω·n|·w_n` **exactly
+   `0.000000e+00`** ⟹ *no* G-weighted functional can ever see it ⟹ typing it away
+   (Pattern 4) is the only fix. The real-underdetermination rows carry `G ≥ 1.83e-01` and
+   the null shift measures **`3.97e-02` relative** in the G-norm ⟹ a gate CAN exist; typing
+   cannot remove a rank deficiency. Always ask "is this class in `ker G`, or merely in
+   `ker` of the functionals I happen to gate with?" — `vv-principles` #18 covers only the
+   first, and the second is the commoner case.
+4. ⭐ **A residual-based stop and a conservation projection are blind to `ker A` BY
+   CONSTRUCTION — so the only informative half of that measurement is the POSITIVE
+   CONTROL.** `A(ψ + αv) − q ≡ Aψ − q` is a theorem, not a finding. `[M]` both functionals
+   sat at `~1e-16` under an 11.26 % trace shift while a NON-null perturbation of the **same
+   flat 2-norm** moved them to `3.40e-01` and `1.16e-02` (15 and 14 orders). Budget the
+   probe for the control; the "unmoved" column is free.
+5. ⭐ **A converged solver's deviation from the analytic answer is in `ker A` EXACTLY —
+   test it with `‖Aδ‖/(‖A‖‖δ‖)`, no null basis needed.** Any fixed point of `ψ ← M⁻¹(q+Nψ)`
+   satisfies `Aψ = q`, so the difference of two fixed points is a null vector. `[M]`
+   `3.97e-14` on a solve reporting `converged=True` at 1614 sweeps — which also refutes
+   "it is just an undecayed `ρ = 0.985` mode". And **identify the recorded scalar before
+   trusting it**: the memo's `1.1258e-01` was `max|ψ/want − 1|` over ALL ordinates on the
+   face; the printed ordinate-0 row is `7.44e-02`. Both reproduce; only one is the quoted
+   number.
+6. ⭐⭐ **Fit the counting law, WRITE THE PREDICTION DOWN, then test it off-sample — and
+   swap the SCHEME to get the mechanism.** `[M]` d=2: `ng·N/4`, mesh- and
+   scattering-independent; d=3: `ng·(N/8)·(2Σnᵢ − 1)`, **3 of 3 on held-out points
+   including a change of quadrature order**. Preconditions measured, not assumed:
+   `d ≥ 2` (d=1 is `0` for both BCs and both families) and **≥ 2 reflective axis pairs**.
+   The mechanism was closed by one substitution: **`LinearDiscontinuous` on the identical
+   box is NON-singular** ⟹ it is the DD closure's `ψ_out = 2ψ̄ − ψ_in` involution, whose
+   zero-cell-average eigenspace has eigenvalue `−1` and is undamped by `Σ_t V ψ_c`
+   (L19-2's algebra, now confirmed end-to-end). Blast radius worth naming: `A` excludes
+   `F`, and the eigenvalue entry DEFAULTS to all-reflective, so **every `d ≥ 2` Cartesian
+   DD k-eigenvalue solve runs a singular within-group operator** (`cond = ∞`; a direct LU
+   is rank-deficient; `A[trace,trace]` alone has `dim ker = 168` of `672`, far worse than
+   `A`'s `12`). Full record: `scratch/issue_344_null_space_structure.md`; gate:
+   `derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` (10 green, 58 s).
+
+### L23 addendum (2026-08-14) — the DISPOSITION half: CORRECTNESS or DETERMINISM?
+
+Three more transferable points, from settling whether the #344 singularity is a bug.
+
+7. ⭐⭐ **To decide "is a solver-selection defect a CORRECTNESS bug?", change the
+   SPLITTING — not the mesh.** A splitting cannot change the equation, so anything
+   that moves under `inner_schedule` is the solver's, not the operator's. `[M]` same
+   operator, same source, same ZERO cold start: boundary-G-S returns a trace
+   `8.97e-02` (d=2) / `1.126e-01` (d=3) from the closed form, **Jacobi returns
+   `6.4e-13` / `6.8e-13`** — 5 of 5 fixtures. So the frozen component is
+   `P₁ψ_exact` with `P₁` the *splitting's* OBLIQUE spectral projector, NOT a
+   property of `ker A` (which is splitting-invariant). ⟹ **the standard guarantee
+   "a splitting changes the rate, never the fixed point" is VOID whenever the fixed
+   point is a MANIFOLD** — different splittings select different members, and any
+   schedule-invariance / DSA-FP gate on the TRACE will legitimately red with no bug
+   present (`vv-principles` Mode 9, sharpened).
+8. ⭐⭐ **A refinement ladder can be PARITY-SPLIT, and the `vv #13` break-the-
+   congruence-class rule is what finds it.** `[M]` on cells `(n,n)`: the deviation is
+   **identically zero at even `n`** (`1e-12`, and `‖Ad‖/‖d‖ = O(1)` ⟹ ordinary
+   iteration residual, not a null component) and `6.2e-02` at odd `n`. A 4/8/16/32
+   ladder reports "nothing to see". Two method points: **(a)** carry `‖Ad‖/‖d‖`
+   beside the error so you can tell a frozen null component (`~1e-11`) from leftover
+   residual (`~1`) — the error column alone cannot; **(b)** run the ladder INSIDE
+   one parity class, then the law was exact: `err·n = 0.311671` to **8 s.f.** over
+   `n = 5…31`. It CONVERGES, at O(h) ⟹ not "the wrong limit". `[M]` only `n_x`
+   parity matters (11/11; `(3,4)` deviates, `(4,3)` does not) — the x-major octant
+   order is the suspect.
+9. ⭐ **Before recommending a gauge, measure whether the TRUE answer IS the canonical
+   representative.** `[M]` `‖P_G ψ_exact‖_G/‖ψ_exact‖_G = 1.1e-15` ⟹ the exact
+   solution is the minimum-`‖·‖_G` member of the manifold, so projecting the returned
+   iterate off `ker A` is an **EXACT fix** (`8.97e-02 → 5.8e-13`), not a convention.
+   And when enumerating what a null direction is invisible to, **enumerate the moment
+   LADDER, do not reason about it**: I predicted `J⁺ ≠ 0` cancelling in the net, then
+   predicted the spatial sum annihilated it — **both wrong**. `[M]` every linear trace
+   functional whose angular weight is a function of `|Ω·n|` ALONE is annihilated
+   per-face-CELL at `~1.6e-15` (`φ±`, `J±`, `|Ω·n|^p` for p = 0..3); what SEES it is
+   the raw per-ordinate value (75 %), the QUADRATIC G-norm (43 %), and an
+   angularly-resolving detector (5.8e-03) — whose adjoint problem is then
+   **INCONSISTENT** (`‖P_null Σ_d‖/‖Σ_d‖ = 5.0e-02`).
+
+### L23 addendum II (2026-08-14) — the COHERENCE half: is the splitting a splitting?
+
+Settling "is boundary-G-S a splitting of A, or is it reflecting an inconsistent
+trace (ERR-056's failure)?". Three more transferable points.
+
+10. ⭐⭐ **To tell a GAUGE FREEDOM from an INCOHERENT solver, REMOVE THE KERNEL and
+    re-run — and remove it ≥3 structurally-different ways.** A pure-trace `ker A`
+    forces "boundary moves, bulk does not", and so does an incoherent schedule seen
+    from a distance; the asymmetry is NOT the discriminator. `[M]` on four
+    independent `dim ker A = 0` configs (vacuum pair / mixed `xmin`-refl+`xmax`-vac
+    / **LD on the ALL-reflective box** / d=3 one reflective pair) × 2 source types,
+    both schedules agree: trace `≤ 1.7e-12`, bulk `≤ 2.2e-13`. ⟹ COHERENT. ⚠ The
+    obvious control can be a NON-control: an "even-`n_x` box, where your parity
+    finding says the kernel is absent" has `dim ker A = 12` — what is absent is the
+    kernel's EXCITATION by that source, not the kernel. Assert `dim ker == 0` inside
+    the control, do not infer it from a deviation being zero.
+11. ⭐⭐ **`‖M M⁻¹ − I‖` over the FULL space is the wrong instrument for an
+    iteration's inverse — probe the RHS SUBSPACE the driver actually supplies.**
+    `[M]` boundary-G-S reads `‖M M⁻¹−I‖ = 3.3e-01` / `‖M⁻¹M−I‖ = 1.9e+00` (Jacobi
+    `3e-16`) — which reads as incoherence and contradicts the measured
+    `‖Aψ*−q‖/‖q‖ = 8e-14`. Resolve by BLOCK-DECOMPOSING the defect: it is
+    **exactly** the (inflow-row, outflow-column) block, and the driver's
+    `r = q + Sψ + B_upper ψ` has **exactly `0.000e+00`** outflow-trace content, so
+    on that subspace the inverse is exact (`1.6e-15`) and the fixed-point identity
+    holds (`4.9e-13`). A reified forward-substitution "inverse" is a **SUBSPACE
+    inverse** by construction — fine for SI, a live hazard for a Krylov
+    PRECONDITIONER, which feeds it arbitrary vectors. When two of your own
+    measurements contradict, one is the wrong instrument: find which directions it
+    probes that production never supplies.
+12. ⚠ **My own probe was wrong first, twice, both flattering toward the alarming
+    verdict**: it densified `M⁻¹` with `initial_guess=x` (a seed VARYING with the
+    probe vector) and "checked linearity" on the DENSE MATRIX — linear by
+    construction, so the control could never fail (`vv-principles` #17). Corrected
+    controls: `initial_guess ∈ {0, random, b}` all bit-identical, operator linearity
+    `0.00e+00`. **And the positive control is what makes the whole verdict mean
+    anything**: the ERR-056 mutation (reflect after the FIRST outflowing octant
+    group, not the LAST) drives the same comparison to trace `1.0000e+00` **and bulk
+    `0.39…0.80`** on kernel-free configs — twelve orders of dynamic range, and it
+    shows that an incoherent schedule hits the BULK too, which is the direct answer
+    to "should a schedule change touch bulk and boundary equally?".
+
+---
+
+## L24: A discrete operator's KERNEL is usually a CLOSED-FORM problem — the tell is that the measured counting law is independent of a physical parameter, and the route is "substitute the degenerate branch of the scheme's own closure back in and see what CANCELS"
+
+#344 (2026-08-14), `ker A` for `A = L+C−S−B` on an all-reflective Cartesian DD box.
+Prior sessions had two FITTED counting laws (`ng·N/4` at d=2, `ng·(N/8)(2Σn−1)` at
+d=3, off-sample 3/3) and no basis; the brief asked for a basis or a no-closed-form
+verdict. A basis exists, in `0.05 s` where a dense SVD is `23 s` at half the size.
+Record: `scratch/issue_344_kernel_basis.md`. Six transferable points.
+
+1. ⭐⭐ **A counting law that does NOT depend on a parameter the operator plainly
+   contains is telling you the governing equation is COMBINATORIAL — go derive it,
+   do not fit it.** `dim ker` was measured mesh-independent at d=2, `c`-independent,
+   cross-section-independent, exactly `∝ ng`. All four survive the substitution:
+   set the degenerate branch (`ψ_c = 0`, read off the measured `1.1e-28` bulk share
+   of the null projector), which turns DD's `ψ_out = 2ψ_c − ψ_in` into the
+   involution `ψ_out = −ψ_in`, so every face field is the sawtooth
+   `ψ_a(k,i_⊥) = (−1)^k φ_a(i_⊥)`; substitute into the balance and **every**
+   cross-section, mesh width, weight and area cancels, leaving
+   `Σ_a s_a Y_a(s_{≠a}; i_{≠a}) = 0` — *"a sum of functions, each blind to one
+   coordinate and one sign, vanishes identically"*. Both laws then drop out as
+   theorems. **The parameter-independence WAS the derivation hint.**
+2. ⭐⭐ **Sign CHARACTERS diagonalise a specular-BC constraint system.** A specular
+   BC says a quantity is blind to one SIGN; the balance says it is blind to one
+   COORDINATE. Expanding in `χ_T(s) = ∏_{b∈T} s_b` splits the coupled system into
+   one INDEPENDENT additive-separable (ANOVA) equation per character subset `U`,
+   with `dim = κ(U)·∏_{c∉U} n_c`, `κ(U) = Σ_{a∈U}∏_{b≠a}n_b − ∏_U n_b + ∏_U(n_b−1)`
+   (`κ(pair) = 1`, `κ(triple) = Σn − 1`). Basis = **pair generators**: pick two axes,
+   a character, and an index tuple on the rest. ⟹ read a **SUM over axes** in a
+   counting law as "the modes live on PLANES (one free coordinate)", never as a fit.
+   The orbit count `N/2^d` is the number of ordinate orbits under the reflection
+   group — NOT ordinates per octant (that reading is off by `2^{d−1}`, since at d=2
+   the `±μ_z` ordinates are in different orbits).
+3. ⭐ **Where an SVD is unaffordable, the span check is a PRODUCTION-GENERATED
+   kernel vector — with a round-off NEGATIVE control.** `[M]`
+   `‖(I−P)(ψ_GS − ψ_exact)‖/‖·‖ = 9.8e-13` at d=3 `ndof=7392` and **`1.000000`**
+   in-span at three odd-`n_x` d=2 meshes. The control: on the Jacobi arm the
+   deviation is `9e-13` (pure round-off) and reads **`1.000e+00` OUT of span** —
+   proving the projector captures kernel content and is not a universal absorber.
+   Without that leg, "everything I test is in the span" is unfalsifiable.
+4. ⚠ **Two mechanisms can share a PARITY fingerprint, and only a kernel-CONTENT
+   measurement separates them.** I hypothesised the known even-`n_x` split was
+   DETECTOR blindness (the mode's transverse profile is `(−1)^{i_⊥}`, so a uniform
+   detector is exactly blind at even cell counts — `[M]` **`0.000000e+00` on every
+   functional including the odd controls** at `(4,4)`). True, and NOT the cause:
+   `[M]` at even `n_x` the deviation is `2e-13…5e-13` with only `15–31 %` in
+   `ker A` ⟹ the mode is **ABSENT**, not hidden. Measure `‖P d‖/‖d‖`, not `‖d‖`.
+5. ⭐ **A blindness LIST measured on one quadrature is a sample, not a population.**
+   The prior "every `|Ω·n|^p`, p=0..3, is blind" was measured on `level_symmetric`,
+   where the tangential component `T = 0`. `[M]` on `lebedev(11)` the **`p = 0`**
+   moment (a plain face-averaged scalar flux) reads the T modes at **`2.99e-02`**
+   while `p ≥ 1` stays `<1e-17`. Honest condition: **mirror-EVEN in angle AND ≥ 1
+   power of `|Ω·n|`** (a CURRENT-type functional). Corollary theorem worth reusing:
+   every mode carries a non-trivial sign character on every axis it touches, so
+   **any mirror-even angular weight annihilates the kernel exactly** — which is also
+   why `ψ_exact ⊥_G ker A`. And matching matters: a `sign(μ_xμ_y)` weight is BLIND
+   where `sign(μ_x)` sees 4.4e-2 — "angularly resolved" ≠ "sighted".
+6. ⭐ **A DENSE basis is not the shippable form of a STRUCTURED nullspace.** Disjoint
+   supports per (orbit, group) ⟹ `BᵀGB` is block-diagonal ⟹ `17.6 GiB → 154 MiB`
+   at `(12,12,12)` S8 ng=4, apply `12 ms`. ⛔ And `ker G ∩ ker A ≠ 0` is a real
+   hazard: the tangential slots have `G` **bit-zero**, so `BᵀGB` is SINGULAR and a
+   `sqrt(G)`-QR gives `0/0` — there is NO minimum-norm gauge for them. Project on
+   the G-positive component only. (Cost verdict: setup `0.04 s`, apply `0.094 ms`
+   against a `7.9 s` solve; the basis never reads a cross-section, so it is built
+   once per PHASE SPACE and cached — fissile vs absorber gave a bit-identical
+   `2.799e-16` residual.)

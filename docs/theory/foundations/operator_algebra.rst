@@ -41,6 +41,20 @@ sub-composite :math:`L+C` — streaming leakage plus total collision — has
 the transport **sweep** as its exact inverse; :math:`S` and :math:`B`
 are the within-group gains the outer iteration lags.
 
+.. implements:: operator-within-group-composition
+   :by: orpheus.sn.coupled_system.build_within_group_system
+
+   **Implemented by** the one production spelling of the composition.
+   The assembled System-A diagonal block is ``A_AA = LC - S - B_a`` over
+   ``LC = build_streaming_collision(sn_mesh, mat_xs)`` — i.e. :math:`A =
+   L+C-S-B` written as operator arithmetic, with :math:`B` a first-class
+   sibling rather than something folded into :math:`L`. The same function
+   returns the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record
+   carrying the named splitting :math:`A = M - N`
+   (:ref:`coupled-block-operator`), so every SN within-group solve — SI and
+   Krylov, fixed-source and eigenvalue — reads :math:`A` from here and there
+   is no second assembly to drift against.
+
 The :mod:`orpheus.numerics.operator` module installs these as a uniform
 *matrix-free* algebra, so the eigenvalue, fixed-source, and
 preconditioned-Krylov code consumes any method (S\ :sub:`N` / MoC / CP /
@@ -214,6 +228,33 @@ Key Facts
      A\,\psi \;=\; q
      \qquad \text{(fixed source)}
 
+  .. implements:: operator-fixed-source
+     :by: orpheus.sn.solver.SNSolver._solve_source_iteration
+
+     **Implemented by** the source-iteration within-group arm — one of
+     the two realizations that *pose* :math:`A\psi = q`. Its own docstring
+     carries the posing verbatim: :math:`A = L+C`, :math:`S = \tfrac{1}{W}\,
+     \text{full multi-group scatter}`, :math:`F = 0_{\rm wg}`, with the
+     external source on the right as ``q_ext_composite``. A posing equation is
+     implemented by the code that **assembles the two sides**, so the
+     method-agnostic drivers
+     (:meth:`SourceIteration.solve <orpheus.numerics.iteration.SourceIteration.solve>`,
+     the Krylov acceleration) and the three-line dispatcher
+     :meth:`~orpheus.sn.solver.SNSolver.solve_fixed_source` are consumers, not
+     implementers — they solve :math:`(A - \sum\text{gains})\psi = q` without
+     knowing what the leaves are.
+
+  .. implements:: operator-fixed-source
+     :by: orpheus.sn.solver.SNSolver._solve_krylov
+
+     **Implemented by** the Krylov within-group arm, the structural twin
+     of the SI arm: the same
+     :func:`~orpheus.sn.coupled_system.build_within_group_system` call, the
+     same implicit operator plus explicit lagged gains, the same
+     ``q_ext_composite`` on the right — differing **only** in the iteration
+     driver. If the posing were wrong, both arms would assemble the wrong
+     problem directly, which is exactly the test for an implementer.
+
   .. (vv-status rationale) The k-eigenvalue form A ψ = (1/k) F ψ,
      A = L+C-S-B, with F the right-hand-side fission gain. Verified by
      the eigenvalue engines (power iteration and K = A⁻¹F) against the
@@ -225,6 +266,25 @@ Key Facts
 
      A\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
      \qquad \text{(eigenvalue)}
+
+  .. implements:: operator-eigenvalue
+     :by: orpheus.sn.solver.SNSolver.compute_fission_source
+
+     **Implemented by** the :math:`\tfrac{1}{k}F\psi` right-hand side —
+     which is the *only* thing distinguishing this equation from
+     :eq:`operator-fixed-source` ("they differ only in what sits on the
+     right"). The body is literally ``self.fission_op.apply(φ) / keff``: the
+     :math:`1/k` division stays at the solver level precisely because
+     :math:`F` is a **linear** operator and the eigenvalue scaling is not part
+     of it.
+
+  .. implements:: operator-eigenvalue
+     :by: orpheus.numerics.iteration.KEigenvalue.compute_fission_source
+
+     **Implemented by** the same right-hand side at the operator-triple
+     layer, ``self.F.apply(flux_distribution) / keff`` — the k-posing's
+     eigen-operator :math:`M = F`. Two postings of one equation, one per
+     tier.
 
   Both are built from operator addition, subtraction, scalar
   multiplication, and composition (``+``, ``-``, ``*``, ``@``) acting on
@@ -368,6 +428,18 @@ The three primitive actions on a flux vector :math:`\psi`:
 
    \texttt{apply} \;:\; x \;\mapsto\; L\,x
 
+.. implements:: operator-apply
+   :by: orpheus.numerics.operator.LinearOperator.apply
+
+   **Implemented by** the Protocol's own declaration of the verb, whose
+   docstring *is* this equation. ``apply`` is the one **mandatory** member
+   of :class:`~orpheus.numerics.operator.LinearOperator` — by the
+   base-hosting rule below, a method lives on the base exactly when a
+   universal realization exists — so the declaration site and the equation
+   coincide. The concrete overrides implement their **own** equations
+   (:eq:`diagonal-operator-action`, :eq:`multiplication-operator-action`,
+   :eq:`tensor-product-action`, :eq:`inverse-as-operator`), not this one.
+
 .. (vv-status rationale) Phase 0 stub label for the ``solve``
    primitive action — the algorithmic dual of ``apply``, NOT the
    matrix inverse. Verified at the protocol level by
@@ -391,6 +463,21 @@ The three primitive actions on a flux vector :math:`\psi`:
    :label: operator-apply-transpose
 
    \texttt{apply\_transpose} \;:\; x \;\mapsto\; L^{T}\,x
+
+.. implements:: operator-apply-transpose
+   :by: orpheus.numerics.operator.SupportsAdjoint.apply_transpose
+
+   **Implemented by** the algebra's single declaration of the raw
+   **Euclidean** transpose verb. Unlike ``apply`` it is *not* base-hosted —
+   no universal realization exists — so it lives on the narrowing Protocol
+   :class:`~orpheus.numerics.operator.SupportsAdjoint`, and that member is
+   this equation's declaration site.
+
+   ⚠ Read the equation as written: this is :math:`L^{\mathsf T}`, the
+   Euclidean transpose. The **metric Hilbert adjoint** reached through
+   ``op.H`` is the different object :math:`A^{\dagger} = G^{-1}A^{\mathsf
+   T}G` (:ref:`g-adjoint`), and ``apply_transpose`` is the raw ingredient
+   the ``_AdjointOperator`` wrapper conjugates — never the adjoint itself.
 
 The dual relationship in :eq:`operator-solve` is **algorithmic**, not
 matrix-theoretic: ``solve(L, b)`` returns whatever vector the
@@ -573,6 +660,22 @@ is what licenses the carve).  The streaming discretization lives ONCE in
 :math:`\sigma = 0` (``coding-elegance`` Pattern 2), so there is no twin
 σ-free walk.
 
+.. implements:: streaming-action-pure-l
+   :by: orpheus.sn.loss_representation._LossRepresentation.streaming_action
+
+   **Implemented by** one line — ``return
+   self.loss_action(self._zero_sigma_for(psi), psi)`` — which is the
+   equation's right-hand half, :math:`\texttt{streaming\_action}(\psi) =
+   \texttt{loss\_action}(0, \psi)`, taken as the **definition** of the
+   :math:`\sigma`-free leaf rather than as a claim about it. That is what
+   makes the pure-:math:`L` walk single-sourced from the full loss walk
+   instead of a twin.
+
+   ⛔ Deliberately **not** declared:
+   :meth:`StreamingOperator.apply <orpheus.sn.operators.streaming.StreamingOperator.apply>`.
+   It is a pure delegation to this method — a consumer of the identity, not
+   a second realization of it.
+
 Why the matvec is affine in :math:`\sigma`
 ------------------------------------------
 
@@ -580,7 +683,7 @@ The discrete within-group cell balance is the single source of the
 affine structure. In the geometry-agnostic 1-D scan
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`)
 and in the curvilinear cell update
-(:func:`~orpheus.transport.spatial.diamond.cell_balance_for_streaming`) the
+(:func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`) the
 WDD cell-average solves
 
 .. (vv-status rationale) The WDD cell-balance identity S·ψ̄ = source +
@@ -614,6 +717,52 @@ is exactly :eq:`streaming-action-pure-l`: the forward matvec
 :math:`M(\sigma)\psi` is the *application* of this diagonal (not its
 inverse), so the collision contribution is the clean additive term
 :math:`\sigma_t\odot\psi` that the pure-L leaf simply does not carry.
+
+.. implements:: streaming-action-cell-balance
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_for_streaming
+
+   **Implemented by** the curvilinear assembly, which returns
+   ``denom, numer_upstream``: the cell-balance diagonal :math:`S` and the
+   upstream-face numerator, as one named pair rather than two loose
+   arrays.
+
+.. implements:: streaming-action-cell-balance
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+
+   **Implemented by** the term-resolved sibling of the same assembly:
+   ``denom = 2·|μ|·A_downstream + (ΔA/w)·c_out + Σ_t·V`` returned inside a
+   ``CellBalanceTerms`` record, so the geometric and collision halves stay
+   individually nameable instead of only their sum.
+
+.. implements:: streaming-action-cell-balance
+   :by: orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal
+
+   **Implemented by** the Cartesian diagonal: ``denom = Σ_t + Σ_a 2 g_a``
+   with ``g_a = |μ_a|/Δ_a`` the raw down-face streaming and the ``2`` the
+   diamond factor. This is the equation's :math:`S = S_{\rm stream} +
+   \sigma_t V` with the collision term entering **purely additively** — the
+   unit-slope-in-:math:`\sigma_t` fact that :eq:`streaming-action-pure-l`
+   rests on.
+
+.. implements:: streaming-action-cell-balance
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
+
+   **Implemented by** the curvilinear scan's ``denom =
+   geometric_streaming_term + collision_volume_term``, with
+   ``geometric_streaming_term = streaming_face_term +
+   curvature_redistribution_term`` — the same additive split, with the
+   angular redistribution :math:`(\Delta A/w)\,c_{\rm out}` folded into the
+   geometric half where it belongs.
+
+.. implements:: streaming-action-cell-balance
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch
+
+   **Implemented by** the residual form of the same balance,
+   :math:`r = S\bar\psi - \bigl(Q + \sum_a 2 g_a\,\psi_{\rm in}\bigr)` — the
+   equation moved to one side. It shares
+   ``_cartesian_streaming_diagonal`` with the sites above, which is why it
+   belongs to this equation and not to :eq:`apply-solve-cell-resolvent`: it
+   never divides.
 
 The subtle part is the **curvilinear angular closure**. For sphere /
 cylinder the Carlson coupled-pole seed
@@ -757,6 +906,25 @@ applying a sum of linear maps is the sum of the applications:
 
    (L + C)\,\psi \;=\; L\,\psi \;+\; C\,\psi.
 
+.. implements:: apply-distributes
+   :by: orpheus.numerics.operator.OperatorSum.apply
+
+   **Implemented by** ``return self.a.apply(x) + self.b.apply(x)`` —
+   "applying a sum of linear maps is the sum of the applications" as a body,
+   not as a claim.
+
+   ⚠ The declaration deliberately names the **generic** sum, and only it. On
+   the very instance this equation is written for, :math:`(L+C)`, the
+   shipped path does **not** execute :math:`L\psi + C\psi`:
+   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+   *overrides* ``apply`` and computes ``loss_representation.loss_action(σ,
+   ψ)`` in a single walk. The inherited leaf-sum is value-equal to it only
+   through the forward-direction affine-in-:math:`\sigma` coincidence of
+   :eq:`streaming-action-pure-l` — so on the composite, distributivity holds
+   by **theorem**, not by code path, and extending this declaration to
+   ``StreamingCollisionOperator.apply`` would assert a route the tree does
+   not take.
+
 Inversion does **not** distribute:
 
 .. math::
@@ -811,6 +979,16 @@ The within-group transport balance is the operator equation
    :label: apply-solve-within-group-balance
 
    \Omega\cdot\nabla\psi \;+\; \Sigt{}\,\psi \;=\; q,
+
+.. implements:: apply-solve-within-group-balance
+   :by: orpheus.sn.operators.streaming.StreamingCollisionOperator
+
+   **Implemented by** the class that *is* the discretised
+   :math:`\hat\Omega\cdot\nabla + \Sigma_t`. Its ``apply`` computes this
+   balance's left-hand side and its ``solve`` inverts that same left-hand
+   side against :math:`q` by the WDD sweep — the two faithful views the
+   asymmetry above says exist **only** for the bundle, never for the
+   separate :math:`L` and :math:`C` leaves.
 
 with :math:`L = \Omega\cdot\nabla` the streaming (advection) operator and
 :math:`C = M[\Sigt{}]` the collision diagonal. Each *separate* inverse
@@ -906,6 +1084,39 @@ literally ``inverse_denom = 1.0 / denom`` with ``denom = streaming_term
 (:func:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`,
 :func:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`).
 Now compare the three inverses on this single cell:
+
+.. implements:: apply-solve-cell-resolvent
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.update
+
+   **Implemented by** the per-visit cell resolvent, ``psi_avg = (source
+   + terms.numer_upstream) / terms.denom`` — the division by the *summed*
+   denominator, one cell at a time.
+
+   The discriminator against :eq:`streaming-action-cell-balance` is which
+   half of the fraction a site owns: that equation is the **assembly** of
+   :math:`S`, this one is the **division** by it.
+
+.. implements:: apply-solve-cell-resolvent
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch
+
+   **Implemented by** the vectorised form of the same division —
+   ``numer / denom`` over a whole anti-hyperplane level at once, with
+   ``denom`` from the shared ``_cartesian_streaming_diagonal``.
+
+.. implements:: apply-solve-cell-resolvent
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
+
+   **Implemented by** the curvilinear scan form, which materialises the
+   reciprocal once — ``inverse_denom = 1.0 / denom`` — so the whole scan
+   multiplies by :math:`1/S` instead of dividing repeatedly.
+
+.. implements:: apply-solve-cell-resolvent
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients
+
+   **Implemented by** the Cartesian row-march scan form, the same
+   ``inverse_denom = 1.0 / denom`` on the axis-aligned denominator (the
+   ``×inverse_denom`` convention, deliberately not the legacy
+   ``÷S``).
 
 - :math:`L^{-1}` would divide by :math:`S_{\rm stream}` **alone**
   (set :math:`\sigma_t = 0`) — the pure-streaming denominator.
@@ -1033,6 +1244,18 @@ Miller, *Computational Methods of Neutron Transport* (:cite:`LewisMiller1984`,
 §3.2 for the sweep as the discrete-ordinates resolvent and §4 for the
 source-iteration / Neumann scattering series), and Adams & Larsen 2002
 (:cite:`AdamsLarsen2002`, §II for the spectral radius :math:`\rho = c`).
+
+.. implements:: apply-solve-source-iteration-series
+   :by: orpheus.numerics.iteration.SourceIteration.solve
+
+   **Implemented by** the loop, whose iterates *are* the partial sums.
+   Each pass builds ``rhs = q_ext`` then ``rhs = rhs + g.apply(psi)`` over
+   the gains, and applies ``psi = self.A_inv.apply(rhs, ...)`` — one more
+   factor of :math:`(L+C)^{-1}S` on top of everything accumulated, so
+   iterate :math:`k` is the flux of neutrons that have scattered exactly
+   :math:`k` times. The driver never sees :math:`L` or :math:`C`
+   separately; it sees one bundled inverse, which is the architectural point
+   of the series.
 
 Why this is the right architecture, not a limitation
 ----------------------------------------------------
@@ -1339,6 +1562,28 @@ object*, ``A.inverse().apply(b)``.
 
    A^{-1} b \;=\; \texttt{A.inverse().apply(b)} \;=\; \texttt{A.solve(b)}
 
+.. implements:: inverse-as-operator
+   :by: orpheus.numerics.operator.InverseOperator.apply
+
+   **Implemented by** the keystone as a body rather than a claim:
+   ``return self.inner.solve(x)``. There is no separate inverse machinery to
+   drift — applying the inverse *object* runs the operator's own ``solve``,
+   by construction.
+
+.. implements:: inverse-as-operator
+   :by: orpheus.sn.operators.sweep_operator.SweepOperator.apply
+
+   **Implemented by** the same delegation on the concrete
+   :math:`(L+C)` instance this equation is written for: ``return
+   self.inner.solve(rhs)``, i.e. the WDD sweep. Reached through the inverse
+   object or through ``solve``, the sweep is bit-identically one call.
+
+   ⛔ Deliberately **not** declared:
+   :meth:`GreenOperator.apply <orpheus.numerics.green_operator.GreenOperator.apply>`.
+   Its forward :class:`~orpheus.numerics.operator.OperatorSum` carries no
+   ``solve`` at all, so it is precisely the case this identity does **not**
+   cover — a driver-realized inverse *action*, not a native inverse.
+
 For the sweep-invertible loss operator :math:`(L+C)` the native ``solve``
 IS the WDD sweep, so this keystone reads: applying the inverse object runs
 the same sweep the operator's own ``solve`` runs — no separate inverse
@@ -1388,6 +1633,17 @@ the sweep composites, the mixin's un-invert, and
    B^{-1}\bigl(A^{-1} b\bigr)
    \;=\;
    \texttt{self.b.inverse().apply(self.a.inverse().apply(b))} .
+
+.. implements:: product-solve-reroute
+   :by: orpheus.numerics.operator.OperatorProduct.solve
+
+   **Implemented by** the equation transcribed: ``return
+   self.b.inverse().apply(self.a.inverse().apply(b_vec))``. The reversal of
+   factor order *is* the whole content, and it is executed rather than
+   asserted. Note the recursion goes through each factor's canonical
+   ``.inverse().apply`` surface and not through a factor ``solve`` — which
+   is what makes the re-route total over the kinds whose own ``solve``
+   Design B retired.
 
 The re-route is **bit-identical per factor kind** — each inverse object
 delegates to the same realization the factor's own ``solve`` used to —
@@ -1647,6 +1903,15 @@ multiplication along ``axis``:
    (D x)_{\ldots,\,n,\,\ldots}
    \;=\; w_n \, x_{\ldots,\,n,\,\ldots}.
 
+.. implements:: diagonal-operator-action
+   :by: orpheus.numerics.operator.DiagonalOperator.apply
+
+   **Implemented by** ``return self._broadcast(x_arr.ndim) * x_arr``:
+   the tagged axis carries the weights and every other axis broadcasts
+   through unchanged. The broadcast helper is what makes the equation's
+   ``…, n, …`` index placement **structural** rather than a shape convention
+   each caller has to honour.
+
 All other axes broadcast through unchanged. This is the canonical
 "diagonal in some basis" operator — the abstraction Grand Report v3
 §9 names :math:`W` (``AngularWeightMatrix``) when the basis is the
@@ -1755,6 +2020,21 @@ multiplication operator from the nonlocal integral kernels
 (:ref:`integral-kernel-category`): :math:`M[f]` is the diagonal
 sub-algebra, the kernels are everything off-diagonal.
 
+.. implements:: multiplication-operator-embedding
+   :by: orpheus.transport.operators.multiplication_operator.MultiplicationOperator
+
+   **Implemented by** the class itself: it *is* the map :math:`f \mapsto
+   M[f]`. It stores **only** a
+   :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`,
+   so "the cross section IS the operator" is a fact about the type and not a
+   comment on it — there is no second piece of state for the embedding to
+   lose or contradict.
+
+   The division of labour with the next equation is deliberate and the two
+   declarations are disjoint: the **class** realizes the embedding, its
+   ``_apply_impl`` realizes the discrete **action**
+   (:eq:`multiplication-operator-action`).
+
 For the leading-ordinate broadcast on the SN per-ordinate carrier
 :math:`\psi(\hat\Omega_n, g, \vec r)`, the discrete embedding is the
 group-and-space-indexed broadcast over the ordinate axis:
@@ -1774,6 +2054,27 @@ group-and-space-indexed broadcast over the ordinate axis:
    :label: multiplication-operator-action
 
    (M[f]\,\psi)_{n,g,\vec r} \;=\; f_{g,\vec r}\,\psi_{n,g,\vec r}.
+
+.. implements:: multiplication-operator-action
+   :by: orpheus.transport.operators.multiplication_operator.MultiplicationOperator._apply_impl
+
+   **Implemented by** both registered dispatch arms, which compute
+   :math:`f_{g,\vec r}\,\psi_{n,g,\vec r}`: the composite
+   :class:`~orpheus.transport.full_field.FullField` arm through the
+   :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
+   built once over the immutable coefficient, and the meshless bare-``ndarray``
+   arm as the same per-block multiply over ``self.coefficient.values``
+   (single source of truth — the two arms agree by construction, not by a
+   copied predicate).
+
+   ⚠ The declaration names ``_apply_impl`` and **not** ``apply``. The public
+   ``apply`` exists only under ``TYPE_CHECKING``; at runtime it is an alias
+   of the :func:`functools.singledispatchmethod` dispatcher and has no
+   symbol of its own, and the per-carrier ``@_apply_impl.register`` arms are
+   anonymous ``_`` functions. ``_apply_impl`` is therefore the finest
+   addressable grain — the same holds for
+   :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
+   :class:`~orpheus.transport.operators.fission.FissionOperator`.
 
 The action is delegated to the N-D
 :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
@@ -1962,6 +2263,21 @@ and the **absorption rate** (:math:`\Sigma_x = \Sigma_a`); the
 Rayleigh-quotient eigenvalue is their ratio
 :math:`k = \langle\nu\Sigma_f,\phi\rangle / \langle\Sigma_a,\phi\rangle`.
 
+.. implements:: production-rate-functional
+   :by: orpheus.transport.reaction_rate_functional.ReactionRateFunctional
+
+   **Implemented by** the typed co-vector :math:`\langle\Sigma_x,\cdot
+   \rangle` itself: the constructor binds ``weight = cross_section.values``
+   and ``axis = 0``, so the group axis is the contracted one and the spatial
+   axes survive as the per-cell **density**.
+
+   ⛔ Deliberately **not**
+   :meth:`InnerProductFunctional.evaluate <orpheus.numerics.functional.InnerProductFunctional.evaluate>`.
+   That is the *generic* :math:`\langle w, \cdot\rangle` and would remain
+   correct even if this equation were wrong; the reaction-rate claim — which
+   weight, which axis, no volume measure — lives only in the transport
+   specialisation.
+
 This functional is not a parallel *description* of a contraction the
 operator algebra performs elsewhere — it **is** the contraction. It is
 the row-factor :math:`\langle\nu\Sigma_f|` of the fission rank-1 dyad
@@ -2098,19 +2414,83 @@ directly:
 .. math::
    :label: keff-as-integrated-rates
 
-   k \;=\; \frac{\displaystyle\int_V \langle\nu\Sigma_f,\phi\rangle\,dV
-                  \;+\; (n,2n)}
-                {\displaystyle\int_V \langle\Sigma_a,\phi\rangle\,dV} ,
+   k \;=\; \frac{R_{\nu\Sigma_f}(\phi)}
+                {R_{\Sigma_a}(\phi) \;+\; L_{\rm leak} \;-\; E_{2n}(\phi)} ,
+   \qquad
+   R_x(\phi) \;=\; \int_V \langle\Sigma_x,\phi\rangle\,dV .
 
-with both the numerator's fission term and the denominator the
-volume-integrated reaction rate :math:`R_x = \int_V\langle\Sigma_x,\phi
-\rangle\,dV` of :eq:`production-rate-functional`
-(:meth:`SNSolver.compute_keff <orpheus.sn.solver.SNSolver.compute_keff>`
-over :meth:`~orpheus.sn.solver.SNSolver.compute_production_rate`). The
-:math:`(n,2n)` channel is an **explicit additive term** — a second
-neutron-multiplying reaction, *not* a :math:`\langle\Sigma_x,\phi\rangle`
-rate, so it is added on top rather than folded into a cross section — and
-is exactly zero on a no-:math:`(n,2n)` mixture. Reusing
+.. implements:: keff-as-integrated-rates
+   :by: orpheus.sn.solver.SNSolver.compute_keff
+
+   **Implemented by** the only site that computes :math:`k` as a ratio of
+   :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+   values. Its denominator is assembled term-by-term — ``production /
+   (absorption + leakage - emission_n2n.sum())`` — precisely so that no
+   term *can* be silently dropped, which is the structural answer to the
+   #291 omission the equation itself used to reproduce.
+
+**The numerator is fission ONLY; the denominator is net removal.**
+:math:`R_{\nu\Sigma_f}` and :math:`R_{\Sigma_a}` are the
+volume-integrated reaction rates of :eq:`production-rate-functional`,
+both routed through :class:`IntegratedReactionRate
+<orpheus.transport.reaction_rate_functional.IntegratedReactionRate>`,
+which is what this section is about. The other two denominator terms are
+**not** :math:`\langle\Sigma_x,\phi\rangle` contractions and are added
+explicitly: :math:`L_{\rm leak}` is the net vacuum-boundary outflow (a
+**structural zero** on an all-reflective problem, which is what keeps a
+lattice case bit-identical to the historical ``production /
+absorption``), and :math:`E_{2n}` is the :math:`(n,2n)` emission,
+*subtracted* because a gain reduces net removal.
+
+.. important::
+
+   **The canonical derivation is not here.** :eq:`sn-keff-update` in
+   :ref:`sn-keff-estimator` is the single source of truth for this
+   estimator: the divergence-telescoping cell balance it falls out of,
+   the per-term definitions, the leakage functional
+   :eq:`sn-leakage-functional`, and the wiring to the cross-engine
+   consistency gate all live there. This page restates the formula only
+   because its own label must not state a false one — the *claim* being
+   made here is the **typing** claim (both ends of the ratio are the
+   same typed functional), not the estimator's correctness. Any future
+   change to the estimator is edited **there** and mirrored here.
+
+.. note::
+
+   The leakage term is spelled :math:`L_{\rm leak}` on this page **only**
+   to avoid colliding with the streaming operator
+   :math:`L = \hat\Omega\cdot\nabla` used everywhere else here;
+   :eq:`sn-keff-update` and
+   :meth:`~orpheus.sn.solver.SNSolver.compute_keff`'s own docstring both
+   write it bare as :math:`L`. Same quantity, disambiguated locally.
+
+Why the two extra terms sit where they do is a fact about the **posing**,
+not about bookkeeping taste: every inner solve poses the eigenproblem
+with **only** fission scaled by :math:`1/k` (:eq:`operator-eigenvalue`),
+while scattering and the :math:`(n,2n)` emission are plain gains inside
+the within-group problem, so the reported :math:`k` must be the
+eigenvalue of exactly *that* problem.
+
+.. note:: **Correction (2026-08-17).** Until this revision the labelled
+   equation read :math:`k = \bigl(\int_V\langle\nu\Sigma_f,\phi\rangle\,dV
+   + (n,2n)\bigr) \big/ \int_V\langle\Sigma_a,\phi\rangle\,dV` — the
+   :math:`(n,2n)` channel in the **numerator**, and **no leakage term at
+   all**. That is the pre-#291, pre-R7 convention; both were superseded on
+   2026-07-03 and :meth:`~orpheus.sn.solver.SNSolver.compute_keff` has
+   computed the form above ever since — so the equation had been
+   present-tense false against the very method the surrounding prose named
+   as its implementer. The stale numerator is not a stale *spelling* of
+   :math:`k`'s numerator: :math:`\int_V\langle\nu\Sigma_f,\phi\rangle\,dV
+   + (n,2n)` is exactly
+   :meth:`~orpheus.sn.solver.SNSolver.compute_production_rate`, the
+   **total physical production** that
+   :func:`~orpheus.numerics.eigenvalue.power_iteration` uses as the
+   ERR-052 renormalisation scale anchor. Two different quantities, and the
+   method's own docstring contrasts them explicitly ("the k numerator …
+   is fission-only, because the posed eigenproblem scales only fission by
+   :math:`1/k`").
+
+Reusing
 :class:`IntegratedReactionRate
 <orpheus.transport.reaction_rate_functional.IntegratedReactionRate>` for
 both production and absorption gives the eigenvalue numerator and
@@ -2167,9 +2547,12 @@ independent closed-form ground** — the infinite-medium decomposition
 .. math::
    :label: reaction-rate-kinf-oracle
 
-   k_\infty \;=\; \lambda_{\max}\!\bigl(A^{-1}F\bigr),
-   \qquad A = \mathrm{diag}(\Sigma_a) - \Sigma_{s}, \quad
-   F = |\chi\rangle\langle\nu\Sigma_f| ,
+   k_\infty \;=\; \lambda_{\max}\!\bigl(\mathbf{A}^{-1}\mathbf{F}\bigr),
+   \qquad
+   \mathbf{A} \;=\; \mathrm{diag}(\Sigt{})
+       \;-\; \bigl(\Sigma_s + 2\,\Sigma_2\bigr)^{\mathsf T},
+   \qquad
+   \mathbf{F} \;=\; |\chi\rangle\langle\nu\Sigma_f| ,
 
 whose dominant eigenpair :math:`(k_\infty, \phi^*)` comes from a
 :func:`numpy.linalg.eig` of the transfer matrix — a path that shares **no
@@ -2199,6 +2582,60 @@ NumPy reduction, the L11 structurally-independent reference), and a third
 asserts the **no-volume-measure** contract (Mode-3). Together they replace
 the retired procedural twin with a reference at the right level for each
 claim.
+
+Why :math:`\mathbf{A}` is spelled this way
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The pair above is transcribed from the algebra of record,
+:func:`~orpheus.derivations.common.eigenvalue._infinite_medium_matrices`.
+Two details of that spelling are load-bearing, and both are lost if
+:math:`\mathbf{A}` is written the textbook way as
+:math:`\mathrm{diag}(\Sigma_a) - \Sigma_s`:
+
+* **The transpose is forced by the storage convention.** ``Mixture.SigS``
+  is stored ``SigS[g_from, g_to]``
+  (:ref:`scattering-matrix-convention`), so the in-scatter *into* group
+  :math:`g` is :math:`\sum_{g'}\Sigma_{s,g'\to g}\,\phi_{g'} =
+  (\Sigma_s^{\mathsf T}\phi)_g`. Dropping the transpose is ERR-002 — a
+  Mode-2 variable swap that is **invisible** on a symmetric (1-group,
+  self-scatter-only) matrix and wrong for every asymmetric down-scatter
+  case. It is one of the reasons the gate that consumes this oracle is
+  mandatorily multi-group.
+* **The removal diagonal is** :math:`\Sigt{}`, **not** :math:`\Sigma_a`,
+  because the **whole** scattering matrix — self-scatter included — is
+  subtracted, rather than only the group-changing part. The
+  :math:`2\,\Sigma_2` term folds the :math:`(n,2n)` transfer in as a
+  doubled gain, so the oracle stays exact on a multiplying-scatter
+  mixture; ``sig_2=None`` reduces it away.
+
+.. implements:: reaction-rate-kinf-oracle
+   :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
+
+   **Implemented by** the :math:`(\mathbf{A}, \mathbf{F})` assembly
+   itself — and it is the *single* site the forward and the adjoint
+   references share, because two references that disagreed about the
+   operator pair would produce incomparable :math:`k`.
+
+.. implements:: reaction-rate-kinf-oracle
+   :by: orpheus.derivations.common.eigenvalue.kinf_homogeneous
+
+   **Implemented by** the eigenvalue itself, at any group count:
+   ``np.linalg.solve(A, F)`` and then the dominant real eigenvalue of
+   :func:`numpy.linalg.eig`.
+
+.. implements:: reaction-rate-kinf-oracle
+   :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
+
+   **Implemented by** the same eigenvalue **plus** its dominant
+   eigenvector — which is what gives the consuming gate its flux-shape
+   teeth. The 4-group :math:`\phi^*` is genuinely non-flat, where the
+   2-group one is coincidentally flat (``[0.707, 0.707]``) and therefore
+   flux-shape-blind (``vv-principles`` anti-pattern #3).
+
+   All three implementers live under ``orpheus/derivations/`` — **inside**
+   the package, not under ``tests/`` — and the tests *import* them. That
+   is what makes this a structurally-independent closed-form reference
+   rather than a test-local twin.
 
 .. (vv-status rationale) Structural / decomposition label: the closed-form
    k∞ = λ_max(A⁻¹F) identity that grounds the reaction-rate functional's
@@ -2301,6 +2738,23 @@ single ``kernel`` member exposing the integral structure as a
    (A\,\psi)(x) \;=\; \int K(x, x')\,\psi(x')\,d\mu(x') ,
    \qquad K \;=\; A.\mathrm{kernel}.
 
+.. implements:: integral-kernel-category
+   :by: orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator.kernel
+
+   **Implemented by** the Protocol member whose declaration *is* this
+   equation, verbatim in its docstring: a kernel operator is one that can
+   hand you its :math:`K`, returned as the common
+   :class:`~orpheus.numerics.operator.LinearOperator` supertype. This is the
+   declaration-site reading again — the same one taken for
+   :eq:`operator-apply`.
+
+   The two concrete kernels carry their **own** labels
+   (:eq:`fission-as-dyad` for the rank-1
+   :class:`~orpheus.numerics.operator.TensorProductOperator`,
+   :eq:`scattering-aniso-composite` for the :math:`R\circ\Lambda\circ M`
+   :class:`~orpheus.numerics.operator.OperatorProduct`); this declaration is
+   the **category**, not an instance of it.
+
 The two named transport instances are the Boltzmann emission kernels.
 **Fission** exposes the rank-1 **dyad** :math:`F = |\chi\rangle\langle
 \nu\Sigma_f| = \texttt{outer}(\chi,\,\mathrm{ReactionRateFunctional}(\nu
@@ -2311,8 +2765,8 @@ advertise the spatial-axis broadcast). Its row co-vector
 density, and the matvec routes *through* that functional's ``evaluate``
 (:ref:`fission-as-dyad`) — there is no fused procedural twin. **Scattering**
 exposes the anisotropic Legendre redistribution :math:`R \circ \Lambda
-\circ M` (an :class:`~orpheus.numerics.operator.OperatorProduct`, the
-genuinely-nonlocal-in-angle part of
+\circ M` (an :class:`~orpheus.numerics.operator.OperatorProduct` whose
+middle factor is the moment-space
 :eq:`scattering-as-tensor-product-sum`); the isotropic :math:`P_0`
 in-scatter and the :math:`(n,2n)` doubling are the local / separate
 components of the full scattering ``apply``. Fission is the **rank-1
@@ -2469,6 +2923,25 @@ two, the "fused vs. unfolded" distinction the earlier S5 design carried
 records the resulting upgrade from the dissolved procedural twin to the
 closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
 
+.. implements:: fission-as-dyad
+   :by: orpheus.transport.operators.fission.FissionOperator.kernel
+
+   **Implemented by** the equation transcribed: ``return
+   outer(self.chi, self.production_rate) & IdentityOperator()``. Both
+   ``apply`` arms route the matvec **through** this kernel, and
+   :meth:`RankOneOperator.apply <orpheus.numerics.operator.RankOneOperator.apply>`
+   is ``recon * functional.evaluate(x)`` — so there is one contraction, not
+   a fused realization sitting beside a named one.
+
+.. implements:: fission-as-dyad
+   :by: orpheus.transport.operators.fission.FissionOperator.production_rate
+
+   **Implemented by** the dyad's row co-vector
+   :math:`\langle\nu\Sigma_f|`, exposed as the operator's own member:
+   ``return ReactionRateFunctional(self.mat_xs.fission_production_field)``.
+   The column :math:`|\chi\rangle` needs no implementer — it is an array on
+   the operator, not a computation.
+
 .. note::
 
    **What was tried and rejected — the three-factor composition** :math:`F
@@ -2517,9 +2990,12 @@ not a new reference.
 
 .. note::
 
-   The full Pℓ form :math:`S = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`
-   (:eq:`scattering-as-tensor-product-sum`) was **considered and
-   rejected** as the kernel shape. A
+   The moment-space :math:`\ell`-sum :math:`\Lambda = \sum_\ell
+   P_\ell \otimes \Sigma_{s,\ell}`
+   (:eq:`scattering-as-tensor-product-sum`) is real and realized — it is
+   what :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
+   *is*. Lifting that shape up to the **full** kernel
+   :math:`R\circ\Lambda\circ M` was **considered and rejected**. A
    :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` would
    require :math:`R` and :math:`M` to be tensor-product *factors* on
    independent axes, but they are rank-changing einsums that mix the
@@ -2639,6 +3115,33 @@ edges that map between them.
        & \texttt{HarmonicMomentSourceSink}
    \end{array}
 
+.. implements:: scattering-carrier-grid
+   :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse
+
+   **Implemented by** the diagram's top edge :math:`M`.
+   Role-**preserving**, and typed as such by ``@overload``: flux in, flux
+   out, representation changed.
+
+.. implements:: scattering-carrier-grid
+   :by: orpheus.transport.operators.scattering.LegendreMomentScattering.apply
+
+   **Implemented by** the diagram's vertical edge :math:`\Lambda` — and
+   the only role-**changing** one:
+   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+   in, ``HarmonicMomentSourceSink`` out. "Scattering turns flux into source"
+   is a signature here, not a comment.
+
+.. implements:: scattering-carrier-grid
+   :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct
+
+   **Implemented by** the bottom edge :math:`R`, role-preserving like
+   :math:`M`, carrying the source leg back to the per-ordinate
+   representation.
+
+   The diagram's four **nodes** are types, not code — only the three
+   **edges** have implementers, which is exactly the split
+   :eq:`carrier-grid-cell` records as un-implementable.
+
 .. (vv-status rationale) The carrier-grid layout: a named-field-typing
    identity (which carrier type sits at each node, and the role/axis
    semantics of each edge). Not a solver claim; the verifiable content is
@@ -2731,6 +3234,36 @@ The frame verbs are role-polymorphic by
 :func:`~functools.singledispatchmethod`, so the *same* :math:`M` and
 :math:`R` carry both the flux leg (top edge / bottom edge, flux side) and
 the source leg used by the windowed in-scatter migration below.
+
+.. implements:: scattering-aniso-composite
+   :by: orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source
+
+   **Implemented by** literally ``self.kernel.apply(angular_flux.values)
+   / sum_w`` with ``sum_w = float(self.weights.sum())`` — i.e.
+   :math:`\tfrac{1}{W}(R\circ\Lambda\circ M)`, the equation with its
+   producer-side normalisation applied at the ``apply`` boundary.
+
+.. implements:: scattering-aniso-composite
+   :by: orpheus.transport.operators.scattering.ScatteringOperator.kernel
+
+   **Implemented by** the ``frame.conjugate(Λ)`` composite — the
+   :math:`R\circ\Lambda\circ M` product **before** the :math:`1/W`, because
+   the kernel is the redistribution and the :term:`quadrature` weighting
+   lives outside it by design.
+
+.. implements:: scattering-aniso-composite
+   :by: orpheus.transport.operators.scattering.ScatteringOperator._apply_impl
+
+   **Implemented by** the second, deliberately-kept realization: the
+   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+   arm spells the composite explicitly on the typed carriers —
+   ``LegendreMomentScattering(...).apply(phi_moments)`` and then
+   ``self.frame.reconstruct(scattered) / float(self.weights.sum())``.
+
+   Both arms are production **by design** — the windowed moment path and the
+   fused-kernel path — and their 0-ULP agreement is the interchange-law
+   coherence witness of :ref:`carrier-grid-double-category`, not a
+   redundancy waiting to be retired.
 
 This 2×2 scattering square is one face of a larger structure. The next
 three subsections lift it to the full :math:`(\text{Representation} \times
@@ -2952,6 +3485,38 @@ and naming its endpoints names the morphism completely:
         &&\text{(the 2-cell)}.
    \end{aligned}
 
+.. implements:: carrier-grid-operator-typing
+   :by: orpheus.numerics.operator.LinearOperator
+
+   **Implemented by** ``class LinearOperator(Protocol[Domain,
+   Codomain])`` with ``apply(x: Domain) -> Codomain``: the typing rule
+   written in code. The **operator** carries the two grid coordinates and
+   the carrier does not — see :ref:`carrier-grid-flat-leaf-normal-form` for
+   why a fully-typed ``Carrier[Representation, Role]`` is structurally
+   impossible.
+
+.. implements:: carrier-grid-operator-typing
+   :by: py:data:orpheus.numerics.operator.Domain
+
+   **Implemented by** the type variable that names the **domain**
+   coordinate: ``Domain = TypeVar("Domain", bound=Vector)``, the operator's
+   input cell.
+
+.. implements:: carrier-grid-operator-typing
+   :by: py:data:orpheus.numerics.operator.Codomain
+
+   **Implemented by** the type variable that names the **codomain**
+   coordinate: ``Codomain = TypeVar("Codomain", bound=Vector,
+   default=Domain)``. The PEP-696 default is what keeps
+   ``LinearOperator[V] ≡ LinearOperator[V, V]`` for the endomorphic
+   majority, so making the grid's second coordinate explicit costs the
+   endomorphic leaves nothing.
+
+   ⚠ Both type variables are ``py:data`` nodes in the knowledge graph, not
+   classes — hence the explicit ``py:data:`` node-id prefix on the two
+   ``:by:`` targets above. A bare dotted name is resolved only against the
+   function / method / class prefixes and would silently fail to bind.
+
 .. (vv-status rationale) The operator-typing identity: an operator's two
    type parameters ARE the two grid cells it maps between. A
    representational/structural statement about where the parametrization
@@ -3058,6 +3623,26 @@ bit-identical), adding **only** the typed verbs
 :class:`BulkField` in transport, so the typed seam lives in transport"
 layering — the same reason a typed wrapper, not the generic frame, owns
 the carrier verbs.
+
+.. implements:: harmonic-frame-is-galerkin
+   :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame
+
+   **Implemented by** ``class HarmonicFrame(GalerkinFrame)`` — the
+   subtyping relation *is* the Liskov claim; there is nothing else to
+   write.
+
+.. implements:: harmonic-frame-is-galerkin
+   :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame.from_galerkin
+
+   **Implemented by** the operative content — ``return cls(basis,
+   frame.measure)``, after an upgrade-boundary guard that rejects a
+   non-:class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
+   trial basis *there* rather than later, when a typed verb first reads the
+   SH-only truncation order :math:`L`. The claim is worth stating only
+   because the construction rebuilds **nothing**: basis, measure and
+   projection table are carried over, so the inherited ndarray faces and the
+   §5.6 kernel stay bit-identical and the IS-A is substitutability in fact,
+   not merely in the type checker.
 
 .. note::
 
@@ -3424,16 +4009,60 @@ factor naturally as a **tensor product** of per-axis operators:
      L \;=\; D_x \otimes \Omega_x \otimes I_g
             + D_y \otimes \Omega_y \otimes I_g.
 
-* **Pℓ moment scattering** (§15.2):
+* **Pℓ moment scattering** (§15.2) — on **moment space**:
 
   .. math::
      :label: scattering-as-tensor-product-sum
 
-     S \;=\; \sum_{\ell} P_\ell \otimes \Sigma_{s,\ell},
+     \Lambda \;=\; \sum_{\ell} P_\ell \otimes \Sigma_{s,\ell},
 
   where :math:`P_\ell` selects the :math:`\ell`-block on the
   harmonic-coefficient axis and :math:`\Sigma_{s,\ell}` is the
   per-:math:`\ell` group-to-group transfer matrix.
+
+  .. implements:: scattering-as-tensor-product-sum
+     :by: orpheus.transport.operators.scattering.LegendreMomentScattering
+
+     **Implemented by** the class — whose own docstring cites this label
+     for itself. It is block-diagonal on the harmonic-coefficient axis by
+     construction, and that is the structural content of the
+     :math:`P_\ell\,\otimes` factorisation: it is why
+     :math:`\Lambda`, unlike the full :math:`S`, genuinely *is* a sum of
+     tensor products.
+
+  .. implements:: scattering-as-tensor-product-sum
+     :by: orpheus.transport.operators.scattering.LegendreMomentScattering.apply
+
+     **Implemented by** the action — per-:math:`\ell` block, per-group
+     transfer, :math:`(\Lambda\phi)_\ell^m\big|_g = \sum_{g'}
+     \Sigma_{s,\ell}(g'\!\to\!g)\,\phi_\ell^m\big|_{g'}`, dispatched
+     per-material through the cell axis. Production's default
+     ``skip_l0=True`` omits the :math:`\ell = 0` block, which the separate
+     :math:`P_0` in-scatter fast path
+     (:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_iso_source`)
+     carries; ``skip_l0=False`` restores the full sum for the
+     :math:`R\Lambda M\psi` composition.
+
+  .. warning:: **The left side is** :math:`\Lambda`, **not** :math:`S`.
+
+     This equation is a statement about **moment space**, and as such it
+     *is* realized. The full per-ordinate scattering operator
+     :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M)` has **no** such form:
+     a :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+     would need :math:`R` and :math:`M` to be tensor-product factors on
+     independent axes, and they are rank-changing einsums that *mix* the
+     ordinate and harmonic-coefficient axes. That lift was considered and
+     rejected — see the note in :ref:`integral-kernel-category` and #260.
+     ⛔ Until 2026-08-17 this equation wrote :math:`S`, which put it in
+     direct contradiction with that rejection ~900 lines further up the
+     same page. :math:`[M]` it was the only site that did: every other
+     page in the corpus that names this :math:`\ell`-sum already called
+     it :math:`\Lambda` — :doc:`/theory/foundations/frame` (which cites
+     this very label while writing :math:`\Lambda`),
+     :doc:`/theory/methods/sn/slab_multigroup` and
+     :doc:`/theory/methods/sn/cartesian_multid` — as does
+     :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`'s
+     own docstring.
 
 .. vv-status: streaming-as-tensor-product-sum documented
 .. vv-status: scattering-as-tensor-product-sum documented
@@ -3478,6 +4107,14 @@ the sequential per-axis application
    (A_1 \otimes A_2 \otimes \cdots \otimes A_k)\,x
    \;=\; A_k\bigl(\cdots A_2(A_1\,x) \cdots\bigr).
 
+.. implements:: tensor-product-action
+   :by: orpheus.numerics.operator.TensorProductOperator.apply
+
+   **Implemented by** the sequential per-factor loop, ``out = x`` then
+   ``for op in self.ops: out = op.apply(out)``. Because the factors act on
+   disjoint axes the order does not matter — which is why a *sequential*
+   loop is a faithful realization of a *commutative* product.
+
 Because the constituents act on disjoint axes, the order does not
 matter — the operators commute on the joint tensor. The two-axis
 predicates are the **meet** (recursive ``and``) over the
@@ -3500,6 +4137,18 @@ three algebraic laws verified by tests
    (A \otimes B)^*
    \;=\; A^* \otimes B^*.
 
+.. implements:: tensor-product-adjoint-distributivity
+   :by: orpheus.numerics.operator.TensorProductOperator.apply_transpose
+
+   **Implemented by** the law executed rather than asserted: the body
+   loops ``op.apply_transpose`` over the factors, so
+   :math:`(A\otimes B)^{*} = A^{*}\otimes B^{*}` is the *shape of the loop*.
+   Each iteration guard-narrows on
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable` and
+   raises :class:`~orpheus.numerics.operator.MissingAdjoint` naming the
+   offending factor, so the law cannot be applied where it does not
+   hold.
+
 .. math::
    :label: tensor-product-axis-wise-composition
 
@@ -3516,6 +4165,17 @@ three algebraic laws verified by tests
    \;=\; A^{-1} \otimes B^{-1}
    \quad
    \text{when both factors are invertible}.
+
+.. implements:: tensor-product-inverse
+   :by: orpheus.numerics.operator.TensorProductOperator.inverse
+
+   **Implemented by** the law constructed: ``return
+   TensorProductOperator(tuple(factor_inverses))``, factor order preserved.
+   The per-factor
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` check
+   raises :class:`~orpheus.numerics.operator.NotInvertible` before any
+   inverse object exists, so the composite cannot be built unless every
+   factor's inverse does.
 
 .. vv-status: tensor-product-adjoint-distributivity documented
 .. vv-status: tensor-product-axis-wise-composition documented
@@ -3558,6 +4218,31 @@ and identically for the codomain. Silence is not disagreement: a factor
 that declares nothing contributes nothing, which is how
 :math:`K_\omega \otimes I` — every shipped SN boundary law, with the
 group factor an identity — is bound exactly where :math:`K_\omega` is.
+
+.. implements:: tensor-product-space-agreement
+   :by: orpheus.numerics.operator._agreed_space
+
+   **Implemented by** the three-way law itself, written **once**: agree
+   ⟹ that space, all silent ⟹ ``None`` (silence is not disagreement), any
+   disagreement ⟹
+   :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`. It
+   is shared with :class:`~orpheus.numerics.operator.OperatorSum`, which is
+   what stops the two commutative composites from drifting into two
+   spellings of one rule.
+
+.. implements:: tensor-product-space-agreement
+   :by: orpheus.numerics.operator.TensorProductOperator.domain
+
+   **Implemented by** the equation's named subject on the left-hand
+   side: the composite's ``domain``, answered by delegating to the shared
+   law instead of by position.
+
+.. implements:: tensor-product-space-agreement
+   :by: orpheus.numerics.operator.TensorProductOperator.codomain
+
+   **Implemented by** the "and identically for the codomain" half —
+   the same delegation, so the two ends cannot be resolved by two different
+   rules.
 
 .. vv-status: tensor-product-space-agreement documented
 
@@ -3969,6 +4654,24 @@ transport equation's boundary trace. Per Grand Report v3 §5.3 and
    \qquad
    \Gamma_+ \;=\; \{(\mathbf{r}, \Omega) : \Omega \cdot \hat n > 0\}.
 
+.. implements:: trace-half-decomposition
+   :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
+
+   **Implemented by** the :math:`\Gamma_-` selector — the ordinate
+   indices with :math:`\Omega\cdot\hat n_f < -\epsilon`, i.e. the strictly
+   **inward** half.
+
+.. implements:: trace-half-decomposition
+   :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face
+
+   **Implemented by** the :math:`\Gamma_+` selector, :math:`\Omega\cdot
+   \hat n_f > +\epsilon`.
+
+   Between them the two selectors realize exactly the property the
+   surrounding prose insists on: **disjoint but not exhaustive**. Each
+   excludes the tangential band independently, so "not inflow" is never
+   "outflow" — a fact no single mask could carry.
+
 .. vv-status: trace-half-decomposition documented
 
 The two halves are directional selectors on the single unified
@@ -3986,6 +4689,21 @@ methods), which carry a **per-face directional mask**:
    \mathrm{inflow\_mask}[f, n]
    \;=\;
    \bigl(\Omega_n \cdot \hat n_f < -\epsilon\bigr).
+
+.. implements:: per-face-inflow-mask
+   :by: orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n
+
+   **Implemented by** the builder of the
+   ``(n_faces, n_ordinates)`` table of :math:`\Omega_n\cdot\hat n_f` that
+   the mask is a predicate **on**.
+
+.. implements:: per-face-inflow-mask
+   :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
+
+   **Implemented by** the predicate itself — ``np.flatnonzero(row <
+   -TANGENTIAL_EPS)`` on that table's face row, where ``TANGENTIAL_EPS = 4 *
+   np.finfo(np.float64).eps`` is the :math:`\epsilon` of the equation
+   (:math:`\approx 8.88\times 10^{-16}`).
 
 .. vv-status: per-face-inflow-mask documented
 
@@ -4625,6 +5343,264 @@ the closed-form algebra-of-record
 (:math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`) for the
 homogeneous reflective limit — a structurally-independent closed-form
 pillar, not a code-to-code comparison.
+
+.. _operator-algebra-declaration-contract:
+
+The declaration contract — which equations can have implementers at all
+=======================================================================
+
+Most of this page's labelled equations now carry one or more
+``.. implements::`` blocks naming the production symbol that realizes
+them. Eight do **not**, and their emptiness is a *finding*, not a
+backlog: each states something **about** the algebra rather than
+computing something **in** it. This section records the distinction,
+because it is not recoverable from a label and nothing in the toolchain
+can currently see it.
+
+Why the declarations exist
+--------------------------
+
+Nexus links code to equations two ways. A ``.. implements::`` directive
+writes a **declared** edge at ``confidence = 1.0``; absent any
+declaration, an inference heuristic mints **guessed** edges wherever a
+symbol's name shares a token with an equation's label. Declaring *any*
+implementer of an equation stands the guessing down for **that whole
+equation** — so one directive silences every guess pointing at that
+label.
+
+The page's own graph shows the trade, and shows it as a *measurement*
+rather than a projection. The graph happened to be rebuilt while this
+pass was in flight, with three equations already declared and the other
+37 not — so one snapshot holds both sides of the comparison:
+
+* the **37 undeclared** equations carried **771** inferred
+  ``implements`` edges between them — a median of **11** guesses each
+  and a maximum of **58**, on :eq:`operator-apply-transpose`;
+* the **3 declared** ones carried **zero**.
+
+After the pass, on the rebuilt graph: the **32** declared equations
+carry **57** directive edges and **zero** inferred ones — the stand-down
+is total, not partial. **166** inferred edges remain, and every one of
+them lands on the **8** equations that cannot be declared at all. That
+residue is the subject of the next two subsections.
+
+How coarse the guessing is deserves one concrete look.
+:eq:`operator-solve` alone attracts **60** of the 166 — and only **5**
+of those 60 symbols are named ``solve`` at all. The rest are matched by
+the label's *other* token: five ``apply`` methods, three
+``solve_fixed_source``, ``is_invertible``, ``is_adjointable``,
+:func:`~orpheus.numerics.operator.outer`, and whole classes such as
+:class:`~orpheus.numerics.operator.ZeroOperator` and
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`.
+A two-token label over a module named ``operator`` matches most of the
+module.
+
+(:math:`[M]` 2026-08-17, counting ``implements`` edges into
+``math:equation:*`` for this page's labels and splitting them by the
+edge's ``source`` attribute.)
+
+⚠ The corollary is a contract on whoever edits this page: **declare
+every implementer of an equation, or none of them.** A single directive
+on an equation implemented in two places leaves the second one unlinked,
+because the guess that used to cover it has stood down. **15 of the 32**
+declared equations here have more than one implementer —
+:eq:`streaming-action-cell-balance` has five,
+:eq:`apply-solve-cell-resolvent` four, five more have three each — and
+every one is declared exhaustively rather than representatively. In the
+other direction, three symbols legitimately implement **two** equations
+each
+(:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`
+assembles the balance diagonal *and* divides by it;
+:meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`
+is both the :math:`\ell`-sum and the carrier grid's role-changing edge;
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`
+is both the :math:`\Gamma_-` half and the inflow predicate) — so the
+directive count exceeds the symbol count by design.
+
+.. note::
+
+   Two of the ``:by:`` targets on this page carry an explicit
+   ``py:data:`` node-id prefix (the ``Domain`` / ``Codomain`` type
+   variables of :eq:`carrier-grid-operator-typing`). A bare dotted name
+   is resolved against the function / method / class prefixes only, so a
+   type variable — a ``py:data`` node — has to be named by its full node
+   id, or the directive binds nothing and says so only in the build log.
+
+The eight equations with no implementer, by kind
+------------------------------------------------
+
+No symbol can be pointed at for any of these without asserting a
+falsehood at ``confidence = 1.0``.
+
+.. list-table:: Equations that no code implements, and why
+   :header-rows: 1
+   :widths: 26 18 56
+
+   * - Equation
+     - Kind
+     - Why nothing can implement it
+   * - :eq:`apply-solve-parallel-identity`
+     - Identity
+     - The harmonic combination :math:`(L^{-1}+C^{-1})^{-1} =
+       L(L+C)^{-1}C`, stated precisely to exhibit what is **not** the
+       coupled inverse. It is unspellable in production:
+       :class:`~orpheus.sn.operators.streaming.StreamingOperator`
+       declares no ``inverse()`` and no ``solve``, so :math:`L^{-1}`
+       does not exist as an object to compose.
+   * - :eq:`apply-solve-neumann-series`
+     - Identity
+     - The splitting around :math:`C`, with :math:`C^{-1}L`, is never
+       run. :class:`~orpheus.numerics.green_operator.GreenOperator` *is*
+       a Neumann/splitting iteration — but around the sum's **leading
+       term**, not around the collision diagonal; production always
+       spells :math:`L + C` and promotes it to the direct-sweep
+       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`.
+       Declaring ``GreenOperator`` here would be a *wrong* declaration,
+       not a generous one.
+   * - :eq:`apply-solve-neumann-expansion`
+     - Identity
+     - The term-by-term expansion of the row above; same reason.
+   * - :eq:`apply-solve-denominator-inequality`
+     - Identity (an inequality)
+     - Nothing computes a non-equality.
+   * - :eq:`solve-does-not-distribute`
+     - Law, enforced by **absence**
+     - Enforced structurally rather than checked:
+       :class:`~orpheus.numerics.operator.OperatorSum` carries no
+       ``solve`` verb, and
+       :class:`~orpheus.sn.operators.streaming.StreamingOperator`
+       declares no ``inverse()``. An absence is not an implementation —
+       there is no symbol to point at, which is precisely why the
+       guessing engine attaches unrelated ones.
+   * - :eq:`streaming-as-tensor-product-sum`
+     - Canonical form, deliberately not realized
+     - :math:`[M]` its named type
+       :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+       has **zero** production consumers: grepping ``orpheus/`` returns
+       only its own class definition and guard messages, two
+       ``numerics/__init__`` export lines, and one docstring mention.
+       Streaming is realized as a sequential walk, and
+       :doc:`/theory/foundations/operator_tensor_network` records why it
+       resists a clean factorisation.
+   * - :eq:`operator-solve`
+     - Definition — a verb with no declaration site
+     - The base-hosting rule forbids one. :math:`[M]`
+       :class:`~orpheus.numerics.operator.LinearOperator` declares only
+       ``apply``, and the three narrowing Protocols declare
+       ``inverse()``
+       (:class:`~orpheus.numerics.operator.SupportsInverse`),
+       ``apply_transpose``
+       (:class:`~orpheus.numerics.operator.SupportsAdjoint`) and
+       ``assemble``
+       (:class:`~orpheus.numerics.operator.SupportsAssembly`) — never
+       ``solve``; no ``SupportsSolve`` exists. Contrast
+       :eq:`operator-apply` and :eq:`operator-apply-transpose`, whose
+       declaration sites *do* exist and are declared. The asymmetry
+       among the three verb equations is **predicted** by the page's own
+       base-hosting rule, not arbitrary.
+   * - :eq:`carrier-grid-cell`
+     - Definition — a taxonomy
+     - :math:`\texttt{Carrier} = (\text{Representation}, \text{Role})`
+       neither computes a quantity nor performs an operation. Its code
+       counterpart is the flat multiple-inheritance leaf grid
+       (:ref:`carrier-grid-flat-leaf-normal-form`) — a *structure*.
+       Related but **not** implementing:
+       :mod:`orpheus.transport.fields._bases` (the Representation ABCs)
+       and :class:`~orpheus.transport.fields._flux_role.FluxRole` /
+       :class:`~orpheus.transport.displacements._displacement.Displacement`
+       (the Role mixins). By contrast the *three edges* of
+       :eq:`scattering-carrier-grid` are materialized methods and are
+       declared — a diagram's arrows can have implementers where its
+       nodes cannot.
+
+What the kind predicts, and what the page's own prose does not
+--------------------------------------------------------------
+
+The eight kinds above sort cleanly, and the sort is the transferable
+output of this audit:
+
+.. list-table:: The kind of a statement predicts whether code can implement it
+   :header-rows: 1
+   :widths: 34 20 46
+
+   * - Kind of statement
+     - Implementable?
+     - Reason
+   * - Identity · Law · Canonical form
+     - **No**
+     - An identity between *quantities* has no carrier; a law enforced
+       by absence has no symbol; a canonical form the tree declines to
+       realize has no realization. There is nothing to point at.
+   * - Typing rule · Definition
+     - **Look for a declaration site**
+     - A typing rule *can* have a materialized carrier — a class
+       declaration, a Protocol parameter list, a set of typed methods —
+       and where it does, that carrier is the implementer. A definition
+       may or may not: :eq:`operator-apply` has a declaration site,
+       :eq:`operator-solve` does not.
+
+.. warning:: **The page's existing rationale prose is not a classifier —
+   measured.**
+
+   It is tempting to read the machine-readable ``.. (vv-status
+   rationale)`` comment above each equation as already carrying this
+   distinction, because the un-implementable rows do tend to say
+   *"Mathematical identity"* while implementable ones tend to name a
+   verb, a value, or a test file. :math:`[M]` across the 40 equations
+   audited here, that reading does **not** survive contact:
+
+   * only **28 of 40** carry a rationale block at all (**6** of the 8
+     un-implementable rows, **22** of the 32 implementable ones), so a
+     third of the page is silent either way;
+   * the word *identity* appears in **5 of 6** rationale-bearing
+     un-implementable rows — and in **11 of 22** implementable ones,
+     i.e. half of them;
+   * *"not a solver claim"* appears in **1 of 6** un-implementable rows
+     and **5 of 22** implementable ones — pointing the wrong way;
+   * a reference to a ``tests/`` file — the supposed implementable
+     signal — appears in **2 of 6** un-implementable rows, including
+     :eq:`operator-solve`, which has no implementer at all.
+
+   The reason is a genuine ambiguity in the word, not sloppy writing: an
+   **identity between quantities** (:eq:`apply-solve-parallel-identity`)
+   cannot have a carrier, while an **identity between types**
+   (:eq:`carrier-grid-operator-typing`,
+   :eq:`harmonic-frame-is-galerkin`, :eq:`product-solve-reroute`) is
+   *exactly* a claim about a class declaration and therefore can. Both
+   are honestly called identities. So the useful narrowing feature for
+   an inference engine is the **kind**, stated as a kind — not a
+   keyword mined out of the rationale prose.
+
+A last asymmetry, because it bounds what any amount of authoring can
+achieve here: an equation that legitimately has **no** implementer still
+attracts guesses, since the stand-down is triggered by a *declaration*
+and there is no way to declare an absence. The eight rows above are the
+part of this page's guessing load that cannot be retired by writing
+directives — which is the case the kind taxonomy exists to solve.
+
+Coverage of this pass
+---------------------
+
+The audit behind these declarations covered **40** of this page's
+labelled equations: **32** declarable, realized by **57**
+``.. implements::`` directives over **54** distinct symbols, plus the
+**8** above.
+
+Eight further labelled equations on this page were **outside** that
+audit and carry no declaration yet:
+``carrier-grid-interchange-witness``,
+``tensor-product-axis-wise-composition``, ``sum-of-tensor-products``,
+``octant-direct-sum-tensor-product``, ``eigen-standard-form``,
+``eigen-resolvent``, ``eigen-k-posing`` and ``eigen-alpha-derivation``.
+:math:`[M]` all eight attract **zero** edges of either kind today — no
+guess and no declaration — so nothing is currently mis-attributed to
+them; they are unfinished rather than wrong. The four ``eigen-*`` labels are the proper home of
+:func:`~orpheus.numerics.eigenvalue.power_iteration` and the eigenvalue
+tiers of :ref:`eigenvalue-posing` — declaring ``power_iteration``
+against :eq:`operator-eigenvalue` instead would poach them, which is why
+:eq:`operator-eigenvalue` names only the two ``compute_fission_source``
+postings that build its right-hand side.
+
 
 
 Development history

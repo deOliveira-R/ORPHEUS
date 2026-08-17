@@ -7,7 +7,7 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 14 detection lessons. Spine: an attack's value is a concrete
+- [lessons.md](lessons.md) — 16 detection lessons. Spine: an attack's value is a concrete
   reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
   reason. A named-but-payoff-free frame is rejected output.
 
@@ -42,8 +42,10 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [#261 op relocation](issue_261_cross_method_operator_relocation.md) — guard invariant is object-id ⊋ geometry ⊋ shape-eq; mint nothing new.
 
 ### Curvilinear / phase-space boundary
-- [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; sphere-only.
+- [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; ⛔ its "sphere-only" verdict is SUPERSEDED (see next).
+- [Q68 angular march](cylinder_angular_march_jacobi_ladder.md) — the redistribution IS the Jacobi–SL first-order factor; the level's nodes ARE its Gauss nodes (cyl = Chebyshev) ⇒ tridiagonal, free truncation, NO seed.
 - [quadrature sym](quadrature_symmetry_quotient_frames.md) — half-range = orbifold quotient; a level is a FIBER not an orbit; SPENT group: 3 fates.
+- [#336 μ-line reduction](sphere_mu_line_reduction_frames.md) — GAUSS OPTIMALITY refutes REDUCE-as-value-path; admissibility = CDF internality (no moment condition implies it); the Stage-0 gate is landed and unwired.
 
 ### Eigenvalue / iteration layering
 - [eigenvalue posing](eigenvalue_posing_layering_frames.md) — k/α/source/transient = ONE generalized eigenproblem Aψ=λMψ over the resolvent backbone.

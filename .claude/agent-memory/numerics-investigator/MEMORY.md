@@ -5,37 +5,43 @@ campaign detail lives in the topic files this index points to — never inline i
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — L1–L19, the diagnostic-cascade spine: never guess, isolate in
-  cascade order, and a single mesh / flat flux / homogeneous case / two-probe agreement
-  proves nothing. Index of the headlines:
-  - L1 run the cascade in order · L2 curvilinear redistribution is the prime suspect
-  - L3 two-quadrature signed-error gate for rank-N closures · L4 convergence-rate fingerprints
-  - L5 paper-floor vs code-bug discriminator · L6 curvilinear matvec needs a NON-FLAT reference
-  - L7 a per-ordinate moment must reach the GLOBAL frame before the angular reduction
-  - L8 the project's own theory page can be the contaminated reference
-  - L9 a "hang" may be fixture cost — bound the solver first
-  - L10 diverges-with-refinement + a discarded info-flag = an unconverged inner solve;
-    **L10b** a RECORDED-BUT-UNREAD `converged` flag fakes the same floor — read
-    `n_inner` vs `max_*` FIRST, a tol-sweep below the capped residual is a vacuous knob;
-    **L10c** an all-reflective pure absorber is SI-hard (d=1 32 → d=3 1631 sweeps),
-    `Σ_t·n_inner` is invariant, and a G-S-vs-Jacobi rate claim can INVERT with dimension
-    (mechanism + the refutation of `ndim` as the variable: **L19**)
-  - L11 measure the residual r=Aψ−q for a ρ-honest stop, not the increment ‖Δψ‖
-  - L12 an offline-isolated error is THE floor only after swap + silent control + AMPLIFY
-  - L13 a greedy `(Ellipsis,*idx)` fancy-index mis-targets axes under a spectator axis
-  - L14 curvilinear `(L+C).solve` seed-lag is QUADRATURE-dependent (MMS-blind)
-  - L15 sweep ANGULAR N at fixed mesh to rule principled-vs-regression on a closure re-pose;
-    a carve growing a Krylov composite must resize `restart` from the composite `to_flat`
-  - L16 comparing two angular quadratures needs a standalone scheme-faithful driver +
-    fine-N reference with a cross-quadrature contamination guard
-  - L17 a STATE DOF's Hilbert metric is NOT its angular weight; T=Aᵀ ⟹ the block metric is
-    GAUGE-FREE (any SPD); `G_block=0` is worse than blind
-  - L18 to adjudicate a LABELING/ORDERING degeneracy the instrument is the operator's own
-    SYMMETRY GROUP — MMS is exactly blind when its ansatz uses only the class invariants
-  - L19 a RATE question is a SPECTRUM question — eigen-solve `M⁻¹N` (immune to the stopping
-    test); a splitting inversion first says Varga's theorem no longer applies, so find the
-    NEGATIVE term (DD gives `d−1` undamped `−1` channels per cell); enumerate a finite knob
-    rather than sample it; never branch a default on a merely-correlated variable
+**⚠ READ `lessons.md` ITSELF — it is the authority; the keywords below are a lookup
+table, not a summary.** The spine: never guess, isolate in cascade order, and a single
+mesh / flat flux / homogeneous case / two-probe agreement proves nothing.
+
+- [lessons.md](lessons.md) — L1–L24. Keyword index (one line each, `##` headings there):
+  - L1 cascade order · L2 curvilinear redistribution is prime suspect · L3 two-quadrature
+    signed-error gate · L4 convergence-rate fingerprints · L5 paper-floor vs code-bug
+  - L6 curvilinear matvec needs a NON-FLAT reference · L7 per-ordinate moment → GLOBAL
+    frame before the angular reduction · L8 our own theory page can be the contamination
+  - L9 a "hang" may be fixture cost · L10 diverges-with-refinement + a discarded info-flag
+    = unconverged inner (**b** recorded-but-unread flag; **c** all-reflective absorber is
+    SI-hard, `Σ_t·n_inner` invariant, G-S-vs-Jacobi INVERTS with dimension)
+  - L11 residual `r=Aψ−q`, not the increment · L12 offline error is THE floor only after
+    swap + silent control + AMPLIFY · L13 greedy `(Ellipsis,*idx)` under a spectator axis
+  - L14 curvilinear seed-lag is QUADRATURE-dependent · L15 sweep ANGULAR N (not h) for a
+    closure re-pose; resize Krylov `restart` from the composite · L16 cross-quadrature
+    comparison needs a scheme-faithful driver + contamination guard
+  - L17 a STATE DOF's metric ≠ its angular weight; `T=Aᵀ` ⟹ gauge-free, `G=0` forbidden
+  - L18 adjudicate a LABELING degeneracy with the operator's own SYMMETRY GROUP
+  - L19 a RATE question is a SPECTRUM question (eigen-solve `M⁻¹N`); check the comparison
+    THEOREM before hunting; enumerate a finite knob; never branch on a correlated variable
+  - L20 a RESIDUAL cannot gate an EIGENVALUE contract — measure the TRANSFER GAIN first
+  - L21 an ANGULAR claim separates by `h→0`, not by the parameter it is named after
+  - L22 a STALE frozen reference: relative error before nulp; a re-baseline's radius is
+    FROZEN REFERENCES, not `.npz` files
+  - L23 a SINGULARITY is a two-question object (refuse the either/or); dense SVD through
+    the production builders settles what ARPACK bounds; the METRIC picks the remedy;
+    fit → predict → test OFF-SAMPLE → SWAP THE SCHEME. **+addendum (disposition):** change
+    the SPLITTING not the mesh; a ladder can be PARITY-SPLIT; enumerate the moment ladder.
+    **+addendum II (coherence):** remove the kernel ≥3 ways; `‖MM⁻¹−I‖` full-space is the
+    wrong instrument for a forward-substitution (SUBSPACE) inverse
+  - L24 a KERNEL is usually a CLOSED-FORM problem — a counting law INDEPENDENT of a
+    parameter the operator contains ⟹ the governing equation is combinatorial; sign
+    CHARACTERS diagonalise a specular-BC system; a SUM over axes = modes on PLANES; where
+    SVD is unaffordable the span check is a PRODUCTION-generated kernel vector + a
+    round-off NEGATIVE control; ABSENT vs INVISIBLE share a parity fingerprint; a
+    blindness list measured on ONE quadrature is a sample; never ship a DENSE basis
 
 ## 2. Active / in-flight state
 
@@ -52,13 +58,38 @@ typing (#208), the S9 LD boundary-slope verdict.
 **Open, no active work** (pick up only if asked; breadcrumbs in §3): #326 (cylindrical
 ordering — adjudicated, remediation open), **#341** (boundary-G-S rate — mechanism found,
 `ndim` refuted, default unchanged; docstring fixes + the octant-order issue owed),
-#123, #128, #132/#100, #129, #170.
+**#344** (ANSWERED 2026-08-14, THREE halves — structure, disposition
+(DETERMINISM / solver-selection, exactly removable) and COHERENCE (boundary-G-S IS
+a splitting of A: `M−N≡A` bit-exact, kernel-free controls agree at 1e-13, ERR-056
+positive control at 1.0); remediation is the user's call, 24 gates awaiting
+promotion; see §3),
+**#319/#235** (flux-dip experiment RUN and answered — see §3; remediation is the user's
+call, 3 gates awaiting promotion), #123, #128, #132/#100, #129, #170.
 
 ## 3. Durable reference (one line each)
 
 - [issue_341_boundary_gs_rate.md](issue_341_boundary_gs_rate.md) — #341 verdict: DD's `d−1`
   undamped `−1` channels void Varga ⟹ G-S may lose; `ndim` REFUTED as the predicate; the
   real lever is the unowned octant ORDER (`max_a L_a > Σ_{b≠a} L_b`, 25/25). Backs L19.
+- ⭐ `scratch/issue_344_null_space_structure.md` (in-repo, not agent memory) — #344, BOTH
+  halves. **Part I (structure):** `ker A = ` tangential slots (`G ≡ 0`, `product`/`lebedev`
+  only) `⊕` a real DD underdetermination (`ng·N/4` at d=2, `ng·(N/8)·(2Σn−1)` at d=3,
+  `level_symmetric` has ONLY this); LD non-singular on the same box; every `d ≥ 2`
+  Cartesian DD reflective k-solve is singular by default. **Part II (disposition):
+  DETERMINISM, not a discretization bug** — the deviation is boundary-G-S's oblique
+  projector (Jacobi returns the exact trace, 5/5), converges at exactly `O(h)`, and the
+  G-orthogonal gauge projection is an EXACT fix (`8.97e-02 → 5.8e-13`).
+  **Part III (coherence):** the schedule IS a splitting — `M−N ≡ A` bit-exact 20/20,
+  four kernel-free controls agree at `1e-13`, ERR-056 mutation at `1.0`; `M_GS⁻¹` is
+  a SUBSPACE inverse. ⛔ the `n_x`-parity split is SOURCE-dependent (aniso: `1.3e-02`
+  at even `n_x`). Backs L23 + both addenda.
+- ⭐ `scratch/issue_344_kernel_basis.md` (in-repo) — #344's **CLOSED-FORM basis** for
+  `ker A`: bulk-zero face sawtooth `(−1)^k φ_a(i_⊥)` ⟹ `Σ_a s_a Y_a(s_{≠a};i_{≠a}) = 0`,
+  basis = (group)×(ordinate orbit)×(axis PAIR)×(sign character)×(complementary cell index).
+  Both counting laws become theorems; verified vs dense SVD on 13 configs (res `≤1.6e-15`,
+  subspace gap `≤2.2e-14`). Gauge projection SHIPPABLE: `11.26 % → 5.8e-13`, bulk
+  bit-unchanged, setup `0.04 s` / apply `0.094 ms`, blocked storage (17.6 GiB → 154 MiB).
+  ⛔ `p=0` face moment is NOT blind when tangential slots exist. Backs L24.
 - [cylindrical_level_ordering_symmetry_adjudication.md](cylindrical_level_ordering_symmetry_adjudication.md)
   — #326 verdict: the curvilinear MMS is EXACTLY blind to the per-level tie-break; the
   ξ-mirror symmetry adjudicates and says the CLOSURE is broken, not the ordering. Backs L18.
@@ -81,6 +112,10 @@ ordering — adjudicated, remediation open), **#341** (boundary-G-S rate — mec
 - [issue_208_flux_displacement_residual_typing_debug_value.md](issue_208_flux_displacement_residual_typing_debug_value.md)
   — the convergence-diagnostic catalogue: FluxDisplacement answers WHERE convergence lags,
   AngularResidual answers WHERE the equation is unsatisfied. Backs L11.
+- [issue_319_flux_dip_discriminator.md](issue_319_flux_dip_discriminator.md) — #319 verdict:
+  the thickness DECAY RATE does not split M-M τ from plain diamond (0.000 for both); `h→0`
+  does (3.2×→204×, λ_opt→1). Reconciles #235 as wrong-regime (`c=0.5`) + high angular order
+  (14×@S2 → 0.9×@S8). β is a sphere-only instrument. Backs L21.
 - [curvilinear_tau_clamp_vs_pole_floor.md](curvilinear_tau_clamp_vs_pole_floor.md) — the
   sphere pole-CELL closure is O(h) at r→0, invisible to the volume-weighted L2 gate
   (WONTFIX + an L∞/pole gate). Backs L12.

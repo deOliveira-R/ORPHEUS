@@ -73,26 +73,82 @@ this one does not (`plan-authoring` §9).
    3 already logged, which did not transfer because that instance was
    about a file copied aside rather than one read live.
 
-### ▶ NEXT — `nexus#82`, the user's adopted target
+### `nexus#82` — steps 1 & 2 LANDED 2026-08-17; step 3 REFUTED
 
-**Closing the guesses.** `implements` is **0 %** declared; the metric is
-fidelity probe **F5**, and the honest order the user ruled is *declare,
-then narrow*.
+✅ **Step 1** — the equation-level stand-down, nexus `3616d55`. Declaring
+any implementer now stands the guessing down for the **whole equation**.
+The pair check's `implements` arm became unreachable and was retired.
+5 gates + a 5-arm mutation battery.
 
-⭐ **Read the 2026-08-17 comment on `nexus#82` before designing** — it
-carries the measurements and one structural blocker that changes the
-plan:
+✅ **The ordering assumption had no witness** — nexus `c20232a`. Moving
+`_infer_implements` above `apply_pending_edges` leaves all 5 unit gates
+green while the feature dies on real projects. `[M]` the e2e fixture
+produced **zero** inferred edges (all 3 declared; the inference keys on
+`documents` edges the page lacked), so the e2e suite had never exercised
+the inference at all.
 
-- the `.. implements::` directive **already ships** and ORPHEUS uses it
-  **0 times** (against 39 uses of `verifies`), so this is not "build a
-  declaration path";
-- the guesses are weak in a specific, actionable way: **88 %** rest on a
-  single shared token, and `peierls` + `greens` alone produce **58 %**;
-- ⛔ the inference's suppression is **per-PAIR** (`merge.py`), so
-  declaring one implementer leaves the other ~11 guesses on that
-  equation. **Adoption is additive when it needs to be displacing** —
-  an equation-level stand-down has to land first or step 2 has no
-  payoff.
+✅ **Step 2** — 85 declarations across two theory pages
+(`sn/loss_representation` 28, `foundations/operator_algebra` 57). F5's
+`implements_declared` **0 → 85 / 13080**; inferred 14004 → 12995.
+
+⛔ **Step 3 (narrow the inference) is REFUTED — do not build it.**
+`evals/implements_ground_truth.py` (nexus `c207277`) is 82 hand-verified
+implementers over 56 equations. The shipped rule is **2.0 % precise**
+(recall 32.9 %), and on **24 of 45** equations with a real implementer
+the guess pool is *disjoint from the truth*. Every narrowing variant
+trades along the same frontier — tokenizing the symbol's own name
+instead of its dotted path (the obvious fix, since `peierls`/`greens`
+are MODULE names) halves the edges and drops recall to 20.7 %.
+
+⭐ **What replaces it: `nexus#85`** — let an equation declare that
+**nothing** implements it, carrying the KIND. `[M]` 11 of the 56
+labelled equations have no implementer (identity / law-enforced-by-
+absence / canonical-form-not-realized / definition-with-no-declaration-
+site), and after step 2 the **239 residual inferred edges on the
+labelled set are exactly the 239 on those 11**. Every equation that CAN
+be declared has zero guesses; every one still guessed at is one no
+declaration can currently spell.
+
+### ⭐⭐ Rulings from this step
+
+1. ⚠ **An undeclared equation gets WORSE every time its page is
+   improved.** `[M]` the three equations the first pass did not declare
+   went 23 → 24/25/24 guesses, because the new prose cross-referenced a
+   symbol *in order to say it is not the implementer*. The candidate
+   pool is "symbols the page documents", so an added xref is an added
+   candidate. Documentation quality and inference quality are coupled
+   the wrong way round.
+2. ⭐⭐ **When a campaign is about changing a POPULATION, any metric
+   computed over that population must say which of two questions it
+   answers.** Hit TWICE in one session: F5 read provenance off the edge
+   *type*, hard-coding *implements ⇒ guess*, so it would have counted
+   this campaign's own declared edges as guesses (`edb60e2`); then the
+   ground-truth scorer built to replace it printed **precision 0.0 %**
+   the moment declarations landed, because the equations it scored well
+   on had left the population (`fbdb6e7`). Both are the same defect —
+   a denominator that moved under the metric.
+3. **The pages already label which equations are unimplementable, and
+   nothing reads the label** — every such row carries a `.. vv-status`
+   rationale saying *"Mathematical identity"* / *"Definitional"*.
+   ⚠ The line is NOT "not-a-solver-claim": `carrier-grid-operator-typing`
+   and `harmonic-frame-is-galerkin` carry that rationale and ARE
+   declarable. A *typing rule* can have a materialized carrier (a class,
+   a Protocol parameter list); an identity cannot.
+4. **A retirement can silently PROMOTE a gate's claim class.** Making
+   `L.apply` σ-free turned `tests/sn/operators/test_loss_action_convention.py`'s
+   `−C` glue check from tautological (`apply` WAS defined as the
+   subtraction) into a real test of the walk's **affinity in σ** — with
+   no line of the test body changing. Its docstring still called itself
+   tautological, which is how a load-bearing gate gets deleted as
+   redundant. The known hazard is the demotion; this is its mirror.
+5. **Doc drift found by declaring, not by building**: 19 sites asserting
+   `L.apply` subtracts σ_t (6 named in the brief, 13 found by widening),
+   a `:=` DEFINITION in a test header naming a constructor argument that
+   does not exist (`[M]` `StreamingOperator` has one field, `sn_mesh`),
+   `keff-as-integrated-rates` still stating the pre-#291/pre-R7
+   convention, and a `:class:`CollisionOperator`` xref retired at #261.
+   Sphinx built clean through all of it — a Python-domain role in an
+   un-`automodule`'d file warns at NO severity.
 
 **Also open, unchanged:** `#81` (prefer the resolved pytest manifest —
 same question as `#83`, consider one overlay for both), `#76`/`#16` (the

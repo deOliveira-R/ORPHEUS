@@ -127,6 +127,26 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   snapshots pin this" is worthless if those snapshots were re-baselined BY the same carve
   (measured 2026-08-03: three `cyl_*` snapshots cited as the pre-carve anchor had all been
   re-captured by the consolidation commit itself).
+- **⭐ And the MIRROR, which nothing prompts you to look for: a retirement can silently
+  PROMOTE a gate's claim class, and the stale docstring then talks a load-bearing gate
+  DOWN.** The demotion above is hunted because a weakened gate is a risk. A *strengthened*
+  one raises no alarm — the suite is greener, nothing fails — so its description is never
+  re-read, and it keeps advertising the weaker claim it had before. That is how a real
+  gate gets deleted as redundant: an audit reads "these checks are tautological", believes
+  the docstring over the code, and removes the only witness to a property.
+  The check is the same question asked in the other direction, and it costs one reading:
+  after a retirement, for every gate that *survived* untouched, re-derive what its
+  assertion now compares. If the docstring says "tautological", "by construction", or
+  "restates the definition", that is a claim about an implementation which may no longer
+  exist.
+  > `[M]` 2026-08-17. `tests/sn/operators/test_loss_action_convention.py` asserted
+  > `apply(ψ) == loss_action(σ_t, ψ) − C.apply(ψ)` and its own header called that check
+  > *"tautological (`apply` is DEFINED as `loss_action − σ_t·ψ`)"* — true when written.
+  > #257 S8b made `apply` σ-free (`loss_action(0, ψ)`), so the same line now reads
+  > `loss_action(0,ψ) == loss_action(σ_t,ψ) − σ_t⊙ψ`: the **affinity of the walk in σ**,
+  > a falsifiable property of two independently-evaluated walks. The gate went from
+  > restating a definition to being the only check of an algebraic property, with **no
+  > line of the test body changing**, and its docstring went on disclaiming it for months.
 - **⭐ SINGLE-SOURCING A DUPLICATE DEMOTES EVERY GATE THAT COMPARED ITS COPIES — and this
   is the case where the demotion is CORRECT, so it is the one you must not resolve by
   backing out.** The two clauses above cover a survivor that *calls* the other side; the

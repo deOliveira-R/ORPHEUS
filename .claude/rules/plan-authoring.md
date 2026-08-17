@@ -74,6 +74,7 @@ surprises cost to hit.
 | 2026-08-16 | Two Track-0 items were sized in LINES — *"1 line"*, *"2 lines"* — from a review that had correctly diagnosed each mechanism. Both were wrong the same way: each defect was a **duplication**, and the reported site was merely the copy that happened to be wrong. 0.2's "make `_unparse_attribute` return `None`" was really "retire it — `_dotted_name`, 360 lines above in the same file, already does" (−28 lines). 0.3's "apply `py_type_map` on the xref path" was really "the map is local to one producer — hoist it". ⭐ A line-count estimate silently asserts the defect has ONE site; when the defect IS the second site, the estimate is not merely low, it points at the wrong repair — landing it verbatim would have left both twins alive. Caught only because the pointer carried its own §4 caution (*"reported as a one-line fix; verify that before believing it"*), so the loop worked and cost nothing. | §4 (a relayed SIZE is a measurement and needs its fixture like any other) + [[lessons-L57]] |
 | 2026-08-16 | A step's stated done-when — *"staleness is applied by construction, and the count is 40 of 40"* — was **unreachable as written**, and the number was inherited from the review that proposed the object. `[M]` only **3 of 40** MCP tools take a position as INPUT, so 37 of them have nothing for a position-staleness warning to apply to; the real exposure is the **51** `_node_result` producers that EMIT `(file_path, lineno)`. The plan had faithfully carried the reviewer's denominator (`1 of 40`, correct) into a target (`40 of 40`) that silently changed what was being counted — inputs became outputs. Cost: none, because the count was re-derived before designing; had it not been, the step would have chased a target it could not hit and then relaxed it. ⟹ **a done-when built from a measured fraction must name the same predicate the measurement did** — `1 of 40 tools APPLY it` and `40 of 40 tools SHOULD` are only comparable if "it" is the same thing on both sides. Same defect as the 2026-08-16 filter row below, one step later, in the target rather than the evidence. | §1 (done-when is a checkable predicate) + §2 (the quantifier clause: write the predicate, not only the denominator) |
 | 2026-08-15 | ⚠⚠ **THIRD instance of §2's quantifier clause in one campaign, and the first that was MINE — promoted to a ⛔ imperative.** From 11 meshes I concluded *"the kernel is excited iff the FIRST axis has an ODD cell count"* and wrote it into a plan, a record docstring, a test module docstring, and a ⛔ rule for every future acceptance fixture. All 11 carried a **uniform isotropic source** — the denominator I never wrote. `[M]` `dim ker A = 12` at EVERY parity, and an anisotropic source excites an even mesh at `1.756363e-02` vs `6.7e-14` uniform. The operator was never the parity-dependent thing; the *excitation by a symmetric source* was. Caught by an `archivist` running two measurements nobody asked for. ⭐ The aggravator specific to this row: the two earlier instances were sub-agents' and I caught both by asking for the denominator — the habit did not transfer to my own table, because I had *watched myself* take those 11 measurements and so felt no need to ask what they shared. | §2 (quantifier). No new clause — but read it with this: **the denominator you are least likely to write is the one held FIXED across every row**, because a constant does not look like a variable. Ask of any table: *what is the same in every row, and is my conclusion about that?* |
+| 2026-08-17 | A campaign adopted a **metric as its target** — *"`declared/(declared+inferred)` for `implements`, tracked by fidelity probe F5"* — and the probe could not measure it. F5 read provenance off the edge **TYPE** (`declared = count(tests)`, `inferred = count(implements) + count(references)`), hard-coding *implements ⇒ guess*. True when written, since every `implements` edge was inferred. So the declared edges the campaign existed to create would have been counted as **guesses**: the number moves the WRONG WAY while the work succeeds. Caught before any declaration landed, by reading the probe while wiring the target — not by any check the plan carried. ⭐ The aggravator: F5 is *the probe that detects a flattering aggregate*, and F2 explicitly rides on it. Then it happened AGAIN the same day in the replacement instrument, which printed `precision 0.0 %` on the first successful step because the equations it scored well on had left the population. | §10 (new) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -654,3 +655,54 @@ a test asserts or prints it.** If one does, replace the number with the
 `file:line` and let the reader run it. Keep the copy only when the plan's number
 is a *historical* claim ("was `1.9e-2` before the fold"), and then tense it and
 date it so it cannot be read as current.
+
+## 10. A metric adopted as a TARGET must be checked that it can move toward it
+
+Naming a number as the goal — *"we are done when F5 reaches X"* — reads as the
+most rigorous thing a plan can do. It silently asserts something nobody
+verifies: that the instrument **responds to the intervention in the right
+direction**. A metric is code, written at some earlier time against the world as
+it then was, and the intervention is precisely what changes that world.
+
+The failure is not a wrong number. It is a metric that was **correct when
+written and is invalidated by success** — so the campaign's own progress reads
+as regression, or (worse) its regression reads as progress.
+
+**The check is one question, asked when the target is adopted, before any work:**
+*if this campaign fully succeeds, what does the metric print?* Answer it by
+reading the metric's implementation, not its name. Two shapes recur:
+
+- **A metric that infers a property from a PROXY that the work removes.** The
+  proxy holds today, which is why nobody notices it is a proxy. ⟹ read what the
+  metric actually keys on, and check that field is the one the work changes.
+- **A metric computed over a POPULATION the work removes members from.** When
+  the intervention *takes things out* of the measured set — declaring, fixing,
+  retiring — the denominator moves under the metric, and the remainder is the
+  hard residue. A score over "the ones still broken" gets worse by construction
+  as you fix the easy ones. ⟹ report the two questions separately: *how good is
+  the RULE* (simulated over a fixed population) and *how much of the CORPUS is
+  still affected* (the thing the work moves).
+
+> `[M]` 2026-08-17, `nexus#82`. The adopted target was
+> `declared/(declared+inferred)` for `implements`, "tracked by fidelity probe
+> F5". F5 computed `declared = count(tests)` and
+> `inferred = count(implements) + count(references)` — provenance from the edge
+> TYPE. Every `implements` edge on the corpus was inferred, so the shortcut was
+> *true*; it also meant the campaign's declared `implements` edges would count
+> as guesses. Fixed to read `source` (`edb60e2`), which also revealed the
+> published `1 : 10.0` had been `1 : 5.1` all along, `references` being
+> AST-extracted rather than guessed. ⭐ The aggravator: F5 is the probe whose
+> own job is detecting a flattering aggregate, and a second probe (F2) is
+> documented as riding on it.
+>
+> Then the same defect recurred **the same day, in the replacement**: a
+> ground-truth scorer built to be the honest instrument printed
+> **`precision 0.0 %`** the first time declarations landed — not because the
+> rule degraded but because the equations it scored well on were no longer in
+> the population it read (`fbdb6e7`). Two instances, one shape.
+
+⚠ Do not resolve either case by re-baselining. A metric that cannot move toward
+the target is not a stale baseline, it is the wrong instrument; and its history
+is void either way, so say so where the numbers are recorded rather than
+quietly restating them (§3, and §9's rule that the measuring file re-measures
+itself).

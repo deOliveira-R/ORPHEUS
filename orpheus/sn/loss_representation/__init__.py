@@ -328,12 +328,19 @@ class LossRepresentation(Protocol):
         The sweep's operator-twin (L21 — sweep and matvec are different
         applications of the SAME operator): the sweep solves
         :math:`(L+C)^{-1} q`, this APPLIES :math:`(L+C)`.  **Return the FULL loss
-        :math:`(L+C)\psi`, NOT :math:`L\psi`** — the operator
-        (:meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`) subtracts the
-        collision diagonal :math:`C = \sigma\odot` exactly ONCE (Resolution A
-        :math:`L = (L+C) - C`).  A leaf that returned :math:`L\psi` would make the
-        operator subtract :math:`C` a SECOND time (a double-counted collision
-        diagonal).  ``sigma`` is the ``(ng, ...)`` diagonal coefficient the matvec
+        :math:`(L+C)\psi` for the given** ``sigma``, **NOT** :math:`L\psi`.  The
+        two operator doors are two readings of THIS action:
+        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
+        passes the composite's own :math:`\sigma` and returns the result
+        directly, while
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` passes
+        :math:`\sigma = 0` (via ``streaming_action``) and so gets bare
+        :math:`L\psi` — the Resolution-A identity :math:`L = (L+C) - C`
+        realised as the :math:`\sigma`-free reading, NOT as a subtraction
+        (#257 S8b).  A leaf that ignored ``sigma`` and returned :math:`L\psi`
+        would therefore drop :math:`C` out of the composite's matvec while
+        ``solve`` kept it — matvec and sweep no longer the same operator
+        (L21 broken).  ``sigma`` is the ``(ng, ...)`` diagonal coefficient the matvec
         realises (#240 Phase 2 Step B — passed EXPLICITLY, symmetric with
         :meth:`sweep`'s ``sig_t``, so the composite — not the leaf — single-sources
         :math:`\sigma`); the per-geometry walk machinery is on ``self.mesh``.
@@ -372,9 +379,14 @@ class LossRepresentation(Protocol):
     ) -> "FullField":
         r"""The adjoint loss action :math:`(L+C)^{\mathsf T}\,\phi` for this geometry.
 
-        Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` (the operator
-        subtracts the self-adjoint diagonal :math:`C` in
-        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`).
+        Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` for the given
+        ``sigma``.  :math:`C = \sigma\odot` is a self-adjoint diagonal, so the
+        adjoint matvec is affine in :math:`\sigma` exactly as the forward one
+        is, and
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
+        recovers bare :math:`L^{\mathsf T}\phi` by calling this at
+        :math:`\sigma = 0` (via ``streaming_action_transpose``) — not by
+        subtracting (#257 S8b).
         Implemented by EVERY registered representation on EVERY registered
         scheme since #310 C5 (the 1-D reverse walks, the mirror-octant
         wavefront reverses — DD and LD, any ``d`` — and the row-march
@@ -649,9 +661,13 @@ class _LossRepresentation:
     ) -> "FullField":
         """The forward loss action ``(L+C)ψ`` — every concrete leaf implements it.
 
-        Returns the FULL within-group loss ``(L+C)ψ`` (NOT ``Lψ``); the operator
-        subtracts ``C = σ⊙`` in ``apply`` (Resolution A ``L = (L+C) − C``).
-        ``sigma`` is the diagonal coefficient, passed explicitly (#240 Step B).
+        Returns the FULL within-group loss ``(L+C)ψ`` for the given ``sigma``
+        (NOT bare ``Lψ``).  ``StreamingCollisionOperator.apply`` passes the
+        composite's own σ and returns this directly; ``StreamingOperator.apply``
+        passes σ = 0 and so gets ``Lψ`` — the Resolution-A identity
+        ``L = (L+C) − C`` realised as the σ-free reading, not a subtraction
+        (#257 S8b).  ``sigma`` is the diagonal coefficient, passed explicitly
+        (#240 Step B).
         """
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action()"
@@ -662,8 +678,11 @@ class _LossRepresentation:
     ) -> "FullField":
         """The adjoint loss action ``(L+C)ᵀφ`` — 1-D implemented or a deferral raise.
 
-        Returns the FULL adjoint loss ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
-        ``apply_transpose``).  ``sigma`` is the diagonal coefficient (#240 Step B).
+        Returns the FULL adjoint loss ``(L+C)ᵀφ`` for the given ``sigma``;
+        ``StreamingOperator.apply_transpose`` recovers bare ``Lᵀφ`` by calling
+        this at σ = 0 (``C = σ⊙`` is self-adjoint, so the adjoint matvec is
+        affine in σ too — #257 S8b, not a subtraction).
+        ``sigma`` is the diagonal coefficient (#240 Step B).
         The transposed ψ½ leg kwargs are the B.2d explicit-leaf protocol (see
         :meth:`LossRepresentation.loss_action_transpose`).
         """
@@ -1091,9 +1110,11 @@ class _OctantWalk:
         boundary is the O.4b active-trace residual: OUTFLOW slots → defect
         ``streamed − given``; INFLOW slots → identity ``given``.
 
-        Returns the FULL loss :math:`(L+C)\bar\psi` (NOT :math:`L\bar\psi`);
-        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts
-        :math:`\Sigma_t\,\bar\psi` exactly once (Resolution A).
+        Returns the FULL loss :math:`(L+C)\bar\psi` for the given ``sigma``
+        (NOT bare :math:`L\bar\psi`);
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` recovers
+        :math:`L\bar\psi` by calling this frame at :math:`\sigma = 0`, not by
+        subtracting (Resolution A as the σ-free reading, #257 S8b).
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import (
@@ -1120,7 +1141,8 @@ class _OctantWalk:
             Q_zero=np.zeros((1, ng, *spatial, *moment_tail)),
         )
 
-        # (L+C)·ψ̄ accumulator; ``apply`` subtracts Σ_t·ψ̄ → bare-streaming Lψ̄.
+        # (L+C)·ψ̄ accumulator; ``L.apply`` reaches bare-streaming Lψ̄ by running
+        # this SAME frame at σ = 0 (#257 S8b), never by subtracting Σ_t·ψ̄.
         LpC = np.zeros((sn_mesh.quad.N, ng, *spatial, *moment_tail))
         trace = sn_mesh.angular_trace
         boundary = psi.boundary
@@ -1210,10 +1232,11 @@ class _OctantWalk:
 
         The pure-z transpose is the diagonal itself (``σ_t·r̄`` —
         collision-only, self-transposed, same moment broadcast as the
-        forward twin, L21).  Returns the FULL ``(L+C)ᵀφ``;
+        forward twin, L21).  Returns the FULL ``(L+C)ᵀφ`` for the given
+        ``sigma``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
-        subtracts ``σ_t·φ`` exactly once (Resolution A, mirror of
-        ``apply``).
+        recovers bare ``Lᵀφ`` by calling this frame at σ = 0 (#257 S8b, the
+        mirror of ``apply`` — not a subtraction).
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import (
@@ -1411,8 +1434,9 @@ class CumprodScan(_LossRepresentation):
     ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
 
-        S6.3 / #206 Phase C: returns the FULL within-group loss ``(L+C)ψ``; the
-        operator subtracts the collision diagonal ``C = σ⊙`` in :meth:`apply`.
+        S6.3 / #206 Phase C: returns the FULL within-group loss ``(L+C)ψ`` for
+        the given ``sigma``; ``StreamingOperator.apply`` recovers bare ``Lψ`` by
+        calling this at σ = 0 (#257 S8b), never by subtracting ``C = σ⊙``.
         The matvec walk LIVES in :meth:`._OneDimScanWalk.loss_action` (the
         apply-direction twin of the sweep — L21 "matvec ≡ sweep"); the angular
         Morel–Montry redistribution + Carlson pole seed ride through
@@ -1425,8 +1449,10 @@ class CumprodScan(_LossRepresentation):
     ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
 
-        S6.3 / #206 Phase C: returns ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
-        :meth:`apply_transpose`).  The transpose walk LIVES in
+        S6.3 / #206 Phase C: returns the FULL ``(L+C)ᵀφ`` for the given
+        ``sigma``; ``StreamingOperator.apply_transpose`` recovers bare ``Lᵀφ``
+        by calling this at σ = 0 (#257 S8b), never by subtracting ``C``.
+        The transpose walk LIVES in
         :meth:`._OneDimScanWalk.loss_action_transpose`, which carries the
         curvilinear angular SECOND triangular factor (``closure.angular_adjoint``)
         — so the spatial reverse NEVER silently drops the angular adjoint
@@ -1653,10 +1679,11 @@ class MovingFrontierWindow(_DAGWavefront):
         (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         × ``_CellResidual`` — the apply-direction walk of the SAME per-octant
         wavefront DAG and the SAME diamond-difference closure the 2-D sweep
-        uses; matvec ≡ sweep, ONE discretization, L21).  Returns ``(L+C)ψ̄``;
-        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts
-        ``σ·ψ̄`` (the collision diagonal ``C``) to recover the
-        bare-streaming ``Lψ̄``.
+        uses; matvec ≡ sweep, ONE discretization, L21).  Returns ``(L+C)ψ̄`` for
+        the given ``sigma``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` recovers
+        the bare-streaming ``Lψ̄`` by calling this walk at σ = 0 (#257 S8b), not
+        by subtracting the collision diagonal ``C``.
         """
         return _OctantWalk(self.mesh).loss_action(
             sigma, psi, self._loss_action_interior,
@@ -1731,9 +1758,10 @@ class MovingFrontierWindow(_DAGWavefront):
         oracle (:meth:`FullFieldWavefront.loss_action_transpose`) by the
         reverse ``window ≡ full`` gate
         (``test_multi_d_reverse_walk.test_reverse_window_equals_full``).
-        Returns ``(L+C)ᵀφ``;
+        Returns ``(L+C)ᵀφ`` for the given ``sigma``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
-        subtracts ``σ_t·φ`` exactly once.
+        recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b), not by
+        subtracting ``σ_t·φ``.
         """
         return _OctantWalk(self.mesh).loss_action_transpose(
             sigma, phi, self._loss_action_transpose_interior,
@@ -2024,8 +2052,10 @@ class FullFieldWavefront(_DAGWavefront):
         as the windowed walk,
         so the MATH cannot drift from
         :meth:`MovingFrontierWindow.loss_action` — only storage).  Returns
-        ``(L+C)ψ̄``; :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
-        subtracts ``σ·ψ̄``.  Sole purpose: verification (production is the
+        ``(L+C)ψ̄`` for the given ``sigma``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` recovers
+        bare ``Lψ̄`` by calling this walk at σ = 0 (#257 S8b), not by subtracting
+        ``σ·ψ̄``.  Sole purpose: verification (production is the
         window / the 1-D scan).
         """
         return _OctantWalk(self.mesh).loss_action(
@@ -2104,9 +2134,10 @@ class FullFieldWavefront(_DAGWavefront):
         pinned by the 2-D dense-``Mᵀ`` forward-probe + the
         assembled-``Mᵀ`` cross-check + the d=1 cross-realization against
         the 1-D scan reverse (``tests/sn/sweep/core/test_multi_d_reverse_walk.py``).
-        Returns ``(L+C)ᵀφ``;
+        Returns ``(L+C)ᵀφ`` for the given ``sigma``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
-        subtracts ``σ_t·φ`` exactly once.
+        recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b), not by
+        subtracting ``σ_t·φ``.
         """
         return _OctantWalk(self.mesh).loss_action_transpose(
             sigma, phi, self._loss_action_transpose_interior,
@@ -2417,9 +2448,10 @@ class ScanMarch(_LossRepresentation):
         :func:`~orpheus.sn.sweep.scan._x_scan_faces` with the apply coefficients
         ``α = −1``, ``β = 2 ψ̄`` (a pure-reflection scan: since ψ̄ is known the WDD
         closure ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence).  The per-cell
-        residual is ``(Σ_t + s_x + s_y)·ψ̄ − s_x·in_x − s_y·in_y`` (``= (L+C)ψ̄`` at
-        zero source); :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
-        subtracts ``Σ_t·ψ̄`` → ``Lψ̄``.
+        residual is ``(σ + s_x + s_y)·ψ̄ − s_x·in_x − s_y·in_y`` (``= (L+C)ψ̄`` at
+        zero source) for the given ``sigma``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reaches
+        ``Lψ̄`` by calling this walk at σ = 0 (#257 S8b), not by subtracting.
 
         Principled-equivalent (NOT bit-identical) to
         :meth:`MovingFrontierWindow.loss_action`: the row-march and the
@@ -2527,9 +2559,10 @@ class ScanMarch(_LossRepresentation):
         bit-identical) to
         :meth:`FullFieldWavefront.loss_action_transpose` — the reverse
         sibling of the forward's row-march-vs-oracle pin.  Returns
-        ``(L+C)ᵀφ``;
+        ``(L+C)ᵀφ`` for the given ``sigma``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
-        subtracts ``σ_t·φ`` exactly once.
+        recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b), not by
+        subtracting ``σ_t·φ``.
         """
         if self.mesh.is_1d:
             # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
@@ -3012,10 +3045,11 @@ class _OneDimScanWalk:
 
         #206 Phase C: ``(L+C)ψ`` via the shared :meth:`_apply_walk` (the
         apply-direction twin of :meth:`sweep` — L21 "matvec ≡ sweep"). Returns
-        the FULL ``(L+C)ψ``;
-        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts ``σ·ψ``
-        ONCE to recover ``Lψ`` (Resolution A).  ``sigma`` is the diagonal
-        coefficient, passed explicitly (#240 Step B).
+        the FULL ``(L+C)ψ`` for the given ``sigma``;
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` recovers
+        ``Lψ`` by calling this walk at σ = 0 (#257 S8b) — the Resolution-A
+        identity as the σ-free reading, not a subtraction.  ``sigma`` is the
+        diagonal coefficient, passed explicitly (#240 Step B).
 
         On a carrying mesh this is the ray-decoupled ``(A,A)`` block action
         (the walk's welded seed feed reads zeros; step 6 — presence is
@@ -3426,9 +3460,10 @@ class _OneDimScanWalk:
         :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.streaming_cell_transpose`
         (#310 C1, DD-only single-occupant geometry, Morel–Montry thread
         with the walk).
-        Returns ``(L+C)ᵀφ``;
+        Returns ``(L+C)ᵀφ`` for the given ``sigma``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
-        subtracts ``σ_t·φ`` ONCE (Resolution A, ``C`` a self-adjoint diagonal).
+        recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b) — ``C``
+        is a self-adjoint diagonal, so the adjoint matvec is affine in σ too.
         Pinned by the G-adjoint reciprocity gate ``test_g_adjoint_reciprocity``
         (slab / sphere / cylinder, -O-firing) + its L11 wrong-trace-metric
         negative control.

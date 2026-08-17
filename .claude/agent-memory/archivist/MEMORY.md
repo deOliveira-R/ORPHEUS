@@ -35,26 +35,47 @@ each layer points down, it does not copy up.**
 
 ## 2. Active / doc-debt state — git-true
 
-**No owed Sphinx pass on merged work.** Every SN doc campaign this index
-once tracked is **MERGED to main** (git-verified); landed milestones live in
-the SN theory page's **"Development history"** section
-(`docs/theory/discrete_ordinates.rst`), behavioral lessons in `lessons.md`.
-The active track is the **#231 doc-architecture corpus** (see §3); main
-agent commits, I stage + gate.
+**No owed Sphinx pass on merged work.** Landed SN milestones live in the
+**"Development history"** changelog at `docs/theory/methods/sn/history.rst` (the
+`docs/theory/discrete_ordinates.rst` path this index once named was SPLIT away;
+orphaned July HTML survives in `_build`, so a stale-ref grep must `test -f` the
+SOURCE). Active track = the **#231 doc-architecture corpus** (§3); main agent
+commits, I stage + gate.
 
 **Uncommitted doc work awaiting main-agent review (verify with git before
 acting — these claims go stale):**
 
-- **Boundary B3.0–B3.2 doc repair** (branch `refactor/operator-strategy-layers`,
-  2026-07-31). 46 claims adjudicated across 6 `docs/theory/**` files; findings
-  table at `scratch/b3_doc_repair.md`. Added `bc-domain-narrowing` +
-  `bc-method-realizability` / `bc-equivariance` / `bc-refusal-axes` and three
-  `documented` eq-labels (matrix auto-regen 521→524). `-E -W` EXIT 0 / 0
-  warnings, unchanged from baseline. See [[lessons-L42]].
-- **DSA #2 docs close-out** (branch `feature/sn-dsa`, 2026-07-27). New capstone
-  `docs/theory/methods/sn/acceleration.rst` + verification/sn.rst gate table +
-  13 `sn-dsa-*` labels + 12 `verifies()` markers + refs.bib ×5 (each
-  `% AWAITING ZOTERO BACK-PORT`). See [[lessons-L39]].
+- **nexus #82 — implementer declarations on `operator_algebra.rst`** (branch `main`, 2026-08-17;
+  sibling of the `loss_representation.rst` pass below). **57** `.. implements::` over **32** of the
+  page's 48 equations, from an explorer spec. `[M]` post-build: 57 directive / **0** inferred on
+  the 32; **166** inferred remain, all on the **8** that cannot be declared. New H1
+  `operator-algebra-declaration-contract` — contract + the 8-row NONE table BY KIND + the measured
+  **refutation** of the briefed "rationale-keyword tell". 4 drift repairs: ⛔ **A**
+  `keff-as-integrated-rates` was present-tense-FALSE ((n,2n) in the numerator, no leakage) — fixed,
+  and pointed at the SSOT `sn/solver.rst :eq:`sn-keff-update`` rather than twinned; **B**
+  `reaction-rate-kinf-oracle` now states the code's `diag(Σ_t) − (Σ_s+2Σ_2)ᵀ`; **C**
+  `scattering-as-tensor-product-sum` `S` → `Λ` (3 sibling pages already wrote `Λ`); **E** one dead
+  `:func:`. ⚠ Two `:by:` targets need an explicit `py:data:` node-id prefix (TypeVars). `-E -W`
+  EXIT 0 / 0 W-E-C, baseline re-measured 0; xref gate 0 dead in-file. **REPORTED, not fixed:** the
+  spec's headline says 21/19 where its own table is 32/8; `nexus._node_id_for_target` should try
+  `py:data:`. See [[lessons-L60]].
+- **nexus #82 — implementer declarations on `loss_representation.rst`** (branch `main`, 2026-08-17).
+  28 `.. implements::` over 14 equations (graph-verified: 397 inferred → 28 declared); a new H2
+  `loss-rep-declared-implementers` + `loss-rep-unimplemented-labels` recording the three equations
+  that declare NOTHING and why (**superseded path / notation / declared tag**). Deliverable 2 grew
+  6 → **19** code sites (windowed grep) + 4 RST sites incl. the page's **Key Facts** card; all
+  present-tense-false claims that `StreamingOperator.apply` *subtracts* σ (it is `loss_action(0,ψ)`
+  since #257 S8b). ⭐ Found: writing the explanation MINTS guesses (23→24/25/24); the brief's
+  σ_r census was 2 of **4**. ⛔ **REPORTED, not fixed** — 3 stale `tests/` module docstrings
+  (incl. one asserting a `StreamingOperator` constructor arg that does not exist). `-E -W` EXIT 0 /
+  0 W-E-C, baseline re-measured 0; xref gate 81/124 both sides; AST doc-only proved.
+  See [[lessons-L59]].
+
+- ⏹ **MERGED, verified `git status` clean 2026-08-17** — their behavioral lessons are the durable
+  record, their doc changes are in the tree: nexus graph-path retirement [[lessons-L58]] · #344
+  loss-kernel-gauge [[lessons-L57]] · Q5.6.4 τ/partition carve [[lessons-L54]] · Boundary B3.0–B3.2
+  [[lessons-L42]] · DSA #2 close-out [[lessons-L39]]. ⚠ This index has twice frozen "awaiting
+  review" on merged work — reconcile with `git status -- <path>` before believing any entry above.
 
 > Merge-status in memory goes STALE. Reconcile any "resume / in-flight / NOT
 > pushed" claim against `git merge-base --is-ancestor <hash> HEAD` before acting.

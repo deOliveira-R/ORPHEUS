@@ -30,6 +30,20 @@ DOI 10.1007/978-90-481-3411-3_1, pp. 1-84, online 2009-12-24.
 - **84 pp**: main text 1-75, 126 refs 76-82 (chronological bands), bios 83-84.
 - **Cylinder: NO** — sphere-only curvilinear (pp.7-9 Eqs 1.20-1.26 +
   pp.36-37 flux dip 1.92-1.93, ~5 pp). 2-D cyl = ONE sentence
+  - ⭐ **MINED 2026-08-12 (Q68): those pp.36-37 are §1.5.1 "Angular
+    Derivatives", and their VERDICT PROSE is the load-bearing content this
+    entry was missing** — *"Very few practical improvements beyond the
+    elimination of the flux dip have been made"*; angular DFEM *"has not
+    happened"* (hard in multi-D); the LD-in-angle scheme was *"found to be
+    LESS ACCURATE than the weighted-diamond scheme"* because it abandons the
+    accurate starting-direction flux, and the **hybrid** (quadratic-continuous
+    first cell + LD after) is what wins. Eq. **(1.93)** = Morel-Montry's τ
+    verbatim. Ref **[26] = Dudziak-O'Dell-Alcouffe LA-7911-PR (1979)** is the
+    **starting-direction-flux primary**. `[SCAN PDF p.49]`. Full treatment in
+    [[lathrop-2000-angular-scheme-taxonomy]].
+  - ⚠ **Lesson for this file's own use:** an entry that logs a section's page
+    range and equation numbers reads as covered. It is not — the *prose
+    verdict* of a review section is usually the reason to have read it.
   ("generalized to 2-D cylindrical geometry [38]", p.37).
 - **Adjoint of S_N: NO** — adjoint appears only as MC variance-reduction
   input (pp.21-23) + "self-adjoint" operator property (pp.49, 71 SAPD).

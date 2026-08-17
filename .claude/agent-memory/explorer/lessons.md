@@ -854,3 +854,279 @@ the second onward, so `max_iter=50` yields `len(residuals)=49` both for "exhaust
 for "converged on the last possible check". A consumer reconstructing convergence from
 the count is guessing on the boundary case — which is precisely why the status has to
 be recorded, not recomputed.
+
+---
+
+## L-026 -- "Is this degraded condition DELIBERATE?" is decided by a COUNTERFACTUAL, never by the budget literal or the docstring — and the unit of the question is the SOLVE, not the test
+
+Adjudicating the 20 tests #340's guard flip would newly warn (2026-08-10), the
+three findings that decided the verdicts were all invisible to reading:
+
+- **Run the test at the healthy setting and re-evaluate its OWN assertion.**
+  A test whose docstring never mentions truncation can still be *load-bearing*
+  on it. `test_collision_cache_invariance_under_source_iteration` starves its
+  inner (7/7 at 50/50); at a converging budget the power iteration finishes in
+  **3** outers and the test's own `len(keff_history) >= 5` non-degeneracy floor
+  **FAILS**. Conversely a test that *looks* pinned can be free: the W1 iso gate
+  carries two frozen in-module literals and survives the raise with 20–170×
+  headroom. **Neither verdict is readable from the source.** One counterfactual
+  solve per suspicious row settles it; both directions were surprises.
+- **A per-TEST filter cannot separate two solves in one test body — so ask the
+  question per SOLVE.** `test_inner_tol_bias_collapses_at_1e_12` runs a LOOSE
+  leg (the studied bias — genuinely deliberate) and a TIGHT leg (the reference
+  the assertion is made against). Measured, the *tight* leg also truncated in 3
+  of 4 rows: the reference half of a bias measurement was itself biased. A
+  marker "declaring" the row would have silenced that too. **The free
+  discriminator was already in the census**: the per-test CALL COUNT column
+  (2 vs 1) predicted exactly which rows had a second bad solve — read the
+  counts before reading any code.
+- **Never cost a budget raise by the budget ratio.** Converging the inner
+  removes the increment suppression that was inflating the OUTER count, so
+  wall time rises far less than the knob does — `[M]` a 3.5× budget raise cost
+  **1.6×** (outers 4 → 3). Two rows I had pre-labelled "too expensive to fix"
+  were affordable. Same mechanism, opposite sign, is what makes the fixture
+  break above.
+
+Two corollaries: (a) a fitted "projected iterations" advisory is exact at
+ρ ≲ 0.98 (788 → 789 measured) and a **lower bound** at ρ ≳ 0.99 (2066 → 2601,
+26 % low) — and the *first* failure is rarely the *worst*, so take the max over
+the tree. (b) Adjudicating a population like this yields **stale-docstring finds
+for free**, because the prose states the mechanism the measurement contradicts —
+four here, incl. a documented drift magnitude wrong by four orders and a
+"converged X" claim on a solve that never converged. Harvest them; they are the
+same defect class the campaign exists to remove.
+
+---
+
+## L-025 -- "What is in scope at call site X?" is a FRAME-LOCALS probe, never a read; and a `[M]`-marked NEGATIVE claim is the most perishable marker in the project
+
+Mapping the #340 N6b exit-residual scope (2026-08-10, `refactor/operator-strategy-layers`),
+the brief asked "what is in local scope at each of five call sites". Reading the five
+sites would have produced a plausible, incomplete, and in one place *wrong* answer. A
+~20-line spy on the CALLEE — patch the module-global helper, read
+`sys._getframe(1).f_locals`, print `{name: type}`, then call through — answered it
+exhaustively in one run and found three things reading could not:
+
+- **Names bound only inside a conditional branch.** On a carrying (sphere) mesh
+  `final_state`/`final_ray`/`corner_state` are live at the call; on a slab they do not
+  exist. A read of the function body shows the `if` and leaves you guessing which
+  fixture reaches it. The probe just lists them, per geometry.
+- **Whether the object in scope actually WORKS.** Having the name is not having the
+  capability. Composing the residual *from the probed names* is one extra line in the
+  spy and it found the two real holes: an LD (`spatial_basis_per_axis=2`) iterate makes
+  `AngularResidual.from_balance` raise on the trailing moment axis, and the windowed 2-D
+  SI arm holds a `HarmonicMomentFlux` moment iterate at the call — the full-angular
+  reconstruction that fixes it is bound **28 lines later**. Both are invisible to a read;
+  both are one measured `ValueError` in the probe.
+- **The reach of a hazard.** One `inspect.signature(fn).parameters` sweep showed the two
+  eigenvalue entries have no `scheme=` at all, so the LD hole cannot reach them — turning
+  "the number is sometimes unavailable" into "unavailable on exactly 2 of 5 sites, under
+  one named argument".
+
+**Two sharpenings that generalize past this dispatch:**
+
+- ⭐ **A `[M]` marker on a NEGATIVE existence claim is not stronger evidence — it is a
+  claim that some measurement, answering some question, returned nothing.** The plan
+  carried `[M] "solve_sn discards the solver it builds"`. Measured false: `solver` is
+  bound and live at the warning call. The original measurement was almost certainly
+  honest — it asked whether a returned `Solution` exposes the operators (it does not).
+  The plan then reused that answer for a *different* question (what is in scope at the
+  call site) and the polarity survived the change of question while the scope did not.
+  ⟹ when a brief or plan hands you `[M] X is absent / X is discarded / X has no
+  consumers`, re-measure it against YOUR question before building on it; the marker
+  raises confidence, and for negative claims that is precisely the danger. (OP5 and
+  L-020 say premises expire; this says the strongest-marked ones expire too, and the
+  mechanism is question-drift, not time.)
+- ⭐ **To adjudicate "can A be reused for B?", hunt the input that makes them DIVERGE
+  most, never the fixture where both work.** Asked whether the within-group certificate's
+  residual could stand in for the outer balance projection, the SI fixture showed the two
+  defects within 2× of each other — reuse would have looked defensible. The **Krylov**
+  inner (which converges its lagged equation to 1e-9 while the outer is truncated) put
+  them **10⁶ apart** at outer #1 and 173× apart at the truncation point. Same shape as
+  L-018: the discriminating fixture is the one that fails, and here it was a *shipped*
+  configuration (`inner_solver="krylov"`), not a synthetic one. Corollary specific to
+  residual/defect reuse questions: **read the rhs's PROVENANCE chain to the loop that
+  produced it** — `q_driver` traced back through three frames to
+  `power_iteration`'s `fission_source = solver.compute_fission_source(flux_distribution,
+  keff)` taken BEFORE `solve_fixed_source`, i.e. lagged by one outer. That single read
+  decided the question; the numbers only sized it.
+
+**How to apply.** For any "what does the code have available at point P" /
+"could P compute Q" brief: (1) write the frame-locals spy first — it costs one file and
+one run and it is exhaustive where a read is a sample; (2) put the *attempted
+computation* inside the spy, with a `try/except` that prints the exception type, so
+"has the name" and "can do the job" are separated in the output; (3) run it on the
+DISCRIMINATING configurations, not just the first one that imports (here: slab vs
+sphere-carrying vs 2-D-windowed vs LD — four geometries, four different answers);
+(4) sweep `inspect.signature` to bound the reach of any hole you find.
+
+---
+
+## L-027 -- Reconciling a survey: the highest-value finding is usually in NONE of the claims you were handed — diff the PRIMITIVE the survey is about, not only the code it audited
+
+Re-verifying a 1-day-old survey of how CP/MoC/diffusion would adopt
+`IterationRecord` (2026-08-10, `refactor/operator-strategy-layers`), all ten
+handed claims (A–J) came back CONFIRMED or line-drifted, and the line drift was
+mechanical and harmless. The finding that actually changed the design landed in
+a commit the brief never mentioned: a sibling step added a **new field with a
+`__post_init__` guard** (`IterationRecord.budget_name`, empty string raises) and
+a matching `power_iteration(..., budget_name=)` keyword. SN passes it; the three
+audited families do not — so all three are already emitting an outer record
+whose advice names a knob their public entry points do not have. **No claim in
+the survey could have caught this, because every claim was about the AUDITED
+code and the change was in the PRIMITIVE being adopted.**
+
+- **How to apply.** On any "reconcile this survey/plan against the tree" brief,
+  spend one call on `git diff --stat <baseline>..HEAD -- <the primitive's
+  module>` *before* walking the claim list, and READ the diff of the type the
+  survey proposes to adopt. A new required field / new guard / new constructor
+  keyword is a new obligation on every future producer, and it is invisible to a
+  claim-by-claim re-check. (L-020 says a negative claim expires when a sibling
+  lands a substrate; this is the positive twin — a *new requirement* appears
+  and nothing in the document is even wrong.)
+- **Corollary, cheap:** the `__post_init__` of the primitive is the fastest read
+  of "what does N4 now owe per record" — three lines of validation named the
+  whole new obligation.
+
+**Second half — a handed COUNT that reproduces under no convention was
+estimated, so report the convention, not just the number.** The survey said "37
+`solve_cp(` call sites, all in `tests/`". Measured: 33 executable calls in
+`tests/` (+2 in `examples/`, 4 in `.rst`), 35 grep-LINES under `tests/` for
+`solve_cp(`, 56 bare-token lines under `tests/`, 88 tree-wide. No convention
+gives 37, and the "all in `tests/`" half was simply false. Two moves make this
+cheap and non-arguable: (1) print **several** counting conventions side by side
+rather than picking one — the spread itself is the evidence the inherited number
+was a guess; (2) treat the qualifier ("all in tests/", "zero production
+consumers") as a **separate claim from the count** and check it independently —
+here it was the qualifier, not the number, that hid two live `examples/` readers
+of the exact two fields the campaign was about. Same family as L-023's
+"the brief's named EXEMPLAR is a claim", applied to its arithmetic.
+
+---
+
+## L-028 -- On a UNITS/representation change to a shared producer, sort consumers by WHICH GUARD they sit behind — the loud path is the safe one, and the consumer with zero tests is where the garbage lands
+
+**The measurement (2026-08-11, `angular_cell_edges_per_level` cosine→radians).** A
+producer returns per-level angular cell edges; the proposal changed the cylinder
+branch from the radial cosine to the march angle. Swapping it in-process
+(L-013) split the five consumers into three sharply different classes, and the
+class boundary was *not* "does it want a cosine" — every one of them did:
+
+| class | consumer | outcome under the swap |
+|---|---|---|
+| **guarded / loud** | `morel_montry_tau_per_level` (+ everything downstream: the closure `__init__`, every cylindrical solve) | **RAISES** — its own P3 `τ ∈ [0,1]` guard fires (`τ₀ = 4.598`) |
+| **unguarded but GATED** | `contamination_beta` | silently returns `−0.44 / −2.85` where baseline is `~1e-18`; two L0 tests assert `< 1e-14` ⟹ RED |
+| **unguarded and UNGATED** | `alpha_defect_beta` (`1 − e²` with `e = π` ⟹ `π²−1`), `nu_closure_residual` (seeds `ν = e[0] = π`, divides by `e[-1] = 0.0` ⟹ `inf`) | silently garbage, **zero test consumers** — nothing anywhere reddens |
+
+- **Why it matters.** The instinct is to fear the production path, because that is
+  where the blast radius looks biggest. It was the *safest* consumer: it carries
+  a validity predicate on the very quantity the change perturbs, so the change
+  cannot pass it quietly. The danger sat in the sibling **analysis/derivations
+  module** that consumes the same producer *deliberately, to avoid a twin* — a
+  Cardinal-Rule-2 win that hands the diagnostic the producer's units without
+  inheriting the producer's guard. And of its three functionals, the two with no
+  test consumer are precisely the two that go to garbage undetected.
+- **How to apply.** For any change to a shared producer's UNITS, RANGE, SIGN or
+  ORDER: (1) enumerate consumers; (2) for each, name the guard it sits behind
+  (`assert`, a range check, a raising predicate) and whether that guard reads the
+  changed quantity; (3) grep each unguarded consumer for its own test consumers.
+  Report the table in that order. A consumer with **no guard and no test** is the
+  finding; a consumer with a guard on the changed quantity is a non-event that
+  merely looks alarming.
+- **Two cheap sharpeners measured here.** (a) **Check the ORDER, not only the
+  units** — the cosine edges ascend (`−sinθ → +sinθ`), the angle edges *descend*
+  (`π → 0`), so `np.diff(edges)` flips sign and every `(x − e[m])/(e[m+1] − e[m])`
+  barycentric silently negates. A units change is often secretly an ordering
+  change, and the docstring's "ascending in the radial cosine" is the contract
+  that breaks first. (b) **Check for a ZERO in the new range** — the old range
+  never contained an endpoint of 0 (`±sinθ`), the new one closes at exactly
+  `ω = 0`, which turned a normalising division into `inf`. Ask "does any
+  denominator read `edges[0]` or `edges[-1]`?" before costing the change.
+- **Corollary for the range-assertion class the brief asked about.** No test
+  asserted on the returned edge VALUES at all — not `[-1,1]`, not `Σ Δμ == 2`,
+  not monotonicity. The two tests that call the producer directly only assert its
+  *refusal* (`pytest.raises`). So the "a `[-1,1]` check would silently pass or
+  fail wrongly" hazard did not exist, and its absence is the real gap: a
+  single-source partition producer with no direct value gate.
+
+---
+
+## L-029 -- On a "should we build this CAPABILITY?" fork, MEASURE the capability against the cheaper alternative it competes with — a capability can be negative-value; and "does the primitive exist?" is answered per TIER, not per repo
+
+Adjudicating #336's REFUSE-vs-REDUCE fork (2026-08-13), three moves decided it,
+and all three generalize to any "add the capability or refuse the input" question:
+
+- **Price the capability in the units the user would compare.** REDUCE
+  (marginalize a 3-D rule onto the μ-line) is mathematically correct, well-posed
+  on the flagship rule, and *strictly worse than the one-line alternative*:
+  `[M]` the μ-marginal of `level_symmetric(N)` is a degree-`N+1` rule on `N`
+  nodes where `gauss_legendre(N)` is degree `2N−1`, and on a smooth integrand the
+  error gap reaches **7 orders of magnitude** at n=10 (1.8e-8 vs 2.7e-16), after
+  constructing 120 ordinates to get 10. `product(8,8)`'s marginal is 17 nodes at
+  degree **7** (GL(17) is 33). So the "larger capability" branch delivers a rule
+  the user could beat by typing a different factory name. **Whenever a fork reads
+  "cheap refusal vs larger capability", spend one probe measuring the capability's
+  OUTPUT against the incumbent at equal cost** — the capability framing carries an
+  unexamined assumption that more is better.
+- **"Does the primitive already exist?" has a different answer at each TIER, and
+  the reusability test is what the existing machinery MATCHES ON.**
+  `DiscreteMeasure.pushforward` + `.consolidate()` is *exactly* the marginal
+  (measure tier, mass-preserving) — it exists and is generic. One tier up,
+  `LevelStructure.quotient` looked reusable ("descend a per-ordinate field along
+  a reduction") and is not: it indexes the parent by `nodes[i].tobytes()` and
+  REFUSES anything that is not a bit-for-bit selection, because *a quotient never
+  moves a node* and a marginalization moves every node. ⟹ read the candidate
+  primitive's **matching/precondition code**, not its docstring's verb; "reduces a
+  measure" and "selects orbit representatives" read alike and compose oppositely.
+- **A "guard exists on this arm" claim needs the guard's QUANTITY checked against
+  the symmetry of the input class.** The sphere arm's `_assert_alpha_dome_closes`
+  looks like an admission guard on the quadrature; `α_{M+1/2} = −Σ w μ` is the
+  rule's FIRST MOMENT, which every `O_h` cubature has *bit-exactly zero* (`[M]`
+  `0.000e+00` on LS4/6/8, product, folded_product). So it passes on all five
+  wrong-domain rules. Same shape as L-014's telescoping blindness: before
+  crediting a guard, ask what functional it computes and whether the input class's
+  symmetry annihilates it.
+
+Cheap corollary that sharpened the verdict: **sweep every shipped rule through
+the real constructor and read the traceback FRAME, not just the exception.** All
+five 3-D rules were refused at the identical line — so REFUSE would not change
+the accepted set by one element, only the layer and the wording. That reframes
+the deliverable from "which behaviour do we want" to "this is a diagnostics/
+vocabulary fix", which is a much smaller and differently-owned piece of work.
+
+---
+
+## L-030 -- When you INSTRUMENT a seam, count the seam's `return`s first — a "this is the ONE construction site" docstring is a claim, and trusting it silently under-scopes the census
+
+Scoping a change to "what the SN solve returns" (2026-08-14), I patched
+`_package_solution` — whose docstring reads *"The ONE `SolutionBase`
+construction convention … the single boundary where converged iterates become
+the typed return"* — and ran the suite. It reported **10** affected tests. The
+docstring is present-tense FALSE: `_solve_fixed_source_si` and
+`_solve_fixed_source_krylov` each `return Solution(...)` directly, so the whole
+FORWARD fixed-source family bypassed the probe. Re-running with all three sites
+patched gave **24**. The undercount was 2.4×, and it was silent — the probe was
+green, the plugin printed "INSTALLED", and every number it produced was real.
+
+What exposed it was not reading the docstring's neighbourhood but an
+**arithmetic inconsistency in the census itself**: two tests showed a target
+MESH construction (`SNMesh.__init__`, an exhaustive patch) and *no* exit, while
+their bodies plainly called `solve_sn_fixed_source`. A counter that cannot
+explain its own zeros is the tell.
+
+- **How to apply.** Before instrumenting any seam, run
+  `grep -n "return <Type>(\|return _<shared_tail>(" <module>` and patch **every**
+  site. Cost: one grep. Then build the census with **two counters at different
+  depths** — one at a constructor you can prove is exhaustive (`__init__` of the
+  config object) and one at the seam under study — so that "config built but seam
+  never reached" is a visible row you must explain, not an absence you never see.
+  A single-counter census cannot detect its own blindness.
+- **Sibling to L-017's second half** (a test's self-description is not evidence of
+  what it pins) and to L-011 (delegation-shaped prose): here the false prose is a
+  *single-source-of-truth claim on a shared tail*, which is the highest-yield
+  variety, because the whole point of such a tail is that readers stop looking
+  for siblings. Expect it wherever a refactor introduced a shared packaging
+  function and one arm was left behind — and note the leftover arms are usually
+  the ones with a DIFFERENT carrier shape (here: raw iterate vs cell-average
+  view, and a Krylov arm whose boundary block is a residual, not a flux), which
+  is precisely why they were not folded in.

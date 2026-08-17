@@ -5,19 +5,39 @@ The "L" of the four-operator algebra
 :class:`StreamingOperator` is the typed leaf; the within-group
 sweep-invertible composite is :class:`StreamingCollisionOperator` (= ``L + C``).
 
-Resolution A — subtractive definition
--------------------------------------
+Resolution A — one action, two readings of σ
+--------------------------------------------
+
+:math:`L` is **σ-free**. ``L.apply`` evaluates the shared loss kernel at
+:math:`\sigma = 0`:
 
 .. math::
 
-   L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
-                              \sigma_t \odot \psi.{\rm bulk}
+   L.{\rm apply}(\psi) \;=\; M(\psi;\;0)
 
-L carries σ_t at constructor time. This is intrinsic to the discrete
-curvilinear matvec (rational in σ_t through Hébert §3.9.4's Carlson
-coupled-pole seed), not a defect — analogous to the DD coefficient
+and the subtractive form is the *identity that justifies* it, not what
+the code does:
+
+.. math::
+
+   L.{\rm apply}(\psi) \;+\; \sigma_t \odot \psi.{\rm bulk}
+       \;=\; M(\psi;\;\sigma_t)
+
+⛔ This section previously read ``L.apply(ψ) := M(ψ; σ_t) − σ_t ⊙
+ψ.bulk`` and asserted that "L carries σ_t at constructor time". Both
+were true of the original posing and are false at HEAD: since #257 S8b,
+``apply`` delegates to ``LossRepresentation.streaming_action``, which is
+``loss_action(zero_sigma, psi)`` — the subtraction is never performed.
+``[M]`` :class:`StreamingOperator` is a dataclass whose only field is
+``sn_mesh``; ``hasattr(StreamingOperator, "sigma_t")`` is ``False``, so
+the constructor argument the old text described does not exist.
+
+The *kernel* is still rational in σ_t (Hébert §3.9.4's Carlson
+coupled-pole seed), which is why σ is a parameter of ``loss_action``
+rather than of the operator — analogous to the DD coefficient
 :math:`\alpha_{DD}(\sigma_t\,\Delta x)` carrying σ_t in
-characteristic-line methods.
+characteristic-line methods. What changed is *who supplies it*: the
+composite ``L + C``, not ``L``.
 
 The decomposition gate (``rel_residual = 0.0``) lives in
 :file:`tests/sn/test_streaming_operator_decomposition.py`.  ``(L + C)``

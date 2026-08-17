@@ -69,6 +69,11 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
   collision-scan-by-concept-token; the section-anchor `-eq` rule.
 
 Sibling-repo (`sphinxcontrib-nexus`) — kept because the invariants are reusable:
+- [nexus_architecture_survey.md](nexus_architecture_survey.md) — ⭐⭐ **whole-package Rule-2
+  survey (2026-08-16)** + the **METHOD LESSON**: the ADVERSARIAL phase comes FIRST
+  ("how would I break this / make it 100× better"), balance is Phase 2, and
+  "well-factored" belongs there as a WITHDRAWN ATTACK. Measured yield gap + the
+  flagship *inference-presented-as-fact* probe. Read before ANY architecture review.
 - [nexus_runtime_overlay.md](nexus_runtime_overlay.md) — #26 overlay: "MCP tools never raise
   out"; missing-stale-node-guard crash; orthogonal-capabilities-as-flat-fields not tagged-union.
 - [nexus_workspace_resolution.md](nexus_workspace_resolution.md) — workspace/worktree wiring;

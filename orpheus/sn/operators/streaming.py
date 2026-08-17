@@ -544,8 +544,12 @@ class StreamingCollisionOperator(
     ----------
     streaming : StreamingOperator
         :math:`L = \Omega\cdot\nabla + \text{angular redistribution}`.
-        Resolution A subtractive form:
-        ``L.apply(ψ) = M(ψ; σ_t) - σ_t ⊙ ψ_cell``.
+        σ-free since #257 S8b: :meth:`StreamingOperator.apply` IS
+        ``loss_action(0, ψ)`` — the same walk read at :math:`\sigma = 0`,
+        NOT a subtraction.  The Resolution-A identity
+        ``L.apply(ψ) + σ_t ⊙ ψ = M(ψ; σ_t)`` still holds (the forward
+        matvec is affine in :math:`\sigma`); no shipped code evaluates
+        its subtractive form.
     diagonal : MultiplicationOperator
         :math:`C = M[\sigma]`.  Its ``.coefficient.values`` is the
         per-cell per-group coefficient used by the sweep (canonically

@@ -60,6 +60,9 @@ transfer; it holds for moment consumers only.
 
 ## Sphere-vs-cylinder uniformity ruling
 
+⛔ **SUPERSEDED 2026-08-12 by Q5.6 (the σ_y fold) — the RULE below is right, its
+cylinder VERDICT is stale. Read the CORRECTION at the end of this section.**
+
 Seed is a GENUINE independent DOF ONLY on SPHERE (μ=−1 ∉ GL interior nodes). On
 CYLINDER the level's inflow edge η=−sinθ COINCIDES with the first azimuthal ordinate
 (η₀=−sinθ ⇒ τ_raw=0, clamped — the reason the cylinder clamp exists, #229) ⇒ the
@@ -67,6 +70,28 @@ seed IS ψ₀ ⇒ a DEAD DOF if carried (the task's "cylinder telescopes, dead s
 Cartesian: no angular advection, no seed. So the carrier augmentation is
 CURVATURE+QUADRATURE-keyed: present iff `mu_start ∉ level μ-nodes` (equiv. τ_raw≠0).
 Empty seed block on cylinder/Cartesian — same pattern as the pole being "not a face".
+
+⛔ **CORRECTION (2026-08-12).** The keying RULE survives; the cylinder verdict
+does not. Q5.6 landed the σ_y fold: `Quadrature.folded_product` is the STAGGERED
+product quotiented by σ_y, so every level is a strictly-interior arc,
+`MarchStart.on_edge_node` is False on all of them, and
+`assert_carrying_quadrature` (`orpheus/sn/sweep/pole_angular_closure.py:749`)
+now **requires** every cylinder level to carry a first-class ψ½ seed. The
+predicate is no longer a τ_raw float either — it is the two structural facts
+`MarchStart(on_edge_node, degenerate)`. Cylinder is CARRYING, not dead.
+
+⭐ **The DEEPER cause, found on the cylinder attack** — see
+[[cylinder-angular-march-jacobi-ladder]]. This file's "zero-metric ghost"
+diagnosis saw a symptom. The cause: the angular advective FLUX FUNCTION vanishes
+at the endpoint (`(1−μ²)` sphere, `ξ = sinθ sinω` cylinder), so the Fichera
+function is zero and **the continuous operator admits NO boundary condition
+there at all** — `∫∂_ω(ξψ)φ = [ξψφ]₀^π − ∫ξψφ'` and the boundary term vanishes
+identically for every ψ, φ. The seed is therefore not weightless *data*; it is
+**not data**. It is a datum the MARCHING discretisation demands and the operator
+does not supply, and both endpoints instead carry a *compatibility condition*
+(the plain radial ODE) — both of which the code already marches while consuming
+one. That promotes this file's "metric-invisible-yet-active DOF" candidate smell
+to its 2nd sighting; the promoted form is in lessons L-015.
 
 ## Frame dispositions
 

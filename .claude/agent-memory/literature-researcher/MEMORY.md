@@ -8,11 +8,14 @@ decides whether to open it.
 
 ## 1. Lessons
 
-- [lessons.md](lessons.md) — READ FIRST. L1–L8, cited below as (L2), (L4). L8: OCR table bodies are in `.mocr.json`, not the sidecar.
+- [lessons.md](lessons.md) — READ FIRST. L1–L14, cited below as (L2), (L4). L8: OCR table bodies are in `.mocr.json`, not the sidecar. **L10: scan-match ≠ correct — the PRINT can carry a typo; cross-read the twin equation. L11: ambiguous SYMBOLS ⟹ reproduce the paper's TABLE in python; and compute the diagnostic on the USER's rule too, or you ship a blind gate. L12: a "no source does X" finding owes its DENOMINATOR — and the primary the local text CREDITS is the one you haven't read; ⭐ + INSTRUMENT-BLINDNESS (2026-08-12): the denominator can be silently ZERO because the tool can't see the domain (`SN`≡supernova poisoned 7 OpenAlex queries → a false negative I had to retract) — sanity-probe the tool; prefer ISSN-scoped CrossRef + the citation graph. L13: a NAMED scheme is ambiguous until you COUNT ITS EQUATIONS (+ rank-count: "X determines Y" INVERTS when X is a scalar and Y an N-vector — exhibit a second solution); authors admit their cost in the CONCLUSIONS or the INTRO's rival paragraph. L14: two sources "conflict"? CHECK THE CITATION EDGE — the later one has almost certainly already ruled, in its Introduction.**
 
 ## 2. Extraction inventory by topic
 
 ### Curvilinear / spherical SN
+- [⭐⭐ Lathrop 2000 = THE angular-scheme taxonomy](lathrop_2000_angular_scheme_taxonomy.md) — **Q68 2026-08-12** (deliverable `scratch/q68_curvilinear_angular_differencing_survey.md`). 5 schemes, sphere-only. **Eq.30 `[SCAN]`: any τ≠½ is FIRST-order in angle; only the midpoint node is O(Δμ²)**; Table II MEASURES WD losing to plain diamond **up to 3.93×** at grazing cosines, losing set GROWS with N ⟹ ORPHEUS's 2.5–3.0× is the expected published trade. Clamp **6/6 none**. + Larsen-Morel §1.5.1 (LOCAL, absent from its own entry) + **Chaland-Samba 2016 = a real 2-D (μ,φ) closure, NOW LOCAL**. ⛔ Wu-1999/Machorro-2007/Wang-2019 are SPATIAL despite angular titles. `[DB]` BMC = `10.13182/NSE08-66` not `-64`.
+- [Morel-Montry τ + angular cell edges](morel_montry_tau_angular_cell_edges.md) — ⭐⭐ **SETTLED across 3 passes; 31 KB topic file + `scratch/q64_{attempt2_lit_check,morel_montry_findings,tau_edge_convention_literature}.md` hold every derivation.** Headlines only: the **ω-vs-η ruling** (Hébert's cyl quadrature IS equispaced-ω midpoints ⟹ his τ≡½ is barycentric-in-ω; cylinder τ = BMC **Eq.74**, not 42/43); **β tension resolved** (BMC-β scalar ≠ Lathrop-β sequence, proven by reproducing BMC Table I digit-for-digit); **MM-1984 is LOCAL and read end-to-end** — endpoint question CLOSED, barycentric-in-μ wins as M&M's own DECLARED trade (L14), cylinder appendix (A1)-(A4) ratifies the 6.4 partition and ORPHEUS's τ₁→¼ IS their own formula. ⛔ Self-refutations: BMC Eq.52 is NOT a law; β is BLIND on a symmetric equispaced-ω level (gate on ν-closure); BMC's "β=0 determines the MM weights" is FALSE (admits an (N−1)-dim family). ⛔ **Alcouffe-O'Dell / Dudziak-O'Dell-Alcouffe LA-7911-PR (1979) = the cylinder-edge + starting-direction primary, STILL UNREAD** (confirmed as Larsen-Morel ref [26] in Q68).
+- [Reed-Lathrop 1970 angular truncation](reed_lathrop_1970_angular_truncation.md) — ⭐⭐ NSE 41(2):237-248 `[M]`; full extraction `scratch/q64_reed_lathrop_findings.md`. ⭐ **"R&L weighted diamond" ≠ "MM weighted diamond" (L13)** — same closure, but R&L's third equation (13b) makes **ordinates OUTPUTS**; cost is their own Conclusions line. **Two solve-free gates**: `(τ−½)/w` bounded under N-refinement; the (13b) residual `O(w²)` POINTWISE. **HAS THE CYLINDER** (§II.B) and **Eq.28b keeps `w` and `Δμ` SEPARATE** = primary licence for weight ≠ cell-measure. `[M]` end-to-end gain product EXACTLY 1 via `τ_{M+1−m}=1−τ_m`. ⛔ NO stability/positivity analysis; R&L cylinder cosines are a 3-CYCLE off BMC. ⭐ **UNREAD: Grant 1968 JCP 2(4):381-402 `10.1016/0021-9991(68)90044-2`** — origin of the ansatz AND of the `[½,1]` (which is Grant's, on the SPATIAL weight).
 - [Slab & curvilinear LD](issue_158_linear_discontinuous_cell_update.md) — Larsen-Morel 1989 JCP 83 (4.1)-(4.3); diffusion-limit criterion LMM-1987 JCP 69 Table I; curvilinear LD UNPUBLISHED.
 - [Multi-D LD closure](multi_d_ld_closure.md) — multi-D LD = BI/TRILINEAR DG-P1 (UBLD, MRM-2016 NSE), NOT simplex-P1 (Adams 2001: fails thick-diffusion limit).
 - [Sphere-SN pole closure](sphere_sn_pole_closure_canonical.md) — Hébert §3.9.4 (3.418)-(3.439) IS canonical; `reduced_operator.py` Bailey docstring cites the WRONG paper (L3).
@@ -23,6 +26,7 @@ decides whether to open it.
 - [Space ⊗ angle separability](space_angle_discretization_separability.md) — splits spatial (Larsen-Morel-Miller JCP 69 1987) vs angular (Bailey-Morel-Chang NSE 165 2010) → tensor-product architecture.
 
 ### Angular quadrature
+- [TY polar quadrature (MOC)](ty_polar_quadrature_moc.md) — NOT local; JNST 44(2):129-136 2007 (5 authors) + Knott-Yamamoto Handbook ch.9 2010 (= what OpenMOC actually cites, so "2007 Table 2" is mis-attributed); NO earlier Tabuchi; bronze-OA-but-Cloudflare; MINIMAX verified, order/range/bound UNKNOWN; weight convention decoded via the LOCAL Hébert-Leonard pair.
 - [LA-3186 + LA-4058 LS quadrature](la3186_level_symmetric_quadrature.md) — #337 FULL: axis-weight ansatz p{ijk}=aᵢ+aⱼ+aₖ = the systematic n>12 class rule; Table I = {4,6,8,12,16,20}, S20 p-column BLANK; "n>22 negative" = LEVEL weights; [M] point frontier S20 (+9.8e-4), S22 LP-infeasible; print μ₁ slips S6/S12/S16.
 
 ### SN solver / sweep theory
@@ -58,7 +62,7 @@ decides whether to open it.
 - [CP moment integrals](cp_moment_integrals.md) — J_k slab + T_k cylinder closed forms: A&S §5.1 + Hébert §3.4-3.5. Stamm'ler Ch.IV is rank-0 flat-source only.
 - [Carlvik 1967](carlvik_1967_finite_cylinder_cp.md) — PDF read. 2-pp Note, E_3 kernels (cuboid + cylinder); NO Bickley / rank-N. Real Wigner-Seitz CP paper = Carlvik 1965 Geneva Vol.2 p.225.
 - [Sphere CP + white BC](bickley_naylor_sphere_white_bc.md) — sphere kernel = E_2, NOT Bickley/Ki_n (cylinder-specific); Hébert §3.8.5 (3.324)-(3.336); G_bc = 4·P_esc.
-- [Bickley libraries](bickley_function_libraries.md) — Davierwalla 1982 / Lorensi 2025 / Amos 1983 TOMS 609 vs ORPHEUS `ki_n_float` (78 µs; 1e-13). Atkinson F_N floor uses E_1.
+- [Bickley libraries](bickley_function_libraries.md) — Davierwalla 1982 / Lorensi 2025 / Amos 1983 TOMS 609 vs ORPHEUS `ki_n_float` (78 µs; 1e-13). Atkinson F_N floor uses E_1. ⛔ **Lorensi 2025 is Ki₁+Ki₂ ONLY** — never the Ki₃ oracle; Amos (n≥0, 18 digits) and in-tree `ki_n` (50 dps) are.
 - [Cylinder Peierls](phase4_cylinder_peierls.md) — Ki1 vs Ki3, 1/π prefactor, chord branches, rank-N_y white BC, benchmark radii.
 
 ### Continuous-µ specular (Peierls Green's function)
@@ -88,6 +92,7 @@ decides whether to open it.
 - [docs/refs.bib ledger](refs_bib_g2_corrections.md) — COMPLETE, 59 entries, pybtex-clean, DOIs CrossRef-verified. **Trust the BIB over any page/docstring definition**; keys immutable, only FIELDS fixed (per-entry ledger in file). Swaps: PS1982→PomraningSiewert1982, Sood1999→SoodLA13511_1999.
 
 ### Tooling
+- [⭐ Tier 0 is BIGGER — the full NSE run on disk](user_nse_volume_archive.md) — `/Users/rodrigo/Downloads/NSE/Vol_NNN(I)_*.zip`, per-article PDFs. **Grep the `unzip -l` listings before EVER calling an NSE paper not-local**; filenames truncate at ~95 chars so grep an EARLY fragment. Copy→rename→`ocr_literature.py`. Also: ⛔ OpenAlex free-text is blind to `S_N` (supernova collision) — use ISSN-scoped CrossRef + Semantic Scholar `get_citations`.
 - [Zotero failover](reference_zotero_flakiness.md) — dead-server signature = 0 hits on known items + conn-refused on port 23119 → Tier 2 (L7).
 
 ## 3. Active state

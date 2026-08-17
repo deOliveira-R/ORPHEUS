@@ -140,11 +140,18 @@ Key Facts
      cell kernel's explicit left fold ``((Σ_t + s_0) + s_1)`` is the FP
      reduction tree of record (sha256-source-pinned).
 
-   * **Gotcha — the operator subtracts** :math:`C` **once.**
-     ``loss_action`` MUST return the **full** :math:`(L+C)\psi`, NOT
-     :math:`L\psi`. The operator applies the only glue
-     :math:`L = (L+C) - C` (Resolution A). A leaf returning
-     :math:`L\psi` would double-count the collision diagonal.
+   * **Gotcha —** ``loss_action`` **returns the full loss, and** :math:`L`
+     **is it at** :math:`\sigma = 0`. ``loss_action`` MUST return the
+     **full** :math:`(L+C)\psi` for the :math:`\sigma` it is handed, NOT
+     bare :math:`L\psi`. The two operator doors are two readings of that
+     one action: the composite passes its own :math:`\sigma` and returns
+     the result directly, while :math:`L` passes :math:`\sigma = 0` (via
+     ``streaming_action``). Resolution A :math:`L = (L+C) - C` is the
+     identity behind that, but since #257 S8b **nothing evaluates its
+     subtractive form** — :math:`L` reads no :math:`\sigma` at all
+     (:eq:`loss-rep-resolution-a`). A leaf that ignored :math:`\sigma`
+     and returned bare :math:`L\psi` would drop the collision diagonal
+     out of the composite's matvec while ``solve`` kept it.
 
 
 .. _loss-rep-native-frame:
@@ -209,40 +216,152 @@ not independent code paths that happen to agree, and they must never be
 allowed to drift. Forward substitution and the row action share the
 triangular factor; they differ only in which is the unknown.
 
-Resolution A — the operator's only glue
----------------------------------------
+.. implements:: loss-rep-LpC
+   :by: orpheus.sn.operators.streaming.StreamingCollisionOperator
+
+   The object that **is** :math:`(L+C)`. It is an
+   :class:`~orpheus.numerics.operator.OperatorSum` of the
+   :class:`~orpheus.sn.operators.streaming.StreamingOperator` leaf and the
+   collision multiplier :math:`C = M[\sigma]`
+   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+   so the equation's :math:`L + C` decomposition is this class's
+   *construction signature*, not a description bolted onto it. Its
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
+   is the equation's left-hand side and its
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`
+   is the system's solution — the same triangular factor read the two ways
+   the table above names.
+
+.. implements:: loss-rep-LpC
+   :by: orpheus.sn.operators.streaming.StreamingOperator
+
+   The discretised streaming half :math:`L = \Omega\cdot\nabla|_{\rm WDD}`
+   (plus, in curvilinear geometry, the angular redistribution) as its own
+   leaf. It is declared separately rather than treated as an internal
+   detail of the composite because the algebra builds :math:`(L+C)`
+   **from** it — ``L + C`` dispatches one-directionally on the streaming
+   operator — and because :math:`L` is the operand every other
+   within-group composite (:math:`L + C - S`, :math:`L + C - S - B`) is
+   assembled from. Declaring only the composite would leave the
+   equation's own left-hand factor unlinked.
+
+Resolution A — one action, two readings of σ
+--------------------------------------------
 
 The representation returns the **full** within-group loss action
-:math:`(L+C)\psi`. The operator
-(:meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`,
-:eq:`operator-apply`) then applies the *only* remaining algebra glue,
+:math:`(L+C)\psi` for whatever collision diagonal :math:`\sigma` its
+caller hands it. The streaming leaf :math:`L` and the composite
+:math:`(L+C)` are then two *readings* of that one action, related by the
+algebra glue
 
 .. math::
    :label: loss-rep-resolution-a
 
    L\,\psi \;=\; (L+C)\,\psi \;-\; \sigma_t \odot \psi.\mathrm{bulk}
-   \qquad\text{(Resolution A: } L = (L+C) - C\text{)},
+   \qquad\text{(Resolution A: } L = (L+C) - C\text{)}.
 
-subtracting the collision diagonal :math:`C = \sigma_t\,\odot`
-**exactly once**. Before the S6.3 re-layering this :math:`-C`
-subtraction was duplicated five times across five private ``_apply_*``
-bodies; collapsing it to one site is a single-source-of-truth win, but
-it imposes the **load-bearing contract** on every representation:
+.. note::
+
+   **How the glue is realised today — the** :math:`\sigma = 0` **reading
+   (#257 S8b).** Resolution A is an *identity*: it is
+   :eq:`loss-rep-affine` read at two values of :math:`\sigma`, and it is
+   true. But since #257 S8b **no shipped code evaluates its right-hand
+   side.**
+   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` does
+   not compute :math:`(L+C)\psi` and subtract :math:`\sigma_t\odot\psi`;
+   it calls the representation's
+   :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`,
+   whose whole body is ``loss_action(0, ψ)`` — the SAME walk evaluated at
+   :math:`\sigma = 0`, so :math:`L` reads no :math:`\sigma` at all
+   (``coding-elegance`` Pattern 4: a :math:`\sigma` parameter on
+   :math:`L` would be one the leaf never reads).
+
+   The subtraction is genuine history. Until #257 S8b :math:`L`'s matvec
+   *was* a literal :math:`-\sigma_t\psi`, and before the S6.3
+   re-layering that subtraction was duplicated five times across five
+   private ``_apply_*`` bodies. Collapsing it first to one site and then
+   to :math:`\sigma = 0` is the same single-source-of-truth move made
+   twice — the second time hard enough that the twin disappeared instead
+   of being deduplicated.
+
+Either way the identity imposes the same **load-bearing contract** on
+every representation:
 
 .. warning::
 
-   ``loss_action`` MUST return :math:`(L+C)\psi`, **not** :math:`L\psi`.
-   A leaf that returned the bare streaming action :math:`L\psi` would
-   make the operator subtract :math:`C` a *second* time — a
-   double-counted collision diagonal, a silent sign-and-magnitude error
-   (vv-principles failure Mode 3, *missing/duplicated factor*). The
-   convention is pinned by ``tests/sn/operators/test_loss_action_convention.py``: the
+   ``loss_action`` MUST return the FULL :math:`(L+C)\psi` **for the**
+   :math:`\sigma` **it is given**, not bare :math:`L\psi`.
+
+   The *consequence* of breaking it moved with the realisation, so state
+   it in current terms:
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
+   passes the composite's own diagonal and returns the result
+   **directly**, so a leaf that ignored :math:`\sigma` and returned bare
+   :math:`L\psi` would drop the collision diagonal out of the Krylov
+   matvec entirely while
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`
+   kept it — a matvec and a sweep that are no longer the same operator,
+   i.e. the L21 invariant broken (vv-principles failure Mode 3,
+   *missing/duplicated factor*). Under the pre-#257 subtractive
+   realisation the same mistake produced the mirror-image defect, a
+   :math:`C` counted *twice*.
+
+   The convention is pinned by ``tests/sn/operators/test_loss_action_convention.py``: the
    non-tautological anchor checks that for a flat reflective field
    :math:`L\psi_{\rm flat} = 0`, so :math:`(L+C)\psi = \sigma_t\psi` —
    proving the action is the *full* :math:`(L+C)` loss, not bare
-   :math:`L`, and cross-checks the :math:`-C` glue against an
-   independent collision multiplier :math:`C = M[\sigma_t]`
-   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
+   :math:`L` — and its sibling cross-checks the :math:`+C` composition
+   against an independent collision multiplier :math:`C = M[\sigma_t]`
+   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+   asserting ``(L + C).apply(ψ)`` is byte-identical to
+   ``loss_action(σ_t, ψ)`` and that ``L.apply(ψ)`` recovers
+   ``loss_action(σ_t, ψ) − C·ψ`` to FP ULP — which is the affine relation
+   :eq:`loss-rep-affine`, not a check that ``apply`` performs a
+   subtraction.
+
+.. implements:: loss-rep-resolution-a
+   :by: orpheus.sn.loss_representation._LossRepresentation.streaming_action
+
+   The one symbol whose *value* is :math:`L\psi` derived from the full
+   loss. Its entire body is ``self.loss_action(self._zero_sigma_for(psi),
+   psi)`` — the identity realised as the :math:`\sigma = 0` reading rather
+   than as a subtraction, which is why it lives on the base class and is
+   inherited by every representation instead of being re-spelled per
+   schedule. It is the single source of the :math:`\sigma`-free streaming
+   action for the whole package.
+
+.. implements:: loss-rep-resolution-a
+   :by: orpheus.sn.operators.streaming.StreamingOperator.apply
+
+   The operator-level door returning :math:`L\psi`. It is the *public*
+   face of the identity — a caller who asks the algebra for :math:`L`
+   gets exactly this — and it delegates in one line to
+   :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+   above, so the equation is realised once and exposed once.
+
+.. implements:: loss-rep-resolution-a
+   :by: orpheus.sn.operators.streaming.StreamingCollisionOperator.apply
+
+   This label is **overloaded**, deliberately: since #240 Phase 2 Step B
+   it also carries the *composite-owns-its-matvec* claim
+   (:ref:`loss-rep-removal-form-matvec`), which is the same Resolution-A
+   glue read from the other end — one ``loss_action``, one source of
+   :math:`\sigma`. This override is the forward half: it passes the
+   composite's own ``self.sigma`` — the SAME array
+   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`
+   threads into the WDD sweep — and returns
+   ``loss_action(self.sigma, psi)`` directly, in place of the inherited
+   :class:`~orpheus.numerics.operator.OperatorSum` leaf sum. It is what
+   ``tests/sn/operators/test_removal_form_matvec_sweep.py`` verifies under
+   this label.
+
+.. implements:: loss-rep-resolution-a
+   :by: orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose
+
+   The transpose half of the same overloaded claim: ``loss_action_transpose(self.sigma, phi)``,
+   one :math:`\sigma` source, both orientations. Declared alongside its
+   forward sibling because a single-source claim that held in only one
+   direction would not be one.
 
 .. _loss-rep-removal-form-matvec:
 
@@ -276,8 +395,13 @@ argument (``loss_action(sigma, psi)``), exactly symmetric with the sweep door
 its caller, decided which :math:`\sigma` the matvec realised. After the carve
 the **caller single-sources** :math:`\sigma`:
 
-* :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` passes its own
-  ``sigma_t`` (and subtracts it back via Resolution A, :eq:`loss-rep-resolution-a`);
+* :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` passes
+  :math:`\sigma = 0` and so receives bare :math:`L\psi` — the
+  :math:`\sigma`-free reading of Resolution A
+  (:eq:`loss-rep-resolution-a`). ⛔ At the #240 Step B carve described here it
+  still passed its own ``sigma_t`` and subtracted it back; #257 S8b then
+  removed the subtraction entirely, and :math:`L` reads no :math:`\sigma`
+  today;
 * the **new** :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` /
   :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose` overrides pass
   the composite's *own* diagonal ``self.sigma`` — the SAME array
@@ -321,6 +445,29 @@ the balance would have to absorb,
    (test_removal_form_matvec_sweep, verifies loss-rep-resolution-a).
 .. vv-status: loss-rep-affine-cell documented
 
+.. implements:: loss-rep-affine-cell
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch
+
+   The Cartesian cell residual, literally: ``residual = denom * psi_bar -
+   numer``, with ``denom`` and the per-axis couplings :math:`c_a`
+   returned by the shared
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`
+   as :math:`\Sigma_t + \sum_a 2 g_a`. The equation's split of
+   ``denom`` into a streaming sum plus :math:`\sigma` is the code's own
+   explicit left fold, in that order.
+
+.. implements:: loss-rep-affine-cell
+   :by: orpheus.sn.loss_representation._OneDimScanWalk._apply_walk
+
+   The curvilinear arm of the same cell relation, which does **not** ride
+   the batched kernel: it computes ``m_full = (denom * psi_cell -
+   numer_upstream) / V[i]`` through the ``cell_balance_for_streaming``
+   density path, because the Morel–Montry angular redistribution threads
+   in-sweep and is not expressible as a per-axis coefficient triple.
+   Curvilinear S\ :sub:`N` is DD-only, so this is a single-occupant
+   geometry rather than a polymorphism gap — and it is the reason
+   :eq:`loss-rep-affine-cell` needs two implementers, not one.
+
 with :math:`c_a = 2|\mu_a|/\Delta a` the per-axis scheme-scaled streaming
 coupling (:eq:`loss-rep-scanmarch-solve`; the diamond :math:`2` is the
 scheme's). Because :math:`\bar\psi` is known,
@@ -342,6 +489,25 @@ term :math:`\mathrm{denom}\cdot\bar\psi = (\sum_a c_a)\bar\psi +
    (test_removal_form_matvec_sweep).
 .. vv-status: loss-rep-affine documented
 
+.. implements:: loss-rep-affine
+   :by: orpheus.sn.loss_representation._LossRepresentation.streaming_action
+
+   The equation *names* ``streaming_action``, and the method exists
+   **because** of this identity. Affinity in :math:`\sigma` is what makes
+   ``loss_action(0, ψ)`` a legitimate spelling of the
+   :math:`\sigma`-independent part: if the forward matvec were rational
+   in :math:`\sigma` — as the sweep direction is — evaluating the walk at
+   zero would give something other than :math:`L\psi` and this method
+   could not exist.
+
+.. implements:: loss-rep-affine
+   :by: orpheus.sn.loss_representation._LossRepresentation.streaming_action_transpose
+
+   The transpose sibling, ``loss_action_transpose(0, φ)``, resting on the
+   same identity at :math:`\sigma = 0`: since :math:`C = \sigma\odot` is a
+   self-adjoint diagonal, :math:`M(\sigma)^{\mathsf T} = L^{\mathsf T} +
+   \sigma\odot` is affine in :math:`\sigma` too.
+
 This is the decisive fact. **The matvec is affine in** :math:`\sigma`: a clean
 additive :math:`+\,\sigma\cdot\psi`, never a :math:`1/\mathrm{denom}`.
 
@@ -355,11 +521,12 @@ inverts the denominator. (This asymmetry is why the round-trip
 :math:`\mathrm{apply}\circ\mathrm{solve}` cannot detect a :math:`\sigma`-routing
 error in ``apply`` alone — see the verification subsection below.)
 
-The affine structure :eq:`loss-rep-affine` is precisely what makes the
-inherited leaf sum value-correct. Each leaf reads its **own** diagonal:
-:math:`L.\mathrm{apply}` returns :math:`M(\sigma_t)\psi - \sigma_t\cdot\psi =
-\mathrm{streaming\_action}(\psi)` (Resolution A subtracts :math:`L`'s own
-:math:`\sigma_t`), and :math:`C.\mathrm{apply}` returns :math:`\sigma_r\cdot\psi`
+The affine structure :eq:`loss-rep-affine` is precisely what made the
+inherited leaf sum value-correct. Each leaf read its **own** diagonal: as
+:math:`L.\mathrm{apply}` was then realised it returned
+:math:`M(\sigma_t)\psi - \sigma_t\cdot\psi = \mathrm{streaming\_action}(\psi)`
+— Resolution A subtracting :math:`L`'s own :math:`\sigma_t` — and
+:math:`C.\mathrm{apply}` returned :math:`\sigma_r\cdot\psi`
 (the collision leaf's own :math:`\sigma_r`). Summing,
 
 .. math::
@@ -378,13 +545,27 @@ inherited leaf sum value-correct. Each leaf reads its **own** diagonal:
    M(sigma_r)psi). Foundation-gated via loss-rep-resolution-a.
 .. vv-status: loss-rep-leaf-sum documented
 
-So the leaf sum **does** compute :math:`M(\sigma_r)\psi`, the right value for
-the removal form — but it gets there by sourcing :math:`\sigma_t` from
+So the leaf sum **did** compute :math:`M(\sigma_r)\psi`, the right value for
+the removal form — but it got there by sourcing :math:`\sigma_t` from
 ``L.sigma_t`` (the streaming leaf), cancelling it, and then *re-adding*
-:math:`\sigma_r` from ``C``. The value is right; the **source is wrong** —
-:math:`\sigma` is sourced from a *different operand* than the one
-:meth:`solve` uses, and only the affine structure :eq:`loss-rep-affine` keeps
+:math:`\sigma_r` from ``C``. The value was right; the **source was wrong** —
+:math:`\sigma` came from a *different operand* than the one
+:meth:`solve` uses, and only the affine structure :eq:`loss-rep-affine` kept
 that from showing up as a wrong number.
+
+.. note::
+
+   **Two independent reasons this route is now unreachable**, which is
+   why :eq:`loss-rep-leaf-sum` is classified a *superseded path* and
+   declares no implementer (:ref:`loss-rep-unimplemented-labels`). First,
+   the #240 Step B override below means the composite never reaches
+   :meth:`~orpheus.numerics.operator.OperatorSum.apply` at all. Second,
+   #257 S8b took :math:`\sigma_t` off :math:`L` entirely, so the
+   equation's left underbrace — :math:`L.\mathrm{apply}(\psi) =
+   M(\sigma_t)\psi - \sigma_t\psi` — no longer describes what
+   :meth:`StreamingOperator.apply <orpheus.sn.operators.streaming.StreamingOperator.apply>`
+   computes either. The equation remains a true statement of the algebra;
+   what is gone is any code that walks it.
 
 The two-source hazard
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -682,6 +863,36 @@ traces :math:`\psi^{\rm in}_b`, and the source :math:`\bar Q`:
    \qquad
    \psi^{\rm out}_a \;=\; T_a\,\vec\psi \;+\; \sum_b \alpha_{ab}\,\psi^{\rm in}_b .
 
+.. implements:: loss-rep-affine-kernel-maps
+   :by: orpheus.sn.loss_representation.assembly._probe_coefficient_blocks
+
+   Returns exactly the equation's four coefficient blocks —
+   ``(diag, inflow, trace, memory)`` :math:`= (\bar A, C_b, T_a,
+   \alpha_{ab})` — by driving the production matvec kernel with unit
+   inputs. Its reading is an algebraic identity rather than a fit
+   *only because* the maps are affine, which is what this equation
+   asserts; the precondition is enforced at the assembler's entry, which
+   raises :class:`~orpheus.numerics.operator.MissingAssembly` for a
+   closure that does not declare ``is_linear``.
+
+.. implements:: loss-rep-affine-kernel-maps
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch
+
+   The DD instance of the affine maps: scalar faces, so
+   :math:`1\times1` blocks. This is the kernel the probes call, so it is
+   the object whose affinity the equation is about — declaring only the
+   prober would name the reader of the coefficients and not their source.
+
+.. implements:: loss-rep-affine-kernel-maps
+   :by: orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.residual_kernel_batch
+
+   The LD instance: the bilinear UBLD system, so :math:`2^d \times 2^d`
+   cell blocks and :math:`2^{d-1}`-moment faces, with the mass-diagonal
+   normalisation that puts the residual in raw per-moment units. Both
+   closures are declared because :eq:`loss-rep-affine-kernel-maps` is the
+   claim that **one** extraction serves every batched-kernel closure —
+   a claim with a single implementer would be vacuous.
+
 Because these maps are affine, a **unit** input reads a coefficient
 block *exactly* — there is no summation error to accumulate, so the
 extraction is not a fit but an algebraic identity:
@@ -736,6 +947,18 @@ degenerate label (a pure-:math:`z` ordinate over a lower-dimensional
 mesh — the :math:`Q/\Sigma_t` short-circuit) has no graph and no face
 threading; its block is the cell-probe diagonal alone.
 
+.. implements:: loss-rep-walk-order-rows
+   :by: orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks
+
+   The walk body *is* the equation. Per cell it forms
+   ``cell_rows -= inflow[b] @ row_in`` for each incoming face and
+   ``row_out = trace[a] @ E_c + Σ_b memory[a][b] @ row_in`` for each
+   outgoing one, where :math:`E_c` is realised as the column slice
+   ``[:, base:base + cm]`` into the cell's own DOF block. The in-flight
+   ``face_blocks`` dict carries :math:`R^{\rm in}_b`; a face absent from
+   it is a boundary inflow, which is the zero block — the zero-inflow
+   posing, spelled as an absence rather than as a stored zero.
+
 The two face closures print two triangular shapes: DD's :math:`\alpha=-1`
 memory propagates each face row down the whole upstream chain (dense
 lower-triangular in 1-D — the honest matrix of the marching
@@ -769,6 +992,26 @@ the ERR-061 root cause: the slope moment must be lifted to the global
 frame *before* it enters a frame-agnostic consumer, whether that
 consumer is the scattering source (:eq:`ld-ubld-slope-angular-reduction`)
 or, here, the global sparse matrix.
+
+.. implements:: loss-rep-sweep-global-conjugation
+   :by: orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks
+
+   The conjugation is applied by ``_to_global_frame``, whose body is
+   ``vals * dof_signs[rows] * dof_signs[cols]`` — the row and column
+   factors of :math:`\Phi M \Phi`, applied to the COO triplets rather
+   than to a materialised matrix. ``dof_signs`` is
+   :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
+   tiled over cells, and is ``None`` for a single-moment closure, where
+   the function short-circuits to the identity.
+
+   ⚠ ``_to_global_frame`` is a **nested** function and therefore not an
+   addressable node in the knowledge graph, so the enclosing
+   :func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`
+   is the implementer this equation can name. That is the right granularity
+   in any case: the conjugation is applied at two sites inside that
+   function — once on the degenerate cell-diagonal branch and once on the
+   walked block — and a declaration on the inner helper would hide the
+   fact that both branches are conjugated by the same rule.
 
 Zero-inflow posing — the trace coupling is a separate block
 -----------------------------------------------------------
@@ -949,6 +1192,37 @@ first-order linear scan* — **marched over the transverse axes**:
      \mathrm{scan}(x)\circ\mathrm{march}(y,z) & d = 3.
    \end{cases}
 
+.. implements:: loss-rep-scanmarch
+   :by: orpheus.sn.loss_representation.ScanMarch
+
+   The class **is** the schedule. The equation's three cases are its
+   admissibility surface, not a runtime branch: the :math:`d = 1` row is
+   the :math:`s_y = 0` degeneration handled by the same body, and
+   :meth:`~orpheus.sn.loss_representation.ScanMarch.supports` is what
+   refuses a mesh the schedule does not cover — so an inadmissible
+   ``(representation, mesh)`` pairing is unrepresentable rather than
+   mis-executed.
+
+.. implements:: loss-rep-scanmarch
+   :by: orpheus.sn.loss_representation.ScanMarch._sweep_interior
+
+   The :math:`\mathrm{scan}(x)\circ\mathrm{march}(y)` body in the SOLVE
+   direction: the outer loop marches ``y_rows`` in the octant's sweep
+   order and each row runs one
+   :func:`~orpheus.sn.sweep.scan._scanmarch_row` along :math:`x`. The
+   composition in the equation is literally the nesting of these two
+   loops.
+
+.. implements:: loss-rep-scanmarch
+   :by: orpheus.sn.loss_representation.ScanMarch._loss_action_interior
+
+   The same composition in the APPLY direction — same march over
+   ``y_rows``, but the :math:`x`-faces are *reconstructed* from the known
+   probe by a pure-reflection scan rather than solved. Both are declared
+   because :eq:`loss-rep-scanmarch` is a statement about the *schedule*,
+   and the schedule is what the two directions share (L21); declaring one
+   would make the equation read as a property of the sweep alone.
+
 Within each transverse row the :term:`diamond-difference <diamond difference>` x-face recurrence is
 the **same Blelloch scan** that
 :class:`~orpheus.sn.loss_representation.CumprodScan` uses
@@ -1013,6 +1287,51 @@ the blend weight via
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
 (:math:`\psi^{\rm out}_y = (\bar\psi - (1-w)\psi^{\rm in}_y)/w`).
 
+.. implements:: loss-rep-scanmarch-solve
+   :by: orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal
+
+   The single source of both halves of this equation: ``couplings =
+   tuple(2.0 * s_a for s_a in s_axes)`` is :math:`c_a = 2 g_a`, and the
+   diagonal :math:`S` is accumulated by an **explicit left fold**
+   ``((Σ_t + c_0) + c_1) + …`` rather than by ``sum()``. The fold order
+   is load-bearing, not incidental: it is the IEEE-754 reduction tree of
+   record that
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`,
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`
+   and the scan producer all share, which is what makes the three callers
+   emit the same bytes (:ref:`loss-rep-bit-vs-principled`).
+
+.. implements:: loss-rep-scanmarch-solve-affine
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients
+
+   The :math:`\alpha` half, verbatim: ``a = 2.0 * scan_diag *
+   inverse_denom - 1.0``, with ``inverse_denom = 1.0 / denom`` and
+   ``w = _DD_W``. It returns the reciprocal, never a division by
+   :math:`S` — the :math:`\times\,\mathrm{inverse\_denom}` form the
+   equation writes.
+
+.. implements:: loss-rep-scanmarch-solve-affine
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission
+
+   The :math:`\beta` half: ``return QV * inverse_denom / w``. It lives on
+   the **base** class, not on Diamond Difference, because the affine
+   source is generic over every closure that supplies an
+   :math:`(\alpha, \mathrm{inverse\_denom}, w)` triple — DD's historical
+   :math:`2\,QV\,\mathrm{inverse\_denom}` is just its :math:`w = \tfrac12`
+   special case.
+
+.. implements:: loss-rep-scanmarch-solve-affine
+   :by: orpheus.sn.loss_representation.ScanMarch._sweep_interior
+
+   The equation's :math:`QV_{\rm eff} = Q + c_y\,\psi_{y,\rm in}` fold —
+   spelled ``Q_oct[:, :, :, j] + c_y * psi_y_in`` at the
+   :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission`
+   call site. That fold lives **here and nowhere else** in the package:
+   the scheme owns the coefficients and the schedule owns the decision
+   that the transverse face value enters through the source. Declaring
+   only the two scheme doors would leave the equation's
+   :math:`c_y\,\psi_{y,\rm in}` term unattributed.
+
 The matvec twin reconstructs the interior x-faces from the *known*
 probe :math:`\bar\psi` through the scheme's apply-direction **reflection
 scan**
@@ -1051,12 +1370,45 @@ that every facewise closure shares,
    r = (L+C)psi-bar. Foundation-gated by the matvec == sweep round-trip.
 .. vv-status: loss-rep-scanmarch-apply-residual documented
 
-from which :eq:`loss-rep-resolution-a` subtracts :math:`\Sigma_t\bar\psi`
-to give :math:`L\bar\psi`. ScanMarch additionally inherits the
+from which :eq:`loss-rep-resolution-a` gives :math:`L\bar\psi` — reached, in
+the shipped code, by running this same kernel at :math:`\sigma = 0` rather
+than by subtracting :math:`\Sigma_t\bar\psi`. ScanMarch additionally inherits the
 conditioning robustness of ``ordinate_scan`` (ERR-054 / ERR-057 handled
 per line for free) and is the natural home for the flux-independent
 ``a_attenuation`` two-stratum cache the wavefront lacks (the #206
 follow-on).
+
+.. implements:: loss-rep-scanmarch-apply
+   :by: orpheus.transport.spatial.diamond.DiamondDifference._reflection_coeffs
+
+   The :math:`w`-generic arithmetic, once: ``alpha =
+   np.full_like(psi_bar, -(1.0 - w) / w)`` and ``beta = psi_bar / w``.
+   It is a pure static helper in :math:`(\bar\psi, w)` with no instance
+   state, which is what lets a future Step closure inherit the recurrence
+   form for free.
+
+.. implements:: loss-rep-scanmarch-apply
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.reflect_scan_coefficients
+
+   DD's instantiation at :math:`w = \tfrac12`, giving the
+   :math:`(-1,\, 2\bar\psi)` the equation prints. It delegates to the
+   helper above rather than inlining the constants, so the
+   ``-(1-0.5)/0.5 == -1.0`` and ``ψ̄/0.5 == 2ψ̄`` reductions are exact
+   power-of-two operations and the result is byte-identical to the legacy
+   inline spelling. Both are declared because the equation states the
+   generic form **and** its DD value, and those are two different
+   symbols.
+
+.. implements:: loss-rep-scanmarch-apply-residual
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch
+
+   The :math:`\div V` matvec kernel every facewise closure shares:
+   ``residual = denom * psi_bar - numer`` at the probe cell-average, with
+   ``denom`` and the couplings from the same
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`
+   the SOLVE arm uses. It is the same symbol that implements
+   :eq:`loss-rep-affine-cell`, and deliberately so: this equation is that
+   cell relation specialised to the row-march's two axes at zero source.
 
 
 .. _loss-rep-scanmarch-coefficient-model:
@@ -2225,6 +2577,21 @@ algebra* rather than a numerical coincidence of two implementations:
    through the forward matvec, not by asserting the two sides agree.
 .. vv-status: loss-rep-adjoint-inverse-swap documented
 
+.. implements:: loss-rep-adjoint-inverse-swap
+   :by: orpheus.numerics.operator._AdjointOperator.inverse
+
+   The right-hand side spelled literally — the method's terminal
+   statement is ``return inner_inverse.H``. This is what makes the swap
+   law an **object identity** rather than a theorem two implementations
+   happen to satisfy: there is no second code path computing
+   :math:`(A^{*})^{-1}` that could drift from :math:`(A^{-1})^{*}`,
+   because the wrapper *is* ``A.H`` and its ``inverse()`` routes to
+   ``A.inverse().H`` by construction. The two guard clauses above that
+   statement refuse — with
+   :class:`~orpheus.numerics.operator.NotInvertible`, naming the swap law
+   — rather than returning a weaker object, so the law never holds only
+   approximately.
+
 It holds by construction because
 :meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
 returns ``self.inner.inverse().H`` — the wrapper *is* ``A.H``, so its
@@ -2273,6 +2640,30 @@ of the code it checks. The dense :math:`(L+C)^{-\mathsf T}` oracle
 (built from the forward ``apply`` alone via ``to_flat``/``from_flat``)
 is the keystone catcher against a bug copied into both
 ``apply_transpose`` and ``sweep_transpose``.
+
+.. implements:: loss-rep-metric-adjoint-solve
+   :by: orpheus.numerics.operator._AdjointOperator.apply
+
+   The conjugation, verbatim: apply the codomain metric, call the inner
+   operator's ``apply_transpose``, apply the domain's inverse metric —
+   :math:`G^{+}_V \odot \mathrm{apply\_transpose}(G_W \odot y)`. The
+   metrics are fetched from the function spaces rather than stored, so
+   the one wrapper serves a flat ndarray metric and the composite bulk
+   :math:`\oplus` trace :math:`\oplus` seed metric alike, pseudo-inverting
+   on the singular partial-current trace. This is why the equation's
+   left-hand side needs no ``_AdjointOperator.solve``: the adjoint-solve
+   is the adjoint-**apply** of the inverse operator.
+
+.. implements:: loss-rep-metric-adjoint-solve
+   :by: orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose
+
+   Supplies the equation's second equality, :math:`(A^{-1})^{\mathsf T} =
+   \texttt{solve\_transpose}`. Its body is ``return
+   self.inner.solve_transpose(b)`` behind an ``isinstance`` narrowing
+   that raises :class:`~orpheus.numerics.operator.MissingAdjoint` for the
+   schedule-folded composite. Without this the conjugation above would
+   have nothing to conjugate — the two declarations are the two factors
+   of one chain, not two views of one symbol.
 
 .. note::
 
@@ -2842,6 +3233,188 @@ The L21 theorems are pinned by the one-walk
 ``:label:``), both ``-O``-safe (``pytest.fail``, never bare ``assert``,
 so they fire under the canonical ``python -O`` invocation — vv-principles
 failure Mode 8).
+
+.. _loss-rep-declared-implementers:
+
+Declared implementers — and the three equations that have none
+--------------------------------------------------------------
+
+Every labelled equation above carries one or more ``.. implements::``
+directives naming, by dotted path, the symbol that realises it. These are
+not decoration. The knowledge graph otherwise **guesses** the
+code-to-equation link from shared name tokens, and a declaration stands
+that guessing down for the whole equation — so the directives are the
+difference between a traceability edge somebody asserted and one a string
+match invented.
+
+How wrong the guessing was, measured
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Worth seeing once, because the failure is not the one the phrase
+"heuristic link" suggests. Measured on this page's graph immediately
+before the declarations landed (2026-08-17, ``.nexus/graph.db`` after a
+forced ``-E`` build):
+
+.. list-table:: Inferred ``implements`` edges vs. the declared truth, over the 14 declared equations
+   :header-rows: 1
+   :widths: 46 18 18 18
+
+   * - Quantity
+     - Count
+     - Precision
+     - Recall
+   * - Inferred edges the heuristic wrote
+     - 397
+     - 1.5 %
+     - —
+   * - Implementers actually there (declared above)
+     - 28
+     - —
+     - —
+   * - …of those, found by the heuristic
+     - **6**
+     - —
+     - **21 %**
+   * - …of those, **missed** by the heuristic
+     - **22**
+     - —
+     - —
+
+The mechanism is visible in a single comparison. The guess set for
+:eq:`loss-rep-LpC` and the guess set for :eq:`loss-rep-facewise-separable`
+are **identical, 23 for 23** — as are the sets for :eq:`loss-rep-leaf-sum`
+and :eq:`loss-rep-removal-sigma`. Those four equations have nothing
+mathematically in common; one is the definition of the loss operator,
+another is a tensor-product separability criterion. What they share is
+that every label on this page begins ``loss-rep-``, and the token
+``loss``/``representation`` matches every symbol in the
+:mod:`orpheus.sn.loss_representation` package. The heuristic had therefore
+computed *the membership list of one Python package* and attached it,
+unchanged, to seventeen different mathematical statements.
+
+The sharpest consequence is on :eq:`loss-rep-LpC` itself: of its 23
+guesses, **zero** are either of its two real implementers. Both
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` and
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` live in
+``orpheus.sn.operators.streaming``, so the package-membership set that the
+token match produces *cannot contain them by construction*. A guess of
+that kind is not a weak claim about the equation; it is not a claim about
+the equation at all.
+
+The completeness obligation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Because a declaration stands the inference down **per equation**, not per
+pair, the author of the first directive on an equation takes on an
+obligation: declare *every* implementer. An equation realised in two
+places and declared in one shows only the one, since the guess that used
+to cover the second has been switched off. The declarations above are
+exhaustive by construction, and several equations carry two, three or four
+of them for exactly that reason — the DD and LD arms of one affine
+extraction, the forward and transpose halves of one single-source claim,
+the scheme door and the schedule that folds its transverse term.
+
+.. _loss-rep-unimplemented-labels:
+
+Three true, labelled, implemented-by-nothing statements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Three of this page's labels are deliberately left **undeclared**, and each
+for a *different* reason. The trio is the durable content of the exercise,
+because it says something an inference cannot know: **a statement can be
+true, labelled, and implemented by nothing** — and the kinds of statement
+for which that is the correct outcome are enumerable.
+
+.. list-table:: Why these three name no implementer
+   :header-rows: 1
+   :widths: 22 20 58
+
+   * - Equation
+     - Class
+     - Why nothing implements it
+   * - :eq:`loss-rep-leaf-sum`
+     - **superseded path**
+     - A derivation identity about a route the tree no longer takes.
+       :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
+       OVERRIDES :meth:`~orpheus.numerics.operator.OperatorSum.apply`, so
+       the inherited leaf sum is unreachable for :math:`(L+C)`; and since
+       #257 S8b :meth:`StreamingOperator.apply <orpheus.sn.operators.streaming.StreamingOperator.apply>`
+       never sources :math:`\sigma_t` at all — it is ``loss_action(0, ψ)``
+       — so the equation's own underbrace,
+       :math:`L.\mathrm{apply}(\psi) = M(\sigma_t)\psi - \sigma_t\psi`,
+       describes arithmetic no shipped call performs. The identity is
+       still *true* (it is :eq:`loss-rep-affine` read at two
+       :math:`\sigma`), which is why the label stays and is not retired;
+       what is gone is the code that once evaluated it.
+   * - :eq:`loss-rep-removal-sigma`
+     - **notation**
+     - A definition, not a computation — and there is no production caller
+       of the removal form yet (:ref:`loss-rep-removal-form-matvec`).
+       :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.foldable_sigma`
+       returns only the *subtrahend* :math:`\Sigma_{s,0}^{g\to g}`, never
+       the difference. Every site in the tree that *does* form
+       :math:`\sigma_t - \Sigma_{s,0}` — **four**, all measured
+       2026-08-17 — computes something else with it: three are the **DSA
+       low-order removal** :math:`\hat\sigma_R`
+       (``orpheus/sn/acceleration/dsa.py`` in production plus its two
+       algebra-of-record mirrors in ``orpheus/derivations/discrete/sn/dsa.py``),
+       and the fourth is a **capture cross-section**, ``SigC``, built for a
+       synthetic 1-group MMS
+       :class:`~orpheus.data.macro_xs.mixture.Mixture` in
+       ``orpheus/derivations/continuous/mms/sn.py``. That fourth one is the
+       instructive one: identical arithmetic, a *material datum* rather
+       than an operator diagonal, numerically coincident with
+       :math:`\sigma_r` only because the problem has one group. The
+       production DSA module states its own scope explicitly — the fold is
+       "legitimate HERE and only here", reached through the low-order build
+       and **never** the sweep (issue #215). Declaring any of the four would
+       attribute the S\ :sub:`N` loss operator's removal diagonal to a
+       different operator, at ``confidence = 1.0``.
+   * - :eq:`loss-rep-facewise-separable`
+     - **declared tag**
+     - The separability criterion is never evaluated. It is carried as a
+       declared ``ClassVar[bool]`` —
+       :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`,
+       default ``False``, with
+       :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
+       overriding to ``True`` and
+       :class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`
+       inheriting the conservative default. Code *reads* the tag (that is
+       what :meth:`ScanMarch.supports <orpheus.sn.loss_representation.ScanMarch.supports>`
+       gates on), but the tensor-product argument that decides its value
+       was made by a human and recorded as a boolean. The implementer of
+       the *criterion* is this page.
+
+.. note::
+
+   **The three keep their guesses, and that is a tooling gap, not a
+   verdict.** Standing the inference down is a side effect of
+   *declaring*, so an equation with nothing to declare has no way to say
+   so: these three still carry their full inferred sets. Read the table
+   above, not the graph, for those three.
+
+   ⚠ **And their guess count is not even stable** — it grows when the
+   page is *improved*. Measured across the build that landed this
+   section: writing the table above added ordinary ``:meth:``
+   cross-references to
+   :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+   and
+   :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.foldable_sigma`,
+   and both symbols promptly appeared as *new inferred implementers* —
+   the first on all three undeclared equations, the second on
+   :eq:`loss-rep-removal-sigma` specifically, whose label shares the
+   token ``sigma``. Citing a symbol in prose in order to explain why it
+   is **not** the implementer is enough to make the heuristic name it as
+   one. Do not quote a live guess count anywhere; quote the
+   pre-declaration measurement in the table above, which is frozen
+   history, or re-run the query.
+
+   A first-class way to record "implemented by nothing, for reason R"
+   would make this classification machine-readable instead of
+   prose-readable, and would stop the count drifting. It is worth having:
+   the three classes here — **superseded path**, **notation**, **declared
+   tag** — are exactly the cases where an inference's silence is the
+   correct answer and its guess is the expensive one.
 
 
 .. _loss-rep-history:

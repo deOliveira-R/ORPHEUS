@@ -1,12 +1,19 @@
 r"""S6.3 — the ``loss_action`` returns ``(L+C)ψ`` convention pin (#222).
 
 After S6.3 the within-group loss action ``(L+C)ψ`` is the representation's walk
-(:meth:`LossRepresentation.loss_action`); the operator's :meth:`apply` applies
-the ONLY algebra glue, the Resolution-A collision subtraction
-``L = (L+C) − C`` (``C = σ_t⊙``).  This file pins that convention as a TESTED
-invariant (``sn_sweep_strategy.md`` §S6.1 locked-decision 2: the representation
-returns the FULL within-group loss; the operator subtracts the collision
-diagonal — returning ``L·ψ`` would re-couple ``C`` into every walk).
+(:meth:`LossRepresentation.loss_action`), and the relation ``L = (L+C) − C``
+(``C = σ_t⊙``) holds because that walk is **affine in σ**.  This file pins that
+convention as a TESTED invariant (``sn_sweep_strategy.md`` §S6.1
+locked-decision 2: the representation returns the FULL within-group loss —
+returning ``L·ψ`` would re-couple ``C`` into every walk).
+
+⛔ This header previously said the operator's :meth:`apply` "applies the ONLY
+algebra glue, the Resolution-A collision subtraction". That was true of the
+original posing and is false at HEAD: since #257 S8b ``apply`` delegates to
+``streaming_action`` = ``loss_action(zero_sigma, psi)`` and performs no
+subtraction. The two function-level docstrings below (``the +C glue``, ``the
+affine relation``) were already correct — it was this module header that
+lagged the body it introduces.
 
 Two checks, complementary:
 
@@ -17,9 +24,17 @@ Two checks, complementary:
   σ_t·ψ_flat`` (collision only), and ``apply`` MUST return ``≈ 0``.  A
   representation that returned ``L·ψ`` (or a sign-flipped / double-counted ``C``)
   FAILS this — it is the check that ``loss_action`` is the FULL loss, not the bare
-  streaming.  The ``−C`` glue checks alone are tautological (``apply`` is DEFINED
-  as ``loss_action − σ_t·ψ``); this anchors the convention to an independent
-  analytical fact.
+  streaming.  It anchors the convention to an independent analytical fact.
+
+  ⭐ This bullet used to end "the ``−C`` glue checks alone are tautological
+  (``apply`` is DEFINED as ``loss_action − σ_t·ψ``)".  The retirement that made
+  ``apply`` σ-free **promoted** those checks rather than breaking them, and the
+  claim class moved without a line of the test body changing: with
+  ``apply(ψ) = loss_action(0, ψ)``, the glue assertion below reads
+  ``loss_action(0,ψ) == loss_action(σ_t,ψ) − σ_t⊙ψ`` — the **affinity of the
+  walk in σ**, a falsifiable property of two independently-evaluated walks.
+  It is no longer a restatement of a definition.  Recorded because a docstring
+  that talks a gate DOWN is how a load-bearing gate gets deleted as redundant.
 
 * **the −C glue, cross-checked against an INDEPENDENT collision operator.**
   ``apply(ψ).interior == loss_action(σ_t, ψ).interior − C.apply(ψ).interior`` on a ≥2G

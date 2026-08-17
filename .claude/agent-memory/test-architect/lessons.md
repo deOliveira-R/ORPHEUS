@@ -2,7 +2,7 @@
 
 Read at the START of every dispatch. This is the **behavioral index**: one rule
 per entry, imperative and standalone. War stories, measured numbers and
-`file:line` detail live in **`lessons_archive.md`** (sections L1–L42) — open only
+`file:line` detail live in **`lessons_archive.md`** (sections L1–L48) — open only
 the section a pointer names. The failure-mode TAXONOMY (Modes 1–12, three
 pillars, anti-patterns #1–#17) lives in the preloaded **`vv-principles`** skill:
 **cite it, never restate it.** Reference inventory + XS mixtures → `AGENT.md`;
@@ -29,6 +29,27 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   mid-session and the row did not move. Discriminator: *diff the xfail body
   against its own flip-proof* — textually equal after the edit ⟹ ceremony. Repair:
   state the claim against the production ANSWER, not a hard-coded value. → `L33`
+- **⛔⛔ RETIRING A DEFERRAL: never read the reason string — RUN the row. The fix
+  the exclusion CITES is usually not the fix that heals it.** `[M]` 4 of 5
+  imperative `pytest.xfail` sites all named issue #200 as their re-enabler; #200
+  is still OPEN, yet all four PASS today (`rel` 3.6e-15 / 4.5e-13 / 1.2e-14 vs
+  the closed form) — cured by an unrelated `restart`-sizing lineage (ERR-053, then
+  #282). Checking "has the cited issue landed?" answers "still blocked" and is
+  WRONG. Method: a `-p` plugin monkeypatching `pytest.xfail` to a no-op that
+  ASSERTS its own installation (a `sessionfinish` neutralisation COUNT), then one
+  run per row. Attribute the healing afterwards by grepping the production
+  lineage — and if two candidate fixes exist, say the cure is in the lineage and
+  that the decisive one is UNDISCRIMINATED rather than picking one. Corollaries:
+  ⭐ a reason string can be false in a SECOND way nobody noticed — the budget it
+  names may not be a live knob (`max_inner` → scipy `maxiter` = restart CYCLES
+  with `restart == n_dof`, so `max_inner=2` returns the `max_inner=1000` answer to
+  the last bit); ⛔ an UNCONDITIONAL stub whose body is ONLY the `pytest.xfail`
+  call cannot be converted literally — a strict marker over an empty body XPASSes
+  and reds, so the conversion must SUPPLY a body (a concept-level capability
+  probe: grep the *words* the issue uses, not one guessed symbol) where exactly one
+  statement can fail and it is the documented reason; ⛔ the healed row's doc
+  claims are in the blast radius — a page calling it "the xfail'd cell" and naming
+  the file goes present-tense-FALSE (`vv` anti-#21). → `L45`
 - **A gate can stay green while its REASON becomes false.** `B` was documented
   block-DIAGONAL; a wrap made it block-STRUCTURED; all three asserting rows
   stayed green because all three sit on a now-special-case fixture. When a phase
@@ -122,6 +143,42 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   points is itself an audit of production. Never let a repair reduce the catch
   rate — re-run the AUDITOR's own harness, not a re-implementation; the
   per-mutation red COUNTS are the signal. → `L28`
+- **⛔⛔ A `warnings.warn(stacklevel=N)` is a claim about EVERY call site's
+  DEPTH, and NO message gate can see it — the message is a pure function of
+  its arguments, the attribution is a second observable.** `[M]` #340 N4.7:
+  `stacklevel=3` was already false at 2 of 8 sites (two calls sat in PRIVATE
+  helpers one frame below the public entry), so the warning blamed
+  `orpheus/sn/solver.py:3541` — the library's own dispatch line — at every
+  budget on two fixtures; `grep -rn stacklevel tests/` = **1 hit**, unrelated.
+  ⭐⭐ **And the OBVIOUS gate is Mode-12 blind to half the class**: "the
+  attributed file is not under the package" reds for `stacklevel→2` (blames
+  the entry) and stays **GREEN** for `stacklevel→4` (blames the caller's
+  caller — still outside the package, still the wrong line). Ship TWO legs:
+  the portable `not is_relative_to(pkg_root)` over every entry, PLUS
+  `w.lineno == inspect.currentframe().f_lineno + 1` recorded immediately
+  above a DIRECT call. Never gate by reading the literal `stacklevel == 3` —
+  signature-tautological, since the hazard is the call DEPTH, not the value.
+  Structural fix beats gate: hoist every emission into the public entry so
+  the depth is uniform. → `L46b`, `L46c`
+- **⛔ A guard WIDENING (top-level → whole-tree predicate) needs a
+  CHILD-failing fixture per family, or the battery is blind to the widening
+  it is credited with.** `[M]` re-installing the pre-widening guard
+  partitions exactly: child-starved rows go silent, outer-starved rows still
+  fire. And a family whose inner is DIRECT (diffusion's LU, `budget == 0`)
+  structurally cannot supply one — say so rather than counting its row
+  (anti-#20). → `L46d`
+- **⛔⛔ A "functional X is BLIND to `ker A`" gate whose null vector comes from
+  `svd(A)` is a TAUTOLOGY — `A·(a null vector of A) = 0` is a fact about the
+  FACTORISATION, measurable with no solver in the room.** Both blindness legs
+  of the promoted #344 diagnostic were of this shape; only its two anchor legs
+  and its control had teeth, and the docstring credited the tautological ones.
+  ⭐ Re-pose onto the PRODUCTION stopping path: run the driver TWICE from cold
+  starts differing only inside `ker A` (`v` is a FIXED direction of
+  `G = M⁻¹N`, so SI preserves it exactly). `[M]` iteration count **344 both**,
+  residual `9.028098e-14` vs `9.022488e-14`, balance projection `2.795085`
+  BIT-identically, bulk `8.4e-16` — traces **11.26 %** apart, difference equal
+  to `v` to `2.3e-14`; kernel-free control `2.6e-15`. Test the MEASURAND the
+  production code reports, never a re-derivation of it. → `L49a`
 
 ## 2. Harness discipline — the instrument lies before the code does
 
@@ -130,6 +187,43 @@ control proves otherwise** — `vv` anti-#17 carries the rule and both ORPHEUS
 instances (a privately-loaded test-module copy; a summary parser defeated by ANSI
 codes). → `L34d`, `L35l`
 
+- **⛔⛔ NEVER quote a NEXUS-derived per-node test count as coverage — in THIS
+  codebase it measures the RESOLVER, not the suite.** `[M]` static `callers`
+  misses **217 of 229 (94.8 %)** of the tests that actually execute
+  `OperatorSum`; the only `OperatorSum` node with any static in-edge is the
+  CLASS (39 constructor calls) while `.apply`/`.inverse`/`.apply_transpose`/
+  `.assemble` have **ZERO** and all nine members fire at runtime. Tree-wide,
+  `[M]` **21.3 % of `calls` edges point into `unresolved`** and the top named
+  targets are `op.apply` 265 / `A.apply` 114 / `L.apply` 100. ⭐ The perverse
+  part: this is nexus #16's dispatch gap, and its severity is a CONSEQUENCE of
+  Cardinal Rule 2 — `coding-elegance` Pattern 1 spells every operation as a
+  dunder on a domain type, which is exactly what the resolver cannot follow, so
+  **the better the architecture gets the blinder the call graph becomes.** The
+  number I nearly shipped: "`[M]` 80.3 % of production nodes have ZERO tests",
+  queue topped by `SNSolver.solve_fixed_source` (in-calls **0**, while the free
+  function `solve_sn_fixed_source` has **233**). Repair = the runtime overlay
+  (`[M]` 163 → 404 nodes reached, `DiscreteMeasure.quotient` 0 → 9 test-callers);
+  the only tell that caught it was IMPLAUSIBILITY, not the instrument. → `L55a`,
+  `L55b`
+- **⛔ A two-sided JOIN needs a denominator assertion on BOTH sides — the
+  unasserted side is the one that fails.** `[M]` my pytest↔graph join reported
+  a clean, confident `JOIN RATE = 0.0%` because `node_attrs.value` is
+  **JSON-encoded** (`file_path` arrives WITH quote characters, so `relpath`
+  yields garbage). I had asserted the collected count and not the graph count.
+  Caught only because I knew a node existed there. Corrected: 100 % both ways.
+  → `L55e`
+- **⛔ A wrapping CENSUS plugin must rebind EVERY module that holds the symbol,
+  not just the defining one — and its `(*args, **kwargs)` wrapper can BREAK a
+  committed gate.** `[M]` #340 N4.7: wrapping `orpheus.diffusion.solver
+  .solve_diffusion_1d` reported **`0 entry calls`** on a suite with 34,
+  because the tests import from the PACKAGE re-export; the fix is to rebind
+  every `sys.modules` entry whose attribute `is` the original (6 bindings),
+  asserted at configure time. Separately the wrapper defeats
+  `inspect.signature`, so any reference helper built from it (here
+  `reachable_knobs`) reds for INSTRUMENT reasons — read that file's colour
+  only from a plugin-free run. Validate the decoder by cross-checking the
+  census's distinct node-ids against the independent `-W error` red count
+  (`[M]` 24 == 24). → `L46e`
 - **Make the harness ASSERT its own installation — printing a banner is not
   enough, because nobody reads a banner in a captured `$out`.** Two more
   false-"0 caught" verdicts in one session, both in the SAFE-LOOKING direction:
@@ -172,6 +266,20 @@ codes). → `L34d`, `L35l`
   Also re-measure the pre-declared RED: if the brief names one known failure,
   confirm it is the ONLY one, so every later red is attributable with no triage.
   → `L36e`
+- **⛔⛔ When a behavioural anomaly CONTRADICTS source you have already read,
+  re-read it with `inspect.getsource` before believing the anomaly — another
+  agent's deliberate mutation is indistinguishable from a production bug.**
+  `[M]` I saw `if history.converged:`, then measured a `converged=True` solve
+  emitting a warning, and was one step from reporting "the landed commit has a
+  live guard bug". The live source read `if history.fully_converged:  # M8
+  PROBE — REVERT ME` — the coordinator running MY battery's pre-measurement in
+  the shared tree. Reporting someone's mutation as a defect is worse than a
+  missed finding. Two habits: **bracket every measurement with the mutated
+  thing's state** (`echo GUARD BEFORE …; pytest …; echo GUARD AFTER …` — one
+  line, converts an ambiguous number into an attributable one), and treat the
+  collision as a GIFT — re-running bracketed handed me M8 for free (`[M]` `130
+  passed` flipped vs `130 passed` un-flipped ⟹ **0 reds**, the whole
+  justification for the scope gate, measured instead of argued). → `L44h`
 - **`git status` + `ls -la` mid-run, not just at the start: on a shared tree
   another agent may be rewriting the very code you are measuring.** The same
   `sed` range returned different prose 20 minutes apart; a second agent was
@@ -188,10 +296,63 @@ codes). → `L34d`, `L35l`
   as "X may already be on disk" — re-`ls` and re-score. Report the correction
   with `file:line` + evidence instead of racing the writer.
 
+- **⛔⛔ Read a NULL arm as "my mutation was insufficient" before "the gate is
+  blind" — a Pattern-2 TWIN predicate means the survivor guards the gate.**
+  `[M]` `SNMesh.reflective_axis_pairs` and `loss_kernel_gauge._reflective_axes`
+  are line-for-line the same `len(faces)==2 and all(faces)` test (count vs
+  axes); widening ONE → **0 of 25 red**, widening BOTH → **exactly 1**. Grep for
+  a second implementation of whatever you just broke. ⭐ Companion: when the
+  claim is a CHARACTER identity, compute the stabiliser EMPIRICALLY — the
+  canonicality leg `ψ_exact ⊥_G ker A` survives every metric constant across an
+  orbit's cells (`[M]` `×2`, `×(1+½ sign Ω·n)`, the partner face's sign, one
+  face `×3`: all `≈1.5e-15`; only a random per-DOF metric reds, `1.9e-02`), so
+  it is a gate on PARITY, not on metric values — say so instead of claiming a
+  sensitivity it lacks. ⭐ And size the POSITIVE CONTROL's regime: a diamond
+  weight `w < ½` AMPLIFIES the face mode (`−(1−w)/w = −1.22`) and the arm ran
+  25 min for 18 of 25 rows; `w = 0.55` DAMPS it and the same arm is **46 s /
+  13 reds**. → `L49c`, `L49d`, `L49e`
 - **Run the teeth harness over your OWN new module before delivering it.** It
   flagged a gate I had just written — an activation guard that was a theorem
   about parity, true for every input, surviving authoring and a green run.
   → `L34d`
+- **⛔ Run PYRIGHT over your own new TEST module too — it catches the elegance
+  defect, not just the type.** `[M]` my first knob-sweep parametrized over a
+  string tag + `if entry == …` chain + a `**kw` splat from an untyped dict:
+  **24 errors**, all the splat (pyright guessed the wrong parameter). The
+  `# type: ignore` reflex would have hidden a real anti-#4 stringly-typed
+  dispatch; the principled table-of-typed-callables took 24 → 0 AND let the
+  reference read the signature of the very callable the row invoked. Also
+  measure the COMMITTED file: mine showed 10 errors, 9 cleared for free by the
+  carve, the 10th a **mis-placed `# type: ignore`** (suppression on the call
+  line, error reported on the argument line). → `L44k`
+- **⛔ Build a source-mutant by TRANSFORMING `inspect.getsource`, never by
+  hand-copying the function** — a hand copy is a twin path that drifts from
+  production, and a `str.replace` whose target is ABSENT can `raise`, which
+  makes the instrument assert its own installation instead of printing a
+  banner nobody reads. Smoke-test each mutant's OUTPUT before the battery:
+  `[M]` all six printed exactly their intended defect (the partial-carve
+  mutant reproduced the welded lie verbatim), so every later red was
+  attributable with zero triage. → `L44i`
+- **⛔ Attribute an out-of-scope red by AUDITING THE DIFF for arithmetic, not
+  by re-running before/after** (which this tree forbids — uncommitted state,
+  no `git checkout`). `git diff -U0 orpheus/ | <strip comments> | grep -E
+  '=|def |raise |return '` gives the complete added/removed CODE line list; if
+  none touches a flux/matrix/residual the change is provably numerics-neutral
+  and the red is pre-existing. `[M]` 3 golden-sha reds in a wider run,
+  attributed in one command to a Signature-10 stale snapshot on the
+  `level_symmetric` family #337 re-seeded — and NOT re-baselined from inside
+  an unrelated campaign, which would hide a real regression inside a
+  legitimate one. → `L44l`
+- **⛔ IMPORT-CHECK the campaign's OWN mutation harness before planning a battery
+  on it — a campaign that retires symbols breaks its instruments by MODULE-SCOPE
+  BINDING, silently, because nobody runs them between carves.** `[M]` a tracked
+  `scratch/mutate_*.py` could not import at HEAD: line 24 bound a private
+  predicate the campaign had retired 1 day earlier. Two of its five mutations
+  were also stale into anti-#18 (they constructed a keyword a sibling gate
+  asserts cannot exist, and declared a pre-carve signature ⟹ their reds are
+  `TypeError` crashes, not property reds). One `hasattr` is the whole check;
+  repairing the harness is part of the commit, since no negative verdict is
+  trustworthy until its control passes. → `L44d`
 - **Measure "before" with `git show HEAD:<file> > <tmp sibling>`, never
   `git checkout`/`restore`/`stash`** — this tree carries uncommitted state; the
   sibling runs under the SAME mutation, collection and fixtures. Same rule for
@@ -348,9 +509,85 @@ against a concrete row before trusting a green.
   honest value and BOTH `orders > 1.9` AND any `rtol` value row stay green; the
   order gate first reds at `ε = 5e-4`. So "value + rate" is not a floor — name
   the band and put the real keystone at the tier the defect lives on. → `L40d`
+- **⛔⛔ Compute the SYMMETRY GROUP OF THE WHOLE GATE SET, not of one gate — a
+  range + an involution identity can be jointly blind to the one flip the seam
+  is exposed to.** `[M]` SN's τ was gated by exactly three properties, and all
+  three are invariant under `τ→1−τ`: membership `[0,1]` (symmetric about ½), the
+  fold box `[¼,¾]` (symmetric), and the reversal identity `τ_m+τ_{M−1−m}=1`
+  (`(1−τ_m)+(1−τ_{M−1−m})=1`). `τ→1−τ` IS the march-orientation flip (measure
+  the barycentric coordinate from the downstream edge — a one-token index
+  drift), and it reddened **0 of those 4 rows**, 6 of 298 tree-wide. Design-time
+  and free: intersect the gate SET's stabiliser with the threat model before
+  mutating. ⭐ The catcher is a SIGNED law, bit-exact with an exact equality
+  case: `(τ_m−½)·μ_m ≥ 0`, `min` exactly `0.0`/`−0.0` at odd N/M (a node at
+  μ=0) so `>= 0.0` needs NO tolerance, plus an ACTIVATION leg (`max > 0`, else
+  `τ≡½` passes vacuously). ⚠ Never spell it `np.sign(τ−½) == np.sign(cot ω)`:
+  `np.cos(np.pi/2) = 6.12e-17 > 0` while `τ−½` is `0.0` there ⟹ FALSE at odd M,
+  TRUE at even — a parity artefact reading as a real disagreement. → `L47a`
+- **⛔ A parametrize ARGUMENT LIST runs at COLLECTION, so a raising mutation
+  reports `FAILED=0` — the flattering direction.** `[M]` building
+  `(label, cosines, taus)` in the `parametrize` list called production at import;
+  6 of 13 mutations (INCLUDING the positive control) then died as
+  `Interrupted: 1 error during collection`, `rc=2`, 2 s, read off the summary as
+  "0 caught". Two fixes, both cheap: parametrize by a LABEL and build in the
+  BODY; and put `--continue-on-collection-errors` in the battery while counting
+  `^ERROR` separately from `^FAILED`. Same family as `L41e`. → `L47d`
+- **⛔ A palindromic-index mutation on a symmetric rule is a PROVABLE
+  non-catcher — report it, do not gate it.** `[M]` reversing the sphere's
+  cumulative-weight order (`w[n] → w[N−1−n]`) is bit-identical (GL weights are
+  palindromic): **0 of 298** rows. Sibling of `L43e`. → `L47e`
+- **⛔⛔ ASK WHAT FIELD MAKES THE SUT'S OWN RESIDUAL ZERO — a fixture in the
+  SUT's kernel cannot rank it, however rich it looks.** `[M]` the shipped
+  curvilinear aniso MMS is `A(r) + B(r)η` — affine in the radial cosine at
+  every `r` — and the M-M closure is EXACT on `span{1,μ}` BY DEFINITION of τ
+  (`4.4e-16` cyl, `8.9e-16` sph, every order; `0` exactly for isotropic). So
+  the flagship angular fixture has **zero closure residual** for the very
+  scheme it is used to grade. Design-time, one line of algebra, no run.
+  Same check kills #319's diffusion-limit instrument for ANGULAR claims (the
+  diffusion limit's angular content IS `span{1,μ}`) while leaving it sound
+  for SPATIAL ones. → `L48a`
+- **⛔ The strengthening axis for an angular-CLOSURE fixture is PARITY, not
+  frequency — adding harmonics can LOWER the resolution.** `[M]` reversal
+  resolution `1.00×` (m=1 only, BLIND) → `1.33×` (m=1+2) → `1.05×`
+  (m=1+2+3, diluted back); `m=3`-alone is blind again. One EVEN harmonic,
+  then stop (amplitude saturates at `c₂≈2`). L40b in a new form: the
+  τ-independent floor grows faster than the signal. → `L48d`
+- **⛔⛔ ONE campaign can carry TWO independent parity rules — name which one a
+  fixture is chosen for.** #344's known rule is about the SOLVE (an even first
+  axis + a symmetric source leaves the kernel unexcited). The second is about
+  the FUNCTIONAL and bites on a pure kernel mode: a face-SUMMED mirror-ODD
+  quantity runs the transverse cells against the checkerboard `(−1)^Σi`, which
+  cancels when that count is EVEN. `[M]` max face tangential current on a
+  unit-norm mode: `(2,2)` **2.5650e-15** (INERT), `(2,3)` `1.9134e-01`, `(3,2)`
+  `3.2691e-01`, `(3,3)` `1.1985e-01`, `(3,4)` `2.4252e-01`. The obvious
+  "smallest box" is the one that kills the witness. → `L49b`
+- **⛔ Re-measure a brief's "the fixture stopped discriminating" number with
+  the OTHER axis refined.** `[M]` at `nx=80` the 12-scheme spread is `2.7×`
+  and at `nx=320` it is `9.2×` (`n_φ=32`); `1.8×` vs `18×` at `n_φ=64` —
+  half the reported blindness was a spatial floor the source plan had itself
+  measured two sections earlier. The ladder is also a COST win: the right
+  functional was clean at `nx=80`, 8× cheaper. → `L48e`
 
 ## 4. Reference, claim layer, and the proactive refutation
 
+- **⭐ A test's CLAIM KIND is the PROVENANCE of its expected value — THEOREM /
+  REFERENCE / RECORD — and it is a different axis from `l0`–`l3` (which grades
+  how GOOD the reference is).** THEOREM = entailed by a law holding for every
+  admissible input (identity, adjointness, involution, conservation,
+  `M − N ≡ A`); red ⟹ the object violates its own definition and every other
+  claim on that subject is VOID. REFERENCE = a structurally-independent external
+  route (`vv`'s three pillars); red ⟹ implementation disagrees with the math
+  *here*. RECORD = whatever the code produced on a chosen day; red ⟹ *something
+  changed*, **zero** information about which side is right
+  (`numerical-bug-signatures` Sig 10). ⛔ It cannot be DERIVED — `[M]`
+  `assert_allclose` appears in **218 files** and is used identically for
+  closed-form, MMS and frozen baselines. ⭐ The audit it unlocks: **every RECORD
+  subject must also carry a THEOREM or REFERENCE test** (the hunt task #51 ran
+  by hand twice). Honest limit, ship it inside the audit's output: it finds
+  subjects with NO independent pin, never a BLIND one — that is mutation's job.
+  ⛔ `vv` L51's CONSTRAINT/RANKER/DIAGNOSTIC is the WRONG vocabulary here: every
+  collected pytest test is a CONSTRAINT by construction, so that partition has
+  one non-empty cell. → `L55i`
 - **RULE: write the (claim-layer, pillar, truth-source) triple per gate BEFORE
   drafting it**, forcing the structural-independence cross-check from a DIFFERENT
   angle (`vv` §pillars / anti-#5,#6,#7). ORPHEUS residual: **no mesh-independent
@@ -362,6 +599,21 @@ against a concrete row before trusting a green.
   ("didn't move" = bit-id inheritance) is necessary-NOT-sufficient — ULP distance
   cannot tell you the pre-carve value was right. Pair with a closed-form value
   anchor (`Q/Σ_t`, `k_inf`). → `L2`
+- **⛔⛔ A brief's headline NUMBER carries an unstated REGIME — reproduce it
+  before designing to it, and if it only reproduces off the production path,
+  say so.** `[M]` "the angular recurrence produces `min ψ̂ ≈ −77`" reproduces at
+  **−76.9** only with a RANDOM ψ and a ZERO seed; on the production value path
+  (converged flux + the marched ψ½ STATE) the same fixture gives **+0.1337 /
+  +0.1286 / +0.1287** at n_φ = 6/8/16 — strictly positive, within 12 % of
+  `min ψ`. The sign is a property of the SEED's consistency, not of the scheme
+  (the recurrence's fixed point at flat ψ is `ψ̂ = ψ`). ⭐ Then pin the
+  MECHANISM, not the observation: `A(M) = max_m ∏_{k≤m}(1−τ_k)/τ_k` is
+  solve-free, a pure function of the chart, has a closed-form independent
+  reference, and explains BOTH regimes (`[M]` 2.41/2.73/3.36/…/9.44 at
+  M = 2…32 — the 9.44 is the figure `vv` #24b quotes, previously uncommitted).
+  Companion: `∏_all (1−τ)/τ = 1` exactly, since the reversal identity makes the
+  numerators the denominators re-ordered — and that leg is INVARIANT under
+  `τ→1−τ`, so it must be declared a non-catcher for the flip. → `L47b`, `L47c`
 - **RULE (identity-level): the highest-value output of a proactive dispatch is
   REFUTING the plan's optimistic premises with a MEASUREMENT, before the ink
   dries.** Measured false: "bit-identical" (exact-arithmetic-only, ≤1 ULP in
@@ -433,6 +685,46 @@ against a concrete row before trusting a green.
   Keep the reasoning ✅ ANSWERED, not deleted (`plan-authoring` §3), and pin
   the MARGIN VALUE beside the sign so a conditioning regression reds first.
   → `L42e`
+- **⛔⛔ AN ADJUDICATING INSTRUMENT (one that RANKS designs) is a different
+  object from a gate and owes four checks, none of which is a mutation:
+  BASIS, RANK-CORRELATION, cost-against-alternatives (`vv` anti-#24 a/b/c) —
+  and ⭐⭐ the ZERO-SET check: solve `instrument(candidate) = 0` for the
+  candidate; if the answer IS the incumbent, it measures
+  distance-to-the-incumbent and always confirms what is shipped.** `[M]` #235:
+  three live proposals shared one zero set (the diffusion-limit test, the
+  shipped MMS ansatz, the η-weighted closure defect) because τ is DEFINED as
+  the barycentric coordinate; a fourth (R&L `|τ−½|/w`) has zero set `τ≡½`,
+  i.e. it is one CANDIDATE wearing a criterion's clothes. Declare each
+  instrument CONSTRAINT / RANKER / DIAGNOSTIC in its own docstring — the
+  graveyard died of silent promotion. `[M]` 4 of 6 dead instruments die at
+  the `<1 s` solve-free pre-flight. → `L48a`
+- **⛔⛔ The GRADED FUNCTIONAL is a design choice with its own stabiliser: an
+  INTEGRATED one admits signed cancellation and can rank GARBAGE ABOVE
+  PRODUCTION.** `[M]` same solves, `n_φ=64`: scalar-flux `L2` ranks two
+  garbage τ permutations `1.6×`/`2.0×` **better** than production and is
+  blind to a 2 % jitter (`1.04×`); angular-flux `L2` ranks them `17×`/`8×`
+  worse and resolves the jitter at `3.96×` — dynamic range `2.1×` vs `40×`.
+  Mechanism, exact: the defect is `∝cos(mω_m)` and `Σ w cos(mω)=0` — **the
+  identity that makes the manufactured reference closed-form is the identity
+  that annihilates the defect in the graded quantity.** Grade the
+  UN-INTEGRATED field when one exists. Every gate in
+  `tests/sn/verification/mms/` grades the integrated one. → `L48b`
+- **⭐ A CONTINUOUS homotopy beats "rank agreement": require MONOTONICITY in
+  `w` along `blend(w)=(1−w)A+wB`** — 5 solves, falsified by one non-monotone
+  triple, strictly stronger than a discrete ranking. Stratify the ensemble
+  (NEAR = a 2 % jitter · MID = the real rival · FAR = garbage) and require
+  the threshold on **NEAR∪MID alone** — a ρ over all three is dominated by
+  the garbage split (how `D` scored `+0.75` then `+0.06`). The ensemble MUST
+  contain the pair inside the stabiliser you fear. → `L48f`
+- **⭐⭐ "This comparison is BELOW MY RESOLUTION, and here is the number" is a
+  first-class deliverable, not a failure.** `[M]` best fixture + best
+  functional resolves garbage `17–40×`, a 2 % jitter `2–4×`, the
+  march-orientation reversal `1.25–1.6×` — and **NOT** the two candidates the
+  campaign actually argued about (`1.34/1.10/0.95×`, sign flipping with
+  `n_φ`). That makes "decide on constraints + the primary source" the sound
+  route rather than a fallback. ⛔ Related: **closure-EXACT is not
+  accuracy-optimal** (`[M]` 3.2×/7.8× worse), so every closure-residual
+  instrument is a DIAGNOSTIC. → `L48c`, `L48g`
 - **⭐ The keystone's ORACLE choice decides whether it catches anything — same
   assertion shape, 8 orders of sensitivity apart.** `γ₋ψ == spec.evaluate(...)`
   is self-consistency: under a magnitude mutation BOTH sides move, green for
@@ -489,6 +781,27 @@ against a concrete row before trusting a green.
   100-digit mpmath the new code is 0.57 ulp and the legacy 3.72. State the
   criterion against the arbitrary-precision value, and honestly ("within 0.57 ulp
   everywhere", never "always closer"). → `L34c`
+- **⛔ A flat `atol` is wrong in BOTH directions at once — derive it from what
+  the quantity DIVIDES BY, and note that two quantities in one seam can need two
+  different laws.** `[M]` a τ row carrying `atol=1e-13` *and* a docstring saying
+  "a row at N ≥ 64 must widen it" measured **2.247e-13** at N=64 — ~450× too
+  loose at N=8 AND a false red at the order it predicted. Derived: sphere τ
+  divides an `O(ε)` edge discrepancy by the cell width ⟹ `16·ε/w_min` (`[M]`
+  ratio 0.00…3.81 over N=4…128); cylinder τ inherits `cot`'s condition near the
+  arc ends ⟹ `40·M·ε` (`[M]` 0.17…7.99 over M=2…64); while the PARTITION the
+  same τ reads agrees at a flat **≤1.5 ULP independent of M** (both sides are
+  one `cos` of an O(1) angle). ⭐ Same for a negative control's floor: the same
+  convention gap SHRINKS like `M⁻²` in edge space and GROWS in τ space, so a
+  fixed threshold is a false red in one and a dead gate in the other — derive
+  `0.4·sinθ·(1−cos(Δω/2))` for the first, keep a constant for the second.
+  → `L47f`, `L47h`
+- **⛔ "Bit-identical at the degenerate fixture" is usually 1 ULP — asserting
+  `array_equal` on it reds your OWN control.** `[M]` at M=2 the ω-midpoint and
+  chord partitions differ by `3.1e-17` (because `np.cos(np.pi/2) = 6.12e-17`,
+  not 0). Assert "15 orders below the signal", never "the bits match". ⭐ Such a
+  blindness CONTROL still earns teeth: it must red when one of the two
+  conventions moves (`[M]` 3 mutations) and stay green when production BECOMES
+  the other one. → `L47g`
 
 ## 6. Carve archetypes — where the load-bearing gate lives, by carve shape
 
@@ -626,6 +939,28 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   permutation, `[M]` `s_p` 0.5084 ↔ 0.9404). Enumerate the per-index data the
   consumer reads and test each for permutation-invariance BEFORE nominating a
   functional. → `L43e`
+- **RE-SOURCING carve (a consumer's facts move from hand-passed arguments to a
+  derived object): ⛔⛔ the blast radius is the READS, not the PARAMETERS, and a
+  PARTIAL re-point is WORSE than none.** A brief named three facts moving onto
+  `record.first_failure`; `[M]` the consumer body read the old source at **five
+  more sites** (the binding criterion — which feeds distance, rate, projection
+  AND a branch — plus `min_iterations` and three `n_iterations`). Implemented
+  literally, the message welds the inner's knob+budget to the OUTER's criterion
+  and projection: every number real, every pairing wrong, and it *looks*
+  level-correct. **`awk` the consumer's body for every read of the old source
+  before designing gates**, ship the correction as a `line | read | today |
+  must become` table at the TOP of the plan, and put BOTH partial mutations in
+  the battery (re-point A-only; re-point B-only) — one "did it re-point"
+  mutation cannot distinguish them. ⛔ Companion trap: **the existing fixtures
+  can make the gate an `X == X` theorem by OBJECT IDENTITY** — on a 1-level
+  tree `first_failure is record` returns `True`, so 6 of 7 facts are one
+  object's attributes read twice and no input can separate them. The only fact
+  a leaf still sees is whatever changed SOURCE KIND (here a caller literal → a
+  record field). Two-tier fix: synthetic hand-built nested record (`~0 s`,
+  exact geometric trajectories ⟹ analytic `rho`/projection, all facts pairwise
+  distinct) as the KEYSTONE, plus ONE cheap end-to-end solve for the thing the
+  synthetic cannot see (that production NESTS and stamps the child). → `L44a`,
+  `L44b`, `L44c`
 - **A binding added at a LEAF may not survive to the object the producer
   RETURNS — measure at the tier the CONSUMER sees, not at the construction
   site.** A `TensorProductOperator`/`&` wrapper derived no `domain`/`codomain`
@@ -827,7 +1162,10 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   To pin a floor a fix claims to remove, measure the floor's SCALING with the
   OTHER axis — `err(S32) < err(S16)/2` is falsifiable where "the floor is gone" is
   not. An out-of-scope defect gets a POSITIVE assert-the-defect gate with a loud
-  message, NOT an xfail (xfail flips silently). → `L5`, `L16`
+  message, NOT a NON-STRICT or IMPERATIVE xfail (the first flips silently to
+  `xpass`, the second cannot flip at all — see §1's deferral-retirement rule).
+  A `strict=True` MARKER is the exception and the preferred spelling: its XPASS
+  is a FAILURE, so it retires itself. → `L5`, `L16`, `L45`
 - **Mode-10 sub-floor terms:** producer-threading at machine precision + a
   consumed-flip ≫ tol + a no-op control; where NO isolating regime exists the
   absence of a value-improvement leg is the CORRECT signature (`vv` Mode 10).

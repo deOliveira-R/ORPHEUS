@@ -57,6 +57,20 @@ mislead a whole investigation. See [[sphere-sn-pole-closure-canonical]].
 equation actually lives in THAT paper before reusing the citation in
 output. Flag the mismatch to the user.
 
+⭐ **Sharpening (2026-08-11): the SECTION/EQUATION pointer inside an
+otherwise-correct citation is its own claim, and it fails independently.**
+A brief said "Hébert §3.9.4, pp. 141-144, Eqs. 3.418-3.439" for the
+**cylindrical** closure — right book, right chapter, wrong subsection:
+§3.9.4 is the SPHERE; the cylinder is **§3.9.3** and the whole
+3.418-3.439 range is spherical. The same brief called (3.437)/(3.439)
+"a weighted one" when they are (3.431) rearranged. Both were caught by
+**two greps before any page was opened**: `grep -n "^#.*<sec>"` on the
+sidecar for the section-header index, then `grep -n "tag{<eq>}"` to see
+which section each equation actually falls in. Do this FIRST on any
+brief that hands you a section+equation pair — an inherited pointer sends
+you to the wrong geometry's algebra, which is the Cardinal-Rule-2
+failure the extraction exists to prevent.
+
 ## L-004 — A results CATALOGUE is a test set, not a method source; the derivation is in its cited literature
 
 → standing directive now in AGENT.md §6 ("Classify by the source body"). War-story kept for forensic value.
@@ -102,6 +116,90 @@ asset (cross-method cross-checks). See [[atalay-1997-reflected-anisotropic]],
 [[burkart-ishiguro-siewert-1976-two-region-anisotropic]],
 [[dahl-sjostrand-1979-anisotropic-slab-sphere]].
 
+## L-013 — A NAMED scheme is ambiguous until you count its equations: the same closure can differ in which symbols are UNKNOWN
+
+`[M]` 2026-08-11, Reed & Lathrop 1970 vs Morel-Montry/BMC. Both are called "the
+weighted diamond". Both print the **identical** closure
+`ψ_m = τ ψ_{m+1/2} + (1−τ)ψ_{m−1/2}` and the **identical** barycentric node
+definition, both credit **Grant 1968**, and both use the letter τ for the same
+object. Reading either equation confirms nothing. The schemes differ because R&L
+impose a **third** equation (the angular consistency condition, Eq. 13b) that
+Morel-Montry does not — which flips the **ordinates from inputs to outputs**: R&L
+take the weights and SOLVE for `μ_m` (Eq. 14, a quadratic per ordinate), so the
+quadrature is a product of the difference scheme. The brief invited exactly the
+wrong answer ("what is R&L's weighted diamond?" beside "ORPHEUS implements the
+Morel-Montry weighted diamond"), and reporting them as one scheme would have
+grafted the wrong provenance onto a shipped closure.
+
+**Why:** L-005 discriminates method FAMILIES (F_N vs Case vs Galerkin) and is
+answered by reading what machinery the paper builds. This is the sub-family case,
+where the machinery, the symbols, and the printed equations all MATCH and the only
+difference is the **unknown set**. No amount of equation-matching detects it; only
+counting the constraints and asking "solved for what?" does.
+
+**How to apply:** for any scheme the brief names, (a) **enumerate every equation
+the paper imposes** and (b) **state which symbols are unknowns and which are
+given** — write both into the deliverable as a table against the local
+implementation. Then (c) **read the authors' own statement of what their choice
+costs** — a scheme that constrains extra unknowns always pays somewhere, and the
+primary usually admits it plainly where a later critic states it as a dig. It
+lives in one of exactly two places: the **CONCLUSIONS**, or the **INTRODUCTION's
+positioning-against-the-rival paragraph** — never the body. (R&L 1970: Lathrop
+2000's dig "fixes a quadrature that does not correctly integrate Legendre
+polynomials" is R&L's own closing sentence, "<3 % … S₈ Gauss weights". M&M 1984:
+their entire accuracy concession — *"our scheme is only first-order accurate"* —
+is one clause on the **second page**, in the sentence that contrasts them with
+R&L.)
+
+⭐ **Sharpening (2026-08-11) — the necessary-vs-sufficient case: COUNT THE
+CONDITION'S RANK against the unknowns it is said to determine.** A secondary
+routinely compresses a primary's derivation into "condition X determines Y", and
+the compression **inverts the implication** when X is a *consequence* rather than
+the *defining* requirement. Bailey-Morel-Chang: *"Forcing this β factor to be zero
+determines the Morel and Montry weights."* β is **one scalar**; the weights are an
+**N-vector** — the claim cannot be true, by dimension alone. M&M's real condition
+is per-ordinate edge coincidence (N equations, their Eq. 15 + 16b) and β = 0 is a
+parity corollary (their 17a–19). Cost of believing the gloss: you conclude any
+τ with β = 0 is admissible and grant yourself licence to clamp/retune τ.
+**The check is two mechanical steps**: (i) count equations vs unknowns in the
+stated condition; (ii) if under-determined, *exhibit a second solution* — here,
+root-finding τ₁ on Gauss-S8 with the other seven randomised gave β = O(1e-16) at
+‖τ − τ_MM‖_∞ ≈ 0.24–0.31 (L-011's reproduce-it discipline, applied to a
+uniqueness claim rather than a value). Then go find the primary's actual
+determining condition; it is always stronger and always elsewhere. See
+[[reed-lathrop-1970-angular-truncation]],
+[[morel-montry-tau-angular-cell-edges]].
+
+## L-014 — Two sources "conflict"? Check the CITATION EDGE first — the later one has almost certainly already ruled
+
+`[M]` 2026-08-11. A brief posed a genuine-looking impasse: BMC Eq. 43 (τ barycentric
+in μ) and Reed–Lathrop Eq. 16 (second order iff τ = ½ + O(w)) give **opposite**
+answers at a level's grazing ordinates, "so we must choose, and we want to know
+whether Morel & Montry saw this". They did — and the answer was not in a derivation.
+**Morel & Montry cite Reed & Lathrop as their reference 1**, reject them in a
+half-paragraph of the Introduction (R&L's induced quadratures cannot integrate
+degree > 3, which breaks conservation under anisotropic scattering), and concede
+their own order in the very next sentence: their scheme works with **any** quadrature
+but is *"only first-order accurate"*. The whole "conflict" is a **declared trade**,
+stated on the second page of the primary, decades before the secondary that appeared
+to contradict it.
+
+**Why:** an apparent conflict between two papers in the same lineage is nearly always
+a *documented design choice*, because the later author read the earlier one and had
+to justify diverging. Treating it as an open scientific question invites the agent to
+adjudicate it itself — from numerics, from a third source, or worst, from taste — and
+whatever it picks arrives with no provenance while a one-sentence primary ruling sits
+unread. The failure is silent: an invented adjudication reads exactly like a sourced one.
+
+**How to apply:** before adjudicating any two-source disagreement, spend one grep.
+(a) **Open the later paper's reference list and look for the earlier paper.** If the
+edge exists, (b) find the in-text citation — it is usually in the Introduction, in the
+paragraph that says why this work is needed — and read the two sentences around it.
+(c) Report the ruling as the *authors' trade*, naming what each side buys and pays,
+not as your verdict. If the edge does NOT exist, say so explicitly: the conflict is
+then genuinely open, and *that* is the finding. Companion to L-013 clause (c) — same
+paragraph answers both questions.
+
 ## L-006 — Local literature folder FIRST, then Zotero, then Tier-2
 
 `scratch/literature/` holds the user's full Nuclear Science &
@@ -134,6 +232,143 @@ load-bearing values on the rendered page (OCR dropped/garbled cells in
 LA-3186 Table I's n=20 rows). See [[la3186-level-symmetric-quadrature]]
 for the worked pattern. Suggest (user-owned tool): `ocr_literature.py`
 could inline `tables[].content` into the sidecar at emit time.
+
+## L-009 — "403" is not "paywalled": check the OA STATUS before telling the user a paper is inaccessible
+
+A `403` from a publisher is usually a **Cloudflare bot challenge**, which a
+human browser walks straight through. Before reporting a paper as
+inaccessible, resolve its OA status with Unpaywall
+(`api.unpaywall.org/v2/<doi>?email=…`) or OpenAlex `open_access.oa_status`.
+
+- **`bronze`** = free-to-read on the publisher's own site, no licence. The
+  paper IS obtainable at zero cost — say "download it in a browser", NOT
+  "paywalled". Its tell in OpenAlex is an `oa_url` carrying
+  `?needAccess=true`: that reads like a false-positive OA flag and is not one.
+- **`green`** = a repository copy exists; `locations[]` names it. Conversely
+  `any_repository_has_fulltext: false` + a single `locations[]` entry means
+  **no green copy exists** — stop hunting institutional repositories.
+
+**Why:** the two verdicts trigger opposite user actions (one click vs an
+acquisition decision), and the wrong one either wastes the user's money or
+strands a free paper. Measured 2026-08-11 on Yamamoto 2007 JNST 44(2):
+`403` on every T&F route, yet `bronze / publisher / publishedVersion`.
+
+**Also check whether the archive MOVED.** J-STAGE 404s on all JNST
+`article/jnst/44/*` paths because JNST vols. 1964-2011 were migrated to
+Taylor & Francis; the original `10.3327/jnst.*` DOIs now redirect to
+`10.1080/18811248.*`. A 404 at the expected native host means "relocated",
+not "absent" — follow the DOI. See [[ty-polar-quadrature-moc]].
+
+## L-011 — When an equation's SYMBOLS are ambiguous, REPRODUCE THE PAPER'S TABLE; the numbers decide what no amount of re-reading can
+
+`[M]` 2026-08-11, BMC 2010 Eq. (41)/(75). The β sum is written with symbols
+`μ_{m±1/2}` that *look* like the quadrature's cumulative-weight cell edges. Read that
+way, β is identically zero for every scheme (Lathrop's Eq. 57 oddness argument proves
+it), which flatly contradicts BMC's own Table I. Re-reading the page cannot settle it —
+both readings are typographically identical. **Coding the candidate reading and
+reproducing Table I did**: the scheme-IMPLIED edge march (Eq. 43 solved forward from
+the τ under test) reproduced all 8 printed values to every digit
+(`7.698004e-01`, `2.06E-01`, `−3.57E-03`, …), the cumulative-weight reading gave
+round-off everywhere.
+
+**Why:** a paper's numeric table is a **specification of its own equations** — the one
+artefact that pins the meaning of every symbol simultaneously. Prose can be ambiguous
+and a scan can be faithful to an ambiguity; a 4-row table cannot be satisfied by the
+wrong reading. This is also the only way to detect that two papers using the same
+Greek letter mean different objects.
+
+**How to apply:** whenever an extraction turns on *which* quantity a symbol denotes —
+and especially when two sources appear to contradict each other — look for a tabulated
+result and reproduce it in `.venv/bin/python` before reporting. Table bodies are in the
+`.mocr.json`, not the sidecar (L-008). Report the reproduction as `[M]` evidence for
+the reading. Corollary: **also compute the diagnostic on the USER's own rule** — the
+same pass found BMC's β is round-off for *every* convention on a symmetric
+equispaced-ω march, so recommending it as an oracle would have shipped a blind gate.
+See [[morel-montry-tau-angular-cell-edges]].
+
+## L-010 — Scan-verification proves the OCR faithful, NOT the equation correct: the PRINT itself can be wrong
+
+`[M]` 2026-08-11, Bailey-Morel-Chang 2010 NSE 165. The sidecar rendered Eq. (52)
+as `μ_{m+1/2,n} = μ_{m+1/2,n} + w̄_{m,n}` — self-referential, hence impossible. The
+obvious diagnosis is an OCR slip; the rendered page (PDF p. 10) shows the **same
+thing**. It is a **typo in the published journal**. The correct RHS subscript is
+`m−1/2`, proven two ways: the sphere's analogous Eq. (12) is printed correctly
+(`μ_{m+1/2} = μ_{m−1/2} + w_m`, verified p. 5), and the recursion is otherwise
+vacuous.
+
+**Why:** the `[VERIFIED-ON-SCAN]` marker answers "does the sidecar match the page?"
+It does NOT answer "is the page right?". An agent that stops at scan-match will
+transcribe a published typo into a solver with the strongest available provenance
+badge attached — an ERR-032-class hazard wearing the ERR-032 countermeasure.
+
+**How to apply:** for any load-bearing equation, run a **third** check beyond
+OCR-vs-scan — cheap and mechanical, pick whichever applies:
+(a) **the analogue** — curvilinear papers derive sphere and cylinder in parallel;
+    cross-read the twin equation, since a typo rarely hits both;
+(b) **non-vacuity** — a recursion whose LHS and RHS name the same symbol, a
+    definition that defines nothing, a sum that cannot close;
+(c) **the seed/terminus** — BMC state `μ_{M+1/2,n}` "will always be" `+√(1−ξ_n²)`
+    *when computed recursively*; a mis-transcribed recursion breaks that.
+Report the slip explicitly and give the corrected form with its justification.
+Same pass also caught a genuine OCR fraction slip (Lathrop Eq. 30, `−⅓` in the
+sidecar vs `−¼` on the page) — the two failure modes coexist and are distinguished
+only by opening the page. See [[morel-montry-tau-angular-cell-edges]].
+
+## L-012 — A "no source does X" finding needs its DENOMINATOR, and the named PRIMARY is usually the one you haven't read
+
+`[M]` 2026-08-11. A prior deliverable of mine concluded *"the geometric arc-half-angle
+edge, **which no source uses**"* — a negative existential. Re-audited: it was checked
+against **2** sources, both SECONDARY. Widening to 3 found no counterexample, so the
+claim survived — but the text Hébert himself uses to introduce the construction names
+**Alcouffe & O'Dell** as its author (his ref. [36]), and that paper is **not local, and
+4 databases could not resolve it**. So the authority for the very construction being
+adjudicated had never been read, and the sentence gave no hint of that.
+
+**Why:** an absence-of-evidence claim reads exactly like a positive finding, and it is
+the one claim type whose confidence *should* scale with the denominator. Worse, the
+sentence was ALSO imprecise: BMC's radial-cosine edges (Eq. 52) DO coincide with the
+geometric arc values whenever the quadrature makes weight = cell measure — so
+"no source uses geometric edges" conflated two different face quantities and hid a
+quadrature-dependent equivalence.
+
+**How to apply:** three mechanical steps before shipping any "no source …" line.
+(a) **State the denominator** — "3 of 3 local sources that define a face cosine",
+never a bare "no source". (b) **Grep the local text for who it CREDITS** — a chapter
+that says "the approach proposed by X" is telling you the primary is elsewhere;
+resolve or explicitly flag it as unread. (c) **Restate the claim as a MECHANISM, not a
+survey** — "all three define the face cosine by a conservation recursion; whether that
+lands on the geometric value is a property of the QUADRATURE" is checkable and
+transferable, where "nobody uses X" is neither. See
+[[morel-montry-tau-angular-cell-edges]].
+
+⭐ **Sharpening (2026-08-12) — the denominator can be silently ZERO because the
+INSTRUMENT is blind to the domain. Before trusting a search's emptiness, verify the
+tool returns TRUE POSITIVES on the topic.** `[M]` Q68: I wrote *"the (η,φ) 2-D angular
+treatment — searched hard, found NOTHING"* on the strength of a corpus grep plus
+**seven** OpenAlex full-text formulations. The OpenAlex runs were worthless: **`SN`
+matches *supernova***, so every query returned WMAP, Type Ia spectropolarimetry, MHD
+and sea-ice papers. Zero of ~70 hits were transport papers. Re-running **one**
+ISSN-scoped CrossRef `journal_search` on NSE found **Chaland & Samba 2016** — a full
+2-D `(μ,φ)` product-mesh angular closure — on the first query, and the paper was in the
+user's own archive all along.
+
+**Why:** a search that returns junk and a search that returns nothing *look identical
+in the negative*, because both end with "no relevant hits". The instrument's failure
+is invisible in its output; it is only visible in the hits you DIDN'T read. And a
+false negative is the most expensive error class here — it closes a question and tells
+the user to go do original research.
+
+**How to apply, three cheap steps.** (i) **Sanity-probe the instrument**: query it for
+a paper you KNOW exists in the target domain; if that misses, the tool cannot see the
+domain and its silence is meaningless. (ii) **Watch for homograph collisions in the
+key token** — `SN`, `CP`, `MC`, `P1`, `DG` are all overloaded across physics; prefer a
+**venue-scoped** query (CrossRef `journal_search` by ISSN) over free text whenever the
+subject is nailed to a small set of journals. (iii) **Prefer the CITATION GRAPH for
+"what came after X"** — Semantic Scholar `get_citations` on a seed DOI found every
+post-2010 follow-up that title search missed, and its denominator is *countable and
+reportable* ("Lathrop 2000 has 4 citers, all classified"), which is exactly what
+clause (a) demands. Companion: [[user-nse-volume-archive]] (the *other* half of the
+same failure — the local denominator was also bigger than I assumed).
 
 ## L-007 — Recognize a dead Zotero server and fail over to Tier 2 immediately
 

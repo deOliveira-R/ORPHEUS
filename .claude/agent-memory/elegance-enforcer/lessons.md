@@ -21,6 +21,12 @@ L-NNN ids are load-bearing: sibling memo files cite them.
 
 ## Standing review order (every dispatch)
 
+0. **⭐⭐ ADVERSARIAL PHASE FIRST — see L-020.** Never open with a balanced
+   survey. Ask "how would I BREAK this" (silent wrongness, weighted to defects
+   that fail in the REASSURING direction) and "how would I make this 100×
+   better" (reframe the JOB). Balance, and every "well-factored / do not touch",
+   is Phase 2 — written as a WITHDRAWN ATTACK with the reason you expected a
+   defect.
 1. **Scope from the LIVE tree, never the brief.** `git status --short` + `git diff
    --stat HEAD` FRESH. Untracked (`??`) files never appear in `git diff` and are the
    easiest coverage to miss — then grep the tested SYMBOLS across `tests/`. (L-011)
@@ -218,6 +224,61 @@ the builder is refined, the theorem proves a STALE rule and still passes. Discri
 a rule a builder already provides = twin (SHOULD-FIX; fix by calling the builder) vs a
 deliberate counterexample = legit. NOT a twin: production numpy vs the SymPy builder —
 that is the intended derivation/impl structural independence. → archive L-019
+
+### L-020 — A balanced survey is the SECOND phase; running it first suppresses the findings
+User's method, verbatim: *"be at least at first a harsh critic … there must be a
+clear adversarial phase"*, THEN re-evaluate whether you were too harsh or fell into
+"I didn't know why this was done". Measured on the nexus whole-package review
+(2026-08-16): the balanced pass ("what is misplaced?") gave 12 findings / 2 live
+defects; the adversarial pass on the SAME loaded context added the flagship + 3 more
+break-it findings AND **inverted a Phase-1 verdict** (a module rated "coherent, do
+not touch" was actually *correct but under-wired* — its output had 2 readers against
+40 tools). A balanced pass rates a module by INTERNAL quality and structurally cannot
+see that its product goes nowhere.
+- **The break-it question is not "what is misplaced?"** It is: *what input/sequence/
+  environment makes this confidently return a WRONG answer?* Weight the reassuring
+  direction — a short list, an empty result, a `None` — because the caller cannot
+  tell it from correct. (Coordinator's calibration: "what is misplaced" found a
+  mis-typed field; "how would I break this" found an overlay that never verifies
+  the graph it was captured against.)
+- **Highest-yield generalisable probe found this way**: when a codebase STORES
+  `confidence`/`source` on its data, grep whether the RESULT type carries them. The
+  gap between "the model knows" and "the answer says" is where unmarked guesses
+  escape — and it compounds, because a bespoke result dataclass per analysis means
+  every fix is "add a field to one more dataclass" and the next one forgets.
+- **A 100× answer reframes the JOB**; if your answer is a rename, a split, or a
+  type, it is the 10× answer. Tell that you have the real one: it explains several
+  independent break-it findings as ONE absence.
+- Refuted attacks are first-class output — record each with its structural reason,
+  and separate "this was by design and I hadn't read it" (a withdrawal) from "the
+  mechanism is real but no live instance exists" (a surviving CONCERN).
+- ⛔⛔ **NEVER let a balanced-phase verdict BOUND the adversarial phase.** Both my
+  retractions on this review were that one error: a settled conclusion silently
+  converted a live question into a closed one. **Restructuring is always on the
+  table** (user: *"reshaping is totally fair game if there is a good reason —
+  future-proofing, architecture tightening, consolidating data and functions that
+  share a context into objects"*); "it works" / "it is established" / "the layering
+  is already sound" are NOT defences. If the honest post-attack answer is still
+  "don't move it", that is a fine Phase-2 conclusion — but it must SURVIVE the
+  attack, not bound it.
+- ⭐⭐ **Ask the OBJECT-shaped question, not the file-shaped one.** "Which files do
+  these N methods go into?" is answerable and nearly always answers *no split* —
+  and answering it CLOSES the real question, which is **"what objects are hiding
+  here, and what context do they share?"** Discriminator for a
+  procedural-module-wearing-a-class: count methods that take a **second state as a
+  parameter** (a root, a connection, a clock). A class whose methods share one
+  field *plus* a threaded kwarg has an un-consolidated object, however sound the
+  layering. `[M]` nexus: 10 of 56 `GraphQuery` methods take a working-tree arg.
+- ⭐⭐ **A guard applied at 1 of N sites is an OBJECT finding, not an oversight.**
+  Ask what object would make it unforgettable; cross-cutting concerns belong in the
+  type system, not in coding discipline. (`[M]` 1 of 40 MCP tools checked graph
+  staleness — because the check needs two states and one was an optional kwarg.)
+- ⭐ **Choose the denominator that CAN show the defect.** I graded a missing
+  identity type "compensation machinery, not wrong answers" — true on the tool's
+  own 3.3k-node self-graph, false on the 24k-node consumer graph (126 provable
+  duplicate nodes). Grading a library on its own small corpus is a fixture-blindness
+  trap (`vv-principles` #24).
+→ topic file `nexus_architecture_survey.md`
 
 ## E. Doc-carve certification (my largest recurring workload)
 

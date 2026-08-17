@@ -19,11 +19,18 @@ Operator algebra
 ----------------
 
 Gates consume the composite algebra :class:`StreamingOperator` +
-:class:`CollisionOperator` = :class:`StreamingCollisionOperator` via
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+(:math:`C = M[\sigma_t]`) = :class:`StreamingCollisionOperator` via
 :class:`~orpheus.transport.timed_full_field.TimedFullField`:
 
-* Resolution A subtractive identity:
+* Resolution A identity:
   :math:`(L + C).{\rm apply}(\psi) = M(\psi;\sigma_t)` bit-exact.
+
+⛔ ``CollisionOperator`` was named here until it was retired at #261; the
+collision multiplier is a plain ``MultiplicationOperator``. The dead
+``:class:`` xref rendered as plain text with **no** ``-W`` warning at any
+severity — a Python-domain role in an un-``automodule``'d file is invisible
+to every build, so grep is the only gate.
 * ``op.apply(state).interior.values`` holds :math:`(L+C)\psi`'s
   cell-centre block; face residuals live in ``out.boundary``.
 * Linearity (Gate 1.4) tests via :class:`TimedFullField` arithmetic
@@ -369,9 +376,14 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     become the default — Phase C's empirical decision point.
 
     The composite ``(L + C).apply(state)`` realises the geometry-agnostic
-    matvec via Resolution A's subtractive identity:
-    :math:`(L+C)\psi = (M(\psi;\sigma_t) - \sigma_t\psi) + \sigma_t\psi
-    = M(\psi;\sigma_t)`.  The check is on ``out.interior.values`` cell-centre
+    matvec as :math:`(L+C)\psi = M(\psi;\sigma_t)` — evaluated in ONE walk.
+    ⛔ This paragraph used to derive it as a leaf sum,
+    :math:`(M(\psi;\sigma_t) - \sigma_t\psi) + \sigma_t\psi`. The
+    CONCLUSION is unchanged and still what the gate checks; the mechanism
+    is not, twice over: ``StreamingCollisionOperator.apply`` **overrides**
+    ``OperatorSum.apply``, so the leaf sum is not the path taken, and since
+    #257 S8b the ``L`` leaf never sources :math:`\sigma_t` at all.
+    The check is on ``out.interior.values`` cell-centre
     block; the per-ordinate flat-ψ invariant collapses the matvec to
     ``Σ_t·ψ`` cell-wise.
     """

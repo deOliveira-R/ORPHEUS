@@ -2654,3 +2654,1171 @@ neither hides a catcher. zsh `$SUITE` word-split bit AGAIN (L-062 (d)): the firs
 baseline run collected zero tests and reported `1 warning in 0.01s`.
 Cross-refs [[lessons-L061]], [[lessons-L062]] (bite check, positive control),
 [[lessons-L058]] (verify a blindness narrative by RUNNING it).
+
+---
+
+## L-064 — a single-sourcing retirement demotes a cross-check on the INPUT-RESOLUTION axis, invisibly; and the retirement's own CONCEPT grep missed the gutted package's sibling docstrings
+
+**Dispatch.** Review of the two-commit retirement of `Quadrature.reflection_index`
+on `refactor/operator-strategy-layers` — `c7ca338e` (test tier migrates onto
+`tests/_harness/references.mirror_partner_indices` or onto
+`quad.ordinate_permutation`, discriminated by claim class) and `b5ac130e` (the
+table, `reflection_partners`, `_compute_sphere_reflection_partners`, the GL1D
+closed-form dict and `_resolve_axis_to_index` all deleted; the Q4 gates re-posed;
+the equation node renamed `quadrature-reflection-index` →
+`quadrature-ordinate-permutation`).
+
+### (a) The migration itself is sound, and the mutation battery says so
+
+Baseline on the seven reference-class files: `331 passed / 1 xfailed`.
+
+| mutation (in-process plugin, `python -O`) | result | reads as |
+|---|---|---|
+| **M1** `Quadrature.ordinate_permutation` returns a 0↔1-swapped (still bijective) π | 115 failed / 216 passed | OVER-POWERED (#18): the swap breaks measure-preservation, so most reds are `BoundaryGeometryMapNotMeasurePreservingError` at `assert_realizable` — the LAW I broke, not the partner map |
+| **M2** `TraceRestrictionOperator.to_local` → naive `arange` (certification untouched, operator still a valid bound Γ₊→Γ₋ permutation of the right length) | **21 failed** | IN-CLASS. The reds are exactly the reference-class gates: `test_sn_boundary_realizer` α=1 + α=0.7 hand-computed rows, `test_reemission_closure::TestSpecularAgainstAnIndependentExpression` ×6, `test_boundary` ×3, `test_bound_compat` ×1, `test_snmesh_realizer_wiring` ×2, `test_b3_domain_narrowing::TestBitIdentityAgainstTheRetiredExpression` ×6 |
+| **M1** on the PRODUCTION-DATUM tier (coupled-pole + azimuthal controls) | **16 of 17 failed** | the datum gates assert INVARIANTS of the datum, so a derivation drift reds them — the class is correctly chosen |
+| **M4** `_ensure_pole_mirror` refusal removed (identity fallback) | new refusal pin RED, `DID NOT RAISE <ValueError>` | the new pin has teeth |
+| **M5** deck kernel's `codomain=` binding dropped to `None` | 5 failed — ALL in `TestPeriodicIsBoundToThePartner`; the split gate stayed GREEN | see (c) |
+
+`[M]` the new helper's structural independence is provable, not argued:
+`dis.Bytecode(mirror_partner_indices).codeobj.co_names` =
+`{AssertionError, _AXIS_INDEX, arange, argmin, asarray, axis_cosines,
+column_stack, copy, float, int, isinstance, len, linalg, max, norm, np, range,
+set, str, tolist}` and the module's only import is numpy. Every occurrence of
+`ordinate_permutation` / `preserves` / `_orbit_closure` / `RigidMotion` in that
+file is DOCSTRING prose. `[M]` reference-vs-production agree on 30/30
+(rule × axis) pairs, and the match residual is **exactly 0.0** on every shipped
+rule — a signed coordinate permutation is IEEE-exact — so the helper's `1e-12`
+window (tighter than production's `1e-13 × 100 = 1e-11`) carries unbounded
+headroom and is NOT the #16 latent-false-red it superficially resembles.
+
+### (b) ⭐ THE FINDING — independence has TWO axes and single-sourcing closes one silently
+
+`tests/geometry/test_specular_response_pins_to_geometry.py` says, in its module
+docstring: *"the two sides are derived by genuinely independent routes … Neither
+consults the other."*
+
+- **Before**: geometric side = `SelfPairedDeck.mirror(axis).motion` applied to the
+  nodes with a local argmin; response side = `quad.reflection_index(axis)`, which
+  resolved the LETTER through the quadrature tier's own `_resolve_axis_to_index`
+  → the table built from `RigidMotion.reflection(normal=np.eye(3)[axis])`. Two
+  tiers each resolved "x" independently ⟹ the gate cross-checked the
+  axis-letter → mirror-normal CONVENTION.
+- **After**: the test builds ONE `SelfPairedDeck.mirror(axis).motion` and passes
+  the SAME object to `quad.ordinate_permutation(motion)`. The two *derivations*
+  are still independent; the *input resolution* is now shared.
+
+`[M]` **M3** — `_mirror_motion` maps the letters x↔y:
+`test_specular_response_pins_to_geometry.py` is **15/15 GREEN**, while **78** of
+261 sibling gates red. The file is now exactly blind to a class it used to catch.
+
+The class survives tree-wide only by a deliberate design choice in the new helper:
+`_AXIS_INDEX = {"x": 0, "y": 1, "z": 2}` is a LOCAL literal, with a comment
+refusing to import `face_layout.AXIS_NAMES` ("a convention drift between the two
+IS a defect these gates should surface, not absorb"). That instinct is what kept
+the 78.
+
+⟹ generalised as `vv-principles` anti-pattern **#22**. The
+`coding-standards` rewire-demotion clause only covers the *caller* case (survivor
+calls the other side); this is the *shared constructed input* case, where neither
+calls the other and the gate is still demoted. Both are invisible in a diff.
+
+### (c) A tombstone that names two carriers may be naming one carrier per LEG
+
+`b5ac130e` deleted `TestTheSpecularArmInheritsTheRetiredTable` (2 rows) and left a
+comment: row (b)'s binding claim "is asserted independently by the
+self-paired/paired split gate at the end of this module
+(`mirrored.domain is trace.outflow_space("xmin")`) and, for the load-bearing
+off-diagonal case, by `TestPeriodicIsBoundToThePartner`."
+
+Read as belt-and-braces. It is not. `[M]` **M5**: the split gate's codomain
+assertion is `mirrored.codomain is realized.codomain` — **`None is None`-satisfiable**,
+so it reds for a *dropped* codomain binding exactly never; the mirror arm's
+codomain-by-`is` leg rides entirely on the transitive identity through
+`TestPeriodicIsBoundToThePartner`. **When a tombstone lists N carriers, split the
+retired claim into its LEGS and ask which carrier covers which leg** — a
+`x is y` assertion between two SUT-produced values is vacuous when both can be
+`None`, unlike the `x is <concrete object>` form beside it.
+
+### (d) The CONCEPT grep must cover the gutted package's own SIBLING docstrings
+
+`b5ac130e`'s message credits a CONCEPT grep for catching three present-tense
+"reflection-index table" diagnostics in `_errors.py` ("the symbol grep cannot see
+hyphenated prose"). It grepped the retired SYMBOL's hyphenation and not the
+retired FIELD's — `reflection-partner map` / `reflection partners` — so four
+present-tense-FALSE claims survived **inside `orpheus/numerics/quadrature/`, the
+package the commit gutted**:
+
+- `quadrature/__init__.py:38` — "the SN-side derived data (reflection partners,
+  octant partition, level structure) **cached at construction time**"
+- `rules_sphere.py:97` / `:576`, `rules_product.py:310` — "It wraps this measure
+  **and precomputes the reflection-partner map at construction**" (the same
+  commit rewrote all three factories to `cls(measure=…, level_structure=…)`)
+
+Plus one missed site in a file the commit DID edit —
+`curvilinear_numerics.rst:2280` "as a property of the quadrature's reflection
+table itself" (lines 2213 and 2241 of the same page WERE updated: anti-pattern
+#21's half-done-correction shape) — and two present-tense-false test docstrings:
+`test_sn_boundary_realizer.py:316` (summary line still `psi[reflection_index]`
+while its α=1 SIBLING 55 lines up was updated) and
+`test_bc_equivalence_snapshot.py:435` ("never read from
+`quadrature.reflection_index`, **which is the table production consults**" —
+the negation is fine, the relative clause is false).
+
+⚠ **No build of any severity could see the four package ones**: there is no
+`automodule:: orpheus.numerics.quadrature*` anywhere in `docs/`, and
+`tools/check_docstring_xrefs.py` (DEAD TARGETS 0, correctly) checks xref TARGETS,
+not prose truth. **Grep was the only gate, and the grep's vocabulary was the
+retirement's blind spot.**
+
+### (e) Level-marker note, PRE-EXISTING, worth carrying
+
+The renamed equation node has degree 29 / ~21 incoming `tests` edges, ALL from the
+file-level `verifies(...)` list on `tests/sn/primitives/test_quadrature.py` — of
+which only `TestReflectionIndices::test_x_reflection` and
+`::test_reflection_involution` touch the permutation at all; the rest are
+weight-sum, second-moment, α-dome and scattering-source rows. Meanwhile the
+STRONGEST gates for that equation (`tests/numerics/test_quadrature_directional.py`
+Q4.2/4.3/4.5/4.6/4.7/4.8) carry `pytestmark = [pytest.mark.foundation]` and
+deliberately no `verifies` — correct level discipline (E1), but it means the audit
+credits the wrong file. The rename inherited this; it did not create it. `#20`
+(count CASES that read the varied thing, not rows) applied to `verifies` edges.
+
+Cross-refs [[lessons-L063]] (over-powered mutation), [[lessons-L044]], [[lessons-L051]]
+(two independent implementations IS independence), [[lessons-L056]] (Python-domain
+roles are not `-W`-gated), `vv-principles` #21/#22.
+
+---
+
+## L-065 — an A-vs-B INVARIANCE gate's coverage is the set of production lines that READ the knob; the catastrophic positive control is INVALID for it; and MOVING a method to a sibling object can convert a self-consistency into an extent-only-guarded coupling
+
+**Dispatch (2026-08-07).** Adversarial review of the SN **G6.5** carve —
+`0d99140c` ("the half-trace SPACE owns its local↔global index map") +
+`619a873d` ("the axis contract gets ONE name; the packing-order acceptance
+gate"), branch `refactor/operator-strategy-layers`. Five review dimensions:
+retirement completeness, the new deck-arm refusal's blast radius, the new
+acceptance gate's teeth, the new `__post_init__` guard vs real producers, and
+prose truth.
+
+### Baselines measured (so a later session does not re-derive them)
+
+| scope | result | time |
+|---|---|---|
+| `tests/numerics/test_angular_face_trace_space.py` + `test_trace_restriction_operator.py` + `tests/sn/operators/` | 1301 passed, **2 failed** (the declared cart2d pair), 1 skipped, 6 xfailed | 21 s |
+| + `tests/geometry/` | 2074 passed, **3 failed** | 30 s |
+| `tests/test_docstring_xrefs.py` + `tests/test_pyright_ratchet.py` | 4 passed | 77 s |
+
+The **third** geometry red — `test_bc_equivalence_snapshot.py::
+TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`,
+max rel `1.1e-15` at `rtol=8.88e-16` — is **PRE-EXISTING**: reproduced red at
+`754d384e` in a read-only worktree (`git worktree add -d /tmp/g65_pre
+754d384e`; resolution verified via `orpheus from:
+/private/tmp/g65_pre/orpheus/__init__.py`, lessons H4). A brief that declares
+only *some* baseline reds is declaring the reds of the batteries IT ran — widen
+the scope and you inherit reds it never saw. Reconcile them against the parent
+commit before attributing anything.
+
+### 1 — the invariance gate: coverage = the knob's READERS
+
+`TestFacePackingOrderIsBookkeeping` realizes `{specular, lambertian, periodic,
+vacuum} × {gauss_legendre(8), product(4,4)}` on two `FaceLayout`s differing only
+in face order and asserts `np.array_equal` on `apply` and `.H.apply`. It reads
+like a broad acceptance criterion. It is not: **an A-vs-B invariance gate
+compares two runs of the SAME code, so it is blind by construction to every
+mutation that is not knob-dependent.** Its reachable coverage is exactly the set
+of production lines that READ the knob — here, *one*:
+
+```
+orpheus/numerics/spaces/angular_trace_space.py:585
+    face_metric = slot.slice_view(metric_flat).reshape(n_ordinates, -1)[:, 0]
+```
+
+(the matching write is :302; nothing else in the realization path touches a flat
+offset — `grep '\.offset\|slice_view'` over `angular_trace_space.py`,
+`realizer.py`, `sn/operators/boundary.py` returns those two plus `_face_row`).
+
+**And the fixture annihilates it.** `_FORWARD = ("xmin","xmax")` puts both faces
+on the SAME AXIS, so `|Ω·n| = |μ_x|` for both and the two slots' metric slices
+are bit-identical. Measured with an in-process `_face_spaces` replacement that
+reads the metric at flat offset 0 (the wrong slot — still a real face's metric,
+right length, positive ⟹ in class):
+
+| mutation | rows red / 10 | note |
+|---|---|---|
+| `vacuity` — `face_trace` ignores the face ORDER | 2 | both activation rows ⟹ leg live, non-vacuous, bare `assert` NOT `-O`-stripped |
+| `perm_roll` — deck perm shifted iff the slot is not at offset 0 | **4** | `specular`×2 + `periodic`×2, via the bit-identity assertion. Real teeth. |
+| `metric0` — wrong-slot metric read | **0** | bite log: the mutated read ran on EVERY face at EVERY offset, `changed=False` every time |
+| `facerow0` — the ω·n ROW index read as the layout head | 9 | OVER-POWERED (#18): 6 are orientation-guard raises, 2 activation, only 1 bit-identity red |
+
+Counterfactual, same mutation with a y-face in the layout
+(`("xmin","xmax","ymin","ymax")` vs `("ymin","xmax","xmin","ymax")`,
+`product(4,4)`): `Γ₊(xmax)`'s weights move by **max |Δw| = 0.963** — O(1).
+`gauss_legendre(8)` structurally cannot carry y-faces (`build_omega_dot_n`
+refuses: "every ordinate has mu_y == 0"), so the fix belongs on the
+`product(4,4)` arm.
+
+⭐ **The control trap, and it cost a run.** My first positive control was the
+usual catastrophic one — replace the deck permutation with the identity. The
+gate stayed **10/10 green, correctly**: both runs got the same wrong answer.
+For an invariance gate the vv #17 "one mutation must redden many gates" control
+is *invalid*; the control must itself be **knob-dependent** — neuter the knob so
+A and B become the same object and require the ACTIVATION leg to red. A second
+own-goal in the same family: `np.roll(perm, off % perm.size)` with offsets
+`{0, 8}` and `perm.size == 4` folds to `0` in BOTH arms — a silent no-op. The
+bite log (`changed=True/False` per call, written from inside the mutation) is
+what caught both; A4 again.
+
+⟹ `vv-principles` **#23** (written this dispatch).
+
+### 2 — moving a method to a sibling object can create an extent-only-guarded coupling
+
+`_deck_kernel` used to compute `local_perm = gamma_out_domain.to_local(…)` — the
+**restriction operator's own `indices`**, which is precisely the array that
+determines the row order `gamma_out.apply` emits. Post-carve it is
+`gamma_plus.to_local(…)` — the **codomain SPACE's `ordinate_indices`**. And
+`TraceRestrictionOperator._checked_space` → `checked_space_extent` compares only
+the **extent**, never the index set elementwise.
+
+On the trace's own cached pair they agree (measured: equal values, `is` False,
+`shares_memory` False) and the carve's new
+`test_the_restriction_and_the_space_carry_ONE_index_set` pins exactly that pair.
+**But the deck kernel never consumes that pair** — it consumes the realizer's
+LOCALLY-BUILT `_outflow_restriction` / `_partner_outflow_restriction`, whose
+`indices` and `codomain` come from two different sources (and for periodic,
+deliberately independent derivations, which the docstring calls a feature).
+
+Measured, `product(4,4)`, hand-built method space with a trace and a
+same-size-but-different `outflow_indices` (passes every guard):
+
+```
+operator (gather order): [0, 1, 4, 8]
+space   (declared)     : [0, 4, 8, 12]
+post-carve local_perm (from the SPACE)   : [0, 1, 2, 3]   <-- ACCEPTED, wrong
+pre-carve  local_perm (from the OPERATOR): refusal — "row 12 is not in this
+                                            restriction's index set"
+```
+
+The pre-carve code **refused** with its own documented crossed-index-set
+diagnosis; the post-carve code **accepts and emits a permutation against a row
+order the gather does not produce.** Not reachable from production (the
+canonical `for_face` derives both from the trace), but reachable from the
+hand-built method space the code explicitly supports (`realizer.py:246`).
+
+⭐ And the one gate that LOOKS like it cross-checks the two cannot:
+`test_deck_kernel.py::test_the_LOCAL_remap_is_not_arange`'s "independent"
+reference is `searchsorted(sort(gamma_out.indices),
+gamma_out.indices[kernel.perm])` — a **round-trip through the same array**,
+which returns `perm` for any `perm` (lessons B2). Its real catch is the second,
+activation-shaped assertion `not array_equal(perm, arange)`. Pre-carve the
+round-trip was harmless (production shared the array); post-carve it is the only
+place the two arrays meet and it is structurally blind. **A round-trip that was
+harmless while one array existed becomes the gap the moment a refactor makes it
+two.**
+
+Fix proposed: make `_checked_space` compare `indices` elementwise against the
+codomain's `ordinate_indices` when the space carries them — one place, every
+call site, and it turns the tombstone's "the same array by construction" into a
+checked fact.
+
+### 3 — a campaign-step name in a forward-looking docstring is a self-expiring token
+
+Two survivors, both verbatim in `754d384e`, both falsified by this carve's own
+landing:
+
+- `orpheus/numerics/operator.py:2475` (`checked_space_extent`, a SHARED
+  production primitive): *"The redundancy is transitional: **G6.5 retires the
+  lengths** in favour of the spaces (#330)."*
+- `tests/numerics/test_angular_face_trace_space.py:741`: *"…until **G6.5 retires
+  the former**."*
+
+G6.5 shipped and deliberately did NOT retire them — and the carve KNEW, because
+it rewrote the sibling claim **146 lines below in the same file**
+(`operator.py:2621-2626`) to "*until the tree-wide mandate (#330) … G6.5,
+2026-08-07, measured why the retirement cannot land sooner*". vv #21's
+aggravator in its purest form: the stale claim and its correction now coexist in
+ONE FILE, so a contributor can cite `operator.py` for either.
+
+The cheap mechanical rule: **when a campaign step lands, grep the step's own
+name.** `grep -rn 'G6\.5' orpheus/ tests/ docs/` filtered to the
+forward-looking forms (drop `since G6.5` / `at G6.5` / `(G6.5)` / `— G6.5`)
+returned exactly the two survivors out of 33 hits, in one command.
+
+### 4 — what PASSED, with the measurement
+
+- **Deck-arm refusal blast radius: zero consumers.** An in-process
+  `_deck_kernel` wrapper logging every entry + the guard predicate over
+  `tests/sn/operators` + `tests/geometry` + the two numerics batteries:
+  **1460 entries, 3 with the predicate TRUE**, and all three are
+  refusal-expecting rows. Bonus: one of them is spaceless AND lopsided and
+  still gets the BIJECTION message ⟹ the "guard placed AFTER the size check"
+  claim is empirically confirmed, with no mutation needed.
+- **The `__post_init__` guard refuses no legitimate producer.** Only ONE
+  producer exists (`AngularTraceSpace._face_spaces`); sweeping 8 quadrature
+  families × 5 face-sets × 3 tiers = **240 canonical spaces, 0 refusals**, plus
+  `SNMesh` end-to-end over 1-D Cartesian / 1-D spherical / 2-D Cartesian ×
+  {reflective, vacuum}. No base `__post_init__` is shadowed; nothing
+  `replace()`s the type; empty tiers are guarded (`if idx.size and …`).
+  Teeth: disabling it reds **exactly one** test and nothing else.
+- **The migrated `to_local` gates kept their teeth.** `to_local → arange` reds
+  **48** tests — all 4 migrated space-battery gates plus `test_b3_domain_narrowing`
+  ×6, `test_deck_kernel` ×~20, the realizer hand-computed rows,
+  `test_snmesh_realizer_wiring` ×2, and the 2-D schedule-split partition. A
+  claim-class-preserving migration.
+
+### 5 — refuted candidates (first-class output)
+
+- `SNMethodSpace.minimal(quad)` + a deck law in the docstring code-blocks at
+  `geometry/boundary/_base.py:196` and `reflective.py:58` — **not** a G6.5 hit:
+  measured, it already raises `BoundaryError … without outflow_indices` from
+  `_outflow_restriction`, dead since B3.2.
+- `derivations/diagnostics/diag_phase_g_step2_cyl_apply_internal.py:72` — dead
+  at import (`from orpheus.sn.boundary_realizer import …`, a module path that no
+  longer exists).
+- Every `SNMethodSpace.minimal` test consumer — cannot reach `_deck_kernel`
+  (0 logged entries); stopped earlier by the same refusal.
+- `tests/geometry/test_reemission_closure.py:847`'s
+  `TraceRestrictionOperator.to_local` mention — genuinely past tense ("Until
+  this carve … fell through to"). The carve's tense judgment was right.
+- The re-posed control in `test_specular_deck_chain.py` (a hand-built unbound
+  twin rather than the old production A/B) — weaker, but NOT a hole: the module
+  still carries the production halves (`test_the_mirror_squared_is_not_an_expression`
+  asserts the bound square RAISES through the realizer;
+  `test_the_realized_operator_carries_the_binding` pins the binding).
+
+Cross-refs [[lessons-L063]] (over-powered mutation), [[lessons-L064]]
+(single-sourcing closes the input-resolution axis — L-065 §2 is its PRODUCTION
+twin), [[lessons-L022]] (worktree baselines), `vv-principles` #18/#20/#21/#23,
+Mode 12.
+
+---
+
+## L-066 — an issue's blast-radius number is usually a NAME grep over a different type family (measured 43x over); and a hardcoded `converged=True` is only a defect if the producer ITERATES
+
+**Context.** Issue #340 reconnaissance over `orpheus/derivations/`, 2026-08-09,
+`main` @ `4bcce0bd`. The SN/numerics half had landed in `d9b027d7`
+(`power_iteration` returns an outcome carrying `converged`; `IterationHistory.converged`
+required, no optimistic default; 5 transcriptions → 1 predicate). The
+`derivations/` family (`CriticalSolution`) was deliberately deferred with a filed
+cost estimate: *"the cost is the ~87 reads feeding the cross-method comparison
+dict, which wants its own pass."*
+
+### 1. The estimate was a NAME grep over a DIFFERENT type family — and it inflated 43x
+
+`[M]` `grep -rn '\.converged' tests/derivations/` = **87**, exactly the filed
+number. Decomposed:
+
+| family | hits |
+|---|---|
+| `test_peierls_*` (`PeierlsGreensFunction*Result.converged` — a different type, already honest) | **72** |
+| `test_fn_*` (function-level FN result types) | 8 |
+| `test_trajectory_*` | 4 |
+| `test_singular_*` | 3 |
+| `test_galerkin_*` | 0 |
+
+The number is real; the *attribution* is not. `.converged` is a name shared by ~8
+independent result dataclasses across three pillars, and a name grep cannot tell
+them apart.
+
+**The measurement that settles it** — an in-process pytest plugin wrapping the
+exact class (throwaway, `-p` + `PYTHONPATH`, no tracked file edited):
+
+```python
+_orig_init = CS.__init__
+def _init(self, *a, **k):
+    caller = traceback.extract_stack()[-2]
+    (CONSTRUCTED_WITH if ("converged" in k or len(a) > 4) else CONSTRUCTED_WITHOUT).append(
+        (caller.filename, caller.lineno, caller.name))
+    return _orig_init(self, *a, **k)
+
+_orig_getattr = CS.__getattribute__
+def _getattr(self, name):
+    if name == "converged":
+        READS.append(tuple(traceback.extract_stack()[-2][:3]))
+    return _orig_getattr(self, name)
+
+CS.__init__, CS.__getattribute__ = _init, _getattr
+```
+
+Run over every consumer suite (`tests/cross_method` + the 4 `tests/derivations`
+facade modules), `python -O`, 140 passed / 250 s:
+
+```
+constructions WITH converged=   : 33
+constructions WITHOUT converged=: 0     <-- removing the default breaks NOTHING
+.converged READS on CriticalSolution: 2  (both in tests, both benign)
+```
+
+⟹ **87 → 2.** The deferred "expensive" half was a **zero-churn** edit. The error
+direction is the dangerous one: an inflated cost defers a cheap fix, and the
+deferral note then reads as a considered decision (`plan-authoring` §2).
+
+**Instrument's positive control:** both counters non-zero ⟹ the wrap was live. A
+`0/0` report means a dead plugin, not a clean tree — check that first.
+
+**Completeness precondition, and it is what makes `0` an answer rather than a
+sample:** a dynamic audit only sees the paths the suite runs. Pair it with a
+static proof that no *other* construction path exists — `[M]` here: 9 literal
+`CriticalSolution(` sites, no `**kwargs` splat, no `asdict`/`astuple` round-trip,
+and the only `dataclasses.replace` calls in the family target
+`Peierls*Solution.phi_values` and `CrossMethodCase`. Without that, the dynamic `0`
+is merely "not observed".
+
+**Nexus's role, stated precisely (it is NOT a failure):** `context` on
+`py:class:...CriticalSolution` resolved every PRODUCER perfectly (9
+`type_uses`/`calls` edges + the 4 rendering doc pages) and reported the attribute
+node `...CriticalSolution.converged` with **`degree: 1`** — its only edge is
+`contains` from the class. That is the graph correctly saying *a plain dataclass
+attribute read is not an edge*. Route: **Nexus for producers, dynamic wrap for
+readers, grep only to enumerate candidates.** Three tools, three questions.
+
+### 2. A hardcoded `converged=True` is a defect ONLY if the producer iterates — 5 of 9 were legitimate
+
+The tree carried **7** hardcoded `converged=True` at `CriticalSolution`
+construction. Triaged one hop UP, by whether the producer has a loop + tolerance:
+
+| site | producer's method | verdict |
+|---|---|---|
+| `singular_eigenfunction/spectrum.py:819`, `:872` | hand-rolled `while iters < max_bisect` + `break` on `d_hi-d_lo < bisect_tol*max(1,d_lo)` | ⛔ defect |
+| `fn_method/moment_space.py:315`, `:347` | same / `minimize_scalar` + fallback | ⛔ defect |
+| `fn_method/moment_space.py:424` | `compute_kinf_mg` = `float(nu_sigma_f @ np.linalg.solve(A, chi))` | ✅ nothing iterates |
+| `galerkin_spectral/basis_space.py:756`, `:793` | `solve_eq4_eigenproblem` = direct `scipy.linalg.eig` | ✅ nothing iterates |
+
+A grep-driven "fix every hardcode" pass would have minted **false honesty** at the
+three direct-method sites — teaching readers that `True` there was *measured*. The
+discriminator costs one hop and cannot be skipped. (Design residue for the carve,
+not a defect: a boolean cannot distinguish *converged* from *not applicable*; the
+five legitimate `True`s and the four lies are grep-identical, which is precisely
+how the lies hid.)
+
+### 3. `full_output=True` does NOT make a scipy status readable — `disp=False` is the load-bearing half
+
+The subtree's one honest producer
+(`singular_eigenfunction/cylinder/one_group.py:795-818`) passes
+`full_output=True, **disp=False**` and records both `iterations` and
+`converged`. `[M]` with scipy's default `disp=True`, a non-converged `brentq`
+**raises `RuntimeError` instead of returning `converged=False`** — so
+`res.converged` would be structurally unreachable-False even with
+`full_output=True`. Measured on `f(x)=eˣ−3x−1` over `[1,3]`:
+`maxiter ∈ {1,2,3}` → `converged=False`, `flag='convergence error'`;
+`maxiter=100` → `True`. Reviewing a "we read scipy's flag" claim: check `disp`,
+or the `False` leg is an unreachable branch wearing an honest name.
+
+Corollary — the tree's *other* `brentq` sites (`.../core/dispersion.py:207`,
+`cases/sn.py:650`, `cases/diffusion.py:597`) omit `full_output`, inherit
+`disp=True`, and are **honest-by-raising**. Both policies are honest; only the
+first is *readable*, and the readable one is what a "warn, CI-escalatable, not
+raise" ruling requires.
+
+### 4. Three discard shapes, ranked by how well they hide
+
+Same defect class, worsening observability:
+
+1. **Fact recorded partially** — `n_bisect_iters=iters` survives, the exit REASON
+   does not. A consumer can *infer* from `iters == max_bisect`
+   (`singular_eigenfunction/{slab,sphere}/one_group.py`).
+2. **Fact computed, branched on, dropped at the `return`** —
+   `converged = abs(k_new-k_val) < tol and iteration > 5` … `if converged: break`,
+   and the result dataclass has no slot (`peierls_nystrom/slab.py:596`,
+   `geometry.py:6450`). Literally the `power_iteration` defect, second family.
+   (Also a **6th spelling** of the predicate — note the hardcoded `and iteration > 5`
+   floor folded into the test; the first pass collapsed 5 spellings but only inside
+   `orpheus/numerics` + `orpheus/sn`.)
+3. **Dead local** — `converged = False`/`= True` assigned inside the loop and
+   **never read anywhere after**, in the same function
+   (`fn_method/slab/flux_reconstruction.py:854, 866`). Nothing downstream can ever
+   recover it.
+
+⭐ And the review-time tell for (1)/(2): **`iters < max_bisect` is the WRONG
+predicate even when you go to fix it.** In all four hand-rolled loops the counter
+increments at the BOTTOM and the tolerance test sits at the TOP, so the final
+step's narrowing is never tested — a run exiting on `iters == max_bisect` may in
+fact be inside tolerance. The correct spelling re-evaluates the bracket predicate
+after the loop (`d_lo`/`d_hi` are still in scope), which also needs **no invented
+tolerance**: `bisect_tol` is already a documented parameter at every site.
+
+### 5. Measured consequences (so the carve has its RED gates ready)
+
+All four defects starve silently through the public facade:
+
+| path | knob | value moves | reported |
+|---|---|---|---|
+| `Spectrum.solve_critical` (SE slab) | `max_bisect=3` (vs 29 needed) | `d` 5.665505 → 5.679727 (**1.4e-2**) | `converged=True` |
+| `MomentSpace.solve_critical` (FN slab) | `max_bisect=2` | `a` 0.9377198 → 0.94375 (**6.0e-3**) | `converged=True` |
+| `MomentSpace.solve_critical` (FN sphere) | `max_bisect=1` | `R` 2.4248249 → 2.4317897 (**7.0e-3**) | `converged=True` |
+
+⚠ **The positive control for a convergence-flag gate must itself be
+budget-dependent** — a catastrophic kernel mutation leaves such a gate green by
+construction (`vv-principles` #23's invariance-gate control, same shape).
+
+**Secondary correctness bug found en route**, independent of the contract question:
+`fn_method/sphere/one_group.py:358-362` reads `minimize_scalar(...).success`,
+branches on it, and on `False` **falls back to the coarse bracket-scan guess** —
+`[M]` at `max_bisect=5` scipy's own unconverged iterate was accurate to **8.4e-5**
+while the fallback it chose is off by **7.0e-3**, an **83x** degradation, then
+stamped `converged=True`. A fallback that is worse than the thing it replaces.
+
+**Lesson.** An inherited blast-radius number is a `[M]`-less claim about a *name*,
+not a *type*: re-measure it against the exact class with an in-process wrap before
+letting it size (or defer) the work — here it was 43x too big and the direction
+favoured deferral. Then triage every hardcoded status one hop UP: the producer's
+method decides whether the constant is a lie or a fact, and grep cannot see the
+difference.
+
+**Cross-refs:** [[lessons-L039]], [[lessons-L043]], [[lessons-L052]] (in-process
+mutation mechanics), `vv-principles` #23 (the control must match the knob),
+`plan-authoring` §2 (a `[M]`-less number reads as measured), the
+`feedback-lossy-return-type-is-the-root-cause` ruling (triage one hop UP).
+
+---
+
+## L-067 — the published escalation FLAG did not parse (so the "CI gate" was imaginary), the delta it produced was 100 % deliberate, and my own census plugin's decoder invented 44 of its 90 findings
+
+**Context.** Issue #340 bullet 2 — "audit every SN gate for a missing
+`history.converged` assertion". The instrument handed to me was the
+`ConvergenceWarning` that landed in `d9b027d7`, escalated per the project's own
+published recipe: `python -O -m pytest -W error::ConvergenceWarning`. HEAD
+`4bcce0bd`, `tests/sn -m "not slow"`, SERIAL.
+
+**F0 — the recipe cannot run.** `[M]` Python's `-W` parser resolves an
+**undotted** category against `builtins`, so `warnings._setoption(
+'error::ConvergenceWarning')` raises `_OptionError: unknown warning category`
+and pytest exits `ERROR ... AttributeError: module 'builtins' has no attribute
+'ConvergenceWarning'` with **zero tests collected**. Four sites publish that
+spelling — `orpheus/numerics/convergence.py:70` and `:107`, the **emitted
+warning message itself** at `orpheus/sn/solver.py:454`, and
+`tests/sn/solve/test_convergence_contract.py:26`. The working form is
+`-W error::orpheus.numerics.convergence.ConvergenceWarning`.
+
+The sharp part is WHY no test caught it: `test_it_is_escalatable_to_an_error`
+installs the filter **programmatically** (`simplefilter("error", ConvergenceWarning)`
++ `pytest.raises`) and passes. Category-escalatability and string-parseability
+are two claims; the suite gated the first and published the second. → new
+`vv-principles` Mode-8 **EIGHTH class** (gate the MECHANISM vs the published
+INVOCATION), with the one-line gate:
+`_pytest.config.parse_warning_filter(s, escape=False)` — `[M]` `UsageError` on
+the bare name, `('error','',<class …ConvergenceWarning>,'',0)` on the dotted.
+
+**The instrument's own positive control had to be built.** The obvious control —
+the contract file — is useless: `[M]` all 9 of its tests PASS under the flag
+because every starved call is wrapped in its own `catch_warnings`/`pytest.warns`.
+The real control was an **unprotected** replica of its own `_fixed_source(
+max_inner=50)` fixture in a throwaway module outside the repo tree: FAILS under
+the flag, and the converged `max_inner=4000` leg stays green (anti-dud).
+
+**The delta: 7, and every one DELIBERATE.** `16 failed, 2885 passed` vs the
+9-red baseline (`2885+16 = 2901 = 2892+9`; all 9 baseline reds are
+non-`ConvergenceWarning`, so the split needed no re-run).
+
+| entry | budget | tol | distance | class |
+|---|---|---|---|---|
+| `test_dsa_acceleration::TestTeeth::test_sign_flipped_correction_breaks_convergence` | `max_inner=200` | 1e-11 | 8.378e+56 | divergence witness |
+| `…::test_zeroed_trace_arm_breaks_the_reflective_case` | 120 | 1e-11 | 3.614e+20 | divergence witness |
+| `test_krylov_curvilinear_precond_safety::test_g_d3_3…[eigenvalue]` | `max_outer=2` | 1e-3 | \|dk\| 4.663e-15 | structurally unconvergeable |
+| `test_si_single_primitive_contract::…[slab]` / `[sphere]` | `max_inner=4` | 1e-12 | 5.275e-01 / 4.847e-01 | constructor spy |
+| `test_sn_adjoint_certification::TestP13Mutations::test_streaming_no_reversal_shifts_k_heterogeneous` | `max_outer=500` | 1e-9 | \|dk\| 3.331e-16 | mutation-induced |
+| `test_si_cyl_20cell_nan_regression::test_si_returns_finite_keff` | `max_outer=3` | 1e-10 | \|dk\| 8.628e-02 | finiteness-only |
+
+Two of them are worth carrying:
+
+* **`max_outer=2` can NEVER report converged** — `SNSolver.converged`
+  (`solver.py:1559`) opens `if iteration <= 2: return False`. So that row's
+  warning reports a *guard*, not a numerical shortfall: `|dk| = 4.66e-15` is 12
+  orders INSIDE `keff_tol=1e-3`.
+* **A NEGATIVE dominant eigenvalue makes a flux-increment criterion
+  un-satisfiable.** `[M]` the mutated adjoint returns `k = -0.6519302852190432`
+  **bit-identical** at `max_outer` 500 and 2000, `|dk|` pinned at the FP floor
+  3.331e-16 (< `keff_tol=1e-9`) while `dphi` never falls below `flux_tol=1e-8`
+  — the power iteration sign-alternates. `converged` needs BOTH (`:1564`).
+  Raising the budget is futile; the fix is `pytest.warns`, never a bigger number.
+  This also **REFUTED the issue's own attribution** ("the *sphere* run exhausts
+  500 outers at |dk| = 3.3e-16"): the sphere row passes under escalation and
+  `[M]` the unmutated adjoint converges in **5** outers. 3.3e-16 is just the FP
+  floor of `|dk|` at `k ≈ O(1)` — a non-distinctive number, easy to misattribute.
+
+**The instrument had three structural holes, so I built a second one.** The `-W`
+sweep sees only a warning that ESCAPES the test body, so it is blind to (a)
+suppressed warnings, (b) `xfail`-absorbed ones (`[M]` 61 xfails in the slice),
+and — the big one — (c) **INNER truncation at the two eigenvalue entries**:
+`solve_sn`/`solve_sn_adjoint` call `_warn_if_unconverged` with
+`budget_name="max_outer"`, and their `converged` is `power_iteration`'s OUTER
+fact (`solver.py:2344-2360`). A within-group solve that hits `max_inner` inside
+a power iteration is invisible **by construction** — #340's defect class, one
+level in. The second instrument was a pytest plugin wrapping
+`_warn_if_unconverged` (entry census) and `_certify_within_group_exit` (inner
+census); it reproduced the 9-red baseline exactly, so it is behaviour-neutral.
+
+Entry census: **12 rows = the 7 delta + 5 correctly-suppressed contract-file
+legs.** ⟹ nothing is hidden behind suppression or xfail anywhere in the slice —
+the `-W` delta is complete at entry level. That negative is the whole reason the
+second instrument was worth building.
+
+**⚠ And then MY decoder invented 44 findings.** The inner census printed 90 rows.
+The wrapper flagged "truncated" whenever `_claims_convergence(history, tol)` was
+false — the same predicate production uses — but that predicate is ALSO false for
+an **empty** history, which `KrylovAcceleration.solve`'s own docstring
+(`iteration.py:937`) defines as *"GMRES returned in zero iterations"*, i.e.
+converged on the initial guess. `[M]` all 44 print my `inf` sentinel and no
+`KrylovAcceleration … info=` warning fired anywhere (scipy `info == 0`). **46
+genuine.** The positive control had passed cleanly — it only ever exercised the
+genuine branch. → new `vv-principles` METHOD-WARNING clause: for a CENSUS
+instrument, enumerate every state the predicate maps to True and control each
+one; a production predicate reused as a detector inherits its OTHER meanings.
+
+**Second calibration, before ranking the 46:** an inner truncation on an EARLY
+outer under a converged power iteration is an inexact-Newton posture, not a
+defect. Census B is a SCREENING list. The two sharpest candidates measured
+benign:
+
+* `test_d3_admission::test_kinf_3d_equals_2d…[2g]` (worst shortfall in the whole
+  census, 4.962e-03 vs `inner_tol=1e-11`, n=11): `[M]` `max_inner` 200→800→3000
+  gives `|k − k_inf|` 2.917e-12 → 2.691e-12 → **1.998e-15** against the gate's
+  `atol=1e-8` — 3400× inside. Structurally benign: the fixture is HOMOGENEOUS
+  all-reflective, where `k_inf` is a material-property ratio independent of flux
+  shape. The truncation shows up as *outer work* instead (8 → 3 outers).
+* `test_dd_regression[sphere_2g_3reg_dd_n40]` (frozen snapshot): `[M]` shipped
+  `max_inner=300` reproduces the snapshot **bit-identically**; at 1200 the drift
+  is `dk = 1.446e-13` vs the pin's `10 × keff_tol = 1e-11` (69×) and
+  `dφ = 1.640e-12` vs `10 × flux_tol = 1e-9` (610×). The baselines are NOT
+  brittle to the truncation.
+
+**Two more findings en route.** (1) `KrylovAcceleration.solve` surfaces scipy's
+`info != 0` as a bare **`RuntimeWarning`**, not `ConvergenceWarning` — so the
+escalation flag does not cover the Krylov half of the same defect class, and
+ERR-053 (the precedent `convergence.py`'s docstring cites for its own design)
+lives on that path. (2) `test_si_cyl_20cell_nan_regression.py:66-67` runs
+`warnings.filterwarnings('ignore')` — unqualified, at module import; only
+pytest's per-item filter reset keeps it from poisoning the run.
+
+**Lesson.** Three, in order of transferability. (i) **A published command is a
+separate claim from the API it wraps — gate the STRING.** (ii) **An audit
+instrument needs one control PER STATE its predicate accepts**, not one control
+per instrument; the positive control will happily pass while the decoder
+mis-labels a different state, and it will do so in the flattering direction.
+(iii) **An entry-level "converged" flag at an eigenvalue entry is the OUTER fact
+only** — before crediting any convergence sweep as complete, ask which loop the
+flag belongs to.
+
+**Cross-refs:** `vv-principles` Mode-8 EIGHTH + NINTH classes and the census
+METHOD-WARNING clause (all three added by this review), Mode-8 FOURTH class
+(the marker-form xfail this NINTH one complements), `numerical-bug-signatures`
+Signature 8 (the discarded-info-flag ancestor), [[lessons-L053]] (a `slow`
+catcher is deselected — the same blindness applies here to the 114 deselected
+rows), [[lessons-L061]] (`-rs` and read the reasons), issue #340.
+
+---
+
+## L-068
+
+**Adversarially reviewing a design chain (SN cylindrical angular closure, Q5.6.4
+attempt 2), 2026-08-11.** Branch `refactor/operator-strategy-layers`. Brief: refute
+a 7-link chain C1→C7 if it can be refuted; the previous attempt "shipped a worse
+answer by propagating an unchecked premise into a conclusion, so the premise audit
+is the point". Deliverable `scratch/q64_attempt2_qa_review.md`.
+
+### What the chain claimed, and what happened to each link
+
+C1 conservative cylindrical form + `ξ` face coefficient → SURVIVED. C2 `α =
+κ·w_gl·ξ(e_arc)` → SURVIVED. C3 "candidate (3) ill-posed at every order" → FALSE
+AS STATED. C4 the published criteria are τ-blind → SURVIVED (strongest finding).
+C5 `τ ≥ ½ ⟺ non-amplifying` → mis-scoped BOTH directions. C6 the "honest τ
+instrument" → **BROKE**. C7 (the proposal) → does not follow.
+
+### 1. C1: verified by a route touching nothing in the repo
+
+Built `Ω` in LAB Cartesian, transported along a ray, chain rule: `dr/ds = η`,
+`dω/ds = −ξ/r` (both residual `0`); then `(η/r)∂(rψ)/∂r − (1/r)∂(ξψ)/∂ω` minus the
+non-conservative form `= 0`, while two plausible-wrong variants are non-zero. The
+whole thing turns on `∂ξ/∂ω = η`. Face coefficient `W·ξ(ω_face)` by FTC, no κ.
+κ itself derived symbolically as `Δω/(2 sin(Δω/2))` = midpoint-vs-exact ratio of
+`∫_cell η dω`. Later corroborated by the literature agent: Hébert **Eq. (3.157)**
+verbatim (his letters swapped), face term **Eq. (3.393)**, plus Bell & Glasstone
+p. 58 + Table 1.2 and BMC Eq. (48).
+
+**But two DEFECTS in how C1 was STATED**, and both mattered:
+* *"so the half-angle faces **sit at** the geometric arc edges and the coefficient
+  there is `w_gl·ξ`"* splices a DEFINITION (where the faces go — the very thing
+  under debate) to a DERIVATION with a "so". `plan-authoring` §2's `[M]`-scope
+  defect, and it was the clause §9bis.2 leaned on to reinstate the partition.
+* C2's corroboration is **procedural, not structural** → digest C1.
+
+### 2. C6 broke, and the mechanism is the reusable lesson
+
+The instrument fed `η` and `ξ` through the closure, justified as *"a
+P1/diffusion-limit flux is affine in the direction cosines"*.
+
+I first attacked the **weighting** (the brief's own suspicion) and it held: five
+weightings (unweighted max, `ξ(e)`-wtd, `|η(e)|`-wtd, uniform L2, sum-of-legs) all
+rank `τ≡½` first. That felt like a validation. It validated nothing.
+
+The defect is the **BASIS**:
+* the `ξ→−ξ` reflection across the `(e_r,e_z)` plane leaves a 1-D cylinder
+  invariant ⟹ `ψ` even in `ξ` ⟹ `J_φ ≡ 0` ⟹ the P1 limit at a level is `A + Bη`,
+  `ξ` coefficient identically zero. BMC's own **Eq. (1)** is `φ/4π + 3J_r μ/4π` —
+  ONE cosine. BMC **Eqs. (61)–(62)** write `Ω = μ e_r + ξ e_z`, no azimuthal
+  component at all.
+* on a σ_y-**folded** rule every node has `ξ > 0`, so `quad.mu_y` samples `|ξ|`:
+  `[M]` `Σwξ = +6.703` folded vs `0.000` unfolded, `min ξ = +0.3125`. So "ψ affine
+  in ξ" is not even a function on the rule the closure runs on.
+* Fourier-cosine content on the arc: `cos ω` has `c_1 = 1` and nothing else (ONE
+  harmonic = the P1 mode); `sin ω` spreads over `m = 0,2,4,6` with an `m⁻²` tail;
+  `ω` (what `τ≡½` is exact on) over `m = 0,1,3,5`. In the `η` chart both are
+  sqrt-/arccos-singular at the level endpoints.
+
+Re-run on the realisable basis `{cos mω}` = Chebyshev in `η/sinθ`,
+`folded_product(4,64)` level 0, `max|ψ̂(e) − f(e)|`:
+
+| mode | chord | chord+absorber | **arc LANDED** | `τ≡½` |
+|---|---|---|---|---|
+| `cos 1` (P1) | 5.4e-15 | 3.605e-03 | **2.1e-15** | 2.412e-03 |
+| `cos 2` | 4.887e-03 | 1.435e-02 | **4.854e-03** | 9.677e-03 |
+| `cos 3` | 1.171e-02 | 3.205e-02 | **1.132e-02** | 2.188e-02 |
+| `cos 4` | 2.185e-02 | 5.636e-02 | **1.994e-02** | 3.918e-02 |
+| memo's `ξ` leg | 6.637e-01 | 1.631e-02 | 1.415e-01 | **6.131e-04** |
+
+**Ranking INVERTED**, and not merely on the mode the arc convention is exact on —
+it wins ≈2× on EVERY harmonic, which kills the symmetric circularity objection.
+
+### 3. C3 was a PARITY artefact — the refinement-ladder trap
+
+"exactly 1 of `M+1` edges has no real solution, every order" was measured at
+`n_φ = 8/16/32/64` ⟹ `M = 4/8/16/32`, ALL EVEN. The failing edge is the one at
+`ω = π/2`, an edge only when `M` is even. `[M]` at `n_φ = 6/10/14/18/26/34/66`
+(`max κ·sin ω_arc = 0.9069/0.9669/0.9832/0.9898/0.9951/0.9972/0.9992 < 1`) →
+**0 of `M+1`**. An 8× ladder read as "every order" and was one congruence class.
+
+### 4. C5 mis-scoped in both directions
+
+`[M]` end-to-end `Π|(1−τ)/τ|`: chord `1.000000`, arc `1.000000`, `τ≡½` `1.000000`,
+chord+absorber `2.4549e-02` at `n_φ=64`. Both derived partitions satisfy
+`τ(π−ω) = 1−τ(ω)`, so the product telescopes to exactly 1 — the memo's "worst
+running product" is a TRANSIENT interior bulge (unit seed error peaks at `6.68` at
+face 8/16 for arc, `20.36` chord, arriving at the level end at `1.000000`). So the
+absorber and `τ≡½` do NOT tie: the absorber is the only DISSIPATIVE one, 40×.
+Positivity: `(1−τ)/τ` grows as τ falls, so `τ≡½` is the SAFEST derived candidate —
+`[M]` on a steep-shadow profile `min ψ̂ = −24.2` (`τ≡½`) vs `−77.2` (arc) vs `−230`
+(chord). The stated caveat had it backwards. And no gate covers `ψ̂` positivity on
+either arm; the two curvilinear positivity gates are both on the SPHERE's
+converged SCALAR flux.
+
+### 5. The decisive row — filled in, and it re-framed everything
+
+Live solve of `cyl_2g_3reg_folded_4x8_dd_n40` per convention vs the
+trajectory-resolvent reference, gate `1.2e-1`:
+
+| convention | `k_eff` | overall | gate |
+|---|---|---|---|
+| chord | 1.2308955887 | 1.4409e-01 | FAIL |
+| chord+absorber [OLD PROD] | 1.2302082296 | **6.5934e-02** | PASS |
+| arc [LANDED] | 1.2310212586 | **1.2676e-01** | FAIL |
+| `τ≡½` [C7] | 1.2313562779 | **1.0181e-01** | PASS |
+
+The two bold anchors reproduce the memo's §4.6 numbers to the printed digits, and
+the two `k_eff` are exactly the re-baseline pair recorded at
+`test_phase_c_crosscheck.py:214` — that is what licensed reading the new `τ≡½` row.
+
+⭐⭐ **Rank correlation**: the order `absorber < ½ < arc < chord` is EXACTLY the
+transient-bulge order `{1.00, 1.00} < 9.44 < 40.7` (with the absorber's 40×
+dissipation breaking the tie), and the REVERSE of the closure-accuracy order
+(`arc 1.99e-02 … absorber 5.64e-02`). **The metric the whole campaign steered by
+measures the RECURRENCE; the campaign was arguing about the CLOSURE.**
+
+### 6. The literature (independent agent + my own sidecar spot-checks)
+
+§9bis.9 landed at `8db88596` MID-REVIEW (memo 721→879 lines) with the strongest
+defence of C7. Its OCR facts all confirmed by my own reading — §3.9.3 = cylinder,
+§3.9.4 = sphere; Hébert's Eq. 3.406 (cyl) and 3.431 (sph) are BOTH "the diamond
+differencing scheme"; 3.414/3.439 are both `2φ − φ_{−1/2}`; Hébert states no τ. So
+the production docstring's *"Morel–Montry **weighted**-DD recurrence of Hébert
+3.437/3.439"* is false three ways — a real, outcome-independent defect.
+
+Its CONCLUSION refuted:
+* BMC name `τ = ½` *"the diamond scheme"* under **Eq. (53), in their CYLINDER
+  section**, and the paper's thesis is that the diamond preserves the diffusion
+  limit only to LEADING order while Morel–Montry's weighted τ reaches FIRST order
+  ("not as accurate").
+* BMC's cylinder τ (**Eq. 74/75**) is barycentric in the **RADIAL COSINE**; ω
+  never appears.
+* ⭐ the predicate the sources STATE is chart-FREE — BMC under Eq. (43): *"will
+  exactly relate the cell-edge and cell-center fluxes when the angular flux
+  assumes the linear form defined by Eq. (1)"*. **L48 applied correctly ("take the
+  PREDICATE, not the recipe") selects P2-in-η, i.e. what the tree ships.** The
+  memo invoked L48 and substituted a different predicate ("barycentric in the
+  variable the cells are equal in") that no source states.
+* the Hébert appeal is **arm-asymmetric**: he prescribes the same diamond for the
+  sphere, which the tree rejects (`[M]` sphere τ ∈ `[0.3897, 0.6103]`, never ½).
+  The reason offered for the asymmetry (ω-midpoint NODES satisfy the diffusion
+  moment condition exactly) is a NODE property that probe D already measured as
+  τ-blind — level conflation.
+* ⭐ the literature agent's best find, which dissolves §3's whole framing: **two
+  different cosines live at every azimuthal face** — the azimuthal one (`α/W_p`,
+  value fixed by the conservation recursion) is the STREAMING coefficient; the
+  radial one (BMC Eq. 52) is what τ is barycentric in. C1(b) and BMC Eq. (74) name
+  different numbers at the same face.
+* ⛔ a published typo that would INVERT C1: BMC printed p. 156 writes
+  `η = sinθ cos ω` (must be `sin ω`), in the paper the sphere arm cites.
+* ⛔ Alcouffe & O'Dell (Hébert ref. [36]) — the primary source for ORPHEUS's
+  cylinder cell-edge construction — **has never been read** (unresolved, 7 queries
+  / 4 databases); Morel & Montry (1984) TTSP 13(5) 615–633 not local.
+* ⚠ the closed-form τ FLIPS SIGN with march orientation (`½ ∓ ½cot ω tan(Δω/4)`);
+  `[M]` the two agree as a SET to `8.9e-16`, differing only in order, so a
+  level-symmetric fixture cannot see a flip. Ungated either way.
+
+### 7. Consumer audit + mutation verification
+
+`explorer` ran the three searches; I ran two in-process plugins (no tracked file
+edited; revert proved by gate-green-again `136 passed`).
+* Naive ω-swap → **21 of 136 red**, all cylinder, mostly the P3 guard
+  (`τ_raw[0] = 4.598 ∉ [0,1]`) — loud. Zero sphere rows.
+* **FAITHFUL C7** (partition AND P2 node in ω ⟹ `τ≡½`, plus C7's promised
+  convert-at-the-consumer fix) → **only 2 of 136 red**, both the same value pin
+  `test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention[8,16]`,
+  whose reference is the formula being retired. Blind: the `0.25 ≤ τ ≤ 0.75`
+  wellposedness gate (½ is inside), per-ordinate flat-flux (τ-blind), the
+  contamination-β gate, `test_alpha_closed_form` (α is τ-independent AND its edges
+  are hand-rolled), the whole MMS ordering ladder, march-start structure.
+  ⟹ **a first-order change to a production angular closure has exactly ONE
+  catcher.**
+* Three unguarded `angular_differencing` consumers each need hand conversion and
+  **2 of 3 have no test consumer at all**: `alpha_defect_beta` → `π²−1 = 8.8696`
+  garbage; `nu_closure_residual` → **`inf`** (`edge_omega[M] == 0.0` exactly, and
+  the body's last line divides by `e[-1]`) — and that is the memo's own headline
+  discriminator.
+* C7 RE-CREATES a partition twin: `reduced_operator.py:871`'s
+  `mu_start_per_level = −sinθ` IS `edges[p][0]`, consumed live by
+  `_edge_seed_stencil:1414` — it desyncs silently.
+* **The single-source partition producer has NO value gate**: no test anywhere
+  asserts its returned values; the `[-1,1]` / `Σ Δμ = 2` / monotone / endpoint
+  invariants live only in prose.
+* `folded_product` is the ONLY cylinder-admissible factory and every instance is
+  ω-equispaced ⟹ under C7 the cylinder τ is a CONSTANT on 100 % of shipped
+  configurations, and the "derived, not hardcoded" defence rests on a hand-built
+  arc no factory can emit (a signature-tautological gate waiting to be written).
+  Probe E1's sphere `0.000e+00` is likewise a tautology — same variable, same
+  unedited code.
+
+### 8. What I concluded
+
+The tree already ships the better closure. The empirical penalty is
+seed-and-transient dominated, not closure-truncation dominated, and the one
+unexamined option — hold the arc closure and fix the starting-direction SEED — is
+the only candidate that could recover the accuracy without giving up BMC's
+exactness property. Named the falsifiable experiment (vary only
+`MorelMontryAngularSweep.psi_half_seed`, re-run the live probe) and the outcome
+under each branch. C7 remains defensible ONLY as an explicit
+stability-over-accuracy trade, argued at `1.0181e-01`, never as "the chart was
+wrong" or "the literature says ½".
+
+**Skill edits made:** new anti-pattern **#24** (validating an ADJUDICATING
+instrument: basis / rank-correlation / cost-against-alternatives), and a
+refinement-ladder-congruence-class sharpening on **#13**.
+
+**Related:** `vv-principles` #24 (new), #13 (sharpened), #7 / ERR-032 (shared
+upstream identity), Mode 7 (the ansatz-nulls dual of the basis check), Mode 12
+(the algebraic form of the rank-correlation check), `plan-authoring` §2 (the
+`[M]`-scope and quantifier/denominator rules — C1's "so" and C3's ladder are both
+instances), `lessons-L048` (take the PREDICATE not the recipe — the memo invoked it
+and substituted a different predicate), [[lessons-L029]] (circularity), Q5.6.4 /
+`.claude/plans/q64_tau_partition_memo.md`.
+
+## L-069
+
+**Task.** Judge whether 7 failing CYLINDER snapshot gates (3 modules,
+`tests/sn/_data/affine_carve_baseline/`, `tests/sn/_data/bc_extraction_baseline/`,
+`tests/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`) may legitimately be
+re-baselined. Deliverable `scratch/task51_cyl_snapshot_audit.md`.
+Verdict: **RE-BASELINE all 7**, with 2 blocking doc repairs.
+
+**The finding that reframed the whole audit.** The brief posed it as an open
+judgment call. It was not: `39b46a31` — *"re-baseline the TWO cylinder
+artifacts the ω-partition moved — and record why the other two did not"* —
+is **already in the tree** (`git merge-base --is-ancestor` ⟹ YES), 6 commits
+after the value-moving carve. It did the diligence properly *inside its
+scope*: sha256 before/after, a per-artefact `τ := 0.7` sensitivity screen,
+an in-place correction of a falsified prediction. Its scope was
+`tests/sn/regression/snapshots/` — **one directory**. Its universal
+*"Verified by sha256 over all 23 snapshots … these are the only two that
+changed"* names its denominator honestly and is tree-wide FALSE: 7 more
+frozen references moved in 3 other directories. `tests/sn` instead of
+`tests/sn/regression` would have shown them in 0.2 s.
+⟹ **Before auditing a re-baseline decision, `git log` the snapshot's own
+directory for a commit that already made it.** The reds may be a
+re-baseline's REMAINDER, and then the question is completeness, not
+legitimacy.
+
+**The bundled-mechanism false blindness (→ `vv-principles` #25).** The same
+commit's case list, in `tests/sn/regression/_generate_snapshots.py`, carries
+an `[M]` marker and says *"folded_2x4 has M = 2 … the ω-midpoint partition is
+BIT-IDENTICAL to the retired η-midpoint one at M = 2 … **So this case's tau
+did not change at all**, and no M = 2 fixture can ever see a partition
+change."* `[M]` The partition half is true (interior edge `5.0e-17 ≈ 0`); τ
+changed by **2.071e-01** on every level (`0.292893 → 0.5`) because
+`3dda18ca` retired **two** things and at `M=2` the *absorber*
+(`max(0.5, min(1.0, τ))`) was the binding one. Conclusion right, argument
+void, certificate durable — and refuted empirically: the `n_φ=4` (`M=2`) row
+of `test_cyl_tau_equals_the_ANALYTIC_closed_form_not_the_chord_convention`
+is among the 32 gates that redden on old-τ.
+
+**The instrument that made everything decidable — a whole-suite mutation
+DIFFERENTIAL.** In-process plugin rebinding
+`pole_angular_closure.morel_montry_tau_per_level` to the verbatim
+pre-`3dda18ca` body (sole sweep/matvec consumer resolves it as a module
+global, so one rebind covers the path). Bite check: the 7 go GREEN, plugin
+reports `invoked 10 times`. Then `tests/sn -m "not slow"` in BOTH arms:
+`MUT 41 failed / 3014 passed` vs `BASE 16 failed / 3039 passed`. The
+symmetric difference was exact — 7 red only at HEAD, **32 red only under
+old-τ**, 9 red in both (another agent's quadrature scope).
+⟹ **Two arms of the same suite convert "does an external pin exist?" from an
+argument into a list.** The 32 answered it: 8 rows of an analytic-closed-form
+τ gate (with the retired chord as negative control, `n_φ=8` — the failing
+fixtures' own config — covered), 8 rows pinning the *recurrence
+amplification* closed-form one tier downstream, and 2 already-re-baselined
+solve-tier snapshots (2G 3-region het). **My own earlier draft concluded "no
+external pin exists" and was refuted by my own measurement.**
+
+**The blindnesses, all confirmed by absence from the 32.** (a) The M-M
+recurrence `ψ_{m+1/2} = (ψ_m − (1−τ)ψ_{m−1/2})/τ` on a flat field gives
+`(ψ − (1−τ)ψ)/τ = ψ` **for every τ** — one line of algebra disqualifies every
+flat-flux L0 anchor at every order, including the
+`@verifies("streaming-equilibrium")` gate living in the same FILE as three of
+the failing rows, and `test_streaming_equilibrium_curvilinear.py` (blind twice:
+flat, and `n_phi=4`). (b) The anisotropic-cylinder MMS is kernel-blind +
+out-of-regime (`vv-principles` #24(d)/(e), already on record for this fixture)
+— no MMS row is among the 32. (c) The tree's sharpest pin, the `sha256`
+golden `test_affine_carve_bit_identity.py`, has **0 of 3 cases cylindrical**.
+
+**Bisect mechanics that held.** `git worktree add -f --detach` at
+`3dda18ca~1` and `3dda18ca`, each verified by printing
+`pole_angular_closure.__file__` AND checking for the post-carve symbol
+`angular_cell_edges_per_level` (`False`/`True`) — a revision fingerprint
+stronger than the path. 31 green vs exactly-7-red, with ULP fingerprints
+identical to HEAD's ⟹ nothing since moved the value. Refuted the brief's two
+named causes: `c33178ef` post-dates the move; the fold was re-captured onto
+at `c39b7d44` and was green.
+
+**Harness self-failure, mine, caught mid-run.** `grep -E "^FAILED"` on
+COLOURED pytest output matches nothing (ANSI escapes precede the `F`) — my
+first whole-suite extraction reported no failures beside a `41 failed`
+summary line. The warnings-summary lines leaked through only because
+`-W error::orpheus…` contains the substring `error`. Also: piping a
+background command through `grep` writes only the FILTERED output to the
+task file, so the evidence cannot be re-extracted — 17 min lost. Fix:
+`--color=no`, redirect FULL output to a file, filter afterwards.
+
+**Cross-refs.** `vv-principles` #25 (added by this review), #17 (harness lies
+in the safe-looking direction), #24(d)/(e), Mode 12 / §H2,
+`bug-signatures` Sig-10 (whose sibling-pass discriminator is VOID when the
+changed code is single-geometry — SLB/SPH green carries no information),
+`coding-standards` retirement 3-searches, `plan-authoring` §2,
+[[lessons-L034]] (the deferred-SPH stale snapshot — same family), L-068.
+
+---
+
+## L-070 — the knowledge graph's V&V surface is a SEARCH relation wearing a PROOF relation's name; and the per-test evidence that would fix it is produced today and thrown away
+
+**Dispatch, 2026-08-15.** Design the adversarial/audit half of a graph-grounded
+test workflow (ORPHEUS #358, #334) and state the demand on Nexus. Memo:
+`scratchpad/nexus_demand_qa.md` (fenced write). Branch `main` @ `a1c90aac`,
+`sphinxcontrib-nexus 0.16.1`, graph `docs/_build/html/_nexus/graph.db`
+(24530 nodes / 217667 edges).
+
+### 1. What the V&V relation actually IS
+
+`[M]` **All 2748 `tests` edges are `test → equation`.** Split
+`method→equation` 1430 + `function→equation` 1318. **There is no `test → code`
+edge in the graph at all.** `[M]` 2747 of 2748 carry
+`source="pytest.mark.verifies"`, `confidence=1.0` uniformly — so the whole
+relation is *declared*, and the confidence field carries zero information (a
+blanket file-level marker scores identically to a single-purpose L0 gate).
+
+`[M]` **#334 confirmed and it is 50.5 % of the relation.**
+`quadrature-ordinate-permutation` → exactly **21** edges, all from
+`tests/sn/primitives/test_quadrature.py`, whose `pytestmark` (`:26-38`) names
+**9** equations. **34 files** have `edges == n_tests × n_equations` with
+`n_eqs > 1` (the file-level-`pytestmark` signature) and emit **1388 of 2748**.
+`tests/cp/test_verification.py` alone emits **575 = 20.9 %** of the entire V&V
+relation from 23 tests × 25 equations.
+
+### 2. The three false-ALIVE mechanisms, in ascending severity
+
+**(a) `provenance` mislabels "same page" as `implemented_by`.** `[M]` the CLI
+printed **10** `implemented_by` for the permutation equation; the graph holds
+**1** `implements` edge into it, and **0** into its page. `query.py:1326-1334`
+walks equation → containing page → every `documents`-edge target. 10× over-report
+in the silent direction, from the tool both `nexus-verification` and
+`nexus-debugging` name as primary.
+
+**(b) `implements` is 100 % inferred on token overlap.** `[M]` **all 16624**
+edges carry `source="inferred"`, `confidence=0.7`; `[M]` **13512 (81.3 %)** rest
+on a **single** shared token. Worst generics: `operator` 470, `method` 257,
+`case` 116, `solve` 105, `source` 98, `apply` 77. Worked case:
+`sn-cell-flatten-roundtrip` is "implemented by" `data.macro_xs.cell_xs.CellXS`
+on `shared_tokens=["cell"]`, so a **CP** `test_production_rate_shape_and_sum`
+becomes its verifying test. `[M]` **2781 of 16624** `implements` edges have a
+TEST source (nexus #49's family, reported CLOSED upstream, materially present
+in this graph).
+
+**(c) `verified` has no evidence floor.** `query.py:1479` sets
+`status="verified"` iff `len(tests) > 0`, where `tests` falls back to
+`heuristic-1hop` (conf 0.7) then `heuristic-multihop` (conf **0.5**, ≤3 hops).
+No threshold anywhere. `[M]` equation statuses `verified 692 / implemented 47 /
+documented 164` = 903 (every equation ⟹ **76.6 % read verified**), and **351 of
+692 (50.7 %)** carry **no declared test at all**. `[M]`
+`nexus audit --include-tests` → `tests_declared 2748`, `tests_inferred 74553`
+— a **27:1** ratio behind the headline.
+
+### 3. The decisive one — static `calls` has 0 % recall on the relation that matters
+
+`[M]` for `quadrature-ordinate-permutation` (single true implementer,
+`Quadrature.ordinate_permutation`):
+
+| route | reaches the implementer |
+|---|---|
+| static `calls` closure, depth ≤ 8, from the 21 claimers | **0 / 21** |
+| runtime execution (coverage dynamic contexts) | **7 / 21** |
+
+`[M]` `nexus callers` on that method → `{"nodes": [], "total": 0}` while three
+real production call sites exist —
+`sn/boundary/realizer.py:606`, `sn/loss_representation/__init__.py:3784`,
+`geometry/boundary/_specular.py:131` — **all annotation-mediated** (nexus #16).
+Consequence: `[M]` `nexus dead-functions` flags that method as a dead-code
+candidate (3144 candidates total, 1563 in `orpheus/`).
+
+⚠ **Instrument checks I ran before believing the 0.** Depth SATURATES: reach is
+identical at 6/8/12/20 hops (673/1772 corpus-wide), closure median 74 nodes,
+max 363 — the traversal runs. Positive control: `ReflectiveBoundary` (sole
+implementer of `reflective-bc`, 0/45 reach) has `[M]` **73** static callers, so
+the machinery finds callers when edges exist.
+
+⛔ **A headline I wrote and then refuted.** I first read the corpus-wide
+"38.0 % of claiming tests reach an implementer" as "62 % over-credited". It is
+not: the number mixes static blindness with genuine over-credit, and **the
+static graph cannot separate them**. Only the single-implementer equation let
+me ground-truth it. The inseparability is the demand.
+
+### 4. The crux — coverage produces per-test attribution; nexus drops it
+
+`[M]` (a) with `dynamic_context = test_function` + `[json] show_contexts = True`,
+`coverage json` carries a per-file `contexts` block: **23** non-empty contexts
+on a 50-test / 0.72 s slice, each a fully-qualified test id mapped to the exact
+lines it ran. `[M]` (b) `grep -c -i "context"
+sphinxcontrib/nexus/runtime.py` → **0**; `overlay_coverage` (`:314-357`) reads
+only `executed_lines` / `missing_lines` / `executed_branches` /
+`missing_branches` and writes a per-NODE record with no per-test dimension.
+
+`[M]` **The extension is ~15 lines and I ran it.** Reusing nexus's own
+`build_node_index` (797 files / 10207 spans) plus the ignored `contexts` block:
+**23/23** contexts joined, **1353** (test, exercised-node) pairs from a 0.72 s
+slice — and it answers #334 directly with the same 7, cross-checked by an
+independent `ast.parse` span resolution. `RuntimeRun`'s own docstring
+(`runtime.py:118-127`) calls itself *"a bag of orthogonal overlays, not a tagged
+union"*, so an `exercises` family is the shape it was designed for.
+
+### 5. ⚠ `runtime-ingest` reports a SILENT ZERO-JOIN (shipped L54 class)
+
+`[M]` `nodes: 0 / edges: 0 / unresolved: 0`, **exit 0**, no warning, on a real
+report. Cause: `coverage json` emits **339 of 339** file keys RELATIVE while
+`build_node_index` keys ABSOLUTE, so every file is dropped at `runtime.py:332-336`
+— **upstream of the `unresolved` counter**, which therefore cannot see it.
+`[M]` with the keys rewritten to absolute the same artifact joins **2892** nodes.
+
+### 6. The re-baseline adjudication query — prototyped, and it names task #51's answer
+
+`[M]` `tests/sn/regression/test_dd_regression.py` +
+`tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`: 27 passed,
+**59.03 s bare → 85.58 s under coverage (1.45×)**. Joined:
+881 nodes touched by the regression snapshot, 174 by the non-regression pins,
+**174 by both**, **707 pinned by nothing else** (two-file denominator — state it).
+The shared set contains `pole_angular_closure.morel_montry_tau_per_level`,
+`angular_cell_edges_per_level`, `_assert_tau_within_unit_interval` — i.e. the
+object lesson **A10/D14** records as having been hunted **by hand, twice**, after
+two structurally-blind candidates.
+⚠ It measures **CO-EXECUTION, not co-constraint**: the output is a candidate list
+to mutation-verify, not a licence. `coding-standards` re-baseline step 2 is
+unchanged; what improves is that its *hunt* becomes 174 ranked candidates.
+
+### 7. What the graph CANNOT own — the honest ladder
+
+| rung | for #334's equation | established by |
+|---|---:|---|
+| CLAIMED (a `verifies` marker) | 21 | graph `tests` edges |
+| EXERCISED (execution entered the code) | 7 | coverage dynamic contexts |
+| ASSERTED (the assertion can fail for it) | ≤2 | **judgement — not measurable from any trace** |
+| MUTATION-VERIFIED | 0 | **mutation only** |
+
+All 7 exercisers are *identically* connected to the implementer in any
+exercised-coverage graph, yet 5 cannot fail for a permutation error. **No edge
+quality separates them.** #334's own "~2 exercise it" is refuted in magnitude
+(7, a 3.0× over-credit, not 10×) and is a good estimate of the ASSERTING rung —
+a different question.
+
+### 8. Marker surface — partial, inconsistent, un-traversable
+
+`[M]` AST census over all 456 test files vs graph `node_attrs`:
+`foundation` **1515 usages / 308 files → NO attribute** (the suite's largest
+marker, and the one whose whole meaning is *"not a physics equation"* — E1's
+conflation vector); `regression` 11 / 10 files → **NO attribute** (5 nodes, only
+via the `decorators` string); `sentinel` 19 → NO. Present: `verifies` (896),
+`vv_level` (1530), `catches` (239), `slow` (143). `[M]`
+`_collect_pytestmark_assignments` (`ast_analyzer.py:267`) DOES handle
+module-level `pytestmark` — so the gap is *which markers are lifted*, not the
+mechanism.
+
+`[M]` `catches` is an **attribute, not an edge** (`SELECT COUNT(*) … type='catches'`
+→ 0) and no `ERR-NNN` node exists, so "which tests catch ERR-026" is a scan.
+Phantom check ran nearly clean: 80 claimed ids vs 79 catalog ids, the only
+phantom being `'M-SEED-DROP'` (a deliberate free-form tag); **0** catalog
+entries lack a marker. ⟹ report it, do not inflate it.
+
+`[M]` The graph has **no** node for any of the 73 `.npy`/`.npz` frozen
+references; `type='file'` is 94 `doc:` + 94 `std:` only. A snapshot cannot be
+named, let alone adjudicated.
+
+### 9. ⛔ My own proposed decay-detector, refuted by measurement
+
+I proposed reusing `body_shingles` as the "has the fixture moved since the
+mutation was demonstrated?" fingerprint. `[M]` it is **bit-identical** under
+`rtol 1e-12→1e-6`, `max_inner 1000→50`, expected `1.234567→9.876543`, and
+`mesh→mesh64` — *every* Mode-8-class-7 decay cause — and moves only for
+structural edits (assertion dropped, jaccard 0.375; `allclose→array_equal`,
+0.714). `fingerprint.py:_token` normalizes `Constant→"C"`, `Name→"N"` **by
+design** (Type-2 clone robustness). A ledger built on it reports every decayed
+marker FRESH.
+
+### 10. What DOES work today
+
+`[M]` The L53 denominator is mechanizable and the graph beats the glob: test
+files on disk **456**, graph knows **491**, `disk \ graph` = **0**, and the 35
+extras are the non-collected `conftest.py` / `_harness/*` / `_generate_*.py`
+modules where Mode-8's real surface lives. Directory level: 37 on disk, 36 in
+graph, the 1 missing holding only `__init__.py`. `staleness` runs clean (188
+checked). `discriminations`, `twin-paths`, `protocol-conformers`,
+`dead-references`, `graph-query` all run. `bridges` did not finish inside 120 s.
+`nexus impact` mixes doc pages, modules and tests in one depth bucket (no CLI
+`--edge-types`).
+
+### 11. The demand, ranked (full text in the memo §9)
+
+**D1** per-test `exercises` runtime family (~15 lines in `overlay_coverage` +
+a `RuntimeRun` field + a context-id→node-id mapper + a `runtime-exercises`
+verb) — everything else is downstream. **D2** ingest must never report a silent
+zero-join (normalize paths; per-reason drop breakdown; non-zero exit on
+`nodes == 0`). **D3** configurable lifted-marker set + `catches` as a real edge
+to `err:ERR-NNN` nodes, with module- vs function-SCOPE distinguishable. **D4**
+mutation verdict as staleable data (literal-SENSITIVE fingerprint, per §9).
+**D5** a `nexus inventory` verb.
+
+### 12. Three novel rationales owed to `vv-principles` — NOT landed (write fence)
+
+(N1) an INFERRED relation must not be consumed under a DECLARED relation's name;
+(N2) Mode-8 DECODER clause's **dual** — a normalized fingerprint reused as a
+change detector inherits its deliberate blindnesses; (N3) #17 sharpening — a
+RECALL counter downstream of a FILTER cannot count what the filter dropped.
+Drop-in text is in the memo §14. The skill files were already dirty in the
+working tree (concurrent agent) — reconcile before writing.
+
+**Cross-refs.** ORPHEUS #358, #334, #309; nexus #16 (open), #26 (closed, 0.15.0),
+#49 (closed upstream, live in this graph). `vv-principles` Mode 8 (7th class,
+METHOD WARNING), Mode 10, Mode 12, #17, #19, #24, #25;
+`coding-standards` re-baseline step 2; lessons L-053 (denominator), L-054
+(verify the instrument ran), L-067 (audit-instrument decoder), L-069 (A10's
+symmetric-difference mutation).
