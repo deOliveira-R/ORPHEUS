@@ -88,8 +88,10 @@ produced **zero** inferred edges (all 3 declared; the inference keys on
 the inference at all.
 
 ✅ **Step 2** — 85 declarations across two theory pages
-(`sn/loss_representation` 28, `foundations/operator_algebra` 57). F5's
-`implements_declared` **0 → 85 / 13080**; inferred 14004 → 12995.
+(`sn/loss_representation` 28 blocks / 14 equations,
+`foundations/operator_algebra` 57 / 32), ORPHEUS `144cdf51`. F5's
+`implements_declared` **0 → 85 / 13084**; inferred 14004 → 12999.
+`[M]` **zero** inferred edges remain on all 46 declared equations.
 
 ⛔ **Step 3 (narrow the inference) is REFUTED — do not build it.**
 `evals/implements_ground_truth.py` (nexus `c207277`) is 82 hand-verified
@@ -127,13 +129,26 @@ declaration can currently spell.
    the moment declarations landed, because the equations it scored well
    on had left the population (`fbdb6e7`). Both are the same defect —
    a denominator that moved under the metric.
-3. **The pages already label which equations are unimplementable, and
-   nothing reads the label** — every such row carries a `.. vv-status`
-   rationale saying *"Mathematical identity"* / *"Definitional"*.
-   ⚠ The line is NOT "not-a-solver-claim": `carrier-grid-operator-typing`
-   and `harmonic-frame-is-galerkin` carry that rationale and ARE
-   declarable. A *typing rule* can have a materialized carrier (a class,
-   a Protocol parameter list); an identity cannot.
+3. ⛔ **REFUTED the same day it was written.** This row read *"the pages
+   already label which equations are unimplementable, and nothing reads
+   the label — every such row carries a `.. vv-status` rationale saying
+   'Mathematical identity' / 'Definitional'."* I relayed it from an
+   explorer summary and published it to `nexus#82` and `#85` without
+   measuring it. `[M]` over the 40 audited equations: a third carry no
+   rationale at all, and the word *identity* appears in **11 of 22**
+   declarable rows against 5 of 6 NONE rows. Spot-checked: the
+   `.. vv-status:` lines are bare status words (`operator-apply
+   documented`). There is no keyword to read.
+   ⭐ What survives is sharper, and a keyword heuristic would have got it
+   backwards: an identity between **quantities** has no carrier; an
+   identity between **types** IS a claim about a class declaration —
+   `carrier-grid-operator-typing`, `harmonic-frame-is-galerkin` and
+   `product-solve-reroute` all read as identities and all have real
+   implementers. ⟹ the kind must be **stated by the author as a kind**
+   (`nexus#85`), not inferred from prose. The refutation *strengthens*
+   #85: the knowledge is not authored-but-inert, it is absent.
+   ⚠ Third relay-without-verification of this session, and the only one
+   that reached a public surface before being caught.
 4. **A retirement can silently PROMOTE a gate's claim class.** Making
    `L.apply` σ-free turned `tests/sn/operators/test_loss_action_convention.py`'s
    `−C` glue check from tautological (`apply` WAS defined as the
