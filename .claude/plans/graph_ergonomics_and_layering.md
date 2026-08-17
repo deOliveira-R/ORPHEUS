@@ -3,6 +3,85 @@
 **Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
 sections marked `[M]` carry the command or query that produced them.
 
+## ⏸ COMPACTION POINT #5 — 2026-08-17, PUSHED
+
+⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos
+are on `main` and **pushed**: nexus `c682112`, ORPHEUS `107ec901`. All
+campaign branches merged and deleted. `git merge-base --is-ancestor
+<hash> main` is the authority, not any sentence in this file.
+
+⚠ **The MCP server serves the code it imported at startup.** Reconnect
+(`/mcp`) before trusting any nexus tool to reflect the below.
+
+### The campaign changed shape here — read this before the older points
+
+Points #1–#4 are about **payload and vocabulary**. What runs now is a
+different programme, produced by a **field trial on 2026-08-16**: three
+specialist agents (explorer, archivist, test-architect) were sent at real
+ORPHEUS work and asked to report on the INSTRUMENT. They found nine
+defects, and the durable output is the **failure taxonomy F1–F8** in
+`~/git/sphinxcontrib-nexus/evals/FIDELITY.md`. **Read that file before
+planning any nexus work** — it is the method, the taxonomy, and the
+scoreboard, and it is a second battery distinct from `evals/README.md`
+(which measures whether *instructions* steer agents, is model-dependent,
+and is improved by rewording — not by changing nexus).
+
+### Landed since #4, in order
+
+| step | outcome | `[M]` |
+|---|---|---|
+| 0 | branches merged, graph REBUILT, baseline re-measured | F1 mistyped **195 → 0**, zero-callers 7421 → 7402 — both predictions confirmed |
+| 0 | ORPHEUS's deployed nexus skill was 11 tools stale | `107ec901`; #65 re-diagnosed — installer manifest can't classify 10 of 13 files |
+| 1 | **#59 CLOSED** — an empty caller list says when the resolver is BLIND | `ordinate_permutation` 0 resolved / **40** unresolved via 5 spellings; **780 of 2946** dead-code candidates carry one and now rank last |
+| 2 | **#71 verified** (already closed) | 896 of 896 `verifies` markers have a `tests` edge |
+| 2 | **#61** — markers as pytest RESOLVED them | 9861 tests in 5.85 s, **9861/9861 bound**; `foundation` 0 → 3709, `regression` 0 → 43; answers are RUNNABLE (`invocation`) |
+| 2 | **#74 CLOSED** — a guess must not read like a fact | `implements` **14004/14004 inferred**, `tests` 2748/2748 declared; entries now carry `inferred` + `via` |
+| — | analyzer: a class is a class because `visit_ClassDef` said so | 110 methods retyped, 14 false zeros recovered (`8fafd18`) |
+
+### ⭐⭐ Rulings that transfer
+
+1. **A zero that means UNRESOLVABLE must never print like a zero that
+   means UNCALLED.** The most dangerous answer a graph gives, because it
+   reads as a licence to delete. Generalises past nexus.
+2. **Declared and inferred must not share a font** — and what makes it
+   actionable is not a confidence number but `via`, the tokens that
+   produced the guess.
+3. **A fixture more regular than the world makes its gate blind.** Hit
+   THREE times in one session (ranking order, phantom namesakes, the
+   `is_test` control). For any gate asserting an order, build the fixture
+   in the wrong order.
+4. **A mutation battery is code and rots like code** — one arm read
+   `FAILED=0` because its `sed` no longer matched, i.e. no experiment ran.
+5. **Evaluate by USING it.** None of the nine defects is visible by
+   reading the code; the sharpest arrived as *"grep answered and the
+   graph didn't"*.
+
+### ▶ NEXT — step 3, and two user rulings recorded 2026-08-17
+
+**Step 3 — close the chains.** F8 is **0 of 4**: every hop works and no
+question closes. `nexus#75` (a `file_brief` MCP tool + a test-side brief
+— it is push-only today, deduped once per session, unrecoverable after a
+compaction) and `nexus#78` (the rest of the pytest-id work; `invocation`
+already half-closed one chain).
+
+**Ruled by the user, filed, NOT yet built:**
+- **`nexus#81`** — `verification_coverage` SHOULD prefer the resolved
+  pytest manifest over AST marker attributes. The open design question is
+  whether the manifest *writes* `tests` edges or is overlaid at query
+  time; the sidecar contract says runtime data never enters `graph.db`.
+- **`nexus#82`** — **closing the guesses is a target.** `implements` is
+  0 % declared; the metric is fidelity probe **F5**, and the honest order
+  is *declare, then narrow* — deleting the inference first would empty
+  the matrix rather than correct it.
+
+⚠ **Two probes the scoreboard OWES itself** (FIDELITY.md Part 6): nothing
+measures whether a zero announces itself (#59's fix) or marker recall
+(#61's). Both landed invisible to the scoreboard, which is the failure
+that battery exists to prevent.
+
+⚠ **Still uncommitted in ORPHEUS**: `.claude/skills/vv-principles/SKILL.md`
+and `error_catalog.md`. Unchanged all session; still awaiting a ruling.
+
 ## ⏸ COMPACTION POINT #4 — 2026-08-16, MERGED TO MAIN
 
 ⚠ **Everything below that says "on branch `feat/config-and-ontology`" or
