@@ -39,7 +39,8 @@ campaign's own title had been asking for since it was written:
 
 ### ▶ NEXT STEPS — measured 2026-08-16, in priority order
 
-1. ⛔ **#67 is NOT fixed, and I believed it was.** `[M]` re-running the
+1. ✅ **REMEDIED 2026-08-16 @ nexus `b6d99d2`** — ⛔ **#67 is NOT fixed, and
+   I believed it was.** `[M]` re-running the
    issue's own probe: **478 B per neighbour** against its 488–572 baseline
    — a ~2 % improvement against a **−78 %** target. Node compaction slimmed
    the node; the **edge dict is 46 % of the payload** and nearly all of it
@@ -54,18 +55,58 @@ campaign's own title had been asking for since it was written:
    the issue's target is ~124 B/pair. ⚠ The BUDGET currently hides this —
    `neighbors` returns 17,887 bytes because it is truncated, not because
    it is slim. Do not read a bounded payload as a small one.
-2. **`retest` (#62)** — hard-coded `max_depth=3`, `[M]` **5.1 % falsely
+   > **Outcome.** `solve_sn` 213 962 B (when #67 was filed) → **40 521 B**,
+   > past the −78 % target. Position dropped too — adjacency is not
+   > location. ⚠ Do NOT re-quote the per-neighbour figure to compare
+   > versions: parallel edges now fold into `times`, so the DENOMINATOR
+   > moved (374 → 220) and only total bytes is comparable. The boundary
+   > number is the honest one: visible neighbours 48-of-374 → **97-of-220**,
+   > and `BC` 28-of-1699 → **82-of-417**. #67 stays OPEN on one question
+   > only — whether to add the `fields=` knob it proposed, which I did not
+   > (composition via `context`/`node_at` instead).
+2. ✅ **REMEDIED 2026-08-16 @ nexus `19b09b0`** (`Closes #62`, fires on push)
+   — **`retest`** hard-coded `max_depth=3`, `[M]` **5.1 % falsely
    `safe_to_skip`**. A wrong answer in the dangerous direction, and now a
    one-line `[replies]`-style tunable.
-3. **The ORPHEUS-side corpus move** (user's call): `catches` machinery is
+   > ⛔ **The remedy was NOT a tunable, and "5.1 %" needs its filter.** A
+   > depth knob would still be a wrong number to have to choose; it now
+   > walks to a **fixed point**, `[M]` costing 42 ms vs 39 ms over five hub
+   > symbols. The reproduction only works on the **`calls`** cone — my
+   > first probe followed every edge type and read 91 % falsely-safe, which
+   > was my instrument, not the defect. And the loss is per-SYMBOL, not a
+   > suite-wide rate: `solve_sn` **0** missed, `warn_if_unconverged` 18,
+   > `geometry.mesh.BC` **232**. The cone is now `calls`+`type_uses`+
+   > `inherits`; adding `references` reaches 78 % of the suite from any
+   > symbol.
+3. ✅ **ALSO LANDED, unplanned** — nexus `4611559`. The briefing's
+   wrong-tree tripwire compared BRANCH NAMES, so an ordinary
+   ff-merge-and-delete told every session to rebuild a graph that
+   described its checkout exactly (`[M]` 25 files differed from the build
+   commit, **0 indexed**). It now intersects `git diff` against the paths
+   the graph's own nodes carry. ⚠ **Silence now means "the indexed sources
+   match", not "same branch"** — a different claim to act on.
+4. **The ORPHEUS-side corpus move** (user's call): `catches` machinery is
    built and idle — `[M]` 243 markers naming 78 entries, and the build says
    so once per run. Moving `error_catalog.md` into `docs/` as
    `.. error-entry::` blocks makes *"which catalogued defect has no
    catcher?"* answerable and closes **#63**.
-4. **The plan's own remaining tracks** — `Evidence`/`Diagnostic` (Track
+5. **The plan's own remaining tracks** — `Evidence`/`Diagnostic` (Track
    1.4), §5.1 `exercises` retype, §5.4 `layer` as a node property. All
    still ⬜ **relayed, not reproduced**, and that gate has now refuted a
-   stated done-when **twice**.
+   stated done-when **three** times: #67's "already fixed", #62's
+   "5.1 % / needs a tunable", and — new — a *gate* rather than a claim.
+
+⭐⭐ **The ruling this session added, and it is the transferable one:
+a fixture that is MORE REGULAR THAN THE WORLD makes its gate blind, and
+nothing in a green run says so.** `_graph_with_builtins` inserted project
+symbols before builtins, so insertion order already equalled ranked order
+— deleting the ranking entirely reddened **0 of 21** tests, including the
+ranking gate that shipped last session wearing that name. Found only by
+mutating each arm SEPARATELY and noticing one arm with no witness. The
+tell is that the fixture's incidental order agreed with the property
+under test; reordering it took one minute and the same mutation now
+reddens 2. ⟹ **for any gate asserting an ORDER, build the fixture in the
+WRONG order.**
 
 ⚠ **Bigger, separate, worth knowing:** **#58** `bridges`/`communities` do
 not complete at ORPHEUS scale (>180 s — two MCP tools unusable here);

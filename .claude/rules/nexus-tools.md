@@ -43,8 +43,12 @@ You have **freedom of tool choice** — route by what the question actually is:
 - **Git worktrees (L22 hazard):** the session's MCP server was launched against the MAIN
   checkout's graph, so every Nexus query answers from the wrong branch until you switch.
   Build Sphinx inside the worktree, then `mcp__nexus__use_workspace(<worktree root>)`.
-  `mcp__nexus__workspaces` lists checkouts + graphs; `session_briefing` warns when the
-  graph's branch no longer matches the checkout (nexus ≥ 0.12).
+  `mcp__nexus__workspaces` lists checkouts + graphs; `session_briefing` warns when files
+  the graph **indexes** have changed since it was built (nexus ≥ 0.12).
+  ⚠ It does NOT warn on a branch-name difference alone — that fired on every session
+  after an ordinary ff-merge-and-delete, when the graph still described the checkout
+  exactly (`[M]` 2026-08-16: 25 files differed from the build commit, **0 indexed**).
+  So *silence means the indexed sources match*, not "same branch".
 
 > **NOTE (2026-06-14):** the standalone `Grep`/`Glob` tools were removed and the
 > "always-Grep" system-prompt directive is gone — all current models route freely. This
