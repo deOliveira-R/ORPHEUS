@@ -3,6 +3,93 @@
 **Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
 sections marked `[M]` carry the command or query that produced them.
 
+## ⏸ COMPACTION POINT #6 — 2026-08-17, PUSHED · F8 is 4 of 4
+
+⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos
+are on `main` and **pushed**: nexus `e91a6cb`, ORPHEUS `8bb695d3` (+ this
+point). All branches merged and deleted. `git merge-base --is-ancestor
+<hash> main` is the authority, not any sentence in this file.
+
+⚠ **Reconnect the MCP server** (`/mcp`) before trusting any nexus tool —
+it serves the code it imported at startup. Two tools are new since the
+last reconnect: `file_brief` and `doc_impact`.
+
+⚠ **The ORPHEUS graph was REBUILT** (`sphinx-build -E -a`) and carries
+the nested `contains`. A graph built before 2026-08-17 has none of it.
+
+### Landed since #5
+
+| step | outcome | `[M]` |
+|---|---|---|
+| 3 | **#78 CLOSED** — a test node hands over the command | `TestFacts` at `_node_result`; **5273/5273** ids resolve against a full `--collect-only` |
+| 3 | **#75 CLOSED** — a file brief you can ASK for, that says what a test file verifies | **2936/2936** handles resolve; test-side brief was 0/6 |
+| — | **#83 FILED** — `is_test` is set on 1214 nodes pytest cannot collect | producer defect; the reply layer gates on node type meanwhile |
+| — | `file_brief`'s own payload re-emitted the redundancy every other tool drops | `9673ca3`; −32…−41 %, and `solver.py` had been **over** the 20 000 budget |
+| 4 | **#80 CLOSED** — a claim knows its anchor; `doc_impact` is `retest`'s dual | **849** section→equation edges (was 0); 869/903 anchors; 200 symbols/10 308 claims/0.68 s |
+
+**F8 went 0 → 3 → 4 of 4.** The scoreboard rounds are in
+`evals/FIDELITY.md`; read them there — that file re-measures itself and
+this one does not (`plan-authoring` §9).
+
+### ⭐⭐ Rulings that transfer
+
+1. **A derivation is only as honest as the SET it is applied to.** The
+   pytest-id join is exactly right; applied to every `is_test` node it
+   fabricates 1214 commands. `class` would have been right **810 of
+   882** — and 92 % is the *worst* case to ship, because it is reliable
+   enough to trust and wrong often enough to burn you.
+2. **A synthesised absence-value can state a falsehood a plain absence
+   cannot.** A default `"untagged"` level would have asserted that of
+   3749 of 5273 gates, when the true figure is a property of the
+   ANALYZER (AST 1524 vs pytest 5273).
+3. **A property is invisible to the serializer.** `to_dict` walks
+   `fields()`, so `MarkedTestResult.invocation` reached no JSON reply
+   while its tool docstring promised callers it would. A derived value
+   a reply should carry must be a FIELD.
+4. **A key that exists but is empty defeats `setdefault`.** `GraphNode`
+   gives every node an `anchor` key; on an equation it is `None`, so
+   the stamp was a silent no-op — `[M]` 0 of 903.
+5. ⛔ **Additive beat tree-purity, and the reason is a downstream
+   producer.** Re-parenting equations under sections would have taken
+   `implements` to **zero** silently, because `merge._infer_implements`
+   reads `g.out_edges(doc_id)`. Ask what READS the edge you are about
+   to move.
+6. ⚠ **A graph read during or just after a build is not evidence about
+   the code that produced it.** Cost four debugging cycles on code that
+   was already correct — and it is a REPEAT of a rule FIDELITY.md round
+   3 already logged, which did not transfer because that instance was
+   about a file copied aside rather than one read live.
+
+### ▶ NEXT — `nexus#82`, the user's adopted target
+
+**Closing the guesses.** `implements` is **0 %** declared; the metric is
+fidelity probe **F5**, and the honest order the user ruled is *declare,
+then narrow*.
+
+⭐ **Read the 2026-08-17 comment on `nexus#82` before designing** — it
+carries the measurements and one structural blocker that changes the
+plan:
+
+- the `.. implements::` directive **already ships** and ORPHEUS uses it
+  **0 times** (against 39 uses of `verifies`), so this is not "build a
+  declaration path";
+- the guesses are weak in a specific, actionable way: **88 %** rest on a
+  single shared token, and `peierls` + `greens` alone produce **58 %**;
+- ⛔ the inference's suppression is **per-PAIR** (`merge.py`), so
+  declaring one implementer leaves the other ~11 guesses on that
+  equation. **Adoption is additive when it needs to be displacing** —
+  an equation-level stand-down has to land first or step 2 has no
+  payoff.
+
+**Also open, unchanged:** `#81` (prefer the resolved pytest manifest —
+same question as `#83`, consider one overlay for both), `#76`/`#16` (the
+dispatch mechanism behind the remaining 7402 zero-callers), and the two
+probes the scoreboard still owes itself (F1-honesty, F4-recall).
+
+⚠ **Still uncommitted in ORPHEUS**: `.claude/skills/vv-principles/SKILL.md`
+and `error_catalog.md`. Unchanged across three sessions; still awaiting
+a ruling.
+
 ## ⏸ COMPACTION POINT #5 — 2026-08-17, PUSHED
 
 ⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos
