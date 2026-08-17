@@ -56,19 +56,60 @@ and is improved by rewording — not by changing nexus).
    reading the code; the sharpest arrived as *"grep answered and the
    graph didn't"*.
 
-### ▶ NEXT — step 3, and two user rulings recorded 2026-08-17
+### ✅ Step 3 LANDED 2026-08-17 — F8 **0 of 4 → 3 of 4**
 
-**Step 3 — close the chains.** F8 is **0 of 4**: every hop works and no
-question closes. `nexus#75` (a `file_brief` MCP tool + a test-side brief
-— it is push-only today, deduped once per session, unrecoverable after a
-compaction) and `nexus#78` (the rest of the pytest-id work; `invocation`
-already half-closed one chain).
+nexus `bc60ce1` (#78) + `4faacea` (#75) + `daa76e1` (scoreboard), merged
+to `main` and pushed. Both issues CLOSED. Scoreboard round 4 is in
+`evals/FIDELITY.md`; read it there, not here (`plan-authoring` §9 — the
+file re-measures itself and this file does not).
+
+| chain | closed by | `[M]` |
+|---|---|---|
+| `file → node → callers` | `file_brief` is an MCP tool | hub id → `callers`, walked live |
+| `equation → tests → pytest invocation` | `TestFacts.pytest_id` at `_node_result` | **5273 / 5273** ids resolve against a full `--collect-only` |
+| `brief label → graph node` | the brief emits ids, not labels | **2936 / 2936** handles resolve (was 0/50) |
+| `symbol → doc page → section` | ⛔ NOT closed — `nexus#80` | 680 sections, still **0** `section→equation` |
+
+⭐⭐ **Two rulings that transfer past nexus**, both found only by
+measuring on the real graph — neither is visible in the code:
+
+6. **A derivation is only as honest as the set it is applied to.** The
+   `file_path` + dotted-name → pytest-id join is exactly right; applied
+   to every node the producer flags `is_test` it fabricates **1214**
+   commands that match nothing. `[M]` `class` would have been right
+   **810 of 882** — and 92 % is the *worst* case to ship, because it is
+   reliable enough to be trusted and wrong often enough to burn you.
+   Filed as `nexus#83`; the consumer-side gate is a Pattern-7 bridge
+   for a producer-side defect and will need repeating until #83 lands.
+7. **A synthesised absence-value can state a falsehood that a plain
+   absence cannot.** I had `vv_level` default to `"untagged"` because
+   "this gate claims no level" reads as the finding an audit wants. It
+   would have asserted that about **3749 of 5273** ORPHEUS gates, when
+   the true figure is a property of the ANALYZER (AST sees 1524; pytest
+   resolves module-level `pytestmark`, class marks and conftest marks
+   the AST cannot see). Absence is absent, and the docstring says
+   *whose* absence.
+
+⚠ **Still owed, and the round says so in its own row**: F3/F4/F6/F8
+above were measured BY HAND — the same way the three fixes of round 3
+were, which is why they were invisible to the scoreboard. The two owed
+probes (F1-honesty, F4-recall) are still owed, and these numbers can
+regress the same silent way.
+
+### ▶ NEXT — two user rulings recorded 2026-08-17, neither built
 
 **Ruled by the user, filed, NOT yet built:**
 - **`nexus#81`** — `verification_coverage` SHOULD prefer the resolved
   pytest manifest over AST marker attributes. The open design question is
   whether the manifest *writes* `tests` edges or is overlaid at query
   time; the sidecar contract says runtime data never enters `graph.db`.
+  ⭐ Step 3 sharpened the case and widened it: `TestFacts.vv_level`
+  reports the AST's view too, so the SAME preference belongs there, and
+  the gap is now measured (`[M]` AST **1524** of the **5273** tests
+  pytest resolves). And `nexus#83` is the same question wearing a
+  different hat — a collection manifest settles `is_test` exactly,
+  where an AST walk can only guess. Consider whether one overlay
+  answers #81 and #83 together before designing either alone.
 - **`nexus#82`** — **closing the guesses is a target.** `implements` is
   0 % declared; the metric is fidelity probe **F5**, and the honest order
   is *declare, then narrow* — deleting the inference first would empty
