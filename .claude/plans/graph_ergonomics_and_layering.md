@@ -6,7 +6,7 @@ sections marked `[M]` carry the command or query that produced them.
 ## ⏸ COMPACTION POINT #6 — 2026-08-17, PUSHED · F8 is 4 of 4
 
 ⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos
-are on `main` and **pushed**: nexus `e91a6cb`, ORPHEUS `8bb695d3` (+ this
+are on `main` and **pushed**: nexus `b1d22cb`, ORPHEUS `a6c9e4ec` (+ this
 point). All branches merged and deleted. `git merge-base --is-ancestor
 <hash> main` is the authority, not any sentence in this file.
 
@@ -42,10 +42,23 @@ this one does not (`plan-authoring` §9).
    cannot.** A default `"untagged"` level would have asserted that of
    3749 of 5273 gates, when the true figure is a property of the
    ANALYZER (AST 1524 vs pytest 5273).
-3. **A property is invisible to the serializer.** `to_dict` walks
-   `fields()`, so `MarkedTestResult.invocation` reached no JSON reply
-   while its tool docstring promised callers it would. A derived value
-   a reply should carry must be a FIELD.
+3. ⭐⭐ **A reply's shape is decided by the serializer, and the
+   serializer is not obvious.** `to_dict` walks `fields()` and drops
+   what says nothing — so THREE different defects are one rule, and
+   all three shipped in tools written the same week:
+   - a **property** never reaches a reply
+     (`MarkedTestResult.invocation`, promised by its own docstring);
+   - an ordinary **field always does**, whether or not it earns the
+     bytes (`DocClaim.docname`/`lineno`, already on the equation node
+     and embedded in `location` — `[M]` 11 of 11 claims; now
+     `InitVar`s);
+   - and a tool that builds its payload with **`asdict` instead of
+     `to_dict`** opts out of the rule entirely (`file_brief` shipped
+     `"gates": null`).
+   ⟹ before adding a field to a result type, ask which of the three it
+   is. ⚠ All three were found by CALLING the tool after an `/mcp`
+   reconnect — none is visible by reading the code, and the
+   in-process tests bypass the reply layer via `__wrapped__`.
 4. **A key that exists but is empty defeats `setdefault`.** `GraphNode`
    gives every node an `anchor` key; on an equation it is `None`, so
    the stamp was a silent no-op — `[M]` 0 of 903.
