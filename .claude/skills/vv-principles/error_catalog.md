@@ -538,11 +538,20 @@ the GS mode provided no acceleration benefit from inner iterations.
   *fundamentally unnecessary* for the CP method (wrong — the source
   depends on the flux through self-scatter)
 
-**L0 test that catches it:** `test_cp_verification.py::TestGSInnerIterations::
-test_no_self_scatter_one_inner` — material with zero diagonal in Σs
-should converge in ≤ 2 inner iterations (no self-consistency needed).
-`test_thermal_needs_more_inner_than_fast` — with the corrected residual,
-thermal groups genuinely need more inner iterations than fast groups.
+**L0 test that catches it:** `tests/cp/test_verification.py::
+TestGSInnerIterations::test_no_self_scatter_one_inner` — material with zero
+diagonal in Σs should converge in ≤ 2 inner iterations (no self-consistency
+needed). `test_thermal_needs_more_inner_than_fast` — with the corrected
+residual, thermal groups genuinely need more inner iterations than fast
+groups. (⛔ this pointer read `test_cp_verification.py` until 2026-08-11 —
+a path that never existed, so an audit following it found nothing.)
+
+⚠ **Both gates were rewired on 2026-08-11 (#340 N4)** when `CPResult.n_inner`
+retired onto `result.record`. Their `catches("ERR-016")` markers travelled
+with them, so the coverage edge survives — and both got STRONGER in the move:
+each now also asserts the **residual trajectory** behind the count, which is
+the quantity ERR-016 was about. The retired count array could assert only
+`>= 1`, i.e. the very thing that "passed vacuously since all values were 1".
 
 **Fix:** Changed residual to relative flux change:
 `||φ_new - φ_old|| / ||φ_new||`.  This is nonzero when within-group
@@ -3606,9 +3615,11 @@ SN regression suite (11 snapshots, including regen'd cylinder):  all PASS
 
 - `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder`
   — the canonical L0 streaming-equilibrium gauntlet (12 cases).
-- `tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`
-  — NEW.  Promoted from the numerics-investigator's diagnostic
-  ``derivations/diagnostics/diag_phase_g_step2_cyl_residual_pytest.py``.
+- `tests/sn/sweep/curvilinear/test_apply_matvec_cylinder_invariants.py`
+  — Promoted from the numerics-investigator's diagnostic
+  ``diag_phase_g_step2_cyl_residual_pytest.py`` (retired 2026-08-09, #347,
+  together with the rest of the Phase G Step 2 probe cluster — the
+  promotion was the trigger its own docstring named).
   Covers (a) the apply-matvec flat-flux invariant (12 cases) +
   (b) the 4-leg 3-way standoff (12 cases): Krylov vs analytical,
   SI vs analytical, Krylov ≡ SI at machine precision.
@@ -4252,7 +4263,7 @@ inner_tol=1e-12: keff=1.8750000000
 
 **Test reference:** `tests/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere` (existing — pinned by inheritance), plus the new mesh-refinement regression catcher under `tests/sn/` (this commit), plus the restart-sweep direct-scipy diagnostic that confirms `info` discard at the kernel boundary. All three carry `@pytest.mark.catches("ERR-053")`.
 
-→ Probe path: see the 8 diagnostic scripts at `derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1..8}_*.py` for the full bisection cascade.
+→ Probe path: `derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1,2,5,6}_*.py` — **4** scripts, not the 8 this line claimed until 2026-08-09 (#347 audit: `step3`, `step4`, `step7`, `step8` were never tracked; the bisection cascade's other rungs live only in the investigator's memo).
 
 
 ## ERR-054 — `ordinate_scan` Blelloch closed-form `cumprod_a · (psi_0 + cumsum(b/cumprod_a))` produces NaN when any chain entry of `a` is exactly 0 (cylindrical pole-cell algebraic resonance)
@@ -4291,7 +4302,7 @@ At the **cylindrical pole cell** the inner radial face has zero area, so `A_down
 
 4. **1-G eigenvalue degeneracy + homogeneous-reflective shape invariance.** Even when the bug is active, `k = νΣ_f / Σ_a` is independent of the angular flux shape; a converged SI returns `k_inf` regardless of internal redistribution errors. NaN is the ONE failure that cannot be smuggled past the eigenvalue identity — it propagates.
 
-5. **Krylov bypasses the buggy code path entirely.** `transport_operator_matvec_unified` and the per-geometry matvec helpers in `orpheus/sn/operator.py` do NOT import `ordinate_scan`; only `_sweep_1d_unified` (the SI sweep path) does. The structural-independence assertion is verified in `diag_si_cyl_20cell_nan_step5_root_cause.py::test_krylov_avoids_ordinate_scan_path`.
+5. **Krylov bypassed the buggy code path entirely.** `transport_operator_matvec_unified` and the per-geometry matvec helpers in the then-extant `orpheus/sn/operator.py` did NOT import `ordinate_scan`; only `_sweep_1d_unified` (the SI sweep path) did. ⛔ **That asymmetry no longer exists and MUST NOT be re-asserted** (#347 audit, 2026-08-09): Phase G / `[[lessons-L21]]` made the matvec and the sweep two applications of ONE operator, so both now reach the scan through `loss_representation` (`[M]` `'ordinate_scan' in orpheus.sn.loss_representation.__dict__` is `True`). The diagnostic that pinned the old invariant (`diag_si_cyl_20cell_nan_step5_root_cause.py::test_krylov_avoids_ordinate_scan_path`) was retired with it. The bug-class defence is now backend-level, not path-level — `orpheus/sn/sweep/scan.py`'s division-free pair-monoid fallback protects *every* consumer.
 
 **Which test catches it.** Permanent regression catcher: `tests/sn/test_si_cyl_20cell_nan_regression.py`. Pre-fix this test FAILS on:
 
@@ -4302,8 +4313,8 @@ Post-fix (when the Blelloch closed form is replaced with a numerically-stable pa
 
 Diagnostic scripts:
 
-* `derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py` — 6 tests pinning the sharp-resonance fingerprint (`n_cells = 20` only; Krylov works on the same problem).
-* `derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py` — 4 tests pinning the cache-level `a = 0` algebraic identity, the `ordinate_scan` NaN at the failing chain, the explicit-loop finiteness, and the Krylov-bypass structural invariant.
+* `derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py` — 6 tests pinning the sharp-resonance fingerprint (`n_cells = 20` only; Krylov worked on the same problem).
+* ~~`derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py`~~ — **RETIRED 2026-08-09 (#347).** It pinned the cache-level `a = 0` identity, the `ordinate_scan` NaN, the explicit-loop finiteness, and the Krylov-bypass invariant. Three of the four are now false or unreachable: the division-free backend inverted the NaN assertion (its own docstring named that as the retirement trigger), Phase G dissolved the Krylov-bypass invariant (see point 5 above), and its `μ_x = 1/√20` resonance node belongs to the retired pre-#337 seed. Successors, both live: `tests/sn/sweep/core/test_ordinate_scan_reset.py` (scan-form contract + reachability tripwire) and `tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py`.
 
 When the fix lands, both regression tests carry `@pytest.mark.catches("ERR-054")`.
 
@@ -5380,3 +5391,151 @@ false of the *adjoint*), **ERR-067** (a metric that no eigenvalue gate can see),
 wrong invariant passed). The generalisation is `vv-principles` anti-pattern
 **#12** plus a new plan-side clause (`plan-authoring` §8): *a field a consumer
 branches on is an INPUT, not metadata.*
+
+## ERR-077 — relocating `to_local` from the restriction operator to the half-trace space (G6.5) turned an implicitly-closed membership check into TWO arrays cross-checked only by EXTENT: a hand-built method space whose `outflow_indices` diverge from the trace's declared `ordinate_indices` was ACCEPTED by the deck kernel, which emitted `local_perm = [0, 1, 2, 3]` against a gather row order the restriction never produces, where the pre-G6.5 operator-side `to_local` refused with the crossed-set message
+
+- **Where**: `orpheus/numerics/operator.py` (`TraceRestrictionOperator._checked_space`) ×
+  `orpheus/sn/boundary/realizer.py` (`_deck_kernel` post-`0d99140c`).
+- **Class**: guard DEMOTION by relocation — the moved function's precondition
+  (membership over the GATHER's own rows) was satisfied *by construction* at the old
+  host and became a separate, uncheckable-at-the-call-site fact at the new one. The
+  sibling of the rewire-demotion (a re-pointed comparison silently weakening its claim
+  class), at the guard tier.
+- **Found by**: qa's adversarial review of the G6.5 carve (dimension "F2"), 2026-08-07,
+  by hand-building the divergent pair the extent guard cannot see. Not reachable from
+  the canonical `SNMethodSpace.for_face(trace=...)` path (both arrays derive from one
+  trace computation — measured equal on every canonical build); reachable from the
+  hand-built method space `realizer.py` explicitly supports.
+- **Compounding**: the one gate that LOOKED like a cross-check
+  (`test_deck_kernel.py::test_the_LOCAL_remap_is_not_arange`) round-trips through the
+  same array (`searchsorted(sort(idx), idx[perm])` returns `perm` for ANY perm) — a
+  self-referential reference (the L11/ERR-051 family).
+- **Fix**: `_checked_space` compares `indices` elementwise against a bound codomain's
+  declared `ordinate_indices` (duck-typed — numerics cannot import the spaces module) —
+  one place, every call site; gated by
+  `tests/numerics/test_angular_face_trace_space.py::test_a_codomain_declaring_DIFFERENT_rows_is_REFUSED`.
+- **Lesson**: when a METHOD moves between hosts, re-derive its PRECONDITIONS at the new
+  host — a precondition the old host satisfied by construction does not travel with the
+  function; it must be re-established (checked) where the two objects meet.
+
+## ERR-078 — `RadialCharacteristicOperator.solve` set the outflow corner to the marched value and never read the rhs's own outflow slot, so the ψ½ System-B block's "exact inverse" was silently non-inverse on one slot per level — ERR-071's mechanism reproduced verbatim one system down, 13 days after the System-A fix
+
+- **Where**: `orpheus/sn/operators/radial_characteristic.py` (`solve` — the
+  outflow-corner write; `solve_transpose` — the missing `−I` into the source
+  outflow cotangent, plus a docstring that ASSERTED the hole as a contract:
+  "the μ=+1 corner is unused by the march … so it stays zero").
+- **Class**: dropped-rhs-row on a free-sign defect slot. The forward's outflow
+  row is the self-consistency defect ``streamed − stored`` (single-sourced in
+  `radial_characteristic_forward_residual`), so the exact inverse owes
+  ``ψ_out = streamed − q_out``; the solve emitted ``ψ_out = streamed``. The
+  `apply ∘ solve` closure then read ``streamed − streamed = 0`` **bit-exactly
+  on itself** — a closure gate green BECAUSE of the bug, not despite it (the
+  L11 self-referential-reference family).
+- **Why invisible**: every PHYSICAL rhs carries q_out = 0 (builders populate
+  inflow + cells only; the defect row reads 0 = 0 at any fixed point), so all
+  SI/eigenvalue/L0 paths — including the whole 6.2b folded-cylinder battery —
+  were structurally blind (Mode 12: the physical subspace is inside the
+  defect's invariance group). Three gates PINNED the wrong contract:
+  `test_psi_half_coupling`'s apply∘solve bit-zero closure + the
+  adjoint-consistency zero-corner assertion (adjoint-CONSISTENTLY wrong: both
+  sides dropped the row, so reciprocity held), and
+  `test_loss_transpose_solve._source_carried_mask` excluded the slot from the
+  dense-M⁻ᵀ oracle as "the outflow corner (free DOF)".
+- **Found by**: the 6.3 flip's migration (2026-08-08) — the first
+  random-composite round-trip gate over the COUPLED (bulk ⊕ ψ½) space
+  (`test_sweep_inverse_identity`, cyl_folded row): back-vs-rhs mismatched on
+  exactly the per-level outflow slots with `back = 0.0` exact, which
+  discriminates "solve dropped q_out" from "forward is a zero row" in one
+  probe.
+- **Fix**: `ψ_out = corner_out − q_out` in solve; `−corner_out_bar` into the
+  source outflow cotangent in solve_transpose. Production bit-unchanged
+  (`[M]` regression + walk + folded-arm + transport batteries green,
+  q_out ≡ 0 on every physical path). Gates re-posed to the honest algebra:
+  apply∘solve returns the rhs's OWN outflow datum (the identity, bit-exact);
+  the adjoint corner carries −v̄_out bit-exact; the G2 mask exclusion RETIRED
+  (the dense M⁻ᵀ oracle now checks every slot); the coupled round-trip gate
+  runs cyl_folded AND sphere_gl (the previously-deferred sphere seed
+  reciprocity corner).
+- **Family**: **ERR-071** (the identical dropped-outflow-rhs mechanism in the
+  System-A sweep, fixed 2026-07-26 — the fix was NOT propagated to the
+  sibling block built around the same row convention), **ERR-051**/L11 (the
+  closure gate that verified the bug against itself).
+- **Lesson**: when a defect class is fixed in one block of a coupled system,
+  grep the SIBLING blocks for the same row convention before closing — a
+  convention shared across systems shares its failure modes, and the sibling's
+  own gates may pin the wrong contract in the same stroke. And a "the slot
+  stays zero" contract line in a docstring is a tripwire: zero-by-design and
+  zero-because-dropped are indistinguishable until a random-composite gate
+  separates them.
+
+## ERR-079 — `IterationRecord.exhausted_budget` compared a scipy GMRES **restart-cycle** budget against an **Arnoldi-step** trajectory, so a healthy converged Krylov solve reported that it had run out — and the actionable advice would have handed the reader a step count to type into a cycle knob
+
+- **Where**: `orpheus/numerics/convergence.py` (`IterationRecord.budget: int`
+  beside `budget_name: str`; `exhausted_budget = self.budget > 0 and
+  self.n_iterations >= self.budget`; the `report()` line printing the raw
+  pair; the advice `set {budget_name}={projected}`) and
+  `orpheus/numerics/iteration.py` (`KrylovAcceleration.solve`, which passed
+  `budget=self.max_iter` alongside `iterations_run=len(residual_history)`).
+- **Class**: **units mismatch between two ints that no invariant related.**
+  scipy's `gmres(maxiter=m, restart=r)` runs `m` OUTER restart cycles, each an
+  INNER Arnoldi loop of up to `r` steps, and `callback_type='pr_norm'` fires
+  the callback **per inner step**. So the record stored a cycle cap and a step
+  count and compared them directly. `[M]` 2026-08-13, scipy 1.17.1, 12 of 12
+  non-converging rows over `m ∈ {1,2,3,5} × r ∈ {4,7,20}`:
+  `callbacks == m*r` exactly (and `info == m`); both converging rows fall
+  short. The exchange rate is `r`, and on the SN path
+  `restart=n_dof` (`sn/solver.py:721`, the ERR-053 fix) — so the factor is the
+  full composite dimension, not the nominal 50.
+- **Why invisible**: `[M]` **zero** tests asserted `budget` / `n_iterations` /
+  `exhausted_budget` on a record produced by a real `KrylovAcceleration.solve`
+  — every one of the 58 test records was hand-built, including the one
+  labelled `inner(gmres)`, which omits `iterations_run` and so does not even
+  reproduce the producer's shape. `truncated` MASKED it end-to-end
+  (`exhausted_budget and not converged`, and these solves converge), and
+  `status` checks `converged` before `truncated`, so the tree still printed
+  `CONVERGED`. The lie surfaced only in `exhausted_budget` itself and in
+  `report()`'s `(91/5 iterations)`. It had not yet corrupted an advice string
+  because `[M]` all 20 currently-truncating inners in the suite are
+  `inner(source-iteration)`; zero are `inner(gmres)`.
+- **Three docstrings actively argued AGAINST suspecting it**, all
+  present-tense-false and none of them wrong about what they claimed:
+  `iteration.py` `max_iter : Maximum GMRES iterations` (it is cycles — the
+  likeliest ORIGIN); `convergence.py`'s `projected_iterations` — *"counted
+  from iteration zero, so it is directly comparable to
+  `IterationRecord.budget`"* — which is the sentence the advice rests on; and
+  the `iterations_run` docstring's *"KrylovAcceleration gets one callback per
+  iteration, **so its counts match**"*, true of count-vs-trajectory and read
+  as true of count-vs-budget. The last is the sharpest: a reader who wonders
+  about GMRES units finds a sentence that answers a DIFFERENT pair and stops.
+- **Found by**: reading the #340 N6 advice path while gating it — not by any
+  test. Reproduced 2026-08-13 at `7b1618ab`: 1-group `nx=16` GL(8) vacuum
+  slab, `inner_solver="krylov", max_inner=5` → `budget=5, n_iterations=91,
+  status=CONVERGED, exhausted_budget=True`, with the `pr_residual` criterion
+  genuinely cleared at `9.4465e-11 < 1e-10` and zero warnings. Raising the
+  knob 10× to `max_inner=50` did not fix it — the numbers were never
+  commensurable.
+- **Fix**: mint `IterationBudget(limit, name, iterations_per_unit)`, absorbing
+  the retired `budget: int` + `budget_name: str` pair, and own the conversion:
+  `in_iterations` spends the rate, `exhausted_by` is the only comparison, and
+  `covering` is its **inverse** — the number the advice must print, which did
+  not exist anywhere before. GMRES states `iterations_per_unit=min(restart,n)`;
+  the other five producers take the identity default and are byte-identical in
+  every message. `[M]` post-fix the same fixture reads
+  `exhausted_budget=False`, and `report()` reads
+  `CONVERGED (91/720 iterations [max_inner=5 x 144])`.
+- **Family**: **ERR-053** (the `restart=min(50, n)` clamp that structurally
+  truncated GMRES — the same `restart` parameter, one layer down, and its fix
+  is what makes this factor `n_dof`); the #340 N6 `budget_name` field, which
+  is the same "only the producer knows" argument applied to the knob's NAME
+  and which this entry's fix absorbs into the budget.
+- **Lesson**: **two ints that are compared owe an invariant relating them, and
+  a dataclass that stores both without one will eventually store them in
+  different units.** `IterationRecord.__post_init__` tied `iterations_run` to
+  the trajectory length ("a loop cannot measure more often than it iterates")
+  and said *nothing* about `budget` — the one pair that was actually
+  compared. The tell is generic and greppable: a derived property of the shape
+  `a >= b` over two independently-supplied fields, where no constructor
+  argument forces `a` and `b` to count the same thing. And the corollary for
+  the fix: the conversion's INVERSE is the load-bearing half, because that is
+  what a diagnostic hands back to the user — a fix that only repairs the
+  comparison leaves the advice wrong.
