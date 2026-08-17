@@ -3,6 +3,86 @@
 **Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
 sections marked `[M]` carry the command or query that produced them.
 
+## ⏸ COMPACTION POINT #4 — 2026-08-16, MERGED TO MAIN
+
+⚠ **Everything below that says "on branch `feat/config-and-ontology`" or
+"`chore/nexus-project-config`" is HISTORY.** Both branches merged
+fast-forward and were deleted; `main` is nexus `6163899` and ORPHEUS
+`a7423799`. Trust `git merge-base --is-ancestor <hash> main`, not any
+sentence in this file.
+
+**Landed this session** — Tracks 1.1, 1.2, 1.3 plus an ergonomics pass the
+campaign's own title had been asking for since it was written:
+
+| | outcome | `[M]` |
+|---|---|---|
+| 1.1 | a query knows which working tree it answers about | `project_root` off 7 signatures; staleness at the tool boundary |
+| 1.2 | one `(file, line)` → node, and decorators land on their own def | misbindings **456 → 0**; `canonical_path` single-sources path equality |
+| 1.3 | an id's type segment IS the node's type | grammar violations **936 → 0**; duplicated names **279 → 115**; `citation` + `error` types; `exception` retired |
+| — | a tool answer fits a context | `processes()` **1,238,013 → 3,665** tokens; all 13 tools **~1.4M → ~39k**; briefing **10,564 → 2,975** |
+| — | what nexus says is a setting | `.nexus/config.toml` `[replies]`/`[briefing]`; ontology is the vocabulary authority |
+
+⭐⭐ **The transferable rulings**, none of which are ORPHEUS-specific:
+1. **A kind stored in the id is a second source of truth and always bills.**
+   `prf:theorem:` cost a 15-way prefix scan plus a whole-graph fallback.
+2. **Gate the declaration the vocabulary ALREADY makes before inventing a
+   new one.** `origin` sat in `ontology.toml` unchecked; checking it is what
+   exposed a type only one producer could ever assign.
+3. ⛔ **"Semantics" and "fixed" are not the same thing.** I wrote a rule
+   ("a constant when it changes what nexus MEANS") and applied it to the
+   vocabulary — which the tool had already made *extensible*. Semantics
+   belong in `ontology.toml`; that they are extensible is the point of
+   giving them a file.
+4. **A defect that only becomes REACHABLE once twins merge is an argument
+   FOR merging** — 94 `contains` self-loops looked like structure while the
+   edge ran between two nodes.
+
+### ▶ NEXT STEPS — measured 2026-08-16, in priority order
+
+1. ⛔ **#67 is NOT fixed, and I believed it was.** `[M]` re-running the
+   issue's own probe: **478 B per neighbour** against its 488–572 baseline
+   — a ~2 % improvement against a **−78 %** target. Node compaction slimmed
+   the node; the **edge dict is 46 % of the payload** and nearly all of it
+   is redundant:
+   ```json
+   "edge": {"source": "…solve_sn",   ← the node you asked about
+            "target": "py:class:dict", ← the id on the line above
+            "type": "type_uses",       ← the only information here
+            "key": "0"}                ← a MultiDiGraph internal
+   ```
+   Flatten a neighbour to `{id, type?, degree, edge_type, direction}`;
+   the issue's target is ~124 B/pair. ⚠ The BUDGET currently hides this —
+   `neighbors` returns 17,887 bytes because it is truncated, not because
+   it is slim. Do not read a bounded payload as a small one.
+2. **`retest` (#62)** — hard-coded `max_depth=3`, `[M]` **5.1 % falsely
+   `safe_to_skip`**. A wrong answer in the dangerous direction, and now a
+   one-line `[replies]`-style tunable.
+3. **The ORPHEUS-side corpus move** (user's call): `catches` machinery is
+   built and idle — `[M]` 243 markers naming 78 entries, and the build says
+   so once per run. Moving `error_catalog.md` into `docs/` as
+   `.. error-entry::` blocks makes *"which catalogued defect has no
+   catcher?"* answerable and closes **#63**.
+4. **The plan's own remaining tracks** — `Evidence`/`Diagnostic` (Track
+   1.4), §5.1 `exercises` retype, §5.4 `layer` as a node property. All
+   still ⬜ **relayed, not reproduced**, and that gate has now refuted a
+   stated done-when **twice**.
+
+⚠ **Bigger, separate, worth knowing:** **#58** `bridges`/`communities` do
+not complete at ORPHEUS scale (>180 s — two MCP tools unusable here);
+**#55** call resolution mints a phantom per receiver SPELLING, `[M]`
+**17.2 %** of calls unresolved — the largest remaining correctness number
+in the graph; **#61** 254 files use module-level `pytestmark` and are
+invisible to the marker lift, which compounds directly with
+`verifies`/`catches`.
+
+⚠ **Still uncommitted in ORPHEUS**, awaiting a user ruling:
+`.claude/skills/vv-principles/SKILL.md` and `error_catalog.md` carry ~500
+lines of accumulation from earlier sessions plus this campaign's
+`vv-principles` **#26**.
+
+⚠ **The MCP server serves the code it imported at startup** — reconnect
+(`/mcp`) before trusting a tool to reflect anything above.
+
 ## ⏸ COMPACTION POINT #3 — 2026-08-16, Track 0 COMPLETE (0.1–0.6)
 
 **Track 0 has landed**; Track 1 has not started. Work is on branch
