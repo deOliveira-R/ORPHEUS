@@ -3,6 +3,128 @@
 **Status: PARTLY APPROVED.** Sections marked *proposed* are still hypotheses;
 sections marked `[M]` carry the command or query that produced them.
 
+## ⏸ COMPACTION POINT #7 — 2026-08-17, PUSHED · the thread hands off to ORPHEUS #308
+
+⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos
+are on `main` and **pushed**: nexus `77d649a`, ORPHEUS `9fcf59b3`, both
+0 unpushed, 0 dirty. `git merge-base --is-ancestor <hash> main` is the
+authority, not any sentence in this file.
+
+⚠ **Reconnect the MCP server** (`/mcp`) before trusting any nexus tool.
+⚠ **The ORPHEUS graph was REBUILT** at `9fcf59b3` — position staleness
+is cleared; a pre-rebuild graph makes every reply carry a `stale` note.
+
+### Landed since #6
+
+| what | outcome | where the number is RE-MEASURED |
+|---|---|---|
+| **nexus#82 steps 1–2** | equation-level stand-down `3616d55`; e2e witness `c20232a`; **85 declarations** across 2 ORPHEUS theory pages (`144cdf51`) | `evals/fidelity_probes.py` (F5) |
+| **nexus#72 CLOSED** | `provenance_chain` follows `implements` both ways (`e012d19`) — 148 → 9 equations, 100 → 2 implementers, a 40-implementer **false ALIVE** → 0 | `evals/implements_ground_truth.py` |
+| **the inference got a labelled set** | `c207277` — 82 verified implementers / 56 equations; **narrowing REFUTED** | same scorer, `--variants` |
+| **the scoreboard was lying** | `77d649a` — F8 reported 1/4 against a hand-verified 4/4 | `evals/fidelity_probes.py` |
+| filed | nexus **#84** (path anchor), **#85** (declare-nothing), **#86** (declare path unchecked), **#87** (authored-edge rule) | — |
+| ORPHEUS hygiene | ERR-009 heading `fd74da2d`; dead catalogue pointer `9fcf59b3`; vv doctrine committed `b225da70` | — |
+
+⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
+Run them.
+
+### ⭐⭐ Rulings that transfer
+
+1. ⭐⭐ **A metric adopted as a TARGET must be checked that it can move
+   toward it.** Hit **three times in one day**: F5 read provenance off
+   the edge TYPE and would have counted this campaign's own declarations
+   as guesses; the ground-truth scorer built to replace it printed
+   `precision 0.0 %` on first success; the F8/F3 probes graded the graph
+   while every fix landed in the reply layer. Now `plan-authoring` §10.
+2. ⭐⭐ **A probe must call the surface the CONSUMER calls, CONFIGURED
+   the way the consumer configures it.** Making the probes call
+   `GraphQuery` for real was not enough — `GraphQuery(kg)` leaves
+   `_workspace=None`, so `pytest_id` came back `None` on all **1206**
+   test nodes while the same query through the server returned it for
+   every one. Two objects of one class, built differently, are different
+   instruments.
+3. **A probe whose job is to report "the tool is missing" must not CRASH
+   when it is missing** — deleting `file_brief` killed the scoreboard on
+   import, so no row said why.
+4. ⛔ **The token inference is ~2 % precise and no lexical narrowing
+   helps** — tokenizing the symbol's own name (the obvious fix, since
+   `peierls`/`greens` are module names) halves the edges and *drops*
+   recall. Declaring, and declaring-NOTHING (#85), are the only levers.
+5. **An authored edge needs three things a derived edge gets free**
+   (#87): a named query from BOTH ends, a provenance mark, a
+   dangling-pointer report. Cross-domain-ness is the CAUSE;
+   unmaintainable-by-derivation is the property that matters.
+6. **A retirement can silently PROMOTE a gate's claim class**, and the
+   stale docstring then talks a load-bearing gate down — now in
+   `coding-standards.md` beside the demotion hazard.
+7. ⚠ **Third relay-without-verification of the campaign**, and the only
+   one that reached a public surface: an explorer's "the pages already
+   label which equations are unimplementable" went into the plan and two
+   GitHub issues before measurement refuted it (`099630ab`).
+
+### ▶ NEXT — a catalogued defect is a GRAPH NODE, so "which defect has no catcher" is a query
+
+**This thread hands off to ORPHEUS #308** (skill layer v2: dynamic `!`
+injection from the corpus). ⭐ **Read the 2026-08-17 comment on #308
+before designing** — it carries the scoping, and it supersedes the
+issue body on three points.
+
+**Goal.** The 79-entry error catalogue lives in the corpus as
+`.. error-entry::` nodes, so `catches` becomes a traversable edge and
+`nexus#63` ("which catalogued defect has no catcher?") is answerable.
+`[M]` today `catches` has **0 edges** while 215 markers name 79 ids.
+
+**User rulings, 2026-08-17:**
+- after the move the skill keeps **the INDEX only** — bodies live once,
+  in the corpus;
+- the index is **DERIVED from the graph, never authored** (79 authored
+  rows beside 79 entries is the twin source #308 exists to remove);
+- do this **before** the `vv-principles` pilot — same machinery,
+  unambiguous SSOT, no governance inversion, and **no ablation gate**.
+
+**`[M]` existence-checked 2026-08-17, all three ABSENT — this is build,
+not find:**
+- `docs/theory/verification/error_catalog.rst` — does not exist (the
+  directory holds `principles.rst`, `matrix.rst`, `harness.rst`)
+- a `nexus errors` CLI verb — absent from `nexus --help`
+- any MCP tool for errors/catches — no `def errors|error_index|catches`
+  in `server.py`
+
+**`[M]` catalogue state**, audited 2026-08-17: **79 entries,
+ERR-001..ERR-079**, no gaps, no duplicates; every marked id has an
+entry; **0 entries lack a catcher**. So #63's answer today is *none* —
+nexus simply cannot compute it.
+
+⛔ **The hazard that shapes the whole design, and #308's body UNDERSTATES
+it.** A failed `!`-injected command does not degrade the skill — **it
+aborts the entire skill invocation; the model never sees the body**.
+`vv-principles` is preloaded by FIVE agents. So inject from **tracked
+generated files, `cat`-only, no venv at load**, and shape any
+shell-out as `… || echo "(fallback)"; exit 0`. In-repo pattern:
+`.claude/commands/doc-health.md`.
+
+⚠ **Do NOT normalise the catalogue schema in the same pass.** `[M]`
+`Failure mode:` is present in 67/79 and absent from **all 13 newest**;
+`Solver:` 38 vs `Module:` 37 are two names for one concept; `How it
+hid:` has two spellings; 65 distinct failure-mode strings over 79
+entries. That is a real per-entry judgement pass — do it afterwards, in
+the corpus, where grep and `-W` can check it.
+
+⭐ **Index design, from this campaign's own F3 lesson:** the index
+header must state the node-id scheme (`vv:error:ERR-009`) once, so no
+reader has to invent the prefix. Rows carry id + title + catcher count;
+the zero-catcher rows ARE #63's answer.
+
+**Suggested order:** (1) `nexus errors` verb + MCP tool, so the index
+exists before anything depends on it; (2) archivist converts 79 entries
+with a reconciliation gate — 79 in, 79 directives out, `catches` edges
+non-zero; (3) skill body becomes index-only, injected.
+
+**Also open, unchanged:** nexus `#81`/`#83` (one overlay), `#76`/`#16`
+(dispatch behind the zero-callers), `#63` (unblocked by the above),
+and the probes still owed — F1-honesty, F4-recall, and now
+**answer-GRANULARITY**, the class `#72` was, which passed every row.
+
 ## ⏸ COMPACTION POINT #6 — 2026-08-17, PUSHED · F8 is 4 of 4
 
 ⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos
