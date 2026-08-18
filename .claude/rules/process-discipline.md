@@ -86,6 +86,37 @@ state.
   > deliberately-broken guard. `diff` against the copy-aside caught it on the next command.
   > Re-scoped to the two files that could redden, the same battery ran in ~30 s.
 
+## After pushing, look at CI — and a RED one must be baselined before you add to it
+
+"`main` is always green" is a claim about CI, so it is only true if someone
+reads CI. Pushing and moving on treats the gate as decoration.
+
+⭐ **The non-obvious half, and the reason this is a rule rather than a
+reminder: a CI that is ALREADY red cannot tell your regression from the
+inherited one.** The run said `failure` before your push and `failure` after
+it — identical output, zero information. This is the same defect the
+`vv-principles` instrument rules describe (a reading that cannot change
+carries nothing), except the instrument is the build.
+
+⟹ On finding a red CI, **establish the baseline before fixing or adding
+anything**: read the last run from before your work and count what failed.
+Then your own contribution is a subtraction, and both halves are reportable —
+*"the baseline was N, I added M, here is why"* — instead of a single number
+that lets an inherited failure be quietly adopted or a new one quietly hidden.
+
+> `[M]` 2026-08-18, nexus. CI had failed **29 of its last 30 runs**, across two
+> jobs, for over a day. I pushed **six** times into it without looking. The
+> baseline at `6e469e9` was **11** pyright errors; when I finally checked it
+> read **13** — my two, invisible in a number that had never been green. Had
+> the baseline been read at the first push, they would have been caught at the
+> commit that introduced them, where the fix is one narrowing.
+>
+> The cost of the delay was not the fix (minutes) but the attribution: it took
+> a CI-log archaeology pass over an old run to establish which 11 were not
+> mine. ⚠ And note the direction — a long-red CI makes ADOPTING someone else's
+> failure the path of least resistance, because "it was already failing" is
+> true and exculpatory right up until it is your code.
+
 ## A refuted candidate is first-class output — record the structural REASON
 
 When an investigation rejects a hypothesis, frame, design, or root-cause candidate, the
