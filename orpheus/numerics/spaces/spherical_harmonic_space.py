@@ -36,7 +36,7 @@ References
 * :mod:`orpheus.numerics.basis.spherical_harmonic_basis` — the basis,
   the SH convention, and the source of
   :attr:`SphericalHarmonicSpace.metric_per_ell`.
-* ERR-039 entry: ``.claude/skills/vv-principles/error_catalog.md``.
+* ERR-039 entry: ``docs/theory/verification/error_catalog.rst``.
 """
 
 from __future__ import annotations

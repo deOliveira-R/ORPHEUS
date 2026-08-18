@@ -1246,7 +1246,7 @@ Eqs. 1–12; the Adams-2001 thick-diffusion verdict; BLA-1992); the closeout is
    gates, NOT on the cell-matrix ``A == A`` pin (the code binds
    :math:`A_{\rm cell}` as ``A``), which checks ``assemble_ubld``'s
    ``A``/``M``/``G``/``F_out`` and is structurally blind to the
-   dropped inflow factor — see ``error_catalog.md`` ERR-060.)
+   dropped inflow factor — see ``error_catalog.rst`` ERR-060.)
 
 .. _ld-ubld-branch2-primitive:
 
@@ -2417,7 +2417,7 @@ the sweep (source-iteration) paths:
    The lesson: gate the converged VALUE against a structurally-independent
    reference (the continuous diffusion solution + the independent from-scratch
    kernel), never the round-trip.  This is failure Mode 1 (sign flip) +
-   Mode 6 (convention drift) — see ``error_catalog.md`` ERR-061.
+   Mode 6 (convention drift) — see ``error_catalog.rst`` ERR-061.
 
 The thick-cell diffusion tripwire is
 ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
@@ -2496,7 +2496,7 @@ the twin cannot diverge on the moment-axis convention.  DD/Step (no moment axis)
    NON-SQUARE :math:`5\times4`, vacuum edges.  Mutation-verified: re-introducing
    the bare ``sigma * probe[oct_idx]`` makes the gate FAIL with the exact
    ``ValueError``; with the fix Krylov :math:`\equiv` SI to :math:`\sim10^{-11}`
-   (the same :math:`(L+C-S_{\rm full})` fixed point).  See ``error_catalog.md``
+   (the same :math:`(L+C-S_{\rm full})` fixed point).  See ``error_catalog.rst``
    ERR-062.
 
 The source is :mod:`orpheus.sn.loss_representation` (``_moment_broadcast_sigma``,

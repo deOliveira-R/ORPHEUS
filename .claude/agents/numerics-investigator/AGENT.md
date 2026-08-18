@@ -278,7 +278,7 @@ studies (`scripts/`).
 When a diagnostic cascade closes (root cause found, fix committed),
 the close-out commit **MUST**:
 
-1. Append the bug to `.claude/skills/vv-principles/error_catalog.md`
+1. Append the bug to `docs/theory/verification/error_catalog.rst`
    with ERR-NNN, failure mode (1–6), how it hid, which test catches
    it, lesson — per the `vv-principles` §"Log every caught bug"
    directive.

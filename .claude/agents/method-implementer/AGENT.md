@@ -201,5 +201,5 @@ prior implementation phases. After a task closes:
    closeout memo. The skill grows by implementation evidence; gaps in
    the skill mean lessons did not propagate.
 3. If a bug was caught at the L1 cross-check stage, log it to
-   `.claude/skills/vv-principles/error_catalog.md` per the
+   `docs/theory/verification/error_catalog.rst` per the
    "Log every caught bug" directive in `vv-principles`.

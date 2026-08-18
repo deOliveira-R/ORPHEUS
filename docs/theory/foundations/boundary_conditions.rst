@@ -118,7 +118,7 @@ Key Facts
 - The eight typed errors :class:`~orpheus.geometry.boundary.IncomingOutgoingTraceClassificationError`
   through :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
   (ERR-040..ERR-047 in the V&V error catalog at
-  ``.claude/skills/vv-principles/error_catalog.md``) replace the
+  ``docs/theory/verification/error_catalog.rst``) replace the
   pre-refactor generic :class:`ValueError` raises; every one is
   pinned by a ``@pytest.mark.catches("ERR-NNN")`` decorator on the
   test that fires it.
@@ -7145,7 +7145,7 @@ N-D layout campaign reaches C5 with the boundary keying already
    derivation, which is what makes the d=3 extension correct by
    construction. The error catalog records *shipped* L0-caught bugs;
    a defect closed by construction before its triggering type exists
-   is documented here, not in ``error_catalog.md``.
+   is documented here, not in ``error_catalog.rst``.
 
 Why string-keyed, not FaceLabel-keyed
 -------------------------------------
@@ -8015,5 +8015,5 @@ References
 * :ref:`operator-algebra` for the Wave-0 primitives the realized
   BCs decompose into.
 * The V&V error catalog in the ``vv-principles`` skill
-  (``.claude/skills/vv-principles/error_catalog.md``) carries
+  (``docs/theory/verification/error_catalog.rst``) carries
   the ERR-040..ERR-047 entries in canonical form.

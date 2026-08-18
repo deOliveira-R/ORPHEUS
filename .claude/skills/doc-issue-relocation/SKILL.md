@@ -34,7 +34,7 @@ inside the doc tree intact.
 - The cut is < 50 LoC and the issue body already captures the
   context — a one-line tombstone in the issue is enough; full
   relocation is overkill.
-- The narrative is fully captured in `tests/l0_error_catalog.md`
+- The narrative is fully captured in `docs/theory/verification/error_catalog.rst`
   (ERR-NNN entries with failure-mode, hide-mechanism, fix). The
   catalog IS the post-mortem; relocating to the issue duplicates it.
 - The work is still active and the doc section is the active research
@@ -67,7 +67,7 @@ Surviving doc anchors:
 - :ref:   <section-labels that survive elsewhere in the doc>
 - citations preserved as plain text (Sanchez1982, Hébert3-323, …)
 
-[For OPEN issues only: "Hard evidence pin: ERR-NNN in tests/l0_error_catalog.md" if applicable.]
+[For OPEN issues only: "Hard evidence pin: ERR-NNN in docs/theory/verification/error_catalog.rst" if applicable.]
 
 ---
 

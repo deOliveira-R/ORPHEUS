@@ -21,7 +21,7 @@ R=0.75 c=1.30 it grows to ~4.4%; at R=0.99 c=1.30 (where d_crit
 = 0.00728 mfp) it reaches 5.0%. **This is the published reference's
 first-order approximation precision floor at small slab thicknesses,
 NOT a defect in our implementation of Eq 46.** See ERR-038 entry in
-``.claude/skills/vv-principles/error_catalog.md`` and the slab module
+``docs/theory/verification/error_catalog.rst`` and the slab module
 docstring for the cascade evidence (Atalay's own text on p.236, p.246
 explicitly states the first-order approximation, and our solver
 agrees with Atalay to machine precision at moderate d where the

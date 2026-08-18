@@ -638,7 +638,7 @@ Pattern 4 + Pattern 7 simultaneously: the cell-visit object encodes the directio
 - **The grand report** (`.claude/plans/neutron_transport_grand_report_v3.md`) — the architectural target for ORPHEUS specifically: L, C, S, F + B as the four-operator algebra. The acceptance criterion of the elegance standard in this codebase.
 - **Cardinal Rules** (`CLAUDE.md`) — Rule 1 (correctness), Rule 2 (architecture), Rule 3 (Sphinx is the LLM's brain). Elegance is the operationalisation of Rule 2; this skill is its codification.
 - **Phase G plan** (`.claude/plans/issue_196_phase_g_four_operator_unification.md`) — the migration that lands the elegance acceptance criterion in production.
-- **ERR catalog** (`.claude/skills/vv-principles/error_catalog.md`) — every L0-caught bug; cross-reference for the bug-prevention argument.
+- **ERR catalog** (`docs/theory/verification/error_catalog.rst`) — every L0-caught bug; cross-reference for the bug-prevention argument.
 
 ---
 

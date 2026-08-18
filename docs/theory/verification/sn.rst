@@ -2009,7 +2009,7 @@ Session trail (V&V audit trail)
   the central cell, no special closure), :cite:`BaileyMorelChang2010` Eq. 43
   (the exact-on-linear weight), :cite:`WuXieFischer1999` (the nodal route to
   :math:`\mathcal{O}(h^2)` at the origin).
-* **vv catalogue**: ``error_catalog.md`` — ERR-059 (the pole-cell
+* **vv catalogue**: ``error_catalog.rst`` — ERR-059 (the pole-cell
   inherent limitation) + the :math:`\tau`-clamp mis-citation finding +
   the ERR-026 surviving-manifestation note.
 * **Issues**: #229 (cylinder floor + sphere gate retune), #9

@@ -86,8 +86,14 @@ exclude_patterns = ["student_resources/*", "scratch/*"]
 # home rather than being retyped per invocation.
 prefixes = ["orpheus", "tests"]
 
-[catalog]
-# The L0 error catalogue. Unblocks `err:ERR-NNN` nodes and a real `catches`
-# edge (deOliveira-R/sphinxcontrib-nexus#63); `nexus gaps` currently reports
-# `error_catalog_size: None` because nothing tells it where this lives.
-errors = ".claude/skills/vv-principles/error_catalog.md"
+# [catalog] errors — RETIRED 2026-08-17, deliberately left as a note.
+#
+# It used to point `nexus gaps` at the catalogue file, because nothing
+# else could tell it where the entries lived. Since #308 the entries ARE
+# graph nodes: `docs/theory/verification/error_catalog.rst` declares one
+# `.. error-entry::` each, `@pytest.mark.catches` resolves onto them, and
+# `verification_gaps` / `errors` read them straight from the graph. The
+# key now names a second source of the same truth, so it is gone.
+#
+# It survives upstream (nexus#63) only for a project that keeps its
+# catalogue OUTSIDE its corpus. This one does not.

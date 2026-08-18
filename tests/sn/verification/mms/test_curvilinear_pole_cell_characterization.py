@@ -89,7 +89,7 @@ LOWER-BOUND it at 0.8 deliberately, so a future LD/nodal fix that lifts
 the pole to O(h^2) keeps this gate GREEN (2.0 > 0.8).
 
 The pole-cell defect is catalogued as **ERR-059** (W5, 2026-06-13;
-``.claude/skills/vv-principles/error_catalog.md``) — a DOCUMENTED
+``docs/theory/verification/error_catalog.rst``) — a DOCUMENTED
 INHERENT LIMITATION (WONTFIX-for-DD).  All four tests below carry
 ``@pytest.mark.catches("ERR-059")``.
 

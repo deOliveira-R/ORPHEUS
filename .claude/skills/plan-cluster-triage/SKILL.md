@@ -123,7 +123,7 @@ the banner already says everything a future reader needs.
 
 > Example: `verification-spec-split-adaptive.md` had `RETRACTED 2026-04-22` at line 1 → hard-delete.
 
-### 2. Bug investigation plan whose findings are now in `tests/l0_error_catalog.md` → DELETE
+### 2. Bug investigation plan whose findings are now in `docs/theory/verification/error_catalog.rst` → DELETE
 
 The catalog entries (with ERR-NNN, failure mode, "How it hid", "L1
 test that catches", "Fix" with issue ref) ARE the post-mortem.

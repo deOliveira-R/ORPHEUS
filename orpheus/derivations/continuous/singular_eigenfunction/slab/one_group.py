@@ -57,7 +57,7 @@ to:
 This 1/d-scaling error is the **published reference's first-order
 approximation precision floor** at small slab thicknesses — NOT a bug
 in our implementation of Eq 46. See ERR-038 in
-``.claude/skills/vv-principles/error_catalog.md`` for the cascade
+``docs/theory/verification/error_catalog.rst`` for the cascade
 evidence and structurally-independent grounding (Atalay's own text,
 the 1/d_crit scaling fingerprint, and self-consistency at moderate d).
 

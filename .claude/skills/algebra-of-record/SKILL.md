@@ -766,7 +766,7 @@ The discipline inherits this lesson: **for problems where 1A and
   recognition catalogue for "Branch 1 / Branch 2 disagreement"
   fingerprints (constant-factor convention drift, forward-vs-backward
   trajectory, etc.).
-- **ERR catalogue**: `.claude/skills/vv-principles/error_catalog.md`
+- **ERR catalogue**: `docs/theory/verification/error_catalog.rst`
   — every L0-caught bug, including ERR-032 (the canonical
   shared-upstream-identity instance).
 - **Plan 2 / Variant α work** (worked example):

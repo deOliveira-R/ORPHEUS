@@ -618,7 +618,7 @@ weighting :math:`(1 - \tau_m)`.  Setting the seed to zero when
 Hébert's structural form says :math:`\psi_{1/2,i,g} =
 \bar\phi_{1/2,i}` (the inward-sweep output) is a **wrong term
 initialisation** — Mode 3 in the
-``vv-principles`` 6-failure-mode taxonomy (see ``error_catalog.md``
+``vv-principles`` 6-failure-mode taxonomy (see ``error_catalog.rst``
 ERR-026 entry).
 
 How the wrong seed survived Phase B
@@ -1097,7 +1097,7 @@ sphere + cylinder × isotropic + anisotropic ansatz) therefore
 the Phase D defaults (which is what triggers the deferred Step 5
 marker-removal commit); the pre-asymptotic-magnitude regression
 that prevents `strict=True` flipping is Issue #195's domain.  The
-narrative for ``error_catalog.md`` therefore reads:
+narrative for ``error_catalog.rst`` therefore reads:
 
    ERR-026 status: **PARTIAL CLOSURE** (was PARTIAL through Phase
    C, narrowed scope through Phase D).  The structural bug (M-M
@@ -1875,7 +1875,7 @@ essentially reaches 1); what was thought to remain was a milder
 **convergence-rate** gap between SI and Krylov on heterogeneous MR
 snapshots (at n=40 per-cell shape differing by ~5 %, apparently
 converging :math:`\mathcal{O}(h)` toward zero under refinement),
-logged in ``error_catalog.md`` as **ERR-026 manifestation #7**:
+logged in ``error_catalog.rst`` as **ERR-026 manifestation #7**:
 
    *"SI-vs-Krylov per-cell agreement (residual O(h) WDD
    asymmetry) — OPEN, new follow-up after Phase F."*
@@ -2015,7 +2015,7 @@ Pointers
   — what shipped, the empirical evidence tables, files
   touched, residual-open items.
 * **ERR-026 catalogue narrative**:
-  ``.claude/skills/vv-principles/error_catalog.md`` (§ ERR-026,
+  ``docs/theory/verification/error_catalog.rst`` (§ ERR-026,
   *"What Wave H Phase F added"*) — manifestation table update
   #6 CLOSED, #7 (new) OPEN.
 * **Sister section on the BC apply call sequence**:
@@ -2803,7 +2803,7 @@ Session trail (V&V audit trail)
 ---------------------------------
 
 * **ERR-058 catalogue narrative**:
-  ``.claude/skills/vv-principles/error_catalog.md`` (§ ERR-058) — the
+  ``docs/theory/verification/error_catalog.rst`` (§ ERR-058) — the
   authoritative two-manifestation mechanism + post-fix evidence.
 * **Re-scope record**: `Issue #195
   <https://github.com/deOliveira-R/ORPHEUS/issues/195>`_ comments

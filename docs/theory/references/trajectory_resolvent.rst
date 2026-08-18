@@ -4492,7 +4492,7 @@ algebra (across a non-trivial BC diagonal) AND the trajectory
 machinery (asymmetric flux peaks AT the reflective wall, not at an
 interior point — a sensitive bug-fingerprint for trajectory-
 parametrisation errors). Each was logged to
-:file:`.claude/skills/vv-principles/error_catalog.md` as a separate
+:file:`docs/theory/verification/error_catalog.rst` as a separate
 ERR-NNN entry. ERR-034 was fixed in this phase; ERR-035 was
 documented and gated, with the fix applied subsequently as the
 Phase-3A → Phase-3B delegation refactor.
@@ -4784,7 +4784,7 @@ This subsection documents the full history of the ERR-035 closure
 heuristic and its delegation fix, because the lesson is load-bearing
 for any future Variant α geometry extension. The two ERR-NNN entries
 are catalogued at
-:file:`.claude/skills/vv-principles/error_catalog.md`.
+:file:`docs/theory/verification/error_catalog.rst`.
 
 **The heuristic and its origin.** When Phase-3A slab Variant α was
 first implemented, the geometry was the first to introduce a

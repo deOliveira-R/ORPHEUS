@@ -42,7 +42,7 @@ defect that scales with the problem dimension) will surface here.
 References
 ==========
 
-* ``.claude/skills/vv-principles/error_catalog.md`` ERR-053 — full
+* ``docs/theory/verification/error_catalog.rst`` ERR-053 — full
   mechanism, root cause analysis, and fix rationale.
 * The 8 diagnostic scripts at
   ``derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1..8}_*.py``
@@ -143,7 +143,7 @@ def test_krylov_kinf_independent_of_mesh_refinement(
         f"Krylov keff = {keff:.10f}, ref = {_kinf_analytical:.10f}, "
         f"err = {err:.3e}.  ERR-053 signature: subspace truncation in "
         f"GMRES (restart=min(50, full_size) clamp).  See "
-        f"``.claude/skills/vv-principles/error_catalog.md`` ERR-053."
+        f"``docs/theory/verification/error_catalog.rst`` ERR-053."
     )
 
 

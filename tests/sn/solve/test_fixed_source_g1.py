@@ -52,7 +52,7 @@ References
 * ``.claude/plans/r1_step4_g_convention_crosswalk.md`` Axis 1 + 2.
 * ``.claude/plans/r1_step4_g_dependency_audit.md`` SURPRISE-4 +
   SURPRISE-5 (2-D Cartesian Krylov defers; SI is the landing zone).
-* ``.claude/skills/vv-principles/error_catalog.md`` ERR-049
+* ``docs/theory/verification/error_catalog.rst`` ERR-049
   (convention drift) + ERR-050 (silent precond fallback).
 * ``.claude/lessons.md`` L18 (Pattern 7 producer-side) + L19
   (None-default stateful invariants).

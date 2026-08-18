@@ -78,7 +78,7 @@ and both are wrong.
 
 The canonical instance is ERR-032 (all ``ERR-NNN`` entries live in
 the error catalog,
-``.claude/skills/vv-principles/error_catalog.md``). Two
+``docs/theory/verification/error_catalog.rst``). Two
 "independent" cross-checks of a Peierls kernel both applied the
 identity :math:`\int E_2 = 1 - E_3`. The correct identity is
 :math:`\int E_2 = \tfrac{1}{2} - E_3`. The two implementations
@@ -1137,7 +1137,7 @@ The error-catalog contract
 ==========================
 
 Every bug caught during development is logged as an ``ERR-NNN``
-entry in ``.claude/skills/vv-principles/error_catalog.md``, with
+entry in ``docs/theory/verification/error_catalog.rst``, with
 its failure mode (1–6), how it hid (which evidence class fooled the
 previous tests), which test now catches it, and a one-sentence
 lesson. Each entry is pinned by a regression test carrying

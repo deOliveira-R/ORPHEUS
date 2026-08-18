@@ -61,7 +61,7 @@ Design principles
 5. **Central audit, not per-file checks.** A single command —
    ``python -m tests._harness.audit`` — produces the full V&V matrix,
    lists orphan equations, and cross-checks
-   ``.claude/skills/vv-principles/error_catalog.md``. No scattered assertions.
+   :doc:`error_catalog`. No scattered assertions.
 
 6. **Enforcement mode.** Every test in ``tests/`` carries a level
    tag — physics (``l0``..``l3``) or ``foundation``. The audit tool
@@ -228,7 +228,7 @@ The audit CLI
    the orphan gate):
      ...
 
-   error_catalog.md ERR coverage (N/N entries have a catching test):
+   error_catalog.rst ERR coverage (N/N entries have a catching test):
 
 The output shape above is illustrative — every count drifts with each
 commit, so run the CLI for current numbers (the auto-generated
@@ -256,7 +256,7 @@ Flags:
     zero verifying tests, excluding documented-sentinel labels),
     phantom verifies-targets (tests naming a ``:label:`` that exists
     nowhere under ``docs/``), and ``ERR-NNN`` entries in
-    ``.claude/skills/vv-principles/error_catalog.md`` with no
+    :doc:`error_catalog` with no
     catching test.
 ``--strict``
     Exit 1 if **any** of three gates trip:
@@ -600,7 +600,8 @@ When adding a new test:
   foundation — don't fabricate a label.
 - [ ] If the test protects against a specific ERR-NNN or FM-NN, add
   ``@pytest.mark.catches("ERR-NNN", "FM-NN")`` and update
-  ``.claude/skills/vv-principles/error_catalog.md`` to reference the new test by nodeid.
+  :doc:`error_catalog` — add or extend the ``.. error-entry::`` block so it
+  references the new test by nodeid.
   The ``catches`` decorator is orthogonal to the level bucket — a
   foundation test can be the catcher for an ERR entry (ERR-020 is
   the canonical example).

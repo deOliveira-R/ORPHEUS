@@ -44,7 +44,7 @@ References
 * Hébert §3.9.4 Eqs. (3.432)-(3.435) — Carlson coupled-pole seed.
 * Pomraning 1989 NSE 102:317-336 — structural-singularity isotropy.
 * ERR-048 manifestation #3 entry in
-  ``.claude/skills/vv-principles/error_catalog.md``.
+  ``docs/theory/verification/error_catalog.rst``.
 """
 from __future__ import annotations
 

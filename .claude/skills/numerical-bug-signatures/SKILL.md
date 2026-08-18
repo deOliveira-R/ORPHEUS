@@ -1,6 +1,6 @@
 ---
 name: numerical-bug-signatures
-description: 'Use when triaging a "wrong answer" or "all tests pass but..." report in a numerical solver. Provides recognition signatures for known bug classes (cylindrical-DD divergence under refinement, MOC weight cancellation, scattering matrix transpose convention, quadrature weight sums, alpha-dome positivity), each linked to the test that catches it and the ERR-NNN entry in `../vv-principles/error_catalog.md`. Examples: "k_eff diverges as I refine", "homogeneous case passes but multi-region fails", "transport sweep gives wrong answer in curvilinear geometry only". Preloaded by qa, numerics-investigator, and test-architect.'
+description: 'Use when triaging a "wrong answer" or "all tests pass but..." report in a numerical solver. Provides recognition signatures for known bug classes (cylindrical-DD divergence under refinement, MOC weight cancellation, scattering matrix transpose convention, quadrature weight sums, alpha-dome positivity), each linked to the test that catches it and the ERR-NNN entry in `docs/theory/verification/error_catalog.rst`. Examples: "k_eff diverges as I refine", "homogeneous case passes but multi-region fails", "transport sweep gives wrong answer in curvilinear geometry only". Preloaded by qa, numerics-investigator, and test-architect.'
 ---
 
 # Numerical Bug Signatures — recognition catalog for plausible-wrong solver bugs
@@ -14,7 +14,7 @@ and only declare themselves under specific stress configurations
 (heterogeneous, multi-group, mesh-refined).
 
 The catalog below pairs each signature with its catching test and
-its ERR-NNN entry in `../vv-principles/error_catalog.md`. Use it to
+its ERR-NNN entry in `docs/theory/verification/error_catalog.rst`. Use it to
 **recognise** a reported symptom — not to apply blind fixes.
 
 ## When to use
@@ -613,12 +613,12 @@ convergence test* before accepting any "all tests pass" claim.
 To add a new signature to this catalog:
 
 1. **Confirm the bug class is recurrent.** A one-off bug goes in
-   `../vv-principles/error_catalog.md` only. A signature here must be a
+   `docs/theory/verification/error_catalog.rst` only. A signature here must be a
    *class* of plausible-wrong errors that the test authors have
    already missed at least once.
 2. **Log the underlying ERR-NNN.** If the bug instance does not
    yet have a catalog entry, add one to
-   `../vv-principles/error_catalog.md` first using the standard template
+   `docs/theory/verification/error_catalog.rst` first using the standard template
    (failure mode, date, solver, bug, impact, how it hid, L0 test,
    lesson).
 3. **Identify the catching test by exact pytest path.** No

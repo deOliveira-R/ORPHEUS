@@ -12,7 +12,7 @@ V&V tags
   (the invariant holds on physically valid inputs and raises on
   physically invalid ones), not a software invariant. They pair
   with the matching ERR-NNN error in
-  ``.claude/skills/vv-principles/error_catalog.md``.
+  ``docs/theory/verification/error_catalog.rst``.
 * ``@pytest.mark.catches("ERR-NNN")`` decorators wire each negative
   test to its catalogue entry per the ERR-040..ERR-047 mapping
   shipped in Wave 3.

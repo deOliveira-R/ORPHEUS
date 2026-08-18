@@ -3,7 +3,7 @@ r"""Named-error catalog for boundary-condition violations.
 Per Grand Report v3 §26A.4 lines 5072-5095, each typed error replaces
 a generic :class:`ValueError` raised by a :class:`BoundaryTraceLaw`
 invariant or realisation step. Every error class is mapped to an
-ERR-NNN entry in ``.claude/skills/vv-principles/error_catalog.md``
+ERR-NNN entry in ``docs/theory/verification/error_catalog.rst``
 and to a ``@pytest.mark.catches("ERR-NNN")`` decorator on the test
 that proves the error fires under the right conditions.
 

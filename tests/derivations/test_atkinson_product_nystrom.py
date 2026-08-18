@@ -31,7 +31,7 @@ Catches
 
 @pytest.mark.catches("ERR-036") — log-singular kernel diagonal
 truncation in plain-GL Peierls iteration. See
-``.claude/skills/vv-principles/error_catalog.md``.
+``docs/theory/verification/error_catalog.rst``.
 """
 from __future__ import annotations
 
@@ -215,7 +215,7 @@ def test_l1_atkinson_vs_kll_5e_minus_4(case_id: str, c: float) -> None:
 
     This test would FAIL on the legacy implementation (ERR-036
     diagonal-singular-kernel-truncation bug). See
-    ``.claude/skills/vv-principles/error_catalog.md`` ERR-036.
+    ``docs/theory/verification/error_catalog.rst`` ERR-036.
     """
     fn_res = solve_fn_slab_bare_critical(c=c, n_modes=10)
     kll_res = solve_kll_slab_continuum_coefficient(

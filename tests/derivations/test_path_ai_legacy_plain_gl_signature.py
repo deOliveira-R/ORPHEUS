@@ -35,7 +35,7 @@ Catches
 -------
 
 @pytest.mark.catches("ERR-036") — see
-``.claude/skills/vv-principles/error_catalog.md`` ERR-036.
+``docs/theory/verification/error_catalog.rst`` ERR-036.
 """
 from __future__ import annotations
 

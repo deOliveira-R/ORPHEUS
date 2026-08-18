@@ -260,4 +260,4 @@ Related pages
 - :doc:`theory/verification/index` — the verification part, with the
   auto-generated V&V matrix
 - ``CLAUDE.md`` — session-start protocol and cardinal rules
-- ``.claude/skills/vv-principles/error_catalog.md`` — caught-bug publication artifact
+- ``docs/theory/verification/error_catalog.rst`` — caught-bug publication artifact

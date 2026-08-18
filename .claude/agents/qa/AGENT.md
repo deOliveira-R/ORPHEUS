@@ -112,7 +112,7 @@ Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 ## Error Catalog
 
 Every bug logged per the `vv-principles` §"Log every caught bug"
-directive (`.claude/skills/vv-principles/error_catalog.md`). This
+directive (`docs/theory/verification/error_catalog.rst`). This
 is a QA publication artifact.
 
 
