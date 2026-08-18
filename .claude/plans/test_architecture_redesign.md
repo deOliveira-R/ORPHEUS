@@ -468,6 +468,97 @@ weak; do not build on it.
    Notably the "adversarial" numerics slice scored BETTER than geometry, so
    my prior about which code is hard was wrong — which is itself a reason to
    distrust the extrapolation.
-4. `[M]` R1 (narrowest) beats R3 (modal) on both slices. The subject is the
+4. `[M]` R1 (narrowest) beats R3 (modal) on both slices.
+
+---
+
+## 9. ⚠ THE EXPERIMENT IN §8 ASKED THE WRONG QUESTION — reframed 2026-08-18
+
+**The methodological error, and it is mine.** §8 used today's file NAMES as
+ground truth. But the tree is going to be reorganised and tests renamed to be
+more expressive — that is the whole premise of this document. So §8 scored
+**one heuristic against another**, and every disagreement was counted against
+the derivation when the NAME may be what is wrong. Worse, it discarded the
+files whose stem does not name a module — `[M]` 12 of 18 in geometry, 34 of
+59 in numerics — which is precisely the population a reorganisation targets.
+
+⟹ The question is not *"does derivation match today's tree"*. It is *"what
+does the evidence say the tree SHOULD be, and what is the gap"*. Characterise;
+do not score.
+
+### 9.1 What the evidence says, at MODULE granularity
+
+`[M]` `tests/numerics`, 55 files with ≥5 attributed tests:
+
+| shape | files | reading |
+|---|---:|---|
+| one dominant module (≥80 %) **and the name says so** | 17 | nothing to do |
+| one dominant module, **name does not say so** | 18 | **rename** — the subject is unambiguous and unstated |
+| scattered across modules | 20 | family or split — adjudicate |
+
+⟹ **~64 % of files already have a single module subject; half of those do not
+say so in their name.** That is the concrete, mechanical part of the gap.
+
+### 9.2 The scatter is mostly FAMILY, not incoherence
+
+`[M]` `protocol_conformers` reports **39 classes** structurally conforming to
+one `apply`/`apply_transpose` protocol, spanning `numerics.operator`,
+`numerics.coupled_system`, `numerics.matrix_inverse_operator`,
+`numerics.assembled_operator`, `sn.operators.*`, `transport.operators.*` and
+`geometry.boundary`. A test file exercising several of those is testing **one
+protocol across its conformers**.
+
+⚠ An `inherits`-based family detector found this in **1 of 20** scattered
+files. `protocol_conformers` finds it because conformance here is
+**structural** — Python Protocols mint no inheritance edge. A family detector
+built on `inherits` would have reported "incoherent, split it" and been wrong.
+
+### 9.3 ⭐ The finding that actually changes the design: the rule has NO
+### stable granularity
+
+`[M]` Re-deriving the subject at SYMBOL granularity (class / top-level
+function) instead of module: **17 % of answers are a PRIVATE helper**
+(`_to_python_scalar`, `_BlockRoleMeta`, `_vertical_mirrors`) against **1 %**
+at module granularity — a 17× degradation. "Narrowest" is a proxy for
+"least-used", and the least-used thing a test reaches trends private.
+
+So the rule is **coarse-RIGHT and fine-WRONG**: at module granularity it
+cannot distinguish `TensorProductOperator` from the `operator` module it
+lives in; at symbol granularity it drifts onto private helpers.
+
+⟹ **This replaces §8's conclusion as the argument for an authored layer, and
+it is a better one.** Not *"subject is not derivable"* — it is, ~78 % at
+module level. Rather: **the derivation has no stable granularity, and
+granularity is exactly what a claim declares.** Together with family
+membership (§9.2), that is two structural facts no per-test derivation
+expresses, at any accuracy.
+
+### 9.4 The ideal, and the gap to it
+
+The natural unit that falls out of the measurements:
+
+- a test **file** ↔ one production **module**, or one protocol **family**;
+- a **test** ↔ one **symbol** within it;
+- a symbol's tests ↔ a **mini-DAG** ordered by strength (§3.1).
+
+`[M]` Gap on `tests/numerics` (55 files): **17 already there**, **18 need a
+rename only**, **20 need adjudication** (family claim vs split) — and §9.2
+says most of the 20 are families, which want an authored claim rather than a
+reorganisation.
+
+### 9.5 ⚠ Where my own analysis outran its data
+
+Recorded rather than quietly dropped, per §3 of `plan-authoring`:
+
+- A symbol-granularity pass produced **"SPLIT: 31"**. ⛔ Over-read. Most of
+  that is a test file legitimately covering a module's several symbols — which
+  §9.4 says is the CORRECT shape, not a defect. The private-helper bias (17 %)
+  is real but does not explain 31.
+- I described the private-helper bias as "systematic". `[M]` it is 17 %.
+- The COHERENT / RENAME / FAMILY / SPLIT thresholds (80 %, 70 %) are arbitrary
+  and unvalidated; the counts move with them. Treat the three-way split as
+  an order of magnitude, not a measurement.
+- Everything in §9 is `tests/numerics` only. The SN sweep — nexus#60's 0 %-recall
+  regime — remains unmeasured on both axes. The subject is the
    SPECIFIC thing a test reaches, not the most-executed thing — the opposite
    of what the rule list in §3.1 implied by ordering.
