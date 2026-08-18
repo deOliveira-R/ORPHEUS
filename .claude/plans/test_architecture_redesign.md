@@ -390,3 +390,84 @@ a defined operation.
   and only the *category* axis needs authoring. `[M]` nexus#57's per-test
   attribution is exactly the data needed to test that, and it is landed.
   **This is the cheapest experiment in the document and it should run first.**
+
+---
+
+## 8. ✅ THE EXPERIMENT RAN — 2026-08-18. The strong bet is REFUTED; the
+## design survives in a cheaper form
+
+**Question.** Is a test's SUBJECT derivable from what it executes?
+
+**Method.** Ground truth = the file-naming convention `tests/.../test_X.py`
+↔ a production module named `X.py`, taken only where the basename is
+UNIQUE. That truth is independent of coverage, which is what the candidate
+rules read. Candidates restricted to PRODUCTION nodes — a first pass let
+test-tree nodes compete and a helper defined in one test file is trivially
+the "narrowest", which refuted a strawman (R1 read 0.0 %; repaired, 73.6 %).
+
+**Slices.** `geom_ctx` (existing) and `num_ctx` (captured for this
+experiment: `tests/numerics`, 2344 passed, 567 s, **467 MB** report →
+**3.37 MB** sidecar, 1303 attributed nodes, 0 unresolved contexts).
+
+| rule | geometry (146 tests / 5 files) | numerics (531 tests / 25 files) |
+|---|---|---|
+| ceiling — truth is executed at all | 79.5 %¹ | **94.2 %** |
+| **R1 narrowest executed node** | 63.0 %¹ | **78.2 %** |
+| R2 most-exclusive module | 61.0 % | 68.4 % |
+| R3 modal (most nodes) | 56.2 % | 68.5 % |
+| truth ranks #1 by node count | 82/116 | 364/500, median 1, **p90 3** |
+
+¹ depressed by a known bad truth label — `tests/geometry/test_geometry.py`
+maps by basename to `orpheus.moc.geometry`. Excluding it, R1 = **73.6 %**,
+ceiling 92.8 %.
+
+### What it decides
+
+⛔ **The STRONG bet is refuted.** "Subject is not derivable, so it must be
+authored from scratch" is false: a naive rule recovers it ~74–78 % of the
+time, and the true subject ranks #1 in ~73 % of cases and within the top 3
+at p90.
+
+⚠ **The weak form is not licensed either.** 22 % wrong is unusable as an
+*authority* for an invalidation cone — ORPHEUS#358's outcome is a partition
+you can TRUST, and a cone rooted on the wrong subject silently invalidates
+the wrong branch. Being right 3 times in 4 is the worst kind of instrument:
+right often enough to be believed.
+
+⟹ **The synthesis, and it changes the economics of the whole proposal.**
+Derivation is a strong PRIOR, not an authority. Seed the authored subject
+from R1, show the top-3, and make DISAGREEMENT the review queue. The plan's
+own #1 risk was *"the authored surface may not get authored"* (`[M]` 139 of
+456 files carry no marker today). That risk drops from *author 5273 subjects*
+to *review the ~22 % where the rule is unsure* — an order of magnitude.
+
+⭐ **And the real value of the authored layer is not the 78 %, it is the
+cases that are not a node at all.** `[M]` `test_bc_universal_invariants`:
+52 tests, **12 distinct derived subjects, top answer 19 %** — the file
+asserts universal invariants over *every* boundary law, so the derived
+subject tracks the parametrisation rather than the claim. That subject is a
+statement about a FAMILY. No executed node is it, at any accuracy. This is
+what a `Claim` expresses and a derived node cannot.
+⚠ Honest counter-observation: `test_reduced_operator` scatters just as badly
+(8 answers, 24 % top share) while being module-named — so "concept-named vs
+module-named" is NOT the discriminator. Across files: concept-named average
+4.1 distinct answers / 55 % top share, module-named 3.0 / 72 %. Real but
+weak; do not build on it.
+
+### ⚠ Limits of this measurement — read before quoting the 78 %
+
+1. **The scored population is definitionally the EASY case.** Only tests in
+   files whose stem uniquely names a production module are scoreable — 531 of
+   ~2344 numerics tests. The unscoreable remainder is exactly where
+   derivation is expected to be worst, so **78 % is an optimistic estimate
+   for the suite.**
+2. **Ground truth is itself a proxy** (a naming convention), not a hand
+   label.
+3. **The hardest regime was NOT tested.** nexus#60 measured 0 % call-graph
+   recall on the protocol-heavy SN sweep spine; neither slice here is that.
+   Notably the "adversarial" numerics slice scored BETTER than geometry, so
+   my prior about which code is hard was wrong — which is itself a reason to
+   distrust the extrapolation.
+4. `[M]` R1 (narrowest) beats R3 (modal) on both slices. The subject is the
+   SPECIFIC thing a test reaches, not the most-executed thing — the opposite
+   of what the rule list in §3.1 implied by ordering.
