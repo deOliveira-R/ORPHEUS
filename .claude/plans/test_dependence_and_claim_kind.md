@@ -2,6 +2,87 @@
 
 ---
 
+## ⏸ COMPACTION POINT #2 — 2026-08-17 · the import DAG is visible; REACH is next
+
+⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos are
+on `main` and **pushed**: nexus `c68fe4d`, ORPHEUS `5ae4cd6d`, both 0 dirty /
+0 unpushed. `git merge-base --is-ancestor <hash> main` is the authority.
+
+⚠ **Reconnect `/mcp`** — the server serves the code it imported at startup, and
+`errors` is new. ⚠ **The ORPHEUS graph was REBUILT** after nexus `0d6bfdf`; a
+graph built before it still has the collapsed imports.
+
+### Landed since the 2026-08-15 point
+
+| what | outcome | re-measure with |
+|---|---|---|
+| **nexus#63 CLOSED** | `errors` query + CLI + MCP tool; `catches` 0 → **258 edges** | `nexus errors --db … --format text` |
+| **ORPHEUS#308 first instance** | the 79-entry catalogue is 79 corpus nodes; skill index 374 KB → 9 KB | `tools/verification/generate_error_index.py --check` |
+| ⛔ **`.. error-entry::` crashed every real build** | `apply_pending_edges` read `entry["label"]` on a declaration payload | `tests/test_directives.py` |
+| **F9 — the granularity collapse** | `imports` kept only `split(".")[0]`; god node **5299 → 1**, cross-layer **1 → 365** | `evals/FIDELITY.md` round 6 |
+| filed | nexus **#88** (TYPE_CHECKING edges), ORPHEUS **#379**; #301 has the derivability criterion | — |
+
+⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
+
+### ⭐⭐ Rulings that transfer
+
+1. ⭐⭐ **The layer order is an ordering over CLAIM KINDS, not a scheduler.**
+   *You cannot validate before you verify; you cannot verify numerics whose
+   primitives are untested.* Correct for V&V, too coarse for test selection.
+   It gives DIRECTION, never REACH. See the ⛔ in §2.
+2. ⭐⭐ **The DAG the work wants is per-symbol.** Change `sn_solver` → the base
+   node of *its* test cluster flips untested, and that cluster is itself a
+   mini-DAG **ordered by increasing complexity**, re-executed in that order.
+   The point is fail-fast: the cost being paid is *waiting for tests to clear*,
+   so the cheapest discriminating test must red first.
+3. **A collapse that preserves the EDGE COUNT is invisible to every aggregate**
+   — and degree centrality *promotes* it to the top of the hub list, where it
+   reads as architecture. Two sub-agents concluded "no antisymmetric relation
+   exists" from a corpus that machine-enforces one.
+4. **A metric adopted to CHOOSE between implementations needs the same check as
+   one adopted as a target** — `plan-authoring` §10. I picked a regex by warning
+   count (21 vs 27); a census found **830** mangled delimiters, ~2 % of which
+   ever warned.
+
+### ▶ NEXT — a coverage run says WHICH TEST executed the line (nexus #57)
+
+**Goal.** The graph can answer *"which tests rest on this symbol"* from
+evidence, not inference — which is REACH, the half ruling 1 says the layer
+order can never supply.
+
+**`[M]` existence-checked 2026-08-17, all verified against the tree:**
+
+- `overlay_coverage` still does **not** consume contexts. ⚠ #57's `[M]` says
+  `grep -c -i context runtime.py` → **0**; it is now **1**, and that one hit is
+  a *docstring mention* of `show_contexts` at `runtime.py:530`, not a read. The
+  substance holds — do not read the 1 as "already done".
+- ⛔ **A re-capture is required.** `.nexus/traces/*.json` are nexus SIDECARS,
+  not the original `coverage json`. `[M]` `qa_quadrature_cov.json` has 2892
+  coverage entries whose only keys are `lines_hit / lines_total / branches_hit
+  / branches_total / missing_arcs`, and the string `context` appears **nowhere**
+  — while its own `meta.command` records `dynamic_context=test_function`. The
+  contexts were captured and discarded at ingest, with a receipt.
+- ORPHEUS coverage runs present: `e2e56`, `qa_quadrature_cov` (+ 3 cprofile,
+  1 pytest-manifest). `nexus runtime-runs --db .nexus/graph.db`.
+
+**Then, and only then, ORPHEUS#358.** Its premise is corrected in §2; the three
+tiers are (a) coarse layer DAG — available today, **and ruled out by ruling 1**,
+(b) module-precise — LANDED at `0d6bfdf`, (c) symbol-precise per-test — #57.
+
+⚠ **nexus#88 is a correctness prerequisite, not a nicety.** A `TYPE_CHECKING`
+import creates NO runtime dependence, and the edge does not say so, so a cone
+walked over `imports` today **over-invalidates** — the exact failure the DAG
+exists to remove. `[M]` 14 of 365 cross-layer edges, concentrated on the
+order-inverting L2→L3 / L1→L3 pairs that pull the largest downstream sets.
+
+**Also open, unchanged:** ORPHEUS **#302** (`test_docstring_xrefs` is RED on
+`main`, 71 dead sites, none mine), **#301** (algebra-of-record derivability),
+**#379**; nexus **#85/#86/#87**, **#76/#16**, **#55**. Owed on the fidelity
+side: **F1-honesty**, **F4-recall**, and a real multi-agent field trial —
+round 6 was probes plus targeted stress only.
+
+---
+
 ## ⏸ COMPACTION POINT — 2026-08-15
 
 **Read this section, then `git log`, then §6. Do not reconstruct state from a
@@ -170,6 +251,28 @@ filterable* — blocking `external` traversal moves it 0.6 pp.
 ⟹ **#358's premise that the dependence DAG can be derived from the call graph is
 structurally wrong, not merely incomplete.** `exercises` (what ran) is necessary
 for G2 and **insufficient** for G1. G1 additionally needs a **subject** relation.
+
+⚠ **PARTLY REFUTED 2026-08-17 — the conclusion about `calls` STANDS; the
+universal about the corpus does NOT.** Both agents searched for an
+antisymmetric relation, found `calls` symmetric, and concluded none existed.
+The reasoning was sound and the corpus was lying: ORPHEUS **declares and
+machine-enforces** a layered import contract (`tests/test_layer_imports.py`
+— L0 `derivations` → L1 `numerics` → input → L2 `transport` → L3 `sn`/…),
+and nexus had flattened it to a star before either agent could see it.
+`[M]` **5298 of 5299** project `imports` edges pointed at bare
+`py:module:orpheus` — the graph's #1 `god_nodes` hit, which was the collapse
+rather than a hub. Fixed at nexus `0d6bfdf`: degree **5299 → 1**, cross-layer
+edges **1 → 365**, of which 351 honour the contract and all 14 exceptions are
+`TYPE_CHECKING` (which the contract tolerates). Recorded as fidelity class
+**F9** (`evals/FIDELITY.md` round 6).
+
+⛔ **But do NOT build the DAG on the layer order** (user ruling, 2026-08-17).
+It is an ordering over **claim kinds** — *you cannot validate before you
+verify, and you cannot verify numerics whose primitives are untested* — which
+is epistemic and correct for V&V, and **too coarse for scheduling**. It gives
+DIRECTION, never REACH: it says an L3 test cannot invalidate an L1 test; it
+cannot say *which* L3 tests a given L1 red invalidates. Reach is still §2's
+open problem, and is `nexus#57`.
 
 ### 2.1 Static blindness, measured twice, independently
 
