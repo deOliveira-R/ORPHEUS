@@ -87,7 +87,7 @@ def _convergence_order(values, spacings, reference):
     # NON-DEGENERATE solver eigenvalue (2G; 1G k=νΣf/Σa is flux-shape
     # independent per vv-principles 1-group degeneracy). A flip here
     # localizes to the k-eigenvalue / source-iteration outer loop.
-    # See .claude/plans/sn_sentinel_harness.md.
+    # See .claude/plans/archive/sn_sentinel_harness.md.
     pytest.param("sn_slab_2eg_1rg", marks=pytest.mark.sentinel),
     "sn_slab_4eg_1rg",
 ])

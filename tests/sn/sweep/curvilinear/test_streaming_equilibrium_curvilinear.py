@@ -171,7 +171,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
 # cheapest config of the gauntlet above (n_cells=20, n_ord=8, SI).
 # Sharp at the r=0 pole corner + the WDD curvilinear fixed point.
 # Delegates to the same solver path so it tracks the matrix test.
-# See .claude/plans/sn_sentinel_harness.md.
+# See .claude/plans/archive/sn_sentinel_harness.md.
 
 
 @pytest.mark.sentinel

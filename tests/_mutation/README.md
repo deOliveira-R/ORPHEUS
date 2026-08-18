@@ -7,7 +7,7 @@ the set changes". A regression ≈ a behaviour-changing code edit ≈ a
 killed mutants is the **mutation score** — the honest sensitivity
 number. No small set reaches 100 %; the score quantifies the gap.
 
-See `.claude/plans/sn_sentinel_harness.md` for the full design.
+See `.claude/plans/archive/sn_sentinel_harness.md` for the full design.
 
 ## Tool verdict (Phase S0, 2026-06-01, Python 3.14.3)
 
@@ -29,7 +29,7 @@ update_batch 100 %, residual 99.3 %). The 1 survivor is a
 
 ## Per-capability scoping recipe
 
-The capability taxonomy (`.claude/plans/sn_test_taxonomy.md`) makes
+The capability taxonomy (`.claude/plans/archive/sn_test_taxonomy.md`) makes
 mutation tractable: mutate the module(s) of ONE capability node, run
 ONLY that node's tier tests (or the node's sentinels). Survivors that
 map (via `definition_name`) to a function tested by a DIFFERENT tier

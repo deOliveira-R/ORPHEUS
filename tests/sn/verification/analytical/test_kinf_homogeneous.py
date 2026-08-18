@@ -229,7 +229,7 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
 # This is the EIGENVALUE-claim pillar (closed-form analytical reference,
 # NOT MMS — MMS does not prove eigenvalues per vv-principles). A flip
 # here localizes to the eigenvalue + analytical-reference cluster.
-# See .claude/plans/sn_sentinel_harness.md.
+# See .claude/plans/archive/sn_sentinel_harness.md.
 
 
 @pytest.mark.sentinel

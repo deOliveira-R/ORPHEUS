@@ -228,7 +228,7 @@ class TestHomogeneousReflectiveFixedPoint:
         # Sentinel for the ``solve`` capability node: the curvilinear
         # Q/Σ_t fixed-source equilibrium (Signature 4 — the single most
         # powerful curvilinear diagnostic). cylinder only, to keep the
-        # sentinel set minimal. See .claude/plans/sn_sentinel_harness.md.
+        # sentinel set minimal. See .claude/plans/archive/sn_sentinel_harness.md.
         pytest.param(
             _cylinder_reflective, "cylinder",
             marks=pytest.mark.sentinel,

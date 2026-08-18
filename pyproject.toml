@@ -27,7 +27,7 @@ test = [
     "pytest>=8",
     # The SN suite OOMs when run as ONE single-process invocation (1378
     # tests, many materialize dense operators). The memory-safe default
-    # is PER CAPABILITY TIER (see .claude/plans/sn_test_taxonomy.md):
+    # is PER CAPABILITY TIER (see .claude/plans/archive/sn_test_taxonomy.md):
     # each tier dir runs single-process fast + light (e.g. operators =
     # 395 tests / 3s / 186 MB), and `pytest -m sentinel` is the
     # seconds-fast always-on gate (run sentinels WITHOUT -O — vv Mode 8:
@@ -94,8 +94,8 @@ markers = [
     "verifies(*labels): Sphinx equation labels (:label: in docs/theory/*.rst) that this test exercises",
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
     "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/sn/regression/_generate_snapshots.py)",
-    "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
-    "sentinel: SN canary regression tripwire — a CHEAP, sharply-sensitive test selected so `pytest -m sentinel` runs in seconds and a single flip localizes the blast radius via its cap() label + the capability DAG. Mutation-adequate fast net (NOT proof; the full per-tier suite is the deep net). One sentinel per capability node. See .claude/plans/sn_sentinel_harness.md.",
+    "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/archive/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
+    "sentinel: SN canary regression tripwire — a CHEAP, sharply-sensitive test selected so `pytest -m sentinel` runs in seconds and a single flip localizes the blast radius via its cap() label + the capability DAG. Mutation-adequate fast net (NOT proof; the full per-tier suite is the deep net). One sentinel per capability node. See .claude/plans/archive/sn_sentinel_harness.md.",
 ]
 
 [tool.setuptools.packages.find]
