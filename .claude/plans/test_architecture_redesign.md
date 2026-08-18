@@ -5,6 +5,33 @@ statement below is a *hypothesis* unless it carries `[M]`. The measurements
 are real and mostly come from issues filed earlier by other sessions; the
 architecture built on them is not yet verified anywhere.
 
+## ▶▶ SEQUENCING — this document is STEP 3 of 3 (user ruling, 2026-08-18)
+
+Do not start here. The order, titled as outcomes:
+
+1. **`retest` answers from EVIDENCE, not from popularity** — point the cone at
+   coverage attribution (`exercised_by`, landed) instead of static `calls`.
+2. **A capture wide enough to matter exists** — (1) says which directories
+   matter first.
+3. **This document.**
+
+⛔ **Why this one is last, and it is this plan's OWN risk #3**: the claim layer
+must not land before a consumer exists, or it repeats `cap` — a derived,
+well-designed taxonomy that `[M]` nothing in ORPHEUS reads. Step 1 IS that
+consumer.
+
+⭐ **And why step 1 is worth doing on its own terms.** `[M]` 2026-08-18 on the
+deduped graph, `calls` reachability measures **popularity, not dependence**:
+`Quadrature.gauss_legendre` (a leaf utility) reaches **24.8 %** of the suite,
+`solve_sn` (the central solver) **2.2 %**, `Mesh1D.__post_init__` **0**. A leaf
+helper pulls **12×** more of the suite than the solver. Confirms nexus#60
+survives the 33 % dedupe — duplicate edges share `(u,v)`, so reachability was
+never affected; now measured rather than reasoned.
+
+⟹ Step 1 will also tell this document where the DERIVED subject is
+insufficient, which is the cheapest way to size §9.4's gap before authoring
+anything.
+
 ## Relationship to the running campaign
 
 The live campaign is `.claude/plans/test_dependence_and_claim_kind.md`

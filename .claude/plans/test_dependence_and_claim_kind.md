@@ -2,78 +2,121 @@
 
 ---
 
-## ✅ LANDED 2026-08-18 — the cone's edges can tell type-only from runtime,
-## and the graph they run on turned out to be 33 % duplicate
+## ⏸ COMPACTION POINT #4 — 2026-08-18 · the cone's edges are honest, the graph was 33 % duplicate, and the SEQUENCE is ruled
 
-nexus **`9ac3d4b`** (#88, CLOSED), **`924efbf`**, **`6e469e9`**. ORPHEUS
-unchanged but for `.nexus/config.toml`. Filed: nexus **#89**.
+⚠ **Everything below this section is HISTORY unless a hash says otherwise.**
+Both repos on `main`, **pushed**, 0 dirty / 0 unpushed:
+nexus **`6e469e9`**, ORPHEUS **`3f3cc9ca`**.
+`git merge-base --is-ancestor <hash> main` is the authority.
 
-| what | outcome | re-measure with |
-|---|---|---|
-| **nexus#88** | an `imports` edge minted under `if TYPE_CHECKING:` carries `type_checking = true`; declared on `[edge.imports]`, both spellings handled | `stats()`, or grep the edge metadata |
-| **the double scan** | an `extra_source_dirs` entry INSIDE a scanned root was analysed twice and both copies kept | `stats()` |
-| ⛔ **reverted** | #88's re-export half — see ruling 3 | `tests/test_ast_analyzer.py` |
-| **the stamp reaches the REPLY** | `EdgeResult.type_checking`; `neighbors`/`context` mark it, and a runtime + type-only pair of the same import stops folding into a false `times: 2` | `neighbors(<module>, edge_types="imports")` |
+⚠ **`/mcp` needs reconnecting** — the server serves the code it imported at
+startup, and `6e469e9` changed the reply shape.
 
-⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
+### ▶▶ THE AGREED SEQUENCE — user ruling, 2026-08-18
 
-### ⭐⭐ Rulings that transfer
+Titled as outcomes (`plan-authoring` §1). Do them **in this order**; the
+reasoning is that (3) must not land before (1) exists, or it repeats `cap`.
 
-1. ⭐⭐ **Adding an attribute to the graph buys a FREE consistency check
-   against the source — take it, and chase the residue.** The stamp let an
-   independent AST census be compared against the graph. `orpheus/` and
-   `examples/` reconciled exactly; `tests/` was **exactly 2×**, which is
-   what exposed a defect that had been inflating **every** count in the
-   graph (`calls` −41 %, total −33 %). Nothing in the suite, the build, or
-   any tool reported it — a doubled graph looks like a big graph. The
-   check cost one AST pass, and it exists only because the new attribute
-   gave two derivations of the same fact.
-2. ⭐⭐ **A feature whose own fixture silently no-ops has no witness, and
-   that is where defects live.** nexus's fixture declared two
-   `extra_source_dirs` that resolved to nothing and warned into a `-q`
-   build. The doubling survived because of it. ⟹ when a gate is
-   suspiciously green, check the fixture actually reached the feature —
-   §6c's question asked of the FIXTURE rather than of the step.
-3. ⛔ **"Not a runtime attribute" is not the same claim as "not a
-   resolvable name" — ask what the map is FOR.** #88 excluded
-   `TYPE_CHECKING` aliases from the re-export map because `pkg.Y` fails
-   `hasattr`. True, and irrelevant: the map's consumer folds a *docstring
-   reference* onto the class it names, and nothing asks it about runtime
-   existence. Reverted, with the refutation carried in both gates.
-4. ⚠ **MINE, §2 twice in one session.** (a) I priced ruling 3's cost from
-   an `__init__.py`-only probe — **15** entries — when the guard applies
-   tree-wide: **263 of 6917**, 17× wider. (b) I justified the revert with
-   a +5 `unresolved` delta that **survives the revert**, so it was never
-   attributable to it. Both are the marker certifying a measurement that
-   happened and lending its authority to a proposition it did not test.
-5. ⭐⭐ **A stamp nothing can READ is stored, not shipped — and the reply
-   can be worse than silent.** #88 put `type_checking` in the database and
-   no MCP tool exposed it. Worse, `neighbors` folds parallel edges that
-   serialise identically into `times: N`, so a module importing one target
-   at runtime AND under the guard reported *"imported twice"* — a sameness
-   that does not hold. `[M]` `augmented_mesh.py:95` and `:113`. Fifth
-   reply-shape defect of this campaign invisible in-process. ⟹ for every
-   new fact, name the tool that returns it, and call that tool.
-6. ⚠ **"No duplicate pair" was the wrong shape for a duplicate-scan gate**
-   — two `from X import a` / `from X import b` statements legitimately
-   mint two edges, so the gate reddened on a correct tree one commit after
-   it was written. The right gate counts against an INDEPENDENT census of
-   the source (the technique that found the defect), and must mirror the
-   analyzer's own traversal — function bodies are never visited
-   statement-wise, so `ast.walk` over-counts.
-7. ⚠ **A mutation battery must be CRASH-safe, not merely exception-safe.**
-   Mine restored in a `finally`; a harness timeout SIGTERM'd it mid-run
-   and the `finally` did not complete, leaving production code mutated on
-   disk. The copy-aside recovered it. Promoted to
-   `.claude/rules/process-discipline.md`.
+1. **`retest` answers from EVIDENCE, not from popularity.** Point the cone at
+   coverage attribution (`exercised_by`, landed `ca6ccb0`) instead of — or
+   ahead of — static `calls`. Needs no claims, no reorganisation, no new
+   capture, and degrades to static where no capture exists.
+2. **A capture wide enough to matter exists.** Decide the strategy; (1) tells
+   you which directories matter first.
+3. **A test declares what it is about** — the redesign, `.claude/plans/test_architecture_redesign.md`.
 
-⚠ **CP#3's ▶ NEXT said a cone "walked over `imports` today
-over-invalidates".** `[M]` `_RETEST_DEPENDENCE_EDGES = ("calls",
+⛔ **Why (1) is first, measured 2026-08-18 on the deduped graph.** `retest`
+today walks `("calls", "type_uses", "inherits")`, and `calls` reachability
+measures **popularity, not dependence**:
+
+| root symbol | cone reaches |
+|---|---:|
+| `Quadrature.gauss_legendre` (a leaf utility) | 1307 tests, **24.8 %** |
+| `solve_sn` (the central solver) | 117 tests, **2.2 %** |
+| `Mesh1D.__post_init__` | **0** |
+
+A leaf helper pulls **12×** more of the suite than the solver. This confirms
+nexus#60 (OPEN) survives the dedupe — duplicate edges share `(u,v)`, so
+reachability was never affected; now measured rather than reasoned.
+
+⛔ **A correction to CP#3, preserved from the interim block this point replaces.** CP#3's ▶ NEXT said a cone "walked over `imports` today over-invalidates". `[M]` `_RETEST_DEPENDENCE_EDGES = ("calls",
 "type_uses", "inherits")` — `retest` does not follow `imports` at all. The
 stamp is a prerequisite for the module-precise cone #358 still has to
 build, not a repair to one that ships. And the issue's headline "14 of 365"
 counts CROSS-LAYER edges; the cone's exposure is **199 of 4045**
 intra-project. Both right, different predicates.
+
+### Landed since CP#3
+
+| what | outcome | re-measure with |
+|---|---|---|
+| **nexus#88 CLOSED** `9ac3d4b` | an `imports` edge minted under `if TYPE_CHECKING:` says so; declared on `[edge.imports]`; both spellings | `stats()` |
+| nexus **`924efbf`** | ⛔ an `extra_source_dirs` entry INSIDE a scanned root was analysed TWICE — **207 643 → 139 761 edges (−33 %)**, `calls` 118 126 → 69 217. `god_nodes` RANKING changed (SNMesh now #1) | `stats()`, `god_nodes()` |
+| nexus **`6e469e9`** | the stamp reaches the REPLY; a runtime + type-only pair of one import stops folding into a false `times: 2` | `neighbors(<mod>, edge_types="imports")` |
+| ORPHEUS `1cb0c76f` | the `.nexus/config.toml` comment claimed a causation it did not have | — |
+| ORPHEUS `95199f0e` | `pyproject.toml`'s `cap`/`sentinel` marker help cited 2 archived plans — 10 dead paths | — |
+| ORPHEUS `a17243f0` / `54cd765a` / `3f3cc9ca` | the redesign proposal + two experiments + the reframe | the plan |
+| filed | nexus **#89** (`extra_source_dirs` resolves against `srcdir.parent`; its warning hides in `-q`) | — |
+| new run | **`num_ctx`** — `tests/numerics` coverage w/ contexts, 2344 tests | `runtime_runs()` |
+
+⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
+The fidelity probes RE-MEASURE — run `evals/fidelity_probes.py --project <root>`,
+never quote a number from a doc.
+
+### `[M]` Numbers a pick-up needs that nothing else re-measures
+
+- **Capture cost**: `tests/numerics`, 2344 tests → **567 s** → **467 MB**
+  coverage report → **3.37 MB** sidecar (**139×**), 1303 attributed nodes, 0
+  unresolved contexts. ⟹ the STORED artifact is a non-problem; the
+  **intermediate** is the blocker for (2).
+- **Subject derivability** (the experiment that reshaped the redesign): "narrowest
+  executed production node" recovers the module-level subject **78.2 %**
+  (`tests/numerics`, 531 tests / 25 files) and **73.6 %** (clean geometry);
+  ceiling 94.2 %; truth ranks #1 in 364/500, p90 rank 3.
+- **Granularity instability**: at SYMBOL granularity **17 %** of derived
+  subjects are a private helper, vs **1 %** at module granularity.
+- **Family structure**: `protocol_conformers` reports **39 classes** on one
+  `apply`/`apply_transpose` protocol across 7 packages. An `inherits`-based
+  family detector finds this in **1 of 20** scattered files — conformance is
+  STRUCTURAL.
+
+### ⭐⭐ Rulings that transfer
+
+1. ⭐⭐ **A stamp nothing can READ is stored, not shipped — and the reply can be
+   worse than silent.** #88 put `type_checking` in the DB; no tool exposed it,
+   and `neighbors` folded a runtime + a type-only import of one target into
+   `times: 2`, asserting a sameness that does not hold. **Fifth** reply-shape
+   defect of this campaign invisible in-process. ⟹ for every new fact, name the
+   tool that returns it, and call that tool.
+2. ⭐⭐ **Adding an attribute to the graph buys a FREE consistency check against
+   the source — take it, and chase the residue.** The stamp let an independent
+   AST census be compared against the graph; `orpheus/` and `examples/`
+   reconciled exactly and `tests/` was **exactly 2×**, which is the only reason
+   a 33 %-duplicate graph was ever noticed. Nothing else reported it — a
+   doubled graph looks like a big graph.
+3. ⭐⭐ **A feature whose own fixture silently no-ops has no witness.** nexus's
+   fixture declared two `extra_source_dirs` that resolved to nothing and warned
+   into a `-q` build; that is why the doubling survived. ⟹ when a gate is
+   suspiciously green, check the fixture REACHED the feature.
+4. ⚠ **"No duplicated pair" is the wrong shape for a duplicate-scan gate** —
+   two `from X import a` / `from X import b` statements legitimately mint two
+   edges, so the gate reddened on a correct tree one commit after I wrote it.
+   Count against an INDEPENDENT census of the source, and mirror the analyzer's
+   own traversal (function bodies are never visited statement-wise, so
+   `ast.walk` over-counts).
+5. ⚠ **"Not a runtime attribute" is not "not a resolvable name" — ask what the
+   map is FOR.** #88's re-export half was reverted on exactly this.
+6. ⚠ **MINE, §2 twice**: a blast radius priced from an `__init__.py`-only probe
+   (15) when the code path was tree-wide (**263 of 6917**); and a revert
+   justified by a +5 delta that **survives the revert**. Both are logged in
+   `plan-authoring`.
+7. ⚠ **A mutation battery must be CRASH-safe, not exception-safe** — a harness
+   SIGTERM skips `finally` and leaves production code mutated on disk.
+   Promoted to `.claude/rules/process-discipline.md`.
+8. ⭐⭐ **Do not use today's names as ground truth when the names are what you
+   intend to change** — that scores one heuristic against another and counts
+   every disagreement against the wrong half. Ask what the tree SHOULD be, and
+   characterise rather than score.
 
 ---
 
