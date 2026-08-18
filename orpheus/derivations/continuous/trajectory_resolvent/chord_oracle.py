@@ -52,7 +52,7 @@ identical k_eff and ψ values pre- and post-refactor (verified at the
 exact-bit level via ``float.hex(k_eff)`` for the canonical 12
 configurations).
 
-Why the abstraction lives here (not in :mod:`derivations.common` yet)
+Why the abstraction lives here (not in :mod:`orpheus.derivations.common` yet)
 --------------------------------------------------------------------
 
 Per :file:`.claude/agent-memory/method-implementer/feedback_unify_after_two_instances.md`

@@ -225,7 +225,7 @@ class TestMorelMontryHandCalc:
     """Verbatim Hébert §3.9.4 algebra on a 2-ordinate sphere fixture.
 
     Issue #248 — re-pinned onto the LIVE production path (the half-angle
-    ψ-thread via :meth:`MorelMontryAngularSweep.compute_psi_half_per_level`
+    ψ-thread via :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
     plus the explicit geometry redistribution fold) after the dead legacy
     ``__call__`` bundle interface was retired.  The expected redistribution
     values (sphere ``R_0 = 2/√3``, ``R_1 = -2/√3``) are unchanged; only the
@@ -294,7 +294,7 @@ class TestCylindricalLevelDispatch:
 
     Issue #248 — the dead legacy ``__call__(... level_indices=...)`` bundle
     is gone; the per-level dispatch is reconstructed here through the LIVE
-    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` recurrence
+    :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level` recurrence
     (one call per level on the level's ordinate slice) plus the explicit
     geometry fold.  This mirrors how production drives cylindrical: the
     matvec's :meth:`~MorelMontryAngularSweep.precompute_psi_state` loops

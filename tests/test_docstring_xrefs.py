@@ -52,8 +52,10 @@ from __future__ import annotations
 
 import pathlib
 import re
+import os
 import subprocess
 import sys
+import textwrap
 
 import pytest
 
@@ -469,3 +471,48 @@ class TestProseKnowsWhichNamespaceItWasWrittenIn:
         page = REPO_ROOT / "docs" / "theory" / "references" / "peierls.rst"
         blocks = list(iter_text_blocks(page))
         assert len(blocks) == 1 and blocks[0].namespaces == ()
+
+
+def test_the_checker_can_import_tests_when_run_as_a_script() -> None:
+    """Witness: the repo root must be on ``sys.path`` inside the tool.
+
+    Running a script puts the SCRIPT's directory on ``sys.path``, not the
+    working directory. So the tool could import ``orpheus`` — pip-installed
+    editable — and could NOT import ``tests``, which is not installed at
+    all. Every ``tests.*`` target then failed to resolve and was reported
+    DEAD, and the gate above was red on all three trees for that reason
+    rather than for any dead reference.
+
+    `[M]` 2026-08-18: **49 of 49** dead targets in ``docs/`` were
+    ``tests.*``, and the sampled ones all existed
+    (``tests._harness.registry.TEST_REGISTRY``,
+    ``tests.cross_method.protocol.CrossMethodCase``, …). With the repo root
+    on the path the same scan reports **0** in ``docs/``.
+
+    The probe scrubs the repo root out of ``sys.path`` first, because
+    pytest puts its rootdir there — so an in-process check cannot see this
+    bug at all, and a subprocess that inherits ``PYTHONPATH`` cannot
+    either. That is exactly why it went unnoticed: every way of running it
+    from a test was already fixed.
+    """
+    probe = textwrap.dedent(
+        f"""
+        import runpy, sys
+        root = {str(REPO_ROOT)!r}
+        sys.path[:] = [p for p in sys.path if p not in ("", ".", root)]
+        ns = runpy.run_path({str(CHECKER)!r})
+        alive, _ = ns["resolve"]("tests._harness.registry.TEST_REGISTRY")
+        print("ALIVE" if alive else "DEAD")
+        """
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True, text=True, cwd=str(REPO_ROOT), env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("ALIVE"), (
+        "The checker cannot import the `tests` package when run the way its "
+        "own wrapper runs it, so every `tests.*` cross-reference reads DEAD. "
+        f"Probe said: {result.stdout.strip()!r}\n{result.stderr}"
+    )

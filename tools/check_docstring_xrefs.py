@@ -113,12 +113,30 @@ import inspect
 import io
 import pathlib
 import re
+import sys
 import textwrap
 import tokenize
 from collections import defaultdict
 from dataclasses import dataclass, field
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# Running a script puts the SCRIPT's directory on `sys.path`, not the working
+# directory — so this tool started life able to import `orpheus` (pip-installed
+# editable) and unable to import `tests` (not installed at all). Every
+# `tests.*` target then failed to resolve and was reported DEAD.
+#
+# `[M]` 2026-08-18: 49 of 49 dead targets in `docs/` were `tests.*`, and the
+# sampled ones all EXIST. With the repo root on the path the same scan reports
+# **0** in `docs/` and **5** tree-wide. The gate had been red on all three
+# roots — issue #302's "71 dead sites" is largely this, not dead references.
+#
+# ⚠ This is the failure mode the tool's own `DECLINED` outcome exists to
+# prevent, arrived at from the other side: not "declined read as alive", but
+# "unimportable read as missing". A gate that cries wolf gets ignored, which
+# costs more than no gate.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 #: ``:role:`target``` — the Python-domain roles that render silently when dead.
 ROLE_PATTERN = re.compile(r":(func|class|meth|mod|attr|exc|data|obj):`([^`]+)`")

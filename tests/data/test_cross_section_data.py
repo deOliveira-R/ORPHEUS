@@ -61,7 +61,7 @@ def _make_iso(
     sig0_points
         Background cross-section base points in **decreasing** order
         (the convention used by the real HELIOS library and assumed by
-        :func:`solve_sigma_zeros._interp_sigT`).
+        :func:`~orpheus.data.macro_xs.sigma_zeros._interp_sigT`).
     sigT_baseline
         Default total cross section applied to every (sig0_idx, group)
         cell. Must be > 0 to keep ``solve_sigma_zeros`` stable when

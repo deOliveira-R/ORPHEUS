@@ -12,7 +12,7 @@ recurrence scan (Blelloch 1990 §1.5).  Sixteen strong tests:
 3.  Numerical stability (pin behaviour at edge cases):
     near-identity ``a≈1`` regime, small-attenuation ``a→0`` regime.
 4.  Dual-view contracts (pin the strategy):
-    :meth:`DiamondDifference.affine_coefficients` ↔
+    :meth:`DiamondDifference.affine_scan_coefficients` ↔
     :meth:`DiamondDifference.update` single-cell equivalence,
     vectorisation-vs-serial, full-sweep baseline (parametrised over
     geometry × n_groups × source kind).
