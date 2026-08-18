@@ -70,6 +70,21 @@ state.
   path and mutate the copy. Reserve `git checkout`/`restore` for files you have **not** touched.
 - Same data-loss family as the `.claude/*` checkout hazard (lessons L28): a `git checkout` on
   any path carrying uncommitted state is irrecoverable.
+- ⭐ **The restore must be CRASH-safe, not merely exception-safe — a `finally` is not
+  enough.** A battery that mutates, runs, and restores in a `try/finally` is safe against a
+  failing test and unsafe against the thing that actually happens: the harness kills it. A
+  `SIGTERM` at the 2-minute Bash timeout, a `pkill`, an interrupt — none of these let the
+  `finally` complete, and the file is left MUTATED on disk, silently, in a working tree the
+  next command will happily commit.
+  ⟹ **copy the pristine file aside BEFORE the first mutation and verify against that copy
+  after the run** (`diff -q`), rather than trusting the unwind. The copy is the only artefact
+  that survives a kill. And budget the battery: N mutations × a full-suite run overruns the
+  timeout by construction — scope the run to the files that can redden, and check the file's
+  integrity FIRST after any battery that did not print its own completion line.
+  > `[M]` 2026-08-18, nexus#88. An 8-arm battery over the full suite (~40 s each) hit the
+  > 2-minute limit; the `finally` did not run and `ast_analyzer.py` was left carrying a
+  > deliberately-broken guard. `diff` against the copy-aside caught it on the next command.
+  > Re-scoped to the two files that could redden, the same battery ran in ~30 s.
 
 ## A refuted candidate is first-class output — record the structural REASON
 

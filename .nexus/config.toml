@@ -51,8 +51,22 @@ output = "graph"
 # (declare `.. implements::`, which lands at 1.0 and suppresses inference for
 # that pair), not in this switch. Revisit once declared coverage is real.
 
-# tests/ is analysed, so test functions are first-class graph nodes. This is
-# why tests/ docstrings become Nexus nodes while NOT being autodoc pages.
+# tests/ is analysed, so test functions are first-class graph nodes, and that
+# is why tests/ docstrings become Nexus nodes while NOT being autodoc pages.
+#
+# ⚠ CORRECTED 2026-08-18 — this line is NOT what causes that. `tests/` sits
+# inside the scanned project root, so the main pass already covers it; the
+# entry only adds `tests/` to the sys-path imports resolve against, and `[M]`
+# ORPHEUS spells every intra-test import `tests._harness...` (0 tests-root-
+# relative imports), so today it resolves nothing either. It is kept as a
+# declaration of intent and as insurance if the docs/ layout ever moves the
+# project root.
+#
+# Until nexus 924efbf the entry was actively harmful: naming a directory the
+# project-root pass already covers made nexus analyse it TWICE and keep both
+# copies of every node and edge. `[M]` the whole test tree was doubled and the
+# graph reported 207 643 edges where 139 761 are real (`calls` 118 126 →
+# 69 217). nexus now skips the second scan and logs that it did.
 extra_source_dirs = ["tests"]
 
 # Both directories mint placeholder nodes that bare references elsewhere then

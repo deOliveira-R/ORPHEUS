@@ -2,6 +2,65 @@
 
 ---
 
+## ✅ LANDED 2026-08-18 — the cone's edges can tell type-only from runtime,
+## and the graph they run on turned out to be 33 % duplicate
+
+nexus **`9ac3d4b`** (#88, CLOSED) and **`924efbf`**. ORPHEUS unchanged but
+for `.nexus/config.toml`. Filed: nexus **#89**.
+
+| what | outcome | re-measure with |
+|---|---|---|
+| **nexus#88** | an `imports` edge minted under `if TYPE_CHECKING:` carries `type_checking = true`; declared on `[edge.imports]`, both spellings handled | `stats()`, or grep the edge metadata |
+| **the double scan** | an `extra_source_dirs` entry INSIDE a scanned root was analysed twice and both copies kept | `stats()` |
+| ⛔ **reverted** | #88's re-export half — see ruling 3 | `tests/test_ast_analyzer.py` |
+
+⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
+
+### ⭐⭐ Rulings that transfer
+
+1. ⭐⭐ **Adding an attribute to the graph buys a FREE consistency check
+   against the source — take it, and chase the residue.** The stamp let an
+   independent AST census be compared against the graph. `orpheus/` and
+   `examples/` reconciled exactly; `tests/` was **exactly 2×**, which is
+   what exposed a defect that had been inflating **every** count in the
+   graph (`calls` −41 %, total −33 %). Nothing in the suite, the build, or
+   any tool reported it — a doubled graph looks like a big graph. The
+   check cost one AST pass, and it exists only because the new attribute
+   gave two derivations of the same fact.
+2. ⭐⭐ **A feature whose own fixture silently no-ops has no witness, and
+   that is where defects live.** nexus's fixture declared two
+   `extra_source_dirs` that resolved to nothing and warned into a `-q`
+   build. The doubling survived because of it. ⟹ when a gate is
+   suspiciously green, check the fixture actually reached the feature —
+   §6c's question asked of the FIXTURE rather than of the step.
+3. ⛔ **"Not a runtime attribute" is not the same claim as "not a
+   resolvable name" — ask what the map is FOR.** #88 excluded
+   `TYPE_CHECKING` aliases from the re-export map because `pkg.Y` fails
+   `hasattr`. True, and irrelevant: the map's consumer folds a *docstring
+   reference* onto the class it names, and nothing asks it about runtime
+   existence. Reverted, with the refutation carried in both gates.
+4. ⚠ **MINE, §2 twice in one session.** (a) I priced ruling 3's cost from
+   an `__init__.py`-only probe — **15** entries — when the guard applies
+   tree-wide: **263 of 6917**, 17× wider. (b) I justified the revert with
+   a +5 `unresolved` delta that **survives the revert**, so it was never
+   attributable to it. Both are the marker certifying a measurement that
+   happened and lending its authority to a proposition it did not test.
+5. ⚠ **A mutation battery must be CRASH-safe, not merely exception-safe.**
+   Mine restored in a `finally`; a harness timeout SIGTERM'd it mid-run
+   and the `finally` did not complete, leaving production code mutated on
+   disk. The copy-aside recovered it. Promoted to
+   `.claude/rules/process-discipline.md`.
+
+⚠ **CP#3's ▶ NEXT said a cone "walked over `imports` today
+over-invalidates".** `[M]` `_RETEST_DEPENDENCE_EDGES = ("calls",
+"type_uses", "inherits")` — `retest` does not follow `imports` at all. The
+stamp is a prerequisite for the module-precise cone #358 still has to
+build, not a repair to one that ships. And the issue's headline "14 of 365"
+counts CROSS-LAYER edges; the cone's exposure is **199 of 4045**
+intra-project. Both right, different predicates.
+
+---
+
 ## ⏸ COMPACTION POINT #3 — 2026-08-18 · a claim is falsifiable now; the cone is not yet honest
 
 ⚠ **Everything below this section is HISTORY unless a hash says otherwise.**
