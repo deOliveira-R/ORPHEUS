@@ -2,6 +2,163 @@
 
 ---
 
+## ⏸ COMPACTION POINT #5 — 2026-08-18 · the ledger SHIPS, the declaring path is guarded, and CI can be believed again
+
+⚠ **Everything below this section is HISTORY unless a hash says otherwise.**
+Both repos on `main`, **pushed**, 0 dirty / 0 unpushed:
+nexus **`253581f`**, ORPHEUS **`c3349828`**.
+`git merge-base --is-ancestor <hash> main` is the authority.
+
+⚠ **`/mcp` needs reconnecting** — the server serves the code it imported at
+startup, and five commits since CP#4 changed the reply shape.
+
+### ▶▶ WHERE THE RULED SEQUENCE STANDS
+
+The user's 1 → 2 → 3 ruling (CP#4) still holds, and the licensing framing
+this session added a **1b** to it. Titled as outcomes (`plan-authoring` §1).
+
+| # | outcome | state |
+|---|---|---|
+| 1 | `retest` answers from EVIDENCE, not popularity | ✅ **LANDED** — see below |
+| **1b** | **the code side of every claimed equation is DECLARED, not guessed** | ⏳ in progress: guard landed, inventory taken, `:nothing:` next |
+| 2 | a capture wide enough to matter exists | ⏳ not started |
+| 3 | a test declares what it is about (`.claude/plans/test_architecture_redesign.md`) | ⏳ not started |
+
+⭐ **1b exists because of the user's standing ruling**, verbatim: *"to
+demonstrate correctness we must be able to demonstrate the ledger of tests,
+which tests exercise which code, and why we can trust them by dependency…
+bullet-proof V&V at a licensing code standard"*. That is what turned step 1
+from "improve `retest`" into "build the ledger and make its claims
+falsifiable", and what makes documentation-via-ontology campaign work rather
+than a filing.
+
+### ▶ NEXT: nexus#85 — an equation can declare that NOTHING implements it
+
+`[M]` existence-checked at CP#5 time, after `#86`/`#90` both edited the same
+file: `option_spec = {"by": …}` on the verification directives and
+`{"label": …}` on the relation ones; **0 hits** for `nothing` in
+`directives.py` or `ontology.toml`. It does not exist; #85 is still a sketch,
+still OPEN.
+
+⛔ **Why it blocks: 150 of the inventory's 332 rows are NOTHING verdicts with
+nowhere to land.** Conveniently that is also the untrustworthy half (below),
+so #85 and the adversarial re-run are the same gate.
+
+### ✅ LANDED THIS SESSION
+
+**nexus** — step 1, then two guards found while verifying it:
+
+| commit | outcome |
+|---|---|
+| `f0a6e4c` | `ExecutionLedger` — a capture joined to the graph. Class DESCENT: `[M]` 0 of 438 production classes bind, so 269 gained evidence they could not carry |
+| `1ca01f8` | `verification_coverage/audit(run=)` — four verdicts + `CaptureScope`; `orphan_code` stopped meaning "the call graph could not see it" (**1590** nodes moved to `tested`) |
+| `2104ce4` | `retest(run=)` — evidence where a capture can speak; runnable selectors (`[M]` 225 071 → 78 518 chars) and a working `limit` |
+| `a0f038e` | the `run` arg reached the MCP tools (it had reached NEITHER), and the tally stopped counting evidence as its own corroboration |
+| `afe9a7c` | **#86 CLOSED** — a DECLARATION is admission-controlled, like a guess always was |
+| `0e24224` | **#90 CLOSED** — directive misuse is audible to `-W` |
+| `253581f` | **CI green**, first since 2026-08-17 |
+
+**ORPHEUS**: `cf09c3e7` step-1 record · `0a3ccd56` the 332-equation inventory
+(`.claude/inventories/`) · `2ed79318` `.nexus/ontology.toml` widening ·
+`c3349828` the red-CI rule.
+
+**Filed**: ORPHEUS **#381** (the ledger's first measurement). Commented:
+ORPHEUS #334, nexus #82.
+
+### `[M]` Numbers a pick-up needs that nothing else re-measures
+
+⭐ Re-measure anything the TOOLS produce (`plan-authoring` §9) —
+`verification_audit(run="geom_ctx,num_ctx")`, `retest(run=…)`. These are the
+ones no tool re-derives:
+
+- **The claim verdicts**, over the **2748 authored `tests` edges**:
+  **11 corroborated / 10 refuted / 1751 out-of-capture / 976
+  no-implementation**. ⛔ **The unadjudicable pair is 99.2 %**, and its two
+  halves need OPPOSITE repairs — a wider capture, and a declared
+  `implements` link.
+- ⛔⛔ **All 10 refutations carry `code_evidence=inferred`**, so **no
+  refutation is trustworthy today**. nexus#82 is a prerequisite for the
+  licensing argument, not a nicety. (Spot-checked: `bc-response-factored-adjoint`
+  is "refuted" by six tests in `test_factored_adjoint_identity.py` that are
+  self-evidently about the factored adjoint.)
+- **Static vs execution**: recall **12–15 %**, and `[M]` **0 of 300** proven
+  test↔symbol pairs have ANY path over `("calls","type_uses","inherits")`.
+  Mechanisms (num_ctx): property 27 %, upstream break 25 %, dunder 21.5 %,
+  no-source-caller 17 %, phantom 9 %.
+- **Capture scope**: 1499 of 5278 collectable tests; `executed_unclaimed`
+  **30 472**.
+- **The declaration surface**, over 341 CLAIMED equations: **94** with no
+  `implements` edge, **238** with only inferred ones, **9** declared.
+  Corpus-wide **85 declared edges over 46 equations** of 903.
+
+### ⭐⭐ Rulings that transfer
+
+1. ⭐⭐ **A partial capture must not certify a test it never RAN.** I had "the
+   capture covers the symbol ⟹ trust it", and it reported
+   `safe_to_skip = 5161` for a geometry change on a 1499-of-5278 capture —
+   3779 tests blessed for never having been looked at.
+2. ⭐⭐ **A row minted from evidence cannot corroborate anything** — the
+   verdict is a tautology. Counting them took `claims_corroborated` 5994 →
+   36 466, a number tracking capture SIZE rather than suite quality
+   (`plan-authoring` §10, in a metric I had just introduced).
+3. ⭐⭐ **Gate an arm where it is FALSIFIABLE, not where it lives.** Two arms
+   were inert through their own feature and load-bearing one level down; two
+   others are genuine no-ops and the docstrings now say so rather than
+   implying a gate exists.
+4. ⭐⭐ **A red CI cannot tell your regression from the inherited one.** 29 of
+   30 runs red; I pushed six times without looking; baseline 11, actual 13.
+   Promoted to `.claude/rules/process-discipline.md`.
+5. ⚠ **A fanout is an excellent inventory engine and a poor judge** — and the
+   two halves fail differently, so verify them differently (below).
+6. ⚠ **Seven for seven: the MCP layer is where this campaign's defects hide.**
+   `run` reached `GraphQuery` and neither tool; `assemble_*` payloads are
+   hand-built, so a new field does NOT arrive for free.
+
+### ⛔ THE INVENTORY: read its header before acting on it
+
+`.claude/inventories/implements_declaration_inventory.md` (332 equations, 12
+Haiku agents) + `verify_implements_inventory.py` beside it.
+**180 DECLARABLE / 150 NOTHING / 2 UNSURE.**
+
+- **DECLARABLE is mechanically checkable**: `[M]` 275 of 293 implementers
+  resolve; **18 would be bad edges** (11 name a MODULE — the ontology admits
+  only function/method/class; 7 do not exist; 1 lists none). Repair before
+  landing.
+- **NOTHING is not checkable and fails FLATTERINGLY** — it suppresses every
+  guess AND records that nothing implements the equation, hiding a real gap.
+  `[M]` **110 of 150 are contradicted** by their own claiming tests, and one
+  is PROVEN wrong: `attenuation` (41 claims) classified an identity, while
+  `orpheus/moc/core.py:214-218` computes it, small-τ guard and all.
+- ⚠ Calibration is absent by construction: **296 of 332 "high" confidence, 2
+  UNSURE**, on unfamiliar physics, with the brief inviting UNSURE.
+- ⛔ **The contract that governs landing any of it**: declaring ONE
+  implementer stands the inference down for the WHOLE equation, so a partial
+  declaration is worse than none. 77 rows list 2–5 implementers.
+
+### ⚠ Corrections this session made to EARLIER text
+
+- ⛔ **CP#4's headline framing was the less important half.** "`calls`
+  measures popularity" is true and is the *over*-inclusion; the dominant
+  defect is **under**-inclusion at 12–15 % recall. Both are real; the second
+  is what makes `safe_to_skip` unsound.
+- ⛔ **My own interim "2720 out-of-capture" conflated two causes** with
+  opposite repairs: 1751 + 976. Corrected in the step-1 record at `cf09c3e7`.
+- ⛔ **My "builtin-hub" hypothesis for the over-claim was REFUTED by its own
+  counterfactual**: excluding non-project traversal leaves **250 of 250**
+  refuted pairs still reachable. It is nexus#60's structural claim, not a
+  filter bug.
+- ⛔ **nexus#86's own text said the misleading-message case "fails a `-W`
+  build". It does not** — `[M]` `build succeeded` under `-W` with both
+  refusals present. That became #90.
+- ⚠ **nexus#82's title is stale**: "14004 of 14004" — it is 13084 now, with
+  85 declared.
+- ⚠ **A hypothesis I formed at CP#5 time and refuted before writing it**: the
+  `Literal[...]` analyzer bug (#90) polluting ORPHEUS's cones. `[M]` **0**
+  spurious `type_uses` edges on ORPHEUS — it bit nexus only because `tests`
+  is a plausible class name.
+
+---
+
 ## ⏸ COMPACTION POINT #4 — 2026-08-18 · the cone's edges are honest, the graph was 33 % duplicate, and the SEQUENCE is ruled
 
 ⚠ **Everything below this section is HISTORY unless a hash says otherwise.**
