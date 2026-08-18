@@ -1242,23 +1242,60 @@ older entries classify against.
    **Status:** **PARTIAL CLOSURE** by Wave E Round 3 (SN reshape
    campaign; GitHub Issues #98, #99, #164).
 
+   .. note::
+
+      **The narrative below is project archaeology — the names in it are
+      literals, not cross-references.**
+
+      An entry's body records the code *as it then was*, while a
+      cross-reference role is a present-tense claim that the named symbol
+      exists *now, at that path*.  Combining the two guarantees a false
+      claim, because the premise of this whole catalogue is that the code
+      moved on — and the falsehood is silent, since an unresolvable
+      Python-domain role renders as plain text and warns at no build
+      severity.  A name therefore appears here as a ``literal`` whenever
+      the sentence around it describes the code as it then was; a role is
+      used only where the sentence is a present-tense claim about
+      something that exists now.  *Which* tests catch ERR-026 is likewise
+      never prose: it is the ``@pytest.mark.catches("ERR-026")`` marker
+      set, read with ``nexus errors`` or ``context('vv:error:ERR-026')``.
+
+      Where the named objects went, so a reader is not stranded: of the
+      three Phase-B closure strategies only
+      :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+      survives, and it is now the *curvilinear* default (Cartesian meshes
+      get
+      :class:`~orpheus.sn.sweep.pole_angular_closure.IdentityAngularClosure`)
+      under the
+      :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+      ABC that replaced the ``PoleAngularClosure`` Protocol; ``SNMesh``
+      lives at :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`; and
+      ``SNStreamingOperator`` was re-layered rather than renamed, its
+      streaming and collision halves now separate leaves of the SN
+      operator algebra
+      (:class:`~orpheus.sn.operators.streaming.StreamingOperator` and a
+      :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+      carrying the collision diagonal).  The ``solution_to_angular_flux*``
+      codec and the ``transport_operator_matvec*`` helpers have no
+      successor at all: once every operator leaf took a typed field there
+      was nothing left to pack, and no remaining call site.
+
    What Round 3 closed (BC infrastructure layer):
 
    The vacuum-BC equation-map gap that blocked Round 2 was closed by
-   extending :func:`solution_to_angular_flux*` and
-   :func:`transport_operator_matvec*` to consume the
-   :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on the
-   :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7 BC algebra).
+   extending ``solution_to_angular_flux*`` and
+   ``transport_operator_matvec*`` to consume the ``BoundaryOperator``
+   instances on the ``SNMesh`` (Wave B Issue 7 BC algebra).
    Each function now dispatches through ``bc.apply_to_incoming(out, quad)``
    so vacuum, reflective, white, periodic, albedo, and mixed BCs are all
    honoured uniformly. Bit-identity to the pre-Round-3 reflective-only
-   fill is preserved for :class:`SpecularBoundaryOperator` (the standard
+   fill is preserved for ``SpecularBoundaryOperator`` (the standard
    ``BC.reflective`` factory), which is the load-bearing condition for
    the 11 frozen regression snapshots to stay green.
 
    This BC plumbing is the load-bearing infrastructure for any future
    ERR-026 closure on fixed-source MMS: the
-   :class:`SNStreamingOperator` now solves the *correct* operator
+   ``SNStreamingOperator`` now solves the *correct* operator
    equation for any BC family, so a Krylov-on-``apply`` solve can give
    the right answer if the operator's discretization is otherwise
    2nd-order accurate. The constant-source flat-flux test in
@@ -1296,17 +1333,17 @@ older entries classify against.
    What Wave H Phase A added (commit ``d73ef68``, GH #168 Phase A):
 
    The cell-center / BC-face storage conflation in
-   :func:`solution_to_angular_flux*` (Defect 2 of GH #168) was closed by
-   a structural rewrite — :func:`solution_to_angular_flux*` now returns
+   ``solution_to_angular_flux*`` (Defect 2 of GH #168) was closed by
+   a structural rewrite — ``solution_to_angular_flux*`` now returns
    ``(fi, boundary_face_flux)`` with separate storage for cell-centre
    values and BC face values, and the matvec uses the new
-   :class:`BoundaryFaceFlux` Protocol
+   ``BoundaryFaceFlux`` Protocol
    (``orpheus.sn.spatial.boundary_face_flux``) for the outgoing outer
    face flux. The default strategy
-   :class:`DDExtrapolation` uses
+   ``DDExtrapolation`` uses
    ``psi_face_out = 1.5·psi[N-1] − 0.5·psi[N-2]`` (one-sided
    second-order; closes Defect 1 of GH #168).
-   :class:`CellCenter` reproduces the legacy first-order substitution
+   ``CellCenter`` reproduces the legacy first-order substitution
    for ablation tests. Phase A regenerated the regression snapshot
    contract: the 5 Cartesian snapshots stay bit-identical, the 6
    curvilinear snapshots were intentionally invalidated and now skip
@@ -1316,18 +1353,18 @@ older entries classify against.
    What Wave H Phase B added (Architecture only, GH #168 Phase B):
 
    The angular-redistribution closure was lifted from inlined matvec
-   math to a new :class:`PoleAngularClosure` Protocol
+   math to a new ``PoleAngularClosure`` Protocol
    (``orpheus.sn.spatial.pole_angular_closure``) with three concrete
    strategies:
 
-   - :class:`LegacyTauSymmetricInterpolation` (default) — bit-for-bit
+   - ``LegacyTauSymmetricInterpolation`` (default) — bit-for-bit
      reproduction of the pre-Phase-B inlined τ-symmetric form on
      arbitrary input. Preserves the regression contract under Phase B.
-   - :class:`BaileyFlatFluxRedist` — algebraic flat-flux collapse
+   - ``BaileyFlatFluxRedist`` — algebraic flat-flux collapse
      ``redist = -μ_n·ΔA_i·ψ_n,i / V_i``. Equivalent to the legacy form
      on flat ψ; differs per-ordinate on angularly-varying ψ
      (the Defect 3 disagreement).
-   - :class:`MorelMontryAngularSweep` (opt-in) — canonical Hébert §3.9.4
+   - ``MorelMontryAngularSweep`` (opt-in) — canonical Hébert §3.9.4
      per-cell M-M weighted DD recurrence (Eqs. 3.428, 3.432–3.439). The
      per-ordinate redistribution is
      ``(α_{n+1/2}·ψ_{n+1/2} − α_{n-1/2}·ψ_{n-1/2}) · ΔS_i / (2·𝒲_n·V_i)``
@@ -1344,9 +1381,12 @@ older entries classify against.
    :mod:`orpheus.sn.sweep.pole_angular_closure`, and
    :doc:`/theory/methods/sn/index`.
 
-   Phase B did NOT close ERR-026. The empirical finding pinned in
-   :func:`tests.sn.test_snstreamingoperator.test_apply_spherical_constant_flux_under_morel_montry_canonical_form`
-   is that pairing :class:`MorelMontryAngularSweep` with the apply
+   Phase B did NOT close ERR-026.  The empirical finding was pinned at
+   the time by
+   ``tests/sn/test_snstreamingoperator.py::test_apply_spherical_constant_flux_under_morel_montry_canonical_form``
+   — a test that no longer exists, its module having been deleted on
+   2026-05-29 (``05864bf6``); what survives is the finding, not the
+   pin.  It is that pairing ``MorelMontryAngularSweep`` with the apply
    matvec's existing **spatial** closure (interior arithmetic average
    ``0.5·(ψ_i + ψ_{i+1})`` + outer DD extrapolation) gives a *worse*
    operator than the legacy form on flat ψ:
@@ -1376,12 +1416,12 @@ older entries classify against.
       interior face-flux closure from arithmetic average
       ``0.5·(ψ_i + ψ_{i+1})`` to the sweep's WDD form
       ``ψ_face_out = 2·ψ_avg − ψ_face_in`` (design memo §6.4 / §11).
-      The Phase A :class:`BoundaryFaceFlux` Protocol stays; the
+      The Phase A ``BoundaryFaceFlux`` Protocol stays; the
       interior face closure receives a parallel reformulation.
    2. **Default flips**: once spatial closures are aligned, flip
-      :attr:`SNMesh.pole_angular_closure` default
-      :class:`LegacyTauSymmetricInterpolation` →
-      :class:`MorelMontryAngularSweep`; flip curvilinear
+      ``SNMesh.pole_angular_closure`` default
+      ``LegacyTauSymmetricInterpolation`` →
+      ``MorelMontryAngularSweep``; flip curvilinear
       ``solve_sn_fixed_source`` default ``"source_iteration"`` →
       ``"krylov"``.
    3. **Snapshot regeneration**: regenerate the 6 deleted curvilinear
@@ -1398,7 +1438,7 @@ older entries classify against.
      ERR-026 evidence ledger; the sweep still produces the documented
      WDD deviation when explicitly invoked, the krylov path gives the
      correct answer for constant-source problems under the Phase B
-     default :class:`LegacyTauSymmetricInterpolation`.
+     default ``LegacyTauSymmetricInterpolation``.
    - ``tests/sn/spatial/test_pole_angular_closure.py`` (NEW) — 28
      foundation tests pinning Protocol contract, α-recursion identity
      (Hébert Eqs. 3.423-3.424), 2-ordinate hand-calcs, and the
