@@ -44,30 +44,47 @@ graph built before it still has the collapsed imports.
    count (21 vs 27); a census found **830** mangled delimiters, ~2 % of which
    ever warned.
 
-### ▶ NEXT — a coverage run says WHICH TEST executed the line (nexus #57)
+### ✅ LANDED 2026-08-18 — REACH is measurable (nexus #57, `ca6ccb0`)
 
-**Goal.** The graph can answer *"which tests rest on this symbol"* from
-evidence, not inference — which is REACH, the half ruling 1 says the layer
-order can never supply.
+`RuntimeRun.exercised_by` + `runtime_exercisers` (query / CLI / MCP). The
+graph can now answer *"which tests rest on this symbol"* from EVIDENCE —
+the half ruling 1 says the layer order can never supply.
 
-**`[M]` existence-checked 2026-08-17, all verified against the tree:**
+`[M]` ORPHEUS `tests/geometry`: **426 contexts, 426 resolved, 0 unknown;
+931 code nodes, 11 182 (code, test) pairs**. Stored as run `geom_ctx`.
+Re-measure with `nexus runtime-exercisers --db .nexus/graph.db --run
+geom_ctx` — do NOT copy figures out of it (`plan-authoring` §9).
 
-- `overlay_coverage` still does **not** consume contexts. ⚠ #57's `[M]` says
-  `grep -c -i context runtime.py` → **0**; it is now **1**, and that one hit is
-  a *docstring mention* of `show_contexts` at `runtime.py:530`, not a read. The
-  substance holds — do not read the 1 as "already done".
-- ⛔ **A re-capture is required.** `.nexus/traces/*.json` are nexus SIDECARS,
-  not the original `coverage json`. `[M]` `qa_quadrature_cov.json` has 2892
-  coverage entries whose only keys are `lines_hit / lines_total / branches_hit
-  / branches_total / missing_arcs`, and the string `context` appears **nowhere**
-  — while its own `meta.command` records `dynamic_context=test_function`. The
-  contexts were captured and discarded at ingest, with a receipt.
-- ORPHEUS coverage runs present: `e2e56`, `qa_quadrature_cov` (+ 3 cprofile,
-  1 pytest-manifest). `nexus runtime-runs --db .nexus/graph.db`.
+⚠ **The capture, not the read, was the work.** The compaction point's own
+`[M]` was right: `.nexus/traces/*.json` are sidecars with the contexts
+already discarded, so this needed a re-capture (`dynamic_context =
+test_function` + `coverage json --show-contexts`, config-only).
+
+⭐⭐ **Rulings this produced, both transferable:**
+
+1. **Scoring and dependence are different facts.** `# pragma: no cover`
+   removes a line from coverage's numerator AND denominator while
+   coverage goes on stamping contexts on it — it ran. `[M]` gating
+   attribution on the coverage guard drops 4 nodes, every one a pragma'd
+   guard; `DiscreteMeasure.__post_init__` is run by **131** tests and
+   would have reported none.
+2. ⛔ **Absence of a run is not absence of exercise** — hit on the
+   feature's FIRST use, by its author. A geometry-only capture made
+   **53 of 53** equations look like every claiming test executed nothing
+   of their implementation. `[M]` **0** of `alpha-recursion`'s 39
+   claimants were in the capture: they are SN tests. The whole signal was
+   the slice. ⟹ before reading a zero as a refuted claim, intersect the
+   claimants with the tests the run actually contains.
+
+⚠ **A whole-suite capture is not a scaled-up geometry capture.** `[M]`
+one directory produced a **265 MB** report (reducing to 1.44 MB stored).
+Slice, or budget accordingly.
 
 **Then, and only then, ORPHEUS#358.** Its premise is corrected in §2; the three
 tiers are (a) coarse layer DAG — available today, **and ruled out by ruling 1**,
-(b) module-precise — LANDED at `0d6bfdf`, (c) symbol-precise per-test — #57.
+(b) module-precise — LANDED at `0d6bfdf`, (c) symbol-precise per-test — LANDED
+at `ca6ccb0`. ⟹ **#358 is no longer blocked on evidence; it is blocked on
+`nexus#88` and on a capture wide enough to matter.**
 
 ⚠ **nexus#88 is a correctness prerequisite, not a nicety.** A `TYPE_CHECKING`
 import creates NO runtime dependence, and the edge does not say so, so a cone
@@ -75,9 +92,14 @@ walked over `imports` today **over-invalidates** — the exact failure the DAG
 exists to remove. `[M]` 14 of 365 cross-layer edges, concentrated on the
 order-inverting L2→L3 / L1→L3 pairs that pull the largest downstream sets.
 
-**Also open, unchanged:** ORPHEUS **#302** (`test_docstring_xrefs` is RED on
-`main`, 71 dead sites, none mine), **#301** (algebra-of-record derivability),
-**#379**; nexus **#85/#86/#87**, **#76/#16**, **#55**. Owed on the fidelity
+**Also open:** ~~ORPHEUS **#302** (`test_docstring_xrefs` is RED on `main`, 71
+dead sites, none mine)~~ ✅ **REMEDIED 2026-08-18 @ `c0d79933`** — the gate is
+GREEN (46 passed, 0 dead tree-wide). ⛔ The 71 were **not dead references**: the
+tool ran as a script, so `sys.path[0]` was `tools/` and it could not import
+`tests` — 49 of 49 dead targets in `docs/` were `tests.*` and alive. #302's own
+SUBJECT (roles that resolve but have no autodoc target, hence no link) is
+untouched and still open. **#301** (algebra-of-record derivability), **#379**,
+**#380** (30 stale raw PATHS in the catalogue — no gate checks a path); nexus **#85/#86/#87**, **#76/#16**, **#55**. Owed on the fidelity
 side: **F1-honesty**, **F4-recall**, and a real multi-agent field trial —
 round 6 was probes plus targeted stress only.
 
