@@ -234,7 +234,7 @@ the full cell contributes).
 
 ---
 
-### ERR-009 — CP neutron balance transpose
+## ERR-009 — CP neutron balance transpose
 
 **Failure mode:** #2 Variable swap — P vs P.T  
 **Date:** 2026-04-05  
