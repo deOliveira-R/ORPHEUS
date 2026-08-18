@@ -688,7 +688,7 @@ def _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad) -> float:
 @_SPH_VERIFIES
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.catches("ERR-026", "M-SEED-DROP")
+@pytest.mark.catches("ERR-026")
 def test_si_krylov_eigenvalue_equivalence_sphere():
     """Sphere: SI ≡ Krylov converged eigenpair on a heterogeneous 2G problem.
 
@@ -697,7 +697,11 @@ def test_si_krylov_eigenvalue_equivalence_sphere():
     (pre-ERR-058, n=40 sphere_2g_3reg): |Δk|~3.9e-3, shape ~30 %.
 
     ALSO the value catcher for a dropped SI ``initial_guess`` seed
-    (M-SEED-DROP, #226 spec §17 F4): a simulated seed-drop moves SI's
+    (M-SEED-DROP, #226 spec §17 F4 — a MUTATION name, deliberately NOT a
+    ``catches`` tag: that marker names a catalogued ``ERR-NNN`` defect,
+    and the catalogue is now ``.. error-entry::`` nodes in the corpus, so
+    a free-form tag there resolves to nothing and warns a ``-W`` build.
+    It lived in the marker until 2026-08-17): a simulated seed-drop moves SI's
     eigenvalue by |Δk| ≈ 3.46e-2 while Krylov's is untouched, reddening
     the equivalence 5 orders above ``_SI_KRYLOV_KEFF_TOL``.  Because this
     gate is ``@slow`` (deselected by the canonical ``-m "not slow"`` run),

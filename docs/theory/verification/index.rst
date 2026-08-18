@@ -27,8 +27,8 @@ stand-in for L0–L3 correctness evidence. The normative ladder
 definition is :ref:`vv-level-ladder` in :doc:`principles`; see
 :ref:`vv-vocabulary` for the binding vocabulary.
 
-The **error catalog** (``ERR-NNN`` entries in
-``.claude/skills/vv-principles/error_catalog.md``) records every
+The :doc:`error catalog <error_catalog>` (``ERR-NNN`` entries, one
+``.. error-entry::`` node each) records every
 L0-caught bug; each entry is pinned by a regression test carrying
 ``@pytest.mark.catches("ERR-NNN")``, and the matrix flags any
 catalog entry without a catcher as a publication-blocker.
@@ -102,6 +102,12 @@ The chapters
        coverage, the structural property-test inventory, convergence
        studies, and the run-book.
      - Surveying the whole suite's results; running the tests.
+   * - :doc:`error_catalog`
+     - Every bug caught by term-level verification: what it was, how it
+       hid from higher-level tests, which test pins it now, and the
+       lesson. Each entry is a graph node, so *which catalogued defect
+       has no catcher* is a query.
+     - Logging a caught bug; auditing whether a defect is still pinned.
    * - :doc:`matrix`
      - **Auto-generated** on every Sphinx build from the test
        registry: level × module grid, per-equation coverage, orphan
@@ -127,4 +133,5 @@ semi-analytical truth values are catalogued in the
    monte_carlo
    diffusion
    summary
+   error_catalog
    matrix
