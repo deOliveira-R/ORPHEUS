@@ -116,26 +116,42 @@ napoleon_use_ivar = True
 # the real error — flagged by the archivist at Wave T T.5.2 close-out,
 # commit `40e9ccc`).
 
+# Each entry is (module, label, event). Nearly all run at
+# `builder-inited`, before Sphinx collects sources, because what they
+# write is INCLUDED in the build. One runs at `build-finished` instead:
+# it reads the knowledge graph, and nexus writes `graph.db` at
+# build-finished, so a `builder-inited` hook would silently read the
+# PREVIOUS build's graph.
+
 _GENERATORS = [
     # docs/theory/verification/matrix.rst from the pytest test
     # registry. Closes ORPHEUS issue #79.
-    ("tools.verification.generate_matrix", "verification matrix"),
+    ("tools.verification.generate_matrix", "verification matrix",
+     "builder-inited"),
     # One docs/theory/_<pkg>_capability_matrix.inc.rst per package in
     # `orpheus.derivations.continuous` exposing
     # `cases.py:capability_rows()` (auto-discovered; replaced the
     # per-method hooks for peierls_nystrom and fn_method).
     ("tools.verification.generate_capability_matrices",
-     "capability matrices"),
+     "capability matrices", "builder-inited"),
     # The docs/_generated/ fragments — the verification-case table
     # included by docs/theory/verification/summary.rst and the
     # per-method derivation tables — from the continuous-reference
     # registry.
-    ("orpheus.derivations.generate_rst", "reference tables"),
+    ("orpheus.derivations.generate_rst", "reference tables",
+     "builder-inited"),
+    # The vv-principles skill's error-catalogue INDEX, from the graph's
+    # `.. error-entry::` nodes and their `catches` edges. Not included
+    # by any page — it is `!cat`-injected into the skill — so nothing
+    # needs it during the build, which is what lets it run late enough
+    # to see a fresh graph.
+    ("tools.verification.generate_error_index", "error-catalogue index",
+     "build-finished"),
 ]
 
 
 def _make_regenerator(module, label):
-    def _regenerate(app):
+    def _regenerate(app, *_event_args):
         import subprocess
         from sphinx.util.logging import getLogger
         try:
@@ -154,8 +170,8 @@ def _make_regenerator(module, label):
 
 
 def setup(app):
-    for module, label in _GENERATORS:
-        app.connect("builder-inited", _make_regenerator(module, label))
+    for module, label, event in _GENERATORS:
+        app.connect(event, _make_regenerator(module, label))
 
 # -- Options for mathjax -----------------------------------------------
 

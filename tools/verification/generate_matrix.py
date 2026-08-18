@@ -12,7 +12,7 @@ Sphinx RST page with:
 - Documented-only labels (excluded from the orphan gate)
 - Phantom verifies-targets (tests naming a ``:label:`` that no longer
   exists anywhere under ``docs/`` — the inverse orphan gate, issue #224)
-- ERR-NNN catalog cross-check (from ``.claude/skills/vv-principles/error_catalog.md``)
+- a pointer to the L0 error catalogue (its own page and generator since #308)
 - Unmarked tests listing
 
 The ``foundation`` bucket is orthogonal to the L0..L3 physics ladder
@@ -82,7 +82,6 @@ def _render(payload: dict) -> str:
     # work (Phase B.0 of issue #87). Older audit payloads may not
     # include it, so fall back to an empty list for robustness.
     documented = payload.get("documented_equations", [])
-    err_coverage = payload["err_coverage"]
     untagged = payload["untagged"]
 
     lines: list[str] = []
@@ -270,26 +269,22 @@ def _render(payload: dict) -> str:
         )
     lines.append("\n")
 
-    # ERR catalog cross-check
+    # The L0 error catalogue used to be tabulated here. It is a record
+    # of DEFECTS that happened in this codebase; this page is a
+    # statement about the TEST REGISTRY. Two concepts, so the catalogue
+    # got its own generator (2026-08-17, #308) and its own page — the
+    # execution is still consolidated in ``docs/conf.py``'s
+    # ``_GENERATORS``, only the concepts are separated.
     lines.append("L0 error-catalog coverage\n")
     lines.append("-------------------------\n\n")
     lines.append(
-        "Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and "
-        "the tests that carry ``@pytest.mark.catches(\"ERR-NNN\")`` "
-        "to guard it. A missing catcher is a publication-blocker for "
-        "the error catalog.\n\n"
+        "Lives in :doc:`error_catalog` — one ``.. error-entry::`` per\n"
+        "defect, each a graph node that ``@pytest.mark.catches`` resolves\n"
+        "onto. ``nexus errors`` lists them with their catcher counts,\n"
+        "uncaught first; the same table is generated into the\n"
+        "``vv-principles`` skill index by\n"
+        "``tools/verification/generate_error_index.py``.\n\n"
     )
-    if err_coverage:
-        lines.append(".. csv-table::\n")
-        lines.append("   :header: Error tag, Catching tests\n")
-        lines.append("   :widths: 15, 10\n\n")
-        for err in sorted(err_coverage):
-            caught = err_coverage[err]
-            status = str(len(caught)) if caught else "**0 (MISSING)**"
-            lines.append(f"   ``{err}``, {status}\n")
-    else:
-        lines.append("*(no ERR entries found)*\n")
-    lines.append("\n")
 
     # Untagged tests summary
     lines.append("Unmarked tests\n")

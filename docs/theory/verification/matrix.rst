@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9861**
+Total tests collected: **9865**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 13.2%
+   L0, 1297, 13.1%
    L1, 1620, 16.4%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6875, 69.7%
+   foundation, 6879, 69.7%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9777
+   explicit, 9781
    class-name, 46
    func-name, 0
    case, 33
@@ -486,6 +486,7 @@ Module × level grid
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 45, 0
+   test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
    test_layer_imports, 0, 0, 0, 0, 347, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
@@ -1427,91 +1428,12 @@ Labels declared by ``@pytest.mark.verifies("label")`` with NO matching ``:label:
 L0 error-catalog coverage
 -------------------------
 
-Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and the tests that carry ``@pytest.mark.catches("ERR-NNN")`` to guard it. A missing catcher is a publication-blocker for the error catalog.
-
-.. csv-table::
-   :header: Error tag, Catching tests
-   :widths: 15, 10
-
-   ``ERR-001``, 1
-   ``ERR-002``, 1
-   ``ERR-003``, 2
-   ``ERR-004``, 1
-   ``ERR-005``, 1
-   ``ERR-006``, 2
-   ``ERR-007``, 3
-   ``ERR-008``, 1
-   ``ERR-009``, 9
-   ``ERR-010``, 1
-   ``ERR-011``, 1
-   ``ERR-012``, 1
-   ``ERR-013``, 1
-   ``ERR-014``, 1
-   ``ERR-015``, 1
-   ``ERR-016``, 2
-   ``ERR-017``, 3
-   ``ERR-018``, 1
-   ``ERR-019``, 1
-   ``ERR-020``, 2
-   ``ERR-021``, 2
-   ``ERR-022``, 1
-   ``ERR-023``, 1
-   ``ERR-024``, 1
-   ``ERR-025``, 5
-   ``ERR-026``, 45
-   ``ERR-027``, 5
-   ``ERR-028``, 1
-   ``ERR-029``, 6
-   ``ERR-030``, 2
-   ``ERR-031``, 1
-   ``ERR-032``, 4
-   ``ERR-033``, 4
-   ``ERR-034``, 1
-   ``ERR-035``, 1
-   ``ERR-036``, 8
-   ``ERR-037``, 11
-   ``ERR-038``, 5
-   ``ERR-039``, 8
-   ``ERR-040``, 1
-   ``ERR-041``, 5
-   ``ERR-042``, 10
-   ``ERR-043``, 8
-   ``ERR-044``, 11
-   ``ERR-045``, 11
-   ``ERR-046``, 8
-   ``ERR-047``, 10
-   ``ERR-048``, 51
-   ``ERR-049``, 15
-   ``ERR-050``, 10
-   ``ERR-051``, 1
-   ``ERR-052``, 2
-   ``ERR-053``, 14
-   ``ERR-054``, 1
-   ``ERR-055``, 2
-   ``ERR-056``, 8
-   ``ERR-057``, 1
-   ``ERR-058``, 5
-   ``ERR-059``, 4
-   ``ERR-060``, 2
-   ``ERR-061``, 3
-   ``ERR-062``, 1
-   ``ERR-063``, 3
-   ``ERR-064``, 2
-   ``ERR-065``, 1
-   ``ERR-066``, 11
-   ``ERR-067``, 2
-   ``ERR-068``, 1
-   ``ERR-069``, 2
-   ``ERR-070``, 4
-   ``ERR-071``, 10
-   ``ERR-072``, 3
-   ``ERR-073``, 3
-   ``ERR-074``, 1
-   ``ERR-075``, 8
-   ``ERR-076``, 21
-   ``ERR-077``, 3
-   ``ERR-078``, 9
-   ``ERR-079``, 58
+Lives in :doc:`error_catalog` — one ``.. error-entry::`` per
+defect, each a graph node that ``@pytest.mark.catches`` resolves
+onto. ``nexus errors`` lists them with their catcher counts,
+uncaught first; the same table is generated into the
+``vv-principles`` skill index by
+``tools/verification/generate_error_index.py``.
 
 Unmarked tests
 --------------
