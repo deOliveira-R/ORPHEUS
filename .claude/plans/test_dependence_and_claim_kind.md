@@ -5,14 +5,15 @@
 ## ✅ LANDED 2026-08-18 — the cone's edges can tell type-only from runtime,
 ## and the graph they run on turned out to be 33 % duplicate
 
-nexus **`9ac3d4b`** (#88, CLOSED) and **`924efbf`**. ORPHEUS unchanged but
-for `.nexus/config.toml`. Filed: nexus **#89**.
+nexus **`9ac3d4b`** (#88, CLOSED), **`924efbf`**, **`6e469e9`**. ORPHEUS
+unchanged but for `.nexus/config.toml`. Filed: nexus **#89**.
 
 | what | outcome | re-measure with |
 |---|---|---|
 | **nexus#88** | an `imports` edge minted under `if TYPE_CHECKING:` carries `type_checking = true`; declared on `[edge.imports]`, both spellings handled | `stats()`, or grep the edge metadata |
 | **the double scan** | an `extra_source_dirs` entry INSIDE a scanned root was analysed twice and both copies kept | `stats()` |
 | ⛔ **reverted** | #88's re-export half — see ruling 3 | `tests/test_ast_analyzer.py` |
+| **the stamp reaches the REPLY** | `EdgeResult.type_checking`; `neighbors`/`context` mark it, and a runtime + type-only pair of the same import stops folding into a false `times: 2` | `neighbors(<module>, edge_types="imports")` |
 
 ⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
 
@@ -45,7 +46,22 @@ for `.nexus/config.toml`. Filed: nexus **#89**.
    a +5 `unresolved` delta that **survives the revert**, so it was never
    attributable to it. Both are the marker certifying a measurement that
    happened and lending its authority to a proposition it did not test.
-5. ⚠ **A mutation battery must be CRASH-safe, not merely exception-safe.**
+5. ⭐⭐ **A stamp nothing can READ is stored, not shipped — and the reply
+   can be worse than silent.** #88 put `type_checking` in the database and
+   no MCP tool exposed it. Worse, `neighbors` folds parallel edges that
+   serialise identically into `times: N`, so a module importing one target
+   at runtime AND under the guard reported *"imported twice"* — a sameness
+   that does not hold. `[M]` `augmented_mesh.py:95` and `:113`. Fifth
+   reply-shape defect of this campaign invisible in-process. ⟹ for every
+   new fact, name the tool that returns it, and call that tool.
+6. ⚠ **"No duplicate pair" was the wrong shape for a duplicate-scan gate**
+   — two `from X import a` / `from X import b` statements legitimately
+   mint two edges, so the gate reddened on a correct tree one commit after
+   it was written. The right gate counts against an INDEPENDENT census of
+   the source (the technique that found the defect), and must mirror the
+   analyzer's own traversal — function bodies are never visited
+   statement-wise, so `ast.walk` over-counts.
+7. ⚠ **A mutation battery must be CRASH-safe, not merely exception-safe.**
    Mine restored in a `finally`; a harness timeout SIGTERM'd it mid-run
    and the `finally` did not complete, leaving production code mutated on
    disk. The copy-aside recovered it. Promoted to
