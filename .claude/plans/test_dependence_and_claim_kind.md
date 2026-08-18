@@ -2,6 +2,89 @@
 
 ---
 
+## ⏸ COMPACTION POINT #3 — 2026-08-18 · a claim is falsifiable now; the cone is not yet honest
+
+⚠ **Everything below this section is HISTORY unless a hash says otherwise.**
+Both repos are on `main` and **pushed**, 0 dirty / 0 unpushed:
+nexus **`4252989`**, ORPHEUS **`530eab29`**.
+`git merge-base --is-ancestor <hash> main` is the authority.
+
+⚠ **`/mcp` needs reconnecting AGAIN.** It was reconnected mid-session and
+served `ca6ccb0`; two fixes landed after (`1ab2ebe`, `4252989`) and the
+server holds the code it imported at startup.
+
+### Landed this session
+
+| what | outcome | re-measure with |
+|---|---|---|
+| **nexus#57 CLOSED** `ca6ccb0` | `RuntimeRun.exercised_by` + `runtime_exercisers` (query/CLI/MCP). REACH is evidence now, not inference | `nexus runtime-exercisers --db .nexus/graph.db --run geom_ctx` |
+| `1ab2ebe` | the exerciser list is **runnable pytest selectors**, not NodeResults | — |
+| `4252989` | an `.. error-entry::` node carries its declared line | `errors()` |
+| **ORPHEUS `538b5f5c`** | ERR-026's archaeology block: 29 roles → 13, **15 dead → 0** | the probe in §"roles" below |
+| **ORPHEUS `c0d79933`** | the xref gate could not import `tests`; **3 failed → 46 passed**, 0 dead tree-wide | `python -O -m pytest tests/test_docstring_xrefs.py` |
+| filed | ORPHEUS **#380** (30 stale raw PATHS — no gate checks a path) | — |
+
+⭐ Do NOT copy figures out of those tools into here (`plan-authoring` §9).
+
+### ⭐⭐ Rulings that transfer
+
+1. ⭐⭐ **Scoring and dependence are different facts.** `# pragma: no cover`
+   removes a line from coverage's numerator AND denominator while coverage
+   goes on stamping CONTEXTS on it — it ran. `[M]` gating attribution on the
+   coverage guard drops 4 ORPHEUS nodes, all pragma'd guards;
+   `DiscreteMeasure.__post_init__` is executed by **131** tests and would have
+   reported none.
+2. ⭐⭐ **Absence of a run is not absence of exercise** — hit on the feature's
+   FIRST use, by its author. A geometry-only capture made **53 of 53**
+   equations look like every claiming test executed nothing of their
+   implementation. `[M]` **0** of `alpha-recursion`'s 39 claimants were in the
+   capture; they are SN tests. The whole signal was the slice. ⟹ intersect the
+   claimants with the tests the run CONTAINS before reading a zero as a
+   refutation.
+3. ⭐⭐ **A "hidden findings" number must be checked for FALSE positives before
+   it is believed** — the §10 lesson in a new costume. A well-argued one-line
+   repair to the xref gate was measured to reveal **158 hidden dead targets**;
+   `[M]` all 155 in `docs/` were `tests.*` and **alive**. The diagnosis was
+   right and the remedy was wrong: the real defect was `sys.path`, and with it
+   corrected the same patch reveals **nothing** (5 tree-wide with and without).
+   ⟹ sample the revealed items by hand before adopting the instrument.
+4. **An unimportable target reads as a missing one.** The gate ran as a script,
+   so `sys.path[0]` was `tools/` — `orpheus` resolved (pip-installed editable)
+   and `tests` did not. **49 of 49** dead targets were `tests.*` and existed.
+   A gate that cries wolf gets ignored, which costs more than no gate.
+5. **A reply shape must be checked at the SERVER.** `runtime_exercisers` blew
+   the 20 000-char budget on its first real MCP call (38 of 130 kept) while the
+   in-process gate stayed green — it asserted a test NAME was present, which
+   remained true as the list was truncated around it.
+
+### ▶ NEXT — nexus#88, and it is a CORRECTNESS prerequisite, not polish
+
+A `TYPE_CHECKING` import creates **no runtime dependence**, and the `imports`
+edge does not say so — so a cone walked over `imports` today
+**over-invalidates**, which is the exact failure the DAG exists to remove.
+`[M]` 14 of 365 cross-layer edges, concentrated on the order-inverting L2→L3 /
+L1→L3 pairs that pull the largest downstream sets. ORPHEUS's own
+`tests/test_layer_imports.py` explicitly TOLERATES these, so the graph is
+currently **stricter than the contract and cannot express why**.
+
+The issue proposes stamping `type_checking: True` on the edge rather than
+dropping it — "what does this module reference for typing" is how `#76`'s
+attribute-mediated dispatch would be recovered.
+
+**Then ORPHEUS#358.** Its three tiers: (a) coarse layer DAG — ruled out by the
+claim-KIND ruling, (b) module-precise — `0d6bfdf`, (c) symbol-precise per-test
+— `ca6ccb0`. What #358 still needs beyond #88 is a **capture wide enough to
+matter**: `[M]` one directory produced a 265 MB report (1.44 MB stored), so a
+whole-suite capture is not a scaled-up geometry capture.
+
+**Also open:** ORPHEUS **#302** (its gate half is REMEDIED; its SUBJECT —
+roles that resolve but have no autodoc target, hence no link — is untouched),
+**#301**, **#379**, **#380**; nexus **#85/#86/#87**, **#76/#16**, **#55**.
+Owed on the fidelity side: **F1-honesty**, **F4-recall**, and a real
+multi-agent field trial — round 6 was probes plus targeted stress only.
+
+---
+
 ## ⏸ COMPACTION POINT #2 — 2026-08-17 · the import DAG is visible; REACH is next
 
 ⚠ **Everything below is HISTORY unless a hash says otherwise.** Both repos are
