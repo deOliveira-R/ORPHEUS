@@ -12,6 +12,69 @@ nexus **`6e469e9`**, ORPHEUS **`3f3cc9ca`**.
 ⚠ **`/mcp` needs reconnecting** — the server serves the code it imported at
 startup, and `6e469e9` changed the reply shape.
 
+### ✅ STEP 1 LANDED — 2026-08-18, nexus `a0f038e` (main, pushed)
+
+Re-scoped mid-flight by the user's **licensing framing**: *"to demonstrate
+correctness we must be able to demonstrate the ledger of tests, which tests
+exercise which code, and why we can trust them by dependency."* So step 1's
+deliverable became the **ledger + the claim-falsification audit**, not a
+better `retest`. Plan: `~/.claude/plans/peppy-conjuring-thimble.md`.
+
+| commit | outcome |
+|---|---|
+| `f0a6e4c` | `ExecutionLedger` — a capture joined to the graph. Class DESCENT: `[M]` 0 of 438 production classes bind (coverage attributes lines), so 269 classes gained evidence they were structurally unable to carry |
+| `1ca01f8` | `verification_coverage/audit(run=)` — 4 verdicts + `CaptureScope`; `orphan_code` stopped meaning "the call graph could not see it" (**1590** nodes moved to `tested`) |
+| `2104ce4` | `retest(run=)` — evidence where a capture can speak; rows are runnable selectors (`[M]` 225 071 → 78 518 chars) and `limit` finally exists |
+| `a0f038e` | the `run` arg reached the MCP tools (it had reached NEITHER), and the tally stopped counting evidence as its own corroboration |
+
+⛔⛔ **The diagnosis that reframed everything — both instruments are wrong.**
+Static `("calls","type_uses","inherits")` has **12–15 % recall** against
+execution, and `[M]` **0 of 300** proven test↔symbol pairs have ANY path over
+it (property 27 %, upstream break 25 %, dunder 21 %, no-source-caller 17 %,
+phantom 9 %). It also over-claims 944 in-capture pairs — and ⛔ **that is NOT
+a builtin-hub bug**: excluding non-project traversal leaves **250 of 250**
+still reachable project-internally. My "ban `int`/`float` hops" hypothesis was
+REFUTED by its own counterfactual. Coverage evidence is execution fact; its
+limit is **scope**, not accuracy (def-line artifact refuted: 915 of 931 nodes
+have `lines_hit ≥ 2`, within-module Jaccard 0.247 not ≈1.0).
+
+⛔ **CORRECTION to this campaign's own earlier number.** An interim probe said
+"**2720** of 2748 claims OUT-OF-CAPTURE". That conflated two causes with
+opposite repairs: `[M]` **1751 out_of_capture** (needs a wider capture) +
+**976 no_implementation** (needs a declared `implements` link — no capture can
+fix it). 94 distinct equations, concentrated in `monte_carlo` (22),
+`collision_probability` (15), `infinite_medium` (12), `method_of_characteristics` (11).
+
+⛔ **And the finding that gates the licensing argument: 0 refutations are
+trustworthy today.** `[M]` **all 10** refuted rows carry
+`code_evidence=inferred` — the `implements` link was name-matched, so the
+refutation lands on the guess, not the test. **nexus#82 is a prerequisite**,
+alongside step 2's capture. Filed as ORPHEUS **#381**; #334 commented (its own
+witness is 0/21 in capture).
+
+⭐⭐ **Rulings that transfer.**
+1. **A partial capture must not certify a test it never RAN.** I had "the
+   capture covers the symbol ⟹ trust it" and it reported `safe_to_skip = 5161`
+   for a geometry change on a 1499-of-5278 capture — 3779 tests blessed for
+   never having been looked at. A capture speaks for the tests it *collected*,
+   nothing more.
+2. **A row minted from evidence cannot corroborate anything** — its verdict is
+   a tautology. Counting them took `claims_corroborated` 5994 → 36466, a
+   number tracking capture SIZE rather than suite quality (`plan-authoring`
+   §10, in a metric I had just introduced). Now `executed_unclaimed`: 30 472.
+3. **Gate an arm where it is FALSIFIABLE, not where it lives.** Two arms were
+   blind through their feature and load-bearing one level down; two others
+   were genuinely no-ops and the docstrings now say so rather than implying a
+   gate exists.
+4. ⚠ **Six for six: the MCP layer is where this campaign's defects hide.**
+   `run` reached `GraphQuery` and neither tool; `assemble_*` payloads are
+   hand-built, so a new field does NOT arrive for free.
+
+▶ **Still open from step 1**: the nexus fixture has no contexts-carrying
+coverage run, so `exercised_by` has no end-to-end witness in nexus's own suite
+(every gate hand-builds a graph). And `verification_audit(run=)` returns
+149 k chars — it has no `limit`.
+
 ### ▶▶ THE AGREED SEQUENCE — user ruling, 2026-08-18
 
 Titled as outcomes (`plan-authoring` §1). Do them **in this order**; the
