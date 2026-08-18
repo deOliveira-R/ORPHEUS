@@ -1,0 +1,41 @@
+# ORPHEUS's ontology extension.
+#
+# The base ontology ships with sphinxcontrib-nexus and may not be
+# redefined — a project WIDENS it, monotonically, and the base entries
+# are kept. Anything here is a deliberate statement about what this
+# project's graph is allowed to contain.
+
+# ── a TypeVar may implement a TYPING RULE ──────────────────────────────
+#
+# The base `[edge.implements].domain` is ["function", "method", "class"],
+# which suits an equation a solver COMPUTES. It does not suit an equation
+# that states a typing rule, where what realizes the claim is the type
+# parameter itself.
+#
+# The worked case, and the reason this file exists.
+# `carrier-grid-operator-typing` (theory/foundations/operator_algebra)
+# states that a carrier grid operator is typed
+# `LinearOperator(Protocol[Domain, Codomain])` with
+# `apply(x: Domain) -> Codomain`. Its declarations name the two TypeVars,
+# and their prose says exactly why: *"Implemented by the type variable
+# that names the domain coordinate: Domain = TypeVar('Domain',
+# bound=Vector), the operator's input cell."* No function computes that
+# rule; the TypeVars ARE its realization.
+#
+# ⚠ Until nexus#86 (2026-08-18) this was not a decision anyone made. The
+# declaring path did not consult the ontology, so `:by: py:data:...`
+# was written unconditionally at confidence 1.0 while the *bare* spelling
+# `:by: orpheus.numerics.operator.Domain` was refused with "target not
+# found in graph" — false, the node is right there. The natural spelling
+# was rejected and the prefixed workaround silently accepted. Now the
+# admission is real, so the widening has to be stated, which is the
+# point.
+#
+# ⛔ `module` is deliberately NOT admitted. A module is a container, not
+# a carrier: "the DSA scheme is implemented by orpheus.sn.acceleration.dsa"
+# names a file, and the graph already has `contains` for that. `[M]`
+# 2026-08-18, the implements-declaration inventory produced 11 targets
+# naming a module — every one of them a case where a function inside it
+# was meant. Admitting `module` would have made all 11 land as facts.
+[extend.edge.implements]
+domain = ["data"]
