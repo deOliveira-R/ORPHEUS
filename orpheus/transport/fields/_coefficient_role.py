@@ -63,7 +63,8 @@ References
 ----------
 
 * ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``
-  — Frame 2 (the coefficient cone algebra is NOT the flux torsor).
+  — Frame 2 (the coefficient cone algebra vs the then-flux-torsor; the
+  torsor was overturned at campaign 1 CS3 — this doctrine generalised).
 * ``.claude/plans/issue_257_coefficient_field_promotion.md`` — S1.
 * ``coding-elegance`` Pattern 1 (the role reads like the domain) + Pattern 6
   (the field·field multiplier product is deferred to S3, where it does work).
@@ -74,12 +75,12 @@ from __future__ import annotations
 class CoefficientRole:
     r"""Role marker for the cross-section coefficient leaves.
 
-    The complement of :class:`~orpheus.transport.fields._flux_role.FluxRole`:
-    where ``FluxRole`` removes ``flux + flux`` and retypes ``flux − flux``,
-    ``CoefficientRole`` keeps the plain :class:`~orpheus.numerics.field.Field`
-    vector-space algebra (``σ + σ`` legitimate, ``Σ = 0`` is the origin) and
-    adds **no** affine gate. It overrides nothing in S1 — the *absence* of the
-    torsor gate is its content. It is the designated home for the future
+    Keeps the plain :class:`~orpheus.numerics.field.Field` vector-space
+    algebra (``σ + σ`` legitimate, ``Σ = 0`` is the origin) and adds **no**
+    gate. (Historically the complement of the retired ``FluxRole`` affine
+    mixin — the *absence* of the torsor gate was its content, and at
+    campaign 1 CS3 that shape became every family's.) It overrides nothing
+    in S1. It is the designated home for the future
     pointwise field·field product (the multiplier-algebra multiplication, #257
     S3), deferred until that product is built.
     """

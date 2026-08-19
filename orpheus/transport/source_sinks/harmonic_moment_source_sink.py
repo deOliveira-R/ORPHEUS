@@ -22,23 +22,20 @@ grid — and :math:`R` reconstructs it to an
 role preserved. Before this leaf the flux→source role change had nowhere to
 live and leaked to the scattering consumer as a raw ``np.ndarray``.
 
-Why bare :class:`MomentField` (no :class:`~orpheus.transport.fields._flux_role.FluxRole`)
-=========================================================================================
+Why bare :class:`MomentField`
+=============================
 
 A source/sink is a **rate density** — a signed term in the balance
 :math:`L\psi + C\psi - S\psi - F\psi = q` — and rate densities **add
 vectorially** (gains accumulate; a source plus a sink is their net rate). So
 its additive algebra is the plain vector-space algebra a generic
 :class:`~orpheus.numerics.field.Field` inherits: ``source + source → source``
-is CLOSED, with no affine/torsor gate and no displacement mint. This is
-exactly the bare-vs-``FluxRole`` split that distinguishes
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
-(bare) from :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-(``FluxRole``), and
-:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
-(bare) from :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
-(``FluxRole``). The flux state is an affine point; the source/sink is a
-vector — different role, different algebra, same storage family.
+is CLOSED. The state/rate-density distinction is a CLASS distinction (Layer 1
+— cross-class arithmetic refuses even at equal units), not an algebra
+distinction: since campaign 1 CS3 (2026-08-19) the flux siblings live in V
+and carry the same vector algebra (until then a ``FluxRole`` affine gate made
+the flux side a torsor — the historical reason this section was titled
+"bare vs FluxRole").
 
 All construction (the ``L`` / ``spatial_moments`` fields, the
 ``(L+1, 2L+1, ng, *spatial[, …])`` shape, the ``SphericalHarmonicSpace(L) ⊗

@@ -117,11 +117,9 @@ class AngularFlux(AngularField):
         weights ``w_n``. The ONE reduction body is
         :meth:`AngularField._integrate_angular_values
         <orpheus.transport.fields._bases.AngularField._integrate_angular_values>`
-        — shared with the displacement role's tangent-map sibling
-        :meth:`AngularDisplacement.integrate_angular
-        <orpheus.transport.displacements.angular_displacement.AngularDisplacement.integrate_angular>`
-        (a linear reduction is its own tangent map); each role wraps it
-        in its own scalar type.
+        — one body for state and increment alike (a linear reduction is
+        its own tangent map; the displacement sibling that once wrapped it
+        retired at campaign 1 CS3 — differences are same-typed now).
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         return ScalarFlux.from_mesh(

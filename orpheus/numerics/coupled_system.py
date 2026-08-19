@@ -105,9 +105,11 @@ dimension **automatically** (the ERR-053 GMRES-truncation family is closed by
 this conformance, not by per-site edits).
 
 Role semantics stay on the members: the machinery never adds arrays — every
-``+`` it evaluates is a member ``+``, so the affine flux torsor, displacement
-minting, and units law of the member family apply unchanged (the same
-delegation discipline as ``Composite._map_binary``).
+``+`` it evaluates is a member ``+``, so the member family's fiber guards
+(class/space/mesh) and units law apply unchanged (the same delegation
+discipline as ``Composite._map_binary``; the affine torsor and displacement
+minting this delegation once carried retired at campaign 1 CS3 — flux lives
+in V).
 
 References
 ----------
@@ -236,8 +238,9 @@ class CoupledField:
     ``[ψ_A, ψ_B] = [FullField, RadialCharacteristicField]``. The vector
     algebra (``±``, scalar ``·``, :meth:`copy`, the flat protocol) is realized
     ONCE here by member-wise delegation: every ``+`` is a member ``+``, so the
-    member family's role semantics (affine flux torsor, displacement minting,
-    units) apply unchanged — this class adds structure, never arithmetic.
+    member family's fiber guards and units law apply unchanged — this class
+    adds structure, never arithmetic (the affine torsor this note once named
+    retired at campaign 1 CS3).
 
     ``eq=False`` deliberately: an ndarray-bearing aggregate has no
     well-defined ``==`` (element-wise comparison is ambiguous as a truth
@@ -288,8 +291,8 @@ class CoupledField:
 
         Container level only (the ``Composite._check_partner`` discipline):
         member-level role/type/mesh law is the members' single source of
-        truth — pre-checking member types here would block the legitimate
-        member torsor (flux member + displacement member).
+        truth — a member pre-check here would be a second spelling of the
+        members' own law.
         """
         if not isinstance(other, CoupledField):
             raise TypeError(

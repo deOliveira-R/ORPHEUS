@@ -102,8 +102,8 @@ class RadialCharacteristicField(
     :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`
     (the r = R corner). Role-erased slots (the FullField precedent — see the
     module docstring): role identity lives on the members. The 2-block algebra
-    (``±``, scalar ``·``, ``to_flat`` / ``from_flat``, ``copy``, the affine
-    torsor propagated to both blocks) is inherited whole from
+    (``±``, scalar ``·``, ``to_flat`` / ``from_flat``, ``copy`` — plain V
+    arithmetic per block since campaign 1 CS3) is inherited whole from
     :class:`~orpheus.transport.full_field.Composite`.
     """
 

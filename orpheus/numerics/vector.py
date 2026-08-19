@@ -55,7 +55,8 @@ could share an inheritance ancestor:
 * every :class:`~orpheus.numerics.field.Field` leaf — ``AngularFlux``,
   ``ScalarFlux``, ``HarmonicMomentFlux``, the boundary leaves — via the
   dunders gated by ``Field._check_partner`` (class-identity-is-units,
-  same-space, the #208 affine torsor gate).
+  same-space, mesh-bound where the leaf is — the fiber discipline; the
+  #208 affine torsor gate retired at campaign 1 CS3).
 * :class:`~orpheus.transport.timed_full_field.TimedFullField` — the
   composite carrier — via its delegate dunders that propagate to
   ``bulk`` + ``boundary``.

@@ -18,8 +18,8 @@ zeroth-order multiplication operator. Under the grand-report promotion
 embedding ``M: L^∞ → B(L²)``; built in #257 S3). This leaf is the field side
 of that promotion.
 
-The coefficient algebra (NOT the flux torsor)
-=============================================
+The coefficient algebra
+=======================
 
 :class:`CrossSectionField` carries
 :class:`~orpheus.transport.fields._coefficient_role.CoefficientRole`
@@ -92,8 +92,10 @@ class CrossSectionField(CoefficientRole, ScalarField):
     Algebra is the plain :class:`~orpheus.numerics.field.Field` vector space
     (``+``, unary ``−``, scalar ``·`` / ``/``), inherited unchanged via
     :class:`~orpheus.transport.fields._coefficient_role.CoefficientRole` — which
-    adds NO affine gate (``Σ + Σ′`` is legitimate, ``Σ = 0`` is the origin),
-    the complement of the flux torsor. Construction does NOT enforce ``Σ ≥ 0``:
+    adds NO gate (``Σ + Σ′`` is legitimate, ``Σ = 0`` is the origin —
+    historically the complement of the flux torsor, and since campaign 1 CS3
+    the shared shape of every field family). Construction does NOT enforce
+    ``Σ ≥ 0``:
     nonnegativity is the physical cone (a tested property), and a signed
     difference ``Σ − Σ′`` is a valid coefficient. The mesh-identity check is
     inherited from :class:`~orpheus.transport.fields._bases.BulkField`.

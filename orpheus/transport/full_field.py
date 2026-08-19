@@ -104,10 +104,12 @@ correct concrete return type for each subclass.
 
 Cross-class arithmetic is rejected at two layers: :meth:`Composite._check_partner`
 rejects a partner that is not a :class:`Composite`; the member-level leaf dunders
-enforce role / units / mesh / space (the #208 affine torsor gate ``flux + flux →
-TypeError``, the cross-mesh guard, the leaf-type match ``AngularFlux + ScalarFlux
-→ TypeError``) by delegation, so the composite does NOT pre-check member types
-(that would block the legitimate composite torsor ``flux + displacement → flux``).
+enforce role / units / mesh / space (the cross-mesh guard, the leaf-type match
+``AngularFlux + ScalarFlux → TypeError``) by delegation, so the composite does
+NOT pre-check member types — that would be a second spelling of the members'
+own law. (Until campaign 1 CS3, 2026-08-19, this delegation also carried the
+#208 affine torsor gate; flux lives in V now and same-typed ``±`` are plain
+vector ops.)
 
 Grep signal
 ===========

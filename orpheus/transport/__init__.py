@@ -28,8 +28,9 @@ Carriers and their algebra:
   from :class:`~orpheus.numerics.field.Field`.
 * :mod:`orpheus.transport.source_sinks` — typed source/sink fields.
 * :mod:`orpheus.transport.residuals` — typed transport residuals.
-* :mod:`orpheus.transport.displacements` — typed flux displacements: the
-  difference vector space :math:`V` the fields form a torsor over.
+* (``orpheus.transport.displacements`` — the displacement siblings of the
+  affine field algebra — RETIRED at campaign 1 CS3, 2026-08-19: flux lives
+  in V, so differences are ordinary same-typed fields.)
 * :mod:`orpheus.transport.full_field` — the composite carrier, a generic
   ``interior ⊕ boundary`` block field.
 * :mod:`orpheus.transport.timed_full_field` — the timed (history-bearing)

@@ -2956,9 +2956,11 @@ def solve_sn_adjoint(
     # already in hand or rebuilt through a factory whose convention is
     # measured; the daggered eigenvalue rhs ``F_posed.H ψ*/k_adj`` would
     # have to be assembled here for the first time — the operator is right
-    # there at :func:`_adjoint_posing_parts`, but the ``1/k`` scaling of a
-    # field crosses the affine-torsor arithmetic rules (a flux state is not
-    # a vector; see the affine-boundary campaign), and N5 never measured
+    # there at :func:`_adjoint_posing_parts` — and since campaign 1 CS3
+    # (2026-08-19) flux lives in V, so the ``1/k`` field scaling the old
+    # affine-torsor note here called illegal is ordinary arithmetic (it
+    # always was: scalar scaling was legal even under the torsor). The
+    # real blocker stands independently: N5 never measured
     # the adjoint population, so there is no reference to check the result
     # against.  Assembling it from plausibility is exactly the ERR-032
     # class.  Tracked as #353; until then this path warns with everything

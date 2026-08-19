@@ -32,7 +32,7 @@ the value-neutrality claim this module exists to certify.
 *which side is right*. Two things keep it honest:
 
 * the REFERENCE anchor for ρ lives one directory over and is untouched by this
-  file — :mod:`tests.sn.solve.test_flux_displacement_diagnostics` pins
+  file — :mod:`tests.sn.solve.test_si_convergence_diagnostics` pins
   ρ ≈ c = Σ_s/Σ_t (Adams & Larsen 2002) in bands on a homogeneous slab. That
   file must be RE-POINTED by step 1, not retired: it is this pin's anchor.
 * :func:`test_the_pin_discriminates_the_composite_norm_convention` is an
@@ -435,7 +435,7 @@ def test_the_fixture_is_in_the_c_to_one_regime(run) -> None:
     reproducing a number that means nothing. The bound ``ρ < c`` is the
     Adams & Larsen (2002) contraction bound ``ρ ≈ max Σ_s/Σ_t``; the REFERENCE
     claim itself lives in
-    :mod:`tests.sn.solve.test_flux_displacement_diagnostics`.
+    :mod:`tests.sn.solve.test_si_convergence_diagnostics`.
     """
     got = _diagnostics(run)
     rho = got["ratios"][-1]

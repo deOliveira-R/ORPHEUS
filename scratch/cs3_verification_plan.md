@@ -283,7 +283,7 @@ The three not already covered above:
 
 | file | verdict |
 |---|---|
-| `tests/sn/solve/test_flux_displacement_diagnostics.py` (4 tests, `l1`) | ⭐ **RE-POINT, never RETIRE — this is the ρ REFERENCE anchor** (ρ ≈ c, Adams & Larsen 2002) that keeps §2's RECORD pin honest. Its `_asymptotic_rho` reads `si.contraction_ratios` and `si.last_displacement`; both re-point with step 1. Its 1-group fixture stays legitimate (a rate claim is flux-shape-independent). |
+| `tests/sn/solve/test_si_convergence_diagnostics.py (renamed from test_flux_displacement_diagnostics.py at step 3)` (4 tests, `l1`) | ⭐ **RE-POINT, never RETIRE — this is the ρ REFERENCE anchor** (ρ ≈ c, Adams & Larsen 2002) that keeps §2's RECORD pin honest. Its `_asymptotic_rho` reads `si.contraction_ratios` and `si.last_displacement`; both re-point with step 1. Its 1-group fixture stays legitimate (a rate claim is flux-shape-independent). |
 | `tests/sn/operators/test_psi_half_coupling.py:3613-3636` (`test_g_d1_7_…`) | ⭐ **RE-POINT — and it is a load-bearing catcher.** It pins that the diagnostics record on a COUPLED (sphere, `CoupledField`) iterate. Today `_flux_displacement_leaf` duck-types on `contraction_ratio`; after step 1 no leaf has that method, so a naive relocation returns `None` and the diagnostics go SILENT on the coupled path — exactly this test's stated failure mode. Its replacement must be a STRUCTURAL walk (`.interior`, else `.systems[0].interior`). |
 | `tests/sn/acceleration/test_dsa_low_order.py:259-277` (`test_d8_displacement_reduction_is_the_tangent_map`) | **RETIRE.** After the carve it is a character-for-character duplicate of `test_d8_restriction_is_the_frame_moment_row` two functions above (flux − flux → flux ⟹ `integrate_angular` → `ScalarFlux` ⟹ the same body on the same values). `[M]` it carries NO `verifies` marker of its own (the two `sn-dsa-restriction` markers sit on lines 227 and 245), so no marker migration is owed here. |
 
@@ -694,5 +694,5 @@ destroys convergence and a run sized on the 1.6 s baseline will time out.
 # the algebra + diagnostics migration surface (the 11-file union of §8.3)
 .venv/bin/python -O -m pytest tests/numerics/test_affine_flux_algebra.py \
   tests/transport/ tests/sn/primitives/ tests/sn/acceleration/ \
-  tests/sn/solve/test_flux_displacement_diagnostics.py -q
+  tests/sn/solve/test_si_convergence_diagnostics.py (renamed from test_flux_displacement_diagnostics.py at step 3) -q
 ```

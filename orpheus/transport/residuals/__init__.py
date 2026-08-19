@@ -21,7 +21,9 @@ orthogonal axes ("Boundary" is a LOCUS qualifier, never a fourth
 family; #290 P2.5)::
 
     locus {Bulk, Boundary} × family {Angular, Scalar, Moment}
-                           × role {Flux, SourceSink, Residual, Displacement}
+                           × role {Flux, SourceSink, Residual}
+                           (Displacement retired at campaign 1 CS3 — flux
+                           lives in V; differences are same-typed)
 
        flux     →  orpheus.transport.fields         (…Flux)
        source   →  orpheus.transport.source_sinks   (…SourceSink)

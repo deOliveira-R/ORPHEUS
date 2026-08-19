@@ -15,7 +15,9 @@ The storage × role × locus hierarchy
 The field vocabulary (issues #205 / #201; the #290 P2.5 axis-coherence
 ruling) is a grid of THREE orthogonal axes: **locus** {Bulk,
 Boundary(field) / Trace(space)} × **family** {Angular, Scalar, Moment}
-× **role** {Flux, SourceSink, Residual, Displacement}. A bulk leaf is
+× **role** {Flux, SourceSink, Residual}. (A fourth role, Displacement,
+existed until campaign 1 CS3, 2026-08-19 — flux lives in V now, so
+differences are same-typed and the sibling family retired.) A bulk leaf is
 named ``<Family><Role>``, a boundary leaf ``<Family>Boundary<Role>`` —
 "Boundary" is the locus qualifier, never a fourth family. This module
 provides the *locus + family* axes as ABCs; the *role* leaves
@@ -41,23 +43,19 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
          │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
          │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
-         │   │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
          │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace (DiffusionMesh.scalar_trace; #290 P2/P7a)
          │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
-         │       └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
          ├─ RadialCharacteristicInteriorField (ABC, FaceField[(level,sign)])  ANGULAR edge — the ψ½
          │   │                    marched cells (μ = μ_start; #282 route (a); System B's interior);
          │   │                    a FaceField SIBLING of BoundaryField, never a child
          │   ├─ RadialCharacteristicInteriorFlux          role leaf  (flux — the ψ½ state)
          │   ├─ RadialCharacteristicInteriorSourceSink    role leaf  (source — q½ cells)
          │   ├─ RadialCharacteristicInteriorResidual      role leaf  (residual)
-         │   └─ RadialCharacteristicInteriorDisplacement  role leaf  (displacement)
          └─ RadialCharacteristicBoundaryField (ABC, FaceField[(level,sign)])  the r = R ψ½ corner
              │                    (System B's boundary; the unified 3-tuple base retired at 4e)
              ├─ RadialCharacteristicBoundaryFlux          role leaf  (flux — corner data/defect)
              ├─ RadialCharacteristicBoundarySourceSink    role leaf  (source — corner datum)
              ├─ RadialCharacteristicBoundaryResidual      role leaf  (residual)
-             └─ RadialCharacteristicBoundaryDisplacement  role leaf  (displacement)
 
 Parametrization (no twin paths)
 ===============================
@@ -421,9 +419,8 @@ class AngularField(BulkField):
         Role leaves wrap this body in their own scalar type
         (:meth:`AngularFlux.integrate_angular
         <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
-        → ``ScalarFlux``; :meth:`AngularDisplacement.integrate_angular
-        <orpheus.transport.displacements.angular_displacement.AngularDisplacement.integrate_angular>`
-        → ``ScalarDisplacement`` — a linear reduction is its own tangent
+        → ``ScalarFlux``; until campaign 1 CS3 the displacement sibling
+        wrapped the same body — a linear reduction is its own tangent
         map). Values-level, role-blind, single source of truth for the
         canonical angular reduction (the DSA restriction ``R`` rides it,
         #2).
@@ -1083,9 +1080,8 @@ class ScalarBoundaryField(BoundaryField):
     ``MaterialMesh``) and :math:`A_{\rm diff}`'s fields bind to the
     promoted mesh. The concrete role leaves are
     :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
-    (flux/state) and
-    :class:`~orpheus.transport.displacements.scalar_boundary_displacement.ScalarBoundaryDisplacement`
-    (the iterate increment); source/residual siblings join when their
+    (the state — and, since campaign 1 CS3, its own iterate increments:
+    differences are same-typed); source/residual siblings join when their
     operator codomains demand them (#290 P4). Abstract — instantiate a
     role leaf.
     """
@@ -1134,8 +1130,8 @@ class ScalarBoundaryField(BoundaryField):
 # as the spatial domain splits into BulkField (interior) and BoundaryField
 # (boundary). They are FaceField SIBLINGS, not parent/child of each other,
 # and each keys by (level, sign) on its own split space. The concrete role
-# leaves (…Flux state / …SourceSink emission / …Displacement increment)
-# live in fields/, source_sinks/, and displacements/. The historical
+# leaves (…Flux state / …SourceSink emission) live in fields/ and
+# source_sinks/ (the …Displacement increment family retired at CS3). The historical
 # UNIFIED base (cells ⊕ corner interleaved on one
 # FaceField[(level, sign, part)] buffer) retired at 4e, when the fused
 # (L+C) walk went split-native — System B's composite, which took the
