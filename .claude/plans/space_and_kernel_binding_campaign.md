@@ -206,6 +206,36 @@ source/sink/residual vector-space algebra (#288 orthogonal), the Krylov flat pat
 `is_positivity_preserving` + witness, the realizer's ψ≥0 refusal, quadrature-weight
 positivity, ray normalization.
 
+**CS3 execution ledger (2026-08-19, branch `refactor/cone-field-algebra`):**
+
+- ✅ Step 0 — pre-carve instruments `d7737f6d`: `scratch/cs3_verification_plan.md` +
+  the ρ-trajectory capture gate (`tests/numerics/test_si_diagnostic_trajectory.py`,
+  5/5 at rtol=1e-12; composite-norm control 4.71e-3; five-mutation battery).
+- ✅ Step 1 — diagnostics → the record `c3e66b18`: `IterationRecord.increment_norms`
+  + derived `contraction_ratios`/`true_error_estimate()` (⛔ NOT in `criteria` —
+  `converged` is `all(cleared)`, a ρ entry would flip every verdict);
+  `_principal_bulk_leaf` type-agnostic walk; `where_largest` promoted to `Field`;
+  the three Displacement methods deleted same commit (twin prevention). `[M]` the
+  frozen trajectory reproduces; sweep 3439 passed; walls green.
+- ✅ Step 2 — the algebra flip `993fa280`: `FluxRole` DELETED (file + 7 leaf bases),
+  `±` fall through to the fiber-guarded `Field` algebra; DSA re-typed in the same
+  commit; 11 test files re-spelled per plan §3; the base-point surrogates in
+  `test_declared_law_is_linear.py` became direct additivity + the difference law
+  (sharper: the direct spelling reds on affine); 2-D matvec gate STRENGTHENED.
+  `[M]` 4821 passed / walls green / mutations: M-add reds 12 value legs, M-mesh
+  reds exactly the fiber row. Closes #331 at merge.
+- ✅ Step 3 — package retirement `5efd2178`: `orpheus/transport/displacements/`
+  deleted (zero consumers; marker-migration set measured EMPTY); all production
+  prose swept to dated past tense; the ρ≈c anchor renamed
+  `tests/sn/solve/test_si_convergence_diagnostics.py`. `[M]` 9859 collected clean.
+- ✅ Step 4 — the cone predicate `3b9e8651`: `Field.cone_violations` (offending
+  indices, most-negative first; −0.0 member, nan violation; docstring carries the
+  four does-NOT-claim negatives); unit legs + the one-parameter DD witness pair
+  (`[M]` thick leg min ψ = −6.399383e-01, 2 of 8 negative, report ≡ the set).
+- ▶ Step 5 — docs (D7 + citer sweep + the coding-elegance #18 example): archivist
+  dispatched 2026-08-19; then Sphinx-clean + `dead_references` + the ≥90-min
+  pre-merge gate before ff-merge.
+
 ## 5. Phase CS4 — S and F are kernels; operators are born bound
 
 **Goal.** `ScatteringKernel`/`FissionKernel` are representation-free data; a constructor
