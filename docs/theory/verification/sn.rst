@@ -1834,6 +1834,19 @@ hand-reference:
      \qquad
      \phi_1^m \;=\; \sum_n w_n\,Y_1^m(\Omega_n)\,\psi_n.
 
+
+  .. no-implementation:: sn-p1-cylinder-hand-ref
+     :kind: canonical-form
+
+     **Nothing implements this**, and that is what makes it a reference.
+     The page states the value is *independent of the production*
+     :math:`R\Lambda M` einsum, and the claiming test assembles it inline
+     as a double loop precisely so it is **not** the production frame
+     analysis/reconstruction faces. Declaring those symbols here would
+     demote the gate to a value compared with itself through a wrapper —
+     green forever, keeping its authoritative name, unable to detect the
+     drift it exists to catch.
+
 Both agree at machine precision (rel. :math:`4.7\mathrm{e}{-15}` sphere /
 :math:`5.6\mathrm{e}{-15}` cylinder), with a
 ``max|S₁−S₀| > 1e-6`` negative control (vv anti-pattern #11 — a dropped

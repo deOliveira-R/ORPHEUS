@@ -3235,6 +3235,37 @@ cylindrical interface-current closure under white BC:
    \tilde P \;=\; P \;+\; \frac{\beta^+}{1 - \beta^+ P_{SS}}\,
       P_{iS}\, p_{Sj}^{\mathsf T}.
 
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.cylinder._build_peierls_cylinder_hollow_f4_case
+
+   **Implemented by** 8 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.geometry._build_closure_operator_rank2_white
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.geometry._build_white_f4_op
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.geometry._build_white_hebert_op
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.geometry.build_closure_operator
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_cyl_transmission
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_sph_transmission
+
+.. implements:: hebert-3-323
+   :by: orpheus.derivations.continuous.peierls_nystrom.sphere._build_peierls_sphere_hollow_f4_case
+
 With :math:`\beta^+ = 1` (white BC), this is **Stamm'ler Eq. 34** in
 modern notation, and it is **ORPHEUS F.4** in the rank-0 limit:
 rank-0 scalar :math:`P_{SS}` (face return probability) with the
@@ -6559,6 +6590,31 @@ value but extracted from the CP matrix itself:
      \;=\; 1 - \sum_{j} P_{ij}^{\rm cell}
      \;=\; 1 - \frac{1}{\Sigma_{t,i}\,V_i}\sum_{j}\text{rcp}_{ij}^{\rm cell},
 
+
+
+.. implements:: cp-escape-from-p-cell
+   :by: orpheus.cp.solver.CPMesh._apply_white_bc
+
+   **Implemented by** 6 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: cp-escape-from-p-cell
+   :by: orpheus.cp.solver.CPMesh._normalize_rcp
+
+.. implements:: cp-escape-from-p-cell
+   :by: orpheus.derivations.continuous.flat_source_cp.cylinder._cylinder_cp_matrix
+
+.. implements:: cp-escape-from-p-cell
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
+.. implements:: cp-escape-from-p-cell
+   :by: orpheus.derivations.continuous.flat_source_cp.slab._slab_cp_matrix
+
+.. implements:: cp-escape-from-p-cell
+   :by: orpheus.derivations.continuous.flat_source_cp.sphere._sphere_cp_matrix
 
 which is the code line ``P_out = np.maximum(1.0 - P_cell.sum(axis=1),
 0.0)`` in all three CP derivation modules. The two routes agree at

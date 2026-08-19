@@ -158,6 +158,19 @@ circular boundary and the square cell walls:
 
    \text{pitch} = r_{\text{cell}} \cdot \sqrt{\pi} = \texttt{mesh.edges[-1]} \cdot \sqrt{\pi}
 
+
+.. implements:: pitch-recovery
+   :by: orpheus.moc.geometry.MOCMesh
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: pitch-recovery
+   :by: orpheus.moc.geometry.MOCMesh.__init__
+
 The circular boundaries used for ray tracing are ``mesh.edges[1:-1]``
 (all radial edges except the origin and the Wigner-Seitz outer radius).
 The outermost region is bounded by the last circle and the cell walls.
@@ -221,6 +234,18 @@ Along this ray, the PDE reduces to a first-order ODE:
    \frac{d\psi_g}{ds} + \Sigt{g}(s) \, \psi_g(s) = Q_g(s)
 
 
+.. implements:: characteristic-ode
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: characteristic-ode
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
+
 .. _flat-source-approximation-moc:
 
 Flat-Source Approximation
@@ -239,6 +264,19 @@ and the **optical thickness** is:
 
    \tau_{g,p} = \Sigt{i,g} \cdot \frac{\ell}{\sin\theta_p}
 
+
+.. implements:: optical-thickness
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: optical-thickness
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
+
 The ODE :eq:`characteristic-ode` has the exact analytical solution:
 
 .. math::
@@ -246,6 +284,19 @@ The ODE :eq:`characteristic-ode` has the exact analytical solution:
 
    \psi_g^{\text{out}} = \psi_g^{\text{in}} \, e^{-\tau_{g,p}}
    + \frac{Q_{i,g}}{\Sigt{i,g}} \bigl(1 - e^{-\tau_{g,p}}\bigr)
+
+
+.. implements:: attenuation
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: attenuation
+   :by: orpheus.derivations.discrete.moc.equations.derive_bar_psi
 
 This is the MOC **attenuation formula**.  The first term is the
 uncollided flux from the incoming angular flux; the second term is the
@@ -259,6 +310,22 @@ The **angular flux change** across the segment is:
    \Delta\psi_{g,p} = \psi_g^{\text{in}} - \psi_g^{\text{out}}
    = \Bigl(\psi_g^{\text{in}} - \frac{Q_{i,g}}{\Sigt{i,g}}\Bigr)
      \bigl(1 - e^{-\tau_{g,p}}\bigr)
+
+
+.. implements:: delta-psi
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: delta-psi
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
+
+.. implements:: delta-psi
+   :by: orpheus.derivations.discrete.moc.equations.derive_bar_psi
 
 This quantity is the central building block of the MOC scalar flux
 update.
@@ -322,6 +389,19 @@ Azimuthal Quadrature
 
    \varphi_m = \frac{\pi}{2 N_\varphi} + (m-1) \frac{\pi}{N_\varphi},
    \quad m = 1, \ldots, N_\varphi
+
+
+.. implements:: azimuthal-angles
+   :by: orpheus.moc.quadrature.MOCQuadrature
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: azimuthal-angles
+   :by: orpheus.moc.quadrature.MOCQuadrature.create
 
 with weights :math:`\omega_m^a = 1 / N_\varphi` (summing to 1).
 
@@ -458,6 +538,13 @@ where:
    \quad
    n_{\text{rays}} = \left\lceil \frac{t_{\max} - t_{\min}}{t_s} \right\rceil
 
+
+.. implements:: effective-spacing
+   :by: orpheus.moc.geometry.MOCMesh._generate_tracks
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 The effective spacing is chosen so that rays exactly cover the cell
 width at each angle, with no gaps.
 
@@ -479,6 +566,13 @@ The intersection with a circle of radius :math:`R_k` centred at
    :label: ray-circle
 
    s^2 + 2bs + c = 0
+
+
+.. implements:: ray-circle
+   :by: orpheus.moc.geometry._ray_circle_intersections
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 where:
 
@@ -632,6 +726,19 @@ directions:
    \phi_{i,g} = \frac{1}{A_i} \int_{4\pi}
    \int_{A_i} \bar{\psi}_g(\mathbf{r}, \hat{\Omega}) \, dA \, d\Omega
 
+
+.. implements:: scalar-flux-integral
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: scalar-flux-integral
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
+
 where :math:`\bar{\psi}` is the angular flux averaged along the
 characteristic segment through region :math:`i`.
 
@@ -679,6 +786,22 @@ from :eq:`delta-psi`:
    \bar{\psi}_{k,g,p} = \frac{Q_{i,g}}{\Sigt{i,g}}
    + \frac{\Delta\psi_{k,g,p}}{\tau_{k,g,p}}
    }
+
+
+.. implements:: bar-psi
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: bar-psi
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
+
+.. implements:: bar-psi
+   :by: orpheus.derivations.discrete.moc.equations.derive_bar_psi
 
 This result is exact under the flat-source approximation.  The first
 term is the asymptotic angular flux in the region; the second term is
@@ -734,6 +857,19 @@ absorbed into the summation over both sweep directions):
        \Delta\psi_{k,g,p}
    \right]
    }
+
+
+.. implements:: boyd-eq-45
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: boyd-eq-45
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
 
 This is :cite:`Boyd2014` Equation 45 (with our weight normalisation
 convention).

@@ -155,6 +155,34 @@ to a **one-dimensional energy balance**:
      + \frac{\chi(E)}{k}
        \int_0^\infty \nu\Sigma_\mathrm{f}(E') \, \phi(E') \, dE'
 
+
+.. implements:: inf-hom-balance
+   :by: orpheus.homogeneous.solver._assemble_loss_operator
+
+   **Implemented by** 7 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: inf-hom-balance
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
+
+.. implements:: inf-hom-balance
+   :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
+
+.. implements:: inf-hom-balance
+   :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
+
+.. implements:: inf-hom-balance
+   :by: orpheus.derivations.common.eigenvalue.kinf_homogeneous
+
+.. implements:: inf-hom-balance
+   :by: orpheus.derivations.continuous.analytical.homogeneous.derive_1g
+
+.. implements:: inf-hom-balance
+   :by: orpheus.derivations.continuous.analytical.homogeneous.derive_1g_continuous
+
 where :math:`\Sigma_{\mathrm{s},0}` is the isotropic scattering kernel.
 
 .. note::
@@ -230,6 +258,49 @@ gives the **multi-group neutron balance** for group :math:`g`:
    \Sigt{g} \, \phi_g
    = \sum_{g'=1}^{G} \Sigs{g' \to g} \, \phi_{g'}
      + \frac{\chi_g}{k} \sum_{g'=1}^{G} \nSigf{g'} \, \phi_{g'}
+
+
+.. implements:: mg-balance
+   :by: orpheus.cp.solver.CPSolver._compute_balance_residual
+
+   **Implemented by** 12 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: mg-balance
+   :by: orpheus.homogeneous.solver._assemble_loss_operator
+
+.. implements:: mg-balance
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
+
+.. implements:: mg-balance
+   :by: orpheus.moc.core.MOCSolver.solve_fixed_source
+
+.. implements:: mg-balance
+   :by: orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_p0_in_scatter
+
+.. implements:: mg-balance
+   :by: orpheus.transport.operators.fission.FissionOperator.apply
+
+.. implements:: mg-balance
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicScattering.apply
+
+.. implements:: mg-balance
+   :by: orpheus.transport.operators.scattering.LegendreMomentScattering
+
+.. implements:: mg-balance
+   :by: orpheus.transport.operators.scattering.N2NMomentOperator
+
+.. implements:: mg-balance
+   :by: orpheus.transport.operators.scattering.ScatteringOperator
+
+.. implements:: mg-balance
+   :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
+
+.. implements:: mg-balance
+   :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
 
 The first term on the right is in-scattering from all groups
 (including self-scattering :math:`g' = g`), and the second is the
@@ -442,6 +513,22 @@ matrices are:
      -\Sigs{1 \to 2} & \Sigt{2} - \Sigs{2 \to 2}
    \end{pmatrix}
 
+
+.. implements:: two-group-A
+   :by: orpheus.homogeneous.solver._assemble_loss_operator
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: two-group-A
+   :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
+
+.. implements:: two-group-A
+   :by: orpheus.derivations.continuous.analytical.homogeneous.derive_2g
+
 .. math::
    :label: two-group-F
 
@@ -449,6 +536,22 @@ matrices are:
      \nu_1 \Sigf{1} & \nu_2 \Sigf{2} \\
      0 & 0
    \end{pmatrix}
+
+
+.. implements:: two-group-F
+   :by: orpheus.transport.operators.fission.FissionOperator
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: two-group-F
+   :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
+
+.. implements:: two-group-F
+   :by: orpheus.derivations.continuous.analytical.homogeneous.derive_2g
 
 Note that :math:`\mathbf{A}` is lower-triangular because there is no
 upscatter (:math:`\Sigs{2 \to 1} = 0`).  This makes the inverse
@@ -462,6 +565,22 @@ analytical:
      \dfrac{\Sigs{1 \to 2}}{\Sigma_{\mathrm{r},1} \, \Sigma_{\mathrm{r},2}}
      & \dfrac{1}{\Sigma_{\mathrm{r},2}}
    \end{pmatrix}
+
+
+.. implements:: two-group-Ainv
+   :by: orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: two-group-Ainv
+   :by: orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.as_matrix
+
+.. implements:: two-group-Ainv
+   :by: orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_matrix_form
 
 where :math:`\Sigma_{\mathrm{r},g} = \Sigt{g} - \Sigs{g \to g}` is
 the **removal cross section** for group :math:`g` (total minus
@@ -482,6 +601,22 @@ is:
              {\Sigma_{\mathrm{r},1}\,\Sigma_{\mathrm{r},2}}
    \end{pmatrix}
 
+
+.. implements:: two-group-M
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: two-group-M
+   :by: orpheus.numerics.eigenvalue.direct_eigenvalue
+
+.. implements:: two-group-M
+   :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
+
 Because the fission source enters only group 1 (:math:`\chi = [1, 0]`,
 so the second row of :math:`\mathbf{F}` is zero), the term
 :math:`\nu_2\Sigf{2}/\Sigma_{\mathrm{r},2}` does **not** appear in
@@ -500,6 +635,13 @@ gives a quadratic in :math:`\lambda`:
    \lambda^2 - \bigl(M_{11} + M_{22}\bigr)\lambda
    + \bigl(M_{11}M_{22} - M_{12}M_{21}\bigr) = 0
 
+
+.. implements:: two-group-charpoly
+   :by: orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_matrix_form
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 whose roots are:
 
 .. math::
@@ -507,6 +649,19 @@ whose roots are:
 
    \lambda_{\pm} = \frac{(M_{11} + M_{22})
                    \pm \sqrt{(M_{11} - M_{22})^2 + 4 M_{12} M_{21}}}{2}
+
+
+.. implements:: two-group-roots
+   :by: orpheus.numerics.eigenvalue.dominant_eigenpair
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: two-group-roots
+   :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
 
 The dominant root :math:`\lambda_+` is :math:`\kinf`.
 
@@ -648,6 +803,13 @@ The atomic number density of species :math:`i` (in :math:`1/(\text{barn}
    :label: number-density
 
    N_i = \frac{\rho_i}{m_u \, A_i}
+
+
+.. implements:: number-density
+   :by: orpheus.data.macro_xs.recipes._number_density
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 where :math:`\rho_i` is the partial mass density in
 :math:`\text{g}/\text{cm}^3`, :math:`m_u = 1.660538 \times 10^{-24}` g
@@ -1045,6 +1207,25 @@ inverted explicitly), giving the :math:`G \times G` eigenvalue matrix
    \qquad
    \boldsymbol{\phi} \;=\; \text{the dominant right eigenvector of }\mathbf{M},
 
+
+.. implements:: keff-update
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: keff-update
+   :by: orpheus.numerics.eigenvalue.direct_eigenvalue
+
+.. implements:: keff-update
+   :by: orpheus.numerics.eigenvalue.dominant_eigenpair
+
+.. implements:: keff-update
+   :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
+
 selected as the eigenpair with the largest real eigenvalue.  By the
 Perron–Frobenius theorem :cite:`Hebert2009` this dominant eigenvector is the
 unique non-negative solution — the **fundamental mode** — so the spectrum
@@ -1228,6 +1409,25 @@ asserts the *materialized matrix itself* equals the reference resolvent,
    [\mathbf{K}] \;=\; \texttt{np.linalg.solve}(\mathbf{A},\,\mathbf{F})
    \qquad (\text{rtol} = 10^{-12}),
 
+
+.. implements:: resolvent-object-gate
+   :by: orpheus.numerics.eigenvalue.direct_eigenvalue
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: resolvent-object-gate
+   :by: orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator
+
+.. implements:: resolvent-object-gate
+   :by: orpheus.numerics.operator.LinearOperator.as_matrix
+
+.. implements:: resolvent-object-gate
+   :by: orpheus.numerics.operator.OperatorProduct
+
 and both mutations move :math:`[\mathbf{K}]` by :math:`O(1)`
 (:math:`\mathbf{F}\mathbf{A}^{-1} \neq \mathbf{A}^{-1}\mathbf{F}` unless
 :math:`\mathbf{A}` and :math:`\mathbf{F}` commute;
@@ -1355,6 +1555,19 @@ the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
 
    \boldsymbol{\phi} \leftarrow \boldsymbol{\phi} \times
    \frac{100}{\nu\boldsymbol{\Sigma}_\mathrm{f} \cdot \boldsymbol{\phi}}
+
+
+.. implements:: normalisation
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: normalisation
+   :by: orpheus.transport.reaction_rate_functional.IntegratedReactionRate.evaluate
 
 The normalisation denominator is the **fission** production rate
 :math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` only — consistent with the

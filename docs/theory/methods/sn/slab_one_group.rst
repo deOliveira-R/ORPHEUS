@@ -359,6 +359,28 @@ For the 1D slab with Gauss–Legendre quadrature, the DD equation
 
    \psi_{\rm out} = a_i\, \psi_{\rm in} + b_i
 
+
+.. implements:: dd-recurrence
+   :by: orpheus.sn.loss_representation.CumprodScan
+
+   **Implemented by** 5 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: dd-recurrence
+   :by: orpheus.sn.sweep.scan.ordinate_scan
+
+.. implements:: dd-recurrence
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
+
+.. implements:: dd-recurrence
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients
+
+.. implements:: dd-recurrence
+   :by: orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence
+
 where the coefficients for cell :math:`i` are:
 
 .. math::
@@ -702,6 +724,28 @@ eigenvalue of :math:`(L+C)^{-1}S` is thus the **scattering ratio**:
    c \;\equiv\; \max_g \frac{\Sigma_{s,g}}{\Sigma_{t,g}},
    \qquad
    n_{\rm Jacobi} \;\approx\; \frac{\log\varepsilon}{\log c}
+
+
+.. implements:: si-spectral-rate
+   :by: orpheus.data.macro_xs.mixture.Mixture.scattering_ratio
+
+   **Implemented by** 5 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: si-spectral-rate
+   :by: orpheus.numerics.convergence.StoppingCriterion.projected_iterations
+
+.. implements:: si-spectral-rate
+   :by: orpheus.numerics.convergence.StoppingCriterion.rate
+
+.. implements:: si-spectral-rate
+   :by: orpheus.numerics.convergence._budget_from_law
+
+.. implements:: si-spectral-rate
+   :by: orpheus.numerics.convergence.default_iteration_budget
 
 (the Fourier / mode analysis of Lewis & Miller §4.4, Adams & Larsen
 2002 §II).  The right-hand identity gives the iterations

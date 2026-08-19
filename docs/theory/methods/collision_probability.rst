@@ -172,6 +172,25 @@ path** (number of mean free paths) between the two points:
      \Sigt{}\bigl(\mathbf{r}' + s\,\hat{\Omega}\bigr) \, ds
 
 
+
+.. implements:: optical-path
+   :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: optical-path
+   :by: orpheus.cp.solver.CPMesh._compute_slab_rcp
+
+.. implements:: optical-path
+   :by: orpheus.derivations.common.kernels.chord_half_lengths
+
+.. implements:: optical-path
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
 .. _flat-source-approximation-cp:
 
 Flat-Source Approximation
@@ -222,6 +241,19 @@ collision in :math:`j` without leaving the cell.  **Complementarity**:
 
    \sum_{j=1}^{N} P_{ij}^{\text{cell}} + P_{i,\text{out}} = 1
 
+
+.. implements:: complementarity
+   :by: orpheus.cp.solver.CPMesh._apply_white_bc
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: complementarity
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
 where :math:`P_{i,\text{out}}` is the escape probability.  In the code:
 ``P_out = 1 - P_cell.sum(axis=1)`` (:meth:`CPMesh._apply_white_bc`).
 Verified by ``tests/cp/test_properties.py::test_row_sums`` for all three
@@ -239,6 +271,25 @@ From detailed balance :cite:`Hebert2009` section 3.2:
    \Sigt{i} \, V_i \, P_{ij}^{\text{cell}}
    = \Sigt{j} \, V_j \, P_{ji}^{\text{cell}}
 
+
+.. implements:: reciprocity
+   :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: reciprocity
+   :by: orpheus.cp.solver.CPMesh._compute_slab_rcp
+
+.. implements:: reciprocity
+   :by: orpheus.cp.solver.CPMesh._normalize_rcp
+
+.. implements:: reciprocity
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
 **Why reciprocity holds.**  Time-reversal invariance: a neutron born in
 :math:`i` colliding in :math:`j` traces a path identical (in reverse) to
 one born in :math:`j` colliding in :math:`i`.  The :term:`optical thickness`
@@ -255,6 +306,19 @@ different sizes and cross sections.
 
    P_{ji}^{\text{cell}} = P_{ij}^{\text{cell}}
    \cdot \frac{\Sigt{i} \, V_i}{\Sigt{j} \, V_j}
+
+
+.. implements:: reciprocity-lower-triangle
+   :by: orpheus.cp.solver.CPMesh._normalize_rcp
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: reciprocity-lower-triangle
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
 
 This halves the computation cost.  In the code,
 :meth:`CPMesh._normalize_rcp` divides the reduced collision probability
@@ -277,6 +341,25 @@ The surface-to-region probability is:
    :label: surface-to-region
 
    P_{\text{in},j} = \frac{\Sigt{j} \, V_j \, P_{j,\text{out}}}{S}
+
+
+.. implements:: surface-to-region
+   :by: orpheus.cp.solver.CPMesh._apply_white_bc
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: surface-to-region
+   :by: orpheus.geometry.coord.compute_areas_1d
+
+.. implements:: surface-to-region
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.surface_area
+
+.. implements:: surface-to-region
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
 
 where :math:`S` is the cell surface area, accessed uniformly via
 ``mesh.areas[-1]`` (:func:`~geometry.coord.compute_areas_1d`):
@@ -329,6 +412,19 @@ The surface-to-surface probability is:
 
    P_{\text{in,out}} = 1 - \sum_j P_{\text{in},j}
 
+
+.. implements:: surface-to-surface
+   :by: orpheus.cp.solver.CPMesh._apply_white_bc
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: surface-to-surface
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
 The same formula appears in all three derivation scripts (e.g.,
 ``orpheus/derivations/continuous/flat_source_cp/slab.py``, line ``P_in = sig_t_g * t_arr * P_out``
 with the slab convention :math:`S = 1`, :math:`V = t`; and
@@ -349,6 +445,28 @@ possibly escape again (geometric series):
    = P_{ij}^{\text{cell}}
      + \frac{P_{i,\text{out}} \, P_{\text{in},j}}
             {1 - P_{\text{in,out}}}
+
+
+.. implements:: p-inf
+   :by: orpheus.cp.solver.CPMesh._apply_white_bc
+
+   **Implemented by** 5 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: p-inf
+   :by: orpheus.cp.solver.CPMesh.compute_pinf_group
+
+.. implements:: p-inf
+   :by: orpheus.cp.solver._cp_bc_vacuum
+
+.. implements:: p-inf
+   :by: orpheus.cp.solver._cp_bc_white
+
+.. implements:: p-inf
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
 
 This formula is **identical for all three geometries** when expressed
 in terms of :math:`V_i` and :math:`S`.  It is implemented in the
@@ -517,6 +635,19 @@ Summing:
    &= P_{ij}^{\text{cell}}
      + \frac{P_{i,\text{out}} P_{\text{in},j}}{1 - P_{\text{in,out}}}
 
+
+.. implements:: cp-infinite-lattice-sum
+   :by: orpheus.cp.solver.CPMesh._apply_white_bc
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: cp-infinite-lattice-sum
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
 The series converges because :math:`P_{\text{in,out}} < 1` (some
 fraction of re-entering neutrons must eventually collide).
 
@@ -654,6 +785,28 @@ half-space :math:`\mu \in [0, 1]`:
    :label: e3-def
 
    E_3(\tau) = \int_0^1 \mu \, e^{-\tau/\mu} \, d\mu
+
+
+.. implements:: e3-def
+   :by: orpheus.cp.solver._e3
+
+   **Implemented by** 5 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: e3-def
+   :by: orpheus.derivations.common.kernels.e3
+
+.. implements:: e3-def
+   :by: orpheus.derivations.common.kernels.e3_vec
+
+.. implements:: e3-def
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.kernel_F3
+
+.. implements:: e3-def
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.kernel_F3_at_zero
 
 This is one angular integration, leaving a function of :math:`\tau`
 only.  :math:`E_3(0) = 1/2` and :math:`E_3(\tau) \to 0` exponentially.
@@ -1009,6 +1162,25 @@ evaluating the double antiderivative at region boundary positions.  Define:
    S(i, j, g) = \int_0^{R_i}
      \bigl[\text{Ki}_3(\tau_p(y)) - \text{Ki}_3(\tau_m(y))\bigr] \, dy
 
+
+.. implements:: s-integral
+   :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: s-integral
+   :by: orpheus.derivations.common.quadrature_recipes.chord_quadrature
+
+.. implements:: s-integral
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry._second_difference
+
+.. implements:: s-integral
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
 The within-cell collision probability for :math:`j \ge i` is:
 
 .. math::
@@ -1054,6 +1226,22 @@ source and collision positions overlap.  The double integral is:
    :label: self-double-integral
 
    r_{ii} = \int_0^{\tau_i} \int_0^{\tau_i} F_1(|s - t|) \, dt \, ds
+
+
+.. implements:: self-double-integral
+   :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: self-double-integral
+   :by: orpheus.cp.solver.CPMesh._compute_slab_rcp
+
+.. implements:: self-double-integral
+   :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
 
 where :math:`F_1` is the point-to-point kernel.
 
@@ -1287,6 +1475,19 @@ there are two distinct paths along the chord:
 
       \tau_m(y) = \sum_{k=i+1}^{j} \tau_k(y)
 
+
+   .. implements:: tau-m
+      :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
+
+      **Implemented by** 2 sites. Every symbol that executes this
+      equation's arithmetic is declared, not only the canonical one: a
+      test is adjudicated against the transcription it actually ran, so
+      declaring a single site would refute the tests that exercise the
+      others.
+
+   .. implements:: tau-m
+      :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
+
    For adjacent regions :math:`j = i+1`, this is :math:`\tau_{i+1}`.
    For self-collision :math:`j = i`, :math:`\tau_m = 0`.
 
@@ -1298,6 +1499,19 @@ there are two distinct paths along the chord:
 
       \tau_p(y) = \tau_m(y) + 2 \sum_{k=1}^{i} \tau_k(y)
 
+
+
+   .. implements:: tau-p
+      :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
+
+      **Implemented by** 2 sites. Every symbol that executes this
+      equation's arithmetic is declared, not only the canonical one: a
+      test is adjudicated against the transcription it actually ran, so
+      declaring a single site would refute the tests that exercise the
+      others.
+
+   .. implements:: tau-p
+      :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
 
 Boundary Position Arrays
 --------------------------
@@ -1709,6 +1923,31 @@ group :math:`g` is:
        + 2\,\Sigma_{2,j,g' \to g}\bigr) \phi_{jg'}
      \right]
 
+
+.. implements:: neutron-balance
+   :by: orpheus.cp.solver.CPSolver._compute_balance_residual
+
+   **Implemented by** 6 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: neutron-balance
+   :by: orpheus.cp.solver.CPSolver._solve_fixed_source_gs
+
+.. implements:: neutron-balance
+   :by: orpheus.cp.solver.CPSolver._solve_fixed_source_jacobi
+
+.. implements:: neutron-balance
+   :by: orpheus.cp.solver.CPSolver.compute_fission_source
+
+.. implements:: neutron-balance
+   :by: orpheus.cp.solver.CPSolver.solve_fixed_source
+
+.. implements:: neutron-balance
+   :by: orpheus.derivations.common.eigenvalue.kinf_from_cp
+
 The factor of 2 on :math:`\Sigma_2` accounts for both outgoing (n,2n)
 neutrons (the original neutron is already removed by :math:`\Sigt{}`).
 
@@ -2070,6 +2309,22 @@ balance :eq:`collision-rate` sums over birth regions (first index of
    :label: p-transpose-flux-balance
 
    \Sigt{} V \phi = P^T V Q
+
+
+.. implements:: p-transpose-flux-balance
+   :by: orpheus.cp.solver.CPSolver._compute_balance_residual
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: p-transpose-flux-balance
+   :by: orpheus.cp.solver.CPSolver._solve_fixed_source_gs
+
+.. implements:: p-transpose-flux-balance
+   :by: orpheus.cp.solver.CPSolver._solve_fixed_source_jacobi
 
 Hence: :math:`\phi = P^T V Q / (\Sigt{} V)`.
 

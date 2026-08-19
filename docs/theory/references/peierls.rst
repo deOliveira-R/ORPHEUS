@@ -551,6 +551,31 @@ The :math:`E_1` kernel has a logarithmic singularity at :math:`x = x'`:
    E_1(z) = \bigl[-\ln z - \gamma\bigr] + R(z),
    \qquad R(z) \equiv E_1(z) + \ln z + \gamma,\quad R(0) = 0.
 
+
+.. implements:: e1-decomposition
+   :by: orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom.E1_smooth_remainder
+
+   **Implemented by** 6 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: e1-decomposition
+   :by: orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom._F_k_log_primitives
+
+.. implements:: e1-decomposition
+   :by: orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom._GAMMA_EULER
+
+.. implements:: e1-decomposition
+   :by: orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom._simpson_panel_smooth_weights
+
+.. implements:: e1-decomposition
+   :by: orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom.build_peierls_operator
+
+.. implements:: e1-decomposition
+   :by: orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom.product_simpson_log_weights
+
 The remainder :math:`R(z)` is a smooth (analytic) function that
 vanishes at the origin. This decomposition motivates the classical
 **singularity-subtraction** approach (used in the original

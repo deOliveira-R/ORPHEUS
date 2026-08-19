@@ -787,6 +787,25 @@ the fine balances:
         {\sum_{i\in R} w_{i,g}}
    \;=\; 0,
 
+
+.. implements:: sn-homogenization-balance-preservation
+   :by: orpheus.data.macro_xs.mixture.Mixture.assert_balanced
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: sn-homogenization-balance-preservation
+   :by: orpheus.data.macro_xs.mixture.Mixture.balance_residual
+
+.. implements:: sn-homogenization-balance-preservation
+   :by: orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through
+
+.. implements:: sn-homogenization-balance-preservation
+   :by: orpheus.derivations.common.homogenization.derive_balance_tradeoff
+
 since each fine residual is zero. No separate "rebalance the homogenized
 total" step is needed — preservation is automatic, and the homogenized
 ``Mixture`` passes :meth:`Mixture.assert_balanced
@@ -1010,6 +1029,34 @@ therefore the **bilinear** form
    \Sigma_R \;=\;
    \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}
         {\int_R \varphi^*\,\varphi\;\mathrm{d}V},
+
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.data.macro_xs.mixture.Mixture.condense
+
+   **Implemented by** 7 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.numerics.frame.PetrovGalerkinFrame
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.sn.solution.Solution.condense
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.sn.solution.Solution.homogenize
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through_bilinear
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.derivations.common.homogenization.collapse_rules
+
+.. implements:: sn-homogenization-bilinear
+   :by: orpheus.derivations.common.homogenization.vector_bilinear_rule
 
 .. (Wired P6, #281 — no vv-status sentinel.) This bilinear identity —
    the eigenvalue-consistent (adjoint-weighted) effective cross section

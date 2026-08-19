@@ -2047,6 +2047,34 @@ convergence
    \gamma_-\psi\big|_f \;=\; q_f
    \qquad\text{exactly, and once.}
 
+
+.. implements:: bc-single-delivery
+   :by: orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow
+
+   **Implemented by** 7 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: bc-single-delivery
+   :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
+
+.. implements:: bc-single-delivery
+   :by: orpheus.sn.solver._build_fixed_source_rhs
+
+.. implements:: bc-single-delivery
+   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink
+
+.. implements:: bc-single-delivery
+   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_mesh_laws
+
+.. implements:: bc-single-delivery
+   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_specs
+
+.. implements:: bc-single-delivery
+   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow
+
 Three failure directions are distinguishable in one reading of that
 equation, with no reference solver and no discretization dependence:
 a doubled delivery reads :math:`2q`, a lost channel reads :math:`0`,

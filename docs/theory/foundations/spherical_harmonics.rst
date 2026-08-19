@@ -308,6 +308,25 @@ real :math:`Y_\ell^m` satisfy the **discrete** orthogonality
    \qquad \ell + \ell' \le 2L.
 
 
+
+.. implements:: real-sh-discrete-orthogonality
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.evaluate
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: real-sh-discrete-orthogonality
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.mass_matrix
+
+.. implements:: real-sh-discrete-orthogonality
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell
+
+.. implements:: real-sh-discrete-orthogonality
+   :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace
+
 This identity is the discretised form of the continuous orthogonality
 on :math:`L^2(S^2)`. Combined with the addition theorem
 :eq:`real-sh-addition-theorem`, it produces the central numerical
@@ -318,6 +337,34 @@ sufficiently-exact angular cubature:
    :label: pi-r-equals-4pi-i
 
    \Pi \, R \;=\; 4\pi \, I_{\text{coefficient space}},
+
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.addition_theorem_factor
+
+   **Implemented by** 7 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.analyze
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.reconstruct
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.frame.FrameBase.gram
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.frame.GalerkinFrame
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.frame._FrameAnalysis
+
+.. implements:: pi-r-equals-4pi-i
+   :by: orpheus.numerics.frame._FrameReconstruction
 
 where :math:`\Pi` is the spherical-harmonic frame's **analysis
 face** (``frame.analysis``, :math:`M = Y^*W`), :math:`R` is its
@@ -373,6 +420,34 @@ lives in exactly ONE place in the codebase:
    (\Pi^* c)_n
    \;=\; \sum_\ell \frac{4\pi}{2\ell+1} \sum_m
               Y_\ell^m(\hat\Omega_n) c_\ell^m.
+
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.analyze_transpose
+
+   **Implemented by** 7 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.synthesize
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.frame._FrameAnalysis
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.operator._AdjointOperator
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.operator._AdjointOperator.apply
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace
 
 * :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
   — the addition-theorem reconstruction, exposed by the frame's

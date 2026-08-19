@@ -269,6 +269,22 @@ The continuous form at :math:`\mu = -1` (Hébert Eq. (3.432)) is
    \;=\; \sum_{\ell=0}^{L}
          \frac{2\ell + 1}{2}\,Q_\ell(r)\,P_\ell(-1).
 
+
+.. implements:: hebert-3-432
+   :by: orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: hebert-3-432
+   :by: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
+
+.. implements:: hebert-3-432
+   :by: orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_forward_residual
+
 The subscript :math:`-1/2` is Hébert's half-integer index for the
 auxiliary starting ordinate — it labels the **inward
 zero-weight** direction that sits one half-step above
@@ -348,6 +364,22 @@ yields Hébert Eq. (3.434):
                             + 2 \cdot \bar\phi_{i+1/2}}
                           {\Delta r_i \cdot \Sigma_i + 2}.
 
+
+.. implements:: hebert-3-434
+   :by: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: hebert-3-434
+   :by: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_transpose
+
+.. implements:: hebert-3-434
+   :by: orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_residual_march
+
 Stepping inward to the next face uses the textbook DD auxiliary
 relation rearranged (Hébert Eq. (3.435)):
 
@@ -355,6 +387,31 @@ relation rearranged (Hébert Eq. (3.435)):
    :label: hebert-3-435
 
    \bar\phi_{i-1/2} \;=\; 2 \cdot \bar\phi_i - \bar\phi_{i+1/2}.
+
+
+.. implements:: hebert-3-435
+   :by: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
+
+   **Implemented by** 6 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: hebert-3-435
+   :by: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_transpose
+
+.. implements:: hebert-3-435
+   :by: orpheus.sn.sweep.psi_half_angle_seed.radial_characteristic_residual_march
+
+.. implements:: hebert-3-435
+   :by: orpheus.transport.spatial.diamond._DD_W
+
+.. implements:: hebert-3-435
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average
+
+.. implements:: hebert-3-435
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average_transpose
 
 The pair :eq:`hebert-3-434`–:eq:`hebert-3-435` IS the spatial
 recurrence.  Together they realise a tridiagonal-style inward

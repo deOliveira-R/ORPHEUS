@@ -88,6 +88,46 @@ transport equation becomes a coupled system with scattering transfer
        + \frac{\chi_g}{k} \sum_{g'} \nSigf{g'} \phi_{g'}
    \right]
 
+
+.. implements:: multigroup
+   :by: orpheus.sn.coupled_system.WithinGroupSystem
+
+   **Implemented by** 11 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: multigroup
+   :by: orpheus.sn.coupled_system.build_within_group_system
+
+.. implements:: multigroup
+   :by: orpheus.sn.operators.streaming.StreamingCollisionOperator
+
+.. implements:: multigroup
+   :by: orpheus.sn.operators.streaming.StreamingOperator
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.fission.FissionOperator
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicN2N
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicScattering
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.multiplication_operator.MultiplicationOperator
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.scattering.LegendreMomentScattering
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.scattering.ScatteringOperator
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.scattering.ScatteringOperator._assemble_per_ordinate_source
+
 where the streaming operator depends on the coordinate system (for
 the slab, :math:`\mu\,\partial_x` as in :eq:`transport-cartesian`)
 and :math:`\phi_g = \sum_n w_n \psi_{g,n}` is the :term:`scalar flux`.
@@ -250,6 +290,31 @@ polynomial of degree :math:`\leq L`.
 
       \sum_{m=-\ell}^{\ell} Y_\ell^m(\hat{\Omega})\,Y_\ell^m(\hat{\Omega}')
       = P_\ell(\hat{\Omega} \cdot \hat{\Omega}')
+
+
+   .. implements:: addition-theorem
+      :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis
+
+      **Implemented by** 6 sites. Every symbol that executes this
+      equation's arithmetic is declared, not only the canonical one: a
+      test is adjudicated against the transcription it actually ran, so
+      declaring a single site would refute the tests that exercise the
+      others.
+
+   .. implements:: addition-theorem
+      :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.addition_theorem_factor
+
+   .. implements:: addition-theorem
+      :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.evaluate
+
+   .. implements:: addition-theorem
+      :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.reconstruct
+
+   .. implements:: addition-theorem
+      :by: orpheus.numerics.basis.spherical_harmonic_basis._evaluate_real_sh
+
+   .. implements:: addition-theorem
+      :by: orpheus.numerics.quadrature.directional.Quadrature.spherical_harmonics
 
    which is the identity used by Eq. :eq:`pn-scatter` to expand the
    :math:`P_\ell` scattering kernel as a finite tensor product over

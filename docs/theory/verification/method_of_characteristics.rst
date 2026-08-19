@@ -310,6 +310,25 @@ A smooth radial scalar flux centred at :math:`(P/2, P/2)`:
    \qquad r = \sqrt{(x - P/2)^{2} + (y - P/2)^{2}},
    \quad R = P/2
 
+
+.. implements:: moc-mms-psi-ref
+   :by: orpheus.derivations.continuous.mms.moc.MOCPinCellMMSCase
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: moc-mms-psi-ref
+   :by: orpheus.derivations.continuous.mms.moc.MOCPinCellMMSCase._r2
+
+.. implements:: moc-mms-psi-ref
+   :by: orpheus.derivations.continuous.mms.moc.MOCPinCellMMSCase.phi_ref
+
+.. implements:: moc-mms-psi-ref
+   :by: orpheus.derivations.continuous.mms.moc._build_moc_mms_continuous_reference
+
 The :math:`r^{2}` argument ensures :math:`C^{\infty}` smoothness at
 :math:`r = 0`.  With :math:`A = 0.3` the ansatz is positive
 everywhere (minimum :math:`1 - A = 0.7`).  The radial form is
@@ -334,6 +353,25 @@ into the characteristic ODE
                      + \sin\varphi_a\,\partial_y\phi_{\text{ref}})
        + \Sigma_t\,\phi_{\text{ref}}
      \bigr]
+
+
+.. implements:: moc-mms-qext
+   :by: orpheus.derivations.continuous.mms.moc.MOCPinCellMMSCase
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: moc-mms-qext
+   :by: orpheus.derivations.continuous.mms.moc.MOCPinCellMMSCase.dphi_dx
+
+.. implements:: moc-mms-qext
+   :by: orpheus.derivations.continuous.mms.moc.MOCPinCellMMSCase.dphi_dy
+
+.. implements:: moc-mms-qext
+   :by: orpheus.derivations.continuous.mms.moc.mms_sweep
 
 The streaming term depends on track direction :math:`(\varphi_a, \theta_p)`.
 When averaged over :math:`4\pi` it vanishes (both

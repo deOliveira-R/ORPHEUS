@@ -4625,6 +4625,22 @@ transverse index, the **sawtooth**
 
    \psi^n_a(k, i_\perp) \;=\; (-1)^k \, \varphi^n_a(i_\perp) ,
 
+
+.. implements:: dd-null-sawtooth
+   :by: orpheus.sn.operators.loss_kernel_gauge._FacePlacement
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: dd-null-sawtooth
+   :by: orpheus.sn.operators.loss_kernel_gauge._block_support
+
+.. implements:: dd-null-sawtooth
+   :by: orpheus.sn.operators.loss_kernel_gauge._build_block_table
+
 .. (vv-status rationale) Structural identity: the null-space specialisation of
    the already-verified multi-D DD closure (dd-cartesian-2d) at psi_c = 0 — an
    algebraic rearrangement, not a new solver claim. Its content is that every
@@ -4737,6 +4753,19 @@ ordinate **orbits** under the reflection group
    \sum_{\substack{U \subseteq S({\rm orbit}) \\ |U| \ge 2}}
    \kappa(U) \prod_{c \notin U} n_c
    \;+\; \#\{\text{tangential trace DOFs}\}
+
+
+.. implements:: dd-null-counting-law
+   :by: orpheus.sn.operators.loss_kernel_gauge._anova_dimension
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: dd-null-counting-law
+   :by: orpheus.sn.operators.loss_kernel_gauge.predicted_kernel_dimension
 
 .. (vv-status rationale) Structural identity: a combinatorial count derived
    from dd-null-balance-combinatorial, carrying no solver claim. It is

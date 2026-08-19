@@ -625,12 +625,44 @@ gives the eigenfunction
 
    \phi(x) \;=\; \sin\!\left(\frac{\pi x}{L}\right)
 
+
+.. implements:: bare-slab-eigenfunction
+   :by: orpheus.derivations.continuous.cases.diffusion._bare_slab_spectrum
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: bare-slab-eigenfunction
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg
+
+.. implements:: bare-slab-eigenfunction
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg_continuous
+
 and the **geometric buckling**
 
 .. math::
    :label: bare-slab-buckling
 
    B^{2} \;=\; \left(\frac{\pi}{L}\right)^{2}.
+
+
+.. implements:: bare-slab-buckling
+   :by: orpheus.derivations.continuous.cases.diffusion._bare_slab_spectrum
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: bare-slab-buckling
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg
+
+.. implements:: bare-slab-buckling
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg_continuous
 
 Substituting :eq:`bare-slab-eigenfunction` into the diffusion
 equation yields the eigenvalue condition
@@ -640,12 +672,47 @@ equation yields the eigenvalue condition
 
    D\,B^{2} + \Sigma_r \;=\; \frac{1}{k}\,\nu\Sigma_f,
 
+
+.. implements:: bare-slab-critical-equation
+   :by: orpheus.derivations.continuous.cases.diffusion._bare_slab_spectrum
+
+   **Implemented by** 4 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: bare-slab-critical-equation
+   :by: orpheus.derivations.continuous.cases.diffusion._diffusion_coeffs
+
+.. implements:: bare-slab-critical-equation
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg
+
+.. implements:: bare-slab-critical-equation
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg_continuous
+
 which solves to
 
 .. math::
    :label: bare-slab-keff
 
    k \;=\; \frac{\nu\Sigma_f}{D\,B^{2} + \Sigma_r}.
+
+
+.. implements:: bare-slab-keff
+   :by: orpheus.derivations.continuous.cases.diffusion._bare_slab_spectrum
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: bare-slab-keff
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg
+
+.. implements:: bare-slab-keff
+   :by: orpheus.derivations.continuous.cases.diffusion.derive_1rg_continuous
 
 Because the eigenfunction is independent of group in the
 multigroup generalisation (all groups share the same spatial

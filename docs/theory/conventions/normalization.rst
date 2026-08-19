@@ -59,6 +59,28 @@ path's precomputed recurrence needed
    b \;=\; \frac{2\,\Delta x\,(Q/W)}{2\mu + \Delta x\,
    \Sigma_{\mathrm{t}}},
 
+
+.. implements:: normalization-dd-source-coefficient
+   :by: orpheus.transport.operators.scattering.ScatteringOperator._assemble_per_ordinate_source
+
+   **Implemented by** 5 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: normalization-dd-source-coefficient
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
+
+.. implements:: normalization-dd-source-coefficient
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.update
+
+.. implements:: normalization-dd-source-coefficient
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission
+
+.. implements:: normalization-dd-source-coefficient
+   :by: orpheus.derivations.discrete.sn.balance.derive_cumprod_recurrence
+
 and the buggy derivation dropped the :math:`1/W` *and* mis-signed the
 companion coefficient's numerator. The two errors compensate: the
 buggy fixed point is :math:`\psi = Q/(2\Sigma_{\mathrm{t}})`, and the

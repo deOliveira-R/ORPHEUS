@@ -607,6 +607,40 @@ Cartesian DD recurrence reduces to the per-cell scalar form of
                    \;+\; \frac{2\,Q_i\,\Delta x_i / W}
                               {2|\mu_n| + \Delta x_i\,\Sigma_t},
 
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.geometry.reduced_operator.slab_streaming
+
+   **Implemented by** 9 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.update
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.diamond._DD_W
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_average
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average
+
+.. implements:: dd-slab-scalar
+   :by: orpheus.transport.spatial.scheme.DiscretizationSchemeBase.source_emission
+
 with ``W = Σ_n w_n`` the quadrature weight sum, mirroring the
 sweep's vectorised cumprod path
 (``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) lines 117–123) and per-
@@ -646,6 +680,31 @@ Morel–Montry weight :eq:`mm-weights`.  The cell-update is then
              + (\Delta A_i / w_n)\,c_{\rm out}
              + \Sigma_t\,V_i},
 
+
+.. implements:: dd-curvilinear-scalar
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_for_streaming
+
+   **Implemented by** 6 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: dd-curvilinear-scalar
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+
+.. implements:: dd-curvilinear-scalar
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
+
+.. implements:: dd-curvilinear-scalar
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.residual
+
+.. implements:: dd-curvilinear-scalar
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.update
+
+.. implements:: dd-curvilinear-scalar
+   :by: orpheus.derivations.discrete.sn.balance.derive_wdd_solve
+
 mirroring ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) lines
 350–355 (and the structurally identical cylindrical branches at
 sweep.py:511–531 / sweep.py:548–575) verbatim, with closures
@@ -675,6 +734,22 @@ contributions drop out:
    \mathrm{numer} \;=\; Q_i\,V_i / W
                        + (\Delta A / w)\,c_{\rm in}\,
                           \psi_{n-\tfrac12,\,i},
+
+
+.. implements:: dd-cylindrical-degenerate
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_for_streaming
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: dd-cylindrical-degenerate
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+
+.. implements:: dd-cylindrical-degenerate
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.update
 
 mirroring ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) lines
 533–543 verbatim.  The strategy returns

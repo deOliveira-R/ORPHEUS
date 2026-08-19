@@ -324,6 +324,19 @@ cylinder, white BCs), the cell areas must match:
    \quad \Longrightarrow \quad
    p = R_{\text{cell}} \sqrt{\pi}
 
+
+.. implements:: ws-pitch
+   :by: orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: ws-pitch
+   :by: orpheus.mc.solver.ConcentricPinCell.default_pwr
+
 This is the convention used by :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
 (``r_cell = pitch / sqrt(pi)``).
 
@@ -353,6 +366,16 @@ tolerance accounts for this:
    |k_{\text{MC}} - k_{\text{ref}}|
    < 5\sigma_{\text{MC}} + 0.06 \, k_{\text{ref}}
 
+
+.. no-implementation:: hetero-tolerance
+   :kind: definition
+
+   **Nothing implements this** — it fixes the tolerance a heterogeneous
+   comparison is judged against, and its only sites in the tree are
+   inside the test that also claims it. Declaring those would make the
+   claim adjudicate against itself: a vacuous green, which is worse
+   than an honest gap.
+
 **Lesson (meta-lesson 8):**  When constructing geometry for cross-method
 comparison, verify the cell area/volume matches between the two methods.
 A factor-of-2 in a linear dimension is a factor-of-4 in area --- large
@@ -381,6 +404,13 @@ calculation by introducing a fictitious **majorant** cross section:
 
    \Sigma_{\text{maj},g} = \max_m \Sigma_{t,m,g}
 
+
+.. implements:: majorant
+   :by: orpheus.mc.solver._precompute_xs
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 where the maximum is over all materials :math:`m` for energy group
 :math:`g`.  In the code::
 
@@ -400,6 +430,13 @@ rate :math:`\Sigma_{\text{maj},g}`:
 
    s = -\frac{\ln \xi}{\Sigma_{\text{maj},g}},
    \qquad \xi \sim U(0,1)
+
+
+.. implements:: free-flight
+   :by: orpheus.mc.solver._random_walk
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 This gives :math:`E[s] = 1/\Sigma_{\text{maj},g}` and
 :math:`\text{Var}[s] = 1/\Sigma_{\text{maj},g}^2`.  Both moments are
@@ -423,6 +460,13 @@ virtual:
 
    \Sigma_{\text{maj},g}
    = \Sigma_{t,g}(\mathbf{r}) + \Sigma_{\text{virtual},g}(\mathbf{r})
+
+
+.. implements:: decompose
+   :by: orpheus.mc.solver._random_walk
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 The probability of a neutron at :math:`\mathbf{r}_0` reaching distance
 :math:`s` without any (real or virtual) collision is:
@@ -504,6 +548,13 @@ The virtual collision probability at the collision site is:
    P_{\text{virtual}} = \frac{\Sigma_{\text{maj},g} - \Sigma_{t,g}}
                               {\Sigma_{\text{maj},g}}
 
+
+.. implements:: virtual-collision-probability
+   :by: orpheus.mc.solver._random_walk
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 Verified by ``test_mc_properties.py::test_delta_tracking_virtual_probability``
 and ``test_mc_properties.py::test_delta_tracking_homogeneous_no_virtual``
 (homogeneous medium → zero virtual collisions).
@@ -530,6 +581,13 @@ direction is sampled.  The solver uses a 2-D projection:
    \phi = 2\pi \, \xi_2 \\
    \Omega_x &= \sin\theta \, \cos\phi, \qquad
    \Omega_y = \sin\theta \, \sin\phi
+
+
+.. implements:: direction-sampling
+   :by: orpheus.mc.solver._random_walk
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 where :math:`\xi_1, \xi_2 \sim U(0,1)`.  In the code::
 
@@ -608,6 +666,19 @@ neutron exits the cell, its position wraps via the modulo operation:
 
    x \leftarrow x \bmod p, \qquad y \leftarrow y \bmod p
 
+
+.. implements:: periodic-bc
+   :by: orpheus.mc.solver._mc_bc_periodic
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: periodic-bc
+   :by: orpheus.mc.solver._random_walk
+
 In the code::
 
     nx_ = nx_ % pitch
@@ -631,6 +702,19 @@ from the full branching ratio
    P(\text{scatter}) = \frac{\Sigma_{s,g}}{\Sigma_{t,g}}, \quad
    P(\text{(n,2n)}) = \frac{\Sigma_{2n,g}}{\Sigma_{t,g}}, \quad
    P(\text{absorb}) = \frac{\Sigma_{a,g}}{\Sigma_{t,g}}
+
+
+.. implements:: branching
+   :by: orpheus.mc.solver._precompute_xs
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: branching
+   :by: orpheus.mc.solver._random_walk
 
 where :math:`\Sigma_{a,g} = \Sigma_{f,g} + \Sigma_{c,g} + \Sigma_{L,g}`
 and :math:`\Sigma_{2n,g} = \sum_{g'} \Sigma_{2n}(g \to g')`.  The real
@@ -706,6 +790,19 @@ cumulative distribution of the scattering row:
    = \frac{\sum_{g'=0}^{G} \Sigma_{s,g \to g'}}
           {\sum_{g'} \Sigma_{s,g \to g'}}
 
+
+.. implements:: scattering-cdf
+   :by: orpheus.mc.solver._precompute_xs
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: scattering-cdf
+   :by: orpheus.mc.solver._random_walk
+
 In the code::
 
     cum_s = np.cumsum(sig_s_row)
@@ -742,6 +839,13 @@ per absorption:
    :label: fission-weight
 
    w \leftarrow w \cdot \frac{\nu\Sigma_{f,g}}{\Sigma_{a,g}}
+
+
+.. implements:: fission-weight
+   :by: orpheus.mc.solver._random_walk
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 In the code::
 
@@ -806,6 +910,22 @@ reborn in a new energy group from the fission spectrum CDF:
      \text{cumsum}(\chi), \, \xi \bigr),
    \qquad \xi \sim U(0,1)
 
+
+.. implements:: chi-sampling
+   :by: orpheus.mc.solver.NeutronBank.initialize
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: chi-sampling
+   :by: orpheus.mc.solver._precompute_xs
+
+.. implements:: chi-sampling
+   :by: orpheus.mc.solver._random_walk
+
 For 4G region A: :math:`\chi = [0.60, 0.35, 0.05, 0.00]`.  Verified by
 ``test_mc_properties.py::test_chi_spectrum_sampling``: 100k samples match
 expected group fractions within :math:`z < 5` per group.  Group 3 gets
@@ -831,6 +951,19 @@ reduced weight are subjected to Russian roulette.
 
    P_{\text{kill}} = 1 - \frac{w}{w_0}
 
+
+.. implements:: roulette-prob
+   :by: orpheus.mc.solver.NeutronBank.save_start_weights
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: roulette-prob
+   :by: orpheus.mc.solver._russian_roulette
+
 where :math:`w` is the post-walk weight and :math:`w_0` is the weight at
 cycle start.  The outcome is:
 
@@ -841,6 +974,13 @@ cycle start.  The outcome is:
    0   & \text{with probability } P_{\text{kill}} \\
    w_0 & \text{with probability } 1 - P_{\text{kill}}
    \end{cases}
+
+
+.. implements:: roulette-restore
+   :by: orpheus.mc.solver._russian_roulette
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 In the code::
 
@@ -863,6 +1003,13 @@ The expected weight after roulette equals the weight before:
    = \frac{w}{w_0} \cdot w_0
    = w
    = w_{\text{before}}
+
+
+.. implements:: roulette-conservation
+   :by: orpheus.mc.solver._russian_roulette
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 Verified statistically by
 ``test_mc_properties.py::test_roulette_weight_conservation`` (100k neutrons
@@ -896,6 +1043,13 @@ with weight :math:`w/N`.  The number of copies is:
                            \lfloor w \rfloor + 1 - w
    \end{cases}
 
+
+.. implements:: splitting
+   :by: orpheus.mc.solver._split_heavy
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 Splitting Weight Conservation Proof
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -915,6 +1069,13 @@ Let :math:`f = w - \lfloor w \rfloor` and :math:`n = \lfloor w \rfloor`:
    :label: splitting-weight-conservation
 
    E[N] = n(1-f) + (n+1)f = n + f = w
+
+
+.. implements:: splitting-weight-conservation
+   :by: orpheus.mc.solver._split_heavy
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 So :math:`E[N] = w`, and total weight per copy is :math:`w/N`, meaning
 the expected number of particles times weight per particle equals :math:`w`.
@@ -936,6 +1097,22 @@ The :math:`k`-effective for each cycle is estimated as:
    :label: keff-cycle
 
    k_{\text{cycle}} = \frac{\sum_{n} w_n^{\text{end}}}{\sum_{n} w_n^{0}}
+
+
+.. implements:: keff-cycle
+   :by: orpheus.mc.solver.NeutronBank.normalize_weights
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: keff-cycle
+   :by: orpheus.mc.solver.NeutronBank.save_start_weights
+
+.. implements:: keff-cycle
+   :by: orpheus.mc.solver.solve_monte_carlo
 
 where :math:`w_n^{0}` are the normalised starting weights and
 :math:`w_n^{\text{end}}` are the weights after the random walk, roulette,
@@ -966,12 +1143,26 @@ The final :math:`k`-effective is the **cumulative mean** of
 
    \bar{k}_M = \frac{1}{M} \sum_{m=1}^{M} k_m
 
+
+.. implements:: keff-mean
+   :by: orpheus.mc.solver.solve_monte_carlo
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 The standard deviation of the mean:
 
 .. math::
    :label: sigma-keff
 
    \sigma_M = \sqrt{\frac{1}{M(M-1)} \sum_{m=1}^{M} (k_m - \bar{k}_M)^2}
+
+
+.. implements:: sigma-keff
+   :by: orpheus.mc.solver.solve_monte_carlo
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 By the **Central Limit Theorem**, :math:`\sigma_M \sim 1/\sqrt{M}`.
 Verified by ``test_mc_convergence.py::test_sigma_scales_with_sqrt_n``:
@@ -1000,6 +1191,13 @@ The :term:`scalar flux` in each energy group is accumulated with the standard
 
    \phi_g \;\approx\; \frac{1}{N_{\text{act}} V}
        \sum_{\text{real coll.\ in } g} \frac{w}{\Sigma_{t,g}}
+
+
+.. implements:: collision-estimator
+   :by: orpheus.mc.solver._random_walk
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
 
 applied at **every** real collision site (scatter, (n,2n), or
 absorption), inside the random walk and **before** the three-way
@@ -1042,6 +1240,19 @@ spectrum output, not keff.
 
       \Delta u_g = \ln\!\frac{E_{g+1}}{E_g}
                  = \ln\frac{\mathrm{eg}[g+1]}{\mathrm{eg}[g]} < 0,
+
+
+   .. implements:: mc-lethargy-width-sign
+      :by: orpheus.mc.solver._precompute_xs
+
+      **Implemented by** 2 sites. Every symbol that executes this
+      equation's arithmetic is declared, not only the canonical one: a
+      test is adjudicated against the transcription it actually ran, so
+      declaring a single site would refute the tests that exercise the
+      others.
+
+   .. implements:: mc-lethargy-width-sign
+      :by: orpheus.mc.solver.solve_monte_carlo
 
    so dividing the group tally by a raw (signed) :math:`\Delta u` flipped
    the spectrum below zero. The bug is documented as **ERR-022** and was

@@ -274,6 +274,13 @@ associated 2×2 lower-triangular affine matrix
                  \left(\psi_0 \;+\; \sum_{i=0}^{n-1}
                        \frac{b[i]}{\prod_{j=0}^{i} a[j]}\right).
 
+
+.. implements:: blelloch-1990-eq-1-5
+   :by: orpheus.sn.sweep.scan.ordinate_scan
+
+   **Implemented by** the one site in the tree that executes this
+   equation's arithmetic.
+
 In numpy this is three ops:
 ``cumprod(a) * (psi_0 + cumsum(b / cumprod(a)))`` —
 no Python loop over cells.  The pair-monoid composition

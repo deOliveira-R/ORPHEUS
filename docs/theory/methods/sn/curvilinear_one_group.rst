@@ -589,6 +589,22 @@ The M-M weights are defined as:
 
    \tau_n = \frac{\mu_n - \mu_{n-\frac12}}{\mu_{n+\frac12} - \mu_{n-\frac12}}
 
+
+.. implements:: mm-weights
+   :by: orpheus.sn.sweep.pole_angular_closure._assert_tau_within_unit_interval
+
+   **Implemented by** 3 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: mm-weights
+   :by: orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level
+
+.. implements:: mm-weights
+   :by: orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level
+
 where :math:`\mu_{n\pm 1/2}` are the angular cell edges.
 
 **Spherical cell edges:**  :math:`\mu_{1/2} = -1`,

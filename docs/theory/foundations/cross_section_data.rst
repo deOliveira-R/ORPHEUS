@@ -710,6 +710,28 @@ The total cross section :math:`\Sigma_{\mathrm{t},g}(\sigma_0)` is
    + \sum_{g'} \sigma_{\mathrm{s},0,g \to g'}(\sigma_0)
    + \sum_{g'} \sigma_{\mathrm{2n},g \to g'}
 
+
+.. implements:: sigT-computed
+   :by: orpheus.data.macro_xs.mixture.Mixture
+
+   **Implemented by** 5 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: sigT-computed
+   :by: orpheus.data.macro_xs.mixture.Mixture.assert_balanced
+
+.. implements:: sigT-computed
+   :by: orpheus.data.macro_xs.mixture.Mixture.balance_residual
+
+.. implements:: sigT-computed
+   :by: orpheus.data.macro_xs.mixture.compute_macro_xs
+
+.. implements:: sigT-computed
+   :by: orpheus.data.micro_xs.gendf._build_isotope
+
 This approach is used because:
 
 1. MF=3 MT=1 does **not** include upscattering (stated in the MATLAB

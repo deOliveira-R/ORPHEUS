@@ -251,6 +251,19 @@ Canonical definition (Abramowitz & Stegun 5.1.4):
 
    E_n'(x) \;=\; -E_{n-1}(x).
 
+
+.. implements:: en-kernel-derivative
+   :by: orpheus.derivations.common.kernels.e_n
+
+   **Implemented by** 2 sites. Every symbol that executes this
+   equation's arithmetic is declared, not only the canonical one: a
+   test is adjudicated against the transcription it actually ran, so
+   declaring a single site would refute the tests that exercise the
+   others.
+
+.. implements:: en-kernel-derivative
+   :by: orpheus.derivations.common.kernels.e_n_derivative
+
 .. math::
    :label: en-kernel-integral
 
