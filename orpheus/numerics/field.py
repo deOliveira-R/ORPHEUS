@@ -380,6 +380,32 @@ class Field(ABC):
         self._check_partner(other)
         return self.space.inner_product(self.values, other.values)
 
+    def where_largest(self, k: int = 1) -> list[tuple[int, ...]]:
+        r"""The ``k`` index tuples with the largest :math:`|\text{values}|`.
+
+        The per-entry magnitude map: WHICH entries dominate — for an iterate
+        increment, the cells / groups / ordinates that are not converging
+        (pole-cell resonance, material-interface slow modes, a lagging
+        group); for a residual, where the equation defect concentrates.
+        Indices are into this leaf's ``values`` layout (e.g. ``(n, g, ix)``
+        for an angular field), largest first.
+
+        Promoted from the retired displacement diagnostics surface
+        (campaign 1 CS3, 2026-08-19): the map needs only ``values``, so it
+        is a property of ANY field, not of difference-ness.
+
+        Parameters
+        ----------
+        k : int
+            How many of the largest-magnitude entries to return (default 1).
+        """
+        flat = np.abs(np.asarray(self.values)).ravel()
+        k = max(1, min(int(k), flat.size))
+        top = np.argpartition(flat, -k)[-k:]
+        top = top[np.argsort(flat[top])[::-1]]  # largest first
+        shape = np.asarray(self.values).shape
+        return [tuple(int(i) for i in np.unravel_index(j, shape)) for j in top]
+
     def copy(self: T) -> T:
         r"""Return a deep copy carrying an owned ndarray."""
         return replace(self, values=self.values.copy())

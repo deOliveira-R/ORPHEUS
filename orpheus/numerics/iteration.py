@@ -396,43 +396,30 @@ def _l2_norm(x) -> float:
     return float(np.linalg.norm(np.asarray(x)))
 
 
-class _DisplacementLeaf(Protocol):
-    r"""Structural face of a flux-displacement leaf (#208).
+class _NormedLeaf(Protocol):
+    r"""Structural face of the bulk leaf the increment diagnostics measure.
 
-    numerics MUST NOT import transport (the L1↛L2 layering), so the
-    diagnostic surface :func:`_flux_displacement_leaf` hands to the SI loop
-    is declared structurally: the transport
-    :class:`~orpheus.transport.displacements._displacement.Displacement`
-    satisfies it without an import edge, mirroring the ``_is_ravellable``
-    protocol check above.
-
-    Deliberately consumer-minimal: the SI loop reads only ``l2`` and
-    ``contraction_ratio``. The fuller diagnostic surface
-    (``true_error_estimate`` / ``where_largest``) lives on the concrete
-    ``Displacement`` for interactive use and is NOT part of this face.
+    numerics MUST NOT import transport (the L1↛L2 layering), so the leaf
+    :func:`_principal_bulk_leaf` hands to the SI loop is declared
+    structurally, mirroring the ``_is_ravellable`` protocol check above.
+    Consumer-minimal: the loop reads only the space-induced norm ``l2``.
     """
 
     @property
     def l2(self) -> float: ...
 
-    def contraction_ratio(self, previous: "_DisplacementLeaf") -> float: ...
 
+def _principal_bulk_leaf(increment) -> "_NormedLeaf | None":
+    r"""The bulk leaf whose space norm is the iterate-increment diagnostic,
+    or ``None`` for an untyped (bare-ndarray) iterate.
 
-def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
-    r"""Return the bulk flux-displacement leaf carrying the convergence
-    diagnostics, or ``None`` for an untyped (bare-ndarray) iterate.
-
-    The SI iterate increment :math:`\Delta\psi = \psi^{(i)} \ominus
-    \psi^{(i-1)}` is, for a typed SN iterate, a
-    :class:`~orpheus.transport.timed_full_field.TimedFullField` whose ``bulk``
-    is a flux-:class:`~orpheus.transport.displacements._displacement.Displacement`
-    leaf (#208) — the only object that knows "previous"/"step", so it carries
-    ``contraction_ratio`` / ``true_error_estimate`` / ``where_largest`` (a flux
-    state cannot). For the synthetic L0 case the increment is a bare ndarray
-    with no diagnostics.
-
-    Duck-typed on ``contraction_ratio`` (numerics MUST NOT import transport —
-    the L1↛L2 layering), mirroring the ``_is_ravellable`` protocol check above.
+    The SI iterate increment :math:`\Delta\psi = \psi^{(i)} - \psi^{(i-1)}`
+    is, for a typed SN iterate, a composite whose ``interior`` is the bulk
+    leaf; the diagnostic is that leaf's space-induced ``l2`` — NOT the whole
+    composite's flat norm, which additionally ravels the boundary trace
+    ([M] 4.71e-3 apart on the c→1 pin fixture; the convention is pinned by
+    :mod:`tests.numerics.test_si_diagnostic_trajectory`). For the synthetic
+    L0 case the increment is a bare ndarray → no diagnostics, as before.
 
     A coupled block iterate
     (:class:`~orpheus.numerics.coupled_system.CoupledField`)
@@ -442,15 +429,22 @@ def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
     convergence diagnostics; for the ψ½ instance that is System A's
     transport composite). Numerics-native — ``systems`` is this layer's own
     direct-sum vocabulary, no transport import.
+
+    Type-agnostic by design (campaign 1 CS3): it walks STRUCTURE
+    (``interior`` / ``systems``) and duck-types only the norm, so the same
+    walk serves today's displacement-typed increment and the plain signed
+    field of the cone algebra — the CS3 step-2 flip does not touch it.
     """
-    bulk = getattr(displacement, "interior", None)
-    if bulk is not None and hasattr(bulk, "contraction_ratio"):
+    bulk = getattr(increment, "interior", None)
+    if bulk is not None and hasattr(bulk, "l2"):
         return bulk
-    if hasattr(displacement, "contraction_ratio"):
-        return displacement
-    systems = getattr(displacement, "systems", None)
+    systems = getattr(increment, "systems", None)
     if systems:
-        return _flux_displacement_leaf(systems[0])
+        return _principal_bulk_leaf(systems[0])
+    if isinstance(increment, np.ndarray):
+        return None
+    if hasattr(increment, "l2"):
+        return increment
     return None
 
 
@@ -652,10 +646,6 @@ class SourceIteration(Generic[V]):
         # the advice in a ConvergenceWarning has to name a knob the reader can
         # actually type (#340 N6).
         self.budget_name = str(budget_name)
-        # Convergence diagnostics — populated by :meth:`solve` (#208). Declared
-        # here so a pre-solve read returns empty rather than ``AttributeError``.
-        self.contraction_ratios: list[float] = []
-        self.last_displacement = None
 
     def solve(
         self,
@@ -682,9 +672,12 @@ class SourceIteration(Generic[V]):
             was hit before tolerance was reached).
         record : IterationRecord
             What this level wanted, what it got, and why it stopped —
-            the relative-residual trajectory, the budget, and the loop's
-            OWN pass count, from which ``converged`` / ``truncated`` /
-            ``rate`` / ``projected_iterations`` all derive.
+            the relative-residual trajectory, the iterate-increment norm
+            trajectory (from which ``contraction_ratios`` and the c→1
+            ``true_error_estimate`` derive — #208, relocated at CS3), the
+            budget, and the loop's OWN pass count, from which ``converged``
+            / ``truncated`` / ``rate`` / ``projected_iterations`` all
+            derive.
 
             ⚠ ``record.n_iterations`` is NOT the trajectory length here.
             The stop compares SUCCESSIVE iterates, so ``P`` passes yield
@@ -711,14 +704,13 @@ class SourceIteration(Generic[V]):
             # states that here, where the union would otherwise leak.
             psi = cast(V, np.asarray(initial_guess).copy())
         residual_history: list[float] = []
-        # Convergence diagnostics (#208) derived from the typed iterate
-        # increment Δψ = ψ⁽ⁱ⁾ ⊖ ψ⁽ⁱ⁻¹⁾ (a FluxDisplacement for typed SN
-        # iterates; the synthetic L0 case stays a bare ndarray → no diagnostics).
-        # Additive — NOT in the convergence path (the stop is the equation
-        # residual below). O(1) field memory: one retained previous leaf.
-        self.contraction_ratios: list[float] = []
-        self.last_displacement = None
-        _prev_disp_leaf = None
+        # Iterate-increment diagnostics (#208, relocated onto the record at
+        # CS3): the space norm of Δψ's principal bulk leaf, one entry per
+        # typed pass; the record derives ρ and the c→1 geometric-tail
+        # estimate from these. Additive — NOT in the convergence path (the
+        # stop is the equation residual below). O(1) memory: only floats
+        # survive a pass.
+        increment_norms: list[float] = []
 
         # The ρ-honest stop's fixed scale (step 5): the equation residual
         # is measured against the SOURCE's norm — computed once; the guard
@@ -779,20 +771,14 @@ class SourceIteration(Generic[V]):
             if self.corrector is not None:
                 psi = psi + self.corrector.apply(psi - psi_prev)
 
-            # The iterate increment Δψ — a typed FluxDisplacement (ψ ⊖ ψ_prev)
-            # for SN, a bare ndarray for the synthetic case. DIAGNOSTICS
-            # only (ρ ≈ ‖Δψ⁽ⁱ⁾‖/‖Δψ⁽ⁱ⁻¹⁾‖ the Banach contraction factor;
-            # ``last_displacement`` feeds ``where_largest`` /
-            # ``true_error_estimate``) — the STOP rides the residual above.
-            displacement = psi - psi_prev
-            disp_leaf = _flux_displacement_leaf(displacement)
-            if disp_leaf is not None:
-                if _prev_disp_leaf is not None and _prev_disp_leaf.l2 > 0.0:
-                    self.contraction_ratios.append(
-                        disp_leaf.contraction_ratio(_prev_disp_leaf)
-                    )
-                _prev_disp_leaf = disp_leaf
-                self.last_displacement = disp_leaf
+            # The iterate increment Δψ = ψ⁽ⁱ⁾ − ψ⁽ⁱ⁻¹⁾ — DIAGNOSTICS only
+            # (the record derives ρ ≈ ‖Δψ⁽ⁱ⁾‖/‖Δψ⁽ⁱ⁻¹⁾‖ and the c→1
+            # geometric-tail estimate from the norm trajectory) — the STOP
+            # rides the residual above. Bare-ndarray (L0) iterates record
+            # nothing, as before.
+            leaf = _principal_bulk_leaf(psi - psi_prev)
+            if leaf is not None:
+                increment_norms.append(leaf.l2)
 
         return psi, IterationRecord(
             label="inner(source-iteration)",
@@ -803,6 +789,7 @@ class SourceIteration(Generic[V]):
                     tolerance=self.tol,
                 ),
             ),
+            increment_norms=tuple(increment_norms),
             # No conversion: one unit of ``max_iter`` IS one fixed-point
             # pass, so the identity ``iterations_per_unit`` is the honest
             # statement and the comparison against the trajectory is sound.

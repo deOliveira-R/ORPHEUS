@@ -984,6 +984,18 @@ class IterationRecord:
         data plainly must be.  The construction invariant keeps the two
         consistent: you cannot measure a criterion more often than you
         iterated.
+    increment_norms:
+        The iterate-increment trajectory :math:`\lVert\Delta\psi^{(i)}\rVert`
+        (space-induced norm of the principal bulk leaf), one entry per pass
+        that produced a typed iterate — a DIFFERENT cadence from
+        :attr:`criteria` (measured at the stop evaluation), so the two are
+        deliberately NOT co-indexed.  Empty for producers that do not
+        measure it (Krylov, the L0 bare-ndarray arm).  The single source
+        the derived diagnostics read: :attr:`contraction_ratios` and
+        :meth:`true_error_estimate`.  Relocated here from the retired typed
+        displacement surface (campaign 1 CS3, 2026-08-19; ρ is defined on
+        the SPACE norm by user ruling — under a future physical metric the
+        trajectory legitimately moves).
     min_iterations:
         Iterations below which this level refuses to claim convergence.  The
         home for a guard like SN's ``iteration <= 2``, and the honest way for
@@ -995,6 +1007,7 @@ class IterationRecord:
 
     label: str
     criteria: tuple[StoppingCriterion, ...] = ()
+    increment_norms: tuple[float, ...] = ()
     budget: IterationBudget = IterationBudget()
     iterations_run: int | None = None
     min_iterations: int = 0
@@ -1036,6 +1049,91 @@ class IterationRecord:
                     f"fewer than the {measured} criterion measurements — a "
                     f"loop cannot measure more often than it iterates"
                 )
+        # `v < 0.0` is False for nan, so this admits nan/inf by construction
+        # (a diverging increment is a real state that must be recordable).
+        negative_norms = [v for v in self.increment_norms if v < 0.0]
+        if negative_norms:
+            raise ValueError(
+                f"{self.label}: increment norms are MAGNITUDES, so a "
+                f"negative entry is a producer bug; got {negative_norms[0]!r}"
+            )
+        if (
+            self.iterations_run is not None
+            and len(self.increment_norms) > self.iterations_run
+        ):
+            raise ValueError(
+                f"{self.label}: {len(self.increment_norms)} increment norms "
+                f"recorded over iterations_run={self.iterations_run} — a "
+                f"loop cannot measure more often than it iterates"
+            )
+
+    # ── iterate-increment diagnostics (#208, relocated from the retired
+    # typed displacement surface — campaign 1 CS3, 2026-08-19) ────────────
+
+    @property
+    def contraction_ratios(self) -> tuple[float, ...]:
+        r"""The Banach contraction-factor trajectory :math:`\rho_i \approx
+        \lVert\Delta\psi^{(i)}\rVert / \lVert\Delta\psi^{(i-1)}\rVert`.
+
+        DERIVED from :attr:`increment_norms` — the norms are the single
+        source, the ratios a view.  :math:`\rho > 1` diverges (wrong fixed
+        point / unstable scheme); :math:`\rho \approx 1` stalled (the
+        :math:`c\to 1` slow mode, curvilinear / reflective slow modes);
+        :math:`\rho < 1` healthy.  Turns a ρ-blind ``‖Δψ‖`` reading honest.
+
+        A pair whose predecessor norm is ``0.0`` contributes no ratio (the
+        iteration was already at the fixed point — the ratio is undefined):
+        exactly the zero-norm guard of the retired typed surface.
+
+        A DIAGNOSTIC, not a verdict — deliberately NOT a
+        :class:`StoppingCriterion` in :attr:`criteria`: ρ is observed, not
+        driven below a tolerance, and since :attr:`converged` is
+        ``all(criterion.cleared ...)``, a ρ entry there would flip every
+        producer's verdict (measured at the CS3 design point).
+        """
+        return tuple(
+            later / earlier
+            for earlier, later in zip(
+                self.increment_norms, self.increment_norms[1:]
+            )
+            if earlier > 0.0
+        )
+
+    def true_error_estimate(self) -> float:
+        r"""The geometric-tail true error
+        :math:`\lVert\Delta\psi\rVert/(1-\rho)` at the last recorded
+        increment.
+
+        The core :math:`c\to 1` false-convergence fix: the bare increment
+        :math:`\lVert\Delta\psi\rVert` understates the distance to the
+        fixed point by :math:`1/(1-\rho)`.  At :math:`\rho\approx 0.99`
+        (e.g. :math:`c=0.99`) the true error is ~100× the increment, so a
+        ``‖Δψ‖ < tol`` "convergence" can be ~100·tol from the solution.
+        This estimate surfaces that stall.
+
+        Raises
+        ------
+        ValueError
+            If fewer than two increment norms were recorded (no ρ to
+            estimate with), or the last ρ is not in :math:`[0, 1)` (a
+            non-contracting iteration has no finite geometric-tail
+            estimate).
+        """
+        ratios = self.contraction_ratios
+        if not ratios:
+            raise ValueError(
+                f"{self.label}: true_error_estimate needs at least two "
+                f"recorded increment norms (got {len(self.increment_norms)})"
+                f" — no contraction ratio to estimate with."
+            )
+        rho = ratios[-1]
+        if not (0.0 <= rho < 1.0):
+            raise ValueError(
+                f"true_error_estimate: contraction_ratio must be in [0, 1) "
+                f"for a finite geometric-tail estimate; got {rho!r} "
+                f"(>= 1 means the iteration is not contracting)."
+            )
+        return self.increment_norms[-1] / (1.0 - rho)
 
     # ── the four states a loop can stop in ───────────────────────────────
 

@@ -17,14 +17,15 @@ Today the SI loop mints a typed displacement every pass
 **INTERIOR LEAF**. This module freezes what that produces on a c→1 fixture, so
 the post-carve surface can be shown to reproduce it.
 
-**Exactly what re-points at CS3 step 1.** Only :func:`_diagnostics` — the four
-lines that read ``si.contraction_ratios`` / ``si.last_displacement.l2`` /
-``…true_error_estimate(ρ)`` / ``…where_largest(3)``. It re-points to whatever
-iteration-layer surface step 1 lands (``SourceIteration`` attributes, or a
-``StoppingCriterion``-style named trajectory on ``IterationRecord``). **The
-frozen numbers below do NOT move**; the fixture builder does not move; the
-control and activation legs do not move. If a number has to move, the
-relocation is not value-neutral and THAT is the finding.
+**Re-pointed at CS3 step 1 (2026-08-19), numbers UNMOVED.** The surface is now
+the iteration record: ``record.contraction_ratios`` (derived from
+``record.increment_norms``), ``record.increment_norms[-1]``,
+``record.true_error_estimate()``, and the per-entry map is
+:meth:`~orpheus.numerics.field.Field.where_largest` on the interior leaf of
+the final increment (replayed by :func:`_replay_final_increment` through the
+same production builders). **The frozen numbers below did NOT move**; the
+fixture builder did not move; the control and activation legs did not move —
+the value-neutrality claim this module exists to certify.
 
 **Claim kind = RECORD** (a frozen trajectory of what the code produced on
 2026-08-19 at ``000cf144``), so on its own it says *something changed*, never
@@ -55,10 +56,9 @@ is chosen to catch.** Measured on this fixture at ``000cf144``:
 (memo A F3). Recomputing this same trajectory under a physical ``V_cell × w_n``
 metric moves ρ by up to ``1.12e-3`` relative — 9 orders above ``rtol=1e-12``, so
 **CS2 will legitimately RED this gate.** That is correct behaviour, not a bug:
-CS3 must decide whether the relocated diagnostic is defined on the *space* norm
-(then CS2 owns re-deriving these numbers, with a regeneration note like
-``test_affine_carve_bit_identity.py``'s) or on the *Euclidean* norm (then it is
-metric-independent by construction and these numbers are permanent).
+✅ RULED (user, 2026-08-19) — the diagnostic is defined on the **SPACE norm**,
+so CS2 owns re-deriving these frozen numbers, with a regeneration note in the
+style of ``test_affine_carve_bit_identity.py``'s.
 
 **Measured mutation battery** (in-process pytest plugins; ``vv`` §0.5 — a gate
 is not evidence until a named mutation reddens it). At ``000cf144``, 5 tests,
@@ -203,6 +203,11 @@ def _run_si():
     ``build_within_group_system`` + ``_within_group_si`` are the same two
     builders the production fixed-source and eigenvalue paths call
     (``solver.py:1058``) — no SI construction is duplicated here.
+
+    Returns the solve's :class:`IterationRecord` (the post-carve diagnostic
+    surface) together with the composite final increment Δψ from
+    :func:`_replay_final_increment` (the record holds only FLOATS, so the
+    per-entry map and the boundary-block control read the replayed field).
     """
     solver = _build_solver()
     sn_mesh = solver.sn_mesh
@@ -228,14 +233,17 @@ def _run_si():
     guess = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
-    si.solve(q_ext, initial_guess=guess)
-    return si
+    _, record = si.solve(q_ext, initial_guess=guess)
+    return record
 
 
 @pytest.fixture(scope="module")
-def si():
-    """One solve for the whole module (`[M]` ~0.6 s including imports)."""
-    return _run_si()
+def run():
+    """One solve + one replay for the whole module (`[M]` ~1.2 s total)."""
+    class _Run:
+        record = _run_si()
+        increment = _replay_final_increment()
+    return _Run
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -243,35 +251,34 @@ def si():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _diagnostics(si):
-    """The CS3-relocating surface, isolated to one function.
+def _diagnostics(run):
+    """The CS3-relocated surface, isolated to one function.
 
-    Today: three attributes of :class:`~orpheus.numerics.iteration.SourceIteration`
-    plus three methods of the typed
-    :class:`~orpheus.transport.displacements._displacement.Displacement` leaf it
-    stashed. After CS3 step 1 the ``Displacement`` type is gone and these reads
-    re-point to the iteration-layer surface — the RETURNED NUMBERS MUST NOT MOVE.
+    Post step 1: ρ and the geometric-tail estimate are DERIVED on the
+    :class:`~orpheus.numerics.convergence.IterationRecord` from its
+    ``increment_norms`` trajectory; the per-entry map is
+    :meth:`~orpheus.numerics.field.Field.where_largest` on the interior leaf
+    of the replayed final increment. The RETURNED NUMBERS MUST NOT MOVE
+    relative to the pre-carve freeze below.
     """
-    ratios = tuple(si.contraction_ratios)
-    displacement = si.last_displacement
-    if displacement is None:
+    record = run.record
+    if not record.increment_norms:
         raise AssertionError(
-            "last_displacement is None — the SI loop recorded no iterate "
+            "increment_norms is EMPTY — the SI loop recorded no iterate "
             "increment at all (the diagnostic went silent)."
         )
-    rho_last = ratios[-1]
     return {
-        "ratios": ratios,
-        "l2": float(displacement.l2),
-        "true_error": float(displacement.true_error_estimate(rho_last)),
-        "where_largest": list(displacement.where_largest(3)),
+        "ratios": tuple(record.contraction_ratios),
+        "l2": float(record.increment_norms[-1]),
+        "true_error": float(record.true_error_estimate()),
+        "where_largest": list(run.increment.interior.where_largest(3)),
     }
 
 
 # ── 1. The pin ──────────────────────────────────────────────────────────
 
 
-def test_contraction_ratio_trajectory_reproduces(si) -> None:
+def test_contraction_ratio_trajectory_reproduces(run) -> None:
     r"""The ρ trajectory reproduces the frozen pre-carve values.
 
     The keystone. ``vv`` claim kind = RECORD: a red says the relocation changed
@@ -284,7 +291,7 @@ def test_contraction_ratio_trajectory_reproduces(si) -> None:
     GREEN. :func:`test_true_error_estimate_and_norm_reproduce` is the catcher
     for that class; do not fold the two together.
     """
-    got = _diagnostics(si)["ratios"]
+    got = _diagnostics(run)["ratios"]
     if len(got) != len(_CONTRACTION_RATIOS):
         raise AssertionError(
             f"trajectory LENGTH moved: {len(got)} recorded vs "
@@ -303,13 +310,13 @@ def test_contraction_ratio_trajectory_reproduces(si) -> None:
     )
 
 
-def test_true_error_estimate_and_norm_reproduce(si) -> None:
+def test_true_error_estimate_and_norm_reproduce(run) -> None:
     r"""``‖Δψ‖`` and ``‖Δψ‖/(1−ρ)`` reproduce the frozen values.
 
     The c→1 amplification is the whole point of the diagnostic (Signature 9),
     so it is pinned in its own right rather than inferred from ρ.
     """
-    got = _diagnostics(si)
+    got = _diagnostics(run)
     np.testing.assert_allclose(
         got["l2"], _LAST_DISPLACEMENT_L2, rtol=_RTOL, atol=0.0,
         err_msg="‖Δψ‖ of the last recorded increment moved",
@@ -320,7 +327,7 @@ def test_true_error_estimate_and_norm_reproduce(si) -> None:
     )
 
 
-def test_where_largest_reproduces(si) -> None:
+def test_where_largest_reproduces(run) -> None:
     r"""``where_largest(3)`` reproduces the frozen index tuples.
 
     The convergence MAP is the diagnostic whose relocation is most likely to
@@ -328,7 +335,7 @@ def test_where_largest_reproduces(si) -> None:
     cell)`` layout, and a relocation that ravels the composite first would
     return flat or shifted indices while every NORM above still reproduced.
     """
-    got = _diagnostics(si)["where_largest"]
+    got = _diagnostics(run)["where_largest"]
     if [tuple(int(i) for i in t) for t in got] != _WHERE_LARGEST_3:
         raise AssertionError(
             f"where_largest(3) moved: {got} vs frozen {_WHERE_LARGEST_3} — the "
@@ -339,7 +346,7 @@ def test_where_largest_reproduces(si) -> None:
 # ── 2. The control — the pin CAN red (vv #17 / #19) ─────────────────────
 
 
-def test_the_pin_discriminates_the_composite_norm_convention(si) -> None:
+def test_the_pin_discriminates_the_composite_norm_convention(run) -> None:
     r"""The rival convention differs from the pin by ≥ 1e-3 on THIS fixture.
 
     ``vv`` #19: a positive reading cannot tell a loaded gate from a blind one —
@@ -354,18 +361,19 @@ def test_the_pin_discriminates_the_composite_norm_convention(si) -> None:
     all-reflective or zero-inflow config would do it) and the pin above has
     silently become blind to the convention it was written for.
     """
-    displacement = si.last_displacement
-    if displacement is None:
-        raise AssertionError("no displacement recorded — control cannot run")
-    boundary_norm = float(np.linalg.norm(_composite_boundary_values(si)))
+    if not run.record.increment_norms:
+        raise AssertionError("no increment recorded — control cannot run")
+    boundary_norm = float(
+        np.linalg.norm(np.asarray(run.increment.boundary.values, dtype=float))
+    )
     if boundary_norm <= 0.0:
         raise AssertionError(
-            "the boundary displacement block is ZERO on this fixture, so the "
+            "the boundary increment block is ZERO on this fixture, so the "
             "interior-only and whole-composite conventions coincide and the "
             "pin cannot see the difference. Restore a config with non-trivial "
             "boundary movement (vacuum walls + an interior source)."
         )
-    interior_norm = float(displacement.l2)
+    interior_norm = float(run.record.increment_norms[-1])
     composite_norm = float(np.hypot(interior_norm, boundary_norm))
     separation = abs(composite_norm - interior_norm) / interior_norm
     if separation < 1e-3:
@@ -375,26 +383,15 @@ def test_the_pin_discriminates_the_composite_norm_convention(si) -> None:
         )
 
 
-def _composite_boundary_values(si) -> np.ndarray:
-    """The boundary block of the last iterate increment.
+def _replay_final_increment():
+    """Replay the fixture's SI loop and return the COMPOSITE final increment.
 
-    Recomputed from the stashed leaf's mesh rather than kept by the loop: the SI
-    keeps only the BULK leaf, which is precisely the asymmetry this control
-    exists to pin. Falls back to the whole-composite minus interior when the
-    loop starts keeping the composite (post-carve), so the control survives the
-    relocation.
+    The record holds only floats (deliberately — O(1) memory per solve), so
+    the per-entry map leg and the boundary-block control read the increment
+    FIELD from this replay, which runs the same production builders and the
+    same arithmetic as :func:`_run_si`'s solve. Deterministic: same operators,
+    same source, same zero guess, and the ``tol=1e-14`` stop never fires.
     """
-    last = getattr(si, "last_displacement", None)
-    boundary = getattr(last, "boundary", None)
-    if boundary is not None:                       # post-carve: composite stash
-        return np.asarray(boundary.values, dtype=float)
-    # pre-carve: the loop stashed the BULK leaf only, so re-derive the boundary
-    # movement from a fresh two-pass run of the same fixture.
-    return _boundary_increment_of_last_pass()
-
-
-def _boundary_increment_of_last_pass() -> np.ndarray:
-    """Replay the fixture and return the boundary block of the final increment."""
     solver = _build_solver()
     sn_mesh = solver.sn_mesh
     system = build_within_group_system(
@@ -424,13 +421,13 @@ def _boundary_increment_of_last_pass() -> np.ndarray:
         increment = psi - previous
     if increment is None:                          # pragma: no cover — _MAX_ITER ≥ 1
         raise AssertionError("the replay ran zero passes")
-    return np.asarray(increment.boundary.values, dtype=float)
+    return increment
 
 
 # ── 3. Activation — the fixture really is in the c→1 regime ─────────────
 
 
-def test_the_fixture_is_in_the_c_to_one_regime(si) -> None:
+def test_the_fixture_is_in_the_c_to_one_regime(run) -> None:
     r"""ρ is near 1 and the true-error amplification is ≫ 1.
 
     Without this the pin could be frozen on a fast-converging fixture where
@@ -440,7 +437,7 @@ def test_the_fixture_is_in_the_c_to_one_regime(si) -> None:
     claim itself lives in
     :mod:`tests.sn.solve.test_flux_displacement_diagnostics`.
     """
-    got = _diagnostics(si)
+    got = _diagnostics(run)
     rho = got["ratios"][-1]
     if not (0.9 < rho < _C):
         raise AssertionError(

@@ -3613,8 +3613,8 @@ class TestWithinGroupSystem:
 
     def test_g_d1_7_si_displacement_diagnostic_on_the_coupled_iterate(self):
         r"""The SI convergence diagnostics survive the CoupledField iterate:
-        the leaf-finder walks the PRIMARY system (System A's bulk), so the
-        contraction ratios RECORD on a carrying sphere (F5 — previously
+        ``_principal_bulk_leaf`` walks the PRIMARY system (System A's bulk),
+        so the increment norms RECORD on a carrying sphere (F5 — previously
         uncovered; a silent-empty diagnostic is the failure mode)."""
         sn = _sphere(c=0.6)
         solver = SNSolver(sn)
@@ -3628,12 +3628,13 @@ class TestWithinGroupSystem:
             pytest.fail("the carrying rhs builder did not return the coupled pair")
         cold = _coupled_flux_state(
             _unwindowed_cold_start(sn, history_depth=2), sn)
-        si.solve(q_pair, initial_guess=cold)
-        if not si.contraction_ratios:
+        _, rec = si.solve(q_pair, initial_guess=cold)
+        if not rec.increment_norms:
+            pytest.fail("increment_norms is EMPTY on the coupled iterate — "
+                        "the increment diagnostic went silent (F5)")
+        if not rec.contraction_ratios:
             pytest.fail("contraction_ratios is EMPTY on the coupled iterate — "
-                        "the displacement diagnostic went silent (F5)")
-        if si.last_displacement is None:
-            pytest.fail("last_displacement not recorded on the coupled iterate")
+                        "fewer than two increments recorded (F5)")
 
     # ── G-d1.8 / G-d2.3 — the HONEST coupled DOF + the ERR-053 restart ───
 

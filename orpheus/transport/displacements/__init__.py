@@ -36,9 +36,13 @@ flux`` (the torsor action). The displacements themselves ARE a vector space
 :class:`~orpheus.numerics.field.Field`.
 
 See :class:`~orpheus.transport.displacements._displacement.Displacement` for the
-shared convergence diagnostics (``contraction_ratio`` / ``true_error_estimate``
-/ ``where_largest``) and
+Rep-keyed flux↔displacement pairing and
 :class:`~orpheus.transport.fields._flux_role.FluxRole` for the affine algebra.
+The convergence diagnostics that used to live on the marker RELOCATED at
+campaign 1 CS3 (2026-08-19): ρ and the geometric-tail estimate derive from
+:attr:`~orpheus.numerics.convergence.IterationRecord.increment_norms`; the
+per-entry magnitude map is
+:meth:`~orpheus.numerics.field.Field.where_largest` (any field).
 """
 from __future__ import annotations
 

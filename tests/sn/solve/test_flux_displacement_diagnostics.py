@@ -1,11 +1,14 @@
-r"""Piece 2 (#208) — SI convergence diagnostics on the typed FluxDisplacement.
+r"""Piece 2 (#208) — SI convergence diagnostics on the iteration record.
 
-The source-iteration loop produces typed flux displacements
-:math:`\Delta\psi = \psi^{(i)} \ominus \psi^{(i-1)}` and records the Banach
-contraction factor :math:`\rho \approx \lVert\Delta\psi^{(i)}\rVert /
-\lVert\Delta\psi^{(i-1)}\rVert` via the typed leaf method, exposed as the debug
-hook ``SourceIteration.contraction_ratios`` (and ``last_displacement`` for
-``where_largest`` / ``true_error_estimate``). On a homogeneous slab the SI
+The source-iteration loop measures the iterate increment
+:math:`\Delta\psi = \psi^{(i)} - \psi^{(i-1)}` (space norm of the principal
+bulk leaf) each pass and records the trajectory as
+:attr:`~orpheus.numerics.convergence.IterationRecord.increment_norms`, from
+which the record DERIVES the Banach contraction factor :math:`\rho \approx
+\lVert\Delta\psi^{(i)}\rVert / \lVert\Delta\psi^{(i-1)}\rVert`
+(``record.contraction_ratios``) and the :math:`c\to 1` geometric-tail
+estimate (``record.true_error_estimate()``). Relocated off the retired typed
+displacement surface at campaign 1 CS3 (2026-08-19). On a homogeneous slab the SI
 contraction factor :math:`\rho \to c = \Sigma_s/\Sigma_t` (Adams–Larsen 2002),
 so the recorded ratios track :math:`c`.
 
@@ -64,8 +67,8 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
 
 
 def _run_si(c: float, **kw):
-    """Run the within-group SI on a homogeneous slab; return the SourceIteration
-    (with ``contraction_ratios`` / ``last_displacement`` populated)."""
+    """Run the within-group SI on a homogeneous slab; return its
+    :class:`IterationRecord` (with ``increment_norms`` populated)."""
     solver = _homogeneous_slab_solver(c, **kw)
     sn_mesh = solver.sn_mesh
     system = build_within_group_system(
@@ -86,28 +89,28 @@ def _run_si(c: float, **kw):
         _history=(), history_depth=2,
     )
     ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
-    si.solve(q_ext, initial_guess=ig)
-    return si
+    _, record = si.solve(q_ext, initial_guess=ig)
+    return record
 
 
-def _asymptotic_rho(si) -> float:
-    ratios = si.contraction_ratios
+def _asymptotic_rho(record) -> float:
+    ratios = record.contraction_ratios
     if len(ratios) < 4:
         raise AssertionError(
             f"too few contraction ratios recorded ({len(ratios)}) — the SI loop "
-            f"is not populating the typed FluxDisplacement diagnostics."
+            f"is not populating the record's increment-norm diagnostics."
         )
     return float(np.mean(ratios[-3:]))
 
 
 @pytest.mark.parametrize("c,rho_lo,rho_hi", [(0.5, 0.40, 0.56), (0.9, 0.80, 0.92)])
 def test_contraction_ratio_tracks_scattering_ratio(c, rho_lo, rho_hi):
-    r"""``SourceIteration.contraction_ratios`` → ρ ≈ c on a homogeneous slab.
+    r"""``IterationRecord.contraction_ratios`` → ρ ≈ c on a homogeneous slab.
 
-    The displacement is the ONLY object that knows "previous"/"step", so it
-    carries ``contraction_ratio`` (a flux state cannot). Proves the typed
-    diagnostic tracks the analytical Banach factor ρ ≈ max(Σs/Σt) = c — turning
-    the ρ-blind ‖Δψ‖ stopping test honest. Rate claim (1-group acceptable)."""
+    The record's increment-norm trajectory is the ONLY surface that knows
+    "previous"/"step". Proves the derived diagnostic tracks the analytical
+    Banach factor ρ ≈ max(Σs/Σt) = c — turning a ρ-blind ‖Δψ‖ reading honest.
+    Rate claim (1-group acceptable)."""
     rho = _asymptotic_rho(_run_si(c))
     if not (rho_lo <= rho <= rho_hi):
         raise AssertionError(f"c={c}: measured ρ={rho:.4f} not in [{rho_lo}, {rho_hi}]")
@@ -123,14 +126,17 @@ def test_contraction_ratio_increases_with_c():
             f"ρ did not track c: ρ(0.5)={rho_lo:.4f}, ρ(0.9)={rho_hi:.4f}")
 
 
-def test_last_displacement_feeds_true_error_and_where_largest():
-    r"""``last_displacement`` supports ``true_error_estimate`` (the c→1
-    false-convergence fix) and ``where_largest`` (the convergence map)."""
-    si = _run_si(0.9)
-    d = si.last_displacement
-    if d is None:
-        raise AssertionError("last_displacement not recorded")
-    rho = si.contraction_ratios[-1]
-    np.testing.assert_allclose(d.true_error_estimate(rho), d.l2 / (1.0 - rho), rtol=1e-12)
-    if len(d.where_largest(3)) != 3:
-        raise AssertionError("where_largest(3) did not return 3 indices")
+def test_record_feeds_true_error_estimate():
+    r"""``record.true_error_estimate()`` == ‖Δψ‖/(1−ρ) of the SAME solve —
+    the c→1 false-convergence fix, derived from the recorded trajectory.
+    (The per-entry convergence map is now
+    :meth:`~orpheus.numerics.field.Field.where_largest`, a property of any
+    field — unit-tested in :mod:`tests.numerics.test_field`.)"""
+    record = _run_si(0.9)
+    if not record.increment_norms:
+        raise AssertionError("increment_norms not recorded")
+    rho = record.contraction_ratios[-1]
+    np.testing.assert_allclose(
+        record.true_error_estimate(),
+        record.increment_norms[-1] / (1.0 - rho), rtol=1e-12,
+    )

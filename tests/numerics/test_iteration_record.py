@@ -961,3 +961,72 @@ class TestTheReportCarriesWhatTheReaderMustAct_ON:
         report = _three_level_tree(deep_last=1e-13).report()
         assert "needs ~" not in report
         assert "no budget suffices" not in report
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Iterate-increment diagnostics (migrated from the retired typed
+# displacement surface at campaign 1 CS3, 2026-08-19 — the record now
+# derives ρ and the geometric-tail estimate from ``increment_norms``).
+# Explicit raises / np.testing throughout: the canonical runner is
+# ``python -O``, which strips bare ``assert``.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_contraction_ratios_recover_a_geometric_step() -> None:
+    """A geometric trajectory ‖Δψ⁽ⁱ⁺¹⁾‖ = ρ·‖Δψ⁽ⁱ⁾‖ recovers ρ exactly."""
+    import numpy as np
+
+    for rho in (0.3, 0.9):
+        record = IterationRecord(
+            label="inner(geometric)",
+            increment_norms=(2.0, 2.0 * rho, 2.0 * rho * rho),
+        )
+        np.testing.assert_allclose(
+            record.contraction_ratios, (rho, rho), rtol=1e-12,
+        )
+
+
+@pytest.mark.foundation
+def test_true_error_estimate_amplifies() -> None:
+    """true_error_estimate() == ‖Δψ‖/(1−ρ): at ρ=0.9 it is 10× the last
+    increment (the c→1 false-convergence fix), and a non-contracting or
+    under-measured trajectory is refused."""
+    import numpy as np
+
+    record = IterationRecord(label="inner(c-to-1)", increment_norms=(10.0, 9.0))
+    np.testing.assert_allclose(record.true_error_estimate(), 90.0, rtol=1e-12)
+    with pytest.raises(ValueError, match=r"must be in \[0, 1\)"):
+        IterationRecord(
+            label="inner(stalled)", increment_norms=(1.0, 1.0)
+        ).true_error_estimate()  # ρ = 1 has no finite tail estimate
+    with pytest.raises(ValueError, match="no contraction ratio"):
+        IterationRecord(
+            label="inner(one-pass)", increment_norms=(1.0,)
+        ).true_error_estimate()
+
+
+@pytest.mark.foundation
+def test_contraction_ratio_zero_norm_predecessor_is_skipped() -> None:
+    """A pair whose predecessor norm is 0.0 contributes no ratio (already at
+    the fixed point — the ratio is undefined), the retired surface's guard."""
+    import numpy as np
+
+    record = IterationRecord(
+        label="inner(fixed-point-start)", increment_norms=(0.0, 5.0, 2.5),
+    )
+    np.testing.assert_allclose(record.contraction_ratios, (0.5,), rtol=1e-12)
+
+
+@pytest.mark.foundation
+def test_increment_norms_construction_guards() -> None:
+    """Negative entries (magnitudes only) and more measurements than
+    iterations are producer bugs, refused at construction."""
+    with pytest.raises(ValueError, match="MAGNITUDES"):
+        IterationRecord(label="inner(bad)", increment_norms=(1.0, -2.0))
+    with pytest.raises(ValueError, match="cannot measure more often"):
+        IterationRecord(
+            label="inner(overcounted)",
+            increment_norms=(1.0, 2.0, 3.0),
+            iterations_run=2,
+        )

@@ -10,8 +10,10 @@ algebra across all four flux-state leaves (``AngularFlux``, ``ScalarFlux``,
 * :math:`\psi_1 \oplus \psi_2 \to \bot` (no origin — the #201 gate),
 * :math:`\sum_i\lambda_i\psi_i,\ \sum\lambda_i=1 \to \psi` (affine combination),
 
-plus the displacement diagnostics (``contraction_ratio`` /
-``true_error_estimate`` / ``where_largest``).
+(The displacement diagnostics that lived here migrated at campaign 1 CS3,
+2026-08-19: ρ / true-error to :mod:`tests.numerics.test_iteration_record`
+[the record derives them from ``increment_norms``], the per-entry map to
+:mod:`tests.numerics.test_field` [``Field.where_largest``].)
 
 These are ``foundation`` tests — software invariants, not physics ``:label:``
 claims. The structural ground is numpy ``+``/``-`` on the same buffer (no
@@ -229,38 +231,3 @@ def test_subtraction_typed_and_guards_intact(mesh, mesh2, rng):
     other = AngularFlux.zeros_on(mesh2)
     with pytest.raises(ValueError):  # NEGATIVE cross-mesh
         _ = psi1 - other
-
-
-# ── 3. Displacement diagnostics (unit-level; solver-integrated ρ≈c in Piece 2)
-
-
-@pytest.mark.parametrize("leaf", _LEAVES)
-def test_contraction_ratio_of_scaled_displacement(leaf, mesh, rng):
-    r"""contraction_ratio(prev) == ‖self‖/‖prev‖ — a geometric step
-    Δψ⁽ⁱ⁺¹⁾ = ρ·Δψ⁽ⁱ⁾ recovers ρ exactly."""
-    d = _make_flux(leaf, mesh, rng) - _make_flux(leaf, mesh, rng)
-    for rho in (0.3, 0.9):
-        nxt = rho * d
-        np.testing.assert_allclose(nxt.contraction_ratio(d), rho, rtol=1e-12)
-
-
-@pytest.mark.parametrize("leaf", _LEAVES)
-def test_true_error_estimate_amplifies(leaf, mesh, rng):
-    r"""true_error_estimate(ρ) == ‖Δψ‖/(1−ρ): at ρ=0.9 it is 10× the
-    increment (the c→1 false-convergence fix)."""
-    d = _make_flux(leaf, mesh, rng) - _make_flux(leaf, mesh, rng)
-    np.testing.assert_allclose(d.true_error_estimate(0.9), d.l2 / 0.1, rtol=1e-12)
-    with pytest.raises(ValueError):  # ρ ≥ 1 has no finite tail estimate
-        _ = d.true_error_estimate(1.0)
-
-
-def test_where_largest_locates_the_peak(mesh, rng):
-    r"""where_largest(k) returns the k indices of largest |Δψ|, largest first."""
-    d = _make_flux("angular", mesh, rng) - _make_flux("angular", mesh, rng)
-    flat = np.abs(d.values)
-    peak = tuple(int(i) for i in np.unravel_index(int(flat.argmax()), flat.shape))
-    got = d.where_largest(1)
-    if got[0] != peak:
-        raise AssertionError(f"where_largest peak {got[0]} != argmax {peak}")
-    if len(d.where_largest(3)) != 3:
-        raise AssertionError("where_largest(3) did not return 3 indices")

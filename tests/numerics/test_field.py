@@ -340,3 +340,26 @@ def test_subclass_with_extra_field_propagates_through_negation_and_copy():
     assert type(cp) is _RichField and cp.tag == "gamma"
     np.testing.assert_array_equal(neg.values, [-1.0, -2.0])
     np.testing.assert_array_equal(cp.values, [1.0, 2.0])
+
+
+@pytest.mark.foundation
+def test_where_largest_locates_the_peak():
+    """where_largest(k) returns the k index tuples of largest |values|,
+    largest first — the per-entry magnitude map (promoted from the retired
+    displacement diagnostics surface at campaign 1 CS3, 2026-08-19)."""
+    rng = np.random.default_rng(7)
+    values = rng.normal(size=(4, 3, 5))
+    field = _DummyField(
+        values=values, space=FunctionSpace(name="map", shape=(4, 3, 5)),
+    )
+    flat = np.abs(values)
+    peak = tuple(int(i) for i in np.unravel_index(int(flat.argmax()), flat.shape))
+    got = field.where_largest(1)
+    if got[0] != peak:
+        raise AssertionError(f"where_largest peak {got[0]} != argmax {peak}")
+    top3 = field.where_largest(3)
+    if len(top3) != 3:
+        raise AssertionError("where_largest(3) did not return 3 indices")
+    mags = [flat[t] for t in top3]
+    if mags != sorted(mags, reverse=True):
+        raise AssertionError(f"where_largest(3) not largest-first: {mags}")
