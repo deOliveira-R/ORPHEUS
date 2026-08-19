@@ -35,6 +35,10 @@ apply-time dispatch retires.
    Homogeneous solver relies on the existence of an Energy space … Then we will add
    Spatial and Angular spaces, and SN will be a composition of Energy, spatial and angular
    spaces (and this will power the partitioning machinery later on)."
+   ⚠ Execution-order note (user, 2026-08-19, post-compaction): "first" binds
+   spaces-before-the-BINDING (CS4), which the re-ordered sequence preserves. The cone
+   carve (CS3) was verified independent of the space work and now executes before the
+   space phases — see the §4 sequencing block for the derivation.
 4. **Campaign split.** This campaign = Space + Kernel→Operator realization (+ the cone
    carve, which must precede the dispatch collapse — §4 rationale). Campaign 2 = the
    LossRepresentation overturn — "currently an early decision on partitioning" — to
@@ -130,12 +134,35 @@ best-designed part of the layer — memo A praise table — churn only with caus
 PREDICATE; cone-preservation a REALIZATION flag; iterate semantics (ρ, ‖Δψ‖/(1−ρ)) on
 the iteration layer. The affine gates and the displacement type family retire.
 
-**Why this phase sits between the spaces and the binding** (sequencing rationale, mine —
-re-orderable at the first compaction point): CS4's collapsed `apply` signature must be
-written against the settled field algebra, or the new bound operators bake in the
-flux-vs-displacement refusal (#331's fork) that Campaign 2's Krylov/resolvent work would
-immediately re-open; and running CS3 after CS2 means the re-typed fields land on the
-final spaces (one pass over the field layer, not two).
+**Sequencing — RE-ORDERED 2026-08-19 (user): CS3 executes FIRST. Execution order is
+CS3 → CS1 → CS2 → CS4.** The user asked whether the cone carve is independent of the
+space work; re-derived against the tree, it is. The original rationale (kept per
+plan-authoring §3, refuted half marked):
+
+- CS4's collapsed `apply` signature must be written against the settled field algebra,
+  or the new bound operators bake in the flux-vs-displacement refusal (#331's fork) that
+  Campaign 2's Krylov/resolvent work would immediately re-open — **STANDS** (CS3 before
+  CS4; unaffected by the re-order).
+- ~~Running CS3 after CS2 means the re-typed fields land on the final spaces (one pass
+  over the field layer, not two).~~ ⛔ REFUTED 2026-08-19 on the independence
+  re-derivation: CS3 changes the ROLE algebra (dunders, leaf set); CS2 changes the SPACE
+  objects the fields point at — disjoint parts of the field layer. The one shared site is
+  the fiber check, and `[M]` it is NOT the torsor machinery's: the mesh-binding guard
+  lives in the retained `_check_partner` chain (`transport/fields/_bases.py:199` "Add the
+  mesh-binding guard on top of Field's class/space gate"; `:643` "class identity, space
+  equality, AND mesh identity"; `:837-838` names the space-aliasing hazard and closes it
+  by mesh identity for face fields), and the base dunders route every same-class pair
+  through it (`numerics/field.py:277-282` — `__add__`/`__sub__` call `_check_partner`
+  first). Retiring the mixin drops `+`/`−` through to exactly that chain, so the fiber
+  discipline ("different problems don't mix") survives the carve at today's exposure
+  under either order. Cone-first in fact SHRINKS CS2's blast radius: the 7 displacement
+  leaves retire before CS2 re-points space wiring, halving the leaf inventory whose
+  identity semantics flip.
+  ⚠ Carve-time check owed (cheap, one gate): a cross-mesh same-shape `ψ + ψ'` must still
+  REFUSE after the flip — the negative control that the fall-through really lands on the
+  mesh-binding chain. `_check_torsor_partner`'s own mesh arm (`_flux_role.py:196`)
+  retires WITH the mixin: its job was the fiber check on a cross-class partner that
+  Layer 1 cannot see, and it ends when the cross-class partner does.
 
 **Proposed means** (the carve; blast radius = memo D §9, [M] 16 production files / 16
 test files / 5 doc pages): retire `FluxRole`'s gates, the 7 displacement leaves, the
