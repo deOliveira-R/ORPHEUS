@@ -6,7 +6,8 @@ description: "Use when the user wants to know what will break if they change som
 # Impact Analysis with Nexus
 
 IMPORTANT: This skill is the dedicated tool for blast radius and
-dependency analysis. Use Nexus for structural queries; use Grep freely for text search.
+dependency analysis.
+Use Nexus for structural queries; use Grep freely for text search.
 
 ## Workflow
 

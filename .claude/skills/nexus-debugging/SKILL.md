@@ -6,7 +6,8 @@ description: "Use when the user is debugging a bug, tracing an error, or asking 
 # Debugging with Nexus
 
 IMPORTANT: This skill is the dedicated tool for bug tracing and
-equation diagnosis. Use Nexus for structural queries; use Grep freely for text search.
+equation diagnosis.
+Use Nexus for structural queries; use Grep freely for text search.
 
 ## The Key Insight
 
@@ -40,5 +41,10 @@ provenance_chain({node_id: "py:function:orpheus.sn.sweep.transport_sweep"})
 → Implements: math:equation:transport-cartesian
 → From: Bailey2009 (Eq. 50)
 ```
+Follows `implements`, so **empty is a common and legitimate answer** —
+most code implements no equation. `also_on_these_pages` tells the two
+zeros apart: present = documented there but implementing nothing known;
+empty = no doc relation at all. An entry carrying `inferred` + `via` was
+GUESSED from shared name tokens, not declared.
 
 See [../nexus-exploring/reference.md](../nexus-exploring/reference.md) for full reference.

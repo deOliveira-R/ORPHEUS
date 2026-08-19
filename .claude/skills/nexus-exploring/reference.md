@@ -9,6 +9,7 @@ This file is shared across all nexus-* skills.
 | Tool | What it answers | Key args |
 |------|----------------|----------|
 | `query` | Find symbols by keyword | `text`, `node_types`, `limit` |
+| `file_brief` | What the graph knows about one FILE — module node, hub, equations it implements, doc pages owed an update, and for a test file what its gates verify plus the pytest command. Start here when all you have is a path | `file` |
 | `node_at` | Map a file position (LSP result, stack trace) to the innermost enclosing node; warns when the file changed since the graph was built | `file`, `line` |
 | `context` | 360-degree view of a symbol | `node_id` |
 | `neighbors` | Direct connections | `node_id`, `direction`, `edge_types` |
@@ -27,7 +28,8 @@ This file is shared across all nexus-* skills.
 |------|----------------|----------|
 | `impact` | Blast radius analysis | `target`, `direction`, `max_depth`, `edge_types` |
 | `detect_changes` | Git diff → graph mapping | `scope` |
-| `retest` | Minimum test set after changes | `scope` |
+| `retest` | Minimum test set after changes — pass `run` and a covered symbol is answered from EXECUTION, not from the 12-15 %-recall call cone | `scope`, `run`, `limit` |
+| `doc_impact` | the static-cone dual of `retest` — documented claims a change to this symbol puts in question, with `page:line#anchor` and a verified flag | `node_id`, `limit` |
 | `rename` | Safe multi-file rename | `old_name`, `new_name`, `dry_run` |
 
 ### Architecture Smells (missing-abstraction family)
@@ -47,7 +49,9 @@ The static graph is *what can run*; a runtime overlay is *what actually ran*. Ca
 | `runtime_runs` | List ingested runs | — |
 | `runtime_hotspots` | Hot path / iteration counts (the dynamic stage DAG) | `run`, `by` (cumtime/ncalls/tottime), `limit` |
 | `runtime_edges` | Fired-vs-static edges: `dynamic_only` (dispatch the static graph missed), `fired`, `dead` | `run`, `mode`, `node`, `substantive_only`, `limit` |
+| `runtime_markers` | Tests by marker, **as pytest resolved it** (module-level `pytestmark`, class marks, conftest hooks — invisible to a decorator walk); carries runnable pytest ids | `run`, `marker`, `node`, `limit` |
 | `runtime_branches` | Partial-branch nodes; discriminators ranked first (missing-type suspects) | `run`, `node`, `partial_only`, `limit` |
+| `runtime_exercisers` | Which tests EXECUTED a node — the falsifier for a coverage claim (needs contexts) | `run`, `node`, `limit` |
 | `runtime_timeline` | Observed execution sequence (a viztracer run): nodes by first entry | `run`, `max_depth`, `limit` |
 
 ### Code+Doc Fusion
@@ -57,6 +61,7 @@ The static graph is *what can run*; a runtime overlay is *what actually ran*. Ca
 | `verification_coverage` | V&V status map | `status_filter` |
 | `verification_audit` | Complete V&V audit (single call) | — |
 | `verification_gaps` | Untagged tests, unverified equations, missing err catchers | `module`, `level` |
+| `errors` | Catalogued failure modes and the tests that catch them, UNCAUGHT FIRST; `total_entries: 0` means nothing is declared, not nothing is wrong | `limit` |
 | `staleness` | Doc-code drift (git timestamps) + dead-reference summary | — |
 | `dead_references` | Docs/docstrings citing symbols or equation labels that NO LONGER EXIST (Sphinx renders these as plain text with no warning) | `limit` |
 | `session_briefing` | Session overview | — |
@@ -162,8 +167,10 @@ nexus runtime-runs --db <path>
 nexus runtime-hotspots --db <path> [--run NAME[,NAME...]] [--by cumtime|ncalls|tottime] [--limit 20]
 nexus runtime-edges --db <path> [--run NAME[,NAME...]] [--mode dynamic_only|fired|dead] [--node SUBSTR] [--substantive-only] [--limit 50]
 nexus runtime-branches --db <path> [--run NAME[,NAME...]] [--node SUBSTR] [--all] [--limit 50]
+nexus runtime-exercisers --db <path> [--run NAME[,NAME...]] [--node SUBSTR] [--limit 50]
 nexus runtime-timeline --db <path> [--run NAME] [--max-depth N] [--limit 50]
 nexus retest --db <path> [--project-root .] [--scope all|staged|unstaged|branch]
+               [--run <cov-run>[,<cov-run>]] [--limit N]
 nexus changes --db <path> [--project-root .] [--scope all|staged|unstaged|branch]
 nexus rename <old> <new> --db <path> [--project-root .] [--apply]
 ```
