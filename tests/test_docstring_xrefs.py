@@ -284,15 +284,25 @@ class TestTheEmptyNamespacePackageIsNotAModule:
     def test_a_namespace_package_WITH_content_stays_alive(self) -> None:
         """The discriminator is content, not the absence of ``__init__.py``.
 
-        ``tests/sn/`` is a namespace package carrying hundreds of modules. A
-        rule keyed on ``__file__ is None`` alone would call it dead and redden
-        every xref into the test tree.
-        """
-        import tests.sn
+        ``tests/geometry/`` is a namespace package carrying its test modules.
+        A rule keyed on ``__file__ is None`` alone would call it dead and
+        redden every xref into the test tree.
 
-        assert tests.sn.__file__ is None, "premise: tests.sn is a namespace package"
-        assert not _is_empty_namespace_package(tests.sn)
-        assert resolve("tests.sn") == (True, None)
+        (The original exemplar was ``tests.sn`` — regularized by ``627e64d6``,
+        2026-08-19, when coverage attribution needed its ``__init__.py``; the
+        premise assert below made that rot loud rather than silent, which is
+        its job.)
+        """
+        import tests.geometry
+
+        assert tests.geometry.__file__ is None, (
+            "premise: tests.geometry is a namespace package (no __init__.py). "
+            "If an attribution fix regularized it too (as 627e64d6 did to "
+            "tests.sn), re-point this fixture at any surviving with-content "
+            "namespace package, or synthesize one in tmp_path."
+        )
+        assert not _is_empty_namespace_package(tests.geometry)
+        assert resolve("tests.geometry") == (True, None)
 
     def test_an_ordinary_module_is_untouched(self) -> None:
         import orpheus.numerics.face_layout as module
