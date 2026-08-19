@@ -285,8 +285,78 @@ G1 ✅ dissolved (#389), G4 ⛔ false measurement, §4.5 leg-c ⛔ refuted
 `history.rst`'s ready-to-paste row carry `*(in development)*` — swap to the
 merge hash on the next docs touch (CS1's D8 is the natural ride).
 
-**State**: CS3 ⏹ COMPLETE; CS1 (Energy space) and CS2/CS4 unstarted — resume
-from §2 with the §0 rulings and this file's §1 readiness table.
+**State**: CS3 ⏹ COMPLETE; CS3-R (below) is the next step by user instruction;
+CS1 (Energy space) and CS2/CS4 unstarted — after CS3-R, resume from §2 with the
+§0 rulings and this file's §1 readiness table.
+
+---
+
+## 4-R. Phase CS3-R — the carve survives a clear-context adversarial review
+
+**Chartered by the user at the CS3 close (2026-08-19, verbatim intent):** one
+more pass through the machinery "just to check that all the torsor machinery was
+replaced by cone one and find any opportunities to improve expressiveness (for
+example, using cone properties when we can, expressing residuals, etc)" —
+explicitly a review of the carve's own work **with clear eyes/context**, i.e.
+run AFTER the compaction that follows this entry.
+
+**Goal.** Two verdicts, independently reached: (a) **completeness** — no torsor
+machinery survives un-replaced, where "machinery" means CONCEPTS and SHAPES, not
+the word (vestigial names, torsor-shaped call patterns, base-point spellings,
+docs/tests that re-teach the retired design by structure); (b) **expressiveness**
+— the cone ontology's new affordances are USED where they pay (cone properties
+at consumers, residual expression, gates that can now state laws directly).
+
+**Method** (binding): the adversarial-first review discipline
+([[feedback-adversarial-phase-before-balance]]) — Phase 1 harsh (how would I
+break this / make it 100× better; reshaping is fair game; "it works" is not a
+defence), Phase 2 re-evaluate and WITHDRAW what does not survive, with every
+refuted candidate recorded with its structural reason (process-discipline).
+Load `coding-elegance` + the nexus smell sweeps (`twin_paths`,
+`discriminations`, `native_place`, `dead_functions`, `dead_references` — the
+graph at HEAD post-merge is current). Read FIRST: this file §0/§4 + compaction
+point #1; `docs/theory/foundations/field_algebra.rst` (the cone chapter);
+`scratch/cs3_verification_plan.md`; memo `scratch/omr_v2_grounding/D_*.md`.
+
+**Leads** (recorded at compaction prep by the carve's own author — UNVERIFIED
+hypotheses, deliberately not pre-judged; the reviewer re-derives or refutes
+each, and a refutation is first-class output):
+
+1. `Field.where_largest` and `Field.cone_violations` share the flat-scan /
+   argsort / unravel shape — a possible Pattern-2 twin inside the carve's own
+   additions (one parameterized magnitude-map primitive?).
+2. Residual expressiveness (the user's own lead): the SI stop and record ride
+   flat `_l2_norm` spellings by design (conv_tol semantics; the retired
+   doctrine's own note said switching the STOP to `.l2` re-interprets the
+   tolerance) — re-weigh under principled-over-bit-identical whether the typed
+   residual algebra should now carry more of it, and whether
+   `affine-typed-residual-eq`'s kept label matches what ships.
+3. Cone properties at consumers: `power_iteration`'s ray normalization, the BC
+   realizer's cone refusal, the #390 flag-reader — is there a coherent
+   cone-vocabulary surface rather than three idioms?
+4. `CoefficientRole` is now an empty marker whose complement-content died —
+   re-run type-vs-property on its two remaining justifications (taxonomy
+   isinstance; future multiplier home).
+5. DSA's `apply(self, displacement: ...)` parameter name and any other
+   vestigial `displacement`/`disp`/`⊖`/mint/base-point vocabulary in live
+   signatures, locals, and test names (grep the CONCEPT's spellings, not
+   "torsor").
+6. The Krylov `to_flat` role erasure: under V a typed Krylov iterate is newly
+   representable — likely #289/#288 territory (out of CS3-R scope to BUILD;
+   in scope to STATE the now-cheaper design).
+7. `tests/sn/operators/test_declared_law_is_linear.py`'s long header was
+   part-rewritten in place — full-coherence re-read.
+8. The composite delegation notes and `_principal_bulk_leaf`'s walk — could the
+   composite own a `principal_leaf` property instead of numerics duck-walking
+   it (native-place question)?
+
+**Done when** (checkable): a findings memo lands (scratch/, incrementally
+written) with every Phase-1 candidate carrying a Phase-2 verdict + structural
+reason; in-session-fixable items are FIXED inline (process-discipline: no
+open/close issue noise); cross-session items are FILED with module labels; the
+completeness verdict states its denominators (which spellings were grepped,
+which smell sweeps ran, over which trees); and this section gains its ✅ row in
+the ledger.
 
 ## 5. Phase CS4 — S and F are kernels; operators are born bound
 
