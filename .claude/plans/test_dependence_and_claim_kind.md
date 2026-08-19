@@ -75,133 +75,70 @@ the eleven were declared, i.e. failed in the direction that reads as
 unfinished work. Fixed in the same change; it now reports the two kinds of
 answer separately.
 
-### ▶ NEXT: the 151 remaining, and the adversarial re-run that must precede them
+### ✅ 1b's MAIN PUSH LANDED — 2026-08-19, ORPHEUS `596093fa`
 
-⛔ **Do NOT bulk-declare from the existing inventory** — `[M]` 110 of its 150
-NOTHING rows are contradicted by their own claiming tests, and one is proven
-wrong. **ORPHEUS #382** carries the population, the order that worked on the
-11, and the anti-cheat check. Read it before touching this.
+⛔ **This SUPERSEDES the "▶ NEXT: the 151 remaining" pointer that stood here**,
+which named the wrong population. `[M]` only **2 of those 140** carry any
+coverage claim (6 claims); they are corpus hygiene. The population the
+licensing argument turns on was a different 94 — the equations that carry
+claims but had no implementer — and it is now done.
 
-`[M]` 2026-08-18: **509** `.. vv-status: … documented` sentinels exist; **358**
-sit on equations that DO have implementers (a different concept — do not
-collapse the two mechanisms), **151** on equations with none. ⭐ All 11 just
-declared already carried a sentinel AND a hand-written rationale saying why —
-**the classification cost nothing to derive, it was already authored and
-inert.** That is the cheap path for the remaining 151, and it is why the
-fanout's judgement is not needed for most of them.
+| | before | after |
+|---|---:|---:|
+| claims blocked by "equation has no implementer" | 976 over 94 eq | **3 over 3** |
+| declared `implements` edges | 85 | **388** |
+| ⭐ anti-cheat `guesses_on_unimplementable_equations` | 239 | **239** |
 
-### ✅ LANDED THIS SESSION
+⭐⭐ **THE CONVENTION, ruled by the user 2026-08-19**: `implements` means
+**every site that executes the equation's arithmetic**, not only the canonical
+or assembling one. The measurement that forced it: `mg-balance`'s 70 claims
+split 26 SN / 26 CP / 12 homogeneous / 5 MC / 1 MoC over **four independent
+transcriptions**; a canonical-only declaration refutes **58 of 70** — tests
+that DO exercise an in-scatter sum, just not that one. ⟹ narrow is not the
+conservative choice, it is the one that manufactures false refutations.
 
-**nexus** — step 1, then two guards found while verifying it:
+⭐⭐ **METHOD, and it is the transferable half**: six `explorer` agents, one
+page cluster each, deriving from the tree — **92 of 94 declarable**, 302 of 303
+targets passing a mechanical resolve+ontology check. ⛔ The Haiku inventory
+called 67 of these same 94 "nothing implements it"; it is refuted from six
+independent directions and its header says so. **A fanout is an inventory
+engine, not a judge** — and the judging is cheap when the agent reads the page.
 
-| commit | outcome |
-|---|---|
-| `f0a6e4c` | `ExecutionLedger` — a capture joined to the graph. Class DESCENT: `[M]` 0 of 438 production classes bind, so 269 gained evidence they could not carry |
-| `1ca01f8` | `verification_coverage/audit(run=)` — four verdicts + `CaptureScope`; `orphan_code` stopped meaning "the call graph could not see it" (**1590** nodes moved to `tested`) |
-| `2104ce4` | `retest(run=)` — evidence where a capture can speak; runnable selectors (`[M]` 225 071 → 78 518 chars) and a working `limit` |
-| `a0f038e` | the `run` arg reached the MCP tools (it had reached NEITHER), and the tally stopped counting evidence as its own corroboration |
-| `afe9a7c` | **#86 CLOSED** — a DECLARATION is admission-controlled, like a guess always was |
-| `0e24224` | **#90 CLOSED** — directive misuse is audible to `-W` |
-| `253581f` | **CI green**, first since 2026-08-17 |
+⚠ **The authored-but-inert surfaces**, in the order they actually pay:
+1. the **claiming test module's `pytestmark` comment block** — names the gate
+   and often the symbol; found independently by three agents, and it is what
+   works when the page has no rationale;
+2. **labels declared IN THE CODE** — `orpheus/derivations/discrete/sn/balance.py`
+   names labels term-by-term (`(Eq. dd-recurrence)`), and
+   `sn/sweep/psi_half_angle_seed`'s docstring is called *the canonical
+   algebra-of-record* by the page itself. Two greps resolved four labels.
+3. `.. (vv-status rationale)` — ⛔ `[M]` only **2 of 94** equations have one
+   within 12 lines of their label. It is dense on pages an earlier V&V
+   campaign visited and absent elsewhere; do NOT brief it as universal
+   (`plan-authoring` §2, logged).
+4. `equation_labels=` on a `VerificationCase` — 58 refs / 16 files / 44 labels.
+   ⛔ NOT an `implements` channel: its own docstring says *"IDs this reference
+   **exercises**"*, i.e. a `tests` edge, and those already exist via
+   decorators. Its docstring also claims *"Nexus builds test ↔ equation edges
+   from these"* — `[M]` **0 hits** for `equation_labels` in the whole nexus
+   package.
 
-**ORPHEUS**: `cf09c3e7` step-1 record · `0a3ccd56` the 332-equation inventory
-(`.claude/inventories/`) · `2ed79318` `.nexus/ontology.toml` widening ·
-`c3349828` the red-CI rule.
+### ▶ NEXT
 
-**Filed**: ORPHEUS **#381** (the ledger's first measurement). Commented:
-ORPHEUS #334, nexus #82.
+1. **Step 2 — the wide capture** is RUNNING as of 2026-08-19 (17 slices,
+   `-m "not slow"`, contexts). ⛔ Two bugs cost v1 a 27-min slice: the CLI flag
+   is `--note` not `--command`, and the script deleted the report before
+   checking rc. Size is NOT a blocker — a 2633 MB report ingests in ~10 s.
+   Keep the `.coverage` SQLite (3.5 MB) until ingest returns 0.
+2. **#385** — `[M]` 0 of 4 MC solver kernels is imported by any test; four L0
+   gates replicate the logic inline. Those claims WILL adjudicate REFUTED once
+   the capture covers `tests/mc`, and that verdict is correct.
+3. **#383** — `phase-f-q-bar-twin-forms` asserts an equivalence whose second
+   twin was retired. The only one of the 94 left undeclared, deliberately.
+4. **#384** (doc drift, 8 items + a duplicate label), **#386** (MoC: twin
+   denominator for `t_s^eff`; trig on the angle chart), **#382** (the 140
+   hygiene rows).
 
-### `[M]` Numbers a pick-up needs that nothing else re-measures
-
-⭐ Re-measure anything the TOOLS produce (`plan-authoring` §9) —
-`verification_audit(run="geom_ctx,num_ctx")`, `retest(run=…)`. These are the
-ones no tool re-derives:
-
-- **The claim verdicts**, over the **2748 authored `tests` edges**:
-  **11 corroborated / 10 refuted / 1751 out-of-capture / 976
-  no-implementation**. ⛔ **The unadjudicable pair is 99.2 %**, and its two
-  halves need OPPOSITE repairs — a wider capture, and a declared
-  `implements` link.
-- ⛔⛔ **All 10 refutations carry `code_evidence=inferred`**, so **no
-  refutation is trustworthy today**. nexus#82 is a prerequisite for the
-  licensing argument, not a nicety. (Spot-checked: `bc-response-factored-adjoint`
-  is "refuted" by six tests in `test_factored_adjoint_identity.py` that are
-  self-evidently about the factored adjoint.)
-- **Static vs execution**: recall **12–15 %**, and `[M]` **0 of 300** proven
-  test↔symbol pairs have ANY path over `("calls","type_uses","inherits")`.
-  Mechanisms (num_ctx): property 27 %, upstream break 25 %, dunder 21.5 %,
-  no-source-caller 17 %, phantom 9 %.
-- **Capture scope**: 1499 of 5278 collectable tests; `executed_unclaimed`
-  **30 472**.
-- **The declaration surface**, over 341 CLAIMED equations: **94** with no
-  `implements` edge, **238** with only inferred ones, **9** declared.
-  Corpus-wide **85 declared edges over 46 equations** of 903.
-
-### ⭐⭐ Rulings that transfer
-
-1. ⭐⭐ **A partial capture must not certify a test it never RAN.** I had "the
-   capture covers the symbol ⟹ trust it", and it reported
-   `safe_to_skip = 5161` for a geometry change on a 1499-of-5278 capture —
-   3779 tests blessed for never having been looked at.
-2. ⭐⭐ **A row minted from evidence cannot corroborate anything** — the
-   verdict is a tautology. Counting them took `claims_corroborated` 5994 →
-   36 466, a number tracking capture SIZE rather than suite quality
-   (`plan-authoring` §10, in a metric I had just introduced).
-3. ⭐⭐ **Gate an arm where it is FALSIFIABLE, not where it lives.** Two arms
-   were inert through their own feature and load-bearing one level down; two
-   others are genuine no-ops and the docstrings now say so rather than
-   implying a gate exists.
-4. ⭐⭐ **A red CI cannot tell your regression from the inherited one.** 29 of
-   30 runs red; I pushed six times without looking; baseline 11, actual 13.
-   Promoted to `.claude/rules/process-discipline.md`.
-5. ⚠ **A fanout is an excellent inventory engine and a poor judge** — and the
-   two halves fail differently, so verify them differently (below).
-6. ⚠ **Seven for seven: the MCP layer is where this campaign's defects hide.**
-   `run` reached `GraphQuery` and neither tool; `assemble_*` payloads are
-   hand-built, so a new field does NOT arrive for free.
-
-### ⛔ THE INVENTORY: read its header before acting on it
-
-`.claude/inventories/implements_declaration_inventory.md` (332 equations, 12
-Haiku agents) + `verify_implements_inventory.py` beside it.
-**180 DECLARABLE / 150 NOTHING / 2 UNSURE.**
-
-- **DECLARABLE is mechanically checkable**: `[M]` 275 of 293 implementers
-  resolve; **18 would be bad edges** (11 name a MODULE — the ontology admits
-  only function/method/class; 7 do not exist; 1 lists none). Repair before
-  landing.
-- **NOTHING is not checkable and fails FLATTERINGLY** — it suppresses every
-  guess AND records that nothing implements the equation, hiding a real gap.
-  `[M]` **110 of 150 are contradicted** by their own claiming tests, and one
-  is PROVEN wrong: `attenuation` (41 claims) classified an identity, while
-  `orpheus/moc/core.py:214-218` computes it, small-τ guard and all.
-- ⚠ Calibration is absent by construction: **296 of 332 "high" confidence, 2
-  UNSURE**, on unfamiliar physics, with the brief inviting UNSURE.
-- ⛔ **The contract that governs landing any of it**: declaring ONE
-  implementer stands the inference down for the WHOLE equation, so a partial
-  declaration is worse than none. 77 rows list 2–5 implementers.
-
-### ⚠ Corrections this session made to EARLIER text
-
-- ⛔ **CP#4's headline framing was the less important half.** "`calls`
-  measures popularity" is true and is the *over*-inclusion; the dominant
-  defect is **under**-inclusion at 12–15 % recall. Both are real; the second
-  is what makes `safe_to_skip` unsound.
-- ⛔ **My own interim "2720 out-of-capture" conflated two causes** with
-  opposite repairs: 1751 + 976. Corrected in the step-1 record at `cf09c3e7`.
-- ⛔ **My "builtin-hub" hypothesis for the over-claim was REFUTED by its own
-  counterfactual**: excluding non-project traversal leaves **250 of 250**
-  refuted pairs still reachable. It is nexus#60's structural claim, not a
-  filter bug.
-- ⛔ **nexus#86's own text said the misleading-message case "fails a `-W`
-  build". It does not** — `[M]` `build succeeded` under `-W` with both
-  refusals present. That became #90.
-- ⚠ **nexus#82's title is stale**: "14004 of 14004" — it is 13084 now, with
-  85 declared.
-- ⚠ **A hypothesis I formed at CP#5 time and refuted before writing it**: the
-  `Literal[...]` analyzer bug (#90) polluting ORPHEUS's cones. `[M]` **0**
-  spurious `type_uses` edges on ORPHEUS — it bit nexus only because `tests`
-  is a plausible class name.
 
 ---
 
