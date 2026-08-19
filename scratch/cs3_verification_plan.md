@@ -641,10 +641,10 @@ destroys convergence and a run sized on the 1.6 s baseline will time out.
 
 | # | gap | why it is left open |
 |---|---|---|
-| G1 | The DSA (§1.3) and adjoint (§1.4) baseline `.npy` files are **not captured** — I did not write to `tests/sn/_data/`. | Capture belongs in the carve's first commit at the pre-carve HEAD, together with the case rows, so the `.npy` and the case land atomically. Doing it from a planning dispatch would leave data files with no consumer. |
+| G1 | The DSA (§1.3) and adjoint (§1.4) baseline `.npy` files are **not captured** — I did not write to `tests/sn/_data/`. | ✅ DISSOLVED at close-out (2026-08-19): the carve landed value-neutral without them — certified by the trajectory pin, the 1-ULP bit-identity wall, the DD regression wall, the §4.5 DSA gates and the 4821-test sweep. The capture window (pre-carve HEAD) has passed; the durable stored-value follow-up for the one unwalled consumer class is **#389**. |
 | G2 | No gate anywhere pins that a **coupled/curvilinear** solve is value-neutral through the RC displacement leaves. The DD snapshots cover `sphere_*` / `cyl_*` at `SAFETY × conv_tol`, and 2 of the `cyl_*` rows already pre-drift. | A dedicated stored-value case for a carrying sphere would close it; it is the only consumer class with no bit-identity wall. |
 | G3 | `is_positivity_preserving` still has **0 production readers** (`[M]` memo D §3.1, re-checked at `000cf144`), and `scheme.py:528`'s claim that it "gates negative-flux diagnostics" is aspirational. | The cone predicate (§5) is the natural first reader, but wiring it is a behaviour change, not CS3's neutrality claim. File it. |
-| G4 | 4 test modules in the blast radius carry **no V&V marker at all** (§3.5). | Free to fix while editing; not a CS3 correctness item. |
+| G4 | ⛔ FALSE MEASUREMENT (caught at step-5 close-out, 2026-08-19): all 4 modules carry `pytestmark = [pytest.mark.foundation]` — the BRACKETED list form — at `000cf144` itself (`[M]` `git show 000cf144:tests/transport/fields/test_angular_flux.py` line 41). The census grep's pattern could not see the list spelling (the plan-authoring §2 FILTER defect: a dropped member reads as an absent one). Nothing to fix; the row is kept as the record of the false negative. | — |
 | G5 | `orpheus/sn/solver.py:2960` + issue **#353** rest on a doctrine claim that is already false today and doubly false after CS3. | Belongs to the doc/comment sweep (step 5), but the ISSUE needs re-scoping too — its premise, not just its prose. |
 
 ### 9.2 Questions the carve should not start without
