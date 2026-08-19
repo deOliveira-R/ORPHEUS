@@ -1,27 +1,27 @@
 {
   "schema": 1,
-  "nexus_version": "0.16.1",
-  "updated_at": "2026-08-09T10:08:56+00:00",
+  "nexus_version": "0.17.0",
+  "updated_at": "2026-08-19T07:25:31+00:00",
   "files": {
     "skills/behavioral-auto-regression/scripts/probe-prompt.md": {
       "shipped_sha256": "d581d28dd326615e8d7da3c5fe347f8085e38fdfe6f008e392cfff8a8c64fd8c",
-      "version": "0.16.1",
-      "installed_at": "2026-08-09T10:08:56+00:00"
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
     },
     "skills/nexus-cli/SKILL.md": {
-      "shipped_sha256": "c41ddf54f75eb74094f6466b70580704248c28861257345e043fc87456ef034f",
-      "version": "0.16.1",
-      "installed_at": "2026-08-09T10:08:56+00:00"
+      "shipped_sha256": "8bf5648096d43bb38ade1fe12b8ab468a4562255893ecbeceaa9b86ee2971251",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
     },
     "skills/nexus-migration/SKILL.md": {
       "shipped_sha256": "7617f0af64949bd11b7aec7c803ab6cb2ef32f438859460b21c6d967fc903b68",
-      "version": "0.16.1",
-      "installed_at": "2026-08-09T10:08:56+00:00"
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
     },
     "skills/nexus-refactoring/SKILL.md": {
       "shipped_sha256": "d3c712764401acc978e23f2ef8241c9c84e95208dede1b0e5c27000fa16e1694",
-      "version": "0.16.1",
-      "installed_at": "2026-08-09T10:08:56+00:00"
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
     },
     "commands/doc-health.md": {
       "shipped_sha256": "c37f4792221f0b59446d7700f5a70b12830d23e366a40527bc0f37fc242d0a10",
@@ -29,9 +29,49 @@
       "installed_at": "2026-08-09T10:08:56+00:00"
     },
     "hooks/nexus-dead-refs.sh": {
-      "shipped_sha256": "f0e5d3acb294bb31aba05f42fcce7eb700d18bde2077812c0d83ceb211f2fdc6",
-      "version": "0.16.1",
-      "installed_at": "2026-08-09T10:08:56+00:00"
+      "shipped_sha256": "1dd1746484b13b60807d406a776cef7a9693e138f5f9fd5022b53f9628508584",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/behavioral-auto-regression/SKILL.md": {
+      "shipped_sha256": "2cdb9357001d1bb154280f45aa446d9a273871338ba975ea37a6eafab7be2c3d",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/behavioral-auto-regression/reference.md": {
+      "shipped_sha256": "376c6cfc682c450c5ef154a7eca97578225629e74a46cf4adee33f7b04278b0f",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/nexus-debugging/SKILL.md": {
+      "shipped_sha256": "08dbe481a1ee08cb518405c1f44a586f13f9134f95f4f44955522e042d6372a3",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/nexus-exploring/SKILL.md": {
+      "shipped_sha256": "74b30216a508a69654f7be498affd384e3f6276e12f517af3f69295d6860b154",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/nexus-exploring/reference.md": {
+      "shipped_sha256": "c03429a1f5e9357c6a83ed0add7f4be17dc8b1abda9f982bf90bc74b140abbdb",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/nexus-guide/SKILL.md": {
+      "shipped_sha256": "163f3bb559ef023a8d817f16e207cbdc683246ce0a2f4979eb412f697c120c7c",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/nexus-impact/SKILL.md": {
+      "shipped_sha256": "b21ec323d080f38678ab2bc5f01752a385d74801260c0f0f98628796a5b3e572",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
+    },
+    "skills/nexus-verification/SKILL.md": {
+      "shipped_sha256": "c40863569e11a6f1ea16794f3699d2cc0920979ece0c2440c56ab75302ae221c",
+      "version": "0.17.0",
+      "installed_at": "2026-08-19T07:25:31+00:00"
     }
   }
 }
