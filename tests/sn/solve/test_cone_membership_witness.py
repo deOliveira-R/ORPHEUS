@@ -10,16 +10,20 @@ on CONVERGED output of the public entry ``solve_sn_fixed_source``, both ways
 (``vv`` #11):
 
 * **positive leg** — optically moderate slab: the converged ψ and φ are in K;
-* **negative leg** — the SAME materials / quadrature / BC with ONE parameter
-  moved (``nx``: cell size Δx·Σ_t = 100), where DD's dome overshoot drives
-  entries of ψ (and φ) negative. `[M]` frozen at the CS3 verification plan
-  §5.3 (2026-08-19): ``min ψ = −6.399383e-01`` with 2 of 8 entries negative,
+* **negative leg** — the SAME materials / quadrature / BC / cell size
+  (``Δx·Σ_t = 100`` in BOTH legs — ``nx`` and ``width`` move together), a
+  DEEPER domain: past enough decay, DD's dome overshoot drives entries of ψ
+  (and φ) negative. `[M]` frozen at the CS3 verification plan §5.3
+  (2026-08-19): ``min ψ = −6.399383e-01`` with 2 of 8 entries negative,
   ``min φ = −8.438399e-01``; the positive sibling ``min ψ = +2.181405e-01``.
 
-Because the rows differ in ONE parameter, the negative leg cannot be
-explained by a materials or quadrature difference — it is the discretization,
-which is the ruling's own argument for predicate-not-invariant (a ψ≥0 type
-would REFUSE this legitimate production output).
+Because the per-cell optical thickness is IDENTICAL across the legs, the
+negative leg cannot be explained by a materials, quadrature, or cell-size
+difference — it is the discretization's marching behaviour in depth, which
+is the ruling's own argument for predicate-not-invariant (a ψ≥0 type would
+REFUSE this legitimate production output). The cell-size mechanism itself
+is documented on the cone chapter's scan tables (``field_algebra.rst``):
+``Δx·Σ_t = 1`` stays in K, ``= 2`` leaves it.
 
 **What this module does NOT claim** (the predicate observes; nothing
 enforces): production does not keep fields in K, a violation is not handled
@@ -80,7 +84,7 @@ def _solve(nx: int, width: float):
 
 def test_converged_moderate_slab_is_in_the_cone() -> None:
     """POSITIVE (vv #11 pairing) — the benign sibling: same materials,
-    quadrature, BC and source, half the optical cell size."""
+    quadrature, BC, source and CELL SIZE; half the domain depth."""
     sol = _solve(nx=2, width=20.0)
     psi = sol.angular_flux.interior
     if float(np.min(psi.values)) <= 0.0:
@@ -95,7 +99,7 @@ def test_converged_moderate_slab_is_in_the_cone() -> None:
 
 
 def test_dd_thick_cell_output_violates_and_the_report_says_where() -> None:
-    """NEGATIVE — one parameter moved (nx=4 ⟹ width 40, Δx·Σ_t = 100): DD
+    """NEGATIVE — same cell size (Δx·Σ_t = 100), doubled domain depth: DD
     marches the same positive source into negative ψ entries, the converged
     solve reports success, and the predicate says exactly WHERE."""
     sol = _solve(nx=4, width=40.0)

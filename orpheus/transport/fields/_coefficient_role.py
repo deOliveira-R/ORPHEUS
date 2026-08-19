@@ -5,8 +5,8 @@ zeroth-order operator. The grand report (§5.5–5.7) names cross-section fields
 ``CoefficientField``\ s and the operators they become *promotions*
 (``C = M[σ_t]``, the multiplier-algebra embedding ``M: L^∞ → B(L²)``).
 :class:`CoefficientRole` is the role marker on the field side of that
-promotion, the **exact complement** of
-:class:`~orpheus.transport.fields._flux_role.FluxRole`:
+promotion. (Until campaign 1 CS3, 2026-08-19, it was the **exact
+complement** of the retired ``FluxRole`` affine mixin:)
 
 ==========================  ====================================  ===============================
 Role                        Algebra                               Mints
@@ -18,17 +18,19 @@ Role                        Algebra                               Mints
                             (``σ + σ`` legitimate)
 ==========================  ====================================  ===============================
 
-The flux leaves form an affine space (no natural origin — the iterate has no
-"zero flux" baseline that arithmetic respects), so :class:`FluxRole`
-*overrides* the additive algebra (removes ``flux + flux``, retypes
-``flux − flux`` to a displacement). The coefficients are the opposite: they
+(The overturned doctrine held that flux leaves form an affine space with no
+natural origin, ``FluxRole`` overriding their additive algebra. The CS3
+ruling inverted it: flux lives in the positive cone K ⊂ V, and THIS
+module's posture — cone as tested property, algebra as plain vector
+space — became every family's.) The coefficients always did
 form a genuine **vector space with an origin** (the zero cross section
 ``Σ = 0`` IS a coefficient — it promotes to ``M_0 = ZeroOperator``), closed
 under ``+`` (homogenisation ``Σ_mix = Σ_m N_m Σ_m`` is a number-density-weighted
 sum), unary ``−``, and scalar ``·`` — i.e. exactly the plain
 :class:`~orpheus.numerics.field.Field` vector-space dunders. So
-:class:`CoefficientRole` overrides **nothing**: the *absence* of an affine gate
-IS its content relative to :class:`FluxRole`. ``σ − σ′`` stays the same class
+:class:`CoefficientRole` overrides **nothing** — historically the *absence*
+of an affine gate was its content relative to ``FluxRole``; today it is
+simply the family's shared shape. ``σ − σ′`` stays the same class
 (a coefficient difference is itself a coefficient — possibly signed; physical
 nonnegativity is the *cone*, a tested property of physical inputs, not a type
 invariant on every intermediate — keeping the multiplier-algebra domain a full
@@ -44,8 +46,8 @@ Two reasons it earns its name even while dunder-empty:
   today, and the inverse-velocity ``1/v`` time-mass coefficient (units
   ``s/cm``, the ``TimeMassOperator``'s multiplier) imminent next — as one
   family. ``isinstance(x, CoefficientRole)`` discriminates a coefficient from
-  a flux state without a unit check, mirroring how ``FluxRole`` tags the state
-  leaves.
+  a flux state without a unit check (the state leaves lost their role mixin
+  at CS3; class identity itself now tags them).
 * **The future multiplier product.** When ``MultiplicationOperator`` lands
   (#257 S3), the law ``M_f @ M_g = M_{f·g}`` needs the pointwise *field·field*
   product ``f·g`` — the commutative-algebra multiplication that the flux never
@@ -55,9 +57,9 @@ Two reasons it earns its name even while dunder-empty:
   (``coding-elegance`` Pattern 6).
 
 Mixed in BEFORE the storage base
-(``CrossSectionField(CoefficientRole, ScalarField)``) so it occupies the same
-MRO slot as :class:`FluxRole` does for the state leaves — even though, in S1,
-it contributes no override there.
+(``CrossSectionField(CoefficientRole, ScalarField)``) — the MRO slot the
+retired ``FluxRole`` used to occupy on the state leaves — even though, in
+S1, it contributes no override there.
 
 References
 ----------

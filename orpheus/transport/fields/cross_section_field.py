@@ -30,7 +30,8 @@ the plain :class:`~orpheus.numerics.field.Field` vector-space algebra:
 * ``Σ + Σ′`` is legitimate (homogenisation ``Σ_mix = Σ_m N_m Σ_m`` is a
   number-density-weighted sum).
 * ``Σ = 0`` is a genuine origin (it promotes to ``M_0 = ZeroOperator``) — the
-  coefficient space is a vector space *with* an origin, unlike the affine flux.
+  coefficient space is a vector space *with* an origin (as, since campaign 1
+  CS3, is every field family — this module's doctrine generalized).
 * scalar ``λ·Σ`` and unary ``−Σ`` are inherited unchanged.
 
 **Nonnegativity is the cone, a property — not a type invariant.** Physical
@@ -96,7 +97,9 @@ class CrossSectionField(CoefficientRole, ScalarField):
     historically the complement of the flux torsor, and since campaign 1 CS3
     the shared shape of every field family). Construction does NOT enforce
     ``Σ ≥ 0``:
-    nonnegativity is the physical cone (a tested property), and a signed
+    nonnegativity is the physical cone (a tested property — the doctrine the
+    CS3 flux ruling generalized; :meth:`~orpheus.numerics.field.Field.cone_violations`
+    is its element predicate), and a signed
     difference ``Σ − Σ′`` is a valid coefficient. The mesh-identity check is
     inherited from :class:`~orpheus.transport.fields._bases.BulkField`.
     """

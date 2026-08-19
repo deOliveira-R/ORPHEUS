@@ -476,17 +476,19 @@ the offending factor.
   residual `r = Aψ − q` computed and asserted below `tol` (NOT the
   increment). Tabulate converged-`ψ` vs `c ∈ {0.9, 0.99, 0.999}`
   under both stops; the increment-stop answer drifts with `c`, the
-  residual-stop answer is stable. (See the FluxDisplacement /
-  AngularResidual diagnostic catalogue — the increment lives on the
-  displacement, the residual is the rate-density `r = Aψ − q`.)
+  residual-stop answer is stable. (The increment norms live on
+  `IterationRecord.increment_norms` since campaign 1 CS3 — the record
+  derives ρ and the true-error estimate; the residual is the
+  rate-density `r = Aψ − q`.)
 - **Catching test:** speculative — no dedicated regression test yet.
   The structural fix is `‖Aψ − q‖`-based stopping (or the a-posteriori
   correction `‖Δψ‖ / (1 − ρ̂)` with an estimated `ρ̂`); pin it with a
   high-`c` (`c ≥ 0.99`) fixed-source case whose exact answer is known
   (`φ = Q/Σ_a` for an infinite homogeneous absorber), asserting the
-  converged value to tolerance. ORPHEUS precedent: #208's
-  `FluxDisplacement` carries the `‖Δψ‖/(1−ρ)` a-posteriori true-error
-  estimate for exactly this fix.
+  converged value to tolerance. ORPHEUS precedent:
+  `IterationRecord.true_error_estimate()` (the `‖Δψ‖/(1−ρ)` a-posteriori
+  estimate, derived on the record since campaign 1 CS3; born on #208's
+  retired `FluxDisplacement`) exists for exactly this fix.
 - **Catalog entry:** Uncatalogued — pattern only (numerics-investigator
   lesson L11: "measure the residual `r = Aψ − q` for a ρ-honest stop,
   not the increment `‖Δψ‖`").

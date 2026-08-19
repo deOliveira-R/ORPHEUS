@@ -22,7 +22,7 @@ rejected. Each subsection covers one branch of mathematics.
 | **Topology (point-set + algebraic)**          | Multiple geometry variants with shared boundary behavior; periodic / reflective BCs; domain continuation     | Manifolds with boundary, covering spaces, homotopy, quotient spaces           | Slab / annulus / hollow sphere as one parameterized manifold with boundary (validated in ORPHEUS). Reflective BC = quotient by reflection group = manifold with corners.                                                             |
 | **de Rham cohomology / FEEC**                 | Conservation that must be exact in discretization; mixed methods; compatible finite elements                 | Exact sequences, discrete cohomology, Whitney forms                           | Compatible discretizations where div-curl-grad relations hold exactly at the discrete level. Prevents spurious modes. Relevant for genuine 3D coupled problems.                                                                      |
 | **Symplectic geometry**                       | Phase-space flows; characteristic curves; Hamiltonian structure                                              | Canonical forms, symplectic integrators, Poisson brackets                     | Transport characteristics are Hamiltonian. Symplectic integrators preserve phase-space volume exactly — matters for long trajectories in MC with fields or coupled problems.                                                         |
-| **Affine geometry / torsors**                 | An iterative-method state set with no natural origin (solution states, fluxes); a difference quantity (the increment `Δx = xⁿ − xⁿ⁻¹`) that is NOT a state; code that admits `state + state` | Affine space `A` over a difference vector space `V`; torsor action `A × V → A`; affine combination (`Σλᵢ = 1`); `state ⊖ state → displacement` | Flux states are an affine space `A` over the difference space `V`; the SI increment `Δψ` is the tangent vector (a distinct `FluxDisplacement`), NOT a state (ORPHEUS #208). `flux + flux` becomes unrepresentable by construction (the #201 dimensional gate is a TYPE consequence, not a runtime check); relaxation `ωψ_new+(1−ω)ψ_old` is the affine combination; the displacement is the natural home for the contraction ratio `ρ` and a-posteriori error `‖Δψ‖/(1−ρ)` a state cannot carry. Pairs with `coding-elegance` anti-pattern 18. |
+| **Affine geometry / torsors**                 | An iterative-method state set with GENUINELY no natural origin; a difference quantity that is NOT a state; code that admits `state + state` where superposition is meaningless | Affine space `A` over a difference vector space `V`; torsor action `A × V → A`; affine combination (`Σλᵢ = 1`) | ⛔ The frame is sound; its ORPHEUS worked example was OVERTURNED (campaign 1 CS3, 2026-08-19). Flux was modelled as an affine space with a `FluxDisplacement` mint (#208); the ruling found flux lives in the positive cone `K ⊂ V` — superposition is physics, vacuum is a canonical zero, and the shipped algebra had already conceded V (scalar scaling, free zeros, ray normalization). BEFORE applying this frame, ask the two-question test the corrected `coding-elegance` #18 carries: is there a canonical zero? is superposition physically meaningful? Two yeses ⟹ vector space with a cone PREDICATE, not a torsor. The frame remains right where a yes is missing (gauge orbits, base-point-relative parametrizations — e.g. the #344 singular-system solution set, resolved by gauge-fixing IN V). The iterate-hygiene payload the torsor carried (ρ, `‖Δψ‖/(1−ρ)`) belongs to the ITERATION RECORD, not to a state-space type. |
 
 ### A.2 — Algebra and representation
 
@@ -186,19 +186,23 @@ more smells fire, the cross-domain-attacker should probe.
       missing trace / restriction / multiplication operator un-named.
       Fix: name and mint that operator (the bridge becomes `ι*`, `M_f`,
       etc.).
-    - **Shape 3 — an iterate increment `Δx = xⁿ − xⁿ⁻¹` typed as the
-      STATE type x.** Tell: admits illegal `state + state` AND strands
-      the contraction data (ρ, Aitken, a-posteriori bound) with no
-      home. Fix: a difference-space / torsor displacement type (A.1
-      affine-geometry row). Fires one remove out too — an operator
+    - **Shape 3 — the iterate-hygiene data (ρ, Aitken, a-posteriori
+      bound) STRANDED with no home.** ⛔ Re-posed at campaign 1 CS3
+      (2026-08-19): the original shape ("an increment typed as the
+      state type — fix with a torsor displacement type") was the
+      overturned ORPHEUS design. The durable smell is the stranding,
+      and the home is the object that knows "previous": the ITERATION
+      RECORD (ORPHEUS: `IterationRecord.increment_norms` with derived
+      `contraction_ratios` / `true_error_estimate`), never a
+      state-space type. Still fires one remove out — an operator
       OUTPUT typed with the iterating-state's decoration (a
       history-bearing field returned where a timeless base belongs).
     - **Shape 4 — a third hand-rolled path ABOUT to be written** (e.g.
       a backward adjoint sweep) for a per-cell operator already shared
       by two callers. The smell fires BEFORE the code exists. Fix:
       re-apply the shared primitive, do not twin it.
-    Cross-link: A.1 affine-geometry row (Shape 3 = the
-    `FluxDisplacement` increment-vs-state distinction); the SN
+    Cross-link: A.1 affine-geometry row (⛔ its ORPHEUS example is
+    overturned — read its two-question test before applying); the SN
     face-flux match (Shape 1/2 — the seed/absorb bridge IS the
     discrete trace `ι*`, cells are diamond-derivatives of faces).
 
