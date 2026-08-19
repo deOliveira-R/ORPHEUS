@@ -644,23 +644,28 @@ destroys convergence and a run sized on the 1.6 s baseline will time out.
 
 ### 9.2 Questions the carve should not start without
 
-- **Q1 (blocking, §2.5).** Is the relocated ρ defined on the **space** norm or the
-  **Euclidean** norm? `[M]` they differ by ≤1 ULP today and by **1.12e-3** once CS2
+- **Q1 (blocking, §2.5).** ✅ RULED 2026-08-19 (user): **space norm** — CS2 legitimately
+  re-derives the §2 pin with a regeneration note. Original question: Is the relocated ρ
+  defined on the **space** norm or the **Euclidean** norm? `[M]` they differ by ≤1 ULP today and by **1.12e-3** once CS2
   installs a physical metric. Under "space norm" the §2 pin is a CS3 instrument that
   CS2 legitimately reds and re-derives; under "Euclidean" it is permanent. Both are
   defensible; undecided is not.
-- **Q2.** Does the relocated diagnostic surface live on `SourceIteration` (attributes,
+- **Q2.** ✅ RULED 2026-08-19 (user): **`IterationRecord`**, named trajectories. Original
+  question: Does the relocated diagnostic surface live on `SourceIteration` (attributes,
   as today) or on `IterationRecord` as a named `StoppingCriterion`-style trajectory?
   §2's `_diagnostics()` is a single function precisely so either answer costs one
   edit — but the answer decides whether `test_flux_displacement_diagnostics.py` and
   `test_psi_half_coupling.py::test_g_d1_7_…` re-point to an object they already hold
   or to one they must now thread out of the record tree.
-- **Q3.** Does the cone predicate return a `bool` or the offending INDICES?
+- **Q3.** ✅ RULED 2026-08-19 (main agent, vv anti-#14): the offending **indices**.
+  Original question: Does the cone predicate return a `bool` or the offending INDICES?
   `vv` anti-#14 argues for the structure (it makes its own correctness assertable and
   turns §5.4's sharpest leg from unwritable to one line). Naming it also fixes the
   vocabulary for CS4 and Campaign 2.
-- **Q4.** Is `affine_combination`'s content (the relaxation blend) kept as a named
-  operation anywhere, or does it dissolve into `0.7·ψ₂ + 0.3·ψ₁`? `[M]` 0 production
+- **Q4.** ✅ RULED 2026-08-19 (main agent, defer-until-2): it **dissolves**; the
+  relaxation concept's future home is the iteration layer. Original question: Is
+  `affine_combination`'s content (the relaxation blend) kept as a named operation
+  anywhere, or does it dissolve into `0.7·ψ₂ + 0.3·ψ₁`? `[M]` 0 production
   callers, 5 test consumers — dissolving is defensible, but the RELAXATION concept is
   real and a future consumer will want a name for it (`coding-elegance` Pattern 3).
 

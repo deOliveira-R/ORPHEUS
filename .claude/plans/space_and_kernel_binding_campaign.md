@@ -134,6 +134,21 @@ best-designed part of the layer — memo A praise table — churn only with caus
 PREDICATE; cone-preservation a REALIZATION flag; iterate semantics (ρ, ‖Δψ‖/(1−ρ)) on
 the iteration layer. The affine gates and the displacement type family retire.
 
+**Design rulings (2026-08-19, pre-carve — user on Q1/Q2, standing doctrine on Q3/Q4;
+the measured forks are `scratch/cs3_verification_plan.md` §9.2):**
+- **Q1 — ρ is defined on the SPACE norm** (user). Today's spelling already is
+  `space.norm(values)`; Euclidean agreement is an accident of `inner_product_weights is
+  None`. Consequence accepted: CS2's physical metric legitimately REDS the capture gate
+  (`tests/numerics/test_si_diagnostic_trajectory.py`), which then re-derives with a
+  regeneration note — principled over bit-identical.
+- **Q2 — the diagnostic surface is `IterationRecord`** (user): named trajectories on the
+  durable record via the #340 named-criterion channel, not solver attributes (#366's
+  defect class). The two pinning tests re-point to thread the record out.
+- **Q3 — the cone predicate returns the offending INDICES** (vv anti-#14: return the
+  structure; emptiness = membership; `bool` derivable).
+- **Q4 — `affine_combination` dissolves** (0 production callers; in V the blend is
+  ordinary arithmetic; the relaxation concept's future home is the iteration layer).
+
 **Sequencing — RE-ORDERED 2026-08-19 (user): CS3 executes FIRST. Execution order is
 CS3 → CS1 → CS2 → CS4.** The user asked whether the cone carve is independent of the
 space work; re-derived against the tree, it is. The original rationale (kept per
