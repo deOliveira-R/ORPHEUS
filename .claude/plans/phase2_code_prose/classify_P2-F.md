@@ -14,7 +14,7 @@
 | 1–42 | Module | Hébert curvilinear cell-balance, redistribution term, half-angle face fluxes, legacy τ-symmetric interpolation | TWIN | `docs/theory/methods/sn/curvilinear_one_group.rst` § "Angular redistribution discretization" + `:ref:sn-balance-curvilinear` | H |
 | 42–74 | Module | Phase B canonical fix: per-cell M-M weighted DD angular recurrence (Hébert Eqs. 3.437/3.439), direct seed computation via route (a) | HISTORY | `docs/theory/methods/sn/curvilinear_one_group.rst` `:ref:sn-direct-seed-solve`, `:ref:sn-direct-seed-r12a` (campaign step 4b) | H |
 | 75–101 | Module | Recurrence runs per (cell, group), same algebra as DiamondDifference, apply matvec and sweep solve same discrete fixed point | TWIN | `docs/theory/methods/sn/curvilinear_one_group.rst` `:ref:sn-apply-sweep-equivalence` | H |
-| 103–120 | Module | Retirement history: LegacyTauSymmetricInterpolation, BaileyFlatFluxRedist, Protocol→ABC retyping (#236/#248) | HISTORY | `.claude/plans/coupled_block_operator_campaign.md`, `docs/theory/methods/sn/discrete_ordinates.rst` Development history | H |
+| 103–120 | Module | Retirement history: LegacyTauSymmetricInterpolation, BaileyFlatFluxRedist, Protocol→ABC retyping (#236/#248) | HISTORY | `.claude/plans/archive/coupled_block_operator_campaign.md`, `docs/theory/methods/sn/discrete_ordinates.rst` Development history | H |
 | 129–148 | Module | Hébert citation correction: pre-Phase-B wrongly cited 2009 Bailey diffusion paper; correct is Bailey-Morel-Chang 2010 NSE 165(2) | HISTORY | `.claude/plans/issue_168_design.md` | H |
 | 150–165 | Module | References: Hébert 2009 §3.9.4, Bailey-Morel-Chang 2010, theory page pointer, design memo, Phase A closeout | CONTRACT | Needed for context; cross-ref to literature | H |
 
@@ -134,7 +134,7 @@
 |-------|--------|------------|---------|----------------------|------|
 | 1–44 | Module | ψ½ block operators, 2×2 coupled system, System A+B blocks (A_AA=L+C-S-B, A_BB=RadialCharacteristicOperator, A_AB=RadialCharacteristicSeeding, A_BA=RadialCharacteristicEmission), shared Fold factor (RadialCharacteristicReconstruction), posing, physics (straight-characteristic march at μ=±1 rays where α_{1/2}=0) | TWIN+DESIGN | `:ref:sn-direct-seed-solve` (coupled-block-operator campaign) + operator-algebra posing (A=L+C-S-B) | H |
 | 44–100 | Module | A_BB two-point radial BVP (r=R Dirichlet outer-face inflow, r=0 pole continuation ψ½⁺(0)=ψ½⁻(0)); triangular forward-substitution (certificate #284); two-leg Carlson march IS exact inverse A_BB⁻¹ (no iteration); solve/solve_transpose are reverse-mode adjoint; single-sourced forward (step 4b extract not twin); ONE solve orchestration (Cardinal Rule 2, step 4e-e2 un-weave) | HISTORY+DESIGN | Campaign step 4b/4e-e2; `:ref:sn-direct-seed-solve` + triangular certificate; HAZARD Mode-11 engine-execution sentinels (S1 driver gates) | M |
-| 100–138 | Module | Sourcing (sn_mesh radial widths, total_cross_section mesh-bound field), references (Hébert §3.9.4 Eqs. 3.432–3.435, GH #282/#280/#284), campaign plan `.claude/plans/coupled_block_operator_campaign.md` rulings P1/P2, step design reconnaissance | CONTRACT+HISTORY | References + design memo; cross-campaign context | H |
+| 100–138 | Module | Sourcing (sn_mesh radial widths, total_cross_section mesh-bound field), references (Hébert §3.9.4 Eqs. 3.432–3.435, GH #282/#280/#284), campaign plan `.claude/plans/archive/coupled_block_operator_campaign.md` rulings P1/P2, step design reconnaissance | CONTRACT+HISTORY | References + design memo; cross-campaign context | H |
 
 ### _EmissionKernel protocol
 
@@ -255,7 +255,7 @@
 
 1. **Cardinal Rule 2 (single-source):** Both files extensively document code-path extraction and twin retirement (stride patterns: solve_transpose mirrored by apply_transpose; M-M kernel shared across precompute/cell/adjoint methods).
 
-2. **HISTORY-heavy:** ~36% of classified blocks are HISTORY (campaigns #282/#280/#236/#248, phases 2.3–4e-e2, Step 4c THE LIFT, B.2d/4e unifications). These belong in `.claude/plans/coupled_block_operator_campaign.md` or theory "Development history" section.
+2. **HISTORY-heavy:** ~36% of classified blocks are HISTORY (campaigns #282/#280/#236/#248, phases 2.3–4e-e2, Step 4c THE LIFT, B.2d/4e unifications). These belong in `.claude/plans/archive/coupled_block_operator_campaign.md` or theory "Development history" section.
 
 3. **R12a carrying-level dispatch:** Pervasive across both files; documentation in `:ref:sn-direct-seed-r12a` in `curvilinear_one_group.rst` is THE anchor for this architectural decision.
 

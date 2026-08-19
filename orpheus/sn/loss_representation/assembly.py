@@ -91,7 +91,7 @@ alone (the walk's ``Q/Σ_t`` short-circuit in matrix form).
 
 .. seealso::
 
-   ``.claude/plans/assembly_mode_crosswalk.md`` — the 2b design
+   ``.claude/plans/archive/assembly_mode_crosswalk.md`` — the 2b design
    contract (DOF numbering, gate specs, the one-source table).
    ``sweep_graph.py`` "Future direction" note — this module realizes
    the per-octant assembly it anticipated (per-ordinate here; the

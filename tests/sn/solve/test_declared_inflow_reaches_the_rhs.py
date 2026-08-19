@@ -1,6 +1,6 @@
 r"""A DECLARED prescribed inflow reaches the solve's right-hand side.
 
-Phase **P2′** of `.claude/plans/affine_boundary_source_channel.md`. The affine
+Phase **P2′** of `.claude/plans/archive/affine_boundary_source_channel.md`. The affine
 boundary law is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and the composite
 source :math:`q = q_{\rm bulk} \oplus q_\partial` has always been the channel
 :math:`q_\partial` belongs in. What was missing is the step *before* it: a

@@ -7,7 +7,7 @@ metadata:
 
 # Adjoint-weighted (bilinear) few-group collapse — extraction record (P6 #281)
 
-Full memo: `.claude/plans/p6_literature_memo.md` (2026-07-25; all
+Full memo: `.claude/plans/archive/p6_literature_memo.md` (2026-07-25; all
 equations spot-verified on rendered pages). Complements
 [[energy-condensation-collapse-formulas]] (the flux-weighted baseline).
 

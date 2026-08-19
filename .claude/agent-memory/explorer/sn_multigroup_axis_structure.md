@@ -67,7 +67,7 @@ durable-shape section spells it (the ATTRIBUTE reads as `.interior`; prose
 (`transport/method.py`, "declare when the DSA driver #2 arrives") and that
 `KrylovAcceleration` HAS a `preconditioner=` seam while the SN production path
 passes an explicit identity lambda (#200). Full transient map (line numbers):
-`.claude/plans/dsa_landing_zone_recon.md` — re-derive after Phase 3 merges.
+`.claude/plans/archive/dsa_landing_zone_recon.md` — re-derive after Phase 3 merges.
 
 **Third AGENT.md drift (verified 2026-07-28, post-DSA-merge @ `8654d348`):** the
 durable-shape section calls the `_reflect_outflow_into_inflow` **driver shim**

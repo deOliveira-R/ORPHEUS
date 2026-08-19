@@ -422,7 +422,7 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
 
 # ════════════════════════════════════════════════════════════════════
 # P6 (#281) — the bilinear (eigenvalue-consistent) condensation.
-# Spec: .claude/plans/p6_adjoint_verification_spec.md §4 C4/C5 (with the
+# Spec: .claude/plans/archive/p6_adjoint_verification_spec.md §4 C4/C5 (with the
 # post-B&G convention correction — the sink axis GAINS the adjoint
 # carrier per B&G (6.136); it is NOT frozen);
 # rules: orpheus/derivations/common/homogenization.py T6 (B&G Ch. 6).

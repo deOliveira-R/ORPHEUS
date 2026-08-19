@@ -1,6 +1,6 @@
 r"""A declared boundary law leaves the OPERATOR linear — and leaves it alone.
 
-Phase **P5** of `.claude/plans/affine_boundary_source_channel.md`. The affine
+Phase **P5** of `.claude/plans/archive/affine_boundary_source_channel.md`. The affine
 boundary law is
 
 .. math::

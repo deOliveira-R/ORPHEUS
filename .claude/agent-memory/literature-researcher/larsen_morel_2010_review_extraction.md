@@ -12,7 +12,7 @@ review cover X?" question; convergence-theory (M4b) sourcing; the
 symptom→cause (M2) table; β/α convention crosswalks.
 
 **Full deliverable** (page/eq/verbatim evidence for every claim):
-`.claude/plans/phase_i_survey_larsen_morel_2010.md`. Source = LOCAL
+`.claude/plans/archive/phase_i_survey_larsen_morel_2010.md`. Source = LOCAL
 `scratch/literature/Nuclear Computational Science - A Century in Review.pdf`
 (whole Azmy-Sartori book, 476 PDF pages). CrossRef-verified:
 DOI 10.1007/978-90-481-3411-3_1, pp. 1-84, online 2009-12-24.

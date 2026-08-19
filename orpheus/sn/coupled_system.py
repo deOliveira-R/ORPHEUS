@@ -155,7 +155,7 @@ System B exists).
 References
 ==========
 
-* ``.claude/plans/coupled_block_operator_campaign.md`` — the 2×2 posing,
+* ``.claude/plans/archive/coupled_block_operator_campaign.md`` — the 2×2 posing,
   the B.2 phase rulings, the measured block algebra (``A_sb = 0`` exact,
   ``ρ(M⁻¹N) = 0.371``).
 * ``.claude/agent-memory/test-architect/coupled_operator_b2c_builder_verification.md``

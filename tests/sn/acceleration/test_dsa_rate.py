@@ -7,7 +7,7 @@ accelerator-quality error, so the RATE gates here are the only catchers
 for seven of the eight canonical implementation errors. Every numeric
 bar below is pinned to a measured value (the 3c design scan,
 2026-07-26; regenerate via ``rate_design_scan.py`` in the job tmp — the
-durable copies live in ``.claude/plans/dsa_d2_characterization.md`` and
+durable copies live in ``.claude/plans/archive/dsa_d2_characterization.md`` and
 the Phase-3 roadmap).
 
 Measured design facts (migrated to the theory page)
@@ -23,7 +23,7 @@ documented as teaching tables in
 ``docs/theory/methods/sn/acceleration.rst`` (the
 ``sn-dsa-rate-and-stability`` section). This docstring records only
 the test CONTRACT; the durable numeric copies live in
-``.claude/plans/dsa_rate_characterization.md`` and the Phase-3
+``.claude/plans/archive/dsa_rate_characterization.md`` and the Phase-3
 roadmap.
 
 The #215 catchers (mutation matrix row 7)

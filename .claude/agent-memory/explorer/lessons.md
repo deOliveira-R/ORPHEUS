@@ -1278,3 +1278,163 @@ say so and let the declarer rule on breadth, rather than picking one silently;
 (b) tier the answer (arithmetic / generic-primitive-at-a-constant / factory-that-makes-
 the-collapse-exact / symbolic-algebra-of-record) — "complete enumeration" and
 "minimal honest set" are different asks and the tiering serves both from one pass.
+
+---
+
+## L-034 -- A "doctrine X is overturned" brief needs a TWO-SIDED inventory: the challenger ontology usually already ships in fragments
+
+Measuring the flux torsor→cone overturn blast radius (2026-08-19, plan
+orpheus-operator-machinery-report-v2 §I.7), the incumbent inventory was the
+expected half (16 production files, 7×7 leaf classes, 2 displacement-type
+consumers). The finds that most reshape the CAMPAIGN came from the other half —
+inventorying the CHALLENGER's existing footholds, which the plan (scoping the fix
+as "sweep the prose") had not asked about:
+
+- `is_positivity_preserving` already ships on the scheme Protocol/ABC with DD
+  honestly `False` AND a numerical witness test — but has **0 production readers**
+  and a "gates negative-flux diagnostics" docstring claim nothing implements.
+- A production cone-membership REFUSAL already exists (`realizer.py` refuses
+  ZeroFluxBoundary because "a negative inflow is outside that cone").
+- The COEFFICIENT family already states cone-as-predicate doctrine verbatim
+  ("nonnegativity is the cone, a property — not a type invariant") WITH its own
+  cone test battery (`TestCrossSectionConeAlgebra`).
+- `power_iteration` already implements the challenger's ray normalization
+  (unit production rate, `flux / p`).
+- The incumbent's own implementation contains the challenger's concessions:
+  scalar scaling kept legal (a literal affine space has none), zero fluxes
+  constructed freely, a docstring saying "the swept vector IS the displacement
+  from zero".
+
+How to apply: when a brief says "ontology/doctrine A replaces B", run THREE
+inventories, not one — (1) B's implementation (the expected blast radius), (2) A's
+existing fragments (grep A's vocabulary: the flag, the refusal, the sibling
+family's battery, the normalization — these flip campaign items from BUILD to
+UNIFY/CONSUME), and (3) B's internal concessions to A (the operations B's own
+implementation left legal — they measure how much of A was always true). The
+sharpest deliverable rows came from (2) and (3). Sibling of L-016 (a stored flag
+is a claim: check who READS it) and L-020 (capability claims expire) — here the
+unread flag was the challenger's, not the incumbent's.
+
+---
+
+## L-035 -- A plan-vs-HEAD reconciliation OPENS with the scope-restricted `git log --since=<audit date>`; and a claim confirmed at its cited site is unconfirmed until the site's CONSUMERS are counted
+
+(Renumbered from a duplicate "L-034" 2026-08-19 — two lessons landed under one
+number from two parallel dispatches; content untouched.)
+
+Reconciling the operator-machinery plan's space-layer audit (2026-08-08 epoch)
+against HEAD eleven days later (2026-08-19), two moves structured the whole
+dispatch and both generalize:
+
+- **Bound what COULD have changed before re-verifying anything.** `git log
+  --oneline --since=<audit date> -- <the audited files>` returned 2 commits,
+  both provably docstring-only (one said so in its own body via AST
+  comparison; the other was a 1-line pointer repoint). That single command
+  flipped the deliverable's shape: not "re-verify every claim against a moved
+  tree" but (a) verify the audit's *epoch* reads still hold (they must,
+  nothing moved) and (b) **hunt what the audit never READ** — which is where
+  all the real deltas were (3 of 6 space files unmentioned by the plan, all
+  PRE-dating the audit: unread, not new; `git log --follow ... | tail -1`
+  dates each). L-012 opens an in-flight carve with the diff; this is the
+  same move for a COLD reconciliation, with the date bound taken from the
+  plan's own "read from the tree <date>" stamp.
+- **A cited site can be dead while its doctrine is live.** The plan's F3
+  claim quoted `scalar_flux_space` / the F2 axis-order claim quoted
+  `angular_flux_space` — both real, both stating exactly the doctrine
+  claimed, and `[M]` both have ZERO production consumers (test_space.py
+  only); the LIVE sites minting those spaces are a bare inline
+  `FunctionSpace("sn_bulk", …)` in the mesh and per-`_SPACE_NAME` mints in
+  the field layer, with a DIFFERENT axis order than the dead factory. A
+  verdict of CONFIRMED at the cited site would have steered the repair
+  campaign at dead code — green, done-looking, defect intact. So: before
+  confirming any claim "X does Y at site S", grep S's consumers; the verdict
+  language that carries both facts is "CONFIRMED (substance) / REFUTED
+  (site)". Sibling of L-017 (namespace collision inflates a census) and
+  L-023 (the brief's exemplar is a claim) — here the exemplar was the
+  PLAN's, and it deflated silently rather than inflating loudly.
+
+Also reusable: when the reconciliation target is governed by plan-authoring
+§2, the deliverable's unit is *claim → verdict → command that produced it*,
+and live probes beat re-reading — 10 lines of `.venv/bin/python` measured
+five identity-aliasing claims (`==` across quadratures/decompositions/
+factorisations) in one shot, turning "the docstring says they compare equal"
+into `[M] True` at HEAD.
+
+---
+
+## L-036 -- A versioned plan's RETAINED section keeps its ORIGINAL vintage: the `--since=<plan date>` opener is exactly the check a "(v1 audit, retained)" section defeats
+
+Reconciling the operator-machinery plan v2's §I.3 + Phase 1 (plan dated
+2026-08-08) against HEAD 2026-08-19, the L-035 opener came back maximally
+reassuring: `git log --since=2026-08-08 -- orpheus/transport/operators/` →
+**0 commits**. Read naively, "nothing moved since the plan ⟹ the plan's audit
+still holds." Every §I.3 premise about S/F/C was nonetheless false **at plan
+write time**: the section was marked "(v1 audit, retained)", and its true
+baseline was the v1 epoch — the tree had landed the declared Optional
+`(domain, codomain)` pair, the `.kernel` exposure + `IntegralKernelOperator`
+Protocol, `frame.conjugate(Λ)` as production, and the frame-eigenbasis-ownership
+ruling in a 4-day burst ending `bbe8a51d` 2026-06-26 — **six weeks before the
+plan's own date stamp**. The plan even named a class (`CollisionOperator`)
+that had not existed for six weeks.
+
+How to apply, on any plan/report that carries version scars ("retained",
+"v1 audit", "unchanged from …", an "amendments" table):
+
+- **Date each SECTION, not the document.** The `--since` bound for L-035's
+  opener must be the section's OWN vintage. If the section does not state it,
+  bound it from the plan's amendment table (a v2 correcting v1 implies v1's
+  epoch) or treat the section as undated and verify its claims against the
+  tree directly.
+- **The tell is a cheap grep:** "retained", "as in v1", "audit kept" in the
+  plan's own text. Every §I.3 refutation in this dispatch traced to one
+  retained block; the v2-fresh sections (III-S, "read from the tree
+  2026-08-08") were sibling-verified as accurate on their epoch reads.
+- **0 commits since the plan's date is then a DIFFERENT finding**: it proves
+  the staleness is *inherited*, not drift — which changes the deliverable's
+  framing from "the tree moved" to "the plan was written against a memory",
+  and points the fix at the plan's baseline, not at recent campaigns.
+- Sibling of L-020 (the brief's timeline is a claim) and plan-authoring §7
+  (reconcile before resuming): here the un-reconciled reader was the plan's
+  own v2 AUTHOR, and the marker that would have caught it is the section's
+  missing date stamp.
+
+Also from the same dispatch, a verdict-shape worth reusing: when a plan
+PRESCRIBES a design ("split kernel from operator; bind via `.on(V)`") and the
+tree carries a landed, gated, documented COUNTER-design (the Kernel-REFINES-
+LinearOperator Protocol + operator-owned frames), the honest verdict is
+neither NOT-LANDED nor REFUTED — it is **"conflict to adjudicate"**: landing
+the plan's item as written would now mean REVERSING a ratified decision, and
+the deliverable must say so, with both artifacts' dates.
+
+---
+
+## L-034 -- Reconciling a PLAN against HEAD includes reconciling it against the OTHER PLANS — and `git log -S <name>` discriminates a code-symbol premise from a paper-concept one
+
+Reconciling the operator-machinery report v2 (2026-08-19), the two findings that
+outranked every claim-by-claim verdict came from checks the brief never asked for:
+
+- **The audited plan had an older TRACKED sibling covering the same ground, with
+  user rulings that refute the plan's Phase-3 mechanism — and the plan never cites
+  it.** `ls .claude/plans/ | grep -i <topic>` (one call) surfaced
+  `operator_strategy_realization_campaign.md` (2026-07-28, tracked, P0 landed with
+  in-tree gates), whose P4 carries a user constraint ("the pencil must NOT displace
+  `power_iteration`'s late binding") that inverts the report's 3.1 ("split
+  KEigenvalue → CriticalityProblem + PowerIteration"). Also check `git ls-files
+  --error-unmatch` on the plan ITSELF — the report was untracked, the sibling
+  tracked, which is itself evidence of which document carries authority. A
+  plan-reconciliation deliverable that only diffs plan-vs-tree misses the
+  plan-vs-plan conflict, which is where a campaign inherits a refuted mechanism.
+- **A "promote X" / "reify X" row is a claim that X exists as CODE.** One
+  `git log -S "X" --oneline` answers it: `TrackMonodromy`'s only hit was the commit
+  that committed the grand-report *document* — the name was an MoC sheaf CONCEPT on
+  paper, never a symbol, and the plan row reads as promoting existing machinery.
+  Cheaper and stronger than grepping HEAD alone (which cannot distinguish
+  "retired" from "never existed").
+
+Corollary that pays for itself: **when a campaign ships its own gate suite, RUN it
+— the xfail rows are the premise oracle.** The strategy campaign's marker said
+"verify P1-not-started from the Optional leaf domains"; 1.7 s of
+`pytest tests/sn/architecture/ -q -rx` returned the exact 21-row todo list
+(5 marker sites × parametrize), bit-matching the campaign's own 2026-08-13
+checkpoint — simultaneously verifying the campaign plan's honesty and the
+report's staleness in one measurement.

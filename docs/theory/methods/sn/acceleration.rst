@@ -526,7 +526,7 @@ cell-centered RT0/harmonic-mean, M-matrix operator chosen for
 the :cite:`AdamsLarsen2002` (3.43)/(3.44) inconsistent class — spectral
 radius up to :math:`\rho \approx 54.7` (divergent) for :math:`\sigma_t
 h \ge 2`, the historical spike's regime (D2 characterization,
-``.claude/plans/dsa_d2_characterization.md``).  The **derived**
+``.claude/plans/archive/dsa_d2_characterization.md``).  The **derived**
 edge-centered system is unconditionally stable (measured :math:`\rho
 \le 0.181` over :math:`\sigma_t h \in [0.1, 30]`, :math:`c \le 0.99`,
 vacuum and reflective).  The structural diffs the D2 report confirmed:
@@ -591,7 +591,7 @@ independent operators — and that is exactly the classic DSA
 inconsistency where :math:`R` and :math:`P` disagree by a
 :math:`4\pi/2` normalization factor and silently break conservation.
 The structural verdict of the 3-P0 frame analysis
-(``.claude/plans/dsa_rp_frame_analysis.md``) is: **mint nothing** — the
+(``.claude/plans/archive/dsa_rp_frame_analysis.md``) is: **mint nothing** — the
 pair already exists as the :math:`\ell = 0` faces of the
 spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`.
 
@@ -1201,7 +1201,7 @@ Because the correction :math:`\to 0` partition makes the rate tier the
 *only* catcher for seven of eight error classes, every numeric bar
 below is pinned to a measured value (the 3c design scan; the durable
 copies live in the evidence pack
-``.claude/plans/dsa_rate_characterization.md`` and are re-measured by
+``.claude/plans/archive/dsa_rate_characterization.md`` and are re-measured by
 ``tests/sn/acceleration/test_dsa_rate.py``).
 
 The spectral-radius bound (D11) — one-sided, by design

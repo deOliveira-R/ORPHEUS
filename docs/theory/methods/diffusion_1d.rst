@@ -1390,7 +1390,7 @@ campaign** (branch ``feature/diffusion-integration``, 2026-07-03),
 which replaced the MATLAB-port island with the operator-algebra solver
 documented above. Each phase is a gated commit; the branch is unmerged
 at the time of writing (P8, this documentation pass). See the campaign
-plan ``.claude/plans/diffusion_integration_290.md`` and the GitHub
+plan ``.claude/plans/archive/diffusion_integration_290.md`` and the GitHub
 issues for finer granularity.
 
 .. list-table::

@@ -104,7 +104,7 @@ References
 * Hébert, A. (2009). *Applied Reactor Physics*. §3.9.4, Eqs. (3.432)–(3.435).
 * GH #282 (the direct ψ½ seed / route (a)), #280 (the walk unification),
   #284 (the forward-substitution / triangular certificate).
-* ``.claude/plans/coupled_block_operator_campaign.md`` — the 2×2 posing,
+* ``.claude/plans/archive/coupled_block_operator_campaign.md`` — the 2×2 posing,
   rulings P1/P2, and this step's design reconnaissance.
 """
 

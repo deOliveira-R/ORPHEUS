@@ -2,7 +2,7 @@ r"""The factored-adjoint identity — a composed operator's Hilbert adjoint.
 
 Permanent home for the theorem the boundary algebra of record states as
 :ref:`bc-response-factored-adjoint`. It was derived in a design session for
-campaign step **G6.3** (`.claude/plans/geometric_transformation_consolidation.md`
+campaign step **G6.3** (`.claude/plans/archive/geometric_transformation_consolidation.md`
 §7h) and lived only as a scratch probe; that made the corpus claim
 reproducible-in-principle but not *gated*, which is the weaker thing.
 

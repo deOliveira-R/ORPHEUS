@@ -8,8 +8,8 @@ metadata:
 # DSA (R,P) = the ℓ=0 GalerkinFrame — issue #2 Phase 3, 3-P0 verdict
 
 Frame-attack on the DSA-for-SN restriction/prolongation pair (roadmap
-`.claude/plans/stencil_assembly_dsa_roadmap.md` §Phase-3 3b; deliverable
-`.claude/plans/dsa_rp_frame_analysis.md`). Branch-verified worktree facts (L-005).
+`.claude/plans/archive/stencil_assembly_dsa_roadmap.md` §Phase-3 3b; deliverable
+`.claude/plans/archive/dsa_rp_frame_analysis.md`). Branch-verified worktree facts (L-005).
 The five verdicts the plan-of-record consumes:
 
 **Why:** DSA needed to reuse the landed frame machinery, not mint an ad-hoc R/P — and

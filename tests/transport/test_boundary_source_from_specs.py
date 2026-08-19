@@ -1,6 +1,6 @@
 r"""The recipe → snapshot bridge: ``AngularBoundarySourceSink.from_specs``.
 
-Phase **P1** of `.claude/plans/affine_boundary_source_channel.md`. The affine
+Phase **P1** of `.claude/plans/archive/affine_boundary_source_channel.md`. The affine
 boundary law is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and there are two
 routes to :math:`q`, related as *recipe → snapshot* rather than as duplicates:
 

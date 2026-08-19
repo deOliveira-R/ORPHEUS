@@ -2,7 +2,7 @@ r"""L1 convergence of ``A_BB`` — the radial-characteristic resolvent vs the cl
 
 The operator-level L1 anchor for :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
 (``A_BB``, campaign step 1c of the coupled-block-operator campaign,
-``.claude/plans/coupled_block_operator_campaign.md``). ``A_BB.solve`` is the
+``.claude/plans/archive/coupled_block_operator_campaign.md``). ``A_BB.solve`` is the
 two-leg Carlson march (the resolvent action :math:`A_{BB}^{-1}`); its
 ``μ = -1`` inward leg solves the starting-direction ODE
 :math:`-\,\mathrm d\phi/\mathrm dr + \sigma\phi = q` on ``[0, R]`` with the

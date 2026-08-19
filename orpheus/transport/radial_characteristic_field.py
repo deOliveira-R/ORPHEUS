@@ -40,7 +40,7 @@ landing bit-identically on the frozen baselines).
 References
 ----------
 
-* ``.claude/plans/coupled_block_operator_campaign.md`` — Phase B (pose System B
+* ``.claude/plans/archive/coupled_block_operator_campaign.md`` — Phase B (pose System B
   as an independent composite); B.1a (base relaxation), B.1b (split spaces),
   B.1c (split leaves), B.1d (this composite), Phase C 4e (the walk-slot
   rewrite + unified retirement).

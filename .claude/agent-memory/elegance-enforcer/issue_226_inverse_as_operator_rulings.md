@@ -8,7 +8,7 @@ metadata:
 # #226 inverse-as-operator — step-1 review rulings (reviewed 2026-07-01)
 
 Branch `refactor/inverse-as-operator` (uncommitted step-1 delivery over HEAD `69ed531`).
-Plan: `.claude/plans/operator_machinery_taxonomy.md` (§13 name-earning invariants,
+Plan: `.claude/plans/archive/operator_machinery_taxonomy.md` (§13 name-earning invariants,
 §12 phase order, §9 keystone). **Merge-status goes stale — reconcile against git
 (`git merge-base --is-ancestor`) before treating any of this as landed.**
 

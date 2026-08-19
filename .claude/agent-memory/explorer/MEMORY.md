@@ -10,7 +10,7 @@ carries its own headings, so a summary line is a second copy that drifts
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — the exploration lessons, L-001…L-028, each headed by
+- [lessons.md](lessons.md) — the exploration lessons, L-001…L-036, each headed by
   its own one-line rule. The spine (blast-radius = graph+grep+constructors+doc-nodes;
   verify-premise-first; durable-shape vs line-map; git-is-authoritative-for-merge-status)
   is PROMOTED to AGENT.md Operating Principles 4–7; L1/L2/L3/L5 remain there as the
@@ -107,6 +107,12 @@ quantity carries the units it does.
 - [Harmonic frame + folded-quadrature plumbing](harmonic_frame_folded_quadrature_plumbing.md)
   — NO computed Gram on the kernel path (exactness ASSUMED ⟹ the folded ξ-odd garbage);
   3 shape-contract tiers; σ_y parity per slot; the cylinder-P1 gate is folded-blind.
+- [Flux torsor vs cone inventory](flux_torsor_vs_cone_inventory.md) — the #208 torsor is ONE mixin +
+  7×7 leaves with exactly 2 production displacement-TYPE consumers (SI diagnostics duck-typed; DSA);
+  the stop rides source-typed norms; `affine_combination` 0 production callers; superposition is
+  SOURCE-level only; cone footholds already ship (`is_positivity_preserving` UNREAD, realizer cone
+  refusal, coefficient cone battery, ray normalization); NO Step/SC realization ⟹ §6c witness gap.
+  ⚠ snapshot 2026-08-19 pre-ruling — if the cone campaign landed since, this maps the RETIRED side.
 - [No affine operator — the SPLIT convention](affine_operator_split_convention.md) — the tree
   has ZERO affine operator types and that is a RULING: an affine map in a linear slot measured
   `|B(0)| = q` and raised `ConvergenceCertificateError` (broke GMRES's Arnoldi relation), and

@@ -82,7 +82,7 @@ References
 * Lewis, E.E. & Miller, W.F. (1993). *Computational Methods of Neutron
   Transport*. ANS. §3.5 — spherical-harmonic moments; §3.2 — the in-scatter
   source.
-* ``.claude/plans/frame_projection_machinery.md`` P4 — the carrier-grid
+* ``.claude/plans/archive/frame_projection_machinery.md`` P4 — the carrier-grid
   completion.
 * ``coding-elegance`` Pattern 2 (single source of truth — the lift),
   Pattern 4 (illegal states unrepresentable — the role/class gate).

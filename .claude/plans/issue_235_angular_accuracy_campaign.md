@@ -2,7 +2,7 @@
 # and the scheme that achieves it can be SHOWN to be the better one
 
 **Issue of record: [#235].** Opened 2026-08-12 out of Q5.6.5
-(`.claude/plans/q64_tau_partition_memo.md` closed; evidence
+(`.claude/plans/archive/q64_tau_partition_memo.md` closed; evidence
 `scratch/q65_endpoint_defect_findings.md`). Branch
 `refactor/operator-strategy-layers` @ `bea6a367`.
 

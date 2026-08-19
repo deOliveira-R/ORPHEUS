@@ -52,8 +52,8 @@ file for headlines, open findings and measured numbers. Reconcile against git fi
 - **P4 non-trivial MMS through the DECLARED inflow channel** — design `scratch/p4_mms_design.md` (9-gate matrix, 8-mutation battery, 15 refuted candidates), lessons **L40**. ⛔⛔ The brief's central risk was a LANDED fix ⟹ P4 collapses to **RE-ROUTE** an existing builder (declared ≡ hand-supplied `q_∂`, BIT-IDENTICAL). ⛔ No public entry can be handed a declared law ⟹ P6's first item.
 - **Boundary machinery B3.2 → B3.4b + #21** — ALL DELIVERED on `refactor/operator-strategy-layers`; lessons L29–L32. Six open follow-ups incl. a LATENT `_law_from_tag` bug and a real orientation mismatch.
 - **Three-DOF separation (operator ∥ splitting ∥ realization)** — full spec + **P0 SHIPPED** (`tests/sn/architecture/`), lessons L24–L26. The proposed AC was signature-tautological; the real red is the WELD.
-- **#280 RESIDUE** — binding spec `.claude/plans/residue_verification_spec.md`, PRE-carve. Three contract findings SHAPE the carve; the LD `.H` moment-mass metric is load-bearing.
-- **DSA for SN (#2)** — 13-gate battery `.claude/plans/dsa_verification_spec.md`, PRE-carve, runs AFTER #280. Lessons L23: the correction→0 PARTITION (7 of 8 canonical errors are FP-invisible).
+- **#280 RESIDUE** — binding spec `.claude/plans/archive/residue_verification_spec.md`, PRE-carve. Three contract findings SHAPE the carve; the LD `.H` moment-mass metric is load-bearing.
+- **DSA for SN (#2)** — 13-gate battery `.claude/plans/archive/dsa_verification_spec.md`, PRE-carve, runs AFTER #280. Lessons L23: the correction→0 PARTITION (7 of 8 canonical errors are FP-invisible).
 - **Coupled Block Operator step-5 (#41)** — [spec](coupled_operator_step5_solve_verification.md); awaiting user rulings D2a/D3/D5.
 - **Diffusion #290** — [plan](diffusion_integration_290_verification_plan.md); **MERGED @ `3a19133`**, so the DSA consumable is built.
 - **A3/#280 Phase-2.5 walk-unification** — gate files authored, surface on `main`; recipe [a3-reverse-scan](a3_reverse_scan_transpose_verification.md), lessons L17/L18/L19.

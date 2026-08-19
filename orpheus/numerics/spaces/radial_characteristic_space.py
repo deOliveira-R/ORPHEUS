@@ -170,7 +170,7 @@ References
   (the cylinder azimuthal floor — its structural content is the level's
   edge-inclusion, a property of the CIRCLE, not of the
   :math:`[\tfrac12, 1]` absorber retired at Q5.6.4).
-* ``.claude/plans/stencil_assembly_dsa_roadmap.md`` — rulings R12/R12a,
+* ``.claude/plans/archive/stencil_assembly_dsa_roadmap.md`` — rulings R12/R12a,
   R13; ``a3_solve_transpose_verification.md`` §16.A (the carrier gates).
 """
 

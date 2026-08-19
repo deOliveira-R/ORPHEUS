@@ -62,7 +62,7 @@ class InflowSourceSpec(Protocol):
     is handed is the discretization.**
 
     ⛔ **This took a ``shape`` tuple until campaign P6** (see
-    ``.claude/plans/affine_boundary_source_channel.md``), with the rationale
+    ``.claude/plans/archive/affine_boundary_source_channel.md``), with the rationale
     "the source is a property of the boundary, not of any trace space, so it
     takes the shape it must fill rather than a trace object". That is a
     *half-extensional* interface — it demands the numbers while refusing to say

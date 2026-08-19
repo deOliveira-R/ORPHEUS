@@ -151,7 +151,7 @@ class TestGenericOperatorsAreUnclassified:
     # re-typing of ``TensorProductOperator(LinearOperator)`` →
     # ``LinearOperator[D, C]`` that accidentally introduced a non-None
     # class default would have gone undetected. (See
-    # ``.claude/plans/issue_226_b4_operator_generics_verification.md`` GAP-1.)
+    # ``.claude/plans/archive/issue_226_b4_operator_generics_verification.md`` GAP-1.)
 
     def test_tensor_product_operator_is_unclassified_by_default(self) -> None:
         d0 = DiagonalOperator(np.ones(3), axis=0)

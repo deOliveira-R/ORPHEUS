@@ -1,6 +1,6 @@
 r"""B1 regression floor — the affine form's two factors are POPULATED.
 
-Campaign phase B1 (``.claude/plans/boundary_machinery_review.md``) minted
+Campaign phase B1 (``.claude/plans/archive/boundary_machinery_review.md``) minted
 :class:`~orpheus.geometry.boundary.BoundaryGeometryMap` /
 :class:`~orpheus.geometry.boundary.BoundaryResponseKernel` and populated them on
 all seven production laws. Before it, both were ``-> Any`` properties defaulting

@@ -66,7 +66,7 @@ References
 
 * Grand Report v3 §16A.4 lines 2864–2876 (``realize(law, method_space)``
   vocabulary), §16A.3 (realizer-as-third-layer motivation).
-* ``.claude/plans/diffusion_integration_290.md`` §P7b (the walker
+* ``.claude/plans/archive/diffusion_integration_290.md`` §P7b (the walker
   move + registry dissolution).
 * :doc:`/theory/foundations/boundary_conditions` § "Rank-N boundaries".
 """

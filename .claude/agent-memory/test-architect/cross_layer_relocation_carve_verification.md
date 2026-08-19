@@ -12,7 +12,7 @@ lookup**, the value/behavior gate is the easy part. The two
 load-bearing hazards are STRUCTURAL and the naive plan misses both.
 First worked: `realize_recursively` `sn/boundary_realize.py →
 geometry/boundary/` (branch `refactor/operator-inverse-algebra`,
-2026-06-26; spec `.claude/plans/realize_recursively_move_spec.md`).
+2026-06-26; spec `.claude/plans/archive/realize_recursively_move_spec.md`).
 
 ## Hazard 1 — registry-routing introduces a registration-TIMING
 regression that process-global class state HIDES in-suite.

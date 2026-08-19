@@ -619,7 +619,7 @@ fission-adjoint (A1) template.
   (counter>0) AND a direct-on-`IsotropicScattering` mutation (the old
   monkeypatch is now one layer ABOVE the changed reader, so a stamp bug it
   faithfully passes through could be masked). Plan
-  `.claude/plans/a2_kiso_verification.md`; SUPERSEDES `a2_option2_verification.md`.
+  `.claude/plans/archive/a2_kiso_verification.md`; SUPERSEDES `a2_option2_verification.md`.
 
 - **PHASE C continuation (#276 — homogeneous USES `C=MultiplicationOperator`
   + `F=FissionOperator` as operators via APPLY-TO-BASIS, dropping
@@ -1004,7 +1004,7 @@ coefficient source; the new `assemble()` emits the SAME coefficients as
 (row,col,value) into a global scipy-sparse `LinearOperator`), and relocates
 its module DOWN a layer (`sn/spatial`→`transport/spatial`), six reusable
 test-design facts (Phase-2 spatial-substrate + assembly campaign,
-`.claude/plans/assembly_mode_crosswalk.md`):
+`.claude/plans/archive/assembly_mode_crosswalk.md`):
 
 - **The ONE-SOURCE PROOF is the campaign's whole point (the Phase-F twin-path
   guardrail).** `assemble` MUST consume the same coefficient source `solve`/
@@ -1648,7 +1648,7 @@ the gate that reds and confirm FP-invariance is blind. The object+rate gates
 are LOAD-BEARING (the only catchers for 7/8), not supplements; a
 FP-invariance-only plan is Mode-9-complete for the σ_r-fold and Mode-9-EMPTY
 for the machinery. Sharpens vv Mode 9 (the config degeneracy) with the
-gate-completeness corollary. Full spec → `.claude/plans/dsa_verification_spec.md`.
+gate-completeness corollary. Full spec → `.claude/plans/archive/dsa_verification_spec.md`.
 `vv §Mode-9/12 / anti-#8 / Signature-9 / bit-identity`.
 
 ---
@@ -5113,7 +5113,7 @@ to the partition.
 `[M]` 2026-08-12, branch `refactor/operator-strategy-layers` @ `bea6a367`.
 Deliverable `scratch/q68_angular_instrument_design.md` (746 lines). Probes
 `$CLAUDE_JOB_DIR/tmp/{harness,fixture,p1_basis,p2_spectral,p4_family,p5_psi_metric,p6_scan,p7_affine,p8_final,p9_recommend}.py`.
-Prior art: `.claude/plans/q64_tau_partition_memo.md`,
+Prior art: `.claude/plans/archive/q64_tau_partition_memo.md`,
 `scratch/q65_endpoint_defect_findings.md`.
 
 **The brief.** Five instruments were already dead (τ-blind ×3,

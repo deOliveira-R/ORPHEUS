@@ -16,7 +16,7 @@ Why the edge-centered system and not the diffusion module's operator
 ====================================================================
 
 The R4 ruling (2026-07-26, evidence in
-``.claude/plans/dsa_d2_characterization.md``): the landed cell-centered
+``.claude/plans/archive/dsa_d2_characterization.md``): the landed cell-centered
 diffusion loss (:mod:`orpheus.diffusion`) is the right *standalone*
 discretization (RT0/harmonic-mean, M-matrix) but the WRONG correction
 operator — measured :math:`\rho` up to 54.7 (divergent) for
@@ -106,8 +106,8 @@ References
 * M. L. Adams, E. W. Larsen, "Fast iterative methods for discrete
   ordinates particle transport calculations", *Prog. Nucl. Energy*
   **40**, 3–159 (2002) — §III stability taxonomy, (3.65) rate bound.
-* ``.claude/plans/dsa_literature_memo.md`` §6 (build synthesis),
-  ``.claude/plans/dsa_d2_characterization.md`` (the R4 evidence).
+* ``.claude/plans/archive/dsa_literature_memo.md`` §6 (build synthesis),
+  ``.claude/plans/archive/dsa_d2_characterization.md`` (the R4 evidence).
 """
 
 from __future__ import annotations

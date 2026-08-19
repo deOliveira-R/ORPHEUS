@@ -371,7 +371,7 @@ def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypat
 
 # ════════════════════════════════════════════════════════════════════
 # P6 (#281) — the adjoint-weighted (eigenvalue-consistent) collapse.
-# Spec: .claude/plans/p6_adjoint_verification_spec.md §4 (delta-refreshed);
+# Spec: .claude/plans/archive/p6_adjoint_verification_spec.md §4 (delta-refreshed);
 # rules: orpheus/derivations/common/homogenization.py (T1/T1b/T2/T3).
 # ════════════════════════════════════════════════════════════════════
 

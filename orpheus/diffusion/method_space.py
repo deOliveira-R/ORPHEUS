@@ -34,7 +34,7 @@ construction surface (the ``TransportMethod`` Protocol, #290 P7).
 References
 ----------
 
-* ``.claude/plans/diffusion_integration_290.md`` §P3 (this module's
+* ``.claude/plans/archive/diffusion_integration_290.md`` §P3 (this module's
   brief) + ``.claude/plans/diffusion_crosswalk.md`` (the ``(J⁺, J⁻)``
   convention contract).
 * :mod:`orpheus.sn.mesh.method_space` — the mirrored template.

@@ -122,7 +122,7 @@ References
 
 * GH **issue #217** — the timeless-``FullField`` extraction (the composite source
   is the first timeless consumer).
-* ``.claude/plans/coupled_block_operator_campaign.md`` — the ``Composite``
+* ``.claude/plans/archive/coupled_block_operator_campaign.md`` — the ``Composite``
   generalization (Phase A2) + the ψ½ eviction into System B (Phase B.2d).
 * Grand Report v3 §5.5 (Field hierarchy), §5.3 (``DirectSumSpace`` /
   :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`).

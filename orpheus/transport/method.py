@@ -99,7 +99,7 @@ The method packages (L3) import THIS module; never the reverse.
 References
 ----------
 
-* ``.claude/plans/diffusion_integration_290.md`` §P7b (the binding
+* ``.claude/plans/archive/diffusion_integration_290.md`` §P7b (the binding
   carve spec; supersedes the original §P7 and the banked
   ``realize_recursively_move_spec.md`` registry-routing design).
 * :doc:`/theory/foundations/boundary_conditions` — the three-layer decomposition

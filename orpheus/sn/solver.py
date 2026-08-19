@@ -3298,7 +3298,7 @@ def _build_fixed_source_rhs(
             )
         # ⭐ The bulk-array form is "bulk only", NOT "boundary vacuum": a face
         # that DECLARES a PrescribedInflow contributes its q here (P2′ of
-        # `.claude/plans/affine_boundary_source_channel.md`). Before this, a
+        # `.claude/plans/archive/affine_boundary_source_channel.md`). Before this, a
         # declared inflow was realized into an affine operator that nothing
         # consumed, so the declaration was silently inert. Every other law is
         # q = 0, so this is `zeros_on` for all of them.
@@ -3607,7 +3607,7 @@ def solve_sn_fixed_source(
         without (correction→0 at convergence; the D3/D4 FP-invariance
         battery) — DSA buys the RATE: :math:`\rho \le 0.2247c` in place
         of SI's :math:`\rho \approx c` (Adams & Larsen (3.65); the
-        measured scan in ``.claude/plans/dsa_d2_characterization.md``).
+        measured scan in ``.claude/plans/archive/dsa_d2_characterization.md``).
 
     Notes
     -----

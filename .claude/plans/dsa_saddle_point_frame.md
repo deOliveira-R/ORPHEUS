@@ -9,8 +9,8 @@ and a new k-skeleton design issue.
 
 Author: cross-domain-attacker. Grounded on the merged DSA #2 campaign
 (`docs/theory/methods/sn/acceleration.rst`, the R4 ruling), the D2
-characterization (`.claude/plans/dsa_d2_characterization.md`), the
-literature memo (`.claude/plans/dsa_literature_memo.md`), and the
+characterization (`.claude/plans/archive/dsa_d2_characterization.md`), the
+literature memo (`.claude/plans/archive/dsa_literature_memo.md`), and the
 local literature sidecars in `scratch/literature_ocr/`.
 
 > **Sign-erratum guard (carried from the campaign):** Alcouffe (1977)'s

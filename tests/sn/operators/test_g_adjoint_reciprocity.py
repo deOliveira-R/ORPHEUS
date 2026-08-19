@@ -89,7 +89,7 @@ from tests.sn._test_helpers import (
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh builders (homogeneous, reflective — B ≠ 0, the A_ss block live)
 #
-# Campaign phase P5 (`.claude/plans/affine_boundary_source_channel.md`) adds
+# Campaign phase P5 (`.claude/plans/archive/affine_boundary_source_channel.md`) adds
 # the two ``slab_declared_*`` cases, whose ``xmin`` carries a DECLARED
 # ``PrescribedInflow``. They state a capability WIDENING: before P3 that law
 # realized to an affine operator with no transpose, so ``B.is_adjointable`` —

@@ -1017,7 +1017,7 @@ Cross-reference: `[[lessons-L12]]` (sub-agent closeouts fabricate at the summari
 here the fabricator was the main agent); `[[lessons-L31]]` (verdict vs attribution — same "verify
 before transcribing" reflex); `.claude/rules/process-discipline.md` (trust git, not a frozen claim
 — generalizes: trust CODE, not a frozen doc). Evidence: `275a753a`, `018ecb7b`, `0ca0d378`;
-`.claude/plans/documentation_corpus_architecture.md` §3.6 (the 12 MUST-NOT claims exist so the next
+`.claude/plans/archive/documentation_corpus_architecture.md` §3.6 (the 12 MUST-NOT claims exist so the next
 author cannot repeat this).
 
 ## L34 — A path built from SEGMENTS is invisible to a path-grep; and know which reference class your build actually gates (2026-07-15)
@@ -1087,7 +1087,7 @@ sweep**; the build will not do it for you.
 Cross-reference: `[[lessons-L20]]` (retirement requires a dependency audit — this is the audit's
 blind spot); `[[lessons-L33]]` (a doc is a claim, not evidence — here the *rule* was the wrong
 claim, and measurement settled it); `.claude/rules/coding-standards.md` (corrected in `08e58ee6`);
-`.claude/plans/documentation_corpus_architecture.md` §7.1.
+`.claude/plans/archive/documentation_corpus_architecture.md` §7.1.
 
 ## L35 — Moving a labelled block: `-W` gates the LINK, never the PROSE around it — two silent-falsehood classes need a bidirectional grep (2026-07-16)
 
@@ -1134,7 +1134,7 @@ run it yourself before committing.**
 Cross-reference: `[[lessons-L34]]` (which reference class the build gates — this is its prose
 corollary: even a GATED role leaves ungated prose); `[[lessons-L33]]` (the corpus is an
 adversary that MISINFORMS — a move is a mechanical way to mint fresh misinformation);
-`.claude/plans/documentation_corpus_architecture.md` §7.2.
+`.claude/plans/archive/documentation_corpus_architecture.md` §7.2.
 
 ## L36 — Moving a label between files: the incremental Sphinx build raises a PHANTOM `duplicate label` — force `-E` for the gate (2026-07-16)
 
@@ -1159,7 +1159,7 @@ phantom `duplicate label quadrature-types`; `grep -c` proved it 0-in-source / 1-
 `-E -W` came back "build succeeded", 0 warnings.
 
 Cross-reference: `[[lessons-L35]]` (the prose corollary), `[[lessons-L34]]` (which reference
-class the build gates); `.claude/plans/sn_split_catalog.md` (the Phase-C build-gate section).
+class the build gates); `.claude/plans/archive/sn_split_catalog.md` (the Phase-C build-gate section).
 
 ## L37 — Editing Python source under a RUNNING full-tree gate false-reds every `inspect.getsource`/AST self-inspection test (2026-07-24)
 

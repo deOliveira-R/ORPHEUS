@@ -5,7 +5,7 @@
 > 2. GH **issue #257** (`gh issue view 257`) — the durable thesis.
 > 3. Frame memo: `.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md`
 >    (the 4 structural frames + the multiplier-algebra law-suite).
-> 4. The campaign anchor `.claude/plans/field_typed_operator_algebra_campaign.md` (the #256→#257 re-scope + the baseline reds).
+> 4. The campaign anchor `.claude/plans/archive/field_typed_operator_algebra_campaign.md` (the #256→#257 re-scope + the baseline reds).
 > 5. **Carrier design + layering verdict** (behind S4.5):
 >    `.claude/agent-memory/cross-domain-attacker/issue_257_carrier_typing_layering_frames.md`
 >    (the `Vector`-Protocol-is-irreducible forgetful-functor finding + the cofree-comonad

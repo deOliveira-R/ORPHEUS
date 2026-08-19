@@ -134,7 +134,7 @@ References
   2nd ed. Birkhäuser. §11 — argument reduction and why evaluating a
   transcendental at a reduced argument beats evaluating it at the
   original.
-* Issue #325 and ``.claude/plans/b3_domain_narrowing_crosswalk.md`` §14
+* Issue #325 and ``.claude/plans/archive/b3_domain_narrowing_crosswalk.md`` §14
   — the ORPHEUS-specific motivation (the boundary trace's three-way
   face partition and the specular reflection partner map).
 """

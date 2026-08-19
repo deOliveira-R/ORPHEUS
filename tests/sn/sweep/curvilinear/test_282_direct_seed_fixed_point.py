@@ -20,7 +20,7 @@ and the 2.5b Euclidean Mᵀ oracle; THIS file certifies the lag death
 
 References
 ==========
-* Roadmap ``.claude/plans/stencil_assembly_dsa_roadmap.md`` §C2.4b (R10);
+* Roadmap ``.claude/plans/archive/stencil_assembly_dsa_roadmap.md`` §C2.4b (R10);
   gate spec ``a3_solve_transpose_verification.md`` §16.C.
 * Issue #282 (the spherical starting-direction seed lag).
 """

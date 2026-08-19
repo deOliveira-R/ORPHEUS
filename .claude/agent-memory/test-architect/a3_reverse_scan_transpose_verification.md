@@ -9,7 +9,7 @@ metadata:
 
 Full worked method behind the A3/#280 gate-spec extension (design-time,
 2026-07-04). The compressed lesson is `lessons.md` L17; this file keeps
-the reusable RECIPE. Cited by `.claude/plans/a3_solve_transpose_verification.md`.
+the reusable RECIPE. Cited by `.claude/plans/archive/a3_solve_transpose_verification.md`.
 
 **Why:** Phase 2.5 of the stencil-assembly campaign = GitHub #280 —
 unify the SN loss-operator sweep machinery into ONE orientation×kernel

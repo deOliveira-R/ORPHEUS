@@ -30,8 +30,8 @@ decides whether to open it.
 - [LA-3186 + LA-4058 LS quadrature](la3186_level_symmetric_quadrature.md) — #337 FULL: axis-weight ansatz p{ijk}=aᵢ+aⱼ+aₖ = the systematic n>12 class rule; Table I = {4,6,8,12,16,20}, S20 p-column BLANK; "n>22 negative" = LEVEL weights; [M] point frontier S20 (+9.8e-4), S22 LP-infeasible; print μ₁ slips S6/S12/S16.
 
 ### SN solver / sweep theory
-- [DSA primaries](dsa_primaries_full_extraction.md) — issue #2, 7 sources → `.claude/plans/dsa_literature_memo.md`: Alcouffe 1977 NSE 64:344 (print sign slips; ⅓ not ½) · Larsen I NSE 82:47 (four-step, K_N Table I) · McCoy-Larsen II NSE 82:64 · Morel 1982 NSE 82:34 · A&L 2002 · Adams-Martin 1992 M4S NSE 111:145 · Warsa 2004 k-IRAM. ⚠ NSE-147 TWIN trap; Σw=1 vs A&L Σw=2; absent WWM-147(2) / Yavuz-Larsen'88.
-- [Adams & Larsen 2002](adams_larsen_2002_iteration_theory.md) — PNE 40 FULL → `.claude/plans/phase_i_survey_adams_larsen_2002.md`: ρ_SI=c (2.17/3.30), DSA 0.2247c (2.50/3.65), Krylov Tables 1/2; traps (λ in mfp; cyl µ=angle; OCR ⅓→½).
+- [DSA primaries](dsa_primaries_full_extraction.md) — issue #2, 7 sources → `.claude/plans/archive/dsa_literature_memo.md`: Alcouffe 1977 NSE 64:344 (print sign slips; ⅓ not ½) · Larsen I NSE 82:47 (four-step, K_N Table I) · McCoy-Larsen II NSE 82:64 · Morel 1982 NSE 82:34 · A&L 2002 · Adams-Martin 1992 M4S NSE 111:145 · Warsa 2004 k-IRAM. ⚠ NSE-147 TWIN trap; Σw=1 vs A&L Σw=2; absent WWM-147(2) / Yavuz-Larsen'88.
+- [Adams & Larsen 2002](adams_larsen_2002_iteration_theory.md) — PNE 40 FULL → `.claude/plans/archive/phase_i_survey_adams_larsen_2002.md`: ρ_SI=c (2.17/3.30), DSA 0.2247c (2.50/3.65), Krylov Tables 1/2; traps (λ in mfp; cyl µ=angle; OCR ⅓→½).
 - [Morel 1989 SI ≡ apply](morel_1989_si_vs_apply_equivalence.md) — p.75: SI sweep ≡ the linear system IFF angular leakage is lower-triangular; else Jacobi-on-RHS, ρ→1.
 - [Larsen & Morel 2010 review](larsen_morel_2010_review_extraction.md) — 84 pp; NO cyl-SN / adjoint / k-posing / verification; ρ=c + DSA 0.23c; their β ≡ BMC α, α = SPATIAL WD; PDF offset +12.
 - [Method naming evidence](method_canonical_naming_evidence.md) — quotes pinning "singular eigenfunction expansion" (Mitsis / WM-72 / Atalay / Sanchez-1977) vs "trajectory-based/resolvent" (Sanchez 2002/1986, PS-1982).
@@ -40,8 +40,8 @@ decides whether to open it.
 - [χ fission-source indexing](peierls_mg_fission_source_chi_indexing.md) — Hébert (3.57)/(3.58): emission χ is purely LOCAL — shares the SOURCE point with νΣ_f and φ.
 
 ### Energy condensation / group collapse
-- [Condensation formulas](energy_condensation_collapse_formulas.md) — Hébert §3.5 (3.103)-(3.105)/(3.112 χ) ≡ Stammler Ch.VI(6a-6d); MALOCS REQUIRES nesting, GROUPR/OpenMC re-integrate continuum; NJOY IWT; GEC (Rahnema-Douglass-Forget 2008 NSE 160:41) = projection, rank-0 = flux-wt avg. Memo `.claude/plans/p5_condensation_literature.md`; #274.
-- [Adjoint bilinear collapse](adjoint_bilinear_collapse_p6.md) — P6 #281. B&G Ch.6 [LOCAL]: (6.135) ⟨ψ†σψ⟩; (6.136) scattering = per-pair SINK-adjoint × SOURCE-flux; carriers (6.125)/(6.126); fission dyad χ†_g·(νσ_f)_{g′}; (6.90), δk (6.71). + Hébert Ch3 / Dorning ch8 / Roy ch4. Memo `.claude/plans/p6_literature_memo.md`.
+- [Condensation formulas](energy_condensation_collapse_formulas.md) — Hébert §3.5 (3.103)-(3.105)/(3.112 χ) ≡ Stammler Ch.VI(6a-6d); MALOCS REQUIRES nesting, GROUPR/OpenMC re-integrate continuum; NJOY IWT; GEC (Rahnema-Douglass-Forget 2008 NSE 160:41) = projection, rank-0 = flux-wt avg. Memo `.claude/plans/archive/p5_condensation_literature.md`; #274.
+- [Adjoint bilinear collapse](adjoint_bilinear_collapse_p6.md) — P6 #281. B&G Ch.6 [LOCAL]: (6.135) ⟨ψ†σψ⟩; (6.136) scattering = per-pair SINK-adjoint × SOURCE-flux; carriers (6.125)/(6.126); fission dyad χ†_g·(νσ_f)_{g′}; (6.90), δk (6.71). + Hébert Ch3 / Dorning ch8 / Roy ch4. Memo `.claude/plans/archive/p6_literature_memo.md`.
 
 ### SH angular flux → moment projection
 - [SH projection root cause](sh_flux_moment_projection_root_cause.md) — "M exists BECAUSE of anisotropic scattering" STANDS. Hébert (3.55)→(3.54), Brockmann (47), Ahrens LDO (7), Fletcher (7) → HarmonicFrame on Scattering, NOT phase-space.

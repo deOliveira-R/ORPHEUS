@@ -1,7 +1,7 @@
 r"""The ψ½ Ray-Characteristic coupled system — regression floor + per-step invariants.
 
 **Campaign home.** This module is the verification substrate for the
-*coupled block operator* campaign (`.claude/plans/coupled_block_operator_campaign.md`):
+*coupled block operator* campaign (`.claude/plans/archive/coupled_block_operator_campaign.md`):
 the within-group augmented SN system posed as a 2×2 coupled block operator
 
 .. code-block:: text

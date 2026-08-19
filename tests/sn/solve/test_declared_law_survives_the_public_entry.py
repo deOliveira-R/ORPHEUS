@@ -1,7 +1,7 @@
 r"""A boundary law DECLARED on the geometry reaches a public fixed-source solve.
 
 The declaration channel, landed alongside campaign phase **P4** of
-`.claude/plans/affine_boundary_source_channel.md`. Two layers had to be crossed,
+`.claude/plans/archive/affine_boundary_source_channel.md`. Two layers had to be crossed,
 and the second is the one that makes the fix worth having:
 
 1. **A ``BC`` tag cannot express a law that carries a function.**

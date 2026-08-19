@@ -17,7 +17,7 @@ satisfying the ravellable protocol, the member spaces any
 :class:`~orpheus.numerics.space.FunctionSpace`. The ψ½ radial-characteristic
 2×2 (System A = SN transport, System B = the curvilinear ray closure) is
 **instance #1**, wired in ``orpheus.sn`` by the coupled-block campaign
-(``.claude/plans/coupled_block_operator_campaign.md``, Phase B).
+(``.claude/plans/archive/coupled_block_operator_campaign.md``, Phase B).
 
 Why a typed block operator (the rejected route)
 ===============================================
@@ -112,7 +112,7 @@ delegation discipline as ``Composite._map_binary``).
 References
 ----------
 
-* ``.claude/plans/coupled_block_operator_campaign.md`` — the campaign plan:
+* ``.claude/plans/archive/coupled_block_operator_campaign.md`` — the campaign plan:
   the 2×2 posing, the re-scope ruling (typed grid over present-zero padding),
   Phase B.2a (this module), B.2b–d (the ψ½ instance re-type + builder +
   driver wire).

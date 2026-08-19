@@ -4923,7 +4923,7 @@ architecture this decides is set out on the loss-operator page
    :math:`k_\infty` anchor).  They are **uncommitted** and are promotion
    targets *only if* a pole-node scheme is ever adopted; do not promote
    them otherwise.  The durable synthesis is
-   ``.claude/plans/facefield_codim1_design.md`` §3.5.
+   ``.claude/plans/archive/facefield_codim1_design.md`` §3.5.
 
 .. _sn-direct-seed-strategy-zoo:
 

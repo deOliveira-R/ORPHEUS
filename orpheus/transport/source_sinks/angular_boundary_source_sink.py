@@ -108,7 +108,7 @@ rather than a match against something else's. See
    until 2026-08-05, waiting for a consumer that both declared a non-trivial
    ``InflowSourceSpec`` and drove a sweep consuming a typed boundary-source
    field. It was built ahead of that trigger by explicit user ruling, to close
-   the affine boundary channel (``.claude/plans/affine_boundary_source_channel.md``):
+   the affine boundary channel (``.claude/plans/archive/affine_boundary_source_channel.md``):
    the design of record already said prescribed inflow's realization IS
    ``q.boundary``, and the missing bridge was the reason SN had the fence
    (no ``BlockRole.BOUNDARY`` stamp) without the channel. The deferred sketch

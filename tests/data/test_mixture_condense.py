@@ -23,7 +23,7 @@ The structurally-independent oracle (vv L11) is ALWAYS an explicit
 per-fine-group Python hand-sum — NEVER a re-call of ``frame.project`` or a
 second condense path (that would be twin-consistency, vv L4). The oracle
 math is verified against the live frame in the P5.0 memo
-(``.claude/plans/p5_0_condensation_gate.md``).
+(``.claude/plans/archive/p5_0_condensation_gate.md``).
 
 vv Mode-8: every assertion is ``np.testing.*`` / ``pytest.raises`` /
 ``pytest.fail`` (the suite runs ``-O``; bare ``assert`` is stripped).

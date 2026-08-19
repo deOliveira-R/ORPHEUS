@@ -1,6 +1,6 @@
 r"""Tests for :class:`orpheus.numerics.operator.TraceRestrictionOperator`.
 
-Campaign phase **B3.1** (``.claude/plans/b3_domain_narrowing_crosswalk.md``).
+Campaign phase **B3.1** (``.claude/plans/archive/b3_domain_narrowing_crosswalk.md``).
 This operator is the trace map :math:`\gamma_\pm` of the affine boundary form
 :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q` — the map the theory page has
 always named and the codebase had spelled three ways and typed as none.

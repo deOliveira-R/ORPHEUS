@@ -7,7 +7,7 @@ metadata:
 
 # #226 taxonomy — W1/W2 self-audit resolutions + §13 grain-sharpenings
 
-Attack of `.claude/plans/operator_machinery_taxonomy.md` §16 weak points, on
+Attack of `.claude/plans/archive/operator_machinery_taxonomy.md` §16 weak points, on
 branch `refactor/inverse-as-operator` (branch-read, L5 — Nexus graph was stale on
 `feature/sn-adjoint-transport`). Companion to [[operator-inverse-taxonomy-frames]]
 (the layer below: substrate/operator split, four inverse strategies). These are

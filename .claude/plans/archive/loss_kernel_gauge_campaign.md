@@ -1,0 +1,901 @@
+# The reflective trace has a canonical value, and the solver returns it
+
+> **Plan of record, 2026-08-14.** Supersedes the Q6/track-B content this file
+> previously held (that work is COMPLETE — `e17116f9`…`83aa324e`, see
+> `.claude/plans/archive/q6_selection_criterion_and_track_b_finish.md`).
+> Branch `refactor/track-b-remainder`, HEAD `5c39226b`, 11 commits ahead of `main`.
+
+---
+
+---
+
+## ⏸ COMPACTION POINT #2 — 2026-08-15. Steps 0–5 LANDED. Only 6 and 7 remain.
+
+**Re-anchor from THIS FILE + `git log`, never from a conversation summary.**
+Branch `refactor/track-b-remainder`, **16 commits** ahead of `main`.
+`[M]` `5def63b0`, `f934ff57`, `b51bc802` are all ancestors of HEAD and **none
+is on `main`** — the whole campaign is unmerged. Re-check; do not trust this line.
+
+| step | state | where |
+|---|---|---|
+| **0** — does the finalize sweep carry `ker A`? | ✅ YES | `scratch/probe_344_step0_finalize_sweep.py` |
+| **1** — single-source `Solution` construction | ⛔ WITHDRAWN, premise refuted | §Step 1 below |
+| **2** — the derived predicate | ✅ LANDED `5def63b0` | `transport/spatial/scheme.py`, `sn/mesh/augmented_mesh.py` |
+| **3** — `InverseMetricOperator` | ✅ LANDED `5def63b0` | `numerics/operator.py` |
+| **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
+| **5** — fire it, warn, record | ✅ LANDED `b51bc802` | `sn/solver.py` ×5, `sn/solution.py`, +9 doc files |
+| **6** — the two operator-algebra holes | ⏹ **CLOSED BY FILING** 2026-08-15 | #375 + #374; #213 corrected. ⛔ its own title was wrong — see §Step 6 |
+| **7** — promote the characterization suite | ✅ **LANDED** 2026-08-15 | 2 new modules + a shared builder; found 2 defects in LANDED work |
+
+`[M]` **the green baseline at `b51bc802`**, which is what a regression is measured
+against: `tests/sn` **3119 passed / 1 skipped / 57 xfailed**, 14:40;
+`tests/transport + numerics + derivations` **4449 passed / 14 skipped /
+11 xfailed**, 46:32. Sphinx `-W` **exit 0, zero output**. `npx pyright` clean.
+V&V matrix **9837** (= a live `--collect-only`; keep them equal).
+⚠ The wide gate has NOT been run since Step 3 — budget ≥ 90 min before merging.
+
+---
+
+### ⏹ STEP 6 — CLOSED BY FILING, 2026-08-15 (user ruling). Not built here.
+
+**Resolution.** Both holes are filed with their measured demonstrations and are
+**out of this campaign's scope**: `[M]` neither has a consumer here, both are
+shared numerics needing their own gate sets plus a wide re-run, and the campaign
+had no reason to carry them into an unrelated merge.
+
+* **#375** — the `_AdjointOperator` dead end (`A.H.H` unreachable).
+* **#374** — `OperatorSum.is_invertible` answers a different question than its name.
+* **#213** — the principled home for both; its body was corrected in place
+  (`[M]` its described `CAP_*`/`_has`/`MissingCapability` mechanism is **0 hits**
+  in `orpheus/`, retired at #226 — building to it as written would chase a
+  mechanism that no longer exists).
+
+⛔ **And the step's own TITLE was wrong** — `plan-authoring` §1. *"An operator
+cannot CLAIM an inverse or adjoint it does not have"* describes **Hole 2 only**.
+`[M]` `LinearOperator.is_adjointable` defaults to `False` and `_AdjointOperator`
+does not override it, so the wrapper reports `is_adjointable = False` **and then
+raises** — advertisement and behaviour AGREE. Hole 1 is an honest capability gap
+(a raising stub where the base declares no method at all, plus an algebra that
+does not close), never a mis-claim. A session building to the title would have
+gone looking for a predicate bug that does not exist. The original framing is
+kept below, per §3.
+
+---
+
+*Original text, kept as the record of what was asked:*
+
+### ▶ STEP 6 — the outcome: an operator cannot CLAIM an inverse it does not have
+
+⚠ **Its stated motive evaporated. Re-justify before building.** The plan says
+Hole 1 is needed because *"a self-adjoint projector is that consumer"*. `[M]`
+at `b51bc802`, instrumenting `_AdjointOperator.__init__` across the gauge's
+build + `apply` + `gauge` + `apply_transpose`: **0 constructions**.
+`LossKernelGauge` implements `apply_transpose` directly (`Πᵀ = Π` is a theorem
+here, and routing through the adjoint machinery would be slower and no more
+correct). **The gauge is NOT Hole 1's consumer.** Both holes are still real
+defects in shared numerics; neither is blocked-on by this campaign, so this
+step is now *elective* and should be justified on its own terms or dropped.
+
+**Hole 1** — `[M]` still present at `b51bc802`:
+`orpheus/numerics/operator.py:1239` `class _AdjointOperator`, whose
+`apply_transpose` raises `NotImplementedError` *"until a consumer demands it"*,
+and which does not override `is_adjointable`. ⚠ Shared numerics with consumers
+far beyond this campaign — needs its own gates and a wide re-run.
+
+**Hole 2** — the fix is a **typed complement**, NOT a change to
+`OperatorSum.is_invertible`. `[M]` that predicate returns the left-spine head
+and is *deliberate*: its docstring at `operator.py:~1497` documents the
+canonical-ordering contract designating the splitting's `GreenOperator`
+preconditioner. `[M]` no typed complement exists — the only
+`is_invertible → False` in the module is `TraceRestrictionOperator:2779`, which
+is the ABSENCE-spelling precedent `LossKernelGauge` already follows.
+
+▸ **And file the general defect**, which predates all of this: `I + (−1)·I`
+is the zero map and reports `is_invertible = True`. `[M]` **not filed** — a
+`gh issue list --search "invertible sum"` at `b51bc802` returns nothing
+relevant. Invertibility is spectral, not structural, so this is a real
+mis-claim the type system cannot currently refuse.
+
+### ✅ STEP 7 — LANDED 2026-08-15. Delivered, plus two defects in ALREADY-COMMITTED work.
+
+**Delivered.** `tests/sn/_singular_loss_box.py` (shared non-collected builders),
+`tests/sn/operators/test_loss_nullspace_reflective_box.py` (12 rows — facts
+about `ker A` as a subspace), `tests/sn/solve/test_boundary_gs_is_a_coherent_splitting.py`
+(13 rows — facts about the splitting and the driver). Split by *what the claim
+is about*, following the tree's role-keyed convention; `tests/sn/characterization/`
+was rejected because characterization is a CLAIM CLASS (already spelled by
+omitting `verifies`), not a subsystem. `[M]` **83 passed**, 1:13, with the two
+shipped gauge suites; nothing earns `slow` (slowest row 12.05 s). V&V matrix
+**9837 → 9862**, equal to a live `--collect-only`. Sphinx `-W` exit 0. `npx
+pyright` **0 errors** on all six touched files.
+
+⛔ **Defect 1, in `f934ff57` — MINE.** The Step-4 module docstring's dense-SVD
+table recorded `T + R` under the `mine`/`law` columns, which are `R` by
+construction: `224 / 464 / 242 / 136` where `[M]` the true `R` is
+**`0 / 16 / 18 / 8`**. It contradicted its own prose three lines below AND
+`cartesian_multid.rst`, which was correct. **4 of 4** T-bearing rows — the
+first report said 3, missing the `d3 (2,2,2) product(4,4)` row, which is the one
+an audit scanning only the d=2 block misses (`plan-authoring` §2's quantifier
+clause, again). The `gap` column was wrong for the same reason and is now `n/a`
+there *by construction*. Fixed, with a `T` column added so `svd = T + R` is
+visible. **Why it survived:** every `_SINGULAR` fixture in that suite is
+`level_symmetric`, where `T = 0` and the error is unspellable — the gate that
+catches it is Step 7's own T+R row.
+
+⛔ **Defect 2 — a Pattern-2 twin, found BY a mutation arm that reddened nothing.**
+`SNMesh.reflective_axis_pairs` and `loss_kernel_gauge._reflective_axes` were a
+line-for-line duplicate of the same `len(faces) == 2 and all(faces)` test over
+the same `by_axis` loop. `[M]` widening **either alone was inert (0 red)**
+because the survivor guarded the gate. Repaired: `SNMesh.reflective_axes` owns
+the criterion, `reflective_axis_pairs` is its `len`, `_reflection_orbits` reads
+the property. `[M]` the ONE-edit mutation now reddens **4 of 83**.
+⭐ **The transferable lesson: a mutation arm that reddens nothing is evidence
+about the SOURCE, not only about the gate.** Read `vv-principles` #17's "an arm
+that reddens nothing is a guard with no witness" with this — sometimes it is a
+guard with a *twin*.
+⚠ And the retirement had one consumer nothing greps: a `SimpleNamespace` **test
+double** that carried `face_labels`/`bc` but not the new property — the
+`coding-standards` "routing a call site through the algebra raises its operand
+requirement from *has the verb* to *IS the type*, and only duck-typed doubles
+notice" clause, exactly. Fixed at the surrogate, not with a runtime guard.
+
+▸ **The diagnostic is NOT deleted, and that is the policy-correct call.**
+`tests/derivations/_promotion_policy.md`'s own "still active" test is *"the
+referenced GitHub issue is still open"* — `[M]` **#344 is OPEN**. It carries a
+triage header saying so and is deleted by the merging commit that lands
+`Closes #344`. Its two tier-false names were re-titled in place so no falsehood
+survives the interval; `[M]` still **24 passed**, 2:30.
+
+---
+
+*Original pointer, kept as the record of what was asked:*
+
+### ▶ STEP 7 — the outcome: the #344 characterization runs in CI, and its names are true
+
+`[M]` **the diagnostic is NOT broken by Step 5 — but two of its names now are.**
+Run at `b51bc802`:
+`.venv/bin/python -O -m pytest derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py`
+→ **24 passed in 165 s (2:45)**.
+
+⚠ **Task #78's numbers are stale**: it says *"40 tests ≈ 53 s"*. `[M]` **24
+tests, 165 s**. Re-measure before deciding `slow`; 165 s is over most budgets.
+
+⛔ **Two test NAMES describe a defect Step 5 repealed** (`plan-authoring` §3's
+"a fact can die by being FIXED"). They still pass, and legitimately — `[M]`
+both call `_solve(...)`, the SI **driver**, never a public entry (`:510`,
+`:571`, `:605`), so they measure the ungauged driver, which is unchanged:
+
+* `test_the_returned_boundary_trace_depends_on_the_SPLITTING` (`:493`) — the
+  **returned** trace no longer does; the *driver's* does. Promoted verbatim,
+  this lands an authoritative name asserting a user-visible defect that no
+  longer reaches users.
+* `test_the_gauss_seidel_trace_error_is_first_order_in_h` (`:582`) — same tier
+  confusion.
+
+⟹ **re-title both to name the DRIVER**, and add the missing counterpart: that
+the *public entry* no longer has the property. (`tests/sn/solve/test_every_entry_gauges_its_trace.py`
+already asserts the repaired side.)
+
+✅ **What Step 7 still genuinely adds** — `[M]` of the diagnostic's 13 test
+functions, these have **no** counterpart in the two committed suites and are
+the reason to promote it at all:
+
+| diagnostic test | why it is not already covered |
+|---|---|
+| `test_product_quadrature_kernel_splits_into_tangential_plus_a_remainder` | the `dim ker = T + R` table; the shipped suites scope to **R only** |
+| `test_both_convergence_functionals_are_blind_to_ker_A_but_not_to_a_control` | blindness of residual + balance **with a positive control** |
+| `test_the_trace_metric_SEES_ker_A_even_though_it_annihilates_tangential_rows` | the R/T separation by the metric's zero-set |
+| `test_the_exact_solution_is_the_minimum_G_norm_member_of_the_manifold` | the **canonicality theorem** — why the gauge is not a convention |
+| `test_both_schedules_are_splittings_of_the_SAME_A` | `M − N ≡ A` bit-exactly |
+| `test_the_gauss_seidel_inverse_is_exact_on_the_DRIVER_RHS_subspace` | the coherence of the splitting |
+| `test_kernel_free_configs_give_the_SAME_TRACE_under_both_schedules` | the negative control on the whole disposition |
+| `test_the_err056_first_group_reflect_mutation_reddens_the_coherence_gate` | the ERR-056 mutation control |
+
+The other 5 ARE covered (counting law, vacuum-face collapse, LS-has-no-tangential,
+and the two re-titled above) — do not duplicate them.
+
+▸ ⚠ `docs/theory/verification/matrix.rst` is a committed generated artifact.
+Regenerate (`sphinx-build`) and stage it, and check the collected count matches.
+
+### ⏹ CAMPAIGN COMPLETE — closed out 2026-08-15
+
+`[M]` **wide gate GREEN at `1a2be025`: 9540 passed, 0 failed, 0 errors,
+19 skipped, 227 deselected (`slow`), 76 xfailed, 1:03:06** —
+`python -O -m pytest -m "not slow"`, SERIAL, detached. Arithmetic reconciles:
+9862 collected − 227 − 19 − 76 = 9540.
+
+⭐ **The most informative line in that log is not the count.** `GaugeFreedomWarning`
+fires in FOUR pre-existing suites that nobody wrote for it —
+`test_2d_octant_sweep_equivalence` (**7.09 %**, 2 pairs),
+`test_convergence_contract` and `test_d3_admission` (**6.13 %**, d=3, 3 pairs),
+`test_scan_march_end_to_end` (**0.20 %**) — every one still passing. The defect
+was live across the shipped suite, the repair works on inputs it was not
+designed against, and the d=3 rows correctly report that no registered closure
+damps the face mode at `ndim = 3`, so the only root fix there is breaking a
+reflective axis pair.
+
+✅ **The changelog row LANDED**, citing the campaign's four commits
+(`docs/theory/methods/sn/history.rst`, top of the table). Original note kept:
+*"requires a merge hash (or not at all) and there is none"* — resolved by the
+`--ff-only` convention, where the merge tip IS the branch tip, so the row names
+the commits the work lives in, exactly as the page's own preamble specifies.
+
+✅ **The diagnostic is DELETED** in the `Closes #344` commit, per
+`tests/derivations/_promotion_policy.md`. `[M]` its one collected case
+(`test_diagnostics_resolve_their_imports` globs the folder) took the total
+9862 → **9861**, matched by a regenerated matrix and a live `--collect-only`.
+`[M]` no Python consumer — the two surviving hits are past-tense provenance in
+the promoted modules, now annotated so a reader does not chase a dead path.
+
+### ▶ Also outstanding, not part of 6 or 7
+* `[M]` **`scratch/issue_344_kernel_basis.md` is still untracked.** Its §3
+  13-configuration dense-SVD table is now folded into
+  `tests/sn/operators/test_loss_kernel_gauge.py`'s module docstring, so the
+  oracle is safe; the rest is derivation history that will evaporate.
+
+---
+
+## ⏸ COMPACTION POINT #1 (superseded) — 2026-08-14. Steps 0, 2, 3 LANDED. Step 1 WITHDRAWN.
+
+**Re-anchor from THIS FILE + `git log`, never from a conversation summary.**
+Branch `refactor/track-b-remainder`, **12 commits** ahead of `main`, ⚠ not
+merged — verify with `git merge-base --is-ancestor <hash> HEAD`.
+
+| step | state | where |
+|---|---|---|
+| **0** — does the finalize sweep carry `ker A`? | ✅ **YES, it does** | `scratch/probe_344_step0_finalize_sweep.py` |
+| **1** — single-source `Solution` construction | ⛔ **WITHDRAWN**, premise refuted | see §Step 1 below |
+| **2** — the derived predicate (both halves) | ✅ LANDED `5def63b0` | `transport/spatial/scheme.py`, `sn/mesh/augmented_mesh.py` |
+| **3** — `InverseMetricOperator` | ✅ LANDED `5def63b0` | `numerics/operator.py` |
+| **4** — `LossKernelGauge` | ✅ LANDED `f934ff57` | `sn/operators/loss_kernel_gauge.py` |
+| **5** — fire it + the warning + the record | ✅ LANDED (see below) | `sn/solver.py` ×5 sites, `sn/solution.py`, `loss_kernel_gauge.py` |
+| **6** — the two operator-algebra holes | ▢ not started | user ruled: fix both |
+| **7** — promote the characterization suite | ▢ designed + measured, NOT executed | task #78 |
+
+`[M]` `5def63b0`: **25 gates, 6-leg mutation battery, all arms bite, control
+clean.** Neighbourhood 281 passed / 1 skipped, 22.78 s; `npx pyright` 0 errors
+on the three production files. **Pure addition — nothing consumes either
+surface yet, so no behaviour changed.**
+
+`[M]` `f934ff57` (Step 4): **51 gates, 12-leg mutation battery, control clean,
+every arm attributed to the gate it reddens.** Neighbourhood 3741 passed /
+1 skipped / 5 xfailed; Sphinx `-W` clean; `npx pyright` clean. **Still pure
+addition — nothing fires the gauge yet.**
+
+### ⭐ Step 5 reconnaissance — where the gauge actually BITES (measured 2026-08-15)
+
+⚠ **A sub-agent exit map reported the gauge INERT at `solve_sn`** (`[M]`
+`‖Πt‖/‖t‖ = 7.07e-15`), concluding the acceptance gate could not live at the
+eigenvalue entry. **REFUTED** — it probed **4×4 and 6×6**, both EVEN, and the
+excitation is a pure parity effect. Its own §14 stated the scope honestly
+(`plan-authoring` §2's quantifier clause), which is what made the refutation one
+probe deep.
+
+`[M]` `$CLAUDE_JOB_DIR/tmp/parity_rule.py` — `solve_sn`, all-reflective LS4 2g
+**fissile** (mixture `"A"`; `"B"` does not fission), `gauss_seidel`,
+`inner_tol=1e-13`, `‖Πt‖/‖t‖` on the RETURNED `boundary_flux`:
+
+| cells | `n_x` | `n_y` | `‖Πt‖/‖t‖` | |
+|---|---|---|---|---|
+| (3,3) | odd | odd | `6.822354e-02` | **BITES** |
+| (3,4) | odd | even | `6.080483e-02` | **BITES** |
+| (3,2) | odd | even | `7.824118e-02` | **BITES** |
+| (5,4) | odd | even | `4.436713e-02` | **BITES** |
+| (5,5) | odd | odd | `4.099523e-02` | **BITES** |
+| (4,3) | even | odd | `1.006431e-14` | inert |
+| (4,4) | even | even | `5.073923e-15` | inert |
+| (4,5) | even | odd | `4.628486e-15` | inert |
+| (2,3) | even | odd | `2.081929e-15` | inert |
+| (2,2) | even | even | `3.974497e-15` | inert |
+| (6,5) | even | odd | `7.577462e-15` | inert |
+
+⟹ *(as written 2026-08-15)* **excited iff `n_x` is ODD.** `n_y`'s parity is
+irrelevant; `jacobi` is `~1e-15` on every row (it already lands on the
+canonical member). 6 bite, 5 do not, and the gap between the two populations is
+**13 orders** — so any warning threshold in `[1e-12, 1e-4]` gives the same
+verdict. *(The threshold conclusion survives; the rule does not.)*
+
+⛔ **REFUTED the same day, by the archivist, and the error is MINE.** Every row
+above was measured with a **uniform isotropic source** — a denominator I did
+not write down, then generalised away. `[M]` re-measured and reproduced to 7
+significant figures:
+
+| cells | `n_x` | source | `dim ker A` | `gauge_correction` |
+|---|---|---|---|---|
+| (3,4) | odd | uniform iso | 12 | `6.080483e-02` **excited** |
+| (3,4) | odd | anisotropic | 12 | `5.815861e-02` **excited** |
+| (4,4) | even | uniform iso | 12 | `6.735136e-14` |
+| **(4,4)** | **even** | **anisotropic `(1+μ_x)/W`** | **12** | **`1.756363e-02` EXCITED** |
+| (2,2) | even | anisotropic | 12 | `3.603322e-02` **excited** |
+| (6,8) | even | anisotropic | 12 | `1.028513e-02` **excited** |
+
+⟹ **`dim ker A` is the SAME at every parity — the operator is always singular
+when the predicate says so.** Parity governs only whether a *symmetric* source
+excites the kernel; break the symmetry and an even mesh is excited too. The
+corrected imperative is the archivist's: **never infer kernel-freedom from a
+mesh property — ask the predicate, or assert `dim ker == 0`.**
+
+⚠ **This is `plan-authoring` §2's quantifier clause, third instance in this
+campaign, and the worst of the three** — the first two were sub-agents' and
+were caught by reading the denominator; this one was mine, was promoted to a ⛔
+IMPERATIVE ("state `n_x` and its parity in every acceptance fixture"), and
+would have aimed every future session at the wrong property. Pinned now by
+`test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric`.
+
+**Why x:** G-S sweeps octants in **lex** order, making x the outer axis; the
+mode's `(−1)^k` alternation closes with net `+1` over an even cell count and
+leaves a residual sign flip over an odd one. ⟹ this is coupled to **#343** — a
+different octant order moves the excited axis.
+
+⭐ **The user-facing statement this licenses**, and it is stronger than
+non-determinism: *a 3×N mesh reports a ~7 % spurious tangential current along a
+mirror face and a 4×N mesh reports none.* The defect appears and disappears
+under a mesh change that alters nothing qualitative, so it is **not
+predictable by inspection** — which is the argument for R2b's warning over
+documentation.
+
+⛔ **Consequence for every acceptance fixture in this campaign: state `n_x`,
+its parity AND THE SOURCE'S SYMMETRY** (corrected — see the refutation above). A gate written on an even-`n_x` mesh is inert and will ship green
+and unfalsifiable (`plan-authoring` §6c). This is `vv-principles` #13's
+congruence-class trap for the SECOND time in this campaign — the first was
+`sawtooth_sign_always_positive` failing to redden `(2,2,2)`.
+
+### ✅ Step 5 — LANDED `b51bc802`. Pointer kept as the record of what was asked.
+
+`mesh.loss_kernel_gauge` is built, cached and gated; `gauge_freedom(mesh)`
+answers the three-state predicate with a sentence to quote. **Nothing calls
+either.** Step 5 is the wiring:
+
+1. **Fire** `gauge.gauge(boundary.values)` at each public exit that returns a
+   trace. Follow the `_exit_balance_defect` pattern (`[M]` 4 call sites — N
+   invocations of one function is the house pattern, not a twin path; Step 1's
+   "unify the construction sites" premise was withdrawn on evidence, see below).
+2. ⚠ **The coverage gate that replaces the withdrawn Step 1.** A gauge MUTATES
+   where those hooks only REPORT, so a forgotten site returns a silently
+   ungauged answer. Enumerate the public entries and assert each one gauges.
+3. **Warn** per ruling R2b, and **loudly on UNDETERMINED** — `GaugeFreedom.because`
+   is written to be quoted verbatim. Follow the #340 `ConvergenceWarning` family.
+4. **Record** on `IterationHistory` following the `balance_defect` precedent
+   (`solution.py:197`), with the same `None`-means-*not-measured* discipline.
+5. ✅ **The Krylov arm is DECIDED: it gauges like every other. Its own comment
+   was wrong.** Original framing, kept per §3: *"Its returned `boundary` is 'the
+   matvec's B1'' face residual' by the code's own comment, not a flux trace.
+   Projecting a defect off `ker A` is a no-op by residual-neutrality — so either
+   it is the wrong thing to return, or it must be exempted."*
+
+   ⛔ **REFUTED 2026-08-15.** `solver.py:3971-3975` does say *"``psi_full``
+   carries the Krylov-converged composite with the matvec's B1'' face residual
+   on its boundary"*, and `[M]` it is a **flux trace**, measured three
+   independent ways: (a) GMRES unravels into the flux `solution_template` whose
+   boundary is `AngularBoundaryFlux.zeros_on(...)` (`:806`); (b) on a slab with
+   `xmin` reflective / `xmax` vacuum the trace reads `|·|max = 5.213675` against
+   a bulk max of `5.259936`, and the **vacuum**-face inflow rows are exactly
+   `0.0` while the reflective ones are not — a residual block would be ≈0 on the
+   reflective face; (c) the tree's own gate
+   `test_declared_inflow_reaches_the_rhs.py:323` asserts the Krylov arm's
+   `γ₋(xmin)` equals the **declared inflow value** `2.5` (`[M]` 18 ULP).
+
+   The comment plausibly describes the boundary block of the **matvec's output**
+   (`Aψ`, which by `BlockRole` *is* a face residual) — a different object from
+   the **solution vector's** boundary block. ⚠ It is present-tense misleading
+   and is the exact sentence that would make a reader exempt this arm: **fix it
+   in the same commit.**
+
+   `[M]` the two arms return **different members of the solution set**: on a
+   heterogeneous all-reflective 2-D fixture, `‖t_SI − t_Krylov‖ = 1.320828` and
+   `‖Π(t_SI − t_Krylov)‖ = 1.320828` — the difference is *entirely* in `ker A`,
+   with `3.38e-11` outside. SI carries `‖Πt‖/‖t‖ = 2.855e-2`; Krylov carries
+   `1.236e-12`. ⟹ gauge **both**: on Krylov it is a ~1e-12 no-op, and exempting
+   it would leave the two arms' post-gauge status decided by an accident of the
+   driver — re-introducing the very asymmetry the gauge removes.
+
+**What Step 4 established that Step 5 may assume** (do not re-derive):
+
+- `LossKernelGauge` is an endomorphism of the **trace** space, carrier = the
+  flat `boundary.values` array. It is NOT a full-field operator: `[M]`
+  `FullFieldSpace`'s carrier is the typed composite, so a `np.take` gather
+  declaring it as domain is *a lie that the `(name, shape)` composability guard
+  cannot catch*.
+- A **zero-block** gauge is the honest answer to a non-singular configuration —
+  `gauge()` is then the identity. **No consumer needs a `None` branch.**
+- Residual-neutrality is **gated**, not assumed
+  (`test_gauging_cannot_move_any_convergence_certificate`, all 6 fixtures), so
+  firing at a converged exit cannot move a certificate.
+- Component **T** is left bit-unchanged, gated under `product(4,4)` where half
+  the trace rows are tangential.
+- `[M]` cost, single-process: build **4.0 ms** (d2 (3,4)) / **22.3 ms**
+  (d3 (3,4,5)); apply **97.8 µs** / **215.8 µs**. ⚠ These SUPERSEDE the relayed
+  `0.094 ms`, which did not reproduce. Build is 1.8× faster than the memo's
+  41.1 ms (the fused SVD); apply is 2.3× slower (the frame chain).
+
+⚠ **Existence-check before designing** (`plan-authoring` §1): `LossKernelGauge`,
+`LossKernelBasis` — `[M]` **0 hits in `orpheus/`** as of `5def63b0`. Neither
+exists; both are to be written. ✅ Re-verified 2026-08-14 at `839c36e9`.
+
+⛔ **REFUTED 2026-08-14, before any edit — the MODEL half of this pointer was
+false.** Original text, kept per §3: *"The basis construction exists twice in
+throwaway form — `scratch/probe_344_kernel_basis.py` (563 lines) and, derived
+independently, inside
+`derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` (~50 lines,
+the compact re-derivation). **Use the compact one as the model.**"*
+
+`[M]` the diagnostic contains **no closed-form basis at all**. All 8 of its
+null-space uses route through `_null_basis(A)` (`:122-126`) — a **dense
+`np.linalg.svd` of an `A` assembled column-by-column** by `_dense()`
+(`:100-109`, `n` matvecs). That is the exact route a closed form exists to
+replace, and the memo prices it at **23.0 s vs 0.00 s** at `ndof = 3744`.
+
+⟹ **The only closed form in the tree is the file this pointer forbids**:
+`scratch/probe_344_kernel_basis.py::closed_form_kernel_basis` (`:306-358`,
+helpers `:162-305`). It is **~145 lines**, not 50, and it *does* call
+`np.linalg.svd` — but on the tiny per-orbit **coefficient** matrix, to reduce
+an over-complete generating set (§2.3 of the memo: `2Σn` generators → `2Σn−1`
+rank, exactly one relation). That is a legitimate and cheap use; it is not an
+SVD of `A`.
+
+▶ **The real model is the MEMO, not either file**: `scratch/issue_344_kernel_basis.md`
+(714 lines, status COMPLETE) — §1.4 is the closed-form basis, §2 the
+construction recipe in 5 steps, §6.2 the blocked representation that makes it
+scale, §6.3 the two hazards. The memo is what the probe was written from.
+
+⚠ Mechanism, for the surprise log: this is `plan-authoring` §1's **PRECEDENT**
+clause — *"model this on X"*, where the symbol exists and every property
+claimed of it is wrong — repeating **the same day the clause was written**, in
+a different campaign. The §1 existence-check I did run (does `LossKernelBasis`
+exist?) passed and is what made the pointer *feel* verified; the model claim
+was never checked, and nothing in the pointer's shape distinguished the two.
+
+### Three findings from the landed work that change nothing in the plan but would cost a re-derivation
+
+1. `ρ(Σ) ≥ 1` needs **no subspace construction** — the absorption-damped mode
+   is `< 1` and the blind sawtooth is exactly `1`. This is why it survives LD's
+   moment tail and why `ndim = 1` needs no special case.
+2. **`cell_kernel_batch` is implemented by BOTH shipped schemes** — its own
+   docstring says only Diamond overrides it, which is stale. That staleness is
+   what made the derivation possible at all.
+3. The **`Q_cells` shape is `(1, 1)` for both** closures regardless of moment
+   tail; the face shape is `(1,1,1,m)` with `m = basis**(ndim-1)`. Two of my
+   probe iterations died on guessing otherwise, and both failures LOOKED like
+   "the scheme is unclassifiable".
+
+### ⚠ Three instrument bugs hit while gating this, all flattering
+
+Recorded because each cost a cycle and each would recur: **(a)** ANSI codes
+swallowed the pytest summary — verbatim `vv #17`; **(b)** a quoted `"$T"`
+collapsed three test paths into one, so **zero tests ran** and the run reported
+clean; **(c)** the `pairs_counts_faces` mutation left all six geometry rows
+GREEN because `faces // 2` equals the pair count on every fixture written —
+the gate was right for the wrong reason, and only a *second* mixed axis
+separates the two rules. Always `--color=no`, always check the collected count,
+always mutate before believing a gate.
+
+---
+
+## Context — why
+
+`A = L + C − S − B` is **exactly singular** on any `d ≥ 2` Cartesian
+**diamond-difference** mesh with ≥ 2 reflective axis pairs — and all-reflective is
+the default for the eigenvalue entry, so this is the standard `k_inf` lattice.
+`[M]` `dim ker A = 12` at d=2 LS4 ng=2; `138` at d=3 (3,4,5).
+
+The consequence a user sees: **the returned boundary trace is a function of the
+cold start, not of the problem.** `[M]` three cold starts differing only inside
+`ker A` give identical `n_iter = 252`, identical residual `8.54e-14`, all
+`converged=True` — while the trace differs by up to **27.3 %** and the bulk is
+bit-stable at `7e-16`. Both convergence functionals are blind (residual
+`7.3e-16`, balance projection `1.8e-16`, against a positive control that moves
+them 15 and 14 orders).
+
+**Disposition (settled, #344): DETERMINISM, not a correctness bug.** The
+splitting is coherent (`M − N ≡ A` bit-exactly `0.0`, 20/20), `ψ_exact` solves the
+discrete system at every mesh, and the trace error converges at exactly `O(h)`.
+
+**Outcome wanted.** A user who solves an all-reflective box twice gets the same
+boundary trace, and it is the physically correct one — with the solver saying so,
+and saying what would remove the freedom at the root.
+
+**Why it is fixable and not merely pinnable:** `[M]` `ψ_exact` is G-orthogonal to
+`ker A` (`1.27e-15`), and this is now a **theorem** — every kernel mode carries a
+non-trivial sign character on every axis, so any mirror-even functional
+annihilates it. So the minimum-`‖·‖_G` member **is** the physical answer. The
+gauge is canonical, not conventional.
+
+---
+
+## The two rulings that shape the design (user, 2026-08-14)
+
+**R1 — "gauge" is the right word; it needs SPECIFICITY.** The package already
+gauge-fixes the ψ½ System-B corner metric
+(`numerics/spaces/radial_characteristic_space.py:119-144`). A gauge should be
+called a gauge — qualified by what it fixes. ⟹ the family is **`LossKernelGauge`**.
+
+**R2 — ⭐ DERIVE the applicability, never tabulate it.** Do not hard-code
+"DD and all-reflective". Ask two questions and let the answer fall out:
+
+```
+    gauge_freedom  ⟺  scheme admits undamped zero-mean trace modes
+                      ∧  the problem is reflective on ≥ 2 axis pairs
+```
+
+This is the Q6-E *ask-don't-tabulate* ruling applied again, and it is why a
+scheme change is a real alternative rather than a coincidence. The scheme
+property is computable from the closure's own face-to-face transmission
+`Σ = (2/D)·1wᵀ − I`:
+
+| scheme | spectrum of `Σ` on `{v : wᵀv = 0}` | gauge freedom |
+|---|---|---|
+| **diamond** | `−1`, multiplicity `d − 1` — **undamped** | **yes** |
+| **step** | `0`, multiplicity `d − 1` — maximally damped | no |
+| **linear-discontinuous** | `[M]` `dim ker A = 0` on the identical box | no |
+| any scheme, d = 1 | no zero-mean face mode exists | no |
+
+⟹ the predicate reads the scheme's own coefficients. A future scheme answers
+for itself with no edit here.
+
+**R2b — the freedom must be AUDIBLE.** When gauge freedom is detected the solver
+warns: the fixing was applied, AND changing to a scheme without the undamped
+zero-mean trace mode removes the freedom **at the root**. Follows the #340
+`ConvergenceWarning` family (`numerics/convergence.py`), which is the precedent
+for "say what it cost and what to do".
+
+---
+
+## Measured findings that de-risk the build
+
+- ⛔ **REFUTED 2026-08-14 — the DIAGONAL claim was a d=2 reading promoted to a
+  universal, and acting on it would have shipped a silently WRONG projector.**
+  Original text, kept per §3: *"⭐ **The Gram is EXACTLY diagonal.** `[M]`
+  `max|offdiag|/max|diag| = 0.000e+00`, `cond = 1.60` (LS4) / `2.10`
+  (lebedev(11)). The closed-form modes are already G-orthogonal (disjoint
+  supports). ⟹ `GramStructure.DIAGONAL`, which `FrameBase.gram` accepts —
+  **#275 (the dense-Gram seam) does NOT block this** — and **no QR is needed**,
+  killing the second-largest cost (44 ms / 748 ms)."*
+
+  `[M]` `$CLAUDE_JOB_DIR/tmp/probe_gram_diagonality.py`, on the raw pair-generator
+  basis, `max|offdiag| / max|diag|` of `BᵀGB`:
+
+  | configuration | per-orbit rank | WHOLE | worst BLOCK |
+  |---|---|---|---|
+  | d=2 (3,4) LS4 ng=2 | **1** | `0.000000e+00` | `0.000000e+00` |
+  | d=3 (2,2,2) LS4 ng=1 | 11 | `1.723861e-01` | `1.914395e-01` |
+  | d=3 (3,4,5) LS4 ng=2 | 23 | `4.045273e-01` | `4.312919e-01` |
+
+  ⭐ **Why the original reading was vacuous:** at d=2 `κ({x,y}) = 1`, so each
+  orbit carries exactly **ONE** mode — a 1×1 Gram is diagonal for free, and
+  `cond = 1.60` is the spread *across* blocks, not evidence of orthogonality
+  *within* one. At d=3 an orbit carries `2Σn − 1` modes and they are **not**
+  G-orthogonal: the `{a,b}` and `{a,c}` pair generators both live on the `a`
+  faces. `plan-authoring` §2's QUANTIFIER clause — the denominator was
+  "the only shipped rank-1 case".
+
+  ⚠ **The consequence is not a bad constant, it is a wrong answer.** `frame.gram`
+  computes its diagonal by the row-sum probe `analysis(reconstruction(ones))`,
+  which equals `Σ_j (MR)_{kj}` — the row sum, correct *only* if `MR` is
+  diagonal. Declaring `DIAGONAL` on a 43 %-off-diagonal Gram normalises every
+  coefficient by the wrong number, and nothing raises. This is precisely the
+  refusal `GramStructure`'s own docstring exists to enforce.
+
+  ✅ **FIX, measured — one `sqrt(G)`-weighted SVD per block, which REPLACES both
+  of the memo's factorisations rather than adding a third.** The memo runs an
+  SVD in the coefficient space (to cut the over-complete generators) *and* a
+  QR in the state space (to G-orthonormalise). Fusing them: `U, s, _ =
+  svd(√G · B_gen)`; keep `rank = #{s > 1e-10·s₀}`; `Φ = U[:, :rank] / √G`. Then
+  `ΦᵀGΦ = I` — so `DIAGONAL` becomes **true by construction**, `G⁻¹` is the
+  identity, and the rank the SVD finds IS the counting law (a free gate).
+  `[M]` `$CLAUDE_JOB_DIR/tmp/probe_fused_orthonormal.py`:
+
+  | configuration | rank == dim_R | `‖ΦᵀGΦ − I‖∞` | span vs `B_R` |
+  |---|---|---|---|
+  | d=2 (3,4) LS4 ng=2 | 12 ✅ | `4.441e-16` | `8.063e-16` |
+  | d=3 (2,2,2) LS4 ng=1 | 33 ✅ | `2.220e-15` | `3.188e-15` |
+  | d=3 (3,4,5) LS4 ng=2 | 138 ✅ | `1.132e-14` | `1.580e-14` |
+  | d=2 (3,4) lebedev(11) ng=2 | 18 ✅ (T = 224) | `8.882e-16` | `1.182e-15` |
+
+  ⟹ **`LossKernelBasis` IS the G-orthonormal basis, not the pair generators.**
+  The generators are the *construction*; the orthonormal frame is the *object*.
+  The `√G` inverse is well-posed only because R has no support on `G == 0` rows
+  (the next bullet) — `[M]` re-verified as an explicit precondition on all four
+  rows above, including the lebedev row where `T = 224`.
+- ⭐ **`R` and `T` are separated by the metric's zero-set.** `[M]`
+  `max|B_R|` on `G == 0` rows is **`0.000000e+00`** on LS4, product(4,4) AND
+  lebedev(11). So `T = ker A ∩ ker G` and `R ⊆ (ker G)^⊥`. The gauge is
+  well-posed on `R` at **every** quadrature, not just the tangential-free ones.
+  `T` is genuinely ungaugeable (no metric to minimise) and stays out of scope.
+- **The basis never reads a cross-section** (`[M]` fissile vs absorber
+  bit-identical `2.799e-16`) ⟹ Stratum-1 cacheable, per
+  `orpheus/sn/sweep/cache.py:121` (`GeometryCoefficients`).
+- ⛔ **REFUTED 2026-08-14 — this is the source of the false model pointer
+  above, and the claim itself does not survive.** Original text, kept per §3:
+  *"The `test-architect` **independently re-derived the basis in ~50 lines**
+  and reproduced the numbers bit-for-bit — a second, structurally independent
+  construction exists."*
+
+  `[M]` **no such construction is in the tree.** Searched every `.py` under
+  `scratch/`, `derivations/`, `tests/`, `orpheus/` and every `.md` under
+  `.claude/agent-memory/`: exactly ONE function builds a kernel basis without
+  an SVD of `A` — `scratch/probe_344_kernel_basis.py::closed_form_kernel_basis`.
+  What the diagnostic agent *did* produce independently is the dense-SVD
+  **ground truth** the closed form was verified AGAINST (memo §3.1/§3.2: 13
+  configurations, subspace gap `≤ 2.2e-14`), and the counting-law evaluator
+  `predicted_dim` (`probe:370`) which never builds a vector. Those ARE two
+  genuine independent checks — one numerical, one combinatorial — so the
+  *verification* claim stands in a stronger form than written. The
+  **construction** claim does not: there is one construction, not two.
+
+  ⚠ The consequence for Step 4 is a real one, not bookkeeping: I believed a
+  second implementation existed to cross-check the port against. It does not,
+  so the port's oracle has to be **the dense SVD on the small fixtures** (which
+  is exactly what `diag_344`'s `_null_basis` provides, at d=2/small-d=3 sizes)
+  plus **the counting law** — never "the other implementation".
+
+---
+
+## ⛔ Premise corrections — three of mine, measured after I wrote them
+
+1. **`CAP_APPLY`/`CAP_SOLVE`/`MissingCapability` DO NOT EXIST** — retired at #226.
+   The tree uses three predicate/Protocol/TypeGuard axes
+   (`is_invertible`/`SupportsInverse`/`invertible()`/`NotInvertible`, and the
+   adjoint/assembly siblings), `operator.py:688-1211`. **"Apply but not solve" is
+   spelled by ABSENCE of the method** (`TraceRestrictionOperator:2773` is the
+   precedent); a raising stub is the named anti-pattern.
+2. **Spaces CANNOT decide a sum's invertibility.** `[M]` proof by example:
+   `I + (−1)·I` **is the zero map** and reports `is_invertible = True`, with
+   identical spaces to `I + I`. The existing contract
+   (`OperatorSum.is_invertible` returns the left-spine head, designating a
+   `GreenOperator` preconditioner) is deliberate and correct for its purpose;
+   invertibility is spectral, not structural. ⟹ Hole 2's fix is **a typed
+   complement**, not a change to the global predicate.
+3. **The cost figures I first relayed do not reproduce** (apply `0.094 ms` vs
+   `398.6 µs`; `(8,8,8)` `0.703 ms` vs `10.95 ms`). ⚠ INCONCLUSIVE — three agents
+   were competing for CPU. **Re-measure single-process before quoting any cost.**
+
+---
+
+## ⚠ The one unverified premise — measure it FIRST
+
+**`solve_sn`'s returned trace is not the converged iterate's trace.** The
+eigenvalue outer iterates on the SCALAR flux; the angular composite is a
+side-stash (`solver._psi_typed`). The returned `angular_flux`/`boundary_flux`
+come from a **final reconstruction solve** at `orpheus/sn/solver.py:2489`
+(`final_implicit.solve(...)`) with the reflected converged trace as prescribed
+inflow. **Whether that sweep preserves, damps, or re-injects the kernel component
+is unmeasured** — my probe timed out before reporting.
+
+### ✅ Step 0 — ANSWERED. The sweep PRESERVES it. Gauge fires at the eigenvalue entry too.
+
+`[M]` `scratch/probe_344_step0_finalize_sweep.py`, d=2 all-reflective LS4 2g
+**fissile**, both meshes, with both controls firing:
+
+```
+(3,3)  jacobi        keff=1.8750000000  n_outer=3  trace spread=4.190021e-11
+       gauss_seidel  keff=1.8750000000  n_outer=3  trace spread=3.464537e-02
+       ||P_ker (GS-J)|| / ||GS-J||  = 1.000000     <-- ENTIRELY a null vector
+(3,4)  ||GS-J||/||J|| = 6.091755e-02, ||P_ker||/||·|| = 1.000000
+CONTROL true null vector = 1.000000 (must be 1)   off-kernel = 4.16e-17 (must be 0)
+```
+
+Jacobi lands on the correct near-uniform member (spread `~2e-11`); G-S carries a
+frozen `~3.3e-02` kernel component. `keff` is identical and equals the analytic
+`k_inf = 1.875` — the mirror-even blindness, confirmed end-to-end.
+
+⚠ **Instrument note, cost one relaunch:** the first run used
+`get_mixture("B","2g")`, which is **not fissile** (`[M]` `SigF.sum = 0.0`) — an
+eigenvalue entry on it cannot converge. `[M]` of the 2g library **only "A"
+fissions**. With the right material the whole probe runs in **~7 s**
+(`n_outer = 3`), so the "the eigenvalue path is slow, budget it" worry in the
+original text was an artefact of the wrong mixture, not of the entry.
+
+---
+
+## Design
+
+### ⛔ Step 1 — WITHDRAWN 2026-08-14, before any edit. Its premise is refuted.
+
+*Original text:* "one `Solution` construction site — `_package_solution`
+(`solver.py:2615`) documents itself as *'The ONE `SolutionBase` construction
+convention'*; `[M]` present-tense FALSE, 2 of 3 forward routes bypass it at
+`:3804`/`:3985`. Route both through the helper so the gauge is **one** call
+site, not three."
+
+The docstring IS false and that stays worth fixing — but routing the two arms
+through the helper would be a **silent behaviour change outside this scope**,
+and the "one call site" requirement it served is not a real requirement.
+
+1. ⛔ **The bypass encodes a DELIBERATE, documented difference, not drift.**
+   `solve_sn` packages `_cell_average_angular(...)` — the slot-0 cell-average
+   view. The two fixed-source arms return `angular_out` **whole**, the full
+   moment-tailed interior, and `solver.py:3768-3773` says why: *"a multi-moment
+   closure's φ̂ slopes are internal DG structure, not the scalar flux the
+   Solution reports (#240 D5b-S3)."* Unifying would discard DG slope structure
+   from every fixed-source return.
+   (The other split — `_history=()` vs the driver's history — IS latent: `[M]`
+   nothing outside `timed_full_field.py` reads `_history` off a returned
+   `Solution`. Only the moment-view split is load-bearing.)
+2. ⛔ **"N call sites = twin path" is false here, and the tree says so.** Pattern 2
+   forbids two IMPLEMENTATIONS of one computation, not N invocations of one
+   function. `[M]` the house pattern is exactly N: `_exit_balance_defect` **4**
+   call sites, `_certify_within_group_exit` **4**, `_package_solution` **2**.
+
+⟹ **The gauge follows the `_exit_balance_defect` pattern**: one named function
+plus one shared named predicate (Step 2), invoked from each entry that needs it.
+⚠ With one sharpening, because a gauge MUTATES where those hooks only REPORT —
+forgetting a site returns a silently ungauged answer. So the coverage is gated:
+a test that enumerates the public entries and asserts each one gauges. That
+replaces the structural guarantee unification would have given.
+▸ Fix the false `_package_solution` docstring in passing; do not act on it.
+
+### Step 2 — the scheme property, asked not tabulated
+A derived predicate on the spatial scheme: *does the closure admit an undamped
+zero-weighted-mean face mode?* Computed from the scheme's own transmission
+coefficients (the `Σ` table above), beside the existing
+`_residual_is_expressible` (`solver.py:396`), which is the tree's precedent for
+a **shared, named, single-sourced applicability predicate** (its docstring at
+`:407-412` says exactly why it exists). Plus `SNMesh.reflective_axis_pairs` —
+`[M]` no such predicate exists today; the law is reachable per-face as
+`sn_mesh.bc[face].law`, and it belongs on `SNMesh` beside
+`radial_characteristic_field_space`, not inlined at call sites.
+
+### Step 3 — the missing numerics primitive (ONE new thing)
+`[M]` The projection algebra already exists, factored as frame theory —
+`Π = R ∘ G⁻¹ ∘ M`, written verbatim at
+`orpheus/numerics/basis/indicator_basis.py:67-69` and `numerics/frame.py:75`.
+The **only** gap: `G⁻¹` lives as a *space metric* (`FrameBase.gram` returns a
+`FunctionSpace`), not as an operator, so `frame.conjugate(G⁻¹)` cannot be
+written, and `FrameBase.project` (`frame.py:310`) stops at coefficients.
+⟹ add a `LinearOperator` view of a `FunctionSpace`'s (inverse) metric. Zero twin
+exists (`grep inner_product_weights orpheus/numerics/operator.py` → nothing).
+Reuse `apply_inverse_metric`'s existing Moore–Penrose masking
+(`space.py:315-322`) rather than re-deriving it.
+
+### Step 4 — `LossKernelGauge`
+- `LossKernelBasis` — the closed-form modes as a `Basis`
+  (`numerics/basis/base.py:117`), `gram_structure = DIAGONAL` (measured).
+- The projector via the frame route, which `[M]` **avoids Hole 1** — both frame
+  faces declare a real `apply_transpose`, so `(R @ M).H` builds, whereas
+  `A.H @ A` raises `MissingAdjoint`.
+- **Cached on the phase-space object that owns the geometry** (the trace space /
+  `SNMesh`), following `AngularTraceSpace._face_restrictions`
+  (`angular_trace_space.py:494-538`) — *not* on the solver, *not* on the operator.
+- Scope: **`R` only.** `T` (tangential, `G ≡ 0`) has no minimum-norm
+  representative — that is the separate "type it away" issue.
+
+### Step 5 — fire it, and say so
+One call from the single construction site of Step 1, guarded by Step 2's
+predicate. Record it on `IterationHistory` following the `balance_defect`
+precedent (`solution.py:197`) with the same `None`-means-*not-measured*
+discipline. Emit R2b's warning.
+
+### Step 6 — the two operator-algebra holes (user ruling: fix both)
+- **Hole 1** — `_AdjointOperator.apply_transpose` raises `NotImplementedError`
+  (`operator.py:1312-1317`) *"until a consumer demands it"*, and
+  `_AdjointOperator` does not override `is_adjointable`. A self-adjoint projector
+  is that consumer. ⚠ Shared numerics: needs its own gates and a wide re-run.
+- **Hole 2** — per correction 2 above, the fix is a **typed complement** that
+  declares `is_invertible = False` (Pattern 4), NOT a change to
+  `OperatorSum.is_invertible`. File the general cancelling-sum defect separately
+  — `I + (−1)·I` claiming invertible is real and predates this work.
+
+### Step 7 — land the promotion (task #78, designed and measured)
+`derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` →
+`tests/sn/operators/test_loss_nullspace_reflective_box.py`. ⭐ `[M]`
+`pyproject.toml` sets `testpaths = ["tests"]`, so the diagnostic **currently
+contributes zero executed coverage** — this is a net gain, not a relocation.
+Trimmed: **40 tests ≈ 53 s** projected, slowest single test 9.1 s, **not**
+`slow`. ERR-056 control re-verified (`1.0000e+00` trace / `4.7891e-01` bulk vs
+`1.1414e-12` baseline). ⚠ `docs/theory/verification/matrix.rst` is a committed
+generated artifact counting foundation tests — regenerate and stage it.
+
+---
+
+## Verification
+
+- **Step 0 gates everything.** Do not choose a placement before it reports.
+- **The flagship**: on the #344 fixture, two cold starts differing only inside
+  `ker A` return traces agreeing to solver tolerance, and the returned trace
+  matches the analytic uniform answer. `[M]` today: 27.3 % apart.
+- **The negative control that stops it being a universal absorber** (`vv` #19):
+  Jacobi already lands on the correct member, so its deviation is pure round-off
+  and must be measured **out of span** — `[M]` `1.0000e+00`. The gauge must
+  remove *nothing* there.
+- **Residual-neutrality**: `A(ψ − Πψ) = Aψ` by construction ⟹ no convergence
+  certificate may move. Assert it, do not assume it.
+- **Bulk bit-identity**: `[M]` the kernel is pure-trace (bulk share `1.1e-28`),
+  so `scalar_flux`, `k_eff` and every bulk snapshot must be **unchanged**. This
+  is the cheap regression check and it covers the DD snapshot set, which stores
+  `scalar_flux`.
+- ### ✅ Blast radius — ENUMERATED. **Zero artefacts, zero tests to re-baseline.**
+  `[M]` a swap-and-run census over the wide gate (**8501 passed, 1:01:37, zero
+  red**) with counters on `SNMesh.__init__` *and* all three `Solution`
+  construction paths: **298 tests** build the singular configuration (46 files),
+  **24** reach a `Solution` exit on it, and **exactly 1** asserts on a trace —
+  `test_bc_extraction_2d.py:404` — which is **structurally invariant**, because
+  the two operands it differences are the inflow-slot component of `Aψ`, and
+  `A(ψ−Πψ) = Aψ`. Every frozen artefact in all 8 directories is classified in
+  the agent's table: the look-alikes (`2d_octant_equivalence_02`'s face
+  payloads, `walk_matvec_cart2d_2g`'s `fwd_trace`/`adj_trace`,
+  `wave_t_t4`'s `*_specular_apply_boundary`) all carry a real trace on a real
+  singular fixture but are **operator/sweep-level, never a solve exit**.
+  `sha256` pins: none survive as frozen references (#333 ended that era).
+- ⛔ **…and that is the finding: the change ships ENTIRELY UNGATED.** `[M]` zero
+  production consumers of `boundary_flux`; `Solution.compare()` diffs
+  `interior.values` only. Per `plan-authoring` §6c the change owes a **witness**.
+
+  ⛔ **The witness DESIGN below is REFUTED, 2026-08-15 — the proposed gate could
+  not have failed.** Original text, kept per §3: *"the enumeration hands us its
+  design: the `|Ω·n|^0` full-face moment is the only functional that moves, and
+  only where the quadrature has tangential ordinates — and `[M]` no shipped
+  all-reflective 2-D fixture uses one (all are `level_symmetric`). ⟹ the gate is
+  an all-reflective 2-D DD solve under **`lebedev`**, asserting the full-face
+  `|Ω·n|^0` moment against a pre-gauge literal, paired with a `level_symmetric`
+  control that must NOT move."*
+
+  `[M]` `$CLAUDE_JOB_DIR/tmp/witness_design.py`, production G-S solve on the
+  uniform-source fixture, before vs after gauging:
+
+  | quadrature | `dim ker(R)` | `‖Δψ‖/‖ψ‖` | `\|Ω·n\|⁰` moment | partial current | G-total over Γ |
+  |---|---|---|---|---|---|
+  | `level_symmetric(4)` | 12 | `6.080e-02` | `0.0` on 7 of 8 faces, `1.6e-16` | `0.0` | `0.000e+00` |
+  | `product(4,4)` | **0** | `0.0` | `0.0` | `0.0` | `0.000e+00` |
+  | `lebedev(11)` | 18 | `5.204e-02` | `0.0` / `1.8e-16` | `0.0` / `3.2e-16` | `2.741e-16` |
+
+  The moment moves **nowhere** — not "only without tangential ordinates", and
+  not under `lebedev` either. ⭐ **And it could not have**, by the campaign's own
+  blindness theorem: a face-summed moment is **mirror-EVEN**, every kernel mode
+  is mirror-ODD, so every summed functional annihilates it *by construction*.
+  The refuted design would have shipped green, authoritative and unfalsifiable —
+  the exact §6c defect, reached by reasoning from a hunch instead of from the
+  theorem the same document already contains.
+
+  ✅ **THE REAL WITNESS — the TANGENTIAL current, and it is a physical defect,
+  not merely an observable.** If mirror-even functionals are blind, the witness
+  must be mirror-ODD. On face `a` a kernel mode carries character
+  :math:`\chi_U(s)` with some `b ≠ a` in `U`, so it is odd in `sign(μ_b)` — i.e.
+  the current component **parallel** to the face sees it. `[M]`
+  `$CLAUDE_JOB_DIR/tmp/witness_odd.py`:
+
+  | quadrature | `J_x` on ymin | `J_x` on ymax | normal currents |
+  |---|---|---|---|
+  | `level_symmetric(4)` | `+7.381060e-02` → `+2.6e-14` | `+7.381060e-02` → `−8.4e-15` | `~1e-15`, unmoved |
+  | `lebedev(11)` | `+5.650846e-02` → `+6.7e-15` | `+5.650846e-02` → `+6.8e-15` | `~1e-15`, unmoved |
+
+  ⭐⭐ **This upgrades the disposition's user-facing cost.** On an all-reflective
+  box with a uniform isotropic source the exact flux is flat, so EVERY current
+  component is zero everywhere. The solver already gets the **normal** currents
+  right (`~1e-15`). The un-gauged solve reports a **spurious 7.4 % net current
+  flowing sideways along a mirror surface** — a quantity that cannot exist — and
+  the gauge drives it to round-off. #344 is therefore not only a determinism
+  defect; there is a physically meaningless quantity in the output, and **no
+  scalar summary a user would normally check reveals it.** That is the argument
+  for R2b's warning: the defect is not discoverable by inspection.
+
+  ⟹ the gate is an all-reflective 2-D DD solve **through a public entry**,
+  asserting the tangential current collapses from ~`7.4e-02` to round-off, with
+  the **normal** currents as the built-in negative control that must NOT move.
+  ⚠ `product(4,4)` has `dim ker(R) = 0` — it is a second negative control (all
+  its kernel is `T`), NOT the tangential-bearing positive case the refuted
+  design assumed.
+- ⚠ **Decide before gauging the Krylov arm:** its returned `boundary` is *"the
+  matvec's B1'' face residual"* by the code's own comment, not a flux trace.
+  Projecting a **defect** off `ker A` is a different operation, and by
+  residual-neutrality it is a **no-op**. Either it is the wrong thing to return,
+  or it must be exempted — say which, in the code.
+- ⭐ **All-reflective is the default more broadly than assumed:** `solve_sn` and
+  `solve_sn_adjoint` have **no `boundary_condition` parameter at all**, and any
+  bare `SNMesh(mesh, quad, mats)` resolves to all-reflective
+  (`transport/method.py:257`). That is why the exposure is 298 tests, not ~20.
+  ⚠ And `_apply_default_bcs` fills only when **all** faces are `None`, so a
+  *partial* declaration silently keeps reflective on the rest.
+- Two pre-existing defects found in passing, both worth a separate fix: the
+  false `_package_solution` "ONE construction convention" docstring, and three
+  non-existent `cyl_*` snapshot filenames at
+  `docs/theory/methods/sn/curvilinear_numerics.rst:1810-1812` (renamed to
+  `folded_4x8`/`folded_2x4` at Q5.6.3).
+- **Cost, single-process, no competing agents** — re-measure build/apply and
+  quote them with the configuration.
+- Wide gate `python -O -m pytest -m "not slow"`, SERIAL, **budget ≥ 90 min**,
+  detached via `Popen(start_new_session=True)` + a persistent `Monitor` writing
+  to a LOG. Sphinx `-W` clean; `npx pyright` clean.
+
+## Out of scope (file, do not build)
+Typing away the tangential component `T`; the general cancelling-sum
+`is_invertible` defect; #343's octant reorder; the ψ½ gauge's own naming.

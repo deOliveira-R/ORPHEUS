@@ -14,7 +14,7 @@ spectrum twin), 2 NIT. These are the rulings I VERIFIED so a B3 (C1/C2/C3 gates)
 anisotropic-seam review can reuse them without re-deriving.
 
 **Why:** P6 lands the eigenvalue-consistent collapse; B3 formalizes the C-gates (spec
-`.claude/plans/p6_adjoint_verification_spec.md` §4) and the moment-resolved Σ_s,ℓ refinement is
+`.claude/plans/archive/p6_adjoint_verification_spec.md` §4) and the moment-resolved Σ_s,ℓ refinement is
 a documented seam. This note is the design baseline those reviews build on.
 
 **How to apply:** when the next P6 slice lands, check the new code against these rulings first;

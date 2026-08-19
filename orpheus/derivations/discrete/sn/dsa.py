@@ -15,7 +15,7 @@ transcribes, the consistent low-order (synthetic diffusion) operator:
   original discrete system followed by a Schur elimination of everything
   but the edge :math:`f_0` — "consistent" = *derived by moment reduction*,
   never *discretize-the-reduced* (the frame-analysis Q2 verdict,
-  ``.claude/plans/dsa_rp_frame_analysis.md``).
+  ``.claude/plans/archive/dsa_rp_frame_analysis.md``).
 
 Derivation discipline
 ---------------------

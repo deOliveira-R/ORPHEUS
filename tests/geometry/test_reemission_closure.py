@@ -1,6 +1,6 @@
 r"""Campaign phase **B3.4b** — the re-emission closure, and the discipline it enforces.
 
-The user's 2026-08-01 ruling (`.claude/plans/b3_domain_narrowing_crosswalk.md`
+The user's 2026-08-01 ruling (`.claude/plans/archive/b3_domain_narrowing_crosswalk.md`
 §11.1) put the specular pairing of an absorbing *surface* in :math:`R`, not
 :math:`G`: ``AlbedoBoundary.geometry_map`` is ``SelfPairedDeck.identity()``
 **unconditionally**, and a :class:`ReemissionClosure` selects the response

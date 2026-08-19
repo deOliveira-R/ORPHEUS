@@ -17,7 +17,7 @@ A green frozen baseline does NOT prove the routing happened: if a lingering
 hand-code twin still ran and a registered kernel were dead, the baseline
 would stay green on the old code (vv-principles Mode 11).  This file
 carries the liveness proof the spec (§2.2 of
-``.claude/plans/residue_verification_spec.md``) demands:
+``.claude/plans/archive/residue_verification_spec.md``) demands:
 
 * the **two-arm Mode-11 sentinel** — in-process wraps on BOTH registered
   kernels: the batch VJP fires on the slab adjoint and stays silent on

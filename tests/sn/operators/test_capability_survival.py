@@ -16,8 +16,8 @@ These are foundation (software-invariant) pins: capability sets and the
 convergence/flux/eigenvalue claims. References are closed-form (the
 advertised sets are fixed by the operators' definitions).
 
-See ``.claude/plans/issue_226_b4_operator_generics_verification.md``
-(GAP-1b, GAP-2) and ``.claude/plans/operator_inverse_algebra_carve.md`` §4.
+See ``.claude/plans/archive/issue_226_b4_operator_generics_verification.md``
+(GAP-1b, GAP-2) and ``.claude/plans/archive/operator_inverse_algebra_carve.md`` §4.
 """
 from __future__ import annotations
 

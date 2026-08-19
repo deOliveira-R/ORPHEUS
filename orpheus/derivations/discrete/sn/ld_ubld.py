@@ -593,7 +593,7 @@ def derive_d1_transpose_equals_At_Minv() -> dict:
     outgoing face the downstream trace ``ψ_out = B(+1)·ψ⃗``.  This oracle
     builds the d=1 forward map SYMBOLICALLY, takes its exact Jacobians, and
     proves the reverse-mode pullbacks are what the #310 C2 kernel spells
-    (`.claude/plans/residue_verification_spec.md` §3.1 — the R1b keystone):
+    (`.claude/plans/archive/residue_verification_spec.md` §3.1 — the R1b keystone):
 
     * ``∂res/∂ψ⃗ = M⁻¹A``  ⟹  the ψ⃗-cotangent matrix is
       ``(M⁻¹A)ᵀ = Aᵀ M⁻¹`` (``M`` diagonal ⟹ ``M⁻ᵀ = M⁻¹``) — the mass

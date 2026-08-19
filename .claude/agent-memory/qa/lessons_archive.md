@@ -3518,7 +3518,7 @@ upstream identity), Mode 7 (the ansatz-nulls dual of the basis check), Mode 12
 `[M]`-scope and quantifier/denominator rules — C1's "so" and C3's ladder are both
 instances), `lessons-L048` (take the PREDICATE not the recipe — the memo invoked it
 and substituted a different predicate), [[lessons-L029]] (circularity), Q5.6.4 /
-`.claude/plans/q64_tau_partition_memo.md`.
+`.claude/plans/archive/q64_tau_partition_memo.md`.
 
 ## L-069
 

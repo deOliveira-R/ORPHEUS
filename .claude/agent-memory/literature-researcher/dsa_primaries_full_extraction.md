@@ -1,12 +1,12 @@
 ---
 name: dsa-primaries-full-extraction
-description: "DSA issue #2 memo DONE (rev. 2, 7 sources): 5 primaries + Adams-Martin M4S (§7) + Warsa k-eigenvalue IRAM (§8) extracted to .claude/plans/dsa_literature_memo.md — Alcouffe print-sign errata, four-step + K_N table, gate formulas, NSE-147 twin-paper trap, absent papers"
+description: "DSA issue #2 memo DONE (rev. 2, 7 sources): 5 primaries + Adams-Martin M4S (§7) + Warsa k-eigenvalue IRAM (§8) extracted to .claude/plans/archive/dsa_literature_memo.md — Alcouffe print-sign errata, four-step + K_N table, gate formulas, NSE-147 twin-paper trap, absent papers"
 metadata:
   type: project
 ---
 
 **The DSA literature memo is COMPLETE, rev. 2** (2026-07-26):
-`.claude/plans/dsa_literature_memo.md` — per-source extraction + synthesis for
+`.claude/plans/archive/dsa_literature_memo.md` — per-source extraction + synthesis for
 issue #2 (consistent DSA, slab DD first). §§1–5 = the five primaries; **§7 =
 Adams-Martin 1992 M4S; §8 = Warsa et al. 2004 k-eigenvalue IRAM** (both added
 rev. 2). All equations spot-verified on rendered pages.
@@ -41,7 +41,7 @@ gates; the memo is the implementing session's sole literature surface.
   nonlinear-removal variants (p. 39-40); the ONLY explicit ALBEDO low-order rows in
   the corpus (Appendix, (1−α)/(1+α) factor); "consistency necessary but NOT
   sufficient" (p. 37); S_n diffusion theory D = 1/[3(σ_tr + {0,β/r,2β/r})].
-- **A&L 2002**: reuse `.claude/plans/phase_i_survey_adams_larsen_2002.md` (full).
+- **A&L 2002**: reuse `.claude/plans/archive/phase_i_survey_adams_larsen_2002.md` (full).
   Primary gate formula = (3.65) ω = ω_SI − c(1−ω_SI)/(1−c+⅓Λ²).
 - **Adams-Martin 1992 M4S** (NSE 111:145, memo §7): the modification is STEP 2 of
   the four-step — ALSO lag the first-moment SURFACE-JUMP term C(r_k) (φ₀/φ₁

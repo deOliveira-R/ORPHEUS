@@ -10,7 +10,7 @@ Run before sphinx-build:
 # ---------------------------------------------------------------------------
 # DERIVATION-FRAGMENT-GENERATOR (#231) -- FIRST INSTANCE SHIPPED (P6 #281)
 #
-# The documentation methodology (.claude/plans/sn_book_architecture.md,
+# The documentation methodology (.claude/plans/archive/sn_book_architecture.md,
 # "Doc-generation methodology") is that the algebra-of-record GENERATES the
 # documentation: the doc's math is rendered straight from the verified SymPy so
 # it can never drift -- NOT hand-transcribed, and NEVER merely referenced.

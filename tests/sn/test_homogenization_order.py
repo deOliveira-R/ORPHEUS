@@ -4,7 +4,7 @@ The one L2 gate of the adjoint-weighted collapse battery, in its own file so
 the V&V level marker does not conflict with the L0 file-level marker of
 ``test_homogenization.py`` (qa NIT-1). Everything else about the battery —
 §4.0 pins, C1, C3, Cχ — lives there; the spec is
-``.claude/plans/p6_adjoint_verification_spec.md`` §4 (B3 addendum g).
+``.claude/plans/archive/p6_adjoint_verification_spec.md`` §4 (B3 addendum g).
 """
 from __future__ import annotations
 

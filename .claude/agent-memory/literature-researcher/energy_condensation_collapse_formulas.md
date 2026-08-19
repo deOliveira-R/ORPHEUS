@@ -7,7 +7,7 @@ metadata:
 
 # Energy condensation onto (non-)coincident group structures
 
-Full memo: `.claude/plans/p5_condensation_literature.md`. ORPHEUS P5
+Full memo: `.claude/plans/archive/p5_condensation_literature.md`. ORPHEUS P5
 (#274) collapses the 421-group library onto WIMS-69/172 (which are
 **non-nested** — 19 boundary mismatches). Code uses `PetrovGalerkinFrame`
 + one-hot `IndicatorBasis` (= the NESTED/MALOCS case only).

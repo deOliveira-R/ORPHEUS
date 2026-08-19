@@ -2872,7 +2872,7 @@ rather than a forced one.
    presence-reconciling guards).  What is **not** built is the
    ``PhaseSpaceCarrier`` protocol that would let the mesh *enumerate* its
    phase-space blocks and the composite mirror them automatically.  The
-   durable synthesis is ``.claude/plans/facefield_codim1_design.md`` (§5),
+   durable synthesis is ``.claude/plans/archive/facefield_codim1_design.md`` (§5),
    read against the ERR-067 metric correction.
 
    **The codim-1 parent (landed).**  The typed-field hierarchy

@@ -1,6 +1,6 @@
 r"""The §4.6 non-vacuum MMS, driven through a **DECLARED** boundary law.
 
-Phase **P4** of `.claude/plans/affine_boundary_source_channel.md`; design of
+Phase **P4** of `.claude/plans/archive/affine_boundary_source_channel.md`; design of
 record `scratch/p4_mms_design.md`. Sibling to ``test_mms_prescribed_inflow.py``,
 which stays — the two together are the two-route claim:
 

@@ -985,7 +985,7 @@ def derive_energy_condensation_exactness() -> None:
     \nu\Sigma_f^{\mathsf T} A^{-1}\chi` (rank-1 fission).
 
     **The convention is Bell & Glasstone Ch. 6** (reconciled 2026-07-26;
-    `.claude/plans/p6_literature_memo.md` Source E): coarse FLUX carrier =
+    `.claude/plans/archive/p6_literature_memo.md` Source E): coarse FLUX carrier =
     the plain condensed flux :math:`\Phi_G = \sum_{g\in G}\varphi_g`
     (B&G (6.125)); coarse ADJOINT carrier = the flux-weighted average
     :math:`\Psi^{\dagger}_G = \langle\varphi^*\varphi\rangle_G/\Phi_G`

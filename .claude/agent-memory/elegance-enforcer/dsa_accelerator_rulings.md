@@ -58,7 +58,7 @@ carve lands; they are what "elegant" looks like for this family.
 - **The low-order operator is the DERIVED edge-centered SN-side system, NOT the
   in-algebra `A_diff = L+C−S−B`.** R4 (2026-07-26): the standalone cell-centered
   diffusion loss (`orpheus.diffusion`, RT0/harmonic-mean) measurably DIVERGES as an
-  accelerator (ρ up to 54.7, `.claude/plans/dsa_d2_characterization.md`). Two defining
+  accelerator (ρ up to 54.7, `.claude/plans/archive/dsa_d2_characterization.md`). Two defining
   laws (standalone-accuracy vs consistency-by-derivation), NOT a twin path. Build home
   is SN-side because the coefficients are SN-discretization properties (discrete γ_N,
   W2, scheme ρ).

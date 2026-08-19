@@ -6,7 +6,7 @@ metadata:
 ---
 
 Adams & Larsen (2002), PNE 40(1):3-159 (PII S0149-1970(01)00023-3) is FULLY
-extracted → deliverable `.claude/plans/phase_i_survey_adams_larsen_2002.md`
+extracted → deliverable `.claude/plans/archive/phase_i_survey_adams_larsen_2002.md`
 (Phase-I corpus survey, gaps M4b+M2). Local PDF + page-marked text dump
 `scratch/literature/adams_larsen_2002_paged.txt` (journal p.N = PDF page N−2;
 marker `=== p.N ===`).

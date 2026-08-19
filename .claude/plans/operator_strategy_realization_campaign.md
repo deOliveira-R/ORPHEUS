@@ -1,5 +1,24 @@
 # Operator · Splitting · Realization — the three-layer separation campaign
 
+> ## ⏸⏸ RE-CHARTERED 2026-08-19 — read before resuming ANY phase
+>
+> The user ruled the campaign returns with a refined architecture, split across two
+> successor plans. **P1/P2's territory** (monomorphic domains; realizer seam; dispatch
+> collapse) is superseded-in-MECHANISM by
+> `.claude/plans/space_and_kernel_binding_campaign.md`: spaces land FIRST (Energy — forced
+> by the homogeneous solver — then Spatial/Angular, SN as their composition), the flux
+> ontology is overturned to the positive cone (torsor retired; ruled 2026-08-19), and S/F
+> become KERNEL objects bound at construction (Kernel × Frame → operator, fully bound).
+> **P1's 12 `xfail(strict=True)` markers and P0's gates SURVIVE as that campaign's
+> measuring instruments**, and this file's rulings (paired construction §1.0, shape
+> symmetry §P3, L23a, "ScheduledInvertibleOperator disappears with P5 — retire don't
+> rename") remain BINDING on both successors. **P3–P6's territory** (partition, schedule,
+> pencil — the name is `GeneralizedEigenPencil` — solve-auto, σ_r) is **Campaign 2**,
+> chartered after Campaign 1 lands; its grounded tree-state is
+> `orpheus-operator-machinery-report-v2.md` Part VI.2. **O-4/O-5 remain undischarged and
+> still precede any α work.** Do NOT execute P1's flip-the-Optionals mechanism from this
+> file — the same exit criterion now lands via the kernel/binding carve.
+
 > ## ✦ COLD-PICKUP MARKER — read this block first, then §2, then §9
 >
 > **Written 2026-07-28 at a deliberate compaction point. Re-anchor from THIS FILE +
@@ -787,15 +806,15 @@ Standing requirements regardless:
 
 ## 10. What this supersedes
 
-* `.claude/plans/sn_operator_realization_and_posing_plan.md` — **SUPERSEDED.** Its
+* `.claude/plans/archive/sn_operator_realization_and_posing_plan.md` — **SUPERSEDED.** Its
   diagnosis was largely right; its grounding was against the grand report rather than the
   tree, so ~⅔ re-derived existing architecture, three items would have regressed
   deliberate rulings, and it cited no issues. Retain as archaeology.
-* `.claude/plans/sn_operator_realization_plan_REVIEW.md` — the grounding pass that
+* `.claude/plans/archive/sn_operator_realization_plan_REVIEW.md` — the grounding pass that
   produced this plan's §3/§4/§5. Input, now folded in.
-* `.claude/plans/operator_inverse_algebra_carve.md` Phases 2–5 (`.inverse()` returns an
+* `.claude/plans/archive/operator_inverse_algebra_carve.md` Phases 2–5 (`.inverse()` returns an
   operator; retire `CAP_SOLVE`) — **absorbed** into P2b/P4.
-* `.claude/plans/coupled_block_operator_campaign.md` — **DONE**; it is instance #1 of the
+* `.claude/plans/archive/coupled_block_operator_campaign.md` — **DONE**; it is instance #1 of the
   block machinery P5 generalizes. Archaeology, not a twin.
 
 ---
