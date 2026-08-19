@@ -5647,3 +5647,182 @@ are computed at collection time and are not in the AST at all.
 frozen dataclass's construction invariant re-runs 27.7 M times inside
 `close_group`. Performance, not correctness; not investigated. Route as
 `module:geometry`, `type:improvement`.
+
+---
+
+## L58 — CS3 (the cone overturn, PRE-carve): "compute it from flat norms" names TWO conventions 0.47 % apart, and a ratio-valued pin cannot see a uniform scale
+
+Dispatched 2026-08-19 to plan phase CS3 of the space-and-kernel campaign (retire the
+affine/torsor flux algebra; flux lives in the positive cone K ⊂ V) on branch
+`refactor/cone-field-algebra`, HEAD `000cf144`. Deliverables: a value-neutrality
+harness, a ρ-trajectory capture gate implemented and green, a test-migration map, the
+new-algebra gates, and the cone-predicate spec. Plan:
+`scratch/cs3_verification_plan.md`; gate: `tests/numerics/test_si_diagnostic_trajectory.py`.
+
+### L58a — the brief's relocation phrase was ambiguous, and the two readings are 4 orders apart
+
+The brief's step 1 read *"SI computes the diagnostic trajectory from flat norms"*.
+Today ρ is `Displacement.contraction_ratio` = `self.l2 / previous.l2` where
+`Field.l2 = space.norm(values)`, evaluated on the **interior leaf** the finder
+`_flux_displacement_leaf` extracts from the composite. "Flat norms" therefore names
+at least two different computations, and I measured both on the same 12-pass c→1
+fixture:
+
+| rival spelling | `[M]` max relative difference from the shipped ρ |
+|---|---|
+| interior leaf, `np.linalg.norm(values)` instead of `space.norm(values)` | **2.29e-16** (0–1 ULP per step) |
+| whole composite, `_l2_norm(displacement)` — the spelling the SI loop ALREADY has in hand — which additionally ravels the boundary trace block | **4.71e-3** |
+
+⭐ The second one is the natural relocation: `_l2_norm` is a module-level helper in
+the very file the diagnostics move into, it accepts the composite directly, and
+using it deletes the finder. It is also the one that silently moves the number.
+
+⟹ **When a brief says a relocated computation uses "plain / flat / simple"
+arithmetic, enumerate the candidate spellings and measure the spread BEFORE writing
+the pin.** The spread is not a footnote — it IS the pin's discriminating power, it
+sets the tolerance, and it is the control leg the gate needs. Here it gave
+`rtol=1e-12`: 4 orders above the ULP floor of the harmless rival, 9 orders below the
+error of the dangerous one.
+
+⚠ And the first rival is only harmless *today*: `[M]` the `angular_flux` space has
+`inner_product_weights is None` (Euclidean). Recomputing the same trajectory under a
+physical `V_cell × w_n` metric moves ρ by **1.12e-3** — so the LATER phase of the same
+campaign (CS2, which relocates metrics onto spaces) will legitimately RED this pin.
+That is a plan-level question, not a test-level one, and the plan carries it as a
+blocking user ruling: is the relocated diagnostic defined on the SPACE norm (CS2 owns
+re-deriving the numbers) or the EUCLIDEAN norm (permanent, but no longer a
+Hilbert-space quantity)?
+
+### L58b — a RATIO-valued pin is Mode-12 blind to a uniform scale, and only the battery says so
+
+The 5-mutation battery on my own gate:
+
+| # | mutation | `[M]` result |
+|---|---|---|
+| M1 | ρ from the whole composite's flat norm | 2 failed — the ρ pin AND the ‖Δψ‖ pin |
+| M2 | `Field.l2` → `np.linalg.norm(values)` | **5 passed** — the declared ≤1 ULP blindness, measured rather than asserted |
+| M3 | one spurious leading ratio (cadence drift) | 1 failed — the length leg |
+| M4 | `where_largest` ravels first (index-layout loss) | 1 failed — the map leg only |
+| M5 | every norm × (1 + 1e-9) — the positive control | **1 failed — the ‖Δψ‖ leg ONLY** |
+
+⛔ M5 is the finding. A 1e-9 relative perturbation of EVERY norm leaves the whole ρ
+trajectory GREEN, because ρ is a ratio and a common factor cancels exactly. So a
+plan that pins "the ρ trajectory" and nothing else has a gate that is blind to every
+uniform mis-scaling of the norm — including the whole class "the relocation forgot a
+weight". The catcher is the SEPARATE magnitude pin (‖Δψ‖ and ‖Δψ‖/(1−ρ)), which is
+why the two must never be folded into one row "for tidiness".
+
+⟹ **Whenever a gate's measurand is a RATIO, write down its stabiliser before writing
+the row** (`vv` #12's design-time question): ratios annihilate common factors,
+normalised shapes annihilate global scaling, spectra annihilate similarity. Then pin
+one un-normalised quantity from the same object.
+
+⭐ M2 is the mirror discipline and equally worth running: a mutation you EXPECT to be
+green, run to prove the declared blindness is real. Writing "≤1 ULP, so the pin
+cannot see it" without running it is an unmeasured claim wearing a measurement's
+clothes.
+
+### L58c — before minting a bit-identity instrument, grep for a WARNING you can escalate
+
+`tests/sn/solve/test_affine_carve_bit_identity.py` (the #208 carve's own gate, re-posed
+at #333 from `sha256` onto stored `.npy` + a `DriftWarning` tripwire) is a
+`SAFETY × conv_tol = 1e-11` value wall by default — and `-W
+error::tests.sn.regression._regression_assert.DriftWarning` turns it into a **1-ULP
+bit-identity wall on three drivers** (2-D windowed SI, 2-D Krylov, 1-D slab SI).
+`[M]` 3 passed in **1.60 s**; positive control (a plugin advancing the FIRST element
+of every loaded baseline by one ULP, `raise`ing at `sessionfinish` if it perturbed
+nothing) → **3 failed**, and unescalated → 3 passed with 7 warnings reporting
+`drifted 1 ULP / 1.90e-16 rel`.
+
+The same escalation on the broad `test_dd_regression.py` suite: `[M]` **11 of 13
+cases are bit-exact at HEAD**; the 2 that are not are exactly
+`cyl_1g_homogeneous_folded_{2x4,4x8}_dd_n20` (`scalar_flux` 40 679 ULP / 5.32e-12 and
+549 721 ULP / 7.19e-11). Characterising them by NAME rather than counting them makes
+every post-carve red attributable with zero triage.
+
+⟹ **A project that ships a "drift is audible" warning class has already built the
+bit-identity gate; the escalation flag is the instrument.** Check for one before
+proposing a new snapshot — and verify BOTH that the `-W` string parses (`vv` Mode-8
+EIGHTH class) and that it bites, with a control.
+
+### L58d — a "the fiber discipline survives" claim is simulable pre-carve in four lines
+
+The campaign plan asserted that retiring the flux mixin drops `+`/`−` through to the
+base `Field` dunders and thence to the mesh-binding guard, so cross-problem fluxes
+still refuse. That is checkable WITHOUT the carve: call the base dunder directly.
+
+`[M]` `Field.__add__(a, b)` on two cross-mesh same-shape fluxes REFUSES —
+`ValueError: <Leaf> arithmetic across distinct SNMesh instances is forbidden — the
+field is mesh-bound` — on `AngularFlux`, `ScalarFlux`, `AngularBoundaryFlux` and
+`HarmonicMomentFlux`; same-mesh returns the leaf type. ⚠ And the discriminator the
+gate must assert: `a.space == b.space` is **True** (`FunctionSpace.__eq__` is
+`(name, shape)`) while `a.space is b.space` is False — so the SPACE gate does not
+catch it and only the mesh arm does. A gate that omits that in-test precondition
+silently degrades the day space equality changes.
+
+⟹ **A "the fall-through lands on X" claim is a runnable experiment: invoke the base
+implementation the carve will expose, on the inputs the guard must still refuse.**
+Cheaper than the carve, and it converts the plan's owed negative control from a
+promise into a specified test with its message fragment already measured.
+
+### L58e — two overlapping grep predicates in a brief are not two work items
+
+The brief listed "the 7 files pinning the flux+flux TypeError" and "the ~16 affine
+raise-sites" as separate migration buckets. Measured with the predicates written out:
+`[M]` 16 raise-sites in **10** files; my flux+flux predicate matches **8** files
+(the memo's narrower one, 7); the **union is 12**, of which 1
+(`test_ordinate_scan.py`, whose "affine" is the DD scan recurrence) is a false
+positive ⟹ **11 real files**. Four are raise-site-only and two are flux+flux-only, so
+a plan built on either list alone misses 2–4 files.
+
+⟹ **Compute the union and print the two set differences.** And triage a concept grep
+by MEANING before calling any hit a site — `affine` in this tree names at least three
+unrelated things (the flux torsor, the DD recurrence's affine-in-(b, ψ₀) structure,
+and the affine BOUNDARY law `affine-bc-form`, which alone has ~18 `:eq:` citers and
+must not be touched).
+
+### L58f — the brief's named witness for a new predicate was at the wrong TIER, and a better one was two probes away
+
+The brief said the cone predicate would be "exercised by DD's existing negative-flux
+witness (`TestPositivityFailure`)". `[M]` that test lives at
+`tests/sn/sweep/core/test_diamond.py:793-855` and asserts on
+`strat.update(...).outgoing_spatial_flux` — a bare ndarray from a single CELL VISIT.
+There is no field, so an element predicate on a `Field` cannot be exercised by it
+without wrapping the number back up.
+
+Three probe runs found a strictly better witness through the PUBLIC entry: `[M]`
+`solve_sn_fixed_source` on a 4-cell / 40 cm / Σ_t = 10 slab (Δx·Σ_t = 100, S2, unit
+source in the first cell only) CONVERGES to `min ψ = −6.399383e-01` with 2 of 8
+entries negative and `min φ = −8.438399e-01`; the benign sibling at `nx = 2`, same
+materials, gives `min ψ = +2.181405e-01`. One parameter apart, same entry, both
+converged — the positive and negative legs of `vv` #11 with nothing else varying.
+
+⟹ **A witness cited for a NEW predicate must be checked at the TIER the predicate
+takes.** A cell-level demonstration and a field-level predicate are different
+objects, and the gap is invisible in a plan because both are "the negative-flux
+witness".
+
+### L58g — a relocation that leaves the OLD methods alive turns three committed tests into pins of dead code
+
+The brief's step 1 relocates the three diagnostics onto the iteration layer while
+"the Displacement TYPE still exists after this step". If the METHODS survive too,
+the tree carries two implementations and the foundation battery's three diagnostic
+rows assert the copy production no longer calls — a transient Pattern-2 twin whose
+tests point at the dead half.
+
+`[M]` the fix costs nothing: outside its defining module, `true_error_estimate` and
+`where_largest` have **0 production call sites** (grep returns prose only) and
+`contraction_ratio` has exactly **one** (`iteration.py:792`). So step 1 deletes the
+three methods in the same commit that lands their replacements.
+
+⚠ Second §6b-class finding in the same step: the retiring finder
+`_flux_displacement_leaf` does TWO jobs — WALK the composite (`.interior`, else
+`systems[0]`) and DECIDE it carries diagnostics (`hasattr(..., "contraction_ratio")`).
+The relocation destroys the second, and the natural repair (delete the finder)
+destroys the first — which is exactly the failure a committed gate already exists
+for (`test_psi_half_coupling.py::test_g_d1_7_…`, written because the coupled walk
+once went silent).
+
+⟹ **When a step "moves" a capability, ask what ELSE the moved code was doing.** A
+helper named for one job routinely carries a second, and the second is the one with
+a scar-tissue test.

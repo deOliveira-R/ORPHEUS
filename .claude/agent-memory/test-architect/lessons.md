@@ -179,6 +179,24 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   BIT-identically, bulk `8.4e-16` — traces **11.26 %** apart, difference equal
   to `v` to `2.3e-14`; kernel-free control `2.6e-15`. Test the MEASURAND the
   production code reports, never a re-derivation of it. → `L49a`
+- **⛔⛔ A RATIO-valued pin is Mode-12 blind to a uniform scale — write the
+  measurand's stabiliser down BEFORE the row, then pin one UN-normalised quantity
+  from the same object.** `[M]` CS3: multiplying EVERY norm by `(1+1e-9)` left the
+  whole 11-point ρ trajectory GREEN (ρ is a ratio; a common factor cancels exactly)
+  and reddened only the separate `‖Δψ‖` pin — so a gate pinning "the ρ trajectory"
+  alone cannot see any uniform mis-scaling, including "the relocation forgot a
+  weight". Same family: normalised shapes annihilate global scaling, spectra
+  annihilate similarity. ⭐ Companion: also RUN the mutation you expect to be GREEN
+  (`Field.l2 → np.linalg.norm`, `[M]` 5 passed) — a declared blindness never
+  executed is an unmeasured claim wearing a measurement's clothes. → `L58b`
+- **⭐ Before minting a bit-identity instrument, grep for a WARNING class you can
+  ESCALATE — a project with an audible-drift tripwire has already built the gate.**
+  `[M]` `-W error::tests.sn.regression._regression_assert.DriftWarning` turns the
+  #208/#333 stored-value gate into a **1-ULP** wall on 3 drivers in **1.60 s**
+  (control: a plugin advancing the first element of every loaded baseline by 1 ULP
+  → 3 failed), and the same flag shows **11 of 13** DD regression cases bit-exact
+  with the 2 exceptions NAMED. Verify both that the `-W` string PARSES (`vv` Mode-8
+  EIGHTH class) and that it bites. → `L58c`
 
 ## 2. Harness discipline — the instrument lies before the code does
 
@@ -250,6 +268,15 @@ codes). → `L34d`, `L35l`
   instruction (`-k "LS4 or LS6"` when attributing; do NOT absorb it into the
   re-baseline, which would hide an unrelated regression inside a legitimate
   one); "1 pre-existing red" yields nothing. → `L42g`
+- **⛔ Two overlapping grep predicates in a brief are NOT two work items — compute
+  the UNION and print both set differences.** `[M]` CS3's "7 files pinning the
+  flux+flux TypeError" + "~16 affine raise-sites" measured as 16 sites in **10**
+  files and **8** files by the flux+flux predicate; union **12**, minus 1 false
+  positive ⟹ **11** — 4 raise-site-only, 2 flux+flux-only, so either list alone
+  misses 2–4 files. And triage a concept grep by MEANING first: `affine` names
+  three unrelated things here (the flux torsor; the DD recurrence's affine-in-
+  (b, ψ₀) structure; the affine BOUNDARY law `affine-bc-form`, which alone has
+  ~18 `:eq:` citers and must NOT be touched). → `L58e`
 - **A test-design dispatch's prose grep is a free audit of the PREVIOUS
   change's retirement pass — grep the CONCEPT, then sort hits by TENSE and read
   the JUSTIFYING sentence, not just the number in it.** `[M]` grepping
@@ -443,6 +470,15 @@ against a concrete row before trusting a green.
   the NEW consumer will pass** — and gate on the OBSERVABLE (two motions sharing a
   linear part ⟹ bit-identical output), never on the spelling, so the gate survives
   whichever way the fix lands. → `L41a`
+- **⛔ A witness a brief NAMES for a NEW predicate must be checked at the TIER the
+  predicate takes — a cell-level demonstration and a field-level predicate are
+  different objects, and the gap is invisible because both are "the negative-flux
+  witness".** `[M]` CS3: the cited `TestPositivityFailure` asserts on
+  `strat.update(...).outgoing_spatial_flux`, a bare ndarray from ONE cell visit —
+  nothing an element predicate on a `Field` can consume. Three probes found a
+  strictly better pair through the PUBLIC entry: a converged
+  `solve_sn_fixed_source` with `min ψ = −6.40e-01` (2 of 8 entries negative) and
+  its benign sibling `min ψ = +2.18e-01`, ONE parameter (`nx`) apart. → `L58f`
 - **⛔ The fixture a brief NAMES for the keystone can be the degenerate one, and
   the degeneracy is invisible until you compute the intermediate the keystone
   asserts on.** `[M]` `product(4,4)`'s rotation-deck local permutation is exactly
@@ -642,6 +678,31 @@ against a concrete row before trusting a green.
   ship it with an explicit "READ the reconciliation section FIRST" banner, keep
   the verdict/action columns as the audit of record, and make the **residual gap
   list, measured absent by grep at the end**, the deliverable. → `L39`
+- **⛔⛔ A brief that says a relocated computation uses "plain / flat / simple"
+  arithmetic has named TWO conventions — enumerate the candidate spellings and
+  MEASURE the spread before writing the pin; the spread IS the pin's
+  discriminating power and its tolerance.** `[M]` CS3's "SI computes the
+  diagnostic trajectory from flat norms": interior-leaf `space.norm` → flat
+  `np.linalg.norm` is **2.29e-16** (≤1 ULP), but the whole-composite
+  `_l2_norm(displacement)` — the spelling the loop already has in hand, which
+  additionally ravels the boundary block — is **4.71e-3**. The dangerous rival is
+  the CONVENIENT one (it deletes a helper). ⟹ `rtol=1e-12`: 4 orders above the
+  harmless rival, 9 below the dangerous one, both measured. ⚠ And a "harmless"
+  rival can be phase-scoped: the ULP agreement holds only because
+  `inner_product_weights is None` TODAY; under a physical `V_cell·w_n` metric the
+  same swap moves ρ by **1.12e-3**, so a LATER phase of the same campaign will
+  legitimately red the pin — make that a blocking ruling, not a surprise.
+  → `L58a`
+- **⭐ A "the fall-through lands on X after we delete Y" claim is a RUNNABLE
+  experiment, pre-carve: invoke the base implementation the carve will expose, on
+  the inputs the guard must still refuse.** `[M]` `Field.__add__(a, b)` on
+  cross-mesh same-shape fluxes already REFUSES (`across distinct SNMesh
+  instances`) on all 4 constructible leaves — so the charter's owed negative
+  control became a specified test with its `match=` fragment measured. ⚠ Assert
+  the DISCRIMINATOR in-test: `a.space == b.space` is **True** (`FunctionSpace
+  .__eq__` is `(name, shape)`) while `a.space is b.space` is False, so only the
+  MESH arm refuses and a row omitting that precondition degrades silently.
+  → `L58d`
 - **⭐⭐ A brief's "central risk, ALREADY REALISED in the tree" is a claim to
   audit, not a premise — and it comes with an ENUMERATION that is usually
   short.** A brief said *every* SN MMS ansatz vanishes on both faces and named
@@ -961,6 +1022,25 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   distinct) as the KEYSTONE, plus ONE cheap end-to-end solve for the thing the
   synthetic cannot see (that production NESTS and stamps the child). → `L44a`,
   `L44b`, `L44c`
+- **ONTOLOGY OVERTURN (a role TYPE retires; its operations fall through to the
+  base): the carve is byte-identical BY CONSTRUCTION — the arithmetic expressions
+  are character-identical before and after — so the whole design problem is
+  (a) proving that per CONSUMER rather than arguing it, and (b) the gates the
+  RETIRING type's consumers silently lose.** Three moves. **(1)** Enumerate
+  consumers and find the existing wall: `[M]` 3 of 7 were already covered by an
+  escalatable stored-value gate (`L58c`), and the 2 with NO value gate were the
+  accelerated and the ADJOINT paths — the adjoint because it takes a typed
+  difference OUTSIDE the iteration loop (`KEigenvalue.measure_stopping_criteria`),
+  a site a repair of the loop alone would miss. **(2)** The retiring type's guards
+  usually have NO negative test (`[M]` `grep DSACorrection tests/` → 11 hits, ZERO
+  `pytest.raises`), so the replacement's teeth are NET-NEW — write them in the
+  step that rewrites the guard, never a later one. **(3)** ⛔ A step that MOVES a
+  capability must ask what ELSE the moved code did: `[M]` the retiring finder did
+  two jobs (walk the composite; decide it carries diagnostics) and the natural
+  repair kills the walk — which a scar-tissue gate already exists for. Leaving the
+  OLD methods alive is a transient Pattern-2 twin whose committed tests then pin
+  the DEAD copy (`[M]` free to avoid: 0 and 1 production call sites). → `L58a`,
+  `L58g`
 - **A binding added at a LEAF may not survive to the object the producer
   RETURNS — measure at the tier the CONSUMER sees, not at the construction
   site.** A `TensorProductOperator`/`&` wrapper derived no `domain`/`codomain`
