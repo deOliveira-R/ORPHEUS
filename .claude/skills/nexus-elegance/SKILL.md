@@ -202,7 +202,8 @@ ranking.
 | `twin_paths` `apply`/`apply_transpose`, `domain`/`codomain` | Twin path | Symmetric-by-design forward/adjoint or dual accessors. | PASS unless they inline divergent arithmetic |
 | `native_place` with `likely_free_primitive=true` | Feature-Envy | Public + independently tested = a primitive that is *correctly* free. | PASS (leave free) |
 | High `impact` upstream on a `god_nodes`/`bridges` hit | Risky change | The node is the single source doing its job. | Amplifies a confirmed finding; NOT a finding alone |
-| `provenance_chain` empty after a refactor | Severed math chain | Stale graph (Sphinx not rebuilt in worktree). | Rebuild + `use_workspace`, re-check. Only flag if still empty |
+| `provenance_chain` empty after a refactor | Severed math chain | **Usually nothing is wrong** — the symbol implements no equation, which is the COMMON case (`[M]` 639 on one corpus). Or a stale graph (Sphinx not rebuilt in the worktree). | Check `also_on_these_pages` first, then compare with the PRE-change reply; rebuild + `use_workspace` if in doubt. **Flag only on a DELTA**, never on emptiness alone |
+| `dead_references` hit on a dynamic attribute | Dead doc reference | `__getattr__` / metaclass magic creates it at runtime | Static analysis cannot see it — verify the attribute really is gone before flagging |
 | `dead_functions` / `callers(<fuller view>)` = test nodes only | Orphan / dead weight | Deliberate retained oracle (aggressive-retirement EXCEPTION). | Wired to `optimized ≡ oracle` test (`tests` edges) → PASS. No test edges → VIOLATION |
 | `dead_functions` with `decorated=true` or `public=true` | Dead code | Registry/route/property decorator invokes it indirectly; public = entry point. | Read for dynamic dispatch / external callers before flagging |
 | `protocol_conformers` match | Undeclared conformer | Method-NAME match only (signatures ignored). | Confirm with the type checker (pyright / LSP goToImplementation) |
