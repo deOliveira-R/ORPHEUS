@@ -4,7 +4,7 @@ r"""CS3 capture gate — the SI convergence-diagnostic trajectory, frozen PRE-ca
 ``.claude/plans/space_and_kernel_binding_campaign.md`` §4) RELOCATES the three
 iterate diagnostics off the ``Displacement`` type and onto the iteration layer:
 
-* :meth:`~orpheus.transport.displacements._displacement.Displacement.contraction_ratio`
+* ``Displacement.contraction_ratio`` (retired with its type at step 3)
   → the ρ trajectory computed by :class:`~orpheus.numerics.iteration.SourceIteration`,
 * :meth:`…Displacement.true_error_estimate` → ``‖Δψ‖/(1−ρ)`` on the iteration layer,
 * :meth:`…Displacement.where_largest` → the per-entry convergence map.
