@@ -42,6 +42,13 @@ changelog, not here; the open backlog is GitHub issues.
 Convention/units facts a line-number drift cannot invalidate — they pin WHY a
 quantity carries the units it does.
 
+- [CP equation→code truth (nexus#82)](nexus82_cp_implementers.md) — the CP construction has exactly
+  TWO implementations (production `CPMesh` 4-step pipeline; derivations `build_cp_matrix` single body)
+  and the three `_*_cp_matrix` are **zero-arithmetic facades** the page still cites as independent.
+  ⭐ Method correction: the page's `vv-status rationale` comments answered **0 of 15** — the
+  **test `pytestmark` COMMENTS** did, naming the exact symbol whose breakage reds the gate.
+  `[M]` all 15 had **zero** `implements` edges (not even guesses) ⟹ measure the stand-down hazard
+  before letting it shape breadth.
 - [Which equations can be IMPLEMENTED at all (nexus #82)](nexus82_operator_algebra_implementers.md)
   — 21 of 40 declarable on `operator_algebra.rst`, 19 NONE. ⭐ The transferable half is the
   KIND split: `{identity, law, canonical-form}` → NONE always; `{typing-rule, definition}` →
@@ -73,11 +80,23 @@ quantity carries the units it does.
   **ALL-REFLECTIVE** (+ DD) on every route, and a PARTIAL declaration keeps the reflective default on
   the rest; the **tangential** ordinate bucket is what full-face functionals see and half-range ones
   do not; ZERO production consumers of the returned trace, and `Solution.compare` is bulk-only.
+- [MoC equation→code truth](moc_equation_implementers.md) — the MoC kernel lives in
+  exactly **TWO** places (production `solve_fixed_source` + the independent MMS `mms_sweep`);
+  the page carries **NO** `vv-status rationale` comments (the authored knowledge is in the
+  claiming test modules' pytestmark comments); + 2 measured defect leads (dual `t_s^eff`
+  denominator, MMS trig-chart directions losing the #325 exact mirror) and the
+  ⚠ never-`grep -v derivations` exhaustiveness trap.
 - [loss_representation equation→code truth (nexus#82)](nexus82_loss_representation_implementers.md) —
   which of the page's 17 equations are LAWS with **NONE** (leaf-sum, removal-σ, facewise-separable)
   vs computed; ⚠ `loss-rep-resolution-a`'s stated mechanism is STALE — since #257 S8b `L` is
   `loss_action(σ=0)`, the subtraction exists nowhere; and the LpC guess pool was **disjoint** from
   the truth (`StreamingCollisionOperator` absent).
+- [Monte Carlo equation→code truth (nexus#82)](nexus82_monte_carlo_implementers.md) — **22 of 22
+  DECLARABLE**. ⭐ The transferable half is the KIND PRIOR: a page of ALGORITHMIC RULES
+  (sample/estimate/split/wrap) is ~100 % declarable, an ALGEBRAIC-LAW page ~50 % — so skip the
+  triage effort and spend it on the two real judgement shapes (an *expectation identity of a
+  procedure*; a *test-tolerance* equation, whose only site is the test that claims it). ⛔ `[M]`
+  **0 of 4** MC private kernels is imported by any test — four L0 gates replicate the solver inline.
 - [SN multigroup axis structure](sn_multigroup_axis_structure.md) — three-tier
   group-blindness; NO group loop ("within-group" = fission-external); τ/c are ANGULAR
   closure weights, not optical thicknesses; `_within_group_triple` →

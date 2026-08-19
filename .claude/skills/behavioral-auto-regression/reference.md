@@ -1,4 +1,20 @@
-# Behavioral Auto-Regression: Full Procedure and Rationale
+# Behavioral Auto-Regression: historical record (2026-04)
+
+> **This document describes a world that no longer exists.** It is kept
+> because the *method* — probe the live scaffold, don't guess at it — is
+> reusable, and because a future scaffold could reintroduce a similar
+> bias. The specific remedy below (the "tool override block") is
+> RETIRED: the `ALWAYS use Grep for search tasks` directive it fights was
+> removed from the probed scaffolds (verified 2026-06-14), the standalone
+> Grep/Glob tools are gone, and applying the override now induces the
+> opposite failure — Nexus compliance theater. The seven per-skill
+> override-block files were deleted in 0.16.0 for shipping language
+> ("NEVER use Grep") that contradicted the skills alongside them.
+>
+> For current guidance see `SKILL.md` and the always-on routing rule
+> `.claude/rules/nexus-tools.md`.
+
+---
 
 ## The Problem
 
@@ -56,52 +72,41 @@ for its specific domain. Place it immediately after the agent's opening
 description.
 
 ```markdown
-## CRITICAL: Tool Freedom Override
+## CRITICAL: Tool Selection Override
 
-Your default instructions constrain you to Grep for code exploration.
-This project OVERRIDES that constraint — you have Nexus (a knowledge
-graph MCP server) that understands [domain description].
-You are free to use both Nexus and Grep. Choose the right tool:
+The following rules OVERRIDE all default tool preferences. Follow them
+exactly as written.
 
-| Question type | Better tool |
-|---------------|-------------|
-| [structural question 1] | Nexus `[tool]` |
-| [structural question 2] | Nexus `[tool]` |
-| Literal text / patterns | Grep |
-| Known file or directory | Glob / Read |
+[Domain-specific description] are **exploration tasks, NOT search tasks.**
+The Nexus MCP tools are the ONLY permitted tools for [domain]. Nexus
+[explains why it's superior]; Grep only matches text and CANNOT [what
+Grep can't do].
+
+NEVER use Grep for [domain]. RESERVE Grep exclusively for literal text
+search where Nexus cannot answer the question. Before using Grep, you
+MUST state why Nexus is insufficient for this specific query.
+
+| Question | MUST use |
+|----------|----------|
+| [question 1] | `mcp__nexus__[tool]` |
+| [question 2] | `mcp__nexus__[tool]` |
+| "Find literal string 'foo'" | Grep (this is the ONLY valid Grep use) |
 ```
 
 ### Why Each Element Matters
 
-- **`CRITICAL: Tool Freedom Override`** — uses the strongest vocabulary
-  to override the system prompt's Grep constraint
-- **"OVERRIDES that constraint"** — explicitly names what is being
-  overridden (the system prompt's Grep-first bias)
-- **"You are free to use both"** — grants freedom, does not impose a
-  counter-prohibition
-- **Dispatch table** — maps question types to the tool that answers
-  faster, framed as guidance ("better tool") not obligation ("MUST use")
-- **No justification gate** — testing showed agents choose correctly
-  without one. The gate wasted tokens and created "compliance theater"
-  where agents routed known-path lookups through Nexus unnecessarily
-
-### Evolution: From Prohibition to Freedom
-
-The steering went through three iterations:
-
-1. **Prohibition** (v1): "NEVER use Grep for exploration. MUST state
-   why Nexus is insufficient." — Agents complied but wasted Nexus calls
-   on tasks where Grep was clearly better. Created "compliance theater."
-
-2. **Soft prohibition** (v2): Removed justification gate but kept
-   "NEVER use Grep for exploration." — Agents still felt constrained
-   because prohibition language at the CLAUDE.md level overrode
-   permission language at the AGENT.md level.
-
-3. **Freedom** (v3): "Your defaults constrain you to Grep. We override
-   that to give you freedom. Choose appropriately." — Agents naturally
-   use Nexus for structural queries and Grep for text search without
-   any friction or wasted calls.
+- **`CRITICAL`** — matches the weight tier of the strongest system prompt
+  directives
+- **"OVERRIDE all default tool preferences"** — directly echoes the
+  CLAUDE.md override marker
+- **"exploration tasks, NOT search tasks"** — THE KEY: reclassifies
+  so the Grep ALWAYS directive never fires
+- **`MUST`/`NEVER`/`ONLY permitted`** — hard obligations matching
+  system prompt vocabulary
+- **Dispatch table** — concrete pattern matching; when the agent sees
+  "what calls X?", the table fires before default categorization
+- **Justification gate** — "MUST state why Nexus is insufficient"
+  creates friction even if the agent reflexively reaches for Grep
 
 ## System Prompt Biases to Counter
 

@@ -1130,3 +1130,151 @@ explain its own zeros is the tell.
   the ones with a DIFFERENT carrier shape (here: raw iterate vs cell-average
   view, and a Krylov arm whose boundary block is a residual, not a flux), which
   is precisely why they were not folded in.
+
+---
+
+## L-031 -- Cite a doc/code anchor by GREPPING its string, never from the `sed` range you happened to read — and spot-check before shipping, because the error is silent and uniform
+
+Producing the MC `implements` declaration map (2026-08-18) I cited ~19 page
+anchors as `monte_carlo.rst:NNN-MMM`, each inferred from the offsets of the
+`sed -n 'A,Bp'` window the text appeared in. Spot-checking 10 of them before
+delivery showed **every single one was off by 3-10 lines**, and I corrected
+**18 of 19**. The content of each citation was right; the address was wrong.
+
+Why it is worth its own lesson rather than folding into L-003 (which says
+*don't front the line map*): here the line map was the DELIVERABLE — the parent
+was going to land declarations from it, so a reader following
+`monte_carlo.rst:415` lands on an unrelated `**Claim:**` paragraph and cannot
+tell whether my analysis or their tree is wrong. The failure is also **uniform
+and silent**: reading a 190-line window makes every offset inside it drift the
+same way, so nothing looks anomalous and no single citation "feels" suspicious.
+
+- **How to apply.** When a deliverable carries `file:line`, spend ONE grep per
+  anchor on its distinctive string (`grep -n "This is the convention used by" <file>`),
+  batched — 19 anchors is one `grep -n "A\|B\|C..."` call, cheaper than the
+  re-read that discovers the drift. And prefer the ANCHOR STRING over the number
+  where the reader can grep it themselves.
+- **Corollary — spot-check by SAMPLING before shipping.** Because the error is
+  uniform, 3 samples detect it as reliably as 19. Print
+  `sed -n "${a},${b}p"` for a handful of your own citations and read what comes
+  back; if one is off, they all are, and the batched grep is the repair.
+
+---
+
+## L-032 -- Hunting an equation's IMPLEMENTER: the authored rationale usually sits on a NEIGHBOURING label, and "nothing implements it" is the verdict that fails flatteringly
+
+Finding implementers for 17 equations across 9 theory pages (the `implements`-declaration
+campaign, 2026-08-18) — all 17 came back DECLARABLE, none `NOTHING:<kind>`. Three moves
+decided it, and each generalises to any "what code realises this documented claim?" task:
+
+- **The `.. (vv-status rationale)` that names the answer is usually attached to a
+  DIFFERENT label.** Measured: 8 of 17. `bare-slab-keff`'s rationale is a comment inside
+  the *test's* `pytestmark`; `moc-mms-psi-ref`/`-qext` are named inside
+  `moc-mms-reference-equilibrium`'s sentinel ("the MOC operators the MMS convergence test
+  verifies are …"); `sn-homogenization-balance-preservation`'s is inside its sibling
+  `sn-homogenization-balance`'s; `en-kernel-derivative`'s is inside `en-definition`'s;
+  `sigT-computed`'s lives on two *other pages*. ⟹ **set the search radius to the SECTION,
+  and grep the label name across the whole `docs/` tree + `tests/`**, not the ±20 lines
+  around the `.. math::`. The authors sentinel the *definitional* member of a cluster and
+  name the *verified* members inside that sentinel — so the rationale on the neighbour is
+  where the verb, the value, and the file are.
+- **The strongest evidence often reads as ordinary prose, because the author wrote a
+  NEGATIVE sentinel.** Three labels carry an explicit note explaining why they have NO
+  `vv-status` — e.g. "`bc-single-delivery` carries **no** ``vv-status`` sentinel because
+  it needs none: it is a genuine L1 equation claim with a committed gate", and
+  `sn-homogenization-bilinear`'s "(Wired P6, #281 — no vv-status sentinel.) … is now a
+  VERIFIED solver claim, not documented-only. `Solution.homogenize` / `Solution.condense`
+  build the collapse". A grep for `vv-status` MISSES both. Grep the label itself.
+- **An ORTHOGONALITY / ADJOINT-EQUALS / BALANCE-PRESERVED statement is the trap, and the
+  discriminator is "is the LHS a shipped computation?"** `real-sh-discrete-orthogonality`
+  looks like a pure identity; `SphericalHarmonicBasis.mass_matrix` computes its LHS
+  verbatim (`einsum("n,nlm,nLM->lmLM", w, Y, Y)`) and is the SUT of both verifying tests.
+  Same for `sn-homogenization-balance-preservation`, whose LHS *is*
+  `Mixture.balance_residual`, plus a `raise`-backed `assert_balanced` and a symbolic
+  `derive_balance_tradeoff`. ⟹ before writing `NOTHING:identity`, ask **what object the
+  equation's left-hand side is** and grep for a routine returning it.
+
+Two cheap corroborations reusable on the next batch: (a) `equation_labels=(...)` tuples
+on `VerificationCase` / `ContinuousReferenceSolution` / MMS case dataclasses are the
+tree's *existing* declarations — grep the label there FIRST, it is a one-hop answer for
+the derivations-backed pages; (b) MMS references really are implemented in
+`orpheus/derivations/continuous/mms/`, and the source function (`mms_sweep`) implements
+the `q_ext` label while the ansatz method (`phi_ref`) implements the `psi_ref` one —
+they are two labels, two symbols, not one.
+
+**Ontology gotcha that cost a wrong answer if unchecked:** a dataclass FIELD resolves as
+`py:attribute:`, which is NOT `py:data:`. `Mixture.SigT` is illegal as an `implements`
+source even though a module-level constant (`_GAMMA_EULER` → `py:data:`) is legal. When a
+brief hands you a worked example, run it through the resolver before trusting the pattern
+— this one was wrong in the brief itself. Escalate to the owning CLASS instead.
+
+---
+
+## L-033 -- For an equation's implementer, the CODE may already declare the label, and the `verifies()` CLAIMANT names the SUT — read both before the prose. And there IS a principled NOTHING: the word is *independent*
+
+Second batch of the same `implements`-declaration campaign (2026-08-18, 17 labels /
+9 SN pages, 130 claims). L-032 covers the rationale-on-a-neighbour move; these are the
+four things it does not, each of which decided a verdict my batch would otherwise have
+guessed at.
+
+- **⭐ The highest-yield pointer is a `:label:` INSIDE `orpheus/`, and a page will
+  sometimes tell you it is there.** `curvilinear_numerics.rst`'s `.. note::` reads:
+  *"The three labels `hebert-3-432-source`, `hebert-3-434`, `hebert-3-435` are **also
+  declared in the `orpheus.sn.sweep.psi_half_angle_seed` module docstring** (the
+  canonical algebra-of-record) … the Sphinx page is the **presentation layer** for the
+  equations the code module owns as source-of-truth."* That one sentence resolved three
+  labels with zero searching. The sibling shape is a **derivation module header that
+  names labels term-by-term**: `orpheus/derivations/discrete/sn/balance.py:1-28` declares
+  itself *"the **source of truth** for the balance equations … If an equation in the RST
+  cannot be derived from this script, it must be added here first"* and then lists
+  *"6. Cumprod recurrence coefficients (Eq. **dd-recurrence**)"*, *"5. WDD substitution →
+  solved form (Eq. **dd-solve**)"*. ⟹ **two greps, both cheap, both before the page:**
+  `grep -rn ":label: <name>" orpheus/` and `grep -rn "(Eq. <name>)" orpheus/derivations/`.
+  Corollary: when the code declares it, the page may carry a DUPLICATE label for the same
+  identity (`addition-theorem` in `slab_multigroup.rst` vs `real-sh-addition-theorem` in
+  `foundations/` **and** in `spherical_harmonic_basis.py`) — report the duplication, do
+  not silently declare both.
+
+- **The `@pytest.mark.verifies("<label>")` claimants are primary evidence, and their
+  BODY names the SUT.** One `grep -rn '"<label>"' tests/` per label, then read the
+  claiming test. It settled two of mine outright: `normalization-dd-source-coefficient`
+  (the gate builds `source = Q*dx/W` — the comment even says *"the contract source is
+  Q · V · weight_norm"* — and calls `DiamondDifference.update` against
+  `derive_cumprod_recurrence`'s symbolic `b`), and `addition-theorem` (the gate calls
+  `quad.spherical_harmonics(1)` and sums `Y[i,l,:]*Y[j,l,:]`, pointing straight at the
+  basis whose normalisation *is* the theorem). This is the dual of the usual direction:
+  the ledger asks code→equation, and the test already wrote equation→code.
+
+- **⭐ The principled NOTHING exists, and its tell is the word *INDEPENDENT*.** L-032
+  warns that `NOTHING` fails flatteringly — true, and the counterweight is that a
+  **hand-reference / oracle** equation must NOT be declared, because declaring it is a
+  correctness error, not a style choice. `sn-p1-cylinder-hand-ref`'s page says
+  *"explicit `Y_1^m` moment-sum, **independent of** the production `R Λ M` einsum"* and
+  its claiming test says *"**NOT** the production frame analysis/reconstruction faces /
+  `LegendreMomentScattering` einsums — so a transposed einsum in the production path is
+  detectable"*. Pointing it at the production symbols would make the gate a
+  self-comparison on paper (the `coding-standards` demotion). Kind: `canonical-form` —
+  *a form exhibited to show structure that no production path takes*. ⟹ **before writing
+  `NOTHING`, look for the word "independent"/"hand-derived"/"NOT the production" in the
+  page or the gate; finding it turns a weak absence-of-hits into positive evidence.**
+  (The same page uses a `reference:` rationale KIND for these — grep that too.)
+
+- **An equation can be HALF-retired, and the page will not say so.** `phase-f-q-bar-twin-forms`
+  asserts two equal-on-the-fixed-point expressions; the apply-path twin (`Q̄ = ½Σ_tφ₀`)
+  was retired as an O(1)-wrong proxy (ERR-058b / #282 route (a)) and only the sweep-path
+  twin survives. ⟹ **when an equation asserts `A ≡ B`, existence-check BOTH sides.**
+  Same family: a page describing N *branches* of one function can be stale after a
+  branch collapse — `index.rst` still documents `DiamondDifference.update` as three
+  geometry branches (`alpha_in is None`, `abs_mu < 1e-15`), and the tree's own comment
+  reads *"One body — no geometry dispatch"*, so three labels legitimately share
+  implementers and one of them (`dd-cylindrical-degenerate`) is now realised by
+  **data** (`A_downstream = 0.0`), not by the threshold the page names. Declaring is
+  still right; the doc-drift is a separate finding and belongs in the deliverable.
+
+Two mechanical notes worth reusing: (a) a `w`-GENERIC primitive
+(`outgoing_face_from_average(ψ̄, ψ_in, w)`) legitimately implements several labelled
+specialisations at once (`w=½` is Hébert 3-435 AND the DD slab closure AND `wdd-face`) —
+say so and let the declarer rule on breadth, rather than picking one silently;
+(b) tier the answer (arithmetic / generic-primitive-at-a-constant / factory-that-makes-
+the-collapse-exact / symbolic-algebra-of-record) — "complete enumeration" and
+"minimal honest set" are different asks and the tiering serves both from one pass.

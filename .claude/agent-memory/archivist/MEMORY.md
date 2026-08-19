@@ -42,40 +42,21 @@ orphaned July HTML survives in `_build`, so a stale-ref grep must `test -f` the
 SOURCE). Active track = the **#231 doc-architecture corpus** (§3); main agent
 commits, I stage + gate.
 
-**Uncommitted doc work awaiting main-agent review (verify with git before
-acting — these claims go stale):**
+**In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
-- **nexus #82 — implementer declarations on `operator_algebra.rst`** (branch `main`, 2026-08-17;
-  sibling of the `loss_representation.rst` pass below). **57** `.. implements::` over **32** of the
-  page's 48 equations, from an explorer spec. `[M]` post-build: 57 directive / **0** inferred on
-  the 32; **166** inferred remain, all on the **8** that cannot be declared. New H1
-  `operator-algebra-declaration-contract` — contract + the 8-row NONE table BY KIND + the measured
-  **refutation** of the briefed "rationale-keyword tell". 4 drift repairs: ⛔ **A**
-  `keff-as-integrated-rates` was present-tense-FALSE ((n,2n) in the numerator, no leakage) — fixed,
-  and pointed at the SSOT `sn/solver.rst :eq:`sn-keff-update`` rather than twinned; **B**
-  `reaction-rate-kinf-oracle` now states the code's `diag(Σ_t) − (Σ_s+2Σ_2)ᵀ`; **C**
-  `scattering-as-tensor-product-sum` `S` → `Λ` (3 sibling pages already wrote `Λ`); **E** one dead
-  `:func:`. ⚠ Two `:by:` targets need an explicit `py:data:` node-id prefix (TypeVars). `-E -W`
-  EXIT 0 / 0 W-E-C, baseline re-measured 0; xref gate 0 dead in-file. **REPORTED, not fixed:** the
-  spec's headline says 21/19 where its own table is 32/8; `nexus._node_id_for_target` should try
-  `py:data:`. See [[lessons-L60]].
-- **nexus #82 — implementer declarations on `loss_representation.rst`** (branch `main`, 2026-08-17).
-  28 `.. implements::` over 14 equations (graph-verified: 397 inferred → 28 declared); a new H2
-  `loss-rep-declared-implementers` + `loss-rep-unimplemented-labels` recording the three equations
-  that declare NOTHING and why (**superseded path / notation / declared tag**). Deliverable 2 grew
-  6 → **19** code sites (windowed grep) + 4 RST sites incl. the page's **Key Facts** card; all
-  present-tense-false claims that `StreamingOperator.apply` *subtracts* σ (it is `loss_action(0,ψ)`
-  since #257 S8b). ⭐ Found: writing the explanation MINTS guesses (23→24/25/24); the brief's
-  σ_r census was 2 of **4**. ⛔ **REPORTED, not fixed** — 3 stale `tests/` module docstrings
-  (incl. one asserting a `StreamingOperator` constructor arg that does not exist). `-E -W` EXIT 0 /
-  0 W-E-C, baseline re-measured 0; xref gate 81/124 both sides; AST doc-only proved.
-  See [[lessons-L59]].
+- **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
+  `docs/err026-history-is-not-a-crossref`, 2026-08-18, `error_catalog.rst` +63/−23.
+  ⛔ **open follow-ups I reported and did NOT fix:** the `check_docstring_xrefs.py` `.rst`
+  blind spot (one-line `head_role` fix, `docs/` 49/71 → 207/255) and **40 of 100** stale raw
+  file paths in the catalogue. → [[lessons-L62]]
 
-- ⏹ **MERGED, verified `git status` clean 2026-08-17** — their behavioral lessons are the durable
-  record, their doc changes are in the tree: nexus graph-path retirement [[lessons-L58]] · #344
-  loss-kernel-gauge [[lessons-L57]] · Q5.6.4 τ/partition carve [[lessons-L54]] · Boundary B3.0–B3.2
-  [[lessons-L42]] · DSA #2 close-out [[lessons-L39]]. ⚠ This index has twice frozen "awaiting
-  review" on merged work — reconcile with `git status -- <path>` before believing any entry above.
+- ⏹ **MERGED — verified against git 2026-08-18, THIRD time this list had frozen "awaiting review"
+  on landed work.** Their durable record is the lesson; their doc changes are in the tree:
+  MD→corpus catalogue port `a79f57aa` [[lessons-L61]] · nexus #82 implementer declarations
+  (both pages) `144cdf51` [[lessons-L60]] [[lessons-L59]] · nexus graph-path retirement
+  [[lessons-L58]] · #344 loss-kernel-gauge [[lessons-L57]] · Q5.6.4 τ/partition carve
+  [[lessons-L54]] · Boundary B3.0–B3.2 [[lessons-L42]] · DSA #2 close-out [[lessons-L39]].
+  ⚠ `git status --porcelain -- docs` before believing ANY entry above it.
 
 > Merge-status in memory goes STALE. Reconcile any "resume / in-flight / NOT
 > pushed" claim against `git merge-base --is-ancestor <hash> HEAD` before acting.
@@ -84,8 +65,9 @@ acting — these claims go stale):**
 
 Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_*.md`.
 
-- **Landed-milestone record:** the SN theory page's "Development history" section
-  (`docs/theory/discrete_ordinates.rst`). POINT here instead of re-listing campaigns.
+- **Landed-milestone record:** `docs/theory/methods/sn/history.rst`. POINT here instead of
+  re-listing campaigns. (This line named the pre-split `discrete_ordinates.rst` until 2026-08-18,
+  contradicting §2 four lines up — an index can go stale against ITSELF.)
 - [canonical-convention-page](feedback_canonical_convention_page.md) — 13-section anatomy
   for a multi-PR migration's canonical theory page + keep/flip rubric (`index_convention.rst`).
 - [canonical-axis-convention SSOT section](feedback_canonical_axis_convention_ssot_section.md)

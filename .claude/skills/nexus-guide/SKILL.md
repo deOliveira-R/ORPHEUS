@@ -41,6 +41,12 @@ misselection as grepping for a relationship question.
 unavailability — treating it as such is the most common cause of an
 agent silently avoiding the graph.
 
+⛔ **That hatch is MAIN-AGENT-ONLY.** `[M]` 2026-08-19: a sub-agent probe
+reported 45 `mcp__nexus__*` tools loaded eagerly and **no `ToolSearch` tool
+at all**. A sub-agent whose Nexus tools are genuinely absent cannot recover
+— it must SAY so rather than quietly falling back to grep, because a
+grep-derived report is indistinguishable from a graph-derived one.
+
 ## Quick Start
 
 ```

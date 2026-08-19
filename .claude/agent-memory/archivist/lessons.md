@@ -40,6 +40,13 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   "…and X, Y, Z with three each" enumerated 3 of 5 (and read as all 15 multi-implementer rows);
   "where every ``solve`` in the tree matches the label" was `[M]` **5 of 60**. The measured
   sentence was strictly better both times. (plan-authoring §2, applied to the corpus.) → L-060
+- **⭐ Verify a SUCCESSOR claim against the RETIRING COMMIT'S BODY, not against the successor's
+  existence.** A live class with the right shape is not evidence the dead one became it. `[M]` I
+  wrote that three symbols "were absorbed into the operator algebra"; the commit bodies say ONE was
+  re-layered (`SNSolver.L` → two leaves) and the other two were **retired outright** — one "became
+  orphan in production", the other "without a remaining call site". One paragraph, two fates, and
+  "absorbed" was false for two of three. `git log --diff-filter=D` / `-S <symbol>` then read `%b`.
+  → L-062
 - **A retirement SHIM's docstring is frozen at the commit that minted it — verify against the
   CANONICAL form it re-exports.** A shim called a cross-class dunder "retired"; the canonical
   modules had since RE-PERMITTED it, so the brief would have past-tensed an accurate section.
@@ -170,6 +177,17 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   is blind to LITERALS — so after fixing a renamed symbol's roles, grep the OLD NAME tree-wide and
   adjudicate every ``literal`` by tense (`_select_si_resolvent`: 1 dead role + 3 live-prose
   literals on two other pages). → L-045, L-046, L-047
+- **⭐⭐ …but ON AN `.rst` PAGE that gate reports `:mod:` and NOTHING ELSE — never read an unmoved
+  `DEAD TARGETS` as "my page is clean".** `[M]` I fixed 15 dead roles and the count sat at
+  **81/124 both sides**: `judge()`'s head-check re-checks the target's head *carrying the original
+  role*, so a single-segment head (`orpheus`) trips `bare_module_guess` under any non-`mod` role,
+  and with a page's empty namespace the candidate tuple is `()` → DECLINED. One line fixes it
+  (`head_role = "mod" if "." in target else role`); `[M]` on a pristine `git archive HEAD` tree that
+  takes `docs/` from **49 dead/71 sites → 207/255** — the gate is blind to 158 dead
+  `:class:`/`:func:`/`:meth:`/`:attr:` targets in `docs/` alone. Until it lands, the acceptance
+  evidence for a page is YOUR OWN import probe over its roles. ⚠ Measure such a patch as a COPY run
+  as a SUBPROCESS — monkeypatching `judge` and calling `main()` twice in-process read `0` for both
+  arms while a subprocess read 49. → L-062
 - **⭐⭐ A per-site adjudication TABLE is an instrument — audit its SKIP clause, its "retired"
   verdicts, and its `hasattr` evidence.** Applying a 91-site ruling table faithfully still yielded
   FIVE corrections: (a) its *keep-if-absent-from-graph* filter hid ~1400 alive-but-unqualified
@@ -238,6 +256,27 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 - **Grep a glyph in `docs/` before importing a marker from a plan — and re-grep, because this
   answer MOVED.** `[M]` 2026-08-14: `⛔` 12 files, `⚠` 17, `⭐` 10, `✓` 10, `✗` 2. All are corpus
   vocabulary now; the old "⭐/⛔ are zero in docs/" reading is retired. → L-048, L-056
+- **⭐⭐ A mechanical PORT's warning count is a non-representative sample of its defect count —
+  census the target language's delimiter alphabet before fixing warning #1.** RST has no legal
+  run of 3+ backticks outside a literal block, so a run-length histogram is a TOTAL census: a
+  briefed "handled the bulk correctly, 20 warnings left" was `[M]` **830 mangled delimiters on
+  339 lines** + 30 broken spans; the warnings were the ~2 % where the imbalance failed to cancel
+  inside a paragraph. One root cause — a LINE-LOCAL `` `x` ``→``` ``x`` ``` regex meeting a code
+  span that WRAPS a line — with three surfaces: over-added pair (silent stray backticks),
+  one-side-only (warns), neither-side (silent `<cite>`). **The port's SOURCE is the oracle and
+  makes the mass edit a PROOF**: post-fix 2438/2443 literal contents and 3648/3653 prose lines
+  appear VERBATIM in the `.md`, every exception explained. → L-061
+- **⭐⭐ `<cite>` in the built HTML is the smoking gun of a Markdown port** (`default_role` unset
+  ⟹ a surviving single-backtick span renders ITALIC, not monospace) — and its sibling: **RST
+  forbids inline markup after most chars** (`= . ~ § ↔ *`), which Markdown does not, so a port
+  leaves roles that DO NOT RENDER AT ALL. `[M]` two `:math:` roles opening after `~` produced
+  `<cite>mathcal{O}(h^{1.3})</cite>` — role dead, LaTeX backslash eaten, **silent at every build
+  severity**. Fix is one char (`~\ :math:`…``). Census with `grep -c '<cite>'`. And `\|` added by
+  a port is RIGHT in prose, WRONG inside a literal (renders a visible backslash). → L-061
+- **⭐ A dead `:doc:` from a Markdown port is usually a PATH-FORM error, not a missing page** —
+  MD authors write repo-root paths (`docs/theory/…/index`), Sphinx wants a docname
+  (`/theory/…/index`). Check the page EXISTS before rewriting the prose; the warning and the
+  brief both read as "points at nothing". → L-061
 - **⭐⭐ The WHERE-LIST is the tell that a labelled equation drifted from its own prose.** A
   definition list defining symbols ABSENT from the equation it annotates, and omitting one that is
   IN it, is a correction that stopped one line short. Needs no code and no build — and no build can
@@ -432,6 +471,39 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   (a scratch/override graph), which makes the flag *better* documented than when it was mandatory.
   Report the resolution ASYMMETRY too: `status` REJECTS `--project-root`, so read-only subcommands
   are cwd-anchored and their "does not exist" error reads as *"never built"*. → L-058
+- **⭐⭐ A surviving MODULE does not license a repoint; a surviving CLAIM does — adjudicate a dead
+  `:mod:` by SENTENCE TENSE *and* by whether the NAMED OBJECT survived.** `[M]` 4 dead
+  `orpheus.sn.spatial.*` in one historical entry: 3 of 4 modules survived a pure `git mv`, yet the
+  verdicts split 2 literal / 2 repoint. The trap is two sites in the SAME file with the SAME rename
+  and opposite answers — "**Documented in** X" (claim still true there ⟹ repoint) vs "what Phase B
+  added … Protocol (X) with three strategies" (Protocol + 2 of 3 strategies since retired ⟹
+  literal). Three free corroborations: `git log --diff-filter=D` on the old path; the LIVE tree's
+  own prose (it spells the retired names as ``literals``); and the same page already spelling the
+  deleted path as a literal 130 lines below. A list where 2 of 3 `:mod:` are live argues against
+  literalising the third. → L-061
+- **⭐⭐ A CROSS-REFERENCE INSIDE HISTORY IS A CATEGORY ERROR — a body that records the code *as it
+  then was* cannot carry a role, which claims the symbol exists NOW at THAT path.** The rule that
+  adjudicates every site, and belongs IN the page as a head-of-block `.. note::`: *a name is a
+  ``literal`` whenever the sentence around it describes the code as it then was; a role is used only
+  where the sentence is a present-tense claim about something that exists now.* So a SURVIVING CLASS
+  does not license keeping the role — the surviving CLAIM does: I literalised a live class because
+  its sentence stated a `ψ_{1/2}=0` default the SAME entry's later section records as replaced.
+  Nothing is lost — the live pointers move to ONE forward-orientation paragraph where their tense is
+  present. Corroborate before editing by counting BOTH spellings of each name in the same file
+  (`[M]` 5 literals/3 roles, 4/2, 2/2 — the page had already settled on literals and was
+  self-inconsistent). → L-062
+- **⭐ Before calling a dotted target dead, decide WHICH SEGMENT died** — package / module / class /
+  attribute have different repairs and only one is "de-role". `[M]` two brief classifications
+  refuted by the same probe error: `…continuous.sood_registry` is a live **package** (a `.py`-only
+  check misses it) and `SNMesh.pole_angular_closure` is a live **instance** attribute
+  (`self.x = …` in `__init__`; L-053c again). And a dead CLASS under a live PACKAGE may have a live
+  HOMONYM elsewhere — repointing is then a false attribution. → L-062
+- **⭐⭐ A raw FILE PATH in a literal is the same category error one register down, and no
+  instrument sees it** (roles are gated, paths are not). `[M]` in one ERR entry **14 of 14**
+  `tests/*.py` paths no longer existed; catalogue-wide **40 of 100**. Fix the class, not the
+  paths: state once, at the head, that *which* tests catch ERR-NNN is never prose — it is the
+  `@pytest.mark.catches("ERR-NNN")` marker set, read with `nexus errors` /
+  `context('vv:error:ERR-NNN')`. → L-062
 - **A retirement propagates to BOUNDS and to NEGATIVE claims, which no symbol grep sees.** A
   numeric bound is a claim about the retired object (re-measure it from the live producer). And
   grep the retired name inside `independent of|unaffected by|does not depend on` — a negative
@@ -574,6 +646,29 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   your own instrument): a `len(out) < len(src)` guard fired on a splice that legitimately GREW,
   while an earlier assert in the same script had already caught a real miscount — that positive
   control is what made the false red cheap. → L-012, L-022, L-023, L-026, L-058
+- **⭐⭐ PROBE docutils, never reason about it — and stand up a stub-directive harness so you
+  iterate in 1 s, not 4 min.** I predicted a warning came from *emphasis ⊃ inline literal*: WRONG
+  (that is silent and renders raw backticks); *emphasis ⊃ **strong*** is what warns. One
+  `publish_doctree` call with 6 one-liners settled three entries at once (`key=``x``` warns,
+  `key=\ ``x``` is clean; `γ_-` errors, `γ\_-` is clean; a nested list needs a blank line, a `+`
+  mid-paragraph does not). Register `error-entry`/roles as pass-throughs and re-check a 5790-line
+  file in under a second. **Markdown discriminator for an indented block:** blank line before ⟹
+  a real code block (⟹ `.. code-block:: text`, mandatory if the body holds a `*`); no blank line
+  ⟹ a lazy paragraph continuation (⟹ blank lines around it → block quote). → L-061
+- **⭐⭐ When the edit is confined to ONE section of a big file, the strongest guard is BOUNDARY
+  BYTE-IDENTITY:** `src[:i] == out[:k]` and `src[j:] == out[m:]`, with `i/j` and `k/m` the section's
+  own delimiters. Two lines prove the other 78 entries of a 5800-line catalogue are untouched — far
+  stronger than any per-edit count, and it makes a 22-site sweep defensible. Pair it with an exact
+  `len(out) == len(src) + Σ n·(len(new)−len(old))` arithmetic delta per replacement table. → L-062
+- **⭐ Run a SELF-CONSISTENCY pass on prose YOU authored before the first build, not after.** New
+  prose that DECLARES a rule must obey it: I built four times because I kept finding my own note
+  violating its own convention (one live class left a literal), over-claiming a successor, and
+  leaving one paragraph ragged. Ask of every name in your new text: *which branch of my stated rule
+  does this take?* — then build once. → L-054, L-062
+- **⭐ Guard a bulk DELIMITER edit with `src.replace('`','') == new.replace('`','')`** — proves
+  only backticks moved — plus an exact char-count delta and unchanged line count, all asserted
+  BEFORE the write. That is what makes a 415-site blanket edit defensible rather than reckless.
+  → L-061
 - **⭐ A uniqueness guard over LABELS or TITLES compares EXACT LINES, never substrings.** Two of
   mine fired (before any write, so free): `count(":label: operator-apply")==1` fails because it is
   a substring of `:label: operator-apply-transpose`, and `count("Development history")==1` fails
