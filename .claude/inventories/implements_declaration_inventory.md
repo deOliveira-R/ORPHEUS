@@ -33,11 +33,50 @@ exist at all**, and 1 row is DECLARABLE with no implementer listed. Each
 would become a dangling or ontology-forbidden `confidence=1.0` edge —
 strictly worse than the guess it replaces. Repair them before landing.
 
-**NOTHING is NOT checkable and fails in the FLATTERING direction.** A
-wrong NOTHING suppresses every guess for the equation AND records that
-nothing implements it, hiding a real coverage gap behind a confident
-declaration. `[M]` **110 of 150** NOTHING rows have contrary evidence
-(claiming tests and/or candidates pointing at real code) — e.g.
+⛔⛔ **THE NOTHING HALF IS REFUTED AS A WHOLE — DO NOT LAND ANY OF IT.**
+Updated 2026-08-19 against the graph at `bb075c93`, and this SUPERSEDES
+the softer "110 of 150 have contrary evidence" reading below (which is
+still true, and was still too kind).
+
+The sharp measurement: of the **94** equations that carry coverage claims
+but have **no** `implements` edge — i.e. the exact population whose
+adjudication the licensing argument turns on, **976 claims between
+them** — the fanout classified **67 as NOTHING**, 21 DECLARABLE, 6 absent.
+Ranked by claim count, the NOTHING verdicts land on:
+
+| claims | equation | fanout verdict |
+|---:|---|---|
+| 70 | `mg-balance` | NOTHING |
+| 41 | `multigroup` | NOTHING |
+| 41 | `attenuation` | NOTHING — **proven wrong**, `orpheus/moc/core.py:214-218` computes it |
+| 41 | `optical-thickness` | NOTHING |
+| 41 | `scalar-flux-integral` | NOTHING |
+| 25 | `p-inf` | NOTHING |
+| 25 | `e3-def` | NOTHING |
+| 23 | `neutron-balance` | NOTHING |
+| 23 | `optical-path` | NOTHING |
+
+⟹ **the fanout called "nothing implements it" on the most heavily claimed,
+most obviously implemented quantities in the project.** The error is not a
+rate to sample around; it is systematic and it is concentrated exactly
+where the cost is highest. The mechanism is legible: an agent reading
+`scalar-flux-integral` (:math:`\phi = \int \psi \, d\Omega`) in isolation
+plausibly calls it a definition, and is wrong because `moments()` computes
+precisely that.
+
+⚠ **Contrast the eleven that DID land** (`bb075c93`): none came from this
+inventory. They were classified by reading each equation's own authored
+`.. (vv-status rationale)` comment on the theory page — 9 of 11 read
+straight off, 2 settled by measuring the tree. That is the method that
+works, and it is cheap because the knowledge is already written. See
+ORPHEUS #382.
+
+**The original, softer statement of the same defect, kept per
+`plan-authoring` §3:** NOTHING is NOT checkable and fails in the FLATTERING
+direction. A wrong NOTHING suppresses every guess for the equation AND
+records that nothing implements it, hiding a real coverage gap behind a
+confident declaration. `[M]` **110 of 150** NOTHING rows have contrary
+evidence (claiming tests and/or candidates pointing at real code) — e.g.
 `transport-cartesian` (42 claiming tests) as a law, `peierls-unified`
 (96) as a definition, `ki3-def` (28, the subject of #348) as a
 definition.
