@@ -232,9 +232,61 @@ positivity, ray normalization.
   indices, most-negative first; −0.0 member, nan violation; docstring carries the
   four does-NOT-claim negatives); unit legs + the one-parameter DD witness pair
   (`[M]` thick leg min ψ = −6.399383e-01, 2 of 8 negative, report ≡ the set).
-- ▶ Step 5 — docs (D7 + citer sweep + the coding-elegance #18 example): archivist
-  dispatched 2026-08-19; then Sphinx-clean + `dead_references` + the ≥90-min
-  pre-merge gate before ff-merge.
+- ✅ Step 5 — docs `8a6fc353` + follow-ups `e341e12a`/`c634919f` (archivist +
+  main agent): `field_algebra.rst` → the cone chapter (602 → ~1540 lines; the
+  six-argument adjudication; the affine era as dated history with claim-by-claim
+  falsification); labels: `affine-torsor-algebra` RETIRED → `flux-vector-algebra`,
+  diagnostics labels RENAMED `iterate-*`, residual label KEPT+annotated,
+  `positive-cone-definition` MINTED, `affine-bc-form` untouched + disambiguated;
+  32 dead Python-domain refs → 0; `operator_algebra`'s role-axis argument
+  re-derived; coding-elegance #18 REVERSED; cross-domain-frames A.1/Shape-3 and
+  numerical-bug-signatures Sig-9 stop teaching the torsor. `[M]` sphinx `-E -W`
+  clean, warning set byte-identical to baseline; sentinels 0 violations (539→540);
+  15 torsor survivors, each dated-historical.
+
+---
+
+### ⏸ COMPACTION POINT #1 — CS3 ⏹ COMPLETE (2026-08-19)
+
+**Measured baseline at close**: full tree `-m "not slow"` serial = `[M]`
+**1 failed / 9542 passed in 1:01:42** — the 1 red INHERITED from main
+(`627e64d6` added `tests/sn/__init__.py`, refuting the xref checker's
+namespace-package premise fixture; repaired at `88e46240`, re-pointed at
+`tests/geometry`). **This branch's contribution: 0 new reds.** Walls: capture
+gate 5/5 (rtol=1e-12), bit-identity 3/3 + DD 11/11 under `-W error::DriftWarning`.
+`dead_references` → 0 after `c634919f`. Budget note: the gate ran 62 min
+uncontended — the ≥90-min budget held with margin.
+
+**Corrections that supersede older text in THIS file**: the §4 sequencing block
+(CS3 first — the one-pass argument ⛔ refuted; the fiber guard was never the
+torsor's); the four design rulings block (space-norm ρ / record surface /
+indices predicate / `affine_combination` dissolves); the verification plan's
+G1 ✅ dissolved (#389), G4 ⛔ false measurement, §4.5 leg-c ⛔ refuted
+(boundary block nonzero on vacuum), §4.1 leg-d blind to the subtract mutation.
+
+**Durable lessons** (candidates for rules/skills on distillation):
+1. A trajectory diagnostic must NOT ride a criteria list whose conjunction IS
+   the verdict (`converged = all(cleared)`) — the §8 enabler class, caught at
+   design time by reading the consumer.
+2. A direct algebraic law can be strictly SHARPER than its constrained-era
+   surrogate (direct additivity reds on affine; base-point independence
+   structurally cannot) — a carve that legalizes a spelling should re-derive
+   which gates STRENGTHEN, not only which re-spell.
+3. The mass-delete shadow hazard has a second face: an untracked `__pycache__`
+   of a deleted PACKAGE materializes a phantom PEP-420 namespace package that
+   still imports (`__file__ is None`, 0 members) — `git clean` the directory as
+   part of the delete.
+4. `[M]` `tests/sn/acceleration` has no `__init__.py` — `627e64d6`'s "audit
+   finds no other broken chain" is REFUTED (coverage attribution for that
+   subtree is broken the same way tests/sn's was). Belongs to the nexus
+   test-DAG thread, not this campaign.
+
+**Owed micro-edit**: `field_algebra.rst`'s development-history row and
+`history.rst`'s ready-to-paste row carry `*(in development)*` — swap to the
+merge hash on the next docs touch (CS1's D8 is the natural ride).
+
+**State**: CS3 ⏹ COMPLETE; CS1 (Energy space) and CS2/CS4 unstarted — resume
+from §2 with the §0 rulings and this file's §1 readiness table.
 
 ## 5. Phase CS4 — S and F are kernels; operators are born bound
 
