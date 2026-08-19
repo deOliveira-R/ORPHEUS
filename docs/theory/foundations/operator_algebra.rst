@@ -453,6 +453,19 @@ The three primitive actions on a flux vector :math:`\psi`:
    \texttt{solve} \;:\; b \;\mapsto\; L^{-1}\,b
    \quad \text{(the algorithmic dual of } \texttt{apply}\text{)}
 
+
+.. no-implementation:: operator-solve
+   :kind: definition
+
+   **Nothing implements this**, and the page already says why 20 lines up:
+   *"no universal realization exists — so the declaration site and the
+   equation coincide. The concrete overrides implement their own equations
+   … not this one."* ``solve`` is a verb the Protocol declares; every
+   concrete solver implements its OWN equation
+   (:eq:`diagonal-operator-action`, :eq:`inverse-as-operator`, …). A
+   declaration here would have to name one of them, which would assert that
+   that solver *is* the definition of the verb.
+
 .. (vv-status rationale) Phase 0 stub label for the
    ``apply_transpose`` primitive action. Verified at the protocol
    level by ``tests/numerics/test_operator.py``; per-solver adjoint
@@ -932,6 +945,23 @@ Inversion does **not** distribute:
 
    (L + C)^{-1} \;\neq\; L^{-1} \;+\; C^{-1}.
 
+
+.. no-implementation:: solve-does-not-distribute
+   :kind: law
+
+   **Nothing implements this**, because it is enforced by an ABSENCE. The
+   forbidden expression is not merely wrong — it is unspellable:
+   :math:`[M]` 2026-08-18, neither
+   :class:`~orpheus.sn.operators.streaming.StreamingOperator` nor
+   :class:`~orpheus.numerics.operator.OperatorSum` has a ``solve`` member
+   (not in ``__dict__``, not inherited), so ``L.solve(q) + C.solve(q)``
+   raises rather than returning a meaningless answer. What *does* ship is
+   the fused :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve`
+   — the sweep, i.e. the coupled inverse — which implements
+   :eq:`loss-rep-scanmarch-solve-affine`, not this inequality. An absence is
+   not an implementation; declaring one here would name the very path the
+   law forbids.
+
 The inverse is a :math:`1/x`-shaped functional of the operator, and
 :math:`1/x` does not distribute over :math:`+`. The crispest sanity
 anchor is the scalar case: :math:`(3+5)^{-1} = 1/8 = 0.125`, whereas
@@ -1138,6 +1168,17 @@ Now compare the three inverses on this single cell:
      \;\neq\;
      \frac{1}{S_{\rm stream}} \;+\; \frac{1}{\sigma_t\,V}.
 
+
+  .. no-implementation:: apply-solve-denominator-inequality
+     :kind: identity
+
+     **Nothing implements this** — it is the single-cell shadow of
+     :eq:`solve-does-not-distribute`, and the page's own vv-status rationale
+     calls it *"Mathematical identity"*. Unlike its global sibling this one is
+     not enforced by an absence — both leaf denominators are perfectly
+     spellable — which is exactly why it is an identity and the sibling is a
+     law.
+
 The two losses are **added before the division** (the additive structure
 of :eq:`streaming-action-pure-l`); you must invert the *sum*. This is the
 single-cell shadow of the global inequality
@@ -1171,6 +1212,17 @@ q/\sigma``):
    \;=\;
    \sum_{k=0}^{\infty} (-1)^{k}\,(C^{-1}L)^{k}\,C^{-1},
 
+
+.. no-implementation:: apply-solve-neumann-series
+   :kind: identity
+
+   **Nothing implements this**: the series is exhibited to show what
+   production does NOT do. Splitting around :math:`C` is never run — the
+   sweep inverts the coupled operator directly. The page's own vv-status
+   rationale: *"Mathematical identity (Lewis & Miller §3.2)."* The
+   transport-native Neumann series that IS run is the source iteration
+   around :math:`S`, which is a different equation on this page.
+
 i.e.
 
 .. (vv-status rationale) The term-by-term Neumann expansion
@@ -1184,6 +1236,16 @@ i.e.
    (L+C)^{-1}
    \;=\;
    C^{-1} \;-\; C^{-1}L\,C^{-1} \;+\; C^{-1}L\,C^{-1}L\,C^{-1} \;-\;\cdots,
+
+
+.. no-implementation:: apply-solve-neumann-expansion
+   :kind: identity
+
+   **Nothing implements this** — it is :eq:`apply-solve-neumann-series`
+   written out term by term, and the page's own vv-status rationale says
+   *"Mathematical identity (the expanded form of
+   apply-solve-neumann-series)."* No production path forms
+   :math:`C^{-1}LC^{-1}`.
 
 which converges when the spectral radius
 :math:`\rho(C^{-1}L) < 1`. The leading term :math:`C^{-1}` is the
@@ -1204,6 +1266,16 @@ clean closed form involving both inverses is the **parallel** (resistors
    \bigl(L^{-1} + C^{-1}\bigr)^{-1}
    \;=\;
    L\,(L+C)^{-1}\,C,
+
+
+.. no-implementation:: apply-solve-parallel-identity
+   :kind: identity
+
+   **Nothing implements this**, and it is here precisely because it is
+   *not* the coupled inverse. The page's own vv-status rationale:
+   *"Mathematical identity (still not the coupled inverse)."* It is shown so
+   that the harmonic combination cannot be mistaken for
+   :math:`(L+C)^{-1}`.
 
 which is still **not** :math:`(L+C)^{-1}` — it is the harmonic
 combination, related to but distinct from the coupled inverse.
@@ -3290,6 +3362,18 @@ A carrier is a pair
 
    \texttt{Carrier} \;=\; (\,\text{Representation},\ \text{Role}\,),
 
+
+.. no-implementation:: carrier-grid-cell
+   :kind: definition
+
+   **Nothing implements this** — it DEFINES what a carrier is. Code inhabits
+   the grid; nothing computes the pair. ⚠ Note the discrimination against
+   its own siblings: :eq:`carrier-grid-operator-typing` and
+   :eq:`scattering-carrier-grid` carry the same *"not a solver claim"*
+   rationale and ARE declarable, because a typing RULE has a materialized
+   carrier (a class, a parameter list, typed methods) where a definition of
+   the vocabulary does not.
+
 and the two coordinates are **independent and orthogonal**, each governing
 a different facet of the object:
 
@@ -4008,6 +4092,22 @@ factor naturally as a **tensor product** of per-axis operators:
 
      L \;=\; D_x \otimes \Omega_x \otimes I_g
             + D_y \otimes \Omega_y \otimes I_g.
+
+
+  .. no-implementation:: streaming-as-tensor-product-sum
+     :kind: canonical-form
+
+     **Nothing implements this** — the factorization is exhibited to show the
+     structure, and no production path takes it. :math:`[M]` 2026-08-18:
+     :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` has
+     **zero** consumers outside its own definition module and the package
+     re-export, so nothing in ``orpheus/`` ever assembles
+     :math:`L = D_x \otimes \Omega_x \otimes I_g + D_y \otimes \Omega_y
+     \otimes I_g`. Production streams by marching
+     (:eq:`loss-rep-scanmarch-solve-affine`). ⚠ Contrast the sibling
+     :eq:`scattering-as-tensor-product-sum`, which IS declared: that one is a
+     statement about **moment** space, where :math:`\Lambda` genuinely is a
+     sum of tensor products.
 
 * **Pℓ moment scattering** (§15.2) — on **moment space**:
 

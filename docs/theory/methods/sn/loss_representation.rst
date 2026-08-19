@@ -541,6 +541,19 @@ inherited leaf sum value-correct. Each leaf read its **own** diagonal: as
    \;=\;
    M(\sigma_r)\,\psi.
 
+
+.. no-implementation:: loss-rep-leaf-sum
+   :kind: identity
+
+   **Nothing implements this**, and nothing can: it is a derivation STEP —
+   the algebraic collapse of the leaf sum to :math:`M(\sigma_r)\psi` — not a
+   computation any symbol performs. It is also, since the fusion, a route the
+   tree does NOT take: :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+   overrides ``apply`` and walks once, so no production path ever evaluates
+   ``L.apply(psi) + C.apply(psi)``. The identity is what made the historical
+   leaf sum value-correct; declaring an implementer for it would name a
+   sweep that no longer runs.
+
 .. (vv-status rationale) Derivation step (the leaf sum collapses to
    M(sigma_r)psi). Foundation-gated via loss-rep-resolution-a.
 .. vv-status: loss-rep-leaf-sum documented
@@ -642,6 +655,17 @@ collision diagonal,
    :label: loss-rep-removal-sigma
 
    \sigma_r \;=\; \sigma_t \;-\; \Sigma_{s,0}^{\,g\to g},
+
+
+.. no-implementation:: loss-rep-removal-sigma
+   :kind: definition
+
+   **Nothing implements this** — it is notation. The page's own vv-status
+   rationale says so verbatim: *"Notation/definition (the removal
+   cross-section sigma_r = sigma_t - Sigma_s0). Definitional, no isolated
+   claim."* Code that computes :math:`\sigma_r` obeys the definition; it does
+   not implement it, any more than an addition implements the definition of
+   ``+``.
 
 .. (vv-status rationale) Notation/definition (the removal cross-section
    sigma_r = sigma_t - Sigma_s0). Definitional, no isolated claim.
@@ -1998,6 +2022,16 @@ closure is **tensor-product separable**:
    \quad\Longleftrightarrow\quad
    \text{the }d\text{-D update}\ =\ \text{independent per-axis 1-D scans,
    chained by scalar face traces,}
+
+
+.. no-implementation:: loss-rep-facewise-separable
+   :kind: definition
+
+   **Nothing implements this** — it defines the criterion, not a routine.
+   The page's own vv-status rationale: *"Definitional separability criterion
+   (the transverse_coupling_is_facewise trait). Definitional, not
+   orphan-gated."* The trait a scheme sets is an ASSERTION that it satisfies
+   this; the biconditional itself is what the trait is judged against.
 
 .. (vv-status rationale) Definitional separability criterion (the
    transverse_coupling_is_facewise trait). Definitional, not orphan-gated.
