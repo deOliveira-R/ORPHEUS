@@ -406,6 +406,43 @@ class Field(ABC):
         shape = np.asarray(self.values).shape
         return [tuple(int(i) for i in np.unravel_index(j, shape)) for j in top]
 
+    def cone_violations(self, k: int | None = None) -> list[tuple[int, ...]]:
+        r"""Index tuples of entries OUTSIDE the positive cone ``K = {v ≥ 0}``.
+
+        The element-level cone-membership predicate of the campaign-1 CS3
+        ruling (flux lives in the positive cone :math:`K \subset V` of an
+        ordered vector space; membership is a PREDICATE of the element,
+        never a constructor invariant — diamond difference does not
+        preserve K, so a ψ≥0 type would refuse production output).
+        Emptiness IS membership; the returned structure makes the
+        predicate's own correctness assertable (``vv`` anti-#14 — a bool
+        could not say WHERE).
+
+        An entry violates iff ``not (value >= 0.0)`` — so ``-0.0`` is a
+        member (IEEE: ``-0.0 >= 0.0``), and a non-finite ``nan`` is a
+        violation (an unordered entry is not in any cone), while ``+inf``
+        is admitted. Violations are ordered most-negative first (``nan``
+        entries last, at the magnitude ``nan`` sorts to); ``k`` caps how
+        many are returned — the emptiness answer is exact under any cap.
+
+        **What a green reading does NOT claim** (say it here so no audit
+        reads it otherwise): production does not KEEP fields in K — there
+        is no fixup, no clipping, no warning on the SN spatial path; a
+        violating solve is not refused; DD is not repaired; and
+        cone-PRESERVATION is the realization's own flag
+        (``DiscretizationScheme.is_positivity_preserving``), not this
+        observer's.
+        """
+        flat = np.asarray(self.values).ravel()
+        bad = np.flatnonzero(~(flat >= 0.0))
+        if bad.size == 0:
+            return []
+        bad = bad[np.argsort(flat[bad])]  # most-negative first
+        if k is not None:
+            bad = bad[: max(1, int(k))]
+        shape = np.asarray(self.values).shape
+        return [tuple(int(i) for i in np.unravel_index(j, shape)) for j in bad]
+
     def copy(self: T) -> T:
         r"""Return a deep copy carrying an owned ndarray."""
         return replace(self, values=self.values.copy())

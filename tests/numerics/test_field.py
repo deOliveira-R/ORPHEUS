@@ -363,3 +363,74 @@ def test_where_largest_locates_the_peak():
     mags = [flat[t] for t in top3]
     if mags != sorted(mags, reverse=True):
         raise AssertionError(f"where_largest(3) not largest-first: {mags}")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The positive-cone membership predicate (campaign 1 CS3 step 4).
+# K = {v ≥ 0} as an element PREDICATE — the coefficient-field cone
+# doctrine (cone = property, not constructor invariant), now on Field.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _cone_field(values):
+    arr = np.asarray(values, dtype=float)
+    return _DummyField(values=arr, space=FunctionSpace(name="cone", shape=arr.shape))
+
+
+@pytest.mark.foundation
+def test_cone_apex_is_the_additive_identity():
+    """The zero field is IN K (the cone contains its apex) — and it is the
+    same object §4.1(d) proved is V's additive identity: apex and origin
+    coincide, the exact statement the retired no-origin doctrine denied."""
+    zero = _cone_field(np.zeros((2, 3)))
+    if zero.cone_violations() != []:
+        raise AssertionError("the zero field is not in K — the apex is missing")
+
+
+@pytest.mark.foundation
+def test_cone_closed_under_add_and_nonneg_scaling_not_under_difference():
+    """K is closed under + and λ≥0·; NOT under − or λ<0· — the boundary of
+    the cone is exactly why membership must be a predicate, never a type."""
+    a = _cone_field([[1.0, 0.5], [2.0, 0.0]])
+    b = _cone_field([[0.25, 1.5], [0.0, 3.0]])
+    if (a + b).cone_violations() or (2.5 * a).cone_violations():
+        raise AssertionError("K is not closed under + / λ≥0·")
+    diff = b - a  # signed: leaves K
+    if not diff.cone_violations():
+        raise AssertionError("a signed difference reported cone membership")
+    if not (-1.0 * a).cone_violations():
+        raise AssertionError("λ<0 scaling reported cone membership")
+
+
+@pytest.mark.foundation
+def test_cone_violation_reports_the_exact_index():
+    """One negative entry at a known index ⟹ rejected AND the report is
+    that one index — the leg that makes a bool-returning design visibly
+    worse (vv anti-#14: return the structure)."""
+    vals = np.ones((3, 4))
+    vals[1, 2] = -0.75
+    field = _cone_field(vals)
+    got = field.cone_violations()
+    if got != [(1, 2)]:
+        raise AssertionError(f"expected [(1, 2)], got {got}")
+    vals2 = np.ones((2, 2))
+    vals2[0, 1] = -3.0
+    vals2[1, 0] = -0.5
+    ordered = _cone_field(vals2).cone_violations()
+    if ordered != [(0, 1), (1, 0)]:
+        raise AssertionError(f"most-negative-first ordering broken: {ordered}")
+    if _cone_field(vals2).cone_violations(k=1) != [(0, 1)]:
+        raise AssertionError("the k cap did not keep the worst violation")
+
+
+@pytest.mark.foundation
+def test_cone_ieee_edge_cases():
+    """-0.0 is a MEMBER (IEEE: -0.0 >= 0.0); nan is a violation (unordered
+    entries are in no cone); +inf is admitted. The only place the predicate
+    can be subtly wrong with no physics involved."""
+    ok = _cone_field([0.0, -0.0, np.inf])
+    if ok.cone_violations() != []:
+        raise AssertionError("-0.0 / +inf wrongly reported as violations")
+    bad = _cone_field([1.0, np.nan])
+    if [t for t in bad.cone_violations()] != [(1,)]:
+        raise AssertionError("nan entry not reported as a cone violation")
