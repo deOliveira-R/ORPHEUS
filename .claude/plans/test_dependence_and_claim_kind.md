@@ -123,6 +123,46 @@ engine, not a judge** — and the judging is cheap when the agent reads the page
    from these"* — `[M]` **0 hits** for `equation_labels` in the whole nexus
    package.
 
+### ✅ STEP 2 IS RUNNING, AND THE LEDGER HAS ALREADY SPOKEN — 2026-08-19
+
+⭐⭐ **The gating caveat of #381 is BROKEN.** It read *"all 10 refutations carry
+`code_evidence=inferred`, so no refutation is trustworthy today"*. `[M]` on
+four SN capture slices, with the 94 equations declared: **99 corroborated + 47
+refuted rest on DECLARED links**, against **0** that morning. A coverage claim
+can now be defended or refuted with an authored code side.
+
+`[M]` authored claims (the `declared` tier only — see ⚠ below), 4 SN slices:
+**282 corroborated / 243 refuted / 2231 out-of-capture / 3 no-implementation**,
+against 11 / 10 / 1751 / 976 at CP#5. Adjudicable 21 → 525.
+
+⛔ **A prerequisite nobody had noticed: `tests/sn/__init__.py` was MISSING**
+(`627e64d6`), so pytest imported the whole SN tree under truncated module names
+and coverage contexts matched no graph node. `exercised_by` **0** with
+`unknown_context` 696/373 on the first slices. It fails silently and
+flatteringly — green run, valid JSON, `rc=0`, a plausible bind count — and the
+historical `qa_quadrature_cov` run has the same signature, so **every SN
+capture ever taken was useless for attribution**. Filed nexus#91 (ingest should
+say so).
+
+⚠ **Do NOT read `summary.claims_*`** — it sums authored claims with the two
+heuristic BFS tiers, so it printed **11034** corroborated where the authored
+figure is **282**, and it *inflates as declarations land* (§10's shape in the
+tool's headline). Split by `TestReference.source == "declared"`. Filed
+nexus#92.
+
+⭐⭐ **The ledger's first finding — ORPHEUS #387.** A module-level `pytestmark`
+in `tests/sn/primitives/test_quadrature.py` applies `verifies(...)` with NINE
+labels to every test in the file: **124 of 243 refutations (51 %) come from
+that one line**, and seven of the top eight refuted equations are its argument
+list. Worked: `mm-weights` — 28 claimants, all captured, **11 executed a
+declared implementer, 17 did not** (they are quadrature-*construction* tests).
+
+⚠ And the audit that reframes it: **40 module-level markers mint 2069 of the
+2748 authored claims (75 %)**; `tests/cp/test_verification.py` mints **575**
+(25 labels × 23 tests), nearly 3× the filed one. ⛔ A blanket marker is NOT
+automatically wrong — the list is SUSPECTS, decided per file by refutation
+rate. Repair order is by measured rate, not claim count.
+
 ### ▶ NEXT
 
 1. **Step 2 — the wide capture** is RUNNING as of 2026-08-19 (17 slices,
