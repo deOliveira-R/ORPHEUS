@@ -57,11 +57,14 @@ not what collision, scattering, and fission *are*.
        Moore–Penrose pseudo-inverse — the **operator's** adjoint, distinct
        from the **frame's** Petrov–Galerkin test-space adjoint.
    * - :doc:`/theory/foundations/field_algebra`
-     - The **affine-typed field algebra** those operators act on: flux
-       **states** as an affine space :math:`\mathbb{A}` over a displacement
-       vector space :math:`V`, the **state / displacement / residual /
-       source** role grid, and the convergence diagnostics (contraction
-       ratio, true-error estimate, per-cell map) the displacement carries.
+     - The **field algebra** those operators act on: flux in the
+       **positive cone** :math:`K` of an ordered vector space :math:`V`,
+       cone membership as an element predicate and cone preservation as a
+       realization property, the **flux / source / residual** role grid,
+       and the iterate diagnostics (contraction ratio, true-error
+       estimate, per-entry map) the iteration record carries. Includes the
+       six-argument adjudication that overturned the 2026-06 affine
+       ontology, with the retired design kept as dated history.
    * - :doc:`/theory/foundations/wavefront_cochain`
      - The **interior face-flux cochain** :math:`C^1_{\rm int}` — the
        sweep-internal cochain that carries flux across cell faces during a

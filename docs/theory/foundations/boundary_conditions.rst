@@ -3952,12 +3952,15 @@ composite full-field space (:ref:`bc-extraction-scope-future`).
 The residual column is now wired: :class:`AngularBoundaryResidual` and
 :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
 are consumed by :func:`~orpheus.sn.solver.evaluate_residual` (Wave O
-step O.2 close-out — :ref:`affine-typed-residual`), which also
-completes the affine flux algebra (the iterate increment is now the
-typed :class:`~orpheus.transport.displacements.angular_displacement.AngularDisplacement`,
-and ``flux + flux`` is a :class:`TypeError`). That section is the
-canonical home for the **affine-typed triad** (state / displacement /
-residual).
+step O.2 close-out — :ref:`affine-typed-residual`). ⛔ That close-out
+also completed the *affine* flux algebra — the iterate increment was a
+typed ``AngularDisplacement`` and ``flux + flux`` was a
+:class:`TypeError` — and **that half was overturned on 2026-08-19**:
+flux lives in the positive cone of a vector space, so ``flux + flux`` is
+legal and the increment is the flux type carrying a signed value
+(:ref:`cone-typed-field-algebra`). The residual half above is unaffected
+— the residual role was always a plain vector role. The canonical home
+for the field algebra is now :ref:`cone-typed-field-algebra`.
 
 
 .. vv-status note: the operator-output role typing of B.5.2 is a

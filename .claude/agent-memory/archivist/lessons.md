@@ -91,6 +91,20 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   `−77` is an INCONSISTENT-seed statement. I had drafted "⚠ coverage gap: no ψ̂ gate on either
   arm" — false. My line-based grep missed the module because its evidence lives in the
   docstring and in `pytest.fail` messages, not in `assert` lines (vv #21). → L-055
+- **⭐⭐ Reproduce the witness — the reproduction can REFUTE the GATE'S OWN PROSE while
+  STRENGTHENING its claim.** A cone-violation gate's docstring said its two legs differ in
+  *"ONE parameter … half the optical cell size"*; `[M]` both legs have `Δx·Σ_t = 100`
+  **identically** (`nx=2,width=20` vs `nx=4,width=40`). The argument is stronger than its
+  prose — holding cell size fixed kills the rival explanation outright — so publish the
+  CORRECT framing, never weaken the claim, and REPORT the docstring (you don't edit `tests/`).
+  ⭐ Then run the two scans nobody asked for: a cell-SIZE scan reproduced the textbook DD
+  positivity limit exactly (`Δx·Σ_t = 1` in K, `= 2` already out) and a cell-COUNT scan showed
+  the benign row is the only one — ~90 s turned one frozen constant into a mechanism. → L-063
+- **⭐⭐ "Make illegal states unrepresentable" is TWO-sided, and half 2 is the one skipped.**
+  Mint the invariant iff (1) every admitted value is legal AND (2) every legal value is
+  admitted. Half 2 is a claim about the PRODUCERS, not the concept; when it fails the
+  invariant does not prevent a bug, it **refuses correct output**. Quote this into any page
+  invoking the pattern. → L-063
 - **⭐ When a brief offers a BINARY verdict and the tree supports neither pole, publish the
   third.** "Scoped to the scalar flux (fine)" vs "general (falsified)" both missed it: the
   claim was general-in-wording, sphere-in-evidence, and substantively true on the cylinder's
@@ -420,6 +434,38 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
 **Meta-rule: grep the SYMBOL, the full MODULE PATH, and the CONCEPT'S human paraphrase. Then ask of
 each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
+
+- **⭐⭐ An ONTOLOGY OVERTURN is not a retirement sweep — grep the retired symbol to FIND the
+  sites, then read the enclosing ARGUMENT to decide the edit.** The dead-ref half finishes in
+  one pass; the load-bearing half has no dead symbol in it. A five-obstruction proof that
+  `Carrier[Rep, Role]` is impossible rested on *"the Flux role must make `flux + flux`
+  raise"* — premise now false, **conclusion still true**. Deleting it destroys a correct
+  proof; leaving it ships a false premise. ⟹ re-derive from what survives, keep the
+  conclusion, tombstone the example — and the live tree hands you the replacement: `[M]`
+  `AngularFlux` now defines NO `__add__`/`__sub__` while `AngularSourceSink` does, so the
+  "changes the arithmetic interface" axis **inverted**. Same shape hit 5 sites on one page.
+  → L-063
+- **⭐⭐ An eq-LABEL is RETIRED when its NAME encodes the refuted concept and RENAMED when
+  only its ADJECTIVE is stale — the discriminator is the label's BODY.** 4 labels, 4 fates:
+  body states the retired claim ⟹ retire + repoint every `:eq:` citer; body still true ⟹
+  rename to a live name; body untouched by the overturn ⟹ **KEEP + `.. note::` at the anchor
+  saying the prefix is a historical artefact** (that one had **8 cross-doc `:ref:` citers**,
+  and a cross-doc dangling `:ref:` renders plain text at every severity — renaming buys
+  cosmetics and risks a silent break). A stale NAME is not a false CLAIM. ⭐ The retired
+  equation still gets SHOWN in the history section — as an **UNLABELLED `.. math::`** with
+  one line saying why, so it cannot become an `:eq:` API by accident. → L-063
+- **⭐ Check the vv-status bookkeeping in 1 s, and never hand-edit the matrix.** A sentinel
+  must name a `:label:` in the SAME file (`tests/_harness/audit.py`), so a rename without its
+  sentinel is a hard violation: `from tests._harness.audit import _scan_theory_equations`
+  → `.violations` / `.documented`, sub-second, no pytest. `matrix.rst` regenerates at
+  `builder-inited`; report the post-regen count (`[M]` 539 → 540). → L-063
+- **⭐⭐ Two SKILL files outside a brief's scope can carry the retired ontology — and your own
+  repair can IMPORT the falsehood through its cross-reference.** #18's corrected text points
+  at `cross-domain-frames` A.1, whose worked example is the retired type. ⟹ flag the
+  staleness **inline at the pointer** ("A.1's frame is sound; its example is NOT"), report the
+  out-of-scope files, never silently edit them. ⭐ And a REVERSED anti-pattern leads with what
+  survives, carries the falsified version verbatim beneath, and ships the checkable test the
+  reversal yields. → L-063
 
 - **⭐⭐ Before repairing a stale equation, census the CORPUS for a page that already states it
   right — the census does two jobs and both are load-bearing.** (a) It stops the repair minting a
@@ -776,6 +822,13 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   SELF-IDENTIFICATION plus the build plus a cross-ref grep-gate. A documented SEAM is the OPPOSITE
   of a gap; and a charter's literal "the X page" can be correctly delivered as a SECTION of a shared
   page (a standalone page would MINT a twin path). → L-038
+- **⭐ An ONTOLOGY-OVERTURN changelog goes on the page whose THESIS moved.** `history.rst`
+  contracts "a new entry lands with its merge hash or not at all", so an unmerged carve is
+  BLOCKED there; `operator_algebra.rst`'s history has the `*(in development)* <branch>`
+  escape hatch. ⟹ give the rewritten page its OWN Development history following that
+  convention verbatim, a short row on the sibling whose axis genuinely moved, and on the
+  blocked page tombstone only the falsified HALF of its row (one row, two halves, opposite
+  fates). → L-063
 - **Merging a re-staged branch's docs into a diverged tree:** read the fork-diff as a CONTENT
   source, not a patch; splice programmatically; translate EVERY module path to the live layout (a
   moved package vs a same-named unmoved one) with zero residual; place by anchor, never by the
@@ -867,6 +920,13 @@ never paraphrase a level definition. → L-010
   doc defect: materialize it, never route the docs around it. Never transcribe a hard-coded test
   count. And orphaned built HTML from a renamed source looks like a live stale ref — discriminate by
   "does the source `.rst` still exist?". → L-008, L-040, L-026
+- **⭐ A retirement's dead-ref count is under-reported by the commit that made it** — a brief
+  and a commit body both said "23 dead refs" (one retired package); the second retired module
+  path added **9** more. Grep every retired path, not the one the message names. ⚠ And a
+  deleted package can still IMPORT: an untracked `__pycache__` leaves a PEP-420 namespace
+  package (`__file__ is None`, 0 members) that a naive `import_module` probe calls LIVE —
+  probe a SUBMODULE. `[M]` the xref gate saw 1 of 32 (L-062's unlanded `head_role` bug); my
+  own import probe over 727 roles across 8 edited pages is the real gate. → L-063
 - **⭐ Measure the xref-gate baseline from `git archive HEAD` into a temp tree** — the cheap way to
   get a TRUE before/after on a dirty working tree (`git archive HEAD orpheus tests docs tools | tar
   -x -C <tmp>`, then run that tree's own copy of the gate on it). `[M]` 81 dead / 124 sites both

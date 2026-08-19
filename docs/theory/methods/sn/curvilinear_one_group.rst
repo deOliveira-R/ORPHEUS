@@ -4163,11 +4163,14 @@ identity lives on the members):
      - the q½ source block :math:`\bar q_{1/2}` (the fold below) and any
        operator ``.apply`` output on the seed rows
      - the augmented source composite
-   * - **displacement** —
-       :class:`~orpheus.transport.displacements.radial_characteristic_interior_displacement.RadialCharacteristicInteriorDisplacement`
-       ⊕ :class:`~orpheus.transport.displacements.radial_characteristic_boundary_displacement.RadialCharacteristicBoundaryDisplacement`
-     - the affine displacement between two ψ½ states (minted per block by ⊖)
-     - the composite torsor algebra (2.5d d1)
+   * - ⛔ **displacement** — ``RadialCharacteristicInteriorDisplacement``
+       ⊕ ``RadialCharacteristicBoundaryDisplacement``
+     - the affine displacement between two ψ½ states (minted per block by ⊖).
+       **RETIRED 2026-08-19** (campaign-1 CS3): flux lives in the vector
+       space :math:`V`, so the difference of two ψ½ states is the ψ½ **flux**
+       composite carrying signed values, and the displacement family
+       retired with the ontology — :ref:`cone-role-grid`.
+     - the composite torsor algebra (2.5d d1) — retired with the row
    * - **residual** —
        :class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
        ⊕ :class:`~orpheus.transport.residuals.radial_characteristic_boundary_residual.RadialCharacteristicBoundaryResidual`

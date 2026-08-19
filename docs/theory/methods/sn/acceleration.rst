@@ -882,12 +882,21 @@ decision, not a re-derivation.
 
 **SI + DSA** is a driver construct: the ``corrector`` parameter on
 :class:`~orpheus.numerics.iteration.SourceIteration`.  Each iteration,
-after the sweep produces the displacement :math:`\Delta\psi =
-\psi^{l+1/2} \ominus \psi^{l}`, the corrector applies
-:math:`\mathcal{C}\,\Delta\psi` and the update is the torsor action
-:math:`\psi \oplus \mathcal{C}\Delta\psi` — the correction is a
-*displacement* (tangent vector), never a state, so ``flux + flux``
-stays unspellable (the #208 affine algebra).  The extension is a no-op
+after the sweep produces the increment :math:`\Delta\psi =
+\psi^{l+1/2} - \psi^{l}`, the corrector applies
+:math:`\mathcal{C}\,\Delta\psi` and the update is the plain vector add
+:math:`\psi + \mathcal{C}\Delta\psi`.  Both operands are elements of the
+flux vector space :math:`V` — flux lives in :math:`V`, and its positive
+cone :math:`K` is a predicate on elements rather than a type invariant
+(:ref:`cone-typed-field-algebra`).  ``apply`` admits **one** interior type
+(:class:`~orpheus.transport.fields.angular_flux.AngularFlux`) and returns
+flux-typed correction blocks, so the SI sweep increment and the Krylov
+swept vector are the same type.  ⛔ Until 2026-08-19 this read *"the
+update is the* **torsor action** :math:`\psi \oplus
+\mathcal{C}\Delta\psi` *— the correction is a* **displacement** *(tangent
+vector), never a state, so* ``flux + flux`` *stays unspellable"*; the
+affine ontology was overturned at campaign-1 CS3
+(:ref:`cone-the-overturned-affine-design`).  The extension is a no-op
 through the single generic body: byte-inert when ``corrector`` is
 ``None``, with the SI stop-identity's corrected-arm exemption
 documented.

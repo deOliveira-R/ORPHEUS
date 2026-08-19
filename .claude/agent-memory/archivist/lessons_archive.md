@@ -6091,3 +6091,152 @@ stops being minted.
   `SNStreamingOperator` really was re-layered (`400ca33d`: `SNSolver.L` → `StreamingOperator` +
   collision multiplier). Same paragraph, two different fates; "absorbed" was true of one and false
   of two.
+
+---
+
+## L-063 — An ONTOLOGY OVERTURN: rewriting the page whose thesis was refuted
+
+**Task (2026-08-19, CS3 step 5, branch `refactor/cone-field-algebra`).** The code carve
+had landed (4 commits): flux moved from an *affine space* `𝔸` over a difference space `V`
+to the *positive cone* `K ⊂ V` of an ordered vector space. `FluxRole` and the whole
+`transport/displacements/` package (8 modules, 7 leaves) were deleted. My job: make the
+corpus teach the cone, with the affine era kept as dated history.
+
+### (a) ⭐⭐ A DOC-SIDE OVERTURN IS NOT A RETIREMENT SWEEP — the unit is the ARGUMENT, and
+### the load-bearing edit is re-deriving arguments whose CONCLUSION survives.
+
+The retirement grep (32 dead Python-domain refs) was the *easy* half and it finished in one
+pass. The hard half had no dead symbol in it at all: `operator_algebra.rst` carried a
+**five-obstruction proof** that `Carrier[Representation, Role]` is structurally impossible,
+and its obstruction **(a)** read *"the Flux role must make `flux + flux` **raise** while the
+Source role must make `source + source` **succeed**"*. That premise is now false — and the
+**conclusion is still true**. A retirement sweep either deletes the obstruction (destroying
+a correct proof) or leaves it (a false premise under a true theorem). Neither is right.
+⟹ **re-derive the argument from what survives, keep the conclusion, tombstone the example.**
+`[M]` the live tree hands you the replacement: `AngularFlux.__dict__` has **no `__add__`/
+`__sub__`** (MRO `AngularField → BulkField → Field → ABC`) while `AngularSourceSink` **does**
+(the iso→per-ordinate containment injection), so the axis that "changes the arithmetic
+interface" **inverted** — Source, not Flux. Obstruction (a) survives verbatim in force with
+a different worked example plus a second leg the old text never needed (class identity *is*
+units identity, and erasure would collapse `type(self) is type(other)` across every role).
+
+⚠ The same shape recurred five times on one page: the role-axis asymmetry section, the
+`(Moment, Displacement)` contrast, the fibration note, the conclusion sentence, the
+vv-kind table. **Grep the retired symbol to FIND the sites; then read the enclosing ARGUMENT
+to decide the edit.** A per-site symbol swap would have shipped five false premises.
+
+### (b) ⭐⭐ RETIRE the eq-LABEL when its NAME encodes the refuted concept; KEEP it when only
+### its ADJECTIVE is stale — and the discriminator is the label's BODY, not its name.
+
+Four `:eq:`-cited labels. `[M]` 0 `@pytest.mark.verifies` markers on any (grep
+`orpheus/ tests/`), 3 external `:eq:` citers, all in prose I was rewriting anyway.
+
+| label | body states | fate |
+|---|---|---|
+| `affine-torsor-algebra` | the RETIRED claim (4 torsor axioms) | **RETIRED** → new `flux-vector-algebra`; 2 citers repointed |
+| `affine-contraction-ratio` | ρ = ‖Δψⁱ‖/‖Δψⁱ⁻¹‖ — still TRUE, still shipped | **RENAMED** `iterate-contraction-ratio` |
+| `affine-true-error` | ‖Δψ‖/(1−ρ) — still TRUE, still shipped | **RENAMED** `iterate-true-error` |
+| `affine-typed-residual-eq` | r = (L+C−S−B)ψ − q — untouched by the overturn | **KEPT + annotated** |
+
+⟹ The residual one is the interesting call. Its `affine-` prefix is a **historical artefact
+of the page's former title**, not a claim: the residual role was never affine. Its *section*
+anchor `affine-typed-residual` has **8 cross-doc `:ref:` citers** (boundary_conditions ×6,
+coupled_block_operator ×1, self), and a cross-doc dangling `:ref:` renders plain text with
+**no warning at any severity**. Renaming buys cosmetics and risks a silent break.
+⟹ **KEEP, and put a `.. note::` at the anchor saying the prefix is stale and why** — so the
+next reader greps `affine`, lands there, and is told in one paragraph rather than
+re-litigating it. A stale NAME is not a false CLAIM; only a body can be false.
+
+⭐ And the retired equation still had to be *shown* (the history section needs it). Solution:
+display it as an **UNLABELLED `.. math::`** with one parenthetical saying why —
+*"a labelled equation is an API; these lines state a retired claim, so they must not be
+citable."* An unlabelled block cannot become an `:eq:` API by accident.
+
+### (c) ⭐⭐ The sentinel bookkeeping is a SAME-FILE constraint you can check in 1 s — and
+### the matrix is GENERATED, so never hand-edit it.
+
+`tests/_harness/audit.py:405` — `.. vv-status: <label> documented` must name a `:label:`
+in **the same file**, and `documented` is the only legal status. Renaming a label without
+its sentinel is a hard audit violation. Run the scanner directly (sub-second, no pytest):
+`from tests._harness.audit import _scan_theory_equations as scan; scan(Path("docs/theory"))`
+→ `.violations` / `.documented`. `[M]` 0 violations; population **539 → 540** (4 old → 5 new;
+I added `positive-cone-definition` because the cone is the page's new subject).
+`docs/theory/verification/matrix.rst` regenerates at `builder-inited` from `conf.py`'s
+`_GENERATORS`, so the sentinel list fixes itself — report the post-regen number, never edit.
+
+### (d) ⭐⭐ REPRODUCE the witness, and the reproduction may REFUTE the gate's own prose.
+
+The ruling's decisive measurement is *"DD does not preserve K, so a ψ≥0 type would refuse
+production output"*. The gate `tests/sn/solve/test_cone_membership_witness.py` freezes
+`min ψ = −6.399383e-01`. I reproduced it through the public entry — exact to the digit —
+**and the gate's docstring is wrong about its own fixture**: it says the pair differs in
+*"ONE parameter (`nx`) … half the optical cell size"*, but `_solve(nx=2, width=20)` and
+`_solve(nx=4, width=40)` both have `Δx = 10`, i.e. `Δx·Σ_t = 100` **identical in both legs**.
+⟹ **The argument is STRONGER than its prose** (holding the cell size fixed kills the
+"different discretization scale" explanation outright), so the fix is to publish the correct
+framing, not to weaken the claim. I also ran two scans nobody asked for and they turned one
+frozen number into the mechanism: the **cell-SIZE** scan reproduces the textbook DD
+positivity limit exactly (`Δx·Σ_t = 1` in K at `+5.8e-2`; `= 2` already out at `−8.7e-1`),
+and the **cell-COUNT** scan at fixed `Δx·Σ_t = 100` shows `nx=2` is the *only* in-cone row
+(`nx=3,4,5,6` → `−6.42e-1, −6.40e-1, −6.38e-1, −6.36e-1`). Two tables, ~90 s, and the page
+teaches a mechanism instead of quoting a constant.
+⚠ I may not edit `tests/` — so the docstring correction is REPORTED, not applied.
+
+### (e) ⭐ Two SKILL files the brief did not scope carried the retired ontology as a POSITIVE
+### precedent — and my own repair would have imported the falsehood via its cross-reference.
+
+Brief scope was "the one skill file" (`coding-elegance` #18). `[M]` grep `.claude/skills/`:
+`cross-domain-frames/reference.md` (the A.1 frame row + §192/§201 fix-suggestions) and
+`numerical-bug-signatures/SKILL.md` §479/§488 also cite `FluxDisplacement` / "flux states
+are an affine space" as live. And #18's *corrected* text points readers at A.1 for the frame
+— i.e. **the repair cites a stale page** (`coding-standards`' "a cross-reference is a
+load-bearing dependency"). ⟹ I flagged the staleness **inline at the pointer** (*"A.1's
+frame is sound; its ORPHEUS worked example is NOT"*) so the repair cannot import the
+falsehood, and reported both files as owed follow-ups rather than editing out of scope.
+
+⭐ The **reversal** of an anti-pattern is more valuable than its statement, so #18 was
+rewritten to lead with what survives (*"NEVER STRAND the convergence data — give it a home
+on the object that knows 'previous', which is the ITERATION"*) and to carry the falsified
+version verbatim beneath it, plus the checkable test the reversal yields: **(a) is there a
+canonical zero?** (distinguished by the domain, not chosen) **(b) is superposition
+physical?** Two yeses ⟹ vector space, one type, diagnostics on the record.
+
+### (f) ⭐⭐ The two-sided rule the whole overturn distils to — worth quoting into any page
+### that invokes "make illegal states unrepresentable".
+
+Mint the invariant **iff** (1) every value the type admits is legal **AND** (2) every legal
+value is admitted. **Half 2 is the one that gets skipped, because it is a claim about the
+PRODUCERS, not about the concept.** When it fails the invariant does not prevent a bug — it
+**refuses correct output**, and the pressure is then to weaken it, silence it, or route
+around the type. Here half 2 failed twice independently: algebraically (K is not closed
+under difference or negative scaling, and increments/errors/Krylov directions all live
+outside it) and numerically (DD ships negative flux).
+
+### (g) The mechanical residue, all measured
+
+- **Dead Python-domain refs: 32, not the briefed 23.** The brief (and the step-3 commit
+  body) counted `orpheus.transport.displacements.*` only; `orpheus.transport.fields._flux_role.*`
+  is another **9**. Grep BOTH retired module paths, not the one the commit message names.
+- ⚠ **`orpheus/transport/displacements/` still IMPORTS** — an untracked `__pycache__` leaves
+  a PEP-420 namespace package (`__file__ is None`, 0 members), so a naive
+  `importlib.import_module` probe reports it LIVE (L-052's known false negative). Probe a
+  SUBMODULE, or check `__file__ is None`.
+- **`tools/check_docstring_xrefs.py`: HEAD 1 dead → working tree 0.** The one it saw was the
+  `:mod:` I fixed. It is BLIND to the other 31 (L-062's unlanded `head_role` bug) — my own
+  import probe over **727** orpheus-rooted roles across the 8 edited pages is the real gate.
+- **`fuel_behaviour.rst:303` "Displacement-Based Constraint" is a MECHANICAL displacement**
+  (fuel pellet) — the overloaded-word false positive the brief's grep list contained. Triage
+  by MEANING before touching.
+- **Build: `-E -W --keep-going` EXIT=0, WARNING/ERROR/CRITICAL set byte-identical to the
+  pre-edit `-E` baseline (both empty), 0 `SyntaxWarning`.** 11 anchors + 5 equations + 26
+  live code links rendered on the new page.
+
+### (h) ⭐ The changelog contract BLOCKED the obvious home — and the page-local one was right
+
+`docs/theory/methods/sn/history.rst` states *"a new entry lands with its merge hash or not at
+all"*, and CS3 is unmerged. `operator_algebra.rst`'s history has the escape hatch
+(*"entries marked (in development) live on an unmerged feature branch"*). ⟹ I gave
+`field_algebra.rst` its **own** Development history following that convention verbatim, put
+a short row on `operator_algebra.rst`'s (its Role axis genuinely moved), and left
+`history.rst` alone except to tombstone its 2026-06 row's *affine half* while explicitly
+preserving its *typed-residual half* — one row, two halves, opposite fates.

@@ -2730,7 +2730,8 @@ Three properties make this the clean lever:
   moment-polymorphic; only its layout-supplier was scalar.  This is the
   illegal-states-unrepresentable payoff of the Depth-B field-space refactor: the
   boundary FIELDS (``AngularBoundaryFlux`` / ``AngularBoundarySourceSink`` /
-  ``AngularBoundaryResidual`` / ``AngularBoundaryDisplacement``) validate ONLY against
+  ``AngularBoundaryResidual``; ``AngularBoundaryDisplacement`` existed too
+  until it retired at campaign-1 CS3) validate ONLY against
   ``layout.total_size``, never a hardcoded :math:`(N, n_g)`, so they accommodate
   any slot shape the layout dictates.
 

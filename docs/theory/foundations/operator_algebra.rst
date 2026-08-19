@@ -102,28 +102,41 @@ Key Facts
   :math:`\texttt{from\_balance} \to \texttt{AngularBoundaryResidual}`. See
   :ref:`bc-extraction-operator-output-typing`.
 
-- **Flux states form an affine space; the iterate increment is a typed
-  displacement, and** ``flux + flux`` **is a** :class:`TypeError`
-  (Issue #208/#201). The flux
+- **Flux lives in the positive cone** :math:`K` **of an ordered vector
+  space** :math:`V`\ **; a flux difference is the same type, signed, and**
+  ``flux + flux`` **is legal** (Issue #331; campaign-1 CS3). The flux
   states :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-  / :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` are an
-  **affine space** :math:`\mathbb{A}` over a distinct **difference vector space**
-  :math:`V`. The source-iteration increment
-  :math:`\Delta\psi = \psi^{(i)} \ominus \psi^{(i-1)}` is an element of
-  :math:`V` — a :class:`~orpheus.transport.displacements._displacement.Displacement`,
-  NOT a state — so ``flux ⊖ flux`` mints a displacement, ``flux ⊕
-  displacement`` is the torsor update, and ``flux + flux`` raises (an
-  affine space has no origin; the #201 dimensional gate is now a
-  **type** consequence). The displacement is the only object that knows
-  "previous"/"step", so it carries the convergence diagnostics a flux
-  state cannot (``contraction_ratio`` :math:`\approx c`,
-  ``true_error_estimate`` = the :math:`c\to 1` false-convergence fix).
-  The equation residual :math:`r = (L+C-S-B)\psi - q` is now typed via
+  / :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` live in
+  the **positive cone** :math:`K` of an ordered **vector space**
+  :math:`V`. ``flux + flux`` is legal (superposition is a theorem of the
+  linear operator), the source-iteration increment
+  :math:`\Delta\psi = \psi^{(i)} - \psi^{(i-1)}` is the **same** leaf
+  type carrying a signed value, and cone membership is an element
+  **predicate** (:meth:`Field.cone_violations
+  <orpheus.numerics.field.Field.cone_violations>`), never a constructor
+  invariant — diamond difference does not preserve :math:`K`, so a
+  :math:`\psi\ge0` type would refuse production output. What "fluxes of
+  different problems don't mix" really enforces is the **fiber** (class +
+  space + mesh identity on :meth:`Field._check_partner
+  <orpheus.numerics.field.Field._check_partner>`), and the iterate
+  diagnostics that a state structurally cannot carry live on the
+  **iteration record**
+  (:attr:`IterationRecord.increment_norms
+  <orpheus.numerics.convergence.IterationRecord.increment_norms>`, from
+  which :math:`\rho` and the :math:`c\to1` true-error estimate derive).
+  The equation residual :math:`r = (L+C-S-B)\psi - q` is typed via
   :func:`~orpheus.sn.solver.evaluate_residual` (the box-7 consumer of
   the previously-unconsumed ``from_balance`` mint). See
-  :ref:`affine-typed-field-algebra`.
+  :ref:`cone-typed-field-algebra`.
+
+  ⛔ Until 2026-08-19 this bullet read *"flux states are an* **affine
+  space** :math:`\mathbb{A}` *over a difference vector space* :math:`V`
+  *… so* ``flux + flux`` *raises"*. That ontology was overturned at
+  campaign-1 CS3; the six-argument adjudication and the retired design
+  are at :ref:`cone-overturn-adjudication` and
+  :ref:`cone-the-overturned-affine-design`.
 
 - **The carriers form a** :math:`(\text{Representation} \times
   \text{Role})` **double category, and the operator algebra traverses
@@ -132,8 +145,9 @@ Key Facts
   :math:`\in \{\text{Angular}, \text{Moment}, \text{Scalar},
   \text{Trace}\}` sets the array shape and carries the change-of-basis
   (the Frame); **Role** :math:`\in \{\text{Flux}, \text{Source},
-  \text{Residual}, \text{Displacement}\}` sets the arithmetic interface
-  (the #208 affine torsor). The **horizontal** 1-morphisms are the
+  \text{Residual}\}` sets the arithmetic interface (the units the
+  class-identity gate reads, and the cross-class containment injection
+  the Source role owns). The **horizontal** 1-morphisms are the
   representation-changing frame faces :math:`M`/:math:`R` (role-generic —
   a base change that fixes the fiber); the **vertical** 1-morphisms are
   the role-changing cross sections :math:`C`/:math:`\Lambda`/:math:`F`
@@ -151,7 +165,8 @@ Key Facts
   changes ``__add__`` ⟹ Role must be a class; Representation changes
   shape ⟹ Representation must be a class; a parameterized carrier would
   break the runtime units gate via generic erasure). The flat
-  multiple-inheritance leaves ``AngularFlux(FluxRole, AngularField)`` are
+  multiple-inheritance leaves ``AngularFlux(AngularField)`` /
+  ``CrossSectionField(CoefficientRole, ScalarField)`` are
   therefore the **unique principled normal form**, not a compromise. See
   :ref:`carrier-grid-double-category` and
   :ref:`carrier-grid-flat-leaf-normal-form`.
@@ -1306,9 +1321,9 @@ collision-number expansion (each term :math:`k` is the flux of neutrons
 that have scattered exactly :math:`k` times). The series converges with
 spectral radius :math:`\rho\bigl[(L+C)^{-1}S\bigr] \le \max_g
 \Sigma_{s,g}/\Sigma_{t,g} = c` (the :term:`scattering ratio`;
-:ref:`affine-typed-field-algebra` documents the matching contraction
-:math:`M = (L+C)^{-1}(S+B)` carried as a typed diagnostic on the SI
-iterate). The sweep :math:`(L+C)^{-1}` being a *single bundled* inverse —
+:ref:`cone-iterate-diagnostics` documents the matching contraction
+:math:`M = (L+C)^{-1}(S+B)`, whose measured factor :math:`\rho` is
+carried as a derived diagnostic on the SI iteration record). The sweep :math:`(L+C)^{-1}` being a *single bundled* inverse —
 not :math:`L^{-1} + C^{-1}` — is exactly the point: it is the WDD
 forward-substitution on :eq:`apply-solve-cell-resolvent`, dividing by the
 summed denominator cell-by-cell in inflow-to-outflow order. See Lewis &
@@ -3236,16 +3251,14 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
      - What it is
    * - top-left leaf
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-       (``FluxRole``)
-     - The per-ordinate flux :math:`\psi_n(\vec r, g)` — an affine flux
-       *state* (a point, not a vector; ``flux + flux`` is gated by the
-       :class:`~orpheus.transport.fields._flux_role.FluxRole` torsor).
+     - The per-ordinate flux :math:`\psi_n(\vec r, g)` — an element of
+       the flux vector space :math:`V`, physically in its positive cone
+       :math:`K` (:ref:`cone-ordered-vector-space`).
    * - top-right leaf
      - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-       (``FluxRole``)
      - The flux moments :math:`\phi_\ell^m(\vec r, g)` — the same flux
        state in moment space (``(L+1, 2L+1, ng, *spatial)``). A
-       ``(FluxRole, MomentField)`` carrier; ``flux units`` =
+       ``MomentField`` carrier; ``flux units`` =
        :data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS` (a moment is
        angle-integrated, so the :math:`\ell=0` block **is** the scalar
        flux exactly).
@@ -3254,7 +3267,7 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
        (bare ``MomentField``)
      - The **scattered in-scatter source** moments — the output of
        :math:`\Lambda`. A *rate density*, so it adds vectorially
-       (``source + source`` is CLOSED, no affine gate);
+       (``source + source`` is CLOSED);
        :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`. The P4 leaf that
        gave the flux→source role change a *home* (before it, the role
        change leaked to the scattering consumer as a raw ``np.ndarray``).
@@ -3395,19 +3408,28 @@ a different facet of the object:
   :class:`~orpheus.transport.fields._bases.ScalarField` /
   :class:`~orpheus.transport.fields._bases.AngularBoundaryField`).
 
-* **Role** :math:`\in \{\text{Flux},\ \text{Source},\ \text{Residual},\
-  \text{Displacement}\}` sets the **arithmetic interface** — the #208
-  affine torsor of :ref:`affine-typed-field-algebra`. Flux is an affine
-  *point* (``flux − flux → Displacement``, ``flux ⊕ Displacement → flux``,
-  and ``flux + flux`` is a :class:`TypeError` — :eq:`affine-torsor-algebra`);
-  Source, Residual, and Displacement are *vectors* in the associated
-  difference space (``source + source`` is closed, ``residual + residual``
-  is closed). The role is what the object's ``__add__`` *means*. This axis
-  is the role-mixin layer
-  (:class:`~orpheus.transport.fields._flux_role.FluxRole` for the flux
-  states; the bare storage base, i.e. *no* role mixin, for the Source and
-  Residual leaves; :class:`~orpheus.transport.displacements._displacement.Displacement`
-  for the increment leaves).
+* **Role** :math:`\in \{\text{Flux},\ \text{Source},\
+  \text{Residual}\}` sets the **arithmetic interface** — the field
+  algebra of :ref:`cone-typed-field-algebra`. All three are *vectors*:
+  ``flux + flux``, ``source + source`` and ``residual + residual`` are
+  each closed (:eq:`flux-vector-algebra`), and a flux difference is the
+  flux type carrying a signed value. What the role decides is **which
+  additions mean something**: the class identity *is* the units identity
+  (one ``UNITS`` constant per leaf), so the runtime gate
+  :meth:`Field._check_partner
+  <orpheus.numerics.field.Field._check_partner>` refuses every
+  cross-role pair; and the Source role additionally owns a
+  *cross-representation* ``__add__`` (the isotropic→per-ordinate
+  containment injection). This axis is the role-**leaf** layer — the
+  concrete classes themselves, since only
+  :class:`~orpheus.transport.fields._coefficient_role.CoefficientRole`
+  still carries a role mixin.
+
+  ⛔ Until 2026-08-19 this bullet read *"Flux is an affine* **point**
+  *(*``flux − flux → Displacement``*, and* ``flux + flux`` *is a*
+  :class:`TypeError`*)"* over a four-role set. The affine ontology was
+  overturned at campaign-1 CS3 — see
+  :ref:`cone-the-overturned-affine-design`.
 
 The two axes are genuinely orthogonal: a representation change preserves
 role (the addition theorem maps a flux to a flux and a source to a source
@@ -3531,8 +3553,10 @@ of a real 2-cell.
    **An equivalent reading: a category fibered over Representation.** The
    same structure can be stated as a *fibered category* (a Grothendieck
    fibration) :math:`p : E \to B` with base :math:`B =` Representation and
-   the **Role as the fiber coordinate**, carrying a **torsor on the Flux
-   fiber** (:ref:`affine-typed-field-algebra`). In this reading a
+   the **Role as the fiber coordinate** (:ref:`cone-typed-field-algebra`;
+   until 2026-08-19 this read "carrying a **torsor on the Flux fiber**",
+   which the CS3 overturn retired — the fiber is a vector space). In this
+   reading a
    role-change (:math:`\Lambda`, :math:`C`, :math:`F`) is a *cartesian
    morphism within a fiber* (fixed representation), and a
    representation-change (:math:`M`, :math:`R`) is a *base change* lifting
@@ -3793,88 +3817,89 @@ cell that is principled tells a future session "do not mint this", which is
 as load-bearing as a populated one). The census below is the live state of
 :mod:`orpheus.transport.fields`,
 :mod:`orpheus.transport.source_sinks`,
-:mod:`orpheus.transport.residuals`, and
-:mod:`orpheus.transport.displacements`.
+:mod:`orpheus.transport.residuals` (the fourth package,
+``transport/displacements/``, retired at campaign-1 CS3 —
+:ref:`cone-role-grid`).
 
 .. list-table:: The (Representation × Role) carrier grid — leaf census
    :header-rows: 1
    :stub-columns: 1
-   :widths: 18 21 21 21 19
+   :widths: 22 26 26 26
 
    * -
-     - **Flux** (``FluxRole``)
-     - **Source** (bare)
-     - **Residual** (bare)
-     - **Displacement**
+     - **Flux**
+     - **Source**
+     - **Residual**
    * - **Angular**
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
      - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
      - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
-     - :class:`~orpheus.transport.displacements.angular_displacement.AngularDisplacement`
    * - **Moment**
      - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
      - :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
      - — *(principled hole, below)*
-     - :class:`~orpheus.transport.displacements.moment_displacement.MomentDisplacement`
    * - **Scalar**
      - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
      - :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
      - :class:`~orpheus.transport.residuals.scalar_residual.ScalarResidual`
-     - :class:`~orpheus.transport.displacements.scalar_displacement.ScalarDisplacement`
    * - **Trace**
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
      - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
      - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
-     - :class:`~orpheus.transport.displacements.angular_boundary_displacement.AngularBoundaryDisplacement`
 
 Reading the columns confirms the two-axis structure of
-:ref:`affine-typed-field-algebra`: the **Flux** column carries the
-:class:`~orpheus.transport.fields._flux_role.FluxRole` torsor mixin (an
-affine point); the **Source** and **Residual** columns are *bare* storage
-leaves (plain vector algebra — ``source + source`` and ``residual +
-residual`` are closed, no affine gate); the **Displacement** column carries
-the :class:`~orpheus.transport.displacements._displacement.Displacement`
-mixin (the iterate-increment vector, home of the contraction diagnostics).
-The Trace (boundary) row mirrors the bulk rows exactly — the four-column
+:ref:`cone-typed-field-algebra`: every column is a *plain vector role*
+whose arithmetic is the inherited
+:class:`~orpheus.numerics.field.Field` algebra, and what separates the
+columns is **class identity**, which the runtime gate reads as units
+identity. The Trace (boundary) row mirrors the bulk rows exactly — the
 parallel the boundary role grid completes at
 :ref:`bc-extraction-operator-output-typing`.
 
-The role-axis "asymmetry" is the type-vs-property rule, not a defect
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+⛔ **A fourth column, Displacement, stood here from 2026-06-08 to
+2026-08-19** — ``AngularDisplacement`` / ``MomentDisplacement`` /
+``ScalarDisplacement`` / ``AngularBoundaryDisplacement``, the affine
+increment leaves. It retired whole with the cone overturn: a flux
+difference is the flux type carrying a signed value, so the column had
+nothing left to hold (:ref:`cone-role-grid`).
 
-A first glance at the columns sees an asymmetry: Flux and Displacement are
-**mixins** (they add behaviour — the torsor algebra, the contraction
-diagnostics), while Source and Residual carry **no mixin** (they are bare
-representation leaves). This is **correct**, and it is the project's
-type-vs-property rule (CLAUDE.md Cardinal Rule 2; the
-``coding-elegance`` "build the primitive" pattern) applied exactly: mint a
+The role axis carries no behaviour, and that is the type-vs-property rule
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`[M]` **no flux leaf defines** ``__add__`` **or** ``__sub__``:
+:class:`~orpheus.transport.fields.angular_flux.AngularFlux`'s MRO is
+``AngularField → BulkField → Field → ABC``, with the algebra inherited
+whole. The only leaf on the grid that overrides an additive dunder is
+:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`,
+and what it overrides is *cross-representation*, not cross-role: it
+accepts a
+:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+partner and applies the canonical subspace-containment injection before
+adding (the refined #207 exception; Issue #288 records that this is
+statically unspellable against Field's ``(T, T) -> T``).
+
+This is the project's type-vs-property rule (CLAUDE.md Cardinal Rule 2;
+the ``coding-elegance`` "build the primitive" pattern) working: mint a
 distinct **role object** only where a **non-identity morphism** lives on
-that role.
+that role. Under the cone ontology no role has one, so **no role carries
+a mixin** — the roles are distinguished by being different *classes*,
+which is exactly what the runtime units gate reads. A residual is born
+only from a :meth:`~orpheus.numerics.field.Field._from_balance`, a source
+from an operator ``apply``, a flux from a solve; class identity gates
+every cross-role addition even where the units coincide. Giving any of
+them a marker mixin "for symmetry" would be **ceremony** — a class with
+no behaviour, the theatrics the rule forbids.
 
-* **Flux** earns a class because it has special arithmetic — the torsor
-  (``flux + flux`` must *raise*, ``flux − flux`` must mint a
-  *Displacement*). That behaviour is unrepresentable without a class to
-  carry the overridden ``__add__`` / ``__sub__``.
-
-* **Displacement** earns a class because it carries diagnostics a flux
-  state structurally cannot (``contraction_ratio``, the Aitken / true-error
-  estimate — :ref:`affine-typed-field-algebra`).
-
-* **Source** and **Residual** are *plain vector roles* — their arithmetic
-  is the inherited :class:`~orpheus.numerics.field.Field` vector algebra,
-  with **no** special dunder. There is no non-identity morphism to host, so
-  by the rule they **correctly carry nothing** beyond their representation
-  base. The role distinction between a Source and a Residual is still real
-  — they are different *classes* (a residual is born only from a
-  :meth:`~orpheus.numerics.field.Field._from_balance`, a source from an
-  operator ``apply``; the class identity gates cross-role addition even
-  though they share rate-density units), but the distinction needs no
-  *behaviour*, so neither gets a mixin.
-
-Uniformising the role axis — giving Source and Residual an empty marker
-mixin "for symmetry" — would be **ceremony**: it would add a class with no
-behaviour, exactly the kind of theatrics the type-vs-property rule forbids.
-The asymmetry is the rule working.
+⛔ **Until 2026-08-19 this subsection argued the opposite asymmetry** —
+*"Flux and Displacement are* **mixins** *(they add behaviour — the torsor
+algebra, the contraction diagnostics), while Source and Residual carry*
+**no mixin**\ *"*, with "**Flux** earns a class because ``flux + flux``
+must *raise*". The CS3 overturn deleted both mixins, so the axis that
+"changes the arithmetic interface" is now the *Source* axis. The
+**conclusion** is unchanged and is re-derived above; only its worked
+example moved. Note the type-vs-property rule is *vindicated* by the
+overturn: the affine mixin was behaviour minted for a morphism that
+turned out not to exist.
 
 The two principled holes
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -3891,12 +3916,14 @@ Two cells are deliberately empty, and both absences are designed.
   is no ``from_balance`` consumer that would produce a moment residual.
   Minting :class:`!HarmonicMomentResidual` would create a leaf no producer
   fills — an illegal state by the "build the primitive only when it has a
-  consumer" rule. The hole is the rule, not an oversight. (Contrast
-  **(Moment, Displacement)**, which *is* populated:
-  :class:`~orpheus.transport.displacements.moment_displacement.MomentDisplacement`
-  exists because the angular-windowed SI iterate *does* hold its state as a
-  moment flux and *does* difference it — :ref:`sn-angular-windowing` — so
-  the moment displacement has a genuine consumer.)
+  consumer" rule. The hole is the rule, not an oversight. (Until 2026-08-19
+  this bullet contrasted the hole with a *populated*
+  **(Moment, Displacement)** cell — ``MomentDisplacement`` existed because
+  the angular-windowed SI iterate *does* hold its state as a moment flux
+  and *does* difference it, :ref:`sn-angular-windowing`. Under the cone
+  ontology that difference **is** a
+  :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`,
+  so the contrast is gone and the residual hole stands alone.)
 
 * **The** ``iso + aniso → AngularSourceSink`` **source injection is a
   hand-rolled Representation traversal inside a dunder, and it is
@@ -3950,20 +3977,34 @@ The argument is five obstructions, each fatal on its own.
    * - **(a)**
      - **Role changes the arithmetic interface ⟹ Role MUST be a class.**
      - A phantom type parameter (``Generic[Role]``) is **erased at
-       runtime**, so it cannot specialize a dunder. But the role *is* the
-       ``__add__`` semantics: the Flux role must make ``flux + flux``
-       **raise** (the torsor, :eq:`affine-torsor-algebra`) while the Source
-       role must make ``source + source`` **succeed**. A single
-       ``__add__`` body shared across ``Carrier[Rep, Flux]`` and
-       ``Carrier[Rep, Source]`` under one phantom ``Role`` **cannot** make
-       one raise and the other succeed — the parameter that would select
-       between them does not exist at the moment ``__add__`` runs. This
-       hard-refutes the phantom-``Role`` encodings (``Field[Rep, Role]``
-       and the representation-outer ``Angular[Role]``). A *runtime*
-       ``role`` field that ``__add__`` branches on is the stringly-typed
-       anti-pattern (an illegal state is representable —
-       ``replace(f, role=Source)`` would bypass the torsor gate), so that
-       escape is closed too.
+       runtime**, so it cannot specialize a dunder — and it cannot be read
+       by a runtime gate either. Two facts make Role's interface
+       role-dependent. First, `[M]` the Source role owns a
+       *cross-representation* ``__add__``
+       (:meth:`AngularSourceSink.__add__
+       <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.__add__>`
+       accepts a ``ScalarSourceSink`` partner and injects it by
+       subspace containment) that no other role has; a single ``__add__``
+       body shared across ``Carrier[Rep, Flux]`` and
+       ``Carrier[Rep, Source]`` under one phantom ``Role`` **cannot** admit
+       that partner for one and refuse it for the other, because the
+       parameter that would select between them does not exist at the
+       moment ``__add__`` runs. Second, role identity **is** units identity
+       (one ``UNITS`` class constant per leaf), and
+       :meth:`Field._check_partner
+       <orpheus.numerics.field.Field._check_partner>` reads it as
+       ``type(self) is type(other)`` — which under erasure would compare
+       equal for *every* role. A *runtime* ``role`` field that ``__add__``
+       branches on is the stringly-typed anti-pattern (an illegal state is
+       representable — ``replace(f, role=Source)`` would relabel a flux as
+       a source without changing its units), so that escape is closed too.
+
+       ⛔ Until 2026-08-19 this cell argued from the affine gate — *"the
+       Flux role must make* ``flux + flux`` **raise** *while the Source
+       role must make* ``source + source`` **succeed**\ *"*. That gate was
+       retired at campaign-1 CS3 (:ref:`cone-the-overturned-affine-design`)
+       and the obstruction is re-derived above from the two facts that
+       survive it. The conclusion is unchanged.
    * - **(b)**
      - **Representation changes the array shape ⟹ Representation MUST be a
        class.**
@@ -3974,9 +4015,9 @@ The argument is five obstructions, each fatal on its own.
        (:meth:`~orpheus.transport.fields._bases.BulkField._phase_space_shape`).
        A phantom ``Representation`` parameter, erased, carries none of that
        — the shape check has nothing to read. This refutes the role-outer
-       phantom ``Flux[Rep]`` (the one encoding the torsor obstacle would
-       have spared — Role is the outer class there — but the shape
-       obstacle kills it instead).
+       phantom ``Flux[Rep]``, which obstruction (a) would have spared —
+       Role is the outer class there — but the shape obstacle kills it
+       instead.
    * - **(c)**
      - **The only both-classes form with role-arithmetic-once and
        rep-shape-once is the flat MI leaf — which already exists.**
@@ -3984,9 +4025,11 @@ The argument is five obstructions, each fatal on its own.
        class. The form that has *both* as classes, with the role algebra
        written once (per role mixin) and the representation shape written
        once (per storage base), and no per-cell duplication, is the
-       multiple-inheritance intersection ``AngularFlux(FluxRole,
-       AngularField)`` the grid is **already** built from. There is no
-       novel encoding to discover; the normal form is the current code.
+       multiple-inheritance normal form the grid is **already** built
+       from — ``AngularFlux(AngularField)`` where the role needs no
+       behaviour, ``CrossSectionField(CoefficientRole, ScalarField)`` where
+       it does. There is no novel encoding to discover; the normal form is
+       the current code.
    * - **(d)**
      - **A parameterized carrier would break the runtime units gate via
        erasure.**
@@ -4014,9 +4057,10 @@ The argument is five obstructions, each fatal on its own.
 
 **Conclusion.** The flat multiple-inheritance leaves are the **unique,
 principled normal form** — not a workaround the language imposes, but the
-one design that (i) keeps the torsor's ``flux + flux`` ban expressible,
-(ii) keeps the per-representation shape check expressible, (iii) keeps the
-runtime units gate sharp, and (iv) avoids per-cell duplication. The
+one design that (i) keeps a role's own dunder (the Source role's
+containment injection) expressible, (ii) keeps the per-representation
+shape check expressible, (iii) keeps the runtime units gate sharp, and
+(iv) avoids per-cell duplication. The
 genericity the grid genuinely has — "an operator maps one cell to another"
 — lives where Python *can* express it and where it belongs: on the
 **operator's** :math:`[\textsf{Domain}, \textsf{Codomain}]`
@@ -4675,18 +4719,22 @@ admissibility condition, and why streaming resists a clean factorisation —
 is developed in :doc:`/theory/foundations/operator_tensor_network`.
 
 
-The affine-typed field algebra
-==============================
+The cone-typed field algebra
+============================
 
-The affine-typed S\ :sub:`N` **field** algebra — the recognition that
-flux **states** form an affine space :math:`\mathbb{A}` (points, no
-origin) over a difference vector space :math:`V`, with the field-role
-grid completed by a **displacement** column that carries the convergence
-diagnostics a state cannot — is developed in full on its own page,
+The S\ :sub:`N` **field** algebra — the recognition that
+flux lives in the **positive cone** :math:`K` of an ordered vector
+space :math:`V`, with membership an element predicate and preservation a
+property of the realization — is developed in full on its own page,
 :doc:`/theory/foundations/field_algebra`. That page types the **fields**
-(state / displacement / residual / source) that the operators of this
-page act on; it also wires the typed equation residual
-:math:`r = (L + C - S - B)\,\psi - q` to its ``from_balance`` consumer.
+(flux / source / residual) that the operators of this page act on; it
+also wires the typed equation residual
+:math:`r = (L + C - S - B)\,\psi - q` to its ``from_balance`` consumer,
+and it carries the six-argument adjudication that overturned the 2026-06
+affine ontology (⛔ until 2026-08-19 this paragraph read *"flux* **states**
+*form an affine space* :math:`\mathbb{A}` *(points, no origin) over a
+difference vector space* :math:`V`, *with the field-role grid completed
+by a* **displacement** *column"*).
 
 The composite metric adjoint
 ============================
@@ -5606,9 +5654,10 @@ falsehood at ``confidence = 1.0``.
        (:ref:`carrier-grid-flat-leaf-normal-form`) — a *structure*.
        Related but **not** implementing:
        :mod:`orpheus.transport.fields._bases` (the Representation ABCs)
-       and :class:`~orpheus.transport.fields._flux_role.FluxRole` /
-       :class:`~orpheus.transport.displacements._displacement.Displacement`
-       (the Role mixins). By contrast the *three edges* of
+       and the concrete role leaves themselves (the two Role mixins this
+       entry once named, ``FluxRole`` and ``Displacement``, retired at
+       campaign-1 CS3 — :ref:`cone-role-grid`). By contrast the *three
+       edges* of
        :eq:`scattering-carrier-grid` are materialized methods and are
        declared — a diagram's arrows can have implementers where its
        nodes cannot.
@@ -5817,14 +5866,28 @@ for merge status.
      - #65 / #268 / #261
      - *(in development)*
        ``refactor/operator-inverse-algebra``
+   * - 2026-08-19
+     - **Flux lives in the positive cone** :math:`K \subset V` — the
+       affine field algebra is overturned. ``flux + flux`` becomes legal,
+       a flux difference is the **same** leaf type carrying a signed
+       value, cone membership becomes an element predicate and cone
+       preservation stays the realization's flag; the ``FluxRole`` mixin
+       and the whole ``transport/displacements/`` package retire, and the
+       iterate diagnostics move onto
+       :class:`~orpheus.numerics.convergence.IterationRecord`. Closes #331
+       (operators are linear on :math:`V`). Full treatment, including the
+       six-argument adjudication:
+       :ref:`cone-overturn-adjudication`.
+     - #331
+     - *(in development)* ``refactor/cone-field-algebra``
    * - 2026-06-08
      - **Flux states typed as an affine space; the iterate increment is a
-       typed displacement.** ``flux − flux`` mints a
-       :class:`~orpheus.transport.displacements._displacement.Displacement`,
-       ``flux ⊕ displacement`` is the torsor update, and ``flux + flux`` is
-       a :class:`TypeError` — the #201 dimensional gate becomes a *type*
-       consequence (:ref:`affine-typed-field-algebra`). The Role axis of
-       the carrier grid.
+       typed displacement.** ``flux − flux`` minted a ``Displacement``,
+       ``flux ⊕ displacement`` was the torsor update, and ``flux + flux``
+       was a :class:`TypeError` — the #201 dimensional gate as a *type*
+       consequence. The Role axis of the carrier grid.
+       ⛔ **OVERTURNED 2026-08-19** — see the row above and
+       :ref:`cone-the-overturned-affine-design`.
      - #208 / #201
      - ``main`` (Wave O step O.2)
    * - 2026-06-07

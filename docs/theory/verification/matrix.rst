@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9866**
+Total tests collected: **9865**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1620, 16.4%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6880, 69.7%
+   foundation, 6879, 69.7%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9782
+   explicit, 9781
    class-name, 46
    func-name, 0
    case, 33
@@ -48,7 +48,7 @@ Module × level grid
    :widths: 40, 6, 6, 6, 6, 6, 6
 
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
-   acceleration/test_dsa_low_order, 0, 0, 0, 0, 13, 0
+   acceleration/test_dsa_low_order, 0, 0, 0, 0, 14, 0
    acceleration/test_dsa_rate, 0, 62, 2, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
@@ -316,7 +316,6 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
-   numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 131, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
@@ -331,7 +330,8 @@ Module × level grid
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
-   numerics/test_field, 0, 0, 0, 0, 22, 0
+   numerics/test_field, 0, 0, 0, 0, 27, 0
+   numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
@@ -341,7 +341,7 @@ Module × level grid
    numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
-   numerics/test_iteration_record, 0, 0, 0, 0, 132, 0
+   numerics/test_iteration_record, 0, 0, 0, 0, 136, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
@@ -361,6 +361,7 @@ Module × level grid
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 38, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 67, 0
+   numerics/test_si_diagnostic_trajectory, 0, 0, 0, 0, 5, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
@@ -454,6 +455,7 @@ Module × level grid
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_boundary_gs_is_a_coherent_splitting, 0, 0, 0, 0, 13, 0
+   solve/test_cone_membership_witness, 0, 0, 0, 0, 2, 0
    solve/test_convergence_contract, 0, 0, 0, 0, 54, 0
    solve/test_coupled_solve_certificate, 0, 0, 0, 0, 4, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
@@ -462,11 +464,11 @@ Module × level grid
    solve/test_every_entry_gauges_its_trace, 0, 0, 0, 0, 12, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
-   solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 10, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
+   solve/test_si_convergence_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    solve/test_sn_adjoint_certification, 0, 13, 0, 0, 2, 0
@@ -487,7 +489,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 347, 0
+   test_layer_imports, 0, 0, 0, 0, 337, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -868,12 +870,9 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **539** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **540** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
-- ``affine-contraction-ratio``
-- ``affine-torsor-algebra``
-- ``affine-true-error``
 - ``affine-typed-residual-eq``
 - ``alpha-dome-closure``
 - ``angular-cell-partition``
@@ -1023,6 +1022,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``fb-swelling``
 - ``fission-as-dyad``
 - ``flux-per-lethargy-plateau``
+- ``flux-vector-algebra``
 - ``fn-Fk-closed-forms``
 - ``fn-Fk-integration-by-parts``
 - ``fn-critical-condition``
@@ -1081,6 +1081,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``in-scatter-full-contraction``
 - ``integral-kernel-category``
 - ``inverse-driver-si-update``
+- ``iterate-contraction-ratio``
+- ``iterate-true-error``
 - ``keff-as-integrated-rates``
 - ``kin-definition``
 - ``kll-1974-slab-phi``
@@ -1261,6 +1263,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``phase-f-source-eq-sigt-phi0``
 - ``pin-cell-volume-fractions``
 - ``pn-scatter-rlm``
+- ``positive-cone-definition``
 - ``power-equation``
 - ``power-iteration-flux-update``
 - ``power-iteration-keff-update``

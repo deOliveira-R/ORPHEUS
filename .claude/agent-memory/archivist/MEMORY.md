@@ -44,11 +44,24 @@ commits, I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **CS3 step 5 — the flux-ontology overturn, doc half** — branch `refactor/cone-field-algebra`,
+  2026-08-19. `field_algebra.rst` rewritten as the cone chapter (602 → ~1540 lines) + 7 citer
+  pages + `coding-elegance` #18 reversed. 32 dead refs → 0; labels 4 → 5; sentinels 539 → 540;
+  `-E -W` EXIT=0, warning set unchanged. ⛔ **open follow-ups I reported and did NOT fix
+  (all out of my scope):** `_coefficient_role.py` has 8 present-tense-false lines + 1 DEAD
+  `:class:` role (`_flux_role.FluxRole`) and `cross_section_field.py:33` says "unlike the
+  affine flux" — the step-3 commit fixed that file's TABLE and REFERENCES and left its
+  comparative essay; the cone-witness gate's own docstring mis-states its fixture
+  (both legs are `Δx·Σ_t = 100`); `cross-domain-frames/reference.md` (A.1 row, §192, §201)
+  and `numerical-bug-signatures/SKILL.md` (§479, §488) still teach the retired ontology;
+  `boundary_conditions.rst`'s `SNMesh.axis_widths` is dead (pre-existing, unrelated).
+  → [[lessons-L63]]
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18, `error_catalog.rst` +63/−23.
   ⛔ **open follow-ups I reported and did NOT fix:** the `check_docstring_xrefs.py` `.rst`
   blind spot (one-line `head_role` fix, `docs/` 49/71 → 207/255) and **40 of 100** stale raw
-  file paths in the catalogue. → [[lessons-L62]]
+  file paths in the catalogue. → [[lessons-L62]] ⚠ **re-confirmed unlanded 2026-08-19** — the
+  gate saw 1 of 32 dead refs on this task for exactly that reason.
 
 - ⏹ **MERGED — verified against git 2026-08-18, THIRD time this list had frozen "awaiting review"
   on landed work.** Their durable record is the lesson; their doc changes are in the tree:
@@ -68,6 +81,10 @@ Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_
 - **Landed-milestone record:** `docs/theory/methods/sn/history.rst`. POINT here instead of
   re-listing campaigns. (This line named the pre-split `discrete_ordinates.rst` until 2026-08-18,
   contradicting §2 four lines up — an index can go stale against ITSELF.)
+- **Ontology-overturn rewrite** (a page whose THESIS was refuted): the recipe is
+  [[lessons-L63]] — argument-unit not symbol-unit, the 4-way eq-label fate rubric, the
+  unlabelled-history-equation trick, the two-sided illegal-states rule. Instance:
+  `field_algebra.rst` affine → cone (CS3).
 - [canonical-convention-page](feedback_canonical_convention_page.md) — 13-section anatomy
   for a multi-PR migration's canonical theory page + keep/flip rubric (`index_convention.rst`).
 - [canonical-axis-convention SSOT section](feedback_canonical_axis_convention_ssot_section.md)

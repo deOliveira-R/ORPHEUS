@@ -1185,10 +1185,15 @@ merge hash or not at all).
      - ``d9396a2`` / ``e5f2b1c``
    * - 2026-06
      - **Wave-O affine-typed operator algebra** — ``FluxDisplacement``
-       gives the affine difference space :math:`V`; ``flux + flux``
-       becomes a ``TypeError`` while ``flux − flux`` and the typed
-       residual ``from_balance`` stay legal, so :math:`(L+C-S-F)\psi = q`
-       types coherently and the residual is a typed defect.
+       gave the affine difference space :math:`V`; ``flux + flux``
+       became a ``TypeError`` while ``flux − flux`` and the typed
+       residual ``from_balance`` stayed legal, so :math:`(L+C-S-F)\psi = q`
+       typed coherently and the residual was a typed defect.
+       ⛔ The **affine** half was **OVERTURNED on 2026-08-19** — flux lives
+       in the positive cone of a vector space, ``flux + flux`` is legal,
+       and the displacement family retired
+       (:ref:`cone-the-overturned-affine-design`). The **typed-residual**
+       half stands unchanged.
      - #208 / #201
      - ``8c2f355`` / ``04e2859``
    * - 2026-06
