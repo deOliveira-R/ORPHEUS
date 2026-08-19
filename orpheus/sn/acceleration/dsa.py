@@ -600,48 +600,39 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         return self._low_order
 
     def apply(self, displacement: "FullField") -> "FullField":
-        r"""The correction of one iterate displacement — a DISPLACEMENT.
+        r"""The correction of one iterate increment — an element of V.
 
-        The correction is a tangent vector, never a state: the returned
-        composite carries :class:`~orpheus.transport.displacements
-        .angular_displacement.AngularDisplacement` interior (zero
-        boundary displacement), so the update step is the torsor action
-        ``ψ ⊕ Δψ_corr`` — ``flux + flux`` stays unspellable (the #208
-        affine algebra). The composite's concrete type is preserved
-        (``_recombine``; a ``TimedFullField``'s history is reborn empty,
-        correct for an addend).
+        The correction is an increment, not a converged state: the
+        returned composite carries an
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+        interior (signed values — flux lives in V, campaign 1 CS3), so
+        the update step is the plain vector add ``ψ + Δψ_corr``. The
+        composite's concrete type is preserved (``_recombine``; a
+        ``TimedFullField``'s history is reborn empty, correct for an
+        addend).
 
-        Two admitted interiors, one per posture:
-
-        * :class:`~orpheus.transport.displacements.angular_displacement
-          .AngularDisplacement` — the SI sweep displacement
-          ``ψ_{n+1/2} ⊖ ψ_n``; the restriction is its
-          ``integrate_angular`` (the tangent map of the canonical
-          reduction).
-        * :class:`~orpheus.transport.fields.angular_flux.AngularFlux` —
-          the Krylov posture's swept vector: GMRES vectors are Krylov
-          directions whose role is erased at the scipy ``from_flat``
-          boundary (the template rebuilds them flux-typed), and the
-          swept vector IS the displacement from zero.
+        One admitted interior for both postures — the SI sweep increment
+        ``ψ_{n+1/2} − ψ_n`` and the Krylov swept vector (GMRES vectors
+        are Krylov directions rebuilt flux-typed at the scipy
+        ``from_flat`` boundary) are the SAME type now, and the
+        restriction is ``integrate_angular`` (the canonical reduction,
+        one shared body).
 
         A moment-windowed carrier (``HarmonicMomentFlux``) refuses
         loudly — 2-D-only, outside the arm-1 admission."""
-        from orpheus.transport.displacements.angular_displacement import (
-            AngularDisplacement,
-        )
         from orpheus.transport.fields.angular_flux import AngularFlux
 
         interior = displacement.interior
-        if not isinstance(interior, (AngularDisplacement, AngularFlux)):
+        if not isinstance(interior, AngularFlux):
             raise TypeError(
                 f"DSACorrection: the input's interior must be a "
-                f"full-angular AngularDisplacement (SI posture) or "
-                f"AngularFlux (Krylov swept vector); got "
+                f"full-angular AngularFlux (the SI sweep increment or "
+                f"the Krylov swept vector); got "
                 f"{type(interior).__name__} (a moment-windowed iterate "
                 f"is 2-D-only, outside the arm-1 admission)."
             )
-        from orpheus.transport.displacements.angular_boundary_displacement import (
-            AngularBoundaryDisplacement,
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
         )
 
         d0 = interior.integrate_angular().values  # R — the ONE reduction
@@ -675,13 +666,12 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         # ℓ=0 by THEOREM even when the ℓ=1 interior arm is live: the
         # reflecting row (39) forces the wall-edge f₁ to zero, and a
         # vacuum wall's trace is read by nothing — so an ℓ=1 trace
-        # component is identically zero where it would matter. Minted as
-        # the displacement role regardless of the input's role, so the
-        # torsor add ``ψ ⊕ Δψ`` is well-formed on both postures (a
-        # flux-typed boundary would trip the affine flux+flux gate).
+        # component is identically zero where it would matter. Built as
+        # the same flux type as the state, so the update ``ψ + Δψ`` is
+        # the plain vector add on both blocks (flux lives in V).
         n_ord = interior.values.shape[0]
         ng = f0_edges.shape[0]
-        trace = AngularBoundaryDisplacement.from_face_arrays(
+        trace = AngularBoundaryFlux.from_face_arrays(
             self._mesh,
             {
                 "xmin": np.broadcast_to(
@@ -693,6 +683,6 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
             },
         )
         return displacement._recombine(
-            interior=AngularDisplacement.from_mesh(angular_values, self._mesh),
+            interior=AngularFlux.from_mesh(angular_values, self._mesh),
             boundary=trace,
         )

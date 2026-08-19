@@ -22,12 +22,13 @@ The coefficient algebra (NOT the flux torsor)
 =============================================
 
 :class:`CrossSectionField` carries
-:class:`~orpheus.transport.fields._coefficient_role.CoefficientRole`, the
-complement of :class:`~orpheus.transport.fields._flux_role.FluxRole`. It keeps
+:class:`~orpheus.transport.fields._coefficient_role.CoefficientRole`
+(historically the complement of the retired ``FluxRole`` affine gate — since
+campaign 1 CS3, 2026-08-19, every field family shares this algebra). It keeps
 the plain :class:`~orpheus.numerics.field.Field` vector-space algebra:
 
 * ``Σ + Σ′`` is legitimate (homogenisation ``Σ_mix = Σ_m N_m Σ_m`` is a
-  number-density-weighted sum) — unlike ``flux + flux``, which is forbidden.
+  number-density-weighted sum).
 * ``Σ = 0`` is a genuine origin (it promotes to ``M_0 = ZeroOperator``) — the
   coefficient space is a vector space *with* an origin, unlike the affine flux.
 * scalar ``λ·Σ`` and unary ``−Σ`` are inherited unchanged.

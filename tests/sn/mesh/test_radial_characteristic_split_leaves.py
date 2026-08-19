@@ -1,19 +1,20 @@
-r"""B.1c — the split ψ½ leaf types (System B's interior ⊕ boundary flux + displacement).
+r"""B.1c — the split ψ½ leaf types (System B's interior ⊕ boundary flux pair).
 
 Intrinsic-property gates for the Phase-B (coupled-block campaign) split-locus leaf
 types: the two field bases
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField` /
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField` and
-their flux + displacement role leaves. These are the DATA carriers System B's
-composite (B.1d) pairs; here we pin their construction, views, presence, and the
-affine-torsor flux algebra ([[feedback-test-intrinsic-properties]]).
+their flux role leaves. These are the DATA carriers System B's composite (B.1d)
+pairs; here we pin their construction, views, presence, and the per-locus V
+flux algebra ([[feedback-test-intrinsic-properties]]).
 
-The LOAD-BEARING gate is the **torsor mint over DISTINCT reps**: the split flux
-leaves carry distinct ``_carrier_rep``s (their distinct Field bases), so
-``flux ⊖ flux`` resolves — via
-:meth:`~orpheus.transport.displacements._displacement.Displacement.sibling_of`
-— to the CORRECT per-locus displacement (interior → interior, boundary →
-boundary), never a collision onto the unified ψ½ or the wrong locus.
+The LOAD-BEARING gate is **blockwise algebra over DISTINCT reps**: the split
+flux leaves carry distinct Field bases, so arithmetic stays per-locus (interior
+with interior, boundary with boundary — cross-locus refuses at Layer 1), never
+a collision onto the unified ψ½ or the wrong locus. (Until campaign 1 CS3,
+2026-08-19, this was spelled through the affine-torsor mint: ``flux ⊖ flux``
+resolved via ``Displacement.sibling_of`` to per-locus displacement siblings;
+the displacement family is retired — flux lives in V.)
 
 vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only.
 """
@@ -26,15 +27,6 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-# Eager-load the displacements package so the _BY_REP registry is complete
-# (the flux ⊖ mint looks the sibling up by Rep).
-import orpheus.transport.displacements  # noqa: F401
-from orpheus.transport.displacements.radial_characteristic_boundary_displacement import (
-    RadialCharacteristicBoundaryDisplacement,
-)
-from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
-    RadialCharacteristicInteriorDisplacement,
-)
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, ANGULAR_RATE_UNITS
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
@@ -138,42 +130,45 @@ class TestSplitLeafConstruction:
             cls.zeros_on(sn)
 
 
-# ── The affine-torsor flux algebra (per locus, over DISTINCT reps) ──
+# ── The V flux algebra (per locus, over DISTINCT reps — CS3 cone carve) ──
 
 
-class TestSplitLeafTorsor:
-    def test_interior_subtraction_mints_the_interior_displacement(self) -> None:
+class TestSplitLeafVectorAlgebra:
+    def test_interior_subtraction_stays_interior_typed(self) -> None:
+        """(Until CS3 this minted RadialCharacteristicInteriorDisplacement;
+        the per-locus DISTINCTNESS claim now lives on the flux pair below.)"""
         sn = _sphere()
         a = _rand(RadialCharacteristicInteriorFlux, sn, 1)
         b = _rand(RadialCharacteristicInteriorFlux, sn, 2)
         d = a - b
-        if type(d) is not RadialCharacteristicInteriorDisplacement:
-            pytest.fail(f"interior ⊖ minted {type(d).__name__}")
+        if type(d) is not RadialCharacteristicInteriorFlux:
+            pytest.fail(f"interior − became {type(d).__name__}")
         np.testing.assert_array_equal(d.values, a.values - b.values)
 
-    def test_boundary_subtraction_mints_the_boundary_displacement(self) -> None:
+    def test_boundary_subtraction_stays_boundary_typed(self) -> None:
         sn = _sphere()
         a = _rand(RadialCharacteristicBoundaryFlux, sn, 3)
         b = _rand(RadialCharacteristicBoundaryFlux, sn, 4)
         d = a - b
-        if type(d) is not RadialCharacteristicBoundaryDisplacement:
-            pytest.fail(f"boundary ⊖ minted {type(d).__name__}")
+        if type(d) is not RadialCharacteristicBoundaryFlux:
+            pytest.fail(f"boundary − became {type(d).__name__}")
 
-    def test_the_two_locus_displacements_are_distinct_types(self) -> None:
-        # Distinct _carrier_rep (distinct Field bases) ⟹ no registry collision.
-        if (
-            RadialCharacteristicInteriorDisplacement
-            is RadialCharacteristicBoundaryDisplacement
-        ):
-            pytest.fail("interior/boundary displacements collapsed to one type")
+    def test_the_two_locus_leaves_are_distinct_types(self) -> None:
+        # Distinct Field bases ⟹ the two loci never blur (blockwise algebra).
+        if RadialCharacteristicInteriorFlux is RadialCharacteristicBoundaryFlux:
+            pytest.fail("interior/boundary leaves collapsed to one type")
+        with pytest.raises(TypeError):  # cross-locus arithmetic refuses
+            _ = _rand(RadialCharacteristicInteriorFlux, _sphere(), 21) + _rand(  # type: ignore[operator]
+                RadialCharacteristicBoundaryFlux, _sphere(), 22,
+            )
 
     @pytest.mark.parametrize(
         "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
     )
-    def test_torsor_recovery_a_plus_b_minus_a_is_b(self, cls) -> None:
+    def test_update_recovery_a_plus_b_minus_a_is_b(self, cls) -> None:
         sn = _sphere()
         a, b = _rand(cls, sn, 5), _rand(cls, sn, 6)
-        recovered = a + (b - a)  # flux ⊕ displacement → flux
+        recovered = a + (b - a)  # plain V arithmetic
         if type(recovered) is not cls:
             pytest.fail(f"torsor action returned {type(recovered).__name__}")
         np.testing.assert_allclose(recovered.values, b.values)
@@ -181,11 +176,14 @@ class TestSplitLeafTorsor:
     @pytest.mark.parametrize(
         "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],
     )
-    def test_flux_plus_flux_is_the_affine_gate(self, cls) -> None:
+    def test_flux_plus_flux_is_legal_same_typed(self, cls) -> None:
+        """The CS3 inversion of the retired affine-gate row."""
         sn = _sphere()
         a, b = _rand(cls, sn, 7), _rand(cls, sn, 8)
-        with pytest.raises(TypeError, match="affine"):
-            _ = a + b
+        s = a + b
+        if type(s) is not cls:
+            pytest.fail(f"flux + flux returned {type(s).__name__}")
+        np.testing.assert_array_equal(s.values, a.values + b.values)
 
     @pytest.mark.parametrize(
         "cls", [RadialCharacteristicInteriorFlux, RadialCharacteristicBoundaryFlux],

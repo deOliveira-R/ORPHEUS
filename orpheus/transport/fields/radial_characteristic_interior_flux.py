@@ -11,12 +11,11 @@ state that
 
 Storage, validation, the ``cells(level, sign)`` view, and the ``zeros_on`` /
 ``from_mesh`` factories are inherited from
-:class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`; the
-affine-point flux algebra (``flux ⊖ flux → displacement``, torsor
-``flux ⊕ displacement``, ``flux + flux → TypeError``) from
-:class:`~orpheus.transport.fields._flux_role.FluxRole` — its ``⊖`` mints a
-:class:`~orpheus.transport.displacements.radial_characteristic_interior_displacement.RadialCharacteristicInteriorDisplacement`
-(the Rep-keyed sibling over the shared ``RadialCharacteristicInteriorField``).
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`,
+including the vector-space additive algebra of
+:class:`~orpheus.numerics.field.Field` (flux lives in V — campaign 1 CS3,
+2026-08-19; the affine ``FluxRole`` gate and the displacement mint are retired,
+and ``±`` return this same class under the class/space/mesh fiber guard).
 """
 
 from __future__ import annotations
@@ -26,13 +25,12 @@ from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import RadialCharacteristicInteriorField
-from orpheus.transport.fields._flux_role import FluxRole
 
 __all__ = ["RadialCharacteristicInteriorFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicInteriorFlux(FluxRole, RadialCharacteristicInteriorField):
+class RadialCharacteristicInteriorFlux(RadialCharacteristicInteriorField):
     r"""System B's interior ψ½ flux state — the marched cells.
 
     Parameters

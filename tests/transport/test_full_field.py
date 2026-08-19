@@ -248,13 +248,12 @@ class TestPolymorphicRecombine:
         sn = _slab_mesh()
         a = _timeless_full_field(sn)
         b = _timeless_full_field(sn)
-        # ψ + ψ is forbidden by the #208 affine gate at the leaf; the
-        # torsor ψ + (ψ' ⊖ ψ) recombines. Use sub then add-displacement.
-        d = b - a  # composite displacement
-        out = a + d
+        # Plain composite V algebra since the CS3 cone carve: the direct
+        # sum recombines through the same base hook.
+        out = a + b
         _require(
             type(out) is FullField,
-            f"FullField + displacement must return a bare FullField; got "
+            f"FullField + FullField must return a bare FullField; got "
             f"{type(out).__name__}.",
         )
 

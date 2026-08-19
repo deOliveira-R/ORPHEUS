@@ -11,8 +11,9 @@ promotion, the **exact complement** of
 ==========================  ====================================  ===============================
 Role                        Algebra                               Mints
 ==========================  ====================================  ===============================
-``FluxRole`` (state)        affine torsor — NO origin             ``flux ⊖ flux → displacement``
-                            (``flux + flux`` forbidden)
+``FluxRole`` (state)        ⛔ RETIRED (campaign 1 CS3,           nothing — ``±`` return the
+                            2026-08-19): flux lives in V,         same class (fiber-guarded)
+                            same vector algebra as below
 ``CoefficientRole`` (coef)  plain vector space — HAS an origin    nothing new (keeps ``Field``)
                             (``σ + σ`` legitimate)
 ==========================  ====================================  ===============================

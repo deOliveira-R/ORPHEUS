@@ -110,17 +110,24 @@ def test_mesh_reads_off_either_leaf(mesh) -> None:
 # ── Vector-space intrinsic laws (base hooks exercised via SCALAR leaves) ──
 
 
-def test_affine_gate_forbids_flux_plus_flux(mesh) -> None:
-    """Two flux composites cannot be added — the #208 affine gate at the leaf
-    propagates through BOTH blocks of the generic base."""
+def test_addition_propagates_per_block(mesh) -> None:
+    """Two flux composites ADD member-wise (flux lives in V — campaign 1
+    CS3; the retired affine gate used to refuse this through the same
+    delegation), propagated through BOTH blocks of the generic base."""
     a = _scalar_composite(mesh, 1)
     b = _scalar_composite(mesh, 2)
-    with pytest.raises(TypeError, match="affine"):
-        _ = a + b
+    s = a + b
+    np.testing.assert_array_equal(
+        s.interior.values, a.interior.values + b.interior.values,
+    )
+    np.testing.assert_array_equal(
+        s.boundary.values, a.boundary.values + b.boundary.values,
+    )
 
 
-def test_subtraction_mints_a_displacement_per_block(mesh) -> None:
-    """flux − flux mints a displacement, propagated to interior AND boundary."""
+def test_subtraction_is_same_typed_per_block(mesh) -> None:
+    """flux − flux returns the same leaf types, propagated to interior AND
+    boundary (until CS3 this minted the displacement siblings)."""
     a = _scalar_composite(mesh, 3)
     b = _scalar_composite(mesh, 4)
     d = a - b
@@ -132,9 +139,9 @@ def test_subtraction_mints_a_displacement_per_block(mesh) -> None:
     )
 
 
-def test_torsor_add_displacement_recovers_the_point(mesh) -> None:
-    """The affine torsor a + (b − a) == b, propagated to both blocks — the
-    vector-space recovery a flux composite supports through its displacement."""
+def test_update_step_recovers_the_point(mesh) -> None:
+    """a + (b − a) == b, propagated to both blocks — the plain V recovery
+    (spelled through the displacement mint until the CS3 carve)."""
     a = _scalar_composite(mesh, 5)
     b = _scalar_composite(mesh, 6)
     recovered = a + (b - a)  # flux + displacement → flux

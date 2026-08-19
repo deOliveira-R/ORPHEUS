@@ -95,23 +95,28 @@ class TestFieldAlgebraInherited:
         bf = AngularBoundaryFlux.zeros_on(m)
         assert isinstance(bf, Field)
 
-    def test_flux_add_flux_forbidden_sub_returns_fresh_displacement(self) -> None:
-        """#208 affine gate: bf + bf raises (no origin); bf ⊖ bf returns a
-        fresh AngularBoundaryDisplacement, originals unchanged."""
-        from orpheus.transport.displacements.angular_boundary_displacement import (
-            AngularBoundaryDisplacement,
-        )
+    def test_flux_add_and_sub_are_plain_vector_ops(self) -> None:
+        """Flux lives in V (campaign 1 CS3): bf + bf and bf − bf are the
+        plain vector ops returning fresh SAME-typed fields, originals
+        unchanged (until 2026-08-19 the #208 affine gate raised on + and
+        minted an AngularBoundaryDisplacement on −)."""
         m = _slab_mesh()
         bf1 = AngularBoundaryFlux.zeros_on(m)
         bf2 = AngularBoundaryFlux.zeros_on(m)
         bf1.values[:] = 3.0
         bf2.values[:] = 2.0
-        with pytest.raises(TypeError, match="affine_combination"):
-            _ = bf1 + bf2
+        s = bf1 + bf2
+        if type(s) is not AngularBoundaryFlux:
+            raise AssertionError("bf + bf left the leaf type")
+        np.testing.assert_array_equal(s.values, 5.0)
         out = bf1 - bf2
-        assert out is not bf1 and out is not bf2
-        assert isinstance(out, AngularBoundaryDisplacement)
+        if out is bf1 or out is bf2:
+            raise AssertionError("subtraction returned an operand, not a copy")
+        if type(out) is not AngularBoundaryFlux:
+            raise AssertionError("bf − bf left the leaf type")
         np.testing.assert_array_equal(out.values, 1.0)
+        np.testing.assert_array_equal(bf1.values, 3.0)  # originals unchanged
+        np.testing.assert_array_equal(bf2.values, 2.0)
 
     def test_sub_sphere(self) -> None:
         m = _sphere_mesh()
@@ -144,9 +149,9 @@ class TestFieldAlgebraInherited:
         np.testing.assert_array_equal(out.values, -1.5)
 
     def test_displacement_distributive_property_2d(self) -> None:
-        """L1: distributivity (d1 + d2) * c == d1*c + d2*c holds in the
-        difference space V (flux + flux is forbidden by the #208 affine gate,
-        so distributivity is a property of the DISPLACEMENT vector space)."""
+        """L1: distributivity (d1 + d2) * c == d1*c + d2*c in V — since the
+        CS3 cone carve the differences are ordinary same-typed boundary
+        fluxes, so this is now a law of the ONE flux vector space."""
         m = _cartesian_2d_mesh()
         base = AngularBoundaryFlux.zeros_on(m)
         bf1 = AngularBoundaryFlux.zeros_on(m)
@@ -284,14 +289,16 @@ class TestMeshBindingRejection:
     def test_cross_mesh_rejected(self) -> None:
         """Two BoundaryFluxes on distinct SNMesh instances with
         structurally-identical layouts CANNOT be combined (Rank 4 per
-        the verification memo). The affine gate forbids ``flux + flux``
-        outright (#208); the cross-mesh guard now lives on ``__sub__``."""
+        the verification memo) — the fiber discipline, on BOTH binary ops
+        since the CS3 cone carve made + legal within a fiber."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()   # different instance, same structure
         bf1 = AngularBoundaryFlux.zeros_on(m1)
         bf2 = AngularBoundaryFlux.zeros_on(m2)
         with pytest.raises(ValueError, match="mesh-bound"):
             bf1 - bf2
+        with pytest.raises(ValueError, match="mesh-bound"):
+            bf1 + bf2
 
     def test_wrong_type_add_rejected(self) -> None:
         m = _slab_mesh()
@@ -327,10 +334,9 @@ class TestFlatBufferRoundTrip:
         assert bf.face_view("xmin")[0, 0, 0] == 8.0
 
     def test_round_trip_arithmetic_preserves_face_values(self) -> None:
-        """After ``out = bf1 ⊖ bf2`` (the legal flux arithmetic; ``flux + flux``
-        is forbidden by the #208 affine gate), every face of the resulting
-        displacement equals the per-face difference (bit-identical at the
-        face-value level — the displacement is face-structured)."""
+        """After ``out = bf1 − bf2`` every face of the resulting (same-typed)
+        difference equals the per-face difference — bit-identical at the
+        face-value level, the difference is face-structured."""
         m = _cartesian_2d_mesh()
         rng = np.random.default_rng(42)
         bf1 = AngularBoundaryFlux.zeros_on(m)

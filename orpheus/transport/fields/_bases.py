@@ -554,7 +554,7 @@ class MomentField(BulkField):
 
     The storage base for the moment role leaves —
     :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-    (the ``(FluxRole, MomentField)`` flux state) and
+    (the moment-space flux state) and
     :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
     (the bare source/sink). It carries the construction machinery the two
     share: the ``L`` truncation-order + ``spatial_moments`` fields, the

@@ -348,16 +348,15 @@ class Composite(Generic[Interior, Boundary]):
     def _check_partner(self, other: object) -> None:
         r"""Reject a partner that is not a :class:`Composite`.
 
-        Layer 1 at the CONTAINER level only. The member-level leaf algebra (the
-        affine gate ``flux + flux → TypeError``, the torsor ``flux + displacement
-        → flux``, the displacement mint ``flux − flux → displacement``, the
-        leaf-type / cross-mesh rejection) is the SINGLE SOURCE OF TRUTH on the
-        leaves — ``__add__`` / ``__sub__`` delegate to ``self.interior ±
-        other.interior`` and ``self.boundary ± other.boundary``, where the leaf
-        dunders enforce role-correctness (#208). Pre-checking member types here
-        would BLOCK the legitimate composite torsor (``flux`` interior +
-        ``displacement`` interior), so the redundant member pre-checks are
-        intentionally absent.
+        Layer 1 at the CONTAINER level only. The member-level leaf algebra
+        (class identity, space equality, mesh binding — the fiber discipline;
+        since campaign 1 CS3, 2026-08-19, flux lives in V and the leaf ``±``
+        are the plain vector ops, the retired affine gate and displacement
+        mint included) is the SINGLE SOURCE OF TRUTH on the leaves —
+        ``__add__`` / ``__sub__`` delegate to ``self.interior ±
+        other.interior`` and ``self.boundary ± other.boundary``, where the
+        leaf dunders enforce it. Member pre-checks here would be a second
+        spelling of the members' own law, so they are intentionally absent.
 
         The accepted partner is ANY :class:`Composite` flavor — a timeless base or
         a timed subclass. This is load-bearing for the time-derivative stencil

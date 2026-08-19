@@ -173,17 +173,21 @@ def _filled_state(m: SNMesh, bulk_val: float, bound_val: float) -> TimedFullFiel
 
 
 class TestAlgebraPropagation:
-    def test_add_flux_flux_forbidden_torsor_propagates_slab(self) -> None:
-        """#208 affine gate, propagated through the composite: ψ + ψ raises
-        (the leaf gate fires through delegation); the torsor ψ + (ψ' ⊖ ψ)
-        propagates to bulk + boundary and recovers ψ'."""
+    def test_add_flux_flux_propagates_blockwise_slab(self) -> None:
+        """Composite delegation of the V algebra (campaign 1 CS3): ψ + ψ'
+        propagates member-wise to bulk + boundary, and the update
+        ψ + (ψ' − ψ) recovers ψ' — the same delegation discipline that
+        used to carry the affine gate now carries the plain vector ops."""
         m = _slab_mesh()
         a = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         b = _filled_state(m, bulk_val=3.0, bound_val=4.0)
-        with pytest.raises(TypeError, match="affine_combination"):
-            _ = a + b
-        d = b - a            # composite displacement (bulk + boundary)
-        out = a + d          # torsor → composite flux
+        s = a + b
+        if not isinstance(s, TimedFullField):
+            raise AssertionError("composite + composite left the composite type")
+        np.testing.assert_array_equal(s.interior.values, 4.0)
+        np.testing.assert_array_equal(s.boundary.values, 6.0)
+        d = b - a            # composite difference (bulk + boundary)
+        out = a + d          # the update step → composite flux
         assert isinstance(out, TimedFullField)
         np.testing.assert_array_almost_equal_nulp(out.interior.values, b.interior.values, nulp=4)
         np.testing.assert_array_almost_equal_nulp(
@@ -228,9 +232,9 @@ class TestAlgebraPropagation:
         np.testing.assert_array_equal(out.boundary.values, 3.0)
 
     def test_displacement_distributive_property(self) -> None:
-        """Distributivity (d1 + d2)·c == d1·c + d2·c holds in the composite
-        difference space V (``flux + flux`` is forbidden by the #208 affine
-        gate; the composite displacements ARE a vector space)."""
+        """Distributivity (d1 + d2)·c == d1·c + d2·c in the composite V —
+        since the CS3 cone carve the differences are ordinary same-typed
+        composites, so this is a law of the ONE composite vector space."""
         m = _slab_mesh()
         base = _filled_state(m, bulk_val=0.0, bound_val=0.0)
         a = _filled_state(m, bulk_val=1.0, bound_val=2.0)
@@ -255,11 +259,13 @@ class TestCrossClassRejection:
         a = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m1)
         b = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m2)
         # Same TimedFullField class, same bulk/boundary types, but different
-        # mesh instances. The affine gate forbids ``flux + flux`` outright
-        # (#208); the cross-mesh guard lives on ``__sub__`` →
-        # AngularFlux._check_partner (delegated through the composite).
+        # mesh instances. Both binary ops delegate member-wise into
+        # AngularFlux._check_partner's mesh-bound arm — the fiber
+        # discipline that survives the CS3 cone carve.
         with pytest.raises(ValueError, match="mesh-bound"):
             a - b
+        with pytest.raises(ValueError, match="mesh-bound"):
+            a + b
 
     def test_wrong_type_rejected(self) -> None:
         m = _slab_mesh()

@@ -32,7 +32,6 @@ from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
-from orpheus.transport.displacements import ScalarBoundaryDisplacement
 from orpheus.transport.fields import ScalarBoundaryFlux, ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -194,28 +193,28 @@ class TestPartialCurrentGuards:
         with pytest.raises(ValueError, match="no scalar trace.*DiffusionMesh"):
             ScalarBoundaryFlux.zeros_on(mm)
 
-    def test_torsor_algebra(self):
-        """The #208 affine discipline on the scalar trace: state ⊖ state →
-        ScalarBoundaryDisplacement, state ⊕ displacement → state, and the
-        illegal ``state + state`` is unrepresentable."""
+    def test_vector_algebra(self):
+        """The V algebra on the scalar trace (campaign 1 CS3): state − state
+        and state + state are plain same-typed vector ops (until 2026-08-19
+        the #208 affine discipline minted a ScalarBoundaryDisplacement on −
+        and refused +)."""
         mm = _slab_mesh()
         a = ScalarBoundaryFlux.zeros_on(mm)
         b = ScalarBoundaryFlux.from_face_arrays(
             mm, {"xmin": np.ones((2, 2)), "xmax": np.ones((2, 2))},
         )
         step = b - a
-        if not isinstance(step, ScalarBoundaryDisplacement):
-            pytest.fail(
-                f"state ⊖ state must be the displacement sibling; got "
-                f"{type(step).__name__}"
-            )
+        if type(step) is not ScalarBoundaryFlux:
+            pytest.fail(f"state − state left the leaf type: {type(step).__name__}")
         np.testing.assert_array_equal(step.values, b.values - a.values)
         moved = a + step
-        if not isinstance(moved, ScalarBoundaryFlux):
-            pytest.fail("state ⊕ displacement must be a state")
+        if type(moved) is not ScalarBoundaryFlux:
+            pytest.fail("the update step left the leaf type")
         np.testing.assert_array_equal(moved.values, b.values)
-        with pytest.raises(TypeError):
-            _ = a + b  # the affine-axiom violation: state + state
+        s = a + b
+        if type(s) is not ScalarBoundaryFlux:
+            pytest.fail("state + state left the leaf type")
+        np.testing.assert_array_equal(s.values, a.values + b.values)
 
     def test_from_face_arrays_rejects_wrong_faces(self):
         mm = _slab_mesh()

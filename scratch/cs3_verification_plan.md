@@ -362,8 +362,13 @@ IDENTITY. Assert `ψ + zero is not ψ` **and** `array_equal(values)` — otherwi
 `return self` short-circuit would pass while breaking the copy contract.
 
 **Mutation**: replace `Field.__add__`'s body with `self.values - other.values`.
-Expect: legs (a), (c), (d), (e) red; leg (b) stays green (the TYPE is unchanged) —
-which is exactly why (b) alone is not the gate.
+Predicted: legs (a), (c), (d), (e) red; leg (b) green. `[M]` RUN at the step-2 carve
+(2026-08-19, in-process plugin): **12 failed / 14 passed** — (a)/(c)/(e) red on all
+four leaves plus the round-trip/telescoping rows; ⚠ leg (d) is BLIND to this
+mutation (`ψ − 0 = ψ` — the zero fixture cannot distinguish add from subtract);
+its own catchers are the copy-contract `is not` check and leg (a)'s exact values.
+M-mesh (bulk `_check_partner` → base): `[M]` exactly 1 failed — the fiber-guard
+row — 25 green, confirming the fiber claim rests on the one mesh arm.
 
 ### 4.2 `flux − flux` returns the SAME type and is SIGNED
 
@@ -412,7 +417,7 @@ never had a negative test, and step 2 rewrites it.
 |---|---|
 | a | **NEGATIVE** — `DSACorrection.apply(<composite with a HarmonicMomentFlux interior>)` raises `TypeError`, `match=` a SHORT distinctive fragment of the shipped message (`"moment-windowed"` — never the full sentence; `coding-standards`: consumers pin substrings) |
 | b | **POSITIVE** — the same corrector applied to a full-angular composite returns a composite whose interior is the flux type and whose boundary block is non-zero on a REFLECTIVE fixture |
-| c | leg (b) on a VACUUM fixture as the declared control: the trace arm is documented inert there, so assert the boundary block is (near) zero and say in the docstring that this row cannot see the trace arm |
+| c | ⛔ REFUTED at execution (2026-08-19): the boundary block is NONZERO on vacuum too — `[M]` ‖trace‖ = 3.665 (vacuum) / 5.985 (reflective) on the `_slab()` fixture; the trace arm always writes the wall-edge f₀ solutions, and "inert on vacuum" means UNREAD downstream, not zero. Re-posed: the positive leg runs on BOTH fixtures asserting flux-typed blocks + nonzero trace, and documents that consumption is the acceleration-level gates' claim. |
 
 ⚠ This must be written BEFORE step 2 touches the isinstance arm, and it must be RED
 against a mutation that simply deletes the guard.

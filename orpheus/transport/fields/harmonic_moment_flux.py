@@ -23,7 +23,8 @@ method-agnostic transport concept, not an SN-specific one) and now
 inherits from :class:`~orpheus.numerics.field.Field`. In the Frame
 campaign **P4** it was renamed ``HarmonicMomentField`` →
 ``HarmonicMomentFlux`` (and the module ``harmonic_moment_field`` →
-``harmonic_moment_flux``): it is a ``(FluxRole, MomentField)`` carrier,
+``harmonic_moment_flux``): it was a ``(FluxRole, MomentField)`` carrier
+(the role mixin retired at campaign 1 CS3 — flux lives in V),
 so the rename makes the role token explicit and the whole moment family
 uniformly greppable (``grep HarmonicMoment`` / ``grep Flux`` /
 ``grep SourceSink`` now each find every member, matching
@@ -107,7 +108,6 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import MomentField
-from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -118,7 +118,7 @@ __all__ = ["HarmonicMomentFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class HarmonicMomentFlux(FluxRole, MomentField):
+class HarmonicMomentFlux(MomentField):
     r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
 
     Parameters

@@ -26,45 +26,36 @@ that fix (ERR-075).
 ⭐ What "linear" MEANS on this carrier
 ======================================
 
-``B``'s domain is **not** a vector space. Flux states form an *affine space*
-over a distinct displacement space (:mod:`orpheus.transport.fields._flux_role`,
-the #208 torsor carve), so ``psi + psi`` is deliberately **unspellable**::
-
-    TypeError: cannot add two AngularFlux states: flux states form an affine
-    space with no origin, so '+' between two fluxes is undefined
-    (Σλ = 2 lands off the affine subspace).
-
-⟹ the textbook additivity row ``B(x + y) == B(x) + B(y)`` cannot be written
-here, and writing it was the first draft's mistake — the type system refused it.
-The codomain, by contrast, IS a vector space (``B`` returns *rate densities*:
-``AngularSourceSink`` ⊕ ``AngularBoundarySourceSink``), so differences of
-outputs are ordinary subtraction. ``B`` is therefore an **affine map from an
-affine space into a vector space**, and its defining laws are the three below —
-which together are exactly "linear":
+Since campaign 1 CS3 (2026-08-19) the carrier IS a vector space: flux lives in
+V (the affine/torsor field algebra was overturned by user ruling), so the
+textbook laws are directly spellable and this module states them directly:
 
 ============================  ================================================
 law                           states
 ============================  ================================================
-``B(0) = 0``                  no constant term. The distinguished zero flux is
-                              the one point the affine algebra does single out.
-``B(c·ψ) = c·B(ψ)``           homogeneity (scalar scaling is untouched by the
-                              torsor gate — it is how ``ψ/k`` stays legal).
-increment is base-point       :math:`B(\psi_1) - B(\psi_2)` depends only on
-independent                   :math:`\psi_1 \ominus \psi_2` — the affine-map
-                              law, spelled without ever naming ``B``'s induced
-                              tangent map (which is unspellable today: ``B``
-                              refuses a displacement argument, **#331**).
+``B(0) = 0``                  no constant term. The zero flux is V's origin.
+``B(c·ψ) = c·B(ψ)``           homogeneity (scalar scaling — how ``ψ/k`` is
+                              legal).
+``B(ψ₁ + ψ₂) =``              additivity, DIRECT — and applied to a
+``B(ψ₁) + B(ψ₂)``             difference, ``B(ψ₁ − ψ₂) = B(ψ₁) − B(ψ₂)``,
+                              which is the **#331 closure**: the operator acts
+                              on any element of V, increments included.
 ============================  ================================================
 
-⚠ **Attributability, stated honestly** (``vv`` anti-pattern #18) — the three are
-NOT equally sharp against the regression this campaign is about:
+**History (kept per coding-standards — it records why the old spelling
+existed).** Until 2026-08-19 the domain was an *affine space* over a distinct
+displacement space (the #208 torsor carve): ``psi + psi`` raised ``TypeError``
+("no origin"), so additivity could only be spelled as base-point independence —
+``B(ψ₁ ⊕ σ) − B(ψ₂ ⊕ σ) == B(ψ₁) − B(ψ₂)`` with σ a displacement — and #331
+recorded that ``B`` refused a displacement argument outright. Writing the
+direct row was the first draft's mistake then; it is the correct row now.
 
-* ``B(0) = 0`` and homogeneity **do** red for an affine ``B`` (the constant term
-  survives at ``x = 0``, and at ``c ≠ 1`` it fails to scale).
-* base-point independence **does not**: an affine ``B(x) = Lx + q`` has
-  ``B(x₁) − B(x₂) = L(x₁−x₂)`` regardless of ``q``. It is the *completeness*
-  leg — the one that upgrades "no constant term" into "linear" — and it is
-  labelled as such rather than counted as coverage it does not provide.
+⚠ **Attributability** (``vv`` anti-pattern #18): all three rows now red for an
+affine ``B(x) = Lx + q`` — including additivity, where ``q`` survives once on
+the left and twice on the right. The retired base-point spelling could NOT
+catch the affine regression (``B(x₁)−B(x₂) = L(x₁−x₂)`` whatever ``q``), which
+its docstring said honestly; the direct spelling is strictly sharper, so the
+CS3 re-spell UPGRADED this battery's affine coverage by two rows.
 
 `[M]` **The battery** (``vv`` #17 + #18). Three mutations of the realizer's
 prescribed arm, over this module + the reciprocity module + the P3 trace gate
@@ -89,10 +80,11 @@ prescribed (perfectly LINEAR)            :func:`test_B_vanishes_at_zero` predict
                                          P3 trace gate.
 ==============================  =======  ===========================================
 
-The ``affine`` column's *misses* are the informative part: neither
-base-point-independence row reddens, exactly as their docstrings say. That
-prediction was written before the battery ran, and a coverage audit that counted
-them as ERR-075 catchers would have been wrong by two rows.
+The ``affine`` column's *misses* were the informative part: neither
+base-point-independence row reddened, exactly as their docstrings said. (That
+battery ran against the pre-CS3 spelling; the direct additivity rows that
+replaced the base-point rows at the cone carve DO red on the affine mutation —
+re-measured at the carve, see their docstrings.)
 
 ⚠ The battery harness itself has now failed **three** times in this campaign,
 every time reading as "your tests are fine" — twice by mis-parsing pytest's
@@ -473,45 +465,40 @@ def test_B_is_homogeneous(c: float) -> None:
     )
 
 
-def test_the_increment_B_produces_is_independent_of_the_base_point() -> None:
-    r"""The affine-map law, in the algebra the carrier actually permits.
+def test_B_is_additive_and_acts_on_differences() -> None:
+    r"""``B(ψ₁ + ψ₂) = B(ψ₁) + B(ψ₂)`` and ``B(ψ₁ − ψ₂) = B(ψ₁) − B(ψ₂)`` —
+    the direct additivity law, spellable since the CS3 cone carve.
 
-    .. math::
+    The second identity is the **#331 closure**: a difference of iterates is
+    an ordinary element of V and ``B`` acts on it (until 2026-08-19 ``B``
+    refused a displacement argument, and this module could only spell the
+    base-point-independence surrogate — see the module docstring's history).
 
-        B(\psi_1) - B(\psi_2) \;=\; B(\psi_1 \oplus \sigma) - B(\psi_2 \oplus \sigma)
+    Unlike the retired surrogate, this row DOES catch the affine regression:
+    for ``B(x) = Lx + q`` the left side carries ``q`` once and the right side
+    twice.
 
-    i.e. the increment ``B`` produces depends only on
-    :math:`\psi_1 \ominus \psi_2`, never on where the pair sits. This is what
-    ``B(x + y) = B(x) + B(y)`` becomes once the domain is an affine space:
-    ``x + y`` is unspellable (see the module docstring), but shifting BOTH
-    arguments by one displacement is exactly legal, and the invariance of the
-    difference is the same statement.
-
-    Two independent displacements ``σ``, because a single one could coincide
-    with a direction ``B`` happens to annihilate.
-
-    ⚠ **This row does NOT catch the affine regression** and is not counted as
-    if it did: for ``B(x) = Lx + q`` the difference is ``L(x₁−x₂)`` whatever
-    ``q`` is. It is the completeness leg — with ``B(0) = 0`` it upgrades "no
-    constant term" to "linear"; alone it says only that ``B`` is affine.
-
-    `[M]` interior exactly ``0.0``; boundary 4 nulp for ``σ₁``, 8 for ``σ₂``.
-    That residue is the re-basing itself (``fl(a+σ) − fl(b+σ) ≠ a − b``), not
-    the operator: ``B``'s own action measures exact at every scalar above.
+    Activation: the fixture's reflective face makes ``B`` non-trivial
+    (:func:`test_the_fixture_activates_B_on_the_reflective_face_alone`), and
+    the in-test guard below re-asserts it — a linearity row on a zero
+    morphism holds structurally and can never red (lessons L40c).
     """
     sn = _slab()
     B = SNBoundaryOperator(sn)
-    psi_1, psi_2, third = (_random_flux(sn, s) for s in (7, 11, 23))
-    reference = B.apply(psi_1) - B.apply(psi_2)
-
-    for name, sigma in (
-        ("σ₁ = ψ₃ ⊖ ψ₂", third - psi_2),
-        ("σ₂ = 0.37·(ψ₁ ⊖ ψ₃)", 0.37 * (psi_1 - third)),
-    ):
-        _assert_within_nulp(
-            B.apply(psi_1 + sigma) - B.apply(psi_2 + sigma), reference,
-            f"[{name}] the increment B produces moved with the base point",
-        )
+    psi_1, psi_2 = (_random_flux(sn, s) for s in (7, 11))
+    B_1, B_2 = B.apply(psi_1), B.apply(psi_2)
+    if not _linf(B_1) > 0.0:
+        raise AssertionError("B is the zero morphism on this fixture — "
+                             "the additivity rows below are vacuous")
+    _assert_within_nulp(
+        B.apply(psi_1 + psi_2), B_1 + B_2,
+        "B(ψ₁+ψ₂) ≠ B(ψ₁)+B(ψ₂) — the direct additivity law failed",
+    )
+    _assert_within_nulp(
+        B.apply(psi_1 - psi_2), B_1 - B_2,
+        "B(ψ₁−ψ₂) ≠ B(ψ₁)−B(ψ₂) — the #331 closure failed: B does not act "
+        "linearly on an iterate difference",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -555,35 +542,35 @@ def test_the_full_matvec_is_homogeneous(c: float) -> None:
     )
 
 
-def test_the_increment_A_produces_is_independent_of_the_base_point() -> None:
-    r"""The affine-map law for the full matvec. `[M]` relative ``3.7e-16``.
+def test_the_full_matvec_is_additive_and_acts_on_differences() -> None:
+    r"""``A(x₁ + x₂) = A(x₁) + A(x₂)`` and ``A(x₁ − x₂) = A(x₁) − A(x₂)`` for
+    the full within-group matvec ``A = (L+C) − S − B`` — direct, typed.
 
-    The composite sibling of
-    :func:`test_the_increment_B_produces_is_independent_of_the_base_point`, and
-    it carries the same caveat: affine ``A`` passes it. What it adds over the
-    ``B``-only row is that ``(L+C)`` and ``S`` compose into the property rather
-    than merely each having it — an ``OperatorSum`` that mis-signed a leaf, or a
-    leaf whose action depended on the iterate's magnitude, breaks here while the
-    per-leaf rows stay green.
+    The composite sibling of :func:`test_B_is_additive_and_acts_on_differences`.
+    What it adds over the ``B``-only row is that ``(L+C)``, ``S`` and ``B``
+    COMPOSE into the property — the difference leg drives ``S.apply`` and
+    ``B.apply`` with an iterate difference through the assembled sum, which is
+    exactly the spelling #331 reported as refused (``S.apply: unsupported
+    input type AngularDisplacement``; both gains now act on any element of V).
     """
     sn = _slab()
     A, space = _full_matvec(sn)
-    psi_1, psi_2, third = (_random_flux(sn, s) for s in (7, 11, 23))
-    reference = A.apply(_coupled(space, psi_1)) - A.apply(_coupled(space, psi_2))
-    scale = _linf(reference)
-
-    for name, sigma in (
-        ("σ₁ = ψ₃ ⊖ ψ₂", third - psi_2),
-        ("σ₂ = 0.37·(ψ₁ ⊖ ψ₃)", 0.37 * (psi_1 - third)),
-    ):
-        shifted = (
-            A.apply(_coupled(space, psi_1 + sigma))
-            - A.apply(_coupled(space, psi_2 + sigma))
-        )
-        _assert_close_relative(
-            shifted, reference, scale,
-            f"[{name}] the increment A produces moved with the base point",
-        )
+    psi_1, psi_2 = (_random_flux(sn, s) for s in (7, 11))
+    A_1 = A.apply(_coupled(space, psi_1))
+    A_2 = A.apply(_coupled(space, psi_2))
+    if not _linf(A_1) > 0.0:
+        raise AssertionError("A is the zero morphism on this fixture — "
+                             "the additivity rows below are vacuous")
+    scale = max(_linf(A_1), _linf(A_2))
+    _assert_close_relative(
+        A.apply(_coupled(space, psi_1 + psi_2)), A_1 + A_2, scale,
+        "A(x₁+x₂) ≠ A(x₁)+A(x₂) — the assembled matvec lost additivity",
+    )
+    _assert_close_relative(
+        A.apply(_coupled(space, psi_1 - psi_2)), A_1 - A_2, scale,
+        "A(x₁−x₂) ≠ A(x₁)−A(x₂) — the #331 closure failed at the assembled "
+        "tier: a gain refused or mishandled an iterate difference",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════

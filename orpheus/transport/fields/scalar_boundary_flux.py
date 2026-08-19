@@ -67,14 +67,13 @@ from numpy.typing import NDArray
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarBoundaryField
-from orpheus.transport.fields._flux_role import FluxRole
 
 
 __all__ = ["ScalarBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarBoundaryFlux(FluxRole, ScalarBoundaryField):
+class ScalarBoundaryFlux(ScalarBoundaryField):
     r"""Partial-current pair :math:`(J^+, J^-)` per boundary face per group.
 
     Parameters

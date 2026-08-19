@@ -429,9 +429,10 @@ class TestHarmonicMomentSourceSink:
         # frozen — operands untouched
         assert np.all(a.values == 1.0)
 
-    def test_within_class_sub_is_closed_not_a_displacement(self) -> None:
-        """``source − source → source`` — a plain vector difference, NOT
-        the displacement mint the FluxRole sibling performs."""
+    def test_within_class_sub_is_closed(self) -> None:
+        """``source − source → source`` — a plain vector difference (since
+        the CS3 cone carve the flux sibling behaves the same way; the
+        surviving distinction is the CROSS-CLASS gate below)."""
         m = _slab_mesh()
         shape = _moment_shape(m, 2)
         a = HarmonicMomentSourceSink.from_mesh_and_L(3.0 * np.ones(shape), m, L=2)
@@ -449,21 +450,26 @@ class TestHarmonicMomentSourceSink:
         np.testing.assert_array_equal(left.values, right.values)
         assert np.all(left.values == 3.0)
 
-    def test_flux_vs_source_role_contrast(self) -> None:
-        """The role split is real and load-bearing: the FluxRole sibling
-        FORBIDS ``flux + flux`` (affine, no origin), while this bare
-        source/sink leaf ALLOWS ``source + source`` (vector). Same
-        storage family, opposite additive algebra."""
+    def test_flux_vs_source_roles_share_algebra_but_never_mix(self) -> None:
+        """Re-posed at the CS3 cone carve (2026-08-19): both role families
+        now carry the SAME vector additive algebra (flux lives in V — the
+        old contrast row asserted the flux side FORBIDS ``+``), so the
+        surviving load-bearing distinction is the CROSS-CLASS gate: a state
+        and a rate density never mix, even at equal shape and units
+        (``test_cross_class_with_flux_rejected`` below is the sharp form)."""
         m = _slab_mesh()
         shape = _moment_shape(m, 2)
         phi_a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L=2)
         phi_b = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L=2)
-        with pytest.raises(TypeError, match="affine space with no origin"):
-            _ = phi_a + phi_b
-        # the source/sink sibling adds freely
+        s = phi_a + phi_b
+        if type(s) is not HarmonicMomentFlux:
+            raise AssertionError("flux + flux left the leaf type")
         q_a = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
         q_b = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
-        assert isinstance(q_a + q_b, HarmonicMomentSourceSink)
+        if not isinstance(q_a + q_b, HarmonicMomentSourceSink):
+            raise AssertionError("source + source left the leaf type")
+        with pytest.raises(TypeError):  # the surviving distinction
+            _ = phi_a + q_a  # type: ignore[operator]
 
     # ── The gates: class identity, L-match, mesh-binding (negative) ──
 

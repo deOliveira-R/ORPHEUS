@@ -9,10 +9,10 @@ of its intrinsic properties):
   a **cone** in a vector space: closed under ``+`` and ``λ≥0·``, with an
   origin ``Σ=0``; nonnegativity is a tested property, NOT a construction
   invariant (so a signed ``Σ−Σ′`` perturbation stays a coefficient).
-* it carries :class:`~orpheus.transport.fields._coefficient_role.CoefficientRole`,
-  the COMPLEMENT of
-  :class:`~orpheus.transport.fields._flux_role.FluxRole` — it has NO
-  ``flux+flux→TypeError`` affine gate.
+* it carries :class:`~orpheus.transport.fields._coefficient_role.CoefficientRole`
+  (historically the COMPLEMENT of the ``FluxRole`` affine gate; since campaign 1
+  CS3, 2026-08-19, the flux leaves share the same plain vector algebra — the
+  coefficient doctrine was the cone-as-property precedent the ruling adopted).
 
 The fission emission spectrum χ is NOT a field here: its probability-simplex
 invariant (``Σ_g χ_g = 1``, ``χ≥0``) is a property of the *source* — the
@@ -42,7 +42,6 @@ from orpheus.numerics.units import CROSS_SECTION_UNITS
 from orpheus.numerics.vector import Vector
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields._coefficient_role import CoefficientRole
-from orpheus.transport.fields._flux_role import FluxRole
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 from tests.sn._test_helpers import placeholder_materials
@@ -106,10 +105,11 @@ class TestCrossSectionConeAlgebra:
 
     def test_is_vector_space_not_torsor(self) -> None:
         """Coefficients keep the plain vector-space dunders: ``Σ − Σ′`` returns
-        a CrossSectionField (NOT a displacement, as FluxRole would), and may be
-        SIGNED — nonnegativity is the physical cone (a property), not a
-        construction invariant. This keeps the multiplier-algebra domain a full
-        vector space."""
+        a CrossSectionField and may be SIGNED — nonnegativity is the physical
+        cone (a property), not a construction invariant. This keeps the
+        multiplier-algebra domain a full vector space. (This doctrine is the
+        precedent the CS3 flux-cone ruling generalised to the whole field
+        layer.)"""
         m = _slab_mesh()
         s1, s2 = _sigma(m, 0.3), _sigma(m, 0.5)
         diff = s1 - s2  # 0.3 - 0.5 = -0.2: a signed coefficient, must NOT raise
@@ -126,9 +126,11 @@ class TestCrossSectionConeAlgebra:
 
 
 class TestCoefficientRoleVsFluxRole:
-    def test_carries_coefficient_role_not_flux_role(self) -> None:
-        assert issubclass(CrossSectionField, CoefficientRole)
-        assert not issubclass(CrossSectionField, FluxRole)
+    def test_carries_coefficient_role(self) -> None:
+        """(The ``not issubclass(..., FluxRole)`` half retired with the mixin
+        at campaign 1 CS3 — there is no flux role gate left to contrast.)"""
+        if not issubclass(CrossSectionField, CoefficientRole):
+            raise AssertionError("CrossSectionField lost CoefficientRole")
 
     def test_cross_section_addition_has_no_affine_gate(self) -> None:
         """The behavioural counterpart: ``Σ + Σ`` does NOT raise (no torsor

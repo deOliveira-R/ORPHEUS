@@ -282,19 +282,14 @@ def test_2d_matvec_linearity_random_state() -> None:
     ``vv-principles`` failure-mode #3 (missing factor) on the 2-D
     L2 path.
 
-    Affine-correct formulation
-    --------------------------
-    Flux-STATE fields form an **affine** space with no origin (#208),
-    so the combined input ``α·u + β·v`` cannot be spelled as a
-    ``flux + flux`` (it raises ``TypeError`` — ``α + β ≠ 1`` is not a
-    partition-of-unity affine blend either).  The linearity of the
-    **linear operator** ``A`` is therefore exercised at the underlying
-    ``.values`` array level: the combined input state's values ARE the
-    plain vector-space combination ``α·u.values + β·v.values`` of the
-    raw numbers, and the test asserts the operator commutes with that
-    combination.  This preserves the linearity-verification intent
-    (and the /W-projection / bulk-boundary convention-drift catch)
-    without an illegal affine-space ``flux + flux``.
+    Typed formulation (STRENGTHENED at campaign 1 CS3, 2026-08-19)
+    --------------------------------------------------------------
+    Flux lives in V, so the combined input ``α·u + β·v`` is spelled
+    DIRECTLY in the typed algebra — the ``.values``-level workaround
+    this test carried while the #208 affine gate refused ``flux +
+    flux`` (α+β ≠ 1 was not an affine blend either) is deleted, and
+    the gate moved from raw arrays to the typed algebra it always
+    meant to state.
     """
     from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -322,21 +317,9 @@ def test_2d_matvec_linearity_random_state() -> None:
 
     alpha, beta = 2.5, -1.3
 
-    # The affine gate forbids spelling the combined input as flux + flux.
-    with pytest.raises(TypeError):
-        _ = alpha * u + beta * v
-
-    # Build the combined input state at the .values array level (the raw
-    # vector-space combination of the numbers) and apply the operator.
-    combined = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh,
-    )
-    combined.interior.values[...] = (
-        alpha * u.interior.values + beta * v.interior.values
-    )
-    combined.boundary.values[...] = (
-        alpha * u.boundary.values + beta * v.boundary.values
-    )
+    # The combined input, spelled directly in the typed algebra (α+β ≠ 1
+    # on purpose — an arbitrary linear combination, not a convex blend).
+    combined = alpha * u + beta * v
 
     lhs = A.apply(combined)
     rhs_bulk = (

@@ -103,16 +103,21 @@ class TestFieldInheritance:
 
 
 class TestAlgebra:
-    def test_flux_add_flux_forbidden_torsor_allowed(self) -> None:
-        """#208 affine gate: ψ + ψ raises (flux states have no origin); the
-        torsor action ψ + (ψ' ⊖ ψ) → ψ' is the legal update step."""
+    def test_flux_add_flux_legal_and_update_round_trip(self) -> None:
+        """Flux lives in V (campaign 1 CS3): ψ + ψ' is the plain vector sum
+        in the same leaf type, and the update step ψ + (ψ' − ψ) ≈ ψ' is
+        ordinary arithmetic (until 2026-08-19 the #208 affine gate raised on
+        the first and typed the second through a displacement mint)."""
         m = _slab_mesh()
         a = AngularFlux.from_mesh(np.ones((m.quad.N, m.ng, *m.spatial_shape)), m)
         b = AngularFlux.from_mesh(2.0 * np.ones((m.quad.N, m.ng, *m.spatial_shape)), m)
-        with pytest.raises(TypeError, match="affine_combination"):
-            _ = a + b
-        out = a + (b - a)  # torsor: flux ⊕ displacement → flux
-        assert isinstance(out, AngularFlux)
+        s = a + b
+        if type(s) is not AngularFlux:
+            raise AssertionError("flux + flux left the leaf type")
+        np.testing.assert_array_equal(s.values, 3.0)
+        out = a + (b - a)  # the update step, plain V arithmetic
+        if type(out) is not AngularFlux:
+            raise AssertionError("the update step left the leaf type")
         np.testing.assert_array_almost_equal_nulp(out.values, b.values, nulp=4)
 
     def test_sub(self) -> None:
@@ -152,11 +157,12 @@ class TestMeshBinding:
         m2 = _slab_mesh()  # different instance, same structure
         a = AngularFlux.zeros_on(m1)
         b = AngularFlux.zeros_on(m2)
-        # The affine gate forbids ``flux + flux`` outright (#208); the
-        # cross-mesh guard now lives on ``__sub__`` (flux ⊖ flux → displacement),
-        # which reaches BulkField._check_partner's mesh-bound check.
+        # Both binary ops route through BulkField._check_partner's mesh-bound
+        # arm — the fiber discipline that survives the CS3 cone carve.
         with pytest.raises(ValueError, match="mesh-bound"):
             a - b
+        with pytest.raises(ValueError, match="mesh-bound"):
+            a + b
 
     def test_cross_class_rejected(self) -> None:
         m = _slab_mesh()

@@ -94,14 +94,13 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
-from orpheus.transport.fields._flux_role import FluxRole
 
 
 __all__ = ["ScalarFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarFlux(FluxRole, ScalarField):
+class ScalarFlux(ScalarField):
     r"""Scalar flux field :math:`\phi(\vec r, g)`.
 
     Parameters

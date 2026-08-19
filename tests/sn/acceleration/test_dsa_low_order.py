@@ -256,26 +256,6 @@ class TestRestrictionProlongation:
             psi.integrate_angular().values, frame_row,
         )
 
-    def test_d8_displacement_reduction_is_the_tangent_map(self, psi):
-        r"""``AngularDisplacement.integrate_angular`` carries the SAME
-        body (a linear map is its own tangent map) — 0-ULP, and typed
-        as a ScalarDisplacement."""
-        from orpheus.transport.displacements.scalar_displacement import (
-            ScalarDisplacement,
-        )
-
-        zero = AngularFlux.from_mesh(np.zeros_like(psi.values), psi.mesh)
-        delta = psi - zero  # AngularDisplacement with psi's values
-        reduced = delta.integrate_angular()
-        if not isinstance(reduced, ScalarDisplacement):
-            pytest.fail(
-                f"the displacement reduction must stay in the "
-                f"displacement role; got {type(reduced).__name__}"
-            )
-        np.testing.assert_array_equal(
-            reduced.values, psi.integrate_angular().values,
-        )
-
     def test_d8_prolongation_round_trip_is_identity(self, psi):
         r"""R ∘ P = I exactly: the normalized isotropic injection's
         moment-0 reproduces the input scalar values (Σ w · (x/Σw) = x
@@ -293,3 +273,86 @@ class TestRestrictionProlongation:
         )
         # and the operator's own injection normalization agrees
         np.testing.assert_array_equal(corr._sum_w, sum_w)
+
+
+class TestApplyAdmission:
+    """CS3 §4.5 — the rewritten input guard of ``DSACorrection.apply`` has
+    teeth (net-new: [M] no ``pytest.raises`` targeted it before the carve).
+
+    Since the cone carve the SI sweep increment and the Krylov swept vector
+    are ONE type (``AngularFlux``), so the guard admits exactly that and
+    refuses a moment-windowed carrier by name.
+    """
+
+    def _increment(self, sn_mesh, seed=5):
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+
+        rng = np.random.default_rng(seed)
+        return FullField(
+            interior=AngularFlux.from_mesh(
+                rng.standard_normal(
+                    (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
+                ),
+                sn_mesh,
+            ),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        )
+
+    def test_moment_windowed_interior_refuses(self):
+        """NEGATIVE — a moment-windowed carrier is outside the arm-1
+        admission; the message names it (pin the SHORT fragment only)."""
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
+        )
+
+        sn_mesh = _slab()
+        corrector = DSACorrection.from_sn_mesh(sn_mesh)
+        L = 1
+        shape = (L + 1, 2 * L + 1, sn_mesh.ng, *sn_mesh.spatial_shape)
+        windowed = FullField(
+            interior=HarmonicMomentFlux.from_mesh_and_L(
+                np.ones(shape), sn_mesh, L
+            ),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        )
+        with pytest.raises(TypeError, match="moment-windowed"):
+            corrector.apply(windowed)
+
+    def test_flux_increment_admitted_and_flux_typed(self):
+        """POSITIVE (vv #11 pairing) — a full-angular increment is admitted
+        and the correction comes back FLUX-typed on both blocks (the CS3
+        re-typing: the update is the plain vector add ψ + Δψ_corr).
+
+        The boundary block is NONZERO here and on vacuum alike ([M] probe
+        2026-08-19: ‖trace‖ = 3.665 vacuum / 5.985 reflective) — the trace
+        arm always writes the wall-edge f₀ solutions; "inert on vacuum"
+        means UNREAD downstream, which this unit test structurally cannot
+        see (the consumption claim lives in the acceleration-level gates).
+        """
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+
+        for bcs in [("vacuum", "vacuum"), ("reflective", "vacuum")]:
+            sn_mesh = _slab(*bcs)
+            corrector = DSACorrection.from_sn_mesh(sn_mesh)
+            out = corrector.apply(self._increment(sn_mesh))
+            if type(out.interior) is not AngularFlux:
+                pytest.fail(
+                    f"{bcs}: correction interior is "
+                    f"{type(out.interior).__name__}, not AngularFlux"
+                )
+            if type(out.boundary) is not AngularBoundaryFlux:
+                pytest.fail(
+                    f"{bcs}: correction boundary is "
+                    f"{type(out.boundary).__name__}, not AngularBoundaryFlux"
+                )
+            if not np.linalg.norm(out.boundary.values) > 0.0:
+                pytest.fail(f"{bcs}: the trace arm wrote a zero boundary block")

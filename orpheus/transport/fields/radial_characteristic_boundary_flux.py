@@ -12,11 +12,11 @@ the defect row, ruling R13).
 
 Storage, validation, the ``corner(level, sign)`` view, and the ``zeros_on`` /
 ``from_mesh`` factories are inherited from
-:class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`; the
-affine-point flux algebra from
-:class:`~orpheus.transport.fields._flux_role.FluxRole` — its ``⊖`` mints a
-:class:`~orpheus.transport.displacements.radial_characteristic_boundary_displacement.RadialCharacteristicBoundaryDisplacement`
-(the Rep-keyed sibling over the shared ``RadialCharacteristicBoundaryField``).
+:class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`,
+including the vector-space additive algebra of
+:class:`~orpheus.numerics.field.Field` (flux lives in V — campaign 1 CS3,
+2026-08-19; the affine ``FluxRole`` gate and the displacement mint are retired,
+and ``±`` return this same class under the class/space/mesh fiber guard).
 """
 
 from __future__ import annotations
@@ -26,13 +26,12 @@ from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import RadialCharacteristicBoundaryField
-from orpheus.transport.fields._flux_role import FluxRole
 
 __all__ = ["RadialCharacteristicBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicBoundaryFlux(FluxRole, RadialCharacteristicBoundaryField):
+class RadialCharacteristicBoundaryFlux(RadialCharacteristicBoundaryField):
     r"""System B's boundary ψ½ flux state — the r = R corner.
 
     Parameters

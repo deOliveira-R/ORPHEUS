@@ -32,13 +32,6 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-import orpheus.transport.displacements  # noqa: F401  eager _BY_REP registry
-from orpheus.transport.displacements.radial_characteristic_boundary_displacement import (
-    RadialCharacteristicBoundaryDisplacement,
-)
-from orpheus.transport.displacements.radial_characteristic_interior_displacement import (
-    RadialCharacteristicInteriorDisplacement,
-)
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
 )
@@ -159,28 +152,38 @@ class TestCompositeConstruction:
 
 
 class TestCompositeAlgebra:
-    def test_flux_plus_flux_is_the_affine_gate(self) -> None:
+    def test_flux_plus_flux_propagates_per_block(self) -> None:
+        """flux + flux is legal member-wise (flux lives in V — campaign 1
+        CS3; the affine gate that used to refuse this here is retired)."""
         sn = _sphere()
         a, b = _rand_composite(sn, 4), _rand_composite(sn, 5)
-        with pytest.raises(TypeError, match="affine"):
-            _ = a + b
+        s = a + b
+        np.testing.assert_array_equal(
+            s.interior.values, a.interior.values + b.interior.values,
+        )
+        np.testing.assert_array_equal(
+            s.boundary.values, a.boundary.values + b.boundary.values,
+        )
 
-    def test_subtraction_mints_a_displacement_composite_per_block(self) -> None:
+    def test_subtraction_is_same_typed_per_block(self) -> None:
+        """The difference keeps the SPLIT leaf types per block (until CS3 it
+        minted the two RC displacement siblings — the per-block mint the
+        composite torsor forced)."""
         sn = _sphere()
         a, b = _rand_composite(sn, 6), _rand_composite(sn, 7)
         d = a - b
-        if type(d.interior) is not RadialCharacteristicInteriorDisplacement:
-            pytest.fail(f"interior block minted {type(d.interior).__name__}")
-        if type(d.boundary) is not RadialCharacteristicBoundaryDisplacement:
-            pytest.fail(f"boundary block minted {type(d.boundary).__name__}")
+        if type(d.interior) is not RadialCharacteristicInteriorFlux:
+            pytest.fail(f"interior block became {type(d.interior).__name__}")
+        if type(d.boundary) is not RadialCharacteristicBoundaryFlux:
+            pytest.fail(f"boundary block became {type(d.boundary).__name__}")
         np.testing.assert_array_equal(
             d.interior.values, a.interior.values - b.interior.values,
         )
 
-    def test_torsor_add_displacement_recovers_the_point(self) -> None:
+    def test_update_step_recovers_the_point(self) -> None:
         sn = _sphere()
         a, b = _rand_composite(sn, 8), _rand_composite(sn, 9)
-        recovered = a + (b - a)  # flux ⊕ displacement → flux
+        recovered = a + (b - a)  # plain V arithmetic, blockwise
         if type(recovered) is not RadialCharacteristicField:
             pytest.fail(f"torsor returned {type(recovered).__name__}")
         np.testing.assert_allclose(recovered.interior.values, b.interior.values)

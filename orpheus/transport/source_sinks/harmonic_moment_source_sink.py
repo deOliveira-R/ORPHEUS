@@ -125,8 +125,8 @@ class HarmonicMomentSourceSink(MomentField):
     -----
     Algebra is the plain vector-space algebra inherited from
     :class:`~orpheus.numerics.field.Field` (``source + source → source`` is
-    closed — a rate density, NOT a flux state, so no
-    :class:`~orpheus.transport.fields._flux_role.FluxRole` affine gate).
+    closed; since campaign 1 CS3, 2026-08-19, the flux siblings share this
+    algebra too — the ``FluxRole`` affine gate is retired).
     Construction, the ``L``-match ``_check_partner``, and the shape contract
     are inherited from :class:`~orpheus.transport.fields._bases.MomentField`.
     Cross-class arithmetic with :class:`HarmonicMomentFlux` (same shape,

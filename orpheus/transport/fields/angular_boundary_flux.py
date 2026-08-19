@@ -84,14 +84,13 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularBoundaryField
-from orpheus.transport.fields._flux_role import FluxRole
 
 
 __all__ = ["AngularBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularBoundaryFlux(FluxRole, AngularBoundaryField):
+class AngularBoundaryFlux(AngularBoundaryField):
     r"""L2 boundary trace flux — the *flux* role leaf of
     :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 

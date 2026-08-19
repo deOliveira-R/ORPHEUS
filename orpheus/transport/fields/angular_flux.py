@@ -47,7 +47,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
-from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -58,7 +57,7 @@ __all__ = ["AngularFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularFlux(FluxRole, AngularField):
+class AngularFlux(AngularField):
     r"""L2 typed angular flux: pure :class:`Field` on (N, ng, nx, ny).
 
     Parameters

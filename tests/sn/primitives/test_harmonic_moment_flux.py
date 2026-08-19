@@ -222,13 +222,11 @@ class TestHarmonicMomentFluxSlicing:
         bit-exactly (the contract stated in ``anisotropic_part``'s
         docstring).
 
-        Both parts are flux-role :class:`HarmonicMomentFlux` states, so
-        the recombination ``iso + aniso`` is FORBIDDEN by the #208 affine
-        gate — flux + flux has no origin (the two parts are disjoint
-        slices of one field, not a partition-of-unity blend). The
-        complete-decomposition intent is verified at the ``.values``
-        array level instead, where the disjoint-slice addition IS the
-        natural reconstruction.
+        Both parts are :class:`HarmonicMomentFlux` states in V, so since
+        the CS3 cone carve (2026-08-19) the recombination ``iso + aniso``
+        is the DIRECT spelling — the ℓ-disjoint reconstruction is exactly
+        the vector sum the retired affine gate used to forbid, and this
+        row now asserts it typed as well as at the array level.
         """
         m = _slab_mesh()
         L = 2
@@ -241,9 +239,11 @@ class TestHarmonicMomentFluxSlicing:
         # moment-space content).
         vals[0, 1:] = 0.0
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
-        # Affine gate: flux + flux is unspellable.
-        with pytest.raises(TypeError, match="affine_combination"):
-            _ = phi.isotropic_part() + phi.anisotropic_part()
+        # The typed recombination — the capability the CS3 carve unlocked.
+        recombined = phi.isotropic_part() + phi.anisotropic_part()
+        if type(recombined) is not HarmonicMomentFlux:
+            raise AssertionError("iso + aniso left the leaf type")
+        np.testing.assert_array_equal(recombined.values, phi.values)
         # Complete decomposition, verified at the array level (the iso /
         # aniso parts are disjoint slices, so their array sum is exactly
         # the original moment content).
@@ -347,49 +347,43 @@ class TestHarmonicMomentFluxTruncate:
 
 
 class TestHarmonicMomentFluxAlgebra:
-    def test_add_within_type_forbidden_torsor_allowed(self) -> None:
-        r"""#208 affine gate: ``moment + moment`` raises (flux states form
-        an affine space with no origin); the torsor action
-        ``ψ ⊕ (ψ' ⊖ ψ) → ψ'`` is the legal update step.
-
-        ``HarmonicMomentFlux`` inherits ``FluxRole`` (migrated to L2 in
-        ``6123422``), so it obeys the same affine algebra as
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` —
-        mirrors ``test_angular_flux.py::TestAlgebra::
-        test_flux_add_flux_forbidden_torsor_allowed``.
+    def test_add_within_type_and_update_round_trip(self) -> None:
+        r"""Flux lives in V (campaign 1 CS3): ``moment + moment`` is the
+        plain vector sum in the same leaf type, and the update step
+        ``ψ + (ψ' − ψ) ≈ ψ'`` is ordinary arithmetic — mirrors
+        ``test_angular_flux.py::TestAlgebra::
+        test_flux_add_flux_legal_and_update_round_trip``. (Until
+        2026-08-19 the #208 affine gate raised here.)
         """
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         b = HarmonicMomentFlux.from_mesh_and_L(2.0 * np.ones(shape), m, L)
-        # flux + flux → TypeError; the message names the legal alternative.
-        with pytest.raises(TypeError, match="affine_combination"):
-            _ = a + b
-        # Torsor action: flux ⊕ displacement → flux (the update step).
+        s = a + b
+        if type(s) is not HarmonicMomentFlux:
+            raise AssertionError("moment + moment left the leaf type")
+        np.testing.assert_array_equal(s.values, 3.0 * np.ones(shape))
         out = a + (b - a)
-        assert isinstance(out, HarmonicMomentFlux)
+        if type(out) is not HarmonicMomentFlux:
+            raise AssertionError("the update step left the leaf type")
         np.testing.assert_array_equal(out.values, b.values)
         # Frozen — originals unchanged.
         np.testing.assert_array_equal(a.values, np.ones(shape))
 
     def test_sub_within_type(self) -> None:
-        r"""``moment ⊖ moment`` mints a :class:`MomentDisplacement` (the
-        iterate increment), NOT another flux — flux states form an affine
-        space whose difference lives in the tangent / displacement space.
-        Values carry the signed difference ``self - other``.
+        r"""``moment − moment`` returns the SAME leaf type carrying the
+        signed difference (flux lives in V — campaign 1 CS3; until
+        2026-08-19 this minted a ``MomentDisplacement``).
         """
-        from orpheus.transport.displacements.moment_displacement import (
-            MomentDisplacement,
-        )
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(3.0 * np.ones(shape), m, L)
         b = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         c = a - b
-        assert isinstance(c, MomentDisplacement)
-        assert not isinstance(c, HarmonicMomentFlux)
+        if type(c) is not HarmonicMomentFlux:
+            raise AssertionError("moment − moment left the leaf type")
         np.testing.assert_array_equal(c.values, a.values - b.values)
 
     def test_scalar_mul_left_and_right(self) -> None:
@@ -426,13 +420,12 @@ class TestHarmonicMomentFluxAlgebra:
         shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         with pytest.raises(TypeError):
-            a + 5  # not a HarmonicMomentFlux
+            a + 5  # type: ignore[operator]  # not a HarmonicMomentFlux
 
     def test_partner_must_share_mesh(self) -> None:
-        # The #208 affine gate forbids ``flux + flux`` outright, so the
-        # cross-mesh partner check now lives on ``__sub__`` (flux ⊖ flux →
-        # displacement), which reaches BulkField._check_partner's
-        # mesh-bound check. Retargeted from ``+`` to ``-`` accordingly.
+        # Both binary ops reach BulkField._check_partner's mesh-bound arm —
+        # the fiber discipline that survives the CS3 cone carve (the affine
+        # gate that once made ``-`` the only reachable spelling is retired).
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance — same shape
         L = 1
@@ -441,6 +434,8 @@ class TestHarmonicMomentFluxAlgebra:
         b = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m2, L)
         with pytest.raises(ValueError, match="mesh-bound"):
             a - b
+        with pytest.raises(ValueError, match="mesh-bound"):
+            a + b
 
     def test_partner_must_share_L(self) -> None:
         m = _slab_mesh()
@@ -454,9 +449,8 @@ class TestHarmonicMomentFluxAlgebra:
         # HarmonicMomentFlux._check_partner. Both gate the same
         # invariant; the space-level message is more general.
         #
-        # The #208 affine gate forbids ``flux + flux`` outright, so this
-        # partner check is exercised through ``__sub__`` (the legal
-        # flux ⊖ flux → displacement path that crosses to _check_partner).
+        # Exercised through ``__sub__`` (either binary op reaches
+        # _check_partner since the CS3 cone carve).
         with pytest.raises(ValueError, match="equal space"):
             a - b
 
