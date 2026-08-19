@@ -20,7 +20,7 @@ this session added a **1b** to it. Titled as outcomes (`plan-authoring` §1).
 | # | outcome | state |
 |---|---|---|
 | 1 | `retest` answers from EVIDENCE, not popularity | ✅ **LANDED** — see below |
-| **1b** | **the code side of every claimed equation is DECLARED, not guessed** | ⏳ in progress: guard landed, inventory taken, `:nothing:` next |
+| **1b** | **the code side of every claimed equation is DECLARED, not guessed** | ⏳ in progress: guard landed, inventory taken, `:kind:` SHIPPED + first 11 declared; **151 remain — ORPHEUS #382** |
 | 2 | a capture wide enough to matter exists | ⏳ not started |
 | 3 | a test declares what it is about (`.claude/plans/test_architecture_redesign.md`) | ⏳ not started |
 
@@ -32,17 +32,63 @@ from "improve `retest`" into "build the ledger and make its claims
 falsifiable", and what makes documentation-via-ontology campaign work rather
 than a filing.
 
-### ▶ NEXT: nexus#85 — an equation can declare that NOTHING implements it
+### ✅ nexus#85 — DONE, 2026-08-18. nexus `8d87abd` · ORPHEUS `bb075c93`
 
-`[M]` existence-checked at CP#5 time, after `#86`/`#90` both edited the same
-file: `option_spec = {"by": …}` on the verification directives and
-`{"label": …}` on the relation ones; **0 hits** for `nothing` in
+⛔ **This section SUPERSEDES the "▶ NEXT: nexus#85" pointer that stood here.**
+Original text, kept per §3 because its reasoning is still the reasoning:
+*"`[M]` existence-checked at CP#5 time … 0 hits for `nothing` in
 `directives.py` or `ontology.toml`. It does not exist; #85 is still a sketch,
-still OPEN.
+still OPEN. ⛔ Why it blocks: 150 of the inventory's 332 rows are NOTHING
+verdicts with nowhere to land."*
 
-⛔ **Why it blocks: 150 of the inventory's 332 rows are NOTHING verdicts with
-nowhere to land.** Conveniently that is also the untrustworthy half (below),
-so #85 and the adversarial re-run are the same gate.
+**What shipped.** `.. no-implementation:: <label>` `:kind:` — its OWN
+directive, not a `:nothing:` option on `.. implements::` (user ruling,
+2026-08-18: it writes no edge, so `:by:` + `:nothing:` together becomes
+unspellable rather than a runtime refusal). It sets `no_implementation_kind`
+on the statement; `_infer_implements` reads that alongside declared edges, so
+there is ONE stand-down, not two suppression paths. Closed vocabulary —
+`identity` / `law` / `canonical-form` / `definition` — extendable per project
+via `[extend.attribute.…] values` (user ruling, same turn).
+
+**`[M]` the measured effect**, ORPHEUS graph rebuilt at `bb075c93`:
+
+| | before | after |
+|---|---:|---:|
+| corpus `implements` edges | 13450 | **13206** (−244) |
+| labelled set answered | 45 of 56 | **56 of 56** |
+| inferred edges left on it | 244 | **0** |
+| coverage `documented` / `no_implementation` | 188 / 0 | **177 / 11** |
+| ⭐ RULE half `guesses_on_unimplementable_equations` | 239 | **239** |
+
+The last row is the anti-cheat invariant and it is the one that matters: the
+scorer's RULE half REIMPLEMENTS the inference rather than calling it, so a
+declaration cannot flatter it. ⚠ Its `false_positives` DID move, 1305 → 1314,
+and that is not a regression — the candidate pool is the symbols a page
+DOCUMENTS, and these blocks cross-reference symbols in order to say they are
+NOT the implementer. The scorer's own comment predicts that mechanism.
+
+⚠ **§10, third instance this campaign, and the first inside the instrument
+built to be the honest one.** `implements_ground_truth.py`'s corpus half
+derived "declared" from having a non-inferred `implements` edge — a PROXY
+this work removes. It would have read `45 of 56` forever however thoroughly
+the eleven were declared, i.e. failed in the direction that reads as
+unfinished work. Fixed in the same change; it now reports the two kinds of
+answer separately.
+
+### ▶ NEXT: the 151 remaining, and the adversarial re-run that must precede them
+
+⛔ **Do NOT bulk-declare from the existing inventory** — `[M]` 110 of its 150
+NOTHING rows are contradicted by their own claiming tests, and one is proven
+wrong. **ORPHEUS #382** carries the population, the order that worked on the
+11, and the anti-cheat check. Read it before touching this.
+
+`[M]` 2026-08-18: **509** `.. vv-status: … documented` sentinels exist; **358**
+sit on equations that DO have implementers (a different concept — do not
+collapse the two mechanisms), **151** on equations with none. ⭐ All 11 just
+declared already carried a sentinel AND a hand-written rationale saying why —
+**the classification cost nothing to derive, it was already authored and
+inert.** That is the cheap path for the remaining 151, and it is why the
+fanout's judgement is not needed for most of them.
 
 ### ✅ LANDED THIS SESSION
 
