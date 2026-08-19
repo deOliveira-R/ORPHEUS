@@ -36,8 +36,16 @@ You have **freedom of tool choice** — route by what the question actually is:
 `nexus-verification`, `nexus-guide`).
 
 **Operational notes**
-- **Deferred tools:** if `mcp__nexus__*` surface as deferred, ONE
-  `ToolSearch("select:mcp__nexus__<name>")` loads them — deferral is NOT unavailability.
+- **Deferred tools — and ⛔ the escape hatch is MAIN-AGENT-ONLY.** If `mcp__nexus__*`
+  surface as deferred, ONE `ToolSearch("select:mcp__nexus__<name>")` loads them: deferral
+  is NOT unavailability. ⚠ **A sub-agent has no `ToolSearch` tool**, so this recovery path
+  does not exist for it — `[M]` 2026-08-19, an `explorer` probe reported 45 `mcp__nexus__*`
+  tools loaded eagerly and **no `ToolSearch` at all**. A sub-agent that finds Nexus
+  genuinely absent cannot recover; it must say so and fall back to `Bash` (`grep`, or
+  `python -c "from sphinxcontrib.nexus.export import load_sqlite"` against
+  `.nexus/graph.db`). ⟹ **when a dispatch depends on Nexus, say in the brief what to do if
+  it is missing** — otherwise the agent improvises silently, and you cannot tell a
+  graph-derived answer from a grep-derived one in its report.
 - **Stale graph:** rebuild Sphinx first (`sphinx-build docs docs/_build/html`); the MCP
   server auto-reloads.
 - **Git worktrees (L22 hazard):** the session's MCP server was launched against the MAIN

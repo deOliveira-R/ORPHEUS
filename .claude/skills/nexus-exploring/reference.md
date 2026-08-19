@@ -3,7 +3,7 @@
 Full tool, resource, and schema reference for the Nexus knowledge graph.
 This file is shared across all nexus-* skills.
 
-## Tools (40)
+## Tools (45)
 
 ### Exploration
 | Tool | What it answers | Key args |
