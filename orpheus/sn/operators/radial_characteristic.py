@@ -483,7 +483,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             and the boundary member's :math:`\mu=-1` corner the r = R inflow
             (Dirichlet) datum. Must carry SOURCE members (the role parse at
             the block boundary — the resolvent inverts :math:`A_{BB}\psi = q`,
-            so a flux/displacement composite here is a caller error worth
+            so a flux composite here is a caller error worth
             raising loudly) and share this operator's mesh.
 
         Returns

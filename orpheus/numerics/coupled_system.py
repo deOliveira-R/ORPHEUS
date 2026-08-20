@@ -177,16 +177,20 @@ class SystemField(Protocol):
     Beyond the two members declared here, a member must support the vector
     dunders (``+``, ``-``, unary ``-``, scalar ``*`` / ``/``) and the
     class-level ``from_flat(flat, template)`` factory; those stay duck-typed
-    (not declared) because the member family's AFFINE-TORSOR signatures
-    (``flux − flux → displacement``, ``flux + displacement → flux``) fit
-    neither :class:`~orpheus.numerics.vector.Vector`'s ``Self + Self → Self``
-    spelling nor any simple declaration — the machinery delegates through
-    ``Any``-typed lambdas (the ``iteration.py`` posture) without inspecting
-    them. Numerics now carries THREE member-contract concepts — ``Vector``
-    (the named arithmetic dunders), the ``iteration.py`` ravellable pair
-    (ad-hoc private), and this protocol; **collapse trigger**: mint the named
-    ravellable-Protocol home (the ``Vector`` promotion precedent for the
-    arithmetic half) and converge all three onto it.
+    (not declared) TODAY only as inherited shape. The original reason — the
+    member family's affine-torsor signatures (``flux − flux → displacement``,
+    ``flux + displacement → flux``) fit neither
+    :class:`~orpheus.numerics.vector.Vector`'s ``Self + Self → Self``
+    spelling nor any simple declaration — was DISSOLVED at campaign 1 CS3
+    (2026-08-19): every member family now carries exactly the ``Self``-typed
+    vector dunders. The machinery still delegates through ``Any``-typed
+    lambdas (the ``iteration.py`` posture) without inspecting them, and
+    numerics still carries THREE member-contract concepts — ``Vector`` (the
+    named arithmetic dunders), the ``iteration.py`` ravellable pair (ad-hoc
+    private), and this protocol. **The collapse trigger is therefore LIVE**:
+    mint the named ravellable-Protocol home (the ``Vector`` promotion
+    precedent for the arithmetic half) and converge all three onto it —
+    tracked as #391.
     """
 
     def to_flat(self) -> "NDArray": ...

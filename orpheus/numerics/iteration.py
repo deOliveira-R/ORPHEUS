@@ -565,7 +565,7 @@ class SourceIteration(Generic[V]):
         (default) is byte-identical to the un-accelerated loop.
 
         The corrector is **correctness-safe by construction** only when
-        its correction vanishes with the displacement (a synthetic
+        its correction vanishes with the increment (a synthetic
         accelerator's defining property — at the fixed point
         :math:`\psi_{n+1/2} = \psi_n` so :math:`\mathcal{C}` receives
         zero): then the corrected iteration shares the un-accelerated
@@ -763,7 +763,7 @@ class SourceIteration(Generic[V]):
             psi = self.A_inv.apply(rhs, initial_guess=psi_prev)
 
             # The synthetic-acceleration correction (issue #2): the
-            # corrector consumes the SWEEP displacement ψ_{n+1/2} − ψ_n
+            # corrector consumes the SWEEP increment ψ_{n+1/2} − ψ_n
             # and returns the additive correction (→ 0 at the fixed
             # point, so the un-accelerated FP is preserved — see the
             # class docstring's corrector entry). Absent corrector ⇒

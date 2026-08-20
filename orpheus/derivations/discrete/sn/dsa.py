@@ -457,7 +457,7 @@ class CorrectionSymbols:
     r"""The correction unknowns of one cell.
 
     :math:`(f_0, f_1)` at ``left`` / ``right`` edges and the ``bar``
-    average, plus the sweep displacement moments ``d0`` / ``d1``
+    average, plus the sweep increment moments ``d0`` / ``d1``
     (:math:`d_n = \phi_{ni}^{l+1/2} - \phi_{ni}^{l}` — the raw material
     of the DSA residual source; Larsen's :math:`g` sources are
     cross-section-weighted multiples of these).
@@ -576,7 +576,7 @@ def solve_cell_for_edge_f1(
     Larsen (25)/(26): the cell's two edge-only equations, solved as a
     2×2 linear system for :math:`(f_{1,\mathrm{left}},
     f_{1,\mathrm{right}})` in terms of the cell's :math:`f_0` edge
-    values and its displacement sources. Instantiated at a shared edge
+    values and its increment sources. Instantiated at a shared edge
     from the two adjacent cells, the two expressions' equality IS the
     consistency condition that becomes the tridiagonal (27).
     """
@@ -597,7 +597,7 @@ def solve_cell_for_edge_f1(
 # ═══════════════════════════════════════════════════════════════════════
 
 #: The three interior edge corrections around the shared edge i+1/2 and
-#: the two cells' displacement sources — the unknowns of the row.
+#: the two cells' increment sources — the unknowns of the row.
 F0_LEFT_EDGE, F0_SHARED, F0_RIGHT_EDGE = sp.symbols(
     "f0_im12 f0_ip12 f0_ip32"
 )
@@ -960,7 +960,7 @@ def build_consistent_dd_system(
     tridiagonal operator :math:`A_{\rm low}` (Larsen (27) rows interior,
     the one-sided-closed Marshak/reflecting rows at the boundaries) and
     the residual-source matrix :math:`G` mapping the per-cell sweep
-    displacements :math:`(d_0, d_1)` to the row sources, for the
+    increments :math:`(d_0, d_1)` to the row sources, for the
     DIAMOND member (:math:`\alpha = 0`). Every formula here is
     theorem-backed: (23a–f)/(27) via :func:`derive_interior_row`, the
     one-sided closures via :func:`derive_one_sided_f1_forms`, the

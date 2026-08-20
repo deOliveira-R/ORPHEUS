@@ -54,7 +54,7 @@ shared edge between cells *lo* and *hi* is Larsen (27) with the DD
 with :math:`\hat\sigma_R = \sigma_t - \sigma_{s0}^{g\to g}`,
 :math:`D = 1/[3(\sigma_t - \sigma_{s1}^{g\to g})]`, and the sources
 :math:`g_0 = \hat\sigma_S h\, d_0`, :math:`g_1 = a\, d_1` built from the
-**raw** sweep displacement moments :math:`d_n = \phi_n^{l+1/2} -
+**raw** sweep increment moments :math:`d_n = \phi_n^{l+1/2} -
 \phi_n^{l}` (the :math:`\sigma`-weighting lives in :math:`G`, once).
 Boundary rows close one-sidedly: Marshak
 :math:`\gamma_N f_0 + (W_2^+/W_2) f_1 = 0` under vacuum, :math:`f_1 = 0`
@@ -147,7 +147,7 @@ class DSALowOrderSystem:
     Holds, for every group :math:`g`, the LU-factored edge operator
     :math:`A_g` (``(K+1, K+1)``, Larsen (27) interior rows + one-sided
     Marshak/reflecting boundary rows) and the residual-source map
-    :math:`G_g` (``(K+1, 2K)``) taking the per-cell displacement moments
+    :math:`G_g` (``(K+1, 2K)``) taking the per-cell increment moments
     ``[d0; d1]`` to the row sources. Built by :meth:`from_sn_mesh`; the
     correction solve is :meth:`solve_correction`.
 
@@ -159,7 +159,7 @@ class DSALowOrderSystem:
     #: ``(ng, K+1, K+1)`` assembled edge operators (kept for gates /
     #: ``as_matrix``-style introspection; the solve uses the LU factors).
     a_low: np.ndarray
-    #: ``(ng, K+1, 2K)`` displacement→source maps.
+    #: ``(ng, K+1, 2K)`` increment→source maps.
     g_map: np.ndarray
     #: Per-group LU factorizations of ``a_low`` (scipy ``lu_factor``).
     _lu: tuple = field(repr=False)
@@ -401,10 +401,10 @@ class DSALowOrderSystem:
         Parameters
         ----------
         d0 : (ng, K)
-            The raw scalar-moment sweep displacements
+            The raw scalar-moment sweep increments
             :math:`d_0 = \phi_0^{l+1/2} - \phi_0^{l}` per (group, cell).
         d1 : (ng, K), optional
-            The raw moment-1 (current-like) displacements
+            The raw moment-1 (current-like) increments
             :math:`d_1 = \phi_1^{l+1/2} - \phi_1^{l}`. Default zero —
             the P0-DSA arm. The columns carry the (23f) weight
             :math:`a = \sigma_{s1}/(\sigma_t-\sigma_{s1})` (zero for
@@ -477,7 +477,7 @@ class DSALowOrderSystem:
 class DSACorrection(LinearOperator["FullField", "FullField"]):
     r"""The DSA correction operator on the within-group iterate composite.
 
-    Maps the iterate **displacement** :math:`\Delta\psi = \psi^{l+1/2} -
+    Maps the iterate **increment** :math:`\Delta\psi = \psi^{l+1/2} -
     \psi^{l}` (a full-angular ``FullField``/``TimedFullField``
     composite) to the additive angular correction:
 
@@ -519,11 +519,11 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
     Both acceleration postures consume this ONE operator:
 
     * **SI+DSA** — :class:`~orpheus.numerics.iteration.SourceIteration`
-      applies it to the sweep displacement each iteration (the
+      applies it to the sweep increment each iteration (the
       ``corrector`` parameter);
     * **Krylov-DSA** — the GMRES left preconditioner is
       ``sweep + correction-of-sweep`` (the swept vector IS the
-      displacement from zero).
+      increment from zero).
 
     The returned composite corrects BOTH blocks:
 
@@ -543,7 +543,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
       carries zero net current — consistent with the reflecting row by
       construction.
 
-    At the converged fixed point the displacement vanishes, so the
+    At the converged fixed point the increment vanishes, so the
     correction vanishes — the correction→0 safety property (D6): a bug
     here degrades the RATE, never the answer.
     """
@@ -599,7 +599,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         r"""The per-group low-order systems (gate surface)."""
         return self._low_order
 
-    def apply(self, displacement: "FullField") -> "FullField":
+    def apply(self, increment: "FullField") -> "FullField":
         r"""The correction of one iterate increment — an element of V.
 
         The correction is an increment, not a converged state: the
@@ -622,7 +622,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         loudly — 2-D-only, outside the arm-1 admission."""
         from orpheus.transport.fields.angular_flux import AngularFlux
 
-        interior = displacement.interior
+        interior = increment.interior
         if not isinstance(interior, AngularFlux):
             raise TypeError(
                 f"DSACorrection: the input's interior must be a "
@@ -682,7 +682,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
                 ).copy(),
             },
         )
-        return displacement._recombine(
+        return increment._recombine(
             interior=AngularFlux.from_mesh(angular_values, self._mesh),
             boundary=trace,
         )

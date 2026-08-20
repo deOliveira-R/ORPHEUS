@@ -24,8 +24,9 @@ the leaf factories).
 **Role-erased slots (B.2b DP2, the FullField precedent).** The static parameters
 bind the locus FIELD BASES, not the flux leaves — exactly as ``FullField`` binds
 ``BulkField``/``BoundaryField`` — so ONE composite class carries the flux state
-(the iterate), the source emission (an operator ``.apply`` output: ``A_BA`` /
-``B_b``), and the displacement (minted per block by ``⊖``). Role identity lives
+(the iterate, whose same-class differences are ordinary signed ψ½ composites —
+campaign 1 CS3) and the source emission (an operator ``.apply`` output:
+``A_BA`` / ``B_b``). Role identity lives
 on the MEMBERS (the Field class-identity gate rejects cross-role sums); a
 consumer that needs a specific role parses it off the member (the #289-F2
 discipline).
@@ -97,8 +98,9 @@ class RadialCharacteristicField(
 
     ``interior`` is a
     :class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`
-    (the marched cells — flux state, source emission, or, after
-    ``composite ⊖ composite``, an interior displacement); ``boundary`` a
+    (the marched cells — flux state or source emission; a difference of two
+    flux composites is the same flux class carrying signed values, campaign 1
+    CS3); ``boundary`` a
     :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`
     (the r = R corner). Role-erased slots (the FullField precedent — see the
     module docstring): role identity lives on the members. The 2-block algebra
@@ -111,19 +113,19 @@ class RadialCharacteristicField(
         # System B narrows the generic slots to the ψ½ split loci (the concrete
         # guard belongs with the concrete specialization, as FullField guards
         # BulkField / BoundaryField). Guard the FIELD BASE, not a role leaf, so
-        # flux, source (operator emissions), and displacement (from ⊖)
-        # composites are all admitted — role-erased slots, B.2b DP2.
+        # both flux and source (operator-emission) composites are admitted —
+        # role-erased slots, B.2b DP2.
         if not isinstance(self.interior, RadialCharacteristicInteriorField):
             raise TypeError(
                 f"{type(self).__name__}: interior must be a "
-                f"RadialCharacteristicInteriorField (its flux / source / "
-                f"displacement leaf); got {type(self.interior).__name__}"
+                f"RadialCharacteristicInteriorField (its flux / source "
+                f"leaf); got {type(self.interior).__name__}"
             )
         if not isinstance(self.boundary, RadialCharacteristicBoundaryField):
             raise TypeError(
                 f"{type(self).__name__}: boundary must be a "
-                f"RadialCharacteristicBoundaryField (its flux / source / "
-                f"displacement leaf); got {type(self.boundary).__name__}"
+                f"RadialCharacteristicBoundaryField (its flux / source "
+                f"leaf); got {type(self.boundary).__name__}"
             )
         super().__post_init__()  # base: Field + mesh-identity.
 

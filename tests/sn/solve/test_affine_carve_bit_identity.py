@@ -1,5 +1,10 @@
 r"""Bit-identity gate for the #208 affine flux-algebra carve.
 
+(Reading order: the next two paragraphs are the KEPT #208-era claim —
+declared HISTORICAL just below them. The live instrument is the ⛔ #333
+re-pose: stored per-config values under ``-W error::DriftWarning``, last
+re-certified as campaign 1 CS3's slab-family wall, 2026-08-19.)
+
 The affine typing (Piece 1: ``FluxDisplacement`` + the ``flux+flux`` gate),
 the SI-loop displacement retype (Piece 2), and the typed equation-residual
 evaluation (Piece 3) add **ZERO numerical change** to the converged flux:
@@ -74,12 +79,14 @@ Coverage (Cardinal-6 ≥2G + heterogeneous; vv-principles §H1/H2)
 
 * ``si_2d_p1_aniso_het`` — 2-D Cartesian, 2G, fuel|moderator, P1-anisotropic,
   source-iteration: the **windowed SI** path whose iterate ``bulk`` is a
-  :class:`HarmonicMomentFlux` (so ``psi-psi_prev`` becomes a
-  ``MomentDisplacement``). The mirror of the frozen snapshot config.
+  :class:`HarmonicMomentFlux` (``psi-psi_prev`` is the same class carrying
+  signed values — campaign 1 CS3; it was a ``MomentDisplacement`` until
+  then). The mirror of the frozen snapshot config.
 * ``krylov_2d_p1_aniso_het`` — same config, full-angular Krylov (scipy's flat
-  ``b-Ax`` — exercises the typing without the SI displacement path).
+  ``b-Ax`` — exercises the typing without the SI increment path).
 * ``si_slab_2g_het`` — 1-D slab, 2G, fuel|moderator, P1, source-iteration: the
-  ``AngularFlux``-bulk SI path (1-D never windows → ``AngularDisplacement``).
+  ``AngularFlux``-bulk SI path (1-D never windows, so the increment is a
+  signed ``AngularFlux``).
 
 Marks: ``foundation`` — this is a software-invariant gate (the converged value
 is inherited from the pre-carve reference), not a physics ``:label:`` claim.

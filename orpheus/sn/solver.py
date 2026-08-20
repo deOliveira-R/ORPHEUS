@@ -766,7 +766,7 @@ def _within_group_krylov(
         M^{-1} v \;=\; t + \mathcal{C}\,t, \qquad t = (L+C)^{-1} v,
 
     one sweep followed by the DSA correction of the swept vector — the
-    swept vector IS the displacement from zero, so the SAME correction
+    swept vector IS the increment from a zero iterate, so the SAME correction
     operator serves both the SI and Krylov postures (single source of
     truth on :math:`R, A_{\rm low}^{-1} G, P`).  The preconditioner
     changes the Krylov TRAJECTORY only, never the converged fixed point
@@ -1147,7 +1147,7 @@ def _within_group_si(
     if corrector is not None and windowed:
         raise NotImplementedError(
             "_within_group_si: the DSA corrector consumes the full-"
-            "angular displacement; the 2-D moment-windowed iterate is "
+            "angular increment; the 2-D moment-windowed iterate is "
             "outside the arm-1 admission (the corner-moment follow-up)."
         )
     si = SourceIteration(
@@ -3125,7 +3125,7 @@ def solve_sn_adjoint_fixed_source(
     )
     # Flux-classed zero start (the template) — the daggered iterate is an
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
-    # and trip the typed cross-class guard on the first displacement.
+    # and trip the typed cross-class guard on the first increment ψ − ψ_prev.
     psi_star, record = si.solve(q_star, initial_guess=template)
     # #340 N6b — the exit defect of the DAGGERED equation, which is the one
     # this entry solved: ``A^† ψ* − q*`` with the same operator the driver

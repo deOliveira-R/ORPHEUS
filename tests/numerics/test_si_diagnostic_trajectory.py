@@ -6,15 +6,18 @@ iterate diagnostics off the ``Displacement`` type and onto the iteration layer:
 
 * ``Displacement.contraction_ratio`` (retired with its type at step 3)
   → the ρ trajectory computed by :class:`~orpheus.numerics.iteration.SourceIteration`,
-* :meth:`…Displacement.true_error_estimate` → ``‖Δψ‖/(1−ρ)`` on the iteration layer,
-* :meth:`…Displacement.where_largest` → the per-entry convergence map.
+* ``Displacement.true_error_estimate`` (retired likewise) → ``‖Δψ‖/(1−ρ)``
+  on the iteration layer,
+* ``Displacement.where_largest`` (retired likewise) → the per-entry
+  convergence map.
 
-Today the SI loop mints a typed displacement every pass
-(``iteration.py:787``: ``displacement = psi - psi_prev``), finds its bulk leaf
-(``_flux_displacement_leaf``, ``iteration.py:421``) and calls
-``disp_leaf.contraction_ratio(_prev_disp_leaf)`` — which is
+At capture time (``000cf144``, pre-carve) the SI loop minted a typed
+displacement every pass (then-``iteration.py:787``:
+``displacement = psi - psi_prev``), found its bulk leaf
+(``_flux_displacement_leaf``, then-``:421``) and called
+``disp_leaf.contraction_ratio(_prev_disp_leaf)`` — which was
 ``self.l2 / previous.l2`` with ``Field.l2 = space.norm(values)`` on the
-**INTERIOR LEAF**. This module freezes what that produces on a c→1 fixture, so
+**INTERIOR LEAF**. This module froze what that produced on a c→1 fixture, so
 the post-carve surface can be shown to reproduce it.
 
 **Re-pointed at CS3 step 1 (2026-08-19), numbers UNMOVED.** The surface is now

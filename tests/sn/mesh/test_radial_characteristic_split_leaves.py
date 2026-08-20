@@ -217,12 +217,15 @@ class TestSplitLeafVectorAlgebra:
 class TestSplitSourceSinkLeaves:
     r"""The q½ source split: plain vector-space leaves over the locus bases.
 
-    Unlike the flux leaves (affine points, ``⊖`` mints displacements), source
-    sums are CLOSED — no role mixin. The Field class-identity gate is what
-    keeps source, flux, and displacement arithmetic from mixing (all roles per
-    locus share the SAME split space, so the class is the gate). The units row
-    pins the B.2b ruling that the split DISSOLVES the unified leaf's
-    documented corner-units deviation into two honest per-locus identities.
+    Source sums are CLOSED — no role mixin, and since campaign 1 CS3
+    (2026-08-19) the flux leaves carry the same plain vector algebra (until
+    then they were affine points whose ``⊖`` minted displacements, and this
+    class's "unlike the flux leaves" contrast was the point). The Field
+    class-identity gate is what keeps source and flux arithmetic from mixing
+    (all roles per locus share the SAME split space, so the class is the
+    gate). The units row pins the B.2b ruling that the split DISSOLVES the
+    unified leaf's documented corner-units deviation into two honest
+    per-locus identities.
     """
 
     @pytest.mark.parametrize(

@@ -71,7 +71,7 @@ def cell_moment_count(per_axis: int, ndim: int) -> int:
     ``[ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy]``).  Single source of the cell-count policy —
     the ``d`` exponent — shared by the typed space
     (:meth:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace.from_per_axis`),
-    the field/displacement shape builders, the UBLD cell assembler, the SN
+    the field shape builders, the UBLD cell assembler, the SN
     solver's lift/reduce helpers, and the loss representation (#253: these
     were ~20 open-coded ``per_axis ** ndim`` spellings — a layout-policy
     change now lands HERE, not at scattered call sites).  ``per_axis``

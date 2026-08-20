@@ -27,7 +27,7 @@ Storage, validation, the ``corner(level, sign)`` view, and the ``zeros_on`` /
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`.
 Plain vector-space algebra (source sums are closed) — no role mixin, like
 every SourceSink leaf; the Field class-identity gate rejects cross-role sums
-(source vs flux vs displacement all share the SAME
+(source and flux share the SAME
 ``mesh.radial_characteristic_boundary_space``).
 """
 

@@ -525,7 +525,9 @@ class DiscretizationScheme(Protocol):
     -----
     All seven traits are class-level so they can be inspected without
     instantiating the strategy: ``is_linear`` gates stiffness-based closure
-    selection; ``is_positivity_preserving`` gates negative-flux diagnostics;
+    selection; ``is_positivity_preserving`` is the cone-preservation flag
+    (honest values, no production reader yet — #390 tracks wiring the
+    element predicate ``Field.cone_violations`` as its first consumer);
     ``is_affine_scannable`` gates the 1-D sweep-schedule; and
     ``transverse_coupling_is_facewise`` gates the multi-D scan-march (and a
     future diffusion ADI / line-SOR preconditioner — #240's confirmed next

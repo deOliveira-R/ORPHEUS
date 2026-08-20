@@ -23,8 +23,8 @@ Storage, validation, the ``cells(level, sign)`` view, and the ``zeros_on`` /
 ``from_mesh`` factories are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`.
 Plain vector-space algebra (source sums are closed) — no role mixin, like every
-SourceSink leaf; the Field class-identity gate keeps source, flux, and
-displacement arithmetic from silently mixing (all three share the SAME
+SourceSink leaf; the Field class-identity gate keeps source and flux
+arithmetic from silently mixing (both roles share the SAME
 ``mesh.radial_characteristic_interior_space``, so it is the class gate, not the
 space gate, that rejects cross-role sums).
 """

@@ -1095,9 +1095,8 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         )
         # Role parse at the block boundary (the #289-F2 discipline, relocated
         # from the erased FullField slot to the boundary MEMBER — the composite
-        # slots are role-erased): ``B_b`` reflects a FLUX corner. A source- /
-        # displacement-role member arriving here is a caller error worth
-        # raising loudly.
+        # slots are role-erased): ``B_b`` reflects a FLUX corner. A source-role
+        # member arriving here is a caller error worth raising loudly.
         if not isinstance(ray.boundary, RadialCharacteristicBoundaryFlux):
             raise TypeError(
                 f"RadialCharacteristicBoundaryOperator: the input composite's "
