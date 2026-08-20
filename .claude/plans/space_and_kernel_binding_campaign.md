@@ -358,6 +358,30 @@ completeness verdict states its denominators (which spellings were grepped,
 which smell sweeps ran, over which trees); and this section gains its ✅ row in
 the ledger.
 
+**CS3-R execution ledger:**
+
+- ✅ CS3-R ⏹ COMPLETE (2026-08-19, branch `refactor/cs3r-cone-review`, six
+  sweeps `755f99b5`/`77c7cc68`/`a740d7ba`/`d79adb27`/`8bde369b`/`8112e1b0`).
+  Findings: `scratch/cs3r_findings.md` + the independent census
+  `scratch/cs3r_census_qa.md`. **Completeness was REFUTED at review start**
+  (~20 live-tense survivals: the RC family's ⊖ prose incl. 2 error messages,
+  DSA's noun → *increment*, 5 gates' false "illegal" premise, 3 AGENT.md
+  briefs — one PRESCRIBING the torsor as the fix — 1 skill clause of
+  derivative staleness, 3 test-architect memories, 2 production docstrings my
+  case-blind grep missed and the census caught) and is complete against two
+  independent filters at close. Expressiveness: 5 gates re-spelled to the
+  direct law (`[M]` blend-form 2.2e-16 BLIND vs direct 1.168 LOADED on an
+  affine mutant); `principal_bulk_leaf` polymorphic on the carriers (numerics
+  walker + `_NormedLeaf` retired); `Field._index_tuples` single-sourced;
+  leads 2/3/4/7 WITHDRAWN with structural reasons in the memo. Filed #391
+  (member-contract collapse — CS3 dissolved its recorded blocker), #392
+  (`face_areas` shim, surfaced by the gate's warning escalation); commented
+  #289 (typed Krylov now representable). `[M]` wide slice 4908 passed /
+  0 own reds (the 1 red = the escalated DeprecationWarning on the
+  pre-existing #392 shim; canonical invocation green); capture gate 5/5
+  frozen; pyright `orpheus` = 1 (the ratchet's recorded state, 0 mine);
+  sphinx clean ×3; `dead_references` 0/56 at close.
+
 ## 5. Phase CS4 — S and F are kernels; operators are born bound
 
 **Goal.** `ScatteringKernel`/`FissionKernel` are representation-free data; a constructor
