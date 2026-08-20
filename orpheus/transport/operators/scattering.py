@@ -92,7 +92,6 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.numerics.spaces import FullFieldSpace
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -400,18 +399,19 @@ class ScatteringOperator(LinearOperator):
     )
 
     #: The space this operator acts on (renamed from ``full_field_space`` in
-    #: campaign 1 CS1 — the slot names the ROLE; the TYPE stays the narrow
-    #: ``FullFieldSpace | None`` because ``S`` composes only into the SN
-    #: within-group sum today, and name-widening without a consumer would be
-    #: speculative). Threaded from the solver's ``sn_mesh.full_field_space``
-    #: via :meth:`from_solver_data`; ``None`` for the bare/test constructor
+    #: campaign 1 CS1 — the slot names the ROLE; typed ``FunctionSpace |
+    #: None``, the operator family's uniform slot type, so the whole family
+    #: greps as one pattern. What actually flows today is the SN composite:
+    #: threaded from the solver's ``sn_mesh.full_field_space`` via
+    #: :meth:`from_solver_data`; ``None`` for the bare/test constructor
     #: (then ``domain``/``codomain`` report ``None`` and the composition guard
     #: skips — backward-compatible). When present it is the SAME instance
     #: ``L``/``C``/``B`` carry, so the within-group ``(L+C) - S``
     #: :class:`~orpheus.numerics.operator.OperatorSum` guard validates the
-    #: ``- S`` arm natively. ``S`` depends on this numerics ``FunctionSpace``,
-    #: NOT on an SN mesh (``S`` scatters in every method).
-    space: "FullFieldSpace | None" = field(
+    #: ``- S`` arm natively (the load-bearing guard is instance AGREEMENT,
+    #: not the annotation's family). ``S`` depends on this numerics
+    #: ``FunctionSpace``, NOT on an SN mesh (``S`` scatters in every method).
+    space: "FunctionSpace | None" = field(
         default=None, repr=False, compare=False,
     )
 
@@ -767,7 +767,7 @@ class ScatteringOperator(LinearOperator):
         mat_xs: "MaterialXSField",
         quadrature: "Quadrature",
         scattering_order: int,
-        space: "FullFieldSpace | None" = None,
+        space: "FunctionSpace | None" = None,
     ) -> "ScatteringOperator":
         """Construct from a :class:`MaterialXSField` + quadrature.
 
