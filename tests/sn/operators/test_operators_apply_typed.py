@@ -308,14 +308,15 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)
 def test_full_algebra_linearity(name, builder) -> None:
-    """``A.apply(α·d₁ + β·d₂) == α·A·d₁ + β·A·d₂`` on flux displacements.
+    """``A(ψ₁+ψ₂) == A(ψ₁)+A(ψ₂)`` and ``A(c·ψ) == c·A(ψ)`` on flux states.
 
     Linearity of the composed operator on the composite carrier — the
     ``+`` / scalar-``*`` dunders propagate through bulk + boundary, and the
     operator algebra commutes with them (linear-operator-on-vector-space
-    invariant). #208: the linear combination is formed on flux DISPLACEMENTS
-    (the difference vector space V), since ``α·ψ + β·ψ'`` with ``α+β ≠ 1`` is
-    illegal on affine flux STATES (no origin) but legal on displacements.
+    invariant). Stated directly on flux states since campaign 1 CS3 (flux
+    lives in V; until then the combination had to be formed on the retired
+    displacement type, because ``α·ψ + β·ψ'`` with ``α+β ≠ 1`` raised on
+    the affine flux states).
     """
     sn = builder()
     state1 = _random_state(sn, seed=27)

@@ -141,9 +141,10 @@ class TestCompositeConstruction:
 #   * value fidelity / round-trip → ``TestCompositeAlgebra::
 #     test_to_flat_from_flat_round_trip_preserves_type`` (the native flat
 #     round-trip) + the ``_rand_composite`` ``from_flat`` build;
-#   * role identity (flux / source / displacement members) → the member-type
+#   * role identity (flux / source members) → the member-type
 #     rows in ``TestCompositeConstruction`` + ``TestCompositeAlgebra::
-#     test_subtraction_mints_a_displacement_composite_per_block``;
+#     test_subtraction_is_same_typed_per_block`` (its pre-CS3 name was
+#     ``test_subtraction_mints_a_displacement_composite_per_block``);
 #   * the mixed-role "guard" DISSOLVED — role-erased slots make a mixed-role
 #     composite LEGAL by construction (B.2b DP2); there is no bridge to refuse it.
 
@@ -185,7 +186,7 @@ class TestCompositeAlgebra:
         a, b = _rand_composite(sn, 8), _rand_composite(sn, 9)
         recovered = a + (b - a)  # plain V arithmetic, blockwise
         if type(recovered) is not RadialCharacteristicField:
-            pytest.fail(f"torsor returned {type(recovered).__name__}")
+            pytest.fail(f"vector recovery returned {type(recovered).__name__}")
         np.testing.assert_allclose(recovered.interior.values, b.interior.values)
         np.testing.assert_allclose(recovered.boundary.values, b.boundary.values)
 

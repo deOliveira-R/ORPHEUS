@@ -372,10 +372,13 @@ class Test2DTypedSources:
 #
 # Intrinsic-property test (feedback_test_intrinsic_properties): the
 # leaf's DEFINING law is the bare-MomentField *vector-space* algebra —
-# `source ± source` is CLOSED (a rate density adds vectorially), in
-# deliberate contrast to its FluxRole sibling HarmonicMomentFlux, whose
-# `flux + flux` is forbidden (affine, no origin) and `flux − flux` mints
-# a displacement. Positive AND negative cases (vv-principles L11 / Mode
+# `source ± source` is CLOSED (a rate density adds vectorially). (Until
+# campaign 1 CS3, 2026-08-19, this stood in deliberate contrast to the
+# then-FluxRole sibling HarmonicMomentFlux, whose `flux + flux` raised
+# and whose `flux − flux` minted a displacement; since the cone carve
+# both families carry the same plain V algebra and the contrast is
+# history — the cross-CLASS gates below are what still discriminate.)
+# Positive AND negative cases (vv-principles L11 / Mode
 # 11 — never negative-only): the positives pin the closed algebra, the
 # negatives pin the class-identity / L / mesh gates.
 # ════════════════════════════════════════════════════════════════════

@@ -159,7 +159,7 @@ class TestFieldAlgebraInherited:
         rng = np.random.default_rng(0)
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
-        d1 = bf1 - base  # AngularBoundaryDisplacement (V is a vector space)
+        d1 = bf1 - base  # same-class signed difference (V — campaign 1 CS3)
         d2 = bf2 - base
         left = (d1 + d2) * 1.7
         right = d1 * 1.7 + d2 * 1.7
@@ -343,7 +343,7 @@ class TestFlatBufferRoundTrip:
         bf2 = AngularBoundaryFlux.zeros_on(m)
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
-        out = bf1 - bf2  # AngularBoundaryDisplacement — shares the trace layout
+        out = bf1 - bf2  # same-class signed difference — shares the trace layout
         for name in bf1.layout.faces:
             np.testing.assert_array_equal(
                 out.face_view(name),

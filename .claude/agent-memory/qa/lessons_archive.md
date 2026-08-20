@@ -3822,3 +3822,168 @@ METHOD WARNING), Mode 10, Mode 12, #17, #19, #24, #25;
 `coding-standards` re-baseline step 2; lessons L-053 (denominator), L-054
 (verify the instrument ran), L-067 (audit-instrument decoder), L-069 (A10's
 symmetric-difference mutation).
+
+---
+
+## L-071 — a retirement census's three silent killers: the unquoted `$VAR`, the wrapper `grep`, and a tree that moves under you
+
+**Dispatch.** CS3-R completeness census (2026-08-19): find torsor-era machinery
+surviving campaign-1 CS3's cone carve (flux `A` → cone `K ⊂ V`) as
+present-tense/live content across `orpheus/ tests/ docs/ .claude/{skills,agents,rules}`.
+Deliverable `scratch/cs3r_census_qa.md`. Verdict: **12 MUST-FIX rows survive**.
+
+### 1. ⛔ My first two sweeps reported ALL-CLEAN across every tree. Both were VOID.
+
+```zsh
+TREES="orpheus tests docs .claude/skills .claude/agents .claude/rules"
+grep -rn -E "$pat" $TREES 2>/dev/null || echo "(0 hits)"     # ← reports 0. ALWAYS.
+```
+
+**zsh does not word-split an unquoted `$VAR`** (my own H9, learned on a pytest
+`-p` loop, and it did NOT transfer to a grep loop). The whole string went in as
+ONE nonexistent path; `2>/dev/null` ate the `No such file or directory`; the
+`|| echo "(0 hits)"` rendered the failure as a *finding*. I published "P1: 0
+hits, P2: 0 hits" and would have shipped a clean bill on a corpus I never read.
+
+⭐ Caught only because I recognised `FluxDisplacement` from the `coding-elegance`
+skill loaded into my own preamble, and its absence from my results was
+**impossible**. That is not a method — it is luck. The method is the **positive
+control**, which I then ran before every subsequent sweep:
+`grep -rl flux <tree>` → `195/301/72/12/8/2` files. One line, and it makes a
+dropped tree indistinguishable-from-clean impossible.
+
+⟹ **Fix: `TREES=(a b c)` + `"${TREES[@]}"`; NEVER `2>/dev/null` on a census;
+NEVER `|| echo "(0 hits)"` (it launders rc≠0 into a result).**
+
+### 2. ⛔ `grep` in this shell is a FUNCTION wrapping `ugrep --ignore-files`.
+
+`type grep` → a zsh function dispatching to `ARGV0=ugrep "$CLAUDE_CODE_EXECPATH"
+-G --ignore-files --hidden …`. `--ignore-files` honours `.gitignore`, so the
+interactive `grep` is **blind to ignored files by default** — fatal for a census
+whose brief says "untracked files matter". Use **`command grep`** (real BSD
+grep, `.gitignore`-blind) as the primary instrument and **`git grep`** as the
+tracked-only cross-check; reconcile the two counts numerically. `[M]` here:
+`75 = 75` on `[A-Za-z]*Displacement|FluxRole|⊖` once `git grep`'s path list was
+restricted to the same six trees (it had read **257**, because `-- .claude`
+sweeps `plans/` + `agent-memory/` too — a denominator trap, not a discrepancy).
+
+### 3. ⛔ H12 fired: the tree moved MID-CENSUS, twice.
+
+`f43758d8` → `755f99b5` (18:27, "CS3-R sweep 1", 16 files) → `a740d7ba` (18:34),
+plus 5 files dirty in the shared tree at 18:28. **Caught by a `sed` reading
+"increments" where my own grep 4 minutes earlier read "displacements" at the
+same `file:line`** — i.e. by an accidental discrepancy. ⟹ **On any census in a
+shared tree, stamp `git rev-parse --short HEAD` + `date` at the START and at
+the END, and re-run every finding as a PREDICATE at the end.** I did: 10/10
+predicates survived at `a740d7ba`. Report the remediated set separately — a
+finding silently fixed by someone else, left in the list, reads as a false
+positive and discredits the rest.
+
+### 4. ⭐ The finding class the carve's own author cannot see: the SELF-CONTRADICTING FILE
+
+Every survivor but one sits in a file whose *other* lines were correctly
+migrated. The corrected line and the stale line coexist, and **the stale one is
+usually FIRST** (docstring above body, module header above class body):
+
+- `_bases.py` — `:18` and `:1134` record the retirement; `:1160`/`:1220` still
+  name `RadialCharacteristic*Displacement` as **live concrete role leaves**.
+- `test_operators_apply_typed.py` — the concurrent sweep upgraded the
+  **assertion** and rewrote the **body comment**; the **docstring 20 lines
+  above** still says the opposite.
+
+This is `vv-principles` #21's aggravator (the file can now be cited for either),
+and it is *created* by a partial correction pass — a pass that fixes the site it
+was looking at. ⟹ **After any correction pass, re-audit the CORRECTED FILE
+FIRST**; it is the likeliest home of a survivor, not the least.
+
+### 5. ⭐⭐ `AGENT.md` is the highest-severity surface in a retirement audit, and nobody sweeps it
+
+3 of the 12 survivors are agent briefs, and one is an **imperative to re-mint the
+overturned design**:
+
+- `explorer/AGENT.md:151-155` — *"The role grid **is** {Flux, Source/Sink,
+  Residual, **Displacement**} … the SI iterate-delta **is** a `FluxDisplacement`
+  … `flux+flux` **is** a TypeError"* — triple-false, present tense, in the
+  standing brief of the project's **designated exploration delegate**.
+- `cross-domain-attacker/AGENT.md:297-301` — *"**FIX: a difference-space /
+  torsor displacement type.**"* Its own source skill
+  (`cross-domain-frames/reference.md` Shape 3) already carries the dated ⛔
+  re-pose. **The AGENT.md is the un-migrated twin of a corrected single source.**
+- `elegance-enforcer/AGENT.md:185` — a standing ruling telling the elegance
+  GATEKEEPER *not to flag* a mixin that no longer exists.
+
+⟹ Why this ranks above a production docstring: **AGENT.md loads FRESH per
+dispatch** (`reference_harness_context_snapshot_timing`), so a stale brief is
+re-injected as *current fact* into every future sub-agent, and its output is
+indistinguishable from a correct one. ⟹ **Put `.claude/agents/*/AGENT.md`,
+`.claude/skills/*/`, AND `.claude/agent-memory/*/` in the blast radius of every
+type/concept retirement.** `[M]` the memory surface here is **182 lines across
+~20 files** — larger than the three in-scope `.claude` subtrees combined (75) —
+and I was not briefed to sweep it; I named it in the memo so its absence could
+not be read as a clean bill.
+
+### 6. ⭐ Derivative staleness: a correction's own TODO note outlives the correction
+
+`coding-elegance/SKILL.md:390` carries `⚠ … reference.md … **still cites**
+FluxDisplacement … numerical-bug-signatures §479/§488 **still credits** the
+retired type … **Both are stale as of 2026-08-19**`. `[M]` **both named targets
+have since been fixed.** The clause now instructs readers to distrust two files
+that are correct. A note of the form *"X is stale and owes a correction"* is a
+**claim about another file** and rots the moment that file is repaired — nothing
+in X's own repair prompts anyone to retire the note. ⟹ **grep for pointers AT a
+file you just fixed, not only inside it.**
+
+### 7. ⭐⭐ The torsor-shaped call pattern was a REAL Mode-12 gate downgrade — and I measured it in 10 lines
+
+5 operator-linearity gates verified additivity through the **affine detour**
+`op(ψ₁ + λ(ψ₂−ψ₁)) = (1−λ)op(ψ₁) + λop(ψ₂)`, a workaround for a restriction that
+no longer exists. **Affine maps preserve affine combinations**, so the detour is
+*exactly* blind to an affine regression `A(x) = Lx + q`. `[M]` pure-numpy probe
+(`n=6`, random `L`, `λ=0.7`), no ORPHEUS import, **no file touched** — safe in a
+tree under concurrent edit:
+
+| form | `q = 0` control | `q ≠ 0` (affine bug) |
+|---|---:|---:|
+| retired detour | `4.440892e-16` | **`4.440892e-16`** — bit-identical to the control |
+| CS3 direct `A(ψ₁+ψ₂)` | `8.881784e-16` | **`1.288361e+00`** |
+
+⟹ Two transferable moves. **(a)** A retired type's *workaround idiom* outlives
+the type and is a coverage question, not a style question — ask what error class
+the detour's functional annihilates (Mode 12 at the *idiom*, not the fixture).
+**(b)** When the SUT tree is being edited by someone else, a **10-line pure-numpy
+model of the two functionals** settles the blindness decisively without touching
+a file — strictly safer than a mutation battery and, here, equally decisive.
+I then verified the concurrent fix moved the **assertion**, not just the prose,
+by `git show <old>:<f>` vs working tree — `apply(psi1 + lam*(psi2-psi1))` →
+`apply(psi1 + psi2)` in all five. **A prose-only fix would have left the
+blindness with a corrected comment on top.**
+
+### 8. Clean checks that are first-class output
+
+`⊖`-mint in production (**0** — `_principal_bulk_leaf` at `iteration.py:412`
+replaced `_flux_displacement_leaf`); the `Σλ=1` ceremony (**0** on the flux path
+— all 40+ "partition of unity" hits are the unrelated energy-condensation
+overlap table); **live Sphinx roles at a deleted target** (2 found in
+`tests/`, both fixed concurrently → **0 tree-wide**; note no Sphinx severity
+including `-n` could ever see them, since no `automodule` renders `tests/`);
+retired-message test pins (**0** — the near hit
+`match="boundary must be a BoundaryField"` cannot match
+`"…RadialCharacteristicBoundaryField"`, which is what licensed recommending a
+reword); and `affine-bc-form` **LIVE and intact** with many `:eq:` citers — the
+ambiguity the brief warned about, confirmed unharmed, while the three genuinely
+retired labels are gone with **0 dangling citers**.
+
+⚠ And one finding found *while* checking a clean one: a retirement tombstone at
+`test_radial_characteristic_field.py:146` names
+`test_subtraction_mints_a_displacement_composite_per_block` as the successor
+carrying a surviving claim — `[M]` that name exists **nowhere** in the tree
+(CS3 renamed it). **A dead reference inside the very artefact whose job is
+keeping coverage traceable** (F13's tombstone family, one level worse: not a
+mis-split claim, a pointer to nothing).
+
+**Skill/rule homes:** `vv-principles` #21 (self-contradicting file), Mode 12
+(the detour's invariance group), #17 (positive control — here on a *grep*, not a
+mutation); `coding-standards` retirement 3-search rule (extended: the three
+`.claude/` surfaces); `plan-authoring` §2 (validate the FILTER, don't merely
+write it down); lessons H9 (unquoted `$VAR`), H12 (the subject moves), H7
+(shared tree), F13 (tombstones).

@@ -1,9 +1,18 @@
 ---
 name: issue-208-wave-o-carve-lessons
-description: Durable verification patterns from the #208/#201 Wave-O operator-typing + affine-flux-algebra carve (LANDED, tests live). Snapshot-on-random-ψ + two-anchor discipline, defect-vs-raw zero-input precision boundary, sha256-golden bit-id gate, affine-torsor algebra gate, residual-before-adjoint sequencing.
+description: Durable verification patterns from the #208/#201 Wave-O operator-typing + affine-flux-algebra carve. ⛔ The affine/torsor algebra itself was OVERTURNED at campaign 1 CS3 (2026-08-19) — see the banner; the verification PATTERNS (snapshot-on-random-ψ, two-anchor, precision boundary, residual-before-adjoint) remain valid.
 metadata:
   type: feedback
 ---
+
+⛔ **OVERTURNED (campaign 1 CS3, 2026-08-19).** The typed algebra §4 below
+teaches — `flux⊖flux→FluxDisplacement`, `flux⊕flux→TypeError` — was retired:
+flux lives in V (`flux+flux` legal, differences same-class signed under the
+class/space/mesh fiber guard), the displacement family is deleted, iterate
+diagnostics live on `IterationRecord`, and
+`tests/sn/solve/test_flux_displacement_diagnostics.py` is now
+`test_si_convergence_diagnostics.py`. Do NOT design gates to §4's algebra.
+The rest of this memo's patterns are algebra-independent and stand.
 
 The #208/#201 Wave-O carve (operator block-role typing → SOURCE-side
 dimensional retyping → typed `from_balance` residual → affine

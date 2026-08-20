@@ -1156,8 +1156,10 @@ class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
     the space source is the R12a-keyed ``mesh.radial_characteristic_interior_space``
     — construction on a non-carrying mesh is unrepresentable (the factory raises;
     the composite spells absence as ``None``). The concrete role leaves are
-    ``RadialCharacteristicInteriorFlux`` (state) and
-    ``RadialCharacteristicInteriorDisplacement`` (the iterate increment). Abstract
+    ``RadialCharacteristicInteriorFlux`` (state — same-class signed differences
+    carry the iterate increment since campaign 1 CS3, 2026-08-19, when the
+    displacement sibling retired) and
+    ``RadialCharacteristicInteriorSourceSink`` (emission). Abstract
     — instantiate a role leaf.
     """
 
@@ -1216,8 +1218,10 @@ class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):
     interior locus :class:`RadialCharacteristicInteriorField`, NOT a child.
     ``mesh`` is :class:`SNMesh` and the space source is the R12a-keyed
     ``mesh.radial_characteristic_boundary_space``. The concrete role leaves are
-    ``RadialCharacteristicBoundaryFlux`` (state) and
-    ``RadialCharacteristicBoundaryDisplacement`` (the iterate increment). Abstract
+    ``RadialCharacteristicBoundaryFlux`` (state — same-class signed differences
+    carry the iterate increment since campaign 1 CS3, 2026-08-19, when the
+    displacement sibling retired) and
+    ``RadialCharacteristicBoundarySourceSink`` (emission). Abstract
     — instantiate a role leaf.
     """
 

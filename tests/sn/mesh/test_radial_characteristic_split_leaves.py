@@ -170,7 +170,7 @@ class TestSplitLeafVectorAlgebra:
         a, b = _rand(cls, sn, 5), _rand(cls, sn, 6)
         recovered = a + (b - a)  # plain V arithmetic
         if type(recovered) is not cls:
-            pytest.fail(f"torsor action returned {type(recovered).__name__}")
+            pytest.fail(f"vector recovery returned {type(recovered).__name__}")
         np.testing.assert_allclose(recovered.values, b.values)
 
     @pytest.mark.parametrize(

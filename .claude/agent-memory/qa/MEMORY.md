@@ -4,7 +4,7 @@
 
 Two files, read at different times. Do **not** summarize lesson content here.
 
-- **[lessons.md](lessons.md)** — the HOT digest (~470 lines). Behavioral rules
+- **[lessons.md](lessons.md)** — the HOT digest (~665 lines). Behavioral rules
   only: one imperative rule + its failure→correction core + a
   `→ lessons_archive.md L-0NN` pointer. Nine sections: **A** mutation mechanics,
   **B** structural blindness, **C** structural independence, **D**
@@ -12,8 +12,8 @@ Two files, read at different times. Do **not** summarize lesson content here.
   **G** doc-correctness, **H** mechanics/environment, **I** the map of what is
   already in `vv-principles`/`numerical-bug-signatures` (point, don't restate).
   **Read this before every review.**
-- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~3800 lines,
-  L-001..L-070, append-ordered). War stories, evidence, `file:line`, measured
+- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~4000 lines,
+  L-001..L-071, append-ordered). War stories, evidence, `file:line`, measured
   tables, verdicts. **Open only the specific `L-0NN` a digest rule points at** —
   never read it whole (it is ~60K tokens).
 

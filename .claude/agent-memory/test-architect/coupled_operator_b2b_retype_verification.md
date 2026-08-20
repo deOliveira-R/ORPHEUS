@@ -5,6 +5,13 @@ metadata:
   type: reference
 ---
 
+⛔ **Displacement/FluxRole rows OVERTURNED (campaign 1 CS3, 2026-08-19).**
+The role set below is now {Flux, SourceSink} — the Displacement role and the
+`FluxRole` mixin retired with the cone carve (flux lives in V), so the
+Displacement rows of the bridge/role tables and the "inherit `FluxRole`"
+mutation are historical. The SourceSink minting, adapters, and bit-identity
+rulings stand.
+
 # Verifying B.2b — the A_BA / B_b re-type onto System B's composite (DELTA)
 
 **When this recipe applies.** A coupled-block campaign has (B.1) posed System B as

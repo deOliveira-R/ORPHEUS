@@ -171,6 +171,21 @@ candidate list to mutation-verify, never a licence. The rung ladder is
 CLAIMED 21 → EXERCISED 7 → ASSERTED ≤2 → MUTATION-VERIFIED 0, and **no edge quality
 separates rungs 2 and 3.** → L-070
 
+**B15. A retired type's WORKAROUND IDIOM outlives the type, and it is a COVERAGE
+question, not a style one — ask what error class the detour's functional
+annihilates.** [skill: Mode 12, asked of the IDIOM rather than the fixture] `[M]`
+CS3-R: 5 operator gates still verified linearity through the affine detour
+`op(ψ₁+λ(ψ₂−ψ₁)) = (1−λ)op(ψ₁)+λop(ψ₂)` — a workaround for a restriction that no
+longer exists. Affine maps PRESERVE affine combinations, so it is **exactly**
+blind to an affine regression `A(x)=Lx+q`: 10-line pure-numpy probe, retired form
+`4.440892e-16` at `q≠0` — *bit-identical to its own `q=0` control* — vs direct
+`A(ψ₁+ψ₂)` at `1.288361e+00`. ⟹ two moves: **(a)** when the SUT tree is under
+CONCURRENT edit, a pure-numpy model of the two functionals settles blindness
+decisively **touching no file** — safer than a mutation battery and here equally
+decisive; **(b)** verify a "we fixed it" sweep moved the **assertion**, not the
+prose — `git show <old>:<f>` vs working tree. A prose-only fix leaves the
+blindness wearing a corrected comment. → L-071
+
 **B13. A published COMMAND is a separate claim from the API it wraps — gate the
 STRING.** [skill: Mode-8 EIGHTH class] `-W error::ConvergenceWarning` (4 doc
 sites incl. the runtime message) does NOT parse — an undotted `-W` category
@@ -241,6 +256,24 @@ claims in the very `numerics/quadrature/` files the commit rewrote. No Sphinx
 severity can see them (no `automodule` for that package) and the xref checker
 tests TARGETS, not prose truth — grep is the ONLY gate, so its vocabulary is the
 whole audit. → L-064
+
+**D15. A type/concept retirement's blast radius includes `.claude/agents/*/AGENT.md`,
+`.claude/skills/*/`, and `.claude/agent-memory/*/` — and AGENT.md outranks a
+production docstring.** AGENT.md loads FRESH per dispatch, so a stale brief is
+re-injected as CURRENT FACT into every future sub-agent and its output is
+indistinguishable from a correct one. `[M]` CS3-R: 3 of 12 survivors were agent
+briefs — `explorer` still teaching a 4-role grid with `FluxDisplacement` and
+"`flux+flux` is a TypeError" (triple-false), `cross-domain-attacker` carrying the
+**imperative** "FIX: a torsor displacement type" as the un-migrated twin of a
+skill its own source had already ⛔-corrected, and `elegance-enforcer` ruling that
+a deleted mixin must not be flagged. Memory is the biggest and least-swept slice
+(**182 lines / ~20 files** vs **75** for skills+agents+rules combined).
+⭐ **And re-audit the CORRECTED file FIRST, not last** — a partial pass fixes the
+site it was looking at and leaves a SELF-CONTRADICTING file where the stale line
+comes FIRST (docstring above body, module header above class body), so the file
+can now be cited for either reading [vv #21 aggravator]. `[M]` `_bases.py:18`
+and `:1134` record the retirement while `:1160`/`:1220` still name the deleted
+classes as live role leaves. → L-071
 
 **D13. MOVING a method to a sibling object can convert a SELF-consistency into a
 cross-object coupling guarded only by EXTENT.** Ask what array the old owner's
@@ -497,6 +530,18 @@ file can now be cited for either). Also: a brief declaring "the known baseline
 reds" declares the reds of the batteries IT ran — widen scope, reconcile the new
 ones against the PARENT commit in a worktree before attributing. → L-065
 
+**G6. DERIVATIVE staleness — a correction's own TODO note outlives the
+correction.** A sentence of the form *"file X is stale and owes a dated fix"* is
+a claim ABOUT ANOTHER FILE, and nothing in X's repair prompts anyone to retire
+it; it then instructs readers to distrust a file that is now correct. ⟹ after
+fixing X, **grep for pointers AT X**, not only inside it. `[M]`
+`coding-elegance/SKILL.md:390` still says two named files "still cite" the
+retired type — both were corrected since. Same shape for a retirement TOMBSTONE
+naming its own successor test: `[M]` a "successors carrying the surviving
+claims" comment named `test_subtraction_mints_a_displacement_composite_per_block`,
+which exists NOWHERE in the tree (renamed by the same carve) — a dead pointer
+inside the artefact whose job is keeping coverage traceable. → L-071
+
 **G4. A test's own prose is the least reliable thing in the file.** A "frozen /
 bit-identical to the pre-carve path" docstring stales SILENTLY when its `.npy` is
 regenerated and the test file is untouched — on any regen, grep consumers for
@@ -542,17 +587,38 @@ agents' edits make every dirty file look like yours. → L-054, L-055
 run writes no junit-xml and loses the `-rfE` reasons). Mark slow PARAMS with
 `pytest.param(..., marks=...)`, not the function; verify with `--collect-only`. → L-005
 
-**H9. zsh does NOT word-split an unquoted `$VAR`** — a
-`for M in ...; do pytest $SUITE -p $M; done` loop passed the whole list as ONE
-argument and collected zero tests. Use a function with `"$@"` and print the
-baseline `N passed` inside the loop. → L-062
+**H9. zsh does NOT word-split an unquoted `$VAR` — it has now bitten TWICE, in
+two different tools, and the second time it manufactured a clean bill.** Use an
+ARRAY + `"${VAR[@]}"`, always. (a) `pytest $SUITE -p $M` passed the whole list as
+ONE argument → 0 collected. (b) `grep -rn "$pat" $TREES 2>/dev/null || echo "(0
+hits)"` searched ONE nonexistent path across six trees and reported **all-clean**
+— `2>/dev/null` ate the error and the `|| echo` laundered rc≠0 into a *finding*.
+⟹ on any census: never `2>/dev/null`, never `|| echo "(0 hits)"`, and **run a
+positive control per tree BEFORE every sweep** (`grep -rl <ubiquitous-token>
+<tree>` → a file count). A dropped tree is otherwise indistinguishable from a
+clean one, in the flattering direction. → L-062, L-071
+
+**H14. `grep` in this shell is a FUNCTION wrapping `ugrep --ignore-files` — it
+honours `.gitignore`.** Fatal when untracked/ignored files are in scope. Use
+**`command grep`** (real BSD grep, ignore-blind) as primary and **`git grep`**
+(tracked-only) as cross-check, and reconcile the counts numerically. ⚠ `git grep
+-- .claude` sweeps `plans/` + `agent-memory/` too — restrict the path list to the
+SAME trees or the mismatch reads as a discrepancy when it is a denominator.
+`[M]` reconciled exactly `75 = 75` once scoped. → L-071
 
 **H12. The SUBJECT of your review can move while you review it — re-`wc -l` and
 `git log -1` the reviewed document before writing the verdict.** `[M]` the Q5.6.4
 memo grew 721→879 lines mid-dispatch (`8db88596` added a §9bis.9 whose literature
 argument was the strongest defence of the link I was refuting). Also re-check the
 BRANCH: the harness's session-start git snapshot said `main`; git said
-`refactor/operator-strategy-layers`. → L-068
+`refactor/operator-strategy-layers`. ⭐ And for a CENSUS in a shared tree the
+document is the TREE: stamp `git rev-parse --short HEAD` + `date` at the start
+AND the end, and re-run every finding as a PREDICATE at the end. `[M]` CS3-R:
+HEAD moved `f43758d8 → 755f99b5 → a740d7ba` in 8 min while a parallel agent
+fixed 5 of my flagged files — caught only by a `sed` reading "increments" where
+my own grep 4 min earlier read "displacements" at the same `file:line`. Report
+the REMEDIATED set separately; a finding someone else silently fixed, left in
+the list, reads as a false positive and discredits the rest. → L-068, L-071
 
 **H13. `grep "^FAILED"` on COLOURED pytest output matches NOTHING — a false
 all-green, in the flattering direction.** ANSI escapes precede the `F`. `[M]`

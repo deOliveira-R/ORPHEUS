@@ -663,6 +663,50 @@ any other review work.
     fallback is not the case the promise is about**, so a claim of this shape
     needs a gate on each side of the branch, never one on the happy side.)
 
+27. **NEVER treat a retired type's leftover WORKAROUND IDIOM as stale prose to
+    re-word — instead ask what error class the detour's functional
+    ANNIHILATES, because the idiom is a coverage claim, not a style one.**
+    When a type restricts an operation (`flux + flux` refused, a unit forbidden,
+    a nullable barred), every gate that needed that operation was written
+    through a **detour** — an algebraically equivalent spelling that the type
+    *did* permit. Retire the type and the restriction vanishes; the detour does
+    not, because it is still green and still "correct". So a retirement sweep
+    reads it as vocabulary and fixes the comment. That is the trap: **the
+    detour is a DIFFERENT functional from the direct statement, and a weaker
+    one** — it was chosen for expressibility, never for sensitivity, so nobody
+    ever computed its invariance group. This is Mode 12 asked of the **idiom**
+    rather than of the fixture or the metric, and it is the retirement-audit
+    intersection the `coding-standards` three-search rule cannot reach: grep
+    finds the words, and the words are not the defect.
+    ⟹ **The check is design-time and costs ten lines: model both functionals in
+    pure arithmetic and evaluate them on the error class the gate is credited
+    with.** No SUT import, no fixture, no mutation — which also makes it the
+    right instrument when the tree is under concurrent edit and mutating a
+    production file is unsafe (`process-discipline`'s mutation-revert hazard).
+    ⚠ And when a sweep claims to have fixed such a site, **verify it moved the
+    ASSERTION, not the prose** (`git show <old>:<file>` vs the working tree). A
+    prose-only fix leaves the blindness wearing a corrected comment — strictly
+    worse than before, because the file now reads as audited.
+    > `[M]` 2026-08-19, ORPHEUS campaign-1 CS3-R. The retired `FluxDisplacement`
+    > torsor made `ψ₁ + ψ₂` a `TypeError`, so **five** operator-linearity gates
+    > spelled additivity as the affine detour
+    > `op(ψ₁ + λ(ψ₂−ψ₁)) = (1−λ)op(ψ₁) + λop(ψ₂)`. Affine maps *preserve affine
+    > combinations*, so the detour is **exactly** blind to an affine regression
+    > `A(x) = Lx + q`. Pure-numpy probe (`n = 6`, random `L`, `λ = 0.7`, no SUT
+    > import): retired form reads `4.440892e-16` at `q ≠ 0` — **bit-identical to
+    > its own `q = 0` control** — while the direct `A(ψ₁ + ψ₂)` reads
+    > `1.288361e+00`. No tolerance, refinement, or fixture change could ever
+    > have exposed it. Corroborated independently by the codebase's own battery
+    > (`tests/sn/operators/test_declared_law_is_linear.py`): under an `affine`
+    > mutation, **19 of 69** rows reddened and *"neither base-point-independence
+    > row reddened"*, so re-spelling to the direct form **upgraded** that
+    > battery by two rows. ⭐ The sharpest residue: one of the five had its
+    > assertion upgraded and its body comment rewritten while its **docstring**
+    > still described the old, blind contract — the file now misdescribes a
+    > correct gate in the direction that invites someone to "restore" the
+    > weaker form (anti-pattern #21's self-contradicting-file aggravator,
+    > created by the repair itself).
+
 ---
 
 ## The 6 AI failure modes — mechanism and detection

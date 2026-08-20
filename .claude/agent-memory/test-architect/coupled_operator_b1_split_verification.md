@@ -5,6 +5,14 @@ metadata:
   type: reference
 ---
 
+⛔ **Displacement rows OVERTURNED (campaign 1 CS3, 2026-08-19).** The split
+Displacement siblings, `Displacement.sibling_of`, the G-C4 torsor-mint gate,
+and every `flux−flux → …Displacement` row below describe machinery retired
+with the cone carve — flux lives in V and a ψ½ difference is the same flux
+class, signed (per-locus distinctness now pinned by
+`tests/sn/mesh/test_radial_characteristic_split_leaves.py`). The split-space /
+flux-pair / composite content stands.
+
 # Verifying B.1a / B.1b — the relaxed `Composite` base + the additive ray-block split
 
 **When this applies.** BEFORE Step-4's N-general block machinery, the campaign
