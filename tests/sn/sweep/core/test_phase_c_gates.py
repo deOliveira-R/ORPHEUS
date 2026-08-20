@@ -255,12 +255,13 @@ def test_apply_linearity_under_sweep_frame(geom):
     consuming cell-centres in a way that depends on input sign) is a
     catastrophic operator-correctness failure.
 
-    #208 affine reframe — a general ``α·ψ + β·φ`` with ``α+β ≠ 1`` is illegal
-    on affine flux STATES (no origin), so linearity is verified by scalar
-    homogeneity ``op(c·ψ) = c·op(ψ)`` AND affine additivity in torsor form
-    ``op(ψ₁ + λ(ψ₂⊖ψ₁)) = (1−λ)op(ψ₁) + λop(ψ₂)``. The two together imply full
-    matvec linearity; ``apply`` stays on flux states (its domain). The
-    right-hand side uses the source-image vector-space dunders.
+    Linearity is stated directly (campaign 1 CS3 — flux lives in V): scalar
+    homogeneity ``op(c·ψ) = c·op(ψ)`` AND additivity
+    ``op(ψ₁+ψ₂) = op(ψ₁)+op(ψ₂)``. The additivity row alone reds an affine
+    op (the pre-CS3 blend spelling ``op(ψ₁+λ(ψ₂⊖ψ₁))`` could not — affine
+    maps preserve affine combinations; the sharpness argument is in
+    ``test_declared_law_is_linear.py``). ``apply`` stays on flux states
+    (its domain); the right-hand side uses the image's vector-space dunders.
     """
     rng = np.random.default_rng(seed=42)
     if geom == "sphere":
@@ -272,7 +273,7 @@ def test_apply_linearity_under_sweep_frame(geom):
     op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     psi1 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
     psi2 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
-    c, lam = 1.7, 0.7
+    c = 1.7
     hom_lhs = op.apply(c * psi1)
     hom_rhs = c * op.apply(psi1)
     np.testing.assert_allclose(
@@ -281,8 +282,8 @@ def test_apply_linearity_under_sweep_frame(geom):
     np.testing.assert_allclose(
         _sysA(hom_lhs).boundary.values, _sysA(hom_rhs).boundary.values,
         rtol=1e-13, atol=1e-14)
-    lhs = op.apply(psi1 + lam * (psi2 - psi1))   # (1−λ)ψ₁ + λψ₂, a flux
-    rhs = (1.0 - lam) * op.apply(psi1) + lam * op.apply(psi2)
+    lhs = op.apply(psi1 + psi2)
+    rhs = op.apply(psi1) + op.apply(psi2)
     np.testing.assert_allclose(
         _sysA(lhs).interior.values, _sysA(rhs).interior.values,
         rtol=1e-13, atol=1e-14,

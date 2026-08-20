@@ -205,20 +205,21 @@ class TestApply:
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi1 = _random_state(sn_mesh, seed=51)
         psi2 = _random_state(sn_mesh, seed=52)
-        # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES
-        # (no origin); verify linearity with the affine-supported operations —
-        # scalar homogeneity op(c·ψ)=c·op(ψ) AND affine additivity in torsor
-        # form ψ₁ + λ(ψ₂⊖ψ₁) = (1−λ)ψ₁ + λψ₂ (a flux). The two together imply
-        # full linearity, and op.apply stays on flux states (its domain).
-        c, lam = 2.3, 0.7
+        # Linearity, stated directly (campaign 1 CS3 — flux lives in V, so
+        # ψ₁ + ψ₂ is legal): homogeneity op(c·ψ) = c·op(ψ) AND additivity
+        # op(ψ₁+ψ₂) = op(ψ₁)+op(ψ₂). Additivity alone reds an affine op
+        # (the retired blend spelling op(ψ₁+λ(ψ₂−ψ₁)) could not — affine
+        # maps preserve affine combinations; see the sharpness argument in
+        # tests/sn/operators/test_declared_law_is_linear.py).
+        c = 2.3
         np.testing.assert_allclose(
             C.apply(c * psi1).interior.values, (c * C.apply(psi1)).interior.values,
             rtol=1e-14, atol=1e-15,
         )
-        out_combined = C.apply(psi1 + lam * (psi2 - psi1))
-        out_separate = (1.0 - lam) * C.apply(psi1) + lam * C.apply(psi2)
+        out_sum = C.apply(psi1 + psi2)
+        out_separate = C.apply(psi1) + C.apply(psi2)
         np.testing.assert_allclose(
-            out_combined.interior.values, out_separate.interior.values,
+            out_sum.interior.values, out_separate.interior.values,
             rtol=1e-14, atol=1e-15,
         )
 

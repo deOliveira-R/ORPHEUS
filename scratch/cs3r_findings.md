@@ -98,3 +98,12 @@ constrained-era spelling as one dated line.
 
 Stated at close — see the end of this memo after the census agent's
 independent sweep is folded in.
+
+### E1 measurement (2026-08-19, this review)
+
+`[M]` slab `MultiplicationOperator` with affine offset `b = C.apply(ψ₁)`
+(a genuine image element), seeds 51/52: blend-form residual **2.220e-16**
+(blind — bit noise), direct-form residual **1.168e+00** (loaded). The five
+re-spelled gates: 9/9 green post-re-spell (`test_apply_is_linear` ×
+geometries, `test_apply_linearity`, `test_full_algebra_linearity`,
+`test_apply_linearity_under_sweep_frame` × 2 geoms).

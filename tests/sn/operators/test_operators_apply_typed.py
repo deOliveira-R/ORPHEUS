@@ -330,12 +330,13 @@ def test_full_algebra_linearity(name, builder) -> None:
     )
     F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
     A = L + C - S - F
-    # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES;
-    # verify linearity via the affine-supported ops — homogeneity
-    # A(c·ψ)=c·A(ψ) AND affine additivity in torsor form A(ψ₁ + λ(ψ₂⊖ψ₁)) =
-    # (1−λ)A(ψ₁) + λA(ψ₂). Together they imply full linearity; A.apply stays on
-    # flux states (S, a summand of A, guards its flux-state domain).
-    c, lam = 2.5, 0.7
+    # Linearity, stated directly (campaign 1 CS3 — flux lives in V):
+    # homogeneity A(c·ψ) = c·A(ψ) AND additivity A(ψ₁+ψ₂) = A(ψ₁)+A(ψ₂).
+    # Additivity alone reds an affine A (the retired blend spelling could
+    # not — affine maps preserve affine combinations; see
+    # test_declared_law_is_linear.py). A.apply stays on flux states
+    # (S, a summand of A, guards its flux-state domain).
+    c = 2.5
 
     hom_lhs = A.apply(c * state1)
     hom_rhs = c * A.apply(state1)
@@ -344,8 +345,8 @@ def test_full_algebra_linearity(name, builder) -> None:
     np.testing.assert_allclose(
         hom_lhs.boundary.values, hom_rhs.boundary.values, rtol=1e-12, atol=1e-13)
 
-    lhs = A.apply(state1 + lam * (state2 - state1))   # (1−λ)ψ₁ + λψ₂, a flux
-    rhs = (1.0 - lam) * A.apply(state1) + lam * A.apply(state2)
+    lhs = A.apply(state1 + state2)
+    rhs = A.apply(state1) + A.apply(state2)
     # Bulk linearity check.
     np.testing.assert_allclose(
         lhs.interior.values, rhs.interior.values, rtol=1e-12, atol=1e-13,
