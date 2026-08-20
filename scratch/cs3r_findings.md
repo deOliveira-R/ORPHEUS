@@ -107,3 +107,110 @@ independent sweep is folded in.
 re-spelled gates: 9/9 green post-re-spell (`test_apply_is_linear` ×
 geometries, `test_apply_linearity`, `test_full_algebra_linearity`,
 `test_apply_linearity_under_sweep_frame` × 2 geoms).
+
+## Executed state (in-session fixes, all on `refactor/cs3r-cone-review`)
+
+- `755f99b5` — sweep 1: C1–C11 prose/vocabulary (incl. the DSA
+  displacement→increment rename; `[M]` DSA gate 14/14, no grammar
+  artifacts, no keyword callers).
+- `77c7cc68` — sweep 2: C12/E1, the five gates re-spelled to the direct
+  law (`[M]` blend 2.2e-16 blind / direct 1.168 loaded; 9/9 green).
+- `a740d7ba` — sweep 3: leads 1+8 (Field._index_tuples;
+  principal_bulk_leaf polymorphic on Field/Composite/CoupledField; the
+  numerics walker + _NormedLeaf retired with content migrated; three new
+  pins; `[M]` 267+20+1 green incl. the frozen capture gate; pyright CLI
+  0 errors on the six touched production files).
+- `582154a8` — sweep 4: **C13 (found after the memo's first draft): three
+  AGENT.md files taught the retired ontology** — explorer's role grid
+  (Displacement as a live role, "flux+flux is a TypeError"),
+  elegance-enforcer #6's worked example, and cross-domain-attacker
+  Shape 3, which prescribed the TORSOR as the fix (the skill's copy was
+  re-posed at CS3 step 5; the agent's duplicate was the surviving twin —
+  the substrate's own Pattern-2 hazard, worth remembering when skills
+  and agent definitions carry copies of one doctrine).
+- #391 filed (member-contract collapse, unblocked by CS3);
+  #289 commented (typed-Krylov design note).
+
+## Census fold-in (the independent second filter — `scratch/cs3r_census_qa.md`)
+
+The census's value was exactly what it was dispatched for: **my
+`grep -rn "displacement"` was CASE-BLIND** — lowercase-only, so the
+capital-D deleted class names in `_bases.py:1160/1220` (production
+docstrings listing `RadialCharacteristic{Interior,Boundary}Displacement`
+as live role leaves, 26 lines below the file's own retirement note) were
+invisible to my filter and found by its independent vocabulary. The same
+2026-08-19 filter-blindness lesson the plan-authoring log records — a
+dropped member reads as an absent one.
+
+Its convergent findings (five gates incl. an independent blindness
+measurement `4.44e-16` blend vs `1.288` direct; the three AGENT.md files;
+the RC family) cross-validate both filters. Its unique finds, all fixed in
+sweep 5 (`8bde369b`): the `_bases.py` pair; my own sweep-2 HALF-FIX
+(`test_full_algebra_linearity`'s docstring above the body I fixed); the
+`FluxRole sibling` rationale in `test_typed_source_sinks`; two
+`AngularBoundaryDisplacement` comments; a dead successor pointer in a
+retirement tombstone (naming the CS3 rename's OLD name); two `torsor
+returned` failure messages; and DERIVATIVE staleness in
+`coding-elegance/SKILL.md` — the A.1-staleness warning outlived the fixes
+it demanded, telling readers to distrust two now-correct files. Its
+flagged uncovered surface (`.claude/agent-memory/`) I swept directly:
+three test-architect campaign records carried the torsor as LANDED-current
+gate doctrine → dated ⛔ banners (patterns kept, algebra rows overturned).
+
+Its false survivors (S9/S10 at its re-stamp) were spelling predicates
+matching my fixes' dated-history text — verified by tense read, no action.
+
+Instrument lesson it recorded (its own first two sweeps were void:
+unquoted zsh `$VAR` + a `ugrep --ignore-files` wrapper, laundered by
+`|| echo`): now `vv-principles` anti-pattern #27 + its memory.
+
+## Completeness denominators (the charter's required statement)
+
+- **Spellings swept (mine)**: torsor/Torsor, FluxRole/flux_role,
+  displacement (⚠ lowercase-only — the census's case-independent
+  vocabulary corrected this), disp, ⊖/\ominus, base point/base-point/
+  basepoint/base_point, mint/minted, affine_combination,
+  _flux_displacement_leaf, last_displacement, apply_displacement,
+  contraction_ratio, blend shapes (`1-lam`/`lam*(`), displacement
+  factories. **Census's (independent)**: its memo §denominators — union
+  pattern reconciled `git grep` vs `command grep` at 75=75 files, with a
+  per-tree positive control.
+- **Trees**: `orpheus/` (263 py files), `tests/`, `docs/`,
+  `.claude/skills/`, `.claude/agents/`, `.claude/rules/`,
+  `.claude/agent-memory/` (main-agent sweep, post-census), the two
+  tracked scratch records. NOT swept: the rest of `scratch/`
+  (archaeology), `.claude/plans/` (own refutation discipline),
+  `derivations/` beyond the dsa.py twin (census covered `orpheus/`
+  including `orpheus/derivations/`).
+- **Graph instruments** (Sphinx rebuilt at HEAD first): `dead_references`
+  0/56; `twin_paths`/`dead_functions`/`native_place`/`discriminations` —
+  no CS3-surface rows.
+- **Shape checks**: blend-form call patterns in production (0 — the
+  `lam` hits are eigenvalue math; `test_ordinate_scan_affine_combination`
+  is the `is_affine_scannable` sense, a different referent); displacement
+  factories (0); Σλ=1 ceremony on the flux path (census: 0); runtime
+  strings of the retired taxonomy pinned by tests (census: 0).
+
+## Verdict
+
+**Completeness: the carve is now complete against both filters** — but it
+was NOT at review start: 20+ sites across production docstrings, five
+gates, two error messages, three AGENT.md briefs, one skill clause, and
+three agent memories taught or instructed the retired ontology. The
+recurring defect shape: the HALF-FIX (a touched file's sibling lines
+surviving), including one committed by this review's own sweep 2 and
+caught by the census.
+
+**Expressiveness: two structural improvements landed** (the polymorphic
+`principal_bulk_leaf`; the `_index_tuples` single-sourcing), **five gates
+strengthened** to the direct law (`[M]` blend-blind/direct-loaded), and
+four leads withdrawn with structural reasons (norm conventions are
+CS2-owned; cone consumers are three claim kinds under one documented
+definition; `CoefficientRole` keeps its chartered S3 home; the
+declared-law header already self-reconciled).
+
+Filed/commented: #391 (member-contract collapse, unblocked); #289
+(typed-Krylov design note). Out-of-scope observations for the record:
+pre-existing test fixture mesh-builder twins + `tools/research._throttle`
+family (twin_paths), `refactor/operator-inverse-algebra` branch merged
+but un-deleted (workflow hygiene).
