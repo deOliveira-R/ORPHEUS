@@ -94,15 +94,28 @@ un-weld) → CS2 → CS4.**
    space at this producer-side use)"; legal until CS4. Test-side bare
    constructions (diffusion `test_operators.py:625/650/659/669/853-855`;
    `test_matrix_inverse_operator.py:198-208/:265-267`) stay on the legal
-   None path. ⚠ Nexus `callers` returns 0 for all four classmethods
+   None path — ⛔ CORRECTED at battery review (F3): the two
+   `test_matrix_inverse_operator` blocks build their C via `from_mesh` on the
+   DEGENERATE carrier, so after 3b they GAIN `bulk_space` (green either way —
+   explicit `basis_shape` wins, and the sum's agreed space resolves through the
+   None-silent iso members — but they are NO LONGER None-path witnesses; only
+   the positionally-built `IsotropicScattering(mat_xs)`/`IsotropicN2N(mat_xs)`
+   there stay bare). ⚠ Nexus `callers` returns 0 for all four classmethods
    (classmethod-attribute dispatch mints no edge — the documented phantom
    limitation); the grep enumeration is authoritative here (uniform spellings).
 3. ✅ `.H`/`as_matrix` audience: NO existing test asserts homogeneous-op `.H`
    values — the vv#19 pair is NEW coverage, nothing demoted. The one None-path
    `.H` pin (`test_multiplication_operator.py:326-338`) builds its operator BARE
    and stays on the None path — unaffected. `as_matrix` consumers with explicit
-   `(ng,1)`: `test_homogeneous.py:140/:284` (mirror tests — migrate to
-   domain-derivation in 3b), `test_matrix_inverse_operator.py:199/:211` (bare-op
+   `(ng,1)`: ⛔ CORRECTED at battery review (F11) — `test_homogeneous.py:140`
+   can drop `basis_shape` (its loss rides the chain), but `:284` and `:359`
+   build F BARE, so under the ruled no-default-derivation a bare
+   `as_matrix()` RAISES; the honest migration threads `space=V` into F at both
+   sites FIRST (matching the new production spelling — `:359` is the
+   line-for-line mirror of `solver.py:193-194` and would otherwise pin a
+   RETIRED idiom, the same warrant that deletes the F xfail rows), then drops
+   `basis_shape` at all three (gate D12, mutation M22).
+   `test_matrix_inverse_operator.py:199/:211` (bare-op
    subject — keep explicit). The metric flip is ×1.0/÷1.0 per element
    (IEEE-exact) or a counting skip ⟹ bit-identity by construction, gate still
    owed per vv#19.
@@ -170,6 +183,61 @@ migration per coding-standards). Brief carries: this file §§A/B/F, the plan §
 the vv#19/§6c obligations, and — per plan-authoring §4 — every relayed number WITH
 its configuration. State what to do if Nexus is absent (sub-agents cannot
 ToolSearch).
+
+### §T-R — battery delivered + reviewed; the seven open rulings (main agent, 2026-08-20)
+
+**The battery of record is `scratch/cs1_verification_plan.md`** (test-architect,
+2026-08-20; 40 gates A1–A12/B1–B11/C1–C2/D1–D12/E1–E3 mapped to steps 1/2/3a/3b/4;
+23-mutation battery M1–M23 with 3 positive controls and a **MUST-STAY-GREEN
+anti-claim column** — M17/M19/M23 encode measured non-catchers, so the close-out is
+written as "N gates, of which D5/D4a are provable non-catchers for the measure",
+never a red count; 15 rejected alternatives; marker migration `[M]` **none owed** —
+the deleted rows carry `foundation` only, no `verifies`/`catches`, no `_harness`
+registry entry). Findings F1–F12 reviewed with full session context: F2/F3/F11
+corrected this file in place (blast radius, §P items 2/3, done-when); F1/F5/F6/F10
+folded above; F12 confirms R2 stays untouched by mechanism. Baselines re-measured
+by the agent at `4e11731b` match §P item 9 exactly.
+
+The battery's seven open questions, ruled:
+
+1. **Q-T1 (name digest vs float edge cases)** — digest over
+   `(weights + 0.0).tobytes()` (kills `-0.0`); non-finite weights REFUSED at
+   construction (kills `nan`; a measure's weights must be finite — but NO
+   non-negativity guard: CS2's quadrature axes legally carry negative weights).
+2. **Q-T2 (unused materials)** — the energy arm reads only `mat_map`-reachable
+   materials (leak principle: the mint consults exactly its defining data; the
+   broader ng-validation is a GUARD, not an identity input). Ruled into §F above.
+3. **Q-T3 (None vs ones)** — CANONICALIZE at construction: all-ones collapses to
+   `None`, one spelling per measure, one identity (the None-vs-ones twin would be
+   F10's defect shape — same measure, unequal identity). Gate A2's assertion
+   sharpens to pin the canonicalization itself
+   (`Axis(weights=ones).weights is None`). Ruled into §F above.
+4. **Q-T4 (return type of `of_axes`)** — already RULED by §C ("an axis product is
+   not a different kind of space"): plain `FunctionSpace` + `axes`;
+   `find_factor` → query-by-axis is the recorded CS2 seam. Not reopened.
+5. **Q-T5 (byte-gate population)** — producing-only as proposed (the 4
+   `derivations` cases + the `eg`-bearing variant + `get_mixture` A/C); the solve
+   entry is the k∞ eigenpair, which non-producing mixtures never reach.
+6. **Q-T6 (pin the ruled absence)** — YES, gate **D11** ships:
+   `from_solver_data(mat_xs=…).domain is None`, docstring naming the wrong-family
+   hazard AND the deletion trigger ("WHEN CS4's Optional→mandatory flip lands:
+   delete this gate") — the file's strict-xfail deletion-trigger idiom. Without
+   it, a silently-added default derivation reds NOTHING (the rows that would have
+   caught it are the ones CS1 deletes).
+7. **Q-T7 (D5 shelf life)** — mark-for-retirement after the merge cycle, in D5's
+   own docstring (a permanent migration snapshot is the artifact class
+   `coding-standards` retires); the permanent claims live in `test_kinf_exact` +
+   `test_as_matrix_equals_retired_as_dense_loop`.
+
+Also adopted: **D12** (the three `test_homogeneous.py` mirror sites re-point to
+the NEW production spelling — F11; edited inside that file, whose `l1 + verifies`
+marks are correct for them); **D8** (the two "space-anonymous" refusal messages
+re-worded in 3b — F5, `[M]` no test pins either string); the `_R1_XFAIL` reason
+re-scope in 3b (F6 — the constant survives on the `:728` annotation row, whose
+own non-XPASS after CS1 the agent verified); F4's twin resolution (legacy
+`__mul__` keeps densifying + threads `axes`; the non-densifying metric is
+selected by `axes is not None`; `of_axes`' docstring names the twin and its CS2
+retirement); the CS1.5 re-point comments on B9/B10/B11/D6/D7 at write time.
 
 ## A. The formal skeleton (PROPOSED, v1 — stable since round 1)
 
@@ -531,7 +599,17 @@ the rename issue), `EnergyAxis` (`from_grid(eg)` / `synthetic(ng)`; **identity =
 ng + edges content — RULED Q2**, synthetic ng-only; docstring: the counting
 theorem, the V/V* hook, the faces reading (EnergyGrid = 1-D energy mesh; groups =
 cells; boundaries = faces; condensation = mesh-overlap map), the declared morphism
-family). `FunctionSpace`: `axes` (compare=False), `of_axes` (deterministic names;
+family). ⭐ Construction rulings from the battery review (2026-08-20, §T-R below):
+weights are stored CANONICALLY — an all-ones array collapses to `None` at
+construction, so the counting measure has ONE spelling and one identity (Q-T3;
+kills the None-vs-ones twin AND keeps the no-densification memory claim clean);
+non-finite weights REFUSED at construction (no non-negativity guard — CS2's
+quadrature axes legally carry negative weights); the derived-name digest runs over
+`(weights + 0.0).tobytes()` so `-0.0`/`+0.0` cannot mint two names for one measure
+(Q-T1). ⚠ F10 trap, `[M]`: `mix.energy_grid` mints a FRESH `eq=False` object per
+access (`is` and `==` both False on one mixture) — every grid comparison anywhere
+in CS1 is on `edges` content, never on `EnergyGrid` identity, or two mints from
+one mixture disagree inside a legitimate solve. `FunctionSpace`: `axes` (compare=False), `of_axes` (deterministic names;
 weights never densified), per-axis metric path (Q4: build now, toy-tested),
 `has_coordinate_cone`, `__mul__` axis-threading. `MaterialMesh.bulk_space` — the
 cached mint, ⭐ GROUNDED 2026-08-20 as the **UNIFORM formula** (the property is
@@ -549,7 +627,16 @@ stays CS2; in CS1 the only consumer is homogeneous). Energy arm (`[M]`
 `eg` present AND edges content-equal ⟹ `EnergyAxis.from_grid`; else
 `EnergyAxis.synthetic(ng)` — deterministic per carrier, and NO new
 construction-time refusal in CS1 (grid coherence across materials is a
-MEDIUM-level invariant; noted as CS1.5 design input). ~~+ the §B2 micro-cleanup
+MEDIUM-level invariant; noted as CS1.5 design input). ⭐ RULED at battery review
+(Q-T2/F8): the arm reads only materials REACHABLE from `mat_map` — `[M]`
+`from_materials`' own docstring retains spectator entries "unused by the single
+cell", and a spectator with `eg=None` must not flip the axis identity of a problem
+it does not touch (the leak principle: the mint consults exactly its defining
+data; the ng-validation guard may stay broader — a guard is not an identity
+input). ⚠ F1, `[M]`: ALL 12 shipped `get_mixture` pairs have `eg is None`, so the
+`from_grid` arm's witness is MANUFACTURED (`dataclasses.replace(mix, eg=…)`, the
+`test_homogeneous.py:415-417` idiom) — every energy-arm gate parametrizes over
+BOTH arms and the battery mutates each arm separately (M15/M16, vv#17). ~~+ the §B2 micro-cleanup
 (from_materials stops minting `AxisMesh(edges=[0,1])`)~~ ⛔ SUPERSEDED — the Q11
 ruling (round 6) dropped it and this paragraph was not reconciled until the
 2026-08-20 grounding pass: CS1 does NOT touch `from_materials` internals; the
@@ -604,8 +691,19 @@ point, not decided here.
 **Blast radius (§8):** values NONE by the theorem (homogeneous suite byte-stable);
 guards newly active on `C − K_iso` + inner iso-sum + `M⁻¹ @ F` (one shared instance
 ⟹ trivially agreeing; new capability = refusal); `.H` flip bit-identical, gated per
-vv#19 with the loaded/blind PAIR (theorem gate + weighted-toy control showing `.H`
-move); carve-time nexus enumeration of the four classes' construction sites + the
+vv#19 with the loaded/blind PAIR — ⛔ SHARPENED at battery review (F2, `[M]` table
+in `scratch/cs1_verification_plan.md` §1): a SCALAR metric commutes with every
+operator (vv#12's commutator exactly — `G = cI ⟹ G⁻¹AᵀG = Aᵀ`), and EVERY
+production-reachable homogeneous space has a scalar metric (rank-1 spatial axis ⟹
+scalar weight; energy counting BY THE THEOREM), so the quotient-point-vs-one-cell
+`V ≠ 1` difference can NEVER move `.H` — `[M]` `w=[2.,2.]` is bit-identical to
+the None path; only per-GROUP `w=[2.,5.]` moves it (`[-0.08,0.2] → [-0.38,0.2]`,
+and only component 0 moves, so the control asserts the WHOLE vector). The control
+(gate D4b) is therefore a deliberately NON-PHYSICAL per-group-weighted toy — its
+docstring must say the counting theorem forbids this on a real EnergyAxis — and
+the quotient-vs-one-cell distinction is guarded by SPACE IDENTITY alone (gate
+B9, plus the M17 MUST-STAY-GREEN proof that no value gate can see the measure);
+carve-time nexus enumeration of the four classes' construction sites + the
 degenerate-path geometry readers (§B2).
 
 **Done-when:** (1) the 4 strict-xfails
@@ -619,7 +717,10 @@ deletion), while the **F** rows CANNOT XPASS — `[M]` the test's F arm calls
 that `None`. The F rows are deleted in the SAME §6b commit on a different warrant:
 their mirrored production line (`solver.py:193`) now passes `space=V`, so the bare
 mirror would pin a RETIRED idiom, and the floor is the successor gate for all
-four; (2) both production `(ng, 1)` spellings gone; (3) refusal witnesses
+four; (2) both production `(ng, 1)` spellings gone — ⚠ battery finding M23: this
+item has NO possible runtime witness (a leftover explicit shape is
+value-identical), so it is a GREP obligation on the 3b commit, never implied
+coverage; (3) refusal witnesses
 RED (2g-vs-4g sum → the pinned "equal domains" fragment; `M⁻¹(2g) @ F(4g)`) + the
 modal-axis cone-refusal witness; (4) homogeneous suite byte-stable; pyright
 `orpheus` = 1; (5) `spaces.rst` SEEDED — Key Facts; axis taxonomy; the counting

@@ -160,6 +160,12 @@ construction sites classified (three CS1-edits, the rest threads-already or
 documented stays-None); NO existing test asserts homogeneous-op `.H` values, so the
 vv#19 loaded/blind pair is new coverage with nothing demoted; the metric flip is
 ×1.0/÷1.0 or a counting skip — bit-identical by construction, gate still owed.
+**Verification battery of record (protocol step 3, 2026-08-20):**
+`scratch/cs1_verification_plan.md` — 40 gates, 23-mutation battery with
+MUST-STAY-GREEN anti-claims, reviewed + adjudicated in the design record §T-R
+(findings F1–F12 folded; the seven open rulings resolved; ⛔ headline: a scalar
+metric is a provable `.H` non-catcher, so the vv#19 control is a per-GROUP
+weighted toy and the cell measure is guarded by space identity alone).
 
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
