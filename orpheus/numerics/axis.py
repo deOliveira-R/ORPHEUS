@@ -185,6 +185,30 @@ class Axis:
     def __hash__(self) -> int:
         return hash((self.__class__, self._identity_key()))
 
+    def _structural_bytes(self) -> bytes:
+        """An INJECTIVE byte encoding of the structural identity.
+
+        Consumed by ``FunctionSpace.of_axes``'s derived-name digest.
+        Injectivity is load-bearing there (space identity is ``(name,
+        shape)`` until the S3 flip, so a name collision between different
+        axis tuples would collapse two different spaces into one), hence
+        the belt-and-braces encoding: every chunk is TYPE-TAGGED
+        (``T``/``N``/``B``/``R``) and LENGTH-PREFIXED, so no
+        concatenation of different identity keys can share a byte
+        stream. Deterministic across processes by construction — no
+        ``hash()``, no dict order, only content bytes and ``repr`` of
+        primitives.
+        """
+        chunks = [b"T" + type(self).__qualname__.encode()]
+        for part in self._identity_key():
+            if part is None:
+                chunks.append(b"N")
+            elif isinstance(part, bytes):
+                chunks.append(b"B" + part)
+            else:
+                chunks.append(b"R" + repr(part).encode())
+        return b"".join(len(c).to_bytes(8, "little") + c for c in chunks)
+
 
 @dataclass(frozen=True, eq=False)
 class EnergyAxis(Axis):

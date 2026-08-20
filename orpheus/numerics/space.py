@@ -75,11 +75,14 @@ References
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Any, Generic, Optional, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
+
+from .axis import Axis, BasisKind
 
 __all__ = [
     "DualSpace",
@@ -125,6 +128,16 @@ class FunctionSpace(Generic[Carrier]):
         weights along the ordinate axis of an angular-flux space).
         ``None`` selects the Euclidean inner product
         :math:`\sum_i x_i \, y_i`.
+    axes : tuple[Axis, ...] | None, default None
+        The generator record of an axis-composed space (campaign 1,
+        CS1): the ordered tensor factors this space is the product of.
+        ``None`` means *legacy / not axis-built* — every pre-CS1
+        construction path. Populated by :meth:`of_axes` (and threaded
+        through ``*``); when present, the factor measures live PER AXIS
+        (``inner_product_weights`` stays ``None`` — never both, enforced
+        at construction) and the metric machinery routes through the
+        per-axis path. ``compare=False``: identity stays ``(name,
+        shape)`` until the S3 flip (see the identity paragraph below).
 
     Notes
     -----
@@ -142,12 +155,24 @@ class FunctionSpace(Generic[Carrier]):
     ``ratedensity_space`` duplication) and lets ``L`` / ``L⁻¹`` type as
     geometric endomorphisms on the bulk grid with a dimensional gain.
 
-    Two function spaces are identical iff their ``(name, shape)`` tuple
-    matches — ``name`` is the **identity** of the space, not a
-    description of its contents. Inner-product weights are metadata
-    that affect the inner product but not the identity: two copies of
-    :math:`\mathbb{R}^n` are "the same" space regardless of which inner
-    product is installed. Hashing is on ``(name, shape)``.
+    **Identity — the chartered doctrine, and the current realization
+    (campaign 1, item 0.8 — a MIGRATION statement, both halves true).**
+    The *chartered* doctrine (ruled 2026-08-19/20): a space's identity is
+    the **structural content of its axes** plus its tags — and since the
+    metric lives on the axes, *metric differences imply space
+    differences* (a quotient point with unit weight and a genuine
+    one-cell mesh with :math:`V \neq 1` are DIFFERENT spaces; the old
+    reading "two copies of :math:`\mathbb{R}^n` are 'the same' space
+    regardless of which inner product is installed" is OVERTURNED). The
+    *current nominal realization*: equality and hashing still compare
+    ``(name, shape)`` — unchanged until the S3 identity flip, so legacy
+    hand-named spaces behave exactly as before. The **bridge** between
+    the two is :meth:`of_axes`: it derives ``name`` deterministically and
+    injectively from the axes' structural content, so for axis-built
+    spaces the chartered identity already flows through the nominal
+    ``(name, shape)`` comparison today — different measures mint
+    different names, hence different spaces, with no flag day. S3
+    retires the bridge by comparing the axes tuple directly.
     """
 
     name: str
@@ -163,6 +188,35 @@ class FunctionSpace(Generic[Carrier]):
     inner_product_weights: Optional[NDArray] = field(
         default=None, repr=False, compare=False,
     )
+    # The axis-composition generator record (campaign 1, CS1). Metadata
+    # for identity purposes until the S3 flip (``compare=False``, same
+    # rationale as the weights above) — but LOAD-BEARING for the metric:
+    # when present, the factor measures live per axis and the metric
+    # machinery routes through the per-axis path (never densified).
+    axes: Optional[tuple[Axis, ...]] = field(
+        default=None, repr=False, compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        if self.axes is None:
+            return
+        # Two guards on the axis-built state (illegal states
+        # unrepresentable; both are construction bugs, not user input):
+        # one metric source, and a shape that IS the axes' concatenation.
+        if self.inner_product_weights is not None:
+            raise ValueError(
+                f"space {self.name!r} carries BOTH per-axis measures and "
+                f"dense inner_product_weights — one metric source only "
+                f"(the axes own the measure on an axis-built space)"
+            )
+        concat: tuple[int, ...] = ()
+        for ax in self.axes:
+            concat = concat + ax.shape
+        if concat != self.shape:
+            raise ValueError(
+                f"space {self.name!r} shape {self.shape} does not equal "
+                f"the concatenation {concat} of its axes' shapes"
+            )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, FunctionSpace):
@@ -174,6 +228,93 @@ class FunctionSpace(Generic[Carrier]):
 
     def __repr__(self) -> str:
         return f"FunctionSpace({self.name!r}, shape={self.shape})"
+
+    # ------------------------------------------------------------------
+    # Axis composition (campaign 1, CS1)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def of_axes(cls, *axes: Axis) -> "FunctionSpace":
+        r"""Compose a space as the ordered product of its axes.
+
+        The ONE composition mechanism of the axis doctrine: a space IS
+        its axis tuple. Shape is the concatenation of the axes' shapes;
+        the factor measures stay PER AXIS (``inner_product_weights`` is
+        never populated — **no densification**, structurally: composing
+        two 2000-point weighted axes stores 2 × 2000 weights, never the
+        4 000 000-entry outer product); the metric machinery routes
+        through the per-axis path.
+
+        **The derived name is the identity bridge (S3 seam).** Space
+        identity is ``(name, shape)`` until the S3 flip, so the name is
+        derived DETERMINISTICALLY and INJECTIVELY from the axes'
+        structural content (label, shape, kind, measure bytes, subclass
+        identity — via a content digest, never ``hash()``, so it is
+        stable across processes): different axis tuples mint different
+        names, hence different spaces, TODAY. Two same-``ng`` energy
+        axes with different partitions, or two same-shape spatial axes
+        with different measures, compose into UNEQUAL spaces — the
+        chartered "metric differences imply space differences" doctrine
+        flowing through the nominal identity.
+
+        Always returns a plain :class:`FunctionSpace` — an axis product
+        is not a different *kind* of space (ruled Q-T4); invoking
+        through a subclass does not change the return type.
+
+        ⚠ **The legacy twin (CS2 retires it).** ``V * W`` (the ``*``
+        dunder → :class:`TensorProductSpace`) is the PRE-axis composition
+        mechanism: it DENSIFIES the metric (outer-product
+        ``inner_product_weights``) and derives its name by joining the
+        factors' names. CS1 keeps it (it threads ``axes`` when both
+        sides carry them, and bridges axis-borne measures into its dense
+        weights on mixed products, so no value is ever lost) and CS2
+        collapses the live mints onto axis concatenation and retires the
+        densifier. Until then: new axis-aware code composes with
+        ``of_axes``; ``*`` is the legacy surface.
+        """
+        if not axes:
+            raise ValueError(
+                "of_axes needs at least one axis — a space with no "
+                "factors has no index set"
+            )
+        shape: tuple[int, ...] = ()
+        for ax in axes:
+            shape = shape + ax.shape
+        payload = b"".join(
+            len(chunk).to_bytes(8, "little") + chunk
+            for chunk in (ax._structural_bytes() for ax in axes)
+        )
+        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
+        readable = "*".join(f"{ax.label}{ax.shape}" for ax in axes)
+        return FunctionSpace(
+            name=f"{readable}#{digest}",
+            shape=shape,
+            inner_product_weights=None,
+            axes=tuple(axes),
+        )
+
+    @property
+    def has_coordinate_cone(self) -> bool | None:
+        r"""Whether per-component positivity is meaningful on this space.
+
+        Three-valued, deliberately:
+
+        * ``True`` — axis-built, ALL factors ``NODAL``: components are
+          point/cell values, the coordinate cone :math:`K = \{x \ge 0\}`
+          is the physical positive cone, and per-component sign tests
+          (``Field.cone_violations``) are meaningful.
+        * ``False`` — axis-built, ANY factor ``MODAL``: components are
+          expansion coefficients; a positive function may have negative
+          coefficients, so a per-component sign test is MEANINGLESS and
+          must be refused, not answered.
+        * ``None`` — ``axes is None`` (legacy / not migrated): the
+          question cannot be answered structurally; consumers keep their
+          pre-CS1 behavior. Collapsing ``None`` into ``False`` would
+          make the cone refusal fire on every legacy space in the tree.
+        """
+        if self.axes is None:
+            return None
+        return all(ax.kind is BasisKind.NODAL for ax in self.axes)
 
     # ------------------------------------------------------------------
     # Inner product / norm
@@ -246,6 +387,12 @@ class FunctionSpace(Generic[Carrier]):
         pads ``w`` with trailing 1s, which is a no-op when ``w`` already
         spans every axis.
         """
+        if self.axes is not None:
+            # Axis-built space: single-source through the per-axis metric
+            # (⟨x, y⟩ = Σ (G⊙x)·y BY DEFINITION — one spelling of the
+            # weighted pairing, so the leading-vs-trailing divergence
+            # recorded below is unspellable on this path).
+            return float(np.sum(self._apply_axes_weights(x, inverse=False) * y))
         if self.inner_product_weights is None:
             return float(np.sum(x * y))
         w = self._broadcast_metric(self.inner_product_weights, np.ndim(x))
@@ -291,6 +438,8 @@ class FunctionSpace(Generic[Carrier]):
 
     def _diagonal_apply_metric(self, x: Any) -> Any:
         r"""The bare-array realization of :meth:`apply_metric`."""
+        if self.axes is not None:
+            return self._apply_axes_weights(x, inverse=False)
         w = self.inner_product_weights
         if w is None:
             return x
@@ -314,12 +463,74 @@ class FunctionSpace(Generic[Carrier]):
 
     def _diagonal_apply_inverse_metric(self, x: Any) -> Any:
         r"""The bare-array realization of :meth:`apply_inverse_metric`."""
+        if self.axes is not None:
+            return self._apply_axes_weights(x, inverse=True)
         w = self.inner_product_weights
         if w is None:
             return x
         wb = self._broadcast_metric(w, np.ndim(x))
         nonzero = wb != 0.0
         return np.where(nonzero, x / np.where(nonzero, wb, 1.0), 0.0)
+
+    def _apply_axes_weights(self, x: Any, *, inverse: bool) -> Any:
+        r"""The per-axis metric realization (axis-built spaces only).
+
+        Each axis's factor measure multiplies (or pseudo-inverse-divides)
+        its OWN index block of ``x``, placed by an explicit reshape:
+        leading 1s for the preceding axes' ranks, the axis shape, trailing
+        1s for the remaining ranks (plus any extra trailing element axes,
+        matching the tree's leading-aligned metric convention). Exact for
+        interior axes — a position the legacy prefix-only
+        :meth:`_broadcast_metric` cannot even express — and never
+        materializes the outer product (the ERR-067-family divergence and
+        the dense twin are both unspellable on this path). Counting-
+        measure axes (``weights is None``, the canonical spelling) are
+        skipped; an all-counting space returns ``x`` unchanged.
+
+        The inverse is the same Moore–Penrose pseudo-inverse the dense
+        path uses (zero-weight components map to zero), applied per axis.
+        """
+        axes = self.axes
+        assert axes is not None  # caller-gated; narrowing only
+        if all(ax.weights is None for ax in axes):
+            return x
+        out = np.asarray(x)
+        ndim = out.ndim
+        start = 0
+        for ax in axes:
+            rank = len(ax.shape)
+            w = ax.weights
+            if w is not None:
+                wb = w.reshape((1,) * start + ax.shape + (1,) * (ndim - start - rank))
+                if inverse:
+                    nonzero = wb != 0.0
+                    out = np.where(nonzero, out / np.where(nonzero, wb, 1.0), 0.0)
+                else:
+                    out = out * wb
+            start += rank
+        return out
+
+    def _dense_axes_weights(self) -> Optional[NDArray]:
+        r"""Densify this space's per-axis measures into one weights tensor.
+
+        ⚠ The LEGACY BRIDGE, consumed only by
+        :func:`_tensor_product_inner_weights` when an axis-built space
+        enters a ``*`` product beside a legacy space (the mixed product
+        cannot thread axes, so the measure must ride the dense slot or be
+        silently DROPPED — a value bug, not a representation choice).
+        Never called on the pure axis path; retired with the densifier in
+        CS2. Returns ``None`` when every axis carries the counting
+        measure (no allocation, matching the dense path's convention).
+        """
+        axes = self.axes
+        assert axes is not None  # caller-gated; narrowing only
+        if all(ax.weights is None for ax in axes):
+            return None
+        result: Optional[NDArray] = None
+        for ax in axes:
+            w = ax.weights if ax.weights is not None else np.ones(ax.shape)
+            result = w if result is None else np.multiply.outer(result, w)
+        return result
 
     # ------------------------------------------------------------------
     # Space algebra (Depth B step D-B)
@@ -394,15 +605,23 @@ def _tensor_product_inner_weights(
     to the factor shape). If ALL factors are Euclidean, the result is
     ``None`` (preserving the Euclidean default — no allocation).
     """
-    if all(f.inner_product_weights is None for f in factors):
+    def _factor_dense_weights(f: "FunctionSpace") -> Optional[NDArray]:
+        # The mixed-product BRIDGE (CS1): an axis-built factor stores its
+        # measure per axis with ``inner_product_weights=None``, so
+        # reading only the dense slot would silently treat a weighted
+        # axis-built factor as Euclidean — a value bug. Densify its
+        # axis-borne measure here instead. Retired with this whole
+        # densifier in CS2.
+        if f.axes is not None:
+            return f._dense_axes_weights()
+        return f.inner_product_weights
+
+    dense = [_factor_dense_weights(f) for f in factors]
+    if all(w is None for w in dense):
         return None
     result: Optional[NDArray] = None
-    for f in factors:
-        w = (
-            f.inner_product_weights
-            if f.inner_product_weights is not None
-            else np.ones(f.shape)
-        )
+    for f, w_f in zip(factors, dense):
+        w = w_f if w_f is not None else np.ones(f.shape)
         w = np.broadcast_to(w, f.shape)
         result = w if result is None else np.multiply.outer(result, w)
     return result
@@ -537,10 +756,27 @@ class TensorProductSpace(FunctionSpace):
         shape: tuple[int, ...] = ()
         for f in factors:
             shape = shape + f.shape
+        # Axis threading (CS1, gate B7): when EVERY factor carries an
+        # axes record, the product's record is the concatenation and the
+        # measure rides the per-axis path (no dense weights). A legacy
+        # factor on either side leaves ``axes=None`` — never fabricate an
+        # axis for a space that did not declare one — and the measure
+        # rides the legacy dense slot (with axis-borne factor measures
+        # bridged in by ``_tensor_product_inner_weights``).
+        factor_axes = [f.axes for f in factors]
+        if all(fa is not None for fa in factor_axes):
+            axes: Optional[tuple[Axis, ...]] = tuple(
+                ax for fa in factor_axes if fa is not None for ax in fa
+            )
+            weights = None
+        else:
+            axes = None
+            weights = _tensor_product_inner_weights(factors)
         return cls(
             name=name,
             shape=shape,
-            inner_product_weights=_tensor_product_inner_weights(factors),
+            inner_product_weights=weights,
+            axes=axes,
             factors=factors,
         )
 
@@ -607,6 +843,10 @@ class DualSpace(FunctionSpace):
             name=f"{primal.name}*",
             shape=primal.shape,
             inner_product_weights=primal.inner_product_weights,
+            # The dual carries the SAME metric as the primal (L²-Riesz),
+            # so an axis-built primal's dual threads the axes record —
+            # dropping it would silently strip the measure (CS1).
+            axes=primal.axes,
             primal=primal,
         )
 
