@@ -5826,3 +5826,177 @@ once went silent).
 ⟹ **When a step "moves" a capability, ask what ELSE the moved code was doing.** A
 helper named for one job routinely carries a second, and the second is the one with
 a scar-tissue test.
+
+---
+
+## L59 — CS1 (the Energy axis / axis-composed spaces, PRE-carve): the design's own `.H` control was a PROVABLE non-catcher, and the fixture library made one production arm witness-less
+
+**Campaign.** Campaign 1 CS1 — "the homogeneous solver poses its problem on a real
+Energy space". Dispatch: §T of `.claude/plans/cs1_energy_space_design.md`.
+PRE-implementation; deliverable `scratch/cs1_verification_plan.md` (1255 lines, 40
+gates A1–A12 / B1–B11 / C1–C2 / D1–D12 / E1–E3, a 23-mutation battery with 3 positive
+controls and a MUST-STAY-GREEN column). Tree grounded at HEAD `4e11731b`; the design
+record's own §P grounding pass had run at `273d431a` and was itself thorough — every
+finding below is something a careful grounding pass still missed, which is the point.
+
+### L59a ⭐⭐ — a rank-1 axis makes EVERY metric SCALAR, so no production space on that carrier can EVER load `.H`. This is the SPACE-side dual of `vv` #12's commutator clause, and it kills the obvious control.
+
+`vv` #12 already says a metric-adjoint gate is blind iff `[G, Aᵀ] = 0`, and gives the
+OPERATOR-side instances (a diagonal `C` commutes with every diagonal `G`; a
+measure-preserving permutation `B` likewise). The dual nobody had written down: the
+**SPACE's own shape** can force `G` into the centre. The homogeneous `bulk_space` is
+`Energy ⊗ point` with `spatial_shape == (1,)`, so its spatial weight is a
+**one-element array = a scalar**, and the Energy weight is counting **by the
+counting-measure theorem**. ⟹ every metric that space can carry commutes with
+everything.
+
+`[M]` 2026-08-20, `loss = C − (IsoS + IsoN2N)` on `get_mixture("A","2g")`,
+`x = [[1.],[2.]]`, `loss.H.apply(x)`:
+
+| space | `.H.apply(x)` | bit-identical to the `None` path |
+|---|---|---|
+| `None` (today's production) | `[-0.08, 0.2]` | baseline |
+| `weights = None` | `[-0.08, 0.2]` | **True** |
+| `weights = [1., 1.]` (the quotient point) | `[-0.08, 0.2]` | **True** |
+| `weights = [2., 2.]` (a one-cell mesh, `V = 2`) | `[-0.08, 0.2]` | **True** ⛔ |
+| `weights = [2., 5.]` (per-GROUP) | `[-0.38, 0.2]` | False ⭐ |
+
+Row 4 is the finding. The design record proposed distinguishing "the quotient point,
+weight 1.0" from "a genuine one-cell mesh, `V ≠ 1`" and treated that difference as the
+thing that makes the metric non-trivial. It is **bit-identical** — a provable
+non-catcher, not a weak one, and no tolerance / refinement / regime change can expose
+it. The control had to become a deliberately **non-physical** toy carrying a
+per-GROUP weighted axis — a metric the counting theorem FORBIDS on a real
+`EnergyAxis` — and its docstring has to say so, or a later reader "fixes" the toy into
+uselessness.
+
+⟹ **The rule: before designing a vv#19 loaded/blind PAIR, MEASURE the candidate
+control on the pre-carve tree.** It costs one probe (this one was ~20 lines and 2 s)
+and it is the only thing that can tell "the control is loaded" from "the control is in
+the stabiliser". Both readings are small residuals; only the measurement separates
+them. ⚠ And the second half of the same probe: only component **0** moves; component 1
+reads `0.2` under both metrics — a control asserting a single component, or the wrong
+one, is blind even when the space IS loaded. Assert the whole vector.
+
+⟹ **The corollary that generalises past `.H`: if a distinction is invisible to every
+VALUE functional a carrier admits, then IDENTITY is the only instrument.** Here the
+quotient-vs-one-cell distinction survives only as space equality (the derived NAME must
+encode the weights), so the gate is `space_a != space_b`, and the mutation that proves
+it (`bulk_space` weights → `np.ones(...)`) must be verified to leave the byte gate,
+`D4a`, and the floor **GREEN** — otherwise the closeout credits a value gate with
+measure coverage it cannot have.
+
+### L59b ⭐ — a fixture library that is uniform in the discriminating field makes a production ARM witness-less, and `vv` #17's granularity trap then fires at the FIXTURE tier
+
+CS1's `bulk_space` energy arm branches: all materials carry an energy grid ⟹
+`EnergyAxis.from_grid`; else ⟹ `EnergyAxis.synthetic(ng)`.
+
+`[M]` 2026-08-20: `get_mixture(region, ng_key).eg is **None**` for **all 12** shipped
+`(region, ng)` pairs (`{A,B,C,D} × {1g,2g,4g}`), and `get("homo_2eg_n2n")`'s mixture
+too. ⟹ **every** `bulk_space` mint reachable from the fixture library takes the
+synthetic arm; the `from_grid` arm has **no witness**, so a whole-arm mutation reddens
+only the synthetic side and the battery reports "the energy arm is gated".
+
+This is `vv` #17's multi-arm-guard trap, but the arm is unreachable because of the
+**FIXTURES**, not because of the code — so the usual remedy ("mutate each arm
+separately") produces a mutation with an empty red set and no obvious diagnosis.
+
+⭐ The witness existed one line away, already in the tree, and only a grep for the
+FIELD (not for the arm) found it — `tests/homogeneous/test_homogeneous.py:415-417`
+builds the only `eg`-bearing homogeneous mixture in the repository via
+`dataclasses.replace(base, eg=np.array([1.0e7, 1.0e3, 1.0e-3]))`.
+
+⟹ **The rule: when a production branch discriminates on a FIELD, census that field
+across the fixture corpus before writing the gate** — one comprehension, and it turns
+"parametrize over both arms" from an assumption into a measurement. The census is also
+what tells you whether the witness must be manufactured or merely located.
+
+### L59c ⛔ — "prove it does not allocate" cannot be gated by asking a densifier to `MemoryError`: it gets OOM-KILLED, which fails the RUN, not the TEST
+
+CS1's `of_axes` must keep the factor measures per-axis (never materialise the outer
+product). The obvious memory-shaped gate is "build a space so large the dense form
+cannot fit, and assert construction succeeds".
+
+`[M]` `np.multiply.outer(np.ones((4096,4096)), np.ones(4096))` (≈550 GB) — **exit
+code 137**, SIGKILL from the OOM killer. It never raised. A pytest run gated that way
+dies without a verdict, nondeterministically by machine.
+
+⟹ **The rule: size a no-allocation gate for SEPARATION, not for failure.** `[M]` the
+safe form is `(2000,) ⊗ (2000,)`: dense `32 000 000` bytes vs per-axis `32 000` bytes
+— a **1000×** separation, built in **4 ms**, asserted on *reachable* `ndarray.nbytes`
+walked off the object. Pair it with an EXACT structural leg (the dense slot is `None`;
+no reachable array has `size == prod(shape)`) and a BEHAVIOURAL leg (the metric still
+applies correctly at that shape) — because "never densify" implemented by *dropping
+the metric* passes the first two. Rejected `tracemalloc` as the instrument: the NumPy
+allocator domain makes the reading version-fragile, where `nbytes` is exact and free.
+
+### L59d — a TYPE-ANNOTATION widen has NO runtime witness; its gate is pyright, and a pytest row for it is a Signature-8 tautology
+
+CS1 step 3a widens `FissionOperator`'s space field `FullFieldSpace | None →
+FunctionSpace | None`. The natural gate — "hand it a plain `FunctionSpace`, assert it
+constructs" — is **green before and after**: Python does not enforce annotations, so
+the row asserts a capability the tree already had. It reads like coverage of the widen
+and is `vv` Mode 8's signature-tautological class wearing a type hint.
+
+⟹ **The rule: a widen/narrow of a static type is gated by the type checker, never by
+a runtime row.** In this tree that is `tests/test_pyright_ratchet.py`; record the
+ratchet delta in the commit body. Say so explicitly in the plan, or the step ships with
+a green row and an uncovered change. Same family, measured in the same pass:
+`homogeneous/solver.py` keeping a leftover `basis_shape=(ng, 1)` after the derivation
+lands is **value-identical** (`_resolve_basis_shape` lets explicit win, and the explicit
+value equals the derived one) ⟹ the done-when item "both production spellings gone" has
+**no runtime witness either** and is a `grep` obligation on the commit, not a gate.
+State which done-when items are grep obligations; an unstated one reads as covered.
+
+### L59e — a `repr`-derived identity is NOT injective: ndarray `repr` TRUNCATES, and no small-toy gate can see it
+
+CS1's `of_axes` derives the space NAME from the axes' structural content, and — because
+space identity is `(name, shape)` until a later phase — a name COLLISION between
+different axis tuples makes two different spaces compare EQUAL and compose silently.
+The cheap implementation is a name built from `repr(axes)`.
+
+⛔ `repr` of an ndarray elides with `...` above the print threshold, so two distinct
+LONG weight vectors render identically. The collision is invisible to every gate built
+on small toys — which is every injectivity gate anyone writes.
+
+⟹ **The rule: an identity derived from a rendering is only as injective as the
+renderer.** Derive from `.tobytes()` through a digest, and state the float caveats
+where they exist (`-0.0` vs `+0.0` have different bytes and compare equal; `nan` bytes
+can be equal while the values compare unequal). And when an injectivity gate is
+written, include at least one pair whose SHAPES are identical — otherwise `shape`
+carries the discrimination and the NAME is never tested. CS1's two such pairs:
+`synthetic(2)` vs `from_grid(<2-group edges>)`, and a spatial point with weight `1.0`
+vs weight `2.0`.
+
+### L59f — the CS1 grounding-pass residue: what a thorough §P pass still missed
+
+The design record's §P ran 10 grounding items and closed all 10. Four call-site facts
+still slipped, and all four share a shape — **the pass checked the SITES it enumerated
+and not the CONSEQUENCES at those sites**:
+
+1. `tests/numerics/test_matrix_inverse_operator.py:206/:265` were classified "stays on
+   the legal None path". `[M]` both call
+   `MultiplicationOperator.from_mesh(…, mat_xs.mesh)` with the **degenerate carrier**,
+   so they pick up the new default. They stay green (explicit `basis_shape` wins) but
+   are no longer None-path witnesses — a later citation of them as such would be false.
+2. `tests/homogeneous/test_homogeneous.py:284-286/:359-365` were classified "mirror
+   tests — migrate to domain-derivation". `[M]` **half of each cannot**: both build `F`
+   BARE, and no-default-derivation is RULED, so `F.domain is None` and `as_matrix()`
+   raises. ⭐ And `:359-365` is `@verifies("resolvent-object-gate")`, written as the
+   line-for-line mirror of the production `K = M⁻¹ @ F` — once production threads
+   `space=V`, a mirror that keeps the bare `F` **pins a retired idiom**, which is the
+   identical warrant on which the campaign deletes two strict-xfail rows.
+   ⚠ Note the product guard SKIPS a `None` codomain, so `M⁻¹(bound) @ F(None)`
+   constructs happily and `K.domain` is silently `None` — the breakage surfaces one
+   call later, at `as_matrix`.
+3. `_R1_XFAIL` decorates **two** tests, not one; the constant survives the deletion
+   carrying a reason string the carve makes present-tense FALSE.
+4. Two production refusal messages (`"this multiplier is space-anonymous"`) become
+   present-tense false — the PREDICATE stays right, the stated REASON dies.
+
+⟹ **The rule for a PRE-carve dispatch that follows a grounding pass: re-derive the
+CONSEQUENCE at every enumerated site, do not re-verify the enumeration.** The
+enumeration is what a grounding pass is good at and what it will have done well; the
+per-site consequence is what it skips, because that requires simulating the carve. The
+cheapest form: for each site, write the ONE sentence "after the carve this site
+{keeps / gains / loses} X" — the sentences that will not write are the findings.

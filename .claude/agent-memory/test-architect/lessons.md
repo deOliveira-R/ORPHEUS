@@ -197,6 +197,28 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   → 3 failed), and the same flag shows **11 of 13** DD regression cases bit-exact
   with the 2 exceptions NAMED. Verify both that the `-W` string PARSES (`vv` Mode-8
   EIGHTH class) and that it bites. → `L58c`
+- **⭐⭐ MEASURE a vv#19 CONTROL on the pre-carve tree BEFORE designing the pair —
+  a control can sit in the error's STABILISER, and both readings are small
+  residuals.** `vv` #12 gives the OPERATOR-side blindness (`[G, Aᵀ]=0`); the dual
+  nobody had written is the **SPACE-side**: a rank-1 (point) axis makes EVERY
+  weight a one-element array = a SCALAR, and a scalar `G` commutes with
+  everything. `[M]` on the homogeneous `(ng,1)` carrier, `loss.H.apply([[1],[2]])`
+  reads `[-0.08, 0.2]` for `None`, `w=1` AND **`w=2`** (the design's proposed
+  control — a provable non-catcher) and only `[-0.38, 0.2]` for a per-GROUP
+  `w=[2,5]`. ⟹ the control had to become a deliberately NON-PHYSICAL toy, said so
+  in its docstring. ⚠ Only component 0 moves — assert the whole vector. And the
+  corollary: **when a distinction is invisible to every VALUE functional the
+  carrier admits, IDENTITY is the only instrument** (here: the derived space NAME
+  must encode the weights), so the battery needs a MUST-STAY-GREEN column naming
+  the value gates that provably cannot see it. → `L59a`
+- **⭐ A TYPE-ANNOTATION widen has NO runtime witness — its gate is the type
+  checker.** "Hand it the wider type, assert it constructs" is green BEFORE and
+  after (Python does not enforce annotations): `vv` Mode-8's signature-tautological
+  class wearing a type hint. Gate it with `tests/test_pyright_ratchet.py` and record
+  the delta in the commit. Same pass, same family: deleting a leftover
+  `basis_shape=(ng,1)` once the domain derives it is **value-identical**, so
+  "both spellings gone" is a **grep obligation**, not a gate — say which done-when
+  items are grep obligations, or they read as covered. → `L59d`
 
 ## 2. Harness discipline — the instrument lies before the code does
 
@@ -404,6 +426,16 @@ codes). → `L34d`, `L35l`
   quadrature lacks — carry the fixture PER ROW. → `L31`
 - **A migration's own regression proof is the DELTA, not the green** (wide suite
   `40 failed → 12 failed`, same 12 out-of-scope rows). Pair with `-rs`. → `L30`
+- **⛔ "Prove it does not allocate" cannot be gated by asking a densifier to
+  `MemoryError` — `[M]` a 550 GB `np.multiply.outer` is OOM-KILLED (exit 137),
+  which fails the RUN, not the test.** Size the gate for SEPARATION instead:
+  `[M]` `(2000,)⊗(2000,)` gives dense `32 000 000 B` vs per-axis `32 000 B`
+  (**1000×**) in **4 ms**, asserted on reachable `ndarray.nbytes`. Add an EXACT
+  structural leg (the dense slot is `None`; no reachable array has
+  `size == prod(shape)`) and a BEHAVIOURAL leg — "never densify" implemented by
+  DROPPING the metric passes the first two. Rejected `tracemalloc`: the NumPy
+  allocator domain makes it version-fragile where `nbytes` is exact and free.
+  → `L59c`
 
 ## 3. Config blindness — the ORPHEUS fixture facts
 
@@ -603,6 +635,17 @@ against a concrete row before trusting a green.
   half the reported blindness was a spatial floor the source plan had itself
   measured two sections earlier. The ladder is also a COST win: the right
   functional was clean at `nx=80`, 8× cheaper. → `L48e`
+- **⭐ When a production branch discriminates on a FIELD, CENSUS that field across
+  the fixture corpus before writing the gate — a corpus uniform in it makes one arm
+  witness-less, and `vv` #17's granularity trap then fires at the FIXTURE tier
+  (the arm's mutation has an EMPTY red set and no obvious diagnosis).** `[M]`
+  2026-08-20: `get_mixture(region, ng).eg is None` for **all 12** shipped
+  `{A,B,C,D}×{1g,2g,4g}` pairs, and for `get("homo_2eg_n2n")` too — so the CS1
+  `EnergyAxis.from_grid` arm had no witness anywhere, while `synthetic(ng)` had
+  twelve. The witness existed one line away and only a grep for the FIELD (not the
+  arm) found it: `tests/homogeneous/test_homogeneous.py:415-417` builds the repo's
+  ONLY `eg`-bearing homogeneous mixture, via `dataclasses.replace(base, eg=…)`.
+  → `L59b`
 
 ## 4. Reference, claim layer, and the proactive refutation
 
@@ -1152,6 +1195,21 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   catcher. A perf baseline is a (number, FIXTURE) PAIR: own the sizes, fingerprint
   them, never source them from a shared `_config` correctness may retune.
   → `L24/L25`
+- **⭐ PRE-carve dispatch AFTER a grounding pass: re-derive the CONSEQUENCE at every
+  enumerated site — do NOT re-verify the enumeration.** A grounding pass is good at
+  enumeration and skips per-site consequence, because that needs simulating the carve.
+  `[M]` CS1's §P closed 10/10 items and still left four: two "stays on the None path"
+  sites that actually gain the new default; two `@verifies` MIRROR tests that
+  **cannot** migrate (they build the operand BARE, and no-default-derivation is
+  ruled) — one of them the line-for-line mirror of the production line being changed,
+  so keeping it pins a RETIRED idiom, the same warrant used to delete the campaign's
+  own strict-xfails; a shared xfail-marker constant decorating TWO tests whose reason
+  string the carve falsifies; and two refusal messages whose PREDICATE stays right
+  while the stated REASON dies. Cheapest form: per site write the one sentence
+  *"after the carve this site {keeps/gains/loses} X"* — the sentences that will not
+  write are the findings. ⚠ Related trap measured the same day: a composition guard
+  that SKIPS a `None` operand lets `M⁻¹(bound) @ F(None)` construct happily with
+  `domain = None`, so the breakage surfaces one call later. → `L59f`
 
 ## 7. Snapshots, generators, and exactness
 
@@ -1233,6 +1291,13 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   the FIXTURE first** — all three reds during authoring were mine (a single
   Gram–Schmidt pass is not orthonormal enough for a 1e-12 gate; use QR).
   → `L35f`, `L35j`
+- **⭐ An identity derived from a RENDERING is only as injective as the renderer —
+  ndarray `repr` TRUNCATES with `...`, so two distinct long weight vectors give the
+  SAME name, and no small-toy gate can see it.** Derive from `.tobytes()` through a
+  digest, and state the float caveats (`-0.0` vs `+0.0`: different bytes, equal
+  values; `nan`: equal bytes, unequal values). ⟹ **an injectivity gate needs at
+  least one pair whose SHAPES are identical**, else `shape` carries the
+  discrimination and the NAME is never tested. → `L59e`
 
 ## 9. Pointers
 
