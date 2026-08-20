@@ -294,11 +294,17 @@ It manifests in FOUR shapes — recognise all four:
    seed/absorb marshalling). FIX: name the missing
    trace/restriction operator; the bridge IS that operator
    un-named.
-3. **An iterative increment Δx = xⁿ − xⁿ⁻¹ typed as the STATE
-   type x**, not a distinct displacement type. TELL: admits
-   illegal `state+state` AND strands the contraction data
-   (ρ, Aitken, a-posteriori bound) with no home. FIX: a
-   difference-space / torsor displacement type.
+3. **The iterate-hygiene data (ρ, Aitken, a-posteriori bound)
+   stranded with no durable home** (welded to a state-space type
+   or to solver attributes). ⛔ RE-POSED at campaign 1 CS3
+   (2026-08-19): this shape's original fix — "a difference-space
+   / torsor displacement type" — was the OVERTURNED doctrine.
+   Flux lives in V; an increment IS the state type, signed.
+   FIX: home the diagnostics on the ITERATION RECORD
+   (`IterationRecord.increment_norms` + derived ρ), and before
+   ever minting a difference type run coding-elegance #18's
+   two-question test (canonical zero? physical superposition?
+   two yeses ⟹ vector space + cone predicate, never a torsor).
 4. **A third hand-rolled path about to be written** (e.g. a
    backward adjoint sweep) for the per-cell operator already
    shared by two callers — the smell fires BEFORE the code
@@ -306,7 +312,7 @@ It manifests in FOUR shapes — recognise all four:
 
 WHY this is the kernel: every shape resolves to the same
 elegance move — collapse the distinct paths/representations onto
-ONE primary object (faces / trace operator / displacement type /
+ONE primary object (faces / trace operator / iteration record /
 shared primitive), which makes the correctness claim a theorem
 rather than a coincidence and usually deletes a marshalling
 shim. Promote to skill Part C as a numbered smell at the next

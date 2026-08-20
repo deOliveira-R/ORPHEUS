@@ -49,11 +49,11 @@ is chosen to catch.** Measured on this fixture at ``000cf144``:
   ``[M]`` the ``angular_flux`` space carries ``inner_product_weights is None``
   (Euclidean) *today*. A relocation that swaps one for the other is therefore
   invisible here, deliberately: ``rtol=1e-12`` is ~4500 ULP of headroom.
-* interior-leaf metric vs **whole-composite** flat norm (``_l2_norm(displacement)``
-  — the spelling the SI loop already has in hand, which additionally ravels the
-  boundary trace block): max relative difference ``4.71e-3``. **That** is the
-  convention error this pin exists to catch, and it sits 9 orders above the
-  tolerance.
+* interior-leaf metric vs **whole-composite** flat norm (``_l2_norm`` of the
+  raw increment — the spelling the SI loop had in hand at capture time, which
+  additionally ravels the boundary trace block): max relative difference
+  ``4.71e-3``. **That** is the convention error this pin exists to catch, and
+  it sits 9 orders above the tolerance.
 
 ⚠ **Phase-ordering hazard, measured.** CS2 relocates metrics onto the spaces
 (memo A F3). Recomputing this same trajectory under a physical ``V_cell × w_n``
@@ -354,13 +354,13 @@ def test_the_pin_discriminates_the_composite_norm_convention(run) -> None:
 
     ``vv`` #19: a positive reading cannot tell a loaded gate from a blind one —
     only the deliberately-wrong structure can. The rival is the natural
-    relocation spelling: ``_l2_norm(displacement)`` on the WHOLE composite,
+    relocation spelling: ``_l2_norm`` of the WHOLE composite increment,
     which additionally ravels the boundary-trace block
     (``full_field.py``'s ``to_flat`` = ``[interior.ravel(), boundary]``).
 
     `[M]` at ``000cf144``: max relative difference ``4.71e-3``, i.e. 9 orders
     above ``rtol = 1e-12``. If this leg ever reds, the FIXTURE has stopped
-    discriminating (e.g. a boundary displacement that vanishes — an
+    discriminating (e.g. a vanishing boundary block of the increment — an
     all-reflective or zero-inflow config would do it) and the pin above has
     silently become blind to the convention it was written for.
     """
