@@ -51,7 +51,7 @@ apply-time dispatch retires.
 
 ---
 
-## 1. Dependency readiness — what the tree provides (verified 2026-08-19 vs `7aae9bf1`)
+## 1. Dependency readiness — what the tree provides (verified 2026-08-19 vs `7aae9bf1`; spot-re-certified at `00085baf` post-CS3-R — the P1 ledger row reproduces `[M]` 105 passed / 21 xfailed, and the two CS3-consumer rows below carry their landed state)
 
 | capability | state | evidence |
 |---|---|---|
@@ -61,8 +61,8 @@ apply-time dispatch retires.
 | Q6 measure metadata (`ReferenceMeasure`, `ExactnessClaim`, `invariance_group`, `half_range_clean`) | shipped — the GENERATOR side of the Angular axis; CS2 FORGETS from it | memo A §4 S2 row |
 | `DiscreteMeasure.partition_by` | shipped (2026-05-10) — the measure-level partition primitive the per-axis hooks forget from | memo A §4 (`measure.py:1042`) |
 | The P1 ledger: 12 `xfail(strict=True)` markers + `tests/sn/architecture` | shipped; `[M]` 105 passed / 21 xfailed reproduced 2026-08-19 | memo B §8.8 (node ids) |
-| #340 record machinery (`IterationRecord`, `StoppingCriterion`, named criterion trajectories, `IterationBudget`) | shipped — where CS3 relocates the displacement diagnostics | memo B H3/§6.1 |
-| Cone fragments: `is_positivity_preserving` (DD `False` + numerical witness), ψ≥0 realizer refusal, coefficient cone-as-predicate battery, ray normalization in `power_iteration` | shipped | memo D §3 |
+| #340 record machinery (`IterationRecord`, `StoppingCriterion`, named criterion trajectories, `IterationBudget`) | shipped — ✅ CS3 relocated the iterate diagnostics there (`f9d571b5`: `increment_norms` + derived `contraction_ratios` / `true_error_estimate()`) | memo B H3/§6.1 |
+| Cone fragments: `is_positivity_preserving` (DD `False` + numerical witness), ψ≥0 realizer refusal, coefficient cone-as-predicate battery, ray normalization in `power_iteration` | shipped — ✅ CS3 added the element predicate `Field.cone_violations` + the DD witness on top (`f9d571b5`); #390 tracks the flag's first production reader | memo D §3 |
 | Gaps that bite: F1 identity aliasing (`[M]` live probes: `Γ₊(GL8) == Γ₊(product(4,2))` True with unequal metrics); F4 densification (`[M]` state-size weight tensor); NO GroupAxis anywhere; 4–5 metric doctrines over 6+ sites (F3); #369 (measure-identity twin); #295/#297 (layout/carrier fragmentation) | live — this campaign's subject | memo A §§2–3 |
 
 ⚠ Worktree note: if this campaign runs in a worktree, rebuild Sphinx inside it and
@@ -86,15 +86,25 @@ Design detail (nodal axis ⟹ coordinate cone; the V/V* collapse hook of tightne
 (iv) declared even if unexercised) fixed at design time.
 
 **Done when** (checkable): the four model-generic strict-xfails
-`test_model_generic_leaf_declares_a_space[C-2g, C-4g, F-2g, F-4g]` are DELETED on XPASS;
-`homogeneous/solver.py`'s `F.domain is None` state and the `basis_shape=(ng,1)`
-double-pass are gone (`[M]` grep).
+`test_model_generic_leaf_declares_a_space[C-2g, C-4g, F-2g, F-4g]` are DELETED on XPASS
+(`tests/sn/architecture/test_monomorphic_leaves.py:670` at `00085baf`);
+`homogeneous/solver.py`'s space-less operator constructions (the
+`_assemble_loss_operator(mat_xs)` / `FissionOperator.from_solver_data(mat_xs=…)` pair at
+`:193-194`, which leave `.domain` None at runtime — ⚠ there is no literal
+`domain is None` string to grep; the predicate is "the constructions pass a space") and
+BOTH `basis_shape=(ng, 1)` spellings (`:194` and `:202` — the double-pass) are gone.
 
-**§8 blast-radius note (enabler ≠ neutral).** Giving F/C a real domain flips
-`OperatorSum`'s composability guard from *skipped* to *active* on every composition that
-today rides the `None`-skip (`operator.py:582`), and `.H` from Euclidean-fallback to
-metric-applied (`operator.py:1221-1226`). Enumerate the newly-checked compositions and
-the `.H` consumers on the homogeneous path BEFORE landing; gate at the tier the change is
+**§8 blast-radius note (enabler ≠ neutral).** Giving F/C a real domain flips the
+composability guards from *skipped* to *active* on every composition that today rides
+the `None`-skip — BOTH of them (re-anchored by SYMBOL at `00085baf`, CS3-R prep; line
+numbers drift): `OperatorSum`'s `_agreed_space((a, b), "domain"/"codomain", …)`
+(skips per-operand on None) and `OperatorProduct`'s `A.domain == B.codomain` check
+(`IncompatibleOperatorComposition`, ≈`operator.py:1629` — skipped when either is None;
+the homogeneous path composes BOTH: `C − K_iso` is a sum, `K = M⁻¹ @ F` a product).
+And `.H` flips from Euclidean-fallback to metric-applied — `_AdjointOperator`'s
+`inner_codomain.apply_metric(y) if inner_codomain is not None else y`
+(≈`operator.py:1297-1307`). Enumerate the newly-checked compositions and the `.H`
+consumers on the homogeneous path BEFORE landing; gate at the tier the change is
 observable.
 
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
@@ -225,8 +235,13 @@ positivity, ray normalization.
   `[M]` 4821 passed / walls green / mutations: M-add reds 12 value legs, M-mesh
   reds exactly the fiber row. Closes #331 at merge.
 - ✅ Step 3 — package retirement `5efd2178`: `orpheus/transport/displacements/`
-  deleted (zero consumers; marker-migration set measured EMPTY); all production
-  prose swept to dated past tense; the ρ≈c anchor renamed
+  deleted (zero consumers; marker-migration set measured EMPTY); ~~all production
+  prose swept to dated past tense~~ ⛔ REFUTED by CS3-R (2026-08-19, same day):
+  the sweep's own filters were partial — ~20 live-tense sites survived (the RC
+  family's ⊖ prose incl. 2 error messages, dsa.py's noun, 5 gates' premise,
+  2 `_bases.py` docstrings a case-blind grep missed, 3 AGENT.md briefs, 3
+  agent memories) — repaired across CS3-R sweeps 1–5; the universal lacked its
+  denominator (plan-authoring §2); the ρ≈c anchor renamed
   `tests/sn/solve/test_si_convergence_diagnostics.py`. `[M]` 9859 collected clean.
 - ✅ Step 4 — the cone predicate `3b9e8651`: `Field.cone_violations` (offending
   indices, most-negative first; −0.0 member, nan violation; docstring carries the
