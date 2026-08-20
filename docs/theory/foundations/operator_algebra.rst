@@ -5816,8 +5816,8 @@ for merge status.
        proves the delegation executes). See
        :ref:`operator-algebra-assembly-axis`.
      - #272
-     - *(in development)*
-       ``refactor/spatial-promotion-assembly``
+     - merged to ``main`` (branch ``refactor/spatial-promotion-assembly``,
+       deleted post-merge; first assembly commit ``83a0db7b``)
    * - in dev
        (2026-06-25)
      - **The carrier grid recognised as a double category, and the
@@ -5864,8 +5864,8 @@ for merge status.
        collapse couples to the C/F/S core relocation and CP / MoC carrier
        unification (#261).
      - #65 / #268 / #261
-     - *(in development)*
-       ``refactor/operator-inverse-algebra``
+     - merged ``574cff81`` (branch ``refactor/operator-inverse-algebra`` —
+       ``[M]`` 2026-08-19 an ancestor of ``main``)
    * - 2026-08-19
      - **Flux lives in the positive cone** :math:`K \subset V` — the
        affine field algebra is overturned. ``flux + flux`` becomes legal,
@@ -5879,7 +5879,7 @@ for merge status.
        six-argument adjudication:
        :ref:`cone-overturn-adjudication`.
      - #331
-     - *(in development)* ``refactor/cone-field-algebra``
+     - merged ``f9d571b5`` (branch ``refactor/cone-field-algebra``)
    * - 2026-06-08
      - **Flux states typed as an affine space; the iterate increment is a
        typed displacement.** ``flux − flux`` minted a ``Displacement``,

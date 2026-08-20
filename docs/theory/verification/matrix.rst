@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9865**
+Total tests collected: **9868**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1620, 16.4%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6879, 69.7%
+   foundation, 6882, 69.7%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9781
+   explicit, 9784
    class-name, 46
    func-name, 0
    case, 33
@@ -319,7 +319,7 @@ Module × level grid
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 131, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
-   numerics/test_coupled_operator, 0, 0, 0, 0, 56, 0
+   numerics/test_coupled_operator, 0, 0, 0, 0, 57, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
@@ -330,7 +330,7 @@ Module × level grid
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
-   numerics/test_field, 0, 0, 0, 0, 27, 0
+   numerics/test_field, 0, 0, 0, 0, 28, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
@@ -494,7 +494,7 @@ Module × level grid
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
    transport/test_boundary_source_from_specs, 0, 12, 0, 0, 0, 0
-   transport/test_composite, 0, 0, 0, 0, 14, 0
+   transport/test_composite, 0, 0, 0, 0, 15, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
    transport/test_full_field, 0, 0, 0, 0, 17, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0

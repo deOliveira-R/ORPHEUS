@@ -1513,7 +1513,7 @@ status.
        disagreement between :math:`L`, :math:`S` and :math:`B` becomes
        unspellable.
      - #331
-     - *(in development)* ``refactor/cone-field-algebra`` —
+     - merged ``f9d571b5`` (branch ``refactor/cone-field-algebra``) —
        ``c3e66b18`` (diagnostics → the record), ``993fa280`` (the
        algebra flip + DSA re-typing), ``5efd2178`` (the displacement
        package retires), ``3b9e8651`` (the cone predicate + its DD
