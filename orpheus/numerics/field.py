@@ -380,6 +380,26 @@ class Field(ABC):
         self._check_partner(other)
         return self.space.inner_product(self.values, other.values)
 
+    def _index_tuples(self, positions: "np.ndarray") -> list[tuple[int, ...]]:
+        r"""Decode flat positions into this leaf's ``values``-layout index
+        tuples — the single spelling of the layout decode shared by every
+        index-reporting diagnostic (``where_largest``, ``cone_violations``)."""
+        shape = np.asarray(self.values).shape
+        return [tuple(int(i) for i in np.unravel_index(p, shape)) for p in positions]
+
+    @property
+    def principal_bulk_leaf(self) -> "Field":
+        r"""The leaf whose space norm carries this iterate's convergence
+        diagnostics — for a leaf field, itself.
+
+        The convention every carrier answers for itself (campaign 1 CS3-R,
+        relocated from a structural walk in ``numerics.iteration``): a
+        composite names its interior; a coupled block vector names its
+        first system's; a leaf IS its own bulk. The iteration layer reads
+        this property and nothing else about the iterate's anatomy.
+        """
+        return self
+
     def where_largest(self, k: int = 1) -> list[tuple[int, ...]]:
         r"""The ``k`` index tuples with the largest :math:`|\text{values}|`.
 
@@ -403,8 +423,7 @@ class Field(ABC):
         k = max(1, min(int(k), flat.size))
         top = np.argpartition(flat, -k)[-k:]
         top = top[np.argsort(flat[top])[::-1]]  # largest first
-        shape = np.asarray(self.values).shape
-        return [tuple(int(i) for i in np.unravel_index(j, shape)) for j in top]
+        return self._index_tuples(top)
 
     def cone_violations(self, k: int | None = None) -> list[tuple[int, ...]]:
         r"""Index tuples of entries OUTSIDE the positive cone ``K = {v ≥ 0}``.
@@ -440,8 +459,7 @@ class Field(ABC):
         bad = bad[np.argsort(flat[bad])]  # most-negative first
         if k is not None:
             bad = bad[: max(1, int(k))]
-        shape = np.asarray(self.values).shape
-        return [tuple(int(i) for i in np.unravel_index(j, shape)) for j in bad]
+        return self._index_tuples(bad)
 
     def copy(self: T) -> T:
         r"""Return a deep copy carrying an owned ndarray."""

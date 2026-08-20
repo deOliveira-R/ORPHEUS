@@ -386,6 +386,18 @@ class TestCoupledFieldIntrinsic:
             (x / 2.0).systems[0].values, 0.5 * x.systems[0].values,
         )
 
+    def test_principal_bulk_leaf_delegates_to_the_first_system(self) -> None:
+        """The coupled block vector's convergence-diagnostic carrier is the
+        PRINCIPAL (first) system's own ``principal_bulk_leaf`` (CS3-R —
+        the same system-order convention that fixes the flat layout).
+        The toy members expose none, so the duck delegation degrades to
+        ``None`` (no diagnostics — the #391 member contract does not yet
+        declare the property); the real chain (CoupledField → FullField →
+        interior) is pinned end-to-end by
+        tests/sn/operators/test_psi_half_coupling.py G-d1.7."""
+        x = _x(9)
+        assert x.principal_bulk_leaf is None
+
     def test_member_role_law_is_delegated_not_absorbed(self) -> None:
         # A partner with the member ORDER swapped is arity-legal at the
         # container but must raise from the MEMBER algebra (the machinery

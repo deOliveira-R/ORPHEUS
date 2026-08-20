@@ -365,6 +365,19 @@ def test_where_largest_locates_the_peak():
         raise AssertionError(f"where_largest(3) not largest-first: {mags}")
 
 
+@pytest.mark.foundation
+def test_principal_bulk_leaf_of_a_leaf_is_itself():
+    """A leaf is its own convergence-diagnostic carrier (CS3-R: each carrier
+    answers ``principal_bulk_leaf`` for itself — a composite names its
+    interior, a coupled block vector its first system's — so the iteration
+    layer reads one property and no carrier anatomy)."""
+    field = _DummyField(
+        values=np.ones((2, 3)), space=FunctionSpace(name="leaf", shape=(2, 3)),
+    )
+    if field.principal_bulk_leaf is not field:
+        raise AssertionError("a leaf field must be its own principal bulk leaf")
+
+
 # ─────────────────────────────────────────────────────────────────────
 # The positive-cone membership predicate (campaign 1 CS3 step 4).
 # K = {v ≥ 0} as an element PREDICATE — the coefficient-field cone

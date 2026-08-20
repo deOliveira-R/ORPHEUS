@@ -299,6 +299,21 @@ class Composite(Generic[Interior, Boundary]):
         """
         return getattr(self.boundary, "mesh")
 
+    @property
+    def principal_bulk_leaf(self) -> "Interior":
+        r"""The leaf whose space norm carries this iterate's convergence
+        diagnostics — for a two-block composite, the ``interior``.
+
+        The composite's own answer to the campaign-1 CS3-R relocation (each
+        carrier names its principal leaf; the iteration layer reads only
+        this property): the diagnostic is the INTERIOR leaf's space-induced
+        ``l2``, deliberately NOT the whole-composite flat norm, which
+        additionally ravels the boundary trace block (``[M]`` 4.71e-3 apart
+        on the c→1 pin fixture; the convention is pinned by
+        :mod:`tests.numerics.test_si_diagnostic_trajectory`).
+        """
+        return self.interior
+
     # ── Polymorphic recombine + block-map hooks (Pattern 2) ───────────
 
     def _recombine(

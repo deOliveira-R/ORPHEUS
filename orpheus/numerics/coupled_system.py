@@ -288,6 +288,20 @@ class CoupledField:
         r"""The number of coupled systems (the block-vector arity)."""
         return len(self.systems)
 
+    @property
+    def principal_bulk_leaf(self) -> "Any | None":
+        r"""The leaf whose space norm carries this iterate's convergence
+        diagnostics — the PRINCIPAL system's own answer.
+
+        The coupling's first member is the principal field (the same
+        system-order convention that fixes the flat layout — for the ψ½
+        instance, System A's transport composite), so this delegates to
+        ``systems[0]``'s own ``principal_bulk_leaf``. ``None`` when the
+        principal member does not expose one (the duck-typed member
+        contract — #391 tracks declaring it).
+        """
+        return getattr(self.systems[0], "principal_bulk_leaf", None)
+
     # ── Algebra (member-wise delegation; roles live on the members) ────
 
     def _check_partner(self, other: object) -> "CoupledField":

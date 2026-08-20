@@ -3613,7 +3613,8 @@ class TestWithinGroupSystem:
 
     def test_g_d1_7_si_displacement_diagnostic_on_the_coupled_iterate(self):
         r"""The SI convergence diagnostics survive the CoupledField iterate:
-        ``_principal_bulk_leaf`` walks the PRIMARY system (System A's bulk),
+        ``CoupledField.principal_bulk_leaf`` delegates to the PRIMARY system
+        (System A's bulk — CS3-R relocated the walk onto the carriers),
         so the increment norms RECORD on a carrying sphere (F5 — previously
         uncovered; a silent-empty diagnostic is the failure mode)."""
         sn = _sphere(c=0.6)

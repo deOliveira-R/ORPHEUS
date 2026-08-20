@@ -173,6 +173,15 @@ def test_truediv_is_reciprocal_mul(mesh) -> None:
 # ── Flat protocol (the base's _flat_parts / _from_flat hooks) ──
 
 
+def test_principal_bulk_leaf_is_the_interior(mesh) -> None:
+    """The composite's convergence-diagnostic carrier is its INTERIOR leaf
+    (CS3-R: the carrier owns the convention; the iteration layer reads only
+    ``principal_bulk_leaf``. The norm-convention pin — interior space norm,
+    not composite flat — is tests/numerics/test_si_diagnostic_trajectory.py)."""
+    c = _scalar_composite(mesh, 3)
+    assert c.principal_bulk_leaf is c.interior
+
+
 def test_to_flat_layout_is_interior_then_boundary(mesh) -> None:
     a = _scalar_composite(mesh, 10)
     flat = a.to_flat()

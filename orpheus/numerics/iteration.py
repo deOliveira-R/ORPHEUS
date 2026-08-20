@@ -396,56 +396,15 @@ def _l2_norm(x) -> float:
     return float(np.linalg.norm(np.asarray(x)))
 
 
-class _NormedLeaf(Protocol):
-    r"""Structural face of the bulk leaf the increment diagnostics measure.
-
-    numerics MUST NOT import transport (the L1↛L2 layering), so the leaf
-    :func:`_principal_bulk_leaf` hands to the SI loop is declared
-    structurally, mirroring the ``_is_ravellable`` protocol check above.
-    Consumer-minimal: the loop reads only the space-induced norm ``l2``.
-    """
-
-    @property
-    def l2(self) -> float: ...
-
-
-def _principal_bulk_leaf(increment) -> "_NormedLeaf | None":
-    r"""The bulk leaf whose space norm is the iterate-increment diagnostic,
-    or ``None`` for an untyped (bare-ndarray) iterate.
-
-    The SI iterate increment :math:`\Delta\psi = \psi^{(i)} - \psi^{(i-1)}`
-    is, for a typed SN iterate, a composite whose ``interior`` is the bulk
-    leaf; the diagnostic is that leaf's space-induced ``l2`` — NOT the whole
-    composite's flat norm, which additionally ravels the boundary trace
-    ([M] 4.71e-3 apart on the c→1 pin fixture; the convention is pinned by
-    :mod:`tests.numerics.test_si_diagnostic_trajectory`). For the synthetic
-    L0 case the increment is a bare ndarray → no diagnostics, as before.
-
-    A coupled block iterate
-    (:class:`~orpheus.numerics.coupled_system.CoupledField`)
-    exposes ``systems`` instead of ``interior``; the finder
-    recurses into the PRIMARY system (``systems[0]`` — the convention: the
-    coupling's first member is the principal field whose bulk carries the
-    convergence diagnostics; for the ψ½ instance that is System A's
-    transport composite). Numerics-native — ``systems`` is this layer's own
-    direct-sum vocabulary, no transport import.
-
-    Type-agnostic by design (campaign 1 CS3): it walks STRUCTURE
-    (``interior`` / ``systems``) and duck-types only the norm, so the same
-    walk serves today's displacement-typed increment and the plain signed
-    field of the cone algebra — the CS3 step-2 flip does not touch it.
-    """
-    bulk = getattr(increment, "interior", None)
-    if bulk is not None and hasattr(bulk, "l2"):
-        return bulk
-    systems = getattr(increment, "systems", None)
-    if systems:
-        return _principal_bulk_leaf(systems[0])
-    if isinstance(increment, np.ndarray):
-        return None
-    if hasattr(increment, "l2"):
-        return increment
-    return None
+# The iterate-increment diagnostic leaf is the carrier's OWN answer
+# (campaign 1 CS3-R): every field type exposes ``principal_bulk_leaf`` —
+# a leaf returns itself, a two-block composite its ``interior``, a coupled
+# block vector its first system's — so this layer reads one duck attribute
+# and knows nothing of any carrier's anatomy (a bare ndarray has none →
+# no diagnostics, as before). The norm CONVENTION (interior-leaf space
+# ``l2``, not the whole-composite flat norm) lives with its chooser,
+# ``Composite.principal_bulk_leaf``, and is pinned by
+# :mod:`tests.numerics.test_si_diagnostic_trajectory`.
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -776,7 +735,7 @@ class SourceIteration(Generic[V]):
             # geometric-tail estimate from the norm trajectory) — the STOP
             # rides the residual above. Bare-ndarray (L0) iterates record
             # nothing, as before.
-            leaf = _principal_bulk_leaf(psi - psi_prev)
+            leaf = getattr(psi - psi_prev, "principal_bulk_leaf", None)
             if leaf is not None:
                 increment_norms.append(leaf.l2)
 
