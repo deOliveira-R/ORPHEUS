@@ -133,17 +133,28 @@ def _assemble_loss_operator(mat_xs: "MaterialXSField") -> "OperatorSum":
     apply-to-basis materialization this module's retired ``_as_dense``
     prototyped, promoted at taxonomy §12 step 5) and LU-factors it once
     (the early ``.as_matrix()`` this function performed until taxonomy
-    step 5b moved into that constructor).  ``basis_shape=(ng, 1)`` remains
-    the operators' group-leading ``(ng, *spatial)`` bare-ndarray contract
-    on the meshless single cell — passed explicitly by consumers because
-    the meshless operators carry no
-    :attr:`~orpheus.numerics.operator.LinearOperator.domain` space to
-    derive it from.
+    step 5b moved into that constructor).
+
+    Since campaign 1 (CS1) the meshless operators pose on a REAL space:
+    the carrier's axis-built ``bulk_space`` — Energy ⊗ the quotient
+    spatial point, shape ``(ng, 1)`` — reaches ``C`` through the
+    ``from_mesh`` mesh-default chain and is threaded into the isotropic
+    pair explicitly, so all three arms of ``C − (IsoS + IsoN2N)`` agree
+    on one space and the ``OperatorSum`` guard VALIDATES the sum instead
+    of skipping it. Consumers no longer pass ``basis_shape=(ng, 1)`` by
+    hand: ``as_matrix``/``MatrixInverseOperator`` derive it from the
+    threaded domain (the pre-CS1 idiom existed only because these
+    operators carried no
+    :attr:`~orpheus.numerics.operator.LinearOperator.domain` to derive
+    it from).
     """
+    space = mat_xs.mesh.bulk_space
     collision = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,
     )
-    k_iso = IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs)
+    k_iso = IsotropicScattering(mat_xs, space=space) + IsotropicN2N(
+        mat_xs, space=space
+    )
     return collision - k_iso
 
 
@@ -190,8 +201,10 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # explicitly IS the strategy choice) — composed with the fission
     # production dyad F = χ ⊗ νΣ_f.
     loss = _assemble_loss_operator(mat_xs)
-    production = FissionOperator.from_solver_data(mat_xs=mat_xs)
-    K = MatrixInverseOperator(loss, basis_shape=(ng, 1)) @ production
+    production = FissionOperator.from_solver_data(
+        mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
+    )
+    K = MatrixInverseOperator(loss) @ production
 
     # k∞ and the flux spectrum φ are the EXACT dominant eigenpair of the
     # materialized K, extracted by the shared Perron–Frobenius primitive
@@ -199,7 +212,7 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # of the complex-rejection + sign convention).  The 0-D infinite-medium
     # spectrum is exactly solvable, so the dense direct engine is the right
     # tool, not an iterative approximation.
-    k_inf, phi = dominant_eigenpair(K.as_matrix(basis_shape=(ng, 1)))
+    k_inf, phi = dominant_eigenpair(K.as_matrix())
 
     # The reaction rates are the §5.6 reaction-rate functional ∫⟨Σx, φ⟩dV
     # (:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`)

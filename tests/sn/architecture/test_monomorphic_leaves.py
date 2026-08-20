@@ -251,12 +251,13 @@ _SEED_Y = 20260730
 _R1_XFAIL = pytest.mark.xfail(
     strict=True,
     reason=(
-        "R1 — a leaf's function space is OPTIONAL: `domain`/`codomain` are "
-        "annotated `FunctionSpace | None` and the model-generic construction "
-        "(homogeneous/solver.py:193, MEASURED `F.domain is None`) leaves them "
-        "unset. Flipped by campaign P1 (`domain`/`codomain` become "
-        "non-Optional and the meshless path gets a real space). WHEN THIS "
-        "XPASSES: P1 has landed — delete this marker."
+        "R1 (annotation face) — a leaf's `domain`/`codomain` are still "
+        "ANNOTATED `FunctionSpace | None`; the Optional stays legal until "
+        "campaign 1's CS4 flips it to mandatory. (The VALUE rows this "
+        "constant used to guard were deleted at CS1 step 3b: the "
+        "model-generic path now threads a real space — the successor floor "
+        "is tests/homogeneous/test_operator_spaces.py.) WHEN THIS XPASSES: "
+        "CS4 has landed — delete this marker."
     ),
 )
 
@@ -664,44 +665,16 @@ def test_leaf_declares_both_function_spaces(leaf, geometry):
             )
 
 
-@pytest.mark.parametrize("groups", ["2g", "4g"])
-@pytest.mark.parametrize("leaf", ["C", "F"])
-@_R1_XFAIL
-def test_model_generic_leaf_declares_a_space(leaf, groups):
-    r"""**G1.1 / R1** — the MODEL-GENERIC construction leaves the space unset.
-
-    RED today. This mirrors ``orpheus/homogeneous/solver.py`` line for line
-    (``:180`` builds the meshless ``MaterialXSField``, ``:143`` the collision
-    ``C``, ``:193`` the production dyad ``F``) — a *production* path, not a
-    synthetic one. MEASURED at both 2G and 4G: ``C.domain is None`` and
-    ``F.domain is None``, and consequently the assembled loss
-    ``A = C − K_iso`` reports ``None`` too.
-
-    ``_assemble_loss_operator``'s own docstring already concedes the defect —
-    *"the meshless operators carry no domain space to derive it from"* — which
-    is why every homogeneous consumer must pass ``basis_shape=(ng, 1)`` by
-    hand. P1 item 2 gives the meshless path a real space and this XPASSes.
-
-    ``IsotropicScattering``/``IsotropicN2N`` (the other two operators that
-    path builds anonymously) are outside this file's ``{L,C,S,F,B}`` ladder;
-    P1 owes them the same fix.
-    """
-    mixture = get_mixture("A", groups)
-    mat_xs = MaterialMesh.from_materials({0: mixture}).material_xs_field()
-    op: "LinearOperator" = (
-        MultiplicationOperator.from_mesh(
-            mat_xs.total_cross_section_field, mat_xs.mesh,
-        )
-        if leaf == "C"
-        else FissionOperator.from_solver_data(mat_xs=mat_xs)
-    )
-    if op.domain is None or op.codomain is None:
-        pytest.fail(
-            f"{type(op).__name__} built as homogeneous/solver.py builds it "
-            f"({groups}) reports domain={op.domain!r}, "
-            f"codomain={op.codomain!r} — the meshless path has no declared "
-            f"arrow (R1)."
-        )
+# CS1 step 3b (2026-08-21): ``test_model_generic_leaf_declares_a_space``
+# (4 strict-xfail rows, C/F × 2g/4g) was DELETED here. The C rows XPASSed
+# the moment the ``from_mesh`` mesh-default chain gained the ``bulk_space``
+# arm (strict ⟹ forced); the F rows could never XPASS (the body's bare
+# ``from_solver_data(mat_xs=…)`` stays space-less under the ruled
+# no-default-derivation) and were deleted in the same commit on the
+# retired-mirror warrant: the production line they mirrored now threads
+# ``space=``. The successor gate for all four rows is the positive floor
+# ``tests/homogeneous/test_operator_spaces.py::``
+# ``test_every_homogeneous_operator_reports_the_same_space``.
 
 
 def _domain_annotation(leaf_cls: type) -> "tuple[str, str]":

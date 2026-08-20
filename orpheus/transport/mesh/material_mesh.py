@@ -44,12 +44,18 @@ L3 method package — which is exactly what let it be promoted out of
 
 from __future__ import annotations
 
-from functools import reduce
+from functools import cached_property, reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from orpheus.geometry import Mesh1D, Mesh2D
+# The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
+# module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
+# concept; the naming coordination is the Q3 rename issue).
+from orpheus.numerics.axis import Axis as SpaceFactorAxis
+from orpheus.numerics.axis import BasisKind, EnergyAxis
+from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.axis import (
     Axis1D,
     AxisMesh,
@@ -366,6 +372,68 @@ class MaterialMesh:
     def volumes(self) -> np.ndarray:
         """Cell volumes, shape ``spatial_shape`` (rank ``ndim``)."""
         return self._volumes
+
+    # CS1.5 re-point: ``bulk_space`` moves to ``Medium`` (the carrier concept
+    # that genuinely owns it); the property rides that carve unchanged.
+    @cached_property
+    def bulk_space(self) -> FunctionSpace:
+        r"""The scalar-bulk function space of this carrier — axis-built (CS1).
+
+        The UNIFORM formula, honest on EVERY member of the hierarchy
+        (single generic body, Cardinal Rule 2)::
+
+            of_axes(energy_axis, SpaceFactorAxis("spatial", spatial_shape,
+                                                 weights=volumes, NODAL))
+
+        * **The degenerate carrier** (``from_materials``): ``[M]`` its
+          volumes are ``[1.0]``, so the spatial factor canonicalizes to the
+          COUNTING weight — the quotient point carrying the normalized
+          "per unit volume" density convention (collapse doctrine, clause
+          1). Shape ``(ng, 1)``: the explicit point axis the homogeneous
+          operators pose on.
+        * **A genuine one-cell mesh** keeps ``V ≠ 1`` BY THE DATA —
+          distinguished from the quotient point by MEASURE, hence (through
+          the derived name) by space identity. ⚠ Provably invisible to
+          ``.H`` (a scalar metric commutes with every operator — the F2
+          measurement); identity is the only instrument that carries it.
+        * **A meshed carrier** (``SNMesh``/``DiffusionMesh`` inherit this)
+          gets the honest scalar bulk ``(ng, *spatial)`` with cell-volume
+          weights — the seed of CS2's single scalar-bulk mint. It is NOT
+          the angular composite: ``SNMesh.bulk_space`` and
+          ``SNMesh.full_field_space`` are different spaces with different
+          jobs.
+
+        **The energy arm** reads only materials REACHABLE from ``mat_map``
+        (the leak principle: the mint consults exactly its defining data —
+        ``from_materials`` retains spectator entries, and a spectator with
+        ``eg=None`` must not flip the axis identity of a problem it does
+        not touch). All reachable materials carrying content-equal ``eg``
+        edges ⟹ ``EnergyAxis.from_grid`` (identity = ng + edges bytes);
+        otherwise ``EnergyAxis.synthetic(ng)``. Deterministic per carrier;
+        deliberately NO new construction-time refusal — grid coherence
+        across materials is a MEDIUM-level invariant (CS1.5 design input).
+
+        Cached: every consumer of one carrier reads the SAME instance
+        (and equal carriers mint ``==`` spaces through the derived name).
+        """
+        reachable = sorted(int(i) for i in np.unique(self.mat_map))
+        egs = [self.materials[i].eg for i in reachable]
+        present = [eg for eg in egs if eg is not None]
+        if egs and len(present) == len(egs) and all(
+            np.array_equal(eg, present[0]) for eg in present[1:]
+        ):
+            energy = EnergyAxis.from_grid(self.materials[reachable[0]].energy_grid)
+        else:
+            energy = EnergyAxis.synthetic(self.ng)
+        return FunctionSpace.of_axes(
+            energy,
+            SpaceFactorAxis(
+                "spatial",
+                self.spatial_shape,
+                weights=self.volumes,
+                kind=BasisKind.NODAL,
+            ),
+        )
 
     def integrate_per_group(self, density: np.ndarray) -> np.ndarray:
         r"""Volume-integrate a per-group cell density into a per-group rate.

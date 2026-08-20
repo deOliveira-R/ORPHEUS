@@ -245,9 +245,11 @@ class MultiplicationOperator(LinearOperator["FullField"]):
     def is_assemblable(self) -> bool:
         r"""``True`` iff the composite flat layout is known — a block-bearing
         :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-        was threaded at construction. A space-anonymous multiplier (the
-        mesh-free / bare-ndarray consumers) honestly refuses: there is
-        no global DOF numbering to emit into."""
+        was threaded at construction. A multiplier without one honestly
+        refuses: a bare/space-less multiplier has no layout at all, and a
+        plain bulk space (e.g. the carrier's axis-built ``bulk_space``,
+        CS1) carries no bulk ⊕ trace composite flat layout — there is no
+        global DOF numbering to emit into."""
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
         return (
@@ -277,9 +279,11 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         space = self.space
         if not isinstance(space, FullFieldSpace) or space.interior_space is None:
             raise MissingAssembly(
-                "MultiplicationOperator.assemble requires a block-bearing "
-                "FullFieldSpace (the composite flat layout); this "
-                "multiplier is space-anonymous."
+                f"MultiplicationOperator.assemble requires a block-bearing "
+                f"FullFieldSpace (the composite flat layout); this "
+                f"multiplier's space is "
+                f"{'None' if space is None else type(space).__name__}, "
+                f"which carries no composite flat layout to emit into."
             )
         interior_shape = tuple(space.interior_space.shape)
         n_interior = int(np.prod(interior_shape))
@@ -327,13 +331,19 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             if isinstance(sigma, CrossSectionField)
             else CrossSectionField.from_mesh(np.asarray(sigma), mesh)
         )
-        # The composite space defaults to the mesh's own (an SNMesh carries
-        # ``full_field_space``); pass ``space=`` to override. This makes
-        # ``from_mesh(σ, sn_mesh)`` a faithful drop-in for the retired
+        # The space defaults to the mesh's own, most-structured-first (CS1):
+        # a method mesh's composite ``full_field_space`` wins (SNMesh /
+        # DiffusionMesh short-circuit here, untouched), else the carrier's
+        # axis-built ``bulk_space`` (every MaterialMesh carries one — the
+        # degenerate homogeneous carrier resolves its Energy ⊗ point space
+        # through this arm). Pass ``space=`` to override. The first arm
+        # makes ``from_mesh(σ, sn_mesh)`` a faithful drop-in for the retired
         # ``CollisionOperator(sn_mesh, σ)``, which reached the same space via
         # ``sn_mesh.full_field_space`` (#261).
         if space is None:
             space = getattr(mesh, "full_field_space", None)
+        if space is None:
+            space = getattr(mesh, "bulk_space", None)
         return cls(coefficient=coefficient, space=space)
 
     # ── Operator-algebra space metadata (W-D / #261) ─────────────────────

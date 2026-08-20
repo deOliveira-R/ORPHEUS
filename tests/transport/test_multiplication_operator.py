@@ -491,6 +491,38 @@ class TestSpaceMetadataAndGuardJoin:
             "from_mesh must default space to mesh.full_field_space",
         )
 
+    def test_from_mesh_chain_short_circuits_on_full_field_space(self, monkeypatch):
+        """D7 (CS1, path gate) — on a method mesh the default chain takes
+        ``full_field_space`` and NEVER consults ``bulk_space``.
+
+        The chain order is load-bearing: ``SNMesh.bulk_space`` is the
+        scalar ``(ng, *spatial)`` bulk, NOT the angular composite, so a
+        flipped chain would silently re-space every SN multiplier. The
+        probe POISONS ``bulk_space`` with a raising property (never a
+        counter — a monkeypatch that silently no-ops lies in the safe
+        direction), proves the poison is live, then asserts ``from_mesh``
+        both survives and short-circuits to the composite by IDENTITY.
+        (The no-attribute → ``None`` fence is already pinned by
+        ``test_space_anonymous_by_default`` above.)
+        """
+        sn = _slab_mesh()
+        sigma = _positive_sigma(sn)
+
+        def _poison(_self):
+            raise RuntimeError(
+                "bulk_space consulted — the from_mesh chain must "
+                "short-circuit on full_field_space for a method mesh"
+            )
+
+        monkeypatch.setattr(type(sn), "bulk_space", property(_poison))
+        with pytest.raises(RuntimeError, match="short-circuit"):
+            _ = sn.bulk_space  # the poison is LIVE, not a silent no-op
+        M = MultiplicationOperator.from_mesh(sigma, sn)
+        _require(
+            M.space is sn.full_field_space,
+            "the chain must resolve the composite by identity, first arm",
+        )
+
     def test_matching_spaces_compose(self):
         """Two multipliers on the SAME space compose into an ``OperatorSum``
         (the guard VALIDATES — equal domains AND codomains)."""

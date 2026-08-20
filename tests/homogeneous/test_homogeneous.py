@@ -137,7 +137,10 @@ def test_assemble_loss_operator_matches_fused_oracle():
     mix = next(iter(case.materials.values()))
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
 
-    A = _assemble_loss_operator(mat_xs).as_matrix(basis_shape=(mix.ng, 1))
+    # CS1 3b: bare as_matrix() — the shape derives from the threaded domain
+    # (the explicit basis_shape idiom is retired on this path; D9 pins the
+    # derivation).
+    A = _assemble_loss_operator(mat_xs).as_matrix()
     sig_t = mat_xs.total_cross_section[:, 0]
     sig_s0 = mat_xs.sig_s_legendre(0)[0]  # (ng, ng), [g_from, g_to]
     sig_2 = mat_xs.n2n_matrix(0)
@@ -281,10 +284,12 @@ def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
-    A = _assemble_loss_operator(mat_xs).as_matrix(basis_shape=(mix.ng, 1))
-    F = FissionOperator.from_solver_data(mat_xs=mat_xs).as_matrix(
-        basis_shape=(mix.ng, 1),
-    )
+    # CS1 3b: mirror the production spelling — F threads the carrier's
+    # bulk_space and every as_matrix derives its shape from the domain.
+    A = _assemble_loss_operator(mat_xs).as_matrix()
+    F = FissionOperator.from_solver_data(
+        mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
+    ).as_matrix()
     k_engine = _eig.direct_eigenvalue(A, F)[0]
 
     result = solve_homogeneous_infinite(mix)
@@ -352,17 +357,21 @@ def test_K_operator_as_matrix_is_the_resolvent():
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
-    ng = mix.ng
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
 
+    # CS1 3b: the line-for-line production mirror (solver.py builds K
+    # exactly this way — F threaded with the carrier's bulk_space, no
+    # explicit basis_shape anywhere; the shapes derive from the domain).
     loss = _assemble_loss_operator(mat_xs)
-    production = FissionOperator.from_solver_data(mat_xs=mat_xs)
-    K = MatrixInverseOperator(loss, basis_shape=(ng, 1)) @ production
+    production = FissionOperator.from_solver_data(
+        mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
+    )
+    K = MatrixInverseOperator(loss) @ production
 
-    A = loss.as_matrix(basis_shape=(ng, 1))
-    F = production.as_matrix(basis_shape=(ng, 1))
+    A = loss.as_matrix()
+    F = production.as_matrix()
     np.testing.assert_allclose(
-        K.as_matrix(basis_shape=(ng, 1)),
+        K.as_matrix(),
         np.linalg.solve(A, F),
         rtol=1e-12,
         atol=0,

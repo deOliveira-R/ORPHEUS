@@ -361,6 +361,119 @@ def test_dual_of_an_axis_built_space_keeps_the_measure() -> None:
     )
 
 
+def test_quotient_point_and_a_genuine_one_cell_mesh_are_DIFFERENT_spaces() -> None:
+    r"""B9 ⭐ — the collapse doctrine's retrodiction (A.5 row 4), mechanized.
+
+    ``MaterialMesh.from_materials`` mints the QUOTIENT carrier — volumes
+    ``[1.0]``, the normalized "per unit volume" density convention, whose
+    spatial weight canonicalizes to counting. A genuine one-cell slab of
+    width 2 keeps ``V = 2`` BY THE DATA. Both spaces have shape
+    ``(ng, 1)`` — shape carries nothing; the derived NAME (hence space
+    identity) is the only discriminator.
+
+    ⚠ Per F2 (measured): this distinction is provably INVISIBLE to
+    ``.H`` — a scalar metric commutes with every operator, so ``V = 2``
+    reads bit-identical to ``V = 1`` on every adjoint — which is exactly
+    why this identity gate exists and why no adjoint-flavoured gate can
+    replace it (mutation M17's MUST-STAY-GREEN column is the proof).
+
+    # CS1.5 re-point: ``bulk_space`` moves to Medium; this gate re-points
+    # with it.
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.geometry import Mesh1D
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+    mix = get_mixture("A", "2g")
+    quotient = MaterialMesh.from_materials({0: mix}).bulk_space
+    one_cell_mesh = MaterialMesh(
+        Mesh1D(edges=np.array([0.0, 2.0]), mat_ids=np.array([0])), {0: mix}
+    )
+    _require(
+        bool(np.array_equal(one_cell_mesh.volumes, [2.0])),
+        "precondition lost: the one-cell slab no longer has V = 2",
+    )
+    one_cell = one_cell_mesh.bulk_space
+    _require(quotient.shape == one_cell.shape == (2, 1), "precondition: same shape")
+    _require(
+        quotient != one_cell,
+        "the quotient point and a genuine one-cell mesh collapsed to ONE "
+        "space — the measure fell out of the identity",
+    )
+
+
+def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
+    """B10 — ``(ng, *spatial)`` with cell-volume weights; and DISTINCT
+    from the method mesh's angular composite.
+
+    ``bulk_space`` is inherited by ``SNMesh``/``DiffusionMesh``, so the
+    uniform formula must be honest on EVERY member (the seed of CS2's
+    single scalar-bulk mint). The second half
+    (``mesh.bulk_space != mesh.full_field_space``) is what makes D7's
+    chain-ordering claim non-vacuous.
+
+    # CS1.5 re-point: ``bulk_space`` moves to Medium; this gate re-points
+    # with it.
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.diffusion import DiffusionMesh
+    from orpheus.geometry import BC, Mesh1D
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+    mix = get_mixture("A", "2g")
+    # Non-uniform edges, so the volumes are NOT all-ones and the weights
+    # survive canonicalization (a uniform unit mesh would collapse to the
+    # counting spelling and this gate would assert nothing).
+    mesh1d = Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]), mat_ids=np.array([0, 0, 0]))
+    carrier = MaterialMesh(mesh1d, {0: mix})
+    space = carrier.bulk_space
+    _require(space.shape == (2, 3), f"scalar bulk shape {space.shape} != (2, 3)")
+    axes = space.axes
+    assert axes is not None
+    spatial_weights = axes[1].weights
+    assert spatial_weights is not None
+    _require(
+        bool(np.array_equal(spatial_weights, carrier.volumes)),
+        "the spatial factor measure must BE the cell volumes",
+    )
+
+    diffusion_mesh = DiffusionMesh(
+        Mesh1D(
+            edges=np.array([0.0, 1.0, 3.0, 6.0]),
+            mat_ids=np.array([0, 0, 0]),
+            bc_left=BC("reflective"),
+            bc_right=BC("reflective"),
+        ),
+        {0: mix},
+    )
+    _require(
+        diffusion_mesh.bulk_space != diffusion_mesh.full_field_space,
+        "the scalar bulk and the composite carrier collapsed — D7's "
+        "chain-ordering claim would be vacuous",
+    )
+
+
+def test_bulk_space_is_cached_and_content_stable() -> None:
+    """B11 — one carrier, ONE instance (``is``); equal carriers, EQUAL
+    spaces (the derived name is content, not identity).
+
+    # CS1.5 re-point: ``bulk_space`` moves to Medium; this gate re-points
+    # with it.
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+    mix = get_mixture("A", "2g")
+    carrier = MaterialMesh.from_materials({0: mix})
+    _require(carrier.bulk_space is carrier.bulk_space, "must be cached")
+    twin = MaterialMesh.from_materials({0: mix})
+    _require(
+        carrier.bulk_space == twin.bulk_space
+        and hash(carrier.bulk_space) == hash(twin.bulk_space),
+        "equal carriers must mint equal spaces",
+    )
+
+
 def test_axis_built_construction_guards() -> None:
     """The two illegal states of an axis-built space are refused, and
     ``of_axes`` refuses an empty factor list.

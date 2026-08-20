@@ -992,8 +992,10 @@ class LinearOperator(Protocol[Domain, Codomain]):
         basis_shape : tuple[int, ...], optional
             The element shape :meth:`apply` consumes. Default: derived
             from :attr:`domain` (``domain.shape``); REQUIRED explicitly
-            for operators carrying no space (e.g. the meshless
-            single-cell group operators, ``basis_shape=(ng, 1)``).
+            for operators carrying no space (bare/test-constructed
+            operators on the legal-until-CS4 ``None`` path — the
+            meshless production operators thread the carrier's
+            ``bulk_space`` since campaign 1 CS1 and derive).
         max_dimension : int, optional
             The size gate: refuse (``MatrixTooLarge``) when
             ``prod(basis_shape) > max_dimension``. Default ``4096`` —
