@@ -189,6 +189,14 @@ E1 modal witness; (4) ✅ byte-stable 8/8; (5) ✅ this row + the step-5 docs.
 no ⊕, no identity flip (S3), no metric relocation (CS2), no Optional→mandatory
 (CS4), `from_materials` internals untouched (CS1.5 owns the fake-AxisMesh death).
 
+**⭐ BRANCH-HOLD RULING (user, 2026-08-20):** `feature/cs1-energy-space` is HELD
+unmerged — *"We will significantly advance before the next merge to main"* — so
+the following phases (CS1.5 → CS2 …) land on THIS branch, and the ≥90-min
+pre-merge full gate runs once, before that eventual merge, not per phase. A
+session picking this up must NOT merge after its own phase without the user's
+go. Per-phase verification stays as CS1 practiced it (scoped suites + battery +
+pyright + Sphinx `-W`). Merge-status: trust git, never this sentence.
+
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
 **Goal.** SN's bulk space is literally the composition Energy ⊗ Spatial ⊗ Angular of
