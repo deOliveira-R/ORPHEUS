@@ -1,0 +1,298 @@
+r"""Space-factor axes — the generators of axis-composed function spaces.
+
+An **axis** is one tensor factor of a function space: the value object
+recording *(index shape, factor measure, basis kind, generator identity)*.
+Spaces are ordered products of axes (``FunctionSpace.of_axes``); the axis is
+the unit the composition machinery reasons about — partitions, collapses,
+frames, and (later) ⊕-lifts act **per axis**, never on an anonymous
+position of a monolithic shape tuple.
+
+The four slots, precisely
+=========================
+
+* ``shape`` — the index set of this factor, rank ≥ 1. Rank > 1 is
+  admissible (a spherical-harmonic axis is ``(L+1, 2L+1)``; a rank-``d``
+  spatial axis is a legal design choice for CS2).
+* ``weights`` — the **factor measure** over exactly ``shape``.
+  ``None`` **is the counting measure, deliberately and always**: an axis
+  has no "unbound" state, so the two-state ambiguity of the legacy
+  ``FunctionSpace.inner_product_weights`` (``None`` = "no canonical
+  quadrature" *or* "Euclidean") cannot arise on this type.
+* ``kind`` — :class:`BasisKind`. ``NODAL`` factors carry a coordinate
+  cone (per-component positivity is meaningful); ``MODAL`` factors do not
+  (a spectral coefficient may be negative for a positive function).
+* identity — **structural, per subclass** (see below).
+
+Canonical storage — one spelling per measure (ruled 2026-08-20)
+===============================================================
+
+Two construction rulings make the measure's identity unambiguous:
+
+* **All-ones weights collapse to ``None`` at construction.** The counting
+  measure has ONE spelling and therefore one identity; without this,
+  ``weights=None`` and ``weights=np.ones(shape)`` would be the same
+  measure with unequal identities — a twin exactly of the shape the
+  fresh-``EnergyGrid``-per-access trap takes at the grid layer.
+* **Weights are canonicalized as ``w + 0.0`` and stored read-only.**
+  ``-0.0`` and ``+0.0`` are one measure and must be one identity/byte
+  pattern; the addition also guarantees a defensive copy, so mutating the
+  caller's array can never move an axis's hash after it has been used as
+  a dict key.
+
+Non-finite weights are **refused** (a measure's weights are finite
+numbers). There is deliberately **no non-negativity guard**: CS2's
+quadrature axes legally carry signed weights (e.g. level-symmetric
+families with negative weights), and the axis is the wrong layer to
+outlaw them.
+
+Identity — structural per subclass, from day one
+================================================
+
+Equality and hash compare the *structural content* — ``(type, label,
+shape, kind, weights bytes)`` plus each subclass's own identity data —
+never object identity and never a subset. Two axes that differ only in
+measure are **different axes** (the collapse doctrine's "a genuine
+one-cell slab keeps its axis with weight V ≠ 1, distinguished from the
+quotient point by measure"); an :class:`EnergyAxis` never equals a
+generic :class:`Axis` carrying the same field tuple. This identity is
+what ``FunctionSpace.of_axes`` derives *space names* from, and — because
+space identity is ``(name, shape)`` until the S3 flip — axis identity is
+load-bearing for space identity today.
+
+Layering note: this module is model-independent numerics. It consumes an
+:class:`~orpheus.data.energy_grid.EnergyGrid` only through its surface
+(``edges``, ``n_groups``) under ``TYPE_CHECKING`` — the runtime
+dependency direction stays ``data → numerics``.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum, unique
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from orpheus.data.energy_grid import EnergyGrid
+
+__all__ = ["Axis", "BasisKind", "EnergyAxis"]
+
+
+@unique
+class BasisKind(Enum):
+    """The basis character of a space factor.
+
+    ``NODAL`` — components are point/cell VALUES (indicator-like basis):
+    the factor carries a coordinate cone, so per-component positivity is a
+    meaningful predicate. ``MODAL`` — components are expansion
+    COEFFICIENTS (spectral basis): no coordinate cone; a positive function
+    may have negative coefficients, so per-component sign tests are
+    meaningless and must be refused, not answered.
+    """
+
+    NODAL = "nodal"
+    MODAL = "modal"
+
+
+@dataclass(frozen=True, eq=False)
+class Axis:
+    r"""One tensor factor of a function space — a frozen value object.
+
+    Parameters
+    ----------
+    label : str
+        The factor's role name (``"energy"``, ``"spatial"``, …). Part of
+        the identity: two same-shaped factors with different roles are
+        different axes.
+    shape : tuple[int, ...]
+        The factor's index shape, rank ≥ 1 (refused otherwise).
+    weights : NDArray | None, default None
+        The factor measure over exactly ``shape``. ``None`` IS the
+        counting measure (identity metric) — deliberately, always; an
+        all-ones array is CANONICALIZED to ``None`` at construction so
+        the counting measure has one spelling and one identity. Stored
+        canonicalized (``w + 0.0``, killing ``-0.0``), defensively
+        copied, read-only. Non-finite entries are refused; signed
+        weights are legal (quadrature families need them).
+    kind : BasisKind
+        Keyword-only, no default — the basis character is physics and
+        must be spelled at every mint.
+
+    Notes
+    -----
+    Frozen and hashable with **structural equality per subclass**:
+    ``__eq__``/``__hash__`` read ``(type, label, shape, kind, weights
+    bytes)``. Subclasses extend the key via :meth:`_identity_key`; the
+    class check keeps an ``EnergyAxis`` and a field-identical generic
+    ``Axis`` unequal (the identity is *what kind of generator produced
+    this factor*, not a bag of fields).
+    """
+
+    label: str
+    shape: tuple[int, ...]
+    weights: NDArray | None = field(default=None, repr=False)
+    kind: BasisKind = field(kw_only=True)
+
+    def __post_init__(self) -> None:
+        shape = tuple(int(n) for n in self.shape)
+        object.__setattr__(self, "shape", shape)
+        if len(shape) < 1:
+            raise ValueError(
+                f"an Axis needs rank >= 1, got shape {shape!r} — a rank-0 "
+                f"factor has no index set to measure"
+            )
+        if self.weights is not None:
+            w = np.ascontiguousarray(self.weights, dtype=float)
+            if w.shape != shape:
+                raise ValueError(
+                    f"axis weights must live over exactly the axis shape: "
+                    f"weights shape {w.shape} != axis shape {shape}"
+                )
+            if not bool(np.isfinite(w).all()):
+                raise ValueError(
+                    f"axis weights must be finite (a factor measure has "
+                    f"finite weights); got {w!r}"
+                )
+            if bool((w == 1.0).all()):
+                # Canonicalization: the counting measure has ONE spelling.
+                object.__setattr__(self, "weights", None)
+            else:
+                # ``+ 0.0`` canonicalizes -0.0 -> +0.0 AND forces a fresh
+                # allocation (defensive copy even when the input was
+                # already a contiguous float array).
+                w = w + 0.0
+                w.setflags(write=False)
+                object.__setattr__(self, "weights", w)
+
+    def _identity_key(self) -> tuple[Any, ...]:
+        """The structural content equality/hash read (subclasses extend)."""
+        w = self.weights
+        return (
+            self.label,
+            self.shape,
+            self.kind,
+            None if w is None else w.tobytes(),
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if other.__class__ is not self.__class__:
+            return NotImplemented
+        assert isinstance(other, Axis)  # type narrowing only
+        return self._identity_key() == other._identity_key()
+
+    def __hash__(self) -> int:
+        return hash((self.__class__, self._identity_key()))
+
+
+@dataclass(frozen=True, eq=False)
+class EnergyAxis(Axis):
+    r"""The multigroup energy factor — a 1-D mesh in energy.
+
+    **The faces reading.** An :class:`~orpheus.data.energy_grid.EnergyGrid`
+    is a one-dimensional MESH in energy: the group boundaries are its
+    FACES, the groups are its CELLS, and condensation is the mesh-overlap
+    map (``EnergyGrid.overlap_to`` — fractional re-binning, fine → coarse
+    only). The one-group member is the one-CELL energy mesh — its edges
+    and weighting spectrum survive because they define :math:`\bar\sigma`,
+    which is exactly what the Bateman/depletion pairing
+    :math:`\langle\bar\sigma, \phi\rangle` consumes. The axis therefore
+    persists down to its terminal one-cell member (collapse doctrine,
+    clause 2: partition-integration of an L¹ field class).
+
+    **The counting-measure theorem.** Multigroup flux components are group
+    INTEGRALS (covariant, extensive): :math:`\phi_g = \int_g \phi(E)\,dE`.
+    Cross sections are flux-weighted group AVERAGES (contravariant,
+    intensive). The convention is chosen so that
+    :math:`\int \sigma(E)\,\phi(E)\,dE = \sum_g \sigma_g\,\phi_g`
+    EXACTLY — no group widths appear. The energy metric is therefore the
+    COUNTING measure **as a theorem, not a default**: metric = I,
+    :math:`V \cong V^*` isometrically, and the adjoint along energy is
+    the plain transpose. Construction enforces it: a weighted
+    ``EnergyAxis`` is refused (use a generic :class:`Axis` for
+    deliberately non-physical toys), and both constructors mint
+    ``weights=None``.
+
+    **The V/V\* collapse hook (declared now, built at S7/Campaign 2).**
+    Condensation acts as plain SUM on V (integrals add) and as
+    flux-weighted AVERAGE on V* (averages re-weight); collapse
+    adjoint-consistency is precisely that pair being mutually adjoint
+    under the counting pairing. This axis records the group structure
+    those morphisms will consume.
+
+    **Identity (ruled Q2): ng + edges CONTENT.** ``from_grid`` axes carry
+    the boundary energies; equality reads their BYTES, never
+    ``EnergyGrid`` object identity — ``Mixture.energy_grid`` mints a
+    FRESH ``eq=False`` grid per access, so two mints from one mixture
+    must (and do) yield equal axes. ``synthetic(ng)`` axes carry no
+    edges; identity is ``ng`` alone, and a synthetic axis NEVER equals a
+    ``from_grid`` axis of the same ``ng`` (same index set, different
+    partition — different axis).
+
+    Edges follow the canonical fast-first convention (strictly
+    DESCENDING, group 0 = fastest; ``EnergyGrid`` refuses anything
+    else — the invariant is checked there, once, not re-checked here).
+    """
+
+    edges: NDArray | None = field(default=None, kw_only=True, repr=False)
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.weights is not None:
+            raise ValueError(
+                "an EnergyAxis cannot carry weights: the multigroup "
+                "convention makes the energy measure COUNTING as a theorem "
+                "(group integrals x group averages pair without widths). "
+                "For a deliberately non-physical weighted toy, use a "
+                "generic Axis."
+            )
+        if self.kind is not BasisKind.NODAL:
+            raise ValueError(
+                "an EnergyAxis is NODAL by construction: groups are the "
+                "CELLS of a 1-D energy mesh (components are per-group "
+                "integrals, not spectral coefficients)"
+            )
+        if len(self.shape) != 1:
+            raise ValueError(
+                f"an EnergyAxis is rank 1 (groups index a 1-D energy "
+                f"mesh); got shape {self.shape}"
+            )
+        if self.edges is not None:
+            edges = np.ascontiguousarray(self.edges, dtype=float) + 0.0
+            edges.setflags(write=False)
+            object.__setattr__(self, "edges", edges)
+            (ng,) = self.shape
+            if edges.shape != (ng + 1,):
+                raise ValueError(
+                    f"EnergyAxis edges must be the {ng + 1} group "
+                    f"boundaries of its {ng} groups; got shape "
+                    f"{edges.shape}"
+                )
+
+    @classmethod
+    def from_grid(cls, grid: "EnergyGrid") -> "EnergyAxis":
+        """The axis of a real group structure — identity = ng + edges bytes.
+
+        Axis-from-mesh: symmetric with the (CS2) ``SpatialAxis.from_mesh``
+        generator. Consumes the grid's surface only (``edges``,
+        ``n_groups``); the descending-edges invariant is the grid's own
+        construction contract.
+        """
+        return cls("energy", (grid.n_groups,), kind=BasisKind.NODAL, edges=grid.edges)
+
+    @classmethod
+    def synthetic(cls, ng: int) -> "EnergyAxis":
+        """The axis of a grid-less ``ng``-group problem — identity = ng only.
+
+        The honest spelling for fixtures/libraries that declare a group
+        COUNT with no boundary energies (every shipped ``get_mixture``
+        pair has ``eg is None``). Deliberately UNEQUAL to any
+        ``from_grid`` axis of the same ``ng``: same index set, no
+        partition data — a different axis.
+        """
+        return cls("energy", (int(ng),), kind=BasisKind.NODAL, edges=None)
+
+    def _identity_key(self) -> tuple[Any, ...]:
+        e = self.edges
+        return (*super()._identity_key(), None if e is None else e.tobytes())
