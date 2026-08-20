@@ -399,15 +399,19 @@ class ScatteringOperator(LinearOperator):
         default=None, init=False, repr=False,
     )
 
-    #: The composite full-field space this operator acts on. Threaded from the
-    #: solver's ``sn_mesh.full_field_space`` via :meth:`from_solver_data`;
-    #: ``None`` for the bare/test constructor (then ``domain``/``codomain``
-    #: report ``None`` and the composition guard skips — backward-compatible).
-    #: When present it is the SAME instance ``L``/``C``/``B`` carry, so the
-    #: within-group ``(L+C) - S`` :class:`~orpheus.numerics.operator.OperatorSum`
-    #: guard validates the ``- S`` arm natively. ``S`` depends on this numerics
-    #: ``FunctionSpace``, NOT on an SN mesh (``S`` scatters in every method).
-    full_field_space: "FullFieldSpace | None" = field(
+    #: The space this operator acts on (renamed from ``full_field_space`` in
+    #: campaign 1 CS1 — the slot names the ROLE; the TYPE stays the narrow
+    #: ``FullFieldSpace | None`` because ``S`` composes only into the SN
+    #: within-group sum today, and name-widening without a consumer would be
+    #: speculative). Threaded from the solver's ``sn_mesh.full_field_space``
+    #: via :meth:`from_solver_data`; ``None`` for the bare/test constructor
+    #: (then ``domain``/``codomain`` report ``None`` and the composition guard
+    #: skips — backward-compatible). When present it is the SAME instance
+    #: ``L``/``C``/``B`` carry, so the within-group ``(L+C) - S``
+    #: :class:`~orpheus.numerics.operator.OperatorSum` guard validates the
+    #: ``- S`` arm natively. ``S`` depends on this numerics ``FunctionSpace``,
+    #: NOT on an SN mesh (``S`` scatters in every method).
+    space: "FullFieldSpace | None" = field(
         default=None, repr=False, compare=False,
     )
 
@@ -426,12 +430,12 @@ class ScatteringOperator(LinearOperator):
         keeps bare/test construction backward-compatible. :math:`S` reads and
         writes the bulk block only, so domain == codomain on the composite.
         """
-        return self.full_field_space
+        return self.space
 
     @property
     def codomain(self) -> "FunctionSpace | None":
         # Endomorphic on the composite full-field space (see :meth:`domain`).
-        return self.full_field_space
+        return self.space
 
     @property
     def is_adjointable(self) -> bool:
@@ -763,11 +767,11 @@ class ScatteringOperator(LinearOperator):
         mat_xs: "MaterialXSField",
         quadrature: "Quadrature",
         scattering_order: int,
-        full_field_space: "FullFieldSpace | None" = None,
+        space: "FullFieldSpace | None" = None,
     ) -> "ScatteringOperator":
         """Construct from a :class:`MaterialXSField` + quadrature.
 
-        ``full_field_space`` (P4.5 W-D) is the composite
+        ``space`` (P4.5 W-D) is the composite
         :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space` the solver
         threads so ``S``'s ``domain``/``codomain`` match ``L``/``C``/``B``
         and the within-group ``(L+C) - S`` composition guard validates the
@@ -782,7 +786,7 @@ class ScatteringOperator(LinearOperator):
             mat_xs=mat_xs,
             quadrature=quadrature,
             scattering_order=scattering_order,
-            full_field_space=full_field_space,
+            space=space,
         )
 
     # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
@@ -1010,7 +1014,7 @@ class ScatteringOperator(LinearOperator):
             mat_xs=derived_mat_xs,
             quadrature=self.quadrature,
             scattering_order=0,
-            full_field_space=self.full_field_space,
+            space=self.space,
         )
 
     def residual_part(self) -> "ScatteringOperator":
@@ -1051,7 +1055,7 @@ class ScatteringOperator(LinearOperator):
             mat_xs=derived_mat_xs,
             quadrature=self.quadrature,
             scattering_order=self.scattering_order,
-            full_field_space=self.full_field_space,
+            space=self.space,
         )
 
     def is_foldable_into_sigma_r(self) -> bool:

@@ -500,7 +500,7 @@ def build_within_group_system(
             mat_xs=mat_xs,
             quadrature=sn_mesh.quad,
             scattering_order=scattering_order,
-            full_field_space=full_field_space,
+            space=full_field_space,
         )
     )
     # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.

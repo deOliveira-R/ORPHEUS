@@ -1334,11 +1334,11 @@ class SNSolver:
             mat_xs=self.mat_xs,
             quadrature=sn_mesh.quad,
             scattering_order=self.scattering_order,
-            full_field_space=sn_mesh.full_field_space,
+            space=sn_mesh.full_field_space,
         )
         self.fission_op = FissionOperator.from_solver_data(
             mat_xs=self.mat_xs,
-            full_field_space=sn_mesh.full_field_space,
+            space=sn_mesh.full_field_space,
         )
 
         # ── Sweep cache (Issue #196 Phase G Step 2.5c) ───────────────
@@ -2802,7 +2802,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     for extra in system.explicit_gains[1:]:
         gain = gain + extra
     F = FissionOperator.from_solver_data(
-        mat_xs=mat_xs, full_field_space=sn_mesh.full_field_space,
+        mat_xs=mat_xs, space=sn_mesh.full_field_space,
     )
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
     full_field_zero = FullField(

@@ -2870,7 +2870,7 @@ def _m_minus_n_reference(sn, mat_xs, coupled):
     requirement carries over: vacuum masks a dropped ``B_b``)."""
     solver_S = ScatteringOperator.from_solver_data(
         mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
-        full_field_space=sn.full_field_space)
+        space=sn.full_field_space)
     system = build_within_group_system(sn, mat_xs, scattering_op=solver_S)
     y_m = system.implicit_operator.apply(coupled)
     y_n = system.explicit_gains[0].apply(coupled)

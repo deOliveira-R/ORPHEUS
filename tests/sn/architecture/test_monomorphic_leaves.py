@@ -513,10 +513,10 @@ def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
         ),
         "S": ScatteringOperator.from_solver_data(
             mat_xs=mat_xs, quadrature=sn_mesh.quad, scattering_order=1,
-            full_field_space=sn_mesh.full_field_space,
+            space=sn_mesh.full_field_space,
         ),
         "F": FissionOperator.from_solver_data(
-            mat_xs=mat_xs, full_field_space=sn_mesh.full_field_space,
+            mat_xs=mat_xs, space=sn_mesh.full_field_space,
         ),
         "B": SNBoundaryOperator(sn_mesh),
     }

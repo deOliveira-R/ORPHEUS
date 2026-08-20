@@ -245,7 +245,7 @@ class DiffusionSolver:
         self.boundary = DiffusionBoundaryOperator(mesh)
         self.loss = self.leakage + collision - scattering - self.boundary
         self.fission = FissionOperator.from_solver_data(
-            mat_xs=self.mat_xs, full_field_space=space,
+            mat_xs=self.mat_xs, space=space,
         )
 
         #: The zero composite freezing the flat layout.
