@@ -2,7 +2,10 @@
 
 **STATUS: DESIGN DISCUSSION CONCLUDED (2026-08-20, round 6) — every fork ruled or
 resolved; execution protocol chartered by the user (see THE PROTOCOL FROM HERE,
-below).** This file is the design record and the post-compaction resume surface. Governed by `plan-authoring.md`. The campaign plan of record is
+below). Protocol step 2 (clear-context re-evaluation + §P grounding) EXECUTED
+2026-08-20 at `273d431a`: the conceptual layers (§A/§B/§B2/§C, Appendix A) survived
+the adversarial re-read unchanged; all corrections are §F execution-layer, marked
+⭐ GROUNDED / ⭐ CORRECTED in place; §P results block below the checklist.** This file is the design record and the post-compaction resume surface. Governed by `plan-authoring.md`. The campaign plan of record is
 `.claude/plans/space_and_kernel_binding_campaign.md` (§2 points here); when the design
 is RULED, §2 absorbs the outcome and this file becomes the design record.
 
@@ -75,13 +78,89 @@ un-weld) → CS2 → CS4.**
 10. Adversarial re-read of §F's step decomposition against §6b/§6c (call-site
     completeness per step; every gate lands with its witness).
 
+#### §P results (run 2026-08-20 at `273d431a` — all 10 items closed)
+
+1. ✅ The 4 ids confirmed at `:670` (no drift): `groups ∈ {2g,4g} × leaf ∈ {C,F}`
+   under `_R1_XFAIL` (strict). The R1/R2/R6 xfail families are distinct; only R1's
+   4 ids are CS1's.
+2. ✅ Production construction sites of the four classes, classified —
+   **CS1-edits**: `homogeneous/solver.py:143` (C via `from_mesh`, gains space
+   through the extended chain — call-site text unchanged), `:146` (IsoS/N2N →
+   `space=V`), `:193` (F → `space=V`). **threads-already**:
+   `diffusion/solver.py:236/:242-243` (space=), `:247-248` (F, keyword renames);
+   `sn/solver.py:1333-1341`, `:2804-2805`; `sn/coupled_system.py:419`,
+   `:499-503`. **stays-None (deliberate, documented)**: `scattering.py:709`
+   `isotropic_kernel` — "Space-anonymous (`space=None`: no composition-guard
+   space at this producer-side use)"; legal until CS4. Test-side bare
+   constructions (diffusion `test_operators.py:625/650/659/669/853-855`;
+   `test_matrix_inverse_operator.py:198-208/:265-267`) stay on the legal
+   None path. ⚠ Nexus `callers` returns 0 for all four classmethods
+   (classmethod-attribute dispatch mints no edge — the documented phantom
+   limitation); the grep enumeration is authoritative here (uniform spellings).
+3. ✅ `.H`/`as_matrix` audience: NO existing test asserts homogeneous-op `.H`
+   values — the vv#19 pair is NEW coverage, nothing demoted. The one None-path
+   `.H` pin (`test_multiplication_operator.py:326-338`) builds its operator BARE
+   and stays on the None path — unaffected. `as_matrix` consumers with explicit
+   `(ng,1)`: `test_homogeneous.py:140/:284` (mirror tests — migrate to
+   domain-derivation in 3b), `test_matrix_inverse_operator.py:199/:211` (bare-op
+   subject — keep explicit). The metric flip is ×1.0/÷1.0 per element
+   (IEEE-exact) or a counting skip ⟹ bit-identity by construction, gate still
+   owed per vv#19.
+4. ✅ The complete `full_field_space` site census is in §F (the grounded rename
+   batch); the round-2 list conflated F's callers with ScatteringOperator's own
+   field sites, and missed `sn/solver.py:2805` + `sn/coupled_system.py:503`; the
+   `test_si_gate_dispatch.py:63` hit is a mesh-attribute fake, excluded.
+5. ✅ Degenerate-path geometry readers (CS1.5 input): `areas` → `MaterialMesh`
+   itself RAISES on 2-D (`material_mesh.py:455` — a live leak-principle datum),
+   consumed by `diffusion/augmented_mesh.py:231/:327`; `coord` set at
+   `material_mesh.py:215`, read via `mesh.reduced.coord`
+   (`radial_characteristic_field.py:308`); `axis_widths` internal to volumes.
+   CS1 leaves `from_materials` untouched — confirmed viable (the fake axis keeps
+   serving these readers until CS1.5).
+6. ✅ `from_mesh` chain read (`multiplication_operator.py:336`):
+   `if space is None: space = getattr(mesh, "full_field_space", None)`. The CS1
+   edit appends the `bulk_space` fallback AFTER it — SN/diffusion callers
+   short-circuit on `full_field_space` and are untouched; the degenerate carrier
+   (no `full_field_space` attr) resolves `bulk_space`. `_resolve_basis_shape`
+   (`operator.py:559-586`): explicit wins, else `domain.shape`, else the typed
+   refusal naming both remedies — after 3b, `MatrixInverseOperator(loss)` and
+   `K.as_matrix()` derive `(ng, 1)` from the threaded domain.
+7. ✅ `EnergyGrid` (`data/energy_grid.py:106`): frozen, `eq=False`
+   (identity-equality), sole field `edges` — strictly DESCENDING (fast-first),
+   coerced contiguous float at construction ⟹ the axis's content-eq reads
+   `edges` bytes (stable), never grid identity. Carrier→grid path exists:
+   `Mixture.eg: ndarray | None` (`mixture.py:65`) + `Mixture.energy_grid`
+   (raises when `eg is None`); `MaterialMesh.materials` is the stored dict
+   (`material_mesh.py:167`), ng-validated. The axis docstring should carry the
+   descending fast-first convention.
+8. ✅ Diffusion threading sites (`diffusion/solver.py:236-248`) do not collide
+   with the batch: IsoS/N2N already pass `space=` (untouched); the F site is a
+   keyword-only rename member. No overlap with 3b's wiring.
+9. ✅ Ledger baseline REPRODUCED at `273d431a`: `tests/sn/architecture` →
+   **105 passed / 21 xfailed** in 1.9 s. Homogeneous suite: **23 passed** in
+   2.42 s (wall 3.27 s) — the byte-stability gate's budget is seconds, not
+   minutes.
+10. ✅ Findings folded in place: the §F/Q11 micro-cleanup contradiction (⛔
+    marked in §F), the done-when F-arm correction (C rows XPASS, F rows cannot),
+    the step-3 split into 3a/3b, the uniform `bulk_space` formula, the rename
+    batch scope fork (+S recommended), the §T name-injectivity addition.
+    Witness check (§6c): both refusal witnesses and the modal-cone witness are
+    constructible from shipped inputs at their landing commit (two `get_mixture`
+    grids; a test-local generic MODAL `Axis` — within fences).
+
 ### §T — test-architect brief sketch (dispatch at step 3)
 
 Scope: the CS1 gate battery — (a) axis intrinsic laws (structural eq/hash;
 EnergyAxis grid-content eq incl. the synthetic ng-only arm; frozen-ness);
-(b) `of_axes` laws (shape concat; deterministic names; axes threading through
-`__mul__`; per-axis metric ≡ legacy broadcast on toy weighted axes; the
-no-densification memory assertion); (c) the refusal witnesses (2g-vs-4g sum → the
+(b) `of_axes` laws (shape concat; deterministic names — ⭐ added 2026-08-20:
+name-derivation INJECTIVE on structural content, because `(name, shape)` IS the
+identity until S3, so a name collision between different axis tuples would defeat
+Q2 pre-S3; the sharp witness pair is `synthetic(ng=2)`-built vs
+`from_grid(2-group edges)`-built, which MUST compare unequal; axes threading
+through `__mul__`; per-axis metric ≡ legacy broadcast on toy weighted axes; the
+no-densification memory assertion; the uniform `bulk_space` formula on a MESHED
+carrier — weights = cell volumes, distinguishing quotient point weight 1.0 from a
+genuine one-cell `V ≠ 1`); (c) the refusal witnesses (2g-vs-4g sum → the
 pinned "equal domains" provenance fragment; `M⁻¹(2g) @ F(4g)` → product guard) —
 §6c: gates land WITH their witnesses; (d) the `.H` loaded/blind PAIR (vv#19: the
 neutrality gate cites the counting theorem AND a weighted-toy control shows `.H`
@@ -455,20 +534,65 @@ cells; boundaries = faces; condensation = mesh-overlap map), the declared morphi
 family). `FunctionSpace`: `axes` (compare=False), `of_axes` (deterministic names;
 weights never densified), per-axis metric path (Q4: build now, toy-tested),
 `has_coordinate_cone`, `__mul__` axis-threading. `MaterialMesh.bulk_space` — the
-cached interning mint: `of_axes(EnergyAxis…, quotient-point Axis("spatial", (1,)))`
-+ the §B2 micro-cleanup (from_materials stops minting `AxisMesh(edges=[0,1])`;
-carve-time reader enumeration owed). Item 0.8 migration-form docstring.
+cached mint, ⭐ GROUNDED 2026-08-20 as the **UNIFORM formula** (the property is
+inherited by `SNMesh`/`DiffusionMesh`, so it must be honest on EVERY member — and
+it can be, with a single generic body, Cardinal 2):
+`of_axes(energy_axis, Axis("spatial", spatial_shape, weights=volumes, NODAL))`.
+The degenerate carrier falls out as the quotient point (`[M]` its volumes are
+`[1.0]` ⟹ weight 1.0, the normalized density convention); a genuine one-cell mesh
+keeps `V ≠ 1` BY THE DATA (retrodiction A.5 row 4 realized mechanically); a meshed
+carrier gets the honest scalar bulk `(ng, *spatial)` with cell-volume weights —
+the SEED of CS2's single scalar-bulk mint (diffusion's `scalar_bulk` unification
+stays CS2; in CS1 the only consumer is homogeneous). Energy arm (`[M]`
+`Mixture.eg: ndarray | None`, `mixture.py:65`; the carrier stores
+`materials: dict[int, Mixture]`, ng-validated at construction): all materials'
+`eg` present AND edges content-equal ⟹ `EnergyAxis.from_grid`; else
+`EnergyAxis.synthetic(ng)` — deterministic per carrier, and NO new
+construction-time refusal in CS1 (grid coherence across materials is a
+MEDIUM-level invariant; noted as CS1.5 design input). ~~+ the §B2 micro-cleanup
+(from_materials stops minting `AxisMesh(edges=[0,1])`)~~ ⛔ SUPERSEDED — the Q11
+ruling (round 6) dropped it and this paragraph was not reconciled until the
+2026-08-20 grounding pass: CS1 does NOT touch `from_materials` internals; the
+fake mint dies in CS1.5, nowhere else. Item 0.8 migration-form docstring.
 `Field.cone_violations` consults `has_coordinate_cone` (False ⟹ refuse; None ⟹
 legacy behavior, documented).
 
 **Homogeneous rewiring** (unchanged from round 2): thread `V = mat_xs.mesh.bulk_space`
 through C (via the extended `from_mesh` mesh-default chain), IsoS/IsoN2N
-(`space=V`), F (`from_solver_data(…, space=V)` — widen FORCED; **rename
-`full_field_space` → `space` RULED-provisional Q5**: proceed, judge the end result
-at review; call sites `[M]`: `sn/solver.py:1339`, `diffusion/solver.py:247`,
-`scattering.py:760/785/1013/1054`, + tests; one §6b batch). No default-derivation on
-`from_solver_data` (wrong-family hazard). Both `basis_shape=(ng, 1)` spellings
-deleted.
+(`space=V`), F (`from_solver_data(…, space=V)` — widen FORCED, `FullFieldSpace | None` →
+`FunctionSpace | None` on field + param + the docstrings that say "composite
+full-field space"; **rename `full_field_space` → `space` RULED-provisional Q5**:
+proceed, judge the end result at review; one §6b batch). No default-derivation on
+`from_solver_data` (wrong-family hazard). Both production `basis_shape=(ng, 1)`
+spellings deleted (`solver.py:194/:202`; test-side spellings are judged per-test —
+mirror tests migrate to domain-derivation, bare-op tests KEEP the explicit shape
+because the bare path is their subject until CS4).
+
+⭐ **Rename batch GROUNDED 2026-08-20 — supersedes the round-2 site list above,
+whose `scattering.py` rows are `ScatteringOperator`'s OWN field (a second class
+carrying the same field name), not F callers.** The §6b batch must pick its scope
+explicitly:
+
+- **F-scope (the Q5 ruling's letter)** — `fission.py` (field :182, readers
+  :233/:238, classmethod :243/:255, docstrings :174/:250) + keyword callers `[M]`
+  `sn/solver.py:1341`, `sn/solver.py:2805`, `diffusion/solver.py:248`,
+  `tests/sn/architecture/test_monomorphic_leaves.py:519`.
+- **+S-scope (RECOMMENDED, main agent, 2026-08-20 — naming-consistency: fix the
+  off-pattern family member in the same change; S's TYPE stays the narrow
+  `FullFieldSpace | None`, only the NAME moves)** — `scattering.py` (field :410,
+  readers :429/:434, classmethod :766/:785, self-forwards :1013/:1054, docstrings
+  :403/:770-771) + keyword callers `[M]` `sn/solver.py:1337`,
+  `sn/coupled_system.py:503`, `tests/sn/operators/test_psi_half_coupling.py:2873`,
+  `tests/sn/architecture/test_monomorphic_leaves.py:516`. User judges at review
+  per Q5's own provisional terms.
+- ⚠ **NOT in the batch**: `tests/sn/solve/test_si_gate_dispatch.py:63` — its
+  `full_field_space=None` fakes the MESH attribute (a `SimpleNamespace` mesh
+  mimic), not the operator field; and every `*.full_field_space` MESH-property
+  read (`SNMesh`/`DiffusionMesh`/consumers) keeps its name. The batch grep must
+  discriminate operator-field sites from mesh-attribute sites.
+- Bare callers (no keyword) are untouched by the rename:
+  `tests/homogeneous/test_homogeneous.py:285/:359`,
+  `tests/diffusion/test_operators.py:650`.
 
 **Geometric-axis note (round 3):** the transport `Axis1D` family already factors
 GEOMETRY per axis (`spatial_shape`/`face_labels` as pure functions on axis tuples
@@ -485,9 +609,17 @@ move); carve-time nexus enumeration of the four classes' construction sites + th
 degenerate-path geometry readers (§B2).
 
 **Done-when:** (1) the 4 strict-xfails
-`test_model_generic_leaf_declares_a_space[C-2g,C-4g,F-2g,F-4g]` XPASS → DELETED,
-replaced by the positive homogeneous floor (all five operators + K report the SAME
-space; IsoS/N2N included); (2) both `(ng, 1)` spellings gone; (3) refusal witnesses
+`test_model_generic_leaf_declares_a_space[C-2g,C-4g,F-2g,F-4g]` DELETED, replaced
+by the positive homogeneous floor (all five operators + K report the SAME space;
+IsoS/N2N included) — ⭐ CORRECTED 2026-08-20 (grounding pass; the §1
+done-when-predicate class): only the **C** rows XPASS mechanically (the test's own
+`from_mesh(field, mat_xs.mesh)` call rides the extended chain; strict ⟹ forced
+deletion), while the **F** rows CANNOT XPASS — `[M]` the test's F arm calls
+`from_solver_data(mat_xs=mat_xs)` BARE, and the ruled no-default-derivation keeps
+that `None`. The F rows are deleted in the SAME §6b commit on a different warrant:
+their mirrored production line (`solver.py:193`) now passes `space=V`, so the bare
+mirror would pin a RETIRED idiom, and the floor is the successor gate for all
+four; (2) both production `(ng, 1)` spellings gone; (3) refusal witnesses
 RED (2g-vs-4g sum → the pinned "equal domains" fragment; `M⁻¹(2g) @ F(4g)`) + the
 modal-axis cone-refusal witness; (4) homogeneous suite byte-stable; pyright
 `orpheus` = 1; (5) `spaces.rst` SEEDED — Key Facts; axis taxonomy; the counting
@@ -503,12 +635,17 @@ deletion (CS2); no Optional→mandatory flip or dispatch collapse (CS4); no 𝔽
 condensation/partition declared only; the RegionCarrier Protocol (Q10) recorded,
 not built.
 
-**Execution shape (post-ruling; surgical posture):** 0. test-architect dispatch +
-enumeration memo → 1. `axis.py` + intrinsic tests → 2. `of_axes` + per-axis metric
-+ cone metadata + `__mul__` threading + 0.8 docstring → 3. `bulk_space` +
-micro-cleanup + `from_mesh` chain + F widen/rename batch + solver rewiring + xfail
-deletion + floor + witnesses + bit-identity run → 4. `cone_violations` wiring +
-modal witness → 5. `spaces.rst` seed + dev-history + campaign-plan §2 ledger row.
+**Execution shape (post-ruling; surgical posture; ⭐ step 3 SPLIT 2026-08-20 by
+the grounding pass — the rename/widen batch is behavior-neutral and separable,
+while the `from_mesh` chain extension ALONE XPASSes the C xfail rows, §6b-fusing
+the chain with the xfail handling):** 0. test-architect dispatch + enumeration
+memo → 1. `axis.py` + intrinsic tests → 2. `of_axes` + per-axis metric + cone
+metadata + `__mul__` threading + 0.8 docstring → 3a. F widen +
+`full_field_space` → `space` rename batch (scope per the grounded list above;
+suite green, zero behavior change) → 3b. `bulk_space` + `from_mesh` chain
+extension + solver rewiring + xfail deletion + floor + witnesses + byte-stability
+run (~~micro-cleanup~~ ⛔ CS1.5 per Q11) → 4. `cone_violations` wiring + modal
+witness → 5. `spaces.rst` seed + dev-history + campaign-plan §2 ledger row.
 
 ## H. The design lens this campaign runs under (articulated round 5, user + main agent)
 

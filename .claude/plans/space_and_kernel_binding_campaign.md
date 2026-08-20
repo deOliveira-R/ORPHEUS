@@ -98,13 +98,45 @@ migration form; **Q11 = CS1.5 chartered — "the Medium un-weld" — a NEW phase
 CS1 and CS2** (Medium minted ABOVE MaterialMesh, which keeps its name as the
 medium × mesh PULLBACK; homogeneous re-homes to `Medium.infinite_homogeneous(mix)`;
 `bulk_space` migrates carrier→Medium there; the fake `AxisMesh(edges=[0,1])` mint
-dies there and ONLY there). Absorption of the ruled design into this section is
-deliberately DEFERRED to the chartered clear-context re-evaluation pass (protocol
-step 2) — until then this pointer + the design record are the truth.
+dies there and ONLY there). **ABSORBED 2026-08-20** — protocol step 2 (clear-context
+re-evaluation + §P grounding) executed at `273d431a`; the record's §P results block
+carries the evidence; the record stays the full doctrine, this section is now the
+executable summary:
+
+**Ruled means (CS1 ships):** `orpheus/numerics/axis.py` — `BasisKind`, frozen `Axis`
+(structural eq/hash; label + shape rank ≥ 1 + `weights | None` ≡ counting-deliberate
++ NODAL/MODAL), `EnergyAxis` (`from_grid`/`synthetic`; identity = ng + edges BYTES —
+`EnergyGrid` is `eq=False`, so the axis reads content, never grid identity; docstring
+carries the counting theorem, the V/V* hook, the faces reading, the descending
+fast-first convention). `FunctionSpace` gains `axes` (compare=False), `of_axes`
+(deterministic INJECTIVE names — `(name, shape)` is the identity until S3),
+the per-axis metric path, `has_coordinate_cone`, `__mul__` axis-threading; the
+`space.py:145-150` identity doctrine rewritten in MIGRATION form (Q8).
+`MaterialMesh.bulk_space` — the UNIFORM cached mint
+`of_axes(energy_axis, Axis("spatial", spatial_shape, weights=volumes, NODAL))`,
+honest on EVERY member (degenerate carrier ⟹ quotient point, weight 1.0; meshed
+carrier ⟹ the CS2 scalar-bulk seed, volumes as weights); energy arm = the materials'
+unanimous content-equal grid, else `synthetic(ng)`. Homogeneous rewiring: C rides
+the extended `from_mesh` chain (`bulk_space` fallback AFTER `full_field_space`, so
+SN/diffusion short-circuit untouched); IsoS/N2N/F get `space=V`; F's field widens
+`FullFieldSpace | None` → `FunctionSpace | None` and renames → `space` (the grounded
+§6b batch lives in the record; +S-scope recommended, user judges at review);
+`Field.cone_violations` consults `has_coordinate_cone`. Execution: steps 0–5 with
+step 3 SPLIT — 3a rename/widen (behavior-neutral) then 3b wiring + xfail handling
+(§6b-fused: the chain extension alone XPASSes the C rows). Fences: no
+Spatial/Quadrature/Harmonic axis classes, no ⊕, no identity flip, no metric
+relocation or `_broadcast_metric` deletion, no Optional→mandatory flip, and no
+`from_materials` internals (CS1.5 owns the fake-`AxisMesh` retirement).
 
 **Done when** (checkable): the four model-generic strict-xfails
-`test_model_generic_leaf_declares_a_space[C-2g, C-4g, F-2g, F-4g]` are DELETED on XPASS
-(`tests/sn/architecture/test_monomorphic_leaves.py:670` at `00085baf`);
+`test_model_generic_leaf_declares_a_space[C-2g, C-4g, F-2g, F-4g]` are DELETED and
+replaced by the positive homogeneous floor — ⭐ CORRECTED 2026-08-20: only the **C**
+rows XPASS mechanically (forcing deletion); the **F** rows cannot (their arm calls
+`from_solver_data` BARE and no-default-derivation is RULED), so they are deleted in
+the same §6b commit on the retired-mirror warrant
+(`tests/sn/architecture/test_monomorphic_leaves.py:670`, re-verified at `273d431a`;
+ledger `[M]` 105 passed / 21 xfailed reproduced 2026-08-20, 1.9 s; homogeneous suite
+23 passed, 2.4 s — the byte-stability budget);
 `homogeneous/solver.py`'s space-less operator constructions (the
 `_assemble_loss_operator(mat_xs)` / `FissionOperator.from_solver_data(mat_xs=…)` pair at
 `:193-194`, which leave `.domain` None at runtime — ⚠ there is no literal
@@ -122,7 +154,11 @@ And `.H` flips from Euclidean-fallback to metric-applied — `_AdjointOperator`'
 `inner_codomain.apply_metric(y) if inner_codomain is not None else y`
 (≈`operator.py:1297-1307`). Enumerate the newly-checked compositions and the `.H`
 consumers on the homogeneous path BEFORE landing; gate at the tier the change is
-observable.
+observable. ✅ ENUMERATED 2026-08-20 (design record, §P results items 2/3): all
+construction sites classified (three CS1-edits, the rest threads-already or
+documented stays-None); NO existing test asserts homogeneous-op `.H` values, so the
+vv#19 loaded/blind pair is new coverage with nothing demoted; the metric flip is
+×1.0/÷1.0 or a counting skip — bit-identical by construction, gate still owed.
 
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
