@@ -451,7 +451,32 @@ class Field(ABC):
         cone-PRESERVATION is the realization's own flag
         (``DiscretizationScheme.is_positivity_preserving``), not this
         observer's.
+
+        **The basis-kind consult (campaign 1, CS1 step 4).** The
+        per-component sign test is only meaningful on a COORDINATE cone,
+        and whether the space has one is the space's own structural
+        answer (:attr:`FunctionSpace.has_coordinate_cone`, three-valued):
+
+        * ``False`` (axis-built, any MODAL factor) ⟹ **REFUSE** with a
+          typed error — components are expansion coefficients, a positive
+          function may have negative coefficients, so answering would
+          manufacture violations out of a basis choice;
+        * ``True`` (axis-built, all NODAL) ⟹ answer, same arithmetic as
+          the legacy path;
+        * ``None`` (legacy space, ``axes is None``) ⟹ the pre-CS1
+          behavior unchanged, deliberately — the question cannot be
+          answered structurally, and refusing would fire on every legacy
+          space in the tree.
         """
+        if self.space.has_coordinate_cone is False:
+            raise ValueError(
+                f"cone_violations is meaningless on {self.space.name!r}: "
+                f"the space carries a MODAL factor, so its components are "
+                f"expansion COEFFICIENTS — a positive function may have "
+                f"negative coefficients, and a per-component sign test "
+                f"would manufacture violations out of a basis choice. "
+                f"Evaluate the field in a nodal realization first."
+            )
         flat = np.asarray(self.values).ravel()
         bad = np.flatnonzero(~(flat >= 0.0))
         if bad.size == 0:

@@ -447,3 +447,60 @@ def test_cone_ieee_edge_cases():
     bad = _cone_field([1.0, np.nan])
     if [t for t in bad.cone_violations()] != [(1,)]:
         raise AssertionError("nan entry not reported as a cone violation")
+
+
+def _axis_field(values, kind):
+    """A field on an axis-built space whose one factor has the given kind
+    (a generic ``Axis`` — the Spatial/Harmonic subclasses are a CS2 fence)."""
+    from orpheus.numerics.axis import Axis, BasisKind
+
+    arr = np.asarray(values, dtype=float)
+    space = FunctionSpace.of_axes(Axis("p", arr.shape, kind=kind))
+    return _DummyField(values=arr, space=space), BasisKind
+
+
+@pytest.mark.foundation
+def test_modal_space_REFUSES_cone_violations():
+    """E1 (CS1 step 4) — a MODAL space has no coordinate cone; the sign
+    test is MEANINGLESS there and must be refused (not answered): a
+    positive function may have negative expansion coefficients, so an
+    answer would manufacture violations out of a basis choice. The typed
+    error names the space and the reason."""
+    from orpheus.numerics.axis import BasisKind
+
+    field, _ = _axis_field([1.0, -0.5, 2.0], BasisKind.MODAL)
+    with pytest.raises(ValueError, match="MODAL factor") as exc:
+        field.cone_violations()
+    if field.space.name not in str(exc.value):
+        raise AssertionError("the refusal must NAME the space it refused")
+
+
+@pytest.mark.foundation
+def test_nodal_axis_space_ANSWERS_cone_violations():
+    """E2 (vv #11's positive leg) — the SAME values on an all-NODAL
+    axis-built space answer exactly what the legacy path answers: the
+    consult gates the modal case only, it does not change the arithmetic."""
+    from orpheus.numerics.axis import BasisKind
+
+    values = np.array([1.0, -0.5, 2.0, -3.0])
+    nodal_field, _ = _axis_field(values, BasisKind.NODAL)
+    if nodal_field.space.has_coordinate_cone is not True:
+        raise AssertionError("precondition lost: the nodal space must answer True")
+    if nodal_field.cone_violations() != _cone_field(values).cone_violations():
+        raise AssertionError(
+            "the nodal axis path diverged from the legacy cone arithmetic"
+        )
+
+
+@pytest.mark.foundation
+def test_legacy_axes_none_space_keeps_legacy_behavior():
+    """E3 — the third state, explicit: ``axes is None`` answers ``None``
+    and the predicate behaves exactly as pre-CS1 (every row above this one
+    in the file is the floor; this row pins the three-valued design so
+    collapsing ``None`` into ``False`` — which would refuse every legacy
+    space in the tree — reds loudly)."""
+    field = _cone_field([[1.0, -2.0]])
+    if field.space.has_coordinate_cone is not None:
+        raise AssertionError("a legacy space must answer None (not migrated)")
+    if field.cone_violations() != [(0, 1)]:
+        raise AssertionError("the legacy path no longer answers")
