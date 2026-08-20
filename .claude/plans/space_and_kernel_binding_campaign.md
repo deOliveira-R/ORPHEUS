@@ -38,7 +38,9 @@ apply-time dispatch retires.
    ⚠ Execution-order note (user, 2026-08-19, post-compaction): "first" binds
    spaces-before-the-BINDING (CS4), which the re-ordered sequence preserves. The cone
    carve (CS3) was verified independent of the space work and now executes before the
-   space phases — see the §4 sequencing block for the derivation.
+   space phases — see the §4 sequencing block for the derivation. ⚠ 2026-08-20: CS1.5
+   (the Medium un-weld) inserted between CS1 and CS2 — chartered in the CS1 design
+   record (its Q11 ruling carries the reasoning).
 4. **Campaign split.** This campaign = Space + Kernel→Operator realization (+ the cone
    carve, which must precede the dispatch collapse — §4 rationale). Campaign 2 = the
    LossRepresentation overturn — "currently an early decision on partitioning" — to
@@ -84,6 +86,21 @@ maximally-quotiented member of the symmetry-reduction family (§I.11: trivial sp
 measure). The homogeneous solver constructs it; F/C there bind `domain = EnergySpace`.
 Design detail (nodal axis ⟹ coordinate cone; the V/V* collapse hook of tightness-family
 (iv) declared even if unexercised) fixed at design time.
+
+**Design record (discussion CONCLUDED 2026-08-20, rounds 1–6 — every fork ruled or
+resolved):** `.claude/plans/cs1_energy_space_design.md` is the CS1 design record AND
+the post-compaction resume surface — read its "▶ THE PROTOCOL FROM HERE" section
+FIRST. Headline rulings: EnergyAxis (identity = ng + edges content; counting-measure
+theorem); explicit `(ng, 1)` quotient point (the collapse doctrine, Appendix A =
+archivist's source); axes-tuple order = the recorded view convention (#394 filed for
+the JAX-era layout freedom); Q8 = CS1 rewrites the space.py identity doctrine in
+migration form; **Q11 = CS1.5 chartered — "the Medium un-weld" — a NEW phase between
+CS1 and CS2** (Medium minted ABOVE MaterialMesh, which keeps its name as the
+medium × mesh PULLBACK; homogeneous re-homes to `Medium.infinite_homogeneous(mix)`;
+`bulk_space` migrates carrier→Medium there; the fake `AxisMesh(edges=[0,1])` mint
+dies there and ONLY there). Absorption of the ruled design into this section is
+deliberately DEFERRED to the chartered clear-context re-evaluation pass (protocol
+step 2) — until then this pointer + the design record are the truth.
 
 **Done when** (checkable): the four model-generic strict-xfails
 `test_model_generic_leaf_declares_a_space[C-2g, C-4g, F-2g, F-4g]` are DELETED on XPASS
@@ -160,7 +177,8 @@ the measured forks are `scratch/cs3_verification_plan.md` §9.2):**
   ordinary arithmetic; the relaxation concept's future home is the iteration layer).
 
 **Sequencing — RE-ORDERED 2026-08-19 (user): CS3 executes FIRST. Execution order is
-CS3 → CS1 → CS2 → CS4.** The user asked whether the cone carve is independent of the
+CS3 → CS1 → CS1.5 → CS2 → CS4 (CS1.5 = the Medium un-weld, inserted 2026-08-20 by
+the Q11 ruling in the CS1 design record).** The user asked whether the cone carve is independent of the
 space work; re-derived against the tree, it is. The original rationale (kept per
 plan-authoring §3, refuted half marked):
 
