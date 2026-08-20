@@ -84,8 +84,9 @@ then takes the dominant eigenpair directly:
   (:math:`2\Sigma_2^{\mathsf T}`) operators. The composed operator
   :math:`C - K_\mathrm{iso}` is materialised densely via its own
   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
-  apply-to-basis (``basis_shape=(ng, 1)``). Streaming :math:`L \equiv 0` in
-  an infinite medium and is dropped.
+  apply-to-basis — the ``(ng, 1)`` basis shape derived from the threaded
+  domain (the carrier's axis-built ``bulk_space``; campaign 1 CS1).
+  Streaming :math:`L \equiv 0` in an infinite medium and is dropped.
 * **Production dyad** :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
   the rank-1 form of
   :class:`~orpheus.transport.operators.fission.FissionOperator`, likewise

@@ -19,6 +19,17 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⭐ TWO AGREEING SOURCES CAN BOTH BE WRONG — corroboration is not independence.** A brief said
+  a gate held *"dated 2026-08-21"* and an in-tree comment independently agreed; `[M]`
+  `git log --date=short` puts every commit of that step on **2026-08-20** (a FUTURE date on both
+  surfaces — one mis-dating copied forward). Git is the arbiter for dates and merge status; two
+  prose surfaces agreeing is one surface. → L-064
+- **⭐ Publish the CLOSURE ARGUMENT, not the universal it implies.** Instead of *"every harmonic
+  space is legacy"*, write *"`of_axes` is the only ROOT producer of an `axes` record (`*` and
+  `dual` merely THREAD one), therefore …"* — the derivation stays true as the tree grows, and the
+  grep that establishes it is free reconnaissance (mine surfaced `mm.axes` = the GEOMETRIC tuple
+  vs `mm.bulk_space.axes` = the SPACE-FACTOR tuple: one attribute NAME, one object, neither
+  derived from the other — a publishable gotcha). → L-064
 - **Read the live `def`/body before citing any convention, shape, signature or design decision.**
   Seen: a docstring lying about an index convention and a return layout; a verdict memo recording
   the RECOMMENDATION while the code shipped the alternative; a brief naming args the live Protocol
@@ -769,6 +780,30 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A DIALECTICAL SEED PAGE (a design dialogue CONVERGED, first slice shipped) is NOT the
+  9-step close-out arc** — that arc is for a CLOSED "cannot work". Order: Key Facts *carrying
+  the doctrine's one-line discriminator tests verbatim* → the taxonomy → the theorem → **the
+  doctrine dialectically** (question → v1 REFUTED → v2 REFUTED → standing → retrodictions) →
+  fences per phase → dev history. ⭐ Give each refutation its own `.. admonition:: ⛔` **titled
+  with the REFUTING QUESTION, not the verdict** — both refuted versions are *almost* right, so
+  the question is the transferable content and a reader who meets only the final statement
+  re-derives v1 within a week. ⭐ And say explicitly what the doctrine does to the tension it
+  settled ("it does not pick a winner — both prior rules are right about different clauses");
+  otherwise the next reader hunts for the loser. → L-064
+- **⭐⭐ A RETRODICTION / confirmation table is `plan-authoring` §2's aspirational-row trap moved
+  into the CORPUS — and it costs more here.** A table headed by a property of the tree reads
+  ENTIRELY as a survey of what IS, so one unbuilt row is indistinguishable from the observations
+  and, once found, discredits every row. ⟹ **STATUS column, in the row** (`[M] ships` vs
+  `⛔ NOT built — a prediction`), never prose above or below; and head it *"rows the doctrine was
+  NOT built from"* (the real epistemic claim) rather than *"layouts the tree ships"*. Caught in
+  my own draft by counting my own universal. → L-064
+- **⭐ Citing an SSOT: name the REGISTER your page owns, not just the fact** — the same fact in a
+  different register is not a twin. `frame.rst` owns the counting measure in the MEASURE register
+  (`w_g = 1` vs `Δu_g`, Hébert-derived, rate-preservation-gated); my page owned it in the METRIC
+  register (`G_E = I` ⟹ `V ≅ V*` ⟹ adjoint = plain transpose ⟹ construction refuses weights).
+  Derive it a third way as UNLABELLED math, cite the SSOT's label, open with
+  `.. important:: … Edited there, consumed here.` **Net new labels on a 1158-line page: ONE.**
+  → L-064
 - **Stub → rich narrative: read memo → production docstrings → tests → SymPy, in that order.** The
   docstrings are the VERBATIM prose seed; the memo carries the honest interim scope — preserve it,
   don't over-claim. Never expand a stub without reading the SymPy; on an algebra error
@@ -939,7 +974,15 @@ never paraphrase a level definition. → L-010
 - **⭐ SEQUENCE the session so you build TWICE, not four times:** baseline `-E -W` → *all* edits →
   *all* residual greps → xref gate → AST doc-only proof → ONE verification build. Two of four
   builds were wasted by launching before the last edit landed (a residual grep always finds one
-  more site). → L-054
+  more site). ⚠ **Re-broken on a NEW page: FIVE builds**, every extra one bought by an edit made
+  after launching — the self-consistency pass (universals, symbol collisions, aspirational rows)
+  must run to EXHAUSTION *before* the first verification build, never interleaved with it.
+  → L-054, L-064
+- **⭐ ONE re-runnable python self-check beats the build for structure, at ~2 s:** short-underline
+  detection + ladder-order (first-appearance) + per-table column consistency across EVERY row +
+  `:widths:` sum + label/anchor uniqueness (EXACT-line compare) + role import-resolution +
+  `:eq:`/`:ref:`/`:doc:` resolution against the whole `docs/` corpus. It caught every structural
+  defect on a 1158-line new page before any build ran. → L-064
 - **An agreement `[M]` number handed to you is a LADDER unless proven flat** — a briefed "verified
   to 1.67e-16" was a small-fixture reading that degrades to `2.3e-14` two refinements later, and
   the shipped gate already knew (`atol=1e-13`). Measure the ladder, publish the ladder, name the

@@ -1149,8 +1149,11 @@ The construction proceeds in four steps inside
    **not** assembled term-by-term from per-material blocks; it is produced
    one layer later, by the operator's own
    :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` apply-to-basis
-   (:ref:`matrix-inverse-operator`) on the meshless single cell,
-   ``basis_shape=(ng, 1)``, **inside the**
+   (:ref:`matrix-inverse-operator`) on the meshless single cell — the
+   ``(ng, 1)`` basis shape **derived from the operators' threaded domain**
+   (the carrier's axis-built ``bulk_space``; campaign 1 CS1 — before it,
+   every consumer passed ``basis_shape=(ng, 1)`` by hand because the
+   meshless operators carried no space) — **inside the**
    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
    **constructor** (one eager materialization + LU factorization; see
    :ref:`direct-eigensolve-solve`). (The operators'
@@ -1239,9 +1242,18 @@ constructed, and its dominant eigenpair taken, in four lines:
 .. code-block:: python
 
    loss = _assemble_loss_operator(mat_xs)          # A = C − K_iso, un-materialized
-   production = FissionOperator.from_solver_data(mat_xs=mat_xs)   # F = χ ⊗ νΣ_f
-   K = MatrixInverseOperator(loss, basis_shape=(ng, 1)) @ production
-   k_inf, phi = dominant_eigenpair(K.as_matrix(basis_shape=(ng, 1)))
+   production = FissionOperator.from_solver_data(  # F = χ ⊗ νΣ_f
+       mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
+   )
+   K = MatrixInverseOperator(loss) @ production
+   k_inf, phi = dominant_eigenpair(K.as_matrix())
+
+(Since campaign 1 CS1 the operators pose on the carrier's axis-built
+``bulk_space`` — Energy ⊗ the quotient spatial point, :doc:`spaces` — so
+``MatrixInverseOperator`` and ``as_matrix`` **derive** the ``(ng, 1)``
+basis shape from the threaded domain; the pre-CS1 idiom passed
+``basis_shape=(ng, 1)`` explicitly at both sites because the meshless
+operators carried no space to derive it from.)
 
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 materializes and LU-factors the loss operator **once** at construction; the

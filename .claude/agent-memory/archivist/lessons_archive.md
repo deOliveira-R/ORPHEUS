@@ -6240,3 +6240,180 @@ all"*, and CS3 is unmerged. `operator_algebra.rst`'s history has the escape hatc
 a short row on `operator_algebra.rst`'s (its Role axis genuinely moved), and left
 `history.rst` alone except to tombstone its 2026-06 row's *affine half* while explicitly
 preserving its *typed-residual half* — one row, two halves, opposite fates.
+
+---
+
+## L-064 — Seeding a NEW page from a design-dialogue record: the dialectic is the deliverable, and a retrodiction table is a plan-§2 trap in the corpus
+
+**Task.** CS1 step 5, campaign 1 ("operators born bound"), branch
+`feature/cs1-energy-space`, 2026-08-20. Write `docs/theory/foundations/spaces.rst`
+from scratch as `field_algebra.rst`'s sibling (that page owns the ELEMENT algebra;
+this one owns the SPACES), register it, add one `automodule`, and micro-edit three
+`cone_violations` sites. Source of record: `.claude/plans/cs1_energy_space_design.md`
+§A/§B/§F + Appendix A (a preserved user⇄agent design dialogue, rounds 2–6).
+Result: 1158-line new page, `-E -W` EXIT=0, warning set unchanged (0 both sides),
+141 role targets 0 dead, `DEAD TARGETS: 0`, vv violations 0, sentinels 540 → 541.
+
+### 1. ⭐⭐ A DIALECTICAL SEED PAGE is its own doc shape — and it is NOT the 9-step close-out arc
+
+The close-out arc is for a CLOSED investigation whose answer is *"this cannot
+work"*. A **seed page** is the opposite event: a design dialogue CONVERGED, the
+first slice shipped, and the page exists so the next phase builds on the reasoning
+rather than re-deriving it. The user's own instruction was the giveaway — *"make
+sure we don't lose it so the archivist can write it later — it was hard to steer
+until we got it out."*
+
+The shape that worked, in order:
+
+1. **Key Facts** — including the doctrine's *one-line discriminator tests* verbatim.
+   A doctrine that cannot be applied in one sentence has not been articulated.
+2. **The taxonomy** (what the new type IS — four slots, a `list-table`).
+3. **The theorem** (why one instance's measure is FORCED, not chosen).
+4. **The doctrine, DIALECTICALLY** — the question, then version 1 REFUTED with its
+   refuting question, then version 2 REFUTED with its refuting question, then the
+   standing doctrine, then the retrodictions.
+5. **Fences** (what is NOT built, per phase).
+6. **Development history**.
+
+⭐ **The refutations must be typographically first-class.** I used
+`.. admonition:: ⛔ The refuting question — …` / `:class: error`, one per refuted
+version, titled with the QUESTION rather than with the verdict. Rationale: a
+reader skimming for the answer stops at the standing doctrine; a reader who meets
+only the final statement re-derives version 1 within a week, because **both refuted
+versions are almost right**. Version 1 (compactness) reproduced both prior rules
+and failed only on energy; version 2 was a one-word patch. The refuting question is
+the transferable content — *"where does energy sit?"* and *"what is the measure of
+(0,∞)?"* — not the verdict.
+
+⭐ **Name what the doctrine does to the tension it settled.** The two prior rules
+(the report's §I.9 retract vs §I.11 quotient) were BOTH right, about different
+clauses; what was missing was a second FORK nobody had stated. Writing *"it does
+not pick a winner"* explicitly is what stops the next reader hunting for the loser.
+
+### 2. ⭐⭐ A RETRODICTION TABLE is `plan-authoring` §2's aspirational-row trap, moved into the corpus
+
+I wrote *"Every entry below is a layout the tree already ships"* over six rows —
+and row 6 was the **buckling member**, which is a prediction of campaign 2. Caught
+by my own "count every universal you publish" habit, before the build.
+
+The defect is exactly the plan rule: a table headed by a property of the tree reads
+ENTIRELY as a survey of what IS, so one aspirational row is indistinguishable from
+the observations. In a PLAN that costs a session; in the CORPUS it is worse — the
+table is the doctrine's evidence, and a reader who later discovers one row is
+unbuilt has grounds to discount all six.
+
+⟹ **A published confirmation table gets a STATUS column, in the row.** Not prose
+above or below it. Mine became `[M] **ships**` × 5 and
+`⛔ **NOT built** — a prediction (campaign 2)`, plus a `⚠` lead-in naming the row.
+And the honest re-heading is *"rows the doctrine was NOT built from"* — which is
+the actual epistemic claim (a retrodiction is a prediction of something not used to
+build the theory), not *"layouts the tree ships"*.
+
+### 3. ⭐ Cross-referencing an SSOT: name the REGISTER your page owns, not just the fact
+
+The brief flagged that `energy-condensation-counting-measure` already existed
+(`frame.rst`, inside `sn-energy-condensation`) and forbade a twin. L-060's rule is
+"cite the SSOT + say which claim THIS page owns". The sharpening this task added:
+**the two treatments are the same fact in two REGISTERS, and naming the register is
+what makes the second treatment not a twin.**
+
+- `frame.rst` owns it in the **measure register**: `w_g = 1`, not `w_g = Δu_g`,
+  derived from Hébert Eq. 3.96/3.97 (distribution vs function averaging), gated by
+  rate preservation.
+- `spaces.rst` owns it in the **metric register**: `G_E = I`, hence `V ≅ V*`
+  isometrically along energy, hence the adjoint there is the plain transpose —
+  and the fact that `EnergyAxis` now REFUSES weights at construction.
+
+I derived it a third way (covariant group-INTEGRALS × contravariant group-AVERAGES)
+as an *unlabelled* `.. math::` chain, cited the SSOT's label for the claim, and
+opened with `.. important:: Single source of truth … Edited there, consumed here.`
+**Net new labels on a 1158-line page: ONE** (`spaces-axis-product`, the space =
+⊗ axes / shape = concatenation / metric = ⊗ of factor measures identity), sentinelled
+`documented` with a rationale naming the foundation battery.
+
+### 4. ⚠ Two agreeing sources can both be wrong about a DATE — git is the arbiter
+
+The brief said the byte gate held *"dated 2026-08-21"*, and
+`tests/sn/architecture/test_monomorphic_leaves.py:668` independently says
+*"CS1 step 3b (2026-08-21)"*. `[M]` `git log --date=short` puts every CS1 commit
+(`1afff47b` … `6da1b23c`) on **2026-08-20**, and the session date was 2026-08-20 —
+i.e. both surfaces carry a FUTURE date. Two independent agreeing sources felt like
+corroboration; they were one mis-dating copied forward. Publish the git date.
+
+### 5. ⭐ The "only producer" claim, and the collision the grep that proves it exposes
+
+To publish *"every harmonic-moment space is still legacy"* I needed the closure
+argument, not the universal: `of_axes` is the only ROOT producer of an `axes`
+record (`*` and `dual` merely THREAD one, so both need an axis-built ancestor).
+Publishing the derivation instead of the universal is strictly better — it stays
+true as the tree grows.
+
+⭐ The grep that established it (`grep -rn "axes=" orpheus/`) surfaced a live
+gotcha worth its own note: **`mm.axes` is the GEOMETRIC tuple (`(AxisMesh,)`) and
+`mm.bulk_space.axes` is the SPACE-FACTOR tuple (`(EnergyAxis, Axis)`) — the same
+attribute NAME on one object, neither derived from the other.** Production already
+imports around it (`from orpheus.numerics.axis import Axis as SpaceFactorAxis`).
+Three senses of "axis" live in this corpus (space-factor / geometric / symmetry);
+the page opens with a note enumerating them and pointing at the rename issue (#393).
+
+### 6. The `V` collision, and the sibling page that had already solved it
+
+A NEW page assembled from multiple sources is the prime site for a within-document
+symbol collision (L-011/L-034) — and here it was `V` (the function space, the
+page's subject) vs `V` (cell volume, the weight that makes clause 1 work). They
+meet in EVERY clause-1 sentence. `field_algebra.rst` had already ruled on it
+(`V_cell` written out in full), so the fix was to **adopt the sibling's ruling and
+say so**, not to invent one — 5 sites swept programmatically with a `count == 1`
+assert per substitution, plus a note citing the sibling for the same reason.
+
+### 7. Numerical evidence a doc page can carry when nothing converges
+
+A terminology/architecture page has no convergence table (the routine "weakest
+dimension"). Three measurements carried real weight here and cost ~90 s:
+
+- **The identity bridge, demonstrated**: quotient point (`volumes=[1.0]`) and a
+  one-cell slab (`volumes=[2.0]`) mint `energy(2,)*spatial(1,)#<digest A|B>` — same
+  shape `(2,1)`, different digests, `==` is `False`. ⭐ Published the name FORM, not
+  the hex: a digest in prose is a stale-number risk with no SSOT but the code.
+- **The quotient weight is CONSUMED, not decorative**: same flux `φ=(1,1)`, same
+  mixture, production rate `0.225` (V=1) vs `0.450` (V=2) through
+  `IntegratedReactionRate.evaluate → mesh.volume_measure`. That turns a doctrinal
+  claim ("the pairing consumes it") into an arithmetic one.
+- **The axis laws**, each run: ones→None canonicalization (`==` and `hash` agree),
+  `-0.0`≡`+0.0` bytes, non-finite refused, signed weights legal, `synthetic !=
+  from_grid`, `EnergyAxis != Axis`, weighted `EnergyAxis` refused.
+
+### 8. Findings reported, not fixed (scope discipline held)
+
+- `docs/theory/foundations/infinite_medium.rst:1153` and its `:1243-1244` code
+  block still teach `basis_shape=(ng, 1)` and a bare `from_solver_data(mat_xs=…)`
+  as the current homogeneous spelling. `[M]` I RAN both the doc's four lines and
+  production's: **both execute and give `k_inf = 1.8750000000000009`** — the
+  keyword survives as an optional override, so this is *stale description*, not a
+  broken block. That measurement is what turned a "fix on sight" impulse into a
+  correct FLAG: a behavioral rewrite of another chapter's worked example is exactly
+  the in-passing rewrite my own rule forbids.
+- `orpheus.numerics.space` and `orpheus.transport.mesh.material_mesh` are
+  `automodule`'d NOWHERE, and `docs/api/homogeneous.rst` uses `:noindex:` — so
+  `FunctionSpace.of_axes`, `has_coordinate_cone`, `MaterialMesh.bulk_space` and
+  `solve_homogeneous_infinite` render PLAIN TEXT (measured: 0 `href`s). Page
+  convention, not a defect; surfacing them is its own task.
+
+### 9. Gate sequencing (what it cost)
+
+I built **five** times where two would do — every extra build bought by an edit
+made after launching a build. The self-consistency pass (universals, symbol
+collisions, aspirational rows) must be run to EXHAUSTION before the first
+verification build, not interleaved with it. What DID work: a single python
+self-check script asserting short-underlines / ladder order / per-table column
+consistency / widths-sum / label+anchor uniqueness / role import-resolution /
+`:eq:`+`:ref:`+`:doc:` corpus resolution — re-runnable in ~2 s, and it caught every
+structural defect before any build.
+
+`docs/theory/verification/matrix.rst` regenerated on the `-E` build and shows the
+CS1 campaign's uncommitted TEST work (9868 → 9920 collected; new rows for
+`numerics/test_axis`, `numerics/test_space_of_axes`,
+`homogeneous/test_operator_spaces`, `homogeneous/test_byte_stability`;
+`architecture/test_monomorphic_leaves` 102 → 98, corroborating the four deleted
+strict-xfails) alongside my own `540 → 541` sentinel row. Legitimate by-product —
+report it, never revert it.

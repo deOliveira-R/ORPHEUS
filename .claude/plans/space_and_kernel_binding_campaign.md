@@ -167,6 +167,28 @@ MUST-STAY-GREEN anti-claims, reviewed + adjudicated in the design record §T-R
 metric is a provable `.H` non-catcher, so the vv#19 control is a per-GROUP
 weighted toy and the cell measure is guarded by space identity alone).
 
+### ⏸ COMPACTION POINT #2 — CS1 ⏹ EXECUTED (2026-08-20, steps 1–5 on `feature/cs1-energy-space`, unmerged at write time — trust git for merge status)
+
+| step | commit | shipped | teeth run |
+|---|---|---|---|
+| 1 | `1afff47b` | `orpheus/numerics/axis.py` (BasisKind; frozen Axis, structural eq/hash PER SUBCLASS; EnergyAxis identity = ng + edges CONTENT; Q-T1/Q-T3 canonicalization: all-ones→None, −0.0 killed via `+0.0` which also forces the defensive copy, non-finite refused, NO non-negativity guard; weighted/MODAL EnergyAxis refused — the counting theorem as a construction invariant) + `tests/numerics/test_axis.py` A1–A12 | M11/M12/M20/M1/M2/M10 exact incl. M2's A3-stays-green anti-claim |
+| 2 | `f4876354` | `of_axes` (derived name = the S3 identity bridge — blake2b over type-tagged length-prefixed `Axis._structural_bytes()`, injective + process-stable); per-axis metric path (exact interior-axis placement; pairing single-sourced through `apply_metric` so ERR-067 is unspellable); 3-valued `has_coordinate_cone`; `__mul__` threads axes, never fabricates, and BRIDGES axis-borne measures into mixed dense products (value-correctness; CS2 retires the densifier); `dual()` threads axes; two construction guards (one metric source; shape ≡ concat); Q8 migration-form doctrine in `space.py` | M3–M9 + M20′ exact incl. M5's B5/B6-stay-green (densified metric is value-identical) and M4's subprocess-leg-only |
+| 3a | `e8769897` + amend `24a991ba` | Q5 executed: `full_field_space` → `space` on F and S; F widened to `FunctionSpace \| None`; **S ALSO widened (user, 2026-08-20, superseding the narrow-S clause — `[M]` C/IsoS/IsoN2N already carry the wide type; the record's Q5 row carries the supersession)**; 8 keyword call sites; mesh properties + `FullFieldSpace` class keep their names | behavior-neutral: 1939+202 passed; pyright ratchet unchanged |
+| 3b | `6bd782ab` | `MaterialMesh.bulk_space` (uniform formula; energy arm mat_map-reachable; CS1.5 re-point comment); `from_mesh` chain + D8 re-words; solver rewiring (IsoS/N2N/F get `space=V`; BOTH production `(ng,1)` spellings deleted — the M23 grep obligation discharged in the commit); 4 xfail rows deleted (C forced by XPASS, F on the retired-mirror warrant) → D1 floor + D2/D3 witnesses + D4a/D4b vv#19 pair + D6/D8/D9/D11 (`tests/homogeneous/test_operator_spaces.py`) + B9/B10/B11 + D7 poison path gate + D12 mirror re-points + **D5 byte gate 8/8 BIT-identical across the rewiring (the counting theorem measured; fixture captured at `24a991ba`; migration gate — retire after the merge cycle)**. ⚠ Q-T5 correction: `[M]` only region A is producing (the record's "A/C" enumeration was stale; the `is_producing` screen governs) | M13–M19+M22: M13 control 6 reds; M17 → B9/B10 ONLY with D5/D4a/D1 GREEN (the F2 proof); M19 → D4b ALONE with D4a green (vv#19 measured); M14's homogeneous-stays-green |
+| 4 | `6da1b23c` | `Field.cone_violations` consults `has_coordinate_cone` (False ⟹ typed refusal naming space+reason; None ⟹ legacy, documented) + E1/E2/E3 | M21 control: E1 red ALONE |
+| 5 | (this row's commit) | `spaces.rst` seed from Appendix A (dialectic included) + toctree; `api/numerics` automodule for axis; `field_algebra.rst` cone-consult micro-edit; this ledger row | Sphinx `-W` clean |
+
+Full sweep at step 4: numerics+homogeneous+sn/architecture+transport+diffusion
+**3113 passed / 17 xfailed** (ledger: the 4 R1 value rows gone, annotation family
+intact per F12); pyright `orpheus` = 1 (ratchet terminal state) throughout.
+**Done-when reconciliation:** (1) ✅ xfails deleted on the two warrants, floor
+shipped; (2) ✅ `[M]` grep at `6bd782ab`: zero production `(ng, 1)` spellings
+(docstring prose only); (3) ✅ D2/D3 red-capable on the established fragments +
+E1 modal witness; (4) ✅ byte-stable 8/8; (5) ✅ this row + the step-5 docs.
+**NOT done by CS1 (fences held):** no Spatial/Quadrature/Harmonic axis classes,
+no ⊕, no identity flip (S3), no metric relocation (CS2), no Optional→mandatory
+(CS4), `from_materials` internals untouched (CS1.5 owns the fake-AxisMesh death).
+
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
 **Goal.** SN's bulk space is literally the composition Energy ⊗ Spatial ⊗ Angular of

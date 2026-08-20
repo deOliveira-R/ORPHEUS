@@ -665,7 +665,7 @@ def test_leaf_declares_both_function_spaces(leaf, geometry):
             )
 
 
-# CS1 step 3b (2026-08-21): ``test_model_generic_leaf_declares_a_space``
+# CS1 step 3b (2026-08-20): ``test_model_generic_leaf_declares_a_space``
 # (4 strict-xfail rows, C/F × 2g/4g) was DELETED here. The C rows XPASSed
 # the moment the ``from_mesh`` mesh-default chain gained the ``bulk_space``
 # arm (strict ⟹ forced); the F rows could never XPASS (the body's bare

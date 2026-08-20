@@ -65,6 +65,15 @@ not what collision, scattering, and fission *are*.
        estimate, per-entry map) the iteration record carries. Includes the
        six-argument adjudication that overturned the 2026-06 affine
        ontology, with the retired design kept as dated history.
+   * - :doc:`/theory/foundations/spaces`
+     - The **space layer** those fields live in: a function space as the
+       ordered product of its **axes** (index shape, factor measure,
+       basis kind, generator identity), the **counting-measure theorem**
+       that makes the energy metric the identity, and the **collapse
+       doctrine** — the two one-line tests that decide which axes
+       survive a degeneracy (the homogeneous quotient point persists;
+       the angular axis of a scalar space does not), with both refuted
+       earlier doctrines kept beside the questions that refuted them.
    * - :doc:`/theory/foundations/wavefront_cochain`
      - The **interior face-flux cochain** :math:`C^1_{\rm int}` — the
        sweep-internal cochain that carries flux across cell faces during a
@@ -113,6 +122,7 @@ not what collision, scattering, and fission *are*.
    operator_tensor_network
    operator_adjoint
    field_algebra
+   spaces
    wavefront_cochain
    coupled_block_operator
    discretization

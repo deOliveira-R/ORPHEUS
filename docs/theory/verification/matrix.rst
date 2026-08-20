@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9868**
+Total tests collected: **9920**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1297, 13.1%
-   L1, 1620, 16.4%
+   L1, 1620, 16.3%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6882, 69.7%
+   foundation, 6934, 69.9%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9784
+   explicit, 9836
    class-name, 46
    func-name, 0
    case, 33
@@ -61,7 +61,7 @@ Module × level grid
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
-   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 102, 0
+   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 98, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
@@ -281,8 +281,10 @@ Module × level grid
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 37, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
+   homogeneous/test_byte_stability, 0, 0, 0, 0, 8, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
+   homogeneous/test_operator_spaces, 0, 0, 0, 0, 12, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
@@ -319,6 +321,7 @@ Module × level grid
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 131, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
+   numerics/test_axis, 0, 0, 0, 0, 15, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 57, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
@@ -330,7 +333,7 @@ Module × level grid
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
-   numerics/test_field, 0, 0, 0, 0, 28, 0
+   numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
    numerics/test_frame, 0, 0, 0, 0, 18, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
@@ -364,6 +367,7 @@ Module × level grid
    numerics/test_si_diagnostic_trajectory, 0, 0, 0, 0, 5, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
+   numerics/test_space_of_axes, 0, 0, 0, 0, 16, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
@@ -489,7 +493,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 337, 0
+   test_layer_imports, 0, 0, 0, 0, 338, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -502,7 +506,7 @@ Module × level grid
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
-   transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
+   transport/test_multiplication_operator, 0, 0, 0, 0, 23, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 20, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
@@ -870,7 +874,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **540** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **541** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1357,6 +1361,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq32-phi-ratio``
 - ``sood-eq76-kinf-mg``
 - ``sotp-scattering-form``
+- ``spaces-axis-product``
 - ``spatial-moment-append-policy``
 - ``spatial-moment-kronecker-order``
 - ``spatial-moment-space-size``

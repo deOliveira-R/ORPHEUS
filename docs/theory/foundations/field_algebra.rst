@@ -117,7 +117,10 @@ matters is correctness. We should not be bound by past mistakes."*
      output**: `[M]` a converged
      :func:`~orpheus.sn.solver.solve_sn_fixed_source` ships
      :math:`\min\psi = -6.399383\times10^{-1}`
-     (:ref:`cone-membership-is-a-predicate`).
+     (:ref:`cone-membership-is-a-predicate`). On an axis-built space the
+     predicate first asks the SPACE whether the sign test is meaningful
+     at all, and REFUSES on a modal factor
+     (:ref:`spaces-nodal-modal`).
    - **Cone preservation is a property of the REALIZATION**, carried by
      the ``is_positivity_preserving`` class attribute of
      :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`.
@@ -355,6 +358,24 @@ stated over.
    <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
    carries a violation of :math:`\psi` into a violation of :math:`\phi`
    and the witness gate asserts precisely that.
+
+   **Since campaign-1 CS1 (2026-08-20) the dichotomy is
+   machine-readable**, not only prose: an axis declares its
+   :class:`~orpheus.numerics.axis.BasisKind` (``NODAL`` / ``MODAL``) at
+   construction, a space answers
+   :attr:`has_coordinate_cone
+   <orpheus.numerics.space.FunctionSpace.has_coordinate_cone>` from its
+   factors, and :meth:`Field.cone_violations
+   <orpheus.numerics.field.Field.cone_violations>` consults that answer
+   before doing any arithmetic — see :ref:`spaces-nodal-modal` for the
+   space-layer statement. ⚠ The harmonic sentence above still holds
+   TODAY: the property is three-valued, and no harmonic-moment space in
+   the tree is axis-built — `[M]` the only axis mint inside ``orpheus/``
+   is :attr:`MaterialMesh.bulk_space
+   <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>` — so
+   every one of them takes the ``None`` arm and the predicate answers
+   about coefficients exactly as described. The refusal arm becomes production-reachable when CS2
+   mints the harmonic axis.
 
 
 .. _cone-overturn-adjudication:
@@ -681,6 +702,62 @@ Emptiness *is* membership, and the emptiness answer is exact under any
 while :math:`+\infty` is admitted. The predicate is spelled
 ``not (value >= 0.0)`` precisely so ``nan`` falls on the violation side
 without a separate branch.
+
+.. _cone-predicate-basis-kind-consult:
+
+The basis-kind consult — the predicate's first question is asked of the SPACE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before any arithmetic, the predicate asks whether a per-component sign
+test is **meaningful on this space at all** — because it is meaningful
+only on a *coordinate* cone, and whether the space has one is the
+space's own structural answer, not the field's (campaign-1 CS1 step 4,
+2026-08-20). The consult reads
+:attr:`FunctionSpace.has_coordinate_cone
+<orpheus.numerics.space.FunctionSpace.has_coordinate_cone>`, which is
+three-valued, and each value has a different obligation:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 30 54
+
+   * - Answer
+     - When
+     - What ``cone_violations`` does
+   * - ``False``
+     - axis-built, ANY factor ``MODAL``
+     - **REFUSES**, with a typed error that names the space and states
+       the reason. Components are expansion COEFFICIENTS; a positive
+       function may have negative coefficients, so answering would
+       *manufacture violations out of a basis choice*. Refusal is the
+       only honest answer — the question is malformed, not merely hard.
+   * - ``True``
+     - axis-built, ALL factors ``NODAL``
+     - **Answers**, with exactly the arithmetic described above. The
+       consult gates the modal case only; it does not change the
+       predicate.
+   * - ``None``
+     - legacy space (``axes is None``)
+     - **Pre-CS1 behavior, unchanged** — deliberately. The question
+       cannot be answered structurally, and collapsing ``None`` into
+       ``False`` would fire the refusal on every legacy space in the
+       tree, which is most of them.
+
+This is the element-level face of a space-layer distinction; the
+space-layer statement, and why ``None`` is a third value rather than a
+defaulted ``False``, is :ref:`spaces-nodal-modal`.
+
+⚠ **The refusal arm has no production witness yet.** `[M]` the only
+axis-built space minted inside ``orpheus/`` today is
+:attr:`MaterialMesh.bulk_space
+<orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`, whose
+factors are both ``NODAL``, and no harmonic-moment space is axis-built
+— so production reaches only the ``True`` and ``None`` arms. The
+``False`` arm is gated by a test-constructed modal axis, paired with its
+positive leg (the same values on an all-nodal space answering exactly
+what the legacy path answers) as ``vv-principles`` anti-pattern #11
+requires of any contract-validation method. It becomes
+production-reachable when CS2 mints the harmonic axis.
 
 
 .. _cone-preservation-is-a-realization-property:

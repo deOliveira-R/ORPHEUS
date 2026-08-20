@@ -1,11 +1,12 @@
 # CS1 design draft — the Energy axis, axis-composed spaces, and the space-family doctrine
 
-**STATUS: DESIGN DISCUSSION CONCLUDED (2026-08-20, round 6) — every fork ruled or
-resolved; execution protocol chartered by the user (see THE PROTOCOL FROM HERE,
-below). Protocol step 2 (clear-context re-evaluation + §P grounding) EXECUTED
-2026-08-20 at `273d431a`: the conceptual layers (§A/§B/§B2/§C, Appendix A) survived
-the adversarial re-read unchanged; all corrections are §F execution-layer, marked
-⭐ GROUNDED / ⭐ CORRECTED in place; §P results block below the checklist.** This file is the design record and the post-compaction resume surface. Governed by `plan-authoring.md`. The campaign plan of record is
+**STATUS: ⏹ EXECUTED (2026-08-20) — CS1 steps 1–5 landed on
+`feature/cs1-energy-space` (`1afff47b`→step-5 commit; trust git for merge
+status). The execution ledger + done-when reconciliation live in the campaign
+plan §2 COMPACTION POINT #2 — read THAT for state; this file is now the design
+RECORD (doctrine, rulings, refutations). Design discussion concluded 2026-08-20
+round 6; protocol step 2 (grounding) executed at `273d431a`; battery adjudicated
+in §T-R; Q5's type clause superseded at 3a review (see the fork register).** This file is the design record and the post-compaction resume surface. Governed by `plan-authoring.md`. The campaign plan of record is
 `.claude/plans/space_and_kernel_binding_campaign.md` (§2 points here); when the design
 is RULED, §2 absorbs the outcome and this file becomes the design record.
 
@@ -784,7 +785,7 @@ not before.)
 | Q2 | EnergyAxis identity | **RULED** (round 3): ng + edges content. Sharpened by the user: the boundaries are the energy mesh's FACES — EnergyGrid is a 1-D mesh in energy; `from_grid` is axis-from-mesh, symmetric with `SpatialAxis.from_mesh` |
 | Q3 | names | **RULED** (round 3): `EnergyAxis` (not `GroupAxis`). Geometry `AxisMesh` ruled a MISNOMER (declares geometry, creates no mesh) — rename issue filed (86 construction sites `[M]`; coordinate with numerics `Axis` naming so space-factor vs geometric-axis vocabularies stay distinct) |
 | Q4 | per-axis metric now | **RESOLVED-proposed** (round 2): build in CS1, toy-tested |
-| Q5 | F field rename → `space` | **RULED-provisional** (round 3): proceed; judge the end result at review. **⭐ RULED FINAL (user, 2026-08-20, post-grounding): name = `space`, scope = F+S** — ~~S's type stays the narrow `FullFieldSpace \| None` (only the NAME moves)~~ ⛔ SUPERSEDED at 3a review (user, 2026-08-21): **S's type ALSO widens to `FunctionSpace \| None`** — `[M]` the family census (run answering the user's challenge) showed C/IsoS/IsoN2N all already carry the WIDE type, so the narrow-S proposal left S the family's only off-pattern member on the type axis (the exact shape the naming-consistency rule prevents), and the narrow annotation was load-bearing for nothing (no test pins it; the real guard is instance AGREEMENT in OperatorSum, not the annotation's family). Landed with the amend commit after `e8769897`. Mesh properties (`SNMesh`/`DiffusionMesh.full_field_space`) and the `FullFieldSpace` class keep their names (they name objects, not roles) |
+| Q5 | F field rename → `space` | **RULED-provisional** (round 3): proceed; judge the end result at review. **⭐ RULED FINAL (user, 2026-08-20, post-grounding): name = `space`, scope = F+S** — ~~S's type stays the narrow `FullFieldSpace \| None` (only the NAME moves)~~ ⛔ SUPERSEDED at 3a review (user, 2026-08-20): **S's type ALSO widens to `FunctionSpace \| None`** — `[M]` the family census (run answering the user's challenge) showed C/IsoS/IsoN2N all already carry the WIDE type, so the narrow-S proposal left S the family's only off-pattern member on the type axis (the exact shape the naming-consistency rule prevents), and the narrow annotation was load-bearing for nothing (no test pins it; the real guard is instance AGREEMENT in OperatorSum, not the annotation's family). Landed with the amend commit after `e8769897`. Mesh properties (`SNMesh`/`DiffusionMesh.full_field_space`) and the `FullFieldSpace` class keep their names (they name objects, not roles) |
 | Q6 | `(ng, 1)` explicit point | **RESOLVED-proposed**, principle upgraded round 3 (§B clause 1: pairing-consulted normalization) |
 | Q7 | trivial angular slot | **RESOLVED-proposed**: ABSENT on scalar-family spaces (§B clause 3 — the convention lives on ι) |
 | Q8 | 0.8 doctrine rewrite in CS1 | **RULED (round 5): CS1 executes it, migration form.** (Round-4 explanation retained: `space.py:145-150` still TEACHES the overturned doctrine ("two copies of ℝⁿ are 'the same' space regardless of which inner product is installed" — report correction #16). Rewriting it to state ONLY the target doctrine would lie forward (behavior stays nominal until S3); leaving it lies backward. MIGRATION FORM = state both: the chartered doctrine (identity = axes' structural content + tags; metric differences imply space differences) AND the current nominal realization AND the S3 flip plan AND the axis-built bridge (derived names). Proposal: CS1 executes it (CS1 edits space.py anyway) |

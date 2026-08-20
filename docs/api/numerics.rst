@@ -499,6 +499,11 @@ in operator apply, §5 for the Layer 2 construction-time check, and
 API Reference
 -------------
 
+.. automodule:: orpheus.numerics.axis
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

@@ -44,6 +44,21 @@ commits, I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **CS1 step 5 — the `spaces.rst` seed (campaign 1, "operators born bound")** — branch
+  `feature/cs1-energy-space`, 2026-08-20, NOT committed (main agent commits). NEW 1158-line
+  `docs/theory/foundations/spaces.rst` (axis taxonomy · counting-measure theorem in the METRIC
+  register · the collapse doctrine written DIALECTICALLY with both refuted versions · fences ·
+  dev history) + toctree/list-table registration + `orpheus.numerics.axis` automodule + 3
+  `cone_violations` sites in `field_algebra.rst`. Gates: `-E -W` EXIT=0, warning set unchanged
+  (0 ↔ 0); 141 role targets 0 dead; `DEAD TARGETS: 0`; vv violations 0, sentinels 540 → 541
+  (`spaces-axis-product`, the ONE new label). ⛔ **open follow-ups I reported and did NOT fix
+  (out of scope, both measured):** `infinite_medium.rst:1153` + its `:1243-1244` code block still
+  teach the retired `basis_shape=(ng, 1)` spelling as current (`[M]` the block still RUNS —
+  stale description, not broken code); and `orpheus.numerics.space` / `…mesh.material_mesh` are
+  `automodule`'d nowhere while `api/homogeneous.rst` is `:noindex:`, so `FunctionSpace.of_axes`,
+  `has_coordinate_cone`, `MaterialMesh.bulk_space` and `solve_homogeneous_infinite` render plain
+  text corpus-wide. → [[lessons-L64]]
+
 - **CS3 step 5 — the flux-ontology overturn, doc half** — branch `refactor/cone-field-algebra`,
   2026-08-19. `field_algebra.rst` rewritten as the cone chapter (602 → ~1540 lines) + 7 citer
   pages + `coding-elegance` #18 reversed. 32 dead refs → 0; labels 4 → 5; sentinels 539 → 540;
