@@ -577,14 +577,14 @@ explicitly:
   :233/:238, classmethod :243/:255, docstrings :174/:250) + keyword callers `[M]`
   `sn/solver.py:1341`, `sn/solver.py:2805`, `diffusion/solver.py:248`,
   `tests/sn/architecture/test_monomorphic_leaves.py:519`.
-- **+S-scope (RECOMMENDED, main agent, 2026-08-20 — naming-consistency: fix the
-  off-pattern family member in the same change; S's TYPE stays the narrow
-  `FullFieldSpace | None`, only the NAME moves)** — `scattering.py` (field :410,
-  readers :429/:434, classmethod :766/:785, self-forwards :1013/:1054, docstrings
-  :403/:770-771) + keyword callers `[M]` `sn/solver.py:1337`,
-  `sn/coupled_system.py:503`, `tests/sn/operators/test_psi_half_coupling.py:2873`,
-  `tests/sn/architecture/test_monomorphic_leaves.py:516`. User judges at review
-  per Q5's own provisional terms.
+- **+S-scope (⭐ RULED IN — user, 2026-08-20: "space and F+S in scope" —
+  naming-consistency: fix the off-pattern family member in the same change; S's
+  TYPE stays the narrow `FullFieldSpace | None`, only the NAME moves)** —
+  `scattering.py` (field :410, readers :429/:434, classmethod :766/:785,
+  self-forwards :1013/:1054, docstrings :403/:770-771) + keyword callers `[M]`
+  `sn/solver.py:1337`, `sn/coupled_system.py:503`,
+  `tests/sn/operators/test_psi_half_coupling.py:2873`,
+  `tests/sn/architecture/test_monomorphic_leaves.py:516`.
 - ⚠ **NOT in the batch**: `tests/sn/solve/test_si_gate_dispatch.py:63` — its
   `full_field_space=None` fakes the MESH attribute (a `SimpleNamespace` mesh
   mimic), not the operator field; and every `*.full_field_space` MESH-property
@@ -683,7 +683,7 @@ not before.)
 | Q2 | EnergyAxis identity | **RULED** (round 3): ng + edges content. Sharpened by the user: the boundaries are the energy mesh's FACES — EnergyGrid is a 1-D mesh in energy; `from_grid` is axis-from-mesh, symmetric with `SpatialAxis.from_mesh` |
 | Q3 | names | **RULED** (round 3): `EnergyAxis` (not `GroupAxis`). Geometry `AxisMesh` ruled a MISNOMER (declares geometry, creates no mesh) — rename issue filed (86 construction sites `[M]`; coordinate with numerics `Axis` naming so space-factor vs geometric-axis vocabularies stay distinct) |
 | Q4 | per-axis metric now | **RESOLVED-proposed** (round 2): build in CS1, toy-tested |
-| Q5 | F field rename → `space` | **RULED-provisional** (round 3): proceed; judge the end result at review |
+| Q5 | F field rename → `space` | **RULED-provisional** (round 3): proceed; judge the end result at review. **⭐ RULED FINAL (user, 2026-08-20, post-grounding): name = `space`, scope = F+S** — S's type stays the narrow `FullFieldSpace \| None` (only the NAME moves); mesh properties (`SNMesh`/`DiffusionMesh.full_field_space`) and the `FullFieldSpace` class keep their names (they name objects, not roles) |
 | Q6 | `(ng, 1)` explicit point | **RESOLVED-proposed**, principle upgraded round 3 (§B clause 1: pairing-consulted normalization) |
 | Q7 | trivial angular slot | **RESOLVED-proposed**: ABSENT on scalar-family spaces (§B clause 3 — the convention lives on ι) |
 | Q8 | 0.8 doctrine rewrite in CS1 | **RULED (round 5): CS1 executes it, migration form.** (Round-4 explanation retained: `space.py:145-150` still TEACHES the overturned doctrine ("two copies of ℝⁿ are 'the same' space regardless of which inner product is installed" — report correction #16). Rewriting it to state ONLY the target doctrine would lie forward (behavior stays nominal until S3); leaving it lies backward. MIGRATION FORM = state both: the chartered doctrine (identity = axes' structural content + tags; metric differences imply space differences) AND the current nominal realization AND the S3 flip plan AND the axis-built bridge (derived names). Proposal: CS1 executes it (CS1 edits space.py anyway) |

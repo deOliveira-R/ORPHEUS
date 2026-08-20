@@ -120,7 +120,8 @@ unanimous content-equal grid, else `synthetic(ng)`. Homogeneous rewiring: C ride
 the extended `from_mesh` chain (`bulk_space` fallback AFTER `full_field_space`, so
 SN/diffusion short-circuit untouched); IsoS/N2N/F get `space=V`; F's field widens
 `FullFieldSpace | None` → `FunctionSpace | None` and renames → `space` (the grounded
-§6b batch lives in the record; +S-scope recommended, user judges at review);
+§6b batch lives in the record; ⭐ RULED 2026-08-20: name = `space`, scope = **F+S** —
+S renames, its type stays narrow);
 `Field.cone_violations` consults `has_coordinate_cone`. Execution: steps 0–5 with
 step 3 SPLIT — 3a rename/widen (behavior-neutral) then 3b wiring + xfail handling
 (§6b-fused: the chain extension alone XPASSes the C rows). Fences: no
