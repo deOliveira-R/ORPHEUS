@@ -283,6 +283,53 @@ across the rewiring; scoped suites + pyright terminal-1 + Sphinx `-W` clean.
 first-class per-axis objects — one composition mechanism, structural identity, metrics
 owned by the spaces, per-axis partition hooks recorded for Campaign 2.
 
+**⭐ CS2 design inputs (user + main agent, 2026-08-20 — three adjudications from
+the adjoint/binding discussion; each supersedes the older means-sketch where
+they conflict):**
+
+1. **The SN adjoint does NOT carry the dyad trap — keep the two-layer
+   architecture it proves.** `[M]` verified at `87fde3f7`: leaves ship the
+   honest EUCLIDEAN transpose (fission's composite arm: unweighted Σ/W then
+   `Kᵀ` then w-broadcast — `fission.py:429-460`), and `.H` conjugates with the
+   space-owned metric (`_AdjointOperator.apply` = `G_V⁺ ⊙ apply_transpose(G_W
+   ⊙ y)`, `operator.py:1290-1314`; SN interior `G_bulk = V_cell·w_n`,
+   `augmented_mesh.py:845/:1102`) — composing to the metric-correct form
+   (weighted-integrate/constant-broadcast, factors swapped). Gated at the
+   discriminating tier: `test_g_adjoint_reciprocity.py` (⟨Aψ,φ⟩_G duality with
+   an INDEPENDENT g_inner + the |Ω·n̂| negative control),
+   `test_fission_adjoint.py` (`composite_pairing_identity`,
+   `weight_swap_discriminator` — literally "WHICH side carries the quadrature
+   weights"). ⚠ The surviving nuance: the leaf transpose arm reads `w` off
+   the OPERAND (`bulk.mesh.quad.weights`) — correct today, but the same
+   third-weld read vv#30 catalogues; under input 2 it becomes a SPACE read.
+2. **The angular axis must be MEASURE-COMPLETE (nodes + weights), not
+   weights-only.** A weights-only axis serves the ℓ=0 binding; the ℓ≥1
+   moment maps need `P_ℓ(Ω_n)` — the NODES. `Quadrature` already lives in
+   NUMERICS (Q6), so an `AngularAxis` carrying/wrapping the angular
+   `DiscreteMeasure` is layer-clean, and then the scattering binding collapses
+   to (kernel, space) — the separate `quadrature=` argument (today a second
+   source beside `space=`, a latent disagreement channel) disappears, and
+   ruling 2's "frame minted from kernel eigenbasis × the SPACE's angular
+   measure" is satisfiable literally. ⛔ This supersedes the means-sketch's
+   "directions stay generator data" clause below.
+3. **The streaming/boundary formalization criterion (the user's, verbatim in
+   substance): a FULL operator — bulk AND boundary action on
+   `FullFieldSpace = interior ⊕ trace` — is what you get by binding to the
+   DISCRETIZATION SCHEME; the scheme is exactly what connects bulk to
+   boundary.** `StreamingKernel`'s representation-free datum is GEOMETRY
+   data (the σ-free advection structure per coordinate system), and its
+   binding is (kernel, space, scheme): the scheme (`DiscretizationSchemeBase`,
+   already first-class on `SNMesh`) supplies the closure that couples
+   interior to trace, and B's laws attach at the trace seam the scheme
+   creates. Refinement: the scheme also CO-GENERATES the spatial axis — LD
+   carries per-cell linear moments, i.e. a MODAL spatial factor
+   (`BasisKind.MODAL` exists for exactly this), so scheme enters both the
+   space construction and the closure. This is the L/B formalization the CS4
+   sketch lacked ("L/B ride the CS2 SN space" now has its mechanism), and
+   the binding-arity table per channel reads: energy (kernel, space);
+   angular scattering (kernel, space→frame); streaming (kernel, space,
+   scheme); boundary (law, trace-seam-of-scheme).
+
 **Proposed means** (hypothesis): `SpatialAxis = forget(Mesh)` (owns V_cell — volumes move
 OUT of operators; sequence carefully, ERR-067-class adjoint checks per move),
 `AngularAxis = forget(Quadrature)` (weights + parity closure; directions stay generator
