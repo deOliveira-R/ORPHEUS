@@ -341,6 +341,30 @@ they conflict):**
    "directions stay generator data" clause below (the DIRECTIONS-as-identity
    move; the generator itself stays forgotten, so the clause's intent —
    don't weld the quadrature object into the axis — survives in (a)).
+   **⭐ Deepened (user conjecture verified, 2026-08-20): the general
+   structure is ALREADY HALF-BUILT — all three generators natively speak
+   `DiscreteMeasure`** (`EnergyGrid.as_measure()` at `energy_grid.py:193`,
+   documented symmetric with `Mesh1D.volume_measure`; the Q6 quadrature
+   rules RETURN `DiscreteMeasure` natively, `rules_1d.py:41`). ⟹ a generic
+   **`Axis.from_measure(label, measure, kind)`** collapses the per-axis
+   constructors, and the axis metric = the view's weights UNIFORMLY —
+   energy's counting included (`as_measure` carries `w_g = 1` with the
+   rationale in place: φ_g is already group-integrated). **The reduction's
+   principled stopping point**: `as_measure`'s nodes are integer group
+   INDICES with unit weights, so for energy the view is DELIBERATELY
+   DEGENERATE as an identity — two grids with equal ng have identical
+   views; that degeneracy IS the counting theorem. The law: **identity =
+   measure-view content where the view is faithful (spatial, angular) + a
+   supplement exactly where the theorem degenerates it (energy: the edges
+   bytes, ruled Q2)** — EnergyAxis's specialization reduces to that one
+   supplemented field with its stated reason; `from_grid` and the
+   weighted-refusal reduce to the generic constructor (+ Pattern-4 guard on
+   the direct path). **Prerequisite, `[M]` probed: `DiscreteMeasure.__eq__`
+   RAISES today** (default dataclass eq over ndarrays,
+   `ValueError: truth value…`) — content-equality must be minted on
+   `DiscreteMeasure` (the `Axis._structural_bytes` discipline generalizes
+   verbatim: nodes + weights + support bytes) before measure equality can
+   gate anything; a latent hazard worth closing regardless.
 3. **The streaming/boundary formalization criterion (the user's, verbatim in
    substance): a FULL operator — bulk AND boundary action on
    `FullFieldSpace = interior ⊕ trace` — is what you get by binding to the
