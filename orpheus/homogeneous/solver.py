@@ -128,6 +128,16 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
     The degenerate carrier's ``bulk_space`` mints an ``==`` space (the
     identity bridge gate pins it) but is no longer what production
     consumes — the carrier supplies cross sections, not the posing.
+
+    **CS4a-R rulings this space's consumers rest on.** The rates in
+    :func:`solve_homogeneous_infinite` read this space's pairing directly
+    on bare arrays (νΣf, Σa, the ones co-vector) — deliberate (EE-1): the
+    typed space-bound reaction-rate co-vector arrives with CS4b's
+    fields-are-space-elements, not before. And both condensed cross
+    sections are spelled as SAME-PAIRING ratios ⟨Σ,φ⟩/⟨1,φ⟩, so they are
+    measure-invariant whatever weight a future pose carries (XD-6) — the
+    counting weight here is a convention this function states, not a
+    contract those ratios depend on.
     """
     return FunctionSpace.of_axes(
         EnergyAxis.from_materials([mix]),
@@ -257,7 +267,13 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
 
     prod_rate = space.inner_product(nu_sig_f, phi.reshape(ng, 1))
     abs_rate = space.inner_product(sig_a, phi.reshape(ng, 1))
-    total_flux = float(phi.sum())
+    # The one-group condensed cross sections are INTENSIVE: σ̄x = ⟨Σx,φ⟩/⟨1,φ⟩
+    # with BOTH legs the same pairing, so the posing measure cancels and the
+    # ratio is measure-invariant by construction (CS4a-R ruling XD-6 — a
+    # quantity documented as a cross section cannot scale with the point
+    # weight; G2.5's rate leg is the invariance witness). Bit-identical to
+    # the pre-review ``float(phi.sum())`` on the counting point (D5 pins it).
+    total_flux = space.inner_product(np.ones((ng, 1)), phi.reshape(ng, 1))
 
     if mix.eg is None:
         # Synthetic XS — no physical energy grid, so lethargy / per-energy

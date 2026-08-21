@@ -158,15 +158,19 @@ class FissionOperator(LinearOperator):
     Use :meth:`from_solver_data` to build instances; pass
     ``mat_xs=sn_mesh.material_xs_field()``.
 
+    The operator supports ``apply`` and ``apply_transpose`` — the rank-1
+    structure forbids a useful inverse (no ``solve``), but the dyad HAS a
+    transpose: the adjoint fission
+    :math:`F^\dagger = |\nu\Sigma_f\rangle\langle\chi|` (campaign #276),
+    the χ↔νΣf role swap. (Re-homed from the retired ``capabilities``
+    frozenset attribute's entry — CS4a-R MA-2; the set itself retired at
+    taxonomy step 6.)
+
     Attributes
     ----------
     mat_xs : MaterialXSField
         Macroscopic XS field carrying ``emission_spectrum`` (χ) and
         ``fission_production`` (νΣ_f) per-cell views.
-        ``{"apply", "apply_transpose"}`` — the rank-1 structure forbids a
-        useful inverse (no ``solve``), but the dyad HAS a transpose: the
-        adjoint fission :math:`F^\dagger = |\nu\Sigma_f\rangle\langle\chi|`
-        (campaign #276), the χ↔νΣf role swap.
     """
 
     mat_xs: "MaterialXSField"

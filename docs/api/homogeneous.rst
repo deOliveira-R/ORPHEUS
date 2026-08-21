@@ -85,7 +85,10 @@ then takes the dominant eigenpair directly:
   :math:`C - K_\mathrm{iso}` is materialised densely via its own
   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
   apply-to-basis — the ``(ng, 1)`` basis shape derived from the threaded
-  domain (the carrier's axis-built ``bulk_space``; campaign 1 CS1).
+  domain (the mixture-minted Energy ⊗ point space from the solver's
+  ``_pose_space``; CS4a K2 — until then the carrier's axis-built
+  ``bulk_space``, which still mints an ``==`` space but is no longer
+  what production consumes).
   Streaming :math:`L \equiv 0` in an infinite medium and is dropped.
 * **Production dyad** :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
   the rank-1 form of

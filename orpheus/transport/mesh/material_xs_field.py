@@ -754,7 +754,11 @@ class MaterialXSField:
         Returns ``[Σ_{s,0}, Σ_{s,1}, ..., Σ_{s,L}]`` for the requested
         material, each entry a dense ``(ng, ng)`` array indexed
         ``[g_from, g_to]``.  Materially equivalent to
-        ``[mix.SigS[l].todense() for l in ...]`` but cached.
+        ``[mix.SigS[l].todense() for l in ...]`` but cached — and
+        READ-ONLY (CS4a-R EE-4): the list entries are the shared cache
+        arrays themselves, frozen at build so no consumer can mutate the
+        loss matrix through this surface; ``.copy()`` first if you need
+        a writable result.
         """
         if self._sig_s_dense is None:
             self._build_dense_caches()
@@ -787,9 +791,21 @@ class MaterialXSField:
         """
         sig_s_dense: dict[int, list[np.ndarray]] = {}
         n2n_dense: dict[int, np.ndarray] = {}
+
+        def _frozen(dense: np.ndarray) -> np.ndarray:
+            # CS4a-R EE-4: the caches are SHARED live views — every
+            # consumer of sig_s_legendre / n2n_matrix receives the cache
+            # object itself, so a caller mutation used to reach the loss
+            # matrix ([M] 2026-08-21: +999 through sig_s_legendre moved
+            # apply_p0_in_scatter). Freeze at the producer; the two
+            # consumers needing mutable results already copy first.
+            dense.setflags(write=False)
+            return dense
         for mid, mix in self.materials.items():
-            sig_s_dense[mid] = [np.asarray(s.todense()) for s in mix.SigS]
-            n2n_dense[mid] = np.asarray(mix.Sig2.todense())
+            sig_s_dense[mid] = [
+                _frozen(np.asarray(s.todense())) for s in mix.SigS
+            ]
+            n2n_dense[mid] = _frozen(np.asarray(mix.Sig2.todense()))
         self._sig_s_dense = sig_s_dense
         self._n2n_dense = n2n_dense
 

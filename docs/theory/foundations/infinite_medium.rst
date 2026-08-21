@@ -1582,7 +1582,7 @@ the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
    others.
 
 .. implements:: normalisation
-   :by: orpheus.numerics.space.FunctionSpace.inner_product
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
 
 The normalisation denominator is the **fission** production rate
 :math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` only — consistent with the

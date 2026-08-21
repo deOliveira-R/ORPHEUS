@@ -245,10 +245,14 @@ class IsotropicScattering(LinearOperator):
         The macroscopic XS field — the single source of the per-material
         :math:`\Sigma_{s,0}` matrices and the cell-to-material map.
     space : FunctionSpace, optional
-        Optional scalar-flux :class:`~orpheus.numerics.space.FunctionSpace` for the
-        :class:`~orpheus.numerics.operator.OperatorSum` composition guard; ``None``
-        (the default) leaves the operator space-anonymous (the guard skips it — the
-        model-portable bare-ndarray contract).
+        Optional scalar-flux :class:`~orpheus.numerics.space.FunctionSpace` — two
+        guards read it (CS4a-R MA-3): the
+        :class:`~orpheus.numerics.operator.OperatorSum` composition guard at
+        sum time, and (since CS4a K2) the construction-time ng-conformity
+        refusal (:mod:`~orpheus.transport.operators._energy_conformity`) where
+        the space carries an ``EnergyAxis``. ``None`` (the default) leaves the
+        operator space-anonymous (both guards skip it — the model-portable
+        bare-ndarray contract, until CS4c's mandatory flip).
     """
 
     mat_xs: "MaterialXSField"

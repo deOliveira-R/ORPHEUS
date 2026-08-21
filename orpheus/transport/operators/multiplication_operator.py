@@ -211,6 +211,11 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # CS4a K2: the binding refuses a space whose EnergyAxis states a
         # different group count than the coefficient (guard reach + the
         # deliberate axes-less inertness: _energy_conformity docstring).
+        # ``values.shape[0]`` IS ng by CrossSectionField's own declared
+        # ``(ng, *spatial)`` layout (#196) — deliberately NOT
+        # ``coefficient.ng``, which is a MESH read-through (fields/_bases)
+        # that CS4b retires: the guard compares the space against the
+        # DATA, never against a second metadata source (CS4a-R EE-3).
         assert_energy_extent_conforms(
             self.space, self.coefficient.values.shape[0],
             operator="MultiplicationOperator",
@@ -344,9 +349,12 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # The space defaults to the mesh's own, most-structured-first (CS1):
         # a method mesh's composite ``full_field_space`` wins (SNMesh /
         # DiffusionMesh short-circuit here, untouched), else the carrier's
-        # axis-built ``bulk_space`` (every MaterialMesh carries one — the
-        # degenerate homogeneous carrier resolves its Energy ⊗ point space
-        # through this arm). Pass ``space=`` to override. The first arm
+        # axis-built ``bulk_space`` (every MaterialMesh carries one). Since
+        # CS4a K2 this bulk_space arm has NO production caller — the
+        # homogeneous solver mints its own Energy ⊗ point space via
+        # ``_pose_space`` and constructs C directly, so the resolution
+        # chain below serves bare-array/test callers only (CS4a-R CEN-2).
+        # Pass ``space=`` to override. The first arm
         # makes ``from_mesh(σ, sn_mesh)`` a faithful drop-in for the retired
         # ``CollisionOperator(sn_mesh, σ)``, which reached the same space via
         # ``sn_mesh.full_field_space`` (#261).

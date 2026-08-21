@@ -20,10 +20,13 @@ upstream nuclear-data reduction). The kernels copy that data **once, at
 construction, into read-only arrays** — deliberately *not* aliasing any
 carrier cache: measured 2026-08-20 (CS4a fact F4), the shipped
 :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.sig_s_legendre`
-returns the production cache object itself, writable, so a consumer
-mutation reaches the loss matrix. A kernel datum is immutable by
+returned the production cache object itself, writable, so a consumer
+mutation reached the loss matrix. A kernel datum is immutable by
 construction (frozen dataclass + read-only buffers), which closes that
-hazard for every kernel consumer.
+hazard for every kernel consumer — and since CS4a-R (EE-4) the producer
+cache itself is frozen at build, closing it for the ~20 live carrier
+consumers too; the kernel copy remains the guarantee that survives any
+carrier rework.
 
 **Storage conventions** (one home — this docstring; every array in this
 module follows it):
@@ -165,6 +168,12 @@ class ScatteringKernel:
         matrix of
         :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
         is exactly ``p0.T``.
+
+        Aliasing semantics (CS4a-R EE-9c): this property returns the
+        STORED read-only array itself (``p0 is moments[0]``) — unlike
+        :meth:`N2NKernel.emission_matrix` and :meth:`FissionKernel.dyad`,
+        which mint a fresh WRITABLE copy per call. Do not cache one
+        expecting the other's semantics.
         """
         return self.moments[0]
 
@@ -194,9 +203,12 @@ class N2NKernel:
     :attr:`matrix` is the dense ``(ng, ng)`` *reaction* matrix
     :math:`\Sigma_{2n}`, indexed ``[g_from, g_to]`` (module convention) —
     the raw cross section, with **no** multiplicity folded in. The factor
-    lives once, in :attr:`multiplicity`, and the emission-side operator
-    matrix :math:`2\,\Sigma_{2n}^{T}` is minted by
-    :meth:`emission_matrix`. Keeping reaction and emission distinct is
+    lives once *in this module*, in :attr:`multiplicity` (`[M]` CS4a-R
+    XD-2: the wider tree still spells the constant as a literal ``2`` at
+    12 production sites across the solver families — their consolidation
+    onto this one home is CS4c's rebind obligation), and the
+    emission-side operator matrix :math:`2\,\Sigma_{2n}^{T}` is minted
+    by :meth:`emission_matrix`. Keeping reaction and emission distinct is
     the loss-side channel ruling made structural: absorption counts
     :math:`\Sigma_{2n}` once (one neutron absorbed) while emission
     carries the 2 (two emitted) — a kernel that stored
@@ -267,6 +279,14 @@ class FissionKernel:
     (:math:`\nu\Sigma_f > 0` anywhere) must carry a probability simplex,
     a non-producing one the null spectrum. ``dataclasses.replace``
     re-runs it (G1.8: replace re-validates).
+
+    **Consumer status (Q2, restated per CS4a-R CEN-1).** This kernel has
+    NO production consumer at CS4a — the shipped fission path
+    (:class:`~orpheus.transport.operators.fission.FissionOperator`) still
+    reads χ/νΣf through its ``MaterialXSField``; the first production
+    consumer is CS4c's rebind of :math:`F` onto this datum. Until then
+    the kernel is gated (``tests/transport/test_kernels.py``) but
+    deliberately unwired.
     """
 
     chi: np.ndarray
