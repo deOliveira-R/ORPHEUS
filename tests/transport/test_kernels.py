@@ -696,3 +696,25 @@ def test_energy_conformity_guard_three_rows():
     mat_4g = carrier_4g.material_xs_field()
     inert = FissionOperator.from_solver_data(mat_xs=mat_4g, space=composite)
     assert inert.domain is composite  # constructed — the guard did NOT fire
+
+
+def test_fission_space_is_mandatory():
+    r"""**G2.11** — F without a space is a ``TypeError`` at both entries.
+
+    The presence half of the ng-conformity ruling (a signature
+    ``TypeError``, deliberately not a message pin): the campaign's R2
+    repair made an anonymous ``F`` UNREPRESENTABLE, so ``.H`` can never
+    see a ``None`` space and silently degrade to the bare Euclidean
+    transpose. The annotation half (``domain -> "FunctionSpace"``, no
+    Optional) is carried by the now-marker-free ledger rows
+    ``test_leaf_space_annotation_is_not_optional[F]`` /
+    ``test_leaf_without_a_space_refuses_construction[F]`` — this row
+    pins the two constructor surfaces directly.
+    """
+    mat_xs = MaterialMesh.from_materials(
+        {0: get_mixture("A", "2g")}
+    ).material_xs_field()
+    with pytest.raises(TypeError):
+        FissionOperator.from_solver_data(mat_xs=mat_xs)  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        FissionOperator(mat_xs=mat_xs)  # type: ignore[call-arg]

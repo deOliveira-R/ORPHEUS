@@ -647,7 +647,9 @@ class TestSharedOperatorScalarArms:
     def test_fission_scalar_composite_arm_matches_scalar_flux_arm(
         self, mesh, mat_xs, flux,
     ):
-        F = FissionOperator.from_solver_data(mat_xs=mat_xs)
+        F = FissionOperator.from_solver_data(
+            mat_xs=mat_xs, space=mesh.full_field_space,
+        )
         composite = F.apply(flux)
         direct = F.apply(flux.interior)
         assert isinstance(composite.interior, ScalarSourceSink)

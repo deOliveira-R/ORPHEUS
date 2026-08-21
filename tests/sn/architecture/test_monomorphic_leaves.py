@@ -698,10 +698,11 @@ def _domain_annotation(leaf_cls: type) -> "tuple[str, str]":
 
 
 #: Per-ROW marks (the ``_G13_ROWS`` shape): a function-level ``@_R1_XFAIL``
-#: cannot flip partially — CS4a's K2 deletes the ``F`` row's marker alone
-#: while ``L``/``C``/``S``/``B`` stay red until their own campaign phases.
+#: cannot flip partially — CS4a K2b deleted the ``F`` row's marker (the
+#: flip landed; F's space is mandatory) while ``L``/``C``/``S``/``B``
+#: stay red until their own campaign phases (C/S at CS4c, L/B at CS2).
 _R1_ROWS = [
-    pytest.param(leaf, marks=[_R1_XFAIL], id=leaf)
+    pytest.param(leaf, marks=[] if leaf == "F" else [_R1_XFAIL], id=leaf)
     for leaf in _LEAVES
 ]
 
@@ -1030,11 +1031,11 @@ def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
 # G1.5 — an anonymous leaf is unrepresentable
 # ═════════════════════════════════════════════════════════════════════════
 
-#: Per-ROW marks, same rationale as ``_R1_ROWS``: K2 flips the ``F`` row
-#: alone (``C`` waits for CS4c's mandatory flip, ``S`` for the S→kernel
-#: shell).
+#: Per-ROW marks, same rationale as ``_R1_ROWS``: K2b flipped the ``F``
+#: row (marker deleted with the landed flip); ``C`` waits for CS4c's
+#: mandatory flip, ``S`` for the S→kernel shell.
 _R2_ROWS = [
-    pytest.param(leaf, marks=[_R2_XFAIL], id=leaf)
+    pytest.param(leaf, marks=[] if leaf == "F" else [_R2_XFAIL], id=leaf)
     for leaf in _ANONYMOUS_CAPABLE
 ]
 

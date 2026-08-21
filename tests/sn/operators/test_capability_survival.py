@@ -47,6 +47,7 @@ from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOpera
 from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
+from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
@@ -304,10 +305,15 @@ class TestPredicateFaithfulness:
 
     def _transport_energy_operators(self):
         mat = _synthetic_mat_xs()
+        # F's space is MANDATORY (CS4a K2); a hand-built space keeps the
+        # capability survey space-agnostic (its subject is predicates,
+        # not posing). The neighbours stay space-LESS deliberately —
+        # C/S/the iso pair keep the Optional until CS4c's flip.
+        survey_space = FunctionSpace("capability_survey", (2, 4, 1))
         return [
             IsotropicScattering(mat),
             IsotropicN2N(mat),
-            FissionOperator(mat_xs=mat),
+            FissionOperator(mat_xs=mat, space=survey_space),
             LegendreMomentScattering(mat_xs=mat, L=1, skip_l0=True),
             N2NMomentOperator(mat_xs=mat, L=1),
             ScatteringOperator(

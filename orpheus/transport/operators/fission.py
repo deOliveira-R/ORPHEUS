@@ -178,17 +178,16 @@ class FissionOperator(LinearOperator):
     #: realization was the campaign's defect class at vocabulary level).
     #: Threaded by each solver with ITS space: SN passes the composite
     #: ``sn_mesh.full_field_space``; the homogeneous solver passes its
-    #: axis-built Energy ⊗ point space. ``F`` never enters a production
+    #: mixture-minted Energy ⊗ point space. ``F`` never enters a production
     #: :class:`~orpheus.numerics.operator.OperatorSum` (the fission source is
     #: applied as ``F.apply(ψ)`` and divided by ``k`` at the eigenvalue
     #: layer); where ``F`` composes as a PRODUCT (the homogeneous
-    #: ``K = A⁻¹ F``), the product guard consults this space when threaded.
-    #: ``None`` ⟹ ``domain``/``codomain`` report ``None`` (guards skip;
-    #: backward-compatible until CS4's Optional→mandatory flip). ``F``
+    #: ``K = A⁻¹ F``), the product guard consults this space. MANDATORY
+    #: since CS4a K2 (the campaign's R2 repair): an anonymous ``F`` was the
+    #: silent `.H`-degrades-to-Euclidean-transpose surface, and with the
+    #: space required at construction ``.H`` can never see a ``None``. ``F``
     #: depends on this numerics ``FunctionSpace``, NOT an SN mesh (D5).
-    space: "FunctionSpace | None" = field(
-        default=None, repr=False, compare=False,
-    )
+    space: "FunctionSpace" = field(repr=False, compare=False)
 
     # Fission is a BULK operator — `χ · νΣ_f · ⟨1, ψ⟩` reads and writes
     # the bulk flux only (A_bb), no boundary action. Issue #208 / Wave O.
@@ -230,44 +229,47 @@ class FissionOperator(LinearOperator):
 
     # ── Operator-algebra space metadata (P4.5 W-D) ───────────────────
     @property
-    def domain(self) -> "FunctionSpace | None":
-        r"""The space :math:`F` is an endomorphism of, or ``None`` if unthreaded.
+    def domain(self) -> "FunctionSpace":
+        r"""The space :math:`F` is an endomorphism of — MANDATORY since CS4a K2.
 
         Threaded via :meth:`from_solver_data` with the SAME instance the
         rest of the posing carries: in SN that is the composite
         :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
         ``L``/``C``/``S``/``B`` share; in the homogeneous solver it is the
-        axis-built Energy ⊗ point space (campaign 1, CS1). Unlike
+        mixture-minted Energy ⊗ point space (CS4a K2). Unlike
         :math:`C`/:math:`S`, :math:`F` never enters a production
         :class:`~orpheus.numerics.operator.OperatorSum` (the fission source
         is applied as ``F.apply(ψ)`` and divided by ``k`` at the eigenvalue
         layer); where :math:`F` composes as a product (the homogeneous
-        ``K = A⁻¹ F``), the composition guard consults this space when
-        threaded. :math:`F` reads the bulk block only; domain == codomain.
+        ``K = A⁻¹ F``), the composition guard consults this space.
+        :math:`F` reads the bulk block only; domain == codomain.
         """
         return self.space
 
     @property
-    def codomain(self) -> "FunctionSpace | None":
+    def codomain(self) -> "FunctionSpace":
         # Endomorphic (see :meth:`domain`).
         return self.space
 
     @classmethod
     def from_solver_data(
-        cls, *, mat_xs: "MaterialXSField",
-        space: "FunctionSpace | None" = None,
+        cls, *, mat_xs: "MaterialXSField", space: "FunctionSpace",
     ) -> "FissionOperator":
-        """Construct from a :class:`MaterialXSField`.
+        """Construct from a :class:`MaterialXSField` — the space is MANDATORY.
 
         Issue #197 PR-TYPED-1 — the constructor surface collapses the
         ``(chi, sig_p)`` ndarray pair into one :class:`MaterialXSField`
         handle that carries both views consistently with the rest of
-        the four-operator algebra. ``space`` (P4.5 W-D; widened in CS1) is
-        the space the solver threads so ``F.domain``/``codomain`` match the
-        rest of its posing — deliberately NOT derived from ``mat_xs`` here
-        (a default derivation would silently pick one family's realization;
-        the wrong-family hazard). ``None`` leaves ``F`` space-less and the
-        composition guards skip it (legal until CS4's flip).
+        the four-operator algebra. ``space`` (P4.5 W-D; widened in CS1;
+        mandatory since CS4a K2) is the space the solver threads so
+        ``F.domain``/``codomain`` match the rest of its posing —
+        deliberately NOT derived from ``mat_xs`` here (a default
+        derivation would silently pick one family's realization; the
+        wrong-family hazard). Requiring it turns "the space is set" from
+        a fact about one call site into a fact about the type: ``.H``
+        can never see a ``None`` and silently degrade to the bare
+        Euclidean transpose (the campaign's R2 defect, now
+        unrepresentable).
         """
         return cls(mat_xs=mat_xs, space=space)
 

@@ -313,27 +313,6 @@ def test_as_matrix_derives_the_basis_shape_from_the_threaded_domain() -> None:
     )
 
 
-def test_from_solver_data_does_NOT_default_derive_a_space() -> None:
-    """D11 — pin the ruled ABSENCE: a bare ``from_solver_data(mat_xs=…)``
-    stays space-less.
-
-    The wrong-family hazard: ``mat_xs`` cannot know which family's space
-    the caller poses on (an SN caller threads the angular composite, the
-    homogeneous caller its scalar bulk) — a silently-added default
-    derivation would pick one and type-check the other family's posing
-    against it. Nothing else reds if that default appears (the rows that
-    would have caught it are the ones CS1 deleted), so this gate is the
-    only witness. WHEN CS4's Optional→mandatory flip lands: delete this
-    gate (the constructor will then REQUIRE the space).
-    """
-    op = FissionOperator.from_solver_data(mat_xs=_mat_xs("2g"))
-    _require(
-        op.domain is None and op.codomain is None,
-        "from_solver_data silently derived a space — the wrong-family "
-        "hazard is live",
-    )
-
-
 # ═════════════════════════════════════════════════════════════════════════
 # CS4a K2 — the mixture-minted pose (G2.1, G2.3–G2.7)
 # ═════════════════════════════════════════════════════════════════════════

@@ -142,7 +142,9 @@ def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
     """F.apply(TimedFullField) returns TimedFullField with zero boundary."""
     sn = builder()
     state = _random_state(sn, seed=1)
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    F = FissionOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+    )
 
     Fpsi = F.apply(state)
     assert isinstance(Fpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
@@ -158,7 +160,9 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
     """F.apply(TimedFullField) broadcasts F.apply(integrate_angular(bulk))."""
     sn = builder()
     state = _random_state(sn, seed=2)
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    F = FissionOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+    )
 
     # Composite path: F(state) — TimedFullField
     Fpsi_typed = F.apply(state)
@@ -293,7 +297,9 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
         quadrature=sn.quad,
         scattering_order=0,
     )
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    F = FissionOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+    )
 
     A = L + C - S - F  # full operator-algebra composition
     out = A.apply(state)
@@ -329,7 +335,9 @@ def test_full_algebra_linearity(name, builder) -> None:
         quadrature=sn.quad,
         scattering_order=0,
     )
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    F = FissionOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+    )
     A = L + C - S - F
     # Linearity, stated directly (campaign 1 CS3 — flux lives in V):
     # homogeneity A(c·ψ) = c·A(ψ) AND additivity A(ψ₁+ψ₂) = A(ψ₁)+A(ψ₂).
@@ -432,7 +440,9 @@ def test_c6_apply_dispatch_parity() -> None:
     """
     sn = _slab_mesh()
     state = _random_state(sn, seed=57)
-    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    F = FissionOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+    )
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(), quadrature=sn.quad, scattering_order=0,
     )
