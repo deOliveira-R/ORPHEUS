@@ -332,7 +332,12 @@ def test_minted_space_equals_the_carrier_bulk_space() -> None:
     rule (``EnergyAxis.from_materials``) and both canonicalize the
     quotient point to the counting weight, so a divergence means a
     second spelling of either arm has appeared — exactly what the K1
-    hoist exists to make unspellable.
+    hoist exists to make unspellable. Denominator honesty (CS4a-R
+    QA-F6): for the ENERGY arm the discriminating case is
+    ``homo_2eg_with_eg`` alone — `[M]` 7 of the 8 cases carry
+    ``eg=None``, where both sides are synthetic and cannot differ — and
+    rule-CORRECTNESS is G1.6's (this gate owns no-second-spelling;
+    breaking the shared rule itself leaves this gate green by design).
 
     ⚠ ``==`` and never ``is`` — they are distinct objects by
     construction, and the ``is not`` precondition is asserted so this
@@ -374,6 +379,14 @@ def test_rate_re_pose_reproduces_the_frozen_pre_carve_values(groups: str) -> Non
     the row stays a genuine pre-carve pin even though the old spelling
     has left the homogeneous path. Bit-exact ``==``: the two spellings
     were measured 0-ULP identical on every shipped quotient case.
+
+    Scope (CS4a-R QA-F8): this row re-computes the pairing IN-TEST, so
+    the PRODUCTION rate lines are covered elsewhere — sig_prod/sig_abs
+    ride the D5 byte payload (`[M]` a point-weight mutation reds all 8
+    byte rows + the production-rate-100 gate). And on the degenerate
+    carrier the volume-weighted and counting spellings are bit-identical
+    (V ≡ 1), so this row carries no information about the K2a MECHANISM
+    — that is G2.4 + G2.5's, per G2.4's inversion table.
     """
     mix = _mix(groups)
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
@@ -456,8 +469,16 @@ def test_the_space_measure_is_consulted(monkeypatch) -> None:
     2.0 is deliberate: ×2 and ÷2 are exact in binary floating point, so
     every ratio below is asserted BIT-exactly. Expected moves — the
     normalization ⟨νΣf, φ⟩ = 100 divides the eigenvector by the doubled
-    pairing, so ``flux`` HALVES; both specific rates (rate / total_flux)
-    DOUBLE; ``k_inf`` is unchanged (a ratio, blind by construction).
+    pairing, so ``flux`` HALVES; both condensed cross sections are
+    UNCHANGED — σ̄x = ⟨Σx,φ⟩/⟨1,φ⟩ is the SAME pairing top and bottom, so
+    the measure cancels (the CS4a-R XD-6 intensivity ruling: this leg is
+    the measure-INVARIANCE witness — re-spell the denominator as a bare
+    ``phi.sum()`` and it reds by exactly the weight factor, `[M]` probe
+    ``scratch/cs4a_r_probe_one_group_xs_measure.py``); ``k_inf`` is
+    unchanged (a ratio, blind by construction). Until CS4a-R this leg
+    asserted the rates DOUBLE — the covariant behaviour the pre-review
+    spelling shipped, recorded as intended before the intensivity ruling
+    decided it.
     """
     import orpheus.homogeneous.solver as solver_module
     from orpheus.homogeneous.solver import solve_homogeneous_infinite
@@ -484,9 +505,11 @@ def test_the_space_measure_is_consulted(monkeypatch) -> None:
         f"{weighted.flux} vs {baseline.flux}",
     )
     _require(
-        weighted.sig_prod == 2.0 * baseline.sig_prod
-        and weighted.sig_abs == 2.0 * baseline.sig_abs,
-        "the specific rates did not double under the weighted point",
+        weighted.sig_prod == baseline.sig_prod
+        and weighted.sig_abs == baseline.sig_abs,
+        "the condensed cross sections moved under the weighted point — "
+        "σ̄ = ⟨Σ,φ⟩/⟨1,φ⟩ must be measure-invariant (XD-6: both legs the "
+        "same pairing, the weight cancels bit-exactly)",
     )
     _require(weighted.k_inf == baseline.k_inf, "k_inf moved under a measure change")
 
@@ -529,9 +552,13 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
     r"""**G2.7** — the counting-measure adjoint COROLLARY. Claim kind: THEOREM.
 
     ``op.H.apply(x) == op.apply_transpose(x)`` for all four energy
-    leaves on the minted space — asserted as the statement that no
-    OTHER change (a leaf gaining a non-diagonal energy coupling) has
-    broken the corollary.
+    leaves on the minted space. Falsifier honesty (CS4a-R QA-F3): the
+    only REACHABLE falsifier is ``_AdjointOperator.apply`` ceasing to
+    delegate to ``apply_transpose`` (which also reds D4b) — the metric
+    factors are provably ``is``-identity on the counting space, so `[M]`
+    even a dense AFFINE ``apply_transpose`` passes this equality (a
+    "leaf gaining a non-diagonal energy coupling", this docstring's
+    pre-review falsifier, cannot fire it).
 
     ⛔ **This gate does NOT certify that the threaded metric is
     consulted.** ``[M]`` 2026-08-20 (verification plan F1): ``.H`` vs

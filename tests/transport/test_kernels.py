@@ -6,13 +6,18 @@ operators. These gates are software invariants of that posing
 (``foundation``, the ``test_operator_spaces.py`` placement argument);
 none carries ``verifies(...)``.
 
-**Fixture discipline** (verification plan §3, ``lessons`` L1): every
-mixture is built DIRECTLY through the campaign's one builder
-(:func:`tests.sn.architecture._config.anisotropic_mixture`) — never
-``make_mixture``, which hardcodes ``SigL = 0``, defaults ``Sig2`` to
-zero, and offers no P1 channel, making the ℓ≥1 and (n,2n) mutation arms
-vacuously green. Fixtures are function-scoped builders (fresh per call)
-so the G1.5 carrier-mutation leg cannot pollute a shared object.
+**Fixture discipline** (verification plan §3, ``lessons`` L1; wording
+corrected at CS4a-R QA-F7): the MUTATION-CATCHER fixtures are built
+DIRECTLY through the campaign's one builder
+(:func:`tests.sn.architecture._config.anisotropic_mixture`), because the
+SHIPPED Sood tables carry no ``Sig2`` (`[M]` nnz = 0 on all 12
+``get_mixture`` pairs) and ``SigL = 0`` — channels a catcher must
+un-null or its arm goes vacuously green. (``make_mixture`` itself DOES
+offer a P1 channel via ``sig_s1=`` — the earlier "offers no P1 channel"
+clause was false — and the shipped-pair/binding rows in this file
+legitimately use ``get_mixture``, where the nulled channels are
+irrelevant.) Fixtures are function-scoped builders (fresh per call) so
+the G1.5 carrier-mutation leg cannot pollute a shared object.
 """
 
 from __future__ import annotations
@@ -176,14 +181,17 @@ def test_truncated_returns_exactly_the_requested_stack():
 def test_kernel_equals_carrier_cache_bit_identical(build_mixture):
     """**G1.3** — every kernel datum equals the carrier's cache at 0 ULP.
 
-    The claim's licence (verification plan §2(h).5): the two sides are
-    **independently assembled from the Mixture's sparse data** — the
-    kernel densifies ``SigS``/``Sig2``/reads ``chi``/``SigP`` in
-    ``from_mixture``; the carrier densifies through its own
-    ``_build_dense_caches`` path — so their agreement is a real claim
-    whatever the later absorb-vs-delegate fate of the caches, and
-    ``array_equal`` (never ``allclose``) is right because both sides are
-    ``todense()`` of one sparse source at reduction depth 0.
+    Scope of the licence (re-scoped at CS4a-R QA-F2): the two sides are
+    two SPELLINGS over ONE sparse source — both are
+    ``np.asarray(s.todense())`` of the same ``Mixture`` object (and the
+    chi/SigP legs compare a construction copy with its own source), so
+    this gate pins an ASYMMETRIC re-spelling of either path, NOT the
+    storage convention: `[M]` a shared ``[g_from,g_to]→[g_to,g_from]``
+    inversion of BOTH sides leaves all rows here green (the convention
+    is pinned by ``tests/homogeneous`` — 17 reds incl. the L1 anchor —
+    and by G1.4b's hand-authored literal below). ``array_equal`` (never
+    ``allclose``) is right because both sides are ``todense()`` of one
+    sparse source at reduction depth 0.
 
     The ``symmetric-declared-non-catcher`` row is exactly that (Mode 6):
     a transpose mutation is invisible on it, and it is shipped to
@@ -224,13 +232,16 @@ def test_kernel_equals_carrier_cache_bit_identical(build_mixture):
 def test_p0_and_emission_are_what_the_iso_pair_consumes():
     """**G1.4** — ``p0``/``emission_matrix`` against the storage-side oracle.
 
-    ``dense_per_material`` is the deliberately independent
-    transpose-copy view (its own docstring's stated job), so these rows
-    pin the kernel's slice AND orientation against an oracle that shares
-    no realization with it: ``p0`` is the ``[g_from, g_to]`` transpose
-    of the iso operator matrix, and ``emission_matrix()`` carries the
-    multiplicity the raw ``matrix`` deliberately does not (M1.5's
-    two-tier separation from G1.3).
+    ``dense_per_material`` is a transpose-copy VIEW of the same carrier
+    cache G1.3 already compares (re-scoped at CS4a-R QA-F2: ``p0 ==
+    iso[mid].T`` cancels to an identity under a SHARED convention
+    inversion, so orientation-BETWEEN-views and the multiplicity are
+    what these rows genuinely pin — the multiplicity leg IS independent:
+    ``ClassVar = 2`` in kernels.py vs a literal ``2.0`` in
+    ``isotropic_scattering.py:444``, two hand-written homes). The
+    absolute storage convention is pinned by G1.4b's hand-authored
+    literal and by ``tests/homogeneous`` (M1.5's two-tier separation
+    from G1.3).
 
     The CS4a-constructible half of the done-when's "slice-consistency
     crosscheck" (F8): the ANGULAR ℓ=0-block agreement is CS4c's, when S
@@ -249,6 +260,22 @@ def test_p0_and_emission_are_what_the_iso_pair_consumes():
         )
 
 
+def test_p0_convention_pinned_against_a_hand_authored_literal():
+    """**G1.4b** (CS4a-R QA-F2) — the ``[g_from, g_to]`` convention, EXTERNALLY pinned.
+
+    G1.3/G1.4 compare spellings of ONE ``todense()`` chain, so a SHARED
+    storage-convention inversion moves both sides together (`[M]`
+    both-sides transpose: 51/51 green in this file pre-CS4a-R). The
+    literal below is ``_asymmetric_fissile_2g``'s own declared
+    ``SigS[0]`` input, copied BY HAND from the fixture definition —
+    never computed — so no shared code path can move both sides of THIS
+    comparison. Deliberately asymmetric so the transpose is observable.
+    """
+    kernel = ScatteringKernel.from_mixture(_asymmetric_fissile_2g())
+    hand_authored_p0 = np.array([[0.38, 0.10], [0.05, 0.90]])  # [g_from, g_to]
+    np.testing.assert_array_equal(kernel.p0, hand_authored_p0)
+
+
 # ═════════════════════════════════════════════════════════════════════════
 # G1.5 — the kernel does NOT alias the carrier cache (the F4 hazard, closed)
 # ═════════════════════════════════════════════════════════════════════════
@@ -265,7 +292,12 @@ def test_kernel_does_not_alias_the_carrier_cache():
     1. the kernel array is a different object than the cache;
     2. every kernel buffer is write-protected;
     3. writing through the kernel RAISES;
-    4. mutating the CARRIER's cache leaves the kernel datum unchanged.
+    4. the CARRIER's cache itself REFUSES mutation (the producer-side
+       freeze CS4a-R EE-4 added — before it, this leg mutated the cache
+       and asserted non-propagation; the freeze upgrades the property
+       from "does not propagate" to "cannot be spelled");
+    5. mutating the SOURCE (the mixture's sparse ``.data`` / dense
+       ``SigP``) does not reach the kernel — construction copies.
     """
     mat_xs, mixtures = _two_material_carrier()
     kernel = ScatteringKernel.from_mixture(mixtures[0])
@@ -298,9 +330,12 @@ def test_kernel_does_not_alias_the_carrier_cache():
     with pytest.raises(ValueError):
         kernel.moments[0][0, 0] = 999.0
 
+    with pytest.raises(ValueError):
+        cache[0][0, 0] += 999.0  # the F4 reach, now REFUSED at the producer
+
     before = kernel.p0[0, 0]
-    cache[0][0, 0] += 999.0  # the measured F4 reach — must NOT propagate
-    assert kernel.p0[0, 0] == before
+    mixtures[0].SigS[0].data[:] += 999.0  # mutate the sparse SOURCE instead
+    assert kernel.p0[0, 0] == before  # ...the kernel copied at construction
 
     sig_p_before = fission.nu_sig_f[0]
     mixture.SigP[0] += 999.0  # mutate the SOURCE — must not reach the kernel
@@ -443,8 +478,32 @@ def test_kernels_are_frozen_and_replace_revalidates():
 
     # The χ law re-fires on replace: a producing kernel refuses a
     # non-simplex spectrum (the one law, enforce_emission_spectrum).
-    with pytest.raises(ValueError):
+    # match= discriminates the χ-law raise from the factor-shape raise —
+    # [M] CS4a-R QA-F9: both ValueErrors reach this construction, so a
+    # bare raises() would stay green with the χ law disabled.
+    with pytest.raises(ValueError, match="not normalized"):
         dataclasses.replace(fission, chi=np.array([0.4, 0.3]))
+
+    # QA-F10 completion: replace() re-establishes the read-only buffers
+    # (the claim the class docstring makes; asserted nowhere until now).
+    assert scattering.truncated(0).moments[0].flags.writeable is False
+
+
+def test_kernel_constructor_refusals_have_negative_witnesses():
+    """**G1.8b** (CS4a-R QA-F10) — every ``__post_init__`` refusal, exercised.
+
+    `[M]` at review time each message fragment below had 0 hits in
+    ``tests/`` — four admission contracts shipped positive-only (vv#11).
+    One row per arm, ``match=`` on the shortest distinctive fragment.
+    """
+    with pytest.raises(ValueError, match="empty"):
+        ScatteringKernel(moments=())
+    with pytest.raises(ValueError, match="square"):
+        N2NKernel(matrix=np.zeros((2, 3)))
+    with pytest.raises(ValueError, match="rank"):
+        N2NKernel(matrix=np.zeros(2))
+    with pytest.raises(ValueError, match="two \\(ng,\\) vectors"):
+        FissionKernel(chi=np.array([1.0, 0.0]), nu_sig_f=np.array([0.1, 0.2, 0.3]))
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -539,7 +598,13 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
     refusal (``C × ScalarFlux → TypeError``) — so the gate is never
     merely "does it not crash", and it survives reformatting and any
     later ``singledispatchmethod`` → explicit-dispatch rewrite, which a
-    source grep would not. The two ``IsoS/IsoN2N × ScalarFlux →
+    source grep would not. The DENOMINATOR (CS4a-R QA-F12): 4 of the 5
+    dispatchers × 3 carriers, on the 2g/6-cell diffusion binding —
+    ``ScatteringOperator``'s 5 arms have no behavioural cell here (they
+    are covered by the registry-keyset gate only, which catches an ADDED
+    arm where this matrix catches a MOVED one: the two gates are
+    complementary by design), and `[M]` the F-FullField / F-ScalarFlux
+    cells are coupled (one reroute reds both). The two ``IsoS/IsoN2N × ScalarFlux →
     ndarray`` cells are F10's untyped fall-through (typed in, bare out —
     vv#29's asymmetric arrow), RECORDED here as the shipped behaviour;
     CS4a deletes no arm and repairs none (the dispatch collapse is
@@ -642,14 +707,17 @@ def test_isotropic_kernel_still_constructs_space_anonymously():
 def test_energy_conformity_guard_three_rows():
     r"""**G2.10** — the ng-conformity refusal, per arm (vv#11 + vv#28).
 
-    Three rows, and the third is the one an author will not write
-    unprompted:
+    Four row families, and the last two are the ones an author will not
+    write unprompted:
 
     1. axis-built POSITIVE — 2g data × the 2g quotient space constructs;
     2. axis-built NEGATIVE — 2g data × a 4g quotient space raises the
        typed ``"energy extent"`` refusal (fragment asserted DISJOINT
        from the ``OperatorSum`` pins' ``"equal domains"`` vocabulary, so
-       this row can never be intercepted by those);
+       this row can never be intercepted by those) — and row 2b repeats
+       the refusal at ALL FOUR wired call sites, naming each operator
+       (QA-F1: the guard BODY is single-sourced but the WIRING is
+       per-site — three sites had no witness);
     3. axes-LESS — a WRONG-ng bind on ``SNMesh(2g).full_field_space``
        MUST CONSTRUCT: the declared inertness. The guard's reach is the
        contract (``[M]`` live on 192 of 1022 constructions — 4 of 13
@@ -681,6 +749,30 @@ def test_energy_conformity_guard_three_rows():
     message = str(excinfo.value)
     assert "4" in message and "2" in message  # both integers named
     assert "equal domains" not in message  # disjoint from the D2 pins
+
+    # Row 2b — the SAME refusal at EVERY wired call site (CS4a-R QA-F1:
+    # [M] per-site no-op mutation over 655 rows reddened F only — C /
+    # IsoS / IsoN2N had NO witness, and the unwitnessed C site is the
+    # one passing a different operand expression, values.shape[0]. One
+    # row per call site; the message must name the CONSTRUCTING
+    # operator, so a miswired label cannot borrow a sibling's witness).
+    wrong_space = carrier_4g.bulk_space
+    per_site = {
+        "MultiplicationOperator": lambda: MultiplicationOperator(
+            coefficient=mat_2g.total_cross_section_field, space=wrong_space,
+        ),
+        "IsotropicScattering": lambda: IsotropicScattering(
+            mat_2g, space=wrong_space,
+        ),
+        "IsotropicN2N": lambda: IsotropicN2N(mat_2g, space=wrong_space),
+    }
+    for op_name, construct in per_site.items():
+        with pytest.raises(ValueError, match="energy extent") as site_info:
+            construct()
+        assert op_name in str(site_info.value), (
+            f"the wrong-ng refusal at the {op_name} site does not name "
+            f"its constructing operator"
+        )
 
     # Row 3 — axes-less: the WRONG-ng bind constructs (declared inert).
     mesh = Mesh1D(

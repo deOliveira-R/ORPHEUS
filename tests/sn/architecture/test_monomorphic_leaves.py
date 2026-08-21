@@ -677,18 +677,24 @@ def test_leaf_declares_both_function_spaces(leaf, geometry):
 # ``test_every_homogeneous_operator_reports_the_same_space``.
 
 
-def _domain_annotation(leaf_cls: type) -> "tuple[str, str]":
-    """``(owning class, raw return annotation)`` for the ``domain`` property.
+def _domain_annotation(
+    leaf_cls: type, prop_name: str = "domain"
+) -> "tuple[str, str]":
+    """``(owning class, raw return annotation)`` for a space property.
 
     Read off the OWNING class in the MRO rather than the leaf, so the failure
     message points at the declaration a fix must edit. Annotations are
     strings under ``from __future__ import annotations``; they are compared
     textually on purpose — resolving the forward reference would require
     importing the ``TYPE_CHECKING``-only ``FunctionSpace`` at runtime and
-    would tell us nothing extra.
+    would tell us nothing extra. Takes the property NAME because the R1 gate
+    must read BOTH ``domain`` and ``codomain`` (CS4a-R QA-F5: a strict row
+    that flips on ``domain`` alone forces its own marker deletion, and the
+    row is then green forever with ``codomain`` still Optional — the
+    self-retiring mechanism converts a half-flip into silent coverage loss).
     """
     for klass in leaf_cls.__mro__:
-        prop = vars(klass).get("domain")
+        prop = vars(klass).get(prop_name)
         if prop is None:
             continue
         fget = getattr(prop, "fget", prop)
@@ -728,13 +734,18 @@ def test_leaf_space_annotation_is_not_optional(leaf):
     from a fact about one call site into a fact about the type.
     """
     sn_mesh = _sphere()
-    owner, annotation = _domain_annotation(type(_leaf_set(sn_mesh)[leaf]))
-    if "None" in annotation or "Optional" in annotation:
-        pytest.fail(
-            f"{owner}.domain is annotated {annotation} — an OPTIONAL space. "
-            f"While it is optional the composability guard is skippable and "
-            f"the `.H` metric application is conditional (R1/R2)."
-        )
+    leaf_cls = type(_leaf_set(sn_mesh)[leaf])
+    for prop_name in ("domain", "codomain"):
+        owner, annotation = _domain_annotation(leaf_cls, prop_name)
+        if "None" in annotation or "Optional" in annotation:
+            pytest.fail(
+                f"{owner}.{prop_name} is annotated {annotation} — an "
+                f"OPTIONAL space. While it is optional the composability "
+                f"guard is skippable and the `.H` metric application is "
+                f"conditional (R1/R2). Both properties are read (QA-F5): a "
+                f"domain-only flip must not retire this row with codomain "
+                f"still Optional."
+            )
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -1168,15 +1179,47 @@ def test_ledger_xfail_marks_are_strict():
     row whose marker a landed repair deleted) are legitimately unmarked and
     skipped. This gate is PERMANENT — it survives every phase of the
     campaign, guarding whatever rows remain.
+
+    The POPULATION is introspected, not hand-listed (CS4a-R QA-F4: `[M]` a
+    non-strict mark in a new ``_R7_ROWS`` list passed the previous
+    three-name walk silently). Every module-level list of ``pytest.param``
+    rows is walked — a new ledger list is in the population the moment it
+    exists — and function-LEVEL ``@pytest.mark.xfail`` decorators (invisible
+    to any param walk) are swept via each test function's ``pytestmark``.
     """
-    for row in (*_R1_ROWS, *_R2_ROWS, *_G13_ROWS):
-        for mark in row.marks:
-            if mark.name == "xfail" and mark.kwargs.get("strict") is not True:
-                pytest.fail(
-                    f"ledger row {row.id!r} carries a NON-STRICT xfail mark "
-                    f"(kwargs {mark.kwargs!r}) — the row can no longer "
-                    f"self-retire: an XPASS reports `x` instead of failing, "
-                    f"and the repair that earns the flip never learns the "
-                    f"marker must be deleted. Spell it "
-                    f"pytest.mark.xfail(strict=True, reason=…)."
-                )
+    import sys
+
+    param_set_cls = type(pytest.param(None))
+    module = sys.modules[__name__]
+    param_lists = {
+        name: value
+        for name, value in vars(module).items()
+        if isinstance(value, list)
+        and value
+        and all(isinstance(row, param_set_cls) for row in value)
+    }
+    assert set(param_lists) >= {"_R1_ROWS", "_R2_ROWS", "_G13_ROWS"}, (
+        f"the strict gate lost its known ledger lists — found only "
+        f"{sorted(param_lists)}; the module introspection is broken"
+    )
+    for list_name, rows in param_lists.items():
+        for row in rows:
+            for mark in row.marks:
+                if mark.name == "xfail" and mark.kwargs.get("strict") is not True:
+                    pytest.fail(
+                        f"{list_name} row {row.id!r} carries a NON-STRICT "
+                        f"xfail mark (kwargs {mark.kwargs!r}) — the row can "
+                        f"no longer self-retire: an XPASS reports `x` instead "
+                        f"of failing, and the repair that earns the flip "
+                        f"never learns the marker must be deleted. Spell it "
+                        f"pytest.mark.xfail(strict=True, reason=…)."
+                    )
+    for func_name, func in vars(module).items():
+        if func_name.startswith("test_") and callable(func):
+            for mark in getattr(func, "pytestmark", []):
+                if mark.name == "xfail" and mark.kwargs.get("strict") is not True:
+                    pytest.fail(
+                        f"{func_name} carries a NON-STRICT function-level "
+                        f"xfail decorator — same silent-self-retirement "
+                        f"defect as a non-strict ledger row."
+                    )

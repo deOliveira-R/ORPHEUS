@@ -86,9 +86,12 @@ def anisotropic_mixture(
     r"""A ``Mixture`` built DIRECTLY — never through ``make_mixture``.
 
     **The campaign's one mixture builder.** ``make_mixture``
-    (``xs_library.py:56``) hardcodes ``SigL = 0``, defaults ``Sig2`` to an
-    all-zero sparse matrix, and offers no :math:`P_1` channel — so every
-    channel it nulls goes *vacuously green* (lessons L1). Each optional
+    (``xs_library.py:56``) hardcodes ``SigL = 0`` and defaults ``Sig2`` to an
+    all-zero sparse matrix — and the SHIPPED tables pass no ``sig_s1``, so
+    every channel the shipped pairs null goes *vacuously green* in a
+    mutation catcher (lessons L1). (Wording corrected at CS4a-R QA-F7:
+    ``make_mixture`` itself DOES accept a :math:`P_1` channel via
+    ``sig_s1=`` — the nulling is the shipped DATA's, not the signature's.) Each optional
     argument here exists to un-null one of them, and each is off by default
     so a gate activates only what it actually constrains.
 

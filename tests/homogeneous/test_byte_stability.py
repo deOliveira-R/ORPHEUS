@@ -5,6 +5,11 @@ r"""CS1 migration gate D5 — the homogeneous solve is BYTE-stable across 3b.
 # the campaign merges green it is subsumed by ``test_kinf_exact`` (the L1
 # correctness anchor) and ``test_as_matrix_equals_retired_as_dense_loop``
 # (the materialization byte pin), per the aggressive-retirement rule.
+# ⚠ LIVE CONSUMER (CS4a-R QA-F11): ``test_operator_spaces.py`` G2.1
+# imports ``_mixture_cases`` from this module — move that helper to a
+# shared home in the retiring commit, or the retirement ImportErrors a
+# green gate. (And CS4a made this module the D5 exit-criterion gate, so
+# the retire-note's own premise is stale until the campaign re-rules it.)
 
 Bit-identity (``np.array_equal`` / exact ``==``, never ``allclose``) is the
 correct contract here: the counting-measure theorem makes the CS1 space
