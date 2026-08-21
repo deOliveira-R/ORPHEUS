@@ -320,6 +320,62 @@ boundary restriction (dV → dA, the divergence-theorem counterpart) × the
 energy (diagonal; an albedo may couple groups) — already realized as the
 trace summand's metric `G_trace = |Ω·n̂|·w_n` in `full_field_space`.
 
+**⭐ Refined by the cross-domain tournament (2026-08-21; memo =
+`scratch/sn_posing_ontology_and_names.md` — every claim file:line-grounded;
+main-agent spot-verifications below marked `[M]`):**
+
+* **The criterion, operational form:** the residual owns exactly what
+  determines the **DOF set and its Gram** — removal test: *did ψ's shape or
+  G change?* YES ⟹ carrier; NO ⟹ operator machinery. Its ONE irreducible
+  behavior is **mutual admissibility** of the choices. The FEM borrowing
+  that re-derives it: *a datum belongs to the carrier iff it CREATES DOFs*
+  (an FEM quadrature is an integration rule — no DOFs — while SN's angular
+  quadrature is a collocation: the ordinates ARE DOFs).
+* **The scheme-vs-frame symmetry INVERTS rather than levels:** frame ↔
+  CLOSURE (both operator-realization data; the closure should leave for
+  the same reason the frame already did), quadrature ↔ ELEMENT (both
+  DOF-creating; the element face — `spatial_basis_per_axis`,
+  `moment_mass_diagonal`, θ — stays for the same reason quad does). And
+  the scheme does NOT fission into two classes: both faces read ONE θ
+  (the closure is a Galerkin statement about the element) — the move is
+  mint-and-forget, one scheme object with two READERS (the space mint
+  reads the element face; the streaming binding reads the closure face).
+* **Forgetfulness-after-binding is uniform, with one limit:** every
+  constructed object keeps the arrows its contract needs and forgets its
+  minter — valid only when the retained set is CLOSED under the
+  operations later demanded ("the arrows plus the laws they satisfy";
+  the PG-frame adjoint is the counterexample class).
+* **The tree's real inventory exceeds the measures by six objects** (the
+  reduced streaming stencil, `_streaming_axes`, the realized-BC operator
+  table, `pole_angular_closure` — a bound strategy with a BACK-REFERENCE
+  to the mesh — `curvature: str` beside `coord`, the law registry, plus
+  minted spaces/gauge/dag_walk): four of the five L-machinery residents
+  are the StreamingOperator's, misfiled on "the phase space".
+* **Name tournament verdict:** `SNPose` ⛔ KILLED (`[M]` "posing" is spent
+  on the `(A_loss, M)` eigenvalue arrangement — `eigenvalue.py:23`);
+  `SNRealization` ⛔ KILLED (word spent on operator realization AND
+  direction inverted — this object is realization's INPUT);
+  `SNProblem`/`SNModel` ⛔ (falsified by the Medium extraction);
+  **winner `SNDiscretization`** (names the invariant ROLE; term of art;
+  degenerates correctly to `DiffusionDiscretization` — whose residual
+  under the criterion is `axes` alone, `[M]` `_init_core` is a documented
+  twin). ⚠ CONDITIONAL on the **funnel ruling** (user's, at CS1.5′/CS2
+  grounding): if the space mint is the unique funnel every construction
+  passes through, the four cross-choice refusals live there and **no
+  class** beats every name (the residual dissolves into
+  `solve_sn(medium, mesh, quadrature, scheme)`); if not, the class is
+  worth ~40 lines and exactly ONE invariant (inadmissible combinations
+  unspellable) — there is no middle version that is not the God object
+  again. `[M]` the invariant is live: `SNMesh(slab_1D, lebedev)`
+  CONSTRUCTS today (110 S² ordinates on a slab) while
+  `tests/numerics/test_registry.py:1210` asserts
+  `not slab.admits_domain(lebedev)` — filed as an issue.
+* **⭐ The §8 mechanism (why the mesh became the God object): IDENTITY
+  SCARCITY.** Things accrete to the mesh because `FunctionSpace.__eq__`
+  is `(name, shape)` — too weak to key caches or gauges on (the tree
+  SAYS so at `augmented_mesh.py:986-994`). ⟹ sequencing constraint for
+  CS2, recorded in its amendment block.
+
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
 **Goal.** SN's bulk space is literally the composition Energy ⊗ Spatial ⊗ Angular of
@@ -479,6 +535,20 @@ best-designed part of the layer — memo A praise table — churn only with caus
   arbitrary spaces bind. Design direction: the data side carries its own
   `EnergyAxis` through the hoisted rule, and the guard's strengthened form
   is one `==` on the axis value object.
+* **Ontology-tournament facts (2026-08-21, memo
+  `scratch/sn_posing_ontology_and_names.md`) — the identity-scarcity
+  SEQUENCING constraint:** the `of_axes` derived-name flip (measure bytes
+  in the digest) must land BEFORE any relocation of caches/gauges off the
+  mesh, or they re-accrete for the same correct reason the tree already
+  states (`augmented_mesh.py:986-994`: `FullFieldSpace.__eq__` is
+  `(name, shape)` — a cache keyed there is keyed on a SIZE). Two red
+  witnesses for the flip, both `[C]` at HEAD: two meshes differing only
+  in a BC declaration mint `==` composite spaces; two schemes with
+  different `moment_mass_diagonal` mint `==` composite spaces (the bulk
+  block is hand-named `"sn_bulk"`). And `is_same_phase_space` demands
+  `materials is` — problem-identity conflated with space-identity (the
+  measure-vs-measurable-function frame's red witness) — re-scope it when
+  the axis-built composite lands.
 * **XD-7 — reserve `_agreed_space`'s stated expiry.** `operator.py:363-374`
   says in its own words that per-leg bindings make agreement the wrong law
   and "a product-space constructor is what has to be built" — CS2's
