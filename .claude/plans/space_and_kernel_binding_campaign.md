@@ -633,23 +633,52 @@ completes at CS4b, O4 at CS4c, O5 at CS2 entry).
   (content-equal edges ⟹ `from_grid` else `synthetic`) HOISTS to one shared
   function; `bulk_space` re-points to it (no second spelling).
 - **K2** — the bindings: the four energy constructors take (kernel/data,
-  space[, assignment — by ARITY, absent on quotient bindings]); the
-  ng-conformity typed refusal keys on NON-OPTIONAL content (materials' ng vs
-  the space's shape — the `[M]` 7-of-13 axes-inertness finding, vv #28; the
-  axis-keyed strengthening arrives with CS2); `solve_homogeneous_infinite`
-  mints its space from the mixture (`of_axes(energy, point)`) instead of
-  reading `carrier.bulk_space`; the two homogeneous `IntegratedReactionRate`
-  sites re-pose to the space's inner product; F space-mandatory (`[M]` 0
-  bare production constructions). The degenerate carrier STAYS as the
+  space[, assignment — by ARITY, absent on quotient bindings; ⚠ the arity
+  arm has NO CS4a witness — its first meshed binding is CS4b/CS4c's, stated
+  here so the gap reads as scoped, not missed]); the ng-conformity typed
+  refusal keys on **presence + the ENERGY AXIS where the space carries axes**
+  (⛔ verification-plan finding 2 CORRECTED this clause 2026-08-20: keying on
+  "the space's shape" is UNRUNNABLE — `[M]` `space.shape[0]` is NOT ng on
+  the SN composite (flat `(64,)`; interior ordinate-first `(4,2,6)`), a
+  plugin probe destroyed 250 of 845 rows; the axis-keyed guard is live on
+  `[M]` 192 of 1022 constructions and the fraction goes in the guard's
+  docstring per vv#28; universal strengthening arrives with CS2's axes —
+  main-agent ruling on the plan's blocking Q1 = its option B);
+  `solve_homogeneous_infinite` mints its space from the mixture
+  (`of_axes(energy, point)`) instead of reading `carrier.bulk_space`; the
+  two homogeneous `IntegratedReactionRate` sites re-pose to the space's
+  inner product (⚠ this INVERTS the D5 sensitivity partition — volumes stop
+  entering the homogeneous path, so the byte gate's sensitivity note is
+  re-dated in the same step); F space-mandatory (`[M]` 4 production + 9 test
+  sites in 5 files). Kernel views are READ-ONLY (`[M]` the shipped
+  `sig_s_legendre` returns a writable cache alias — mutating it moves the
+  loss matrix; the mint closes this). The degenerate carrier STAYS as the
   coefficient/mat_xs source until CS4b (F1). D5 byte gate 8/8 = exit
-  criterion.
+  criterion. The `.. implements::` directive left pointing at a symbol the
+  re-posed path stops calling re-points in the same step (plan finding h).
+
+**Verification plan of record**: `scratch/cs4a_verification_plan.md`
+(2026-08-20; 24 gates K0 3 / K1 9 / K2 12, 25 battery arms incl. 3 positive
+controls; scope 1373 rows / 26.19 s per arm; the DriftWarning wall carries
+`[M]` 2 named pre-existing reds — baseline recorded before anything is
+added). Its three charter refutations are folded above and in the done-when.
 
 **Done when**: kernels exist with the slice-consistency 0-ULP crosscheck
 re-pointed at the kernel object; all four homogeneous operators bound to the
-mixture-minted E⊗pt space (grep: no `mat_xs.mesh.bulk_space` read left in
-`homogeneous/solver.py`); the counting-measure adjoint THEOREM gate lands;
-R1-F/R2-F flip via K0's split (R1-C if free); NO apply arm deleted; D5 8/8;
-pyright terminal-1; Sphinx `-W` clean.
+mixture-minted E⊗pt space (the grep obligation is TWO predicates — no
+`mat_xs.mesh.bulk_space` read left in `homogeneous/solver.py` AND
+`from_mesh`'s chain not resolving the carrier's — per the plan's (d)); the
+adjoint check ships as the plan's (c) re-scope (⛔ the chartered
+"counting-measure adjoint THEOREM gate" CANNOT RED — `[M]` 0.0 under defect
+and fix, ≤2.2e-16 at 56 000× volume spread, `[G,Aᵀ]=0` by theorem — so the
+red-capable PREMISE leg lands plus one corollary row labelled THEOREM
+carrying the blindness table and naming D4b as the only loaded partner; the
+docstring may NOT claim flip coverage); R1-F/R2-F flip via K0's split (`[M]`
+R1-C is NOT free — it stays; the ledger reads 16 → 14 at CS4a's close); K0
+adds the permanent strict-introspection gate (`[M]` no `xfail_strict` in
+`pyproject.toml`, so a lost `strict=` is silent); NO apply arm deleted (a
+grep/AST obligation + the plan's 12-cell behavioural matrix, not a
+mutation); D5 8/8; pyright terminal-1; Sphinx `-W` clean.
 
 **Fences**: no apply-arm deletion; no field-class edits beyond what K2's rate
 re-pose strictly needs (fields are CS4b's); no S/angular changes; no Medium;

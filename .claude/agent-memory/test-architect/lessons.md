@@ -2,7 +2,7 @@
 
 Read at the START of every dispatch. This is the **behavioral index**: one rule
 per entry, imperative and standalone. War stories, measured numbers and
-`file:line` detail live in **`lessons_archive.md`** (sections L1–L48) — open only
+`file:line` detail live in **`lessons_archive.md`** (sections L1–L61) — open only
 the section a pointer names. The failure-mode TAXONOMY (Modes 1–12, three
 pillars, anti-patterns #1–#17) lives in the preloaded **`vv-principles`** skill:
 **cite it, never restate it.** Reference inventory + XS mixtures → `AGENT.md`;
@@ -239,6 +239,35 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   guard still reds — **by raising** — so only the `match=` leg attributes it (L31).
   → `L60f`
 
+- **⛔⛔ A charter's flagship NUMERICAL gate can be a THEOREM with no reachable
+  falsifier — and the tell is in its own justification: a subordinate clause
+  saying "…which today produces the same result for the WRONG reason".** `[M]`
+  CS4a: `.H == apply_transpose` reads `0.000e+00` under the R2 defect
+  (`space=None`) AND under the fix (`space=` the quotient), and `≤2.2e-16` on a
+  meshed bulk of **56 000×** volume spread. Closed form: `A†=G⁻¹AᵀG`, all four
+  leaves are spatially diagonal, every reachable bulk metric is
+  `V_cell ⊗ counting` ⟹ `[G,Aᵀ]=0`; the only loading axis is a per-GROUP energy
+  weight, which `EnergyAxis` **refuses at construction** — a construction
+  invariant the SAME campaign shipped one phase earlier. Repair: gate the
+  theorem's **PREMISE** (`apply_metric(x)` is `array_equal` to `x`; both axes
+  `weights is None`) which IS red-capable, keep ONE corollary row labelled
+  claim-kind THEOREM carrying the blindness table, and name the pre-existing
+  vv#19 control as the only loaded partner. ⛔ Do NOT manufacture a wrong-metric
+  control on the production mint — the type refuses it, so the control is
+  unconstructible. **Grep a charter for "for the wrong reason" / "the same
+  result today".** → `L61a`
+- **⛔ A marker SPLIT (function-level `@xfail` → per-row `pytest.param(marks=)`)
+  fails SILENTLY by losing `strict`, and both obvious gates are blind.** `[M]`
+  `--collect-only` node-ids (98 lines) and `-rx` status+reason (16 lines) are
+  BOTH unchanged when the new mark is spelled `pytest.mark.xfail(reason=…)`
+  without `strict=True` — the row still reports `x`, the suite is green, and
+  `pyproject.toml` has **no `xfail_strict`** so the default is non-strict. The
+  catcher is 5 lines and permanent: `pytest.param(...).marks` is introspectable
+  at import (`[('xfail', True)]` vs `[]`), so assert `strict is True` on every
+  xfail mark of every row constant. ⭐ A *dropped* mark is by contrast a visible
+  RED (the unmarked row fails on its own subject) — only the `strict` half is
+  silent. → `L61g`
+
 ## 2. Harness discipline — the instrument lies before the code does
 
 **RULE: an all-blind mutation verdict is a broken harness until a positive
@@ -461,6 +490,22 @@ codes). → `L34d`, `L35l`
   DROPPING the metric passes the first two. Rejected `tracemalloc`: the NumPy
   allocator domain makes it version-fragile where `nbytes` is exact and free.
   → `L59c`
+
+- **⭐⭐ Adjudicate a proposed CONSTRUCTION GUARD by INSTALLING it as a plugin and
+  counting reds — a per-INSTANCE census (vv#29), never a static site count.**
+  `[M]` CS4a, sub-scope baseline **845 passed / 23.89 s**: the charter's
+  `space.shape[0] != kernel.ng ⟹ raise` gives **182 failed / 68 errors — 250 of
+  845 rows destroyed (29.6 %)**, i.e. unrunnable, not weak; the axis-keyed
+  alternative gives **845 passed** with census
+  `{checked: 192, skipped_axesless: 578, skipped_nospace: 252, raised: 0}` —
+  live on **192 of 1022 constructions (18.8 %)**, inert on **81.2 %**, and it
+  **raised 0 times**, so it has no witness anywhere in the suite. ⭐ The
+  site-level fraction the design records carried (4 of 13 bindings) understates
+  the inertness **4×**: a site census counts call LINES, a running suite counts
+  what those lines EXECUTE — put the instance-tier number in the guard's
+  docstring. Each plugin asserts its own installation (`RuntimeError` unless it
+  binds 4 of 4 classes) and prints a `sessionfinish` census so the DECODER is
+  visible. → `L61b`
 
 ## 3. Config blindness — the ORPHEUS fixture facts
 
@@ -873,6 +918,33 @@ against a concrete row before trusting a green.
   "the answer satisfies the declared condition" gate, ask **which side is the
   thing under test** — if the answer is "both", it is not a gate. → `L40e`
 
+- **⛔ A re-pose can INVERT a migration gate's SENSITIVITY partition — the
+  inherited `[M]` characterisation dies by being FIXED, not by being refuted.**
+  `[M]` CS1's byte gate was characterised (and the row copied into two other
+  plans) as *"BLIND to space weights, LOADED on cell volume; `k_inf` blind to
+  both"* — reproduced end-to-end: volumes ×2 ⟹ `flux 397.946→198.973`, rates
+  double; space weight ×2 ⟹ **bit-identical**. CS4a re-poses the rate from
+  `mesh.volume_measure` to `space.inner_product`; `[M]` the VALUES are 0-ULP
+  identical (6 of 6 rows), so the gate stays 8/8 — and the sensitivity **swaps
+  sides**. The old anti-claim arm becomes a must-RED arm and a brand-new
+  must-stay-GREEN arm appears (the *un-wiring* proof) that could not be stated
+  before the change. Run both at BOTH HEADs and put the 2×2 in the docstring.
+  → `L61c`
+- **⛔ A corpus paragraph can carry an honest `[M]` whose LOAD-BEARING half is
+  false, because its experiment varies two things at once — and a `.. implements::`
+  directive is part of a re-pose's blast radius.** `[M]` a theory page argued
+  *"the quotient point's weight is genuinely consumed, not decorative"* on the
+  evidence that the rate functional *"contracts against `mesh.volume_measure`"*,
+  with `0.225` vs `0.450` — both numbers reproduce, and the experiment changes
+  the carrier volume and the space weight TOGETHER (vv#17's granularity trap, at
+  the doc tier), while the separated probe shows the space weight is
+  bit-identically inert. ⭐ The carve is what makes the claim TRUE, and
+  simultaneously makes the mechanism clause present-tense-false. Same page:
+  `.. implements:: <label> :by: <symbol>` onto a symbol the path stops CALLING —
+  `dead_references` cannot see it (the symbol still exists; the caller changed),
+  so the V&V matrix keeps reporting the equation covered by a transcription that
+  no longer runs. → `L61d`
+
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
 - **RULE: bit-exactness is EARNED PER LAW; measure before choosing the
@@ -1280,6 +1352,35 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   while doubling the CELL VOLUME halves the flux and doubles both rates; `k_inf` is
   blind to both, being a ratio. One arm per consumer; never credit a k-level row for a
   measure claim. → `L60a`, `L60d`, `L60g`
+
+- **KERNEL/DATUM MINT + CONSTRUCTION BINDING (an operator's data becomes a
+  first-class frozen type; the space becomes mandatory):** four rules.
+  **(a)** ⛔ The "view over the existing data" it is described as may be a
+  **writeable alias with production reach** — `[M]` the carrier's per-material
+  accessor returns the CACHE OBJECT (`is` True across calls, for the list and
+  its elements), `writeable=True`, and `stack[0][0,0] += 1.0` moves the
+  assembled operator by exactly `−1.0`. ⟹ the equivalence gate is **bit-identity
+  (`array_equal`), NEVER view-identity (`is`)** — an `is` gate asserts the hazard
+  as the contract — plus a **non-aliasing** gate (`is not` + `writeable is
+  False` + a carrier-mutation-does-not-propagate leg), whose per-arm proof is
+  "copy but leave writeable" reddening the flags leg ALONE. **(b)** ⭐ The honest
+  REFERENCE is the ORIGINAL sparse/authored source, not the cache: whichever way
+  the design goes (absorb the cache, or delegate to it), a cache-vs-cache gate
+  goes tautological (`coding-standards`' single-sourcing clause) while a
+  sparse-source gate survives. **(c)** ⭐⭐ "NO apply arm deleted" is a
+  **BEHAVIOURAL matrix**, not a grep: `[M]` 4 operators × 3 carriers with every
+  cell distinct INCLUDING a `TypeError` cell, because a `singledispatchmethod`
+  registry-keyset gate is structurally blind to the operators whose arms are
+  `isinstance` chains (`[M]` two of five classes have an EMPTY registry) — and
+  those are the ones a "tidy-up" hits first. **(d)** ⭐ A brief's *"flip X too if
+  free"* is a claim to MEASURE: `[M]` the annotation-face row does NOT flip when
+  only a sibling's space goes mandatory, the ledger moves 16 → 14 (write the
+  arithmetic in the commit), and one gate **DIES** rather than flipping — the one
+  whose whole subject is the now-unconstructible space-less build. ⛔ Delete it;
+  repairing it by adding the new argument turns a real pin into `X == X` under an
+  authoritative name. Size the flip by READING the regex hits: `[M]` 10
+  "space-less" test constructions were **9**, one being a message string.
+  → `L61e`, `L61f`, `L61h`
 
 ## 7. Snapshots, generators, and exactness
 

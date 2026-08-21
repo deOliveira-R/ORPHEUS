@@ -6208,3 +6208,246 @@ single remaining error is `orpheus/transport/operators/scattering.py:761` — in
 edited PACKAGE but not in any edited FILE, and the ratchet reds in BOTH directions,
 so "new code adds none" is necessary but a carve that accidentally BURNS it must
 re-baseline in the same commit.
+
+---
+
+## L61 — CS4a (the kernel core, PRE-carve): the charter's flagship gate cannot red, and its construction refusal DESTROYS 250 of 845 rows
+
+Dispatch 2026-08-20, branch `feature/cs1-energy-space` @ `54bc6165`. Deliverable
+`scratch/cs4a_verification_plan.md` (24 gates, 25-arm battery, 10 findings,
+3 open rulings). Tree clean at start AND close; every probe in the session
+scratchpad, every plugin loaded via `PYTHONPATH`, nothing written into `orpheus/`
+or `tests/`.
+
+### L61a ⛔⛔ A campaign's flagship NUMERICAL gate can be a theorem with no reachable falsifier — and the charter said so in its own subordinate clause
+
+The CS4a done-when required *"the counting-measure adjoint THEOREM gate lands"*,
+justified as: *"on Energy ⊗ point the metric is counting ⊗ counting, so
+`.H == apply_transpose` becomes a THEOREM of the posed space instead of the R2
+silent degradation **that today produces the same equality for the wrong
+reason**."* The italic clause **states the blindness** and the gate was chartered
+anyway.
+
+`[M]` `max|.H.apply(x) − apply_transpose(x)|`, `python -O`, `get_mixture("A","2g")`:
+
+| configuration | C | IsoS | IsoN2N | F |
+|---|---|---|---|---|
+| `space=None` (the R2 DEFECT) | `0.000e+00` | `0.000e+00` | `0.000e+00` | `0.000e+00` |
+| `space=` quotient E⊗pt (the FIX) | `0.000e+00` | `0.000e+00` | `0.000e+00` | `0.000e+00` |
+| `space=` spherical meshed bulk, volume spread **56 000×** | `5.551e-17` | `2.220e-16` | `0.000e+00` | `5.551e-17` |
+
+A peer had measured the same at 3358×; re-running at 56 000× (edges
+`[0,.05,.2,.5,1,2]`, spherical) confirms it is not a spread problem. The closed
+form: `A† = G⁻¹AᵀG`, so `A† = Aᵀ` iff `[G, Aᵀ] = 0`; all four leaves are
+**spatially diagonal** and every reachable bulk metric is `V_cell ⊗ counting`,
+which commutes exactly. The only loading axis is a **per-group energy weight**,
+and `EnergyAxis` **refuses weights at construction** — so the loading is
+unreachable *by a construction invariant the same campaign shipped one phase
+earlier*.
+
+⟹ Two repairs, both cheap, and the plan ships both: (i) gate the theorem's
+**PREMISE** instead (`space.apply_metric(x)` is `array_equal` to `x`;
+`inner_product == np.sum(x*y)`; both axes `weights is None`) — red-capable by
+mutating the mint; (ii) keep ONE corollary row, labelled claim-kind **THEOREM**,
+whose docstring carries the blindness table and names the pre-existing D4b
+(`test_H_MOVES_under_a_per_group_weighted_axis`) as the only loaded partner.
+⛔ Do NOT manufacture a wrong-metric control on the production mint: `EnergyAxis`
+refuses it, so the control is unconstructible, and D4b already does it with a
+deliberately non-physical generic `Axis`.
+
+⭐ The transferable tell: **a gate's justification containing "…for the wrong
+reason" / "…which today produces the same result" is the author having already
+computed the stabiliser and not acted on it.** Grep a charter for those phrases.
+
+### L61b ⛔⛔ "Key the construction refusal on the space's SHAPE" — measured, it destroys 29.6 % of the suite; the axis-keyed alternative is inert on 81.2 % of constructions
+
+Three independent design assemblies converged on a ng-conformity construction
+refusal, and the ruling that survived selection said to key it on **NON-OPTIONAL**
+content — *"materials' ng vs the space's shape"* — precisely to escape the vv#28
+hazard (an `Optional` axes field is `None` on the composite). `[M]` the escape
+does not exist:
+
+| space handed to a production binding | `axes` | `shape` | where is ng? |
+|---|---|---|---|
+| homogeneous `MaterialMesh.bulk_space` | `(EnergyAxis, Axis)` | `(2, 1)` | index 0 |
+| `SNMesh.full_field_space` | **None** | **`(64,)`** | **nowhere — FLAT** |
+| `SNMesh…interior_space` | None | `(4, 2, 6)` | index **1** (ordinate-first!) |
+| `DiffusionMesh.full_field_space` | **None** | **`(20,)`** | **nowhere — FLAT** |
+| `DiffusionMesh…interior_space` | None | `(2, 6)` | index 0 |
+
+and `[M]` `FunctionSpace`'s whole public surface is `apply_inverse_metric,
+apply_metric, axes, dual, has_coordinate_cone, inner_product,
+inner_product_weights, norm, of_axes` — **no ng, no energy accessor**, and
+`FullFieldSpace` adds none.
+
+Then the two candidate guards were **installed as pytest plugins and run**
+(`vv` #29's per-INSTANCE census, not a static site count; each plugin raises
+`RuntimeError` unless it binds 4 of 4 classes, `lessons` §2). Sub-scope baseline
+`[M]` **845 passed / 1 skipped / 17 xfailed, 23.89 s**:
+
+* **`space.shape[0] != kernel.ng ⟹ raise`** → `[M]` **182 failed, 595 passed,
+  68 errors** — **250 of 845 rows destroyed (29.6 %)**. Unrunnable, not weak.
+* **axis-keyed** (fire only when the space carries an `EnergyAxis`) → `[M]`
+  `{'checked': 192, 'skipped_axesless': 578, 'skipped_nospace': 252,
+  'raised': 0}`, **845 passed**. Over **1022 instrumented constructions** it is
+  live on **192 (18.8 %)** and inert on **830 (81.2 %)** — and it **raised 0
+  times**, so it has *no witness anywhere in the shipped suite*.
+
+⭐ Two numbers, two different lessons. The **site-level** count (4 of 13 bindings
+axis-bearing) is what the design records carried; the **instance-level** count
+(192 of 1022) is what production actually does, and it is 4× worse as a fraction.
+⟹ **a guard's inertness fraction belongs in its docstring, measured at the
+INSTANCE tier, not the site tier** — a site census counts call lines, a running
+suite counts what those lines execute.
+
+⭐⭐ And the third candidate, which looks like the clever escape and is a provable
+non-catcher: **divisibility** (`total_dof % ng == 0`). `[M]` SN total `= 32·ng`,
+diffusion `= 10·ng`, so a **4g** kernel on a **2g** space is ADMITTED at both —
+and 2g↔4g is the *only* mismatch pair the tree ships fixtures for (the D2/D3
+witnesses). A guard that admits the only witness it will ever meet is worse than
+no guard.
+
+### L61c ⛔ A re-pose can INVERT a migration gate's sensitivity partition — the inherited `[M]` row dies by being FIXED
+
+CS1's byte gate D5 was characterised (and the characterisation was carried into
+the objectives file as a salvaged row, and into a sibling plan's §2(e)) as:
+*"BLIND to space weights, LOADED on cell volume; `k_inf` blind to both."*
+`[M]` reproduced end-to-end through `solve_homogeneous_infinite("homo_2eg_n2n")`:
+volumes ×2 ⟹ `flux 397.94608472 → 198.97304236`, both rates double, `k_inf`
+unchanged; space weight ×2 ⟹ **every field bit-identical**.
+
+CS4a re-poses the two homogeneous `IntegratedReactionRate` sites to
+`space.inner_product`. `[M]` the values are **bit-identical** (0 ULP, 6 of 6
+rows over ng ∈ {1,2,4} × {production, absorption}) — so the re-pose is a value
+no-op and D5 stays 8/8. But the *sensitivity* swaps sides: the old spelling ends
+in `mesh.volume_measure(...)`, the new one in the space's per-axis weights. After
+K2, D5 is **LOADED on the space weight** and **BLIND to the carrier volume**.
+
+⟹ CS1's anti-claim arm ("space weight ×2 ⟹ D5 GREEN") becomes a **must-RED**
+arm, and a brand-new must-stay-GREEN arm appears ("volumes ×2 ⟹ D5 GREEN") that
+is the *un-wiring proof* — a claim that could not be stated before the change.
+Ship BOTH, at BOTH HEADs, and put the 2×2 table in the gate's docstring.
+
+⭐ This is `plan-authoring` §3's "a fact can die by being FIXED" at the
+**verification-instrument** tier: nobody refutes the row, the campaign simply
+repeals it, and the row keeps reading as current because it was true.
+
+### L61d ⛔ A doc paragraph can carry an honest `[M]` whose LOAD-BEARING half is false — and the carve is what makes it true
+
+`docs/theory/foundations/spaces.rst:926-937` argues *"the quotient point's weight
+is genuinely consumed, not decorative"*, offering as `[M]` evidence that
+`IntegratedReactionRate.evaluate` *"contracts against `mesh.volume_measure`"*,
+with `0.225` (quotient, weights `[1.0]`) vs `0.450` (a one-cell slab of width 2,
+weights `[2.0]`). `[M]` reproduced today, exactly, both spellings.
+
+But the experiment varies the carrier volume and the space weight **together** —
+vv#17's granularity trap, at the doc tier — and the separated probe shows the
+**space** weight is bit-identically inert on the value path. So the measured half
+is true and the inference is false: `plan-authoring` §2's "so/therefore" defect,
+living in the corpus rather than in a plan. K2's re-pose is precisely what makes
+the conclusion true, and simultaneously makes the *mechanism* clause
+present-tense-false.
+
+⭐ And the sharpest residue: the same page carries
+`.. implements:: normalisation :by: …IntegratedReactionRate.evaluate` — a
+**declared** graph edge onto a symbol the homogeneous path will stop calling, on
+a page whose own prose says *"a test is adjudicated against the transcription it
+actually ran"*. A re-pose's doc blast radius therefore includes the **provenance
+directives**, not only the prose; and `dead_references` cannot see it (the symbol
+still exists — it is the *caller* that changed).
+
+### L61e ⛔ An accessor that returns its own CACHE, writeable, is a production-reachable mutation channel — and a "frozen kernel view" inherits it
+
+`[M]` `MaterialXSField.sig_s_legendre(mid)` returns the cache **object itself**
+(`is` True across calls, for the list AND its elements), `.flags.writeable` True,
+`owndata` False, and the element **is** `mx._sig_s_dense[mid][0]`. Reach:
+`stack[0][0,0] += 1.0` then re-assembling gives `loss[0,0] 0.152 → −0.848`, delta
+exactly `−1.0`. `n2n_matrix(mid)` behaves identically. (`dense_per_material()`
+returns a fresh copy per call — it is the storage ORACLE and is unaffected.)
+
+⟹ three consequences for a carve that mints a `@dataclass(frozen=True)` kernel
+described as "a view over `Mixture`, absorbing/delegating the dense caches":
+(i) frozen-ness is a **name only** unless the kernel copies and sets
+`writeable=False` (CS1's `Axis` already ruled this shape — the `+0.0` that forces
+a defensive copy); (ii) the equivalence gate must be **bit-identity
+(`array_equal`), never view-identity (`is`)** — an `is` gate would assert the
+hazard as the contract; (iii) the honest REFERENCE is the `Mixture`'s **sparse**
+data (`[M]` `sig_s_legendre(0)[0]` is `array_equal` to
+`np.asarray(mix.SigS[0].todense())`), because it is independent of the
+absorb-vs-delegate choice — whichever the design picks, a cache-vs-cache gate
+goes tautological (`coding-standards`' single-sourcing clause) while the
+sparse-source gate survives.
+
+### L61f ⭐⭐ "NO arm deleted" is a BEHAVIOURAL matrix, not a grep — and a registry-keyset gate is blind to exactly the operators that need it
+
+The phase's headline fence (from `vv` #29's refutation of space-keyed arm
+selection) is *"NO apply arm is deleted"*. `[M]` the cheap instruments:
+
+* `singledispatchmethod` registry keysets, readable at runtime —
+  `MultiplicationOperator._apply_impl` → `{FullField, ndarray, object}`;
+  `FissionOperator` → `{FullField, ScalarFlux, ndarray, object}`;
+  `ScatteringOperator` → `{AngularFlux, FullField, HarmonicMomentFlux,
+  ScalarFlux, object}`; ⛔ **`IsotropicScattering` / `IsotropicN2N` → `{}`** —
+  they have NO singledispatch at all; their arms are `isinstance` branches.
+* the **behavioural matrix**, 4 operators × 3 carriers, `[M]` every cell
+  distinct: `C×ScalarFlux → TypeError`; `IsoS/IsoN2N × ScalarFlux → bare
+  ndarray` (an untyped fall-through through `getattr(phi,"values",phi)` — `vv`
+  #29's *asymmetric arrow*, typed in / bare out); `F×ScalarFlux →
+  ScalarSourceSink`; all four × `FullField → FullField`; all four × `ndarray →
+  ndarray`.
+
+⟹ ship the matrix as the gate and the keysets as a companion, and say WHY: a
+registry-only gate certifies 3 of 5 classes and is structurally blind to the 2
+whose dispatch is an `isinstance` chain — which are also the 2 the carve is most
+likely to "tidy". A source grep is weaker still (dies on reformatting, on the
+`singledispatchmethod` → explicit-dispatch rewrite a later phase may do).
+
+### L61g ⭐ The silent failure of a marker SPLIT is `strict` loss, and both obvious gates are blind to it
+
+A step that converts function-level `@xfail` decorators into per-row
+`pytest.param(..., marks=[...])` is chartered as ledger-preserving. `[M]` the two
+natural gates — `--collect-only -q` node-id identity (98 lines) and `-rx`
+status+reason identity (16 `XFAIL` lines) — are both **blind** to spelling the
+new mark `pytest.mark.xfail(reason=…)` **without `strict=True`**: the row still
+reports `x`, the ids are unchanged, the reasons are unchanged, the suite is
+green. And `[M]` `pyproject.toml` carries **no `xfail_strict`** ini key, so the
+default is non-strict.
+
+The gate that catches it is 5 lines and permanent, because `[M]`
+`pytest.param(...).marks` is introspectable at import (`_G13_ROWS`' B row reads
+`[('xfail', True)]`, its L row `[]`):
+
+```python
+for row in (*_R1_ROWS, *_R2_ROWS, *_G13_ROWS):
+    for m in row.marks:
+        if m.name == "xfail" and m.kwargs.get("strict") is not True: fail(...)
+```
+
+Losing `strict` costs the campaign its self-retiring todo list — the entire
+reason the ledger exists (`vv` Mode 8, FOURTH class). ⭐ Also worth knowing: a
+*dropped* mark is a **visible RED** for both families here (an unmarked
+annotation row fails on the Optional; an unmarked refusal row fails because the
+constructor does not raise), so only the `strict` half is silent.
+
+### L61h ⭐ A brief's "flip X if free" is a claim to MEASURE, and one gate DIES rather than flipping
+
+`[M]` the R1 family asserts the **return annotation** of the `domain` property on
+the owning class (`L Optional['FunctionSpace']`, `C/S/F 'FunctionSpace | None'`,
+`B Optional['FunctionSpace']`). CS4a flips **F only** — a sibling ruling defers
+C's mandatory flip to a later phase with its `[M]` 131-of-145 space-less test
+migration — so **R1-C does NOT flip free**; the charter's parenthetical resolves
+to NO and the ledger goes **16 → 14** (R1 5→4, R2 3→2, R6 stays 8), which is a
+number a later reader will otherwise hunt as a regression.
+
+And the flip **kills a gate outright**:
+`test_from_solver_data_does_NOT_default_derive_a_space` constructs the operator
+space-less as its whole subject, and its own docstring already carries the
+trigger (*"WHEN CS4's Optional→mandatory flip lands: delete this gate"*). ⛔ It
+must be DELETED, not repaired — adding `space=` to its body turns a real pin into
+`X == X` while keeping its authoritative name.
+
+⭐ Sizing the flip honestly: `[M]` **15** `FissionOperator` constructions in
+`tests/`, **10** space-less, of which **1 is a message STRING** (found by reading
+it, not by the regex) ⟹ **9 real sites in 5 files**, two of them the decay items
+above. A regex census over a 7-line window is right for finding candidates and
+wrong for counting them.

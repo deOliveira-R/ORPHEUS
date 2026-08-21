@@ -10,7 +10,7 @@ here — it is merged archaeology.
 
 ## 1. Lessons — a HOT digest over a COLD archive (READ the digest at START)
 
-- **[Lessons — hot digest](lessons.md)** — ~650 lines. One imperative rule per
+- **[Lessons — hot digest](lessons.md)** — ~1500 lines. One imperative rule per
   entry, grouped by behavioral family (gates that cannot red · harness discipline ·
   config blindness · reference & claim layer · tolerance · carve archetypes ·
   snapshots & exactness · pure-math primitives). **Read this file whole, every
@@ -19,7 +19,7 @@ here — it is merged archaeology.
   closes** — `L3`'s "no SN MMS exercises `q.boundary ≠ 0`" was true when written,
   the §4.6 fix landed, and the stale entry then generated a whole phase brief for
   work already done (`L40a`).
-- **[Lessons — cold archive](lessons_archive.md)** — ~5200 lines, sections L1–L48,
+- **[Lessons — cold archive](lessons_archive.md)** — ~6450 lines, sections L1–L61,
   append-ordered. The war stories, measured numbers, `file:line` detail and
   per-fixture tables. **Open ONE section at a time, only when the digest's pointer
   says the detail matters.** Never read it whole — that is ~48K tokens.
@@ -33,6 +33,7 @@ here — it is merged archaeology.
 file for headlines, open findings and measured numbers. Reconcile against git first.
 
 - **#358 forward half — graph-grounded test workflow + the demand on Nexus** — ⏹ MEMO DELIVERED (scratchpad, no code). ⭐⭐ graph test nodes ≡ pytest collected defs EXACTLY (`[M]` 9861/9861); ⛔⛔ static selection still UNSAFE (94.8 % miss on `OperatorSum`); ⛔ naive cone = 31–36 % of suite. Detail + 8 demands → **`lessons_archive.md` L55**.
+- **CS4a kernel core — the charter's flagship gate CANNOT RED, and its construction refusal DESTROYS 29.6 % of the suite** — ⏹ PLAN DELIVERED (`scratch/cs4a_verification_plan.md`; 24 gates, 25-arm battery, 10 findings, 3 open rulings, 2 arms MEASURED at plan time). ⛔⛔ `[M]` the "counting-measure adjoint THEOREM gate" reads `0.000e+00` under the R2 defect AND the fix, `≤2.2e-16` at **56 000×** volume spread — `[G,Aᵀ]=0` by theorem, the only loading axis refused by `EnergyAxis` at construction. ⛔⛔ `[M]` `space.shape[0] != ng ⟹ raise` destroys **250 of 845 rows**; the axis-keyed alternative is live on **192 of 1022 constructions (18.8 %)** and **raised 0 times**. ⛔ K2 **INVERTS** the D5 byte gate's sensitivity partition (volume↔space weight). ⛔ `sig_s_legendre` hands out a writeable cache alias with production reach. ⚠ Blocking ruling Q1 (what the ng guard keys on). Detail → **`lessons_archive.md` L61**.
 - **CS1.5 Medium un-weld — a `getattr` default SWALLOWS the typed refusal the union is built on, and "exact by construction" is 1 ULP off in one sub-family** — ⏹ PLAN DELIVERED (`scratch/cs15_verification_plan.md`; 47 gates, 34-arm battery, 11 findings, 8 rulings, 7 declared untestables). ⛔⛔ `[M]` deleting `MaterialMesh.bulk_space` (which the design §4.2 + census promise-1 both imply) un-does CS1's D1 floor with NO exception — `getattr(mesh,"bulk_space",None)` catches a property's own `AttributeError`. ⛔⛔ `[M]` conformity `==` is a latent false red: 0 ULP on slab/uniform, **1 ULP** on CYL/SPH equal-volume (10 of 4902) ⟹ derived 4-ULP band. ⭐⭐ `[M]` byte-gate partition: space weight ×2 = BIT-IDENTICAL, volume ×2 = flux halves, `k_inf` blind to both. ⚠ Blocking ruling Q1 (one space instance or two). Detail → **`lessons_archive.md` L60**.
 - **CS1 Energy axis / axis-composed spaces — the design's own `.H` control is a PROVABLE non-catcher, and one production arm has NO witness** — ⏹ PLAN DELIVERED (`scratch/cs1_verification_plan.md`; 40 gates, 23-mutation battery with a MUST-STAY-GREEN column, 12 findings, 7 open rulings). ⛔⛔ `[M]` a one-cell mesh `V=2` reads BIT-IDENTICAL to `w=1` and to `None` — a rank-1 point axis forces every metric SCALAR (vv#12 space-side dual); only a per-GROUP `w=[2,5]` moves `.H`. ⛔⛔ `[M]` `get_mixture(r,k).eg is None` for all 12 shipped pairs ⟹ `EnergyAxis.from_grid` is witness-less. ⛔ Two `@verifies` mirror tests cannot migrate; one would pin a RETIRED idiom. Detail → **`lessons_archive.md` L59**.
 - **CS3 cone overturn — "flat norms" names TWO conventions 4.71e-3 apart, and a ratio-valued pin cannot see a uniform scale** — ⏹ PLAN DELIVERED + gate SHIPPED (`scratch/cs3_verification_plan.md`; `tests/numerics/test_si_diagnostic_trajectory.py`, `[M]` 5 passed 0.46 s, pyright 0, 5-mutation battery as predicted). ⭐⭐ The 1-ULP bit-identity wall already exists (`-W error::…DriftWarning`, 3 drivers, 1.60 s, control 3/3 red; DD suite 11 of 13 bit-exact). ⛔ DSA guard has ZERO negative tests; DSA + adjoint have NO value gate. ⛔ The brief's cone witness is CELL-tier — a production solve gives `min ψ = −6.40e-01`. ⚠ Blocking ruling Q1 (space vs Euclidean norm; CS2 moves ρ by 1.12e-3). Detail → **`lessons_archive.md` L58**.
