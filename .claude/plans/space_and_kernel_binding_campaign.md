@@ -71,6 +71,11 @@ apply-time dispatch retires.
    S→kernel shell). Phases subdivide further as needed (user: "as many as
    necessary to chunk this work into targeted sessions with compaction in
    between").
+   ⚠⚠c 2026-08-21 (user, post-CS4a): a **CS4a-R review round precedes CS4b**
+   — "before CS4b, let's do a round of review of the kernel and operator
+   machinery with cleaner context." The order reads CS3 ✓ → CS1 ✓ → CS4a ✓ →
+   **CS4a-R** → CS4b → CS1.5′ → CS2 → CS4c. Charter = §5's CS4a-R
+   subsection; precedent = §4-R (CS3-R).
 4. **Campaign split.** This campaign = Space + Kernel→Operator realization (+ the cone
    carve, which must precede the dispatch collapse — §4 rationale). Campaign 2 = the
    LossRepresentation overturn — "currently an early decision on partitioning" — to
@@ -861,6 +866,85 @@ run); the §4.4 diff audit concurs (no SN-path value line). Tracked as
 **#397** (leading lead: the 6.3 ω-fold re-baselined this snapshot's k_eff
 while the MR reference is fold-independent; the 0.12 bound is pre-fold).
 The 1-ULP DriftWarning wall's two pre-existing cyl reds are **#396**.
+
+### CS4a-R — the kernel/operator machinery survives a clear-context adversarial review (user-chartered 2026-08-21; UNSTARTED)
+
+**Goal.** The machinery CS4a landed — and the operator layer it now sits in —
+holds up under a reviewer who did not build it: every Phase-1 attack is
+either repaired, filed, or withdrawn in Phase 2, and whatever survives
+RESHAPES the CS4b/CS4c charters before CS4b spends a line. (Precedent: §4-R,
+where the same round on CS3 refuted its completeness claim and strengthened
+5 gates — the review earns its session.)
+
+**Why clear context is the method, not a convenience.** The builder's context
+defends the build (it re-reads its own rationale as evidence). The reviewer
+reads the TREE first — code, then gates, then docs — and only THEN the
+charter/ledger (§5 CS4a's ⏹ block) to learn which oddities were *ruled*
+rather than accidental. Same discipline as CS3-R, whose census caught what
+the author's own grep missed (case-blind filter; the two-filter
+countermeasure is now standing: any completeness claim gets a second,
+independently-vocabularied filter).
+
+**Scope — the surfaces (all landed `069e2caa`…`49b29391`, pushed):**
+
+* production: `orpheus/transport/kernels.py` (the three kernels);
+  `orpheus/transport/operators/_energy_conformity.py` (the shared guard);
+  the four energy operators' binding surfaces
+  (`fission.py` — space now MANDATORY; `multiplication_operator.py`,
+  `isotropic_scattering.py` — `__post_init__` guards);
+  `orpheus/numerics/axis.py` (`EnergyAxis.from_materials`) +
+  `orpheus/transport/mesh/material_mesh.py` (`bulk_space` re-point);
+  `orpheus/homogeneous/solver.py` (`_pose_space`, the re-posed rates).
+* the WIDER operator machinery these now live in (`numerics/operator.py`'s
+  algebra, the adjoint two-layer architecture, the apply-arm dispatch the
+  R-A census froze) — Phase 1 may attack the layer, not only the diff;
+  reshaping is fair game, including the CS4b/CS4c charters themselves.
+* gates: `tests/transport/test_kernels.py` (50 rows),
+  `tests/homogeneous/test_operator_spaces.py` (the D-suite + G2.*),
+  `tests/sn/architecture/test_monomorphic_leaves.py` (the 14-row ledger +
+  the strict gate); the two doc pages
+  (`docs/theory/foundations/{spaces,infinite_medium}.rst`).
+
+**Method.** Two phases, strictly ordered ([[feedback-adversarial-phase-
+before-balance]]): Phase 1 harsh — *how would I break this / how would I
+make it 100× better* — with "it works"/"it landed yesterday" inadmissible as
+defences; Phase 2 re-evaluates and WITHDRAWS what does not survive (a
+"don't touch" verdict belongs there, as a retracted attack). Dispatch
+freely (elegance-enforcer, qa, cross-domain-attacker; an independent census
+agent for any completeness claim); `method-implementer` stays out
+(surgical posture). Verify any claim against the tree before adopting it
+— the ⏹ ledger's `[M]` rows carry their configurations.
+
+**Known deferrals are NOT findings** (each is chartered, with a home —
+re-flagging them costs the round its signal):
+F10's IsoS/IsoN2N untyped ScalarFlux→ndarray fall-through (recorded in
+G2.8, repaired at CS4c); the arity arm's missing witness (§2(h).6 —
+CS4b/CS4c's first meshed binding); `FissionKernel`'s one-gate/no-consumer
+status (Q2 — stated in its docstring, consumer = CS4c's rebind);
+`IntegratedReactionRate` surviving for meshed consumers (CS4b moves the
+mesh dependency); the iso pair + C keeping Optional space (CS4c, with the
+131/43-site migration); the ng guard's 4-of-13 reach (vv#28 — CS2's axes
+strengthen it); the ledger's remaining 6 xfails (apportioned CS4c/CS2).
+Open issues already tracking review-adjacent state: #396 (DriftWarning
+wall reds), #397 (the MR flux-shape red — pre-existing, measured), #393,
+#394, #395.
+
+**Fences that still bind any in-review fix:** C8 (no S/frames reach from
+the kernel module); R-A (NO apply-arm deletion before CS4c's feeding
+census); BRANCH-HOLD (everything lands on `feature/cs1-energy-space`; no
+merge without the user's go); the canonical runner + copy-aside battery
+discipline for any gate touched.
+
+**Deliverables / done-when:** a findings file
+(`scratch/cs4a_r_findings.md`) with every finding carrying its Phase-2
+verdict (CONFIRMED-fixed-inline / CONFIRMED-filed / WITHDRAWN, each with
+the structural reason — a refuted attack is first-class output); inline
+fixes committed under the standing verification discipline (battery scope
+green, D5 8/8, pyright terminal-1, Sphinx `-W` if docs move); any CS4b/
+CS4c charter amendments edited into their subsections IN PLACE with
+attribution; a §-R-style ledger appended here on completion. Done when
+Phase 2 has adjudicated every Phase-1 attack and the plan's next section
+(CS4b) reflects whatever survived.
 
 ### CS4b — fields are space elements (goal chartered; grounding at its own session)
 
