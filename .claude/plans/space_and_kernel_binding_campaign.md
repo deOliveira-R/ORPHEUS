@@ -197,6 +197,46 @@ session picking this up must NOT merge after its own phase without the user's
 go. Per-phase verification stays as CS1 practiced it (scoped suites + battery +
 pyright + Sphinx `-W`). Merge-status: trust git, never this sentence.
 
+## 2.5 Phase CS1.5 — the medium is a concept with its own home (the un-weld)
+
+**Goal.** The physical medium (what fills space) exists as its own type ABOVE
+the discretization; the homogeneous solver poses on it; the fake
+`AxisMesh(edges=[0,1])` mint is unspellable. CS2's axis generators then bind to
+the right generators from day one (`SpatialAxis` forgets from the MESH, the
+quotient axis from the MEDIUM's symmetry — Q11's own reason).
+
+**Charter**: `cs1_energy_space_design.md` Q11 + §B2 rounds 4–6.
+**Grounding + rulings + step decomposition (the §F-equivalent)**:
+`.claude/plans/cs15_medium_unweld_design.md` (⏹ GROUNDED + 5 forks RULED
+2026-08-20; census of record `scratch/cs15_grounding_census.md`).
+
+**The grounded shape** (headline — the design note is authoritative): `Medium`
+= the NAMED PAIRING `(InfiniteHomogeneous marker | StructuredGeometry) × {id →
+Mixture}` — the loose pair every solver already passes, REUSING the shipped
+`Region`/`StructuredGeometry` (the grounding surprise: §B2's "interface
+positions + per-segment materials" already ships at
+`geometry/structured_geometry.py`); pullback union
+`spatial_structure: MeshBackedRegions | QuotientPoint` inside `MaterialMesh`
+(`[M]` all 10 spatial writers already funnel through `_init_data`; type-absence
+is production-clean); `from_medium` both arms + conformity guard with its §6c
+witness; eg-coherence refusal at Medium construction **with the user's regime
+caveat** (right for coarse/GENDF multigroup, NOT universal — fine/ACE data
+legitimately unequal, unionization is the modern reconciliation; carried into
+docstring + theory page).
+
+**Steps** (design note §5): 1 mint Medium (additive) → 2 union restructure in
+place (from_materials keeps its signature, stops faking — §6b clean; byte gate
+8/8) → 3 from_medium + re-home + retire from_materials (ONE step by §6b: 1
+production + 16 test sites in 7 files + the `infinite_medium.rst:1115` xref) →
+4 docs + the census §7 promise ledger (8 items, incl. the unmarked D6/D7
+re-points).
+
+**Done when**: the promise ledger is discharged item-by-item; `grep -rn
+"from_materials" orpheus/ tests/ docs/` returns only past-tense history; the
+conformity guard's first red (hand-built non-conforming `Mesh1D` REFUSED with a
+region-naming reason) is a committed witness; D5 byte gate 8/8 bit-identical
+across the rewiring; scoped suites + pyright terminal-1 + Sphinx `-W` clean.
+
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
 **Goal.** SN's bulk space is literally the composition Energy ⊗ Spatial ⊗ Angular of
