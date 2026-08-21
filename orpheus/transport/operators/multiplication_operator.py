@@ -105,6 +105,9 @@ from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
+from orpheus.transport.operators._energy_conformity import (
+    assert_energy_extent_conforms,
+)
 from orpheus.numerics.operator import (
     BlockRole,
     DiagonalOperator,
@@ -204,6 +207,13 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # matvec and discard a capability already frozen here.
         self.engine = DiagonalOperator(
             self.coefficient.values, broadcast_axes=(0,),
+        )
+        # CS4a K2: the binding refuses a space whose EnergyAxis states a
+        # different group count than the coefficient (guard reach + the
+        # deliberate axes-less inertness: _energy_conformity docstring).
+        assert_energy_extent_conforms(
+            self.space, self.coefficient.values.shape[0],
+            operator="MultiplicationOperator",
         )
 
     @property

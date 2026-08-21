@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.homogeneous.solver import _assemble_loss_operator
+from orpheus.homogeneous.solver import _assemble_loss_operator, _pose_space
 from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import (
@@ -52,12 +52,17 @@ def _require(condition: bool, message: str) -> None:
         pytest.fail(message)
 
 
-def _mat_xs(groups: str, edges: np.ndarray | None = None):
-    """The meshless carrier exactly as ``solve_homogeneous_infinite`` builds it."""
+def _mix(groups: str, edges: np.ndarray | None = None):
+    """The mixture behind the carrier (optionally ``eg``-bearing)."""
     mix = get_mixture("A", groups)
     if edges is not None:
         mix = dataclasses.replace(mix, eg=edges)
-    return MaterialMesh.from_materials({0: mix}).material_xs_field()
+    return mix
+
+
+def _mat_xs(groups: str, edges: np.ndarray | None = None):
+    """The meshless carrier exactly as ``solve_homogeneous_infinite`` builds it."""
+    return MaterialMesh.from_materials({0: _mix(groups, edges)}).material_xs_field()
 
 
 def _fused_loss_matrix(mat_xs) -> np.ndarray:
@@ -73,19 +78,20 @@ def _fused_loss_matrix(mat_xs) -> np.ndarray:
 def test_every_homogeneous_operator_reports_the_same_space(
     groups: str, with_eg: bool
 ) -> None:
-    r"""D1 ⭐ — the FLOOR: C, IsoS, IsoN2N, F, M⁻¹, K all pose on ONE space.
+    r"""D1 ⭐ / **G2.2** — the FLOOR: C, IsoS, IsoN2N, F, M⁻¹, K pose on ONE space.
 
-    Successor of the four deleted R1 xfail rows. Mirrors the production
-    construction (``_assemble_loss_operator`` IS the production assembler;
-    F mirrors ``solver.py``'s ``space=mat_xs.mesh.bulk_space`` spelling)
-    and asserts the whole posing agrees on the carrier's axis-built
-    Energy ⊗ point space: shape ``(ng, 1)``, all-NODAL (coordinate cone
-    present), energy arm per the carrier's data.
+    Successor of the four deleted R1 xfail rows; re-pointed at CS4a K2:
+    the ONE space is now the MIXTURE-MINTED Energy ⊗ point
+    (``_pose_space``, mirroring production), never read off the carrier —
+    the carrier comparison lives in the G2.1 identity bridge below.
+    Asserts the whole posing agrees on it: shape ``(ng, 1)``, all-NODAL
+    (coordinate cone present), energy arm per the mixture's data.
     """
     edges = {False: None, True: {"2g": _EDGES_2G, "4g": _EDGES_4G}[groups]}[with_eg]
-    mat_xs = _mat_xs(groups, edges)
+    mix = _mix(groups, edges)
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
     ng = mat_xs.mesh.ng
-    space = mat_xs.mesh.bulk_space
+    space = _pose_space(mix)
 
     _require(space.shape == (ng, 1), f"bulk_space shape {space.shape} != ({ng}, 1)")
     _require(space.has_coordinate_cone is True, "the scalar bulk is all-NODAL")
@@ -108,15 +114,13 @@ def test_every_homogeneous_operator_reports_the_same_space(
         "weight (the normalized density convention)",
     )
 
-    loss = _assemble_loss_operator(mat_xs)
-    production = FissionOperator.from_solver_data(
-        mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
-    )
+    loss = _assemble_loss_operator(mat_xs, space)
+    production = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
     inverse = MatrixInverseOperator(loss)
     K = inverse @ production
     operators = {
-        "C": MultiplicationOperator.from_mesh(
-            mat_xs.total_cross_section_field, mat_xs.mesh,
+        "C": MultiplicationOperator(
+            coefficient=mat_xs.total_cross_section_field, space=space,
         ),
         "IsoS": IsotropicScattering(mat_xs, space=space),
         "IsoN2N": IsotropicN2N(mat_xs, space=space),
@@ -129,7 +133,7 @@ def test_every_homogeneous_operator_reports_the_same_space(
         _require(
             op.domain == space and op.codomain == space,
             f"{name}: domain={op.domain!r}, codomain={op.codomain!r} — the "
-            f"posing does not agree on the carrier's bulk_space",
+            f"posing does not agree on the mixture-minted space",
         )
 
 
@@ -155,7 +159,7 @@ def test_two_group_and_four_group_sum_is_REFUSED() -> None:
 def test_matrix_inverse_of_2g_loss_composed_with_4g_fission_is_REFUSED() -> None:
     """D3 — the product-guard witness: ``M⁻¹(2g) @ F(4g)`` dies at
     construction naming the composition law."""
-    loss_2g = _assemble_loss_operator(_mat_xs("2g"))
+    loss_2g = _assemble_loss_operator(_mat_xs("2g"), _pose_space(_mix("2g")))
     mat_4g = _mat_xs("4g")
     f_4g = FissionOperator.from_solver_data(
         mat_xs=mat_4g, space=mat_4g.mesh.bulk_space,
@@ -184,7 +188,7 @@ def test_H_is_bit_identical_to_the_pre_CS1_euclidean_transpose() -> None:
     never certify the metric plumbing; D4b's control is the loaded leg.
     """
     mat_xs = _mat_xs("2g")
-    loss_threaded = _assemble_loss_operator(mat_xs)
+    loss_threaded = _assemble_loss_operator(mat_xs, _pose_space(_mix("2g")))
     loss_bare = MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
     ) - (IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs))
@@ -210,6 +214,13 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     is asserted). Without this leg, D4a's green is indistinguishable
     from a blind gate (vv#19: only the deliberately-wrong structure
     discriminates loaded from blind).
+
+    ⭐ PROMOTED at CS4a K2: with G2.7 declaring itself a THEOREM
+    corollary (a non-catcher for metric plumbing — its equality is
+    ``0.0`` under defect and fix on every counting space), this gate is
+    the ONLY metric-consultation witness for the four energy leaves in
+    the whole suite. It is no longer "the control beside D4a"; it is the
+    load-bearing instrument.
     """
     mat_xs = _mat_xs("2g")
     w_energy = np.array([2.0, 5.0])
@@ -249,6 +260,11 @@ def test_bulk_space_energy_arm_distinguishes_from_grid_from_synthetic() -> None:
     r"""D6 ⭐ — the SAME mixture with and without ``eg`` mints UNEQUAL
     spaces (F1's production witness, and B2's injectivity in production:
     same shape, different partition ⟹ different name ⟹ different space).
+
+    Since CS4a K1 the energy arm DELEGATES to the one shared rule
+    (``EnergyAxis.from_materials`` — gated at its own home,
+    ``tests/transport/test_kernels.py``); this row is kept as the
+    carrier-level delegation proof.
     """
     bare = _mat_xs("2g").mesh.bulk_space
     gridded = _mat_xs("2g", _EDGES_2G).mesh.bulk_space
@@ -288,7 +304,7 @@ def test_as_matrix_derives_the_basis_shape_from_the_threaded_domain() -> None:
     obligation on the 3b commit, not this gate's claim.)
     """
     mat_xs = _mat_xs("2g")
-    loss = _assemble_loss_operator(mat_xs)
+    loss = _assemble_loss_operator(mat_xs, _pose_space(_mix("2g")))
     got = loss.as_matrix()
     _require(
         bool(np.allclose(got, _fused_loss_matrix(mat_xs), rtol=0.0, atol=1e-12)),
@@ -316,3 +332,258 @@ def test_from_solver_data_does_NOT_default_derive_a_space() -> None:
         "from_solver_data silently derived a space — the wrong-family "
         "hazard is live",
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# CS4a K2 — the mixture-minted pose (G2.1, G2.3–G2.7)
+# ═════════════════════════════════════════════════════════════════════════
+
+def _all_d5_mixtures():
+    """The 8 D5 cases — the byte gate's own list (one source, Pattern 2)."""
+    from tests.homogeneous.test_byte_stability import _mixture_cases
+
+    return _mixture_cases()
+
+
+def test_minted_space_equals_the_carrier_bulk_space() -> None:
+    r"""**G2.1** ⭐ — the space-identity bridge, on all 8 D5 cases.
+
+    ``_pose_space(mix)`` and the degenerate carrier's ``bulk_space``
+    must mint ``==`` spaces: both route the energy arm through the ONE
+    rule (``EnergyAxis.from_materials``) and both canonicalize the
+    quotient point to the counting weight, so a divergence means a
+    second spelling of either arm has appeared — exactly what the K1
+    hoist exists to make unspellable.
+
+    ⚠ ``==`` and never ``is`` — they are distinct objects by
+    construction, and the ``is not`` precondition is asserted so this
+    row can never degrade into an identity tautology. ⚠ POST-K2 reading:
+    the carrier side is a REFERENCE, not the production source —
+    production consumes only the mint; this bridge is what keeps the
+    reference honest.
+    """
+    for name, mix in sorted(_all_d5_mixtures().items()):
+        minted = _pose_space(mix)  # type: ignore[arg-type]
+        carrier_space = MaterialMesh.from_materials({0: mix}).bulk_space  # type: ignore[dict-item]
+        _require(minted is not carrier_space, f"{name}: precondition lost")
+        _require(
+            minted == carrier_space,
+            f"{name}: the mixture-minted space != the carrier's bulk_space "
+            f"— a second spelling of the energy arm or the quotient point "
+            f"has appeared",
+        )
+
+
+#: ``[M]`` 2026-08-21 @ 15bbf935 (PRE-carve): ``IntegratedReactionRate(
+#: xs_field).evaluate(phi)`` on ``get_mixture("A", ·)``'s degenerate
+#: carrier, ``phi = np.random.default_rng(4242).random((ng, 1)) * 10.0``
+#: (the p2_rate.py probe configuration). (production, absorption) pairs.
+_FROZEN_PRE_CARVE_RATES = {
+    "1g": (5.866886064424134, 3.9112573762827556),
+    "2g": (1.5385362882121392, 0.827937004750311),
+    "4g": (1.0205081306057884, 0.7778804468990971),
+}
+
+
+@pytest.mark.parametrize("groups", ["1g", "2g", "4g"])
+def test_rate_re_pose_reproduces_the_frozen_pre_carve_values(groups: str) -> None:
+    r"""**G2.3** ⭐ — the rate re-pose is a value no-op, pinned against FROZEN values.
+
+    The frozen side is a RECORD of the retired spelling
+    (``IntegratedReactionRate.evaluate``, measured at the commit before
+    the re-pose landed — configuration in the constant's comment), so
+    the row stays a genuine pre-carve pin even though the old spelling
+    has left the homogeneous path. Bit-exact ``==``: the two spellings
+    were measured 0-ULP identical on every shipped quotient case.
+    """
+    mix = _mix(groups)
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+    space = _pose_space(mix)
+    ng = mix.ng
+    rng = np.random.default_rng(4242)
+    phi = rng.random((ng, 1)) * 10.0
+
+    production = space.inner_product(
+        np.asarray(mat_xs.fission_production_field.values), phi
+    )
+    absorption = space.inner_product(
+        np.asarray(mat_xs.absorption_cross_section_field.values), phi
+    )
+    frozen_production, frozen_absorption = _FROZEN_PRE_CARVE_RATES[groups]
+    _require(
+        production == frozen_production,
+        f"production rate moved off the frozen pre-carve value: "
+        f"{production!r} != {frozen_production!r}",
+    )
+    _require(
+        absorption == frozen_absorption,
+        f"absorption rate moved off the frozen pre-carve value: "
+        f"{absorption!r} != {frozen_absorption!r}",
+    )
+
+
+def test_carrier_volume_is_unwired_from_the_solve(monkeypatch) -> None:
+    r"""**G2.4** ⭐⭐ — the carrier's measure is UN-wired: ``volumes ×2`` moves NOTHING.
+
+    The claim did not exist before K2 and could not have been gated
+    before it (plan-authoring §6c — ``[M]`` at CS1 HEAD this same
+    mutation moved ``flux 397.946 → 198.973`` and doubled both rates).
+    The M2.7/M2.8 sensitivity table, which INVERTS across K2 (F3):
+
+    ======================  =================  ==================
+    mutation                 pre-K2 (CS1)       post-K2 (this gate)
+    ======================  =================  ==================
+    carrier ``volumes ×2``   flux/rates move    **bit-identical**
+    space point weight ×2    bit-identical      flux/rates move
+    ======================  =================  ==================
+
+    ``k_inf`` is blind to BOTH (a ratio) — no k-level row may be
+    credited for a measure claim.
+    """
+    from orpheus.homogeneous.solver import solve_homogeneous_infinite
+
+    mix = _mix("2g")
+    baseline = solve_homogeneous_infinite(mix)
+
+    original_getter = MaterialMesh.volumes.fget
+    assert original_getter is not None
+    monkeypatch.setattr(
+        MaterialMesh,
+        "volumes",
+        property(lambda self: np.asarray(original_getter(self)) * 2.0),
+    )
+    doubled = solve_homogeneous_infinite(mix)
+
+    _require(
+        bool(np.array_equal(doubled.flux, baseline.flux)),
+        "flux moved under carrier volumes ×2 — the re-pose is partial: "
+        "something on the homogeneous path still reads the carrier's "
+        "volume measure",
+    )
+    _require(
+        doubled.sig_prod == baseline.sig_prod
+        and doubled.sig_abs == baseline.sig_abs,
+        "a rate moved under carrier volumes ×2 — one of the two rate "
+        "sites still reads volume_measure",
+    )
+    _require(doubled.k_inf == baseline.k_inf, "k_inf moved (?!)")
+
+
+def test_the_space_measure_is_consulted(monkeypatch) -> None:
+    r"""**G2.5** ⭐ — G2.4's vv#19 partner: a point weight of 2.0 MOVES the answer.
+
+    G2.4 alone is compatible with "the rate reads nothing"; this leg
+    proves the re-posed pairing consults the SPACE's measure. Weight
+    2.0 is deliberate: ×2 and ÷2 are exact in binary floating point, so
+    every ratio below is asserted BIT-exactly. Expected moves — the
+    normalization ⟨νΣf, φ⟩ = 100 divides the eigenvector by the doubled
+    pairing, so ``flux`` HALVES; both specific rates (rate / total_flux)
+    DOUBLE; ``k_inf`` is unchanged (a ratio, blind by construction).
+    """
+    import orpheus.homogeneous.solver as solver_module
+    from orpheus.homogeneous.solver import solve_homogeneous_infinite
+
+    mix = _mix("2g")
+    baseline = solve_homogeneous_infinite(mix)
+
+    def weighted_pose(m):
+        return FunctionSpace.of_axes(
+            EnergyAxis.from_materials([m]),
+            Axis(
+                "spatial", (1,), weights=np.array([2.0]),
+                kind=BasisKind.NODAL,
+            ),
+        )
+
+    monkeypatch.setattr(solver_module, "_pose_space", weighted_pose)
+    weighted = solve_homogeneous_infinite(mix)
+
+    _require(
+        bool(np.array_equal(weighted.flux, baseline.flux / 2.0)),
+        f"flux did not halve under a point weight of 2.0 — the re-posed "
+        f"pairing is not consulting the space's measure: "
+        f"{weighted.flux} vs {baseline.flux}",
+    )
+    _require(
+        weighted.sig_prod == 2.0 * baseline.sig_prod
+        and weighted.sig_abs == 2.0 * baseline.sig_abs,
+        "the specific rates did not double under the weighted point",
+    )
+    _require(weighted.k_inf == baseline.k_inf, "k_inf moved under a measure change")
+
+
+def test_minted_space_counting_premise() -> None:
+    r"""**G2.6** — the PREMISE leg of the counting-measure adjoint theorem.
+
+    The minted quotient space's metric is the identity — a fact about
+    the MINT, red-capable (M2.7: give the point weight 2.0 and
+    ``apply_metric`` moves). The theorem's conclusion (``A† = Aᵀ``) is
+    then a corollary G2.7 cites, never measures.
+    """
+    for groups in ("1g", "2g", "4g"):
+        space = _pose_space(_mix(groups))
+        ng = int(space.shape[0])
+        rng = np.random.default_rng(20260821)
+        x = rng.random((ng, 1))
+        y = rng.random((ng, 1))
+        _require(
+            bool(np.array_equal(space.apply_metric(x), x)),
+            f"{groups}: the minted metric is not the identity",
+        )
+        _require(
+            space.inner_product(x, y) == float(np.sum(x * y)),
+            f"{groups}: the minted pairing is not the bare contraction",
+        )
+        axes = space.axes
+        assert axes is not None
+        _require(
+            isinstance(axes[0], EnergyAxis) and axes[0].weights is None,
+            f"{groups}: the energy factor is not the counting EnergyAxis",
+        )
+        _require(
+            axes[1].weights is None,
+            f"{groups}: the quotient point is not counting-weighted",
+        )
+
+
+def test_adjoint_equals_transpose_on_the_minted_space() -> None:
+    r"""**G2.7** — the counting-measure adjoint COROLLARY. Claim kind: THEOREM.
+
+    ``op.H.apply(x) == op.apply_transpose(x)`` for all four energy
+    leaves on the minted space — asserted as the statement that no
+    OTHER change (a leaf gaining a non-diagonal energy coupling) has
+    broken the corollary.
+
+    ⛔ **This gate does NOT certify that the threaded metric is
+    consulted.** ``[M]`` 2026-08-20 (verification plan F1): ``.H`` vs
+    ``apply_transpose`` reads ``0.000e+00`` for all four leaves with
+    ``space=None``, with the quotient space, and ``≤2.2e-16`` on a
+    meshed spherical bulk of 56 000× volume spread — ``[G, Aᵀ] = 0``
+    exactly, because the leaves are spatially diagonal and the energy
+    metric is counting by an ``EnergyAxis`` construction refusal. There
+    is no reachable falsifier on any counting space. The
+    metric-consultation claim is discharged by
+    :func:`test_H_MOVES_under_a_per_group_weighted_axis` (D4b, the
+    promoted sole witness) and by nothing else.
+    """
+    mix = _mix("2g")
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+    space = _pose_space(mix)
+    operators = {
+        "C": MultiplicationOperator(
+            coefficient=mat_xs.total_cross_section_field, space=space,
+        ),
+        "IsoS": IsotropicScattering(mat_xs, space=space),
+        "IsoN2N": IsotropicN2N(mat_xs, space=space),
+        "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=space),
+    }
+    x = np.array([[1.25], [-0.75]])
+    for name, op in operators.items():
+        adjoint_image = np.asarray(op.H.apply(x))
+        transpose_image = np.asarray(op.apply_transpose(x))
+        _require(
+            bool(np.array_equal(adjoint_image, transpose_image)),
+            f"{name}: the counting-measure corollary broke — .H no longer "
+            f"equals the transpose on the minted space (a leaf gained a "
+            f"non-diagonal energy coupling?)",
+        )

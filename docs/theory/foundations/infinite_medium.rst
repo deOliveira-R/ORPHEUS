@@ -1241,19 +1241,22 @@ constructed, and its dominant eigenpair taken, in four lines:
 
 .. code-block:: python
 
-   loss = _assemble_loss_operator(mat_xs)          # A = C − K_iso, un-materialized
+   space = _pose_space(mix)                        # Energy ⊗ point, minted from the mixture
+   loss = _assemble_loss_operator(mat_xs, space)   # A = C − K_iso, un-materialized
    production = FissionOperator.from_solver_data(  # F = χ ⊗ νΣ_f
-       mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
+       mat_xs=mat_xs, space=space,
    )
    K = MatrixInverseOperator(loss) @ production
    k_inf, phi = dominant_eigenpair(K.as_matrix())
 
-(Since campaign 1 CS1 the operators pose on the carrier's axis-built
-``bulk_space`` — Energy ⊗ the quotient spatial point, :doc:`spaces` — so
-``MatrixInverseOperator`` and ``as_matrix`` **derive** the ``(ng, 1)``
-basis shape from the threaded domain; the pre-CS1 idiom passed
-``basis_shape=(ng, 1)`` explicitly at both sites because the meshless
-operators carried no space to derive it from.)
+(Since CS4a K2 the operators pose on the MIXTURE-MINTED Energy ⊗ point
+space — the problem's own physics names its space, :doc:`spaces`; the
+degenerate carrier's ``bulk_space`` mints an ``==`` space but is a
+reference, no longer the production source. ``MatrixInverseOperator``
+and ``as_matrix`` **derive** the ``(ng, 1)`` basis shape from the
+threaded domain; the pre-CS1 idiom passed ``basis_shape=(ng, 1)``
+explicitly at both sites because the meshless operators carried no
+space to derive it from.)
 
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 materializes and LU-factors the loss operator **once** at construction; the
@@ -1579,7 +1582,7 @@ the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
    others.
 
 .. implements:: normalisation
-   :by: orpheus.transport.reaction_rate_functional.IntegratedReactionRate.evaluate
+   :by: orpheus.numerics.space.FunctionSpace.inner_product
 
 The normalisation denominator is the **fission** production rate
 :math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` only — consistent with the

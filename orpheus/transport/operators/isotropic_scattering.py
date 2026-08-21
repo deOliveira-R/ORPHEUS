@@ -83,6 +83,9 @@ from orpheus.numerics.operator import (
 # the transport dependency graph (it imports no operators), so this
 # module-level import is cycle-free.
 from orpheus.transport.full_field import FullField
+from orpheus.transport.operators._energy_conformity import (
+    assert_energy_extent_conforms,
+)
 
 if TYPE_CHECKING:
     from orpheus.numerics.assembled_operator import SparseAssembledOperator
@@ -254,6 +257,13 @@ class IsotropicScattering(LinearOperator):
     # Class-level constant (unannotated so the dataclass does not treat it as a field).
     block_role = BlockRole.BULK
 
+    def __post_init__(self) -> None:
+        # CS4a K2: refuse a space whose EnergyAxis contradicts the data's
+        # ng (reach + declared inertness: _energy_conformity docstring).
+        assert_energy_extent_conforms(
+            self.space, self.mat_xs.ng, operator="IsotropicScattering",
+        )
+
     @property
     def is_adjointable(self) -> bool:
         # apply_transpose realises Σ_{s,0}χ (the group-flip A^T); caps ⊇
@@ -364,6 +374,12 @@ class IsotropicN2N(LinearOperator):
     mat_xs: "MaterialXSField"
     space: "FunctionSpace | None" = None
     block_role = BlockRole.BULK
+
+    def __post_init__(self) -> None:
+        # CS4a K2: same refusal as IsotropicScattering (one shared guard).
+        assert_energy_extent_conforms(
+            self.space, self.mat_xs.ng, operator="IsotropicN2N",
+        )
 
     @property
     def is_adjointable(self) -> bool:

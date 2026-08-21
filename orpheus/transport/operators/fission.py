@@ -131,6 +131,9 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 from orpheus.transport.full_field import FullField
+from orpheus.transport.operators._energy_conformity import (
+    assert_energy_extent_conforms,
+)
 from orpheus.transport.source_sinks import ScalarSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -192,6 +195,13 @@ class FissionOperator(LinearOperator):
     # Class-level constant (unannotated so the dataclass does not treat
     # it as a field).
     block_role = BlockRole.BULK
+
+    def __post_init__(self) -> None:
+        # CS4a K2: refuse a space whose EnergyAxis contradicts the data's
+        # ng (reach + declared inertness: _energy_conformity docstring).
+        assert_energy_extent_conforms(
+            self.space, self.mat_xs.ng, operator="FissionOperator",
+        )
 
     @property
     def is_adjointable(self) -> bool:

@@ -40,8 +40,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
 from orpheus.numerics.eigenvalue import dominant_eigenpair
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
@@ -49,7 +51,6 @@ from orpheus.transport.operators.isotropic_scattering import (
     IsotropicScattering,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import OperatorSum
@@ -112,7 +113,31 @@ class HomogeneousResult:
 # Solver — k∞ = λ_max(A⁻¹F) over the transport operator algebra
 # ---------------------------------------------------------------------------
 
-def _assemble_loss_operator(mat_xs: "MaterialXSField") -> "OperatorSum":
+def _pose_space(mix: Mixture) -> FunctionSpace:
+    r"""The space the infinite-medium problem poses on: Energy ⊗ the quotient point.
+
+    Minted from the MIXTURE — the problem's own physics — never read off
+    a carrier (CS4a K2): the energy axis goes through the ONE energy-arm
+    rule (:meth:`~orpheus.numerics.axis.EnergyAxis.from_materials`, the
+    same rule ``MaterialMesh.bulk_space`` routes through, so the two
+    spellings cannot diverge), and the spatial factor is the explicit
+    quotient point with the COUNTING weight (``weights=None`` — the
+    normalized per-unit-volume density convention; the counting-measure
+    premise the rate pairing below rests on).
+
+    The degenerate carrier's ``bulk_space`` mints an ``==`` space (the
+    identity bridge gate pins it) but is no longer what production
+    consumes — the carrier supplies cross sections, not the posing.
+    """
+    return FunctionSpace.of_axes(
+        EnergyAxis.from_materials([mix]),
+        Axis("spatial", (1,), kind=BasisKind.NODAL),
+    )
+
+
+def _assemble_loss_operator(
+    mat_xs: "MaterialXSField", space: FunctionSpace
+) -> "OperatorSum":
     r"""The loss operator :math:`A = C - K_\mathrm{iso}` for an infinite medium.
 
     Composes the model-shared transport operators on the meshless single-cell
@@ -135,22 +160,22 @@ def _assemble_loss_operator(mat_xs: "MaterialXSField") -> "OperatorSum":
     (the early ``.as_matrix()`` this function performed until taxonomy
     step 5b moved into that constructor).
 
-    Since campaign 1 (CS1) the meshless operators pose on a REAL space:
-    the carrier's axis-built ``bulk_space`` — Energy ⊗ the quotient
-    spatial point, shape ``(ng, 1)`` — reaches ``C`` through the
-    ``from_mesh`` mesh-default chain and is threaded into the isotropic
-    pair explicitly, so all three arms of ``C − (IsoS + IsoN2N)`` agree
-    on one space and the ``OperatorSum`` guard VALIDATES the sum instead
-    of skipping it. Consumers no longer pass ``basis_shape=(ng, 1)`` by
-    hand: ``as_matrix``/``MatrixInverseOperator`` derive it from the
-    threaded domain (the pre-CS1 idiom existed only because these
-    operators carried no
+    Since campaign 1 (CS1) the meshless operators pose on a REAL space,
+    and since CS4a (K2) that space is the CALLER's — the mixture-minted
+    Energy ⊗ point from :func:`_pose_space`, threaded explicitly into
+    all three arms (``C`` by direct construction, no ``from_mesh``
+    default chain), so ``C − (IsoS + IsoN2N)`` agrees on one space and
+    the ``OperatorSum`` guard VALIDATES the sum instead of skipping it.
+    Consumers no longer pass ``basis_shape=(ng, 1)`` by hand:
+    ``as_matrix``/``MatrixInverseOperator`` derive it from the threaded
+    domain (the pre-CS1 idiom existed only because these operators
+    carried no
     :attr:`~orpheus.numerics.operator.LinearOperator.domain` to derive
-    it from).
+    it from). (Until K2 the space was read off the carrier's
+    ``bulk_space``; the carrier now supplies cross sections only.)
     """
-    space = mat_xs.mesh.bulk_space
-    collision = MultiplicationOperator.from_mesh(
-        mat_xs.total_cross_section_field, mat_xs.mesh,
+    collision = MultiplicationOperator(
+        coefficient=mat_xs.total_cross_section_field, space=space,
     )
     k_iso = IsotropicScattering(mat_xs, space=space) + IsotropicN2N(
         mat_xs, space=space
@@ -187,7 +212,10 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     -------
     HomogeneousResult
     """
-    # The meshless phase space: one cell, one region, no streaming.
+    # The posing: the mixture-minted Energy ⊗ point space (the problem's
+    # own physics names its space); the meshless carrier supplies the
+    # cross sections — one cell, one region, no streaming.
+    space = _pose_space(mix)
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
     ng = mix.ng
 
@@ -200,10 +228,8 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # the ITERATIVE GreenOperator splitting; constructing the matrix inverse
     # explicitly IS the strategy choice) — composed with the fission
     # production dyad F = χ ⊗ νΣ_f.
-    loss = _assemble_loss_operator(mat_xs)
-    production = FissionOperator.from_solver_data(
-        mat_xs=mat_xs, space=mat_xs.mesh.bulk_space,
-    )
+    loss = _assemble_loss_operator(mat_xs, space)
+    production = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
     K = MatrixInverseOperator(loss) @ production
 
     # k∞ and the flux spectrum φ are the EXACT dominant eigenpair of the
@@ -214,20 +240,23 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # tool, not an iterative approximation.
     k_inf, phi = dominant_eigenpair(K.as_matrix())
 
-    # The reaction rates are the §5.6 reaction-rate functional ∫⟨Σx, φ⟩dV
-    # (:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`)
-    # on the meshless unit-volume cell — production (νΣf) and absorption (Σa),
-    # each the φ†=1 degenerate of the homogenization PG bilinear ⟨φ†, M[Σx]φ⟩.
-    # Production is νΣf ONLY: the (n,2n) reaction is a loss-side transfer folded
-    # into A as 2Σ₂ᵀ, never a production channel.
-    production = IntegratedReactionRate(mat_xs.fission_production_field)
-    absorption = IntegratedReactionRate(mat_xs.absorption_cross_section_field)
+    # The reaction rates are the SPACE's pairing ⟨Σx, φ⟩ — production
+    # (νΣf) and absorption (Σa), each the φ†=1 degenerate of the
+    # homogenization PG bilinear ⟨φ†, M[Σx]φ⟩. On the quotient point the
+    # measure is COUNTING (the normalized per-unit-volume density
+    # convention _pose_space states), so the pairing IS the bare group
+    # contraction — and it reads the POSING's measure, never a carrier's
+    # (CS4a K2: the carrier's volume_measure is un-wired from this path).
+    # Production is νΣf ONLY: the (n,2n) reaction is a loss-side transfer
+    # folded into A as 2Σ₂ᵀ, never a production channel.
+    nu_sig_f = np.asarray(mat_xs.fission_production_field.values)
+    sig_a = np.asarray(mat_xs.absorption_cross_section_field.values)
 
     # Normalise the flux so the fission production rate νΣf·φ = 100 n/cm³/s.
-    phi = phi * (100.0 / production.evaluate(phi.reshape(ng, 1)))
+    phi = phi * (100.0 / space.inner_product(nu_sig_f, phi.reshape(ng, 1)))
 
-    prod_rate = production.evaluate(phi.reshape(ng, 1))
-    abs_rate = absorption.evaluate(phi.reshape(ng, 1))
+    prod_rate = space.inner_product(nu_sig_f, phi.reshape(ng, 1))
+    abs_rate = space.inner_product(sig_a, phi.reshape(ng, 1))
     total_flux = float(phi.sum())
 
     if mix.eg is None:

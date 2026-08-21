@@ -924,17 +924,24 @@ they hurt when the convention is implicit:
    :math:`V_{\rm cell}`
    instead of per unit volume, say — every functional follows by
    arithmetic, because the weight is the thing they integrate against.
-   `[M]` **this is live, and it is measurable.**
+   `[M]` **this is live, and it is measurable — since CS4a K2, of the
+   SPACE's own measure.**
    :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
-   normalises its flux through
-   :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`,
-   whose ``evaluate`` contracts against ``mesh.volume_measure`` — so
-   the quotient point's weight is genuinely consumed, not decorative.
-   Feed the SAME flux :math:`\varphi = (1, 1)` and the same 2-group
-   mixture to the quotient carrier (weights ``[1.0]``) and to a
-   one-cell slab of width 2 (weights ``[2.0]``) and the production
-   rates are :math:`0.225` and :math:`0.450` — exactly the measure
-   ratio, with no other input changed.
+   normalises its flux through the space's pairing
+   (``space.inner_product(Σx, φ)``), which contracts against the
+   posing's per-axis weights — so the quotient point's weight is
+   genuinely consumed, not decorative. The separated measurement (each
+   measure varied ALONE, 2026-08-21): minting the point with weight 2.0
+   moves the flux and both specific rates by exactly the measure ratio
+   while :math:`k_\infty` is unchanged, and doubling the CARRIER's cell
+   volumes moves **nothing** — the carrier supplies cross sections, not
+   the measure. (Until K2 the rates read ``mesh.volume_measure``
+   instead: the same experiment then read :math:`0.225` vs :math:`0.450`
+   between the quotient carrier, weights ``[1.0]``, and a one-cell slab
+   of width 2, weights ``[2.0]`` — a true measurement whose two measures
+   were varied TOGETHER, so it could not distinguish which one the rate
+   consumed; the pre-K2 value path was in fact bit-identically inert to
+   the space weight.)
 #. **Family coherence.** The :math:`B = 0` fiber and the :math:`B \neq
    0` members share the slot, so fiberwise machinery — Fourier
    convergence analysis, :math:`\rho(B)` — reads a uniform signature

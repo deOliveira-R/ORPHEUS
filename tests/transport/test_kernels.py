@@ -32,9 +32,13 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.transport.kernels import FissionKernel, N2NKernel, ScatteringKernel
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
     IsotropicScattering,
+)
+from orpheus.transport.operators.multiplication_operator import (
+    MultiplicationOperator,
 )
 from tests.sn.architecture._config import anisotropic_mixture
 
@@ -474,3 +478,221 @@ def test_module_imports_nothing_from_scattering_or_frames():
         f"forbids the kernel module from reaching scattering/frame "
         f"machinery (the dependency points the other way)."
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# CS4a K2 — the binding fences (G2.8, G2.9, G2.10)
+# ═════════════════════════════════════════════════════════════════════════
+
+def _registry_type_names(cls) -> set[str]:
+    """The ``singledispatchmethod`` registry of ``cls._apply_impl``, by type
+    NAME — the empty set when the class dispatches without one (the iso
+    pair's ``isinstance`` branches, which is exactly why the behavioural
+    matrix below exists)."""
+    attr = inspect.getattr_static(cls, "_apply_impl", None)
+    dispatcher = getattr(attr, "dispatcher", None)
+    if dispatcher is None:
+        return set()
+    return {t.__name__ for t in dispatcher.registry}
+
+
+def _diffusion_binding():
+    """The 2g / 6-cell diffusion binding the arm matrix is measured on."""
+    from orpheus.diffusion.augmented_mesh import DiffusionMesh
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, 7), mat_ids=np.zeros(6, dtype=int),
+        coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
+    )
+    dm = DiffusionMesh(mesh, {0: get_mixture("A", "2g")})
+    return dm, dm.material_xs_field(), dm.full_field_space
+
+
+_ARM_MATRIX = {
+    # (operator, carrier) -> expected outcome type name, or "TypeError".
+    # [M] 2026-08-20 (verification plan §2(g.1)) on the diffusion binding.
+    ("C", "FullField"): "FullField",
+    ("C", "ndarray"): "ndarray",
+    ("C", "ScalarFlux"): "TypeError",
+    ("IsoS", "FullField"): "FullField",
+    ("IsoS", "ndarray"): "ndarray",
+    ("IsoS", "ScalarFlux"): "ndarray",  # F10: untyped fall-through, recorded
+    ("IsoN2N", "FullField"): "FullField",
+    ("IsoN2N", "ndarray"): "ndarray",
+    ("IsoN2N", "ScalarFlux"): "ndarray",  # F10
+    ("F", "FullField"): "FullField",
+    ("F", "ndarray"): "ndarray",
+    ("F", "ScalarFlux"): "ScalarSourceSink",
+}
+
+
+@pytest.mark.parametrize(
+    ("operator_key", "carrier_key"),
+    sorted(_ARM_MATRIX),
+    ids=[f"{o}-{c}" for o, c in sorted(_ARM_MATRIX)],
+)
+def test_apply_arm_survival_matrix(operator_key, carrier_key):
+    r"""**G2.8** ⭐⭐ — the R-A fence, executable: NO apply arm is deleted.
+
+    Twelve cells, each with a distinct MEASURED outcome including the
+    refusal (``C × ScalarFlux → TypeError``) — so the gate is never
+    merely "does it not crash", and it survives reformatting and any
+    later ``singledispatchmethod`` → explicit-dispatch rewrite, which a
+    source grep would not. The two ``IsoS/IsoN2N × ScalarFlux →
+    ndarray`` cells are F10's untyped fall-through (typed in, bare out —
+    vv#29's asymmetric arrow), RECORDED here as the shipped behaviour;
+    CS4a deletes no arm and repairs none (the dispatch collapse is
+    CS4c's, after the per-instance feeding census).
+    """
+    from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
+    from orpheus.transport.full_field import FullField
+
+    dm, mat_xs, ffs = _diffusion_binding()
+    operators = {
+        "C": MultiplicationOperator(
+            coefficient=mat_xs.total_cross_section_field, space=ffs,
+        ),
+        "IsoS": IsotropicScattering(mat_xs, space=ffs),
+        "IsoN2N": IsotropicN2N(mat_xs, space=ffs),
+        "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=ffs),
+    }
+    rng = np.random.default_rng(2026)
+    interior_values = rng.random((2, 6)) + 0.5
+    carriers = {
+        "FullField": lambda: FullField(
+            interior=ScalarFlux.from_mesh(interior_values, dm),
+            boundary=ScalarBoundaryFlux.from_mesh(
+                rng.random(dm.scalar_trace.shape[0]) + 0.1, dm,
+            ),
+        ),
+        "ndarray": lambda: interior_values.copy(),
+        "ScalarFlux": lambda: ScalarFlux.from_mesh(interior_values, dm),
+    }
+
+    expected = _ARM_MATRIX[(operator_key, carrier_key)]
+    op = operators[operator_key]
+    probe = carriers[carrier_key]()
+    if expected == "TypeError":
+        with pytest.raises(TypeError):
+            op.apply(probe)
+    else:
+        assert type(op.apply(probe)).__name__ == expected, (
+            f"{operator_key} × {carrier_key}: the arm's outcome type "
+            f"changed — an apply arm moved or died (the R-A fence)"
+        )
+
+
+def test_apply_dispatch_registries_are_verbatim():
+    r"""**G2.8 companion** — the five ``singledispatchmethod`` keysets, verbatim.
+
+    ⚠ The iso pair's EMPTY sets are the point, not a gap: their arms are
+    ``isinstance`` branches, structurally invisible to any registry
+    introspection — which is why the behavioural matrix above is the
+    stronger instrument and this row is only the cheap source-tier tell.
+    """
+    from orpheus.transport.operators.scattering import ScatteringOperator
+
+    assert _registry_type_names(MultiplicationOperator) == {
+        "FullField", "ndarray", "object",
+    }
+    assert _registry_type_names(FissionOperator) == {
+        "FullField", "ScalarFlux", "ndarray", "object",
+    }
+    assert _registry_type_names(IsotropicScattering) == set()
+    assert _registry_type_names(IsotropicN2N) == set()
+    assert _registry_type_names(ScatteringOperator) == {
+        "AngularFlux", "FullField", "HarmonicMomentFlux", "ScalarFlux",
+        "object",
+    }
+
+
+def test_isotropic_kernel_still_constructs_space_anonymously():
+    r"""**G2.9** — the C8 fence's live witness: ``scattering.py``'s iso pair
+    stays constructible with NO space.
+
+    ``ScatteringOperator.isotropic_kernel`` builds its ``IsoS + IsoN2N``
+    sum space-anonymously (the only production construction of a CS4a
+    operator with no space at all). F is mandatory; the iso pair is NOT
+    (F2/R-C — C and the iso pair flip at CS4c with their migration
+    batch). If the iso constructors' space ever becomes mandatory, this
+    site breaks — and this gate says so before production does.
+    """
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.transport.operators.scattering import ScatteringOperator
+
+    mat_xs = MaterialMesh.from_materials(
+        {0: get_mixture("A", "2g")}
+    ).material_xs_field()
+    scattering = ScatteringOperator.from_solver_data(
+        mat_xs=mat_xs,
+        quadrature=Quadrature.gauss_legendre(n_ordinates=4),
+        scattering_order=0,
+    )
+    iso_sum = scattering.isotropic_kernel
+    left, right = iso_sum._a, iso_sum._b
+    assert left.domain is None and right.domain is None, (
+        "the iso pair gained a space on the space-anonymous "
+        "isotropic_kernel path — scattering.py:713's construction "
+        "contract moved"
+    )
+
+
+def test_energy_conformity_guard_three_rows():
+    r"""**G2.10** — the ng-conformity refusal, per arm (vv#11 + vv#28).
+
+    Three rows, and the third is the one an author will not write
+    unprompted:
+
+    1. axis-built POSITIVE — 2g data × the 2g quotient space constructs;
+    2. axis-built NEGATIVE — 2g data × a 4g quotient space raises the
+       typed ``"energy extent"`` refusal (fragment asserted DISJOINT
+       from the ``OperatorSum`` pins' ``"equal domains"`` vocabulary, so
+       this row can never be intercepted by those);
+    3. axes-LESS — a WRONG-ng bind on ``SNMesh(2g).full_field_space``
+       MUST CONSTRUCT: the declared inertness. The guard's reach is the
+       contract (``[M]`` live on 192 of 1022 constructions — 4 of 13
+       production bindings; inert on the 7 axes-less composites and the
+       2 space-less ``isotropic_kernel`` constructions; the axis-keyed
+       strengthening for composites arrives with CS2's axes). Without
+       this row the guard ships certified by a fixture family that
+       reddens on demand while 7 of 13 real bindings never touch it.
+    """
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+
+    carrier_2g = MaterialMesh.from_materials({0: get_mixture("A", "2g")})
+    carrier_4g = MaterialMesh.from_materials({0: get_mixture("A", "4g")})
+    mat_2g = carrier_2g.material_xs_field()
+
+    # Row 1 — axis-built positive.
+    bound = FissionOperator.from_solver_data(
+        mat_xs=mat_2g, space=carrier_2g.bulk_space,
+    )
+    assert bound.domain == carrier_2g.bulk_space
+
+    # Row 2 — axis-built negative, typed, disjoint fragment.
+    with pytest.raises(ValueError, match="energy extent") as excinfo:
+        FissionOperator.from_solver_data(
+            mat_xs=mat_2g, space=carrier_4g.bulk_space,
+        )
+    message = str(excinfo.value)
+    assert "4" in message and "2" in message  # both integers named
+    assert "equal domains" not in message  # disjoint from the D2 pins
+
+    # Row 3 — axes-less: the WRONG-ng bind constructs (declared inert).
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, 5), mat_ids=np.zeros(4, dtype=int),
+        coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
+    )
+    sn_2g = SNMesh(
+        mesh, Quadrature.gauss_legendre(n_ordinates=4),
+        {0: get_mixture("A", "2g")},
+    )
+    composite = sn_2g.full_field_space
+    assert composite.axes is None  # the row's own precondition
+    mat_4g = carrier_4g.material_xs_field()
+    inert = FissionOperator.from_solver_data(mat_xs=mat_4g, space=composite)
+    assert inert.domain is composite  # constructed — the guard did NOT fire
