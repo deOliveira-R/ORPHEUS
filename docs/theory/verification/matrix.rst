@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9920**
+Total tests collected: **9981**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 13.1%
-   L1, 1620, 16.3%
+   L0, 1297, 13.0%
+   L1, 1620, 16.2%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6934, 69.9%
+   foundation, 6995, 70.1%
    unmarked, 5, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9836
+   explicit, 9897
    class-name, 46
    func-name, 0
    case, 33
@@ -61,7 +61,7 @@ Module × level grid
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
-   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 98, 0
+   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 99, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
@@ -284,7 +284,7 @@ Module × level grid
    homogeneous/test_byte_stability, 0, 0, 0, 0, 8, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
-   homogeneous/test_operator_spaces, 0, 0, 0, 0, 12, 0
+   homogeneous/test_operator_spaces, 0, 0, 0, 0, 19, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 9, 0, 0, 0, 0
@@ -493,7 +493,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 338, 0
+   test_layer_imports, 0, 0, 0, 0, 340, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -504,6 +504,7 @@ Module × level grid
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
+   transport/test_kernels, 0, 0, 0, 0, 51, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 23, 0
