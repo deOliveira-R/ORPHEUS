@@ -302,16 +302,45 @@ they conflict):**
    weights"). ⚠ The surviving nuance: the leaf transpose arm reads `w` off
    the OPERAND (`bulk.mesh.quad.weights`) — correct today, but the same
    third-weld read vv#30 catalogues; under input 2 it becomes a SPACE read.
-2. **The angular axis must be MEASURE-COMPLETE (nodes + weights), not
-   weights-only.** A weights-only axis serves the ℓ=0 binding; the ℓ≥1
-   moment maps need `P_ℓ(Ω_n)` — the NODES. `Quadrature` already lives in
-   NUMERICS (Q6), so an `AngularAxis` carrying/wrapping the angular
-   `DiscreteMeasure` is layer-clean, and then the scattering binding collapses
-   to (kernel, space) — the separate `quadrature=` argument (today a second
-   source beside `space=`, a latent disagreement channel) disappears, and
-   ruling 2's "frame minted from kernel eigenbasis × the SPACE's angular
-   measure" is satisfiable literally. ⛔ This supersedes the means-sketch's
-   "directions stay generator data" clause below.
+   ⚠ **The user's price assessment (2026-08-20): the wrapper is a PAID cost
+   of the dyad discipline, not a free lunch — a target for EVENTUAL
+   reconsideration.** Its retirement condition, stated now so the target is
+   concrete: under the factored composite realization (inputs 2–3 + the F4
+   addendum), a channel's `.H` becomes the reversed composite of
+   space-supplied adjoint PAIRS — metric-exact with NO G-conjugation,
+   because the conjugation is absorbed into the pair construction. Each
+   channel that moves to the factored form exits the wrapper's clientele;
+   the wrapper retires (aggressive-retirement) when its clientele empties —
+   monolithic Euclidean leaves (e.g. the #280/#310 transpose sweeps) are
+   what keep it alive until then.
+2. **Axes are measure-ACCESSIBLE, never measure-WELDED (user refinement,
+   2026-08-20, superseding this input's first spelling "measure-complete").**
+   Storing the measure OBJECT (or the Quadrature) on the axis would weld
+   space to measure and abandon the forgetful-map concept. The ruled shape —
+   the generalization of what `EnergyAxis` already does — is a three-part
+   law: **(a) forget the GENERATOR** (`from_grid` consumes the grid's
+   surface only — edges, n_groups — under a TYPE_CHECKING import; the axis
+   never holds the grid; same for `AngularAxis = forget(Quadrature)`: the
+   registry tags, ordering conventions, construction provenance are
+   forgotten); **(b) store the IDENTITY CONTENT that distinguishes the
+   measure** (energy: edges bytes — implemented, ruled Q2, precisely so two
+   axes claiming the same ng gate operations by grid content; angular: the
+   NODES by the same argument — two rules with equal weights and different
+   directions are different measures; spatial likewise — "a fair
+   consideration for the other Axes", user); **(c) expose an ACCESSOR that
+   mints the measure object on demand** (`EnergyAxis.grid() → EnergyGrid` —
+   rebuilt from stored edges; numerics→data is layer-legal, "any layer →
+   input"; `AngularAxis.measure() → DiscreteMeasure` — numerics-native; the
+   return-type asymmetry is honest to each axis's nature). The ℓ≥1 moment
+   maps need `P_ℓ(Ω_n)` — the nodes — so weights-only is insufficient
+   regardless; with (b)+(c) the scattering binding collapses to
+   (kernel, space) — the separate `quadrature=` argument (a second source
+   beside `space=`, a latent disagreement channel) disappears, and ruling
+   2's "frame minted from kernel eigenbasis × the SPACE's angular measure"
+   is satisfied through the accessor. ⛔ This supersedes the means-sketch's
+   "directions stay generator data" clause below (the DIRECTIONS-as-identity
+   move; the generator itself stays forgotten, so the clause's intent —
+   don't weld the quadrature object into the axis — survives in (a)).
 3. **The streaming/boundary formalization criterion (the user's, verbatim in
    substance): a FULL operator — bulk AND boundary action on
    `FullFieldSpace = interior ⊕ trace` — is what you get by binding to the
