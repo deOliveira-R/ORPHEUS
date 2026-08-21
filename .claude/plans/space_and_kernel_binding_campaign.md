@@ -851,6 +851,17 @@ its first meshed binding is CS4b/CS4c's); `FissionKernel` has one gate and no
 production consumer until CS4c rebinds F (Q2 — stated in its docstring);
 IntegratedReactionRate survives for its meshed diffusion/SN consumers.
 
+**The wide run (`tests/sn` whole, off-critical-path close-out):** `[M]`
+2026-08-21 @ `49b29391`: **1 failed / 3275 passed / 3 skipped / 51 xfailed
+in 2h06**. The one red
+(`test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_folded_4x8_dd_n40]`,
+0.1268 vs the 0.12 gate, group 0 only) is **NOT CS4a's**: `[M]` deterministic
+(bit-identical in isolation) AND fails at `32d2f548` (pre-CS4a, worktree
+run); the §4.4 diff audit concurs (no SN-path value line). Tracked as
+**#397** (leading lead: the 6.3 ω-fold re-baselined this snapshot's k_eff
+while the MR reference is fold-independent; the 0.12 bound is pre-fold).
+The 1-ULP DriftWarning wall's two pre-existing cyl reds are **#396**.
+
 ### CS4b — fields are space elements (goal chartered; grounding at its own session)
 
 **Goal.** A field is constructible from its SPACE alone — the mesh
