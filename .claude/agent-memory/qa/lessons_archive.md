@@ -4425,3 +4425,90 @@ constructions — I re-derived it; correct) and **none** counted the test side.
 files; IsoS 19/13/5; IsoN2N 14/11/5; F 15/10/6 — **165 space-less constructions
 in ~50 files**. The step is 16× its planned size, and the under-count is in the
 half that holds the coverage.
+
+## L-074 — a guard hoisted to ONE home has as many arms as CALL SITES; and three "independent" comparisons that were one expression compared with itself
+
+CS4a-R Phase-1 gate review, 2026-08-21, `feature/cs1-energy-space` @ `a9a2d55a`.
+Gates: `tests/transport/test_kernels.py` (51 rows),
+`tests/homogeneous/test_operator_spaces.py` (19),
+`tests/sn/architecture/test_monomorphic_leaves.py` (85 + 14 xfail). All green
+under `.venv/bin/python -O -m pytest -p no:randomly`; D5 byte gate 8/8.
+
+**1. The hoisted-guard arm count (the digest rule A12).**
+`orpheus/transport/operators/_energy_conformity.py` is one shared body called
+from FOUR sites — `fission.py:201`, `multiplication_operator.py:214`,
+`isotropic_scattering.py:263` and `:380`. Its gate,
+`test_energy_conformity_guard_three_rows`, exercises **F only**. Per-site
+no-op mutation (in-process plugin, `tests/transport/ + tests/homogeneous/ +
+the ledger`, 655 rows): **F → 1 red; C → 0; IsoS+IsoN2N → 0**. `grep -rn
+"energy extent" tests/` = **1 assertion**, in the F row. The C site is the one
+that passes a DIFFERENT expression (`self.coefficient.values.shape[0]` vs
+`self.mat_xs.ng` at the other three), i.e. the arm most able to be miswired is
+the one with no witness. ⭐ The mechanism generalises: Pattern 2 hoists the
+BODY, never the WIRING — so the elegance move *creates* the blind spot, and
+vv#17's granularity rule (written for in-body early-return arms) has to be
+re-read as *per call site*.
+
+**2. Three "independent" comparisons that are one expression, measured.**
+`ScatteringKernel.from_mixture` is `tuple(np.asarray(s.todense()) for s in
+mixture.SigS)`; `MaterialXSField._build_dense_caches` is `[np.asarray(s.todense())
+for s in mix.SigS]`. Same expression, same object. G1.3's docstring licenses
+`array_equal` on the ground that the two sides are "independently assembled".
+`[M]` transpose the kernel side ALONE → **2 reds** (G1.3 asymmetric row, G1.4);
+transpose BOTH (the shared-source defect = `SigS` stored `[g_to,g_from]`, a
+Mode-2/6 convention inversion) → **51/51 GREEN**, and the whole of
+`tests/transport/` is green. The convention IS pinned — but only in
+`tests/homogeneous/` (**17 reds**, incl. the L1 `test_kinf_exact` anchor and
+the continuous reference). Same shape at G1.4: `dense_per_material` is
+`sig_s_legendre(mid)[0].T`, so `p0 == iso[mid].T` cancels to an identity; what
+G1.4 genuinely pins is the transpose CONVENTION between two named views and the
+`(n,2n)` multiplicity, spelled independently as `ClassVar 2` vs a literal `2.0`.
+And `chi_per_material` returns `materials[mid].chi` itself, so that leg is a
+copy compared with its source. ⟹ `coding-standards`' single-sourcing-demotion
+clause, arriving at BIRTH rather than at a retirement: the twin was minted and
+immediately compared with its own source.
+
+**3. `.H == apply_transpose` on a counting space is the wrapper calling the
+callee.** `[M]` `space.apply_metric(x) **is** x` on the minted quotient space,
+and `_AdjointOperator.apply` (`numerics/operator.py:1307-1313`) is
+`G_dom⁻¹(apply_transpose(G_cod·y))`. So G2.7 asserts `f(x) == f(x)`. Proven:
+under a dense AFFINE `MultiplicationOperator.apply_transpose`
+(`A@y + 5`, non-diagonal, not a transpose of anything) the G2.7 equality reads
+**True**. Its docstring's named falsifier — *"a leaf gaining a non-diagonal
+energy coupling"* — is unreachable. Its ONE live falsifier is the wrapper
+ceasing to delegate: mutating `_AdjointOperator.apply` to `1.5·y` reds G2.7 and
+D4b. The gate's ⛔ metric-blindness block is otherwise exemplary — the defect is
+that a correct disclaimer was paired with a falsifier that cannot fire.
+
+**4. Two ATTACKS I ran and had to withdraw, both by my own probe.**
+(a) *"G2.4's `MaterialMesh.volumes ×2` monkeypatch is the silent-no-op-that-
+lies-safe"* — REFUTED: it is a plain `property`, and on the meshless
+`from_materials` carrier (`mesh is None`) `volume_measure` takes the
+`self.volumes.ravel()` arm; measured `weights 1.0 → 2.0` and `bulk_space`
+changes. The instrument is live, the null is a real measurement.
+(b) *"G2.3's frozen rate literals are derived from the code they pin"* —
+REFUTED: all six reproduce EXACTLY from an independent
+`float(np.sum(sigma*phi))` with no space, no operator, no
+`IntegratedReactionRate`. ⟹ **run the probe before writing the finding**; both
+attacks were plausible from the source alone.
+
+**5. The self-auditing gate whose denominator is a hand-written list.**
+`test_ledger_xfail_marks_are_strict` iterates `(*_R1_ROWS, *_R2_ROWS,
+*_G13_ROWS)`. `[M]` a non-strict mark inside a covered list → **RED** (teeth
+confirmed); the same mark in a NEW module-level list → **GREEN** (invisible);
+a function-level `@pytest.mark.xfail` decorator is never in any row. The
+docstring's own premise checks out (`grep -rn xfail_strict` = 0 across
+`pyproject.toml` and every `conftest.py`), which is exactly why the evasion
+matters. vv#13: the listed elements must GENERATE the audited set — walk the
+module namespace / `request.session.items` instead of naming three globals.
+
+**6. Population arithmetic worth carrying.** G2.1 says "on all 8 D5 cases";
+`[M]` **1 of 8** (`homo_2eg_with_eg`) carries `eg`, and it is the sole case that
+reds under a second-spelling-at-`_pose_space` mutation — the other 7 are
+synthetic on both sides. G2.1 is also GREEN when the SHARED rule itself is
+broken (correctly: G1.6 owns that, and reds 3 rows there). And the K1 module
+docstring's fixture rationale is measurably wrong in one clause: `make_mixture`
+DOES take `sig_s1`, and **all 12** shipped `get_mixture(region, ng_key)` pairs
+ship `len(SigS) = 2` (order 1). What IS true of it: `SigL = np.zeros(ng)`
+hardcoded, `Sig2` nnz 0 on all 12. The false clause is duplicated verbatim in
+`tests/sn/architecture/_config.py:88-93` — one wrong claim, two homes.

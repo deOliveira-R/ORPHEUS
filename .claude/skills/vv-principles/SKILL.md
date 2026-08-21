@@ -259,6 +259,29 @@ any other review work.
     and run the battery with `--continue-on-collection-errors`, counting
     `^ERROR` separately from `^FAILED` so a collection kill can never be
     read as a green.
+    ⭐ **And the shape the granularity trap takes after a Pattern-2 hoist: a
+    guard moved to ONE shared home has as many arms as it has CALL SITES.**
+    Single-sourcing the guard *body* is right and does not single-source the
+    *wiring* — each site passes its own operands and its own owner label, and
+    those expressions can differ from one another. So the elegance move that
+    removes the duplication **creates** the blind spot, and a mutation of the
+    shared body (which reddens *something*) certifies all of them. ⟹
+    **enumerate the call sites, then enumerate the distinct expressions they
+    pass, and mutate per SITE.** The verdict is a table with one row per call
+    site. A site that reddens nothing has no witness, and the site most
+    likely to be miswired is the one whose operand expression differs from
+    its siblings'.
+    `[M]` 2026-08-21, ORPHEUS CS4a-R `assert_energy_extent_conforms`: one
+    body, four call sites (`fission.py:201`, `multiplication_operator.py`,
+    `isotropic_scattering.py` ×2). Disabled per site over 655 rows — **F 1
+    red, C 0, IsoS+IsoN2N 0** — and `grep -rn "energy extent" tests/`
+    returned exactly **one** assertion tree-wide. The C site was the only one
+    keying on `self.coefficient.values.shape[0]` rather than
+    `self.mat_xs.ng`; it was also the one with no witness. The module's
+    docstring carefully wrote the *inertness* denominator ("live on 4 of 13
+    production bindings") and never the *witness* denominator. Repaired the
+    same day: one per-site wrong-ng row each, message asserting the
+    constructing operator's name.
 18. **NEVER credit a mutation's reds as coverage of a property when the
     mutation also breaks a STRUCTURAL law the object obeys** (linearity,
     symmetry, positivity, conservation, a shape/type contract) —

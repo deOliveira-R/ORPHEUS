@@ -58,6 +58,10 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 - [frame_projection_coarsening_shape.md](frame_projection_coarsening_shape.md) —
   homogenize/condense shape: axis-yields-views keystone; collapse-verb-on-the-XS-container;
   Homog/Condens FALSE symmetry; `project()` = the diagonal/PoU special case.
+- [cs4a_kernel_binding_rulings.md](cs4a_kernel_binding_rulings.md) — CS4a "born bound":
+  a re-pose can DEMOTE a named functional to a raw pairing; a doctrine's noun with no
+  TYPE; "the mint closes it" closes nothing at zero consumers. ⛔ **refutes AGENT.md
+  §inst-knowledge #5's ClassVar-on-frozen-dataclass trap** (measured, Py 3.14).
 - [p6_adjoint_weighted_homogenization_rulings.md](p6_adjoint_weighted_homogenization_rulings.md)
   — P6 #281 adjoint-weighted collapse: five-morphism taxonomy; B&G Ch.6 energy convention;
   `is_same_phase_space`; transport-ScalarFlux / data-bare-array layering. For the B3 gates.

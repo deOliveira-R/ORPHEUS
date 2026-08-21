@@ -763,3 +763,56 @@ Kolmogorov n-widths; Cramér–Rao for estimators). If one does, the refutation 
 confirmation is one paragraph and needs no code. Pairs with L-013: a design refuted
 this way usually leaves a much smaller true deliverable (a gate, a message, an
 oracle), and reporting THAT is the better answer.
+
+---
+
+## L-018 -- A chartered gate of the form `PROPERTY ⟺ HYPOTHESIS` is the highest-value thing to re-derive: the recurring defect is the RIGHT hypothesis on the WRONG law, and the shipped witness satisfies BOTH so it lands designed-green
+
+A design that carries an equivalence as its acceptance gate reads as maximally
+rigorous — an `⟺` looks self-checking. It is not, and it fails in a specific,
+repeatable way: someone identifies a real hypothesis (tightness, positivity,
+exactness, invertibility), correctly senses it is load-bearing SOMEWHERE, and
+attaches it to the law that happens to be in view. Then:
+
+- the **⟸** half is usually TRUE but VACUOUS (the property holds unconditionally
+  under the shipped convention, so the hypothesis buys nothing), and
+- the **⟹** half is FALSE (a counterexample satisfies the property without the
+  hypothesis), and
+- **the only witness the campaign ships satisfies both**, so the gate cannot red
+  either way — plan-authoring §6c with an equivalence in place of a call site.
+
+The procedure, and it needs no code: **derive the necessary-and-sufficient
+condition for the stated property yourself, then check the two directions
+SEPARATELY, then ask what the named hypothesis IS n&s for.** It is almost always
+n&s for a *different, adjacent* law, and naming that law is the deliverable —
+because that law is usually the one certifying the design's central claim.
+
+Worked (CS4a-R, [[cs4a-kernel-binding-representation-frames]]): the charter's
+`bind(K)† = bind(K†) ⟺ the frame is TIGHT`. `[T]` the adjoint law is n&s for
+`M† ∝ R` (GALERKIN) — free under `FrameBase.analysis`; tightness (`MR = I`) is
+n&s for **multiplicativity** `bind(K₁K₂) = bind(K₁)bind(K₂)`, which is exactly
+the law that makes "the kernel is representation-free data" honest (a
+representation must preserve products). And at the ℓ=0 witness the campaign
+ships, `MR = Σw/W = 1` for EVERY rule, so both laws hold for both a tight and a
+deliberately non-tight quadrature. Three findings from one re-derivation: the
+gate cannot red, the negative control will pass, and the missing gate is the one
+certifying the campaign's headline claim.
+
+Two sharpenings worth carrying:
+- **An equivalence's truth-value can DEPEND ON A CONVENTION the charter never
+  states.** Here it flips on whether the binding's analysis is `analysis` (`M =
+  R†`, Galerkin ⟹ vacuous) or `project` (`M = G⁻¹R†`, canonical dual ⟹ the ⟺ is a
+  theorem). Both verbs ship. ⟹ before adjudicating an `⟺`, ask *which spelling of
+  each face does the binding use?* — an equivalence over an undeclared convention
+  is not yet a claim.
+- **A normalisation constant that the design guards ("Σw = 4π owned once")
+  usually CANCELS in the law it is guarding.** `[T]` `E = (1/W)R†` ⟹ `E† =
+  (1/W)R` ⟹ the two 1/W's cancel in the adjoint identity. The constant is a
+  VALUE contract; do not let it be read as a law hypothesis, or the gate inherits
+  a hypothesis that cannot fail.
+
+How to apply: any brief containing `⟺`, "iff", or "holds exactly when" about an
+operator construction ⟹ re-derive both directions before reading the
+justification, and ask what the shipped witness can distinguish. Pairs with L-002
+(a first test that cannot fail is rejected output) — this is its equivalence-
+shaped face, where the un-failability hides inside a true-but-vacuous half.

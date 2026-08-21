@@ -7,7 +7,7 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 16 detection lessons. Spine: an attack's value is a concrete
+- [lessons.md](lessons.md) — 18 detection lessons. Spine: an attack's value is a concrete
   reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
   reason. A named-but-payoff-free frame is rejected output.
 
@@ -59,6 +59,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 
 ### Frames: ownership, discipline, collapse
 - [frame ownership](harmonic_frame_ownership_funk_hecke.md) — an operator OWNS a frame iff the frame is its eigenbasis (Funk–Hecke); no symmetry ⇒ PG.
+- [kernel×space binding](cs4a_kernel_binding_representation_frames.md) — bind IS a \*-rep of the SO(3)-commutant ⊕_ℓ M_ng; the 4-law table (tightness ⟹ MULTIPLICATIVITY, never the adjoint); ℓ=0 is blind.
 - [DSA R/P frame](dsa_rp_angular_frame.md) — restriction/prolongation IS the ℓ=0 sub-block `angular_frame(0)`, Galerkin; ANTI-MINT — instantiate.
 - [DSA saddle-point](dsa_saddle_point_mixed_fem_frames.md) — (φ,J) is a DARCY saddle-point; mixed-FEM fires on the DIFFUSION member, not the sweep.
 - [collapse morphism](xs_coarsening_collapse_marginalize_vs_average.md) — conserved RATE ⇒ average (G⁻¹M); MASS ⇒ marginalize (M), not a weight.

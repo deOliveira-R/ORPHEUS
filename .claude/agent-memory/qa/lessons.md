@@ -86,6 +86,18 @@ history (= GMRES exited in 0 iterations = CONVERGED), so 44 of 90 census rows
 were invented, in the flattering direction, while the positive control passed
 (it only exercised the genuine branch). → L-067
 
+**A12. A guard HOISTED to one shared home has as many arms as it has CALL
+SITES — mutate per site, not per branch.** [skill: vv#17 granularity, whose
+worked example is in-body arms only] Pattern 2 single-sources the guard BODY;
+it does not single-source the WIRING, and each site passes its own operands
+(`self.mat_xs.ng` at three sites, `self.coefficient.values.shape[0]` at the
+fourth). The hoist therefore CREATES the blind spot the elegance rule is
+rewarded for. `[M]` CS4a `assert_energy_extent_conforms`: disabled per site
+over `tests/{transport,homogeneous}` + the ledger — F **1** red, C **0**,
+IsoS+IsoN2N **0**; the fragment `"energy extent"` occurs in exactly ONE
+assertion tree-wide. Also do the DUAL grep: count call sites, then count the
+distinct expressions they pass. → L-074
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)

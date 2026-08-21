@@ -24,66 +24,43 @@ meta-lesson once, list its instances); never truncate.
 
 ## 2. Active / in-flight state
 
-**CS4a round-1 adversarial review — the ALGEBRA assembly, 2026-08-20.**
-⏹ **DELIVERED**: `scratch/cs4a_attack_algebra.md` (`feature/cs1-energy-space` @
-`71515847`). (R1) **the bound space does not determine the carrier** — `[M]`
-per-INSTANCE runtime census over one solve per family: **6 of 12** production
-instances refute construction-time arm selection; sharpest, `SNSolver.fission_op`
-is bound to `full_field_space` and fed **`ndarray` ×17 and nothing else** on the
-k-eigenvalue path. This kills the mechanism **all three** assemblies share, and
-the algebra assembly had listed the census as its own strongest self-attack and
-deferred it. (R2) the flip's true §6b unit is **10 production + 165 space-less
-TEST constructions in ~50 files**, and the one new *numerical* gate it ships (the
-counting-measure adjoint theorem) reads `0.0` under the defect, `0.0` under the
-fix and `≤4.4e-16` at `V_cell` spread 3358× — Mode-12 dud. Per-objective: O2/O7/O9
-BREAK, O1/O6/O8 HOLD, O3/O4/O5 UNDERSPEC. Duty-B adjudications: **parsimony's a1
-breaks the tree** (deletes `MaterialXSField.mesh`, its 3 readers are scheduled
-for a5 ⟹ its own "D5 8/8" gate is un-runnable); its `scattering.py:713` blocker
-is REAL as a fact, **self-inflicted** by that same ordering, and its stated C8
-cause is wrong; **physics has the safest ordering** (K2 *adds* a constructor arm,
-so K1–K3 cannot break a call site). ⚠ **Owed, NOT landed** (charter forbade
-edits): `vv-principles` **#29** (drop-in text in memo §5.2) + #28's number.
-Lesson: **L-073**.
+**CS4a-R Phase-1 GATE review (report-only), 2026-08-21.** ⏹ **DELIVERED** as the
+final message (no file; `feature/cs1-energy-space` @ `a9a2d55a`). Re-run: all
+three gate files + D5 byte gate **green** (163 passed / 14 xfailed; D5 8/8), no
+tracked file touched. Twelve findings, three load-bearing, all `[M]` by
+in-process plugin mutation: (F1) the shared `assert_energy_extent_conforms` has
+**4 call sites and 1 witness** — disabling C → 0 reds, IsoS+IsoN2N → 0 reds, F →
+1; `"energy extent"` occurs in exactly ONE assertion tree-wide, and the
+un-witnessed C site is the one passing a *different* ng expression. (F2) G1.3's
+"independently assembled" licence is false — kernel and carrier run the SAME
+`np.asarray(s.todense())`; transposing BOTH leaves **51/51 green** (the tree
+catches it only in `tests/homogeneous/`, 17 reds). (F3) G2.7's named falsifier is
+unreachable — `apply_metric(x) **is** x`, so `.H` literally calls
+`apply_transpose`; a dense AFFINE transpose keeps it green (its one live
+falsifier is the wrapper ceasing to delegate). Plus: the strict-xfail gate's
+denominator is 3 hand-named lists (new list ⟹ silent evasion, measured); the R1
+annotation gate reads `domain` only, never `codomain`; G2.1's "all 8 D5 cases" is
+**1 of 8** discriminating. Two of my own attacks WITHDRAWN by probe (G2.4's
+monkeypatch is live; G2.3's frozen literals reproduce independently). ⚠ **OWED,
+NOT landed** (report-only charter): one `vv-principles` **#17 sharpening** — *a
+hoisted guard's arms are its CALL SITES* — drop-in text in the memo §OWED.
+Lesson **L-074**, digest rule **A12**.
 
-**CS4a round-1 adversarial review — the PHYSICS assembly, 2026-08-20.**
-⏹ **DELIVERED**: `scratch/cs4a_attack_physics.md` (same branch/HEAD). (R1) its
-CENTRAL claim — *spatial locality ⟹ "a mesh is never data of the interaction"* —
-has a **true premise and a false corollary**: `[M]` all four in-scope operators
-ARE spatially diagonal and all still read `mesh` off the OPERAND to build the
-codomain carrier (≥11 sites; `FullFieldSpace` carries no mesh on any block), and
-`streaming.py:589` asserts the opposite in a production guard. (R2) O7's tell —
-*"grep `SigS` finds the datum owned once, viewed once"* — is **DESIGNED-RED**:
-`[M]` 70 hits, direct readers in cp/moc/mc/sn+derivations, all inside its own
-Untouched list. ⛔ **Corrects the sibling-landed `vv-principles` #28: its `[M]`
-"8 of 13" is 7 of 13** (`from_mesh`'s chain NAMES `full_field_space` but
-`MaterialMesh` has none — runtime-probed). Duty-B ledger, rule applied per
-channel: scattering **mint**, **n2n mint** (parsimony REFUTED — `N2NMomentOperator`
-is a second realization, and its fold silently overturns a twice-stated physics
-ruling), fission **property** (physics/algebra wrong), collision **property** —
-each assembly 3-of-4, on different rows. Funk–Hecke/`Σ_s0ᵀ`: **no divergence**
-(the ᵀ is the storage convention, shared). ⚠ **Owed to the skills, NOT landed**
-(brief forbade edits): #28's number, a codomain-constructor discriminator, and a
-`plan-authoring` §10 third shape (designed-red tell) — text in the memo's §D.
-
-**CS4a round-1 adversarial review — the PARSIMONY assembly, 2026-08-20.**
-⏹ **DELIVERED**: `scratch/cs4a_attack_parsimony.md` (branch
-`feature/cs1-energy-space` @ `71515847`). Two refutations, both `[M]` mine:
-(R1) **`BulkField.mesh` is MANDATORY on all 10 concrete field leaves** — probed:
-`CrossSectionField(values, space)` → `TypeError: missing … 'mesh'`, `mesh=None`
-→ `AttributeError: 'NoneType' … 'ng'`, no `from_space` constructor — so
-retiring the degenerate carrier while listing `CrossSectionField` *Untouched*
-leaves the homogeneous `MultiplicationOperator` **no constructible
-coefficient**; (R2) the "**529 files**" rename blocker is **26** (503 in
-gitignored `docs/_build/`). Cross-cutting: **no** assembly discharges O4 (`[M]`
-**28** mesh-bound output mints inside apply bodies — the operand's mesh is a
-*constructor argument of the result*, not dispatch), O5 (tell unfalsifiable
-today), or O6 (`[M]` production reach 0). ⭐ **All three miss `La13511Case`**
-(`sood_registry/la13511.py:171`) — a shipped `geometry_kind`-tagged
-(spatial-description | infinite) × materials pairing with `to_geometry()`, i.e.
-the medium's existing third spelling AND its only real first consumer
-(`builders.py:34-53`). Landed `vv-principles` **anti-pattern #28** +
-lessons **H15**, and ⛔ **corrected H14** (the `grep` wrapper does NOT honour
-`.gitignore`). Re-verify against git before acting.
+**CS4a round-1 design-assembly reviews (algebra / physics / parsimony),
+2026-08-20.** ⏹ ALL DELIVERED — memos `scratch/cs4a_attack_{algebra,physics,
+parsimony}.md` @ `71515847`; full evidence in **L-072/L-073**. The three
+still-live carry-forwards: (i) `[M]` per-INSTANCE runtime census — **6 of 12**
+production instances refute construction-time arm selection from the bound space
+(`SNSolver.fission_op` is bound to `full_field_space` and fed `ndarray` ×17
+only), which kills the mechanism all three assemblies shared; (ii) ⛔
+`vv-principles` **#28's `[M]` "8 of 13" is 7 of 13** (runtime-probed —
+`MaterialMesh` has no `full_field_space`); (iii) all three miss `La13511Case`
+(`sood_registry/la13511.py:171`), the medium's existing third spelling and its
+only real first consumer. ⚠ **OWED to the skills, NOT landed** (charters forbade
+edits): `vv-principles` **#29** (text in algebra memo §5.2), #28's corrected
+number, a codomain-constructor discriminator, and a `plan-authoring` §10
+third-shape (designed-red tell) — text in the physics memo §D. Landed at the
+time: `vv-principles` #28, lessons **H15**, and the ⛔ correction of **H14**.
 
 **Nexus V&V surface — the demand memo (L-070), 2026-08-15.** ⏹ **DESIGN MEMO
 DELIVERED** (scratchpad only; the parent agent holds the text). Headline, all

@@ -282,6 +282,22 @@ conformity guard's first red (hand-built non-conforming `Mesh1D` REFUSED with a
 region-naming reason) is a committed witness; D5 byte gate 8/8 bit-identical
 across the rewiring; scoped suites + pyright terminal-1 + Sphinx `-W` clean.
 
+**CS4a-R amendment (2026-08-21, XD-4 — attribution in
+`scratch/cs4a_r_findings.md`):** the Medium's grid-coherence invariant
+should realize the THREE-outcome structure the energy-arm rule currently
+collapses to two: *agree* → `from_grid`; *no grid anywhere* → `synthetic`;
+*disagree* → REFUSE (or refine — `EnergyGrid.overlap_to` already ships the
+refinement maps). Today `EnergyAxis.synthetic` stands for BOTH "the problem
+has no grid" and "the materials disagreed" (`[M]` indistinguishable
+outputs), the disagree arm is first-wins order-dependent (`[M]`
+`[2g,4g]`→(2,), swapped→(4,)), and `[M]` two same-partition grids differing
+at the last ulp silently lose their grid (exact content-equality is the
+RIGHT relation — transitive, deterministic; the near-equal case is evidence
+the disagree arm fires on real multi-provenance data). Unreachable from
+production today (the carrier's ng-unanimity gate + singleton callers —
+the review's MA-1 withdrawal); the refusal belongs HERE, at the Medium,
+not at the classmethod.
+
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
 **Goal.** SN's bulk space is literally the composition Energy ⊗ Spatial ⊗ Angular of
@@ -412,6 +428,42 @@ stress case (report S4 — the weakest-confidence design point; the
 `_RadialCharacteristicSubSpace` split pair is the concrete stress case in the tree);
 whether the Γ ladder re-bases onto the axis machinery now or later (it is the
 best-designed part of the layer — memo A praise table — churn only with cause).
+
+**CS4a-R amendments (2026-08-21, review round — attribution in
+`scratch/cs4a_r_findings.md`):**
+
+* **EE-7 — `FunctionSpace.inner_product` gains a SHAPE refusal.** `[M]` on a
+  `(3,1)` axis-built space, ⟨x,(3,)⟩ silently returns 18.0 where the correct
+  pairing is 6.0 (broadcast outer-product + sum), and a bare scalar operand
+  is accepted. The admission half of the ERR-067 repair never landed; the
+  homogeneous solver's `.reshape(ng,1)` calls are load-bearing today. Land
+  the refusal on the raw surface when the composite overrides are designed
+  (the same step that sizes the surface).
+* **EE-8 — split the ng guard into its two natures**: the space-owned QUERY
+  (`FunctionSpace.energy_extent` — the `has_coordinate_cone` shape; the
+  thing the chartered axis-keyed strengthening needs) and the
+  binding-owned POLICY (refuse + name the operator; moves into CS4c's
+  binding base). Record the guard's two latent limits while touching it:
+  it returns on the FIRST `EnergyAxis` (an undeclared choice — a
+  domain≠codomain condensation space would carry two), and `(space, ng)`
+  structurally assumes an ENDOMORPHISM (a 47g→2g condensation binding has
+  no single ng conforming to both ends).
+* **XD-3 — the chartered strengthening compares axis IDENTITY, not
+  extent.** `[M]` the shipped guard reads `(extent,) = axis.shape` and
+  never touches `axis.edges`, so a 2g kernel from grid A binds silently to
+  a space on grid B — cardinality where the CS1 doctrine says CONTENT
+  decides identity. Unspellable on the 4 live bindings today (space and
+  data minted from the same mixture); becomes spellable exactly when
+  arbitrary spaces bind. Design direction: the data side carries its own
+  `EnergyAxis` through the hoisted rule, and the guard's strengthened form
+  is one `==` on the axis value object.
+* **XD-7 — reserve `_agreed_space`'s stated expiry.** `operator.py:363-374`
+  says in its own words that per-leg bindings make agreement the wrong law
+  and "a product-space constructor is what has to be built" — CS2's
+  frame-at-binding IS that expiry arriving. `[M]` two genuine per-leg
+  bindings today either lose the leg information or red a well-posed sum;
+  the resolution law must become BY LEG. No charter line reserved this
+  until now.
 
 ## 4. Phase CS3 — flux lives in the cone: the field-algebra overturn
 
@@ -779,7 +831,13 @@ completes at CS4b, O4 at CS4c, O5 at CS2 entry).
   re-dated in the same step); F space-mandatory (`[M]` 4 production + 9 test
   sites in 5 files). Kernel views are READ-ONLY (`[M]` the shipped
   `sig_s_legendre` returns a writable cache alias — mutating it moves the
-  loss matrix; the mint closes this). The degenerate carrier STAYS as the
+  loss matrix; the mint closes this). ⛔ SUPERSEDED-in-scope 2026-08-21
+  (CS4a-R EE-4): the mint closed the hazard only for KERNEL consumers —
+  then a set of size zero — while the producer alias stayed live for the
+  ~20 carrier consumers (`[M]` re-probed: a caller mutation reached the
+  loss matrix at review time). The review froze the producer's dense
+  caches at build (`_build_dense_caches`), closing it tree-wide; the
+  kernel copy remains the guarantee that survives carrier rework. The degenerate carrier STAYS as the
   coefficient/mat_xs source until CS4b (F1). D5 byte gate 8/8 = exit
   criterion. The `.. implements::` directive left pointing at a symbol the
   re-posed path stops calling re-points in the same step (plan finding h).
@@ -867,7 +925,7 @@ run); the §4.4 diff audit concurs (no SN-path value line). Tracked as
 while the MR reference is fold-independent; the 0.12 bound is pre-fold).
 The 1-ULP DriftWarning wall's two pre-existing cyl reds are **#396**.
 
-### CS4a-R — the kernel/operator machinery survives a clear-context adversarial review (user-chartered 2026-08-21; UNSTARTED)
+### CS4a-R — the kernel/operator machinery survives a clear-context adversarial review (user-chartered 2026-08-21; ⏹ EXECUTED 2026-08-21 — ledger at the end of this subsection)
 
 **Goal.** The machinery CS4a landed — and the operator layer it now sits in —
 holds up under a reviewer who did not build it: every Phase-1 attack is
@@ -946,6 +1004,44 @@ attribution; a §-R-style ledger appended here on completion. Done when
 Phase 2 has adjudicated every Phase-1 attack and the plan's next section
 (CS4b) reflects whatever survived.
 
+#### ⏹ CS4a-R EXECUTED 2026-08-21 — the review ledger
+
+**Reviewers**: main agent (adjudication + own tree read) + elegance-enforcer +
+qa + cross-domain-attacker + an independent census agent (two-filter
+discipline). **Findings file**: `scratch/cs4a_r_findings.md` — every finding
+carries its Phase-2 verdict; probes `scratch/cs4a_r_probe_*.py` +
+`scratch/cs4a_r_census_*.py`.
+
+| commit | content |
+|---|---|
+| ✅ LANDED `c7f9fa8d` | production repairs: XD-6 intensive condensed XS (⟨Σ,φ⟩/⟨1,φ⟩ — `[M]` shipped spelling scaled with the point weight, D5-bit-identical fix); EE-4 producer caches frozen (`[M]` the alias was live; the ledger's "mint closes this" superseded in place); EE-3 revised-not-swapped (`[M]` `CrossSectionField.ng` is a mesh read-through — the reviewer's fix was refuted at the tree); 7 docstring truth repairs; EE-5 api-page re-point + `.. implements::` re-point |
+| ✅ LANDED `d61e097b` | gate strengthening: QA-F1 per-site guard witnesses (`[M]` 1 of 4 sites had one; teeth re-proved); QA-F4 introspected strict-gate population (`[M]` the `_R7_ROWS` evader now reds); QA-F5 both-properties R1; QA-F2 licence re-scopes + the hand-authored G1.4b convention pin; G1.5 frozen-producer upgrade; G2.5 rate leg → invariance witness; QA-F3/F6/F7/F8/F9/F10/F11/F12 |
+| (this commit) | charter amendments in place (CS1.5′ ×1, CS2 ×4, CS4b ×3, CS4c ×4); the vv-principles #17 hoisted-guard sharpening (qa's, with its `[M]` table); fleet agent memories |
+
+**Scoreboard** (details in the findings file): ~34 Phase-1 attacks across 5
+reviewers → 19 CONFIRMED-fixed-inline, 12 CONFIRMED-charter-amendment (all
+edited into their subsections above), 1 revised-at-fix-time (EE-3 — the
+review process catching its own reviewer), 13 WITHDRAWN with structural
+reasons (first-class output: MA-1/XD-4a heterogeneous-ng — user + the
+carrier's eager unanimity gate; XD-5 two-denominators — correct layering;
+qa's W1–W7 incl. three of its own probe-refuted attacks; elegance's 6 incl.
+the ClassVar trap its own memory asserted, now corrected).
+
+**The round's highest-value findings**: XD-1 (`[M]` the CS4c tightness gate
+as originally chartered paired the adjoint law with the tightness
+hypothesis — the negative control would have PASSED; re-specified as
+Galerkin leg + multiplicativity leg + ℓ=0 blindness record); QA-F1 (the
+hoisted guard's witness table — now a vv-principles #17 sharpening); XD-6
+(a physics-semantics convention that had been recorded as an observation,
+now decided: condensed XS are intensive); EE-4 (a founding-purpose closure
+claim that was true and vacuous).
+
+**Verification at close**: battery scope **1436 / 1 / 15** (+2 = the new
+gates); whole `tests/sn/operators` **1230 / 1 / 5** baseline-exact; D5
+**8/8** through both commits; pyright ratchet `{"transport": 1}`; Sphinx
+`-W` clean; `dead_references` 0. BRANCH-HOLD stands; fences C8 / R-A
+respected (no apply arm touched; no S/frame reach from the kernel module).
+
 ### CS4b — fields are space elements (goal chartered; grounding at its own session)
 
 **Goal.** A field is constructible from its SPACE alone — the mesh
@@ -959,6 +1055,30 @@ honesty, SN's typed promotion refusal (the bare assert `-O` strips today),
 the `.areas` wrong-message, the `infinite_medium.rst:1115` xref +
 `dead_references`, the `[M]` 16 test-site migration. **O1's
 no-fabricated-data tell completes HERE**, re-measured by the byte gate.
+
+**CS4a-R amendments (2026-08-21, review round — attribution in
+`scratch/cs4a_r_findings.md`):**
+
+* **EE-1 — the typed reaction-rate co-vector lands here.** The homogeneous
+  rates read the space's pairing on bare arrays (recorded ruling: deliberate
+  at CS4a; the tree's only raw two-ndarray `inner_product` production site).
+  When fields become space elements, mint the space-bound reaction-rate
+  co-vector (a functional, NOT a field method — `CrossSectionField
+  .inner_product` requires same-class partners, which is exactly why a
+  functional is the type that pairs across classes), re-point the three
+  solver lines and the `.. implements:: normalisation` at it.
+* **XD-10 — charter language precision:** the honest sentence is *"a field's
+  SIZING is derivable from its space; its ROLE is not"* (`FunctionSpace`
+  explicitly disclaims units/role, `space.py:150-156`). And
+  `has_coordinate_cone` is `None` on axes-less spaces — retiring the mesh
+  requirement does not by itself retire the unanswerable cone predicate;
+  say which fields inherit `None` and why that is acceptable.
+* **EE-5 — the grep obligation for ANY data-flow removal in this phase (and
+  CS4c) is `orpheus/` + `docs/` + `tests/`, by CONCEPT as well as symbol.**
+  CS4a's done-when spelled two `.py` predicates and
+  `docs/api/homogeneous.rst:88` shipped present-tense-false for a day
+  (found by the review; "the carrier's axis-built bulk_space" — greppable
+  by symbol AND by the concept "threaded domain").
 
 ### CS4c — the dispatch collapse (goal chartered; after CS2 per the ruled order)
 
@@ -998,6 +1118,61 @@ with a deliberately non-tight frame as the ERR-039-class negative control.
 P1 strict-xfails deleted**; `[M]` no `singledispatchmethod` on S/F `apply`; the non-tight
 negative control REDs; #359's three M-M spellings re-checked against the new binding
 (unify or re-file with the measured residue).
+
+**CS4a-R amendments (2026-08-21, review round — attribution in
+`scratch/cs4a_r_findings.md`):**
+
+* **EE-6 ⭐ — lift the BINDING BASE first, before the 131/43-site migration.**
+  The doctrine's central noun has no type: four hand-wired `__post_init__`
+  bodies each remember the guard, and `[M]` (QA-F1) three of four sites had
+  no witness until the review added per-site rows. A base/mixin carrying
+  `space`, an abstract `data_ng`, and ONE `__post_init__` makes the
+  migration inheritance instead of 13 hand-edits, dissolves the
+  `operator="Literal"` strings into `type(self).__name__`, gives the C
+  binding a semantic `data_ng` operand (the review kept `values.shape[0]`
+  — `CrossSectionField.ng` is a MESH read-through CS4b retires), unifies
+  the family's incoherent dataclass equality/mutability matrix (MA-4: F
+  mutable + space-excluded eq; C `eq=False`; iso pair frozen full-eq), and
+  guarantees the S family cannot fall out of the guard wiring at the
+  rebind (CEN-4: `ScatteringOperator` carries `mat_xs` + `space` and no ng
+  guard TODAY).
+* **XD-1 ⭐⭐ — the tightness gate is RE-SPECIFIED; as originally chartered
+  its negative control PASSES.** `[M]` (probe `scratch/cs4a_r_probe_
+  binding_laws.py`, L=3): under the shipped un-normalized analysis verb
+  the adjoint law `bind(K)† = bind(K†)` holds at 2.2e-16 for a
+  deliberately NON-tight rule (`M† = R` unconditionally), while
+  MULTIPLICATIVITY `bind(K₁K₂) = bind(K₁)bind(K₂)` is what tightness
+  certifies (breaks at 1.58 non-tight, 1e-14 tight). The gate lands as
+  TWO legs + a blindness control: (i) Galerkin leg — the wrong-EMBEDDING
+  negative control (w-weighted vs constant; the measured G6.3 87 % class);
+  (ii) tightness leg — multiplicativity on a genuinely non-tight rule at
+  ℓ≥1; (iii) record that ℓ=0 discriminates NOTHING (`[M]` both laws hold
+  for every rule — §6c). The binding must DECLARE which analysis verb
+  (`analysis` vs `project`/canonical-dual) it realizes — the chartered
+  equivalence has no truth value until it does. The Σw = 4π placement is
+  a VALUE contract, not the adjoint law's hypothesis (`[M]` cancels under
+  c ∈ {1, 2π, 137}). ⚠ The truncation-naturality square (Borrowing 3) is
+  NOT chartered as a gate: `[M]` the probe's square commuted at 0.0 for
+  every rule including non-tight — no demonstrated red, no gate (§6c).
+* **XD-2 — the (n,2n) multiplicity single-source obligation, with its
+  discriminator.** `[M]` 12 production literal `2`s across
+  material_xs_field/iso/cp/moc/mc; the kernel ClassVar is the 13th home
+  and unread. The rebind lands a count gate (no production literal outside
+  the channel datum — reds at 12 today; a rebind of IsoN2N alone leaves
+  11, which is the difference between "single source" and "thirteenth
+  home"). Design input, cleared for ≥2 instances: the (Σ_r reaction-XS,
+  ν multiplicity, P emission-law) channel triple — `[M]` MC already
+  decomposes exactly this way (`mc/solver.py:443-449`: row-normalized
+  sampling + w×2), and fission already stores a per-group ν implicitly
+  (SigP/SigF). ⚠ `Mixture.Sig2` is an MT=16-only slot (gendf), so
+  (n,3n)/(n,4n) have no home — note for the data layer, not this carve.
+* **XD-9 — the condensation dual-pair gate is FissionKernel's first
+  non-self-referential gate**: `bind(condense(K)) == T·bind(K)·T⁺` iff χ
+  is marginalized and νΣf averaged (the ruled pair, `mixture.py:442-448`)
+  — red-capable in the average/average direction. Until it lands, the
+  kernel's dyad gate compares the kernel against itself, and the latent
+  twin (`FissionKernel.dyad()` vs `FissionOperator.kernel`'s
+  `outer(chi, production_rate)`) heals at this rebind.
 
 **Surgical posture.** This is the operator-algebra carve family: the MAIN AGENT writes
 with the user steering; `method-implementer` NOT dispatched (`delegation.md`);
