@@ -505,6 +505,44 @@ TELL: a class whose docstring says "data/descriptor/field" while its method list
 says `apply`/`add_`. FIX is relocation (it is a shared primitive, not a twin) —
 and the *name* is usually the correct one, so resist the rename reflex.
 
+**Two moves added 2026-08-21 (the `SNMesh` residual tournament,
+[[container-ownership-dof-criterion]]) — both produce DECISIVE kills where a
+taste argument produces a preference:**
+
+- **The sharpest kill is a word already SPENT IN THIS REPO on an ORTHOGONAL
+  AXIS of the same object — and it is one grep.** L-012's existing clause tests
+  a borrowed word by deleting the OTHER user and asking what breaks; this is the
+  cheaper, harder case where the word is not borrowed but COLLIDES. `[M]`
+  `SNPose`/`SNPosing` for a discretization container: *posing* already means
+  "the arrangement of leaves into `(A_loss, M)` + the eigenvalue role"
+  (`numerics/eigenvalue.py:20-26`, `iteration.py:24-29`,
+  `homogeneous/solver.py:225`, `coupled_system.py:118`, and "zero-inflow posing"
+  at `loss_representation/assembly.py:401`) — a DIFFERENT axis of the same
+  solve, about to get worse when Campaign 2 lands `GeneralizedEigenPencil`.
+  `SNRealization` dies twice over: the word is spent on `realize_boundary_law` /
+  `SNBoundaryRealizer` / `realize_recursively`, AND the **direction is
+  inverted** (realization binds an abstract law TO a space; the candidate object
+  exists BEFORE any space and is realization's INPUT). ⟹ before ranking any
+  name, grep its stem across `orpheus/` and read what it already MEANS; a
+  same-object-different-axis hit is a kill, not a cost.
+- **For a CONTAINER, prefer the ROLE name over the CONTENTS name — and the
+  incumbent is usually the evidence.** A contents name is falsified by every
+  content move a live campaign has already chartered; a role name is falsified
+  only if the role changes. `[M]` `SNMesh` is a contents name that is already
+  false (it holds a quadrature, a cell closure, a realized-BC table, a projector
+  and a sweep schedule), and its module is `augmented_mesh.py` — a contents name
+  patched with an adjective, which is the tell. The winning candidate named the
+  invariant ROLE (`SNDiscretization` = "the choice of how the continuous problem
+  is made finite, refusing inadmissible combinations"), survived all four
+  chartered content moves, and degenerated correctly across the method family
+  (`DiffusionDiscretization` collapses to mesh+BCs — and its smallness becomes
+  informative rather than an unexplained asymmetry).
+- **A settings-bag name is a DIAGNOSTIC, not a candidate.** If `XOptions` /
+  `XConfiguration` / `XSetup` reads *right* to a reader, that is evidence the
+  object carries no invariant and should not be a class at all. Put the bag
+  names in the tournament table explicitly, labelled as the diagnostic — they
+  are how the no-class arm announces itself.
+
 How to apply: at any "what should this be called" dispatch, (1) hunt the
 refinement theorem first — a forbidden family word is the highest-value finding
 and it must be said PLAINLY; (2) report the math-faithful name AND the domain
@@ -514,7 +552,10 @@ accessor on every line; (3) emit a per-name buys/costs line, and for any name
 that would promise an unsupported operation, say which operation and cite the
 measurement that refutes it (`Functor` ⟹ `reduce-discrete ≠ discretize-reduce`,
 measured). Do NOT invent a name where none exists — say "no faithful name
-exists", give the least-bad invented one, and flag it as invented.
+exists", give the least-bad invented one, and flag it as invented. (4) ⭐ For a
+container, settle the ONTOLOGY first and let it pick the name — a name argued
+before the contents are assigned is a preference; a name argued after is a
+consequence.
 
 ---
 
@@ -816,3 +857,45 @@ operator construction ⟹ re-derive both directions before reading the
 justification, and ask what the shipped witness can distinguish. Pairs with L-002
 (a first test that cannot fail is rejected output) — this is its equivalence-
 shaped face, where the un-failability hides inside a true-but-vacuous half.
+
+---
+
+## L-019 -- A God object is usually a FIXED POINT of a weak identity relation, not a discipline failure — find the identity-scarce owner before arguing about contents
+
+**New elegance smell (1st sighting, Part C candidate): "identity-scarcity
+accretion."** A derived object (a cache, a resolved table, a projector) lands on
+a CONTAINER rather than on its natural owner **because the natural owner's
+`==`/`is` cannot separate the inputs the derived object depends on**. The
+container then wins every future placement decision by default, and the growth is
+a fixed point rather than a series of lapses.
+
+TELL, and it is often written down by the code itself: a docstring that ARGUES
+for the container as owner by disqualifying the alternatives on identity grounds.
+`[M]` 2026-08-21, `sn/mesh/augmented_mesh.py:986-994` — the loss-kernel gauge
+sits on the mesh "rather than `AngularTraceSpace` (which is geometry-blind …) or
+`FullFieldSpace` (whose `__eq__` is `(name, shape)`, so two meshes with different
+BCs and the same DOF count compare equal — a cache keyed there would be keyed on
+a size)". Both disqualifications are true; both are statements about identity,
+not about ownership.
+
+Why this changes the attack: a contents-based argument ("this class holds too
+much") prescribes relocation, and relocation **will not hold** while the identity
+stays weak — the next cache comes back to the container for the same correct
+reason. The load-bearing prescription is the ORDER: strengthen the owner's
+identity FIRST (here, the campaign's own `of_axes` derived-name flip, which
+digests "label, shape, kind, measure bytes, subclass identity" —
+`numerics/space.py:248-256`), THEN relocate. Reporting the sequencing is worth
+more than reporting the smell.
+
+Discriminating first test: build two containers differing ONLY in a datum the
+derived object depends on but the candidate owner's identity ignores (two meshes
+differing only in a boundary declaration), and assert the candidate owners
+compare UNEQUAL. It REDs today, and its RED is the same sentence the docstring
+already wrote in prose — which is the confirmation that the smell, not the
+placement, is the finding.
+
+How to apply: on any God-object / "should this hold everything" dispatch, before
+tabulating contents, ask **"which object in this stack has usable identity?"** If
+the answer is "only the container", say so — that is the mechanism, and every
+contents-level recommendation is downstream of fixing it. Pairs with L-013 (the
+proposal over-scopes the gap; the true deliverable is smaller and elsewhere).

@@ -7,7 +7,7 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 18 detection lessons. Spine: an attack's value is a concrete
+- [lessons.md](lessons.md) — 19 detection lessons. Spine: an attack's value is a concrete
   reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
   reason. A named-but-payoff-free frame is rejected output.
 
@@ -56,6 +56,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [#257 carrier layering](issue_257_carrier_typing_layering_frames.md) — `Vector` = the forgetful-functor image, irreducible by the layer DAG.
 - [coefficient fields](coefficient_field_promotion_frames.md) — f↦M_f IS the multiplier-algebra embedding; diagonal symbol ⇒ Multiplication op.
 - [type-vs-property](spatial_order_type_vs_property_criterion.md) — the decidable criterion: ≥2 non-iso bases + an APPLIED morphism, else property.
+- [container ownership](container_ownership_dof_criterion.md) — "who owns X?" = does removing it move the DOF SET or `G`? + the admissibility seat decides if the container survives.
 
 ### Frames: ownership, discipline, collapse
 - [frame ownership](harmonic_frame_ownership_funk_hecke.md) — an operator OWNS a frame iff the frame is its eigenbasis (Funk–Hecke); no symmetry ⇒ PG.
