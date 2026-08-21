@@ -11,12 +11,13 @@ constraints — with no commitment to any type lattice, class name, or
 construction mechanism beyond what standing rulings fix. It is the shared
 brief for independent design assemblies.
 
-Shared facts (given to every assembly): `scratch/cs15_grounding_census.md`;
-`cs15_medium_unweld_design.md` **§2 only** (the `[M]` fact table); the
-demand→home mapping below; the salvaged `[M]` rows below. Incumbent
-CONTESTANTS (entering at the adversarial round, not shared as context): the
-charter's §B2 round-5 lattice; the round-7 medium design; campaign §5's own
-CS4 means-sketch.
+Round-1 designers assemble from THIS FILE + THE TREE ONLY (independence is
+the exercise's integrity condition — the census and design records argue
+directions in places). Round-2 material (adversaries + synthesis):
+`scratch/cs15_grounding_census.md`; `cs15_medium_unweld_design.md` (its §2
+`[M]` fact table is authoritative); `scratch/cs15_verification_plan.md`
+(parked); the incumbent CONTESTANTS — the charter's §B2 round-5 lattice, the
+round-7 medium design, campaign §5's own CS4 means-sketch.
 
 Vocabulary note: "medium" and "kernel" below are lowercase DOMAIN words —
 what fills space; the representation-free physics datum of an interaction.
@@ -164,6 +165,7 @@ assembly's verification leans on.
   refusal is right for coarse-multigroup (GENDF-class), NOT universal —
   fine data (ACE-class/MC) legitimately unequal; unionization is the modern
   reconciliation. No assembly bakes the refusal as a universal law of media.
+  Issue #395 tracks the fine-data arm; the refusal's docstring cites it.
 - **C6** `StructuredGeometry` documents "no infinite-medium kind" as a design
   ruling — overturnable only explicitly, never silently.
 - **C7** Layer contract: `geometry`/`data` below `transport`; method packages

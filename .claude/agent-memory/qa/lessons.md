@@ -3,7 +3,7 @@
 Read every dispatch. **Behavioral rules only** — imperative, standalone.
 
 - **War stories, evidence, `file:line`, measured tables** live in
-  `lessons_archive.md` (`## L-0NN`, ascending, L-001..L-067). Open it only for
+  `lessons_archive.md` (`## L-0NN`, ascending, L-001..L-072). Open it only for
   the exact `L-0NN` a rule points at. Never read it whole.
 - **Doctrine is NOT restated here.** `vv-principles` (preloaded) owns
   anti-patterns #1–#17, Modes 7–12, the bit-identity criteria, 1-group
@@ -450,20 +450,15 @@ claim.** A loud `NotImplementedError` on the deferred half is the CORRECT interi
 editing** (two phantoms in one brief). Byte-compile no-test generator SCRIPTS
 after a rewire: a broken import there is a breakage no test run surfaces. → L-051
 
-**F13. A tombstone naming N carriers may name ONE carrier PER LEG — split the
-retired claim into legs and mutation-check each.** `[M]` a deleted binding row's
-successors were "the split gate AND the periodic gate"; dropping the `codomain`
-binding reddened only the periodic gate, because the split gate's own codomain
-assertion is `a.codomain is b.codomain` — `None is None`-satisfiable, unlike the
-`x is <concrete object>` domain leg beside it. → L-064
-
-**F12. A retired claim quantified over a COMPLEMENT has one clause per partition
-class — enumerate before ruling obsolete.** The SN face partition is THREE-way,
-so "residual zero at non-outflow" = inflow (INVERTED by #208) ⊔ tangential (still
-exactly true). Rewriting the sentence around the inverted clause silently retires
-the survivor. Check whether the file's own fixtures can even EXPRESS the survivor
-(all 3 there carry 0 tangential ordinates; GL-at-even-order is the only
-production quadrature with none). → L-063
+**F12. A retired/tombstoned claim is a CONJUNCTION — enumerate its legs and check
+each; one leg routinely survives its siblings' death.** Legs come two ways: per
+SUCCESSOR (a tombstone naming N gates may name one PER LEG — a dropped `codomain`
+binding reddened only the periodic gate, the split gate's `a.codomain is
+b.codomain` being `None is None`-satisfiable beside an `x is <concrete>` domain
+leg) and per PARTITION CLASS (SN faces are THREE-way, so "residual zero at
+non-outflow" = inflow [INVERTED by #208] ⊔ tangential [still exactly true]).
+Mutation-check per leg, and check the fixtures can EXPRESS the survivor at all
+(all 3 there carry 0 tangential ordinates). → L-063, L-064
 
 **F14. FILL a plan's ⏳PENDING decisive row yourself — and use the plan's own
 anchors as the probe's positive control.** A "decide nothing until X is
@@ -494,6 +489,35 @@ graph being right), **dynamic wrap for readers**, grep only to enumerate
 candidates. Pair the dynamic `0` with a static no-other-path proof (no `**`
 splat / `asdict` / `replace` on that class) or it is "not observed", not "none".
 → L-066
+
+**F18. A design's TELL / done-when is a GATE — run its own predicate before
+crediting it, and intersect the hits with the design's declared UNTOUCHED set.** A
+tell scoped tree-wide inside a design that declares part of the tree out of scope
+is **DESIGNED-RED** (the mirror of #17's designed-green harness): pinned at
+failure however well the work lands, and it reads as *work remaining*, so a later
+session chases an unreachable target. `[M]` "grep `SigS` finds the datum owned
+once and viewed once" → **70 hits**, direct `Mixture.SigS` readers in
+cp/moc/mc/sn + derivations, ALL inside the assembly's own "Untouched" list.
+⚠ Naming an instrument makes a done-when read as MORE rigorous — which is exactly
+why nobody re-runs it. Third shape for `plan-authoring` §10. → L-072
+
+**F19. "X is not data of this operation" is decided at the CODOMAIN constructor,
+not in the arithmetic.** A pure / local / diagonal kernel can still need X to
+BUILD its result. `[M]` all four SN energy operators ARE spatially diagonal and
+all still read `mesh` off the OPERAND to stamp `…SourceSink.from_mesh(v, mesh)` /
+`zeros_on(mesh)` (≥11 sites; the bound space carries no mesh on any block), and a
+production guard asserts the thesis's opposite (`streaming.py:589`: "its mesh is
+carried by its CrossSectionField coefficient"). ⚠ Beware one word, two referents —
+"carrier" = the FLUX operand in docstrings, `MaterialMesh` in the plans; a
+prose-sourced `[M]` inherits the wrong one silently. → L-072
+
+**F20. In a multi-assembly review, read every RIVAL's self-attacks as a checklist
+against your target, then push one level past the argument each answers.** A
+self-attack marks the SEAM, not the depth — the prepared defence is the tell the
+author stopped there. `[M]` the parsimony rival published as its OWN weakness the
+conformity-guard denominator the target asserts away (axis-structural on **4 of
+13** bindings), and the target's Attack 2 argued instance-vs-class monomorphism
+while the factual half of that same seam went unstated. → L-072
 
 **F17. A hardcoded status constant is a defect only if the producer ITERATES —
 triage one hop UP before a grep-driven sweep.** `[M]` 7 hardcoded
@@ -598,13 +622,30 @@ positive control per tree BEFORE every sweep** (`grep -rl <ubiquitous-token>
 <tree>` → a file count). A dropped tree is otherwise indistinguishable from a
 clean one, in the flattering direction. → L-062, L-071
 
-**H14. `grep` in this shell is a FUNCTION wrapping `ugrep --ignore-files` — it
-honours `.gitignore`.** Fatal when untracked/ignored files are in scope. Use
-**`command grep`** (real BSD grep, ignore-blind) as primary and **`git grep`**
-(tracked-only) as cross-check, and reconcile the counts numerically. ⚠ `git grep
--- .claude` sweeps `plans/` + `agent-memory/` too — restrict the path list to the
-SAME trees or the mismatch reads as a discrepancy when it is a denominator.
-`[M]` reconciled exactly `75 = 75` once scoped. → L-071
+**H14. THREE greps, three answers — always run ≥2 and reconcile numerically.**
+`grep` here is a shell FUNCTION wrapping `ugrep`; **`command grep`** is real BSD
+grep; **`git grep`** is tracked-only. ⛔ **CORRECTED 2026-08-20 — the wrapper does
+NOT honour `.gitignore`** (this file claimed it did, which would have certified an
+inflated count as clean). `[M]` same query, `docs/`: wrapper **514** · `command
+grep` **793** · `git grep` **11**. Use `git grep` as the SOURCE-truth filter and
+`command grep` as the ignore-blind upper bound. ⚠ `git grep -- .claude` sweeps
+`plans/` + `agent-memory/` too — restrict the path list to the SAME trees or the
+mismatch reads as a discrepancy when it is a denominator (`[M]` `75 = 75` once
+scoped). → L-071
+
+**H15. A `grep -rl` FILE COUNT over a repo with build trees is an artifact count
+until you exclude them — and the inflation always argues for the conclusion its
+author already reached.** `--include=*.py` does NOT save you; `_build/` holds
+`.rst`/`.html` sources. ⟹ on ANY file-count claim: `--exclude-dir=_build
+--exclude-dir=__pycache__ --exclude-dir=.nexus`, then confirm with `git grep -l`
+(a second, independently-chosen filter), then `git check-ignore` + `git ls-files
+<tree> | wc -l` to prove the excluded tree is untracked. `[M]` 2026-08-20, a
+design assembly's sole quantitative blocker for a structural non-mint read
+*"529 files reference the name"*; **503 of the 529 sit in eleven stale
+`docs/_build/html_*` trees — gitignored, 0 tracked files.** True radius **26**
+(15 `.py` + 11 `.rst`), independently confirmed `11 + 15` by `git grep`. The
+number was 20× high in the direction that made "don't rename" look forced.
+Read with F-section: a count with no stated exclusion is an unmarked claim.
 
 **H12. The SUBJECT of your review can move while you review it — re-`wc -l` and
 `git log -1` the reviewed document before writing the verdict.** `[M]` the Q5.6.4
@@ -661,4 +702,8 @@ Homes are `vv-principles` SKILL.md unless named otherwise.
 | Stale-snapshot huge-ULP triage; splitting verified in a degenerate regime | `bug-signatures` Sig-10; Mode 9 | L-034, L-036, L-041, L-053 |
 | ⭐ A BUNDLED change's per-artefact NULL reason must be checked against EVERY mechanism it retired (else a durable false blindness certificate); a re-baseline's radius is the frozen REFERENCES, not one directory's `.npz` | #25 (added by L-069) | L-069 |
 | ⚠ Sig-10's sibling-pass discriminator is VOID when the changed code is single-geometry — SLB/SPH green carries NO information about a cylinder-only carve; bisect instead | `bug-signatures` Sig-10 | L-069 |
+| ⭐⭐ A guard keyed on an operand's **OPTIONAL METADATA** (`space.axes`, a `record`, any `X \| None` slot) is INERT wherever the field is `None` — and because a *convenience* factory populates it while a *composite* factory forgets, the inert region is systematically PRODUCTION while every hand-built fixture reddens on demand. Signature-checking passes; only a runtime read of a **production-built instance** answers it. Write the live/inert FRACTION into the guard's docstring. `[M]` `FullFieldSpace.from_blocks` passes no `axes` ⟹ an `EnergyAxis`-based conformity refusal is inert on **7 of 13** SN/diffusion bindings (⛔ the item's own "8 of 13" is off by one — `homogeneous/solver.py:152` falls through `from_mesh`'s chain to `bulk_space`; `MaterialMesh` has no `full_field_space`) | **#28** | L-073 §2 |
+| ⭐⭐ Collapsing runtime dispatch onto a construction-time **KEY** is a claim about **TRAFFIC**; an inventory of **ARMS** is not that claim. Run the per-INSTANCE census before believing it — wrap `cls.__dict__["apply"]` *through the descriptor protocol* (a naive `cls.apply` re-bind breaks `singledispatchmethod`), log `(bound key, type(operand))` per `id(instance)`, positive-control on a bit-identical headline number. Three silent failures: **wrong arm** (bound composite, fed only arrays), **non-determination** (one key, two families, one solve), **asymmetric arrow** (typed in, bare out). `[M]` **6 of 12** ORPHEUS production instances refute it. ⟹ And the meta-rule: **when a document flags a missing measurement as its OWN weakest point, run that one first** — the author has localised the defect for you | **OWED as #29** (drop-in text: `scratch/cs4a_attack_algebra.md` §5.2 — not landed, charter was change-nothing) | L-073 |
+| ⭐ The metric is **INERT** on a spatially-diagonal operator over any bulk space (`[G,Aᵀ]=0`), and multigroup energy is counting **by theorem** (`axis.py:226-239` refuses a weighted `EnergyAxis`) ⟹ **no `.H`-vs-`apply_transpose` gate can witness** an Optional→mandatory space flip on C/IsoS/IsoN2N/F. `[M]` `0.0 / 0.0 / 4.4e-16 / 2.2e-16` at `V_cell` spread 3358×. The honest witness is a construction refusal | #19 + Mode 12 (commutator) | L-073 §2 |
+| ⭐ A **mandatory-parameter flip**'s §6b unit is production ∪ **TEST** constructions, and the test half runs 10–20× larger. `[M]` 10 production vs **165** space-less test constructions in ~50 files — all three assemblies counted only the 10 | `plan-authoring` §6b + `coding-standards` (retirement = test migration) | L-073 |
 | Green gate = nothing until RED; SN `.apply`/`.solve` role contract | `qa/AGENT.md` #11/#10 + the role memo | §A |

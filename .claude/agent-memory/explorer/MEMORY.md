@@ -56,8 +56,9 @@ quantity carries the units it does.
   carry a `≠`). The three verb labels resolve by the page's own base-hosting rule. + 5 doc-drift
   finds (⛔ `keff-as-integrated-rates` is present-tense-false vs `compute_keff`).
 - [Spatial transform category](spatial_transform_category_durable.md) — the spatial
-  layer's mirrors are **E(d) = O(d) ⋉ ℝ^d**, not O(3); the gap is the TRANSLATION (no
-  affine type exists). Two genuine group objects: `octant_moment_frame_signs` (character
+  layer's mirrors are **E(d) = O(d) ⋉ ℝ^d**, not O(3); the gap is the TRANSLATION
+  (⛔ corrected 2026-08-20: `RigidMotion` ELEMENTS express it; the TAG layer +
+  `close_group` still cannot hold a translation GROUP). Two genuine group objects: `octant_moment_frame_signs` (character
   rep of (Z₂)^d) and `reflection_index("x")` (the r=0 quotient's deck transformation).
   Sweep reversal spelled 11×, done right once (the adjoint).
 - [Angular layer — hidden transformations](angular_layer_hidden_transformations.md) —

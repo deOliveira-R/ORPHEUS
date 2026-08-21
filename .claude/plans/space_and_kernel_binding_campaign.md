@@ -57,6 +57,20 @@ apply-time dispatch retires.
    maximalist reading of "spaces before binding" — ALL spaces before ANY
    binding — when a binding needs only ITS space, and the energy-family spaces
    ship since CS1.
+   ⚠⚠b 2026-08-20 (post-selection, same day): the adversarial design rounds +
+   rulings F1–F4 (synthesis of record `scratch/cs4a_synthesis.md`; operative
+   charter = §5's CS4a/CS4b/CS4c subsections) subdivide the arc and re-place
+   the medium: **CS4a** (kernel core — ScatteringKernel/N2NKernel/
+   FissionKernel + construction bindings on the energy four; NO apply-arm
+   deletion — the R-A per-instance feeding census refutes space-keyed arm
+   selection today, vv-principles #29) → **CS4b** (fields constructed from
+   SPACE — the third weld the rounds exposed; the fabricated path retires
+   HERE, where it becomes structurally unneeded) → **CS1.5′** (Medium) → CS2
+   → **CS4c** (the dispatch collapse: feeding normalization, #205
+   re-litigation, arm deletion, C-mandatory with its 131/43-site migration,
+   S→kernel shell). Phases subdivide further as needed (user: "as many as
+   necessary to chunk this work into targeted sessions with compaction in
+   between").
 4. **Campaign split.** This campaign = Space + Kernel→Operator realization (+ the cone
    carve, which must precede the dispatch collapse — §4 rationale). Campaign 2 = the
    LossRepresentation overturn — "currently an early decision on partitioning" — to
@@ -556,12 +570,118 @@ the ledger.
 
 ## 5. Phase CS4 — S and F are kernels; operators are born bound
 
-**⚠ SPLIT + PULLED FORWARD 2026-08-20 (§0 ruling 3's ⚠⚠): CS4a (kernel types +
-construction binding, energy core) runs NEXT, before CS1.5′/CS2; CS4b (the
-apply-time dispatch retirement everywhere, the L/B xfail rows, any
-Optional→mandatory flips) stays post-CS2.** The body below predates the split
-and reads as the unified phase; its means and done-when apportion to the two
-halves at CS4a's chartering (the joint design rounds state the apportionment).
+**⚠ SPLIT + PULLED FORWARD 2026-08-20; CHARTERED post-selection the same day —
+the CS4a/CS4b/CS4c subsections below are the operative charter (§0 ruling 3's
+⚠⚠/⚠⚠b carry the order).** The unified sketch at the end of this section
+predates the split; where they conflict, the subsections govern. ⛔ The
+sketch's done-when "all 12 P1 strict-xfails deleted" is CORRECTED: `[M]` the
+tree holds **16** strict-xfail rows (5 R1 + 3 R2 + 8 R6); 4 R1-VALUE rows were
+remedied at CS1-3b (recorded in-file, `test_monomorphic_leaves.py:668-677`)
+and R6×8 was never P1's — the campaign total reads **"the remaining 8"**
+(R1×5 + R2×3), apportioned CS4a → CS4c below.
+
+### CS4a — the kernel core (CHARTERED 2026-08-20; selected by the adversarial design rounds)
+
+**Goal.** The interaction kernels exist as representation-free data and the
+four energy-family operators are BOUND at construction — space carried and
+validated, the homogeneous problem posed on Energy ⊗ point minted from the
+mixture — while NO apply arm is deleted (the R-A census forbids space-keyed
+selection until CS4c's feeding normalization).
+
+**Selection record**: `scratch/cs4a_synthesis.md` (winner-plus-grafts + the
+refutations R-A…R-F, each spot-re-verified); assemblies/attacks
+`scratch/cs4a_assembly_*.md` / `scratch/cs4a_attack_*.md`; operator census
+`scratch/cs4a_operator_facts.md`; objectives
+`.claude/plans/kernel_and_medium_objectives.md` (per its honesty rows, O1
+completes at CS4b, O4 at CS4c, O5 at CS2 entry).
+
+**Rulings (user, 2026-08-20, forks F1–F4)**:
+1. **F1** — fields are a TWO-STEP: CS4a lands operator→kernel; CS4b reworks
+   the field mesh-requirement → SPACE ("fields need mesh to inquire about
+   space; fields might be constructed from space alone" — `CrossSectionField`
+   under the same criterion). The fabricated path retires at CS4b, where it
+   becomes structurally unneeded — NOT at CS4a.
+2. **F2** — phases subdivide freely; C's mandatory-space flip lands in one of
+   them (CS4c, with its `[M]` 131/43-site test migration).
+3. **F3** — the La13511/registry re-expression is POST-CAMPAIGN: ⭐
+   verification cases CONFORM to the elegant production design; they are
+   never a design driver. The Medium's layered arm ships witness-only,
+   knowingly (the C10 tension accepted).
+4. **F4** — roster = `ScatteringKernel` + `N2NKernel` + **`FissionKernel`**:
+   the user's stress test overrides the today-only type-vs-property reading —
+   a moment-based solver gives fission a frame-bound second realization, and
+   Campaign 2's `GeneralizedEigenPencil`/resolvent (the α-eigenvalue
+   resolvent) needs F rebindable as a first-class datum
+   ([[feedback-defer-only-when-architecture-vague]]: concrete architecture +
+   imminent consumers ⟹ build). Collision stays a property (ruling 2
+   verbatim), the binding arity leaving a later coefficient-kernel admissible
+   without re-carve. Re-examine the roster at Campaign 2's chartering.
+
+**Steps**:
+
+- **K0** — the per-row xfail marker split (`pytest.param`, the `_G13_ROWS`
+  pattern at `test_monomorphic_leaves.py:741-747`; the function-level
+  `_R1_XFAIL`/`_R2_XFAIL` marks cannot flip partially — `[M]` probed
+  `2 failed [XPASS(strict)]`).
+- **K1** — mint `orpheus/transport/kernels.py`: `ScatteringKernel` (the
+  per-material Legendre stack {Σ_sℓ}, `p0`/`truncated(L)`/`ng` — the ℓ-index
+  IS the Funk–Hecke eigenbasis index, the ground for CS2's frame-at-binding
+  and the twin heal), `N2NKernel` (Σ_2n, multiplicity 2 — the loss-side
+  channel ruling intact), `FissionKernel` (the (χ, νΣf) FACTORS, never the
+  outer product; transpose = the factor swap). Views over `Mixture`;
+  `MaterialXSField`'s dense caches absorb/delegate. The energy-arm rule
+  (content-equal edges ⟹ `from_grid` else `synthetic`) HOISTS to one shared
+  function; `bulk_space` re-points to it (no second spelling).
+- **K2** — the bindings: the four energy constructors take (kernel/data,
+  space[, assignment — by ARITY, absent on quotient bindings]); the
+  ng-conformity typed refusal keys on NON-OPTIONAL content (materials' ng vs
+  the space's shape — the `[M]` 7-of-13 axes-inertness finding, vv #28; the
+  axis-keyed strengthening arrives with CS2); `solve_homogeneous_infinite`
+  mints its space from the mixture (`of_axes(energy, point)`) instead of
+  reading `carrier.bulk_space`; the two homogeneous `IntegratedReactionRate`
+  sites re-pose to the space's inner product; F space-mandatory (`[M]` 0
+  bare production constructions). The degenerate carrier STAYS as the
+  coefficient/mat_xs source until CS4b (F1). D5 byte gate 8/8 = exit
+  criterion.
+
+**Done when**: kernels exist with the slice-consistency 0-ULP crosscheck
+re-pointed at the kernel object; all four homogeneous operators bound to the
+mixture-minted E⊗pt space (grep: no `mat_xs.mesh.bulk_space` read left in
+`homogeneous/solver.py`); the counting-measure adjoint THEOREM gate lands;
+R1-F/R2-F flip via K0's split (R1-C if free); NO apply arm deleted; D5 8/8;
+pyright terminal-1; Sphinx `-W` clean.
+
+**Fences**: no apply-arm deletion; no field-class edits beyond what K2's rate
+re-pose strictly needs (fields are CS4b's); no S/angular changes; no Medium;
+C8 (frames/CS2) intact; solver entries unchanged.
+
+### CS4b — fields are space elements (goal chartered; grounding at its own session)
+
+**Goal.** A field is constructible from its SPACE alone — the mesh
+requirement retires across the field layer ("fields need mesh to inquire
+about space", user F1; `[M]` sizing inputs: `BulkField.mesh` mandatory on all
+10 leaves; ≥11 composite-arm output-mint sites; `CrossSectionField` probed
+unconstructible without a mesh) — and THEN the fabricated path retires:
+`from_materials` + the fake axis + the invented node, `MaterialXSField`'s
+meshless admission (the mesh→assignment un-weld), the `mesh is None` sentinel
+honesty, SN's typed promotion refusal (the bare assert `-O` strips today),
+the `.areas` wrong-message, the `infinite_medium.rst:1115` xref +
+`dead_references`, the `[M]` 16 test-site migration. **O1's
+no-fabricated-data tell completes HERE**, re-measured by the byte gate.
+
+### CS4c — the dispatch collapse (goal chartered; after CS2 per the ruled order)
+
+**Goal.** Apply-time overloading retires: the per-instance
+feeding-normalization census first (the R-A `[M]` 6-of-12 fact; the method is
+vv-principles #29), the #205 ndarray keep-ruling re-litigated at the call
+sites that feed raw vectors (the k-eigenvalue path), arm deletion per
+binding, C space-mandatory (the 131/43-site migration), S →
+`ScatteringKernel` shell with the iso pair + `LegendreMomentScattering` as
+ℓ=0/moment bindings of the one datum (the O7 twin heal; R1-S/R2-S flip). May
+pull earlier than post-CS2 at its chartering if frame-independence holds (C8
+reserves only the frame MINT and the L/B + R6 rows).
+
+**The original unified sketch (predates the split; the subsections govern):**
 
 **Goal.** `ScatteringKernel`/`FissionKernel` are representation-free data; a constructor
 binds Kernel × Frame → the actual operator, fully bound (one domain, one codomain, ONE

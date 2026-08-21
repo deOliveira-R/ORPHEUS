@@ -6000,3 +6000,211 @@ enumeration is what a grounding pass is good at and what it will have done well;
 per-site consequence is what it skips, because that requires simulating the carve. The
 cheapest form: for each site, write the ONE sentence "after the carve this site
 {keeps / gains / loses} X" — the sentences that will not write are the findings.
+
+---
+
+## L60 — CS1.5 (the Medium un-weld, PRE-carve): a `getattr` default swallows a typed refusal, and "exact by construction" was 1 ULP off in exactly one sub-family
+
+**Dispatch** 2026-08-20, branch `feature/cs1-energy-space` @ `a5d59425`,
+PRE-implementation. Deliverable `scratch/cs15_verification_plan.md` (47 gates
+across 4 steps, a 34-arm battery with 3 positive controls and a MUST-STAY-GREEN
+column, 11 findings, 8 open rulings, 7 declared untestables). Design note
+`.claude/plans/cs15_medium_unweld_design.md`; census
+`scratch/cs15_grounding_census.md`; campaign plan
+`.claude/plans/space_and_kernel_binding_campaign.md` §2.5. Nexus absent from the
+tool list (expected per the brief); everything grep/`ast`/probe-derived.
+
+### L60a ⛔⛔ `getattr(obj, "attr", default)` swallows an `AttributeError` raised INSIDE the property — so a "type-absent attribute" design degrades SILENTLY at every duck-typed consumer
+
+The carve's centrepiece is a typed union (`MeshBackedRegions | QuotientPoint`)
+whose quotient member makes five geometry attributes **type-absent** — a
+`@property` that raises `AttributeError` with an honest reason. That is the right
+shape, and it has one failure mode nobody looks for: **a consumer that reads the
+attribute through `getattr(obj, name, default)` cannot tell "absent" from
+"raised", because `getattr`'s default catches the exception the property raises.**
+
+`[M]` `orpheus/transport/operators/multiplication_operator.py:344-346`:
+
+```python
+if space is None: space = getattr(mesh, "full_field_space", None)
+if space is None: space = getattr(mesh, "bulk_space", None)
+```
+
+If `bulk_space` had joined the type-absent set (which one reading of the design's
+§4.2 and the census's promise-1 wording both instruct), the homogeneous `C`
+operator would go space-anonymous again, the `OperatorSum` guard would go back to
+SKIPPING, and the whole CS1 D1 floor would un-do — **with no exception anywhere
+in production**. The only reason a test notices is that CS1's D1 computes its own
+reference through the same property and therefore ERRORs; a future D1 with a
+tolerant reference would be green.
+
+⟹ **Before designing type-absence for an attribute, grep
+`getattr(<receiver>, "<name>"` and `hasattr(` across the tree and read what each
+hit DECIDES.** `[M]` here: 6 `getattr`-with-default hits over mesh-family
+receivers, 4 of them method-mesh trace spaces, 2 the chain above. The attribute
+partitions into "may be absent" and "must stay legal", and the second class is
+decided by the duck-typed readers, not by the concept.
+
+⭐ And the companion, because the two documents disagreed: the census's promise
+ledger said *"`bulk_space` migrates carrier → Medium; the property body rides
+unchanged"* while the design's §4.3 said *"the carrier's own `bulk_space` …
+STAYS"*. An implementer discharging the ledger literally deletes the property.
+**A promise-ledger item is a work INSTRUCTION; when it contradicts the design
+body, the ledger is the dangerous one, because it is the thing someone ticks
+off.**
+
+### L60b ⛔ Measure the float agreement of BOTH sides of a conformity guard before choosing `==` — "exact by construction" can be false in exactly one sub-family
+
+The guard compares region interface positions (cumulative thickness sums) against
+mesh edges. Both sides *look* exact: `from_geometry` accumulates the same
+thicknesses in the same order.
+
+`[M]` probe over **4902** random interfaces (400 trials × 2–6 regions × 3
+geometries × 2 subdivision methods, `default_rng(20260820)`, thicknesses
+`U(0.05,3.0)`, 1–8 cells/region), with the interface side computed BOTH by a
+Python accumulate loop and by `np.cumsum` (identical):
+
+| geometry | method | worst ULP | worst abs |
+|---|---|---|---|
+| SLB | uniform / equal-volume | **0.00** | 0.0 |
+| CYL | uniform | **0.00** | 0.0 |
+| CYL | **equal-volume** | **1.00** | `4.441e-16` |
+| SPH | uniform | **0.00** | 0.0 |
+| SPH | **equal-volume** | **1.00** | `8.882e-16` |
+
+**10 of 4902** non-bit-exact, ALL curvilinear equal-volume. Mechanism:
+`np.linspace` pins its endpoint to `stop` exactly, so the `uniform` arm is exact;
+the equal-volume arm computes `sqrt(inner² + 1·(outer²−inner²))` /
+`cbrt(inner³ + 1·(outer³−inner³))`, and the round-trip is the very thing
+`_subdivide_zone`'s docstring warns about (`cbrt(x)**3 != x`).
+
+⟹ `==` is a **latent** false red: green for as long as nobody meshes a
+curvilinear multi-region geometry by equal volume, then a legitimate production
+mesh is refused. The discipline is a derived ULP band (`4 × np.spacing(|x|)`,
+4× the measured worst) whose discrimination margin is stated beside it — the
+nearest WRONG edge is one cell away (`≈6e-3` on the plan's own fixtures), i.e.
+**13 orders** above the band. And the battery carries the arm that PROVES the
+band rather than asserting it: set the guard to `==` and exactly the two
+CYL/SPH-equal-volume acceptance rows red while the four SLB/uniform rows stay
+green.
+
+⭐ The generalisable form: **when a guard compares two independently-accumulated
+float quantities, the tolerance is a MEASUREMENT of their agreement over the
+constructible population, per sub-family — never a judgement about whether the
+construction "should" be exact.** A sub-family that goes through a transcendental
+round-trip is invisible to the reasoning and obvious to the probe.
+
+### L60c ⛔ An attribute→property conversion kills every committed `hasattr(Class, …)` PREMISE — and the replacement witness is usually one grep away
+
+`[M]` `tests/test_docstring_xrefs.py:391` asserts
+`assert not hasattr(SNMesh, "mesh"), "premise: 'mesh' is per-instance"`, using
+`SNMesh.mesh` as the witness for the *unannotated instance attribute* resolution
+shape. Making `mesh` a forwarding property on the base makes
+`hasattr(SNMesh, "mesh")` **True** and the row reds on its own premise line —
+not on the thing it verifies. Neither the design note nor a 600-line census
+named it: the census swept `.mesh` READERS, and a `hasattr` premise is not a
+read.
+
+`[M]` the replacement was found with one `ast` scan of the hierarchy: the SNMesh
+family has exactly **two** bare (unannotated) public `self.X = …` attributes —
+`mesh` and `quad` — and `quad` satisfies all three of the row's assertions today
+(`in _self_attributes`, `not hasattr(class)`, `resolve(...) == (True, None)`) and
+is untouched by the carve.
+
+⟹ **Before any attribute→property conversion, `grep -rn 'hasattr(' tests/` and
+filter to the names being converted.** `[M]` in this tree that is one hit for ten
+names — cheap, and it is the difference between a planned witness re-point and a
+mystery red at execution.
+
+### L60d ⛔ A "type X is `eq=False` for identity semantics" ruling can be FORCED by the field types — measure it on a toy before recording it as a design choice
+
+The design note called `Medium`'s `eq=False` "identity semantics, the
+`EnergyGrid` precedent"; the census called `EnergyGrid` "the anti-precedent … do
+NOT copy its `eq=False`". Both were arguing style. `[M]` neither reading matters:
+
+* `Mixture.__eq__` **raises** `ValueError: truth value of an array … is
+  ambiguous` (a plain `@dataclass` over numpy fields); `hash(Mixture)` raises
+  `TypeError: unhashable type: 'Mixture'`.
+* a `@dataclass(frozen=True)` (⟹ `eq=True`) holding `materials: dict`:
+  `hash()` raises `TypeError: unhashable type: 'dict'` **always**, and `==`
+  returns `True` only when the values are the SAME objects (dict comparison
+  short-circuits on identity) and **raises** otherwise.
+
+⟹ `eq=True` would ship an object whose `__eq__` raises on some inputs and whose
+`__hash__` never works. Three lines of probe settled a two-document disagreement
+— and the *test-design* consequence is the real output: **content identity must
+then be gated on what the type MINTS (its spaces), never on the type's own
+equality**, which is where the campaign's existing B11 gate already lives.
+
+### L60e ⛔ An invariant arm's witness can be unreachable on ONE MEMBER of a union — check reachability per member, not per corpus
+
+L59b recorded the corpus-tier form (every shipped mixture has `eg is None`, so
+the `from_grid` arm had no witness). The member-tier form is sharper and it bit
+here: the eg-coherence invariant ("assigned materials must agree on their energy
+grid") is **unspellable on the infinite member**, which has exactly ONE assigned
+material. Its only constructible witness is a *structured* medium with ≥2 regions
+naming ≥2 materials — i.e. the arm the design itself ships production-unreached.
+Left unsaid, a whole-invariant mutation reddens via the id-coverage arm and the
+run reports "the invariant is gated" (vv #17's granularity trap, at the member
+tier).
+
+⟹ **For each arm of a multi-arm construction invariant, name the member AND the
+input that witnesses it.** An arm with no witness on any member is either
+deleted or declared unfalsifiable in its own docstring.
+
+### L60f ⛔ A guard placed after the caller's own attribute reads is UNREACHABLE — and the error TYPE is the placement gate
+
+`SNMesh.from_material_mesh` reads `material_mesh.axes` and `.mesh` in its own
+body before calling `_init_core`. Under the union those are type-absent on the
+quotient member, so a typed refusal placed inside `_init_core` never runs: the
+forwarding property's `AttributeError` fires one frame earlier.
+
+⟹ the guard goes at the TOP of the promoting classmethod, and — the useful part —
+**`pytest.raises(ValueError, match=…)` IS the placement gate**, because
+`AttributeError` is not a `ValueError`. One assertion covers both "it refuses"
+and "it refuses in the right place", with no source inspection.
+
+⭐ Companion, already in the digest but re-confirmed: `[M]` today that promotion
+dies as a bare `AssertionError` (empty message) at `augmented_mesh.py:322` under
+plain `python` and as `AttributeError: 'NoneType' object has no attribute
+'coord'` at `reduced_operator.py:858` under `-O` — the canonical runner strips
+the assert, so the "guard" is an accident (`coding-standards`' bare-assert
+discriminator). A mutation that deletes the new guard still reds the gate, **by
+raising** — so only the `match=` leg attributes it (L31).
+
+### L60g ⭐⭐ The byte-gate blindness partition, MEASURED end-to-end — and it is the plan's granularity pair
+
+Same fixture (`homo_2eg_n2n`), same entry (`solve_homogeneous_infinite`), two
+mutations of "the quotient's measure":
+
+| mutation | `k_inf` | `flux` | `sig_prod` | `sig_abs` | D5 |
+|---|---|---|---|---|---|
+| baseline | `1.6532258064516119` | `[397.94608472, 359.4351733]` | `0.13203389830508477` | `0.11613559322033898` | — |
+| **space weight ×2** (`bulk_space`'s `weights=`) | same | **same** | **same** | **same** | ⭐ **GREEN** |
+| **volume ×2** (`volumes` ⟹ `volume_measure`) | same | `[198.97304236, 179.71758665]` | `0.26406779661016955` | `0.23227118644067796` | **RED** |
+
+Two facts worth carrying: (i) L59a's space-side Mode-12 dual holds END-TO-END, not
+just at `.H` — a rank-1 point axis makes the space measure invisible to every
+value the solve produces, so **space identity is the only instrument**; (ii)
+`k_inf` is blind to BOTH, because it is a production/absorption RATIO — its
+stabiliser contains the whole measure, so **no k-level row may ever be credited
+for a measure claim**.
+
+⟹ "mutate the measure" is ambiguous until you say WHICH measure. In this carve
+`volumes` feeds both `bulk_space`'s weights and `volume_measure`'s, so the
+single-mutation instinct conflates them; the honest battery has one arm per
+consumer and the pair IS the vv #17 proof.
+
+### L60h ⭐ Sizing: measure the reachable subset, and let the excluded numbers justify themselves
+
+`[M]` `tests/numerics` whole = **329.66 s**; the four files this carve can reach
+= **2.72 s** (a 122× tax). `[M]` `tests/sn` whole ≈ **80 min** (extrapolated from
+~6 % in ~5 min, 3329 collected) ⟹ it belongs to the pre-merge ≥90-min gate under
+the campaign's BRANCH-HOLD ruling, never to a per-arm battery. The scope that
+remains — homogeneous + transport + diffusion + sn/{mesh,primitives,architecture}
++ 4 numerics files — is `[M]` **1258 passed / 1 skipped / 17 xfailed in 25.30 s**,
+so a 34-arm battery is ~15 min instead of days. Also `[M]` the pyright ratchet's
+single remaining error is `orpheus/transport/operators/scattering.py:761` — in the
+edited PACKAGE but not in any edited FILE, and the ratchet reds in BOTH directions,
+so "new code adds none" is necessary but a carve that accidentally BURNS it must
+re-baseline in the same commit.

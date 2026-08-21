@@ -33,9 +33,15 @@ production meshes start at `origin = 0` (`Mesh1D.from_geometry`), so
 `Mirror('x').is_invariant(mesh.volume_measure)` is **False** for the
 production slab AND the sphere. The spatial group is
 **`E(d) = O(d) ⋉ ℝ^d`**; `symmetry.py` realizes only the origin-fixing
-`O(3)`. The codebase has **no affine/translation type at all** (`origin:
-float`, `- pitch/2` inline, the half-cell's symmetry plane is "wherever
-x = 0 happens to be").
+`O(3)`. ~~The codebase has no affine/translation type at all~~ ⛔ STALE the
+day it was written (L-020): `RigidMotion` (`geometry/transformation.py`,
+frozen dataclass, `linear` + `translation` parts, `translation_by`/
+`seated_at`) landed 2026-08-03 — the ELEMENT layer now expresses E(d).
+Re-verified 2026-08-20: what remains true is the three-tier gap — the TAG
+layer (`SubgroupOfO3`) is still point-groups-only, and `close_group`
+REFUSES infinite closures (`NotAFinitePointGroupError`; two parallel
+mirrors → frieze group → refused), so no TYPE can hold a translation
+GROUP. (`origin: float`, `- pitch/2` inline remain untyped conventions.)
 
 Sharper reading for CYL/SPH: `r ∈ [0,R]` is the **fundamental domain** of a
 quotient, and a fundamental domain is never G-invariant — `False` is the

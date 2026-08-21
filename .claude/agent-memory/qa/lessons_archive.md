@@ -3987,3 +3987,441 @@ mutation); `coding-standards` retirement 3-search rule (extended: the three
 `.claude/` surfaces); `plan-authoring` §2 (validate the FILTER, don't merely
 write it down); lessons H9 (unquoted `$VAR`), H12 (the subject moves), H7
 (shared tree), F13 (tombstones).
+
+---
+
+## L-072 — a design assembly's TELL is a gate: one was designed-RED by its own non-goals, and its central claim was true-in-the-arithmetic and false-at-the-codomain
+
+**Context.** 2026-08-20, branch `feature/cs1-energy-space` @ `71515847`.
+Adversarial Phase-1 review of ONE of three independent CS4a design assemblies
+(`scratch/cs4a_assembly_physics.md`, the "physics-first" lens) against the
+charter `.claude/plans/kernel_and_medium_objectives.md` (objectives O1–O9,
+constraints C1–C10). Rivals: `cs4a_assembly_algebra.md`,
+`cs4a_assembly_parsimony.md`. Verdict memo:
+`scratch/cs4a_attack_physics.md`. **This was a design review, not a code
+review — and the lesson is that the two need the same instruments.**
+
+### 1. A design objective's "tell" is a coverage claim, and it can be DESIGNED-RED
+
+The charter demanded a *falsifiable tell* per objective, which is the right
+demand and is exactly `plan-authoring` §1's "done-when is a checkable
+predicate". The assembly answered O7 ("one spelling per concept") with a tell
+that is an instrument:
+
+> "`grep -rn "SigS" orpheus/` finds the datum owned once (Mixture) and viewed
+> once (ScatteringKernel)."
+
+`[M]` I ran it: **70 hits**. Direct `Mixture.SigS` consumers:
+
+| site | read |
+|---|---|
+| `orpheus/cp/solver.py:511` | `self._scat_mats = {mid: materials[mid].SigS[0] for mid in materials}` |
+| `orpheus/moc/core.py:93` | `self.sig_s0.append(mix.SigS[0].toarray())` |
+| `orpheus/mc/solver.py:369` | `sig_s_dense[mat_id] = np.array(mix.SigS[0].todense())` |
+| `orpheus/sn/solver.py:1281` | `min(len(m.SigS) - 1 for m in materials.values())` |
+| `orpheus/derivations/continuous/**` | 8 sites |
+
+**Every one is inside the assembly's own §5 "Untouched" list**, and the
+charter's non-goals bar re-routing solver entries. So the tell's answer is
+pinned at FALSE the day the work lands, and no step in the slicing could move
+it.
+
+⭐ **This is `plan-authoring` §10's defect with a THIRD shape and the opposite
+colour.** §10 names two: a metric keyed on a PROXY the work removes, and one
+over a POPULATION the work removes members from. This is a population the work
+is **forbidden** to touch — so the metric is *designed-red*, the mirror of
+`vv-principles` #17's designed-green harness. And it survives longer than
+designed-green would, because a permanently-red tell reads as *work remaining*:
+a later session picks up the campaign, sees the tell failing, and chases a
+target that was never reachable.
+
+⚠ The aggravator, and the reason it is worth a rule: **naming an instrument
+makes a done-when read as MORE rigorous than a prose one.** "Grep returns
+past-tense only" looks unimpeachable next to "the concept has one owner". The
+two rival assemblies both stated the same objective with tells scoped to the
+CARVE (parsimony: "the kernel datum's grep-findable owner is `MaterialXSField`
+(CS4a) / `ScatteringKernel` (CS4b)"; algebra: "3-search retirement audit per
+symbol + `dead_references`") and neither is refutable by a tree-wide grep.
+
+⟹ **Run a tell's own predicate at design time, over the whole tree, and
+intersect the hits with the design's declared UNTOUCHED set.** Every hit inside
+that set is a permanent counterexample. One command.
+
+### 2. A locality premise can be TRUE and its architectural corollary FALSE — the discriminator is the CODOMAIN constructor, not the arithmetic
+
+The assembly's central idea:
+
+> "Collision, scattering, and fission are all *spatially local* (diagonal on the
+> spatial axis) … **That physics fact dictates the whole binding signature — a
+> spatial mesh is never data of the interaction, only of the pullback.**"
+
+**Premise CONFIRMED, all four in-scope channels** (I checked the arithmetic, not
+the prose): C = `DiagonalOperator(coefficient.values, broadcast_axes=(0,))`;
+IsoS = `einsum("fg,fc...->gc...", sig_s0, phi[cells])` per material
+(`material_xs_field.py:850`), `c` a spectator; IsoN2N the same × 2.0 (`:880`);
+F = `outer(chi, ReactionRateFunctional(νΣf)) & IdentityOperator()`
+(`fission.py:318`) whose functional contracts **only** the group axis
+(`:320-368`) and whose `& IdentityOperator()` **is** the spatial broadcast. Even
+the out-of-scope angular operator is diagonal (`einsum("mfc...,fg->mgc...")`,
+`:998`).
+
+**Corollary REFUTED.** Locality says the mesh is not needed to COMPUTE the
+action. It says nothing about producing the CODOMAIN ELEMENT — and in this tree
+every composite arm emits `FullField(interior=X…SourceSink.from_mesh(values,
+mesh), boundary=X…BoundarySourceSink.zeros_on(mesh))`. Those constructors take a
+mesh, and the only object in the frame that has one is the **operand**:
+
+| operator | sites |
+|---|---|
+| `MultiplicationOperator` | `:432, :444` (apply, 2 arms), `:507, :517` (solve, 2 arms) |
+| `IsotropicScattering` + `IsotropicN2N` | `isotropic_scattering.py:132` (shared `_scalar_composite_source`) |
+| `FissionOperator` | `fission.py:443, 464, 465` (transpose), `:580, :615` (apply), `:649` (ScalarFlux arm) |
+
+`[M]` **≥11 sites**; the assembly named **2**.
+
+**And binding cannot remove them** — I measured what the bound space carries:
+
+```
+full_field_space: name='full_field' shape=(48,) .axes = None
+  interior_space: name='sn_bulk'    shape=(4,2,4) .axes = None
+  trace_space:    name='angular_trace'            .axes = None
+```
+
+`FullFieldSpace` = `name/shape/inner_product_weights/axes` (inherited,
+`numerics/space.py:196`) + `interior_space/trace_space`
+(`full_field_space.py:192-197`). **No mesh, on the composite or on either
+block.** So "the realization is selected at construction from the space" leaves
+the selected body still needing `bulk.mesh`.
+
+⭐ **The tree states the OPPOSITE of the thesis, in a production guard**:
+`sn/operators/streaming.py:589` — `if streaming.sn_mesh is not
+diagonal.coefficient.mesh: raise ValueError(...)`, comment *"The diagonal
+multiplier is mesh-free; **its mesh is carried by its CrossSectionField
+coefficient**."*
+
+⟹ **When a design says "X is not data of this operation", check the CODOMAIN
+constructor, not the arithmetic.** A pure/local/diagonal kernel can still need
+X to BUILD its result, and typed-carrier codomains are exactly where that bites.
+
+### 3. Where the assembly's error came from — one word, two referents
+
+`multiplication_operator.py:82`: *"the mesh is read off the carrier at apply
+time (``mesh = psi.interior.mesh``)"*. In the **production docstring** "carrier"
+means the FLUX carrier (the `FullField` operand); in the **charter** "carrier"
+means `MaterialMesh`/`MaterialXSField`. The assembly inherited the docstring's
+word and declared the read retired by a change that touches the *other* party.
+The rival algebra assembly got it right by reading the code rather than the
+prose (`§0 row 6`: "C reads `bulk.mesh` off the **OPERAND**"). ⟹ in a codebase
+with two vocabularies for one word, a prose-sourced `[M]` inherits the wrong
+referent silently.
+
+### 4. The denominator nobody wrote: 4 of 13 bindings are axis-built
+
+The assembly's O2: *"kernel `ng` == the space's `EnergyAxis` shape … **`ng` is
+never passed — it is already IN the space**"* — flat, no denominator.
+
+`[M]` per constructor call (13 calls at 10 sites, re-derived):
+
+| space threaded | `.axes` | calls |
+|---|---|---|
+| `mat_xs.mesh.bulk_space` | `[('energy',(2,)),('spatial',(1,))]` — axis-built | **4** (`homogeneous/solver.py:152,155,157,204`) |
+| `mesh.full_field_space` | **`None`**, both blocks `None` | **7** (`sn/coupled_system.py:419`; `sn/solver.py:1339,2804`; `diffusion/solver.py:236,242,243,247`) |
+| none (space-anonymous) | — | **2** (`scattering.py:713`) |
+
+Diffusion's interior block is hand-built with **no `axes=`**:
+`FunctionSpace(name="scalar_bulk", shape=(ng,*spatial), inner_product_weights=V…)`
+(`diffusion/augmented_mesh.py:362-366`), `space = mesh.full_field_space` at
+`diffusion/solver.py:234`.
+
+So the guard is axis-structural on **4 of 13** and degrades to a positional
+shape-slot read on 7 — the majority path — i.e. a SECOND spelling of the
+conformity rule, minted by a step whose own O7 says *"a silent second spelling
+disqualifies"*. ⭐ **The parsimony rival publishes this exact defect as a
+SELF-attack about its own design; the physics assembly does not state it at
+all.** ⟹ when three independent assemblies answer one charter, **read every
+rival's self-attacks as a checklist against your target** — a self-attack is a
+measured weakness someone already did the work on, and the target that is silent
+about it is the one that did not look.
+
+### 5. Self-attacks as decoys — the shape
+
+Both of the target's self-attacks were REAL and both were the objections the
+**rival documents publish about themselves** (physics Attack 1 ≈ parsimony
+Attack 2; physics Attack 2 ≈ parsimony Attack 1). Neither was manufactured. But
+each lands on the *arguable* half of a seam whose *factual* half is worse:
+
+- Attack 2 ("construction-time selection is dispatch relocated") argues
+  instance- vs class-monomorphism — deflectable with "C2 says nothing about one
+  class per space" plus the true fact that G1.2's carrier registry does not exist
+  (#261). The factual half of the same seam is §2 above: the selected body still
+  needs a mesh it can only get from the operand, and no registry changes that.
+- Attack 1 ("the medium is a third spelling") is correct and stops before the
+  conformity-guard denominator (§4) and before the reaction-rate fork (§6).
+
+⟹ **A self-attack marks the seam, not the depth.** Take the seam it names and
+push one level past the argument it answers — the prepared defence is the tell
+that the author stopped there.
+
+### 6. The §6b set of a design step is not its CONSTRUCTION sites
+
+The assembly enumerated `[M]` 13 constructor calls (correct — I re-derived all
+13) and called that its §6b completeness. Three signature changes its own
+slicing performs have call-site sets it never enumerated:
+
+- **`MultiplicationOperator.coefficient`** stops being uniformly a
+  `CrossSectionField` under its K2 ("no `CrossSectionField.from_mesh`, no
+  mesh") — production READERS at `streaming.py:589` (`.coefficient.mesh`),
+  `:597`, `:659` (`.coefficient.values`).
+- **`IntegratedReactionRate`** — `[M]` **7** production sites
+  (`homogeneous:223,224`; `diffusion:337`; `sn/solver:1545,1596,1599,1716`),
+  `evaluate` reads `self.cross_section.mesh.volume_measure`
+  (`reaction_rate_functional.py:210,228`). The slicing re-poses 2 and leaves 5,
+  and `reaction_rate_functional.py` appears **nowhere** in its blast radius ⟹
+  two spellings of the volume-integrated reaction rate, which is O7's own
+  disqualifier. (Parsimony makes it a dedicated step over all sites; algebra
+  says the spelling "generalizes instead of forking". Physics alone forks it.)
+- **The P1 xfail marker**, next section.
+
+### 7. A partial ledger flip is not runnable until the marker is split (positive control run)
+
+`[M]` `python -O -m pytest tests/sn/architecture/test_monomorphic_leaves.py -q`
+→ `82 passed, **16 xfailed**`; `-rx` decomposes exactly as all three assemblies
+claim: 5 R1-annotation `[L,C,S,F,B]`, 3 R2-anonymous `[C,S,F]`, 8 R6
+`[B × 4 geometries × 2 carriers]`.
+
+`_R1_XFAIL` is a **test-level** decorator at `:701` over all five params;
+`_R2_XFAIL` at `:1026` over all three. Only `_R6_XFAIL` is per-row
+(`_G13_ROWS`, `:735-747`, the `marks=[...] if leaf == "B"` pattern).
+
+Positive control (scratchpad, throwaway module, `python -O`) emulating "C and F
+fixed, L/S/B still broken" under ONE test-level `xfail(strict=True)`:
+
+```
+FAILED test_xfail_split_probe.py::test_rows[C] - [XPASS(strict)] ...
+FAILED test_xfail_split_probe.py::test_rows[F] - [XPASS(strict)] ...
+2 failed, 3 xfailed
+```
+
+⟹ "CS4a deletes 4 rows" is not executable until the two decorators become
+per-`pytest.param` marks. The algebra rival flags it and schedules the split
+inside its step; the target does not mention it. **Before crediting any
+per-row ledger apportionment, check whether the marker is attached per-row or
+per-test — the summary line reads identically either way.**
+
+### 8. The type-vs-property rule, applied per channel — neither side survives whole
+
+The three assemblies forked on which kernels to mint. Applying
+`coding-standards`' rule honestly (mint **iff** ≥2 non-isomorphic realizations
+AND a non-identity morphism is applied):
+
+| channel | (a) realizations | (b) morphism | verdict |
+|---|---|---|---|
+| scattering | ℓ=0 scalar / moment space `SphericalHarmonicSpace.from_L(L)` / frame-conjugated ordinate | ℓ-restriction, `frame.conjugate`, `with_overridden_sig_s_and_n2n` | **MINT** (all three agree) |
+| collision | one (diagonal coefficient) | identity only | **PROPERTY** (all three agree) |
+| **(n,2n)** | **two — the tree says so**: `isotropic_scattering.py:32-38` "Both are the **scalar (ℓ=0) realization** of … `N2NMomentOperator`"; `N2NMomentOperator.domain = SphericalHarmonicSpace.from_L(L)` (`scattering.py:344-351`) | frame conjugation inside `full_scatter_kernel = frame.conjugate(Λ + N₂ₙ)` | **MINT** — physics+algebra right, **parsimony REFUTED** |
+| **fission** | **one** — the angular arm is `integrate_angular()` → the ScalarFlux body → `AngularSourceSink.from_isotropic` (`fission.py:569-604`), i.e. the ℓ=0 realization wearing the ℓ=0 moment maps. Fission emission has no ℓ≥1 content. | the χ↔νΣf swap is `RankOneOperator`'s transpose, already owned | **PROPERTY** — parsimony right on the verdict, **wrong on the reason** |
+
+Two residues worth keeping:
+
+- **Parsimony's n2n fold silently overturns a documented physics ruling**, stated
+  twice and emphatically: `isotropic_scattering.py:26-30` ("a DISTINCT
+  *multiplication* channel … so it stays its own operator") and
+  `scattering.py:300-310` ("**Keeping the multiplication reaction a visible
+  distinct operator, rather than hidden in the scattering matmul, is the
+  physics-faithful choice**"). Folding Σ₂ₙ in as a "channel view" IS that
+  hiding — a C6-class silent overturn, executed in a §4 parenthesis.
+- **The one real (b)-candidate for fission is CONDENSATION, and it argues
+  against the mint.** `MaterialXSField.project_through` (`:343`, body
+  `:500-540`) applies a genuinely non-identity, **χ↔νΣf-COUPLED** morphism — χ
+  collapses through a `PetrovGalerkinFrame(WeightedIndicatorBasis(trial,
+  iota*p))`, then νΣf's mixed fold consumes the *just-condensed* χ
+  (`iota_tilde = (phi_star * chi[region_of_fine]).sum(...)`, `:517-520`). But it
+  is owned **whole-mixture** and returns `dict[int, Mixture]`; per-channelising
+  it to justify `FissionKernel` would fork the one condensation body four ways —
+  the exact Pattern-2 violation the same assembly's §4 non-mint #3 cites as its
+  reason to refuse per-channel FIELDS.
+
+⟹ Honest ledger: scattering **mint**, n2n **mint**, fission **property**,
+collision **property**. Each assembly is 3-of-4, on different rows. ⭐ **When a
+review is asked to adjudicate a fork "per X", run the rule per X — the answer
+was not a side.**
+
+### 9. The Funk–Hecke / transpose question — no divergence, and two caveats owed
+
+Asked whether the iso operator's `Σ_s0ᵀ` convention makes it a physically
+different object from the ℓ=0 slice of the angular operator. `[M]` both
+contractions:
+
+| verb | forward | transpose |
+|---|---|---|
+| `apply_p0_in_scatter` (`:850`) | `einsum("fg,fc...->gc...")` = `Σ_s0ᵀφ` | `einsum("fg,gc...->fc...")` = `Σ_s0φ` (`:916`) |
+| `apply_legendre_scattering_moments` (`:998`) | `einsum("mfc...,fg->mgc...")` = `Σ_sℓᵀ` per ℓ | `einsum("mfc...,gf->mgc...")` = `Σ_sℓ` (`:1054`) |
+
+Both contract the SOURCE index against the first axis of the stored
+`[g_from, g_to]` matrix (`mixture.py:32`). **The "ᵀ" is a property of the
+STORAGE convention, shared identically by both realizations** — not a
+distinguishing convention. And the tree ALREADY ships the decomposition:
+`apply_legendre_scattering_moments` defaults `skip_l0=True` because "the P0
+in-scatter goes through `apply_p0_in_scatter`" (`:970-973`), and the forward
+`AngularFlux` arm assembles `iso(ℓ=0) ⊕ (1/W)·frame_conj(ℓ≥1)` with a
+load-bearing perf ruling that the iso half **must not** route through the frame
+(`scattering.py:1202-1208`).
+
+⛔ Two caveats to demand before any CS2 "the frame IS the kernel's eigenbasis"
+claim: (i) Funk–Hecke diagonalizes the **angular** factor only — the eigenvalue
+is a dense `(ng,ng)` matrix per ℓ, so it is a partial diagonalization; (ii) the
+eigenbasis is exact for the CONTINUUM and approximate for the discretization,
+to the quadrature's moment-exactness — the `Π R = 4π·I` territory of ERR-039 /
+`assert_galerkin_idempotency`. A "theorem" phrasing without (ii) is the next
+ERR-051-shaped invariant claim.
+
+### 10. Filter hygiene — definition-line contamination, twice, in one document
+
+The assembly reported `[M]` "17 test sites" of `from_materials` (measured: **16**
+— the 18-hit grep includes the definition at `material_mesh.py:242`) and "12 hit
+lines minus 2 docstring hits" for a grep returning **13** non-definition lines.
+Same cause both times. Both rivals got 16. ⟹ a census filter that does not
+exclude `def `/`class ` lines is the filter that will also build the retirement
+migration list.
+
+### 11. What the target measured BETTER than its rivals (Phase-2 material)
+
+Credit where it is owed, because a review that only subtracts is not calibrated:
+
+- **Doc blast radius, exact.** `[M]` re-derived: exactly 2 `from_materials` refs
+  in doc source (`docs/theory/foundations/spaces.rst:1030`,
+  `infinite_medium.rst:1115`) and exactly the 5 named `.rst` files carrying
+  `bulk_space`/"degenerate carrier" prose. Neither rival measured this.
+- **The `DiffusionMesh` guard-ordering argument holds**: `ndim != 1` at
+  `diffusion/augmented_mesh.py:203-210` fires BEFORE the `mesh is None` arm at
+  `:211-219`, so that arm really does become dead code once the carrier retires.
+- **The SN bare-assert unreachability claim is TRUE** (asserted without
+  measurement; I closed it): the only surviving `mesh=None` producer is
+  `SNMesh.from_axes`, which sets `mesh=None` **only when `len(axes) > 2`**
+  (`sn/mesh/augmented_mesh.py:697-700`) ⟹ d≥3 Cartesian ⟹ `ndim != 1` ⟹ the
+  `else: self.reduced = None` branch, never the `assert isinstance(mesh,
+  Mesh1D)` at `:322,329,347`. Today's reachability is
+  `SNMesh.from_material_mesh`, which passes `mesh=material_mesh.mesh` verbatim
+  (`:755`) — that route dies with the carrier. ⚠ but its **`.areas` claim is
+  FALSE**: `_areas is None` has THREE producers (`material_mesh.py:207-216`) —
+  carrier, d≥3 axis-native, **and `isinstance(mesh, Mesh2D)`** — so a d≥3 carrier
+  still raises `"not defined for 2-D meshes"` (`:521-525`), and d≥3 axis-native
+  is the very meaning the assembly's own K3 says the sentinel collapses to. Its
+  O8 row and its K3 row are mutually inconsistent.
+
+---
+
+## L-073 — a design that collapses runtime dispatch onto a construction-time KEY is asserting a claim about TRAFFIC, and an inventory of ARMS is not that claim
+
+**Context.** ORPHEUS campaign-1 CS4a, round-1 adversarial review of three
+independent design assemblies (`scratch/cs4a_assembly_{algebra,physics,parsimony}.md`)
+against the charter `.claude/plans/kernel_and_medium_objectives.md`. Branch
+`feature/cs1-energy-space` @ `71515847`, tree clean. My verdict memo:
+`scratch/cs4a_attack_algebra.md`.
+
+**The shared design move.** All three assemblies proposed the same central
+mechanism, in near-identical words: the operator's constructor "selects the one
+apply body the space's carrier family implies", after which "apply-time
+isinstance ladders retire because the question they answered ('what arrived?')
+is answered at construction ('what was bound?')". Each justified it with a
+**static inventory of the dispatch ARMS** — the `singledispatchmethod` registry,
+the `isinstance` branches, line-numbered and correct.
+
+**Why the inventory is the wrong instrument.** An arm inventory enumerates what
+the CLASS can receive. The design asserts what each bound INSTANCE actually does
+receive. Those are different populations and only one of them is measurable
+statically. Nothing type-errors when they diverge — the selected arm is *an* arm
+the class supports — so the failure is silent, and silent in the flattering
+direction (the code looks monomorphic; production just stops reaching the body
+it needs).
+
+**The census (~15 lines, one solve per family).** Wrap `cls.__dict__["apply"]`
+through the descriptor protocol — `type(orig).__get__(orig, self, type(self))(x)`
+— so `singledispatchmethod` still dispatches (naively re-binding `cls.apply`
+breaks dispatch and raises, which reads as a code bug); log
+`type(operand).__name__` keyed on `id(instance)`. **Positive control (#17):**
+the workload's headline number must be bit-identical with and without the
+wrapper. `[M]` SN keff `0.18764940308862563` both ways.
+
+`[M]` 2026-08-20, one solve per family (SN k-eigen S4 2-region non-uniform slab
+using the ledger file's own `_two_region_fissile()` / `_NONUNIFORM_EDGES`; 1-D
+diffusion on the same mesh; homogeneous k∞):
+
+| family | op | bound `space` | carriers arriving at `apply` |
+|---|---|---|---|
+| SN | **F** | `FullFieldSpace` | **`ndarray` ×17 and NOTHING else** |
+| SN | S | `FullFieldSpace` | `TimedFullField` ×225 **AND** `AngularFlux` ×225 |
+| SN | IsoS / IsoN2N | **`None`** | `ScalarFlux` ×225 (→ returns bare ndarray) |
+| SN | C | `FullFieldSpace` | **never entered** (fused `L+C` owns the body) |
+| DIFF | C | `FullFieldSpace` | `FullField` ×25 |
+| DIFF | **F** | `FullFieldSpace` | `FullField` ×25 **AND** `ScalarFlux` ×25 |
+| DIFF | **IsoS / IsoN2N** | `FullFieldSpace` | **`ndarray` ×27 AND `FullField` ×25** |
+| HOMO | C, F, IsoS, IsoN2N | bulk `FunctionSpace` | `ndarray` ×2 |
+
+**6 of 12 production instances refute the mechanism**, three distinct ways:
+(a) **wrong arm** — `SNSolver.fission_op` is bound to `sn_mesh.full_field_space`
+(`sn/solver.py:1339`) and its ONE production apply is
+`self.fission_op.apply(flux_distribution)` with `flux_distribution: np.ndarray`
+(`:1439`), reached from `numerics/eigenvalue.py:420`, i.e. the k-eigenvalue outer
+iteration. Selecting from the space picks the composite arm and orphans the only
+arm production uses. (b) **non-determination** — DIFF-IsoS/IsoN2N, one instance,
+one space, two carrier families in one solve. (c) **asymmetric arrow** — the iso
+"bare" arm is `_values_of(phi) = np.asarray(getattr(phi,"values",phi))`
+(`isotropic_scattering.py:96-98`), so it takes a typed `ScalarFlux` and returns
+a bare ndarray; no single carrier-family label names its domain AND codomain.
+
+⭐ **The aggravator, and the reason this is a lesson rather than a finding.** One
+assembly had listed exactly this census as its own **strongest self-attack**,
+named the right suspect, and deferred it to execution time, describing its
+absence as *"a plan, not a fact."* Run, it is not a precondition on the design —
+it is the refutation of it. And its one measurable mitigation clause (*"the
+scalar/bulk ndarray arm and the composite arm never coexist on ONE space"*) is
+`[M]` false on the DIFF-IsoS row. ⟹ **when a document flags a missing
+measurement as its own weakest point, RUN IT FIRST** — the author has already
+localised the defect for you, and a self-attack is the cheapest place in a review
+to convert a doubt into a verdict.
+
+**The sibling, and why it is a different item.** `vv-principles` #28 (landed by a
+peer in the same round) covers a key that is **ABSENT** — a guard on an operand's
+optional metadata is inert where the field is `None`. This is a key that is
+**present, correct, and non-determining**. Same review moment, different
+measurement (build the object vs. run the workload), different repair (key on
+what the object always carries vs. keep the operand read). Drop-in text for
+**#29** is in the verdict memo §5.2 — **OWED and deliberately NOT landed**: the
+dispatch charter was "change NOTHING except writing your own memo".
+
+**Two further re-derivations worth keeping.**
+
+1. ⛔ **#28's own `[M]` "8 of 13" is 7 of 13.** Split, construction by
+   construction: `full_field_space` ×7 (`sn/coupled_system.py:419`,
+   `diffusion/solver.py:236/242/243/247`, `sn/solver.py:1339/2804`);
+   `bulk_space` ×4 (all `homogeneous/solver.py`); anonymous ×2
+   (`scattering.py:713`). The slip is counting `homogeneous/solver.py:152` as
+   `full_field_space` because `from_mesh`'s chain names it first
+   (`multiplication_operator.py:343-346`) — `[M]` executed, `MaterialMesh` has
+   **no** `full_field_space` attribute, so it falls through. #28's conclusion
+   survives; its number needed the correction.
+2. **The metric is INERT on all four energy-local leaves, on every bulk space.**
+   `[M]` `.H` vs `apply_transpose` on a graded spherical bulk space with
+   `V_cell` spread **3358×**: C `0.000e+00`, IsoN2N `0.000e+00`, IsoS
+   `4.441e-16`, F `2.220e-16`. Mechanism in closed form: C/IsoS/IsoN2N/F are
+   spatially diagonal (energy-only transfer per cell), `G = V_cell ⊗
+   counting_energy` is diagonal, so `[G, Aᵀ] = 0`; and the energy half is
+   counting **as a theorem** (`axis.py:226-239` — a weighted `EnergyAxis` is
+   *refused*). ⟹ the R2 ledger row's stated harm ("`.H` silently degrades to a
+   bare Euclidean transpose") is numerically **inert** for these four on any bulk
+   space, so **no `.H` gate can witness their Optional→mandatory flip**; the
+   honest CS4a witness is a construction refusal. One assembly proposed exactly
+   such an adjoint gate as one of its four CS4a gates, having *written the
+   blindness into the gate's own justification* (*"instead of the R2 silent
+   degradation that today produces the same equality"*). Measured `0.0` under the
+   defect, `0.0` under the fix. `vv-principles` #19 + Mode-12 commutator.
+
+**The §6b half, for the next reviewer of any mandatory-parameter flip.** All
+three assemblies enumerated the PRODUCTION call sites (10 sites / 13
+constructions — I re-derived it; correct) and **none** counted the test side.
+`[M]` regex over `tests/**/*.py`, comments dropped, `space=` in a 6-line window:
+`MultiplicationOperator` 145 constructions of which **131** space-less across 43
+files; IsoS 19/13/5; IsoN2N 14/11/5; F 15/10/6 — **165 space-less constructions
+in ~50 files**. The step is 16× its planned size, and the under-count is in the
+half that holds the coverage.

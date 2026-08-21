@@ -707,6 +707,114 @@ any other review work.
     > weaker form (anti-pattern #21's self-contradicting-file aggravator,
     > created by the repair itself).
 
+28. **NEVER design a guard against an operand's OPTIONAL METADATA without
+    probing that field on a PRODUCTION instance — instead build the object the
+    production path builds and read the attribute.** A guard of the form
+    *"refuse unless `operand.<record>.<property>` agrees with mine"* type-checks,
+    reviews as structural, and reads as the strongest possible construction-time
+    refusal. It is inert wherever `<record>` is `None` — and an optional
+    metadata slot is exactly the kind of field a *convenience factory* populates
+    and a *composite factory* forgets, so the inert region is systematically the
+    COMPOSITE, i.e. production. This is Mode 8's SIGNATURE-tautological class one
+    layer in: there the producer's *signature* cannot admit the knob and
+    `inspect.signature` answers it; here the signature is correct, the annotation
+    is correct, and only a **runtime read of a production-built instance**
+    answers it.
+    ⚠ The aggravator, and the reason it is its own item: the guard is loaded
+    exactly where it is cheapest to test and inert exactly where the traffic is.
+    A hand-built fixture reaches for the *simple* constructor — the axis-built /
+    `of_axes` / `from_parts` one, which populates the record — so every gate the
+    author writes goes red on demand and the guard ships certified. Nothing in
+    the test suite ever holds the object production holds.
+    ⟹ Two checks, both one line. **(a)** Construct the operand the way the
+    production call site constructs it and print the field
+    (`sn.full_field_space.axes`), rather than reading the class. **(b)** Count the
+    production construction sites by which factory they use, and write the
+    fraction into the guard's docstring — a guard live on 5 of 13 bindings is a
+    different object from one live on 13, and only the written fraction stops the
+    next audit reading it as universal. If the inert fraction is non-zero, the
+    honest guard is the one keyed on what the object *always* carries (a shape
+    slot), with the richer check named as the successor and its enabling phase
+    cited — otherwise the shape arm becomes a silent twin the day the record is
+    populated.
+    > `[M]` 2026-08-20, ORPHEUS campaign-1 CS4a round-1 review. Two of three
+    > independent design assemblies specified the kernel↔space conformity refusal
+    > as *"kernel `ng` == the space's `EnergyAxis` shape"*. `FunctionSpace.axes`
+    > is `Optional[tuple[Axis, ...]]` defaulting to `None`
+    > (`numerics/space.py:196`); `of_axes` populates it, and
+    > `FullFieldSpace.from_blocks` — the ONLY producer of the SN/diffusion
+    > composite — passes `name`/`shape`/`interior_space`/`trace_space` and **not
+    > `axes`** (`numerics/spaces/full_field_space.py:238-243`), while
+    > `SNMesh.full_field_space` builds its interior block as a bare
+    > `FunctionSpace(name="sn_bulk", shape=…, inner_product_weights=…)`, also
+    > axes-less. Measured on a live production instance: the quotient
+    > `bulk_space` carries `axes = (EnergyAxis(...), Axis('spatial', (1,)))`; the
+    > SN `full_field_space` carries `None`. `[M]` **7 of 13** production
+    > constructions of the four rebound operators thread `full_field_space`
+    > (⛔ corrected same day from "8 of 13" by the sibling review's runtime
+    > probe: `from_mesh`'s chain NAMES `full_field_space` but `MaterialMesh`
+    > has none, so that site resolves `bulk_space` — the rule's own
+    > build-the-operand directive is what caught its own founding number), so
+    > the "construction refusal" would have been inert on the majority path,
+    > green, and unfalsifiable — while every axis-built test fixture reddened it
+    > on demand. Caught by building the operand rather than by reading either
+    > design; a third assembly had reasoned to the same conclusion from the class
+    > definition and was the only one to state it.
+29. **NEVER accept a design that replaces runtime dispatch with a
+    construction-time KEY on the strength of a class-level inventory of ARMS —
+    instead run a per-INSTANCE traffic census: instrument the boundary and log
+    `(bound key, observed operand type)` over one real workload per family.**
+    An inventory of a dispatch table enumerates what the class *can* receive;
+    a design that collapses the table asserts what each *instance* actually
+    *does* receive, and those are different populations. The inventory is
+    cheap, static, greppable and reads like evidence; the census needs a run.
+    So the design ships with the arms counted and the traffic unmeasured, and
+    the failure is silent in the flattering direction: the selected arm is
+    *an* arm the class supports, so nothing type-errors — production simply
+    stops reaching the body it needs.
+    ⚠ Three distinct ways the key fails, all invisible statically: (a) **wrong
+    arm** — the instance is bound to key K₁ and fed only carrier C₂;
+    (b) **non-determination** — one instance, one key, two carrier families in
+    one solve; (c) **asymmetric arrow** — the arm accepts a typed carrier and
+    returns a bare one, so no single key names its domain AND codomain.
+    ⟹ The census is ~15 lines and needs a **positive control** (#17): wrap
+    `cls.__dict__["apply"]` through the descriptor protocol so
+    `singledispatchmethod` still dispatches, log `type(operand).__name__` per
+    `id(instance)`, and confirm the workload's headline number is bit-identical
+    with and without the wrapper — an instrumentation that perturbs the run
+    measures its own perturbation.
+    > `[M]` 2026-08-20, ORPHEUS campaign-1 CS4a round-2 review. All three
+    > independent assemblies proposed *"select the one apply body from the
+    > bound space at construction; apply-time dispatch retires"*, each citing
+    > the same static inventory of arms. Census over one solve per family
+    > (SN k-eigen S4 2-region, 1-D diffusion, homogeneous k∞; control keff
+    > `0.18764940308862563` bit-identical instrumented vs not): **6 of 12
+    > production instances refute it.** `SNSolver.fission_op` is bound to
+    > `sn_mesh.full_field_space` and receives **`ndarray` ×17 and nothing
+    > else** (`sn/solver.py:1339` → `:1439`, reached from
+    > `numerics/eigenvalue.py:420` — the k-eigenvalue outer iteration), so
+    > selection from the space picks the composite arm and orphans the only
+    > arm production uses. Diffusion's `IsotropicScattering`/`IsotropicN2N`,
+    > both bound to one `FullFieldSpace`, receive `ndarray` ×27 **and**
+    > `FullField` ×25. The SN iso pair, bound to no space at all, is fed
+    > `ScalarFlux` ×225 while returning bare ndarray
+    > (`isotropic_scattering.py:96-98`). One assembly had listed the census as
+    > its own strongest self-attack and deferred it as "a plan, not a fact" —
+    > run, it was the refutation.
+30. **NEVER credit an "X is not data of this operation" claim from the
+    ARITHMETIC — check the CODOMAIN constructor.** Purity / locality /
+    diagonality tell you X is not needed to COMPUTE the action; they say
+    nothing about producing the RESULT, and in a typed-carrier codebase the
+    result's constructor is where the dependency actually lives.
+    > `[M]` 2026-08-20, CS4a physics assembly: all four ORPHEUS SN energy
+    > operators are spatially diagonal AND all read `mesh` off the operand to
+    > stamp `…SourceSink.from_mesh(v, mesh)` / `zeros_on(mesh)` (≥11 sites),
+    > with the bound space carrying no mesh on any block — while a production
+    > guard asserts the thesis's opposite (`sn/operators/streaming.py:589`:
+    > "its mesh is carried by its CrossSectionField coefficient"). The
+    > locality argument was TRUE and the "a mesh is never data of the
+    > interaction, only of the pullback" corollary FALSE at the output mint.
+
 ---
 
 ## The 6 AI failure modes — mechanism and detection

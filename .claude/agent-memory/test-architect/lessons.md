@@ -219,6 +219,25 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   `basis_shape=(ng,1)` once the domain derives it is **value-identical**, so
   "both spellings gone" is a **grep obligation**, not a gate — say which done-when
   items are grep obligations, or they read as covered. → `L59d`
+- **⛔ An attribute→property conversion kills every committed `hasattr(Class, …)`
+  PREMISE — grep them BEFORE the carve, not after the red.** `[M]`
+  `tests/test_docstring_xrefs.py:391` asserts `not hasattr(SNMesh, "mesh")` as the
+  *premise* of the unannotated-instance-attribute row; a forwarding property on the
+  base makes it True and the row reds on its premise line, not on its subject. A
+  600-line census missed it because it swept `.mesh` READERS and a premise is not a
+  read. The replacement is one `ast` scan away — `[M]` the hierarchy has exactly TWO
+  bare public `self.X = …` attributes (`mesh`, `quad`) and `quad` satisfies all three
+  assertions untouched. `grep -rn 'hasattr(' tests/` filtered to the converted names
+  cost one command and returned one hit for ten names. → `L60c`
+- **⛔ A guard placed after the CALLER's own attribute reads is unreachable — and the
+  error TYPE is the placement gate.** `SNMesh.from_material_mesh` reads
+  `material_mesh.axes`/`.mesh` in its own body, so a typed refusal inside `_init_core`
+  never runs: the forwarding property's `AttributeError` fires a frame earlier. Put
+  the guard at the TOP of the promoting classmethod, and note that
+  `pytest.raises(ValueError, match=…)` then covers BOTH "it refuses" and "in the right
+  place", since `AttributeError` is not a `ValueError`. ⭐ Companion: deleting the new
+  guard still reds — **by raising** — so only the `match=` leg attributes it (L31).
+  → `L60f`
 
 ## 2. Harness discipline — the instrument lies before the code does
 
@@ -314,7 +333,13 @@ codes). → `L34d`, `L35l`
   shrinks the battery, which is the same loss as a blind gate and harder to see.
   Also re-measure the pre-declared RED: if the brief names one known failure,
   confirm it is the ONLY one, so every later red is attributable with no triage.
-  → `L36e`
+  ⭐ Second measurement, same shape, 2026-08-20: `[M]` `tests/numerics` whole =
+  **329.66 s** vs **2.72 s** for the four files a carve could reach (122×), and
+  `tests/sn` whole ≈ **80 min** (extrapolated from ~6 % in ~5 min) ⟹ it belongs to
+  the pre-merge ≥90-min gate, never to a per-arm battery. The scope that survives
+  is `[M]` **1258 passed / 25.30 s**, so a 34-arm battery is ~15 min instead of
+  days. **Let the EXCLUDED numbers justify themselves in the plan** — an excluded
+  directory with no cost beside it reads as an oversight. → `L36e`, `L60h`
 - **⛔⛔ When a behavioural anomaly CONTRADICTS source you have already read,
   re-read it with `inspect.getsource` before believing the anomaly — another
   agent's deliberate mutation is indistinguishable from a production bug.**
@@ -646,6 +671,17 @@ against a concrete row before trusting a green.
   arm) found it: `tests/homogeneous/test_homogeneous.py:415-417` builds the repo's
   ONLY `eg`-bearing homogeneous mixture, via `dataclasses.replace(base, eg=…)`.
   → `L59b`
+- **⛔ Widen the witness census from the CORPUS tier to the MEMBER tier: an
+  invariant arm can be unspellable on one member of a union.** `L59b` says a corpus
+  uniform in the discriminating field leaves an arm witness-less; the sharper form is
+  that a *member* can make it unspellable by construction. `[M]` CS1.5: the
+  eg-coherence invariant ("assigned materials must agree on their energy grid") can
+  NEVER fire on the infinite-medium member, which has exactly one assigned material —
+  its only witness is a structured medium with ≥2 regions, i.e. the arm that ships
+  production-unreached. A whole-invariant mutation then reddens via a DIFFERENT arm
+  and the run reports "gated". ⟹ for every arm, name the member AND the input;
+  an arm with no witness on any member is deleted or declared unfalsifiable in its own
+  docstring. → `L60e`
 
 ## 4. Reference, claim layer, and the proactive refutation
 
@@ -906,6 +942,18 @@ against a concrete row before trusting a green.
   blindness CONTROL still earns teeth: it must red when one of the two
   conventions moves (`[M]` 3 mutations) and stay green when production BECOMES
   the other one. → `L47g`
+- **⛔ When a guard compares two independently-accumulated floats, the tolerance is a
+  MEASUREMENT over the constructible population PER SUB-FAMILY — never a judgement
+  about whether the construction "should" be exact.** `[M]` region interfaces
+  (cumulative thickness sums) vs mesh edges: **0 ULP** on slab and on every `uniform`
+  mesh, **1 ULP** on CYL/SPH `equal-volume` (`4.441e-16`/`8.882e-16`) — 10 of 4902
+  random interfaces, all in one sub-family, because that arm goes through a
+  `sqrt`/`cbrt` round-trip the `linspace` arm does not. `==` is a *latent* false red:
+  green until someone meshes a curvilinear multi-region geometry by equal volume.
+  Ship a derived band (`4 × np.spacing(|x|)`) WITH its discrimination margin (the
+  nearest wrong edge is one cell away — 13 orders up), and put the arm that PROVES it
+  in the battery: set the guard to `==` and exactly the two curvilinear-equal-volume
+  acceptance rows red. → `L60b`
 
 ## 6. Carve archetypes — where the load-bearing gate lives, by carve shape
 
@@ -1210,6 +1258,28 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   write are the findings. ⚠ Related trap measured the same day: a composition guard
   that SKIPS a `None` operand lets `M⁻¹(bound) @ F(None)` construct happily with
   `domain = None`, so the breakage surfaces one call later. → `L59f`
+- **TYPE-ABSENCE / union restructure (a sentinel becomes a typed union; one member
+  stops having attributes):** three rules, all measured on CS1.5.
+  **(1) ⛔⛔ `getattr(obj, "attr", default)` swallows the `AttributeError` a refusing
+  property raises**, so every duck-typed consumer degrades SILENTLY — `[M]` the
+  homogeneous `C` would have gone space-anonymous and un-done a whole landed floor
+  with no exception anywhere. Grep `getattr(<receiver>, "<name>"` and `hasattr(`
+  and read what each hit DECIDES; the attribute set partitions into *may be absent*
+  and *must stay legal*, and the second class is decided by the duck-typed readers,
+  not by the concept. ⭐ Corollary for the plan: when a promise LEDGER and the design
+  BODY disagree about deleting such an attribute, the ledger is the dangerous one —
+  it is the thing someone ticks off. **(2) ⛔ `eq=False` may be FORCED by the field
+  types, not chosen** — `[M]` a frozen `eq=True` dataclass holding a `dict` of numpy
+  dataclasses has a `__hash__` that ALWAYS raises and an `__eq__` that raises for
+  equal-but-distinct values; three lines of toy probe settled a two-document style
+  argument, and the test-design consequence is that content identity must be gated on
+  what the type MINTS, never on its own equality. **(3) ⭐⭐ Say WHICH measure you are
+  mutating** — one field can feed two consumers with opposite visibility: `[M]`
+  doubling the SPACE weight leaves `k_inf`/`flux`/`sig_prod`/`sig_abs` bit-identical
+  (a rank-1 point axis makes the space measure invisible end-to-end, L59a's dual)
+  while doubling the CELL VOLUME halves the flux and doubles both rates; `k_inf` is
+  blind to both, being a ratio. One arm per consumer; never credit a k-level row for a
+  measure claim. → `L60a`, `L60d`, `L60g`
 
 ## 7. Snapshots, generators, and exactness
 
