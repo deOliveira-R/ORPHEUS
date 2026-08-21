@@ -407,24 +407,21 @@ class MaterialMesh:
         (the leak principle: the mint consults exactly its defining data —
         ``from_materials`` retains spectator entries, and a spectator with
         ``eg=None`` must not flip the axis identity of a problem it does
-        not touch). All reachable materials carrying content-equal ``eg``
-        edges ⟹ ``EnergyAxis.from_grid`` (identity = ng + edges bytes);
-        otherwise ``EnergyAxis.synthetic(ng)``. Deterministic per carrier;
-        deliberately NO new construction-time refusal — grid coherence
-        across materials is a MEDIUM-level invariant (CS1.5 design input).
+        not touch). The reachable set then goes through the ONE energy-arm
+        rule, :meth:`~orpheus.numerics.axis.EnergyAxis.from_materials`
+        (hoisted there at CS4a K1 so the mixture-minted homogeneous space
+        and this property cannot spell the rule twice). Deterministic per
+        carrier; deliberately NO new construction-time refusal — grid
+        coherence across materials is a MEDIUM-level invariant (CS1.5
+        design input).
 
         Cached: every consumer of one carrier reads the SAME instance
         (and equal carriers mint ``==`` spaces through the derived name).
         """
         reachable = sorted(int(i) for i in np.unique(self.mat_map))
-        egs = [self.materials[i].eg for i in reachable]
-        present = [eg for eg in egs if eg is not None]
-        if egs and len(present) == len(egs) and all(
-            np.array_equal(eg, present[0]) for eg in present[1:]
-        ):
-            energy = EnergyAxis.from_grid(self.materials[reachable[0]].energy_grid)
-        else:
-            energy = EnergyAxis.synthetic(self.ng)
+        energy = EnergyAxis.from_materials(
+            self.materials[i] for i in reachable
+        )
         return FunctionSpace.of_axes(
             energy,
             SpaceFactorAxis(

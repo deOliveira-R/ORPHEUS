@@ -75,7 +75,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from orpheus.data.energy_grid import EnergyGrid
+    from orpheus.data.macro_xs.mixture import Mixture
 
 __all__ = ["Axis", "BasisKind", "EnergyAxis"]
 
@@ -316,6 +319,43 @@ class EnergyAxis(Axis):
         partition data — a different axis.
         """
         return cls("energy", (int(ng),), kind=BasisKind.NODAL, edges=None)
+
+    @classmethod
+    def from_materials(cls, materials: "Iterable[Mixture]") -> "EnergyAxis":
+        """THE energy-arm rule, in its one home (hoisted at CS4a K1).
+
+        Content-equal ``eg`` edges across ALL the given materials ⟹
+        :meth:`from_grid` on the first one's grid; any absent or
+        differing edge set ⟹ :meth:`synthetic` on the first one's
+        ``ng``. Refuses an empty iterable (no material, no axis).
+
+        The CALLER chooses the denominator, and that choice is part of
+        the rule's meaning: a carrier passes exactly its REACHABLE
+        materials (the leak principle — a spectator entry with
+        ``eg=None`` must not flip the axis identity of a problem it
+        does not touch), and the homogeneous pose passes its one
+        mixture. Both spellings of the energy arm
+        (``MaterialMesh.bulk_space`` and the mixture-minted homogeneous
+        space) route through here, so they cannot diverge — the second
+        spelling this hoist exists to make unspellable.
+
+        Consumes the materials' surface only (``eg``, ``energy_grid``,
+        ``ng``) under ``TYPE_CHECKING`` — the module's layering note
+        applies unchanged.
+        """
+        mats = list(materials)
+        if not mats:
+            raise ValueError(
+                "EnergyAxis.from_materials needs at least one material "
+                "(an empty carrier has no energy structure to read)"
+            )
+        egs = [m.eg for m in mats]
+        present = [eg for eg in egs if eg is not None]
+        if len(present) == len(egs) and all(
+            np.array_equal(eg, present[0]) for eg in present[1:]
+        ):
+            return cls.from_grid(mats[0].energy_grid)
+        return cls.synthetic(mats[0].ng)
 
     def _identity_key(self) -> tuple[Any, ...]:
         e = self.edges
