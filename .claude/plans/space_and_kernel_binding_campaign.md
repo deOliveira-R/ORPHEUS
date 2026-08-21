@@ -616,6 +616,28 @@ completes at CS4b, O4 at CS4c, O5 at CS2 entry).
    imminent consumers ⟹ build). Collision stays a property (ruling 2
    verbatim), the binding arity leaving a later coefficient-kernel admissible
    without re-carve. Re-examine the roster at Campaign 2's chartering.
+   ⭐ **F4 addendum — the dyad's adjoint boundary (user question, 2026-08-20,
+   design input for CS2/CS4c's angular binding).** The dyad fully determines
+   the adjoint exactly where it IS the whole operator: energy-only spaces (+
+   the spatially-diagonal extension), where counting measure makes metric
+   adjoint ≡ transpose ≡ the χ↔νΣf factor swap BY THEOREM (the verification
+   plan's own blindness measurement is this theorem read as a gate). On
+   ANGULAR/MOMENT spaces the dyad UNDERDETERMINES the adjoint: F decomposes
+   as (isotropic embedding E) ∘ (χ broadcast) ∘ (νΣf contraction) ∘ (angular
+   retraction R), and the metric adjoint of the w-weighted retraction is the
+   CONSTANT embedding — the Euclidean transpose is the w-WEIGHTED embedding,
+   differing by a G-conjugation (the measured G6.3/87 % failure class) —
+   with the Σw = 4π placement owned ONCE by the binding or the adjoint
+   silently gains/loses it (failure-mode #3). ⟹ the angular/moment binding
+   MUST realize F as the composite with R/E supplied by the SPACE's measure
+   (or the frame: the ℓ=0 projection/injection pair is adjoint iff the frame
+   is TIGHT — which is exactly why the sketch's tightness gate
+   `bind(K)† = bind(K†) ⟺ tight` exists), never as a monolithic apply with
+   a hand-coded adjoint. `.H` then composes through the existing operator
+   algebra and the factor swap is a theorem of the factors. Caveat: metric
+   adjoints need nondegenerate per-factor metrics — bulk angular weights are
+   positive (safe); degeneracy lives on trace metrics, which F never
+   touches.
 
 **Steps**:
 
