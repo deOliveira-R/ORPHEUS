@@ -41,6 +41,22 @@ apply-time dispatch retires.
    space phases — see the §4 sequencing block for the derivation. ⚠ 2026-08-20: CS1.5
    (the Medium un-weld) inserted between CS1 and CS2 — chartered in the CS1 design
    record (its Q11 ruling carries the reasoning).
+   ⚠⚠ 2026-08-20 (user, later the same day): **the order is RE-RULED — the kernel
+   carve's energy core pulls forward**: CS3 ✓ → CS1 ✓ → **CS4a** (kernel types +
+   construction-time binding for the energy family C/IsoS/IsoN2N/F; S-angular's
+   frame and the L/B xfail rows still ride CS2 — §5's own done-when already
+   carves them out) → **CS1.5′** (medium/assignment, designed against the LANDED
+   binding signature) → CS2 → **CS4b** (the apply-time dispatch retirement
+   remainder). Reason (the pinned dead-end; user: "the sequencing might just
+   have been a bad charter on my part"): the CS1.5 design kept orbiting
+   carrier-interface questions — where `mat_map`/`spatial_shape`/`volume_measure`
+   live — that are ARTIFACTS of apply-time-polymorphic operators reading a
+   carrier; ruling 2's construction binding dissolves all six of the homogeneous
+   path's carrier demands (`[M]` the demand→home mapping in
+   `.claude/plans/kernel_and_medium_objectives.md`). The charter error was the
+   maximalist reading of "spaces before binding" — ALL spaces before ANY
+   binding — when a binding needs only ITS space, and the energy-family spaces
+   ship since CS1.
 4. **Campaign split.** This campaign = Space + Kernel→Operator realization (+ the cone
    carve, which must precede the dispatch collapse — §4 rationale). Campaign 2 = the
    LossRepresentation overturn — "currently an early decision on partitioning" — to
@@ -198,6 +214,16 @@ go. Per-phase verification stays as CS1 practiced it (scoped suites + battery +
 pyright + Sphinx `-W`). Merge-status: trust git, never this sentence.
 
 ## 2.5 Phase CS1.5 — the medium is a concept with its own home (the un-weld)
+
+**⏸ RE-SEQUENCED 2026-08-20 (§0 ruling 3's ⚠⚠): CS4a — the kernel core — now
+precedes this phase, and this section's grounded design (with the four fork
+rulings of 2026-08-20) is DEMOTED to a CONTESTANT in the joint kernel+medium
+design rounds.** The carrier-side machinery below (the union's quotient member,
+`from_medium`'s quotient arm) was interface design for demands CS4a dissolves;
+the physics-side objectives (medium expressible, generator lattice, conformity,
+retirement honesty) survive, restated in
+`.claude/plans/kernel_and_medium_objectives.md`. The grounding census and the
+`[M]` fact base remain the shared evidence. Body kept per plan-authoring §3.
 
 **Goal.** The physical medium (what fills space) exists as its own type ABOVE
 the discretization; the homogeneous solver poses on it; the fake
@@ -529,6 +555,13 @@ the ledger.
   sphinx clean ×3; `dead_references` 0/56 at close.
 
 ## 5. Phase CS4 — S and F are kernels; operators are born bound
+
+**⚠ SPLIT + PULLED FORWARD 2026-08-20 (§0 ruling 3's ⚠⚠): CS4a (kernel types +
+construction binding, energy core) runs NEXT, before CS1.5′/CS2; CS4b (the
+apply-time dispatch retirement everywhere, the L/B xfail rows, any
+Optional→mandatory flips) stays post-CS2.** The body below predates the split
+and reads as the unified phase; its means and done-when apportion to the two
+halves at CS4a's chartering (the joint design rounds state the apportionment).
 
 **Goal.** `ScatteringKernel`/`FissionKernel` are representation-free data; a constructor
 binds Kernel × Frame → the actual operator, fully bound (one domain, one codomain, ONE

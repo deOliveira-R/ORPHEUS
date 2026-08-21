@@ -1,7 +1,18 @@
 # CS1.5 design — the Medium un-weld, grounded against the tree
 
-**STATUS: ⏹ GROUNDED + FORKS RULED (2026-08-20). Next: test-architect → compact
-→ execute.** Charter = `cs1_energy_space_design.md` fork Q11 (ruled round 6,
+**STATUS: ⏸ SUPERSEDED-AS-CHARTED (2026-08-20, same day) — DEMOTED TO
+CONTESTANT.** The user re-ruled the campaign order (campaign plan §0 ruling 3's
+⚠⚠): the kernel carve (CS4a) precedes the medium work, because this design's
+hardest questions — the carrier surface (`mat_map`/`spatial_shape`/
+`volume_measure` homes), Medium-as-carrier vs pullback-union — are interface
+design for demands construction-time binding dissolves. This file remains (a)
+the grounded `[M]` fact base (§2 — still authoritative, census-backed) and (b)
+the INCUMBENT contestant for the joint design rounds
+(`kernel_and_medium_objectives.md`). The four fork rulings of 2026-08-20 demote
+with it; fork 4's regime caveat survives as a standing constraint. The
+in-flight test-architect plan against this design is PARKED on the same
+grounds. Original status: "⏹ GROUNDED + FORKS RULED (2026-08-20). Next:
+test-architect → compact → execute." Charter = `cs1_energy_space_design.md` fork Q11 (ruled round 6,
 delegated) + its §B2 (rounds 4–6). This file is the grounding pass + round-7
 re-derivation Q11 said the charter lacked. Census of record:
 `scratch/cs15_grounding_census.md` (601 lines — call censuses with filters +
