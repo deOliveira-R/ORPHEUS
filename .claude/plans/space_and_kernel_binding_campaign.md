@@ -680,7 +680,7 @@ remedied at CS1-3b (recorded in-file, `test_monomorphic_leaves.py:668-677`)
 and R6×8 was never P1's — the campaign total reads **"the remaining 8"**
 (R1×5 + R2×3), apportioned CS4a → CS4c below.
 
-### CS4a — the kernel core (CHARTERED 2026-08-20; selected by the adversarial design rounds)
+### CS4a — the kernel core (CHARTERED 2026-08-20; ⏹ EXECUTED 2026-08-21 — ledger at the end of this subsection)
 
 **Goal.** The interaction kernels exist as representation-free data and the
 four energy-family operators are BOUND at construction — space carried and
@@ -805,6 +805,51 @@ mutation); D5 8/8; pyright terminal-1; Sphinx `-W` clean.
 **Fences**: no apply-arm deletion; no field-class edits beyond what K2's rate
 re-pose strictly needs (fields are CS4b's); no S/angular changes; no Medium;
 C8 (frames/CS2) intact; solver entries unchanged.
+
+
+#### ⏹ CS4a EXECUTED 2026-08-21 — the ledger (K0 → K1 → K2a → K2b on `feature/cs1-energy-space`, pushed; BRANCH-HOLD stands)
+
+| step | commit | content |
+|---|---|---|
+| K0 | ✅ LANDED `069e2caa` | per-row `_R1_ROWS`/`_R2_ROWS` split (`_G13_ROWS` shape) + the PERMANENT strict-introspection gate `test_ledger_xfail_marks_are_strict`. `[M]` G0.1 98 node-ids byte-identical; G0.2 16 XFAIL lines identical; battery M0.1/M0.2/M0.3 per prediction (M0.2's zeros recorded: G0.1/G0.2 both blind, G0.3 the only instrument) |
+| K1 | ✅ LANDED `15bbf935` | `orpheus/transport/kernels.py` minted (ScatteringKernel / N2NKernel / FissionKernel, frozen + read-only views over ONE `Mixture`; χ law through `enforce_emission_spectrum`; truncation refuses beyond-order) + `EnergyAxis.from_materials` = the ONE energy-arm rule, `bulk_space` re-pointed. G1.1–G1.9 (35 rows). Battery 9 arms; 2 test-file defects the battery itself caught were repaired in-flight (the symmetric control row's carrier made all-symmetric; G1.5's leg order made M1.6/M1.7 distinguishable) |
+| K2a | ✅ LANDED `9f1d4190` | `_pose_space(mix)` mints Energy ⊗ point; `_assemble_loss_operator(mat_xs, space)`; rates → `space.inner_product` (`[M]` value no-op: D5 8/8, frozen rates 0 ULP); the shared `_energy_conformity` guard wired into all four constructors; G2.1–G2.10 (minus G2.11); the three §7.4 doc edits incl. the `.. implements:: normalisation :by:` re-point |
+| K2b | ✅ LANDED `49b29391` | F space-MANDATORY (field + both annotations + `from_solver_data`); the 9-test-site §6b unit; D11 DELETED; R1-F/R2-F markers deleted — **ledger 16 → 14** (R1: L,C,S,B; R2: C,S; R6: 8); G2.11. Q3 ruled: hand-built survey space (no carrier exists behind the synthetic mat_xs) |
+
+**Findings that SUPERSEDE plan/charter claims (edited here per plan-authoring §3):**
+
+- ⛔ REFUTED 2026-08-21 (by the K2a battery, M2.2 re-run against the landed
+  gates): *"the space swap has NO runtime witness; §7.1's grep is the ONLY
+  evidence"* — TRUE when measured (the plan's tree had no G2.4/G2.5), FALSE
+  after K2a: `[M]` re-wiring the solve to `mat_xs.mesh.bulk_space` reds
+  **G2.4 + G2.5** (each wiggles one side of the measure identity, so they
+  distinguish the mint from the carrier read). The greps remain obligations;
+  they are no longer the only evidence.
+- `[M]` the D5 sensitivity INVERSION (F3) measured on BOTH sides: pre-K2
+  `volumes ×2` moved `flux 397.946 → 198.973` and the space weight was
+  bit-identically inert; post-K2 `volumes ×2` moves NOTHING on the
+  homogeneous path (G2.4 + D5 green; 24 off-path reds are the wider tree's
+  legitimate volume-measuring tests) and the space weight ×2 reds **D5 8/8**
+  + G2.5/G2.6/G2.1/D1 (19 rows).
+- `[M]` M2.10c (the charter's original shape-keyed ng guard, run as a
+  mutation): **275 rows destroyed** (207 failed + 68 errors) — the
+  executable confirmation of verification-plan F2 (250/845 at plan time).
+- `[M]` M2.13 (iso pair space-mandatory): **84 reds** — the F2/R-C scoping's
+  measurement; the iso flip belongs to CS4c with its migration batch.
+- `[M]` M2.12: the registry-keyset gate is structurally BLIND to the iso
+  pair's `isinstance` arms (predicted; the behavioural matrix G2.8 is the
+  instrument that catches it).
+- ⚠ M2.6's value-motion catcher is **D5**, not G2.3 — G2.3 reads the pairing
+  directly (its own spec), so solver-side contraction errors are caught by
+  the byte gate's 6 non-1g rows.
+- The campaign total *"the remaining 8"* now reads **"the remaining 6"**
+  (R1-C/R2-C/R1-S/R2-S → CS4c; R1-L/R1-B → CS2). `[M]` R1-C confirmed NOT
+  free (F5).
+
+**Deferred consciously:** the arity arm ships with NO CS4a witness (§2(h).6 —
+its first meshed binding is CS4b/CS4c's); `FissionKernel` has one gate and no
+production consumer until CS4c rebinds F (Q2 — stated in its docstring);
+IntegratedReactionRate survives for its meshed diffusion/SN consumers.
 
 ### CS4b — fields are space elements (goal chartered; grounding at its own session)
 
