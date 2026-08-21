@@ -298,6 +298,28 @@ production today (the carrier's ng-unanimity gate + singleton callers —
 the review's MA-1 withdrawal); the refusal belongs HERE, at the Medium,
 not at the classmethod.
 
+**Design input (user question, 2026-08-21) — `SNMesh` is a misnomer, and
+the remedy is the DECOMPOSITION this phase + CS2/CS4b already charter, not
+a rename.** The class is a conjunction: geometry mesh (spatial measure +
+BC declarations) × materials (energy measure) × assignment (`mat_map` —
+not a measure; the coupling that makes Σ a function ON the phase space) ×
+quadrature (angular measure) × scheme (the within-cell closure that
+refines the spatial factor) — `augmented_mesh.py`'s own module name
+confesses it. Ruled reading: the phase space PROPER is the object the
+class MINTS (post-CS2 literally `of_axes(Angular, Energy, Spatial)` ⊕
+trace), so ⛔ do NOT spend the name `SNPhaseSpace` on the container — the
+Medium takes materials+assignment (this phase), the minted space takes the
+phase-space role (CS2), fields consume the space (CS4b), and the residual
+— mesh + quadrature + scheme (+BCs on the geometry) — is the
+DISCRETIZATION-choices tuple (`SNDiscretization` if a class survives; it
+may dissolve into the solver entry). Decide the residual's name when the
+un-welds land, not before. Formal note for the BC constituent: a BC is a
+law on the trace pair (Γ₊, Γ₋) whose measure is the SPATIAL measure's
+boundary restriction (dV → dA, the divergence-theorem counterpart) × the
+`|Ω·n̂|`-weighted ANGULAR measure (which also defines the Γ± split) ×
+energy (diagonal; an albedo may couple groups) — already realized as the
+trace summand's metric `G_trace = |Ω·n̂|·w_n` in `full_field_space`.
+
 ## 3. Phase CS2 — SN's space is a composition of Energy, Spatial, and Angular
 
 **Goal.** SN's bulk space is literally the composition Energy ⊗ Spatial ⊗ Angular of
