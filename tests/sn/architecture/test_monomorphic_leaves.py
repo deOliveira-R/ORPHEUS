@@ -697,8 +697,16 @@ def _domain_annotation(leaf_cls: type) -> "tuple[str, str]":
     return "<not found>", "<not found>"
 
 
-@pytest.mark.parametrize("leaf", _LEAVES)
-@_R1_XFAIL
+#: Per-ROW marks (the ``_G13_ROWS`` shape): a function-level ``@_R1_XFAIL``
+#: cannot flip partially — CS4a's K2 deletes the ``F`` row's marker alone
+#: while ``L``/``C``/``S``/``B`` stay red until their own campaign phases.
+_R1_ROWS = [
+    pytest.param(leaf, marks=[_R1_XFAIL], id=leaf)
+    for leaf in _LEAVES
+]
+
+
+@pytest.mark.parametrize("leaf", _R1_ROWS)
 def test_leaf_space_annotation_is_not_optional(leaf):
     r"""**G1.1 / R1**, static face — ``domain`` is not typed ``Optional``.
 
@@ -1022,8 +1030,16 @@ def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
 # G1.5 — an anonymous leaf is unrepresentable
 # ═════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.parametrize("leaf", _ANONYMOUS_CAPABLE)
-@_R2_XFAIL
+#: Per-ROW marks, same rationale as ``_R1_ROWS``: K2 flips the ``F`` row
+#: alone (``C`` waits for CS4c's mandatory flip, ``S`` for the S→kernel
+#: shell).
+_R2_ROWS = [
+    pytest.param(leaf, marks=[_R2_XFAIL], id=leaf)
+    for leaf in _ANONYMOUS_CAPABLE
+]
+
+
+@pytest.mark.parametrize("leaf", _R2_ROWS)
 def test_leaf_without_a_space_refuses_construction(leaf):
     r"""**G1.5 / R1 / R2** — building a leaf with NO space must RAISE.
 
@@ -1123,3 +1139,43 @@ def test_mesh_derived_leaves_carry_no_anonymous_construction_surface(leaf):
             f"R2 `.H`-degrades-silently surface (see "
             f"test_leaf_without_a_space_refuses_construction)."
         )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# The ledger's own invariant — every xfail row is strict
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def test_ledger_xfail_marks_are_strict():
+    r"""Every ``xfail`` mark on every ledger row carries ``strict=True``.
+
+    ``strict=True`` is what makes the ledger SELF-RETIRING: the campaign
+    phase that repairs a row turns its xfail into a hard ``XPASS(strict)``
+    failure, which forces the marker's deletion in the repairing commit.
+    Without it a repaired row reports ``x`` forever and the ledger silently
+    stops tracking anything.
+
+    Losing the flag is the ledger's one SILENT failure mode, and nothing
+    else can see it: ``pyproject.toml`` carries no ``xfail_strict``
+    fallback, a non-strict row still reports ``x``, ``--collect-only`` is
+    unchanged, and ``-rx`` output is unchanged. A re-spelled mark
+    (``pytest.mark.xfail(reason=…)`` with ``strict`` forgotten) passes every
+    other check in this file — only this introspection reddens.
+
+    ``pytest.param(...).marks`` is readable at import time, so the check is
+    direct. Rows with no xfail mark (the ``_G13_ROWS`` control legs, and any
+    row whose marker a landed repair deleted) are legitimately unmarked and
+    skipped. This gate is PERMANENT — it survives every phase of the
+    campaign, guarding whatever rows remain.
+    """
+    for row in (*_R1_ROWS, *_R2_ROWS, *_G13_ROWS):
+        for mark in row.marks:
+            if mark.name == "xfail" and mark.kwargs.get("strict") is not True:
+                pytest.fail(
+                    f"ledger row {row.id!r} carries a NON-STRICT xfail mark "
+                    f"(kwargs {mark.kwargs!r}) — the row can no longer "
+                    f"self-retire: an XPASS reports `x` instead of failing, "
+                    f"and the repair that earns the flip never learns the "
+                    f"marker must be deleted. Spell it "
+                    f"pytest.mark.xfail(strict=True, reason=…)."
+                )
