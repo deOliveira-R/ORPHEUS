@@ -158,13 +158,19 @@ class TestConstruction:
         with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
             TimedFullField(interior=psi, boundary=psi)  # type: ignore[arg-type]
 
-    def test_rejects_mismatched_mesh(self) -> None:
+    def test_twin_mesh_blocks_mix_and_derive_the_carrier_space(self) -> None:
+        # CS4b S4 (F4 — the F2 doctrine's composite leg): twin carriers
+        # mint content-equal spaces, so blocks assemble across them; the
+        # pre-S4 mesh-IDENTITY refusal retired (cross-slot coherence is
+        # an admission question at the seams that hold a carrier
+        # reference, not a construction question).
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # different instance, same structure
         psi = AngularFlux.zeros_on(m1)
         bf = AngularBoundaryFlux.zeros_on(m2)
-        with pytest.raises(ValueError, match="mesh identity"):
-            TimedFullField(interior=psi, boundary=bf)
+        state = TimedFullField(interior=psi, boundary=bf)
+        if state.space != m1.full_field_space:
+            pytest.fail("twin-carrier composite must content-equal the mint")
 
     def test_rejects_negative_history_depth(self) -> None:
         m = _slab_mesh()

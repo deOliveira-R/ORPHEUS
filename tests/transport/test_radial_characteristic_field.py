@@ -246,8 +246,11 @@ class TestRadialCharacteristicFieldSpace:
     r"""``SNMesh.radial_characteristic_field_space`` — System B's member space.
 
     The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
-    System A uses, instantiated over the two split ψ½ spaces under the
-    identity name ``"radial_characteristic"``. The metric rows exercise the
+    System A uses, instantiated over the two split ψ½ spaces. The identity
+    name is the family rule (CS4b S4): ``full_field#<digest>`` folded from
+    the MEMBER spaces' content — the pre-S4 ``"radial_characteristic"``
+    role tag left the space name (G2.3: role is class identity; the role
+    lives on ``RadialCharacteristicField``). The metric rows exercise the
     ``_rebuild`` presence-dispatch 2-BLOCK arm on the REAL composite (before
     B.2b this path raised — ``_rebuild`` always passed the seed kwarg to a
     hook that has none); the FullField row pins the 3-slot arm byte-identical
@@ -264,8 +267,13 @@ class TestRadialCharacteristicFieldSpace:
             pytest.fail("sphere (carrying) must mint the composite space")
         n_i = sn.radial_characteristic_interior_space.shape[0]
         n_b = sn.radial_characteristic_boundary_space.shape[0]
-        if space.name != "radial_characteristic":
+        # The family prefix + a member-content digest (never pin the full
+        # literal — R4); System B is DISCRIMINATED from System A by member
+        # content, not by a role tag.
+        if not space.name.startswith("full_field#"):
             pytest.fail(f"space name is {space.name!r}")
+        if space == sn.full_field_space:
+            pytest.fail("System B's composite must differ from System A's")
         np.testing.assert_array_equal(space.shape, (n_i + n_b,))
 
     def test_member_spaces_are_the_split_instances(self) -> None:

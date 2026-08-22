@@ -96,6 +96,7 @@ References
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol
 
@@ -217,7 +218,6 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         cls,
         interior_space: FunctionSpace,
         trace_space: FunctionSpace,
-        name: str = "full_field",
     ) -> "FullFieldSpace":
         r"""Build the composite from its bulk and trace leaf spaces.
 
@@ -226,17 +226,35 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         identity dimension is robust to a future multi-axis trace (today
         ``trace_space.shape == (total_size,)``).
 
-        ``name`` keys the ``(name, shape)`` identity and signals the
-        INSTANCE: the default ``"full_field"`` is System A's bulk ⊕ trace
-        composite; System B's ψ½ composite instantiates the SAME
-        family-blind class under ``name="radial_characteristic"``
-        (B.2b DP1 — one composite-space class, instances differ in
-        members).
+        **The name is derived from the members (CS4b S4 — the F4 ruling),
+        exactly as ``of_axes`` derives a product's name from its factors:**
+        ``full_field#<digest>`` folds each member's ``(name, shape)`` pair,
+        so the composite's inherited ``(name, shape)`` identity is
+        precisely as content-keyed as its members' — a direct sum of
+        content-digest-named mints compares by content (twin carriers
+        EQUAL, volumes/quadrature/family differences UNEQUAL), and a
+        direct sum of hand-built raw spaces compares by whatever their
+        names carry, the family convention everywhere else. This is what
+        retired the R2 block-blindness (a bare ``"full_field"`` name made
+        any two composites of equal flat dimension identical).
+
+        The retired ``name=`` role parameter is deliberate, not lost:
+        role is CLASS identity (G2.3) — System B's ψ½ composite is
+        ``RadialCharacteristicField`` the *field class*, instantiating
+        this SAME family-blind space class (B.2b DP1); tagging the space
+        ``"radial_characteristic"`` was the role-flavoured naming the S2a
+        ``_SPACE_NAME`` retirement removed from the leaves. Every
+        instance is somebody's "full field" (interior ⊕ boundary of ONE
+        system).
         """
         n_interior = int(np.prod(interior_space.shape))
         n_trace = int(np.prod(trace_space.shape))
+        payload = "|".join(
+            f"{s.name}:{s.shape}" for s in (interior_space, trace_space)
+        ).encode()
+        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
-            name=name,
+            name=f"full_field#{digest}",
             shape=(n_interior + n_trace,),
             interior_space=interior_space,
             trace_space=trace_space,

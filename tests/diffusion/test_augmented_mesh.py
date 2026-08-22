@@ -115,11 +115,18 @@ class TestSpaces:
         ffs = dm.full_field_space
         assert ffs.trace_space is dm.scalar_trace
         assert ffs is dm.full_field_space          # cached — one identity
-        # Bulk metric = cell volumes broadcast over the group axis.
-        assert ffs.interior_space is not None
+        # CS4b S4: the interior IS the carrier's cached axis-built mint
+        # (the Q2 three-family unification's diffusion leg) — and its
+        # metric ACTION is cell volumes broadcast over the group axis
+        # (asserted on the action, not the storage: axis-built spaces
+        # carry per-axis weights, not one dense array).
+        assert ffs.interior_space is dm.bulk_space
+        x = np.arange(1.0, 1.0 + float(np.prod(ffs.interior_space.shape))).reshape(
+            ffs.interior_space.shape
+        )
         np.testing.assert_array_equal(
-            ffs.interior_space.inner_product_weights,
-            np.asarray(dm.volumes)[None, :],
+            ffs.interior_space.apply_metric(x),
+            x * np.asarray(dm.volumes)[None, :],
         )
 
 

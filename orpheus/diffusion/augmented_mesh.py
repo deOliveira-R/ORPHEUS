@@ -346,22 +346,23 @@ class DiffusionMesh(MaterialMesh):
         metric :math:`G` is
 
         * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}` — the spatial
-          volume measure, stored ``(1, *spatial)`` so it broadcasts
-          across the energy-group axis of the ``(ng, *spatial)`` bulk
-          (the scalar flux is already angle-integrated: no ``w_n``);
+          volume measure, carried by the spatial axis of the carrier's
+          cached :attr:`bulk_space` mint (the scalar flux is already
+          angle-integrated: no ``w_n``);
         * **trace** — the face-AREA metric already carried by
           :attr:`scalar_trace` (the surface measure of angle-integrated
           partial currents).
 
+        The interior member IS the carrier's cached axis-built
+        :attr:`bulk_space` (CS4b S4 — the Q2 three-family unification's
+        diffusion leg, forced by the F4 derived-space form: the mint's
+        members must BE the mints the FIELDS ride, or the composite a
+        field derives never content-equals the carrier's; `[M]` the
+        retired hand-built ``"scalar_bulk"`` twin was metric-bit-identical
+        to ``bulk_space``, so the re-point moved nothing but the name).
+
         Cached: immutable for a given mesh.
         """
-        from orpheus.numerics.space import FunctionSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-        V = np.asarray(self.volumes, dtype=float)  # (*spatial)
-        interior_space = FunctionSpace(
-            name="scalar_bulk",
-            shape=(self.ng, *self.spatial_shape),
-            inner_product_weights=V.reshape((1, *V.shape)),
-        )
-        return FullFieldSpace.from_blocks(interior_space, self.scalar_trace)
+        return FullFieldSpace.from_blocks(self.bulk_space, self.scalar_trace)

@@ -238,22 +238,36 @@ class TestPartialCurrentGuards:
 
 
 class TestScalarComposite:
-    def test_scalar_composite_constructs_and_reads_one_mesh(self):
+    def test_scalar_composite_is_an_element_of_the_carrier_composite_space(self):
         mm = _slab_mesh()
         full = FullField(
             interior=ScalarFlux.zeros_on(mm), boundary=ScalarBoundaryFlux.zeros_on(mm),
         )
-        if full.mesh is not mm:
-            pytest.fail("composite mesh must be the shared DiffusionMesh")
+        # CS4b S4 (F4): the composite's derived space content-equals the
+        # carrier's cached mint (== not is — the wrapper is per-instance;
+        # the MEMBERS are the carrier's cached objects).
+        if full.space != mm.full_field_space:
+            pytest.fail("composite space must content-equal the carrier mint")
+        if full.space.interior_space is not mm.full_field_space.interior_space:
+            pytest.fail("interior member must BE the carrier's cached mint")
 
-    def test_mixed_mesh_composite_rejected(self):
-        """The existing mesh-identity invariant is the angular/scalar
-        mixing guard for free — distinct mesh objects are rejected."""
-        with pytest.raises(ValueError, match="share mesh identity"):
-            FullField(
-                interior=ScalarFlux.zeros_on(_slab_mesh()),
-                boundary=ScalarBoundaryFlux.zeros_on(_slab_mesh()),
-            )
+    def test_twin_mesh_composite_blocks_mix(self):
+        """CS4b S4 (F4 — the F2 doctrine's composite leg): two separately
+        constructed but content-identical carriers mint content-equal
+        spaces, so a composite may be assembled across them — the pre-S4
+        ``interior.mesh is boundary.mesh`` refusal was mesh-IDENTITY
+        doctrine, retired tree-wide at S3. Cross-slot coherence is not a
+        construction question (no carrier reference exists there); the
+        operator/solution admission seams hold the reference and refuse
+        content mismatches (their own witnesses discriminate volumes /
+        quadrature / family)."""
+        a, b = _slab_mesh(), _slab_mesh()
+        full = FullField(
+            interior=ScalarFlux.zeros_on(a),
+            boundary=ScalarBoundaryFlux.zeros_on(b),
+        )
+        if full.space != a.full_field_space:
+            pytest.fail("twin-carrier composite must content-equal either mint")
 
     def test_direct_sum_space_metric_and_inner_product(self):
         """from_blocks admits the scalar trace; the direct-sum inner

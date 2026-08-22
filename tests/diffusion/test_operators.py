@@ -611,11 +611,17 @@ class TestScalarCompositeSubstrate:
     def test_full_field_space_blocks_and_metric(self, mesh):
         ffs = mesh.full_field_space
         assert ffs.shape == (_NG * _NX + 2 * 2 * _NG,)
-        assert ffs.interior_space is not None
+        # CS4b S4: the interior IS the carrier's cached axis-built mint;
+        # the bulk metric ACTION is cell volumes broadcast over groups
+        # (asserted on the action — axis-built spaces store per-axis
+        # weights, not one dense array).
+        assert ffs.interior_space is mesh.bulk_space
         assert ffs.trace_space is mesh.scalar_trace
-        # Bulk metric = cell volumes, broadcast over groups.
-        w = ffs.interior_space.inner_product_weights
-        np.testing.assert_array_equal(w, np.diff(_EDGES)[None, :])
+        x = np.arange(1.0, 1.0 + float(_NG * _NX)).reshape(_NG, _NX)
+        np.testing.assert_array_equal(
+            ffs.interior_space.apply_metric(x),
+            x * np.diff(_EDGES)[None, :],
+        )
 
     def test_scalar_boundary_source_sink_class_gate(self, mesh):
         """Same trace space, different ROLE: source ± flux is rejected

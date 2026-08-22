@@ -136,11 +136,13 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from functools import cached_property
 from typing import TYPE_CHECKING, Callable, Generic, Self, TypeVar
 
 import numpy as np
 
 from orpheus.numerics.field import Field
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
@@ -258,24 +260,42 @@ class Composite(Generic[Interior, Boundary]):
                 f"{type(self).__name__}: boundary must be a Field leaf; got "
                 f"{type(self.boundary).__name__}"
             )
-        # Cross-slot coherence (CS4b S3): the ``getattr(…, "mesh", None)``
-        # tolerance DIED — a defaulted read would become a silent no-op the
-        # moment S4 retires the field's mesh attribute (vv #28's temporal
-        # twin). The direct reads below are LOUD at S4, which owns the
-        # composite-level re-key (the ruled elegant form: the composite
-        # becomes an element of ``FullFieldSpace`` and the slot gate
-        # compares per BLOCK against its space — landing where
-        # ``Composite.mesh`` retires).
-        # The generic bound is Field (mesh-less), so these direct reads
-        # carry per-line ignores; both the reads and their ignores retire
-        # at S4 with the attribute.
-        if self.interior.mesh is not self.boundary.mesh:  # type: ignore[attr-defined]
-            raise ValueError(
-                f"{type(self).__name__}: bulk and boundary must share "
-                "mesh identity (both bound to the same mesh instance); "
-                f"got bulk.mesh={self.interior.mesh!r}, "  # type: ignore[attr-defined]
-                f"boundary.mesh={self.boundary.mesh!r}"  # type: ignore[attr-defined]
-            )
+        # Cross-slot coherence at CONSTRUCTION retired (CS4b S4, the F4
+        # ruling): the pre-S4 ``interior.mesh is boundary.mesh`` check was
+        # the mesh-identity doctrine's composite arm, and the question it
+        # asked — "do these two blocks belong to one carrier?" — is not
+        # spellable from block CONTENT alone (a bulk space cannot derive
+        # its carrier's trace space; the digests are opaque folds of
+        # different data). The reference lives where a carrier does: every
+        # operator/solution admission seam compares each block against the
+        # carrier-minted space (the S3-landed ``space_on`` arms), which is
+        # the currency doctrine — no refusal machinery at a corner no
+        # workflow legitimately reaches (the S3 witnesses had to
+        # MANUFACTURE mixed composites). Twin-carrier blocks, which the
+        # retired check refused, are content-equal and mix by the F2 law.
+
+    # ── The composite as a space element (CS4b S4 — the F4 ruling) ────
+
+    @cached_property
+    def space(self) -> "FullFieldSpace":
+        r"""The direct-sum space this composite is an element of.
+
+        DERIVED from the blocks — ``FullFieldSpace.from_blocks(
+        interior.space, boundary.space)`` — never stored: a composite IS
+        its two block elements, so its space is determined by theirs, and
+        a stored copy would be a twin datum needing a coherence gate that
+        checks bookkeeping instead of physics. ``from_blocks`` derives
+        the name from member content (the of_axes rule), so this property
+        compares ``==`` (content) with the carrier's cached mint
+        (``SNMesh.full_field_space`` / ``DiffusionMesh.full_field_space``
+        / ``SNMesh.radial_characteristic_field_space``) whenever the
+        blocks ride carrier-minted spaces — which post-S2a they always
+        do. Not ``is``: the wrapper is minted per composite (cached per
+        instance); the MEMBERS are the carrier's cached objects.
+        """
+        return FullFieldSpace.from_blocks(
+            self.interior.space, self.boundary.space,
+        )
 
     # ── The composite's single mesh ───────────────────────────────────
 

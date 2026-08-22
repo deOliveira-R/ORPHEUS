@@ -1271,6 +1271,44 @@ surgical posture) for:
    `type: ignore` in `numerics/field.py` — a ratchet DECREASE is itself a
    re-baseline obligation (§8.4).
 
+**✅ ALL THREE RULED (user, 2026-08-22, S4 design proposal session):**
+
+1. **F4 = DERIVED + digest names.** `Composite.space` is a cached property
+   `FullFieldSpace.from_blocks(interior.space, boundary.space)`;
+   `from_blocks` adopts the of_axes rule (name derived from member
+   `(name, shape)` content, `full_field#<digest>`; the `name=` role param
+   RETIRES — G2.3: role is class identity, so `"radial_characteristic"`
+   leaves the SPACE name). The `__post_init__` cross-slot mesh gate
+   retires with NO construction-time replacement (coherence is not
+   spellable from block content without a carrier reference; the
+   S3-landed seam arms are the law — the currency doctrine). `[M]` 51
+   direct production build sites made stored-`space=` boilerplate;
+   composite `==` becomes exactly as content-keyed as its members.
+   Consequences: `test_full_field_space.py` name pin → prefix pin;
+   `test_typed_residual_evaluation.py:228` prefix pin survives per R4;
+   `test_radial_characteristic_field.py:267` re-keys to space objects;
+   `test_mixed_mesh_composite_rejected`'s TWIN fixture flips to the F2
+   positive leg. Named non-goal: `CoupledSpace` untouched.
+2. **F5 = SYSTEM-BOUND.** `evaluate_residual(system: WithinGroupSystem,
+   psi, q_ext)`; the pose guard becomes the loss grid's ARITY (typed
+   refusal names the arity, never the mesh); `[M]` all 4 production
+   certificate sites' `system.loss if coupled else _bare_loss_arm(system)`
+   ternaries die and `_bare_loss_arm` folds into the seedless arm;
+   `TestF5ResidualPoseGuard` re-keys to the arity refusal. 2 prod + 6
+   test call sites migrate.
+3. **Q1 = RECORD-AS-CHOICE.** The flip `cls(values=lhs.values −
+   rhs.values, space=lhs.space)` is `[M]` exact for all six shipped
+   residual leaves (uniformly `(values, space, mesh)` today). Refinement
+   over the recorded design input: a future `MomentResidual` needs a
+   small `from_balance` override threading the operand's stored
+   `(L, spatial_moments)` fields — NOT the `find_factor` route (the
+   fields exist on `MomentField`). The stale "lands on cls's OWN space"
+   docstring paragraph (false since S2a — role-blind shared mints) is
+   fixed in the same edit. Rider: the flip may also dissolve
+   `_residual_is_expressible`'s LD skip — un-skipping is a behaviour
+   change needing witnesses (vv #26), FILED as a follow-up issue, not
+   ridden.
+
 Then S4 proper: mesh retires from the 2 declaration roots; the §8.3
 test-side `.mesh` reads (~116) re-point; `_phase_space_shape` collapses to
 space-vs-values; `Field.zeros`'s `mesh=` extra retires. After S4: S5 (the

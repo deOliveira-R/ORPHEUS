@@ -224,8 +224,10 @@ def test_within_group_operands_share_the_composite_space():
     D5 de-SN-ified name (``"full_field"``, not ``"sn_full_field"``)."""
     solver, LC, S, B = _slab_2g_het_triple()
     ffs = solver.sn_mesh.full_field_space
-    # D5: the cross-method composite-space name is method-agnostic.
-    if ffs.name != "full_field":
+    # D5: the cross-method composite-space name is method-agnostic — the
+    # family prefix, with a member-content digest suffix (CS4b S4; R4:
+    # substring pins survive suffixes).
+    if not ffs.name.startswith("full_field"):
         raise AssertionError(f"composite space not de-SN-ified: {ffs.name!r}")
     # Every within-group operand reports the ONE composite space.  ``LC`` is
     # the production composite taken straight off the ``WithinGroupSystem``

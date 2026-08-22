@@ -1024,10 +1024,14 @@ class SNMesh(MaterialMesh):
         * **trace slot** — :attr:`radial_characteristic_boundary_space`
           (the ``G = V(r = R)`` corner gauge).
 
-        Identity ``("radial_characteristic", (n_interior + n_corner,))`` —
-        the name signals the instance. ``None`` on non-carrying meshes
-        (R12a; System B does not exist there). Cached: one space per mesh,
-        so every block shares one identity instance.
+        Identity is the family rule (CS4b S4): ``full_field#<digest>``
+        with the digest folded from the two ψ½ member spaces' content —
+        the role tag the pre-S4 mint carried (``"radial_characteristic"``)
+        was role-flavoured space naming (G2.3: role is CLASS identity —
+        the role lives on ``RadialCharacteristicField``, the field class).
+        ``None`` on non-carrying meshes (R12a; System B does not exist
+        there). Cached: one space per mesh, so every block shares one
+        identity instance.
         """
         interior = self.radial_characteristic_interior_space
         boundary = self.radial_characteristic_boundary_space
@@ -1035,9 +1039,7 @@ class SNMesh(MaterialMesh):
             return None
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-        return FullFieldSpace.from_blocks(
-            interior, boundary, name="radial_characteristic",
-        )
+        return FullFieldSpace.from_blocks(interior, boundary)
 
     @cached_property
     def angular_bulk_space(self) -> "FunctionSpace":
