@@ -1186,6 +1186,32 @@ not silently dropped (user F1 ruling).
   (found by the review; "the carrier's axis-built bulk_space" — greppable
   by symbol AND by the concept "threaded domain").
 
+**⏹ CS4b DESIGN COMPLETE (rounds 0–3c, 2026-08-21/22) — execution NOT
+started.** Surfaces, in pickup order: the design record
+`.claude/plans/cs4b_fields_design.md` (⚠ its own header: later rounds
+supersede earlier fork text IN PLACE — read the round sections first) → the
+verification plan `scratch/cs4b_verification_plan.md` (7 steps S1–S7; the
+22-arm identity table §11.1; gate specs with named witnesses; §16 done-when
+predicates; §0 baselines) → the census memos (`cs4b_grounding_census.md`,
+`cs4b_field_taxonomy_census.md`, `cs4b_kernel_as_frame_stress.md`, all in
+scratch/). Ruled at design: effort is NEVER a decision criterion (round 1);
+the machinery collapse is CS4b's committed scope and the CLASS-MERGE is a
+named decision point after; F2 = space CONTENT equality (`[M]` every space is
+law-blind, correctly — laws are operator data); SN-first kernel consumer
+(F5 reversal); Q3 no-gate (`[M]` no concrete site); Q5 = **complete the frame
+square** — the frame gains `dual_reconstruction`, the field-layer /Σw
+spellings are its hand-rolled ℓ=0 shadows, the factor is G₀⁻¹ DERIVED; Q6
+refusal ratified with the exact-modal-cone extension filed as **#400** (and
+the moment-tail bug as **#399**). Step sequence S1 carrier mints → S2 the
+METRIC step (`[M]` bulk `l2` moves 41 % — CS4b owns the
+`test_si_diagnostic_trajectory` re-derivation, ρ≈c anchor licence) → S3
+consumers + the 22-arm re-key → S4 the mesh field deletes → S5 sugar
+migration → S6 verbs + #399 → S7 repairs/EE-1/docs. The full ruling table
+(Q1–Q8, epistemic markers) = the design record §Round 3c. Execution posture:
+surgical (main agent writes, user steers); it OPENS by writing the L17
+convention crosswalk from the two surfaces, then S1. Session commits:
+`466e6756`/`57270819`/`455d5f9a`/`34df88cb`/`3f358998`/`44a4a4b8` + the fold.
+
 ### CS4c — the dispatch collapse (goal chartered; after CS2 per the ruled order)
 
 **Goal.** Apply-time overloading retires: the per-instance

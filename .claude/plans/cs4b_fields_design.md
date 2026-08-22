@@ -489,3 +489,31 @@ exists but is not coordinate-wise in the modal basis); the vertex test is
 the NAMED future capability with its natural first consumer (a
 positivity-preserving limiter, Zhang–Shu family); the theorem family is
 recorded in the corpus with the refusal.
+
+### Round 3c (2026-08-22) — Q6 disposed; the eight-ruling status table; DESIGN COMPLETE
+
+- **Q6 disposed (user)**: the refusal + routing flip stand ("nice that
+  something is already inside the code, but this requires an extension");
+  the exact-modal-cone extension is **#400** (vertex test / realizability —
+  user-directed filing: the corpus record alone is not a robust recovery
+  surface for an improvement). The two-sided gate (DD answers / LD refuses)
+  + the `field.py:463-475` and `scheme.py:530` docstring re-words ride CS4b
+  S6/S7 as planned.
+
+**Status of the verification plan's eight open rulings at design close**
+(epistemic markers per plan-authoring §2 — RULED = the user's; RECOMMENDED =
+mine, presented and unvetoed, operative unless redirected at execution):
+
+| Q | status |
+|---|---|
+| Q1 `MomentResidual` | RECOMMENDED: record-as-choice at `_from_balance` (the flip dissolves the 2-arg blocker; `L` recoverable from the space); MINT only with a consumer |
+| Q2 re-point `full_field_space.interior` | RECOMMENDED YES (architect concurs): `[M]` scalars bit-identical, vector ≤1 ULP on DD AND LD — cheapest it will ever be; DriftWarning wall runs at S2 end under the vv re-baseline criteria |
+| Q3 quadrature-blindness gate | ⛔ RULED (user, round 3): NO gate — `[M]` no concrete production site; one docstring sentence, articulation not protection |
+| Q4 trajectory-gate ownership → CS4b | FORCED consequence of the round-1 F1 ruling (machinery collapse now); the §3 edit-in-place is authorized by that chain; re-derivation licence = the ρ≈c Adams–Larsen anchor, never old-vs-new |
+| Q5 verb naming split | ⛔ SUPERSEDED by round 3b: **complete the frame square** — the frame gains `dual_reconstruction`; verbs specified in frame vocabulary; the /Σw is G₀⁻¹, DERIVED. The plan's G6.8 Σw-swap battery arm re-specifies as the biorthogonality/gram gate |
+| Q6 LD cone refusal | RATIFIED (user, via the #400 filing); extension tracked at **#400** |
+| Q7 `_StubMesh` seam | DEFERRED to execution with the user steering (surgical posture); default proposal: `MaterialXSField` takes the space NARROWLY (the honest move, pulled forward minimally) |
+| Q8 battery amendment | ADOPT (mechanical): `[M]` +175 rows / +2.90 s; without it the battery misses its own headline regression |
+
+**⏹ DESIGN COMPLETE.** Execution not started; it opens by writing the L17
+convention crosswalk from this record + the verification plan, then S1.
