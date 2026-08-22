@@ -143,6 +143,22 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """GL(8) sibling — the ANGULAR-only discriminator: the (energy,
+    spatial) marginal is identical, so only the ψ gate can refuse it."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    return SNMesh(
+        mesh, Quadrature.gauss_legendre(n_ordinates=8),
+        placeholder_materials(ng=ng),
+    )
+
+
 def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     """Build (state, scalar, boundary) for the given mesh.
 
@@ -414,11 +430,15 @@ class TestSolutionConstruction:
         )
         _, phi, bf = _make_fluxes(m1)
         Solution(angular_flux=state_twin, scalar_flux=phi, mesh=m1)
+        # The discriminator is ANGULAR-ONLY (a GL8 carrier): the marginal
+        # (energy, spatial) is IDENTICAL, so the φ gate cannot catch it —
+        # this row is O6's own witness, not O7's ([M] the S3 battery
+        # caught the first fixture (ng=3) being caught by O7 instead).
         state_foreign = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            mesh=_slab_mesh(ng=3),
+            mesh=_quad8_mesh(),
         )
-        with pytest.raises(ValueError, match="space-content"):
+        with pytest.raises(ValueError, match="angular_flux.interior.space"):
             Solution(
                 angular_flux=state_foreign, scalar_flux=phi, mesh=m1,
             )

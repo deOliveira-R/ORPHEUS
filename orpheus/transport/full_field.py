@@ -258,20 +258,24 @@ class Composite(Generic[Interior, Boundary]):
                 f"{type(self).__name__}: boundary must be a Field leaf; got "
                 f"{type(self.boundary).__name__}"
             )
-        # Mesh-identity check (where both members carry a ``mesh`` attribute —
-        # the cross-method generic contract). For SN both AngularFlux and
-        # AngularBoundaryFlux carry ``mesh: SNMesh``; other methods follow the
-        # same convention.
-        bulk_mesh = getattr(self.interior, "mesh", None)
-        boundary_mesh = getattr(self.boundary, "mesh", None)
-        if bulk_mesh is not None and boundary_mesh is not None:
-            if bulk_mesh is not boundary_mesh:
-                raise ValueError(
-                    f"{type(self).__name__}: bulk and boundary must share "
-                    "mesh identity (both bound to the same mesh instance); "
-                    f"got bulk.mesh={bulk_mesh!r}, "
-                    f"boundary.mesh={boundary_mesh!r}"
-                )
+        # Cross-slot coherence (CS4b S3): the ``getattr(…, "mesh", None)``
+        # tolerance DIED — a defaulted read would become a silent no-op the
+        # moment S4 retires the field's mesh attribute (vv #28's temporal
+        # twin). The direct reads below are LOUD at S4, which owns the
+        # composite-level re-key (the ruled elegant form: the composite
+        # becomes an element of ``FullFieldSpace`` and the slot gate
+        # compares per BLOCK against its space — landing where
+        # ``Composite.mesh`` retires).
+        # The generic bound is Field (mesh-less), so these direct reads
+        # carry per-line ignores; both the reads and their ignores retire
+        # at S4 with the attribute.
+        if self.interior.mesh is not self.boundary.mesh:  # type: ignore[attr-defined]
+            raise ValueError(
+                f"{type(self).__name__}: bulk and boundary must share "
+                "mesh identity (both bound to the same mesh instance); "
+                f"got bulk.mesh={self.interior.mesh!r}, "  # type: ignore[attr-defined]
+                f"boundary.mesh={self.boundary.mesh!r}"  # type: ignore[attr-defined]
+            )
 
     # ── The composite's single mesh ───────────────────────────────────
 
@@ -290,14 +294,11 @@ class Composite(Generic[Interior, Boundary]):
         off the family-typed boundary leaf — never through this method-generic
         surface.
 
-        Read via ``getattr`` (not a static ``self.boundary.mesh``): the generic
-        ``Boundary`` bound is :class:`~orpheus.numerics.field.Field`, which
-        carries no ``mesh`` — only the transport leaves declare it (the same
-        reason ``__post_init__``'s mesh-identity check reads both leaves via
-        ``getattr``). Every composite leaf in practice IS a mesh-bound transport
-        field, so the attribute is always present.
+        Read DIRECTLY off the boundary leaf (CS4b S3 — the ``getattr``
+        spelling died with the silent-no-op hazard; this property itself
+        retires at S4 when the leaves' mesh attribute does).
         """
-        return getattr(self.boundary, "mesh")
+        return self.boundary.mesh  # type: ignore[attr-defined] — dies at S4
 
     @property
     def principal_bulk_leaf(self) -> "Interior":

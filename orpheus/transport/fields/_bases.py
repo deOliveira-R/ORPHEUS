@@ -95,6 +95,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.field import Field
+from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.moment_layout import (
     SPATIAL_MOMENT_AXIS_LABEL,
     cell_moment_count,
@@ -397,8 +398,19 @@ class BulkField(Field):
 
     @property
     def ng(self) -> int:
-        r"""Number of energy groups (delegated to ``mesh.ng``)."""
-        return self.mesh.ng
+        r"""Number of energy groups — read off the SPACE's energy axis.
+
+        CS4b S3: the space answers every structural question (sizing is
+        space data — XD-10); the mesh delegation retired with the reads
+        S4 deletes. The moment family (axes-less TensorProduct until CS2)
+        overrides with its own read.
+        """
+        axes = self.space.axes
+        if axes is not None:
+            for ax in axes:
+                if isinstance(ax, EnergyAxis):
+                    return int(ax.shape[0])
+        return self.mesh.ng  # the axes-less families, until their carve
 
     # C5.2 (#225): the ``nx``/``ny`` read-throughs are RETIRED — a
     # field keyed on ``(nx, ny)`` silently truncates a 3-D tensor.
@@ -533,8 +545,15 @@ class AngularField(BulkField):
 
     @property
     def N(self) -> int:  # noqa: N802 — matches Quadrature.N
-        r"""Number of angular ordinates (delegated to ``mesh.quad.N``)."""
-        return self.mesh.quad.N
+        r"""Number of angular ordinates — the space's leading angular axis.
+
+        CS4b S3: sizing is space data; the axis order convention
+        (angular, energy, spatial[, moment]) makes this ``axes[0]``.
+        """
+        axes = self.space.axes
+        if axes is not None:
+            return int(axes[0].shape[0])
+        return self.mesh.quad.N  # unreachable for shipped angular spaces
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -928,16 +947,12 @@ class FaceField(Field, Generic[K]):
         # equality IS content equality — same-boundary carriers mix
         # whatever their interiors or boundary LAWS; a different layout,
         # quadrature, or face geometry refuses.
-        if self.layout is not partner.layout:
-            # Belt-and-suspenders: operands sourced from the same mesh share
-            # the cached space (one layout identity), so this fires only for
-            # hand-built operands. Fall back to structural equality — same
-            # keys + shapes + offsets.
-            if self.layout != partner.layout:
-                raise ValueError(
-                    f"{type(self).__name__} layout mismatch — operands have "
-                    f"structurally distinct FaceLayouts."
-                )
+        # The pre-CS4b layout arm (an ``is``/structural fallback) RETIRED
+        # with the content digest: the trace-space name now folds the
+        # layout's structural identity, so ``space ==`` already implies
+        # layout-content equality — no input can reach a layout mismatch
+        # past the base's space arm ([M] the S3 battery measured the arm
+        # blind; keeping it would be a gate that cannot fail).
         return partner
 
     def space_on(self, mesh: "MaterialMesh") -> FunctionSpace:

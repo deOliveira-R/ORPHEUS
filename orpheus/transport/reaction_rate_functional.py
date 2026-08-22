@@ -207,7 +207,6 @@ class IntegratedReactionRate:
             If ``adjoint`` lives on a different mesh object than the
             cross section.
         """
-        mesh = self.cross_section.mesh
         if adjoint is None:
             per_cell = np.asarray(self.density.evaluate(phi))  # (1, *spatial)
         else:
@@ -222,11 +221,14 @@ class IntegratedReactionRate:
                 np.asarray(adjoint.values) * self.cross_section.values, axis=0,
             )
             per_cell = np.asarray(folded.evaluate(phi))       # (1, *spatial)
-        # ``volume_measure`` consumes a flat ``(N_cells, k)`` view and contracts
-        # the cell axis → ``(k,)``; here k = 1 (the density's collapsed group
-        # axis), so the sum is the scalar volume integral.
-        flat = np.moveaxis(per_cell, 0, -1).reshape(-1, 1)
-        return float(mesh.volume_measure(flat).sum())
+        # The volume integral reads the SPACE's spatial measure (CS4b S3 —
+        # the space answers every structural question; the axis weights ARE
+        # dV, ``None`` canonicalizing the counting measure): ∑_i V_i d_i.
+        axes = self.cross_section.space.axes
+        assert axes is not None  # axis-built by construction since CS4b S2
+        w = axes[-1].weights
+        volumes = np.ones(axes[-1].shape, dtype=float) if w is None else w
+        return float((per_cell[0] * volumes).sum())
 
     def __repr__(self) -> str:
         return f"IntegratedReactionRate({self.cross_section!r})"
