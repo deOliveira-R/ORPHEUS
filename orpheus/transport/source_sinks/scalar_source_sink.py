@@ -115,11 +115,6 @@ class ScalarSourceSink(ScalarField):
     RETIRED — see module docstring for the named-composition migration.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf (preserves the
-    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
-    #: is inherited from :class:`ScalarField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "scalar_source_sink"
-
     #: Dimensional identity (View-G, B.4): scalar rate density
     #: ``1/(cm³·s)`` — :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`,
     #: shared with ``ScalarResidual`` (same units, different role → the

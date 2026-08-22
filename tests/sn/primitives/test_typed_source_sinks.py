@@ -407,15 +407,20 @@ class TestHarmonicMomentSourceSink:
         ):
             HarmonicMomentSourceSink.from_mesh_and_L(bad, m, L=2)
 
-    def test_space_is_tensor_product_distinct_from_flux(self) -> None:
-        """The source/sink space carries the distinct cell-group identity,
-        so it is NOT ``==`` the flux leaf's space (defensive — the class
-        gate is the real guard, this keeps the two spaces non-equal)."""
+    def test_space_is_shared_across_the_role_leaves(self) -> None:
+        """CS4b S2 (F1-sub): the two role leaves compose the SAME space —
+        ``SphericalHarmonicSpace(L) * mesh.bulk_space``, the carrier's one
+        cached cell-group mint — so role lives ONLY in the class, and the
+        class arm is the sole role guard
+        (``test_cross_class_with_flux_rejected`` below pins its raise).
+        Until CS4b each leaf minted a role-named cell-group tag and this
+        test asserted the spaces UNEQUAL; that defensive duplication of
+        the class gate retired with ``_CELL_GROUP_NAME``."""
         m = _slab_mesh()
         q = HarmonicMomentSourceSink.zeros_for_mesh_and_L(m, L=2)
         phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L=2)
         assert q.values.shape == phi.values.shape  # same layout
-        assert q.space != phi.space  # distinct identity
+        assert q.space == phi.space  # ONE space; role is class identity
 
     # ── The DEFINING law: closed vector-space algebra (positive) ─────
 

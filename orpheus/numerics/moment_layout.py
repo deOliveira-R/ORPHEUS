@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AVERAGE_MOMENT",
+    "SPATIAL_MOMENT_AXIS_LABEL",
     "cell_moment_count",
     "face_moment_count",
     "face_moment_tail",
@@ -60,6 +61,14 @@ __all__ = [
 #: source for the slot-0 convention every moment consumer reduces on (#240 D5b)
 #: — change the layout here, not at the scattered ``[..., 0]`` call sites.
 AVERAGE_MOMENT = 0
+
+#: The ``label`` of the within-cell spatial-moment factor when it rides an
+#: axis-built space as a typed :class:`~orpheus.numerics.axis.Axis`
+#: (campaign 1 CS4b): minted by
+#: :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`,
+#: read back by the field layer's tail/width accessors.  One spelling, here,
+#: so the mint and the readers cannot drift.
+SPATIAL_MOMENT_AXIS_LABEL = "spatial_moment"
 
 
 def cell_moment_count(per_axis: int, ndim: int) -> int:

@@ -98,12 +98,6 @@ class ScalarResidual(ScalarField):
     may also build it via the inherited :meth:`from_mesh`.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf — distinct from
-    #: ``"scalar_flux"`` / ``"scalar_source_sink"`` so the space identity
-    #: tracks the role. All mesh/shape/algebra/factory machinery is
-    #: inherited from :class:`ScalarField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "scalar_residual"
-
     #: Dimensional identity (View-G, B.4): scalar rate density
     #: ``1/(cm³·s)`` — :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`,
     #: shared with ``ScalarSourceSink`` (same units, different role → the gate

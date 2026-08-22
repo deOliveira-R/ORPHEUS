@@ -1392,23 +1392,24 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         spell the mass twice (CS4b crosswalk B5,
         ``.claude/plans/cs4b_crosswalk.md``).
 
-        **Refuses on a slopeless closure** (``spatial_basis_per_axis == 1``):
-        the moment-tail policy appends NO factor at width 1 (the
-        byte-identity invariant, #240 D5b-S3-A0), so a trivial ``(1,)``
-        moment axis is a state no composed space admits — minting one
-        would invite it (Pattern 4).
+        **Refuses on a slopeless closure** (``is_multi_moment`` is False —
+        the same gate :meth:`moment_scan_closure` keys on): the moment-tail
+        policy appends NO factor at width 1 (the byte-identity invariant,
+        #240 D5b-S3-A0), so a trivial ``(1,)`` moment axis is a state no
+        composed space admits — minting one would invite it (Pattern 4).
         """
-        if self.spatial_basis_per_axis == 1:
-            raise ValueError(
-                f"{type(self).__name__} is a slopeless closure "
-                "(spatial_basis_per_axis == 1): the moment-tail policy "
+        if not self.is_multi_moment:
+            raise NotImplementedError(
+                f"{type(self).__name__} has no moment axis "
+                "(is_multi_moment is False): the moment-tail policy "
                 "appends no factor at width 1, so there is no moment axis "
                 "to mint."
             )
         from orpheus.numerics.axis import Axis, BasisKind
+        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
 
         return Axis(
-            "spatial_moment",
+            SPATIAL_MOMENT_AXIS_LABEL,
             (cell_moment_count(self.spatial_basis_per_axis, ndim),),
             weights=self.moment_mass_diagonal(ndim),
             kind=BasisKind.MODAL,

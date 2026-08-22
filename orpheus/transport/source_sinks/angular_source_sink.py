@@ -98,11 +98,6 @@ class AngularSourceSink(AngularField):
     Layer 1 class-identity gate.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf (preserves the
-    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
-    #: is inherited from :class:`AngularField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "angular_source_sink"
-
     #: Dimensional identity (View-G, B.4): per-ordinate rate density
     #: ``1/(cm³·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`,
     #: shared with ``AngularResidual`` (same units, different role → the

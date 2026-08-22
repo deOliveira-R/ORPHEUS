@@ -124,14 +124,6 @@ class AngularResidual(AngularField):
     the inherited :meth:`from_mesh`.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf — distinct from
-    #: ``"angular_flux"`` / ``"angular_source_sink"`` so the space identity
-    #: tracks the role. (Class identity is the primary gate; the space
-    #: name keeps the identity legible in diagnostics.) All
-    #: mesh/shape/algebra/factory machinery is inherited from
-    #: :class:`AngularField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "angular_residual"
-
     #: Dimensional identity (View-G, B.4): per-ordinate rate density
     #: ``1/(cm³·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`,
     #: shared with ``AngularSourceSink`` (same units, different role → the gate

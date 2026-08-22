@@ -93,11 +93,6 @@ class AngularFlux(AngularField):
     :class:`~orpheus.transport.timed_full_field.TimedFullField`.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf (preserves the
-    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
-    #: is inherited from :class:`AngularField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "angular_flux"
-
     #: Dimensional identity (View-G, B.4): areal per-solid-angle flux
     #: density ``1/(cm²·s·sr)``. Metadata, NOT the arithmetic gate (class
     #: identity is) — see :mod:`orpheus.numerics.units`.

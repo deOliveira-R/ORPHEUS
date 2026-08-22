@@ -141,13 +141,28 @@ field tail must consume the SAME axis object). Conventions pinned:
    densifier this phase — its `has_coordinate_cone = None` is an ACCIDENT of
    `*`, not a ruling; docstring says so (CS2 axis-ifies it to MODAL/False).
 
-⚠ **Open corner (S2, steer with the user):** a width>1 mint on a carrier with
-NO scheme (bare `MaterialMesh`) has no mass source — production never does
-this (`[M]` every width>1 origin site reads `sn_mesh.scheme` or propagates a
-field's own width), so the honest options are refuse vs counting-weight;
-decide at S2, do not discover. Same corner: a requested width ≠ the scheme's
-has no shipped mass — today it silently builds a mass-less space of the
-requested width; under the axis form it must refuse.
+⚠ ~~Open corner (S2, steer with the user): … under the axis form it must
+refuse.~~ ⛔ SUPERSEDED (user + walk-through, 2026-08-22, pre-S2): **no
+refusal machinery at the composition seam — the corner is unspellable by
+CURRENCY.** `[M]` no legitimate workflow reaches either corner: every
+production width>1 origin reads `sn_mesh.scheme` or propagates a field's own
+width; every test width>1 bulk mint sits on an LD-scheme SNMesh; SNMesh
+unconditionally binds a scheme (`augmented_mesh.py:265` — and by the user's
+doctrine, scheme binding IS part of transport-method augmentation: the
+MaterialMesh level legitimately does not know the scheme, the augmentation
+decides nodal/modal and MUST bind one or the `StreamingOperator` cannot be
+instantiated, so a schemeless transport method is unspellable through that
+requirement chain). The int `spatial_moments` parameter is a LOSSY proxy for
+"the scheme's structure" / "this field's structure", and it is a RETIRING
+surface (dies with the sugar factories at S5; the endgame ctor takes the
+composed space, whose only moment-axis source is `scheme.moment_axis` — its
+slopeless refusal is a statement about the object, aligned to the
+`is_multi_moment`/`NotImplementedError` sibling idiom). During the S2–S4
+window the retiring factory bodies TRANSLATE the int (`>1` ⟹ compose
+`scheme.moment_axis`), where the corners die of natural causes: DD+width>1
+hits the mint's own refusal; a width ≠ the scheme's fails the translation's
+width check or the ctor's shape validation; a scheme-less carrier gets a
+typed message documenting the doctrine. None of that survives S5.
 
 ## B6 — construction: mesh-primary factories → the space-primary ctor
 

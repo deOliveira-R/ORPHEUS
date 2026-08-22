@@ -25,10 +25,10 @@ provides the *locus + family* axes as ABCs; the *role* leaves
 
     Field (numerics, L1 — values + space + dunder algebra)
      ├─ BulkField (ABC)           codim-0 (cell centres): mesh-binding + ng + _phase_space_shape
-     │   ├─ AngularField (ABC)    + N + (N,ng,*spatial) from_mesh/_ndarray, parametrized by _SPACE_NAME
+     │   ├─ AngularField (ABC)    + N + (N,ng,*spatial) from_mesh/_ndarray on the carrier's cached space
      │   │   ├─ AngularFlux           role leaf  (flux)
      │   │   └─ AngularSourceSink     role leaf  (source; renamed from PerOrdinateSource in B.2)
-     │   ├─ ScalarField (ABC)     + (ng,*spatial) from_mesh/_ndarray, parametrized by _SPACE_NAME
+     │   ├─ ScalarField (ABC)     + (ng,*spatial) from_mesh/_ndarray on the carrier's cached space
      │   │   ├─ ScalarFlux            role leaf  (flux)
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
@@ -62,16 +62,17 @@ Parametrization (no twin paths)
 
 The per-family phase-space shape is the one abstract hook
 :meth:`BulkField._phase_space_shape`, used by the shared
-``__post_init__`` validator. The Angular/Scalar families additionally
-expose a ``from_mesh`` classmethod parametrized by the leaf's
-``_SPACE_NAME`` :class:`~typing.ClassVar` (so ``AngularFlux``'s space is
-named ``"angular_flux"`` and ``AngularSourceSink``'s ``"angular_source_sink"``,
-preserving the pre-B.1 space identities bit-for-bit). ``MomentField`` and the
-``BoundaryField`` families build their spaces differently (a
-TensorProductSpace keyed on ``L``; the mesh's cached trace —
-``mesh.angular_trace`` / ``mesh.scalar_trace`` via
-:meth:`FaceField._face_space_of`) and so do not use
-``_SPACE_NAME``.
+``__post_init__`` validator. Every family sources its space from the
+CARRIER's cached mints (campaign 1 CS4b): the Angular/Scalar families
+read ``mesh.angular_bulk_space`` / ``mesh.bulk_space``, ``MomentField``
+composes ``SphericalHarmonicSpace(L) * mesh.bulk_space``, and the
+``BoundaryField`` families read the cached traces
+(``mesh.angular_trace`` / ``mesh.scalar_trace`` via
+:meth:`FaceField._face_space_of`). Role is CLASS identity — the leaves
+of one family share one space instance, and the class arm of the
+partner gate is the sole role enforcement. (The per-leaf ``_SPACE_NAME``
+role tags retired with this move; until CS4b each leaf minted its own
+role-named tag space.)
 
 References
 ----------
@@ -88,13 +89,16 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Hashable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Generic, Mapping, Self, TypeVar
+from typing import TYPE_CHECKING, Generic, Mapping, Self, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.field import Field
-from orpheus.numerics.moment_layout import cell_moment_count
+from orpheus.numerics.moment_layout import (
+    SPATIAL_MOMENT_AXIS_LABEL,
+    cell_moment_count,
+)
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.spatial_moment_space import (
     SpatialMomentSpace,
@@ -218,15 +222,28 @@ class BulkField(Field):
     ) -> FunctionSpace:
         r"""Append the optional within-cell spatial-moment factor to ``space``.
 
-        Composes a
-        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
-        factor (the within-cell tensor-Legendre DG basis #240 D5b-S3) onto
-        ``space`` via the tensor-product ``*`` — EXACTLY as
-        :meth:`HarmonicMomentFlux.from_mesh_and_L` composes the
-        angular-moment :class:`SphericalHarmonicSpace`. The factor is the
-        Linear-Discontinuous closure's spatial-slope carrier that travels
-        between source-iteration sweeps (the diffusion-limit-consistent
-        scattering source :math:`\Sigma_s \otimes I_{\rm spatial}`).
+        Two arms, discriminated by the base space's composition mechanism
+        (campaign 1 CS4b, crosswalk B5):
+
+        * **Axis-built base** (the carrier-cached bulk spaces): the tail is
+          the scheme-owned MODAL
+          :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`,
+          carrying ``moment_mass_diagonal`` as the axis measure — basis ↔
+          mass single-sourced at the scheme (``θ`` enters the mass, so a
+          carrier that binds no scheme cannot host a moment tail; the
+          scheme binds at transport-method augmentation).
+        * **Densified base** (the harmonic family's
+          ``SphericalHarmonicSpace * cell_group`` — until CS2 axis-ifies
+          the SH factor): a
+          :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+          factor via the tensor-product ``*``, exactly as
+          :meth:`HarmonicMomentFlux.from_mesh_and_L` composes the angular
+          moment factor.
+
+        The factor is the Linear-Discontinuous closure's spatial-slope
+        carrier that travels between source-iteration sweeps (the
+        diffusion-limit-consistent scattering source
+        :math:`\Sigma_s \otimes I_{\rm spatial}`).
 
         **Gated on ``spatial_moments_per_axis > 1`` (construct-general /
         select-narrow, #240 D5b-S3-A0).** The total within-cell moment
@@ -255,6 +272,28 @@ class BulkField(Field):
         # "append iff > 1" — single-sourced; () at n==1 → no factor, byte-id.
         if spatial_moment_tail(n_moments) == ():
             return space
+        if space.axes is not None:
+            # Transitional translation of the int parameter (this factory
+            # tier retires at CS4b S5; the endgame constructor takes the
+            # composed SPACE, where these states have no spelling at all).
+            scheme = getattr(mesh, "scheme", None)
+            if scheme is None:
+                raise TypeError(
+                    "a within-cell moment tail needs the discretization "
+                    "scheme's mass (θ enters moment_mass_diagonal), and "
+                    f"this carrier ({type(mesh).__name__}) binds no scheme "
+                    "— moment-tailed fields live on a transport-method "
+                    "mesh (the scheme binds at augmentation)."
+                )
+            axis = scheme.moment_axis(mesh.ndim)
+            if axis.shape != (n_moments,):
+                raise ValueError(
+                    f"spatial_moments={spatial_moments_per_axis} requests "
+                    f"{n_moments} cell moments, but {type(scheme).__name__} "
+                    f"masses {axis.shape[0]} — the moment tail is the "
+                    "scheme's basis, so only its own width is mintable."
+                )
+            return FunctionSpace.of_axes(*space.axes, axis)
         return space * SpatialMomentSpace.from_per_axis(
             spatial_moments_per_axis, mesh.ndim,
         )
@@ -275,8 +314,16 @@ class BulkField(Field):
 
         Returns ``()`` for a non-composed / DD-default space (no factor →
         byte-identical validation prefix), and ``(per_axis ** ndim,)`` when
-        a :class:`SpatialMomentSpace` factor is present.
+        a moment factor is present — as the
+        :data:`~orpheus.numerics.moment_layout.SPATIAL_MOMENT_AXIS_LABEL`
+        axis on an axis-built space (CS4b), or as a
+        :class:`SpatialMomentSpace` factor on a densified one.
         """
+        if space.axes is not None:
+            for ax in space.axes:
+                if ax.label == SPATIAL_MOMENT_AXIS_LABEL:
+                    return ax.shape
+            return ()
         find_factor = getattr(space, "find_factor", None)
         if find_factor is None:
             return ()  # a bare FunctionSpace (DD default) — no factor.
@@ -301,6 +348,18 @@ class BulkField(Field):
         not an opaque widened ndarray."""
         from orpheus.numerics.spaces.spatial_moment_space import SpatialMomentSpace
 
+        tail = type(self)._spatial_moment_tail_of(self.space)
+        if self.space.axes is not None:
+            if tail == ():
+                return 1
+            # The axis stores the CELL count (per_axis ** ndim); invert it.
+            per_axis = round(tail[0] ** (1.0 / self.mesh.ndim))
+            if per_axis ** self.mesh.ndim != tail[0]:
+                raise ValueError(
+                    f"moment axis carries {tail[0]} cell moments, which is "
+                    f"not a per-axis power for ndim={self.mesh.ndim}"
+                )
+            return per_axis
         find_factor = getattr(self.space, "find_factor", None)
         if find_factor is None:
             return 1
@@ -327,11 +386,12 @@ class AngularField(BulkField):
     r"""Per-ordinate bulk family on ``(N, ng, nx, ny)``.
 
     The storage base for the angular role leaves (``AngularFlux``,
-    ``AngularSourceSink``, ``AngularResidual``).
-    Subclasses declare a ``_SPACE_NAME``
-    :class:`~typing.ClassVar` that names the :class:`FunctionSpace`
-    built by :meth:`from_mesh` (preserving each leaf's pre-B.1 space
-    identity). Abstract — instantiate a concrete leaf.
+    ``AngularSourceSink``, ``AngularResidual``). The family shares ONE
+    space — the carrier's cached
+    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+    (campaign 1 CS4b: role is class identity, never space identity; the
+    class arm of :meth:`~orpheus.numerics.field.Field._check_partner` is
+    the sole role gate). Abstract — instantiate a concrete leaf.
     """
 
     # Narrowed to ``SNMesh`` (covariant override of ``BulkField.mesh:
@@ -340,11 +400,6 @@ class AngularField(BulkField):
     # narrowing keeps ``mesh.quad`` honest here (no cast) and lets the operators
     # read ``angular_field.mesh`` as an ``SNMesh`` directly.
     mesh: "SNMesh"
-
-    #: The :class:`FunctionSpace` ``name`` for this leaf (e.g.
-    #: ``"angular_flux"``). Set on each concrete role leaf; absent on
-    #: this abstract base (``from_mesh`` would raise if called on it).
-    _SPACE_NAME: ClassVar[str]
 
     @classmethod
     def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, ...]:
@@ -361,24 +416,24 @@ class AngularField(BulkField):
     def _space_for_mesh(
         cls, mesh: "SNMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
-        r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
+        r"""The leaf's :class:`FunctionSpace` for ``mesh``.
 
-        Single source of truth for the leaf's space identity, shared by
+        Reads the carrier's cached, axis-built
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+        (campaign 1 CS4b — the carrier is the ONE mint; every angular
+        leaf on one carrier shares the SAME space instance, carrying the
+        physical Hilbert metric ``w_n × V_cell`` per axis). Shared by
         :meth:`from_mesh` and :meth:`zeros_on`.
 
         ``spatial_moments`` (default ``1``) is the optional within-cell
-        spatial-moment basis size per axis (#240 D5b-S3-A0). At the default
-        ``1`` the space is the EXACT pre-S3
-        ``FunctionSpace(name=cls._SPACE_NAME, shape=(N, ng, *spatial))`` —
-        byte-identical for DD/Step AND LD (no current caller passes > 1).
-        At ``> 1`` a
-        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
-        factor is composed on (see :meth:`BulkField._compose_spatial_moments`).
+        spatial-moment basis size per axis (#240 D5b-S3-A0). At the
+        default ``1`` the space IS the cached instance; at ``> 1`` the
+        scheme-owned MODAL moment axis is composed on (see
+        :meth:`BulkField._compose_spatial_moments`).
         """
-        base = FunctionSpace(
-            name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
+        return cls._compose_spatial_moments(
+            mesh.angular_bulk_space, mesh, spatial_moments,
         )
-        return cls._compose_spatial_moments(base, mesh, spatial_moments)
 
     def _phase_space_shape(self) -> tuple[int, ...]:
         # Base ``(N, ng, *spatial)`` prefix + the optional spatial-moment
@@ -394,11 +449,11 @@ class AngularField(BulkField):
     def from_mesh(cls, values: NDArray, mesh: "SNMesh", *, spatial_moments: int = 1):
         r"""Construct from raw values + mesh, deriving the space.
 
-        The space is ``FunctionSpace(name=cls._SPACE_NAME,
-        shape=(N, ng, *spatial))`` — single source of truth for both the
-        leaf's space identity and the construction shape. ``spatial_moments``
-        (default ``1``, byte-identical) optionally composes the within-cell
-        spatial-moment factor (#240 D5b-S3-A0).
+        The space is the carrier's cached ``mesh.angular_bulk_space`` via
+        :meth:`_space_for_mesh` — single source of truth for both the
+        family's space identity and the construction shape.
+        ``spatial_moments`` (default ``1``, byte-identical) optionally
+        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
         """
         return cls(
             values=values,
@@ -461,14 +516,12 @@ class ScalarField(BulkField):
     r"""Scalar bulk family on ``(ng, nx, ny)``.
 
     The storage base for the scalar role leaves (``ScalarFlux``,
-    ``ScalarSourceSink``, ``ScalarResidual``).
-    Parametrized by the leaf's ``_SPACE_NAME``. Abstract — instantiate
-    a concrete leaf.
+    ``ScalarSourceSink``, ``ScalarResidual``, ``CrossSectionField``). The
+    family shares ONE space — the carrier's cached
+    :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+    (campaign 1 CS4b: role is class identity, never space identity).
+    Abstract — instantiate a concrete leaf.
     """
-
-    #: The :class:`FunctionSpace` ``name`` for this leaf (e.g.
-    #: ``"scalar_flux"``). Set on each concrete role leaf.
-    _SPACE_NAME: ClassVar[str]
 
     @classmethod
     def _shape_for_mesh(cls, mesh: "MaterialMesh") -> tuple[int, ...]:
@@ -483,23 +536,26 @@ class ScalarField(BulkField):
     def _space_for_mesh(
         cls, mesh: "MaterialMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
-        r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
+        r"""The leaf's :class:`FunctionSpace` for ``mesh``.
 
-        Single source of truth for the leaf's space identity, shared by
+        Reads the carrier's cached, axis-built
+        :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+        (campaign 1 CS4b — the carrier is the ONE mint; every scalar leaf
+        on one carrier shares the SAME space instance, carrying the
+        cell-volume measure on the spatial axis). Shared by
         :meth:`from_mesh` and :meth:`zeros_on`.
 
         ``spatial_moments`` (default ``1``) is the optional within-cell
-        spatial-moment basis size per axis (#240 D5b-S3-A0). At the default
-        ``1`` the space is the EXACT pre-S3
-        ``FunctionSpace(name=cls._SPACE_NAME, shape=(ng, *spatial))`` —
-        byte-identical. The :class:`ScalarSourceSink` scattering-source
-        accumulator is the carrier that selects ``> 1`` at S3-A so the
-        slope rows can hold :math:`\Sigma_s \cdot \hat\phi`.
+        spatial-moment basis size per axis (#240 D5b-S3-A0); at ``> 1``
+        the scheme-owned MODAL moment axis is composed on (see
+        :meth:`BulkField._compose_spatial_moments`). The
+        :class:`ScalarSourceSink` scattering-source accumulator is the
+        carrier that selects ``> 1`` at S3-A so the slope rows can hold
+        :math:`\Sigma_s \cdot \hat\phi`.
         """
-        base = FunctionSpace(
-            name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
+        return cls._compose_spatial_moments(
+            mesh.bulk_space, mesh, spatial_moments,
         )
-        return cls._compose_spatial_moments(base, mesh, spatial_moments)
 
     def _phase_space_shape(self) -> tuple[int, ...]:
         # Base ``(ng, *spatial)`` prefix + the optional spatial-moment tail
@@ -561,15 +617,14 @@ class MomentField(BulkField):
     :meth:`from_mesh_and_L` / :meth:`zeros_for_mesh_and_L` /
     :meth:`from_ndarray` factories.
 
-    A moment field is **method-agnostic** (a moment field on the
-    spherical-harmonic ⊗ cell-group phase space, keyed on the truncation
-    order ``L``), so this base — unlike the Angular/Scalar families — does
-    NOT use a single ``_SPACE_NAME`` (its space is a TensorProductSpace).
-    Instead the per-leaf cell-group factor name is the
-    :attr:`_CELL_GROUP_NAME` :class:`~typing.ClassVar`, so the two role
-    leaves carry distinct space identities (matching the
-    ``AngularFlux``/``AngularSourceSink`` precedent). Abstract — instantiate
-    a concrete role leaf.
+    A moment field is a moment field on the spherical-harmonic ⊗
+    scalar-bulk phase space, keyed on the truncation order ``L``; its
+    space is a TensorProductSpace whose cell-group factor IS the
+    carrier's cached
+    :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+    (campaign 1 CS4b — one mint; the two role leaves share one space,
+    and role is class identity, exactly as in the Angular/Scalar
+    families). Abstract — instantiate a concrete role leaf.
 
     This lift happened when the second moment representation arrived
     (``feedback_unify_after_two_instances``): the machinery used to live on
@@ -599,14 +654,6 @@ class MomentField(BulkField):
     # harmonic-moment iterate (φ_ℓ^m), an SN construct, so it always lives on
     # an ``SNMesh`` — operators read ``moment_field.mesh`` as ``SNMesh`` directly.
     mesh: "SNMesh"
-
-    #: The :class:`FunctionSpace` ``name`` of the cell-group factor in this
-    #: leaf's ``SphericalHarmonicSpace(L) ⊗ CellGroup`` space — distinguishes
-    #: the flux leaf (``"cell_group"``, preserving its pre-P4 identity) from
-    #: the source/sink leaf (``"cell_group_source_sink"``). The SH factor and
-    #: shape are identical across leaves; the class-identity gate is the
-    #: arithmetic guard, this name keeps the two spaces non-``==``.
-    _CELL_GROUP_NAME: ClassVar[str] = "cell_group"
 
     # ── Construction validation ──────────────────────────────────────
 
@@ -659,10 +706,10 @@ class MomentField(BulkField):
         r"""Construct from raw values + mesh + L, deriving the
         :class:`TensorProductSpace`.
 
-        Builds the space as ``SphericalHarmonicSpace.from_L(L) * CellGroup``
-        where ``CellGroup`` is a plain :class:`FunctionSpace` named
-        :attr:`_CELL_GROUP_NAME` with the mesh's ``(ng, *spatial)`` shape —
-        the moment-axis structure is type-visible through the composition
+        Builds the space as ``SphericalHarmonicSpace.from_L(L) *
+        mesh.bulk_space`` — the cell-group factor IS the carrier's cached
+        scalar bulk (campaign 1 CS4b: one mint, metric-carrying), and the
+        moment-axis structure is type-visible through the composition
         tree (queryable via ``space.find_factor(SphericalHarmonicSpace).L``
         per Issue #207).
 
@@ -674,12 +721,8 @@ class MomentField(BulkField):
         iff > 1", single-sourced, matching :meth:`_phase_space_shape`).
         """
         sh_space = SphericalHarmonicSpace.from_L(L)
-        cell_group_space = FunctionSpace(
-            name=cls._CELL_GROUP_NAME,
-            shape=(mesh.ng, *mesh.spatial_shape),
-        )
         space = cls._compose_spatial_moments(
-            sh_space * cell_group_space, mesh, spatial_moments,
+            sh_space * mesh.bulk_space, mesh, spatial_moments,
         )
         return cls(
             values=values, space=space, mesh=mesh, L=L,

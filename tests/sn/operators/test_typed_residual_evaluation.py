@@ -105,7 +105,9 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     if type(r) is not AngularResidual:
         raise AssertionError(f"from_balance returned {type(r).__name__}")
     np.testing.assert_array_equal(r.values, a_psi.values - q.values)
-    if r.space.name != "angular_residual":
+    # CS4b S2: role is CLASS identity; the space is the carrier's cached
+    # angular bulk (shared across the family).
+    if r.space is not sn_mesh.angular_bulk_space:
         raise AssertionError(f"residual on wrong space {r.space.name!r}")
     flux = AngularFlux.from_mesh(rng.standard_normal(shape), sn_mesh)
     with pytest.raises(TypeError):  # NEGATIVE — flux operand (wrong units/class)

@@ -202,7 +202,7 @@ class TestMomentAxisAdmission:
         assert np.array_equal(axis.weights, scheme.moment_mass_diagonal(1))
 
     def test_slopeless_closure_refuses(self):
-        with pytest.raises(ValueError, match="no moment axis"):
+        with pytest.raises(NotImplementedError, match="no moment axis"):
             DiamondDifference().moment_axis(1)
 
 

@@ -178,8 +178,7 @@ class Field(ABC):
     #: Dimensional identity of the quantity (View-G). Every CONCRETE role
     #: leaf MUST set this to one of the signatures in
     #: :mod:`orpheus.numerics.units` (e.g. ``ANGULAR_FLUX_UNITS``); the
-    #: abstract bases leave it unset. This is the units-side companion of
-    #: the per-leaf ``_SPACE_NAME`` contract — declaring it here makes the
+    #: abstract bases leave it unset. Declaring it here makes the
     #: obligation typed and visible: a leaf that forgets ``UNITS`` raises on
     #: ``.UNITS`` access (so #208's operator unit-gain check fails loudly
     #: rather than silently inheriting ``None``). Class identity *is* units

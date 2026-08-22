@@ -45,23 +45,31 @@ the value-neutrality claim this module exists to certify.
 is chosen to catch.** Measured on this fixture at ``000cf144``:
 
 * interior-leaf **metric** norm vs interior-leaf **flat** ``np.linalg.norm``:
-  max relative difference ``2.29e-16`` (0 or 1 ULP per step). They agree because
-  ``[M]`` the ``angular_flux`` space carries ``inner_product_weights is None``
-  (Euclidean) *today*. A relocation that swaps one for the other is therefore
-  invisible here, deliberately: ``rtol=1e-12`` is ~4500 ULP of headroom.
+  at the CS3 freeze these agreed to ≤1 ULP (``2.29e-16`` max relative)
+  because the then-``angular_flux`` tag space carried
+  ``inner_product_weights is None`` (Euclidean) — so battery row M2 measured
+  the pin BLIND to a metric↔flat swap. ⛔ SUPERSEDED at CS4b S2 (2026-08-22):
+  the space is the carrier's axis-built ``angular_bulk_space`` carrying
+  ``V_cell × w_n``, the two norms now differ at O(1), and the same M2
+  mutation (``Field.l2 → np.linalg.norm``) REDS this module — the pin is
+  metric-LOADED, which is the CS4b evidence pair (blind before, loaded
+  after) the campaign's M7 battery arm records.
 * interior-leaf metric vs **whole-composite** flat norm (``_l2_norm`` of the
   raw increment — the spelling the SI loop had in hand at capture time, which
   additionally ravels the boundary trace block): max relative difference
   ``4.71e-3``. **That** is the convention error this pin exists to catch, and
   it sits 9 orders above the tolerance.
 
-⚠ **Phase-ordering hazard, measured.** CS2 relocates metrics onto the spaces
-(memo A F3). Recomputing this same trajectory under a physical ``V_cell × w_n``
-metric moves ρ by up to ``1.12e-3`` relative — 9 orders above ``rtol=1e-12``, so
-**CS2 will legitimately RED this gate.** That is correct behaviour, not a bug:
-✅ RULED (user, 2026-08-19) — the diagnostic is defined on the **SPACE norm**,
-so CS2 owns re-deriving these frozen numbers, with a regeneration note in the
-style of ``test_affine_carve_bit_identity.py``'s.
+⚠ **Phase-ordering hazard, measured — RESOLVED.** As written at CS3 this block
+predicted: recomputing the trajectory under a physical ``V_cell × w_n`` metric
+moves ρ by up to ``1.12e-3`` relative — 9 orders above ``rtol=1e-12`` — and
+assigned the re-derivation to CS2 ("✅ RULED (user, 2026-08-19) — the
+diagnostic is defined on the **SPACE norm**, so CS2 owns re-deriving these
+frozen numbers"). The metric arrived EARLIER than the ownership sentence
+assumed: **CS4b S2** (the field-layer space-source flip) installed it, so
+CS4b owned and executed the re-derivation on 2026-08-22 (Q4, verification
+plan §2.1 G-M1..3) — measured move ``1.117e-3``, inside the prediction; the
+regeneration recipe is the provenance comment on the frozen block below.
 
 **Measured mutation battery** (in-process pytest plugins; ``vv`` §0.5 — a gate
 is not evidence until a named mutation reddens it). At ``000cf144``, 5 tests,
@@ -153,30 +161,43 @@ _FUEL = _mixture([1.0, 2.0], 0.60, 0.39, 1.98)
 _MODERATOR = _mixture([1.5, 1.0], 1.00, 0.485, 0.99)
 
 
-# ── Frozen at HEAD 000cf144 (branch refactor/cone-field-algebra), 2026-08-19 ──
+# ── RE-DERIVED at CS4b S2 (2026-08-22) under the PHYSICAL space metric ──
 #
-# Produced by the code path described in the module docstring: a ratio of
-# ``Displacement.l2`` (= ``space.norm`` of the INTERIOR leaf's values) between
-# successive SI passes. NOTE the trajectory crosses 1.0 in the transient — the
-# increment GROWS for two passes before contracting — which is what makes it a
-# discriminating fingerprint rather than a near-constant.
+# The CS3 freeze (``000cf144``, 2026-08-19, Euclidean interior norm) recorded
+# ratios starting ``0.9759292618901443, 1.0358831699038207, …`` with
+# ``‖Δψ‖ = 8.848958875813311`` and estimate ``308.0488097665712``. CS4b S2
+# flipped the field space source to the carrier's axis-built mints, which
+# carry the ``V_cell × w_n`` Hilbert metric — so ``Field.l2`` became the
+# PHYSICAL norm and these diagnostics legitimately moved: max relative ρ move
+# ``1.117e-3`` ([M] 2026-08-22 — the hazard block below had predicted "up to
+# ``1.12e-3``" from the pre-carve probe), ``where_largest`` unchanged (the
+# per-entry map reads values, not norms). Licence: the structurally
+# independent ρ ≈ c = Σ_s/Σ_t anchor
+# (:mod:`tests.sn.solve.test_si_convergence_diagnostics`, Adams & Larsen
+# 2002) re-run FIRST under the new metric — 4 passed — never old-vs-new.
+#
+# Produced by the code path described in the module docstring: a ratio of the
+# INTERIOR leaf's ``space.norm`` between successive SI passes. NOTE the
+# trajectory crosses 1.0 in the transient — the increment GROWS for two
+# passes before contracting — which is what makes it a discriminating
+# fingerprint rather than a near-constant.
 _CONTRACTION_RATIOS = (
-    0.9759292618901443,
-    1.0358831699038207,
-    1.0269889903776446,
-    1.0088697035204475,
-    0.9946043149140448,
-    0.9849906379839164,
-    0.978872566789453,
-    0.9751327527564414,
-    0.972957620216306,
-    0.971794028402691,
-    0.9712741663163096,
+    0.9748389411907307,
+    1.03521237670015,
+    1.0264602980995396,
+    1.008420630121672,
+    0.9942082644544892,
+    0.9846326637492744,
+    0.9785442985358258,
+    0.9748296517576658,
+    0.972677197134772,
+    0.9715347620676633,
+    0.9710349088657109,
 )
 #: ‖Δψ‖ of the LAST recorded increment (the interior leaf's space norm).
-_LAST_DISPLACEMENT_L2 = 8.848958875813311
+_LAST_DISPLACEMENT_L2 = 2.22362669469903
 #: ``‖Δψ‖/(1−ρ)`` at the last recorded ρ — the c→1 false-convergence estimate.
-_TRUE_ERROR_ESTIMATE = 308.0488097665712
+_TRUE_ERROR_ESTIMATE = 76.76919379917577
 #: ``where_largest(3)`` index tuples into the ``(n_ordinate, group, cell)`` layout.
 _WHERE_LARGEST_3 = [(3, 1, 24), (4, 1, 26), (4, 1, 25)]
 

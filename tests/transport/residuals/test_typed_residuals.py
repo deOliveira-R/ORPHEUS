@@ -94,7 +94,9 @@ class TestAngularResidual:
         m = _slab_mesh()
         r = AngularResidual.from_mesh(np.zeros(_ang_shape(m)), m)
         assert isinstance(r, Field)
-        assert r.space.name == "angular_residual"
+        # CS4b S2: role is CLASS identity; the space is the carrier's cached
+        # angular bulk (shared across the family, role-blind by design).
+        assert r.space is m.angular_bulk_space
         assert r.mesh is m
 
     def test_from_mesh_shape_and_metadata(self) -> None:
@@ -161,7 +163,9 @@ class TestScalarResidual:
         m = _slab_mesh()
         r = ScalarResidual.from_mesh(np.zeros(_sca_shape(m)), m)
         assert isinstance(r, Field)
-        assert r.space.name == "scalar_residual"
+        # CS4b S2: role is CLASS identity; the space is the carrier's cached
+        # scalar bulk (shared across the family, role-blind by design).
+        assert r.space is m.bulk_space
         assert r.mesh is m
 
     def test_from_mesh_shape_and_metadata(self) -> None:
@@ -322,7 +326,7 @@ class TestFromBalance:
         rhs = AngularSourceSink.from_mesh(np.full(_ang_shape(m), 1.0), m)
         r = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
         assert isinstance(r, AngularResidual)
-        assert r.space.name == "angular_residual"
+        assert r.space is m.angular_bulk_space  # CS4b: the cached mint
         assert r.mesh is m
 
     def test_angular_sign_is_lhs_minus_rhs(self) -> None:
@@ -390,7 +394,7 @@ class TestFromBalance:
         rhs = ScalarSourceSink.from_mesh(np.full(_sca_shape(m), 2.0), m)
         r = ScalarResidual.from_balance(lhs=lhs, rhs=rhs)
         assert isinstance(r, ScalarResidual)
-        assert r.space.name == "scalar_residual"
+        assert r.space is lhs.space  # CS4b: the cached mint, via lhs
         assert np.all(r.values == 3.0)
 
     def test_scalar_2d(self) -> None:

@@ -135,11 +135,6 @@ class ScalarFlux(ScalarField):
     VIEWS into ``values`` — downstream callers must not mutate them.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf (preserves the
-    #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
-    #: is inherited from :class:`ScalarField` / :class:`BulkField`.
-    _SPACE_NAME: ClassVar[str] = "scalar_flux"
-
     #: Dimensional identity (View-G, B.4): areal angle-integrated flux
     #: ``1/(cm²·s)`` (eV-free — see module docstring). Metadata, not the
     #: arithmetic gate. See :mod:`orpheus.numerics.units`.

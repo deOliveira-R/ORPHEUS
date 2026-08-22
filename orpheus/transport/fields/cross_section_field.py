@@ -107,11 +107,6 @@ class CrossSectionField(CoefficientRole, ScalarField):
     inherited from :class:`~orpheus.transport.fields._bases.BulkField`.
     """
 
-    #: The :class:`FunctionSpace` name for this leaf. All mesh/shape/algebra/
-    #: factory machinery is inherited from
-    #: :class:`~orpheus.transport.fields._bases.ScalarField`.
-    _SPACE_NAME: ClassVar[str] = "cross_section"
-
     #: Dimensional identity (View-G): macroscopic cross section ``1/cm``
     #: (:data:`~orpheus.numerics.units.CROSS_SECTION_UNITS`). Metadata, not the
     #: arithmetic gate. See :mod:`orpheus.numerics.units`.
