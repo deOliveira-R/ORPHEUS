@@ -154,9 +154,10 @@ class RadialCharacteristicField(
 
         Every System-B block boundary (``A_BB`` / ``A_AB`` / ``B_b``) receives
         a :class:`RadialCharacteristicField` and must refuse (i) a foreign
-        carrier type and (ii) a foreign mesh (the mesh-identity invariant —
-        the member's legs, the operator's coefficients, and the radial widths
-        must not desync). One parse, three consumers (coding-elegance
+        carrier type and (ii) block spaces disagreeing with the operator
+        mesh's ray spaces in CONTENT (the space-content invariant, per block
+        since CS4b S3 — the member's legs, the operator's coefficients, and
+        the radial widths must not desync). One parse, three consumers (coding-elegance
         Pattern 2; parse-don't-validate at the boundary). ``context`` names
         the refusing surface (``"RadialCharacteristicOperator.apply"``) so the
         error reads at the call site.
@@ -166,11 +167,16 @@ class RadialCharacteristicField(
                 f"{context}: expected a RadialCharacteristicField "
                 f"(System B's member carrier); got {type(x).__name__}."
             )
-        if x.mesh is not mesh:
+        if (
+            x.interior.space != mesh.radial_characteristic_interior_space
+            or x.boundary.space != mesh.radial_characteristic_boundary_space
+        ):
             raise ValueError(
-                f"{context}: the input field and the operator must share the "
-                f"same SNMesh instance (mesh-identity invariant); got field "
-                f"mesh {x.mesh!r} vs operator mesh {mesh!r}."
+                f"{context}: the input field's block spaces must agree with "
+                f"the operator mesh's ray spaces in content (space-content "
+                f"invariant, per block — the composite's own ``==`` is "
+                f"name+shape and cannot see blocks); got interior "
+                f"{x.interior.space!r} vs {mesh.radial_characteristic_interior_space!r}."
             )
         return x
 

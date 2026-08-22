@@ -335,7 +335,14 @@ def evaluate_residual(
     # blindness the split-residual mint exists to prevent (a DSA consumer
     # feeding solution.angular_flux alone would get a residual blind to a
     # wrong seed row). The full-system residual takes the coupled pair.
-    bare_mesh = getattr(q_ext.interior, "mesh", None)
+    # CS4b S3: the ``getattr(…, "mesh", None)`` tolerance died — a defaulted
+    # read would become a SILENT no-op the moment S4 retires the field's
+    # mesh attribute (vv #28's temporal twin). The direct read is LOUD at
+    # S4, which owns relocating this guard's knowledge source (the
+    # carrying-ness is a property of the POSE; the field's space cannot
+    # carry it, so the S4 design decides where the question moves —
+    # named there, not discovered).
+    bare_mesh = q_ext.interior.mesh
     if getattr(bare_mesh, "radial_characteristic_field_space", None) is not None:
         raise ValueError(
             "evaluate_residual: this mesh carries starting-direction levels "
@@ -3088,13 +3095,13 @@ def solve_sn_adjoint_fixed_source(
 
     if isinstance(detector_response, FullField):
         q_star = detector_response
-        if q_star.interior.mesh is not sn_mesh:
+        if q_star.interior.space != q_star.interior.space_on(sn_mesh):
             raise ValueError(
                 "solve_sn_adjoint_fixed_source: a composite "
-                "detector_response must be built on the SAME SNMesh this "
-                "entry constructs — build the mesh first via SNMesh and "
-                "pass it as the mesh argument, or pass the scalar "
-                "(ng, *spatial) detector form."
+                "detector_response must agree with this entry's mesh in "
+                "space content (space-content invariant) — build it on the "
+                "mesh passed here, or pass the scalar (ng, *spatial) "
+                "detector form."
             )
     else:
         sigma_d = np.asarray(detector_response, dtype=float)

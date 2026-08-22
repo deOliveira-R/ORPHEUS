@@ -90,6 +90,20 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Doubled width, same shape — the VOLUMES differ, so the carrier mints
+    an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
     """Spherical Mesh1D + GL N=4, reflective inner / vacuum outer.
 
@@ -514,15 +528,21 @@ class TestCompositeInvariants:
         assert isinstance(out.interior, AngularSourceSink)
         assert out.interior.mesh is sn_mesh
 
-    def test_mesh_identity_invariant(self):
-        """Distinct SNMesh instances must reject the apply."""
+    def test_space_content_invariant(self):
+        """CS4b S3 (F2): a twin-carrier composite applies legally; one whose
+        carrier's volumes differ refuses (space-content invariant)."""
         sn_mesh_a = _slab_mesh()
-        sn_mesh_b = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh_a)
         L = StreamingOperator(sn_mesh_a)
-        state_b = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh_b)
-        with pytest.raises(ValueError, match="mesh-identity"):
-            L.apply(state_b)
+        twin = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=_slab_mesh(),
+        )
+        L.apply(twin)  # twin content — legal since the F2 re-key
+        state_c = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux,
+            mesh=_stretched_mesh(),
+        )
+        with pytest.raises(ValueError, match="space-content"):
+            L.apply(state_c)
 
 
 class TestOperatorAlgebraCompositionUnderTimedFullField:

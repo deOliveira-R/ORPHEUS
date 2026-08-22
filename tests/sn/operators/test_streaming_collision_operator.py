@@ -44,7 +44,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import (
@@ -107,6 +107,20 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Doubled width, same shape — the VOLUMES differ, so the carrier mints
+    an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -200,16 +214,23 @@ class TestCapabilitiesAndInvariants:
         assert callable(getattr(plain, "apply", None))
         assert not plain.is_invertible
 
-    def test_mismatched_mesh_rejected(self) -> None:
-        """Two distinct :class:`SNMesh` instances → ValueError."""
+    def test_mismatched_content_rejected(self) -> None:
+        """CS4b S3 (F2): a twin-carrier σ pairs legally; a σ whose carrier's
+        volumes differ refuses (space-content invariant)."""
         sn1 = _slab_mesh()
         sn2 = _slab_mesh()
-        sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
         sigma_t2 = np.ones((sn2.ng, *sn2.spatial_shape))
-        L = StreamingOperator(sn1)
-        C = MultiplicationOperator.from_mesh(sigma_t2, sn2)
-        with pytest.raises(ValueError, match="mesh-identity"):
-            StreamingCollisionOperator(L, C)
+        StreamingCollisionOperator(
+            StreamingOperator(sn1),
+            MultiplicationOperator.from_mesh(sigma_t2, sn2),  # twin — legal
+        )
+        sn3 = _stretched_mesh()
+        sigma_t3 = np.ones((sn3.ng, *sn3.spatial_shape))
+        with pytest.raises(ValueError, match="space-content"):
+            StreamingCollisionOperator(
+                StreamingOperator(sn1),
+                MultiplicationOperator.from_mesh(sigma_t3, sn3),
+            )
 
     def test_non_positive_sigma_rejected(self) -> None:
         """``σ <= 0`` anywhere → ValueError at construction."""
@@ -350,15 +371,17 @@ class TestSolve:
         with pytest.raises(TypeError, match="expected FullField"):
             L.apply(psi_bare)
 
-    def test_solve_rejects_mismatched_mesh(self) -> None:
+    def test_solve_rejects_mismatched_content(self) -> None:
         sn1 = _slab_mesh()
-        sn2 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
-        with pytest.raises(ValueError, match="mesh-identity"):
+        rhs = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux,
+            mesh=_stretched_mesh(),
+        )
+        with pytest.raises(ValueError, match="space-content"):
             invertible.solve(rhs)
 
     def test_solve_produces_positive_flux_for_positive_source(self) -> None:
@@ -622,15 +645,17 @@ class TestSolveTimedFullField:
             psi = invertible.solve(rhs)
             assert psi.history_depth == depth
 
-    def test_rejects_mismatched_mesh_on_rhs(self) -> None:
+    def test_rejects_mismatched_content_on_rhs(self) -> None:
         sn1 = _slab_mesh()
-        sn2 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
-        with pytest.raises(ValueError, match="mesh-identity"):
+        rhs = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux,
+            mesh=_stretched_mesh(),
+        )
+        with pytest.raises(ValueError, match="space-content"):
             invertible.solve(rhs)
 
 

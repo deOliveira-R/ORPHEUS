@@ -85,6 +85,8 @@ from typing import TYPE_CHECKING, Self
 
 import numpy as np
 
+from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+
 if TYPE_CHECKING:
     from .mesh.augmented_mesh import SNMesh
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
@@ -442,19 +444,37 @@ class SolutionBase:
         # D-H.1b: angular_flux is now a TimedFullField composite —
         # the mesh is on the bulk (and validated against boundary at
         # TimedFullField construction).
-        if self.angular_flux.interior.mesh is not self.mesh:
+        if (
+            self.angular_flux.interior.space
+            != self.angular_flux.interior.space_on(self.mesh)
+        ):
             raise ValueError(
-                f"{type(self).__name__}: angular_flux.interior.mesh is not "
-                f"{type(self).__name__}.mesh (typed-field mesh-identity "
-                "contract broken — every field must reference the same "
-                "SNMesh instance)."
+                f"{type(self).__name__}: angular_flux.interior.space "
+                f"disagrees with the mesh's composite interior "
+                "(space-content invariant — every member must agree with "
+                "this Solution's mesh in content)."
             )
-        if self.scalar_flux.mesh is not self.mesh:
+        psi_axes = self.angular_flux.interior.space.axes
+        phi_axes = self.scalar_flux.space.axes
+        marginal = None if psi_axes is None else psi_axes[1:]
+        averaged = (
+            None
+            if marginal is None
+            else tuple(
+                a for a in marginal if a.label != SPATIAL_MOMENT_AXIS_LABEL
+            )
+        )
+        if (
+            psi_axes is None
+            or phi_axes is None
+            or phi_axes not in (marginal, averaged)
+        ):
             raise ValueError(
-                f"{type(self).__name__}: scalar_flux.mesh is not "
-                f"{type(self).__name__}.mesh (typed-field mesh-identity "
-                "contract broken — every field must reference the same "
-                "SNMesh instance)."
+                f"{type(self).__name__}: scalar_flux.space must be the "
+                "non-angular MARGINAL of angular_flux's interior space "
+                "(space-content invariant — φ = ∫ψ dΩ shares the energy "
+                "and spatial axes; the optional moment tail may ride or "
+                "be averaged out, and production's public φ drops it)."
             )
         # B.2d DP-Solution: System B's presence is STRUCTURAL — the member
         # exists exactly when the mesh carries seed levels (R12a). A
@@ -472,14 +492,16 @@ class SolutionBase:
                 "converged state is its own typed member on a carrying "
                 "mesh, absent otherwise (B.2d)."
             )
-        if (
-            self.radial_characteristic is not None
-            and self.radial_characteristic.mesh is not self.mesh
+        if self.radial_characteristic is not None and (
+            self.radial_characteristic.interior.space
+            != self.mesh.radial_characteristic_interior_space
+            or self.radial_characteristic.boundary.space
+            != self.mesh.radial_characteristic_boundary_space
         ):
             raise ValueError(
-                f"{type(self).__name__}: radial_characteristic.mesh is not "
-                f"{type(self).__name__}.mesh (typed-field mesh-identity "
-                "contract broken)."
+                f"{type(self).__name__}: radial_characteristic's block "
+                "spaces disagree with the mesh's ray spaces "
+                "(space-content invariant, per block)."
             )
 
     # ── boundary_flux as a delegate property ─────────────────────────

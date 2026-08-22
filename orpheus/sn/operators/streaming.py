@@ -158,10 +158,10 @@ def _require_typed_composite(
             "boundary=AngularBoundaryFlux(...))`` (or the timed "
             "``TimedFullField(interior=..., boundary=...)`` for an iterate)."
         )
-    if sn_mesh is not field.interior.mesh:
+    if field.interior.space != field.interior.space_on(sn_mesh):
         raise ValueError(
-            f"{method}: operator and composite must share the SAME "
-            "SNMesh instance (mesh-identity invariant)."
+            f"{method}: operator and composite must agree in space "
+            "content (space-content invariant)."
         )
 
 
@@ -586,13 +586,14 @@ class StreamingCollisionOperator(
         # the (name, shape) shape-equality the OperatorSum composition guard
         # checks. The diagonal multiplier is mesh-free; its mesh is carried by
         # its CrossSectionField coefficient.
-        if streaming.sn_mesh is not diagonal.coefficient.mesh:
+        if diagonal.coefficient.space != streaming.sn_mesh.bulk_space:
             raise ValueError(
-                "StreamingCollisionOperator: the streaming operator and the diagonal "
-                "multiplier must act on the same mesh instance — the "
-                "mesh-identity invariant (streaming.sn_mesh is "
-                "diagonal.coefficient.mesh): the WDD sweep pairs the "
-                "diagonal's σ with the streaming geometry."
+                "StreamingCollisionOperator: the diagonal multiplier's σ "
+                "must agree with the streaming geometry's scalar bulk in "
+                "content — the space-content invariant "
+                "(diagonal.coefficient.space == streaming.sn_mesh.bulk_space): "
+                "the WDD sweep pairs the diagonal's σ with the streaming "
+                "geometry."
             )
         if not np.all(diagonal.coefficient.values > 0):
             min_sigma = float(np.min(diagonal.coefficient.values))
@@ -903,11 +904,11 @@ class StreamingCollisionOperator(
                 f"in D-H.2-C3."
             )
         sn_mesh = self.sn_mesh
-        if rhs.interior.mesh is not sn_mesh:
+        if rhs.interior.space != rhs.interior.space_on(sn_mesh):
             raise ValueError(
                 "StreamingCollisionOperator.solve(FullField): rhs and "
-                "operator must share the same SNMesh instance "
-                "(mesh-identity invariant)."
+                "operator must agree in space content "
+                "(space-content invariant)."
             )
 
         # ── Boundary buffer for the sweep ─────────────────────────────
@@ -1062,11 +1063,11 @@ class StreamingCollisionOperator(
         from orpheus.transport.full_field import FullField
 
         sn_mesh = self.sn_mesh
-        if b.interior.mesh is not sn_mesh:
+        if b.interior.space != b.interior.space_on(sn_mesh):
             raise ValueError(
                 "StreamingCollisionOperator.solve_transpose(FullField): b and "
-                "operator must share the same SNMesh instance "
-                "(mesh-identity invariant)."
+                "operator must agree in space content "
+                "(space-content invariant)."
             )
         q_bar, m_boundary = self.loss_representation.sweep_transpose(
             b.interior.values,

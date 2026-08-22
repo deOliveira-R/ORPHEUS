@@ -368,12 +368,11 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
                 f"a ScalarBoundaryFlux (the (J⁺, J⁻) trace); got "
                 f"{type(trace).__name__}."
             )
-        if bulk.mesh is not self.mesh:
+        if bulk.space != self.mesh.bulk_space:
             raise ValueError(
-                "LeakageOperator: input field and operator must "
-                "share the same DiffusionMesh instance (mesh-identity "
-                f"invariant); got field mesh {bulk.mesh!r} vs operator "
-                f"mesh {self.mesh!r}."
+                "LeakageOperator: input field and operator must agree in "
+                "space content (space-content invariant); got field space "
+                f"{bulk.space!r} vs operator {self.mesh.bulk_space!r}."
             )
         return bulk.values, trace
 
@@ -600,12 +599,12 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
                 f"boundary must be a ScalarBoundaryFlux trace; got "
                 f"{type(trace).__name__}."
             )
-        if psi.interior.mesh is not self.mesh:
+        if psi.interior.space != self.mesh.bulk_space:
             raise ValueError(
-                "DiffusionBoundaryOperator.apply: input field and "
-                "operator must share the same DiffusionMesh instance "
-                f"(mesh-identity invariant); got field mesh "
-                f"{psi.interior.mesh!r} vs operator mesh {self.mesh!r}."
+                "DiffusionBoundaryOperator.apply: input field and operator "
+                "must agree in space content (space-content invariant); got "
+                f"field space {psi.interior.space!r} vs operator "
+                f"{self.mesh.bulk_space!r}."
             )
         out_boundary = ScalarBoundarySourceSink.zeros_on(self.mesh)
         for face, law in self.face_laws.items():

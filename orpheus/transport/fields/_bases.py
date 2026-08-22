@@ -363,6 +363,36 @@ class BulkField(Field):
             return 1
         return factor.per_axis
 
+    @classmethod
+    def _space_for_mesh(
+        cls, mesh: "MaterialMesh", *, spatial_moments: int = 1,
+    ) -> FunctionSpace:
+        r"""The family's space mint for ``mesh`` — the per-family hook.
+
+        Implemented by :class:`AngularField` / :class:`ScalarField` (the
+        carrier-cached reads); :class:`MomentField` keys on ``(mesh, L)``
+        instead and overrides :meth:`space_on` directly.
+        """
+        raise NotImplementedError(
+            f"{cls.__name__} declares no per-mesh space mint — instantiate "
+            "a concrete family (AngularField/ScalarField subclasses), or "
+            "use the family's own keyed mint (MomentField)."
+        )
+
+    def space_on(self, mesh: "MaterialMesh") -> FunctionSpace:
+        r"""The space THIS field's family (and moment width) mints on ``mesh``.
+
+        The polymorphic reference of the operator admission guards
+        (CS4b S3): *"does your space agree with what your family would be
+        on MY carrier?"* — spelled once per family hierarchy, single-
+        sourced through the same derivation the factories use, so a guard
+        can compare content without knowing which role family it holds
+        (angular, scalar, moment, face — each answers with its own mint).
+        """
+        return type(self)._space_for_mesh(
+            mesh, spatial_moments=self.spatial_moments_per_axis,
+        )
+
     # ── Metadata read-throughs ───────────────────────────────────────
 
     @property
@@ -407,7 +437,9 @@ class AngularField(BulkField):
         return (mesh.quad.N, mesh.ng, *mesh.spatial_shape)
 
     @classmethod
-    def _space_for_mesh(
+    def _space_for_mesh(  # type: ignore[override] — the family narrows its
+        # carrier (SNMesh), the same #267 covariant-override doctrine as the
+        # ``mesh`` field above; every caller passes this family's carrier.
         cls, mesh: "SNMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh``.
@@ -714,13 +746,34 @@ class MomentField(BulkField):
         composition that adds the angular ``SphericalHarmonicSpace`` ("append
         iff > 1", single-sourced, matching :meth:`_phase_space_shape`).
         """
+        return cls(
+            values=values,
+            space=cls._space_for_mesh_and_L(
+                mesh, L, spatial_moments=spatial_moments,
+            ),
+            mesh=mesh, L=L,
+            spatial_moments=spatial_moments,
+        )
+
+    @classmethod
+    def _space_for_mesh_and_L(
+        cls, mesh: "MaterialMesh", L: int, *, spatial_moments: int = 1,
+    ) -> FunctionSpace:
+        r"""The moment family's space for ``(mesh, L, width)`` — one mint.
+
+        Single source shared by :meth:`from_mesh_and_L` and
+        :meth:`space_on` (the admission-guard reference), so the factory
+        and the guards cannot drift.
+        """
         sh_space = SphericalHarmonicSpace.from_L(L)
-        space = cls._compose_spatial_moments(
+        return cls._compose_spatial_moments(
             sh_space * mesh.bulk_space, mesh, spatial_moments,
         )
-        return cls(
-            values=values, space=space, mesh=mesh, L=L,
-            spatial_moments=spatial_moments,
+
+    def space_on(self, mesh: "MaterialMesh") -> FunctionSpace:
+        r"""The moment family's mint on ``mesh`` (see BulkField.space_on)."""
+        return type(self)._space_for_mesh_and_L(
+            mesh, self.L, spatial_moments=self.spatial_moments,
         )
 
     @classmethod
@@ -886,6 +939,10 @@ class FaceField(Field, Generic[K]):
                     f"structurally distinct FaceLayouts."
                 )
         return partner
+
+    def space_on(self, mesh: "MaterialMesh") -> FunctionSpace:
+        r"""The face family's mint on ``mesh`` (see BulkField.space_on)."""
+        return type(self)._face_space_of(mesh)
 
     # ── Per-face access (slice views into the flat buffer) ───────────
 

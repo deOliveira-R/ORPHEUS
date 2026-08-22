@@ -1213,8 +1213,8 @@ class TestA_BB_RadialBVP:
         # foreign-mesh march unconstructable; a bare ndarray could not.
         foreign_mesh = _graded_sphere(nx=6)
         foreign_sigma = CrossSectionField.from_mesh(
-            np.ones((sn.ng, sn.nx)), foreign_mesh)
-        with pytest.raises(ValueError, match="mesh-identity invariant"):
+            np.ones((foreign_mesh.ng, foreign_mesh.nx)), foreign_mesh)
+        with pytest.raises(ValueError, match="space-content invariant"):
             RadialCharacteristicOperator(sn, foreign_sigma)
         # σ_t ≤ 0 → the DD-denominator guard.
         bad = np.ones((sn.ng, sn.nx))
@@ -1382,8 +1382,12 @@ class TestA_BB_Forward:
             op.apply(_template(sn))                     # a System-A FullField (foreign carrier)
         with pytest.raises(TypeError, match="SOURCE members"):
             op.solve(cot)                              # flux into the resolvent
-        with pytest.raises(ValueError, match="mesh-identity invariant"):
-            op.apply(_member(_ray_cotangent(_sphere(), rng)))
+        # CS4b S3 (F2): a twin sphere's member is CONTENT-equal — legal;
+        # a graded sphere's ray content differs — refused per block.
+        _ = op.apply(_member(_ray_cotangent(_sphere(), rng)))
+        graded = _graded_sphere(nx=5)
+        with pytest.raises(ValueError, match="space-content invariant"):
+            op.apply(_member(_ray_cotangent(graded, rng)))
 
     def test_b2c_member_value_rows_have_teeth(self, monkeypatch):
         r"""TEETH for the G-c1.1 value rows (4e RE-AIM).
@@ -2732,13 +2736,16 @@ class TestA_AB_SeedInjection:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicSeeding(slab)
-        # Positive control + the mesh-identity guard (a field on ANOTHER sphere).
+        # Positive control + the space-content guard (CS4b S3 F2): a TWIN
+        # sphere's member is content-equal — legal; a graded sphere's
+        # content differs — refused.
         sn = _sphere()
         op = RadialCharacteristicSeeding(sn)
-        other = _sphere()
-        with pytest.raises(ValueError, match="mesh-identity invariant"):
+        _ = op.apply(_member(_seed_flux(_sphere(), np.random.default_rng(9))))
+        other = _graded_sphere(nx=5)
+        with pytest.raises(ValueError, match="space-content invariant"):
             op.apply(_member(_seed_flux(other, np.random.default_rng(9))))
-        with pytest.raises(ValueError, match="mesh-identity invariant"):
+        with pytest.raises(ValueError, match="space-content invariant"):
             op.apply_transpose(_bulk_composite(
                 other,
                 np.random.default_rng(9).standard_normal(

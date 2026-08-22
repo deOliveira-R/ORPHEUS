@@ -497,13 +497,22 @@ class TestLeakageOperator:
         )
         with pytest.raises(TypeError, match="ScalarFlux"):
             L.apply(bad_bulk)
-        # Wrong mesh instance:
-        other = _diffusion_mesh()
+        # CS4b S3 (F2): a twin carrier's composite is content-equal — legal.
+        twin = _diffusion_mesh()
+        L.apply(FullField(
+            interior=ScalarFlux.from_mesh(np.ones((_NG, _NX)), twin),
+            boundary=ScalarBoundaryFlux.zeros_on(twin),
+        ))
+        # A carrier whose volumes differ refuses (space-content invariant).
+        other = DiffusionMesh(
+            Mesh1D(edges=2.0 * _EDGES, mat_ids=_MAT_IDS),
+            _fixture_materials(),
+        )
         foreign = FullField(
             interior=ScalarFlux.from_mesh(np.ones((_NG, _NX)), other),
             boundary=ScalarBoundaryFlux.zeros_on(other),
         )
-        with pytest.raises(ValueError, match="mesh-identity"):
+        with pytest.raises(ValueError, match="space-content"):
             L.apply(foreign)
 
     def test_interior_stencil_on_uniform_slab(self):

@@ -55,6 +55,19 @@ def _non_uniform_slab(ng: int) -> SNMesh:
     )
     return SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng))
 
+def _stretched_nonuniform_slab(ng: int) -> SNMesh:
+    """The non-uniform slab at doubled width — same shape, different cell
+    volumes (the F2 content discriminator)."""
+    edges = 2.0 * np.array([0.0, 0.1, 0.3, 0.6, 1.0])
+    mesh = Mesh1D(
+        edges=edges, mat_ids=np.zeros(4, dtype=int),
+        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    )
+    return SNMesh(
+        mesh, Quadrature.gauss_legendre(n_ordinates=4),
+        placeholder_materials(ng=ng),
+    )
+
 
 def _hand_volume_integral(sigx: np.ndarray, phi: np.ndarray, volumes: np.ndarray) -> float:
     """``Σ_cells V_cell Σ_g Σx_g φ_g`` by explicit Python loops (no numpy reduction)."""
@@ -228,14 +241,22 @@ class TestAdjointWeightedBilinear:
         from orpheus.transport.fields.scalar_flux import ScalarFlux
 
         sn = _non_uniform_slab(ng=2)
-        other = _non_uniform_slab(ng=2)          # equal-shaped, different object
         nx = sn.spatial_shape[0]
         rng = np.random.default_rng(17)
         irr = IntegratedReactionRate(
             cross_section_field(rng.uniform(0.1, 1.0, size=(2, nx)), sn)
         )
-        foreign = ScalarFlux.from_mesh(rng.uniform(0.2, 2.0, size=(2, nx)), other)
-        with pytest.raises(ValueError, match="different mesh"):
+        # CS4b S3 (F2): a twin carrier's adjoint pairs legally (content).
+        twin = ScalarFlux.from_mesh(
+            rng.uniform(0.2, 2.0, size=(2, nx)), _non_uniform_slab(ng=2),
+        )
+        irr.evaluate(rng.uniform(0.05, 1.0, size=(2, nx)), adjoint=twin)
+        # A carrier whose volumes differ refuses — the σ↔geometry pairing.
+        stretched = _stretched_nonuniform_slab(ng=2)
+        foreign = ScalarFlux.from_mesh(
+            rng.uniform(0.2, 2.0, size=(2, nx)), stretched,
+        )
+        with pytest.raises(ValueError, match="space-content"):
             irr.evaluate(rng.uniform(0.05, 1.0, size=(2, nx)), adjoint=foreign)
 
 

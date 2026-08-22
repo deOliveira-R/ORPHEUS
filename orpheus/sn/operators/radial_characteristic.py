@@ -259,12 +259,13 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         # way, streaming.py). The field's own space invariant then GUARANTEES
         # values.shape == (ng, nx) for this mesh — so no separate shape check is
         # needed (an explicit one would be redundant ceremony).
-        if total_cross_section.mesh is not sn_mesh:
+        if total_cross_section.space != sn_mesh.bulk_space:
             raise ValueError(
                 "RadialCharacteristicOperator: total_cross_section must be a "
-                "CrossSectionField on the SAME SNMesh as the operator "
-                "(mesh-identity invariant); got field mesh "
-                f"{total_cross_section.mesh!r} vs operator mesh {sn_mesh!r}."
+                "CrossSectionField agreeing with the operator mesh's scalar "
+                "bulk in content (space-content invariant); got field space "
+                f"{total_cross_section.space!r} vs "
+                f"{sn_mesh.bulk_space!r}."
             )
         sigma = total_cross_section.values
         if np.any(sigma <= 0.0):
@@ -934,19 +935,21 @@ class RadialCharacteristicSeeding(
     # ── Internals ─────────────────────────────────────────────────────
 
     def _check_mesh(self, field: "FullField", method: str) -> None:
-        r"""Enforce the mesh-identity invariant (Pattern 4).
+        r"""Enforce the space-content invariant (Pattern 4; CS4b S3).
 
-        The input field, this operator's ``pole_angular_closure``, and the
-        ``volumes`` must all be on the SAME
-        :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` instance, so the seed
-        legs, the M-M coefficients, and the ``/V`` scaling cannot desync.
+        The input composite, this operator's ``pole_angular_closure``, and
+        the ``volumes`` must all agree with ONE
+        :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`'s content, so the
+        seed legs, the M-M coefficients, and the ``/V`` scaling cannot
+        desync. Compared per BLOCK (the composite's own ``==`` is
+        name+shape and cannot see blocks).
         """
-        if field.mesh is not self.sn_mesh:
+        if field.interior.space != field.interior.space_on(self.sn_mesh):
             raise ValueError(
-                f"RadialCharacteristicSeeding.{method}: the input field and "
-                f"the operator must share the same SNMesh instance "
-                f"(mesh-identity invariant); got field mesh {field.mesh!r} "
-                f"vs operator mesh {self.sn_mesh!r}."
+                f"RadialCharacteristicSeeding.{method}: the input composite "
+                f"must agree with the operator mesh in space content "
+                f"(space-content invariant); got interior space "
+                f"{field.interior.space!r} on operator mesh {self.sn_mesh!r}."
             )
 
     def __repr__(self) -> str:
@@ -1173,12 +1176,15 @@ class RadialCharacteristicReconstruction(LinearOperator):
         np.ndarray
             The bulk moment cotangent, shape ``(n_moments, ng, nx)``.
         """
-        if cotangent.mesh is not self.sn_mesh:
+        if cotangent.interior.space != cotangent.interior.space_on(
+            self.sn_mesh
+        ):
             raise ValueError(
                 f"RadialCharacteristicReconstruction.apply_transpose: the "
-                f"cotangent and the operator must share the same SNMesh "
-                f"(mesh-identity invariant); got field mesh "
-                f"{cotangent.mesh!r} vs operator mesh {self.sn_mesh!r}."
+                f"cotangent composite must agree with the operator mesh in "
+                f"space content (space-content invariant); got interior "
+                f"space {cotangent.interior.space!r} on operator mesh "
+                f"{self.sn_mesh!r}."
             )
         moment_bar = np.zeros(
             (self.n_moments, self._ray_space.ng, self._ray_space.nx),

@@ -404,23 +404,33 @@ class TestSolutionConstruction:
         assert sol.keff == 1.05
         assert sol.history is h
 
-    def test_mesh_identity_angular_flux(self) -> None:
-        """A foreign-mesh TimedFullField must be rejected at construction."""
+    def test_space_content_angular_flux(self) -> None:
+        """CS4b S3 (F2): a twin-carrier composite legitimately constructs
+        (content agrees); a composite whose content differs (here: group
+        structure) refuses on the space-content invariant."""
         m1 = _slab_mesh()
-        m2 = _slab_mesh()  # distinct instance, same shape
-        state_foreign = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m2)
+        state_twin = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=_slab_mesh(),
+        )
         _, phi, bf = _make_fluxes(m1)
-        with pytest.raises(ValueError, match="angular_flux.interior.mesh"):
+        Solution(angular_flux=state_twin, scalar_flux=phi, mesh=m1)
+        state_foreign = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux,
+            mesh=_slab_mesh(ng=3),
+        )
+        with pytest.raises(ValueError, match="space-content"):
             Solution(
                 angular_flux=state_foreign, scalar_flux=phi, mesh=m1,
             )
 
-    def test_mesh_identity_scalar_flux(self) -> None:
+    def test_space_content_scalar_flux(self) -> None:
+        """CS4b S3 (F2): φ must be ψ's non-angular marginal by CONTENT —
+        a φ from a group-structure-differing carrier refuses."""
         m1 = _slab_mesh()
-        m2 = _slab_mesh()
-        phi_foreign = ScalarFlux.from_mesh(np.zeros((m2.ng, *m2.spatial_shape)), m2)
+        m3 = _slab_mesh(ng=3)
+        phi_foreign = ScalarFlux.from_mesh(np.zeros((m3.ng, *m3.spatial_shape)), m3)
         psi, _, bf = _make_fluxes(m1)
-        with pytest.raises(ValueError, match="scalar_flux.mesh"):
+        with pytest.raises(ValueError, match="MARGINAL"):
             Solution(
                 angular_flux=psi, scalar_flux=phi_foreign, mesh=m1,
             )
@@ -801,15 +811,15 @@ class TestSolutionRoleAxis:
         assert adj.mesh is m
         assert adj.is_fixed_source() and not adj.is_eigenvalue()
 
-    def test_adjoint_mesh_identity_enforced(self) -> None:
-        """The base's mesh-identity contract fires on the adjoint leaf too."""
+    def test_adjoint_space_content_enforced(self) -> None:
+        """The base's space-content contract fires on the adjoint leaf too."""
         m1 = _slab_mesh()
-        m2 = _slab_mesh()
+        m3 = _slab_mesh(ng=3)
         phi_foreign = ScalarFlux.from_mesh(
-            np.zeros((m2.ng, *m2.spatial_shape)), m2,
+            np.zeros((m3.ng, *m3.spatial_shape)), m3,
         )
         psi, _, _ = _make_fluxes(m1)
-        with pytest.raises(ValueError, match="scalar_flux.mesh"):
+        with pytest.raises(ValueError, match="MARGINAL"):
             AdjointSolution(angular_flux=psi, scalar_flux=phi_foreign, mesh=m1)
 
     def test_roles_are_siblings_not_subtypes(self) -> None:

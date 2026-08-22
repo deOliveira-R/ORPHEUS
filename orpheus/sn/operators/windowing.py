@@ -111,10 +111,10 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
-        if field.interior.mesh is not sn_mesh:
+        if field.interior.space != field.interior.space_on(sn_mesh):
             raise ValueError(
                 "BulkAnalysisOperator.apply: input field and operator must "
-                "share the same SNMesh instance (mesh-identity invariant)."
+                "agree in space content (space-content invariant)."
             )
         moments = self.frame.analysis.apply(field.interior.values)
         # The same wrap as the solve body's moment arm: the tensor's own

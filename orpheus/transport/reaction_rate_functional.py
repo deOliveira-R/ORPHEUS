@@ -211,11 +211,12 @@ class IntegratedReactionRate:
         if adjoint is None:
             per_cell = np.asarray(self.density.evaluate(phi))  # (1, *spatial)
         else:
-            if adjoint.mesh is not mesh:
+            if adjoint.space != self.cross_section.space:
                 raise ValueError(
-                    "IntegratedReactionRate.evaluate: the adjoint weight lives "
-                    "on a different mesh than the cross section — mesh identity "
-                    "(the same object) is required for the σ↔geometry pairing."
+                    "IntegratedReactionRate.evaluate: the adjoint weight and "
+                    "the cross section must agree in space content "
+                    "(space-content invariant) — the σ↔geometry pairing; got "
+                    f"{adjoint.space!r} vs {self.cross_section.space!r}."
                 )
             folded = InnerProductFunctional(
                 np.asarray(adjoint.values) * self.cross_section.values, axis=0,

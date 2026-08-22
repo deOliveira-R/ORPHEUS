@@ -712,17 +712,17 @@ class SNBoundaryOperator(LinearOperator):
         from orpheus.transport.full_field import FullField
 
         mesh = self.sn_mesh
-        if psi.interior.mesh is not mesh:
+        if psi.interior.space != psi.interior.space_on(mesh):
             raise ValueError(
                 # ``_apply_faces`` serves BOTH ``apply`` and
                 # ``apply_transpose``; the prefix names the caller rather than
                 # hard-coding ``apply``, which mis-attributed every failure on
-                # the transpose path. The ``mesh-identity invariant`` substring
-                # is load-bearing — four ``pytest.raises(..., match=...)`` sites
-                # in test_psi_half_coupling.py key on it — and is preserved.
+                # the transpose path. The ``space-content invariant`` substring
+                # is the greppable guard vocabulary (CS4b S3 — the pins in
+                # test_psi_half_coupling.py re-keyed with it).
                 f"SNBoundaryOperator.{method}: input field and operator must "
-                "share the same SNMesh instance (mesh-identity invariant); "
-                f"got field mesh {psi.interior.mesh!r} vs operator mesh {mesh!r}."
+                "agree in space content (space-content invariant); "
+                f"got field space {psi.interior.space!r} on operator mesh {mesh!r}."
             )
         # Role parse at the composite boundary: ``B_a`` reads a FLUX trace
         # (``_reflect_trace`` applies the boundary law to outflow flux), but
