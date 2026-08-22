@@ -658,6 +658,22 @@ class TestSolveTimedFullField:
         with pytest.raises(ValueError, match="space-content"):
             invertible.solve(rhs)
 
+    def test_solve_transpose_rejects_mismatched_content(self) -> None:
+        """O17 — the transpose twin of the solve arm (§11.1: the sibling
+        was witnessed and this arm was not; a whole-guard mutation would
+        have certified it — vv #17's per-arm discipline)."""
+        sn1 = _slab_mesh()
+        sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
+        invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
+            sigma_t1, sn1,
+        )
+        b = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux,
+            mesh=_stretched_mesh(),
+        )
+        with pytest.raises(ValueError, match="space-content"):
+            invertible.solve_transpose(b)
+
 
 # ── Convention-bridge regression catchers (R-1 Step 4 A5 promotion) ────
 

@@ -14,11 +14,10 @@ quadrature-blind (no angular axis ⟹ ``S_N`` order is not its data). Volumes,
 ``ng``, and (for the angular family) quadrature all discriminate, because
 each changes an axis's content.
 
-⚠ Step boundary (§6b): at S2 the PARTNER GUARDS are still mesh-keyed — the
-cross-mesh ADDITION permissions these equalities imply (the BC-only and
-scalar-S4+S8 legs of the doctrine) become spellable only at S3's re-key, and
-their gates land there. What S2 owns is the SPACE-level table and the role
-consequence (G2.3), which is same-mesh and live now.
+Step boundary (§6b), resolved: at S2 the partner guards were still
+mesh-keyed, so only the SPACE-level table and the same-mesh role
+consequence (G2.3) landed then; the cross-carrier ADDITION permission legs
+landed with S3's re-key (``test_the_permission_legs_now_spellable``).
 """
 
 from __future__ import annotations
@@ -103,14 +102,38 @@ class TestG22ScalarQuadratureBlindness:
     the DOF+Gram criterion is the rationale). Its control is G2.1's
     angular quadrature row, which must stay UNEQUAL.
 
-    ⚠ The addition leg (``phi_S4 + phi_S8`` SUCCEEDS) lands at S3 with the
-    partner-guard re-key — until then the mesh arm still refuses it.
+    The addition leg (``phi_S4 + phi_S8`` SUCCEEDS) landed with S3's
+    partner-guard re-key — the row below.
     """
 
     def test_scalar_space_ignores_quadrature_order_angular_does_not(self):
         s4, s8 = _mesh(n_ord=4), _mesh(n_ord=8)
         assert s4.bulk_space == s8.bulk_space
         assert s4.angular_bulk_space != s8.angular_bulk_space
+
+    def test_the_permission_legs_now_spellable(self):
+        """The addition halves, landed with S3's re-key (§6b deferred them
+        from S2 while the guards were still mesh-keyed):
+
+        * φ from an S4 solve + φ from an S8 solve on the same grid ADDS —
+          the ratified scalar quadrature-blindness (the space carries no
+          angular axis, so S_N order is not its data);
+        * fields across BC-only-differing carriers ADD — a boundary law
+          changes neither DOFs nor Gram (laws are operator data).
+        """
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        s4, s8 = _mesh(n_ord=4), _mesh(n_ord=8)
+        phi4 = ScalarFlux.zeros_on(s4)
+        phi8 = ScalarFlux.zeros_on(s8)
+        out = phi4 + phi8
+        assert isinstance(out, ScalarFlux)
+
+        vac, refl = _mesh(), _mesh(bc_left="reflective")
+        a = AngularFlux.zeros_on(vac)
+        b = AngularFlux.zeros_on(refl)
+        out2 = a + b
+        assert isinstance(out2, AngularFlux)
 
 
 class TestG23RoleIsClassIdentity:
