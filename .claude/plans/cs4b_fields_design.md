@@ -245,11 +245,47 @@ operators. You might want to stress test that perspective."* Stress test
 dispatched (cross-domain-attacker, P1–P8: generation set, layering inversion,
 cross-method reuse, the XD-1 analysis-verb home, the C asymmetry, EE-6
 compatibility, the thinness diagnosis, foreign frames) →
-`scratch/cs4b_kernel_as_frame_stress.md`. The pull-vs-defer decision is
-re-made AGAINST the surviving kernel design — binding the homogeneous path
-twice (thin-kernel now, rich-kernel at CS4c) would be churn, so if the rich
-kernel survives the stress test, the rebind slice waits for it (or the rich
-kernel design pulls forward wholesale — user's call on scope).
+`scratch/cs4b_kernel_as_frame_stress.md`.
+
+**Stress-test VERDICT (2026-08-21, sharpest claims probe-verified):** the
+Frame analogy is off by one layer — `[M]` `FrameBase` is a 2-field frozen
+dataclass (basis, measure) implementing ZERO math (`frame.py:113-132`; both
+apply faces one-line delegations); the RICH object is `Basis` (6
+representation-free verbs, zero runtime imports). `FrameBase(basis, measure)`
+IS `bind(kernel, space)` — **the precedent argues FOR the chartered external
+binder**, and kernel-generates-operators (design b) is refuted on two
+structural grounds (import direction — a kernels↔scattering cycle once CS4c
+re-points; binding is BINARY, neither operand owns it — the third object is
+EE-6, lifted to `BoundOperator(datum, space)`). The deciding rule: **a data
+object's verbs return ARRAYS; only the binder returns OPERATORS.**
+
+**The user's thinness diagnosis SURVIVES, re-aimed**: kernels are thin
+against `Basis` (the 6-verb data analogue), not against Frame — so the
+surviving design (c) = thin-data kernels ENRICHED with representation-free
+array/kernel-returning verbs (`truncated` ships; dagger-where-typed,
+`condensed` per XD-9's ruled pair, channel algebra) + the external binder +
+C's deliberate 3+1 (its `Id`-frame absence is `IntegralKernelOperator`'s sole
+discriminator — uniformising blinds a working gate).
+
+**Probe results (executed this session, `scratchpad/probe_kernel_stress.py`):**
+P-1 no adjoint-family member on any kernel — the chartered `bind(K)† =
+bind(K†)` gate's operand DOES NOT EXIST; P-10 the fission factor swap is
+REFUSED by the χ-simplex guard — K† of a FissionKernel is a DIFFERENT TYPE
+(recorded as the XD-1 sharpening in the campaign plan CS4c block); P-2 fused
+vs split channel binding differ at 5.6e-17 (FP association — the 0-ULP pin
+moves under any split); P-3 all four ℓ=0 spellings agree bit-exact (agreeing
+Pattern-2 copies, no live bug); P-7 both kernel docstring equalities hold;
+P-4 over-order refused via accidental bare `IndexError` (untyped — the
+kernel's derived `order` subsumes the operator's int at the rebind).
+
+**F5 resolution *(proposed, now safe)*:** with (b) refuted, the chartered
+external-binder design STANDS, so the homogeneous rebind slice can pull into
+CS4b without double-bind risk: the O9 ~10 sites re-point at kernels through
+the binder, `from_materials`' last consumer dissolves, O1's tell completes,
+D5 8/8 walls it. The kernel VERB enrichment (the re-aimed thinness) lands at
+CS4c with the binding base. Open probe for the test-architect: P-6 (is any
+SHIPPED rule a non-tight witness, or is the XD-1 gate's negative leg
+custom-rule-only — a §6c question).
 
 ### F6 — EE-1's integrated reaction-rate co-vector (obligation, not a fork)
 

@@ -1246,6 +1246,29 @@ negative control REDs; #359's three M-M spellings re-checked against the new bin
   c ∈ {1, 2π, 137}). ⚠ The truncation-naturality square (Borrowing 3) is
   NOT chartered as a gate: `[M]` the probe's square commuted at 0.0 for
   every rule including non-tight — no demonstrated red, no gate (§6c).
+  ⭐ **XD-1 sharpening (2026-08-21, kernel stress test + executed probes):
+  the adjoint leg's operand does not EXIST as chartered.** `[M]` (P-1) no
+  kernel carries any of {T, transpose, adjoint, dagger, H, conj} —
+  `bind(K†)` is unspellable at HEAD. For fission it lacks a TYPE, not just
+  an API: `[M]` (P-10) `FissionKernel(chi=νΣf, nu_sig_f=χ)` is REFUSED by
+  the kernel's own χ-simplex guard ("EmissionSpectrum is not normalized:
+  0.75") — the factor swap leaves the invariant, so the adjoint kernel is
+  a DIFFERENT type. The gate lands only after the design decides: kernel-
+  level dagger machinery with a typed image, or the adjoint leg re-
+  expressed operator-side (`bind(K).H` vs an independently-assembled
+  adjoint). Also `[M]` (P-2) fused vs split channel binding
+  (`conjugate(Λ+N2N)` vs the operator-sum of conjugates) differ at
+  5.6e-17 — FP association only, but the 0-ULP crosscheck pin moves under
+  any split; `[M]` (P-3) all four ℓ=0 transfer spellings agree bit-exact
+  today (four AGREEING copies — the Pattern-2 debt without a live bug);
+  `[M]` (P-4) an over-order `scattering_order` is refused by an accidental
+  bare `IndexError`, not a typed guard — the kernel's DERIVED `order`
+  subsumes the operator's independent int at the rebind. Full verdict:
+  `scratch/cs4b_kernel_as_frame_stress.md` — FrameBase is a 2-field
+  zero-math BINDER (the rich object is Basis, 6 array-returning verbs) ⟹
+  kernels gain representation-free ARRAY-returning verbs; binding stays
+  the external third object = EE-6 lifted to `BoundOperator(datum,
+  space)` (deleting the abstract `data_ng`); C stays a deliberate 3+1.
 * **XD-2 — the (n,2n) multiplicity single-source obligation, with its
   discriminator.** `[M]` 12 production literal `2`s across
   material_xs_field/iso/cp/moc/mc; the kernel ClassVar is the 13th home
