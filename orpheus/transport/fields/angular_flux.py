@@ -116,8 +116,20 @@ class AngularFlux(AngularField):
         its own tangent map; the displacement sibling that once wrapped it
         retired at campaign 1 CS3 — differences are same-typed now).
         """
+        from orpheus.numerics.space import FunctionSpace
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        return ScalarFlux.from_mesh(
-            self._integrate_angular_values(), self.mesh,
-            spatial_moments=self.spatial_moments_per_axis,
+        # CS4b S4: the marginal SPACE is the angular space with axes[0]
+        # dropped — the same axis objects, so the derived of_axes mint is
+        # content-EQUAL to the carrier's cached scalar bulk (the O7
+        # marginal law's own predicate), and the optional moment tail
+        # rides along in the axes untouched.
+        axes = self.space.axes
+        if axes is None:  # unreachable for shipped angular spaces (S2)
+            raise TypeError(
+                f"{type(self).__name__}.integrate_angular: the angular "
+                "space must be axis-built to derive its marginal."
+            )
+        return ScalarFlux(
+            values=self._integrate_angular_values(),
+            space=FunctionSpace.of_axes(*axes[1:]),
         )

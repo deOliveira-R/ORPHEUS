@@ -191,7 +191,8 @@ class TestResolutionADecomposition:
 
         # Reference: the unified matvec at full σ_t.
         m_full_state = _LC_matvec(
-            state, sigma_t, radial_characteristic_flux=seed_leg,
+            state, sigma_t, sn_mesh=sn_mesh,
+            radial_characteristic_flux=seed_leg,
         )
 
         # Pure-L + C via TimedFullField arithmetic (#257 S8b): L reads no σ.
@@ -295,7 +296,8 @@ class TestSubtractiveDefinition:
         l_state = _l_apply(L, state, seed_leg, sn_mesh)
 
         m_full_state = _LC_matvec(
-            state, sigma_t, radial_characteristic_flux=seed_leg,
+            state, sigma_t, sn_mesh=sn_mesh,
+            radial_characteristic_flux=seed_leg,
         )
 
         # Affine subtractive form: bulk expected = M.interior - σ_t·ψ.interior

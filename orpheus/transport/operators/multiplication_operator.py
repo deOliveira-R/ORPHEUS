@@ -79,7 +79,7 @@ Mesh-free (the carrier carries the mesh)
 ========================================
 
 :class:`MultiplicationOperator` stores ONLY the coefficient field; the
-mesh is read off the carrier at apply time (``mesh = psi.interior.mesh``),
+output spaces are read off the operand's blocks at apply time,
 faithful to the structure the legacy collision operator used. The
 coefficient field is itself mesh-bound (it was built ``from_mesh``), so
 the operator's domain is implicit in the field it carries.
@@ -447,11 +447,13 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # the mesh type the widened composite surfaces erase (#290 P2).
         bulk = psi.interior
         if isinstance(bulk, AngularField):
-            mesh = bulk.mesh
+            # CS4b S4 — the space route: every output block rides its
+            # OPERAND block's space (role transition = new class, same
+            # space; the zero trace block rides the input's trace space).
             out_bulk = self.engine.apply(bulk.values)
             return FullField(
-                interior=AngularSourceSink.from_mesh(out_bulk, mesh),
-                boundary=AngularBoundarySourceSink.zeros_on(mesh),
+                interior=AngularSourceSink(values=out_bulk, space=bulk.space),
+                boundary=AngularBoundarySourceSink.zeros(psi.boundary.space),
             )
         if isinstance(bulk, ScalarField):
             # Scalar arm (#290 P4): the (ng, *spatial) bulk has NO
@@ -459,11 +461,10 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             # leading axis so the ONE broadcast engine (and its frozen
             # spectrum gate) serves both families, then drop the axis.
             # Bit-identical to the direct ``coefficient.values * values``.
-            mesh = bulk.mesh
             out_bulk = self.engine.apply(bulk.values[None])[0]
             return FullField(
-                interior=ScalarSourceSink.from_mesh(out_bulk, mesh),
-                boundary=ScalarBoundarySourceSink.zeros_on(mesh),
+                interior=ScalarSourceSink(values=out_bulk, space=bulk.space),
+                boundary=ScalarBoundarySourceSink.zeros(psi.boundary.space),
             )
         raise TypeError(
             f"MultiplicationOperator composite apply: angular- or "
@@ -522,21 +523,20 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # parsed bulk's family-typed declaration.
         bulk = q.interior
         if isinstance(bulk, AngularField):
-            mesh = bulk.mesh
+            # CS4b S4 — the space route (see apply).
             out_bulk = self.engine.solve(bulk.values)
             return FullField(
-                interior=AngularFlux.from_mesh(out_bulk, mesh),
-                boundary=AngularBoundaryFlux.zeros_on(mesh),
+                interior=AngularFlux(values=out_bulk, space=bulk.space),
+                boundary=AngularBoundaryFlux.zeros(q.boundary.space),
             )
         if isinstance(bulk, ScalarField):
             # Scalar arm (#290 P4): the typed division q/f through the
             # ONE engine (degenerate 1-ordinate lift — see apply), which
             # gates the spectrum law exactly as on the angular arm.
-            mesh = bulk.mesh
             out_bulk = self.engine.solve(bulk.values[None])[0]
             return FullField(
-                interior=ScalarFlux.from_mesh(out_bulk, mesh),
-                boundary=ScalarBoundaryFlux.zeros_on(mesh),
+                interior=ScalarFlux(values=out_bulk, space=bulk.space),
+                boundary=ScalarBoundaryFlux.zeros(q.boundary.space),
             )
         raise TypeError(
             f"MultiplicationOperator composite solve: angular- or "

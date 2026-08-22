@@ -5,8 +5,8 @@ Pins the post-D-H.1 contract for
 
 * Bulk + boundary pair construction with locus-type validation (bulk
   must be a :class:`~orpheus.transport.fields._bases.BulkField`,
-  boundary a :class:`~orpheus.transport.fields._bases.AngularBoundaryField`)
-  and mesh-identity validation.
+  boundary a :class:`~orpheus.transport.fields._bases.AngularBoundaryField`);
+  cross-slot coherence is space-content at the admission seams (CS4b S4).
 * Algebra propagates to bulk + boundary; history dropped on algebra
   results.
 * Cross-method composition rejected (bulk-type-identity gate).
@@ -99,8 +99,8 @@ class TestConstruction:
         assert isinstance(state, TimedFullField)
         assert isinstance(state.interior, AngularFlux)
         assert isinstance(state.boundary, AngularBoundaryFlux)
-        assert state.interior.mesh is m
-        assert state.boundary.mesh is m
+        assert state.interior.space is m.angular_bulk_space
+        assert state.boundary.space is m.angular_trace
         np.testing.assert_array_equal(state.interior.values, 0.0)
         np.testing.assert_array_equal(state.boundary.values, 0.0)
         assert state._history == ()

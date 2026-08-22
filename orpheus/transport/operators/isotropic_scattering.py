@@ -132,10 +132,10 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
             f"an angular composite's in-scatter routes through "
             f"ScatteringOperator); got {type(bulk).__name__}."
         )
-    mesh = bulk.mesh
+    # CS4b S4 — the space route: output blocks ride the operand's blocks.
     return FullField(
-        interior=ScalarSourceSink.from_mesh(op.apply(bulk.values), mesh),
-        boundary=ScalarBoundarySourceSink.zeros_on(mesh),
+        interior=ScalarSourceSink(values=op.apply(bulk.values), space=bulk.space),
+        boundary=ScalarBoundarySourceSink.zeros(psi.boundary.space),
     )
 
 

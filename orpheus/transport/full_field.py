@@ -104,7 +104,7 @@ correct concrete return type for each subclass.
 
 Cross-class arithmetic is rejected at two layers: :meth:`Composite._check_partner`
 rejects a partner that is not a :class:`Composite`; the member-level leaf dunders
-enforce role / units / mesh / space (the cross-mesh guard, the leaf-type match
+enforce role / units / space content (the leaf-type match
 ``AngularFlux + ScalarFlux → TypeError``) by delegation, so the composite does
 NOT pre-check member types — that would be a second spelling of the members'
 own law. (Until campaign 1 CS3, 2026-08-19, this delegation also carried the
@@ -150,8 +150,6 @@ from orpheus.transport.fields._bases import (
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-
-    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["Composite", "FullField"]
@@ -296,29 +294,6 @@ class Composite(Generic[Interior, Boundary]):
         return FullFieldSpace.from_blocks(
             self.interior.space, self.boundary.space,
         )
-
-    # ── The composite's single mesh ───────────────────────────────────
-
-    @property
-    def mesh(self) -> "MaterialMesh":
-        r"""The one mesh both leaves are bound to — the ``__post_init__``
-        mesh-identity invariant made readable.
-
-        Read off the BOUNDARY leaf (either leaf works — the invariant guarantees
-        identity). The static type is the method-agnostic
-        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` base: each
-        trace family narrows its OWN ``mesh`` declaration
-        (:class:`~orpheus.transport.fields._bases.AngularBoundaryField` →
-        ``SNMesh``), so an SN consumer that needs quadrature / sweep data reads it
-        off the SNMesh its operator was constructed with (the #226 F2 pattern) or
-        off the family-typed boundary leaf — never through this method-generic
-        surface.
-
-        Read DIRECTLY off the boundary leaf (CS4b S3 — the ``getattr``
-        spelling died with the silent-no-op hazard; this property itself
-        retires at S4 when the leaves' mesh attribute does).
-        """
-        return self.boundary.mesh  # type: ignore[attr-defined] — dies at S4
 
     @property
     def principal_bulk_leaf(self) -> "Interior":

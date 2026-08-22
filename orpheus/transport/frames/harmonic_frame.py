@@ -56,18 +56,23 @@ where the physics puts the role change. The hot anisotropic-scatter kernel
 chain, the 0-ULP canary); these typed verbs serve the consumers that apply
 :math:`M` or :math:`R` in isolation.
 
-The output carrier inherits the input's ``mesh`` (the frame is mesh-agnostic — it
-binds only the angular basis + measure) and the truncation order ``L`` from the
-frame's own basis; the optional within-cell spatial-moment width is threaded
-through as a typed factor (read off the input carrier's space, #240 D5b-S3).
+The frame binds only the angular basis + measure (mesh-agnostic). The output
+carrier's SPACE is derived from the operand for analysis and supplied by the
+caller for reconstruction (CS4b S4 — the frame square's structural asymmetry;
+see the verbs); the truncation order ``L`` comes from the frame's own basis,
+and the optional within-cell spatial-moment width is threaded through as a
+typed factor (read off the input carrier's space, #240 D5b-S3).
 """
 
 from __future__ import annotations
 
-from typing import overload
+from typing import TYPE_CHECKING, overload
 
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
+
+if TYPE_CHECKING:
+    from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -152,18 +157,25 @@ class HarmonicFrame(GalerkinFrame):
 
         :class:`AngularFlux` → :class:`HarmonicMomentFlux`,
         :class:`AngularSourceSink` → :class:`HarmonicMomentSourceSink`. The
-        output carries the input's ``mesh`` and the frame's truncation
-        order ``L``.
+        output's space is DERIVED from the operand's (CS4b S4): the moment
+        target is ``SH(L) * cell_group[* SMS]`` where the cell group is
+        the operand's non-angular, non-moment axes — analysis's target is
+        determined by its operand + the frame's ``L``, the structural
+        half of the frame square that self-derives (reconstruction's
+        angular target needs carrier knowledge and takes ``space=``).
         """
-        if isinstance(field, AngularFlux):
-            return HarmonicMomentFlux.from_mesh_and_L(
-                self.analysis.apply(field.values), field.mesh, self.basis.L,
-                spatial_moments=field.spatial_moments_per_axis,
-            )
-        if isinstance(field, AngularSourceSink):
-            return HarmonicMomentSourceSink.from_mesh_and_L(
-                self.analysis.apply(field.values), field.mesh, self.basis.L,
-                spatial_moments=field.spatial_moments_per_axis,
+        if isinstance(field, (AngularFlux, AngularSourceSink)):
+            space = self._moment_space_for(field)
+            values = self.analysis.apply(field.values)
+            per_axis = field.spatial_moments_per_axis
+            if isinstance(field, AngularFlux):
+                return HarmonicMomentFlux(
+                    values=values, space=space, L=self.basis.L,
+                    spatial_moments=per_axis,
+                )
+            return HarmonicMomentSourceSink(
+                values=values, space=space, L=self.basis.L,
+                spatial_moments=per_axis,
             )
         raise TypeError(
             f"HarmonicFrame.analyse: unsupported carrier "
@@ -171,35 +183,87 @@ class HarmonicFrame(GalerkinFrame):
             f"AngularSourceSink (a per-ordinate carrier)."
         )
 
+    def _moment_space_for(
+        self, field: AngularFlux | AngularSourceSink,
+    ) -> "FunctionSpace":
+        r"""The moment target space derived from a per-ordinate operand.
+
+        ``SH.from_L(L) * of_axes(<non-angular, non-moment axes>)`` — the
+        cell group is the operand's own energy/spatial axes (the same
+        instances the carrier's mints share, so the product content-equals
+        ``MomentField._space_for_mesh_and_L``'s) — with the densified
+        ``SpatialMomentSpace`` factor appended for a widened operand,
+        mirroring ``_compose_spatial_moments``'s densified arm.
+        """
+        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+        from orpheus.numerics.space import FunctionSpace
+        from orpheus.numerics.spaces.spatial_moment_space import (
+            SpatialMomentSpace,
+        )
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
+        )
+
+        axes = field.space.axes
+        if axes is None:  # unreachable for shipped angular spaces (S2)
+            raise TypeError(
+                "HarmonicFrame.analyse: the per-ordinate operand must ride "
+                "an axis-built angular space."
+            )
+        cell_axes = [
+            ax for ax in axes[1:] if ax.label != SPATIAL_MOMENT_AXIS_LABEL
+        ]
+        base = SphericalHarmonicSpace.from_L(self.basis.L) * (
+            FunctionSpace.of_axes(*cell_axes)
+        )
+        per_axis = field.spatial_moments_per_axis
+        if per_axis == 1:
+            return base
+        ndim = next(
+            len(ax.shape) for ax in cell_axes if ax.label == "spatial"
+        )
+        return base * SpatialMomentSpace.from_per_axis(per_axis, ndim)
+
     # ── R : reconstruct (role-preserving, moment → angular) ──────────
 
     @overload
-    def reconstruct(self, moment: HarmonicMomentFlux) -> AngularFlux: ...
+    def reconstruct(
+        self, moment: HarmonicMomentFlux, *, space: "FunctionSpace",
+    ) -> AngularFlux: ...
 
     @overload
     def reconstruct(
-        self, moment: HarmonicMomentSourceSink,
+        self, moment: HarmonicMomentSourceSink, *, space: "FunctionSpace",
     ) -> AngularSourceSink: ...
 
     def reconstruct(
-        self, moment: HarmonicMomentFlux | HarmonicMomentSourceSink,
+        self,
+        moment: HarmonicMomentFlux | HarmonicMomentSourceSink,
+        *,
+        space: "FunctionSpace",
     ) -> AngularFlux | AngularSourceSink:
         r"""Reconstruct a per-ordinate carrier from its spherical-harmonic
         moments (:math:`R`), preserving the role.
 
         :class:`HarmonicMomentFlux` → :class:`AngularFlux`,
-        :class:`HarmonicMomentSourceSink` → :class:`AngularSourceSink`. The
-        output carries the input's ``mesh``.
+        :class:`HarmonicMomentSourceSink` → :class:`AngularSourceSink`.
+
+        ``space`` is the per-ordinate TARGET space, supplied by the caller
+        (CS4b S4): the angular target carries the quadrature axis and, on
+        a widened iterate, the scheme's mass-bearing moment axis — carrier
+        knowledge neither the moment operand nor this (basis, measure)
+        frame holds. The caller that poses the problem holds it (the
+        production caller passes its composite space's ``interior_space``).
+        This is the frame square's structural asymmetry: analysis
+        self-derives, reconstruction is told where to land.
         """
         if isinstance(moment, HarmonicMomentFlux):
-            return AngularFlux.from_mesh(
-                self.reconstruction.apply(moment.values), moment.mesh,
-                spatial_moments=moment.spatial_moments_per_axis,
+            return AngularFlux(
+                values=self.reconstruction.apply(moment.values), space=space,
             )
         if isinstance(moment, HarmonicMomentSourceSink):
-            return AngularSourceSink.from_mesh(
-                self.reconstruction.apply(moment.values), moment.mesh,
-                spatial_moments=moment.spatial_moments_per_axis,
+            return AngularSourceSink(
+                values=self.reconstruction.apply(moment.values), space=space,
             )
         raise TypeError(
             f"HarmonicFrame.reconstruct: unsupported carrier "

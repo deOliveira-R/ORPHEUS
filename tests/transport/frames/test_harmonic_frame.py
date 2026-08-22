@@ -111,7 +111,8 @@ class TestAnalyse:
         psi = AngularFlux.from_mesh(vals, m)
         moments = frame.analyse(psi)
         assert isinstance(moments, HarmonicMomentFlux)
-        assert moments.mesh is m
+        # CS4b S4: analysis derives its target; content-equals the mint.
+        assert moments.space == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
         assert moments.L == _L
         np.testing.assert_array_equal(
             moments.values, frame.analysis.apply(vals),
@@ -124,7 +125,7 @@ class TestAnalyse:
         q = AngularSourceSink.from_mesh(vals, m)
         moments = frame.analyse(q)
         assert isinstance(moments, HarmonicMomentSourceSink)
-        assert moments.mesh is m
+        assert moments.space == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
         np.testing.assert_array_equal(
             moments.values, frame.analysis.apply(vals),
         )
@@ -146,9 +147,9 @@ class TestReconstruct:
         frame = _frame(m)
         vals = _moment_values(m, 5)
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, _L)
-        psi = frame.reconstruct(phi)
+        psi = frame.reconstruct(phi, space=m.angular_bulk_space)
         assert isinstance(psi, AngularFlux)
-        assert psi.mesh is m
+        assert psi.space is m.angular_bulk_space
         np.testing.assert_array_equal(
             psi.values, frame.reconstruction.apply(vals),
         )
@@ -158,9 +159,9 @@ class TestReconstruct:
         frame = _frame(m)
         vals = _moment_values(m, 6)
         q = HarmonicMomentSourceSink.from_mesh_and_L(vals, m, _L)
-        out = frame.reconstruct(q)
+        out = frame.reconstruct(q, space=m.angular_bulk_space)
         assert isinstance(out, AngularSourceSink)
-        assert out.mesh is m
+        assert out.space is m.angular_bulk_space
         np.testing.assert_array_equal(
             out.values, frame.reconstruction.apply(vals),
         )
@@ -170,7 +171,7 @@ class TestReconstruct:
         frame = _frame(m)
         psi = AngularFlux.from_mesh(_angular_values(m, 7), m)
         with pytest.raises(TypeError, match="unsupported carrier"):
-            frame.reconstruct(psi)
+            frame.reconstruct(psi, space=m.angular_bulk_space)
 
 
 # ── role symmetry + 2-D smoke ──────────────────────────────────────────
@@ -183,7 +184,7 @@ class TestRolePolymorphism:
         m = _slab_mesh()
         frame = _frame(m)
         psi = AngularFlux.from_mesh(_angular_values(m, 8), m)
-        back = frame.reconstruct(frame.analyse(psi))
+        back = frame.reconstruct(frame.analyse(psi), space=m.angular_bulk_space)
         assert isinstance(back, AngularFlux)
         # bit-identical to the raw composed faces
         expected = frame.reconstruction.apply(frame.analysis.apply(psi.values))
@@ -193,7 +194,7 @@ class TestRolePolymorphism:
         m = _slab_mesh()
         frame = _frame(m)
         q = AngularSourceSink.from_mesh(_angular_values(m, 9), m)
-        back = frame.reconstruct(frame.analyse(q))
+        back = frame.reconstruct(frame.analyse(q), space=m.angular_bulk_space)
         assert isinstance(back, AngularSourceSink)
 
     def test_2d_analyse_reconstruct(self) -> None:
@@ -203,4 +204,6 @@ class TestRolePolymorphism:
         moments = frame.analyse(psi)
         assert isinstance(moments, HarmonicMomentFlux)
         assert moments.values.shape == (_L + 1, 2 * _L + 1, m.ng, *m.spatial_shape)
-        assert isinstance(frame.reconstruct(moments), AngularFlux)
+        assert isinstance(
+            frame.reconstruct(moments, space=m.angular_bulk_space), AngularFlux,
+        )

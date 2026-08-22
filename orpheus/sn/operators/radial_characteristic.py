@@ -378,11 +378,9 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
                 values=interior_out, space=comp.interior.space,
-                mesh=self.sn_mesh,
             ),
             boundary=RadialCharacteristicBoundarySourceSink(
                 values=boundary_out, space=comp.boundary.space,
-                mesh=self.sn_mesh,
             ),
         )
 
@@ -424,11 +422,9 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
                 values=interior_out, space=comp.interior.space,
-                mesh=self.sn_mesh,
             ),
             boundary=RadialCharacteristicBoundarySourceSink(
                 values=boundary_out, space=comp.boundary.space,
-                mesh=self.sn_mesh,
             ),
         )
 

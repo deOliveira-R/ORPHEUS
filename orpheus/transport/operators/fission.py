@@ -456,8 +456,18 @@ class FissionOperator(LinearOperator):
                     AngularBoundarySourceSink,
                 )
 
-                mesh = bulk.mesh
-                w = np.asarray(mesh.quad.weights, dtype=float)
+                # CS4b S4 — the space route: w_n rides the operand's
+                # angular axis (``None`` IS the all-ones measure — the
+                # Axis canonicalization); every output block rides its
+                # operand block's space.
+                axes = bulk.space.axes
+                assert axes is not None  # type-narrowing (axis-built family)
+                ang = axes[0]
+                w = (
+                    np.ones(ang.shape[0], dtype=float)
+                    if ang.weights is None
+                    else np.asarray(ang.weights, dtype=float)
+                )
                 # from_isotropicᵀ: unweighted ordinate sum / W.
                 iso_star = np.asarray(bulk.values).sum(axis=0) / float(w.sum())
                 # integrate_angularᵀ: w_n-weighted broadcast of the dual dyad.
@@ -465,8 +475,10 @@ class FissionOperator(LinearOperator):
                     w, self.kernel.apply_transpose(iso_star),
                 )
                 return FullField(
-                    interior=AngularSourceSink.from_mesh(per_ord, mesh),
-                    boundary=AngularBoundarySourceSink.zeros_on(mesh),
+                    interior=AngularSourceSink(values=per_ord, space=bulk.space),
+                    boundary=AngularBoundarySourceSink.zeros(
+                        phi_star.boundary.space,
+                    ),
                 )
             if isinstance(bulk, ScalarFlux):
                 from orpheus.transport.source_sinks import (
@@ -477,8 +489,12 @@ class FissionOperator(LinearOperator):
                     np.asarray(bulk.values),
                 )
                 return FullField(
-                    interior=ScalarSourceSink.from_mesh(scalar_star, bulk.mesh),
-                    boundary=ScalarBoundarySourceSink.zeros_on(bulk.mesh),
+                    interior=ScalarSourceSink(
+                        values=scalar_star, space=bulk.space,
+                    ),
+                    boundary=ScalarBoundarySourceSink.zeros(
+                        phi_star.boundary.space,
+                    ),
                 )
             raise TypeError(
                 f"FissionOperator's composite transpose arm requires an "
@@ -589,13 +605,23 @@ class FissionOperator(LinearOperator):
                 AngularSourceSink,
                 AngularBoundarySourceSink,
             )
-            # The composite's one mesh, read off the PARSED angular bulk —
-            # ``AngularField.mesh`` carries the SNMesh declaration the widened
-            # composite surfaces erase (#290 P2; same object by the composite's
-            # mesh-identity invariant).
-            mesh = bulk.mesh
-            per_ord = AngularSourceSink.from_isotropic(
-                fission_iso.values, mesh,
+            # CS4b S4 — the Pattern-7 injection in its sanctioned dunder
+            # spelling (the ScalarSourceSink module docstring's own form):
+            # normalise by Σw (read off the operand's angular axis), then
+            # the containment dunder broadcasts iso → per-ordinate. The
+            # marginal law admits because ``fission_iso`` rides exactly
+            # the operand's non-angular marginal (integrate_angular's
+            # derived space).
+            axes = bulk.space.axes
+            assert axes is not None  # type-narrowing (axis-built family)
+            ang = axes[0]
+            w_total = float(
+                ang.shape[0]
+                if ang.weights is None  # all-ones (Axis canonicalization)
+                else np.asarray(ang.weights, dtype=float).sum()
+            )
+            per_ord = (fission_iso / w_total) + AngularSourceSink.zeros(
+                bulk.space,
             )
             # #282 route (a) LIFTED (campaign step 4c, THE LIFT): the model-generic
             # fission gain is PURE BULK. The (ray, bulk) fission emission —
@@ -615,7 +641,7 @@ class FissionOperator(LinearOperator):
                 # comonad lives on the driver, which reattaches the timed type when
                 # this source is added to the timed rhs).
                 interior=per_ord,
-                boundary=AngularBoundarySourceSink.zeros_on(mesh),
+                boundary=AngularBoundarySourceSink.zeros(psi.boundary.space),
             )
         if isinstance(bulk, ScalarFlux):
             # Scalar composite arm (#290 P4): fission emission in iso
@@ -628,7 +654,7 @@ class FissionOperator(LinearOperator):
             scalar_iso: ScalarSourceSink = self.apply(bulk)
             return FullField(
                 interior=scalar_iso,
-                boundary=ScalarBoundarySourceSink.zeros_on(bulk.mesh),
+                boundary=ScalarBoundarySourceSink.zeros(psi.boundary.space),
             )
         raise TypeError(
             f"FissionOperator's composite arm requires an AngularFlux "
@@ -662,7 +688,7 @@ class FissionOperator(LinearOperator):
         primitive level.
         """
         out = self.kernel.apply(phi.values)
-        return ScalarSourceSink.from_mesh(out, phi.mesh)
+        return ScalarSourceSink(values=out, space=phi.space)
 
     @_apply_impl.register
     def _(self, phi_arr: np.ndarray) -> np.ndarray:

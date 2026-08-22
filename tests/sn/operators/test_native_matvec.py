@@ -191,7 +191,7 @@ class TestZeroInputZeroOutput:
         sn_mesh = builder()
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 2.0)
         result = _LC_matvec(
-            _zero_flux(sn_mesh), sigma_t,
+            _zero_flux(sn_mesh), sigma_t, sn_mesh=sn_mesh,
         )
         np.testing.assert_array_equal(
             result.interior.values, np.zeros_like(result.interior.values),
@@ -236,7 +236,7 @@ class TestUniformFluxSigmaT:
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), sigma_t_val)
         state, seed = _uniform_flux(sn_mesh, value=1.0)
         result = _LC_matvec(
-            state, sigma_t, radial_characteristic_flux=seed,
+            state, sigma_t, sn_mesh=sn_mesh, radial_characteristic_flux=seed,
         )
         # Per-ordinate cell action: (L+C)·1 = σ_t·1 = 2.0.  Flat-flux
         # invariant holds for every ordinate, every cell.
@@ -335,11 +335,11 @@ class TestLinearity:
                 alpha * psi.boundary.face_view("xmin")
                 + beta * phi.boundary.face_view("xmin")
             )
-        m_sum = _LC_matvec(sum_psi, sigma_t)
+        m_sum = _LC_matvec(sum_psi, sigma_t, sn_mesh=sn_mesh)
 
         # αM(ψ) + βM(φ)
-        m_psi = _LC_matvec(psi, sigma_t)
-        m_phi = _LC_matvec(phi, sigma_t)
+        m_psi = _LC_matvec(psi, sigma_t, sn_mesh=sn_mesh)
+        m_phi = _LC_matvec(phi, sigma_t, sn_mesh=sn_mesh)
 
         np.testing.assert_allclose(
             m_sum.interior.values,
@@ -367,7 +367,7 @@ class TestOutputShape:
         sn_mesh = builder()
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         result = _LC_matvec(
-            _zero_flux(sn_mesh), sigma_t,
+            _zero_flux(sn_mesh), sigma_t, sn_mesh=sn_mesh,
         )
         # Composite carrier; the (L+C).apply output bulk AND boundary are
         # the source/sink role leaves (AngularSourceSink / AngularBoundarySourceSink)
@@ -443,7 +443,7 @@ class TestFaceResidualMask:
                 (sn_mesh.quad.N, ng),
             )
 
-        result = _LC_matvec(psi, sigma_t)
+        result = _LC_matvec(psi, sigma_t, sn_mesh=sn_mesh)
 
         mu_x = sn_mesh.quad.mu_x
         eps = 1e-15
@@ -480,7 +480,7 @@ class TestFaceResidualMask:
             (sn_mesh.quad.N, ng),
         )
 
-        result = _LC_matvec(psi, sigma_t)
+        result = _LC_matvec(psi, sigma_t, sn_mesh=sn_mesh)
 
         mu_x = sn_mesh.quad.mu_x
         eps = 1e-15
@@ -546,7 +546,7 @@ class TestTwoDCartesianRaises:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
-        result = _LC_matvec(psi, sigma_t)
+        result = _LC_matvec(psi, sigma_t, sn_mesh=sn_mesh)
         # #257 S8a — base arrow output is the TIMELESS FullField.
         assert isinstance(result, FullField)
         assert not isinstance(result, TimedFullField)

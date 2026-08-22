@@ -403,7 +403,6 @@ def _random_composite(
     boundary = AngularBoundaryFlux(
         values=rng.standard_normal(int(sn.angular_trace.layout.total_size)),
         space=sn.angular_trace,
-        mesh=sn,
     )
     return TimedFullField(
         interior=bulk, boundary=boundary,
@@ -859,7 +858,6 @@ def _one_hot_group_composite(
     boundary = AngularBoundaryFlux(
         values=np.zeros(int(sn.angular_trace.layout.total_size)),
         space=sn.angular_trace,
-        mesh=sn,
     )
     return TimedFullField(
         interior=AngularFlux.from_mesh(bulk_vals, sn),

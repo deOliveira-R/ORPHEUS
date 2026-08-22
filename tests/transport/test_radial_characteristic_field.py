@@ -121,11 +121,11 @@ class TestCompositeConstruction:
         if type(comp.boundary) is not RadialCharacteristicBoundarySourceSink:
             pytest.fail(f"boundary member is {type(comp.boundary).__name__}")
 
-    def test_mesh_reads_off_the_leaves(self) -> None:
+    def test_derived_space_content_equals_the_carrier_mint(self) -> None:
         sn = _sphere()
         c = RadialCharacteristicField.from_mesh(sn)
-        if c.mesh is not sn:
-            pytest.fail("composite mesh must be the leaves' mesh")
+        if c.space != sn.radial_characteristic_field_space:
+            pytest.fail("derived composite space must content-equal the mint")
 
 
 # ── The split-fidelity bridge (TestSplitFidelityBridge) RETIRED at Phase C 4e ──

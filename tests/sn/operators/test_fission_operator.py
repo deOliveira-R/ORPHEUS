@@ -295,7 +295,7 @@ class TestCompositeInvariants:
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.mesh is sn_mesh
+        assert out.interior.space is sn_mesh.angular_bulk_space
 
     def test_implicit_zero_boundary(self, solver_2g):
         """Fission has no boundary action — boundary member is all zeros."""

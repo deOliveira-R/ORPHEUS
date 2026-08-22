@@ -74,7 +74,7 @@ class TestTypedCrossSectionAccessors:
         mat_xs, sn_mesh = _mat_xs()
         field = getattr(mat_xs, typed)
         assert field.values.shape == (sn_mesh.ng, *sn_mesh.spatial_shape)
-        assert field.mesh is sn_mesh
+        assert field.space is sn_mesh.bulk_space
 
     def test_raw_views_untouched(self) -> None:
         """The raw ndarray accessors still return a bare ``np.ndarray`` — the

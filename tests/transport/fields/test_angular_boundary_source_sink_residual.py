@@ -119,7 +119,7 @@ class TestConstructionInherited:
         assert isinstance(bf, Field)
         assert isinstance(bf, AngularBoundaryField)
         assert isinstance(bf, Leaf)
-        assert bf.mesh is m
+        assert bf.space is m.angular_trace
 
     def test_zeros_on_uses_mesh_trace(self, Leaf) -> None:
         m = _slab_mesh()
@@ -159,7 +159,7 @@ class TestConstructionInherited:
         from orpheus.numerics.space import FunctionSpace
         plain = FunctionSpace(name="sn_boundary_flat", shape=(m.angular_trace.shape[0],))
         with pytest.raises(TypeError, match="AngularTraceSpace"):
-            Leaf(values=np.zeros(m.angular_trace.shape[0]), space=plain, mesh=m)
+            Leaf(values=np.zeros(m.angular_trace.shape[0]), space=plain)
 
 
 @pytest.mark.parametrize("Leaf", NEW_BOUNDARY_LEAVES)

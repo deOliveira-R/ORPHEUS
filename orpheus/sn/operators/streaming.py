@@ -1081,7 +1081,6 @@ class StreamingCollisionOperator(
         boundary_out = AngularBoundaryFlux(
             values=np.asarray(m_boundary.values),
             space=sn_mesh.angular_trace,
-            mesh=sn_mesh,
         )
         # ── The outflow defect rows of ``b`` (ERR-071, transpose half) ──
         # The solve half establishes the EXACT inverse as ``A⁻¹ = S_old −

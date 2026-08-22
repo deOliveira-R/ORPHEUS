@@ -111,7 +111,6 @@ class TestAngularResidual:
         # CS4b S2: role is CLASS identity; the space is the carrier's cached
         # angular bulk (shared across the family, role-blind by design).
         assert r.space is m.angular_bulk_space
-        assert r.mesh is m
 
     def test_from_mesh_shape_and_metadata(self) -> None:
         m = _slab_mesh()
@@ -184,7 +183,6 @@ class TestScalarResidual:
         # CS4b S2: role is CLASS identity; the space is the carrier's cached
         # scalar bulk (shared across the family, role-blind by design).
         assert r.space is m.bulk_space
-        assert r.mesh is m
 
     def test_from_mesh_shape_and_metadata(self) -> None:
         m = _slab_mesh()
@@ -349,7 +347,6 @@ class TestFromBalance:
         r = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
         assert isinstance(r, AngularResidual)
         assert r.space is m.angular_bulk_space  # CS4b: the cached mint
-        assert r.mesh is m
 
     def test_angular_sign_is_lhs_minus_rhs(self) -> None:
         m = _slab_mesh()

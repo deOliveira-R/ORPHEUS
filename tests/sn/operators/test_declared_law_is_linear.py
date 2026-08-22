@@ -225,7 +225,7 @@ def _random_flux(sn: SNMesh, seed: int) -> TimedFullField:
         ),
         boundary=AngularBoundaryFlux(
             values=rng.uniform(0.5, 2.0, size=shape.boundary.values.shape),
-            space=sn.angular_trace, mesh=sn,
+            space=sn.angular_trace,
         ),
         _history=(), history_depth=2,
     )

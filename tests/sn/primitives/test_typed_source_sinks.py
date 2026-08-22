@@ -83,7 +83,7 @@ class TestScalarSource:
         assert Q.values.shape == (m.ng, *m.spatial_shape)
         assert np.all(Q.values == 0.0)
         assert isinstance(Q, ScalarSourceSink)
-        assert Q.mesh is m
+        assert Q.space is m.bulk_space
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
@@ -213,7 +213,7 @@ class TestCrossClassDunder:
         # Broadcast: per-ordinate the combined value is iso + aniso[n].
         expected = iso_values[None] + aniso_values
         np.testing.assert_array_equal(combined.values, expected)
-        assert combined.mesh is m
+        assert combined.space is m.angular_bulk_space
 
     def test_aniso_plus_iso_commutative(self) -> None:
         """``AngularSourceSink + ScalarSourceSink → AngularSourceSink``
@@ -293,7 +293,12 @@ class TestCrossClassDunder:
         iso = ScalarSourceSink.from_mesh(iso_values, m)
 
         via_factory = AngularSourceSink.from_isotropic(iso.values, m)
-        via_dunder = (iso / float(m.quad.weights.sum())).as_per_ordinate()
+        # CS4b S4: ``as_per_ordinate`` retired with the field's mesh —
+        # the surviving spelling of the un-normalised broadcast is the
+        # containment dunder against the angular zero.
+        via_dunder = (
+            iso / float(m.quad.weights.sum())
+        ) + AngularSourceSink.zeros_on(m)
         np.testing.assert_array_equal(via_factory.values, via_dunder.values)
 
     def test_iso_plus_iso_stays_isotropic(self) -> None:
@@ -321,48 +326,35 @@ class TestCrossClassDunder:
 
 
 # ════════════════════════════════════════════════════════════════════
-# ScalarSourceSink.as_per_ordinate() — explicit broadcast conversion
+# The un-normalised broadcast injection — the containment dunder
+# (``as_per_ordinate`` retired at CS4b S4: the broadcast target needs the
+# ANGULAR axis, carrier knowledge a scalar field's space cannot carry; the
+# dunder against the angular zero is the surviving spelling)
 # ════════════════════════════════════════════════════════════════════
 
 
-class TestAsPerOrdinate:
-    def test_round_trip_shape_and_values(self) -> None:
+class TestBroadcastInjection:
+    def test_dunder_broadcast_shape_and_values(self) -> None:
         m = _slab_mesh()
         rng = np.random.default_rng(19)
         iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
         iso = ScalarSourceSink.from_mesh(iso_values, m)
 
-        aniso = iso.as_per_ordinate()
+        aniso = iso + AngularSourceSink.zeros_on(m)
         assert isinstance(aniso, AngularSourceSink)
         assert aniso.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
         # Every ordinate slice IS the isotropic source.
         for n in range(m.quad.N):
             np.testing.assert_array_equal(aniso.values[n], iso_values)
 
-    def test_as_per_ordinate_owns_data(self) -> None:
-        """The returned array must own its data (writable) — the
-        ``.copy()`` in :meth:`ScalarSourceSink.as_per_ordinate` is the
-        load-bearing piece that prevents readonly-broadcast-view
-        surprises at the caller."""
+    def test_dunder_broadcast_owns_data(self) -> None:
+        """The result must own its data (writable) — the dunder's
+        ``self.values[None] + other.values`` allocates a fresh array, so
+        no readonly-broadcast-view surprise reaches the caller."""
         m = _slab_mesh()
         iso = ScalarSourceSink.from_mesh(np.ones((m.ng, *m.spatial_shape)), m)
-        aniso = iso.as_per_ordinate()
+        aniso = iso + AngularSourceSink.zeros_on(m)
         assert aniso.values.flags.writeable
-
-    def test_as_per_ordinate_equivalent_to_dunder_with_zero(self) -> None:
-        """``iso.as_per_ordinate() == iso + AngularSourceSink.zeros_on()``.
-
-        The explicit conversion and the dunder-against-zero produce
-        equivalent results (modulo the type of the zero partner).
-        """
-        m = _slab_mesh()
-        rng = np.random.default_rng(23)
-        iso = ScalarSourceSink.from_mesh(
-            rng.standard_normal((m.ng, *m.spatial_shape)), m,
-        )
-        via_conv = iso.as_per_ordinate()
-        via_dunder = iso + AngularSourceSink.zeros_on(m)
-        np.testing.assert_array_equal(via_conv.values, via_dunder.values)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -421,7 +413,6 @@ class TestHarmonicMomentSourceSink:
         assert q.values.shape == _moment_shape(m, 2)
         assert np.all(q.values == 0.0)
         assert isinstance(q, HarmonicMomentSourceSink)
-        assert q.mesh is m
         assert q.L == 2
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:

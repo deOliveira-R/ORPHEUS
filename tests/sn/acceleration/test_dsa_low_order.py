@@ -222,13 +222,15 @@ class TestRestrictionProlongation:
         sn_mesh = _slab()
         rng = np.random.default_rng(11)
         values = rng.standard_normal((4, 2, 4))
-        return AngularFlux.from_mesh(values, sn_mesh)
+        # CS4b S4: the field no longer carries the mesh — the tests that
+        # need carrier data receive the pair.
+        return sn_mesh, AngularFlux.from_mesh(values, sn_mesh)
 
     @pytest.mark.verifies("sn-dsa-restriction")
     def test_d7_restriction_conserves_particles(self, psi):
         r"""⟨1, R r⟩ = ⟨1, r⟩ — hand-posed with explicit w_n and V_i
         (structurally independent of the einsum body)."""
-        sn_mesh = psi.mesh
+        sn_mesh, psi = psi
         w = np.asarray(sn_mesh.quad.weights, float)
         volumes = np.diff(np.asarray(sn_mesh.mesh.edges, float))
         reduced = psi.integrate_angular().values  # (ng, nx)
@@ -246,7 +248,7 @@ class TestRestrictionProlongation:
         r"""``integrate_angular`` ≡ the ℓ=0 analysis row of
         ``Quadrature.angular_frame(0)`` (Y⁰₀ = 1 under the no-prefactor
         SH convention ⟹ the row IS the weight vector) — 0-ULP."""
-        sn_mesh = psi.mesh
+        sn_mesh, psi = psi
         frame = sn_mesh.quad.angular_frame(0)
         table = np.asarray(frame.table)  # (N, 1, 1); Y00 ≡ 1
         np.testing.assert_array_equal(table.ravel(), np.ones(4))
@@ -260,7 +262,7 @@ class TestRestrictionProlongation:
         r"""R ∘ P = I exactly: the normalized isotropic injection's
         moment-0 reproduces the input scalar values (Σ w · (x/Σw) = x
         up to one product-sum; pinned at 1-ULP-scale rtol)."""
-        sn_mesh = psi.mesh
+        sn_mesh, psi = psi
         corr = DSACorrection.from_sn_mesh(sn_mesh)
         phi = psi.integrate_angular().values
         sum_w = float(np.asarray(sn_mesh.quad.weights).sum())

@@ -253,7 +253,6 @@ def _composite(solver, seed):
     trace = AngularBoundaryFlux(
         values=rng.uniform(0.05, 1.0, size=int(sn.angular_trace.layout.total_size)),
         space=sn.angular_trace,
-        mesh=sn,
     )
     return FullField(interior=bulk, boundary=trace)
 

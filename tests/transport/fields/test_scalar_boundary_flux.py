@@ -180,7 +180,6 @@ class TestPartialCurrentGuards:
             ScalarBoundaryFlux(
                 values=np.zeros(8),
                 space=FunctionSpace(name="scalar_trace", shape=(8,)),
-                mesh=mm,
             )
 
     def test_space_content_guard(self):

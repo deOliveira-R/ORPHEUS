@@ -596,7 +596,7 @@ def legacy_proxy_matvec(
     L_op = StreamingOperator(sn_mesh)
     C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     result = _LC_matvec(
-        composite, sigma_t, LC=(L_op + C_op),
+        composite, sigma_t, sn_mesh=sn_mesh, LC=(L_op + C_op),
         radial_characteristic_flux=radial_characteristic,
     )
     return result.interior.values
@@ -636,6 +636,7 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
 def _LC_matvec(
     psi: "TimedFullField", sigma_t: "np.ndarray",
     *,
+    sn_mesh=None,
     LC=None,
     radial_characteristic_flux=None,
 ) -> "TimedFullField":
@@ -659,7 +660,11 @@ def _LC_matvec(
     """
     from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-    sn_mesh = psi.interior.mesh
+    # CS4b S4: fields no longer carry the mesh — the caller passes the
+    # carrier (required unless a pre-built LC is injected AND the call is
+    # seedless; the carrying arm builds the joint grid off the carrier).
+    if sn_mesh is None and (LC is None or radial_characteristic_flux is not None):
+        raise TypeError("_LC_matvec: pass sn_mesh= (or a pre-built LC=)")
     if LC is None:
         L = StreamingOperator(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)

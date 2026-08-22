@@ -191,7 +191,7 @@ def _template(sn):
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
         interior=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
-        boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn))
+        boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace))
 
 
 def _coupled_template(sn):
@@ -438,7 +438,7 @@ def _random_composite(sn, rng) -> FullField:
     return FullField(
         interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
-            values=rng.standard_normal(n_tr), space=sn.angular_trace, mesh=sn),
+            values=rng.standard_normal(n_tr), space=sn.angular_trace),
     )
 
 
@@ -601,7 +601,7 @@ class TestBoundaryUnweld:
             interior=AngularFlux.from_mesh(np.random.default_rng(4).standard_normal((N, ng, nx)), slab),
             boundary=AngularBoundaryFlux(
                 values=np.random.default_rng(5).standard_normal(n_tr),
-                space=slab.angular_trace, mesh=slab),
+                space=slab.angular_trace),
         )
         out = B.apply(psi)
         if type(out) is not FullField:
@@ -1742,7 +1742,7 @@ class TestA_BA_SchurFold:
             bulk_only = FullField(
                 interior=AngularFlux.from_mesh(
                     np.random.default_rng(50).standard_normal((N, ng, nx)), sn),
-                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn))
+                boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace))
             calls = _install_fold_spy(monkeypatch)
             out = SNSolver(sn).scattering_op.apply(bulk_only)
             if type(out) is not FullField:
@@ -2477,7 +2477,7 @@ def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
     return FullField(
         interior=AngularFlux.from_mesh(bulk_values, sn),
         boundary=AngularBoundaryFlux(
-            values=np.zeros(n_tr), space=sn.angular_trace, mesh=sn),
+            values=np.zeros(n_tr), space=sn.angular_trace),
     )
 
 

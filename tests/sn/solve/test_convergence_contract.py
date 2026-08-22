@@ -1293,11 +1293,13 @@ class TestExitBalanceDefect:
     def test_a_CARRYING_mesh_warns_WITHOUT_a_number(self) -> None:
         """⛔ The curvilinear exemption, pinned so it cannot drift silently.
 
-        ``evaluate_residual`` REFUSES a bare System-A residual on a mesh
-        with starting-direction levels, because it would omit ``r_B``.  The
-        ``solve_sn`` exit assembles exactly that bare shape, so on a
-        carrying mesh it reports no number — deliberately, and tracked as
-        #354.
+        A bare System-A residual on a carrying problem would omit ``r_B``
+        (CS4b S4: the refusal lives in ``evaluate_residual``'s ARITY
+        admission — the posed 2×2 system demands the coupled pair).  The
+        ``solve_sn`` exit assembles exactly that bare shape (a System-A ψ
+        against a System-A fission rhs), so on a carrying mesh it reports
+        no number — deliberately, by its own carrying-mesh pre-check, and
+        tracked as #354.
 
         ⭐ This row exists because the omission was found by a suite run,
         not by review: `[M]` 2026-08-10 the first wiring took the slice

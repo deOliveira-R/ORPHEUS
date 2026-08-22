@@ -379,7 +379,7 @@ class TestConstruction:
         bf = AngularBoundaryFlux.zeros_on(m)
         assert isinstance(bf, AngularBoundaryFlux)
         np.testing.assert_array_equal(bf.values, 0.0)
-        assert bf.mesh is m
+        assert bf.space is m.angular_trace
 
     def test_zeros_on_sphere(self) -> None:
         m = _sphere_mesh()
@@ -399,7 +399,6 @@ class TestConstruction:
             AngularBoundaryFlux(
                 values=np.zeros(m.angular_trace.shape[0] + 1),
                 space=m.angular_trace,
-                mesh=m,
             )
 
     def test_post_init_requires_trace_space(self) -> None:
@@ -410,7 +409,7 @@ class TestConstruction:
         from orpheus.numerics.space import FunctionSpace
         plain = FunctionSpace(name="sn_boundary_flat", shape=(m.angular_trace.shape[0],))
         with pytest.raises(TypeError, match="AngularTraceSpace"):
-            AngularBoundaryFlux(values=np.zeros(m.angular_trace.shape[0]), space=plain, mesh=m)
+            AngularBoundaryFlux(values=np.zeros(m.angular_trace.shape[0]), space=plain)
 
     def test_from_face_arrays_slab(self) -> None:
         m = _slab_mesh()

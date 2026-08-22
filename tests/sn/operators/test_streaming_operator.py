@@ -417,7 +417,7 @@ class TestCompositeInvariants:
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.mesh is sn_mesh
+        assert out.interior.space is sn_mesh.angular_bulk_space
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_boundary_carries_face_residual(self, name, builder):
@@ -526,7 +526,7 @@ class TestCompositeInvariants:
                 f"got {type(out).__name__}"
             )
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.mesh is sn_mesh
+        assert out.interior.space is sn_mesh.angular_bulk_space
 
     def test_space_content_invariant(self):
         """CS4b S3 (F2): a twin-carrier composite applies legally; one whose
@@ -579,7 +579,7 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
-        assert out.interior.mesh is sn_mesh
+        assert out.interior.space is sn_mesh.angular_bulk_space
 
 
 # ═══════════════════════════════════════════════════════════════════════

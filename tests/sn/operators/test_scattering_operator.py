@@ -591,7 +591,7 @@ class TestCompositeInvariants:
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.mesh is sn_mesh
+        assert out.interior.space is sn_mesh.angular_bulk_space
 
     def test_implicit_zero_boundary(self, solver_2g_p0):
         """Scattering is volumetric — boundary member is all zeros."""
@@ -1318,7 +1318,7 @@ class TestAnisoMomentSourcePath:
         # (the SAME frame the operator uses), then the moment arm.
         moments = op.frame.analysis.apply(psi.values)
         phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, psi.mesh, op.scattering_order,
+            moments, solver_2g_p1_n2n.sn_mesh, op.scattering_order,
         )
         src_moments = op.apply(phi_field)
 
@@ -1341,32 +1341,35 @@ class TestAnisoMomentSourcePath:
         the NUMBERS are right but cannot tell whether the rewired typed line
         ran or a bypass produced the same value; this counter-spy proves it.
 
-        Spy point: ``HarmonicMomentSourceSink.from_mesh_and_L`` is constructed
-        ONLY by ``Λ``'s typed (flux → source) arm. If the windowed apply
-        bypassed the typed grid (e.g. fell back to the ndarray
-        ``reconstruct_after`` reference) this counter would stay at zero.
+        Spy point (re-keyed at CS4b S4 — Λ's typed arm now constructs the
+        source-moment directly on the operand's space, so the retired
+        ``from_mesh_and_L`` anchor moved): the frame's ``reconstruct`` is
+        the seam that CONSUMES Λ's product — spying what it receives pins
+        both halves at once (Λ emitted the typed HarmonicMomentSourceSink,
+        and R consumed exactly it). A bypass to the ndarray
+        ``reconstruct_after`` reference would never enter this seam.
         """
         from orpheus.transport.fields.harmonic_moment_flux import (
             HarmonicMomentFlux,
         )
+        from orpheus.transport.frames import HarmonicFrame
         from orpheus.transport.source_sinks import HarmonicMomentSourceSink
 
         calls = {"n": 0}
-        original = HarmonicMomentSourceSink.from_mesh_and_L.__func__
+        original = HarmonicFrame.reconstruct
 
-        def counting(cls, *args, **kwargs):
-            calls["n"] += 1
-            return original(cls, *args, **kwargs)
+        def spying(self, moment, *, space):
+            if isinstance(moment, HarmonicMomentSourceSink):
+                calls["n"] += 1
+            return original(self, moment, space=space)
 
-        monkeypatch.setattr(
-            HarmonicMomentSourceSink, "from_mesh_and_L", classmethod(counting),
-        )
+        monkeypatch.setattr(HarmonicFrame, "reconstruct", spying)
 
         op = op_p1
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
         moments = op.frame.analysis.apply(psi.values)
         phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, psi.mesh, op.scattering_order,
+            moments, solver_2g_p1_n2n.sn_mesh, op.scattering_order,
         )
         _ = op.apply(phi_field)
 

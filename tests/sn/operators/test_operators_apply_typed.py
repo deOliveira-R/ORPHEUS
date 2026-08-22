@@ -150,7 +150,7 @@ def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
     assert isinstance(Fpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
     assert isinstance(Fpsi.interior, AngularSourceSink)
     assert Fpsi.interior.values.shape == state.interior.values.shape
-    assert Fpsi.interior.mesh is sn
+    assert Fpsi.interior.space is sn.angular_bulk_space
     # F is volumetric; result's boundary is implicit-zero.
     np.testing.assert_array_equal(Fpsi.boundary.values, 0.0)
 
@@ -309,7 +309,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     # the comonad lives on the iteration driver, not the operator.
     assert isinstance(out, FullField)
     assert not isinstance(out, TimedFullField)
-    assert out.interior.mesh is sn
+    assert out.interior.space is sn.angular_bulk_space
 
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)

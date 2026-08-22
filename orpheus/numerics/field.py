@@ -221,7 +221,7 @@ class Field(ABC):
 
         The single shared zero-allocation primitive (B.5.A): ``values`` is
         ``np.zeros(space.shape)``; any subclass-specific dataclass fields
-        (``mesh``, ``L``, ...) pass through ``**fields``. The locus bases
+        (``L``, ``spatial_moments``, ...) pass through ``**fields``. The locus bases
         build ``space`` from a mesh in their ``zeros_on`` /
         ``zeros_for_mesh_and_L`` factories and delegate here, so the
         zero-construction lives in exactly one place (``coding-elegance``
@@ -323,18 +323,28 @@ class Field(ABC):
            compared by EXACT unit equality (``sr``-sensitive — the ERR-039
            guard; see :mod:`orpheus.numerics.units`), so a residual cannot be
            formed from operands whose signature differs from its own.
-        3. **Same space + same mesh.** delegated to the operands'
-           :meth:`_check_partner` (its class branch is already satisfied, so
-           only the space / mesh-binding checks fire).
+        3. **Same space.** delegated to the operands' :meth:`_check_partner`
+           (its class branch is already satisfied, so the space-content
+           check fires).
 
-        The result is rebuilt on ``cls``'s OWN space via ``cls.from_mesh``
-        (e.g. an ``AngularResidual`` lands on the ``"angular_residual"`` space,
-        NOT the operands' ``"angular_source_sink"`` space). This keeps every
-        residual — whether minted here or via :meth:`from_mesh` — on one space
-        identity, so they remain mutually additive. ``cls.from_mesh`` /
-        ``lhs.mesh`` are the L2 mesh-bound contract every role leaf satisfies;
-        ``Field`` (L1) declares neither, so this engine is meaningful only for
-        a mesh-bound ``cls`` (every concrete residual leaf qualifies).
+        The result rides the operands' space directly (CS4b S4 — the Q1
+        flip): since S2a every role leaf of one family on one carrier
+        shares the SAME carrier-cached space (role is CLASS identity,
+        never space identity), so ``lhs.space`` IS the residual's own
+        space, and the construction is the plain L1 constructor —
+        ``cls(values=lhs.values − rhs.values, space=lhs.space)``.
+        The pre-S4 spelling routed through ``cls.from_mesh(…, lhs.mesh)``,
+        an L2 detour whose two ``type: ignore`` died with the mesh field.
+
+        **The recorded choice this flip creates (Q1, ruled 2026-08-22):**
+        a ``MomentResidual`` is now one small override away — the moment
+        family's extra fields (``L``, ``spatial_moments``) thread from the
+        operand (``L=lhs.L, spatial_moments=lhs.spatial_moments``), no
+        3-arg-factory blocker remains. It stays deliberately UNMINTED
+        because the residual path's contract is per-ordinate (the
+        operators consume reconstructed angular flux, never the moment
+        iterate) — mint it WITH its first consumer, not before. The LD
+        certificate un-skip this may also enable is #402.
         """
         if type(lhs) is not type(rhs):
             raise TypeError(
@@ -351,10 +361,8 @@ class Field(ABC):
                 f"{lhs.UNITS:~P} quantities yields a {cls.UNITS:~P} residual "
                 f"only when the signatures agree."
             )
-        lhs._check_partner(rhs)  # same space + mesh (class branch already ok)
-        return cls.from_mesh(  # type: ignore[attr-defined]
-            lhs.values - rhs.values, lhs.mesh,  # type: ignore[attr-defined]
-        )
+        lhs._check_partner(rhs)  # same space content (class branch already ok)
+        return cls(values=lhs.values - rhs.values, space=lhs.space)
 
     # ── Diagnostics ─────────────────────────────────────────────────────
 

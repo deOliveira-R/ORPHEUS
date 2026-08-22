@@ -57,6 +57,8 @@ from typing import TYPE_CHECKING, Any, cast, overload
 import numpy as np
 
 from orpheus.numerics.frame import GalerkinFrame
+from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.frames import HarmonicFrame
 from orpheus.numerics.operator import (
     BlockRole,
@@ -91,23 +93,9 @@ if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.numerics.space import FunctionSpace
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
-
-
-def _spatial_moments_of(phi: "np.ndarray | ScalarFlux") -> int:
-    r"""Within-cell spatial-moment count per axis carried by ``phi``, or ``1``.
-
-    The scattering-source accumulators (:meth:`ScatteringOperator._assemble_per_ordinate_source`)
-    must match the driving flux's spatial-moment width so the in-place
-    ``Σ_s ⊗ I`` accumulation does not broadcast-fail (#240 D5b-S3).  A typed
-    :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` carries the width
-    as a :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
-    factor on its space (the single source of truth — read it OFF the field, do
-    not re-thread an int); a bare ``ndarray`` φ has no factor → ``1``."""
-    return getattr(phi, "spatial_moments_per_axis", 1)
 
 
 @dataclass(frozen=True)
@@ -226,9 +214,10 @@ class LegendreMomentScattering(LinearOperator):
             out_values = self.mat_xs.apply_legendre_scattering_moments(
                 moments.values, L=self.L, skip_l0=self.skip_l0,
             )
-            # flux moment → source moment: the explicit role change.
-            return HarmonicMomentSourceSink.from_mesh_and_L(
-                out_values, moments.mesh, moments.L,
+            # flux moment → source moment: the explicit role change
+            # (CS4b S4 — same space, new class; role is class identity).
+            return HarmonicMomentSourceSink(
+                values=out_values, space=moments.space, L=moments.L,
                 spatial_moments=moments.spatial_moments,
             )
         return self.mat_xs.apply_legendre_scattering_moments(
@@ -266,8 +255,8 @@ class LegendreMomentScattering(LinearOperator):
             out_values = self.mat_xs.apply_legendre_scattering_moments_transpose(
                 moments.values, L=self.L, skip_l0=self.skip_l0,
             )
-            return HarmonicMomentFlux.from_mesh_and_L(
-                out_values, moments.mesh, moments.L,
+            return HarmonicMomentFlux(
+                values=out_values, space=moments.space, L=moments.L,
                 spatial_moments=moments.spatial_moments,
             )
         return self.mat_xs.apply_legendre_scattering_moments_transpose(
@@ -714,9 +703,9 @@ class ScatteringOperator(LinearOperator):
 
     def _assemble_per_ordinate_source(
         self,
-        phi: "np.ndarray | ScalarFlux",
+        phi: "ScalarFlux",
         aniso_or_none: "AngularSourceSink | None",
-        mesh: "SNMesh",
+        angular_space: "FunctionSpace",
     ) -> "AngularSourceSink":
         r"""Combine the P0 + (n,2n) iso source (from the scalar flux
         :math:`\phi_0`) with the pre-:math:`/W` :math:`\ell\ge 1` aniso source
@@ -734,31 +723,34 @@ class ScatteringOperator(LinearOperator):
 
         Parameters
         ----------
-        phi : np.ndarray or ScalarFlux
+        phi : ScalarFlux
             Scalar flux :math:`\phi_0` (iso magnitude) driving P0 + (n,2n).
         aniso_or_none : AngularSourceSink or None
             Per-ordinate :math:`\ell\ge 1` source ALREADY in per-ordinate
             magnitude (post-:math:`/W`), or ``None`` for
             ``scattering_order == 0``.
-        mesh : SNMesh
-            Phase-space carrier (sizes the zero accumulators + ``sum_w``).
+        angular_space : FunctionSpace
+            The per-ordinate target space (CS4b S4 — sizes the zero
+            accumulator; the caller holding the pose supplies it: the
+            operand's own space on the full-angular arm, the posed
+            composite's interior on the windowed moment arm).
         """
-        # The iso source must match the driving flux's spatial-moment width
-        # (the φ̂ iterate, #240 D5b-S3): read it OFF the ScalarFlux's space (the
-        # single source of truth); a bare-ndarray φ stays scalar.
-        spatial_moments = _spatial_moments_of(phi)
         # Route the isotropic (P0 + (n,2n)) energy source through the
-        # model-shared K_iso operators (isotropic_kernel = Σ_s0 + 2Σ_2n).
-        iso: ScalarSourceSink = ScalarSourceSink.from_mesh(
-            self.isotropic_kernel.apply(phi), mesh, spatial_moments=spatial_moments,
+        # model-shared K_iso operators (isotropic_kernel = Σ_s0 + 2Σ_2n);
+        # the iso rides the driving flux's own space (width travels in it).
+        iso: ScalarSourceSink = ScalarSourceSink(
+            values=self.isotropic_kernel.apply(phi), space=phi.space,
         )
         aniso = (
             aniso_or_none
             if aniso_or_none is not None
-            else AngularSourceSink.zeros_on(mesh, spatial_moments=spatial_moments)
+            else AngularSourceSink.zeros(angular_space)
         )
         sum_w = float(self.quadrature.weights.sum())
-        return (iso / sum_w) + aniso
+        # The containment dunder's cross-class arm returns the LARGER
+        # (angular) class — the #288 principled LSP exception the static
+        # union cannot carry.
+        return cast("AngularSourceSink", (iso / sum_w) + aniso)
 
     @classmethod
     def from_solver_data(
@@ -851,9 +843,7 @@ class ScatteringOperator(LinearOperator):
             # Preserve Q's spatial-moment width (#240 D5b-S3 — the φ̂ accumulator
             # carries the trailing 2^d axis; re-wrapping without it would lose
             # the typed factor and raise on the shape).
-            return ScalarSourceSink.from_mesh(
-                Q_values, Q.mesh, spatial_moments=Q.spatial_moments_per_axis,
-            )
+            return ScalarSourceSink(values=Q_values, space=Q.space)
         self.mat_xs.apply_p0_in_scatter(Q, phi_values)
         return None
 
@@ -905,9 +895,7 @@ class ScatteringOperator(LinearOperator):
             Q_values = Q.values.copy()
             self.mat_xs.apply_n2n(Q_values, phi_values)
             # Preserve Q's spatial-moment width (#240 D5b-S3, as add_iso_source).
-            return ScalarSourceSink.from_mesh(
-                Q_values, Q.mesh, spatial_moments=Q.spatial_moments_per_axis,
-            )
+            return ScalarSourceSink(values=Q_values, space=Q.space)
         self.mat_xs.apply_n2n(Q, phi_values)
         return None
 
@@ -946,17 +934,14 @@ class ScatteringOperator(LinearOperator):
         """
         if self.scattering_order == 0 or angular_flux is None:
             return None
-        mesh = angular_flux.mesh
         # S_aniso = (1/W)·kernel: the §5.6 :attr:`kernel` is the R∘Λ∘M
         # redistribution; the producer-side /W lives OUTSIDE it (applied here).
         sum_w = float(self.weights.sum())
         out_values = self.kernel.apply(angular_flux.values) / sum_w
-        # RΛM is spatial-moment-axis-agnostic (#240 D5b-S3): thread the iterate's
-        # SpatialMomentSpace factor onto the source (read off its space).
-        return AngularSourceSink.from_mesh(
-            out_values, mesh,
-            spatial_moments=angular_flux.spatial_moments_per_axis,
-        )
+        # RΛM is spatial-moment-axis-agnostic (#240 D5b-S3): the source
+        # rides the iterate's own space (CS4b S4 — same space, new role),
+        # so the moment factor travels with it.
+        return AngularSourceSink(values=out_values, space=angular_flux.space)
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
@@ -1161,7 +1146,7 @@ class ScatteringOperator(LinearOperator):
         # not here — see docs/theory/foundations/coupled_block_operator.rst.
         return FullField(
             interior=combined,
-            boundary=AngularBoundarySourceSink.zeros_on(psi.mesh),
+            boundary=AngularBoundarySourceSink.zeros(psi.boundary.space),
         )
 
     @_apply_impl.register
@@ -1184,8 +1169,9 @@ class ScatteringOperator(LinearOperator):
         the keep-vs-retire call is recorded here rather than left a silent
         orphan.
         """
-        mesh = phi.mesh
-        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
+        # CS4b S4 — the accumulator rides the operand's space (role-blind
+        # shared mint; role is class identity).
+        iso: ScalarSourceSink = ScalarSourceSink.zeros(phi.space)
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         return iso
@@ -1207,7 +1193,7 @@ class ScatteringOperator(LinearOperator):
         # :attr:`full_scatter_kernel` for the (non-hot-path) adjoint transpose
         # only — see docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source.
         return self._assemble_per_ordinate_source(
-            psi.integrate_angular(), self.build_aniso_source(psi), psi.mesh,
+            psi.integrate_angular(), self.build_aniso_source(psi), psi.space,
         )
 
     @_apply_impl.register
@@ -1232,7 +1218,22 @@ class ScatteringOperator(LinearOperator):
         explicit-typed vs fused-kernel choice is in
         ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
         """
-        mesh = phi_moments.mesh
+        # CS4b S4: the per-ordinate TARGET space comes from this
+        # operator's own posed composite space (its interior — the
+        # carrier's angular mint, width-widened on LD), because neither
+        # the moment operand nor the (basis, measure) frame carries the
+        # quadrature/scheme axes the target needs.
+        if (
+            not isinstance(self.space, FullFieldSpace)
+            or self.space.interior_space is None
+        ):
+            raise TypeError(
+                "ScatteringOperator's windowed moment arm needs the posed"
+                " composite space (space=) to name its per-ordinate"
+                " reconstruction target; this operator was built"
+                " space-less."
+            )
+        angular_target = self.space.interior_space
         if self.scattering_order == 0:
             aniso = None
         else:
@@ -1244,11 +1245,18 @@ class ScatteringOperator(LinearOperator):
             scattered = LegendreMomentScattering(
                 mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
             ).apply(phi_moments)
-            aniso = self.frame.reconstruct(scattered) / float(self.weights.sum())
+            aniso = self.frame.reconstruct(
+                scattered, space=angular_target,
+            ) / float(self.weights.sum())
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
         # carries that convention (== integrate_angular bit-exactly).
+        assert angular_target.axes is not None  # type-narrowing (axis-built)
         return self._assemble_per_ordinate_source(
-            phi_moments.scalar_flux(), aniso, mesh,
+            phi_moments.scalar_flux(
+                space=FunctionSpace.of_axes(*angular_target.axes[1:]),
+            ),
+            aniso,
+            angular_target,
         )
 
     if TYPE_CHECKING:
@@ -1314,15 +1322,15 @@ class ScatteringOperator(LinearOperator):
         """
         if isinstance(chi, FullField):
             bulk_bar = self.apply_transpose(np.asarray(chi.interior.values))
-            # An angular FullField only arises on an SNMesh at runtime — the
-            # same runtime-truth cast as the forward arm's bulk dispatch.
-            sn_mesh = cast("SNMesh", chi.mesh)
             # S is PURE BULK, so S^T is too (#282 route (a)): the seed-cotangent
             # pullback lives on RadialCharacteristicEmission.apply_transpose —
             # see docs/theory/foundations/coupled_block_operator.rst.
+            # CS4b S4 — the space route: output blocks ride the operand's.
             return FullField(
-                interior=AngularSourceSink.from_mesh(bulk_bar, sn_mesh),
-                boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+                interior=AngularSourceSink(
+                    values=bulk_bar, space=chi.interior.space,
+                ),
+                boundary=AngularBoundarySourceSink.zeros(chi.boundary.space),
             )
         chi_values = np.asarray(getattr(chi, "values", chi))
         return self.full_scatter_kernel.apply_transpose(chi_values) / float(

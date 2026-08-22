@@ -110,7 +110,7 @@ from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import MomentField
 
 if TYPE_CHECKING:
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
@@ -195,7 +195,8 @@ class HarmonicMomentFlux(MomentField):
         out = np.zeros_like(self.values)
         out[0, 0] = self.values[0, 0]
         return HarmonicMomentFlux(
-            values=out, space=self.space, mesh=self.mesh, L=self.L,
+            values=out, space=self.space, L=self.L,
+            spatial_moments=self.spatial_moments,
         )
 
     def anisotropic_part(self) -> "HarmonicMomentFlux":
@@ -212,10 +213,13 @@ class HarmonicMomentFlux(MomentField):
         out = self.values.copy()
         out[0, 0] = 0.0
         return HarmonicMomentFlux(
-            values=out, space=self.space, mesh=self.mesh, L=self.L,
+            values=out, space=self.space, L=self.L,
+            spatial_moments=self.spatial_moments,
         )
 
-    def scalar_flux(self) -> "ScalarFlux":
+    def scalar_flux(
+        self, *, space: "FunctionSpace | None" = None,
+    ) -> "ScalarFlux":
         r"""Extract the isotropic moment as a :class:`ScalarFlux`.
 
         Under the no-prefactor SH convention used by
@@ -227,19 +231,44 @@ class HarmonicMomentFlux(MomentField):
         :math:`\phi_0^0` moment agree with ``\psi.integrate_angular()``
         bit-exactly.
 
+        Parameters
+        ----------
+        space : FunctionSpace, optional
+            The scalar TARGET space (CS4b S4). Width-1 derives it — the
+            product's cell-group factor IS the carrier's cached
+            ``bulk_space`` instance. A WIDENED (``spatial_moments > 1``)
+            extraction cannot self-derive (its target carries the
+            scheme's mass-bearing moment axis, which the densified
+            ``SpatialMomentSpace`` factor does not hold), so the caller
+            holding the pose supplies it (the windowed moment arm passes
+            its composite interior's marginal).
+
         Returns
         -------
         ScalarFlux
-            The :math:`(\ell=0, m=0)` slice ``values[0, 0]``, wrapped
-            with the same mesh.
+            The :math:`(\ell=0, m=0)` slice ``values[0, 0]``.
         """
+        from orpheus.numerics.space import TensorProductSpace
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        # ``values[0, 0]`` is ``(ng, *spatial[, 2^d])`` — the φ̂ spatial-moment
-        # axis (if any) rides on the ℓ=0 moment and is propagated as a TYPED
-        # factor (#240 D5b-S3; ``spatial_moments`` is this field's stored width).
-        return ScalarFlux.from_mesh(
-            self.values[0, 0].copy(), self.mesh,
-            spatial_moments=self.spatial_moments,
+        # CS4b S4: the scalar target space IS the product's cell-group
+        # factor — the carrier's cached ``bulk_space`` instance the factory
+        # composed in (``SH.from_L(L) * mesh.bulk_space``), so the derived
+        # scalar rides the same mint every scalar leaf shares. The widened
+        # (spatial_moments > 1) members stay a loud defer until S6/G6.7
+        # lands their witnesses (#240).
+        if space is not None:
+            return ScalarFlux(values=self.values[0, 0].copy(), space=space)
+        if self.spatial_moments != 1:
+            raise TypeError(
+                "HarmonicMomentFlux.scalar_flux: a widened "
+                "(spatial_moments > 1) extraction cannot self-derive its "
+                "target (the scheme's moment axis is carrier knowledge) — "
+                "pass space= from the posed composite's interior marginal."
+            )
+        assert isinstance(self.space, TensorProductSpace)  # type-narrowing
+        return ScalarFlux(
+            values=self.values[0, 0].copy(),
+            space=self.space.factors[1],
         )
 
     # ── Truncation ───────────────────────────────────────────────────
@@ -266,14 +295,28 @@ class HarmonicMomentFlux(MomentField):
             raise ValueError(
                 f"HarmonicMomentFlux.truncate: L_new={L_new} < 0"
             )
-        new_shape = (
-            L_new + 1, 2 * L_new + 1,
-            self.mesh.ng, *self.mesh.spatial_shape,
+        from orpheus.numerics.space import TensorProductSpace
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
         )
+        if self.spatial_moments != 1:
+            raise NotImplementedError(
+                "HarmonicMomentFlux.truncate: the widened "
+                "(spatial_moments > 1) member lands with its S6 witnesses "
+                "(G6.7, #240)."
+            )
+        # CS4b S4: the trailing dims are the space's own shape contract
+        # (``(L+1, 2L+1, ng, *spatial)`` → everything after the two
+        # harmonic axes), and the truncated space re-composes the SAME
+        # cell-group factor — the carrier's cached bulk instance.
+        new_shape = (L_new + 1, 2 * L_new + 1, *self.space.shape[2:])
         new_values = np.zeros(new_shape, dtype=self.values.dtype)
         new_values[: L_new + 1, : 2 * L_new + 1] = (
             self.values[: L_new + 1, : 2 * L_new + 1]
         )
-        return HarmonicMomentFlux.from_mesh_and_L(
-            new_values, self.mesh, L_new,
+        assert isinstance(self.space, TensorProductSpace)  # type-narrowing
+        return HarmonicMomentFlux(
+            values=new_values,
+            space=SphericalHarmonicSpace.from_L(L_new) * self.space.factors[1],
+            L=L_new,
         )

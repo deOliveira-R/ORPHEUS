@@ -31,7 +31,12 @@ from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicReconstruction,
     RadialCharacteristicSeeding,
 )
-from orpheus.sn.solver import evaluate_residual, solve_sn_adjoint_fixed_source
+from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.solver import (
+    SNSolver,
+    evaluate_residual,
+    solve_sn_adjoint_fixed_source,
+)
 from orpheus.sn.solution import Solution
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -206,16 +211,35 @@ class TestO13BoundaryOperator:
 
 
 class TestF5ResidualPoseGuard:
-    def test_bare_composite_on_a_carrying_mesh_refuses(self):
-        """R1's Mode-12(b) guard finally gets its witness: on a carrying
-        mesh a bare System-A residual call would silently drop System B's
-        defect — the guard must refuse the coupled pose's absence."""
+    def test_bare_composite_on_a_carrying_system_refuses_by_arity(self):
+        """R1's Mode-12(b) guard, re-keyed at CS4b S4 (the F5 ruling): the
+        pose travels with the call as the POSED system, and a bare
+        System-A state on a 2×2 system — which would silently drop System
+        B's defect — is refused by the system's ARITY, never by a mesh
+        read through the field."""
         sn = _sphere()
         assert sn.radial_characteristic_field_space is not None
+        solver = SNSolver(sn, inner_solver="source_iteration")
+        system = build_within_group_system(
+            sn, solver.mat_xs, scattering_op=solver.scattering_op,
+        )
+        assert system.loss.n_cols == 2  # the carrying pose IS the arity
         psi = _composite(sn)
         q_ext = FullField(
             interior=AngularSourceSink.zeros_on(sn),
             boundary=AngularBoundarySourceSink.zeros_on(sn),
         )
         with pytest.raises(ValueError, match="starting-direction levels"):
-            evaluate_residual(StreamingOperator(sn), psi, q_ext)
+            evaluate_residual(system, psi, q_ext)
+
+    def test_a_bare_operator_cannot_make_the_full_system_claim(self):
+        """The retired signature refuses loudly: a caller-supplied
+        operator carries no pose, so the full-system claim is unspellable
+        with one (arm-level equations use the module-private
+        _typed_balance, which claims nothing)."""
+        sn = _slab()
+        psi = _composite(sn)
+        with pytest.raises(TypeError, match="POSED system"):
+            evaluate_residual(
+                StreamingOperator(sn), psi, psi,  # type: ignore[arg-type]
+            )

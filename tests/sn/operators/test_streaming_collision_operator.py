@@ -324,7 +324,7 @@ class TestSolve:
 
         assert isinstance(psi, TimedFullField)
         assert isinstance(psi.interior, AngularFlux)
-        assert psi.interior.mesh is sn
+        assert psi.interior.space is sn.angular_bulk_space
         assert psi.interior.values.shape == rhs.interior.values.shape
 
     def test_solve_inherits_history_depth_from_rhs(self) -> None:

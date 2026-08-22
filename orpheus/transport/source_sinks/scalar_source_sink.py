@@ -183,31 +183,15 @@ class ScalarSourceSink(ScalarField):
             return self.__add__(other)
         return NotImplemented
 
-    # ── Conversion (named cross-class composition) ───────────────────
-
-    def as_per_ordinate(self) -> "AngularSourceSink":
-        r"""Broadcast this isotropic source to a per-ordinate source.
-
-        Returns a :class:`AngularSourceSink` whose every ordinate slice
-        equals ``self.values``. Uses ``np.broadcast_to(...).copy()`` so
-        the resulting array is writable and owns its data.
-
-        Use this when the producer-side normalisation (``/sum_w``,
-        Pattern 7) has ALREADY been applied to ``self.values`` and the
-        consumer just needs the per-ordinate broadcast. When the
-        normalisation has NOT been applied yet, use
-        :meth:`AngularSourceSink.from_isotropic` instead.
-        """
-        from orpheus.transport.source_sinks.angular_source_sink import (
-            AngularSourceSink,
-        )
-        # ``mesh.quad`` is SN-only; broadcasting a scalar source to per-ordinate
-        # is meaningful only with a quadrature, so this is only ever reached on
-        # an SNMesh (the field's static type widened to MaterialMesh, #267).
-        sn_mesh = cast("SNMesh", self.mesh)
-        N = sn_mesh.quad.N
-        target_shape = (N, *self.values.shape)
-        per_ord_values = np.broadcast_to(
-            self.values[None], target_shape,
-        ).copy()
-        return AngularSourceSink.from_mesh(per_ord_values, sn_mesh)
+    # ── Conversion — RETIRED (CS4b S4) ───────────────────────────────
+    #
+    # ``as_per_ordinate`` (broadcast this iso source to per-ordinate,
+    # WITHOUT the /Σw normalisation) retired with the field's ``mesh``
+    # binding: the broadcast target needs the ANGULAR axis — carrier
+    # knowledge a scalar field's space cannot carry — and the verb had
+    # zero production callers. The surviving spellings of the same
+    # injection: the containment dunder (``iso + AngularSourceSink`` —
+    # the pure structural broadcast, above) and
+    # :meth:`AngularSourceSink.from_isotropic` (the Pattern-7
+    # producer-normalised factory, which takes the carrier as an
+    # argument).

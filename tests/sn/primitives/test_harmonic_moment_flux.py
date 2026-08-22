@@ -85,7 +85,6 @@ class TestHarmonicMomentFluxConstruction:
         assert phi.values.shape == (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
         assert np.all(phi.values == 0.0)
         assert isinstance(phi, HarmonicMomentFlux)
-        assert phi.mesh is m
         assert phi.L == L
 
     def test_construct_explicit(self) -> None:
@@ -121,8 +120,8 @@ class TestHarmonicMomentFluxConstruction:
         phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L=0)
         assert phi.ng == m.ng
         # C5.2 (#225): nx/ny field read-throughs retired; spatial
-        # shape reads are rank-generic via the mesh.
-        assert phi.mesh.spatial_shape == m.spatial_shape
+        # shape reads are rank-generic (the space's shape contract).
+        assert phi.values.shape[3:] == m.spatial_shape
 
     def test_space_is_tensor_product_of_sh_and_cell_group(self) -> None:
         r"""D-E invariant: the typed field's ``space`` is a
@@ -554,7 +553,7 @@ class TestRLambdaMRoundTrip:
         # flux moment IN → source moment OUT (the explicit role change).
         assert isinstance(out, HarmonicMomentSourceSink)
         assert not isinstance(out, HarmonicMomentFlux)
-        assert out.mesh is sn_mesh
+        assert out.space == moments.space  # same space, new role (S4)
         assert out.L == L
         assert out.values.shape == moments.values.shape
         # the numbers are the bare-ndarray Λ kernel (typed arm only re-wraps).
@@ -613,8 +612,8 @@ class TestZerosForMeshAndL:
         # Independent allocations.
         assert phi1.values is not phi2.values
         phi1.values.flags.writeable
-        # Mesh shared — by reference.
-        assert phi1.mesh is phi2.mesh
+        # One space identity (the carrier's mint, per (name, shape)).
+        assert phi1.space == phi2.space
 
     def test_copy_creates_independent(self) -> None:
         m = _slab_mesh()

@@ -38,8 +38,10 @@ producer-side normalisation (``/sum_w`` baked in vs not):
 
 * :meth:`from_isotropic(values, mesh)` — broadcast + ``/sum_w`` (the
   Pattern 7 entry point).
-* :meth:`ScalarSourceSink.as_per_ordinate` — broadcast WITHOUT
-  ``/sum_w`` (when caller has already done it).
+* the containment dunder (``iso + AngularSourceSink``) — the pure
+  structural broadcast WITHOUT ``/sum_w`` (when the caller has already
+  done it; the retired ``as_per_ordinate`` verb's surviving spelling —
+  CS4b S4, with the field's mesh binding).
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================
@@ -168,9 +170,10 @@ class AngularSourceSink(AngularField):
 
         See also
         --------
-        :meth:`ScalarSourceSink.as_per_ordinate` — broadcast WITHOUT
-            the ``/sum_w`` normalisation (use when caller has already
-            divided by sum_w).
+        the containment dunder (``iso + AngularSourceSink``) — the pure
+            structural broadcast WITHOUT ``/sum_w`` (use when the caller
+            has already divided by sum_w; the retired ``as_per_ordinate``
+            verb's surviving spelling, CS4b S4).
         """
         expected = (mesh.ng, *mesh.spatial_shape)
         if iso_values.shape != expected:

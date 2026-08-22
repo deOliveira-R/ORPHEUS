@@ -192,9 +192,10 @@ class TestSolveSnAdjoint:
             "importance map).",
         )
         require(
-            adj.angular_flux.interior.mesh is adj.mesh
-            and adj.scalar_flux.mesh is adj.mesh,
-            "Solution mesh-identity contract broken on the adjoint entry.",
+            adj.angular_flux.interior.space
+            == adj.angular_flux.interior.space_on(adj.mesh)
+            and adj.scalar_flux.space == adj.scalar_flux.space_on(adj.mesh),
+            "Solution space-content contract broken on the adjoint entry.",
         )
         require(
             adj.history is not None

@@ -200,7 +200,7 @@ class TestConstruction:
         arr = np.ones((m.quad.N, m.ng, *m.spatial_shape))
         psi = AngularFlux.from_mesh(arr, m)
         assert psi.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
-        assert psi.mesh is m
+        assert psi.space is m.angular_bulk_space
 
     def test_from_ndarray_alias(self) -> None:
         m = _slab_mesh()
@@ -304,7 +304,7 @@ class TestMetadata:
         """
         m = _cartesian_2d_mesh(nx=3, ny=5)
         psi = AngularFlux.zeros_on(m)
-        np.testing.assert_equal(psi.mesh.spatial_shape, (3, 5))
+        np.testing.assert_equal(psi.values.shape[2:], (3, 5))
         with pytest.raises(AttributeError):
             psi.nx
         with pytest.raises(AttributeError):

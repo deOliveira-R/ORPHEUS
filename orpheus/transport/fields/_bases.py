@@ -149,52 +149,30 @@ __all__ = [
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class BulkField(Field):
-    r"""Bulk-locus storage base — a mesh-bound :class:`Field` on the grid.
+    r"""Bulk-locus storage base — a :class:`Field` on the grid's cell centres.
 
     Carries the machinery shared by every bulk transport field: the
-    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` binding, the
-    cross-mesh-arithmetic guard (Layer-1.5: even same-class same-space
-    fields on *distinct* meshes are non-additive), and the ``ng/nx/ny``
-    read-throughs. The per-family phase-space shape is the single
-    abstract hook :meth:`_phase_space_shape`, consumed by the shared
-    construction validator.
+    per-family carrier-cached space mint (:meth:`_space_for_mesh`, read by
+    the factories AND the operator admission guards' :meth:`space_on`
+    reference), the optional within-cell spatial-moment factor, and the
+    ``ng`` read-through. A bulk field is an ELEMENT of its space (CS4b S4
+    — the campaign's name executed): ``(values, space)`` is the whole
+    state, the space is carrier-minted and content-named, and every
+    structural question (shape, ``ng``, moment width, ordinate count) is
+    answered by the space. The pre-S4 ``mesh`` binding retired with its
+    reads — a field no longer knows its carrier; the carrier's knowledge
+    enters through the factories (``from_mesh``/``zeros_on`` take the
+    mesh as an ARGUMENT) and through the seams that hold one (the
+    ``space_on`` admission guards).
+
+    Shape validation is :class:`~orpheus.numerics.field.Field`'s own
+    ``values.shape == space.shape`` — the pre-S4 ``_phase_space_shape``
+    cross-check re-derived the same shape from the mesh, a twin of the
+    space's own content that died with the binding.
 
     Abstract — instantiate a concrete role leaf (``AngularFlux``,
-    ``ScalarFlux``, ...). The ``mesh`` field is annotated
-    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
-    method-agnostic mesh+materials carrier) under ``TYPE_CHECKING`` and
-    duck-typed at runtime — bulk fields read only ``ng``/``spatial_shape``/
-    ``ndim`` (all ``MaterialMesh`` data), so they live on any material mesh
-    including a meshless single-region one (#267 / #276). The SN-only
-    ``mesh.quad`` access is confined to the angular family, whose
-    :class:`AngularField` / :class:`MomentField` / :class:`AngularBoundaryField`
-    declarations covariantly NARROW ``mesh`` back to ``SNMesh`` (no casts
-    — the narrowing lives in the field declarations, #267).
+    ``ScalarFlux``, ...).
     """
-
-    mesh: "MaterialMesh"
-
-    # ── Construction validation ──────────────────────────────────────
-
-    @abstractmethod
-    def _phase_space_shape(self) -> tuple[int, ...]:
-        r"""The expected shape of ``values`` / ``space`` for this family.
-
-        Implemented per storage family (``AngularField`` →
-        ``(N, ng, nx, ny)``; ``ScalarField`` → ``(ng, nx, ny)``;
-        ``HarmonicMomentFlux`` → ``(L+1, 2L+1, ng, nx, ny)``). The
-        single source of truth for the shape contract.
-        """
-        raise NotImplementedError
-
-    def __post_init__(self) -> None:
-        super().__post_init__()  # Field: values.shape == space.shape.
-        expected = self._phase_space_shape()
-        if self.space.shape != expected:
-            raise ValueError(
-                f"{type(self).__name__}: space.shape {self.space.shape!r} "
-                f"does not match the phase-space shape {expected!r}"
-            )
 
     # ── Algebra extension (over Field) ───────────────────────────────
 
@@ -348,11 +326,20 @@ class BulkField(Field):
             if tail == ():
                 return 1
             # The axis stores the CELL count (per_axis ** ndim); invert it.
-            per_axis = round(tail[0] ** (1.0 / self.mesh.ndim))
-            if per_axis ** self.mesh.ndim != tail[0]:
+            # ndim is the spatial axis's rank — the ONE "spatial" axis
+            # carries the whole spatial shape (CS4b S4: the space answers
+            # every structural question; the mesh read died with the
+            # binding).
+            ndim = next(
+                len(ax.shape)
+                for ax in self.space.axes
+                if ax.label == "spatial"
+            )
+            per_axis = round(tail[0] ** (1.0 / ndim))
+            if per_axis ** ndim != tail[0]:
                 raise ValueError(
                     f"moment axis carries {tail[0]} cell moments, which is "
-                    f"not a per-axis power for ndim={self.mesh.ndim}"
+                    f"not a per-axis power for ndim={ndim}"
                 )
             return per_axis
         find_factor = getattr(self.space, "find_factor", None)
@@ -402,7 +389,7 @@ class BulkField(Field):
 
         CS4b S3: the space answers every structural question (sizing is
         space data — XD-10); the mesh delegation retired with the reads
-        S4 deletes. The moment family (axes-less TensorProduct until CS2)
+        S4 deleted. The moment family (axes-less TensorProduct until CS2)
         overrides with its own read.
         """
         axes = self.space.axes
@@ -410,7 +397,11 @@ class BulkField(Field):
             for ax in axes:
                 if isinstance(ax, EnergyAxis):
                     return int(ax.shape[0])
-        return self.mesh.ng  # the axes-less families, until their carve
+        raise TypeError(
+            f"{type(self).__name__}.ng: no EnergyAxis on this space — an "
+            "axes-less family must override ng with its own space read "
+            "(MomentField does)."
+        )
 
     # C5.2 (#225): the ``nx``/``ny`` read-throughs are RETIRED — a
     # field keyed on ``(nx, ny)`` silently truncates a 3-D tensor.
@@ -429,24 +420,6 @@ class AngularField(BulkField):
     class arm of :meth:`~orpheus.numerics.field.Field._check_partner` is
     the sole role gate). Abstract — instantiate a concrete leaf.
     """
-
-    # Narrowed to ``SNMesh`` (covariant override of ``BulkField.mesh:
-    # MaterialMesh``, #267): an angular field is per-ORDINATE, so it is
-    # meaningless without a quadrature and ALWAYS lives on an ``SNMesh``. The
-    # narrowing keeps ``mesh.quad`` honest here (no cast) and lets the operators
-    # read ``angular_field.mesh`` as an ``SNMesh`` directly.
-    mesh: "SNMesh"
-
-    @classmethod
-    def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, ...]:
-        r"""The ``(N, ng, *spatial)`` phase-space shape for ``mesh``.
-
-        Spatial rank equals ``mesh.ndim`` — ``(N, ng, nx)`` for a 1-D
-        mesh, ``(N, ng, nx, ny)`` for 2-D, ``(N, ng, nx, ny, nz)`` for
-        3-D. The spatial tail is ``mesh.spatial_shape`` (no phantom
-        ``ny=1`` axis on the 1-D path).
-        """
-        return (mesh.quad.N, mesh.ng, *mesh.spatial_shape)
 
     @classmethod
     def _space_for_mesh(  # type: ignore[override] — the family narrows its
@@ -473,16 +446,6 @@ class AngularField(BulkField):
             mesh.angular_bulk_space, mesh, spatial_moments,
         )
 
-    def _phase_space_shape(self) -> tuple[int, ...]:
-        # Base ``(N, ng, *spatial)`` prefix + the optional spatial-moment
-        # tail read off the field's own space (the single source of truth
-        # for the moment width). ``()`` for a DD-default space → the
-        # validator cross-checks EXACTLY the pre-S3 shape (byte-identical).
-        return (
-            *type(self)._shape_for_mesh(self.mesh),
-            *type(self)._spatial_moment_tail_of(self.space),
-        )
-
     @classmethod
     def from_mesh(cls, values: NDArray, mesh: "SNMesh", *, spatial_moments: int = 1):
         r"""Construct from raw values + mesh, deriving the space.
@@ -496,7 +459,6 @@ class AngularField(BulkField):
         return cls(
             values=values,
             space=cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
-            mesh=mesh,
         )
 
     def _integrate_angular_values(self) -> "NDArray":
@@ -518,9 +480,20 @@ class AngularField(BulkField):
         canonical angular reduction (the DSA restriction ``R`` rides it,
         #2).
         """
-        return np.einsum(
-            "n,ng...->g...", self.mesh.quad.weights, self.values,
-        )
+        # The angular axis carries the quadrature weights as its measure
+        # (the S1 carrier mint) — the ONE weight source post-S4. An axis
+        # ``weights`` of ``None`` IS the all-ones measure (the Axis
+        # canonicalization), so the reduction degrades to the plain sum.
+        axes = self.space.axes
+        if axes is None:  # unreachable for shipped angular spaces
+            raise TypeError(
+                f"{type(self).__name__}: angular reduction needs the "
+                "axis-built angular space (axes[0] carries w_n)."
+            )
+        w = axes[0].weights
+        if w is None:
+            return self.values.sum(axis=0)
+        return np.einsum("n,ng...->g...", w, self.values)
 
     @classmethod
     def zeros_on(cls, mesh: "SNMesh", *, spatial_moments: int = 1):
@@ -535,7 +508,7 @@ class AngularField(BulkField):
         composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
         """
         return cls.zeros(
-            cls._space_for_mesh(mesh, spatial_moments=spatial_moments), mesh=mesh,
+            cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
         )
 
     @classmethod
@@ -553,7 +526,10 @@ class AngularField(BulkField):
         axes = self.space.axes
         if axes is not None:
             return int(axes[0].shape[0])
-        return self.mesh.quad.N  # unreachable for shipped angular spaces
+        raise TypeError(
+            f"{type(self).__name__}.N: no axes on this space — every "
+            "shipped angular space is axis-built (S2)."
+        )
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -567,15 +543,6 @@ class ScalarField(BulkField):
     (campaign 1 CS4b: role is class identity, never space identity).
     Abstract — instantiate a concrete leaf.
     """
-
-    @classmethod
-    def _shape_for_mesh(cls, mesh: "MaterialMesh") -> tuple[int, ...]:
-        r"""The ``(ng, *spatial)`` phase-space shape for ``mesh``.
-
-        Spatial rank equals ``mesh.ndim`` — ``(ng, nx)`` for a 1-D mesh,
-        ``(ng, nx, ny)`` for 2-D (no phantom ``ny=1`` on the 1-D path).
-        """
-        return (mesh.ng, *mesh.spatial_shape)
 
     @classmethod
     def _space_for_mesh(
@@ -602,15 +569,6 @@ class ScalarField(BulkField):
             mesh.bulk_space, mesh, spatial_moments,
         )
 
-    def _phase_space_shape(self) -> tuple[int, ...]:
-        # Base ``(ng, *spatial)`` prefix + the optional spatial-moment tail
-        # read off the field's own space (single source of truth). ``()``
-        # for a DD-default space → byte-identical validation.
-        return (
-            *type(self)._shape_for_mesh(self.mesh),
-            *type(self)._spatial_moment_tail_of(self.space),
-        )
-
     @classmethod
     def from_mesh(cls, values: NDArray, mesh: "MaterialMesh", *, spatial_moments: int = 1):
         r"""Construct from raw values + mesh, deriving the space.
@@ -621,7 +579,6 @@ class ScalarField(BulkField):
         return cls(
             values=values,
             space=cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
-            mesh=mesh,
         )
 
     @classmethod
@@ -637,7 +594,7 @@ class ScalarField(BulkField):
         composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
         """
         return cls.zeros(
-            cls._space_for_mesh(mesh, spatial_moments=spatial_moments), mesh=mesh,
+            cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
         )
 
     @classmethod
@@ -694,45 +651,30 @@ class MomentField(BulkField):
     #: :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`.
     spatial_moments: int = 1
 
-    # Narrowed to ``SNMesh`` (covariant override of ``BulkField.mesh:
-    # MaterialMesh``, #267): a moment field IS the angular flux's
-    # harmonic-moment iterate (φ_ℓ^m), an SN construct, so it always lives on
-    # an ``SNMesh`` — operators read ``moment_field.mesh`` as ``SNMesh`` directly.
-    mesh: "SNMesh"
+    # ── Metadata read-through (the axes-less family's own ng) ────────
 
-    # ── Construction validation ──────────────────────────────────────
+    @property
+    def ng(self) -> int:
+        r"""Number of energy groups — the moment shape contract's axis 2.
 
-    def _phase_space_shape(self) -> tuple[int, ...]:
-        r"""The ``(L+1, 2L+1, ng, *spatial[, spatial_moments**ndim])`` moment shape.
-
-        Implements :meth:`BulkField._phase_space_shape`; the shared
-        :meth:`BulkField.__post_init__` validator consumes it. The leading
-        two axes encode the harmonic truncation order ``L``; the spatial
-        tail is rank-``d`` via ``mesh.spatial_shape`` (no phantom ``ny``).
-        At :attr:`spatial_moments` ``> 1`` a trailing within-cell
-        spatial-moment axis of length ``spatial_moments ** ndim`` is appended
-        (#240 D5b-S3-A0; "append iff > 1" single-sourced from
-        :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`,
-        so the default ``1`` leaves the shape byte-identical and AGREES with
-        the factor :meth:`from_mesh_and_L` composes).
+        The moment family's space is a TensorProductSpace (axes-less until
+        CS2 axis-ifies the SH factor), so the base's EnergyAxis read has
+        nothing to find; the family's OWN shape contract
+        ``(L+1, 2L+1, ng, *spatial[, …])`` locates ``ng`` at index 2.
         """
-        n_moments = cell_moment_count(self.spatial_moments, self.mesh.ndim)
-        return (
-            self.L + 1, 2 * self.L + 1,
-            self.mesh.ng, *self.mesh.spatial_shape,
-            *spatial_moment_tail(n_moments),
-        )
+        return int(self.space.shape[2])
 
     # ── Algebra extension (over BulkField) ───────────────────────────
 
     def _check_partner(self, other: Field) -> Self:
-        r"""Add the ``L``-match on top of BulkField's class/space/mesh gate.
+        r"""Add the ``L``-match on top of the base class/space-content gate.
 
-        :meth:`BulkField._check_partner` already rejects on class identity,
-        space equality, AND mesh identity (mesh-bound). This override adds an
-        explicit ``L`` match for a clearer error message at the
-        truncation-mismatch site (the space check also catches it via shape
-        mismatch, but the message is less specific).
+        :meth:`Field._check_partner` already rejects on class identity and
+        space CONTENT equality (the S3 re-key; the mesh-identity arm is
+        retired). This override adds an explicit ``L`` match for a clearer
+        error message at the truncation-mismatch site (the space check
+        also catches it via shape mismatch, but the message is less
+        specific).
         """
         partner = super()._check_partner(other)
         if self.L != partner.L:
@@ -770,7 +712,7 @@ class MomentField(BulkField):
             space=cls._space_for_mesh_and_L(
                 mesh, L, spatial_moments=spatial_moments,
             ),
-            mesh=mesh, L=L,
+            L=L,
             spatial_moments=spatial_moments,
         )
 
@@ -879,16 +821,14 @@ class FaceField(Field, Generic[K]):
       the ANGULAR domain (:math:`\mu = \mu_{\rm start}`), keyed by
       ``(level, sign, part)``.
 
-    The base ``mesh`` annotation is the method-agnostic
-    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`; each family
-    covariantly NARROWS it to its method-mesh (:class:`SNMesh` /
-    :class:`DiffusionMesh`) — the #267 ``BulkField → AngularField``
-    discipline. Storage is a SINGLE flat backing buffer; per-face access is
+    A face field is an ELEMENT of its layout-bearing face space (CS4b S4
+    — ``(values, space)`` is the whole state; the pre-S4 ``mesh`` binding
+    retired with its reads, and the carrier's knowledge enters through
+    the factories' mesh ARGUMENT and the ``space_on`` admission seams).
+    Storage is a SINGLE flat backing buffer; per-face access is
     slice-view, no copies. Inherits Field's same-class/same-space dunder
     algebra. Abstract — instantiate a concrete role leaf of one of the loci.
     """
-
-    mesh: "MaterialMesh"
 
     # ── The per-family face-space source ─────────────────────────────
 
@@ -1013,7 +953,7 @@ class FaceField(Field, Generic[K]):
         residual lands on the same cached face space as every other leaf of
         its family.
         """
-        return cls(values=values, space=cls._face_space_of(mesh), mesh=mesh)
+        return cls(values=values, space=cls._face_space_of(mesh))
 
     @classmethod
     def zeros_on(cls, mesh: "MaterialMesh"):
@@ -1024,7 +964,7 @@ class FaceField(Field, Generic[K]):
         :meth:`~orpheus.numerics.field.Field.zeros` — the uniform leaf-side
         allocator.
         """
-        return cls.zeros(cls._face_space_of(mesh), mesh=mesh)
+        return cls.zeros(cls._face_space_of(mesh))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1110,7 +1050,7 @@ class BoundaryField(FaceField[str]):
                     f"shape {slot.shape!r}"
                 )
             slot.slice_view(flat)[:] = arr
-        return cls(values=flat, space=space, mesh=mesh)
+        return cls(values=flat, space=space)
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -1129,7 +1069,6 @@ class AngularBoundaryField(BoundaryField):
     Abstract — instantiate a role leaf.
     """
 
-    mesh: "SNMesh"
     # The static twin of the __post_init__ isinstance gate below (the
     # ``mesh: SNMesh`` covariant-narrowing idiom): an angular boundary
     # field's space IS the quadrature-coupled AngularTraceSpace, so
@@ -1190,8 +1129,6 @@ class ScalarBoundaryField(BoundaryField):
     operator codomains demand them (#290 P4). Abstract — instantiate a
     role leaf.
     """
-
-    mesh: "DiffusionMesh"
 
     # ── Construction validation (scalar narrowing) ────────────────────
 
@@ -1268,7 +1205,6 @@ class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
     — instantiate a role leaf.
     """
 
-    mesh: "SNMesh"
     space: RadialCharacteristicInteriorSpace
 
     def __post_init__(self) -> None:
@@ -1330,7 +1266,6 @@ class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):
     — instantiate a role leaf.
     """
 
-    mesh: "SNMesh"
     space: RadialCharacteristicBoundarySpace
 
     def __post_init__(self) -> None:

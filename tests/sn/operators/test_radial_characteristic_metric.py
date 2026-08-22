@@ -150,7 +150,7 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
             rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), sn),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr) if trace else np.zeros(n_tr),
-            space=sn.angular_trace, mesh=sn),
+            space=sn.angular_trace),
     )
     # System B is the native split composite (4e); a random seed fills its
     # to_flat (interior ⊕ boundary) — the reciprocity identity is layout-agnostic

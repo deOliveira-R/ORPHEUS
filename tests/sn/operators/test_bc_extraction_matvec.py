@@ -253,7 +253,8 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
     from tests.sn._test_helpers import _LC_matvec
 
     return _LC_matvec(
-        state, sigma_t, LC=(L + C), radial_characteristic_flux=seed_leg,
+        state, sigma_t, sn_mesh=sn_mesh, LC=(L + C),
+        radial_characteristic_flux=seed_leg,
     )
 
 

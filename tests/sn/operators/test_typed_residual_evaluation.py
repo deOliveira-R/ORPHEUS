@@ -49,7 +49,10 @@ from orpheus.transport.timed_full_field import TimedFullField
 
 def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     """Converge a 2G het (fuel|moderator) P1 slab via SI; return
-    ``(solver, loss_op, q_ext, psi)`` with ``psi`` the full-angular flux."""
+    ``(solver, system, q_ext, psi)`` with ``psi`` the full-angular flux and
+    ``system`` the posed record (CS4b S4 — ``evaluate_residual`` takes the
+    POSE, so the residual is evaluated against the equation the solve
+    posed, never a re-composed twin)."""
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     mat_ids = np.zeros(nx, dtype=int)
@@ -64,7 +67,6 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, B) = system.implicit_operator, system.explicit_gains  # seedless slab record shape
     si, _base, _gains, windowed = _within_group_si(
         system, sn_mesh, inner_schedule=solver.inner_schedule,
         max_iter=600, tol=1e-12,
@@ -80,7 +82,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     )
     ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     psi, _ = si.solve(q_ext, initial_guess=ig)
-    return solver, (LC - S - B), q_ext, psi
+    return solver, system, q_ext, psi
 
 
 # ── T4.1 — from_balance mints (positive) / mis-typed operand raises (negative)
@@ -126,8 +128,8 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     per-cell defect global conservation HIDES. L11-paired: converged → ≈0
     (POSITIVE); perturbed → ≠0 localised (NEGATIVE — proves the map reads the
     defect, not a latent dud)."""
-    _solver, loss_op, q_ext, psi = _converged_slab_2g()
-    r = evaluate_residual(loss_op, psi, q_ext)            # POSITIVE
+    _solver, system, q_ext, psi = _converged_slab_2g()
+    r = evaluate_residual(system, psi, q_ext)             # POSITIVE
     bmap = r.interior.balance_map()                            # (ng, *spatial)
     q_scale = float(np.abs(q_ext.interior.values).max())
     rel = float(np.abs(bmap).max()) / max(q_scale, 1e-30)
@@ -139,10 +141,10 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     ix = psi.interior.values.shape[2] // 2
     bad_vals[:, 0, ix] *= 1.1
     psi_bad = TimedFullField(
-        interior=AngularFlux.from_mesh(bad_vals, psi.interior.mesh),
+        interior=AngularFlux.from_mesh(bad_vals, _solver.sn_mesh),
         boundary=psi.boundary, _history=(), history_depth=psi.history_depth,
     )
-    r_bad = evaluate_residual(loss_op, psi_bad, q_ext)
+    r_bad = evaluate_residual(system, psi_bad, q_ext)
     bmap_bad = r_bad.interior.balance_map()
     if not (np.abs(bmap_bad).max() > 100.0 * max(np.abs(bmap).max(), 1e-30)):
         raise AssertionError(
@@ -166,8 +168,8 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
 def test_boundary_vs_interior_split_quadrature_sum():
     r"""sqrt(b² + i²) == ‖r‖ (the composite flat L2 — the typed residual is
     bulk ⊕ boundary; the split is the norms of the two members)."""
-    _solver, loss_op, q_ext, psi = _converged_slab_2g()
-    r = evaluate_residual(loss_op, psi, q_ext)
+    _solver, system, q_ext, psi = _converged_slab_2g()
+    r = evaluate_residual(system, psi, q_ext)
     b, i = boundary_vs_interior_split(r)
     total = float(np.linalg.norm(r.to_flat()))
     np.testing.assert_allclose(np.hypot(b, i), total, rtol=1e-12)
@@ -179,8 +181,8 @@ def test_boundary_vs_interior_split_quadrature_sum():
 @pytest.mark.foundation
 def test_relative_to_source_is_norm_ratio():
     r"""relative_to(q) == ‖r‖/‖q‖ — the tolerance-portable residual criterion."""
-    _solver, loss_op, q_ext, psi = _converged_slab_2g()
-    r = evaluate_residual(loss_op, psi, q_ext)
+    _solver, system, q_ext, psi = _converged_slab_2g()
+    r = evaluate_residual(system, psi, q_ext)
     np.testing.assert_allclose(
         r.interior.relative_to(q_ext.interior), r.interior.l2 / q_ext.interior.l2, rtol=1e-12,
     )
@@ -449,7 +451,7 @@ class TestSplitRayResidualMint:
         psi_pair = CoupledField(systems=(
             sol.angular_flux, sol.radial_characteristic,
         ))
-        r = evaluate_residual(system.loss, psi_pair, q_pair)
+        r = evaluate_residual(system, psi_pair, q_pair)
         if not isinstance(r, CoupledField):
             pytest.fail(f"coupled residual is {type(r).__name__}")
         r_b = r.systems[1]
@@ -510,7 +512,7 @@ class TestSplitRayResidualMint:
             RadialCharacteristicField.from_mesh(sn),   # FLUX pair — wrong role
         ))
         with pytest.raises(TypeError):
-            evaluate_residual(system.loss, psi_pair, bad_q)
+            evaluate_residual(system, psi_pair, bad_q)
 
 
 @pytest.mark.foundation

@@ -1052,7 +1052,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
                 f"off-quadrature μ = ±1 ray — loud-deferred, 2.5d "
                 f"plan-of-record)."
             )
-        out = RadialCharacteristicBoundarySourceSink.zeros_on(seed.mesh)
+        out = RadialCharacteristicBoundarySourceSink.zeros(seed.space)
         # R = 0 ⇒ zero corner emission (the all-zero ``out`` falls through);
         # G permutes ⇒ the specular swap (the mirror of μ = +1 is exactly μ = −1).
         if law_permutes_ordinates(law):

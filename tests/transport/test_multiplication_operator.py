@@ -274,8 +274,9 @@ class TestMultiplierAlgebraLaws:
         def _zero_source(p: TimedFullField) -> TimedFullField:
             return replace(
                 p,
-                interior=AngularSourceSink.from_mesh(
-                    np.zeros_like(p.interior.values), p.interior.mesh,
+                interior=AngularSourceSink(
+                    values=np.zeros_like(p.interior.values),
+                    space=p.interior.space,
                 ),
             )
 

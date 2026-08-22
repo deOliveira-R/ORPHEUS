@@ -190,7 +190,7 @@ from .solution import AdjointSolution, IterationHistory, Solution, SolutionBase
 def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
     r"""System A's typed balance defect — the named bulk/trace ``from_balance`` pair.
 
-    The shared body of :func:`evaluate_residual`'s two arms (bare seedless /
+    The shared body of :func:`_typed_balance`'s two arms (bare /
     the coupled pair's A-member): parses the angular family at the composite
     boundary (the #289 F2-sibling role erasure) and mints the 2-block
     residual composite.
@@ -209,7 +209,7 @@ def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
         q_bulk, AngularField
     ):
         raise TypeError(
-            f"evaluate_residual: both composites must carry angular-family "
+            f"_typed_balance: both composites must carry angular-family "
             f"per-ordinate bulks; got lhs {type(lhs_bulk).__name__}, "
             f"q_ext {type(q_bulk).__name__}."
         )
@@ -222,7 +222,7 @@ def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
         q_boundary, AngularBoundaryField
     ):
         raise TypeError(
-            f"evaluate_residual: both composites must carry angular "
+            f"_typed_balance: both composites must carry angular "
             f"(AngularBoundaryField-family) traces; got lhs "
             f"{type(lhs_boundary).__name__}, rhs {type(q_boundary).__name__}."
         )
@@ -237,7 +237,7 @@ def _system_a_residual(lhs: "FullField", q_ext: "FullField") -> "FullField":
     )
 
 
-def evaluate_residual(
+def _typed_balance(
     loss_op: "LinearOperator",
     # ``FullField``, not ``TimedFullField``: the rolling-window history is
     # irrelevant to a single apply, and the #340 N6b exit defect evaluates
@@ -247,48 +247,30 @@ def evaluate_residual(
     psi: "FullField | CoupledField",
     q_ext: "FullField | CoupledField",
 ) -> "FullField | CoupledField":
-    r"""The typed equation residual :math:`r = A\,\psi - q`, per system.
+    r"""The typed balance defect :math:`r = A\,\psi - q` of ONE GIVEN operator.
 
-    Evaluates the within-group balance defect
+    The ARM PRIMITIVE (CS4b S4 — the F5 split): it evaluates whatever
+    equation it is handed, with **no pose knowledge and no pose claim** —
+    the deliberate arm-level consumers are the eigenvalue exit's bare
+    System-A fission-defect projection (its carrying-mesh exemption is the
+    CALL SITE's own honest reasoning) and the adjoint path's hand-daggered
+    ``M.H − N.H`` equation, neither of which any
+    :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record
+    describes. The FULL-system claim — "the residual of the problem as
+    POSED" — lives one level up on :func:`evaluate_residual`, which
+    derives the required state shape from the posed system's arity;
+    consumers outside this module go through that entry.
 
-    .. math::
-
-        r \;=\; A\,\psi \;-\; q
-
-    via the named ``from_balance`` compositions (NOT a bare cross-class
-    ``−``, which would mis-type the defect as a source). On a SEEDLESS mesh
-    ``A = L + C - S - B`` and the result is the typed 2-block composite
-    ``FullField(interior=AngularResidual, boundary=AngularBoundaryResidual)``.
-    On a CARRYING mesh (B.2d — the coupled arm) ``loss_op`` is the 2×2
-    coupled loss grid, ``psi``/``q_ext`` the coupled pairs, and the result is
-    the coupled residual ``CoupledField[r_A, r_B]`` with ``r_B`` the split
-    ψ½ pair (:class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
-    ⊕ :class:`~orpheus.transport.residuals.radial_characteristic_boundary_residual.RadialCharacteristicBoundaryResidual`)
-    — the Mode-12 (b) closure: a System-A-only residual would be
-    structurally blind to a wrong seed row, so System B's defect is a typed
-    member that cannot be silently dropped.
-
-    A diagnostic (``balance_map`` / :func:`boundary_vs_interior_split` /
-    ``relative_to``) AND the substrate the consistent-DSA low-order
-    correction (`#2`) will consume (``r`` is the transport residual the
-    diffusion solve corrects). NOT in the convergence path — evaluated on
-    a (typically converged) flux, additive.
-
-    Parameters
-    ----------
-    loss_op : LinearOperator
-        The within-group loss operator: the seedless ``L + C - S - B``
-        composition, or the carrying 2×2 grid
-        (:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.loss`).
-        ``loss_op.apply(psi)`` returns source-role members.
-    psi : TimedFullField or CoupledField
-        The FULL-angular flux state (``bulk`` an ``AngularFlux``; for a
-        windowed 2-D solve pass the reconstructed ``Solution.angular_flux``,
-        NOT the moment iterate — the operators consume per-ordinate flux).
-        The coupled pair on a carrying mesh.
-    q_ext : FullField or CoupledField
-        The external source (source-role members), matching ``psi``'s
-        carrier shape.
+    Evaluates via the named ``from_balance`` compositions (NOT a bare
+    cross-class ``−``, which would mis-type the defect as a source). On a
+    bare pair ``A = L + C - S - B`` and the result is the typed 2-block
+    composite ``FullField(interior=AngularResidual,
+    boundary=AngularBoundaryResidual)``. On a coupled pair (B.2d — the
+    coupled arm) ``loss_op`` is the 2×2 coupled loss grid, ``psi``/
+    ``q_ext`` the coupled pairs, and the result is the coupled residual
+    ``CoupledField[r_A, r_B]`` with ``r_B`` the split ψ½ pair
+    (:class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
+    ⊕ :class:`~orpheus.transport.residuals.radial_characteristic_boundary_residual.RadialCharacteristicBoundaryResidual`).
     """
     lhs = loss_op.apply(psi)  # A·ψ — source-role members
     if isinstance(psi, CoupledField):
@@ -301,7 +283,7 @@ def evaluate_residual(
             q_ext, CoupledField
         ):
             raise TypeError(
-                "evaluate_residual: a coupled ψ requires the coupled loss "
+                "_typed_balance: a coupled ψ requires the coupled loss "
                 "grid and a coupled q_ext — got "
                 f"lhs {type(lhs).__name__}, q_ext {type(q_ext).__name__}."
             )
@@ -311,7 +293,7 @@ def evaluate_residual(
         q_b = _system_b_member(q_ext)
         if lhs_b is None or q_b is None:
             raise TypeError(
-                "evaluate_residual: the coupled arm requires System-B "
+                "_typed_balance: the coupled arm requires System-B "
                 "members on both the loss output and q_ext."
             )
         r_b = RadialCharacteristicField(
@@ -327,30 +309,100 @@ def evaluate_residual(
         )
     if not isinstance(q_ext, FullField):
         raise TypeError(
-            f"evaluate_residual: a bare System-A ψ takes a bare FullField "
+            f"_typed_balance: a bare System-A ψ takes a bare FullField "
             f"q_ext; got {type(q_ext).__name__}."
         )
-    # The eviction's signature footgun, closed loudly: on a CARRYING mesh a
-    # bare System-A call would silently omit r_B — exactly the Mode-12 (b)
-    # blindness the split-residual mint exists to prevent (a DSA consumer
-    # feeding solution.angular_flux alone would get a residual blind to a
-    # wrong seed row). The full-system residual takes the coupled pair.
-    # CS4b S3: the ``getattr(…, "mesh", None)`` tolerance died — a defaulted
-    # read would become a SILENT no-op the moment S4 retires the field's
-    # mesh attribute (vv #28's temporal twin). The direct read is LOUD at
-    # S4, which owns relocating this guard's knowledge source (the
-    # carrying-ness is a property of the POSE; the field's space cannot
-    # carry it, so the S4 design decides where the question moves —
-    # named there, not discovered).
-    bare_mesh = q_ext.interior.mesh
-    if getattr(bare_mesh, "radial_characteristic_field_space", None) is not None:
-        raise ValueError(
-            "evaluate_residual: this mesh carries starting-direction levels "
-            "(R12a) — pass the coupled pair [ψ_A, ψ_B] (and the coupled loss "
-            "grid) for the FULL-system residual; a bare System-A call would "
-            "silently drop System B's defect (Mode-12 (b))."
-        )
     return _system_a_residual(lhs, q_ext)
+
+
+def evaluate_residual(
+    system: "WithinGroupSystem",
+    psi: "FullField | CoupledField",
+    q_ext: "FullField | CoupledField",
+) -> "FullField | CoupledField":
+    r"""The FULL-system residual :math:`r = A\,\psi - q` of the POSED problem.
+
+    .. math::
+
+        r \;=\; A\,\psi \;-\; q
+
+    with :math:`A` the posed system's loss — never a caller-supplied
+    operator. Takes the
+    :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record (CS4b S4
+    — the F5 ruling): "does this problem carry System B?" is the POSE's
+    property, and the pose is decided exactly once, at
+    :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
+    reads the carrier and returns the 2×2 grid (carrying) or the 1×1 grid
+    (seedless). So the required state shape is DERIVED from the system's
+    arity, and the Mode-12 (b) hazard the pre-S4 mesh-reading guard
+    patched — a bare System-A call on a carrying problem silently
+    dropping System B's defect (a DSA consumer feeding
+    ``solution.angular_flux`` alone would get a residual blind to a wrong
+    seed row) — is refused by STRUCTURE: you cannot obtain a seedless
+    system from a carrying mesh, and a 2×2 system refuses bare state by
+    arity. The scheme-binding doctrine executed: the augmented object
+    binds what the method needs, so the schemeless call is unspellable by
+    currency rather than patrolled by a mesh read.
+
+    On a 1×1 system the state is the bare 2-block composite pair and the
+    result is ``FullField(interior=AngularResidual,
+    boundary=AngularBoundaryResidual)``; on a 2×2 system the state is the
+    coupled pair and the result is ``CoupledField[r_A, r_B]`` with
+    ``r_B`` the split ψ½ residual pair — System B's defect is a typed
+    member that cannot be silently dropped.
+
+    A diagnostic (``balance_map`` / :func:`boundary_vs_interior_split` /
+    ``relative_to``) AND the substrate the consistent-DSA low-order
+    correction (`#2`) will consume (``r`` is the transport residual the
+    diffusion solve corrects). NOT in the convergence path — evaluated on
+    a (typically converged) flux, additive. Arm-level equations that no
+    system record describes (the eigenvalue exit's deliberate System-A
+    fission projection, the adjoint path's daggered ``M.H − N.H``) use
+    the module-private :func:`_typed_balance` primitive, which carries no
+    full-system claim.
+
+    Parameters
+    ----------
+    system : WithinGroupSystem
+        The posed within-group system (loss + splitting, one construction
+        site). The residual is evaluated against ``system.loss``.
+    psi : FullField or CoupledField
+        The FULL-angular flux state, in the shape the system's arity
+        demands (``bulk`` an ``AngularFlux``; for a windowed 2-D solve
+        pass the reconstructed ``Solution.angular_flux``, NOT the moment
+        iterate — the operators consume per-ordinate flux).
+    q_ext : FullField or CoupledField
+        The external source (source-role members), matching ``psi``'s
+        carrier shape.
+    """
+    if not isinstance(system, WithinGroupSystem):
+        raise TypeError(
+            "evaluate_residual takes the POSED system (WithinGroupSystem) "
+            "— the full-system residual is a claim about the problem as "
+            "posed, so the pose travels with the call; got "
+            f"{type(system).__name__}. Build it with "
+            "build_within_group_system; for an arm-level equation no "
+            "system describes, use the module-private _typed_balance."
+        )
+    arity = system.loss.n_cols
+    if arity == 2:
+        if not isinstance(psi, CoupledField) or not isinstance(
+            q_ext, CoupledField
+        ):
+            raise ValueError(
+                "evaluate_residual: this system is 2×2 — the mesh carries "
+                "starting-direction levels (R12a) — pass the coupled pair "
+                "[ψ_A, ψ_B] and coupled q_ext for the FULL-system "
+                "residual; a bare System-A call would silently drop "
+                "System B's defect (Mode-12 (b))."
+            )
+        return _typed_balance(system.loss, psi, q_ext)
+    if isinstance(psi, CoupledField) or isinstance(q_ext, CoupledField):
+        raise ValueError(
+            "evaluate_residual: this system is 1×1 (seedless) — pass the "
+            "bare FullField pair, not a coupled wrapper."
+        )
+    return _typed_balance(_bare_loss_arm(system), psi, q_ext)
 
 
 def boundary_vs_interior_split(
@@ -582,7 +634,7 @@ def _exit_balance_defect(
     denominator = float(np.linalg.norm(np.asarray(source_rate)))
     if denominator == 0.0:
         return None
-    residual = evaluate_residual(loss_op, psi, q)
+    residual = _typed_balance(loss_op, psi, q)
     defect_rate = _balance_projection(residual, sn_mesh=sn_mesh)
     return float(np.linalg.norm(np.asarray(defect_rate))) / denominator
 
@@ -662,7 +714,7 @@ def _exit_gauge_trace(
 
 
 def _certify_within_group_exit(
-    loss_op: "LinearOperator",
+    system: "WithinGroupSystem",
     psi: "TimedFullField | CoupledField",
     q_ext: "FullField | CoupledField",
     *,
@@ -711,7 +763,7 @@ def _certify_within_group_exit(
     if criterion is None or criterion.last is None:
         return  # nothing was measured — see IterationRecord.iterated
     tol = criterion.tolerance
-    residual = evaluate_residual(loss_op, psi, q_ext)
+    residual = evaluate_residual(system, psi, q_ext)
     r_norm = float(np.linalg.norm(np.asarray(residual.to_flat())))
     q_norm = max(float(np.linalg.norm(np.asarray(q_ext.to_flat()))), 1e-30)
     defect = r_norm / q_norm
@@ -730,9 +782,16 @@ def _certify_within_group_exit(
 
 
 def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
-    r"""The seedless certificate's operator: the 1×1 grid's (A,A) entry
-    (the ``L+C−S−B_a`` composition — :func:`evaluate_residual`'s bare
-    arm takes the composition, not the arity-guarded grid)."""
+    r"""The 1×1 grid's (A,A) entry — the bare ``L+C−S−B_a`` composition.
+
+    The seedless system's equation, unwrapped from the arity-guarded grid
+    (whose ``apply`` demands a ``CoupledField`` even at arity 1, while the
+    seedless drivers carry bare composites). Consumed by
+    :func:`evaluate_residual`'s seedless arm (CS4b S4 — the one place the
+    unwrap is spelled for the full-system claim) and by the arm-level
+    ``_exit_balance_defect`` call sites that deliberately evaluate the
+    System-A equation alone (the eigenvalue exit's fission-defect
+    projection)."""
     arm = system.loss.blocks[0][0]
     if arm is None:  # unreachable — the grid ctor guards diagonal presence
         raise RuntimeError(
@@ -1977,8 +2036,7 @@ class SNSolver:
         # no in-M lag surface; see _certify_within_group_exit).
         if not windowed:
             _certify_within_group_exit(
-                system.loss if coupled else _bare_loss_arm(system),
-                psi_typed, q_driver,
+                system, psi_typed, q_driver,
                 sn_mesh=self.sn_mesh, record=record,
                 where="SNSolver._solve_source_iteration",
             )
@@ -2164,8 +2222,7 @@ class SNSolver:
         # certificate is the honest cross-check on the ASSEMBLED equation
         # (the ERR-053 truncation family's independent catcher).
         _certify_within_group_exit(
-            system.loss if coupled else _bare_loss_arm(system),
-            psi_typed, q_driver,
+            system, psi_typed, q_driver,
             sn_mesh=self.sn_mesh, record=record,
             where="SNSolver._solve_krylov",
         )
@@ -2610,13 +2667,16 @@ def solve_sn(
     # (fission + P0 scatter + (n,2n)), `[M]` 13.7× larger than the fission
     # source alone, and against ``A = L+C−S−B`` it double-counts scattering.
     # ⛔ CARRYING MESHES ARE EXEMPT HERE, and the reason is a real refusal
-    # rather than a missing feature on our side.  `evaluate_residual`
-    # rejects a BARE System-A residual whenever the mesh carries
-    # starting-direction levels, because it would silently omit r_B — the
-    # Mode-12 blindness the split-residual mint exists to prevent.  What
-    # this site assembles IS bare (a System-A ψ against a System-A fission
-    # rhs), so on a carrying mesh the honest answer is "no number", not a
-    # residual missing a block.
+    # rather than a missing feature on our side.  What this site assembles
+    # IS bare (a System-A ψ against a System-A fission rhs), which on a
+    # carrying mesh would silently omit r_B — the Mode-12 blindness the
+    # split-residual mint exists to prevent — so the honest answer is "no
+    # number", not a residual missing a block.  (CS4b S4: the refusal used
+    # to live inside `evaluate_residual` as a mesh read; the full-system
+    # entry now refuses by the POSED system's arity, and this deliberate
+    # arm-level evaluation routes through the guard-free `_typed_balance`
+    # primitive — so the exemption below is this call site's OWN honest
+    # reasoning, kept, not a downstream raise avoided.)
     #
     # `[M]` 2026-08-10, and it is why this exemption exists at all: without
     # it the slice went 9 → 25 reds, every one of the 16 a curvilinear
@@ -3858,8 +3918,7 @@ def _solve_fixed_source_si(
     # _certify_within_group_exit).
     if not windowed:
         _certify_within_group_exit(
-            system.loss if coupled else _bare_loss_arm(system),
-            psi_typed, q_ext_composite,
+            system, psi_typed, q_ext_composite,
             sn_mesh=sn_mesh, record=record,
             where="solve_sn_fixed_source[source_iteration]",
         )
@@ -4094,8 +4153,7 @@ def _solve_fixed_source_krylov(
     # always full-angular; the honest cross-check on the assembled
     # equation (the ERR-053 truncation family's independent catcher).
     _certify_within_group_exit(
-        system.loss if coupled else _bare_loss_arm(system),
-        psi_typed, q_ext_composite,
+        system, psi_typed, q_ext_composite,
         sn_mesh=sn_mesh, record=record,
         where="solve_sn_fixed_source[krylov]",
     )

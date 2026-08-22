@@ -104,7 +104,7 @@ def test_pure_composite_has_no_ray_slot(mesh) -> None:
 
 def test_mesh_reads_off_either_leaf(mesh) -> None:
     c = _scalar_composite(mesh, 0)
-    assert c.mesh is mesh
+    assert c.space == mesh.full_field_space
 
 
 # ── Vector-space intrinsic laws (base hooks exercised via SCALAR leaves) ──
