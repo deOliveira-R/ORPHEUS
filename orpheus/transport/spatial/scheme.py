@@ -73,6 +73,7 @@ from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
+    from orpheus.numerics.axis import Axis
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1370,6 +1371,48 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         :meth:`residual_kernel_batch` normalises by, ÷V).
         """
         return np.ones(cell_moment_count(self.spatial_basis_per_axis, ndim))
+
+    def moment_axis(self, ndim: int) -> "Axis":
+        r"""The within-cell spatial-moment factor as a typed space AXIS.
+
+        The :class:`~orpheus.numerics.axis.Axis` form of this scheme's
+        tensor-Legendre cell basis — label ``"spatial_moment"``, shape
+        ``(2^d,)``, ``weights = ``:meth:`moment_mass_diagonal`, kind
+        **MODAL** (expansion coefficients: a positive function has legally
+        signed slope coefficients, so per-component positivity is not a
+        meaningful predicate — ``has_coordinate_cone`` reads ``False``
+        through this factor, which is the honest answer campaign 1 CS4b
+        routes :meth:`~orpheus.numerics.field.Field.cone_violations`
+        through).
+
+        Scheme-owned because the mass IS the scheme's (``θ`` enters
+        :meth:`moment_mass_diagonal` — basis ↔ mass single-sources here);
+        every axis-built bulk space that carries the moment tail composes
+        THIS object, so the field layer and the composite interior cannot
+        spell the mass twice (CS4b crosswalk B5,
+        ``.claude/plans/cs4b_crosswalk.md``).
+
+        **Refuses on a slopeless closure** (``spatial_basis_per_axis == 1``):
+        the moment-tail policy appends NO factor at width 1 (the
+        byte-identity invariant, #240 D5b-S3-A0), so a trivial ``(1,)``
+        moment axis is a state no composed space admits — minting one
+        would invite it (Pattern 4).
+        """
+        if self.spatial_basis_per_axis == 1:
+            raise ValueError(
+                f"{type(self).__name__} is a slopeless closure "
+                "(spatial_basis_per_axis == 1): the moment-tail policy "
+                "appends no factor at width 1, so there is no moment axis "
+                "to mint."
+            )
+        from orpheus.numerics.axis import Axis, BasisKind
+
+        return Axis(
+            "spatial_moment",
+            (cell_moment_count(self.spatial_basis_per_axis, ndim),),
+            weights=self.moment_mass_diagonal(ndim),
+            kind=BasisKind.MODAL,
+        )
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────
     #

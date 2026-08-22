@@ -68,6 +68,7 @@ from ..sweep.pole_angular_closure import (
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
+    from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.spaces.radial_characteristic_space import (
@@ -1037,6 +1038,70 @@ class SNMesh(MaterialMesh):
         return FullFieldSpace.from_blocks(
             interior, boundary, name="radial_characteristic",
         )
+
+    @cached_property
+    def angular_bulk_space(self) -> "FunctionSpace":
+        r"""The angular-bulk function space of this carrier — axis-built (CS4b).
+
+        The per-ordinate bulk phase space ``(N, ng, *spatial)`` as the ordered
+        axis product
+
+        .. math::
+
+            V_{\rm ang} \;=\; V_\Omega \otimes V_E \otimes V_r
+            \qquad
+            \bigl(\text{angular } w_n\bigr) \otimes
+            \bigl(\text{energy}\bigr) \otimes
+            \bigl(\text{spatial } V_{\rm cell}\bigr),
+
+        i.e. literally ``of_axes(angular, *bulk_space.axes)`` — the angular
+        factor prepended to the SCALAR bulk. Three conventions live here
+        (CS4b crosswalk B1, ``.claude/plans/cs4b_crosswalk.md``):
+
+        * **Axis order is** ``(angular, energy, spatial)``, matching the bulk
+          tensor layout ``(N, ng, *spatial)`` and
+          :attr:`full_field_space`'s dense interior. The scalar bulk is this
+          product minus axis 0, so the angular retract is "drop axis 0" and
+          the two carriers cannot disagree on the shared factors.
+        * **The energy and spatial arms are** :attr:`bulk_space`'s **axes,
+          reused verbatim** — the reachable-materials energy-arm rule and
+          the cell-volume spatial measure are spelled ONCE, there (Pattern
+          2). This property adds exactly one fact: the quadrature measure
+          ``w_n`` on the ordinate axis (NODAL — ordinates are point
+          samples; per-component positivity is meaningful, so
+          ``has_coordinate_cone`` reads ``True``).
+        * **The derived space name is not an API** — it is a content digest
+          that changes when CS2 mints typed axis subclasses. Consumers pin
+          per-axis ``label/shape/kind/weights`` or relative ``is``/``==``,
+          never the name literal.
+
+        This is the WIDTH-1 base: the optional within-cell spatial-moment
+        tail (LD, ``spatial_moments > 1``) composes
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
+        onto these axes at the selecting call site (construct-general /
+        select-narrow, #240 D5b-S3-A0) — the caller that fills the axis
+        widens the space; the carrier does not read the scheme by default.
+
+        Carries the physical Hilbert metric per axis (``w_n``, ``V_cell``)
+        — the same Gram :attr:`full_field_space`'s dense interior stores
+        densified (``G_bulk = V·w_n``), so norms and inner products agree
+        between the two spellings (gated at ≤ 1 ULP). Cached: every
+        consumer of one carrier reads the SAME instance; equal carriers
+        mint ``==`` spaces through the derived name.
+        """
+        from orpheus.numerics.axis import Axis as SpaceFactorAxis
+        from orpheus.numerics.axis import BasisKind
+        from orpheus.numerics.space import FunctionSpace
+
+        scalar = self.bulk_space
+        assert scalar.axes is not None  # of_axes-built by construction
+        angular = SpaceFactorAxis(
+            "angular",
+            (self.quad.N,),
+            weights=np.asarray(self.quad.weights, dtype=float),
+            kind=BasisKind.NODAL,
+        )
+        return FunctionSpace.of_axes(angular, *scalar.axes)
 
     @cached_property
     def full_field_space(self) -> "FullFieldSpace":
