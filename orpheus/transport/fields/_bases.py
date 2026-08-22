@@ -241,15 +241,15 @@ class BulkField(Field):
         ``spatial_moments_per_axis`` is an EXPLICIT parameter (the
         ``spatial_moments`` factory parameter, default ``1`` everywhere),
         NOT auto-read from ``mesh.scheme.spatial_basis_per_axis``. This is
-        the construct-general / select-narrow discipline: the CAPABILITY to
-        carry the axis exists, but every current call site passes the
-        default ``1`` so NO production field — DD, Step, OR LD — carries
-        the axis yet. The iterate / cell-emit / source seams that thread
-        the scheme's ``spatial_basis_per_axis`` here (selecting the axis
-        for LD) are the NEXT sub-step (S3-A). Reading the scheme by default
-        would silently widen LD field shapes and break LD byte-identity
-        before the consumers that fill the axis exist — a Pattern-4
-        violation (an axis no producer fills is an illegal state).
+        the construct-general / select-narrow discipline: the CALLER
+        selects. Since S3-A landed, the iterate / cell-emit / source seams
+        (the SI cold starts, ``coupled_system``, ``windowing``) thread the
+        scheme's ``spatial_basis_per_axis`` here explicitly, so LD
+        production fields DO carry the axis while DD/Step (per_axis == 1)
+        get no factor. Reading the scheme by DEFAULT here would still be
+        wrong: the widening must remain the decision of the seams that
+        also FILL the axis — a Pattern-4 concern (an axis no producer
+        fills is an illegal state).
         """
         n_moments = cell_moment_count(spatial_moments_per_axis, mesh.ndim)
         # "append iff > 1" — single-sourced; () at n==1 → no factor, byte-id.
@@ -326,8 +326,8 @@ class BulkField(Field):
 class AngularField(BulkField):
     r"""Per-ordinate bulk family on ``(N, ng, nx, ny)``.
 
-    The storage base for the angular role leaves (``AngularFlux`` and
-    ``AngularSourceSink`` today; ``AngularResidual`` joins after B.3).
+    The storage base for the angular role leaves (``AngularFlux``,
+    ``AngularSourceSink``, ``AngularResidual``).
     Subclasses declare a ``_SPACE_NAME``
     :class:`~typing.ClassVar` that names the :class:`FunctionSpace`
     built by :meth:`from_mesh` (preserving each leaf's pre-B.1 space
@@ -460,8 +460,8 @@ class AngularField(BulkField):
 class ScalarField(BulkField):
     r"""Scalar bulk family on ``(ng, nx, ny)``.
 
-    The storage base for the scalar role leaves (``ScalarFlux`` and
-    ``ScalarSourceSink`` today; ``ScalarResidual`` joins after B.3).
+    The storage base for the scalar role leaves (``ScalarFlux``,
+    ``ScalarSourceSink``, ``ScalarResidual``).
     Parametrized by the leaf's ``_SPACE_NAME``. Abstract — instantiate
     a concrete leaf.
     """

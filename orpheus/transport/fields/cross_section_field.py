@@ -84,9 +84,12 @@ class CrossSectionField(CoefficientRole, ScalarField):
     space : FunctionSpace
         The ``"cross_section"`` function space; ``space.shape`` must equal
         ``(mesh.ng, *mesh.spatial_shape)``. Construct via :meth:`from_mesh`.
-    mesh : SNMesh
-        The SN discretisation handle (carries per-cell volumes, coordinate
-        system, group structure).
+    mesh : MaterialMesh
+        The method-agnostic mesh+materials carrier (per-cell volumes,
+        coordinate system, group structure). Any
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is a
+        legitimate host — including the meshless single-region carrier
+        (#276); this leaf does NOT narrow to ``SNMesh``.
 
     Notes
     -----

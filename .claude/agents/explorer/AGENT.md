@@ -154,10 +154,12 @@ so you don't re-derive it. (Line numbers drift — find current ones via Nexus
   carrying signed values (flux lives in V under the class/space/mesh fiber
   guard — campaign 1 CS3, 2026-08-19, retired the affine `FluxRole` gate and
   the `FluxDisplacement` mint; cone membership is the element predicate
-  `Field.cone_violations`). Interior face fluxes during a 2-D sweep are
-  `WavefrontFlux` (an ephemeral interior 1-cochain `C¹_int` on
-  `InteriorFaceSpace`); the domain-edge trace is the persistent
-  `BoundaryFlux` (`C¹_∂`).
+  `Field.cone_violations`). Interior face fluxes during a 2-D sweep have NO
+  typed field class (`WavefrontFlux` was retired at S6.4(f)): the interior
+  1-cochain `C¹_int` lives on in the rolling front
+  (`sn/loss_representation/sweep_graph._MovingFrontier`) and the per-octant
+  cochain history; the domain-edge trace is the persistent `BoundaryFlux`
+  (`C¹_∂`).
 
 - **BC-extraction (the bare-sweep shape).** The sweep reads `ψ.boundary.inflow`
   as a GIVEN unknown and writes `ψ.boundary.outflow` — it does NOT re-apply the
