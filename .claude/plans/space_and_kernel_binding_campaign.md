@@ -1239,9 +1239,48 @@ carries 2 INHERITED cylinder reds (`[M]` bit-identical at the session base;
 CS4b contributes zero, bisected three ways) — adjudicate before the next
 step that must read the wall.
 
-**▶ RESUMES AT: the S4 design proposal — three questions, then the
-deletion.** The next session opens by WRITING the proposal (user steers,
-surgical posture) for:
+**✅ S4 LANDED 2026-08-22 — S4a `554ff10b` (F4) + S4 `1333135e` (F5 + Q1
++ the deletion, one §6b unit).** The rulings below were executed the same
+session they were made; the landing details are in the two commit
+messages (the honest record: the space-route consumer re-points, the
+harmonic factors[1] rebuilds, the widened-member S6 defers, the ~116
+test re-keys, the retired `as_per_ordinate`). Landing-time discoveries
+that later steps must know:
+
+- ⭐ **The frame square's structural asymmetry** (pre-figures S6's
+  verbs): ANALYSIS self-derives its moment target from the operand +
+  the frame's `L`; RECONSTRUCTION must be TOLD its per-ordinate target
+  (`space=`) — the angular target carries the quadrature axis and, on a
+  widened iterate, the scheme's mass-bearing moment axis, carrier
+  knowledge neither the moment operand nor the (basis, measure) frame
+  holds. The production caller passes its posed composite's
+  `interior_space`.
+- ⚠ **`Axis.weights is None` IS the all-ones measure** (canonicalized
+  at construction — `[M]` GL2's w=[1,1] reads back None). Every weight
+  reader carries the branch.
+- **pyright ratchet 1 → 0, re-baselined `{}`** (§8.4) — the #226
+  terminal state; S4's honest typing also retired the pre-existing
+  transport error.
+- The widened (`spatial_moments > 1`) harmonic members
+  (`scalar_flux`/`truncate` — self-derivation blocked by the scheme
+  axis) are LOUD defers naming S6/G6.7; `scalar_flux` takes `space=`
+  for the widened caller (the windowed moment arm passes its composite
+  interior's marginal).
+- Suites at the landing: transport 536 / sn core 1690 / architecture
+  114 / solve 202 / fast set 2666 (D5 8/8) / cp+mc 180 (slow
+  deselected). `sn/verification`, `derivations`, and the slow marks
+  belong to the ONE ≥90-min pre-merge gate (branch-hold ruling).
+- S7-owed corpus staleness (chartered, same branch):
+  `field_algebra.rst`'s "mesh identity" layer rows;
+  `operator_algebra.rst`'s `_phase_space_shape` xref; the frame-square
+  + naming-rule pages. #402 filed (the LD-certificate un-skip rider).
+
+**▶ NEXT per the ruled order: S5** (the sugar-FACTORY retirement — the
+909-site `zeros_on`/`from_mesh` spelling migration; the boundary
+re-sharpening above already moved the consumer-frame reads into S4) →
+S6 (verbs + the frame square + #399) → S7 (repairs + EE-1 + docs).
+
+The original proposal text, for the record (all three ruled above):
 
 1. **F4's replacement — the composite becomes an element of
    `FullFieldSpace`** (the ruled elegant form): the slot gate compares per
@@ -1315,6 +1354,24 @@ space-vs-values; `Field.zeros`'s `mesh=` extra retires. After S4: S5 (the
 909-site sugar migration, NOW INCLUDING the factory-arg `.mesh` reads per
 the refined boundary) → S6 (verbs + the frame square + #399) → S7
 (repairs + EE-1 + docs). Standing: BRANCH-HOLD; C8/R-A fences.
+
+⚠ **S4/S5 boundary re-sharpened at execution (2026-08-22, §6b):** the
+"factory-arg `.mesh` reads migrate at S5" refinement and "S4 deletes a
+field nothing reads" were in tension — `[M]` AST census at the S4b
+commit: **21 consumer-side field-receiver reads survive in production**
+(scattering 7, fission 6, multiplication 4, harmonic_frame 2, isotropic 1
+— plus ~7 under field-vars `Q`/`moment`/`lhs`/`seed`/`chi`) and the
+fields' own internal machinery still reads `self.mesh` (~20 sites:
+`_bases` 11, `harmonic_moment_flux` 6, `angular_flux` 1,
+`scalar_source_sink` 1). §6b rules: the deletion's unit of work is the
+call-site set, so **the S4 deletion batch absorbs re-pointing every
+surviving field-receiver read** (to the operator's own carrier member or
+the space route — mechanical, in the old factory spelling where one
+survives), and **S5 keeps only the sugar-FACTORY retirement** (the
+909-site `zeros_on`/`from_mesh` spelling migration). The `self` reads on
+OPERATOR classes (134 raw, dominated by `loss_representation`) are
+operator-side declared members — the #226 F2 pattern — and survive by
+design.
 
 ### CS4c — the dispatch collapse (goal chartered; after CS2 per the ruled order)
 
