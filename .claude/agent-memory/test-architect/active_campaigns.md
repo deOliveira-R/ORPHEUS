@@ -7,6 +7,45 @@ metadata:
 
 # Active / in-flight verification campaigns — full detail
 
+## CS4b — fields are space elements (⏹ PLAN DELIVERED 2026-08-21, PRE-carve)
+
+**Deliverable**: `scratch/cs4b_verification_plan.md` (987 lines, 16 sections; 30+
+gate specs, a 36-arm mutation battery with 4 MUST-STAY-GREEN anti-claims, 9
+findings, 8 open rulings, a 7-step decomposition). Branch
+`feature/cs1-energy-space` @ `34df88cb`. Design record
+`.claude/plans/cs4b_fields_design.md` (rounds 0-2, F1/F2/F5 ruled).
+
+**Headlines** (full detail → `lessons_archive.md` L62):
+
+- ⛔⛔ **8 of 22 mesh-identity guard call sites redden NOTHING** over a measured
+  3936-row denominator; two of the eight are the `apply_transpose` / second-
+  `.solve`-arm TWINS of witnessed forward arms. F2 rewrites all 22.
+- ⛔⛔ **F1-(A) is not a re-point, it installs a metric**: `[M]` `AngularFlux.l2`
+  `4.9929 → 2.9593` (ratio 0.5927), moment family 0.8214. The CS3 gate
+  `test_si_diagnostic_trajectory.py` predicts this red and assigns it to **CS2**;
+  CS4b now owns it.
+- ⭐⭐ **The two isotropic embeds are the ADJOINT and the SECTION**, exactly `Σw`
+  apart (`R.H == Σw·E` bit-exactly; `⟨Rψ,φ⟩=⟨ψ,R.Hφ⟩` at nulp 1.0; `R∘E=id`
+  bit-exact). Naming them apart kills the ERR-051 factor class by construction.
+- ⛔ Migration surface **909 sites / 122 files**, not "632 / 86" (+121 composite
+  `zeros(mesh=)`, +116 `.mesh` reads, +25 BC factories).
+- ⛔ A **22nd** tolerant guard (`sn/solver.py:338`, unwitnessed) — promoted into
+  `vv-principles` #28 as the temporal twin.
+- ⭐ #399's red witnesses already exist (3 of 5 widened-moment members raise today).
+- ⛔ LD arm works but flips `cone_violations` from ANSWERING to REFUSING.
+- ⛔ `FullFieldSpace.__eq__` is BLOCK-BLIND ⟹ a composite `space ==` gate is
+  designed-green.
+- ⚠ **8 blocking/open rulings** — Q1 (`MomentResidual`), Q2 (re-point
+  `full_field_space.interior`?), Q3 (scalar quadrature-blindness permission),
+  Q4 (CS4b owns the CS3 re-derivation), Q5 (adjoint/section naming), Q6 (LD cone
+  refusal), Q7 (`_StubMesh` seam), Q8 (battery amendment, `[M]` +175 rows/+2.90 s).
+
+**Tree hygiene**: 22-arm mutation battery run with copy-aside outside the repo;
+byte-`diff` clean after every arm and after a killed background run; the 14-path
+battery re-reads **1436 / 1 / 15** baseline-exact.
+
+
+
 `MEMORY.md` §2 carries ONE line per campaign; this file carries the rest.
 **Merge-status: trust git, never a frozen claim here**
 (`git merge-base --is-ancestor <hash> HEAD`). When a campaign merges, cut its

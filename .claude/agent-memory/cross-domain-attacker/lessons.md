@@ -852,11 +852,34 @@ Two sharpenings worth carrying:
   VALUE contract; do not let it be read as a law hypothesis, or the gate inherits
   a hypothesis that cannot fail.
 
+**Sub-shape (2nd sighting, CS4b 2026-08-21) — the gate's OPERAND does not
+exist.** The shape above is a wrong HYPOTHESIS on a right property. This one
+needs no hypothesis at all: the law's right-hand side **names a morphism the
+datum does not have**, so the gate cannot be written, let alone red. `[M-by-read]`
+CS4c charters `bind(K)† = bind(K†)` while none of `ScatteringKernel` /
+`N2NKernel` / `FissionKernel` carries any of `{T, transpose, adjoint, dagger}` —
+their whole surface is `{__post_init__, from_mixture, ng, order, p0, truncated,
+emission_matrix, dyad}`. The plan records the gate as re-specified and
+sharpened (XD-1) without anyone noticing its operand is unspellable.
+
+TELL, and it is one grep: **take every symbol on a chartered law's RHS and check
+it against the datum's method list.** Cheaper than re-deriving the law, and it
+runs before you have understood the math. The payoff is usually good news —
+the missing morphisms are one-liners (here: transpose the moments; swap the
+fission factors, which the datum's own docstring already calls a theorem), and
+naming them makes the gate spellable. ⭐ And the missing morphism often carries
+a design fork nobody has met: the fission swap **violates the χ-simplex
+invariant its own `__post_init__` enforces**, i.e. "the adjoint of an emission
+kernel is not an emission kernel" — a typing decision the charter never
+reached, surfaced for free by asking whether the operand exists.
+
 How to apply: any brief containing `⟺`, "iff", or "holds exactly when" about an
 operator construction ⟹ re-derive both directions before reading the
-justification, and ask what the shipped witness can distinguish. Pairs with L-002
-(a first test that cannot fail is rejected output) — this is its equivalence-
-shaped face, where the un-failability hides inside a true-but-vacuous half.
+justification, and ask what the shipped witness can distinguish. **Then check
+that both sides are even spellable.** Pairs with L-002 (a first test that cannot
+fail is rejected output) — this is its equivalence-shaped face, where the
+un-failability hides inside a true-but-vacuous half, or inside an operand that
+is not there.
 
 ---
 
@@ -899,3 +922,68 @@ tabulating contents, ask **"which object in this stack has usable identity?"** I
 the answer is "only the container", say so — that is the mechanism, and every
 contents-level recommendation is downstream of fixing it. Pairs with L-013 (the
 proposal over-scopes the gap; the true deliverable is smaller and elsewhere).
+
+---
+
+## L-020 -- An analogy to an in-repo precedent can be ADJECTIVE-accurate and LAYER-wrong; map onto BOTH layers and keep the mapping that preserves ARITY
+
+`plan-authoring` §1's PRECEDENT clause says a precedent is cited from memory of
+its shape, so read it and check each adjective. This is the failure the adjective
+check does **not** catch: every adjective can be roughly right while the analogy
+lands on the wrong OBJECT in the precedent's stack — and a layer error inverts
+the conclusion instead of degrading it.
+
+The tell is a **two-layer precedent** (data + binder, model + view, kernel +
+driver) cited by ONE of its layer names. Ask which layer holds the DATA and which
+holds the PAIRING, map the new problem's objects onto **both**, and keep the
+mapping that preserves ARITY — field count and verb count. A "thin data class"
+maps onto the precedent's data class, never onto its binder.
+
+Worked (CS4b, [[kernel-as-frame-layer-inversion]]): *"Kernel is a VERY thin
+class; take inspiration from Frame — Frame assembles the operators."* `[M-by-read]`
+`FrameBase` is a frozen dataclass with **2 fields** that implements **zero math**
+(both faces' `apply` are one-line delegations); the rich class is **`Basis`**, 6
+representation-free verbs. So the thin datum's analogue is `Basis`, and
+`FrameBase(basis, measure)` **IS** the external binder the proposal was offered as
+an alternative to. Net: the precedent, read at the right layer, **argues for the
+design the proposal opposed**, while the proposal's *diagnosis* (thin) survives
+re-aimed at the data class. Reporting both halves is the deliverable — a bare
+"the analogy is wrong" would have thrown away a correct observation.
+
+⭐ **The discriminator that falls out, and it is grep-checkable:**
+
+> **In a data/binder split, the DATA object's verbs return ARRAYS; only the
+> BINDER returns OPERATORS.**
+
+That single rule decides the layering question outright, because returning arrays
+is what keeps the data module's imports empty (`basis/base.py`: zero runtime
+imports beyond stdlib + numpy; its two domain types are `TYPE_CHECKING`-only),
+and empty imports are what make it reusable from any layer. `datum.bind(space) ->
+LinearOperator` inverts exactly that property, and no dispatch mechanism
+(registry, double dispatch, `singledispatchmethod`) avoids it — the
+method-agnostic module must NAME the method's types however the dispatch is
+spelled. Use the import direction as the refutation; an `isinstance` chain is
+only its symptom.
+
+Two corollaries worth carrying:
+- **Binding is a BINARY operation, so neither operand owns it** — the precedent's
+  answer is a THIRD OBJECT, and the third object is where the CACHING lives,
+  which neither operand can host *because neither knows the other*. When a
+  campaign has already chartered a "binding base", check its arity against the
+  precedent's: one field short usually means an abstract hook standing in for the
+  operand that was left out.
+- **A 3-of-4 uniformity gap is INFORMATIVE, not a smell, when the fourth member
+  is the DEGENERATE case of the same construction** (here: the collision
+  multiplier's frame is `Id`, because a diagonal operator's eigenbasis is the
+  nodal basis — L-009). Criterion, not taste: *different construction ⟹ smell;
+  degenerate case ⟹ unifying DELETES content*. And check whether the asymmetry is
+  already load-bearing as a TYPE before proposing to erase it — here
+  `IntegralKernelOperator`'s sole discriminator is the member the fourth object
+  lacks, so uniformity would blind a working gate (§6c, inflicted deliberately).
+
+How to apply: when a brief hands you an analogy to an in-repo object, read the
+object AND its collaborators before reasoning, and write the two-layer table
+(role / object / field count / verb count) as the first section of the reply. If
+the mapping inverts the brief's conclusion, say so plainly and then say which
+half of the brief's diagnosis survives — that half is usually the real
+deliverable.

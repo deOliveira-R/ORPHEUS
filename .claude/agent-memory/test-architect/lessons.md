@@ -1492,3 +1492,56 @@ anchor). Nothing to inherit ⟹ the keystone must be structurally independent.
   tol_b)`; tag L1 not L4; truth values MUST trace to primary citations —
   transcribing from memory invented two) → `feedback_cross_method_protocol.md`
   (`L8`). **Per-carve RECIPES** → `MEMORY.md` §3.
+
+## CS4b additions (2026-08-21) — grouped by the families above
+
+**Gates that cannot red.** ⛔ **A guard hoisted to N call sites needs its witness
+table MEASURED, and the arm most likely to be blind is the TRANSPOSE / second-arm
+TWIN of a witnessed forward arm.** `[M]` 8 of 22 mesh-identity guards redden
+nothing over 3936 rows, and two of them are `apply_transpose` / the second
+`.solve` arm whose forward siblings ARE witnessed. A whole-guard mutation
+certifies both. → `L62a`
+⛔ **A defaulted `getattr` in a guard's condition is a coverage claim with a
+hidden expiry date** — the day the attribute retires the branch is unreachable and
+NOTHING fails. Grep the retiring name inside `getattr(`/`hasattr(` as the
+retirement audit's fourth search. Promoted into `vv-principles` #28. → `L62b`
+
+**Config blindness / claim layer.** ⛔ **"Re-point the space" is not plumbing when
+today's space has NO metric** — `[M]` `Field.l2` moves **41 %** (ratio 0.5927),
+not ULP, the moment family 18 %. Check `space.inner_product_weights is None`
+before believing any re-point is neutral. → `L62c`
+⛔ **A phase-ordering hazard written INTO a gate is a claim with a shelf life** —
+`test_si_diagnostic_trajectory.py` says "CS2 owns re-deriving these numbers";
+CS4b's own mechanism moves it earlier, so the sentence AND its `[M]` blindness row
+become false. Re-check WHICH phase owns a predicted red whenever an earlier phase
+adopts the mechanism. → `L62c`
+⛔ **A space-equality identity doctrine grants permissions nobody enumerated** —
+`[M]` besides the argued BC-blindness, the SCALAR family becomes QUADRATURE-blind,
+so `φ_S4 + φ_S8` becomes legal. Enumerate the blindness table PER FAMILY, from a
+fixture that varies one thing at a time. → `L62f`
+
+**Reference & claim layer.** ⭐⭐ **When one concept has two spellings a constant
+apart, do not choose — ask which ARROW each one is.** `[M]` the two isotropic
+embeds differ by exactly `Σw`, and the larger one IS the metric ADJOINT of the
+retraction (`⟨Rψ,φ⟩=⟨ψ,R†φ⟩` at nulp 1.0) while the smaller is the SECTION
+(`R∘E=id`, bit-exact). Naming them apart makes the missing-factor class
+(ERR-051) unspellable. → `L62d`
+
+**Harness discipline.** ⭐ **Build the attribution scope FROM the positive
+control's red set.** `[M]` the all-arms control's 29 reds defined a 548-row /
+3.31 s scope, so a 21-arm loop cost 70 s instead of 9 min. → `L62a`
+⛔ **The inherited phase battery is scoped to the PREVIOUS phase's blast radius.**
+`[M]` 7 of 29 reds and the gate the carve is predicted to break are outside the
+14-path CS4a scope; the amendment costs +175 rows / +2.90 s. Re-derive the scope
+from THIS phase's cone. → `L62f`
+⚠ **Check the collection-kill hazard, do not assume it** — `[M]` 0 module-scope /
+parametrize-list constructions in the scope; I had written the hazard as live and
+my own measurement refuted the sentence. → `L62f`
+
+**Snapshots & exactness.** ⭐ `[M]` gate-ready bit-exact laws found by probing
+rather than assumed: `R∘E = id`, `E∘R` idempotent, `R.H == Σw·E`,
+`HarmonicFrame.analyse(ℓ=0) ≡ integrate_angular` — all `np.array_equal`. Probe
+the algebra before choosing a tolerance; four of these needed none. → `L62d`
+⛔ **A derived space NAME is a future landmine when axis identity is
+per-SUBCLASS** — CS2's axis classes will change every `of_axes` name. Pin axis
+CONTENT and relative identity, never the name literal. → `L62f`

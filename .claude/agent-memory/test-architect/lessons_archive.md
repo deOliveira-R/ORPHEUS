@@ -6451,3 +6451,150 @@ must be DELETED, not repaired — adding `space=` to its body turns a real pin i
 it, not by the regex) ⟹ **9 real sites in 5 files**, two of them the decay items
 above. A regex census over a 7-line window is right for finding candidates and
 wrong for counting them.
+
+## L62 — CS4b (fields are space elements, PRE-carve): 8 of 22 identity guards catch nothing, and the "space re-point" moves a shipped diagnostic 41 %
+
+**Dispatch.** Design the CS4b verification plan before implementation, from
+`.claude/plans/cs4b_fields_design.md` (rounds 0–2, F1/F2/F5 ruled) + two censuses.
+Deliverable `scratch/cs4b_verification_plan.md` (987 lines, 16 sections).
+Branch `feature/cs1-energy-space` @ `34df88cb`.
+
+### a. ⛔⛔ The hoisted-guard witness table, measured BEFORE the plan shipped
+
+F2 re-keys partner identity from `mesh is` to space content equality. `vv` #17
+says such a guard has as many arms as CALL SITES. I enumerated **21** (later 22 —
+see (b)) and MEASURED the witness table: disable each guard (`if <cond>:` →
+`if False:`), run a 548-row / 3.31 s attribution scope, count reds.
+
+`[M]` **7 arms redden NOTHING** over a **3936-row** denominator (14-path battery
+1436 + `tests/sn/operators` 1230 + `tests/sn/solve` 202 + a partial 1068-row
+sweep/moc/cp leg): `diffusion/operators.py:603`, `sn/solver.py:3091`,
+`sn/solution.py:475`, `radial_characteristic.py:1176`, `windowing.py:114`,
+`boundary.py:715`, `streaming.py:1065`.
+
+⭐ **The shape worth carrying: two of the seven are the `apply_transpose` and
+second-`solve`-arm TWINS of witnessed forward arms** (`radial_characteristic.py:944`
+→ 1 red; `:1176` → 0. `streaming.py:906` → 2 reds; `:1065` → 0). A whole-guard
+mutation would have reddened on the forward arm and certified both.
+
+⛔ **This is not "pre-existing debt to file".** A rewrite of an unwitnessed guard
+is indistinguishable from a DELETION of it, and it reads green.
+
+**Instrument**: `/tmp/cs4b_mutate.py` — copy-aside outside the repo, per-arm
+byte-`diff`, positive control (all-21 → 22 reds in the battery + 7 in
+`sn/operators`). The 548-row scope was constructed FROM the positive control's
+red set, which is why the 21-arm loop cost 21 × 3.3 s instead of 21 × 25 s.
+
+### b. ⭐⭐ A 22nd site the design record missed — and the general rule it yields
+
+The record named ONE `getattr(x,"mesh",None)`-tolerant gate. `[M]` there are
+**four** such spellings tree-wide, and the fourth is a live guard:
+`sn/solver.py:338-345` refuses a bare System-A residual on a carrying mesh, its
+own comment naming the Mode-12(b) blindness its removal re-opens. `[M]` **no
+test witness** (3 fragments, 0 hits).
+
+⟹ promoted into `vv-principles` #28 as the **TEMPORAL twin**: *a guard whose
+predicate reads an attribute through a DEFAULTED `getattr` goes silently inert
+the day that attribute retires* — the defensive spelling is what makes the death
+silent instead of an `AttributeError`. The retirement audit's FOURTH search:
+grep the retiring name inside `getattr(`/`hasattr(`.
+
+### c. ⛔⛔ "Re-point the space" INSTALLS a metric — 41 %, not ULP
+
+Bulk field spaces today are bare `FunctionSpace(name, shape)` with **no metric**,
+so `Field.l2` is flat Euclidean. `[M]` on a NON-uniform 5-cell slab
+(`V=[0.2,0.3,0.4,0.7,1.4]`, GL(4), ng=2, `rng(0)`):
+`AngularFlux.l2` **4.99286387678374 → 2.9593324544042217** (ratio **0.5927**);
+`HarmonicMomentFlux.l2` ratio **0.8214**.
+
+Consumers: `numerics/iteration.py:740` (`increment_norms` → ρ, `true_error_estimate`)
+and `residuals/angular_residual.py:206` (`relative_to`). ⭐ The SI **STOP is
+unaffected** — `[M]` it rides `_l2_norm(rhs_prev − rhs)/q_norm`, a bare-ndarray
+norm — which is why the change is invisible to a "does the solve still converge"
+check.
+
+⭐ **The gate that predicted it names the WRONG PHASE.**
+`tests/numerics/test_si_diagnostic_trajectory.py` (CS3) carries in its own
+docstring *"CS2 will legitimately RED this gate … CS2 owns re-deriving these
+frozen numbers"* and an `[M]` battery row `M2 Field.l2 → np.linalg.norm` = **5
+passed** (the declared blindness). F1-(A) makes the metric arrive at the FIELD
+layer in CS4b, so **CS4b reds it, not CS2**, and the M2 blindness prose becomes
+false. Lesson: *a phase-ordering hazard written into a gate is itself a claim
+with a shelf life* — re-check WHICH phase owns it whenever an earlier phase
+adopts the mechanism.
+
+### d. ⭐⭐ Two embeds `Σw` apart are the ADJOINT and the SECTION
+
+The design's F3 says "`E ∘ R` is the isotropic projector". `[M]` the tree ships
+**two** embeds and they differ by exactly `Σw`:
+`HarmonicFrame.reconstruct` at `L=0` vs `AngularSourceSink.from_isotropic` —
+`max|Δ| = 6.77e-01`, ratio `min = max = 2.0` = `Σw`, and `reconstruct/Σw == E`
+**bit-exactly**. A single `space.embedding(axis)` verb would have been a
+factor-`Σw` landmine (the ERR-051 class).
+
+⭐ Resolved constructively, not by choosing: `[M]` `⟨Rψ,φ⟩_M = ⟨ψ, R†φ⟩_P` at
+**nulp 1.0** where `R†φ = broadcast(φ)` — i.e. **`reconstruct` IS the metric
+adjoint of the retraction**, and `E = R.H/Σw` is the SECTION defined by
+`R∘E = id` (`[M]` **BIT-EXACT**, `array_equal`). Name them apart and the missing
+factor becomes unspellable.
+Also `[M]` bit-exact and gate-ready: `E∘R` idempotent; `HarmonicFrame.analyse`
+at `ℓ=0` ≡ `integrate_angular` (`max|Δ| = 0.0`) — a THIRD spelling of `R` that
+already agrees.
+
+### e. The census's own denominator was 1.4× low
+
+`[M]` AST over `tests/`: the migration surface is **909 sites in 122 files**, not
+"632 in 86". The three uncounted buckets: composite `zeros(…, mesh=)` **121**
+(`TimedFullField` 114 / `FullField` 7 — a SECOND factory tier), non-`self`
+`.mesh` READS **116** (not a signature migration at all — each is a consumer that
+must find the mesh elsewhere), BC factories **25**. Production mirror ≈182.
+
+⟹ the step-decomposition rule that falls out (§6b, and it is an argument about
+call-site sets, not effort — the user's meta-ruling bars the latter):
+**bodies → consumers → signatures.** Change what a factory BUILDS while its
+signature stays; re-point every consumer while the attribute still EXISTS; delete
+the field last, in a 2-line diff whose done-when is a grep predicate.
+
+### f. Measured facts that shaped gates, one line each
+
+- `[M]` F2 discrimination table: axis-built angular space `==` is **False** on
+  {volumes, quad order, ng} and **True** on {twin instance, BC-only}. But the
+  SCALAR `bulk_space` is **True** on quad order too ⟹ **F2 silently permits
+  `φ_S4 + φ_S8`** — a permission strictly wider than the BC one the record
+  argued, and unrecorded.
+- `[M]` after F1-sub the three angular role leaves share ONE space, so the space
+  arm of `_check_partner` stops discriminating ROLE — the class arm becomes sole
+  enforcement. Today a class-arm-deletion mutation is MASKED by the space arm
+  (the three space names differ), so that gate is genuinely NEW coverage.
+- `[M]` the axis-built Gram reproduces `full_field_space.interior_space`:
+  `inner_product` **bit-identical** (DD and LD), `norm` bit-identical (DD) / 1 ULP
+  (LD), `apply_metric` `max|Δ|` **2.78e-17** (DD) / **1.11e-16** (LD) ⟹ scalars
+  `array_equal`, vectors `nulp ≤ 4`.
+- `[M]` the LD arm WORKS (`moment_mass_diagonal = [1, 1/3]` IS an axis weight) —
+  but the moment axis is MODAL ⟹ `has_coordinate_cone` **False** ⟹
+  `Field.cone_violations` flips from ANSWERING to **REFUSING** on every LD bulk
+  field. Correct physics, unnamed behaviour change.
+- `[M]` `FullFieldSpace.__eq__` is `(name, shape)` with `name="full_field"` a
+  LITERAL and the blocks `compare=False` ⟹ **block-blind**. A composite-level
+  `space ==` gate would be designed-green; the cross-slot re-key must compare
+  BLOCKS by `is`.
+- `[M]` #399's red witnesses ALREADY EXIST: on a `spatial_moments=2` moment field,
+  `truncate` / `isotropic_part` / `anisotropic_part` all raise `ValueError` today;
+  `scalar_flux` / `l_block` are correct. §6c is satisfiable with no manufacturing.
+- `[M]` the repairs' witnesses all construct: SN promotion from the meshless
+  carrier raises a **messageless** `AssertionError` under plain python and
+  **`AttributeError: 'NoneType' object has no attribute 'coord'` under `-O`** (the
+  canonical runner); all three `.areas` arms are reachable (2-D legacy → message
+  TRUE; `SNMesh.from_axes` d=3 and the quotient carrier → message FALSE), with
+  **0** test pins tree-wide.
+- `[M]` `Axis` identity is per-SUBCLASS and `of_axes` derives the space NAME from
+  the axes' structural bytes ⟹ **CS2's `QuadratureAxis`/`SpatialAxis` will change
+  every axis-built space's name**. No CS4b gate may pin the derived name literal.
+- `[M]` the battery-scope amendment costs **+175 rows / +2.90 s** — the four files
+  carrying 7 of the 29 identity reds AND the gate (c) predicts will red are NOT in
+  the inherited 14-path scope. A CS4b run of the inherited battery would miss its
+  own headline regression.
+- ⚠ Method note: the `parametrize`-collection-kill worry (`vv` #17) was CHECKED,
+  not assumed — `[M]` AST over the 12 attribution paths: **0** module-scope or
+  parametrize-list field constructions. I had written the hazard as live; the
+  measurement refuted my own sentence.
