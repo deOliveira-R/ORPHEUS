@@ -214,8 +214,36 @@ legitimate survivors) is the done-when instrument.
 | B7 | mesh access | the operator/solver that holds it | S3 |
 | B8 | typed refusals under `-O` | each repair site | S7 |
 
-**Steering points reserved for the user (surgical posture):** the B5 open
-corner (no-scheme / wrong-width mass source, at S2); Q7's `_StubMesh` seam
-(default: `MaterialXSField` takes the space narrowly, at S2/S3); the S2-end
-DriftWarning wall verdict if it reds (R5); G-M1's trajectory re-derivation
-numbers (S2).
+**Steering points reserved for the user (surgical posture):** ~~the B5 open
+corner; Q7's `_StubMesh` seam; the DriftWarning wall verdict; G-M1's
+numbers~~ — ✅ ALL RESOLVED (2026-08-22): B5 superseded in place above; Q7
+ruled option 3 (the stub retired, real-carrier fixtures); the wall's 2
+cylinder reds bisected to a PRE-SESSION inherited drift (#401 — CS4b
+contributes zero, measured three ways); G-M1 re-derived under the ρ≈c
+anchor licence (max move 1.117e-3 against the pre-carve prediction 1.12e-3).
+
+**S3 execution refinements (2026-08-22, edited in place per plan-authoring
+§3):**
+
+1. **The S3/S5 consumer boundary, refined.** `[M]` receiver census (200 raw
+   production `.mesh` reads): reads that are FACTORY ARGUMENTS (the
+   mint-on-mesh spellings — scattering/fission/frames/mult) migrate at
+   **S5** with the signatures they feed — re-pointing them inside the old
+   spelling would be work S5 rewrites. S3 re-pointed the STRUCTURAL reads
+   (ng → the EnergyAxis, N → the leading angular axis, the reaction-rate
+   volume integral → the spatial axis measure); Solution-level reads
+   (`Solution.mesh` is a declared member, not a leaf attribute) and
+   mesh-side reads survive by design.
+2. **F4 and F5 relocate their knowledge question to S4, LOUD.** Both
+   getattr-mesh tolerances died (direct reads — vv #28's temporal twin dies
+   loud instead of silent); S4, which deletes the attribute, owns the
+   replacement: F4 = the ruled elegant form (the composite becomes an
+   element of `FullFieldSpace`, the slot gate compares per BLOCK, and
+   `Composite.mesh` retires); F5 = where the CARRYING-NESS question moves
+   (the pose is the operator's property — the field's space cannot carry it).
+3. **B3 shipped**: guard vocabulary `space-content invariant`; the
+   polymorphic reference is the field-side `space_on(mesh)` hook (family +
+   width, single-sourced through the factories' own derivation); the
+   FaceField layout sub-arm RETIRED as tautological-under-the-digest (`[M]`
+   the 22-arm battery measured it blind — space `==` now implies layout
+   content).
