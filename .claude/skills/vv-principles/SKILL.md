@@ -783,6 +783,40 @@ any other review work.
     > on demand. Caught by building the operand rather than by reading either
     > design; a third assembly had reasoned to the same conclusion from the class
     > definition and was the only one to state it.
+
+    ⭐ **The TEMPORAL twin, and it is the one a RETIREMENT creates: a guard whose
+    predicate reads an attribute through a DEFAULTED `getattr` goes silently
+    inert the day that attribute retires.** #28 above is about a guard that is
+    born inert on the majority path; this is about a guard that is *live today*
+    and is killed by an unrelated refactor — and the defensive spelling is
+    exactly what makes the death silent instead of loud.
+    `getattr(x, "mesh", None)` was written so a duck-typed carrier without the
+    attribute would SKIP the check; after the attribute retires, *every* operand
+    skips it, the branch is unreachable, and nothing fails. An `AttributeError`
+    would have been a loud, one-line fix.
+    ⟹ **The retirement audit's fourth search** (beside graph callers, text grep,
+    direct constructors — `coding-standards`): grep the retiring name **inside a
+    defaulted `getattr`/`hasattr`**, and re-key every hit IN THE SAME STEP with a
+    red witness (`plan-authoring` §6c). And the design-time countermeasure:
+    prefer a guard that reads the attribute DIRECTLY when the operand's type
+    guarantees it — a defaulted `getattr` in a *condition* is a coverage claim
+    with a hidden expiry date.
+    > `[M]` 2026-08-21, ORPHEUS campaign-1 CS4b verification design (pre-carve).
+    > The design record named ONE such site (`transport/full_field.py:265-274`,
+    > the composite cross-slot mesh-identity gate). `grep -rn
+    > "getattr([^,]*, *['\"]mesh['\"]"` over `orpheus/` + `tests/` returns
+    > **four**, and the fourth is a second live guard nobody had looked at:
+    > `sn/solver.py:338-345` refuses a bare System-A residual on a
+    > starting-direction-carrying mesh, and its own comment says it exists to
+    > prevent the Mode-12(b) blindness its removal re-opens. `[M]` it has **no
+    > test witness** (three distinctive message fragments, 0 hits in `tests/`),
+    > so its silent death would also be an invisible one. Same session, the
+    > related measurement that makes the rule worth carrying: of the **22**
+    > mesh-identity guard call sites the phase re-keys, **8 redden nothing**
+    > across a 3936-row measured denominator — and the two sharpest are the
+    > `apply_transpose` and second-`solve`-arm TWINS of witnessed forward arms,
+    > i.e. exactly #17's "the site most likely to be miswired is the one whose
+    > operand expression differs from its siblings'".
 29. **NEVER accept a design that replaces runtime dispatch with a
     construction-time KEY on the strength of a class-level inventory of ARMS —
     instead run a per-INSTANCE traffic census: instrument the boundary and log
