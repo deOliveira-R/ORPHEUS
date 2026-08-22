@@ -14,9 +14,10 @@ Conventions gated (CS4b crosswalk B1/B5, ``.claude/plans/cs4b_crosswalk.md``):
   ``(N, ng, *spatial)``;
 * the energy and spatial arms are ``bulk_space``'s axes REUSED VERBATIM
   (object identity — the energy-arm rule is spelled once);
-* the Gram of the axis product equals ``full_field_space``'s dense interior
-  on both the DD and the LD arm (LD composes the scheme-owned MODAL
-  ``moment_axis`` carrying ``moment_mass_diagonal``);
+* the Gram of the axis product equals the hand-built dense ``V·w_n``
+  oracle on both the DD and the LD arm (LD composes the scheme-owned MODAL
+  ``moment_axis`` carrying ``moment_mass_diagonal``), and since S2b the
+  composite's interior IS the cached mint (identity on DD, ``==`` on LD);
 * the derived space NAME is never pinned (R4: CS2's typed axis subclasses
   change the digest — every assertion here is per-axis content or relative
   ``is``/``==``);
@@ -119,16 +120,36 @@ class TestG12Cache:
 
 
 class TestG13GramEquivalenceDD:
-    """G1.3 — the axis product's Gram equals the dense composite interior's
-    (``full_field_space.interior_space``, G_bulk = V·w_n), on the DD arm.
-    LAW; the dense interior is the §6c witness that ships TODAY."""
+    """G1.3 (re-scoped at S2b) — the axis product's Gram equals the
+    HAND-BUILT dense ``G_bulk = V·w_n``, and the composite interior IS the
+    cached mint.
 
-    def test_all_three_metric_faces_agree_with_the_dense_interior(self):
+    Until the Q2 re-point this compared against
+    ``full_field_space.interior_space``'s own dense array — the shipped
+    §6c witness. S2b re-pointed that interior AT ``angular_bulk_space``,
+    which made the comparison tautological (single-sourcing demotes every
+    gate that compared the copies), so the dense side moved IN-TEST: a
+    fuller-view oracle built from raw mesh data, independent of both
+    production spellings. The identity row is the unification claim
+    itself."""
+
+    def test_composite_interior_is_the_cached_mint(self):
         sn = _slab()
-        dense = sn.full_field_space.interior_space
-        assert dense is not None
+        assert sn.full_field_space.interior_space is sn.angular_bulk_space
+
+    def test_all_three_metric_faces_agree_with_the_dense_oracle(self):
+        sn = _slab()
         axis_built = sn.angular_bulk_space
-        assert axis_built.shape == dense.shape
+        # The oracle: G_bulk = V·w_n, densified BY HAND from raw mesh data
+        # (broadcast (N, 1, nx) — the retired production spelling, now the
+        # test-side reference).
+        w = np.asarray(sn.quad.weights, dtype=float)
+        V = np.asarray(sn.volumes, dtype=float)
+        dense = FunctionSpace(
+            name="dense_oracle",
+            shape=axis_built.shape,
+            inner_product_weights=w.reshape(-1, 1, 1) * V.reshape(1, 1, -1),
+        )
 
         rng = np.random.default_rng(0)
         x = rng.standard_normal(dense.shape)
@@ -137,16 +158,24 @@ class TestG13GramEquivalenceDD:
         # Scalar faces: bit-equal ([M] verification plan G1.3 — rel diff 0.0).
         assert axis_built.inner_product(x, y) == dense.inner_product(x, y)
         assert axis_built.norm(x) == dense.norm(x)
-        # Vector face: ≤ 4 ulp ([M] max abs Δ 2.78e-17 on this fixture).
+        # Vector faces: ≤ 4 ulp ([M] max abs Δ 2.78e-17 on this fixture).
+        # apply_inverse_metric is the .H sandwich's other half (G⁻¹AᵀG) —
+        # the face the composite adjoint path consumes (G2.6's substance).
         npt.assert_array_almost_equal_nulp(
             axis_built.apply_metric(x), dense.apply_metric(x), nulp=4
+        )
+        npt.assert_array_almost_equal_nulp(
+            axis_built.apply_inverse_metric(x),
+            dense.apply_inverse_metric(x),
+            nulp=4,
         )
 
 
 class TestG14GramEquivalenceLD:
-    """G1.4 — the LD arm: the dense interior carries the scheme's moment
-    mass on the trailing 2^d axis; the axis form composes the scheme-owned
-    MODAL ``moment_axis`` and reproduces the same Gram. LAW.
+    """G1.4 (re-scoped at S2b) — the LD arm: the Gram carries the scheme's
+    moment mass on the trailing 2^d axis; the axis form reproduces the
+    hand-built dense oracle, and the composite interior is the widened
+    product. LAW.
 
     [M] R9 measured its draw's inner product bit-identical; that was the
     draw's luck, not a law — the two spellings associate the weight
@@ -157,14 +186,40 @@ class TestG14GramEquivalenceLD:
     mass-placement error is O(θ·value) ≈ 1e14 ULP, so the gate's
     discrimination is unharmed."""
 
+    def test_ld_composite_interior_is_the_widened_product(self):
+        """The unification claim on the LD arm: the composite's interior
+        equals the moment-widened product of the cached base (a fresh
+        ``of_axes`` per composite mint, so ``==`` not ``is``; the
+        composite itself is cached, so its interior is ``is``-stable)."""
+        sn = _slab(scheme=LinearDiscontinuous())
+        assert sn.angular_bulk_space.axes is not None
+        widened = FunctionSpace.of_axes(
+            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim)
+        )
+        assert sn.full_field_space.interior_space == widened
+        assert (
+            sn.full_field_space.interior_space
+            is sn.full_field_space.interior_space
+        )
+
     def test_all_three_metric_faces_agree_on_the_ld_interior(self):
         sn = _slab(scheme=LinearDiscontinuous())
-        dense = sn.full_field_space.interior_space
-        assert dense is not None
         base = sn.angular_bulk_space
         assert base.axes is not None
         widened = FunctionSpace.of_axes(
             *base.axes, sn.scheme.moment_axis(sn.ndim)
+        )
+        # The oracle: G_bulk = V·w_n ⊗ moment_mass, densified BY HAND from
+        # raw mesh + scheme data (the retired production spelling, now the
+        # test-side fuller-view reference).
+        w = np.asarray(sn.quad.weights, dtype=float)
+        V = np.asarray(sn.volumes, dtype=float)
+        mass = sn.scheme.moment_mass_diagonal(sn.ndim)
+        g = (w.reshape(-1, 1, 1) * V.reshape(1, 1, -1))[..., None] * mass
+        dense = FunctionSpace(
+            name="dense_oracle_ld",
+            shape=widened.shape,
+            inner_product_weights=g,
         )
         assert widened.shape == dense.shape
 
@@ -186,6 +241,11 @@ class TestG14GramEquivalenceLD:
         )
         npt.assert_array_almost_equal_nulp(
             widened.apply_metric(x), dense.apply_metric(x), nulp=4
+        )
+        npt.assert_array_almost_equal_nulp(
+            widened.apply_inverse_metric(x),
+            dense.apply_inverse_metric(x),
+            nulp=4,
         )
 
 

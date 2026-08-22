@@ -1115,11 +1115,13 @@ class SNMesh(MaterialMesh):
         block-diagonal Hilbert metric :math:`G` is
 
         * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}\,w_n` — the full
-          phase-space measure :math:`\mathrm{d}V\,\mathrm{d}\Omega`, stored
-          ``(N, 1, nx, ny)`` so the per-ordinate angular weight ``w_n``
-          (axis 0) and the per-cell volume ``V`` (axes 2,3) broadcast
-          across the energy-group axis against the ``(N, ng, nx, ny)`` bulk
-          tensor;
+          phase-space measure :math:`\mathrm{d}V\,\mathrm{d}\Omega`,
+          carried PER AXIS by :attr:`angular_bulk_space` (the interior IS
+          that cached mint since CS4b S2b — ``w_n`` on the ordinate axis,
+          ``V`` on the spatial axis, the scheme's moment mass on the LD
+          tail; until then this property densified the same Gram to a
+          broadcast ``(N, 1, nx, ny)`` array, reproduced by the axis form
+          at ≤ 1 ULP on every face);
         * **trace** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` — the
           partial-current surface metric already carried by
           :attr:`angular_trace`.
@@ -1136,36 +1138,28 @@ class SNMesh(MaterialMesh):
         from orpheus.numerics.space import FunctionSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-        N = self.quad.N
-        w_n = np.asarray(self.quad.weights, dtype=float)  # (N,)
-        V = np.asarray(self.volumes, dtype=float)         # (*spatial)
-        # G_bulk = V_cell · w_n on (N, 1, *spatial) — group-independent
-        # (broadcast over the ng axis): w_n along the ordinate axis, V along
-        # the spatial axes (the full phase-space measure dV·dΩ). Rank-generic
-        # over ndim so 1-D → (N, 1, nx), 2-D → (N, 1, nx, ny).
-        g_bulk = (
-            w_n.reshape((N, 1) + (1,) * V.ndim)
-            * V.reshape((1, 1) + V.shape)
-        )
-        bulk_shape: tuple[int, ...] = (N, self.ng, *self.spatial_shape)
+        # The interior IS the carrier's axis-built angular bulk (CS4b S2b,
+        # Q2 — one mint; the Gram ``G_bulk = V_cell·w_n`` lives per axis on
+        # that space, reproducing the retired dense spelling at ≤ 1 ULP on
+        # every metric face — gated by the hand-built dense oracle in
+        # ``tests/sn/mesh/test_angular_bulk_space.py``).
+        interior_space = self.angular_bulk_space
         # A multi-moment closure (LD) carries the trailing 2^d spatial-moment
         # axis on the bulk field, and its Hilbert metric MUST carry the
         # scheme's moment mass ``M_ii/V = ∏_a θ^{o_a}`` on that axis (#310 C2
         # ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ, …)``.  An average-only
         # ``V·w_n`` broadcast over the moment axis mis-weights the slope DOF
         # — ``.H`` becomes a WRONG adjoint on the slope rows AND reciprocity
-        # goes Mode-12-blind to a slope-row transpose.  DD/Step
-        # (``per_axis == 1``) take neither branch — shape and weights
-        # byte-identical.
+        # goes Mode-12-blind to a slope-row transpose.  The mass rides the
+        # scheme-owned MODAL axis (basis ↔ mass single-sourced at the
+        # scheme).  DD/Step (``per_axis == 1``) take no branch — the
+        # interior is the width-1 cached instance itself.
         if self.scheme.spatial_basis_per_axis > 1:
-            moment_mass = self.scheme.moment_mass_diagonal(self.ndim)
-            bulk_shape = bulk_shape + (moment_mass.size,)
-            g_bulk = g_bulk[..., None] * moment_mass
-        interior_space = FunctionSpace(
-            name="sn_bulk",
-            shape=bulk_shape,
-            inner_product_weights=g_bulk,
-        )
+            assert interior_space.axes is not None  # of_axes-built
+            interior_space = FunctionSpace.of_axes(
+                *interior_space.axes,
+                self.scheme.moment_axis(self.ndim),
+            )
         return FullFieldSpace.from_blocks(
             interior_space,
             self.angular_trace,
