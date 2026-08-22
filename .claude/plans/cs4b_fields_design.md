@@ -440,3 +440,52 @@ boundary thread, #367). The complete forgetful family: **retract**
   diagnostic/test-surface change; the refusal branch + message ALREADY SHIP
   (CS1 step 4, `field.py:471-479`); CS4b only changes which fields ROUTE into
   it (LD moves from the `None`-legacy arm to the honest `False` arm).
+
+### Round 3b (2026-08-22) — Q5 resolved in structure; Q6's theorem family
+
+**Q5 — the split is ONE MISSING CORNER of a square the frame already ships
+3 corners of.** `[M]` `numerics/frame.py` + `projection.py`: the frame emits
+**analysis** M = ⟨χ,·⟩_W (primal down, :195/:434), **reconstruction** R = plain
+synthesis (primal up, :200/:475), and **project** = G⁻¹M (:310-333 — "the
+homogenise / condense verb", the DUAL down, with `gram` the row-sum probe
+:254). The **dual reconstruction R·G⁻¹ — the dual UP — does not exist as a
+face.** At ℓ=0: G₀ = ⟨1,1⟩_W = Σw, so the section E = broadcast/Σw IS the
+missing corner's moment-0 instance, and `R∘E = id` is biorthogonality
+(M·R·G⁻¹ = G·G⁻¹ = id). `from_isotropic`, `as_per_ordinate`, `dsa.py:661` are
+its hand-rolled shadows. ⟹ **F3's verbs re-specified in frame vocabulary**:
+`retraction(axis)` = the analysis face of the constant-basis frame on that
+axis; `embedding(axis)` = the DUAL reconstruction (composable from shipped
+parts: `reconstruction ∘ gram.apply_inverse_metric` — the /Σw is G₀⁻¹, a
+DERIVED quantity, never hand-spelled again); the frame itself gains its
+fourth named face (`dual_reconstruction`) so the square closes at every L,
+not only ℓ=0. The adjoint identity "R.H = the synthesis" is the
+GalerkinFrame's own strengthened promise (Π* = R, projection.py). The G6.x
+gate family re-specifies accordingly: the `R.H == Σw·E` row becomes the
+biorthogonality/gram gate (M∘dual_reconstruction = id; gram probe = Σw at
+ℓ=0). And the user's "reconstruct vs synthesis" — `[M]` a binding-level
+distinction, not mathematical: `reconstruction.apply` delegates to the naked
+`Basis` verb bound to the frame's table; the genuine second up-map is the
+dual one, which is exactly the corner the tree lacks.
+
+**Q6 — yes, a theorem family, and the transport literature has a name for
+the modal cone: the REALIZABLE SET.**
+(a) The shipped LD basis is tensor degree-1 (multilinear per cell) ⟹ the
+**vertex theorem**: a multilinear function attains its extrema at the 2^d
+cell vertices ⟹ p ≥ 0 on the cell ⟺ p(v) ≥ 0 at every vertex ⟺ 2^d LINEAR
+inequalities on the modal coefficients (1-D: c₀ ≥ |c₁|). Exact, finite,
+polyhedral — the cone is the pullback of the vertex-nodal positive orthant
+under the invertible vertex-evaluation map. The shipped refusal message
+("evaluate the field in a nodal realization first") is therefore EXACT for
+LD, not an approximation. (b) Higher-degree 1-D: Markov–Lukács / SOS — the
+cone is SPECTRAHEDRAL (a PSD condition on a Hankel-type coefficient matrix);
+decidable exactly, never a sign test. (c) Multi-d higher degree: nonneg ⊋
+SOS (Motzkin); deciding positivity is NP-hard in general; Bernstein
+coefficients give a one-sided certificate. (d) The angular twin: moment
+REALIZABILITY (Levermore closure hierarchy; Eddington |f⃗₁| ≤ f₀ — the same
+ice-cream-cone shape as LD's c₀ ≥ |c₁|: both are the degree-1 truncated
+moment problem). Disposition *(proposed, consistent with the Q3 posture)*:
+the refusal stands (`has_coordinate_cone` is precisely named — the cone
+exists but is not coordinate-wise in the modal basis); the vertex test is
+the NAMED future capability with its natural first consumer (a
+positivity-preserving limiter, Zhang–Shu family); the theorem family is
+recorded in the corpus with the refusal.
