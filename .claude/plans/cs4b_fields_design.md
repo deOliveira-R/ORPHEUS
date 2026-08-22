@@ -1,9 +1,11 @@
 # CS4b design record — fields are space elements
 
-**Status: ROUND 1 RECORDED** (round 0 = grounding; round 1 = user rulings +
-redirections, 2026-08-21; two investigations in flight: field-taxonomy member
-census → `scratch/cs4b_field_taxonomy_census.md`, Kernel-as-Frame stress test
-→ `scratch/cs4b_kernel_as_frame_stress.md`). Charter:
+**Status: ROUND 2 RECORDED** (round 0 = grounding; round 1 = user rulings +
+redirections; round 2 = kernel re-engagement + F1/F2/F5 RULED — all
+2026-08-21; investigation memos: `scratch/cs4b_field_taxonomy_census.md`,
+`scratch/cs4b_kernel_as_frame_stress.md`, both adjudicated + probe-verified).
+⚠ Read §"Round 2" LAST-SECTION-FIRST on pickup (§3's own hazard: earlier
+fork text carries proposals that round 2 supersedes in place). Charter:
 `space_and_kernel_binding_campaign.md` §5 "### CS4b" (+ the CS4a-R amendments
 EE-1/XD-10/EE-5 recorded there). Grounding census (every number below with its
 predicate + file:line): `scratch/cs4b_grounding_census.md` @ `466e6756` — cite
@@ -120,7 +122,11 @@ TAG family and does not transfer. The BC-blindness of bulk-space `==` may be
 mathematically CORRECT rather than a defect: by the DOF-set+Gram criterion the
 bulk space genuinely does not depend on BCs — BCs enter the TRACE spaces
 (which ARE BC-sensitive), so trace-field partner gates carry that
-discrimination. ⟹ the candidate doctrine: partner identity = space CONTENT
+discrimination. ⛔ REFUTED same day (round 2): `[M]` the trace space is
+law-blind TOO — `angular_trace` is built from quadrature + face layout only
+(augmented_mesh.py:766-774). The doctrine survives STRONGER: no space sees
+the law, correctly, because a law changes neither DOFs nor Gram — laws are
+operator data. The round-2 F2 ruling carries the final form. ⟹ the candidate doctrine: partner identity = space CONTENT
 equality (axis-built `==`), with cached-`is` as the fast path — provenance
 (which mesh instance) stops being an arithmetic gate, content does the work.
 ⚠ This shifts "different problems don't mix" from provenance-identity to
@@ -320,3 +326,94 @@ Rulings on F1–F5 (user) → fold into the campaign plan §5 CS4b → dispatch
 **test-architect** (proactive trigger: the carve crosses
 numerics/transport/sn/homogeneous; brief = this file + census) → compact →
 execute, surgical posture (main agent writes, user steers).
+
+## Round 2 (2026-08-21) — kernel re-engagement + F1/F2/F5 rulings
+
+### The KernelBasis proposal, reconciled with the stress test
+
+The user's counter: *"a KernelBasis either ABC or Protocol that does the
+common part of all operators (binding to space, defining domain and codomain),
+and a specialization such as ScatteringKernel (brings the frame to obtain
+analysis, reconstruct and synthesis operators, forgets the frame, leaves an
+accessor to the frame)."* Reconciliation — the two views AGREE once the
+common part is named precisely:
+
+- **The common-part abstraction IS the binding base** (EE-6 → `BoundOperator
+  (datum, space)`): space admission (the ONE `__post_init__` guard),
+  domain/codomain derivation, and the forget-with-accessor storage contract.
+  **ABC (dataclass mixin), not Protocol** — it carries shared BEHAVIOR and
+  fields, which a Protocol cannot; Protocols stay for capability
+  discrimination (`IntegralKernelOperator`).
+- **The per-channel binding RECIPE lives on the bound-operator subclass's
+  constructor** (`ScatteringOperator.from_kernel(kernel, space)` mints the
+  frame from kernel eigenbasis × space measure — ruling 2 — uses it, then
+  FORGETS it, accessor kept). Import direction preserved: operators import
+  kernels (C8), never the reverse. Kernels stay array-verb data.
+- ⭐ **The frame accessor resolves P4**: the bound operator's retained
+  `frame` accessor + a declared analysis-verb field is WHERE XD-1's
+  "the binding must declare its verb" lives. Mint-and-forget with a
+  retained accessor is the tournament's forgetful principle applied to
+  binding ("the arrows plus the laws they satisfy").
+
+### Streaming: same BINDING SHAPE, not a kernel — ruled by the shipped Protocol
+
+User's doubt confirmed mathematically and by the tree: `[M]`
+`IntegralKernelOperator` (integral_kernel_operator.py:164-183) defines kernel-
+hood as NONLOCAL — integrating the carrier against a measure on ≥1 axis —
+and explicitly excludes local/diagonal operators. Ω·∇ is local-differential:
+NOT a kernel. But L shares the binding SHAPE exactly (space + the scheme's
+closure minted at binding, forgotten, accessor left — the tournament's
+scheme finding). ⟹ the abstraction that unifies is the BINDING BASE, not
+kernel-hood; the datum KINDS stay three: integral kernel (S/N2N/F),
+multiplier (C), differential-stencil (L). P5's "3+1" becomes "3+1+1 under
+one base"; `IntegralKernelOperator` remains the strict kernel-hood
+discriminator. "Kernel" is never spelled onto L.
+
+### Restriction — the third verb, chartered with its precision
+
+User: *"The BC lives in a restricted space of the bulk, right?"* — right at
+the MEASURE level, not the DOF level, and the distinction is the design:
+- The trace's DOFs are NOT a subset of the bulk's (faces vs cell centres) —
+  discrete restriction bulk→trace is not a subselection for cell-centred
+  schemes.
+- The trace MEASURE is exactly the restricted bulk measure (dV→dA,
+  w→|Ω·n̂|w) — which is already how `angular_trace` is built (`[M]`
+  augmented_mesh.py:766-774: quadrature + boundary_face_layout, nothing
+  else). The formal seat the earlier session derived, now vocabulary.
+- Where restriction IS a true subselection: (i) COMPOSITE block projections
+  (FullField → interior/boundary), (ii) the half-range Γ± splits on the
+  trace (support subselection by sign(Ω·n̂)) — today hand-spelled selectors.
+Payoffs chartered: Γ± as algebra; restriction† = extension-by-zero (residual
+assembly); R∘G's G gets its formal seat (the OPERATOR rewiring stays on the
+boundary thread, #367). The complete forgetful family: **retract**
+(integrate out against the axis measure), **embed** (the section),
+**restrict** (subselect support). All three minted by the richer space.
+
+### Rulings
+
+- **F1 RULED (user):** the machinery collapse is COMMITTED scope — "can be
+  done now or later... it needs to be done at some point. Just a matter of
+  when." Sequenced: NOW, in CS4b (it is what CS4b is). The class-merge
+  question becomes a NAMED decision point immediately after CS4b's landing
+  (recorded so it cannot silently drop), decided on the then-pure
+  static-typing + units-decomposition evidence.
+- **F2 RATIFIED (user):** space content-equality is the identity mechanism —
+  *"the equality becomes very well defined, and since everyone uses space,
+  the equality of a lot of things becomes well-defined at once."* The BC
+  question resolved by the DOF-set+Gram criterion: a BC LAW changes neither
+  the DOF set nor any Gram — `[M]` even the trace space is law-blind by
+  construction — so law-blindness of EVERY space is CORRECT; laws are
+  operator data (the realized R table). Sync: composite gates compare
+  per-block spaces; cross-problem element arithmetic that equality permits
+  is well-defined; problem-identity discipline lives at the iteration layer
+  (CS3's own relocation).
+- **F5 RULED (user), ⛔ REVERSES the round-1 "pull" proposal:** the **SN
+  path is the FIRST kernel consumer** — "using the homogeneous path to
+  design this is akin to a greedy optimization heuristic... a local
+  optimization." No homogeneous pull-in; CS4b's done-when DROPS the O1
+  fabricated-path tell (charter edited in place); at CS4c the SN rebind
+  drives the binding design (all axes, retract/embed/restrict, all kernels
+  live) and the homogeneous path re-points LAST as the degenerate coda —
+  where `from_materials` then dissolves. The ruled phase order (CS4b →
+  CS1.5′ → CS2 → CS4c) already places the SN binding after every axis
+  exists, so the order satisfies the ruling as-is.

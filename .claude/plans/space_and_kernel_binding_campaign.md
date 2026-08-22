@@ -1147,6 +1147,20 @@ honesty, SN's typed promotion refusal (the bare assert `-O` strips today),
 the `.areas` wrong-message, the `infinite_medium.rst:1115` xref +
 `dead_references`, the `[M]` 16 test-site migration. **O1's
 no-fabricated-data tell completes HERE**, re-measured by the byte gate.
+⛔ **The "and THEN the fabricated path retires" half + the O1 tell are
+SUPERSEDED (user F5 ruling, 2026-08-21)**: the SN path is the FIRST kernel
+consumer — designing the binding against the homogeneous path is greedy/local
+optimization. The fabricated path's last consumer (`homogeneous/solver.py:229`)
+dissolves at CS4c's homogeneous CODA (after the SN rebind), and the O1 tell
+completes THERE. CS4b's scope = the field/space machinery collapse
+(constructor flip, axis-built cached spaces, retract/embed/restrict verbs,
+space-equality identity, factory decomposition, the honest-refusal +
+sentinel + `.areas` + doc repairs, the test migration). Design record:
+`.claude/plans/cs4b_fields_design.md` (rounds 0-2; grounding census +
+taxonomy census + kernel stress memo in scratch/). The CLASS-MERGE question
+(one Flux class vs per-family leaves) is a NAMED decision point immediately
+after CS4b lands — decided on static-typing + units-decomposition evidence,
+not silently dropped (user F1 ruling).
 
 **CS4a-R amendments (2026-08-21, review round — attribution in
 `scratch/cs4a_r_findings.md`):**
@@ -1183,6 +1197,31 @@ binding, C space-mandatory (the 131/43-site migration), S →
 ℓ=0/moment bindings of the one datum (the O7 twin heal; R1-S/R2-S flip). May
 pull earlier than post-CS2 at its chartering if frame-independence holds (C8
 reserves only the frame MINT and the L/B + R6 rows).
+
+**⭐ SN-FIRST consumer ordering (user F5 ruling, 2026-08-21):** the SN path
+drives the binding design — it exercises every axis, retract/embed/restrict,
+and all kernels; the homogeneous path re-points LAST as the degenerate coda
+(where `from_materials`' one production consumer dissolves and O1's tell
+completes). Designing the binding against the homogeneous path was rejected
+as greedy/local optimization.
+
+**Binding-base design inputs (round-2 kernel re-engagement, 2026-08-21 —
+full reconciliation in `cs4b_fields_design.md` §Round 2):** the common-part
+abstraction is the binding base as a dataclass ABC (EE-6 lifted to
+`BoundOperator(datum, space)`) — space admission, domain/codomain, and the
+mint-and-FORGET contract (auxiliary structure minted at binding, retained
+only as an accessor; the frame accessor + a declared analysis-verb field is
+where XD-1's declaration lives). Per-channel recipes live on the bound
+operator's constructor (operators import kernels — C8 direction), kernels
+stay array-verb data (the Basis analogue). Datum KINDS stay three under the
+one base: integral kernel (S/N2N/F), multiplier (C), differential-stencil
+(L — shares the binding shape, is NOT a kernel; `[M]`
+`IntegralKernelOperator` is the strict nonlocal-integral discriminator and
+L/C fail it). The RESTRICTION verb joins retract/embed (trace measure = the
+restricted bulk measure dV→dA × |Ω·n̂|w — already how `angular_trace` is
+built; composite block projections and Γ± half-splits are the true
+subselections; restriction† = extension-by-zero; the R∘G rewiring stays on
+the boundary thread #367).
 
 **The original unified sketch (predates the split; the subsections govern):**
 
