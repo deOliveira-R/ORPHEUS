@@ -447,8 +447,30 @@ class AngularTraceSpace(FunctionSpace):
         inner_product_weights = _build_trace_metric_weights(
             omega_dot_n, quadrature.weights, layout,
         )
+        # CS4b S3 (F2): the name carries a CONTENT digest, so the inherited
+        # ``(name, shape)`` equality IS content equality — the same
+        # mechanism as ``FunctionSpace.of_axes``'s derived name. Folded in:
+        # the layout's structural identity (keys, offsets, sizes), the
+        # signed projection table, and the quadrature's weights and
+        # directions (which the trace metric |Ω·n̂|w is built from). Two
+        # traces agreeing in all of these ARE the same space; a mesh whose
+        # boundary content differs (layout, quadrature, face geometry)
+        # mints an UNEQUAL one. Boundary LAWS are deliberately absent —
+        # a law changes neither DOFs nor Gram (laws are operator data).
+        import hashlib
+
+        payload = b"".join((
+            repr([
+                (str(k), int(s.offset), int(s.flat_size))
+                for k, s in layout.faces.items()
+            ]).encode(),
+            omega_dot_n.tobytes(),
+            np.asarray(quadrature.weights, dtype=float).tobytes(),
+            np.asarray(quadrature.nodes, dtype=float).tobytes(),
+        ))
+        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
-            name="angular_trace",
+            name=f"angular_trace#{digest}",
             shape=(int(layout.total_size),),
             inner_product_weights=inner_product_weights,
             layout=layout,

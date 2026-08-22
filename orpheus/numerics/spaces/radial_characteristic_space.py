@@ -410,10 +410,27 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
             named_shapes.append((leg.split_key, leg.shape))
             metric_pieces.append(leg.metric)
         layout = FaceLayout.from_named_shapes(named_shapes)
+        # CS4b S3 (F2): the name carries a CONTENT digest — the level set,
+        # the split layout, and the ray metric — so the inherited
+        # ``(name, shape)`` equality IS content equality (mirrors the
+        # trace-space mints). Two carriers with the same ray structure mint
+        # EQUAL spaces; a different level set, grid, or metric refuses.
+        import hashlib
+
+        metric = np.concatenate(metric_pieces)
+        payload = b"".join((
+            repr([
+                (str(k), int(s.offset), int(s.flat_size))
+                for k, s in layout.faces.items()
+            ]).encode(),
+            repr(tuple(int(lv) for lv in levels)).encode(),
+            metric.tobytes(),
+        ))
+        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
-            name=cls._SPACE_NAME,
+            name=f"{cls._SPACE_NAME}#{digest}",
             shape=(layout.total_size,),
-            inner_product_weights=np.concatenate(metric_pieces),
+            inner_product_weights=metric,
             levels=levels,
             ng=int(ng),
             nx=int(nx),

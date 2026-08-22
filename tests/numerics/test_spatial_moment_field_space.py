@@ -28,6 +28,8 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.axis import BasisKind
+from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.spaces import SpatialMomentSpace, SphericalHarmonicSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
@@ -186,10 +188,15 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     independent_tail = (per_axis ** mesh.ndim,)
     np.testing.assert_equal(field.space.shape[-1:], independent_tail)
     np.testing.assert_equal(field.values.shape, field.space.shape)
-    factor = field.space.find_factor(SpatialMomentSpace)
-    np.testing.assert_equal(factor.per_axis, per_axis)
-    np.testing.assert_equal(factor.ndim, mesh.ndim)
-    np.testing.assert_equal(factor.n_moments, per_axis ** mesh.ndim)
+    # CS4b S2: on an axis-built bulk space the tail is the scheme-owned
+    # MODAL moment AXIS (mass-carrying), not a SpatialMomentSpace factor.
+    tail_axis = field.space.axes[-1]
+    np.testing.assert_equal(tail_axis.label, SPATIAL_MOMENT_AXIS_LABEL)
+    assert tail_axis.kind is BasisKind.MODAL
+    np.testing.assert_array_equal(
+        tail_axis.weights, mesh.scheme.moment_mass_diagonal(mesh.ndim),
+    )
+    np.testing.assert_equal(field.spatial_moments_per_axis, per_axis)
 
 
 @pytest.mark.foundation
@@ -204,7 +211,10 @@ def test_angular_flux_widened_1d_shape(ld_1d):
     np.testing.assert_equal(mesh.ndim, 1)
     np.testing.assert_equal(field.space.shape[-1], 2)
     np.testing.assert_equal(field.values.shape, field.space.shape)
-    np.testing.assert_equal(field.space.find_factor(SpatialMomentSpace).per_axis, 2)
+    # CS4b S2: the tail is the MODAL moment axis; the width reader is the
+    # production accessor (mechanism-blind).
+    np.testing.assert_equal(field.space.axes[-1].label, SPATIAL_MOMENT_AXIS_LABEL)
+    np.testing.assert_equal(field.spatial_moments_per_axis, 2)
 
 
 @pytest.mark.foundation

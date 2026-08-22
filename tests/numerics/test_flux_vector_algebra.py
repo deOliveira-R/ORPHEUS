@@ -67,6 +67,16 @@ def _mesh() -> SNMesh:
     return SNMesh(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
 
 
+def _stretched_mesh() -> SNMesh:
+    """Doubled width, same shape — the cell VOLUMES differ, so the carrier
+    mints an UNEQUAL space (the F2 content discriminator)."""
+    m = Mesh1D(
+        edges=np.linspace(0.0, 4.0, 5), mat_ids=np.zeros(4, dtype=int),
+        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    )
+    return SNMesh(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
+
+
 @pytest.fixture
 def mesh() -> SNMesh:
     return _mesh()
@@ -241,40 +251,36 @@ def test_difference_round_trip_and_telescoping(leaf, mesh, rng):
 
 
 def test_fiber_guard_cross_mesh_refuses(mesh, mesh2, rng):
-    r"""ψ_meshA + ψ_meshB REFUSES; same-mesh works; the refusal is the MESH arm.
+    r"""The fiber discipline is space CONTENT (CS4b S3 re-derivation).
 
-    The charter's owed negative control (§4 sequencing block): retiring the
-    torsor machinery retired ``_check_torsor_partner``'s mesh arm, so the
-    fiber discipline must be shown to land on the RETAINED
-    ``_check_partner`` chain (``_bases.py`` — class + space + mesh).
-
-    The discriminator leg pins that the refusal comes from the MESH arm and
-    not the space gate: under today's nominal space identity the two meshes'
-    spaces compare EQUAL (the F1 aliasing this campaign's CS2 later fixes),
-    so if this row ever finds the spaces unequal, the discriminator has
-    silently moved and the row must be re-derived.
-
-    Mutation (verified at the carve): substituting the base
-    ``Field._check_partner`` for the bulk override (deleting the mesh arm)
-    reds the refusal leg while every positive leg stays green.
+    This row was the CS3 negative control for the retained MESH arm of
+    ``BulkField._check_partner``; its own docstring instructed re-derivation
+    when identity semantics moved. CS4b S3 retired the provenance arm (the
+    F2 ruling): the fiber IS the space now, so twin carriers — distinct
+    instances, EQUAL content — legitimately mix (the correctly-blind leg),
+    and a carrier whose cell volumes differ refuses on the base gate's
+    space-content arm (the discriminator leg). Deleting the SPACE arm of
+    ``Field._check_partner`` reds the refusal leg while the positive legs
+    stay green (battery M6).
     """
     psi_a = _make_flux("angular", mesh, rng)
     psi_a2 = _make_flux("angular", mesh, rng)
     psi_b = _make_flux("angular", mesh2, rng)
-    # the discriminator: distinct meshes, EQUAL (aliased) spaces
     if mesh is mesh2:
         raise AssertionError("fixture defect: the two meshes are one object")
     if not (psi_a.space == psi_b.space):
         raise AssertionError(
-            "the two structurally-identical meshes minted UNEQUAL spaces — "
-            "space identity has changed (CS2 landed?); the mesh-arm "
-            "discriminator below no longer isolates the mesh check. "
-            "Re-derive this row against the new identity semantics."
+            "twin carriers minted UNEQUAL spaces — the content identity has "
+            "changed; re-derive this row against the new semantics."
         )
-    with pytest.raises(ValueError, match="mesh"):  # NEGATIVE — the fiber guard
-        _ = psi_a + psi_b
-    with pytest.raises(ValueError, match="mesh"):
-        _ = psi_a - psi_b
+    out_twin = psi_a + psi_b  # twin content — legal since the F2 re-key
+    if type(out_twin) is not type(psi_a):
+        raise AssertionError("twin-carrier add did not return the leaf type")
+    psi_c = _make_flux("angular", _stretched_mesh(), rng)
+    with pytest.raises(ValueError, match="equal space"):  # NEGATIVE leg
+        _ = psi_a + psi_c
+    with pytest.raises(ValueError, match="equal space"):
+        _ = psi_a - psi_c
     out = psi_a + psi_a2  # POSITIVE — same fiber adds (vv #11 pairing)
     if type(out) is not type(psi_a):
         raise AssertionError("same-mesh add did not return the leaf type")

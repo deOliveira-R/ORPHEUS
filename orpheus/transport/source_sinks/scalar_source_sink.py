@@ -147,11 +147,22 @@ class ScalarSourceSink(ScalarField):
             AngularSourceSink,
         )
         if isinstance(other, AngularSourceSink):
-            if self.mesh is not other.mesh:
+            # CS4b S3 (F2 re-key): coherence is the SPACE relation — the
+            # iso operand's space must BE the angular operand's non-angular
+            # marginal (drop axis 0), compared axis-wise by CONTENT. The
+            # retired mesh-identity arm refused twin carriers; this admits
+            # them and refuses exactly what the algebra forbids (mismatched
+            # energy/spatial/moment content between the two operands).
+            if (
+                other.space.axes is None
+                or self.space.axes is None
+                or other.space.axes[1:] != self.space.axes
+            ):
                 raise ValueError(
-                    "ScalarSourceSink + AngularSourceSink across "
-                    "distinct SNMesh instances is forbidden — both "
-                    "fields are mesh-bound."
+                    "ScalarSourceSink + AngularSourceSink requires the iso "
+                    "operand's space to be the angular operand's non-angular "
+                    "marginal (energy ⊗ spatial[⊗ moment] content match); "
+                    f"got {self.space!r} vs the marginal of {other.space!r}."
                 )
             # Canonical injection: broadcast iso → per-ordinate, add.
             return replace(

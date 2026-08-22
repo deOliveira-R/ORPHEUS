@@ -63,6 +63,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
+    so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
@@ -253,19 +267,24 @@ class TestAlgebraPropagation:
 
 
 class TestCrossClassRejection:
-    def test_cross_mesh_rejected(self) -> None:
-        m1 = _slab_mesh()
-        m2 = _slab_mesh()
+    def test_cross_carrier_discrimination_is_space_content(self) -> None:
+        """CS4b S3 (F2): identity is space CONTENT, not carrier provenance.
+        Twin carriers mint EQUAL spaces — composites mix member-wise (the
+        EQUAL leg); a carrier whose cell volumes differ mints UNEQUAL bulk
+        spaces and both binary ops refuse (the UNEQUAL leg)."""
+        m1, m2 = _slab_mesh(), _slab_mesh()
         a = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m1)
         b = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m2)
-        # Same TimedFullField class, same bulk/boundary types, but different
-        # mesh instances. Both binary ops delegate member-wise into
-        # AngularFlux._check_partner's mesh-bound arm — the fiber
-        # discipline that survives the CS3 cone carve.
-        with pytest.raises(ValueError, match="mesh-bound"):
-            a - b
-        with pytest.raises(ValueError, match="mesh-bound"):
-            a + b
+        _ = a - b  # twin content — legal since the F2 re-key
+        _ = a + b
+        c = TimedFullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux,
+            mesh=_stretched_mesh(),
+        )
+        with pytest.raises(ValueError, match="equal space"):
+            a - c
+        with pytest.raises(ValueError, match="equal space"):
+            a + c
 
     def test_wrong_type_rejected(self) -> None:
         m = _slab_mesh()

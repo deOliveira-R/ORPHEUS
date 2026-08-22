@@ -69,6 +69,20 @@ def _slab_mesh(nx: int = 5, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _quad8_mesh(nx: int = 5, ng: int = 2) -> SNMesh:
+    """GL(8) sibling of ``_slab_mesh`` — the boundary-trace CONTENT (and
+    shape) differs, so the carrier mints an UNEQUAL trace space (F2)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _sphere_mesh(nx: int = 5, ng: int = 2) -> SNMesh:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
@@ -171,11 +185,15 @@ class TestAlgebraClosedWithinClass:
         np.testing.assert_array_equal((-a).values, -4.0)
         assert isinstance(-a, Leaf)
 
-    def test_cross_mesh_add_rejected(self, Leaf) -> None:
+    def test_cross_carrier_discrimination_is_trace_content(self, Leaf) -> None:
+        """CS4b S3 (F2): twin carriers mix; a different quadrature's trace
+        content refuses."""
         a = Leaf.zeros_on(_slab_mesh())
-        b = Leaf.zeros_on(_slab_mesh())  # distinct instance
-        with pytest.raises(ValueError, match="mesh-bound"):
-            _ = a + b
+        b = Leaf.zeros_on(_slab_mesh())  # distinct instance, same content
+        _ = a + b  # twin content — legal since the F2 re-key
+        c = Leaf.zeros_on(_quad8_mesh())
+        with pytest.raises(ValueError, match="equal space"):
+            _ = a + c
 
     def test_frozen(self, Leaf) -> None:
         m = _slab_mesh()

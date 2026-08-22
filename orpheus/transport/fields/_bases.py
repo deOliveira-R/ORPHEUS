@@ -197,22 +197,16 @@ class BulkField(Field):
 
     # ── Algebra extension (over Field) ───────────────────────────────
 
-    def _check_partner(self, other: Field) -> Self:
-        r"""Add the mesh-binding guard on top of Field's class/space gate.
-
-        Two bulk fields built on DISTINCT :class:`SNMesh` instances are
-        non-additive even when same-class and same-shape — the mesh
-        carries per-cell geometry (volumes, edges, BC tags) that two
-        same-shape meshes may disagree on. Silently mixing across them
-        produces a physically meaningless result.
-        """
-        partner = super()._check_partner(other)
-        if self.mesh is not partner.mesh:
-            raise ValueError(
-                f"{type(self).__name__} arithmetic across distinct SNMesh "
-                f"instances is forbidden — the field is mesh-bound."
-            )
-        return partner
+    # CS4b S3 (F2 re-key): the mesh-identity override RETIRED. Partner
+    # identity is the base gate's space CONTENT equality
+    # (``Field._check_partner``): the carrier-cached axis-built spaces
+    # carry the per-cell geometry the retired provenance arm guarded
+    # (volumes as the spatial measure, ``ng`` and quadrature as axis
+    # content), so two fields mix iff their spaces agree in CONTENT —
+    # twin and BC-only-differing carriers now legitimately mix (a
+    # boundary law changes neither DOFs nor Gram; laws are operator
+    # data), while a moved cell edge, a different group structure, or a
+    # different quadrature refuses exactly as before.
 
     # ── Optional spatial-moment factor (#240 D5b-S3-A0) ──────────────
 
@@ -874,17 +868,13 @@ class FaceField(Field, Generic[K]):
 
     def _check_partner(self, other: Field) -> Self:
         partner = super()._check_partner(other)
-        # Mesh-binding override — two face fields can share a space (same
-        # name, same total_size — space __eq__ is on ``(name, shape)``) but
-        # differ in mesh identity. The message names the operand's own mesh
-        # type (SNMesh for the angular families, DiffusionMesh for the scalar
-        # trace).
-        if self.mesh is not partner.mesh:
-            raise ValueError(
-                f"{type(self).__name__} arithmetic across distinct "
-                f"{type(self.mesh).__name__} instances is forbidden — the "
-                f"field is mesh-bound."
-            )
+        # CS4b S3 (F2 re-key): the mesh-identity arm RETIRED. The base
+        # gate's space CONTENT equality carries the discrimination: since
+        # S3 the trace-space names fold a content digest (layout identity,
+        # quadrature weights/directions, face areas), so ``(name, shape)``
+        # equality IS content equality — same-boundary carriers mix
+        # whatever their interiors or boundary LAWS; a different layout,
+        # quadrature, or face geometry refuses.
         if self.layout is not partner.layout:
             # Belt-and-suspenders: operands sourced from the same mesh share
             # the cached space (one layout identity), so this fires only for

@@ -151,8 +151,23 @@ class ScalarTraceSpace(FunctionSpace):
                     f"boundary face with non-positive area is degenerate."
                 )
             weights[slot.offset : slot.offset + slot.flat_size] = area
+        # CS4b S3 (F2): the name carries a CONTENT digest — layout identity
+        # + the per-slot area weights — so ``(name, shape)`` equality IS
+        # content equality (same-boundary carriers mint EQUAL spaces
+        # whatever their interiors; a moved boundary face or changed area
+        # mints an UNEQUAL one). Mirrors ``AngularTraceSpace.for_layout``.
+        import hashlib
+
+        payload = b"".join((
+            repr([
+                (str(k), int(s.offset), int(s.flat_size))
+                for k, s in layout.faces.items()
+            ]).encode(),
+            weights.tobytes(),
+        ))
+        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
-            name="scalar_trace",
+            name=f"scalar_trace#{digest}",
             shape=(int(layout.total_size),),
             inner_product_weights=weights,
             layout=layout,

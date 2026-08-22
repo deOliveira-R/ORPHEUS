@@ -65,6 +65,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
+    so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
     """Build a small 2-D Cartesian :class:`SNMesh`."""
     mesh = Mesh2D(
@@ -139,12 +153,16 @@ class TestAngularResidual:
         assert np.all((-a).values == -4.0)
         assert isinstance(-a, AngularResidual)
 
-    def test_mesh_binding_check(self) -> None:
+    def test_space_content_binding_check(self) -> None:
+        """CS4b S3 (F2): twin carriers mix; differing volumes refuse."""
         ma, mb = _slab_mesh(), _slab_mesh()
         a = AngularResidual.from_mesh(np.ones(_ang_shape(ma)), ma)
         b = AngularResidual.from_mesh(np.ones(_ang_shape(mb)), mb)
-        with pytest.raises(ValueError, match="distinct SNMesh"):
-            _ = a + b
+        _ = a + b  # twin content — legal since the F2 re-key
+        mc = _stretched_mesh()
+        c = AngularResidual.from_mesh(np.ones(_ang_shape(mc)), mc)
+        with pytest.raises(ValueError, match="equal space"):
+            _ = a + c
 
     def test_frozen(self) -> None:
         m = _slab_mesh()
@@ -196,12 +214,16 @@ class TestScalarResidual:
         assert np.all((a / 4.0).values == 1.0)
         assert isinstance(-a, ScalarResidual)
 
-    def test_mesh_binding_check(self) -> None:
+    def test_space_content_binding_check(self) -> None:
+        """CS4b S3 (F2): twin carriers mix; differing volumes refuse."""
         ma, mb = _slab_mesh(), _slab_mesh()
         a = ScalarResidual.from_mesh(np.ones(_sca_shape(ma)), ma)
         b = ScalarResidual.from_mesh(np.ones(_sca_shape(mb)), mb)
-        with pytest.raises(ValueError, match="distinct SNMesh"):
-            _ = a + b
+        _ = a + b  # twin content — legal since the F2 re-key
+        mc = _stretched_mesh()
+        c = ScalarResidual.from_mesh(np.ones(_sca_shape(mc)), mc)
+        with pytest.raises(ValueError, match="equal space"):
+            _ = a + c
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -380,11 +402,13 @@ class TestFromBalance:
         with pytest.raises(TypeError, match="must match the residual's units"):
             AngularResidual.from_balance(lhs=a, rhs=b)  # type: ignore[arg-type]
 
-    def test_mesh_mismatch_raises(self) -> None:
-        ma, mb = _slab_mesh(), _slab_mesh()
+    def test_space_mismatch_raises(self) -> None:
+        """CS4b S3 (F2): from_balance across twin carriers is legal; across
+        differing cell volumes it refuses on space content."""
+        ma, mb = _slab_mesh(), _stretched_mesh()
         a = AngularSourceSink.from_mesh(np.ones(_ang_shape(ma)), ma)
         b = AngularSourceSink.from_mesh(np.ones(_ang_shape(mb)), mb)
-        with pytest.raises(ValueError, match="distinct SNMesh"):
+        with pytest.raises(ValueError, match="equal space"):
             AngularResidual.from_balance(lhs=a, rhs=b)
 
     # ── Scalar (bulk) ────────────────────────────────────────────────

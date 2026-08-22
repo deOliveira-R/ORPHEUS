@@ -46,6 +46,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
+    so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
     """Build a small 2-D Cartesian :class:`SNMesh`."""
     mesh = Mesh2D(
@@ -105,11 +119,14 @@ class TestScalarSource:
         np.testing.assert_array_equal(left.values, right.values)
         assert np.all(left.values == 3.0)
 
-    def test_mesh_binding_check(self) -> None:
+    def test_space_content_binding_check(self) -> None:
+        """CS4b S3 (F2): twin carriers mix; differing volumes refuse."""
         a = ScalarSourceSink.from_mesh(np.ones((2, 4)), _slab_mesh())
-        b = ScalarSourceSink.from_mesh(np.ones((2, 4)), _slab_mesh())  # different mesh instance
-        with pytest.raises(ValueError, match="distinct SNMesh"):
-            _ = a + b
+        b = ScalarSourceSink.from_mesh(np.ones((2, 4)), _slab_mesh())
+        _ = a + b  # twin content — legal since the F2 re-key
+        c = ScalarSourceSink.from_mesh(np.ones((2, 4)), _stretched_mesh())
+        with pytest.raises(ValueError, match="equal space"):
+            _ = a + c
 
     def test_linf_and_copy(self) -> None:
         m = _slab_mesh()
@@ -213,16 +230,24 @@ class TestCrossClassDunder:
         assert isinstance(reverse, AngularSourceSink)
         np.testing.assert_array_equal(forward.values, reverse.values)
 
-    def test_iso_plus_aniso_rejects_distinct_meshes(self) -> None:
-        """The cross-class dunder still enforces mesh-identity."""
+    def test_iso_plus_aniso_coherence_is_the_marginal(self) -> None:
+        """CS4b S3 (F2): the cross-class dunder's coherence is the SPACE
+        relation — the iso operand must be the angular operand's
+        non-angular marginal. Twin carriers satisfy it (the EQUAL leg);
+        a volumes-differing carrier breaks it (the UNEQUAL leg)."""
         m1 = _slab_mesh()
-        m2 = _slab_mesh()  # distinct instance, same shape
+        m2 = _slab_mesh()  # distinct instance, same content
         iso = ScalarSourceSink.from_mesh(np.ones((m1.ng, *m1.spatial_shape)), m1)
         aniso = AngularSourceSink.from_mesh(
             np.ones((m2.quad.N, m2.ng, *m2.spatial_shape)), m2,
         )
-        with pytest.raises(ValueError, match="mesh-bound"):
-            _ = iso + aniso
+        _ = iso + aniso  # twin content — legal since the F2 re-key
+        m3 = _stretched_mesh()
+        aniso3 = AngularSourceSink.from_mesh(
+            np.ones((m3.quad.N, m3.ng, *m3.spatial_shape)), m3,
+        )
+        with pytest.raises(ValueError, match="marginal"):
+            _ = iso + aniso3
 
     def test_pattern_7_normalised_iso_plus_aniso(self) -> None:
         r"""Pattern 7 producer-side normalisation: divide by sum_w
@@ -536,16 +561,19 @@ class TestHarmonicMomentSourceSink:
         with pytest.raises(ValueError, match="equal space"):
             _ = a + b
 
-    def test_mesh_binding_rejected(self) -> None:
-        """Two source/sinks on distinct SNMesh instances are non-additive."""
-        m1, m2 = _slab_mesh(), _slab_mesh()  # distinct instances, same shape
+    def test_space_content_binding_rejected(self) -> None:
+        """CS4b S3 (F2): twin carriers mint EQUAL moment spaces (the SH
+        factor and the shared scalar-bulk cell-group agree); a carrier
+        with differing volumes mints an UNEQUAL cell-group factor and the
+        sum refuses on space content."""
+        m1, m2 = _slab_mesh(), _stretched_mesh()
         a = HarmonicMomentSourceSink.from_mesh_and_L(
             np.ones(_moment_shape(m1, 2)), m1, L=2,
         )
         b = HarmonicMomentSourceSink.from_mesh_and_L(
             np.ones(_moment_shape(m2, 2)), m2, L=2,
         )
-        with pytest.raises(ValueError, match="distinct SNMesh"):
+        with pytest.raises(ValueError, match="equal space"):
             _ = a + b
 
     def test_2d_construction(self) -> None:

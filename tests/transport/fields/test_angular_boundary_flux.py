@@ -62,6 +62,20 @@ def _slab_mesh(nx: int = 5, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _quad8_mesh(nx: int = 5, ng: int = 2) -> SNMesh:
+    """GL(8) sibling of ``_slab_mesh`` — the boundary-trace CONTENT (and
+    shape) differs, so the carrier mints an UNEQUAL trace space (F2)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _sphere_mesh(nx: int = 5, ng: int = 2) -> SNMesh:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
@@ -286,19 +300,22 @@ class TestFaceLayoutSliceViews:
 
 
 class TestMeshBindingRejection:
-    def test_cross_mesh_rejected(self) -> None:
-        """Two BoundaryFluxes on distinct SNMesh instances with
-        structurally-identical layouts CANNOT be combined (Rank 4 per
-        the verification memo) — the fiber discipline, on BOTH binary ops
-        since the CS3 cone carve made + legal within a fiber."""
+    def test_cross_carrier_discrimination_is_trace_content(self) -> None:
+        """CS4b S3 (F2): twin carriers mint EQUAL trace spaces (the
+        content digest agrees) and boundary fluxes mix across them; a
+        carrier with a different quadrature mints an UNEQUAL trace and
+        both binary ops refuse."""
         m1 = _slab_mesh()
-        m2 = _slab_mesh()   # different instance, same structure
+        m2 = _slab_mesh()   # different instance, same content
         bf1 = AngularBoundaryFlux.zeros_on(m1)
         bf2 = AngularBoundaryFlux.zeros_on(m2)
-        with pytest.raises(ValueError, match="mesh-bound"):
-            bf1 - bf2
-        with pytest.raises(ValueError, match="mesh-bound"):
-            bf1 + bf2
+        _ = bf1 - bf2  # twin content — legal since the F2 re-key
+        _ = bf1 + bf2
+        bf3 = AngularBoundaryFlux.zeros_on(_quad8_mesh())
+        with pytest.raises(ValueError, match="equal space"):
+            bf1 - bf3
+        with pytest.raises(ValueError, match="equal space"):
+            bf1 + bf3
 
     def test_wrong_type_add_rejected(self) -> None:
         m = _slab_mesh()

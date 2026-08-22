@@ -44,6 +44,13 @@ def _slab_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
     return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
 
 
+def _one_group_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
+    """1-group sibling — the scalar-trace CONTENT (and shape) differs, so
+    the carrier mints an UNEQUAL trace space (F2)."""
+    mesh1d = Mesh1D(np.linspace(0.0, width, nx + 1), np.zeros(nx, dtype=int))
+    return DiffusionMesh(mesh1d, {0: get_mixture("A", "1g")})
+
+
 # ─────────────────────────────────────────────────────────────────────
 # ScalarTraceSpace laws
 # ─────────────────────────────────────────────────────────────────────
@@ -176,12 +183,15 @@ class TestPartialCurrentGuards:
                 mesh=mm,
             )
 
-    def test_mesh_identity_guard(self):
-        """Differencing across distinct DiffusionMesh instances is forbidden."""
+    def test_space_content_guard(self):
+        """CS4b S3 (F2): twin carriers mint EQUAL scalar traces and mix; a
+        different group structure mints an UNEQUAL trace and refuses."""
         a = ScalarBoundaryFlux.zeros_on(_slab_mesh())
         b = ScalarBoundaryFlux.zeros_on(_slab_mesh())
-        with pytest.raises(ValueError, match="distinct DiffusionMesh"):
-            _ = a - b
+        _ = a - b  # twin content — legal since the F2 re-key
+        c = ScalarBoundaryFlux.zeros_on(_one_group_mesh())
+        with pytest.raises(ValueError, match="equal space"):
+            _ = a - c
 
     def test_bare_material_mesh_is_refused(self):
         """A boundary trace is method BEHAVIOR (#290 P7a): the bare

@@ -88,7 +88,9 @@ class TestSplitLeafConstruction:
     def test_interior_flux_shape_space_and_cells_view(self) -> None:
         sn = _sphere()
         f = RadialCharacteristicInteriorFlux.zeros_on(sn)
-        if f.space.name != "radial_characteristic_interior":
+        # CS4b S3: the space is the carrier's cached mint (its name carries
+        # a content digest — never pin the literal, R4).
+        if f.space is not sn.radial_characteristic_interior_space:
             pytest.fail(f"interior flux space is {f.space.name!r}")
         np.testing.assert_array_equal(f.cells(0, -1).shape, (_NG, _NX))
         np.testing.assert_array_equal(f.cells(0, +1).shape, (_NG, _NX))
@@ -96,7 +98,9 @@ class TestSplitLeafConstruction:
     def test_boundary_flux_shape_space_and_corner_view(self) -> None:
         sn = _sphere()
         f = RadialCharacteristicBoundaryFlux.zeros_on(sn)
-        if f.space.name != "radial_characteristic_boundary":
+        # CS4b S3: the space is the carrier's cached mint (content-digest
+        # name — never pin the literal, R4).
+        if f.space is not sn.radial_characteristic_boundary_space:
             pytest.fail(f"boundary flux space is {f.space.name!r}")
         np.testing.assert_array_equal(f.corner(0, -1).shape, (_NG,))
 
@@ -204,11 +208,19 @@ class TestSplitLeafVectorAlgebra:
         with pytest.raises(TypeError, match="same-class"):
             _ = i - b  # type: ignore[operator]
 
-    def test_cross_mesh_arithmetic_is_forbidden(self) -> None:
+    def test_cross_carrier_arithmetic_discriminates_by_space_content(self) -> None:
+        """CS4b S3 (F2 re-key): identity is space CONTENT, not carrier
+        provenance. Twin carriers mint EQUAL ray spaces — mixing across
+        them is now legal (the EQUAL leg); a carrier whose ray content
+        differs (here: a different grid, hence a different ray metric)
+        refuses (the UNEQUAL leg)."""
         a = _rand(RadialCharacteristicInteriorFlux, _sphere(), 12)
-        b = _rand(RadialCharacteristicInteriorFlux, _sphere(), 12)  # a DIFFERENT mesh
-        with pytest.raises(ValueError, match="mesh"):
-            _ = a - b
+        b = _rand(RadialCharacteristicInteriorFlux, _sphere(), 12)  # a TWIN mesh
+        _ = a - b  # EQUAL content — legal since the F2 re-key
+        c_mesh = _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4), nx=_NX + 1)
+        c = _rand(RadialCharacteristicInteriorFlux, c_mesh, 12)
+        with pytest.raises(ValueError, match="space"):
+            _ = a - c
 
 
 # ── The split SourceSink leaves (B.2b b1 — plain vector role per locus) ──

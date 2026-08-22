@@ -61,6 +61,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
+    so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _sigma(mesh: SNMesh, fill: float) -> CrossSectionField:
     return CrossSectionField.from_ndarray(
         np.full((mesh.ng, *mesh.spatial_shape), fill), mesh
@@ -162,10 +176,13 @@ class TestCoefficientLeafIsVector:
 
 
 class TestCoefficientMeshBinding:
-    def test_cross_section_cross_mesh_arithmetic_rejected(self) -> None:
-        """Two CrossSectionFields on DISTINCT meshes cannot combine even when
-        shapes match — the inherited BulkField mesh-identity gate fires."""
+    def test_cross_section_discrimination_is_space_content(self) -> None:
+        """CS4b S3 (F2): twin carriers mint EQUAL scalar-bulk spaces, so
+        homogenisation-style sums across them are legal; differing cell
+        volumes refuse on space content."""
         m1, m2 = _slab_mesh(), _slab_mesh()
         s1, s2 = _sigma(m1, 0.5), _sigma(m2, 0.5)
-        with pytest.raises(ValueError):
-            _ = s1 + s2
+        _ = s1 + s2  # twin content — legal since the F2 re-key
+        s3 = _sigma(_stretched_mesh(), 0.5)
+        with pytest.raises(ValueError, match="equal space"):
+            _ = s1 + s3

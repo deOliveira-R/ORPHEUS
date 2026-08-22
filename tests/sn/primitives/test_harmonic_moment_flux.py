@@ -46,6 +46,20 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+    """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
+    so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 2.0, nx + 1),
+        mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+
+
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
     """Build a small 2-D Cartesian :class:`SNMesh`."""
     mesh = Mesh2D(
@@ -422,19 +436,21 @@ class TestHarmonicMomentFluxAlgebra:
         with pytest.raises(TypeError):
             a + 5  # type: ignore[operator]  # not a HarmonicMomentFlux
 
-    def test_partner_must_share_mesh(self) -> None:
-        # Both binary ops reach BulkField._check_partner's mesh-bound arm —
-        # the fiber discipline that survives the CS3 cone carve (the affine
-        # gate that once made ``-`` the only reachable spelling is retired).
+    def test_partner_must_share_space_content(self) -> None:
+        # CS4b S3 (F2): twin carriers mint EQUAL moment spaces and mix; a
+        # volumes-differing carrier mints an UNEQUAL cell-group factor and
+        # both binary ops refuse on space content.
         m1 = _slab_mesh()
-        m2 = _slab_mesh()  # distinct instance — same shape
+        m2 = _stretched_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m1.ng, *m1.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m1, L)
+        twin = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), _slab_mesh(), L)
+        _ = a + twin  # twin content — legal since the F2 re-key
         b = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m2, L)
-        with pytest.raises(ValueError, match="mesh-bound"):
+        with pytest.raises(ValueError, match="equal space"):
             a - b
-        with pytest.raises(ValueError, match="mesh-bound"):
+        with pytest.raises(ValueError, match="equal space"):
             a + b
 
     def test_partner_must_share_L(self) -> None:

@@ -123,9 +123,11 @@ class TestSplitSpaceConstruction:
             pytest.fail("(name, shape) identity: two equal-input builds differ")
         if i1 == b:
             pytest.fail("interior and boundary spaces must have distinct names")
-        if i1.name != "radial_characteristic_interior":
+        # CS4b S3: the names carry a CONTENT digest suffix (never pin the
+        # full literal, R4) — the role prefix remains the readable half.
+        if not i1.name.startswith("radial_characteristic_interior#"):
             pytest.fail(f"interior name is {i1.name!r}")
-        if b.name != "radial_characteristic_boundary":
+        if not b.name.startswith("radial_characteristic_boundary#"):
             pytest.fail(f"boundary name is {b.name!r}")
 
     def test_empty_levels_rejected(self) -> None:
