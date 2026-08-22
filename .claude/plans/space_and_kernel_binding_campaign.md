@@ -1212,6 +1212,72 @@ surgical (main agent writes, user steers); it OPENS by writing the L17
 convention crosswalk from the two surfaces, then S1. Session commits:
 `466e6756`/`57270819`/`455d5f9a`/`34df88cb`/`3f358998`/`44a4a4b8` + the fold.
 
+**⏸ CS4b EXECUTION — COMPACTION POINT (2026-08-22): S1–S3 ✅ LANDED, S4
+opens next.** Commit table (all pushed; `git merge-base --is-ancestor`
+each before trusting this row):
+
+| unit | commits |
+|---|---|
+| L17 crosswalk | `2b4bfed3` (+ resolutions fold `e8ecdd80`) |
+| S1 carrier mints + G1 gates + 6-arm battery | `4069155b` |
+| Q7 ruled **option 3** (user): `_synthetic_for_tests` retired, real-carrier fixtures | `be608c01` |
+| S2a the metric step (space-source flip; `_SPACE_NAME` retires; G-M1..3 re-derived under the ρ≈c anchor, move `[M]` 1.117e-3) | `07e0fe77` |
+| S2b Q2 (composite interior IS the mint; the dense oracle moves in-test) | `8a205cbf` |
+| S3 (four commits): partner family + digests → operator arms via `space_on` → 8 manufactured witnesses + permission legs → F4/read-throughs + the 22-arm battery | `9138b3c3` `8b3d0cd4` `5da03d05` `a82d31e4` |
+
+**Rulings landed IN execution (supersede the pre-execution text where they
+touch it):** ⭐ the B5 refusal machinery SUPERSEDED (user walk-through — the
+corners are unspellable by CURRENCY; the int is a retiring surface; the
+scheme-binding doctrine recorded at crosswalk B5); Q7 = option 3;
+`moment_axis` aligned to the `is_multi_moment`/`NotImplementedError` idiom;
+the trace/ray spaces carry CONTENT-DIGEST names (the F2 doctrine's
+face-family leg — one mint site each); the FaceField layout sub-arm RETIRED
+tautological-under-the-digest (`[M]` battery-measured blind); the S3/S5
+consumer boundary refined (factory-ARG `.mesh` reads migrate at S5 —
+crosswalk "S3 execution refinements"). ⚠ #401: the strict DriftWarning wall
+carries 2 INHERITED cylinder reds (`[M]` bit-identical at the session base;
+CS4b contributes zero, bisected three ways) — adjudicate before the next
+step that must read the wall.
+
+**▶ RESUMES AT: the S4 design proposal — three questions, then the
+deletion.** The next session opens by WRITING the proposal (user steers,
+surgical posture) for:
+
+1. **F4's replacement — the composite becomes an element of
+   `FullFieldSpace`** (the ruled elegant form): the slot gate compares per
+   BLOCK (`space.interior_space is/== interior.space` + trace — R2: the
+   composite's own `==` is name+shape, block-blind), and `Composite.mesh`
+   retires. Open design bit: WHERE the composite's space comes from at
+   construction — `TimedFullField.zeros` has the carrier
+   (`mesh.full_field_space`); direct `FullField(interior=, boundary=)`
+   builds do not. ⚠ LD nuance: the cached composite's interior is the
+   width-widened product (`==`-comparable, not `is`, to a per-call widened
+   field space) — the slot gate needs the `is`-fast-path + `==` form.
+   The transitional `# type: ignore[attr-defined]` lines in
+   `full_field.py` die here with the reads.
+2. **F5's pose home** — "does this problem carry System B" is the
+   OPERATOR/pose's property (the field's space cannot carry it; the user's
+   scheme-binding doctrine is the lens: augmentation binds what the method
+   needs). Candidates: the `evaluate_residual` signature gains the pose/
+   carrier; or the guard moves into the coupled-assembly seam where the
+   pose is decided. Its first-ever witness:
+   `test_space_content_witnesses.py::TestF5ResidualPoseGuard`.
+3. **Q1 — `MomentResidual`**: the S4 `_from_balance` flip
+   (`cls(values=lhs.values − rhs.values, space=lhs.space)`) dissolves the
+   2-arg blocker (`L` recoverable via
+   `space.find_factor(SphericalHarmonicSpace).L`). Standing
+   recommendation (round 3c, unvetoed): record-as-choice at
+   `_from_balance`, MINT only with a consumer. The flip retires the two
+   `type: ignore` in `numerics/field.py` — a ratchet DECREASE is itself a
+   re-baseline obligation (§8.4).
+
+Then S4 proper: mesh retires from the 2 declaration roots; the §8.3
+test-side `.mesh` reads (~116) re-point; `_phase_space_shape` collapses to
+space-vs-values; `Field.zeros`'s `mesh=` extra retires. After S4: S5 (the
+909-site sugar migration, NOW INCLUDING the factory-arg `.mesh` reads per
+the refined boundary) → S6 (verbs + the frame square + #399) → S7
+(repairs + EE-1 + docs). Standing: BRANCH-HOLD; C8/R-A fences.
+
 ### CS4c — the dispatch collapse (goal chartered; after CS2 per the ruled order)
 
 **Goal.** Apply-time overloading retires: the per-instance
