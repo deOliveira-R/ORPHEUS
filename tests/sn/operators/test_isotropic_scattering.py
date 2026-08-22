@@ -23,7 +23,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.transport.mesh.material_xs_field import MaterialXSField
+from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicScattering,
     IsotropicN2N,
@@ -51,7 +51,7 @@ def _mat_xs(nx=6):
     ix = np.arange(nx)
     iy = np.zeros(nx, dtype=int)
     cells = {0: (ix[:half], iy[:half]), 1: (ix[half:], iy[half:])}
-    return MaterialXSField._synthetic_for_tests(
+    return material_xs_from_raw(
         sig_s={0: [_SIGS0_A], 1: [_SIGS0_B]},
         sig2={0: _SIG2_A, 1: _SIG2_B},
         cells_by_mat=cells, ng=2, nx=nx, ny=1,

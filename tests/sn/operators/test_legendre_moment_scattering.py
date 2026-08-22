@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.transport.mesh.material_xs_field import MaterialXSField
+from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.operators.scattering import LegendreMomentScattering
 
 
@@ -50,7 +50,7 @@ def _make_simple_lambda(
     for mid in range(n_materials):
         mask = (ix_arr % n_materials) == mid
         cells_by_mat[mid] = (ix_arr[mask], iy_arr[mask])
-    mat_xs = MaterialXSField._synthetic_for_tests(
+    mat_xs = material_xs_from_raw(
         sig_s=sig_s,
         cells_by_mat=cells_by_mat,
         ng=ng,
@@ -179,7 +179,7 @@ class TestEnergyContractionDirection:
             [0.7, 0.8, 0.9],
         ])
         sig_s_l0 = np.zeros((ng, ng))
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s={0: [sig_s_l0, sig_s_l1]},
             cells_by_mat={0: (np.array([0]), np.array([0]))},
             ng=ng,
@@ -204,7 +204,7 @@ class TestEnergyContractionDirection:
         """Full 2-group cross-check on a (1, 0, 0, 0) input excitation."""
         ng = 2
         sig_s_l1 = np.array([[1.0, 2.0], [3.0, 4.0]])
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s={0: [np.zeros((ng, ng)), sig_s_l1]},
             cells_by_mat={0: (np.array([0]), np.array([0]))},
             ng=ng,
@@ -252,7 +252,7 @@ class TestBitIdenticalToLegacyInlinedMath:
             mid: (ix_arr[ix_arr % n_mat == mid], np.zeros(2, dtype=int))
             for mid in range(n_mat)
         }
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s=sig_s, cells_by_mat=cells_by_mat,
             ng=ng, nx=nx, ny=ny,
         )

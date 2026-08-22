@@ -26,7 +26,7 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.mesh.material_xs_field import MaterialXSField
+from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -1137,12 +1137,12 @@ class TestIsFoldableIntoSigmaR:
         """
         ng = 2
         p0_diag = np.diag([0.38, 0.90])
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s={0: [p0_diag]},
             sig2={0: np.zeros((ng, ng))},
             cells_by_mat={0: (
-                np.zeros(4, dtype=int),
-                np.zeros(4, dtype=int),
+                np.array([0, 0, 1, 1]),
+                np.array([0, 1, 0, 1]),
             )},
             ng=ng, nx=2, ny=2,
         )
@@ -1162,12 +1162,12 @@ class TestIsFoldableIntoSigmaR:
         ng = 2
         # Non-diagonal P0 — non-zero off-diagonal entry.
         p0 = np.array([[0.38, 0.10], [0.00, 0.90]])
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s={0: [p0]},
             sig2={0: np.zeros((ng, ng))},
             cells_by_mat={0: (
-                np.zeros(4, dtype=int),
-                np.zeros(4, dtype=int),
+                np.array([0, 0, 1, 1]),
+                np.array([0, 1, 0, 1]),
             )},
             ng=ng, nx=2, ny=2,
         )
@@ -1188,12 +1188,12 @@ class TestIsFoldableIntoSigmaR:
         ng = 2
         p0_diag = np.diag([0.38, 0.90])
         sig2 = np.array([[0.0, 0.05], [0.0, 0.0]])
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s={0: [p0_diag]},
             sig2={0: sig2},
             cells_by_mat={0: (
-                np.zeros(4, dtype=int),
-                np.zeros(4, dtype=int),
+                np.array([0, 0, 1, 1]),
+                np.array([0, 1, 0, 1]),
             )},
             ng=ng, nx=2, ny=2,
         )
@@ -1216,12 +1216,12 @@ class TestIsFoldableIntoSigmaR:
         ng = 2
         p0_diag = np.diag([0.38, 0.90])
         p1 = np.array([[0.02, 0.00], [0.00, 0.04]])
-        mat_xs = MaterialXSField._synthetic_for_tests(
+        mat_xs = material_xs_from_raw(
             sig_s={0: [p0_diag, p1]},
             sig2={0: np.zeros((ng, ng))},
             cells_by_mat={0: (
-                np.zeros(4, dtype=int),
-                np.zeros(4, dtype=int),
+                np.array([0, 0, 1, 1]),
+                np.array([0, 1, 0, 1]),
             )},
             ng=ng, nx=2, ny=2,
         )

@@ -65,7 +65,11 @@ from tests._harness.predicates import (
     VALUE_RAISE,
     assert_inverse_adjoint_contract,
 )
-from tests.sn._test_helpers import face_method_space, placeholder_materials
+from tests.sn._test_helpers import (
+    face_method_space,
+    material_xs_from_raw,
+    placeholder_materials,
+)
 
 pytestmark = [pytest.mark.foundation]
 
@@ -273,7 +277,7 @@ _SIG2 = np.array([[0.00, 0.03], [0.01, 0.00]])    # (n,2n)
 def _synthetic_mat_xs(nx: int = 4) -> MaterialXSField:
     """Single-material 2G synthetic XS field (asymmetric SigS, nonzero Sig2)."""
     cells = {0: (np.arange(nx), np.zeros(nx, dtype=int))}
-    return MaterialXSField._synthetic_for_tests(
+    return material_xs_from_raw(
         sig_s={0: [_SIGS0, _SIGS1]}, sig2={0: _SIG2},
         cells_by_mat=cells, ng=2, nx=nx, ny=1,
     )

@@ -33,6 +33,7 @@ from orpheus.sn import solve_sn_fixed_source
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
@@ -178,6 +179,75 @@ def placeholder_materials(
         )
         for mid in mat_ids
     }
+
+
+def material_xs_from_raw(
+    *,
+    sig_s: "dict[int, list[np.ndarray]]",
+    sig2: "dict[int, np.ndarray] | None" = None,
+    cells_by_mat: "dict[int, tuple[np.ndarray, np.ndarray]]",
+    ng: int,
+    nx: int,
+    ny: int = 1,
+) -> "MaterialXSField":
+    """Build a REAL ``MaterialXSField`` from raw per-material scattering data.
+
+    The production-path replacement for the retired
+    ``MaterialXSField._synthetic_for_tests`` (campaign 1 CS4b, Q7 ruling —
+    option 3): real :class:`Mixture` objects carry the given Legendre
+    lists and (n,2n) matrices, a real ``Mesh2D`` paints ``cells_by_mat``
+    into its ``mat_map``, and the field is built by the production
+    ``MaterialXSField.from_mesh`` — so the per-material dispatch tests
+    exercise the true admission + lazy dense-cache path (including the
+    EE-4 read-only cache freeze) instead of pre-populated caches on a
+    duck-typed mesh stub, which the space-carrying accessors of CS4b
+    cannot serve.
+
+    The grid is always rank-2 ``(nx, ny)`` (the stub's convention — the
+    consuming fixtures shape their arrays accordingly), unit-pitch
+    Cartesian. Non-scattering channels are zero and ``SigT = 1``: these
+    fixtures assert scattering dispatch, never a physical balance.
+    Every cell must be painted — a real carrier has no unassigned cells.
+    """
+    from orpheus.geometry import Mesh2D
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
+    from orpheus.data.macro_xs.mixture import Mixture
+
+    mat_map = np.full((nx, ny), -1, dtype=int)
+    for mid, (ix, iy) in cells_by_mat.items():
+        mat_map[np.asarray(ix), np.asarray(iy)] = mid
+    if (mat_map < 0).any():
+        raise ValueError(
+            "material_xs_from_raw: cells_by_mat must paint every cell of "
+            f"the ({nx}, {ny}) grid — a real carrier has no unassigned "
+            "cells."
+        )
+
+    z = np.zeros(ng)
+    materials = {
+        int(mid): Mixture(
+            SigC=z.copy(),
+            SigL=z.copy(),
+            SigF=z.copy(),
+            SigP=z.copy(),
+            SigT=np.ones(ng),
+            SigS=[csr_matrix(np.asarray(s)) for s in mats],
+            Sig2=csr_matrix(
+                np.asarray(sig2[mid])
+                if sig2 is not None and mid in sig2
+                else np.zeros((ng, ng))
+            ),
+            chi=z.copy(),
+        )
+        for mid, mats in sig_s.items()
+    }
+    mesh = Mesh2D(
+        edges_x=np.arange(nx + 1, dtype=float),
+        edges_y=np.arange(ny + 1, dtype=float),
+        mat_map=mat_map,
+    )
+    return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
 
 
 # ── B3.2: face-ful method spaces for mesh-less realizer tests ────────
