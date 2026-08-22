@@ -417,3 +417,26 @@ boundary thread, #367). The complete forgetful family: **retract**
   where `from_materials` then dissolves. The ruled phase order (CS4b →
   CS1.5′ → CS2 → CS4c) already places the SN binding after every axis
   exists, so the order satisfies the ruling as-is.
+
+## Round 3 (2026-08-22) — Q3 ruled; Q5/Q6 explained
+
+- **Q3 RULED (user): NO GATE for the scalar quadrature-blindness permission** —
+  "we can't protect a bad user from every bad choice… too hypothetical to gate
+  now" unless a concrete in-code site exists. `[M]` checked: none does —
+  production solvers are single-mesh by construction (`solve_sn` takes one
+  `sn_mesh`); the one cross-method seam (DSA, `dsa.py:638-686`) crosses at the
+  raw `.values` level and rebuilds on the SN mesh, so no field-level arithmetic
+  ever meets two quadratures. Disposition: the permission gets ONE sentence in
+  the partner-gate rationale (articulation of the doctrine's consequence), no
+  invariance gate. The verification plan's §4-consequence-2 gate row is
+  DROPPED.
+- ⭐ Q5 strengthened while checking Q3: `dsa.py:661` hand-spells the section
+  (`delta_phi0[None] / self._sum_w` broadcast) — a FOURTH live embed spelling —
+  and the same file carries TWO retract spellings (`integrate_angular` :638 +
+  a hand `einsum` with `w_mu` :649). The verb consolidation has one more
+  call-site cluster than the plan counted.
+- Q6 blast radius sharpened: `[M]` `cone_violations` has ZERO production
+  callers (5 hits, all prose) — the LD answering→refusing flip is a
+  diagnostic/test-surface change; the refusal branch + message ALREADY SHIP
+  (CS1 step 4, `field.py:471-479`); CS4b only changes which fields ROUTE into
+  it (LD moves from the `None`-legacy arm to the honest `False` arm).
