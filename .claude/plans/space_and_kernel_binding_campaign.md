@@ -1483,11 +1483,14 @@ desktop master-report reconciliation, and the frame square MEASURED
 118.7 vs 1.000 with the inverse; `M.H = R/W` to 5.6e-17 with the right
 one; the Parseval metric is the inverse of the frame's DISCRETE Gram —
 frame-owned, not a basis constant).
-**▶ RESUMES AT: execute `.claude/plans/frame_square_recarve.md` —
-F-0 (metric truth) → F-1 (the mint).** That file is the execution
-authority (rulings, probe numbers, §6b call-site sets, the CS4c /
-Phase-S debt ledger); the charter text below stays as the DESIGN
-RECORD.
+**✅ F-0 + F-1 EXECUTED 2026-08-23 (`0317373d`, `3dfea889`) — the
+landing ledger + execution deltas live in `frame_square_recarve.md`;
+the full-suite verification run's result is recorded there too.
+▶ RESUMES AT: the ruled order continues S5 → S6 (its adjoint gates now
+have their objects — the minted faces and the F-0 Parseval metrics) →
+S7.** The recarve file stays the record of the rulings, probe numbers,
+and the CS4c / Phase-S debt ledger; the charter text below stays as the
+DESIGN RECORD.
 
 **Goal (outcome).** Analysis/Reconstruction at the transport level are
 first-class BOUND OPERATORS (domain/codomain = the two full field

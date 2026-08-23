@@ -216,6 +216,65 @@ S6's adjoint gates have their object.
   relation through the *transport* face (not just the numerics face).
 - The aniso scattering canary is bit-identical; full fast set green; pyright 0.
 
+## ⏹ LANDING LEDGER (2026-08-23)
+
+| step | status | commit |
+|---|---|---|
+| Step 0 (bookkeeping) | ✅ LANDED | `5539168f` |
+| F-0 (metric truth) | ✅ LANDED | `0317373d` |
+| F-1 (the mint) | ✅ LANDED | `3dfea889` |
+
+**Verification state at landing:** targeted sets green at the landed state —
+numerics FULL + transport FULL (2959) at F-0; transport/frames (20),
+sn/operators (1246, incl. the 0-ULP kernel crosscheck), sn/solve windowing
+equivalence + mutation gates, space-content witnesses at F-1; pyright 0;
+Sphinx `-W` clean; nexus `dead_references` 0. ⏳ The full-suite serial run is
+IN FLIGHT detached (`scratch/_f01_full_suite.log`; the first attempt was
+reaped by the harness at ~90 min — the known long-gate hazard; relaunched
+`Popen(start_new_session=True)`). Record its result here when it lands.
+
+**Execution deltas vs the proposed means (all refinements, no goal changes):**
+
+- **F-0 negative leg is a PERMANENT gate**, not a run-once mutation: the
+  pre-repair continuum metric is re-installed in-process (cached-property
+  dict pre-seed) and Parseval asserted to FAIL (>10×; measured ~118 on the
+  probe's seed). Stronger than the plan's §6c ask.
+- **F-0 side finding:** LS4/LS8 measure DIAGONAL **and degree-exact to
+  ~2e-15 at L=2** — the `test_mass_matrix_under_multiple_quadratures`
+  comment "LS_8 has a 24% diagonal error at L=2, no LS order exact" was
+  present-tense-FALSE (likely pre-#327); refuted in place. Parseval needs
+  only DIAGONAL (any values); the closure additionally needs d·G = W —
+  every shipped sphere family measures exact on both.
+- ⚠ **The probes no longer reproduce their own headlines post-repair**
+  (they read `frame.test_space.inner_product_weights` as "stored", which
+  is now the DRESSED metric → their "stored" row prints 1.000; and the
+  118.7 ratio is draw-dependent — archivist re-measured 81.4/65.2 on other
+  seeds; the draw-independent statement is the per-ℓ `(4π/(2ℓ+1))²`
+  factor). The live witnesses are the `test_parseval_*` gates; the probes
+  stay as the DISCOVERY record only.
+- **F-1 faces subclass the role ABCs UNPARAMETERIZED** + their own
+  `Generic[AngularFieldT, MomentFieldT]` (the ZeroMorphism precedent): the
+  carriers deliberately fail the numerics `Vector` protocol's endomorphic
+  arithmetic (a source's `+` returns a union), so the per-carrier precision
+  rides the face classes' own generics. `[M]` pyright reported the bound
+  violation; 0 errors under this shape.
+- **`angular_target` reads `self._interior_space` directly** (not the
+  minted face's `.codomain`): same value by construction, and it avoids
+  minting a source-reconstruction face on the L=0 path that never applies
+  one.
+- **A §6b near-miss caught by its gate:** `WindowedSweep.apply` read
+  `self.p.frame` (an attribute read INSIDE windowing.py, beside the
+  constructor sites the audit enumerated) — the windowing equivalence gates
+  reddened on it immediately; re-keyed to `self.p.face.frame`. The
+  Mode-11 counter-spy's `monkeypatch.setattr` on the retired verb failed
+  LOUDLY (the moved-attribute hazard the project guards) and re-keyed to
+  the minted face's `apply`.
+- **Recorded wart (GitHub issue to file):** `HarmonicFrame` equality over
+  the SAME measure object works (tuple-identity shortcut), but two
+  CONTENT-equal distinct `DiscreteMeasure` instances make frame `==` RAISE
+  (dataclass `__eq__` hits ndarray ambiguity) — pre-existing FrameBase
+  behaviour, surfaced by the shareability gate's design.
+
 ## Recorded debts (do NOT execute here)
 
 - **CS4c**: Riesz legs first-class (`riesz_lower/raise` space-minted;
