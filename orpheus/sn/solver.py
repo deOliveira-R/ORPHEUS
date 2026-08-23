@@ -2849,11 +2849,14 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     the implementation (#276 A4).
 
     On a carrying mesh (System B present) the carrier is the coupled
-    pair: ``F`` is lifted to the coupled grid with a structurally-zero
-    System-B row/column (fission is pure bulk; the ray-coupled fission
-    emission ``A_BA`` rides the forward outer's ``q_ext`` assembly, NOT
-    this posing — HAZARD 5), and the gain is the builder's own coupled
-    gain grid ``N``.
+    pair: ``F`` is lifted as the composition ``[[F], [E]] ∘ r_bulk`` — a
+    rectangular prolongation stack after the
+    :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`
+    onto the bulk member (fission annihilates the ray system, so the
+    lift's ray INPUT column is the restriction's, not a zero block; the
+    within-group ray-coupled fission emission ``A_BA`` rides the forward
+    outer's ``q_ext`` assembly, NOT the gain — HAZARD 5), and the gain is
+    the builder's own coupled gain grid ``N``.
     """
     from orpheus.transport.fields.angular_boundary_flux import (
         AngularBoundaryFlux,
@@ -2878,45 +2881,40 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     )
     if sn_mesh.radial_characteristic_field_space is None:
         return system.implicit_operator, gain, F, full_field_zero
-    # Carrying mesh: pose F on the coupled grid.  The (B, A) row is the
-    # FISSION ray fold ``A_BA_fission = Fold ∘ F.kernel ∘ integrate`` —
-    # the kernel-generic :class:`RadialCharacteristicEmission` with the
-    # fission kernel (the operator spelling of
+    # Carrying mesh: pose F as (prolongation stack) ∘ (bulk restriction) —
+    # the S4-amendment un-weld.  Fission annihilates the ray system (the
+    # w = 0 closed rays carry no quadrature weight, so they never source
+    # fission), and the honest spelling of that fact is the composition
+    # ``F_posed = [[F], [E]] ∘ r_bulk``: the SystemRestrictionOperator
+    # projects onto the bulk member, then the rectangular stack emits
+    # both rows — ``F`` (bulk → bulk) and the FISSION ray fold
+    # ``A_BA_fission = Fold ∘ F.kernel ∘ integrate``, the kernel-generic
+    # :class:`RadialCharacteristicEmission` (the operator spelling of
     # :func:`_radial_characteristic_fission_seed`'s q-assembly math; on
     # the eigen-M operator this row BELONGS in the posing — HAZARD 5
-    # keeps it out of the WITHIN-GROUP gain, not out of M).  The (B, B)
-    # slot is the genuine ZERO MAP ray-flux → ray-source (the w = 0
-    # closed rays carry no quadrature weight, so they never source
-    # fission) — spelled with the space-typed :class:`ZeroOperator`
-    # hooks so both the forward grid and its dagger emit the
-    # SOURCE-classed ray zero (#276 A4 user ruling).
-    from orpheus.numerics.operator import ZeroOperator
+    # keeps it out of the WITHIN-GROUP gain, not out of M).  No zero
+    # blocks anywhere: the pre-amendment (B, B) hook-carrying
+    # ``ZeroOperator`` existed only because an annihilated column cannot
+    # be spelled ``None`` on a standalone grid, and its dagger's ray zero
+    # now falls out of the restriction's extension-by-zero (minted
+    # through the space's own zeros seam — #276 A4's SOURCE-classed
+    # closure retired with the hooks).
+    from orpheus.numerics.coupled_system import SystemRestrictionOperator
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicEmission,
     )
-    from orpheus.transport.radial_characteristic_field import (
-        RadialCharacteristicField as _RCF,
-    )
 
     space = system.space
-
-    def _ray_source_zero(_x: object) -> "_RCF":
-        return _RCF.source_zeros_on(sn_mesh)
-
-    F_posed = CoupledOperator(
+    restrict_bulk = SystemRestrictionOperator(space, system=0)
+    stack = CoupledOperator(
         [
-            [F, None],
-            [
-                RadialCharacteristicEmission(sn_mesh, F.kernel),
-                ZeroOperator(
-                    codomain_zero=_ray_source_zero,
-                    transpose_zero=_ray_source_zero,
-                ),
-            ],
+            [F],
+            [RadialCharacteristicEmission(sn_mesh, F.kernel)],
         ],
-        domain=space,
+        domain=restrict_bulk.codomain,
         codomain=space,
     )
+    F_posed = stack @ restrict_bulk
     return system.implicit_operator, gain, F_posed, space.zeros()
 
 

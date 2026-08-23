@@ -398,6 +398,31 @@ def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
     )
 
 
+def _zero_full_field_dual(sn_mesh: "SNMesh") -> "FullField":
+    r"""The zero System-A COTANGENT — the dual seam's exemplar member.
+
+    Source-role by construction (``AngularSourceSink`` bulk ⊕
+    ``AngularBoundarySourceSink`` trace): under #276 A4 duality typing a
+    flux member's cotangent is source-classed, so this is what an
+    extension-by-zero transpose extends WITH.  Consumed by
+    :meth:`CoupledSpace.dual_zeros` — the cotangent twin of the
+    :func:`_zero_full_field` seam.
+    """
+    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
+        AngularBoundarySourceSink,
+    )
+    from orpheus.transport.source_sinks.angular_source_sink import (
+        AngularSourceSink,
+    )
+
+    return FullField(
+        interior=AngularSourceSink.zeros_on(
+            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+        ),
+        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+    )
+
+
 def build_streaming_collision(
     sn_mesh: "SNMesh", mat_xs: "MaterialXSField",
 ) -> "StreamingCollisionOperator":
@@ -524,6 +549,9 @@ def build_within_group_system(
             zeros=lambda: CoupledField(
                 systems=(_zero_full_field(sn_mesh),),
             ),
+            dual_zeros=lambda: CoupledField(
+                systems=(_zero_full_field_dual(sn_mesh),),
+            ),
         )
         return WithinGroupSystem(
             loss=CoupledOperator([[A_AA]], domain=space, codomain=space),
@@ -550,6 +578,12 @@ def build_within_group_system(
             systems=(
                 _zero_full_field(sn_mesh),
                 RadialCharacteristicField.from_mesh(sn_mesh),
+            ),
+        ),
+        dual_zeros=lambda: CoupledField(
+            systems=(
+                _zero_full_field_dual(sn_mesh),
+                RadialCharacteristicField.source_zeros_on(sn_mesh),
             ),
         ),
     )

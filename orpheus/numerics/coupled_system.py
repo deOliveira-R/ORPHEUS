@@ -162,6 +162,7 @@ __all__ = [
     "CoupledSpace",
     "CoupledSubstitutionOperator",
     "SystemField",
+    "SystemRestrictionOperator",
 ]
 
 
@@ -469,6 +470,9 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
     zeros_factory: Optional[Callable[[], "CoupledField"]] = field(
         default=None, repr=False, compare=False,
     )
+    dual_zeros_factory: Optional[Callable[[], "CoupledField"]] = field(
+        default=None, repr=False, compare=False,
+    )
 
     # ── Equality / hashing inherited from FunctionSpace ───────────────
     #
@@ -492,6 +496,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         systems: "Sequence[FunctionSpace]",
         *,
         zeros: "Callable[[], CoupledField] | None" = None,
+        dual_zeros: "Callable[[], CoupledField] | None" = None,
     ) -> "CoupledSpace":
         r"""Build the coupled space from the member spaces, in system order.
 
@@ -500,7 +505,15 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         ``prod`` per member so multi-axis member shapes flatten honestly).
         A 1-member coupling is the legitimate degenerate (the uncoupled
         system). ``zeros`` wires the optional zero-element factory (the
-        typed-carrier materialization seam — see the class docstring).
+        typed-carrier materialization seam — see the class docstring);
+        ``dual_zeros`` its COTANGENT-side twin — the dual-role zero
+        composite (#276 A4 duality typing: a transpose consumes the
+        codomain-cotangent and emits the domain-cotangent, whose member
+        classes are the primal members' dual roles, e.g. flux → source).
+        Consumed by extension-by-zero transposes
+        (:meth:`SystemRestrictionOperator.apply_transpose`); wired by the
+        same layer that wires ``zeros``, for the same reason — the member
+        classes live above this layer.
         """
         members = tuple(systems)
         if len(members) == 0:
@@ -512,6 +525,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         total = int(sum(int(np.prod(s.shape)) for s in members))
         return cls(
             name=name, shape=(total,), systems=members, zeros_factory=zeros,
+            dual_zeros_factory=dual_zeros,
         )
 
     def zeros(self) -> "CoupledField":
@@ -532,6 +546,27 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
                 f"block operator over this space stays matrix-free)."
             )
         minted = self.zeros_factory()
+        self._check_arity(minted)
+        return minted
+
+    def dual_zeros(self) -> "CoupledField":
+        r"""Mint the COTANGENT-side zero — a fresh dual-role zero composite.
+
+        The dual twin of :meth:`zeros` (#276 A4 duality typing): member
+        classes are the primal members' dual roles (a flux member's
+        cotangent is source-classed). Realized through the builder-wired
+        :attr:`dual_zeros_factory`; loud when unwired, exactly as
+        :meth:`zeros` is — the member classes live above this layer.
+        """
+        if self.dual_zeros_factory is None:
+            raise RuntimeError(
+                f"CoupledSpace {self.name!r} carries no DUAL zero-element "
+                f"factory — supply dual_zeros= at from_systems (the "
+                f"cotangent-side typed-carrier materialization seam; "
+                f"without it an extension-by-zero transpose over this "
+                f"space cannot mint its dual-role zeros)."
+            )
+        minted = self.dual_zeros_factory()
         self._check_arity(minted)
         return minted
 
@@ -1301,3 +1336,155 @@ class CoupledSubstitutionOperator(
 
     def __repr__(self) -> str:
         return f"CoupledSubstitutionOperator({self.inner!r})"
+
+# ───────────────────────────────────────────────────────────────────────
+# The member restriction (the split pair's coupled realization)
+# ───────────────────────────────────────────────────────────────────────
+
+
+class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
+    r"""Restriction onto ONE member system of a coupling:
+    :math:`r_i : \bigoplus_j V_j \to V_i` (as the legitimate 1-member
+    degenerate coupling).
+
+    The coupled realization of the tree's ONE restriction concept — a
+    **split pair** ``(embedding e, retraction r)`` with ``r ∘ e = id`` on
+    the member, ``r = e†`` under the direct sum's block-diagonal metric,
+    and ``P = e ∘ r`` the orthogonal projector onto the member's copy.
+    :class:`~orpheus.numerics.operator.TraceRestrictionOperator` is the
+    index-subset sibling (gather / scatter along an axis); this one
+    selects a member SYSTEM of a :class:`CoupledField`. The
+    measure-weighted realization of the same pair (constant embedding /
+    w-average) lives with the frames. A shared family ABC is deliberately
+    NOT minted: no consumer treats "any restriction" generically yet —
+    that consumer is the CS4c restriction verb, and the type-minting rule
+    defers the base to it.
+
+    The transpose is the **extension-by-zero**
+    :math:`\iota_i = r_i^{\mathsf T}`: the input written into member
+    ``i`` of a fresh zero of the FULL coupled space, minted through the
+    space's own :meth:`CoupledSpace.dual_zeros` seam (the builder-wired
+    COTANGENT-side typed-carrier materialization point — no per-operator
+    zero closures; the S4-amendment's un-weld). It follows that the
+    operator is usable in a daggered composition only on a space whose
+    dual zeros factory is wired — :meth:`apply_transpose` lets the
+    space's own loud refusal propagate otherwise.
+
+    Born fully bound (the S4-amendment's base demand): ``domain`` is the
+    full :class:`CoupledSpace`, ``codomain`` the derived 1-member
+    coupling ("a 1-member coupling is the legitimate degenerate" —
+    :meth:`CoupledSpace.from_systems`), whose zeros factory is DERIVED
+    from the parent's when wired.
+
+    Why it exists — the first consumer
+    ----------------------------------
+
+    The eigen pencil's fission member annihilates the ray system: fission
+    is pure bulk, and the ``w = 0`` closed rays never source it. Spelled
+    directly as an N×N grid that fact needs an all-``None`` column —
+    which the :class:`CoupledOperator` constructor rightly refuses for a
+    standalone coupling, and which its ``apply_transpose`` cannot emit
+    (the empty-column reduce). The honest algebra is the composition
+    ``F_posed = [[F], [E]] ∘ r_bulk``: a rectangular prolongation stack
+    (already blessed) after THIS restriction, with no zero blocks
+    anywhere and the transpose falling out as
+    ``r† ∘ stack† = extension-by-zero ∘ [F†, E†]``.
+    """
+
+    def __init__(self, space: "CoupledSpace", *, system: int) -> None:
+        members = space._require_systems()
+        if not 0 <= system < len(members):
+            raise ValueError(
+                f"SystemRestrictionOperator: system index {system} out of "
+                f"range for a {len(members)}-member coupling."
+            )
+        self._space = space
+        self._system = int(system)
+        member = members[self._system]
+        idx = self._system
+        derived_zeros: "Callable[[], CoupledField] | None" = None
+        derived_dual: "Callable[[], CoupledField] | None" = None
+        if space.zeros_factory is not None:
+
+            def _mint_primal() -> "CoupledField":
+                return CoupledField(systems=(space.zeros().systems[idx],))
+
+            derived_zeros = _mint_primal
+        if space.dual_zeros_factory is not None:
+
+            def _mint_dual() -> "CoupledField":
+                return CoupledField(
+                    systems=(space.dual_zeros().systems[idx],),
+                )
+
+            derived_dual = _mint_dual
+        self._codomain = CoupledSpace.from_systems(
+            [member], zeros=derived_zeros, dual_zeros=derived_dual,
+        )
+
+    @property
+    def domain(self) -> "CoupledSpace":
+        r"""The full coupled space being restricted."""
+        return self._space
+
+    @property
+    def codomain(self) -> "CoupledSpace":
+        r"""The 1-member coupling of the selected system."""
+        return self._codomain
+
+    @property
+    def system(self) -> int:
+        r"""The selected member system's index."""
+        return self._system
+
+    def apply(self, x: "CoupledField", /) -> "CoupledField":
+        r"""``r_i x`` — select member ``i``, as a 1-member coupling."""
+        if not isinstance(x, CoupledField):
+            raise TypeError(
+                f"SystemRestrictionOperator.apply expects a CoupledField; "
+                f"got {type(x).__name__}."
+            )
+        n = len(self._space._require_systems())
+        if len(x.systems) != n:
+            raise ValueError(
+                f"SystemRestrictionOperator.apply: iterate couples "
+                f"{len(x.systems)} systems but the domain couples {n}."
+            )
+        return CoupledField(systems=(x.systems[self._system],))
+
+    def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
+        r"""``\iota_i y`` — the extension-by-zero: member ``i`` carries the
+        input, every other member the full space's minted DUAL-role zero.
+
+        Dual, because a transpose is the cotangent map (#276 A4 duality
+        typing — it consumes the codomain-cotangent and emits the
+        domain-cotangent), so the members it extends WITH are
+        cotangent-side zeros: :meth:`CoupledSpace.dual_zeros`, the seam's
+        cotangent twin. [M] 2026-08-22, the class question is
+        load-bearing: extending with the PRIMAL mint put a flux-classed
+        ray zero into the daggered fission chain, and the cross-class
+        arithmetic gate refused the sum (the same fact the retired
+        per-site ``transpose_zero`` closure encoded as
+        ``source_zeros_on``). A primal-side member EMBEDDING, should one
+        ever be needed, is a different verb (the future restriction
+        family's ``embed``), not this transpose."""
+        if not isinstance(y, CoupledField):
+            raise TypeError(
+                f"SystemRestrictionOperator.apply_transpose expects a "
+                f"CoupledField; got {type(y).__name__}."
+            )
+        if len(y.systems) != 1:
+            raise ValueError(
+                f"SystemRestrictionOperator.apply_transpose: the cotangent "
+                f"couples {len(y.systems)} systems but the codomain is the "
+                f"1-member coupling."
+            )
+        minted = self._space.dual_zeros()
+        systems = list(minted.systems)
+        systems[self._system] = y.systems[0]
+        return CoupledField(systems=tuple(systems))
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""``True`` — the split pair is exact: ``r† = ι`` (the scatter)."""
+        return True

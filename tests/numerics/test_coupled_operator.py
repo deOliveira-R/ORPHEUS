@@ -58,6 +58,7 @@ from orpheus.numerics.coupled_system import (
     CoupledOperator,
     CoupledSpace,
     CoupledSubstitutionOperator,
+    SystemRestrictionOperator,
 )
 from orpheus.numerics.iteration import (
     _is_ravellable,
@@ -1306,3 +1307,132 @@ class TestCoupledSpaceZeros:
         )
         with pytest.raises(ValueError, match="pairing is inconsistent"):
             lopsided.zeros()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SystemRestrictionOperator — the split-pair law suite (S4-amendment A2)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The tree's ONE restriction concept, coupled realization: a split pair
+# (embedding ι = rᵀ, retraction r) with r∘ι = id on the member, r = ι†
+# under the direct sum's block-diagonal metric, and P = ι∘r the projector
+# onto the member's copy. These are the type's DEFINING laws (the
+# intrinsic-property standard), tested at the values level on the toy
+# members; the dual-seam class fact gets its own pin because it is
+# load-bearing ([M] 2026-08-22: a primal-classed extension zero reddened
+# the daggered fission chain's cross-class arithmetic gate).
+
+
+def _restriction_space() -> CoupledSpace:
+    return CoupledSpace.from_systems(
+        (_SP_A, _SP_B),
+        zeros=lambda: CoupledField(
+            systems=(
+                _AlphaField(values=np.zeros(3)),
+                _BetaField(values=np.zeros(2)),
+            ),
+        ),
+        dual_zeros=lambda: CoupledField(
+            systems=(
+                _GammaField(values=np.zeros(3)),
+                _DeltaField(values=np.zeros(2)),
+            ),
+        ),
+    )
+
+
+def _restriction_pair():
+    space = _restriction_space()
+    return space, SystemRestrictionOperator(space, system=0)
+
+
+class TestSystemRestriction:
+    def test_born_bound_and_selects_the_member(self) -> None:
+        """The demand's citizen: domain/codomain declared at construction;
+        apply selects member i as the legitimate 1-member coupling."""
+        space, r = _restriction_pair()
+        assert r.domain is space
+        assert tuple(r.codomain._require_systems()) == (_SP_A,)
+        x = CoupledField(
+            systems=(
+                _AlphaField(values=np.array([1.0, 2.0, 3.0])),
+                _BetaField(values=np.array([4.0, 5.0])),
+            ),
+        )
+        out = r.apply(x)
+        assert len(out.systems) == 1
+        assert isinstance(out.systems[0], _AlphaField)
+        np.testing.assert_array_equal(out.systems[0].values, [1.0, 2.0, 3.0])
+
+    def test_retraction_after_extension_is_identity(self) -> None:
+        """r ∘ ι = id on the member (the split-pair law), class preserved."""
+        _, r = _restriction_pair()
+        y = CoupledField(systems=(_GammaField(values=np.array([7.0, -1.0, 2.5])),))
+        back = r.apply(r.apply_transpose(y))
+        assert isinstance(back.systems[0], _GammaField)
+        np.testing.assert_array_equal(back.systems[0].values, y.systems[0].values)
+
+    def test_extension_fills_DUAL_zeros(self) -> None:
+        """ι extends with the COTANGENT-side mint (dual_zeros), never the
+        primal one — the transpose is the cotangent map (#276 A4), and the
+        class is load-bearing ([M] 2026-08-22: the primal mint reddened
+        the daggered fission chain's cross-class gate)."""
+        _, r = _restriction_pair()
+        y = CoupledField(systems=(_GammaField(values=np.ones(3)),))
+        ext = r.apply_transpose(y)
+        assert len(ext.systems) == 2
+        assert isinstance(ext.systems[0], _GammaField)  # the input, placed
+        assert isinstance(ext.systems[1], _DeltaField)  # DUAL class, not _Beta
+        np.testing.assert_array_equal(ext.systems[1].values, np.zeros(2))
+
+    def test_adjoint_pairing_euclidean(self) -> None:
+        """⟨r x, y⟩ = ⟨x, ι y⟩ — ι is r's transpose exactly (the scatter),
+        so the pairing holds bit-exactly at the values level."""
+        rng = np.random.default_rng(20260822)
+        _, r = _restriction_pair()
+        x = CoupledField(
+            systems=(
+                _AlphaField(values=rng.standard_normal(3)),
+                _BetaField(values=rng.standard_normal(2)),
+            ),
+        )
+        y = CoupledField(systems=(_GammaField(values=rng.standard_normal(3)),))
+        lhs = float(np.dot(r.apply(x).systems[0].values, y.systems[0].values))
+        ext = r.apply_transpose(y)
+        rhs = float(
+            np.dot(x.systems[0].values, ext.systems[0].values)
+            + np.dot(x.systems[1].values, ext.systems[1].values)
+        )
+        assert lhs == rhs  # the second term is exactly 0.0 (the zero member)
+
+    def test_projector_is_idempotent(self) -> None:
+        """P = ι ∘ r is idempotent at the values level (P² x = P x)."""
+        rng = np.random.default_rng(20260823)
+        _, r = _restriction_pair()
+        y = CoupledField(systems=(_GammaField(values=rng.standard_normal(3)),))
+        # Run the projector on the DUAL side, where both verbs compose:
+        # P = ι ∘ r on the extended field.
+        p1 = r.apply_transpose(r.apply(r.apply_transpose(y)))
+        p2 = r.apply_transpose(r.apply(p1))
+        for a, b in zip(p1.systems, p2.systems):
+            np.testing.assert_array_equal(
+                np.asarray(a.values), np.asarray(b.values),
+            )
+
+    def test_unwired_dual_seam_refuses_loudly(self) -> None:
+        """apply_transpose on a space with no dual factory: the space's own
+        loud refusal names the seam (no silent primal fallback)."""
+        bare = CoupledSpace.from_systems((_SP_A, _SP_B))
+        r = SystemRestrictionOperator(bare, system=0)
+        y = CoupledField(systems=(_GammaField(values=np.zeros(3)),))
+        with pytest.raises(RuntimeError, match="DUAL zero-element factory"):
+            r.apply_transpose(y)
+
+    def test_out_of_range_system_refuses(self) -> None:
+        space = _restriction_space()
+        with pytest.raises(ValueError, match="out of range"):
+            SystemRestrictionOperator(space, system=2)
+
+    def test_is_adjointable(self) -> None:
+        _, r = _restriction_pair()
+        assert r.is_adjointable is True
