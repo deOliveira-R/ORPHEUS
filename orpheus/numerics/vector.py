@@ -134,10 +134,15 @@ class Vector(Protocol):
          (``class PermutationOperator(LinearOperator)``), which sidesteps the
          bind entirely — this is why they typecheck and is a deliberate
          spelling, not an omission.
-       * A **generic** operator's callback hooks have no such escape. The one
-         instance in the tree (``ZeroOperator``'s ``codomain_zero`` /
-         ``transpose_zero`` used at the SN boundary trace) therefore carries a
-         narrowed ``# type: ignore[reportArgumentType]`` naming this gap.
+       * A **generic** operator's callback hooks have no such escape. The
+         one instance the tree carried (``ZeroOperator``'s
+         ``codomain_zero`` / ``transpose_zero`` at the SN boundary trace,
+         each with a narrowed ``# type: ignore[reportArgumentType]``
+         naming this gap) retired at the 2026-08-22 S4-amendment — the
+         bound ``ZeroMorphism`` (unparameterized, per the first bullet)
+         replaced hooks with declared spaces. Should a generic operator
+         ever grow ndarray-speaking hooks again, that ignore-spelling is
+         the escape.
 
        Do not "fix" a call site by weakening the protocol; the gap is upstream
        in numpy's stubs, and the runtime conformance the docstring claims is

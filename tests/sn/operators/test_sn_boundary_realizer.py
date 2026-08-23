@@ -44,7 +44,7 @@ from orpheus.numerics.operator import (
     PermutationOperator,
     ScaledOperator,
     TensorProductOperator,
-    ZeroOperator,
+    ZeroMorphism,
 )
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
@@ -210,9 +210,10 @@ class TestRealizeVacuum:
             SNBoundaryRealizer().realize(VacuumInflow(), inflow_only)
 
     def test_vacuum_returns_zero_operator_with_both_space_hooks(self):
-        r"""The vacuum dispatch returns a :class:`ZeroOperator` carrying BOTH
-        space hooks — forward emits the zero of :math:`\Gamma_-`, transpose the
-        zero of :math:`\Gamma_+`.
+        r"""The vacuum dispatch returns a bound :class:`ZeroMorphism` —
+        forward emits the zero of :math:`\Gamma_-`, transpose the zero of
+        :math:`\Gamma_+`, both derived from the DECLARED pair (the
+        S4-amendment retired the per-site space hooks).
 
         RE-POSED (C-1) from the pre-B3.2 assertion
         ``isinstance(op.ops[0], IncomingOrdinateMaskTensor)``. The type moved
@@ -228,7 +229,7 @@ class TestRealizeVacuum:
         quad = Quadrature.gauss_legendre(8)
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(VacuumInflow(), space)
-        assert isinstance(op, ZeroOperator)
+        assert isinstance(op, ZeroMorphism)
         probe_plus = np.ones((space.outflow_indices.size, 3))
         probe_minus = np.ones((space.inflow_indices.size, 3))
         np.testing.assert_array_equal(
@@ -683,7 +684,7 @@ class TestRealizeAlbedo:
         return face_method_space(Quadrature.gauss_legendre(n_ord), face="xmax")
 
     def test_albedo_zero_realizes_to_the_narrowed_zero_map(self):
-        r"""α=0 → ``ZeroOperator``, but now :math:`\Gamma_+ \to \Gamma_-`.
+        r"""α=0 → the bound ``ZeroMorphism`` :math:`\Gamma_+ \to \Gamma_-`.
 
         The claim SURVIVES the narrowing and changes shape: pre-B3.4b this was
         an endomorphism of the whole face slot; now it emits ``|Γ₋|`` rows.
@@ -697,7 +698,7 @@ class TestRealizeAlbedo:
         op = SNBoundaryRealizer().realize(
             AlbedoBoundary(0.0, SpecularReturn(axis="x")), space,
         )
-        assert isinstance(op, ZeroOperator)
+        assert isinstance(op, ZeroMorphism)
         psi = np.arange(space.outflow_indices.size * 4, dtype=float).reshape(
             space.outflow_indices.size, 4,
         )
@@ -1163,7 +1164,7 @@ class TestVacuumTraceOrientationGuard:
 
         B3.2: the realized object is now the ``Γ₊ → Γ₋`` zero map, so the
         type assertion moves from ``TensorProductOperator`` to
-        :class:`ZeroOperator`. The CLAIM — "the correctly-oriented face
+        :class:`ZeroMorphism`. The CLAIM — "the correctly-oriented face
         realizes silently" — is unchanged, which is the point of the leg.
         """
         quad = Quadrature.gauss_legendre(8)
@@ -1179,7 +1180,7 @@ class TestVacuumTraceOrientationGuard:
             space = face_method_space(quad, face=face)
             np.testing.assert_array_equal(space.inflow_indices, inflow)
             op = SNBoundaryRealizer().realize(VacuumInflow(), space)
-            assert isinstance(op, ZeroOperator)
+            assert isinstance(op, ZeroMorphism)
 
     def test_faceless_space_carries_no_orientation_truth(self):
         r"""A method space with hand-supplied half-traces and NO face name has
@@ -1188,12 +1189,14 @@ class TestVacuumTraceOrientationGuard:
         always carries a face). The realize must succeed, wrong indices and
         all: the caller owns the claim.
 
-        B3.2 sharpens the fixture rather than the claim. Since a law's DOMAIN
-        is :math:`\Gamma_+`, a faceless space must now supply BOTH index sets
-        by hand — but supplying them is not supplying an *orientation truth*,
-        because nothing cross-checks them against a face normal. So the escape
-        survives verbatim: the deliberately-swapped inflow set (the OUTGOING
-        ordinates of a nominal xmax face) still realizes silently.
+        B3.2 sharpened the fixture; the S4-amendment CLOSES the escape.
+        A law's realization is now a bound :class:`ZeroMorphism`, and a
+        faceless space carries no trace ladder to bind :math:`\Gamma_-`
+        from — so the realize REFUSES loudly instead of building an
+        unbindable zero map. What used to realize silently ("the caller
+        owns the claim") is now unconstructable: the demand that made the
+        orientation guard unable to fire here also makes the object
+        itself unmintable, which is the stronger statement.
         """
         quad = Quadrature.gauss_legendre(8)
         faceless = SNMethodSpace(
@@ -1201,8 +1204,8 @@ class TestVacuumTraceOrientationGuard:
             inflow_indices=np.flatnonzero(quad.mu_x > 0),
             outflow_indices=np.flatnonzero(quad.mu_x < 0),
         )
-        op = SNBoundaryRealizer().realize(VacuumInflow(), faceless)
-        assert isinstance(op, ZeroOperator)
+        with pytest.raises(BoundaryError, match="without the trace ladder"):
+            SNBoundaryRealizer().realize(VacuumInflow(), faceless)
 
     def test_unknown_face_name_fails_loud(self):
         """A face name outside the ``{axis}{min|max}`` convention is

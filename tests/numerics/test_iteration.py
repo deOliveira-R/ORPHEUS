@@ -57,6 +57,11 @@ class MatrixOperator(LinearOperator):
     Same shape as the fixture in ``test_operator.py`` — kept independent
     here so tests in this file are self-contained.
     """
+    # S4-amendment: the base DEMANDS an answer from every subclass; this
+    # double is a deliberately-unbound probe, so it DECLARES the unbound
+    # state instead of inheriting a silent default (which no longer exists).
+    domain = None
+    codomain = None
 
     def __init__(
         self,
@@ -674,6 +679,11 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         inverse and hands it to the inner driver — can lift this leaf's
         ``solve`` through the generic :class:`InverseOperator`.
         """
+        # S4-amendment: the base DEMANDS an answer from every subclass; this
+        # double is a deliberately-unbound probe, so it DECLARES the unbound
+        # state instead of inheriting a silent default (which no longer exists).
+        domain = None
+        codomain = None
 
         @property
         def is_invertible(self) -> bool:
@@ -710,6 +720,11 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
         Issue #196 PR-INDEX-5: principled end-to-end.
         """
+        # S4-amendment: the base DEMANDS an answer from every subclass; this
+        # double is a deliberately-unbound probe, so it DECLARES the unbound
+        # state instead of inheriting a silent default (which no longer exists).
+        domain = None
+        codomain = None
 
         def apply(self, phi):
             Q = np.zeros_like(phi)
@@ -722,6 +737,11 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
         Issue #196 PR-INDEX-5: principled end-to-end.
         """
+        # S4-amendment: the base DEMANDS an answer from every subclass; this
+        # double is a deliberately-unbound probe, so it DECLARES the unbound
+        # state instead of inheriting a silent default (which no longer exists).
+        domain = None
+        codomain = None
 
         def apply(self, phi):
             return F.apply(phi)

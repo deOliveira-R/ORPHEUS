@@ -178,8 +178,11 @@ def test_H_is_bit_identical_to_the_pre_CS1_euclidean_transpose() -> None:
     energy metric = I) and the quotient point's unit volume canonicalizes
     to the counting weight — so the threaded ``loss.H`` must stay
     BIT-identical to the pre-CS1 path. The comparison is the vv#12 direct
-    form: the SAME loss built space-less (the None path — still legal
-    until CS4) versus the production threaded one, ``np.array_equal``
+    form: the SAME loss built space-less versus the production threaded
+    one, ``np.array_equal`` — with the bare side spelled by its honest
+    verb ``apply_transpose`` (the S4-amendment refuses ``.H`` on an
+    unbound non-multiplier: the Euclidean reference is exactly what the
+    representation-transpose verb states)
     (an independent matmul reference would associate differently and
     fail at 1 ULP — measured; the *value* claim rides on D9's fused
     matrix at ``atol=1e-12``). ⚠ And by the SCALAR-COMMUTATOR argument
@@ -194,7 +197,7 @@ def test_H_is_bit_identical_to_the_pre_CS1_euclidean_transpose() -> None:
     ) - (IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs))
     x = np.array([[1.0], [2.0]])
     got = np.asarray(loss_threaded.H.apply(x))
-    old = np.asarray(loss_bare.H.apply(x))
+    old = np.asarray(loss_bare.apply_transpose(x))
     _require(
         bool(np.array_equal(got, old)),
         f"threaded loss.H moved off the pre-CS1 Euclidean-transpose path: "

@@ -105,6 +105,7 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.operator import (
     IdentityOperator,
     ScaledOperator,
+    ZeroMorphism,
     ZeroOperator,
     adjointable,
 )
@@ -1009,8 +1010,9 @@ class TestZeroAmplitudeRealizesTheNarrowedZeroMap:
         n_in = int(space.inflow_indices.size)
         n_out = int(space.outflow_indices.size)
         op = SNBoundaryRealizer().realize(build_law(), space)
-        assert isinstance(op, ZeroOperator), (
-            f"{law_id} at α=0 must be the ZeroOperator, not a scaled kernel"
+        assert isinstance(op, ZeroMorphism), (
+            f"{law_id} at α=0 must be the bound ZeroMorphism, not a scaled "
+            f"kernel"
         )
         image = op.apply(np.full((n_out, 4, 2), 3.0))
         assert image.shape == (n_in, 4, 2)

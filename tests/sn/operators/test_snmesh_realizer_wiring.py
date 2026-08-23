@@ -47,7 +47,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
     PermutationOperator,
     TensorProductOperator,
-    ZeroOperator,
+    ZeroMorphism,
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
@@ -124,11 +124,14 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
     assert isinstance(sn.bc["xmin"].law, VacuumInflow)
 
     rng = np.random.default_rng(42)
-    psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 3, 2))
+    # S4-amendment: the probe is an HONEST Γ₊ element — (ng=1, ny=3)
+    # trailing, the declared trace shape (the bound ZeroMorphism emits its
+    # DECLARED codomain zero, not an echo of arbitrary probe trailing).
+    psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 1, 3))
     inflow = np.flatnonzero(quad_2d.mu_x > 1e-12)
     outflow = np.flatnonzero(quad_2d.mu_x < -1e-12)
     out = sn.bc["xmin"].apply(psi[outflow])
-    assert out.shape == (inflow.size, 3, 2), (
+    assert out.shape == (inflow.size, 1, 3), (
         f"vacuum on xmin emitted {out.shape}; the narrowed codomain is Γ₋."
     )
     np.testing.assert_array_equal(out, 0.0)
@@ -257,11 +260,12 @@ def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
     assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
-    psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2)
+    # S4-amendment: an honest Γ₊ element carries the declared ng=1 tail.
+    psi = np.arange(quad_1d.N, dtype=float).reshape(quad_1d.N, 1)
     inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
     outflow = np.flatnonzero(quad_1d.mu_x > +1e-12)
     out = sn.bc["xmax"].apply(psi[outflow])
-    assert out.shape == (inflow.size, 2)
+    assert out.shape == (inflow.size, 1)
     np.testing.assert_array_equal(out, 0.0)
 
 
@@ -347,7 +351,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     entry (structurally absent).
 
     RE-POSED at **B3.2**: the realizer's vacuum branch returns the zero map
-    :math:`\Gamma_+ \to \Gamma_-` (a :class:`ZeroOperator`), not an
+    :math:`\Gamma_+ \to \Gamma_-` (a :class:`ZeroMorphism`), not an
     ``IncomingOrdinateMaskTensor`` lifted into a tensor product. The
     routing claim — curvilinear meshes go through the SAME realizer path as
     Cartesian ones — is what this test is for and it is unchanged; only the
@@ -364,7 +368,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     # ``Γ₊ → Γ₋`` zero map (no tensor-product lift: there is no full-face
     # projector left to decompose).
     assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
-    assert isinstance(sn.bc["xmax"].inner, ZeroOperator)
+    assert isinstance(sn.bc["xmax"].inner, ZeroMorphism)
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc["xmax"], "_quadrature")
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
@@ -383,10 +387,11 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     )
 
     # B3.2: the zero map onto Γ₋ — the whole image, not a masked full face.
-    psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2) + 1.0
+    # S4-amendment: an honest Γ₊ element carries the declared ng=1 tail.
+    psi = np.arange(quad_1d.N, dtype=float).reshape(quad_1d.N, 1) + 1.0
     outflow = sn._trace.outflow_indices_for_face("xmax")
     out = sn.bc["xmax"].apply(psi[outflow])
-    assert out.shape == (expected_inflow.size, 2)
+    assert out.shape == (expected_inflow.size, 1)
     np.testing.assert_array_equal(out, 0.0)
 
 

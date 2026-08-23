@@ -311,12 +311,15 @@ class TestPredicateFaithfulness:
         mat = _synthetic_mat_xs()
         # F's space is MANDATORY (CS4a K2); a hand-built space keeps the
         # capability survey space-agnostic (its subject is predicates,
-        # not posing). The neighbours stay space-LESS deliberately —
-        # C/S/the iso pair keep the Optional until CS4c's flip.
+        # not posing). The iso pair + S are BOUND to the same synthetic
+        # space since the S4-amendment: the adjoint leg takes .H, which
+        # refuses an unbound non-multiplier (their Optional-space ctor
+        # survives until CS4c's mandatory flip — the survey just no
+        # longer exercises the unbound state on adjointable rows).
         survey_space = FunctionSpace("capability_survey", (2, 4, 1))
         return [
-            IsotropicScattering(mat),
-            IsotropicN2N(mat),
+            IsotropicScattering(mat, space=survey_space),
+            IsotropicN2N(mat, space=survey_space),
             FissionOperator(mat_xs=mat, space=survey_space),
             LegendreMomentScattering(mat_xs=mat, L=1, skip_l0=True),
             N2NMomentOperator(mat_xs=mat, L=1),
@@ -324,6 +327,7 @@ class TestPredicateFaithfulness:
                 mat_xs=mat,
                 quadrature=Quadrature.gauss_legendre(n_ordinates=4),
                 scattering_order=0,
+                space=survey_space,
             ),
         ]
 

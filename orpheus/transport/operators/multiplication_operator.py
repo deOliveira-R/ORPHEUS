@@ -254,6 +254,17 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # the engine (always adjointable).
         return self.engine.is_adjointable
 
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        r"""``True`` — M[f] is a real multiplier, so its Hilbert adjoint is
+        metric-free (the module docstring's self-adjointness law: pointwise
+        multiplication commutes with every diagonal metric). A BOUND class
+        can carry the metric-free predicate: bound-ness says where it acts,
+        metric-freeness says its adjoint needs no sandwich — so the
+        S4-amendment's unbound-``.H`` refusal correctly exempts a
+        space-less ``M`` (its Euclidean ``.H`` IS the Hilbert adjoint)."""
+        return True
+
     # ── The assembly mode (stencil-assembly 2b) ────────────────────────
 
     @property

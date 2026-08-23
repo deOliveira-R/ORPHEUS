@@ -125,6 +125,7 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
+    from orpheus.numerics.space import FunctionSpace
     from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.full_field import FullField
@@ -574,6 +575,18 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         #: from the quadrature (= 3 exactly under the _build W₂ guard),
         #: never a transcribed constant.
         self._inv_w2 = float(1.0 / ((w / 2.0) @ mu_row**2))
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        r"""DERIVED from the held mesh (the S4-amendment's second answer):
+        the correction maps the within-group iterate composite to itself,
+        and the composite's space is the mesh's own cached mint."""
+        return self._mesh.full_field_space
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        r"""Endomorphic on the iterate composite (see :attr:`domain`)."""
+        return self._mesh.full_field_space
 
     @classmethod
     def from_sn_mesh(

@@ -1425,23 +1425,44 @@ MANDATORY since CS4a K2, non-Optional properties).
 **Execution order (§6b — the hook retirement's call-site set is
 {vacuum site, fission site} + the hook params, so the split lands only
 after BOTH consumers move):**
-- **A1** — level 1: the frame binding + scattering re-point + test
-  migrations + gates + the "structural asymmetry" record corrections
-  (plan S4 bullet marked below, topic memory, harmonic_frame
-  docstrings).
-- **A2** — `SystemRestrictionOperator` + its law-suite test + the
-  fission posing re-spelled as stack ∘ restrict (consumer 1 off the
-  hooks; the (A,B) None and the (B,B) hooked Zero both dissolve).
-- **A3** — `PointwiseOperator` + Identity/Diagonal join (+ their
-  `adjoint() → self`) + the Zero split (`ZeroOperator` natural,
-  `ZeroMorphism` bound) + vacuum migration + hook retirement (one
-  commit — the split IS the retirement).
-- **A4** — the base demand: root abstract + the `.H` unbound refusal
-  + `DSACorrection` derives + `RankOneOperator` declares +
-  the two ABCs go abstract + pyright ratchet held at 0 + the §8
-  measurement (each newly-answering leaf: fast suite; any
-  composition newly refusing or adjoint-path change measured and
-  gated before commit).
+- **A1** ✅ LANDED `6e04a749` (+ the S4 sweep-straggler batch
+  `33950d81` its full-fast sweep surfaced) — level 1: the frame
+  binding + scattering re-point + test migrations + TestBinding gates
+  + the "structural asymmetry" record corrections. The per-axis
+  spatial-moment read hoisted to the static
+  `BulkField._spatial_moments_per_axis_of(space)` (one source for
+  fields AND the binding-time derivation).
+- **A2** ✅ LANDED `6fc247fb` — `SystemRestrictionOperator` (born
+  bound; split-pair law suite ×8) + the fission posing re-spelled as
+  stack ∘ restrict. ⭐ In-execution discovery: the extension-by-zero's
+  member CLASS is load-bearing (`[M]` the primal mint put a
+  flux-classed ray zero into the daggered chain — the cross-class gate
+  refused), so `CoupledSpace` gained the materialization seam's
+  COTANGENT twin (`dual_zeros=` / `dual_zeros()`, #276 A4 duality
+  typing; the SN builder wires both at both sites via
+  `_zero_full_field_dual`).
+- **A3+A4** (fused in execution — the `.H` refusal needed the
+  metric-free predicate, which needed the family): `PointwiseOperator`
+  (Id ×1 / endo-Zero ×0 / Diagonal ×f; `.H = self`;
+  `is_metric_free_adjoint` the recursive predicate, derived on
+  Sum/Product/Scaled/TensorProduct/SumOfTP; the bound multiplier
+  `MultiplicationOperator` DECLARES it True — bound-ness and
+  metric-freeness are orthogonal); the Zero split (`ZeroOperator`
+  natural stateless; `ZeroMorphism` born-bound, zeros from the
+  declared pair + the payload-tail convention — `[M]` the trace seam's
+  spaces are structural-axes-only in the `face_method_space` fixtures,
+  full-shape on `SNMesh.angular_trace`); the vacuum site migrated
+  (`_zero_rows` + the `codomain_zero`/`transpose_zero` hooks RETIRED);
+  the root's None defaults DELETED (`@abstractmethod`, four legitimate
+  answers documented at the property); `_AdjointOperator.__init__`
+  refuses an unbound non-metric-free inner (R2 closed —
+  `test_dropping_the_binding_BREAKS_the_weighted_law` upgraded from
+  measuring the silent Euclidean degradation to pinning the refusal);
+  `OperatorProduct`'s domain/codomain gained the pointwise-conforming
+  arms; `DSACorrection` derives from its mesh; `RankOneOperator`
+  declares the documented CS4c debt; 10 test doubles across 6 files
+  declare the unbound state; the faceless-vacuum escape CLOSED
+  (refusal, not silent realization).
 
 THEN the ruled order continues: S5
 (the sugar-FACTORY retirement — the 909-site `zeros_on`/`from_mesh`

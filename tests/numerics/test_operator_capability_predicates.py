@@ -22,6 +22,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
+    _AdjointOperator,
     DiagonalOperator,
     IdentityOperator,
     LinearOperator,
@@ -32,6 +33,7 @@ from orpheus.numerics.operator import (
     TraceRestrictionOperator,
     ZeroOperator,
 )
+from orpheus.numerics.space import FunctionSpace
 from tests._harness.predicates import (
     INVERTIBLE,
     STRUCTURAL_ABSENT,
@@ -46,13 +48,65 @@ class _ApplyOnly(LinearOperator):
     """Synthetic apply-only operator — the (¬invertible, ¬adjointable)
     corner. Inherits the base ``False`` predicates. The non-adjointable
     summand that makes a sum half-adjointable."""
+    # S4-amendment: the base DEMANDS an answer from every subclass; this
+    # double is a deliberately-unbound probe, so it DECLARES the unbound
+    # state instead of inheriting a silent default (which no longer exists).
+    domain = None
+    codomain = None
 
     def apply(self, x, /):
         return x
 
 
+class _BoundDiagonalLeaf(LinearOperator):
+    """A BOUND non-pointwise leaf for the _AdjointOperator rows: diagonal
+    action with declared spaces, adjointable, invertible via the generic
+    InverseOperator (whose adjoint axis is #280-deferred — the branch the
+    wrapper rows exist to pin). Since the S4-amendment a pointwise member
+    never builds the wrapper (its .H is itself) and an UNBOUND inner is
+    REFUSED at the wrapper's constructor, so this bound stand-in is the
+    honest fixture."""
+
+    def __init__(self, c: np.ndarray) -> None:
+        self._c = np.asarray(c, dtype=float)
+        self._space = FunctionSpace("bound_leaf", self._c.shape)
+
+    @property
+    def domain(self):
+        return self._space
+
+    @property
+    def codomain(self):
+        return self._space
+
+    def apply(self, x, /):
+        return self._c * x
+
+    def apply_transpose(self, x, /):
+        return self._c * x
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+    @property
+    def is_invertible(self) -> bool:
+        return bool(np.min(np.abs(self._c)) > 0.0)
+
+    def inverse(self):
+        from orpheus.numerics.operator import InverseOperator
+
+        return InverseOperator(self)
+
+    def solve(self, b, /):
+        return b / self._c
+
+
 _C = np.array([1.0, 2.0, 3.0])
 _CZ = np.array([1.0, 0.0, 3.0])  # a zero entry → singular
+#: One bound 3-space for the non-pointwise leaf fixtures (S4-amendment:
+#: their .H demands declared metrics; a bare space = Euclidean).
+_SP3 = FunctionSpace("p3", (3,))
 
 # NOTE (B3.3): a ``_LEAVES`` inventory used to sit here, spanning the same
 # (invertible × adjointable) quadrants. It was deleted with
@@ -111,15 +165,25 @@ def test_product_predicates_recursive_and_faithful():
 
 
 def test_scaled_and_adjoint_predicates_faithful():
-    """Scaling (α≠0) passes the predicates through; the adjoint wrapper's
-    ``A.H.inverse()`` swap law landed (#280 2.5c) but is CONDITIONAL — False
-    HERE because ``DiagonalOperator``'s inverse (``InverseOperator``) is
-    non-adjointable (#280-deferred), so ``(A⁻¹).H`` does not exist; the
-    ``A.H.H`` (adjoint-of-adjoint) direction stays deferred."""
+    """Scaling (α≠0) passes the predicates through. Two adjoint regimes
+    since the S4-amendment's pointwise family: a POINTWISE member's ``.H``
+    is itself (metric-free self-adjointness — the wrapper is never built,
+    so the #280-deferred wrapper branches dissolve for the family), while
+    the generic ``_AdjointOperator`` wrapper — pinned here by direct
+    construction — keeps its CONDITIONAL swap law (#280 2.5c): False for
+    this inner because ``DiagonalOperator``'s inverse
+    (``InverseOperator``) is non-adjointable (#280-deferred), so
+    ``(A⁻¹).H`` does not exist; the ``A.H.H`` direction stays deferred."""
+    from orpheus.numerics.operator import _AdjointOperator
+
     sc = ScaledOperator(2.0, DiagonalOperator(_C))
     assert sc.is_invertible is True and sc.is_adjointable is True
 
-    adj = DiagonalOperator(_C).H  # _AdjointOperator
+    d = DiagonalOperator(_C)
+    assert d.H is d  # the pointwise family law: no wrapper, full predicates
+    assert d.H.is_invertible is True and d.H.is_adjointable is True
+
+    adj = _AdjointOperator(_BoundDiagonalLeaf(_C))  # the generic wrapper
     assert adj.is_invertible is False and adj.is_adjointable is False
 
 
@@ -168,8 +232,10 @@ def _mixin_family():
         ("InverseOperator", D.inverse(), False),
         ("GreenOperator", (IdentityOperator() + D).inverse(), False),
         (
+            # Over the BOUND leaf (S4-amendment): its adjointable arm takes
+            # .H, which demands the inner's declared spaces.
             "MatrixInverseOperator",
-            MatrixInverseOperator(D, basis_shape=(3,)),
+            MatrixInverseOperator(_BoundDiagonalLeaf(_C), basis_shape=(3,)),
             True,
         ),
     ]
@@ -181,7 +247,7 @@ _CONTRACT_ROWS = [
     ("Zero", ZeroOperator(), False, True, STRUCTURAL_ABSENT),
     ("Diagonal", DiagonalOperator(_C), True, True, INVERTIBLE),
     ("Diagonal-singular", DiagonalOperator(_CZ), False, True, VALUE_RAISE),
-    ("Permutation", PermutationOperator(np.array([1, 0, 2])), True, True, INVERTIBLE),
+    ("Permutation", PermutationOperator(np.array([1, 0, 2]), domain=_SP3, codomain=_SP3), True, True, INVERTIBLE),
     # The rank-deficient-but-adjointable representative. Was
     # ``IncomingOrdinateMaskTensor`` until B3.3 retired it; the successor
     # occupies the same quadrant for the same structural reason (a
@@ -189,13 +255,13 @@ _CONTRACT_ROWS = [
     # transpose is the scatter, so it is always adjointable). The row still
     # MOVES: the two are independent implementations, and the successor
     # declares both predicates on its own.
-    ("TraceRestriction", TraceRestrictionOperator(np.array([0]), 3), False, True, STRUCTURAL_ABSENT),
+    ("TraceRestriction", TraceRestrictionOperator(np.array([0]), 3, domain=_SP3, codomain=FunctionSpace("p1", (1,))), False, True, STRUCTURAL_ABSENT),
     ("ApplyOnly", _ApplyOnly(), False, False, STRUCTURAL_ABSENT),
     # Composites — every arm of the recursive laws:
     ("Sum-leading-invertible", IdentityOperator() + DiagonalOperator(_C), True, True, INVERTIBLE),
     ("Sum-leading-not", _ApplyOnly() + IdentityOperator(), False, False, VALUE_RAISE),
     ("Sum-half-adjointable", IdentityOperator() + _ApplyOnly(), True, False, INVERTIBLE),
-    ("Product-both", DiagonalOperator(_C) @ PermutationOperator(np.array([1, 0, 2])), True, True, INVERTIBLE),
+    ("Product-both", DiagonalOperator(_C) @ PermutationOperator(np.array([1, 0, 2]), domain=_SP3, codomain=_SP3), True, True, INVERTIBLE),
     ("Product-singular-factor", DiagonalOperator(_CZ) @ IdentityOperator(), False, True, VALUE_RAISE),
     ("Scaled", ScaledOperator(2.0, DiagonalOperator(_C)), True, True, INVERTIBLE),
     ("Scaled-singular", ScaledOperator(2.0, DiagonalOperator(_CZ)), False, True, VALUE_RAISE),
@@ -206,8 +272,12 @@ _CONTRACT_ROWS = [
     # inverse (InverseOperator) is #280-deferred on the adjoint axis, so
     # is_invertible=False and inverse() RAISES NotInvertible (VALUE_RAISE, not
     # STRUCTURAL_ABSENT — the method now exists). A.H.H still raises
-    # MissingAdjoint EAGERLY (adjoint-of-adjoint deferred).
-    ("AdjointWrapper", DiagonalOperator(_C).H, False, False, VALUE_RAISE),
+    # MissingAdjoint EAGERLY (adjoint-of-adjoint deferred). The inner is
+    # the BOUND leaf since the S4-amendment: Diagonal is a
+    # PointwiseOperator (its .H is itself, no wrapper), and the wrapper's
+    # constructor now REFUSES an unbound inner — the wrapper's own
+    # predicate derivation is what this row pins.
+    ("AdjointWrapper", _AdjointOperator(_BoundDiagonalLeaf(_C)), False, False, VALUE_RAISE),
     # The wrap-delegate inverse family (SweepOperator = SN side, pinned
     # in tests/sn/operators/test_capability_survival.py); the adjoint
     # column is per-sibling — see _mixin_family:

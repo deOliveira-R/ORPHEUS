@@ -44,6 +44,11 @@ class MatrixOperator(LinearOperator):
     direct ``M @ x``). Inherits :class:`LinearOperator` so that
     ``+`` / ``-`` / ``*`` / ``@`` invoke the composers.
     """
+    # S4-amendment: the base DEMANDS an answer from every subclass; this
+    # double is a deliberately-unbound probe, so it DECLARES the unbound
+    # state instead of inheriting a silent default (which no longer exists).
+    domain = None
+    codomain = None
 
     def __init__(
         self,
@@ -530,21 +535,42 @@ def test_pow_non_integer_returns_notimplemented(matrix_full):
         _ = matrix_full ** 1.5
 
 
-def test_H_aliases_adjoint(matrix_full):
-    """``A.H`` returns an adjoint wrapper just like ``A.adjoint()``."""
-    H1 = matrix_full.H
-    H2 = matrix_full.adjoint()
+def test_H_aliases_adjoint(matrix_full, n_dim):
+    """``A.H`` returns an adjoint wrapper just like ``A.adjoint()``.
+
+    On a BOUND operator since the S4-amendment (an unbound non-pointwise
+    ``.H`` is refused — the R2 closure)."""
+    op = _SpacedMatrixOperator(
+        matrix_full.matrix,
+        FunctionSpace("alias_dom", (n_dim,)),
+        FunctionSpace("alias_cod", (n_dim,)),
+    )
+    H1 = op.H
+    H2 = op.adjoint()
     # Both wrap the same inner.
-    assert getattr(H1, "inner", None) is matrix_full
-    assert getattr(H2, "inner", None) is matrix_full
+    assert getattr(H1, "inner", None) is op
+    assert getattr(H2, "inner", None) is op
 
 
 def test_adjoint_euclidean_identity(matrix_full, rng, n_dim):
-    """For Euclidean inner products, ``<A u, v> == <u, A.H v>``."""
+    """For Euclidean inner products, ``<A u, v> == <u, A.H v>``.
+
+    Bound to two BARE (weightless = Euclidean) spaces since the
+    S4-amendment: ``.H`` refuses an UNBOUND operator (the R2 hazard —
+    a Euclidean transpose wearing the Hilbert adjoint's name), so the
+    Euclidean case is spelled honestly as trivial metrics, not as
+    missing ones. The raw representation-transpose verb for unbound
+    operators remains ``apply_transpose``.
+    """
+    op = _SpacedMatrixOperator(
+        matrix_full.matrix,
+        FunctionSpace("euclid_dom", (n_dim,)),
+        FunctionSpace("euclid_cod", (n_dim,)),
+    )
     u = rng.standard_normal(n_dim)
     v = rng.standard_normal(n_dim)
-    Au = matrix_full.apply(u)
-    Hv = matrix_full.H.apply(v)
+    Au = op.apply(u)
+    Hv = op.H.apply(v)
     lhs = float(np.dot(Au, v))
     rhs = float(np.dot(u, Hv))
     assert np.isclose(lhs, rhs, rtol=1e-12)

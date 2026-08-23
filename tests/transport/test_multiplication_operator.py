@@ -66,7 +66,6 @@ from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
     NotInvertible,
     OperatorSum,
-    ZeroOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -248,12 +247,14 @@ class TestMultiplierAlgebraLaws:
         )
 
     def test_M_zero_is_codomain_aware_zero_operator(self):
-        r""":math:`M[0] = 0` — the zero coefficient promotes to a ZeroOperator.
+        r""":math:`M[0] = 0` — the zero coefficient acts as the zero map.
 
         Codomain-aware: collision's zero is a *zero SOURCE*, not a zero
-        flux. The structurally-independent reference is the numerics
-        :class:`ZeroOperator` with the codomain-zero hook returning the
-        SAME zero AngularSourceSink composite ``M[0].apply`` produces.
+        flux (M[f] is a ROLE-mapping bound multiplier, so its zero is the
+        codomain's — unlike the endomorphic pointwise
+        :class:`ZeroOperator`, whose echo is its own space's zero). The
+        structurally-independent reference is the zero AngularSourceSink
+        composite, hand-assembled.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
         zeros = np.zeros((2, *sn.spatial_shape))
@@ -269,20 +270,20 @@ class TestMultiplierAlgebraLaws:
         )
         np.testing.assert_array_equal(out.interior.values, 0.0)
 
-        # Structurally-independent: a codomain-aware ZeroOperator whose
-        # codomain_zero builds the zero source-composite from psi.
-        def _zero_source(p: TimedFullField) -> TimedFullField:
-            return replace(
-                p,
-                interior=AngularSourceSink(
-                    values=np.zeros_like(p.interior.values),
-                    space=p.interior.space,
-                ),
-            )
-
-        Z = ZeroOperator(codomain_zero=_zero_source)
+        # Structurally-independent reference: the zero source-composite
+        # built directly from psi (the codomain's zero, hand-assembled —
+        # the pre-S4-amendment spelling routed this through ZeroOperator's
+        # retired codomain_zero hook, which added nothing the direct
+        # construction does not state).
+        zero_source = replace(
+            psi,
+            interior=AngularSourceSink(
+                values=np.zeros_like(psi.interior.values),
+                space=psi.interior.space,
+            ),
+        )
         np.testing.assert_array_equal(
-            out.interior.values, Z.apply(psi).interior.values,
+            out.interior.values, zero_source.interior.values,
         )
         # M[0] is NOT invertible — its spectrum is {0}.
         _require(

@@ -66,6 +66,11 @@ class _DenseActionOperator(LinearOperator):
     ``is_invertible`` stays the base ``False`` — the §30.7 witness's
     non-invertible leading leaf, and the §28.4 rectangular fixture.
     """
+    # S4-amendment: the base DEMANDS an answer from every subclass; this
+    # double is a deliberately-unbound probe, so it DECLARES the unbound
+    # state instead of inheriting a silent default (which no longer exists).
+    domain = None
+    codomain = None
 
     def __init__(self, matrix: np.ndarray) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
@@ -105,6 +110,11 @@ class _IndexStampOperator(LinearOperator):
     O(1)-visible (§28.3). A single-column ``(n, 1)`` basis would be
     BLIND (C and F enumeration coincide) — hence ``(2, 3)``.
     """
+    # S4-amendment: the base DEMANDS an answer from every subclass; this
+    # double is a deliberately-unbound probe, so it DECLARES the unbound
+    # state instead of inheriting a silent default (which no longer exists).
+    domain = None
+    codomain = None
 
     SHAPE = (2, 3)
 

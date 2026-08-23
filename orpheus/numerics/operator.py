@@ -173,6 +173,8 @@ __all__ = [
     "OperatorProduct",
     "ScaledOperator",
     "IdentityOperator",
+    "PointwiseOperator",
+    "ZeroMorphism",
     "ZeroOperator",
     "PermutationOperator",
     "TraceRestrictionOperator",
@@ -655,25 +657,44 @@ class LinearOperator(Protocol[Domain, Codomain]):
     system_role: Optional[SystemRole] = None
 
     @property
+    @abstractmethod
     def domain(self) -> Optional["FunctionSpace"]:
-        """The function space this operator consumes, or ``None``.
+        """The function space this operator consumes — DEMANDED of every
+        subclass (the S4-amendment, 2026-08-22: an operator is not an
+        operator without its two spaces, and this base no longer supplies
+        a silent ``None`` default an implementer can inherit unawares).
 
-        Operators that pre-date Issue 9.6 (and any operator that has
-        no canonical function-space tagging) return ``None`` — the
-        default supplied by this base. When either operand of a
-        composition has ``None`` for ``domain`` or ``codomain``, the
-        composability check is skipped — preserving the legacy
-        duck-typed behaviour for code paths that do not track spaces.
+        Every class must ANSWER, in one of four ways:
+
+        * **bind** — return a space stored/threaded at construction (the
+          :class:`~orpheus.transport.operators.fission.FissionOperator`
+          precedent: space MANDATORY, non-Optional return);
+        * **derive** — compute it from operands/held data (the
+          composites' agreement/position laws, :class:`InverseWrapMixin`'s
+          swap, a mesh-holding leaf reading its mesh's space);
+        * **the pointwise law** — :class:`PointwiseOperator` members
+          answer ``None`` BY LAW (space-polymorphic: the domain is the
+          operand's space at operation time, discriminated by type);
+        * **a documented Optional** — an explicit override returning
+          ``FunctionSpace | None`` whose docstring names the campaign
+          that owns its mandatory flip (S/C/iso → CS4c, L/B → CS2).
+
+        While the chartered migrations run, ``None`` remains legal in
+        VALUE (the annotation stays Optional and the composability check
+        skips a ``None`` end); what is no longer legal is SILENCE — the
+        terminal narrowing to ``FunctionSpace`` and the skip's retirement
+        land when those campaigns finish.
         """
-        return None
+        ...
 
     @property
+    @abstractmethod
     def codomain(self) -> Optional["FunctionSpace"]:
-        """The function space this operator produces, or ``None``.
-
-        See :attr:`domain` for the ``None`` semantics.
+        """The function space this operator produces — DEMANDED of every
+        subclass. See :attr:`domain` for the four legitimate answers and
+        the Optional-until-terminal semantics.
         """
-        return None
+        ...
 
     # ------------------------------------------------------------------
     # Per-axis structural predicates (#226 inverse-as-operator carve).
@@ -714,6 +735,27 @@ class LinearOperator(Protocol[Domain, Codomain]):
         ``(A+B).is_adjointable == A.is_adjointable and B.is_adjointable`` —
         structurally computed rather than cached in a string set. Default
         ``False``; an operator with a working ``apply_transpose`` overrides.
+        """
+        return False
+
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        r"""Whether this operator's Hilbert adjoint needs NO metric — i.e.
+        its Euclidean transpose IS its Hilbert adjoint in every shipped
+        (diagonal) inner product.
+
+        ``True`` exactly on the pointwise/multiplier stratum and its
+        compositions: a real multiplier commutes with every diagonal
+        metric, and sums/products/scalings of metric-free operators stay
+        metric-free (for a composite only the END metrics enter the
+        adjoint sandwich — interior metrics cancel — so all-metric-free
+        composites keep the Euclidean identity). The S4-amendment's
+        unbound-``.H`` refusal reads this: an UNBOUND operator may take
+        ``.H`` iff this is ``True``, because then and only then is the
+        Euclidean fallback the honest answer rather than the R2 hazard.
+        Default ``False``; :class:`PointwiseOperator` overrides ``True``;
+        composites derive recursively (the module's predicate
+        discipline — computed from operands, never cached).
         """
         return False
 
@@ -1268,6 +1310,27 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
     """
 
     def __init__(self, inner: "SupportsAdjoint[Domain, Codomain]") -> None:
+        # The S4-amendment's unbound-.H refusal (user ruling, 2026-08-22):
+        # the Hilbert adjoint is defined BY the two inner products, so an
+        # operator that has not declared its spaces has no Hilbert adjoint
+        # to take — and the pre-amendment behaviour (apply the Euclidean
+        # transpose and skip the metric sandwiches) was the catalogued R2
+        # hazard: "a bare Euclidean transpose wearing the Hilbert
+        # adjoint's name". Eagerly, here at construction, in this class's
+        # own broken-stub-refusing style. The metric-free families never
+        # reach this constructor: a PointwiseOperator's adjoint() returns
+        # itself, ZeroMorphism's the swapped zero map.
+        if (
+            inner.domain is None or inner.codomain is None
+        ) and not inner.is_metric_free_adjoint:
+            raise MissingAdjoint(
+                f"{type(inner).__name__} is UNBOUND (domain/codomain "
+                f"None) — the Hilbert adjoint needs the two spaces' "
+                f"metrics; declare both, or use apply_transpose for the "
+                f"bare representation transpose. (A space-polymorphic "
+                f"multiplier belongs in PointwiseOperator, whose adjoint "
+                f"is metric-free.)"
+            )
         self.inner = inner
         # The G-adjoint transposes the 2×2 block matrix (A_bs ↔ A_sb^T),
         # which preserves WHICH blocks are touched — so the role is the
@@ -1495,6 +1558,13 @@ class OperatorSum(
         return self.a.is_adjointable and self.b.is_adjointable
 
     @property
+    def is_metric_free_adjoint(self) -> bool:
+        # A sum of metric-free operators is metric-free (derived).
+        return (
+            self.a.is_metric_free_adjoint and self.b.is_metric_free_adjoint
+        )
+
+    @property
     def is_invertible(self) -> bool:
         r"""``True`` iff the LEADING (left-spine head) term is invertible.
 
@@ -1653,13 +1723,23 @@ class OperatorProduct(
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        # A @ B: input space is B.domain.
-        return getattr(self.b, "domain", None)
+        # A @ B: input space is B.domain — with the pointwise-conforming
+        # arm (S4-amendment): a PointwiseOperator B acts AT its operand's
+        # space, so the product's input space is whatever A consumes.
+        d = getattr(self.b, "domain", None)
+        if d is None and isinstance(self.b, PointwiseOperator):
+            return getattr(self.a, "domain", None)
+        return d
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        # A @ B: output space is A.codomain.
-        return getattr(self.a, "codomain", None)
+        # A @ B: output space is A.codomain — with the pointwise-conforming
+        # arm (S4-amendment): a PointwiseOperator A emits at its operand's
+        # space, which is B's output space.
+        c = getattr(self.a, "codomain", None)
+        if c is None and isinstance(self.a, PointwiseOperator):
+            return getattr(self.b, "codomain", None)
+        return c
 
     def apply(self, x: Domain, /) -> Codomain:
         return self.a.apply(self.b.apply(x))
@@ -1742,6 +1822,13 @@ class OperatorProduct(
         # (AB)^T = B^T A^T (the law in :meth:`apply_transpose`) — adjointable
         # iff BOTH factors are.
         return self.a.is_adjointable and self.b.is_adjointable
+
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        # A product of metric-free operators is metric-free (derived).
+        return (
+            self.a.is_metric_free_adjoint and self.b.is_metric_free_adjoint
+        )
 
     @property
     def is_assemblable(self) -> bool:
@@ -1880,6 +1967,11 @@ class ScaledOperator(
         return self.op.is_adjointable
 
     @property
+    def is_metric_free_adjoint(self) -> bool:
+        # A real scalar is a multiplier — scaling preserves metric-freeness.
+        return self.op.is_metric_free_adjoint
+
+    @property
     def is_assemblable(self) -> bool:
         # [αL] = α[L] (the law in :meth:`assemble`) — scaling preserves
         # assemblability.
@@ -1907,11 +1999,86 @@ class ScaledOperator(
         )
 
 
-class IdentityOperator(LinearOperator[Domain]):
-    r"""The identity operator :math:`I\,x = x`.
+class PointwiseOperator(LinearOperator[Domain, Domain]):
+    r"""The space-polymorphic POINTWISE (multiplier) family — an
+    endomorphism at EVERY admissible space, acting identically.
 
-    Both axes hold trivially — :math:`I^{-1} = I` and :math:`I^T = I` —
-    and both are ALGEBRA-CLOSED: :meth:`inverse` returns this very
+    The natural stratum of the multiplier algebra the transport layer
+    documents at
+    :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+    (``M[1] = I``, ``M[0] = 0``, ``M[f]`` — that class is the BOUND,
+    typed-carrier realization; this base is the polymorphic engine
+    stratum). A member is *multiplication by a coefficient* — the
+    constant ``1`` (:class:`IdentityOperator`), the constant ``0``
+    (:class:`ZeroOperator`), a field ``f`` (:class:`DiagonalOperator`) —
+    so each output entry depends only on the SAME input entry: nothing
+    couples, nothing is transposed across.
+
+    The two laws the type declares (the S4-amendment):
+
+    * **No stored space pair.** ``domain``/``codomain`` answer ``None``
+      BY LAW — the member acts at the operand's space, obtained at
+      operation time, and ``domain == codomain == that space`` for every
+      apply. This is a *typed* statement (discriminated by
+      ``isinstance``), not the legacy silent default: a bound operator
+      answering ``None`` is a declared migration debt; a pointwise
+      operator answering ``None`` is permanently, correctly
+      space-polymorphic. Composition handles it through the agreement
+      law unchanged ("an operand that declares nothing contributes
+      nothing" — :func:`_agreed_space`): a pointwise operand CONFORMS to
+      its neighbours' space, which is precisely its naturality.
+    * **The Hilbert adjoint is metric-free:** ``A.H is A``. A real
+      multiplier commutes with every diagonal metric (pointwise
+      multiplications commute), so the metric sandwich cancels
+      identically and :meth:`adjoint` returns ``self`` — algebra-closed,
+      no :class:`_AdjointOperator` wrapper, no spaces needed. This is
+      what makes the family's exemption from the unbound-``.H`` refusal
+      exact rather than permissive. (Real coefficients throughout —
+      the complexification thread revisits at Campaign 2's resolvent.)
+
+    The boundary of the family is the commutation theorem, not
+    endomorphy: :class:`PermutationOperator` is endomorphic and acts on
+    many spaces, yet permuting does NOT commute with a general diagonal
+    metric, so its adjoint genuinely needs the spaces — it is correctly
+    NOT a member. Bound multipliers (``MultiplicationOperator``,
+    :class:`InverseMetricOperator`) are pointwise in ACTION but defined
+    by a space's data — they stay bound classes.
+    """
+
+    @property
+    def domain(self) -> None:
+        r"""``None`` BY LAW — see the class docstring (space-polymorphic:
+        the domain is the operand's space, at operation time)."""
+        return None
+
+    @property
+    def codomain(self) -> None:
+        r"""``None`` BY LAW — an endomorphism at the operand's space."""
+        return None
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # every real multiplier is self-adjoint (class law)
+
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        return True  # the family law — commutes with every diagonal metric
+
+    def adjoint(self) -> "PointwiseOperator[Domain]":
+        r"""``A^* = A`` — a real multiplier commutes with every diagonal
+        metric, so the Hilbert adjoint IS the operator, in every shipped
+        inner product. Algebra-closed (returns ``self``); the generic
+        metric-sandwich wrapper is never built for a pointwise member."""
+        return self
+
+
+class IdentityOperator(PointwiseOperator[Domain]):
+    r"""The identity operator :math:`I\,x = x` — multiplication by ``1``,
+    the pointwise family's unit (:class:`PointwiseOperator`).
+
+    Both axes hold trivially — :math:`I^{-1} = I` and :math:`I^* = I` —
+    and both are ALGEBRA-CLOSED: :meth:`inverse` and the inherited
+    pointwise :meth:`~PointwiseOperator.adjoint` each return this very
     instance, so there is no ``solve`` verb to keep (solving with the
     identity IS applying its inverse, itself).
     """
@@ -1930,141 +2097,143 @@ class IdentityOperator(LinearOperator[Domain]):
         r"""Return :math:`I^{-1} = I` — this very instance (stateless)."""
         return self
 
-    @property
-    def is_adjointable(self) -> bool:
-        return True  # I^T = I
+
+class ZeroOperator(PointwiseOperator[Domain]):
+    r"""The ENDOMORPHIC zero :math:`0\,x = 0` — multiplication by ``0``,
+    the pointwise family's absorbing element (:class:`PointwiseOperator`).
+
+    Stateless and space-polymorphic: the action routes through ``0.0 * x``,
+    echoing the operand's type — the zero OF the operand's own space,
+    which is correct precisely because a pointwise member is an
+    endomorphism there (``domain == codomain == the operand's space``,
+    by the family law). ``apply_transpose`` is the same map
+    (:math:`0^{\mathsf T} = 0`), and the inherited pointwise
+    :meth:`~PointwiseOperator.adjoint` returns ``self``.
+
+    STRUCTURALLY non-invertible — the singular map par excellence — so it
+    declares no ``inverse()`` at all: misuse is a static error, the
+    honest surface for a type whose inverse does not exist mathematically
+    (Design C; a raising stub would be the harmful-stub anti-pattern this
+    module is designed against).
+
+    The zero MAP between two DIFFERENT spaces is a different object —
+    :class:`ZeroMorphism`, born bound to its pair. Until the
+    S4-amendment (2026-08-22) this class straddled both roles through
+    per-site ``codomain_zero``/``transpose_zero`` closures and optional
+    space fields (#330); the un-weld split them: the closures' two
+    production consumers dissolved (the fission pencil member became
+    stack ∘ restriction at A2; the vacuum law binds a
+    :class:`ZeroMorphism`), and the hooks retired with them.
+    """
+
+    def apply(self, x: Domain, /) -> Domain:
+        # Endomorphic by the family law: the zero of the codomain IS the
+        # zero of the operand's own space — ``0.0 * x`` echoes it (bare
+        # ``np.ndarray`` → ``np.zeros_like(x)`` bit-exact; a typed
+        # carrier → a fresh same-class zero via its scalar dunder).
+        return cast("Domain", 0.0 * x)
+
+    def apply_transpose(self, x: Domain, /) -> Domain:
+        # 0^T = 0 — the same endomorphic echo.
+        return cast("Domain", 0.0 * x)
+
+    # is_invertible inherits the base ``False`` — the zero map is singular.
 
 
-class ZeroOperator(LinearOperator[Domain, Codomain]):
-    r"""The zero operator :math:`0\,x = 0`.
-
-    Has ``apply`` (returns the zero of its CODOMAIN) and
-    ``apply_transpose`` (also zero), and is STRUCTURALLY non-invertible
-    — the singular map par excellence — so it declares no ``inverse()``
-    at all: misuse is a static error, the honest surface for a type
-    whose inverse does not exist mathematically (Design C; forcing a
-    raising stub would be the harmful-stub anti-pattern this module is
-    designed against).
-
-    A zero operator's output lives in its CODOMAIN
-    ---------------------------------------------
+class ZeroMorphism(LinearOperator):
+    r"""The zero MAP between two DECLARED spaces:
+    :math:`0 : \mathcal D \to \mathcal C`.
 
     An operator :math:`A : \mathcal D \to \mathcal C` maps the domain
-    :math:`\mathcal D` to the codomain :math:`\mathcal C`; its action —
-    including the zero action — produces an element of
-    :math:`\mathcal C`.  The zero map therefore yields the *zero of the
-    codomain*, which is the input's type ONLY when :math:`\mathcal D =
-    \mathcal C` (an endomorphism, or a bare-``np.ndarray`` operator).
+    to the codomain; its action — including the zero action — produces an
+    element of :math:`\mathcal C`. The zero map is the ONE operator whose
+    action cannot reveal which spaces it connects (every probe returns
+    zero), so unlike every other operator it cannot even be *probed* into
+    a pair — the pair must be DECLARED, and this class demands both at
+    construction (the S4-amendment's base demand, in its sharpest
+    instance). The canonical production member is the vacuum boundary
+    law's :math:`R = 0 : \Gamma_+ \to \Gamma_-` — the α → 0 member of
+    the albedo family ``α · (geometric link)``, realized structurally
+    (the link is never built just to be zeroed).
 
-    * **Default (``codomain_zero=None``) — endomorphism / bare ndarray.**
-      Routes through ``0.0 * x``, echoing the INPUT type via the
-      right-multiplication dunder.  Correct when domain == codomain:
-      bare ``np.ndarray`` → ``np.zeros_like(x)`` bit-exact; a typed
-      endomorphism → a fresh same-class zero.
-    * **``codomain_zero`` supplied — genuine map between spaces.** When
-      the operator changes space — e.g. a fission operator
-      :math:`F : \psi \mapsto q_{\rm fis}` maps FLUX to SOURCE, so its
-      zero output is a *zero SOURCE*, never a zero flux — pass
-      ``codomain_zero``: a callable ``x ↦ 0_\mathcal C`` building the
-      codomain's zero from ``x`` (typically reading ``x``'s mesh/shape).
-      ``apply`` returns ``codomain_zero(x)``.
+    The action mints the codomain's zero from the BOUND shape, with the
+    seam's payload convention: the space describes the STRUCTURAL axes,
+    and any trailing axes the operand carries beyond the domain's rank
+    (group/spatial payload at the trace seam) ride through unchanged —
+    ``zeros(codomain.shape + payload)``. The transpose mints the
+    domain's the same way (:math:`0^{\mathsf T} : \mathcal C \to
+    \mathcal D` — under #276 A4 duality typing it consumes the
+    codomain-cotangent and emits the domain-cotangent, and a zero is a
+    zero on either side). This is
+    :class:`TraceRestrictionOperator`'s trailing-axes-intact convention,
+    stated on a bound pair.
+    The pre-amendment spelling reached these shapes through per-site
+    ``codomain_zero``/``transpose_zero`` closures, which duplicated what
+    the bound spaces already knew; deriving from the binding retires the
+    closures AND their caller-side consistency check (the hook-vs-space
+    agreement is now unspellable — single source).
 
-    The typed SN within-group inner solve wires the zero fission slot as
-    ``ZeroOperator(codomain_zero=…)`` returning a source-typed
-    (:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`)
-    zero, so the typed RHS ``S.apply(ψ) + F.apply(ψ) + q_ext`` and the
-    Krylov matvec ``L.apply − S.apply − F.apply`` stay CLOSED source-typed
-    sums (a flux-echoing zero would hit the cross-class gate). Formal
-    operator codomain typing is issue #208; ``codomain_zero`` is the
-    pre-#208 hook that keeps the zero operator honest about what space it
-    maps into. Since #276 A4 the hook is SYMMETRIC: ``transpose_zero``
-    supplies the typed zero the TRANSPOSE emits (the domain's dual-role
-    zero under duality typing) — first exercised by the coupled fission
-    grid's (B, B) slot, whose whole grid the daggered eigen posing
-    transposes. Without either hook both directions stay the endomorphic
-    ``0.0 * x`` echo, bit-identical to the pre-A4 behaviour.
+    :meth:`adjoint` is algebra-closed and metric-free: the Hilbert
+    adjoint of the zero map is the zero map of the swapped pair, in any
+    inner product — no sandwich, no wrapper.
 
-    Naming the two spaces (G6.3 step 6, #330)
-    ----------------------------------------
-
-    The zero map is the one operator whose ACTION cannot reveal which spaces it
-    connects — every input goes to zero, so no probe distinguishes
-    :math:`0 : \mathcal D \to \mathcal C` from :math:`0` on any other pair. The
-    two hooks above already carry the *shapes* (that is what they are FOR); the
-    optional ``domain`` / ``codomain`` carry the **identities**, so a zero slot
-    composes under the :class:`OperatorSum` / :class:`OperatorProduct`
-    composability check like any other bound operator instead of silently
-    short-circuiting it via ``None``.
-
-    Note the distinction from the class's TYPE parameters: ``Domain`` /
-    ``Codomain`` are the static element types (what ``apply`` consumes and
-    emits); ``domain`` / ``codomain`` are the runtime
-    :class:`~orpheus.numerics.space.FunctionSpace` instances (WHICH space, of
-    possibly many sharing that element type). A zero map between two distinct
-    trace half-spaces of one face has identical type parameters and different
-    spaces — which is exactly the case
-    :func:`~orpheus.sn.boundary.realizer._narrowed_zero_operator` binds.
-
-    Unlike the four operators guarded by :func:`checked_space_extent`, this one
-    stores no LENGTH to check a bound space against: the hooks are opaque
-    callables, and calling one at construction to measure its output would
-    require an input this class does not have. The consistency check therefore
-    belongs to the caller that knows both facts —
-    ``_narrowed_zero_operator`` runs it there, against the half-trace index
-    arrays it sizes the hooks from.
+    Deliberately UNPARAMETERIZED (the :class:`PermutationOperator`
+    precedent): the ndarray-seam consumers (the boundary trace algebra)
+    do not satisfy the ``Vector`` protocol statically, and the two
+    ``FunctionSpace``\ s — not static type parameters — are this
+    operator's identity.
     """
 
     def __init__(
         self,
-        codomain_zero: "Callable[[Domain], Codomain] | None" = None,
-        transpose_zero: "Callable[[Codomain], Domain] | None" = None,
         *,
-        domain: Optional["FunctionSpace"] = None,
-        codomain: Optional["FunctionSpace"] = None,
+        domain: "FunctionSpace",
+        codomain: "FunctionSpace",
     ) -> None:
-        self._codomain_zero = codomain_zero
-        self._transpose_zero = transpose_zero
+        if domain is None or codomain is None:  # a loud guard, not typing
+            raise TypeError(
+                "ZeroMorphism demands BOTH spaces at construction — the "
+                "zero map is the one operator whose action cannot reveal "
+                "its pair, so the pair must be declared. For the"
+                " endomorphic zero at the operand's own space use"
+                " ZeroOperator()."
+            )
         self._domain = domain
         self._codomain = codomain
 
     @property
-    def domain(self) -> Optional["FunctionSpace"]:
+    def domain(self) -> "FunctionSpace":
         return self._domain
 
     @property
-    def codomain(self) -> Optional["FunctionSpace"]:
+    def codomain(self) -> "FunctionSpace":
         return self._codomain
 
-    def apply(self, x: Domain, /) -> Codomain:
-        if self._codomain_zero is not None:
-            return self._codomain_zero(x)
-        # Endomorphic default (domain == codomain ⟹ ``W`` is ``V``): the
-        # zero of the codomain IS ``0.0 * x``. ``cast`` is the PEP-484
-        # bridge for the one genuinely-untypeable spot — this branch is
-        # reached ONLY when no ``codomain_zero`` was supplied, i.e. when
-        # the operator is endomorphic and ``W == V``.
-        return cast("Codomain", 0.0 * x)
+    def apply(self, x: object, /) -> "np.ndarray":
+        r"""The zero of the CODOMAIN — bound structural axes + the
+        operand's payload tail, in the operand's dtype."""
+        arr = np.asarray(x)
+        payload = arr.shape[len(self._domain.shape):]
+        return np.zeros(self._codomain.shape + payload, dtype=arr.dtype)
 
-    def apply_transpose(self, x: "Codomain", /) -> Domain:
-        # The transpose of a role-MAPPING zero slot emits a typed zero
-        # too: under duality typing (#276 A4) the transpose consumes the
-        # codomain-cotangent and emits the domain-cotangent, whose class
-        # is the domain's DUAL role — supplied by ``transpose_zero``
-        # exactly as ``codomain_zero`` supplies the forward's.  First
-        # exercised by the coupled fission grid's (B, B) slot (#276 A4 —
-        # the daggered eigen posing transposes the whole grid), which
-        # ended the pre-#208 "transpose of the zero slot is not
-        # exercised" era.
-        if self._transpose_zero is not None:
-            return self._transpose_zero(x)
-        # Endomorphic default — the zero echo (see ``apply``).
-        return cast("Domain", 0.0 * x)
+    def apply_transpose(self, y: object, /) -> "np.ndarray":
+        r"""The zero of the DOMAIN (the transpose lands there), payload
+        riding through as in :meth:`apply`."""
+        arr = np.asarray(y)
+        payload = arr.shape[len(self._codomain.shape):]
+        return np.zeros(self._domain.shape + payload, dtype=arr.dtype)
 
     @property
     def is_adjointable(self) -> bool:
-        return True  # 0^T = 0
+        return True  # 0^* exists in any metric: the swapped zero map
 
-    # is_invertible inherits the base ``False`` — the zero map is singular.
+    def adjoint(self) -> "ZeroMorphism":
+        r"""``0^* : \mathcal C \to \mathcal D`` — the swapped pair's zero
+        map (metric-free: the zero is self-dual up to the swap)."""
+        return ZeroMorphism(domain=self._codomain, codomain=self._domain)
+
+    # is_invertible inherits ``False``; no ``inverse()`` is declared —
+    # the same Design-C surface as the endomorphic ZeroOperator.
 
 
 class _WrappedForward(Protocol):
@@ -2962,6 +3131,11 @@ class TensorProductOperator(LinearOperator):
         # (A⊗B)^T = A^T⊗B^T — adjointable iff every factor is.
         return all(op.is_adjointable for op in self.ops)
 
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        # A tensor product of metric-free operators is metric-free (derived).
+        return all(op.is_metric_free_adjoint for op in self.ops)
+
 
 class SumOfTensorProductsOperator(LinearOperator):
     r"""Sum of tensor products :math:`\sum_k A_k \otimes B_k \otimes \cdots`.
@@ -3070,6 +3244,11 @@ class SumOfTensorProductsOperator(LinearOperator):
         # inherits the base ``False``.)
         return all(s.is_adjointable for s in self.summands)
 
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        # Summand-wise, like the transpose (derived).
+        return all(s.is_metric_free_adjoint for s in self.summands)
+
 
 class InverseMetricOperator(LinearOperator):
     r"""A :class:`~orpheus.numerics.space.FunctionSpace`'s inverse metric, as an OPERATOR.
@@ -3157,7 +3336,7 @@ class InverseMetricOperator(LinearOperator):
         return f"InverseMetricOperator({self._space!r})"
 
 
-class DiagonalOperator(LinearOperator):
+class DiagonalOperator(PointwiseOperator):
     r"""Diagonal (pointwise) multiplication by a coefficient field.
 
     The operator multiplies a carrier tensor :math:`x` by a coefficient
@@ -3395,9 +3574,6 @@ class DiagonalOperator(LinearOperator):
             )
         return InverseOperator(self)
 
-    @property
-    def is_adjointable(self) -> bool:
-        return True  # real diagonal is self-adjoint
 
 
 class RankOneOperator(LinearOperator):
@@ -3511,6 +3687,22 @@ class RankOneOperator(LinearOperator):
         # an artifact of the square-only legacy form, not a real constraint).
         self.reconstruction = reconstruction
         self.functional = functional
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        r"""``None`` — a DOCUMENTED Optional (the S4-amendment's fourth
+        answer): the dyad's two vectors are bare arrays that carry no
+        spaces today, so there is nothing honest to derive. The owning
+        flip is CS4c's kernel binding (``FissionKernel``'s dyad bound to
+        its Energy space), where the row/column gain their spaces and
+        this override narrows.
+        """
+        return None
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        r"""``None`` — see :attr:`domain` (the CS4c-owned debt)."""
+        return None
 
     @property
     def is_adjointable(self) -> bool:

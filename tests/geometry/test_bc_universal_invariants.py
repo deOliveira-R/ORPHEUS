@@ -631,14 +631,14 @@ class TestSNRealizerPrescribedInflowDispatch:
             ConstantInflowSource,
             PrescribedInflow,
         )
-        from orpheus.numerics.operator import BlockRole, ZeroOperator
+        from orpheus.numerics.operator import BlockRole, ZeroMorphism
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
         space = face_method_space(Quadrature.lebedev(17), face="xmax")
         op = SNBoundaryRealizer().realize(bc, space)
 
-        assert isinstance(op, ZeroOperator)
+        assert isinstance(op, ZeroMorphism)
         assert op.block_role is BlockRole.BOUNDARY
         # ``is`` and not ``==``: FunctionSpace equality is (name, shape), so
         # identity is the strictly stronger claim and the two half-traces of

@@ -28,8 +28,8 @@ that a quadrature alone cannot supply, so ``SNMethodSpace.minimal`` no longer
 suffices for the two laws below.
 
 * :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` → the **zero map**
-  :math:`\Gamma_+ \to \Gamma_-` (a :class:`~orpheus.numerics.operator.ZeroOperator`
-  carrying both space hooks). Vacuum's whole content is :math:`R = 0`; with
+  :math:`\Gamma_+ \to \Gamma_-` (a :class:`~orpheus.numerics.operator.ZeroMorphism`
+  bound to both half-traces). Vacuum's whole content is :math:`R = 0`; with
   the domain narrowed there is nothing else to represent.
 
   Pre-B3.2 this was an ``IncomingOrdinateMaskTensor`` — a full-face
@@ -98,7 +98,7 @@ suffices for the two laws below.
   :class:`~orpheus.numerics.operator.IdentityOperator` (the crossing it
   carries is the PARTNER-face channel, not an action on the trace).
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.numerics.operator.ZeroOperator` — the same zero morphism
+  :class:`~orpheus.numerics.operator.ZeroMorphism` — the same zero morphism
   vacuum returns, because the law is affine and this tier realizes its LINEAR
   factor, which is :math:`0`. The source travels the boundary-source channel
   (:ref:`bc-affine-source-channel`). The rank-0 affine BC (Wave 7 / C7.5);
@@ -179,7 +179,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
     PermutationOperator,
     TraceRestrictionOperator,
-    ZeroOperator,
+    ZeroMorphism,
     checked_space_extent,
 )
 from .angular import (
@@ -207,26 +207,6 @@ __all__ = ["SNBoundaryRealizer"]
 #: itself stays general-purpose numerics API (`[M]` a non-boundary consumer
 #: composes ``PermutationOperator(_P4, axis=1)`` inside a tensor product).
 _ORDINATE_AXIS: int = 0
-
-
-def _zero_rows(n_rows: int) -> "Callable[[object], np.ndarray]":
-    r"""A :class:`ZeroOperator` space hook emitting ``n_rows`` ordinates.
-
-    The zero map between two DIFFERENT spaces must emit the zero of the space
-    it lands in, not an echo of the one it came from — see
-    :class:`~orpheus.numerics.operator.ZeroOperator`'s own note. Trailing axes
-    (group, spatial) are carried through unchanged.
-
-    The parameter is typed ``object`` because a hook CONSUMED by the operator
-    is contravariant in its input: it must accept whatever the operator hands
-    it. This mirrors ``_ray_source_zero`` in :mod:`orpheus.sn.solver`, the
-    codebase's existing space-hook spelling.
-    """
-    def build(x: object) -> "np.ndarray":
-        arr = np.asarray(x)
-        return np.zeros((n_rows,) + arr.shape[1:], dtype=arr.dtype)
-
-    return build
 
 
 def _outflow_restriction(
@@ -330,14 +310,16 @@ def _narrowed_zero_operator(
     gamma_out: "TraceRestrictionOperator",
     *,
     law_key: str,
-) -> "ZeroOperator":
-    r"""The zero map :math:`\Gamma_+ \to \Gamma_-`, with both spaces named.
+) -> "ZeroMorphism":
+    r"""The zero map :math:`\Gamma_+ \to \Gamma_-`, bound to both spaces.
 
     A zero map between two DIFFERENT spaces must emit the zero of the space it
-    lands in, not an echo of the one it came from — see
-    :class:`~orpheus.numerics.operator.ZeroOperator`'s own note. The forward
-    emits the zero of :math:`\Gamma_-`, the transpose the zero of
-    :math:`\Gamma_+`. Relying on the endomorphic ``0.0 * x`` echo would be
+    lands in, not an echo of the one it came from — the bound
+    :class:`~orpheus.numerics.operator.ZeroMorphism`, which derives both
+    zeros from its DECLARED pair (the S4-amendment: the pre-amendment
+    per-site ``codomain_zero``/``transpose_zero`` closures duplicated what
+    the bound spaces already knew, and retired with the hooks). Relying on
+    the endomorphic ``0.0 * x`` echo would be
     wrong in principle and merely lucky in practice: ``|Γ₊| == |Γ₋|`` on every
     reachable fixture, so the shapes coincide — an accident, not a contract.
 
@@ -354,13 +336,14 @@ def _narrowed_zero_operator(
     that does not know its codomain degenerates to exactly the endomorphic echo
     described above.
 
-    Since **G6.3 step 6** the two spaces are NAMED as well as sized. :math:`\Gamma_+`
+    Since **G6.3 step 6** the two spaces are NAMED as well as sized, and since
+    the S4-amendment they are the operator's WHOLE identity. :math:`\Gamma_+`
     is read off ``gamma_out``'s own codomain rather than fetched from the trace a
     second time — ``_outflow_restriction`` bound it at step 5, and re-deriving it
-    here would be a twin source for one fact. Each space is checked against the
-    row count the matching hook was sized from: the space and the length describe
-    the same fact, and a disagreement is invisible at apply-time because the zero
-    arrays broadcast either way.
+    here would be a twin source for one fact. Each space is still checked against
+    the row count the caller carries: the space and the length describe the same
+    fact, and a disagreement is invisible at apply-time because the zero arrays
+    broadcast either way.
     """
     if method_space.inflow_indices is None:
         raise BoundaryError(
@@ -372,34 +355,35 @@ def _narrowed_zero_operator(
         )
     n_inflow = int(method_space.inflow_indices.size)
     trace, face = method_space.trace, method_space.face
-    gamma_minus = (
-        trace.inflow_space(face)
-        if trace is not None and face is not None
-        else None
+    if trace is None or face is None:
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot build the zero map for {law_key!r} "
+            f"without the trace ladder: the map is Γ₊ → Γ₋ and a "
+            f"ZeroMorphism demands both spaces (its action cannot reveal "
+            f"them). Construct via SNMethodSpace.for_face(quadrature=..., "
+            f"face=..., trace=...).",
+            law=law_key,
+        )
+    gamma_minus = trace.inflow_space(face)
+    domain = checked_space_extent(
+        gamma_out.codomain, gamma_out.n_restricted, axis=_ORDINATE_AXIS,
+        owner="_narrowed_zero_operator", role="domain",
     )
-    return ZeroOperator(
-        # ``reportArgumentType``: ``ZeroOperator`` is generic over ``Vector``,
-        # and MEASURED (2026-07-31, pyright + numpy stubs) ``np.ndarray`` does
-        # not satisfy that protocol statically — ``Self``-typed ``__add__``
-        # will not bind against numpy's overloads. The gap is upstream, not at
-        # this call site: every ndarray-level operator in ``numerics.operator``
-        # sidesteps it by being declared UNPARAMETERIZED
-        # (``PermutationOperator(LinearOperator)``), an option a generic's own
-        # hooks do not have. Runtime conformance is real; only the static bind
-        # fails.
-        codomain_zero=_zero_rows(n_inflow),  # type: ignore[reportArgumentType]
-        transpose_zero=_zero_rows(  # type: ignore[reportArgumentType]
-            gamma_out.n_restricted
-        ),
-        domain=checked_space_extent(
-            gamma_out.codomain, gamma_out.n_restricted, axis=_ORDINATE_AXIS,
-            owner="_narrowed_zero_operator", role="domain",
-        ),
-        codomain=checked_space_extent(
-            gamma_minus, n_inflow, axis=_ORDINATE_AXIS,
-            owner="_narrowed_zero_operator", role="codomain",
-        ),
+    codomain = checked_space_extent(
+        gamma_minus, n_inflow, axis=_ORDINATE_AXIS,
+        owner="_narrowed_zero_operator", role="codomain",
     )
+    if domain is None or codomain is None:
+        # checked_space_extent passes None through for a None input;
+        # gamma_minus is non-None above, so only an UNBOUND γ₊ restriction
+        # lands here — refuse with the same demand the morphism states.
+        raise BoundaryError(
+            f"SNBoundaryRealizer cannot build the zero map for {law_key!r}: "
+            f"the outflow restriction carries no codomain space, and a "
+            f"ZeroMorphism demands both spaces.",
+            law=law_key,
+        )
+    return ZeroMorphism(domain=domain, codomain=codomain)
 
 
 def _attenuated_kernel_operator(
@@ -895,9 +879,11 @@ class SNBoundaryRealizer:
             # Pre-B3.2 this returned ``IncomingOrdinateMaskTensor(...) &
             # IdentityOperator()`` — a full-face projector onto the OUTFLOW
             # subspace, whose preserved rows ``_reflect_trace`` then discarded.
-            # ``ZeroOperator``'s symmetric space hooks are the designed
+            # ``ZeroMorphism`` — the bound zero map — is the designed
             # mechanism for a genuine map BETWEEN spaces: the forward emits the
-            # zero of Γ₋, the transpose the zero of Γ₊. Relying on the
+            # zero of Γ₋, the transpose the zero of Γ₊, both derived from the
+            # DECLARED pair (the S4-amendment retired the per-site space
+            # hooks that used to carry these shapes). Relying on the
             # endomorphic ``0.0 * x`` echo would be wrong in principle and
             # merely lucky in practice (|Γ₊| = |Γ₋| on every reachable
             # fixture, so the shapes coincide — an accident, not a contract).

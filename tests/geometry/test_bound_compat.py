@@ -301,7 +301,7 @@ class Test188WiringContracts:
         the structural contract.
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
-        from orpheus.numerics.operator import ZeroOperator
+        from orpheus.numerics.operator import ZeroMorphism
         from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
@@ -331,7 +331,7 @@ class Test188WiringContracts:
         # curvilinear meshes route through the SAME realizer — is unchanged,
         # only the object at the end of the route moved.
         assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
-        assert isinstance(sn.bc["xmax"].inner, ZeroOperator)
+        assert isinstance(sn.bc["xmax"].inner, ZeroMorphism)
         # What the resolution MEANS — the law that landed on the face.
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
         # …and the legacy string-comparison surface still answers for it,

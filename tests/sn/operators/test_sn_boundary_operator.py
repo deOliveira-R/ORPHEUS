@@ -484,6 +484,11 @@ class TestApplyTransposeCapability:
             # therefore already an operator — so the honest fix is to make the
             # surrogate honour the contract it is standing in for, NOT to add
             # a guard for a case the type system now covers.
+            # S4-amendment: the base DEMANDS an answer from every subclass; this
+            # double is a deliberately-unbound probe, so it DECLARES the unbound
+            # state instead of inheriting a silent default (which no longer exists).
+            domain = None
+            codomain = None
             is_adjointable = False
             is_invertible = False
 

@@ -69,6 +69,11 @@ class _MatrixOperator(LinearOperator):
     the ``is_invertible`` + ``inverse()`` pair. Diagonal test matrices
     make the inverse exact and trivial.
     """
+    # S4-amendment: the base DEMANDS an answer from every subclass; this
+    # double is a deliberately-unbound probe, so it DECLARES the unbound
+    # state instead of inheriting a silent default (which no longer exists).
+    domain = None
+    codomain = None
 
     def __init__(self, matrix: np.ndarray) -> None:
         self.matrix = np.asarray(matrix, dtype=float)

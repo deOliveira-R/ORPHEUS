@@ -31,6 +31,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.operator import MissingAdjoint
+
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
@@ -259,16 +261,20 @@ def test_the_metric_is_NOT_invisible_here(quad_name):
 @pytest.mark.verifies("bc-response-factored-adjoint")
 @pytest.mark.parametrize("quad_name", _ALL)
 def test_dropping_the_binding_BREAKS_the_weighted_law(quad_name):
-    r"""⭐ The mutation, run as a gate: unbound spaces fail the adjoint law.
+    r"""⭐ The mutation, run as a gate: an unbound chain has NO ``.H`` at all.
 
-    Re-creating the SAME chain with no spaces reproduces exactly the pre-G6.3
-    state — ``.H`` degrades to the Euclidean transpose with no error and no
-    warning — and the weighted law then FAILS. This is the standing proof that
-    the binding is load-bearing rather than decorative, and it is the mutation
-    ``domain := None`` written as a permanent test instead of a one-off probe.
+    Re-creating the SAME chain with no spaces reproduces the pre-G6.3
+    state. Before the S4-amendment ``.H`` then degraded to the Euclidean
+    transpose with no error and no warning, and this gate proved the
+    binding load-bearing by measuring the weighted law FAIL on the
+    degraded answer. The amendment made the degraded state UNSPELLABLE —
+    ``.H`` on an unbound non-multiplier is REFUSED at construction
+    (MissingAdjoint, the R2 closure) — so the same mutation now cannot
+    even produce a wrong number: prevention where this gate used to be
+    detection. The forward map stays untouched either way.
     """
     lam = _Lambertian(quad_name)
-    x, y = lam.draw()
+    x, _y = lam.draw()
 
     unbound = (
         IsotropicEmissionOperator(lam.norm, lam.gamma_minus.shape[0])
@@ -276,15 +282,11 @@ def test_dropping_the_binding_BREAKS_the_weighted_law(quad_name):
     )
     assert unbound.domain is None and unbound.codomain is None
 
-    # the forward map is unchanged — only the adjoint degrades
+    # the forward map is unchanged — only the adjoint side is refused
     np.testing.assert_array_equal(unbound.apply(x), lam.R.apply(x))
 
-    lhs = lam.gamma_minus.inner_product(unbound.apply(x), y)
-    rhs = lam.gamma_plus.inner_product(x, unbound.H.apply(y))
-    assert lhs != pytest.approx(rhs, rel=1e-6), (
-        "the unbound chain satisfied the weighted adjoint law, so this fixture "
-        "cannot demonstrate that binding matters"
-    )
+    with pytest.raises(MissingAdjoint, match="UNBOUND"):
+        unbound.H
 
 
 # ─────────────────────────────────────────────────────────────────────
