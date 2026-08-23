@@ -13,11 +13,12 @@ This module reifies the two factors:
     P \;=\; \underbrace{M_{\rm frame}}_{\text{analysis on the bulk}}
             \oplus \underbrace{\mathrm{Id}}_{\text{on the trace}},
 
-where :math:`M_{\rm frame}` is the scattering frame's
-:attr:`~orpheus.numerics.frame.FrameBase.analysis` face (the angular→moment
-reduction ``φ_ℓ^m = Σ_n w_n Y_ℓ^m ψ_n``) and the trace passes through
-un-reduced (windowing is interior-bulk-only — the reflective coupling needs
-the full per-ordinate face trace).  :math:`P` is a **block coisometry**
+where :math:`M_{\rm frame}` is the scattering operator's MINTED flux-analysis
+face (F-1 — ``S.flux_analysis``, an ``AngularFlux → HarmonicMomentFlux``
+bound :class:`~orpheus.numerics.projection.AnalysisOperator` member whose
+kernel is the frame's angular→moment reduction ``φ_ℓ^m = Σ_n w_n Y_ℓ^m ψ_n``)
+and the trace passes through un-reduced (windowing is interior-bulk-only —
+the reflective coupling needs the full per-ordinate face trace).  :math:`P` is a **block coisometry**
 (``analysis ∘ reconstruction = 4π·I`` under the no-prefactor SH convention —
 pinned by ``test_pi_R_is_4pi_identity_through_the_frame``), NOT invertible —
 so the composite honestly makes no round-trip promise (``is_invertible`` is
@@ -58,8 +59,10 @@ from orpheus.numerics.operator import (
 from .sweep_operator import SweepOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.frame import FrameBase
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
+    from orpheus.transport.frames import HarmonicAnalysisOperator
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
     from ..mesh.augmented_mesh import SNMesh
@@ -69,28 +72,46 @@ __all__ = ["BulkAnalysisOperator", "WindowedSweep"]
 
 
 class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
-    r"""The angular frame's analysis face on the BULK ⊕ identity on the trace.
+    r"""The minted flux-analysis face on the BULK ⊕ identity on the trace —
+    the spelled word :math:`P = \mathrm{lift}(M) \oplus \mathrm{Id}_{\Gamma}`.
 
     Maps the composite carrier's per-ordinate bulk to its harmonic moments
-    (``bulk → HarmonicMomentFlux`` via :attr:`frame`\ ``.analysis``) while the
+    through the MINTED face (``AngularFlux → HarmonicMomentFlux`` — a bound
+    :class:`~orpheus.numerics.projection.AnalysisOperator` member) while the
     boundary trace passes through VERBATIM (the biproduct keeps the trace a
     distinct summand — the reflective ``B`` coupling reads full per-ordinate
     face values).  A block coisometry: not invertible, no transpose
     advertised (mint the synthesis-side lift when a consumer arrives), so
-    apply-only, and the two-axis contract holds by the
-    base defaults.
+    apply-only, and the two-axis contract holds by the base defaults.
 
-    ``frame`` must be the SCATTERING operator's own angular frame (its
-    ``analysis`` face IS ``S.apply``'s internal projection — the same object,
-    single source), so the emitted moments equal what ``S`` would project
-    term-for-term.
+    ``face`` must be the SCATTERING operator's own minted
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.flux_analysis`
+    (F-1): its kernel IS ``S.apply``'s internal projection — the same frame,
+    the same cached table, single source — so the emitted moments equal what
+    ``S`` would project term-for-term, and the bulk admission (the
+    space-content invariant) is the face's own bound-domain admission.
     """
 
-    def __init__(self, frame: "FrameBase", sn_mesh: "SNMesh") -> None:
-        #: The angular spherical-harmonic frame whose ``analysis`` face reduces.
-        self.frame = frame
+    def __init__(
+        self,
+        face: "HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]",
+        sn_mesh: "SNMesh",
+    ) -> None:
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        #: The minted flux-analysis face whose kernel reduces the bulk.
+        self.face = face
         #: The mesh carrying the composite-carrier geometry for the wrap.
         self.sn_mesh = sn_mesh
+        # F-1: the moment-bulk composite is posed from the face's bound
+        # codomain ⊕ the angular composite's trace block (the trace passes
+        # through untouched). The pre-F-1 ``None`` ("not yet typed") debt
+        # died with the mint — composition guards now check this end.
+        full = sn_mesh.full_field_space
+        assert full.trace_space is not None  # SN composite; narrowing only
+        self._codomain = FullFieldSpace.from_blocks(
+            self.face.codomain, full.trace_space,
+        )
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -98,32 +119,22 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        # The moment-bulk composite has no minted FunctionSpace yet (the
-        # angular ``full_field_space`` would be a LIE here); ``None`` is the
-        # honest "not yet typed" — composition guards skip it.
-        return None
+        return self._codomain
 
     def apply(self, field: "FullField") -> "TimedFullField":
-        r"""``P·ψ`` — analysis-project the bulk, pass the trace through."""
-        from orpheus.transport.fields.harmonic_moment_flux import (
-            HarmonicMomentFlux,
-        )
+        r"""``P·ψ`` — face-project the bulk, pass the trace through.
+
+        The bulk admission is the FACE's (exactly ``AngularFlux`` on its
+        bound domain — the space-content invariant, one spelling); the wrap
+        rides the face's bound moment codomain (no per-apply re-mint).
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.timed_full_field import TimedFullField
 
-        sn_mesh = self.sn_mesh
-        if field.interior.space != field.interior.space_on(sn_mesh):
-            raise ValueError(
-                "BulkAnalysisOperator.apply: input field and operator must "
-                "agree in space content (space-content invariant)."
-            )
-        moments = self.frame.analysis.apply(field.interior.values)
-        # The same wrap as the solve body's moment arm: the tensor's own
-        # leading axis fixes L (basis-agnostic), and the trailing 2^d
-        # spatial-moment axis rides through (#240 D5b-S3).
-        bulk = HarmonicMomentFlux.from_mesh_and_L(
-            moments, sn_mesh, moments.shape[0] - 1,
-            spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
-        )
+        interior = field.interior
+        assert isinstance(interior, AngularFlux)  # narrowing only — the
+        # REAL admission (carrier + bound space) is the face's, next line.
+        bulk = self.face.apply(interior)
         return TimedFullField(
             interior=bulk,
             boundary=field.boundary,
@@ -157,7 +168,7 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         return super().__matmul__(other)
 
     def __repr__(self) -> str:
-        return f"BulkAnalysisOperator({self.frame!r})"
+        return f"BulkAnalysisOperator({self.face!r})"
 
 
 class WindowedSweep(
@@ -236,8 +247,10 @@ class WindowedSweep(
         contract, stated here rather than behind an adapter.
         """
         del initial_guess  # no bulk-seed consumer in the multi-D walk
+        # F-1: the substrate's moment emit consumes the FRAME (its analysis
+        # kernel — table + weights); the minted face carries it, one hop in.
         return self.sweep.inner._solve_timed_full_field(
-            rhs, moment_frame=self.p.frame,
+            rhs, moment_frame=self.p.face.frame,
         )
 
     def __repr__(self) -> str:

@@ -882,8 +882,8 @@ def _maybe_window(
     curvilinear (1-D) stays full-angular — the Morel–Montry Carlson seed
     reads the previous per-ordinate iterate at ``μ=−1`` (lesson L21), which
     the moment tensor does not carry.  ``P`` is sourced from the scattering
-    operator's own frame ⇒ the stored moments match ``S``'s internal
-    projection term-for-term.
+    operator's own MINTED flux-analysis face (F-1) ⇒ the stored moments
+    match ``S``'s internal projection term-for-term.
 
     C5.4 (#225, vv Mode 9): the gate is the GENUINE condition
     ``is_cartesian and ndim == 2`` — the pre-C5.4 ``reduced is None``
@@ -895,7 +895,7 @@ def _maybe_window(
         from .operators.windowing import BulkAnalysisOperator
 
         return (
-            BulkAnalysisOperator(scattering_op.frame, sn_mesh) @ sweep,
+            BulkAnalysisOperator(scattering_op.flux_analysis, sn_mesh) @ sweep,
             True,
         )
     return sweep, False

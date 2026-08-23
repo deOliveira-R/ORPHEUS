@@ -197,9 +197,11 @@ class TestO12WindowingAnalysis:
             mat_xs=mat, quadrature=sn.quad, scattering_order=1,
             space=sn.full_field_space,  # S4-amendment: .frame demands the pose
         )
-        op = BulkAnalysisOperator(S.frame, sn)
+        op = BulkAnalysisOperator(S.flux_analysis, sn)
         stretched = _slab(width=2.0)
-        with pytest.raises(ValueError, match="space-content"):
+        # F-1: the admission is the minted FACE's bound-domain refusal
+        # (TypeError), keeping the space-content vocabulary.
+        with pytest.raises(TypeError, match="space-content"):
             op.apply(_composite(stretched))
 
 

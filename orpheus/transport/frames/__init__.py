@@ -9,13 +9,25 @@ indicator-basis spatial homogenisation). The casting to the typed transport
 deepest primitive the carriers share, ``Field``, is in numerics, but the
 *castability* (the ``mesh`` binding + the ``from_mesh`` factories) lives in the
 transport :class:`~orpheus.transport.fields._bases.BulkField` base. So the typed
-seam lives HERE, in transport, one layer above numerics: a thin
-:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` specialization
-that wraps the generic faces with carrier-typed verbs.
+seam lives HERE, in transport, one layer above numerics: the
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` factory MINTS
+bound, carrier-typed operator faces
+(:class:`~orpheus.transport.frames.harmonic_frame.HarmonicAnalysisOperator` /
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicReconstructionOperator`
+— members of the numerics analysis/reconstruction ROLE family) over the
+generic faces (F-1, ``frame_square_recarve.md``).
 """
 
 from __future__ import annotations
 
-from orpheus.transport.frames.harmonic_frame import HarmonicFrame
+from orpheus.transport.frames.harmonic_frame import (
+    HarmonicAnalysisOperator,
+    HarmonicFrame,
+    HarmonicReconstructionOperator,
+)
 
-__all__ = ["HarmonicFrame"]
+__all__ = [
+    "HarmonicAnalysisOperator",
+    "HarmonicFrame",
+    "HarmonicReconstructionOperator",
+]

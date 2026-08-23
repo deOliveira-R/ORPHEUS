@@ -285,14 +285,15 @@ def _windowed_product_and_oracle_operands(
     base, _gains = _select_si_splitting(LC, S, B, sn_mesh, inner_schedule)
 
     # THE production windowed object (#226 steps 2–3, §17 W1): the typed
-    # composition ``P @ A.inverse()`` — the scattering frame's analysis face
-    # on the bulk ⊕ identity on the trace, composed with the sweep inverse,
-    # FUSED through the substrate's moment emit.  ``S.frame`` is the SAME
-    # object the driver's factory (``_maybe_window``) injects, so the SUT
-    # exercises the production projection, not a test-local one.
+    # composition ``P @ A.inverse()`` — the scattering operator's MINTED
+    # flux-analysis face on the bulk ⊕ identity on the trace, composed with
+    # the sweep inverse, FUSED through the substrate's moment emit.
+    # ``S.flux_analysis`` is the SAME minted object the driver's factory
+    # (``_maybe_window``) injects, so the SUT exercises the production
+    # projection, not a test-local one.
     from orpheus.sn.operators.windowing import BulkAnalysisOperator
 
-    product = BulkAnalysisOperator(S.frame, sn_mesh) @ base.inverse()
+    product = BulkAnalysisOperator(S.flux_analysis, sn_mesh) @ base.inverse()
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is

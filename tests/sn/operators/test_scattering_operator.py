@@ -1337,33 +1337,33 @@ class TestAnisoMomentSourcePath:
         ``apply(HarmonicMomentFlux)`` arm actually executes the EXPLICIT typed
         grid path — ``Λ`` constructs a
         :class:`HarmonicMomentSourceSink` (the role-changing edge) which the
-        frame's ``R`` then reconstructs. The Phase-5a value guard above proves
+        minted source-reconstruction FACE then synthesises. The Phase-5a value guard above proves
         the NUMBERS are right but cannot tell whether the rewired typed line
         ran or a bypass produced the same value; this counter-spy proves it.
 
-        Spy point (re-keyed at CS4b S4 — Λ's typed arm now constructs the
-        source-moment directly on the operand's space, so the retired
-        ``from_mesh_and_L`` anchor moved): the frame's ``reconstruct`` is
-        the seam that CONSUMES Λ's product — spying what it receives pins
-        both halves at once (Λ emitted the typed HarmonicMomentSourceSink,
-        and R consumed exactly it). A bypass to the ndarray
-        ``reconstruct_after`` reference would never enter this seam.
+        Spy point (re-keyed at CS4b S4, again at F-1 — the frame's carrier
+        verb retired into the MINTED face): the minted
+        ``HarmonicReconstructionOperator.apply`` is the seam that CONSUMES
+        Λ's product — spying what it receives pins both halves at once (Λ
+        emitted the typed HarmonicMomentSourceSink, and the face consumed
+        exactly it). A bypass to the ndarray ``reconstruct_after`` reference
+        would never enter this seam.
         """
         from orpheus.transport.fields.harmonic_moment_flux import (
             HarmonicMomentFlux,
         )
-        from orpheus.transport.frames import HarmonicFrame
+        from orpheus.transport.frames import HarmonicReconstructionOperator
         from orpheus.transport.source_sinks import HarmonicMomentSourceSink
 
         calls = {"n": 0}
-        original = HarmonicFrame.reconstruct
+        original = HarmonicReconstructionOperator.apply
 
         def spying(self, moment):
             if isinstance(moment, HarmonicMomentSourceSink):
                 calls["n"] += 1
             return original(self, moment)
 
-        monkeypatch.setattr(HarmonicFrame, "reconstruct", spying)
+        monkeypatch.setattr(HarmonicReconstructionOperator, "apply", spying)
 
         op = op_p1
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)

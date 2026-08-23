@@ -3203,11 +3203,13 @@ edges that map between them.
    \end{array}
 
 .. implements:: scattering-carrier-grid
-   :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse
+   :by: orpheus.transport.frames.harmonic_frame.HarmonicAnalysisOperator.apply
 
-   **Implemented by** the diagram's top edge :math:`M`.
-   Role-**preserving**, and typed as such by ``@overload``: flux in, flux
-   out, representation changed.
+   **Implemented by** the diagram's top edge :math:`M` — since F-1 the
+   MINTED analysis face's ``apply`` (carrier-generic over the flux/source
+   columns; the flux instance is the one minted today). Role-**preserving**
+   and typed as such by the face's own generics: flux in, flux out,
+   representation changed.
 
 .. implements:: scattering-carrier-grid
    :by: orpheus.transport.operators.scattering.LegendreMomentScattering.apply
@@ -3219,11 +3221,12 @@ edges that map between them.
    is a signature here, not a comment.
 
 .. implements:: scattering-carrier-grid
-   :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct
+   :by: orpheus.transport.frames.harmonic_frame.HarmonicReconstructionOperator.apply
 
-   **Implemented by** the bottom edge :math:`R`, role-preserving like
-   :math:`M`, carrying the source leg back to the per-ordinate
-   representation.
+   **Implemented by** the bottom edge :math:`R` — since F-1 the MINTED
+   reconstruction face's ``apply`` (the source instance is the one minted
+   today), role-preserving like :math:`M`, carrying the source leg back to
+   the per-ordinate representation.
 
    The diagram's four **nodes** are types, not code — only the three
    **edges** have implementers, which is exactly the split
@@ -3277,10 +3280,13 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
      - The per-ordinate in-scatter source :math:`Q_n(\vec r, g)` the
        sweep consumes — the bottom of the chain.
    * - :math:`M` (left edge)
-     - :meth:`HarmonicFrame.analyse <orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse>`
+     - :class:`HarmonicAnalysisOperator
+       <orpheus.transport.frames.harmonic_frame.HarmonicAnalysisOperator>`
+       (minted: ``S.flux_analysis``)
      - **Role-preserving, axis-changing.** Projects per-ordinate →
-       moment, flux→flux *and* source→source (the analysis face of the
-       Galerkin frame, the canonical pure-Galerkin :math:`\Pi`).
+       moment, flux→flux *and* source→source (the minted, bound face over
+       the Galerkin frame's analysis — the canonical pure-Galerkin
+       :math:`\Pi`).
    * - :math:`\Lambda` (right edge)
      - :meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`
      - **Role-changing, axis-preserving.** The *sole* role-changing edge:
@@ -3289,11 +3295,15 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
        :class:`HarmonicMomentSourceSink` it emits — flux → source, both in
        moment space.
    * - :math:`R` (bottom edge)
-     - :meth:`HarmonicFrame.reconstruct <orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct>`
+     - :class:`HarmonicReconstructionOperator
+       <orpheus.transport.frames.harmonic_frame.HarmonicReconstructionOperator>`
+       (minted: the windowed arm's source reconstruction)
      - **Role-preserving, axis-changing.** Reconstructs moment →
        per-ordinate, flux→flux *and* source→source (the reconstruction
-       face; the addition-theorem :math:`R`, not the W-weighted adjoint of
-       :math:`M`).
+       face; the addition-theorem :math:`R`, not the Hilbert adjoint
+       :math:`M^*` — under the frame's Parseval metric the two differ by
+       exactly the total weight, :math:`R = W\,M^*`; see
+       :ref:`frame-parseval-metric`).
 
 The kernel of the previous subsection is the composite of these three
 edges plus the producer-side normalisation,
@@ -3722,11 +3732,12 @@ constructed from the generic frame's basis + measure via
 (``cls(frame.basis, frame.measure)`` — **zero** rebuild of the basis /
 measure / projection table, so the inherited ndarray faces and the §5.6
 :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>` stay
-bit-identical), adding **only** the typed verbs
-:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse`
-(:math:`M`) and
-:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct`
-(:math:`R`). The generic numerics faces are untouched. This is the
+bit-identical), adding **only** the MINT verbs
+:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.flux_analysis_on`
+(:math:`M`, minted) and
+:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.source_reconstruction_on`
+(:math:`R`, minted) — since F-1 the carrier typing lives on the minted
+FACES, not on frame verbs. The generic numerics faces are untouched. This is the
 "shared primitive is :class:`Field` in numerics, but castability is
 :class:`BulkField` in transport, so the typed seam lives in transport"
 layering — the same reason a typed wrapper, not the generic frame, owns
@@ -3745,7 +3756,7 @@ the carrier verbs.
    **Implemented by** the operative content — ``return cls(basis,
    frame.measure)``, after an upgrade-boundary guard that rejects a
    non-:class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
-   trial basis *there* rather than later, when a typed verb first reads the
+   trial basis *there* rather than later, when a mint first reads the
    SH-only truncation order :math:`L`. The claim is worth stating only
    because the construction rebuilds **nothing**: basis, measure and
    projection table are carried over, so the inherited ndarray faces and the
@@ -3784,12 +3795,13 @@ math, each chosen for what its consumer needs to see:
   :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`)
   takes the **explicit typed** edges: :math:`\Lambda` scatters the flux
   moments to a typed :class:`HarmonicMomentSourceSink` (the role-changing
-  edge made visible in the signature), then
-  :meth:`frame.reconstruct <orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct>`
-  reconstructs the per-ordinate :class:`AngularSourceSink`, then the
-  producer-side :math:`1/W`. The realisation is
-  ``frame.reconstruct(Λ.apply(φ)) / W`` — the explicit, role-typed
-  counterpart of the fused kernel.
+  edge made visible in the signature), then the MINTED
+  source-reconstruction face
+  (:class:`~orpheus.transport.frames.harmonic_frame.HarmonicReconstructionOperator`,
+  bound to the posed interior) synthesises the per-ordinate
+  :class:`AngularSourceSink`, then the producer-side :math:`1/W`. The
+  realisation is ``S._source_reconstruction.apply(Λ.apply(φ)) / W`` — the
+  explicit, role-typed counterpart of the fused kernel.
 
 Both arms route through the *same* :math:`\Lambda` kernel and the *same*
 frame :math:`R` face, so they agree numerically. The choice is one of
@@ -4011,8 +4023,10 @@ The argument is five obstructions, each fatal on its own.
      - The representation sets the ``values`` / ``space`` shape
        (:math:`(N, n_g, *\text{spatial})` vs
        :math:`(L{+}1, 2L{+}1, n_g, *\text{spatial})` vs the flat trace
-       buffer) and the shape-validation hook
-       (:meth:`~orpheus.transport.fields._bases.BulkField._phase_space_shape`).
+       buffer) and the shape validation against it (since the S4-amendment
+       the direct ``values.shape == space.shape`` guard in
+       :class:`~orpheus.numerics.field.Field`; the pre-S4
+       ``_phase_space_shape`` hook it replaced carried the same fact).
        A phantom ``Representation`` parameter, erased, carries none of that
        — the shape check has nothing to read. This refutes the role-outer
        phantom ``Flux[Rep]``, which obstruction (a) would have spared —

@@ -59,7 +59,11 @@ import numpy as np
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-from orpheus.transport.frames import HarmonicFrame
+from orpheus.transport.frames import (
+    HarmonicAnalysisOperator,
+    HarmonicFrame,
+    HarmonicReconstructionOperator,
+)
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
@@ -486,43 +490,74 @@ class ScatteringOperator(LinearOperator):
 
         The single source of the analysis (:math:`M`) and reconstruction
         (:math:`R`) faces that realise the anisotropic Legendre redistribution
-        :math:`R\circ\Lambda\circ M` (:attr:`kernel`); both the §5.6
-        :attr:`kernel` and the angular-windowing in-sweep moment accumulation
-        read THIS frame, so the projection table is shared term-for-term.
+        :math:`R\circ\Lambda\circ M` (:attr:`kernel`); the §5.6
+        :attr:`kernel`, the angular-windowing in-sweep moment accumulation,
+        AND the minted typed faces (:attr:`flux_analysis`,
+        ``_source_reconstruction``) all read THIS frame, so the projection
+        table is shared term-for-term.
 
-        A :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` — the
-        carrier-typed specialization of the generic
-        :class:`~orpheus.numerics.frame.GalerkinFrame`
-        ``quadrature.angular_frame(L)``, adding the typed verbs
-        :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse`
-        (:math:`M`) and
-        :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct`
-        (:math:`R`) the windowed in-scatter arm uses. ``frame.table`` is the
+        A :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` —
+        the SHARED ``(basis, measure)`` operator factory (F-1,
+        ``frame_square_recarve.md``): identity is the table's identity, and
+        the frame is legal on a space-less operator again (the space refusal
+        lives on the MINT seam, ``_interior_space``, where the binding input
+        is actually needed). ``frame.table`` is the
         :math:`Y_\ell^m(\hat\Omega_n)` tabulation (equal to :attr:`Y`). The
         HarmonicFrame-IS-A-GalerkinFrame relation and the shared-table
         rationale: ``docs/theory/foundations/operator_algebra.rst
         §integral-kernel-category``.
+        """
+        return HarmonicFrame.from_galerkin(
+            self.quadrature.angular_frame(self.scattering_order),
+        )
 
-        BOUND at construction (the S4-amendment): the typed lift's angular
-        domain is the posed composite's iterate-width ``interior_space``
-        (LD-widened when the scheme widens), and the frame derives + stores
-        its moment codomain from it. A space-less operator therefore has NO
-        frame — the refusal that used to sit on the windowed moment arm
-        lives here, one level earlier, and covers the kernel faces too.
+    @property
+    def _interior_space(self) -> "FunctionSpace":
+        r"""The posed composite's interior — the mints' binding input.
+
+        The A1 space-refusal, relocated to the mint seam (F-1): a minted face
+        is a BOUND operator, and its binding input is the angular field space
+        of the posed problem — the iterate-width ``interior_space``
+        (LD-widened when the scheme widens). A space-less operator has no
+        angular domain to bind, so the typed faces (and the windowed arm that
+        consumes them) refuse loudly here; the frame itself and the fused
+        :attr:`kernel` no longer need the pose.
         """
         if (
             not isinstance(self.space, FullFieldSpace)
             or self.space.interior_space is None
         ):
             raise TypeError(
-                "ScatteringOperator.frame needs the posed composite space"
-                " (space=) to bind the typed lift's angular domain; this"
-                " operator was built space-less."
+                "ScatteringOperator mints its typed frame faces from the"
+                " posed composite space (space=) — this operator was built"
+                " space-less, so there is no angular domain to bind the"
+                " faces to."
             )
-        return HarmonicFrame.from_galerkin(
-            self.quadrature.angular_frame(self.scattering_order),
-            angular_space=self.space.interior_space,
-        )
+        return self.space.interior_space
+
+    @cached_property
+    def flux_analysis(self) -> HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]:
+        r"""The minted FLUX analysis face :math:`M \otimes I` on the posed interior.
+
+        ``AngularFlux → HarmonicMomentFlux``, bound to
+        :attr:`_interior_space` and sharing :attr:`frame`'s cached table (the
+        single-source guarantee: its outputs equal what ``S.apply`` projects
+        term-for-term). Consumers: the windowed bulk projection
+        (:class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator`) and
+        the S6 adjoint gates (its ``.H`` is the physical :math:`M^* = R/W`
+        on the F-0 Parseval metrics).
+        """
+        return self.frame.flux_analysis_on(self._interior_space)
+
+    @cached_property
+    def _source_reconstruction(
+        self,
+    ) -> HarmonicReconstructionOperator[HarmonicMomentSourceSink, AngularSourceSink]:
+        r"""The minted SOURCE reconstruction face :math:`R \otimes I` landing
+        on the posed interior (``HarmonicMomentSourceSink →
+        AngularSourceSink``) — the windowed in-scatter arm's typed R.
+        """
+        return self.frame.source_reconstruction_on(self._interior_space)
 
     @property
     def sig_s(self) -> dict[int, list[np.ndarray]]:
@@ -1235,25 +1270,25 @@ class ScatteringOperator(LinearOperator):
         explicit-typed vs fused-kernel choice is in
         ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
         """
-        # S4-amendment: the per-ordinate target is the FRAME's bound
-        # angular codomain (bound at :attr:`frame` construction from this
-        # operator's posed composite interior — the carrier's angular
-        # mint, width-widened on LD). Reading self.frame refuses loudly
-        # on a space-less operator, so no local guard remains here.
-        angular_target = self.frame.angular_space
+        # F-1: the per-ordinate target is the posed composite's interior —
+        # the same space the minted faces are bound to (their codomain /
+        # domain read). Reading it refuses loudly on a space-less operator
+        # (the A1 refusal, relocated to the mint seam), so no local guard
+        # remains here.
+        angular_target = self._interior_space
         if self.scattering_order == 0:
             aniso = None
         else:
             # Explicit typed grid path: Λ scatters flux moments → source moments
             # (HarmonicMomentFlux → HarmonicMomentSourceSink, the role-changing
-            # edge), the frame's R reconstructs the per-ordinate
-            # AngularSourceSink (riding the frame's bound angular codomain),
-            # then the producer-side 1/W. Numerically equals the kernel's
-            # ndarray reconstruct_after(Λ) reference.
+            # edge), the minted source-reconstruction FACE synthesises the
+            # per-ordinate AngularSourceSink (riding its bound angular
+            # codomain), then the producer-side 1/W. Numerically equals the
+            # kernel's ndarray reconstruct_after(Λ) reference.
             scattered = LegendreMomentScattering(
                 mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
             ).apply(phi_moments)
-            aniso = self.frame.reconstruct(
+            aniso = self._source_reconstruction.apply(
                 scattered,
             ) / float(self.weights.sum())
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor

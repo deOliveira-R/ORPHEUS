@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **9983**
+Total tests collected: **10063**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 13.0%
-   L1, 1620, 16.2%
+   L0, 1297, 12.9%
+   L1, 1634, 16.2%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 6997, 70.1%
-   unmarked, 5, 0.1%
+   foundation, 7063, 70.2%
+   unmarked, 5, 0.0%
 
 Tagging source
 --------------
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9899
+   explicit, 9979
    class-name, 46
    func-name, 0
    case, 33
@@ -261,8 +261,10 @@ Module × level grid
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
+   fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
+   fields/test_meshless_construction, 0, 0, 0, 0, 5, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
-   frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
+   frames/test_harmonic_frame, 0, 0, 0, 0, 20, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
@@ -290,6 +292,7 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
+   mesh/test_angular_bulk_space, 0, 0, 0, 0, 13, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
@@ -322,7 +325,7 @@ Module × level grid
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_axis, 0, 0, 0, 0, 15, 0
-   numerics/test_coupled_operator, 0, 0, 0, 0, 57, 0
+   numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
@@ -335,7 +338,7 @@ Module × level grid
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
-   numerics/test_frame, 0, 0, 0, 0, 18, 0
+   numerics/test_frame, 0, 14, 0, 0, 29, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
@@ -378,7 +381,7 @@ Module × level grid
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
-   numerics/test_zero_operator_spaces, 0, 0, 0, 0, 8, 0
+   numerics/test_zero_operator_spaces, 0, 0, 0, 0, 10, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
    operators/test_b3_domain_narrowing, 0, 0, 0, 0, 31, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
@@ -423,9 +426,10 @@ Module × level grid
    operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 28, 0, 0, 0, 0, 0
+   operators/test_space_content_witnesses, 0, 0, 0, 0, 9, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
-   operators/test_streaming_collision_operator, 1, 10, 0, 0, 20, 0
+   operators/test_streaming_collision_operator, 1, 10, 0, 0, 21, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_sweep_inverse_identity, 0, 0, 0, 0, 9, 0
@@ -445,7 +449,7 @@ Module × level grid
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 45, 0
-   primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
+   primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
@@ -652,6 +656,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``singular-eigenfunction-eq42``, 10
    ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
+   ``hilbert-adjoint-equals-metric-times-S0``, 9
    ``p-transpose-flux-balance``, 9
    ``pole-mm-recurrence``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
@@ -754,7 +759,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
    ``hebert-3-432-source``, 2
-   ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``inflow-mask-discrete``, 2
    ``ld-ubld-octant-moment-frame-signs``, 2
    ``loss-rep-affine-kernel-maps``, 2
@@ -875,7 +879,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **541** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **545** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1048,6 +1052,10 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``fn-unified-matrix-entry``
 - ``fn-x-function``
 - ``folded-level-arc``
+- ``frame-analysis-is-the-gram``
+- ``frame-discrete-gram``
+- ``frame-parseval-isometry``
+- ``frame-square-closure-sh``
 - ``fuel-heat``
 - ``fuel-rate``
 - ``funk-hecke-eigenvalue``

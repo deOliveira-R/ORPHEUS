@@ -3582,9 +3582,9 @@ dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_represent
   (``P @ A.inverse()``), which calls that private body with its
   ``moment_frame``; the analysis factor
   :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` carries
-  the SH frame (whose basis
-  :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` ``L`` carries
-  the truncation order). Since #226 step 3 the
+  the MINTED flux-analysis face (F-1), whose frame — and its basis
+  :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` ``L`` — carries
+  the truncation order. Since #226 step 3 the
   :class:`~orpheus.numerics.iteration.SourceIteration` driver **applies**
   that fused ``apply`` directly (:ref:`inverse-application-driver`); the
   transitional ``_MomentWindowedResolvent`` ``.solve`` adapter that once
