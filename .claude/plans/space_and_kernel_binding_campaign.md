@@ -1275,10 +1275,64 @@ that later steps must know:
   `operator_algebra.rst`'s `_phase_space_shape` xref; the frame-square
   + naming-rule pages. #402 filed (the LD-certificate un-skip rider).
 
-**▶ NEXT per the ruled order: S5** (the sugar-FACTORY retirement — the
-909-site `zeros_on`/`from_mesh` spelling migration; the boundary
-re-sharpening above already moved the consumer-frame reads into S4) →
-S6 (verbs + the frame square + #399) → S7 (repairs + EE-1 + docs).
+**⛔ S4-AMENDMENT CHARTERED FIRST (user ruling, 2026-08-22, post-S4
+review) — an operator is not an operator without its two spaces.**
+The user diagnosed the S4 `space=` parameter on `reconstruct` as the
+symptom, and ruled the repair at TWO levels:
+
+1. **Bind the typed frame (the local repair).** `HarmonicFrame` binds
+   its two full field spaces at CONSTRUCTION: the constructor takes the
+   ANGULAR field space (the one production site,
+   `ScatteringOperator.frame`, holds the posed composite's
+   `interior_space` — iterate-width, LD included) and derives + stores
+   the moment space once (`_moment_space_for` moves from
+   apply-time-per-operand to binding-time; the derivation direction is
+   a CONSTRUCTOR-input fact — moment = f(angular, L), never the
+   reverse). The verbs lose `space=`; admission = content equality
+   against the bound domain; outputs ride the bound codomain. ⛔ The
+   "frame square's structural asymmetry" recorded at the S4 landing is
+   MISCHARACTERIZED as stated (it read an unbound operator's missing
+   codomain as a structural fact) — correct the S4 bullet above, the
+   topic memory, and the harmonic_frame docstrings IN this amendment.
+   `[M]` the numerics-level faces (`frame.analysis`/`.reconstruction`)
+   are already fully bound with tested `.H` (test_frame.py's
+   adjoint-for-free rows) — the defect is ONLY the typed lift
+   `M ⊗ I_cells`, which was never minted as a bound operator.
+2. **⭐⭐ THE STRONGER FORM (the user's root-cause ruling, verbatim in
+   substance): the base class/protocol must DEMAND domain and
+   codomain.** "The reason this happened in general is because the base
+   class or protocol of operator is not demanding a domain and
+   co-domain. If we define this at the base, and then go fixing
+   everything that uses the operator machinery, the problem will
+   disappear — Analysis, Reconstruct, Synthesis, Scattering, Fission,
+   etc. everything will need to have its domain and co-domain defined."
+   `[M]` the base's own docstring names the hazard it grants:
+   `operator.py:658-676` defaults BOTH to `None` and "when either
+   operand of a composition has None ... the composability check is
+   SKIPPED — preserving the legacy duck-typed behaviour". Blast
+   surface, measured 2026-08-22 at `1333135e`: **77 LinearOperator
+   subclasses** outside operator.py; **44 `def domain` overrides**
+   (⟹ ~33 inherit the None default); 5 overrides return a literal
+   None; plus Optional-returners (`ScatteringOperator.space:
+   FunctionSpace | None` et al.). ⚠ RECONCILE WITH CS4c's charter
+   before designing: CS4c already owns "C space-mandatory (the
+   131/43-site migration)", the iso pair's Optional space, and the
+   binding-base `BoundOperator(datum, space)` — the amendment must
+   decide what pulls FORWARD (the base-level DEMAND + the .H/R2
+   hazard closure) vs what stays CS4c's migration (per §6b, the
+   call-site sets decide, not the tidy narrative). The R2 hazard the
+   mandate closes is already catalogued: `test_monomorphic_leaves` —
+   "an anonymous leaf's `.H` is a bare Euclidean transpose wearing
+   the Hilbert adjoint's name".
+
+**▶ RESUMES AT: the S4-amendment design** (user steers, surgical
+posture): reconcile the base-mandate's scope against CS4c, then land
+(1) and the ruled slice of (2). THEN the ruled order continues: S5
+(the sugar-FACTORY retirement — the 909-site `zeros_on`/`from_mesh`
+spelling migration; the boundary re-sharpening above already moved the
+consumer-frame reads into S4) → S6 (verbs + the frame square + #399 —
+its G6.3/G6.8 adjoint gates PRESUPPOSE the bound frame) → S7 (repairs
++ EE-1 + docs).
 
 The original proposal text, for the record (all three ruled above):
 
