@@ -1247,14 +1247,17 @@ harmonic factors[1] rebuilds, the widened-member S6 defers, the ~116
 test re-keys, the retired `as_per_ordinate`). Landing-time discoveries
 that later steps must know:
 
-- ⭐ **The frame square's structural asymmetry** (pre-figures S6's
-  verbs): ANALYSIS self-derives its moment target from the operand +
-  the frame's `L`; RECONSTRUCTION must be TOLD its per-ordinate target
-  (`space=`) — the angular target carries the quadrature axis and, on a
-  widened iterate, the scheme's mass-bearing moment axis, carrier
-  knowledge neither the moment operand nor the (basis, measure) frame
-  holds. The production caller passes its posed composite's
-  `interior_space`.
+- ⭐ ~~**The frame square's structural asymmetry**~~ ⛔ MISCHARACTERIZED
+  AS STATED (user diagnosis, 2026-08-22; corrected by the S4-AMENDMENT
+  below): the `space=` need on `reconstruct` was an UNBOUND OPERATOR's
+  missing codomain, not a structural fact — the frame was never bound
+  to its two field spaces at construction. The honest residual fact is
+  the CONSTRUCTOR-INPUT direction: the moment space is derivable from
+  the angular space + `L`, never the reverse (the angular target
+  carries the quadrature axis and, widened, the scheme's mass-bearing
+  moment axis) — so the constructor takes the ANGULAR space and
+  derives the moment space. The production caller passes its posed
+  composite's `interior_space` — at CONSTRUCTION, not per verb call.
 - ⚠ **`Axis.weights is None` IS the all-ones measure** (canonicalized
   at construction — `[M]` GL2's w=[1,1] reads back None). Every weight
   reader carries the branch.
@@ -1325,9 +1328,122 @@ symptom, and ruled the repair at TWO levels:
    "an anonymous leaf's `.H` is a bare Euclidean transpose wearing
    the Hilbert adjoint's name".
 
-**▶ RESUMES AT: the S4-amendment design** (user steers, surgical
-posture): reconcile the base-mandate's scope against CS4c, then land
-(1) and the ruled slice of (2). THEN the ruled order continues: S5
+**✅ S4-AMENDMENT DESIGN RULED (2026-08-22, six user rulings) — the
+design session re-measured the charter's numbers and found the blast
+far smaller and the structure far richer.**
+
+*Corrected census (supersedes the charter's "77 subclasses / ~33
+inherit None" — that was a text-grep over-count, and a first AST pass
+mis-attributed inheritance by DFS order instead of reporting all
+sources).* `[M]` AST census over `orpheus/`
+(scratchpad `census2.py`): **56 transitive LinearOperator subclasses;
+the whole inverse family (`InverseOperator`, `MatrixInverseOperator`,
+`GreenOperator`, `SweepOperator`, `CoupledSubstitutionOperator`)
+already derives via `InverseWrapMixin`'s domain↔codomain swap;
+composites derive; `_CarrierMatvecOperator` is scipy's class (out of
+scope). True silent set: 4 concrete leaves + 2 ABCs** —
+`IdentityOperator`, `DiagonalOperator`, `RankOneOperator`,
+`DSACorrection`, plus `AnalysisOperator`/`ReconstructionOperator`
+(whose docstrings already state the V/W pair "lives in the runtime
+domain/codomain"). `FissionOperator` is the in-tree precedent (space
+MANDATORY since CS4a K2, non-Optional properties).
+
+**The six rulings:**
+
+1. **Base demand = "abstract now, narrow later."** The root's
+   None-returning default bodies are DELETED (`@property
+   @abstractmethod`); every class must answer — with spaces, by
+   derivation, by the pointwise law, or an explicit documented
+   Optional override naming its owning campaign (S/C/iso → CS4c,
+   L/B → CS2). The annotation stays `FunctionSpace | None`; the
+   terminal narrowing + composability-skip retirement land when those
+   campaigns finish. No CS4c/CS2 call-site set is pulled.
+2. **`.adjoint()`/`.H` refuses unbound** — an adjointable-but-unbound
+   leaf's `.H` today silently returns the Euclidean transpose wearing
+   the Hilbert adjoint's name (the R2 hazard). Non-pointwise operators
+   must declare both spaces to take `.H`.
+3. **The natural family = `PointwiseOperator`** (ruled name): the
+   space-polymorphic stratum of the multiplier algebra the tree
+   already documents (`MultiplicationOperator`'s own law-suite
+   `M[1]=I, M[0]=0`). Law: endomorphic at the operand's space, no
+   stored pair (`domain`/`codomain` None BY LAW, discriminated by
+   type); **`.H = self`** — real multipliers commute with every
+   diagonal metric, so the adjoint is metric-free. Members: `Identity`
+   (×1), `Diagonal` (×f), the endo `Zero` (×0). Boundary: Permutation
+   is endomorphic but basis-coupling — excluded, its `.H` genuinely
+   needs the metric. Bound multipliers (`MultiplicationOperator`,
+   `InverseMetricOperator`) stay bound classes. `[M]` the user's
+   albedo reading confirmed from physics: law = (scalar multiplier
+   α∈[0,1]) ∘ (geometric link Γ₊→Γ₋); 0 = Zero, 1 = Identity,
+   between = Scaled; the natural piece is the multiplier, the bound
+   piece the link. `MultiplicationOperator`-as-collision is NOT a
+   misnomer — #261 ruled mechanism-at-class/role-at-binding
+   (`collision = MultiplicationOperator(...)` at all 3 sites).
+4. **The hetero-Zero weld: FULL un-weld now.** `[M]` three layers:
+   (a) the fission (B,B) hooked Zero exists because `CoupledOperator`
+   refuses all-None columns ("drop the system") — impossible for a
+   pencil member sharing the domain — and the refusal is load-bearing
+   (`apply_transpose`'s empty `reduce`); (b) the missing operator is
+   the RESTRICTION: `F_posed = [[F],[E]]-stack ∘ restrict_A`
+   (rectangular stacks are already blessed; 1-member coupling "is the
+   legitimate degenerate"); (c) vacuum is NOT the same weld — B3.2's
+   zero morphism stands (the α→0 member of the law family, realized
+   structurally, link never built) — but its `_zero_rows` closures
+   duplicate what its already-bound codomain knows. ⟹ the
+   `codomain_zero`/`transpose_zero` hooks lose both production
+   consumers and RETIRE; `ZeroOperator` splits into the natural endo
+   zero (stateless ×0 echo, joins `PointwiseOperator`) and
+   **`ZeroMorphism`** (born-bound: both spaces REQUIRED, apply/
+   transpose mint zeros from the bound pair, `.H` = the swapped
+   `ZeroMorphism` — metric-free trivially).
+5. **Restrictions: one concept, mint only the member projection.**
+   All the tree's restrictions are ONE split pair (embedding e,
+   retraction r; r∘e = id; r = e† in the right metrics; P = e∘r the
+   orthogonal projector), in two realizations: index-subset
+   (gather/scatter — `TraceRestrictionOperator`, Γ± half-splits,
+   block projections, member projection) and measure-weighted
+   (constant-broadcast / w-average — the kernel's pair,
+   `integrate_angular`, `from_isotropic`). Many wear cloaks
+   (`.interior` reads, `y.systems[i]`, index arrays). This amendment
+   mints ONLY **`SystemRestrictionOperator`** (coupled → 1-member
+   coupling; adjoint = extension-by-zero via the space's wired
+   `zeros()` seam; `TraceRestrictionOperator`'s sibling, carrying the
+   split-pair law-suite as its intrinsic-property test). The family
+   ABC waits for its first generic consumer (CS4c's verb) per the
+   type-minting rule; the concept goes into the operator-algebra
+   corpus at S7.
+6. **Level 1 (the frame) as chartered**: `HarmonicFrame(basis,
+   measure, *, angular_space)` derives + stores `moment_space` once
+   (named `angular_space`/`moment_space` — absolute names; the verbs
+   run opposite ways so domain/codomain are direction-relative);
+   verbs lose `space=`, admission = content equality, outputs ride the
+   bound pair; `ScatteringOperator.frame` demands the posed space (the
+   windowed-arm refusal moves onto the property — the kernel path
+   demands posedness too; production always poses, `[M]`
+   solver.py:1403 + both derived-sibling ctors).
+
+**Execution order (§6b — the hook retirement's call-site set is
+{vacuum site, fission site} + the hook params, so the split lands only
+after BOTH consumers move):**
+- **A1** — level 1: the frame binding + scattering re-point + test
+  migrations + gates + the "structural asymmetry" record corrections
+  (plan S4 bullet marked below, topic memory, harmonic_frame
+  docstrings).
+- **A2** — `SystemRestrictionOperator` + its law-suite test + the
+  fission posing re-spelled as stack ∘ restrict (consumer 1 off the
+  hooks; the (A,B) None and the (B,B) hooked Zero both dissolve).
+- **A3** — `PointwiseOperator` + Identity/Diagonal join (+ their
+  `adjoint() → self`) + the Zero split (`ZeroOperator` natural,
+  `ZeroMorphism` bound) + vacuum migration + hook retirement (one
+  commit — the split IS the retirement).
+- **A4** — the base demand: root abstract + the `.H` unbound refusal
+  + `DSACorrection` derives + `RankOneOperator` declares +
+  the two ABCs go abstract + pyright ratchet held at 0 + the §8
+  measurement (each newly-answering leaf: fast suite; any
+  composition newly refusing or adjoint-path change measured and
+  gated before commit).
+
+THEN the ruled order continues: S5
 (the sugar-FACTORY retirement — the 909-site `zeros_on`/`from_mesh`
 spelling migration; the boundary re-sharpening above already moved the
 consumer-frame reads into S4) → S6 (verbs + the frame square + #399 —

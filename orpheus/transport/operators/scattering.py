@@ -502,9 +502,26 @@ class ScatteringOperator(LinearOperator):
         HarmonicFrame-IS-A-GalerkinFrame relation and the shared-table
         rationale: ``docs/theory/foundations/operator_algebra.rst
         §integral-kernel-category``.
+
+        BOUND at construction (the S4-amendment): the typed lift's angular
+        domain is the posed composite's iterate-width ``interior_space``
+        (LD-widened when the scheme widens), and the frame derives + stores
+        its moment codomain from it. A space-less operator therefore has NO
+        frame — the refusal that used to sit on the windowed moment arm
+        lives here, one level earlier, and covers the kernel faces too.
         """
+        if (
+            not isinstance(self.space, FullFieldSpace)
+            or self.space.interior_space is None
+        ):
+            raise TypeError(
+                "ScatteringOperator.frame needs the posed composite space"
+                " (space=) to bind the typed lift's angular domain; this"
+                " operator was built space-less."
+            )
         return HarmonicFrame.from_galerkin(
             self.quadrature.angular_frame(self.scattering_order),
+            angular_space=self.space.interior_space,
         )
 
     @property
@@ -1218,35 +1235,26 @@ class ScatteringOperator(LinearOperator):
         explicit-typed vs fused-kernel choice is in
         ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
         """
-        # CS4b S4: the per-ordinate TARGET space comes from this
-        # operator's own posed composite space (its interior — the
-        # carrier's angular mint, width-widened on LD), because neither
-        # the moment operand nor the (basis, measure) frame carries the
-        # quadrature/scheme axes the target needs.
-        if (
-            not isinstance(self.space, FullFieldSpace)
-            or self.space.interior_space is None
-        ):
-            raise TypeError(
-                "ScatteringOperator's windowed moment arm needs the posed"
-                " composite space (space=) to name its per-ordinate"
-                " reconstruction target; this operator was built"
-                " space-less."
-            )
-        angular_target = self.space.interior_space
+        # S4-amendment: the per-ordinate target is the FRAME's bound
+        # angular codomain (bound at :attr:`frame` construction from this
+        # operator's posed composite interior — the carrier's angular
+        # mint, width-widened on LD). Reading self.frame refuses loudly
+        # on a space-less operator, so no local guard remains here.
+        angular_target = self.frame.angular_space
         if self.scattering_order == 0:
             aniso = None
         else:
             # Explicit typed grid path: Λ scatters flux moments → source moments
             # (HarmonicMomentFlux → HarmonicMomentSourceSink, the role-changing
             # edge), the frame's R reconstructs the per-ordinate
-            # AngularSourceSink, then the producer-side 1/W. Numerically equals
-            # the kernel's ndarray reconstruct_after(Λ) reference.
+            # AngularSourceSink (riding the frame's bound angular codomain),
+            # then the producer-side 1/W. Numerically equals the kernel's
+            # ndarray reconstruct_after(Λ) reference.
             scattered = LegendreMomentScattering(
                 mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
             ).apply(phi_moments)
             aniso = self.frame.reconstruct(
-                scattered, space=angular_target,
+                scattered,
             ) / float(self.weights.sum())
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
         # carries that convention (== integrate_angular bit-exactly).

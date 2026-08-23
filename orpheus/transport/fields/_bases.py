@@ -60,9 +60,10 @@ provides the *locus + family* axes as ABCs; the *role* leaves
 Parametrization (no twin paths)
 ===============================
 
-The per-family phase-space shape is the one abstract hook
-:meth:`BulkField._phase_space_shape`, used by the shared
-``__post_init__`` validator. Every family sources its space from the
+The per-family phase-space shape lives on the SPACE — the shared
+``__post_init__`` validator is :class:`~orpheus.numerics.field.Field`'s
+own values-vs-space check (CS4b S4 collapsed the per-family
+``_phase_space_shape`` hook into it). Every family sources its space from the
 CARRIER's cached mints (campaign 1 CS4b): the Angular/Scalar families
 read ``mesh.angular_bulk_space`` / ``mesh.bulk_space``, ``MomentField``
 composes ``SphericalHarmonicSpace(L) * mesh.bulk_space``, and the
@@ -319,10 +320,23 @@ class BulkField(Field):
         :meth:`HarmonicMomentFlux.scalar_flux`) pass this as the child's
         ``spatial_moments`` so the moment axis is propagated as a TYPED factor,
         not an opaque widened ndarray."""
+        return type(self)._spatial_moments_per_axis_of(self.space)
+
+    @staticmethod
+    def _spatial_moments_per_axis_of(space: FunctionSpace) -> int:
+        r"""The per-axis spatial-moment width a SPACE carries (``1`` if none).
+
+        The static body of :attr:`spatial_moments_per_axis`, hoisted so a
+        consumer holding only the space — the S4-amendment's bound
+        :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`,
+        which derives its moment codomain from its bound angular domain at
+        construction — reads the SAME rule the fields do (single source;
+        the alternative was a second copy of the tail-inversion in the
+        frame)."""
         from orpheus.numerics.spaces.spatial_moment_space import SpatialMomentSpace
 
-        tail = type(self)._spatial_moment_tail_of(self.space)
-        if self.space.axes is not None:
+        tail = BulkField._spatial_moment_tail_of(space)
+        if space.axes is not None:
             if tail == ():
                 return 1
             # The axis stores the CELL count (per_axis ** ndim); invert it.
@@ -332,7 +346,7 @@ class BulkField(Field):
             # binding).
             ndim = next(
                 len(ax.shape)
-                for ax in self.space.axes
+                for ax in space.axes
                 if ax.label == "spatial"
             )
             per_axis = round(tail[0] ** (1.0 / ndim))
@@ -342,7 +356,7 @@ class BulkField(Field):
                     f"not a per-axis power for ndim={ndim}"
                 )
             return per_axis
-        find_factor = getattr(self.space, "find_factor", None)
+        find_factor = getattr(space, "find_factor", None)
         if find_factor is None:
             return 1
         try:

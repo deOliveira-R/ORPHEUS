@@ -195,6 +195,7 @@ class TestO12WindowingAnalysis:
         )
         S = ScatteringOperator(
             mat_xs=mat, quadrature=sn.quad, scattering_order=1,
+            space=sn.full_field_space,  # S4-amendment: .frame demands the pose
         )
         op = BulkAnalysisOperator(S.frame, sn)
         stretched = _slab(width=2.0)

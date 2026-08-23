@@ -1358,10 +1358,10 @@ class TestAnisoMomentSourcePath:
         calls = {"n": 0}
         original = HarmonicFrame.reconstruct
 
-        def spying(self, moment, *, space):
+        def spying(self, moment):
             if isinstance(moment, HarmonicMomentSourceSink):
                 calls["n"] += 1
-            return original(self, moment, space=space)
+            return original(self, moment)
 
         monkeypatch.setattr(HarmonicFrame, "reconstruct", spying)
 

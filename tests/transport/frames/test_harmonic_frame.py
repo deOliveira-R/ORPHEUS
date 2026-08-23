@@ -5,13 +5,20 @@ The typed angular spherical-harmonic frame's contract:
 * :meth:`from_galerkin` upgrades a generic ``quadrature.angular_frame(L)``
   :class:`~orpheus.numerics.frame.GalerkinFrame` to the typed wrapper, sharing
   its basis + measure (table bit-identical);
-* the role-polymorphic verbs :meth:`analyse` (:math:`M`) and :meth:`reconstruct`
-  (:math:`R`) dispatch on the input carrier type, preserving the role
-  (flux ↔ flux, source ↔ source) and changing the axis (angular ↔ moment);
+* the frame is BOUND at construction (the S4-amendment): the constructor takes
+  the per-ordinate ``angular_space`` and derives + stores ``moment_space`` once
+  (moment = f(angular, L) — the constructor-input direction);
+* the role-polymorphic verbs :meth:`analyse` (:math:`M`,
+  ``angular_space → moment_space``) and :meth:`reconstruct` (:math:`R`,
+  ``moment_space → angular_space``) dispatch on the input carrier type,
+  preserving the role (flux ↔ flux, source ↔ source) and changing the axis
+  (angular ↔ moment); each ADMITS by content equality against the bound
+  spaces and its output rides the bound spaces (no per-call ``space=``);
 * each verb is **bit-identical** to the generic ``np.ndarray`` face it wraps
   (``frame.analysis.apply`` / ``frame.reconstruction.apply``) — the typed seam
   adds carriers, never changes a number;
-* a wrong-role carrier raises ``TypeError``.
+* a wrong-role carrier raises ``TypeError``; a right-role carrier on a
+  content-different space is REFUSED (the bound-operator admission).
 
 Foundation mark: these verify a software invariant (the typed wrapper equals the
 raw-face path) rather than a physics claim.
@@ -62,7 +69,9 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
 
 
 def _frame(m: SNMesh, L: int = _L) -> HarmonicFrame:
-    return HarmonicFrame.from_galerkin(m.quad.angular_frame(L))
+    return HarmonicFrame.from_galerkin(
+        m.quad.angular_frame(L), angular_space=m.angular_bulk_space,
+    )
 
 
 def _angular_values(m: SNMesh, seed: int) -> np.ndarray:
@@ -82,7 +91,9 @@ class TestFromGalerkin:
     def test_is_a_galerkin_frame_sharing_basis_measure(self) -> None:
         m = _slab_mesh()
         gf = m.quad.angular_frame(_L)
-        frame = HarmonicFrame.from_galerkin(gf)
+        frame = HarmonicFrame.from_galerkin(
+            gf, angular_space=m.angular_bulk_space,
+        )
         assert isinstance(frame, type(gf))  # Liskov: HarmonicFrame IS-A GalerkinFrame
         assert frame.basis is gf.basis
         assert frame.measure is gf.measure
@@ -93,11 +104,84 @@ class TestFromGalerkin:
         """The generic ndarray faces are inherited untouched (0-ULP-safe)."""
         m = _slab_mesh()
         gf = m.quad.angular_frame(_L)
-        frame = HarmonicFrame.from_galerkin(gf)
+        frame = HarmonicFrame.from_galerkin(
+            gf, angular_space=m.angular_bulk_space,
+        )
         vals = _angular_values(m, 1)
         np.testing.assert_array_equal(
             frame.analysis.apply(vals), gf.analysis.apply(vals),
         )
+
+
+# ── the S4-amendment binding: two bound spaces, derived once ───────────
+
+
+class TestBinding:
+    def test_angular_space_is_the_bound_instance(self) -> None:
+        m = _slab_mesh()
+        frame = _frame(m)
+        assert frame.angular_space is m.angular_bulk_space
+
+    def test_moment_space_derived_content_equals_the_mint(self) -> None:
+        """moment = f(angular, L), derived ONCE at construction — and it
+        content-equals the carrier mint's own space."""
+        m = _slab_mesh()
+        frame = _frame(m)
+        assert (
+            frame.moment_space
+            == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
+        )
+
+    def test_analyse_refuses_a_content_different_operand(self) -> None:
+        """The bound-operator admission: a right-role carrier riding a
+        content-DIFFERENT space is refused, naming both spaces."""
+        m = _slab_mesh(nx=4)
+        other = _slab_mesh(nx=5)  # different spatial axis → different space
+        frame = _frame(m)
+        psi = AngularFlux.from_mesh(_angular_values(other, 11), other)
+        with pytest.raises(TypeError, match="bound to angular domain"):
+            frame.analyse(psi)
+
+    def test_reconstruct_refuses_a_content_different_operand(self) -> None:
+        m = _slab_mesh(nx=4)
+        other = _slab_mesh(nx=5)
+        frame = _frame(m)
+        phi = HarmonicMomentFlux.from_mesh_and_L(
+            _moment_values(other, 12), other, _L,
+        )
+        with pytest.raises(TypeError, match="bound to moment domain"):
+            frame.reconstruct(phi)
+
+    def test_widened_angular_space_derives_widened_moment_space(self) -> None:
+        """A spatial-moment-widened angular domain (the LD iterate width)
+        derives a moment codomain carrying the densified moment factor —
+        read off the SPACE at binding, not off any operand."""
+        from orpheus.transport.spatial import LinearDiscontinuous
+
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 5),
+            mat_ids=np.zeros(4, dtype=int),
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"),
+            bc_right=BC("vacuum"),
+        )
+        m = SNMesh(
+            mesh,
+            Quadrature.gauss_legendre(n_ordinates=4),
+            placeholder_materials(ng=2),
+            scheme=LinearDiscontinuous(),
+        )
+        widened = AngularFlux.zeros_on(m, spatial_moments=2)
+        frame = HarmonicFrame.from_galerkin(
+            m.quad.angular_frame(_L), angular_space=widened.space,
+        )
+        assert frame.angular_space is widened.space
+        moments = frame.analyse(widened)
+        assert isinstance(moments, HarmonicMomentFlux)
+        assert moments.space == frame.moment_space
+        assert moments.spatial_moments_per_axis == 2
+        back = frame.reconstruct(moments)
+        assert back.space is widened.space
 
 
 # ── analyse (M): role-preserving, angular → moment, bit-identical ──────
@@ -111,7 +195,8 @@ class TestAnalyse:
         psi = AngularFlux.from_mesh(vals, m)
         moments = frame.analyse(psi)
         assert isinstance(moments, HarmonicMomentFlux)
-        # CS4b S4: analysis derives its target; content-equals the mint.
+        # S4-amendment: the output rides the BOUND moment codomain.
+        assert moments.space is frame.moment_space
         assert moments.space == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
         assert moments.L == _L
         np.testing.assert_array_equal(
@@ -125,7 +210,7 @@ class TestAnalyse:
         q = AngularSourceSink.from_mesh(vals, m)
         moments = frame.analyse(q)
         assert isinstance(moments, HarmonicMomentSourceSink)
-        assert moments.space == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
+        assert moments.space is frame.moment_space
         np.testing.assert_array_equal(
             moments.values, frame.analysis.apply(vals),
         )
@@ -147,8 +232,9 @@ class TestReconstruct:
         frame = _frame(m)
         vals = _moment_values(m, 5)
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, _L)
-        psi = frame.reconstruct(phi, space=m.angular_bulk_space)
+        psi = frame.reconstruct(phi)
         assert isinstance(psi, AngularFlux)
+        # S4-amendment: the output rides the BOUND angular codomain.
         assert psi.space is m.angular_bulk_space
         np.testing.assert_array_equal(
             psi.values, frame.reconstruction.apply(vals),
@@ -159,7 +245,7 @@ class TestReconstruct:
         frame = _frame(m)
         vals = _moment_values(m, 6)
         q = HarmonicMomentSourceSink.from_mesh_and_L(vals, m, _L)
-        out = frame.reconstruct(q, space=m.angular_bulk_space)
+        out = frame.reconstruct(q)
         assert isinstance(out, AngularSourceSink)
         assert out.space is m.angular_bulk_space
         np.testing.assert_array_equal(
@@ -171,7 +257,7 @@ class TestReconstruct:
         frame = _frame(m)
         psi = AngularFlux.from_mesh(_angular_values(m, 7), m)
         with pytest.raises(TypeError, match="unsupported carrier"):
-            frame.reconstruct(psi, space=m.angular_bulk_space)
+            frame.reconstruct(psi)
 
 
 # ── role symmetry + 2-D smoke ──────────────────────────────────────────
@@ -184,7 +270,7 @@ class TestRolePolymorphism:
         m = _slab_mesh()
         frame = _frame(m)
         psi = AngularFlux.from_mesh(_angular_values(m, 8), m)
-        back = frame.reconstruct(frame.analyse(psi), space=m.angular_bulk_space)
+        back = frame.reconstruct(frame.analyse(psi))
         assert isinstance(back, AngularFlux)
         # bit-identical to the raw composed faces
         expected = frame.reconstruction.apply(frame.analysis.apply(psi.values))
@@ -194,7 +280,7 @@ class TestRolePolymorphism:
         m = _slab_mesh()
         frame = _frame(m)
         q = AngularSourceSink.from_mesh(_angular_values(m, 9), m)
-        back = frame.reconstruct(frame.analyse(q), space=m.angular_bulk_space)
+        back = frame.reconstruct(frame.analyse(q))
         assert isinstance(back, AngularSourceSink)
 
     def test_2d_analyse_reconstruct(self) -> None:
@@ -204,6 +290,4 @@ class TestRolePolymorphism:
         moments = frame.analyse(psi)
         assert isinstance(moments, HarmonicMomentFlux)
         assert moments.values.shape == (_L + 1, 2 * _L + 1, m.ng, *m.spatial_shape)
-        assert isinstance(
-            frame.reconstruct(moments, space=m.angular_bulk_space), AngularFlux,
-        )
+        assert isinstance(frame.reconstruct(moments), AngularFlux)

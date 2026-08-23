@@ -17,10 +17,8 @@ The two carriers the angular frame maps between —
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux` (and
 their source/sink siblings) — share their deepest primitive,
 :class:`~orpheus.numerics.field.Field`, in **numerics**. But the part that makes
-them *castable* — the ``mesh`` binding and the ``from_mesh`` / ``from_mesh_and_L``
-factories — lives in the transport
-:class:`~orpheus.transport.fields._bases.BulkField` base. And
-``Quadrature.angular_frame`` (which builds the generic
+them *castable* — the carrier classes themselves — lives in the transport
+field layer. And ``Quadrature.angular_frame`` (which builds the generic
 :class:`~orpheus.numerics.frame.GalerkinFrame`) is in **numerics**, which cannot
 import the transport carriers. So a generic numerics face *cannot* return a typed
 ``HarmonicMomentFlux`` without inverting the layer order. The clean home for the
@@ -56,16 +54,34 @@ where the physics puts the role change. The hot anisotropic-scatter kernel
 chain, the 0-ULP canary); these typed verbs serve the consumers that apply
 :math:`M` or :math:`R` in isolation.
 
-The frame binds only the angular basis + measure (mesh-agnostic). The output
-carrier's SPACE is derived from the operand for analysis and supplied by the
-caller for reconstruction (CS4b S4 — the frame square's structural asymmetry;
-see the verbs); the truncation order ``L`` comes from the frame's own basis,
-and the optional within-cell spatial-moment width is threaded through as a
-typed factor (read off the input carrier's space, #240 D5b-S3).
+The typed lift is BOUND at construction (the S4-amendment)
+==========================================================
+
+The typed verbs realise the lift :math:`M \otimes I_{\rm cells}` — a pair of
+formal operators between two full field spaces — and an operator is not an
+operator without its domain and codomain. The frame therefore binds BOTH at
+construction: the constructor takes the per-ordinate **angular field space**
+(:attr:`angular_space`) and derives + stores the **moment space**
+(:attr:`moment_space`) once. The derivation direction is a constructor-input
+fact: the moment space is a function of the angular space and the truncation
+order ``L`` — never the reverse, because the angular space carries the
+quadrature axis and, on a widened iterate, the scheme's mass-bearing
+spatial-moment axis, which no moment operand determines. (An earlier revision
+read this as a "structural asymmetry" of the frame square and made
+``reconstruct`` take a per-call ``space=`` — that parameter was an unbound
+operator's missing codomain leaking into the apply signature; the user
+diagnosed it and the binding repaired it, 2026-08-22.)
+
+Both verbs ADMIT by content equality against the bound spaces and their
+outputs ride the bound spaces; the truncation order ``L`` comes from the
+frame's own basis, and the within-cell spatial-moment width is read off the
+bound angular space (#240 D5b-S3, hoisted to
+:meth:`~orpheus.transport.fields._bases.BulkField._spatial_moments_per_axis_of`).
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, overload
 
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
@@ -85,45 +101,121 @@ from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
 __all__ = ["HarmonicFrame"]
 
 
+def _derive_moment_space(
+    angular_space: "FunctionSpace", L: int,
+) -> "FunctionSpace":
+    r"""The moment codomain derived from the bound angular domain (+ ``L``).
+
+    ``SH.from_L(L) * of_axes(<non-angular, non-moment axes>)`` — the cell
+    group is the angular space's own energy/spatial axes (the same instances
+    the carrier's mints share, so the product content-equals
+    ``MomentField._space_for_mesh_and_L``'s) — with the densified
+    ``SpatialMomentSpace`` factor appended for a widened angular space,
+    mirroring ``_compose_spatial_moments``'s densified arm. Runs ONCE, at
+    frame construction (the S4-amendment): the derivation direction is
+    moment = f(angular, L), never the reverse.
+    """
+    from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces.spatial_moment_space import (
+        SpatialMomentSpace,
+    )
+    from orpheus.numerics.spaces.spherical_harmonic_space import (
+        SphericalHarmonicSpace,
+    )
+    from orpheus.transport.fields._bases import BulkField
+
+    axes = angular_space.axes
+    if axes is None:
+        raise TypeError(
+            "HarmonicFrame: the bound angular space must be axis-built (an "
+            "S2 per-ordinate space); a shape-only space cannot name the "
+            "cell axes the moment codomain is derived from."
+        )
+    cell_axes = [
+        ax for ax in axes[1:] if ax.label != SPATIAL_MOMENT_AXIS_LABEL
+    ]
+    base = SphericalHarmonicSpace.from_L(L) * (
+        FunctionSpace.of_axes(*cell_axes)
+    )
+    per_axis = BulkField._spatial_moments_per_axis_of(angular_space)
+    if per_axis == 1:
+        return base
+    ndim = next(
+        len(ax.shape) for ax in cell_axes if ax.label == "spatial"
+    )
+    return base * SpatialMomentSpace.from_per_axis(per_axis, ndim)
+
+
+@dataclass(frozen=True, init=False)
 class HarmonicFrame(GalerkinFrame):
-    r"""The angular spherical-harmonic :class:`GalerkinFrame` with typed verbs.
+    r"""The angular spherical-harmonic :class:`GalerkinFrame` with typed verbs,
+    BOUND to its two full field spaces.
 
     Constructed from a generic ``quadrature.angular_frame(L)`` via
     :meth:`from_galerkin` (or directly from ``(basis, measure)`` — the
     constructor narrows the inherited signature to require a
     :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`:
     a harmonic frame over any other trial basis is an illegal state, and the
-    truncation order ``L`` the typed verbs read exists only on the SH basis).
-    Adds the role-polymorphic :meth:`analyse` (:math:`M`) and
-    :meth:`reconstruct` (:math:`R`) carrier verbs; the generic ``np.ndarray``
-    faces (:attr:`~orpheus.numerics.frame.FrameBase.analysis`,
+    truncation order ``L`` the typed verbs read exists only on the SH basis)
+    — plus the **angular field space** the typed lift acts on. The moment
+    space is derived and stored at construction (:func:`_derive_moment_space`;
+    moment = f(angular, L), never the reverse). Adds the role-polymorphic
+    :meth:`analyse` (:math:`M`, ``angular_space → moment_space``) and
+    :meth:`reconstruct` (:math:`R`, ``moment_space → angular_space``) carrier
+    verbs; the generic ``np.ndarray`` faces
+    (:attr:`~orpheus.numerics.frame.FrameBase.analysis`,
     :attr:`~orpheus.numerics.frame.FrameBase.reconstruction`,
     :meth:`~orpheus.numerics.frame.FrameBase.conjugate`) are inherited
-    unchanged.
+    unchanged and remain bound at the numerics level (basis space / measure
+    space).
     """
 
     # Covariant narrowing of the inherited frozen (read-only) field: the
     # constructor below guarantees it, and the typed verbs read ``basis.L``.
     basis: SphericalHarmonicBasis
 
+    #: The per-ordinate angular field space — :meth:`analyse`'s domain and
+    #: :meth:`reconstruct`'s codomain. In production this is the posed
+    #: composite's iterate-width ``interior_space``
+    #: (:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.frame`).
+    angular_space: "FunctionSpace"
+
+    #: The spherical-harmonic moment space — :meth:`analyse`'s codomain and
+    #: :meth:`reconstruct`'s domain. DERIVED from :attr:`angular_space` +
+    #: the basis ``L`` at construction; never a constructor input.
+    moment_space: "FunctionSpace"
+
     def __init__(
-        self, basis: SphericalHarmonicBasis, measure: DiscreteMeasure,
+        self,
+        basis: SphericalHarmonicBasis,
+        measure: DiscreteMeasure,
+        *,
+        angular_space: "FunctionSpace",
     ) -> None:
         super().__init__(basis, measure)
+        object.__setattr__(self, "angular_space", angular_space)
+        object.__setattr__(
+            self, "moment_space", _derive_moment_space(angular_space, basis.L),
+        )
 
     @classmethod
-    def from_galerkin(cls, frame: GalerkinFrame) -> "HarmonicFrame":
-        r"""Upgrade a generic angular :class:`GalerkinFrame` to a typed
+    def from_galerkin(
+        cls, frame: GalerkinFrame, *, angular_space: "FunctionSpace",
+    ) -> "HarmonicFrame":
+        r"""Upgrade a generic angular :class:`GalerkinFrame` to a typed, bound
         :class:`HarmonicFrame`, reusing its basis + measure (no rebuild).
 
         ``frame`` is the ``quadrature.angular_frame(L)`` Galerkin frame; the
         returned :class:`HarmonicFrame` shares its
         :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
         trial basis and its angular :class:`~orpheus.numerics.measure.DiscreteMeasure`,
-        so the table / spaces / faces are bit-identical — only the typed verbs
-        are added. A frame over any other trial basis (e.g. an indicator
-        basis) is rejected here, at the upgrade boundary — not later, when a
-        typed verb first reads the SH-only truncation order ``L``.
+        so the table / numerics spaces / faces are bit-identical — only the
+        typed verbs and the field-space binding (``angular_space`` in, moment
+        space derived) are added. A frame over any other trial basis (e.g. an
+        indicator basis) is rejected here, at the upgrade boundary — not
+        later, when a typed verb first reads the SH-only truncation order
+        ``L``.
         """
         basis = frame.basis
         if not isinstance(basis, SphericalHarmonicBasis):
@@ -131,7 +223,7 @@ class HarmonicFrame(GalerkinFrame):
                 f"HarmonicFrame.from_galerkin requires a spherical-harmonic "
                 f"trial basis; got {type(basis).__name__}."
             )
-        return cls(basis, frame.measure)
+        return cls(basis, frame.measure, angular_space=angular_space)
 
     # ── M : project (role-preserving, angular → moment) ──────────────
     #
@@ -156,25 +248,30 @@ class HarmonicFrame(GalerkinFrame):
         (:math:`M`), preserving the role.
 
         :class:`AngularFlux` → :class:`HarmonicMomentFlux`,
-        :class:`AngularSourceSink` → :class:`HarmonicMomentSourceSink`. The
-        output's space is DERIVED from the operand's (CS4b S4): the moment
-        target is ``SH(L) * cell_group[* SMS]`` where the cell group is
-        the operand's non-angular, non-moment axes — analysis's target is
-        determined by its operand + the frame's ``L``, the structural
-        half of the frame square that self-derives (reconstruction's
-        angular target needs carrier knowledge and takes ``space=``).
+        :class:`AngularSourceSink` → :class:`HarmonicMomentSourceSink`. A
+        bound operator's verb: the operand is ADMITTED by content equality
+        against the bound :attr:`angular_space`, and the output rides the
+        bound :attr:`moment_space` (derived once, at construction — the
+        S4-amendment; no per-operand space derivation, no per-call
+        ``space=``).
         """
         if isinstance(field, (AngularFlux, AngularSourceSink)):
-            space = self._moment_space_for(field)
+            if field.space != self.angular_space:
+                raise TypeError(
+                    f"HarmonicFrame.analyse: operand rides space "
+                    f"{field.space.name!r} but this frame is bound to "
+                    f"angular domain {self.angular_space.name!r} — a bound "
+                    f"frame verb admits only elements of its bound spaces."
+                )
             values = self.analysis.apply(field.values)
             per_axis = field.spatial_moments_per_axis
             if isinstance(field, AngularFlux):
                 return HarmonicMomentFlux(
-                    values=values, space=space, L=self.basis.L,
+                    values=values, space=self.moment_space, L=self.basis.L,
                     spatial_moments=per_axis,
                 )
             return HarmonicMomentSourceSink(
-                values=values, space=space, L=self.basis.L,
+                values=values, space=self.moment_space, L=self.basis.L,
                 spatial_moments=per_axis,
             )
         raise TypeError(
@@ -183,88 +280,43 @@ class HarmonicFrame(GalerkinFrame):
             f"AngularSourceSink (a per-ordinate carrier)."
         )
 
-    def _moment_space_for(
-        self, field: AngularFlux | AngularSourceSink,
-    ) -> "FunctionSpace":
-        r"""The moment target space derived from a per-ordinate operand.
-
-        ``SH.from_L(L) * of_axes(<non-angular, non-moment axes>)`` — the
-        cell group is the operand's own energy/spatial axes (the same
-        instances the carrier's mints share, so the product content-equals
-        ``MomentField._space_for_mesh_and_L``'s) — with the densified
-        ``SpatialMomentSpace`` factor appended for a widened operand,
-        mirroring ``_compose_spatial_moments``'s densified arm.
-        """
-        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
-        from orpheus.numerics.space import FunctionSpace
-        from orpheus.numerics.spaces.spatial_moment_space import (
-            SpatialMomentSpace,
-        )
-        from orpheus.numerics.spaces.spherical_harmonic_space import (
-            SphericalHarmonicSpace,
-        )
-
-        axes = field.space.axes
-        if axes is None:  # unreachable for shipped angular spaces (S2)
-            raise TypeError(
-                "HarmonicFrame.analyse: the per-ordinate operand must ride "
-                "an axis-built angular space."
-            )
-        cell_axes = [
-            ax for ax in axes[1:] if ax.label != SPATIAL_MOMENT_AXIS_LABEL
-        ]
-        base = SphericalHarmonicSpace.from_L(self.basis.L) * (
-            FunctionSpace.of_axes(*cell_axes)
-        )
-        per_axis = field.spatial_moments_per_axis
-        if per_axis == 1:
-            return base
-        ndim = next(
-            len(ax.shape) for ax in cell_axes if ax.label == "spatial"
-        )
-        return base * SpatialMomentSpace.from_per_axis(per_axis, ndim)
-
     # ── R : reconstruct (role-preserving, moment → angular) ──────────
 
     @overload
-    def reconstruct(
-        self, moment: HarmonicMomentFlux, *, space: "FunctionSpace",
-    ) -> AngularFlux: ...
+    def reconstruct(self, moment: HarmonicMomentFlux) -> AngularFlux: ...
 
     @overload
     def reconstruct(
-        self, moment: HarmonicMomentSourceSink, *, space: "FunctionSpace",
+        self, moment: HarmonicMomentSourceSink,
     ) -> AngularSourceSink: ...
 
     def reconstruct(
-        self,
-        moment: HarmonicMomentFlux | HarmonicMomentSourceSink,
-        *,
-        space: "FunctionSpace",
+        self, moment: HarmonicMomentFlux | HarmonicMomentSourceSink,
     ) -> AngularFlux | AngularSourceSink:
         r"""Reconstruct a per-ordinate carrier from its spherical-harmonic
         moments (:math:`R`), preserving the role.
 
         :class:`HarmonicMomentFlux` → :class:`AngularFlux`,
-        :class:`HarmonicMomentSourceSink` → :class:`AngularSourceSink`.
-
-        ``space`` is the per-ordinate TARGET space, supplied by the caller
-        (CS4b S4): the angular target carries the quadrature axis and, on
-        a widened iterate, the scheme's mass-bearing moment axis — carrier
-        knowledge neither the moment operand nor this (basis, measure)
-        frame holds. The caller that poses the problem holds it (the
-        production caller passes its composite space's ``interior_space``).
-        This is the frame square's structural asymmetry: analysis
-        self-derives, reconstruction is told where to land.
+        :class:`HarmonicMomentSourceSink` → :class:`AngularSourceSink`. A
+        bound operator's verb: the operand is ADMITTED by content equality
+        against the bound :attr:`moment_space`, and the output rides the
+        bound :attr:`angular_space`. (The pre-amendment per-call ``space=``
+        parameter was an unbound operator's missing codomain — the angular
+        target is carrier knowledge the CONSTRUCTOR takes, once, from the
+        caller that poses the problem; see the module docstring.)
         """
-        if isinstance(moment, HarmonicMomentFlux):
-            return AngularFlux(
-                values=self.reconstruction.apply(moment.values), space=space,
-            )
-        if isinstance(moment, HarmonicMomentSourceSink):
-            return AngularSourceSink(
-                values=self.reconstruction.apply(moment.values), space=space,
-            )
+        if isinstance(moment, (HarmonicMomentFlux, HarmonicMomentSourceSink)):
+            if moment.space != self.moment_space:
+                raise TypeError(
+                    f"HarmonicFrame.reconstruct: operand rides space "
+                    f"{moment.space.name!r} but this frame is bound to "
+                    f"moment domain {self.moment_space.name!r} — a bound "
+                    f"frame verb admits only elements of its bound spaces."
+                )
+            values = self.reconstruction.apply(moment.values)
+            if isinstance(moment, HarmonicMomentFlux):
+                return AngularFlux(values=values, space=self.angular_space)
+            return AngularSourceSink(values=values, space=self.angular_space)
         raise TypeError(
             f"HarmonicFrame.reconstruct: unsupported carrier "
             f"{type(moment).__name__}; expected HarmonicMomentFlux or "
