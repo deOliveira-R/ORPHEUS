@@ -151,6 +151,30 @@ Key Facts
   :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with
   ``test is trial``: it strengthens (never weakens) the base promise.
 
+- **The frame owns the codomain METRIC, and it is the INVERSE
+  discrete Gram** (:ref:`frame-parseval-metric`). For a band-limited
+  field :math:`\psi = S_0 c`, analysis returns
+  :math:`\varphi = M\psi = Gc` **identically**
+  (:eq:`frame-analysis-is-the-gram`, pure algebra — no exactness
+  hypothesis), i.e. the *covariant* moments, not the coefficients. So
+  the inner product under which analysis is an isometry onto its image
+  is :math:`G^{-1}`, and
+  :attr:`FrameBase.basis_space
+  <orpheus.numerics.frame.FrameBase.basis_space>` dresses the basis's
+  space with it. Consequences: (i) the metric is a property of the
+  **pairing**, never a basis constant — the same SH basis on a slab
+  Gauss–Legendre measure has :math:`W = 2`, not :math:`4\pi`;
+  (ii) with it, each face's ``.H`` is the physical Hilbert adjoint, and
+  for the SH frame the square closes on the single scalar
+  :math:`W`: :math:`M^* = R/W`, :math:`R^* = W\,M`
+  (:eq:`frame-square-closure-sh`); (iii) when the measured Gram is NOT
+  diagonal the dressing is **refused** and Parseval is unavailable —
+  a face's ``.H`` there is the stored-metric sandwich, not the physical
+  adjoint. ⛔ Until 2026-08-23 the frame exposed the basis's
+  **continuum** Gram :math:`g_C` instead — the wrong side, off by
+  :math:`(4\pi/(2\ell+1))^2` per :math:`\ell`; see
+  :ref:`frame-parseval-what-was-wrong`.
+
 - **The measure never carries the discipline.** The
   :class:`~orpheus.numerics.measure.DiscreteMeasure` carries the axis
   and a fixed :math:`L^2` metric (the :term:`quadrature` weights). The
@@ -325,6 +349,668 @@ third, the discipline, is the type, not a fourth parameter:
 Once the basis and the measure are bound and the frame type is
 chosen, :math:`M` and :math:`R` are uniquely determined up to the
 :math:`c_V` normalisation.
+
+
+.. _frame-parseval-metric:
+
+The frame owns its codomain metric — the Parseval theorem
+=========================================================
+
+The three ingredients above fix :math:`M` and :math:`R`. They also fix
+something that is easy to miss and was got **wrong in this project for
+months**: the **inner product on the coefficient space** :math:`W`.
+That metric is not a free choice, not a property of the basis, and —
+in general — not even diagonal. It is *induced* by the pairing, and
+this section derives it, states when it exists, and records what the
+frame does when it does not.
+
+The stakes are exactly one thing: an adjoint is metric-relative
+(:math:`\langle Af, g\rangle_{\rm codomain} = \langle f, A^*g
+\rangle_{\rm domain}` defines :math:`A^*` only once *both* inner
+products are named), so a face's ``.H`` is the **physical** Hilbert
+adjoint if and only if the metric the codomain carries is the right
+one. Compose two faces and the interior metrics cancel — which is why
+this defect could sit in the tree, unfalsified, behind a wall of green
+gates.
+
+.. _frame-analysis-is-the-gram-section:
+
+The theorem: analysis returns the Gram, so the metric is its inverse
+--------------------------------------------------------------------
+
+.. warning:: **Three different things on this page are called** :math:`W`.
+   The page's own convention (used above and below) writes the coarse
+   **coefficient space** as :math:`W` and the quadrature-weighted nodal
+   inner product as :math:`\langle\cdot,\cdot\rangle_W`; the corpus and
+   the code additionally use the **scalar total weight**
+   :math:`W = \sum_n w_n` (the scattering operator's :math:`1/W`
+   prefactor, :ref:`normalization-prefactor`). All three are kept —
+   they are the established spellings and renaming any of them here
+   would mint a doc/code twin. To keep the algebra unambiguous this
+   section therefore writes the weight **matrix** as
+   :math:`\mathrm{diag}(w)`, never as :math:`W`.
+
+Let the trial basis be :math:`\{\phi_k\}`, tabulated at the measure's
+nodes as :math:`Y_{nk} = \phi_k(x_n)`
+(:attr:`FrameBase.table <orpheus.numerics.frame.FrameBase.table>`), and
+let :math:`\mathrm{diag}(w)` be the measure's weights. Define the
+**discrete trial Gram** — computed once per frame from the cached
+table, :math:`O(N K^2)`, as
+:attr:`FrameBase.discrete_gram
+<orpheus.numerics.frame.FrameBase.discrete_gram>`:
+
+.. math::
+   :label: frame-discrete-gram
+
+   G_{jk} \;=\; \sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)
+   \;=\; \bigl(Y^{\mathsf T}\,\mathrm{diag}(w)\,Y\bigr)_{jk}
+
+.. (vv-status rationale) Definition of the frame's discrete trial Gram —
+   a named intermediate, not a solver claim. Its shipped computation is
+   FrameBase.discrete_gram (einsum over the CACHED table); the value is
+   pinned per family by ``test_parseval_dressing_installed_on_diagonal_frames``
+   in ``tests/numerics/test_frame.py`` (which reads the diagonal back out
+   of it) and, for the SH basis, by the closed-form
+   :eq:`real-sh-discrete-orthogonality` gate.
+.. vv-status: frame-discrete-gram documented
+
+
+.. implements:: frame-discrete-gram
+   :by: orpheus.numerics.frame.FrameBase.discrete_gram
+
+   **Implemented by** 5 sites — the frame's cached operational copy
+   (``FrameBase.discrete_gram``, an ``einsum`` over the cached table),
+   the basis-side diagnostic contract (``Basis.mass_matrix``), and its
+   three concrete overrides, which compute the same object in each
+   basis's own index layout. Declaring only the frame's copy would
+   refute the tests that exercise a basis's own ``mass_matrix``.
+
+.. implements:: frame-discrete-gram
+   :by: orpheus.numerics.basis.base.Basis.mass_matrix
+
+.. implements:: frame-discrete-gram
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.mass_matrix
+
+.. implements:: frame-discrete-gram
+   :by: orpheus.numerics.basis.indicator_basis.IndicatorBasis.mass_matrix
+
+.. implements:: frame-discrete-gram
+   :by: orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.mass_matrix
+
+Now take a field that is **band-limited** in the frame, i.e. exactly
+representable as :math:`\psi = S_0 c` for some coefficient vector
+:math:`c`, and push it through the analysis face
+:math:`M = Y^{\mathsf T}\,\mathrm{diag}(w)`. Then
+
+.. math::
+   :label: frame-analysis-is-the-gram
+
+   \varphi \;=\; M\psi
+   \;=\; Y^{\mathsf T}\,\mathrm{diag}(w) \bigl(Y c\bigr)
+   \;=\; \bigl(Y^{\mathsf T}\,\mathrm{diag}(w)\,Y\bigr) c
+   \;=\; G\,c .
+
+.. (vv-status rationale) Structural identity — three matrix products
+   re-associated; it is ALGEBRA, holding for every basis, every measure
+   and every quadrature order, with no exactness hypothesis. There is no
+   separate implementing symbol to gate: it is the reason the Parseval
+   metric is G⁻¹, and it is what the isometry gate
+   ``test_parseval_analysis_is_an_isometry_onto_its_image``
+   (``tests/numerics/test_frame.py``, 6 sphere families) measures the
+   consequence of.
+.. vv-status: frame-analysis-is-the-gram documented
+
+
+**Read what that says.** The analysis face does **not** return the
+coefficients :math:`c`. It returns :math:`Gc` — the field's
+**covariant** moments, the pairings of :math:`\psi` against each basis
+function. The two agree only when :math:`G = I`, i.e. for a basis that
+is *orthonormal on this measure*, which the no-prefactor spherical
+harmonics are not (:math:`G_\ell = 4\pi/(2\ell+1)`) and the indicators
+are not (:math:`G_{RR} = m_R`, the region mass).
+
+:eq:`frame-analysis-is-the-gram` is pure algebra: three matrix products
+re-associated. It needs **no** quadrature-exactness hypothesis, holds at
+every order, and is exact in floating point up to round-off
+(`[M]` :math:`\le 1.8\times10^{-14}` across every shipped sphere family,
+2026-08-23).
+
+
+.. no-implementation:: frame-analysis-is-the-gram
+   :kind: identity
+
+   **Nothing implements this.** It is an identity between two
+   quantities that ARE each computed — :math:`M\psi` by the analysis
+   face, :math:`Gc` by
+   :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` — and the
+   identity itself is never evaluated anywhere: it is the *reason* the
+   Parseval metric is :math:`G^{-1}`, established by re-associating
+   three matrix products, not by any line of code. Declaring either
+   side would assert that one of them *is* the identity. What the
+   suite does instead is measure the identity's consequence (the
+   isometry, :eq:`frame-parseval-isometry`) and, in the design probe,
+   the residual :math:`\|M\psi - Gc\|_\infty` directly
+   (:ref:`frame-parseval-numerical-evidence`).
+
+The metric follows immediately. For the analysis face to be an
+**isometry onto its image** — Parseval — we need a coefficient-space
+inner product :math:`\langle\cdot,\cdot\rangle_\star` with
+
+.. math::
+   :label: frame-parseval-isometry
+
+   \|\varphi\|_\star^2
+   \;=\; \|\psi\|_W^2
+   \;=\; (Yc)^{\mathsf T}\,\mathrm{diag}(w)\,(Yc)
+   \;=\; c^{\mathsf T} G\, c .
+
+.. (vv-status rationale) The Parseval isometry — a representational
+   identity that FOLLOWS from :eq:`frame-analysis-is-the-gram` by
+   substitution, defining the codomain metric rather than asserting a
+   solver result. Shipped by FrameBase.basis_space (the dressing) and
+   gated directly by ``test_parseval_analysis_is_an_isometry_onto_its_image``
+   over 6 sphere families plus
+   ``test_indicator_frame_parseval_metric_is_the_inverse_region_mass``,
+   with the loaded-not-blind negative leg
+   ``test_parseval_reds_under_the_pre_repair_continuum_metric``
+   (``tests/numerics/test_frame.py``).
+.. vv-status: frame-parseval-isometry documented
+
+
+.. implements:: frame-parseval-isometry
+   :by: orpheus.numerics.frame.FrameBase.basis_space
+
+   **Implemented by** 1 site, deliberately. This equation *determines*
+   the coefficient-space inner product, and exactly one symbol makes
+   the choice it determines:
+   :attr:`~orpheus.numerics.frame.FrameBase.basis_space`, which installs
+   :math:`G^{-1}` (zero on dead slots) as the codomain's
+   ``inner_product_weights``. The *norm* on the left is then evaluated
+   by the generic
+   :meth:`FunctionSpace.inner_product
+   <orpheus.numerics.space.FunctionSpace.inner_product>`, which is NOT
+   declared here: it computes the pairing of every space in the corpus,
+   so naming it would attribute this equation's content to a symbol that
+   knows nothing about it.
+
+Substituting :math:`\varphi = Gc` gives
+:math:`\varphi^{\mathsf T} G^{-1} \varphi = c^{\mathsf T} G c`, so
+
+.. math::
+
+   \boxed{\;\langle\cdot,\cdot\rangle_\star
+   \;=\; \langle\cdot,\cdot\rangle_{G^{-1}}\;}
+
+— **the Parseval metric is the INVERSE of the discrete trial Gram.**
+Not the Gram; its inverse. The distinction is the whole of step F-0.
+
+**Dead slots and the pseudo-inverse.** :math:`G` need not be
+invertible: a storage layout can carry slots no basis function occupies
+(the :math:`|m| > \ell` padding of the SH ``(L+1, 2L+1)`` array), a
+folded rule can annihilate whole columns (its :math:`\sigma`-odd
+harmonics), and a region can be empty (:math:`m_R = 0`). Every such
+slot has :math:`G_{kk} = 0` and — on a ``DIAGONAL`` frame, by the
+verdict's own definition — no coupling into it, so :math:`G^{-1}` is
+read as the **Moore–Penrose** pseudo-inverse: :math:`1/G_{kk}` on live
+slots, **exactly** :math:`0.0` on dead ones. That is not a
+convenience. A dead column annihilates its coefficient in
+:math:`\psi = S_0c`, so it contributes nothing to :math:`\|\psi\|_W`;
+it also zeroes that slot's moment; and the zero metric entry then
+zeroes its contribution to :math:`\|\varphi\|_\star`. Parseval
+therefore holds **whatever garbage sits in a dead slot**, which is
+exactly the convention
+:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+already uses.
+
+.. _frame-metric-is-induced-not-a-constant:
+
+The metric is INDUCED by the pairing, not a constant of the basis
+-----------------------------------------------------------------
+
+:math:`G = Y^{\mathsf T}\,\mathrm{diag}(w)\,Y` names *both* factors: the
+basis (through :math:`Y`) and the measure (through
+:math:`\mathrm{diag}(w)`). So the Parseval metric
+is a property of the **pairing**, and the frame — the object that IS
+the pairing — is its only correct owner. Three consequences, each of
+which the pre-F-0 design got wrong by locating the metric on the basis:
+
+**(1) A basis constant cannot be the metric.** The clean witness is the
+slab. The same :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`
+bound to a 1-D Gauss–Legendre measure has total weight
+:math:`W = \sum_n w_n = 2`, not :math:`4\pi`; every basis-level
+constant carries :math:`4\pi` in it, so no basis-level constant can be
+right for both. (`[M]` 2026-08-23, ``gauss_legendre(8).angular_frame(2)``.)
+
+**(2) The metric depends on the ORDER, not only on the family.** Two
+frames over the same basis with different measures have different
+:math:`G`, hence different metrics. The frame recomputes it; nothing is
+inherited.
+
+**(3) There is no guarantee the metric is diagonal.** :math:`G` is
+symmetric positive semi-definite by construction (a Gram), but nothing
+makes it diagonal unless the basis is orthogonal *on that measure*.
+When it is not, the Parseval metric is a genuine **matrix**, which the
+shipped ``inner_product_weights`` (an elementwise diagonal) cannot
+express — see the refusal arm below.
+
+.. _frame-declared-vs-measured-gram:
+
+Two Gram facts, and they are INDEPENDENT: declared vs measured
+---------------------------------------------------------------
+
+The codebase carries two properties with ``gram`` in the name and one
+shared vocabulary (:class:`~orpheus.numerics.basis.base.GramStructure`).
+They answer different questions and they routinely disagree — reading
+one for the other is the trap this subsection exists to close.
+
+.. list-table:: The two Gram-structure facts
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * -
+     - :attr:`Basis.gram_structure
+       <orpheus.numerics.basis.base.Basis.gram_structure>`
+     - :attr:`FrameBase.discrete_gram_structure
+       <orpheus.numerics.frame.FrameBase.discrete_gram_structure>`
+   * - Kind
+     - **DECLARED** by the basis author
+     - **MEASURED** from :eq:`frame-discrete-gram`
+   * - About which matrix
+     - The *cross* Gram :math:`MR` — what
+       :meth:`~orpheus.numerics.frame.FrameBase.project` inverts via its
+       row-sum probe
+     - The *trial* Gram :math:`G = Y^{\mathsf T}WY` on **this** measure
+   * - Depends on the measure?
+     - No — a statement about the basis family
+     - Yes — it is a measurement
+   * - What it gates
+     - :meth:`FrameBase.project
+       <orpheus.numerics.frame.FrameBase.project>` (a
+       :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE`
+       declaration is refused)
+     - The Parseval dressing on
+       :attr:`~orpheus.numerics.frame.FrameBase.basis_space`
+
+Two measured disagreements ship today, one in each direction:
+
+* the SH basis **declares** ``DIAGONAL`` (it is continuum-orthogonal)
+  and **measures** ``DENSE`` on the slab Gauss–Legendre measure;
+* an :class:`~orpheus.numerics.basis.overlap_basis.OverlapBasis`
+  **declares** ``PARTITION_OF_UNITY`` — true, and what ``project``
+  needs — while its trial Gram **measures** ``DENSE``, because a
+  straddling row gives two columns shared support.
+
+The verdict is a measurement with a stated threshold, not a heuristic:
+``DIAGONAL`` iff no diagonal entry is negative (a negative-weight
+quadrature can make :math:`G` indefinite, and an indefinite form is not
+a metric) **and** every live off-diagonal is below
+:math:`10^{-10}` of the Cauchy–Schwarz scale
+:math:`\sqrt{G_{jj}G_{kk}}`. The measured separation is wide open: `[M]` 2026-08-23, the six
+shipped sphere families sit at
+:math:`\le 2.7\times10^{-16}` and the slab at :math:`0.93`, so **any**
+threshold across fifteen orders of magnitude draws the same verdict
+(the shipped one is :math:`10^{-10}`, leaving six orders of headroom
+for round-off accumulation at high mode counts). **Structurally dead slots** (:math:`G_{kk}=0`:
+layout padding, a folded rule's :math:`\sigma`-odd columns, an empty
+indicator region) are exempt from the off-diagonal test but any
+coupling *into* a dead slot is ``DENSE``.
+
+.. _frame-parseval-dense-refusal:
+
+When no diagonal metric exists — the refusal arm, and the slab witness
+-----------------------------------------------------------------------
+
+If the measured verdict is ``DENSE``,
+:attr:`FrameBase.basis_space
+<orpheus.numerics.frame.FrameBase.basis_space>` returns the basis's own
+space **undressed**. That is a deliberate refusal, and it is loud in the
+only way a value can be: the verdict property is the record, and the
+Parseval gate skips such a frame with a named reason rather than
+silently passing.
+
+What the refusal costs, stated plainly: on a ``DENSE`` frame
+**Parseval is unavailable**, and each face's ``.H`` is the
+stored-metric sandwich — a perfectly well-defined operator, and **not**
+the physical Hilbert adjoint. Do not compose a ``DENSE`` frame's
+``.H`` at the end of a chain and read the result as an adjoint.
+
+The witness is the slab. `[M]` 2026-08-23,
+``Quadrature.gauss_legendre(8).angular_frame(2)``:
+
+.. list-table:: The slab GL(8) discrete Gram at :math:`L = 2` — why no diagonal metric works
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Quantity
+     - Measured
+   * - Total weight :math:`W = \sum_n w_n`
+     - :math:`2` exactly (**not** :math:`4\pi`)
+   * - Live slots per degree
+       (:math:`G_{kk} > 0`), :math:`\ell = 0,1,2`
+     - :math:`[\,1,\ 1,\ 3\,]` — every node has
+       :math:`\mu_y = \mu_z = 0` (verified for all 8), so the rule has
+       **no azimuthal resolution at all**: the :math:`m\neq0` columns
+       are not independently sampled
+   * - Diagonal on the :math:`m=0` slots
+     - :math:`W/(2\ell+1) = 2,\ 2/3,\ 2/5` — exact
+   * - Diagonal on the two surviving :math:`\ell=2`,
+       :math:`m\neq0` slots
+     - :math:`0.8 = 2\times(2/5)` — **twice** the
+       :math:`W/(2\ell+1)` value, so even the diagonal is not a
+       :math:`W/(2\ell+1)` law
+   * - Off-diagonal couplings
+     - three, all genuine:
+       :math:`(\ell{=}0,m{=}0)\!\leftrightarrow\!(2,{+}2) = +1.1547`,
+       :math:`(1,0)\!\leftrightarrow\!(2,{+}1) = +0.6826`,
+       :math:`(2,0)\!\leftrightarrow\!(2,{+}2) = -0.2309`
+   * - Largest off-diagonal, relative to
+       :math:`\sqrt{G_{jj}G_{kk}}`
+     - :math:`0.9347` — **ten** orders above the :math:`10^{-10}`
+       verdict threshold; relative to the largest diagonal it is
+       :math:`0.5774`
+   * - Verdict
+     - ``DENSE`` ⟹ dressing refused, continuum metric retained
+
+A diagonal metric can only rescale each coefficient slot; it cannot
+undo a coupling between two slots. With off-diagonals at :math:`0.93`
+of the Cauchy–Schwarz scale, **no diagonal candidate satisfies
+Parseval on this frame** — this is a structural impossibility, not a
+tolerance to be tightened.
+
+.. note::
+
+   **Recorded debt (CS4c).** The honest home for a matrix-valued
+   metric is the Riesz-leg machinery of the frame-square re-carve —
+   the legs :math:`\mathrm{riesz\_raise}` / :math:`\mathrm{riesz\_lower}`
+   become space-minted *operators* rather than elementwise diagonals,
+   at which point :math:`A^{*} = A.\mathrm{domain.riesz\_raise} \circ
+   A.\mathrm{dual}() \circ A.\mathrm{codomain.riesz\_lower}` is a
+   definition that a full matrix satisfies as easily as a diagonal.
+   Tracked in ``.claude/plans/frame_square_recarve.md`` (recorded
+   debts); until it lands, ``DENSE`` frames keep the refusal.
+
+.. _frame-square-closure-section:
+
+The frame square, and the one scalar that closes it
+----------------------------------------------------
+
+With the Parseval metric installed, both faces' ``.H`` fall out of the
+generic metric-aware adjoint wrapper with no bespoke code. For the
+analysis face :math:`M` (domain = ``measure_space`` with metric
+:math:`\mathrm{diag}(w)`, codomain = ``basis_space`` with metric
+:math:`G^{-1}`) the sandwich
+:math:`M^* = \mathrm{diag}(w)^{-1}\,M^{\mathsf T}\,G^{-1}` collapses,
+because :math:`M^{\mathsf T} = Y\,\mathrm{diag}(w)` carries the very
+weights the domain's inverse metric removes:
+
+.. math::
+
+   M^* \;=\; \mathrm{diag}(w)^{-1}\,\bigl(Y\,\mathrm{diag}(w)\bigr)\,G^{-1}
+   \;=\; Y\,G^{-1}
+   \;=\; S_0 \circ G^{-1} .
+
+For the reconstruction face :math:`R = Y\,\mathrm{diag}(d)` (with
+:math:`d` the trial-side synthesis weights — for the SH basis the
+addition-theorem factor :math:`d_\ell = 2\ell+1`) the domain is now the
+dressed coefficient space, so its *inverse* metric is :math:`G` and
+
+.. math::
+
+   R^* \;=\; G\,\mathrm{diag}(d)\,Y^{\mathsf T}\,\mathrm{diag}(w)
+   \;=\; \bigl(G\,\mathrm{diag}(d)\bigr)\,M .
+
+Both are general. The **spherical-harmonic** frame then does something
+special: its two per-:math:`\ell` diagonals are reciprocal up to one
+constant,
+
+.. math::
+   :label: frame-square-closure-sh
+
+   d_\ell\,G_\ell
+   \;=\; (2\ell+1)\cdot\frac{4\pi}{2\ell+1}
+   \;=\; 4\pi \;=\; W
+   \qquad\text{for every }\ell,
+
+.. (vv-status rationale) The SH degree-exactness identity d_ℓ·G_ℓ = W —
+   a property of the (spherical-harmonic basis ⊗ degree-exact sphere
+   cubature) pairing, transcribed from the no-prefactor convention's own
+   two constants (:eq:`real-sh-discrete-orthogonality` and
+   :eq:`sh-addition-theorem-reconstruction`), not a solver claim. It is
+   what collapses the general adjoints to M* = R/W and R* = W·M, and it
+   is measured directly (max relative deviation over live ℓ) by
+   ``test_parseval_frame_square_closes`` in ``tests/numerics/test_frame.py``,
+   whose ``verifies`` marker targets
+   :eq:`hilbert-adjoint-equals-metric-times-S0`.
+.. vv-status: frame-square-closure-sh documented
+
+so the whole per-:math:`\ell` dressing collapses to the single scalar
+:math:`W`:
+
+.. math::
+
+   M^* \;=\; \frac{R}{W},
+   \qquad
+   R^* \;=\; W\,M .
+
+**The frame square closes with one scalar — and that scalar is already
+in the code.** It is the :math:`1/W` the scattering operator applies
+once (:eq:`scattering-aniso-composite`,
+:doc:`/theory/foundations/operator_algebra`); the prefactor ledger's
+"unification the canon misses",
+:math:`(2\ell+1)/W` (:ref:`normalization-prefactor`,
+:doc:`/theory/conventions/normalization`), **is** the Parseval metric
+:math:`G^{-1}` written out.
+
+
+.. no-implementation:: frame-square-closure-sh
+   :kind: identity
+
+   **Nothing implements this.** Both of its factors ship —
+   :math:`d_\ell` as
+   :attr:`SphericalHarmonicBasis.addition_theorem_factor
+   <orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor>`
+   and :math:`G_\ell` as the diagonal of
+   :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` — but their
+   *product* is never formed in production: nothing multiplies them,
+   because the whole point of the identity is that the code does not
+   have to. It is what lets the shipped scattering kernel carry one
+   :math:`1/W` scalar instead of a per-:math:`\ell` table. Declaring
+   either factor would attribute the identity to a quantity that is
+   merely one of its sides. It is *measured* (as
+   :math:`\max_\ell|d_\ell G_\ell/W - 1|`) by the frame-square gate and
+   by the table at :ref:`frame-parseval-numerical-evidence`.
+
+.. warning::
+
+   :eq:`frame-square-closure-sh` is **SH-specific**; Parseval is not.
+   Parseval needs only a diagonal :math:`G` — with *any* values — while
+   :math:`M^* = R/W` additionally needs :math:`d_\ell G_\ell` to be the
+   same number for every mode. The indicator frame is the standing
+   counter-example: it satisfies Parseval exactly and does **not**
+   satisfy the closure (`[M]` :math:`d = 1` and :math:`G_{RR} = m_R`,
+   so :math:`d\,G` is the region-mass vector, not a constant; on the
+   4-node / 3-region fixture ``M.H`` reads
+   :math:`[0.5,\,0.5,\,0.667,\,0.667]` where :math:`R/W` reads
+   :math:`[0.2,\,0.2,\,0.4,\,0.4]`). Never quote the closure as a frame
+   law.
+
+.. _frame-parseval-numerical-evidence:
+
+Numerical evidence
+------------------
+
+`[M]` 2026-08-23, measured against the tree at HEAD. **The
+construction, so the table regenerates from this page**: build the
+frame (``Quadrature.<family>(...).angular_frame(L)``, or
+``GalerkinFrame(SphericalHarmonicBasis(L=2), lebedev_sphere(13))``);
+draw :math:`c \sim` ``default_rng(1234).standard_normal(frame.basis_space.shape)``
+*unmasked* (garbage in the dead slots is deliberate — see the
+pseudo-inverse paragraph above); form
+:math:`\psi = \texttt{frame.basis.synthesize}(c, \texttt{frame.table})`
+and :math:`\varphi = \texttt{frame.analysis.apply}(\psi)`; then read
+the five residuals off ``frame.discrete_gram``,
+``frame.basis_space.inner_product``, ``frame.measure_space.inner_product``,
+``frame.analysis.H``, ``frame.reconstruction.H`` and
+:math:`W = \texttt{frame.measure.weights.sum()}`. Columns 3, 5 and 6
+are max-absolute residuals; the Parseval column is the *ratio*
+:math:`\|\varphi\|^2_{G^{-1}} / \|\psi\|^2_W`, whose exact value is
+:math:`1`; column 7 is over the live :math:`\ell` only.
+
+.. list-table:: The theorem, Parseval, and the closure, per shipped angular frame
+   :header-rows: 1
+   :widths: 22 12 15 15 12 12 12
+
+   * - Frame
+     - Verdict
+     - :math:`\|M\psi - Gc\|_\infty`
+     - Parseval ratio
+     - :math:`\|M^*y - R y/W\|_\infty`
+     - :math:`\|R^*v - W M v\|_\infty`
+     - :math:`\max_\ell |d_\ell G_\ell/W - 1|`
+   * - LS\ :sub:`4`, :math:`L=1`
+     - ``DIAGONAL``
+     - 3.6e-15
+     - 1.000000000
+     - 2.2e-16
+     - 3.6e-15
+     - 3.3e-16
+   * - LS\ :sub:`4`, :math:`L=2`
+     - ``DIAGONAL``
+     - 1.3e-15
+     - 1.000000000
+     - 2.2e-16
+     - 1.4e-14
+     - 6.7e-16
+   * - LS\ :sub:`8`, :math:`L=2`
+     - ``DIAGONAL``
+     - 1.2e-14
+     - 1.000000000
+     - 7.8e-16
+     - 2.5e-14
+     - 1.8e-15
+   * - product :math:`8\times8`, :math:`L=2`
+     - ``DIAGONAL``
+     - 1.8e-14
+     - 1.000000000
+     - 2.2e-16
+     - 1.8e-14
+     - 5.6e-16
+   * - folded :math:`8\times8`, :math:`L=2`
+     - ``DIAGONAL``
+     - 7.1e-15
+     - 1.000000000
+     - 1.7e-16
+     - 2.1e-14
+     - 2.2e-16
+   * - Lebedev-13, :math:`L=2`
+     - ``DIAGONAL``
+     - 2.7e-15
+     - 1.000000000
+     - 1.7e-16
+     - 8.9e-15
+     - 3.3e-16
+   * - GL(8) slab, :math:`L=2`
+     - ``DENSE``
+     - *(refused — see the table above)*
+     - —
+     - —
+     - —
+     - —
+
+Every shipped sphere family is degree-exact at these :math:`L`,
+including the level-symmetric rules: :math:`\max_\ell |d_\ell G_\ell/W
+- 1| \le 1.8\times10^{-15}` throughout — which is worth stating
+explicitly, because a pre-F-0 test-module comment asserted the
+opposite: *"at* :math:`L=2` *,* :math:`LS_8` *has a 24 % diagonal
+error and no LS order makes it exact"*. ⛔ **Refuted** by that column.
+*Hypothesis, not measured:* the claim probably predates GitHub #327
+(*"level_symmetric quadrature is degree-3 at EVERY order — advertises
+N-1, over-claims by up to 12"*, CLOSED), whose repair moved the
+level-symmetric node placement; nobody has bisected it.
+
+The **indicator** frame instantiates the same theorem with completely
+different numbers, which is the point — nothing here is spherical.
+`[M]` on a 3-region / 4-node fixture with one empty region:
+:math:`G = \mathrm{diag}(m_R) = \mathrm{diag}(2,\,3,\,0)` (the region
+masses), the dressed metric is
+:math:`[\,0.5,\ 1/3,\ 0.0\,]`, and Parseval is exact
+(:math:`\|\varphi\|^2_{1/m} = \|f\|^2_V = 2900` on a region-wise
+constant field). The empty region's metric slot is **exactly**
+:math:`0.0`, matching
+:meth:`~orpheus.numerics.frame.FrameBase.project`'s Moore–Penrose
+convention: a dead slot annihilates its coefficient in :math:`S_0c`,
+zeroes its moment, and zeroes its metric entry, so the identity holds
+whatever garbage sits in that slot.
+
+.. _frame-parseval-what-was-wrong:
+
+What was wrong before, why nothing caught it, and what does
+------------------------------------------------------------
+
+Before step F-0 the frame exposed ``basis.space`` unchanged, so the
+coefficient codomain carried the basis's **continuum** Gram
+:math:`g_C = 4\pi/(2\ell+1)`
+(:eq:`sh-space-metric`, :ref:`spherical-harmonics`). That is the Gram,
+not its inverse — the **wrong side** for the covariant moments
+:eq:`frame-analysis-is-the-gram` says analysis returns.
+
+`[M]` the damage, on an LS\ :sub:`4` rule: the Parseval ratio read
+:math:`81.4` at :math:`L=1` and :math:`65.2` at :math:`L=2` instead of
+:math:`1`, and ``frame.analysis.H`` was off the physical adjoint by
+exactly :math:`(4\pi/(2\ell+1))^2` per :math:`\ell` — a factor of
+:math:`157.9` on the scalar moment, :math:`17.5` on the current,
+:math:`6.3` at :math:`\ell = 2`. (The ratio is a moment-energy-weighted
+average of those per-:math:`\ell` factors, so its numeric value depends
+on the coefficient draw; what is draw-independent is that it lies
+between the extreme factors present at that :math:`L`
+(:math:`[17.5,\,157.9]` at :math:`L=1`, :math:`[6.3,\,157.9]` at
+:math:`L=2`) and can therefore never be :math:`1`. The per-:math:`\ell`
+factors themselves are exact, not approximate: `[M]` the ratio of the
+pre-F-0 ``analysis.H`` to the shipped one on a single-:math:`\ell`
+unit input reproduces :math:`(4\pi/(2\ell+1))^2` to
+:math:`\le 2.8\times10^{-16}` relative at every :math:`\ell`.)
+
+**Why every gate stayed green.** Three independent reasons, and each
+one is a lesson worth carrying:
+
+1. **Consistency is not correctness.** The machinery was
+   self-consistent throughout — the defining adjoint identity
+   :math:`\langle M\psi, c\rangle_{g_C} = \langle \psi, M^*c\rangle_W`
+   held at the round-off floor (`[M]` 2026-08-23, LS\ :sub:`4`,
+   ``default_rng(42)`` draws: relative residual
+   :math:`9.5\times10^{-16}` at :math:`L=1`, **exactly** :math:`0.0`
+   at :math:`L=2`) — because ``.H`` was *built from* the stored
+   metric. A sandwich always reproduces the pairing it was
+   assembled from, whatever that pairing is, so the identity is true
+   for **every** symmetric positive-definite metric and carries zero
+   information about which one is installed. The instrument that CAN
+   fail is the isometry :math:`\|M\psi\|_\star = \|\psi\|_W`, which
+   compares the codomain metric against something outside it — the
+   field's own norm.
+2. **Composed chains are immune.** Interior metrics cancel in a
+   product, so the production kernel :math:`R\Lambda M` — which is
+   where every angular moment in this code actually goes — never reads
+   a face's ``.H`` at all. The 0-ULP anisotropic-scattering canary is
+   green before and after F-0 by construction.
+3. **Only END-of-chain adjoints are exposed, and there were none.**
+   `[M]` ``grep -rn "analysis\.H\|reconstruction\.H" orpheus/`` returns
+   exactly one hit and it is a docstring: **no production consumer of a
+   face's** ``.H`` **existed**. The consumers arrive with the S6 adjoint
+   gates, which is precisely why the metric had to be right before they
+   land.
+
+**What catches it now.** ``tests/numerics/test_frame.py`` grew a
+``test_parseval_*`` family: the dressing pin (the installed metric is
+:math:`1/G_{kk}` on live slots and exactly :math:`0` on dead ones), the
+isometry over six sphere families, the closure
+:math:`M^*=R/W` / :math:`R^*=W\,M`, the indicator :math:`1/m_R` pin,
+the ``DENSE`` refusal, the declared-vs-measured witness — and, the
+load-bearing one, a **loaded-not-blind negative leg** that re-installs
+the pre-F-0 continuum metric in-process and asserts the ratio is
+:math:`\gg 1`. Without that leg the isometry gate's green would be
+compatible with a gate that is merely *blind* to the metric
+(``vv-principles`` #19: only the wrong-structure reading discriminates
+loaded from blind).
 
 
 The Petrov-Galerkin frame
@@ -2698,51 +3384,83 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
    The identity :math:`M^* = R` holds when the basis
    :math:`\{e_k\}` is orthonormal in :math:`V`. When the basis is
    only orthogonal — the case for the no-:math:`4\pi/(2\ell+1)`-
-   prefactor real spherical harmonics ORPHEUS uses — the strict
-   Hilbert adjoint :math:`M^*` and the addition-theorem
-   reconstruction face :math:`R` differ by a **diagonal-in-:math:`\ell`
-   scaling**. Specifically the strict adjoint is the *naked*
-   synthesis (no :math:`(2\ell+1)` factor), while the frame's
-   ``reconstruction`` face
-   (:attr:`FrameBase.reconstruction
-   <orpheus.numerics.frame.FrameBase.reconstruction>`) carries the
-   :math:`(2\ell+1)` factor that the Pℓ scattering reconstruction
-   needs:
+   prefactor real spherical harmonics ORPHEUS uses — the Hilbert
+   adjoint :math:`M^*` and the addition-theorem reconstruction face
+   :math:`R` differ by a **diagonal-in-:math:`\ell` scaling**, and
+   *which* diagonal depends on the coefficient-space metric
+   (:ref:`frame-parseval-metric`). Under the frame's shipped
+   **Parseval** metric :math:`G^{-1}` the diagonal collapses to a
+   single scalar, the total weight :math:`W = \sum_n w_n`:
 
    .. math::
       :label: galerkin-strict-adjoint-vs-reconstruction
 
       (M^* c)_n
-      &\;=\; \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\,c_\ell^m
-        \quad\text{(no factor — strict adjoint)}, \\
+      &\;=\; \sum_\ell \frac{2\ell+1}{4\pi}
+             \sum_m Y_\ell^m(\hat\Omega_n)\,c_\ell^m
+        \;=\; \frac{(R\,c)_n}{W}
+        \quad\text{(Hilbert adjoint, Parseval metric)}, \\
       (R c)_n
       &\;=\; \sum_\ell (2\ell+1)\,\sum_m Y_\ell^m(\hat\Omega_n)\,
              c_\ell^m
         \quad\text{(with factor — addition-theorem)}.
 
-   .. (vv-status rationale) Representational identity: distinguishes the strict
-      Hilbert adjoint M* (naked synthesis, no 2ℓ+1) from the reconstruction
-      face R (with 2ℓ+1) — the ERR-039 distinction. Each face is verified under
-      its own label: M* = g_C·S_0 by :eq:`hilbert-adjoint-equals-metric-times-S0`,
-      the (2ℓ+1) synthesis by :eq:`sh-addition-theorem-reconstruction`. A
-      face-distinction framing, not a separate solver claim.
+   .. (vv-status rationale) Representational identity: distinguishes the
+      Hilbert adjoint M* from the reconstruction face R (with 2ℓ+1) — the
+      ERR-039 distinction, re-keyed at F-0 (2026-08-23) to the Parseval
+      metric, under which the two differ by the single scalar W. Each face
+      is verified under its own label: M* = S_0∘G⁻¹ = R/W by
+      :eq:`hilbert-adjoint-equals-metric-times-S0`, the (2ℓ+1) synthesis by
+      :eq:`sh-addition-theorem-reconstruction`, and the collapsing identity
+      d_ℓ·G_ℓ = W by :eq:`frame-square-closure-sh`. A face-distinction
+      framing, not a separate solver claim.
    .. vv-status: galerkin-strict-adjoint-vs-reconstruction documented
+
+   .. no-implementation:: galerkin-strict-adjoint-vs-reconstruction
+      :kind: identity
+
+      **Nothing implements this**, because it is a *contrast* between
+      two operators, each of which is implemented and declared under
+      its own label —
+      :eq:`hilbert-adjoint-equals-metric-times-S0` (8 declared sites)
+      and :eq:`sh-addition-theorem-reconstruction`. No symbol computes
+      "the difference between :math:`M^*` and :math:`R`"; the whole
+      content of the equation is that the difference is the scalar
+      :math:`W`, which :eq:`frame-square-closure-sh` states. Declaring
+      a site here would attribute a face-distinction to one of the two
+      faces it distinguishes. (Before this declaration the graph
+      inferred two implementers from shared name tokens, one of them
+      ``solve_sn_adjoint`` — an SN solver entry point that never
+      touches a spherical-harmonic face.)
+
+   ⛔ **Corrected 2026-08-23 (F-0).** This equation's first line read
+   :math:`(M^*c)_n = \sum_{\ell,m} Y_\ell^m c_\ell^m` — "*the strict
+   adjoint is the naked synthesis, no factor*" — while the prose
+   beneath it said :math:`M^* = g_C\,S_0`. **Both were published
+   simultaneously and they contradict each other**, which is the
+   diagnostic: each is the adjoint under a *different* coefficient
+   metric (Euclidean for the first, the continuum Gram :math:`g_C`
+   for the second), and neither block said which. Naming the metric
+   is what makes the statement well-posed; the frame carries
+   :math:`G^{-1}`, so the shipped answer is the third one,
+   :math:`M^* = R/W`.
 
    The analysis face's representation transpose
    :meth:`frame.analysis.apply_transpose
    <orpheus.numerics.basis.Basis.analyze_transpose>` is
    :math:`w_n\,S_0` (the *naked* synthesis weighted by the
-   quadrature weight); its metric-aware Hilbert adjoint
-   ``frame.analysis.H`` is :math:`M^* = g_C\,S_0`; and
+   quadrature weight) — that one is metric-free and unchanged; its
+   metric-aware Hilbert adjoint ``frame.analysis.H`` is
+   :math:`M^* = S_0 \circ G^{-1} = R/W`; and
    :meth:`frame.reconstruction.apply
    <orpheus.numerics.basis.Basis.reconstruct>` returns :math:`R`
    (with the :math:`(2\ell+1)` factor). The adjoint-face dishonesty
    that conflated the bare transpose with the Hilbert adjoint was
    caught by QA review and corrected as ERR-039 (see the project's
-   L0 error catalog) — :math:`R` and :math:`M^*` are both useful
-   and coexist as distinct frame faces; they differ by exactly the
-   Gram diagonal :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`, so the
-   docstrings and this page name them explicitly.
+   L0 error catalog); F-0 is that entry's second chapter — right
+   Gram, wrong side. :math:`R` and :math:`M^*` are both useful and
+   coexist as distinct frame faces; they differ by exactly
+   :math:`W`, so the docstrings and this page name them explicitly.
 
 The Galerkin invariant :eq:`galerkin-pair` is then a consequence of
 the basis being orthogonal in :math:`V`-inner-product. Concretely,
@@ -2929,9 +3647,13 @@ are the origin of:
 * the :math:`(2\ell+1)` reconstruction factor on the frame's
   reconstruction face (:eq:`sh-addition-theorem-reconstruction`,
   :ref:`spherical-harmonics`) — the irrep dimension; and
-* the Gram diagonal :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`
+* the **continuum** Gram diagonal
+  :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`
   (:eq:`sh-space-metric`) — the :math:`SO(3)` Plancherel weight on
-  each block.
+  each block. A degree-exact cubature reproduces it as the *discrete*
+  Gram :math:`G`, whose **inverse** is the metric the frame's
+  coefficient codomain carries (:ref:`frame-parseval-metric`); the
+  two are reciprocal, so keep the direction straight.
 
 So the entire numerical apparatus of the spherical-harmonic frame —
 the per-:math:`\ell` block structure, the :math:`(2\ell+1)` factor,
@@ -3825,9 +4547,22 @@ Galerkin discipline's invariants on the spherical-harmonic
    Lebedev orders :math:`7,\,13,\,17`. See
    :eq:`pi-r-equals-4pi-i` in :ref:`spherical-harmonics`.
 2. **Adjoint pairing**:
-   :math:`\langle M \psi, c \rangle = \langle \psi, M^* c \rangle_W`
-   with :math:`M^* = g_C\,S_0`, verified to ``rtol=1e-12`` on a
-   Lebedev order-13 grid at :math:`L = 3`.
+   :math:`\langle M \psi, c \rangle_{G^{-1}} =
+   \langle \psi, M^* c \rangle_W`
+   with :math:`M^* = S_0 \circ G^{-1} = R/W` — the F-0 Parseval
+   metric on the coefficient side (:ref:`frame-parseval-metric`) —
+   verified to ``rtol=1e-12`` on a Lebedev order-13 grid at
+   :math:`L = 3`. (⛔ Pre-F-0 this line read :math:`M^* = g_C\,S_0`,
+   the continuum-metric adjoint; see
+   :ref:`frame-parseval-what-was-wrong`.)
+3. **Parseval and the frame square**: the isometry
+   :math:`\|M\psi\|_{G^{-1}} = \|\psi\|_W` on band-limited input and
+   the closure :math:`M^* = R/W`, :math:`R^* = W\,M`, verified over
+   six sphere quadrature families in
+   :file:`tests/numerics/test_frame.py` — with a loaded-not-blind
+   negative leg that re-installs the pre-F-0 metric and measures the
+   ratio it produces. Table:
+   :ref:`frame-parseval-numerical-evidence`.
 
 The tests verify mathematical identities of the operator algebra
 (V&V level L1 — equation verification by analytical reference). The
@@ -3959,6 +4694,27 @@ payoff: one mechanism (the frame), the discipline visible in the type,
 and the eigenvalue-consistent homogenisation case correctly typed as
 Petrov-Galerkin (test = adjoint-weighted indicator) rather than
 mis-folded into a weighted measure.
+
+**2026-08-23 — step F-0, the metric truth.** Every step above moved
+*operators*; none had asked whether the **metric** the coefficient
+codomain carries is the right one. It was not. The frame exposed
+``basis.space`` unchanged, so the codomain carried the basis's
+continuum Gram :math:`g_C` — the Gram, where the covariant moments
+analysis emits need its *inverse*
+(:eq:`frame-analysis-is-the-gram`). ``FrameBase`` gained
+:attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` (the cached
+:math:`K\times K` trial Gram),
+:attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure` (a
+MEASURED diagonality verdict, distinct from the basis's DECLARED
+:attr:`~orpheus.numerics.basis.base.Basis.gram_structure`), and a
+:attr:`~orpheus.numerics.frame.FrameBase.basis_space` that dresses the
+space with :math:`G^{-1}` on a diagonal frame and refuses on a dense
+one. Nothing about the design was wrong; **what was stored** was. Full
+account, with the derivation, the slab refusal witness, the
+family-wide residual table, and the three reasons no gate could see
+it: :ref:`frame-parseval-metric`. Recorded debt: a matrix-valued
+metric needs the CS4c Riesz-leg machinery
+(``.claude/plans/frame_square_recarve.md``).
 
 
 References

@@ -122,6 +122,22 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   production path *as a characterisation*. Only the word "never" was false. Scope the heading,
   publish the seed taxonomy with both measured tables, keep the original conclusion standing
   where it survives, and point at the owning gate. → L-055
+- **⭐⭐ A DESIGN PROBE goes stale against the repair it motivated, SILENTLY — it still
+  runs and still prints plausible numbers.** `[M]` the plan's probe read
+  `frame.test_space.inner_product_weights` as "the stored metric"; post-repair that IS
+  the repaired metric, so the row labelled *stored* now prints `1.000` and the headline
+  `118.7` is unreproducible from the file the plan cites. ⟹ never cite a pre-repair probe
+  path as a post-repair page's reproducer — publish the **CONSTRUCTION** (build the object,
+  name the seed, name the five attributes the residuals come off) so the table regenerates
+  from the page; re-measure with your OWN probe; report the staleness upward. → L-065
+- **⭐⭐ A SEED-DEPENDENT number is published as its BOUND, never its value — then find the
+  exact per-mode parent behind it.** `[M]` plan `118.7` vs mine `81.4`, both correct: the
+  Parseval ratio is a moment-energy-weighted average of the per-ℓ factors. Publish the
+  draw-independent claim (*lies between the extreme factors PRESENT AT THAT L —
+  `[17.5,157.9]` at L=1, `[6.3,157.9]` at L=2 — so never 1*), and note a bound is a
+  universal (plan-§2: I first wrote the L=2 range over a sentence covering both). ⭐ Then
+  look one level down: the RATIO OF THE TWO ADJOINTS on a single-ℓ unit input is exactly
+  `(4π/(2ℓ+1))²`, `[M]` to `≤2.8e-16` — seed-free and strictly more useful. → L-065
 - **A "MEASURED, do not re-derive" block is a CLAIM** — that means "don't burn a session", not
   "don't check". A bit-identity attribution was wrong on exactly the configuration that motivated
   the change; widen the repro to the WHOLE inventory, since the brief's sample is never the
@@ -339,6 +355,24 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   inferred remaining, every one on the 8 that cannot be declared (60 on `operator-solve` alone).
   That residue is the ceiling on what authoring can retire, and it is the argument for a
   machine-readable KIND. → L-060
+- **⭐⭐ `no-implementation` has a class that LOOKS declarable: an IDENTITY BETWEEN TWO
+  QUANTITIES THAT ARE EACH COMPUTED.** `φ = Mψ = Gc` — `Mψ` is the analysis face, `Gc` is
+  `discrete_gram`, and the identity is evaluated nowhere; same for `d_ℓ·G_ℓ = W`, whose
+  two factors ship and whose product is never formed (that IS the point — it lets the
+  kernel carry one `1/W` scalar). Declaring either side asserts that one of them IS the
+  identity. Use `:kind: identity`, say which symbol computes which SIDE, and name what the
+  suite measures instead (the CONSEQUENCE). `[M]` 17+16 guesses → 0 on two labels, and a
+  *contrast* label went 2 → 0, one of its guesses being an SN solver entry point that never
+  touches the faces it names. ⭐ Mirror: re-deriving one equation's `implements::` set is
+  where you find another's — an implementer that LEAVES one equation has to LAND somewhere
+  (`metric_per_ell` left the adjoint, gained `sh-space-metric`, 3 implementers, 0 declared
+  before). → L-065
+- **⭐ The `documented` sentinel marks the KIND, not the coverage — a label can honestly sit
+  in BOTH matrix lists.** `[M]` `hilbert-adjoint-…` is verified by 9 tests AND sentineled;
+  so are its page siblings. On this corpus `documented` = representational /
+  face-distinction / literature KIND. Do NOT "clean up" the redundancy from one label — that
+  re-categorises a convention and moves a generated artefact. Keep the directive; ADD the
+  rationale comment if missing. → L-065
 - **⭐ "Implemented by nothing" is a CLASSIFICATION worth a section — and the classes are
   enumerable, which is what an inference cannot know.** `{identity, law, canonical-form}` → NONE;
   `{typing-rule, definition}` → look for a declaration site (a typing rule CAN have a materialized
@@ -478,6 +512,34 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   survives, carries the falsified version verbatim beneath, and ships the checkable test the
   reversal yields. → L-063
 
+- **⭐⭐ When the corpus states ONE object N incompatible ways and each is internally
+  consistent, that is not N bugs — a hidden PARAMETER is unnamed.** `[M]` three published
+  `Π*` (naked `S₀` / `g_C·S₀` / `S₀∘G⁻¹`), plus one admonition whose EQUATION and PROSE
+  disagreed with each other, warning-free for months. All three are the correct adjoint
+  under a different coefficient metric; none named its metric. ⟹ do NOT adjudicate — name
+  the parameter ONCE in a `list-table` at the point of definition (metric | where it lives
+  | the adjoint it induces), then make every site a POINTER into one row, so none can rot
+  independently again. The tell is free: two defended statements of the same object that
+  disagree. → L-065
+- **⭐⭐ The reusable close-out shape for a LATENT defect is THREE shields, and shield 3 is
+  the dangerous sentence.** (1) *Consistency is not correctness* — the defining identity
+  held at the round-off floor because `.H` is BUILT FROM the stored metric, so it is true
+  for every SPD metric and carries ZERO information about which is installed; the
+  instrument that can fail compares the metric to something defined without it. (2)
+  *Composed chains are immune* — interior metrics cancel. (3) *No end-of-chain consumer
+  existed* (`[M]` one grep hit, a docstring). ⛔ Write (3) as **latency, with the clock**
+  ("live with the first adjoint consumer, which is why the metric had to be right before
+  those land") — reported as reassurance it teaches the next session to defer. → L-065
+- **⭐ Extending an ERR entry vs minting a new number: the LANDED MARKERS decide, not the
+  narrative.** F-0 became ERR-039's third chapter because the shipped gates already carry
+  `catches("ERR-039")` and I cannot edit `tests/` — a new number would silently orphan
+  them. Read the catching tests' markers BEFORE choosing. And mark the superseded chapter
+  IN PLACE, on the bullet stating the retired formula, not only in the new chapter. → L-065
+- **⭐ A three-way SYMBOL COLLISION: rename only the one with NO constituency.** `W` was the
+  coefficient space (page convention), the quadrature metric subscript (page convention),
+  and the scalar total weight (code + ledger); my derivation needed a fourth, the weight
+  MATRIX — the only one with no constituency. Write it `\mathrm{diag}(w)`, keep the other
+  three, and open the section with a `.. warning::` naming all three survivors. → L-065, L-051
 - **⭐⭐ Before repairing a stale equation, census the CORPUS for a page that already states it
   right — the census does two jobs and both are load-bearing.** (a) It stops the repair minting a
   TWIN: my `keff-as-integrated-rates` fix restated a formula whose SSOT already ships as

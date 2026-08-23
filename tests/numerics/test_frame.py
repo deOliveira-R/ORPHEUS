@@ -5,8 +5,12 @@ The angular :class:`~orpheus.numerics.frame.GalerkinFrame` binds a :class:`Basis
 
 * the **adjoint-for-free** — BOTH ``frame.analysis.H`` and ``frame.reconstruction.H``
   fall out of the frame's swapped spaces with no bespoke code (each pinned against an
-  INDEPENDENT closed-form einsum: :math:`g_C \cdot S_0` for analysis,
-  :math:`\frac{(2\ell+1)^2}{4\pi} M` for reconstruction);
+  INDEPENDENT closed-form einsum: :math:`M^* = S_0 \circ G^{-1} = R/W` for analysis,
+  :math:`R^* = W\,M` for reconstruction — the F-0 Parseval metric);
+* the **F-0 Parseval metric** (``frame_square_recarve.md``) — the codomain metric is
+  the INVERSE discrete trial Gram, so analysis is an isometry onto its image, the
+  frame square closes with one scalar, and the slab's non-diagonal Gram is refused
+  VISIBLY (the ``TestParseval``-prefixed suite at the end of this module);
 * the symmetric **space pairing** (basis → ``basis_space``; measure → ``measure_space``);
 * the faces **compose through ``OperatorProduct`` with real spaces** (no ``cast``) —
   the enabler for the Phase-C cast retirement;
@@ -32,7 +36,7 @@ from orpheus.numerics.basis import (
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import NotInvertible
-from orpheus.numerics.quadrature import lebedev_sphere
+from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
 from tests._harness.predicates import (
     STRUCTURAL_ABSENT,
@@ -85,19 +89,29 @@ def _band_limited(rng, L, *trailing):
 
 @pytest.mark.foundation
 def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
-    r"""``frame.analysis.H`` is the W-weighted Hilbert adjoint :math:`g_C \cdot S_0`.
+    r"""``frame.analysis.H`` is the PHYSICAL Hilbert adjoint :math:`M^* = S_0 \circ G^{-1}`.
 
     No bespoke adjoint code — the frame's swapped ``(measure_space, basis_space)``
-    metrics feed the generic ``_AdjointOperator``. Pinned against an INDEPENDENT
-    reference: the direct :math:`g_C \cdot S_0` einsum with the closed-form SH Gram
-    diagonal :math:`g_C^\ell = 4\pi/(2\ell+1)` (NOT the frame's own contraction —
-    a structurally distinct construction of the same adjoint).
+    metrics feed the generic ``_AdjointOperator``, and the F-0 Parseval dressing
+    (the codomain metric is the INVERSE discrete Gram — see
+    :attr:`FrameBase.basis_space`) makes the sandwich the physical adjoint. Pinned
+    against an INDEPENDENT reference: the direct :math:`S_0(G^{-1}c)` einsum with
+    the closed-form inverse SH Gram :math:`(2\ell+1)/4\pi` (exact for the
+    degree-exact Lebedev rule; NOT the frame's own contraction). Equivalently
+    :math:`M^* = R/W` — the closure pinned family-wide by
+    ``test_parseval_frame_square_closes`` below.
+
+    ⛔ Pre-F-0 this gate pinned :math:`g_C \cdot S_0` with the CONTINUUM Gram
+    :math:`g_C = 4\pi/(2\ell+1)` as the codomain metric — the WRONG side for
+    the carried covariant moments (`[M]` Parseval ratio 118.7 vs 1.000;
+    ``scratch/probe_f1_parseval.py``, 2026-08-24). The loaded-not-blind negative
+    leg is ``test_parseval_reds_under_the_pre_repair_continuum_metric``.
     """
     frame, L = sh_frame
     rng = np.random.default_rng(14)
     c = _band_limited(rng, L, 4, 2)
-    g_C = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)  # closed-form SH Gram diag
-    expected = np.einsum("nlm,l,lm...->n...", frame.table, g_C, c)
+    g_inv = (2.0 * np.arange(L + 1) + 1.0) / (4.0 * np.pi)  # closed-form G⁻¹ diag
+    expected = np.einsum("nlm,l,lm...->n...", frame.table, g_inv, c)
     np.testing.assert_allclose(
         frame.analysis.H.apply(c), expected, rtol=1e-12, atol=1e-14,
     )
@@ -105,22 +119,25 @@ def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
 
 @pytest.mark.foundation
 def test_reconstruction_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
-    r"""``frame.reconstruction.H`` is the W-weighted Hilbert adjoint of :math:`R`.
+    r"""``frame.reconstruction.H`` is the PHYSICAL Hilbert adjoint :math:`R^* = W\,M`.
 
-    Symmetric with the analysis face: no bespoke adjoint code — the frame's swapped
-    ``(basis_space, measure_space)`` metrics feed the generic ``_AdjointOperator``,
-    giving :math:`(R^* v)_\ell^m = \frac{(2\ell+1)^2}{4\pi} \sum_n w_n
-    Y_\ell^m(\hat\Omega_n)\, v_n`. Pinned against that INDEPENDENT closed-form einsum
-    (NOT the frame's own contraction). ``R : \text{basis} \to \text{measure}``, so
-    ``R.H`` maps nodal values → coefficients.
+    Symmetric with the analysis face: the F-0-dressed domain metric
+    (:math:`G^{-1}`) enters the sandwich through its pseudo-inverse :math:`G`,
+    giving :math:`(R^* v)_\ell^m = d_\ell\,G_\ell \sum_n w_n
+    Y_\ell^m(\hat\Omega_n)\, v_n` — and the SH identity :math:`d_\ell G_\ell =
+    (2\ell+1)\cdot 4\pi/(2\ell+1) = 4\pi = W` collapses the per-:math:`\ell`
+    factor to the ONE scalar :math:`W`. Pinned against that INDEPENDENT
+    closed-form einsum (NOT the frame's own contraction).
+    ``R : \text{basis} \to \text{measure}``, so ``R.H`` maps nodal values →
+    coefficients. (Pre-F-0 this pinned :math:`(2\ell+1)^2/4\pi\cdot Y^{\mathsf T}W`
+    — the continuum-metric sandwich.)
     """
     frame, L = sh_frame
     rng = np.random.default_rng(17)
     n = frame.measure.weights.shape[0]
     v = rng.standard_normal((n, 4, 2))
-    factor = (2.0 * np.arange(L + 1) + 1.0) ** 2 / (4.0 * np.pi)  # (2ℓ+1)²/4π
-    expected = np.einsum(
-        "n,nlm,l,n...->lm...", frame.measure.weights, frame.table, factor, v,
+    expected = 4.0 * np.pi * np.einsum(
+        "n,nlm,n...->lm...", frame.measure.weights, frame.table, v,
     )
     np.testing.assert_allclose(
         frame.reconstruction.H.apply(v), expected, rtol=1e-12, atol=1e-14,
@@ -451,3 +468,240 @@ def test_project_refuses_dense_gram_trial():
         WeightedIndicatorBasis(IndicatorBasis((edges,)), np.ones(2)),
     )
     np.testing.assert_allclose(ok.project(np.array([3.0, 5.0])), [3.0, 5.0])
+
+
+# ── the F-0 Parseval metric — the metric truth (frame_square_recarve F-0) ──
+#
+# THE THEOREM (exact, unconditional — algebra, not quadrature exactness): for a
+# band-limited field ψ = S₀c the analysis output is φ = Mψ = Gc IDENTICALLY,
+# with G the discrete TRIAL Gram of the pairing (basis ⊗ measure). So the
+# codomain inner product under which analysis is an isometry onto its image is
+# the INVERSE discrete Gram:
+#
+#     ‖φ‖²_{G⁻¹} = cᵀG c = ‖ψ‖²_W                     (Parseval)
+#
+# and with that metric both faces' .H are the PHYSICAL Hilbert adjoints. Two
+# consequences, split by precondition:
+#
+#   * Parseval needs only a DIAGONAL discrete Gram — any values (LS4 at L=2 is
+#     dressed with its true discrete inverse and closes exactly, whatever its
+#     relation to the continuum Gram);
+#   * the SH closure M* = R/W, R* = W·M additionally needs the per-ℓ identity
+#     d_ℓ·G_ℓ = W (degree-exactness; [M] 2026-08-24 every shipped sphere
+#     family measures exact to ~1e-15, incl. LS4/LS8 at L=2).
+#
+# [M] scratch/probe_f1_parseval.py + probe_f1_parseval_slab.py (2026-08-24):
+# the pre-F-0 stored metric (continuum 4π/(2ℓ+1)) was the WRONG side — ratio
+# 118.7 vs 1.000 on that probe's seed (the ratio is a moment-energy-weighted
+# average of the per-ℓ factors, so it is draw-dependent; the draw-independent
+# statement is the (4π/(2ℓ+1))² per-ℓ factor); closure ≤1e-15 once dressed;
+# the slab GL live Gram has off-diagonals at 0.93 of the Cauchy–Schwarz
+# scale, so NO diagonal Parseval metric exists there (the DENSE arm below).
+
+_SPHERE_FRAME_CASES = [
+    pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(1), id="LS4-L1"),
+    pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(2), id="LS4-L2"),
+    pytest.param(lambda: Quadrature.level_symmetric(8).angular_frame(2), id="LS8-L2"),
+    pytest.param(lambda: Quadrature.product(8, 8).angular_frame(2), id="product8x8-L2"),
+    pytest.param(
+        lambda: Quadrature.folded_product(8, 8).angular_frame(2), id="folded8x8-L2",
+    ),
+    pytest.param(
+        lambda: GalerkinFrame(SphericalHarmonicBasis(L=2), lebedev_sphere(13)),
+        id="lebedev13-L2",
+    ),
+    pytest.param(
+        lambda: Quadrature.gauss_legendre(8).angular_frame(2),
+        marks=pytest.mark.skip(
+            reason="slab GL: NON-DIAGONAL discrete Gram (live off-diagonals "
+            "at 0.93 of the Cauchy-Schwarz scale — no diagonal Parseval "
+            "metric exists; [M] 2026-08-23). The matrix-metric home is "
+            "the CS4c Riesz-leg machinery (frame_square_recarve.md, recorded "
+            "debts); the DENSE refusal itself is pinned by "
+            "test_slab_frame_refuses_the_parseval_dressing_visibly.",
+        ),
+        id="slab-GL8-L2",
+    ),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("make_frame", _SPHERE_FRAME_CASES)
+def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
+    r"""The verdict is DIAGONAL and ``basis_space`` carries the inverse discrete Gram.
+
+    The dressed metric equals ``1/G_kk`` on live slots and EXACTLY ``0.0`` on
+    dead ones (layout padding; the folded frame's σ-odd columns) — the dead-slot
+    zeros are what make the Moore–Penrose inverse-metric path exact. The
+    Galerkin override keeps the analysis codomain the SAME dressed object.
+    """
+    frame = make_frame()
+    assert frame.discrete_gram_structure is GramStructure.DIAGONAL
+    diag = np.diagonal(frame.discrete_gram).reshape(frame.basis.space.shape)
+    live = diag > 0.0
+    metric = frame.basis_space.inner_product_weights
+    assert metric is not None
+    np.testing.assert_allclose(metric[live], 1.0 / diag[live], rtol=1e-15)
+    np.testing.assert_array_equal(metric[~live], 0.0)
+    assert frame.test_space is frame.basis_space
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+@pytest.mark.parametrize("make_frame", _SPHERE_FRAME_CASES)
+def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame):
+    r"""``‖Mψ‖_{basis_space} = ‖ψ‖_W`` for band-limited ψ — Parseval, rtol 1e-12.
+
+    The coefficient draw is deliberately UNMASKED (garbage in dead slots): a
+    dead table column annihilates its coefficient in ψ = S₀c AND zeroes both
+    its moment and its metric slot, so the identity must hold regardless —
+    pinning the Moore–Penrose dead-slot handling for free.
+    """
+    frame = make_frame()
+    rng = np.random.default_rng(1234)
+    c = rng.standard_normal(frame.basis_space.shape)
+    psi = frame.basis.synthesize(c, frame.table)
+    phi = frame.analysis.apply(psi)
+    np.testing.assert_allclose(
+        frame.basis_space.inner_product(phi, phi),
+        frame.measure_space.inner_product(psi, psi),
+        rtol=1e-12,
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+@pytest.mark.verifies("hilbert-adjoint-equals-metric-times-S0")
+@pytest.mark.parametrize("make_frame", _SPHERE_FRAME_CASES)
+def test_parseval_frame_square_closes(make_frame):
+    r"""``M.H = R/W`` and ``R.H = W·M`` — the frame square closes with ONE scalar.
+
+    The SH-specific collapse of the general adjoints (:math:`M^* = S_0\circ
+    G^{-1}`, :math:`R^* = d\,G\cdot(Y^{\mathsf T}W)`): per ℓ,
+    :math:`d_\ell G_\ell = (2\ell+1)\cdot 4\pi/(2\ell+1) = 4\pi = W`, so the
+    whole per-ℓ dressing collapses to the single scalar :math:`W = \sum_n w_n`
+    — which IS the shipped scattering kernel's :math:`1/W` prefactor.
+    `[M]` closure 5.6e-17 on the probe; every shipped sphere family measures
+    degree-exact to ~1e-15.
+    """
+    frame = make_frame()
+    W = float(frame.measure.weights.sum())
+    rng = np.random.default_rng(4321)
+    y = rng.standard_normal(frame.basis_space.shape)
+    v = rng.standard_normal(frame.measure.weights.shape)
+    np.testing.assert_allclose(
+        frame.analysis.H.apply(y), frame.reconstruction.apply(y) / W,
+        rtol=1e-12, atol=1e-13,
+    )
+    np.testing.assert_allclose(
+        frame.reconstruction.H.apply(v), W * frame.analysis.apply(v),
+        rtol=1e-12, atol=1e-13,
+    )
+
+
+@pytest.mark.foundation
+def test_parseval_reds_under_the_pre_repair_continuum_metric():
+    r"""The §6c witness: the Parseval isometry gate is LOADED on the metric, not blind.
+
+    In-process pre-repair mutation (process-discipline: monkeypatch, never a git
+    checkout): pre-seed the frame's cached-property slots with the UNDRESSED
+    continuum-metric space (``SphericalHarmonicSpace.from_L`` — exactly what the
+    pre-F-0 ``basis_space`` returned), and Parseval FAILS by the measured
+    margin: the ratio is a weighted average of the per-ℓ factors
+    :math:`(4\pi/(2\ell+1))^2 \ge 17.5` at L=1 (`[M]` 118.7 on the probe's
+    seed). A BLIND gate would read 1.0 here (vv-principles #19: only the
+    wrong-structure reading discriminates loaded from blind).
+    """
+    frame = Quadrature.level_symmetric(4).angular_frame(1)
+    undressed = SphericalHarmonicSpace.from_L(1)
+    # cached_property stores in the instance __dict__ — pre-seeding it IS the
+    # pre-repair frame; no production code is touched and nothing needs undoing.
+    frame.__dict__["basis_space"] = undressed
+    frame.__dict__["test_space"] = undressed
+    rng = np.random.default_rng(1234)
+    c = rng.standard_normal(undressed.shape)
+    psi = frame.basis.synthesize(c, frame.table)
+    phi = frame.analysis.apply(psi)
+    ratio = frame.basis_space.inner_product(phi, phi) / (
+        frame.measure_space.inner_product(psi, psi)
+    )
+    assert ratio > 10.0, (
+        f"pre-repair continuum metric read Parseval ratio {ratio:.3g} ≈ 1 — "
+        f"the isometry gate would be BLIND to the wrong-side metric"
+    )
+
+
+@pytest.mark.foundation
+def test_slab_frame_refuses_the_parseval_dressing_visibly():
+    r"""The slab GL frame measures DENSE and keeps the continuum metric — LOUDLY.
+
+    `[M]` 2026-08-23 (discovery record ``scratch/probe_f1_parseval_slab.py``):
+    total weight 2 (not 4π), live slots [1, 1, 3] per degree, live
+    off-diagonals at 0.93 of the Cauchy–Schwarz scale :math:`\sqrt{G_{jj}G_{kk}}`
+    — NO diagonal candidate satisfies Parseval, so the dressing is REFUSED (the
+    verdict is the record) and ``.H`` stays the stored-metric sandwich (NOT the
+    physical adjoint). The honest matrix-metric home is the CS4c Riesz-leg
+    machinery (``frame_square_recarve.md``, recorded debts). Also the
+    declared/measured separation: the SH basis DECLARES DIAGONAL
+    (continuum-orthogonal); the measured verdict on THIS measure is DENSE —
+    two different questions, two properties.
+    """
+    frame = Quadrature.gauss_legendre(8).angular_frame(2)
+    assert frame.basis.gram_structure is GramStructure.DIAGONAL       # declared
+    assert frame.discrete_gram_structure is GramStructure.DENSE       # measured
+    np.testing.assert_array_equal(
+        frame.basis_space.inner_product_weights,
+        SphericalHarmonicSpace.from_L(2).inner_product_weights,
+    )
+
+
+@pytest.mark.foundation
+def test_indicator_frame_parseval_metric_is_the_inverse_region_mass():
+    r"""The SAME theorem on the indicator frame: the Parseval metric is ``1/m_R``.
+
+    :math:`G_{RR} = \sum_{i\in R} w_i = m_R` (the region mass), so the dressed
+    metric is ``1/m_R`` on occupied regions and EXACTLY ``0.0`` on the empty one
+    (the dead-slot arm — matching ``project``'s Moore–Penrose convention).
+    Parseval on a region-wise-constant (band-limited) field:
+    :math:`\|Mf\|^2_{1/m} = \sum_R m_R \bar f_R^2 = \|f\|^2_V` exactly.
+    """
+    frame = _indicator_frame(
+        [0.0, 2.0, 4.0, 5.0], [0.5, 1.5, 2.5, 3.5], [1.0, 1.0, 2.0, 1.0],
+    )  # R2 = [4, 5] is empty
+    assert frame.discrete_gram_structure is GramStructure.DIAGONAL
+    np.testing.assert_allclose(
+        frame.basis_space.inner_product_weights, [0.5, 1.0 / 3.0, 0.0],
+    )
+    f = np.array([10.0, 10.0, 30.0, 30.0])  # constant per region — band-limited
+    phi = frame.analysis.apply(f)
+    np.testing.assert_allclose(
+        frame.basis_space.inner_product(phi, phi),
+        frame.measure_space.inner_product(f, f),
+        rtol=1e-13,
+    )
+
+
+@pytest.mark.foundation
+def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
+    r"""The declared/measured Gram facts are INDEPENDENT — the overlap witness.
+
+    :class:`OverlapBasis` DECLARES PARTITION_OF_UNITY (the cross-Gram row-sum
+    probe is valid for ``project`` — :math:`R\mathbf 1 = \mathbf 1`), while its
+    TRIAL Gram MEASURES DENSE (a straddling row makes two columns share
+    support). So the Parseval dressing is refused (``basis_space`` stays
+    Euclidean) while ``project`` keeps working through the row-sum probe.
+    """
+    ob = OverlapBasis(
+        edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+    )
+    measure = DiscreteMeasure(
+        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support="spatial_R1",
+    )
+    frame = GalerkinFrame(ob, measure)
+    assert ob.gram_structure is GramStructure.PARTITION_OF_UNITY   # declared
+    assert frame.discrete_gram_structure is GramStructure.DENSE    # measured
+    assert frame.basis_space.inner_product_weights is None
+    np.testing.assert_allclose(
+        frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
+    )

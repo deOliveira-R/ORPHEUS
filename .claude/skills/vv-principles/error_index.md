@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**79 entries · 258 catching tests · 0 uncaught.**
+**79 entries · 260 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -71,7 +71,7 @@ None — every catalogued defect has at least one catching test.
 | ERR-036 | 6 | Slab Peierls Path A.i: log-singular kernel diagonal truncation in plain GL |
 | ERR-037 | 2 | Atalay Eq 42 z_0 quadrature endpoint at μ=1: bracket pole 1/(1-μ²) cancels algebraically but sl… |
 | ERR-038 | 2 | Atalay 1997 Tables 2-5 first-order Fredholm precision floor at small slab thicknesses |
-| ERR-039 | 8 | HarmonicMomentProjection.apply_transpose claimed Π* = R but used the addition-theorem reconstru… |
+| ERR-039 | 10 | HarmonicMomentProjection.apply_transpose claimed Π* = R but used the addition-theorem reconstru… |
 | ERR-040 | 1 | Tangential ordinate silently classified as inflow OR outflow at a face requiring strict partiti… |
 | ERR-041 | 5 | Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-) |
 | ERR-042 | 8 | Reflection-index table inconsistent with quadrature weights (measure-non-preserving G) |

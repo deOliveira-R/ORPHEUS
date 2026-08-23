@@ -3207,6 +3207,10 @@ older entries classify against.
    - :math:`\Pi^* = g_C \cdot S_0` (Hilbert adjoint) — ``MomentProjection.H``
      composed by the generic ``_AdjointOperator`` machinery using the
      codomain's SH-Gram metric
+     — ⛔ **superseded 2026-08-23; see the F-0 chapter below.** The
+     composition machinery was right and the metric it read was the
+     wrong SIDE: the shipped adjoint is
+     :math:`\Pi^* = S_0 \circ G^{-1} = R/W`.
    - :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
      (addition-theorem reconstruction) — ``HarmonicMomentReconstruction``
 
@@ -3236,7 +3240,165 @@ older entries classify against.
    than "what was wrong about the old one?". See ERR-051 for the related
    discipline failure on the validation-method side.
 
-   **Phase 1 test reference (Round 2; synced 2026-07-21):** ``tests/numerics/test_spherical_harmonic_space.py`` — the live catcher set (8 tests marked ``@pytest.mark.catches("ERR-039")``). The adjoint endpoint is ``test_H_equals_g_C_times_S0`` (pins ``M.H ≡ g_C · S₀``, the metric times the naked synthesis); ``test_R_equals_2l_plus_1_times_S0`` pins the complementary (2ℓ+1)-lives-in-R side. ``tests/numerics/test_projection_operators.py`` (with its ``TestApplyTransposeIsRepresentationTranspose`` / ``TestHilbertAdjointViaGenericMachinery`` classes) was retired tree-wide by the Frame campaign; its coverage lives in ``test_spherical_harmonic_space.py``. Phase 1 commits: 0eb9cf3..c5be4b0 on ``refactor/moment-space-and-layering``.
+   **Phase 1 test reference (Round 2; synced 2026-07-21):** ``tests/numerics/test_spherical_harmonic_space.py`` — the live catcher set (8 tests marked ``@pytest.mark.catches("ERR-039")``). The adjoint endpoint was ``test_H_equals_g_C_times_S0`` (pinned ``M.H ≡ g_C · S₀``, the metric times the naked synthesis) — ⛔ renamed and re-keyed at F-0 (below) to ``test_H_equals_parseval_metric_times_S0``; ``test_R_equals_2l_plus_1_times_S0`` pins the complementary (2ℓ+1)-lives-in-R side. ``tests/numerics/test_projection_operators.py`` (with its ``TestApplyTransposeIsRepresentationTranspose`` / ``TestHilbertAdjointViaGenericMachinery`` classes) was retired tree-wide by the Frame campaign; its coverage lives in ``test_spherical_harmonic_space.py``. Phase 1 commits: 0eb9cf3..c5be4b0 on ``refactor/moment-space-and-layering``.
+
+
+   **2026-08-23 F-0 chapter — right Gram, WRONG SIDE (the metric truth):**
+
+   **Status:** **CAUGHT 2026-08-23** during the frame-square re-carve
+   design session (``.claude/plans/frame_square_recarve.md``, step
+   F-0), fixed in the same branch. Same defect family as the two
+   chapters above — a metric / transpose / adjoint conflation on the
+   same operator pair — one level deeper, which is why it extends this
+   entry rather than taking a new ERR number: the catching tests keep
+   ``@pytest.mark.catches("ERR-039")``.
+
+   **Failure mode:** **#6 (convention drift)**, between a *storage*
+   site and a *mathematical* requirement. Phase 1 asked "what IS the
+   right adjoint?" and answered it correctly *given* the metric on the
+   codomain. Nobody asked whether that metric was the right one. The
+   coefficient codomain carried the basis's **continuum Gram**
+   :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` — the Gram, where the
+   quantity it pairs needs the Gram's **inverse**.
+
+   **Mechanism.** For a band-limited field :math:`\psi = S_0 c` the
+   analysis face returns, *identically* (three matrix products
+   re-associated; no exactness hypothesis, every quadrature order),
+
+       φ = Πψ = Yᵀ·diag(w)·(Y c) = (Yᵀ·diag(w)·Y) c = G c
+
+   i.e. the **covariant** moments, not the coefficients. The inner
+   product under which a covariant vector has the same length as the
+   field it came from is :math:`G^{-1}`, not :math:`G` — Parseval:
+   :math:`\|\varphi\|^2_{G^{-1}} = c^{\mathsf T}Gc = \|\psi\|^2_W`.
+   Storing :math:`g_C` put the metric on the wrong side, so the
+   generically-composed ``frame.analysis.H`` came out
+   :math:`(4\pi/(2\ell+1))^2` per :math:`\ell` away from the physical
+   adjoint — :math:`157.9\times` on the scalar moment,
+   :math:`17.5\times` on the current, :math:`6.3\times` at
+   :math:`\ell=2`.
+
+   Numerical fingerprint — the **isometry ratio**
+   :math:`\|\Pi\psi\|^2_{\rm codomain} / \|\psi\|^2_W`, whose exact
+   value is 1 (`[M]` 2026-08-23, level-symmetric :math:`S_4`,
+   band-limited :math:`\psi = S_0c` with
+   :math:`c \sim` ``default_rng(1234)``; the pre-F-0 rows are produced
+   in-process by pre-seeding the frame's cached ``basis_space`` /
+   ``test_space`` slots with the undressed
+   ``SphericalHarmonicSpace.from_L(L)``):
+
+
+   .. list-table::
+      :header-rows: 1
+
+      * - :math:`L`
+        - codomain metric
+        - Parseval ratio
+        - ``analysis.H`` vs the physical adjoint
+      * - 1
+        - stored :math:`g_C` (pre-F-0)
+        - 81.4
+        - off by :math:`(4\pi/(2\ell+1))^2` per :math:`\ell`
+      * - 1
+        - :math:`G^{-1}` (shipped)
+        - 1.000000000
+        - :math:`\Pi^* = R/W` to :math:`5.4\times10^{-16}` relative
+      * - 2
+        - stored :math:`g_C` (pre-F-0)
+        - 65.2
+        - off by :math:`(4\pi/(2\ell+1))^2` per :math:`\ell`
+      * - 2
+        - :math:`G^{-1}` (shipped)
+        - 1.000000000
+        - :math:`\Pi^* = R/W` to :math:`2.7\times10^{-16}` relative
+
+
+   The pre-F-0 ratio is a moment-energy-weighted average of the
+   per-:math:`\ell` factors, so its numeric value depends on the
+   coefficient draw; what is draw-independent is that it lies between
+   the extreme factors present at that :math:`L` (17.5 … 157.9 at
+   :math:`L=1`, 6.3 … 157.9 at :math:`L=2`) and can therefore never be
+   1. The per-:math:`\ell` factor itself is exact: `[M]` the ratio of
+   the pre-F-0 ``analysis.H`` to the shipped one on a
+   single-:math:`\ell` unit input reproduces
+   :math:`(4\pi/(2\ell+1))^2` to :math:`\le 2.8\times10^{-16}`
+   relative at every :math:`\ell`.
+
+   **How it hid.** Three independent shields, and they are the
+   reusable content of this chapter:
+
+   1. **Consistency is not correctness — and every existing gate
+      measured consistency.** The defining adjoint identity
+      :math:`\langle \Pi\psi, c\rangle_{g_C} = \langle\psi, \Pi^*
+      c\rangle_W` held at the round-off floor throughout (`[M]`
+      2026-08-23, LS\ :sub:`4`: relative residual
+      :math:`9.5\times10^{-16}` at :math:`L=1`, **exactly** :math:`0.0`
+      at :math:`L=2`), because
+      ``.H`` is *built from* the stored metric by the generic sandwich.
+      A sandwich always reproduces the pairing it was assembled from,
+      whatever that pairing is; the identity is true for **every**
+      symmetric positive-definite metric and therefore carries zero
+      information about which one is installed.
+   2. **Composed chains are immune.** Interior metrics cancel in a
+      product, so the production kernel :math:`R\Lambda\Pi` — where
+      every angular moment in this code actually goes — never reads a
+      face's ``.H``. The 0-ULP anisotropic-scattering canary is green
+      before and after the repair by construction.
+   3. **Only end-of-chain adjoints are exposed, and there were none.**
+      `[M]` ``grep -rn "analysis\.H\|reconstruction\.H" orpheus/``
+      returns exactly one hit and it is a docstring: no production
+      consumer of a face's ``.H`` existed. The defect was latent, and
+      would have become live with the first adjoint consumer.
+
+   **What catches it.** The **isometry**, which compares the codomain
+   metric against something outside it (the field's own norm) and
+   which no consistency identity implies:
+   :math:`\|\Pi\psi\|_{\rm codomain} = \|\psi\|_W` on band-limited
+   input, over six sphere quadrature families, plus the closure
+   :math:`\Pi^* = R/W` / :math:`R^* = W\,\Pi`, the indicator frame's
+   :math:`1/m_R` instance of the same theorem, and — the load-bearing
+   one — a **loaded-not-blind negative leg** that re-installs the
+   pre-F-0 continuum metric in-process and asserts the ratio is
+   :math:`\gg 1`. Without that leg the isometry's green would be
+   compatible with a gate merely *blind* to the metric
+   (``vv-principles`` #19). The two Phase-1 adjoint gates were renamed
+   and re-keyed to the Parseval form in the same change.
+
+   **Fix.** The metric moved to its correct owner. ``FrameBase`` gained
+   ``discrete_gram`` (the cached :math:`K\times K` trial Gram
+   :math:`Y^{\mathsf T}WY`), ``discrete_gram_structure`` (a **measured**
+   diagonality verdict, distinct from the basis's **declared**
+   ``gram_structure``, which is about the *cross* Gram :math:`MR` that
+   ``project`` inverts), and a ``basis_space`` that returns
+   ``replace(basis.space, inner_product_weights=1/diag(G))`` when the
+   verdict is DIAGONAL — exactly ``0.0`` on structurally dead slots
+   (layout padding, a folded rule's σ-odd columns, an empty indicator
+   region) — and the **undressed** space when it is DENSE. The basis
+   keeps :math:`g_C`: it is the continuum Gram and the cross-Gram
+   vocabulary of ``project``/``gram``, a genuinely different object.
+
+   **The refusal arm is part of the fix, not a gap.** On the slab
+   Gauss–Legendre measure the discrete Gram is not diagonal at all
+   (`[M]` total weight 2 rather than :math:`4\pi`; live slots
+   :math:`[1,1,3]` per degree; three genuine off-diagonal couplings,
+   the largest at :math:`0.93` of :math:`\sqrt{G_{jj}G_{kk}}`), so **no
+   diagonal metric satisfies Parseval there** — a structural
+   impossibility, not a tolerance. The frame refuses the dressing,
+   records the verdict, and the Parseval gate skips such a frame with a
+   named reason. A matrix-valued metric needs the CS4c Riesz-leg
+   machinery; the debt is recorded in the campaign plan.
+
+   **Lesson:** **A "the adjoint is X" claim is meaningless until the
+   metric on BOTH spaces is named, and a self-consistency identity can
+   never adjudicate which metric is installed.** The generalisation of
+   the Phase-1 lesson one turn further: that one said "verify the
+   replacement is the right operator *under the discipline's metric*";
+   this one says **verify the metric**. The instrument that can
+   discriminate is one that compares the metric to a quantity defined
+   without it — here Parseval, i.e. the field's own norm. And the
+   corollary for review: when a defect can only be seen at the END of a
+   chain, the absence of any end-of-chain consumer is not safety, it is
+   *latency* — the clock starts when the first consumer lands.
 
 .. error-entry:: ERR-040
    :title: Tangential ordinate silently classified as inflow OR outflow at a face requiring strict partition

@@ -173,9 +173,10 @@ class Basis(ABC):
         The matrix transpose of :meth:`analyze` (NOT its Hilbert adjoint): the
         naked synthesis weighted by the quadrature weight on each node. The
         metric-aware ``_AdjointOperator`` machinery combines this with the
-        domain/codomain Gram to form the W-weighted Hilbert adjoint
-        :math:`M^* = g_C \cdot S_0`, so the :class:`FrameBase`'s analysis face gets
-        ``.H`` for free.
+        frame's metrics — the measure weights on the domain, the F-0 PARSEVAL
+        metric :math:`G^{-1}` (the inverse discrete Gram) on the codomain — to
+        form the physical Hilbert adjoint :math:`M^* = S_0 \circ G^{-1}`, so
+        the :class:`FrameBase`'s analysis face gets ``.H`` for free.
         """
         ...
 
@@ -242,8 +243,13 @@ class Basis(ABC):
     def space(self) -> "FunctionSpace":
         r"""The coefficient :class:`FunctionSpace` this basis spans.
 
-        Carries the basis's Gram as its ``inner_product_weights`` — the metric the
-        :class:`FrameBase`'s codomain (and the Hilbert-adjoint machinery) reads. The
+        Carries the basis's CONTINUUM Gram as its ``inner_product_weights`` (or no
+        metric at all, for a measure-free basis like the indicators). The frame's
+        codomain (:attr:`~orpheus.numerics.frame.FrameBase.basis_space`) REPLACES
+        the metric with the discrete PARSEVAL inverse — that dressed copy, not
+        this space, is what the Hilbert-adjoint machinery reads (F-0,
+        ``frame_square_recarve.md``); this space's own metric stays the
+        continuum / cross-Gram vocabulary of ``project``/``gram``. The
         basis owns exactly one space (the nodal/domain space comes from the
         measure), so the unqualified name is unambiguous — matching the
         ``Field.space`` convention. The :class:`FrameBase` re-exposes it provenance-

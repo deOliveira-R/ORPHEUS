@@ -386,7 +386,50 @@ that share the ``(SH coefficient → angular ordinate)`` signature
 are SEPARATELY TYPED with mathematically distinct semantics. Each is
 the **naked synthesis** :math:`S_0(c)_n = \sum_{\ell, m}
 Y_\ell^m(\hat\Omega_n) c_\ell^m` post-multiplied by a diagonal that
-lives in exactly ONE place in the codebase:
+lives in exactly ONE place in the codebase.
+
+.. important::
+
+   **An adjoint is METRIC-RELATIVE.** :math:`\Pi^*` is defined by
+   :math:`\langle \Pi\psi, c\rangle_{\rm coeff} =
+   \langle \psi, \Pi^* c\rangle_W` — a *pair* of inner products, so
+   naming "the" Hilbert adjoint without naming the **coefficient-space
+   metric** says nothing. All three metrics below have appeared in this
+   corpus, all three are internally consistent, and they induce three
+   different :math:`\Pi^*`. The one the code exposes is the third.
+
+   .. list-table:: The three coefficient-space metrics and the :math:`\Pi^*` each induces
+      :header-rows: 1
+      :widths: 26 34 40
+
+      * - Coefficient metric
+        - Where it lives
+        - The adjoint it induces
+      * - **Euclidean** (no metric)
+        - The bare-transpose reading; the frame never installs it on
+          the SH codomain.
+        - :math:`\Pi^* = S_0` — the naked synthesis, no factor.
+      * - **Continuum Gram** :math:`g_C = 4\pi/(2\ell+1)`
+        - :meth:`SphericalHarmonicSpace.from_L
+          <orpheus.numerics.spaces.SphericalHarmonicSpace.from_L>`
+          (:eq:`sh-space-metric`) — the ``project``/``gram``
+          cross-Gram vocabulary.
+        - :math:`\Pi^* = g_C \cdot S_0`. ⛔ **What the frame exposed
+          before F-0** — the wrong side for covariant moments.
+      * - **Parseval metric** :math:`G^{-1}`, the inverse *discrete*
+          Gram — :math:`(2\ell+1)/4\pi` on a degree-exact sphere rule
+        - :attr:`FrameBase.basis_space
+          <orpheus.numerics.frame.FrameBase.basis_space>` — the frame
+          dresses the basis's space with it (F-0).
+        - :math:`\Pi^* = S_0 \circ G^{-1} = R/W`
+          (:eq:`hilbert-adjoint-equals-metric-times-S0`) — **shipped**,
+          and the physical adjoint for the carried moments.
+
+   Why the third is the physical one, in one line: the analysis face's
+   output is the **covariant** moment vector :math:`\varphi = Gc`
+   (:ref:`frame-parseval-metric`, :doc:`/theory/foundations/frame`), and
+   the inner product under which a covariant vector has the same length
+   as the field it came from is the *inverse* Gram — Parseval.
 
 * :math:`S_0` itself — the bare synthesis (the frame-theory
   synthesis operator :math:`T^*`), exposed by
@@ -406,36 +449,110 @@ lives in exactly ONE place in the codebase:
    \;=\; w_n \, S_0(c)_n
    \;=\; w_n \sum_{\ell, m} Y_\ell^m(\hat\Omega_n) c_\ell^m.
 
-* :math:`\Pi^* = g_C \cdot S_0` — the W-weighted Hilbert adjoint,
-  exposed by ``frame.analysis.H`` and computed generically by
-  the metric-aware ``_AdjointOperator`` wrapper. The
-  :math:`g_C^{\ell} = 4\pi/(2\ell+1)` factor is the SH Gram-matrix
-  diagonal carried on the analysis face's codomain (the frame's
-  ``basis_space``) ``inner_product_weights`` (which IS the canonical
-  :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`).
+* :math:`\Pi^* = S_0 \circ G^{-1}` — the **Hilbert adjoint under the
+  frame's Parseval metric**, exposed by ``frame.analysis.H`` and
+  computed generically by the metric-aware ``_AdjointOperator``
+  wrapper. The :math:`G^{-1}` factor is the inverse of the frame's
+  **discrete** trial Gram
+  (:attr:`FrameBase.discrete_gram
+  <orpheus.numerics.frame.FrameBase.discrete_gram>`), carried on the
+  analysis face's codomain (the frame's ``basis_space``) as its
+  ``inner_product_weights``. That codomain is a
+  :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace` — but the
+  *frame-dressed* copy, not the one
+  :meth:`~orpheus.numerics.spaces.SphericalHarmonicSpace.from_L`
+  builds: ``from_L`` carries the CONTINUUM Gram
+  :math:`g_C` (:eq:`sh-space-metric`) and
+  :attr:`FrameBase.basis_space
+  <orpheus.numerics.frame.FrameBase.basis_space>` REPLACES it with
+  :math:`G^{-1}`. The general statement, and the SH collapse of it:
 
 .. math::
    :label: hilbert-adjoint-equals-metric-times-S0
 
    (\Pi^* c)_n
-   \;=\; \sum_\ell \frac{4\pi}{2\ell+1} \sum_m
-              Y_\ell^m(\hat\Omega_n) c_\ell^m.
+   \;=\; \bigl(S_0 \, G^{-1} c\bigr)_n
+   \;=\; \sum_\ell \frac{2\ell+1}{4\pi} \sum_m
+              Y_\ell^m(\hat\Omega_n)\, c_\ell^m
+   \;=\; \frac{(R\,c)_n}{W},
+   \qquad W \;=\; \sum_n w_n \;=\; 4\pi .
+
+The **first** equality is the general frame law — true for every
+frame whose discrete Gram is diagonal, whatever its values. The
+**second** substitutes the SH discrete Gram
+:math:`G_\ell = 4\pi/(2\ell+1)`, which a sphere cubature of
+``degree_of_exactness`` :math:`\ge 2L` realises exactly
+(:eq:`real-sh-discrete-orthogonality`). The **third** — the frame
+square closing on the single scalar :math:`W` — additionally needs
+the per-:math:`\ell` identity :math:`d_\ell G_\ell = W` with
+:math:`d_\ell = 2\ell+1` the addition-theorem factor; it is a
+property of *this* basis-measure pairing, not of frames in general
+(the indicator frame satisfies Parseval and does **not** satisfy
+:math:`M^* = R/W`; see :ref:`frame-parseval-metric`).
+
+.. note::
+
+   ⛔ **Corrected 2026-08-23 (step F-0,**
+   ``.claude/plans/frame_square_recarve.md`` **).** Until F-0 this
+   equation read
+
+   .. math::
+
+      (\Pi^* c)_n \;=\; \sum_\ell \frac{4\pi}{2\ell+1}
+        \sum_m Y_\ell^m(\hat\Omega_n)\, c_\ell^m
+        \qquad\text{(pre-F-0 — the CONTINUUM metric } g_C \text{)},
+
+   because the frame exposed ``basis.space`` unchanged and that space
+   carries :math:`g_C`. The machinery was self-consistent throughout —
+   the adjoint identity :math:`\langle\Pi\psi,c\rangle_{g_C} =
+   \langle\psi,\Pi^*c\rangle_W` held at the round-off floor
+   (`[M]` 2026-08-23, LS\ :sub:`4`: relative residual
+   :math:`9.5\times10^{-16}` at :math:`L=1`, **exactly** :math:`0.0`
+   at :math:`L=2`) — so
+   nothing could fail; the defect was *which metric was stored*, and
+   :math:`g_C` is the **wrong side** for the covariant moments the
+   analysis face carries. The pre-F-0 :math:`\Pi^*` is off the
+   physical one by exactly :math:`(4\pi/(2\ell+1))^2` per
+   :math:`\ell` — :math:`157.9` at :math:`\ell=0`, :math:`17.5` at
+   :math:`\ell=1`, :math:`6.3` at :math:`\ell=2`. Measured
+   consequence: Parseval read a *ratio* of :math:`81.4` (:math:`L=1`)
+   and :math:`65.2` (:math:`L=2`) on an LS\ :sub:`4` rule instead of
+   :math:`1.000\,000\,000\,0`. (The ratio is a moment-energy-weighted
+   average of those per-:math:`\ell` factors, so its value depends on
+   the coefficient draw — what is seed-independent is that it lies
+   between the extreme factors PRESENT AT THAT :math:`L`
+   (:math:`[17.5,\,157.9]` at :math:`L=1`, :math:`[6.3,\,157.9]` at
+   :math:`L=2`) and can therefore never be 1.) The equation label
+   survives the correction because it is an API: live
+   ``@pytest.mark.verifies`` markers point at it, and every
+   :eq:`hilbert-adjoint-equals-metric-times-S0` citer would otherwise
+   inherit the retired claim.
 
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.analyze_transpose
 
-   **Implemented by** 7 sites. Every symbol that executes this
+   **Implemented by** 8 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others.
-
-.. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell
+   others. **Re-derived at F-0 (2026-08-23):**
+   ``SphericalHarmonicBasis.metric_per_ell`` LEFT this set — it
+   produces the CONTINUUM Gram :math:`g_C`, which after F-0 is no
+   longer the metric this equation reads; it is declared against
+   :eq:`sh-space-metric` instead. The two frame properties that now
+   produce the Parseval metric — ``FrameBase.discrete_gram`` (which
+   computes :math:`G`) and ``FrameBase.basis_space`` (which installs
+   :math:`G^{-1}` as the codomain metric) — JOINED it.
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.synthesize
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.frame.FrameBase.discrete_gram
+
+.. implements:: hilbert-adjoint-equals-metric-times-S0
+   :by: orpheus.numerics.frame.FrameBase.basis_space
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.frame._FrameAnalysis
@@ -449,8 +566,8 @@ lives in exactly ONE place in the codebase:
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace
 
-* :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
-  — the addition-theorem reconstruction, exposed by the frame's
+* :math:`R = (2\ell+1) \cdot S_0 = W \cdot G^{-1} \cdot S_0
+  = W \cdot \Pi^*` — the addition-theorem reconstruction, exposed by the frame's
   **reconstruction face** (``frame.reconstruction``,
   :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.reconstruct`),
   which reads the :math:`(2\ell+1)` factor live from
@@ -465,9 +582,24 @@ lives in exactly ONE place in the codebase:
    (R \cdot c)_n
    \;=\; \sum_\ell (2\ell+1) \sum_m Y_\ell^m(\hat\Omega_n) c_\ell^m.
 
+Reading that middle equality right-to-left is the whole content of
+the frame square: :math:`R` and :math:`\Pi^*` are the **same
+operator up to the single scalar** :math:`W = \sum_n w_n`, because
+the addition-theorem factor :math:`d_\ell = 2\ell+1` and the
+discrete Gram :math:`G_\ell = 4\pi/(2\ell+1)` multiply to
+:math:`d_\ell G_\ell = 4\pi = W` for **every** :math:`\ell`. The
+:math:`1/W` prefactor the scattering operator applies once
+(:eq:`scattering-aniso-composite`,
+:doc:`/theory/foundations/operator_algebra`) IS that scalar.
+
+The continuum metric :math:`g_C`
+---------------------------------
+
 The metric :math:`g_C` is the single source of truth for the SH
-convention; it lives on :class:`SphericalHarmonicSpace` and equals
-:math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
+**convention**; it is the continuum Gram of the no-prefactor
+harmonics, it lives on :class:`SphericalHarmonicSpace` as built by
+:meth:`~orpheus.numerics.spaces.SphericalHarmonicSpace.from_L`, and
+it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
 .. math::
    :label: sh-space-metric
@@ -475,10 +607,63 @@ convention; it lives on :class:`SphericalHarmonicSpace` and equals
    \langle c, d \rangle_C
    \;=\; \sum_\ell \frac{4\pi}{2\ell+1} \sum_m c_\ell^m d_\ell^m.
 
-These four identities are pinned by
-``tests/numerics/test_spherical_harmonic_space.py`` (the
-``@pytest.mark.catches("ERR-039")`` test suite).
 
+.. implements:: sh-space-metric
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell
+
+   **Implemented by** 3 sites — the formula
+   (``SphericalHarmonicBasis.metric_per_ell``), its broadcast into the
+   padded ``(L+1, 2L+1)`` storage layout (``_padded_metric_tensor``),
+   and the constructor that installs it on the space
+   (``SphericalHarmonicSpace.from_L``). Declared at F-0 (2026-08-23),
+   when ``metric_per_ell`` left
+   :eq:`hilbert-adjoint-equals-metric-times-S0`: the continuum Gram is
+   this equation's subject, not the adjoint's factor.
+
+.. implements:: sh-space-metric
+   :by: orpheus.numerics.spaces.spherical_harmonic_space._padded_metric_tensor
+
+.. implements:: sh-space-metric
+   :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace.from_L
+
+.. warning::
+
+   :eq:`sh-space-metric` is the **continuum** Gram, and after F-0 it is
+   *not* the metric a frame's coefficient codomain carries. The frame
+   REPLACES it: :attr:`FrameBase.basis_space
+   <orpheus.numerics.frame.FrameBase.basis_space>` returns
+   ``replace(basis.space, inner_product_weights=G⁻¹)`` with
+   :math:`G^{-1}` the inverse of the **discrete** Gram measured on that
+   frame's own measure. On a degree-exact sphere cubature the two are
+   reciprocal (:math:`G = g_C`, so :math:`G^{-1} = g_C^{-1}`) and the
+   distinction is invisible in the *values*; on the slab
+   Gauss–Legendre measure the discrete Gram is not even diagonal, so no
+   diagonal metric reproduces :math:`g_C^{-1}`'s role at all. Use
+   :eq:`sh-space-metric` when you mean the convention (``project`` /
+   :attr:`FrameBase.gram <orpheus.numerics.frame.FrameBase.gram>`, the
+   cross-Gram :math:`MR`); use
+   :eq:`hilbert-adjoint-equals-metric-times-S0` when you mean what
+   ``.H`` computes.
+
+These identities are pinned by
+``tests/numerics/test_spherical_harmonic_space.py`` and
+``tests/numerics/test_frame.py`` (the
+``@pytest.mark.catches("ERR-039")`` suites; the Parseval-metric arm is
+the ``test_parseval_*`` family, including the loaded-not-blind
+negative leg that re-installs the pre-F-0 continuum metric in-process
+and measures the ratio it produces).
+
+.. (vv-status rationale) Both labels are face-DISTINCTION identities:
+   they say which diagonal each of the four same-signature operators
+   carries (the representation transpose carries w_n; the Hilbert
+   adjoint carries the codomain metric), not what any solver computes.
+   Each is nevertheless pinned by a live L1 gate against an independent
+   closed-form einsum — ``test_T_carries_w_n_and_H_carries_the_parseval_metric``
+   and ``test_H_equals_parseval_metric_times_S0`` in
+   ``tests/numerics/test_spherical_harmonic_space.py``, plus
+   ``test_parseval_frame_square_closes`` (6 sphere families) and
+   ``test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces`` in
+   ``tests/numerics/test_frame.py``.
 .. vv-status: hilbert-adjoint-equals-metric-times-S0 documented
 .. vv-status: moment-projection-transpose-T documented
 
@@ -501,6 +686,22 @@ These four identities are pinned by
    (the addition-theorem composition, :eq:`pi-r-equals-4pi-i`)
    continues to hold on band-limited inputs and is the genuine
    Galerkin-discipline identity for this SH frame — its 4π-tightness.
+
+   **The F-0 chapter (2026-08-23).** ERR-039's endpoint gave each
+   operator a typed construction path and left one question
+   unasked: *is the metric the typed space carries the RIGHT one?*
+   It was not. The space carried the continuum Gram :math:`g_C`,
+   which pairs **contravariant** coefficients :math:`c`; the
+   analysis face emits **covariant** moments :math:`\varphi = Gc`,
+   whose metric is :math:`G^{-1}`. Every gate stayed green because
+   every gate checked *consistency* (the sandwich reproduces the
+   pairing it was built from) rather than *Parseval* (does analysis
+   preserve length?). This is the same family as ERR-039 — a metric
+   / transpose / adjoint conflation — one level deeper: right Gram,
+   **wrong side**. The catching instrument is the isometry
+   :math:`\|M\psi\|_{\rm codomain} = \|\psi\|_W`, which no
+   consistency identity implies. Full derivation:
+   :ref:`frame-parseval-metric` (:doc:`/theory/foundations/frame`).
 
 The numerical evidence:
 

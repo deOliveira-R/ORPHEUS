@@ -133,13 +133,23 @@ ledger (laws stated and derived in
      - A moment is :math:`\sum_m w_m Y_\ell^m(\hat\Omega_m)\,
        \psi_m` — nothing else.
    * - The adjoint :math:`\Pi^*`
-     - **Nothing** — the naked reconstruction
-     - Under the :math:`W`-weighted inner product
-       :math:`\langle\psi,\varphi\rangle_V = \sum_m w_m \psi_m
-       \varphi_m`, the adjoint is
-       :math:`(\Pi^* c)_m = \sum_{\ell,m'} Y_\ell^{m'}
-       (\hat\Omega_m)\,c_{\ell m'}` with **no** :math:`(2\ell+1)` —
-       ERR-039's exact content.
+     - :math:`(2\ell+1)/W` — the **Parseval metric**
+     - An adjoint is metric-RELATIVE: :math:`\Pi^*` is fixed only once
+       *both* inner products are named. The frame's coefficient
+       codomain carries :math:`G^{-1}`, the inverse discrete Gram
+       (:ref:`frame-parseval-metric`,
+       :doc:`/theory/foundations/frame`), which on a degree-exact
+       sphere rule IS this ledger's own unifying object
+       :math:`(2\ell+1)/W`. Hence
+       :math:`(\Pi^* c)_m = \sum_\ell \frac{2\ell+1}{W}
+       \sum_{m'} Y_\ell^{m'}(\hat\Omega_m)\,c_{\ell m'}
+       = (R c)_m / W` —
+       :eq:`hilbert-adjoint-equals-metric-times-S0`. ⛔ **Two earlier
+       readings of this row are retired** (2026-08-23, step F-0): "the
+       naked reconstruction, **nothing**" is the adjoint under a
+       *Euclidean* coefficient metric, and ":math:`g_C \cdot S_0`" the
+       adjoint under the *continuum* Gram — the frame installs
+       neither.
    * - The pair :math:`\Pi R`
      - :math:`4\pi = W`
      - :math:`\Pi R = 4\pi\,I` on band-limited inputs — the
@@ -156,17 +166,43 @@ dimensionality what the weight sum unifies; ORPHEUS's dimension-blind
 spelling is why the same scattering operator serves slab, sphere, and
 cylinder without a per-geometry prefactor branch.
 
-**The catchers.** All in
+**The unification, once more, from the other end.** The ledger's
+:math:`(2\ell+1)/W` is not only a bookkeeping convenience: it is the
+frame's **Parseval metric** :math:`G^{-1}`, the inverse of the
+discrete trial Gram :math:`G_\ell = W/(2\ell+1)`
+(:ref:`frame-parseval-metric`). That is why the same object appears
+in the adjoint row and in the :math:`\Pi R` row — the two are
+:math:`d_\ell G_\ell = W` read in opposite directions.
+
+.. warning::
+
+   The identification :math:`G_\ell = W/(2\ell+1)` is a property of a
+   **degree-exact sphere cubature**, not of the basis. `[M]`
+   2026-08-23 on the slab ``gauss_legendre(8)`` measure at
+   :math:`L = 2` the discrete Gram is **not diagonal at all** (largest
+   live off-diagonal :math:`0.93` of :math:`\sqrt{G_{jj}G_{kk}}`), so
+   no :math:`(2\ell+1)/W` diagonal is its inverse and the frame
+   refuses the Parseval dressing there. Hébert's :math:`W = 2` row
+   remains the right reading of the *prefactor*; it is not a claim
+   about the slab frame's metric. See
+   :ref:`frame-parseval-dense-refusal`.
+
+**The catchers.** In
 ``tests/numerics/test_spherical_harmonic_space.py``:
-``test_H_equals_g_C_times_S0`` pins the Hilbert adjoint to
-:math:`g_C \cdot S_0` at :math:`10^{-12}` — the metric
-:math:`g_C = 4\pi/(2\ell+1)` times the *naked* synthesis, with no
-bare :math:`(2\ell+1)` on the adjoint side (ERR-039);
+``test_H_equals_parseval_metric_times_S0`` pins the Hilbert adjoint to
+:math:`S_0(G^{-1}c)` at :math:`10^{-12}` — the Parseval metric
+:math:`(2\ell+1)/4\pi` times the *naked* synthesis, with no bare
+:math:`(2\ell+1)` on the adjoint side (ERR-039);
 ``test_R_equals_2l_plus_1_times_S0`` pins the complementary side,
 that the :math:`(2\ell+1)` lives in :math:`R`;
 ``test_pi_R_is_4pi_identity_on_band_limited`` pins
-:math:`\Pi R = 4\pi I` (ERR-051). The addition theorem itself is
-verified at :math:`\ell \le 3` in
+:math:`\Pi R = 4\pi I` (ERR-051). In ``tests/numerics/test_frame.py``
+the ``test_parseval_*`` family pins the metric itself — the isometry
+:math:`\|\Pi\psi\|_{G^{-1}} = \|\psi\|_W`, the closure
+:math:`\Pi^* = R/W` and :math:`R^* = W\,\Pi` over six sphere families,
+the slab ``DENSE`` refusal, and a loaded-not-blind negative leg that
+re-installs the pre-F-0 continuum metric. The addition theorem itself
+is verified at :math:`\ell \le 3` in
 ``tests/sn/operators/test_solver_components.py``.
 
 .. _normalization-alpha-crosswalk:

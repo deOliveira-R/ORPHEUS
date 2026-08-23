@@ -14,17 +14,23 @@ What this enables
 =================
 
 The discrete spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`'s
-analysis face exposes this space as its ``basis_space`` (codomain), so the generic
-``_AdjointOperator`` machinery in :mod:`orpheus.numerics.operator` computes
-``frame.analysis.H`` correctly as :math:`g_C \cdot S_0`, where :math:`S_0` is
-the naked synthesis — the W-weighted Hilbert adjoint falls out of the frame's
-swapped spaces with no bespoke code.
+codomain is this space **re-dressed by the frame** (F-0,
+``frame_square_recarve.md``): :meth:`SphericalHarmonicSpace.from_L` carries the
+CONTINUUM Gram :math:`g_C = 4\pi/(2\ell+1)`, and :attr:`FrameBase.basis_space
+<orpheus.numerics.frame.FrameBase.basis_space>` REPLACES the metric with the
+PARSEVAL metric — the inverse of the frame's discrete Gram,
+:math:`(2\ell+1)/4\pi` on a degree-exact sphere rule — because the carried
+moments are COVARIANT (:math:`\varphi = Gc`) and only :math:`G^{-1}` makes
+analysis an isometry onto its image (`[M]` ``scratch/probe_f1_parseval.py``,
+2026-08-24: continuum-side Parseval ratio 118.7 vs 1.000). The generic
+``_AdjointOperator`` machinery then computes ``frame.analysis.H`` as the
+physical :math:`S_0 \circ G^{-1} = R/W` with no bespoke code.
 
 ERR-039 in one sentence: the addition-theorem reconstruction
-:math:`R = (2\ell+1) S_0` and the Hilbert adjoint
-:math:`\Pi^* = g_C \cdot S_0` differ by a factor of :math:`4\pi`. With
-the metric carried on the space and the basis providing the convention,
-they fall out as two derived expressions from a common ground.
+:math:`R = (2\ell+1) S_0` and the analysis face's Hilbert adjoint
+:math:`\Pi^* = R/W` differ by exactly the total weight :math:`W = 4\pi`. With
+the metric carried on the space and the basis providing the convention, they
+fall out as two derived expressions from a common ground.
 
 References
 ----------
@@ -111,9 +117,14 @@ class SphericalHarmonicSpace(FunctionSpace):
         ``(L + 1, 2 * L + 1)``; ``__post_init__`` checks.
     inner_product_weights : NDArray, optional
         Inherited from :class:`FunctionSpace`. The padded ``(L+1, 2L+1)``
-        metric tensor — row :math:`\ell` holds :math:`4\pi/(2\ell+1)` in
-        the :math:`2\ell+1` valid slots, zero in the padding. Use
-        :meth:`from_L` to construct this automatically.
+        metric tensor, zero in the :math:`|m| > \ell` padding. WHICH metric
+        depends on the instance's provenance: :meth:`from_L` installs the
+        CONTINUUM Gram (row :math:`\ell` holds :math:`4\pi/(2\ell+1)`),
+        while a frame's dressed ``basis_space`` — built from this same class
+        via :func:`dataclasses.replace` — carries the PARSEVAL inverse
+        (:math:`(2\ell+1)/4\pi` on a degree-exact rule; F-0,
+        :attr:`FrameBase.basis_space
+        <orpheus.numerics.frame.FrameBase.basis_space>`).
     L : int, default 0
         Maximum harmonic degree retained. Must satisfy
         ``shape == (L + 1, 2 * L + 1)``.
@@ -180,7 +191,10 @@ class SphericalHarmonicSpace(FunctionSpace):
         SphericalHarmonicSpace
             With ``name="spherical_harmonic_space"``,
             ``shape=(L+1, 2L+1)``, and ``inner_product_weights`` carrying
-            the padded :math:`4\pi/(2\ell+1)` metric.
+            the padded :math:`4\pi/(2\ell+1)` CONTINUUM Gram. (A frame's
+            ``basis_space`` is this object re-dressed with the discrete
+            Parseval inverse — :attr:`FrameBase.basis_space
+            <orpheus.numerics.frame.FrameBase.basis_space>`, F-0.)
         """
         basis = SphericalHarmonicBasis(L=L)
         weights = _padded_metric_tensor(L, basis.metric_per_ell)

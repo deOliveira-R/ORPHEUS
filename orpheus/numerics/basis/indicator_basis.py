@@ -269,9 +269,14 @@ class IndicatorBasis(Basis):
         Euclidean (no intrinsic metric): the indicator basis is **measure-free**,
         so its Gram :math:`\mathrm{diag}(m_R)` exists only against a bound measure
         (:meth:`mass_matrix`), not as a standalone basis property — unlike the
-        analytic spherical-harmonic Gram.  A consumer that needs the metric installs
-        it from the bound measure (e.g. homogenisation installs the flux·volume
-        region masses :math:`\Phi_R` via :func:`dataclasses.replace`).
+        analytic spherical-harmonic Gram.  The frame installs the Hilbert-adjoint
+        metric itself: :attr:`~orpheus.numerics.frame.FrameBase.basis_space`
+        dresses this space with the measured Parseval inverse :math:`1/m_R`
+        (F-0; exactly zero on empty regions).  Other consumers install their own
+        diagonals from the bound measure the same way (e.g. homogenisation's
+        flux·volume region masses :math:`\Phi_R` on
+        :attr:`~orpheus.numerics.frame.FrameBase.gram`, via
+        :func:`dataclasses.replace`).
         """
         from orpheus.numerics.space import FunctionSpace
 

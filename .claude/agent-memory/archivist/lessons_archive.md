@@ -6417,3 +6417,233 @@ CS1 campaign's uncommitted TEST work (9868 → 9920 collected; new rows for
 `architecture/test_monomorphic_leaves` 102 → 98, corroborating the four deleted
 strict-xfails) alongside my own `540 → 541` sentinel row. Legitimate by-product —
 report it, never revert it.
+
+---
+
+## L-065 — Resolving an N-WAY CONTRADICTION: when the corpus states one object three
+## incompatible ways, the disagreement IS the diagnosis (a hidden parameter is unnamed)
+
+**Task, 2026-08-23.** Record F-0 of `.claude/plans/frame_square_recarve.md` — a landed
+metric repair — across `foundations/spherical_harmonics.rst`, `foundations/frame.rst`,
+`conventions/normalization.rst`, `foundations/operator_algebra.rst`,
+`verification/error_catalog.rst`. Branch `feature/cs1-energy-space`. Code/tests already
+landed and OFF LIMITS (read-only). 6 files, +1246/−81. `-E -W` EXIT=0, warning set
+unchanged (0 ↔ 0); vv violations 0, sentinels 541 → 545; `DEAD TARGETS 0`; my own
+import probe over the 16 roles on added lines: 0 dead.
+
+### 1. ⭐⭐ The brief handed me THREE published statements of "the adjoint of M". All
+### three were internally consistent. That is not three bugs — it is ONE missing parameter.
+
+The corpus said, in three places:
+
+| site | claim |
+|---|---|
+| `frame.rst` eq `galerkin-strict-adjoint-vs-reconstruction` | "the strict adjoint is the NAKED synthesis (no factor)" |
+| `spherical_harmonics.rst` eq `hilbert-adjoint-equals-metric-times-S0` | `Π* = g_C·S₀`, `g_C = 4π/(2ℓ+1)` |
+| `normalization.rst` prefactor-ledger row | "The adjoint Π*: carries **Nothing** — the naked reconstruction" |
+
+Worse, `frame.rst`'s **equation** and the **prose four lines below it** disagreed with
+each other *inside one admonition* (naked vs `g_C·S₀`) and had shipped that way for
+months, warning-free.
+
+⟹ **The reflex "find which one is right and fix the other two" is WRONG here.** An
+adjoint is defined by a PAIR of inner products; every one of the three was the correct
+adjoint under a *different* coefficient metric (Euclidean / continuum Gram / Parseval
+inverse), and none of them named its metric. The repair is therefore **not** N local
+corrections — it is *naming the parameter*, once, in a table at the point of definition:
+
+    | Coefficient metric | Where it lives | The Π* it induces |
+    | Euclidean          | the bare-transpose reading | S₀ |
+    | continuum g_C      | `SphericalHarmonicSpace.from_L` | g_C·S₀   ⛔ pre-F-0 |
+    | Parseval G⁻¹       | `FrameBase.basis_space`         | S₀∘G⁻¹ = R/W  shipped |
+
+Each of the three sites then becomes a POINTER into one row, and none can rot
+independently again.
+
+⭐ **The generalisable tell, and it costs nothing to look for: two published statements
+of the same object that disagree, where each is defended by a correct-looking argument,
+means a parameter both arguments quietly fixed differently.** Do not adjudicate; find the
+parameter. (Same shape as `vv-principles` #24(b): when a ranking is explained by a
+mechanism nobody was debating, the debate was mis-framed.)
+
+### 2. ⭐⭐ A DESIGN PROBE goes stale against the repair it motivated — and it does so
+### SILENTLY, because it still runs and still prints plausible numbers.
+
+The plan cited `scratch/probe_f1_parseval.py` for its headline `Parseval ratio 118.7`.
+The probe reads `G_stored = frame.test_space.inner_product_weights` — which pre-repair
+was the continuum metric and **post-repair IS the Parseval metric**. Run today it prints
+`ratio = 1.000` in the row labelled *stored*. It has not broken; it has silently changed
+what it measures.
+
+⟹ Three consequences, all mandatory:
+- **Never cite a pre-repair probe path as the reproducer of a post-repair page.** Publish
+  the **CONSTRUCTION** instead — I wrote the exact 6-line recipe (build the frame, draw
+  `default_rng(1234)` unmasked, synthesize, analyse, read five residuals off five named
+  attributes) so the table regenerates from the page with no file dependency. (L-048's
+  "describe a probe, never cite an ephemeral path", sharpened: the reason is not only that
+  `scratch/` is untracked — it is that the probe's SEMANTICS moved.)
+- **Re-measure every number against the LIVE tree with your OWN probe.** Mine
+  (`probe_f0_doc.py`, ~60 lines) reproduced the theorem/Parseval/closure table for all
+  6 sphere families and refuted two inherited figures (below).
+- **Report the probe's staleness upward** — the main agent owns `scratch/`.
+
+### 3. ⭐⭐ A SEED-DEPENDENT number must be published as its BOUND, never its value —
+### and then find the exact quantity hiding behind it.
+
+Plan: `Parseval ratio 118.7`. Mine, same rule (LS4, L=1): **81.4**. Both correct; the
+ratio is a *moment-energy-weighted average* of the per-ℓ factors `(4π/(2ℓ+1))²`, so it
+moves with the coefficient draw. Publishing either bare number invites a future session
+to "fail to reproduce" a true result.
+
+⟹ Publish the **draw-independent** statement: *it lies between the extreme factors
+PRESENT AT THAT L* — `[17.5, 157.9]` at L=1, `[6.3, 157.9]` at L=2 — *and can therefore
+never be 1*. ⚠ note the quantifier: I first wrote `[6.3, 157.9]` for a sentence covering
+both L values, which is false at L=1 (the ℓ=2 factor does not exist there). A bound is a
+universal; `plan-authoring` §2 applies to it.
+
+⭐ **Then look one level down for the number that IS exact.** The *ratio of the two
+adjoints* on a single-ℓ unit input is `(4π/(2ℓ+1))²` — measured to `≤2.8e-16` relative at
+every ℓ, seed-free, and strictly more useful than the average it produces. A
+draw-dependent aggregate almost always has an exact per-mode parent; find it and publish
+that.
+
+### 4. ⭐⭐ `.. no-implementation::` has a class the taxonomy was missing:
+### AN IDENTITY BETWEEN TWO QUANTITIES THAT ARE EACH COMPUTED.
+
+L-059/L-060 give the classes `{identity, law, canonical-form} → NONE` and
+`{typing-rule, definition} → look for a carrier`. This task produced a sharper case, and
+it is the one most likely to be mis-declared because it *looks* declarable:
+
+`φ = Mψ = Gc`. Both sides ship — `Mψ` is `_FrameAnalysis.apply`, `Gc` is
+`FrameBase.discrete_gram` — and the **identity itself is evaluated nowhere**. Same for
+`d_ℓ·G_ℓ = W`: both factors ship, their product is never formed (that is the POINT — the
+identity is what lets the kernel carry one `1/W` scalar instead of a per-ℓ table).
+
+⟹ **Declaring either side asserts that one of them IS the identity.** Use
+`no-implementation :kind: identity` and say in the block *which* symbol computes *which
+side*, plus what the suite measures instead (here: the identity's CONSEQUENCE, the
+isometry). `[M]` this stood 17 + 16 name-token guesses down to 0 on two labels; a third
+(`galerkin-strict-adjoint-vs-reconstruction`, a *contrast* between two separately-declared
+faces) went 2 → 0 and one of its two guesses was `solve_sn_adjoint`, an SN solver entry
+point that never touches a spherical-harmonic face.
+
+⭐ The mirror, same session: `sh-space-metric` had NO declaration and 3 genuine
+implementers (`metric_per_ell` → `_padded_metric_tensor` → `from_L`). The re-derivation
+of a sibling equation's `implements::` set is where you find them: `metric_per_ell` LEFT
+`hilbert-adjoint-…` (it is the continuum Gram, no longer that equation's factor) and had
+to LAND somewhere — an equation losing an implementer is a prompt to ask which equation
+gains it.
+
+### 5. The `documented` sentinel marks the KIND, not the coverage — sibling consistency
+### decides, and the matrix legitimately lists a label in TWO places.
+
+`hilbert-adjoint-equals-metric-times-S0` is verifies-covered (`[M]` 2 → **9** tests after
+F-0) *and* carries `.. vv-status: … documented`, so the generated matrix lists it under
+both "verified by N tests" and "Documented-only equations". That reads like a bug and is
+not: on this corpus `documented` marks *representational / face-distinction / literature*
+KIND, and its siblings on the same page (`scattering-spectral-theorem`,
+`galerkin-strict-adjoint-vs-reconstruction`, `moment-projection-transpose-T`) all do the
+same. **Do not "clean it up"** — you would be re-categorising a whole convention from one
+label, and it moves a generated artefact. Keep the directive; write the RATIONALE comment
+if it is missing (this one had none — I added one naming all four gates).
+
+### 6. ⭐ A three-way SYMBOL COLLISION, and the resolution that keeps every established
+### spelling: rename only the one with no constituency.
+
+The frame page already used `W` for **the coefficient space** (`R : W → V`) and
+`⟨·,·⟩_W` for **the quadrature-weighted nodal metric**; the code and
+`normalization.rst`'s ledger use `W = Σ w_n` for **the scalar total weight**. My
+derivation needed a fourth: the weight **matrix**.
+
+⟹ L-051's rule (keep the code's spelling, pay with a `.. note::`) resolves this cleanly
+once you notice the four are not symmetric: three have constituencies (a page convention,
+a page convention, the code + the ledger), the matrix has none. So write the matrix as
+`\mathrm{diag}(w)` — never `W` — and open the section with a `.. warning::` naming all
+three survivors and stating the rule. Cost: one admonition; benefit: every equation in a
+650-line section is unambiguous.
+
+### 7. ⭐⭐ The reusable close-out shape for a LATENT defect: "why nothing caught it" is
+### THREE independent shields, and the third one is the dangerous sentence.
+
+I wrote it three times (frame.rst, spherical_harmonics.rst, error_catalog.rst) and it is
+the load-bearing pedagogy of the whole record:
+
+1. **Consistency is not correctness.** The defining adjoint identity
+   `⟨Mψ,c⟩_g = ⟨ψ,M*c⟩_W` held at the round-off floor (`[M]` `9.5e-16` at L=1, **exactly
+   `0.0`** at L=2) — because `.H` is *built from* the stored metric. It is true for
+   **every** SPD metric and therefore carries **zero information about which one is
+   installed**. The instrument that CAN fail compares the metric to something defined
+   without it (here Parseval: the field's own norm).
+2. **Composed chains are immune** — interior metrics cancel, so the production kernel
+   never reads a face's `.H`, and the 0-ULP canary is green by construction.
+3. **Only end-of-chain adjoints are exposed, and there were none.** `[M]`
+   `grep -rn "analysis\.H\|reconstruction\.H" orpheus/` → exactly one hit, a docstring.
+
+⛔ **Shield 3 is where a close-out goes wrong.** "No consumer exists" is not safety, it is
+**latency** — write it that way, with the clock: *the defect becomes live with the first
+adjoint consumer, which is why the metric had to be right before those land*. A page that
+reports shield 3 as reassurance teaches the next session to defer.
+
+### 8. Extending an ERR entry vs minting a new one — the decision, and the one thing to
+### check first.
+
+F-0 is the THIRD chapter of ERR-039 (Wave 0 → Phase 1 → F-0), all "metric / transpose /
+adjoint conflation on the same operator pair", each one level deeper: *wrong operator* →
+*right operator, unasked metric* → *right Gram, WRONG SIDE*. Extending was right, and the
+decisive check is not narrative tidiness — it is that **the landed gates already carry
+`catches("ERR-039")`**, so a new number would silently orphan them and I cannot edit
+`tests/`. ⟹ **Read the catching tests' markers BEFORE choosing the ERR number**; the
+marker set is the constraint, the narrative is not.
+
+Also: mark the superseded chapter IN PLACE (`⛔ superseded 2026-08-23; see the F-0
+chapter below`) on the *bullet* that states the retired formula, not only in the new
+chapter — a reader who lands on the Phase-1 list must not read it as current.
+
+### 9. Corrections that the WIDENED sweep produced (the brief named 4 of 6 sites)
+
+The brief's grep list found `spherical_harmonics.rst`, `frame.rst` ~2700, and
+`normalization.rst:161`. Running the sweep myself added:
+- **`frame.rst` "Numerical evidence"** — item 2 still read `M* = g_C S_0`, ~1100 lines
+  from the note the brief pointed at (L-044's "audit the PARAGRAPH FAMILY, not the diff").
+- **`frame.rst` Schur bullet** — `g_C` as "the SO(3) Plancherel weight": TRUE (it is the
+  continuum Gram) but now one reciprocal away from the frame's metric; qualified rather
+  than changed.
+- **`operator_algebra.rst:3295`** — "the addition-theorem `R`, not the W-weighted adjoint
+  of `M`": the *negation* survived the repair while its vocabulary died. Post-F-0 `R = W·M*`
+  exactly, so the sentence is improved by stating the relation instead of denying one.
+- **`normalization.rst`'s ledger row was the THIRD contradiction** and the brief did not
+  know it existed — it was found by grepping `W-weighted`, not `g_C`.
+⭐ And the payoff nobody asked for: that page's own "unification the canon misses"
+(`(2ℓ+1)/W`, W = 4π sphere / 2 slab) **IS** the Parseval metric `G⁻¹ = (2ℓ+1)/W`. A sweep
+for staleness turned into the strongest single piece of corroboration on the page —
+*always read what the stale site was TRYING to say.*
+
+### 10. Findings reported, NOT fixed (code/tests are off limits)
+
+- **`orpheus/numerics/frame.py:116-119`** (the `_DISCRETE_GRAM_DIAGONALITY_RTOL` docstring):
+  says the slab live off-diagonals "sit at ~0.5 of the Cauchy–Schwarz scale
+  `√(G_jj G_kk)`". `[M]` relative to the C–S scale they are **0.9347**; **0.5774** is
+  relative to the largest DIAGONAL. Verdict unaffected (threshold `1e-10`), but the
+  *stated normalisation* is wrong and the same wording is copied into two
+  `tests/numerics/test_frame.py` docstrings. ⟹ when a docstring quotes a ratio, check
+  WHICH denominator — two plausible ones differ by 1.6× here.
+- **`spherical_harmonic_space.py`** class docstring's `inner_product_weights` parameter
+  still says "row ℓ holds 4π/(2ℓ+1)". `from_L`'s docstring WAS updated by the F-0 commit;
+  the class-level parameter description was not — and the frame-dressed object IS a
+  `SphericalHarmonicSpace` (built by `dataclasses.replace`), so it is present-tense-false
+  for the majority instance. A half-done docstring sweep, exactly `vv-principles` #21.
+- `scratch/probe_f1_parseval*.py` no longer reproduce their own headline (see §2).
+- The `check_docstring_xrefs.py` `.rst` blind spot (L-062's one-line `head_role` fix) is
+  **still unlanded** — re-confirmed: it gates only `:mod:` on `.rst` pages, so my own
+  import probe was the acceptance evidence for the 16 roles I added.
+
+### Quality self-assessment
+
+| dimension | score | note |
+|---|---|---|
+| Derivation depth | 5 | φ = Gc from three re-associated products; the metric SOLVED for, not asserted; both general adjoint sandwiches collapsed step by step; the SH-specific collapse isolated as its own labelled identity |
+| Cross-references | 5 | 16 roles added, 0 dead by import probe; 5 new anchors, every cross-doc `:ref:` verified as a rendered `href` |
+| Numerical evidence | 5 | 7-frame × 5-residual table + the slab refusal table + the indicator instance + the pre/post ratio table — every figure re-measured this session, with the construction published |
+| Failed approaches | 5 | the three-metric table IS the failed-approach record; ⛔ pre-F-0 equation preserved unlabelled; the 3-shield "why nothing caught it"; the refuted LS₈ 24 % claim |
+| Code traceability | 5 | 17 declared `implements::` across 4 labels + 3 `no-implementation` blocks, all pre-flighted against `graph.db` and verified in the rebuilt graph |
+| Derivation source | 4 | derived from the LIVE code + my own probe (no `derivations/` script exists for frame algebra; the plan's probes are pre-repair scratch — flagged) |

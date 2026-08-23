@@ -44,6 +44,30 @@ commits, I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **F-0 — the metric truth, doc half (the three-metric contradiction)** — branch
+  `feature/cs1-energy-space`, 2026-08-23, NOT committed (main agent commits). 6 doc files,
+  +1246/−81: `foundations/frame.rst` (+656-line `frame-parseval-metric` chapter: the
+  theorem φ = Gc ⟹ metric = G⁻¹, the induced-not-a-constant principle, declared-vs-measured
+  Gram, the slab DENSE refusal, the frame square, a 7-frame residual table, a 3-shield
+  "why nothing caught it", + Key Facts bullet + history entry) · `foundations/
+  spherical_harmonics.rst` (the metric×adjoint table; `hilbert-adjoint-equals-metric-times-S0`
+  corrected IN PLACE with the pre-F-0 form preserved unlabelled; `implements::` re-derived
+  7 → 8; `sh-space-metric` reframed + declared 3) · `conventions/normalization.rst` (the
+  ledger's adjoint row was the THIRD contradiction — and its `(2ℓ+1)/W` "unification the
+  canon misses" IS the Parseval metric) · `verification/error_catalog.rst` (ERR-039 F-0
+  chapter — **no new ERR number**, the landed gates already carry `catches("ERR-039")`) ·
+  `foundations/operator_algebra.rst` (1 aside). Gates: `-E -W` EXIT=0, warning set unchanged
+  (0 ↔ 0); vv violations 0, sentinels 541 → 545; `DEAD TARGETS 0`; my own import probe over
+  the 16 roles on added lines = 0 dead; 17 declared `implements::` + 3 `no-implementation`
+  verified in the rebuilt graph. ⛔ **open follow-ups I reported and did NOT fix (code/tests
+  off limits):** `frame.py:116-119` says the slab off-diagonals are "~0.5 of the
+  Cauchy–Schwarz scale" — `[M]` **0.9347** relative to C–S, 0.5774 relative to the max
+  diagonal (same wording copied into 2 test docstrings); `spherical_harmonic_space.py`'s
+  CLASS docstring still says `inner_product_weights` holds `4π/(2ℓ+1)` (`from_L`'s was
+  updated, the class's was not, and the frame-dressed instance IS that class);
+  `scratch/probe_f1_parseval*.py` no longer reproduce their own headline post-repair.
+  → [[lessons-L65]]
+
 - **CS1 step 5 — the `spaces.rst` seed (campaign 1, "operators born bound")** — branch
   `feature/cs1-energy-space`, 2026-08-20, NOT committed (main agent commits). NEW 1158-line
   `docs/theory/foundations/spaces.rst` (axis taxonomy · counting-measure theorem in the METRIC

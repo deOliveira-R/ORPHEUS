@@ -15,7 +15,9 @@ one diagonal away from; it lives one level below the faces.
 The pairing fixes BOTH spaces:
 
 * the **basis** is the synthesis (**trial**) side — fixes the codomain
-  (``frame.basis_space`` ``= basis.space``), the coefficient space + its Gram;
+  (``frame.basis_space`` ``= basis.space`` dressed with the frame's **Parseval
+  metric**, the inverse of the discrete trial Gram — a property of the
+  *pairing*, not of the basis alone; see :attr:`FrameBase.basis_space`);
 * the **measure** fixes the domain — ``frame.measure_space``, the nodal space + the
   quadrature weights.
 
@@ -110,6 +112,16 @@ from orpheus.numerics.space import FunctionSpace
 __all__ = ["FrameBase", "GalerkinFrame", "PetrovGalerkinFrame"]
 
 
+#: Relative off-diagonal threshold for the :attr:`FrameBase.discrete_gram_structure`
+#: diagonality verdict. The measured separation is wide open: an SH-degree-exact
+#: sphere cubature's off-diagonals sit at ~1e-16 of the Cauchy–Schwarz scale
+#: :math:`\sqrt{G_{jj}G_{kk}}`, while the slab GL live Gram's sit at 0.93 of
+#: it (0.58 of the largest diagonal; `[M]` 2026-08-23) — any threshold in
+#: (1e-12, 1e-2) draws the same verdict; 1e-10 leaves two orders of headroom
+#: for accumulated roundoff at high mode counts.
+_DISCRETE_GRAM_DIAGONALITY_RTOL = 1e-10
+
+
 @dataclass(frozen=True)
 class FrameBase(ABC):
     r"""A discrete frame: a :class:`Basis` bound to a :class:`DiscreteMeasure`.
@@ -154,9 +166,111 @@ class FrameBase(ABC):
         return self.basis.evaluate(self.measure.nodes)
 
     @cached_property
+    def discrete_gram(self) -> NDArray:
+        r"""The TRIAL basis's discrete Gram over the measure — flattened ``(K, K)``.
+
+        :math:`G_{jk} = \sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)`, computed from the
+        CACHED :attr:`table` (the L16 perf guard — never re-tabulates), with the
+        basis's mode layout flattened to one axis (``K =`` the coefficient count,
+        row-major — the same order as ``table.reshape(N, K)``). The same
+        mathematical object as :meth:`Basis.mass_matrix
+        <orpheus.numerics.basis.base.Basis.mass_matrix>` in the basis's own
+        layout; that one is the measure-based *diagnostic*, this one is the
+        frame's cached *operational* copy — the Parseval-metric source
+        (:attr:`basis_space`) and the diagonality verdict
+        (:attr:`discrete_gram_structure`) both read it. O(N·K²), once per frame.
+        """
+        weights = self.measure.weights
+        flat = self.table.reshape(weights.shape[0], -1)
+        return np.einsum("n,nj,nk->jk", weights, flat, flat)
+
+    @cached_property
+    def discrete_gram_structure(self) -> GramStructure:
+        r"""The MEASURED diagonality of :attr:`discrete_gram` — DIAGONAL or DENSE.
+
+        The measured counterpart of the trial's DECLARED
+        :attr:`~orpheus.numerics.basis.base.Basis.gram_structure`, and a genuinely
+        different fact: the declaration states which structure the *cross* Gram
+        :math:`MR` has for :meth:`project`'s row-sum probe; this verdict states
+        whether the *trial* Gram :math:`G` is diagonal **on this measure** — the
+        precondition for the Parseval metric (:attr:`basis_space`). The two can
+        disagree: the SH basis declares DIAGONAL (continuum-orthogonal) yet
+        measures DENSE on a slab GL measure (total weight 2, live off-diagonals
+        at 0.93 of the Cauchy–Schwarz scale — `[M]` 2026-08-23; discovery record
+        ``scratch/probe_f1_parseval_slab.py``),
+        and an :class:`~orpheus.numerics.basis.overlap_basis.OverlapBasis`
+        declares PARTITION_OF_UNITY while its trial Gram measures DENSE.
+
+        DIAGONAL iff no diagonal entry is negative (a negative-weight quadrature
+        can make :math:`G` indefinite, and an indefinite form is not a metric)
+        AND every live off-diagonal is below
+        ``_DISCRETE_GRAM_DIAGONALITY_RTOL`` of the Cauchy–Schwarz scale
+        :math:`\sqrt{G_{jj}G_{kk}}`. Structurally dead slots (:math:`G_{kk}=0` —
+        layout padding, σ-odd folded columns, empty indicator regions) are
+        exempt, but any coupling INTO a dead slot is DENSE.
+        """
+        gram = self.discrete_gram
+        diag = np.diagonal(gram)
+        if np.any(diag < 0.0):
+            return GramStructure.DENSE
+        off = np.abs(gram - np.diag(diag))
+        scale = np.sqrt(np.outer(diag, diag))
+        live = scale > 0.0
+        if np.any(off[~live] > 0.0):
+            return GramStructure.DENSE
+        if np.any(live) and (
+            float(np.max(off[live] / scale[live]))
+            > _DISCRETE_GRAM_DIAGONALITY_RTOL
+        ):
+            return GramStructure.DENSE
+        return GramStructure.DIAGONAL
+
+    @cached_property
     def basis_space(self) -> FunctionSpace:
-        r"""The codomain — the trial basis's coefficient space (``= basis.space``)."""
-        return self.basis.space
+        r"""The codomain — the trial coefficient space, carrying the PARSEVAL metric.
+
+        ``basis.space`` dressed with the inverse of the discrete trial Gram's
+        diagonal (zero on dead slots). The analysis face's outputs are the
+        COVARIANT moments :math:`\varphi = G c` of a band-limited field
+        :math:`S_0 c`, so the inner product that makes analysis an isometry
+        onto its image — Parseval, :math:`\|\varphi\|_{G^{-1}} = \|S_0 c\|_W`
+        — is :math:`G^{-1}`, the **inverse of the discrete Gram**. That is a
+        property of the *pairing* (basis ⊗ measure), so the frame owns it: the
+        basis's own ``space`` keeps the continuum Gram (for the SH basis
+        :math:`4\pi/(2\ell+1)` — the cross-Gram vocabulary of
+        :attr:`gram`/:meth:`project`), and the frame REPLACES the metric with
+        the measured inverse. With this metric the faces' ``.H`` is the
+        physical Hilbert adjoint: for the SH frame :math:`M^{*} = R/W` and
+        :math:`R^{*} = W\,M` with :math:`W = \sum_n w_n` — the frame square
+        closes with one scalar (`[M]` closure ≤1e-15 across every shipped
+        sphere family; the pre-F-0 stored continuum metric was the WRONG
+        side — off the physical adjoint by exactly :math:`(4\pi/(2\ell+1))^2`
+        per ℓ. Live witnesses: ``tests/numerics/test_frame.py``'s
+        ``test_parseval_*`` suite, whose negative leg re-installs the
+        pre-repair metric in-process; discovery record
+        ``scratch/probe_f1_parseval.py`` — note the probe reads the frame's
+        NOW-DRESSED space, so its "stored" row prints 1.000 post-repair).
+
+        ⛔ For a frame whose discrete Gram is NOT diagonal
+        (:attr:`discrete_gram_structure` DENSE — e.g. the slab GL measure,
+        where NO diagonal metric satisfies Parseval), the space is returned
+        UNDRESSED (the basis's continuum metric): **Parseval is unavailable**,
+        and ``.H`` on the faces is the stored-metric sandwich, NOT the
+        physical Hilbert adjoint. The honest home for a matrix-valued metric
+        is the CS4c Riesz-leg machinery
+        (``.claude/plans/frame_square_recarve.md``, recorded debts).
+
+        Equality is untouched either way: ``(name, shape)`` identity is
+        metric-blind, so ``basis_space == basis.space`` still holds and no
+        consumer's ``==`` moves.
+        """
+        space = self.basis.space
+        if self.discrete_gram_structure is not GramStructure.DIAGONAL:
+            return space
+        diag = np.diagonal(self.discrete_gram).reshape(space.shape)
+        live = diag > 0.0
+        inverse = np.where(live, 1.0 / np.where(live, diag, 1.0), 0.0)
+        return replace(space, inner_product_weights=inverse)
 
     # ── test side (the analysis face) ─────────────────────────────────────
     @cached_property

@@ -321,8 +321,10 @@ class SphericalHarmonicBasis(Basis):
 
         The matrix transpose of :meth:`analyze` (:math:`= w_n \cdot S_0`) — NOT the
         Hilbert adjoint. The metric-aware ``_AdjointOperator`` combines it with the
-        domain/codomain Gram to give :math:`M^* = g_C \cdot S_0`, so the Frame's
-        analysis face gets ``.H`` for free.
+        frame's metrics (measure :math:`w_n` on the domain; the F-0 Parseval
+        :math:`G^{-1}` on the codomain) to give the physical
+        :math:`M^* = S_0 \circ G^{-1} = R/W`, so the Frame's analysis face gets
+        ``.H`` for free.
         """
         return np.einsum("n,nlm,lm...->n...", weights, table, coefficients)
 
@@ -345,10 +347,12 @@ class SphericalHarmonicBasis(Basis):
         no :math:`w_n` is baked in (symmetric with :meth:`reconstruct`, asymmetric
         with :meth:`analyze_transpose`, whose forward bakes the weights in). The
         metric-aware ``_AdjointOperator`` combines it with the codomain (measure
-        :math:`w_n`) and domain (basis :math:`g_C`) Gram to give the W-weighted
-        Hilbert adjoint :math:`(R^* v)_\ell^m = \frac{(2\ell+1)^2}{4\pi} \sum_n w_n
-        Y_\ell^m(\hat\Omega_n)\, v_n`, so the Frame's reconstruction face gets ``.H``
-        for free.
+        :math:`w_n`) and domain (the F-0 Parseval :math:`G^{-1}`, entering the
+        sandwich through its pseudo-inverse :math:`G`) metrics to give the
+        physical Hilbert adjoint :math:`(R^* v)_\ell^m = d_\ell G_\ell \sum_n w_n
+        Y_\ell^m(\hat\Omega_n)\, v_n = W\,(M v)_\ell^m` (the SH identity
+        :math:`d_\ell G_\ell = 4\pi = W`), so the Frame's reconstruction face gets
+        ``.H`` for free.
         """
         return np.einsum(
             "nlm,l,n...->lm...", table, self.addition_theorem_factor, values,

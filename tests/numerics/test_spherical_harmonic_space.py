@@ -223,20 +223,28 @@ def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
 @pytest.mark.verifies("hilbert-adjoint-equals-metric-times-S0")
-def test_H_equals_g_C_times_S0(lebedev_L_pair):
-    r"""``M.H`` computed generically equals :math:`g_C \cdot S_0(c)`.
+def test_H_equals_parseval_metric_times_S0(lebedev_L_pair):
+    r"""``M.H`` computed generically equals :math:`S_0(G^{-1} c)` — the PHYSICAL adjoint.
 
     The frame analysis face's ``.H`` property routes through the
     generic :class:`~orpheus.numerics.operator._AdjointOperator`
     wrapper, which composes :math:`(1/w_V) \cdot \Pi^\top(w_W \cdot c)`
     using the frame's ``measure_space`` quadrature weights as
-    :math:`w_V` and its ``basis_space`` SH-Gram diagonal as :math:`w_W`.
-    The result is the metric-weighted naked synthesis
-    :math:`g_C \cdot S_0(c)` — the W-weighted Hilbert adjoint :math:`\Pi^*`.
+    :math:`w_V` and — since F-0 (``frame_square_recarve.md``) — the
+    PARSEVAL metric :math:`G^{-1}` (the inverse discrete Gram, dressed
+    onto ``basis_space`` by the frame) as :math:`w_W`. The result is
+    :math:`S_0(G^{-1}c) = R(c)/W` — the physical Hilbert adjoint of the
+    analysis face for the carried covariant moments.
 
-    This is the ERR-039 endpoint: the metric, the transpose, and the
-    Hilbert adjoint are SEPARATELY TYPED and their composition falls
-    out of the generic machinery without prose warnings.
+    ⛔ Pre-F-0 the codomain metric was the CONTINUUM Gram
+    :math:`g_C = 4\pi/(2\ell+1)` and this gate pinned :math:`g_C\cdot
+    S_0(c)` — the wrong side for covariant moments (`[M]` Parseval ratio
+    118.7 vs 1.000, ``scratch/probe_f1_parseval.py``, 2026-08-24).
+
+    This is the ERR-039 endpoint, one correction deeper: the metric, the
+    transpose, and the Hilbert adjoint are SEPARATELY TYPED, their
+    composition falls out of the generic machinery — and the metric the
+    space carries is now the one Parseval certifies.
     """
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
@@ -247,9 +255,11 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
 
     actual = M.H.apply(c)
-    # Expected: g_C · S_0(c) with g_C^ℓ = 4π/(2ℓ+1).
-    g_C_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
-    c_scaled = c * g_C_per_ell[:, None]
+    # Expected: S_0(G⁻¹ c) with the closed-form inverse Gram (2ℓ+1)/4π
+    # (exact for the degree-exact Lebedev rule — independent of the
+    # frame's own discrete contraction).
+    g_inv_per_ell = (2.0 * np.arange(L + 1) + 1.0) / (4.0 * np.pi)
+    c_scaled = c * g_inv_per_ell[:, None]
     expected = basis.synthesize(c_scaled, Y)
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-14)
 
@@ -287,13 +297,16 @@ def test_mass_matrix_under_multiple_quadratures(quadrature_factory):
     Chebyshev-equivalent) rules with sufficient
     :math:`(n_\mu, n_\phi)` both satisfy this.
 
-    Level-symmetric :math:`S_N` rules are deliberately omitted: they
-    are optimised for moment integration in transport (the integrals
-    that arise in the SN transport equation when reconstructing the
-    angular-flux moments), NOT for arbitrary
-    :math:`Y_\ell^m Y_{\ell'}^{m'}` products beyond degree 1. At
-    :math:`L=2`, LS_8 has a 24% diagonal error and no LS order makes
-    it exact — the rule's design objective is structurally different.
+    Level-symmetric :math:`S_N` rules are not in this parametrization
+    for a historical reason that no longer holds. This paragraph read
+    "at L=2, LS_8 has a 24% diagonal error and no LS order makes it
+    exact" — ⛔ REFUTED 2026-08-23 (F-0): `[M]` at HEAD the LS4 and LS8
+    discrete Gram diagonals match :math:`4\pi/(2\ell+1)` to ~2e-15 at
+    L=2 (likely the old claim predates the #327 level-symmetric
+    repair; the measurement is ``test_frame.py``'s
+    ``test_parseval_dressing_installed_on_diagonal_frames``, which now
+    dresses and pins LS4/LS8 at L∈{1,2}). This gate keeps its original
+    scope — degree-sufficient continuum-exact rules.
     """
     L = 2
     basis = SphericalHarmonicBasis(L=L)
@@ -346,19 +359,24 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
 @pytest.mark.verifies("moment-projection-transpose-T", "hilbert-adjoint-equals-metric-times-S0")
-def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
-    r"""``M.apply_transpose`` carries :math:`w_n`; ``M.H`` carries :math:`g_C`.
+def test_T_carries_w_n_and_H_carries_the_parseval_metric(lebedev_L_pair):
+    r"""``M.apply_transpose`` carries :math:`w_n`; ``M.H`` carries :math:`G^{-1}`.
 
-    Direct pin of the post-P1.4 contract: the two operators differ by
-    the per-:math:`\ell` factor :math:`g_C / w_n` (which is not a
-    proper scalar — it lives in different axes), and ERR-039's
+    Direct pin of the post-P1.4 contract, re-keyed at F-0: the two
+    operators differ by the per-:math:`\ell` factor :math:`G^{-1}/w_n`
+    (not a proper scalar — it lives in different axes), and ERR-039's
     original confusion no longer arises because the two are typed
     distinctly:
 
     .. code-block:: python
 
-        M.apply_transpose(c)  → w_n · S_0(c)      # representation transpose
-        M.H.apply(c)          → g_C · S_0(c)      # Hilbert adjoint
+        M.apply_transpose(c)  → w_n · S_0(c)     # representation transpose
+        M.H.apply(c)          → S_0(G⁻¹c) = R(c)/W   # Hilbert adjoint (Parseval)
+
+    Both adjoint identities below are exact BY CONSTRUCTION of the
+    sandwich; the load-bearing half is the second, whose coefficient-side
+    pairing must use the DRESSED (Parseval) metric or the identity fails
+    by :math:`(4\pi/(2\ell+1))^2` per ℓ.
     """
     measure, L = lebedev_L_pair
     M = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).analysis
@@ -375,9 +393,9 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
     rhs_T = float(np.sum(psi * M.apply_transpose(c)))
     np.testing.assert_allclose(lhs_euclidean, rhs_T, rtol=1e-12, atol=1e-14)
 
-    # ⟨Π ψ, c⟩_C  — coefficient inner product with g_C metric
-    g_C_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
-    c_in_C = c * g_C_per_ell[:, None]
+    # ⟨Π ψ, c⟩_C  — coefficient inner product with the PARSEVAL metric G⁻¹
+    g_inv_per_ell = (2.0 * np.arange(L + 1) + 1.0) / (4.0 * np.pi)
+    c_in_C = c * g_inv_per_ell[:, None]
     lhs_metric = float(np.sum(Mpsi * c_in_C))
 
     # ⟨ψ, Π^* c⟩_V_W  — angular inner product with W metric
@@ -446,19 +464,23 @@ def test_R_transpose_equals_2l_plus_1_times_S0_transpose(lebedev_L_pair):
 def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
     r"""``R.apply_transpose`` is the Euclidean transpose; ``R.H`` the W-Hilbert adjoint.
 
-    The reconstruction-face mirror of :func:`test_T_carries_w_n_and_H_carries_g_C`,
-    pinning BOTH adjoint identities by their DEFINING inner-product law (independent
-    of how ``R.H`` is built):
+    The reconstruction-face mirror of
+    :func:`test_T_carries_w_n_and_H_carries_the_parseval_metric`, pinning BOTH
+    adjoint identities by their DEFINING inner-product law (independent of how
+    ``R.H`` is built):
 
     .. code-block:: python
 
-        R.apply_transpose(v) → (2ℓ+1) · S_0^T(v)            # Euclidean transpose
-        R.H.apply(v)         → (2ℓ+1)²/4π · Σ_n w_n Y v      # W-Hilbert adjoint
+        R.apply_transpose(v) → (2ℓ+1) · S_0^T(v)      # Euclidean transpose
+        R.H.apply(v)         → W · Σ_n w_n Y v = W·M(v)  # Hilbert adjoint (Parseval)
 
     via ``⟨R c, v⟩ = ⟨c, R^T v⟩`` (Euclidean, measure-free) and
-    ``⟨R c, v⟩_W = ⟨c, R^* v⟩_{g_C}`` (with the quadrature-weight metric on the
-    nodal side and the SH-Gram metric :math:`g_C^\ell = 4\pi/(2\ell+1)` on the
-    coefficient side).
+    ``⟨R c, v⟩_W = ⟨c, R^* v⟩_{G⁻¹}`` — since F-0 the coefficient side carries
+    the PARSEVAL metric :math:`G^{-1} = \mathrm{diag}((2\ell+1)/4\pi)` (the
+    inverse discrete Gram the frame dresses onto ``basis_space``), under which
+    the sandwich collapses per ℓ to the ONE scalar :math:`d_\ell G_\ell = 4\pi
+    = W`. (Pre-F-0 the pairing used the continuum :math:`g_C` and ``R.H`` read
+    :math:`(2\ell+1)^2/4\pi\cdot Y^{\mathsf T}W` — the wrong-side metric.)
     """
     measure, L = lebedev_L_pair
     R = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).reconstruction
@@ -476,10 +498,10 @@ def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
 
     # ⟨R c, v⟩_W  — nodal inner product with the W (quadrature-weight) metric
     lhs_metric = float(np.sum(measure.weights * Rc * v))
-    # ⟨c, R^* v⟩_{g_C}  — coefficient inner product with the g_C metric
-    g_C_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
+    # ⟨c, R^* v⟩_{G⁻¹}  — coefficient inner product with the PARSEVAL metric
+    g_inv_per_ell = (2.0 * np.arange(L + 1) + 1.0) / (4.0 * np.pi)
     H_v = R.H.apply(v)
-    rhs_H = float(np.sum((c * g_C_per_ell[:, None]) * H_v))
+    rhs_H = float(np.sum((c * g_inv_per_ell[:, None]) * H_v))
     np.testing.assert_allclose(lhs_metric, rhs_H, rtol=1e-12, atol=1e-14)
 
 
