@@ -1472,6 +1472,98 @@ consumer-frame reads into S4) → S6 (verbs + the frame square + #399 —
 its G6.3/G6.8 adjoint gates PRESUPPOSE the bound frame) → S7 (repairs
 + EE-1 + docs).
 
+**⛔ FRAME-FACTORY RE-CARVE CHARTERED (2026-08-23, post-amendment user
+review) — the typed frame faces become BOUND OPERATORS minted by the
+frame; the frame reverts to the shared (basis, measure) factory.**
+
+**▶ RESUMES AT: the frame-machinery DESIGN SESSION, mid-flight** —
+the user's diagnosis is CONFIRMED and directionally agreed, the design
+below is MY assessment ONLY, and the user announced MORE pressure-test
+comments before any ruling. Do NOT implement from this block; re-enter
+the design conversation.
+
+**Goal (outcome).** Analysis/Reconstruction at the transport level are
+first-class BOUND OPERATORS (domain/codomain = the two full field
+spaces — the S4-amendment's demand landing on the right objects), and
+the frame is the SHARED per-(quadrature, L) factory that mints them —
+one projection table, many bindings.
+
+**The user's diagnosis (confirmed by census).** A1 bound the field
+spaces TO THE FRAME — a proxy: it bound the factory when the ruling
+("Analysis and Reconstruct are operators") was about the products. The
+frame is not an operator; it is an operator factory, and it is SHARED:
+`[M]` four consumers beyond the scattering operator's typed verbs, none
+wanting A1's field-space binding —
+- `loss_representation/__init__.py:4821` — the windowed accumulation is
+  principled-equivalent to "the post-sweep flat `FrameBase.analysis`
+  projection" (the user's remembered moment projection — exact);
+- `sn/operators/windowing.py:71` — `BulkAnalysisOperator(frame,
+  sn_mesh)`: frame IN, bound operator OUT — the factory pattern already
+  shipping; its docstring says "``frame`` must be the SCATTERING
+  operator's own angular frame … the same object, single source" AND
+  "mint the synthesis-side lift when a consumer arrives"; its
+  `codomain` returns None with "no minted FunctionSpace yet … the
+  honest 'not yet typed'" — a debt A1's `_derive_moment_space` can fill
+  and A1's placement could not reach;
+- `sn/acceleration/dsa.py:569` — reads the frame's ℓ=1 table row (the
+  single source of the μ row);
+- `sn/operators/loss_kernel_gauge.py:1171` — builds its own
+  `GalerkinFrame(basis, measure)` for the Gram machinery.
+
+**A1's three symptoms** (why the fused shape is wrong): (1) the frame
+stopped being shareable — one consumer's field-space context welded to
+the per-(quadrature, L) table object; (2) the typed faces are METHODS —
+no `@`-composition, no `.H`, not operators under the base demand,
+breaking the level symmetry (numerics `FrameBase` correctly mints
+`_FrameAnalysis`/`_FrameReconstruction` as bound OPERATOR instances,
+adjoint-for-free pinned in test_frame.py); (3) the kernel ndarray faces
+(`conjugate` — no field spaces needed) became pose-demanding for no
+reason.
+
+**Proposed means (2026-08-23, MY assessment, NOT ruled — the user has
+pressure tests pending):**
+- `HarmonicFrame` reverts to (basis, measure) + carrier knowledge; its
+  identity returns to the table's identity (frames equal ⟺ shared
+  projection).
+- The frame MINTS bound typed operators on request — proposed spelling
+  `frame.analysis_on(angular_space)` / `frame.reconstruction_on(...)`
+  (⚠ spelling + class names e.g. `HarmonicAnalysisOperator` are
+  HYPOTHESES; `[M]` no such symbols exist at HEAD). Domain = the
+  angular field space, codomain = the derived moment space (A1's
+  `_derive_moment_space` + admission checks MOVE to the mint —
+  derivation direction fact unchanged: moment = f(angular, L), never
+  reverse). Role-polymorphic `apply` (the ScatteringOperator overload
+  precedent; spaces are role-blind — S4c's "role transition = same
+  space, new class"). They join the `AnalysisOperator`/
+  `ReconstructionOperator` ABC family — algebra citizens WITH `.H`.
+- `ScatteringOperator` mints its pair at binding and keeps the frame
+  ONLY as an accessor — CS4c's mint-and-FORGET contract arriving early
+  ("auxiliary structure minted at binding, retained only as an
+  accessor; the frame accessor + a declared analysis-verb field"). ⚠
+  Honest caveat: the hot aniso kernel is the frame-FUSED `conjugate`
+  chain (the 0-ULP canary), so S genuinely keeps the frame accessor
+  until CS4c re-expresses the kernel through the binding base. XD-1's
+  "the binding must DECLARE which analysis verb it realizes" is
+  satisfied structurally — the minted operator IS the declaration.
+- `BulkAnalysisOperator` fills its codomain debt from the same mint
+  (or is later re-expressed as minted-analysis-on-bulk ⊕ trace
+  identity).
+
+**The strongest argument**: S6's G6.3/G6.8 adjoint gates need the
+typed lift's Hilbert adjoint (metric sandwich over the FIELD spaces).
+Method-verbs have no route to `.H`; minted bound operators get it from
+the exact machinery the amendment hardened (and `_AdjointOperator` now
+refuses to fake).
+
+**What carries over from A1** (this is a completion, NOT a revert):
+the derivation logic, the content-equality admission, the
+"structural asymmetry" record corrections, and the TestBinding gates
+(re-keyed frame → minted operators). Sequencing: this is S6's OPENING
+MOVE ("verbs + the frame square"); independent of S5's mechanical
+migration — either order works; my lean (unruled): re-carve before S5
+while A1's context is hot and before anything grows a dependency on
+the frame-level binding.
+
 The original proposal text, for the record (all three ruled above):
 
 1. **F4's replacement — the composite becomes an element of
