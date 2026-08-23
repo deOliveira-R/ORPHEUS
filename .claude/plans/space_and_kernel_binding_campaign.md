@@ -1328,9 +1328,10 @@ symptom, and ruled the repair at TWO levels:
    "an anonymous leaf's `.H` is a bare Euclidean transpose wearing
    the Hilbert adjoint's name".
 
-**✅ S4-AMENDMENT DESIGN RULED (2026-08-22, six user rulings) — the
-design session re-measured the charter's numbers and found the blast
-far smaller and the structure far richer.**
+**⏹ S4-AMENDMENT EXECUTED 2026-08-22 (design ruled + all four steps
+landed the same session: `33950d81` → `6e04a749` → `6fc247fb` →
+`aa508d3f`; ledger below; [M] full fast set 7790/0 no-cache, pyright
+0). The ruled order continues at S5.**
 
 *Corrected census (supersedes the charter's "77 subclasses / ~33
 inherit None" — that was a text-grep over-count, and a first AST pass
@@ -1441,7 +1442,7 @@ after BOTH consumers move):**
   COTANGENT twin (`dual_zeros=` / `dual_zeros()`, #276 A4 duality
   typing; the SN builder wires both at both sites via
   `_zero_full_field_dual`).
-- **A3+A4** (fused in execution — the `.H` refusal needed the
+- **A3+A4** ✅ LANDED `aa508d3f` (fused in execution — the `.H` refusal needed the
   metric-free predicate, which needed the family): `PointwiseOperator`
   (Id ×1 / endo-Zero ×0 / Diagonal ×f; `.H = self`;
   `is_metric_free_adjoint` the recursive predicate, derived on
