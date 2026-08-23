@@ -1476,11 +1476,18 @@ its G6.3/G6.8 adjoint gates PRESUPPOSE the bound frame) → S7 (repairs
 review) — the typed frame faces become BOUND OPERATORS minted by the
 frame; the frame reverts to the shared (basis, measure) factory.**
 
-**▶ RESUMES AT: the frame-machinery DESIGN SESSION, mid-flight** —
-the user's diagnosis is CONFIRMED and directionally agreed, the design
-below is MY assessment ONLY, and the user announced MORE pressure-test
-comments before any ruling. Do NOT implement from this block; re-enter
-the design conversation.
+**✅ RULED 2026-08-24 — the design session CONCLUDED; execution plan
+installed.** All leans ratified after five pressure-test rounds + the
+desktop master-report reconciliation, and the frame square MEASURED
+(`[M]` Parseval probes: the stored moment metric is WRONG-SIDE, ratio
+118.7 vs 1.000 with the inverse; `M.H = R/W` to 5.6e-17 with the right
+one; the Parseval metric is the inverse of the frame's DISCRETE Gram —
+frame-owned, not a basis constant).
+**▶ RESUMES AT: execute `.claude/plans/frame_square_recarve.md` —
+F-0 (metric truth) → F-1 (the mint).** That file is the execution
+authority (rulings, probe numbers, §6b call-site sets, the CS4c /
+Phase-S debt ledger); the charter text below stays as the DESIGN
+RECORD.
 
 **Goal (outcome).** Analysis/Reconstruction at the transport level are
 first-class BOUND OPERATORS (domain/codomain = the two full field

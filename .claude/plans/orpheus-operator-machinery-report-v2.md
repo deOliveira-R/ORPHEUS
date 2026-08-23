@@ -603,3 +603,52 @@ The plan-authoring §7 reconciliation of this report against **HEAD `7aae9bf1` (
 - **D4 — PLAN-OF-RECORD COMPOSITION + SEQUENCING**: fold Phases 1–3 into the operator-strategy campaign (keeps its P1→P6 order and rulings; v2 grafts = tightness gate, S5 complexification for complex shifts, preconditions 0.6/C2, BlockDigraph question at P5) and charter Phase S + Phase C as the new campaigns. Sequencing recommendation: **P1 first** (small, unblocked, 12-xfail-measured, surgical-carve posture), then Phase S — correction #20's space-first argument fell with R3, and P1's mandatory arrows give S3's identity flip typed consumers everywhere. User to confirm. **✅ RULED 2026-08-19 (user) — SPACE FIRST, overriding the P1-first recommendation: Campaign 1 = `space_and_kernel_binding_campaign.md` (CS1 Energy space, forced by the homogeneous solver → CS2 Spatial + Angular, SN as their composition → CS3 the cone carve → CS4 kernel→operator binding; the sibling's 12 P1 xfails survive as the ledger). Campaign 2 = the LossRepresentation overturn ("an early decision on partitioning" made LATE) → `GeneralizedEigenPencil` + resolvent machinery with complexification + partitioning — chartered after Campaign 1 lands.**
 - **D5 — PENCIL NAMING**: `Pencil` (this report) / `GeneralizedEigenPencil` (sibling P4) / `CriticalityProblem`+`AlphaEigenproblem` (reserved in `docs/architecture/layering.rst`) — one name before P4, per [[feedback-high-signal-names]]. **✅ RULED 2026-08-19 (user, by usage): `GeneralizedEigenPencil`. Reconcile `layering.rst`'s reserved names when Campaign 2 lands it.**
 - **D6 — C1's step/SC witness** (R12): land a Step realization with C1, or re-scope the gate to DD/LD + flag-axis assertions. **(Still open — decided inside the Phase-C battery's planning, which now follows Campaign 1's CS3 cone carve.)**
+
+
+# Part VII — Addendum 2026-08-24: the frame-square design session + measurements
+
+Two contexts (this report's desktop thread; the Claude Code frame-machinery
+session) converged independently on the Riesz-leg spelling
+`A.H = A.domain.riesz_raise @ A.dual() @ A.codomain.riesz_lower` (β-local:
+consumers see ordinary algebra; the machinery is spelled, inspectable, and
+gateable behind it). Rulings + execution plan: `frame_square_recarve.md`
+(F-0 metric truth → F-1 the mint, campaign CS4b) with legs / `DualSpace` /
+Λ-collection at CS4c. Deltas for THIS report:
+
+1. **A fifth measured tightness-family instance (§I.3), on the harmonic
+   axis.** `[M]` (`scratch/probe_f1_parseval*.py`): the SH moment space's
+   stored metric `4π/(2ℓ+1)` is the CONTRAVARIANT-side Gram while the
+   carriers store COVARIANT moments — Parseval ratio 118.7 stored vs 1.000…
+   with the inverse (LS-S4, exactness floor 1e-16); `M.H` is off the physical
+   adjoint by exactly `(4π/(2ℓ+1))²` per ℓ; with the right metric
+   `M.H = R/W` to 5.6e-17 — the shipped `1/W` prefactor IS the closure
+   scalar. Chains are immune (interior metrics cancel); END-exposed adjoints
+   — S6's G6.3/G6.8 gates — were the first consumer, caught pre-birth.
+2. **S2 `HarmonicAxis` refinement.** The Parseval metric is the inverse of
+   the frame's DISCRETE Gram `YᵀWY` — a *(basis ⊗ measure)* property, exact
+   and unconditional. Witness that a basis constant cannot be right: slab GL
+   has total weight **2** (not 4π), live slots `[1,1,3]` per degree, and a
+   **non-diagonal** live Gram. ⟹ the axis metric is *induced at frame
+   construction* (consonant with D2's "frames are constructed, not stored,
+   on spaces"), and not always diagonal — the metric slot needs the
+   `GramStructure` declaration; the matrix-metric case rides the CS4c
+   leg-as-operator machinery.
+3. **Desktop deltas ratified in-session** (recorded as doctrine):
+   `WithTrace` is a PER-AXIS descriptor map, not a boolean — curvilinear SN
+   is the already-in-tree forcing case (the ψ½ 2×2 retroactively certified:
+   closure-derived trace content = tag; the ray flux = independent coupled
+   unknown = block). **D8 (new doctrine line): an axis boundary carries a
+   γ-slot iff its trace measure is positive there; where the measure
+   vanishes, the trace satisfies the restricted equation.** Two shipped
+   witnesses: the α-endpoint admission guard (`bea6a367`) and the `|Ω·n|w`
+   Moore–Penrose masking (`InverseMetricOperator` — whose endomorphic typing
+   is the CS4c retype). RAY-CHAR's remaining half: the ray solve refusing an
+   angular boundary datum + the typed seeding arrow.
+4. **The discrimination stack, settled**: axes / covariance (the Gram pair,
+   Parseval-checkable) / role+regularity tags. Flux-vs-source is TAGS — the
+   Gram's refusal to separate them at the pivot is the Riesz-isometry
+   theorem, not a gap. Sources are primal Data densities at stages 0–1; the
+   covector avatar is minted at realization: *covariance is
+   representation-bound, therefore construction-bound, therefore never a
+   property of Data* — now measured, not only derived (same basis, W = 2 vs
+   4π: the data level cannot know its own metric).
