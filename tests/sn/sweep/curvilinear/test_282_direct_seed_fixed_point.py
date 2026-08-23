@@ -388,7 +388,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
             ),
             boundary=AngularBoundaryFlux(
                 values=rng.standard_normal(n_trace),
-                space=sn.angular_trace, mesh=sn,
+                space=sn.angular_trace,
             ),
         )
         seed = RadialCharacteristicField.from_flat(

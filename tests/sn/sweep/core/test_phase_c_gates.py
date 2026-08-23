@@ -181,7 +181,7 @@ def _build_composite(
         # A.5: the AngularBoundaryFlux space IS the mesh's unified AngularTraceSpace
         # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
         boundary = AngularBoundaryFlux(
-            values=boundary_values, space=sn_mesh.angular_trace, mesh=sn_mesh,
+            values=boundary_values, space=sn_mesh.angular_trace,
         )
     if radial_characteristic_values is None:
         radial_characteristic = radial_characteristic_edge_seed(bulk_values, sn_mesh)

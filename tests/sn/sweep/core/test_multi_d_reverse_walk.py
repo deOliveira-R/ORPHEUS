@@ -1198,10 +1198,16 @@ def test_tail_mismatch_refuses_loudly():
     rng = np.random.default_rng(20260802)
     phi = _random_composite(sn, rng)
     # Graft a bogus trailing moment axis onto the DD (tail-less) cotangent
-    # (width 2^d = 4, the LD-2D layout the DD scheme does not carry).
-    bad_interior = AngularFlux.from_mesh(
-        np.asarray(phi.interior.values)[..., None].repeat(4, axis=-1), sn,
-        spatial_moments=2,
+    # (width 2^d = 4, the LD-2D layout the DD scheme does not carry). The
+    # widened FACTORY mint refuses on a DD mesh since CS4b S4 (the scheme
+    # has no moment axis to mint), so the bogus carrier is built RAW on a
+    # hand-composed widened space — exactly the off-scheme input the VJP
+    # backstop exists to refuse.
+    from orpheus.numerics.spaces.spatial_moment_space import SpatialMomentSpace
+
+    bad_interior = AngularFlux(
+        values=np.asarray(phi.interior.values)[..., None].repeat(4, axis=-1),
+        space=sn.angular_bulk_space * SpatialMomentSpace.from_per_axis(2, 2),
     )
     bad = FullField(interior=bad_interior, boundary=phi.boundary)
     with pytest.raises(ValueError, match="spatial-moment tail"):
