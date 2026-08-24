@@ -77,12 +77,15 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TYPE_CHECKING, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind
+
+if TYPE_CHECKING:
+    from orpheus.numerics.operator import LinearOperator
 
 __all__ = [
     "DualSpace",
@@ -315,6 +318,49 @@ class FunctionSpace(Generic[Carrier]):
         if self.axes is None:
             return None
         return all(ax.kind is BasisKind.NODAL for ax in self.axes)
+
+    # ------------------------------------------------------------------
+    # Axis marginals — the retraction / embedding pair (CS4b S6)
+    # ------------------------------------------------------------------
+
+    def retraction(self, axis_label: str) -> "LinearOperator":
+        r"""Mint the measure-weighted marginal over the named axis.
+
+        :math:`R = ` :class:`~orpheus.numerics.operator.AxisRetractionOperator`
+        — the contraction of the axis's factor measure,
+        :math:`(R\psi)(\cdot) = \sum_n w_n \psi(n, \cdot)`: the angular
+        flux reduction when the axis is ``"angular"`` (`[M]`
+        bit-identical with the shipped einsum), the group collapse on
+        ``"energy"``, the volume integral on ``"spatial"``. Born bound:
+        domain is THIS space, codomain the same product with the axis
+        dropped (remaining measures intact), so ``.H`` is the Hilbert
+        adjoint out of the box.
+
+        The section satisfying :math:`R \circ E = \mathrm{id}` is
+        :meth:`embedding` — a DIFFERENT arrow
+        (:math:`R^\dagger = \Sigma w \cdot E`, `[M]` exact); the two
+        names exist so the :math:`\Sigma w` convention is unspellable
+        to swap (ERR-051).
+        """
+        from orpheus.numerics.operator import AxisRetractionOperator
+
+        return AxisRetractionOperator(self, axis_label)
+
+    def embedding(self, axis_label: str) -> "LinearOperator":
+        r"""Mint the section of the axis marginal — the isotropic lift.
+
+        :math:`E = ` :class:`~orpheus.numerics.operator.AxisEmbeddingOperator`
+        — the constant-along-the-axis field whose marginal reproduces
+        the input, :math:`(E\phi)(n, \cdot) = \phi(\cdot)/\Sigma w`;
+        defined by :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact).
+        On the ``"angular"`` axis this is the isotropic-source
+        projection :math:`Q/\Sigma w` broadcast across the ordinates.
+        Born bound: domain is the marginal space, codomain THIS space.
+        See :meth:`retraction` for the pair's convention discipline.
+        """
+        from orpheus.numerics.operator import AxisEmbeddingOperator
+
+        return AxisEmbeddingOperator(self, axis_label)
 
     # ------------------------------------------------------------------
     # Inner product / norm
