@@ -113,7 +113,7 @@ def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNMesh:
 
 def _seeded_inflow(sn_mesh: SNMesh, rng: np.random.Generator) -> AngularBoundaryFlux:
     """A boundary flux with a random non-zero inflow trace on every face."""
-    bf = AngularBoundaryFlux.zeros_on(sn_mesh)
+    bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     for face in bf.layout.faces:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
@@ -149,7 +149,7 @@ def test_cumprod_1d_equals_full_field_spine(bc):
 
     # Separate seeded inflow per strategy (each sweep mutates its own trace).
     bf_cumprod = _seeded_inflow(sn_mesh, rng)
-    bf_spine = AngularBoundaryFlux.from_mesh(bf_cumprod.values.copy(), sn_mesh)
+    bf_spine = AngularBoundaryFlux(values=bf_cumprod.values.copy(), space=sn_mesh.angular_trace)
 
     ang_c, scal_c = CumprodScan(sn_mesh).sweep(Q_arr, sig_t, bf_cumprod)
     ang_s, scal_s = FullFieldWavefront(sn_mesh).sweep(Q_arr, sig_t, bf_spine)
@@ -238,11 +238,11 @@ def test_cumprod_faster_than_full_field_spine_d1():
     spine = FullFieldWavefront(sn_mesh)
 
     def _time(strategy, repeats=5):
-        bf = AngularBoundaryFlux.zeros_on(sn_mesh)
+        bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         strategy.sweep(Q_arr, sig_t, bf)        # warm up (cache build)
         best = float("inf")
         for _ in range(repeats):
-            bf = AngularBoundaryFlux.zeros_on(sn_mesh)
+            bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
             t0 = time.perf_counter()
             strategy.sweep(Q_arr, sig_t, bf)
             best = min(best, time.perf_counter() - t0)

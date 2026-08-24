@@ -106,8 +106,8 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
 def _timeless_full_field(m: SNMesh) -> FullField:
     """A plain timeless ``FullField`` (NOT a ``TimedFullField``)."""
     return FullField(
-        interior=AngularFlux.zeros_on(m),
-        boundary=AngularBoundaryFlux.zeros_on(m),
+        interior=AngularFlux.zeros(m.angular_bulk_space),
+        boundary=AngularBoundaryFlux.zeros(m.angular_trace),
     )
 
 
@@ -182,7 +182,7 @@ class TestFullFieldMembership:
         boundary`` composite.
         """
         sn = _slab_mesh()
-        flux = AngularFlux.zeros_on(sn)
+        flux = AngularFlux.zeros(sn.angular_bulk_space)
         _require(
             _is_a(flux, Vector),
             "AngularFlux must satisfy Vector (Field dunders).",
@@ -298,8 +298,8 @@ class TestPolymorphicRecombine:
         )
         # Build a non-trivial history on ``a`` so the empty-history claim
         # is a real assertion (not a tautology of zeros()).
-        nb = AngularFlux.zeros_on(sn)
-        nf = AngularBoundaryFlux.zeros_on(sn)
+        nb = AngularFlux.zeros(sn.angular_bulk_space)
+        nf = AngularBoundaryFlux.zeros(sn.angular_trace)
         a = a.advance(nb, nf)
         _require(a.history_length == 1, "precondition: a must carry history.")
 

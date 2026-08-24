@@ -220,9 +220,7 @@ def _random_flux(sn: SNMesh, seed: int) -> TimedFullField:
     rng = np.random.default_rng(seed)
     shape = _zero_flux(sn)
     return TimedFullField(
-        interior=AngularFlux.from_mesh(
-            rng.uniform(0.5, 2.0, size=shape.interior.values.shape), sn,
-        ),
+        interior=AngularFlux(values=rng.uniform(0.5, 2.0, size=shape.interior.values.shape), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux(
             values=rng.uniform(0.5, 2.0, size=shape.boundary.values.shape),
             space=sn.angular_trace,

@@ -93,11 +93,11 @@ def _prescribed_inflow_source(
     """
     N, ng = sn.quad.N, sn.ng
     bulk_vals = np.zeros((N, ng, *sn.spatial_shape))
-    bss = AngularBoundarySourceSink.zeros_on(sn)
+    bss = AngularBoundarySourceSink.zeros(sn.angular_trace)
     inflow = sn.angular_trace.inflow_indices_for_face(face)
     bss.face_view(face)[inflow] = psi_in
     return TimedFullField(
-        interior=AngularSourceSink.from_mesh(bulk_vals, sn),
+        interior=AngularSourceSink(values=bulk_vals, space=sn.angular_bulk_space),
         boundary=bss,
         _history=(),
         history_depth=2,

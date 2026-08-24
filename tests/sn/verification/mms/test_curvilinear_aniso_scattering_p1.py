@@ -145,7 +145,7 @@ def _anisotropic_flux(sn_mesh, centers):
     vals = np.zeros((quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
     for n in range(quad.N):
         vals[n, 0, :] = (A + zeta[n] * B) / W
-    return AngularFlux.from_mesh(vals, sn_mesh), A, B, W
+    return AngularFlux(values=vals, space=sn_mesh.angular_bulk_space), A, B, W
 
 
 def _isolated_p1(coord: CoordSystem, quad):

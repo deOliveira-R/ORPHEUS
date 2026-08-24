@@ -163,8 +163,8 @@ def test_ld_2d_two_paths_ffw_equals_mfw():
     if not isinstance(default_for(sn), MovingFrontierWindow):
         pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
 
-    bf_win = AngularBoundaryFlux.zeros_on(sn)              # VACUUM (zero domain inflow)
-    bf_full = AngularBoundaryFlux.zeros_on(sn)
+    bf_win = AngularBoundaryFlux.zeros(sn.angular_trace)              # VACUUM (zero domain inflow)
+    bf_full = AngularBoundaryFlux.zeros(sn.angular_trace)
     ang_w, scal_w = mfw.sweep(Q, sig_t, bf_win)
     ang_f, scal_f = ffw.sweep(Q, sig_t, bf_full)
 
@@ -465,8 +465,8 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
 
     # Non-vanishing prescribed inflow → a seeded AngularBoundaryFlux on both legs.
     bss = case.prescribed_inflow(sn)
-    bf_win = AngularBoundaryFlux.zeros_on(sn)
-    bf_full = AngularBoundaryFlux.zeros_on(sn)
+    bf_win = AngularBoundaryFlux.zeros(sn.angular_trace)
+    bf_full = AngularBoundaryFlux.zeros(sn.angular_trace)
     bf_win.values[...] = bss.values
     bf_full.values[...] = bss.values
 
@@ -691,7 +691,7 @@ def _moment_resolved_rhs(case, sn, mesh, *, moment_source=None):
 
     Qm = _project_external_source(case, mesh) if moment_source is None else moment_source
     return TimedFullField(
-        interior=AngularSourceSink.from_mesh(Qm, sn, spatial_moments=2),
+        interior=AngularSourceSink(values=Qm, space=sn.angular_trial_space),
         boundary=case.prescribed_inflow(sn),
     )
 
@@ -1302,7 +1302,7 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
             slot[..., 1] = slope_sign * slope
             face_values[face] = slot
     rhs = TimedFullField(
-        interior=AngularSourceSink.from_mesh(case.external_source(mesh), sn),
+        interior=AngularSourceSink(values=case.external_source(mesh), space=sn.angular_bulk_space),
         boundary=AngularBoundarySourceSink.prescribed_inflow(sn, face_values),
     )
     result = solve_sn_fixed_source(

@@ -461,8 +461,8 @@ class TestSolve:
 
         q_values = np.ones((sn.quad.N, sn.ng, *sn.spatial_shape))
         q = TimedFullField(
-            interior=AngularSourceSink.from_mesh(q_values, sn),
-            boundary=AngularBoundarySourceSink.zeros_on(sn),
+            interior=AngularSourceSink(values=q_values, space=sn.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -970,8 +970,8 @@ class TestStreamingCollisionSolveBridgeRegression:
         )
 
         rhs = TimedFullField(
-            interior=AngularSourceSink.from_mesh(q_per_ord, sn_mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+            interior=AngularSourceSink(values=q_per_ord, space=sn_mesh.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
             _history=(),
             history_depth=2,
         )

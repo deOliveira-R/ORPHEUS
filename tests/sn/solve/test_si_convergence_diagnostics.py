@@ -85,7 +85,7 @@ def _run_si(c: float, **kw):
         interior=AngularSourceSink.from_isotropic(
             np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
         _history=(), history_depth=2,
     )
     ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)

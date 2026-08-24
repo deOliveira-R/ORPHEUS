@@ -158,8 +158,8 @@ class TestD6CorrectionVanishes:
         )
         corrector = DSACorrection.from_sn_mesh(sn_mesh)
         psi = TimedFullField(
-            interior=AngularFlux.zeros_on(sn_mesh),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            interior=AngularFlux.zeros(sn_mesh.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
             _history=(), history_depth=0,
         )
         correction = corrector.apply(psi - psi)

@@ -145,7 +145,7 @@ def _make_psi(solver: SNSolver, seed: int) -> AngularFlux:
     ng = solver.ng
     nx, ny = solver.sn_mesh.spatial_shape
     psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
-    return AngularFlux.from_mesh(psi_values, solver.sn_mesh)
+    return AngularFlux(values=psi_values, space=solver.sn_mesh.angular_bulk_space)
 
 
 def _make_phi(solver: SNSolver, seed: int) -> ScalarFlux:
@@ -153,7 +153,7 @@ def _make_phi(solver: SNSolver, seed: int) -> ScalarFlux:
     ng = solver.ng
     nx, ny = solver.sn_mesh.spatial_shape
     phi_values = rng.uniform(0.05, 1.0, size=(ng, nx, ny))
-    return ScalarFlux.from_mesh(phi_values, solver.sn_mesh)
+    return ScalarFlux(values=phi_values, space=solver.sn_mesh.bulk_space)
 
 
 def main() -> None:

@@ -665,7 +665,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Round 2 normalises this; for the L1 gate test we wrap each
     # operator into a thin scalar-in/scalar-out facade.
     # Issue #197 PR-TYPED-2 — typed AngularBoundaryFlux replaces psi_bc: dict.
-    boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
     class A_inv_adapter(LinearOperator):
         """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.
@@ -829,10 +829,8 @@ def _sn_composite_triple():
     )
     S_total = system.explicit_gains[0] + system.explicit_gains[1]
     guess = FullField(
-        interior=AngularFlux.from_mesh(
-            np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), sn,
-        ),
-        boundary=AngularBoundaryFlux.zeros_on(sn),
+        interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
+        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
     return float(ref.keff), system.implicit_operator, S_total, solver.fission_op, guess, mix
 

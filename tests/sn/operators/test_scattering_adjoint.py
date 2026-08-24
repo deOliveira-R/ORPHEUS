@@ -108,7 +108,7 @@ def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:
     vals = np.random.default_rng(seed).uniform(
         0.05, 1.0, size=(N, solver.ng, nx, ny, 4),
     )
-    return AngularFlux.from_mesh(vals, solver.sn_mesh, spatial_moments=2)
+    return AngularFlux(values=vals, space=solver.sn_mesh.angular_trial_space)
 
 
 def _moment_field(op, nx, ny, seed):
@@ -284,10 +284,7 @@ class TestFullScatterKernel:
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
         W = float(op.weights.sum())
-        psi = AngularFlux.from_mesh(
-            np.random.default_rng(10).uniform(0.05, 1.0, size=(op.weights.shape[0], op.ng, nx, ny)),
-            solver_p1_het.sn_mesh,
-        )
+        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(op.weights.shape[0], op.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
         candidate = self._full_kernel(op).apply(psi.values) / W
         forward = op.apply(psi).values
         np.testing.assert_allclose(
@@ -363,9 +360,7 @@ class TestFullScatterKernel:
         nx, ny = op.mat_xs.spatial_shape
         N = op.weights.shape[0]
         rng = np.random.default_rng(12)
-        psi = AngularFlux.from_mesh(
-            rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny)), solver_p1_het.sn_mesh,
-        )
+        psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
         chi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
         lhs = float((op.apply(psi).values * chi).sum())            # ⟨S ψ, χ⟩
         rhs = float((psi.values * op.apply_transpose(chi)).sum())  # ⟨ψ, Sᵀ χ⟩

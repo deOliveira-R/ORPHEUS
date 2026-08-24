@@ -90,9 +90,9 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     sig_t = _random_sig_t(rng, ng, nx, ny)
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
-    bf_win = AngularBoundaryFlux.zeros_on(sn_mesh)
+    bf_win = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     _seed_random_inflow(rng, bf_win)
-    bf_full = AngularBoundaryFlux.from_mesh(bf_win.values.copy(), sn_mesh)
+    bf_full = AngularBoundaryFlux(values=bf_win.values.copy(), space=sn_mesh.angular_trace)
 
     ang_w, scal_w = MovingFrontierWindow(sn_mesh).sweep(Q, sig_t, bf_win)
     ang_f, scal_f = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_full)

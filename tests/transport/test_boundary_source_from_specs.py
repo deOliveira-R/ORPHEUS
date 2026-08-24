@@ -127,7 +127,7 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
         """Both spellings of "no inflow" reproduce the canonical zero field."""
         sn = _slab()
         built = AngularBoundarySourceSink.from_specs(sn, specs)
-        assert built.linf == AngularBoundarySourceSink.zeros_on(sn).linf == 0.0
+        assert built.linf == AngularBoundarySourceSink.zeros(sn.angular_trace).linf == 0.0
 
 
 class TestTheContractIsEnforced:

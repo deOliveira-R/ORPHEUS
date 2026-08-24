@@ -151,10 +151,8 @@ def template(mesh) -> FullField:
 def flux(mesh) -> FullField:
     rng = np.random.default_rng(42)
     return FullField(
-        interior=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
-        boundary=ScalarBoundaryFlux.from_mesh(
-            rng.random(mesh.scalar_trace.shape[0]) + 0.1, mesh,
-        ),
+        interior=ScalarFlux(values=rng.random((2, 4)) + 0.5, space=mesh.bulk_space),
+        boundary=ScalarBoundaryFlux(values=rng.random(mesh.scalar_trace.shape[0]) + 0.1, space=mesh.scalar_trace),
     )
 
 
@@ -163,10 +161,8 @@ def _random_flux(mesh: DiffusionMesh) -> FullField:
     (fields and operators must share the ONE mesh — identity guard)."""
     rng = np.random.default_rng(42)
     return FullField(
-        interior=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
-        boundary=ScalarBoundaryFlux.from_mesh(
-            rng.random(mesh.scalar_trace.shape[0]) + 0.1, mesh,
-        ),
+        interior=ScalarFlux(values=rng.random((2, 4)) + 0.5, space=mesh.bulk_space),
+        boundary=ScalarBoundaryFlux(values=rng.random(mesh.scalar_trace.shape[0]) + 0.1, space=mesh.scalar_trace),
     )
 
 
@@ -430,10 +426,8 @@ class TestFamilyLaws:
         L = LeakageOperator(mesh)
         B = DiffusionBoundaryOperator(mesh)
         const = FullField(
-            interior=ScalarFlux.from_mesh(np.full((_NG, _NX), 3.7), mesh),
-            boundary=ScalarBoundaryFlux.from_mesh(
-                np.full(mesh.scalar_trace.shape[0], 3.7 / 4.0), mesh,
-            ),
+            interior=ScalarFlux(values=np.full((_NG, _NX), 3.7), space=mesh.bulk_space),
+            boundary=ScalarBoundaryFlux(values=np.full(mesh.scalar_trace.shape[0], 3.7 / 4.0), space=mesh.scalar_trace),
         )
         out = (L - B).apply(const)
         # Bulk is BIT-exact zero (all currents are differences of equal
@@ -492,7 +486,7 @@ class TestLeakageOperator:
         L = LeakageOperator(mesh)
         # Wrong bulk role/family:
         bad_bulk = FullField(
-            interior=ScalarSourceSink.from_mesh(np.ones((_NG, _NX)), mesh),
+            interior=ScalarSourceSink(values=np.ones((_NG, _NX)), space=mesh.bulk_space),
             boundary=flux.boundary,
         )
         with pytest.raises(TypeError, match="ScalarFlux"):
@@ -500,8 +494,8 @@ class TestLeakageOperator:
         # CS4b S3 (F2): a twin carrier's composite is content-equal — legal.
         twin = _diffusion_mesh()
         L.apply(FullField(
-            interior=ScalarFlux.from_mesh(np.ones((_NG, _NX)), twin),
-            boundary=ScalarBoundaryFlux.zeros_on(twin),
+            interior=ScalarFlux(values=np.ones((_NG, _NX)), space=twin.bulk_space),
+            boundary=ScalarBoundaryFlux.zeros(twin.scalar_trace),
         ))
         # A carrier whose volumes differ refuses (space-content invariant).
         other = DiffusionMesh(
@@ -509,8 +503,8 @@ class TestLeakageOperator:
             _fixture_materials(),
         )
         foreign = FullField(
-            interior=ScalarFlux.from_mesh(np.ones((_NG, _NX)), other),
-            boundary=ScalarBoundaryFlux.zeros_on(other),
+            interior=ScalarFlux(values=np.ones((_NG, _NX)), space=other.bulk_space),
+            boundary=ScalarBoundaryFlux.zeros(other.scalar_trace),
         )
         with pytest.raises(ValueError, match="space-content"):
             L.apply(foreign)
@@ -528,8 +522,8 @@ class TestLeakageOperator:
         rng = np.random.default_rng(3)
         phi = rng.random((_NG, 4))
         psi = FullField(
-            interior=ScalarFlux.from_mesh(phi, mm),
-            boundary=ScalarBoundaryFlux.zeros_on(mm),
+            interior=ScalarFlux(values=phi, space=mm.bulk_space),
+            boundary=ScalarBoundaryFlux.zeros(mm.scalar_trace),
         )
         out = L.apply(psi).interior.values
         D = 1.0 / (3.0 * _SIG_T_A)
@@ -626,11 +620,11 @@ class TestScalarCompositeSubstrate:
     def test_scalar_boundary_source_sink_class_gate(self, mesh):
         """Same trace space, different ROLE: source ± flux is rejected
         by class identity; same-class arithmetic is closed."""
-        src = ScalarBoundarySourceSink.zeros_on(mesh)
-        flx = ScalarBoundaryFlux.zeros_on(mesh)
+        src = ScalarBoundarySourceSink.zeros(mesh.scalar_trace)
+        flx = ScalarBoundaryFlux.zeros(mesh.scalar_trace)
         with pytest.raises(TypeError):
             _ = src + flx  # type: ignore[operator]
-        total = src + ScalarBoundarySourceSink.zeros_on(mesh)
+        total = src + ScalarBoundarySourceSink.zeros(mesh.scalar_trace)
         assert isinstance(total, ScalarBoundarySourceSink)
 
 

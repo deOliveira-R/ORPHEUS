@@ -84,7 +84,7 @@ def _mutated_reflect_trace(mut: str):
 
         mesh = self.sn_mesh
         trace = mesh.angular_trace
-        out_boundary = AngularBoundarySourceSink.zeros_on(mesh)
+        out_boundary = AngularBoundarySourceSink.zeros(mesh.angular_trace)
         face_laws = self._face_laws
         if faces is not None:
             unknown = set(faces) - set(face_laws)

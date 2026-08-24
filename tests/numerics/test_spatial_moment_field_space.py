@@ -112,7 +112,7 @@ def test_angular_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_
     the independently-built expected shape from the mesh's own dims.
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
-    field = AngularFlux.zeros_on(mesh)
+    field = AngularFlux.zeros(mesh.angular_bulk_space)
     expected = (mesh.quad.N, mesh.ng, *mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
@@ -130,7 +130,7 @@ def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2
     schemes (the negative control for the scattering-source widening).
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
-    field = ScalarFlux.zeros_on(mesh)
+    field = ScalarFlux.zeros(mesh.bulk_space)
     expected = (mesh.ng, *mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)

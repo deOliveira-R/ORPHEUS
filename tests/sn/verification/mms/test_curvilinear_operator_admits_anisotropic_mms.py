@@ -94,7 +94,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     psi_ref = TimedFullField(
-        interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
+        interior=AngularFlux(values=vals, space=sn_mesh.angular_bulk_space), boundary=zero.boundary,
     )
     # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed of the
     # NON-FLAT-in-μ trial (its own μ = −1 datum, A − B for the linear A + Bμ

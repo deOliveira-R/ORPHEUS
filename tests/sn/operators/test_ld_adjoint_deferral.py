@@ -109,8 +109,8 @@ def _ld2d_mesh() -> SNMesh:
 def _ld_composite(sn) -> FullField:
     """A well-formed LD cotangent: moment-tailed bulk + scalar face trace."""
     return FullField(
-        interior=AngularFlux.zeros_on(sn, spatial_moments=2),
-        boundary=AngularBoundaryFlux.zeros_on(sn),
+        interior=AngularFlux.zeros(sn.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
 
 
@@ -241,8 +241,8 @@ class TestWalkEntryGuard:
         VJP (the hazard the S0 deferral guard originally protected)."""
         sn, sig_t = _slab(scheme=LinearDiscontinuous())
         tailless = FullField(
-            interior=AngularFlux.zeros_on(sn),          # NO moment tail
-            boundary=AngularBoundaryFlux.zeros_on(sn),
+            interior=AngularFlux.zeros(sn.angular_bulk_space),          # NO moment tail
+            boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
         )
         with pytest.raises(ValueError, match="spatial-moment tail"):
             _lc(sn, sig_t).apply_transpose(tailless)

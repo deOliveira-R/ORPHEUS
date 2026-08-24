@@ -167,9 +167,7 @@ def test_the_march_rides_the_level_ray_exactly_for_linear_flux():
     A, B = 0.7, 0.3
     sn, mesh = _folded_cylinder()
     r = np.asarray(mesh.centers)
-    sigma_field = CrossSectionField.from_mesh(
-        np.full((1, _NX), _SIG_T), sn
-    )
+    sigma_field = CrossSectionField(values=np.full((1, _NX), _SIG_T), space=sn.bulk_space)
     op = RadialCharacteristicOperator(sn, sigma_field)
 
     src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
@@ -215,9 +213,7 @@ def test_apply_solve_round_trip_closes():
     exactly 0.0 for a solved state.
     """
     sn, _ = _folded_cylinder()
-    sigma_field = CrossSectionField.from_mesh(
-        np.full((1, _NX), _SIG_T), sn
-    )
+    sigma_field = CrossSectionField(values=np.full((1, _NX), _SIG_T), space=sn.bulk_space)
     op = RadialCharacteristicOperator(sn, sigma_field)
 
     rng = np.random.default_rng(20260808)

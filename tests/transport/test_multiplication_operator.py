@@ -153,7 +153,7 @@ def _positive_sigma(sn_mesh: SNMesh, ng: int = 2, seed: int = 11) -> np.ndarray:
 def _multiplier(sn_mesh: SNMesh, sigma: np.ndarray) -> MultiplicationOperator:
     """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField)."""
     return MultiplicationOperator(
-        coefficient=CrossSectionField.from_mesh(sigma, sn_mesh),
+        coefficient=CrossSectionField(values=sigma, space=sn_mesh.bulk_space),
     )
 
 
@@ -475,7 +475,7 @@ class TestSpaceMetadataAndGuardJoin:
         sn = _slab_mesh()
         space = sn.full_field_space
         M = MultiplicationOperator(
-            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn), sn),
+            coefficient=CrossSectionField(values=_positive_sigma(sn), space=sn.bulk_space),
             space=space,
         )
         _require(M.domain is space, "domain must be the supplied space")
@@ -534,11 +534,11 @@ class TestSpaceMetadataAndGuardJoin:
         sn = _slab_mesh()
         space = sn.full_field_space
         a = MultiplicationOperator(
-            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn, seed=1), sn),
+            coefficient=CrossSectionField(values=_positive_sigma(sn, seed=1), space=sn.bulk_space),
             space=space,
         )
         b = MultiplicationOperator(
-            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn, seed=2), sn),
+            coefficient=CrossSectionField(values=_positive_sigma(sn, seed=2), space=sn.bulk_space),
             space=space,
         )
         _require(
@@ -555,11 +555,11 @@ class TestSpaceMetadataAndGuardJoin:
         sn_a = _slab_mesh(nx=4)
         sn_b = _slab_mesh(nx=6)  # distinct spatial shape → distinct full_field_space
         a = MultiplicationOperator(
-            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn_a), sn_a),
+            coefficient=CrossSectionField(values=_positive_sigma(sn_a), space=sn_a.bulk_space),
             space=sn_a.full_field_space,
         )
         b = MultiplicationOperator(
-            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn_b), sn_b),
+            coefficient=CrossSectionField(values=_positive_sigma(sn_b), space=sn_b.bulk_space),
             space=sn_b.full_field_space,
         )
         with pytest.raises(IncompatibleOperatorComposition):
@@ -664,7 +664,7 @@ class TestMeshlessBareArm:
         with pytest.raises(TypeError):
             C.apply(object())
         with pytest.raises(TypeError):
-            C.apply(ScalarFlux.from_mesh(self._asym_sigma(2, 5, 3), sn))
+            C.apply(ScalarFlux(values=self._asym_sigma(2, 5, 3), space=sn.bulk_space))
 
 
 class TestInverseOperatorFace:

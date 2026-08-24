@@ -68,10 +68,10 @@ def test_field_leaves_are_vectors() -> None:
     (``AngularBoundaryFlux``).
     """
     m = _slab_mesh()
-    assert isinstance(AngularFlux.zeros_on(m), Vector)
-    assert isinstance(ScalarFlux.zeros_on(m), Vector)
+    assert isinstance(AngularFlux.zeros(m.angular_bulk_space), Vector)
+    assert isinstance(ScalarFlux.zeros(m.bulk_space), Vector)
     assert isinstance(HarmonicMomentFlux.zeros_for_mesh_and_L(m, 1), Vector)
-    assert isinstance(AngularBoundaryFlux.zeros_on(m), Vector)
+    assert isinstance(AngularBoundaryFlux.zeros(m.angular_trace), Vector)
 
 
 def test_timed_full_field_is_vector() -> None:

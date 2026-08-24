@@ -111,7 +111,7 @@ class TestSphericalSweepRegression:
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
-        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         phi = None
         for _ in range(200):
             # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective
@@ -142,7 +142,7 @@ class TestSphericalSweepRegression:
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
-        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"

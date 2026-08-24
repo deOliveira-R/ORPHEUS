@@ -77,7 +77,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         interior=AngularSourceSink.from_isotropic(
             np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
         _history=(), history_depth=2,
     )
     ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
@@ -101,8 +101,8 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     sn_mesh = SNMesh(mesh, quad, {0: fuel})
     rng = np.random.default_rng(208)
     shape = (quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
-    a_psi = AngularSourceSink.from_mesh(rng.standard_normal(shape), sn_mesh)
-    q = AngularSourceSink.from_mesh(rng.standard_normal(shape), sn_mesh)
+    a_psi = AngularSourceSink(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
+    q = AngularSourceSink(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
     r = AngularResidual.from_balance(lhs=a_psi, rhs=q)  # POSITIVE
     if type(r) is not AngularResidual:
         raise AssertionError(f"from_balance returned {type(r).__name__}")
@@ -111,7 +111,7 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     # angular bulk (shared across the family).
     if r.space is not sn_mesh.angular_bulk_space:
         raise AssertionError(f"residual on wrong space {r.space.name!r}")
-    flux = AngularFlux.from_mesh(rng.standard_normal(shape), sn_mesh)
+    flux = AngularFlux(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
     with pytest.raises(TypeError):  # NEGATIVE — flux operand (wrong units/class)
         _ = AngularResidual.from_balance(lhs=flux, rhs=q)  # type: ignore[arg-type]
 
@@ -141,7 +141,7 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     ix = psi.interior.values.shape[2] // 2
     bad_vals[:, 0, ix] *= 1.1
     psi_bad = TimedFullField(
-        interior=AngularFlux.from_mesh(bad_vals, _solver.sn_mesh),
+        interior=AngularFlux(values=bad_vals, space=_solver.sn_mesh.angular_bulk_space),
         boundary=psi.boundary, _history=(), history_depth=psi.history_depth,
     )
     r_bad = evaluate_residual(system, psi_bad, q_ext)
@@ -367,8 +367,8 @@ class TestSplitRayResidualMint:
 
         sn = _tiny_sphere_2g()
         rng = np.random.default_rng(42)
-        lhs = RadialCharacteristicInteriorSourceSink.zeros_on(sn)
-        rhs = RadialCharacteristicInteriorSourceSink.zeros_on(sn)
+        lhs = RadialCharacteristicInteriorSourceSink.zeros(sn.radial_characteristic_interior_space)
+        rhs = RadialCharacteristicInteriorSourceSink.zeros(sn.radial_characteristic_interior_space)
         lhs.values[...] = rng.standard_normal(lhs.values.shape)
         rhs.values[...] = rng.standard_normal(rhs.values.shape)
         r = RadialCharacteristicInteriorResidual.from_balance(lhs=lhs, rhs=rhs)
@@ -378,7 +378,7 @@ class TestSplitRayResidualMint:
         if RadialCharacteristicInteriorResidual.UNITS is not ANGULAR_RATE_UNITS:
             pytest.fail("interior ψ½ residual must carry the volumetric "
                         "rate units (the μ = ∓1 DD balance rows)")
-        flux = RadialCharacteristicInteriorFlux.zeros_on(sn)
+        flux = RadialCharacteristicInteriorFlux.zeros(sn.radial_characteristic_interior_space)
         with pytest.raises(TypeError):
             RadialCharacteristicInteriorResidual.from_balance(lhs=flux, rhs=rhs)
 
@@ -396,8 +396,8 @@ class TestSplitRayResidualMint:
 
         sn = _tiny_sphere_2g()
         rng = np.random.default_rng(43)
-        lhs = RadialCharacteristicBoundarySourceSink.zeros_on(sn)
-        rhs = RadialCharacteristicBoundarySourceSink.zeros_on(sn)
+        lhs = RadialCharacteristicBoundarySourceSink.zeros(sn.radial_characteristic_boundary_space)
+        rhs = RadialCharacteristicBoundarySourceSink.zeros(sn.radial_characteristic_boundary_space)
         lhs.values[...] = rng.standard_normal(lhs.values.shape)
         rhs.values[...] = rng.standard_normal(rhs.values.shape)
         r = RadialCharacteristicBoundaryResidual.from_balance(lhs=lhs, rhs=rhs)
@@ -407,7 +407,7 @@ class TestSplitRayResidualMint:
         if RadialCharacteristicBoundaryResidual.UNITS is not ANGULAR_FLUX_UNITS:
             pytest.fail("boundary ψ½ residual must carry the trace flux "
                         "units (the corner flux-matching rows)")
-        flux = RadialCharacteristicBoundaryFlux.zeros_on(sn)
+        flux = RadialCharacteristicBoundaryFlux.zeros(sn.radial_characteristic_boundary_space)
         with pytest.raises(TypeError):
             RadialCharacteristicBoundaryResidual.from_balance(lhs=flux, rhs=rhs)
 

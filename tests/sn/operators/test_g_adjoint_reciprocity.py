@@ -392,14 +392,12 @@ def _random_composite(
         # §4.4 anisotropy audit's requirement (an all-flat suite is blind
         # to a dropped/mis-signed slope row).
         tail_size = per_axis ** sn.ndim
-        bulk = AngularFlux.from_mesh(
-            rng.standard_normal((N, ng, *sn.spatial_shape, tail_size)), sn,
-            spatial_moments=per_axis,
+        bulk = AngularFlux(
+            values=rng.standard_normal((N, ng, *sn.spatial_shape, tail_size)),
+            space=sn.angular_trial_space,
         )
     else:
-        bulk = AngularFlux.from_mesh(
-            rng.standard_normal((N, ng, *sn.spatial_shape)), sn,
-        )
+        bulk = AngularFlux(values=rng.standard_normal((N, ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
     boundary = AngularBoundaryFlux(
         values=rng.standard_normal(int(sn.angular_trace.layout.total_size)),
         space=sn.angular_trace,
@@ -860,7 +858,7 @@ def _one_hot_group_composite(
         space=sn.angular_trace,
     )
     return TimedFullField(
-        interior=AngularFlux.from_mesh(bulk_vals, sn),
+        interior=AngularFlux(values=bulk_vals, space=sn.angular_bulk_space),
         boundary=boundary,
         _history=(), history_depth=2,
     )

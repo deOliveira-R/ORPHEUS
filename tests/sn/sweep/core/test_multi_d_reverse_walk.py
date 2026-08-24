@@ -170,10 +170,9 @@ def _zero_composite(sn: SNMesh) -> FullField:
     # tail, selected by the mesh's own per-axis basis size; the boundary
     # auto-sizes from the moment-resolved trace layout.  per_axis == 1
     # (DD) reproduces the moment-free composite byte-identically.
-    per_axis = sn.scheme.spatial_basis_per_axis
     return FullField(
-        interior=AngularFlux.zeros_on(sn, spatial_moments=per_axis),
-        boundary=AngularBoundaryFlux.zeros_on(sn),
+        interior=AngularFlux.zeros(sn.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
 
 

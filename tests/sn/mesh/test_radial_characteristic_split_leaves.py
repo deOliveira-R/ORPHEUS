@@ -78,7 +78,7 @@ def _rand(cls, mesh, seed: int):
     """A random flux leaf on ``mesh`` (distinct nonzero values)."""
     space = cls._face_space_of(mesh)
     rng = np.random.default_rng(seed)
-    return cls.from_mesh(rng.random(space.shape[0]) + 0.5, mesh)
+    return cls(values=rng.random(space.shape[0]) + 0.5, space=space)
 
 
 # ── Construction + views + presence ──
@@ -87,7 +87,7 @@ def _rand(cls, mesh, seed: int):
 class TestSplitLeafConstruction:
     def test_interior_flux_shape_space_and_cells_view(self) -> None:
         sn = _sphere()
-        f = RadialCharacteristicInteriorFlux.zeros_on(sn)
+        f = RadialCharacteristicInteriorFlux.zeros(sn.radial_characteristic_interior_space)
         # CS4b S3: the space is the carrier's cached mint (its name carries
         # a content digest — never pin the literal, R4).
         if f.space is not sn.radial_characteristic_interior_space:
@@ -97,7 +97,7 @@ class TestSplitLeafConstruction:
 
     def test_boundary_flux_shape_space_and_corner_view(self) -> None:
         sn = _sphere()
-        f = RadialCharacteristicBoundaryFlux.zeros_on(sn)
+        f = RadialCharacteristicBoundaryFlux.zeros(sn.radial_characteristic_boundary_space)
         # CS4b S3: the space is the carrier's cached mint (content-digest
         # name — never pin the literal, R4).
         if f.space is not sn.radial_characteristic_boundary_space:
@@ -108,12 +108,12 @@ class TestSplitLeafConstruction:
         sn = _sphere()
         space = RadialCharacteristicInteriorFlux._face_space_of(sn)
         vals = np.arange(space.shape[0], dtype=float)
-        f = RadialCharacteristicInteriorFlux.from_mesh(vals, sn)
+        f = RadialCharacteristicInteriorFlux(values=vals, space=sn.radial_characteristic_interior_space)
         np.testing.assert_array_equal(f.values, vals)
 
     def test_view_writes_back_through_the_flat_buffer(self) -> None:
         sn = _sphere()
-        f = RadialCharacteristicInteriorFlux.zeros_on(sn)
+        f = RadialCharacteristicInteriorFlux.zeros(sn.radial_characteristic_interior_space)
         f.cells(0, -1)[...] = 7.0
         # the (0,-1) cells block is the first (ng*nx) of the flat buffer
         np.testing.assert_array_equal(f.values[: _NG * _NX], np.full(_NG * _NX, 7.0))
@@ -130,8 +130,10 @@ class TestSplitLeafConstruction:
     )
     def test_presence_noncarrying_mesh_raises(self, cls, mesh_fn) -> None:
         sn = mesh_fn()
+        # Post-S5 the presence refusal lives on the family's space hook
+        # (the surface space_on and the keyed factories ride).
         with pytest.raises(ValueError, match="carries no radial_characteristic"):
-            cls.zeros_on(sn)
+            cls._face_space_of(sn)
 
 
 # ── The V flux algebra (per locus, over DISTINCT reps — CS3 cone carve) ──

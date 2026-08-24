@@ -162,7 +162,7 @@ class TestPartialCurrentLaws:
     def test_views_share_backing_buffer(self):
         """outflow/inflow views are zero-copy into the flat buffer."""
         mm = _slab_mesh()
-        pc = ScalarBoundaryFlux.zeros_on(mm)
+        pc = ScalarBoundaryFlux.zeros(mm.scalar_trace)
         pc.outflow_view("xmin")[:] = 7.0
         np.testing.assert_array_equal(
             pc.face_view("xmin")[ScalarTraceSpace.OUTFLOW_ROW],
@@ -185,10 +185,10 @@ class TestPartialCurrentGuards:
     def test_space_content_guard(self):
         """CS4b S3 (F2): twin carriers mint EQUAL scalar traces and mix; a
         different group structure mints an UNEQUAL trace and refuses."""
-        a = ScalarBoundaryFlux.zeros_on(_slab_mesh())
-        b = ScalarBoundaryFlux.zeros_on(_slab_mesh())
+        a = ScalarBoundaryFlux.zeros(_slab_mesh().scalar_trace)
+        b = ScalarBoundaryFlux.zeros(_slab_mesh().scalar_trace)
         _ = a - b  # twin content — legal since the F2 re-key
-        c = ScalarBoundaryFlux.zeros_on(_one_group_mesh())
+        c = ScalarBoundaryFlux.zeros(_one_group_mesh().scalar_trace)
         with pytest.raises(ValueError, match="equal space"):
             _ = a - c
 
@@ -199,8 +199,10 @@ class TestPartialCurrentGuards:
         the promotion."""
         mesh1d = Mesh1D(np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int))
         mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
+        # Post-S5 the family diagnosis lives on the space hook (the surface
+        # space_on and the keyed factories ride).
         with pytest.raises(ValueError, match="no scalar trace.*DiffusionMesh"):
-            ScalarBoundaryFlux.zeros_on(mm)
+            ScalarBoundaryFlux._face_space_of(mm)
 
     def test_vector_algebra(self):
         """The V algebra on the scalar trace (campaign 1 CS3): state − state
@@ -208,7 +210,7 @@ class TestPartialCurrentGuards:
         the #208 affine discipline minted a ScalarBoundaryDisplacement on −
         and refused +)."""
         mm = _slab_mesh()
-        a = ScalarBoundaryFlux.zeros_on(mm)
+        a = ScalarBoundaryFlux.zeros(mm.scalar_trace)
         b = ScalarBoundaryFlux.from_face_arrays(
             mm, {"xmin": np.ones((2, 2)), "xmax": np.ones((2, 2))},
         )
@@ -240,7 +242,7 @@ class TestScalarComposite:
     def test_scalar_composite_is_an_element_of_the_carrier_composite_space(self):
         mm = _slab_mesh()
         full = FullField(
-            interior=ScalarFlux.zeros_on(mm), boundary=ScalarBoundaryFlux.zeros_on(mm),
+            interior=ScalarFlux.zeros(mm.bulk_space), boundary=ScalarBoundaryFlux.zeros(mm.scalar_trace),
         )
         # CS4b S4 (F4): the composite's derived space content-equals the
         # carrier's cached mint (== not is — the wrapper is per-instance;
@@ -262,8 +264,8 @@ class TestScalarComposite:
         quadrature / family)."""
         a, b = _slab_mesh(), _slab_mesh()
         full = FullField(
-            interior=ScalarFlux.zeros_on(a),
-            boundary=ScalarBoundaryFlux.zeros_on(b),
+            interior=ScalarFlux.zeros(a.bulk_space),
+            boundary=ScalarBoundaryFlux.zeros(b.scalar_trace),
         )
         if full.space != a.full_field_space:
             pytest.fail("twin-carrier composite must content-equal either mint")
@@ -272,8 +274,8 @@ class TestScalarComposite:
         """from_blocks admits the scalar trace; the direct-sum inner
         product is the bulk + trace block sum (hand value)."""
         mm = _slab_mesh()
-        bulk = ScalarFlux.zeros_on(mm)
-        pc = ScalarBoundaryFlux.zeros_on(mm)
+        bulk = ScalarFlux.zeros(mm.bulk_space)
+        pc = ScalarBoundaryFlux.zeros(mm.scalar_trace)
         pc.outflow_view("xmax")[:] = [3.0, 1.0]
         pc.inflow_view("xmax")[:] = [1.0, 0.25]
         full = FullField(interior=bulk, boundary=pc)

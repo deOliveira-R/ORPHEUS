@@ -95,11 +95,9 @@ def rng() -> np.random.Generator:
 def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator) -> Field:
     """A flux leaf with DISTINCT random values (NOT flat — Mode-9)."""
     if leaf == "angular":
-        return AngularFlux.from_mesh(
-            rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape)), m,
-        )
+        return AngularFlux(values=rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
     if leaf == "scalar":
-        return ScalarFlux.from_mesh(rng.standard_normal((m.ng, *m.spatial_shape)), m)
+        return ScalarFlux(values=rng.standard_normal((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
         # HarmonicMomentFlux is rank-d like the other leaves: its space is
         # (L+1, 2L+1, ng, *spatial) — rank-1 (nx,) on a 1-D mesh, no phantom ny.
@@ -108,22 +106,22 @@ def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator) -> Field:
             rng.standard_normal(shape), m, _MOMENT_L,
         )
     if leaf == "boundary":
-        zero = AngularBoundaryFlux.zeros_on(m)
-        return AngularBoundaryFlux.from_mesh(rng.standard_normal(zero.values.shape), m)
+        zero = AngularBoundaryFlux.zeros(m.angular_trace)
+        return AngularBoundaryFlux(values=rng.standard_normal(zero.values.shape), space=m.angular_trace)
     raise ValueError(leaf)
 
 
 def _zeros_like_flux(leaf: str, m: SNMesh) -> Field:
     """The zero flux of the leaf — a legal, freely-constructed origin."""
     if leaf == "angular":
-        return AngularFlux.zeros_on(m)
+        return AngularFlux.zeros(m.angular_bulk_space)
     if leaf == "scalar":
-        return ScalarFlux.from_mesh(np.zeros((m.ng, *m.spatial_shape)), m)
+        return ScalarFlux(values=np.zeros((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
         shape = (_MOMENT_L + 1, 2 * _MOMENT_L + 1, m.ng, *m.spatial_shape)
         return HarmonicMomentFlux.from_mesh_and_L(np.zeros(shape), m, _MOMENT_L)
     if leaf == "boundary":
-        return AngularBoundaryFlux.zeros_on(m)
+        return AngularBoundaryFlux.zeros(m.angular_trace)
     raise ValueError(leaf)
 
 
@@ -296,7 +294,7 @@ def test_cross_class_still_refuses(mesh, rng):
     psi = _make_flux("angular", mesh, rng)
     from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 
-    src = AngularSourceSink.zeros_on(mesh)
+    src = AngularSourceSink.zeros(mesh.angular_bulk_space)
     with pytest.raises(TypeError):
         _ = psi + src  # type: ignore[operator]
     with pytest.raises(TypeError):

@@ -564,7 +564,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     Q = AngularSourceSink.from_isotropic(np.ones((4, *sn_mesh.spatial_shape)), sn_mesh)
     sig_t = np.ones((4, *sn_mesh.spatial_shape))  # (ng, *spatial)
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
-    boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
     # Warm-up — first call also caches inside SNMesh.
     for _ in range(3):

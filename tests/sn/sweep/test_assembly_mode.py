@@ -137,8 +137,8 @@ def _bulk_source(sn_mesh: SNMesh, n: int, g: int, q: np.ndarray):
     """A source composite with ``q`` on bulk row (n, g), zero trace —
     the #284 source subspace the sweep inverts exactly."""
     rhs = FullField(
-        interior=AngularSourceSink.zeros_on(sn_mesh),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        interior=AngularSourceSink.zeros(sn_mesh.angular_bulk_space),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
     )
     rhs.interior.values[n, g] = q.reshape(sn_mesh.spatial_shape)
     return rhs
@@ -418,8 +418,8 @@ def test_g1_ld_assembled_matvec_equals_apply(geometry):
             # spatial_moments factor selects the SpatialMomentSpace so
             # the bilinear closure's trailing 2^d axis is carried).
             state = FullField(
-                interior=AngularFlux.zeros_on(sn_mesh, spatial_moments=2),
-                boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+                interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
+                boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
             )
             state.interior.values[n, g] = x.reshape(
                 sn_mesh.spatial_shape + (cm,)
@@ -478,10 +478,10 @@ def test_g2_ld_block_triangular_and_lapack_solve_equals_sweep(geometry):
                 sn_mesh.spatial_shape
             )
             rhs = FullField(
-                interior=AngularSourceSink.from_mesh(
-                    src_values, sn_mesh, spatial_moments=2,
+                interior=AngularSourceSink(
+                    values=src_values, space=sn_mesh.angular_trial_space,
                 ),
-                boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+                boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
             )
             psi = A.solve(rhs)
             psi_row = np.asarray(psi.interior.values)[n, g].reshape(-1)
@@ -566,11 +566,8 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
         # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
         # spatial_moments=1 is the byte-identical default).
         return FullField(
-            interior=AngularFlux.zeros_on(
-                sn_mesh,
-                spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
-            ),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
         )
 
     def _apply(st, seed_leaf):

@@ -536,7 +536,7 @@ class TestMultiGroupMultiRegionSpherical:
         sig_t = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         phi = None
         for _ in range(50):
             # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer

@@ -102,8 +102,8 @@ def _random_source(sn, rng, ng: int = 2):
     # source_from_angular returns None on a non-carrying mesh (slab).
     q_half = RadialCharacteristicField.source_from_angular(bvals, sn)
     b = FullField(
-        interior=AngularSourceSink.from_mesh(bvals, sn),
-        boundary=AngularBoundarySourceSink.zeros_on(sn),
+        interior=AngularSourceSink(values=bvals, space=sn.angular_bulk_space),
+        boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
     )
     return bvals, b, q_half
 
@@ -112,8 +112,8 @@ def _random_iterate(sn, rng, ng: int = 2):
     """A random 2-block flux composite (an ``initial_guess``)."""
     N, nx = sn.quad.N, sn.nx
     return FullField(
-        interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
-        boundary=AngularBoundaryFlux.zeros_on(sn),
+        interior=AngularFlux(values=rng.standard_normal((N, ng, nx)), space=sn.angular_bulk_space),
+        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
 
 
@@ -383,9 +383,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     def _random_pair():
         # NONZERO ψ_B — activates the V_cell metric AND the A_BB self-rows.
         psi_a = FullField(
-            interior=AngularFlux.from_mesh(
-                rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), sn,
-            ),
+            interior=AngularFlux(values=rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), space=sn.angular_bulk_space),
             boundary=AngularBoundaryFlux(
                 values=rng.standard_normal(n_trace),
                 space=sn.angular_trace,

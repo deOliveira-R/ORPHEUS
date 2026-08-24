@@ -308,7 +308,7 @@ class TestAngularTrialSpace:
         from orpheus.transport.fields.angular_flux import AngularFlux
 
         dd = _slab(scheme=DiamondDifference())
-        assert AngularFlux.zeros_on(dd).space is dd.angular_trial_space
+        assert AngularFlux.zeros(dd.angular_bulk_space).space is dd.angular_trial_space
         ld = _slab(scheme=LinearDiscontinuous())
         per_axis = ld.scheme.spatial_basis_per_axis
         assert (

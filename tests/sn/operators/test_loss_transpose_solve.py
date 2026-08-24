@@ -151,10 +151,8 @@ def _fresh(sn_mesh: SNMesh) -> FullField:
     # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
     # spatial_moments=1 is the byte-identical default).
     return FullField(
-        interior=AngularFlux.zeros_on(
-            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
-        ),
-        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
     )
 
 
@@ -189,14 +187,8 @@ def _fresh_source(sn_mesh: SNMesh) -> FullField:
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
     tail = () if per_axis == 1 else (per_axis ** sn_mesh.ndim,)
     return FullField(
-        interior=AngularSourceSink.from_mesh(
-            np.zeros(
-                (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape, *tail)
-            ),
-            sn_mesh,
-            spatial_moments=per_axis,
-        ),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        interior=AngularSourceSink.zeros(sn_mesh.angular_trial_space),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
     )
 
 

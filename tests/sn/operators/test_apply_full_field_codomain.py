@@ -300,7 +300,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
         interior=AngularSourceSink.from_isotropic(
             np.ones((solver.ng, *sn_mesh.spatial_shape)), sn_mesh,
         ),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
         _history=(),
         history_depth=2,
     )

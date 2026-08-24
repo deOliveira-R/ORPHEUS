@@ -115,7 +115,7 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 class TestConstructionInherited:
     def test_inherits_field_and_boundary_field(self, Leaf) -> None:
         m = _slab_mesh()
-        bf = Leaf.zeros_on(m)
+        bf = Leaf.zeros(m.angular_trace)
         assert isinstance(bf, Field)
         assert isinstance(bf, AngularBoundaryField)
         assert isinstance(bf, Leaf)
@@ -123,14 +123,14 @@ class TestConstructionInherited:
 
     def test_zeros_on_uses_mesh_trace(self, Leaf) -> None:
         m = _slab_mesh()
-        bf = Leaf.zeros_on(m)
+        bf = Leaf.zeros(m.angular_trace)
         assert bf.space is m.angular_trace
         np.testing.assert_array_equal(bf.values, 0.0)
         assert set(bf.layout.faces) == {"xmin", "xmax"}
 
     def test_sphere_layout_only_xmax(self, Leaf) -> None:
         m = _sphere_mesh()
-        bf = Leaf.zeros_on(m)
+        bf = Leaf.zeros(m.angular_trace)
         assert set(bf.layout.faces) == {"xmax"}
 
     def test_from_face_arrays_slab(self, Leaf) -> None:
@@ -166,8 +166,8 @@ class TestConstructionInherited:
 class TestAlgebraClosedWithinClass:
     def test_add_sub_closed(self, Leaf) -> None:
         m = _slab_mesh()
-        a = Leaf.zeros_on(m)
-        b = Leaf.zeros_on(m)
+        a = Leaf.zeros(m.angular_trace)
+        b = Leaf.zeros(m.angular_trace)
         a.values[:] = 1.0
         b.values[:] = 2.0
         s = a + b
@@ -178,7 +178,7 @@ class TestAlgebraClosedWithinClass:
 
     def test_scalar_mul_div_neg(self, Leaf) -> None:
         m = _sphere_mesh()
-        a = Leaf.zeros_on(m)
+        a = Leaf.zeros(m.angular_trace)
         a.values[:] = 4.0
         np.testing.assert_allclose((2.5 * a).values, 10.0)
         np.testing.assert_allclose((a / 4.0).values, 1.0)
@@ -188,16 +188,16 @@ class TestAlgebraClosedWithinClass:
     def test_cross_carrier_discrimination_is_trace_content(self, Leaf) -> None:
         """CS4b S3 (F2): twin carriers mix; a different quadrature's trace
         content refuses."""
-        a = Leaf.zeros_on(_slab_mesh())
-        b = Leaf.zeros_on(_slab_mesh())  # distinct instance, same content
+        a = Leaf.zeros(_slab_mesh().angular_trace)
+        b = Leaf.zeros(_slab_mesh().angular_trace)  # distinct instance, same content
         _ = a + b  # twin content — legal since the F2 re-key
-        c = Leaf.zeros_on(_quad8_mesh())
+        c = Leaf.zeros(_quad8_mesh().angular_trace)
         with pytest.raises(ValueError, match="equal space"):
             _ = a + c
 
     def test_frozen(self, Leaf) -> None:
         m = _slab_mesh()
-        bf = Leaf.zeros_on(m)
+        bf = Leaf.zeros(m.angular_trace)
         with pytest.raises(FrozenInstanceError):
             bf.mesh = m  # type: ignore[misc]
 
@@ -220,9 +220,9 @@ class TestCrossClassRejectionSharedSpace:
         the IDENTICAL ``mesh.angular_trace`` object — so ``space == space`` and
         the space gate alone would NOT reject cross-class arithmetic."""
         m = _slab_mesh()
-        flux = AngularBoundaryFlux.zeros_on(m)
-        src = AngularBoundarySourceSink.zeros_on(m)
-        res = AngularBoundaryResidual.zeros_on(m)
+        flux = AngularBoundaryFlux.zeros(m.angular_trace)
+        src = AngularBoundarySourceSink.zeros(m.angular_trace)
+        res = AngularBoundaryResidual.zeros(m.angular_trace)
         assert flux.space is src.space is res.space is m.angular_trace
         # The space gate would pass (equal spaces) — proving it is the
         # CLASS gate that must do the rejection below.
@@ -238,8 +238,8 @@ class TestCrossClassRejectionSharedSpace:
     )
     def test_cross_class_add_sub_raises(self, A, B) -> None:
         m = _slab_mesh()
-        a = A.zeros_on(m)
-        b = B.zeros_on(m)
+        a = A.zeros(m.angular_trace)
+        b = B.zeros(m.angular_trace)
         # Same shape, same space, distinct class → class gate rejects.
         assert a.values.shape == b.values.shape
         assert a.space == b.space
@@ -250,8 +250,8 @@ class TestCrossClassRejectionSharedSpace:
 
     def test_cross_class_inner_product_raises(self) -> None:
         m = _slab_mesh()
-        src = AngularBoundarySourceSink.zeros_on(m)
-        res = AngularBoundaryResidual.zeros_on(m)
+        src = AngularBoundarySourceSink.zeros(m.angular_trace)
+        res = AngularBoundaryResidual.zeros(m.angular_trace)
         with pytest.raises(TypeError, match="same-class"):
             src.inner_product(res)  # type: ignore[arg-type]
 

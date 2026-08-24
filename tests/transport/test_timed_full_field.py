@@ -121,13 +121,13 @@ class TestConstruction:
 
     def test_rejects_non_field_bulk(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(TypeError, match="bulk must be a BulkField"):
             TimedFullField(interior="not a field", boundary=bf)  # type: ignore[arg-type]
 
     def test_rejects_non_field_boundary(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
             TimedFullField(interior=psi, boundary="not a field")  # type: ignore[arg-type]
 
@@ -141,7 +141,7 @@ class TestConstruction:
         (illegal-states-unrepresentable, ``coding-elegance`` Pattern 4).
         """
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(TypeError, match="bulk must be a BulkField"):
             TimedFullField(interior=bf, boundary=bf)  # type: ignore[arg-type]
 
@@ -154,7 +154,7 @@ class TestConstruction:
         :meth:`test_rejects_boundary_field_as_bulk`).
         """
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
             TimedFullField(interior=psi, boundary=psi)  # type: ignore[arg-type]
 
@@ -166,16 +166,16 @@ class TestConstruction:
         # reference, not a construction question).
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # different instance, same structure
-        psi = AngularFlux.zeros_on(m1)
-        bf = AngularBoundaryFlux.zeros_on(m2)
+        psi = AngularFlux.zeros(m1.angular_bulk_space)
+        bf = AngularBoundaryFlux.zeros(m2.angular_trace)
         state = TimedFullField(interior=psi, boundary=bf)
         if state.space != m1.full_field_space:
             pytest.fail("twin-carrier composite must content-equal the mint")
 
     def test_rejects_negative_history_depth(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
-        bf = AngularBoundaryFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(ValueError, match="history_depth"):
             TimedFullField(interior=psi, boundary=bf, history_depth=-1)
 
@@ -308,9 +308,7 @@ class TestHistoryShiftRegister:
     def test_advance_pushes_current_to_lag_1(self) -> None:
         m = _slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
-        new_bulk = AngularFlux.from_mesh(
-            np.full((m.quad.N, m.ng, *m.spatial_shape), 10.0), m,
-        )
+        new_bulk = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 10.0), space=m.angular_bulk_space)
         new_boundary = AngularBoundaryFlux.from_face_arrays(
             m, {
                 "xmin": np.full((m.quad.N, m.ng), 20.0),
@@ -333,9 +331,7 @@ class TestHistoryShiftRegister:
         m = _slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=10.0)
         for i in range(2, 5):
-            new_bulk = AngularFlux.from_mesh(
-                np.full((m.quad.N, m.ng, *m.spatial_shape), float(i)), m,
-            )
+            new_bulk = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), float(i)), space=m.angular_bulk_space)
             new_boundary = AngularBoundaryFlux.from_face_arrays(
                 m, {
                     "xmin": np.full((m.quad.N, m.ng), float(i) * 10),
@@ -353,8 +349,8 @@ class TestHistoryShiftRegister:
         m = _slab_mesh()
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space, history_depth=2)
         for i in range(5):
-            nb = AngularFlux.zeros_on(m)
-            nf = AngularBoundaryFlux.zeros_on(m)
+            nb = AngularFlux.zeros(m.angular_bulk_space)
+            nf = AngularBoundaryFlux.zeros(m.angular_trace)
             state = state.advance(nb, nf)
         assert state.history_length == 2
 
@@ -362,8 +358,8 @@ class TestHistoryShiftRegister:
         m = _slab_mesh()
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
         # Pass a ScalarFlux as bulk — type mismatch.
-        sf = ScalarFlux.zeros_on(m)
-        bf = AngularBoundaryFlux.zeros_on(m)
+        sf = ScalarFlux.zeros(m.bulk_space)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(TypeError, match="new_bulk type"):
             state.advance(sf, bf)  # type: ignore[arg-type]
 
@@ -400,9 +396,7 @@ class TestTimeDerivativeStencil:
     def test_first_order_backward_difference(self) -> None:
         m = _slab_mesh()
         state_old = _filled_state(m, bulk_val=1.0, bound_val=2.0)
-        new_bulk = AngularFlux.from_mesh(
-            np.full((m.quad.N, m.ng, *m.spatial_shape), 1.5), m,
-        )
+        new_bulk = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 1.5), space=m.angular_bulk_space)
         new_boundary = AngularBoundaryFlux.from_face_arrays(
             m, {
                 "xmin": np.full((m.quad.N, m.ng), 2.5),
@@ -458,8 +452,8 @@ class TestCopy:
     def test_copy_drops_history(self) -> None:
         m = _slab_mesh()
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
-        nb = AngularFlux.zeros_on(m)
-        nf = AngularBoundaryFlux.zeros_on(m)
+        nb = AngularFlux.zeros(m.angular_bulk_space)
+        nf = AngularBoundaryFlux.zeros(m.angular_trace)
         advanced = state.advance(nb, nf)
         assert advanced.history_length == 1
         copy = advanced.copy()
@@ -523,8 +517,8 @@ class TestFlatVectorProtocol:
     def test_from_flat_drops_history(self) -> None:
         m = _slab_mesh()
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
-        nb = AngularFlux.zeros_on(m)
-        nf = AngularBoundaryFlux.zeros_on(m)
+        nb = AngularFlux.zeros(m.angular_bulk_space)
+        nf = AngularBoundaryFlux.zeros(m.angular_trace)
         advanced = state.advance(nb, nf)
         assert advanced.history_length == 1
         reconstructed = TimedFullField.from_flat(advanced.to_flat(), advanced)

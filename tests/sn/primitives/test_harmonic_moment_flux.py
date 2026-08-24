@@ -299,7 +299,7 @@ class TestHarmonicMomentFluxScalarFlux:
         rng = np.random.default_rng(seed=5)
         N = m.quad.N
         psi_values = rng.standard_normal((N, m.ng, *m.spatial_shape))
-        psi = AngularFlux.from_mesh(psi_values, m)
+        psi = AngularFlux(values=psi_values, space=m.angular_bulk_space)
 
         # Direct angular reduction.
         sf_direct = psi.integrate_angular()
@@ -505,7 +505,7 @@ class TestRLambdaMRoundTrip:
         # Build a typed AngularFlux with isotropic content.
         N = quad.N
         psi_values = np.ones((N, mix.ng, nx, ny))
-        psi = AngularFlux.from_mesh(psi_values, sn_mesh)
+        psi = AngularFlux(values=psi_values, space=sn_mesh.angular_bulk_space)
 
         # Typed pipeline output.
         out = op.build_aniso_source(psi)

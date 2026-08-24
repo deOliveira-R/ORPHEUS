@@ -174,7 +174,7 @@ class TestAdjointWeightedBilinear:
         phi = rng.uniform(0.05, 1.0, size=(3, nx))
         phis = rng.uniform(0.2, 2.0, size=(3, nx))
         got = IntegratedReactionRate(cross_section_field(sigx, sn)).evaluate(
-            phi, adjoint=ScalarFlux.from_mesh(phis, sn),
+            phi, adjoint=ScalarFlux(values=phis, space=sn.bulk_space),
         )
         ref = self._hand_bilinear_integral(sigx, phis, phi, sn.volumes)
         np.testing.assert_allclose(got, ref, rtol=1e-13)
@@ -191,7 +191,7 @@ class TestAdjointWeightedBilinear:
         sigx = rng.uniform(0.1, 1.0, size=(2, nx))
         phi = rng.uniform(0.05, 1.0, size=(2, nx))
         irr = IntegratedReactionRate(cross_section_field(sigx, sn))
-        ones = ScalarFlux.from_mesh(np.ones((2, nx)), sn)
+        ones = ScalarFlux(values=np.ones((2, nx)), space=sn.bulk_space)
         require(
             irr.evaluate(phi, adjoint=ones) == irr.evaluate(phi),
             "adjoint=1 must reproduce the unweighted integral EXACTLY "
@@ -211,8 +211,8 @@ class TestAdjointWeightedBilinear:
         phi = rng.uniform(0.05, 1.0, size=(2, nx))
         phis = rng.uniform(0.2, 2.0, size=(2, nx))
         irr = IntegratedReactionRate(cross_section_field(sigx, sn))
-        base = irr.evaluate(phi, adjoint=ScalarFlux.from_mesh(phis, sn))
-        doubled = irr.evaluate(phi, adjoint=ScalarFlux.from_mesh(2.0 * phis, sn))
+        base = irr.evaluate(phi, adjoint=ScalarFlux(values=phis, space=sn.bulk_space))
+        doubled = irr.evaluate(phi, adjoint=ScalarFlux(values=2.0 * phis, space=sn.bulk_space))
         require(
             doubled == 2.0 * base,
             f"bilinear must be exactly linear in the adjoint slot under a "
@@ -231,8 +231,8 @@ class TestAdjointWeightedBilinear:
         a = rng.uniform(0.05, 1.0, size=(3, nx))
         b = rng.uniform(0.2, 2.0, size=(3, nx))
         irr = IntegratedReactionRate(cross_section_field(sigx, sn))
-        ab = irr.evaluate(a, adjoint=ScalarFlux.from_mesh(b, sn))
-        ba = irr.evaluate(b, adjoint=ScalarFlux.from_mesh(a, sn))
+        ab = irr.evaluate(a, adjoint=ScalarFlux(values=b, space=sn.bulk_space))
+        ba = irr.evaluate(b, adjoint=ScalarFlux(values=a, space=sn.bulk_space))
         np.testing.assert_allclose(ab, ba, rtol=1e-13)
 
     def test_foreign_mesh_adjoint_raises(self):
@@ -247,15 +247,11 @@ class TestAdjointWeightedBilinear:
             cross_section_field(rng.uniform(0.1, 1.0, size=(2, nx)), sn)
         )
         # CS4b S3 (F2): a twin carrier's adjoint pairs legally (content).
-        twin = ScalarFlux.from_mesh(
-            rng.uniform(0.2, 2.0, size=(2, nx)), _non_uniform_slab(ng=2),
-        )
+        twin = ScalarFlux(values=rng.uniform(0.2, 2.0, size=(2, nx)), space=_non_uniform_slab(ng=2).bulk_space)
         irr.evaluate(rng.uniform(0.05, 1.0, size=(2, nx)), adjoint=twin)
         # A carrier whose volumes differ refuses — the σ↔geometry pairing.
         stretched = _stretched_nonuniform_slab(ng=2)
-        foreign = ScalarFlux.from_mesh(
-            rng.uniform(0.2, 2.0, size=(2, nx)), stretched,
-        )
+        foreign = ScalarFlux(values=rng.uniform(0.2, 2.0, size=(2, nx)), space=stretched.bulk_space)
         with pytest.raises(ValueError, match="space-content"):
             irr.evaluate(rng.uniform(0.05, 1.0, size=(2, nx)), adjoint=foreign)
 

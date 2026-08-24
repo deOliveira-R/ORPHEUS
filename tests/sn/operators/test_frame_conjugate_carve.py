@@ -127,9 +127,7 @@ def _aniso_psi(solver, seed=20260624):
     N, ng = solver.quad.N, solver.ng
     nx, ny = solver.sn_mesh.spatial_shape
     rng = np.random.default_rng(seed)
-    return AngularFlux.from_mesh(
-        rng.uniform(0.05, 1.0, size=(N, ng, nx, ny)), solver.sn_mesh,
-    )
+    return AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, ng, nx, ny)), space=solver.sn_mesh.angular_bulk_space)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

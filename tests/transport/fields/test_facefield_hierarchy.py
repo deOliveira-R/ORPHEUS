@@ -109,8 +109,8 @@ class TestPoleIsSiblingNotChild:
 class TestConstructedInstancesDiscriminate:
     def test_constructed_pole_fails_the_boundary_isinstance(self):
         mesh = _sphere_mesh()
-        pole = RadialCharacteristicInteriorFlux.zeros_on(mesh)
-        boundary = AngularBoundaryFlux.zeros_on(mesh)
+        pole = RadialCharacteristicInteriorFlux.zeros(mesh.radial_characteristic_interior_space)
+        boundary = AngularBoundaryFlux.zeros(mesh.angular_trace)
         # The exact test FullField.__post_init__ runs on its boundary slot.
         np.testing.assert_(not isinstance(pole, BoundaryField))  # the guarded fact
         np.testing.assert_(isinstance(pole, FaceField))
@@ -141,11 +141,11 @@ class TestPostInitFiresOnce:
 
         monkeypatch.setattr(FaceField, "__post_init__", counting_post_init)
 
-        RadialCharacteristicInteriorFlux.zeros_on(mesh)
+        RadialCharacteristicInteriorFlux.zeros(mesh.radial_characteristic_interior_space)
         np.testing.assert_equal(calls["n"], 1, err_msg="pole: post_init != once")
 
         calls["n"] = 0
-        AngularBoundaryFlux.zeros_on(mesh)
+        AngularBoundaryFlux.zeros(mesh.angular_trace)
         np.testing.assert_equal(calls["n"], 1, err_msg="boundary: post_init != once")
 
 
@@ -164,8 +164,8 @@ class TestMetricIsPerLeaf:
         would collapse them to equal — this reddens.
         """
         mesh = _sphere_mesh()
-        pole_w = RadialCharacteristicInteriorFlux.zeros_on(mesh).space.inner_product_weights
-        trace_w = AngularBoundaryFlux.zeros_on(mesh).space.inner_product_weights
+        pole_w = RadialCharacteristicInteriorFlux.zeros(mesh.radial_characteristic_interior_space).space.inner_product_weights
+        trace_w = AngularBoundaryFlux.zeros(mesh.angular_trace).space.inner_product_weights
 
         # The pole's state metric exists and is SPD (nonzero) — NOT the ghost 0.
         np.testing.assert_(pole_w is not None, "pole carries no state metric")

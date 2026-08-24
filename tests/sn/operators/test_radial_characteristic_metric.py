@@ -146,8 +146,7 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     psi_a = FullField(
-        interior=AngularFlux.from_mesh(
-            rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), sn),
+        interior=AngularFlux(values=rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr) if trace else np.zeros(n_tr),
             space=sn.angular_trace),

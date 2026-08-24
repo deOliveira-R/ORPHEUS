@@ -224,7 +224,7 @@ class TestRestrictionProlongation:
         values = rng.standard_normal((4, 2, 4))
         # CS4b S4: the field no longer carries the mesh — the tests that
         # need carrier data receive the pair.
-        return sn_mesh, AngularFlux.from_mesh(values, sn_mesh)
+        return sn_mesh, AngularFlux(values=values, space=sn_mesh.angular_bulk_space)
 
     @pytest.mark.verifies("sn-dsa-restriction")
     def test_d7_restriction_conserves_particles(self, psi):
@@ -266,10 +266,7 @@ class TestRestrictionProlongation:
         corr = DSACorrection.from_sn_mesh(sn_mesh)
         phi = psi.integrate_angular().values
         sum_w = float(np.asarray(sn_mesh.quad.weights).sum())
-        injected = AngularFlux.from_mesh(
-            np.broadcast_to(phi[None] / sum_w, psi.values.shape).copy(),
-            sn_mesh,
-        )
+        injected = AngularFlux(values=np.broadcast_to(phi[None] / sum_w, psi.values.shape).copy(), space=sn_mesh.angular_bulk_space)
         np.testing.assert_allclose(
             injected.integrate_angular().values, phi, rtol=1e-15, atol=0,
         )
@@ -294,13 +291,10 @@ class TestApplyAdmission:
 
         rng = np.random.default_rng(seed)
         return FullField(
-            interior=AngularFlux.from_mesh(
-                rng.standard_normal(
+            interior=AngularFlux(values=rng.standard_normal(
                     (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
-                ),
-                sn_mesh,
-            ),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+                ), space=sn_mesh.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
         )
 
     def test_moment_windowed_interior_refuses(self):
@@ -322,7 +316,7 @@ class TestApplyAdmission:
             interior=HarmonicMomentFlux.from_mesh_and_L(
                 np.ones(shape), sn_mesh, L
             ),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
         )
         with pytest.raises(TypeError, match="moment-windowed"):
             corrector.apply(windowed)

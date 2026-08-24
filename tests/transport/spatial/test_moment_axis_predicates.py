@@ -185,7 +185,7 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     )
     # Bare field — NO spatial_moments=, the construct-general default 1.
     values = np.zeros((quad.N, ld_sn_mesh.ng, nx))
-    bulk = AngularFlux.from_mesh(values, ld_sn_mesh)
+    bulk = AngularFlux(values=values, space=ld_sn_mesh.angular_bulk_space)
     _require(
         bulk.spatial_moments_per_axis == 1,
         "a hand-built bare field on an LD mesh must NOT carry the moment axis "

@@ -83,8 +83,8 @@ def _sphere(*, power: float = 1.0, nx: int = 5, ng: int = 2) -> SNMesh:
 
 def _composite(sn: SNMesh) -> FullField:
     return FullField(
-        interior=AngularFlux.zeros_on(sn),
-        boundary=AngularBoundaryFlux.zeros_on(sn),
+        interior=AngularFlux.zeros(sn.angular_bulk_space),
+        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
 
 
@@ -105,8 +105,8 @@ class TestO4DiffusionBoundaryOperator:
         op = DiffusionBoundaryOperator(_dmesh(10.0))
         stretched = _dmesh(20.0)
         foreign = FullField(
-            interior=ScalarFlux.zeros_on(stretched),
-            boundary=ScalarBoundaryFlux.zeros_on(stretched),
+            interior=ScalarFlux.zeros(stretched.bulk_space),
+            boundary=ScalarBoundaryFlux.zeros(stretched.scalar_trace),
         )
         with pytest.raises(ValueError, match="space-content"):
             op.apply(foreign)
@@ -116,8 +116,8 @@ class TestO5AdjointEntryDetector:
     def test_composite_detector_on_foreign_content_refuses(self):
         sn_foreign = _slab(width=2.0)
         q_star = FullField(
-            interior=AngularSourceSink.zeros_on(sn_foreign),
-            boundary=AngularBoundarySourceSink.zeros_on(sn_foreign),
+            interior=AngularSourceSink.zeros(sn_foreign.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(sn_foreign.angular_trace),
         )
         base = _slab()
         with pytest.raises(ValueError, match="space-content"):
@@ -150,7 +150,7 @@ class TestO8SolutionRayMember:
         psi = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
-        phi = ScalarFlux.zeros_on(sn)
+        phi = ScalarFlux.zeros(sn.bulk_space)
         with pytest.raises(ValueError, match="ray spaces"):
             Solution(
                 angular_flux=psi, scalar_flux=phi, mesh=sn,
@@ -229,8 +229,8 @@ class TestF5ResidualPoseGuard:
         assert system.loss.n_cols == 2  # the carrying pose IS the arity
         psi = _composite(sn)
         q_ext = FullField(
-            interior=AngularSourceSink.zeros_on(sn),
-            boundary=AngularBoundarySourceSink.zeros_on(sn),
+            interior=AngularSourceSink.zeros(sn.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
         )
         with pytest.raises(ValueError, match="starting-direction levels"):
             evaluate_residual(system, psi, q_ext)

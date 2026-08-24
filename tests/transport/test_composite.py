@@ -77,10 +77,8 @@ def _scalar_composite(mesh: DiffusionMesh, seed: int) -> "Composite":
     """A pure scalar ``Composite`` (interior ⊕ boundary, NO ψ½) on ``mesh``."""
     rng = np.random.default_rng(seed)
     return Composite(
-        interior=ScalarFlux.from_mesh(rng.random((2, 4)) + 0.5, mesh),
-        boundary=ScalarBoundaryFlux.from_mesh(
-            rng.random(mesh.scalar_trace.shape[0]) + 0.1, mesh,
-        ),
+        interior=ScalarFlux(values=rng.random((2, 4)) + 0.5, space=mesh.bulk_space),
+        boundary=ScalarBoundaryFlux(values=rng.random(mesh.scalar_trace.shape[0]) + 0.1, space=mesh.scalar_trace),
     )
 
 

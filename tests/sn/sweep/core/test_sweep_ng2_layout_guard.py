@@ -76,7 +76,7 @@ def test_sweep_ng2_layout_shapes():
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-    boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
     ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
@@ -111,7 +111,7 @@ def test_sweep_ng2_per_group_distinct():
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-    boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
     from orpheus.sn.solver import _reflect_outflow_into_inflow
     phi = None

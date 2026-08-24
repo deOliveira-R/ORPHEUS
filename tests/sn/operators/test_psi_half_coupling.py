@@ -190,7 +190,7 @@ def _template(sn):
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
-        interior=AngularFlux.from_mesh(np.zeros((N, ng, nx)), sn),
+        interior=AngularFlux(values=np.zeros((N, ng, nx)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace))
 
 
@@ -436,7 +436,7 @@ def _random_composite(sn, rng) -> FullField:
     N, nx, ng = sn.quad.N, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
-        interior=AngularFlux.from_mesh(rng.standard_normal((N, ng, nx)), sn),
+        interior=AngularFlux(values=rng.standard_normal((N, ng, nx)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux(
             values=rng.standard_normal(n_tr), space=sn.angular_trace),
     )
@@ -598,7 +598,7 @@ class TestBoundaryUnweld:
         N, nx, ng = slab.quad.N, slab.nx, slab.ng
         n_tr = int(slab.angular_trace.layout.total_size)
         psi = FullField(
-            interior=AngularFlux.from_mesh(np.random.default_rng(4).standard_normal((N, ng, nx)), slab),
+            interior=AngularFlux(values=np.random.default_rng(4).standard_normal((N, ng, nx)), space=slab.angular_bulk_space),
             boundary=AngularBoundaryFlux(
                 values=np.random.default_rng(5).standard_normal(n_tr),
                 space=slab.angular_trace),
@@ -837,7 +837,7 @@ def _ray_sigma(sn, slope: float = 0.3) -> CrossSectionField:
     field carries ``.mesh`` for the operator's mesh-identity guard."""
     nx, ng = sn.nx, sn.ng
     raw = np.stack([1.0 + slope * g + 0.15 * np.arange(nx) for g in range(ng)], 0)
-    return CrossSectionField.from_mesh(raw, sn)
+    return CrossSectionField(values=raw, space=sn.bulk_space)
 
 
 def _ray_source(sn, rng) -> RadialCharacteristicField:
@@ -1203,24 +1203,23 @@ class TestA_BB_RadialBVP:
         # The seedless guard fires before σ_t is read (a valid field on the mesh).
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicOperator(
-                slab, CrossSectionField.from_mesh(np.ones((2, 5)), slab))
+                slab, CrossSectionField(values=np.ones((2, 5)), space=slab.bulk_space))
         # Positive control — a σ_t on THIS mesh constructs cleanly.
         sn = _sphere(nx=6)
         RadialCharacteristicOperator(
-            sn, CrossSectionField.from_mesh(np.ones((sn.ng, sn.nx)), sn))
+            sn, CrossSectionField(values=np.ones((sn.ng, sn.nx)), space=sn.bulk_space))
         # THE Pattern-4 closure: a σ_t bound to a DIFFERENT sphere (graded — a
         # genuinely different Δr) is refused. The typed coefficient makes the
         # foreign-mesh march unconstructable; a bare ndarray could not.
         foreign_mesh = _graded_sphere(nx=6)
-        foreign_sigma = CrossSectionField.from_mesh(
-            np.ones((foreign_mesh.ng, foreign_mesh.nx)), foreign_mesh)
+        foreign_sigma = CrossSectionField(values=np.ones((foreign_mesh.ng, foreign_mesh.nx)), space=foreign_mesh.bulk_space)
         with pytest.raises(ValueError, match="space-content invariant"):
             RadialCharacteristicOperator(sn, foreign_sigma)
         # σ_t ≤ 0 → the DD-denominator guard.
         bad = np.ones((sn.ng, sn.nx))
         bad[1, 2] = 0.0
         with pytest.raises(ValueError, match="strictly positive"):
-            RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(bad, sn))
+            RadialCharacteristicOperator(sn, CrossSectionField(values=bad, space=sn.bulk_space))
 
 
 def _install_forward_spy(monkeypatch) -> list[int]:
@@ -1740,8 +1739,7 @@ class TestA_BA_SchurFold:
             N, nx, ng = sn.quad.N, sn.nx, sn.ng
             n_tr = int(sn.angular_trace.layout.total_size)
             bulk_only = FullField(
-                interior=AngularFlux.from_mesh(
-                    np.random.default_rng(50).standard_normal((N, ng, nx)), sn),
+                interior=AngularFlux(values=np.random.default_rng(50).standard_normal((N, ng, nx)), space=sn.angular_bulk_space),
                 boundary=AngularBoundaryFlux(values=np.zeros(n_tr), space=sn.angular_trace))
             calls = _install_fold_spy(monkeypatch)
             out = SNSolver(sn).scattering_op.apply(bulk_only)
@@ -1997,8 +1995,8 @@ class TestCoupledLift:
         def _drop_pullback(self, cotangent, /):
             # A zero bulk (the pullback dropped) on the honest 2-block shape.
             return _FF(
-                interior=AngularSourceSink.zeros_on(self.sn_mesh),
-                boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh))
+                interior=AngularSourceSink.zeros(self.sn_mesh.angular_bulk_space),
+                boundary=AngularBoundarySourceSink.zeros(self.sn_mesh.angular_trace))
 
         monkeypatch.setattr(RadialCharacteristicEmission, "apply_transpose", _drop_pullback)
         adj_bulk = A_BA.apply_transpose(_ray_composite(sn, chi_seed)).interior.values
@@ -2475,7 +2473,7 @@ def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
     read, so the zero trace is inert)."""
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
-        interior=AngularFlux.from_mesh(bulk_values, sn),
+        interior=AngularFlux(values=bulk_values, space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux(
             values=np.zeros(n_tr), space=sn.angular_trace),
     )
@@ -2489,8 +2487,7 @@ def _seed_flux(sn, rng) -> RadialCharacteristicField:
 
 def _bulk_cotangent(sn, rng) -> AngularSourceSink:
     """A random bulk-residual cotangent — the ``A_AB.apply_transpose`` input."""
-    return AngularSourceSink.from_mesh(
-        rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), sn)
+    return AngularSourceSink(values=rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), space=sn.angular_bulk_space)
 
 
 def _install_closure_spy(monkeypatch, sn, method_name: str) -> list[dict]:
@@ -2989,7 +2986,7 @@ class TestCoupledBuilder:
                 pytest.fail(f"{label}: the 1×1 space is not (full_field_space,).")
         # The four System-B ctor refusals (match= each guard's OWN message —
         # a downstream crash must not false-green these).
-        sigma = CrossSectionField.from_mesh(np.ones((2, 5)), slab)
+        sigma = CrossSectionField(values=np.ones((2, 5)), space=slab.bulk_space)
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
             RadialCharacteristicOperator(slab, sigma)                    # A_BB
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
@@ -3862,12 +3859,10 @@ class TestPrescribedCornerDatum:
         sn = _sphere(nx=4, ng=2)
         rng = np.random.default_rng(7)
         trace_vals = rng.random((sn.quad.N, sn.ng))
-        bnd = AngularBoundarySourceSink.zeros_on(sn)
+        bnd = AngularBoundarySourceSink.zeros(sn.angular_trace)
         bnd.face_view("xmax")[...] = trace_vals
         q = TimedFullField(
-            interior=AngularSourceSink.from_mesh(
-                np.ones((sn.quad.N, sn.ng, sn.nx)), sn,
-            ),
+            interior=AngularSourceSink(values=np.ones((sn.quad.N, sn.ng, sn.nx)), space=sn.angular_bulk_space),
             boundary=bnd,
             _history=(),
             history_depth=2,

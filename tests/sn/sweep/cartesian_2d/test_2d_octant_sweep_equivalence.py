@@ -318,7 +318,7 @@ def _empty_boundary_flux(sn_mesh: SNMesh) -> "AngularBoundaryFlux":
     Issue #197 PR-TYPED-2 — typed replacement for the legacy
     ``psi_bc: dict`` fixture pattern.
     """
-    return AngularBoundaryFlux.zeros_on(sn_mesh)
+    return AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -484,7 +484,7 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     Q = np.ones((1, *sn_mesh.spatial_shape))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=AngularBoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
+        boundary_flux=AngularBoundaryFlux.zeros(sn_mesh.angular_trace), aniso_source=None,
     )
 
 
@@ -625,7 +625,7 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=AngularBoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
+        boundary_flux=AngularBoundaryFlux.zeros(sn_mesh.angular_trace), aniso_source=None,
     )
 
 
@@ -717,7 +717,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     Q = np.ones((1, *sn_mesh.spatial_shape))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=AngularBoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
+        boundary_flux=AngularBoundaryFlux.zeros(sn_mesh.angular_trace), aniso_source=None,
     )
 
 

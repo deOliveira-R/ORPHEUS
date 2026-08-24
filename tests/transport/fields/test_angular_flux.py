@@ -90,24 +90,24 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 class TestFieldInheritance:
     def test_inherits_field(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert isinstance(psi, Field)
 
     def test_pure_field_no_boundary_attribute(self) -> None:
         """Critical: post-D-H.1 AngularFlux has NO .boundary field."""
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert not hasattr(psi, "boundary")
 
     def test_pure_field_no_history_attribute(self) -> None:
         """Critical: post-D-H.1 AngularFlux has NO ._history field."""
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert not hasattr(psi, "_history")
 
     def test_pure_field_no_history_depth_attribute(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert not hasattr(psi, "history_depth")
 
 
@@ -123,8 +123,8 @@ class TestAlgebra:
         ordinary arithmetic (until 2026-08-19 the #208 affine gate raised on
         the first and typed the second through a displacement mint)."""
         m = _slab_mesh()
-        a = AngularFlux.from_mesh(np.ones((m.quad.N, m.ng, *m.spatial_shape)), m)
-        b = AngularFlux.from_mesh(2.0 * np.ones((m.quad.N, m.ng, *m.spatial_shape)), m)
+        a = AngularFlux(values=np.ones((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        b = AngularFlux(values=2.0 * np.ones((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         s = a + b
         if type(s) is not AngularFlux:
             raise AssertionError("flux + flux left the leaf type")
@@ -136,26 +136,26 @@ class TestAlgebra:
 
     def test_sub(self) -> None:
         m = _slab_mesh()
-        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, *m.spatial_shape), 5.0), m)
-        b = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, *m.spatial_shape), 2.0), m)
+        a = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 5.0), space=m.angular_bulk_space)
+        b = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 2.0), space=m.angular_bulk_space)
         c = a - b
         np.testing.assert_array_equal(c.values, 3.0)
 
     def test_scalar_mul(self) -> None:
         m = _slab_mesh()
-        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, *m.spatial_shape), 2.0), m)
+        a = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 2.0), space=m.angular_bulk_space)
         c = a * 3.0
         np.testing.assert_array_equal(c.values, 6.0)
 
     def test_scalar_div(self) -> None:
         m = _slab_mesh()
-        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, *m.spatial_shape), 8.0), m)
+        a = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 8.0), space=m.angular_bulk_space)
         c = a / 4.0
         np.testing.assert_array_equal(c.values, 2.0)
 
     def test_neg(self) -> None:
         m = _slab_mesh()
-        a = AngularFlux.from_mesh(np.full((m.quad.N, m.ng, *m.spatial_shape), 1.5), m)
+        a = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 1.5), space=m.angular_bulk_space)
         c = -a
         np.testing.assert_array_equal(c.values, -1.5)
 
@@ -171,11 +171,11 @@ class TestMeshBinding:
         with different cell volumes mints an UNEQUAL space and refuses."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # different instance, same content
-        a = AngularFlux.zeros_on(m1)
-        b = AngularFlux.zeros_on(m2)
+        a = AngularFlux.zeros(m1.angular_bulk_space)
+        b = AngularFlux.zeros(m2.angular_bulk_space)
         _ = a - b  # twin content — legal since the F2 re-key
         _ = a + b
-        c = AngularFlux.zeros_on(_stretched_mesh())
+        c = AngularFlux.zeros(_stretched_mesh().angular_bulk_space)
         with pytest.raises(ValueError, match="equal space"):
             a - c
         with pytest.raises(ValueError, match="equal space"):
@@ -183,8 +183,8 @@ class TestMeshBinding:
 
     def test_cross_class_rejected(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
-        phi = ScalarFlux.from_mesh(np.zeros((m.ng, *m.spatial_shape)), m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
+        phi = ScalarFlux(values=np.zeros((m.ng, *m.spatial_shape)), space=m.bulk_space)
         with pytest.raises(TypeError, match="same-class"):
             psi + phi  # type: ignore[operator]
 
@@ -198,32 +198,30 @@ class TestConstruction:
     def test_from_mesh(self) -> None:
         m = _slab_mesh()
         arr = np.ones((m.quad.N, m.ng, *m.spatial_shape))
-        psi = AngularFlux.from_mesh(arr, m)
+        psi = AngularFlux(values=arr, space=m.angular_bulk_space)
         assert psi.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
         assert psi.space is m.angular_bulk_space
 
     def test_from_ndarray_alias(self) -> None:
         m = _slab_mesh()
         arr = np.ones((m.quad.N, m.ng, *m.spatial_shape))
-        psi = AngularFlux.from_ndarray(arr, m)
+        psi = AngularFlux(values=arr, space=m.angular_bulk_space)
         assert isinstance(psi, AngularFlux)
 
     def test_zeros_on(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         np.testing.assert_array_equal(psi.values, 0.0)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
         with pytest.raises(ValueError, match="AngularFlux.*does not match"):
-            AngularFlux.from_mesh(
-                np.zeros((m.quad.N, m.ng, m.nx + 1)), m,
-            )
+            AngularFlux(values=np.zeros((m.quad.N, m.ng, m.nx + 1)), space=m.angular_bulk_space)
 
     def test_2d_construction(self) -> None:
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
         N = m.quad.N
-        psi = AngularFlux.from_mesh(np.zeros((N, 2, 3, 2)), m)
+        psi = AngularFlux(values=np.zeros((N, 2, 3, 2)), space=m.angular_bulk_space)
         assert psi.values.shape == (N, 2, 3, 2)
 
 
@@ -235,13 +233,13 @@ class TestConstruction:
 class TestFrozen:
     def test_assign_values_raises(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         with pytest.raises(FrozenInstanceError):
             psi.values = np.zeros(psi.values.shape)  # type: ignore[misc]
 
     def test_assign_mesh_raises(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         with pytest.raises(FrozenInstanceError):
             psi.mesh = m  # type: ignore[misc]
 
@@ -254,16 +252,14 @@ class TestFrozen:
 class TestIntegrateAngular:
     def test_returns_scalar_flux(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         phi = psi.integrate_angular()
         assert isinstance(phi, ScalarFlux)
         assert phi.values.shape == (m.ng, *m.spatial_shape)
 
     def test_uniform_flux_gives_sum_of_weights(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.from_mesh(
-            np.ones((m.quad.N, m.ng, *m.spatial_shape)), m,
-        )
+        psi = AngularFlux(values=np.ones((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         phi = psi.integrate_angular()
         # φ = Σ_n w_n ψ_n; uniform ψ_n = 1 → φ = Σ_n w_n
         expected = m.quad.weights.sum()
@@ -275,7 +271,7 @@ class TestIntegrateAngular:
         sum_w = m.quad.weights.sum()
         phi_target = 5.0
         psi_values = np.full((m.quad.N, m.ng, *m.spatial_shape), phi_target / sum_w)
-        psi = AngularFlux.from_mesh(psi_values, m)
+        psi = AngularFlux(values=psi_values, space=m.angular_bulk_space)
         phi = psi.integrate_angular()
         np.testing.assert_allclose(phi.values, phi_target, rtol=1e-15)
 
@@ -288,12 +284,12 @@ class TestIntegrateAngular:
 class TestMetadata:
     def test_N_property(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert psi.N == m.quad.N
 
     def test_ng_property(self) -> None:
         m = _slab_mesh(ng=3)
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert psi.ng == 3
 
     def test_spatial_shape_via_mesh(self) -> None:
@@ -303,7 +299,7 @@ class TestMetadata:
         ``(nx, ny)``-keyed read silently truncates a 3-D tensor.
         """
         m = _cartesian_2d_mesh(nx=3, ny=5)
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         np.testing.assert_equal(psi.values.shape[2:], (3, 5))
         with pytest.raises(AttributeError):
             psi.nx

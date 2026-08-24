@@ -124,14 +124,14 @@ class TestG22ScalarQuadratureBlindness:
         from orpheus.transport.fields.scalar_flux import ScalarFlux
 
         s4, s8 = _mesh(n_ord=4), _mesh(n_ord=8)
-        phi4 = ScalarFlux.zeros_on(s4)
-        phi8 = ScalarFlux.zeros_on(s8)
+        phi4 = ScalarFlux.zeros(s4.bulk_space)
+        phi8 = ScalarFlux.zeros(s8.bulk_space)
         out = phi4 + phi8
         assert isinstance(out, ScalarFlux)
 
         vac, refl = _mesh(), _mesh(bc_left="reflective")
-        a = AngularFlux.zeros_on(vac)
-        b = AngularFlux.zeros_on(refl)
+        a = AngularFlux.zeros(vac.angular_bulk_space)
+        b = AngularFlux.zeros(refl.angular_bulk_space)
         out2 = a + b
         assert isinstance(out2, AngularFlux)
 
@@ -149,8 +149,8 @@ class TestG23RoleIsClassIdentity:
 
     def test_cross_role_addition_refuses_while_spaces_are_identical(self):
         sn = _mesh()
-        flux = AngularFlux.zeros_on(sn)
-        source = AngularSourceSink.zeros_on(sn)
+        flux = AngularFlux.zeros(sn.angular_bulk_space)
+        source = AngularSourceSink.zeros(sn.angular_bulk_space)
         # The premise that makes this NEW coverage: one space, two roles.
         assert flux.space is source.space
         with pytest.raises(TypeError):
@@ -158,8 +158,8 @@ class TestG23RoleIsClassIdentity:
 
     def test_same_role_addition_still_succeeds(self):
         sn = _mesh()
-        a = AngularFlux.from_mesh(np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), sn)
-        b = AngularFlux.from_mesh(2.0 * np.ones_like(a.values), sn)
+        a = AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
+        b = AngularFlux(values=2.0 * np.ones_like(a.values), space=sn.angular_bulk_space)
         c = a + b
         assert isinstance(c, AngularFlux)
         assert np.all(c.values == 3.0)

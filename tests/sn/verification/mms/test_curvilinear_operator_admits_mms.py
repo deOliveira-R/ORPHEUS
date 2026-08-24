@@ -95,7 +95,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     psi_ref = TimedFullField(
-        interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,
+        interior=AngularFlux(values=vals, space=sn_mesh.angular_bulk_space), boundary=zero.boundary,
     )
     # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed of the
     # MMS trial (the trial's own μ = −1 starting datum) rides the walk's

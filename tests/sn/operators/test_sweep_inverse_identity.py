@@ -170,11 +170,8 @@ def _zero_source_composite(sn_mesh: SNMesh) -> FullField:
     )
 
     return FullField(
-        interior=AngularSourceSink.from_mesh(
-            np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)),
-            sn_mesh,
-        ),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        interior=AngularSourceSink(values=np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)), space=sn_mesh.angular_bulk_space),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
     )
 
 
@@ -204,11 +201,8 @@ def _random_composite(sn_mesh: SNMesh, seed: int) -> FullField:
     rows the old sweep dropped — with shapes read off the mesh (so the
     same builder serves slab and the xmax-only curvilinear layout)."""
     rng = np.random.default_rng(seed)
-    interior = AngularFlux.from_mesh(
-        rng.normal(size=(sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)),
-        sn_mesh,
-    )
-    boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
+    interior = AngularFlux(values=rng.normal(size=(sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)), space=sn_mesh.angular_bulk_space)
+    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     for face in boundary.layout.faces:
         view = boundary.face_view(face)
         view[...] = rng.normal(size=view.shape)
@@ -325,7 +319,7 @@ class TestSweepInverseIdentity:
         mapped it to ZERO — the singular preconditioner's kernel)."""
         sn_mesh, lc, sweep = _lc_pair(geom)
         trace = sn_mesh.angular_trace
-        boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         rng = np.random.default_rng(23)
         for face in boundary.layout.faces:
             out_rows = trace.outflow_indices_for_face(face)
@@ -343,7 +337,7 @@ class TestSweepInverseIdentity:
             ))
         else:
             rhs_a = FullField(
-                interior=AngularFlux.zeros_on(sn_mesh), boundary=boundary,
+                interior=AngularFlux.zeros(sn_mesh.angular_bulk_space), boundary=boundary,
             )
             rhs = rhs_a
         psi = sweep.apply(rhs)
@@ -393,7 +387,7 @@ class TestSweepInverseIdentity:
             lambda self, face: np.array([], dtype=int),
         )
         sn_mesh, _lc, sweep = _lc_pair("slab_vacuum")
-        boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         # populate what WOULD be the outflow rows (computed from the
         # quadrature directly — the monkeypatched selector is the
         # production read under mutation)
@@ -402,7 +396,7 @@ class TestSweepInverseIdentity:
         for face, out_rows in rows.items():
             boundary.face_view(face)[out_rows] = 1.0
         rhs = FullField(
-            interior=AngularFlux.zeros_on(sn_mesh), boundary=boundary,
+            interior=AngularFlux.zeros(sn_mesh.angular_bulk_space), boundary=boundary,
         )
         psi = sweep.apply(rhs)
         norm_out = float(np.abs(np.asarray(psi.boundary.values)).max())

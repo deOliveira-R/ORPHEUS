@@ -255,8 +255,8 @@ class TestAffineCarveSweepBaseline:
         rng = np.random.default_rng(20260614)
         sig_t = rng.uniform(0.3, 3.0, size=(ng, *sn_mesh.spatial_shape))
         q_values = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
-        source = AngularSourceSink.from_mesh(q_values, sn_mesh)
-        boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
+        source = AngularSourceSink(values=q_values, space=sn_mesh.angular_bulk_space)
+        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
         angular_flux, scalar_flux = sweep_once(
             source, sig_t, sn_mesh, boundary,

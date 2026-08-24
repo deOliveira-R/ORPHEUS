@@ -672,8 +672,8 @@ class TestSweepEntryDelegatesToStrategy:
         # Σ_t is (ng, *spatial) at any rank — (ng, nx) for 1-D,
         # (ng, nx, ny) for 2-D Cartesian (C5.2: no phantom ny).
         sig_t = np.ones((ng, *spatial))
-        source = AngularSourceSink.zeros_on(sn_mesh)
-        sweep_once(source, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+        source = AngularSourceSink.zeros(sn_mesh.angular_bulk_space)
+        sweep_once(source, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
 
         if calls["sweep"] != 1:
             pytest.fail(

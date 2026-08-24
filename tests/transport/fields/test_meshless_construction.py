@@ -98,7 +98,7 @@ class TestG42TheBindingIsGone:
 
     def test_instances_expose_no_mesh_attribute(self) -> None:
         m = _slab()
-        psi = AngularFlux.zeros_on(m)
+        psi = AngularFlux.zeros(m.angular_bulk_space)
         assert not hasattr(psi, "mesh")
         comp = FullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space,

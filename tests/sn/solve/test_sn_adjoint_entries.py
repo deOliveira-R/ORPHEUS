@@ -320,15 +320,13 @@ class TestSolveSnAdjointFixedSource:
         sn = adj.mesh
         require(isinstance(sn, SNMesh), "entry must return its SNMesh.")
         q_composite = TimedFullField(
-            interior=AngularSourceSink.from_mesh(q_per_ord, sn),
-            boundary=AngularBoundarySourceSink.zeros_on(sn),
+            interior=AngularSourceSink(values=q_per_ord, space=sn.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
             _history=(), history_depth=2,
         )
         qstar_composite = TimedFullField(
-            interior=AngularSourceSink.from_mesh(
-                np.broadcast_to(sigma_d[None], (quad.N, ng, nx)).copy(), sn,
-            ),
-            boundary=AngularBoundarySourceSink.zeros_on(sn),
+            interior=AngularSourceSink(values=np.broadcast_to(sigma_d[None], (quad.N, ng, nx)).copy(), space=sn.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
             _history=(), history_depth=2,
         )
         # ψ composites: the Solutions' angular members carry bulk + trace.

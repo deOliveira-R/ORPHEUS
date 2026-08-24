@@ -89,7 +89,7 @@ def _count_ordinate_scan_calls(Q, sig_t, sn_mesh, boundary_flux):
 def test_slab_joint_batch_one_scan_per_chain_direction() -> None:
     """SLAB invokes ordinate_scan exactly twice per sweep — one per chain."""
     Q, sig_t, sn_mesh = _slab_setup(N=4, nx=8, ng=2)
-    calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+    calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
     assert len(calls) == 2, (
         f"Slab sweep should invoke ordinate_scan exactly 2 times "
         f"(one per chain direction); got {len(calls)}: {calls}"
@@ -101,7 +101,7 @@ def test_slab_joint_batch_independent_of_N() -> None:
     """SLAB scan count is invariant in N (always 2)."""
     for N in (2, 4, 8, 16):
         Q, sig_t, sn_mesh = _slab_setup(N=N, nx=8, ng=2)
-        calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+        calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
         assert len(calls) == 2, (
             f"Slab N={N}: expected 2 scan calls, got {len(calls)}"
         )
@@ -112,7 +112,7 @@ def test_slab_joint_batch_independent_of_ng() -> None:
     """SLAB scan count is invariant in ng (always 2)."""
     for ng in (1, 2, 4):
         Q, sig_t, sn_mesh = _slab_setup(N=8, nx=10, ng=ng)
-        calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+        calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
         assert len(calls) == 2, (
             f"Slab ng={ng}: expected 2 scan calls, got {len(calls)}"
         )
@@ -127,7 +127,7 @@ def test_slab_joint_batch_call_shapes() -> None:
     trailing axis is the group batch.
     """
     Q, sig_t, sn_mesh = _slab_setup(N=8, nx=10, ng=3)
-    calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+    calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
     assert len(calls) == 2
     nx, K, ng = 10, 4, 3  # GL-8 symmetric: 4 ordinates per direction
     for a_shape, b_shape, psi0_shape in calls:
@@ -155,7 +155,7 @@ def test_sphere_per_ordinate_scan_safety_sentinel() -> None:
     """
     N = 4
     Q, sig_t, sn_mesh = _sphere_setup(N=N, nx=8, ng=2)
-    calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
+    calls = _count_ordinate_scan_calls(Q, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
     # Sphere has one level, all N ordinates are non-degenerate for
     # this test configuration.  Each ordinate gets exactly one scan
     # call.

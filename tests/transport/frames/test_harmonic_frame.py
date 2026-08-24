@@ -209,7 +209,7 @@ class TestMint:
             placeholder_materials(ng=2),
             scheme=LinearDiscontinuous(),
         )
-        widened = AngularFlux.zeros_on(m, spatial_moments=2)
+        widened = AngularFlux.zeros(m.angular_trial_space)
         frame = _frame(m)
         analysis = frame.flux_analysis_on(widened.space)
         assert analysis.domain is widened.space
@@ -232,7 +232,7 @@ class TestFluxAnalysisFace:
         frame = _frame(m)
         face = frame.flux_analysis_on(m.angular_bulk_space)
         vals = _angular_values(m, 2)
-        psi = AngularFlux.from_mesh(vals, m)
+        psi = AngularFlux(values=vals, space=m.angular_bulk_space)
         moments = face.apply(psi)
         assert isinstance(moments, HarmonicMomentFlux)
         assert moments.space is face.codomain    # bound codomain, no re-mint
@@ -255,7 +255,7 @@ class TestFluxAnalysisFace:
         m = _slab_mesh(nx=4)
         other = _slab_mesh(nx=5)  # different spatial axis → different space
         face = _frame(m).flux_analysis_on(m.angular_bulk_space)
-        psi = AngularFlux.from_mesh(_angular_values(other, 11), other)
+        psi = AngularFlux(values=_angular_values(other, 11), space=other.angular_bulk_space)
         with pytest.raises(TypeError, match="bound to angular domain"):
             face.apply(psi)
 
@@ -329,7 +329,7 @@ class TestSourceReconstructionFace:
     def test_wrong_carrier_raises(self) -> None:
         m = _slab_mesh()
         face = _frame(m).source_reconstruction_on(m.angular_bulk_space)
-        psi = AngularFlux.from_mesh(_angular_values(m, 7), m)
+        psi = AngularFlux(values=_angular_values(m, 7), space=m.angular_bulk_space)
         with pytest.raises(TypeError, match="unsupported carrier"):
             face.apply(psi)  # type: ignore[arg-type]
 
@@ -366,7 +366,7 @@ class TestSourceReconstructionFace:
         frame = _frame(m)
         analysis = frame.flux_analysis_on(m.angular_bulk_space)
         recon = frame.source_reconstruction_on(m.angular_bulk_space)
-        psi = AngularFlux.from_mesh(_angular_values(m, 10), m)
+        psi = AngularFlux(values=_angular_values(m, 10), space=m.angular_bulk_space)
         moments = analysis.apply(psi)
         assert moments.values.shape == (_L + 1, 2 * _L + 1, m.ng, *m.spatial_shape)
         q = HarmonicMomentSourceSink(

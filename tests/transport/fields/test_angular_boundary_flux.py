@@ -106,7 +106,7 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 class TestFieldAlgebraInherited:
     def test_inherits_field(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert isinstance(bf, Field)
 
     def test_flux_add_and_sub_are_plain_vector_ops(self) -> None:
@@ -115,8 +115,8 @@ class TestFieldAlgebraInherited:
         unchanged (until 2026-08-19 the #208 affine gate raised on + and
         minted an AngularBoundaryDisplacement on −)."""
         m = _slab_mesh()
-        bf1 = AngularBoundaryFlux.zeros_on(m)
-        bf2 = AngularBoundaryFlux.zeros_on(m)
+        bf1 = AngularBoundaryFlux.zeros(m.angular_trace)
+        bf2 = AngularBoundaryFlux.zeros(m.angular_trace)
         bf1.values[:] = 3.0
         bf2.values[:] = 2.0
         s = bf1 + bf2
@@ -134,8 +134,8 @@ class TestFieldAlgebraInherited:
 
     def test_sub_sphere(self) -> None:
         m = _sphere_mesh()
-        bf1 = AngularBoundaryFlux.zeros_on(m)
-        bf2 = AngularBoundaryFlux.zeros_on(m)
+        bf1 = AngularBoundaryFlux.zeros(m.angular_trace)
+        bf2 = AngularBoundaryFlux.zeros(m.angular_trace)
         bf1.values[:] = 5.0
         bf2.values[:] = 2.0
         out = bf1 - bf2
@@ -143,21 +143,21 @@ class TestFieldAlgebraInherited:
 
     def test_scalar_mul_2d(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         bf.values[:] = 3.0
         out = bf * 2.5
         np.testing.assert_allclose(out.values, 7.5)
 
     def test_scalar_div_propagates(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         bf.values[:] = 10.0
         out = bf / 4.0
         np.testing.assert_allclose(out.values, 2.5)
 
     def test_neg_2d(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         bf.values[:] = 1.5
         out = -bf
         np.testing.assert_array_equal(out.values, -1.5)
@@ -167,9 +167,9 @@ class TestFieldAlgebraInherited:
         CS3 cone carve the differences are ordinary same-typed boundary
         fluxes, so this is now a law of the ONE flux vector space."""
         m = _cartesian_2d_mesh()
-        base = AngularBoundaryFlux.zeros_on(m)
-        bf1 = AngularBoundaryFlux.zeros_on(m)
-        bf2 = AngularBoundaryFlux.zeros_on(m)
+        base = AngularBoundaryFlux.zeros(m.angular_trace)
+        bf1 = AngularBoundaryFlux.zeros(m.angular_trace)
+        bf2 = AngularBoundaryFlux.zeros(m.angular_trace)
         rng = np.random.default_rng(0)
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
@@ -184,7 +184,7 @@ class TestFieldAlgebraInherited:
 
     def test_inner_product_with_self_is_l2_squared(self) -> None:
         m = _sphere_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         bf.values[:] = 1.5
         # inner_product(x, x) == l2(x)² under the space metric. The AngularTraceSpace
         # now carries the |Ω·n|·w partial-current weights (Phase 4.1 G-adjoint),
@@ -201,23 +201,23 @@ class TestFieldAlgebraInherited:
 class TestFaceLayoutSliceViews:
     def test_slab_layout_has_xmin_and_xmax(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert set(bf.layout.faces) == {"xmin", "xmax"}
 
     def test_sphere_layout_has_only_xmax(self) -> None:
         m = _sphere_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert set(bf.layout.faces) == {"xmax"}
 
     def test_cartesian_2d_layout_has_four_faces(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert set(bf.layout.faces) == {"xmin", "xmax", "ymin", "ymax"}
 
     def test_face_view_is_memory_shared_slab(self) -> None:
         """face_view returns a view, NOT a copy — writes propagate."""
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         xmin_view = bf.face_view("xmin")
         # Write through the view; flat buffer reflects the change.
         xmin_view[...] = 7.0
@@ -227,7 +227,7 @@ class TestFaceLayoutSliceViews:
 
     def test_face_view_is_memory_shared_2d_xmin(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         xmin_view = bf.face_view("xmin")
         N = m.quad.N
         assert xmin_view.shape == (N, m.ng, m.spatial_shape[1])
@@ -239,20 +239,20 @@ class TestFaceLayoutSliceViews:
         # 1-D slab.
         m = _slab_mesh(nx=4, ng=2)
         N = m.quad.N
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert bf.face_view("xmin").shape == (N, 2)
         assert bf.face_view("xmax").shape == (N, 2)
 
         # 1-D sphere.
         m = _sphere_mesh(nx=4, ng=2)
         N = m.quad.N
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert bf.face_view("xmax").shape == (N, 2)
 
         # 2-D Cartesian.
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
         N = m.quad.N
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert bf.face_view("xmin").shape == (N, 2, 2)
         assert bf.face_view("xmax").shape == (N, 2, 2)
         assert bf.face_view("ymin").shape == (N, 2, 3)
@@ -260,19 +260,19 @@ class TestFaceLayoutSliceViews:
 
     def test_face_views_dict_keys_match_layout(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         views = bf.face_views
         assert set(views) == set(bf.layout.faces)
 
     def test_unknown_face_raises(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(KeyError, match="ymin"):
             bf.face_view("ymin")
 
     def test_total_size_consistent_with_face_sizes_2d(self) -> None:
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         total = sum(slot.flat_size for slot in bf.layout.faces.values())
         assert bf.layout.total_size == total
         assert bf.values.shape == (total,)
@@ -285,7 +285,7 @@ class TestFaceLayoutSliceViews:
         """
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
         N = m.quad.N
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         # Post-D-G face-only total:
         face_only = 2 * N * 2 * 2 + 2 * N * 2 * 3  # x-faces + y-faces
         assert bf.values.size == face_only
@@ -307,11 +307,11 @@ class TestMeshBindingRejection:
         both binary ops refuse."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()   # different instance, same content
-        bf1 = AngularBoundaryFlux.zeros_on(m1)
-        bf2 = AngularBoundaryFlux.zeros_on(m2)
+        bf1 = AngularBoundaryFlux.zeros(m1.angular_trace)
+        bf2 = AngularBoundaryFlux.zeros(m2.angular_trace)
         _ = bf1 - bf2  # twin content — legal since the F2 re-key
         _ = bf1 + bf2
-        bf3 = AngularBoundaryFlux.zeros_on(_quad8_mesh())
+        bf3 = AngularBoundaryFlux.zeros(_quad8_mesh().angular_trace)
         with pytest.raises(ValueError, match="equal space"):
             bf1 - bf3
         with pytest.raises(ValueError, match="equal space"):
@@ -319,7 +319,7 @@ class TestMeshBindingRejection:
 
     def test_wrong_type_add_rejected(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(TypeError, match="same-class"):
             bf + 42  # type: ignore[operator]
 
@@ -332,7 +332,7 @@ class TestMeshBindingRejection:
 class TestFlatBufferRoundTrip:
     def test_face_write_reflected_in_flat_buffer(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         bf.face_view("xmin")[...] = 1.0
         bf.face_view("xmax")[...] = 2.0
         xmin_off = bf.layout.faces["xmin"].offset
@@ -344,7 +344,7 @@ class TestFlatBufferRoundTrip:
 
     def test_flat_write_reflected_in_face(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         # Write something into the flat buffer; verify face view sees it.
         bf.values[0] = 8.0
         # xmin is the first face → element 0 maps to xmin face's [0, 0, 0].
@@ -356,8 +356,8 @@ class TestFlatBufferRoundTrip:
         face-value level, the difference is face-structured."""
         m = _cartesian_2d_mesh()
         rng = np.random.default_rng(42)
-        bf1 = AngularBoundaryFlux.zeros_on(m)
-        bf2 = AngularBoundaryFlux.zeros_on(m)
+        bf1 = AngularBoundaryFlux.zeros(m.angular_trace)
+        bf2 = AngularBoundaryFlux.zeros(m.angular_trace)
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
         out = bf1 - bf2  # same-class signed difference — shares the trace layout
@@ -376,20 +376,20 @@ class TestFlatBufferRoundTrip:
 class TestConstruction:
     def test_zeros_on_slab(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert isinstance(bf, AngularBoundaryFlux)
         np.testing.assert_array_equal(bf.values, 0.0)
         assert bf.space is m.angular_trace
 
     def test_zeros_on_sphere(self) -> None:
         m = _sphere_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert "xmin" not in bf.layout.faces
         np.testing.assert_array_equal(bf.values, 0.0)
 
     def test_zeros_on_2d(self) -> None:
         m = _cartesian_2d_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert set(bf.layout.faces) == {"xmin", "xmax", "ymin", "ymax"}
 
     def test_post_init_validates_shape(self) -> None:
@@ -467,18 +467,18 @@ class TestConstruction:
 class TestFrozenInstance:
     def test_assign_values_raises(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(FrozenInstanceError):
             bf.values = np.zeros(bf.values.shape)  # type: ignore[misc]
 
     def test_assign_layout_raises(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(FrozenInstanceError):
             bf.layout = bf.layout  # type: ignore[misc]
 
     def test_assign_mesh_raises(self) -> None:
         m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros_on(m)
+        bf = AngularBoundaryFlux.zeros(m.angular_trace)
         with pytest.raises(FrozenInstanceError):
             bf.mesh = m  # type: ignore[misc]

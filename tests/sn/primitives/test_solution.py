@@ -172,7 +172,7 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     state.interior.values[:] = fill
     state.boundary.values[:] = fill
-    phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, *sn_mesh.spatial_shape), fill), sn_mesh)
+    phi = ScalarFlux(values=np.full((sn_mesh.ng, *sn_mesh.spatial_shape), fill), space=sn_mesh.bulk_space)
     return state, phi, state.boundary
 
 
@@ -448,7 +448,7 @@ class TestSolutionConstruction:
         a φ from a group-structure-differing carrier refuses."""
         m1 = _slab_mesh()
         m3 = _slab_mesh(ng=3)
-        phi_foreign = ScalarFlux.from_mesh(np.zeros((m3.ng, *m3.spatial_shape)), m3)
+        phi_foreign = ScalarFlux(values=np.zeros((m3.ng, *m3.spatial_shape)), space=m3.bulk_space)
         psi, _, bf = _make_fluxes(m1)
         with pytest.raises(ValueError, match="MARGINAL"):
             Solution(
@@ -650,7 +650,7 @@ class TestReactionRate:
         phi_values = np.arange(
             m.ng * m.nx, dtype=float,
         ).reshape(m.ng, *m.spatial_shape) + 1.0
-        phi = ScalarFlux.from_mesh(phi_values, m)
+        phi = ScalarFlux(values=phi_values, space=m.bulk_space)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
@@ -666,7 +666,7 @@ class TestReactionRate:
             [1.0, 2.0, 3.0],
             [4.0, 5.0, 6.0],
         ])  # (ng=2, nx=3)
-        phi = ScalarFlux.from_mesh(phi_values, m)
+        phi = ScalarFlux(values=phi_values, space=m.bulk_space)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
@@ -835,9 +835,7 @@ class TestSolutionRoleAxis:
         """The base's space-content contract fires on the adjoint leaf too."""
         m1 = _slab_mesh()
         m3 = _slab_mesh(ng=3)
-        phi_foreign = ScalarFlux.from_mesh(
-            np.zeros((m3.ng, *m3.spatial_shape)), m3,
-        )
+        phi_foreign = ScalarFlux(values=np.zeros((m3.ng, *m3.spatial_shape)), space=m3.bulk_space)
         psi, _, _ = _make_fluxes(m1)
         with pytest.raises(ValueError, match="MARGINAL"):
             AdjointSolution(angular_flux=psi, scalar_flux=phi_foreign, mesh=m1)

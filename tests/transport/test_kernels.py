@@ -627,13 +627,11 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
     interior_values = rng.random((2, 6)) + 0.5
     carriers = {
         "FullField": lambda: FullField(
-            interior=ScalarFlux.from_mesh(interior_values, dm),
-            boundary=ScalarBoundaryFlux.from_mesh(
-                rng.random(dm.scalar_trace.shape[0]) + 0.1, dm,
-            ),
+            interior=ScalarFlux(values=interior_values, space=dm.bulk_space),
+            boundary=ScalarBoundaryFlux(values=rng.random(dm.scalar_trace.shape[0]) + 0.1, space=dm.scalar_trace),
         ),
         "ndarray": lambda: interior_values.copy(),
-        "ScalarFlux": lambda: ScalarFlux.from_mesh(interior_values, dm),
+        "ScalarFlux": lambda: ScalarFlux(values=interior_values, space=dm.bulk_space),
     }
 
     expected = _ARM_MATRIX[(operator_key, carrier_key)]

@@ -76,9 +76,7 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
 
 
 def _sigma(mesh: SNMesh, fill: float) -> CrossSectionField:
-    return CrossSectionField.from_ndarray(
-        np.full((mesh.ng, *mesh.spatial_shape), fill), mesh
-    )
+    return CrossSectionField(values=np.full((mesh.ng, *mesh.spatial_shape), fill), space=mesh.bulk_space)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -111,7 +109,7 @@ class TestCrossSectionConeAlgebra:
         the coefficient space HAS an origin (it promotes to ``M_0``),
         unlike the flux affine torsor."""
         m = _slab_mesh()
-        zero = CrossSectionField.zeros_on(m)  # constructs (no invariant rejects 0)
+        zero = CrossSectionField.zeros(m.bulk_space)  # constructs (no invariant rejects 0)
         assert isinstance(zero, CrossSectionField)
         np.testing.assert_array_equal(zero.values, np.zeros((m.ng, *m.spatial_shape)))
         s = _sigma(m, 0.5)

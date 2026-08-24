@@ -573,7 +573,7 @@ def legacy_proxy_matvec(
     # `bc_outer=None, pole_angular_closure=None`) — kept in the
     # function signature for legacy back-compat but ignored.
     del bc_outer, pole_angular_closure  # explicitly mark unused
-    boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
+    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1]
     if "xmin" in boundary.layout.faces:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0]
@@ -588,7 +588,7 @@ def legacy_proxy_matvec(
     # meshes (slab/cyl) → None, byte-identical to the pre-2.5d helper.
     radial_characteristic = radial_characteristic_edge_seed(psi_view, sn_mesh)
     composite = TimedFullField(
-        interior=AngularFlux.from_mesh(psi_view, sn_mesh),
+        interior=AngularFlux(values=psi_view, space=sn_mesh.angular_bulk_space),
         boundary=boundary,
         _history=(),
         history_depth=2,
@@ -691,12 +691,12 @@ def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
     :meth:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.zeros_on`; this helper is a clean alias
     so test fixtures don't have to chain through ``sn_mesh``.
     """
-    return AngularBoundaryFlux.zeros_on(sn_mesh)
+    return AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
 
 def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":
     """Build a zero-initialised :class:`ScalarFlux` for ``sn_mesh``."""
-    return ScalarFlux.zeros_on(sn_mesh)
+    return ScalarFlux.zeros(sn_mesh.bulk_space)
 
 
 def redistribution_via_live_path(
@@ -981,13 +981,12 @@ def g_coupled_diagonal(sn: "SNMesh") -> np.ndarray:
     )
     from orpheus.transport.fields.angular_flux import AngularFlux
 
-    per_axis = sn.scheme.spatial_basis_per_axis
-    interior = AngularFlux.zeros_on(sn, spatial_moments=per_axis)
+    interior = AngularFlux.zeros(sn.angular_trial_space)
     bulk = np.broadcast_to(
         g_bulk_measure(sn), interior.values.shape,
     ).ravel().astype(float)
 
-    bfield = AngularBoundaryFlux.zeros_on(sn)
+    bfield = AngularBoundaryFlux.zeros(sn.angular_trace)
     for f_idx, face in enumerate(sn.angular_trace.layout.faces):
         w_face = g_trace_cosine_weight(sn, f_idx, with_cosine=True)
         view = bfield.face_view(face)

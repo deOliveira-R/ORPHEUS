@@ -113,8 +113,8 @@ class TestCompositeConstruction:
         A_BA / B_b write — rides the SAME composite class as the flux state."""
         sn = _sphere()
         comp = RadialCharacteristicField(
-            interior=RadialCharacteristicInteriorSourceSink.zeros_on(sn),
-            boundary=RadialCharacteristicBoundarySourceSink.zeros_on(sn),
+            interior=RadialCharacteristicInteriorSourceSink.zeros(sn.radial_characteristic_interior_space),
+            boundary=RadialCharacteristicBoundarySourceSink.zeros(sn.radial_characteristic_boundary_space),
         )
         if type(comp.interior) is not RadialCharacteristicInteriorSourceSink:
             pytest.fail(f"interior member is {type(comp.interior).__name__}")
@@ -363,8 +363,8 @@ class TestRadialCharacteristicFieldSpace:
         sn = _sphere()
         space = sn.radial_characteristic_field_space
         src = RadialCharacteristicField(
-            interior=RadialCharacteristicInteriorSourceSink.zeros_on(sn),
-            boundary=RadialCharacteristicBoundarySourceSink.zeros_on(sn),
+            interior=RadialCharacteristicInteriorSourceSink.zeros(sn.radial_characteristic_interior_space),
+            boundary=RadialCharacteristicBoundarySourceSink.zeros(sn.radial_characteristic_boundary_space),
         )
         out = space.apply_metric(src)
         if type(out.interior) is not RadialCharacteristicInteriorSourceSink:

@@ -203,8 +203,8 @@ class TestUnitsIsClassVarNotField:
         """The constant lives on the class and is shared by every instance
         (one object, constructed once at import)."""
         m = _slab_mesh()
-        a = AngularSourceSink.from_mesh(np.zeros((m.quad.N, m.ng, *m.spatial_shape)), m)
-        b = AngularSourceSink.from_mesh(np.ones((m.quad.N, m.ng, *m.spatial_shape)), m)
+        a = AngularSourceSink(values=np.zeros((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        b = AngularSourceSink(values=np.ones((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         assert a.UNITS is b.UNITS is AngularSourceSink.UNITS
 
 
@@ -216,7 +216,7 @@ class TestUnitsIsClassVarNotField:
 class TestUnitsDiagnostics:
     def test_repr_is_concise_and_shows_units(self) -> None:
         m = _slab_mesh()
-        src = AngularSourceSink.from_mesh(np.zeros((m.quad.N, m.ng, *m.spatial_shape)), m)
+        src = AngularSourceSink(values=np.zeros((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         r = repr(src)
         assert r.startswith("AngularSourceSink(")
         assert "shape=(4, 2, 4)" in r
@@ -227,8 +227,8 @@ class TestUnitsDiagnostics:
     def test_cross_class_error_shows_both_units_and_guidance(self) -> None:
         m = _slab_mesh()
         shp = (m.quad.N, m.ng, *m.spatial_shape)
-        src = AngularSourceSink.from_mesh(np.ones(shp), m)
-        res = AngularResidual.from_mesh(np.ones(shp), m)
+        src = AngularSourceSink(values=np.ones(shp), space=m.angular_bulk_space)
+        res = AngularResidual(values=np.ones(shp), space=m.angular_bulk_space)
         with pytest.raises(TypeError) as ei:
             _ = res - src
         msg = str(ei.value)
@@ -243,6 +243,6 @@ class TestUnitsDiagnostics:
     def test_error_label_for_non_field_partner(self) -> None:
         """A non-Field operand has no UNITS — the label degrades gracefully."""
         m = _slab_mesh()
-        src = AngularSourceSink.from_mesh(np.ones((m.quad.N, m.ng, *m.spatial_shape)), m)
+        src = AngularSourceSink(values=np.ones((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         with pytest.raises(TypeError, match="<no units>"):
             _ = src + 42  # type: ignore[operator]

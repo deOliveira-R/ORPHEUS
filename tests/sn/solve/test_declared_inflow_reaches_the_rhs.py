@@ -188,7 +188,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
 
         inflow_rows = sn.angular_trace.inflow_indices_for_face("xmin")
         slot = np.zeros(
-            AngularBoundarySourceSink.zeros_on(sn).face_view("xmin").shape
+            AngularBoundarySourceSink.zeros(sn.angular_trace).face_view("xmin").shape
         )
         slot[inflow_rows] = 1.0
         composite = TimedFullField(
@@ -219,7 +219,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
 
         inflow_rows = sn.angular_trace.inflow_indices_for_face("xmin")
         slot = np.zeros(
-            AngularBoundarySourceSink.zeros_on(sn).face_view("xmin").shape
+            AngularBoundarySourceSink.zeros(sn.angular_trace).face_view("xmin").shape
         )
         slot[inflow_rows] = 1.0
         composite = TimedFullField(
@@ -281,7 +281,7 @@ def _composite(sn: SNMesh, *, boundary_value: float = 0.0,
     from orpheus.transport.timed_full_field import TimedFullField
 
     slot = np.zeros(
-        AngularBoundarySourceSink.zeros_on(sn).face_view("xmin").shape
+        AngularBoundarySourceSink.zeros(sn.angular_trace).face_view("xmin").shape
     )
     slot[sn.angular_trace.inflow_indices_for_face("xmin")] = boundary_value
     return TimedFullField(

@@ -175,8 +175,8 @@ class TestResolutionADecomposition:
         rng = np.random.default_rng(seed)
         bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -277,8 +277,8 @@ class TestSubtractiveDefinition:
         rng = np.random.default_rng(seed)
         bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -356,8 +356,8 @@ class TestPureLIsLossActionAtZeroSigma:
         rng = np.random.default_rng(0)
         bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux.from_mesh(bulk_arr, sn_mesh),
-            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+            interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
             _history=(),
             history_depth=2,
         )

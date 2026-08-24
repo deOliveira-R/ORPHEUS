@@ -176,7 +176,7 @@ def _build_composite(
         structurally ``None``.
     """
     if boundary_values is None:
-        boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     else:
         # A.5: the AngularBoundaryFlux space IS the mesh's unified AngularTraceSpace
         # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
@@ -196,7 +196,7 @@ def _build_composite(
     else:
         radial_characteristic = None
     psi_a = TimedFullField(
-        interior=AngularFlux.from_mesh(bulk_values, sn_mesh),
+        interior=AngularFlux(values=bulk_values, space=sn_mesh.angular_bulk_space),
         boundary=boundary,
         _history=(),
         history_depth=2,

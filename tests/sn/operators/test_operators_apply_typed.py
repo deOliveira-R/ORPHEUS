@@ -448,7 +448,7 @@ def test_c6_apply_dispatch_parity() -> None:
     )
     # Carriers built directly (independent of the under-typed integrate_angular).
     psi = cast(AngularFlux, state.interior)
-    phi = ScalarFlux.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
+    phi = ScalarFlux(values=np.ones((sn.ng, *sn.spatial_shape)), space=sn.bulk_space)
 
     cases = [
         ("F(TimedFullField)", F.apply(state), FullField),
