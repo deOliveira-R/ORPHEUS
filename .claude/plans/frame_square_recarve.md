@@ -1,12 +1,15 @@
 # The frame square — minted faces, metric truth, and the Riesz floor (CS4b frame re-carve)
 
-**⚠ INSTALL ON APPROVAL (step 0):** this file was written in plan mode outside the
-repo. The first execution act is installing it as
-`ORPHEUS/.claude/plans/frame_square_recarve.md`, replacing the campaign plan §5
-⛔ FRAME-FACTORY block's charter text with a pointer + the ruling digest, and
-updating the topic memory's ▶ NEXT. The user will compact context between plan
-approval and execution — **this file is the resume surface; trust it over any
-summary.**
+**⏹ EXECUTED + VERIFIED (2026-08-23/24).** Step 0 `5539168f` → F-0
+`0317373d` → F-1 `3dfea889`; the **⏹ LANDING LEDGER** below carries the
+per-tree verification table, the execution deltas, and the two adjudicated
+suite reds (one fixed `4aa7f951`; one pre-existing, #404). Read this file as
+the RECORD of the ruled floor, the probe numbers, and the **CS4c / Phase-S
+recorded debts** — not as pending work. ▶ The campaign resumes at **S5**
+(`space_and_kernel_binding_campaign.md` §5 defines S5→S7 just above its
+resume pointer; step detail in `scratch/cs4b_verification_plan.md`).
+*(The pre-execution install banner that stood here is history: this file was
+written in plan mode and installed as its own step 0.)*
 
 ---
 
@@ -233,7 +236,12 @@ Sphinx `-W` clean; nexus `dead_references` 0.
 **⏹ FULL-SUITE VERIFICATION COMPLETE 2026-08-24 02:02** (per-tree observable
 run, `scratch/_f01_suite_driver.sh` → `scratch/_f01_full_suite.log`; the two
 prior attempts died opaque — harness reap at ~90 min, then pytest's
-capture+block-buffering hiding all progress — both recorded in #405):
+capture+block-buffering hiding all progress — both recorded in #405).
+⚠ **Population: the UN-deselected tree — `-m "not slow"` was NOT passed**, so
+this table INCLUDES the slow tier and is NOT comparable to the canonical
+~52–90-min gate figures (`[M]` marker split: sn 116 / derivations 67 / mc 16 /
+cp 13 slow tests; every named giant incl. phase_d/e is slow-marked — the
+correction is recorded on #405, and #404's red is slow-tier-only):
 
 | tree | result | wall |
 |---|---|---|
