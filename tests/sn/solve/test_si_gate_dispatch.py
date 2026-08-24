@@ -32,6 +32,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import WindowedSweep
 from orpheus.sn.solver import _maybe_window
@@ -57,18 +59,32 @@ class _BaseResolvent:
 
 
 def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
-    # ``full_field_space=None`` — the honest "no typed space" the
-    # composition guards skip (BulkAnalysisOperator.domain reads it).
+    # F-1: BulkAnalysisOperator POSES its codomain at construction
+    # (``from_blocks(face moment bulk, trace)`` — the pre-F-1 ``None``
+    # codomain debt died), so the fake carries a minimal posed composite
+    # rather than ``None``. Content is irrelevant to the gate — only the
+    # trace block's existence is consumed.
     return SimpleNamespace(
-        is_cartesian=is_cartesian, ndim=ndim, full_field_space=None,
+        is_cartesian=is_cartesian, ndim=ndim,
+        full_field_space=FullFieldSpace.from_blocks(
+            FunctionSpace("fake_bulk", (2,)), FunctionSpace("fake_trace", (2,)),
+        ),
     )
 
 
 def _scattering_stub():
-    # _maybe_window reads ONLY scattering_op.frame (the angular Frame that
-    # the windowed product's P factor injects); stub exactly that.
+    # F-1: _maybe_window reads ONLY scattering_op.flux_analysis (the MINTED
+    # face the windowed product's P factor is built from); the surrogate
+    # honours exactly the surface the factory + BulkAnalysisOperator
+    # constructor consume — ``.codomain`` (the posed moment bulk) and
+    # ``.frame`` (what the fused apply would read; unused by the gate).
+    # The real-face twin lives in test_2d_anisotropic_windowing (real S,
+    # real mesh) per this module's cheap-gate-pin philosophy.
     return SimpleNamespace(
-        frame=Quadrature.level_symmetric(sn_order=4).angular_frame(0),
+        flux_analysis=SimpleNamespace(
+            codomain=FunctionSpace("fake_moment_bulk", (3,)),
+            frame=Quadrature.level_symmetric(sn_order=4).angular_frame(0),
+        ),
     )
 
 
