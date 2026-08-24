@@ -82,7 +82,7 @@ def test_timed_full_field_is_vector() -> None:
     ``transport`` (the layering payoff of a structural Protocol).
     """
     m = _slab_mesh()
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
     assert isinstance(state, Vector)
 
 

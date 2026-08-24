@@ -170,7 +170,7 @@ def _seed_cot(sn_mesh: SNMesh, values=None):
     size (the split composite's ``to_flat`` layout: interior ⊕ boundary)."""
     if sn_mesh.radial_characteristic_field_space is None:
         return None
-    cot = RadialCharacteristicField.source_zeros_on(sn_mesh)
+    cot = RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space)
     if values is not None:
         cot = RadialCharacteristicField.from_flat(
             np.asarray(values, dtype=float), cot,
@@ -283,7 +283,7 @@ def test_g1_round_trip_bulk(geom):
         grid, _space = joint_m_grid(sn, A)
         b = _fresh_source(sn)                 # bulk-only source-subspace b
         b.interior.values[:] = rng.random(b.interior.values.shape)
-        z_cot = RadialCharacteristicField.source_zeros_on(sn)
+        z_cot = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
         fwd = grid.apply_transpose(
             grid.solve_transpose(CoupledField(systems=(b, z_cot))),
         ).systems[0]

@@ -123,7 +123,7 @@ class TestFullFieldMembership:
         """The history-bearing carrier IS a FullField — by inheritance."""
         sn = _slab_mesh()
         tff = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         _require(
             _is_a(tff, FullField),
@@ -135,7 +135,7 @@ class TestFullFieldMembership:
         """Every full field is a Vector (FullField carries the four dunders)."""
         sn = _slab_mesh()
         tff = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         _require(
             _is_a(tff, Vector),
@@ -291,10 +291,10 @@ class TestPolymorphicRecombine:
         """
         sn = _slab_mesh()
         a = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=5,
         )
         b = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=5,
         )
         # Build a non-trivial history on ``a`` so the empty-history claim
         # is a real assertion (not a tautology of zeros()).
@@ -326,7 +326,7 @@ class TestPolymorphicRecombine:
         """scalar * TimedFullField → TimedFullField (type, depth preserved)."""
         sn = _slab_mesh()
         a = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=3,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=3,
         )
         out = 2.0 * a
         _require(
@@ -344,7 +344,7 @@ class TestPolymorphicRecombine:
         """-TimedFullField → TimedFullField."""
         sn = _slab_mesh()
         a = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         out = -a
         _require(
@@ -372,7 +372,7 @@ class TestFullFieldTwoBlock:
     def test_full_field_has_no_ray_slot(self):
         sn = _slab_mesh()
         composite = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         if hasattr(composite, "radial_characteristic"):
             pytest.fail("FullField still exposes a radial_characteristic "
@@ -386,13 +386,13 @@ class TestFullFieldTwoBlock:
         with pytest.raises(TypeError):
             FullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux,
-                mesh=sn,
+                space=sn.full_field_space,
                 radial_characteristic=None,
             )
         with pytest.raises(TypeError):
             TimedFullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux,
-                mesh=sn,
+                space=sn.full_field_space,
                 radial_characteristic=None,
             )
 
@@ -413,7 +413,7 @@ class TestFullFieldTwoBlock:
         # two blocks.
         sn = _slab_mesh()
         composite = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         with pytest.raises(TypeError):
             composite._recombine(

@@ -571,7 +571,7 @@ class TestP14SphereAdjointVector:
         # the daggered .H reads at solve time (frozen dataclass →
         # object.__setattr__; a construction-time snapshot would leave
         # `after == before` and fail here rather than silently pass).
-        tmpl = RadialCharacteristicField.from_mesh(sn_mut)
+        tmpl = RadialCharacteristicField.flux_zeros(sn_mut.radial_characteristic_field_space)
         ones_ray = RadialCharacteristicField.from_flat(
             np.ones(int(cspace.shape[0])), tmpl,
         )

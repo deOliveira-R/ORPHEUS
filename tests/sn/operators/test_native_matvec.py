@@ -148,7 +148,7 @@ def _zero_flux(sn_mesh: SNMesh) -> TimedFullField:
     # allocates the present-but-ZERO ψ½ block iff the mesh carries levels
     # (sphere yes; slab/cyl stay None).  apply(0)=0 holds on every block.
     return TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
 
 
@@ -160,7 +160,7 @@ def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
     implies boundary-at-the-value (the flat-flux invariant input).
     """
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     state.interior.values[:] = value
     for face in ("xmin", "xmax"):
@@ -174,7 +174,7 @@ def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
     # datum and break the value assertion (rule 2).
     seed = None
     if sn_mesh.radial_characteristic_field_space is not None:
-        seed = RadialCharacteristicField.from_mesh(sn_mesh)
+        seed = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
         seed.interior.values[:] = value
         seed.boundary.values[:] = value
     return state, seed
@@ -309,7 +309,7 @@ class TestLinearity:
         rng = np.random.default_rng(seed=42)
 
         def _random_state() -> TimedFullField:
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
             state.interior.values[:] = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
             state.boundary.face_view("xmax")[:] = rng.standard_normal((N, ng))
             if "xmin" in state.boundary.layout.faces:
@@ -324,7 +324,7 @@ class TestLinearity:
         alpha, beta = 1.7, -0.3
 
         # M(αψ + βφ)
-        sum_psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        sum_psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         sum_psi.interior.values[:] = alpha * psi.interior.values + beta * phi.interior.values
         sum_psi.boundary.face_view("xmax")[:] = (
             alpha * psi.boundary.face_view("xmax")
@@ -431,7 +431,7 @@ class TestFaceResidualMask:
         # Random ψ — the inflow-ordinate output is the I·ψ.inflow identity
         # row (the consistency-residual diagonal), so it tracks the input.
         rng = np.random.default_rng(seed=11)
-        psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         psi.interior.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, *sn_mesh.spatial_shape),
         )
@@ -469,7 +469,7 @@ class TestFaceResidualMask:
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
 
         rng = np.random.default_rng(seed=22)
-        psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         psi.interior.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, *sn_mesh.spatial_shape),
         )
@@ -545,7 +545,7 @@ class TestTwoDCartesianRaises:
         quad = Quadrature.level_symmetric(sn_order=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
-        psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         result = _LC_matvec(psi, sigma_t, sn_mesh=sn_mesh)
         # #257 S8a — base arrow output is the TIMELESS FullField.
         assert isinstance(result, FullField)

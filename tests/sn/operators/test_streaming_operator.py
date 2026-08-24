@@ -170,7 +170,7 @@ def _random_composite(sn_mesh, seed=171):
     from dataclasses import replace
 
     rng = np.random.default_rng(seed)
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     bulk_values = rng.standard_normal(state.interior.values.shape)
     boundary_values = 0.1 + rng.random(state.boundary.values.shape)
     state = replace(state, interior=replace(state.interior, values=bulk_values))
@@ -299,7 +299,7 @@ class TestLinearity:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = L.apply(state)
         np.testing.assert_allclose(out.interior.values, 0.0, atol=1e-14)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
@@ -454,7 +454,7 @@ class TestCompositeInvariants:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = L.apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -476,7 +476,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
             out = L.apply(state)
             if type(out) is not FullField or isinstance(out, TimedFullField):
                 pytest.fail(
@@ -516,7 +516,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
 
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = L.apply(state)
 
         # base-arrow codomain: a timeless FullField, NOT the timed subclass.
@@ -534,12 +534,12 @@ class TestCompositeInvariants:
         sn_mesh_a = _slab_mesh()
         L = StreamingOperator(sn_mesh_a)
         twin = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=_slab_mesh(),
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=_slab_mesh().full_field_space,
         )
         L.apply(twin)  # twin content — legal since the F2 re-key
         state_c = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            mesh=_stretched_mesh(),
+            space=_stretched_mesh().full_field_space,
         )
         with pytest.raises(ValueError, match="space-content"):
             L.apply(state_c)
@@ -719,7 +719,7 @@ class TestT4bPreT4RegressionSnapshot:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -956,7 +956,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
         L = StreamingOperator(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         rng = np.random.default_rng(seed)
         state = replace(
             state,

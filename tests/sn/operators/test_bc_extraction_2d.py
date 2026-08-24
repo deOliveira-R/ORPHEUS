@@ -177,7 +177,7 @@ class TestVacuum2DBitIdentity:
 
         rng = np.random.default_rng(20260603 + seed)
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
         )
         state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
         # vacuum: no incoming inflow trace (boundary stays zero).
@@ -270,7 +270,7 @@ class TestStreamingEquilibrium2D:
         ng = phi.size
         nx, ny = sn_mesh.spatial_shape
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
         )
         state.interior.values[...] = (phi / W)[None, :, None, None] * np.ones(
             (N, ng, nx, ny)
@@ -499,7 +499,7 @@ class TestBoundaryResidual2DResponds:
     def _perturbable_state(self, sn_mesh: SNMesh, seed: int) -> TimedFullField:
         rng = np.random.default_rng(seed)
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
         )
         state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
         state.boundary.values[...] = rng.standard_normal(
@@ -509,7 +509,7 @@ class TestBoundaryResidual2DResponds:
 
     def _copy_state(self, src: TimedFullField, sn_mesh: SNMesh) -> TimedFullField:
         dst = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
         )
         dst.interior.values[...] = src.interior.values
         dst.boundary.values[...] = src.boundary.values

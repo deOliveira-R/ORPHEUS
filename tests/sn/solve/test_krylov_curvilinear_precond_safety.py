@@ -176,7 +176,7 @@ def _krylov_power_iteration_kinf(
     )
     coupled = isinstance(system.implicit_operator, CoupledOperator)
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     cold = _coupled_flux_state(zero, sn_mesh) if coupled else zero
     krylov = KrylovAcceleration(
@@ -344,7 +344,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
 
     pair = _coupled_flux_state(
         TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         ),
         sn,
     )
@@ -400,7 +400,7 @@ def _expected_coupled_restart(sn) -> tuple[int, int]:
     bulk = int(sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape)))
     trace = int(sn.angular_trace.layout.total_size)
     size_b = int(np.asarray(
-        RadialCharacteristicField.from_mesh(sn).to_flat(),
+        RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space).to_flat(),
     ).size)
     return bulk + trace + size_b, bulk
 

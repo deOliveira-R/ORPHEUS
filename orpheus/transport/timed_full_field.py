@@ -132,12 +132,16 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
 )
 from orpheus.transport.full_field import FullField
+
+if TYPE_CHECKING:
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
 __all__ = ["TimedFullField"]
 
@@ -200,41 +204,40 @@ class TimedFullField(FullField):
         *,
         interior: type[BulkField],
         boundary: type[BoundaryField],
-        mesh: "object",
+        space: "FullFieldSpace",
         history_depth: int = 2,
     ) -> "TimedFullField":
-        r"""Allocate a zero composite from the bulk + boundary leaf TYPES (B.5.A).
+        r"""Allocate a zero composite from the leaf TYPES + composite SPACE (B.5.A).
 
         Specialises
         :meth:`~orpheus.transport.full_field.Composite.zeros` by threading
         ``history_depth`` (the timeless base has no such concept). The
-        bulk / boundary leaf CLASSES are zero-allocated on ``mesh`` via
-        their own :meth:`zeros_on` — the SN-specific ``(AngularFlux,
-        AngularBoundaryFlux)`` composition lives at the SN call site, not here.
-        Replaces the retired ``SNMesh.zeros_timed_full_field``.
+        bulk / boundary leaf CLASSES are zero-allocated on the composite
+        space's blocks — the SN-specific ``(AngularFlux,
+        AngularBoundaryFlux)`` composition lives at the SN call site, not
+        here. Space-keyed since CS4b S5 (a composite is an element of its
+        direct-sum space; the mesh-keyed ``zeros_on`` delegation retired
+        with the sugar tier).
 
         Parameters
         ----------
         interior : type[BulkField]
-            The bulk leaf CLASS to instantiate (must expose
-            ``zeros_on(mesh)``).
+            The bulk leaf CLASS to instantiate.
         boundary : type[BoundaryField]
-            The boundary leaf CLASS to instantiate (must expose
-            ``zeros_on(mesh)``).
-        mesh : object
-            The phase-space carrier passed through to each leaf's
-            ``zeros_on`` (duck-typed — no transport→mesh hard
-            dependency).
+            The boundary leaf CLASS to instantiate.
+        space : FullFieldSpace
+            The composite carrier space — the carrier's cached
+            ``full_field_space`` (both block spaces required).
         history_depth : int, optional
             History buffer depth (default 2; see the class docstring).
         """
         # Delegate leaf zero-allocation to the timeless base (the SINGLE
-        # source of the duck-typed ``zeros_on`` calls), then re-wrap with
-        # the history metadata — so neither lives duplicated here.
+        # source of the per-block ``Field.zeros`` calls), then re-wrap
+        # with the history metadata — so neither lives duplicated here.
         base = FullField.zeros(
             interior=interior,
             boundary=boundary,
-            mesh=mesh,
+            space=space,
         )
         return cls(
             interior=base.interior,

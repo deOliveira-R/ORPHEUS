@@ -577,13 +577,13 @@ def build_within_group_system(
         zeros=lambda: CoupledField(
             systems=(
                 _zero_full_field(sn_mesh),
-                RadialCharacteristicField.from_mesh(sn_mesh),
+                RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space),
             ),
         ),
         dual_zeros=lambda: CoupledField(
             systems=(
                 _zero_full_field_dual(sn_mesh),
-                RadialCharacteristicField.source_zeros_on(sn_mesh),
+                RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space),
             ),
         ),
     )

@@ -85,7 +85,7 @@ def _random_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     from dataclasses import replace
 
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=2,
     )
     rng = np.random.default_rng(seed)
     state = replace(

@@ -127,7 +127,7 @@ def _loss(sn_mesh: SNMesh):
 def _bulk_impulse_state(sn_mesh: SNMesh, n: int, g: int, x: np.ndarray):
     """A composite that is ``x`` on bulk row (n, g) and zero elsewhere."""
     state = FullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     state.interior.values[n, g] = x.reshape(sn_mesh.spatial_shape)
     return state
@@ -590,7 +590,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     def _zero_seed():
         return (
             None if not carrying
-            else RadialCharacteristicField.from_mesh(sn_mesh)
+            else RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
         )
 
     n_seed_per_level = 2 * nx + 2

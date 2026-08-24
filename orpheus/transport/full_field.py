@@ -222,21 +222,36 @@ class Composite(Generic[Interior, Boundary]):
         *,
         interior: "type[Interior]",
         boundary: "type[Boundary]",
-        mesh: "object",
+        space: "FullFieldSpace",
     ) -> "Self":
-        r"""Allocate a zero composite from the interior + boundary leaf TYPES.
+        r"""Allocate a zero composite from the leaf TYPES + the composite SPACE.
 
         Generic over the method's leaf types: the caller passes the interior and
         boundary :class:`~orpheus.numerics.field.Field` *subclasses* (SN passes
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`;
-        diffusion / CP pass their scalar leaves), and each is zero-allocated on
-        ``mesh`` via its own :meth:`zeros_on`. This keeps the cross-method-generic
-        container free of any hard-wired leaf type.
+        diffusion / CP pass their scalar leaves) and the carrier's cached
+        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        (``sn.full_field_space`` / ``diffusion_mesh.full_field_space``);
+        each block is zero-allocated on the matching block space via the one
+        :meth:`~orpheus.numerics.field.Field.zeros` primitive. A composite is
+        an ELEMENT of its direct-sum space (CS4b S4), so its allocator is
+        space-keyed exactly like the leaves' (S5 — the mesh-keyed
+        ``zeros_on`` delegation retired with the sugar tier). This keeps the
+        cross-method-generic container free of any hard-wired leaf type.
         """
+        interior_space = space.interior_space
+        trace_space = space.trace_space
+        if interior_space is None or trace_space is None:
+            raise ValueError(
+                f"{cls.__name__}.zeros: the composite space must carry BOTH "
+                f"block spaces (interior_space / trace_space) — a zero "
+                f"composite is an element of the full direct sum; got "
+                f"{space!r}."
+            )
         return cls(
-            interior=interior.zeros_on(mesh),  # type: ignore[attr-defined]
-            boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
+            interior=interior.zeros(interior_space),
+            boundary=boundary.zeros(trace_space),
         )
 
     # ── Construction validation ──────────────────────────────────────

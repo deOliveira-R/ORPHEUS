@@ -1026,7 +1026,7 @@ def _coupled_flux_state(
     :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.from_mesh`.
     """
     return CoupledField(
-        systems=(psi_a, RadialCharacteristicField.from_mesh(sn_mesh)),
+        systems=(psi_a, RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)),
     )
 
 
@@ -2183,7 +2183,7 @@ class SNSolver:
             # (bit-identical); the flux template fixes the Krylov return
             # type — paired NATIVE with a zero ψ_B on a carrying mesh (B.2d).
             cold = TimedFullField.zeros(
-                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
+                interior=AngularFlux, boundary=AngularBoundaryFlux, space=self.sn_mesh.full_field_space,
             )
             initial_guess = (
                 _coupled_flux_state(cold, self.sn_mesh) if coupled else cold
@@ -2567,7 +2567,7 @@ def solve_sn(
     # corner (vacuum ⇒ 0; zeros on a cold finalize).
     corner_state = None
     if isinstance(final_implicit, CoupledOperator):
-        corner_state = RadialCharacteristicField.from_mesh(sn_mesh)
+        corner_state = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
         if converged_ray is not None:
             corner_state.interior.values[...] = converged_ray.interior.values
             corner_state.boundary.values[...] = converged_ray.boundary.values
@@ -3431,7 +3431,7 @@ def _build_fixed_source_rhs(
     # populates it.  Carrying meshes are 1-D curvilinear DD (never
     # moment-resolved), so the flat bulk is the only live shape here.
     if explicit_seed is not None:
-        seed_src = RadialCharacteristicField.source_zeros_on(sn_mesh)
+        seed_src = RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space)
         seed_src.interior.values[...] = explicit_seed.interior.values
         seed_src.boundary.values[...] = explicit_seed.boundary.values
     else:

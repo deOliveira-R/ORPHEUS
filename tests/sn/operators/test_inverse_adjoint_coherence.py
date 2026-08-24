@@ -467,7 +467,7 @@ def _coupled_bulk_b(sn, seed: int):
 
     b = _rand_bulk(sn, seed)
     return CoupledField(
-        systems=(b, RadialCharacteristicField.source_zeros_on(sn)),
+        systems=(b, RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)),
     )
 
 
@@ -478,7 +478,7 @@ def _coupled_full_psi(sn, seed: int):
     )
 
     psi = _rand_full(sn, seed)
-    return CoupledField(systems=(psi, RadialCharacteristicField.from_mesh(sn)))
+    return CoupledField(systems=(psi, RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)))
 
 
 def test_carrying_block_and_coupled_adjointability_coexist():
@@ -629,7 +629,7 @@ def _coupled_rand_pair(sn, seed: int):
     ns = sn.radial_characteristic_field_space.shape[0]
     member = RadialCharacteristicField.from_flat(
         rng.standard_normal(ns),
-        RadialCharacteristicField.from_mesh(sn),
+        RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),
     )
     return CoupledField(systems=(_rand_full(sn, seed + 1000), member))
 

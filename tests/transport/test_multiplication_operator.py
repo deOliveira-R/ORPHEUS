@@ -134,7 +134,7 @@ def _random_state(sn_mesh: SNMesh, ng: int = 2, seed: int = 42) -> TimedFullFiel
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     return replace(
         state,
         interior=replace(
@@ -631,7 +631,7 @@ class TestMeshlessBareArm:
         N = sn.quad.N
         bulk_vals = np.broadcast_to(x[None], (N, 2, 5, 3)).copy()
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         psi_bcast = replace(state, interior=replace(state.interior, values=bulk_vals))
 

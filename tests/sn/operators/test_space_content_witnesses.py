@@ -143,12 +143,12 @@ class TestO8SolutionRayMember:
             RadialCharacteristicField,
         )
 
-        member = RadialCharacteristicField.source_zeros_on(graded)
+        member = RadialCharacteristicField.source_zeros(graded.radial_characteristic_field_space)
         # A flux-role member is what a Solution carries; the source-zeros
         # factory gives the cheapest structurally-complete member — the
         # guard reads only its block SPACES, which is the claim.
         psi = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         phi = ScalarFlux.zeros_on(sn)
         with pytest.raises(ValueError, match="ray spaces"):

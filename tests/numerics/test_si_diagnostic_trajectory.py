@@ -255,7 +255,7 @@ def _run_si():
         _history=(), history_depth=2,
     )
     guess = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     _, record = si.solve(q_ext, initial_guess=guess)
     return record
@@ -433,7 +433,7 @@ def _replay_final_increment():
         _history=(), history_depth=2,
     )
     psi = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     increment = None
     for _ in range(_MAX_ITER):

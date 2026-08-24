@@ -188,7 +188,7 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
 
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     for face in state.boundary.layout.faces:

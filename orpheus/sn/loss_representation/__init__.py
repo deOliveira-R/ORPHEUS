@@ -3189,7 +3189,7 @@ class _OneDimScanWalk:
                 RadialCharacteristicField,
             )
 
-            seed_field = RadialCharacteristicField.from_mesh(sn_mesh)
+            seed_field = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
         psi_state = pole_angular_closure.precompute_psi_state(
             psi_view,
             radial_characteristic=(

@@ -532,7 +532,7 @@ def _random_composite(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     """
     rng = np.random.default_rng([seed, 7])
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
     for face in state.boundary.layout.faces:

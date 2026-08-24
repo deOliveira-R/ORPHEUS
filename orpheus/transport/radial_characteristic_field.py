@@ -17,9 +17,9 @@ block (unlike the historical 3-block ``FullField``): the generic
 :class:`~orpheus.transport.full_field.Composite` base (its slot bounds relaxed to
 ``Field`` in Phase B) holds the entire 2-block vector-space algebra, and System B
 inherits it whole. The subclass adds only the concrete-locus ``__post_init__``
-guard and the role-keyed birth factories (:meth:`from_mesh` /
-:meth:`source_zeros_on` / :meth:`source_from_angular` — all presence-gated by
-the leaf factories).
+guard and the role-keyed birth factories (:meth:`flux_zeros` /
+:meth:`source_zeros` / :meth:`source_from_angular` — all presence-gated at
+the member-space parse, CS4b S5).
 
 **Role-erased slots (B.2b DP2, the FullField precedent).** The static parameters
 bind the locus FIELD BASES, not the flux leaves — exactly as ``FullField`` binds
@@ -78,6 +78,8 @@ from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink i
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.source_sinks.angular_boundary_source_sink import (
         AngularBoundarySourceSink,
@@ -132,18 +134,56 @@ class RadialCharacteristicField(
     # ── Construction ─────────────────────────────────────────────────
 
     @classmethod
-    def from_mesh(cls, mesh: "SNMesh") -> "RadialCharacteristicField":
-        r"""A zero ψ½ flux composite on ``mesh`` (presence-gated).
+    def flux_zeros(
+        cls, space: "FullFieldSpace | None",
+    ) -> "RadialCharacteristicField":
+        r"""A zero ψ½ FLUX composite on System B's member space (presence-gated).
 
-        Builds the two zero flux leaves from ``mesh``'s split spaces — so on a
-        NON-carrying mesh (no R12a seed level) the leaf factories raise, i.e.
-        System B is unconstructable exactly where it does not exist (presence =
-        block existence).
+        Space-keyed since CS4b S5 (the mesh-keyed ``from_mesh`` retired with
+        the sugar tier): the caller passes the carrier's cached
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_field_space`,
+        whose blocks ARE the split ψ½ spaces (``is``-shared with
+        ``radial_characteristic_interior_space`` /
+        ``radial_characteristic_boundary_space``). ``None`` — what a
+        NON-carrying mesh's cached property returns (R12a) — is REFUSED with
+        the presence diagnosis, so System B stays unconstructable exactly
+        where it does not exist (presence = block existence), now diagnosed
+        at the composite seam instead of inside a leaf factory.
         """
-        return cls(
-            interior=RadialCharacteristicInteriorFlux.zeros_on(mesh),
-            boundary=RadialCharacteristicBoundaryFlux.zeros_on(mesh),
+        cells, corner = cls._require_member_space(
+            space, context=f"{cls.__name__}.flux_zeros",
         )
+        return cls(
+            interior=RadialCharacteristicInteriorFlux.zeros(cells),
+            boundary=RadialCharacteristicBoundaryFlux.zeros(corner),
+        )
+
+    @classmethod
+    def _require_member_space(
+        cls, space: "FullFieldSpace | None", *, context: str,
+    ) -> "tuple[FunctionSpace, FunctionSpace]":
+        r"""Parse the member-space argument — the shared presence gate.
+
+        The ONE spelling of the R12a absence diagnosis for the composite
+        allocators (:meth:`flux_zeros` / :meth:`source_zeros` — Pattern 2).
+        Returns the narrowed ``(cells, corner)`` block pair so the leaf
+        allocations type-check without re-narrowing.
+        """
+        if space is None:
+            raise ValueError(
+                f"{context}: System B is absent on this carrier — "
+                f"radial_characteristic_field_space is None (R12a: no "
+                f"μ-level consumes independent starting-direction state; "
+                f"Cartesian and the production cylinder rules land here). "
+                f"System B's blocks are spelled absent, never zero-DOF "
+                f"fields."
+            )
+        if space.interior_space is None or space.trace_space is None:
+            raise ValueError(
+                f"{context}: the ψ½ member space must carry BOTH blocks "
+                f"(interior_space / trace_space); got {space!r}."
+            )
+        return space.interior_space, space.trace_space
 
     @classmethod
     def require_member(
@@ -183,18 +223,23 @@ class RadialCharacteristicField(
     # ── The source-role birth factories ───────────────────────────────
 
     @classmethod
-    def source_zeros_on(cls, mesh: "SNMesh") -> "RadialCharacteristicField":
-        r"""A zero q½ SOURCE composite on ``mesh`` (presence-gated).
+    def source_zeros(
+        cls, space: "FullFieldSpace | None",
+    ) -> "RadialCharacteristicField":
+        r"""A zero q½ SOURCE composite on System B's member space (presence-gated).
 
-        The source-role sibling of :meth:`from_mesh` — the buffer the joint
+        The source-role sibling of :meth:`flux_zeros` — the buffer the joint
         matvec/transpose surfaces fill with System B's emitted rows (an
-        operator ``.apply`` output is source-role, never flux-role).  On a
-        non-carrying mesh the leaf factories raise (presence = block
-        existence).
+        operator ``.apply`` output is source-role, never flux-role). Same
+        space-keyed contract and R12a ``None`` refusal (CS4b S5; the
+        mesh-keyed ``source_zeros_on`` retired with the sugar tier).
         """
+        cells, corner = cls._require_member_space(
+            space, context=f"{cls.__name__}.source_zeros",
+        )
         return cls(
-            interior=RadialCharacteristicInteriorSourceSink.zeros_on(mesh),
-            boundary=RadialCharacteristicBoundarySourceSink.zeros_on(mesh),
+            interior=RadialCharacteristicInteriorSourceSink.zeros(cells),
+            boundary=RadialCharacteristicBoundarySourceSink.zeros(corner),
         )
 
     @classmethod
@@ -312,7 +357,7 @@ class RadialCharacteristicField(
         level_indices = mesh.pole_angular_closure.level_indices
         assert mesh.reduced is not None  # carrying ⇒ curvilinear ⇒ reduced
         arc_family = mesh.reduced.coord is CoordSystem.CYLINDRICAL
-        seed = cls.source_zeros_on(mesh)
+        seed = cls.source_zeros(mesh.radial_characteristic_field_space)
         for p in seed.interior.space.levels:
             ords = np.asarray(level_indices[p])
             mu_p = mu[ords]

@@ -510,7 +510,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         dr = mesh.axis_widths[0]
         start_cosines = _march_start_cosines(mesh)
 
-        flux = RadialCharacteristicField.from_mesh(mesh)
+        flux = RadialCharacteristicField.flux_zeros(mesh.radial_characteristic_field_space)
         for level in comp.interior.space.levels:
             # The engine marches in PATH length: the start ray at radial
             # cosine |η_start| traverses Δr of radius over Δr/|η_start| of
@@ -609,7 +609,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
         # Duality typing (#276 A4, docstring above): dual-of-source = the
         # adjoint ray FLUX — the flux-role zeros buffer.
-        src_bar = RadialCharacteristicField.from_mesh(mesh)
+        src_bar = RadialCharacteristicField.flux_zeros(mesh.radial_characteristic_field_space)
         for level in comp.interior.space.levels:
             # The transpose of the PATH-length march uses the same per-level
             # path widths as the forward (sphere: ÷1.0, byte-identical).
@@ -923,7 +923,7 @@ class RadialCharacteristicSeeding(
         )
         _, seed_cells_bar = closure.angular_adjoint(numer_bar)
 
-        src_bar = RadialCharacteristicField.source_zeros_on(mesh)
+        src_bar = RadialCharacteristicField.source_zeros(mesh.radial_characteristic_field_space)
         for p, cells_bar in seed_cells_bar.items():
             src_bar.interior.cells(p, -1)[...] = cells_bar
         return src_bar
@@ -1126,7 +1126,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
                 f"Legendre-moment source of shape (n_moments, ng, nx) = "
                 f"{expected}; got {arr.shape}."
             )
-        seed = RadialCharacteristicField.source_zeros_on(self.sn_mesh)
+        seed = RadialCharacteristicField.source_zeros(self.sn_mesh.radial_characteristic_field_space)
         for level in self._ray_space.levels:
             for sign in (-1, +1):
                 if self._ell0_scale is not None:

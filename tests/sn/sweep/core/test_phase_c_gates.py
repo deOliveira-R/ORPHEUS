@@ -191,7 +191,7 @@ def _build_composite(
         )
         radial_characteristic = RadialCharacteristicField.from_flat(
             radial_characteristic_values,
-            RadialCharacteristicField.from_mesh(sn_mesh),
+            RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space),
         )
     else:
         radial_characteristic = None
@@ -598,7 +598,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     result = op.apply(state_zero)
     assert np.array_equal(
@@ -636,7 +636,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.interior.values, 0.0)

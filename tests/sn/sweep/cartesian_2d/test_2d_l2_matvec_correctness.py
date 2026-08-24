@@ -195,7 +195,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     mesh = _vacuum_xy_2d_with_scatter()
     rng = np.random.default_rng(seed=20260528)
 
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=mesh.full_field_space)
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
     state.boundary.values[...] = rng.standard_normal(state.boundary.values.shape)
 
@@ -308,8 +308,8 @@ def test_2d_matvec_linearity_random_state() -> None:
     A = L + C
 
     rng = np.random.default_rng(seed=20260528)
-    u = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
-    v = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    u = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=mesh.full_field_space)
+    v = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=mesh.full_field_space)
     u.interior.values[...] = rng.standard_normal(u.interior.values.shape)
     v.interior.values[...] = rng.standard_normal(v.interior.values.shape)
     u.boundary.values[...] = rng.standard_normal(u.boundary.values.shape)

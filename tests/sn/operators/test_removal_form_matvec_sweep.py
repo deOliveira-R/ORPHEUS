@@ -225,7 +225,7 @@ def _removal_sigmas(sn: SNMesh, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
 
 def _random_state(sn: SNMesh, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng([seed, 7])
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
     for face in state.boundary.layout.faces:
         fv = state.boundary.face_view(face)

@@ -92,7 +92,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     vals = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
     vals[:, 0, :] = (A / W)[None, :]
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     psi_ref = TimedFullField(
         interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,

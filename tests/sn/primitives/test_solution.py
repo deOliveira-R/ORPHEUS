@@ -169,7 +169,7 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     flux + boundary trace + history), the third slot is the
     composite's boundary trace.
     """
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     state.interior.values[:] = fill
     state.boundary.values[:] = fill
     phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, *sn_mesh.spatial_shape), fill), sn_mesh)
@@ -426,7 +426,7 @@ class TestSolutionConstruction:
         structure) refuses on the space-content invariant."""
         m1 = _slab_mesh()
         state_twin = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=_slab_mesh(),
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=_slab_mesh().full_field_space,
         )
         _, phi, bf = _make_fluxes(m1)
         Solution(angular_flux=state_twin, scalar_flux=phi, mesh=m1)
@@ -436,7 +436,7 @@ class TestSolutionConstruction:
         # caught the first fixture (ng=3) being caught by O7 instead).
         state_foreign = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            mesh=_quad8_mesh(),
+            space=_quad8_mesh().full_field_space,
         )
         with pytest.raises(ValueError, match="angular_flux.interior.space"):
             Solution(

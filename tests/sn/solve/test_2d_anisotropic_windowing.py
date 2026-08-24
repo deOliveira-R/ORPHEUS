@@ -300,7 +300,7 @@ def _windowed_product_and_oracle_operands(
     # input-independent — it is a property of the reduction tree, not of ψ).
     rng = np.random.default_rng(50301)
     rhs = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     rhs.interior.values[...] = rng.uniform(0.0, 1.0, size=rhs.interior.values.shape)
 

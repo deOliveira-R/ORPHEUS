@@ -101,6 +101,6 @@ class TestG42TheBindingIsGone:
         psi = AngularFlux.zeros_on(m)
         assert not hasattr(psi, "mesh")
         comp = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=m,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space,
         )
         assert not hasattr(comp, "mesh")  # the composite property retired too

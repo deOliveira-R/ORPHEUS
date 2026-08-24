@@ -80,7 +80,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     psi, _ = si.solve(q_ext, initial_guess=ig)
     return solver, system, q_ext, psi
 
@@ -502,14 +502,14 @@ class TestSplitRayResidualMint:
         )
         psi_pair = _coupled_flux_state(
             TimedFullField.zeros(
-                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+                interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
             ),
             sn,
         )
         assert isinstance(q_pair, CoupledField)
         bad_q = CoupledField(systems=(
             q_pair.systems[0],
-            RadialCharacteristicField.from_mesh(sn),   # FLUX pair — wrong role
+            RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),   # FLUX pair — wrong role
         ))
         with pytest.raises(TypeError):
             evaluate_residual(system, psi_pair, bad_q)

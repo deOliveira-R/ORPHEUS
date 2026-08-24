@@ -250,7 +250,7 @@ class DiffusionSolver:
 
         #: The zero composite freezing the flat layout.
         self.template = FullField.zeros(
-            interior=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
+            interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=mesh.full_field_space,
         )
         #: The campaign-ruled exact resolvent (eager LU at construction).
         self.resolvent = MatrixInverseOperator(

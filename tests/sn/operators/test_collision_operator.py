@@ -103,7 +103,7 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     return replace(
         state,
         interior=replace(
@@ -181,7 +181,7 @@ class TestApply:
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = C.apply(zero)
         np.testing.assert_array_equal(out.interior.values, 0.0)
 
@@ -445,7 +445,7 @@ class TestCompositeInvariants:
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
             out_apply = C.apply(state)
             out_solve = C.solve(state)
             # base-arrow codomain: a timeless FullField, NOT the timed subclass.

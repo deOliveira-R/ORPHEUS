@@ -187,7 +187,7 @@ def _random_state(sn_mesh: SNMesh, lc, seed: int):
         return _random_composite(sn_mesh, seed)
     template = CoupledField(systems=(
         _zero_source_composite(sn_mesh),
-        RadialCharacteristicField.source_zeros_on(sn_mesh),
+        RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space),
     ))
     flat = np.asarray(template.to_flat())
     rng = np.random.default_rng(seed + 1)
@@ -339,7 +339,7 @@ class TestSweepInverseIdentity:
                     np.asarray(boundary.face_view(face))[out_rows]
                 )
             rhs = CoupledField(systems=(
-                rhs_a, RadialCharacteristicField.source_zeros_on(sn_mesh),
+                rhs_a, RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space),
             ))
         else:
             rhs_a = FullField(

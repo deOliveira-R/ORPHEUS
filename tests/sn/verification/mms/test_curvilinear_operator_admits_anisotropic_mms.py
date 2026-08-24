@@ -91,7 +91,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
     # zero boundary trace — the matvec's bulk action is what we probe.
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     psi_ref = TimedFullField(
         interior=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,

@@ -526,7 +526,7 @@ def test_B_is_the_zero_morphism_when_every_face_is_prescribed() -> None:
     from orpheus.transport.timed_full_field import TimedFullField
 
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
     )
     rng = np.random.default_rng(20260806)
     x = replace(

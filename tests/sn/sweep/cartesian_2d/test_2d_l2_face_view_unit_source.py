@@ -118,7 +118,7 @@ def _zero_state_with_unit_face(
     structural positive test: this unit should propagate downstream
     via the streaming operator's BC apply.
     """
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=mesh.full_field_space)
     state.boundary.face_view(face)[...] = 1.0
     return state
 

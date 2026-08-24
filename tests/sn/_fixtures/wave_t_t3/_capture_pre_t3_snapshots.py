@@ -165,7 +165,7 @@ def main() -> None:
 
     psi = _make_psi(p1_solver, seed=20260530)
     phi = _make_phi(p1_solver, seed=20260530 + 1)
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=p1_solver.sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=p1_solver.sn_mesh.full_field_space)
     from dataclasses import replace
 
     bulk_values = psi.values.copy()

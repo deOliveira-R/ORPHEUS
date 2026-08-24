@@ -579,7 +579,7 @@ class TestCompositeInvariants:
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         np.random.seed(41)
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
@@ -598,7 +598,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         np.random.seed(42)
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
@@ -610,7 +610,7 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g_p0):
         """ψ = 0 ⇒ S·ψ = 0 (linearity guard at composite layer)."""
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p0.sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=solver_2g_p0.sn_mesh.full_field_space)
         out = solver_2g_p0.scattering_op.apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -627,7 +627,7 @@ class TestCompositeInvariants:
 
         sn_mesh = solver_2g_p0.sn_mesh
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
             out = solver_2g_p0.scattering_op.apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)
@@ -1462,7 +1462,7 @@ class TestAnisoMomentSourcePath:
         from dataclasses import replace
 
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p1_n2n.sn_mesh)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=solver_2g_p1_n2n.sn_mesh.full_field_space)
         state = replace(state, interior=replace(state.interior, values=psi.values))
 
         out_post_t3 = op_p1.apply(state)

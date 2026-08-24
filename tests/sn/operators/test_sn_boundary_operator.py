@@ -115,7 +115,7 @@ def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
 
 def _random_state(sn: SNMesh, seed: int = 7) -> TimedFullField:
     rng = np.random.default_rng(seed)
-    z = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    z = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
     return replace(
         z,
         interior=replace(z.interior, values=rng.uniform(0.5, 2.0, size=z.interior.values.shape)),

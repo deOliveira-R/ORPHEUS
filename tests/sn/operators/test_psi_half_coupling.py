@@ -197,7 +197,7 @@ def _template(sn):
 def _coupled_template(sn):
     """A zero coupled pair ``[ψ_A 2-block, ψ_B]`` to seed JOINT dense probes."""
     return CoupledField(systems=(
-        _template(sn), RadialCharacteristicField.from_mesh(sn)))
+        _template(sn), RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)))
 
 
 def _pair(sn, psi_a, ray_values):
@@ -454,7 +454,7 @@ def _ray_composite(sn, seed_values: NDArray) -> RadialCharacteristicField:
     interior ⊕ boundary blocks)."""
     return RadialCharacteristicField.from_flat(
         np.asarray(seed_values, dtype=float),
-        RadialCharacteristicField.from_mesh(sn))
+        RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space))
 
 
 def _dense_ray(fn, sn) -> NDArray:
@@ -845,7 +845,7 @@ def _ray_source(sn, rng) -> RadialCharacteristicField:
     ns = sn.radial_characteristic_field_space.shape[0]
     return RadialCharacteristicField.from_flat(
         rng.standard_normal(ns),
-        RadialCharacteristicField.source_zeros_on(sn))
+        RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space))
 
 
 def _ray_cotangent(sn, rng) -> RadialCharacteristicField:
@@ -870,7 +870,7 @@ def _two_leg_reference(op, source) -> RadialCharacteristicField:
     sn = op.sn_mesh
     sigma = op.total_cross_section.values
     dr = np.asarray(sn.axis_widths[0])
-    out = RadialCharacteristicField.from_mesh(sn)
+    out = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
     for lv in sn.radial_characteristic_levels:
         q_minus = source.interior.cells(lv, -1)
         q_plus = source.interior.cells(lv, +1)
@@ -1098,8 +1098,8 @@ class TestA_BB_RadialBVP:
         the interior; equal interiors would mean the Dirichlet datum is ignored."""
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        s0 = RadialCharacteristicField.source_zeros_on(sn)
-        s1 = RadialCharacteristicField.source_zeros_on(sn)
+        s0 = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
+        s1 = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
         for s in (s0, s1):
             for lv in sn.radial_characteristic_levels:
                 s.interior.cells(lv, -1)[...] = 0.5     # identical cells
@@ -1128,8 +1128,8 @@ class TestA_BB_RadialBVP:
             _rc_mod, "carlson_inward_sweep_from_source", ignore_bc)
         sn = _sphere()
         op = RadialCharacteristicOperator(sn, _ray_sigma(sn))
-        s0 = RadialCharacteristicField.source_zeros_on(sn)
-        s1 = RadialCharacteristicField.source_zeros_on(sn)
+        s0 = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
+        s1 = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
         for s in (s0, s1):
             s.interior.cells(0, -1)[...] = 0.5
         s1.boundary.corner(0, -1)[...] = 3.0
@@ -1156,7 +1156,7 @@ class TestA_BB_RadialBVP:
         sig = sigma.values                           # (ng, nx) for the σ·C source
         op = RadialCharacteristicOperator(sn, sigma)
         C = np.array([0.5, 1.3])                     # distinct per-group equilibrium
-        src = RadialCharacteristicField.source_zeros_on(sn)
+        src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
         for g in range(sn.ng):
             for sign in (-1, +1):                    # BOTH legs' cells source = σ·C
                 src.interior.cells(0, sign)[g, :] = sig[g] * C[g]
@@ -1496,7 +1496,7 @@ def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
     Step-2 un-weld MUST reproduce this byte-for-byte (``np.array_equal``),
     inheriting verification from the ℓ-fold contract gate (vv §Bit-identity: free
     verification by inheritance from a verified reference)."""
-    ref = RadialCharacteristicField.source_zeros_on(sn)
+    ref = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
     for lv in sn.radial_characteristic_levels:
         for sign in (-1, +1):
             ref.interior.cells(lv, sign)[:] = (
@@ -2702,7 +2702,7 @@ class TestA_AB_SeedInjection:
         rng = np.random.default_rng(32)
         ns = sn.radial_characteristic_field_space.shape[0]
         full = _ray_composite(sn, rng.standard_normal(ns))
-        only_minus = RadialCharacteristicField.from_mesh(sn)
+        only_minus = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
         for p in sn.radial_characteristic_levels:
             only_minus.interior.cells(p, -1)[...] = full.interior.cells(p, -1)
         if not np.max(np.abs(only_minus.to_flat())) > 0.0:
@@ -3973,7 +3973,7 @@ class TestCoupledSolve:
         # inflow corner datum through the march: a broken corner read
         # moves them O(1) off this reference) plus the facade bit-row
         # below (corners included, array_equal).
-        n_cells = RadialCharacteristicField.from_mesh(sn).interior.values.size
+        n_cells = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space).interior.values.size
         ray_cells = slice(ray.start, ray.start + n_cells)
         for name, sl in (("bulk", bulk), ("ray cells", ray_cells)):
             np.testing.assert_allclose(
@@ -3995,7 +3995,7 @@ class TestCoupledSolve:
         bulk, _tr, ray, _ = _blocks(sn)
         # Same #284 computed-slot doctrine as the forward: the corner
         # cotangent slots are outside the two-sided-inverse subspace.
-        n_cells = RadialCharacteristicField.from_mesh(sn).interior.values.size
+        n_cells = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space).interior.values.size
         ray_cells = slice(ray.start, ray.start + n_cells)
         for name, sl in (("bulk", bulk), ("ray cells", ray_cells)):
             np.testing.assert_allclose(

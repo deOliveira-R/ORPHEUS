@@ -480,7 +480,7 @@ def random_radial_characteristic_field(sn: "SNMesh", rng):
 
     if sn.radial_characteristic_field_space is None:
         return None
-    comp = RadialCharacteristicField.from_mesh(sn)
+    comp = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
     for level in sn.radial_characteristic_levels:
         for sign in (-1, +1):
             cells = comp.interior.cells(level, sign)
@@ -512,7 +512,7 @@ def het_operands(sn: "SNMesh"):
     rng = np.random.default_rng(20260611)
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))
     psi = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
     )
     psi.interior.values[...] = rng.standard_normal(psi.interior.values.shape)
     for face in psi.boundary.layout.faces:
@@ -622,7 +622,7 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
 
     closure = sn_mesh.pole_angular_closure
     psi_g_first = psi_view[..., 0].swapaxes(0, 1) if psi_view.ndim == 4 else psi_view.swapaxes(0, 1)
-    seed = RadialCharacteristicField.from_mesh(sn_mesh)
+    seed = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
     for p in sn_mesh.radial_characteristic_levels:
         level_idx = closure.level_indices[p]
         psi_level = psi_g_first[:, level_idx, :]          # (ng, M_p, nx)

@@ -223,7 +223,7 @@ def test_cii_probe6_cold_solve_recovers_preimage(coord):
     psi0 = _random_iterate(sn, rng)
     flux0 = None
     if sn.radial_characteristic_field_space is not None:
-        flux0 = RadialCharacteristicField.from_mesh(sn)
+        flux0 = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
         for level in sn.radial_characteristic_levels:
             for sign in (-1, +1):
                 cells = flux0.interior.cells(level, sign)
@@ -393,7 +393,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
         )
         seed = RadialCharacteristicField.from_flat(
             rng.standard_normal(n_seed),
-            RadialCharacteristicField.from_mesh(sn),
+            RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),
         )
         return CoupledField(systems=(psi_a, seed))
 
@@ -452,7 +452,7 @@ def test_mode10_seed_source_activation_q_half_moves_the_sphere_solve():
     sol_with, _f1 = _joint_solve(A, sn, b, q_half)
     # Zero the q½ leg only (keep bulk + trace); re-solve.
     sol_without, _f2 = _joint_solve(
-        A, sn, b, RadialCharacteristicField.source_zeros_on(sn),
+        A, sn, b, RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space),
     )
     delta = np.max(np.abs(sol_with.interior.values - sol_without.interior.values))
     if delta <= 1e-12:

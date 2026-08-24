@@ -88,7 +88,7 @@ def _run_si(c: float, **kw):
         boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     _, record = si.solve(q_ext, initial_guess=ig)
     return record
 

@@ -79,7 +79,7 @@ def _flux_zero(sn: SNMesh) -> TimedFullField:
     unravel, else ``S.apply`` hits ``AngularSourceSink`` (no
     ``integrate_angular``).
     """
-    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
 
 
 def _prescribed_inflow_source(

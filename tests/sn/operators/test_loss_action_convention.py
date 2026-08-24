@@ -102,7 +102,7 @@ _CASES = {"slab_2g": _slab_2g, "cart2d_2g": _cart2d_2g}
 
 
 def _zeros_state(sn: SNMesh) -> TimedFullField:
-    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
 
 
 @pytest.mark.parametrize("case", list(_CASES))

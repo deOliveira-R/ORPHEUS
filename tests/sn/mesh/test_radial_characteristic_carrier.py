@@ -141,7 +141,7 @@ class TestA1PresenceR12a:
         EXISTS — the member composite constructs presence-gated, its
         composite member space is cached and 2-block-consistent."""
         sn = _sphere()
-        ray = RadialCharacteristicField.from_mesh(sn)
+        ray = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
         np.testing.assert_array_equal(ray.to_flat(), 0.0)
         cspace = sn.radial_characteristic_field_space
         if cspace is None:
@@ -163,7 +163,7 @@ class TestA1PresenceR12a:
         space = sn.radial_characteristic_field_space
         if space is None:
             pytest.fail("folded cylinder must carry a starting-direction space")
-        ray = RadialCharacteristicField.from_mesh(sn)
+        ray = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
         np.testing.assert_array_equal(ray.to_flat(), 0.0)
         np.testing.assert_array_equal(
             ray.to_flat().size, int(np.prod(space.shape)),
@@ -182,8 +182,8 @@ class TestA1PresenceR12a:
         held became unconstructible at the admission flip — their
         refusal reasons are pinned in
         ``test_cylindrical_quadrature_admission.py``). B.2d: absence is
-        SYSTEM-B NON-EXISTENCE (space None, leaf factory raises, the
-        composite unconstructable).
+        SYSTEM-B NON-EXISTENCE (space None, the member-space parse
+        refuses — S5's composite seam — the composite unconstructable).
         """
         sn = builder()
         np.testing.assert_array_equal(sn.radial_characteristic_levels, ())
@@ -197,10 +197,8 @@ class TestA1PresenceR12a:
                 f"{builder.__name__}: non-carrying mesh must have NO "
                 f"interior split space (R12a)"
             )
-        with pytest.raises(
-            ValueError, match="no radial_characteristic_interior_space",
-        ):
-            RadialCharacteristicField.from_mesh(sn)
+        with pytest.raises(ValueError, match="System B is absent"):
+            RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
 
     @pytest.mark.parametrize(
         "builder", [_sphere, _slab], ids=["sphere", "slab"],
@@ -212,12 +210,12 @@ class TestA1PresenceR12a:
         sn = builder()
         with pytest.raises(TypeError):
             FullField.zeros(
-                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+                interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
                 radial_characteristic=None,
             )
         with pytest.raises(TypeError):
             TimedFullField.zeros(
-                interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+                interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
                 radial_characteristic=None,
             )
 
@@ -345,10 +343,10 @@ class TestA4SeedStateMetricVcell:
         rng = np.random.default_rng(53)
         ns = int(cspace.shape[0])
         x = RadialCharacteristicField.from_flat(
-            rng.standard_normal(ns), RadialCharacteristicField.from_mesh(sn),
+            rng.standard_normal(ns), RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),
         )
         y = RadialCharacteristicField.from_flat(
-            rng.standard_normal(ns), RadialCharacteristicField.from_mesh(sn),
+            rng.standard_normal(ns), RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),
         )
         # Hand-built V_cell gauge (composite to_flat order = interior ⊕ boundary),
         # from sn.volumes directly — the structurally-independent reference.

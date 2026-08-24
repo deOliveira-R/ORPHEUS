@@ -72,7 +72,7 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=history_depth)
     return replace(
         state,
         interior=replace(
@@ -86,7 +86,7 @@ def _const_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=history_depth)
     return replace(
         state,
         interior=replace(state.interior, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
@@ -335,7 +335,7 @@ class TestSolve:
             sigma_t, sn,
         )
 
-        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5)
+        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=5)
         psi = invertible.solve(rhs)
         assert psi.history_depth == 5
 
@@ -379,7 +379,7 @@ class TestSolve:
         )
         rhs = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            mesh=_stretched_mesh(),
+            space=_stretched_mesh().full_field_space,
         )
         with pytest.raises(ValueError, match="space-content"):
             invertible.solve(rhs)
@@ -418,8 +418,8 @@ class TestSolve:
             (N, ng, nx),
         ).copy()
         q = replace(
-            TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn),
-            interior=replace(TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn).interior, values=rhs_values),
+            TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space),
+            interior=replace(TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space).interior, values=rhs_values),
         )
         psi = invertible.solve(q)
 
@@ -512,7 +512,7 @@ class TestSolve:
         sum_w = float(sn.quad.weights.sum())
         q_const = 2.7
         per_ord_density = q_const / sum_w
-        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
         rhs = replace(
             zero,
             interior=replace(
@@ -590,7 +590,7 @@ class TestSolveTimedFullField:
         # Build rhs with a non-zero boundary trace (the inflow source) —
         # verify it makes it into the sweep's boundary_buf.  Slab has both
         # xmin and xmax faces.
-        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+        rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
         rhs_boundary = rhs.boundary
         layout = rhs_boundary.layout
         if "xmax" in layout.faces:
@@ -641,7 +641,7 @@ class TestSolveTimedFullField:
         )
 
         for depth in (1, 2, 4):
-            rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=depth)
+            rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=depth)
             psi = invertible.solve(rhs)
             assert psi.history_depth == depth
 
@@ -653,7 +653,7 @@ class TestSolveTimedFullField:
         )
         rhs = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            mesh=_stretched_mesh(),
+            space=_stretched_mesh().full_field_space,
         )
         with pytest.raises(ValueError, match="space-content"):
             invertible.solve(rhs)
@@ -669,7 +669,7 @@ class TestSolveTimedFullField:
         )
         b = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            mesh=_stretched_mesh(),
+            space=_stretched_mesh().full_field_space,
         )
         with pytest.raises(ValueError, match="space-content"):
             invertible.solve_transpose(b)
@@ -868,7 +868,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         # Build composite ψ=1.  No need for legacy AngularFlux at all
         # on this path.
         from dataclasses import replace
-        psi_known = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+        psi_known = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         psi_known = replace(
             psi_known,
             interior=replace(psi_known.interior, values=np.ones((N, ng, *sn_mesh.spatial_shape))),

@@ -114,7 +114,7 @@ _FIXTURES = {
 def _random_state(sn: SNMesh, seed: int = 11) -> TimedFullField:
     rng = np.random.default_rng(seed)
     z = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
     )
     return replace(
         z,

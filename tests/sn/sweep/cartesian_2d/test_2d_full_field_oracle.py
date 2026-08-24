@@ -127,7 +127,7 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     N = sn_mesh.quad.N
     sig_t = _random_sig_t(rng, ng, nx, ny)
 
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     _seed_random_inflow(rng, state.boundary)
 

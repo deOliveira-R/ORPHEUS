@@ -77,7 +77,7 @@ def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicField:
     """A random ψ½ FLUX composite (4e native — built via ``from_flat`` over a
     zero flux composite; the retired unified-leaf bridge is gone)."""
     rng = np.random.default_rng(seed)
-    template = RadialCharacteristicField.from_mesh(sn)
+    template = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
     n = template.to_flat().size
     return RadialCharacteristicField.from_flat(rng.random(n) + 0.5, template)
 
@@ -87,7 +87,7 @@ def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicField:
 
 class TestCompositeConstruction:
     def test_is_a_composite_but_not_a_fullfield(self) -> None:
-        c = RadialCharacteristicField.from_mesh(_sphere())
+        c = RadialCharacteristicField.flux_zeros(_sphere().radial_characteristic_field_space)
         if not isinstance(c, Composite):
             pytest.fail("System B is not a Composite")
         if isinstance(c, FullField):
@@ -95,13 +95,13 @@ class TestCompositeConstruction:
 
     def test_has_no_radial_characteristic_third_slot(self) -> None:
         # A pure 2-block composite — the ψ½ third block is FullField's, not this.
-        c = RadialCharacteristicField.from_mesh(_sphere())
+        c = RadialCharacteristicField.flux_zeros(_sphere().radial_characteristic_field_space)
         if hasattr(c, "radial_characteristic"):
             pytest.fail("System B is pure 2-block; it carries no ψ½ third slot")
 
     def test_leaf_types_are_the_ray_split_loci(self) -> None:
         # The 3rd Composite instantiation, FIRST with non-Bulk/Boundary leaves.
-        c = RadialCharacteristicField.from_mesh(_sphere())
+        c = RadialCharacteristicField.flux_zeros(_sphere().radial_characteristic_field_space)
         if type(c.interior) is not RadialCharacteristicInteriorFlux:
             pytest.fail(f"interior is {type(c.interior).__name__}")
         if type(c.boundary) is not RadialCharacteristicBoundaryFlux:
@@ -123,7 +123,7 @@ class TestCompositeConstruction:
 
     def test_derived_space_content_equals_the_carrier_mint(self) -> None:
         sn = _sphere()
-        c = RadialCharacteristicField.from_mesh(sn)
+        c = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
         if c.space != sn.radial_characteristic_field_space:
             pytest.fail("derived composite space must content-equal the mint")
 
@@ -234,9 +234,20 @@ class TestCompositeAlgebra:
 
 
 class TestPresence:
-    def test_from_mesh_raises_on_a_noncarrying_mesh(self) -> None:
-        with pytest.raises(ValueError, match="carries no radial_characteristic"):
-            RadialCharacteristicField.from_mesh(_slab())
+    def test_flux_zeros_refuses_the_noncarrying_mesh_none_space(self) -> None:
+        """R12a presence gate, post-S5: a non-carrying mesh's cached
+        ``radial_characteristic_field_space`` is ``None``, and the
+        composite allocator REFUSES it with the presence diagnosis (the
+        pre-S5 spelling raised inside the leaf factory; the space-keyed
+        allocators diagnose at the member-space parse)."""
+        with pytest.raises(ValueError, match="System B is absent"):
+            RadialCharacteristicField.flux_zeros(
+                _slab().radial_characteristic_field_space
+            )
+
+    def test_source_zeros_shares_the_same_presence_gate(self) -> None:
+        with pytest.raises(ValueError, match="System B is absent"):
+            RadialCharacteristicField.source_zeros(None)
 
 
 # ── System B's member space (B.2b b2 — the family-blind FullFieldSpace reuse) ──

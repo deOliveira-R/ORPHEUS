@@ -137,7 +137,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -229,7 +229,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     bulk_values = np.ones_like(state.interior.values)
     new_bulk = replace(state.interior, values=bulk_values)
     new_boundary = state.boundary
@@ -330,7 +330,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:

@@ -155,7 +155,7 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
     # System B is the native split composite (4e); a random seed fills its
     # to_flat (interior ⊕ boundary) — the reciprocity identity is layout-agnostic
     # (psi and phi share this convention).
-    system_b = RadialCharacteristicField.from_mesh(sn)
+    system_b = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
     if seed:
         n_sd = sn.radial_characteristic_field_space.shape[0]
         system_b = RadialCharacteristicField.from_flat(

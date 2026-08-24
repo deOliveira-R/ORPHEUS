@@ -111,7 +111,10 @@ The resolvent (P4 design ruling)
 
 .. code-block:: python
 
-    template = FullField.zeros(interior=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh)
+    template = FullField.zeros(
+        interior=ScalarFlux, boundary=ScalarBoundaryFlux,
+        space=mesh.full_field_space,
+    )
     A_inv = MatrixInverseOperator(FlattenedOperator(A, template))
 
 — NEVER the structure-keyed ``A.inverse()`` (the Green splitting

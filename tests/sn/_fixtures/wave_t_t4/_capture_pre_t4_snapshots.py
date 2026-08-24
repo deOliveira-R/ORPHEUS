@@ -202,7 +202,7 @@ def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     psi_values = rng.uniform(
         0.05, 1.0, size=(N, ng, *sn_mesh.spatial_shape),
     )
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     from dataclasses import replace
     return replace(
         state,

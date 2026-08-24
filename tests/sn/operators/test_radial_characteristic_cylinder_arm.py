@@ -172,7 +172,7 @@ def test_the_march_rides_the_level_ray_exactly_for_linear_flux():
     )
     op = RadialCharacteristicOperator(sn, sigma_field)
 
-    src = RadialCharacteristicField.source_zeros_on(sn)
+    src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
     psi_lin = A + B * r                                     # (nx,)
     for p in src.interior.space.levels:
         ords = np.asarray(sn.quad.level_indices[p])
@@ -221,7 +221,7 @@ def test_apply_solve_round_trip_closes():
     op = RadialCharacteristicOperator(sn, sigma_field)
 
     rng = np.random.default_rng(20260808)
-    src = RadialCharacteristicField.source_zeros_on(sn)
+    src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
     src.interior.values[...] = rng.uniform(0.5, 2.0, src.interior.values.shape)
     for p in src.interior.space.levels:
         src.boundary.corner(p, -1)[...] = rng.uniform(0.5, 2.0, size=1)

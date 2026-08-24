@@ -123,7 +123,7 @@ def _solve_inward_cells(edges: np.ndarray) -> np.ndarray:
     op = RadialCharacteristicOperator(sn, CrossSectionField.from_mesh(sigma_t, sn))
     # System B's SOURCE composite (4e native — the block boundary speaks the
     # split member directly; no unified bridge).
-    src = RadialCharacteristicField.source_zeros_on(sn)
+    src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
     for g in range(_NG):
         # q½ built DIRECTLY (uniform q̄ per group) — NOT via the R14 fold (step 2).
         src.interior.cells(0, -1)[g, :] = _Q[g]

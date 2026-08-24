@@ -210,7 +210,7 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNMesh:
 
 def _zero_flux(sn: SNMesh) -> TimedFullField:
     return TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
     )
 
 

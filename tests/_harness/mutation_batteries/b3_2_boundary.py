@@ -279,7 +279,7 @@ def _bite_fingerprint() -> str:
         mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=4),))
         sn = SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=1))
         z = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
         rng = np.random.default_rng(7)
         psi = replace(

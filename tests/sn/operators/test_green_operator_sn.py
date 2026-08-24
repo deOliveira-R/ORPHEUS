@@ -129,7 +129,7 @@ def _operators():
 
 def _flux_zeros(sn: SNMesh) -> TimedFullField:
     """The flux-typed cold start (the production warm-start convention)."""
-    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
 
 
 def _manufactured(sn, lc, a_loss):
