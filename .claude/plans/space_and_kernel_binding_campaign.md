@@ -1515,11 +1515,23 @@ cross_method 81, data 217, homogeneous 50, diffusion 113, root 406 +
 numerics/transport/geometry, ≈56 min wall total. The slow tier
 (~212 tests) stays unexercised per #405 — the pre-merge decision
 inherits it with #404.
-▶ RESUMES AT: the ruled order continues S6 (verbs + the frame square +
-#399 — its G6.3/G6.8 adjoint gates have their objects: the minted faces
-and the F-0 Parseval metrics; the math-bearing factories
-`from_isotropic`/`from_mesh_and_L`/`from_face_arrays` re-home to the
-space/operator layer) → S7 (repairs + EE-1 + docs).** The recarve file
+**S6.0 EXECUTED 2026-08-24 (`048144db`) then RE-RULED the same day:
+the shipped `FunctionSpace.retraction`/`embedding` pair + 18 gates are
+SCAFFOLDING to re-carve — the design dialogue established the pair is
+the rank-one frame's induced output (Cardinal Rule 2), ruled the
+stage-2 generator discipline (memory:
+`feedback_stage2_generator_discipline`), and caught a clause-2 defect
+(the shipped energy-drop is doctrine-wrong; becomes a refusal). ⚠ Do
+not consume the shipped pair until S6.0b lands.
+▶ RESUMES AT **S6.0b** — execution plan
+`collapse_pair_frame_induction.md` (THE resume surface: mint through
+the literal single-region frame at one site, forgetful retention,
+space-level lazy caching, clause gating incl. the EnergyAxis
+condensation refusal, naming §6 pending the user's
+retraction/section ratification) → S6.1 (#399 space-derived moment
+members) → S6.2 (factory re-homes; the `from_isotropic` decision
+returns with E frame-induced; the `integrate_angular` re-key) → S7
+(repairs + EE-1 + docs).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 
