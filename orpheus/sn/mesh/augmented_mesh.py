@@ -1077,12 +1077,14 @@ class SNMesh(MaterialMesh):
           per-axis ``label/shape/kind/weights`` or relative ``is``/``==``,
           never the name literal.
 
-        This is the WIDTH-1 base: the optional within-cell spatial-moment
-        tail (LD, ``spatial_moments > 1``) composes
+        This is the WIDTH-1 base: the within-cell spatial-moment tail
+        (LD) is the SIBLING mint :attr:`angular_trial_space`, which
+        appends the scheme's
         :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
-        onto these axes at the selecting call site (construct-general /
-        select-narrow, #240 D5b-S3-A0) — the caller that fills the axis
-        widens the space; the carrier does not read the scheme by default.
+        (construct-general / select-narrow, #240 D5b-S3-A0) — a call
+        site widens by SELECTING that property; this one never reads
+        the scheme, and the slopeless closures collapse the two mints
+        to one instance.
 
         Carries the physical Hilbert metric per axis (``w_n``, ``V_cell``)
         — the same Gram :attr:`full_field_space`'s dense interior stores
@@ -1106,6 +1108,65 @@ class SNMesh(MaterialMesh):
         return FunctionSpace.of_axes(angular, *scalar.axes)
 
     @cached_property
+    def angular_trial_space(self) -> "FunctionSpace":
+        r"""The angular TRIAL space — :attr:`angular_bulk_space` in the
+        scheme's within-cell basis (CS4b S5).
+
+        The space the discrete angular solution actually lives in: the
+        width-1 bulk product extended by the bound scheme's within-cell
+        spatial-moment factor,
+
+        .. math::
+
+            V_{\rm trial} \;=\; V_\Omega \otimes V_E \otimes V_r
+            \;\otimes\; V_{\rm moment}({\rm scheme}),
+
+        where the trailing factor is the scheme-owned MODAL
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
+        (the tensor-Legendre cell basis). For the slopeless closures
+        (Diamond Difference / Step —
+        :attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.is_multi_moment`
+        ``False``) the trial basis IS the cell average and this property
+        returns :attr:`angular_bulk_space` **itself**: the same cached
+        instance, byte-identical, so slopeless consumers pay nothing and
+        the two mints cannot drift.
+
+        **The metric fact that makes this a correctness mint, not sugar
+        (#310 C2 ruling 3).** The moment axis carries the scheme's mass
+        ``M_ii/V = ∏_a θ^{o_a}`` as its measure (basis ↔ mass
+        single-sourced at the scheme), so the trial Gram is
+        ``G = V·w_n ⊗ diag(1, θ, …)``. An average-only ``V·w_n``
+        broadcast over the moment axis would mis-weight the slope DOF:
+        ``.H`` becomes a WRONG adjoint on the slope rows AND reciprocity
+        goes Mode-12-blind to a slope-row transpose.
+
+        **The construct-general / select-narrow seam (#240 D5b-S3-A0),
+        post S5.** Which of the two mints a call site reads IS the
+        widening decision: the seams that FILL the moment axis (the SI
+        cold starts, the LD emissions, ``coupled_system``) allocate on
+        THIS space; width-1 cell-average consumers read
+        :attr:`angular_bulk_space`. This property replaces the retired
+        ``spatial_moments=`` factory parameter (the int was a lossy
+        proxy for the scheme's basis — crosswalk B5); the composition
+        rule "widen ⟺ append the scheme's moment axis" is spelled HERE,
+        once, not at the ~19 call sites that used to thread the int.
+
+        :attr:`full_field_space` builds its interior on this mint, so
+        the composite's interior, this property, and every trial-space
+        field allocation share ONE cached instance at every scheme
+        width.
+        """
+        from orpheus.numerics.space import FunctionSpace
+
+        if not self.scheme.is_multi_moment:
+            return self.angular_bulk_space
+        base = self.angular_bulk_space
+        assert base.axes is not None  # of_axes-built by construction
+        return FunctionSpace.of_axes(
+            *base.axes, self.scheme.moment_axis(self.ndim),
+        )
+
+    @cached_property
     def full_field_space(self) -> "FullFieldSpace":
         r"""The composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (Wave O / O.2b).
 
@@ -1118,12 +1179,13 @@ class SNMesh(MaterialMesh):
 
         * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}\,w_n` — the full
           phase-space measure :math:`\mathrm{d}V\,\mathrm{d}\Omega`,
-          carried PER AXIS by :attr:`angular_bulk_space` (the interior IS
-          that cached mint since CS4b S2b — ``w_n`` on the ordinate axis,
-          ``V`` on the spatial axis, the scheme's moment mass on the LD
-          tail; until then this property densified the same Gram to a
-          broadcast ``(N, 1, nx, ny)`` array, reproduced by the axis form
-          at ≤ 1 ULP on every face);
+          carried PER AXIS by :attr:`angular_trial_space` (the interior
+          IS that cached mint since CS4b S5, and at slopeless widths that
+          mint IS :attr:`angular_bulk_space` — ``w_n`` on the ordinate
+          axis, ``V`` on the spatial axis, the scheme's moment mass on
+          the LD tail; pre-S2b this property densified the same Gram to
+          a broadcast ``(N, 1, nx, ny)`` array, reproduced by the axis
+          form at ≤ 1 ULP on every face);
         * **trace** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` — the
           partial-current surface metric already carried by
           :attr:`angular_trace`.
@@ -1137,33 +1199,21 @@ class SNMesh(MaterialMesh):
         honest two-system sum). Cached: the composite is immutable for a
         given mesh + quadrature.
         """
-        from orpheus.numerics.space import FunctionSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-        # The interior IS the carrier's axis-built angular bulk (CS4b S2b,
-        # Q2 — one mint; the Gram ``G_bulk = V_cell·w_n`` lives per axis on
-        # that space, reproducing the retired dense spelling at ≤ 1 ULP on
-        # every metric face — gated by the hand-built dense oracle in
-        # ``tests/sn/mesh/test_angular_bulk_space.py``).
-        interior_space = self.angular_bulk_space
-        # A multi-moment closure (LD) carries the trailing 2^d spatial-moment
-        # axis on the bulk field, and its Hilbert metric MUST carry the
-        # scheme's moment mass ``M_ii/V = ∏_a θ^{o_a}`` on that axis (#310 C2
-        # ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ, …)``.  An average-only
-        # ``V·w_n`` broadcast over the moment axis mis-weights the slope DOF
-        # — ``.H`` becomes a WRONG adjoint on the slope rows AND reciprocity
-        # goes Mode-12-blind to a slope-row transpose.  The mass rides the
-        # scheme-owned MODAL axis (basis ↔ mass single-sourced at the
-        # scheme).  DD/Step (``per_axis == 1``) take no branch — the
-        # interior is the width-1 cached instance itself.
-        if self.scheme.spatial_basis_per_axis > 1:
-            assert interior_space.axes is not None  # of_axes-built
-            interior_space = FunctionSpace.of_axes(
-                *interior_space.axes,
-                self.scheme.moment_axis(self.ndim),
-            )
+        # The interior IS the carrier's trial space (CS4b S5 — one mint,
+        # ``is``-shared with :attr:`angular_trial_space` at every scheme
+        # width: DD/Step read the width-1 cached angular bulk itself; a
+        # multi-moment closure (LD) appends the scheme's moment axis
+        # carrying the moment mass, so ``.H`` stays the metric-correct
+        # adjoint on the slope rows — the mass fact and its #310 C2
+        # rationale live on the trial mint's docstring).  The Gram
+        # ``G_bulk = V_cell·w_n [⊗ mass]`` lives per axis on that space,
+        # reproducing the retired dense spelling at ≤ 1 ULP on every
+        # metric face — gated by the hand-built dense oracle in
+        # ``tests/sn/mesh/test_angular_bulk_space.py``.
         return FullFieldSpace.from_blocks(
-            interior_space,
+            self.angular_trial_space,
             self.angular_trace,
         )
 

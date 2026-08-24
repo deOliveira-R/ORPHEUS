@@ -188,19 +188,19 @@ class TestG14GramEquivalenceLD:
 
     def test_ld_composite_interior_is_the_widened_product(self):
         """The unification claim on the LD arm: the composite's interior
-        equals the moment-widened product of the cached base (a fresh
-        ``of_axes`` per composite mint, so ``==`` not ``is``; the
-        composite itself is cached, so its interior is ``is``-stable)."""
+        IS the cached trial mint (CS4b S5 upgraded this from ``==`` to
+        ``is`` — the widening composition moved from an inline
+        ``of_axes`` here into :attr:`SNMesh.angular_trial_space`, so the
+        composite, the trial property, and every LD allocation share ONE
+        instance), and that mint equals the moment-widened product of
+        the cached base."""
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
         widened = FunctionSpace.of_axes(
             *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim)
         )
         assert sn.full_field_space.interior_space == widened
-        assert (
-            sn.full_field_space.interior_space
-            is sn.full_field_space.interior_space
-        )
+        assert sn.full_field_space.interior_space is sn.angular_trial_space
 
     def test_all_three_metric_faces_agree_on_the_ld_interior(self):
         sn = _slab(scheme=LinearDiscontinuous())
@@ -264,6 +264,57 @@ class TestMomentAxisAdmission:
     def test_slopeless_closure_refuses(self):
         with pytest.raises(NotImplementedError, match="no moment axis"):
             DiamondDifference().moment_axis(1)
+
+
+class TestAngularTrialSpace:
+    """``SNMesh.angular_trial_space`` — the ONE widening mint (CS4b S5).
+
+    The property replaces the retired ``spatial_moments=`` factory int:
+    a call site widens by SELECTING this mint instead of threading the
+    scheme's basis size through a factory parameter. Claims: the
+    slopeless identity (LAW — the two mints collapse to one instance),
+    the LD structure (RECORD — base axes + the scheme's moment axis),
+    and the single-source identity with the composite interior (LAW).
+    """
+
+    def test_slopeless_trial_space_IS_the_bulk_space(self):
+        """DD (width 1): not merely ``==`` — the SAME cached instance,
+        so slopeless consumers pay nothing and the mints cannot drift."""
+        sn = _slab(scheme=DiamondDifference())
+        assert sn.angular_trial_space is sn.angular_bulk_space
+
+    def test_ld_trial_space_appends_the_scheme_moment_axis(self):
+        sn = _slab(scheme=LinearDiscontinuous())
+        base = sn.angular_bulk_space
+        trial = sn.angular_trial_space
+        assert base.axes is not None and trial.axes is not None
+        # The base's axes verbatim, then the scheme's own moment axis.
+        assert trial.axes[: len(base.axes)] == base.axes
+        (tail,) = trial.axes[len(base.axes) :]
+        assert tail == sn.scheme.moment_axis(sn.ndim)
+        assert trial.shape == (*base.shape, 2)
+
+    def test_ld_trial_space_is_cached_and_single_sourced(self):
+        sn = _slab(scheme=LinearDiscontinuous())
+        assert sn.angular_trial_space is sn.angular_trial_space
+        assert sn.full_field_space.interior_space is sn.angular_trial_space
+
+    def test_bridge_the_retiring_sugar_mints_the_same_space(self):
+        """BRIDGE (dies with the sugar at S5's retirement commit, where
+        it re-keys to the structural form): while ``zeros_on(mesh,
+        spatial_moments=…)`` still exists, its derived space must equal
+        this mint at BOTH widths — proving the migration is a pure
+        re-spelling, site for site."""
+        from orpheus.transport.fields.angular_flux import AngularFlux
+
+        dd = _slab(scheme=DiamondDifference())
+        assert AngularFlux.zeros_on(dd).space is dd.angular_trial_space
+        ld = _slab(scheme=LinearDiscontinuous())
+        per_axis = ld.scheme.spatial_basis_per_axis
+        assert (
+            AngularFlux.zeros_on(ld, spatial_moments=per_axis).space
+            == ld.angular_trial_space
+        )
 
 
 class TestG15ConePredicates:
