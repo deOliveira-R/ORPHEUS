@@ -228,10 +228,44 @@ S6's adjoint gates have their object.
 numerics FULL + transport FULL (2959) at F-0; transport/frames (20),
 sn/operators (1246, incl. the 0-ULP kernel crosscheck), sn/solve windowing
 equivalence + mutation gates, space-content witnesses at F-1; pyright 0;
-Sphinx `-W` clean; nexus `dead_references` 0. ⏳ The full-suite serial run is
-IN FLIGHT detached (`scratch/_f01_full_suite.log`; the first attempt was
-reaped by the harness at ~90 min — the known long-gate hazard; relaunched
-`Popen(start_new_session=True)`). Record its result here when it lands.
+Sphinx `-W` clean; nexus `dead_references` 0.
+
+**⏹ FULL-SUITE VERIFICATION COMPLETE 2026-08-24 02:02** (per-tree observable
+run, `scratch/_f01_suite_driver.sh` → `scratch/_f01_full_suite.log`; the two
+prior attempts died opaque — harness reap at ~90 min, then pytest's
+capture+block-buffering hiding all progress — both recorded in #405):
+
+| tree | result | wall |
+|---|---|---|
+| transport | ✅ 545 | 35 s |
+| sn | 3296 ✅ + **2 F, both adjudicated** (below) | 2 h 22 m 44 s |
+| mc | ✅ 55 (2 xfail) | 40 m 15 s |
+| derivations | ⏹ DECLARED SKIP at ~145/1728 (rc=143) | 3 h 19 m spent |
+| cross_method | ✅ 89 | 58 s |
+| cp | ⏹ DECLARED SKIP at 66/154 (65 ✅ + one >52-min GC-bound test; rc=143) | 53 m spent |
+| data | ✅ 219 | 4 s |
+| diffusion | ✅ 113 | 2 s |
+| geometry | ✅ 792 (4 skip) | 8 s |
+| homogeneous | ✅ 50 | 2 s |
+| moc | ✅ 124 | 2 m 03 s |
+| numerics | ✅ 2418 (3 skip) — incl. the full Parseval suite | 5 m 26 s |
+| catch-all (loose + _harness + _mutation) | ✅ 408 (5 xfail) | 34 s |
+
+**The two sn reds, adjudicated:** (1) `test_si_gate_dispatch` — F-1's one
+true blast-radius miss: duck-typed surrogates of the raised mint contract
+(a stub spells the interface as a KWARG — invisible to every symbol grep;
+only the suite finds it). Fixed `4aa7f951` (4/4 green). (2) `phase_e`
+flux-shape crosscheck on `cyl_2g_3reg_folded_4x8_dd_n40` — **pre-existing,
+`[M]` bit-identical**: re-run at pre-F-0 `5539168f` in a worktree fails with
+the same 16-digit numbers (0.1267629835542986 > the 0.12 bound). Filed
+**#404** (fold-era snapshot re-capture suspected; phase_d sibling passes).
+Blocks the eventual pre-merge gate; not a frame-campaign defect.
+
+**The declared skips are not campaign exposure**: derivations and cp hold
+zero frame consumers (the §6b + `.H` sweeps), and both are structurally
+unrunnable in a serial gate at their current shape — the measured per-tree
+map and the tiering/caching/xdist decisions are **#405**. Every tree that
+CAN see F-0/F-1 ran green at the final committed state.
 
 **Execution deltas vs the proposed means (all refinements, no goal changes):**
 
