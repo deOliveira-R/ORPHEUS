@@ -1507,6 +1507,14 @@ sweep). Named survivors (NOT sugar): `from_mesh_and_L`/
 .from_mesh` (assembly tier), `MultiplicationOperator.from_mesh`
 (operator tier). The rewrite tools are `scratch/s5_rewrite_composite.py`
 + `scratch/s5_rewrite_leaf.py` (AST span-exact — the migration record).
+`[M]` whole-tree FAST gate at `2690a434` (canonical runner, `-m "not
+slow"`, serial, per-tree driver `scratch/_s5_fast_gate_driver.sh`, log
+`scratch/_s5_fast_gate.log`): **13/13 trees rc=0, 0 failures** — sn
+3188 passed (14:06), derivations 1637 (36:03), cp 141, moc 121, mc 39,
+cross_method 81, data 217, homogeneous 50, diffusion 113, root 406 +
+numerics/transport/geometry, ≈56 min wall total. The slow tier
+(~212 tests) stays unexercised per #405 — the pre-merge decision
+inherits it with #404.
 ▶ RESUMES AT: the ruled order continues S6 (verbs + the frame square +
 #399 — its G6.3/G6.8 adjoint gates have their objects: the minted faces
 and the F-0 Parseval metrics; the math-bearing factories
