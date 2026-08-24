@@ -618,17 +618,17 @@ class MaterialXSField:
     @property
     def total_cross_section_field(self) -> CrossSectionField:
         r""":math:`\Sigma_t` as a typed :class:`CrossSectionField` (1/cm)."""
-        return CrossSectionField.from_mesh(self.total_cross_section, self.mesh)
+        return CrossSectionField(values=self.total_cross_section, space=self.mesh.bulk_space)
 
     @property
     def absorption_cross_section_field(self) -> CrossSectionField:
         r""":math:`\Sigma_a` as a typed :class:`CrossSectionField` (1/cm)."""
-        return CrossSectionField.from_mesh(self.absorption_cross_section, self.mesh)
+        return CrossSectionField(values=self.absorption_cross_section, space=self.mesh.bulk_space)
 
     @property
     def fission_production_field(self) -> CrossSectionField:
         r""":math:`\nu\Sigma_f` as a typed :class:`CrossSectionField` (1/cm)."""
-        return CrossSectionField.from_mesh(self.fission_production, self.mesh)
+        return CrossSectionField(values=self.fission_production, space=self.mesh.bulk_space)
 
     # ── Per-material accessors (source of truth) ─────────────────────
 

@@ -419,7 +419,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         out_bulk = np.diff(flow, axis=1) / self._volumes  # (ng, nx)
 
         # ── Trace block: outflow-definition defect + inflow identity ──
-        out_boundary = ScalarBoundarySourceSink.zeros_on(self.mesh)
+        out_boundary = ScalarBoundarySourceSink.zeros(self.mesh.scalar_trace)
         for face, c in self._face_closures.items():
             j_plus = trace.outflow_view(face)             # (ng,)
             j_minus = trace.inflow_view(face)             # (ng,)
@@ -430,7 +430,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
             slot[ScalarTraceSpace.INFLOW_ROW] = j_minus
 
         return FullField(
-            interior=ScalarSourceSink.from_mesh(out_bulk, self.mesh),
+            interior=ScalarSourceSink(values=out_bulk, space=self.mesh.bulk_space),
             boundary=out_boundary,
         )
 
@@ -609,13 +609,13 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
                 f"field space {psi.interior.space!r} vs operator "
                 f"{self.mesh.bulk_space!r}."
             )
-        out_boundary = ScalarBoundarySourceSink.zeros_on(self.mesh)
+        out_boundary = ScalarBoundarySourceSink.zeros(self.mesh.scalar_trace)
         for face, law in self.face_laws.items():
             out_boundary.face_view(face)[ScalarTraceSpace.INFLOW_ROW] = (
                 law.apply(trace.outflow_view(face))
             )
         return FullField(
-            interior=ScalarSourceSink.zeros_on(self.mesh),
+            interior=ScalarSourceSink.zeros(self.mesh.bulk_space),
             boundary=out_boundary,
         )
 

@@ -696,6 +696,6 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
             },
         )
         return increment._recombine(
-            interior=AngularFlux.from_mesh(angular_values, self._mesh),
+            interior=AngularFlux(values=angular_values, space=self._mesh.angular_bulk_space),
             boundary=trace,
         )

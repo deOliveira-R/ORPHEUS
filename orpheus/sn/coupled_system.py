@@ -391,10 +391,8 @@ def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
     from orpheus.transport.fields.angular_flux import AngularFlux
 
     return FullField(
-        interior=AngularFlux.zeros_on(
-            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
-        ),
-        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
     )
 
 
@@ -416,10 +414,8 @@ def _zero_full_field_dual(sn_mesh: "SNMesh") -> "FullField":
     )
 
     return FullField(
-        interior=AngularSourceSink.zeros_on(
-            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
-        ),
-        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+        interior=AngularSourceSink.zeros(sn_mesh.angular_trial_space),
+        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
     )
 
 

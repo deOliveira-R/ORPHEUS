@@ -3715,7 +3715,7 @@ def build_nonvacuum_fixed_source(case, sn_mesh) -> "TimedFullField":
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        interior=AngularSourceSink.from_mesh(case.external_source(sn_mesh.mesh), sn_mesh),
+        interior=AngularSourceSink(values=case.external_source(sn_mesh.mesh), space=sn_mesh.angular_bulk_space),
         boundary=case.prescribed_inflow(sn_mesh),
     )
 

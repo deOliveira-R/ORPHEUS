@@ -919,7 +919,7 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
             sn_mesh, scattering_op.scattering_order,
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
-        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
         _history=(),
         history_depth=history_depth,
     )
@@ -941,10 +941,8 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        interior=AngularFlux.zeros_on(
-            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
-        ),
-        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
         _history=(),
         history_depth=history_depth,
     )
@@ -1355,7 +1353,7 @@ class SNSolver:
         # Issue #197 PR-TYPED-2: typed :class:`AngularBoundaryFlux` replaces
         # the stringly-typed ``psi_bc: dict``.  Per-face buffers
         # become named attributes; typos surface as AttributeError.
-        self._boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
+        self._boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
         #: Inner records, newest last — one per within-group solve this
         #: instance has run.  Appended in ``_solve_source_iteration`` /
@@ -1961,7 +1959,7 @@ class SNSolver:
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
             # closes on AngularBoundarySourceSink (operator outputs are sources).
             interior=q_ext_per_ord,
-            boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros(self.sn_mesh.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -2154,7 +2152,7 @@ class SNSolver:
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
             # closes on AngularBoundarySourceSink (operator outputs are sources).
             interior=q_ext_per_ord,
-            boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros(self.sn_mesh.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -2287,7 +2285,7 @@ class SNSolver:
         if angular_flux is None:
             return None
         from orpheus.transport.fields.angular_flux import AngularFlux
-        typed = AngularFlux.from_mesh(angular_flux, self.sn_mesh)
+        typed = AngularFlux(values=angular_flux, space=self.sn_mesh.angular_bulk_space)
         result = self.scattering_op.build_aniso_source(typed)
         if result is None:
             return None
@@ -2536,7 +2534,7 @@ def solve_sn(
     converged_a = _system_a_member(converged) if converged is not None else None
     final_boundary = (
         converged_a.boundary if converged_a is not None
-        else _BoundaryFlux.zeros_on(sn_mesh)
+        else _BoundaryFlux.zeros(sn_mesh.angular_trace)
     )
     # #289-F2 role parse: the reconstruction sweep seeds its inflow from the
     # ANGULAR trace; the widened composite slot erases the family.
@@ -2587,7 +2585,7 @@ def solve_sn(
     # external-source policy (Q̂ = 0 — exact for the isotropic
     # reconstruction source; DD/Step passes byte-identical).
     from orpheus.transport.source_sinks import AngularBoundarySourceSink
-    final_bulk, final_per_axis = _lift_external_source_to_moments(
+    final_bulk, _ = _lift_external_source_to_moments(
         np.asarray(q_final_per_ord.values), sn_mesh,
     )
     # ERR-071 role conversion: ``final_boundary`` is a converged FLUX
@@ -2599,8 +2597,8 @@ def solve_sn(
     # slots (holding ``B·ψ.outflow`` from the reflect above) become the
     # given data; outflow rows are unrepresentable by construction.
     final_rhs_a = TimedFullField(
-        interior=AngularSourceSink.from_mesh(
-            final_bulk, sn_mesh, spatial_moments=final_per_axis,
+        interior=AngularSourceSink(
+            values=final_bulk, space=sn_mesh.angular_trial_space,
         ),
         boundary=AngularBoundarySourceSink.prescribed_inflow(
             sn_mesh,
@@ -2701,7 +2699,7 @@ def solve_sn(
                 ),
                 sn_mesh,
             ),
-            boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
         )
         balance_defect = _exit_balance_defect(
             _bare_loss_arm(final_system),
@@ -2729,7 +2727,7 @@ def solve_sn(
         final_psi_a.boundary,
         final_ray,
         sn_mesh,
-        scalar=ScalarFlux.from_mesh(scalar_flux, sn_mesh),
+        scalar=ScalarFlux(values=scalar_flux, space=sn_mesh.bulk_space),
         keff=float(keff_history[-1]),
         history=history,
         cls=Solution,
@@ -2757,7 +2755,7 @@ def _cell_average_angular(
     bulk = _average_moment_scalar(
         np.asarray(field.interior.values), sn_mesh,
     )
-    return AngularFlux.from_mesh(bulk, sn_mesh)
+    return AngularFlux(values=bulk, space=sn_mesh.angular_bulk_space)
 
 
 SolutionT = TypeVar("SolutionT", bound=SolutionBase)
@@ -2874,10 +2872,9 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     F = FissionOperator.from_solver_data(
         mat_xs=mat_xs, space=sn_mesh.full_field_space,
     )
-    per_axis = sn_mesh.scheme.spatial_basis_per_axis
     full_field_zero = FullField(
-        interior=_AF.zeros_on(sn_mesh, spatial_moments=per_axis),
-        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
+        interior=_AF.zeros(sn_mesh.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
     )
     if sn_mesh.radial_characteristic_field_space is None:
         return system.implicit_operator, gain, F, full_field_zero
@@ -3174,14 +3171,14 @@ def solve_sn_adjoint_fixed_source(
         per_ord = np.broadcast_to(
             sigma_d[None], (sn_mesh.quad.N, *sigma_d.shape),
         )
-        bulk, per_axis = _lift_external_source_to_moments(
+        bulk, _ = _lift_external_source_to_moments(
             np.ascontiguousarray(per_ord), sn_mesh,
         )
         q_star = FullField(
-            interior=AngularSourceSink.from_mesh(
-                bulk, sn_mesh, spatial_moments=per_axis,
+            interior=AngularSourceSink(
+                values=bulk, space=sn_mesh.angular_trial_space,
             ),
-            boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
         )
 
     si = SourceIteration(
@@ -3333,7 +3330,7 @@ def _build_fixed_source_rhs(
                 f"{trace_size} (layout mismatch — the composite must be built "
                 f"on the same mesh / quadrature / materials)."
             )
-        boundary = AngularBoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
+        boundary = AngularBoundarySourceSink(values=boundary_values.copy(), space=sn_mesh.angular_trace)
         # A composite carries its own q_∂. If the MESH also declares a
         # prescribed inflow, there are two answers to one question — refuse
         # rather than pick, since silently adding double-counts and silently
@@ -3415,10 +3412,10 @@ def _build_fixed_source_rhs(
     # (average), rest zero.  A MOMENT-RESOLVED external source already carries
     # the slope rows Q̂ (the caller projected them — #247): thread them through
     # unchanged.  DD/Step (per_axis == 1) → no lift, byte-identical.
-    bulk_values, per_axis = _lift_external_source_to_moments(bulk_values, sn_mesh)
+    bulk_values, _ = _lift_external_source_to_moments(bulk_values, sn_mesh)
     q_a = TimedFullField(
-        interior=AngularSourceSink.from_mesh(
-            bulk_values, sn_mesh, spatial_moments=per_axis,
+        interior=AngularSourceSink(
+            values=bulk_values, space=sn_mesh.angular_trial_space,
         ),
         boundary=boundary,
     )
@@ -4024,7 +4021,7 @@ def _solve_fixed_source_si(
     )
     return Solution(
         angular_flux=angular_out,
-        scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
+        scalar_flux=ScalarFlux(values=phi, space=sn_mesh.bulk_space),
         mesh=sn_mesh,
         keff=None,
         history=history,
@@ -4195,7 +4192,7 @@ def _solve_fixed_source_krylov(
     #
     # ⛔ This comment used to read "with the matvec's B1'' face residual on its
     # boundary". `[M]` #344, three ways: GMRES unravels into the flux
-    # `solution_template` whose boundary is `AngularBoundaryFlux.zeros_on(...)`;
+    # `solution_template` whose boundary is a zero `AngularBoundaryFlux`;
     # on a reflective/vacuum slab the trace reads |·|max = 5.213675 against a
     # bulk max of 5.259936 with the VACUUM-face inflow rows exactly 0.0 and the
     # reflective ones not (a residual block would be ≈0 on the reflective
@@ -4225,7 +4222,7 @@ def _solve_fixed_source_krylov(
     # no adapter wrap at the Solution boundary.
     return Solution(
         angular_flux=psi_full,
-        scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
+        scalar_flux=ScalarFlux(values=phi, space=sn_mesh.bulk_space),
         mesh=sn_mesh,
         keff=None,
         history=history,

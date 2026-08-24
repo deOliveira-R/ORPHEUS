@@ -924,7 +924,7 @@ class StreamingCollisionOperator(
         # any iterate's outflow; the curvilinear ψ½ starting direction is the
         # sweep's OWN direct computation from the source (#282), not a threaded
         # previous-iterate seed — the WDD sweep is an exact direct inverse.
-        boundary_buf = AngularBoundaryFlux.zeros_on(sn_mesh)
+        boundary_buf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
         # curvilinear (xmax only), and 2-D Cartesian (all 4).
@@ -988,8 +988,8 @@ class StreamingCollisionOperator(
         # state.  DD/Step (per_axis == 1) → no factor, byte-identical.
         per_axis = sn_mesh.scheme.spatial_basis_per_axis
         if moment_frame is None:
-            bulk = AngularFlux.from_mesh(
-                bulk_values, sn_mesh, spatial_moments=per_axis,
+            bulk = AngularFlux(
+                values=bulk_values, space=sn_mesh.angular_trial_space,
             )
         else:
             # In moment mode the sweep returns the (L+1, 2L+1, ...) moment
@@ -1105,9 +1105,8 @@ class StreamingCollisionOperator(
                     b.boundary.face_view(face_name)[out_rows]
                 )
         return FullField(
-            interior=AngularFlux.from_mesh(
-                q_bar, sn_mesh,
-                spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+            interior=AngularFlux(
+                values=q_bar, space=sn_mesh.angular_trial_space,
             ),
             boundary=boundary_out,
         )

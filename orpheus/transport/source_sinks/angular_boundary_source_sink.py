@@ -283,7 +283,7 @@ class AngularBoundarySourceSink(AngularBoundaryField):
                 f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
                 f"boundary source cannot be built without a trace."
             )
-        bss = cls.zeros_on(mesh)
+        bss = cls.zeros(cls._face_space_of(mesh))
         known = set(trace.layout.faces.keys())
         for face, values in face_values.items():
             if face not in known:
@@ -386,7 +386,7 @@ class AngularBoundarySourceSink(AngularBoundaryField):
                 f"boundary source cannot be built without a trace."
             )
         known = set(trace.layout.faces.keys())
-        template = cls.zeros_on(mesh)
+        template = cls.zeros(cls._face_space_of(mesh))
         face_values: "dict[str, NDArray]" = {}
         for face, spec in face_specs.items():
             if face not in known:

@@ -1182,7 +1182,7 @@ class _OctantWalk:
         )
 
         # Boundary-block residual (O.4b — the active trace).
-        out_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
+        out_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
         for face in trace.face_names:
             given = boundary.face_view(face)
             out_idx = trace.outflow_indices_for_face(face)
@@ -1195,7 +1195,7 @@ class _OctantWalk:
                 out_boundary.face_view(face)[in_idx] = given[in_idx]
 
         return FullField(
-            interior=AngularSourceSink.from_mesh(LpC, sn_mesh, spatial_moments=per_axis),
+            interior=AngularSourceSink(values=LpC, space=sn_mesh.angular_trial_space),
             boundary=out_boundary,
         )
 
@@ -1339,13 +1339,13 @@ class _OctantWalk:
             interior=run_interior,
         )
 
-        out_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
+        out_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
         for face in trace.face_names:
             out_boundary.face_view(face)[...] = trace_cot[face]
 
         return FullField(
-            interior=AngularSourceSink.from_mesh(
-                psi_cot, sn_mesh, spatial_moments=per_axis,
+            interior=AngularSourceSink(
+                values=psi_cot, space=sn_mesh.angular_trial_space,
             ),
             boundary=out_boundary,
         )
@@ -3063,9 +3063,8 @@ class _OneDimScanWalk:
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
         return FullField(
-            interior=AngularSourceSink.from_mesh(
-                m_cell, self.mesh,
-                spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
+            interior=AngularSourceSink(
+                values=m_cell, space=self.mesh.angular_trial_space,
             ),
             boundary=m_boundary,
         )
@@ -3394,7 +3393,7 @@ class _OneDimScanWalk:
         # The outflow / inflow ordinate sets are the disjoint sign(Ω·n)
         # partitions read from the unified AngularTraceSpace selector (single source
         # of truth) — A.4 retired the inline ``mu_x > ±eps`` masks.
-        m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
+        m_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -3769,14 +3768,14 @@ class _OneDimScanWalk:
             psi_bar += psi_ang_bar
 
         # ── assemble the typed composite ──
-        m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
+        m_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
         m_boundary.face_view("xmax")[...] = fo_bar
         if has_inner_face:
             m_boundary.face_view("xmin")[...] = fi_bar
         return FullField(
-            interior=AngularSourceSink.from_mesh(
-                psi_bar.swapaxes(0, 1), sn_mesh,
-                spatial_moments=per_axis,
+            interior=AngularSourceSink(
+                values=psi_bar.swapaxes(0, 1),
+                space=sn_mesh.angular_trial_space,
             ),
             boundary=m_boundary,
         )
@@ -4456,7 +4455,7 @@ class _OneDimScanWalk:
         is_slab = coord is CoordSystem.CARTESIAN
 
         Q_bar = np.zeros((N, ng, nx, *moment_tail))
-        m_boundary = AngularBoundarySourceSink.zeros_on(self.mesh)
+        m_boundary = AngularBoundarySourceSink.zeros(self.mesh.angular_trace)
 
         # ── SLAB reverse-scan (no angular thread, no seed) ────────────────
         if is_slab:

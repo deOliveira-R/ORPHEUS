@@ -857,10 +857,8 @@ class RadialCharacteristicSeeding(
                 )
                 out_g_first[:, ordinates, i] = -upstream_numer / V[i]
         return FullField(
-            interior=AngularSourceSink.from_mesh(
-                out_g_first.swapaxes(0, 1), mesh,
-            ),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            interior=AngularSourceSink(values=out_g_first.swapaxes(0, 1), space=mesh.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(mesh.angular_trace),
         )
 
     # ── Euclidean transpose — bulk cotangent → ray seed cotangent ─────
@@ -1449,8 +1447,8 @@ class RadialCharacteristicEmission(LinearOperator):
         w = np.asarray(mesh.quad.weights, dtype=float)       # (N,)
         bulk_bar = w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar[None]
         return FullField(
-            interior=AngularSourceSink.from_mesh(bulk_bar, mesh),
-            boundary=AngularBoundarySourceSink.zeros_on(mesh),
+            interior=AngularSourceSink(values=bulk_bar, space=mesh.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(mesh.angular_trace),
         )
 
     def __repr__(self) -> str:

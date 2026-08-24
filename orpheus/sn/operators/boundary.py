@@ -200,9 +200,7 @@ def _zero_bulk_source(mesh: "SNMesh"):
     """
     from orpheus.transport.source_sinks import AngularSourceSink
 
-    return AngularSourceSink.zeros_on(
-        mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
-    )
+    return AngularSourceSink.zeros(mesh.angular_trial_space)
 
 
 class SNBoundaryOperator(LinearOperator):
@@ -568,7 +566,7 @@ class SNBoundaryOperator(LinearOperator):
         # projection from the buffer geometry.
         mesh = self.sn_mesh
         trace = mesh.angular_trace
-        out_boundary = AngularBoundarySourceSink.zeros_on(mesh)
+        out_boundary = AngularBoundarySourceSink.zeros(mesh.angular_trace)
         # ``faces=None`` reflects every boundary face (the whole-trace ``B``);
         # a face subset restricts the reflection to those faces — the Phase 3
         # Gauss-Seidel octant-group schedule reflects only the just-swept
@@ -1104,7 +1102,12 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
                 f"got {type(ray.boundary).__name__}."
             )
         return RadialCharacteristicField(
-            interior=RadialCharacteristicInteriorSourceSink.zeros_on(mesh),
+            # The zero cells block of the emission rides the PARSED member's
+            # own space — require_member above guarantees it content-equal
+            # to this operator mesh's ψ½ interior space (and non-None).
+            interior=RadialCharacteristicInteriorSourceSink.zeros(
+                ray.interior.space,
+            ),
             boundary=self._reflect_corner(ray.boundary, method),
         )
 

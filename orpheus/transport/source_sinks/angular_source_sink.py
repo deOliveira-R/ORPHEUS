@@ -187,7 +187,7 @@ class AngularSourceSink(AngularField):
             (iso_values / sum_w)[None],
             (N, *expected),
         ).copy()
-        return cls.from_mesh(per_ord_values, mesh)
+        return cls(values=per_ord_values, space=cls._space_for_mesh(mesh))
 
     # ── Selectors ────────────────────────────────────────────────────
 

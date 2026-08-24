@@ -355,7 +355,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         coefficient = (
             sigma
             if isinstance(sigma, CrossSectionField)
-            else CrossSectionField.from_mesh(np.asarray(sigma), mesh)
+            else CrossSectionField(values=np.asarray(sigma), space=mesh.bulk_space)
         )
         # The space defaults to the mesh's own, most-structured-first (CS1):
         # a method mesh's composite ``full_field_space`` wins (SNMesh /
