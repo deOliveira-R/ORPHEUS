@@ -112,16 +112,11 @@ class TestAngularResidual:
         # angular bulk (shared across the family, role-blind by design).
         assert r.space is m.angular_bulk_space
 
-    def test_from_mesh_shape_and_metadata(self) -> None:
+    def test_ctor_shape_and_metadata(self) -> None:
         m = _slab_mesh()
         r = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
         assert r.values.shape == _ang_shape(m)
         assert (r.N, r.ng) == (m.quad.N, m.ng)
-
-    def test_from_ndarray_alias(self) -> None:
-        m = _slab_mesh()
-        r = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        assert isinstance(r, AngularResidual)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
@@ -182,7 +177,7 @@ class TestScalarResidual:
         # scalar bulk (shared across the family, role-blind by design).
         assert r.space is m.bulk_space
 
-    def test_from_mesh_shape_and_metadata(self) -> None:
+    def test_ctor_shape_and_metadata(self) -> None:
         m = _slab_mesh()
         r = ScalarResidual(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         assert r.values.shape == _sca_shape(m)
@@ -366,7 +361,7 @@ class TestFromBalance:
 
     def test_angular_result_addable_to_from_mesh_residual(self) -> None:
         """Load-bearing space-identity check: a ``from_balance`` residual and
-        a ``from_mesh`` residual share one space, so they are mutually
+        a ctor-built residual share one space, so they are mutually
         additive. (Would FAIL if ``from_balance`` reused the operands'
         ``"angular_source_sink"`` space.)"""
         m = _slab_mesh()
@@ -426,17 +421,17 @@ class TestFromBalance:
 
 
 # ════════════════════════════════════════════════════════════════════
-# Boundary locus — the uniform from_mesh factory + from_balance (the
+# Boundary locus — space-primary construction + from_balance (the
 # capability is minted in B.5.1; the matvec wiring is deferred to
 # B.5.2 / #208). All boundary leaves share the SAME ``mesh.angular_trace`` space.
 # ════════════════════════════════════════════════════════════════════
 
 
-class TestBoundaryFromMeshAndBalance:
-    def test_from_mesh_roundtrip_on_trace(self) -> None:
-        """``AngularBoundaryField.from_mesh`` (B.5.1) packs a flat buffer onto the
-        shared ``mesh.angular_trace`` — the uniform construction surface bulk leaves
-        already had."""
+class TestBoundaryConstructionAndBalance:
+    def test_ctor_roundtrip_on_trace(self) -> None:
+        """The primary ctor (CS4b S5) packs a flat buffer onto the shared
+        ``mesh.angular_trace`` — the space-primary construction surface,
+        uniform with the bulk leaves."""
         m = _slab_mesh()
         n = AngularBoundaryFlux.zeros(m.angular_trace).values.size
         vals = np.arange(float(n))

@@ -42,10 +42,10 @@ hand-coded dunder skeleton. The migration:
   the inherited
   :meth:`~orpheus.transport.fields._bases.BulkField._check_partner`
   (the mesh-identity guard lives on the storage base, not this leaf).
-* Introduces :meth:`from_mesh` and :meth:`from_ndarray` classmethods
-  for ergonomic 2-arg construction (the new dataclass is
-  ``kw_only=True`` per Depth B plan §8 risk #1; positional
-  construction is no longer available on the raw constructor).
+* Introduced ``from_mesh`` / ``from_ndarray`` classmethods for
+  2-arg construction (retired at CS4b S5 — construction is space-primary
+  on the carrier's cached ``mesh.bulk_space``; the dataclass stays
+  ``kw_only=True`` per Depth B plan §8 risk #1).
 
 Method-agnostic — and consumed as such since #290
 =================================================
@@ -110,18 +110,10 @@ class ScalarFlux(ScalarField):
         (``(ng, nx)`` on a 1-D mesh, ``(ng, nx, ny)`` on 2-D; the
         principled group-leading layout, Issue #196 PR-INDEX-7).
     space : FunctionSpace
-        The function space this flux lives on. Must satisfy
-        ``space.shape == (mesh.ng, *mesh.spatial_shape)``. Construction
-        via :meth:`from_mesh` is the canonical path; direct kw-only
-        construction is for callers that already hold a constructed
-        space.
-    mesh : MaterialMesh
-        The method-agnostic mesh+materials carrier (#267). Carries the
-        per-cell volumes and coordinate system downstream operators
-        read; SN callers pass their :class:`SNMesh` (a
-        :class:`MaterialMesh` subclass), diffusion / CP pass the plain
-        material mesh.
-
+        The function space this flux lives on — the carrier's cached
+        ``mesh.bulk_space`` (CS4b S5: construction is space-primary; SN
+        callers read it off their :class:`SNMesh`, diffusion / CP off
+        the plain :class:`MaterialMesh`).
     Notes
     -----
     Algebra is inherited from :class:`~orpheus.numerics.field.Field`

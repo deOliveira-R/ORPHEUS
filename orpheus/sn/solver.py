@@ -1021,7 +1021,7 @@ def _coupled_flux_state(
     The coupled cold-start / iterate birth on a carrying mesh (B.2d — the
     pair is born native; there is no fused 3-block to split). ψ_B's zero
     flux composite comes from the presence-gated
-    :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.from_mesh`.
+    :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.flux_zeros`.
     """
     return CoupledField(
         systems=(psi_a, RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)),
@@ -3365,7 +3365,7 @@ def _build_fixed_source_rhs(
         # `.claude/plans/archive/affine_boundary_source_channel.md`). Before this, a
         # declared inflow was realized into an affine operator that nothing
         # consumed, so the declaration was silently inert. Every other law is
-        # q = 0, so this is `zeros_on` for all of them.
+        # q = 0, so this is a zero trace allocation for all of them.
         boundary = AngularBoundarySourceSink.from_mesh_laws(sn_mesh)
 
     # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO

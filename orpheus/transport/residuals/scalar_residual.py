@@ -75,14 +75,13 @@ class ScalarResidual(ScalarField):
         Field values of shape ``(ng, nx, ny)`` (the principled layout —
         Issue #196 PR-INDEX-7).
     space : FunctionSpace
-        The function space. Must have ``shape == (mesh.ng, *mesh.spatial_shape)``. Use :meth:`from_mesh` to derive automatically.
-    mesh : SNMesh
-        The SN phase-space carrier.
+        The function space — the carrier's cached ``mesh.bulk_space``
+        (CS4b S5).
 
     Notes
     -----
-    A thin role leaf: all storage, validation, algebra, and the
-    ``from_mesh`` / ``from_ndarray`` factories are inherited from
+    A thin role leaf: all storage, validation, and algebra are
+    inherited from
     :class:`~orpheus.transport.fields._bases.ScalarField` /
     :class:`~orpheus.transport.fields._bases.BulkField`. The leaf
     carries no residual-specific behaviour beyond its class identity,
@@ -94,8 +93,8 @@ class ScalarResidual(ScalarField):
 
     Like :class:`AngularResidual`, its one bespoke factory is the named
     composition :meth:`from_balance` — a residual is *produced* by an
-    operator balance, not minted from thin air. Tests and direct producers
-    may also build it via the inherited :meth:`from_mesh`.
+    operator balance, not minted from thin air. Tests and direct
+    producers may also build it space-primary on ``mesh.bulk_space``.
     """
 
     #: Dimensional identity (View-G, B.4): scalar rate density

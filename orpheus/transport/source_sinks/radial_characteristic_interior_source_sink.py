@@ -19,8 +19,8 @@ dimensional identity (cells = volumetric rate here; the corner datum lives on
 :class:`~orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`
 with flux units, the trace convention).
 
-Storage, validation, the ``cells(level, sign)`` view, and the ``zeros_on`` /
-``from_mesh`` factories are inherited from
+Storage, validation, the ``cells(level, sign)`` view, and the shared
+face machinery are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`.
 Plain vector-space algebra (source sums are closed) — no role mixin, like every
 SourceSink leaf; the Field class-identity gate keeps source and flux

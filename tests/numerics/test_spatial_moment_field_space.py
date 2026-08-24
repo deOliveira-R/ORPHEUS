@@ -1,18 +1,18 @@
 r"""Foundation suite for the optional spatial-moment field-space factor (#240 D5b-S3-A0).
 
-The field-space factories (``AngularField`` / ``ScalarField`` un-windowed
-carriers + ``HarmonicMomentFlux`` windowed carrier) gained an OPTIONAL
-``spatial_moments`` parameter that composes a
-:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
-factor onto the field space — gated "append iff > 1" so the default leaves
-the space BYTE-IDENTICAL.
+Since CS4b S5 the widening is a SPACE selection, not a factory parameter:
+the un-windowed carriers construct on the carrier's cached mints — the
+width-1 ``angular_bulk_space`` / ``bulk_space``, or the scheme-widened
+``angular_trial_space`` (the ``spatial_moments`` int retired with the sugar
+tier; only the S6-pending ``HarmonicMomentFlux`` keyed factory still
+threads it). The "append iff > 1" gate lives in the trial mint: slopeless
+schemes collapse it to the width-1 instance, byte-identical.
 
 These are ``foundation`` (software-invariant) tests. The load-bearing gate
-is **byte-identity at default for ALL schemes** (DD, Step, AND LD): no
-production field carries the axis yet (construct-general / select-narrow),
-so widening the factories must not change ANY live field shape. The widened
-path is the CAPABILITY, exercised here by passing ``spatial_moments`` > 1
-explicitly.
+is **scheme-blindness of the width-1 mints** (DD, Step, AND LD read the
+same bulk spaces — construct-general / select-narrow: widening is the
+CALLER's property choice, never a scheme auto-read). The widened path is
+the CAPABILITY, exercised on the trial mint / the composed scalar space.
 
 Mode-8 / L26: every assertion is a FUNCTION CALL (``np.testing.*`` /
 ``pytest.fail`` / ``pytest.raises``) — bare ``assert`` is a NO-OP under the
@@ -30,6 +30,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.axis import BasisKind
 from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import SpatialMomentSpace, SphericalHarmonicSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
@@ -105,10 +106,11 @@ def ld_1d():
 @pytest.mark.foundation
 @pytest.mark.parametrize("scheme_name", ["dd", "ld"])
 def test_angular_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2d):
-    r"""``AngularFlux.zeros_on`` default space == the pre-S3 ``(N, ng, *spatial)``.
+    r"""The width-1 angular mint == the pre-S3 ``(N, ng, *spatial)``.
 
-    The default (``spatial_moments=1``) appends NO factor regardless of the
-    mesh's scheme — DD and LD produce the IDENTICAL space. Pinned against
+    ``angular_bulk_space`` appends NO factor regardless of the mesh's
+    scheme — DD and LD produce the IDENTICAL space (widening is the
+    caller's ``angular_trial_space`` selection, CS4b S5). Pinned against
     the independently-built expected shape from the mesh's own dims.
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
@@ -123,10 +125,10 @@ def test_angular_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_
 @pytest.mark.foundation
 @pytest.mark.parametrize("scheme_name", ["dd", "ld"])
 def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2d):
-    r"""``ScalarFlux.zeros_on`` default space == the pre-S3 ``(ng, *spatial)``.
+    r"""The width-1 scalar mint == the pre-S3 ``(ng, *spatial)``.
 
-    The :class:`ScalarSourceSink` scattering accumulator shares this
-    ``ScalarField`` factory; the default must stay byte-identical for both
+    The :class:`ScalarSourceSink` scattering accumulator constructs on
+    this same ``bulk_space`` mint; it must stay byte-identical for both
     schemes (the negative control for the scattering-source widening).
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
@@ -169,22 +171,34 @@ def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
 @pytest.mark.parametrize(
     "field_factory",
     [
-        pytest.param(lambda m, n: AngularFlux.zeros_on(m, spatial_moments=n),
-                     id="angular_flux"),
-        pytest.param(lambda m, n: ScalarFlux.zeros_on(m, spatial_moments=n),
-                     id="scalar_flux"),
+        # angular: the carrier's named widened mint (CS4b S5)
+        pytest.param(
+            lambda m: AngularFlux.zeros(m.angular_trial_space),
+            id="angular_flux",
+        ),
+        # scalar: no production consumer selects a widened scalar space
+        # yet, so there is no named carrier mint — the endgame spelling
+        # is the composed space (base axes + the scheme's moment axis).
+        pytest.param(
+            lambda m: ScalarFlux.zeros(
+                FunctionSpace.of_axes(
+                    *m.bulk_space.axes, m.scheme.moment_axis(m.ndim),
+                )
+            ),
+            id="scalar_flux",
+        ),
     ],
 )
 def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     r"""A widened bulk field gets a trailing ``per_axis ** ndim`` axis (d=2).
 
-    For ``spatial_moments=2`` on a 2-D mesh the trailing axis is
-    ``2 ** 2 = 4``; the factor is ``find_factor``-queryable. The expected
-    trailing length is recomputed inline (not read off the field).
+    For the LD scheme (``per_axis = 2``) on a 2-D mesh the trailing axis
+    is ``2 ** 2 = 4``. The expected trailing length is recomputed inline
+    (not read off the field).
     """
     mesh = ld_2d
-    per_axis = 2
-    field = field_factory(mesh, per_axis)
+    per_axis = mesh.scheme.spatial_basis_per_axis
+    field = field_factory(mesh)
     independent_tail = (per_axis ** mesh.ndim,)
     np.testing.assert_equal(field.space.shape[-1:], independent_tail)
     np.testing.assert_equal(field.values.shape, field.space.shape)
@@ -203,11 +217,11 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
 def test_angular_flux_widened_1d_shape(ld_1d):
     r"""A widened 1-D LD bulk field gets a trailing ``per_axis ** 1`` axis.
 
-    The 1-D scan carrier: ``spatial_moments=2`` on a 1-D mesh → trailing
+    The 1-D scan carrier: the LD trial mint on a 1-D mesh → trailing
     axis of ``2`` (the ``[bar, slope]`` per-cell moment pair).
     """
     mesh = ld_1d
-    field = AngularFlux.zeros_on(mesh, spatial_moments=2)
+    field = AngularFlux.zeros(mesh.angular_trial_space)
     np.testing.assert_equal(mesh.ndim, 1)
     np.testing.assert_equal(field.space.shape[-1], 2)
     np.testing.assert_equal(field.values.shape, field.space.shape)
@@ -238,34 +252,34 @@ def test_harmonic_moment_flux_widened_2d_shape(ld_2d):
 
 
 @pytest.mark.foundation
-def test_from_mesh_widened_roundtrip(ld_2d):
-    r"""``from_mesh`` accepts a pre-shaped widened buffer and validates it.
+def test_ctor_widened_roundtrip(ld_2d):
+    r"""The ctor accepts a pre-shaped widened buffer on the trial mint.
 
-    The reconstruction path (the iterate carrier S3-A will use): a buffer
-    already carrying the trailing moment axis round-trips through
-    ``from_mesh(values, mesh, spatial_moments=2)`` and passes the
-    ``BulkField`` shape gate (the validator derives the widened expected
-    shape from the composed space — Pattern 4).
+    The reconstruction path (the iterate carrier's S3-A spelling, now
+    space-primary): a buffer already carrying the trailing moment axis
+    round-trips through ``AngularFlux(values=…,
+    space=mesh.angular_trial_space)`` and passes the Field shape gate
+    (``values.shape == space.shape`` — Pattern 4).
     """
     mesh = ld_2d
     shape = (mesh.quad.N, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
     values = np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
-    field = AngularFlux.from_mesh(values, mesh, spatial_moments=2)
+    field = AngularFlux(values=values, space=mesh.angular_trial_space)
     np.testing.assert_equal(field.space.shape, shape)
     np.testing.assert_array_equal(field.values, values)
 
 
 @pytest.mark.foundation
-def test_widened_field_rejects_wrong_shape_buffer(ld_2d):
-    r"""A buffer whose trailing axis disagrees with ``spatial_moments`` raises.
+def test_widened_space_rejects_wrong_shape_buffer(ld_2d):
+    r"""A buffer whose trailing axis disagrees with the trial space raises.
 
-    Pattern 4: the ``BulkField`` shape gate cross-checks ``values.shape``
-    against the widened expected shape; a mismatched trailing axis is an
-    illegal state. Production invariant → real ``raise`` (fires under ``-O``).
+    Pattern 4: the Field shape gate cross-checks ``values.shape`` against
+    the widened space; a mismatched trailing axis is an illegal state.
+    Production invariant → real ``raise`` (fires under ``-O``).
     """
     mesh = ld_2d
-    # request spatial_moments=2 (tail 4) but feed a tail-2 buffer
+    # the trial space carries tail 4 (per_axis² on 2-D); feed a tail-2 buffer
     bad_shape = (mesh.quad.N, mesh.ng, *mesh.spatial_shape, 2)
     bad = np.zeros(bad_shape)
     with pytest.raises(ValueError):
-        AngularFlux.from_mesh(bad, mesh, spatial_moments=2)
+        AngularFlux(values=bad, space=mesh.angular_trial_space)

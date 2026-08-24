@@ -22,8 +22,8 @@ identity (this cells leaf is a volumetric rate; the corner rows live on
 with the trace convention), dissolving the retired unified
 ``RadialCharacteristicResidual``'s documented corner-units deviation.
 
-Storage, validation, the ``cells(level, sign)`` view, and the ``zeros_on``
-factory are inherited from
+Storage, validation, the ``cells(level, sign)`` view, and the shared
+face machinery are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`.
 Same-class arithmetic is closed by the Field Layer-1 gate; the balance that
 forms a residual goes through :meth:`from_balance`, never a bare cross-class

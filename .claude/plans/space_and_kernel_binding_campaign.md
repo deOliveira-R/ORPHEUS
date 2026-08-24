@@ -1485,12 +1485,35 @@ one; the Parseval metric is the inverse of the frame's DISCRETE Gram —
 frame-owned, not a basis constant).
 **✅ F-0 + F-1 EXECUTED 2026-08-23 (`0317373d`, `3dfea889`) — the
 landing ledger + execution deltas live in `frame_square_recarve.md`;
-the full-suite verification run's result is recorded there too.
-▶ RESUMES AT: the ruled order continues S5 → S6 (its adjoint gates now
-have their objects — the minted faces and the F-0 Parseval metrics) →
-S7.** The recarve file stays the record of the rulings, probe numbers,
-and the CS4c / Phase-S debt ledger; the charter text below stays as the
-DESIGN RECORD.
+the full-suite verification run's result is recorded there too.**
+
+**✅ S5 EXECUTED 2026-08-24 — the sugar-FACTORY tier is retired; every
+field construction is space-primary.** Commits: S5.0 `b00bf2d7` (the
+`angular_trial_space` carrier mint — the named replacement for the
+`spatial_moments=` int; `full_field_space` re-keys its interior onto it,
+`is`-shared at every width), S5.1 `89be9f2a` (composite allocators
+space-keyed: `FullField.zeros`/`TimedFullField.zeros` take `space=`;
+`RadialCharacteristicField.from_mesh`/`source_zeros_on` →
+`flux_zeros(space)`/`source_zeros(space)` with the shared R12a
+presence parse; 187 call sites), S5.2 `d8094c28` (production leaf
+sugar → the carrier mints, 56 sites; the 13 `spatial_moments=` sites
+all `[M]`-verified scheme-derived before becoming trial-mint reads),
+S5.3 `d7707d1b` (test tree, 503 script + 24 hand; three
+presence/diagnosis pins re-homed to the `_face_space_of` hook), S5.4
+(the deletion + prose sweep + G5.1 permanent gate in
+`test_meshless_construction.py::TestG51SugarTierRetired` + the docs
+sweep). Named survivors (NOT sugar): `from_mesh_and_L`/
+`zeros_for_mesh_and_L` (S6 re-home), the BC factories, `MaterialXSField
+.from_mesh` (assembly tier), `MultiplicationOperator.from_mesh`
+(operator tier). The rewrite tools are `scratch/s5_rewrite_composite.py`
++ `scratch/s5_rewrite_leaf.py` (AST span-exact — the migration record).
+▶ RESUMES AT: the ruled order continues S6 (verbs + the frame square +
+#399 — its G6.3/G6.8 adjoint gates have their objects: the minted faces
+and the F-0 Parseval metrics; the math-bearing factories
+`from_isotropic`/`from_mesh_and_L`/`from_face_arrays` re-home to the
+space/operator layer) → S7 (repairs + EE-1 + docs).** The recarve file
+stays the record of the rulings, probe numbers, and the CS4c / Phase-S
+debt ledger; the charter text below stays as the DESIGN RECORD.
 
 **Goal (outcome).** Analysis/Reconstruction at the transport level are
 first-class BOUND OPERATORS (domain/codomain = the two full field

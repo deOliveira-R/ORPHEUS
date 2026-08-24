@@ -13,8 +13,8 @@ Migration status (Depth B step D-F → B.1 → B.2 → B.5)
 Moved (D-F) from ``orpheus.sn.sources.PerOrdinateSource`` to here;
 re-parented (B.1) onto
 :class:`~orpheus.transport.fields._bases.AngularField` (the storage-base
-dedup — mesh / shape-check / ``from_mesh`` / ``_check_partner`` now live
-there); renamed ``PerOrdinateSource`` → ``AngularSource`` (B.2, hard
+dedup — the shape-check / space derivation / ``_check_partner`` now
+live there); renamed ``PerOrdinateSource`` → ``AngularSource`` (B.2, hard
 rename, no shim) to complete the ``{Angular, Scalar} × {Flux, Source,
 Residual}`` role grid; then ``AngularSource`` → ``AngularSourceSink``
 (B.5, source/sink role rename — the leaf holds both production *sources*
@@ -85,11 +85,9 @@ class AngularSourceSink(AngularField):
         Field values of shape ``(N, ng, nx, ny)`` in the principled
         layout (Issue #196 PR-INDEX-5/7).
     space : FunctionSpace
-        The function space. Must have ``shape == (mesh.quad.N,
-        mesh.ng, *mesh.spatial_shape)``. Use :meth:`from_mesh` to derive
-        automatically.
-    mesh : SNMesh
-        The SN phase-space carrier.
+        The function space — the carrier's cached mint
+        (``mesh.angular_bulk_space``, or ``mesh.angular_trial_space``
+        when the scheme's within-cell moment tail is carried; CS4b S5).
 
     Notes
     -----

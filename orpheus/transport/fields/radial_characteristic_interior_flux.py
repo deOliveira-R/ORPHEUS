@@ -9,8 +9,8 @@ state that
 :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
 (A_BB) evolves, A_AB reads (inward leg), and A_BA writes.
 
-Storage, validation, the ``cells(level, sign)`` view, and the ``zeros_on`` /
-``from_mesh`` factories are inherited from
+Storage, validation, the ``cells(level, sign)`` view, and the shared
+face machinery are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicInteriorField`,
 including the vector-space additive algebra of
 :class:`~orpheus.numerics.field.Field` (flux lives in V — campaign 1 CS3,

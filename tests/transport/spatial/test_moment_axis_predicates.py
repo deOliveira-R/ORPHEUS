@@ -159,10 +159,11 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     silently and break LD byte-identity. This test is WHY the inner walk uses the
     SCHEME-level ``is_multi_moment``, not a field-level query.
 
-    Build a bare ``AngularFlux.from_mesh(values, ld_sn_mesh)`` (NO
-    ``spatial_moments=`` — the default 1) on an LD ``SNMesh`` and assert the
-    field does NOT carry the spatial-moment axis even though the mesh's scheme
-    IS multi-moment.
+    Build a bare width-1 field (``space=ld_sn_mesh.angular_bulk_space`` —
+    NOT the ``angular_trial_space`` widened mint) on an LD ``SNMesh`` and
+    assert the field does NOT carry the spatial-moment axis even though the
+    mesh's scheme IS multi-moment — widening is the CALLER's selection, by
+    property choice since CS4b S5.
     """
     from tests.sn._test_helpers import placeholder_materials
 

@@ -81,7 +81,7 @@ Mesh-free (the carrier carries the mesh)
 :class:`MultiplicationOperator` stores ONLY the coefficient field; the
 output spaces are read off the operand's blocks at apply time,
 faithful to the structure the legacy collision operator used. The
-coefficient field is itself mesh-bound (it was built ``from_mesh``), so
+coefficient field is an element of the carrier's bulk space, so
 the operator's domain is implicit in the field it carries.
 
 References
@@ -338,8 +338,8 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         ``sigma`` is either a bare ``(ng, *spatial)`` :class:`numpy.ndarray`
         — wrapped into a
         :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-        on ``mesh`` via the same ``from_mesh`` factory the production
-        ``mat_xs.total_cross_section_field`` accessor uses — or an
+        on ``mesh.bulk_space``, exactly as the production
+        ``mat_xs.total_cross_section_field`` accessor builds it — or an
         already-typed :class:`CrossSectionField` (passed straight through).
         ``space`` is the optional composite
         :class:`~orpheus.numerics.space.FunctionSpace` for the composition

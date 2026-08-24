@@ -25,17 +25,16 @@ provides the *locus + family* axes as ABCs; the *role* leaves
 
     Field (numerics, L1 — values + space + dunder algebra)
      ├─ BulkField (ABC)           codim-0 (cell centres): mesh-binding + ng + _phase_space_shape
-     │   ├─ AngularField (ABC)    + N + (N,ng,*spatial) from_mesh/_ndarray on the carrier's cached space
+     │   ├─ AngularField (ABC)    + N + the carrier's cached space via _space_for_mesh (space_on)
      │   │   ├─ AngularFlux           role leaf  (flux)
      │   │   └─ AngularSourceSink     role leaf  (source; renamed from PerOrdinateSource in B.2)
-     │   ├─ ScalarField (ABC)     + (ng,*spatial) from_mesh/_ndarray on the carrier's cached space
+     │   ├─ ScalarField (ABC)     + the carrier's cached space via _space_for_mesh (space_on)
      │   │   ├─ ScalarFlux            role leaf  (flux)
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
      └─ FaceField[K] (ABC)        codim-1 (faces/edges): flat single-buffer + FaceLayout[K]
-         │                        slice-views + mesh/layout guards + from_mesh/zeros_on via
-         │                        _face_space_of. STRUCTURE only — the metric descends PER LEAF
+         │                        slice-views + layout guards + space_on via _face_space_of. STRUCTURE only — the metric descends PER LEAF
          │                        (spatial |Ω·n̂|·w; pole V_cell), never on this ABC (ERR-067).
          ├─ BoundaryField (ABC, FaceField[str])   SPATIAL faces (keyed by name) + from_face_arrays;
          │   │                    the FullField boundary-slot discriminator (the pole is NOT one)
@@ -162,9 +161,11 @@ class BulkField(Field):
     structural question (shape, ``ng``, moment width, ordinate count) is
     answered by the space. The pre-S4 ``mesh`` binding retired with its
     reads — a field no longer knows its carrier; the carrier's knowledge
-    enters through the factories (``from_mesh``/``zeros_on`` take the
-    mesh as an ARGUMENT) and through the seams that hold one (the
-    ``space_on`` admission guards).
+    enters through its cached space mints, read AT the call site
+    (``mesh.angular_bulk_space`` / ``bulk_space`` / the traces / the
+    scheme-widened ``angular_trial_space`` — the S5 space-primary
+    spelling), and through the seams that hold one (the ``space_on``
+    admission guards).
 
     Shape validation is :class:`~orpheus.numerics.field.Field`'s own
     ``values.shape == space.shape`` — the pre-S4 ``_phase_space_shape``
@@ -247,9 +248,12 @@ class BulkField(Field):
         if spatial_moment_tail(n_moments) == ():
             return space
         if space.axes is not None:
-            # Transitional translation of the int parameter (this factory
-            # tier retires at CS4b S5; the endgame constructor takes the
-            # composed SPACE, where these states have no spelling at all).
+            # The width thread behind space_on's admission re-mint (and,
+            # until S6, the moment family's keyed factories). The public
+            # sugar tier retired at S5 — call sites read the carrier
+            # mints (angular_bulk_space / angular_trial_space); this
+            # private derivation re-mints a FIELD's own width on a
+            # carrier for comparison.
             scheme = getattr(mesh, "scheme", None)
             if scheme is None:
                 raise TypeError(
@@ -447,8 +451,10 @@ class AngularField(BulkField):
         :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
         (campaign 1 CS4b — the carrier is the ONE mint; every angular
         leaf on one carrier shares the SAME space instance, carrying the
-        physical Hilbert metric ``w_n × V_cell`` per axis). Shared by
-        :meth:`from_mesh` and :meth:`zeros_on`.
+        physical Hilbert metric ``w_n × V_cell`` per axis). The private
+        derivation behind :meth:`space_on`'s admission re-mint (the
+        public sugar tier retired at CS4b S5 — call sites read the
+        carrier mints directly).
 
         ``spatial_moments`` (default ``1``) is the optional within-cell
         spatial-moment basis size per axis (#240 D5b-S3-A0). At the
@@ -458,21 +464,6 @@ class AngularField(BulkField):
         """
         return cls._compose_spatial_moments(
             mesh.angular_bulk_space, mesh, spatial_moments,
-        )
-
-    @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "SNMesh", *, spatial_moments: int = 1):
-        r"""Construct from raw values + mesh, deriving the space.
-
-        The space is the carrier's cached ``mesh.angular_bulk_space`` via
-        :meth:`_space_for_mesh` — single source of truth for both the
-        family's space identity and the construction shape.
-        ``spatial_moments`` (default ``1``, byte-identical) optionally
-        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
-        """
-        return cls(
-            values=values,
-            space=cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
         )
 
     def _integrate_angular_values(self) -> "NDArray":
@@ -508,27 +499,6 @@ class AngularField(BulkField):
         if w is None:
             return self.values.sum(axis=0)
         return np.einsum("n,ng...->g...", w, self.values)
-
-    @classmethod
-    def zeros_on(cls, mesh: "SNMesh", *, spatial_moments: int = 1):
-        r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
-
-        The bulk-locus zero factory: derives the space from ``mesh`` and
-        delegates to :meth:`~orpheus.numerics.field.Field.zeros`. The
-        uniform leaf-side allocator that
-        :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
-        calls; replaces the retired ``SNMesh.zeros_*`` mesh-side factories.
-        ``spatial_moments`` (default ``1``, byte-identical) optionally
-        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
-        """
-        return cls.zeros(
-            cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
-        )
-
-    @classmethod
-    def from_ndarray(cls, arr: NDArray, mesh: "SNMesh"):
-        r"""Test-ergonomic alias for :meth:`from_mesh`."""
-        return cls.from_mesh(arr, mesh)
 
     @property
     def N(self) -> int:  # noqa: N802 — matches Quadrature.N
@@ -568,8 +538,10 @@ class ScalarField(BulkField):
         :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
         (campaign 1 CS4b — the carrier is the ONE mint; every scalar leaf
         on one carrier shares the SAME space instance, carrying the
-        cell-volume measure on the spatial axis). Shared by
-        :meth:`from_mesh` and :meth:`zeros_on`.
+        cell-volume measure on the spatial axis). The private
+        derivation behind :meth:`space_on`'s admission re-mint (the
+        public sugar tier retired at CS4b S5 — call sites read the
+        carrier mints directly).
 
         ``spatial_moments`` (default ``1``) is the optional within-cell
         spatial-moment basis size per axis (#240 D5b-S3-A0); at ``> 1``
@@ -582,39 +554,6 @@ class ScalarField(BulkField):
         return cls._compose_spatial_moments(
             mesh.bulk_space, mesh, spatial_moments,
         )
-
-    @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "MaterialMesh", *, spatial_moments: int = 1):
-        r"""Construct from raw values + mesh, deriving the space.
-
-        ``spatial_moments`` (default ``1``, byte-identical) optionally
-        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
-        """
-        return cls(
-            values=values,
-            space=cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
-        )
-
-    @classmethod
-    def zeros_on(cls, mesh: "MaterialMesh", *, spatial_moments: int = 1):
-        r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
-
-        The bulk-locus zero factory: derives the space from ``mesh`` and
-        delegates to :meth:`~orpheus.numerics.field.Field.zeros`. The
-        uniform leaf-side allocator that
-        :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
-        calls; replaces the retired ``SNMesh.zeros_*`` mesh-side factories.
-        ``spatial_moments`` (default ``1``, byte-identical) optionally
-        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
-        """
-        return cls.zeros(
-            cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
-        )
-
-    @classmethod
-    def from_ndarray(cls, arr: NDArray, mesh: "MaterialMesh"):
-        r"""Test-ergonomic alias for :meth:`from_mesh`."""
-        return cls.from_mesh(arr, mesh)
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -630,8 +569,9 @@ class MomentField(BulkField):
     ``(L+1, 2L+1, ng, *spatial[, …])`` :meth:`_phase_space_shape`, the
     ``L``-match :meth:`_check_partner`, and the
     :class:`~orpheus.numerics.space.TensorProductSpace`-building
-    :meth:`from_mesh_and_L` / :meth:`zeros_for_mesh_and_L` /
-    :meth:`from_ndarray` factories.
+    :meth:`from_mesh_and_L` / :meth:`zeros_for_mesh_and_L` factories
+    (keyed, S6 re-home pending; the positional ``from_ndarray`` alias
+    retired with the S5 sugar tier).
 
     A moment field is a moment field on the spherical-harmonic ⊗
     scalar-bulk phase space, keyed on the truncation order ``L``; its
@@ -757,12 +697,12 @@ class MomentField(BulkField):
     ):
         r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
 
-        The moment-space parallel of the bulk leaves' :meth:`zeros_on`,
-        mirroring :meth:`from_mesh_and_L` with a zero buffer. The extra ``L``
-        makes the signature non-uniform, so this is deliberately NOT named
-        ``zeros_on`` — a moment field is never a
-        :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
-        slot, so it does not need the uniform allocator interface.
+        Mirrors :meth:`from_mesh_and_L` with a zero buffer. The extra
+        ``L`` makes the signature keyed rather than uniform — a moment
+        field is never a
+        :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        composite slot, so it never needed the (since-retired, S5)
+        uniform mesh-keyed allocator surface; its own re-home is S6.
 
         ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
         sizes the optional within-cell spatial-moment axis to match
@@ -776,18 +716,6 @@ class MomentField(BulkField):
         return cls.from_mesh_and_L(
             values, mesh, L, spatial_moments=spatial_moments,
         )
-
-    @classmethod
-    def from_ndarray(cls, arr: NDArray, mesh: "SNMesh", L: int):
-        r"""Test-ergonomic alias for :meth:`from_mesh_and_L`.
-
-        Per Depth B plan §3.7, every typed field exposes
-        ``from_ndarray(arr, ...)`` as the migration path from the retired
-        ``apply(np.ndarray)`` singledispatch handlers (D-I). For the moment
-        family the second argument is the mesh and the third the truncation
-        order ``L``.
-        """
-        return cls.from_mesh_and_L(arr, mesh, L)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -808,9 +736,10 @@ class FaceField(Field, Generic[K]):
     keyed by the layout key ``K`` (a ``str`` face name for the spatial trace,
     a ``(level, sign, part)`` tuple for the ψ½ pole edge), the cross-mesh /
     cross-layout arithmetic guards, the read-through :attr:`layout` property,
-    and the :meth:`from_mesh` / :meth:`zeros_on` factories (via the single
-    :meth:`_face_space_of` hook, so they build the concrete subclass on ITS
-    mesh's cached face space).
+    and the single :meth:`_face_space_of` space hook — the family's cached
+    face-space read behind :meth:`space_on` and the family diagnoses (the
+    mesh-keyed factories retired at CS4b S5; call sites read the carrier's
+    cached face space directly).
 
     **STRUCTURE only — no metric on this ABC.** Exactly as :class:`BulkField`
     carries no metric (each bulk leaf's ``V·w`` lives on its own space), a
@@ -875,8 +804,9 @@ class FaceField(Field, Generic[K]):
             raise TypeError(
                 f"{type(self).__name__} requires a layout-bearing face "
                 f"space (a trace / starting-direction space built via its "
-                f"factory); got space={self.space!r}. Build via "
-                f"{type(self).__name__}.zeros_on / from_mesh."
+                f"factory); got space={self.space!r}. Construct on the "
+                f"carrier's cached face space (mesh.angular_trace / "
+                f"mesh.scalar_trace / the split ψ½ spaces)."
             )
         expected = (layout.total_size,)
         if self.values.shape != expected:
@@ -951,35 +881,6 @@ class FaceField(Field, Generic[K]):
         """
         return {key: self.face_view(key) for key in self.layout.faces}
 
-    # ── Construction factories (via ``cls`` — build the subclass) ────
-
-    @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "MaterialMesh"):
-        r"""Construct from a flat face buffer + mesh, sourcing the family's
-        cached face space (:meth:`_face_space_of`).
-
-        The codim-1 counterpart to the bulk families' ``from_mesh``, giving
-        every locus the SAME "construct this leaf from raw ``values`` +
-        ``mesh``" surface. It takes the already-packed ``(layout.total_size,)``
-        buffer directly. This is the reconstruction path the named
-        composition :meth:`~orpheus.numerics.field.Field._from_balance` uses
-        to re-wrap a differenced face buffer in the residual role — so a face
-        residual lands on the same cached face space as every other leaf of
-        its family.
-        """
-        return cls(values=values, space=cls._face_space_of(mesh))
-
-    @classmethod
-    def zeros_on(cls, mesh: "MaterialMesh"):
-        r"""Construct a zero face field sized to ``mesh`` (B.5.A).
-
-        Sources the space from :meth:`_face_space_of` (the family's cached
-        face space) and delegates to
-        :meth:`~orpheus.numerics.field.Field.zeros` — the uniform leaf-side
-        allocator.
-        """
-        return cls.zeros(cls._face_space_of(mesh))
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # Boundary locus (spatial faces)
@@ -993,8 +894,8 @@ class BoundaryField(FaceField[str]):
     The boundary of the SPATIAL domain: codim-1 faces keyed by name
     (``"xmin"`` / ``"xmax"`` / ...), under the partial-current
     ``|Ω·n̂|·w`` metric. The flat-buffer discipline (storage, slice views,
-    mesh/layout guards, :meth:`~FaceField.from_mesh` /
-    :meth:`~FaceField.zeros_on`) is inherited from :class:`FaceField`; this
+    mesh/layout guards, the :meth:`~FaceField.space_on` hook) is
+    inherited from :class:`FaceField`; this
     intermediate (a) adds the spatial-only :meth:`from_face_arrays` per-face
     packer, and (b) is the type the
     :class:`~orpheus.transport.full_field.FullField` composite discriminates
@@ -1101,8 +1002,8 @@ class AngularBoundaryField(BoundaryField):
             raise TypeError(
                 f"{type(self).__name__} requires an AngularTraceSpace carrying a "
                 f"FaceLayout (A.5 re-home); got space={self.space!r}. Build "
-                f"via {type(self).__name__}.zeros_on / "
-                f"from_face_arrays, or pass mesh.angular_trace as the space."
+                f"via {type(self).__name__}.from_face_arrays, or pass "
+                f"mesh.angular_trace as the space."
             )
         super().__post_init__()
 
@@ -1154,9 +1055,9 @@ class ScalarBoundaryField(BoundaryField):
             raise TypeError(
                 f"{type(self).__name__} requires a ScalarTraceSpace (the "
                 f"(J⁺, J⁻) partial-current trace); got space="
-                f"{self.space!r}. Build via {type(self).__name__}.zeros_on "
-                f"/ from_face_arrays, or pass mesh.scalar_trace as the "
-                f"space."
+                f"{self.space!r}. Build via "
+                f"{type(self).__name__}.from_face_arrays, or pass "
+                f"mesh.scalar_trace as the space."
             )
         super().__post_init__()
 

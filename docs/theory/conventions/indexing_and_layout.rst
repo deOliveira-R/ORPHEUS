@@ -1335,8 +1335,8 @@ The three types
      - Boundary :math:`\psi` at every face plus curvilinear pole state.
        Replaces the stringly-typed ``psi_bc: dict``.
 
-Zero-field factories live on the LEAF, not on the mesh
-------------------------------------------------------
+Zero-field allocation is SPACE-keyed: the carrier mints, the leaf allocates
+---------------------------------------------------------------------------
 
 .. note:: **Correction (2026-08-10, Issue #346).**  This section was
    headed *"Factory methods (SNMesh)"* and stated that
@@ -1346,51 +1346,227 @@ Zero-field factories live on the LEAF, not on the mesh
    renamed — it **changed owner**.  ``[M]``
    ``[n for n in dir(SNMesh) if "zero" in n.lower()] == []``.
 
-The zero allocator is a **leaf-side classmethod**, one per field family,
-taking the mesh as an argument rather than living on it:
+.. note:: **Second correction (2026-08-24, campaign 1 CS4b S5).**  The
+   ownership has moved once more, and this section carried the middle
+   step of a two-step history.  #346 moved the allocator **off the mesh
+   and onto the leaf**, where it was spelled ``Leaf.zeros_on(mesh)``
+   (with siblings ``from_mesh(values, mesh)`` and ``from_ndarray``).
+   CS4b S5 retired that whole *mesh-keyed sugar tier* in turn: a field is
+   an ELEMENT of a function space, so its constructor and its allocator
+   are keyed by the **space**, not by the carrier that happens to mint
+   one.  The leaf is still the owner; only the key changed.  ``[M]``
+   ``hasattr(AngularField, "zeros_on") is False`` and likewise for
+   ``from_mesh`` / ``from_ndarray`` on every transport field leaf.
+
+A field leaf has exactly **two** construction spellings, and both name a
+:class:`~orpheus.numerics.space.FunctionSpace`:
+
+.. code-block:: python
+
+   psi = AngularFlux(values=arr, space=sn.angular_bulk_space)   # primary
+   psi = AngularFlux.zeros(sn.angular_bulk_space)               # allocator
+
+The primary constructor is the dataclass itself (``values``/``space`` are
+its only two fields on the angular and scalar families), and the
+allocator is the single shared
+:meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` on the base —
+one body, ``np.zeros(space.shape)``, inherited by every leaf.  Nothing
+between the caller and that body has to know a storage layout, because
+the space already *is* the layout.
+
+The carrier's cached mints
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+What a call site reads instead of passing a mesh is one of the carrier's
+**cached** space properties.  Each is minted once per carrier and shared
+by reference, so every field on one carrier holds the *same* space
+instance (a cheap identity; the operator-admission guards themselves
+compare space CONTENT — the F2 doctrine — so equal twin-carrier mints
+mix and only a genuinely different space refuses):
+
+.. list-table:: Which mint keys which family
+   :header-rows: 1
+   :widths: 34 24 42
+
+   * - Carrier mint
+     - Families that live there
+     - What it is
+   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+     - :class:`AngularFlux`, :class:`~orpheus.transport.source_sinks.AngularSourceSink`,
+       the angular residual
+     - the per-ordinate bulk phase space, the ordered axis product
+       :math:`V_\Omega \otimes V_E \otimes V_r` with the quadrature
+       measure :math:`w_n` on the ordinate axis and the cell volumes on
+       the spatial axis
+   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`
+     - the same angular leaves, when the caller wants the **scheme's**
+       within-cell basis
+     - :attr:`angular_bulk_space` extended by the scheme's MODAL moment
+       axis (below).  Byte-identical to it for the slopeless closures
+   * - :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+     - :class:`ScalarFlux`, :class:`~orpheus.transport.source_sinks.ScalarSourceSink`,
+       the scalar residual
+     - the scalar bulk :math:`V_E \otimes V_r` — literally
+       :attr:`angular_bulk_space` minus axis 0, which is why the angular
+       retract cannot disagree with it on the shared factors
+   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trace`
+     - :class:`AngularBoundaryFlux`,
+       :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
+     - the FLAT per-face trace buffer under the
+       :math:`\lvert\hat\Omega\cdot\hat n\rvert\,w_n` partial-current
+       metric
+   * - :attr:`~orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace`
+     - the scalar :math:`(J^+, J^-)` boundary leaves
+     - the diffusion partial-current trace, under the face-AREA metric.
+       A bare ``MaterialMesh`` has none — a scalar trace is diffusion
+       *behaviour*, not method-agnostic *data* (#290 P7a)
+   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_interior_space`
+       / :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_boundary_space`
+     - the :math:`\psi_{1/2}` starting-direction leaves (System B)
+     - the split ``cells`` and ``corner`` ray spaces, keyed by
+       ``(level, sign)``.  Both are ``None`` on a carrier whose
+       :math:`\mu`-levels consume no independent starting direction
+       (R12a — Cartesian and the production cylinder rules)
+
+Measured allocations
+~~~~~~~~~~~~~~~~~~~~
+
+``[M]`` on a vacuum slab with ``N = 4`` (Gauss–Legendre), ``ng = 2``,
+``nx = 4``, diamond difference:
 
 .. list-table::
    :header-rows: 1
-   :widths: 34 30 36
+   :widths: 46 26 28
 
-   * - Allocator
-     - Argument
-     - Measured shape (slab, ``N = 4``, ``ng = 2``, ``nx = 4``)
-   * - :meth:`AngularFlux.zeros_on <orpheus.transport.fields.angular_flux.AngularFlux.zeros_on>`
-     - an :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
-     - ``(4, 2, 4)`` — i.e. rank-honest ``(N, ng, *spatial_shape)``,
-       **not** a phantom-``ny`` ``(N, ng, nx, 1)``
-   * - :meth:`ScalarFlux.zeros_on <orpheus.transport.fields.scalar_flux.ScalarFlux.zeros_on>`
-     - any ``MaterialMesh`` (the angular axis is already integrated out)
+   * - Allocation
+     - Space read
+     - Measured shape
+   * - ``AngularFlux.zeros(sn.angular_bulk_space)``
+     - :attr:`angular_bulk_space`
+     - ``(4, 2, 4)`` — rank-honest ``(N, ng, *spatial_shape)``, **not**
+       a phantom-``ny`` ``(N, ng, nx, 1)``
+   * - ``ScalarFlux.zeros(sn.bulk_space)``
+     - :attr:`bulk_space`
      - ``(2, 4)`` — ``(ng, *spatial_shape)``
-   * - :meth:`AngularBoundaryFlux.zeros_on <orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.zeros_on>`
-     - any ``MaterialMesh``
+   * - ``AngularBoundaryFlux.zeros(sn.angular_trace)``
+     - :attr:`angular_trace`
      - ``(16,)`` — the FLAT trace buffer over the faces the geometry
-       actually carries (here ``N × ng × 2`` faces), sourced from the
-       family's cached face space
+       actually carries (here :math:`N \times n_g \times 2` faces)
+   * - ``AngularSourceSink.zeros(sn.angular_trial_space)``
+     - :attr:`angular_trial_space`
+     - ``(4, 2, 4)`` under DD — the trial mint *is* the bulk mint here
 
-Why the ownership moved is the architecturally interesting part, and it
-is the same reasoning as the C5.2 rank-honesty carve
-(:ref:`sn-c5-phantom-retirement`): a mesh-side ``zeros_angular_flux``
-has to know the *storage layout of every leaf type*, so each new leaf
-(or each new trailing axis — the ``spatial_moments`` factor of #240
-D5b-S3) grows another method on the mesh.  A leaf-side ``zeros_on``
-inverts that: the leaf derives its own space from the mesh
-(``cls._space_for_mesh(mesh, …)``) and delegates to the single
-:meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` on the base,
-so the mesh stays layout-blind and there is exactly one allocator body.
-The production docstrings say so in as many words — *"the uniform
-leaf-side allocator … replaces the retired* ``SNMesh.zeros_*`` *mesh-side
-factories"*.
+Switch the same slab to linear discontinuous and only the trial mint
+moves: ``[M]`` :attr:`angular_bulk_space` still reads ``(4, 2, 4)``
+while :attr:`angular_trial_space` reads ``(4, 2, 4, 2)``, its axes being
+``angular(4) × energy(2) × spatial(4) × spatial_moment(2)`` with the
+moment factor MODAL and carrying the scheme's mass
+:math:`(1, \tfrac13)` as its measure.
 
-A whole composite is allocated one level up, by naming the two leaf
-types instead of calling each of their allocators:
+The trial mint — construct general, select narrow
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space` is
+the scheme-widened sibling of :attr:`angular_bulk_space`: the same
+product with the bound scheme's within-cell spatial-moment factor
+(:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`,
+the tensor-Legendre cell basis) appended,
+
+.. math::
+
+   V_{\rm trial} \;=\;
+   V_\Omega \otimes V_E \otimes V_r \otimes V_{\rm moment}({\rm scheme}).
+
+For a slopeless closure
+(:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.is_multi_moment`
+``False`` — diamond difference and step) the trial basis *is* the cell
+average, and the property returns :attr:`angular_bulk_space` **itself**
+— the same cached instance, byte-identical, so slopeless consumers pay
+nothing and the two mints cannot drift.
+
+This is the whole of the construct-general / select-narrow seam of #240
+D5b-S3-A0: **which of the two properties a call site reads IS the
+widening decision.**  The seams that FILL the moment axis (the SI cold
+starts, the LD emissions, the coupled-system assembly) allocate on the
+trial mint; width-1 cell-average consumers read the bulk mint.  It
+replaces the retired ``spatial_moments=`` factory parameter, whose
+integer was a lossy proxy for the scheme's basis and had to be threaded
+identically at every call site; the composition rule *"widen* :math:`\iff`
+*append the scheme's moment axis"* is now spelled once, on the carrier.
+
+The metric is what makes this a correctness mint rather than sugar
+(#310 C2 ruling 3): the moment axis carries the scheme's mass
+:math:`M_{ii}/V = \prod_a \theta^{o_a}` as its measure, so the trial
+Gram is :math:`G = V\,w_n \otimes \mathrm{diag}(1, \theta, \dots)`.
+Broadcasting an average-only :math:`V\,w_n` across the moment axis would
+mis-weight the slope degrees of freedom: ``.H`` becomes a WRONG adjoint
+on the slope rows, and reciprocity goes Mode-12 blind to a slope-row
+transpose.
+
+Why the key is the space and not the mesh
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The original argument for moving the allocator off the mesh
+(:ref:`sn-c5-phantom-retirement`, the C5.2 rank-honesty carve) was that
+a mesh-side ``zeros_angular_flux`` has to know the *storage layout of
+every leaf type*, so each new leaf grows another method on the mesh.
+Keying on the space finishes that inversion rather than reversing it,
+and it removes the residual duplication the mesh-keyed sugar still
+carried:
+
+* **The derivation ran twice.**  ``Leaf.zeros_on(mesh)`` re-derived the
+  leaf's space from the mesh on every call, while the carrier was
+  already caching exactly that space for the operators to bind against.
+  Two routes to one object is the Pattern-2 smell; now there is one, and
+  a field's space is ``is``-identical to the operator's domain instead of
+  merely equal to it.
+* **The widening knob was a proxy.**  ``spatial_moments=`` was an ``int``
+  that every call site had to re-read off the scheme and thread through
+  a factory.  A property choice cannot be threaded wrong.
+* **Absence became spellable.**  A carrier that does not host a family
+  mints ``None`` for it, so a leaf that cannot exist on a given carrier
+  is refused at the composite seam with a diagnosis (below) rather than
+  materialising as a zero-DOF field.
+
+Composites are allocated one level up
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A composite is an ELEMENT of its direct-sum space (CS4b S4), so its
+allocator is space-keyed exactly like a leaf's.
 :meth:`FullField.zeros <orpheus.transport.full_field.FullField.zeros>`
 and
 :meth:`TimedFullField.zeros <orpheus.transport.timed_full_field.TimedFullField.zeros>`
-take ``interior=``/``boundary=`` leaf classes plus the mesh (and, for
-the timed carrier, a ``history_depth``) and call the leaves'
-``zeros_on`` internally.
+take the two leaf **classes** plus the carrier's cached
+:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` (and,
+for the timed carrier, a ``history_depth``), and zero-allocate each
+block on the matching block space through the one
+:meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` primitive::
+
+    q = FullField.zeros(
+        interior=AngularFlux,
+        boundary=AngularBoundaryFlux,
+        space=sn.full_field_space,
+    )
+
+``[M]`` on the slab above this yields blocks ``(4, 2, 4)`` and ``(16,)``.
+Naming the classes rather than calling each leaf's allocator is what
+keeps the container cross-method generic: diffusion and CP pass their
+own scalar leaves through the same body.
+
+System B's :math:`\psi_{1/2}` composite is the presence-gated case.
+:meth:`RadialCharacteristicField.flux_zeros <orpheus.transport.radial_characteristic_field.RadialCharacteristicField.flux_zeros>`
+and its source-role sibling
+:meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_zeros`
+take the carrier's
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_field_space`,
+which is ``None`` exactly where no :math:`\mu`-level consumes an
+independent starting direction — and ``None`` is REFUSED with the R12a
+diagnosis (*"System B is absent on this carrier…"*) rather than
+silently allocating an empty block.  ``[M]`` on a 4-cell reflective
+sphere with the same quadrature the blocks read ``(16,)`` (cells) and
+``(4,)`` (the :math:`r = R` corner); on the slab the same call raises.
+Presence is block existence, and the diagnosis now lives at the
+composite seam instead of inside a leaf factory.
 
 Mutability discipline
 ---------------------
@@ -1482,18 +1658,30 @@ arithmetic is permitted when there is a canonical subspace-containment
 relation between the operands' spaces) — see the
 :mod:`orpheus.transport.source_sinks` module docstrings.
 
-Zero-field factories
---------------------
+Zero-source allocation
+----------------------
 
-* :meth:`ScalarSourceSink.zeros_on(mesh) <orpheus.transport.fields._bases.ScalarField.zeros_on>`
-  → ``(ng, nx, ny)`` zeros.
-* :meth:`AngularSourceSink.zeros_on(mesh) <orpheus.transport.fields._bases.AngularField.zeros_on>`
-  → ``(N, ng, nx, ny)`` zeros.
+The source leaves allocate exactly like the flux leaves — same base
+:meth:`Field.zeros <orpheus.numerics.field.Field.zeros>`, same carrier
+mints (:ref:`theory-sn-typed-fields`), role being class identity rather
+than a different construction path:
 
-(These leaf-side ``zeros_on`` allocators replaced the retired
-``SNMesh.zeros_*`` mesh-side factories — see
-:meth:`~orpheus.transport.fields._bases.ScalarField.zeros_on` /
-:meth:`~orpheus.transport.fields._bases.AngularField.zeros_on`.)
+* ``ScalarSourceSink.zeros(mesh.bulk_space)`` → ``(ng, *spatial)`` zeros.
+* ``AngularSourceSink.zeros(sn.angular_bulk_space)`` →
+  ``(N, ng, *spatial)`` zeros; read
+  :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`
+  instead when the source carries the scheme's within-cell moments (the
+  LD slope source :math:`\hat Q`).
+* ``AngularBoundarySourceSink.zeros(sn.angular_trace)`` → the flat
+  trace buffer, and the bottom rung of the prescribed-inflow ladder
+  (:ref:`bc-affine-channel-where-q-travels`).
+
+The ownership of this allocator has moved **twice** — off
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` onto the leaf at #346
+(as ``zeros_on(mesh)``), then off the mesh key onto the space key at
+CS4b S5.  The reasoning for both steps, and the measured shapes, are in
+:ref:`theory-sn-typed-fields`; only the *key* changed at the second
+step, never the owner.
 
 Cross-type ``__add__`` table
 ----------------------------

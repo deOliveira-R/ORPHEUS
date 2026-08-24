@@ -2020,10 +2020,11 @@ type-visible and dispels the collision.
 The factor composes via the tensor product ``*`` into the bulk-field spaces
 EXACTLY as the angular factor does, and is recovered by type via
 ``space.find_factor(SpatialMomentSpace).per_axis`` (#207).  The
-field-space factories
-(:meth:`~orpheus.transport.fields._bases.AngularField.from_mesh`,
-:meth:`~orpheus.transport.fields._bases.ScalarField.from_mesh`,
-:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L`)
+field-space factories of the day (``AngularField.from_mesh``,
+``ScalarField.from_mesh``, and
+:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L`
+— the two mesh-keyed leaf factories retired at CS4b S5, the keyed moment
+factory did not)
 gained an OPTIONAL ``spatial_moments`` parameter (default ``1``) that
 appends the factor **iff the within-cell count exceeds 1** — the
 "append iff > 1" gate single-sourced from
@@ -2172,20 +2173,23 @@ delegates to it (Pattern 7 — normalise the convention at one site), and
 (:mod:`orpheus.transport.fields._bases`) returns the space UNCHANGED when the
 tail is ``()``.
 
-Construct-general, select-narrow — what this step does and does NOT do
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Construct-general, select-narrow — what this step did and did NOT do
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This step builds the **capability** to carry the spatial-moment axis and
-nothing more.  The discipline is deliberate (`coding-elegance` — construct
-general, select narrow, specialize only on measured need):
+This step built the **capability** to carry the spatial-moment axis and
+nothing more (the two bullets below are dated to it; the note at the end of
+the subsection says where each one stands today).  The discipline is
+deliberate (`coding-elegance` — construct general, select narrow,
+specialize only on measured need):
 
 * **The axis exists.**  The :class:`SpatialMomentSpace` is minted, composes
   into every bulk-field space, and is ``find_factor``-queryable.
 
-* **No production field selects it.**  The ``spatial_moments`` factory
-  parameter defaults to ``1`` at EVERY call site and is NOT auto-read from
+* **No production field selects it** *(as of S3)*.  The ``spatial_moments``
+  factory parameter defaulted to ``1`` at EVERY call site and was NOT
+  auto-read from
   ``mesh.scheme.spatial_basis_per_axis``.  So DD, Step, AND LD field shapes
-  are unchanged this step — even LD does not yet carry the slope axis.
+  were unchanged at this step — not even LD carried the slope axis yet.
 
 * **Why default-OFF even for LD.**  Auto-reading the scheme would silently
   widen LD field shapes BEFORE the consumers that FILL the axis exist — the
@@ -2193,16 +2197,44 @@ general, select narrow, specialize only on measured need):
   proper, owed; see the scattering-lift subsection).  A widened axis that no
   producer fills is precisely the illegal state Pattern 4 forbids; turning the
   capability on before its producers exist would re-introduce it.  The gate
-  has teeth on exactly this mistake: making
-  :meth:`BulkField._compose_spatial_moments` auto-read the scheme turns the LD
-  byte-identity foundation tests RED (mutation-verified).
+  had teeth on exactly this mistake: making
+  :meth:`BulkField._compose_spatial_moments` auto-read the scheme turned the
+  LD byte-identity foundation tests RED (mutation-verified).
 
 The S3-A iterate / cell-emit / source seams that thread the scheme's
-``spatial_basis_per_axis`` here (selecting the axis for LD) are the NEXT
-sub-step.  When they land, the only change at the factory call sites is
-passing ``spatial_moments=scheme.spatial_basis_per_axis``; the validator
-already accepts the widened space, and the scattering lift already scatters
-its slopes.
+``spatial_basis_per_axis`` here (selecting the axis for LD) were the NEXT
+sub-step, and they landed: the validator already accepted the widened
+space and the scattering lift already scattered its slopes, so the change
+at each call site was exactly the promised
+``spatial_moments=scheme.spatial_basis_per_axis``.
+
+.. note:: **Where the selection lives now (CS4b S5, 2026-08-24).**  Both
+   bullets above are dated to the S3 step; on the angular and scalar leaf
+   families neither describes the tree any more, and the mechanism the
+   third one guards against has been replaced rather than switched on.
+   ``[M]``
+   ``hasattr(AngularField, "from_mesh") is False`` — the mesh-keyed
+   factory tier retired, and with it the ``spatial_moments=`` integer.
+   The widening knob is now a **property choice** on the carrier:
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space` is
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space` with
+   the scheme's own MODAL
+   :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
+   appended, and a call site widens by *reading that property instead of
+   the other one*.  The construct-general / select-narrow discipline this
+   subsection states is unchanged — only its spelling is: an integer that
+   every call site had to re-read off the scheme and thread correctly
+   became a choice between two cached properties, which cannot be
+   threaded wrong.  For a slopeless closure the two are the SAME cached
+   instance, so DD / Step remain byte-identical by construction rather
+   than by a default.  ``[M]`` on a 4-cell slab, ``N = 4``, ``ng = 2``:
+   DD reads ``(4, 2, 4)`` from both properties (``is``-identical); LD
+   reads ``(4, 2, 4)`` from the bulk mint and ``(4, 2, 4, 2)`` from the
+   trial mint.  The keyed moment-family factories
+   (:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.zeros_for_mesh_and_L`
+   and its ``from_mesh_and_L`` sibling) still take ``spatial_moments=``
+   and are re-homed at S6.  See
+   :ref:`theory-sn-typed-fields` for the allocator surface in full.
 
 Verification (foundation-level)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

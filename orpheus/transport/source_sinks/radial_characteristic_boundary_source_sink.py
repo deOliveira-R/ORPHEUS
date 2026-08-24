@@ -22,8 +22,8 @@ documented corner-units deviation — each locus leaf now declares its own
 honest dimensional identity (the volumetric cells live on
 :class:`~orpheus.transport.source_sinks.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`).
 
-Storage, validation, the ``corner(level, sign)`` view, and the ``zeros_on`` /
-``from_mesh`` factories are inherited from
+Storage, validation, the ``corner(level, sign)`` view, and the shared
+face machinery are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`.
 Plain vector-space algebra (source sums are closed) — no role mixin, like
 every SourceSink leaf; the Field class-identity gate rejects cross-role sums

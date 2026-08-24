@@ -57,7 +57,7 @@ defect (it does NOT switch to a raw outflow):
   unknown (``ψ.outflow`` is the trace value the sibling ``−B`` reads).
   The inflow slots ADD the identity ``ψ.inflow``.
 
-For the canonical ZERO-input vacuum test (``AngularBoundaryFlux.zeros_on``) both
+For the canonical ZERO-input vacuum test (a zero ``AngularBoundaryFlux``) both
 the keystone ``bc_estimate`` and the stored ``ψ.outflow`` are zero, so
 PRE- and POST-carve both emit ``streamed`` on the outflow slots and zero
 on the inflow slots → vacuum bit-identity holds on the boundary slot too

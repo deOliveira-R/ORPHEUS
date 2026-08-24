@@ -11,7 +11,7 @@ leaves — storage / validation / algebra / per-face access / factories
 are inherited from ``AngularBoundaryField`` — so most of their machinery is
 already pinned by ``test_boundary_flux.py``. This module adds:
 
-* construction of the two NEW leaves (``zeros_on`` /
+* construction of the two NEW leaves (space-primary zeros /
   ``from_face_arrays``), and
 * the **load-bearing cross-class invariant** unique to the boundary
   family: all three leaves share the SAME ``AngularTraceSpace`` (``mesh.angular_trace``),
@@ -121,12 +121,12 @@ class TestConstructionInherited:
         assert isinstance(bf, Leaf)
         assert bf.space is m.angular_trace
 
-    def test_zeros_on_uses_mesh_trace(self, Leaf) -> None:
-        m = _slab_mesh()
-        bf = Leaf.zeros(m.angular_trace)
-        assert bf.space is m.angular_trace
-        np.testing.assert_array_equal(bf.values, 0.0)
-        assert set(bf.layout.faces) == {"xmin", "xmax"}
+    # ``test_zeros_on_uses_mesh_trace`` RETIRED at CS4b S5: it pinned the
+    # sugar factory's space SOURCE ("zeros_on reads mesh.angular_trace"),
+    # and the space-primary spelling makes that identity true by
+    # construction at the call site — the carrier-mint claims live on the
+    # trace-space gates. The layout claim survives in
+    # test_inherits_field_and_boundary_field above.
 
     def test_sphere_layout_only_xmax(self, Leaf) -> None:
         m = _sphere_mesh()
@@ -264,7 +264,7 @@ class TestCrossClassRejectionSharedSpace:
 # — the sweep determines outflow), leaving everything else zero. This is
 # the ergonomic specialisation of the general ``from_face_arrays`` that
 # every prescribed-inflow consumer (non-vacuum MMS, splitting probe)
-# previously hand-rolled as ``zeros_on`` + ``face_view[inflow] = …``.
+# previously hand-rolled as zero-allocate + ``face_view[inflow] = …``.
 # ════════════════════════════════════════════════════════════════════
 
 

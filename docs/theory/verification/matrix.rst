@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10063**
+Total tests collected: **10067**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1634, 16.2%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7063, 70.2%
+   foundation, 7067, 70.2%
    unmarked, 5, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9979
+   explicit, 9983
    class-name, 46
    func-name, 0
    case, 33
@@ -257,12 +257,12 @@ Module × level grid
    eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 11, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
-   fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
-   fields/test_angular_flux, 0, 0, 0, 0, 24, 0
+   fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 28, 0
+   fields/test_angular_flux, 0, 0, 0, 0, 23, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
-   fields/test_meshless_construction, 0, 0, 0, 0, 5, 0
+   fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 20, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
@@ -292,7 +292,7 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
-   mesh/test_angular_bulk_space, 0, 0, 0, 0, 13, 0
+   mesh/test_angular_bulk_space, 0, 0, 0, 0, 17, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
@@ -452,7 +452,7 @@ Module × level grid
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
-   residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
+   residuals/test_typed_residuals, 0, 0, 0, 0, 32, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
    sn/test_condensation, 0, 16, 0, 0, 0, 0
@@ -512,7 +512,7 @@ Module × level grid
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 23, 0
-   transport/test_radial_characteristic_field, 0, 0, 0, 0, 20, 0
+   transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 

@@ -299,22 +299,22 @@ class TestAngularTrialSpace:
         assert sn.angular_trial_space is sn.angular_trial_space
         assert sn.full_field_space.interior_space is sn.angular_trial_space
 
-    def test_bridge_the_retiring_sugar_mints_the_same_space(self):
-        """BRIDGE (dies with the sugar at S5's retirement commit, where
-        it re-keys to the structural form): while ``zeros_on(mesh,
-        spatial_moments=…)`` still exists, its derived space must equal
-        this mint at BOTH widths — proving the migration is a pure
-        re-spelling, site for site."""
+    def test_field_allocation_rides_the_trial_mint(self):
+        """The S5 end-state, at both widths: a field allocated on the
+        trial mint IS an element of it — the DD leg doubles as the
+        collapse witness (its trial mint IS the bulk instance). Until
+        the sugar retired (S5.4) this row was the BRIDGE gate: ``[M]``
+        2026-08-24, ``zeros_on(mesh, spatial_moments=…)``'s derived
+        space was ``is``-identical to this mint at DD and ``==`` at LD,
+        proving the ~700-site migration a pure re-spelling."""
         from orpheus.transport.fields.angular_flux import AngularFlux
 
         dd = _slab(scheme=DiamondDifference())
-        assert AngularFlux.zeros(dd.angular_bulk_space).space is dd.angular_trial_space
+        assert AngularFlux.zeros(dd.angular_trial_space).space is dd.angular_bulk_space
         ld = _slab(scheme=LinearDiscontinuous())
-        per_axis = ld.scheme.spatial_basis_per_axis
-        assert (
-            AngularFlux.zeros_on(ld, spatial_moments=per_axis).space
-            == ld.angular_trial_space
-        )
+        psi = AngularFlux.zeros(ld.angular_trial_space)
+        assert psi.space is ld.angular_trial_space
+        assert psi.values.shape == (*ld.angular_bulk_space.shape, 2)
 
 
 class TestG15ConePredicates:

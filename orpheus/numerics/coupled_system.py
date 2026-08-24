@@ -1464,8 +1464,9 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
         load-bearing: extending with the PRIMAL mint put a flux-classed
         ray zero into the daggered fission chain, and the cross-class
         arithmetic gate refused the sum (the same fact the retired
-        per-site ``transpose_zero`` closure encoded as
-        ``source_zeros_on``). A primal-side member EMBEDDING, should one
+        per-site ``transpose_zero`` closure encoded via the then-named
+        ``source_zeros_on``, today's ``source_zeros``). A primal-side
+        member EMBEDDING, should one
         ever be needed, is a different verb (the future restriction
         family's ``embed``), not this transpose."""
         if not isinstance(y, CoupledField):

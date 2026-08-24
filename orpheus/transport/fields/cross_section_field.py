@@ -82,14 +82,11 @@ class CrossSectionField(CoefficientRole, ScalarField):
         Cross-section values of shape ``(ng, *spatial)`` — ``(ng, nx)`` on a
         1-D mesh, ``(ng, nx, ny)`` on a 2-D mesh.
     space : FunctionSpace
-        The ``"cross_section"`` function space; ``space.shape`` must equal
-        ``(mesh.ng, *mesh.spatial_shape)``. Construct via :meth:`from_mesh`.
-    mesh : MaterialMesh
-        The method-agnostic mesh+materials carrier (per-cell volumes,
-        coordinate system, group structure). Any
-        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is a
-        legitimate host — including the meshless single-region carrier
-        (#276); this leaf does NOT narrow to ``SNMesh``.
+        The function space — the carrier's cached ``mesh.bulk_space``
+        (CS4b S5). Any
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` mint
+        is a legitimate source — including the meshless single-region
+        carrier's (#276); this leaf does NOT narrow to ``SNMesh``.
 
     Notes
     -----

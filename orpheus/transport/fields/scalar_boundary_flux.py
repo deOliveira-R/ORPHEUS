@@ -84,8 +84,8 @@ class ScalarBoundaryFlux(ScalarBoundaryField):
         The mesh's cached scalar trace
         (:attr:`DiffusionMesh.scalar_trace
         <orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace>`);
-        construction via :meth:`zeros_on` / :meth:`from_mesh` /
-        :meth:`from_face_arrays` is the canonical path.
+        construction on it (``Field.zeros`` / the primary ctor, CS4b
+        S5) or via :meth:`from_face_arrays` is the canonical path.
     mesh : DiffusionMesh
         The diffusion phase space the trace belongs to (the family's
         covariant narrowing, #290 P7a — a boundary trace is method

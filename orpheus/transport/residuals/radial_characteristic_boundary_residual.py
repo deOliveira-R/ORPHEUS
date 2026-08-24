@@ -9,8 +9,8 @@ Minted ONLY by :func:`orpheus.sn.solver.evaluate_residual`'s named balance;
 its interior sibling is
 :class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`.
 
-Storage, validation, the ``corner(level, sign)`` view, and the ``zeros_on``
-factory are inherited from
+Storage, validation, the ``corner(level, sign)`` view, and the shared
+face machinery are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`.
 Same-class arithmetic is closed by the Field Layer-1 gate; the balance that
 forms a residual goes through :meth:`from_balance`, never a bare cross-class

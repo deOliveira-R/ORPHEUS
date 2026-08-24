@@ -623,6 +623,26 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   paths: state once, at the head, that *which* tests catch ERR-NNN is never prose — it is the
   `@pytest.mark.catches("ERR-NNN")` marker set, read with `nexus errors` /
   `context('vv:error:ERR-NNN')`. → L-062
+- **⭐⭐ A FACTORY-TIER retirement sorts by TENSE into three registers, one repair each.**
+  **Live guidance** (how to build a field today) ⟹ re-word to the successor spelling, and
+  the successor is a CHOICE you must measure — `zeros_on(mesh)` maps to five different
+  carrier mints by family. **History** (a landed change's narrative, an ERR post-mortem) ⟹
+  prose STAYS in past tense; only a `:meth:` role at the deleted target is downgraded to a
+  ``literal`` keeping the exact old name. **Landed-but-written-as-future** (*"when they land,
+  the only change is passing X"* — where they landed two campaigns ago) ⟹ re-tense in place,
+  flip the section TITLE's verb too if it carries no `.. _anchor:`, and append ONE dated
+  `.. note::` with the live mechanism; never delete the bullets, they carry WHY. The third
+  register is the costliest and the least greppable — it reads as a plan, not a claim.
+  → L-066
+- **⭐⭐ A doc that QUOTES a production docstring is making a claim about a FILE, and no
+  instrument checks it.** `[M]` a section quoted *"the uniform leaf-side allocator … replaces
+  the retired `SNMesh.zeros_*` factories"* — 0 hits in `orpheus/`, and the live docstring says
+  the opposite-keyed thing. Grep the quoted STRING, not just the symbol. Same class as L-062's
+  raw file paths, one register up. → L-066
+- **⭐ When a section has ALREADY been corrected once, add a SECOND dated `.. note::` beside
+  the first — do not rewrite it.** Ownership moved twice (mesh → leaf at #346, mesh-key →
+  space-key at CS4b S5); two notes give the reader the whole arc, each with its own
+  one-command `[M]`. → L-066
 - **A retirement propagates to BOUNDS and to NEGATIVE claims, which no symbol grep sees.** A
   numeric bound is a claim about the retired object (re-measure it from the live producer). And
   grep the retired name inside `independent of|unaffected by|does not depend on` — a negative

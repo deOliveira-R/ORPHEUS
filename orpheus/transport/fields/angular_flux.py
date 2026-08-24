@@ -66,11 +66,9 @@ class AngularFlux(AngularField):
         Field values of shape ``(N, ng, nx, ny)`` in the principled
         layout (Issue #196 PR-INDEX-5/7).
     space : FunctionSpace
-        The function space. Must have ``shape == (mesh.quad.N,
-        mesh.ng, *mesh.spatial_shape)``. Use :meth:`from_mesh` to derive
-        automatically.
-    mesh : SNMesh
-        The SN phase-space carrier.
+        The function space — the carrier's cached mint
+        (``mesh.angular_bulk_space``, or ``mesh.angular_trial_space``
+        when the scheme's within-cell moment tail is carried; CS4b S5).
 
     Notes
     -----

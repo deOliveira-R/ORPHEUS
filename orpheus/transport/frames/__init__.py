@@ -7,8 +7,8 @@ same generic mechanism serves the angular spherical-harmonic projection AND the
 indicator-basis spatial homogenisation). The casting to the typed transport
 :class:`~orpheus.numerics.field.Field` carriers cannot live in numerics — the
 deepest primitive the carriers share, ``Field``, is in numerics, but the
-*castability* (the ``mesh`` binding + the ``from_mesh`` factories) lives in the
-transport :class:`~orpheus.transport.fields._bases.BulkField` base. So the typed
+*castability* (the carrier-minted spaces the leaves are elements of) lives in
+the transport :class:`~orpheus.transport.fields._bases.BulkField` base. So the typed
 seam lives HERE, in transport, one layer above numerics: the
 :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` factory MINTS
 bound, carrier-typed operator faces

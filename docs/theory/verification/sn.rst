@@ -3382,8 +3382,11 @@ is a first-class FIELD TYPE, should the transverse boundary moment be one too �
 a ``BoundaryMomentField``?  The answer, tracked in **#263**, is **NO today**:
 the transverse boundary moment is a PROPERTY of the boundary field (an untyped
 trailing moment axis on the flat face buffer), exactly as the bulk carries its
-spatial moments as a property (``spatial_moments`` on the field, rather than a
-distinct field type).  The criterion and its trigger live in the
+spatial moments as a property — a trailing
+:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+factor on the bulk leaf's SPACE (minted by
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space` since
+CS4b S5), rather than a distinct field type.  The criterion and its trigger live in the
 :ref:`field-type-vs-property-criterion` section of the operator-algebra page;
 the short version, specialised to the boundary moment:
 
@@ -3583,7 +3586,9 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    per-ordinate-density **bulk** source only, with a **vacuum**
    boundary. This is the original form, and it is *exactly* the
    composite with an all-zero boundary leaf
-   (``AngularBoundarySourceSink.zeros_on(sn_mesh)``). Every one of the 37
+   (``AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)`` — the
+   allocator went space-keyed at CS4b S5; it read
+   ``zeros_on(sn_mesh)`` before). Every one of the 37
    pre-existing callers passes this form and keeps working bit-for-bit
    unchanged (the vacuum path is verified bit-identical).
 #. **A full** :class:`~orpheus.transport.timed_full_field.TimedFullField`
@@ -3606,19 +3611,24 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
 
    sn = SNMesh(mesh, quadrature, materials)
 
-   # Bulk volumetric source, per-ordinate density (N, ng, nx, ny).
-   q_bulk = AngularSourceSink.from_mesh(Q_ext, sn)
+   # Bulk volumetric source, per-ordinate density (N, ng, *spatial).
+   # The space is the carrier's cached mint: read ``angular_trial_space``
+   # (the scheme's within-cell basis; identical to ``angular_bulk_space``
+   # for DD / Step) so the same line is right at every scheme width.
+   q_bulk = AngularSourceSink(values=Q_ext, space=sn.angular_trial_space)
    # Prescribed inflow: only the named faces' inflow ordinate slots.
    q_bndry = AngularBoundarySourceSink.prescribed_inflow(
        sn, {"xmin": gamma_minus_xmin, "xmax": gamma_minus_xmax},
    )
-   q = TimedFullField(bulk=q_bulk, boundary=q_bndry)
+   q = TimedFullField(interior=q_bulk, boundary=q_bndry)
 
    result = solve_sn_fixed_source(materials, mesh, quadrature, q)
 
 The legacy ``solve_sn_fixed_source(materials, mesh, quadrature, Q_ext)``
 with a bare ``Q_ext`` array is identical to the above with a vacuum
-``q_bndry`` (``AngularBoundarySourceSink.zeros_on(sn)``).
+``q_bndry`` (``AngularBoundarySourceSink.zeros(sn.angular_trace)``).
+``[M]`` the block above runs as written on a 4-cell vacuum slab with
+``N = 4``, ``ng = 2``: :math:`\max\phi = 1.8265`.
 
 The single construction point — Cardinal Rule 2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -130,8 +130,8 @@ class TestTheDeclarationIsNotInert:
         ``_build_fixed_source_rhs`` is the single construction point for the
         composite ``q = q_bulk ⊕ q_∂`` that BOTH inner paths (source iteration
         and Krylov) consume. Before P2′ its bulk-array arm hard-coded
-        ``zeros_on`` — so a user could declare an inflow and get vacuum, with
-        no error anywhere.
+        a zero trace — so a user could declare an inflow and get vacuum,
+        with no error anywhere.
 
         Both legs are necessary: the vacuum leg pins that the arm is not simply
         always non-zero, and the declared leg pins the arrival.

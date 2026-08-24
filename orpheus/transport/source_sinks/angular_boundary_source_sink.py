@@ -76,11 +76,11 @@ A prescribed ``q`` is built directly from known per-face arrays via the
 ergonomic :meth:`prescribed_inflow` generator (``{face: (N, ng)}`` →
 only the inflow ordinate slots written, the rest zero) — the single
 source of truth the non-vacuum MMS and the splitting-invariance probe
-consume (it supersedes the ``zeros_on`` + per-face
+consume (it supersedes the zero-allocate + per-face
 ``face_view(...)[inflow] = …`` slot-fill loop). The lower-level inherited
 :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
 (every face, full slot incl. outflow) remains for non-inflow uses; the
-operator-output zeros use :meth:`zeros_on`.
+operator-output zeros allocate on ``mesh.angular_trace`` (CS4b S5).
 
 The **recipe → snapshot bridge** is :meth:`AngularBoundarySourceSink.from_specs`
 — materialise per-face :class:`InflowSourceSpec` recipes onto the trace by
@@ -183,9 +183,8 @@ class AngularBoundarySourceSink(AngularBoundaryField):
     -----
     A thin role leaf: all storage, validation, algebra, per-face access
     (:meth:`face_view`), and the
-    :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.zeros_on`
-    / :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
-    factories are inherited from :class:`AngularBoundaryField`. The leaf carries
+    :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
+    packer are inherited from :class:`AngularBoundaryField`. The leaf carries
     no source-specific behaviour beyond its class identity — which is
     exactly what Field's Layer-1 gate uses to keep boundary source, flux,
     and residual arithmetic from silently mixing. Note that all three
@@ -233,7 +232,7 @@ class AngularBoundarySourceSink(AngularBoundaryField):
         (which requires EVERY face and writes the FULL per-face slot,
         outflow included): here only the faces that carry incoming flux
         need be named, and only their inflow ordinates are honoured. It
-        supersedes the ``zeros_on`` + per-face
+        supersedes the zero-allocate + per-face
         ``face_view(...)[inflow] = …`` slot-fill loop that every
         prescribed-inflow consumer (the non-vacuum MMS, the splitting-
         invariance probe) previously hand-rolled — the single source of
@@ -465,8 +464,8 @@ class AngularBoundarySourceSink(AngularBoundaryField):
         -------
         AngularBoundarySourceSink
             The declared :math:`q` — all-zero when no face declares a
-            prescribed inflow, which is the overwhelmingly common case and is
-            exactly :meth:`zeros_on`.
+            prescribed inflow, which is the overwhelmingly common case
+            (a zero trace field on ``mesh.angular_trace``).
 
         Raises
         ------

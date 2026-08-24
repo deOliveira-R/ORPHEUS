@@ -374,20 +374,20 @@ class TestFlatBufferRoundTrip:
 
 
 class TestConstruction:
-    def test_zeros_on_slab(self) -> None:
+    def test_zeros_slab(self) -> None:
         m = _slab_mesh()
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert isinstance(bf, AngularBoundaryFlux)
         np.testing.assert_array_equal(bf.values, 0.0)
         assert bf.space is m.angular_trace
 
-    def test_zeros_on_sphere(self) -> None:
+    def test_zeros_sphere(self) -> None:
         m = _sphere_mesh()
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert "xmin" not in bf.layout.faces
         np.testing.assert_array_equal(bf.values, 0.0)
 
-    def test_zeros_on_2d(self) -> None:
+    def test_zeros_2d(self) -> None:
         m = _cartesian_2d_mesh()
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert set(bf.layout.faces) == {"xmin", "xmax", "ymin", "ymax"}

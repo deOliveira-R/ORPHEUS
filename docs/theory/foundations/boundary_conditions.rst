@@ -2006,10 +2006,14 @@ rung delegating to the next so the packing rule is stated exactly once:
        of the named faces and leaves every other slot zero (a
        prescribed source's outflow rows are physically meaningless, so
        they are unrepresentable rather than overwritten)
-     - ``zeros_on``
-   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.zeros_on`
-     - **nothing** — the all-zero source every sourceless law needs, and
-       the base every rung above allocates before filling
+     - ``zeros``
+   * - :meth:`AngularBoundarySourceSink.zeros(mesh.angular_trace) <orpheus.numerics.field.Field.zeros>`
+     - **nothing but the trace SPACE** — the all-zero source every
+       sourceless law needs, and the base every rung above allocates
+       before filling. Space-keyed since CS4b S5 (it was
+       ``zeros_on(mesh)`` until then); the shared
+       :meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` body
+       allocates ``np.zeros(space.shape)`` and nothing else
      - — (the bottom)
    * - *(sibling, not a rung)*
        :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
@@ -2029,7 +2033,9 @@ source is.
 ``from_mesh_laws(mesh)`` and ``from_specs(mesh, {face: spec})`` return
 **bit-identical** arrays for a declared ``ConstantInflowSource(2.5)``
 (``np.array_equal`` on the flat values), and ``from_mesh_laws`` returns
-exactly ``zeros_on`` — ``q.linf == 0.0`` — for ``vacuum``,
+exactly the zero trace field
+``AngularBoundarySourceSink.zeros(mesh.angular_trace)`` —
+``q.linf == 0.0`` — for ``vacuum``,
 ``reflective``, ``white``, and for ``PrescribedInflow(NoSource())``.
 Only ``PrescribedInflow(ConstantInflowSource(2.5))`` gives
 ``q.linf == 2.5``. On the documented fixture the packed :math:`q` has 8
@@ -2294,8 +2300,10 @@ no-inflow control (``V``):
      - raises (below)
      - ``2.5``
    * - ``D0`` — declared, source channel disabled (the pre-P2′
-       behaviour, reached by monkeypatching ``from_mesh_laws`` back to
-       ``zeros_on``)
+       behaviour, reached at the time by monkeypatching
+       ``from_mesh_laws`` back to the then-current mesh-keyed
+       ``zeros_on``; today's spelling of the same probe is
+       ``zeros(mesh.angular_trace)``)
      - ``2.5``
      - raises (below)
      - —
@@ -3487,7 +3495,7 @@ Cartesian eigenvalue problem solves through **both** inner solvers:
 The two inners are identical except for that driver. Both build the
 same composite right-hand side
 (:meth:`AngularSourceSink.from_isotropic <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
-bulk + :meth:`AngularBoundarySourceSink.zeros_on <orpheus.transport.fields._bases.AngularBoundaryField.zeros_on>`
+bulk + ``AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)``
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
 loss decomposition (the resolvent :math:`L + C` from
@@ -3893,7 +3901,9 @@ within-group decomposition (:func:`~orpheus.sn.coupled_system.build_within_group
 routes within-group fission through ``q_ext`` instead, so no zero-fission
 operator is ever constructed. The dead helper retired 2026-07-03 (C4).)
 
-The change is **type-only**: :meth:`AngularBoundarySourceSink.zeros_on <orpheus.transport.fields._bases.AngularBoundaryField.zeros_on>`
+The change is **type-only**: the zero-trace allocation (then spelled
+``AngularBoundarySourceSink.zeros_on(mesh)``, since CS4b S5
+``.zeros(mesh.angular_trace)``)
 and the per-face-view writes produce **bit-identical** ``.values`` —
 only the wrapping role-type differs. The dead :class:`AngularBoundaryFlux`
 runtime imports were retired from the retyped sites.

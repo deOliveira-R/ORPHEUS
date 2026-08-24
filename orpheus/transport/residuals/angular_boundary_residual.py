@@ -100,9 +100,9 @@ class AngularBoundaryResidual(AngularBoundaryField):
 
     Notes
     -----
-    A thin role leaf: all storage, validation, algebra, per-face access,
-    and the ``zeros_on`` / ``from_face_arrays`` factories are
-    inherited from :class:`AngularBoundaryField`. The leaf carries no
+    A thin role leaf: all storage, validation, algebra, per-face
+    access, and the :meth:`from_face_arrays` packer are inherited from
+    :class:`AngularBoundaryField`. The leaf carries no
     residual-specific behaviour beyond its class identity. All three
     boundary leaves share the SAME ``AngularTraceSpace`` (``mesh.angular_trace``), so it
     is the **class** gate (not the space gate) that rejects

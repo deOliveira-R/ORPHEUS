@@ -3700,11 +3700,19 @@ a layering constraint, not a preference:
   (:class:`AngularFlux` ↔ :class:`HarmonicMomentFlux`, and their
   source/sink siblings) share their *deepest* primitive,
   :class:`~orpheus.numerics.field.Field`, in **numerics**.
-* But the part that makes them **castable** — the ``mesh`` binding plus
-  the ``from_mesh`` / ``from_mesh_and_L`` factories that build the typed
-  carrier from a raw array — lives in the transport
-  :class:`~orpheus.transport.fields._bases.BulkField` base, **above**
-  numerics. And :meth:`Quadrature.angular_frame <orpheus.numerics.quadrature.Quadrature.angular_frame>`
+* But the part that makes them **castable** — the concrete leaf CLASSES
+  themselves, plus the moment family's keyed
+  :meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L`
+  factory, which is what builds the typed carrier from a raw array —
+  lives in the transport
+  :class:`~orpheus.transport.fields._bases.BulkField` hierarchy,
+  **above** numerics. (Until CS4b S5 that clause also named a ``mesh``
+  binding and a ``from_mesh`` sugar factory on the base; both retired —
+  a leaf now carries ``values`` and a numerics
+  :class:`~orpheus.numerics.space.FunctionSpace` and nothing else. The
+  layer argument is unaffected, because it is the leaf *classes* that
+  are transport-level, not the key their factories take.)
+  And :meth:`Quadrature.angular_frame <orpheus.numerics.quadrature.Quadrature.angular_frame>`
   is in numerics, which *cannot* import the transport carriers without
   inverting the layer order.
 
@@ -4654,11 +4662,19 @@ spatial basis — the tensor-Legendre DG tower
 ``per_axis**ndim`` coefficients).  The only change-of-basis within it is the
 identity (and ``truncate`` / inclusion, which stay within the same family and
 return the same tower).  Clause 1 fails: no non-canonical dual coexists.  So
-the spatial moment rides as a property — a ``spatial_moments`` axis composed
-onto BOTH angular field types (``_compose_spatial_moments`` in the bulk; the
-flat face-buffer moment tail minted by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` on the boundary) —
-rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
+the spatial moment rides as a property — a trailing
+:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+factor on the bulk leaf's SPACE (minted by
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`, the
+scheme-widened sibling of
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`; before
+CS4b S5 the same factor was composed on by an explicit
+``spatial_moments=`` factory argument through
+:meth:`BulkField._compose_spatial_moments <orpheus.transport.fields._bases.BulkField._compose_spatial_moments>`,
+which survives only as the private derivation behind the admission
+re-mint), and the flat face-buffer moment tail minted by
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` on
+the boundary — rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
 partner-check added nothing beyond class identity would be the vacuous naming
 leaf the criterion warns against; the transverse boundary moment is therefore a
 PROPERTY of the boundary field, the call S9 made.

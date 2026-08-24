@@ -76,9 +76,10 @@ if TYPE_CHECKING:
         RadialCharacteristicInteriorSpace,
     )
     from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
-    # NOTE (B.5.A): the mesh provides shape data only and does NOT import
+    # NOTE (B.5.A): the mesh provides SPACE data only and does NOT import
     # transport-field types — zero-allocation lives on the field types
-    # (``Field.zeros`` / ``<Leaf>.zeros_on`` / ``TimedFullField.zeros(...)``).
+    # (``Field.zeros(space)`` / ``TimedFullField.zeros(..., space=)``,
+    # reading this carrier's cached space mints).
     # The ``AngularBoundaryFlux`` / ``AngularFlux`` mentions below are docstring
     # cross-references (Sphinx resolves them by full path, no import needed).
 

@@ -378,8 +378,8 @@ def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
 
     Flux-role by construction (``AngularFlux`` bulk ⊕ ``AngularBoundaryFlux``
     trace — the DOMAIN of the within-group operators), spatial-moment-aware
-    (a multi-moment closure's φ̂ tail rides ``zeros_on``'s
-    ``spatial_moments``).  Consumed by :meth:`CoupledSpace.zeros` — the
+    (a multi-moment closure's φ̂ tail rides the carrier's
+    ``angular_trial_space`` mint, CS4b S5).  Consumed by :meth:`CoupledSpace.zeros` — the
     typed-carrier materialization seam (the loss grid's ``as_matrix``
     basis probe and ``MatrixInverseOperator``'s typed return template),
     which is what flips ``loss.is_invertible`` True (the step-5 EXTRACT

@@ -123,7 +123,7 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
     @pytest.mark.parametrize(
         "specs", [{}, {"xmin": NoSource()}], ids=["empty", "NoSource"]
     )
-    def test_a_sourceless_boundary_equals_zeros_on(self, specs) -> None:
+    def test_a_sourceless_boundary_equals_the_zero_trace(self, specs) -> None:
         """Both spellings of "no inflow" reproduce the canonical zero field."""
         sn = _slab()
         built = AngularBoundarySourceSink.from_specs(sn, specs)

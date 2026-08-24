@@ -95,16 +95,14 @@ class AngularResidual(AngularField):
         Field values of shape ``(N, ng, nx, ny)`` in the principled
         layout (Issue #196 PR-INDEX-5/7).
     space : FunctionSpace
-        The function space. Must have ``shape == (mesh.quad.N,
-        mesh.ng, *mesh.spatial_shape)``. Use :meth:`from_mesh` to derive
-        automatically.
-    mesh : SNMesh
-        The SN phase-space carrier.
+        The function space — the carrier's cached mint
+        (``mesh.angular_bulk_space``, or ``mesh.angular_trial_space``
+        when the scheme's within-cell moment tail is carried; CS4b S5).
 
     Notes
     -----
-    A thin role leaf: all storage, validation, algebra, and the
-    ``from_mesh`` / ``from_ndarray`` factories are inherited from
+    A thin role leaf: all storage, validation, and algebra are
+    inherited from
     :class:`~orpheus.transport.fields._bases.AngularField` /
     :class:`~orpheus.transport.fields._bases.BulkField`. This leaf
     carries no residual-specific behaviour beyond its class identity —
@@ -115,13 +113,13 @@ class AngularResidual(AngularField):
     :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (same
     shape, different units). Same-class arithmetic is closed.
 
-    Like :class:`AngularFlux` (``zeros_on``) and
-    :class:`AngularSourceSink` (``from_isotropic``), :class:`AngularResidual`
-    carries one bespoke factory — :meth:`from_balance` — but it is a
-    *named composition*, not a from-thin-air constructor: a residual is
-    *produced* by an operator balance :math:`r = (L+C-S-F)\psi - q`, never
-    minted from nothing. Tests and direct producers may also build it via
-    the inherited :meth:`from_mesh`.
+    Like :class:`AngularSourceSink` (``from_isotropic``),
+    :class:`AngularResidual` carries one bespoke factory —
+    :meth:`from_balance` — but it is a *named composition*, not a
+    from-thin-air constructor: a residual is *produced* by an operator
+    balance :math:`r = (L+C-S-F)\psi - q`, never minted from nothing.
+    Tests and direct producers may also build it space-primary on the
+    carrier's cached mint.
     """
 
     #: Dimensional identity (View-G, B.4): per-ordinate rate density
@@ -137,7 +135,7 @@ class AngularResidual(AngularField):
         r"""Construct the per-ordinate transport-balance residual.
 
         The residual leaf's bespoke factory (parallel to
-        :meth:`AngularFlux.zeros_on` / ``AngularSourceSink.from_isotropic``):
+        ``AngularSourceSink.from_isotropic``):
         the per-ordinate transport-balance defect
 
         .. math::

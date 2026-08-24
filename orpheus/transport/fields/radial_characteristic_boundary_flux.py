@@ -10,8 +10,8 @@ locus, on which
 acts (inflow corner ``sign = -1`` = given BC data; outflow corner ``sign = +1`` =
 the defect row, ruling R13).
 
-Storage, validation, the ``corner(level, sign)`` view, and the ``zeros_on`` /
-``from_mesh`` factories are inherited from
+Storage, validation, the ``corner(level, sign)`` view, and the shared
+face machinery are inherited from
 :class:`~orpheus.transport.fields._bases.RadialCharacteristicBoundaryField`,
 including the vector-space additive algebra of
 :class:`~orpheus.numerics.field.Field` (flux lives in V — campaign 1 CS3,

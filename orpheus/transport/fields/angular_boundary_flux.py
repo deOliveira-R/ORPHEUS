@@ -55,7 +55,7 @@ Post-D-G this class:
 **B.1 (field vocabulary):** every member that was generic to a boundary
 trace field — the ``mesh`` field, the cross-mesh guard, the AngularTraceSpace
 contract, the :attr:`layout` property, :meth:`face_view`, and the
-:meth:`zeros_on` / :meth:`from_face_arrays` factories — moved up
+:meth:`from_face_arrays` packer — moved up
 to the :class:`~orpheus.transport.fields._bases.AngularBoundaryField` storage
 base. ``AngularBoundaryFlux`` is the *flux* role leaf; ``AngularBoundarySourceSink``
 (``orpheus.transport.source_sinks``) and ``AngularBoundaryResidual``
@@ -120,8 +120,8 @@ class AngularBoundaryFlux(AngularBoundaryField):
     on the scalar sibling); the class identity otherwise remains what
     Field's Layer-1 gate uses to keep boundary flux, source, and
     residual arithmetic from silently mixing. Build
-    via :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.zeros_on`
-    / :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`.
+    on the carrier's cached ``mesh.angular_trace`` (CS4b S5) or via
+    :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`.
     """
 
     #: Dimensional identity (View-G, B.4): the boundary trace stores flux

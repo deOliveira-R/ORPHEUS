@@ -221,11 +221,12 @@ class Field(ABC):
 
         The single shared zero-allocation primitive (B.5.A): ``values`` is
         ``np.zeros(space.shape)``; any subclass-specific dataclass fields
-        (``L``, ``spatial_moments``, ...) pass through ``**fields``. The locus bases
-        build ``space`` from a mesh in their ``zeros_on`` /
-        ``zeros_for_mesh_and_L`` factories and delegate here, so the
-        zero-construction lives in exactly one place (``coding-elegance``
-        Pattern 2) — no leaf reimplements ``np.zeros(...) + construct``.
+        (``L``, ``spatial_moments``, ...) pass through ``**fields``. Since
+        CS4b S5 this IS the allocator call sites spell, on the carrier's
+        cached space mints (the mesh-keyed sugar tier retired; the moment
+        family's keyed ``zeros_for_mesh_and_L`` still delegates here until
+        its S6 re-home) — the zero-construction lives in exactly one place
+        (``coding-elegance`` Pattern 2).
         """
         return cls(values=np.zeros(space.shape), space=space, **fields)  # type: ignore[call-arg]
 
@@ -310,7 +311,7 @@ class Field(ABC):
         Each residual leaf exposes this as its public ``from_balance``
         classmethod — its bespoke construction story (a residual is the
         *defect of a balance*, never built from thin air), parallel to
-        ``AngularFlux.zeros_on`` / ``AngularSourceSink.from_isotropic``. So
+        ``AngularSourceSink.from_isotropic``. So
         the public API reads ``AngularResidual.from_balance(lhs=Aψ, rhs=q)``;
         the leaves delegate here so the check-and-reconstruct logic lives in
         exactly one place (``coding-elegance`` Pattern 2).

@@ -95,9 +95,8 @@ class ScalarSourceSink(ScalarField):
         Field values of shape ``(ng, nx, ny)`` in the principled layout
         (Issue #196 PR-INDEX-7).
     space : FunctionSpace
-        The function space. Must have ``shape == (mesh.ng, *mesh.spatial_shape)``. Use :meth:`from_mesh` to derive automatically.
-    mesh : SNMesh
-        The SN phase-space carrier.
+        The function space — the carrier's cached ``mesh.bulk_space``
+        (CS4b S5).
 
     Notes
     -----

@@ -7,7 +7,8 @@ Pins the post-D-H.1 contract for
   dunders.
 * Pure Field — NO ``boundary`` attribute, NO ``_history`` attribute.
 * Mesh-binding rejection (cross-mesh arithmetic raises).
-* ``from_mesh`` / ``from_ndarray`` / ``zeros_on`` factories.
+* space-primary construction on the carrier's cached mint (the
+  mesh-keyed sugar retired at CS4b S5).
 * Frozen contract.
 * ``integrate_angular`` reduction to ScalarFlux.
 
@@ -195,20 +196,14 @@ class TestMeshBinding:
 
 
 class TestConstruction:
-    def test_from_mesh(self) -> None:
+    def test_ctor_on_the_carrier_mint(self) -> None:
         m = _slab_mesh()
         arr = np.ones((m.quad.N, m.ng, *m.spatial_shape))
         psi = AngularFlux(values=arr, space=m.angular_bulk_space)
         assert psi.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
         assert psi.space is m.angular_bulk_space
 
-    def test_from_ndarray_alias(self) -> None:
-        m = _slab_mesh()
-        arr = np.ones((m.quad.N, m.ng, *m.spatial_shape))
-        psi = AngularFlux(values=arr, space=m.angular_bulk_space)
-        assert isinstance(psi, AngularFlux)
-
-    def test_zeros_on(self) -> None:
+    def test_zeros_on_the_carrier_mint(self) -> None:
         m = _slab_mesh()
         psi = AngularFlux.zeros(m.angular_bulk_space)
         np.testing.assert_array_equal(psi.values, 0.0)

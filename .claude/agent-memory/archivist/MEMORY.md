@@ -44,6 +44,29 @@ commits, I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **CS4b S5 — the field-factory sugar tier retires, doc half** — branch `feature/cs1-energy-space`,
+  2026-08-24, NOT committed (main agent commits). 5 hand-edited doc files, +360/−106 (a 6th,
+  `verification/matrix.rst`, is the `builder-inited` regeneration of the LANDED test tree —
+  `10063 → 10067` collected — not a hand edit; report it, never revert it). Rewrote the
+  `indexing_and_layout.rst` allocator surface to the SPACE-primary story (carrier mints table ·
+  measured shapes · `angular_trial_space` construct-general/select-narrow · presence-gated ψ½
+  composites · a SECOND dated correction note beside the #346 one), re-worded live guidance in
+  `foundations/boundary_conditions.rst` + `verification/sn.rst` (incl. a runnable code block that
+  was ALSO carrying a stale `TimedFullField(bulk=…)` — the field is `interior=`), re-tensed the
+  `cartesian_multid.rst` S3 select-narrow subsection (landed-as-future) and repaired the
+  `operator_algebra.rst` layering clause. Every surviving `zeros_on`/`from_mesh`/`from_ndarray`
+  mention is a history-``literal`` or a survivor-API role. Gates: `-E -W` EXIT=0, W/E/C/Syntax
+  set unchanged (0 ↔ 0); `DEAD TARGETS 0`; my own import probe over the 37 qualified roles on
+  added lines = 0 dead; vv violations 0, sentinels 545 unchanged. ⛔ **open follow-up I reported
+  and did NOT fix (code is out of scope):** `orpheus/transport/fields/scalar_flux.py:45` is the
+  ONE dead-role survivor tree-wide — its module-docstring history line spells
+  ``:meth:`from_mesh` / :meth:`from_ndarray``` as ROLES (the sentence is correctly past-tensed and
+  even names the S5 retirement; only the markup is wrong, and being UNQUALIFIED it is skipped by
+  `check_docstring_xrefs.py` and renders plain text). ⚠ I first wrote this follow-up from memory as
+  "two files, present-tense capability lines" and the live read refuted BOTH halves — `_bases.py:7`
+  is already correct plain literals in a "Before B.1, …" sentence.
+  → [[lessons-L66]]
+
 - **F-0 — the metric truth, doc half (the three-metric contradiction)** — branch
   `feature/cs1-energy-space`, 2026-08-23, NOT committed (main agent commits). 6 doc files,
   +1246/−81: `foundations/frame.rst` (+656-line `frame-parseval-metric` chapter: the

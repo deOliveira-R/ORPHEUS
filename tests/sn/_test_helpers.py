@@ -12,7 +12,7 @@ Issue #197 PR-TYPED-2 introduced :class:`AngularBoundaryFlux` as the typed
 replacement for the stringly-typed ``psi_bc: dict``.  Test fixtures
 that previously passed ``{}`` to :func:`transport_sweep` should now
 build a zero-initialised :class:`AngularBoundaryFlux` via
-``AngularBoundaryFlux.zeros_on(sn_mesh)`` (or :func:`make_boundary_flux_zero`
+``AngularBoundaryFlux.zeros(sn_mesh.angular_trace)`` (or :func:`make_boundary_flux_zero`
 below for non-SNMesh callers).
 
 Tests that DO need realistic cross sections continue to use
@@ -687,9 +687,9 @@ def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
     Allocates only the buffers the mesh's geometry consumes (slab gets
     two 1-D faces; curvilinear gets one outer face; 2-D Cartesian gets
     the persistent ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)``
-    buffers).  Per-geometry dispatch lives inside
-    :meth:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.zeros_on`; this helper is a clean alias
-    so test fixtures don't have to chain through ``sn_mesh``.
+    buffers).  Per-geometry dispatch lives inside the mesh's cached
+    ``angular_trace`` layout; this helper is a clean alias so test
+    fixtures don't have to chain through ``sn_mesh``.
     """
     return AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 

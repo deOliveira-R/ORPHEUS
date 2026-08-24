@@ -6647,3 +6647,102 @@ for staleness turned into the strongest single piece of corroboration on the pag
 | Failed approaches | 5 | the three-metric table IS the failed-approach record; ⛔ pre-F-0 equation preserved unlabelled; the 3-shield "why nothing caught it"; the refuted LS₈ 24 % claim |
 | Code traceability | 5 | 17 declared `implements::` across 4 labels + 3 `no-implementation` blocks, all pre-flighted against `graph.db` and verified in the rebuilt graph |
 | Derivation source | 4 | derived from the LIVE code + my own probe (no `derivations/` script exists for frame algebra; the plan's probes are pre-repair scratch — flagged) |
+
+## L-066 — A FACTORY-TIER retirement is a THREE-TENSE sweep, and the disposition is decided by the SENTENCE, not by the symbol
+
+**Task (2026-08-24, branch `feature/cs1-energy-space`, campaign 1 CS4b S5).** CS4b S5
+retired the mesh-keyed sugar tier on every transport field leaf — `from_mesh(values, mesh)`,
+`zeros_on(mesh)`, `from_ndarray(arr, mesh)` deleted from `AngularField` / `ScalarField` /
+`FaceField` and every concrete leaf, `MomentField.from_ndarray` too, plus the
+`spatial_moments=` int on those factories. Replacement is SPACE-primary: `Leaf(values=…,
+space=…)` and `Leaf.zeros(space)` on the carrier's cached mints (`angular_bulk_space`,
+`bulk_space`, `angular_trace`, `scalar_trace`, the two ψ½ spaces), with a NEW mint
+`SNMesh.angular_trial_space` replacing the retired int. Composites went space-keyed
+(`FullField.zeros(..., space=)`, `RadialCharacteristicField.flux_zeros/source_zeros`,
+presence-gated). Brief supplied a ~30-hit grep list + three disposition rules.
+Gates: `-E -W` EXIT=0, W/E/C/SyntaxWarning set unchanged (**0 ↔ 0**); `DEAD TARGETS 0`;
+my own import probe over the 37 qualified roles on added lines = **0 dead**; vv violations
+0, sentinels 545 unchanged; 6 doc files, +360/−106.
+
+### The load-bearing finding: three tenses, one symbol, three different repairs
+
+A factory retirement scatters the SAME token across three grammatical registers, and the
+symbol grep cannot tell them apart. Sorting the 30 hits by TENSE gave a clean 3-way split
+that turned out to be the whole job:
+
+| register | example (verbatim) | repair |
+|---|---|---|
+| **live guidance** — prose/tables/code telling the reader how to build a field TODAY | *"``from_mesh_laws`` returns exactly ``zeros_on``"*; the ladder table's bottom rung; a runnable `code-block` | re-word to the space-primary spelling **with the right carrier mint**; a wrong mint is a fresh falsehood, so measure it |
+| **history** — a landed change's own narrative, an ERR-NNN post-mortem, a "before X, callers hand-rolled…" | *"a hand-rolled ``from_mesh(trace.values.copy())`` beside a Pattern-4 factory"* | **prose STAYS** (past tense is correct history); a `:meth:` role pointing at the deleted target is DOWNGRADED to a ``literal`` keeping the exact old name |
+| **landed-but-written-as-future** — a step record whose "NEXT sub-step" already shipped | *"When they land, the only change at the factory call sites is passing ``spatial_moments=…``"* | re-tense to past + a dated `.. note::` saying where the capability lives now |
+
+⭐ **The third register is the one a symbol grep is worst at and the one that costs the
+most**, because it reads as a *plan*, not as a claim, so nobody re-checks it. `[M]` in
+`cartesian_multid.rst` an entire "Construct-general, select-narrow — what this step does and
+does NOT do" subsection was present tense about a state two campaigns old: *"No production
+field selects it. The ``spatial_moments`` factory parameter defaults to ``1`` at EVERY call
+site and is NOT auto-read from ``mesh.scheme.spatial_basis_per_axis``"* — while
+`solver.py:920` and `streaming.py:999` both pass exactly that expression, and the leaf route
+had since moved to `angular_trial_space` entirely. Repair shape that worked: **re-tense the
+bullets in place** (adding *(as of S3)* to the one that is a dated observation), flip the
+section TITLE's verb too ("does and does NOT do" → "did and did NOT do" — free, since the
+section carried no `.. _anchor:`), and append ONE dated `.. note::` carrying the live
+mechanism + the measured shapes + the named survivors. Do NOT delete the bullets: they are
+the reason the capability was built default-OFF, which is the durable content.
+
+### Two-step ownership history is worth its own paragraph (the brief's disposition (c))
+
+The `indexing_and_layout.rst` allocator section had ALREADY been corrected once — a 2026-08-10
+`.. note:: **Correction (Issue #346)**` recording that the allocator moved OFF `SNMesh` and
+ONTO the leaf. S5 moved it again (off the mesh KEY onto the space KEY). ⟹ the honest shape is
+a **second `.. note::` beside the first**, not a rewrite of the first: *"#346 moved the owner;
+S5 moved the key; the leaf is still the owner"*. Both notes carry a one-command `[M]`
+(`[n for n in dir(SNMesh) if "zero" in n.lower()] == []` / `hasattr(AngularField,"zeros_on")
+is False`). A reader landing on either correction now sees the whole arc.
+
+⭐ **And the trap inside that section: it QUOTED a production docstring that no longer
+exists.** The old text read *"The production docstrings say so in as many words — «the uniform
+leaf-side allocator … replaces the retired `SNMesh.zeros_*` mesh-side factories»"*. `[M]`
+`grep -rn "uniform leaf-side" orpheus/` → **0 hits**; `Field.zeros`'s docstring now says the
+opposite-keyed thing. A quotation is a claim about a FILE, invisible to every gate (no role,
+no label, no path). ⟹ **grep the quoted STRING, not just the symbol, whenever a doc quotes
+code.** Same class as the raw-file-path defect of L-062, one register up.
+
+### Measure the replacement before you write it (the mint is a choice, and one is wrong)
+
+The re-word target is not mechanical: `zeros_on(mesh)` maps to **five** different mints
+depending on the leaf family, and `angular_bulk_space` vs `angular_trial_space` is a real
+choice at every angular site. I built one probe and published its table:
+
+`[M]` vacuum slab, `N = 4` (GL), `ng = 2`, `nx = 4`:
+`angular_bulk_space (4,2,4)` · `bulk_space (2,4)` · `angular_trace (16,)` ·
+`full_field_space` blocks `(4,2,4)+(16,)`; **DD: `angular_trial_space is angular_bulk_space`
+→ True** (same cached instance). Same slab under `LinearDiscontinuous`: trial reads
+`(4,2,4,2)`, axes `angular(4)·energy(2)·spatial(4)·spatial_moment(2)`, the moment factor
+MODAL with measure `(1, 1/3)`. Sphere (4 cells, GL(4)): ψ½ blocks `(16,)` cells + `(4,)`
+corner; the same `flux_zeros` call on the slab RAISES the R12a diagnosis.
+
+⭐ The `is`-identity at DD is the single most useful sentence in the rewrite — it is what
+makes "read the trial mint" safe advice at *every* scheme width, so the doc's worked example
+can carry one line instead of a branch.
+
+### The doc code block was ALREADY broken, in a way unrelated to the retirement
+
+`verification/sn.rst`'s composite-source example built `TimedFullField(bulk=…, boundary=…)`.
+`[M]` the dataclass fields are `interior` / `boundary` — `bulk=` has not existed for
+campaigns. Found only by RUNNING the block (lesson-2 rule), which I had to do anyway to pick
+the mint. Fixed in the same edit and pinned the result in prose (`[M] max φ = 1.8265` on the
+stated fixture) so the next reader can falsify it. ⟹ **a retirement sweep that touches a code
+block owes that block a RUN**, and the run finds defects the sweep was not looking for.
+
+### Housekeeping observed, not caused
+
+* `docs/theory/verification/matrix.rst` is regenerated by the `builder-inited` hook, so the
+  FIRST `-E` build of a session materialises whatever drift the landed code/test commits left
+  (here `10063 → 10067` collected, `test_meshless_construction 5 → 8`). It shows up in
+  `git diff` and is **not** a hand edit — report it, never revert it, never edit it.
+* My added-role probe's one "DEAD" hit was an **unqualified** role
+  (`:meth:`BulkField._compose_spatial_moments``) on a line I only re-tensed. Unqualified roles
+  resolve by Sphinx module context and the gate skips them by design — a false positive of the
+  probe, not a defect. Check the diff (`git diff | grep '^[+-].*symbol'`) before believing the
+  probe on an unqualified target.

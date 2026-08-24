@@ -76,10 +76,10 @@ class ScalarBoundarySourceSink(ScalarBoundaryField):
     Notes
     -----
     A thin role leaf: storage, validation, algebra, per-face access
-    (:meth:`~orpheus.transport.fields._bases.BoundaryField.face_view`),
-    and the :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_on`
-    / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
-    factories are all inherited from :class:`ScalarBoundaryField`. The
+    (:meth:`~orpheus.transport.fields._bases.BoundaryField.face_view`)
+    and the
+    :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
+    packer are all inherited from :class:`ScalarBoundaryField`. The
     leaf carries no source-specific behaviour beyond its class identity
     — all three scalar boundary leaves share the SAME
     :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`

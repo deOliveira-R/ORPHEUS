@@ -9,8 +9,17 @@ and #2):
 * **G4.2** — the ``mesh`` dataclass field is absent from every shipped
   role leaf (the two declaration roots and their six covariant
   narrowings died together), and the composite exposes no ``mesh``
-  surface — the carrier's knowledge enters through factory ARGUMENTS
-  and the ``space_on`` admission seams only.
+  surface — the carrier's knowledge enters through its cached space
+  mints (read at the call site, S5) and the ``space_on`` admission
+  seams only.
+
+* **G5.1 (the S5 retirement gate)** — the mesh-keyed sugar tier
+  (``from_mesh`` / ``zeros_on`` / ``from_ndarray``) is GONE from every
+  concrete field leaf, and the composite allocators are space-keyed.
+  The named survivors are the NON-field tiers: ``MaterialXSField.
+  from_mesh`` (mesh→container assembly), ``MultiplicationOperator.
+  from_mesh`` (operator tier), the BC factories, and the S6-pending
+  moment-family keyed factories.
 
 The Q1 flip's witness (the residual rides the operands' shared mint)
 lives with the residual tests (``test_typed_residuals`` /
@@ -104,3 +113,128 @@ class TestG42TheBindingIsGone:
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space,
         )
         assert not hasattr(comp, "mesh")  # the composite property retired too
+
+
+class TestG51SugarTierRetired:
+    """G5.1 — the S5 done-when as a permanent gate.
+
+    The step's grep predicate ("no leaf spells the mesh-keyed sugar"),
+    pinned structurally so a nostalgic re-addition reds here: the sugar
+    names are ABSENT from every concrete leaf, the composite allocators
+    are space-keyed, and the documented survivors still exist (so this
+    gate cannot silently widen into banning the non-field tiers).
+    """
+
+    _LEAVES = ()  # populated below — import-time failures stay readable
+
+    def _all_leaves(self):
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+        from orpheus.transport.fields.cross_section_field import (
+            CrossSectionField,
+        )
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+        from orpheus.transport.fields.scalar_boundary_flux import (
+            ScalarBoundaryFlux,
+        )
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
+        )
+        from orpheus.transport.fields.radial_characteristic_interior_flux import (
+            RadialCharacteristicInteriorFlux,
+        )
+        from orpheus.transport.fields.radial_characteristic_boundary_flux import (
+            RadialCharacteristicBoundaryFlux,
+        )
+        from orpheus.transport.source_sinks import (
+            AngularBoundarySourceSink,
+            AngularSourceSink,
+            ScalarBoundarySourceSink,
+            ScalarSourceSink,
+        )
+        from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+            RadialCharacteristicInteriorSourceSink,
+        )
+        from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+            RadialCharacteristicBoundarySourceSink,
+        )
+        from orpheus.transport.residuals import (
+            AngularBoundaryResidual,
+            AngularResidual,
+            ScalarResidual,
+        )
+        from orpheus.transport.residuals.radial_characteristic_interior_residual import (
+            RadialCharacteristicInteriorResidual,
+        )
+        from orpheus.transport.residuals.radial_characteristic_boundary_residual import (
+            RadialCharacteristicBoundaryResidual,
+        )
+
+        return (
+            AngularFlux, ScalarFlux, CrossSectionField,
+            AngularSourceSink, ScalarSourceSink,
+            AngularResidual, ScalarResidual,
+            AngularBoundaryFlux, AngularBoundarySourceSink,
+            AngularBoundaryResidual,
+            ScalarBoundaryFlux, ScalarBoundarySourceSink,
+            HarmonicMomentFlux,
+            RadialCharacteristicInteriorFlux,
+            RadialCharacteristicInteriorSourceSink,
+            RadialCharacteristicInteriorResidual,
+            RadialCharacteristicBoundaryFlux,
+            RadialCharacteristicBoundarySourceSink,
+            RadialCharacteristicBoundaryResidual,
+        )
+
+    def test_no_concrete_leaf_exposes_the_sugar_tier(self) -> None:
+        offenders = [
+            f"{leaf.__name__}.{name}"
+            for leaf in self._all_leaves()
+            for name in ("from_mesh", "zeros_on", "from_ndarray")
+            if hasattr(leaf, name)
+        ]
+        if offenders:
+            pytest.fail(
+                "the S5-retired sugar tier resurfaced on: "
+                + ", ".join(offenders)
+            )
+
+    def test_composite_allocators_are_space_keyed(self) -> None:
+        import inspect
+
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.radial_characteristic_field import (
+            RadialCharacteristicField,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        for func in (FullField.zeros, TimedFullField.zeros):
+            params = inspect.signature(func).parameters
+            if "space" not in params or "mesh" in params:
+                pytest.fail(f"{func.__qualname__} is not space-keyed")
+        for func in (
+            RadialCharacteristicField.flux_zeros,
+            RadialCharacteristicField.source_zeros,
+        ):
+            params = inspect.signature(func).parameters
+            if "space" not in params:
+                pytest.fail(f"{func.__qualname__} is not space-keyed")
+
+    def test_the_documented_survivors_still_exist(self) -> None:
+        """The non-field tiers this gate deliberately does NOT ban."""
+        from orpheus.transport.mesh.material_xs_field import MaterialXSField
+        from orpheus.transport.operators.multiplication_operator import (
+            MultiplicationOperator,
+        )
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
+        )
+
+        if not callable(getattr(MaterialXSField, "from_mesh", None)):
+            pytest.fail("MaterialXSField.from_mesh (assembly tier) missing")
+        if not callable(getattr(MultiplicationOperator, "from_mesh", None)):
+            pytest.fail("MultiplicationOperator.from_mesh (operator tier) missing")
+        if not callable(getattr(HarmonicMomentFlux, "from_mesh_and_L", None)):
+            pytest.fail("the moment family's keyed factory missing (S6 scope)")
