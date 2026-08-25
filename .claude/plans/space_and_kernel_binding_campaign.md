@@ -1607,6 +1607,18 @@ archivist holds a ready draft).
 ⏹ **S7 COMPLETE ⟹ CS4b S1–S7 ALL EXECUTED.** The **from_isotropic re-pose is RULED
 (2026-08-24): the name rides the CLASS-MERGE decision point** (rider
 recorded at that charter).
+⏸⏸ **SUPERSEDED IN SHAPE 2026-08-25 — read
+`.claude/plans/posing_filtration_charter.md` FIRST.** The posing-filtration
+architecture is RATIFIED (three adversarial rounds, rulings R1–R13 in the
+charter): there is NO `Medium` class — the stage is `Materials` (a
+declaration) + the geometry overlay; ALL axes formally construct at the
+METHOD; the operator mesh-independence arc (census
+`scratch/operator_mesh_independence_census.md`) precedes CS1.5′-territory and
+its scope is ruled (consumed objects first — space/fields/operators; solver/
+strategy deferred). The pointer below is KEPT per plan-authoring §3: its
+pickup duties survive where they still apply (re-census before designing;
+#398 as the admissibility witness; surgical posture); its SHAPE (a Medium
+minted above MaterialMesh, `from_medium` arms) does not.
 ▶ RESUMES AT **CS1.5′ — the medium exists as its own concept ABOVE the
 discretization** (the outcome; §2.5 is the charter). ⚠ It OPENS AS A
 DESIGN ROUND, not execution: the 2026-08-20 grounded design
