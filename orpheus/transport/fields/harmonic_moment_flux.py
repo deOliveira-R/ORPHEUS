@@ -254,8 +254,10 @@ class HarmonicMomentFlux(MomentField):
         # factor — the carrier's cached ``bulk_space`` instance the factory
         # composed in (``SH.from_L(L) * mesh.bulk_space``), so the derived
         # scalar rides the same mint every scalar leaf shares. The widened
-        # (spatial_moments > 1) members stay a loud defer until S6/G6.7
-        # lands their witnesses (#240).
+        # (spatial_moments > 1) self-derive stays REFUSED by CONTRACT (S4,
+        # gated): the widened target carries the scheme's mass-bearing
+        # moment axis, which this field's densified SpatialMomentSpace
+        # factor does not hold — the caller holding the pose passes space=.
         if space is not None:
             return ScalarFlux(values=self.values[0, 0].copy(), space=space)
         if self.spatial_moments != 1:
@@ -278,8 +280,20 @@ class HarmonicMomentFlux(MomentField):
         :math:`L_{\rm new} \le L`.
 
         Drops the :math:`\ell > L_{\rm new}` blocks and the
-        corresponding zero-padded :math:`m`-columns; result has shape
-        ``(L_new+1, 2*L_new+1, ng, nx, ny)``.
+        corresponding zero-padded :math:`m`-columns; the trailing dims —
+        ``ng``, spatial, and any spatial-moment tail — ride unchanged,
+        so a widened (``spatial_moments > 1``) field truncates like any
+        other (#399 / CS4b S6.1: both the shape AND the rebuilt space
+        are derived from ``self.space``, never re-assembled from mesh
+        knowledge).
+
+        The truncated space is a structural edit of the CURRENT space:
+        the spherical-harmonic head factor is swapped for
+        ``from_L(L_new)`` and every remaining factor (the cell-group
+        bulk, the optional ``SpatialMomentSpace``) is kept verbatim —
+        `[M]` content-equal to the factory's own mint at
+        ``(mesh, L_new, spatial_moments)`` on both widths (gated:
+        ``tests/transport/fields/test_harmonic_moment_flux.py``).
 
         Parameters
         ----------
@@ -295,20 +309,17 @@ class HarmonicMomentFlux(MomentField):
             raise ValueError(
                 f"HarmonicMomentFlux.truncate: L_new={L_new} < 0"
             )
+        from functools import reduce
+        from operator import mul
+
         from orpheus.numerics.space import TensorProductSpace
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,
         )
-        if self.spatial_moments != 1:
-            raise NotImplementedError(
-                "HarmonicMomentFlux.truncate: the widened "
-                "(spatial_moments > 1) member lands with its S6 witnesses "
-                "(G6.7, #240)."
-            )
-        # CS4b S4: the trailing dims are the space's own shape contract
-        # (``(L+1, 2L+1, ng, *spatial)`` → everything after the two
-        # harmonic axes), and the truncated space re-composes the SAME
-        # cell-group factor — the carrier's cached bulk instance.
+        # CS4b: the trailing dims are the space's own shape contract
+        # (everything after the two harmonic axes — ng, spatial, and the
+        # optional moment tail), so the copy below is tail-correct at
+        # every width with no branch.
         new_shape = (L_new + 1, 2 * L_new + 1, *self.space.shape[2:])
         new_values = np.zeros(new_shape, dtype=self.values.dtype)
         new_values[: L_new + 1, : 2 * L_new + 1] = (
@@ -317,6 +328,11 @@ class HarmonicMomentFlux(MomentField):
         assert isinstance(self.space, TensorProductSpace)  # type-narrowing
         return HarmonicMomentFlux(
             values=new_values,
-            space=SphericalHarmonicSpace.from_L(L_new) * self.space.factors[1],
+            space=reduce(
+                mul,
+                self.space.factors[1:],
+                SphericalHarmonicSpace.from_L(L_new),
+            ),
             L=L_new,
+            spatial_moments=self.spatial_moments,
         )
