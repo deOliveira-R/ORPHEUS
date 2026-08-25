@@ -142,8 +142,10 @@ class AngularSourceSink(AngularField):
         r"""Project an iso scalar source :math:`Q(\vec r, g)` to per-ordinate.
 
         Producer-side Pattern 7 normalisation: applies the ``/sum_w``
-        projection and broadcasts across the :math:`N` ordinates.
-        Returns a per-ordinate source whose every ordinate slice equals
+        projection and broadcasts across the :math:`N` ordinates —
+        realized (CS4b S6.2) by the space's frame-induced section
+        :meth:`~orpheus.numerics.space.FunctionSpace.section`. Returns a
+        per-ordinate source whose every ordinate slice equals
         ``iso_values / sum_w``.
 
         This is the canonical entry for **external, user-supplied** iso
@@ -179,13 +181,13 @@ class AngularSourceSink(AngularField):
                 f"AngularSourceSink.from_isotropic expects iso shape "
                 f"(ng, *spatial) = {expected}; got {iso_values.shape}"
             )
-        sum_w = float(mesh.quad.weights.sum())
-        N = mesh.quad.N
-        per_ord_values = np.broadcast_to(
-            (iso_values / sum_w)[None],
-            (N, *expected),
-        ).copy()
-        return cls(values=per_ord_values, space=cls._space_for_mesh(mesh))
+        # CS4b S6.2: the kernel IS the space's memoized frame-induced
+        # section (÷Σw then broadcast — [M] bit-identical, G6.6; the
+        # divisor is the rank-one frame's 1×1 Parseval metric). The name
+        # survives as the ergonomic producer entry (ruled 2026-08-24:
+        # re-key now; its retirement question is re-posed at S7).
+        space = cls._space_for_mesh(mesh)
+        return cls(values=space.section("angular").apply(iso_values), space=space)
 
     # ── Selectors ────────────────────────────────────────────────────
 

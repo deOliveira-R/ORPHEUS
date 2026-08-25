@@ -187,27 +187,31 @@ class TestTwoArrows:
 
 class TestShippedKernelEquivalence:
     def test_g65_retraction_is_the_angular_reduction_bit_identical(self):
-        """R over the angular axis == _integrate_angular_values' einsum,
-        np.array_equal (the implementation spells the same contraction;
-        the plan pinned the array_equal leg — vv bit-identity criterion
-        3). Reddened by changing the contraction order."""
-        from orpheus.transport.fields.angular_flux import AngularFlux
-
+        """R over the angular axis == the canonical reduction PROGRAM —
+        the hand-spelled ``einsum("n,ng...->g...", w, ψ)`` written HERE,
+        independent of production. np.array_equal. ⚠ Re-scoped at S6.2:
+        the pre-S6.2 target (``_integrate_angular_values``) now ROUTES
+        through this very retraction (the single-sourcing carve made a
+        production comparison tautological), so the hand spelling is the
+        surviving independent pin — plus the external value anchors in
+        ``test_angular_flux.py::TestIntegrateAngular``. Reddened by
+        changing the contraction order or dropping w."""
         sn = _sn()
-        psi = AngularFlux(
-            values=_rand((sn.quad.N, sn.ng, *sn.spatial_shape), 6),
-            space=sn.angular_bulk_space,
-        )
+        psi_values = _rand((sn.quad.N, sn.ng, *sn.spatial_shape), 6)
         R = sn.angular_bulk_space.retraction("angular")
         npt.assert_array_equal(
-            R.apply(psi.values), psi._integrate_angular_values(),
+            R.apply(psi_values),
+            np.einsum("n,ng...->g...", sn.quad.weights, psi_values),
         )
 
     def test_g66_section_is_the_from_isotropic_kernel_bit_identical(self):
-        """E over the angular axis == the from_isotropic kernel
-        (÷Σw then broadcast), np.array_equal — the S6 prototype's
-        licence: re-spelling the factory through E is a pure
-        re-spelling. Reddened by dropping ÷Σw (G6.1's mutation)."""
+        """E over the angular axis == the hand-spelled iso-projection
+        kernel (÷Σw then broadcast), np.array_equal — written HERE,
+        independent of production. Pre-S6.2 this was the licence for
+        re-keying ``from_isotropic`` through E; S6.2 consumed it (the
+        factory now routes through this very section), so the inline
+        spelling is the surviving independent pin. Reddened by dropping
+        ÷Σw (G6.1's mutation)."""
         sn = _sn()
         Q = _rand((sn.ng, *sn.spatial_shape), 7)
         E = sn.angular_bulk_space.section("angular")

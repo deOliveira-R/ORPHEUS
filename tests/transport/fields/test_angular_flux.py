@@ -300,3 +300,16 @@ class TestMetadata:
             psi.nx
         with pytest.raises(AttributeError):
             psi.ny
+
+
+class TestIntegrateAngularRidesTheCollapsePair:
+    """CS4b S6.2: both halves of the reduction ride the space's ONE
+    memoized frame-induced collapse pair."""
+
+    def test_space_is_the_memoized_marginal(self) -> None:
+        m = _slab_mesh()
+        psi = AngularFlux.zeros(m.angular_bulk_space)
+        phi = psi.integrate_angular()
+        R = m.angular_bulk_space.retraction("angular")
+        assert phi.space is R.codomain
+        assert phi.space == m.bulk_space

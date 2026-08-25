@@ -484,21 +484,16 @@ class AngularField(BulkField):
         map). Values-level, role-blind, single source of truth for the
         canonical angular reduction (the DSA restriction ``R`` rides it,
         #2).
+
+        Since CS4b S6.2 the realization IS the space's memoized
+        frame-induced retraction (:meth:`FunctionSpace.retraction
+        <orpheus.numerics.space.FunctionSpace.retraction>` — the
+        rank-one indicator frame's analysis content; `[M]` bit-identical
+        with the pre-S6.2 einsum spelling, G6.5), so the canonical
+        reduction has ONE realization tree-wide and admission
+        (axis-built space, NODAL angular axis) lives at the mint.
         """
-        # The angular axis carries the quadrature weights as its measure
-        # (the S1 carrier mint) — the ONE weight source post-S4. An axis
-        # ``weights`` of ``None`` IS the all-ones measure (the Axis
-        # canonicalization), so the reduction degrades to the plain sum.
-        axes = self.space.axes
-        if axes is None:  # unreachable for shipped angular spaces
-            raise TypeError(
-                f"{type(self).__name__}: angular reduction needs the "
-                "axis-built angular space (axes[0] carries w_n)."
-            )
-        w = axes[0].weights
-        if w is None:
-            return self.values.sum(axis=0)
-        return np.einsum("n,ng...->g...", w, self.values)
+        return self.space.retraction("angular").apply(self.values)
 
     @property
     def N(self) -> int:  # noqa: N802 — matches Quadrature.N

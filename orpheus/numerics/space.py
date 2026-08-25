@@ -86,7 +86,11 @@ from .axis import Axis, BasisKind
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import _AxisCollapsePair
-    from orpheus.numerics.operator import LinearOperator
+    from orpheus.numerics.operator import (
+        AxisRetractionOperator,
+        AxisSectionOperator,
+        LinearOperator,
+    )
 
 __all__ = [
     "DualSpace",
@@ -345,7 +349,7 @@ class FunctionSpace(Generic[Carrier]):
             cache[axis_label] = _collapse_pair(self, axis_label)
         return cache[axis_label]
 
-    def retraction(self, axis_label: str) -> "LinearOperator":
+    def retraction(self, axis_label: str) -> "AxisRetractionOperator":
         r"""Mint (memoized) the retraction :math:`R = \pi_*` over the named axis.
 
         The measure contraction of the axis's factor —
@@ -379,7 +383,7 @@ class FunctionSpace(Generic[Carrier]):
         """
         return self._axis_collapse_pair(axis_label).retraction
 
-    def section(self, axis_label: str) -> "LinearOperator":
+    def section(self, axis_label: str) -> "AxisSectionOperator":
         r"""Mint (memoized) the section :math:`E` of the axis retraction.
 
         The measure-normalized right inverse — the constant-along-the-

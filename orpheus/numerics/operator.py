@@ -3104,12 +3104,16 @@ class AxisRetractionOperator(_AxisMarginalBase):
     """
 
     @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        r"""The full space — the product carrying the contracted axis."""
+    def domain(self) -> "FunctionSpace":
+        r"""The full space — the product carrying the contracted axis.
+
+        Narrowed non-Optional: the pair is born bound (the S4-amendment
+        lens), so a minted retraction ALWAYS has its two spaces.
+        """
         return self._full_space
 
     @property
-    def codomain(self) -> Optional["FunctionSpace"]:
+    def codomain(self) -> "FunctionSpace":
         r"""The marginal space — the remaining axes, measures intact."""
         return self._marginal_space
 
@@ -3211,12 +3215,12 @@ class AxisSectionOperator(_AxisMarginalBase):
         return self._total_weight
 
     @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        r"""The marginal space the section lifts FROM."""
+    def domain(self) -> "FunctionSpace":
+        r"""The marginal space the section lifts FROM (born bound — non-Optional)."""
         return self._marginal_space
 
     @property
-    def codomain(self) -> Optional["FunctionSpace"]:
+    def codomain(self) -> "FunctionSpace":
         r"""The full space the section lifts INTO."""
         return self._full_space
 
