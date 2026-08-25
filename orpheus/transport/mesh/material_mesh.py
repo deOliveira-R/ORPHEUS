@@ -512,10 +512,30 @@ class MaterialMesh:
         Raises
         ------
         AttributeError
-            If accessed on a 2-D mesh (face areas have a different shape
-            and are not consumed by today's matvec callers).
+            If the carrier holds no per-face areas — three DISTINCT
+            arms, each naming its own case (S7 G7.2; pre-repair one
+            message claimed "2-D meshes" for all three, false on two):
+            the 2-D legacy mesh (areas live on the ``Mesh2D``), the
+            d≥2 axis-native carrier (no legacy mesh at all), and the
+            mesh-less infinite-medium 1-cell carrier (no faces at all).
+            The two ``mesh is None`` arms are different STATES (G7.3 —
+            the sentinel is not the meaning; ``ndim`` discriminates).
         """
         if self._areas is None:
+            if self.mesh is None and self.ndim == 1:
+                raise AttributeError(
+                    "MaterialMesh.areas: the mesh-less infinite-medium "
+                    "1-cell carrier has no faces at all — reaction "
+                    "rates on it are bare group contractions, not "
+                    "surface quantities."
+                )
+            if self.mesh is None:
+                raise AttributeError(
+                    f"MaterialMesh.areas: the {self.ndim}-D axis-native "
+                    "carrier holds no per-face areas (radial face areas "
+                    "are a Mesh1D curvilinear concept; no matvec "
+                    "consumes Cartesian face areas today)."
+                )
             raise AttributeError(
                 "MaterialMesh.areas is not defined for 2-D meshes; "
                 "face-area data lives in the underlying Mesh2D directly."

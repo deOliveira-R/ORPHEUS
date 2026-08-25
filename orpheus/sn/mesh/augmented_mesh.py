@@ -751,7 +751,27 @@ class SNMesh(MaterialMesh):
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
             (``cls(sn_mesh)``), and the mesh does not exist yet.
+
+        Raises
+        ------
+        ValueError
+            If ``material_mesh`` is the mesh-less infinite-medium 1-cell
+            carrier (``mesh is None``, ``ndim == 1``) — it has no
+            boundary trace to sweep, so it cannot promote to a transport
+            phase space (S7 G7.1; pre-repair this was a messageless
+            ``assert`` that ``-O`` stripped, leaving a deep
+            ``AttributeError`` in the streaming constructor). The OTHER
+            ``mesh is None`` meaning — the d≥3 axis-native carrier — is
+            a different state (G7.3) and promotes normally.
         """
+        if material_mesh.mesh is None and material_mesh.ndim == 1:
+            raise ValueError(
+                "SNMesh.from_material_mesh requires a bounded geometry "
+                "(a spatial mesh with boundary faces); got a mesh-less "
+                "MaterialMesh (the infinite-medium 1-cell carrier). An "
+                "infinite homogeneous medium has no boundary trace to "
+                "sweep — use the homogeneous solver."
+            )
         obj = cls.__new__(cls)
         obj._init_core(
             axes=material_mesh.axes,
