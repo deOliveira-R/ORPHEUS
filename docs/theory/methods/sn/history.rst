@@ -30,6 +30,293 @@ merge hash or not at all).
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-24
+     - **A field is an element of a SPACE — the mesh binding retires from
+       the field layer, construction goes space-primary, and the space's
+       own reductions become frame-induced operators** (campaign 1, phase
+       CS4b, steps S1–S7).  Five consequences the S\ :sub:`N` solver sees
+       directly.  **(1) The carrier mints, the leaves read** (S1/S2):
+       :attr:`SNMesh.full_field_space
+       <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`'s
+       interior IS the carrier's axis-built angular mint rather than a
+       parallel hand-spelled shape, and every field leaf sources its space
+       from a cached carrier mint instead of naming one itself.
+       **(2) Partnering keys on space CONTENT, never on mesh IDENTITY**
+       (S3, the *F2 doctrine*): the partner gate's third tier — object
+       identity of the two meshes — retires, so twin carriers and
+       BC-only-differing carriers legitimately mix, while a moved cell
+       edge, a different group structure or a different quadrature refuse
+       exactly as before; trace and ray spaces gain content-digest names,
+       which is what makes ``(name, shape)`` equality BE content equality
+       (:ref:`cone-fiber-discipline`).  **(3) The binding itself retires**
+       (S4/S5): :class:`~orpheus.numerics.field.Field` now carries
+       ``values`` and ``space`` and nothing else, and the per-family
+       ``_phase_space_shape`` hook collapses into ``Field``'s own
+       ``values.shape == space.shape`` check — it was a twin of the
+       space's own content, kept alive only by the binding.  The
+       mesh-keyed leaf **sugar tier is DELETED** (``zeros_on`` /
+       ``from_mesh`` / ``from_ndarray`` are gone from every field leaf),
+       the composite allocators take ``space=``, and the carrier grows the
+       named replacement for the ``spatial_moments=`` integer:
+       :attr:`SNMesh.angular_trial_space
+       <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space>`, the
+       scheme-widened angular mint, ``is``-shared at every width.  Two
+       survivors are NOT sugar and stay by design —
+       :meth:`MaterialXSField.from_mesh
+       <orpheus.transport.mesh.material_xs_field.MaterialXSField.from_mesh>`
+       (assembly tier) and :meth:`MultiplicationOperator.from_mesh
+       <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh>`
+       (operator tier).  **(4) The angular reduction and the isotropic
+       source projection have ONE realization each** (S6): the space mints
+       the axis **collapse pair** — :meth:`FunctionSpace.retraction
+       <orpheus.numerics.space.FunctionSpace.retraction>` and
+       :meth:`~orpheus.numerics.space.FunctionSpace.section` — and both
+       are the *induced output* of a single-region indicator frame built
+       and discarded at one site (the stage-2 generator discipline), so
+       the section's normalising divisor is READ OFF that frame's
+       :math:`1 \times 1` Parseval metric instead of being chosen by hand.
+       ``integrate_angular`` and ``from_isotropic`` re-key onto the pair,
+       and the per-face packing loop re-homes to its layout's own
+       :meth:`FaceLayout.pack
+       <orpheus.numerics.face_layout.FaceLayout.pack>` (native place).
+       Full account: :ref:`spaces-collapse-pair` on
+       :doc:`/theory/foundations/spaces`; the field-layer narrative is on
+       :doc:`/theory/foundations/field_algebra`.  **(5) The mesh-less
+       carrier's two meanings un-weld** (S7): promoting the
+       infinite-medium 1-cell carrier to an S\ :sub:`N` phase space now
+       raises a typed ``ValueError`` naming the reason — pre-repair a
+       messageless bare ``assert`` that the canonical ``python -O``
+       runner **strips**, leaving a deep ``AttributeError`` in the
+       streaming constructor (``vv-principles`` failure mode 8, live in
+       production) — and :attr:`MaterialMesh.areas
+       <orpheus.transport.mesh.material_mesh.MaterialMesh.areas>` names
+       its own three arms instead of blaming a 2-D mesh for all three.
+       ⭐ **Two honest-tier corrections landed with the docs audit, and
+       the method behind each is the reusable part.** (a) The
+       frame-induced divisor was pinned ``np.array_equal`` against the
+       retired ``weights.sum()`` spelling over a ladder of eight
+       fixtures — a ladder that *skipped* ``gauss_legendre(8)``, the one
+       shipped member where the two spellings diverge.  For a finite
+       SHIPPED family a ladder is a
+       **sample**, and the member you skip is where the counterexample
+       lives; the divergence (1 ULP on the divisor, :math:`\leq` 4 nulp
+       on the reconstructed kernel) is now pinned as a *bound* by its own
+       falsifiable gate row, under the standing
+       principled-over-bit-identical criterion.  (b) The pair's
+       round-trip rows advertised "bit-exact" from a single random draw:
+       `[M]` on that fixture ``np.array_equal`` fails on **844 of 2000**
+       seeds (float re-association of :math:`\sum_n w_n / \sum w`), so
+       they were re-pinned at ``nulp=1``.  **"Bit-exact" is a property of
+       the DRAW** until a sweep makes it a property of the fixture — and
+       the shipped S\ :sub:`N` carrier *is* exact (200 of 200), which is
+       why the production-facing rows keep ``array_equal`` honestly.
+     - #399
+     - ``4069155b`` … ``a82d31e4`` (the carrier mints and the
+       space-content re-key), ``554ff10b`` / ``1333135e`` (the mesh
+       binding retires), ``b00bf2d7`` … ``2690a434`` (space-primary
+       construction), ``048144db`` / ``19b85775`` (the collapse pair and
+       its frame induction), ``ffb8f286`` (space-derived truncation —
+       closes #399), ``78925753`` / ``53e7d207`` (the re-keys and the
+       packer), ``1f8e0323`` / ``2e054bfc`` (the S7 un-welds and the
+       typed rate co-vector), ``6734bf15`` (the ULP-honesty corrections)
+       — merged @ ``55bb47b9``
+   * - 2026-08-23
+     - **The frame owns the metric its coefficient side carries, and its
+       faces are the BOUND operators it mints** (campaign 1, phase CS4b,
+       steps F-0 and F-1).  **F-0 — the metric truth, and ERR-039's third
+       chapter.**  Every earlier step of the frame campaign moved
+       *operators*; none had asked whether the metric the coefficient
+       codomain carries is the right one, and it was not.  The frame
+       exposed the basis's space unchanged, so the codomain carried the
+       continuum Gram :math:`g_C` where the covariant moments that
+       analysis emits need its **inverse**.  The theorem is exact and
+       unconditional — :math:`\varphi = M\psi = Gc` identically — so the
+       Parseval metric is the **inverse of the frame's DISCRETE Gram**, a
+       property of the *(basis* :math:`\otimes` *measure)* pair rather
+       than a constant of the basis.  ``FrameBase`` gained
+       :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`, a
+       MEASURED
+       :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure`
+       verdict (deliberately distinct from the basis's DECLARED one), and
+       a :attr:`~orpheus.numerics.frame.FrameBase.basis_space` that
+       dresses with :math:`G^{-1}` on a diagonal frame and **refuses** on
+       a dense one — slab Gauss–Legendre is the standing witness that no
+       diagonal candidate can satisfy Parseval there.  Nothing about the
+       design was wrong; *what was stored* was.  ⭐ **Three shields
+       explain why no gate could see it, and the third is the one to
+       read.**  The defining adjoint identity held at the round-off floor
+       because ``.H`` is BUILT FROM the stored metric — true for every SPD
+       metric, so the reading carries zero information about which one is
+       installed; composed chains are immune because interior metrics
+       cancel; and no end-of-chain adjoint consumer existed yet.  That
+       third shield is **latency, not safety** — which is precisely why
+       the metric had to be right *before* the S6 adjoint gates landed.
+       Full derivation, the declared-vs-measured Gram, the dense refusal
+       and the family-wide residual table: :ref:`frame-parseval-metric`.
+       **F-1 — the mint.**  With the metric right, the remaining asymmetry
+       was ownership.  A frame is not an operator, it is an operator
+       **factory**, and it is *shared*: S\ :sub:`N` scattering, the
+       windowed accumulation, DSA's :math:`\ell = 1` row and the
+       loss-kernel gauge all read one frame.  So
+       :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
+       reverts to the two-argument ``(basis, measure)`` factory and MINTS
+       the transport-level faces already bound to their two full field
+       spaces (:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.flux_analysis_on`,
+       :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.source_reconstruction_on`).
+       The pre-F-1 "not yet typed" ``codomain is None`` debt on
+       :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` dies
+       with the mint, and the composition guards now check that end.
+       ⚠ **The one blast-radius miss is worth recording**, because no
+       symbol grep could have found it: a duck-typed test surrogate
+       spelled the raised mint contract as a keyword argument, so only
+       running the suite exposed it.  A call-site set that is *complete by
+       symbol grep* is not complete for a **contract** change — its
+       consumers' test run is part of the enumeration, not a post-hoc
+       check on it.
+     - —
+     - ``0317373d`` (F-0, the metric truth), ``3dfea889`` (F-1, the mint),
+       ``4aa7f951`` (the surrogate contract) — merged @ ``55bb47b9``
+   * - 2026-08-22
+     - **An operator is not an operator without its two spaces** (campaign
+       1, phase CS4b, the S4 amendment).  The root
+       :class:`~orpheus.numerics.operator.LinearOperator` returned ``None``
+       from ``domain`` and ``codomain`` by default, so a leaf could inherit
+       *"I have no spaces"* by saying nothing — and an
+       adjointable-but-unbound leaf's ``.H`` then silently returned the
+       **Euclidean transpose wearing the Hilbert adjoint's name** — the
+       hazard the monomorphic-leaves suite had catalogued, and the same
+       conflation family as ERR-076.  The
+       amendment makes the base *demand*: both properties are
+       ``@property`` ``@abstractmethod``, every class must answer — with
+       spaces, by derivation, by the pointwise law, or by an explicit
+       documented override naming its owning campaign — and the generic
+       adjoint wrapper now **refuses** an unbound, non-metric-free inner
+       rather than degrading.  Four structures fall out.  **(a) The
+       pointwise family.**
+       :class:`~orpheus.numerics.operator.PointwiseOperator` is the
+       space-polymorphic stratum of the multiplier algebra — the identity
+       (:math:`\times 1`), the endomorphic zero (:math:`\times 0`) and the
+       diagonal (:math:`\times f`): endomorphic at the operand's space, no
+       stored pair BY LAW, and ``.H = self``, because a real multiplier
+       commutes with every diagonal metric.  Being *bound* and being
+       *metric-free* are **orthogonal** properties — the bound
+       :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+       declares itself metric-free while keeping its spaces — and
+       :attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`
+       is derived recursively through Sum / Product / Scaled /
+       TensorProduct, so the new refusal never fires on a composite that
+       genuinely needs no metric.  **(b) The zero splits in two:** the
+       natural endomorphic
+       :class:`~orpheus.numerics.operator.ZeroOperator` (a stateless
+       :math:`\times 0` echo, a pointwise member) and the born-bound
+       :class:`~orpheus.numerics.operator.ZeroMorphism`, which mints its
+       zeros from its own declared pair — which is what retires the
+       ``codomain_zero`` / ``transpose_zero`` closures both production
+       consumers had been passing.  **(c) The fission pencil un-welds.**
+       Its :math:`(B,B)` hooked zero existed only because a coupled
+       operator refuses an all-``None`` column, and the honest reading is
+       that the *missing operator was the restriction*: :math:`F` is now
+       posed as a stack composed with
+       :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`,
+       a born-bound member projection whose adjoint is extension-by-zero
+       through the space's own materialization seam.  In execution this
+       forced that seam's **cotangent twin** — `[M]` a flux-classed ray
+       zero minted into the daggered chain was refused by the cross-class
+       gate, so the member CLASS is load-bearing, not incidental.
+       **(d) The frame binds** — the amendment's first step bound
+       :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
+       itself to its two field spaces at construction.
+       ⛔ **Superseded the next day by F-1** (the row above): the binding
+       belongs on the *faces* a frame mints, not on the shared factory.
+       The amendment's *demand* stands unchanged — it is what made the
+       misplacement visible in the first place.
+     - —
+     - ``33950d81`` (the sweep-straggler gates), ``6e04a749`` (the frame
+       binding — superseded, see F-1), ``6fc247fb`` (the restriction and
+       the pencil un-weld), ``aa508d3f`` (the pointwise family, the zero
+       split, and the ``.H`` refusal) — merged @ ``55bb47b9``
+   * - 2026-08-21
+     - **Scattering, fission and the isotropic pair are KERNELS; the
+       operators carrying them are born BOUND** (campaign 1, phase CS4a,
+       with its clear-context adversarial review).  A cross-section
+       *datum* and the *operator* that acts with it had been one object.
+       A new :mod:`orpheus.transport.kernels` mints
+       :class:`~orpheus.transport.kernels.ScatteringKernel`,
+       :class:`~orpheus.transport.kernels.N2NKernel` and
+       :class:`~orpheus.transport.kernels.FissionKernel` — frozen,
+       read-only views over ONE
+       :class:`~orpheus.data.macro_xs.mixture.Mixture`, with the emission
+       spectrum applied at the single place it belongs
+       (:func:`~orpheus.data.emission_spectrum.enforce_emission_spectrum`)
+       and a truncation that **refuses** beyond the carried order rather
+       than silently padding.  The energy arm gets ONE rule,
+       :meth:`EnergyAxis.from_materials
+       <orpheus.numerics.axis.EnergyAxis.from_materials>`, which
+       :attr:`MaterialMesh.bulk_space
+       <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
+       reads.  On the operator side the pose is minted FROM the mixture,
+       the integrated rates read **the space's** measure rather than a
+       hand-carried volume vector, one shared energy-extent conformity
+       guard is wired into all four constructors, and
+       :class:`~orpheus.transport.operators.fission.FissionOperator`'s
+       space becomes MANDATORY — the in-tree precedent every later phase
+       of the campaign was measured against.  That none of this moved a value
+       was **measured, not assumed**: the byte gate
+       ``tests/homogeneous/test_byte_stability.py`` holds the homogeneous
+       solve bit-exactly across the rewiring on **8 of 8** rows —
+       exhaustive over the producing mixtures the tree ships — and the
+       frozen reaction-rate references moved 0 ULP.  ⭐ **The review round's own findings are the
+       durable part.**  A per-site witness table for the hoisted
+       conformity guard found that only **1 of 4** call sites had a
+       witness at all — and the witness-less site was the one whose
+       operand expression differed from its siblings', which is now a
+       ``vv-principles`` #17 sharpening (*a guard hoisted to one shared
+       home has as many arms as it has CALL SITES*).  A physics-semantics
+       question that had been recorded merely as an *observation* was
+       decided: **condensed cross sections are INTENSIVE**,
+       :math:`\bar\sigma_x = \langle \Sigma_x, \varphi\rangle /
+       \langle 1, \varphi \rangle` — the shipped spelling had scaled with
+       the point weight.  And thirteen first-phase attacks were
+       **WITHDRAWN with structural reasons**, three of them refuted by
+       their own author's probe; a refuted candidate is first-class
+       output.
+     - —
+     - ``069e2caa`` / ``15bbf935`` / ``9f1d4190`` / ``49b29391`` (the
+       kernels, the mixture-minted pose, F's mandatory space),
+       ``c7f9fa8d`` / ``d61e097b`` (the review round's production repairs
+       and gate strengthening) — merged @ ``55bb47b9``
+   * - 2026-08-20
+     - **The space layer gains AXES, and the homogeneous solver poses its
+       problem on a real Energy space** (campaign 1, phase CS1) — the
+       first factor of what will become the S\ :sub:`N` composite.
+       :mod:`orpheus.numerics.axis` mints
+       :class:`~orpheus.numerics.axis.Axis` (frozen, structural identity
+       per subclass, canonical measure storage) and
+       :class:`~orpheus.numerics.axis.EnergyAxis`, and
+       :meth:`FunctionSpace.of_axes
+       <orpheus.numerics.space.FunctionSpace.of_axes>` composes a space as
+       the ordered product of its axes, with a per-axis metric path (no
+       densification) and a deterministic, injective derived name — the
+       **identity bridge** that makes *"metric differences imply space
+       differences"* true today rather than aspirationally.  The
+       S\ :sub:`N`-facing consequence is the operator slot: :math:`S` and
+       :math:`F` stop carrying a ``full_field_space`` and carry a
+       ``space`` of the family type, so an operator can be posed on the
+       composite OR on a bulk factor without a second spelling — the slot the
+       kernel-binding phase then tightens to MANDATORY on :math:`F`.  The
+       homogeneous solver poses :math:`A = C - K_{\rm iso}` and
+       :math:`F` on that real space, retiring both production
+       ``basis_shape=(ng, 1)`` spellings and turning the ``OperatorSum``
+       space guard from *skipped* into *validating*.  Full account, with
+       the counting-measure theorem that explains why none of it moved a
+       value: :ref:`spaces-the-axis` and
+       :ref:`spaces-counting-measure-theorem` on
+       :doc:`/theory/foundations/spaces`.
+     - —
+     - ``1afff47b`` / ``f4876354`` (the axis and ``of_axes``),
+       ``e8769897`` / ``24a991ba`` (the operator space slot),
+       ``6bd782ab`` (the homogeneous pose), ``6da1b23c`` (the cone
+       consult), ``37122fd6`` (the corpus seed) — merged @ ``55bb47b9``
    * - 2026-08-15
      - **The reflective boundary trace has a canonical value, and every solve
        exit returns it.**  :math:`A = L + C - S - B` is **exactly singular** on

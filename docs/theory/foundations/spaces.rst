@@ -2039,7 +2039,7 @@ status.
        the pose stays the measure authority
        (:doc:`/theory/foundations/infinite_medium`).
      - —
-     - *(in development)* branch ``feature/cs1-energy-space`` —
+     - merged @ ``55bb47b9`` —
        ``b00bf2d7`` … ``2690a434`` (space-primary construction),
        ``048144db`` (the pair), ``19b85775`` (the frame induction +
        the rename), ``ffb8f286`` (space-derived truncation),
@@ -2086,7 +2086,7 @@ status.
        why this moved no values**: identity metrics along both factors,
        and guards that compare spaces rather than values.
      - —
-     - *(in development)* branch ``feature/cs1-energy-space`` —
+     - merged @ ``55bb47b9`` —
        ``1afff47b`` (the axis), ``f4876354`` (``of_axes`` + per-axis
        metric + cone metadata), ``e8769897`` / ``24a991ba`` (the
        operators' space slot renamed and widened), ``6bd782ab`` (the

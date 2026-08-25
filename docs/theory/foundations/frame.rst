@@ -4741,7 +4741,7 @@ it: :ref:`frame-parseval-metric`. Recorded debt: a matrix-valued
 metric needs the CS4c Riesz-leg machinery
 (``.claude/plans/frame_square_recarve.md``).
 
-**2026-08-24 — step F-1, the mint: the faces ARE the bound operators.**
+**2026-08-23 — step F-1, the mint: the faces ARE the bound operators.**
 With the metric right, the remaining asymmetry was ownership. A frame
 is not an operator; it is an operator **factory**, and it is shared —
 the scattering operator, the windowed accumulation, DSA's

@@ -1680,7 +1680,7 @@ status.
        <orpheus.transport.fields._bases.BoundaryField.from_face_arrays>`
        as the typed entry over it.
      - —
-     - *(in development)* branch ``feature/cs1-energy-space`` —
+     - merged @ ``55bb47b9`` —
        ``4069155b`` / ``07e0fe77`` / ``8a205cbf`` (the carrier mints),
        ``9138b3c3`` … ``a82d31e4`` (the S3 content re-key),
        ``554ff10b`` / ``1333135e`` (the mesh binding retires),
