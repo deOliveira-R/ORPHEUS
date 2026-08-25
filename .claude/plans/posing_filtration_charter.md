@@ -156,6 +156,9 @@ is physically exact: **`InfiniteMedium(mixture)`** — a single material
 filling all space. Placement: the **problem layer**, never a method on
 `Mixture` (round-2 attack 12, conceded: `mixture.as_infinite_medium` would
 make `orpheus.data` import the problem layer — dependency inversion).
+(Placement refined 2026-08-25, R23: the concrete home is
+`orpheus/homogeneous/` — the aggregate's own method-family package; the
+never-on-Mixture half is unchanged.)
 
 - Two rulings bind Materials' content (round-3, both fully accepted):
   **(R-mint)** *the mint is the law; admission is a preview.* The method-time
@@ -169,6 +172,48 @@ make `orpheus.data` import the problem layer — dependency inversion).
   lossy-return-type defect at the root, and it would throw away exactly what
   the MC head needs. Consequence: two heads over one Materials may
   legitimately realize **different** energy axes.
+- ✅ **Shape + home RULED 2026-08-25 (the arc design round's Materials
+  exchange):** `Materials` lives at **`orpheus/data/materials.py`** — the
+  incumbent `data/materials/` property-correlation package (h2o/matpro
+  thermophysics) renames to **`data/material_properties/`** ("long
+  overdue"; `[M]` 6 consumers, all in the undecided-fate
+  TH/kinetics/fuel zone — mechanical sweep). The class is a frozen
+  `eq=False` (identity — content identity joins the CS2 family later,
+  #403 the precedent) wrapper over `Mapping[int, Mixture]` re-bound to a
+  `MappingProxyType`; admission refuses ONLY the empty declaration;
+  `restrict(ids)` is guard 2's mechanism (assigned-but-undeclared
+  refuses in the declaration's vocabulary). **No `ng` property, no
+  energy-axis preview** — both withdrawn at the exchange: the preview
+  had zero consumers (and a preview that does not exist cannot disagree
+  with the law — R7's cleanest form), and a scalar `ng` on the
+  declaration is the wrong object entirely (see the taxonomy bullet).
+  Zero imports beyond `data`-internal. The Library-vs-Materials
+  distinction survives as class semantics, not a package boundary.
+- ⭐ **The data-kind taxonomy (user, 2026-08-25 — recorded for the
+  future data overhaul, priced §9):** macro data arises **at least three
+  ways** — (1) nuclide concentrations × micro library of **GENDF**
+  class (multigroup); (2) the same with **PENDF/ACE** class
+  (pointwise/continuous); (3) **collapsed** data from a PRIOR solve
+  (condensation/homogenization — the cross-problem provenance loop).
+  PENDF-class data feeds Monte Carlo **exclusively**; GENDF-class and
+  collapsed data must produce ONE final object with the same available
+  data, consumable by ANY method **including multigroup Monte Carlo**.
+  Each kind carries its OWN consistency check (a GENDF-consistency
+  check — this is what supersedes the scalar-`ng` idea — a PENDF
+  variant, a collapsed variant); the check family lands with the data
+  overhaul, not this arc. Today's mesh-time `InconsistentMaterialsError`
+  stays untouched this arc (downstream, working; superseded by the
+  per-kind family later). #395's regime scoping is this taxonomy's
+  energy-grid shadow.
+- ⭐ **Lazy resolution of concrete properties (user, 2026-08-25):**
+  resolution of concrete numbers (`ng`, …) is **delayed as needed** —
+  each consuming stage resolves what it consumes (T2 applied to
+  data-reads; §3's lazy-realization criterion applied to DATA). The
+  first heavy consumer of concrete energy-structure numbers is
+  **Campaign 2's partitioning machinery** (`GeneralizedEigenPencil`,
+  resolvent, partitioning), where — user's stated direction, hedged as
+  "I think" — a significant chunk of the **spectral radius** becomes
+  predictable and the general objective is to LOWER it.
 - The infinite path: `InfiniteMedium(mixture)` is a **complete problem**
   (the slowing-down problem — the energy sub-algebra posed alone; not
   transport at degenerate geometry). It runs the SAME generative primitives
@@ -183,6 +228,23 @@ make `orpheus.data` import the problem layer — dependency inversion).
   condensed Materials' provenance is a *solve* on a prior Materials — a DAG
   per problem, a loop across problems; the #406 save-state story should
   record that provenance.
+  ⭐ **REFRAMED 2026-08-25 (user; main-agent concurred): `InfiniteMedium`
+  is the homogeneous family's AGGREGATE — `SNMesh`'s analog on the
+  infinite path** (organization + shared objects, the save-space role).
+  It lives in `orpheus/homogeneous/` and takes a `mixture` DIRECTLY,
+  never a `Materials` — clean because the shared law
+  `EnergyAxis.from_materials` accepts `Iterable[Mixture]`, so both paths
+  feed ONE law and the infinite path never touches a declaration map
+  (`Materials` is the heterogeneous path's declaration; the mixture IS
+  the infinite path's). This is the container fork R3's **first data
+  point**: the infinite path keeps an aggregate, by design. Its
+  absorption of the degenerate `MaterialMesh.from_materials` carrier is
+  governed by the twin-path condition above (same primitives, zero
+  `if infinite:` arms) — the tree already leans this way: `[M]`
+  `_pose_space`'s docstring (homogeneous/solver.py) demotes the carrier
+  to "supplies cross sections, not the posing". Design timing follows
+  the O-4 sequencing logic: aggregates AFTER the operator shape
+  crystallizes.
 
 **Geometry (the overlay).** Declares: the region partition; the
 **deck identifications**; the genuine **boundary data**; and the
@@ -247,7 +309,7 @@ last-arriving operand; that is the whole justification, per the schema.
 
 | # | guard | discharged at | last-arriving operand | status in tree |
 |---|---|---|---|---|
-| 1 | energy-grid coherence **preview** (agree / no-grid / refuse; regime-scoped per #395) | Materials admission | the declared mixtures' grids | XD-4 amendment recorded (campaign plan §2.5); **preview only — implied-by-the-mint is its correctness criterion (R-mint)** |
+| 1 | energy-grid coherence **preview** (agree / no-grid / refuse; regime-scoped per #395) | Materials admission | the declared mixtures' grids | XD-4 amendment recorded (campaign plan §2.5); **preview only — implied-by-the-mint is its correctness criterion (R-mint)**. ⭐ Sharpened 2026-08-25 (R21/R22): **no preview machinery is BUILT** — admission refuses only assignment-independent trivia (the empty declaration; a cross-material refusal at admission would let a spectator flip admissibility, violating R11/T2); coherence lives wholly in the mint; the future check is per-DATA-KIND (GENDF / PENDF / collapsed — R22), landing with the data overhaul; today's mesh-time `InconsistentMaterialsError` stays untouched this arc |
 | 2 | assigned-but-undeclared material → refuse | overlay construction | the assignment (declaration already exists) | new with the chain (user-spotted, 2026-08-25) |
 | 3 | mesh conforms to regions (pullback well-defined) | mesh construction | the cells | chartered in the old CS1.5 design (§6c witness: hand-built non-conforming `Mesh1D` refused with a region-naming reason) — survives verbatim |
 | 4 | deck motion is a symmetry of the discrete rule | head (BC realization) | the quadrature | **SHIPS, exact-or-refuse**: `[M]` `Quadrature.ordinate_permutation` (`directional.py:337`) — every image matches a node (no bare argmin, ERR-074), bijection (ERR-073), equal weights (ERR-042); `None` = "not a symmetry of this rule", caller refuses in the law's vocabulary; consumed by `_deck_kernel` (`realizer.py:452`), the ONE body every deck law realizes through. **No interpolation arm exists** — no silent approximation ships |
@@ -605,7 +667,7 @@ an **`AngularClosure`** concept — the closure family pattern is
 | R3 | The container fork is OPEN — the aggregate may survive as organization + persistence (#406); the BoundaryOperator-factory option is live | 2026-08-24 |
 | R4 | The posing chain is a filtration; the architecture of §2–§4 — ratified through three adversarial rounds | 2026-08-25 |
 | R5 | All axes formally construct at the method (T1); stages accumulate measures and data; no half-axis objects | 2026-08-25 |
-| R6 | Naming: `Materials` (a declaration), not `Medium`; `InfiniteMedium(mixture)` in the problem layer is where the word survives; `mixture.as_infinite_medium` rejected (dependency inversion) | 2026-08-25 |
+| R6 | Naming: `Materials` (a declaration), not `Medium`; `InfiniteMedium(mixture)` in the problem layer is where the word survives; `mixture.as_infinite_medium` rejected (dependency inversion). *Refined by R23: the concrete home is `orpheus/homogeneous/`* | 2026-08-25 |
 | R7 | R-mint: the method-time mint is the law; Materials-time admission is a preview whose refusals must be implied by the mint's | 2026-08-25 |
 | R8 | R-raw: Materials carries raw per-material grid provenance; no early collapse; per-head axes may differ | 2026-08-25 |
 | R9 | The state-fields stage exists (named now, empty today); `Mixture` = parametrization; state binds to space as a chain stage | 2026-08-25 |
@@ -616,9 +678,13 @@ an **`AngularClosure`** concept — the closure family pattern is
 | R14 | O-3 resolved (§5c): `DiscretizationScheme` is a stage-2 generator (`DiscretizationSchemeBase` family, successor of `LossRepresentation`); `StreamingOperator` binds `(domain, codomain, scheme)`; the closure splits function/evaluated-table; transitional accessor under the behavioral-identity retirement test; **the scheme must not carry traversal** (answer/cost constructor guard); "closure" names the retained object, scheme-flavored names forbidden downstream (class-name proposal `CellClosure`, to ratify) | 2026-08-25 |
 | R15 | Closure naming: **`SpatialClosure`** (the `CellClosure` proposal not taken); the pole angular closure family is the **`AngularClosure` candidate member**; family pattern `<Axis-role>Closure` | 2026-08-25 |
 | R16 | S-3 ruled as recommended: the arc takes minted space objects as given; mint-as-free-function / axes non-Optional / name-bridge retirement stay CS2, whose landing surface is the head (T1) | 2026-08-25 |
-| R17 | The `Materials` class IS minted this arc (stage 1); concrete shape ruled on the main agent's proposal (pending its acceptance) | 2026-08-25 |
+| R17 | The `Materials` class IS minted this arc (stage 1); concrete shape ruled on the main agent's proposal — *resolved same day by R20/R21* | 2026-08-25 |
 | R18 | O-4 sequencing: the factory-vs-table fork stays unruled until the operator shape crystallizes — operators first, then the crystallized concept applies to the BoundaryOperator; and its "declarations move" premise is refuted (declarations already live at the geometry stage) | 2026-08-25 |
 | R19 | §5c mint correction: the SPACE suffices as the scheme's mint input (the axes live in the space); the minted package decomposes by destination; the family must serve diffusion (not SN-welded); the StreamingOperator retains all information it can leverage for test/diagnosis — mint-inside-vs-outside is the O-3 design fork | 2026-08-25 |
+| R20 | `Materials` home: `orpheus/data/materials.py`; the incumbent property-correlation package renames `data/materials/` → `data/material_properties/` ("long overdue"; `[M]` 6 consumers, all TH/kinetics/fuel zone) | 2026-08-25 |
+| R21 | `Materials` final shape: frozen `eq=False` identity wrapper over `Mapping[int, Mixture]` (MappingProxyType); admission refuses only the empty declaration; `restrict(ids)` = guard 2; **no `ng` property, no preview** — concrete-property resolution is LAZY at the consuming stage; today's mesh-time `InconsistentMaterialsError` untouched this arc | 2026-08-25 |
+| R22 | The data-kind taxonomy: macro data arises ≥3 ways (GENDF-class / PENDF-class / collapsed-from-solve); per-kind consistency checks (a GENDF check supersedes scalar-ng); PENDF → MC exclusively; GENDF + collapsed → one method-agnostic final object (multigroup MC included); the data-layer overhaul is priced future work (§9.6); first heavy consumer of concrete energy-structure numbers = Campaign 2 partitioning (spectral-radius direction, hedged) | 2026-08-25 |
+| R23 | `InfiniteMedium` reframed: the homogeneous family's AGGREGATE (`SNMesh`'s analog — organization + shared objects), in `orpheus/homogeneous/`, taking `mixture` directly (never a Materials); R3's first data point; design after the operator shape crystallizes | 2026-08-25 |
 
 ## 7. The adversarial record (distilled; refuted candidates are first-class output)
 
@@ -692,6 +758,14 @@ appears (R11).
    admissibility landing.
 5. The deferred consumer arc: lazy realization with the §3 criterion;
    traversal objects (the `for_shape` precedent generalized).
+6. **The data-layer overhaul** (user, 2026-08-25 — the §3 taxonomy):
+   the three-way macro-data provenance (GENDF-class / PENDF-class /
+   collapsed-from-solve) with a per-kind consistency-check family;
+   PENDF → Monte Carlo exclusively; GENDF + collapsed → one
+   method-agnostic final object (multigroup MC included). Concrete
+   properties resolve lazily; the first heavy consumer of concrete
+   energy-structure numbers is Campaign 2's partitioning
+   (spectral-radius prediction/reduction, hedged).
 
 ## 10. Note to the archivist (when the arc lands — not before)
 
