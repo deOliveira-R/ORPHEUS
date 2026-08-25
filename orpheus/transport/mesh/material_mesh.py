@@ -47,8 +47,11 @@ from __future__ import annotations
 from functools import cached_property, reduce
 from typing import TYPE_CHECKING
 
+from collections.abc import Mapping
+
 import numpy as np
 
+from orpheus.data.materials import Materials
 from orpheus.geometry import Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
@@ -104,12 +107,13 @@ class MaterialMesh:
         Base geometry.  Its material assignment (``mat_ids`` on
         :class:`Mesh1D`, ``mat_map`` on :class:`Mesh2D`) keys into
         ``materials``.
-    materials : dict mapping material id to Mixture
-        Macroscopic cross sections keyed by the integer ids appearing in
-        the mesh's material map.  The authoritative source of truth for
-        both cross sections and the group count :attr:`ng`.  All
-        materials must agree on ``ng`` — heterogeneous group structures
-        are a homogenization-step concern that must precede method-mesh
+    materials : Materials or mapping of material id to Mixture
+        The stage-1 declaration (a bare ``{id: Mixture}`` dict is parsed
+        into :class:`~orpheus.data.materials.Materials` at this
+        boundary). The authoritative source of truth for both cross
+        sections and the group count :attr:`ng`.  All materials must
+        agree on ``ng`` — heterogeneous group structures are a
+        homogenization-step concern that must precede method-mesh
         construction.
 
     Attributes
@@ -119,9 +123,9 @@ class MaterialMesh:
         d≥3 meshes).
     axes : tuple of Axis1D
         Canonical spatial representation.
-    materials : dict mapping material id to Mixture
-        The materials dict passed at construction (single source of
-        truth).
+    materials : Materials
+        The stage-1 declaration (parsed at construction; single source
+        of truth — its mapping surface serves every dict-shaped read).
     mat_map : np.ndarray
         Material-id assignment, shape :attr:`spatial_shape`.
     ng : int
@@ -132,7 +136,7 @@ class MaterialMesh:
     def __init__(
         self,
         mesh: Mesh1D | Mesh2D,
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
     ) -> None:
         # Legacy inbound surface (C5.1 axis-primary inversion, #225):
         # convert the Mesh1D / Mesh2D declaration to the canonical axis
@@ -153,7 +157,7 @@ class MaterialMesh:
         axes: tuple[Axis1D, ...],
         mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
     ) -> None:
         r"""The ONE data-construction body both surfaces funnel into.
 
@@ -166,11 +170,16 @@ class MaterialMesh:
         """
         # ``materials`` is REQUIRED: a MaterialMesh without materials has
         # no ``ng`` and no XS field — an illegal state (coding-elegance
-        # Pattern 4).  The single source of truth for the material dict
-        # lives here; every operator reads materials + ``ng`` from the
-        # mesh, not from a parallel argument.
+        # Pattern 4).  Parsed at THIS boundary into the stage-1
+        # :class:`~orpheus.data.materials.Materials` declaration (un-weld
+        # arc, R20/R21): a bare ``{id: Mixture}`` dict is admitted and
+        # normalized once; downstream the type is ``Materials`` (its
+        # mapping surface keeps every existing read working). The single
+        # source of truth for the declaration lives here; every operator
+        # reads materials + ``ng`` from the mesh, not from a parallel
+        # argument.
         self.mesh = mesh
-        self.materials: "dict[int, Mixture]" = materials
+        self.materials: "Materials" = Materials.of(materials)
         # The axis tuple is the PRIMARY representation (C5.1): stored
         # verbatim — never round-tripped through a legacy mesh and
         # re-derived — it is the canonical dim-agnostic ground truth for
@@ -239,7 +248,7 @@ class MaterialMesh:
     # ── Meshless construction (infinite homogeneous medium) ───────────
 
     @classmethod
-    def from_materials(cls, materials: "dict[int, Mixture]") -> "MaterialMesh":
+    def from_materials(cls, materials: "Materials | Mapping[int, Mixture]") -> "MaterialMesh":
         r"""Meshless single-cell carrier for an infinite homogeneous medium.
 
         Builds the degenerate :class:`MaterialMesh` an *infinite-medium*
@@ -303,33 +312,24 @@ class MaterialMesh:
     # ── Materials validation ──────────────────────────────────────────
 
     def _validate_materials(self) -> None:
-        """Validate the materials dict against the mat_map.
+        """Validate the assignment against the declaration.
 
-        Every material id referenced in ``self.mat_map`` MUST appear as a
-        key in ``self.materials``.  Failure surfaces here at construction
-        time, not lazily inside a solver step.
+        Every material id referenced in ``self.mat_map`` MUST appear in
+        the declaration — discharged through the declaration's OWN
+        reachable-subset constructor
+        (:meth:`~orpheus.data.materials.Materials.restrict`, the
+        assigned-but-undeclared guard at its one home; un-weld arc). The
+        empty-declaration refusal fires even earlier, at the
+        ``Materials`` admission inside ``_init_data``'s parse. Failure
+        surfaces at construction time, not lazily inside a solver step.
 
         Raises
         ------
         ValueError
-            If any ``mat_map`` id is missing from ``materials``; the
+            If any ``mat_map`` id is missing from the declaration; the
             error message shows both sets so the user can see the gap.
         """
-        if not self.materials:
-            raise ValueError(
-                "MaterialMesh requires a non-empty materials dict; got "
-                f"materials={self.materials!r}."
-            )
-        used_ids = set(int(x) for x in np.unique(self.mat_map))
-        available_ids = set(self.materials.keys())
-        missing = used_ids - available_ids
-        if missing:
-            raise ValueError(
-                f"MaterialMesh.mat_map references material ids "
-                f"{sorted(missing)} that are NOT in materials "
-                f"(available ids: {sorted(available_ids)}; used ids: "
-                f"{sorted(used_ids)})."
-            )
+        self.materials.restrict(int(x) for x in np.unique(self.mat_map))
 
     # ── Properties ────────────────────────────────────────────────────
 
@@ -348,15 +348,10 @@ class MaterialMesh:
             condensation step must precede method-mesh construction in
             that case.
         ValueError
-            If ``self.materials`` is empty (caught at construction time
-            by ``_validate_materials``).
+            Never for emptiness here — the empty declaration is refused
+            at the ``Materials`` admission inside ``_init_data``'s
+            parse, so a constructed carrier always has ≥1 material.
         """
-        if not self.materials:
-            raise ValueError(
-                "MaterialMesh.ng undefined — no materials.  Construct "
-                "MaterialMesh(mesh, materials) with a non-empty materials "
-                "dict."
-            )
         ngs = {m.ng for m in self.materials.values()}
         if len(ngs) != 1:
             raise InconsistentMaterialsError(
@@ -412,16 +407,17 @@ class MaterialMesh:
         (hoisted there at CS4a K1 so the mixture-minted homogeneous space
         and this property cannot spell the rule twice). Deterministic per
         carrier; deliberately NO new construction-time refusal — grid
-        coherence across materials is a MEDIUM-level invariant (CS1.5
-        design input).
+        coherence across materials is a per-data-kind consistency
+        concern (the data-layer overhaul, charter R22), and the mint's
+        synthetic fallback is the shipped law.
 
         Cached: every consumer of one carrier reads the SAME instance
         (and equal carriers mint ``==`` spaces through the derived name).
         """
-        reachable = sorted(int(i) for i in np.unique(self.mat_map))
-        energy = EnergyAxis.from_materials(
-            self.materials[i] for i in reachable
+        reachable = self.materials.restrict(
+            sorted(int(i) for i in np.unique(self.mat_map))
         )
+        energy = EnergyAxis.from_materials(reachable.values())
         return FunctionSpace.of_axes(
             energy,
             SpaceFactorAxis(

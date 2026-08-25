@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from orpheus.data.materials import matpro
+from orpheus.data.material_properties import matpro
 
 
 # ============================================================================

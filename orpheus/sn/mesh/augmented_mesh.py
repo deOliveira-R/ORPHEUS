@@ -66,6 +66,9 @@ from ..sweep.pole_angular_closure import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.numerics.space import FunctionSpace
@@ -206,7 +209,7 @@ class SNMesh(MaterialMesh):
         self,
         mesh: Mesh1D | Mesh2D,
         quadrature: Quadrature,
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
         scheme: DiscretizationSchemeBase | None = None,
         pole_angular_closure: "type[PoleAngularClosureBase] | None" = None,
     ) -> None:
@@ -235,7 +238,7 @@ class SNMesh(MaterialMesh):
         mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
         quadrature: Quadrature,
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
         scheme: DiscretizationSchemeBase | None,
         pole_angular_closure: "type[PoleAngularClosureBase] | None",
     ) -> None:
@@ -505,9 +508,12 @@ class SNMesh(MaterialMesh):
 
         Two :class:`SNMesh` instances pose identical discrete problems when
         they were built from the same CONSTITUENT OBJECTS — the geometry
-        mesh, the angular quadrature, the materials dict (all ``is``
-        identity — the tier that guarantees bit-identical re-derivation of
-        the data block, per :meth:`from_material_mesh`'s contract) — with
+        mesh and quadrature by ``is`` identity, the materials by
+        per-entry MIXTURE identity (same id-set, same ``Mixture`` object
+        per id — the tier that guarantees bit-identical re-derivation of
+        the data block, per :meth:`from_material_mesh`'s contract; the
+        declaration wrapper itself is parsed per carrier since the
+        un-weld arc, so wrapper identity is not the constituent) — with
         the same discretization-scheme TYPE.  This is the pairing guard for
         consumers that combine fields from TWO solutions (the P6 #281
         adjoint-weighted collapse, :meth:`SolutionBase.compare
@@ -535,7 +541,19 @@ class SNMesh(MaterialMesh):
         return self is other or (
             self.mesh is other.mesh
             and self.quad is other.quad
-            and self.materials is other.materials
+            # Constituent identity at the MIXTURE tier: the declaration
+            # wrapper is parsed per carrier (un-weld arc R20/R21 — a
+            # ``Materials`` per mesh), so "same materials dict object"
+            # is no longer spellable; what the old ``is`` was a proxy
+            # FOR is that the data block re-derives bit-identically,
+            # and the mixtures ARE that data. Same id-set + same
+            # Mixture object per id keeps every previously-true case
+            # true (same dict ⟹ same entries) at the honest tier.
+            and self.materials.ids == other.materials.ids
+            and all(
+                self.materials[i] is other.materials[i]
+                for i in self.materials
+            )
             and type(self.scheme) is type(other.scheme)
         )
 
@@ -640,7 +658,7 @@ class SNMesh(MaterialMesh):
         cls,
         axes: tuple[Axis1D, ...],
         quadrature: "Quadrature",
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
         *,
         mat_map: np.ndarray | None = None,
         scheme: DiscretizationSchemeBase | None = None,
@@ -674,7 +692,7 @@ class SNMesh(MaterialMesh):
             spine).
         quadrature : :class:`Quadrature`
             Angular quadrature.
-        materials : dict[int, Mixture]
+        materials : Materials or mapping of material id to Mixture
             Materials dict keyed by material id; same contract as the
             legacy constructor.
         mat_map : ndarray or None

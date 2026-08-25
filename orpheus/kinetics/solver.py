@@ -32,8 +32,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from orpheus.data.materials import matpro
-from orpheus.data.materials.h2o_properties import h2o_density, h2o_enthalpy, h2o_properties
+from orpheus.data.material_properties import matpro
+from orpheus.data.material_properties.h2o_properties import h2o_density, h2o_enthalpy, h2o_properties
 
 
 # ============================================================================

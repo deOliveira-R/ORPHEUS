@@ -64,7 +64,13 @@ def _two_material_mesh(ng=2):
 def test_material_mesh_holds_mesh_and_materials():
     mesh, mats = _two_material_mesh()
     mm = MaterialMesh(mesh, mats)
-    assert mm.materials is mats
+    # Un-weld arc (R20/R21): the attribute is the parsed stage-1
+    # DECLARATION, not an alias of the caller's dict — same entries by
+    # identity, read-only mapping surface (the old aliasing let callers
+    # mutate the mesh's materials after construction).
+    from orpheus.data.materials import Materials
+    assert isinstance(mm.materials, Materials)
+    assert all(mm.materials[k] is mats[k] for k in mats)
     assert mm.ng == 2
     assert mm.ndim == 1
     assert mm.spatial_shape == (5,)

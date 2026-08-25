@@ -18,7 +18,7 @@ Key Facts
 - Temperature: :math:`-\frac{1}{r}\frac{d}{dr}(r k \frac{dT}{dr}) = q'''` with temperature-dependent conductivity
 - Gap conductance: radiation + gas conduction (MATPRO correlations)
 - Cladding stress: thick-wall cylinder (Lamé equations) with internal pressure + thermal stress
-- Material properties: ``orpheus/data/materials/matpro.py`` (UO2, Zircaloy, gap gases)
+- Material properties: ``orpheus/data/material_properties/matpro.py`` (UO2, Zircaloy, gap gases)
 - IAPWS viscosity fallback: NaN at very high temperatures fixed via fallback (ERR-010)
 
 

@@ -94,7 +94,11 @@ def test_materials_attribute_is_dict_passed() -> None:
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2)}
     sn_mesh = SNMesh(mesh, quad, materials)
-    assert sn_mesh.materials is materials
+    # Un-weld arc (R20/R21): parsed into the stage-1 declaration at the
+    # boundary — entries identical, the mapping itself no longer aliased.
+    from orpheus.data.materials import Materials
+    assert isinstance(sn_mesh.materials, Materials)
+    assert all(sn_mesh.materials[k] is materials[k] for k in materials)
 
 
 def test_inconsistent_materials_error_is_value_error() -> None:
