@@ -927,6 +927,12 @@ class BoundaryField(FaceField[str]):
         faces only — the ψ½ pole builds through its role factories, not a
         per-face dict.
 
+        The packing loop is the layout's own
+        :meth:`~orpheus.numerics.face_layout.FaceLayout.pack` (native
+        place, CS4b S6.2) — this factory contributes exactly what the
+        layout cannot know: WHICH space the mesh mints for this family
+        (the space-level admission below) and the typed field wrap.
+
         Raises
         ------
         ValueError
@@ -942,25 +948,7 @@ class BoundaryField(FaceField[str]):
                 f"via its factory). A trace field cannot be packed "
                 f"without a face layout."
             )
-        provided = set(face_arrays.keys())
-        expected = set(layout.faces.keys())
-        if provided != expected:
-            raise ValueError(
-                f"{cls.__name__}.from_face_arrays: face_arrays keys "
-                f"{sorted(provided)!r} do not match mesh's layout faces "
-                f"{sorted(expected)!r}"
-            )
-        flat = np.zeros(layout.total_size)
-        for name, slot in layout.faces.items():
-            arr = face_arrays[name]
-            if arr.shape != slot.shape:
-                raise ValueError(
-                    f"{cls.__name__}.from_face_arrays: face {name!r} array "
-                    f"shape {arr.shape!r} does not match layout slot "
-                    f"shape {slot.shape!r}"
-                )
-            slot.slice_view(flat)[:] = arr
-        return cls(values=flat, space=space)
+        return cls(values=layout.pack(face_arrays), space=space)
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)

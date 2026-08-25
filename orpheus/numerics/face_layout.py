@@ -352,6 +352,43 @@ class FaceLayout(Generic[K]):
                 f"slots but total_size={self.total_size}"
             )
 
+    def pack(self, face_arrays: Mapping[K, NDArray]) -> NDArray:
+        r"""Pack per-face ndarrays into a fresh flat backing buffer.
+
+        ``face_arrays`` must cover EVERY face of this layout, each array
+        matching its slot's shape. The packing loop lives HERE because
+        every fact it reads — the face set, each slot's shape, the slice
+        map, the total size — is layout knowledge (native place, CS4b
+        S6.2); the field factories
+        (:meth:`~orpheus.transport.fields._bases.FaceField.from_face_arrays`)
+        are typed entries over this.
+
+        Raises
+        ------
+        ValueError
+            If the keys differ from this layout's faces, or any per-face
+            array's shape mismatches its slot.
+        """
+        provided = set(face_arrays.keys())
+        expected = set(self.faces.keys())
+        if provided != expected:
+            raise ValueError(
+                f"FaceLayout.pack: face_arrays keys "
+                f"{sorted(provided, key=repr)!r} do not match the "
+                f"layout's faces {sorted(expected, key=repr)!r}"
+            )
+        flat = np.zeros(self.total_size)
+        for name, slot in self.faces.items():
+            arr = np.asarray(face_arrays[name])
+            if arr.shape != slot.shape:
+                raise ValueError(
+                    f"FaceLayout.pack: face {name!r} array shape "
+                    f"{arr.shape!r} does not match its slot shape "
+                    f"{slot.shape!r}"
+                )
+            slot.slice_view(flat)[:] = arr
+        return flat
+
     @classmethod
     def from_named_shapes(
         cls, named_shapes: "Sequence[tuple[K, tuple[int, ...]]]",
