@@ -85,6 +85,7 @@ from numpy.typing import NDArray
 from .axis import Axis, BasisKind
 
 if TYPE_CHECKING:
+    from orpheus.numerics.frame import _AxisCollapsePair
     from orpheus.numerics.operator import LinearOperator
 
 __all__ = [
@@ -320,47 +321,94 @@ class FunctionSpace(Generic[Carrier]):
         return all(ax.kind is BasisKind.NODAL for ax in self.axes)
 
     # ------------------------------------------------------------------
-    # Axis marginals — the retraction / embedding pair (CS4b S6)
+    # Axis collapse — the retraction / section pair (CS4b S6.0b)
     # ------------------------------------------------------------------
 
-    def retraction(self, axis_label: str) -> "LinearOperator":
-        r"""Mint the measure-weighted marginal over the named axis.
+    def _axis_collapse_pair(self, axis_label: str) -> "_AxisCollapsePair":
+        r"""Memoized mint of the axis collapse pair (one mint per axis label).
 
-        :math:`R = ` :class:`~orpheus.numerics.operator.AxisRetractionOperator`
-        — the contraction of the axis's factor measure,
-        :math:`(R\psi)(\cdot) = \sum_n w_n \psi(n, \cdot)`: the angular
-        flux reduction when the axis is ``"angular"`` (`[M]`
-        bit-identical with the shipped einsum), the group collapse on
-        ``"energy"``, the volume integral on ``"spatial"``. Born bound:
-        domain is THIS space, codomain the same product with the axis
-        dropped (remaining measures intact), so ``.H`` is the Hilbert
-        adjoint out of the box.
+        The pair is frame-induced at ONE site
+        (:func:`orpheus.numerics.frame._collapse_pair` — the stage-2
+        generator discipline: both inductions minted together, generator
+        discarded) and cached in the frozen dataclass's ``__dict__`` (the
+        F-0 ``basis_space`` pre-seed pattern), so both verbs share one
+        mint and carriers that cache their spaces get warm operators for
+        free — ``sn.angular_bulk_space.retraction("angular")`` costs the
+        frame build once per carrier.
+        """
+        cache: dict[str, "_AxisCollapsePair"] = self.__dict__.setdefault(
+            "_collapse_pairs", {}
+        )
+        if axis_label not in cache:
+            from orpheus.numerics.frame import _collapse_pair
+
+            cache[axis_label] = _collapse_pair(self, axis_label)
+        return cache[axis_label]
+
+    def retraction(self, axis_label: str) -> "LinearOperator":
+        r"""Mint (memoized) the retraction :math:`R = \pi_*` over the named axis.
+
+        The measure contraction of the axis's factor —
+        :math:`(R\psi)(\cdot) = \sum_n w_n \psi(n, \cdot)`: fiber
+        integration (the pushforward :math:`\pi_*` along the projection
+        that forgets the axis) — the angular flux reduction when the
+        axis is ``"angular"`` (`[M]` bit-identical with the shipped
+        einsum, G6.5), the volume integral on ``"spatial"``.
+
+        **Frame-induced**: the pair is the single-region indicator
+        frame's output, minted once per axis at
+        :func:`orpheus.numerics.frame._collapse_pair` and memoized on
+        this space — both arrows come from that one mint (the stage-2
+        generator's two-inductions clause; the frame itself is
+        discarded, per the forgetful-map discipline). Born bound: domain
+        is THIS space, codomain the same product with the axis dropped
+        (remaining measures intact), so ``.H`` is the Hilbert adjoint
+        out of the box — the pullback :math:`\pi^*`, the plain
+        broadcast.
 
         The section satisfying :math:`R \circ E = \mathrm{id}` is
-        :meth:`embedding` — a DIFFERENT arrow
-        (:math:`R^\dagger = \Sigma w \cdot E`, `[M]` exact); the two
-        names exist so the :math:`\Sigma w` convention is unspellable
-        to swap (ERR-051).
+        :meth:`section` — a DIFFERENT arrow
+        (:math:`R^\dagger = \Sigma w \cdot E`, `[M]` exact); the
+        split epi/mono pair carries the canonical names (retraction /
+        section, Mac Lane CWM §I.5) so the :math:`\Sigma w` convention
+        is unspellable to swap (ERR-051).
+
+        A typed :class:`~orpheus.numerics.axis.EnergyAxis` is REFUSED
+        (collapse doctrine clause 2 — condensation owns that collapse);
+        see the mint's docstring for the full admission table.
         """
-        from orpheus.numerics.operator import AxisRetractionOperator
+        return self._axis_collapse_pair(axis_label).retraction
 
-        return AxisRetractionOperator(self, axis_label)
+    def section(self, axis_label: str) -> "LinearOperator":
+        r"""Mint (memoized) the section :math:`E` of the axis retraction.
 
-    def embedding(self, axis_label: str) -> "LinearOperator":
-        r"""Mint the section of the axis marginal — the isotropic lift.
+        The measure-normalized right inverse — the constant-along-the-
+        axis field whose retraction reproduces the input,
+        :math:`(E\phi)(n, \cdot) = \phi(\cdot)/\Sigma w`; DEFINED
+        by :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact; the
+        canonical name for the right inverse of a retraction — split
+        monomorphism). On the ``"angular"`` axis this is the
+        isotropic-source projection :math:`Q/\Sigma w` broadcast across
+        the ordinates. The divisor is frame-induced — the rank-one
+        frame's 1×1 ``discrete_gram`` entry (the Parseval metric), read
+        at the shared mint (see :meth:`retraction`). Born bound: domain
+        is the marginal space, codomain THIS space.
+        :math:`E \circ R` is the conditional expectation onto
+        axis-constant functions.
 
-        :math:`E = ` :class:`~orpheus.numerics.operator.AxisEmbeddingOperator`
-        — the constant-along-the-axis field whose marginal reproduces
-        the input, :math:`(E\phi)(n, \cdot) = \phi(\cdot)/\Sigma w`;
-        defined by :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact).
-        On the ``"angular"`` axis this is the isotropic-source
-        projection :math:`Q/\Sigma w` broadcast across the ordinates.
-        Born bound: domain is the marginal space, codomain THIS space.
-        See :meth:`retraction` for the pair's convention discipline.
+        Refuses an axis whose SIGNED measure sums to zero: the rank-one
+        Gram is singular — the frame has no canonical dual, so no
+        section exists (the retraction over the same axis stays legal).
         """
-        from orpheus.numerics.operator import AxisEmbeddingOperator
-
-        return AxisEmbeddingOperator(self, axis_label)
+        pair = self._axis_collapse_pair(axis_label)
+        if pair.section is None:
+            raise ValueError(
+                f"FunctionSpace.section: axis {axis_label!r} of {self!r} "
+                f"has zero total weight (a signed measure summing to 0) "
+                f"— the section divides by Σw, so none exists. The "
+                f"retraction over this axis is still legal."
+            )
+        return pair.section
 
     # ------------------------------------------------------------------
     # Inner product / norm

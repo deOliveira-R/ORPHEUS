@@ -1,10 +1,16 @@
-r"""S6 gates for the axis retraction / embedding pair (CS4b S6.0).
+r"""S6 gates for the axis collapse pair (CS4b S6.0 + S6.0b).
 
 G6.1–G6.6 of the CS4b verification plan §11 S6, realized on
-:meth:`FunctionSpace.retraction` / :meth:`FunctionSpace.embedding` —
-the space-level marginal pair :math:`R` (measure contraction) and
-:math:`E` (its section), ruled onto :class:`FunctionSpace` by the user
-2026-08-24.
+:meth:`FunctionSpace.retraction` / :meth:`FunctionSpace.section` — the
+split epi/mono pair :math:`R = \pi_*` (fiber integration) and :math:`E`
+(its measure-normalized section), ruled onto :class:`FunctionSpace` by
+the user 2026-08-24; names ratified canonical (retraction / section, Mac
+Lane CWM §I.5) the same day. S6.0b re-carved the REALIZATION: the pair
+is the single-region indicator frame's induced output, minted at one
+site (:func:`orpheus.numerics.frame._collapse_pair`), memoized on the
+space, with the frame discarded (the stage-2 generator discipline) —
+``TestFrameInduction`` gates that induction (tightness, gram-derivation,
+the clause-2 energy refusal, the one-mint memo).
 
 The convention discipline under test (the anti-ERR-051 design): the two
 arrows differ by exactly the axis's total weight,
@@ -78,7 +84,7 @@ class TestSectionLaws:
         re-measured on this fixture). Reddened by dropping ÷Σw from E
         (the section becomes the plain broadcast, R∘E = Σw·id)."""
         V = _product()
-        R, E = V.retraction("angular"), V.embedding("angular")
+        R, E = V.retraction("angular"), V.section("angular")
         phi = _rand((2, 5), 1)
         npt.assert_array_equal(R.apply(E.apply(phi)), phi)
 
@@ -86,7 +92,7 @@ class TestSectionLaws:
         """P = E ∘ R is idempotent — [M] BIT-EXACT. Same mutation as
         G6.1 (a mis-scaled section makes P(P) = Σw²·P)."""
         V = _product()
-        R, E = V.retraction("angular"), V.embedding("angular")
+        R, E = V.retraction("angular"), V.section("angular")
         x = _rand(V.shape, 2)
         p = E.apply(R.apply(x))
         npt.assert_array_equal(E.apply(R.apply(p)), p)
@@ -96,7 +102,7 @@ class TestSectionLaws:
         axes verbatim, measures intact (the marginal's metric stays
         physical)."""
         V = _product()
-        R, E = V.retraction("angular"), V.embedding("angular")
+        R, E = V.retraction("angular"), V.section("angular")
         marginal = FunctionSpace.of_axes(*V.axes[1:])
         if R.codomain != marginal or E.domain != marginal:
             pytest.fail("marginal space must be the remaining axes verbatim")
@@ -151,7 +157,7 @@ class TestTwoArrows:
         fixture). THE anti-ERR-051 row: swapping R.H for E at a call
         site is a Σw-sized error this gate names."""
         V = _product()
-        R, E = V.retraction("angular"), V.embedding("angular")
+        R, E = V.retraction("angular"), V.section("angular")
         phi = _rand((2, 5), 5)
         npt.assert_array_almost_equal_nulp(
             np.asarray(R.H.apply(phi)), _W_ANG.sum() * E.apply(phi), nulp=4,
@@ -159,20 +165,20 @@ class TestTwoArrows:
 
     def test_the_two_arrows_are_different_types(self):
         """The convention lives in the TYPE system: R.H is not an
-        AxisEmbeddingOperator and E is not an adjoint — a swapped call
+        AxisSectionOperator and E is not an adjoint — a swapped call
         site cannot type-narrow its way through."""
         from orpheus.numerics.operator import (
-            AxisEmbeddingOperator,
+            AxisSectionOperator,
             AxisRetractionOperator,
         )
 
         V = _product()
-        R, E = V.retraction("angular"), V.embedding("angular")
+        R, E = V.retraction("angular"), V.section("angular")
         if not isinstance(R, AxisRetractionOperator):
             pytest.fail("retraction() must mint the retraction type")
-        if not isinstance(E, AxisEmbeddingOperator):
-            pytest.fail("embedding() must mint the embedding type")
-        if isinstance(R.H, AxisEmbeddingOperator):
+        if not isinstance(E, AxisSectionOperator):
+            pytest.fail("section() must mint the section type")
+        if isinstance(R.H, AxisSectionOperator):
             pytest.fail("R.H must NOT be the section type (Σw apart)")
 
 
@@ -197,14 +203,14 @@ class TestShippedKernelEquivalence:
             R.apply(psi.values), psi._integrate_angular_values(),
         )
 
-    def test_g66_embedding_is_the_from_isotropic_kernel_bit_identical(self):
+    def test_g66_section_is_the_from_isotropic_kernel_bit_identical(self):
         """E over the angular axis == the from_isotropic kernel
         (÷Σw then broadcast), np.array_equal — the S6 prototype's
         licence: re-spelling the factory through E is a pure
         re-spelling. Reddened by dropping ÷Σw (G6.1's mutation)."""
         sn = _sn()
         Q = _rand((sn.ng, *sn.spatial_shape), 7)
-        E = sn.angular_bulk_space.embedding("angular")
+        E = sn.angular_bulk_space.section("angular")
         sum_w = float(sn.quad.weights.sum())
         expected = np.broadcast_to(
             (Q / sum_w)[None], (sn.quad.N, sn.ng, *sn.spatial_shape),
@@ -228,12 +234,15 @@ class TestShippedKernelEquivalence:
 
 
 class TestAxisGeneric:
-    def test_energy_marginal_degrades_to_the_group_sum(self):
-        """The energy axis carries the counting measure (weights None IS
-        all-ones) — R is the plain group collapse, E the uniform 1/ng
-        disaggregation, and R∘E=id still holds bit-exactly."""
+    def test_untyped_axis_is_admitted_whatever_its_label(self):
+        """The clause gate reads the axis TYPE, never the label string
+        (stringly dispatch rejected): a GENERIC axis labeled "energy" —
+        a synthetic test factor — is admitted with clause-3 semantics.
+        Counting measure (weights None IS all-ones): R is the plain
+        sum, E the uniform 1/n disaggregation, R∘E=id bit-exact. The
+        typed EnergyAxis refusal is TestFrameInduction's clause-2 gate."""
         V = _product()
-        R, E = V.retraction("energy"), V.embedding("energy")
+        R, E = V.retraction("energy"), V.section("energy")
         x = _rand(V.shape, 8)
         npt.assert_array_equal(R.apply(x), x.sum(axis=1))
         phi = _rand((4, 5), 9)
@@ -253,7 +262,7 @@ class TestAxisGeneric:
         npt.assert_allclose(
             R.apply(x), np.einsum("xy,gxy->g", Vw, x), rtol=1e-15,
         )
-        E = V.embedding("spatial")
+        E = V.section("spatial")
         phi = _rand((2,), 11)
         # The section law is ULP-tier here, NOT bit-exact: the flattened
         # 2-D measure sums 6 terms of φ/W whose reassociation wobbles 1
@@ -291,10 +300,12 @@ class TestAdmission:
         with pytest.raises(ValueError, match="bare scalar"):
             lone.retraction("angular")
 
-    def test_zero_total_weight_refuses_the_embedding_only(self):
-        """A signed measure summing to zero has no section (E divides by
-        Σw) — but the RETRACTION over it is legal (a contraction needs
-        no division). The asymmetry is the point."""
+    def test_zero_total_weight_refuses_the_section_only(self):
+        """A signed measure summing to zero has no section — the mint's
+        rank-one Gram is singular (no canonical dual), so the section
+        arm is unminted and the verb refuses. The RETRACTION over the
+        same axis is legal (a contraction needs no division); the
+        asymmetry is the point."""
         signed = FunctionSpace.of_axes(
             Axis("angular", (2,), weights=np.array([1.0, -1.0]),
                  kind=BasisKind.NODAL),
@@ -302,12 +313,126 @@ class TestAdmission:
         )
         signed.retraction("angular")  # legal
         with pytest.raises(ValueError, match="zero total weight"):
-            signed.embedding("angular")
+            signed.section("angular")
 
     def test_wrong_shape_inputs_are_refused_both_directions(self):
         V = _product()
-        R, E = V.retraction("angular"), V.embedding("angular")
+        R, E = V.retraction("angular"), V.section("angular")
         with pytest.raises(ValueError, match="full space"):
             R.apply(np.zeros((2, 5)))
         with pytest.raises(ValueError, match="marginal space"):
             E.apply(np.zeros(V.shape))
+
+
+# ── S6.0b — the frame induction (the stage-2 generator's gates) ──────
+
+
+class TestFrameInduction:
+    """The pair is the single-region indicator frame's induced output.
+
+    The mint (:func:`orpheus.numerics.frame._collapse_pair`) builds the
+    literal ``GalerkinFrame(IndicatorBasis, axis measure)``, reads the
+    induced data off it, and discards it. These gates re-build that frame
+    INDEPENDENTLY and pin the minted operators against its face contents
+    — the generator discipline's consistency (tightness) gate — plus the
+    gram-derivation of the section divisor, the clause-2 energy refusal,
+    and the one-mint memoization.
+    """
+
+    @staticmethod
+    def _literal_frame():
+        """The rank-one frame over the angular axis, spelled independently
+        of the mint (same construction law, re-derived here so the gate
+        compares two spellings, not one object with itself)."""
+        from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+        from orpheus.numerics.frame import GalerkinFrame
+        from orpheus.numerics.measure import DiscreteMeasure
+
+        n = _W_ANG.shape[0]
+        return GalerkinFrame(
+            basis=IndicatorBasis(
+                edges_per_axis=(np.array([-0.5, n - 0.5]),),
+            ),
+            measure=DiscreteMeasure(
+                nodes=np.arange(n, dtype=float),
+                weights=_W_ANG,
+                support="index(angular)",
+            ),
+        )
+
+    def test_tightness_the_pair_is_the_single_region_frames_faces(self):
+        """The minted kernels ≡ the literal frame's face contents, all
+        BIT-EXACT ([M] 2026-08-24 on this fixture): R vs the analysis
+        content (coefficient slot 0), R.T vs analyze_transpose (the
+        w-scatter), E vs reconstruction ∘ G⁻¹ (the canonical-dual
+        normalization). The operator kernels are hand einsums and the
+        frame path runs the basis's table einsums — different programs,
+        so agreement is a real claim. Reddened by any drift between the
+        operator kernels and the frame's contraction law."""
+        frame = self._literal_frame()
+        V = _product()
+        R, E = V.retraction("angular"), V.section("angular")
+        x, phi = _rand(V.shape, 12), _rand((2, 5), 13)
+        analysis = frame.basis.analyze(x, frame.table, frame.measure.weights)
+        npt.assert_array_equal(R.apply(x), analysis[0])
+        npt.assert_array_equal(
+            R.apply_transpose(phi),
+            frame.basis.analyze_transpose(
+                phi[None], frame.table, frame.measure.weights,
+            ),
+        )
+        gram = frame.discrete_gram
+        npt.assert_array_equal(
+            E.apply(phi),
+            frame.basis.reconstruct((phi / gram[0, 0])[None], frame.table),
+        )
+
+    def test_the_section_divisor_is_the_frames_discrete_gram(self):
+        """The section's divisor IS the rank-one Parseval metric — the
+        1×1 ``discrete_gram`` entry of the literal frame (F-0's
+        inverse-discrete-Gram theorem at K=1), pinned EXACTLY. [M] the
+        gram einsum is bit-identical to ``weights.sum()`` on all probed
+        fixtures (8 of 8, n ∈ {2, 4, 5, 6, 16, 64} incl. GL64's inexact
+        Σw), so the induced read costs G6.6's array_equal nothing —
+        the second equality pins that coincidence on THIS fixture."""
+        frame = self._literal_frame()
+        E = _product().section("angular")
+        if frame.discrete_gram.shape != (1, 1):
+            pytest.fail(
+                f"the single-region frame's Gram must be 1×1; got "
+                f"{frame.discrete_gram.shape}"
+            )
+        npt.assert_array_equal(E.total_weight, frame.discrete_gram[0, 0])
+        npt.assert_array_equal(E.total_weight, _W_ANG.sum())
+
+    def test_typed_energy_axis_is_refused_with_the_condensation_pointer(self):
+        """Collapse doctrine clause 2 (partition-integration of an L¹
+        class): the ENERGY axis persists at its one-cell member —
+        ⟨σ̄,φ⟩ consumes the partition — so a drop-form marginal is
+        refused, pointing at the machinery that owns the energy
+        collapse (EnergyGrid.overlap_to, the PG condensation frames).
+        The refusal reads the TYPE; TestAxisGeneric's untyped-label row
+        is the other half of the clause gate."""
+        from orpheus.numerics.axis import EnergyAxis
+
+        V = FunctionSpace.of_axes(
+            EnergyAxis.synthetic(2),
+            Axis("spatial", (5,), weights=_W_SPA, kind=BasisKind.NODAL),
+        )
+        with pytest.raises(TypeError, match="condensation"):
+            V.retraction("energy")
+        with pytest.raises(TypeError, match="condensation"):
+            V.section("energy")
+
+    def test_both_verbs_share_one_memoized_mint(self):
+        """§5.3 of the induction plan: one mint per space per axis —
+        repeated verb calls return the SAME operators (identity), and
+        the two arrows share ONE marginal-space instance (both
+        inductions minted together at one site)."""
+        V = _product()
+        R1, R2 = V.retraction("angular"), V.retraction("angular")
+        E1, E2 = V.section("angular"), V.section("angular")
+        if R1 is not R2 or E1 is not E2:
+            pytest.fail("the collapse pair must be memoized per axis label")
+        if R1.codomain is not E1.domain:
+            pytest.fail("the pair must share ONE marginal space (one mint)")

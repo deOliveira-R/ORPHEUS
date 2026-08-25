@@ -84,7 +84,6 @@ from typing import (
 
 import numpy as np
 
-from orpheus.numerics.axis import BasisKind
 from orpheus.numerics.vector import Vector
 
 if TYPE_CHECKING:
@@ -2957,102 +2956,78 @@ class TraceRestrictionOperator(LinearOperator):
 
 
 class _AxisMarginalBase(LinearOperator):
-    r"""Shared axis bookkeeping of the retraction/embedding pair (CS4b S6).
+    r"""Shared retained state of the axis collapse pair (CS4b S6.0b).
 
-    The two arrows of one axis marginal — the measure contraction
-    :math:`R` (:class:`AxisRetractionOperator`) and its section :math:`E`
-    (:class:`AxisEmbeddingOperator`) — share everything except the
-    direction: the FULL space, the MARGINAL space (the full space with
-    the named axis dropped), the axis's flat weights, and the ndarray
-    dims the axis occupies. This base derives all of it ONCE from the
-    minting space + the axis label, and both realizations are **born
-    bound** (the S4-amendment lens: an operator is not an operator
-    without its two spaces — there is no unbound arm to refuse).
+    The two arrows of one axis collapse — the retraction
+    :math:`R = \pi_*` (:class:`AxisRetractionOperator`) and its section
+    :math:`E` (:class:`AxisSectionOperator`) — are the **forgetful
+    retention** of a stage-2 generator's output: the single-region
+    indicator frame over the axis's index set
+    (``GalerkinFrame(IndicatorBasis, axis measure)``), built eagerly at
+    the mint site (:func:`orpheus.numerics.frame._collapse_pair`), read
+    for its induced data, and discarded. The ruled discipline (user,
+    2026-08-24): *"a stage-2 generator induces structure on both the
+    space and the operator, and the two inductions must be minted
+    together, at one site … forgetting = retaining the induced parts;
+    accessors are provenance."*
 
-    Admission (all typed refusals, at mint time):
+    What the operators retain IS the induced data and nothing else: the
+    bound product spaces, the ndarray dims the axis occupies, the axis's
+    flat weights (the frame measure's diagonal), and — on the section —
+    the frame's 1×1 ``discrete_gram`` entry (the rank-one Parseval
+    metric :math:`\Sigma w`). No frame and no faces: a frame FACE is a
+    view holding ``frame:``, so retaining one would retain the
+    generator; true forgetting copies the induced parts out.
 
-    * the space must be **axis-built** (``axes is not None``) — a
-      densified/legacy product has no named factors to marginalise over;
-    * the label must name **exactly one** axis;
-    * the axis must be **NODAL** (or a plain unkinded factor is
-      impossible — ``kind`` is mandatory): a "marginal" over a MODAL
-      axis would contract expansion COEFFICIENTS with the basis mass,
-      which is not an integral of the represented function — the modal
-      average is the coefficient at the average slot, not a weighted
-      sum. Refused with that pointer.
+    Construction is the mint's internal — the public path is
+    :meth:`FunctionSpace.retraction
+    <orpheus.numerics.space.FunctionSpace.retraction>` /
+    :meth:`FunctionSpace.section
+    <orpheus.numerics.space.FunctionSpace.section>`, which memoize one
+    mint per space per axis label. Admission (axis-built space, exactly
+    one label hit, NODAL kind, the typed-``EnergyAxis`` clause-2
+    refusal, a surviving marginal) lives at the mint, once. Both
+    realizations are **born bound** (the S4-amendment lens: an operator
+    is not an operator without its two spaces — there is no unbound arm
+    to refuse).
 
     An axis may span SEVERAL ndarray dims (the 2-D spatial axis is one
     factor of shape ``(nx, ny)`` carrying the 2-D ``V_cell`` measure);
     the pair contracts/broadcasts over all of them with the axis's own
     weights. ``weights is None`` IS the counting measure (the Axis
-    canonicalization), so the energy marginal degrades to the plain
-    group sum and its section to the uniform ``1/ng`` disaggregation.
+    canonicalization), realized at the mint as the frame measure's
+    explicit ones.
     """
 
-    def __init__(self, space: "FunctionSpace", axis_label: str) -> None:
-        axes = space.axes
-        if axes is None:
-            raise TypeError(
-                f"{type(self).__name__}: {space!r} is not axis-built "
-                f"(axes is None) — an axis marginal needs named factors. "
-                f"Compose the space with FunctionSpace.of_axes."
-            )
-        hits = [i for i, ax in enumerate(axes) if ax.label == axis_label]
-        if len(hits) != 1:
-            raise ValueError(
-                f"{type(self).__name__}: label {axis_label!r} names "
-                f"{len(hits)} axes of {space!r} (have "
-                f"{[ax.label for ax in axes]}) — the marginal needs "
-                f"exactly one."
-            )
-        k = hits[0]
-        axis = axes[k]
-        if axis.kind is BasisKind.MODAL:
-            raise TypeError(
-                f"{type(self).__name__}: axis {axis_label!r} is MODAL — "
-                f"contracting expansion coefficients with the basis mass "
-                f"is not an integral of the represented function. The "
-                f"modal average is the coefficient at the average slot "
-                f"(slice it), not a weighted sum."
-            )
-        if len(axes) == 1:
-            raise ValueError(
-                f"{type(self).__name__}: {space!r} has only the "
-                f"{axis_label!r} axis — its marginal would be a bare "
-                f"scalar, which is not a FunctionSpace. Contract with "
-                f"the space's inner product instead."
-            )
-        # The ndarray dims this axis occupies: axes map to dims by
-        # cumulative rank (an axis's shape may span several dims).
-        start = sum(len(ax.shape) for ax in axes[:k])
-        self._dims = tuple(range(start, start + len(axis.shape)))
-        w = axis.weights
-        self._flat_weights = (
-            np.ones(int(np.prod(axis.shape)))
-            if w is None
-            else np.asarray(w, dtype=float).ravel()
-        )
-        self._axis = axis
-        self._axis_index = k
-        self._full_space = space
-        from orpheus.numerics.space import FunctionSpace as _FS
-
-        self._marginal_space = _FS.of_axes(
-            *(ax for i, ax in enumerate(axes) if i != k)
-        )
+    def __init__(
+        self,
+        *,
+        full_space: "FunctionSpace",
+        marginal_space: "FunctionSpace",
+        axis_shape: tuple[int, ...],
+        dims: tuple[int, ...],
+        flat_weights: np.ndarray,
+    ) -> None:
+        self._full_space = full_space
+        self._marginal_space = marginal_space
+        self._axis_shape = axis_shape
+        self._dims = dims
+        self._flat_weights = flat_weights
 
     # ── shared kernels (one spelling per direction, Pattern 2) ────────
 
     def _contract(self, x: np.ndarray) -> np.ndarray:
         r"""``Σ_axis w · x`` — the measure contraction over the axis dims.
 
-        Spelled to be BIT-IDENTICAL with the shipped angular reduction
+        The analysis-face CONTENT of the mint's rank-one frame, spelled
+        to be BIT-IDENTICAL with the shipped angular reduction
         (``AngularField._integrate_angular_values``'s
         ``einsum("n,ng...->g...", w, values)``) on its case — a leading
         1-dim axis: ``moveaxis`` to the front is then the identity view
         and the einsum program normalizes to the same contraction
-        (gated ``np.array_equal``, G6.5). A multi-dim axis is fused to
-        one flat dim first (reshape of a moved view).
+        (gated ``np.array_equal``, G6.5; the frame-content equivalence
+        is the tightness gate). A multi-dim axis is fused to one flat
+        dim first (reshape of a moved view).
         """
         x = np.asarray(x)
         if len(self._dims) == 1:
@@ -3066,7 +3041,7 @@ class _AxisMarginalBase(LinearOperator):
         r"""``scale_axis ⊗ x`` — scatter ``x`` across the axis dims, each
         slice scaled by that slot's ``scale`` entry (flat over the axis)."""
         x = np.asarray(x)
-        out = np.multiply.outer(scale.reshape(self._axis.shape), x)
+        out = np.multiply.outer(scale.reshape(self._axis_shape), x)
         nd = len(self._dims)
         return np.moveaxis(out, range(nd), self._dims)
 
@@ -3082,38 +3057,45 @@ class _AxisMarginalBase(LinearOperator):
 
 
 class AxisRetractionOperator(_AxisMarginalBase):
-    r"""The measure-weighted marginal over one named axis:
-    :math:`(R\,\psi)(\cdot) = \sum_n w_n\, \psi(n, \cdot)`.
+    r"""The retraction :math:`R = \pi_*` — fiber integration over one
+    named axis: :math:`(R\,\psi)(\cdot) = \sum_n w_n\, \psi(n, \cdot)`.
 
-    Minted by :meth:`FunctionSpace.retraction
-    <orpheus.numerics.space.FunctionSpace.retraction>` — the
-    space-level realization of the angular flux reduction
+    **Canonical names.** :math:`R \circ E = \mathrm{id}` (`[M]`
+    bit-exact) makes the pair a split epi/mono pair: :math:`R` is the
+    *retraction* (split epimorphism) and :math:`E` its *section* (Mac
+    Lane, CWM §I.5) — the collapse doctrine's own "retract rule".
+    Content-wise :math:`R` is the pushforward :math:`\pi_*` (fiber
+    integration) along the projection that forgets the axis, and its
+    Hilbert adjoint is the pullback :math:`R^\dagger = \pi^*` — the
+    plain broadcast (`[M]` ``np.array_equal``): the
+    :math:`(\pi_*, \pi^*)` adjunction realized on the discrete product.
+
+    **Frame-induced** (S6.0b): this operator is the analysis-face
+    content of the single-region indicator frame over the axis's index
+    set, minted by :func:`orpheus.numerics.frame._collapse_pair` via
+    :meth:`FunctionSpace.retraction
+    <orpheus.numerics.space.FunctionSpace.retraction>` — the frame is
+    built eagerly there, its induced weights are copied out, and it is
+    discarded (the forgetful-map discipline; see
+    :class:`_AxisMarginalBase`). The tightness gate pins this
+    operator's einsum against the frame's own
+    :meth:`~orpheus.numerics.basis.base.Basis.analyze` content.
+
+    The space-level realization of the angular flux reduction
     :math:`\phi = \int \psi\, \mathrm{d}\Omega \approx \sum_n w_n \psi_n`
-    (and, axis-generically, of any factor-measure marginal: the energy
-    group-collapse, the spatial volume integral). Domain = the minting
-    space; codomain = the same space with the axis dropped (its OTHER
-    factors keep their measures, so the marginal's metric stays
-    physical).
+    (`[M]` bit-identical with the shipped einsum, G6.5) and,
+    axis-generically, of any factor-measure marginal (the spatial
+    volume integral; a 2-D spatial axis contracts both dims). Domain =
+    the minting space; codomain = the same product with the axis
+    dropped (its OTHER factors keep their measures, so the marginal's
+    metric stays physical).
 
-    The pair law with :class:`AxisEmbeddingOperator` is
-    :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact on the shipped
-    angular fixture, 2026-08-24 — verification plan §9), and the two
-    arrows differ by exactly the total weight:
+    The two arrows differ by exactly the total weight:
     :math:`R^\dagger = \Sigma w \cdot E` (`[M]` ``np.array_equal``).
-    Naming BOTH arrows is the anti-ERR-051 move: a single "embedding"
-    verb would have had to choose a convention, and a re-pointed call
-    site would have silently changed a source by :math:`\Sigma w`.
-
-    Two measured relations tie this primitive to the shipped machinery
-    (both 2026-08-24):
-
-    * it IS the angular reduction: bit-identical with
-      ``_integrate_angular_values``'s einsum on the angular axis (G6.5);
-    * it is the :math:`\ell = 0` shadow of the harmonic frame: on a
-      DIAGONAL (Parseval-dressed) frame,
-      ``flux_analysis.H`` restricted to the iso slot equals :math:`E`
-      to 1 ULP (`scratch/probe_s6_q5_dissolution.py`) — the frame's
-      analysis row 0 is this contraction.
+    Naming BOTH arrows canonically is the anti-ERR-051 move: a single
+    undiscriminated verb would have had to choose a convention, and a
+    re-pointed call site would have silently changed a source by
+    :math:`\Sigma w`.
 
     Structurally rank-deficient (the marginal discards the axis) — no
     ``inverse()``; the transpose is the weighted scatter
@@ -3154,43 +3136,78 @@ class AxisRetractionOperator(_AxisMarginalBase):
         return self._broadcast_scaled(x, self._flat_weights)
 
 
-class AxisEmbeddingOperator(_AxisMarginalBase):
-    r"""The section of the axis marginal:
+class AxisSectionOperator(_AxisMarginalBase):
+    r"""The measure-normalized section of the axis retraction:
     :math:`(E\,\phi)(n, \cdot) = \phi(\cdot) / \Sigma w`.
 
-    Minted by :meth:`FunctionSpace.embedding
-    <orpheus.numerics.space.FunctionSpace.embedding>` — the arrow
-    DEFINED by :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact): the
-    constant-in-angle field whose marginal reproduces the input. This is
-    the isotropic-source projection :math:`Q/\Sigma w` broadcast across
-    the ordinates (``AngularSourceSink.from_isotropic``'s kernel —
-    gated ``np.array_equal``, G6.6), spelled once at the space level.
+    **Canonical name.** :math:`E` is DEFINED by
+    :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact) — the right
+    inverse of the retraction, i.e. the *section* of the split pair
+    (split monomorphism; Mac Lane CWM §I.5). "Embedding" was rejected
+    as non-canonical for this object (ratified 2026-08-24): any
+    injective structure-preserving map is an embedding — the pullback
+    :math:`\pi^* = R^\dagger` is one too — so that name cannot
+    discriminate the two arrows this two-type design exists to
+    discriminate; "embedding" survives only as a generic adjective. The
+    composite :math:`P = E \circ R` is the conditional expectation onto
+    axis-constant functions — the :math:`w`-mean projector (`[M]`
+    idempotent bit-exact, G6.2).
+
+    **Frame-induced** (S6.0b): the reconstruction-face content composed
+    with the inverse Gram, :math:`E = R_{\text{frame}} \circ G^{-1}` —
+    the divisor IS the mint frame's 1×1 ``discrete_gram`` entry, the
+    rank-one **Parseval metric** (F-0's theorem at :math:`K = 1`),
+    induced at the mint and never a hand convention. `[M]` the gram
+    einsum is bit-identical to ``weights.sum()`` on all probed fixtures
+    (8 of 8, ``n ∈ {2, 4, 5, 6, 16, 64}`` incl. GL64's inexact
+    :math:`\Sigma w`), so the ``from_isotropic`` kernel identity (G6.6,
+    ``np.array_equal``) survives the induced read; the gram-derivation
+    gate pins it.
+
+    On the angular axis this is the isotropic-source projection
+    :math:`Q/\Sigma w` broadcast across the ordinates
+    (``AngularSourceSink.from_isotropic``'s kernel — gated
+    ``np.array_equal``, G6.6), and the iso column of the harmonic
+    frame's physical adjoint (`[M]` ``face.H(e₀φ) == E(φ)`` to 2.2e-16
+    on a Parseval-dressed sphere frame —
+    ``scratch/probe_s6_q5_dissolution.py``).
 
     NOT the adjoint of :class:`AxisRetractionOperator` — that is the
-    plain weighted broadcast :math:`R^\dagger = \Sigma w \cdot E`
-    (`[M]` exact). The two arrows carry different names and different
-    types precisely so the :math:`\Sigma w` convention cannot be
-    silently swapped at a call site (the ERR-051 class becomes
-    unspellable).
+    plain broadcast :math:`R^\dagger = \Sigma w \cdot E` (`[M]` exact).
+    The two arrows carry different names and different types precisely
+    so the :math:`\Sigma w` convention cannot be silently swapped at a
+    call site (the ERR-051 class becomes unspellable).
 
-    Domain = the marginal space; codomain = the full space. Refuses at
-    mint an axis whose SIGNED measure sums to zero — no section exists
-    (the division is by :math:`\Sigma w`).
+    Domain = the marginal space; codomain = the full space. An axis
+    whose SIGNED measure sums to zero has NO section — the rank-one
+    Gram is singular, so the frame has no canonical dual: the mint
+    leaves this arm unminted and :meth:`FunctionSpace.section
+    <orpheus.numerics.space.FunctionSpace.section>` refuses, while the
+    retraction over the same axis stays legal.
     """
 
-    def __init__(self, space: "FunctionSpace", axis_label: str) -> None:
-        super().__init__(space, axis_label)
-        self._total_weight = float(self._flat_weights.sum())
-        if self._total_weight == 0.0:
-            raise ValueError(
-                f"AxisEmbeddingOperator: axis {axis_label!r} of {space!r} "
-                f"has zero total weight (a signed measure summing to 0) — "
-                f"the section divides by Σw, so none exists."
-            )
+    def __init__(
+        self,
+        *,
+        full_space: "FunctionSpace",
+        marginal_space: "FunctionSpace",
+        axis_shape: tuple[int, ...],
+        dims: tuple[int, ...],
+        flat_weights: np.ndarray,
+        total_weight: float,
+    ) -> None:
+        super().__init__(
+            full_space=full_space,
+            marginal_space=marginal_space,
+            axis_shape=axis_shape,
+            dims=dims,
+            flat_weights=flat_weights,
+        )
+        self._total_weight = total_weight
 
     @property
     def total_weight(self) -> float:
-        r""":math:`\Sigma w` — the axis measure's total weight."""
+        r""":math:`\Sigma w` — the mint frame's 1×1 ``discrete_gram`` entry."""
         return self._total_weight
 
     @property
@@ -3207,7 +3224,7 @@ class AxisEmbeddingOperator(_AxisMarginalBase):
         x = np.asarray(x)
         if x.shape != self._marginal_space.shape:
             raise ValueError(
-                f"AxisEmbeddingOperator.apply: input shape {x.shape} "
+                f"AxisSectionOperator.apply: input shape {x.shape} "
                 f"does not match the marginal space "
                 f"{self._marginal_space.shape} (the section lifts the "
                 f"marginal into the full product, not the reverse)."
@@ -3226,7 +3243,7 @@ class AxisEmbeddingOperator(_AxisMarginalBase):
         x = np.asarray(x)
         if x.shape != self._full_space.shape:
             raise ValueError(
-                f"AxisEmbeddingOperator.apply_transpose: input shape "
+                f"AxisSectionOperator.apply_transpose: input shape "
                 f"{x.shape} does not match the full space "
                 f"{self._full_space.shape}."
             )

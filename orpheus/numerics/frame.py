@@ -94,13 +94,18 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from functools import cached_property
+from typing import NamedTuple
 
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import (
+    AxisRetractionOperator,
+    AxisSectionOperator,
     LinearOperator,
     NotInvertible,
     OperatorProduct,
@@ -591,3 +596,166 @@ class _FrameReconstruction(ReconstructionOperator):
 
     def apply_transpose(self, values: NDArray, /) -> NDArray:
         return self.frame.basis.reconstruct_transpose(values, self.frame.table)
+
+
+# ── The axis collapse pair — the rank-one frame's induced output (S6.0b) ──
+
+
+class _AxisCollapsePair(NamedTuple):
+    """One axis's minted collapse pair (``section`` is ``None`` iff Σw = 0)."""
+
+    retraction: AxisRetractionOperator
+    section: AxisSectionOperator | None
+
+
+def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
+    r"""Mint the axis collapse pair — the single-region indicator frame's output.
+
+    THE stage-2 generator discipline, applied at rank one (user, ruled
+    2026-08-24): *"A stage-2 generator induces structure on both the space
+    and the operator, and the two inductions must be minted together, at
+    one site. … Forgetting = retaining the induced parts; accessors are
+    provenance."* Here the generator is the frame over the axis's index
+    set — the single-region :class:`IndicatorBasis` covering synthetic
+    index nodes :math:`\{0, \ldots, n-1\}`, bound to the axis's measure
+    in a :class:`GalerkinFrame` — built eagerly HERE, read for its induced
+    data, and DISCARDED (the forgetful map: neither the axis nor the
+    operators keep the generator, and a frame FACE is a view holding
+    ``frame:``, so no face is retained either). What is read off it:
+
+    * the kernel weights — the frame measure's diagonal (the analysis
+      face's content IS the retraction's contraction);
+    * the section's divisor — the 1×1 :attr:`FrameBase.discrete_gram`
+      entry :math:`\Sigma w`, i.e. the rank-one **Parseval metric**
+      (F-0's inverse-discrete-Gram theorem at :math:`K = 1`):
+      :math:`E = R_{\text{frame}} \circ G^{-1}`. A zero entry (a signed
+      measure summing to zero) means the Gram is singular — the frame has
+      no canonical dual, so no section exists: that arm is ``None`` and
+      :meth:`FunctionSpace.section` refuses at access.
+
+    Both operators are constructed together at this one site (the
+    two-inductions clause); the tightness gate
+    (``tests/numerics/test_axis_marginal.py``) pins the minted kernels
+    against the literal frame's face contents, and the gram-derivation
+    gate pins the divisor against :attr:`FrameBase.discrete_gram`.
+
+    Admission (typed refusals, all at this mint — the public path is
+    :meth:`FunctionSpace.retraction` / :meth:`FunctionSpace.section`,
+    which memoize this mint per axis label):
+
+    * the space must be **axis-built** (``axes is not None``) — a
+      densified/legacy product has no named factors to marginalise over;
+    * ``axis_label`` must name **exactly one** axis;
+    * the axis must be **NODAL**: a "marginal" over a MODAL axis would
+      contract expansion COEFFICIENTS with the basis mass, which is not
+      an integral of the represented function — the modal average is the
+      coefficient at the average slot, not a weighted sum;
+    * the axis must not be a typed :class:`~orpheus.numerics.axis.EnergyAxis`
+      — collapse doctrine clause 2 (partition-integration of an
+      :math:`L^1` class): the energy axis PERSISTS at its one-cell
+      member, because the one-group limit keeps its edges and spectrum
+      (:math:`\langle\bar\sigma, \phi\rangle` consumes the
+      partition). The clause-2 collapse already ships as condensation
+      (``EnergyGrid.overlap_to``, the Petrov-Galerkin condensation
+      frames), and a drop-form marginal here would twin it (Cardinal
+      Rule 2). Untyped generic axes stay admitted whatever their label —
+      the clause gate reads the TYPE, never the label string (stringly
+      dispatch rejected); it becomes fully structural axis-family
+      polymorphism when CS2's typed axes land;
+    * a single-axis space is refused — its marginal would be a bare
+      scalar, which is not a :class:`FunctionSpace` (contract with the
+      space's inner product instead).
+    """
+    axes = space.axes
+    if axes is None:
+        raise TypeError(
+            f"collapse pair over {axis_label!r}: {space!r} is not "
+            f"axis-built (axes is None) — an axis marginal needs named "
+            f"factors. Compose the space with FunctionSpace.of_axes."
+        )
+    hits = [i for i, ax in enumerate(axes) if ax.label == axis_label]
+    if len(hits) != 1:
+        raise ValueError(
+            f"collapse pair: label {axis_label!r} names {len(hits)} axes "
+            f"of {space!r} (have {[ax.label for ax in axes]}) — the "
+            f"marginal needs exactly one."
+        )
+    k = hits[0]
+    axis = axes[k]
+    if axis.kind is BasisKind.MODAL:
+        raise TypeError(
+            f"collapse pair: axis {axis_label!r} is MODAL — contracting "
+            f"expansion coefficients with the basis mass is not an "
+            f"integral of the represented function. The modal average is "
+            f"the coefficient at the average slot (slice it), not a "
+            f"weighted sum."
+        )
+    if isinstance(axis, EnergyAxis):
+        raise TypeError(
+            f"collapse pair: axis {axis_label!r} is a typed EnergyAxis, "
+            f"which PERSISTS at its one-cell member (collapse doctrine "
+            f"clause 2 — the one-group limit keeps its edges and "
+            f"spectrum, because ⟨σ̄,φ⟩ consumes the partition). The "
+            f"energy collapse is condensation: use EnergyGrid.overlap_to "
+            f"/ the Petrov-Galerkin condensation frame, not a drop-form "
+            f"marginal."
+        )
+    if len(axes) == 1:
+        raise ValueError(
+            f"collapse pair: {space!r} has only the {axis_label!r} axis "
+            f"— its marginal would be a bare scalar, which is not a "
+            f"FunctionSpace. Contract with the space's inner product "
+            f"instead."
+        )
+
+    # The ndarray dims this axis occupies: axes map to dims by
+    # cumulative rank (an axis's shape may span several dims).
+    start = sum(len(ax.shape) for ax in axes[:k])
+    dims = tuple(range(start, start + len(axis.shape)))
+    marginal_space = FunctionSpace.of_axes(
+        *(ax for i, ax in enumerate(axes) if i != k)
+    )
+
+    # The generator, eagerly: the axis's measure on synthetic index
+    # nodes, under the single-region indicator covering them all.
+    w = axis.weights
+    flat_weights = (
+        np.ones(int(np.prod(axis.shape)))
+        if w is None
+        else np.asarray(w, dtype=float).ravel()
+    )
+    n = int(flat_weights.shape[0])
+    frame = GalerkinFrame(
+        basis=IndicatorBasis(edges_per_axis=(np.array([-0.5, n - 0.5]),)),
+        measure=DiscreteMeasure(
+            nodes=np.arange(n, dtype=float),
+            weights=flat_weights,
+            support=f"index({axis_label})",
+        ),
+    )
+
+    # The induced reads — everything the operators retain comes off the
+    # frame; the frame goes out of scope at return (forgetful).
+    kernel_weights = frame.measure.weights
+    total_weight = float(frame.discrete_gram[0, 0])
+
+    retraction = AxisRetractionOperator(
+        full_space=space,
+        marginal_space=marginal_space,
+        axis_shape=axis.shape,
+        dims=dims,
+        flat_weights=kernel_weights,
+    )
+    section = (
+        None
+        if total_weight == 0.0
+        else AxisSectionOperator(
+            full_space=space,
+            marginal_space=marginal_space,
+            axis_shape=axis.shape,
+            dims=dims,
+            flat_weights=kernel_weights,
+            total_weight=total_weight,
+        )
+    )
+    return _AxisCollapsePair(retraction, section)
