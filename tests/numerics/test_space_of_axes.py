@@ -491,3 +491,41 @@ def test_axis_built_construction_guards() -> None:
         FunctionSpace("bad", (3,), axes=(ax,))
     with pytest.raises(ValueError, match="at least one axis"):
         FunctionSpace.of_axes()
+
+
+class TestAxisAccessor:
+    """S-1 (un-weld arc): ``FunctionSpace.axis(label)`` — the public
+    by-label factor accessor, sharing the collapse pair's resolver so the
+    refusal vocabulary cannot drift (``_axis_index`` is the one home).
+
+    Positive AND negative per vv-principles #11: the axis returned IS the
+    tuple member (identity, not a copy), and each structural refusal
+    carries its typed class + pinned fragment.
+    """
+
+    def test_returns_the_tuple_member_identically(self) -> None:
+        eg = EnergyAxis("energy", (2,), kind=BasisKind.NODAL, edges=_EDGES_2G)
+        sp = Axis("spatial", (3, 4), kind=BasisKind.NODAL)
+        space = FunctionSpace.of_axes(eg, sp)
+        _require(space.axis("energy") is eg, "energy axis must be the member itself")
+        _require(space.axis("spatial") is sp, "spatial axis must be the member itself")
+        _require(space.axis("energy").shape == (2,), "ng reads off the axis")
+        _require(space.axis("spatial").shape == (3, 4), "spatial shape reads off the axis")
+
+    def test_unknown_label_refuses_naming_the_inventory(self) -> None:
+        space = FunctionSpace.of_axes(_point(), Axis("angular", (4,), kind=BasisKind.NODAL))
+        with pytest.raises(ValueError, match="names 0 axes"):
+            space.axis("energy")
+
+    def test_duplicate_label_refuses(self) -> None:
+        space = FunctionSpace.of_axes(
+            Axis("a", (2,), kind=BasisKind.NODAL),
+            Axis("a", (3,), kind=BasisKind.NODAL),
+        )
+        with pytest.raises(ValueError, match="names 2 axes"):
+            space.axis("a")
+
+    def test_legacy_name_built_space_refuses(self) -> None:
+        legacy = FunctionSpace("legacy", (2, 3))
+        with pytest.raises(TypeError, match="not axis-built"):
+            legacy.axis("energy")

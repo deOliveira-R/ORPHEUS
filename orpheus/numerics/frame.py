@@ -666,21 +666,12 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
       scalar, which is not a :class:`FunctionSpace` (contract with the
       space's inner product instead).
     """
+    # Arms 1-2 (axis-built; exactly-one label) discharge in the shared
+    # resolver FunctionSpace._axis_index (un-weld arc S-1) — one home for
+    # the by-label refusal vocabulary.
+    k = space._axis_index(axis_label)
     axes = space.axes
-    if axes is None:
-        raise TypeError(
-            f"collapse pair over {axis_label!r}: {space!r} is not "
-            f"axis-built (axes is None) — an axis marginal needs named "
-            f"factors. Compose the space with FunctionSpace.of_axes."
-        )
-    hits = [i for i, ax in enumerate(axes) if ax.label == axis_label]
-    if len(hits) != 1:
-        raise ValueError(
-            f"collapse pair: label {axis_label!r} names {len(hits)} axes "
-            f"of {space!r} (have {[ax.label for ax in axes]}) — the "
-            f"marginal needs exactly one."
-        )
-    k = hits[0]
+    assert axes is not None  # narrowing only: _axis_index refused the None case
     axis = axes[k]
     if axis.kind is BasisKind.MODAL:
         raise TypeError(

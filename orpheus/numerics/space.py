@@ -325,6 +325,51 @@ class FunctionSpace(Generic[Carrier]):
         return all(ax.kind is BasisKind.NODAL for ax in self.axes)
 
     # ------------------------------------------------------------------
+    # Axis lookup — the public by-label accessor (un-weld arc S-1)
+    # ------------------------------------------------------------------
+
+    def _axis_index(self, label: str) -> int:
+        """Position of the unique axis labeled ``label`` in :attr:`axes`.
+
+        The one home of by-label axis resolution: the public
+        :meth:`axis` accessor and the collapse-pair mint
+        (:func:`orpheus.numerics.frame._collapse_pair`) both route
+        through here, so the refusal vocabulary cannot drift between
+        them.
+        """
+        if self.axes is None:
+            raise TypeError(
+                f"axis lookup {label!r}: {self!r} is not axis-built "
+                f"(axes is None) — no named factors to look up. Compose "
+                f"the space with FunctionSpace.of_axes."
+            )
+        hits = [i for i, ax in enumerate(self.axes) if ax.label == label]
+        if len(hits) != 1:
+            raise ValueError(
+                f"axis lookup: label {label!r} names {len(hits)} axes "
+                f"of {self!r} (have {[ax.label for ax in self.axes]}) — "
+                f"need exactly one."
+            )
+        return hits[0]
+
+    def axis(self, label: str) -> Axis:
+        r"""The unique axis labeled ``label`` — by-label factor access.
+
+        The public spelling of reads that used to route through carrier
+        shape metadata: the space carries its axes, so the axis IS the
+        metadata's home — ``space.axis("energy").shape[0]`` is the group
+        count, ``space.axis("spatial").shape`` the spatial shape.
+        Refuses a legacy name-built space (``axes is None``, TypeError)
+        and a label naming zero or several axes (ValueError, naming the
+        inventory) — the same vocabulary the collapse pair refuses in
+        (shared resolver).
+        """
+        k = self._axis_index(label)
+        axes = self.axes
+        assert axes is not None  # narrowing only: _axis_index refused the None case
+        return axes[k]
+
+    # ------------------------------------------------------------------
     # Axis collapse — the retraction / section pair (CS4b S6.0b)
     # ------------------------------------------------------------------
 
