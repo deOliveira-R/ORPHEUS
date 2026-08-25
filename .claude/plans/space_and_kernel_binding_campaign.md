@@ -1160,7 +1160,12 @@ sentinel + `.areas` + doc repairs, the test migration). Design record:
 taxonomy census + kernel stress memo in scratch/). The CLASS-MERGE question
 (one Flux class vs per-family leaves) is a NAMED decision point immediately
 after CS4b lands — decided on static-typing + units-decomposition evidence,
-not silently dropped (user F1 ruling).
+not silently dropped (user F1 ruling). ⛔ **RIDER (ruled 2026-08-24, S7
+close):** the `from_isotropic` NAME question rides this decision — the
+kernel is single-sourced through the frame-induced section (S6.2), so
+the only open question is the ergonomic entry's survival, and a class
+merge may dissolve `AngularSourceSink` itself; decide both together.
+[M] at the ruling: 4 production + 40 test call sites.
 
 **CS4a-R amendments (2026-08-21, review round — attribution in
 `scratch/cs4a_r_findings.md`):**
@@ -1599,9 +1604,9 @@ nulp unless the fixture is proven exact by sweep); for a finite
 SHIPPED family probe EVERY member, not a ladder (the GL8 miss). SN
 history.rst row deferred to merge by its own hash contract (the
 archivist holds a ready draft).
-⏹ **S7 COMPLETE ⟹ CS4b S1–S7 ALL EXECUTED.** Remaining before the
-campaign order's next step: the **from_isotropic retirement re-pose**
-(user question, deferred from S6.2's ruling) → then CS1.5′ → CS2
+⏹ **S7 COMPLETE ⟹ CS4b S1–S7 ALL EXECUTED.** The **from_isotropic re-pose is RULED
+(2026-08-24): the name rides the CLASS-MERGE decision point** (rider
+recorded at that charter). Next per the campaign order: CS1.5′ → CS2
 (carries the moment-mint rider) → CS4c. BRANCH-HOLD stands; the
 ≥90-min pre-merge gate runs on the user's go (inherits #404/#405).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
