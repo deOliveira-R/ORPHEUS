@@ -135,8 +135,9 @@ so you don't re-derive it. (Line numbers drift — find current ones via Nexus
 - **The equation is `(L + C − S − F − B)ψ = q`**, composed honestly as an
   operator sum. `L` streaming, `C` collision (together the invertible resolvent
   `L+C` whose `.solve` IS the WDD sweep), `S` scattering, `F` fission, `B`
-  boundary. The within-group operator factory is `_within_group_triple`
-  (`orpheus/sn/solver.py`) returning the variadic `(L+C, S, B)`. The old `S+B`
+  boundary. The within-group operator factory is `build_within_group_system`
+  (`orpheus/sn/coupled_system.py:446`, returning a `WithinGroupSystem`;
+  successor of the retired `orpheus.sn.solver._within_group_triple`). The old `S+B`
   fold and `_reflect_outflow_into_inflow` driver shim are RETIRED — `B` is a
   first-class sibling. SI rhs = `q + Σ gains.apply(psi)`; Krylov matvec =
   `(L+C).apply − Σ gains.apply`. The two drivers share this one body.

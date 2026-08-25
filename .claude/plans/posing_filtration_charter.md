@@ -320,6 +320,105 @@ diffusion get mechanical rewiring only (sharpening-order law).
 missing convenience is a public axis-by-label accessor (the lookup already
 lives inside `retraction`/`section`).
 
+## 5b. The consumables inventory — improvements identified BEFORE this charter
+
+The arc's raw work items for the consumed objects (Space / Fields /
+Operators), identified during the 2026-08-24/25 census + design-surface
+discussion — i.e. *before* the filtration was proposed — and preserved here
+so the design round inherits the inventory and not only the architecture.
+**This is an inventory, not a step order**: the design round shapes these
+into steps AGAINST §2–§4 (each item's landing stage is now derivable from
+the chain), with the user steering. Forks are marked; nothing here is
+implicitly ruled.
+
+### Space
+
+- **S-1 — `FunctionSpace.axis(label)` public accessor.** The by-label
+  lookup already exists inside `retraction`/`section`/`_axis_collapse_pair`
+  (`orpheus/numerics/space.py:331/:352/:386`); expose it. Tiny, unblocks
+  S-2/F-1 spellings.
+- **S-2 — re-point `ng`/`spatial_shape` read-throughs to the space's
+  axes.** `[M]` the axes exist on the production mints
+  (`material_mesh.py:385`; `augmented_mesh.py:1129`). Known consumers:
+  `MaterialXSField.ng/.spatial_shape` (`material_xs_field.py:727/:737`) —
+  note these dissolve with F-1 anyway, so the re-point may land AS PART OF
+  the dissolution rather than before it.
+- **S-3 — fork (main-agent recommendation, NOT ruled):** this arc takes
+  minted space OBJECTS as given; the mint-as-free-function + axes
+  non-Optional + name-bridge retirement stay CS2. Under the charter this
+  sharpens: the solution-space mint's home is the METHOD HEAD (T1), so
+  CS2's landing surface is the head.
+- **S-4 — recorded, not this arc's item:** `axes: Optional` — legacy
+  name-built spaces remain constructible (the collapse pair refuses them);
+  completion is CS2's identity work.
+
+### Fields
+
+- **F-1 — the `MaterialXSField` dissolution (R13; anatomy + map in §5).**
+  The arc's largest fields item. Blast radius `[M]` 18 production + 32
+  test files; CP/MoC/MC/diffusion receive mechanical rewiring only
+  (sharpening-order law). Receiving objects: `Materials` (content),
+  stage-native field mints (expansion via `assemble_cell_xs`), the bound
+  operators (arms — see O-6).
+- **F-2 — the mesh-keyed moment-space mint re-points to its space-level
+  spelling.** `[M]` census S4: `_space_for_mesh_and_L`
+  (`transport/fields/_bases.py:687`), reached from
+  `HarmonicMomentFlux.from_mesh_and_L(..., sn_mesh, ...)`
+  (`streaming.py:1001` call site); the spelling
+  `SphericalHarmonicSpace.from_L(L) * bulk_space` already exists.
+- **F-3 — `CrossSectionField` and kin STAY** (honest `(values, space)`
+  fields); the dissolution mints *more* of them per channel — the
+  kernel-as-operator-valued-field chain (§5).
+
+### Operators
+
+- **O-1 — the one-step-un-weldable seven** (`[M]` census S3 — every read
+  has an existing mesh-free object home; mechanical): `BulkAnalysisOperator`
+  (reads only `full_field_space` — easiest), `RadialCharacteristicEmission`,
+  `RadialCharacteristicReconstruction`,
+  `RadialCharacteristicBoundaryOperator`, `DSACorrection`,
+  `SweepSchedule.jacobi/gauss_seidel` (need only `ndim` + `quad.octants`),
+  `RadialCharacteristicOperator` (spaces + axis widths + `reduced` + the σ
+  field).
+- **O-2 — the pole-closure re-contract**: the family's `cls(sn_mesh)`
+  contract (`pole_angular_closure.py:211/:310/:1382`; back-reference bound
+  at `augmented_mesh.py:394-401`) re-contracts to its actual data needs
+  `(quad, reduced, coord, levels, ng)` — `[M]` all mesh-free-available.
+  Unblocks `RadialCharacteristicSeeding`, the curvilinear walks, and the
+  sweep cache.
+- **O-3 — the L-binding bundle**: `_streaming_axes` per-axis stencils
+  (computed in `SNMesh._setup_cartesian`, `augmented_mesh.py:1769`, no
+  object home) + closure + spaces become L's construction inputs; the
+  concrete `LossRepresentation` classes drop `mesh: "SNMesh"`
+  (`loss_representation/__init__.py:462/:980`); traversal stays a
+  solve-time handoff (deferred arc; `SweepDependencyGraph.for_shape` the
+  mesh-free precedent). **Fork (not ruled):** bundle as an explicit object
+  vs constructor params on the `LossRepresentation` family.
+- **O-4 — B under the chain**: declarations move to the overlay (today on
+  the mesh layer's `Axis1D.bc` — one stage late relative to the charter);
+  realization at the head through the realizer chain (already takes the
+  `SNMethodSpace` bundle). **Fork (user's latent option, not ruled):** a
+  `BoundaryOperator` FACTORY minting the operator directly vs a
+  first-class realized-law table object (whose *storage* home rides the
+  container fork R3).
+- **O-5 — drift repairs** (`[M]` census S4): `DSALowOrderSystem.
+  from_sn_mesh` reads widths through the retire-marked LEGACY
+  `sn_mesh.mesh.edges` shim (`dsa.py:248`) — re-point to the axes;
+  `solver.py:2381` constructs a throwaway `SNBoundaryOperator(sn_mesh)`
+  for one call — the un-weld design should account for the ergonomics that
+  produced it; the `is`-identity consistency checks in the already-free
+  composing constructors (`ScheduledInvertibleOperator`, `WindowedSweep`)
+  convert to space-content checks under CS2's identity.
+- **O-6 — the eight `apply_*` arms** on `MaterialXSField`
+  (`material_xs_field.py:741-1021`) move to the bound operators — CS4c's
+  chartered "S → kernel shell"; may phase with or before F-1.
+- **O-7 — factories still bridging through the mesh** (legitimate today,
+  re-read at the design round): `build_within_group_system(sn_mesh,
+  mat_xs, …)` (`orpheus/sn/coupled_system.py:446`) and
+  `LossKernelGauge.for_mesh` — factory-level mesh consumption is the
+  current bridging pattern; under the chain these become head-side
+  assemblies over stage objects.
+
 ## 6. The rulings ledger (all user, this session, unless marked)
 
 | # | ruling | date |
