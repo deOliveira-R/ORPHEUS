@@ -44,81 +44,38 @@ commits, I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
-- **CS4b S7 — the collapse pair's flagship section + the EE-1/pose sweep** — branch
-  `feature/cs1-energy-space`, 2026-08-24, NOT committed (main agent commits). 9 hand-edited doc files,
-  +1394/−98 (a 10th, `verification/matrix.rst`, is the `builder-inited` regeneration of the LANDED
-  test tree — `10067 → 10109` collected — report it, never revert it). NEW 854-line
-  `spaces.rst` §`spaces-collapse-pair` (two arrows + the four-square with the (π_*, π*) adjunction
-  and E as the Moore–Penrose section · canonical naming, Mac Lane CWM §I.5 · the rank-one frame
-  induction with the stage-2 ruling quoted whole · the clause gate demoed on a SHIPPED carrier ·
-  what-was-refuted · three measured evidence tables) + 4 new eq-labels, all sentineled, 6 declared
-  `implements` + 1 `no-implementation`, verified in the rebuilt graph (2/3/1/0). Also:
-  `infinite_medium` 4-step→5-step pose split + a new EE-1 rates subsection;
-  `field_algebra`'s fiber-discipline section re-derived against the S3 space-CONTENT re-key
-  (+ measured table) and 5 point sites; `frame.rst`'s `Π* = R` self-contradiction fixed at both
-  poles + F-1/S6.0b history; `operator_algebra` (collapse-pair pointer + a FALSE "single-sourced
-  through from_isotropic" bullet); `indexing_and_layout`, `verification/sn`, `loss_representation`,
-  `cross_section_data` (stale mesh-identity reasons). Changelog rows on `spaces` + `field_algebra`
-  (`history.rst` BLOCKED — merge-hash contract). Gates: `-E -W` EXIT=0, W/E/C/Syntax set unchanged
-  (0 ↔ 0); vv violations 0, sentinels 545 → 549; xref gate `DEAD TARGETS 0`; my own import probe
-  over the 6 edited pages 0 dead. ⛔ **open follow-ups I reported and did NOT fix (code/tests off
-  limits):** `orpheus/numerics/face_layout.py:363` is the ONE dead role tree-wide
-  (`FaceField.from_face_arrays` → `BoundaryField`), confirmed by nexus AND a patched gate;
-  `_require_typed_composite`'s docstring still says "mesh identity" over a space-CONTENT body;
-  `AxisSectionOperator`'s docstring cites `scratch/probe_s6_q5_dissolution.py` for a number that
-  probe (committed as the slab-L2 arm) does not print; G6.1/G6.2 are seed-fragile
-  `array_equal` rows; `IntegratedReactionRate`'s class docstring says `volume_measure`/`.mesh`
-  over a body reading the SPACE's axes. → [[lessons-L67]]
+- **The campaign-1 history rows** — branch `docs/sn-history-campaign1-landing`, 2026-08-24,
+  COMMITTED `68d265ef`, not pushed. Discharged the held merge-hash contract: 5 rows on
+  `methods/sn/history.rst` (+287) for the `feature/cs1-energy-space` ff-merge at **`55bb47b9`**
+  — one per THESIS (fields-are-space-elements · the frame's Parseval metric + the mint ·
+  the operator base demands its two spaces · kernels/born-bound · the axis layer), each
+  `(merged @ 55bb47b9)`. Plus the merge's own blast radius: 3 stale `*(in development)*` cells
+  on `spaces`/`field_algebra` → `merged @ 55bb47b9`, and `frame.rst`'s F-1 heading re-dated
+  2026-08-23 (git). Gates: `-E -W` EXIT=0, W/E/C/Syntax 0 ↔ 0; `DEAD TARGETS 0`; nexus
+  `dead_references` 0; vv violations 0, sentinels 549 unchanged; my own probe over the 36 added
+  roles = 0 dead; the new rows render 0 visible backticks / 0 dead roles. ⛔ **open, REPORTED not
+  fixed:** RST-cannot-nest-inline-markup is corpus-wide — `[M]` 125 nested runs / 25 pages and
+  **104 roles that do not render at all** / 28 pages (`:math:`mu`` ×10, `:math:`tau`` ×6);
+  widened onto **#379** with a retitle proposal. `history.rst` itself carries 18 pre-existing
+  nested runs I deliberately left. → [[lessons-L68]]
 
-- **CS4b S5 — the field-factory sugar tier retires, doc half** — branch `feature/cs1-energy-space`,
-  2026-08-24, NOT committed (main agent commits). 5 hand-edited doc files, +360/−106 (a 6th,
-  `verification/matrix.rst`, is the `builder-inited` regeneration of the LANDED test tree —
-  `10063 → 10067` collected — not a hand edit; report it, never revert it). Rewrote the
-  `indexing_and_layout.rst` allocator surface to the SPACE-primary story (carrier mints table ·
-  measured shapes · `angular_trial_space` construct-general/select-narrow · presence-gated ψ½
-  composites · a SECOND dated correction note beside the #346 one), re-worded live guidance in
-  `foundations/boundary_conditions.rst` + `verification/sn.rst` (incl. a runnable code block that
-  was ALSO carrying a stale `TimedFullField(bulk=…)` — the field is `interior=`), re-tensed the
-  `cartesian_multid.rst` S3 select-narrow subsection (landed-as-future) and repaired the
-  `operator_algebra.rst` layering clause. Every surviving `zeros_on`/`from_mesh`/`from_ndarray`
-  mention is a history-``literal`` or a survivor-API role. Gates: `-E -W` EXIT=0, W/E/C/Syntax
-  set unchanged (0 ↔ 0); `DEAD TARGETS 0`; my own import probe over the 37 qualified roles on
-  added lines = 0 dead; vv violations 0, sentinels 545 unchanged. ⛔ **open follow-up I reported
-  and did NOT fix (code is out of scope):** `orpheus/transport/fields/scalar_flux.py:45` is the
-  ONE dead-role survivor tree-wide — its module-docstring history line spells
-  ``:meth:`from_mesh` / :meth:`from_ndarray``` as ROLES (the sentence is correctly past-tensed and
-  even names the S5 retirement; only the markup is wrong, and being UNQUALIFIED it is skipped by
-  `check_docstring_xrefs.py` and renders plain text). ⚠ I first wrote this follow-up from memory as
-  "two files, present-tense capability lines" and the live read refuted BOTH halves — `_bases.py:7`
-  is already correct plain literals in a "Before B.1, …" sentence.
-  → [[lessons-L66]]
-
-- **F-0 — the metric truth, doc half** — branch `feature/cs1-energy-space`, 2026-08-23, NOT
-  committed. 6 files +1246/−81: `frame.rst`'s +656-line `frame-parseval-metric` chapter (the
-  theorem φ = Gc ⟹ metric = G⁻¹, the declared-vs-measured Gram, the slab DENSE refusal, the
-  3-shield "why nothing caught it"), the `spherical_harmonics` metric×adjoint table, the
-  `normalization` ledger's third contradiction, ERR-039's F-0 chapter (no new ERR number — the
-  landed gates already carry `catches("ERR-039")`). Gates: `-E -W` 0 ↔ 0; sentinels 541 → 545.
-  ⛔ open follow-ups (code): `spherical_harmonic_space.py`'s CLASS docstring still says
-  `inner_product_weights` holds `4π/(2ℓ+1)`; `scratch/probe_f1_parseval*.py` no longer
-  reproduce their own headline post-repair. (⚠ `frame.py`'s "~0.5 of Cauchy–Schwarz" line was
-  since FIXED to 0.93 — verified 2026-08-24.) → [[lessons-L65]]
-
-- **CS1 step 5 — the `spaces.rst` seed** — branch `feature/cs1-energy-space`, 2026-08-20, NOT
-  committed. NEW 1158-line `spaces.rst` (axis taxonomy · counting-measure theorem in the METRIC
-  register · the collapse doctrine written DIALECTICALLY with both refuted versions · fences ·
-  dev history) + registration + `orpheus.numerics.axis` automodule. Gates: `-E -W` 0 ↔ 0;
-  sentinels 540 → 541. ⛔ open: `infinite_medium.rst:1153` + its code block still teach the
-  retired `basis_shape=(ng, 1)` spelling as current; `orpheus.numerics.space` and
-  `…mesh.material_mesh` are `automodule`'d nowhere, so `FunctionSpace.of_axes`,
-  `has_coordinate_cone`, `MaterialMesh.bulk_space` and `solve_homogeneous_infinite` render
-  plain text corpus-wide. → [[lessons-L64]]
-
-- ⏹ **MERGED `f9d571b5` (verified 2026-08-24) — CS3 step 5, the flux-ontology overturn doc
-  half.** ⛔ open follow-ups stand and are CODE/SKILLS, not docs: `_coefficient_role.py`'s 8
-  present-tense-false lines + 1 dead `:class:`, `cross_section_field.py:33`, the cone-witness
-  gate's fixture docstring, and the retired ontology in `cross-domain-frames` A.1 +
-  `numerical-bug-signatures`. → [[lessons-L63]]
+- ⏹ **MERGED `55bb47b9` (Campaign 1: CS1 · CS4a+R · CS4b S1–S7 incl. F-0/F-1) — verified
+  2026-08-24.** The doc halves are IN the tree and their milestones are in `history.rst`;
+  `spaces.rst` / `field_algebra.rst` / `frame.rst` carry the per-page narratives.
+  ⛔ **open follow-ups I reported and did NOT fix — all CODE/SKILLS, not docs:**
+  `orpheus/numerics/face_layout.py:363`'s dead role (`FaceField.from_face_arrays` →
+  `BoundaryField`'s) · `transport/fields/scalar_flux.py:45`'s unqualified dead `from_mesh` /
+  `from_ndarray` roles in a correctly-past-tensed line · `_require_typed_composite`'s
+  "mesh identity" docstring over a space-CONTENT body · `AxisSectionOperator`'s docstring citing
+  a probe that no longer prints its number · `IntegratedReactionRate`'s class docstring naming
+  `volume_measure`/`.mesh` over a body reading the SPACE's axes · `spherical_harmonic_space.py`'s
+  class docstring still claiming `inner_product_weights` holds `4π/(2ℓ+1)` ·
+  `_coefficient_role.py`'s 8 present-tense-false lines + 1 dead `:class:` ·
+  `cross_section_field.py:33` · the retired flux ontology in the `cross-domain-frames` A.1
+  worked example + `numerical-bug-signatures` · `infinite_medium.rst:1153`'s retired
+  `basis_shape=(ng, 1)` teaching · `orpheus.numerics.space` / `…mesh.material_mesh` are
+  `automodule`'d nowhere (#302). → [[lessons-L68]] [[lessons-L67]] [[lessons-L66]]
+  [[lessons-L65]] [[lessons-L64]] [[lessons-L63]]
 
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ open, re-confirmed unlanded

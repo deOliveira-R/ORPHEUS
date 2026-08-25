@@ -464,6 +464,23 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 - **A `scipy`/3rd-party role can die by UPSTREAM removal** — `scipy.special.sph_harm` was removed
   in 1.17; the successor `sph_harm_y` has a SWAPPED `(n, m)` order, which belongs in the fixed
   sentence, not just the target. → L-047
+- **⭐⭐ RST CANNOT NEST INLINE MARKUP, and the render check is the ONLY instrument that sees
+  it.** `**bold naming ``a symbol``**` renders the inner delimiters LITERALLY; the same rule
+  (markup may not open after `. * ~ § ↔ =`) kills a role OUTRIGHT, eating the LaTeX backslash —
+  `:math:`\mu`` ships as the word `mu`. Silent at every severity, invisible to
+  `check_docstring_xrefs.py` (it gates TARGETS, not whether the role parsed). The check: slice
+  the built HTML between your new section's first/last distinctive phrases, strip tags,
+  unescape, count **visible backticks** and **surviving `:role:` spellings** — both must be 0.
+  ⭐ Corpus-wide it is a CENSUS not a sample (RST admits neither in rendered prose), `[M]`
+  **125** nested runs / 25 pages and **104** dead roles / 28 pages; rank the dead roles ABOVE
+  the backticks — a stray backtick is ugly, a dead `:math:` is a MISSING EQUATION. ⚠ Exclude
+  `_modules/` (viewcode listings) AND every `_build` page whose `.rst` is gone (`[M]` 12
+  orphans carried 76 more runs — a 60 % inflation). → L-068
+- **⭐ Widening someone else's issue: re-run THEIR instrument, not yours.** #379 owned this class
+  at `[M]` 32 runs "in the error catalogue"; running its own grep corpus-wide reproduced the 32
+  exactly (the control that the instruments agree) and showed it is 26 % of the total. A
+  comment carrying their number + the wider denominator + the exclusions retitles the issue;
+  a fresh issue with a different regex would just have forked the count. → L-068
 
 ---
 
@@ -516,6 +533,20 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 ---
 
 ## 4. Retirement & staleness: three greps, and the unit is the THESIS
+
+- **⭐⭐ DISCHARGING A MERGE-HASH CONTRACT: the blast radius is the BRANCH NAME, not the blocked
+  page.** L-067 gave the routing rule (blocked on `history.rst` ⟹ route to a page carrying the
+  `*(in development)*` hatch). The hatch is a DEBT and the merge calls it in: every
+  `*(in development)* branch ``<name>``` cell goes present-tense-false the same instant, and
+  nothing points at them because the dispatch names only the blocked page. ⟹ on discharge,
+  `grep -rn "<branch>" docs --include="*.rst"` FIRST (`[M]` 3 cells on 2 sibling pages → `merged
+  @ ``<hash>``), then `grep "in development)\*"` corpus-wide to catch a differently-named hatch —
+  that second grep also finds the standing EXPLANATORY sentence, which correctly STAYS. → L-068
+- **⭐ A DATE in a prose history block is a git question and drifts by one day.** `frame.rst`
+  said `2026-08-24 — step F-1` where `git log --date=iso` puts the commit at **2026-08-23**;
+  its F-0 sibling four paragraphs up and its S6.0b block below were both right. Written from
+  "which session was I in", not from git. The check is free: **when you look a commit's date up
+  for a NEW row, diff it against every existing prose block naming that commit.** → L-068, L-064
 
 **Meta-rule: grep the SYMBOL, the full MODULE PATH, and the CONCEPT'S human paraphrase. Then ask of
 each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
@@ -915,6 +946,21 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A CHANGELOG ROW for a big merge groups by THESIS, never by the plan's phase labels —
+  and the page's own precedent settles one-row-vs-many in one grep.** `[M]` `history.rst`'s #280
+  campaign holds SIX rows sharing one merge hash, so per-milestone rows are the convention and
+  the `Where` format is `` `<step>` (merged @ ``<merge>``) ``. The campaign's step boundaries cut
+  ACROSS subjects (one session landed a field-layer step and an operator-layer step), so five
+  phases became five theses instead. ⚠ Strip plan-internal tokens on the way in — my draft
+  carried *"the standing R2 hazard"* and *"a `§6b` call-site set"* (a plan risk label and a
+  rules-file section, both colliding with live campaigns' numbering); the corpus says what the
+  thing IS. → L-068
+- **⭐⭐ When a LATER row in the SAME merge overturned an earlier row's MECHANISM, tombstone in
+  place and name which HALF survived.** Present-tense would ship a falsehood; deleting destroys
+  the reason the correction happened. Shape: the row states what it did, then
+  `⛔ **Superseded the next day by <step>** (the row above): … The amendment's *demand* stands
+  unchanged — it is what made the misplacement visible.` In a reverse-chronological table
+  *"the row above"* is a correct pointer. (`plan-authoring` §3, landing in the corpus.) → L-068
 - **⭐⭐ A DIALECTICAL SEED PAGE (a design dialogue CONVERGED, first slice shipped) is NOT the
   9-step close-out arc** — that arc is for a CLOSED "cannot work". Order: Key Facts *carrying
   the doctrine's one-line discriminator tests verbatim* → the taxonomy → the theorem → **the

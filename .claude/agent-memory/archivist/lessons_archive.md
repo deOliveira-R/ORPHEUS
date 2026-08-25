@@ -6907,3 +6907,157 @@ before minting a role.
 an unmerged branch is BLOCKED there — while `spaces.rst`, `field_algebra.rst` and
 `operator_algebra.rst` each carry the *(in development)* escape hatch. ⟹ route the entry to
 the page whose SUBJECT moved and which permits the hatch; report the SN row ready-to-paste.
+
+---
+
+## L-068 — Discharging a merge-hash contract: the blast radius is the BRANCH NAME, not the blocked page
+
+**Task (2026-08-24).** `feature/cs1-energy-space` ff-merged to `main` at `55bb47b9`
+(90 commits, 264 files). My held contract — `methods/sn/history.rst` contracts
+*"a new entry lands with its merge hash or not at all"* — was finally
+dischargeable, and the dispatch was scoped to "write the row(s)".
+Landed `68d265ef` on `docs/sn-history-campaign1-landing`.
+
+### 1. ⭐⭐ The merge event falsifies the SIBLING pages the same instant
+
+L-067 taught the *routing* rule: when `history.rst` blocks you, route the entry to
+the page that carries the `*(in development)*` hatch (`spaces.rst`,
+`field_algebra.rst`, `operator_algebra.rst`). What it did not say is that the
+hatch is a **debt**, and the merge is what calls it in. The moment the branch
+merges, every `*(in development)* branch ``<name>``` cell is present-tense-FALSE —
+and nothing points at them, because the dispatch names only the blocked page.
+
+⟹ **On discharging the contract, grep the BRANCH NAME across `docs/` first.**
+`[M]` `grep -rn "cs1-energy-space" docs --include="*.rst"` → exactly **3 cells**
+(2 on `spaces.rst`, 1 on `field_algebra.rst`), all replaced with
+`merged @ ``55bb47b9`` —`. One command, one minute, and it is the difference
+between a corpus that agrees with git and one that says three campaigns are still
+in flight. ⚠ Also grep `"in development)\*"` corpus-wide — that catches a hatch
+whose branch was named differently, and it found the standing *explanatory
+sentence* on `operator_algebra.rst` (a convention note with no instances, which
+correctly STAYS).
+
+### 2. ⭐ A DATE in a prose history block is a git question, and it drifts by one
+
+`frame.rst:4744` read `**2026-08-24 — step F-1, the mint**`. `[M]`
+`git log --format="%h %ad" --date=iso -1 3dfea889` → **2026-08-23 16:19:54**.
+Its F-0 sibling four paragraphs up was right; the S6.0b block below was right.
+One block, one day off — written from "which session was I in", not from git.
+This is lessons §1's *"Git is the arbiter for dates"* (L-064) applied to a prose
+changelog rather than a claim, and the tell is free: **when you cite a commit's
+date into a NEW row, you have already looked it up — diff it against every
+existing prose block naming the same commit.**
+
+### 3. Row granularity: group by THESIS, and let the page's own precedent settle it
+
+The merge carried five architecturally distinct milestones. One consolidated row
+or five? The page answers itself: `[M]` the #280 coupled-block campaign holds
+**six** rows across 2026-07-05…07-12, every one stamped `(merged @ ``3f0b8c74``)`.
+So per-milestone rows sharing one merge hash IS the convention, and the `Where`
+format is `` `<step hash>` (merged @ ``<merge hash>``) ``.
+
+⟹ **Group by the THESIS that moved, never by the plan's phase labels.** The
+campaign's own step boundaries (S4 / S4-amendment / F-0 / F-1) cut across
+subjects: S4 is field-layer, the S4-amendment is operator-layer, and they landed
+in one session. The rows I wrote are *"a field is an element of a space"*,
+*"the frame owns its metric and mints bound faces"*, *"an operator is not an
+operator without its two spaces"*, *"S/F/C are kernels"*, *"the space layer gains
+axes"* — five theses, not five phases.
+
+⚠ And **strip the plan-internal tokens on the way in.** My first draft carried
+*"the standing R2 hazard"* and *"a ``§6b`` call-site set"* — a plan's risk label
+and a rules-file section number, both meaningless in the corpus and both colliding
+with live campaigns' own numbering (L-067's bare-step-number rule). Rewrote to
+*"the hazard the monomorphic-leaves suite had catalogued"* and *"a call-site set
+that is complete by symbol grep"*. The corpus says what the thing IS.
+
+### 4. ⭐⭐ A row whose MECHANISM a later row in the same merge overturned gets an in-place ⛔, not a rewrite
+
+The S4-amendment's step A1 (`6e04a749`, 2026-08-22) bound `HarmonicFrame` itself
+to its two field spaces at construction. F-1 (`3dfea889`, 2026-08-23) **reverted
+it** — a frame is a shared FACTORY, so the binding belongs on the faces it mints
+(`[M]` live: `HarmonicFrame.__init__(self, basis, measure)`). Both landed in the
+same merge, one day apart.
+
+Writing A1 in the present tense would have shipped a falsehood; deleting it would
+have destroyed the reason the correction happened. So the 2026-08-22 row carries
+its (d) clause plus, in place:
+
+> ⛔ **Superseded the next day by F-1** (the row above): the binding belongs on the
+> *faces* a frame mints, not on the shared factory. The amendment's *demand* stands
+> unchanged — it is what made the misplacement visible in the first place.
+
+That last sentence is the load-bearing one: it says which HALF survived. This is
+`plan-authoring` §3 (edit the refuted premise in place) landing in the corpus, and
+in a reverse-chronological table *"the row above"* is a correct pointer.
+
+### 5. The gate stack for a changelog-only edit — and why the standard gate is not enough
+
+Baseline and post, both forced `-E`: EXIT=0, W/E/C/SyntaxWarning **0 ↔ 0**;
+`check_docstring_xrefs.py` `DEAD TARGETS 0`; nexus `dead_references`
+`total_dead 0`; vv-status `violations 0 / sentinels 549` (unchanged — the rows add
+no `:label:`); `verification/matrix.rst` regenerated byte-identical.
+
+But per L-062/L-067 that gate is ROLE-scoped-blind, so the acceptance evidence was
+**my own import probe over the added lines**: parse every
+`:role:`target`` out of `git diff --unified=0 -- docs/` (flatten whitespace FIRST —
+roles wrap), strip the `<display <target>>` form and the `~`, then walk
+`importlib` + `hasattr`. `[M]` 36 distinct qualified roles, **0 dead** — and it
+caught two before the build: `orpheus.data.mixture.Mixture` (lives at
+`orpheus.data.macro_xs.mixture`) and `orpheus.numerics.operator.AdjointOperator`
+(private `_AdjointOperator`; rewrote the prose to "the generic adjoint wrapper"
+rather than xref a private class).
+
+⭐ **And the render check the build cannot do**: slice the built HTML between the
+new rows' first and last distinctive phrases, strip tags, unescape, and count
+**visible backticks** and **surviving `:role:` spellings**. `[M]` 0 and 0 in my
+rows. This is the only instrument that proves the markup MEANT what it said —
+see §6 for what it found in the rest of the page.
+
+### 6. ⭐⭐ RST cannot nest inline markup — and the census is exhaustive, so measure it with the ISSUE'S OWN instrument
+
+The same render check reported **84 visible backticks on the page** — none mine,
+all pre-existing, all one mechanism: `**bold naming ``a symbol``**`. RST forbids
+nested inline markup, so the inner delimiters render literally. Silent at every
+severity.
+
+`#379` already owned this, scoped to the error catalogue at `[M]` 32 runs. Rather
+than file a sibling, I re-ran **#379's own grep** corpus-wide:
+`<(strong|em)>[^<]*``[^<]*</(strong|em)>` → **125 runs across 25 live pages**,
+with the catalogue's 32 reproducing exactly (a control that the instruments agree)
+at 26 % of the total. Posted as a widening comment with a suggested retitle.
+
+Three things worth carrying:
+
+- ⚠ **Exclude `_build` pages whose `.rst` no longer exists.** `[M]` 12 orphaned
+  pages carry a further **76 runs** no source edit can reach — counting them
+  inflates the figure by 60 %. (Also exclude `_modules/`: a literal backtick in a
+  viewcode source listing is correct output.) Same trap my memory already warns
+  about for stale-ref greps, here in a *measurement*.
+- ⭐ **The strictly worse sibling ranks above it**: the same RST rule (inline
+  markup may not open after `. * ~ § ↔ =`) kills **104 interpreted-text ROLES
+  across 28 live pages** — they survive into rendered prose as their own source
+  spelling, with the LaTeX backslash eaten. `[M]` the commonest survivor is
+  `` :math:`mu` `` (10 sites), then `` :math:`tau` `` (6). A visible backtick is
+  ugly; a dead `:math:` is a **missing equation**.
+- ⭐ **Both greps are a CENSUS, not a sample**, and say so when publishing: RST
+  admits no role spelling in rendered prose and no stray delimiter outside a
+  literal block, so a hit is a defect by construction. That is the L-061 argument
+  (a warning count is a non-representative sample of a fidelity-loss class) reused
+  as the *justification* for the number rather than as a caution about it.
+
+### 7. Numbers re-derived rather than relayed
+
+- The byte gate: the plan says "D5 8/8". Ran it — `tests/homogeneous/test_byte_stability.py`,
+  **8 passed**, and its own fixture docstring says *"exhaustive over what the tree
+  ships"*, which is the phrase the row now uses.
+- The GL8 correction: the plan's banner said the probe's ladder "skipped GL8". My
+  draft embellished it to *"a ladder of eight fixtures that broke every arithmetic
+  pattern"* — a property of the ORIGINAL probe I could not verify (only the gate's
+  CURRENT list is knowable). Cut back to exactly what the gate docstring asserts.
+  Same reflex as lessons §1's *"count your own universals"*, applied to an
+  adjective.
+- CS1's slot claim: my draft read *"the slot the kernel-binding phase then tightens
+  to MANDATORY"*. `[M]` CS4a K2b made **F**'s space mandatory, not S's
+  (`ScatteringOperator.__init__(..., space: FunctionSpace | None = None)` still
+  ships). Scoped to `MANDATORY on :math:`F``.
