@@ -108,7 +108,7 @@ def test_c3_in_m_lag_trips_the_certificate_while_the_stop_stays_green(
     # increment still contracts — only the certificate can see it).
     def _stale_ray(self, source):
         del source
-        return RadialCharacteristicField.flux_zeros(self.sn_mesh.radial_characteristic_field_space)
+        return RadialCharacteristicField.flux_zeros(self._field_space)
 
     with monkeypatch.context() as m:
         m.setattr(RadialCharacteristicOperator, "solve", _stale_ray)

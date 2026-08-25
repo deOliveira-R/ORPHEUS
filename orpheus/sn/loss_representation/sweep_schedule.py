@@ -88,6 +88,7 @@ from orpheus.numerics.face_layout import face_name
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
+    from orpheus.numerics.measure import DiscreteMeasurePartition
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
@@ -128,12 +129,15 @@ class SweepSchedule:
     kind: str  # "jacobi" | "gauss_seidel" — diagnostic / introspection only
 
     @classmethod
-    def jacobi(cls, sn_mesh: "SNMesh") -> "SweepSchedule":
+    def jacobi(
+        cls, ndim: int, octants: "tuple[DiscreteMeasurePartition, ...]",
+    ) -> "SweepSchedule":
         """One group, all octants, no inter-group reflect — the bare all-octants
-        sweep with the whole ``B·ψₙ`` seed frozen for the entire sweep."""
+        sweep with the whole ``B·ψₙ`` seed frozen for the entire sweep.
+        Mesh-free (un-weld arc O-1): callers pass ``(sn_mesh.ndim,
+        sn_mesh.quad.octants)``."""
         sweeps = tuple(
-            _octant_sweep(entry, sn_mesh.ndim)
-            for entry in sn_mesh.quad.octants
+            _octant_sweep(entry, ndim) for entry in octants
         )
         return cls(
             groups=(OctantSweepGroup(sweeps=sweeps, reflect_faces=()),),
@@ -141,20 +145,26 @@ class SweepSchedule:
         )
 
     @classmethod
-    def gauss_seidel(cls, sn_mesh: "SNMesh") -> "SweepSchedule":
+    def gauss_seidel(
+        cls,
+        ndim: int,
+        octants: "tuple[DiscreteMeasurePartition, ...]",
+        reflective: frozenset[str],
+    ) -> "SweepSchedule":
         """One group per in-plane octant, in quadrature sweep order; each group
         re-reflects the reflective faces its octants outflow through.
+        Mesh-free (un-weld arc O-1): callers pass ``(sn_mesh.ndim,
+        sn_mesh.quad.octants, reflective_faces(sn_mesh))``.
 
         Octant partition entries that share an in-plane :class:`OctantLabel`
         (they differ only in out-of-plane signs the in-plane sweep ignores —
         e.g. ``sign_z`` over a 2-D mesh) are MERGED into one group so a
         face's outflow is complete before it is reflected.
         """
-        reflective = _reflective_faces(sn_mesh)
         ordered: list[OctantLabel] = []
         by_label: dict[OctantLabel, list[OctantSweep]] = {}
-        for entry in sn_mesh.quad.octants:
-            sweep = _octant_sweep(entry, sn_mesh.ndim)
+        for entry in octants:
+            sweep = _octant_sweep(entry, ndim)
             if sweep.label not in by_label:
                 by_label[sweep.label] = []
                 ordered.append(sweep.label)
@@ -286,7 +296,7 @@ def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
     )
 
 
-def _reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
+def reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
     """The mesh's SPECULAR-reflective boundary faces.
 
     The question is *does this face's law RELABEL ordinates?* — a specular

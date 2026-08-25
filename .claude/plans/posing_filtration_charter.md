@@ -436,6 +436,17 @@ implicitly ruled.
   `HarmonicMomentFlux.from_mesh_and_L(..., sn_mesh, ...)`
   (`streaming.py:1001` call site); the spelling
   `SphericalHarmonicSpace.from_L(L) * bulk_space` already exists.
+  ⭐ ADJUDICATED AT PHASE A (2026-08-25, main agent): **deferred INTO the
+  O-3 step.** `[M]` the mint's mesh read is not shape metadata — it is
+  `_compose_spatial_moments(space, mesh, per_axis)` reading the mesh's
+  bound SCHEME for the within-cell moment tail (`_bases.py:195-216`:
+  "the tail is the scheme-owned `moment_axis` … the scheme binds at
+  transport-method augmentation"), i.e. §5c's space-side induction
+  exactly. A shallow re-point now would churn the precise seam the
+  scheme carve redesigns; the honest landing is with the mint's inputs
+  becoming the scheme's (R14/R19). The streaming call-site's mesh reach
+  is legitimately transitive until then (L still binds the mesh until
+  O-3 lands).
 - **F-3 — `CrossSectionField` and kin STAY** (honest `(values, space)`
   fields); the dissolution mints *more* of them per channel — the
   kernel-as-operator-valued-field chain (§5).

@@ -53,6 +53,13 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSALowOrderSystem
 from orpheus.sn.loss_representation.sweep_schedule import _reflective_faces
 from orpheus.sn.mesh.augmented_mesh import SNMesh
+def _bb(mesh):
+    """B_b from a carrying mesh — the un-weld assembly read, spelled once."""
+    return RadialCharacteristicBoundaryOperator(
+        mesh.radial_characteristic_field_space, mesh.bc["xmax"].law,
+    )
+
+
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
     _has_ruled_corner_action,
@@ -293,14 +300,12 @@ class TestSpecMutationsPropagate:
     def test_corner_adjointability_moves_when_the_mirror_stops_permuting(
         self, monkeypatch,
     ) -> None:
-        assert RadialCharacteristicBoundaryOperator(
-            _sphere("reflective")).is_adjointable
+        assert _bb(_sphere("reflective")).is_adjointable
         monkeypatch.setattr(
             SelfPairedDeck, "permutes_ordinates",
             property(lambda self: False),
         )
-        if RadialCharacteristicBoundaryOperator(
-                _sphere("reflective")).is_adjointable:
+        if _bb(_sphere("reflective")).is_adjointable:
             pytest.fail(
                 "B_b still advertises a transpose after its outer law stopped "
                 "permuting ordinates — the corner swap it would transpose is "
@@ -310,14 +315,12 @@ class TestSpecMutationsPropagate:
     def test_corner_adjointability_moves_when_vacuum_stops_returning_nothing(
         self, monkeypatch,
     ) -> None:
-        assert RadialCharacteristicBoundaryOperator(
-            _sphere("vacuum")).is_adjointable
+        assert _bb(_sphere("vacuum")).is_adjointable
         monkeypatch.setattr(
             VacuumInflow, "response_kernel",
             property(lambda self: ScalarResponse(0.5)),
         )
-        if RadialCharacteristicBoundaryOperator(
-                _sphere("vacuum")).is_adjointable:
+        if _bb(_sphere("vacuum")).is_adjointable:
             pytest.fail(
                 "B_b still advertises a transpose after its outer law grew a "
                 "non-zero response — a half-returning corner has no ruled "

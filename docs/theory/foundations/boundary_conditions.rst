@@ -5223,7 +5223,7 @@ is not constructible.
    is what the pre-B2.0 shim stored, so it is the behaviour-preserving
    choice; sourcing the more obvious ``law.kind`` here would silently
    drop partially-reflecting faces out of
-   ``sweep_schedule._reflective_faces``' ``== "reflective"`` set. That
+   ``sweep_schedule.reflective_faces``' ``== "reflective"`` set. That
    is a semantic change wearing a refactor's clothes, and
    ``tests/geometry/test_bound_compat.py`` reddens on it.
 
@@ -7198,7 +7198,7 @@ C4 chose **string-keyed**, isomorphic to
 for one reason: **every consumer iterates ``trace.layout.faces``
 (strings)**. The within-group operator's
 :meth:`SNBoundaryOperator._face_laws` and the schedule's
-``_reflective_faces`` both walk the trace layout's face-name strings
+``reflective_faces`` both walk the trace layout's face-name strings
 and index the BC by that string. A ``FaceLabel``-keyed dict would
 force a reverse ``name → label`` lookup at *every* consumer, re-deriving
 the very crosswalk C4 single-sources.
@@ -7266,7 +7266,7 @@ very desync the carve removes):
   :ref:`bc-face-name-latent-d3-bug`.
 
 Consumers migrated in C4: :meth:`SNBoundaryOperator._face_laws`
-(within-group operator) and ``sweep_schedule._reflective_faces``
+(within-group operator) and ``sweep_schedule.reflective_faces``
 (the schedule) both changed from ``getattr(mesh, f"bc_{face}")`` to
 ``mesh.bc[face]``, iterating over ``trace.layout.faces`` exactly as
 before.

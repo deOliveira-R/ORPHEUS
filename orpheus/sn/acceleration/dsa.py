@@ -125,6 +125,9 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
+    from orpheus.numerics.quadrature.directional import Quadrature
+    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.space import FunctionSpace
     from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -245,7 +248,11 @@ class DSALowOrderSystem:
                 f"Marshak-albedo generalization of Larsen (38))."
             )
 
-        h = np.diff(np.asarray(sn_mesh.mesh.edges, dtype=float))
+        # Axis-primary widths (un-weld arc O-5): the retire-marked legacy
+        # ``sn_mesh.mesh.edges`` shim is no longer consulted — the axis
+        # tuple is the canonical ground truth and np.diff(edges) is
+        # bitwise identical to it by the C5.1 conversion contract.
+        h = np.asarray(sn_mesh.axis_widths[0], dtype=float)
         mat_xs = sn_mesh.material_xs_field()
         sigma_t = np.asarray(
             mat_xs.total_cross_section_field.values, dtype=float
@@ -552,21 +559,30 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
     def __init__(
         self,
         low_order: DSALowOrderSystem,
-        sn_mesh: "SNMesh",
+        quadrature: "Quadrature",
         *,
+        full_field_space: "FullFieldSpace",
+        angular_bulk_space: "FunctionSpace",
+        angular_trace: "AngularTraceSpace",
         scattering_order: int = 0,
     ):
         self._low_order = low_order
-        self._mesh = sn_mesh
+        #: The iterate composite the correction is endomorphic on, the
+        #: per-ordinate bulk its synthesis writes, and the trace its wall
+        #: arm packs into — bound at construction (un-weld arc O-1; the
+        #: mesh's only contributions were these).
+        self._full_field_space = full_field_space
+        self._angular_bulk_space = angular_bulk_space
+        self._angular_trace = angular_trace
         self._scattering_order = int(scattering_order)
-        w = np.asarray(sn_mesh.quad.weights, dtype=float)
+        w = np.asarray(quadrature.weights, dtype=float)
         # The ℓ=1 analysis/synthesis coefficients come off the FRAME's
         # own ℓ=1 table row (its slab component IS μ bit-exactly — the
         # D8-family pin), so "the frame's ℓ=1 row" is a CALLED single
         # source, not a claim: one spelling shared with the scattering
         # kernel's moment machinery, never a re-derived w·μ twin.
         mu_row = np.asarray(
-            sn_mesh.quad.angular_frame(1).table, dtype=float
+            quadrature.angular_frame(1).table, dtype=float
         )[:, 1, 1]
         self._sum_w = float(w.sum())
         self._w_mu = w * mu_row
@@ -578,15 +594,15 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
 
     @property
     def domain(self) -> "FunctionSpace":
-        r"""DERIVED from the held mesh (the S4-amendment's second answer):
-        the correction maps the within-group iterate composite to itself,
-        and the composite's space is the mesh's own cached mint."""
-        return self._mesh.full_field_space
+        r"""The within-group iterate composite the correction maps to
+        itself — BOUND at construction (un-weld arc O-1; formerly derived
+        from a held mesh under the S4-amendment's second answer)."""
+        return self._full_field_space
 
     @property
     def codomain(self) -> "FunctionSpace":
         r"""Endomorphic on the iterate composite (see :attr:`domain`)."""
-        return self._mesh.full_field_space
+        return self._full_field_space
 
     @classmethod
     def from_sn_mesh(
@@ -603,7 +619,10 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
             DSALowOrderSystem.from_sn_mesh(
                 sn_mesh, scattering_order=scattering_order,
             ),
-            sn_mesh,
+            sn_mesh.quad,
+            full_field_space=sn_mesh.full_field_space,
+            angular_bulk_space=sn_mesh.angular_bulk_space,
+            angular_trace=sn_mesh.angular_trace,
             scattering_order=scattering_order,
         )
 
@@ -684,18 +703,21 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         # the plain vector add on both blocks (flux lives in V).
         n_ord = interior.values.shape[0]
         ng = f0_edges.shape[0]
-        trace = AngularBoundaryFlux.from_face_arrays(
-            self._mesh,
-            {
+        # The space-keyed spelling of ``from_face_arrays`` (the layout's
+        # own pack is the native place; the mesh factory's only other
+        # contribution was naming the space — bound here instead).
+        trace = AngularBoundaryFlux(
+            values=self._angular_trace.layout.pack({
                 "xmin": np.broadcast_to(
                     f0_edges[None, :, 0] / self._sum_w, (n_ord, ng)
                 ).copy(),
                 "xmax": np.broadcast_to(
                     f0_edges[None, :, -1] / self._sum_w, (n_ord, ng)
                 ).copy(),
-            },
+            }),
+            space=self._angular_trace,
         )
         return increment._recombine(
-            interior=AngularFlux(values=angular_values, space=self._mesh.angular_bulk_space),
+            interior=AngularFlux(values=angular_values, space=self._angular_bulk_space),
             boundary=trace,
         )

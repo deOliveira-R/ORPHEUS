@@ -339,11 +339,10 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
         f"production may be shipping the ERR-056 rule"
     )
 
-    def first_group_gauss_seidel(cls, mesh):
-        reflective = schedules._reflective_faces(mesh)
+    def first_group_gauss_seidel(cls, ndim, octants, reflective):
         ordered, by_label = [], {}
-        for entry in mesh.quad.octants:
-            sweep = schedules._octant_sweep(entry, mesh.ndim)
+        for entry in octants:
+            sweep = schedules._octant_sweep(entry, ndim)
             if sweep.label not in by_label:
                 by_label[sweep.label] = []
                 ordered.append(sweep.label)
@@ -368,9 +367,12 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
         )
 
     shipped = tuple(group.reflect_faces for group
-                    in schedules.SweepSchedule.gauss_seidel(sn_mesh).groups)
+                    in schedules.SweepSchedule.gauss_seidel(
+                        sn_mesh.ndim, sn_mesh.quad.octants,
+                        schedules.reflective_faces(sn_mesh)).groups)
     mutated = tuple(group.reflect_faces for group in first_group_gauss_seidel(
-        schedules.SweepSchedule, sn_mesh).groups)
+        schedules.SweepSchedule, sn_mesh.ndim, sn_mesh.quad.octants,
+        schedules.reflective_faces(sn_mesh)).groups)
     assert shipped != mutated, (
         f"the ERR-056 mutation did not change the schedule ({shipped}) — the "
         f"control is inert, so it certifies nothing about the gate above"

@@ -163,8 +163,13 @@ class TestO11ReconstructionTranspose:
         sn = _sphere()
         graded = _sphere(power=1.5)
         cot = _composite(graded)
+        assert sn.reduced is not None  # carrying fixture; narrowing only
         with pytest.raises(ValueError, match="space-content"):
-            RadialCharacteristicReconstruction(sn).apply_transpose(cot)
+            RadialCharacteristicReconstruction(
+                sn.radial_characteristic_field_space,
+                coord=sn.reduced.coord,
+                quadrature=sn.quad,
+            ).apply_transpose(cot)
 
     def test_forward_arm_sibling_still_witnessed(self):
         """O10's forward twin (the classic forward/transpose asymmetry the
@@ -197,7 +202,7 @@ class TestO12WindowingAnalysis:
             mat_xs=mat, quadrature=sn.quad, scattering_order=1,
             space=sn.full_field_space,  # S4-amendment: .frame demands the pose
         )
-        op = BulkAnalysisOperator(S.flux_analysis, sn)
+        op = BulkAnalysisOperator(S.flux_analysis, sn.full_field_space)
         stretched = _slab(width=2.0)
         # F-1: the admission is the minted FACE's bound-domain refusal
         # (TypeError), keeping the space-content vocabulary.

@@ -49,7 +49,9 @@ The Jacobi schedule is the degenerate member (``B_lower = 0``,
 
 .. code-block:: python
 
-    lower, upper = B.split(SweepSchedule.gauss_seidel(sn_mesh))
+    lower, upper = B.split(SweepSchedule.gauss_seidel(
+        sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
+    ))
     M = (L + C) - lower            # → ScheduledInvertibleOperator
     gains = (S, upper)             # the lagged complement, driver-side
 
@@ -82,7 +84,10 @@ from .streaming import StreamingCollisionOperator
 if TYPE_CHECKING:
     from orpheus.numerics.frame import FrameBase
     from orpheus.sn.loss_representation import LossRepresentation
-    from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+    from orpheus.sn.loss_representation.sweep_schedule import (
+        SweepSchedule,
+        reflective_faces,
+    )
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
     from ..mesh.augmented_mesh import SNMesh

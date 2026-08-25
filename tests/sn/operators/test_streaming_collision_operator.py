@@ -1002,7 +1002,12 @@ class TestStreamingCollisionSolveBridgeRegression:
         # hand, one reflect per system).
         B_a = SNBoundaryOperator(sn_mesh)
         B_b = (
-            RadialCharacteristicBoundaryOperator(sn_mesh) if carrying else None
+            RadialCharacteristicBoundaryOperator(
+                sn_mesh.radial_characteristic_field_space,
+                sn_mesh.bc["xmax"].law,
+            )
+            if carrying
+            else None
         )
 
         # step 6: the joint solve is THE GRID's substitution — build M

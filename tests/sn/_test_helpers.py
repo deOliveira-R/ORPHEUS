@@ -856,14 +856,13 @@ def joint_m_grid(sn_mesh: "SNMesh", LC):
     """
     from orpheus.numerics.coupled_system import CoupledOperator, CoupledSpace
     from orpheus.sn.operators.radial_characteristic import (
-        RadialCharacteristicOperator,
         RadialCharacteristicSeeding,
     )
 
     space = CoupledSpace.from_systems(
         (sn_mesh.full_field_space, sn_mesh.radial_characteristic_field_space),
     )
-    march = RadialCharacteristicOperator(sn_mesh, LC.b.coefficient)
+    march = rc_march(sn_mesh, LC.b.coefficient)
     grid = CoupledOperator(
         [[LC, RadialCharacteristicSeeding(sn_mesh)], [None, march]],
         domain=space, codomain=space,
@@ -1207,4 +1206,26 @@ def seam_quad(n_mu: int, n_phi: int, shift, *, folded: bool):
         mu_z=measure.nodes[:, 2],
         weights=measure.weights,
         level_indices=structure.level_indices,
+    )
+
+
+def rc_march(sn_mesh, total_cross_section):
+    """Assemble A_BB from a carrying mesh — the un-weld arc's assembly read,
+    spelled ONCE for tests (mirrors ``build_within_group_system``'s spelling;
+    the operator itself binds spaces + values, never the mesh)."""
+    from orpheus.sn.operators.radial_characteristic import (
+        RadialCharacteristicOperator,
+        march_start_cosines,
+    )
+
+    reduced = sn_mesh.reduced
+    assert reduced is not None  # carrying fixture; narrowing only
+    return RadialCharacteristicOperator(
+        sn_mesh.radial_characteristic_field_space,
+        total_cross_section,
+        bulk_space=sn_mesh.bulk_space,
+        dr=sn_mesh.axis_widths[0],
+        start_cosines=march_start_cosines(
+            reduced, sn_mesh.radial_characteristic_levels,
+        ),
     )

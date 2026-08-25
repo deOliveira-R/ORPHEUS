@@ -84,6 +84,7 @@ if TYPE_CHECKING:
 
     from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields._bases import (
@@ -944,17 +945,26 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     # docstring's Pattern-4 note).  Campaign step 4a.
     system_role = SystemRole.B
 
-    def __init__(self, sn_mesh: "SNMesh") -> None:
-        if sn_mesh.radial_characteristic_field_space is None:
+    def __init__(
+        self,
+        field_space: "FullFieldSpace | None",
+        outer_law: "BoundaryTraceLaw",
+    ) -> None:
+        if field_space is None:
             raise ValueError(
-                "RadialCharacteristicBoundaryOperator: the mesh carries no "
+                "RadialCharacteristicBoundaryOperator: the pose carries no "
                 "ψ½ ray (radial_characteristic_field_space is None) — a "
                 "seedless mesh (Cartesian, or a non-carrying cylinder, R12a) "
                 "has no System B, hence no ray-corner boundary block. B_b "
                 "exists only on a seed-carrying mesh — the GL sphere, the "
                 "σ_y-folded cylinder (Q5.6)."
             )
-        self.sn_mesh = sn_mesh
+        #: System B's member composite — endomorphic domain/codomain.
+        self._field_space = field_space
+        #: The outer-radius face's realized boundary law (a carrying mesh is
+        #: 1-D curvilinear: exactly ONE boundary face — ``xmax`` — carries
+        #: it). Bound at construction (un-weld arc O-1).
+        self._outer_law = outer_law
 
     @property
     def is_adjointable(self) -> bool:
@@ -967,7 +977,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         #
         # ONE source of truth with ``_reflect_corner``'s guard: the transpose
         # exists exactly when the forward corner action does.
-        return _has_ruled_corner_action(self.sn_mesh.bc["xmax"].law)
+        return _has_ruled_corner_action(self._outer_law)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -978,11 +988,11 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         # adapter to carry one — the transient ``_RayEmissionFullFieldGain``
         # was RETIRED at B.2d, the driver iterate is a ``CoupledField`` pair,
         # and nothing sums FullField-embedded ray gains anymore.
-        return self.sn_mesh.radial_characteristic_field_space
+        return self._field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.radial_characteristic_field_space
+        return self._field_space
 
     def _reflect_corner(
         self, seed: "RadialCharacteristicBoundaryField", method: str,
@@ -1038,9 +1048,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             RadialCharacteristicBoundarySourceSink,
         )
 
-        # A seed-carrying mesh is 1-D curvilinear: exactly ONE boundary face
-        # (the outer radius renders as ``xmax``) carries the law.
-        law = self.sn_mesh.bc["xmax"].law
+        law = self._outer_law
         if not _has_ruled_corner_action(law):  # single source with is_adjointable
             raise NotImplementedError(
                 f"RadialCharacteristicBoundaryOperator: the outer-face law "
@@ -1083,12 +1091,11 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             RadialCharacteristicInteriorSourceSink,
         )
 
-        mesh = self.sn_mesh
         # The shared System-B block-boundary parse (carrier class +
-        # mesh-identity — one parse body across A_BB / A_AB / B_b, B.2c).
+        # space-content — one parse body across A_BB / A_AB / B_b, B.2c).
         RadialCharacteristicField.require_member(
             ray,
-            mesh=mesh,
+            space=self._field_space,
             context=f"RadialCharacteristicBoundaryOperator.{method}",
         )
         # Role parse at the block boundary (the #289-F2 discipline, relocated

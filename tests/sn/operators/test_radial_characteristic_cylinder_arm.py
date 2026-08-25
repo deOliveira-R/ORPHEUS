@@ -42,6 +42,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from tests.sn._test_helpers import rc_march
+
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
@@ -168,7 +170,7 @@ def test_the_march_rides_the_level_ray_exactly_for_linear_flux():
     sn, mesh = _folded_cylinder()
     r = np.asarray(mesh.centers)
     sigma_field = CrossSectionField(values=np.full((1, _NX), _SIG_T), space=sn.bulk_space)
-    op = RadialCharacteristicOperator(sn, sigma_field)
+    op = rc_march(sn, sigma_field)
 
     src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
     psi_lin = A + B * r                                     # (nx,)
@@ -214,7 +216,7 @@ def test_apply_solve_round_trip_closes():
     """
     sn, _ = _folded_cylinder()
     sigma_field = CrossSectionField(values=np.full((1, _NX), _SIG_T), space=sn.bulk_space)
-    op = RadialCharacteristicOperator(sn, sigma_field)
+    op = rc_march(sn, sigma_field)
 
     rng = np.random.default_rng(20260808)
     src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)

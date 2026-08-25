@@ -293,7 +293,7 @@ def _windowed_product_and_oracle_operands(
     # projection, not a test-local one.
     from orpheus.sn.operators.windowing import BulkAnalysisOperator
 
-    product = BulkAnalysisOperator(S.flux_analysis, sn_mesh) @ base.inverse()
+    product = BulkAnalysisOperator(S.flux_analysis, sn_mesh.full_field_space) @ base.inverse()
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is

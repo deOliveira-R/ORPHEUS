@@ -48,11 +48,18 @@ class _BaseResolvent:
     the INVERSE (a real :class:`SweepOperator`) and either composes the
     typed product ``P @ A.inverse()`` (2-D Cartesian) or passes it
     through — so the stub carries an ``inverse()`` returning a real
-    :class:`SweepOperator` and the shared ``sn_mesh`` handle (the
-    ``WindowedSweep`` mesh-identity guard compares it to ``P``'s)."""
+    :class:`SweepOperator` and — since the un-weld (O-1) re-keyed the
+    ``WindowedSweep`` guard from mesh identity to space content — the
+    ``domain`` the guard compares to ``P``'s (the surrogate honours the
+    contract it stands in for; the ``sn_mesh`` handle stays for the
+    factory's other reads)."""
 
     def __init__(self, sn_mesh) -> None:
         self.sn_mesh = sn_mesh
+
+    @property
+    def domain(self):
+        return self.sn_mesh.full_field_space
 
     def inverse(self) -> SweepOperator:
         return SweepOperator(self)

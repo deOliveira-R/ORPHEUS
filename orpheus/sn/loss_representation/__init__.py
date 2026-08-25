@@ -1172,7 +1172,7 @@ class _OctantWalk:
         def shed(face: str, oct_idx: "np.ndarray", capture_a: "np.ndarray") -> None:
             streamed[face][oct_idx] = capture_a
 
-        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh).groups
+        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants).groups
         self._interior_walk(
             jacobi_group.sweeps,
             inflow_of=boundary.face_view,
@@ -1330,7 +1330,7 @@ class _OctantWalk:
             # exactly one walked deposit.
             trace_cot[face][oct_idx] += capture_a
 
-        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh).groups
+        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants).groups
         self._interior_walk(
             _reverse_octant_traversal(jacobi_group.sweeps),
             inflow_of=lambda face: streamed_bar[face],
@@ -4929,7 +4929,7 @@ def _sweep_jacobi(
     """
     return _sweep_scheduled(
         Q, sig_t, sn_mesh, boundary_flux,
-        schedule=SweepSchedule.jacobi(sn_mesh),
+        schedule=SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants),
         reflect=None,
         moment_frame=moment_frame,
         interior=interior,

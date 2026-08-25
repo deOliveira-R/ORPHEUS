@@ -60,12 +60,12 @@ from .sweep_operator import SweepOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
     from orpheus.transport.frames import HarmonicAnalysisOperator
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
-    from ..mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["BulkAnalysisOperator", "WindowedSweep"]
@@ -95,27 +95,27 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
     def __init__(
         self,
         face: "HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]",
-        sn_mesh: "SNMesh",
+        full_field_space: "FullFieldSpace",
     ) -> None:
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
         #: The minted flux-analysis face whose kernel reduces the bulk.
         self.face = face
-        #: The mesh carrying the composite-carrier geometry for the wrap.
-        self.sn_mesh = sn_mesh
+        #: The composite carrier (bulk ⊕ trace) this operator acts on —
+        #: the one thing the mesh used to contribute (un-weld arc O-1).
+        self._domain = full_field_space
         # F-1: the moment-bulk composite is posed from the face's bound
         # codomain ⊕ the angular composite's trace block (the trace passes
         # through untouched). The pre-F-1 ``None`` ("not yet typed") debt
         # died with the mint — composition guards now check this end.
-        full = sn_mesh.full_field_space
-        assert full.trace_space is not None  # SN composite; narrowing only
+        assert full_field_space.trace_space is not None  # SN composite; narrowing only
         self._codomain = FullFieldSpace.from_blocks(
-            self.face.codomain, full.trace_space,
+            self.face.codomain, full_field_space.trace_space,
         )
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.full_field_space
+        return self._domain
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
@@ -207,10 +207,10 @@ class WindowedSweep(
                 f"WindowedSweep: right factor must be a SweepOperator; "
                 f"got {type(sweep).__name__}."
             )
-        if p.sn_mesh is not sweep.inner.sn_mesh:
+        if p.domain != sweep.inner.domain:
             raise ValueError(
                 "WindowedSweep: the analysis factor and the sweep factor "
-                "must act on the same mesh instance (mesh-identity "
+                "must act on the same composite space (space-content "
                 "invariant)."
             )
         super().__init__(p, sweep)

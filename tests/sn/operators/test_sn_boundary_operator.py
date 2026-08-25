@@ -810,11 +810,15 @@ class TestScheduleSplitPartition2D:
 
     def test_split_halves_partition_the_whole_trace_on_a_2d_mesh(self) -> None:
         """``B_lower + B_upper == B`` bit-identically, 2-D reflective."""
-        from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+        from orpheus.sn.loss_representation.sweep_schedule import (
+            SweepSchedule,
+            reflective_faces,
+        )
 
         sn = _sn_2d()
         B = SNBoundaryOperator(sn)
-        parts = B.split(SweepSchedule.gauss_seidel(sn))
+        parts = B.split(SweepSchedule.gauss_seidel(
+            sn.ndim, sn.quad.octants, reflective_faces(sn)))
         psi = _random_state(sn, seed=17)
         whole = B.apply(psi).boundary.values
         total = (
@@ -841,10 +845,14 @@ class TestScheduleSplitPartition2D:
         on at least one face, the schedule's lower-half rows are NOT a prefix
         of :math:`\Gamma_-`, so ``arange`` and ``to_local`` genuinely differ.
         """
-        from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+        from orpheus.sn.loss_representation.sweep_schedule import (
+            SweepSchedule,
+            reflective_faces,
+        )
 
         sn = _sn_2d()
-        lower_rows = SweepSchedule.gauss_seidel(sn).lower_inflow_rows(sn)
+        lower_rows = SweepSchedule.gauss_seidel(
+            sn.ndim, sn.quad.octants, reflective_faces(sn)).lower_inflow_rows(sn)
         discriminating = []
         for face, sel in lower_rows.items():
             inflow = sn.angular_trace.inflow_indices_for_face(face)

@@ -66,6 +66,7 @@ from tests._harness.predicates import (
     assert_inverse_adjoint_contract,
 )
 from tests.sn._test_helpers import (
+    rc_march,
     face_method_space,
     material_xs_from_raw,
     placeholder_materials,
@@ -414,7 +415,7 @@ class TestPredicateFaithfulness:
             np.ones((sph.ng, *sph.spatial_shape)), sph
         ).coefficient
         rows.append(
-            (RadialCharacteristicOperator(sph, sigma_sph), True, True, INVERTIBLE)
+            (rc_march(sph, sigma_sph), True, True, INVERTIBLE)
         )
         for op, inv, adj, contract in rows:
             assert_inverse_adjoint_contract(

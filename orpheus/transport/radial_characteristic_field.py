@@ -187,20 +187,23 @@ class RadialCharacteristicField(
 
     @classmethod
     def require_member(
-        cls, x: object, *, mesh: "SNMesh", context: str,
+        cls, x: object, *, space: "FullFieldSpace", context: str,
     ) -> "RadialCharacteristicField":
-        r"""Parse ``x`` as a System-B member carrier on ``mesh`` — the shared
+        r"""Parse ``x`` as a System-B member carrier on ``space`` — the shared
         block-boundary guard.
 
         Every System-B block boundary (``A_BB`` / ``A_AB`` / ``B_b``) receives
         a :class:`RadialCharacteristicField` and must refuse (i) a foreign
-        carrier type and (ii) block spaces disagreeing with the operator
-        mesh's ray spaces in CONTENT (the space-content invariant, per block
+        carrier type and (ii) block spaces disagreeing with the operator's
+        ray member spaces in CONTENT (the space-content invariant, per block
         since CS4b S3 — the member's legs, the operator's coefficients, and
         the radial widths must not desync). One parse, three consumers (coding-elegance
-        Pattern 2; parse-don't-validate at the boundary). ``context`` names
-        the refusing surface (``"RadialCharacteristicOperator.apply"``) so the
-        error reads at the call site.
+        Pattern 2; parse-don't-validate at the boundary). ``space`` is System
+        B's member composite (interior ⊕ boundary corner — the operator's
+        bound space; un-weld arc O-1: the SPACE is the contract, not the
+        mesh that minted it). ``context`` names the refusing surface
+        (``"RadialCharacteristicOperator.apply"``) so the error reads at the
+        call site.
         """
         if not isinstance(x, cls):
             raise TypeError(
@@ -208,15 +211,15 @@ class RadialCharacteristicField(
                 f"(System B's member carrier); got {type(x).__name__}."
             )
         if (
-            x.interior.space != mesh.radial_characteristic_interior_space
-            or x.boundary.space != mesh.radial_characteristic_boundary_space
+            x.interior.space != space.interior_space
+            or x.boundary.space != space.trace_space
         ):
             raise ValueError(
                 f"{context}: the input field's block spaces must agree with "
-                f"the operator mesh's ray spaces in content (space-content "
+                f"the operator's ray member spaces in content (space-content "
                 f"invariant, per block — the composite's own ``==`` is "
                 f"name+shape and cannot see blocks); got interior "
-                f"{x.interior.space!r} vs {mesh.radial_characteristic_interior_space!r}."
+                f"{x.interior.space!r} vs {space.interior_space!r}."
             )
         return x
 

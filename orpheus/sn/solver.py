@@ -895,7 +895,7 @@ def _maybe_window(
         from .operators.windowing import BulkAnalysisOperator
 
         return (
-            BulkAnalysisOperator(scattering_op.flux_analysis, sn_mesh) @ sweep,
+            BulkAnalysisOperator(scattering_op.flux_analysis, sn_mesh.full_field_space) @ sweep,
             True,
         )
     return sweep, False
@@ -1008,7 +1008,13 @@ def _radial_characteristic_fission_seed(
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicReconstruction,
     )
-    return RadialCharacteristicReconstruction(sn_mesh).apply(
+    reduced = sn_mesh.reduced
+    assert reduced is not None  # carrying ⇒ curvilinear; narrowing only
+    return RadialCharacteristicReconstruction(
+        sn_mesh.radial_characteristic_field_space,
+        coord=reduced.coord,
+        quadrature=sn_mesh.quad,
+    ).apply(
         np.asarray(fission_source)[None],
     )
 
@@ -1099,7 +1105,10 @@ def _select_si_splitting(
         and sn_mesh.is_cartesian
         and not sn_mesh.is_1d
     ):
-        from .loss_representation.sweep_schedule import SweepSchedule
+        from .loss_representation.sweep_schedule import (
+            SweepSchedule,
+            reflective_faces,
+        )
         from .operators.boundary import SNBoundaryOperator
 
         # Multi-D Cartesian ⟹ SEEDLESS ⟹ B is the plain SNBoundaryOperator
@@ -1114,7 +1123,9 @@ def _select_si_splitting(
                 f"{type(B).__name__} — a seed-carrying composite must not reach "
                 "the G-S schedule path (RULING P1: gradings live on B_a)."
             )
-        parts = B.split(SweepSchedule.gauss_seidel(sn_mesh))
+        parts = B.split(SweepSchedule.gauss_seidel(
+            sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
+        ))
         return LC - parts.lower, (S, parts.upper)
     return LC, (S, B)
 
@@ -2387,7 +2398,9 @@ def _reflect_outflow_into_inflow(
     # a seedless mesh has no System B, so B_b is unconstructable there (the
     # old in-method ``None`` no-op moved here — a None ray ⟺ seedless).
     if radial_characteristic is not None:
-        RadialCharacteristicBoundaryOperator(sn_mesh).reflect_corner_inplace(
+        RadialCharacteristicBoundaryOperator(
+            sn_mesh.radial_characteristic_field_space, sn_mesh.bc["xmax"].law,
+        ).reflect_corner_inplace(
             radial_characteristic,
         )
 
@@ -2902,11 +2915,21 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     )
 
     space = system.space
+    reduced = sn_mesh.reduced
+    assert reduced is not None  # carrying ⇒ curvilinear; narrowing only
     restrict_bulk = SystemRestrictionOperator(space, system=0)
     stack = CoupledOperator(
         [
             [F],
-            [RadialCharacteristicEmission(sn_mesh, F.kernel)],
+            [RadialCharacteristicEmission(
+                F.kernel,
+                field_space=sn_mesh.radial_characteristic_field_space,
+                full_field_space=sn_mesh.full_field_space,
+                angular_bulk_space=sn_mesh.angular_bulk_space,
+                angular_trace=sn_mesh.angular_trace,
+                quadrature=sn_mesh.quad,
+                coord=reduced.coord,
+            )],
         ],
         domain=restrict_bulk.codomain,
         codomain=space,

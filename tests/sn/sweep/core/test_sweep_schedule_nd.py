@@ -37,6 +37,7 @@ from orpheus.sn.loss_representation.sweep_schedule import (
     SweepSchedule,
     _octant_sweep,
     _outgoing_faces,
+    reflective_faces,
 )
 
 from tests.sn.sweep.core.test_sweep_schedule import _expected_outgoing
@@ -102,7 +103,7 @@ _D3_FACES = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
 
 
 #: Tag -> law, for the duck-typed mesh below. Campaign phase B2 repointed
-#: ``sweep_schedule._reflective_faces`` from ``bc[face] == "reflective"`` onto
+#: ``sweep_schedule.reflective_faces`` from ``bc[face] == "reflective"`` onto
 #: ``bc[face].law.geometry_map.permutes_ordinates``, so a bare tag STRING is no
 #: longer the consumer contract. The tag vocabulary these tests are written in
 #: is translated here, at the test's own surface.
@@ -151,7 +152,7 @@ def test_gs_d3_mixed_bc_reflects_only_reflective_axes():
         xmin="reflective", xmax="reflective",
         zmin="reflective", zmax="reflective",
     )
-    sched = SweepSchedule.gauss_seidel(fake)
+    sched = SweepSchedule.gauss_seidel(fake.ndim, fake.quad.octants, reflective_faces(fake))
     assert sched.kind == "gauss_seidel"
     assert len(sched.groups) == 8  # one per sign-octant, none merged
     reflected = {f for g in sched.groups for f in g.reflect_faces}
@@ -171,7 +172,7 @@ def test_gs_d3_every_reflective_face_assigned_to_last_outflowing_group():
     sweep order that outflows it (premature reflection would absorb
     not-yet-swept octants' seed values: the original ERR-056)."""
     fake = _fake_mesh_3d(**{face: "reflective" for face in _D3_FACES})
-    sched = SweepSchedule.gauss_seidel(fake)
+    sched = SweepSchedule.gauss_seidel(fake.ndim, fake.quad.octants, reflective_faces(fake))
     counts: dict[str, int] = {}
     for g in sched.groups:
         for f in g.reflect_faces:
@@ -196,7 +197,7 @@ def test_jacobi_d3_one_group_all_octants():
     """Jacobi at d=3: ONE group, all 8 octants, no reflect — the schedule
     split is dimension-blind."""
     fake = _fake_mesh_3d()
-    sched = SweepSchedule.jacobi(fake)
+    sched = SweepSchedule.jacobi(fake.ndim, fake.quad.octants)
     assert len(sched.groups) == 1
     assert sched.groups[0].reflect_faces == ()
     labels = {s.label for s in sched.groups[0].sweeps}
@@ -242,7 +243,7 @@ def test_gs_d3_schedule_from_real_mesh():
         Quadrature.level_symmetric(sn_order=4),
         {0: mix},
     )
-    sched = SweepSchedule.gauss_seidel(mesh)
+    sched = SweepSchedule.gauss_seidel(mesh.ndim, mesh.quad.octants, reflective_faces(mesh))
     assert sched.kind == "gauss_seidel"
     assert len(sched.groups) == 8
     counts: dict[str, int] = {}

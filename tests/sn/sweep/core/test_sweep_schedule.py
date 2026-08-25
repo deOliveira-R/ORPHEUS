@@ -31,7 +31,10 @@ from orpheus.geometry import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation.sweep_graph import OctantLabel
-from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+from orpheus.sn.loss_representation.sweep_schedule import (
+    SweepSchedule,
+    reflective_faces,
+)
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -74,7 +77,7 @@ def _reflective_faces(sn: SNMesh) -> set[str]:
     """The reflective set, computed the way production STOPPED computing it.
 
     Campaign phase B2 repointed
-    ``sweep_schedule._reflective_faces`` from this ``== "reflective"`` tag
+    ``sweep_schedule.reflective_faces`` from this ``== "reflective"`` tag
     comparison onto ``bc[f].law.geometry_map.permutes_ordinates``. This helper
     deliberately keeps the OLD spelling: every schedule assertion below is then
     an implicit old-vs-new cross-check on real meshes, mirror-not-import in the
@@ -108,7 +111,7 @@ def _expected_outgoing(label: OctantLabel) -> set[str]:
 
 def test_jacobi_is_one_group_no_reflect_slab():
     sn = _slab((BC.reflective, BC.reflective))
-    sched = SweepSchedule.jacobi(sn)
+    sched = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     assert sched.kind == "jacobi"
     assert len(sched.groups) == 1
     assert sched.groups[0].reflect_faces == ()
@@ -120,7 +123,7 @@ def test_jacobi_is_one_group_no_reflect_box():
         bc_xmin=BC.reflective, bc_xmax=BC.reflective,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    sched = SweepSchedule.jacobi(sn)
+    sched = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     assert len(sched.groups) == 1
     assert sched.groups[0].reflect_faces == ()
     assert _all_indices(sched) == list(range(sn.quad.N))
@@ -137,7 +140,7 @@ def test_gs_slab_reflective_specular_faces():
     phantom zero-padded second sign ``(±1, 0)`` that the walk re-truncated.
     """
     sn = _slab((BC.reflective, BC.reflective))
-    sched = SweepSchedule.gauss_seidel(sn)
+    sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     assert sched.kind == "gauss_seidel"
     # one octant per group; lexicographic order puts (-1,) before (+1,).
     labels = [g.sweeps[0].label for g in sched.groups]
@@ -150,7 +153,7 @@ def test_gs_slab_reflective_specular_faces():
 def test_gs_slab_vacuum_reflective_only_reflective_face_reflects():
     sn = _slab((BC.vacuum, BC.reflective))
     refl = _reflective_faces(sn)
-    sched = SweepSchedule.gauss_seidel(sn)
+    sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     for g in sched.groups:
         label = g.sweeps[0].label
         expected = tuple(_expected_outgoing(label) & refl)
@@ -163,7 +166,7 @@ def test_gs_slab_vacuum_reflective_only_reflective_face_reflects():
 
 def test_gs_slab_full_vacuum_no_reflect_anywhere():
     sn = _slab((BC.vacuum, BC.vacuum))
-    sched = SweepSchedule.gauss_seidel(sn)
+    sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     assert all(g.reflect_faces == () for g in sched.groups)
 
 
@@ -174,7 +177,7 @@ def test_gs_box_all_reflective_each_octant_reflects_its_outgoing_faces():
         bc_xmin=BC.reflective, bc_xmax=BC.reflective,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    sched = SweepSchedule.gauss_seidel(sn)
+    sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     labels = [g.sweeps[0].label for g in sched.groups]
     # one group per DISTINCT in-plane octant label (out-of-plane sign_z merged
     # into a single group, so a face's outflow is complete before it reflects).
@@ -197,7 +200,7 @@ def test_gs_box_half_reflective_no_reflect_on_vacuum_axis():
         bc_xmin=BC.reflective, bc_xmax=BC.reflective,
         bc_ymin=BC.vacuum, bc_ymax=BC.vacuum,
     )
-    sched = SweepSchedule.gauss_seidel(sn)
+    sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     for g in sched.groups:
         assert "ymin" not in g.reflect_faces
         assert "ymax" not in g.reflect_faces
@@ -229,7 +232,7 @@ def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
         bc_xmin=BC.reflective, bc_xmax=BC.reflective,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    sched = SweepSchedule.gauss_seidel(sn)
+    sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     order = {g.sweeps[0].label: i for i, g in enumerate(sched.groups)}
     # every reflective face appears in EXACTLY ONE group (no double-assignment).
     counts: dict[str, int] = {}
@@ -261,5 +264,5 @@ def test_jacobi_and_gs_sweep_identical_ordinates():
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
     full = list(range(sn.quad.N))
-    assert _all_indices(SweepSchedule.jacobi(sn)) == full
-    assert _all_indices(SweepSchedule.gauss_seidel(sn)) == full
+    assert _all_indices(SweepSchedule.jacobi(sn.ndim, sn.quad.octants)) == full
+    assert _all_indices(SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))) == full

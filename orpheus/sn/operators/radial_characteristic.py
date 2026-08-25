@@ -31,7 +31,9 @@ from the α-cascade to a plain DD recurrence in radius — a *straight
 characteristic* (the physics:
 ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-pole-straight-characteristic``).
 Domain = codomain = System B's member space
-``sn_mesh.radial_characteristic_field_space`` (the carrier of
+(the composite the carrying mesh mints as
+``radial_characteristic_field_space``, BOUND at construction — un-weld
+arc O-1; the carrier of
 :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`);
 it exists ONLY on a seed-carrying mesh (the sphere, R12a).
 
@@ -86,9 +88,10 @@ engine-execution sentinels (the S1 driver gates); the un-weave record is at
 Sourcing
 ========
 
-``sn_mesh`` supplies the ray carrier and the radial widths
-(:math:`\Delta r = ` ``sn_mesh.axis_widths[0]``); ``total_cross_section``
-is the :math:`\sigma_t`
+The assembly supplies the ray carrier (``field_space``), the radial widths
+``dr``, and the per-level start cosines (:func:`march_start_cosines`) — all
+read off the carrying mesh AT the assembly, bound as values here (un-weld
+arc O-1); ``total_cross_section`` is the :math:`\sigma_t`
 :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField` — the
 collision coefficient :math:`C_{\rm ray}` the march reads (``.values`` are
 ``(ng, nx)``). It is a TYPED, mesh-bound field (not a bare array) so the
@@ -121,6 +124,7 @@ from orpheus.numerics.operator import (
     SystemRole,
 )
 from orpheus.numerics.spaces.radial_characteristic_space import (
+    RadialCharacteristicInteriorSpace,
     fold_moments_to_radial_characteristic,
     fold_moments_to_radial_characteristic_transpose,
 )
@@ -132,7 +136,13 @@ from orpheus.sn.sweep.psi_half_angle_seed import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from orpheus.geometry import CoordSystem
+    from orpheus.geometry.reduced_operator import ReducedStreamingOperator
+    from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
@@ -141,7 +151,9 @@ if TYPE_CHECKING:
     )
 
 
-def _march_start_cosines(sn_mesh: "SNMesh") -> dict[int, float]:
+def march_start_cosines(
+    reduced: "ReducedStreamingOperator", levels: "Iterable[int]",
+) -> dict[int, float]:
     r"""``|η_start|`` per carried level — the march ray's radial cosine.
 
     The DD engine
@@ -156,17 +168,17 @@ def _march_start_cosines(sn_mesh: "SNMesh") -> dict[int, float]:
     :math:`|\eta| = \sin\theta_p`.  Single-sourced from the reduced
     operator's own start-direction fields (``mu_start`` /
     ``mu_start_per_level``), never recomputed from the quadrature.
+    Public since the un-weld arc (O-1): the assembly reads
+    ``(sn_mesh.reduced, sn_mesh.radial_characteristic_levels)`` and hands
+    the computed map to :class:`RadialCharacteristicOperator` — the
+    operator binds the VALUES; this producer owns the provenance ruling.
     """
-    reduced = sn_mesh.reduced
-    assert reduced is not None  # carrying ⇒ 1-D curvilinear ⇒ reduced set
+    lvls = tuple(levels)
     if reduced.mu_start_per_level is not None:
-        return {
-            p: abs(float(reduced.mu_start_per_level[p]))
-            for p in sn_mesh.radial_characteristic_levels
-        }
+        return {p: abs(float(reduced.mu_start_per_level[p])) for p in lvls}
     assert reduced.mu_start is not None  # spherical arm always sets it
     diameter_ray = abs(float(reduced.mu_start))
-    return {p: diameter_ray for p in sn_mesh.radial_characteristic_levels}
+    return {p: diameter_ray for p in lvls}
 
 
 class _EmissionKernel(Protocol):
@@ -207,7 +219,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     :math:`\mu = \pm 1` rays (Hébert §3.9.4). Endomorphic on System B's
     member carrier
     :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`
-    (domain = codomain = ``sn_mesh.radial_characteristic_field_space``; the
+    (domain = codomain = the bound System-B member composite; the
     ``CoupledOperator`` grid places it at the ``(B, B)`` slot).  All four
     action surfaces parse the composite at the block boundary and march the
     split member views directly.
@@ -221,51 +233,65 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
     Parameters
     ----------
-    sn_mesh : SNMesh
-        The augmented geometry — seed-carrying (1-D curvilinear, R12a).
-        Supplies the ray carrier (the split ψ½ spaces) and the
-        radial widths ``axis_widths[0]``. A seedless mesh (Cartesian /
-        cylinder) has NO System B: constructing over one is rejected.
+    field_space : FullFieldSpace or None
+        System B's member composite (interior ⊕ boundary corner) — the
+        endomorphic domain/codomain. ``None`` (a seedless pose — Cartesian /
+        non-carrying cylinder, R12a) is REFUSED: no System B, no A_BB.
     total_cross_section : CrossSectionField
-        The total cross-section :math:`\sigma_t` as a typed, mesh-bound
+        The total cross-section :math:`\sigma_t` as a typed
         :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-        on ``sn_mesh`` (``.values`` are ``(ng, nx)``) — the collision
-        coefficient :math:`C_{\rm ray}` the march reads. Must be on the SAME
-        mesh as the operator (the mesh-identity invariant — refused otherwise)
-        and strictly positive everywhere (the DD denominator
-        :math:`\Delta r\,\sigma + 2` is then well-defined and the march never
-        emits NaN).
+        (``.values`` are ``(ng, nx)``) — the collision coefficient
+        :math:`C_{\rm ray}` the march reads. Must be posed on ``bulk_space``
+        (the pose-consistency invariant — refused otherwise) and strictly
+        positive everywhere (the DD denominator :math:`\Delta r\,\sigma + 2`
+        is then well-defined and the march never emits NaN).
+    bulk_space : FunctionSpace
+        The scalar bulk σ_t must be posed on (the admission reference —
+        consulted at construction, not stored).
+    dr : np.ndarray
+        The radial cell widths Δr — the geometry commitment's spatial
+        measure along the ray axis.
+    start_cosines : Mapping[int, float]
+        ``|η_start|`` per carried level — produce with
+        :func:`march_start_cosines` (single-sourced from the reduced
+        operator's start-direction fields; never recompute from the
+        quadrature).
     """
 
     def __init__(
-        self, sn_mesh: "SNMesh", total_cross_section: "CrossSectionField",
+        self,
+        field_space: "FullFieldSpace | None",
+        total_cross_section: "CrossSectionField",
+        *,
+        bulk_space: "FunctionSpace",
+        dr: np.ndarray,
+        start_cosines: "Mapping[int, float]",
     ) -> None:
-        interior_space = sn_mesh.radial_characteristic_interior_space
-        if interior_space is None:
+        if field_space is None:
             raise ValueError(
-                "RadialCharacteristicOperator: the mesh carries no "
+                "RadialCharacteristicOperator: the pose carries no "
                 "starting-direction ray (the split ψ½ spaces are None) — a "
                 "seedless mesh (Cartesian, or a cylinder whose levels start on "
                 "an edge node or an η-tie, R12a) has no System B. A_BB "
                 "exists only on a seed-carrying mesh — the GL sphere, the "
                 "σ_y-folded cylinder (Q5.6)."
             )
-        # Mesh-identity invariant (Pattern 4 — make the illegal state
-        # unrepresentable): the march reads THIS mesh's radial widths
-        # (axis_widths[0]) against σ_t, so a σ_t from a foreign mesh — even one
-        # with an identical (ng, nx) — would march the wrong Δr. The typed
-        # CrossSectionField carries its mesh, so we can refuse the mismatch at
-        # construction (the sibling StreamingCollisionOperator guards σ↔mesh the same
-        # way, streaming.py). The field's own space invariant then GUARANTEES
-        # values.shape == (ng, nx) for this mesh — so no separate shape check is
-        # needed (an explicit one would be redundant ceremony).
-        if total_cross_section.space != sn_mesh.bulk_space:
+        # Pose-consistency invariant (Pattern 4 — make the illegal state
+        # unrepresentable): the march reads the radial widths ``dr`` against
+        # σ_t, so a σ_t posed on a foreign bulk — even one with an identical
+        # (ng, nx) — would march the wrong Δr. The typed CrossSectionField
+        # carries its space, so we refuse the mismatch at construction (the
+        # sibling StreamingCollisionOperator guards σ↔pose the same way,
+        # streaming.py). The field's own space invariant then GUARANTEES
+        # values.shape == (ng, nx) for this pose — so no separate shape check
+        # is needed (an explicit one would be redundant ceremony).
+        if total_cross_section.space != bulk_space:
             raise ValueError(
                 "RadialCharacteristicOperator: total_cross_section must be a "
-                "CrossSectionField agreeing with the operator mesh's scalar "
+                "CrossSectionField agreeing with the operator's scalar "
                 "bulk in content (space-content invariant); got field space "
                 f"{total_cross_section.space!r} vs "
-                f"{sn_mesh.bulk_space!r}."
+                f"{bulk_space!r}."
             )
         sigma = total_cross_section.values
         if np.any(sigma <= 0.0):
@@ -275,13 +301,23 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
                 f"(Δr·σ + 2) to be well-defined; got "
                 f"min(σ_t) = {float(np.min(sigma)):.3e}."
             )
-        #: The augmented geometry (ray carrier + radial widths).
-        self.sn_mesh = sn_mesh
+        #: System B's member composite (interior ⊕ boundary corner) —
+        #: domain AND codomain (endomorphic; the one space the mesh used to
+        #: contribute, un-weld arc O-1).
+        self._field_space = field_space
         #: The total cross-section :math:`\sigma_t` — the ``C_ray`` collision
-        #: coefficient, a typed :class:`CrossSectionField` on :attr:`sn_mesh`
-        #: (``.values`` are ``(ng, nx)``; the mesh-identity guard above makes a
-        #: foreign-mesh σ_t unconstructable). The march reads ``.values``.
+        #: coefficient, a typed :class:`CrossSectionField` on the scalar bulk
+        #: (``.values`` are ``(ng, nx)``; the pose-consistency guard above
+        #: makes a foreign-pose σ_t unconstructable). The march reads ``.values``.
         self.total_cross_section = total_cross_section
+        #: The radial cell widths Δr the march divides by |η_start| — the
+        #: geometry commitment's spatial measure along the ray axis.
+        self._dr = np.asarray(dr, dtype=float)
+        #: |η_start| per carried level (see :func:`march_start_cosines`,
+        #: the single-sourced producer the assembly calls).
+        self._start_cosines = dict(start_cosines)
+        interior_space = field_space.interior_space
+        assert isinstance(interior_space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only
         #: The ψ½ interior split space (levels/ng/nx metadata for repr;
         #: non-None by the ctor guard — presence-coextensive with the
         #: composite space).
@@ -304,11 +340,11 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     def domain(self) -> Optional["FunctionSpace"]:
         # Non-None by the ctor guard (the composite space is presence-
         # coextensive with the unified one — both None exactly off-R12a).
-        return self.sn_mesh.radial_characteristic_field_space
+        return self._field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.radial_characteristic_field_space
+        return self._field_space
 
     # ── Predicates — the forward closes the involution web (step 4b) ──
 
@@ -372,8 +408,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             comp.interior.values, comp.boundary.values,
             comp.interior.space, comp.boundary.space,
             self.total_cross_section.values,
-            self.sn_mesh.axis_widths[0],
-            start_cosines=_march_start_cosines(self.sn_mesh),
+            self._dr,
+            start_cosines=self._start_cosines,
         )
         return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
@@ -416,8 +452,8 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             comp.interior.values, comp.boundary.values,
             comp.interior.space, comp.boundary.space,
             self.total_cross_section.values,
-            self.sn_mesh.axis_widths[0],
-            start_cosines=_march_start_cosines(self.sn_mesh),
+            self._dr,
+            start_cosines=self._start_cosines,
         )
         return RadialCharacteristicField(
             interior=RadialCharacteristicInteriorSourceSink(
@@ -497,7 +533,6 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             RadialCharacteristicInteriorSourceSink,
         )
 
-        mesh = self.sn_mesh
         comp = self._require_member_composite(source, "solve")
         if not isinstance(comp.interior, RadialCharacteristicInteriorSourceSink):
             raise TypeError(
@@ -507,10 +542,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
                 f"the {type(comp.interior).__name__} interior role."
             )
         sigma = self.total_cross_section.values
-        dr = mesh.axis_widths[0]
-        start_cosines = _march_start_cosines(mesh)
+        dr = self._dr
+        start_cosines = self._start_cosines
 
-        flux = RadialCharacteristicField.flux_zeros(mesh.radial_characteristic_field_space)
+        flux = RadialCharacteristicField.flux_zeros(self._field_space)
         for level in comp.interior.space.levels:
             # The engine marches in PATH length: the start ray at radial
             # cosine |η_start| traverses Δr of radius over Δr/|η_start| of
@@ -601,15 +636,14 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
             RadialCharacteristicField,
         )
 
-        mesh = self.sn_mesh
         comp = self._require_member_composite(cotangent, "solve_transpose")
         sigma = self.total_cross_section.values
-        dr = mesh.axis_widths[0]
-        start_cosines = _march_start_cosines(mesh)
+        dr = self._dr
+        start_cosines = self._start_cosines
 
         # Duality typing (#276 A4, docstring above): dual-of-source = the
         # adjoint ray FLUX — the flux-role zeros buffer.
-        src_bar = RadialCharacteristicField.flux_zeros(mesh.radial_characteristic_field_space)
+        src_bar = RadialCharacteristicField.flux_zeros(self._field_space)
         for level in comp.interior.space.levels:
             # The transpose of the PATH-length march uses the same per-level
             # path widths as the forward (sphere: ÷1.0, byte-identical).
@@ -662,7 +696,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
         return RadialCharacteristicField.require_member(
             x,
-            mesh=self.sn_mesh,
+            space=self._field_space,
             context=f"RadialCharacteristicOperator.{method}",
         )
 
@@ -831,8 +865,10 @@ class RadialCharacteristicSeeding(
         )
 
         mesh = self.sn_mesh
+        rc_space = mesh.radial_characteristic_field_space
+        assert rc_space is not None  # ctor guard: carrying mesh; narrowing only
         comp = RadialCharacteristicField.require_member(
-            seed, mesh=mesh, context="RadialCharacteristicSeeding.apply",
+            seed, space=rc_space, context="RadialCharacteristicSeeding.apply",
         )
         closure = mesh.pole_angular_closure
         space = self._ray_space
@@ -1000,10 +1036,17 @@ class RadialCharacteristicReconstruction(LinearOperator):
 
     Parameters
     ----------
-    sn_mesh : SNMesh
-        The seed-carrying geometry (1-D curvilinear, R12a). Supplies the ray
-        carrier (the composite space — the codomain) and the
-        cells-leg layout. A seedless mesh has no bulk→ray coupling → rejected.
+    field_space : FullFieldSpace or None
+        System B's member composite — the codomain (its interior IS the
+        ψ½ split space with the cells-leg layout). ``None`` (a seedless
+        pose) is REFUSED: no bulk→ray coupling to fold.
+    coord : CoordSystem
+        The geometry commitment — selects the fold family (CYLINDRICAL =
+        the arc family's ℓ = 0 reproducing weight; otherwise the sphere's
+        Legendre kernel path).
+    quadrature : Quadrature
+        The angular rule whose total weight Σw spells the arc family's
+        constant-reproducing fold weight ``1/Σw``.
     n_moments : int, default 1
         The operator's domain dimension — the number of angular Legendre
         moments it reconstructs from. ``1`` is the isotropic production reach
@@ -1016,25 +1059,32 @@ class RadialCharacteristicReconstruction(LinearOperator):
     # off-diagonal block, so it spans both systems (campaign step 4a).
     system_role = SystemRole.COUPLED
 
-    def __init__(self, sn_mesh: "SNMesh", n_moments: int = 1) -> None:
+    def __init__(
+        self,
+        field_space: "FullFieldSpace | None",
+        *,
+        coord: "CoordSystem",
+        quadrature: "Quadrature",
+        n_moments: int = 1,
+    ) -> None:
         from orpheus.geometry import CoordSystem
 
-        space = sn_mesh.radial_characteristic_interior_space
-        if space is None:
+        if field_space is None:
             raise ValueError(
-                "RadialCharacteristicReconstruction: the mesh carries no "
+                "RadialCharacteristicReconstruction: the pose carries no "
                 "radial-characteristic ray (the split ψ½ spaces are None) "
                 "— a seedless mesh (Cartesian, or a cylinder whose levels "
                 "start on an edge node or an η-tie, R12a) has no bulk→ray "
                 "coupling to fold."
             )
+        space = field_space.interior_space
+        assert isinstance(space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only
         if n_moments < 1:
             raise ValueError(
                 f"RadialCharacteristicReconstruction: n_moments must be ≥ 1 "
                 f"(at least the ℓ = 0 moment); got {n_moments!r}."
             )
-        assert sn_mesh.reduced is not None  # carrying ⇒ curvilinear
-        arc_family = sn_mesh.reduced.coord is CoordSystem.CYLINDRICAL
+        arc_family = coord is CoordSystem.CYLINDRICAL
         if arc_family and n_moments > 1:
             raise NotImplementedError(
                 f"RadialCharacteristicReconstruction: an arc-family "
@@ -1044,8 +1094,9 @@ class RadialCharacteristicReconstruction(LinearOperator):
                 f"interval's — a folded arc's higher moments live in the "
                 f"Chebyshev basis (T25), a seam no consumer needs yet."
             )
-        #: The augmented geometry (ray carrier + cells-leg layout).
-        self.sn_mesh = sn_mesh
+        #: System B's member composite — the declared codomain (the one
+        #: space the mesh used to contribute, un-weld arc O-1).
+        self._field_space = field_space
         #: The angular Legendre-moment order of the domain (``1`` = isotropic,
         #: the production reach; larger is the manufactured anisotropic case).
         self.n_moments = n_moments
@@ -1062,7 +1113,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
         #: source 2π-fold — `[M]` the c = 0.4 flat-flux equilibrium read
         #: 158 % off before this weight, machine-exact after.
         self._ell0_scale: float | None = (
-            1.0 / float(sn_mesh.quad.weights.sum()) if arc_family else None
+            1.0 / float(quadrature.weights.sum()) if arc_family else None
         )
 
     # ── Predicates / spaces ───────────────────────────────────────────
@@ -1084,7 +1135,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
         # System B's member space — the fold emits the q½ composite (4e).
-        return self.sn_mesh.radial_characteristic_field_space
+        return self._field_space
 
     # ── Forward fold — reconstruct at μ=±1 ────────────────────────────
 
@@ -1124,7 +1175,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
                 f"Legendre-moment source of shape (n_moments, ng, nx) = "
                 f"{expected}; got {arr.shape}."
             )
-        seed = RadialCharacteristicField.source_zeros(self.sn_mesh.radial_characteristic_field_space)
+        seed = RadialCharacteristicField.source_zeros(self._field_space)
         for level in self._ray_space.levels:
             for sign in (-1, +1):
                 if self._ell0_scale is not None:
@@ -1170,15 +1221,13 @@ class RadialCharacteristicReconstruction(LinearOperator):
         np.ndarray
             The bulk moment cotangent, shape ``(n_moments, ng, nx)``.
         """
-        if cotangent.interior.space != cotangent.interior.space_on(
-            self.sn_mesh
-        ):
+        if cotangent.interior.space != self._ray_space:
             raise ValueError(
                 f"RadialCharacteristicReconstruction.apply_transpose: the "
-                f"cotangent composite must agree with the operator mesh in "
-                f"space content (space-content invariant); got interior "
-                f"space {cotangent.interior.space!r} on operator mesh "
-                f"{self.sn_mesh!r}."
+                f"cotangent composite must agree with the operator's ray "
+                f"interior in space content (space-content invariant); got "
+                f"interior space {cotangent.interior.space!r} vs "
+                f"{self._ray_space!r}."
             )
         moment_bar = np.zeros(
             (self.n_moments, self._ray_space.ng, self._ray_space.nx),
@@ -1279,10 +1328,6 @@ class RadialCharacteristicEmission(LinearOperator):
 
     Parameters
     ----------
-    sn_mesh : SNMesh
-        The seed-carrying geometry (1-D curvilinear, R12a). Supplies the fold's
-        ray carrier and the quadrature weights (the ``integrate`` transpose
-        broadcast). A seedless mesh has no bulk→ray coupling → rejected.
     emission_kernel : LinearOperator
         The operator's isotropic :math:`\ell = 0` emission kernel :math:`K`,
         an ``ndarray → ndarray`` map ``(ng, nx) → (ng, nx)`` with
@@ -1292,32 +1337,66 @@ class RadialCharacteristicEmission(LinearOperator):
         (computed once in ``S``'s bulk arm and once here — one shared kernel
         call, not a twin). ``fission_op.kernel`` is accepted (the machinery is
         kernel-generic) but fission's production ray seed rides the outer
-        ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see the
-        class docstring — routing it here would double-apply ``K ∘ integrate``).
+        ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see
+        the class docstring — routing it here would double-apply
+        ``K ∘ integrate``).
+    field_space : FullFieldSpace or None
+        System B's member composite — the codomain. ``None`` (a seedless
+        pose) is REFUSED: no System B, no bulk→ray emission coupling.
+    full_field_space : FullFieldSpace
+        System A's composite carrier — the domain (bulk ⊕ trace).
+    angular_bulk_space, angular_trace : FunctionSpace
+        The transpose's output spaces (per-ordinate bulk pullback over a
+        zero trace).
+    quadrature : Quadrature
+        The angular rule whose weights spell the ``(∫dμ)ᵀ`` broadcast.
+    coord : CoordSystem
+        The geometry commitment, forwarded to the internal fold factor.
     """
 
     # A_BA maps System A (bulk) → System B (ray): an off-diagonal block spanning
     # both systems (campaign step 4a).
     system_role = SystemRole.COUPLED
 
-    def __init__(self, sn_mesh: "SNMesh", emission_kernel: "_EmissionKernel") -> None:
-        space = sn_mesh.radial_characteristic_interior_space
-        if space is None:
+    def __init__(
+        self,
+        emission_kernel: "_EmissionKernel",
+        *,
+        field_space: "FullFieldSpace | None",
+        full_field_space: "FullFieldSpace",
+        angular_bulk_space: "FunctionSpace",
+        angular_trace: "FunctionSpace",
+        quadrature: "Quadrature",
+        coord: "CoordSystem",
+    ) -> None:
+        if field_space is None:
             raise ValueError(
-                "RadialCharacteristicEmission: the mesh carries no "
+                "RadialCharacteristicEmission: the pose carries no "
                 "radial-characteristic ray (the split ψ½ spaces are None) "
                 "— a seedless mesh (Cartesian, or a non-carrying cylinder, "
                 "R12a) has no System B, hence no bulk→ray emission "
                 "coupling. A_BA exists only on a seed-carrying mesh — the "
                 "GL sphere, the σ_y-folded cylinder (Q5.6)."
             )
-        #: The augmented geometry (ray carrier + quadrature).
-        self.sn_mesh = sn_mesh
         #: The isotropic ℓ=0 emission kernel (K_iso for S, the fission dyad
         #: for F) — the SHARED ``ndarray → ndarray`` object the bulk gain uses.
         self.emission_kernel = emission_kernel
+        #: System B's member composite — the declared codomain.
+        self._field_space = field_space
+        #: System A's composite carrier — the declared domain (bulk ⊕ trace).
+        self._full_field_space = full_field_space
+        #: The transpose's output spaces (per-ordinate bulk + trace) and the
+        #: quadrature whose weights spell (∫dμ)ᵀ — bound at construction
+        #: (un-weld arc O-1: the operator binds VALUES and SPACES, no mesh).
+        self._angular_bulk_space = angular_bulk_space
+        self._angular_trace = angular_trace
+        self._quadrature = quadrature
         #: The fold factor (the migrated reconstruction, ℓ=0 production reach).
-        self._fold = RadialCharacteristicReconstruction(sn_mesh, n_moments=1)
+        self._fold = RadialCharacteristicReconstruction(
+            field_space, coord=coord, quadrature=quadrature,
+        )
+        space = field_space.interior_space
+        assert isinstance(space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only
         #: The ψ½ interior split space (level metadata for repr; non-None by
         #: the ctor guard). The declared codomain is the composite space.
         self._ray_space = space
@@ -1336,13 +1415,13 @@ class RadialCharacteristicEmission(LinearOperator):
     def domain(self) -> Optional["FunctionSpace"]:
         # System A — the FullField composite carrier (B.2b re-type; the
         # 2-blockification of System A lands with the B.2d ray eviction).
-        return self.sn_mesh.full_field_space
+        return self._full_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
         # System B — the ψ½ composite member space (B.2b DP1; non-None by
         # the ctor guard: A_BA exists only where System B does).
-        return self.sn_mesh.radial_characteristic_field_space
+        return self._field_space
 
     # ── Forward — bulk flux → ψ½ ray emission ─────────────────────────
 
@@ -1436,7 +1515,6 @@ class RadialCharacteristicEmission(LinearOperator):
                 "must be a RadialCharacteristicField (System B's member "
                 f"carrier); got {type(cotangent).__name__}."
             )
-        mesh = self.sn_mesh
         m_bar = self._fold.apply_transpose(cotangent)        # (1, ng, nx)
         phi0_bar = np.asarray(
             self.emission_kernel.apply_transpose(m_bar[0]),  # (ng, nx)
@@ -1444,11 +1522,11 @@ class RadialCharacteristicEmission(LinearOperator):
         # (∫dμ)ᵀ: broadcast the bulk moment cotangent per ordinate with the
         # quadrature weight w_n (the exact transpose of ``integrate_angular``'s
         # Σ_n w_n ψ_n) — the same w the S-adjoint pullback used.
-        w = np.asarray(mesh.quad.weights, dtype=float)       # (N,)
+        w = np.asarray(self._quadrature.weights, dtype=float)  # (N,)
         bulk_bar = w.reshape((w.size,) + (1,) * phi0_bar.ndim) * phi0_bar[None]
         return FullField(
-            interior=AngularSourceSink(values=bulk_bar, space=mesh.angular_bulk_space),
-            boundary=AngularBoundarySourceSink.zeros(mesh.angular_trace),
+            interior=AngularSourceSink(values=bulk_bar, space=self._angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(self._angular_trace),
         )
 
     def __repr__(self) -> str:

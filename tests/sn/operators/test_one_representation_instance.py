@@ -130,7 +130,10 @@ def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
     """
     from orpheus.sn.operators.boundary import SNBoundaryOperator
     from orpheus.sn.loss_representation import ScanMarch
-    from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+    from orpheus.sn.loss_representation.sweep_schedule import (
+    SweepSchedule,
+    reflective_faces,
+)
 
     captured: list[object] = []
     real = ScanMarch._sweep_interior
@@ -146,7 +149,7 @@ def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
     L = StreamingOperator(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
-    M = A - SNBoundaryOperator(sn).split(SweepSchedule.gauss_seidel(sn)).lower
+    M = A - SNBoundaryOperator(sn).split(SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))).lower
 
     _ = M.solve(psi)
 

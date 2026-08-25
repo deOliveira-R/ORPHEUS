@@ -44,7 +44,10 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
 from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
+from orpheus.sn.loss_representation.sweep_schedule import (
+    SweepSchedule,
+    reflective_faces,
+)
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.scheduled_invertible import (
@@ -84,7 +87,8 @@ def _reified(bc: str = "reflective", *, seed: int = 7):
     _, sig_r = _removal_sigmas(sn, seed=seed)
     LC = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
     B = SNBoundaryOperator(sn)
-    schedule = SweepSchedule.gauss_seidel(sn)
+    schedule = SweepSchedule.gauss_seidel(
+        sn.ndim, sn.quad.octants, reflective_faces(sn))
     parts = B.split(schedule)
     return sn, LC, B, schedule, parts, LC - parts.lower
 
@@ -266,7 +270,7 @@ def test_jacobi_schedule_split_is_degenerate():
     ``B_upper = B``) — the degenerate that recovers the plain lagged-B
     iteration."""
     sn, _LC, B, _sched, _parts, _M = _reified()
-    jac = SweepSchedule.jacobi(sn)
+    jac = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     np.testing.assert_equal(jac.lower_inflow_rows(sn), {})
     parts = B.split(jac)
     psi = _random_state(sn, seed=5)

@@ -176,6 +176,7 @@ from orpheus.sn.operators.boundary import (
     SNBoundaryOperator,
 )
 from orpheus.sn.operators.radial_characteristic import (
+    march_start_cosines,
     RadialCharacteristicEmission,
     RadialCharacteristicOperator,
     RadialCharacteristicSeeding,
@@ -562,10 +563,28 @@ def build_within_group_system(
     # walk's in-solve engine constructions retired with the fused
     # delegation, so THIS is the one march-construction site).
     A_AB = RadialCharacteristicSeeding(sn_mesh)
-    emission = RadialCharacteristicEmission(sn_mesh, S.isotropic_kernel)
-    B_b = RadialCharacteristicBoundaryOperator(sn_mesh)
+    reduced = sn_mesh.reduced
+    assert reduced is not None  # carrying ⇒ 1-D curvilinear; narrowing only
+    emission = RadialCharacteristicEmission(
+        S.isotropic_kernel,
+        field_space=member_space,
+        full_field_space=full_field_space,
+        angular_bulk_space=sn_mesh.angular_bulk_space,
+        angular_trace=sn_mesh.angular_trace,
+        quadrature=sn_mesh.quad,
+        coord=reduced.coord,
+    )
+    B_b = RadialCharacteristicBoundaryOperator(
+        member_space, sn_mesh.bc["xmax"].law,
+    )
     march = RadialCharacteristicOperator(
-        sn_mesh, mat_xs.total_cross_section_field,
+        member_space,
+        mat_xs.total_cross_section_field,
+        bulk_space=sn_mesh.bulk_space,
+        dr=sn_mesh.axis_widths[0],
+        start_cosines=march_start_cosines(
+            reduced, sn_mesh.radial_characteristic_levels,
+        ),
     )
     A_BB = march - B_b
     space = CoupledSpace.from_systems(

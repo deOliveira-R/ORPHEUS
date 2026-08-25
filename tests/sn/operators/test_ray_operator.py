@@ -48,6 +48,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from tests.sn._test_helpers import rc_march
+
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
@@ -120,7 +122,7 @@ def _solve_inward_cells(edges: np.ndarray) -> np.ndarray:
     # σ_t constant in r, distinct per group — the C_ray collision coefficient,
     # a typed mesh-bound CrossSectionField (the operator's mesh-identity guard).
     sigma_t = np.stack([np.full(nx, _SIGMA[g]) for g in range(_NG)], axis=0)
-    op = RadialCharacteristicOperator(sn, CrossSectionField(values=sigma_t, space=sn.bulk_space))
+    op = rc_march(sn, CrossSectionField(values=sigma_t, space=sn.bulk_space))
     # System B's SOURCE composite (4e native — the block boundary speaks the
     # split member directly; no unified bridge).
     src = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
