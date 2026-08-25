@@ -386,14 +386,18 @@ implicitly ruled.
   `(quad, reduced, coord, levels, ng)` — `[M]` all mesh-free-available.
   Unblocks `RadialCharacteristicSeeding`, the curvilinear walks, and the
   sweep cache.
-- **O-3 — the L-binding bundle**: `_streaming_axes` per-axis stencils
-  (computed in `SNMesh._setup_cartesian`, `augmented_mesh.py:1769`, no
-  object home) + closure + spaces become L's construction inputs; the
-  concrete `LossRepresentation` classes drop `mesh: "SNMesh"`
-  (`loss_representation/__init__.py:462/:980`); traversal stays a
-  solve-time handoff (deferred arc; `SweepDependencyGraph.for_shape` the
-  mesh-free precedent). **Fork (not ruled):** bundle as an explicit object
-  vs constructor params on the `LossRepresentation` family.
+- **O-3 — the L-binding bundle — ⭐ REFINED AND ITS FORK RESOLVED (user,
+  2026-08-25): see §5c.** The scheme is a stage-2 generator on the Frame
+  pattern; `StreamingOperator` binds `(domain, codomain,
+  DiscretizationScheme)` exactly as `ScatteringOperator` binds its frame;
+  the "bundle" IS the scheme's minted package (closure + trace descriptor +
+  basis kind + positivity predicate); the `LossRepresentation` family
+  reorganizes into the `DiscretizationSchemeBase` family and drops
+  `mesh: "SNMesh"` (`loss_representation/__init__.py:462/:980`); the
+  `_streaming_axes` stencils (`augmented_mesh.py:1769`) are the evaluated
+  layer of the closure's structure; traversal stays a solve-time handoff
+  (deferred arc; `SweepDependencyGraph.for_shape` the mesh-free precedent)
+  — and is CONTRABAND in the scheme by the §5c hard guard.
 - **O-4 — B under the chain**: declarations move to the overlay (today on
   the mesh layer's `Axis1D.bc` — one stage late relative to the charter);
   realization at the head through the realizer chain (already takes the
@@ -419,6 +423,118 @@ implicitly ruled.
   current bridging pattern; under the chain these become head-side
   assemblies over stage objects.
 
+## 5c. The O-3 refinement (RULED 2026-08-25): the scheme is a stage-2 generator, and L binds the way S does
+
+**The ruling.** `DiscretizationScheme` reorganizes on the Frame-machinery
+pattern (a `DiscretizationSchemeBase` family): it is a **stage-2 generator**
+— a factory whose *induced parts survive the forgetting*. `StreamingOperator`
+is instantiated with **`(domain, codomain, DiscretizationScheme)`** — the
+same discipline `ScatteringOperator` uses with its frame. The scheme mints;
+the operator retains the minted objects; the scheme is forgotten behind a
+**transitional accessor** — *declared scaffolding* — whose retirement
+criterion is the **behavioral-identity test**: two operators with equal
+minted arrows and different provenance must be behaviorally
+indistinguishable, and the day that test passes with the accessor
+unconsulted anywhere in apply/adjoint/solve, the accessor goes. Until then
+it stays, honestly, because we do not yet know exactly what must be
+extracted from the scheme to live inside L.
+
+**Why L needs a scheme at all — the "full operator" fact.** L is a *full
+operator*: it acts on bulk AND boundary, and the scheme is what makes the
+bulk–boundary connection. And why the generator lives OUTSIDE its consumers
+while each consumer forgets it: **sharing justifies interning** — one frame
+per axis pair, many arrows per consumer (Windowing minting its own
+differently-bound arrows from the same frame is the use case). The cache
+triad extends: **kernel per cross-section set, frame per axis pair, arrows
+per space** — and the scheme joins it (scheme per closure choice; evaluated
+closures per mesh × quadrature × shift).
+
+**The induced package is richer than the closure alone — the scheme induces
+on BOTH sides:**
+
+- **Operator side, in two layers that must stay separate**: the *closure
+  function* a(·) — the scheme's mathematical content, structural,
+  shift-invariant (DD's ψ̄ = (ψ_in + ψ_out)/2; step's ψ_out = ψ̄; SC's
+  exponential; LD's local 2×2 — one function family, the Padé table row) —
+  and the *evaluated coefficient table* a(τᵢ) with τ = Σ_t·Δs/|μ| —
+  instance data, because τ depends on the collision diagonal. The geometric
+  chord table Δs/|μ| is shift-invariant; the τ values are not. This
+  recipe/instance split one level down is load-bearing for the pencil:
+  `Pencil.at(σ)` rebinds the diagonal → τ re-evaluates → closure
+  coefficients rebuild cheaply against static structure. It is also exactly
+  the JAX static/traced boundary (#394's substrate), and it **locates the
+  α-admissibility guard physically**: an inadmissible shift manifests as
+  τ ≤ 0 at closure evaluation — the guard lives where the closure is
+  evaluated, which is why `StreamingCollisionOperator.__init__` was always
+  the right site.
+- **Space side**: the **trace descriptor** and the **cell basis kind**.
+  DD's edge unknowns ARE the spatial axis's trace content; LD enriches the
+  per-cell representation itself (the spatial axis goes Modal — two dofs
+  per cell in 1-D — plus its face traces). The scheme co-determines what
+  the solution space IS, not just how the operator acts on it. (This is
+  §2 T1's mechanism for the spatial axis: the head resolves its kind
+  because the head holds the scheme.)
+- **Realization flags**: the **cone-preservation predicate** — a predicate
+  over τ, not a constant (DD is positive iff τ ≤ 2 per cell), so the flag
+  is honestly *mesh-dependent*, evaluated against the actual mesh; the
+  max-τ-at-setup diagnostic is this predicate's evaluation report. The
+  CONE-PRESERVE gate consumes the predicate, never a boolean (#390/#400
+  territory).
+
+**The doctrine this instantiates** is already canon (the stage-2 generator
+discipline, crystallized 2026-08-24 — memory
+`feedback_stage2_generator_discipline.md`): *a stage-2 generator induces
+structure on both the space and the operator, and the two inductions must
+be minted together, at one site; forgetting = retaining the induced parts;
+accessors are provenance.* Frame and Scheme are its two worked instances
+(Frame: HarmonicAxis metric + Analysis/Synthesis, consistency = the
+tightness gate; Scheme: trace descriptor + basis kind + closure,
+consistency = ONE closure serving both apply and solve — **ERR-026's
+structural closing**); Mesh and Quadrature are the degenerate space-side-
+only cases. ERR-026's shape — two closures on one object, `A.inverse()`
+not the inverse of `A` — is precisely what happens when the two inductions
+occur at different sites; minting together makes the bug class
+unconstructable, the same move as the Frame factory closing ERR-039.
+
+**The hard guard, inherited from a corpse**: **the scheme must not carry
+traversal.** CumprodScan vs wavefront vs KBA ordering is cost-side
+(deferred strategy arc); the scheme is answer-side only. The clean test,
+to be written into the scheme's docstring at birth as a constructor-guard
+sentence: *everything the scheme provides changes the ANSWER; if a
+candidate datum changes only the COST, it is contraband.* This is what
+keeps the design from re-growing the `LossRepresentation` it replaces —
+the scheme object is that class's successor, and its original sin is
+structurally excluded, not merely avoided.
+
+**The specified mechanism** (the ruling's plan deltas; labels key into the
+CS2 / Phase-S ledger):
+`DiscretizationScheme.mint(mesh_axis, quad_axis) → (Closure,
+TraceDescriptor, basis-kind, positivity-predicate)`, with the solution
+space's WithTrace content AND the streaming binding drawn from **one mint
+call** (S2/1.3). The closure's two-layer split is an explicit dependency
+of the shift-rebind path (3.2: rebinds re-evaluate the table only,
+against static structure). C1's CONE-PRESERVE consumes the predicate. The
+doctrine paragraph lands in D8 — the spaces chapter — beside the
+forgetful-functor section, with Frame and Scheme as its two worked
+instances (archivist: add to §10's cross-link list).
+
+**Naming (ruled + one proposal to ratify at the design round).** Ruled:
+keep **"closure"** for the retained object (the corpus reserves it), and
+resist scheme-flavored names anywhere downstream — the scheme name
+describes the GENERATOR; the minted closure is the invariant-bearing
+object; the operator it binds into needs no scheme-flavored name at all
+(the rule that kept `SweepOperator` from becoming `TrackSweepOperator`).
+Proposal (main agent): qualify the class as **`CellClosure`** — the corpus
+already carries an ANGULAR closure (`pole_angular_closure`), so an
+unqualified `Closure` class is ambiguous between the angular strategy and
+this cell-local relation; "cell" states the locality that is the object's
+defining property (DD/step/SC/LD are all cell-local relations
+(inflow, source) → (average, outflow) per (cell, ordinate)), and the two
+layers then read naturally — the `CellClosure` carries the function family
+and shift-invariant structure; its evaluated coefficient table is instance
+state rebuilt on shift rebinds. Alternate if "cell" reads too
+finite-volume: `SpatialClosure`.
+
 ## 6. The rulings ledger (all user, this session, unless marked)
 
 | # | ruling | date |
@@ -436,6 +552,7 @@ implicitly ruled.
 | R11 | Assigned-but-undeclared refuses at the overlay; declared-but-unassigned is legal and inert by T2 — no warning machinery | 2026-08-25 |
 | R12 | Symmetry is the admissibility bound and quality criterion on refinements, not the flow; per-stage group machinery is aspirational (family: #152, #166) | 2026-08-25 |
 | R13 | `MaterialXSField` dissolution verdict — *proposed, unopposed, consistent with R4-R6; ratify formally at arc design* | 2026-08-25 |
+| R14 | O-3 resolved (§5c): `DiscretizationScheme` is a stage-2 generator (`DiscretizationSchemeBase` family, successor of `LossRepresentation`); `StreamingOperator` binds `(domain, codomain, scheme)`; the closure splits function/evaluated-table; transitional accessor under the behavioral-identity retirement test; **the scheme must not carry traversal** (answer/cost constructor guard); "closure" names the retained object, scheme-flavored names forbidden downstream (class-name proposal `CellClosure`, to ratify) | 2026-08-25 |
 
 ## 7. The adversarial record (distilled; refuted candidates are first-class output)
 
