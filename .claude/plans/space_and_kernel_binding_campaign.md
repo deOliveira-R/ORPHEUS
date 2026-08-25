@@ -1534,9 +1534,15 @@ RATIFIED renames (user: "I gladly accept the names retraction and
 section") — `AxisEmbeddingOperator → AxisSectionOperator`, verb
 `embedding → section`, zero old-spelling hits anywhere. 22 gates incl.
 the tightness gate ([M] minted kernels ≡ frame face contents,
-bit-exact) and the gram-derivation pin ([M] gram einsum ≡
+bit-exact) and the gram-derivation pin (~~[M] gram einsum ≡
 weights.sum(), 8 of 8 probed fixtures — G6.6's array_equal licence
-survives); both new gates mutation-checked. Suite: numerics 2440 +
+survives~~ ⛔ REFUTED 2026-08-24 by the S7 docs audit, re-verified:
+the probe's ladder SKIPPED GL8, where the two differ by 1 ULP and the
+section then differs from the old iso kernel by 2.07e-16 max rel —
+principled-over-bit-identical ruled; the GL8 gate row records the
+bound; correction commit `6734bf15`); both new gates mutation-checked
+(G6.1/G6.2's array_equal was seed-fragile — 844/2000 — re-pinned
+nulp=1 same commit). Suite: numerics 2440 +
 neighbors 1903 passed rc 0; pyright 0. The shipped pair is now SAFE to
 consume (the S6.0 do-not-consume hazard is void — the energy drop is a
 refusal).
@@ -1583,12 +1589,21 @@ binding to the field's carrier-minted space would have decoupled the
 σ̄ legs under G2.5's ×2-pose mutation — caught at design; the pose is
 the measure authority). G7.4's gates PRE-EXISTED (written forward at
 CS4a-R to guard exactly this rewire) and stayed green.
-▶ RESUMES AT the **S7 docs half** (dispatched to the archivist
-2026-08-24): the staleness list above + the collapse-pair flagship
-section in spaces.rst + infinite_medium's EE-1/pose sweep + the
-changelog; G7.5 done-when = Sphinx -W clean + dead_references 0. Then
-the **from_isotropic retirement re-pose** (ruled deferred to here) and
-the CS4b close-out → CS1.5′ per the campaign order.** The recarve file
+**S7 docs half ✅ EXECUTED 2026-08-24 (`26699740`, archivist; reviewed
++ its 3 audit findings re-verified and landed as `6734bf15`): the
+spaces.rst collapse-pair flagship chapter (+946), infinite_medium's
+five-step + EE-1 subsection, the staleness sweep across 8 more pages.
+G7.5 MET: Sphinx -W rc=0, dead_references total_dead=0. ⚠ The audit's
+keeper findings: "bit-exact" claims are properties of the DRAW (pin
+nulp unless the fixture is proven exact by sweep); for a finite
+SHIPPED family probe EVERY member, not a ladder (the GL8 miss). SN
+history.rst row deferred to merge by its own hash contract (the
+archivist holds a ready draft).
+⏹ **S7 COMPLETE ⟹ CS4b S1–S7 ALL EXECUTED.** Remaining before the
+campaign order's next step: the **from_isotropic retirement re-pose**
+(user question, deferred from S6.2's ruling) → then CS1.5′ → CS2
+(carries the moment-mint rider) → CS4c. BRANCH-HOLD stands; the
+≥90-min pre-merge gate runs on the user's go (inherits #404/#405).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 
