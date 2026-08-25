@@ -1606,9 +1606,30 @@ history.rst row deferred to merge by its own hash contract (the
 archivist holds a ready draft).
 ⏹ **S7 COMPLETE ⟹ CS4b S1–S7 ALL EXECUTED.** The **from_isotropic re-pose is RULED
 (2026-08-24): the name rides the CLASS-MERGE decision point** (rider
-recorded at that charter). Next per the campaign order: CS1.5′ → CS2
-(carries the moment-mint rider) → CS4c. BRANCH-HOLD stands; the
-≥90-min pre-merge gate runs on the user's go (inherits #404/#405).** The recarve file
+recorded at that charter).
+▶ RESUMES AT **CS1.5′ — the medium exists as its own concept ABOVE the
+discretization** (the outcome; §2.5 is the charter). ⚠ It OPENS AS A
+DESIGN ROUND, not execution: the 2026-08-20 grounded design
+(`.claude/plans/cs15_medium_unweld_design.md`, 5 forks ruled) was
+DEMOTED to a CONTESTANT when CS4a pulled forward (§0 ⚠⚠ ruling); the
+surviving objectives are `.claude/plans/kernel_and_medium_objectives.md`
+(`[M]` both files exist at this writing, 17 KB / 13 KB; census of
+record `scratch/cs15_grounding_census.md`). Pickup duties
+(plan-authoring §7): (1) read §2.5 WHOLE, incl. its CS4a-R XD-4
+amendment (the three-outcome grid-coherence structure); (2) reconcile
+the demoted design + the objectives file against the LANDED CS4a/CS4b
+tree — §2.5's step counts are dated 2026-08-20 and STALE: `[M]`
+re-censused 2026-08-24, `MaterialMesh.from_materials` is now **1
+production + 34 test sites in 9 files** (the charter says 16 in 7 —
+the test half more than doubled through S5–S7, incl. S7's own
+admission gates), so re-census EVERYTHING before designing; (3) the
+**funnel ruling is an OPEN USER FORK** the round must surface (whether
+the space mint is the unique construction funnel — it decides
+`SNDiscretization`'s existence; the ⚠ CONDITIONAL block ~line 362);
+(4) posture stays surgical — the user steers the rounds, per every
+prior phase. BRANCH-HOLD stands; the ≥90-min pre-merge gate runs on
+the user's go (inherits #404/#405); the archivist holds a ready SN
+history.rst row for merge time.** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 

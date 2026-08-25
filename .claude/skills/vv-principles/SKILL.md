@@ -871,6 +871,36 @@ any other review work.
     > "its mesh is carried by its CrossSectionField coefficient"). The
     > locality argument was TRUE and the "a mesh is never data of the
     > interaction, only of the pullback" corollary FALSE at the output mint.
+31. **NEVER pin ``np.array_equal`` — or publish "bit-exact" — from a single
+    draw's green reading** — **instead** sweep seeds (or prove the float
+    re-association exact) before claiming the bit tier; a one-draw exact
+    reading is compatible with a law that fails ``array_equal`` on 40 % of
+    inputs, and the resulting gate is seed-fragile: green today, red on any
+    innocent fixture edit, and its "BIT-EXACT" docstring reads as a stronger
+    claim than the sweep supports. "Bit-exact" is a property of the DRAW
+    until a sweep makes it a property of the fixture.
+    > `[M]` 2026-08-24, CS4b S6 gates: ``R∘E = id`` pinned ``array_equal``
+    > on one seed and documented "BIT-EXACT". Seed sweep on the same
+    > fixture: **844 of 2000** seeds fail (worst rel 1.5e-16 — Σ w_n(φ/Σw)
+    > re-association); idempotence fails 57/200. The shipped SN carrier IS
+    > exact (200/200 — Σw = 2 exactly, symmetric weights), which is why the
+    > production-facing rows keep ``array_equal`` honestly. Found by an
+    > archivist audit, re-pinned ``nulp=1`` same day.
+
+    ⭐ **The finite-roster corollary — for a SHIPPED finite family, probe
+    every member; a ladder is for unbounded families.** The #13 ladder
+    rule (break your steps' arithmetic pattern) is the right discipline
+    when the family is infinite; when the population is an enumerable
+    shipped set, any ladder is a SAMPLE of it, and the member you skip is
+    where the counterexample lives — while "n ∈ {…}, k of k" reads as
+    exhaustive.
+    > `[M]` 2026-08-24, the section-divisor probe: gram-einsum vs
+    > ``weights.sum()`` probed at n ∈ {2,4,5,6,16,64} — 8 of 8 equal,
+    > pattern dutifully broken (odds, non-powers). The shipped family's
+    > ONE divergent member is **GL8** (1 ULP), inside the probed range and
+    > skipped; the published consequence ("the array_equal licence
+    > survives") was false. Caught by the docs audit's independent census;
+    > the correction shipped a falsifiable GL8 gate row pinning the bound.
 
 ---
 

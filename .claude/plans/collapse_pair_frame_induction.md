@@ -263,7 +263,15 @@ zero hits of either old spelling remain in orpheus/, tests/, docs/).
 5. The shipped energy-drop hazard (§4) — confirm no energy-marginal consumer
    appeared in the interim.
 
-## 8. After S6.0b (the campaign order, unchanged)
+## 8. After S6.0b (the campaign order, unchanged) — ✅ ALL EXECUTED 2026-08-24
+
+*(Terminal note: S6.1 `ffb8f286`, S6.2 `78925753`+`53e7d207`, and S7
+`1f8e0323`/`2e054bfc`/`26699740` all landed the same day this plan
+executed; the campaign plan §5 is the ledger. The section below is the
+charter as written, kept per plan-authoring §3. ⚠ One §3 correction
+inherited from the S7 audit: this plan's §3 "gram ≡ weights.sum, 8 of 8"
+row's universal consequence was REFUTED at GL8 — 1 ULP; see the
+campaign ledger's bannered row and correction commit `6734bf15`.)*
 
 S6.1 = #399 (space-derived moment members; witnesses in
 `scratch/cs4b_verification_plan.md` §5 — three already-raising LD rows flip
