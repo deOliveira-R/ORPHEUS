@@ -296,3 +296,74 @@ How to apply: when a brief mandates an additive-leaf decomposition of a
 curvilinear discrete operator, push back — the discrete closure is coupled. Do
 NOT contort the discretization to fit a continuous-operator algebra that the
 discrete form does not honor. (#197 typed-cylinder; landed via the subtractive form.)
+
+---
+
+## L-014 -- A single-DOF scheme's scalar geometry factor is a 1x1 GRAM: find the inner product before widening
+
+When widening a scheme from 1 DOF per cell to N (DD -> LD; scalar -> moment
+vector), every shipped SCALAR geometry constant is the `(0,0)` corner of some
+Gram matrix. Do NOT widen by "multiplying the scalar into each moment row" --
+derive the weak form and read off WHICH inner product each constant belongs to.
+
+The forensic instance (curvilinear LD shape derivation, 2026-08-25). The
+curvilinear SN redistribution ships `redist_dAw = Delta A / w_n`, a scalar.
+Weighting the conservative form by a per-cell basis against `dV = 4 pi r^2 dr`,
+the angular term's `1/r` cancels ONE power of the measure, so the half-angle
+fluxes enter through the ONE-MEASURE-DOWN Gram
+`R_kj = Delta A * <b_k,b_j>_{d-2} / <b_0,b_0>_{d-2}` (`d = 3` sphere, `2`
+cylinder -- this spelling also absorbs the geometry-dependent factor-of-2 in the
+ORPHEUS alpha normalization). `R_00 == Delta A` exactly, so the shipped scalar
+IS the corner; but `R_01/R_00 = h/(6 r_c) != 0` on the SPHERE, and the
+off-diagonal is LOAD-BEARING: per-ordinate flat-flux consistency on the SLOPE
+row cancels only because of it. Lumping `R` breaks the canonical L0 identity.
+
+Two corollaries that generalise:
+
+* **The scalar tells you nothing about the off-diagonal.** DD's arithmetic is
+  compatible with any `R_01`, so no reading of the shipped code can recover it;
+  only the weak form can.
+* **Check whether the scheme's `p = 0` truncation IS the shipped scheme.** It
+  usually is not: LD's 1-moment truncation is STEP (upwind-discontinuous), NOT
+  DD (central/diamond). A base class that assumes the shipped member is the new
+  member's degenerate case is wrong from the first line.
+
+How to apply: before any moment-widening carve, write the weighted-residual
+reduction and tabulate which MEASURE each term carries. The table IS the
+convention crosswalk (L-006), and each row names the Gram the widened member
+needs. (LD curvilinear shape probe; `scratch/probe_ld_sphere_moments.py` V1/V2/V4/V7.)
+
+---
+
+## L-015 -- Derive a gate's BLINDNESS from the algebra at design time, before writing it
+
+A design choice whose two candidates AGREE at the fixture's fixed point is
+invisible to that fixture -- at every tolerance, mesh and order (vv-principles
+Mode 12). This is decidable by algebra BEFORE any gate exists: subtract the two
+candidates symbolically and substitute the gate's own fixture.
+
+Two instances from one derivation (2026-08-25), both in the curvilinear family's
+canonical L0 gate (`streaming-equilibrium` / per-ordinate flat flux):
+
+* **The starting-direction seed.** Two consistent LD discretizations of the
+  `mu = -1` march. `[M]` at BOTH moment counts: the DD reduction differs by
+  `propto (Sigma_t psi_in - q0)`, IDENTICALLY zero at the flat-flux fixed point;
+  the full LD 2x2 has both variants flat-flux EXACT, hence agreeing there
+  exactly. ⭐ And the second blindness stacks: the LD pole-cell gap is
+  `(-h qhat/30, 4 h qhat/15) + O(h^2)` -- proportional to the SLOPE SOURCE
+  MOMENT alone -- so any fixture with `qhat = 0` (which is every ORPHEUS fixture
+  today, the external slope source being zeroed, #247) is blind too. Write the
+  denominator: a claim measured on the 1-moment reduction is NOT a claim about
+  the N-moment scheme, and here the two have DIFFERENT leading terms.
+* **The geometry arm.** A per-moment-row flat-flux gate written on the CYLINDER
+  is vacuous: one measure down from `r dr` is FLAT, so the redistribution Gram
+  is diagonal AND both slope-row terms vanish identically (`0 = 0`). The same
+  gate on the SPHERE is a genuine cancellation of two non-zero terms and DOES
+  catch a lumped/mis-signed off-diagonal. Same gate, same code, one arm blind.
+
+How to apply: for every design fork, compute `candidate_A - candidate_B`
+symbolically and substitute the intended gate's fixture. If it vanishes, say so
+in the plan and name the fixture that does NOT annihilate it -- do not ship the
+fork under a gate that cannot rank it. Cheap (one `subs`), and it runs before
+any test is written. (LD curvilinear shape probe V4/V6 + cylinder C3;
+vv-principles Mode 12 / #24(d).)

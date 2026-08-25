@@ -370,6 +370,21 @@ reportable* ("Lathrop 2000 has 4 citers, all classified"), which is exactly what
 clause (a) demands. Companion: [[user-nse-volume-archive]] (the *other* half of the
 same failure — the local denominator was also bigger than I assumed).
 
+⭐⭐ **Second worked case (2026-08-25), and the cost profile that makes this the
+worst lesson to repeat: MY OWN "#158 curvilinear LD is unpublished" negative had
+shipped into PRODUCTION docstrings** (`linear_discontinuous.py`, `scheme.py`) as a
+guard message + capability-flag rationale, telling every future session to derive
+from scratch what Adams-Martin 1992 NSE 111 App. A prints in full — and that paper
+was IN `scratch/literature/` when re-searched. Two mechanics worth keeping:
+(a) **a refuted negative does not stay in the memo that made it — it propagates
+into code and issues; the correction owes a sweep of those surfaces** (flag them to
+the main agent; a literature agent does not edit production). (b) **Re-run the
+corpus grep when the corpus GROWS**: the refuting PDF's sidecar was a later-added
+`.textlayer.md` variant (Mistral 401'd 2026-07-26, different suffix), so any
+earlier grep with `--include='*.md'` narrowed to mocr stems, or run before the
+add, missed it silently. A negative dated before the corpus's newest file is
+STALE, not settled. Full record: [[issue-158-linear-discontinuous-cell-update]].
+
 ## L-007 — Recognize a dead Zotero server and fail over to Tier 2 immediately
 
 A Zotero MCP server that returns 0 hits on known-present items together

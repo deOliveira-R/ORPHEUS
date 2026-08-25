@@ -34,6 +34,10 @@ the SN theory page's **"Development history"** section
 
 ## 3. Durable reference (reusable design)
 
+- [ld_curvilinear_shape.md](ld_curvilinear_shape.md) — the derived SHAPE of
+  the curvilinear LD angular-closure member: the one-measure-down Gram (a
+  MATRIX where DD ships a scalar), componentwise τ elimination, the two
+  blind-to-flat-flux seed variants. Read before the AngularClosure carve.
 - [origin_context.md](origin_context.md) — why this agent exists; the
   A1+A2 case study that motivated the Branch-1/Branch-2 bifurcation loop.
 - [capability_matrix_framework.md](capability_matrix_framework.md) — the

@@ -1,6 +1,6 @@
 ---
 name: Sphere SN spatial convergence order at r=0 (central cell)
-description: The literature on O(h^p) at the spherical SN central cell. Bottom line — NO canonical reference reports an O(h^2) central-cell SPATIAL closure; Hébert/Lathrop/Bailey all study ANGULAR error and use uniform DD spatially. First-order-at-origin is an under-documented mesh effect, not a published fundamental result. Cite for any "is O(h^2) at r=0 achievable" question.
+description: The literature on O(h^p) at the spherical SN central cell. Bottom line — NO canonical reference reports an O(h^2) central-cell SPATIAL closure; Hébert=DD spatially; Lathrop=no spatial differencing; ⚠ CORRECTED 2026-08-25: BMC's Capsaicin uses spherical LD spatially (sidecar l.688), and published curvilinear LD exists — [[issue-158-linear-discontinuous-cell-update]] §2. First-order-at-origin is an under-documented mesh effect, not a published fundamental result. Cite for any "is O(h^2) at r=0 achievable" question.
 type: reference
 ---
 

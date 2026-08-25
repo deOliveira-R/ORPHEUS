@@ -1,6 +1,6 @@
 ---
 name: issue-158-linear-discontinuous-cell-update
-description: Exact LD (linear-discontinuous) SN spatial cell-update math for ORPHEUS — slab moment system from Larsen-Morel 1989 JCP 83 Eqs (4.1)-(4.3) (canonical, local PDF); diffusion-limit acceptance criterion from LMM-1987 JCP 69 Table I + p.321; curvilinear LD is UNPUBLISHED → derivation path given. update/residual split mapped to CellVisit/UpstreamState/CellResult.
+description: Exact LD (linear-discontinuous) SN spatial cell-update math for ORPHEUS — slab moment system from Larsen-Morel 1989 JCP 83 Eqs (4.1)-(4.3) (canonical, local PDF); diffusion-limit acceptance criterion from LMM-1987 JCP 69 Table I + p.321; curvilinear LD IS PUBLISHED (⛔ the old "unpublished" §2 claim was REFUTED 2026-08-25 — Adams-Martin 1992 NSE 111 App.A (LOCAL) has the full spherical LD moment system; see §2). update/residual split mapped to CellVisit/UpstreamState/CellResult.
 metadata:
   type: project
 ---
@@ -31,7 +31,8 @@ single-upstream affine scan).
 |-----|----------|--------------------------|------|
 | **LM-1989** | Larsen, E. W. & Morel, J. E. (1989). *Asymptotic solutions of numerical transport problems in optically thick, diffusive regimes II.* **JCP 83(1):212-236.** | `10.1016/0021-9991(89)90229-5` | **THE slab-LD moment system** — §IV "Linear Discontinuous Methods", Eqs. (4.1a-c), (4.2a-c), (4.3a-e). Also proves LD's full diffusion limit (Eqs. 4.4-4.10). |
 | **LMM-1987** | Larsen, E. W., Morel, J. E. & Miller, W. F. (1987). *Asymptotic solutions of numerical transport problems in optically thick, diffusive regimes.* **JCP 69(2):283-324.** | `10.1016/0021-9991(87)90170-7` | The diffusion-limit acceptance CRITERION (four limits, Table I p.287) + the "why LD not Step" verdict (p.321 §IX). |
-| **Hébert-2009** | Hébert, A. *Applied Reactor Physics* Ch.3 §3.9. | — | In-house DD curvilinear recipe (M-M closure). **Verified: contains NO LD content (0/122 pages).** Curvilinear LD is genuinely unpublished. |
+| **Hébert-2009** | Hébert, A. *Applied Reactor Physics* Ch.3 §3.9. | — | In-house DD curvilinear recipe (M-M closure). **Verified: contains NO LD content (0/122 pages).** (⛔ but curvilinear LD IS published elsewhere — §2.) |
+| **AM-1992** | Adams, M. L. & Martin, W. R. (1992). *DSA of Discontinuous Finite Element Transport Iterations.* **NSE 111(2):145-167**, App. A. | `10.13182/NSE92-A23930` | **THE spherical-LD moment system** — Eqs. (A.1a-b), (A.2a-b) per-moment angular closure, (A.3) upwind, (A.4a-d) mass integrals (printed pp. 160-161). LOCAL. |
 | **LewMil-1984** | Lewis, E. E. & Miller, W. F. *Computational Methods of Neutron Transport* §5.3 / §6. | — | Cited by the code docstrings for LD/positivity; NOT in the local corpus. Use LM-1989 as the primary, LewMil as the cross-reference for the positivity-fixup menu. |
 
 ⚠ **The OCR'd fulltext mangles ψ→`$` and the slope ψ̂→`*`.** The
@@ -202,19 +203,50 @@ than hand-transcribed.
 
 ---
 
-## 2. CURVILINEAR (sphere + cylinder) LD — UNPUBLISHED → DERIVE
+## 2. CURVILINEAR (sphere + cylinder) LD — ⛔ REFUTED 2026-08-25: it IS published
 
-**Explicit statement: there is NO published curvilinear-LD SN
-cell-update with the M-M angular closure in the local corpus or in
-the open literature I searched.** LMM-1987 (p.321) analyses LD only
-in SLAB geometry and defers even the slab-LD asymptotic details to
-"a future article" (= LM-1989, slab only). LM-1989 itself is
-slab-only. Hébert Ch.3 §3.9 is DD-only (verified 0/122 pages). An
-OpenAlex search for "linear discontinuous spherical/curvilinear
-diffusion limit" returned no matching reactor-physics paper. The
-LMM-1987 closing promise to "extend the above analysis to curvilinear
-and multidimensional geometries" (p.322) was, to my search, never
-published as a curvilinear-LD *cell-update derivation*.
+**⛔ REFUTED 2026-08-25** (full re-search: `scratch/lit_ld_curvilinear_sources.md`).
+The original claim below was an L-012 failure: its denominator was
+LMM-1987 + LM-1989 + Hébert + ONE OpenAlex query (an instrument blind
+to `SN`), and the refuting paper was sitting in the local corpus.
+The published record:
+
+- **Adams & Martin 1992 NSE 111:145 (LOCAL), Appendix A, printed
+  pp. 160-161 (PDF 17-18)**: the COMPLETE 1-D spherical LD moment
+  system — Eqs. (A.1a) zeroth + (A.1b) first spatial moment (weights
+  r² and 2r²(r−r_k)/Δr_k) incl. the redistribution term with
+  r-weighted basis integrals; **(A.2a)/(A.2b) = weighted-diamond
+  angular closure applied PER SPATIAL MOMENT** (avg AND slope);
+  (A.3) upwind closure; (A.4a-d) V/W/X mass integrals. ⚠ two flags:
+  printed slope-redistribution signs vs naive basis integrals, and
+  moment normalization (see memo F1).
+- **Morel, Wareing & Smith 1996 JCP 128:445**, DOI
+  10.1006/jcph.1996.0223 (CrossRef-verified; NOT local) — 1-D
+  spherical spatial LD + lumping (radiative transfer).
+- **Morel, Gonzalez-Aller & Warsa 2007 NSE 155:168 (NOW LOCAL)** —
+  r-z lumped LD: Eq. (6) unlumped, (15) mass-lumped, (17)-(18)
+  gradient lumping; starting-direction discussion; cites **Palmer
+  1993 U-Mich PhD = UCRL-ID-114256, "Curvilinear Geometry Transport
+  Discretization in Thick Diffusive Regions"** — the curvilinear
+  extension of the LMM-1987 diffusion-limit program EXISTS.
+- **Mordant 1986 NSE 92:218 (NOW LOCAL)** — phase-space LD FE in
+  (r-z-θ-ω) incl. the −(1/r)ξ∂/∂ω term.
+- **Hill 1975 LA-5990-MS (ONETRAN)** — LD FE in 1-D slab/CYLINDER/
+  sphere at production-report level (not local).
+- Secondary confirmations: Wu-Xie-Fischer 1999 NSE 133:350 (LOCAL)
+  says "Adams and Martin developed the linear discontinuous scheme in
+  spherical geometry"; BMC-2010 (LOCAL) sidecar line 688: Capsaicin
+  "uses a linear discontinuous finite element spatial discretization
+  for 1-D spherical geometry"; Lathrop 2000 §III.D (LOCAL) = the
+  Walters-Morel 1991 LD-in-ANGLE scheme + μ=−1 decoupling.
+
+Residual truth in the old claim: no journal paper instantiates the
+1-D CYLINDER LD specifically (ONETRAN report + r-z 2007 cover it),
+and none of the published forms uses the Morel-Montry τ specifically
+(A.2 is generic weighted diamond — the τ recipe plugs in). The
+derivation path below REMAINS USEFUL as implementation guidance, now
+re-scoped to "verify against Adams-Martin (A.1)" rather than "derive
+from nothing".
 
 ### 2.1 Derivation path (combine slab-LD + curvilinear-DD)
 
@@ -417,13 +449,14 @@ caution + Gaps).
    schedule, not CumprodScan/ScanMarch. Do NOT implement
    `affine_scan_coefficients` for LD.
 
-3. **Curvilinear LD slope-moment is UNPUBLISHED.** §2.1 Route A
-   (SymPy derivation with the slab-LD + curvilinear-DD double
-   reduction as oracle) is the principled path. Do NOT hand-transcribe
-   a curvature-weighted slope term — there is no source to transcribe
-   from. Dispatch `method-implementer` with the SymPy derivation as a
-   Branch-1 task; the two reduction oracles (→slab-LD, →curv-DD) are
-   the L1 cross-checks.
+3. **Curvilinear LD slope-moment: ⛔ "unpublished" REFUTED 2026-08-25
+   (see §2)** — the published form is Adams-Martin 1992 Eq. (A.1b)
+   (sphere; r-weighted first-moment redistribution integrals). §2.1
+   Route A (SymPy with the slab-LD + curvilinear-DD double reduction
+   as oracle) is STILL the right implementation path, now with a
+   third oracle: reproduce (A.1a-b)/(A.2)/(A.3) — resolving the two
+   print flags (memo F1: slope-term signs; moment normalization)
+   against the paper body in the process.
 
 4. **Positivity: LD is NOT positivity-preserving.** Set
    `is_positivity_preserving = False`. LD can produce negative
