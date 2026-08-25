@@ -109,6 +109,9 @@ from orpheus.transport.mesh.axis import (
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.numerics.operator import LinearOperator
@@ -165,7 +168,7 @@ class DiffusionMesh(MaterialMesh):
     def __init__(
         self,
         mesh: Mesh1D | Mesh2D,
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
     ) -> None:
         # The legacy inbound surface (MaterialMesh parity): convert the
         # mesh declaration to the canonical axis tuple ONCE, extract the
@@ -184,7 +187,7 @@ class DiffusionMesh(MaterialMesh):
         axes: "tuple[Axis1D, ...]",
         mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
-        materials: "dict[int, Mixture]",
+        materials: "Materials | Mapping[int, Mixture]",
     ) -> None:
         r"""The ONE construction body both surfaces funnel into
         (``SNMesh._init_core`` parity).

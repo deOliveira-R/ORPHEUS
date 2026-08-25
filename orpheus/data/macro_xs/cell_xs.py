@@ -10,6 +10,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from orpheus.data.materials import Materials
+
 from .mixture import Mixture
 
 
@@ -28,14 +35,14 @@ class CellXS:
 
 
 def assemble_cell_xs(
-    materials: dict[int, Mixture],
+    materials: "Materials | Mapping[int, Mixture]",
     mat_ids: np.ndarray,
 ) -> CellXS:
     """Build per-cell XS arrays from a material map.
 
     Parameters
     ----------
-    materials : dict mapping material ID to Mixture.
+    materials : Materials or mapping of material ID to Mixture.
     mat_ids : (N_cells,) int array of material IDs per cell.
 
     Returns

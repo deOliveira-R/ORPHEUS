@@ -93,6 +93,9 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.basis.indicator_basis import IndicatorBasis
     from orpheus.numerics.frame import FrameBase
@@ -163,7 +166,7 @@ class MaterialXSField:
     of this class respects by convention.
     """
 
-    materials: dict[int, "Mixture"]
+    materials: "Materials | Mapping[int, Mixture]"
     mesh: "MaterialMesh"
 
     # Lazy per-cell views — populated on first access.
