@@ -1564,12 +1564,20 @@ production targets now route through the operators under test); the
 face-packing loop re-homed to `FaceLayout.pack` (native place). `[M]`
 bit-identity held end-to-end: full sn + transport + numerics 6187
 passed rc 0 (19:55); consumers of pack 175 passed; pyright 0.
-▶ RESUMES AT the **S6.2 remainder fork (awaiting user)**: the moment
-family's widened mint has no named home (`_space_for_mesh_and_L` is a
-family classmethod; the `angular_trial_space`-analog question — carrier
-mint `sn.<name>(L)` insulating consumers from CS2's SH-factor
-axis-ification, vs status quo, vs defer to CS4c). Then → S7 (repairs +
-EE-1 + docs, incl. the from_isotropic retirement re-pose).** The recarve file
+**S6 ⏹ CLOSED 2026-08-24.** The remainder fork was RULED: **the moment
+family's mint home DEFERS to CS2/CS4c** (user) — ⛔ **CS2 RIDER**: when
+CS2 axis-ifies the SH factor, decide the widened moment mint's named
+home (the `angular_trial_space` analog — carrier `sn.<name>(L)`,
+L-keyed, width off the scheme — vs the surviving family classmethod
+`_space_for_mesh_and_L`); today's facts: fresh content-equal instances
+per call (no carrier sharing), `spatial_moments` int threads ~17 sites
+with consumers passing `scheme.spatial_basis_per_axis` by hand.
+▶ RESUMES AT **S7** (repairs + EE-1 + docs): the S7-owed corpus
+staleness list above (field_algebra "mesh identity" rows;
+operator_algebra `_phase_space_shape` xref; frame-square + naming-rule
+pages; #402 rider), + this session's additions — the collapse-pair /
+frame-induction / S5 space-primary doc story, and the
+**from_isotropic retirement re-pose** (ruled deferred here).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 
