@@ -905,8 +905,10 @@ curvilinear pole-cell :math:`O(h)` accuracy floor (Issue #233). It is declared
    implements the **slab / Cartesian** LD; the curvilinear (sphere / cylinder)
    LD cell closure — where the angular weight :math:`\tau` enters the average
    moment and the radial :math:`(r-r_j)` weighting couples slope to curvature —
-   is unpublished and raises ``NotImplementedError`` on a curvilinear visit
-   (Issue #158, the curvilinear arm). This is the concrete instance of the
+   is not yet implemented and raises ``NotImplementedError`` on a curvilinear
+   visit (Issue #158, the curvilinear arm; the derivation is published —
+   Adams--Martin 1992, NSE 111, App. A, with the weighted-diamond angular
+   closure applied per spatial moment). This is the concrete instance of the
    re-posing problem in :ref:`discretization-reposing`.
 
 
@@ -1195,7 +1197,7 @@ balance can be posed with any spatial/angular closure of
 
 The Step and LD radial-characteristic forms are **posable** in exactly this
 sense — the invariant is fixed, only the closure device changes. (The
-curvilinear LD closure itself is unpublished and is the open Issue #158
+curvilinear LD closure itself is not yet implemented and is the open Issue #158
 curvilinear arm; the point here is structural: identifying the invariant is what
 converts "radial characteristics is DD-specific" into "radial characteristics is
 the angular-redistribution balance, closable by any scheme".) This is the

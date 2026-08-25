@@ -515,8 +515,8 @@ class DiscretizationScheme(Protocol):
         i.e. whether :meth:`update` / :meth:`residual` handle the Morel–Montry
         angular-redistribution thread (a non-``None`` ``angular_upstream``).
         ``True`` for Diamond Difference; ``False`` (the default) for
-        Linear-Discontinuous (the curvilinear LD closure is unpublished —
-        Issue #158 curvilinear arm / #6).  The 1-D sweep-strategy selection
+        Linear-Discontinuous (the curvilinear LD closure is not yet implemented —
+        Issue #158 curvilinear arm / #6; published: Adams-Martin 1992 App. A).  The 1-D sweep-strategy selection
         reads this so a curvilinear mesh paired with a slab-only scheme is
         rejected at SELECTION (a clear reason), rather than passing
         ``supports()`` on the geometry-blind ``is_affine_scannable`` and
@@ -851,7 +851,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     ``Compatibility`` reason), not passed on the geometry-blind
     ``is_affine_scannable`` trait and raised mid-sweep.  ``True`` for Diamond
     Difference; ``False`` for Linear-Discontinuous (the curvilinear LD closure
-    is unpublished — #158/#6).  Read-only class attribute."""
+    is not yet implemented — #158/#6).  Read-only class attribute."""
 
     has_transpose_kernel: ClassVar[bool] = False
     r"""Whether this scheme REGISTERS its transpose kernels — DERIVED, never declared.

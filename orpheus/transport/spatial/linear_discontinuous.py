@@ -148,7 +148,7 @@ def _require_slab(upstream_state: UpstreamState) -> None:
         raise NotImplementedError(
             "LinearDiscontinuous currently implements the slab/Cartesian LD "
             "only; the curvilinear (sphere/cylinder) LD cell update is "
-            "unpublished and must be derived (Issue #158, curvilinear arm). "
+            "not yet implemented (Issue #158, curvilinear arm). "
             "A curvilinear visit was detected (angular_upstream is not None)."
         )
 
@@ -271,8 +271,11 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
 
     supports_curvilinear: ClassVar[bool] = False
     r"""LD is slab/Cartesian ONLY: the curvilinear (sphere/cylinder) LD cell
-    closure is unpublished and must be derived (Issue #158 curvilinear arm /
-    #6); :meth:`update` / :meth:`residual` raise on a curvilinear visit (via
+    closure is not yet implemented here (Issue #158 curvilinear arm /
+    #6) — the derivation IS published: Adams-Martin 1992, NSE 111, App. A
+    (the 1-D spherical LD moment balances, with the weighted-diamond
+    angular closure applied per spatial moment — average AND slope) and
+    Morel-Wareing-Smith 1996, JCP 128 (lumping); :meth:`update` / :meth:`residual` raise on a curvilinear visit (via
     :func:`_require_slab`).  The conservative ``False`` (= the base default,
     declared explicitly here for the citation) makes the sweep-strategy
     selection reject a curvilinear-LD mesh at construction
@@ -735,7 +738,8 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     # ordinate_scan): the SAME LD as the ÷V group-2 kernel above, scaled by V
     # (S_scan = V·S_kernel, SymPy-verified), so CumprodScan-LD and
     # FullFieldWavefront-LD are principled-equivalent at nULP (the two-paths
-    # gate).  Slab/Cartesian only — the curvilinear LD closure is unpublished.
+    # gate).  Slab/Cartesian only — the curvilinear LD closure is not yet
+    # implemented (#158; published: Adams-Martin 1992 App. A).
 
     def affine_scan_coefficients(
         self,
@@ -769,7 +773,8 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         Slab-only guard
         ---------------
 
-        The curvilinear (sphere/cylinder) LD scan closure is unpublished.  Its
+        The curvilinear (sphere/cylinder) LD scan closure is not yet
+        implemented (#158).  Its
         signal is non-neutral curvature: slab carries ``dA_w == 0`` and
         ``c_out == 0`` EXACTLY (the :func:`slab_streaming` neutral element);
         curvilinear carries non-zero values.  Raising here fails fast at the
@@ -783,7 +788,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
             raise NotImplementedError(
                 "LinearDiscontinuous.affine_scan_coefficients supports the "
                 "slab/Cartesian LD only; the curvilinear (sphere/cylinder) LD "
-                "scan closure is unpublished (#158).  A non-neutral curvature "
+                "scan closure is not yet implemented (#158).  A non-neutral curvature "
                 "was detected (dA_w / c_out are not all zero)."
             )
         # Single-source the LD 2×2 Schur through the shared d=1 closed form: the
@@ -827,7 +832,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         the ÷V streaming ``g = |μ|·A_down/V`` is rebuilt here from the SAME
         geometry the cached coefficients use, so the scan's flat ``b`` and its
         slope correction agree to FP.  Slab/Cartesian only (the curvilinear LD
-        moment scan is unpublished — guarded at the cache build by
+        moment scan is not yet implemented (#158) — guarded at the cache build by
         :meth:`affine_scan_coefficients`; this method is reached only after that
         guard has passed).
         """

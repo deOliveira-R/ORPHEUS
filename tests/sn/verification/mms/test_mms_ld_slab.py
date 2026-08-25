@@ -199,7 +199,8 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
 def test_ld_curvilinear_scan_rejected() -> None:
     """Slab-only guard (#158 Inc B): a 1-D *curvilinear* LD mesh would match
     ``CumprodScan.supports`` (``is_1d and is_affine_scannable``), but the
-    curvilinear LD scan closure is unpublished — ``affine_scan_coefficients``
+    curvilinear LD scan closure is not yet implemented (#158) —
+    ``affine_scan_coefficients``
     must raise (fail-fast at the ``CollisionCache`` build in
     ``SNSolver.__init__``) rather than silently run DD-shaped curvature math."""
     from orpheus.geometry import BC, CoordSystem, Mesh1D

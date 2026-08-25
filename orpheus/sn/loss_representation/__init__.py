@@ -228,7 +228,7 @@ def _curvilinear_capability(mesh: "SNMesh") -> Compatibility:
     A curvilinear (sphere/cylinder) mesh needs a scheme whose cell closure
     handles the Morel–Montry angular-redistribution thread; a slab/Cartesian-
     only scheme (Linear-Discontinuous today — the curvilinear LD closure is
-    unpublished, #158/#6) must be rejected at SELECTION, not raised mid-sweep.
+    not yet implemented, #158/#6) must be rejected at SELECTION, not raised mid-sweep.
     Cartesian meshes are unconstrained (every scheme handles :math:`\mu\partial_x`).
 
     Consumed by the 1-D scan selectors (:meth:`CumprodScan.supports` /
@@ -243,7 +243,7 @@ def _curvilinear_capability(mesh: "SNMesh") -> Compatibility:
         False,
         f"{type(mesh.scheme).__name__} has no curvilinear cell closure "
         "(slab/Cartesian only); the curvilinear (sphere/cylinder) closure for "
-        "this scheme is unpublished (Issue #158 curvilinear arm / #6)",
+        "this scheme is not yet implemented (Issue #158 curvilinear arm / #6)",
     )
 
 
@@ -3093,7 +3093,7 @@ class _OneDimScanWalk:
           Morel–Montry angular redistribution thread IN-SWEEP (NOT a pure
           ``(a, inverse_denom, w)`` coefficient), with DD's diamond march
           ``out = 2ψ̄ − in`` inlined.  Curvilinear SN is DD-only (the LD
-          curvilinear closure is unpublished), so this is a single-occupant
+          curvilinear closure is not yet implemented, #158), so this is a single-occupant
           geometry, not a polymorphism gap.  The angular-redistribution term is
           verified end-to-end by the anisotropic curvilinear MMS
           (``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
@@ -3274,7 +3274,7 @@ class _OneDimScanWalk:
                 # carrying the Morel–Montry angular thread (NOT a pure
                 # (a, inverse_denom, w) coefficient, so it cannot ride the
                 # coefficient-model kernel above).  Curvilinear SN is DD-only
-                # (the LD curvilinear closure is unpublished — guarded in
+                # (the LD curvilinear closure is not yet implemented — guarded in
                 # ``LinearDiscontinuous.affine_scan_coefficients``), so DD's
                 # diamond march ``out = 2ψ̄ − in`` inlined here is a
                 # single-occupant geometry, NOT a polymorphism gap.

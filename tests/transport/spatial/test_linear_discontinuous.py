@@ -229,7 +229,7 @@ class TestLDTraits:
 class TestLDGuards:
     @pytest.mark.foundation
     def test_curvilinear_visit_raises(self) -> None:
-        """Curvilinear LD is unpublished/deferred — a curvilinear visit
+        """Curvilinear LD is not yet implemented (#158) — a curvilinear visit
         (angular_upstream not None) must raise, not silently mis-solve."""
         visit, _, _, _ = _slab_visit(cell_idx=2, n_ord=4)
         sig = np.array([1.0, 0.8])
