@@ -109,6 +109,17 @@ inner products are the same space" is a claim this corpus has
      surviving convention consulted INSIDE the family, or only at
      re-embedding?** — inside ⟹ the axis persists; only at re-embedding
      ⟹ the convention lives on the arrow and the axis DROPS.
+   - **A collapse that DROPS an axis is realized by two typed arrows,
+     never one.** :meth:`FunctionSpace.retraction
+     <orpheus.numerics.space.FunctionSpace.retraction>` is fiber
+     integration :math:`R = \pi_*`; :meth:`~orpheus.numerics.space.FunctionSpace.section`
+     is its right inverse :math:`E` with :math:`R\circ E = \mathrm{id}`.
+     They differ by exactly the axis's total mass
+     (:math:`R^\dagger = \Sigma w\,E`, the *plain* broadcast versus the
+     normalized one), and they carry different TYPES so that scalar
+     cannot be dropped at a call site. Both are induced by a rank-one
+     indicator frame and memoized on the space
+     (:ref:`spaces-collapse-pair`).
    - **EnergyGrid is a 1-D mesh in energy** — groups are its cells,
      group boundaries are its faces, and condensation is the
      mesh-overlap map
@@ -624,8 +635,11 @@ against a stated contract rather than invented:
    **This is a DECLARATION, not shipped machinery.** The pair above is
    what the group structure recorded on
    :class:`~orpheus.numerics.axis.EnergyAxis` exists to feed; the
-   morphisms themselves are scheduled for S7 / campaign 2, and the
-   condensation that ships today
+   morphisms themselves are scheduled for a later phase / campaign 2
+   (⚠ this row read "S7" until 2026-08-24: a bare plan-internal step
+   number, and it COLLIDES with campaign 1 CS4b's own step S7, which
+   landed that day and built none of this — trust the tree, not the
+   number), and the condensation that ships today
    (:meth:`Mixture.condense
    <orpheus.data.macro_xs.mixture.Mixture.condense>`,
    :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`)
@@ -1040,6 +1054,864 @@ quotiented. Buckling then restricts to an irrep of that surviving group.
    of a class that exists.
 
 
+
+.. _spaces-collapse-pair:
+
+The realized machinery: the axis collapse pair
+==============================================
+
+The doctrine above decides **which** axes survive a degeneracy. This
+section is the machinery that performs the collapse when the verdict is
+"drop", and it is where the doctrine stops being a rule and becomes two
+typed arrows a call site can hold.
+
+The bridge is the retract rule's own sentence
+(:ref:`spaces-collapse-the-question`): *a projection*
+:math:`\pi: V \to V'`, *an embedding* :math:`\iota: V' \to V`, *with*
+:math:`\pi\circ\iota = \mathrm{id}` *and, under the right metrics,*
+:math:`\iota = \pi^{H}` *up to a scalar*. Everything below is that
+sentence made precise and made executable:
+
+- :math:`\pi` is :class:`~orpheus.numerics.operator.AxisRetractionOperator`,
+  minted by :meth:`FunctionSpace.retraction
+  <orpheus.numerics.space.FunctionSpace.retraction>`;
+- :math:`\iota` is :class:`~orpheus.numerics.operator.AxisSectionOperator`,
+  minted by :meth:`FunctionSpace.section
+  <orpheus.numerics.space.FunctionSpace.section>`;
+- **the scalar is** :math:`\Sigma w`, the axis's total mass, and it is
+  not a convention: it is the :math:`1\times 1` Gram of the rank-one
+  frame that mints the pair (:ref:`spaces-collapse-pair-frame`);
+- the two are **different types** precisely so that the "up to a
+  scalar" cannot be silently dropped at a call site — which is the
+  ERR-051 failure class made unspellable.
+
+.. code-block:: python
+
+   from orpheus.numerics.axis import Axis, BasisKind
+   from orpheus.numerics.space import FunctionSpace
+
+   V = FunctionSpace.of_axes(
+       Axis("angular", (4,), weights=w, kind=BasisKind.NODAL),
+       Axis("energy",  (2,),            kind=BasisKind.NODAL),
+       Axis("spatial", (5,), weights=V_cell, kind=BasisKind.NODAL),
+   )
+   R = V.retraction("angular")   # V -> energy (x) spatial   (fiber integration)
+   E = V.section("angular")      # energy (x) spatial -> V   (the section)
+
+   R.apply(E.apply(phi))         # == phi
+   R.H.apply(phi)                # the plain broadcast — NOT E
+
+Both verbs are **memoized on the space**, one mint per space per axis
+label, so a carrier that caches its spaces (every solver carrier does)
+gets warm operators for free: ``sn.angular_bulk_space.retraction("angular")``
+builds the generator once and returns the same object thereafter
+(`[M]` identity, gated).
+
+
+.. _spaces-collapse-pair-two-arrows:
+
+Two arrows, not one — and the scalar between them
+--------------------------------------------------
+
+Write :math:`V = V_{\rm ax} \otimes V'` for the product whose first
+factor is the axis being collapsed, with the product metric
+:math:`G_V = \operatorname{diag}(w) \otimes G_{V'}`
+(:eq:`spaces-axis-product`). The **retraction** is fiber integration
+over that factor — the pushforward :math:`\pi_*` along the projection
+that forgets the axis:
+
+.. math::
+   :label: spaces-collapse-retraction
+
+   (R\,\psi)(\cdot) \;=\; \sum_{n} w_n\,\psi(n,\cdot),
+   \qquad
+   R : V \longrightarrow V' .
+
+.. (vv-status rationale) Structural/representational identity: it STATES
+   what ``AxisRetractionOperator.apply`` computes (the axis's factor
+   measure contracted over the axis's ndarray dims). Not a solver claim
+   — no flux, no eigenvalue, no discretization error. The verifiable
+   content is the CS4b S6 foundation battery
+   (``tests/numerics/test_axis_marginal.py``): the tightness row pins
+   this contraction against the mint frame's own analysis content, and
+   G6.5 pins it bit-identically against a hand-spelled einsum on the
+   real S\ :sub:`N` carrier.
+.. vv-status: spaces-collapse-retraction documented
+
+.. implements:: spaces-collapse-retraction
+   :by: py:method:orpheus.numerics.operator.AxisRetractionOperator.apply
+
+   **Implemented by** 2 sites. The kernel is the operator's; the
+   canonical field-level consumer re-spells nothing — since CS4b S6.2
+   :meth:`AngularField._integrate_angular_values
+   <orpheus.transport.fields._bases.AngularField._integrate_angular_values>`
+   IS this ``apply``, so the tree has one realization of the angular
+   reduction and not two.
+
+.. implements:: spaces-collapse-retraction
+   :by: py:method:orpheus.transport.fields._bases.AngularField._integrate_angular_values
+
+Its Hilbert adjoint is where the two-arrow discipline is forced. Under
+the product metric the axis weights **cancel exactly**:
+
+.. math::
+   :label: spaces-collapse-adjoint-is-pullback
+
+   R^{\dagger}
+   \;=\; G_V^{-1}\,R^{\mathsf T}\,G_{V'}
+   \;=\; \bigl(\operatorname{diag}(w)\otimes G_{V'}\bigr)^{-1}
+         \bigl(\operatorname{diag}(w)\otimes G_{V'}\bigr)\,\pi^{*}
+   \;=\; \pi^{*},
+
+.. (vv-status rationale) Structural identity of the metric sandwich: the
+   Euclidean transpose of a weighted contraction is the WEIGHTED
+   scatter, and the product metric's own axis block is exactly what
+   removes those weights again — so the Hilbert adjoint of fiber
+   integration is the UNWEIGHTED broadcast. Representational, not a
+   solver claim (no physics enters; it is true for every axis measure).
+   The verifiable content is the CS4b S6 foundation battery's G6.3 row
+   in ``tests/numerics/test_axis_marginal.py``, which pins the
+   adjunction on the physical metrics and carries the vv #19 NEGATIVE
+   leg (the same pairing under a deliberately stripped spatial measure
+   must break at O(1)).
+.. vv-status: spaces-collapse-adjoint-is-pullback documented
+
+.. no-implementation:: spaces-collapse-adjoint-is-pullback
+   :kind: identity
+
+   **Nothing implements this.** It is an identity between two things
+   that are each computed elsewhere and never equated in production:
+   the left side is produced by the generic metric-aware adjoint
+   wrapper (``R.H``, which knows nothing about axes), the right side by
+   :meth:`AxisSectionOperator.apply
+   <orpheus.numerics.operator.AxisSectionOperator.apply>` scaled by
+   :math:`\Sigma w`. No line forms the comparison — that is the point:
+   the cancellation is what lets the adjoint be free rather than
+   bespoke. It is *measured* by the G6.4 row of
+   ``tests/numerics/test_axis_marginal.py``.
+
+where :math:`\pi^{*}` is the **pullback** — the plain, unweighted
+broadcast of :math:`\varphi` across the axis. So
+:math:`(R, R^{\dagger}) = (\pi_*, \pi^{*})` is the discrete realization
+of the fiber-integration / pullback adjunction, and the pairing
+
+.. math::
+
+   \langle R\psi,\ \varphi\rangle_{V'}
+   \;=\;
+   \langle \psi,\ \pi^{*}\varphi\rangle_{V}
+
+holds on the *physical* metrics with no correction factor at all
+(`[M]` bounded by :math:`3.7\times10^{-13}` relative over 200 draws on
+the shipped S\ :sub:`N` carrier and :math:`1.6\times10^{-13}` on the
+synthetic three-axis fixture — a scalar-valued identity whose relative
+residual is set by cancellation in the inner products, not by the
+operators; see :ref:`spaces-collapse-pair-evidence`).
+
+**The pullback is not the section.** :math:`\pi^{*}` broadcasts
+:math:`\varphi` unchanged, so :math:`R\pi^{*}\varphi = (\Sigma w)\varphi`
+— it is a right inverse of :math:`R` only after division by the axis's
+total mass. That division is the second arrow:
+
+.. math::
+   :label: spaces-collapse-section
+
+   (E\,\varphi)(n,\cdot) \;=\; \frac{\varphi(\cdot)}{\Sigma w},
+   \qquad
+   E \;=\; \frac{\pi^{*}}{\Sigma w}
+   \;=\; R^{\dagger}\,(R\,R^{\dagger})^{-1},
+   \qquad
+   R\circ E \;=\; \mathrm{id}_{V'} .
+
+.. (vv-status rationale) Structural/representational identity: it STATES
+   what ``AxisSectionOperator.apply`` computes (divide by the axis's
+   total mass, then broadcast) and identifies it as the Moore-Penrose
+   pseudo-inverse of the retraction in the two spaces' own metrics. Not
+   a solver claim. The verifiable content is the CS4b S6 foundation
+   battery in ``tests/numerics/test_axis_marginal.py``: G6.1 (the
+   section law), G6.2 (idempotence of the composite projector), G6.6
+   (bit-identity with the shipped isotropic-source kernel on the real
+   S\ :sub:`N` carrier) and the gram-derivation row that pins the
+   divisor against the mint frame's own Gram entry.
+.. vv-status: spaces-collapse-section documented
+
+.. implements:: spaces-collapse-section
+   :by: py:method:orpheus.numerics.operator.AxisSectionOperator.apply
+
+   **Implemented by** 3 sites. The kernel is the operator's; the mint
+   supplies the divisor from the frame's Gram, and the canonical
+   producer-side consumer re-spells nothing — since CS4b S6.2
+   :meth:`AngularSourceSink.from_isotropic
+   <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+   IS this ``apply``.
+
+.. implements:: spaces-collapse-section
+   :by: py:function:orpheus.numerics.frame._collapse_pair
+
+.. implements:: spaces-collapse-section
+   :by: py:method:orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic
+
+Since :math:`R` is rank-deficient by construction, *many* right inverses
+exist — putting all the mass on one ordinate, :math:`(\iota_0
+\varphi)(n,\cdot) = \delta_{n0}\,\varphi/w_0`, is one. :math:`E` is
+distinguished among them by being the **minimum-norm** one, which is
+what :math:`R^{\dagger}(RR^{\dagger})^{-1}` says: it is the
+Moore–Penrose pseudo-inverse in the two spaces' own metrics. `[M]` on
+the synthetic fixture and one draw (``default_rng(21)``),
+:math:`\lVert E\varphi\rVert_V = 1.700` against
+:math:`\lVert \iota_0\varphi\rVert_V = 4.389` for the one-ordinate
+right inverse — a factor 2.6 — with both satisfying
+:math:`R\circ(\cdot) = \mathrm{id}` at the round-off floor.
+
+The four arrows close into a square, and every entry is one of the two
+operators or one of their adjoints:
+
+.. list-table:: The collapse square (:math:`W \equiv \Sigma w`)
+   :header-rows: 1
+   :widths: 22 30 48
+
+   * - Arrow
+     - What it is
+     - Identity
+   * - :math:`R = \pi_*`
+     - fiber integration (the weighted axis sum)
+     - :math:`R\,R^{\dagger} = W\,\mathrm{id}`
+   * - :math:`R^{\dagger} = \pi^{*}`
+     - the pullback (the **plain** broadcast)
+     - :math:`R^{\dagger} = W\,E` — the anti-ERR-051 scalar
+   * - :math:`E`
+     - the section (broadcast **after** dividing by :math:`W`)
+     - :math:`R\circ E = \mathrm{id}`, and :math:`E` is minimum-norm
+   * - :math:`E^{\dagger}`
+     - the :math:`w`-mean (average over the axis)
+     - :math:`E^{\dagger} = R/W`, and :math:`E^{\dagger}\circ R^{\dagger} = \mathrm{id}`
+
+and the composite in the other order,
+
+.. math::
+
+   P \;\equiv\; E\circ R,
+   \qquad
+   (P\psi)(n,\cdot) \;=\; \frac{1}{\Sigma w}\sum_m w_m\,\psi(m,\cdot),
+
+is the **conditional expectation onto axis-constant functions** — the
+:math:`w`-mean projector. It is idempotent and, because
+:math:`P^{\dagger} = R^{\dagger}E^{\dagger} = (WE)(R/W) = P`,
+self-adjoint in :math:`G_V`: an *orthogonal* projector, not merely an
+oblique one (`[M]` self-adjointness bounded by
+:math:`4.0\times10^{-14}` relative over 200 draws — again a
+cancellation-limited scalar identity, see
+:ref:`spaces-collapse-pair-evidence`).
+That is the precise sense in which "the isotropic part of
+:math:`\psi`" is a well-defined object rather than a convention.
+
+.. warning::
+
+   **An axis whose SIGNED measure sums to zero has NO section, and the
+   retraction over it is still legal.** The asymmetry is structural, not
+   defensive: :math:`R` is a contraction and needs no division, while
+   :math:`E` divides by :math:`\Sigma w` — and at :math:`\Sigma w = 0`
+   the rank-one Gram is singular, so the mint frame has no canonical
+   dual and no section EXISTS to hand back. The mint therefore leaves
+   that arm unminted and :meth:`FunctionSpace.section
+   <orpheus.numerics.space.FunctionSpace.section>` refuses at access,
+   naming the cause. Signed axis weights are deliberately legal on
+   :class:`~orpheus.numerics.axis.Axis` (a :math:`\sigma`-folded
+   quadrature can carry them), so this is a reachable state and not a
+   theoretical one.
+
+.. note::
+
+   **This is where the doctrine's "up to a scalar" gets its value.**
+   The retract rule said :math:`\iota = \pi^{H}` *up to a scalar* and
+   left the scalar unnamed, which is exactly the gap the classical
+   :math:`4\pi` bookkeeping errors live in. Here the scalar is
+   :math:`\Sigma w`, it is read off the mint frame's Gram, and the two
+   arrows carry different **types** — so a call site that reaches for
+   ``R.H`` where it wanted ``E`` does not silently rescale a source by
+   :math:`4\pi`; it holds an object of the wrong class. `[M]` the gate
+   asserts precisely that ``R.H`` is *not* an
+   :class:`~orpheus.numerics.operator.AxisSectionOperator`.
+
+
+.. _spaces-collapse-pair-naming:
+
+Why "retraction" and "section" — and why "embedding" was rejected
+------------------------------------------------------------------
+
+The names are canonical, and the reason is worth stating because the
+first spelling shipped and was replaced within a day.
+
+:math:`R\circ E = \mathrm{id}` makes :math:`(R, E)` a **split
+epi/mono pair** in the categorical sense (Mac Lane, *Categories for the
+Working Mathematician*, §I.5): a morphism with a right inverse is a
+**split epimorphism** and the right inverse is called a **section**;
+dually the left inverse of a split monomorphism is called a
+**retraction**. The collapse doctrine's own prose already used "the
+retract rule", so :math:`R` inherited the right word immediately.
+
+The first implementation (S6.0) called the other arrow
+``AxisEmbeddingOperator``. That name was retired the same day for two
+independent reasons:
+
+#. **It cannot discriminate the pair it exists to discriminate.** Any
+   injective structure-preserving map is an embedding — and
+   :math:`\pi^{*} = R^{\dagger}` is one too. So "embedding" names a
+   property both arrows have, in a design whose entire purpose is to
+   keep :math:`R^{\dagger}` and :math:`E` apart. The
+   :math:`\Sigma w` weld the ERR-051 class is made of was hiding in
+   the *name*.
+#. **The object is defined relative to** :math:`R`. :math:`E` is not "a
+   map into :math:`V` that happens to be injective"; it is *the* right
+   inverse of a specific retraction — :math:`R\circ E = \mathrm{id}`
+   IS its definition. The categorical name for that is **section**, and
+   nothing weaker carries the relation.
+
+"Embedding" survives in this corpus only as a generic adjective (the
+doctrine's :math:`\iota`, the :math:`S^2` embedding of
+:doc:`/theory/foundations/spherical_harmonics`). It is not the name of
+an operator.
+
+.. note::
+
+   **The naming rule this instantiates** is the same one
+   :ref:`the frame hierarchy <frame-discipline-as-a-type>` follows: *a
+   reader of a type name knows its properties without reading the
+   docstring.* ``AxisSectionOperator`` tells a reader that composing it
+   after the retraction is the identity; ``AxisEmbeddingOperator`` told
+   them only that it was injective, which is true of the wrong arrow
+   too.
+
+
+.. _spaces-collapse-pair-frame:
+
+The pair is frame-induced — a stage-2 generator at rank one
+------------------------------------------------------------
+
+The kernels above could be written by hand: an einsum and a broadcast,
+six lines each. They are not, and the reason is Cardinal Rule 2. The
+hand-written pair is a **concept-level twin** of machinery this corpus
+already ships — the discrete frame
+(:doc:`/theory/foundations/frame`) — specialized to rank one. Two
+places would have had to agree, forever, about what "the axis measure"
+means and what the normalization divisor is.
+
+So the pair is *induced*. At the mint site
+(:func:`orpheus.numerics.frame._collapse_pair`) a literal frame is
+built over the axis's index set, read for its induced data, and
+discarded:
+
+.. code-block:: python
+
+   frame = GalerkinFrame(
+       basis=IndicatorBasis(edges_per_axis=(np.array([-0.5, n - 0.5]),)),
+       measure=DiscreteMeasure(
+           nodes=np.arange(n, dtype=float),
+           weights=flat_weights,              # weights=None IS the counting measure
+           support=f"index({axis_label})",
+       ),
+   )
+   kernel_weights = frame.measure.weights          # the analysis face's content
+   total_weight   = float(frame.discrete_gram[0, 0])   # the rank-one Parseval metric
+
+The basis is a **single-region indicator** covering every index
+:math:`\{0,\dots,n-1\}` — one region, so exactly one coefficient, so a
+:math:`1\times1` Gram. Under that basis every table entry is
+:math:`1`, and the frame's Gram
+(:math:`G_{jk} = \sum_n w_n \phi_j(x_n)\phi_k(x_n)`) collapses to the
+axis's total mass:
+
+.. math::
+   :label: spaces-collapse-rank-one-gram
+
+   G \;=\; \bigl[\textstyle\sum_n w_n\bigr] \;=\; [\,\Sigma w\,],
+   \qquad
+   E \;=\; R_{\rm frame}\circ G^{-1},
+
+.. (vv-status rationale) Literature-transcribed / structural: it states
+   the rank-one instance of the Parseval theorem already derived at
+   :ref:`frame-parseval-metric` (the frame's codomain metric is the
+   INVERSE discrete Gram), specialized to a single-region indicator
+   basis where the Gram is 1x1 and its entry is the measure's total
+   mass. Not a solver claim. The verifiable content is the
+   gram-derivation row of ``tests/numerics/test_axis_marginal.py``,
+   which asserts the section's divisor IS the literal frame's
+   ``discrete_gram[0, 0]``, and the tightness row, which pins the
+   minted kernels against that frame's own face contents.
+.. vv-status: spaces-collapse-rank-one-gram documented
+
+.. implements:: spaces-collapse-rank-one-gram
+   :by: py:function:orpheus.numerics.frame._collapse_pair
+
+   **Implemented by** 1 site. The mint is where the identity is
+   *used* — it reads ``frame.discrete_gram[0, 0]`` and stores it as the
+   section's divisor. The Gram itself is the frame's generic
+   :math:`O(NK^2)` einsum, not a rank-one special case, which is the
+   whole point: nothing in the collapse pair re-derives what a frame
+   already computes.
+
+so the section's divisor **is** the Parseval metric of
+:ref:`frame-parseval-metric` at :math:`K = 1`. "Divide by
+:math:`4\pi`" is therefore not a convention this code chose; it is the
+inverse Gram of a frame, obtained the same way every other metric in
+the corpus is obtained.
+
+The frame is discarded on return. That is deliberate, and it is the
+**stage-2 generator discipline** — the ruling this section exists to
+realize (user, 2026-08-24):
+
+   A stage-2 generator induces structure on both the space and the
+   operator, and the two inductions must be minted together, at one
+   site. Frame: induces the HarmonicAxis metric (space side), mints
+   Analysis/Synthesis (operator side) — consistency is the tightness
+   gate. Scheme: induces the trace descriptor and basis kind (space
+   side), mints the closure (operator side) — consistency is one
+   closure serving both apply and solve, which is ERR-026's structural
+   closing. Mesh and Quadrature are the degenerate cases (space side
+   only). Forgetting = retaining the induced parts; accessors are
+   provenance.
+
+Three consequences, each visible in the code:
+
+**Both inductions at one site.** The mint constructs the retraction and
+the section together and returns them as a pair. There is no path that
+produces one without the other, so they cannot disagree about the axis,
+the dims, or the marginal space — `[M]` the two arrows share ONE
+marginal-space instance (``R.codomain is E.domain``), gated.
+
+**Forgetting means copying the induced parts out.** The operators
+retain the bound spaces, the ndarray dims the axis occupies, the flat
+weights, and the scalar divisor — and nothing else. In particular they
+do **not** retain a frame *face*: a face is a view holding
+``frame:`` (:class:`~orpheus.numerics.frame.FrameBase`'s
+``_FrameAnalysis`` / ``_FrameReconstruction``), so keeping one would
+keep the generator alive through it. `[M]` read the face
+dataclasses — this is why the mint copies arrays rather than storing
+``frame.analysis``.
+
+**Consistency is a gate, not an instance.** Because the generator is
+thrown away, nothing at runtime *forces* the minted kernels to agree
+with the frame that produced them. The **tightness gate** supplies
+that: it rebuilds the literal frame independently and pins all three
+correspondences — :math:`R` against the analysis content,
+:math:`R^{\mathsf T}` against ``analyze_transpose``, and :math:`E`
+against reconstruction composed with :math:`G^{-1}`. `[M]` all three
+are bit-exact on **200 of 200** draws, which is a *stronger* statement
+than the section law two sections up: there the exactness is a property
+of the draw, here it is a property of the construction, because the two
+sides evaluate the same reduction in the same order. The operator
+kernels are hand einsums and the frame path runs the basis's table
+einsums, so these are two different float programs and agreement is a
+real claim, not a tautology.
+
+.. note::
+
+   **The latent generalization, recorded and not built.** The mint is
+   parameterized by exactly one choice — the basis. Swap the
+   single-region ``IndicatorBasis`` for a single-region
+   ``WeightedIndicatorBasis`` and the same site produces a *profiled*
+   collapse: the Petrov-Galerkin test side of a
+   :math:`\chi`-class emission collapse, where the axis is not
+   averaged uniformly but against a spectrum. That is the same
+   machinery, a different basis, and it is built when its consumer
+   lands (CS4c) — not before. Recording it here is what stops a future
+   session minting a second, parallel mechanism for it.
+
+
+.. _spaces-collapse-pair-clause-gate:
+
+The clause gate: which axes admit, and why energy refuses
+-----------------------------------------------------------
+
+The mint refuses an axis the doctrine says must persist. This is the
+one place in the tree where the collapse doctrine is **enforced** rather
+than described, so it is worth reading the admission table against
+:ref:`spaces-collapse-doctrine-standing` clause by clause.
+
+.. list-table:: Admission at the mint
+   :header-rows: 1
+   :widths: 26 12 62
+
+   * - Axis
+     - Clause
+     - Verdict, and why
+   * - **angle** (an untyped ``Axis`` today)
+     - 3
+     - **ADMIT.** Whole-domain integration over a compact canonical
+       orbit: the total is universal, nothing problem-specific survives
+       on the axis, so the drop-form marginal is exactly right and the
+       re-broadcast convention lives on the arrows :math:`E` /
+       :math:`\pi^{*}`.
+   * - a typed :class:`~orpheus.numerics.axis.EnergyAxis`
+     - 2
+     - **REFUSE**, with a pointer. Partition-integration of an
+       :math:`L^1` class: the energy axis PERSISTS at its one-cell
+       member, because :math:`\langle\bar\sigma,\varphi\rangle` consumes
+       the partition. A drop-form marginal here would be a second
+       mechanism for a collapse the tree already implements as
+       **condensation**.
+   * - a ``MODAL`` axis
+     - —
+     - **REFUSE.** Contracting expansion COEFFICIENTS with the basis
+       mass is not an integral of the represented function. The modal
+       average is the coefficient at the average slot; slice it.
+   * - an untyped generic axis, whatever its label
+     - 3
+     - **ADMIT.** The gate reads the axis's TYPE, never its label
+       string.
+   * - the only axis of a single-axis space
+     - —
+     - **REFUSE.** Its marginal would be a bare scalar, which is not a
+       :class:`~orpheus.numerics.space.FunctionSpace`. Contract with
+       the space's inner product instead.
+   * - a space with ``axes is None``
+     - —
+     - **REFUSE.** A densified legacy product has no named factors to
+       marginalise over.
+
+The energy row is the load-bearing one, and it is the doctrine's
+Version-1 refutation cashed out in code
+(:ref:`spaces-collapse-version-1`). Energy is collapsed *by
+integration*, so a compactness-flavoured reading puts it on the "drop"
+side; the shipped one-group layout is :math:`(1, *\mathrm{spatial})`
+and keeps its axis, because :math:`\bar\sigma` is defined only relative
+to an interval and a weighting spectrum. The machinery that performs an
+energy collapse correctly therefore already exists — it is
+:meth:`EnergyGrid.overlap_to
+<orpheus.data.energy_grid.EnergyGrid.overlap_to>` and the
+Petrov-Galerkin condensation frames of
+:ref:`sn-energy-condensation` — and the refusal message names it, so
+a caller who reaches for the wrong tool is handed the right one rather
+than a wrong answer.
+
+The clause gate is not hypothetical on a shipped carrier. `[M]` on the
+:math:`S_N` fixture above, whose ``angular_bulk_space`` axes are
+``(Axis, EnergyAxis, Axis)``:
+
+.. code-block:: text
+
+   sn.angular_bulk_space.retraction("angular")  -> OK, codomain (2, 5)
+   sn.angular_bulk_space.retraction("spatial")  -> OK, codomain (4, 2)
+   sn.angular_bulk_space.retraction("energy")   -> TypeError: ... is a typed
+       EnergyAxis, which PERSISTS at its one-cell member (collapse doctrine
+       clause 2 ...). The energy collapse is condensation: use
+       EnergyGrid.overlap_to / the Petrov-Galerkin condensation frame, not a
+       drop-form marginal.
+
+Two of the carrier's three factors marginalise; the one the doctrine
+says must persist refuses, by TYPE, with the successor named in the
+message.
+
+.. warning::
+
+   **The gate reads the TYPE, and today only energy has one.** A
+   generic ``Axis(label="energy", ...)`` — a synthetic test factor — is
+   ADMITTED, and correctly so: refusing on the label string would be
+   stringly-typed dispatch, and it would refuse a legitimate synthetic
+   fixture that carries none of energy's physics. The consequence is
+   that the clause gate is **structural for energy and permissive for
+   everything else** until CS2 lands the typed spatial / quadrature /
+   harmonic axes; at that point the verdict becomes axis-family
+   polymorphism and each family answers for itself. Until then, do not
+   read "the mint admitted it" as "the doctrine says it drops".
+
+
+.. _spaces-collapse-pair-refuted:
+
+What was tried, and what refuted it
+------------------------------------
+
+**The hand-derived pair (S6.0) — superseded within a day.** The first
+implementation minted the two operators from the space with
+hand-spelled kernels and a hand-chosen divisor
+(``weights.sum()``). It was correct and it was a twin: the design
+dialogue that followed established the exact correspondence with the
+rank-one frame, which is Cardinal Rule 2's stop condition. The
+re-carve (S6.0b) kept the operator shells verbatim — admission, dims
+bookkeeping, bound spaces, the einsum/broadcast kernels — and changed
+only where the two retained numbers come from. That is why the re-carve
+is bit-identity-safe by construction and why the equivalence gates
+survive it unchanged.
+
+**An** ``Axis`` **→ measure accessor — refused.** The mint needs a
+:class:`~orpheus.numerics.measure.DiscreteMeasure` built from the axis.
+The obvious move is to give :class:`~orpheus.numerics.axis.Axis` a
+public accessor that produces one. It was rejected under the same
+ruling that governs the frame: *accessors are provenance*. An accessor
+would make the generator reachable from the axis forever, so the axis
+would carry a permanent dependence on frame machinery it does not
+need. The mint builds the measure with a **local** helper instead; the
+axis stays four slots and nothing more.
+
+**Caching the pair on the** ``Axis`` **— refused for the same reason,
+and it would have been wrong anyway.** The pair is not a function of
+the axis alone: its domain is the whole product and its codomain is the
+product minus that factor, so two spaces sharing an axis have
+*different* collapse pairs. The cache belongs to the space, and it is
+there (memoized in the frozen dataclass's ``__dict__``, one entry per
+axis label).
+
+**Retaining the frame on the operators — refused.** Keeping the frame
+would make consistency automatic instead of gated, which sounds
+strictly better. It is not: it retains a whole generator (basis, table,
+measure, two spaces) on every collapse operator in the tree to secure a
+property that a two-line gate already secures, and it re-opens the
+question of whether two operators built from *equal* frames are the
+same operator. Consistency here is carried by content-determinism plus
+the tightness gate, not by instance sharing. The rule that would flip
+this: a second consumer needing the *identical frame instance* for
+measure-consistency or anti-aliasing. None exists today.
+
+
+.. _spaces-collapse-pair-evidence:
+
+Numerical evidence
+-------------------
+
+`[M]` 2026-08-24, measured against the tree at HEAD. **The construction,
+so the tables regenerate from this page.** The *synthetic* fixture is
+the three-axis product ``angular(4, w=[0.3, 0.7, 0.5, 0.5]) ⊗
+energy(2, counting) ⊗ spatial(5, V=[0.2, 0.3, 0.4, 0.7, 1.4])`` built
+with :meth:`FunctionSpace.of_axes
+<orpheus.numerics.space.FunctionSpace.of_axes>`; the weights are
+non-uniform on purpose so that no cancellation flatters a law. The
+:math:`S_N` fixture is the shipped carrier —
+``SNMesh(Mesh1D(edges=[0, 0.2, 0.5, 0.9, 1.6, 3.0], cartesian, vacuum),
+Quadrature.gauss_legendre(4), 2 groups)`` — and the operators come from
+``sn.angular_bulk_space.retraction("angular")`` / ``.section("angular")``.
+Inputs are ``numpy.random.default_rng(seed).standard_normal(shape)``.
+
+Every entry below is a **bound over 200 independent draws**, not a
+single reading: the residual of an exact-in-real-arithmetic identity is
+a property of the numbers that happen to be involved, so one seed's
+value is not reusable (:math:`\max_k \lVert a-b\rVert_\infty /
+\lVert b\rVert_\infty` over ``default_rng(1000+k)``,
+:math:`k = 0..199`).
+
+.. list-table:: The square, measured (bound over 200 draws)
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Identity
+     - synthetic 3-axis
+     - :math:`S_N` carrier (GL4 slab)
+   * - :math:`R\circ E = \mathrm{id}`
+     - :math:`1.5\times10^{-16}`; ``array_equal`` on **123 of 200**
+     - :math:`0.0` — ``array_equal`` on **200 of 200**
+   * - :math:`P = E\circ R` idempotent
+     - :math:`1.5\times10^{-16}`; ``array_equal`` on **130 of 200**
+     - :math:`0.0` — ``array_equal`` on **200 of 200**
+   * - :math:`R^{\dagger} = \pi^{*}` (the plain broadcast)
+     - :math:`2.4\times10^{-16}`
+     - :math:`2.3\times10^{-16}`
+   * - :math:`R^{\dagger} = (\Sigma w)\,E`
+     - :math:`2.4\times10^{-16}`
+     - :math:`2.3\times10^{-16}`
+   * - :math:`E^{\dagger} = R/\Sigma w`
+     - :math:`3.6\times10^{-16}`
+     - :math:`3.6\times10^{-16}`
+   * - :math:`R\,R^{\dagger} = (\Sigma w)\,\mathrm{id}`
+     - :math:`2.2\times10^{-16}`
+     - :math:`2.2\times10^{-16}`
+   * - the adjunction :math:`\langle R\psi,\varphi\rangle_{V'} = \langle\psi,\pi^{*}\varphi\rangle_V`
+     - :math:`1.6\times10^{-13}`
+     - :math:`3.7\times10^{-13}`
+   * - :math:`P` self-adjoint in :math:`G_V`
+     - :math:`4.0\times10^{-14}`
+     - :math:`2.1\times10^{-14}`
+   * - :math:`R \equiv` the shipped angular reduction
+     - —
+     - **bit-exact** (``np.array_equal``)
+   * - :math:`E \equiv` the shipped isotropic-source kernel
+     - —
+     - **bit-exact** (``np.array_equal``)
+
+⚠ The two **pairing** rows sit three orders above the others, and that
+is arithmetic rather than a defect: an inner product of two random
+fields can very nearly cancel, so the *relative* residual of a
+scalar-valued identity is bounded by the conditioning of that
+cancellation, not by the operators. Their gate row is written at
+``rtol=1e-13`` for exactly this reason, and a *tighter* tolerance there
+would be a latent false red (``vv-principles`` #16).
+
+.. warning::
+
+   **Do not read "bit-exact" as a law — it is a property of the draw.**
+   :math:`R\circ E = \mathrm{id}` is exact in real arithmetic and holds
+   at the round-off floor in IEEE-754; whether the floor is *zero*
+   depends on how :math:`\sum_n w_n(\varphi/\Sigma w)` happens to
+   re-associate for the particular numbers involved. `[M]` on the
+   synthetic fixture — the one the gate uses — ``np.array_equal``
+   FAILS on **844 of 2000** seeds (worst relative deviation
+   :math:`1.5\times10^{-16}`, i.e. about one ULP), and the idempotence
+   row fails on **57 of 200**. The originally-shipped G6.1/G6.2 rows
+   pinned ``array_equal`` on seeds that happened to land in the exact
+   set — seed-fragile — and were re-pinned at ``nulp=1`` the same day
+   this audit measured the fragility (their docstrings carry the
+   sweep). On the shipped :math:`S_N` carrier the identity
+   is bit-exact on 200 of 200 seeds — there :math:`\Sigma w = 2`
+   exactly *and* the symmetric Gauss–Legendre weights re-associate
+   cleanly — which is why the production-facing rows can be pinned at
+   ``np.array_equal`` honestly. Two consequences worth carrying: a
+   fixture whose weights are chosen "non-uniform so no cancellation
+   flatters a law" buys angular discrimination at the cost of exact
+   re-association, so the general tier there is
+   ``assert_array_almost_equal_nulp(..., nulp=4)``; and a multi-dim
+   axis is one ULP by construction, because a flattened 2-D measure
+   sums more terms.
+
+**The divisor is the Gram entry, and that is stronger than
+"the divisor is** ``weights.sum()``\ **".** The two agree on most
+fixtures and not on all — the Gram is an einsum reduction
+(``einsum("n,nj,nk->jk", w, table, table)``) and ``ndarray.sum`` is a
+pairwise reduction, so they can differ by a ULP:
+
+.. list-table:: Divisor vs. the naive total, on shipped quadratures
+   :header-rows: 1
+   :widths: 16 32 32 20
+
+   * - rule
+     - divisor (frame Gram entry)
+     - ``quad.weights.sum()``
+     - identical?
+   * - ``gauss_legendre(4)``
+     - ``2.0``
+     - ``2.0``
+     - yes
+   * - ``gauss_legendre(8)``
+     - ``1.9999999999999998``
+     - ``2.0``
+     - **no** (1 ULP — ``nextafter(2.0, 0)``; the gate's GL8 row pins
+       the bound at ``nulp=1``)
+   * - ``gauss_legendre(16)``
+     - ``2.0``
+     - ``2.0``
+     - yes
+   * - ``gauss_legendre(32)``
+     - ``2.0``
+     - ``2.0``
+     - yes
+   * - ``gauss_legendre(64)``
+     - ``2.0000000000000004``
+     - ``2.0000000000000004``
+     - yes
+
+At ``gauss_legendre(8)`` the shipped
+:meth:`AngularSourceSink.from_isotropic
+<orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+therefore differs from a hand-written :math:`Q/\Sigma w` by
+:math:`2.0\times10^{-16}` relative — one ULP, and the *induced* value
+is the principled one. The lesson for a future gate: pin the divisor
+against ``frame.discrete_gram[0, 0]`` (exact, always), never against
+``weights.sum()`` (a fixture-dependent coincidence).
+
+**The section is the harmonic frame's isotropic column — at the
+measure level.** A natural question is whether the collapse pair
+duplicates the spherical-harmonic frame's :math:`\ell = 0` channel.
+Measured on the :math:`S_N` carrier above with
+``HarmonicFrame.from_galerkin(sn.quad.angular_frame(L))``, feeding a
+moment field that is zero except at :math:`(\ell, m) = (0,0)`:
+
+.. list-table:: The isotropic column against the section
+   :header-rows: 1
+   :widths: 26 18 28 28
+
+   * - frame
+     - Gram max off-diagonal
+     - :math:`\text{face}^{\dagger}(e_0\varphi)` vs :math:`E\varphi`
+     - :math:`\text{reconstruction}(e_0\varphi)/W` vs :math:`E\varphi`
+   * - slab, :math:`L=1`
+     - :math:`5.6\times10^{-17}`
+     - :math:`5.6\times10^{-17}`
+     - **0.0** (``array_equal``)
+   * - sphere, :math:`L=1`
+     - :math:`5.6\times10^{-17}`
+     - :math:`1.1\times10^{-16}`
+     - **0.0** (``array_equal``)
+   * - slab, :math:`L=2`
+     - :math:`1.155`
+     - :math:`16.17`
+     - **0.0** (``array_equal``)
+   * - sphere, :math:`L=2`
+     - :math:`1.155`
+     - :math:`16.17`
+     - **0.0** (``array_equal``)
+
+Two readings, and the second is the one to carry:
+
+#. The **adjoint** correspondence — the section is the isotropic column
+   of the harmonic frame's *physical* adjoint — holds exactly when the
+   measured Gram is DIAGONAL, i.e. when the Parseval metric exists at
+   all (:ref:`frame-parseval-metric`). ⚠ The discriminator is the
+   **Gram**, not the geometry: the :math:`L=2` rows read identically on
+   slab and sphere, because the angular frame is built from
+   ``sn.quad`` and knows nothing about the spatial coordinate system.
+   A 1-D polar Gauss–Legendre rule has no azimuthal nodes, so the
+   :math:`m \ne 0` modes are not orthogonal under it and the Gram is
+   dense at :math:`L\ge2` — `[M]` refining the polar order does not fix
+   it (``gauss_legendre(8)`` at :math:`L=2` reads the same
+   :math:`1.155` off-diagonal and the same :math:`16.17`).
+#. The **measure-level** correspondence —
+   :math:`E = \text{reconstruction}(e_0\,\cdot)/W` — is bit-exact in
+   *every* configuration, dense Gram included, because it never touches
+   a metric. That is the honest statement of the relationship, and it
+   is also the reason the collapse pair is minted from an **indicator**
+   frame rather than lifted out of the harmonic one: the collapse rides
+   the measure, and it must keep working where the harmonic frame's
+   metric does not exist.
+
+
+.. _spaces-collapse-pair-gates:
+
+Verification — cite the gate, never copy its numbers
+------------------------------------------------------
+
+The battery is ``tests/numerics/test_axis_marginal.py``, ``foundation``
+-tagged throughout: these are software and mathematical invariants of a
+*construction*, not equation claims, so no row carries
+``verifies(...)``. Each row's docstring names the mutation that reddens
+it.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Row family
+     - What it pins
+   * - ``TestSectionLaws``
+     - :math:`R\circ E = \mathrm{id}`, idempotence of :math:`P`, and
+       that the marginal space is the remaining axes **verbatim**
+       (measures intact, so the marginal's metric stays physical).
+   * - ``TestAdjointPairing``
+     - the adjunction on the physical metrics, **with** its vv #19
+       negative leg — the same pairing under a deliberately stripped
+       spatial measure must break at O(1), because a positive reading
+       alone cannot discriminate metric-loaded from metric-blind.
+   * - ``TestTwoArrows``
+     - :math:`R^{\dagger} = (\Sigma w)E` (the anti-ERR-051 row) and the
+       *type* discrimination — ``R.H`` must not be an
+       :class:`~orpheus.numerics.operator.AxisSectionOperator`.
+   * - ``TestShippedKernelEquivalence``
+     - bit-identity with the canonical angular reduction and the
+       isotropic-source kernel on the real :math:`S_N` carrier, and
+       that the angular marginal **is** the carrier's scalar bulk
+       space. ⚠ Both equivalence rows are pinned against kernels
+       hand-spelled **in the test**: since S6.2 the production targets
+       route through the very operators under test, so a production
+       comparison would be tautological.
+   * - ``TestAxisGeneric``
+     - the verbs are not angular-only — an untyped axis is admitted
+       whatever its label, and a multi-dimensional axis contracts all
+       of its dims with its own measure.
+   * - ``TestAdmission``
+     - every refusal in the clause table above, plus the shape guards
+       in both directions, and the zero-total-weight asymmetry.
+   * - ``TestFrameInduction``
+     - the generator discipline itself: **tightness** (the minted
+       kernels against an independently rebuilt literal frame's face
+       contents), the **gram-derivation** of the divisor, the clause-2
+       energy refusal, and that both verbs share one memoized mint.
+
 .. _spaces-fences:
 
 What is NOT built (the CS2 and CS4 seams)
@@ -1064,13 +1936,22 @@ taken.
        ``"spatial"``. The quotient point is a generic instance today and
        gets re-homed as ``SpatialAxis.quotient_point()`` when the
        subclass lands.
-   * - Axis-built S\ :sub:`N`, diffusion and P\ :sub:`N` spaces
-     - **CS2.** Only the scalar bulk of a
-       :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is
-       axis-built today, and its only consumer is the homogeneous
-       solver. Every other space in the tree is legacy
-       (``axes is None``) and therefore reports
-       ``has_coordinate_cone is None``.
+   * - Axis-built COMPOSITE and TRACE spaces
+     - **CS2.** ⚠ Re-measured 2026-08-24: the *bulk* half of this
+       fence has fallen. Campaign 1 CS4b moved the angular family onto
+       axis-built carrier mints, so `[M]` on a shipped 1-D
+       :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` the scalar bulk
+       ``(energy, spatial)``, the angular bulk
+       ``(angular, energy, spatial)`` and the scheme-widened
+       ``angular_trial_space`` are ALL axis-built and all report
+       ``has_coordinate_cone is True``. What is still legacy
+       (``axes is None``, ``has_coordinate_cone is None``) is the
+       **composite** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+       and the flat **trace** buffers — the block/direct-sum structure
+       the axis layer does not yet compose (see the
+       :math:`\oplus` row below). This is also why the axis collapse
+       pair refuses a non-axis-built space: it has no named factors to
+       marginalise over.
    * - :math:`\oplus` composition (direct sums of spaces)
      - **CS2's opener.** The axis layer composes with :math:`\otimes`
        only; block/composite structure still rides
@@ -1085,9 +1966,11 @@ taken.
        working; its own gates live in a separate test module so the
        retirement is a file-level move.
    * - The condensation morphisms on :math:`V` / :math:`V^*`
-     - **S7 / campaign 2.** Declared at
+     - **Campaign 2.** Declared at
        :ref:`spaces-vv-collapse-hook`; the axis records the group
-       structure they will consume.
+       structure they will consume. (This row said "S7" until
+       2026-08-24 — a colliding plan-internal step number, see the
+       warning at that anchor.)
    * - ``Medium`` and the mesh-conformity guard
      - **CS1.5.** See :ref:`spaces-symmetry-monotonicity`.
    * - Making the operators' ``space`` slot mandatory
@@ -1119,6 +2002,50 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-24
+     - **The space becomes the construction key, and it mints the
+       collapse pair** (campaign 1, phase CS4b, steps S5–S7).
+       *Construction goes space-primary* (S5): the carrier gains
+       :attr:`SNMesh.angular_trial_space
+       <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space>`
+       (the scheme-widened angular mint), the composite allocators go
+       space-keyed, and the mesh-keyed leaf **sugar tier is deleted** —
+       every call site now names a space, not a carrier.
+       *The axis collapse pair is minted on the space* (S6): the verbs
+       :meth:`FunctionSpace.retraction
+       <orpheus.numerics.space.FunctionSpace.retraction>` /
+       :meth:`~orpheus.numerics.space.FunctionSpace.section` return the
+       split epi/mono pair, memoized per axis label, and S6.0b re-carved
+       their REALIZATION so both are the induced output of a
+       single-region indicator frame built and discarded at one site —
+       the **stage-2 generator discipline**, with the section's divisor
+       read off the frame's :math:`1\times1` Parseval metric rather
+       than chosen by hand (:ref:`spaces-collapse-pair`). The angular
+       reduction and the isotropic-source projection are re-keyed onto
+       that pair, so each has ONE realization tree-wide, and
+       ``AxisEmbeddingOperator`` is renamed
+       :class:`~orpheus.numerics.operator.AxisSectionOperator` on
+       canonical-naming grounds (:ref:`spaces-collapse-pair-naming`).
+       *The mesh-less carrier's two meanings un-weld* (S7): promoting
+       the infinite-medium 1-cell carrier to an :math:`S_N` phase space
+       raises a typed :class:`ValueError` (pre-repair a messageless
+       bare ``assert`` that ``-O`` stripped into a deep
+       ``AttributeError``), and
+       :attr:`MaterialMesh.areas
+       <orpheus.transport.mesh.material_mesh.MaterialMesh.areas>` names
+       its own three cases instead of blaming a 2-D mesh for all of
+       them. The homogeneous solver's reaction rates become the typed
+       integrated co-vector, **re-posed onto the solver's own pose** so
+       the pose stays the measure authority
+       (:doc:`/theory/foundations/infinite_medium`).
+     - —
+     - *(in development)* branch ``feature/cs1-energy-space`` —
+       ``b00bf2d7`` … ``2690a434`` (space-primary construction),
+       ``048144db`` (the pair), ``19b85775`` (the frame induction +
+       the rename), ``ffb8f286`` (space-derived truncation),
+       ``78925753`` / ``53e7d207`` (the re-keys and the packer
+       re-home), ``1f8e0323`` (the S7 repairs), ``2e054bfc`` (the
+       typed rate co-vector)
    * - 2026-08-20
      - **The space layer gains AXES, and the energy axis is the first
        one** (campaign 1, phase CS1). A new

@@ -137,8 +137,10 @@ matters is correctness. We should not be bound by past mistakes."*
      retained :meth:`Field._check_partner
      <orpheus.numerics.field.Field._check_partner>` chain — **class
      identity** (which *is* units identity, one ``UNITS`` constant per
-     leaf) + **space equality** + **mesh identity** (the
-     :class:`~orpheus.transport.fields._bases.BulkField` override).
+     leaf) + **space CONTENT equality**. ⚠ At CS3 the chain's third
+     tier was mesh-object identity; campaign 1 CS4b (S3) retired it —
+     **the fiber IS the space now**
+     (:ref:`cone-fiber-discipline`).
    - **The iterate diagnostics live on the ITERATION layer.** The
      contraction factor :math:`\rho` (:eq:`iterate-contraction-ratio`)
      and the :math:`c \to 1` true-error estimate
@@ -495,8 +497,9 @@ supports, and together they close every escape.
      :class:`~orpheus.numerics.convergence.IterationRecord`
      (:ref:`cone-iterate-diagnostics`);
    - **fiber discipline** ("fluxes of different problems don't mix")
-     belongs to the **partner check**, and always did — class + space +
-     mesh identity, untouched by the carve
+     belongs to the **partner check**, and always did — class + space,
+     untouched by the carve; the mesh-object tier it also carried at
+     CS3 was retired one campaign later
      (:ref:`cone-fiber-discipline`);
    - **positivity** ("a flux is nonnegative") belongs to the
      **element**, as a predicate, and to the **realization**, as a flag
@@ -785,10 +788,12 @@ as the class attribute
      - units, representation shape, and the fiber (which problem this
        field belongs to)
      - class identity + :meth:`Field._check_partner
-       <orpheus.numerics.field.Field._check_partner>` (+ the
+       <orpheus.numerics.field.Field._check_partner>`, whose second
+       tier is **space CONTENT equality** (the CS4b S3 re-key; the
        :class:`~orpheus.transport.fields._bases.BulkField` mesh
-       override)
-     - a cross-class or cross-mesh binary operation that succeeds
+       override it replaced is retired)
+     - a cross-class binary operation that succeeds, or a binary
+       operation between fields whose spaces differ in content
    * - **Realization**
      - whether nonnegative inputs give nonnegative outputs
      - ``DiscretizationScheme.is_positivity_preserving``
@@ -837,10 +842,8 @@ the torsor machinery, retiring the machinery would have dropped it.
 
 `[M]` it was not. The guard chain that refuses an ill-formed partner is
 :meth:`Field._check_partner
-<orpheus.numerics.field.Field._check_partner>`, extended by
-:meth:`BulkField._check_partner
-<orpheus.transport.fields._bases.BulkField._check_partner>`, and it
-tests three things in order:
+<orpheus.numerics.field.Field._check_partner>`, and it tests two things
+in order:
 
 1. **class identity** — ``type(self) is type(other)``. Because each role
    leaf carries its units as a class constant ``UNITS``, class identity
@@ -850,28 +853,109 @@ tests three things in order:
    :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and an
    :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
    do not share a class even where they share a shape.
-2. **space equality** — the two operands'
-   :class:`~orpheus.numerics.space.FunctionSpace` must compare equal.
-3. **mesh identity** — the
-   :class:`~orpheus.transport.fields._bases.BulkField` override requires
-   the two fields to be bound to the *same mesh object*.
+2. **space CONTENT equality** — the two operands'
+   :class:`~orpheus.numerics.space.FunctionSpace` must compare equal,
+   and since campaign 1 that comparison is a statement about
+   **content**: an axis-built space derives its name deterministically
+   and injectively from its axes (shape, basis kind, measure bytes), and
+   a trace space's name folds a digest of its layout, quadrature and
+   face geometry (:ref:`spaces-identity-bridge`).
 
-Step 3 is the fiber discipline, stated precisely: two fields of the same
-class and the same nominal space but different meshes are fields of
-**different problems**, and they refuse. The base dunders route every
-same-class pair through this chain before touching ``values``, so
-deleting the flux role mixin dropped ``+`` and ``-`` straight onto it.
+The base dunders route every same-class pair through this chain before
+touching ``values``, so deleting the flux role mixin dropped ``+`` and
+``-`` straight onto it.
 
-The carve owed this a **negative control**, and it has one:
-``test_fiber_guard_cross_mesh_refuses`` in
-``tests/numerics/test_flux_vector_algebra.py`` builds two structurally
-identical meshes, asserts the refusal on both ``+`` and ``-``, and pairs
-it with the same-mesh positive leg. It also carries a *discriminator*
-guard: it asserts that the two meshes' spaces compare **equal** under
-today's nominal space identity, so the refusal is provably coming from
-the mesh arm and not from the space gate. If a later phase gives spaces
-mesh-dependent identity, that guard fires and tells the reader to
-re-derive the row rather than silently changing what the test measures.
+.. note::
+
+   **The chain had a THIRD tier at CS3, and campaign 1 retired it.**
+   Until CS4b step S3 a
+   :class:`~orpheus.transport.fields._bases.BulkField` override added
+   **mesh-object identity**: two fields of the same class and the same
+   nominal space, bound to different mesh objects, refused. That was
+   the right guard for a *nominal* space identity — it stood in for a
+   content check the spaces could not then perform. Once the carrier's
+   cached spaces became axis-built and content-keyed, the override
+   became a strictly stronger predicate than the property it was
+   protecting, and it was retired on that ground (the **F2 doctrine**:
+   operator and field admission compare space CONTENT, never
+   provenance). Nothing loosened that should have stayed tight — the
+   *fiber* was never the mesh object; it was always the geometry,
+   the group structure and the quadrature, and all three are now axis
+   content.
+
+**What actually changed, measured.** Build two carriers from *equal*
+edge arrays, and a third whose second cell edge moved:
+
+.. list-table:: The fiber, after the S3 re-key (`[M]` 2026-08-24, 1-D slab, GL4, 2 groups)
+   :header-rows: 1
+   :widths: 34 22 22 22
+
+   * - the partner differs by…
+     - ``angular_bulk_space ==``
+     - ``angular_trace ==``
+     - ``psi_a + psi_b``
+   * - nothing (a *twin* carrier — a distinct object built from equal
+       arrays)
+     - ``True``
+     - ``True``
+     - **ADDS**
+   * - the boundary CONDITION only (vacuum vs reflective)
+     - ``True``
+     - ``True``
+     - **ADDS**
+   * - one moved cell edge
+     - ``False``
+     - ``True``
+     - **REFUSES** (``ValueError``)
+   * - the quadrature order
+     - ``False``
+     - ``False``
+     - refuses
+   * - the group count
+     - ``False``
+     - ``False``
+     - refuses
+
+Three readings, and each is a design decision made visible:
+
+- **A twin carrier is the same fiber.** Two ``SNMesh`` objects built
+  from equal inputs describe one problem, and their fields now mix.
+  Under the old rule they refused — a false negative that forced
+  callers to thread one carrier object through code that only needed
+  one *geometry*.
+- **A boundary LAW is not part of the fiber.** Changing vacuum to
+  reflective changes neither the degrees of freedom nor the Gram, so
+  the spaces are equal and the fields mix. Boundary laws are operator
+  data (:doc:`/theory/foundations/boundary_conditions`), not field
+  data — and that is the sharpest evidence that the retired tier was
+  over-tight rather than merely redundant.
+- **A moved edge is a different problem, and it still refuses** — on
+  the space arm, because cell volumes are the spatial axis's measure
+  and the measure is part of axis identity. The refusal that matters
+  survived the re-key; only its *carrier* moved from provenance to
+  content.
+
+⚠ Note the third column: the **trace** spaces compare equal even for
+the moved-edge pair, because on a 1-D slab the face areas, the layout
+and the quadrature are all unchanged — the boundary really is the same
+boundary. Boundary-trace fields from two carriers with different
+interiors are therefore contractible, which is correct and is what the
+partial-current metric asserts.
+
+The carve owed this a **negative control**, and it has one, re-derived
+in place: ``test_fiber_guard_cross_mesh_refuses`` in
+``tests/numerics/test_flux_vector_algebra.py`` now carries the
+correctly-blind leg (twin carriers ADD, with an activation guard
+asserting their spaces really do compare equal — so the leg cannot
+silently become vacuous), the refusal leg (a stretched carrier reds on
+``"equal space"``), and the same-fiber positive leg.
+**Mutation-verified:** deleting the space arm of
+``Field._check_partner`` reds the refusal leg while both positive legs
+stay green. The row's CS3 docstring had *instructed* this re-derivation
+— "if a later phase gives spaces mesh-dependent identity, re-derive
+this row" — and the later phase did the opposite, giving spaces
+**content** identity; either way the instruction fired, which is what a
+discriminator guard is for.
 
 .. note::
 
@@ -1382,7 +1466,7 @@ original, with the CS3 verdict added as a fourth column.
    * - "``flux + flux`` is meaningless: two points cannot be added"
      - **False for one medium** (superposition is a theorem of the
        linear operator) and **true for different problems** — which is
-       the fiber, enforced by class + space + mesh identity
+       the fiber, enforced by class identity + space CONTENT equality
        (:ref:`cone-fiber-discipline`).
    * - "``affine_combination`` (:math:`\sum\lambda_i = 1`) is the only
        legal multi-flux blend"
@@ -1445,13 +1529,16 @@ Numerical evidence
        (``test_fiber_guard_cross_mesh_refuses``)
      - ``foundation``, negative control
      - The fiber discipline lands on the **retained**
-       ``_check_partner`` chain after the mixin retired: cross-mesh
-       ``+`` and ``-`` both refuse, the same-mesh add succeeds
-       (``vv-principles`` #11 pairing), and a discriminator leg asserts
-       the two meshes' spaces compare *equal* so the refusal is provably
-       the mesh arm. **Mutation-verified:** substituting the base
-       ``Field._check_partner`` for the bulk override reds exactly this
-       row.
+       ``_check_partner`` chain after the mixin retired. ⚠ The row was
+       **re-derived at CS4b S3**, as its own docstring had instructed:
+       the mesh tier is gone, so the correctly-blind leg is now a pair
+       of *twin* carriers (distinct objects, equal space content) that
+       legitimately ADD, and the refusal leg is a carrier whose cell
+       edges moved, which reds on the base gate's space-content arm.
+       The same-fiber positive leg is unchanged (``vv-principles`` #11
+       pairing). **Mutation-verified:** deleting the SPACE arm of
+       ``Field._check_partner`` reds the refusal leg while both
+       positive legs stay green.
    * - ``tests/sn/solve/test_cone_membership_witness.py``
      - ``foundation``, production witness
      - :meth:`Field.cone_violations
@@ -1563,6 +1650,42 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-24
+     - **A field is an element of a SPACE, and the fiber is space
+       CONTENT** (campaign 1, phase CS4b). The leaves' space source
+       flips to the carrier's cached, axis-built mints (S1/S2), and the
+       partner gate's third tier — mesh-object identity — **retires**
+       in favour of the base gate's space-content equality (S3, the
+       **F2 doctrine**): twin carriers and BC-only-differing carriers
+       now legitimately mix, while a moved cell edge, a different group
+       structure or a different quadrature refuses exactly as before
+       (:ref:`cone-fiber-discipline`). Trace and ray spaces gain
+       content-digest names so ``(name, shape)`` equality IS content
+       equality. S4 then retires the ``mesh`` binding itself and
+       collapses the per-family ``_phase_space_shape`` hook into
+       :class:`~orpheus.numerics.field.Field`'s own
+       ``values.shape == space.shape`` check — a twin of the space's
+       own content that died with the binding. S5 makes construction
+       **space-primary** (the leaf sugar tier is deleted; call sites
+       read a carrier mint), and S6.2 gives the canonical angular
+       reduction and the isotropic-source projection ONE realization
+       each — the space's frame-induced collapse pair
+       (:ref:`spaces-collapse-pair` on
+       :doc:`/theory/foundations/spaces`) — while the per-face packing
+       loop re-homes to its layout's own
+       :meth:`FaceLayout.pack
+       <orpheus.numerics.face_layout.FaceLayout.pack>` (native place),
+       leaving
+       :meth:`BoundaryField.from_face_arrays
+       <orpheus.transport.fields._bases.BoundaryField.from_face_arrays>`
+       as the typed entry over it.
+     - —
+     - *(in development)* branch ``feature/cs1-energy-space`` —
+       ``4069155b`` / ``07e0fe77`` / ``8a205cbf`` (the carrier mints),
+       ``9138b3c3`` … ``a82d31e4`` (the S3 content re-key),
+       ``554ff10b`` / ``1333135e`` (the mesh binding retires),
+       ``b00bf2d7`` … ``2690a434`` (space-primary construction),
+       ``78925753`` / ``53e7d207`` (the reduction and the packer)
    * - 2026-08-19
      - **Flux lives in the positive cone** :math:`K \subset V`; the
        affine field algebra is overturned. Cone membership becomes an

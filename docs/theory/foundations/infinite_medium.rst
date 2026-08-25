@@ -47,8 +47,16 @@ Key Facts
   (the ``(A, F)``-posed sibling engine) is **no longer on the homogeneous call
   path**
 - **A is assembled from the transport operators**, not a bespoke matrix:
-  :math:`\mathbf{A} = C - K_\mathrm{iso}` over a *meshless* single-cell
-  :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, with
+  :math:`\mathbf{A} = C - K_\mathrm{iso}`, posed on
+  :math:`V_E \otimes V_{\rm pt}` (the energy axis tensored with the
+  quotient point) and reading its cross sections off a *meshless*
+  single-cell
+  :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`. **The
+  carrier supplies data; the problem poses its own space** — since
+  campaign 1 CS4a (K2) the space is minted from the MIXTURE by
+  :func:`~orpheus.homogeneous.solver._pose_space` and threaded into all
+  three arms, not read off the carrier (which mints an ``==`` space and
+  is now a reference, not the production source). With
   :math:`C = \text{diag}(\Sigma_t)` and
   :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T` supplied by
   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
@@ -1098,18 +1106,45 @@ Assembling the loss matrix from the transport operators
 The defining design decision of campaign **#276** is that the
 infinite-medium loss matrix is **not** a bespoke energy matrix — it is
 the meshed SN solver's own loss operator
-:math:`\mathbf{A} = C - K_\mathrm{iso}` evaluated on a *meshless*
-single-cell phase space.  This is Cardinal Rule 2 (cross-model single
-source) applied to the simplest model in the curriculum: there is exactly
-one place in ORPHEUS where the isotropic in-scatter source
-:math:`\Sigma_{s0}^T\phi + 2\Sigma_2^T\phi` is assembled, and the
-homogeneous solver reuses it rather than re-implementing the same
-algebra.
+:math:`\mathbf{A} = C - K_\mathrm{iso}` evaluated on the degenerate
+phase space :math:`V_E \otimes V_{\rm pt}`, with the cross sections
+read off a *meshless* single-cell carrier.  This is Cardinal Rule 2
+(cross-model single source) applied to the simplest model in the
+curriculum: there is exactly one place in ORPHEUS where the isotropic
+in-scatter source :math:`\Sigma_{s0}^T\phi + 2\Sigma_2^T\phi` is
+assembled, and the homogeneous solver reuses it rather than
+re-implementing the same algebra.
 
-The construction proceeds in four steps inside
-:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`:
+The construction proceeds in five steps inside
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`, and the
+first two are deliberately separate — **the problem poses its own
+space; the carrier only supplies data**:
 
-1. **Build the meshless phase space.**  A single-cell, single-region
+1. **Pose the space.**
+   :func:`~orpheus.homogeneous.solver._pose_space` mints
+   :math:`V_E \otimes V_{\rm pt}` from the **mixture** — the energy axis
+   through the one energy-arm rule
+   (:meth:`EnergyAxis.from_materials
+   <orpheus.numerics.axis.EnergyAxis.from_materials>`, the same rule
+   :attr:`MaterialMesh.bulk_space
+   <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
+   routes through, so the two spellings cannot diverge) tensored with
+   the explicit **quotient point**, a one-element spatial axis carrying
+   the COUNTING weight. That weight *is* the normalized "per unit
+   volume" density convention of clause 1
+   (:ref:`spaces-quotient-family`), and it is what the post-processing
+   reaction-rate pairings consume
+   (:ref:`homogeneous-rates-and-normalisation`).
+
+   ⚠ This is the campaign-1 CS4a **K2** correction, and it is a
+   separation of concerns rather than a change of value: the degenerate
+   carrier's :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+   mints an ``==`` space (the identity-bridge gate pins it) but is no
+   longer what production consumes. Read "the carrier supplies cross
+   sections, the problem poses its space" as the rule; a page that says
+   the space comes off the carrier is describing the pre-K2 tree.
+
+2. **Supply the cross sections.**  A single-cell, single-region
    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is built
    from the mixture via
    :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.from_materials`,
@@ -1119,12 +1154,18 @@ The construction proceeds in four steps inside
    (:math:`\Sigma_t`, :math:`\chi`, :math:`\nu\Sigma_f`, and the
    per-material transfer matrices) as the
    :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-   every transport operator consumes.
+   every transport operator consumes.  This carrier is **mesh-less** —
+   it has no spatial mesh and no boundary faces at all — and since
+   CS4b S7 the tree says so with typed refusals rather than by
+   accident: promoting it to an :math:`S_N` phase space raises a named
+   :class:`ValueError` (there is no boundary trace to sweep), and
+   asking it for :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.areas`
+   raises naming *its* case rather than a 2-D mesh's.
 
-2. **Collision diagonal** :math:`C = \mathrm{diag}(\Sigma_t)`, read from
+3. **Collision diagonal** :math:`C = \mathrm{diag}(\Sigma_t)`, read from
    :attr:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section`.
 
-3. **Isotropic energy transfer**
+4. **Isotropic energy transfer**
    :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T`, the action of the
    two model-shared operators
 
@@ -1151,9 +1192,10 @@ The construction proceeds in four steps inside
    :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` apply-to-basis
    (:ref:`matrix-inverse-operator`) on the meshless single cell — the
    ``(ng, 1)`` basis shape **derived from the operators' threaded domain**
-   (the carrier's axis-built ``bulk_space``; campaign 1 CS1 — before it,
-   every consumer passed ``basis_shape=(ng, 1)`` by hand because the
-   meshless operators carried no space) — **inside the**
+   (the mixture-minted pose of step 1; campaign 1 CS1 gave the meshless
+   operators a real space to derive it from, and CS4a K2 made that space
+   the caller's rather than the carrier's — before CS1, every consumer
+   passed ``basis_shape=(ng, 1)`` by hand) — **inside the**
    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
    **constructor** (one eager materialization + LU factorization; see
    :ref:`direct-eigensolve-solve`). (The operators'
@@ -1162,7 +1204,7 @@ The construction proceeds in four steps inside
    a storage-side *oracle* used by the verification gates as a
    structurally-independent cross-check, **not** a production assembly path.)
 
-4. **Drop streaming.**  In an infinite medium the streaming operator
+5. **Drop streaming.**  In an infinite medium the streaming operator
    :math:`L` is identically zero (:math:`\nabla\psi = 0`), so it is
    omitted from the sum.  What remains,
    :math:`\mathbf{A} = C - K_\mathrm{iso} = \mathrm{diag}(\Sigma_t)
@@ -1557,8 +1599,10 @@ extraction (:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`) is not a
 contamination because the independence was never asked of it.
 
 
-Flux Normalisation
--------------------
+.. _homogeneous-rates-and-normalisation:
+
+Reaction rates, flux normalisation, and the one-group condensation
+-------------------------------------------------------------------
 
 The eigenvector :math:`\boldsymbol{\phi}` is determined only up to a
 scalar multiple.  After the eigensolve,
@@ -1592,6 +1636,96 @@ loss-side transfer folded into :math:`\mathbf{A}` as
 :math:`2\Sigma_2^T`, not a production channel (see
 :ref:`scattering-matrix-convention` and the note under the production
 matrix :eq:`fission-matrix` above).
+
+The rate is a typed integrated co-vector
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since campaign 1 CS4b (step S7, EE-1) that denominator — and the two
+post-processing rates beside it — are not a hand-written contraction.
+All three evaluations go through
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`,
+the volume-integrated reaction rate
+
+.. math::
+
+   R_x(\varphi)
+   \;=\; \int_V \sum_g \Sigma_{x,g}(\vec r)\,\varphi_g(\vec r)\,\mathrm{d}V
+   \;=\; \sum_{\text{cells}} V_{\rm cell}\,
+          \langle \Sigma_x, \varphi\rangle(\text{cell}),
+
+which is the :math:`\varphi^\dagger = 1` **degenerate** of the
+adjoint-weighted homogenization bilinear
+:math:`\langle \varphi^\dagger, M[\Sigma_x]\varphi\rangle` (theorem
+T1 of the algebra of record,
+:mod:`orpheus.derivations.common.homogenization`; the weighted form is
+live — pass ``adjoint=``). On the infinite-medium pose the spatial sum
+has one term and :math:`V_{\rm cell}` is the quotient point's unit
+weight, so the object degenerates to the bare group contraction — but
+it is the *same* object the meshed solvers use, which is the point:
+one functional, one contraction, no 0-D special case.
+
+.. important::
+
+   **The solver RE-POSES the cross-section fields onto its own pose,
+   and that is a correctness requirement, not tidiness.** The
+   functional's measure authority is its cross section's space (the
+   :math:`\sigma`\ ↔geometry pairing tier), while the total-flux leg
+   below is the *pose's* pairing. Bind the rates to the
+   carrier-minted space and the two legs would read **different**
+   measures — so re-weighting the pose would move one and not the
+   other, and the condensed cross sections would stop being ratios of
+   commensurable quantities. The solver therefore rebinds
+   (``replace(field, space=space)``) before wrapping, and ``replace``
+   re-runs the field's own construction validation on the way.
+
+   In production this is content-neutral: the pose content-equals the
+   carrier's mint (the identity-bridge gate pins it), and `[M]` the
+   rewiring is **bit-identical** with the pre-EE-1 raw
+   ``space.inner_product`` spelling on
+   :math:`\nu\Sigma_f` and :math:`\Sigma_a` across the 2-group and
+   4-group fixtures (4 of 4 probed; the spelling-equivalence gate pins
+   it, and the D5 byte-stability suite is the end-to-end witness).
+   Neutral *today* is not the same claim as *correct under the
+   mutation*: the CS4a-R G2.5 gate scales the pose's point weight by
+   two and requires the rates to move with it, and that gate is what
+   the rebinding exists to satisfy.
+
+**The total flux is NOT a reaction rate.** The denominator of the
+one-group condensation is
+
+.. math::
+
+   \langle 1, \varphi\rangle \;=\; \int_V \sum_g \varphi_g\,\mathrm{d}V ,
+
+which carries no cross section: it is the pose's own **integration
+co-vector**, so it stays
+:meth:`FunctionSpace.inner_product
+<orpheus.numerics.space.FunctionSpace.inner_product>` against a field
+of ones rather than being dressed as an
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+with a unit cross section. `[M]` on the counting-weighted quotient
+point it is bit-identical to ``float(phi.sum())``, which is what it
+replaced.
+
+The two condensed one-group cross sections
+:attr:`~orpheus.homogeneous.solver.HomogeneousResult.sig_prod` and
+:attr:`~orpheus.homogeneous.solver.HomogeneousResult.sig_abs` are then
+**same-pairing ratios**
+
+.. math::
+
+   \bar\sigma_x \;=\;
+   \frac{\langle \Sigma_x, \varphi\rangle}{\langle 1, \varphi\rangle},
+
+and being ratios of two integrals against the *same* measure they are
+**measure-invariant**: a future pose carrying a different point weight
+moves numerator and denominator together and leaves
+:math:`\bar\sigma_x` fixed. That is the CS4a-R **XD-6** ruling — a
+quantity documented as a cross section must not scale with the point
+weight — and its gate is the same ×2 pose mutation, asserting
+*rates move, ratio stays*. The counting weight of step 1 is a
+convention the posing function states; it is not a contract these
+ratios depend on.
 
 Post-processing reads three energy-grid diagnostics off the mixture's
 :class:`~orpheus.data.energy_grid.EnergyGrid` value object (campaign #276

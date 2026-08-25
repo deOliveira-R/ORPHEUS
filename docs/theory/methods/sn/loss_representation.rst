@@ -633,7 +633,8 @@ This is ``coding-elegance`` Pattern 2 (single source of truth): **one**
 ``loss_action``, **one** source of :math:`\sigma`, consumed identically by
 both directions. The composite never asks a leaf for a :math:`\sigma`-bearing
 action it must then undo. The input contract (typed composite + the
-mesh-identity invariant) is itself single-sourced through the module-level
+**space-content** invariant — mesh-object identity until campaign 1
+CS4b S3) is itself single-sourced through the module-level
 ``_require_typed_composite`` helper that :meth:`StreamingOperator.apply` now
 shares. The multi-D Cartesian *adjoint* rides the same discipline since
 #310 C4 (``ScanMarch.loss_action_transpose`` is the row-march reverse — one

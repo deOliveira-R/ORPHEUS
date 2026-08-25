@@ -138,6 +138,31 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   universal (plan-§2: I first wrote the L=2 range over a sentence covering both). ⭐ Then
   look one level down: the RATIO OF THE TWO ADJOINTS on a single-ℓ unit input is exactly
   `(4π/(2ℓ+1))²`, `[M]` to `≤2.8e-16` — seed-free and strictly more useful. → L-065
+- **⭐⭐ "BIT-EXACT" IS USUALLY A PROPERTY OF THE DRAW — publish a BOUND over ≥200 seeds, with
+  the norm written out.** A brief and two gate docstrings said `R∘E = id` is `[M]` bit-exact;
+  `[M]` on the gate's OWN fixture `np.array_equal` fails on **844 of 2000** seeds (~1 ULP), and
+  the idempotence row on 57 of 200 — both gates are green only because their hard-coded seeds
+  land in the exact set. On the SHIPPED SN carrier it is 200/200 (Σw = 2 exactly AND symmetric
+  GL weights re-associate). ⭐ The DUAL, same page: a *tightness* row (two spellings of the
+  same reduction, same order) IS robustly bit-exact, 200/200 — so say which kind you have,
+  because only the measurement separates construction-exact from draw-exact. Report a
+  seed-fragile gate upward; you do not edit `tests/`. → L-067
+- **⭐⭐ A COINCIDENCE claim ("X is bit-identical to Y on 8 of 8 fixtures") needs its FAMILY,
+  and it is usually false where it matters.** `[M]` `frame.discrete_gram[0,0] == weights.sum()`
+  holds at n ∈ {2,4,5,6} and FAILS at 16 and 64 on BOTH `leggauss` and `linspace` weights (an
+  einsum reduction vs a pairwise one) — and on the shipped SN quadratures it fails at **GL8**,
+  where `from_isotropic` differs from `Q/Σw` by 2.0e-16 in production. Publish the ladder, and
+  say which side is exact BY CONSTRUCTION (the Gram) so a future gate pins that one. → L-067
+- **⭐⭐ A design record's `[M]` can carry a CONFOUND — run the CROSSED CELL before repeating
+  its cause.** A record blamed GEOMETRY for a split ("sphere works, slab doesn't"); `[M]` the
+  crossed cell shows geometry is inert and **L** decides (slab L=1 works, sphere L=2 fails
+  identically to slab L=2), because the object under test was built from a component that
+  knows no geometry. The correction STRENGTHENED the section. ⚠ And the committed probe was
+  the record's own un-physical arm, cited by a PRODUCTION docstring for the other arm's
+  number. → L-067
+- **⭐ A brief's "Class.method" inherits the TREE's own errors — `hasattr` before minting the
+  role.** `[M]` `FaceField.from_face_arrays` does not exist (it is `BoundaryField`'s), and the
+  same wrong class sits in the production docstring the brief was read from. → L-067
 - **A "MEASURED, do not re-derive" block is a CLAIM** — that means "don't burn a session", not
   "don't check". A bit-identity attribution was wrong on exactly the configuration that motivated
   the change; widen the repro to the WHOLE inventory, since the brief's sample is never the
@@ -229,6 +254,21 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   evidence for a page is YOUR OWN import probe over its roles. ⚠ Measure such a patch as a COPY run
   as a SUBPROCESS — monkeypatching `judge` and calling `main()` twice in-process read `0` for both
   arms while a subprocess read 49. → L-062
+- **⭐⭐ …and the blindness is ROLE-scoped, NOT `.rst`-scoped — `DEAD TARGETS: 0` certifies
+  `:mod:` targets and NOTHING else, in `.py` docstrings too.** (The entry above read "on an
+  `.rst` page" until 2026-08-24; that was too narrow.) `judge()` re-checks the target's HEAD
+  carrying the ORIGINAL role, and `candidate_paths("orpheus", ns, "meth")` →
+  `('<ns>.orpheus',)`, which never resolves ⟹ every DEAD fully-qualified `orpheus.*` target
+  under a non-`mod` role is DECLINED; live ones return ALIVE earlier, which is why the gate
+  looks healthy. `[M]` `judge("…FunctionSpace.definitely_not_here", role="meth")` = DECLINED vs
+  `judge("orpheus.numerics.does_not_exist", role="mod")` = DEAD. The one-line fix
+  (`head_role = "mod" if "." in target else role`) on a COPY, run as a SUBPROCESS **from inside
+  the repo** (it resolves against `REPO_ROOT`, so a `/tmp` copy scans 0 files), read 1 dead / 2
+  sites where the stock gate read 0. → L-067, L-062
+- **⭐ Two independently-VOCABULARIED instruments agreeing IS the acceptance evidence.** nexus
+  `dead_references` (by RENDERED target) and the patched gate (by IMPORT) returned the SAME
+  single finding; neither alone was persuasive (the stock gate said 0; nexus's set-difference
+  with the gate is normally noisy). → L-067, L-052
 - **⭐⭐ A per-site adjudication TABLE is an instrument — audit its SKIP clause, its "retired"
   verdicts, and its `hasattr` evidence.** Applying a 91-site ruling table faithfully still yielded
   FIVE corrections: (a) its *keep-if-absent-from-graph* filter hid ~1400 alive-but-unqualified
@@ -512,6 +552,19 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   survives, carries the falsified version verbatim beneath, and ships the checkable test the
   reversal yields. → L-063
 
+- **⭐ A retired guard TIER leaves a stale REASON attached to a surviving FACT — replace the
+  reason, keep the instruction, and say what changed.** "The composite is re-homed *because*
+  the algebra enforces mesh identity" — the re-home still happens; the tier is now space
+  CONTENT, so a reader trusting the old reason will optimise the re-home away for a twin
+  carrier. Same shape three sites over: a "single-sourced through X" claim where `[M]` the two
+  spellings differ by exactly Σw (the plain broadcast vs the normalized section) — the repair
+  turns the falsehood into the worked example and points at the section that keeps them apart.
+  ⚠ The production helper's own docstring carried the same dead tier. → L-067
+- **⭐ A bare plan-internal STEP NUMBER in the corpus collides with a live campaign's.**
+  `spaces.rst` said a deferred item was "scheduled for S7" while CS4b's own step S7 landed that
+  day and built none of it. Disambiguate at EVERY site, and re-title a FENCE row that has
+  fallen ("only the scalar bulk is axis-built" → `[M]` the angular bulk and the trial space are
+  too; what is still fenced is the composite and the flat traces). → L-067
 - **⭐⭐ When the corpus states ONE object N incompatible ways and each is internally
   consistent, that is not N bugs — a hidden PARAMETER is unnamed.** `[M]` three published
   `Π*` (naked `S₀` / `g_C·S₀` / `S₀∘G⁻¹`), plus one admonition whose EQUATION and PROSE
@@ -872,6 +925,15 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   re-derives v1 within a week. ⭐ And say explicitly what the doctrine does to the tension it
   settled ("it does not pick a winner — both prior rules are right about different clauses");
   otherwise the next reader hunts for the loser. → L-064
+- **⭐ A SELF-CONTRADICTING Key Facts block, twelve lines apart, and the truth is NEITHER
+  pole.** `frame.rst` promised `Galerkin ⟹ Π* = R` and, 12 lines below in the same admonition,
+  `M* = R/W`. Post-F-0 the promise is that the adjoint re-synthesises on the TRIAL basis
+  (`M* = S₀∘G⁻¹`, a *canonical* dual) — the metric stays. Fix at BOTH poles, name the ERR
+  numbers the bare form is, and cite the standing counter-example. → L-067
+- **⭐ Changelog ROUTING for an unmerged carve: `methods/sn/history.rst` contracts "merge hash
+  or not at all" and BLOCKS you; `spaces.rst` / `field_algebra.rst` / `operator_algebra.rst`
+  each carry the *(in development)* hatch.** Route the entry to the page whose SUBJECT moved
+  AND which permits the hatch; report the blocked row ready-to-paste. → L-067, L-063
 - **⭐⭐ A RETRODICTION / confirmation table is `plan-authoring` §2's aspirational-row trap moved
   into the CORPUS — and it costs more here.** A table headed by a property of the tree reads
   ENTIRELY as a survey of what IS, so one unbuilt row is indistinguishable from the observations

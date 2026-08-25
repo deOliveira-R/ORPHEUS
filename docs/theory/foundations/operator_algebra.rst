@@ -118,9 +118,11 @@ Key Facts
   <orpheus.numerics.field.Field.cone_violations>`), never a constructor
   invariant — diamond difference does not preserve :math:`K`, so a
   :math:`\psi\ge0` type would refuse production output. What "fluxes of
-  different problems don't mix" really enforces is the **fiber** (class +
-  space + mesh identity on :meth:`Field._check_partner
-  <orpheus.numerics.field.Field._check_partner>`), and the iterate
+  different problems don't mix" really enforces is the **fiber** — class
+  identity plus space CONTENT equality on :meth:`Field._check_partner
+  <orpheus.numerics.field.Field._check_partner>` (the mesh-object tier
+  it carried at CS3 retired at CS4b S3;
+  :ref:`cone-fiber-discipline`) — and the iterate
   diagnostics that a state structurally cannot carry live on the
   **iteration record**
   (:attr:`IterationRecord.increment_norms
@@ -1964,6 +1966,28 @@ partition in order — the diagonal / multiplication Operator, then the
 Functional, then the two integral Kernels — and the full codomain
 partition with its type-system table is set out in
 :ref:`functional-category`.
+
+.. note::
+
+   **Where the axis collapse pair sits.** Campaign 1 CS4b added a third
+   kind of nonlocal map: the **axis marginal** —
+   :class:`~orpheus.numerics.operator.AxisRetractionOperator` (fiber
+   integration over one named axis) and its
+   :class:`~orpheus.numerics.operator.AxisSectionOperator`. By the
+   locality discriminator these are **nonlocal**: the retraction's
+   output at a point reads the input at every index of the collapsed
+   axis. `[M]` they do NOT conform to the
+   :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
+   Protocol (no ``kernel`` member) — deliberately, because the
+   "kernel" they would expose is the axis measure itself, which the
+   bound spaces already carry, and no consumer wants a second copy of
+   it. They are plain
+   :class:`~orpheus.numerics.operator.LinearOperator`\ s born bound,
+   minted by the SPACE rather than by a mesh or a materials record.
+   Their admission is not an operator-algebra question at all — it is
+   the collapse doctrine's — which is why the pair is developed on
+   :doc:`/theory/foundations/spaces` (:ref:`spaces-collapse-pair`) and
+   only pointed at from here.
 
 
 .. _diagonal-operator:
@@ -3960,11 +3984,27 @@ Two cells are deliberately empty, and both absences are designed.
   representation embedding baked into a leaf's arithmetic. It is kept
   because the embedding is the genuine mathematical relation between an
   isotropic and an anisotropic source (the :math:`\ell=0` block *is* the
-  isotropic part), it is single-sourced through
-  :meth:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic`,
-  and it was **endorsed at creation** as the right home for the iso/aniso
-  combine. It is documented here as a recognised, deliberate exception so a
-  future reader does not "tidy it away".
+  isotropic part), and it was **endorsed at creation** as the right home
+  for the iso/aniso combine. It is documented here as a recognised,
+  deliberate exception so a future reader does not "tidy it away".
+
+  ⚠ **This dunder is the PULLBACK, not the section — and this bullet
+  said otherwise until 2026-08-24.** It read *"it is single-sourced
+  through*
+  :meth:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic`\ *"*,
+  which is false at HEAD and is the exact confusion the two-arrow
+  design exists to prevent: `[M]` the dunder's body is
+  ``self.values[None] + other.values`` — the **plain** broadcast
+  :math:`\pi^{*}`, with no division — while ``from_isotropic`` applies
+  the producer-side :math:`1/\Sigma w` and is therefore the **section**
+  :math:`E`. The two differ by exactly the axis's total weight
+  (:ref:`spaces-collapse-pair-two-arrows` on
+  :doc:`/theory/foundations/spaces`), so they are not one another's
+  single source and never were interchangeable. Use the dunder when the
+  caller has ALREADY divided; use ``from_isotropic`` when it has not.
+  What the two DO share since CS4b S3 is their coherence check — both
+  demand that the iso operand's space BE the angular operand's
+  non-angular marginal, compared axis-wise by CONTENT.
 
 
 .. _carrier-grid-flat-leaf-normal-form:

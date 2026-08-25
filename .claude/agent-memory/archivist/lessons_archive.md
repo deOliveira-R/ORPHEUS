@@ -6746,3 +6746,164 @@ block owes that block a RUN**, and the run finds defects the sweep was not looki
   resolve by Sphinx module context and the gate skips them by design — a false positive of the
   probe, not a defect. Check the diff (`git diff | grep '^[+-].*symbol'`) before believing the
   probe on an unqualified target.
+
+---
+
+## L-067 — Documenting a MEASURED machinery: the brief's numbers were a sample, the record's `[M]` carried a confound, and the gate that certifies me is blind to its own class
+
+**Task.** CS4b S7 docs half (branch `feature/cs1-energy-space`, 2026-08-24): write the
+flagship "axis collapse pair" section on `spaces.rst`, repair `infinite_medium.rst` for the
+EE-1 typed-rate landing + the K2 pose split, fix the `field_algebra` mesh-identity rows, the
+frame-square `Π* = R` contradiction, and the changelogs. Six pages, +1407/−104. Final
+`-E -W` EXIT=0 with the WARNING/ERROR/CRITICAL/SyntaxWarning **set unchanged (0 ↔ 0)** from a
+freshly measured baseline; vv violations 0, sentinels 545 → 549; `dead_references` 1 (a
+pre-existing PRODUCTION docstring, not mine).
+
+### 1. ⭐⭐ "Bit-exact" is a property of the DRAW, and a gate's seed is a sample of size ONE
+
+The brief and the gate docstrings both said `R ∘ E = id` is `[M]` **BIT-EXACT**. It is not a
+property of the operators. `R∘E` computes `Σ_n w_n·(φ/Σw)`; whether the round-off floor is
+*zero* depends on how those products re-associate for the particular numbers involved.
+
+`[M]` on the gate's own synthetic fixture (`w = [0.3,0.7,0.5,0.5]`, `Σw = 2.0`):
+
+| row | `np.array_equal` holds on |
+|---|---|
+| `R∘E = id` (G6.1) | **1156 of 2000** seeds — fails on 844, worst rel `1.480e-16` (~1 ULP) |
+| `P = E∘R` idempotent (G6.2) | **143 of 200** seeds — fails on 57 |
+| both, on the shipped SN carrier (GL4 slab) | **200 of 200** |
+
+Both gate rows are green because the seeds they hard-code (`1` and `2`) land in the exact
+set. **Change the seed and they red.** The SN carrier is robustly exact because `Σw = 2`
+exactly *and* the symmetric GL weights re-associate cleanly — which is what licenses
+`np.array_equal` on the production-facing rows and does NOT license it on the synthetic one.
+⟹ Publish a **bound over ≥200 draws** with the norm and the seed family written out
+(`max‖a−b‖_∞/‖b‖_∞` over `default_rng(1000+k)`), never a single reading; and say WHICH
+fixture is robustly exact and why. Reported the seed-fragility upward — I do not edit `tests/`.
+
+⚠ The dual, same session: the **tightness** rows (minted kernels vs the literal frame's face
+contents) ARE robustly bit-exact — `[M]` 200/200 on all three correspondences — because both
+sides evaluate the same reduction in the same order. So "bit-exact" is sometimes a property
+of the construction and sometimes of the draw, and only the measurement separates them.
+Saying which is the whole content of the row.
+
+### 2. ⭐⭐ A COINCIDENCE claim needs its family, and this one is false exactly where it matters
+
+Brief + production docstring + gate docstring all carry: *"the gram einsum is bit-identical to
+`weights.sum()` on 8 of 8 probed fixtures (n ∈ {2,4,5,6,16,64} incl. GL64's inexact Σw)"*.
+`[M]` mine, two weight families:
+
+| n | `leggauss` weights | `linspace(0.1,1.3,n)` |
+|---|---|---|
+| 2, 4, 5, 6 | identical | identical |
+| **16, 64** | **NOT identical** (`2.0000000000000004` vs `2.0`) | **NOT identical** |
+
+The Gram is `einsum("n,nj,nk->jk", w, T, T)`; `ndarray.sum` is a pairwise reduction. And on
+the **shipped SN quadratures** the split lands at **GL8**: divisor `1.9999999999999998` vs
+`quad.weights.sum() = 2.0`, so `AngularSourceSink.from_isotropic` differs from a hand-written
+`Q/Σw` by `2.0e-16` relative in production. ⟹ The structural claim (*the divisor IS the
+frame's `discrete_gram[0,0]`*) is exact by construction and is what a gate must pin; the
+coincidence with `weights.sum()` is a fixture accident and must never be relied on. Published
+the ladder as a table with its two columns side by side.
+
+### 3. ⭐⭐ A design record's `[M]` can carry a CONFOUND — two settings moved together, one got the credit
+
+The record read: *"sphere GL L=1 (DIAGONAL Gram): `face.H(e₀φ) == E(φ)` to 2.2e-16; Slab L=2
+(DENSE Gram): un-physical"* — attributing the split to **geometry**. It cannot be geometry:
+the angular frame is built from `sn.quad`, which knows nothing about the spatial coordinate
+system. Running the crossed cell:
+
+| fixture | Gram max off-diag | `face.H(e₀φ)` vs `E φ` | `reconstruct(e₀φ)/W` vs `E φ` |
+|---|---|---|---|
+| slab L=1 | 5.6e-17 | 5.6e-17 | **0.0** `array_equal` |
+| sphere L=1 | 5.6e-17 | 1.1e-16 | **0.0** |
+| slab L=2 | 1.155 | 16.17 | **0.0** |
+| sphere L=2 | 1.155 | **16.17** | **0.0** |
+
+⟹ the discriminator is the **Gram's diagonality**, i.e. **L**, and geometry is inert. A 1-D
+polar rule has no azimuthal nodes, so the m≠0 modes are not orthogonal under it — `[M]`
+`gauss_legendre(8)` at L=2 reads the SAME `1.155` / `16.17`, so refining the order does not
+fix it. The clean, **metric-free** statement (`E = reconstruct(e₀·)/W`) is bit-exact in all
+four. ⟹ **When a record's two arms differ in more than one setting, run the crossed cell
+before publishing either as the cause.** The correction made the section stronger: it is the
+reason the collapse pair is minted from an *indicator* frame instead of lifted out of the
+harmonic one — it must keep working where the harmonic metric does not exist.
+
+⚠ And: the committed probe `scratch/probe_s6_q5_dissolution.py` is the SLAB L=2 arm — the arm
+the record itself calls un-physical — so run as committed it prints `1.617e+01` while a
+**production docstring** cites that path for `2.2e-16`. A scratch probe cited from `orpheus/`
+is a raw-path claim about a file that no instrument checks (L-062, one register up).
+
+### 4. ⭐⭐ The xref gate's `head_role` bug is ROLE-scoped, not `.rst`-scoped — my own memory was too narrow
+
+L-053/L-062 recorded this as *"on an `.rst` PAGE that gate reports `:mod:` and nothing else"*.
+`[M]` it is worse and simpler: `judge(target, ns, role)` re-checks the target's HEAD **carrying
+the original role**, and `candidate_paths("orpheus", ns, "meth")` returns
+`('<namespace>.orpheus',)` — which never resolves — so every **dead** fully-qualified
+`orpheus.*` target under a non-`mod` role is DECLINED, in `.py` docstrings exactly as in
+`.rst`. Live ones return ALIVE earlier and are unaffected, which is why the gate looks healthy.
+
+- `judge("orpheus.numerics.space.FunctionSpace.definitely_not_here", role="meth")` → **DECLINED**
+- `judge("orpheus.numerics.does_not_exist", role="mod")` → **DEAD**
+
+⟹ **`DEAD TARGETS: 0` certifies `:mod:` targets and nothing else.** The one-line fix
+(`head_role = "mod" if "." in target else role`) applied to a COPY, run as a subprocess from
+inside the repo (it resolves paths against `REPO_ROOT`, so a `/tmp` copy scans 0 files), read
+**1 dead target / 2 sites** where the stock gate read 0 — one of them my own new xref, one a
+pre-existing production docstring. ⟹ the acceptance evidence for a page is still YOUR OWN
+import probe; the gate is a `:mod:` check.
+
+### 5. ⭐ Two independently-vocabularied instruments agreeing IS the acceptance evidence
+
+nexus `dead_references` (resolves by RENDERED target) and the patched gate (resolves by
+IMPORT) returned **exactly the same single finding** — `FaceField.from_face_arrays` at
+`face_layout.py:355`. Neither alone would have been persuasive: the stock gate said 0, and
+nexus's set-difference with the gate is normally noisy (L-052). Convergence from two different
+resolution mechanisms is what makes a one-line report actionable.
+
+### 6. ⭐ A brief can name the wrong CLASS for a method — and the same error is already in production
+
+The brief said *"`FaceField.from_face_arrays` is the typed entry"*. `[M]` `hasattr(FaceField,
+"from_face_arrays")` is **False**; it lives on `BoundaryField`. I wrote the brief's spelling
+into a changelog row and my own selfcheck caught it — and the SAME wrong class is in
+`orpheus/numerics/face_layout.py:363`, which is where the brief's author almost certainly read
+it. ⟹ a brief's symbol claim inherits the tree's own errors; `hasattr` every method-on-class
+before minting a role.
+
+### 7. Repair shapes worth reusing
+
+- **A self-contradicting Key Facts block, 12 lines apart.** `frame.rst` promised
+  `GalerkinFrame ⟹ Π* = R` and, twelve lines below in the same admonition, `M* = R/W`. The
+  post-F-0 truth is neither: Galerkin fixes *which basis* the adjoint re-synthesises on (the
+  trial one, `M* = S₀∘G⁻¹` — a **canonical** dual), and the metric stays. Fix at BOTH poles
+  (`Π* ∝ R` in the diagram + a ⚠ clause naming ERR-039/051 and the indicator counter-example),
+  never at one.
+- **A "single-sourced through X" claim is two claims.** `operator_algebra.rst` said the
+  `iso + aniso` dunder is single-sourced through `from_isotropic`. `[M]` the dunder's body is
+  `self.values[None] + other.values` — the **plain** broadcast — while `from_isotropic` applies
+  `1/Σw`. They differ by exactly the axis's total weight, i.e. they are the two arrows the whole
+  section I was writing exists to keep apart. The repair writes the ⚠ *and* points at the new
+  section, so the falsehood becomes the worked example.
+- **A retired guard tier leaves a stale REASON attached to a surviving FACT.** `verification/sn.rst`
+  said the composite is re-homed "because `TimedFullField` algebra enforces mesh identity". The
+  re-home still happens; the reason is now space CONTENT. Keep the instruction, replace the
+  reason, and say what changed — a reader who trusts the old reason will "optimise away" the
+  re-home for a twin carrier.
+- **The production helper's own docstring lied the same way.** `_require_typed_composite`'s
+  docstring says *"(2) `field.interior.mesh` is the operator's SAME `sn_mesh` instance"* over a
+  body that compares `field.interior.space != field.interior.space_on(sn_mesh)`. Reported.
+- **A colliding bare step number.** `spaces.rst` said the V/V* condensation morphisms are
+  "scheduled for S7" — a plan-internal number that collides with CS4b's own step S7, which
+  landed that day and built none of it. Disambiguated at BOTH sites (`plan-authoring` §9b in the
+  corpus).
+- **A fence row that fell.** "Only the scalar bulk is axis-built; every other space is legacy"
+  → `[M]` the angular bulk and the scheme-widened trial space are axis-built too and report
+  `has_coordinate_cone is True`; what is still legacy is the composite and the flat traces.
+  Re-title the fence to what is actually still fenced.
+
+### 8. The changelog routing, again
+
+`methods/sn/history.rst` contracts *"a new entry lands with its merge hash or not at all"*, so
+an unmerged branch is BLOCKED there — while `spaces.rst`, `field_algebra.rst` and
+`operator_algebra.rst` each carry the *(in development)* escape hatch. ⟹ route the entry to
+the page whose SUBJECT moved and which permits the hatch; report the SN row ready-to-paste.

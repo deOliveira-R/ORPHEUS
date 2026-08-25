@@ -1428,6 +1428,27 @@ mix and only a genuinely different space refuses):
        :math:`\mu`-levels consume no independent starting direction
        (R12a — Cartesian and the production cylinder rules)
 
+The second row's parenthetical — *the scalar bulk is literally the
+angular bulk minus axis 0* — is not a coincidence to be maintained by
+hand: since CS4b S6 it is realized by an **arrow between the two
+mints**. :meth:`FunctionSpace.retraction
+<orpheus.numerics.space.FunctionSpace.retraction>` over the
+``"angular"`` axis contracts the angular bulk with the quadrature
+measure and its bound codomain *is* the scalar mint, content-equal by
+construction; its section
+(:meth:`~orpheus.numerics.space.FunctionSpace.section`) is the
+normalized lift back. Both are memoized on the space, so
+:meth:`AngularFlux.integrate_angular
+<orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
+and
+:meth:`AngularSourceSink.from_isotropic
+<orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+are one ``apply`` each rather than two hand-written kernels that could
+drift from the mints they connect. ⚠ They are DIFFERENT arrows — the
+adjoint of the retraction is the *plain* broadcast, the section divides
+by :math:`\Sigma w` first — see :ref:`spaces-collapse-pair` on
+:doc:`/theory/foundations/spaces`.
+
 Measured allocations
 ~~~~~~~~~~~~~~~~~~~~
 

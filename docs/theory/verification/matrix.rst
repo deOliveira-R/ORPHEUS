@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10067**
+Total tests collected: **10110**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 12.9%
+   L0, 1297, 12.8%
    L1, 1634, 16.2%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7067, 70.2%
+   foundation, 7110, 70.3%
    unmarked, 5, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 9983
+   explicit, 10026
    class-name, 46
    func-name, 0
    case, 33
@@ -258,10 +258,11 @@ Module × level grid
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 28, 0
-   fields/test_angular_flux, 0, 0, 0, 0, 23, 0
+   fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
+   fields/test_harmonic_moment_flux, 0, 0, 0, 0, 13, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 20, 0
@@ -325,6 +326,7 @@ Module × level grid
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_axis, 0, 0, 0, 0, 15, 0
+   numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
@@ -510,6 +512,7 @@ Module × level grid
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_kernels, 0, 0, 0, 0, 53, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
+   transport/test_material_mesh_admission, 0, 0, 0, 0, 6, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 23, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
@@ -879,7 +882,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **545** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **549** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1371,6 +1374,10 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq76-kinf-mg``
 - ``sotp-scattering-form``
 - ``spaces-axis-product``
+- ``spaces-collapse-adjoint-is-pullback``
+- ``spaces-collapse-rank-one-gram``
+- ``spaces-collapse-retraction``
+- ``spaces-collapse-section``
 - ``spatial-moment-append-policy``
 - ``spatial-moment-kronecker-order``
 - ``spatial-moment-space-size``

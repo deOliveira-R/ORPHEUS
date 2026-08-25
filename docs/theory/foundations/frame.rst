@@ -143,13 +143,26 @@ Key Facts
         │                      χ_k that need NOT equal the trial φ_k, so
         │                      M* ≠ R (an oblique dual)
         └─ GalerkinFrame       test IS trial — STRENGTHENS the promise to
-                               Π* = R (a symmetric, here-diagonal Gram).
-                               The angular spherical-harmonic projection
-                               is the canonical pure-Galerkin frame.
+                               a CANONICAL dual: M* = S₀∘G⁻¹ re-synthesises
+                               on the TRIAL basis, so it is R rescaled per
+                               mode by 1/(d_ℓ G_ℓ) — one scalar 1/W for the
+                               SH frame. The angular spherical-harmonic
+                               projection is the canonical pure-Galerkin
+                               frame.
 
   :class:`~orpheus.numerics.frame.GalerkinFrame` *is-a*
   :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with
   ``test is trial``: it strengthens (never weakens) the base promise.
+
+  ⚠ **The Galerkin promise is** :math:`M^* \propto R`\ **, never**
+  :math:`M^* = R`. Being a canonical dual fixes *which basis* the
+  adjoint re-synthesises on (the trial one); it does not remove the
+  metric. `[M]` under the no-prefactor SH convention the constant is
+  :math:`1/W` (:eq:`frame-square-closure-sh`), and asserting the bare
+  :math:`M^* = R` is precisely the ERR-039 / ERR-051 family. The
+  indicator frame is the standing counter-example where the factor is
+  not even one scalar
+  (:ref:`frame-square-closure-section`).
 
 - **The frame owns the codomain METRIC, and it is the INVERSE
   discrete Gram** (:ref:`frame-parseval-metric`). For a band-limited
@@ -832,7 +845,11 @@ once (:eq:`scattering-aniso-composite`,
    4-node / 3-region fixture ``M.H`` reads
    :math:`[0.5,\,0.5,\,0.667,\,0.667]` where :math:`R/W` reads
    :math:`[0.2,\,0.2,\,0.4,\,0.4]`). Never quote the closure as a frame
-   law.
+   law. The **single-region** indicator frame — the degenerate
+   :math:`K = 1` case of the same counter-example — is what mints the
+   axis collapse pair, where the Gram is :math:`1\times1` and its entry
+   is the axis's total mass: see
+   :ref:`spaces-collapse-pair-frame`.
 
 .. _frame-parseval-numerical-evidence:
 
@@ -4467,6 +4484,8 @@ perturbation theory and generalised perturbation theory — are catalogued
 in :ref:`sn-adjoint-consumers`.
 
 
+.. _frame-discipline-as-a-type:
+
 Discipline as a type, not a property or an operator marker
 ==========================================================
 
@@ -4513,7 +4532,7 @@ reading the docstring**:
        FrameBase, PetrovGalerkinFrame, GalerkinFrame,
    )
 
-   # Galerkin: test IS trial, Π* = R (a canonical dual)
+   # Galerkin: test IS trial, Π* ∝ R (a CANONICAL dual: 1/W for SH)
    sh_frame = quad.angular_frame(L)            # -> GalerkinFrame
 
    # Petrov-Galerkin: explicit test basis, M* ≠ R (an oblique dual)
@@ -4524,9 +4543,15 @@ reading the docstring**:
    )
 
 A reader of ``PetrovGalerkinFrame(...)`` immediately knows the
-analysis measures against a distinct test basis, so :math:`M^* \ne R`;
-a reader of :class:`~orpheus.numerics.frame.GalerkinFrame` knows the
-strengthened :math:`M^* = R` promise holds. The hierarchy answers the
+analysis measures against a distinct test basis, so :math:`M^*` is an
+**oblique** dual — it re-synthesises on the test functions and is not
+proportional to :math:`R` at all; a reader of
+:class:`~orpheus.numerics.frame.GalerkinFrame` knows the strengthened
+**canonical**-dual promise holds, :math:`M^* = S_0\circ G^{-1}`, which
+re-synthesises on the trial basis and is therefore :math:`R` up to the
+per-mode Gram factor (one scalar :math:`1/W` for the SH frame —
+:eq:`frame-square-closure-sh`; never the bare :math:`M^* = R`, which is
+the ERR-039 claim). The hierarchy answers the
 discipline question without reading prose, and a
 :class:`~orpheus.numerics.frame.GalerkinFrame` that is handed a
 distinct ``test_basis`` raises (the contradiction is unrepresentable).
@@ -4715,6 +4740,30 @@ family-wide residual table, and the three reasons no gate could see
 it: :ref:`frame-parseval-metric`. Recorded debt: a matrix-valued
 metric needs the CS4c Riesz-leg machinery
 (``.claude/plans/frame_square_recarve.md``).
+
+**2026-08-24 — step F-1, the mint: the faces ARE the bound operators.**
+With the metric right, the remaining asymmetry was ownership. A frame
+is not an operator; it is an operator **factory**, and it is shared —
+the scattering operator, the windowed accumulation, DSA's
+:math:`\ell=1` row and the loss-kernel gauge all read one frame. F-1
+made the transport-level analysis and reconstruction **bound**
+operators minted BY the frame (domain and codomain are the two full
+field spaces), so the pre-F-1 "not yet typed" ``codomain is None`` debt
+on :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` died
+with the mint and the composition guards now check that end.
+
+**2026-08-24 — step S6.0b, the rank-one instance.** The same
+generator, at :math:`K = 1`: a **single-region indicator** frame over
+an axis's index set induces the axis **collapse pair** — the
+retraction :math:`R = \pi_*` and its section :math:`E` — whose
+normalisation divisor IS this page's Parseval metric, the
+:math:`1\times1` :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
+entry. The frame is built at the mint, read for its induced data, and
+**discarded** (the forgetful-map half of the stage-2 generator
+discipline), with a tightness gate standing in for instance sharing.
+Full account, including why the pair is not lifted out of the harmonic
+frame: :ref:`spaces-collapse-pair` on
+:doc:`/theory/foundations/spaces`.
 
 
 References

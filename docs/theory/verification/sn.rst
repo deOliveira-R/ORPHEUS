@@ -3596,9 +3596,13 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    prescribed inflow**. Its leaf values are re-homed onto the solve's
    own ``sn_mesh``: the trace / grid layout is deterministic from
    ``(mesh, quadrature, materials)``, so this is an exact values-copy
-   onto the solve's mesh instance, required because the within-group
-   operators are built on ``sn_mesh`` and ``TimedFullField`` algebra
-   enforces mesh identity.
+   onto the solve's mesh instance. The within-group operators are built
+   on ``sn_mesh`` and their matvec entries admit an operand only when
+   its interior space agrees in CONTENT with the one that mesh mints
+   (campaign 1 CS4b S3 re-keyed this from mesh-OBJECT identity, so a
+   twin carrier built from equal inputs would now be admitted); the
+   unconditional re-home is what makes the route correct without the
+   caller having to reason about that.
 
 .. code-block:: python
 

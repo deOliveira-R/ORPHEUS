@@ -1071,8 +1071,8 @@ This is the conceptual boundary between
 (#263-deferred) per-cell ``SpectrumField``. ``EmissionSpectrum`` is a
 **validated value-object**: a thin :class:`numpy.ndarray` subclass that
 carries the material-level law as inspectable methods, with no membership
-in the flux/operator algebra (no ``__add__`` gate, no cross-mesh partner
-check, no change-of-basis morphism). It validates the values *and lets
+in the flux/operator algebra (no ``__add__`` gate, no space-content
+partner check, no change-of-basis morphism). It validates the values *and lets
 them ride unchanged* through every existing call site, because an
 ``EmissionSpectrum`` *is* an ndarray — ``chi[None, :]``, ``chi.sum()``,
 ``chi.copy()``, and einsum-feeding the fission source all keep working
