@@ -173,7 +173,7 @@ def test_kind_reads_the_registry_key_not_the_law_s_kind():
     Pre-B2.0 the shim stored ``law.key``, so **the key is the
     behaviour-preserving choice**; sourcing ``law.kind`` here would drop
     partially-reflecting faces out of
-    ``sweep_schedule._reflective_faces``' ``== "reflective"`` set — a
+    ``sweep_schedule.reflective_faces``' ``== "reflective"`` set — a
     semantic change wearing a refactor's clothes. This leg is what
     reddens if someone "tidies" the property to the more obvious name.
     """

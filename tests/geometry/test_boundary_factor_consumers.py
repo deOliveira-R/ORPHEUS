@@ -51,7 +51,7 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSALowOrderSystem
-from orpheus.sn.loss_representation.sweep_schedule import _reflective_faces
+from orpheus.sn.loss_representation.sweep_schedule import reflective_faces
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 def _bb(mesh):
     """B_b from a carrying mesh — the un-weld assembly read, spelled once."""
@@ -128,7 +128,7 @@ def _live_diffusion_albedo(law: BoundaryTraceLaw) -> object:
 #: row proves the expression is equivalent but NOT that production evaluates
 #: it. What ties those two to production is
 #: :class:`TestSpecMutationsPropagate` (measured: breaking
-#: ``_reflective_faces`` reddens the sweep mutation test and leaves this table
+#: ``reflective_faces`` reddens the sweep mutation test and leaves this table
 #: green). Stating the split is the point — an unlabelled restatement row is a
 #: Mode-11 gate wearing an equivalence gate's name.
 #:
@@ -136,7 +136,7 @@ def _live_diffusion_albedo(law: BoundaryTraceLaw) -> object:
 #: has its own test below, which states the divergence rather than hiding it.
 _EQUIVALENCE_SITES = [
     (
-        "sweep_schedule._reflective_faces",
+        "sweep_schedule.reflective_faces",
         lambda law: type(law).key == "reflective",
         lambda law: law.geometry_map.permutes_ordinates,
         False,
@@ -284,12 +284,12 @@ class TestSpecMutationsPropagate:
         self, monkeypatch,
     ) -> None:
         sn = _slab("reflective", "vacuum")
-        assert _reflective_faces(sn) == frozenset({"xmin"})
+        assert reflective_faces(sn) == frozenset({"xmin"})
         monkeypatch.setattr(
             SelfPairedDeck, "permutes_ordinates",
             property(lambda self: False),
         )
-        mutated = _reflective_faces(_slab("reflective", "vacuum"))
+        mutated = reflective_faces(_slab("reflective", "vacuum"))
         if mutated:
             pytest.fail(
                 f"the octant Gauss-Seidel schedule still sees {sorted(mutated)} "
