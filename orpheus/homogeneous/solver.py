@@ -34,7 +34,7 @@ produced with the fission spectrum χ.  Production is νΣ_f only.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -45,6 +45,7 @@ from orpheus.numerics.eigenvalue import dominant_eigenpair
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
@@ -129,11 +130,14 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
     identity bridge gate pins it) but is no longer what production
     consumes — the carrier supplies cross sections, not the posing.
 
-    **CS4a-R rulings this space's consumers rest on.** The rates in
-    :func:`solve_homogeneous_infinite` read this space's pairing directly
-    on bare arrays (νΣf, Σa, the ones co-vector) — deliberate (EE-1): the
-    typed space-bound reaction-rate co-vector arrives with CS4b's
-    fields-are-space-elements, not before. And both condensed cross
+    **CS4a-R rulings this space's consumers rest on.** The reaction
+    rates in :func:`solve_homogeneous_infinite` read the typed
+    integrated co-vector
+    (:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+    — EE-1, landed CS4b S7; until then they were the tree's only raw
+    two-ndarray pairing site, a recorded CS4a deliberate). The ⟨1,φ⟩
+    total-flux leg IS this space's own pairing — the integration
+    co-vector of the pose, not a reaction rate. And both condensed cross
     sections are spelled as SAME-PAIRING ratios ⟨Σ,φ⟩/⟨1,φ⟩, so they are
     measure-invariant whatever weight a future pose carries (XD-6) — the
     counting weight here is a convention this function states, not a
@@ -250,29 +254,45 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # tool, not an iterative approximation.
     k_inf, phi = dominant_eigenpair(K.as_matrix())
 
-    # The reaction rates are the SPACE's pairing ⟨Σx, φ⟩ — production
-    # (νΣf) and absorption (Σa), each the φ†=1 degenerate of the
-    # homogenization PG bilinear ⟨φ†, M[Σx]φ⟩. On the quotient point the
-    # measure is COUNTING (the normalized per-unit-volume density
-    # convention _pose_space states), so the pairing IS the bare group
-    # contraction — and it reads the POSING's measure, never a carrier's
-    # (CS4a K2: the carrier's volume_measure is un-wired from this path).
-    # Production is νΣf ONLY: the (n,2n) reaction is a loss-side transfer
-    # folded into A as 2Σ₂ᵀ, never a production channel.
-    nu_sig_f = np.asarray(mat_xs.fission_production_field.values)
-    sig_a = np.asarray(mat_xs.absorption_cross_section_field.values)
+    # The reaction rates are the typed integrated co-vector ⟨Σx, ·⟩
+    # (IntegratedReactionRate — EE-1, landed CS4b S7): production (νΣf)
+    # and absorption (Σa), each the φ†=1 degenerate of the homogenization
+    # PG bilinear ⟨φ†, M[Σx]φ⟩. The functional's measure authority is its
+    # cross section's space (the σ↔geometry pairing tier), so the solver
+    # RE-POSES the carrier-minted fields onto ITS OWN pose first: the
+    # carrier supplies XS DATA, the problem poses it (CS4a K2 — the pose
+    # is the measure authority, and G2.5's ×2-weighted-pose mutation
+    # holds ONLY if the rates follow the pose). Content-neutral in
+    # production (the pose content-equals the carrier mint — the
+    # identity-bridge gate) and `replace` re-runs the field's own
+    # construction validation. `[M]` bit-identical with the pre-EE-1 raw
+    # space.inner_product spelling on νΣf/Σa × 2g/4g (4 of 4 probed;
+    # the spelling-equivalence gate pins it; D5 byte-stability is the
+    # end-to-end witness). Production is νΣf ONLY: the (n,2n) reaction is
+    # a loss-side transfer folded into A as 2Σ₂ᵀ, never a production
+    # channel.
+    production_rate = IntegratedReactionRate(
+        replace(mat_xs.fission_production_field, space=space),
+    )
+    absorption_rate = IntegratedReactionRate(
+        replace(mat_xs.absorption_cross_section_field, space=space),
+    )
 
     # Normalise the flux so the fission production rate νΣf·φ = 100 n/cm³/s.
-    phi = phi * (100.0 / space.inner_product(nu_sig_f, phi.reshape(ng, 1)))
+    phi = phi * (100.0 / production_rate.evaluate(phi.reshape(ng, 1)))
 
-    prod_rate = space.inner_product(nu_sig_f, phi.reshape(ng, 1))
-    abs_rate = space.inner_product(sig_a, phi.reshape(ng, 1))
-    # The one-group condensed cross sections are INTENSIVE: σ̄x = ⟨Σx,φ⟩/⟨1,φ⟩
-    # with BOTH legs the same pairing, so the posing measure cancels and the
-    # ratio is measure-invariant by construction (CS4a-R ruling XD-6 — a
-    # quantity documented as a cross section cannot scale with the point
-    # weight; G2.5's rate leg is the invariance witness). Bit-identical to
-    # the pre-review ``float(phi.sum())`` on the counting point (D5 pins it).
+    prod_rate = production_rate.evaluate(phi.reshape(ng, 1))
+    abs_rate = absorption_rate.evaluate(phi.reshape(ng, 1))
+    # The one-group condensed cross sections are INTENSIVE: σ̄x = ⟨Σx,φ⟩/⟨1,φ⟩.
+    # The rate leg reads the XS field's space measure, the flux leg the
+    # pose's own pairing — the same measure by the content-equality gate —
+    # so a point-weight rescale moves BOTH legs together and the ratio is
+    # measure-invariant by construction (CS4a-R ruling XD-6 — a quantity
+    # documented as a cross section cannot scale with the point weight;
+    # the XD-6 gate scales the weight ×2 and pins rate-moves/ratio-stays).
+    # ⟨1,φ⟩ is the pose's integration co-vector, not a reaction rate —
+    # it stays the space's own pairing. Bit-identical to the pre-review
+    # ``float(phi.sum())`` on the counting point (D5 pins it).
     total_flux = space.inner_product(np.ones((ng, 1)), phi.reshape(ng, 1))
 
     if mix.eg is None:
