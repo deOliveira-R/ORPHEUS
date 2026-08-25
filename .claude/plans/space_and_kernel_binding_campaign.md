@@ -1551,12 +1551,25 @@ widths); scalar_flux's widened refusal stands as the S4 contract. G6.7 =
 `tests/transport/fields/test_harmonic_moment_flux.py`, 13 rows, the
 members' first coverage at any width, 3 mutations verified. Suite 1916
 rc 0; pyright 0.
-▶ RESUMES AT **S6.2** (factory re-homes; the `from_isotropic` decision
-returns with E frame-induced — the brief's open question 3 is a USER
-fork: re-key its body through E keeping the ergonomic name, vs retiring
-it onto `E.apply` spellings at ~44 sites; plus the `integrate_angular`
-re-key — G6.5 licenses it bit-identically) → S7 (repairs + EE-1 +
-docs).** The recarve file
+**S6.2 ✅ EXECUTED 2026-08-24 (`78925753` + tail).** The user ruled the
+fork: **re-key now, from_isotropic's retirement re-posed at S7.**
+Landed: `_integrate_angular_values` IS the memoized retraction's apply
+(the ONE reduction body tree-wide; local einsum + guards retired);
+`integrate_angular` rides the pair for values AND space (the memoized
+marginal replaces a per-call of_axes mint); `from_isotropic`'s body is
+the section's apply; born-bound operators narrow domain/codomain
+non-Optional and the verbs return concrete types; G6.5/G6.6 re-pinned
+against hand-spelled kernels (the single-sourcing demotion clause — the
+production targets now route through the operators under test); the
+face-packing loop re-homed to `FaceLayout.pack` (native place). `[M]`
+bit-identity held end-to-end: full sn + transport + numerics 6187
+passed rc 0 (19:55); consumers of pack 175 passed; pyright 0.
+▶ RESUMES AT the **S6.2 remainder fork (awaiting user)**: the moment
+family's widened mint has no named home (`_space_for_mesh_and_L` is a
+family classmethod; the `angular_trial_space`-analog question — carrier
+mint `sn.<name>(L)` insulating consumers from CS2's SH-factor
+axis-ification, vs status quo, vs defer to CS4c). Then → S7 (repairs +
+EE-1 + docs, incl. the from_isotropic retirement re-pose).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 
