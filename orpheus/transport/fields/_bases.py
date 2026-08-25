@@ -24,7 +24,7 @@ provides the *locus + family* axes as ABCs; the *role* leaves
 (``AngularFlux``, ``AngularSourceSink``, ...) sit beneath them::
 
     Field (numerics, L1 — values + space + dunder algebra)
-     ├─ BulkField (ABC)           codim-0 (cell centres): mesh-binding + ng + _phase_space_shape
+     ├─ BulkField (ABC)           codim-0 (cell centres): ng + the spatial-moment tail reads
      │   ├─ AngularField (ABC)    + N + the carrier's cached space via _space_for_mesh (space_on)
      │   │   ├─ AngularFlux           role leaf  (flux)
      │   │   └─ AngularSourceSink     role leaf  (source; renamed from PerOrdinateSource in B.2)
@@ -283,7 +283,9 @@ class BulkField(Field):
         Reads the optional
         :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
         factor OFF a composed space — the space is the single source of
-        truth for the moment width, so :meth:`_phase_space_shape` derives
+        truth for the moment width, so the shape validation (Field's
+        values-vs-space check — the pre-S4 ``_phase_space_shape``
+        hook's successor) derives
         the expected widened shape from here rather than re-threading the
         factory's ``spatial_moments`` parameter into a stored field
         (Angular/Scalar leaves carry no such field — only the windowed
@@ -561,7 +563,9 @@ class MomentField(BulkField):
     :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
     (the bare source/sink). It carries the construction machinery the two
     share: the ``L`` truncation-order + ``spatial_moments`` fields, the
-    ``(L+1, 2L+1, ng, *spatial[, …])`` :meth:`_phase_space_shape`, the
+    ``(L+1, 2L+1, ng, *spatial[, …])`` shape contract (validated by
+    Field's values-vs-space check, the pre-S4 ``_phase_space_shape``
+    hook's successor), the
     ``L``-match :meth:`_check_partner`, and the
     :class:`~orpheus.numerics.space.TensorProductSpace`-building
     :meth:`from_mesh_and_L` / :meth:`zeros_for_mesh_and_L` factories
@@ -654,7 +658,7 @@ class MomentField(BulkField):
         :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
         factor on AFTER the cell-group space — EXACTLY the same ``*``
         composition that adds the angular ``SphericalHarmonicSpace`` ("append
-        iff > 1", single-sourced, matching :meth:`_phase_space_shape`).
+        iff > 1", single-sourced with the space's own shape contract).
         """
         return cls(
             values=values,

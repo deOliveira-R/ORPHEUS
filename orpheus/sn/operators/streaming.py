@@ -119,13 +119,15 @@ __all__ = [
 def _require_typed_composite(
     method: str, sn_mesh: "SNMesh", field: "FullField",
 ) -> None:
-    r"""The shared matvec input contract — timeless composite + mesh identity.
+    r"""The shared matvec input contract — timeless composite + space content.
 
     Two guards, consumed by EVERY SN matvec entry that takes a
     :class:`FullField` (:meth:`StreamingOperator.apply` /
     :meth:`apply_transpose` AND the :class:`StreamingCollisionOperator` overrides):
     (1) the input is a :class:`~orpheus.transport.full_field.FullField`;
-    (2) ``field.interior.mesh`` is the operator's SAME ``sn_mesh`` instance.
+    (2) ``field.interior``'s space CONTENT-equals the operator's own mint
+    on ``sn_mesh`` (the S3 re-key; the pre-S3 arm compared mesh
+    identity).
     Single source of the contract (``coding-elegance`` Pattern 2 / Pattern 4 —
     illegal inputs unrepresentable at one place, not re-validated per leaf).
 
@@ -142,7 +144,8 @@ def _require_typed_composite(
         Qualified method name for the error message (e.g.
         ``"StreamingOperator.apply"``).
     sn_mesh : SNMesh
-        The operator's mesh — ``field.interior.mesh`` must be the SAME instance.
+        The operator's mesh — the interior's space must content-equal
+        its mint on this carrier.
     field : FullField
         The matvec input (``psi`` for apply, ``phi`` for the transpose).
         A timeless :class:`FullField` or its timed subclass.

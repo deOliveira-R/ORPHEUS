@@ -79,23 +79,30 @@ def _rand(shape, seed):
 
 
 class TestSectionLaws:
-    def test_g61_retraction_of_embedding_is_the_identity(self):
-        """R ∘ E = id on the marginal — [M] BIT-EXACT (§9 2026-08-24 and
-        re-measured on this fixture). Reddened by dropping ÷Σw from E
-        (the section becomes the plain broadcast, R∘E = Σw·id)."""
+    def test_g61_retraction_of_section_is_the_identity(self):
+        """R ∘ E = id on the marginal — nulp-tier, NOT bit-exact in
+        general: ⚠ [M] 2026-08-24 seed sweep on THIS fixture,
+        array_equal fails 844/2000 seeds (worst rel 1.5e-16 — float
+        re-association of Σ w_n/Σw); the originally-pinned seed
+        happened to land in the exact set, so the earlier "BIT-EXACT"
+        row was seed-fragile (S7 docs-audit finding, verified). On the
+        shipped SN carrier (GL4): 200/200 draws exact. Reddened by
+        dropping ÷Σw from E (an O(Σw) error, far above nulp)."""
         V = _product()
         R, E = V.retraction("angular"), V.section("angular")
         phi = _rand((2, 5), 1)
-        npt.assert_array_equal(R.apply(E.apply(phi)), phi)
+        npt.assert_array_almost_equal_nulp(R.apply(E.apply(phi)), phi, nulp=1)
 
     def test_g62_projection_is_idempotent(self):
-        """P = E ∘ R is idempotent — [M] BIT-EXACT. Same mutation as
-        G6.1 (a mis-scaled section makes P(P) = Σw²·P)."""
+        """P = E ∘ R is idempotent — nulp-tier (⚠ [M] 2026-08-24 sweep:
+        array_equal fails 57/200 seeds on this fixture; same
+        re-association as G6.1, same S7 audit finding). Same mutation
+        as G6.1 (a mis-scaled section makes P(P) = Σw²·P)."""
         V = _product()
         R, E = V.retraction("angular"), V.section("angular")
         x = _rand(V.shape, 2)
         p = E.apply(R.apply(x))
-        npt.assert_array_equal(E.apply(R.apply(p)), p)
+        npt.assert_array_almost_equal_nulp(E.apply(R.apply(p)), p, nulp=1)
 
     def test_the_marginal_space_keeps_the_remaining_measures(self):
         """R.codomain / E.domain are the SAME content — the remaining
@@ -206,12 +213,15 @@ class TestShippedKernelEquivalence:
 
     def test_g66_section_is_the_from_isotropic_kernel_bit_identical(self):
         """E over the angular axis == the hand-spelled iso-projection
-        kernel (÷Σw then broadcast), np.array_equal — written HERE,
-        independent of production. Pre-S6.2 this was the licence for
-        re-keying ``from_isotropic`` through E; S6.2 consumed it (the
-        factory now routes through this very section), so the inline
-        spelling is the surviving independent pin. Reddened by dropping
-        ÷Σw (G6.1's mutation)."""
+        kernel (÷Σw then broadcast), np.array_equal ON THIS GL4 FIXTURE
+        — written HERE, independent of production. Pre-S6.2 this was
+        the licence for re-keying ``from_isotropic`` through E; S6.2
+        consumed it (the factory now routes through this very section),
+        so the inline spelling is the surviving independent pin. ⚠ The
+        identity is NOT universal: at GL8 the induced divisor is 1 ULP
+        off ``weights.sum()`` (the frame-induction gate's GL8 row) —
+        principled-over-bit-identical, ruled. Reddened by dropping ÷Σw
+        (G6.1's mutation)."""
         sn = _sn()
         Q = _rand((sn.ng, *sn.spatial_shape), 7)
         E = sn.angular_bulk_space.section("angular")
@@ -394,11 +404,14 @@ class TestFrameInduction:
     def test_the_section_divisor_is_the_frames_discrete_gram(self):
         """The section's divisor IS the rank-one Parseval metric — the
         1×1 ``discrete_gram`` entry of the literal frame (F-0's
-        inverse-discrete-Gram theorem at K=1), pinned EXACTLY. [M] the
-        gram einsum is bit-identical to ``weights.sum()`` on all probed
-        fixtures (8 of 8, n ∈ {2, 4, 5, 6, 16, 64} incl. GL64's inexact
-        Σw), so the induced read costs G6.6's array_equal nothing —
-        the second equality pins that coincidence on THIS fixture."""
+        inverse-discrete-Gram theorem at K=1), pinned EXACTLY against
+        the frame. ⚠ Its agreement with the OLD ``weights.sum()``
+        spelling is fixture-dependent: [M] 2026-08-24 (corrected by the
+        S7 docs audit — the first probe's 8 fixtures skipped GL8) exact
+        at GL{2,4,5,6,12,16,32,64} and 1 ULP off at GL8; the GL8 row
+        below records that divergence at its honest tier. The second
+        equality here pins the exact coincidence on THIS fixture
+        (n=4)."""
         frame = self._literal_frame()
         E = _product().section("angular")
         if frame.discrete_gram.shape != (1, 1):
@@ -408,6 +421,36 @@ class TestFrameInduction:
             )
         npt.assert_array_equal(E.total_weight, frame.discrete_gram[0, 0])
         npt.assert_array_equal(E.total_weight, _W_ANG.sum())
+
+    def test_gl8_divisor_is_ulp_equivalent_to_the_sum_spelling(self):
+        """The principled-over-bit-identical record, falsifiable: at GL8
+        the induced divisor (the frame's gram einsum) and the old
+        ``weights.sum()`` spelling differ — [M] 2026-08-24, gram
+        1.9999999999999998 vs sum 2.0 (1 ULP), and the section then
+        differs from the pre-S6.0b iso kernel by 2.07e-16 max rel.
+        This row pins the BOUND (≤ 1 ulp on the divisor; ≤ 4 nulp on
+        the kernel), not the inequality — a future numpy that closes
+        the gap tightens silently, which is the correct direction."""
+        from orpheus.geometry import BC, CoordSystem, Mesh1D
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
+
+        mesh = Mesh1D(
+            edges=np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0]),
+            mat_ids=np.zeros(5, dtype=int),
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+        )
+        sn = SNMesh(
+            mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2),
+        )
+        E = sn.angular_bulk_space.section("angular")
+        sum_w = float(sn.quad.weights.sum())
+        npt.assert_array_almost_equal_nulp(E.total_weight, sum_w, nulp=1)
+        Q = _rand((sn.ng, *sn.spatial_shape), 40)
+        old_kernel = np.broadcast_to(
+            (Q / sum_w)[None], (sn.quad.N, sn.ng, *sn.spatial_shape),
+        ).copy()
+        npt.assert_array_almost_equal_nulp(E.apply(Q), old_kernel, nulp=4)
 
     def test_typed_energy_axis_is_refused_with_the_condensation_pointer(self):
         """Collapse doctrine clause 2 (partition-integration of an L¹

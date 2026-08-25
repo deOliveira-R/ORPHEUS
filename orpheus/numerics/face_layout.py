@@ -360,7 +360,7 @@ class FaceLayout(Generic[K]):
         every fact it reads — the face set, each slot's shape, the slice
         map, the total size — is layout knowledge (native place, CS4b
         S6.2); the field factories
-        (:meth:`~orpheus.transport.fields._bases.FaceField.from_face_arrays`)
+        (:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`)
         are typed entries over this.
 
         Raises

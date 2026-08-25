@@ -129,10 +129,11 @@ class IntegratedReactionRate:
 
     It is the **volume integral of the per-cell density**
     :class:`ReactionRateFunctional` — so the group contraction has a *single
-    source* (the density functional) and the spatial integral reuses the mesh's
-    canonical ``volume_measure`` (the same measure
-    :meth:`~orpheus.sn.solver.SNSolver.compute_group_production_rate` uses): no
-    independent re-derivation of either reduction.
+    source* (the density functional) and the spatial integral reads the
+    cross section's SPACE: the spatial axis's weights ARE :math:`dV`
+    (``weights=None`` canonicalizing the counting measure) — CS4b S3's
+    the-space-answers-every-structural-question re-key; the pre-S3 body
+    read the mesh's ``volume_measure``.
 
     This is the canonical typed object for the **k-eigenvalue numerator and
     denominator** — ``k = R_{νΣf}(φ) / R_{Σa}(φ)`` (plus per-method terms such as
@@ -150,8 +151,8 @@ class IntegratedReactionRate:
     Parameters
     ----------
     cross_section : CrossSectionField
-        The reaction cross section :math:`\Sigma_x` (carries ``.mesh``, whose
-        ``volume_measure`` supplies the spatial integral). Production =
+        The reaction cross section :math:`\Sigma_x` (carries the SPACE whose
+        spatial-axis weights supply the volume integral). Production =
         :math:`\nu\Sigma_f`; absorption = :math:`\Sigma_a`.
     """
 

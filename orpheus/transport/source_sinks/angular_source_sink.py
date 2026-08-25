@@ -182,8 +182,10 @@ class AngularSourceSink(AngularField):
                 f"(ng, *spatial) = {expected}; got {iso_values.shape}"
             )
         # CS4b S6.2: the kernel IS the space's memoized frame-induced
-        # section (÷Σw then broadcast — [M] bit-identical, G6.6; the
-        # divisor is the rank-one frame's 1×1 Parseval metric). The name
+        # section (÷Σw then broadcast; the divisor is the rank-one
+        # frame's 1×1 Parseval metric — [M] array_equal at GL4 (G6.6),
+        # ULP-equivalent in general: 1 ULP off the old sum spelling at
+        # GL8, principled-over-bit-identical). The name
         # survives as the ergonomic producer entry (ruled 2026-08-24:
         # re-key now; its retirement question is re-posed at S7).
         space = cls._space_for_mesh(mesh)

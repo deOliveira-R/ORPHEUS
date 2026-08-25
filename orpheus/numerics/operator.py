@@ -3161,20 +3161,29 @@ class AxisSectionOperator(_AxisMarginalBase):
     with the inverse Gram, :math:`E = R_{\text{frame}} \circ G^{-1}` —
     the divisor IS the mint frame's 1×1 ``discrete_gram`` entry, the
     rank-one **Parseval metric** (F-0's theorem at :math:`K = 1`),
-    induced at the mint and never a hand convention. `[M]` the gram
-    einsum is bit-identical to ``weights.sum()`` on all probed fixtures
-    (8 of 8, ``n ∈ {2, 4, 5, 6, 16, 64}`` incl. GL64's inexact
-    :math:`\Sigma w`), so the ``from_isotropic`` kernel identity (G6.6,
-    ``np.array_equal``) survives the induced read; the gram-derivation
-    gate pins it.
+    induced at the mint and never a hand convention. ⚠ The induced read
+    is ULP-equivalent — NOT universally bit-identical — to the old
+    ``weights.sum()`` spelling: `[M]` 2026-08-24 (post-landing
+    correction), exact at ``GL{2,4,5,6,12,16,32,64}`` and **1 ULP off
+    at GL8** (gram ``1.9999999999999998`` vs sum ``2.0``; the section
+    then differs from the pre-S6.0b iso kernel by ``2.07e-16`` max
+    rel). The first probe's 8 fixtures skipped GL8, and its universal
+    consequence was refuted by the S7 docs audit. Ruled acceptable:
+    principled-over-bit-identical — the divisor's SOURCE is the frame's
+    induction; the gram-derivation gate pins the value at its honest
+    tier.
 
     On the angular axis this is the isotropic-source projection
     :math:`Q/\Sigma w` broadcast across the ordinates
     (``AngularSourceSink.from_isotropic``'s kernel — gated
-    ``np.array_equal``, G6.6), and the iso column of the harmonic
-    frame's physical adjoint (`[M]` ``face.H(e₀φ) == E(φ)`` to 2.2e-16
-    on a Parseval-dressed sphere frame —
-    ``scratch/probe_s6_q5_dissolution.py``).
+    ``np.array_equal`` on the GL4 fixture, G6.6), and the iso column of
+    the harmonic frame's physical adjoint WHEN the frame's discrete
+    Gram is DIAGONAL (`[M]` slab L=1: ``face.H(e₀φ) == E(φ)`` to
+    5.6e-17; a DENSE Gram — slab or sphere at L=2 — breaks it by the
+    continuum-metric factor, the recorded F-0/CS4c debt: the
+    discriminator is Gram diagonality, not geometry). The metric-free
+    form ``reconstruction(e₀φ)/W == E(φ)`` is bit-exact regardless
+    (``scratch/probe_s6_q5_dissolution.py`` carries the DENSE arm).
 
     NOT the adjoint of :class:`AxisRetractionOperator` — that is the
     plain broadcast :math:`R^\dagger = \Sigma w \cdot E` (`[M]` exact).
