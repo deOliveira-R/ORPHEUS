@@ -1572,12 +1572,23 @@ L-keyed, width off the scheme — vs the surviving family classmethod
 `_space_for_mesh_and_L`); today's facts: fresh content-equal instances
 per call (no carrier sharing), `spatial_moments` int threads ~17 sites
 with consumers passing `scheme.spatial_basis_per_axis` by hand.
-▶ RESUMES AT **S7** (repairs + EE-1 + docs): the S7-owed corpus
-staleness list above (field_algebra "mesh identity" rows;
-operator_algebra `_phase_space_shape` xref; frame-square + naming-rule
-pages; #402 rider), + this session's additions — the collapse-pair /
-frame-induction / S5 space-primary doc story, and the
-**from_isotropic retirement re-pose** (ruled deferred here).** The recarve file
+**S7 code-half ✅ EXECUTED 2026-08-24** (`1f8e0323` repairs +
+`2e054bfc` EE-1): G7.1–G7.3 landed with their charter mutations
+verified (the promotion refusal — pre-repair a messageless bare assert
+the canonical -O STRIPPED; the three-arm areas messages; the mesh-None
+un-weld gated); EE-1's adjudication answered in-tree — the mint would
+have twinned `IntegratedReactionRate`, so the solver CONSUMES it,
+RE-POSING the carrier-minted XS fields onto its own pose (⚠ the direct
+binding to the field's carrier-minted space would have decoupled the
+σ̄ legs under G2.5's ×2-pose mutation — caught at design; the pose is
+the measure authority). G7.4's gates PRE-EXISTED (written forward at
+CS4a-R to guard exactly this rewire) and stayed green.
+▶ RESUMES AT the **S7 docs half** (dispatched to the archivist
+2026-08-24): the staleness list above + the collapse-pair flagship
+section in spaces.rst + infinite_medium's EE-1/pose sweep + the
+changelog; G7.5 done-when = Sphinx -W clean + dead_references 0. Then
+the **from_isotropic retirement re-pose** (ruled deferred to here) and
+the CS4b close-out → CS1.5′ per the campaign order.** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 
