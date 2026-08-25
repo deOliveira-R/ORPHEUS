@@ -1,8 +1,14 @@
 # The collapse pair is frame-induced — the axis marginal rides the stage-2 generator
 
-**Status: RULED 2026-08-24 (design dialogue, user-steered, ~6 rounds) — EXECUTION
-DEFERRED past a context compaction. This file is the resume surface for S6.0b;
-trust it over any summary.** Branch `feature/cs1-energy-space` (BRANCH-HOLD
+**Status: ✅ EXECUTED 2026-08-24 (post-compaction, as deferred). Naming RATIFIED
+by the user the same day: retraction / section ("I gladly accept the names
+retraction and section"). §7's reconciliation ran clean (ancestors confirmed,
+census unchanged at zero consumers, IndicatorBasis's node contract verified
+friendly to synthetic index nodes, no energy consumers). The §5 commit landed —
+see the campaign plan §5 ledger for the hash and suite verdict.**
+
+*(Original status, superseded: RULED 2026-08-24 — execution deferred past a
+context compaction; this file was the resume surface for S6.0b.)* Branch `feature/cs1-energy-space` (BRANCH-HOLD
 stands). Posture: surgical (main agent writes, user steers). Canonical runner:
 `.venv/bin/python -O -m pytest -p no:randomly` SERIAL.
 
@@ -133,11 +139,13 @@ survive a degeneracy") decides each axis's codomain:
 | 2 | spatial | persists (one-cell keeps V_cell) | untyped today — see below |
 | 1 (non-compact orbit quotient) | homogeneous spatial | NORMALIZE; quotient point persists | lives in the homogeneous carrier; not this machinery |
 
-⚠ **The shipped S6.0 defect this fixes**: `retraction("energy")` today DROPS
-the energy axis — clause-2-wrong (`test_axis_marginal.py::TestAxisGeneric::
-test_energy_marginal_degrades_to_the_group_sum` pins the wrong behavior). S6.0b
-flips it to the refusal gate. Until S6.0b lands this is a present-tense-true
-hazard: do not add energy-marginal consumers.
+✅ REMEDIED 2026-08-24 by S6.0b (this plan's §5 commit): a typed `EnergyAxis`
+is now REFUSED at the mint with the condensation pointer
+(`TestFrameInduction::test_typed_energy_axis_is_refused_with_the_condensation_pointer`);
+the untyped-generic admission is the retitled
+`TestAxisGeneric::test_untyped_axis_is_admitted_whatever_its_label`.
+*(Original hazard, superseded: the S6.0 `retraction("energy")` DROPPED the
+energy axis — clause-2-wrong — and the old test pinned the wrong behavior.)*
 
 Untyped generic NODAL axes (synthetic test spaces; the untyped spatial axis)
 stay ADMITTED with clause-3 semantics documented — the clause gate becomes
@@ -225,8 +233,8 @@ of a split pair (split epimorphism; Mac Lane CWM §I.5); the collapse doctrine's
 own prose uses "the retract rule". Content name for docstrings: fiber
 integration / pushforward π\_\* along the projection.
 
-**`embedding` — NOT canonical for this object → `section` (PROPOSED, awaiting
-the user's one-word ratification).** Two failures: (a) any injective
+**`embedding` — NOT canonical for this object → `section` (✅ RATIFIED by the
+user 2026-08-24 post-compaction; the renames below are EXECUTED).** Two failures: (a) any injective
 structure-preserving map is an embedding — `R.H` (the pullback π\*) is one
 too, so the name cannot discriminate the pair our two-types design exists to
 discriminate (the ERR-051 weld was hiding in the name); (b) E is definable
@@ -238,10 +246,9 @@ prose only as the generic adjective. Docstring/theory vocabulary: R = π\_\*,
 R.H = π\* (the (π\_\*, π\*) adjunction), E = the measure-normalized section,
 E∘R = the conditional expectation onto axis-constant functions.
 
-**If the user vetoes**: keep `embedding`, and the gate
-`test_the_two_arrows_are_different_types` + the docstrings carry the whole
-discrimination burden — record the veto here either way (§3 discipline: edit
-in place).
+~~**If the user vetoes**: keep `embedding` …~~ — no veto: ratified, executed
+(`AxisEmbeddingOperator → AxisSectionOperator`; verb `embedding → section`;
+zero hits of either old spelling remain in orpheus/, tests/, docs/).
 
 ## 7. Pickup reconciliation (plan-authoring §7)
 

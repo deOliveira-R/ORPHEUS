@@ -1521,16 +1521,29 @@ SCAFFOLDING to re-carve — the design dialogue established the pair is
 the rank-one frame's induced output (Cardinal Rule 2), ruled the
 stage-2 generator discipline (memory:
 `feedback_stage2_generator_discipline`), and caught a clause-2 defect
-(the shipped energy-drop is doctrine-wrong; becomes a refusal). ⚠ Do
-not consume the shipped pair until S6.0b lands.
-▶ RESUMES AT **S6.0b** — execution plan
-`collapse_pair_frame_induction.md` (THE resume surface: mint through
-the literal single-region frame at one site, forgetful retention,
-space-level lazy caching, clause gating incl. the EnergyAxis
-condensation refusal, naming §6 pending the user's
-retraction/section ratification) → S6.1 (#399 space-derived moment
-members) → S6.2 (factory re-homes; the `from_isotropic` decision
-returns with E frame-induced; the `integrate_angular` re-key) → S7
+(the shipped energy-drop is doctrine-wrong; becomes a refusal). ~~⚠ Do
+not consume the shipped pair until S6.0b lands.~~ ✅ S6.0b LANDED
+`19b85775` — hazard void.
+**S6.0b ✅ EXECUTED 2026-08-24 (`19b85775`)** per
+`collapse_pair_frame_induction.md` (its §7 reconciliation ran clean;
+its status header carries the execution stamp): the pair is minted
+through the literal single-region frame at ONE site
+(`frame._collapse_pair`), forgetful retention, space-level memoization,
+the EnergyAxis condensation refusal (clause-2 repair), and the
+RATIFIED renames (user: "I gladly accept the names retraction and
+section") — `AxisEmbeddingOperator → AxisSectionOperator`, verb
+`embedding → section`, zero old-spelling hits anywhere. 22 gates incl.
+the tightness gate ([M] minted kernels ≡ frame face contents,
+bit-exact) and the gram-derivation pin ([M] gram einsum ≡
+weights.sum(), 8 of 8 probed fixtures — G6.6's array_equal licence
+survives); both new gates mutation-checked. Suite: numerics 2440 +
+neighbors 1903 passed rc 0; pyright 0. The shipped pair is now SAFE to
+consume (the S6.0 do-not-consume hazard is void — the energy drop is a
+refusal).
+▶ RESUMES AT **S6.1** (#399 space-derived moment members; witnesses in
+`scratch/cs4b_verification_plan.md` §5) → S6.2 (factory re-homes; the
+`from_isotropic` decision returns with E frame-induced; the
+`integrate_angular` re-key — G6.5 licenses it bit-identically) → S7
 (repairs + EE-1 + docs).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
