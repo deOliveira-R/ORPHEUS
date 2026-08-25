@@ -292,9 +292,17 @@ chokepoints) re-reads under the chain as follows:
   `SweepDependencyGraph.for_shape` (pure shape) is the proof traversal
   needs no mesh when its turn comes.
 - **The realized-BC table** (`sn_mesh.bc`, assembled at
-  `augmented_mesh.py:380`) → declarations move to the overlay (already on
-  `Axis1D.bc` today — one stage too late under the chain); realization at
-  the head (guard 7); the *table object's home* rides the container fork.
+  `augmented_mesh.py:380`) → ⛔ REFUTED 2026-08-25 (user): the original
+  text here read "declarations move to the overlay (already on `Axis1D.bc`
+  today — one stage too late under the chain)". They do NOT move — the
+  declaration already lives at the geometry stage: `[M]`
+  `StructuredGeometry` carries the endpoint `BC` tuple
+  (`orpheus/geometry/structured_geometry.py:215-227`) and `Region.mat_id`
+  the assignment (`:146-161`); `Axis1D.bc`
+  (`orpheus/transport/mesh/axis.py:172/:210`) is a LATER stage carrying
+  the commitment forward, which is chain-consistent, not late. The work is
+  realization discipline only: head-side (guard 7); the *table object's
+  home* rides the container fork.
 
 **The `MaterialXSField` verdict** (adversarial round, 2026-08-25 — main
 agent's verdict at the user's invitation; unopposed and consistent with the
@@ -343,11 +351,11 @@ implicitly ruled.
   `MaterialXSField.ng/.spatial_shape` (`material_xs_field.py:727/:737`) —
   note these dissolve with F-1 anyway, so the re-point may land AS PART OF
   the dissolution rather than before it.
-- **S-3 — fork (main-agent recommendation, NOT ruled):** this arc takes
-  minted space OBJECTS as given; the mint-as-free-function + axes
-  non-Optional + name-bridge retirement stay CS2. Under the charter this
-  sharpens: the solution-space mint's home is the METHOD HEAD (T1), so
-  CS2's landing surface is the head.
+- **S-3 — fork ✅ RULED 2026-08-25 (user accepted the recommendation):**
+  this arc takes minted space OBJECTS as given; the mint-as-free-function
+  + axes non-Optional + name-bridge retirement stay CS2. Under the charter
+  this sharpens: the solution-space mint's home is the METHOD HEAD (T1),
+  so CS2's landing surface is the head.
 - **S-4 — recorded, not this arc's item:** `axes: Optional` — legacy
   name-built spaces remain constructible (the collapse pair refuses them);
   completion is CS2's identity work.
@@ -381,11 +389,23 @@ implicitly ruled.
   `RadialCharacteristicOperator` (spaces + axis widths + `reduced` + the σ
   field).
 - **O-2 — the pole-closure re-contract**: the family's `cls(sn_mesh)`
-  contract (`pole_angular_closure.py:211/:310/:1382`; back-reference bound
-  at `augmented_mesh.py:394-401`) re-contracts to its actual data needs
-  `(quad, reduced, coord, levels, ng)` — `[M]` all mesh-free-available.
-  Unblocks `RadialCharacteristicSeeding`, the curvilinear walks, and the
-  sweep cache.
+  contract (`orpheus/sn/sweep/pole_angular_closure.py:211/:310/:1382`;
+  back-reference bound at `augmented_mesh.py:394-401`) re-contracts —
+  ⭐ ARGUMENTS RETHOUGHT (user, 2026-08-25): the earlier list `(quad,
+  reduced, coord, levels, ng)` is redundant, not minimal. `[M]` the
+  family's actual `sn_mesh.` attribute reads: `quad` ×4, `ng` ×2,
+  `reduced` ×1, `radial_characteristic_levels` ×1, `coord` ×1 (plus one
+  self-dispatch read). And `[M]` `Quadrature` already carries the level
+  machinery (`n_levels`/`level_indices`/`level_mu`,
+  `numerics/quadrature/directional.py:565-590`); `ng` is the space's
+  energy axis (the S-1 accessor); a space→quadrature accessor is a live
+  design option (today the angular axis mint carries only the WEIGHTS,
+  not the `Quadrature` — `augmented_mesh.py` `angular_bulk_space`). Step
+  design derives the minimal non-derivable set — check whether `reduced`
+  and `radial_characteristic_levels` are quad-derivable — and shapes the
+  re-contract for the family's ruled future as the **`AngularClosure`
+  candidate member** (R15). Unblocks `RadialCharacteristicSeeding`, the
+  curvilinear walks, and the sweep cache.
 - **O-3 — the L-binding bundle — ⭐ REFINED AND ITS FORK RESOLVED (user,
   2026-08-25): see §5c.** The scheme is a stage-2 generator on the Frame
   pattern; `StreamingOperator` binds `(domain, codomain,
@@ -398,10 +418,15 @@ implicitly ruled.
   layer of the closure's structure; traversal stays a solve-time handoff
   (deferred arc; `SweepDependencyGraph.for_shape` the mesh-free precedent)
   — and is CONTRABAND in the scheme by the §5c hard guard.
-- **O-4 — B under the chain**: declarations move to the overlay (today on
-  the mesh layer's `Axis1D.bc` — one stage late relative to the charter);
-  realization at the head through the realizer chain (already takes the
-  `SNMethodSpace` bundle). **Fork (user's latent option, not ruled):** a
+- **O-4 — B under the chain**: ⛔ the "declarations move / one stage late"
+  claim is REFUTED (2026-08-25, user; `[M]` in the §5 realized-BC bullet)
+  — declarations already live at the geometry stage (`StructuredGeometry`'s
+  BC tuple; `Axis1D.bc` carries them forward); nothing moves. The work is
+  realization discipline only, head-side through the realizer chain
+  (already takes the `SNMethodSpace` bundle). **Fork deliberately unruled
+  — sequencing RULED 2026-08-25 (user): operators first; once the
+  StreamingOperator shape crystallizes, apply that concept to the
+  BoundaryOperator.** The fork's two arms stay as recorded: a
   `BoundaryOperator` FACTORY minting the operator directly vs a
   first-class realized-law table object (whose *storage* home rides the
   container fork R3).
@@ -518,6 +543,35 @@ doctrine paragraph lands in D8 — the spaces chapter — beside the
 forgetful-functor section, with Frame and Scheme as its two worked
 instances (archivist: add to §10's cross-link list).
 
+⛔ **SUPERSEDED IN SIGNATURE (user, 2026-08-25 — the mint spelling above
+was "just a conceptual suggestion"; the paragraph stays per plan-authoring
+§3):** **(a)** `mint(mesh_axis, quad_axis)` cannot be the family
+signature — it is SN-welded and *would not work for diffusion* (no
+quadrature axis); the family must span heads. **(b)** `mesh_axis` and
+`quad_axis` live IN the space, so **the space suffices as the mint
+input**. **(c)** the minted package must be DECOMPOSED BY DESTINATION —
+"what goes into StreamingOperator? what into the Trace?" — and if the
+decomposition is clean, the right place to mint may be OUTSIDE the
+StreamingOperator, passing only the `SpatialClosure` (or so) in. **(d)**
+the counter-pressure, recorded verbatim: *"StreamingOperator should have
+all information it can leverage to be tested and diagnosed."* The
+one-mint-call principle, the two-layer split, and the doctrine stand; the
+signature and the mint-inside-vs-outside binding are the O-3 design task.
+`[M]` measured input to that task (2026-08-25): the family already EXISTS
+— `orpheus/transport/spatial/scheme.py` (1496 lines) holds the
+`DiscretizationScheme` Protocol (:426) + `DiscretizationSchemeBase
+(RegistryMixin, ABC)` (:689) with `moment_axis(ndim)` (:1375 — space-side
+induction ALREADY minted here, consumed by `SNMesh.angular_trial_space`),
+kernel batches, scan-coefficient surfaces, and
+`CellVisit`/`UpstreamState`/`CellResult` vocabulary (:84/:205/:234) that
+the traversal hard guard must adjudicate; `LossRepresentation`
+(`orpheus/sn/loss_representation/__init__.py`, 4955 lines) is the
+mesh-welded strategy layer (`mesh: "SNMesh"` frozen field ~:462 +
+`supports(mesh)`). The two-layer split thus PARTIALLY EXISTS — scheme.py
+is the structural layer, loss_representation the welded instance+strategy
+layer — and O-3's design measures both surfaces and performs the
+decomposition.
+
 **Naming (ruled + one proposal to ratify at the design round).** Ruled:
 keep **"closure"** for the retained object (the corpus reserves it), and
 resist scheme-flavored names anywhere downstream — the scheme name
@@ -535,6 +589,13 @@ and shift-invariant structure; its evaluated coefficient table is instance
 state rebuilt on shift rebinds. Alternate if "cell" reads too
 finite-volume: `SpatialClosure`.
 
+✅ **RULED 2026-08-25 (user): `SpatialClosure`** (the `CellClosure`
+proposal not taken); and the pole angular closure family
+(`orpheus/sn/sweep/pole_angular_closure.py`) is the candidate member of
+an **`AngularClosure`** concept — the closure family pattern is
+`<Axis-role>Closure`, one closure concept per axis the scheme closes
+(R15).
+
 ## 6. The rulings ledger (all user, this session, unless marked)
 
 | # | ruling | date |
@@ -551,8 +612,13 @@ finite-volume: `SpatialClosure`.
 | R10 | Deck identifications are stage-2 geometry, not BCs; only vacuum/albedo/inflow are boundary data; realization is head-side, exact-or-refuse | 2026-08-25 |
 | R11 | Assigned-but-undeclared refuses at the overlay; declared-but-unassigned is legal and inert by T2 — no warning machinery | 2026-08-25 |
 | R12 | Symmetry is the admissibility bound and quality criterion on refinements, not the flow; per-stage group machinery is aspirational (family: #152, #166) | 2026-08-25 |
-| R13 | `MaterialXSField` dissolution verdict — *proposed, unopposed, consistent with R4-R6; ratify formally at arc design* | 2026-08-25 |
+| R13 | `MaterialXSField` dissolution verdict — ✅ RATIFIED at the arc design round's opening (was: proposed-unopposed) | 2026-08-25 |
 | R14 | O-3 resolved (§5c): `DiscretizationScheme` is a stage-2 generator (`DiscretizationSchemeBase` family, successor of `LossRepresentation`); `StreamingOperator` binds `(domain, codomain, scheme)`; the closure splits function/evaluated-table; transitional accessor under the behavioral-identity retirement test; **the scheme must not carry traversal** (answer/cost constructor guard); "closure" names the retained object, scheme-flavored names forbidden downstream (class-name proposal `CellClosure`, to ratify) | 2026-08-25 |
+| R15 | Closure naming: **`SpatialClosure`** (the `CellClosure` proposal not taken); the pole angular closure family is the **`AngularClosure` candidate member**; family pattern `<Axis-role>Closure` | 2026-08-25 |
+| R16 | S-3 ruled as recommended: the arc takes minted space objects as given; mint-as-free-function / axes non-Optional / name-bridge retirement stay CS2, whose landing surface is the head (T1) | 2026-08-25 |
+| R17 | The `Materials` class IS minted this arc (stage 1); concrete shape ruled on the main agent's proposal (pending its acceptance) | 2026-08-25 |
+| R18 | O-4 sequencing: the factory-vs-table fork stays unruled until the operator shape crystallizes — operators first, then the crystallized concept applies to the BoundaryOperator; and its "declarations move" premise is refuted (declarations already live at the geometry stage) | 2026-08-25 |
+| R19 | §5c mint correction: the SPACE suffices as the scheme's mint input (the axes live in the space); the minted package decomposes by destination; the family must serve diffusion (not SN-welded); the StreamingOperator retains all information it can leverage for test/diagnosis — mint-inside-vs-outside is the O-3 design fork | 2026-08-25 |
 
 ## 7. The adversarial record (distilled; refuted candidates are first-class output)
 
