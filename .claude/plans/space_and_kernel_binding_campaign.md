@@ -1540,11 +1540,23 @@ survives); both new gates mutation-checked. Suite: numerics 2440 +
 neighbors 1903 passed rc 0; pyright 0. The shipped pair is now SAFE to
 consume (the S6.0 do-not-consume hazard is void — the energy drop is a
 refusal).
-▶ RESUMES AT **S6.1** (#399 space-derived moment members; witnesses in
-`scratch/cs4b_verification_plan.md` §5) → S6.2 (factory re-homes; the
-`from_isotropic` decision returns with E frame-induced; the
-`integrate_angular` re-key — G6.5 licenses it bit-identically) → S7
-(repairs + EE-1 + docs).** The recarve file
+**S6.1 ✅ EXECUTED 2026-08-24 (`ffb8f286`, Closes #399).** ⚠ #399's
+witness table was 2/3 STALE at pickup (measured 2026-08-21, S4/S5 in
+between): the parts were ALREADY tail-correct (S4's rework, ungated) and
+truncate's crash had become a typed defer — the re-measurement is in
+#399's close-out comment. The repair: truncate's rebuild is a structural
+edit of the CURRENT space (swap the SH head factor, keep the rest,
+thread spatial_moments — [M] content-equal to the factory mint at both
+widths); scalar_flux's widened refusal stands as the S4 contract. G6.7 =
+`tests/transport/fields/test_harmonic_moment_flux.py`, 13 rows, the
+members' first coverage at any width, 3 mutations verified. Suite 1916
+rc 0; pyright 0.
+▶ RESUMES AT **S6.2** (factory re-homes; the `from_isotropic` decision
+returns with E frame-induced — the brief's open question 3 is a USER
+fork: re-key its body through E keeping the ergonomic name, vs retiring
+it onto `E.apply` spellings at ~44 sites; plus the `integrate_angular`
+re-key — G6.5 licenses it bit-identically) → S7 (repairs + EE-1 +
+docs).** The recarve file
 stays the record of the rulings, probe numbers, and the CS4c / Phase-S
 debt ledger; the charter text below stays as the DESIGN RECORD.
 
