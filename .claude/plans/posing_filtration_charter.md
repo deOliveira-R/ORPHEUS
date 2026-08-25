@@ -172,8 +172,12 @@ never-on-Mixture half is unchanged.)
   lossy-return-type defect at the root, and it would throw away exactly what
   the MC head needs. Consequence: two heads over one Materials may
   legitimately realize **different** energy axes.
-- ✅ **Shape + home RULED 2026-08-25 (the arc design round's Materials
-  exchange):** `Materials` lives at **`orpheus/data/materials.py`** — the
+- ✅ **Shape + home RULED 2026-08-25, and LANDED the same day @
+  `c6964299` (Phase A item 5 — annotations widened at `5c64c78f`;
+  `MaterialMesh` parses at the boundary via `Materials.of`, guard 2
+  discharges through `restrict()`, `is_same_phase_space` moved to
+  per-mixture identity):** `Materials` lives at
+  **`orpheus/data/materials.py`** — the
   incumbent `data/materials/` property-correlation package (h2o/matpro
   thermophysics) renames to **`data/material_properties/`** ("long
   overdue"; `[M]` 6 consumers, all in the undecided-fate
@@ -392,6 +396,19 @@ lives inside `retraction`/`section`).
 
 ## 5b. The consumables inventory — improvements identified BEFORE this charter
 
+> ✅ **PHASE A LANDED 2026-08-25, merged @ `5c64c78f`** (ff-only,
+> branch deleted, pushed): S-1 (`bdb4bfc6`), O-1 + O-5 (`76ee98ce`),
+> the Materials step (`c6964299`; R20/R21 executed), consumer fix
+> (`ca1bb92b`), annotation widening (`5c64c78f`). `[M]` full-tree fast
+> gate **9806 passed / 0 failed** (1:00:55 serial `-O`, 227 deselected;
+> +15 tests over the Campaign-1 merge population); `npx pyright
+> orpheus/` 0; sphinx `-W` 0; `dead_references` 0 after both renames.
+> F-2 adjudicated INTO O-3 (see its bullet). Per-item ✅ stamps below.
+> ▶ **NEXT (user, 2026-08-25): Phase B opens with a DISCUSSION on what
+> Phase B entails** — scope first, no code before that discussion
+> concludes. The O-2 bullet below carries the measured fact base the
+> discussion starts from.
+
 The arc's raw work items for the consumed objects (Space / Fields /
 Operators), identified during the 2026-08-24/25 census + design-surface
 discussion — i.e. *before* the filtration was proposed — and preserved here
@@ -403,10 +420,10 @@ implicitly ruled.
 
 ### Space
 
-- **S-1 — `FunctionSpace.axis(label)` public accessor.** The by-label
-  lookup already exists inside `retraction`/`section`/`_axis_collapse_pair`
-  (`orpheus/numerics/space.py:331/:352/:386`); expose it. Tiny, unblocks
-  S-2/F-1 spellings.
+- **S-1 — `FunctionSpace.axis(label)` public accessor.** ✅ LANDED
+  `bdb4bfc6`: the resolution hoisted into `_axis_index` (one home; the
+  collapse-pair mint routes through it, pinned fragments preserved);
+  public `axis(label)` returns the tuple member itself.
 - **S-2 — re-point `ng`/`spatial_shape` read-throughs to the space's
   axes.** `[M]` the axes exist on the production mints
   (`material_mesh.py:385`; `augmented_mesh.py:1129`). Known consumers:
@@ -453,14 +470,16 @@ implicitly ruled.
 
 ### Operators
 
-- **O-1 — the one-step-un-weldable seven** (`[M]` census S3 — every read
-  has an existing mesh-free object home; mechanical): `BulkAnalysisOperator`
-  (reads only `full_field_space` — easiest), `RadialCharacteristicEmission`,
-  `RadialCharacteristicReconstruction`,
-  `RadialCharacteristicBoundaryOperator`, `DSACorrection`,
-  `SweepSchedule.jacobi/gauss_seidel` (need only `ndim` + `quad.octants`),
-  `RadialCharacteristicOperator` (spaces + axis widths + `reduced` + the σ
-  field).
+- **O-1 — the one-step-un-weldable seven** ✅ LANDED `76ee98ce` (+
+  `ca1bb92b`): all seven bind spaces + values at construction;
+  `require_member` re-keyed `mesh=` → `space=`; `march_start_cosines`
+  public; B_b's outer law construction-bound; the `WindowedSweep`
+  guard is space-content. ⚠ Census corrections found in execution:
+  `gauss_seidel` ALSO needs the BC-derived reflective set (the S1 row
+  under-listed it — signature is `(ndim, octants, reflective)` with
+  `reflective_faces(sn_mesh)` public); and the §6b sets were three
+  times larger than the head-clipped greps showed (plan-authoring
+  surprise-log row, 2026-08-25 — enumerate UNTRUNCATED).
 - **O-2 — the pole-closure re-contract**: the family's `cls(sn_mesh)`
   contract (`orpheus/sn/sweep/pole_angular_closure.py:211/:310/:1382`;
   back-reference bound at `augmented_mesh.py:394-401`) re-contracts —
@@ -474,11 +493,30 @@ implicitly ruled.
   energy axis (the S-1 accessor); a space→quadrature accessor is a live
   design option (today the angular axis mint carries only the WEIGHTS,
   not the `Quadrature` — `augmented_mesh.py` `angular_bulk_space`). Step
-  design derives the minimal non-derivable set — check whether `reduced`
-  and `radial_characteristic_levels` are quad-derivable — and shapes the
+  design derives the minimal non-derivable set and shapes the
   re-contract for the family's ruled future as the **`AngularClosure`
-  candidate member** (R15). Unblocks `RadialCharacteristicSeeding`, the
-  curvilinear walks, and the sweep cache.
+  candidate member** (R15).
+  ⭐ The two derivability questions are MEASURED (2026-08-25, compaction
+  prep): **`radial_characteristic_levels` IS `(quad, coord)`-derivable**
+  — its body is `march_start_structure_per_level(self.quad,
+  self.reduced.coord)` filtered on `consumes_independent_seed`
+  (`augmented_mesh.py:862-869`; the producer is a free function in
+  `pole_angular_closure`); and **`reduced` is NOT quad-only-derivable**
+  — it is the reduced STENCIL, minted from `(legacy Mesh1D, Quadrature)`
+  at `_init_core` (`augmented_mesh.py:328/:335/:353` —
+  `slab/cylindrical/spherical_streaming(mesh, quadrature)`), so it stays
+  an independent operand (a mesh-free TYPE, per the census). ⟹ the
+  minimal set trends to `(quad, reduced)` with `coord = reduced.coord`
+  and ng from the space; the Phase B DISCUSSION rules: whether the
+  closure takes `reduced` whole or only the fields it reads; the
+  `AngularClosure` family shaping (R15); the `cls(sn_mesh)` +
+  back-reference dispatch contract (`closure_cls(self)`,
+  `augmented_mesh.py:394-401`, PR-TYPED-6.5 Phase 2.3); the
+  space→quadrature accessor option; and Phase B's own BOUNDARY (what of
+  the L-binding cache family — `sn/sweep/cache.py`'s
+  `GeometryCoefficients`/`CollisionCache` — is O-2's vs O-3's).
+  Unblocks `RadialCharacteristicSeeding`, the curvilinear walks, and
+  the sweep cache.
 - **O-3 — the L-binding bundle — ⭐ REFINED AND ITS FORK RESOLVED (user,
   2026-08-25): see §5c.** The scheme is a stage-2 generator on the Frame
   pattern; `StreamingOperator` binds `(domain, codomain,
@@ -503,14 +541,13 @@ implicitly ruled.
   `BoundaryOperator` FACTORY minting the operator directly vs a
   first-class realized-law table object (whose *storage* home rides the
   container fork R3).
-- **O-5 — drift repairs** (`[M]` census S4): `DSALowOrderSystem.
-  from_sn_mesh` reads widths through the retire-marked LEGACY
-  `sn_mesh.mesh.edges` shim (`dsa.py:248`) — re-point to the axes;
-  `solver.py:2381` constructs a throwaway `SNBoundaryOperator(sn_mesh)`
-  for one call — the un-weld design should account for the ergonomics that
-  produced it; the `is`-identity consistency checks in the already-free
-  composing constructors (`ScheduledInvertibleOperator`, `WindowedSweep`)
-  convert to space-content checks under CS2's identity.
+- **O-5 — drift repairs** ✅ LANDED `76ee98ce` for its executable half:
+  the `dsa.py` widths read re-pointed to the axis-primary spelling;
+  `WindowedSweep`'s `is`-check converted to space-content AT O-1 (CS2's
+  identity work arrived early for that one site, forced by the un-weld);
+  the `solver.py` throwaway-`SNBoundaryOperator` ergonomics stay
+  RECORDED as O-4 design input (B is unchanged this phase);
+  `ScheduledInvertibleOperator`'s `is`-check stays CS2.
 - **O-6 — the eight `apply_*` arms** on `MaterialXSField`
   (`material_xs_field.py:741-1021`) move to the bound operators — CS4c's
   chartered "S → kernel shell"; may phase with or before F-1.
