@@ -438,6 +438,54 @@ measurement is recorded with its denominator; the metric guard REFUSES a
 constructible input (⚠ §6c — name that input in the gate, or the guard is not
 gated); full fast set bit-identical.
 
+#### P1's §6b call-site set — `[M]` audited 2026-08-26, complete BY SYMBOL
+
+⚠ "Complete **by symbol grep**" is the method, stated per §2's FILTER clause.
+The 2026-08-24 surprise (a duck-typed kwarg surrogate + an attribute read that
+no symbol grep returns) says the consumers' test run is part of this
+enumeration, not a check performed after it.
+
+| target | `orpheus/` | `tests/` | `docs/` sources |
+|---|---|---|---|
+| `requires_upstream_angular_state` | 7 | 6 | 4 — `methods/sn/index.rst:876,884`; `foundations/structured_geometry.rst:733,741` |
+| `angular_marching_axis` | 6 | 6 | 2 — `foundations/structured_geometry.rst:734,742` |
+| `_quadrature` (the FIELD) | **8** | **2** | 2 (both past-tense, about a *different* object) |
+
+⚠ `index.rst:884` is a Python-domain `:attr:` xref — it renders as plain text
+with **no warning at any severity**. Grep is the only gate on it.
+
+⭐ **The audit changed this step: `_quadrature` is NOT dead.** The plan's §3
+row called it "a twin reference to one object", which is true, and reads as
+*delete it*. `[M]` it has **five live production reads** —
+`reduced_operator.py:667`, `:686` (`mu_x[direction_idx]`), `:717`
+(`level_indices`), `:719` (`eta[global_n]`), plus the narrowing assert at
+`:650` — three writes (`:1065/:1137/:1243`), one declaration (`:565`), and
+**two test reads** (`sn/sweep/core/_c_surrogate.py:163,167`, one of which is
+an error-message string naming the attribute — grep its SHORTEST distinctive
+fragment, not your own rewording).
+⟹ the retirement is a **re-point of 7 reads** onto `self.angular.quadrature`,
+not a deletion.
+
+⭐⭐ **And that re-point is worth more than tidiness — it dissolves an
+`Optional`.** `_quadrature: AngularMeasure | None` is optional; `AngularRedistribution.quadrature`
+is **not**. So routing through the angular factor makes the `None` state
+unrepresentable and **retires the narrowing `assert` at `:650`** with it —
+Pattern 4, and one fewer bare `assert` in `orpheus/` (which `python -O`
+strips anyway, so it was never a guard). This is the un-weld paying out: the
+twin reference existed *because* the angular factor had no owner.
+
+⚠ **Three false-positive families in the `_quadrature` grep — triage by
+MEANING before treating any hit as a site** (raw substring: 16 code / 10 test,
+i.e. **2× and 5× over-counted**):
+1. every `*_quadrature` symbol (`chord_quadrature`, `select_quadrature`,
+   `angular_quadrature`, …) — use `(^|[^a-zA-Z0-9])_quadrature\b`;
+2. a **retired BC-shim** attribute of the same name (#176 / C176.1) —
+   `test_snmesh_realizer_wiring.py:372,373,433`, `test_bound_compat.py:258,266`,
+   and both `docs/` hits. Past-tense history about a *different object*: it
+   **STAYS**;
+3. a test-local helper *function* `_quadrature(coord)` —
+   `test_kinf_homogeneous_tolerance.py:105,159,208`. Unrelated.
+
 ### P2 — the angular factor comes home *(pure `git mv` + imports; bit-identical)*
 **Goal.** The angular half of the factorization lives in an angular package, and
 the geometry layer stops declaring a Protocol to avoid its own input.
