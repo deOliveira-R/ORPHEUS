@@ -178,7 +178,7 @@ from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_do
 # arguments, which is also the more honest signature: a function that grades
 # a closure should be handed the closure, not go shopping for one. The
 # caller (a test, or the sn side) supplies the production values and may
-# import ``pole_angular_closure`` freely — the layer rule constrains
+# import ``sn.angular.closure`` freely — the layer rule constrains
 # ``orpheus/`` packages, not ``tests/``.
 
 # ``morel_montry_weights`` was RETIRED 2026-08-12 with the sn import above.

@@ -29,7 +29,7 @@ packet (``st.tau_mm`` / ``st.alpha_in`` / ``st.alpha_out``).  Step C
 RETIRES those three fields from ``StreamingTerms`` (and the geometry-side
 τ producer that baked them), so the surrogate can no longer take a bare
 ``st``.  τ now comes straight from the production producer
-``pole_angular_closure.morel_montry_tau_per_level`` (see the correction
+``sn.angular.closure.morel_montry_tau_per_level`` (see the correction
 below), and α comes from the SURVIVING dome arrays on the
 ``ReducedStreamingOperator`` (``alpha_half`` for spheres,
 ``alpha_per_level`` for cylinders; α is NOT retired, only its
@@ -52,7 +52,7 @@ are recorded rather than quietly dropped:
    that a "reference" can never drift into a second definition of the
    angular cell — which is exactly how its cylinder arm went wrong.
    ⛔ **It was RETIRED 2026-08-12** and this file now calls
-   ``pole_angular_closure.morel_montry_tau_per_level`` directly. The
+   ``sn.angular.closure.morel_montry_tau_per_level`` directly. The
    wrapper lived in ``derivations/`` (L0), and its body WAS an
    ``orpheus.sn`` import — an edge ``tests/test_layer_imports.py``
    forbids. Nothing is lost: the delegation it performed is exactly what

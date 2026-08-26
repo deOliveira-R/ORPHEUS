@@ -68,7 +68,7 @@ from orpheus.transport.spatial.scheme import CellVisit
 # ``test_cell_balance_for_streaming.py`` and the production-stamp catcher).
 # Step C: the geometry-side τ producer is retired; α comes from the
 # operator's surviving dome.  τ comes from production
-# (``pole_angular_closure.morel_montry_tau_per_level``) — this said "the
+# (``sn.angular.closure.morel_montry_tau_per_level``) — this said "the
 # structurally-independent ``angular_differencing.morel_montry_weights``"
 # until 2026-08-12, which was wrong twice over: that wrapper was retired,
 # and it had already stopped being independent (it delegated).  The τ leg
