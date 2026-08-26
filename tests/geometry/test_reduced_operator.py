@@ -311,12 +311,16 @@ class TestProperties:
     """ReducedStreamingOperator advertises the right metadata."""
 
     @pytest.mark.foundation
-    def test_slab_no_upstream_no_axis(self):
+    def test_slab_is_posed_on_the_cartesian_chart(self):
+        """The chart tag is the ONE discriminator the operator carries.
+
+        Until 2026-08-26 this test also asserted two flags that were
+        each exactly ``coord is not CARTESIAN`` -- one line below this
+        very assertion.  They had no production reader and are retired;
+        the fact they pinned is pinned here."""
         mesh = _slab_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
-        assert op.requires_upstream_angular_state is False
-        assert op.angular_marching_axis is None
         assert op.coord is CoordSystem.CARTESIAN
 
     @pytest.mark.foundation
@@ -346,21 +350,17 @@ class TestProperties:
         assert op.angular.mu_start_per_level == (-1.0,)
 
     @pytest.mark.foundation
-    def test_sphere_requires_upstream(self):
+    def test_sphere_is_posed_on_the_spherical_chart(self):
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
-        assert op.requires_upstream_angular_state is True
-        assert op.angular_marching_axis == "mu"
         assert op.coord is CoordSystem.SPHERICAL
 
     @pytest.mark.foundation
-    def test_cylinder_requires_upstream(self):
+    def test_cylinder_is_posed_on_the_cylindrical_chart(self):
         mesh = _cylindrical_mesh()
         quad = Quadrature.product(n_mu=2, n_phi=4)
         op = cylindrical_streaming(mesh, quad)
-        assert op.requires_upstream_angular_state is True
-        assert op.angular_marching_axis == "mu"
         assert op.coord is CoordSystem.CYLINDRICAL
 
 

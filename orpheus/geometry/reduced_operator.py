@@ -229,7 +229,7 @@ See also
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Protocol
+from typing import Protocol
 
 import numpy as np
 
@@ -530,19 +530,21 @@ class ReducedStreamingOperator:
     mesh :
         The :class:`~orpheus.geometry.mesh.Mesh1D` this operator was
         built from.  Held by reference; not copied.
-    requires_upstream_angular_state :
-        ``True`` for sphere/cylinder (the sweep needs ψ at the
-        upstream half-angle to apply the redistribution); ``False`` for
-        slab.
-    angular_marching_axis :
-        ``"mu"`` for sphere/cylinder (the sweep marches over the μ
-        ordinate index per radial cell); ``None`` for slab.
+
+    Note
+    ----
+    Two flags -- ``requires_upstream_angular_state`` and
+    ``angular_marching_axis`` -- were retired here on 2026-08-26.  Both
+    were exactly ``coord is not CoordSystem.CARTESIAN``, and both had
+    **zero production readers**: the concept is spelled twice already,
+    by ``upstream_state.angular_upstream is None`` (the gate the DD and
+    LD cell bodies actually branch on) and by ``SNMesh.is_cartesian``.
+    Their 12 test assertions each sat one line below an assertion on
+    ``coord`` that already pinned the same fact.
     """
 
     coord: CoordSystem
     mesh: Mesh1D
-    requires_upstream_angular_state: bool
-    angular_marching_axis: Literal["mu"] | None
     angular: AngularRedistribution
     """The angular factor — the dome and the starting direction, produced
     once by :func:`angular_redistribution` and shared with the angular
@@ -1038,10 +1040,18 @@ def slab_streaming(
     """Build the slab :class:`ReducedStreamingOperator`.
 
     Slab geometry has no curvature — the connection coefficients
-    vanish.  All ``alpha_*`` and ``redist_dAw`` arrays remain
-    ``None``; the operator advertises
-    ``requires_upstream_angular_state = False`` and
-    ``angular_marching_axis = None``.
+    vanish.  The SPATIAL chart is genuinely absent (``face_areas`` and
+    ``delta_A`` stay ``None``), but the ANGULAR factor is present and
+    carries the NEUTRAL element: a dome that is identically zero and a
+    starting direction on the diameter ray.  That is what lets the
+    angular closure's ``c_in = c_out = 0`` fall out of the general body
+    instead of being special-cased.
+
+    (Until 2026-08-26 this paragraph said "all ``alpha_*`` and
+    ``redist_dAw`` arrays remain ``None``" and quoted two flags.  Both
+    halves went with the un-weld: the ``Optional`` angular fields became
+    the neutral element, and the flags were exactly
+    ``coord is not CARTESIAN`` with no production reader.)
 
     Parameters
     ----------
@@ -1059,8 +1069,6 @@ def slab_streaming(
     return ReducedStreamingOperator(
         coord=CoordSystem.CARTESIAN,
         mesh=mesh,
-        requires_upstream_angular_state=False,
-        angular_marching_axis=None,
         angular=angular_redistribution(angular_measure, CoordSystem.CARTESIAN),
         _quadrature=angular_measure,
     )
@@ -1100,9 +1108,6 @@ def spherical_streaming(
             f"spherical_streaming requires SPHERICAL mesh, got {mesh.coord!r}"
         )
 
-    mu = angular_measure.mu_x
-    w = angular_measure.weights
-
     # Cell face areas: A_{i+1/2} = 4πr² at each edge — sourced from the
     # mesh, which routes through coord.compute_areas_1d().
     face_areas = mesh.areas  # (nx+1,)
@@ -1129,8 +1134,6 @@ def spherical_streaming(
     return ReducedStreamingOperator(
         coord=CoordSystem.SPHERICAL,
         mesh=mesh,
-        requires_upstream_angular_state=True,
-        angular_marching_axis="mu",
         face_areas=face_areas,
         delta_A=delta_A,
         angular=angular_redistribution(angular_measure, CoordSystem.SPHERICAL),
@@ -1235,8 +1238,6 @@ def cylindrical_streaming(
     return ReducedStreamingOperator(
         coord=CoordSystem.CYLINDRICAL,
         mesh=mesh,
-        requires_upstream_angular_state=True,
-        angular_marching_axis="mu",
         face_areas=face_areas,
         delta_A=delta_A,
         angular=angular_redistribution(angular_measure, CoordSystem.CYLINDRICAL),

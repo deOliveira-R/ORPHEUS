@@ -322,8 +322,8 @@ class SNMesh(MaterialMesh):
                 self._setup_cartesian()
                 # Slab also gets a ``ReducedStreamingOperator`` for
                 # completeness so ``sn_mesh.reduced`` is always populated;
-                # the slab variant carries empty curvature arrays and
-                # ``requires_upstream_angular_state = False``.
+                # the slab variant leaves the SPATIAL chart empty and
+                # carries the NEUTRAL angular element.
                 if self.ndim == 1:
                     assert isinstance(mesh, Mesh1D)
                     self.reduced: ReducedStreamingOperator = slab_streaming(
@@ -507,9 +507,8 @@ class SNMesh(MaterialMesh):
     def is_cartesian(self) -> bool:
         """True if the mesh carries no curvature (Cartesian slab / 2-D / 3-D).
 
-        The genuine coordinate-system criterion — ``curvature is None`` for a
-        Cartesian slab or a multi-D Cartesian mesh; a string
-        (``'spherical'`` / ``'cylindrical'``) for a curvilinear 1-D mesh.
+        The genuine coordinate-system criterion, read off the
+        :class:`~orpheus.geometry.coord.CoordSystem` this mesh was posed with.
         This is ORTHOGONAL to :attr:`is_1d`: a slab is Cartesian AND 1-D; a
         2-D Cartesian mesh is Cartesian AND not 1-D; a cylinder is 1-D AND
         not Cartesian.  Sweep-strategy selection
@@ -517,8 +516,19 @@ class SNMesh(MaterialMesh):
         the anti-hyperplane DAG family requires ``is_cartesian``, the chain
         scan requires ``is_1d`` — so neither alone is a sufficient
         discriminator.
+
+        **Reads the ENUM.**  Until 2026-08-26 this was ``curvature is None``,
+        where ``curvature`` was a stringly-typed re-encoding of exactly this
+        three-valued :class:`CoordSystem` (``None`` / ``'cylindrical'`` /
+        ``'spherical'``) assigned inside the very ``match self.coord`` that
+        already knew the answer.  Equivalent on all three arms by
+        construction, so the swap is bit-identical — but this property is the
+        CONTRACT its consumers speak (including two duck-typed test
+        surrogates that stub the property and never saw the field), and the
+        field was only ever an implementation of it.  Re-basing here is what
+        lets ``curvature`` be retired without touching those consumers.
         """
-        return self.curvature is None
+        return self.coord is CoordSystem.CARTESIAN
 
     def is_same_phase_space(self, other: "SNMesh") -> bool:
         r"""True iff ``other`` realizes the SAME discrete SN phase space.
@@ -876,7 +886,7 @@ class SNMesh(MaterialMesh):
         the closure's: the sphere's single M-M level is index ``0``;
         cylinder levels index ``quad.level_indices``.
         """
-        if self.curvature is None:
+        if self.is_cartesian:            # "Cartesian never carries", above
             return ()
         assert self.reduced is not None  # curvilinear ⇒ reduced populated
         starts = march_start_structure_per_level(self.quad, self.reduced.coord)

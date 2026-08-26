@@ -879,14 +879,30 @@ primitive (Wave B Issue #6 / Wave D Round 1):
 
 The pre-Wave-D dispatch did string-equality on
 ``sn_mesh.curvature == "spherical"`` / ``"cylindrical"`` /
-``None``.  The new dispatch reads the canonical geometry-layer
-property
-:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.requires_upstream_angular_state`
-— ``False`` for slab + 2-D Cartesian (no angular redistribution
+``None``.  Wave D replaced it with a geometry-layer boolean,
+``ReducedStreamingOperator.requires_upstream_angular_state`` —
+``False`` for slab + 2-D Cartesian (no angular redistribution
 between successive half-angles), ``True`` for spherical +
-cylindrical.  Two-D Cartesian sets ``sn_mesh.reduced is None``
-(no curvilinear math is needed), and the dispatch falls through
-to the Cartesian path.  Why this matters:
+cylindrical.  Two-D Cartesian set ``sn_mesh.reduced is None``
+(no curvilinear math needed), and the dispatch fell through
+to the Cartesian path.
+
+.. note::
+
+   **Both** of those spellings are now retired, so this section is
+   two steps of history rather than one.  The boolean was retired on
+   2026-08-26: it was exactly ``coord is not CoordSystem.CARTESIAN``
+   and had no production reader, the concept having been respelled by
+   ``upstream_state.angular_upstream is None`` (what the DD and LD
+   cell bodies branch on) and by
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_cartesian`.
+   Strategy selection today is
+   :func:`~orpheus.sn.loss_representation.default_for`, which picks the
+   first :data:`~orpheus.sn.loss_representation.LOSS_REPRESENTATIONS`
+   entry whose ``supports`` admits the mesh, keyed on ``is_1d`` **and**
+   ``is_cartesian`` — neither alone is a sufficient discriminator.
+
+Why this mattered:
 
 * The :class:`ReducedStreamingOperator` is the primitive that
   already encodes "does this geometry need angular

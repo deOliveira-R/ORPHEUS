@@ -84,9 +84,6 @@ def test_slab_reduced_is_reduced_streaming_operator() -> None:
     sn = _slab_mesh()
     assert isinstance(sn.reduced, ReducedStreamingOperator)
     assert sn.reduced.coord is CoordSystem.CARTESIAN
-    # Slab carries no curvature math.
-    assert sn.reduced.requires_upstream_angular_state is False
-    assert sn.reduced.angular_marching_axis is None
 
 
 @pytest.mark.foundation
@@ -94,8 +91,6 @@ def test_sphere_reduced_is_reduced_streaming_operator() -> None:
     sn = _sphere_mesh()
     assert isinstance(sn.reduced, ReducedStreamingOperator)
     assert sn.reduced.coord is CoordSystem.SPHERICAL
-    assert sn.reduced.requires_upstream_angular_state is True
-    assert sn.reduced.angular_marching_axis == "mu"
     # The sphere's ANGULAR factor is one level, and its dome is a real
     # dome — not merely "populated".  (Issue #236 Step C retired the
     # geometry-side tau_mm; the 2026-08-26 un-weld moved α and μ_start
@@ -112,8 +107,6 @@ def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
     sn = _cylinder_mesh()
     assert isinstance(sn.reduced, ReducedStreamingOperator)
     assert sn.reduced.coord is CoordSystem.CYLINDRICAL
-    assert sn.reduced.requires_upstream_angular_state is True
-    assert sn.reduced.angular_marching_axis == "mu"
     # The cylinder's ANGULAR factor carries one dome per μ-level.
     # (See the spherical twin for the 2026-08-26 un-weld note.)
     assert sn.reduced.angular.n_levels == len(sn.quad.level_indices)

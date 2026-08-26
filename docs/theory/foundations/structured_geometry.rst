@@ -730,16 +730,14 @@ per coordinate system:
 
 * :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
-  no curvature math.  ``requires_upstream_angular_state = False``,
-  ``angular_marching_axis = None``.  Its spatial arrays (``face_areas``,
+  no curvature math.  Its spatial arrays (``face_areas``,
   ``delta_A``) remain ``None``; its ANGULAR factor is present and
   **neutral** — a zero dome and the diameter-ray start — which is what
   lets the per-coordinate ``Optional`` union stay dead.
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
   with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
-  closure :eq:`morel-montry-closure`.  ``requires_upstream_angular_state =
-  True``, ``angular_marching_axis = "mu"``.
+  closure :eq:`morel-montry-closure`.
 * :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
   cylindrical with **per-:math:`\mu`-level** :math:`\alpha`,
