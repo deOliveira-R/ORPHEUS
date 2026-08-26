@@ -160,12 +160,11 @@ def mm_constants_for_ordinate(
         # Slab: neutral identity closure (no half-angle dome).
         return 1.0, 0.0, 0.0
 
-    quad = op._quadrature
-    if quad is None:
-        raise ValueError(
-            "mm_constants_for_ordinate requires the operator to carry its "
-            "quadrature (op._quadrature is None)."
-        )
+    # The measure comes from the ANGULAR factor, which is non-optional on
+    # every chart -- so the former ``if quad is None: raise`` guard retired
+    # with the ``_quadrature`` twin on 2026-08-26, exactly as the
+    # ``op.alpha_half is None`` guard below it did at the un-weld.
+    quad = op.angular.quadrature
 
     if op.coord is CoordSystem.SPHERICAL:
         # Production τ, named at the call site (2026-08-12): the L0 wrapper

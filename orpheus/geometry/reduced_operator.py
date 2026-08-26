@@ -42,8 +42,26 @@ implementations were live.
    Measured 2026-08-03: garbaging every array these factories emit
    leaves **all 47** tests in that file green.
 
-   The surviving numerical pins on the math, per field, measured by
-   that same mutation — every one of them **structurally independent**
+   ⛔ **The per-field table below is a 2026-08-03 SNAPSHOT and is no
+   longer a description of this class.**  The 2026-08-26 un-weld
+   retired ``alpha_half`` and ``redist_dAw`` / ``redist_dAw_per_level``
+   outright, and re-homed ``alpha_per_level`` onto
+   :class:`AngularRedistribution`; ``delta_A`` is now read through
+   :attr:`ReducedStreamingOperator.redistribution_gram`.  So three of
+   the five rows name a field that no longer exists here.
+
+   It is kept, tensed, rather than deleted or quietly refreshed: the
+   mutation that produced it was real, and the *reasoning* — which
+   catcher is structurally independent, and which is a blind snapshot —
+   is what a future audit needs.  ⚠ What it must **not** be read as is
+   current coverage: the per-field mutation has **not** been re-run
+   since the un-weld, so whether each pin survived its field's
+   re-homing is **unmeasured**.  Re-measure before citing any row as
+   evidence (`coding-standards`: a retirement can silently promote or
+   demote a gate's claim class without touching one line of the test).
+
+   As measured on 2026-08-03, the surviving numerical pins on the math
+   were, per field — every one of them **structurally independent**
    (a closed form), with the SN curvilinear regression snapshots
    (``tests/sn/regression/test_dd_regression.py``) corroborating but
    nowhere the sole evidence:
@@ -563,8 +581,12 @@ class ReducedStreamingOperator:
     # it is the ANGULAR factor, and now lives on :attr:`angular` beside
     # the starting direction, with ONE producer.
 
-    # Quadrature reference (kept for streaming_terms() extraction)
-    _quadrature: AngularMeasure | None = field(default=None, repr=False)
+    # ``_quadrature`` -- a SECOND reference to the same measure the angular
+    # factor already holds (``_quadrature is angular.quadrature`` was True) --
+    # was retired 2026-08-26.  ``streaming_terms`` reads
+    # ``self.angular.quadrature``, which is NON-optional, so the ``| None``
+    # union and its narrowing ``assert`` went with it (Pattern 4: the twin
+    # existed only because the angular factor had no owner).
 
     # ── Per-direction extraction ───────────────────────────────────
 
@@ -649,7 +671,6 @@ class ReducedStreamingOperator:
         chord = float(self.mesh.widths[cell_idx])
         # Common per-(cell, direction) volume.
         # mesh.volumes returns shape (N,) for 1-D meshes.
-        assert self._quadrature is not None
         volume = float(self.mesh.volumes[cell_idx])
 
         if self.coord is CoordSystem.CARTESIAN:
@@ -666,7 +687,7 @@ class ReducedStreamingOperator:
             # supplies τ = 1, α = 0 and stamps the derived c on CellVisit.
             # ``volume == chord`` is already true for slab (unit
             # cross-section in 1-D Cartesian).
-            mu_n = float(self._quadrature.mu_x[direction_idx])
+            mu_n = float(self.angular.quadrature.mu_x[direction_idx])
             return StreamingTerms(
                 chord_length=chord,
                 mu=mu_n,
@@ -685,7 +706,7 @@ class ReducedStreamingOperator:
             # The Morel–Montry α / τ are NO LONGER packed here (Issue #236
             # Step C): the angular closure owns τ and the derived c
             # (stamped on CellVisit); this packet carries geometry only.
-            mu_n = float(self._quadrature.mu_x[direction_idx])
+            mu_n = float(self.angular.quadrature.mu_x[direction_idx])
             return StreamingTerms(
                 chord_length=chord,
                 mu=mu_n,
@@ -716,9 +737,9 @@ class ReducedStreamingOperator:
             # owns τ and the derived c, stamped on CellVisit; this packet
             # carries geometry only.  (There is no clamp on either arm —
             # the cylinder [1/2, 1] absorber retired at Q5.6.4.)
-            level_indices = self._quadrature.level_indices
+            level_indices = self.angular.quadrature.level_indices
             global_n = int(level_indices[mu_level_idx][direction_idx])
-            eta_n = float(self._quadrature.eta[global_n])
+            eta_n = float(self.angular.quadrature.eta[global_n])
             return StreamingTerms(
                 chord_length=chord,
                 mu=eta_n,
@@ -1070,7 +1091,6 @@ def slab_streaming(
         coord=CoordSystem.CARTESIAN,
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.CARTESIAN),
-        _quadrature=angular_measure,
     )
 
 
@@ -1137,7 +1157,6 @@ def spherical_streaming(
         face_areas=face_areas,
         delta_A=delta_A,
         angular=angular_redistribution(angular_measure, CoordSystem.SPHERICAL),
-        _quadrature=angular_measure,
     )
 
 
@@ -1241,7 +1260,6 @@ def cylindrical_streaming(
         face_areas=face_areas,
         delta_A=delta_A,
         angular=angular_redistribution(angular_measure, CoordSystem.CYLINDRICAL),
-        _quadrature=angular_measure,
     )
 
 
