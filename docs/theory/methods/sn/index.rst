@@ -200,12 +200,20 @@ mesh) is shared with :ref:`theory-collision-probability` and
      no hand-listed x/y pair, no phantom axis on a slab) --- the
      diamond-difference denominator terms, precomputed to avoid
      per-cell division in the sweep hot loop.
-   - **Spherical**: ``face_areas`` (:math:`4\pi r^2`), ``delta_A``,
-     ``alpha_half`` (angular redistribution dome), and
-     ``redist_dAw`` (:math:`\Delta A_i / w_n`, shape ``(nx, N)``).
-   - **Cylindrical**: ``face_areas`` (:math:`2\pi r`), ``delta_A``,
-     ``alpha_per_level`` (per-level redistribution domes), and
-     ``redist_dAw_per_level`` (list of ``(nx, M)`` arrays).
+   - **Spherical**: ``face_areas`` (:math:`4\pi r^2`) and ``delta_A``.
+   - **Cylindrical**: ``face_areas`` (:math:`2\pi r`) and ``delta_A``.
+
+   The **angular** factor is not a streaming-factory output either
+   (2026-08-26): the :math:`\alpha`-dome and the starting direction
+   :math:`\mu_{\rm start}` are produced once, per :math:`\mu`-level, by
+   :func:`~orpheus.geometry.reduced_operator.angular_redistribution` and
+   carried on
+   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`.
+   ⛔ ``redist_dAw`` / ``redist_dAw_per_level`` retired with them: that
+   array was the *fused product* :math:`\Delta A_i \otimes 1/w_n` of a
+   geometric with a quadrature factor, and each of its two consumers
+   wanted a different one of the two — so both now form it from
+   ``delta_A`` and the measure's weights.
 
    The Morel--Montry angular weight :math:`\tau` is **not** a factory
    output: it is owned by the angular closure

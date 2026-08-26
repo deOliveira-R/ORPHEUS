@@ -418,10 +418,12 @@ achieves).
 
    :math:`\tau_m` is **not** a
    :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
-   field.  The geometry-layer primitive carries the curvature
-   coefficients (``face_areas``, ``delta_A``, ``alpha_half``,
-   ``redist_dAw``, ``mu_start`` and their ``*_per_level`` cylindrical
-   siblings) and nothing else; the M-M closure weight is produced by
+   field.  The geometry-layer primitive carries the SPATIAL curvature
+   coefficients (``face_areas``, ``delta_A``) and a reference to the
+   ANGULAR factor
+   (:class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
+   which owns the :math:`\alpha`-dome and :math:`\mu_{\rm start}` as of
+   the 2026-08-26 un-weld); the M-M closure weight is produced by
    :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`
    reading the single partition producer
    :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`,
@@ -729,8 +731,10 @@ per coordinate system:
 * :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
   no curvature math.  ``requires_upstream_angular_state = False``,
-  ``angular_marching_axis = None``.  All ``alpha_*`` and
-  ``redist_dAw*`` arrays remain ``None``.
+  ``angular_marching_axis = None``.  Its spatial arrays (``face_areas``,
+  ``delta_A``) remain ``None``; its ANGULAR factor is present and
+  **neutral** — a zero dome and the diameter-ray start — which is what
+  lets the per-coordinate ``Optional`` union stay dead.
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
   with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
@@ -851,23 +855,32 @@ unaffected because the two paths computed the same data.
    * ``delta_A`` — the closed-form L0 term check
      ``TestL0TermVerification::test_delta_A_magnitude`` in
      ``tests/sn/primitives/test_quadrature.py``, against
-     :math:`4\pi\,\Delta(r^2)` / :math:`2\pi\,\Delta r`.  **Sole
-     catcher**; the snapshots are blind here, and correctly so —
-     ``delta_A`` has no production consumer.
-   * ``alpha_half`` — the L0 per-ordinate flat-flux identity
-     ``test_per_ordinate_flat_flux_consistency[SPHERICAL]``
-     (``catches("ERR-006", "ERR-007")``), plus the sphere snapshots.
-   * ``alpha_per_level`` —
-     ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py``
-     (the Dirichlet-kernel closed form; **cylindrical α only** — every
-     fixture there is ``CoordSystem.CYLINDRICAL``), plus the
-     cylindrical flat-flux arm and the cylinder snapshots.
-   * ``redist_dAw`` / ``redist_dAw_per_level`` —
-     ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``,
-     the L0 closed-form :math:`\varphi = Q/(\Sigma_t(1-c))` identity,
-     plus both snapshot families.  The flat-flux identity does **not**
-     cover these: it recomputes :math:`\Delta A / w` rather than
-     reading the production array.
+     :math:`4\pi\,\Delta(r^2)` / :math:`2\pi\,\Delta r`.
+     ⛔ This entry read "**sole catcher**; the snapshots are blind here,
+     and correctly so — ``delta_A`` has no production consumer."  True
+     until 2026-08-26, **false now**: retiring the fused ``redist_dAw``
+     cache made ``delta_A`` the spatial factor that BOTH
+     ``streaming_terms`` and the angular closure read, so every
+     curvilinear snapshot rides on it.
+   * ``angular.alpha_per_level`` (was ``alpha_half`` /
+     ``alpha_per_level``, until the 2026-08-26 un-weld moved the dome to
+     the angular factor) — the L0 per-ordinate flat-flux identity
+     ``test_per_ordinate_flat_flux_consistency`` on both arms
+     (``catches("ERR-006", "ERR-007")``);
+     ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py`` (the
+     Dirichlet-kernel closed form; **cylindrical α only** — every
+     fixture there is ``CoordSystem.CYLINDRICAL``); plus both snapshot
+     families.
+   * ``redist_dAw`` / ``redist_dAw_per_level`` — **RETIRED 2026-08-26**
+     as a fused product neither of its two consumers owned.  Its catcher
+     — ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``,
+     the L0 closed-form :math:`\varphi = Q/(\Sigma_t(1-c))` identity —
+     still covers the QUANTITY, now formed at each consumer from
+     ``delta_A`` and the weights.  ⭐ And the historical note that the
+     flat-flux identity "recomputes :math:`\Delta A / w` rather than
+     reading the production array" is exactly why that gate needed no
+     migration: it was already forming the product, not reading the
+     cache.
    * ``face_areas`` — ``tests/geometry/test_geometry.py`` pins the
      producer :func:`~orpheus.geometry.coord.compute_areas_1d`
      against its closed form; the snapshots pin the forwarding.
@@ -913,7 +926,10 @@ names the lift originally re-exposed as :class:`DeprecationWarning`
 — ``face_areas`` and ``delta_A``, still read-throughs to the matching
 field on ``self.reduced``.  The other six (``alpha_half``,
 ``redist_dAw``, ``alpha_per_level``, ``redist_dAw_per_level``,
-``tau_mm``, ``tau_mm_per_level``) are gone: consumers bind to
+``tau_mm``, ``tau_mm_per_level``) are gone — and since 2026-08-26 the
+first four have no ``self.reduced`` field left to route to either, the
+α-dome having moved to the angular factor and ``redist_dAw`` having
+retired as a fused product.  Consumers bind to
 ``streaming_terms(...)`` or to ``sn_mesh.reduced.*`` directly, and the
 two ``tau_mm`` names have no ``self.reduced`` field left to route to at
 all — τ is closure-owned now, not a factory output (see the

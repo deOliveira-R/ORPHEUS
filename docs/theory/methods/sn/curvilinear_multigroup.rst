@@ -166,9 +166,14 @@ construction:
 * **The** :math:`\alpha` **-dome.**  The recursion
   :eq:`alpha-recursion` on
   :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
-  consumes the quadrature :math:`(\mu_n, w_n)` and nothing else;
-  ``alpha_half`` is ``(N+1,)``, the geometry factor ``redist_dAw``
-  is ``(nx, N)``.
+  consumes the quadrature :math:`(\mu_n, w_n)` and nothing else — which
+  is why it moved OFF that class in the 2026-08-26 un-weld and onto
+  :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`, the
+  angular half of the redistribution operator's tensor factorization.
+  Per level the dome is ``(M_p + 1,)`` (sphere: one level, ``(N+1,)``);
+  the geometric factor is ``delta_A``, and the product
+  :math:`\Delta A_i / w_n` is formed by each consumer rather than
+  cached.
 * **The Morel--Montry closure.**  :math:`\tau` is an angular-scheme
   property — a function of :math:`(\mu, w)` only, per the Issue #236
   Step C ruling — owned by
