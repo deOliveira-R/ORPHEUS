@@ -35,10 +35,17 @@
 > `sphinx -W` 0 warnings, `dead_references` 0 of 52. Count reconciles:
 > 9809 baseline + 5 new tests.
 >
-> ### ▶ NEXT — P2: the angular factor comes home
+> ### ▶ NEXT — P2: the angular CLOSURE comes home
 >
-> Full text at §7 P2. `git mv` + imports, **bit-identical**, no renames
-> (those are P3). ✅ Fork 2 was ruled **`sn/angular/`** (§9.2).
+> Full text at §7 P2 — ⚠ **read its ⛔ block first.** P2 was **re-scoped
+> 2026-08-26** (✅ user-ruled): its α half was measured UNLANDABLE — moving
+> `alpha_dome` & co. to `sn/` while the three `*_streaming` factories still call
+> `angular_redistribution` creates a hard `geometry → sn` import cycle that
+> kills `import orpheus.geometry`, reproduced. α now lands in **P4**, whose own
+> work dissolves the blocker. What remains in P2 is one pure `git mv`
+> (`sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py`, `[M]` 28 import
+> statements by AST) — bit-identical, no renames (those are P3).
+> ✅ Fork 2 was ruled **`sn/angular/`** (§9.2).
 >
 > ⛔ **P2's hazard is SILENT and it is the doc side, not the code side.**
 > Moving a module breaks every Python-domain xref naming its dotted path,
@@ -177,7 +184,7 @@ warning at any severity). Each row's evidence is the reason, not decoration.
 | `ReducedStreamingOperator` | ✅ **`ChartConnection`** *(ruled §9.1; `StreamingCoefficients` rejected — it lends `L`'s own word to a non-operator, reproducing the very defect being retired)* | `[M]` **0 of 13** operator-surface members (`apply`/`domain`/`codomain`/`H`/`inverse`/`solve`/`apply_transpose`/`__matmul__`/`__add__`/`is_adjointable`/`block_role`/`system_role`); `SweepOperator` has 12 of 13. It maps nothing to anything. ⛔ And the name is **TAKEN** — the real reduced streaming operator is `L`, in the SN algebra, with genuine spaces. "Operator" is this codebase's most load-bearing word (the S4 amendment: *an operator is not an operator without its two spaces*); a struct wearing it teaches every reader the wrong thing. |
 | `redistribution_gram` | `redistribution_pairing` | `[M]` its own `(n_mom, n_thread)` axes admit the **rectangular** ONETRAN case (Hill 1975 Eq. 32, the angular index closed on the cell average only). A rectangular object is a **pairing, not a Gram** — the word over-claims off the diagonal of its own design space. ⚠ **This name is MINE, from `6859ca05`.** |
 | `GeometryCoefficients` | `ChainScanCoefficients` *(or `SweepCoefficientCache`)* | `[M]` **0 of 15 fields** are un-permuted chart data: 4 are Morel–Montry constants, 3 angular, 2 pure traversal, and the closest 3 are **chain-ordered** (i.e. already traversal artefacts). The name promises geometry and delivers a permuted sweep cache. |
-| module `sn/sweep/pole_angular_closure.py` | `…/angular/closure.py` | Two lies in one path. **"pole"** names the special case (the pole cell) for a family that closes the *whole* angular axis — `IdentityAngularClosure` never sees a pole. **"sweep"** is traversal (see §2). R15 already ruled the family `AngularClosure`. |
+| module `sn/sweep/pole_angular_closure.py` | `…/angular/closure.py` — ⚠ **executed in P2, not P3** (the re-home and the module rename are one `git mv`) | Two lies in one path. **"pole"** names the special case (the pole cell) for a family that closes the *whole* angular axis — `IdentityAngularClosure` never sees a pole. **"sweep"** is traversal (see §2). R15 already ruled the family `AngularClosure`. |
 | `SNMesh.curvature: str \| None` | **retire** — use `coord` | `[M]` a **stringly-typed duplicate** of the `CoordSystem` enum (`"cylindrical"` / `"spherical"` / `None`), with `is_cartesian` defined as `curvature is None`. Read at two matvec entries through a **defaulted `getattr`** (`vv-principles` #28's temporal twin). ⚠ And `augmented_mesh.py:124` still documents it as storing `α_n/r_i` — a numeric quantity it has never held. |
 | the chart's four spellings | one | `[M]` `coord` 228 hits / `curvature` 68 / `geometry_kind` 105 across `orpheus/`, with 8 / 3 / several case-spellings respectively. One concept, four vocabularies — a grep for any one returns a confident partial answer. |
 
@@ -195,8 +202,8 @@ avoid importing one of its own inputs is in the wrong stage.
 
 | object | today | belongs | evidence |
 |---|---|---|---|
-| `AngularRedistribution`, `angular_redistribution()`, `alpha_dome`, `_assert_alpha_dome_closes` | `orpheus/geometry/reduced_operator.py` | ✅ **`sn/angular/`** (ruled §9.2; `transport/angular/` rejected — 0 candidate consumers) | `[M]` `alpha_dome(cosines, weights)` takes **no geometry argument at all**; the `1/r` lives in `ΔA` (the spatial factor), not in α. Chart-dependence is a *selection*, not spatial data. `[M]` the whole object is buildable from `(quad, coord)` with **no mesh** — and is already called that way on the multi-D path (`augmented_mesh.py:417`). |
-| the `AngularMeasure` Protocol | same file | **dissolves** | Its own docstring gives the reason it exists: *"the geometry layer needs no import from the quadrature package at all."* `[M]` trace which members survive moving α out — **4 of 6 go with it**, and the other 2 exist only because `StreamingTerms` bundles angular data into a geometry packet (one of those two is dead, §3). ⟹ **a boundary Protocol that would shrink 6 → 0–2 is the shadow of a misplacement, not a boundary.** |
+| `AngularRedistribution`, `angular_redistribution()`, `alpha_dome`, `_assert_alpha_dome_closes` (+ `_ALPHA_CLOSURE_ATOL`, which no symbol grep for the four returns) | `orpheus/geometry/reduced_operator.py` | ✅ **`sn/angular/`** (ruled §9.2; `transport/angular/` rejected — 0 candidate consumers) — ⛔ **but in P4, NOT P2**: `[M]` 2026-08-26 the move creates a hard `geometry → sn` import cycle while the three `*_streaming` factories still call `angular_redistribution`; reproduction at P2's ⛔ block. The destination is unchanged; only the phase moved. | `[M]` `alpha_dome(cosines, weights)` takes **no geometry argument at all**; the `1/r` lives in `ΔA` (the spatial factor), not in α. Chart-dependence is a *selection*, not spatial data. `[M]` the whole object is buildable from `(quad, coord)` with **no mesh** — and is already called that way on the multi-D path (`augmented_mesh.py:417`). |
+| the `AngularMeasure` Protocol | same file | **dissolves** (in **P4**, with α) | Its own docstring gives the reason it exists: *"the geometry layer needs no import from the quadrature package at all."* ~~`[M]` trace which members survive moving α out — **4 of 6 go with it**, and the other 2 exist only because `StreamingTerms` bundles angular data into a geometry packet (one of those two is dead, §3).~~ ⛔ **RE-MEASURED 2026-08-26 — it is stronger than this row claimed, and the row's arithmetic was wrong.** The question is not which members *survive* but which the SURVIVING CODE READS, and `[M]` the three `*_streaming` factories that stay behind read **0 of 6** — they only forward the object. All four real reads (`mu_x`, `weights`, `mu_z`, `level_indices`) sit inside `angular_redistribution`'s body and travel with it; `N` and `eta` are read **nowhere in the file at all**. ⟹ the Protocol does not shrink to ≤2, it **dies**. ⛔ And its stated reason for existing is already false: `[M]` `geometry/boundary/` imports `Quadrature` from `orpheus.numerics.quadrature` under `TYPE_CHECKING` in **5** modules — so the replacement ships in its own package, five times over. ⟹ **a boundary Protocol whose surviving side reads none of it is the shadow of a misplacement, not a boundary.** |
 | the `AngularClosure` family | `sn/sweep/` | `sn/angular/` | `sn/sweep/` is the **traversal** package (`scan.py`, `cache.py`, `pairing.py`). The closure is a *discretization* object the sweep consumes. §5c's hard guard says traversal is contraband in the scheme; this is the exact mirror. And it breaks R15's symmetry — `SpatialClosure` lives at `transport/spatial/`, its sibling at `sn/sweep/`. |
 | `R` / the pairing | a property on the geometry object | minted by the **scheme** (§5) | `[M]` today it lives on the geometry object and **never reads the scheme** — correct only because DD's basis is the constant. F1 says the basis is the scheme's. |
 | `StreamingTerms` | `geometry/reduced_operator.py` | stays in geometry — but **shed its angular fields** | `[M]` it is **not pure geometry**: `mu`, `abs_mu`, `mu_start` and the `/w` inside `delta_A_over_w` are all quadrature reads. Those four are exactly what forces the 6-member Protocol. |
@@ -686,17 +693,121 @@ i.e. **2× and 5× over-counted**):
 3. a test-local helper *function* `_quadrature(coord)` —
    `test_kinf_homogeneous_tolerance.py:105,159,208`. Unrelated.
 
-### P2 — the angular factor comes home *(pure `git mv` + imports; bit-identical)*
-**Goal.** The angular half of the factorization lives in an angular package, and
-the geometry layer stops declaring a Protocol to avoid its own input.
-**Means.** `sn/angular/redistribution.py` ← `AngularRedistribution`,
-`angular_redistribution`, `alpha_dome`, `_assert_alpha_dome_closes`.
-`sn/angular/closure.py` ← the `AngularClosure` family (out of `sn/sweep/`).
-Shed `StreamingTerms`' angular fields; the `AngularMeasure` Protocol shrinks or
-dies.
-**Done when.** `alpha_dome` has no geometry import; the Protocol's member count
-is ≤2 or the file is gone; `sn/sweep/` contains only traversal; `dead_references`
-0; bit-identical.
+### P2 — the angular CLOSURE comes home *(pure `git mv` + imports; bit-identical)*
+
+⛔⛔ **THIS PHASE WAS RE-SCOPED 2026-08-26. Its α half was UNLANDABLE as
+chartered — measured, with a reproduction. ✅ Re-scope RULED by the user the
+same day (option 1 of 3).** The original text is kept verbatim below because the
+refutation is worth more than either half alone (§3).
+
+> **~~Goal.~~** ~~The angular half of the factorization lives in an angular
+> package, and the geometry layer stops declaring a Protocol to avoid its own
+> input.~~
+> **~~Means.~~** ~~`sn/angular/redistribution.py` ← `AngularRedistribution`,
+> `angular_redistribution`, `alpha_dome`, `_assert_alpha_dome_closes`.~~
+> `sn/angular/closure.py` ← the `AngularClosure` family (out of `sn/sweep/`).
+> ~~Shed `StreamingTerms`' angular fields; the `AngularMeasure` Protocol shrinks
+> or dies.~~
+> **~~Done when.~~** ~~`alpha_dome` has no geometry import;~~ the Protocol's
+> member count is ≤2 or the file is gone; `sn/sweep/` contains only traversal;
+> `dead_references` 0; bit-identical.
+
+#### ⛔ Why the α half cannot move yet — `[M]` 2026-08-26, reproduced
+
+The four α symbols have **callers that stay behind**: the three `*_streaming`
+factories call `angular_redistribution(...)` at `reduced_operator.py:1105`,
+`:1172`, `:1275` — **module-runtime calls**, not annotations. Moving the callee
+to `sn/` therefore forces a module-scope `geometry → sn` import, and that is a
+hard cycle. Not argued — **injected and run**:
+
+```
+orpheus/geometry/__init__.py:30      → .reduced_operator
+  → orpheus.sn.angular._probe        → orpheus/sn/__init__.py:13 → .solver
+    → sn/mesh/augmented_mesh.py:32   → back into the HALF-BUILT reduced_operator
+ImportError: cannot import name 'cylindrical_streaming' from partially
+initialized module 'orpheus.geometry.reduced_operator' (circular import)
+```
+
+`import orpheus.geometry` — the canonical entry — dies. ⚠ And it is
+**order-dependent**: importing `orpheus.sn` FIRST happens to work, so a
+naive smoke test can pass while the package façade is broken. Note the cycle
+does **not** run through `geometry.coord`; it runs through `orpheus/sn/__init__.py`
+eagerly importing the solver, so *any* module-scope `geometry → orpheus.sn.*`
+import breaks it, whatever the mover needs.
+
+`[M]` the edge does not exist today and this would have created it: over the
+whole `orpheus/` tree, by AST — **`geometry → sn` = 0** import statements,
+**`sn → geometry` = 24**. The established direction is the opposite one.
+
+⭐ **The done-when named the WRONG DIRECTION of a symmetric relation, and that
+is why the plan did not see it.** *"`alpha_dome` has no geometry import"* is
+**true** and irrelevant: it asks whether the MOVER depends on its old home. The
+failing direction is whether the OLD HOME depends on the mover. One clause, one
+direction, reads as complete. ⟹ promoted to `plan-authoring` §6d.
+
+#### ✅ P2's re-scoped charter
+
+**Goal.** The angular closure stops living in the traversal package, and
+`sn/sweep/` contains only traversal.
+**Means.** `git mv orpheus/sn/sweep/pole_angular_closure.py
+orpheus/sn/angular/closure.py` + the import sweep. `[M]` **28** import
+statements (26 `from …pole_angular_closure import …` + 2
+`from …sweep import pole_angular_closure`), of which **5 are production**
+(`loss_representation/__init__.py` ×2 function-local, `sn/mesh/augmented_mesh.py:60`,
+`sn/sweep/__init__.py:28` re-export, `sn/sweep/pairing.py:50`). Complete by AST,
+so multi-line `from X import (…)` blocks are inside the count — a line-grep
+returns 26 and misses two.
+⚠ This subsumes §1's `module sn/sweep/pole_angular_closure.py → …/angular/closure.py`
+row. **P3 must not redo it.**
+**Done when.** `sn/sweep/` contains only `scan.py`, `cache.py`, `pairing.py`,
+`psi_half_angle_seed.py`; `sphinx -W` 0; **`grep -rn "sn\.sweep\.pole_angular_closure\|sn/sweep/pole_angular_closure" docs/ orpheus/ tests/`
+returns only dated past-tense history**; bit-identical.
+
+⛔ **`dead_references 0` was in this done-when and is REMOVED — it is a
+designed-green tell (`plan-authoring` §10, third shape), caught by running it
+before designing to it.** `[M]` 2026-08-26 at HEAD: `total_dead: 0,
+total_checked: 52, rescued: 52` — and it will read 0 *after* the move too,
+whether or not a single xref is repaired, because it judges a narrow decidable
+population of 52 while this move touches ~195 references. A tell that cannot
+change carries no information (`vv-principles` #19); keeping it would have
+certified the sweep instead of the tree.
+
+⭐ **What DOES gate this move, `[M]` and it is exactly three lines.** Neither
+`orpheus.sn.sweep.pole_angular_closure` nor `orpheus.geometry.reduced_operator`
+is `automodule`'d — `[M]` **0 of 49** autodoc directives in `docs/` name either,
+and the built HTML resolves **0** py-domain links into them against positive
+controls of 226 (`sn.operators.boundary`) and 90 (`geometry.mesh`) out of 2957
+build-wide. So Sphinx never renders these docstrings and `-n` gives **no
+differential signal** (≈142 warnings before, ≈142 after). The one real tripwire
+is Nexus's own directive resolver: the three `.. implements:: mm-weights`
+declarations with `:by: orpheus.sn.sweep.pole_angular_closure.*` at
+`docs/theory/methods/sn/curvilinear_one_group.rst:657/:666/:669` emit
+`logger.warning(… target not found in graph — skipping)`, fatal under `-W`.
+⚠ **Without `-W` that warning is non-fatal and the directive SKIPS** — equation
+`mm-weights` silently loses all three `implemented_by` edges and its V&V
+coverage degrades with no red anywhere. ⛔ And note the asymmetry for P4: the
+four α symbols have **zero** `:by:` declarations, so **the redistribution half
+of this arc has no build gate at all** — there, grep is the whole instrument.
+
+⚠ **The scale, `[M]` measured before the move so it cannot be mistaken for
+damage this step caused:** 142 Python-domain roles in `docs/**.rst` name a
+moving symbol (122 `pole_angular_closure`, 98 of them in `curvilinear_one_group.rst`),
+and **they already render as plain text today**. The move does not break them —
+it makes them *wrong* as well as unlinked, which is worse, because a
+fully-qualified confident path is what a future session copies into an import.
+⭐ Precedent, directly on point: `orpheus/sn/spatial` was renamed at task #54 and
+`[M]` **47** references survive in `docs/**.rst` — but **0 of the 47 are
+Python-domain roles**. The roles were migrated; only literals inside dated
+error-catalog history were left. That is the standard to match.
+
+**Out of P2, with its home named** (the §9.3 ruling — a phase number, never an
+issue-and-forget): the four α symbols + `_ALPHA_CLOSURE_ATOL` re-home in **P4**,
+because §6b's unit of work is the call-site set and α's call sites ARE the three
+factories P4 exists to dissolve. `psi_half_angle_seed.py` stays in `sn/sweep/`
+for now — `[M]` its five functions are radial-characteristic marches
+(`carlson_inward_sweep_from_source`, `radial_characteristic_*`) consumed by
+`sn/operators/radial_characteristic.py`; it is neither traversal nor angular
+closure, and finding it a home is **not** this plan's business.
 
 ### P3 — the names stop lying *(mechanical; bit-identical)*
 **Goal.** Every §1 row reads true.
@@ -762,6 +873,49 @@ owns its measure — and `L` and the RC family receive one minted closure.
 **Means.** §5's `scheme.mint(chart)`; the angular device becomes the separate
 axis it is; the closure splits S0 algebra from S1 binding (F3).
 
+⭐⭐ **AND P2's α half lands HERE — inherited 2026-08-26, with its blocker
+discharged by this phase's own work.** Not a punt: §6b's unit of work is the
+call-site set, and α's three production call sites *are* the `*_streaming`
+factories this phase dissolves. Moving α before that is the measured cycle at
+P2's ⛔ block; moving it after costs nothing, because the caller is gone.
+
+The sequence inside P4, and it only works in this order:
+
+1. The factories stop MANUFACTURING the angular factor and are HANDED it —
+   `augmented_mesh.py` (already in `sn/`, `[M]` the only production caller, 3
+   sites at `:326/:333/:350`) builds the `AngularRedistribution` and passes it.
+2. With no caller left in `geometry/`, `alpha_dome`, `_assert_alpha_dome_closes`,
+   `_ALPHA_CLOSURE_ATOL`, `AngularRedistribution` and `angular_redistribution`
+   move to `sn/angular/redistribution.py`. No runtime `geometry → sn` edge is
+   ever created, so the P2 cycle cannot arise.
+3. `AngularMeasure` **dies outright** — it does not "shrink to ≤2". `[M]` the
+   three surviving factories read **0 of its 6** members (`mu_x`, `weights`,
+   `N`, `eta`, `mu_z`, `level_indices`); they only forward the object. Its four
+   real readers are all inside `angular_redistribution`'s body and travel with
+   it. ⛔ And its docstring's stated reason for existing — *"the geometry layer
+   needs no import from the quadrature package at all"* — is already false:
+   `[M]` `geometry/boundary/` imports `Quadrature` from
+   `orpheus.numerics.quadrature` under `TYPE_CHECKING` in **5** modules
+   (`_base.py:63`, `white.py:20`, `_specular.py:94`, `albedo.py:27`,
+   `reflective.py:25`), plus a runtime function-local at `_realizer.py:297`. So
+   the replacement for the Protocol is a `TYPE_CHECKING` import, with five
+   precedents in its own package.
+4. ⚠ `[M]` `reduced_operator.py:1229` reads `getattr(angular_measure,
+   "level_structure", None)` — a member the Protocol never declared. It is a
+   string-form read that no symbol grep for the six members returns
+   (`coding-standards`, the clause P1 paid for). Retiring the Protocol must
+   account for it, not just for the declared six.
+
+⭐ **What the factories BECOME is the elegance question, and it is a
+Pattern-2 finding, not a re-home.** Once handed their angular factor, the three
+differ *only* in the enum they validate and forward:
+`if mesh.coord is not X: raise` then `ChartConnection(coord=X, mesh=mesh,
+angular=angular)`. That is one function written three times — and the honest
+collapse is the dataclass's own constructor with a `mesh.coord == angular.coord`
+consistency check in `__post_init__`, at which point the three factories are a
+**retirement**, not a move. Decide it here; do not pre-commit to it in a plan
+row.
+
 ⭐⭐ **AND the moment mass comes with it — they are ONE bilinear form.**
 *(added 2026-08-26 on a user challenge to P1 item 9's signature.)* F2 gives
 
@@ -800,6 +954,11 @@ rank-1 (ONETRAN) pairing is *expressible* — §6c: it must be constructible, no
 merely refused; **and `grep -n "coord: CoordSystem" transport/spatial/scheme.py`
 is empty** — the mint has replaced the tag, and the moment mass is evaluated
 against a measure rather than branched on a chart.
+**Plus P2's inherited half:** `grep -rn "alpha_dome\|AngularRedistribution"
+orpheus/geometry/` is empty; `grep -c "AngularMeasure" orpheus/` is 0; and
+`.venv/bin/python -c "import orpheus.geometry"` succeeds **in a fresh
+interpreter with nothing else imported first** — ⚠ that qualifier is the whole
+gate, since `[M]` importing `orpheus.sn` first masks the cycle entirely.
 
 ### P5 — `ChartConnection`'s three stages separate *(rides O-3)*
 **Deferred on a DEPENDENCY, not a punt.** Its third piece is `streaming_terms`'

@@ -86,6 +86,7 @@ surprises cost to hit.
 | 2026-08-24 | ⚠ **REPEAT of §2's FILTER/configuration clause, MINE, published into an ISSUE headline the same night the §6b row above was written.** A per-tree suite timing map was measured on the UN-deselected tree (no `-m "not slow"`) and published as *"the serial suite is no longer runnable as one gate"* — but every historical gate figure deselects `slow`, so the sentence compared two populations. `[M]` marker split: sn 116 / derivations 67 / mc 16 / cp 13 slow tests; every named giant is slow-marked; the canonical gate is most likely intact. Caught during compaction prep ONLY because the reference memory was re-read in full (its own header says "READ THE TOPIC FILE; this line is a pointer, not the budget"); corrected in place (#405 retitled + comment, #404 marker note, the ledger caption). ⟹ the sharpening: **a pytest number's configuration INCLUDES its `-m` filter** — a suite table without its marker predicate is §2's filter defect at gate scale, and the flattering direction here is inverted: the wrong population made a healthy gate read as broken, inviting work on a non-problem. | §2 (FILTER/configuration — no new clause; the row is the measurement that the habit does not transfer to your own numbers even on the night you wrote the neighbouring row) |
 | 2026-08-25 | ⚠ **THIRD-instance day for the §2 FILTER family, new mechanism: the VIEWPORT, not the pattern.** Three §6b enumerations in one execution phase were built from greps piped through `| head -N` — the pattern was right, the display clip silently turned a population into a sample, and "the set is closed" was claimed from the sample. Cost, escalating: (1) the RC-operator set missed ~20 call sites (caught by the first battery's 26 reds); (2) the schedule-factory set missed two whole suite files (+15 sites, second battery 71 reds); (3) the `_reflective_faces` rename missed a third consumer FILE, which killed the full merge gate at COLLECTION — the one failure mode a red-loop cannot pre-empt. ⟹ **an enumeration that feeds a §6b set is never piped through `head`** — read it whole, or count it (`wc -l`) and state the count beside the set. A clipped listing is §2's filter defect wearing the terminal's convenience. | §2 (FILTER) + §6b — no new clause; the rows are the measurement |
 | 2026-08-20 | A design assembly's done-when TELL — *"`grep SigS` finds the datum owned once, viewed once"* — was **designed-red**: `[M]` 70 hits, with direct `Mixture.SigS` consumers in cp/moc/mc/sn + 8 derivations sites, every one inside the assembly's own "Untouched" list (solver-entry re-routing is a charter non-goal). The predicate ranged over a population the design was FORBIDDEN to touch, so its non-goals pinned it at failure however completely the work succeeded — a later session would chase an unreachable target. Caught in the adversarial round by running the tell's own grep at its stated denominator; cost none. | §10 (the third shape — run every tell's grep at design time and intersect with the declared UNTOUCHED set) |
+| 2026-08-26 | A phase chartered as *"pure `git mv` + imports; bit-identical"* was **unlandable**: moving four symbols to `sn/` while their three callers stayed in `geometry/` forces a module-scope `geometry → sn` import, and `[M]` injected-and-run it kills `import orpheus.geometry` with a partially-initialized circular import. `[M]` by AST the edge was **0** and its reverse **24** — the move ran against a 24:0 gradient nobody had looked at. ⭐ The done-when — *"`alpha_dome` has no geometry import"* — is TRUE, checkable, and about the direction that was never at risk: it asks whether the MOVER depends on its old home, when the failing question is whether the OLD HOME depends on the mover. One direction of a symmetric relation reads as a complete check. ⚠ §6b's own procedure clears it ("every call site stays put") — correct, and blind, because §6b governs *when* a call site is updated and this is about *where the caller lives*. ⭐⭐ And the cycle is **order-dependent** (importing `orpheus.sn` first works), so reasoning — and a smoke test — both fail in the reassuring direction. Cost: none; caught at design time and the phase re-scoped. | §6d (new) |
 | 2026-08-26 | ⛔ **A plan wrote its denominator, obeyed §2 in full, and was still wrong — because the denominator was a GATE.** §3's row prescribed *"evaluate over every rule `assert_carrying_quadrature` admits; all-carrying ⟹ retirement"*. `[M]` that gate has **exactly one call site**, inside `case CoordSystem.CYLINDRICAL`; the `SPHERICAL` arm calls no admission gate at all. Run as written it returns **0 of 88** — TRUE — and licenses retiring a branch whose live witness is a *sphere* rule (Gauss–Lobatto, firing at 6 of 11 orders). A guard bounds the arm it is CALLED on, not the question. ⭐ The aggravator: the answer sat in the **same comment the row was summarised from**, three lines above the `argsort` it concerns (*"the SPHERE arm passes `level_indices = (arange(N),)`… where the sort IS load-bearing"*) — the plan quoted that comment's *other* half and inherited its cylinder scope silently. ⭐⭐ And the prescribed check was **tautological** (gate and predicate read one producer on one input), so its zero could not have carried information at any denominator. Cost: none — the dispatch brief demanded an enumerated denominator and a positive control, so the census reported the tautology rather than banking it. | §2 (new sharpening: **a denominator that is a GATE** — count its call sites first) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
@@ -621,6 +622,62 @@ Corollary, and it is the cheap version of this check: **a plan that names a
 gate should name its first red in the same line.** "Done when: a
 `GaussChebyshev1D` entry is REJECTED for slab with a stage-naming reason" is
 checkable; "done when the selector is reference-aware" is not.
+
+### 6d. A RE-HOME step must check the import edge it creates — in BOTH directions
+
+§6b and §6c both guard a step that changes *code*: a signature, a guard. This
+guards a step that changes only an object's **address** — and it is the one that
+reads as safest, because "pure `git mv` + imports, bit-identical" is a true
+description of the edit and says nothing about whether the result imports.
+
+Moving a symbol between packages creates a **new edge in the import graph**, and
+the graph has a direction the plan usually never states. The check is two
+mechanical questions, and only the second one ever fails:
+
+1. *Does the MOVER depend on its old home?* — the obvious one. Usually no, which
+   is why the move looked pure.
+2. *Does the OLD HOME depend on the MOVER?* — enumerate the mover's **callers**,
+   not its callees, and ask which package each one lives in. A caller that stays
+   behind means the old package must now import the new one **at module
+   runtime**, and if the reverse edge already exists, that is a cycle.
+
+⛔ **A done-when that names one direction of a symmetric relation reads as
+complete and is half a check.** This is the specific trap: the sentence is true,
+it is checkable, it passes — and it is about the direction that was never at
+risk.
+
+⟹ Before any re-home, run one AST pass for the package-to-package edge counts
+and read the pair. **An edge whose count is 0 today is a claim you are about to
+falsify**; an edge whose reverse is large is the established direction and the
+move is going the wrong way. And when the answer matters, do not reason about
+Python's import machinery — **inject the import and run it**, because the
+failure is order-dependent and reasoning gets it wrong in the reassuring
+direction.
+
+> `[M]` 2026-08-26, the un-weld arc P2. The phase read *"pure `git mv` +
+> imports; bit-identical"* for four α symbols, done-when *"`alpha_dome` has no
+> geometry import"* — true, and about direction (1). Direction (2) was never
+> asked: `[M]` three `*_streaming` factories **stay behind** and call
+> `angular_redistribution` at module-runtime (`reduced_operator.py:1105/:1172/:1275`).
+> Injected and run, `import orpheus.geometry` dies with
+> `ImportError: cannot import name 'cylindrical_streaming' from partially
+> initialized module`. `[M]` by AST over the whole tree, **`geometry → sn` = 0**
+> and **`sn → geometry` = 24** — the move ran against a 24:0 gradient.
+> ⭐ The aggravator, and the reason to RUN it rather than reason: the cycle is
+> **order-dependent** — importing `orpheus.sn` first works fine, so a smoke test
+> that happens to touch `sn` earlier reports green on a broken façade. And the
+> cycle does not run through the dependency the mover actually needs
+> (`geometry.coord`); it runs through `orpheus/sn/__init__.py` eagerly importing
+> the solver, so *any* module-scope `geometry → orpheus.sn.*` import breaks it.
+> Reasoning about which names the mover needs would have cleared it.
+> Cost: none — caught at design time, and the phase was re-scoped so the α move
+> rides the phase that dissolves its callers.
+
+⚠ Note what §6b's own check returns here: *"enumerate every call site and ask
+which step each one lands in"* answers **"they all stay put, no step boundary is
+crossed"** — which is correct, and misses it. §6b is about *when* a call site is
+updated; this is about *where* the caller lives.
+
 
 ## 7. Before resuming a plan, reconcile it against the tree
 
