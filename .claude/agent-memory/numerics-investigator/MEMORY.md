@@ -42,6 +42,13 @@ mesh / flat flux / homogeneous case / two-probe agreement proves nothing.
     SVD is unaffordable the span check is a PRODUCTION-generated kernel vector + a
     round-off NEGATIVE control; ABSENT vs INVISIBLE share a parity fingerprint; a
     blindness list measured on ONE quadrature is a sample; never ship a DENSE basis
+  - L26 an OWNERSHIP question is answered by TWO discriminators (**does it move the
+    METRIC** / **is `∂A/∂k` DIAGONAL**); calibrate the symmetry ratio (0/√2/2) before
+    reading it; a reciprocity gate is invariant under EVERY invertible `G` so it
+    cannot adjudicate the metric — the physical FUNCTIONALS pin it; an operator's
+    "Gram" is the mass matrix under a DIFFERENT measure (name the measure and the
+    home follows); ⛔ never justify a transport metric as "makes streaming
+    skew-adjoint" (a face-eliminated march is triangular, `√2`, slab too)
   - L25 an ARITY question is a THEOREM question (**what COMMUTES?** — a scalar convex
     combination commutes with every linear map ⟹ the widened form is OVERDETERMINED);
     a SIGNATURE is not an invariance proof; the asymptotic expansion is structurally
@@ -90,6 +97,13 @@ call, 3 gates awaiting promotion), #123, #128, #132/#100, #129, #170.
   four kernel-free controls agree at `1e-13`, ERR-056 mutation at `1.0`; `M_GS⁻¹` is
   a SUBSPACE inverse. ⛔ the `n_x`-parity split is SOURCE-dependent (aniso: `1.3e-02`
   at even `n_x`). Backs L23 + both addenda.
+- ⭐ `scratch/adjoint_gram_ownership_audit.md` (in-repo, not agent memory) — the
+  ADJOINT/GRAM ownership audit of the 1-D curvilinear SN streaming path: the
+  per-knob adjoint-symmetry table, the self-adjointness split (`c_out` diagonal vs
+  `c_in` triangular), `R_kj = ∫b_k b_j (∇·ê_r) dV` with `R₀₀ = ΔA` as the divergence
+  theorem, the four roles of `w_n`, and the A5 ownership table. 3 ⛔ refutations
+  (skew-adjointness; reciprocity-adjudicates-`G`; `R` is `M` rescaled). Probes
+  `scratch/probe_adjoint_gram_0{1..6}_*.py`. Backs L26.
 - ⭐ `scratch/tau_under_ld_dip_analysis.md` (in-repo, not agent memory) — the curvilinear
   LD × Morel–Montry τ verdict: **`tau_per_ordinate` KEEPS its arity** (theorem, not
   measurement), the risk relocates to a **cone violation in the SEED** (bare LD flips

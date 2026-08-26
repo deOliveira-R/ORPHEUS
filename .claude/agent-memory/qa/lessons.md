@@ -98,6 +98,22 @@ IsoS+IsoN2N **0**; the fragment `"energy extent"` occurs in exactly ONE
 assertion tree-wide. Also do the DUAL grep: count call sites, then count the
 distinct expressions they pass. → L-074
 
+**A13. Read the red set by IDENTITY, not by SIZE — reds == the NAMING set ⟹ no
+consumer, and the pins are a mirror.** [skill: landed as a ⭐ on vv#17]
+#18 does NOT catch it: *"by what mechanism does this gate see this property?"*
+answers fine ("it reads the field directly") — the pin is not blind, there is
+nothing DOWNSTREAM of the value. Check = set-diff red set vs
+`grep -rln "<sym>" tests/`. `[M]` flipping BOTH dead
+`ReducedStreamingOperator` fields on **997** operators over 2591 rows → **6
+red, and they are the 6 assertions that name them**. Two mechanics: patch
+EVERY rebinding site (a package `__init__` re-export kept the ORIGINAL and
+halved my reds), and carry a call counter or *no consumer* ≡ *no bite*.
+⭐ Companions: a field's test-hit count can be all WRITES (5 of 5 hits on
+`StreamingTerms.mu_start` are constructor kwargs — split READS from WRITES);
+and a zero-reader field naming a REAL contract is usually RESPELLED, not dead —
+ask "how does production answer this question today?" before wiring it.
+→ L-075
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)

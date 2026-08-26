@@ -282,6 +282,36 @@ any other review work.
     production bindings") and never the *witness* denominator. Repaired the
     same day: one per-site wrong-ng row each, message asserting the
     constructing operator's name.
+    ⭐ **And the verdict that must be read by IDENTITY rather than by SIZE:
+    when a mutation's red set is EXACTLY the tests that NAME the mutated
+    symbol, the symbol has no consumer and its pins are a MIRROR, not a
+    gate.** Every clause above reads a red count; this reads the red set's
+    *composition*, and it is the one case where a healthy-looking count is
+    the finding. Note #18 does **not** catch it — asking *"by what mechanism
+    does THIS gate see THIS property?"* returns a perfectly good answer
+    ("it reads the field directly"), because the defect is not that the pin
+    is blind but that **nothing downstream of the value exists**. Such a pin
+    asserts only that a producer wrote what a producer wrote; it is green
+    forever, it names a real-sounding contract, and a coverage audit counts
+    it. ⟹ after any mutation, diff the red set against
+    `grep -rln "<symbol>" tests/`. Equality ⟹ retire the symbol (or wire the
+    consumer the contract implies); a red OUTSIDE the naming set is what
+    proves a consumer exists. ⚠ Two mechanics this depends on: the mutation
+    must be patched at **every rebinding site** (a name re-exported through a
+    package `__init__` keeps the ORIGINAL — that under-reddened by 50 % on the
+    first attempt below), and it needs a call counter, or a small red set is
+    ambiguous between *no consumer* and *no bite* (#17's positive control).
+    `[M]` 2026-08-26, ORPHEUS `ReducedStreamingOperator`: FLIPPING both
+    `requires_upstream_angular_state` and `angular_marching_axis` on **997**
+    constructed operators, over `tests/{sn/sweep,geometry,sn/primitives,
+    transport}` at `-m "not slow"` — **2585 → 6 failed / 2579 passed** — and
+    all six reds are the six assertions that name the fields (3 in
+    `test_reduced_operator.py::TestProperties`, 3 in
+    `test_snmesh_consumes_reduced.py`). Zero production readers; the chart
+    predicate the fields claim to carry is live under two OTHER spellings
+    (`upstream_state.angular_upstream is None`, `SNMesh.is_cartesian`).
+    A grep had said the same, weakly; the battery also rules out dynamic and
+    inherited readers.
 18. **NEVER credit a mutation's reds as coverage of a property when the
     mutation also breaks a STRUCTURAL law the object obeys** (linearity,
     symmetry, positivity, conservation, a shape/type contract) —

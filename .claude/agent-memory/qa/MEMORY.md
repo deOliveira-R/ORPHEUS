@@ -24,6 +24,32 @@ meta-lesson once, list its instances); never truncate.
 
 ## 2. Active / in-flight state
 
+**SN streaming/redistribution SPECIALIZATION audit (report-only), 2026-08-26.**
+⏹ **DELIVERED** — `scratch/specialization_audit.md` (938 lines), branch
+`refactor/unweld-phase-b` @ `226cc6ca` with 3 corpus files DIRTY (the un-weld
+Phase-B carve is uncommitted; the memo describes the WORKING TREE). C1–C4 table
+over ~45 symbols + D1/D2/D3. Load-bearing, all `[M]`: (1) `mu_start` is a
+**three-link dead chain** — `GeometryCoefficients.mu_start` has zero readers of
+any kind, so `StreamingTerms.mu_start`'s only production consumer is the write
+into it, while its docstring names a closure that reads the OWNER instead;
+(2) `requires_upstream_angular_state`/`angular_marching_axis` — 0 production
+readers, and a **997-operator flip over 2591 rows reddens exactly the 6
+assertions that name them** (the founding measurement for lesson **A13**);
+(3) the DD-hardcoded `2.0`s in `psi_half_angle_seed.py:180-185` sit in the
+ANGULAR factor of a product `pairing.py` declares orthogonal — latent, guarded
+only by `_require_slab` in another package on the other factor; (4) ⛔
+`cylindrical_streaming`'s docstring recommends `Quadrature.level_symmetric`
+AND `.product`, **both refused** by the guard its only caller runs 12 lines
+later (`folded_product` appears only in an error string); (5) the module header
+condemns the `Bailey 2009` citation its own class docstring still makes
+(`:12` vs `:499`). **D1 verdict**: α is ANGULAR (`alpha_dome` takes no geometry
+arg; `angular_redistribution(quad, coord)` needs no mesh and is CALLED that way
+at `augmented_mesh.py:417`) — ownership already fixed by Phase B, the HOME is
+not. ⭐ Reusable: **a boundary Protocol's SIZE measures a misplacement** — trace
+which members survive moving the suspect object; 4 of `AngularMeasure`'s 6 go
+with α. ✅ `vv-principles` #17 ⭐ sharpening **LANDED** (nothing owed).
+Lesson **L-075**, digest rule **A13**.
+
 **CS4a-R Phase-1 GATE review (report-only), 2026-08-21.** ⏹ **DELIVERED** as the
 final message (no file; `feature/cs1-energy-space` @ `a9a2d55a`). Re-run: all
 three gate files + D5 byte gate **green** (163 passed / 14 xfailed; D5 8/8), no

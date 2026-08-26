@@ -4512,3 +4512,152 @@ DOES take `sig_s1`, and **all 12** shipped `get_mixture(region, ng_key)` pairs
 ship `len(SigS) = 2` (order 1). What IS true of it: `SigL = np.zeros(ng)`
 hardcoded, `Sig2` nnz 0 on all 12. The false clause is duplicated verbatim in
 `tests/sn/architecture/_config.py:88-93` — one wrong claim, two homes.
+
+---
+
+## L-075 — read a mutation's verdict by the red set's IDENTITY, not its size: when the reds ARE the naming set, the pins are a mirror
+
+**Context.** 2026-08-26, `refactor/unweld-phase-b` @ `226cc6ca`. Structural
+specialization audit of the 1-D SN streaming / angular-redistribution corpus
+(report-only; `orpheus/` and `tests/` off-limits; a wide suite in flight).
+Deliverable `scratch/specialization_audit.md` (938 lines). The brief handed me
+a suspicion to confirm or refute: *"`ReducedStreamingOperator.
+requires_upstream_angular_state` and `.angular_marching_axis` are (I measured)
+read by ZERO production sites and ~12 test sites."*
+
+### 1. The measurement
+
+Grep first (`grep -rn --include='*.py' -w <field> orpheus tests scripts`,
+untruncated): **0 production readers**, **6 test assertions each** — 12 total,
+across `tests/geometry/test_reduced_operator.py:318,319,353,354,362,363` and
+`tests/sn/primitives/test_snmesh_consumes_reduced.py:88,89,97,98,115,116`.
+The brief's estimate confirmed exactly. Remaining hits are 3 constructor
+kwargs, 1 field decl, 2 docstrings and 1 comment.
+
+Grep is weak evidence for "no consumer" (it cannot see dynamic or inherited
+reads), so I made it RED. In-process, no tracked file touched (**A3**): a
+throwaway `-p` plugin on `PYTHONPATH` wrapping all three streaming factories
+and FLIPPING both fields on every operator produced.
+
+| leg | outcome |
+|---|---|
+| CONTROL | `2585 passed, 6 skipped, 8 deselected, 32 xfailed` (293 s) |
+| MUTATED | `6 failed, 2579 passed, …` (295 s) |
+
+over `tests/{sn/sweep,geometry,sn/primitives,transport}` at `-m "not slow"`,
+bite check **997 mutated operators** (`slab 532 / spherical 232 / cylindrical
+233`). The six reds are **exactly the six assertions that name the fields**.
+
+### 2. The lesson, and why #18 does not already cover it
+
+The usual read of "6 gates went red" is *gated*. Here the count is noise; the
+**composition** is the finding. `vv-principles` #18 asks *"by what mechanism
+does THIS gate see THIS property?"* — and here that question returns a
+perfectly good answer ("it reads the field directly"). The pin is not blind.
+There is simply **nothing downstream of the value**: the pin asserts that a
+producer wrote what a producer wrote.
+
+⟹ the check is a set-diff: **red set vs `grep -rln "<symbol>" tests/`.**
+Equality ⟹ no consumer. A red OUTSIDE the naming set is the thing that proves
+one exists.
+
+⚠ Two mechanics it rides on, both of which bit me:
+- **Patch every rebinding site.** My first attempt patched
+  `orpheus.geometry.reduced_operator` + `orpheus.sn.mesh.augmented_mesh` and
+  got **3** reds instead of 6 — `orpheus/geometry/__init__.py` re-exports the
+  three factories, so the test module that imports from the package got the
+  ORIGINAL. A package `__init__` re-export is a rebinding site.
+- **Carry a call counter.** Without the 997, a small red set is ambiguous
+  between *no consumer* and *no bite* (**A4**, #17's positive control).
+
+**LANDED** as a ⭐ sharpening on `vv-principles` **#17**, with this battery as
+its worked example.
+
+### 3. The concept was live, respelled twice — "dead or unwired" was a false dichotomy
+
+The brief asked whether the CONCEPT is dead or merely unwired. Neither.
+*"Does this chart need upstream angular state?"* is answered in production by
+`upstream_state.angular_upstream is None` (stated by `StreamingTerms`' own
+docstring, enforced by `_require_slab` in `linear_discontinuous.py:372,400`)
+and by `SNMesh.is_cartesian` (`augmented_mesh.py:521`). The field is a THIRD
+spelling. ⟹ when a zero-reader field names a real contract, ask *"how does
+production answer this question today?"* before concluding the concept died —
+the answer is usually a different spelling, and it changes the recommendation
+from "wire it up" to "retire it".
+
+### 4. The companion finding — a THREE-LINK dead chain, and the docstring that hid it
+
+Same corpus, found by the same read-vs-write discipline:
+
+```
+AngularRedistribution.mu_start_per_level   <- the OWNER
+  -> StreamingTerms.mu_start               (per cell x direction, replicated)
+     -> GeometryCoefficients.mu_start      (per ordinate, re-gathered)
+        -> nothing
+```
+
+`GeometryCoefficients.mu_start` is written at `cache.py:299`/`:356` and read by
+**nothing** — so `StreamingTerms.mu_start`'s only production consumer is a
+write into a dead array. Its docstring
+(`reduced_operator.py:432-435`) says *"Consumed by `MorelMontryAngularSweep`
+for the starting-direction seed"*; the closure reads
+`angular.mu_start_per_level` (`pole_angular_closure.py:1538,1551`) — the owner.
+
+⭐ **Two mechanics worth carrying:**
+- **A field's test-hit count can be entirely WRITES.** All 5 test hits on
+  `StreamingTerms.mu_start` are `mu_start=…` inside a **constructor call**. A
+  grep-based coverage audit counts them; none can redden if the value is
+  wrong. ⟹ split a field's census into READS and WRITES before calling it
+  covered.
+- **The completeness check for a FIELD is not the symbol grep.** I also had to
+  rule out `getattr(geom, …)` (present in `test_cache.py:170,173` — but its two
+  name loops omit `mu_start`), `asdict`/`fields`/`astuple`/`replace(geom,…)`
+  (none), and the string `"mu_start"` (none). `plan-authoring` §6b's lesson —
+  a contract's consumers are spelled without the symbol — applies to dead-field
+  audits too, in the mirror direction.
+
+### 5. Refuted attacks of mine (recorded per `process-discipline`)
+
+- *"`dr / start_cosines[level]` has a sign bug"* (`mu_start_per_level` is
+  negative) — REFUTED: `march_start_cosines` takes `abs()`
+  (`radial_characteristic.py:181,184`).
+- *"`mu_x` vs `eta` is a live cylindrical twin"* — REFUTED as a bug:
+  `np.array_equal`, `max|Δ| = 0.0` on `folded_product(4,8)` and
+  `gauss_legendre(4)`. Kept only as a Pattern-7 convention hazard.
+- *"`_require_single_moment_gram` is an unwitnessed guard"* — HALF-REFUTED:
+  `test_pole_angular_closure.py:440-486` gives it a positive leg plus three
+  hand-built PER-ARM refusals, citing vv #17's granularity trap by name. What
+  survives is only that no *production* producer can trip it — its sole
+  producer `redistribution_gram` hardcodes `[:, None, None]` and holds no
+  scheme handle (Mode-8 SIGNATURE-tautological).
+- *"LD × Morel–Montry is a live silent scheme mismatch"* — REFUTED as live:
+  `_require_slab` refuses curvilinear LD. Latent only — and the guard is in a
+  DIFFERENT package on the OTHER tensor factor, which is why the DD-hardcoded
+  seed march (`psi_half_angle_seed.py:180-185`, three `2.0 = 1/w_DD`) will not
+  announce itself when #158's curvilinear LD lands.
+
+### 6. The reusable adjudication move: a boundary Protocol's SIZE measures a misplacement
+
+The brief asked whether `orpheus/geometry/reduced_operator.py`'s locally-declared
+structural `AngularMeasure` Protocol (6 members, declared so geometry needs no
+quadrature import) is a legitimate layer boundary or a workaround for a
+misplaced object. **Both**, and the discriminator is mechanical:
+
+⟹ **trace which Protocol members survive moving the suspect object out.**
+Here, if the angular factor (`AngularRedistribution`, `angular_redistribution`,
+`alpha_dome`, `_assert_alpha_dome_closes`) moves to the angular side, 4 of 6
+members go with it and the remaining 2 exist only because `StreamingTerms`
+bundles angular data (`mu`, `abs_mu`, `mu_start`, the `/w`) into a *geometry*
+packet — and one of those, `mu_start`, is the dead field above. A Protocol that
+would shrink from 6 to ~0–2 under a move is not a boundary; it is the **shadow**
+of one object being in the wrong package. (The technique is still right — the
+module documents a real payoff: the Protocol outlived the `AngularQuadrature`
+type it was written against.)
+
+The α-dome verdict itself, for the record: **angular**, decided by `[M]`
+`alpha_dome(cosines, weights)` taking no geometry argument at all, and
+`angular_redistribution(quad, coord)` needing no mesh — probed bit-identical to
+the factories' values, and actually CALLED that way at
+`augmented_mesh.py:417` on the d≥2 path where no `reduced` exists. The
+chart-dependence is a *selection* (one enum choosing which cosine array to
+march), not spatial data; the `1/r` lives in `ΔA`, the spatial Gram, not in α.
