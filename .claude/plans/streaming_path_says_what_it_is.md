@@ -558,6 +558,40 @@ Ordering principle: every phase that can be bit-identical **is**, and says so in
 its done-when, so a value move is never hidden inside a move-and-rename.
 
 ### P1 — the dead stops being carried *(bit-identical; no renames, no moves)*
+
+> ## ✅ P1 CODE COMPLETE — 2026-08-26, branch `refactor/p1-carry-only-what-is-read`
+>
+> 6 commits, 27 files, +439/−183. `npx pyright orpheus/` **0 errors**.
+> ⏳ The full canonical gate (`-m "not slow"`, serial, whole tree) is the
+> exit check — read `scratch/_p1_exit_gate.log`'s summary before merging.
+>
+> | commit | item |
+> |---|---|
+> | `37d6d1af` | 1–2 · `is_cartesian` → `coord`; both dead flags retired |
+> | `fc8b1a0a` | 3 · the `_quadrature` twin, dissolving an `Optional` |
+> | `ebe5d22f` | 4 · the three-link `mu_start` chain |
+> | `983b36f9` | 5–7 · pairing identity; two lying docstrings |
+> | `bc1fb804` | 8 · `curvature` retired |
+> | `500de1b4` | 9 · the moment mass is told its chart |
+>
+> ⭐ **What the phase actually bought, beyond deletions.** Three of the nine
+> items dissolved an `Optional` or a guard rather than merely removing a
+> field: `_quadrature`'s retirement made a `None` state unrepresentable and
+> took its narrowing `assert` with it; `curvature`'s removed a *runtime
+> re-validation of an enum's own domain*; item 9 replaced a silent wrong
+> value with a refusal that names both of its blockers. Pattern 4 three
+> times over — the un-weld is what made each one spellable.
+>
+> ⛔ **The one defect P1 introduced, and its rule.** Item 8's residual grep
+> (`\.curvature\b|curvature\s*[:=]`) could not see
+> `getattr(sn_mesh, "curvature", None)` — a name inside a STRING — so a test
+> branched on a `None` default that *was* the Cartesian case, and every
+> curvilinear mesh silently took the slab arm. Two reds, caught only because
+> the wrong branch's assertion happened to be falsifiable. ⚠ The aggravator:
+> the same string-form check had been run for `mu_start` **one item
+> earlier** and come back clean. Now a standing clause in
+> `coding-standards`' retirement audit.
+
 **Goal.** Nothing in the streaming path is held that nothing reads.
 **Means.** Retire the two flags (with their 12 test assertions **migrated**, not
 deleted — the successor spellings exist); retire the three-link dead chain's two
