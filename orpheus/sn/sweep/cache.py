@@ -191,7 +191,6 @@ class GeometryCoefficients:
     c_out: np.ndarray                  # (N,)
     tau_inv: np.ndarray                # (N,)
     mm_a_in_coeff: np.ndarray          # (N,)
-    mu_start: np.ndarray               # (N,) — level's starting-direction edge
     is_degenerate: np.ndarray          # (N,) bool
     level_ordinates: tuple[np.ndarray, ...] | None = None
     r"""Curvilinear only: per-:math:`\mu`-level ordinate index lists.
@@ -235,7 +234,6 @@ class GeometryCoefficients:
         A_total = np.empty((N, nx), dtype=np.float64)
         dA_w = np.empty((N, nx), dtype=np.float64)
         V = np.empty((N, nx), dtype=np.float64)
-        mu_start = np.empty(N, dtype=np.float64)
         is_degenerate = np.zeros(N, dtype=bool)
 
         # ── Level enumeration (sphere = single virtual level) ─────────
@@ -291,12 +289,6 @@ class GeometryCoefficients:
                 (v.streaming_terms.volume for v in visits),
                 dtype=np.float64, count=nx,
             )
-            # The M-M closure scalars are ordinate-only; pick the first
-            # visit's value (all visits within one ordinate carry the
-            # same mu_start).  τ is no longer read off st0 — it is sourced
-            # from the angular closure below (Issue #236 Phase 2 B3).
-            st0 = visits[0].streaming_terms
-            mu_start[global_n] = st0.mu_start
             # Cylindrical pure-azimuthal degenerate: visit carries
             # face_area_downstream == 0.0 (geometric truth).  The slow
             # per-cell path handles these ordinates.
@@ -353,7 +345,6 @@ class GeometryCoefficients:
             c_out=c_out,
             tau_inv=tau_inv,
             mm_a_in_coeff=mm_a_in_coeff,
-            mu_start=mu_start,
             is_degenerate=is_degenerate,
             level_ordinates=level_ordinates,
         )

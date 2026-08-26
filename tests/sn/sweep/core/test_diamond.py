@@ -649,7 +649,6 @@ class TestCylindricalDegenerate:
             face_area_inner=st_real.face_area_inner,
             face_area_outer=st_real.face_area_outer,
             delta_A_over_w=st_real.delta_A_over_w,
-            mu_start=st_real.mu_start,
             volume=st_real.volume,
             abs_mu=1e-16,
         )
@@ -738,7 +737,6 @@ class TestCylindricalDegenerate:
             face_area_inner=st_real.face_area_inner,
             face_area_outer=st_real.face_area_outer,
             delta_A_over_w=st_real.delta_A_over_w,
-            mu_start=st_real.mu_start,
             volume=st_real.volume,
             abs_mu=1e-16,
         )
@@ -1065,7 +1063,6 @@ def _cylinder_degenerate_visit_inputs(
         face_area_inner=st_real.face_area_inner,
         face_area_outer=st_real.face_area_outer,
         delta_A_over_w=st_real.delta_A_over_w,
-        mu_start=st_real.mu_start,
         volume=st_real.volume,
         abs_mu=1e-16,
     )

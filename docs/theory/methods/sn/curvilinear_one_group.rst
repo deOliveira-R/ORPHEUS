@@ -1492,11 +1492,20 @@ reference.  Migrate-then-delete preserved the floor:
    one producer; the fused ``redist_dAw`` cache was retired outright,
    because it was a *product* of a geometric with a quadrature factor that
    neither consumer owned.  Only ``face_areas`` and ``delta_A`` — genuinely
-   spatial chart data — remain on the streaming operator.  (What moved is
-   the **stored state**: the per-direction extraction packet
-   :class:`~orpheus.geometry.reduced_operator.StreamingTerms` still carries
-   a ``mu_start`` field, now *read from* the angular factor rather than
-   from a field of the streaming operator's own.)  Step C's
+   spatial chart data — remain on the streaming operator.
+
+   ✅ **REMEDIED later the same day (2026-08-26, P1).**  This paragraph
+   originally ended: *"the per-direction extraction packet*
+   :class:`~orpheus.geometry.reduced_operator.StreamingTerms` *still
+   carries a* ``mu_start`` *field, now read from the angular factor
+   rather than from a field of the streaming operator's own."*  True
+   when written, and repealed hours later: that field was the middle
+   link of a three-link **dead chain** —
+   ``AngularRedistribution.mu_start_per_level`` →
+   ``StreamingTerms.mu_start`` → ``GeometryCoefficients.mu_start`` →
+   nothing.  `[M]` the terminal had **zero readers of any kind**, so the
+   packet's only consumer was the write into it.  Both downstream links
+   are retired; the owner stays, and every consumer reads it.  Step C's
    *surgical* judgment stands unchanged; what it got wrong was the reason
    it gave for the residue, and :ref:`sn-redistribution-tensor-product`
    is where the correct split is derived.

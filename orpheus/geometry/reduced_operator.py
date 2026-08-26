@@ -441,22 +441,17 @@ class StreamingTerms:
     # survives on :class:`ReducedStreamingOperator` (``alpha_half`` /
     # ``alpha_per_level``).
 
-    mu_start: float
-    """Starting-direction angular edge of this ordinate's M-M level.
-
-    The direction the half-angle thread's seed flux lives at:
-    sphere ``-1.0``; cylinder :math:`-\\sqrt{1-\\xi_p^2}` (the level's
-    most-inward azimuthal edge); slab ``-1.0`` (neutral — the identity
-    closure never reads it).  Constant within a level.  Consumed by
-    :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
-    for the starting-direction seed — the direct route-(a) march
-    (:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`)
-    on carrying levels, the inline 2-point angular-edge extrapolation
-    (:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`)
-    on non-carrying cylinder levels (#282 route (a), #280 Phase 2.5d;
-    the ``AngularEdgeExtrapolation`` / ``CarlsonSweepContext`` zoo is
-    retired).
-    """
+    # ``mu_start`` retired 2026-08-26.  It was the middle link of a
+    # three-link dead chain: AngularRedistribution.mu_start_per_level ->
+    # StreamingTerms.mu_start -> GeometryCoefficients.mu_start -> nothing.
+    # [M] the terminal had ZERO readers of any kind (no attribute access,
+    # no getattr by name), so this field's only production consumer was
+    # the WRITE into it -- while its own docstring claimed
+    # ``MorelMontryAngularSweep`` consumed it.  The closure does consume a
+    # starting direction; it reads the OWNER
+    # (``AngularRedistribution.mu_start_per_level``), which is why the
+    # claim read as true.  The chain was ERR-058's threading; the un-weld
+    # gave the datum one owner and the thread became dead weight.
 
     volume: float
     """Cell volume :math:`V_i`.
@@ -694,7 +689,6 @@ class ReducedStreamingOperator:
                 face_area_inner=1.0,
                 face_area_outer=1.0,
                 delta_A_over_w=0.0,
-                mu_start=-1.0,
                 volume=volume,
                 abs_mu=abs(mu_n),
             )
@@ -716,7 +710,6 @@ class ReducedStreamingOperator:
                     self.delta_A[cell_idx]
                     / self._weight_of(direction_idx)
                 ),
-                mu_start=float(self.angular.mu_start_per_level[0]),
                 volume=volume,
                 abs_mu=abs(mu_n),
             )
@@ -747,9 +740,6 @@ class ReducedStreamingOperator:
                 face_area_outer=float(self.face_areas[cell_idx + 1]),
                 delta_A_over_w=float(
                     self.delta_A[cell_idx] / self._weight_of(global_n)
-                ),
-                mu_start=float(
-                    self.angular.mu_start_per_level[mu_level_idx]
                 ),
                 volume=volume,
                 abs_mu=abs(eta_n),
@@ -1145,11 +1135,12 @@ def spherical_streaming(
     # owned by the MorelMontryAngularSweep angular closure
     # (``morel_montry_tau_per_level``) and stamped on each CellVisit.  This
     # factory keeps the GEOMETRY data only (face areas, α-dome, redistribution
-    # factor, the level starting-direction edge).
+    # factor).
     #
-    # ``mu_start`` is the Hébert §3.9.4 starting direction μ_{1/2} = -1.0 of
-    # the (single) M-M level — the direction the half-angle thread's seed
-    # flux lives at.
+    # The Hébert §3.9.4 starting direction μ_{1/2} = -1.0 of the (single)
+    # M-M level — the direction the half-angle thread's seed flux lives at —
+    # is carried by the ANGULAR factor as
+    # ``angular.mu_start_per_level[0]``, not by this packet.
 
     return ReducedStreamingOperator(
         coord=CoordSystem.SPHERICAL,

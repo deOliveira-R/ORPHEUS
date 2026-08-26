@@ -166,8 +166,9 @@ def march_start_cosines(
     is bit-exact, so every sphere path is byte-identical to the
     pre-Q5.6 spelling).  Folded cylinder: level p's ξ = 0 start ray at
     :math:`|\eta| = \sin\theta_p`.  Single-sourced from the reduced
-    operator's own start-direction fields (``mu_start`` /
-    ``mu_start_per_level``), never recomputed from the quadrature.
+    operator's own start-direction field
+    (``reduced.angular.mu_start_per_level`` — the ONE owner since the
+    2026-08-26 un-weld), never recomputed from the quadrature.
     Public since the un-weld arc (O-1): the assembly reads
     ``(sn_mesh.reduced, sn_mesh.radial_characteristic_levels)`` and hands
     the computed map to :class:`RadialCharacteristicOperator` — the

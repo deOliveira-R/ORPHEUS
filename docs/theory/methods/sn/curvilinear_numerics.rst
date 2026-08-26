@@ -2458,11 +2458,27 @@ The starting-direction edge :math:`\mu_{\rm start}` (sphere
 :math:`-1`; cylinder :math:`-\sqrt{1-\xi_p^2}`, the level's most-inward
 azimuthal edge) is single-sourced from the SAME
 :math:`\alpha`/:math:`\tau` construction site as the
-:math:`\alpha`-dome (``orpheus.geometry.reduced_operator``) and threaded
-to the strategy via the REQUIRED
-``CarlsonSweepContext.mu_start``
-field — no default, so a forgotten cylinder site cannot silently fall
-back to the sphere value.
+:math:`\alpha`-dome, and read by every consumer from that one owner:
+:attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.mu_start_per_level`.
+A forgotten cylinder site cannot silently fall back to the sphere value.
+
+.. note::
+
+   That guarantee was **strengthened** on 2026-08-26, and the mechanism
+   named in earlier revisions of this paragraph is gone.  It used to read
+   "threaded to the strategy via the REQUIRED ``CarlsonSweepContext.mu_start``
+   field — no default".  Two things happened.  ``CarlsonSweepContext``
+   was retired (its work is
+   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`'s);
+   and the un-weld gave :math:`\mu_{\rm start}` **one owner** on the
+   angular factor, after which the thread through ``StreamingTerms`` and
+   ``GeometryCoefficients`` was found to be dead — `[M]` its terminal had
+   zero readers — and retired.
+
+   The ERR-058 property is unchanged and now rests on something stronger
+   than a convention: not "a required field with no default", but a single
+   non-optional owner that every consumer reads.  There is no second place
+   for a sphere value to be defaulted from.
 
 **Exactness ladder.**  The extrapolation is
 

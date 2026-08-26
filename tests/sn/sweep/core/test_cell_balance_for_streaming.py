@@ -93,7 +93,6 @@ def _curvilinear_streaming_terms() -> StreamingTerms:
         face_area_inner=1.2,
         face_area_outer=1.5,
         delta_A_over_w=0.3,
-        mu_start=-1.0,
         volume=0.6,
         abs_mu=0.3,
     )
@@ -107,7 +106,6 @@ def _slab_streaming_terms() -> StreamingTerms:
         face_area_inner=1.0,
         face_area_outer=1.0,
         delta_A_over_w=0.0,
-        mu_start=-1.0,
         volume=0.5,
         abs_mu=0.3,
     )
