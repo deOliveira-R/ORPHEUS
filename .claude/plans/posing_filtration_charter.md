@@ -404,10 +404,23 @@ lives inside `retraction`/`section`).
 > +15 tests over the Campaign-1 merge population); `npx pyright
 > orpheus/` 0; sphinx `-W` 0; `dead_references` 0 after both renames.
 > F-2 adjudicated INTO O-3 (see its bullet). Per-item ✅ stamps below.
-> ▶ **NEXT (user, 2026-08-25): Phase B opens with a DISCUSSION on what
-> Phase B entails** — scope first, no code before that discussion
-> concludes. The O-2 bullet below carries the measured fact base the
-> discussion starts from.
+> ✅ **PHASE B COMPLETE 2026-08-26** — the discussion concluded (§5d), then
+> B.1 (`27576937`: `AngularRedistribution` minted, six `Optional` fields +
+> the fused `redist_dAw` cache retired) and B.2 (`6859ca05`: the closure
+> takes `cls(angular, gram)`, its two TENSOR FACTORS; the gram carries
+> `(n_mom, n_thread)`; `n_mom > 1` refuses, naming #158). ⚠ On branch
+> `refactor/unweld-phase-b`, **NOT merged**; the canonical fast gate was
+> IN FLIGHT at the compaction point (`scratch/_phaseb_merge_gate.log`).
+> ⛔ The bug B.2 caught is the arc's own thesis: `sn_mesh.reduced` is
+> `None` for multi-D, and `cls(sn_mesh)` had hidden that because Identity
+> reached for `quad.N`. The neutral factors build from `(quad, coord)`
+> alone — the mesh that HAS no reduced operator can still supply them.
+>
+> ▶ **NEXT: `.claude/plans/streaming_path_says_what_it_is.md`** — the
+> successor plan (names / homes / welds / strata / the scheme mint, plus
+> §5b on making `L`'s three factors first-class). ⛔ **FOUR FORKS AT ITS
+> §9 ARE UNRULED**; two of them change what a phase DOES. It carries a
+> ▶ RESUME STATE header — read that first.
 
 The arc's raw work items for the consumed objects (Space / Fields /
 Operators), identified during the 2026-08-24/25 census + design-surface

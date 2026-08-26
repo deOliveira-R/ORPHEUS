@@ -1,5 +1,90 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
+> ## ▶ RESUME STATE — written at the 2026-08-26 compaction point
+>
+> **This file is the resume surface. Trust it over any summary.**
+>
+> ### Where the tree is
+>
+> Branch **`refactor/unweld-phase-b`**, **8 commits, NOT MERGED**; `main` is
+> at `8f05ca14`. Reconcile with git before believing any of this
+> (`process-discipline`: trust git, never a frozen claim).
+>
+> | commit | what |
+> |---|---|
+> | `27576937` | `AngularRedistribution` minted; six `Optional` fields retired off `ReducedStreamingOperator`; the fused `redist_dAw` cache retired |
+> | `6adf6680` | the doc blast radius of that carve (16 sites) |
+> | `250fcd16` | two theory chapters — the factorization, the τ arity theorem, the seed cone risk |
+> | `226cc6ca` | `vv-principles` **#32** (a positivity review cannot see a wrong limit) |
+> | `6859ca05` | **Phase B.2** — the closure takes `cls(angular, gram)`; the gram carries `(n_mom, n_thread)`; the `n_mom > 1` refusal |
+> | `82853743` | this plan |
+> | `1f1d2cce` | this plan's **§5b** (the three factors) |
+> | `bd1404ea` | `vv-principles` **#17** sharpening + agent memories |
+>
+> ### ⚠ THE GATE WAS IN FLIGHT AT THE COMPACTION POINT — read it before merging
+>
+> The canonical fast gate (`python -O -m pytest -p no:randomly -m "not slow"`,
+> serial, full tree) was launched at ~09:40 against `bd1404ea` and logs to
+> **`scratch/_phaseb_merge_gate.log`**. At the compaction point it was at 6 %
+> with zero failures. **Read that log's summary line before merging.**
+>
+> ⛔ **Do NOT quote the `4661 passed / 1 failed` figure in `6859ca05`'s commit
+> message as this branch's gate.** `[M]` it finished at 03:52, BEFORE the last
+> three fixes in that same commit (the write-only `_angular`, the dead local,
+> two doc bugs). What covers those is the narrower `1058 passed` on
+> `tests/sn/sweep/curvilinear` + `tests/geometry`. The in-flight gate is the
+> first number that covers `bd1404ea`.
+>
+> ⚠ **The one known red is NOT ours and is NOT in this gate.**
+> `cyl_2g_3reg_folded_4x8_dd_n40` fails at `0.1268` vs a `0.12` tolerance —
+> `[M]` **bit-identical to 16 digits** at the pre-branch commit `8f05ca14`
+> (baselined in an isolated worktree), which is the third independent carve to
+> confirm it (#404, itself a **duplicate of #397** — flagged, not closed). It
+> is `@pytest.mark.slow` and `[M]` DESELECTED by the canonical gate.
+>
+> ### What is DONE, and what this plan is for
+>
+> ✅ **Phase B of the un-weld arc is complete** (charter §5b O-2): the angular
+> closure family no longer takes a mesh — it takes its two tensor factors. What
+> this plan covers is the SUCCESSOR work the four audits surfaced: the names
+> that are false, the homes the filtration contradicts, the welds still held,
+> and (§5b) whether `L`'s three factors become first-class.
+>
+> ### ⛔ FOUR FORKS ARE UNRULED — do not start P1 without them
+>
+> They are §9, in full. Summarised so a fresh session knows one is owed:
+> the `ChartConnection` name; `sn/angular/` vs `transport/angular/`; whether the
+> 401-hit chart-spelling sweep belongs here; and P4's scope. ⚠ Fork 2 and
+> fork 4 change what P2 and P4 DO, not merely how they are described.
+>
+> ### The four memos this rests on are in `scratch/` and are NOT tracked
+>
+> `ld_curvilinear_shape_derivation.md`, `tau_under_ld_dip_analysis.md`,
+> `adjoint_gram_ownership_audit.md`, `specialization_audit.md`, plus their
+> probes (`probe_ld_*`, `probe_adjoint_gram_0{1..6}_*`,
+> `_probe_beta_spatial_independence.py`, `_probe_cone_transmission.py`,
+> `_probe_o2_operand_derivability.py`). ⚠ Untracked ⟹ **a `git clean` destroys
+> them.** The theory chapters at `250fcd16` carry their conclusions; the memos
+> carry the derivations.
+>
+> ### Issues opened or corrected this session
+>
+> **#407** DD's blend inverse in scheme-neutral `cell_balance.py` (+ a second
+> instance in the seed march) · **#408** `is_positivity_preserving` conflates
+> three properties — ⚠ its body's `(0, ½)` recommendation is **REFUTED in a
+> comment** (that member is inconsistent: right rate, wrong limit) · **#404**
+> the pre-existing cylinder red, now triply confirmed, duplicate of **#397** ·
+> **#158** carries the curvilinear-LD literature + shape record.
+>
+> ### Durable rules landed this session
+>
+> `vv-principles` **#32** (never rank scheme candidates by positivity alone —
+> add a consistency leg) · `vv-principles` **#17** sharpening (read a mutation's
+> verdict by the red set's IDENTITY, not its size) · `lessons.md` **L60** (a
+> type SIGNATURE is evidence about its author's assumptions, never about a
+> theorem).
+
+
 **Status.** Proposed 2026-08-26, un-ruled. Successor work to the un-weld arc's
 Phase B (`27576937`, `6859ca05`); governed by
 `.claude/plans/posing_filtration_charter.md` (the posing filtration, R1–R23)
