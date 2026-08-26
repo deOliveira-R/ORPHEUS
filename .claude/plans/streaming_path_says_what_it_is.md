@@ -177,6 +177,120 @@ chart. That is the function/evaluated-table split, on the angular axis.
 
 ---
 
+## 5b. ⭐ The three factors — make the algebra the implementation
+
+**Added 2026-08-26 after a user question this plan had NOT anticipated.** The
+adjoint audit's closing observation was *"signature of a product of one diagonal
+factor and two triangular ones"*, and the question is whether those three become
+first-class. This section says yes, states what must be verified first, and is
+deliberately scoped as a SUCCESSOR campaign, not a phase of §7.
+
+### The measured state — they are not explicit
+
+`[M]` 2026-08-26:
+
+* the **composition machinery already exists**: `OperatorProduct`
+  (`numerics/operator.py:1650`) composes and is a `LinearOperator`, so `.H`
+  propagates through it (`:983`); `PermutationOperator` (`:2458`),
+  `ScaledOperator`, `PointwiseOperator`, `TensorProductOperator` and
+  `_AdjointOperator` all ship;
+* there is **no triangular-factor concept anywhere** — `grep` for
+  `Triangular` / `forward_substitution` over `orpheus/` returns **one** hit,
+  and it is `OperatorProduct`'s unrelated line;
+* and the SN loss matvec is a **fused body** in `sn/loss_representation/`, not
+  a composition — so today `apply` and `apply_transpose` are **two hand-written
+  implementations of one relation**.
+
+### Why this is the highest-value item the audits surfaced
+
+`[M]` `apply_transpose ≡ apply.T` to `3.05e-16` / `1.99e-16` / `0.0`
+(sphere / cylinder / slab). That gate exists **because they are twins** — it is
+Pattern 2's signature, and the project rule is to make the twin unspellable
+rather than to test that the two copies agree.
+
+If the factorization is real and declared:
+
+```
+L  =  D  @  T_ang  @  T_spatial
+L.H  =  T_spatial.H  @  T_ang.H  @  D          # D diagonal ⇒ self-adjoint
+```
+
+then **the adjoint stops being written and starts being derived.** The audit's
+own inventory says exactly what each factor's `.H` must do, and it is small:
+`[M]` every coefficient enters the adjoint **at the same value**, and the
+reversal needs only **two order reversals and one block swap**. Those are
+`T_ang.H` (the reversed march), `T_spatial.H` (the reversed scan), and the
+trace-block swap. ⟹ `angular_adjoint` and the hand-written reverse scan RETIRE,
+and the seam where a future angular device (ONETRAN's rank-1 column,
+angular-LD) plugs in becomes ONE factor instead of two hand-mirrored bodies.
+
+This is the *"build the machinery; realize the operator algebra ALWAYS"* ruling
+applied to the last welded operation in the streaming path: a welded, un-named
+composition is a failure to realize the algebra.
+
+### ⛔ P0 — VERIFY THE FACTORIZATION BEFORE DESIGNING TO IT
+
+⚠ **The three-factor claim is `[R]`, not `[M]`.** It was *inferred* from the
+symmetry characters of `∂L/∂k` (`0` skew / `2` symmetric / `1.414`
+triangular-like), which is evidence of triangular STRUCTURE and **not** a proof
+that `L` equals a product of exactly three named factors. Designing to an
+unverified factorization is how a campaign inherits a false premise.
+
+**Done when** — all three answered, on the sphere (⛔ never the cylinder: `[M]`
+`R/ΔA` is bit-exactly `diag(1, 1/3)` there and cannot discriminate):
+
+1. `‖D·T_ang·T_spatial − L‖ / ‖L‖` at machine precision on ≥2 charts, with the
+   factors constructed independently of `L`'s assembly;
+2. **the factor COUNT is confirmed, not assumed** — the audit says "two order
+   reversals AND one block swap", so the honest arity may be four
+   (`D · P_mirror · T_ang · T_spatial`) once the pole-mirror permutation and
+   the inflow/outflow trace partition are placed. Report the count you MEASURE;
+3. each factor's triangularity is checked **in its own index order** (`T_ang`
+   in the ordinate index at fixed cell; `T_spatial` in chain order), because a
+   matrix is triangular only with respect to an ordering, and the ordering is
+   itself a traversal artefact (§4, S3).
+
+A refutation here is the most valuable outcome, not the least — it would mean
+the adjoint is genuinely irreducible to a composition and the twin must stay,
+which is a thing worth knowing before anyone tries.
+
+### The constraint that shapes the design — algebra ≠ realization
+
+⚠ The sweep is the **hot loop**, and `CumprodScan` (Blelloch) exists to make it
+fast. Applying three factors sequentially through typed carriers would allocate
+three times and destroy that fusion. **Do not read this section as "apply three
+operators."**
+
+The resolution is already this tree's own vocabulary, twice over: `WindowedSweep`
+is *"the FUSED typed product `P @ A.inverse()`"* (a declared composition with a
+fused evaluation), and §5c's ruled **function / evaluated-table** split says the
+same thing. So:
+
+* **declare** the factors — they are the algebra, and they carry `.H`;
+* **realize** the composite's `apply` through the existing fused scan;
+* and **gate** that the two agree.
+
+⭐ That gate is the `3e-16` measurement, **repurposed**: today it compares two
+hand-written twins (and so can only ever say "the copies match"); afterwards it
+compares the DERIVED adjoint against the FUSED realization — an
+algebra-vs-implementation equivalence, which is a strictly stronger claim from
+the same number.
+
+### Scope
+
+This is **not** a phase of §7 — §7 is names, homes and welds, all bit-identical
+or nearly so, and this is an architecture change to the operator algebra. It
+belongs with the operator-strategy campaign / O-3's `StreamingOperator` binding
+(`posing_filtration_charter.md` §5c), and it should follow §7 so the factors are
+declared in objects that already have honest names and homes.
+
+⚠ **Dependency, stated because it is easy to miss:** `T_ang`'s content is the
+angular closure's S0 algebra (§4), so F3's function/evaluated-table split is a
+PREREQUISITE, not a parallel. Splitting the closure after declaring `T_ang`
+would cut the same seam twice.
+
+---
+
 ## 6. The one CORRECTNESS item — not cosmetics
 
 ⛔ **A curvilinear cell is being given the slab's moment metric.** `[M]` an LD
