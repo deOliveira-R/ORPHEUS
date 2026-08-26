@@ -211,7 +211,7 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
         quad, _MATERIALS,
     )
     np.testing.assert_equal(native.coord, sys)
-    np.testing.assert_equal(native.curvature, legacy.curvature)
+    np.testing.assert_equal(native.coord, legacy.coord)
     if native.reduced is None:
         pytest.fail("axis-native curvilinear mesh did not build .reduced")
     if not isinstance(native.mesh, Mesh1D):

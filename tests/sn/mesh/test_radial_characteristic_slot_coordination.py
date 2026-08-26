@@ -91,8 +91,9 @@ def _n_angular_levels(sn: SNMesh) -> int:
     case; every other curvilinear quadrature iterates
     ``range(len(quad.level_indices))``.
     """
-    if sn.curvature is not None and sn.reduced is not None \
-            and sn.reduced.coord is CoordSystem.SPHERICAL:
+    # (the retired ``sn.curvature is not None`` conjunct was redundant:
+    # ``reduced.coord is SPHERICAL`` already implies non-Cartesian)
+    if sn.reduced is not None and sn.reduced.coord is CoordSystem.SPHERICAL:
         return 1
     li = getattr(sn.quad, "level_indices", None)
     return len(li) if li is not None else 1

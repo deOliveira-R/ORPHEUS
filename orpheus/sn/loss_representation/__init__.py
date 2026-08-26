@@ -709,7 +709,7 @@ class _LossRepresentation:
         if not compat.ok:
             raise IncompatibleRepresentation(
                 f"{type(self).__name__} cannot sweep this mesh "
-                f"(ndim={self.mesh.ndim}, curvature={self.mesh.curvature!r}): "
+                f"(ndim={self.mesh.ndim}, coord={self.mesh.coord.value!r}): "
                 f"{compat.reason}."
             )
 
@@ -2724,7 +2724,7 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
             return cls(mesh)
     raise IncompatibleRepresentation(
         f"no sweep strategy supports this mesh "
-        f"(ndim={mesh.ndim}, curvature={mesh.curvature!r}, "
+        f"(ndim={mesh.ndim}, coord={mesh.coord.value!r}, "
         f"is_cartesian={mesh.is_cartesian})."
     )
 
@@ -3126,12 +3126,15 @@ class _OneDimScanWalk:
         N = quad.N
         ng = psi_view.shape[1]
         nx = sn_mesh.nx
-        curvature_raw = getattr(sn_mesh, "curvature", None)
-        curvature = curvature_raw if curvature_raw is not None else "cartesian"
-
-        if curvature not in ("spherical", "cylindrical", "cartesian"):
-            raise ValueError(f"Unknown curvature: {curvature!r}")
-        if curvature == "cartesian" and not sn_mesh.is_1d:
+        # The chart is an ENUM on the mesh.  Until 2026-08-26 this frame
+        # re-derived a string from it through a defaulted ``getattr`` and
+        # re-validated that string's domain at runtime -- a domain NO
+        # consumer here reads: [M] all six uses below ask only
+        # ``== "cartesian"`` / ``!= "cartesian"``, never sphere-vs-cylinder.
+        # A three-valued string used as a boolean, with a guard for values
+        # nothing branches on.
+        is_cartesian = sn_mesh.is_cartesian
+        if is_cartesian and not sn_mesh.is_1d:
             raise NotImplementedError(
                 "_OneDimScanWalk._apply_walk: multi-D Cartesian is not "
                 "handled by the 1-D scan walk; multi-D Cartesian routes "
@@ -3166,7 +3169,7 @@ class _OneDimScanWalk:
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
 
-        if curvature == "cartesian" and face_inner is None:
+        if is_cartesian and face_inner is None:
             raise ValueError(
                 "Slab geometry requires psi.boundary.xmin_face to be "
                 "populated."
@@ -3225,7 +3228,7 @@ class _OneDimScanWalk:
                 leg: _WalkLeg, i: int, psi_face_in: np.ndarray,
             ) -> np.ndarray:
                 psi_cell = psi_g_first[:, leg.ordinates, i]
-                if curvature == "cartesian":
+                if is_cartesian:
                     # Coefficient model (#158/#240): the Cartesian matvec rides
                     # the scheme's group-2 ÷V kernel ``residual_kernel_batch``
                     # UNIFORMLY — DD reproduces its diamond march, LD its
@@ -3321,7 +3324,7 @@ class _OneDimScanWalk:
         # the inflow consistency ``ψ.inflow − B·ψ.outflow → 0``.
         outflow_at_inner = _sweep_direction(-1, face_outer)
 
-        if curvature != "cartesian":
+        if not is_cartesian:
             # Carlson coupled-pole spatial seed (ERR-058 a, Issue #195):
             # at r = 0 the outward characteristic is the CONTINUATION of
             # the inward one — ψ(0, +μ) = ψ(0, −μ) — so the +1 sweep's
@@ -3476,9 +3479,10 @@ class _OneDimScanWalk:
         N = quad.N
         ng = phi.interior.values.shape[1]
         nx = sn_mesh.nx
-        curvature_raw = getattr(sn_mesh, "curvature", None)
-        curvature = curvature_raw if curvature_raw is not None else "cartesian"
-        if curvature == "cartesian" and not sn_mesh.is_1d:
+        # See _apply_walk's note: the twin of that prelude, and already
+        # DRIFTED -- this copy never carried the domain re-validation.
+        is_cartesian = sn_mesh.is_cartesian
+        if is_cartesian and not sn_mesh.is_1d:
             # Structural 1-D-only guard (NOT a deferral since #310 C4): the
             # multi-D scan-family reverse is the row-march
             # (ScanMarch._loss_action_transpose_interior via the shared
@@ -3607,7 +3611,7 @@ class _OneDimScanWalk:
             ).copy()
 
         def visit(leg: _WalkLeg, i: int, f_bar: np.ndarray) -> np.ndarray:
-            if curvature == "cartesian":
+            if is_cartesian:
                 # ── Cartesian arm: the scheme-uniform ÷V batch VJP (#310 C2
                 # — the exact mirror of _apply_walk's kernel arm).  DD and LD
                 # route through ``residual_kernel_batch_transpose`` with NO
@@ -3681,7 +3685,7 @@ class _OneDimScanWalk:
         def close_leg(leg: _WalkLeg, f_bar: np.ndarray) -> None:
             # reverse the sweep seed
             if leg.direction_sign > 0:
-                if curvature != "cartesian":
+                if not is_cartesian:
                     # adjoint of the Carlson coupled-pole seed: the
                     # forward +1 seed reads the −1 sweep's pole-face
                     # outflow at the mirror ordinate, so the seed
@@ -3761,7 +3765,7 @@ class _OneDimScanWalk:
         # structural zero-map) — the delegated reversal is curvilinear-only,
         # which also keeps the scalar ``psi_ang_bar`` off the moment-tailed
         # LD buffer (curvilinear ⟹ DD ⟹ no tail).
-        if curvature != "cartesian":
+        if not is_cartesian:
             psi_ang_bar, _seed_cells_bar_discarded = closure.angular_adjoint(
                 tuple(numer_bar),
             )

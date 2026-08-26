@@ -222,7 +222,7 @@ class TestSNMesh:
         quad = Quadrature.gauss_legendre(4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 
-        assert sn_mesh.curvature == "spherical"
+        assert sn_mesh.coord is CoordSystem.SPHERICAL
         assert sn_mesh.face_areas is not None
         assert sn_mesh.reduced.angular.alpha_per_level[0] is not None
         assert len(sn_mesh.reduced.angular.alpha_per_level[0]) == quad.N + 1

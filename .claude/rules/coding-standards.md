@@ -243,6 +243,30 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   11 of 17 flagged pages were false positives. A concept grep needs its hits
   triaged by MEANING before any of them is called a site.
 
+- ⭐ **A symbol grep cannot see a name that lives inside a STRING — and the
+  `getattr(obj, "name", default)` form is the one that bites, because it fails
+  in the DEFAULT's direction rather than raising.** `\.name\b` and
+  `name\s*[:=]` are the natural residual patterns and neither matches
+  `getattr(x, "name", None)`, `hasattr(x, "name")`, `setattr`, or a
+  `__getattr__` table key. After the retirement, the call does not raise: it
+  silently returns the default, and every branch keyed on that default flips.
+  ⟹ **run `grep -rnE "['\"]<symbol>['\"]"` as part of the audit, on every
+  retired name**, and read what each hit's default *means* — a `None` default
+  on a field that was `None` for exactly one case turns "is it that case?"
+  into "always yes".
+  > `[M]` 2026-08-26, P1 item 8. Retiring `SNMesh.curvature` (whose `None`
+  > **was** the Cartesian case), my residual grep returned only prose and I
+  > called the set closed. `tests/sn/operators/test_native_matvec.py:392` read
+  > it as `curv = getattr(sn_mesh, "curvature", None)` and branched on
+  > `curv is None`, so after the retirement **every curvilinear mesh took the
+  > slab branch** — 2 reds, sphere and cylinder. ⚠ The aggravator: I had run
+  > exactly this string-form check for `mu_start` **one item earlier** and
+  > confirmed it clean. The habit did not transfer across two commits by the
+  > same author on the same afternoon, which is why this is a rule and not a
+  > reminder. It failed loudly only because the assertion on the wrong branch
+  > happened to be falsifiable; a `getattr` default that matches the common
+  > case fails silently and green.
+
 **Grep the CONCEPT, not only the symbol:** a field/flag is documented in two
   registers — by NAME, which greps, and by PARAPHRASE, which does not. A `list-table`
   column headed "Sweep-cycle flag" carries per-law values with no symbol in any cell; one

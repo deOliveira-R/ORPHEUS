@@ -389,8 +389,12 @@ class TestOutputShape:
             sn_mesh.quad.N, sn_mesh.ng,
         )
         # Inner face: (N, ng) for slab; absent for curvilinear.
-        curv = getattr(sn_mesh, "curvature", None)
-        if curv is None:
+        # Reads the CONTRACT, not a defaulted getattr on a field: the
+        # retired ``curvature`` was reached here as
+        # ``getattr(sn_mesh, "curvature", None)``, whose None default made
+        # this branch silently mean "slab" for every mesh once the field
+        # went away.
+        if sn_mesh.is_cartesian:
             assert "xmin" in result.boundary.layout.faces
             assert result.boundary.face_view("xmin").shape == (
                 sn_mesh.quad.N, sn_mesh.ng,

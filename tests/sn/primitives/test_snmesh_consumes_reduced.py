@@ -182,7 +182,7 @@ def test_slab_keeps_cartesian_streaming_arrays() -> None:
     with pytest.raises(IndexError, match="out of range for ndim=1"):
         sn.streaming(1)
     # No curvature on Cartesian.
-    assert sn.curvature is None
+    assert sn.is_cartesian
 
 
 @pytest.mark.foundation

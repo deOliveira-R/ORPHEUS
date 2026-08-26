@@ -479,6 +479,31 @@ ever caught it. On a curvilinear chart `M/V` depends on `r_i`, so unit width
 is not a normalisation, it is a different matrix. The docstring's claim
 *"This IS `diag(M)/V`"* is true on exactly one chart family.
 
+#### ✅ The §6c witness — CONSTRUCTED, not argued (`[M]` 2026-08-26)
+
+§6c says a gate must name an input that exists in the tree *today* and that
+it rejects. Built by hand rather than reasoned about:
+
+```
+slab      LD SNMesh: CONSTRUCTS. moment weights = [1.  0.33333333]
+sphere    LD SNMesh: CONSTRUCTS. moment weights = [1.  0.33333333]
+cylinder  LD SNMesh: CONSTRUCTS. moment weights = [1.  0.33333333]
+```
+
+⭐ **Wider than §6 stated** — §6 named only the sphere; the **cylinder**
+constructs too, and all three charts install a **bit-identical** slab mass.
+The witness is therefore
+`SNMesh(Mesh1D(coord=SPHERICAL), gauss_legendre(4), …, scheme=LinearDiscontinuous())`
+and its cylindrical sibling, and the gate must name one of them.
+
+✅ **And the blast radius is much smaller than "a mesh stops constructing".**
+`[M]` `moment_axis` is reached from a **`@cached_property`**
+(`augmented_mesh.py:1227`, the trial space), **not** from `__init__`. So the
+refusal does not make an LD curvilinear `SNMesh` unconstructible — it fires
+when a consumer actually reaches for the moment metric, i.e. exactly where the
+wrong value would otherwise be installed. The mesh is not the wrong object;
+*asking it for a slab mass on a curved chart* is the wrong question.
+
 ⛔ **And the guard §7 P1 promises cannot be written where the plan assumed.**
 `[M]` **neither** `moment_axis(self, ndim: int)` **nor**
 `moment_mass_diagonal(self, ndim: int)` receives a chart — so the installer
@@ -486,10 +511,26 @@ cannot refuse a curvilinear space *even in principle*: it is never told which
 one it is on. ⟹ P1's item is **not** a guard insertion; it is a signature
 change (the installer must be told the chart) plus the refusal, i.e. a §6b
 call-site change. Sized accordingly in P1.
-`[M]` the call-site set is small — **8 references total**, 5 in `orpheus/`
-(2 defs, `scheme.py:1414`, and 2 docstring mentions) and 5 in `tests/`
-(`test_spatial_moment_field_space.py:211`, `test_angular_bulk_space.py:217,262`,
-plus 2 prose).
+⛔ **CORRECTED 2026-08-26 — the first count here was mine and was wrong two
+ways.** It read *"8 references total, 5 in `orpheus/` … and 5 in `tests/`"*:
+`5 + 5 = 10 ≠ 8`, so it did not even add up, and both halves were built from
+a partial grep that mixed defs and prose into a "call-site" count.
+
+`[M]` re-derived by grepping the CALL form (`\.moment_axis\(` /
+`\.moment_mass_diagonal\(`), which is the predicate that matters:
+**13 call sites — 3 production, 10 test.**
+Production: `transport/fields/_bases.py:266`, `transport/spatial/scheme.py:1414`
+(internal, inside `moment_axis`), `sn/mesh/augmented_mesh.py:1227`.
+Test: 10, concentrated in `tests/sn/mesh/test_angular_bulk_space.py` (8) and
+`tests/numerics/test_spatial_moment_field_space.py` (2).
+
+✅ **And the signature question is settled by a measurement, not a taste
+call:** `[M]` **both** production callers already hold a mesh that carries the
+chart — `MaterialMesh.coord` (`material_mesh.py:230`) and `SNMesh.coord`. So
+passing the chart costs the callers nothing; it only stops the callee
+*assuming* it. `moment_mass_diagonal` computes `∫ b_k b_j dV`, which needs the
+basis (the scheme's) AND the measure (the chart's) — taking only `ndim` is
+precisely the missing half.
 
 ⭐ **Two expressiveness failures, not one** — worth stating separately because
 they need different machinery, and #409 must cover both:

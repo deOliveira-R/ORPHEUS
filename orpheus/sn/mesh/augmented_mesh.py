@@ -120,9 +120,6 @@ class SNMesh(MaterialMesh):
       for every axis ``a < ndim`` (built over ``range(ndim)`` from
       ``quad.axis_cosines(a)`` — no hand-listed x/y pair).
 
-    For future curvilinear geometries, additional curvature terms
-    (:math:`\\alpha_n / r_i`) will be stored in ``self.curvature``.
-
     Parameters
     ----------
     mesh : Mesh1D or Mesh2D
@@ -345,14 +342,12 @@ class SNMesh(MaterialMesh):
                 # carry (node-aligned products, unfolded staggered
                 # products, level-symmetric rules).
                 assert_carrying_quadrature(quadrature, self.coord)
-                self.curvature: str | None = "cylindrical"
                 # Cartesian-style per-axis streaming arrays not used here
                 # (curvilinear streaming lives in reduced.streaming_terms).
                 self._streaming_axes = None
             case CoordSystem.SPHERICAL:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = spherical_streaming(mesh, quadrature)
-                self.curvature = "spherical"
                 self._streaming_axes = None
 
         # ── Boundary trace + realized laws ──
@@ -1845,8 +1840,6 @@ class SNMesh(MaterialMesh):
             for a, widths in enumerate(self.axis_widths)
         )
 
-        # Curvature terms (None for Cartesian — placeholder for curvilinear)
-        self.curvature = None
 
     # ── Backward-compat property accessors ────────────────────────────
     #
