@@ -1359,6 +1359,44 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     def _assert_moment_mass_is_expressible(self, coord: CoordSystem) -> None:
         r"""Refuse a moment mass this codebase cannot yet SPELL.
 
+        .. admonition:: ``coord`` is TRANSITIONAL — do not inherit it as a
+           decision
+           :class: warning
+
+           This method (and the two producers that call it) take the chart as
+           a **tag**, and a tag is the wrong thing to take.  The mass is
+           :math:`M_{kj} = \\int b_k b_j\\,\\mathrm{d}V`: what it needs is the
+           **measure**, and ``coord`` is a proxy the callee has to
+           re-interpret.  Discriminating on a tag to recover a measure is the
+           missing-type smell ``nexus discriminations`` exists to find.
+
+           The tell that it is a proxy is the predicate below: it is not a
+           three-way dispatch but ``is not CARTESIAN`` — i.e. *"is the volume
+           element constant across the cell?"*, which is a property of the
+           MEASURE's behaviour, not of the chart's identity, and is exactly
+           what makes the unit-width shortcut valid on a slab.
+
+           ⭐ The right shape is already derived, and it is a sibling
+           relationship rather than a new abstraction::
+
+               M_kj = ∫ b_k b_j            dV     # Galerkin matrix of 1
+               R_kj = ∫ b_k b_j (∇·ê_r)    dV     # Galerkin matrix of ∇·ê_r
+
+           the SAME construction against different integrands, so the moment
+           mass and the redistribution pairing are two products of ONE
+           bilinear form and should be minted together by the object that
+           owns the measure — ``scheme.mint(chart)``, §5 of
+           ``.claude/plans/streaming_path_says_what_it_is.md``, phase P4.
+
+           ⚠ Why the tag ships in the meantime, stated so the trade is
+           visible rather than implied: the guard is a CORRECTNESS repair —
+           `[M]` the slab's mass was being installed on the sphere AND the
+           cylinder, bit-identical, silently — and it could not exist at all
+           while the producer was never told its chart.  One tag-dispatch
+           was the smallest thing that makes the wrong value unspellable
+           today.  P4 dissolves it; nothing here should be built upon.
+
+
         The cell mass is :math:`M_{kj} = \int b_k b_j \, \mathrm{d}V`, so
         it depends on the basis (the scheme's) **and** on the measure (the
         chart's).  On a Cartesian chart :math:`M/V` is width-independent,

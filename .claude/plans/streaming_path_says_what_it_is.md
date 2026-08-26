@@ -744,11 +744,45 @@ costed as such rather than batched with the cosmetic rows.
 owns its measure — and `L` and the RC family receive one minted closure.
 **Means.** §5's `scheme.mint(chart)`; the angular device becomes the separate
 axis it is; the closure splits S0 algebra from S1 binding (F3).
+
+⭐⭐ **AND the moment mass comes with it — they are ONE bilinear form.**
+*(added 2026-08-26 on a user challenge to P1 item 9's signature.)* F2 gives
+
+```
+M_kj = ∫ b_k b_j          dV      # the moment mass  — Galerkin matrix of 1
+R_kj = ∫ b_k b_j (∇·ê_r)  dV      # the pairing      — Galerkin matrix of ∇·ê_r
+```
+
+— the **same construction against different integrands**. So
+`moment_mass_diagonal` and `redistribution_pairing` are two products of one
+form, and the mint produces **both**. This is not a new abstraction; it is
+noticing that the object §5 already mints has a second output.
+
+⛔ **P1 item 9 left a TRANSITIONAL parameter that P4 must retire, and it must
+not be inherited as a decision.** `moment_mass_diagonal(ndim, coord)` and
+`moment_axis(ndim, coord)` take the chart as a **tag** — and a tag is the
+wrong thing to take, because what the mass needs is the *measure*.
+Discriminating on a tag to recover a measure is the missing-type smell
+`nexus discriminations` hunts.
+⭐ The tell that it is a proxy: the guard's predicate is not three-way but
+`is not CARTESIAN` — *"is the volume element constant across the cell?"* — a
+property of the **measure's behaviour**, not the chart's identity.
+⚠ It shipped because the guard is a correctness repair (`[M]` the slab's mass
+was installed on sphere AND cylinder, bit-identical, silently) and could not
+exist while the producer was never told its chart. One tag-dispatch was the
+smallest thing that makes the wrong value unspellable *today*.
+`[M]` nothing else could supply it: `ndim` does not determine the chart (1-D
+is slab/cylinder/sphere), and the schemes carry **no** chart state by design
+(`DiamondDifference` none, `LinearDiscontinuous` only `theta`) — giving a
+scheme a chart field would re-weld two axes this campaign separated.
+
 **Done when.** The scheme is the only producer of `R`; two meshes over one
 `(quad, coord)` share one `angular_algebra` object by identity; `L` and the RC
 operators receive the closure and neither constructs one; ⚠ a gate pins that the
 rank-1 (ONETRAN) pairing is *expressible* — §6c: it must be constructible, not
-merely refused.
+merely refused; **and `grep -n "coord: CoordSystem" transport/spatial/scheme.py`
+is empty** — the mint has replaced the tag, and the moment mass is evaluated
+against a measure rather than branched on a chart.
 
 ### P5 — `ChartConnection`'s three stages separate *(rides O-3)*
 **Deferred on a DEPENDENCY, not a punt.** Its third piece is `streaming_terms`'
