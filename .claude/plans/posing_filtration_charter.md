@@ -943,6 +943,19 @@ redefined **to preserve the infinite-medium solution**" — the same identity,
 repaired by construction rather than left broken. ⟹ lumping is admissible
 **only** with that compensating redefinition; recording the pair is what
 makes the constraint legible.
+⛔ **REFUTED 2026-08-26 (§5d.8, probe 03) — the paragraph above CONFLATES TWO
+DIFFERENT OPERATIONS, and the synthesis "the same identity" is FALSE.**
+`[M]` Palmer-Adams's FL is **nodal ROW-SUM** lumping, which **preserves
+`R₀₁` EXACTLY** (only `R₁₁` moves, `ΔA/3 → ΔA`). The operation the earlier
+derivation condemned is **Legendre-DIAGONAL** lumping — a different map. So
+"⛔ `R` may not be lumped on the sphere" does **not** apply to FL, and FL
+needs no compensating repair of that identity. ⚠ The error is mine (main
+agent): two operations sharing the word "lumping" were merged into one
+claim, and the merge read as a cross-confirmation because both halves were
+independently true. The sharper fact that replaces it: `[M]` the
+infinite-medium identity pins only `rowsum(L) = (−1, +1)`, leaving **one
+free parameter per row** ⟹ **the accuracy/positivity trade is a CHOICE of
+that parameter, not a property of "lumping"**.
 
 **(c) ⭐⭐ THE RANK CONTRADICTION — and it splits an index the design had
 CONFLATED.** Two published families disagree on what the angular closure
@@ -1013,6 +1026,114 @@ spherical LD `R_k` **unlumped**, and would settle Adams-Martin's intent
 directly; and **Walters & Morel 1991**, M&C Vol. III p. 13.2 3-1 — the
 primary for BOTH the LD-in-angle scheme (the genuinely second
 `AngularClosure` member) and the starting-direction remedy in (e).
+
+### 5d.8 ✅ THE ARITY QUESTION IS SETTLED — `tau_per_ordinate` KEEPS its arity, by THEOREM
+
+`[M]` 106 SymPy checks / 6 probes / 0 failures. Memo:
+`scratch/tau_under_ld_dip_analysis.md`. Original derivation (no source in
+the literature treats this — §5d.7(d)), run after the user's steer to
+*"lean heavily on the mathematical properties and theorems … identify what
+is the invariant, and what physics needs preserved."* **⟹ the ABC may be
+frozen as it stands; §5d.4's arity warning is DISCHARGED.**
+
+**Theorem A (the decision).** A scalar convex combination commutes with
+every linear map, so `P(blend) = blend(P)`. Both of τ's defining conditions
+— cone membership `τ ∈ [0,1]` (the shipped P3 guard) and the
+barycentric/`span{1,μ}` condition — are therefore *the same scalar statement
+in every moment component*. A per-(ordinate, cell) τ is an **overdetermined
+system whose every row returns the same per-ordinate value** (`[M]` solved
+independently at `n_mom = 4`). Hypotheses checked and none mentions a basis:
+τ is `r`-independent by construction; the moment projection is linear; `K`
+is convex (an intersection of half-spaces).
+
+**Theorem B (why β cannot acquire spatial content).** The redistribution
+operator is the **TENSOR PRODUCT** `R_i ⊗ A_ang(τ, α, w)` ⟹ the
+diffusion-limit condition is the *identical* angular scalar `S` — `[M]` free
+symbols `{μ, w, τ}`, no spatial symbol — and `S = 0` annihilates the
+contamination in every moment row **for an arbitrary symmetric `R`**.
+⭐⭐ **This is §5d.4's orthogonality claim PROVEN at the operator level**: the
+two axes do not merely contribute one index each, the operator FACTORS.
+
+**Blast radius, verified:** `CellVisit.tau: float` (`scheme.py:197`) is
+already stamped per cell visit from `tau_per_ordinate[global_ordinate]`
+(`augmented_mesh.py:1644`) — even a WIDENS verdict would have been
+producer-side only.
+
+#### ⭐ The LEAD — the risk relocates to the SEED, and harder than expected
+
+`[M]` the starting-direction equation carries **no** angular redistribution
+(`α_½ = 0`; `(1−μ²) = 0` at `μ = −1`), so it is a purely SPATIAL solve
+inheriting the spatial scheme's cone behaviour **where nothing angular can
+damp it**. Transmission ladder (one probe, all three): **DD flips sign at
+`τ_opt = 2`** (Padé(1,1)), **bare LD at `τ_opt = 3`** (Padé(1,2), with
+`a·τ_opt → −2`), **lumped LD never** (Padé(0,2), discriminant `1−2 < 0`).
+In the thick limit `τ_opt = σ_t h → ∞`, so a **bare-LD seed march ALTERNATES
+IN SIGN cell to cell**.
+
+⭐⭐ And the quantified punchline: `β_eff(μ_s) = S + (μ_s + 1)·S_e` is
+**exactly affine**, so `[M]` with τ AT the Morel-Montry value, a
+starting-cosine error of **1.6 % (S4) → 0.05 % (S32)** reproduces the
+*entire* diamond-scheme contamination. ⟹ **τ buys nothing a sloppy seed does
+not give back, and the leverage GROWS with N.**
+
+#### The refutations (8 in memo §10) — three matter to this charter
+
+1. ⛔ **My H1 ARGUMENT was INVALID** (its conclusion survives). *"The
+   signature admits no spatial argument"* is `vv-principles` **Mode 8
+   SIGNATURE-tautological**: the signature reflects the *derivation's scope*
+   (M-M and BMC both hold space continuous, and say so), not the joint
+   problem. Had LD introduced spatial dependence, the answer would have been
+   a NEW function with a spatial argument — the existing one's arity says
+   nothing. ⟹ **a type signature is evidence about an author's assumptions,
+   never about a theorem.** (Durable; belongs in `lessons.md`.)
+2. ⛔ **Morel-Montry's OWN summary rule is refuted** — *"the dip can be
+   expected to be eliminated with any spatial scheme as long as the starting
+   flux is not seriously UNDERestimated"*. `[M]` `dβ/dμ_s = S_e` **flips
+   sign** between `N = 2` (`+9.1e-1` — their own Gauss-S₂ case, the only one
+   they computed) and `N ≥ 4` (`−1.1e-1 … −1.7e-5`): the SAFE DIRECTION
+   INVERTS while the stakes collapse 5 orders. A 1984 universal generalised
+   from `N = 2` (`vv-principles` #13 — a sample promoted to a population, in
+   the literature rather than in our tree).
+3. ⛔ **My steer's "lumping ⟹ M-matrix" is FALSE** — MWS lump the mass and
+   deliberately *not* the gradient, so `A_LR = +½` and `A⁻¹_LR < 0` (their
+   own §8 caveat). **What survives** is strictly weaker and is the useful
+   half: the **transmission** becomes unconditionally sign-preserving.
+
+#### Two design answers this delivers
+
+- **The seed fork of §5d.5 DISSOLVES.** `[M]` memo variants (a) the slab-LD
+  march and (b) the `μ = −1` bulk row are **asymptotically IDENTICAL** —
+  both discrete gradients equal `[[0, 2/h], [0, 0]]`, so `e⃗ = 0` exactly and
+  `μ̃_½ = −1` holds per component for both. The M-A origin-values half is
+  **vacuous** under LD (DG derives its traces; there is nothing at `r = 0`
+  to supply). ⟹ the criterion with teeth is the **CONE**, not the
+  contamination: **ship the seed march with the LUMPED cell.** (Zeroing the
+  seed slope gives an `O(1)` mesh-independent defect; borrowing it gives
+  `(1+μ₁)ĝ`.)
+- ⛔ **`is_positivity_preserving` CONFLATES THREE PROPERTIES** and must not
+  read `True` for lumped LD (`[M]` counterexample `A⁻¹_LR =
+  −2/(τ_opt² + 2τ_opt + 2)`). The honest split:
+  **`transmission_is_sign_preserving`** (`False` DD / `False` bare LD /
+  **`True` lumped LD** — the first `True` among affine-scannable schemes,
+  and the property the seed analysis actually needs) and **`is_monotone`**
+  (`A⁻¹ ≥ 0`; `False` for all three shipped). ⟹ filed as **#408**;
+  it is the first real consumer-side finding for #390.
+
+⚠ **The scope statement the theory page owes** (memo §8(iii)): the
+asymptotic expansion settles the *arity* question and is **structurally
+incapable** of settling the *positivity* question — a sign-alternating
+cell-to-cell mode is EXCLUDED BY THE ANSATZ, which is why Palmer-Adams carry
+*"stable and reasonable"* as a SEPARATE acceptance criterion. **Two
+questions, two instruments** (`vv-principles` Mode 12).
+
+**Not settled** (memo §13): the cylinder is asserted, not measured (the
+theorems transfer — `R` is μ-independent and diagonal there, so the `R₀₁`
+channel does not exist — but every numeric leg is spherical; re-run probe
+06's cone legs with `nu_closure_residual`, ⛔ never β on the folded arc); the
+oscillatory mode's end-to-end flux error is unquantified (needs a
+pole-resolved fixed-source sphere at `σ_t h > 3`, fixture OUTSIDE
+`span{1,μ}` per `vv-principles` #24(d)); whether Palmer-Adams's actual `L_k`
+is one of the memo's `(λ,ν)` members (needs the 1991 M&C paper).
 
 ## 6. The rulings ledger (all user, this session, unless marked)
 

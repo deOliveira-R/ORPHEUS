@@ -2219,3 +2219,77 @@ defect wearing arithmetic, a single congruence class the author never
 had a reason to break. Sibling of [[lessons-L57]]: there the *defect*
 hides where the wrong answer is invisible, here the *gap* hides where the
 fixture is uniform. Landed nexus `7db466d` / `c497ddb`.
+
+---
+
+## L60 — A type SIGNATURE is evidence about its author's assumptions, never about a theorem (2026-08-26)
+
+**The setup.** An architecture decision hung on one question: does the
+Morel–Montry angular weight `τ` become cell-dependent under a
+linear-discontinuous spatial scheme? If yes, the shipped
+`tau_per_ordinate` accessor's arity had to widen before the
+`AngularClosure` ABC could be frozen.
+
+**What I argued.** I looked at the three functions that compute the
+flux-dip contamination coefficient and its weight —
+`contamination_beta(quad, geometry, *, edges)`,
+`morel_montry_tau_per_level(quad, coord)`,
+`angular_cell_edges_per_level(quad, coord)` — observed that **not one of
+them can accept a spatial argument**, and offered that as evidence that
+`β` (and therefore `τ`) is spatially independent. I also measured `τ`
+bit-identical across five meshes including a graded one, which is real
+evidence about the *shipped implementation*.
+
+**Why the argument is invalid** (caught by the derivation agent I had
+briefed to attack it; the *conclusion* turned out true, via a different
+route). The signature has no spatial argument **because Morel–Montry and
+Bailey–Morel–Chang derived `β` with space held CONTINUOUS, and say so**.
+The absence is a faithful record of the derivation's scope. Had the
+joint (angular × LD-spatial) problem introduced spatial dependence, the
+answer would have been a *new function carrying a spatial argument* —
+the existing one's arity says exactly nothing about that. The argument
+assumed the corpus already contained the answer to a question nobody had
+yet asked.
+
+⟹ **`vv-principles` Mode 8, in a new dress**: the reading cannot come
+out any other way, so it carries no information. A signature is a
+*tautological* instrument for any question about mathematics — it can
+only ever report what its author already believed.
+
+**What actually settled it** (and the shape to reach for first): a
+theorem with checked hypotheses. A scalar convex combination commutes
+with every linear map, so `τ`'s two defining conditions — cone
+membership `τ ∈ [0,1]` and the barycentric condition — are the *same
+scalar statement in every moment component*; a per-(ordinate, cell) `τ`
+is an overdetermined system whose every row returns the same value.
+Hypotheses: `τ` is `r`-independent by construction, the moment
+projection is linear, the flux cone is convex. **None of them mentions a
+basis** — which is the whole content. Corroborated by the redistribution
+operator factoring as a TENSOR PRODUCT `R_spatial ⊗ A_angular`, whose
+angular factor's free symbols are `{μ, w, τ}`.
+
+**The generalisable rule.** When a question is about *mathematics*, rank
+the evidence: a theorem with checked hypotheses ≫ a measurement of the
+shipped code ≫ the shape of an API. The last of those feels like
+evidence because it is cheap, checkable, and phrased in the same
+vocabulary as the question — which is precisely what makes it seductive.
+Before citing an interface as evidence, ask: **"what would this
+interface look like if the answer were the opposite?"** If the honest
+answer is "exactly the same, until somebody changed it", you have a
+tautology.
+
+⚠ And the aggravator specific to this case: the invalid argument sat
+*beside* a genuine measurement (`τ` bit-identical across five meshes),
+and the measurement's authority carried the argument. That is
+`plan-authoring` §2's `[M]`-scope defect wearing an API instead of a
+conjunction — a right number under one proposition lending its badge to
+a neighbouring claim it never tested.
+
+Cross-reference: `vv-principles` #17 (verify the instrument on a known
+positive), #19 (a positive reading cannot discriminate loaded from
+blind), Mode 12 (ask what the functional annihilates — here, what the
+signature *could* record). Sibling of [[lessons-L58]]: there a promise
+about what code did NOT do could not be gated by what it returns; here a
+claim about what mathematics does NOT depend on could not be gated by
+what an API accepts. Charter §5d.8; memo
+`scratch/tau_under_ld_dip_analysis.md` §5.
