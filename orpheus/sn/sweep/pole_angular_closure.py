@@ -1690,9 +1690,33 @@ class MorelMontryAngularSweep(
         # m0/m1 index FLUX SLOTS. Not fixed with the carve because the
         # SPHERE arm passes `level_indices = (arange(N),)` (genuinely
         # unsorted), where the sort IS load-bearing; the fix needs the
-        # trivial level's semantics decided with #336, and reachability
-        # established first (this path may be dead on the cylinder arm,
-        # in which case the answer is retirement, not repair).
+        # trivial level's semantics decided with #336.
+        #
+        # ⛔ REACHABILITY IS NOW MEASURED (2026-08-26), and it refuted the
+        # hypothesis this comment used to end on ("may be dead on the
+        # cylinder arm, in which case the answer is retirement").  Dead on
+        # the cylinder, yes — `[M]` 0 of 88 rules `assert_carrying_quadrature`
+        # admits.  But that gate has ONE call site, inside
+        # `case CoordSystem.CYLINDRICAL`; the SPHERE arm calls no admission
+        # gate at all, and a Gauss-Lobatto polar rule builds a production
+        # SNMesh(SPHERICAL) and reaches this line at 6 of 11 orders.
+        # Retirement is off the table: it is the only seed path a
+        # mu = -1-noded sphere rule has.
+        #
+        # ⭐ And where it IS reached the ambiguity is ANNIHILATED, by
+        # theorem: `t` below is (mu_start - mu[m0]) / (mu[m1] - mu[m0]),
+        # and a level is non-carrying precisely when `on_edge_node`, i.e.
+        # mu_start == mu[m0] — so the numerator is exactly 0, `t` is
+        # exactly 0.0, and the arbitrary `m1` is multiplied by zero.
+        # `[M]` over 75 reachable non-carrying levels: tie-break live in
+        # 0 of 75; perturbing slot m1 by 1e3 moves the seed by 0.000e+00
+        # (control on m0: 1.0e+03).  So this is a latent-not-live defect.
+        #
+        # ⚠ IF THIS argsort IS EVER CHANGED, land a Gauss-Lobatto witness
+        # row in the same step.  Without one the change ships with no gate
+        # that can redden it (plan-authoring §6c).  Record + probes:
+        # scratch/mu_start_reachability_census.md; #361 (CLOSED — a record
+        # of a deliberate non-fix, not a work item) carries the analysis.
         order = np.argsort(mu)
         m0 = int(order[0])
         for cand in order[1:]:
@@ -1707,7 +1731,7 @@ class MorelMontryAngularSweep(
 
     def precompute_psi_state(
         self,
-        psi_view: np.ndarray,                       # (N, ng, nx, 1) canonical
+        psi_view: np.ndarray,                       # (N, ng, nx)
         *,
         radial_characteristic: "RadialCharacteristicInteriorField | None" = None,
     ) -> "tuple[_MMHalfGrid, ...]":

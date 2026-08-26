@@ -247,6 +247,7 @@ See also
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Protocol
 
 import numpy as np
@@ -585,7 +586,7 @@ class ReducedStreamingOperator:
 
     # ── Per-direction extraction ───────────────────────────────────
 
-    @property
+    @cached_property
     def redistribution_gram(self) -> np.ndarray:
         r"""The SPATIAL factor of the redistribution operator, ``(nx, n_mom, n_thread)``.
 
@@ -619,6 +620,27 @@ class ReducedStreamingOperator:
         Cartesian returns the neutral element (zeros): a slab's face
         areas are constant, so :math:`\Delta A \equiv 0` is the physical
         value, not a placeholder.
+
+        **Cached for IDENTITY, not for speed.**  ``delta_A[:, None, None]``
+        is a view, so recomputing it costs nothing — but a plain
+        ``@property`` mints a fresh object per access (`[M]` ``g1 is not
+        g2`` was True), and an object with no stable identity cannot
+        participate in the two-strata cache the sweep is built on
+        (``sn/sweep/cache.py``: *geometry × quadrature* surviving
+        :math:`\Sigma_t` rebinds).  Since the pairing is a mesh-bound S1
+        quantity, one value per operator is the honest lifetime.
+
+        ⚠ Safe because this class is de-facto immutable — `[M]` nothing in
+        ``orpheus/`` or ``tests/`` assigns to a constructed instance's
+        fields.  It is ``@dataclass`` rather than ``@dataclass(frozen=True)``
+        (unlike its sibling :class:`AngularRedistribution`), so that
+        immutability is currently an audited property rather than a
+        constructed one.  Freezing is the right end state and is deferred
+        to the re-home, where the class definition is being touched anyway
+        — it is not free: ``frozen=True`` synthesises ``__hash__``, and
+        these fields hold ndarrays, so hashing would raise.  That wants a
+        decision (``eq=False``? per-field ``compare=False``?), not a
+        drive-by.
         """
         nx = int(self.mesh.widths.size)
         if self.delta_A is None:
