@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10125**
+Total tests collected: **10123**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1634, 16.1%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7125, 70.4%
+   foundation, 7123, 70.4%
    unmarked, 5, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10041
+   explicit, 10039
    class-name, 46
    func-name, 0
    case, 33
@@ -279,7 +279,7 @@ Module × level grid
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
-   geometry/test_reduced_operator, 0, 0, 0, 0, 65, 0
+   geometry/test_reduced_operator, 0, 0, 0, 0, 63, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
@@ -883,7 +883,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **549** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **564** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -999,12 +999,18 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``discretization-ld-schur``
 - ``discretization-ld-slope-elim``
 - ``discretization-ld-system``
+- ``discretization-lumped-consistency``
+- ``discretization-lumped-family-cell``
+- ``discretization-lumped-monotone-member``
+- ``discretization-optical-depth``
 - ``discretization-outflow-reconstruction``
 - ``discretization-semidiscrete-angle``
 - ``discretization-semidiscrete-energy``
 - ``discretization-source``
 - ``discretization-step-closure``
 - ``discretization-step-solve``
+- ``discretization-transmission-multiplier``
+- ``discretization-transmission-pade``
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
 - ``eigen-alpha-derivation``
@@ -1320,6 +1326,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-adjoint-continuous``
 - ``sn-affine-outgoing-face-reconstruction-eq``
 - ``sn-axis-widths``
+- ``sn-beta-eff-affine``
 - ``sn-cell-flatten-roundtrip``
 - ``sn-coupled-pole-mu-level-invariant-eq``
 - ``sn-curvilinear-mg-cell-denominator``
@@ -1335,6 +1342,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
 - ``sn-fixed-source-direct-sum``
+- ``sn-halfangle-march-amplification``
 - ``sn-homogenization-balance``
 - ``sn-homogenization-chi-collapse``
 - ``sn-homogenization-coarse-space``
@@ -1354,11 +1362,18 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-keff-old-bias``
 - ``sn-keff-old-n2n``
 - ``sn-kernel-mirror-blindness``
+- ``sn-ld-contamination-vector``
 - ``sn-loss-kernel-gauge-projection``
 - ``sn-mg-eigenvalue-posing-eq``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
+- ``sn-one-measure-down``
 - ``sn-pole-cell-shell-average``
+- ``sn-redistribution-gram-eq``
+- ``sn-redistribution-gram-rectangular``
+- ``sn-redistribution-gram-uniform``
+- ``sn-redistribution-moment-row``
+- ``sn-redistribution-tensor-product-eq``
 - ``sn-scattering-adjoint-kernel``
 - ``sn-scattering-adjoint-kernel-transpose``
 - ``sn-scattering-adjoint-source``

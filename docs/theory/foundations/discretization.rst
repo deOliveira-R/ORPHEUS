@@ -986,6 +986,501 @@ optical thickness :math:`\Sigma_t h / |\mu|`.
    limit lives in the moment count, not the blend.
 
 
+.. _discretization-transmission-ladder:
+
+The transmission multiplier — the positivity ladder
+---------------------------------------------------
+
+:ref:`discretization-spectrum` orders the closures by *face
+reconstruction*.  A second, independent ordering falls out of asking what
+each closure does to the simplest cell there is: **source-free, with a
+positive inflow**.  Set :math:`q = 0` and name the cell's optical depth
+along the direction of travel
+
+.. math::
+   :label: discretization-optical-depth
+
+   \tau_{\rm opt} \;\equiv\; \frac{\Sigma_t\,h}{|\mu|}
+   \;=\; \frac{\Sigma_t}{g},
+   \qquad
+   g \;=\; \frac{|\mu|}{h} .
+
+.. vv-status: discretization-optical-depth documented
+.. (vv-status rationale) definition of the per-cell OPTICAL depth along the
+   direction of travel — the scale-free variable a source-free cell update
+   depends on. Definitional, not a solver claim: it is the ``Σ_t h/|μ|``
+   already written verbatim in :eq:`discretization-dd-negative` and the
+   quantity :eq:`discretization-ld-blend` calls "the cell optical thickness".
+
+The exact answer is pure attenuation, :math:`\psi_{\rm out} =
+e^{-\tau_{\rm opt}}\,\psi_{\rm in}`, so each source-free cell update of
+:ref:`discretization-closures` is a **rational approximation to the
+exponential**.  Write the
+coefficient it produces as
+
+.. math::
+   :label: discretization-transmission-multiplier
+
+   \psi_{\rm out} \;=\; a(\tau_{\rm opt})\,\psi_{\rm in},
+   \qquad
+   a(\tau_{\rm opt}) \;\approx\; e^{-\tau_{\rm opt}} ,
+
+.. vv-status: discretization-transmission-multiplier documented
+.. (vv-status rationale) definitional: the source-free specialisation of the
+   affine face recurrence ψ_out = a·ψ_in + b that every affine-scannable
+   scheme already supplies through ``affine_scan_coefficients``. Not a new
+   solver claim — ``a`` is the shipped scan coefficient, and the per-scheme
+   closed forms below are read off the already-verified cell updates
+   :eq:`discretization-dd-solve` / :eq:`discretization-ld-schur`.
+
+and call :math:`a` the **transmission multiplier**.  It is not a new
+object: it is exactly the :math:`a` of the affine face recurrence
+:math:`\psi_{\rm out} = a\psi_{\rm in} + b` that every affine-scannable
+scheme hands to the fast 1-D scan through
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`.
+
+.. warning:: **The letter** :math:`\tau` **is overloaded four ways in this
+   corpus, and every collision has cost real time.**  On THIS page — and
+   in :eq:`discretization-optical-depth` — it is the *optical* one, and it
+   is written :math:`\tau_{\rm opt}` for exactly that reason.
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 20 44 36
+
+      * - spelling
+        - what it is
+        - where it lives
+      * - :math:`\tau` (unqualified, on the :math:`S_N` pages)
+        - the **Morel--Montry angular closure weight** — a dimensionless
+          barycentric coordinate in :math:`[0,1]`, one per ordinate,
+          :eq:`mm-weights`
+        - :eq:`discretization-angular-closure`;
+          :ref:`sn-curvilinear-one-group`;
+          :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`
+      * - :math:`\tau_{\rm opt}`
+        - **optical depth** :math:`\Sigma_t s` along a path
+          — :eq:`discretization-optical-depth`
+        - this section; the method-of-characteristics and Peierls pages;
+          the spatial schemes
+      * - :math:`\tau` (Morel--Wareing--Smith 1996, Eq. 75)
+        - :math:`\sigma_t/\mu` on their **unit-thickness** model problem
+          — the *same physical quantity* as :math:`\tau_{\rm opt}` with the
+          cell width absorbed, so the hazard is a **missing** :math:`h`,
+          not a different concept
+        - quoted verbatim below
+      * - :math:`\tau_{F_N}`
+        - a **critical half-thickness** in mean free paths
+        - the :math:`F_N`-method slab/reflector pages
+
+   The code-side record of the first, second and fourth senses (and of the
+   two different :math:`\beta`) is the module docstring of
+   :mod:`orpheus.derivations.discrete.sn.angular_differencing`; the third
+   is added here.
+
+The ladder
+~~~~~~~~~~
+
+Substituting each closure's source-free cell update
+(:eq:`discretization-step-solve`, :eq:`discretization-dd-solve`,
+:eq:`discretization-ld-schur`) into :eq:`discretization-transmission-multiplier`
+gives four closed forms — of which **ORPHEUS ships the first three**;
+the lumped member is unimplemented (Issue #158) and appears here because
+it is what the ladder's structure is *for* — and each one is a **Padé
+approximant of the exponential** — Morel, Wareing & Smith 1996 name the last two as such in
+so many words (their Eqs. (74) and (76), reproduced below):
+
+.. math::
+   :label: discretization-transmission-pade
+
+   a_{\rm Step}(\tau_{\rm opt}) &= \frac{1}{1 + \tau_{\rm opt}} , \\[4pt]
+   a_{\rm DD}(\tau_{\rm opt})   &= \frac{2 - \tau_{\rm opt}}{2 + \tau_{\rm opt}} , \\[4pt]
+   a_{\rm LD}(\tau_{\rm opt})   &= \frac{1 - \tau_{\rm opt}/3}
+                                       {1 + 2\tau_{\rm opt}/3 + \tau_{\rm opt}^{2}/6} , \\[4pt]
+   a_{\rm LLD}(\tau_{\rm opt})  &= \frac{1}{1 + \tau_{\rm opt} + \tau_{\rm opt}^{2}/2} .
+
+.. vv-status: discretization-transmission-pade documented
+.. (vv-status rationale) the four source-free transmission multipliers, read
+   off the already-verified cell updates by setting q = 0. The LD and lumped-LD
+   forms are literature-transcribed (Morel-Wareing-Smith 1996 Eqs. 74/76,
+   page-verified). Definitional/structural, not a solver claim — the cell
+   updates they specialise are pinned by
+   :func:`orpheus.derivations.discrete.sn.balance.derive_cartesian_1d` (DD) and
+   :func:`orpheus.derivations.discrete.sn.ld_ubld.derive_d1_reduction_to_production`
+   (LD); the lumped member is not implemented (Issue #158 / #408).
+
+.. list-table:: the transmission ladder — accuracy against positivity
+   :header-rows: 1
+   :widths: 17 15 21 20 27
+
+   * - scheme
+     - Padé
+     - order in :math:`\tau_{\rm opt}`
+     - first sign change
+     - :math:`a` as :math:`\tau_{\rm opt}\to\infty`
+   * - **Step**
+     - :math:`(0,1)`
+     - 1st (error :math:`+\tau_{\rm opt}^{2}/2`)
+     - **never**
+     - :math:`\to 0^{+}` like :math:`1/\tau_{\rm opt}`
+   * - **Diamond Difference**
+     - :math:`(1,1)`
+     - 2nd (error :math:`-\tau_{\rm opt}^{3}/12`)
+     - **exactly** :math:`\tau_{\rm opt} = 2`
+     - :math:`\to -1` — a full sign flip with **no decay at all**
+   * - **bare Linear Discontinuous**
+     - :math:`(1,2)`
+     - 3rd (error :math:`-\tau_{\rm opt}^{4}/72`)
+     - **exactly** :math:`\tau_{\rm opt} = 3`
+     - :math:`\to 0^{-}` like :math:`-2/\tau_{\rm opt}`
+   * - **lumped Linear Discontinuous**
+     - :math:`(0,2)`
+     - 2nd (error :math:`+\tau_{\rm opt}^{3}/6`)
+     - **never**
+     - :math:`\to 0^{+}` like :math:`2/\tau_{\rm opt}^{2}`
+
+**The structure the table exposes, and it is one line.**  A sign change is
+a **positive real root of the NUMERATOR**.  Step and lumped LD are
+:math:`(0,n)` — constant numerator, so no root exists at any optical depth;
+DD and bare LD are :math:`(1,n)` — a degree-1 numerator, so a positive root
+exists and its location is forced by the requirement that the approximant
+match :math:`e^{-\tau_{\rm opt}}` to the stated order.  **Lumping is the
+operation that drops the numerator degree by one**, and the ladder says
+precisely what that costs: one order of accuracy, in exchange for the
+removal of the root.  Morel, Wareing & Smith (1996, printed p. 452) put it
+in their own words, of the unlumped-versus-lumped pair above:
+
+   *"The linear-discontinuous solution is third-order accurate in*
+   :math:`\tau` *, but it is negative for* :math:`\tau > 3` *.  The lumped
+   linear-discontinuous solution is only second-order accurate in*
+   :math:`\tau` *, but it is strictly positive.  Thus the lumped scheme is
+   indeed less accurate but more robust."*
+
+⚠ The *denominators* matter too, and all four are safe: a positive real
+root of a denominator would be a **pole**, which is a far worse failure
+than a sign change.  None of the four has one — Step and DD have negative
+roots (:math:`-1`, :math:`-2`), and both quadratics are definite
+(discriminants :math:`4/9 - 2/3 = -2/9` for LD and :math:`1 - 2 = -1` for
+lumped LD, both negative, so neither has a real root at all).
+
+.. admonition:: The worked contrast above is this ladder at
+   :math:`\tau_{\rm opt} = 4`
+
+   :ref:`The thick-cell worked contrast <discretization-negative-flux-example>`
+   is not a separate fact.
+   Its cell is :math:`\Sigma_t = 1`, :math:`h = 2`, :math:`|\mu| =
+   \tfrac12`, so :math:`\tau_{\rm opt} = \Sigma_t h/|\mu| = 4`, and the
+   three multipliers of :eq:`discretization-transmission-pade` evaluate to
+   :math:`a_{\rm Step} = \tfrac15`, :math:`a_{\rm DD} = -\tfrac13`,
+   :math:`a_{\rm LD} = -\tfrac1{19}` — the three :math:`\psi_{\rm out}`
+   values already tabulated there, exactly.  The lumped member would give
+   :math:`a_{\rm LLD} = 1/(1+4+8) = \tfrac1{13} \approx +0.077`.  The reason LD's negative
+   is "6.3× milder than DD's" is now readable off the ladder rather than
+   observed: at :math:`\tau_{\rm opt} = 4` DD is already twice past its root
+   while LD is barely past its own, and DD's multiplier is heading for
+   :math:`-1` while LD's is heading for :math:`0`.
+
+Values against the exact attenuation, so the two failure directions are
+visible side by side.  All four columns are evaluated from
+:eq:`discretization-transmission-pade`; the DD and bare-LD columns are
+`[M]` reproduced by the **shipped** scan coefficients — a slab cell
+(:math:`A_{\rm down}=1`, :math:`A_{\rm total}=2`, :math:`V=h`,
+:math:`\Delta A/w = 0`) fed to
+:meth:`DiamondDifference.affine_scan_coefficients
+<orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients>`
+and
+:meth:`LinearDiscontinuous.affine_scan_coefficients
+<orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients>`
+returns them with :math:`\max|a_{\rm shipped} - a_{\rm closed\ form}| =
+1.1\times10^{-16}` (DD) and :math:`1.2\times10^{-16}` (LD) over the six
+rows.  The lumped column has no shipped counterpart to compare against
+(Issue #158):
+
+.. list-table:: :math:`a(\tau_{\rm opt})` versus :math:`e^{-\tau_{\rm opt}}`
+   :header-rows: 1
+   :widths: 14 18 18 18 18 14
+
+   * - :math:`\tau_{\rm opt}`
+     - Step
+     - DD
+     - bare LD
+     - lumped LD
+     - :math:`e^{-\tau_{\rm opt}}`
+   * - 0.5
+     - ``0.666667``
+     - ``0.600000``
+     - ``0.606061``
+     - ``0.615385``
+     - ``0.606531``
+   * - 1
+     - ``0.500000``
+     - ``0.333333``
+     - ``0.363636``
+     - ``0.400000``
+     - ``0.367879``
+   * - 2
+     - ``0.333333``
+     - ``0.000000``
+     - ``0.111111``
+     - ``0.200000``
+     - ``0.135335``
+   * - 3
+     - ``0.250000``
+     - ``-0.200000``
+     - ``0.000000``
+     - ``0.117647``
+     - ``0.049787``
+   * - 6
+     - ``0.142857``
+     - ``-0.500000``
+     - ``-0.090909``
+     - ``0.040000``
+     - ``0.002479``
+   * - 20
+     - ``0.047619``
+     - ``-0.818182``
+     - ``-0.069959``
+     - ``0.004525``
+     - ``2.06e-09``
+
+Read the :math:`\tau_{\rm opt} = 20` row twice.  DD returns
+:math:`-0.818` where the physics says :math:`2\times10^{-9}`: not merely
+the wrong sign but the wrong *magnitude by nine orders*, and it does not
+improve as the cell gets thicker.  Bare LD returns :math:`-0.070` — still
+the wrong sign, but decaying.  This is the sense in which LD's negatives
+are "milder", made quantitative.
+
+.. important:: **Where this bites hardest is the curvilinear
+   starting direction**, because that solve has **nothing angular to damp
+   it**: the redistribution coefficient vanishes at both ends of every
+   angular march (:math:`\alpha_{1/2} = \alpha_{M+1/2} = 0`), so the
+   starting-direction equation is a *purely spatial* advection--reaction
+   solve that inherits its scheme's ladder row verbatim.  The measurement,
+   on the shipped march, is at :ref:`sn-seed-cone-risk` in
+   :doc:`/theory/methods/sn/curvilinear_one_group`.
+
+Two things this ladder is NOT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**(1) It is not the multi-dimensional face-transmission spectrum — it is
+its** :math:`d = 1` **case, and the two answer different questions.**
+Driving a source-free cell one unit inflow at a time gives a face-to-face
+transmission *matrix* :math:`\Sigma`, whose multi-D DD form is
+:eq:`dd-face-transmission-spectrum`,
+:math:`\Sigma = (2/D)\,\mathbf 1\mathbf w^{\mathsf T} - I`.  At
+:math:`d = 1` that matrix is :math:`1\times1` and its single entry **is**
+:math:`a_{\rm DD}(\tau_{\rm opt})`.  What changes at :math:`d \ge 2` is
+that :math:`\Sigma` acquires a second eigenvalue family — the undamped
+sawtooth :math:`-1` with multiplicity :math:`d-1` — which has no
+:math:`d = 1` analogue.  So:
+
+* the **sign** of the physical eigenvalue is the *positivity* question
+  (this section), and it is already live at :math:`d = 1`;
+* the **modulus** of the sawtooth eigenvalue is the *gauge* question (a
+  singular loss operator on a multiply-reflective box), and it is
+  :math:`d \ge 2` only.
+
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`
+measures the second; it reports :math:`\rho = |a|` at :math:`d = 1` (`[M]`
+``0.7391304347826089`` for DD on its own thinner probe cell, which is
+:math:`(2 - \tau_{\rm opt})/(2 + \tau_{\rm opt})` at that cell's
+:math:`\tau_{\rm opt} = 0.3`) and ``1.0`` at :math:`d = 2, 3`.  Neither
+number is a positivity verdict.
+
+**(2) It is not a full cone-preservation verdict, and reading it as one is
+the mistake Issue #408 exists to prevent.**  ``is_positivity_preserving``
+(:mod:`orpheus.transport.spatial.scheme`, documented as *"the
+cone-preservation flag"*) conflates **three** distinct properties, and
+lumping repairs only the first:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 34 13 13 14
+
+   * - property
+     - meaning
+     - DD
+     - bare LD
+     - lumped LD
+   * - transmission sign-preservation
+     - :math:`a(\tau_{\rm opt}) > 0` — a non-negative inflow cannot
+       produce a negative outflow
+     - ``False``
+     - ``False``
+     - ``True``
+   * - monotonicity (:math:`\mathbf A^{-1}\ge0`, the M-matrix property)
+     - the whole cell solve maps the cone into the cone, for any
+       non-negative nodal source too
+     - ``False``
+     - ``False``
+     - ``False``
+   * - per-component cone membership
+     - ":math:`\psi_{\text{component}} \ge 0`" is a meaningful predicate
+       at all
+     - meaningful
+     - **not meaningful**
+     - **not meaningful**
+
+The naive move when a lumped member lands is to set the flag ``True``,
+since lumping is *the* positivity-restoring operation in the literature.
+⛔ That would be wrong.  Morel, Wareing & Smith lump the mass matrices and
+deliberately **not** the spatial gradient (their §4), so the lumped cell
+matrix keeps :math:`\mathbf A_{LR} = +\tfrac12` — the wrong sign for an
+M-matrix — and its inverse carries the explicit counterexample
+:math:`\mathbf A^{-1}_{LR} = -2/(\tau_{\rm opt}^{2} + 2\tau_{\rm opt} + 2)
+< 0`: a source concentrated on the **downstream** node drives the upstream
+node negative.  That is the paper's own §8 caveat, *"quite robust, but not
+strictly positive"*.  The third row is already modelled correctly
+elsewhere and must not be duplicated onto the scheme — the spatial-moment
+axis is **MODAL**, so a strictly positive function has legally signed slope
+coefficients, and ``has_coordinate_cone`` reads ``False`` through
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`.
+
+.. _discretization-lumped-family:
+
+"Lumped LD" is a FAMILY, and the trade is a choice inside it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The last row of the table above cannot be a single row, and the reason is
+worth deriving because it names the knob the flag would have to be keyed
+on.  Write the mass-lumped slab-LD cell in **nodal** coordinates
+:math:`(\psi_L, \psi_R)` — the two Lagrange node values, of which
+:math:`\psi_R` is the outflow face — with a general within-cell leakage
+matrix :math:`\mathbf L` and the upwind inflow entering only the
+:math:`L` row:
+
+.. math::
+   :label: discretization-lumped-family-cell
+
+   \Bigl(\mathbf L + \tfrac{\tau_{\rm opt}}{2}\,\mathbf I\Bigr)
+   \begin{bmatrix}\psi_L \\ \psi_R\end{bmatrix}
+   = \begin{bmatrix}\psi_{\rm in} \\ 0\end{bmatrix},
+   \qquad
+   \mathbf L = \begin{bmatrix} 1-\lambda & \lambda \\ -\nu & \nu \end{bmatrix},
+   \qquad
+   a = \psi_R\big|_{\psi_{\rm in}=1} .
+
+.. vv-status: discretization-lumped-family-cell documented
+.. (vv-status rationale) the mass-lumped nodal slab-LD cell written with a
+   one-parameter-per-row within-cell leakage — a re-parametrisation of the
+   already-verified LD 2×2 :eq:`discretization-ld-system`, used here only to
+   exhibit the family. Structural, not a solver claim; no member other than
+   the standard upwind one is implemented (Issue #158 / #408).
+
+The row sums of :math:`\mathbf L` are already fixed at :math:`(1, 0)` in
+:eq:`discretization-lumped-family-cell` — that is the **infinite-medium
+identity**, that a uniform flux with :math:`\psi_{\rm in} = \psi_L =
+\psi_R` reproduce itself — so exactly **one free parameter per row**
+survives, :math:`\lambda` and :math:`\nu`.  Two further conditions cut it
+down, and both are one line of algebra:
+
+* **Consistency.**  :math:`a(0) = 1` holds identically (that *is* the
+  infinite-medium identity), but the *rate* does not:
+  :math:`a'(0) = (\lambda - \nu - 1)/(2\nu)`, and matching the exponential's
+  :math:`-1` forces
+
+  .. math::
+     :label: discretization-lumped-consistency
+
+     \nu \;=\; 1 - \lambda .
+
+  .. vv-status: discretization-lumped-consistency documented
+  .. (vv-status rationale) the consistency condition on the family of
+     :eq:`discretization-lumped-family-cell`, obtained by matching a'(0) to
+     the exponential's slope. Derived, definitional; no shipped member other
+     than λ = ν = ½ (Issue #158 / #408).
+
+  ⟹ the family is **one**-parameter, not two.
+* **Monotonicity.**  With :math:`\nu = 1-\lambda`,
+  :math:`\mathbf A^{-1}_{LR} = -\lambda/\det` and
+  :math:`\mathbf A^{-1}_{RL} = \nu/\det` with :math:`\det > 0` throughout,
+  so :math:`\mathbf A^{-1} \ge 0` entrywise **iff** :math:`\lambda \le 0`.
+
+The Morel--Wareing--Smith member is :math:`(\lambda,\nu) =
+(\tfrac12,\tfrac12)` — consistent, second order, sign-preserving
+transmission, and :math:`\lambda = +\tfrac12 > 0`, so **not monotone**,
+which is the :math:`\mathbf A^{-1}_{LR} < 0` counterexample above.  The
+nearest monotone member is :math:`(\lambda,\nu) = (0,1)`:
+
+.. math::
+   :label: discretization-lumped-monotone-member
+
+   a_{(0,1)}(\tau_{\rm opt}) \;=\; \frac{1}{\bigl(1 + \tau_{\rm opt}/2\bigr)^{2}} ,
+   \qquad
+   \mathbf A^{-1} = \frac{1}{1+\tau_{\rm opt}/2}
+   \begin{bmatrix} 1 & 0 \\ \frac{1}{1+\tau_{\rm opt}/2} & 1 \end{bmatrix}
+   \;\ge\; 0 ,
+
+.. vv-status: discretization-lumped-monotone-member documented
+.. (vv-status rationale) the transmission and inverse of the (λ,ν) = (0,1)
+   member of :eq:`discretization-lumped-family-cell` — the nearest monotone
+   consistent member. Derived here; not implemented (Issue #158 / #408), so
+   there is no code to gate.
+
+strictly positive at every optical depth, monotone, and **first** order
+(error :math:`+\tau_{\rm opt}^{2}/4`) — one order below MWS, which is the
+honest price of the M-matrix property.
+
+.. warning:: ⛔ **A monotone member is not automatically a scheme —
+   check the SLOPE, not just the sign.**  The obvious lower-triangular
+   candidate :math:`(\lambda,\nu) = (0,\tfrac12)`, with the attractive
+   transmission
+   :math:`a = 2/\bigl((1+\tau_{\rm opt})(2+\tau_{\rm opt})\bigr)`,
+   is monotone and strictly positive — and it is **inconsistent**:
+   :math:`\nu \ne 1-\lambda`, so :math:`a'(0) = -\tfrac32` rather than
+   :math:`-1`, and the transmission across a *fixed* physical thickness
+   :math:`X` tends to :math:`e^{-\frac32 \Sigma_t X/|\mu|}` however fine
+   the mesh.  Measured on :math:`\Sigma_t X/|\mu| = 1`:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 14 22 22 22 20
+
+      * - cells
+        - MWS :math:`(\tfrac12,\tfrac12)`
+        - :math:`(0,\tfrac12)`
+        - :math:`(0,1)`
+        - bare LD
+      * - 10
+        - ``0.368449``
+        - ``0.236690``
+        - ``0.376889``
+        - ``0.367874``
+      * - 100
+        - ``0.367886``
+        - ``0.224521``
+        - ``0.368797``
+        - ``0.367879``
+      * - 1000
+        - ``0.367880``
+        - ``0.223270``
+        - ``0.367971``
+        - ``0.367879``
+      * - 10000
+        - ``0.367879``
+        - ``0.223144``
+        - ``0.367889``
+        - ``0.367879``
+      * - exact
+        - ``0.367879``
+        - :math:`e^{-1} = 0.367879`
+        - ``0.367879``
+        - ``0.367879``
+
+   The :math:`(0,\tfrac12)` column is converging cleanly — to
+   :math:`e^{-3/2} = 0.223130`.  This is
+   ``vv-principles`` anti-pattern #5 in its purest form: *a correct
+   convergence rate to the wrong limit is still the wrong limit*, and the
+   positivity and monotonicity properties are both perfectly true of it.
+   ⟹ **admit a member to the family only after checking**
+   :eq:`discretization-lumped-consistency`; sign-preservation and
+   :math:`\mathbf A^{-1} \ge 0` are silent about it.
+
+⟹ **the accuracy/positivity trade is a choice of** :math:`\lambda`
+**inside** :eq:`discretization-lumped-consistency`, not a property of
+"lumping"; "lumped LD" names a *family*; and any positivity flag must
+therefore be **per member**.
+
 .. _discretization-space-angle:
 
 5. One closure, two axes: space and angle
@@ -1192,8 +1687,21 @@ balance can be posed with any spatial/angular closure of
   first order in the angular cell.
 - **Linear Discontinuous**: close the angular cell with the full-linear
   two-moment relation (:eq:`discretization-ld-moments`–:eq:`discretization-ld-face`
-  on the angular axis); the march carries an angular slope moment, second order,
-  with the diffusion limit that lifts the pole-cell :math:`O(h)` floor.
+  on the angular axis); the march carries an angular slope moment, second order
+  in the angular cell.
+
+  ⛔ **This bullet used to add "with the diffusion limit that lifts the
+  pole-cell** :math:`O(h)` **floor" — corrected 2026-08-26, because it
+  attributed a SPATIAL cure to an ANGULAR device.** ERR-059's pole-cell
+  floor is a defect of the *spatial* closure, and what lifts it is
+  LD-in-**space** (Issue #158's curvilinear arm).  LD-in-**angle** is a
+  different, separately published scheme (Walters & Morel 1991, described
+  in Lathrop 2000 §III.D): it *dissolves* the starting-direction
+  requirement rather than improving the spatial order, and Larsen & Morel
+  record it as **less** accurate than weighted diamond.  The posing point
+  the bullet makes is untouched — the invariant really is
+  closure-device-agnostic on the angular axis; only the accuracy credit
+  was misattributed.
 
 The Step and LD radial-characteristic forms are **posable** in exactly this
 sense — the invariant is fixed, only the closure device changes. (The

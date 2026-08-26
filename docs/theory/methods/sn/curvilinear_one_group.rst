@@ -90,6 +90,16 @@ re-derived.
      (:math:`c_{\rm in}`, :math:`c_{\rm out}`, :math:`\tau`),
      stamped at one production site — never as a closure dependency
      (the spatial :math:`\otimes` angular separation).
+   * That separation is a **theorem**, not a convention: the
+     redistribution operator is the tensor product
+     :eq:`sn-redistribution-tensor-product-eq`, so :math:`\tau`
+     **keeps its per-ordinate arity under any spatial scheme**, and the
+     diffusion-limit condition stays the identical angular scalar
+     :eq:`sn-contamination-factor`
+     (:ref:`sn-scheme-vs-angular-weight`).  ⛔ The risk a two-moment
+     spatial scheme brings is not :math:`\tau` — it is the **seed**
+     (:ref:`sn-seed-cone-risk`), which carries no angular redistribution
+     at all and so inherits its scheme's positivity ladder undamped.
    * The error axes obey the **geometry-split law**
      :eq:`sn-space-angle-separability`: Cartesian **separates**
      (:math:`E \approx E_{\rm space} + E_{\rm angle}`), curvilinear
@@ -285,16 +295,36 @@ Each level's :math:`\alpha` values form an independent dome from
   level, on **both** arms — see :ref:`sn-alpha-dome-closes`, which is where
   that belongs, because it is an admission contract rather than a shape.
 
-The code stores these on the reduced streaming operator —
-``mesh.reduced.alpha_half`` (spherical, shape ``(N+1,)``) and
-``mesh.reduced.alpha_per_level`` (cylindrical, list of ``(M+1,)``
-arrays); they are genuinely geometric and stay on the geometry side
-(:ref:`sn-tau-step-c-closeout`).  One body computes them —
-:func:`~orpheus.geometry.reduced_operator.alpha_dome` — which both
-curvilinear factories call and which the derivations-side name delegates
-to; before ``bea6a367`` (2026-08-12) the recursion had **three** spellings,
-and that is exactly why its closure contract could live on one of them
-only.
+The code stores the dome on
+:class:`~orpheus.geometry.reduced_operator.AngularRedistribution`, as
+:attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.alpha_per_level`
+— **per** :math:`\mu`\ **-level on both charts**, each of shape
+``(M_p + 1,)``, with the sphere as the one-level case and Cartesian
+carrying the neutral zero dome.  It is reached as
+``mesh.reduced.angular.alpha_per_level``.
+
+.. note:: **Until 2026-08-26 the dome lived directly on the reduced
+   streaming operator** as ``alpha_half`` (spherical, shape ``(N+1,)``) and
+   ``alpha_per_level`` (cylindrical, a list), and the stated reason for
+   keeping it there was that it is *"genuinely geometric"*.  That reason
+   was wrong, and the factorization
+   :eq:`sn-redistribution-tensor-product-eq` says why: the dome is the
+   **angular** factor, not the spatial one — it is a function of
+   ``(quadrature, coord)`` alone, with no cell, mesh or material in it.
+   What stays on the streaming operator is the **spatial** chart data
+   (``face_areas``, ``delta_A``).  See
+   :ref:`sn-redistribution-tensor-product`; the six per-coordinate
+   ``Optional`` fields the move retired are why Cartesian now spells the
+   neutral element instead of ``None``.
+
+One body computes them —
+:func:`~orpheus.geometry.reduced_operator.alpha_dome` — called from the
+single producer
+:func:`~orpheus.geometry.reduced_operator.angular_redistribution` (once per
+:math:`\mu`-level), and delegated to by the derivations-side name of the
+same function; before ``bea6a367`` (2026-08-12) the recursion had **three**
+spellings, and that is exactly why its closure contract could live on one
+of them only.
 
 .. _sn-alpha-dome-closes:
 
@@ -377,12 +407,25 @@ past the top edge, into nothing — a leak, not a small error.
    recursion without being refused by it.  Sibling guard, same shape:
    ``pole_angular_closure._assert_tau_within_unit_interval``.
 
+   ⭐ **The argument completed on 2026-08-26.**  ``bea6a367`` gave the
+   recursion one body; the guard still ran from whichever streaming
+   factory remembered to call it.  Since the α-dome moved onto
+   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution` it
+   has exactly **one producer**,
+   :func:`~orpheus.geometry.reduced_operator.angular_redistribution`, and
+   the contract is checked there — at the site that mints the value, for
+   every chart, rather than on the arms that happen to consume it.  A
+   guard on a *duplicate* and a guard on a *consumer* fail the same way;
+   only a guard at the single source cannot be bypassed by a new caller.
+
    ⚠ Generalise it: **a numerical or domain contract expressed as a bare
    ``assert`` in** ``orpheus/`` **does not run under the canonical runner.**
    The discriminator is what the assert is *for* — type-narrowing for a type
    checker is fine to strip; an admission predicate must be a real
    ``raise``.  (``.claude/rules/coding-standards.md``; ``vv-principles``
    Mode 8.)
+
+.. _sn-geometry-factor:
 
 The Geometry Factor and Why It Is Needed
 =========================================
@@ -434,9 +477,29 @@ angular anisotropy that *worsens* with mesh refinement near :math:`r = 0`
 a flux spike at the origin in fixed-source problems and as divergent
 eigenvalues in heterogeneous eigenvalue problems.
 
-The code precomputes this factor as ``mesh.reduced.redist_dAw``
-(spherical, shape ``(nx, N)``) and ``mesh.reduced.redist_dAw_per_level``
-(cylindrical, list of ``(nx, M)`` arrays).
+**Nothing precomputes this factor.**  Each consumer forms it where it is
+used, from the **spatial** factor
+:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`
+(shape ``(nx,)``, on the streaming operator) and the **angular** factor
+:math:`1/w_n` (the measure's own weight, reached through
+:attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.quadrature`).
+
+.. note:: ⭐ **The fused product was retired on 2026-08-26, and the reason
+   is instructive.**  Until then the geometry object cached
+   ``redist_dAw`` (spherical, ``(nx, N)``) and ``redist_dAw_per_level``
+   (cylindrical, a list of ``(nx, M)``) — the *product*
+   :math:`\Delta A_i \otimes 1/w_n` of a geometric factor with a
+   quadrature factor, stored on the geometry side and read by two
+   consumers that each wanted **a different one of the two**.  So neither
+   side owned the fusion, and the cache was a second spelling of a
+   quantity that belongs to neither.  The factorization
+   :eq:`sn-redistribution-tensor-product-eq` is the reason the split is
+   the right one: :math:`\Delta A_i` is the :math:`(0,0)` corner of the
+   *spatial* Gram :math:`R` and :math:`1/w_n` is part of the *angular*
+   operator :math:`A_{\rm angular}`, and the two carry disjoint indices.
+   The product still appears in the algebra — it is
+   :eq:`balance-general`'s own coefficient — but as an expression at the
+   point of use, not as state.
 
 The Streaming-Equilibrium Identity (canonical L0 gate)
 =======================================================
@@ -1407,18 +1470,36 @@ reference.  Migrate-then-delete preserved the floor:
    bites"*) became vacuous when there was no clamp left to be the only
    difference.
 
-#. **The producers were excised surgically.** The τ blocks are
-   *interleaved* with still-live outputs:
-   :func:`~orpheus.geometry.reduced_operator.spherical_streaming` shares
-   its ``mu_edge`` array with the live ``mu_start`` (the Hébert §3.9.4
-   starting direction :math:`\mu_{1/2} = -1.0`), and
+#. **The producers were excised surgically.** The τ blocks *were*
+   interleaved with outputs that Step C left alone:
+   :func:`~orpheus.geometry.reduced_operator.spherical_streaming` shared
+   its ``mu_edge`` array with the starting direction ``mu_start`` (the
+   Hébert §3.9.4 :math:`\mu_{1/2} = -1.0`), and
    :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
-   shares its per-level loop with the live ``mu_start_per_level``.  A
+   shared its per-level loop with ``mu_start_per_level``.  A
    whole-function deletion would have been wrong; only the τ statements
-   were removed.  The :math:`\alpha`-dome (``alpha_half`` /
-   ``alpha_per_level``), the redistribution factor ``redist_dAw``, the
-   face areas, and the starting-direction edges all **stay on the
-   geometry operator** — they are genuinely geometric.
+   were removed, and Step C left the :math:`\alpha`-dome, the
+   redistribution factor, the face areas and the starting-direction edges
+   where they were, on the geometry operator, on the reasoning that they
+   are geometric.
+
+   ⛔ **That last reasoning was superseded on 2026-08-26, and three of
+   those four objects have since moved.**  The dome
+   (``alpha_half`` / ``alpha_per_level``) and the starting-direction edges
+   (``mu_start`` / ``mu_start_per_level``) are the **angular** factor —
+   functions of ``(quadrature, coord)`` alone — and now live on
+   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution` with
+   one producer; the fused ``redist_dAw`` cache was retired outright,
+   because it was a *product* of a geometric with a quadrature factor that
+   neither consumer owned.  Only ``face_areas`` and ``delta_A`` — genuinely
+   spatial chart data — remain on the streaming operator.  (What moved is
+   the **stored state**: the per-direction extraction packet
+   :class:`~orpheus.geometry.reduced_operator.StreamingTerms` still carries
+   a ``mu_start`` field, now *read from* the angular factor rather than
+   from a field of the streaming operator's own.)  Step C's
+   *surgical* judgment stands unchanged; what it got wrong was the reason
+   it gave for the residue, and :ref:`sn-redistribution-tensor-product`
+   is where the correct split is derived.
 
 #. **The deletion was proven inert.** The bit-identity regression gates
    (run under an escalated ``DriftWarning``) showed **zero** failures
@@ -1854,6 +1935,1092 @@ the regime change is *signalled* and the gate is re-tuned to the new
 (better) regime — they are not xfails awaiting a fix.  The ``@slow``
 mark reflects that the curvilinear solves dominate the ~2 s wall-clock,
 not that the gate is optional.
+
+.. _sn-scheme-vs-angular-weight:
+
+The spatial scheme and the angular weight — the redistribution factorizes
+=========================================================================
+
+Everything above derives the curvilinear machinery with **one** spatial
+moment per cell: the balance :eq:`balance-general` carries a scalar
+:math:`\bar\psi_{n,i}`, the geometry factor is the scalar
+:math:`\Delta A_i/w_n`, and :math:`\tau` is one number per ordinate
+(:eq:`mm-weights`).  That is diamond difference, and it is what ships.
+
+A two-moment spatial scheme — linear discontinuous
+(:ref:`discretization-ld`), which carries a cell average **and an
+independent slope** — makes every one of those objects wider.  Before such
+a member can be built, one question has to be answered, and it is not a
+question about the spatial scheme at all:
+
+   **Is the flux-dip-eliminating weight** :math:`\tau` **a property of the
+   angular scheme alone, or does it acquire a spatial-cell index once the
+   cell carries two moments?**
+
+The stakes are a public contract.  The angular closure delivers
+:math:`\tau` through
+:attr:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
+— an :math:`(N,)` array, **one weight per ordinate, no cell index**.  If
+the answer were *"it depends on the cell"*, that accessor would have to
+widen to per-:math:`(\text{ordinate}, \text{cell})`, and :math:`c_{\rm in}`
+/ :math:`c_{\rm out}` with it.
+
+The answer is **no**, and this chapter is the reason.  It is a *theorem*
+about the structure of the redistribution operator, not a measurement on a
+fixture — which matters, because :ref:`sn-two-questions-two-instruments`
+shows the instrument that settles it is **structurally incapable** of
+settling the question that actually turns out to be dangerous.
+
+.. note:: **Four symbol overloads, local to this chapter, kept because
+   they are the spellings the code and the literature use.**
+
+   * :math:`R` alone is the **redistribution Gram**
+     (:eq:`sn-redistribution-gram-eq`) — Palmer & Adams's own
+     :math:`R_k`, and the code's ``R_spatial``.  It is **not** the
+     sphere's outer radius, which this page writes only in the phrase
+     :math:`r = R` and never bare.
+   * :math:`A_{\rm angular}` (always subscripted) is the **angular factor**
+     of :eq:`sn-redistribution-tensor-product-eq`.  It is neither the loss
+     operator :math:`A = L + C - S - B` nor a face area; face areas keep
+     their own subscripts, :math:`A_{i\pm1/2}`, abbreviated
+     :math:`A_{\pm}` inside a single cell.
+   * :math:`P` is the **spatial moment projection** in
+     :ref:`sn-tau-arity-theorem`.  Adams & Martin's :math:`P` in the
+     literature table below is *their* normalised slope coordinate
+     :math:`2(r-r_k)/\Delta r_k` — this chapter writes that one
+     :math:`\xi`.
+   * :math:`\tau` is the Morel--Montry **angular** weight
+     (:eq:`mm-weights`) everywhere on this page.  Where the seed section
+     needs an **optical** depth it writes :math:`\tau_{\rm opt}`
+     (:eq:`discretization-optical-depth`), and the four-way overload table
+     is at :ref:`discretization-transmission-ladder`.
+
+.. admonition:: Key facts of this chapter
+   :class: tip
+
+   * The curvilinear angular-redistribution operator is a **tensor
+     product** :eq:`sn-redistribution-tensor-product-eq`,
+     :math:`\mathcal{R} = R_{\rm spatial} \otimes
+     A_{\rm angular}(\tau,\alpha,w)`: the geometry-and-basis factor
+     carries only the *moment* index, the angular factor only the
+     *ordinate* index.  Since 2026-08-26 that is also the tree's own
+     structure — the spatial factor on
+     :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`,
+     the member-independent angular factor on
+     :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
+     and the fused :math:`\Delta A_i \otimes 1/w_n` cache that used to
+     straddle both **retired**.
+   * ⟹ the diffusion-limit contamination condition is the **identical**
+     angular scalar :eq:`sn-contamination-factor`, whose free symbols are
+     :math:`\{\mu, w, \tau\}` — no spatial symbol appears — and
+     :math:`\beta = 0` annihilates the contamination in **every**
+     spatial-moment row, for an **arbitrary symmetric** :math:`R`.
+   * ⟹ :math:`\tau` keeps its arity (:ref:`sn-tau-arity-theorem`).  A
+     scalar convex combination commutes with every linear map, so both of
+     :math:`\tau`'s defining conditions are *the same scalar statement in
+     every moment component*; a per-cell :math:`\tau` is an
+     **overdetermined** system whose every row returns the same
+     per-ordinate value.  **None of the hypotheses mentions a basis** —
+     that is the whole content.
+   * The geometry-and-basis factor is the **one-measure-down Gram**
+     :eq:`sn-redistribution-gram-eq`, and the shipped scalar
+     :math:`\Delta A_i` is exactly its :math:`(0,0)` corner.  It is
+     non-diagonal on the **sphere** (:math:`R_{01}/R_{00} = h/6r_c`,
+     rising to :math:`\tfrac13` at the pole cell) and **diagonal** on the
+     cylinder — so a per-moment-row flat-flux gate is a real gate on the
+     sphere and reads :math:`0 = 0` on the cylinder.
+   * ⛔ The risk is **not** :math:`\tau`; it is the **seed**
+     (:ref:`sn-seed-cone-risk`).  The starting-direction equation carries
+     no angular redistribution at all, so it inherits the *spatial*
+     scheme's positivity ladder verbatim — and a starting-cosine error of
+     **1.6 %** (:math:`S_4`) falling to **0.05 %** (:math:`S_{32}`)
+     reproduces the *entire* diamond-scheme contamination that
+     :math:`\tau` exists to remove.
+   * ⛔ Morel--Montry's own summary rule — *"…as long as the starting flux
+     is not seriously* **under** *estimated"* — is refuted for
+     :math:`N \ge 4` (:ref:`sn-morel-montry-summary-rule-refuted`): the
+     **safe direction inverts** between :math:`S_2` and :math:`S_4`.
+
+.. _sn-redistribution-tensor-product:
+
+The factorization theorem
+-------------------------
+
+**The derivation, from the conservative form.**  Take the 1-D spherical
+transport equation :eq:`transport-spherical` and weight it by a cell basis
+function :math:`b_k(r)` against the volume measure :math:`dV = 4\pi r^2\,dr`
+over one cell :math:`[r_-, r_+]`.  Write the *m-measure* inner product
+
+.. math::
+
+   \langle f, g\rangle_m \;\equiv\; 4\pi\!\int_{r_-}^{r_+} f\,g\,r^{m}\,dr ,
+
+so the volume measure is :math:`m = 2`.  Three of the four terms behave as
+one would expect — the streaming integrates by parts to a face-area-weighted
+trace minus a volume-measure weak gradient, and collision and source carry
+the volume Gram :math:`\langle b_k, \cdot\rangle_2`.  The **angular
+redistribution term does not**:
+
+.. math::
+   :label: sn-one-measure-down
+
+   \int_{r_-}^{r_+}\! b_k(r)\,\frac{1}{r}\,
+     \frac{\partial}{\partial\mu}\bigl[(1-\mu^2)\psi\bigr]\,4\pi r^2\,dr
+   \;=\;
+   \frac{\partial}{\partial\mu}\Bigl[(1-\mu^2)\,
+     \underbrace{4\pi\!\int_{r_-}^{r_+}\! b_k\,\psi\,r\,dr}_{\textstyle
+       \langle b_k,\psi\rangle_1}\Bigr] .
+
+.. vv-status: sn-one-measure-down documented
+.. (vv-status rationale) the one-measure-down identity: the 1/r of the
+   curvilinear angular-redistribution term cancels one power of the volume
+   measure, so the half-angle fluxes enter moment row k through the m = 1
+   inner product. A derivation-decomposition step of the already-verified
+   balance :eq:`balance-general` (whose one-moment case IS the shipped ΔA/w
+   term); not a solver claim.
+
+**The** :math:`1/r` **of the redistribution term eats one power of the
+volume measure.**  So the half-angle fluxes reach moment row :math:`k`
+through the *one-measure-down* functional, not through the volume Gram
+every other term uses.  With :math:`\psi` linear in the cell,
+:math:`\langle b_k,\psi\rangle_1 = \tfrac12 (R\,\vec\psi)_k`, and
+discretising :math:`\partial_\mu` the Lathrop--Carlson way — the
+:math:`\alpha` recursion :eq:`alpha-recursion` — gives the moment-row
+redistribution
+
+.. math::
+   :label: sn-redistribution-moment-row
+
+   \text{Redist}_k \;=\; \frac{1}{w_n}\Bigl[
+     \alpha_{n+\frac12}\bigl(R\,\vec\psi_{n+\frac12}\bigr)_k
+     \;-\;
+     \alpha_{n-\frac12}\bigl(R\,\vec\psi_{n-\frac12}\bigr)_k \Bigr] .
+
+.. vv-status: sn-redistribution-moment-row documented
+.. (vv-status rationale) the multi-moment generalisation of the shipped
+   scalar redistribution term of :eq:`balance-general`; at one moment it IS
+   that term, since R₀₀ = ΔA. Structural, not a solver claim — no
+   multi-moment curvilinear member is implemented (Issue #158).
+
+At one moment this is :math:`(\Delta A_i/w_n)\bigl[\alpha_{n+\frac12}
+\psi_{n+\frac12} - \alpha_{n-\frac12}\psi_{n-\frac12}\bigr]` — the shipped
+term of :eq:`balance-general`, verbatim, because
+:math:`R_{00} = \Delta A_i` exactly.
+
+**The theorem.**  Read :eq:`sn-redistribution-moment-row` as an operator on
+the joint (moment :math:`\times` ordinate) index and it factors:
+
+.. math::
+   :label: sn-redistribution-tensor-product-eq
+
+   \mathcal{R} \;=\; R_{\rm spatial} \;\otimes\;
+                     A_{\rm angular}(\tau,\ \alpha,\ w) ,
+   \qquad
+   \bigl(\mathcal{R}\,\psi\bigr)_{k,n}
+   \;=\; \bigl[R_{\rm spatial}\bigr]_{kj}\;
+         \bigl[A_{\rm angular}\bigr]_{n n'}\;\psi_{j,n'} .
+
+.. vv-status: sn-redistribution-tensor-product-eq documented
+.. (vv-status rationale) the factorization of the curvilinear
+   angular-redistribution operator into a moment-index factor R_spatial
+   (pure geometry × basis, μ-independent) and an ordinate-index factor
+   A_angular (pure quadrature × closure, r-independent). A structural
+   statement about :eq:`sn-redistribution-moment-row`; its one-moment case
+   is the shipped operator and is gated by :eq:`streaming-equilibrium`. Not
+   a solver claim — no multi-moment curvilinear member exists (Issue #158).
+
+:math:`R_{\rm spatial}` is **pure geometry and basis** and carries no
+:math:`\mu`; :math:`A_{\rm angular}` is **pure quadrature and closure** and
+carries no :math:`r`.  They act on **disjoint index sets**.  That is the
+whole theorem.  Write :math:`R \equiv R_{\rm spatial}` from here on, which
+is also Palmer & Adams's own notation for it (their Eq. (9),
+":math:`R_k` = angular redistribution matrix").  Three consequences follow
+immediately.
+
+**(1) Every angular functional of the redistribution factors as**
+:math:`R\times`\ **(the one-moment angular scalar).**  In particular, redo
+the Bailey--Morel--Chang first-order asymptotic diffusion-limit expansion
+with the moment *vector* carried, and the first angular moment of the
+redistribution comes out as
+
+.. math::
+   :label: sn-ld-contamination-vector
+
+   \sum_n \mu_n\Bigl[
+     \alpha_{n+\frac12}\,R\,\vec\psi^{(1)}_{n+\frac12}
+     - \alpha_{n-\frac12}\,R\,\vec\psi^{(1)}_{n-\frac12}\Bigr]
+   \;=\;
+   R\,\Bigl(-\,W_2\,\tfrac12\vec\phi^{(1)}
+            \;+\; \beta\,\vec g \;+\; \beta_e\,\vec e\Bigr) ,
+
+.. vv-status: sn-ld-contamination-vector documented
+.. (vv-status rationale) the first angular moment of the multi-moment
+   redistribution, with the geometry Gram factored out — a consequence of
+   :eq:`sn-redistribution-tensor-product-eq` and the classical BMC
+   expansion. Its one-moment case is :eq:`sn-contamination-factor`, which is
+   the object the shipped instruments compute. Structural, not a solver
+   claim; the multi-moment member is unimplemented (Issue #158).
+
+with :math:`\beta` the **identical** contamination scalar of
+:eq:`sn-contamination-factor`, :math:`\vec g` the leading-order gradient
+vector, and :math:`\beta_e` the coefficient of the *seed* defect
+:math:`\vec e` that :ref:`sn-seed-cone-risk` is about.  The geometry matrix
+:math:`R` factors out of **every** angular sum, at every moment count,
+because of :eq:`sn-redistribution-tensor-product-eq`.
+
+**(2)** :math:`\beta` **cannot acquire spatial content.**  Its free symbols
+are :math:`\{\mu, w, \tau\}` — a quadrature and a closure weight.  No
+spatial symbol appears anywhere in it, and no redefinition of the spatial
+operators can reach it, because they enter :eq:`sn-ld-contamination-vector`
+only through :math:`\vec g`, which is :math:`\tau`-free.
+
+**(3)** :math:`\beta = 0` **kills every moment channel at once.**  Setting
+:math:`\beta = 0` annihilates the whole vector :math:`\beta\,R\,\vec g` in
+both rows, for an **arbitrary symmetric** :math:`R` — the moment structure
+plays no part.  And the converse holds: :math:`R` is positive-definite on
+every admissible cell (below), so :math:`\det R \ne 0` and
+:math:`\beta R \vec g = 0` for all :math:`\vec g` **iff** :math:`\beta = 0`.
+The multi-moment problem therefore generates **no weaker condition** on
+:math:`\tau` than the one-moment problem does — not a different one, and
+not an additional one.
+
+.. admonition:: The factorization is the tree's structure, not only a
+   theorem about it
+   :class: important
+
+   :eq:`sn-redistribution-tensor-product-eq` was derived to answer the
+   arity question; on **2026-08-26** it became the shape of the code, and
+   the two halves now have separate owners:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 22 34 44
+
+      * - factor
+        - carries
+        - where it lives
+      * - :math:`R_{\rm spatial}`
+        - the **moment** index — geometry :math:`\times` basis, no
+          :math:`\mu`
+        - :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`
+          on the streaming operator (its :math:`(0,0)` corner is all a
+          one-moment scheme needs), beside ``face_areas``
+      * - :math:`A_{\rm angular}`
+        - the **ordinate** index — quadrature :math:`\times` closure, no
+          :math:`r`
+        - split by ownership: the member-**independent** part (the
+          :math:`\alpha` dome and :math:`\mu_{\rm start}`, per level) on
+          :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
+          from the single producer
+          :func:`~orpheus.geometry.reduced_operator.angular_redistribution`;
+          the member's own :math:`\tau` and the derived
+          :math:`c_{\rm in}` / :math:`c_{\rm out}` on the angular closure
+          (:ref:`sn-tau-closure-owned`)
+
+   Three consequences of the split are worth reading off, because each was
+   a defect before it:
+
+   * **Cartesian is the NEUTRAL element, not a special case.**  A slab has
+     no curvature, so its dome is identically zero and its starting
+     direction is the diameter ray.  Spelling those values instead of
+     ``None`` is what let a six-field per-coordinate ``Optional`` union
+     die: "no redistribution" is no longer separately representable.
+   * **The fused** :math:`\Delta A_i \otimes 1/w_n` **cache had to go**,
+     and the factorization says why — it welded a factor from each side, so
+     neither side could own it.  See the note under
+     :ref:`sn-geometry-factor` above.
+   * ⭐ **The angular factor's own split is load-bearing for a second
+     member.**  :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`
+     deliberately does **not** carry :math:`\tau`: the dome and the
+     starting direction are shared by every angular-closure member, while
+     :math:`\tau` is the member's *choice* (Morel--Montry's barycentric
+     weight, plain diamond's :math:`\tfrac12`, the neutral
+     :math:`\tau \equiv 1`).  A shared object holding :math:`\tau` would
+     forbid a second member by construction.
+
+.. warning:: **The correct argument is this one, and the tempting one is
+   invalid.**  It is tempting to argue "the shipped
+   :func:`~orpheus.derivations.discrete.sn.angular_differencing.contamination_beta`
+   takes no spatial argument, therefore :math:`\beta` is
+   spatial-scheme-independent."  ⛔ That inference is **not valid**, and it
+   has a name: ``vv-principles`` Mode 8, the **SIGNATURE-tautological**
+   class.  The signature admits no spatial argument because the *analysis
+   that produced* :math:`\beta` held space **continuous** — Morel--Montry
+   1984 state their Eq. (1) is "the :math:`S_n` equations discretized in
+   angle only" (printed p. 617) and :cite:`BaileyMorelChang2010`
+   Eqs. (30)--(41) carry :math:`\partial/\partial r` symbolically
+   throughout (printed pp. 154--155).  A claim is *unfalsifiable* through
+   that function at every quadrature order and every mesh, because the
+   varying input cannot physically reach the object; a green reading there
+   carries **zero** information.  Had the spatial scheme introduced a
+   dependence, the answer would have been a *new* function with a spatial
+   argument.  ⟹ **a type signature is evidence about an author's
+   assumptions, never about a theorem.**
+
+.. _sn-redistribution-gram:
+
+The Gram, and what five independent primaries say about it
+-----------------------------------------------------------
+
+The geometry-and-basis factor of
+:eq:`sn-redistribution-tensor-product-eq` is the **one-measure-down Gram**
+of the spatial scheme's own basis.  On the Legendre pair
+:math:`b_0 = 1`, :math:`b_1 = \xi \equiv 2(r-r_c)/h` with
+:math:`r_c = \tfrac12(r_-+r_+)` and :math:`h = r_+-r_-`:
+
+.. math::
+   :label: sn-redistribution-gram-eq
+
+   R \;=\; \Delta A_i
+   \begin{bmatrix}
+     1 & \dfrac{h}{6 r_c} \\[8pt]
+     \dfrac{h}{6 r_c} & \dfrac13
+   \end{bmatrix}
+   \quad(\text{sphere}),
+   \qquad
+   R \;=\; \Delta A_i
+   \begin{bmatrix} 1 & 0 \\ 0 & \tfrac13 \end{bmatrix}
+   \quad(\text{cylinder}) .
+
+.. vv-status: sn-redistribution-gram-eq documented
+.. (vv-status rationale) the one-measure-down Gram of the {1, ξ} cell basis,
+   normalised so R₀₀ = ΔA. Literature-cross-confirmed (Adams-Martin 1992
+   Eq. A.1a/A.1b magnitudes; Machorro 2007 Eq. 3.5; Hill 1975 Table V) and
+   derived independently. Its (0,0) corner IS the shipped ΔA of
+   :eq:`balance-general`, gated by :eq:`streaming-equilibrium`; the 2×2 is
+   unimplemented (Issue #158), so this is definitional, not a solver claim.
+
+One spelling serves both arms.  Writing :math:`d = 3` for the sphere,
+:math:`d = 2` for the cylinder and :math:`d = 1` for the slab (where
+:math:`\Delta A = 0` and the whole term vanishes),
+
+.. math::
+   :label: sn-redistribution-gram-uniform
+
+   R_{kj}(\text{cell}) \;=\; \Delta A_i\;
+     \frac{\langle b_k, b_j\rangle_{d-2}}{\langle b_0, b_0\rangle_{d-2}} ,
+
+.. vv-status: sn-redistribution-gram-uniform documented
+.. (vv-status rationale) the geometry-uniform spelling of
+   :eq:`sn-redistribution-gram-eq` — one body, parameterised by the measure
+   exponent d−2, which also absorbs the geometry-dependent factor of two in
+   the ORPHEUS α normalisation (:ref:`sn-alpha-normalization`).
+   Definitional; unimplemented (Issue #158).
+
+which also absorbs the geometry-dependent factor of two in the ORPHEUS
+:math:`\alpha` normalisation (:ref:`sn-alpha-normalization`): the sphere
+needs :math:`R = 2\langle\cdot,\cdot\rangle_1` to land on :math:`\Delta A`,
+the cylinder needs :math:`R = 1\cdot\langle\cdot,\cdot\rangle_0`.
+
+Four properties, each of which does work later:
+
+#. :math:`R_{00} = \Delta A_i` **exactly** — the shipped scalar geometry
+   factor is the :math:`(0,0)` corner of the matrix, so a two-moment member
+   is a strict widening of the shipped one, not a re-derivation.
+#. :math:`R_{11}/R_{00} = \tfrac13` **exactly, in both geometries** — the
+   same :math:`\theta = \tfrac13` as the slab-LD mass
+   (:eq:`discretization-ld-system`).  The *diagonal* of the redistribution
+   Gram is free.
+#. **The sphere's off-diagonal is not.**
+   :math:`R_{01}/R_{00} = h/(6 r_c) = h/\bigl(3(r_-+r_+)\bigr)`, which is
+   :math:`O(h/r)` in the bulk and **exactly** :math:`\tfrac13` at the pole
+   cell (:math:`r_- = 0`) — its maximum over all admissible cells, since
+   :math:`r_-+r_+ \ge h`.  On the test mesh
+   :math:`r \in \{0,\,0.7,\,1.9,\,2.05,\,5.0\}` it reads
+   ``[0.3333, 0.1538, 0.0127, 0.1395]``.  So **the new coupling is
+   strongest exactly where the flux dip lives.**  It also makes :math:`R`
+   positive-definite everywhere: :math:`\det R = \Delta A^2(\tfrac13 - x^2)`
+   with :math:`x = R_{01}/R_{00} \le \tfrac13 < 1/\sqrt3`.
+#. **The cylinder's is zero.**  One measure down from :math:`r\,dr` is the
+   *flat* :math:`dr`, on which the Legendre basis is orthogonal — so the
+   cylinder's redistribution Gram is diagonal and the average/slope
+   coupling does not exist there at all.
+
+.. important:: **The per-moment-row flat-flux identity is a real gate on
+   the sphere and reads** :math:`0 = 0` **on the cylinder.**  The
+   canonical curvilinear L0 gate (:eq:`streaming-equilibrium`) asserts
+   per-ordinate flat-flux consistency.  With two moments it must be
+   asserted **per moment row**, and row 1 is where the off-diagonal earns
+   its keep.  Under a flat flux :math:`\vec\psi = (\psi_0, 0)` the slope
+   row's streaming leaves the residue :math:`\mu_n\bigl[A_+ + A_- -
+   2V/h\bigr]\psi_0`, and the only thing available to cancel it is
+   :math:`R_{10}`:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 16 42 42
+
+      * - geometry
+        - :math:`A_+ + A_- - 2V/h` (streaming residue)
+        - :math:`R_{10}` (redistribution)
+      * - **sphere**
+        - :math:`\tfrac{4\pi}{3}\,h^{2}`
+        - :math:`\tfrac{4\pi}{3}\,h^{2}` — a genuine cancellation of two
+          non-zero terms
+      * - **cylinder**
+        - :math:`0` (:math:`A_+ + A_- = 2V/h` exactly, the area being
+          linear in :math:`r`)
+        - :math:`0`
+
+   ⟹ **a per-moment-row flat-flux gate written only on the cylinder is
+   structurally blind**: it passes for *any* off-diagonal whatsoever,
+   including a wrong one and including none.  The gate must run on the
+   **sphere**.  Equivalently: lumping :math:`R` to its Legendre diagonal
+   breaks the slope row on the sphere and is a no-op on the cylinder.
+   (This is the same shape as the ``vv-principles`` Mode-12 blindness the
+   :math:`\sigma_y`-fold produces for :math:`\beta` — see the warning at
+   :ref:`the β-blindness warning <sn-tau-beta-diagnostic-blind>`.)
+
+The published record — and a published typo
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:eq:`sn-redistribution-gram-eq` is **not** new mathematics, and the
+corpus said otherwise until 2026-08-25.  The complete 1-D spherical
+two-moment system has been in print since 1992:
+
+.. list-table:: the curvilinear LD record, page-verified
+   :header-rows: 1
+   :widths: 27 33 40
+
+   * - primary
+     - what it carries
+     - the Gram, in its own notation
+   * - **Adams & Martin (1992)**, NSE **111**\ (2):145--167, App. A,
+       printed pp. 160--161 (:cite:`AdamsMartin1992`)
+     - Eqs. (A.1a)/(A.1b) — the complete spherical two-moment balance;
+       (A.2a)/(A.2b) — the **weighted-diamond angular closure applied per
+       spatial moment**; (A.3) — the upwind face closure; (A.4a--d) — the
+       mass integrals :math:`V_k, W_k, X_k = \int r^2\{1,P,P^2\}dr`
+     - :math:`\{r_k\Delta r_k,\; \Delta r_k^{2}/6,\; r_k\Delta r_k/3\}`
+       ⟹ ratios :math:`\Delta r/(6r_k)` and :math:`\tfrac13`
+   * - **Machorro (2007)**, JCP **223**:67--81, Eqs. (3.3)/(3.5),
+       printed p. 70
+     - a discontinuous-Galerkin weak form in which the angular term is a
+       single :math:`\mu`-boundary integral with **one sign**
+     - :math:`\int r\,dr,\;\int r(r-r_i)dr,\;\int r(r-r_i)^2 dr`
+       ⟹ the same two ratios
+   * - **Hill (1975)**, LA-5990-MS (ONETRAN), Eqs. (33b)/(33c)/(35a),
+       Table V, printed pp. 10--12
+     - the cylindrical **and** spherical LD systems, with the geometric
+       coefficients tabulated per geometry
+     - :math:`\Delta A_i` and :math:`z_5`, both **positive**, both
+       entering (35a) with :math:`+`
+   * - **Palmer & Adams (1993)**, UCRL-JC-111847, Eqs. (9)/(14),
+       printed pp. 2--4, 8
+     - names the object: :math:`R_k` = "angular redistribution matrix",
+       with the half-angle fluxes as **vectors**
+     - the r-z BLD :math:`R_{i,j} = \tfrac{\Delta r\Delta z}{36}
+       [[4,2,1,2],[2,4,2,1],[1,2,4,2],[2,1,2,4]]` — manifestly symmetric,
+       all-positive
+   * - **Wu, Xie & Fischer (1999)**, NSE **133**\ (3):350--357, Eq. (27)
+       (:cite:`WuXieFischer1999`)
+     - a nodal method that applies the angular diamond to the whole
+       spatial-moment **vector**
+     - kernels carrying :math:`(r_i + a_i r')^{j-1}/W_m` against
+       :math:`P_n(r')`
+
+⚠ **The printed minus signs in Adams--Martin (A.1a)/(A.1b) are a typo.**
+As printed, the two :math:`\psi^x`-coupled redistribution terms carry
+:math:`-`, so the four weights read
+:math:`\bigl[\begin{smallmatrix} r_k\Delta r & -\Delta r^2/6 \\
++\Delta r^2/6 & -r_k\Delta r/3\end{smallmatrix}\bigr]` — **not symmetric,
+and with a negative** :math:`(2,2)` **entry**.  The magnitudes match
+:eq:`sn-redistribution-gram-eq` exactly; only those two signs differ.  Three
+reasons the all-plus reading is the correct one, and two confirmations:
+
+#. **Symmetry.**  Their Sec. III.B sets weight functions equal to basis
+   functions (Galerkin, :math:`v = b`), so the coupling matrix must be
+   symmetric.
+#. **Positive-definiteness.**  :math:`\int r P^2\,dr > 0` strictly (a
+   positive weight over the cell), so the :math:`(2,2)` entry cannot be
+   negative.  It is a Gram matrix.
+#. **Their own sibling block.**  The removal terms in the *same two
+   equations* are :math:`\sigma_{tk}[V_k\psi + W_k\psi^x]` and
+   :math:`\sigma_{tk}[W_k\psi + X_k\psi^x]` — the symmetric
+   :math:`[[V,W],[W,X]]`.  Only the redistribution block breaks the
+   pattern.
+#. Machorro's weak form carries the angular term as **one** integral with
+   **one** sign; no :math:`\pm` alternation between the average and slope
+   rows exists anywhere in it.
+#. ONETRAN's :math:`\Delta A_i` and :math:`z_5` are both positive and both
+   enter Eq. (35a) with :math:`+`; and Palmer--Adams's fully-lumped
+   :math:`R_k` entries are exactly the **row sums** of the all-positive
+   Gram, which row-sum lumping of a sign-alternating matrix could not
+   produce.
+
+⛔ **And the trap that makes this worth a warning rather than a footnote:
+the sign error is invisible to a conservation check.**  Both redistribution
+terms telescope over :math:`m` (they are :math:`\sum_m` of a difference),
+so global particle balance holds for **either** sign.  Discriminate with
+the Galerkin symmetry, or with a slope-exciting fixture — never with a
+balance test.  (This is ``vv-principles`` anti-pattern #8 in the
+literature rather than in the tree.)
+
+.. _sn-redistribution-rank-contradiction:
+
+⛔ The rank contradiction — two published families, and ORPHEUS must choose
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The primaries agree on the Gram's *entries* and disagree on **what the
+angular closure acts on** — which changes the **rank** of a production
+operator:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 20 22 34
+
+   * - family
+     - angular device
+     - applied to
+     - redistribution coupling
+   * - Adams--Martin (A.2a)/(A.2b); Palmer--Adams Eq. (9);
+       Wu--Xie--Fischer Eq. (27)
+     - weighted / plain diamond
+     - **every** spatial moment
+     - the full symmetric :math:`2\times2` Gram
+   * - **ONETRAN** (Hill 1975, Eq. (32), from the plain angular diamond
+       Eq. (30))
+     - plain diamond
+     - the spatial **average only** — one scalar half-angle flux per
+       space-angle cell
+     - **rank 1**: :math:`(\alpha_{m+\frac12}/w_m)\,
+       [\Delta A_i;\, z_5]\otimes[1,\,1]`
+
+Chronology explains part of it (ONETRAN 1975 predates
+:cite:`MorelMontry1984`), but the per-moment-versus-average choice is
+independent of the weighted-versus-plain choice.  **Both are published and
+both shipped in production codes; ORPHEUS must pick one consciously rather
+than inherit one by accident.**
+
+⭐ The two published options are not two answers to one question — they
+are **two different values of an index the factorization had silently
+conflated**.  :eq:`sn-redistribution-tensor-product-eq` is sharpened by
+splitting it:
+
+* :math:`n_{\rm mom}` — how many spatial moments the **scheme** carries
+  (DD 1, LD 2);
+* :math:`n_{\rm thread}` — how much of the spatial representation the
+  **angular device** propagates through its half-angle recurrence
+  (ONETRAN 1, Adams--Martin 2).
+
+:math:`R` is then the **rectangular pairing** of the two bases under the
+one-measure-down geometry,
+
+.. math::
+   :label: sn-redistribution-gram-rectangular
+
+   R_{kj} \;=\; \Delta A_i\;
+     \frac{\bigl\langle b^{\rm scheme}_k,\; b^{\rm thread}_j
+           \bigr\rangle_{d-2}}
+          {\bigl\langle b_0, b_0\bigr\rangle_{d-2}} ,
+   \qquad \text{shape } (n_{\rm mom},\, n_{\rm thread}) ,
+
+.. vv-status: sn-redistribution-gram-rectangular documented
+.. (vv-status rationale) the rectangular generalisation of
+   :eq:`sn-redistribution-gram-uniform`, pairing the SCHEME's spatial basis
+   with the ANGULAR THREAD's spatial basis. Its 1×1 case is the shipped ΔA;
+   the 2×1 case reproduces ONETRAN's own printed [ΔA_i ; z_5] column and the
+   2×2 case Adams-Martin's printed magnitudes. Structural, not a solver
+   claim; unimplemented (Issue #158).
+
+so that :math:`R` is owned by **neither side alone**:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 16 50
+
+   * - (scheme, angular thread)
+     - shape
+     - :math:`R`, and whether ORPHEUS ships it
+   * - DD, one-moment thread
+     - :math:`1\times1`
+     - :math:`[\Delta A_i]` — ✅ **this is what ships**; it is
+       :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`
+   * - LD, per-moment thread (Adams--Martin)
+     - :math:`2\times2`
+     - :eq:`sn-redistribution-gram-eq` — ⛔ **not built** (Issue #158);
+       derived here and cross-checked against the literature above
+   * - LD, average-only thread (ONETRAN)
+     - :math:`2\times1`
+     - :math:`\bigl[\Delta A_i;\; \Delta A_i\,h/(6r_c)\bigr]
+       = \bigl[\Delta A_i;\; \tfrac{4\pi}{3}h^2\bigr]`, matching ONETRAN's
+       own :math:`[\Delta A_i;\, z_5]` — ⛔ **not built**
+
+The factorization survives the sharpening: **each axis contributes exactly
+one index to** :math:`R`.  What changes is that a hook exposing :math:`R`
+cannot be a pure property of the spatial scheme — it must take the angular
+thread's basis as an argument.
+
+.. note:: The corpus asserted until 2026-08-25 that the curvilinear LD cell
+   closure was *unpublished and must be derived*.  That was **wrong for the
+   sphere** (Adams--Martin 1992 has carried the full moment balance since
+   1992, in a paper that was sitting in the local literature folder) and
+   **overstated for the cylinder** (ONETRAN writes the cylindrical system
+   at report level in 1975).  The false negative traces to a one-query
+   literature search whose effective denominator was near zero.  ⛔ Do not
+   read "published" as "safe to transcribe": Palmer & Adams 1993 conclude
+   that **plain** spherical LD *fails* the thick diffusion limit (a
+   three-point removal term, unphysical boundary conditions, interior
+   scalar flux low by :math:`\sim2\times` on their two-cell test), with
+   only the fully-lumped and corner-balance forms passing.  Their
+   organising principle is stated on printed p. 6: *"The main ingredient is
+   'locality' of operators."*  The positivity half of that story, and the
+   family it opens, is at :ref:`discretization-transmission-ladder` in
+   :doc:`/theory/foundations/discretization`.
+
+.. _sn-tau-arity-theorem:
+
+τ is a per-ordinate scalar — a theorem, not a measurement
+----------------------------------------------------------
+
+   **Theorem.**  Let :math:`P : \mathcal F(\text{cell}) \to
+   \mathbb R^{n_{\rm mom}}` be the spatial moment projection and let the
+   angular closure be :eq:`wdd-closure`,
+   :math:`\psi_n = (1-\tau_n)\psi_{n-\frac12} + \tau_n\psi_{n+\frac12}`,
+   with :math:`\tau_n` independent of :math:`r`.  Then :math:`\tau` is a
+   **per-ordinate scalar**, in both of its defining conditions, for
+   **every** spatial representation.
+
+**Proof, in one line.**  A scalar convex combination **commutes with every
+linear map**, so :math:`P(\text{blend}) = \text{blend}(P)`.  Both defining
+conditions are then *the same scalar statement in every component*:
+
+* **Condition 1 — cone membership,** :math:`\tau \in [0,1]` (the shipped
+  predicate P3, raised by
+  :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`).
+  A convex combination of two elements of a convex set lies in that set.
+  That statement mentions **no basis**, so no change of spatial
+  representation can give it spatial content.
+* **Condition 2 — the barycentric condition,** exactness on
+  :math:`\operatorname{span}\{1,\mu\}`, which is what :eq:`mm-weights`
+  *is*.  Solved independently in each moment component it returns
+  :math:`\tau = (\mu_n - \mu_{n-\frac12})/(\mu_{n+\frac12} -
+  \mu_{n-\frac12})` **every time** — which is a consequence of linearity,
+  not a survey, and was checked symbolically at **4 of 4** moment
+  components.  A per-:math:`(\text{ordinate}, \text{cell})` :math:`\tau` is
+  therefore an **overdetermined system whose every row returns the same
+  per-ordinate value**: row 0 alone determines :math:`\tau` and row 1 then
+  holds identically.
+
+**Check the hypotheses, and notice what is absent.**  :math:`\tau` is
+:math:`r`-independent by construction — it is an angular weight, a
+barycentric coordinate in the direction cosine.  :math:`P` is linear — an
+:math:`L^2` projection onto a fixed basis.  The positive cone :math:`K` is
+convex — an intersection of half-spaces, one per point of the cell.
+**None of the three mentions a basis.**  That is the entire content of the
+theorem, and it is why no expansion is required to settle the arity: the
+asymptotic corroboration of :ref:`sn-redistribution-tensor-product` adds
+magnitudes, not the decision.
+
+⟹ :attr:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
+**keeps its arity.**  So do :math:`c_{\rm in}` and :math:`c_{\rm out}`: the
+derivative of the redistribution *vector* with respect to the ordinate
+moment *vector* is exactly :math:`c_{\rm out}\,R/w_n` — **one scalar times
+the geometry matrix**, with no row-dependent :math:`c` and no
+moment-dependent :math:`\tau`.  What a two-moment scheme changes is only
+*what those scalars multiply*.
+
+.. warning:: ⚠ **The theorem certifies the CLOSURE.  It does not certify
+   the MARCH.**  :math:`\tau \in [0,1]` says the *specification* is a convex
+   combination.  The *algorithm* runs it backwards
+   (:eq:`wdd-face`): the inverted closure
+   :math:`\psi_{n+\frac12} = \bigl(\psi_n - (1-\tau_n)\psi_{n-\frac12}
+   \bigr)/\tau_n` has coefficients :math:`\bigl(1/\tau,\,
+   -(1-\tau)/\tau\bigr)`, the second **negative for every**
+   :math:`\tau < 1`.  It is an *extrapolation*, not a convex combination,
+   and a defect on the half-angle thread is amplified by
+
+   .. math::
+      :label: sn-halfangle-march-amplification
+
+      \rho_m \;=\; \prod_{j\le m} \Bigl(-\frac{1-\tau_j}{\tau_j}\Bigr),
+      \qquad |\rho| > 1 \ \text{ wherever } \ \tau < \tfrac12 .
+
+   .. vv-status: sn-halfangle-march-amplification documented
+   .. (vv-status rationale) the defect-amplification factor of the INVERTED
+      angular closure :eq:`wdd-face` — a direct product of its own
+      coefficients, definitional rather than a solver claim. The τ values it
+      is evaluated on are produced by ``morel_montry_tau_per_level``, whose
+      [0,1] membership is separately gated (predicate P3).
+
+   `[M]` on Gauss--Legendre: at :math:`S_8`, **4 of 8** Morel--Montry
+   :math:`\tau` lie below :math:`\tfrac12` (range
+   :math:`[0.3923, 0.6077]`) and :math:`\max|\rho| = 2.0159`; at
+   :math:`S_{32}`, **16 of 32** (range :math:`[0.3898, 0.6102]`) and
+   :math:`\max|\rho| = 3.1457`.  The march is stable in practice because
+   its input is *solved*, not inherited — but the amplification is the
+   mechanism by which a seed error becomes an angular-thread error, which
+   is what :ref:`sn-seed-cone-risk` quantifies.
+
+.. _sn-two-questions-two-instruments:
+
+What the asymptotic expansion cannot settle
+--------------------------------------------
+
+The instrument that settles the arity question is a **first-order
+asymptotic diffusion-limit expansion**: scale
+:math:`\sigma_t \to \sigma/\varepsilon`, :math:`\sigma_s \to
+\sigma/\varepsilon - \varepsilon\sigma_a`, :math:`Q \to \varepsilon Q`,
+write :math:`\vec\psi = \vec\psi^{(0)} + \varepsilon\vec\psi^{(1)} +
+\varepsilon^2\vec\psi^{(2)} + \dots`, and read off the
+:math:`O(\varepsilon)` balance.  That instrument is **structurally
+incapable** of settling positivity, and saying so is not a caveat — it is
+the reason the next two sections exist.
+
+**The mechanism.**  The expansion's ansatz writes each order as a *smooth
+function of the cell*, so a **sign-alternating cell-to-cell mode is
+excluded by the ansatz itself**.  No order of the expansion can see it:
+not a higher order, not a finer mesh, not a tighter tolerance.  This is
+``vv-principles`` **Mode 12** — the measured functional's invariance group
+contains the entire error class — and it is why Palmer & Adams carry
+
+   *"the solution of the discretized transport equation must limit to the
+   solution of a* **stable and reasonable** *discretization of the diffusion
+   equation"*
+
+as a **separate** acceptance criterion (printed p. 1, their criterion 1),
+and why their verdict against bare LD is phrased as *"a three-point removal
+term, which is* **known to cause oscillations**\ *"* (printed p. 3) rather
+than as a failure of the expansion.
+
+⟹ **Two questions, two instruments**, and neither substitutes for the
+other:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 37 37
+
+   * - question
+     - instrument
+     - what it CANNOT see
+   * - Is the closure **consistent** in the diffusion limit — and does the
+       weight :math:`\tau` acquire a cell index?
+     - the asymptotic expansion; :math:`\beta = 0`
+       (:eq:`sn-contamination-factor`)
+     - any sign-alternating mode — **excluded by the ansatz**
+   * - Does the scheme keep the flux in the **positive cone** :math:`K`?
+     - the transmission multiplier's sign
+       (:ref:`discretization-transmission-ladder`)
+     - the diffusion-limit consistency of the *converged* answer
+
+**And a limit on** :math:`\beta = 0` **itself, which the expansion does
+show.**  The cancellation that makes :math:`\beta` vanish at the
+Morel--Montry weight is **not** term by term — it is a cancellation
+*between the two sweep halves*.  `[M]` at the Morel--Montry :math:`\tau`,
+the half-range partial sums are individually large and exactly opposite:
+
+.. list-table:: half-range partial sums of the contamination scalar
+   :header-rows: 1
+   :widths: 16 28 28 28
+
+   * - :math:`N`
+     - :math:`\beta^{-}` (:math:`\mu<0`)
+     - :math:`\beta^{+}` (:math:`\mu>0`)
+     - :math:`\beta^{-}+\beta^{+}`
+   * - 4
+     - ``+0.101808``
+     - ``-0.101808``
+     - ``+1.4e-17``
+   * - 8
+     - ``+0.119111``
+     - ``-0.119111``
+     - ``-4.2e-17``
+   * - 16
+     - ``+0.123476``
+     - ``-0.123476``
+     - ``-2.8e-17``
+   * - 32
+     - ``+0.124610``
+     - ``-0.124610``
+     - ``-6.9e-17``
+
+So :math:`\beta = 0` is a **global angular identity** that relies on
+:math:`\vec\psi^{(1)}` being affine in :math:`\mu` **across**
+:math:`\mu = 0`.  Under a two-moment spatial scheme that is a *theorem
+only where the leading-order cell-edge jumps vanish* — which the
+:math:`O(\varepsilon^0)` solvability condition forces in the interior, and
+which fails in an unresolved boundary layer, at a source discontinuity, or
+in the first cell off a vacuum face.  There the contamination reads
+:math:`\beta^-R\vec g^- + \beta^+R\vec g^+` with :math:`\vec g^+ \ne
+\vec g^-`, and **no choice of** :math:`\tau` **cleans it**: the residue is
+:math:`\approx 0.12\times` the directional slope discrepancy, which is not
+a small coefficient.  This is a *spatial* effect, and it is the same family
+as Morel--Montry's own coarse-mesh caveat (printed p. 630: the
+correspondence "is lost with a coarse spatial mesh").  ⟹ it is an argument
+for gating a two-moment curvilinear member on a **resolved-layer** fixture,
+not for a per-cell :math:`\tau`.
+
+.. _sn-seed-cone-risk:
+
+Where the risk actually lives — the starting direction
+--------------------------------------------------------
+
+The arity question was never the risk.  The risk is the **seed**, and the
+reason is one line of geometry that this chapter has already used twice.
+
+**The starting-direction equation carries no angular redistribution at
+all.**  The redistribution coefficient vanishes at both ends of every
+angular march (:math:`\alpha_{1/2} = \alpha_{M+1/2} = 0`,
+:ref:`the dome-closure contract <sn-alpha-dome-closes>`), and the
+continuous statement is the same
+one: :math:`(1-\mu^2) = 0` at :math:`\mu = \mp1`, so the transport equation
+collapses to :eq:`sn-direct-seed-pole-straight-characteristic`, a pure
+radial ODE with **no coupling to any other ordinate**
+(:ref:`sn-direct-seed-solve`).
+
+⟹ **the seed is a purely spatial advection--reaction solve, and it
+inherits the spatial scheme's positivity ladder verbatim — in the one place
+where there is nothing angular to damp it.**  The ladder is at
+:ref:`discretization-transmission-ladder` in
+:doc:`/theory/foundations/discretization`; the row that applies is the
+spatial scheme's own.
+
+**What ships, measured.**  ORPHEUS marches the seed with diamond
+difference at :math:`|\mu| = 1`
+(:func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`,
+the Hébert (3.434)/(3.435) recurrence; the engine is cosine-agnostic and
+takes **path** widths, so a folded cylinder level's optical depth is
+:math:`\Sigma_t\,\Delta r/|\eta_{\rm start}|`).  Its source-free
+transmission is therefore DD's Padé(1,1) row, and it **changes sign at
+optical path depth 2** and heads for :math:`-1`.  `[M]` on the shipped
+function, source-free, unit entry face, eight equal cells at cell optical
+depth 3:
+
+.. list-table:: the shipped seed march, :math:`\Sigma_t\,\Delta r = 3` per cell
+   :header-rows: 1
+   :widths: 12 30 30 28
+
+   * - cell
+     - :math:`\psi_{1/2}` (marched)
+     - exact :math:`e^{-\tau_{\rm opt}}` at the cell centre
+     - ratio to the previous cell
+   * - 1
+     - ``+0.400000``
+     - ``0.223130``
+     - —
+   * - 2
+     - ``-0.080000``
+     - ``0.011109``
+     - :math:`-0.2`
+   * - 3
+     - ``+0.016000``
+     - ``0.000553``
+     - :math:`-0.2`
+   * - 4
+     - ``-0.003200``
+     - ``0.000028``
+     - :math:`-0.2`
+   * - 5
+     - ``+0.000640``
+     - :math:`1.4\times10^{-6}`
+     - :math:`-0.2`
+   * - 6
+     - ``-0.000128``
+     - :math:`6.9\times10^{-8}`
+     - :math:`-0.2`
+
+The per-cell ratio is :math:`(2-3)/(2+3) = -\tfrac15` exactly, so the seed
+**alternates in sign, cell to cell**, and in the thick diffusion limit
+(:math:`\tau_{\rm opt} = \Sigma_t h \to \infty`) it does so with a ratio
+tending to :math:`-1` — no decay at all.  A two-moment (bare LD) seed would
+move the onset from :math:`\tau_{\rm opt}=2` to :math:`\tau_{\rm opt}=3`
+and the far-field ratio to :math:`-2/\tau_{\rm opt}`; a *lumped* member
+would remove it entirely (:ref:`discretization-transmission-ladder`).
+
+.. _sn-beta-eff-seed-sensitivity:
+
+How much seed error undoes the Morel--Montry weight entirely
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The contamination scalar :eq:`sn-contamination-factor` is evaluated on the
+cell edges the closure *implies* — the :math:`\tau`-implied march
+:math:`\tilde\mu_{n+\frac12} = \bigl(\mu_n -
+(1-\tau_n)\tilde\mu_{n-\frac12}\bigr)/\tau_n`, the same recursion the
+solve-free :math:`\nu`-closure diagnostic marches (see
+:ref:`the absorber retirement <sn-tau-absorber-retirement>` in
+:doc:`/theory/foundations/structured_geometry`; there it is written
+:math:`\nu` and asked to land on the level's far endpoint, here it is
+written :math:`\tilde\mu` and summed).  Its **anchor** is the starting
+cosine, :math:`\tilde\mu_{1/2} = -1`.
+
+Because that recursion is affine in its anchor and the sum is linear, the
+contamination is **exactly affine in the effective starting cosine**:
+
+.. math::
+   :label: sn-beta-eff-affine
+
+   \beta_{\rm eff}(\mu_s) \;=\; \beta \;+\; (\mu_s + 1)\,\beta_e ,
+   \qquad
+   \beta_e \;\equiv\; \frac{\partial\beta_{\rm eff}}{\partial\mu_s}
+   \ \ \text{(a constant)} .
+
+.. vv-status: sn-beta-eff-affine documented
+.. (vv-status rationale) the exact affinity of the contamination scalar in
+   the anchor of the τ-implied edge march — a consequence of that march
+   being affine in its anchor and the sum being linear. Structural. The
+   β_eff(−1) = β leg IS the shipped
+   :func:`orpheus.derivations.discrete.sn.angular_differencing.morel_montry_beta`
+   (= 3β/2 in its Σw = 1 normalisation), gated on both legs by
+   ``tests/sn/sweep/curvilinear/test_angular_beta_identity.py``; the affinity
+   in μ_s has no gate because no production path perturbs the anchor.
+
+`[M]` verified at :math:`\mu_s = -1.4,\,-1.0,\,-0.6,\,+0.3` and
+:math:`N = 2 \dots 32`, to :math:`\le 3\times10^{-11}` absolute.  So **one
+number decides how much a seed error costs**, and it can be read against
+the contamination the Morel--Montry weight was invented to remove — namely
+:math:`\beta` at the *diamond* weight :math:`\tau \equiv \tfrac12`:
+
+.. list-table:: the starting-cosine error equivalent to the whole diamond-scheme dip
+   :header-rows: 1
+   :widths: 10 22 22 22 24
+
+   * - :math:`N`
+     - :math:`\beta` at :math:`\tau\equiv\tfrac12`
+     - :math:`\beta_e` at the M-M :math:`\tau`
+     - :math:`\beta_e` at :math:`\tau\equiv\tfrac12`
+     - :math:`|\mu_s+1|` equivalent
+   * - 2
+     - ``+1.031e-01``
+     - ``+9.107e-01``
+     - ``+6.667e-01``
+     - ``0.1132``
+   * - 4
+     - ``-1.786e-03``
+     - ``-1.111e-01``
+     - ``-4.222e-02``
+     - ``0.0161``
+   * - 8
+     - ``-2.287e-05``
+     - ``-4.276e-03``
+     - ``-1.999e-03``
+     - ``0.0053``
+   * - 16
+     - ``-3.776e-07``
+     - ``-2.596e-04``
+     - ``-1.256e-04``
+     - ``0.0015``
+   * - 32
+     - ``-6.266e-09``
+     - ``-1.662e-05``
+     - ``-8.107e-06``
+     - ``0.0004``
+
+(Gauss--Legendre, sphere; :math:`\beta` at the Morel--Montry :math:`\tau`
+is machine zero throughout, :math:`\le 8.6\times10^{-17}`.  The last column
+is :math:`|\beta_{\tau=1/2}| / |\beta_e|`, the starting-cosine error whose
+contamination equals the diamond scheme's.)
+
+⟹ **from** :math:`S_4` **on, a starting-cosine error of ~1.6 %, falling to
+0.05 % at** :math:`S_{32}`\ **, already gives back everything the
+Morel--Montry weight removed — and the leverage GROWS with angular
+order.**  :math:`\tau` and the seed are not two independent knobs; on any
+production quadrature the seed dominates.  A sign-alternating seed march is
+that error in its most extreme form, and it closes the loop with an
+independent published diagnosis: Walters & Morel found an origin error in a
+discontinuous spherical scheme under fine-radial / coarse-angular meshes
+and attributed it to *insufficient starting-direction information*
+(reported by Machorro 2007, printed p. 79); both they and Machorro repair
+it with **quadratic-in-angle** functions in the cells bordering
+:math:`\mu = -1`, and Lathrop 2000 §III.D adopts the same hybrid
+independently.
+
+.. important:: **The design consequence, stated once.**  Choose the seed
+   march's *spatial* closure for its **cone** behaviour, and gate that
+   choice on the cone — never on the flat-flux identity
+   :eq:`streaming-equilibrium`, which is exact for every scheme in this
+   family and therefore blind to the choice.  The gate that discriminates
+   is the sign of the transmission multiplier
+   (:ref:`discretization-transmission-ladder`), and the flag that should
+   carry it is being split for exactly this reason (Issue #408 — the
+   current ``is_positivity_preserving`` conflates three properties, and the
+   one the seed needs is the *first*).
+
+.. _sn-morel-montry-summary-rule-refuted:
+
+⛔ Morel--Montry's own summary rule, refuted for N ≥ 4
+-------------------------------------------------------
+
+:cite:`MorelMontry1984` close with a rule of thumb that is quoted far more
+often than the analysis behind it (printed p. 630):
+
+   *"…the flux dip can be expected to be eliminated with any spatial
+   differencing scheme as long as the starting flux is not seriously*
+   **under** *estimated relative to the weighted fluxes."*
+
+The affine law :eq:`sn-beta-eff-affine` makes that rule checkable in one
+line, because its whole content is the **sign of** :math:`\beta_e`:
+underestimating the starting flux moves :math:`\mu_s` in one direction, and
+whether that drives :math:`\beta` positive or negative is decided by
+:math:`\operatorname{sign}(\beta_e)`.
+
+⛔ `[M]` **the sign flips between** :math:`N = 2` **and** :math:`N \ge 4`.
+From the table above, at the Morel--Montry :math:`\tau`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 28 54
+
+   * - :math:`N`
+     - :math:`\beta_e`
+     - which direction of seed error is dangerous
+   * - 2
+     - ``+9.107e-01``
+     - **under**\ estimating drives :math:`\beta < 0` — exactly as
+       published
+   * - 4
+     - ``-1.111e-01``
+     - **over**\ estimating does
+   * - 8
+     - ``-4.276e-03``
+     - **over**\ estimating
+   * - 16
+     - ``-2.596e-04``
+     - **over**\ estimating
+   * - 32
+     - ``-1.662e-05``
+     - **over**\ estimating
+
+The same inversion holds at the diamond weight
+(:math:`+6.667\times10^{-1}` at :math:`N=2`, negative from :math:`N=4`).
+
+**The cause, and it is a familiar one.**  :math:`S_2` — Gauss
+:math:`S_2` — is the case Morel & Montry actually computed.  The rule is a
+**universal generalised from a single sample**, and the sample happens to
+be the one member of the family on the other side of a sign change.  It is
+``vv-principles`` anti-pattern #13 in the literature rather than in the
+tree, and the 1984 paper is not careless: the rule is *true* of everything
+its authors measured.
+
+⚠ **Read the refutation with its own honest caveat.**  :math:`|\beta_e|`
+falls **five orders of magnitude** from :math:`N=2` to :math:`N=32`, so
+what inverts is the *direction*, while the *stakes* collapse.  And
+Morel--Montry's "effective starting cosine" is itself an
+:math:`S_2`/:math:`S_4`-class construct — it presumes :math:`\psi` affine
+in :math:`\mu`.  ⟹ the durable lesson is **not** "the rule points the other
+way now".  It is: **do not use a direction heuristic at all — evaluate**
+:math:`\beta_{\rm eff}` **directly** from the solve's own half-angle
+thread, through the :math:`\tilde\mu`-implied edge set that
+:func:`~orpheus.derivations.discrete.sn.angular_differencing.morel_montry_beta`
+already marches.  The instrument exists and costs no solve; the heuristic
+was only ever a substitute for it.
+
+.. note:: **What is asserted rather than measured here.**  Every numerical
+   leg of this chapter is **spherical**.  The theorems are
+   geometry-independent — they need only that :math:`R` be
+   :math:`\mu`-independent and that the cone be convex, both of which hold
+   on the cylinder, where :math:`R` is moreover *diagonal* so the
+   :math:`R_{01}` channel does not exist at all — but the cylinder's
+   numbers have not been taken.  ⛔ When they are, the instrument must be
+   :func:`~orpheus.derivations.discrete.sn.angular_differencing.nu_closure_residual`
+   and **never** :math:`\beta`: on a :math:`\sigma_y`-folded arc
+   :math:`\beta` is a symmetry identity rather than a measurement, and
+   garbage passes it (:ref:`the β-blindness warning <sn-tau-beta-diagnostic-blind>`).  Also
+   unquantified: how much *scalar-flux* error a sign-alternating seed
+   produces end to end.  That needs a pole-resolved fixed-source sphere at
+   :math:`\Sigma_t h > 3` on the seed's cells, with a fixture chosen
+   **outside** :math:`\operatorname{span}\{1,\mu\}` — the closure is exact
+   on that span, so a fixture inside it lies in the closure's own kernel
+   and cannot rank anything (``vv-principles`` #24(d)/(e)).
 
 Substituting the WDD Closure into the Balance Equation
 =======================================================
