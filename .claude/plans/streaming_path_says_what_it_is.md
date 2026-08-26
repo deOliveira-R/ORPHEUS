@@ -194,7 +194,57 @@ avoid importing one of its own inputs is in the wrong stage.
 | `requires_upstream_angular_state`, `angular_marching_axis` | two fields on `ChartConnection` | `[M]` **0 production readers**; 12 test assertions. Made RED rather than grepped: flipping both on **997** constructed operators over 4 test trees gives **6 failures — exactly the 6 assertions that name the fields**. | ⛔ **RETIRE, not wire.** The concept is respelled twice already (`upstream_state.angular_upstream is None`, `SNMesh.is_cartesian`). |
 | the three-link dead chain | `AngularRedistribution.mu_start_per_level` → `StreamingTerms.mu_start` → `GeometryCoefficients.mu_start` → **∅** | `[M]` the terminal has **zero readers** of any kind (dynamic access checked). So `StreamingTerms.mu_start`'s only production consumer is *the write into it* — while its docstring claims `MorelMontryAngularSweep` consumes it, which reads **the owner** instead. | Retire the two downstream links; the owner stays. |
 | `ChartConnection._quadrature` | a second reference to the measure | `[M]` `_quadrature IS angular.quadrature` → **True**. A twin reference to one object. | Retire; read through the angular factor. |
-| `μ_start`'s edge-extrapolation branch | a code path + the #361 `argsort` hazard | `[M]` **structurally unreachable** on the probed fixtures (perturbation `0.0`, control `4.04e-01`): its only consumer runs on NON-carrying levels, and every level carries. ⚠ `[M]` on 2 fixtures — **a sample.** | **Measure first** (§7 P1): evaluate `consumes_independent_seed` over every rule `assert_carrying_quadrature` admits. All-carrying ⟹ #361 is a **retirement**, not a repair. |
+| `μ_start`'s edge-extrapolation branch | a code path + the #361 `argsort` hazard | `[M]` **structurally unreachable** on the probed fixtures (perturbation `0.0`, control `4.04e-01`): its only consumer runs on NON-carrying levels, and every level carries. ⚠ `[M]` on 2 fixtures — **a sample.** | ⛔ **BOTH THE VERDICT AND THIS ROW'S DECISION RULE ARE REFUTED — measured 2026-08-26**, see below. **KEEP** the branch. |
+
+> ⛔⛔ **REFUTED 2026-08-26 — and the refutation is of the METHOD, not the
+> number.** The row instructed: *"evaluate `consumes_independent_seed` over
+> every rule `assert_carrying_quadrature` admits. All-carrying ⟹ #361 is a
+> **retirement**, not a repair."* Run exactly as written it returns
+> **0 of 88** — true, and it licenses the wrong conclusion.
+>
+> `[M]` **`assert_carrying_quadrature` has exactly ONE call site**
+> (`augmented_mesh.py:347`), inside `case CoordSystem.CYLINDRICAL`. The
+> `SPHERICAL` arm (`:352-356`) calls **no admission gate at all**, and
+> admission is by *structure, not provenance* (the gate's own docstring). So
+> the prescribed denominator was **cylinder-only** while the branch's live
+> witness is a **sphere** rule: a hand-built **Gauss–Lobatto** polar rule
+> builds a production `SNMesh(SPHERICAL)` and **fires the branch** at
+> `n = 6, 8, 9, 10, 11, 17` — `[M]` **6 of 11 orders**.
+>
+> ⭐ **And the naive check is TAUTOLOGICAL**, which the census caught and
+> reported rather than banking: the gate and `_carrying_levels` read the
+> *same producer* on the same `(quad, coord)`, so "an admitted rule with a
+> non-carrying level" is a contradiction in terms. Its `0` carries **zero**
+> information. What decided the question was execution: positive control
+> (forcing `_carrying_levels := frozenset()` moves state `rel 4.246e-01` /
+> `3.555e-01`) plus a gate-bypass separation — **carrying 105 built / 0
+> fired; non-carrying 13 built / 13 fired.**
+>
+> ⭐⭐ **The #361 hazard is ANNIHILATED where it is reachable, by theorem.**
+> `_edge_seed_stencil:1696` computes
+> `t = (μ_start − μ[m0]) / (μ[m1] − μ[m0])`, and `on_edge_node` *means*
+> `μ_start == μ[m0]` — so the numerator is exactly `0` and the ambiguous
+> `m1` is multiplied by `0.0`. `[M]` over 75 reachable non-carrying levels:
+> tie-break live in **0 of 75**, `t == 0` exactly in **74 of 75**;
+> perturbing slot `m1` by `1e3` on the production-admitted Lobatto witness
+> moves the seed by **`0.000000e+00`** (control on `m0`: `1.0e+03`).
+>
+> ⟹ **the disposition is a THIRD state the row did not offer** — neither a
+> live repair nor a clean retirement. **Keep** the branch (retiring it
+> removes the only seed path a `μ=−1`-noded sphere rule has, and that rule
+> class is live project work — `rules_sphere.py:876` names "a future
+> Gauss–Lobatto sphere" in `MarchStart.on_edge_node`'s own docstring); write
+> the measured fraction into its docstring; and land any `argsort` change
+> **with a Lobatto witness row in the same step** (§6c — otherwise the change
+> ships with no gate that can redden).
+>
+> ⚠ Two riders. The 5 Lobatto *refusals* are **round-off-gated**
+> (`tau_raw[N-1] = 1 + O(1e-15)` against an exact `[0,1]` guard), not
+> structural — so the 6-of-11 is a floor, not a property. And `M` is closed
+> over **shipped factories** only: Gauss–Radau (same `on_edge_node` witness,
+> unprobed), Gauss–Chebyshev, `quotient(g≠Mirror('y'))` and arbitrary
+> hand-built `Quadrature(measure=…)` are named holes, the last genuinely
+> unclosable.
 | `ChartConnection` itself | three stages in one object | pure chart (`face_areas`, `delta_A` — need **no** quadrature); the head-stage angular pairing (extracted at Phase B); and `streaming_terms`' evaluated per-`(cell, ordinate)` view (**O-3's layer**) | Split three ways. The Phase B carve already thinned it toward this; the two dead flags are the residue. |
 | `redistribution_pairing` allocates per access | — | `[M]` `g1 is not g2` → **True**: `delta_A[:, None, None]` re-allocates on every call. Harmless today (one call per mesh) but it is a *cache-shaped* object with no cache. ⚠ **MINE, from `6859ca05`.** | Compute once at the mint (§5). |
 | `#407` — DD's blend inverse in scheme-neutral code | `2.0 = 1/w_DD` at `cell_balance.py:248/:343` | `[M]` `cell_balance_terms` has ONE production consumer (`diamond.py:194`); `linear_discontinuous.py` never imports either helper; and the matvec **declares** the specificity the producer does not (`loss_representation:3091`: *"Curvilinear (DD-only) … with DD's diamond march inlined"*). | The whole module is a DD body in a scheme-neutral name and home. Carve with O-3. |
@@ -471,8 +521,21 @@ its done-when, so a value move is never hidden inside a move-and-rename.
 **Means.** Retire the two flags (with their 12 test assertions **migrated**, not
 deleted — the successor spellings exist); retire the three-link dead chain's two
 downstream links; retire `_quadrature`; cache the pairing instead of
-re-allocating. Measure `μ_start`'s branch over **every admitted rule** and then
-retire or repair per the result. Add §6's honest refusal for a curvilinear
+re-allocating. ✅ **`μ_start`'s branch is MEASURED and the answer is KEEP**
+(§3's row, refuted in place 2026-08-26) — so P1's item is no longer
+"retire or repair" but: write the measured fraction into
+`_edge_seed_stencil`'s docstring, and **retire the stale decision rule in
+the `#361` comment at `:1683-1697`**, which still says *"this path may be
+dead on the cylinder arm, in which case the answer is retirement"* — the
+same too-narrow denominator this plan inherited from it.
+⭐ Also fix the falsified docstring the census found: `precompute_psi_state`
+(`pole_angular_closure.py:1707`) advertises `psi_view` as
+`(N, ng, nx, 1) canonical`; `[M]` the production caller
+(`loss_representation/__init__.py:3589`) passes **3-D** `(N, ng, nx)` and a
+4-D array **raises** `too many values to unpack` at `:1752`. A falsified doc
+is a bug (deferred only to the end of the in-flight merge gate, so the gate
+covers one tree).
+Add §6's honest refusal for a curvilinear
 multi-moment metric — ⚠ **re-sized 2026-08-26**: `[M]` neither
 `moment_axis(ndim)` nor `moment_mass_diagonal(ndim)` receives a chart, so this
 is a **signature change + refusal** (a §6b call-site change over 8 references),

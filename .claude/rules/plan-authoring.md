@@ -86,6 +86,7 @@ surprises cost to hit.
 | 2026-08-24 | ⚠ **REPEAT of §2's FILTER/configuration clause, MINE, published into an ISSUE headline the same night the §6b row above was written.** A per-tree suite timing map was measured on the UN-deselected tree (no `-m "not slow"`) and published as *"the serial suite is no longer runnable as one gate"* — but every historical gate figure deselects `slow`, so the sentence compared two populations. `[M]` marker split: sn 116 / derivations 67 / mc 16 / cp 13 slow tests; every named giant is slow-marked; the canonical gate is most likely intact. Caught during compaction prep ONLY because the reference memory was re-read in full (its own header says "READ THE TOPIC FILE; this line is a pointer, not the budget"); corrected in place (#405 retitled + comment, #404 marker note, the ledger caption). ⟹ the sharpening: **a pytest number's configuration INCLUDES its `-m` filter** — a suite table without its marker predicate is §2's filter defect at gate scale, and the flattering direction here is inverted: the wrong population made a healthy gate read as broken, inviting work on a non-problem. | §2 (FILTER/configuration — no new clause; the row is the measurement that the habit does not transfer to your own numbers even on the night you wrote the neighbouring row) |
 | 2026-08-25 | ⚠ **THIRD-instance day for the §2 FILTER family, new mechanism: the VIEWPORT, not the pattern.** Three §6b enumerations in one execution phase were built from greps piped through `| head -N` — the pattern was right, the display clip silently turned a population into a sample, and "the set is closed" was claimed from the sample. Cost, escalating: (1) the RC-operator set missed ~20 call sites (caught by the first battery's 26 reds); (2) the schedule-factory set missed two whole suite files (+15 sites, second battery 71 reds); (3) the `_reflective_faces` rename missed a third consumer FILE, which killed the full merge gate at COLLECTION — the one failure mode a red-loop cannot pre-empt. ⟹ **an enumeration that feeds a §6b set is never piped through `head`** — read it whole, or count it (`wc -l`) and state the count beside the set. A clipped listing is §2's filter defect wearing the terminal's convenience. | §2 (FILTER) + §6b — no new clause; the rows are the measurement |
 | 2026-08-20 | A design assembly's done-when TELL — *"`grep SigS` finds the datum owned once, viewed once"* — was **designed-red**: `[M]` 70 hits, with direct `Mixture.SigS` consumers in cp/moc/mc/sn + 8 derivations sites, every one inside the assembly's own "Untouched" list (solver-entry re-routing is a charter non-goal). The predicate ranged over a population the design was FORBIDDEN to touch, so its non-goals pinned it at failure however completely the work succeeded — a later session would chase an unreachable target. Caught in the adversarial round by running the tell's own grep at its stated denominator; cost none. | §10 (the third shape — run every tell's grep at design time and intersect with the declared UNTOUCHED set) |
+| 2026-08-26 | ⛔ **A plan wrote its denominator, obeyed §2 in full, and was still wrong — because the denominator was a GATE.** §3's row prescribed *"evaluate over every rule `assert_carrying_quadrature` admits; all-carrying ⟹ retirement"*. `[M]` that gate has **exactly one call site**, inside `case CoordSystem.CYLINDRICAL`; the `SPHERICAL` arm calls no admission gate at all. Run as written it returns **0 of 88** — TRUE — and licenses retiring a branch whose live witness is a *sphere* rule (Gauss–Lobatto, firing at 6 of 11 orders). A guard bounds the arm it is CALLED on, not the question. ⭐ The aggravator: the answer sat in the **same comment the row was summarised from**, three lines above the `argsort` it concerns (*"the SPHERE arm passes `level_indices = (arange(N),)`… where the sort IS load-bearing"*) — the plan quoted that comment's *other* half and inherited its cylinder scope silently. ⭐⭐ And the prescribed check was **tautological** (gate and predicate read one producer on one input), so its zero could not have carried information at any denominator. Cost: none — the dispatch brief demanded an enumerated denominator and a positive control, so the census reported the tautology rather than banking it. | §2 (new sharpening: **a denominator that is a GATE** — count its call sites first) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -305,6 +306,52 @@ survives** — they are unmeasured *because* nobody thought about them.
 sharpening above: there was **no** "so"/"therefore" to inspect, and the marker
 was honestly earned for what it covered. The defect is entirely in the
 quantifier, which reads as a summary rather than as a claim.
+
+⭐ **And the shape that DEFEATS this clause by obeying it: a denominator that
+is a GATE.** Everything above assumes the failure is a *missing* denominator.
+The nastier case is a plan that writes one — *"measure over every X the guard
+`G` admits"* — which reads as maximally rigorous, is re-runnable, and is
+**wrong**, because a guard bounds the arm it is *called on*, not the question.
+The measurement then returns a true number over the wrong population, and a
+true number is exactly what nobody re-checks.
+
+⟹ **When a plan names a guard, a validator, or an admission predicate as its
+denominator, count that symbol's CALL SITES before designing to it.** One
+`grep -c` answers it. A guard with a single call site inside one `match` arm
+bounds one arm; if the question ranges wider, the guard is not the population
+and never was.
+
+⚠ Two riders that made this one survive review, both worth checking for:
+- **The prescribed check may be TAUTOLOGICAL.** If the guard and the predicate
+  you are measuring read the *same producer on the same input*, then "an
+  admitted case that fails the predicate" is a contradiction in terms — the
+  measurement cannot return anything but zero, and its zero carries no
+  information. This is `vv-principles` #19 (a reading that cannot change is
+  not evidence) wearing a denominator. The tell is that you can prove the
+  answer without running anything.
+- **The scope may be inherited from a source that stated it correctly.** A
+  plan row summarised from a code comment can carry that comment's *scope*
+  while dropping the sentence that limited it.
+
+> `[M]` 2026-08-26, the un-weld arc §3. The row prescribed: *"evaluate
+> `consumes_independent_seed` over every rule `assert_carrying_quadrature`
+> admits. All-carrying ⟹ #361 is a **retirement**, not a repair."* Run
+> exactly as written it returns **0 of 88** — true. `[M]`
+> `assert_carrying_quadrature` has **exactly one call site**
+> (`augmented_mesh.py:347`), inside `case CoordSystem.CYLINDRICAL`; the
+> `SPHERICAL` arm calls **no** admission gate. The branch's live witness is a
+> *sphere* rule — Gauss–Lobatto, `[M]` firing at **6 of 11** orders — so the
+> instructed measurement licenses retiring a reachable code path.
+> ⭐ The aggravator: the answer was already in the tree, in the **same
+> comment the row was summarised from**. Three lines above the `argsort` it
+> concerns, the author had written *"the SPHERE arm passes `level_indices =
+> (arange(N),)`… where the sort IS load-bearing"*; the plan quoted that
+> comment's **other** half (*"may be dead on the cylinder arm, in which case
+> the answer is retirement"*) and inherited its cylinder scope silently.
+> ⭐⭐ And the check was tautological — the gate and `_carrying_levels` read
+> one producer on one `(quad, coord)`. Cost: none, because the dispatch brief
+> demanded a positive control and an enumerated denominator, so the census
+> reported the tautology instead of banking its zero.
 
 ⭐ **This applies to TABLE ROWS, not only to numbers — and a table is where it
 bites hardest**, because a table headed by a property of the tree
