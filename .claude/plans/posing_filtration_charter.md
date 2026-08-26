@@ -794,7 +794,15 @@ asserted this at 16 sites). `[M]` **Adams & Martin 1992**, NSE 111(2), App. A
 (LOCAL, page-verified pp. 160-161) carries the complete 1-D spherical LD
 moment-balance system: (A.1a)/(A.1b) moments, **(A.2a)/(A.2b) weighted-diamond
 angular closure applied PER SPATIAL MOMENT**, (A.4a-d) mass integrals. Plus
-MWS 1996 (JCP 128, lumping — acquire), Morel-González-Aller-Warsa 2007 (r-z
+⛔ MWS 1996 (JCP 128) was listed here on 2026-08-25 as the spherical-LD
+lumping primary — **REFUTED the same day** by the agent's own round 2: it is
+**1-D SLAB** (Eq. 53 is `μ ∂ψ/∂z`, no angular-derivative term anywhere, and
+its §8 names 1-D spherical as FUTURE work). The round-1 classification came
+from a citing paper's context rather than the paper. The *published* verdict
+is unaffected — it rests on Adams-Martin + Hill + Machorro + Palmer-Adams.
+Also: MWS's `τ = σ_t/μ` is NOT the Morel-Montry weight (a FOURTH overloading
+of τ beyond the three the closure module already warns about).
+⭐ The real sphere-lumping source is **Palmer-Adams 1993**. Morel-González-Aller-Warsa 2007 (r-z
 lumped LD — now local), Hill 1975 ONETRAN, Wu-Xie-Fischer 1999,
 Lathrop 2000 §III.D. Root cause of the false negative: a ONE-QUERY
 denominator in a prior extraction while the refuting paper sat in
@@ -898,6 +906,113 @@ comments (the closure binding site's over-listed operands at
 `augmented_mesh.py:391` — it names `_volumes`/`axis_widths`, `[M]` zero
 volume/width reads in the closure file; and the kernel comment claiming the
 closure reads `V` from `self`).
+
+### 5d.7 The literature round 2 (the four acquired papers) — three results that move the design
+
+The user supplied the four requested papers; the same agent was resumed (its
+round-1 context intact) and asked six questions. Record:
+`scratch/lit_ld_curvilinear_sources.md` (694 lines, round-1 sections intact
+per plan-authoring §3).
+
+**(a) ✅ The sign disagreement is SETTLED — the printed minus is a published
+typo, and the derivation was right.** Adams-Martin Sec. III.B defines `ψ^x`
+as the linear-basis coefficient on `P = 2(r−r_k)/Δr` with a Galerkin test
+space (`v = b`), and `γ` only for the average (A.4d). ⟹ the four
+redistribution weights are ONE symmetric positive-definite Gram
+`[[r_kΔr, Δr²/6], [Δr²/6, r_kΔr/3]]`, **all plus**: the printed magnitudes
+match exactly and only the two `ψ^x` signs differ. `[M]` five independent
+confirmations (Machorro's single-signed weak form; ONETRAN's positive
+`ΔA_i`/`z_5`; Palmer-Adams's FL row sums + printed BLD `R`).
+⚠ **The typo is invisible to a conservation check** — both terms telescope
+over `m` for either sign. A balance-only gate cannot catch a
+redistribution-sign error; only a slope-exciting fixture can.
+
+**(b) ⛔⛔ PLAIN SPHERICAL LD FAILS THE THICK DIFFUSION LIMIT** — Palmer-Adams
+1993's complete curvilinear verdict, and it is the most consequential fact
+in this round: three-point removal term, unphysical boundary conditions,
+interior scalar flux low by **~2×**. Fully-lumped (FL) and corner-balance
+(CB) **pass**; mass-lumped (ML) partial. (r-z: BLD / MLBLD / SLBLD fail,
+FLBLD / CB pass.) ⟹ **#158's curvilinear arm must implement the LUMPED
+form, not bare (A.1)** — and note this is Adams refuting, one year later,
+the naive reading of his own 1992 appendix (not a formal contradiction:
+different questions, equations vs asymptotics).
+⭐ And it CORROBORATES the derivation's independent lumping finding from the
+other side: `[M]` the derivation measured that lumping `R` breaks the
+flat-flux L0 identity; Palmer-Adams state that under lumping `L_k` "is
+redefined **to preserve the infinite-medium solution**" — the same identity,
+repaired by construction rather than left broken. ⟹ lumping is admissible
+**only** with that compensating redefinition; recording the pair is what
+makes the constraint legible.
+
+**(c) ⭐⭐ THE RANK CONTRADICTION — and it splits an index the design had
+CONFLATED.** Two published families disagree on what the angular closure
+acts on:
+
+| family | angular device | acts on | redistribution coupling |
+|---|---|---|---|
+| Adams-Martin (A.2a/b), Palmer-Adams (9), Wu-Xie-Fischer (27) | weighted / plain diamond | **every spatial moment** | full `2×2` Gram |
+| **ONETRAN** (Hill 1975, Eq. 32) | plain diamond (Eq. 30) | the spatial **average only** | **rank-1**: `(α/w)·[ΔA_i; z_5] ⊗ [1,1]` |
+
+Both are published and shipped; **ORPHEUS must choose explicitly** rather
+than inherit one by accident.
+
+⟹ **The consequence for the ABC, and it SHARPENS §5d.4 rather than
+refuting it.** §5d.4 proposed one index (`n_mom`) and a scheme-owned hook
+`redistribution_gram(cell) -> (n_mom, n_mom)`. The ONETRAN datum shows
+`n_mom` was two indices wearing one name:
+
+- **`n_mom`** — how many spatial moments the SCHEME carries (DD 1, LD 2);
+- **`n_thread`** — how much of the spatial representation the ANGULAR
+  DEVICE propagates through its half-angle recurrence (ONETRAN 1, A-M 2).
+
+The coupling is the **rectangular** pairing `R_kj = ∫ b_k^scheme · b_j^thread ·
+r dr`, shape `(n_mom, n_thread)`: `1×1 = [ΔA]` for DD; `2×2` for LD +
+per-moment closure; `2×1 = [r_kΔr; Δr²/6]` for LD + ONETRAN's average-only
+closure (`[M]` matching ONETRAN's own `[ΔA_i; z_5]`).
+
+⟹ ⭐ **`R` is owned by NEITHER side alone** — it is the pairing of the
+scheme's spatial basis with the angular thread's spatial basis under the
+one-measure-down geometry. The orthogonality claim of §5d.4 SURVIVES and is
+sharpened: each axis contributes exactly one index to `R`. The proposed hook
+therefore takes the thread's basis as an argument rather than being a pure
+scheme property. **Still PROPOSED, not ruled.**
+
+**(d) Q6 — a clear NEGATIVE, which leaves the arity risk OPEN.** `[M]`
+Palmer-Adams's curvilinear verdict is driven **entirely by spatial
+locality**; a grep of it finds **zero** occurrences of diamond / weighted /
+τ / flux-dip. **No source analyzes retuning τ for LD.** The one qualitative
+coupling is Machorro's: the dip "involves angular discretization, spatial
+discretization and boundary conditions at the origin", and a joint
+linear-in-`(r, μ)` order removes it *without* τ at all. ⟹ §5d.4's arity
+warning **stands unresolved** — settling it is original work (re-run
+Palmer-Adams's matrix analysis with τ symbolic; their `R_k`/`α` formalism
+supports it).
+
+**(e) Q2 — the starting-direction fork, answered and complicated.** ONETRAN
+takes variant **(b)** mechanically (bulk rows, same test functions), with
+Eq. (38) replacing the curvature term by `−μ_m ×` the two-point **average**
+— flat-flux exact, `O(h)` otherwise, **no justification given**.
+Machorro/DG takes **neither**: there is no starting-direction flux at all,
+since `(1−μ²)` vanishes at `μ = −1`. ⭐ And the round's highest-value
+sentence (Machorro, printed p. 79): Walters & Morel found the
+bilinear-DG/"SLD" **origin error** under fine-radial / coarse-angular meshes
+and attributed it to *insufficient starting-direction information*; both
+they and Machorro repair it with **quadratic-in-angle functions in the cells
+bordering `μ = −1`** — the same hybrid Lathrop 2000 adopts. ⟹ the
+starting-direction treatment may demand a LOCALLY HIGHER-ORDER ANGULAR
+representation, which is `AngularClosure` territory, not the scheme's.
+
+**(f) ⛔ Round 1's MWS classification was REFUTED by its own author-agent**
+— see the ⛔ block in §5d.3. Worth carrying as method: the correction came
+from reading the paper the user supplied, i.e. **the acquisition itself was
+the instrument that caught it**.
+
+**New acquisition asks** (both M&C proceedings, neither local): **Palmer &
+Adams 1991**, ANS M&C Pittsburgh Vol. 5 §21.1 pp. 4-1..4-11 — writes the
+spherical LD `R_k` **unlumped**, and would settle Adams-Martin's intent
+directly; and **Walters & Morel 1991**, M&C Vol. III p. 13.2 3-1 — the
+primary for BOTH the LD-in-angle scheme (the genuinely second
+`AngularClosure` member) and the starting-direction remedy in (e).
 
 ## 6. The rulings ledger (all user, this session, unless marked)
 

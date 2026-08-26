@@ -116,6 +116,37 @@ asset (cross-method cross-checks). See [[atalay-1997-reflected-anisotropic]],
 [[burkart-ishiguro-siewert-1976-two-region-anisotropic]],
 [[dahl-sjostrand-1979-anisotropic-slab-sphere]].
 
+⭐ **Sharpening (2026-08-25) — the GEOMETRY is a method property too, and a
+title + a citing context can agree with each other and both be wrong.** I
+reported Morel-Wareing-Smith 1996 (JCP 128:445, *"A Linear-Discontinuous
+Spatial Differencing Scheme for S_n Radiative Transfer Calculations"*) as
+**the 1-D SPHERICAL spatial-LD primary** without the PDF. Two things
+licensed it and neither was evidence: the dispatch brief hypothesised
+"1-D spherical", and Lathrop 2000 cites it as ref 1 for *"improving
+spatial difference representations"* — a claim about TOPIC, not geometry.
+`[M]` on the acquired PDF: its Eq. (53) is `μ ∂ψ/∂z` (**slab**), it has
+**no angular-derivative term anywhere**, its abstract says "1D
+slab-geometry" three times, and its **§8 names 1-D spherical geometry as
+FUTURE WORK** — the exact opposite of the claim. It shipped into a verdict
+line and a memory topic file.
+
+**Why this is worse than the L-005 base case:** a wrong METHOD family
+usually shows up as soon as you open the paper looking for the machinery.
+A wrong GEOMETRY does not — the method name ("linear-discontinuous"), the
+author set, the journal and the era all matched perfectly, and the paper
+really is the lumping primary the brief wanted. Only the coordinate system
+was wrong, and nothing in the citation graph encodes it.
+
+**How to apply:** when a brief or a citing paper supplies the GEOMETRY,
+treat it as an unverified hypothesis like any other. The check is one grep
+and it is decisive: **grep the paper's own transport equation for the
+streaming operator** (`∂/∂z` / `∂/∂x` vs `∂(r²ψ)/∂r` / `∂(rψ)/∂r`) and for
+the presence of an **angular-derivative term**. A paper with no
+`∂/∂μ`/`∂/∂ω` term cannot be curvilinear, whatever its title says. Then
+read the CONCLUSIONS for a "future work" clause — that is where an author
+states which geometries they did NOT do (L-013(c): the concession lives in
+the conclusions or the intro, never the body).
+
 ## L-013 — A NAMED scheme is ambiguous until you count its equations: the same closure can differ in which symbols are UNKNOWN
 
 `[M]` 2026-08-11, Reed & Lathrop 1970 vs Morel-Montry/BMC. Both are called "the

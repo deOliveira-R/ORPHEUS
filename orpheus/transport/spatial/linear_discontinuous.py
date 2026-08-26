@@ -274,9 +274,16 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     closure is not yet implemented here (Issue #158 curvilinear arm /
     #6) — the derivation IS published: Adams-Martin 1992, NSE 111, App. A
     (the 1-D spherical LD moment balances, with the weighted-diamond
-    angular closure applied per spatial moment — average AND slope) and
-    Morel-Wareing-Smith 1996, JCP 128 (lumping); :meth:`update` / :meth:`residual` raise on a curvilinear visit (via
-    :func:`_require_slab`).  The conservative ``False`` (= the base default,
+    angular closure applied per spatial moment — average AND slope;
+    ⚠ the printed slope-term minus signs are a typo, the redistribution
+    Gram is symmetric positive-definite, confirmed independently by
+    Machorro 2007, JCP 223, and Hill 1975, LA-5990-MS §ONETRAN).
+    ⛔ Do NOT implement the bare (A.1) form: Palmer-Adams 1993
+    (UCRL-ID-114256) find plain spherical LD FAILS the thick diffusion
+    limit (three-point removal term, unphysical boundary conditions,
+    interior scalar flux low by ~2x); the fully-lumped and
+    corner-balance forms pass.  :meth:`update` / :meth:`residual` raise on
+    a curvilinear visit (via :func:`_require_slab`).  The conservative ``False`` (= the base default,
     declared explicitly here for the citation) makes the sweep-strategy
     selection reject a curvilinear-LD mesh at construction
     (:meth:`~orpheus.sn.loss_representation.CumprodScan.supports`) instead of

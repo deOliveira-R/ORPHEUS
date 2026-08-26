@@ -220,9 +220,31 @@ The published record:
   (A.3) upwind closure; (A.4a-d) V/W/X mass integrals. ⚠ two flags:
   printed slope-redistribution signs vs naive basis integrals, and
   moment normalization (see memo F1).
-- **Morel, Wareing & Smith 1996 JCP 128:445**, DOI
-  10.1006/jcph.1996.0223 (CrossRef-verified; NOT local) — 1-D
-  spherical spatial LD + lumping (radiative transfer).
+- ⛔ **Morel, Wareing & Smith 1996 JCP 128:445 is SLAB, not
+  spherical** (REFUTED 2026-08-25 on the acquired PDF; the 2026-08-25
+  round-1 line claiming it spherical was an L-005 citing-context
+  error). Its Eq. (53) is `μ ∂ψ/∂z`; its §8 names 1-D spherical LD as
+  FUTURE WORK. It IS the **lumping primary — for slab**: lumps
+  everything EXCEPT the spatial gradient; `O(Δz³)→O(Δz²)`;
+  Padé(1,2) (negative for τ>3) → Padé(0,2) (positive). ⚠ its `τ` is
+  `σ_t/μ` (Eq. 75), NOT the Morel-Montry angular weight.
+- **Palmer & Adams 1993, UCRL-JC-111847 (LOCAL)** — the curvilinear
+  thick-diffusion-limit verdict. Eq. (9)/(14) name the **angular
+  redistribution matrix `R_k`**. `[M]` **plain spherical LD FAILS**
+  (three-point removal term, unphysical BCs, interior low ~2×);
+  mass-lumped partial; **FULLY-LUMPED (diag `T_k`, diag `R_k`, `L_k`
+  redefined to preserve the infinite-medium solution) and simple
+  corner balance PASS**. r-z: BLD/MLBLD/SLBLD fail, FLBLD/CB pass.
+  ⟹ **implement the FULLY-LUMPED form if the diffusion limit matters.**
+- **Hill 1975 LA-5990-MS ONETRAN (LOCAL)** — cylinder LD Eq. (33b),
+  sphere (33c), solved as (35a)/(35b), geometry Table V. ⚠ uses PLAIN
+  diamond in angle (Eq. 30) applied to the spatial AVERAGE only
+  (Eq. 32) ⟹ **rank-1** redistribution coupling, contradicting
+  Adams-Martin's per-moment closure.
+- **Machorro 2007 JCP 223:67 (LOCAL)** — bilinear DG in (r,μ);
+  **no starting-direction flux at all**; flux dip is explicitly a
+  joint space+angle+origin-BC effect, removed by joint linear order
+  without τ.
 - **Morel, Gonzalez-Aller & Warsa 2007 NSE 155:168 (NOW LOCAL)** —
   r-z lumped LD: Eq. (6) unlumped, (15) mass-lumped, (17)-(18)
   gradient lumping; starting-direction discussion; cites **Palmer
