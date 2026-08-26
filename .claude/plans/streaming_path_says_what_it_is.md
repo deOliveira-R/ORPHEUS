@@ -9,11 +9,13 @@
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this
 >
-> `main` @ **`1c93b14f`** == `origin/main`. Working tree **clean**.
-> **NO open branch for this campaign** — `refactor/unweld-phase-b` and
-> `refactor/p1-carry-only-what-is-read` are both merged and deleted.
-> (The two branches git still lists, `refactor/operator-inverse-algebra` and
-> `worktree-nexus-workspace-wiring`, belong to other work.)
+> `main` @ **`1c93b14f`** == `origin/main`. **P2 is on the branch
+> `refactor/p2-angular-comes-home`, NOT yet merged** — `[M]` reconcile with
+> `git merge-base --is-ancestor dcd6a9f6 main`, never with this line.
+> `refactor/unweld-phase-b` and `refactor/p1-carry-only-what-is-read` are both
+> merged and deleted. (The two branches git still lists,
+> `refactor/operator-inverse-algebra` and `worktree-nexus-workspace-wiring`,
+> belong to other work.)
 >
 > ### What has LANDED
 >
@@ -31,45 +33,46 @@
 > | `500de1b4` | the moment mass is told its chart, and refuses one it cannot spell |
 > | `2297da03` | the displaced #158 guard gets its own witness |
 >
+> **P2** (branch, unmerged) — the angular closure comes home:
+>
+> | commit | item |
+> |---|---|
+> | `14d6e078` | P2's α half refuted; re-scoped; `plan-authoring` §6d |
+> | `dcd6a9f6` | `sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py` |
+>
 > `[M]` P1's exit gate: **9814 passed / 0 failed** (3771 s). pyright 0,
 > `sphinx -W` 0 warnings, `dead_references` 0 of 52. Count reconciles:
 > 9809 baseline + 5 new tests.
 >
-> ### ▶ NEXT — P2: the angular CLOSURE comes home
+> ### ▶ NEXT — P3: the names stop lying
 >
-> Full text at §7 P2 — ⚠ **read its ⛔ block first.** P2 was **re-scoped
-> 2026-08-26** (✅ user-ruled): its α half was measured UNLANDABLE — moving
-> `alpha_dome` & co. to `sn/` while the three `*_streaming` factories still call
-> `angular_redistribution` creates a hard `geometry → sn` import cycle that
-> kills `import orpheus.geometry`, reproduced. α now lands in **P4**, whose own
-> work dissolves the blocker. What remains in P2 is one pure `git mv`
-> (`sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py`, `[M]` 28 import
-> statements by AST) — bit-identical, no renames (those are P3).
-> ✅ Fork 2 was ruled **`sn/angular/`** (§9.2).
+> Full text at §7 P3. Mechanical, bit-identical, one rename per commit, each
+> with the three-search audit (code, tests, **docs**). `ChartConnection` LAST —
+> after P4 has taken `streaming_terms` out of it. ⚠ §1's module row is **already
+> done** (P2 landed it as part of the re-home); do not redo it.
 >
-> ⛔ **P2's hazard is SILENT and it is the doc side, not the code side.**
-> Moving a module breaks every Python-domain xref naming its dotted path,
-> and those render as **plain text with no warning at any severity** —
-> worse, a docstring xref in a module that is not `automodule`'d is invisible
-> to Sphinx at *every* severity. `[M]` 2026-08-26, before P2:
+> `[M]` **existence-checked 2026-08-26, at the P2 close-out** (§1's ritual: one
+> grep per symbol a pointer names — a pointer that names a dissolved object is
+> this plan's most expensive failure mode). Counts are `orpheus/ | tests/ | docs/`:
 >
-> | surface | count |
-> |---|---|
-> | `pole_angular_closure` in `docs/**.rst` | 147 |
-> | …of which Python-domain roles (`:func:`/`:class:`/`:mod:`/…`) | 120 |
-> | `pole_angular_closure` in `orpheus/` + `tests/` | 127 |
-> | `reduced_operator` in `docs/**.rst` | 74 |
-> | non-`sn` production files carrying a **docstring xref** to it | 7 |
+> | symbol | exists? | where |
+> |---|---|---|
+> | `ReducedStreamingOperator` | ✅ `reduced_operator.py:500` | 36 \| 15 \| 20 |
+> | `GeometryCoefficients` | ✅ `sn/sweep/cache.py:121` | 23 \| 12 \| 10 |
+> | `redistribution_gram` | ✅ `reduced_operator.py:590` | 5 \| 4 \| 0 |
+> | `geometry_kind` (the 4-spellings row) | ✅ | 106 \| 31 \| 15 |
+> | `SNMesh.pole_angular_closure` (NEW §1 row, found in P2) | ✅ | 41 \| 21 \| 24 |
+> | `SNMesh.curvature` | ⏹ **retired in P1** | 0 \| 0 \| 1 |
 >
-> ⟹ `nexus dead_references` is the only gate that sees this. Run it, and run
-> `sphinx -W`, before calling P2 done.
+> ⚠ That last docs hit is **correct and stays**: `index.rst:256` is past-tense
+> history (*"replaced the pre-carve procedural branch on the `SNMesh.curvature`
+> string tags"*) and a literal, not a role. Checked so a future audit does not
+> re-flag it.
 >
-> ✅ **Fork 2's premise re-verified at this compaction point** (it is what the
-> ruling rests on, so it was re-measured rather than quoted): `[M]` **0**
-> non-`sn` *import statements* of `pole_angular_closure`; 5 inside
-> `orpheus/sn/`. ⚠ A bare `grep -rln` returns **7** non-`sn` files — those are
-> docstring xrefs, not importers. The two questions have different answers and
-> only one of them is the ruling's evidence.
+> ⭐ **P2 added a §1 row nobody had noticed: `SNMesh.pole_angular_closure`.** The
+> module carried two occupants of that name and only one moved. The attribute is
+> the surviving spelling and it tells the identical lie the module path did —
+> `[M]` **62** of the tree's post-move `pole_angular_closure` hits are it.
 >
 > ### The rulings that bind (all ✅ user, 2026-08-26; full text + rejected
 > alternatives at §9)
@@ -92,12 +95,20 @@
 > `∇·ê_r` — one bilinear form, two products, one mint. P4's done-when has the
 > tell: `grep -n "coord: CoordSystem" transport/spatial/scheme.py` → empty.
 >
-> ### Two rules P1 paid for — read them before the next retirement
+> ### Three rules P1 and P2 paid for — read them before the next retirement or re-home
 >
 > - `coding-standards`: **a symbol grep cannot see a name inside a STRING.**
 >   `getattr(x, "name", default)` survives the residual check and fails in the
 >   DEFAULT's direction. P1 hit this on `curvature` one item after running the
 >   same check successfully on `mu_start`.
+> - `plan-authoring` **§6d** (P2): **a RE-HOME step must check the import edge
+>   it creates, in BOTH directions — and look for an import-linter FIRST.**
+>   `[M]` this tree ships one (`tests/test_layer_imports.py`) declaring
+>   `geometry → sn` **forbidden**, gated on a `foundation` mark. One grep for
+>   `FORBIDDEN_EDGES` answers a re-home's whole legality question before any
+>   probe. ⚠ And read the tolerance's *implementation*, not its docstring: the
+>   `TYPE_CHECKING` escape covers `L1_PACKAGES | L2_PACKAGES` only, so
+>   `geometry` (INPUT) cannot import `sn` even for typing.
 > - `vv-principles` **#17**: **adding a correct guard EARLIER can orphan a
 >   later guard's only witness.** The displaced gate goes red with a *message
 >   mismatch*, which reads as "update the expected string". P1 hit this too;
