@@ -182,7 +182,7 @@ def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
         pytest.param(
             lambda m: ScalarFlux.zeros(
                 FunctionSpace.of_axes(
-                    *m.bulk_space.axes, m.scheme.moment_axis(m.ndim),
+                    *m.bulk_space.axes, m.scheme.moment_axis(m.ndim, m.coord),
                 )
             ),
             id="scalar_flux",
@@ -208,7 +208,7 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     np.testing.assert_equal(tail_axis.label, SPATIAL_MOMENT_AXIS_LABEL)
     assert tail_axis.kind is BasisKind.MODAL
     np.testing.assert_array_equal(
-        tail_axis.weights, mesh.scheme.moment_mass_diagonal(mesh.ndim),
+        tail_axis.weights, mesh.scheme.moment_mass_diagonal(mesh.ndim, mesh.coord),
     )
     np.testing.assert_equal(field.spatial_moments_per_axis, per_axis)
 

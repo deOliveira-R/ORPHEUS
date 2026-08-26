@@ -263,7 +263,7 @@ class BulkField(Field):
                     "— moment-tailed fields live on a transport-method "
                     "mesh (the scheme binds at augmentation)."
                 )
-            axis = scheme.moment_axis(mesh.ndim)
+            axis = scheme.moment_axis(mesh.ndim, mesh.coord)
             if axis.shape != (n_moments,):
                 raise ValueError(
                     f"spatial_moments={spatial_moments_per_axis} requests "

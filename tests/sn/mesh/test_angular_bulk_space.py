@@ -197,7 +197,7 @@ class TestG14GramEquivalenceLD:
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
         widened = FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim)
+            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim, sn.coord)
         )
         assert sn.full_field_space.interior_space == widened
         assert sn.full_field_space.interior_space is sn.angular_trial_space
@@ -207,14 +207,14 @@ class TestG14GramEquivalenceLD:
         base = sn.angular_bulk_space
         assert base.axes is not None
         widened = FunctionSpace.of_axes(
-            *base.axes, sn.scheme.moment_axis(sn.ndim)
+            *base.axes, sn.scheme.moment_axis(sn.ndim, sn.coord)
         )
         # The oracle: G_bulk = V·w_n ⊗ moment_mass, densified BY HAND from
         # raw mesh + scheme data (the retired production spelling, now the
         # test-side fuller-view reference).
         w = np.asarray(sn.quad.weights, dtype=float)
         V = np.asarray(sn.volumes, dtype=float)
-        mass = sn.scheme.moment_mass_diagonal(sn.ndim)
+        mass = sn.scheme.moment_mass_diagonal(sn.ndim, sn.coord)
         g = (w.reshape(-1, 1, 1) * V.reshape(1, 1, -1))[..., None] * mass
         dense = FunctionSpace(
             name="dense_oracle_ld",
@@ -254,16 +254,69 @@ class TestMomentAxisAdmission:
 
     def test_ld_mints_the_modal_mass_axis(self):
         scheme = LinearDiscontinuous()
-        axis = scheme.moment_axis(1)
+        axis = scheme.moment_axis(1, CoordSystem.CARTESIAN)
         assert axis.label == "spatial_moment"
         assert axis.shape == (2,)
         assert axis.kind is BasisKind.MODAL
         assert axis.weights is not None
-        assert np.array_equal(axis.weights, scheme.moment_mass_diagonal(1))
+        assert np.array_equal(
+            axis.weights,
+            scheme.moment_mass_diagonal(1, CoordSystem.CARTESIAN),
+        )
 
     def test_slopeless_closure_refuses(self):
         with pytest.raises(NotImplementedError, match="no moment axis"):
-            DiamondDifference().moment_axis(1)
+            DiamondDifference().moment_axis(1, CoordSystem.CARTESIAN)
+
+    # ── The CHART admission (2026-08-26).  Third arm of the same pair:
+    # a multi-moment mass is defined on a Cartesian chart and is NOT
+    # expressible on a curved one, so the producer must refuse rather
+    # than hand back the slab's diagonal.
+    #
+    # ⭐ §6c — THE WITNESS IS CONSTRUCTIBLE, and that is the point of this
+    # class of gate.  Before the guard, `SNMesh(Mesh1D(coord=SPHERICAL),
+    # gauss_legendre(4), ..., scheme=LinearDiscontinuous())` BUILT, and its
+    # moment weights measured [1., 0.33333333] -- bit-identical to a slab's,
+    # on both the sphere AND the cylinder.  The wrong value was being
+    # installed on two shipped charts, silently.  A gate that only mutated
+    # the SUT would have proved nothing about that.
+
+    @pytest.mark.parametrize(
+        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL]
+    )
+    def test_curvilinear_multi_moment_mass_is_refused_not_slab_defaulted(
+        self, coord: CoordSystem,
+    ) -> None:
+        """LD on a curved chart REFUSES; before the guard it returned the slab's.
+
+        The true ``M/V`` there is cell-dependent AND non-diagonal (a
+        spherical pole cell wants ``[[1, 0.5], [0.5, 0.4]]``), which a
+        per-axis ``Axis`` weight vector cannot express -- so no honest
+        value exists to return.  Blocked on ORPHEUS #409 (the non-Hadamard
+        metric) for the MACHINERY and #158 for the VALUE.
+        """
+        with pytest.raises(NotImplementedError, match="no moment mass"):
+            LinearDiscontinuous().moment_mass_diagonal(1, coord)
+        with pytest.raises(NotImplementedError, match="no moment mass"):
+            LinearDiscontinuous().moment_axis(1, coord)
+
+    @pytest.mark.parametrize(
+        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL]
+    )
+    def test_slopeless_mass_is_admitted_on_a_curved_chart(
+        self, coord: CoordSystem,
+    ) -> None:
+        """The width control: the guard must not be too WIDE.
+
+        A single-moment scheme's cell-average mass is :math:`V/V = 1`
+        whatever the measure, so DD is unaffected by the chart.  Without
+        this leg the refusal above is compatible with a guard that simply
+        rejects every curvilinear chart.
+        """
+        assert np.array_equal(
+            DiamondDifference().moment_mass_diagonal(1, coord),
+            np.ones(1),
+        )
 
 
 class TestAngularTrialSpace:
@@ -291,7 +344,7 @@ class TestAngularTrialSpace:
         # The base's axes verbatim, then the scheme's own moment axis.
         assert trial.axes[: len(base.axes)] == base.axes
         (tail,) = trial.axes[len(base.axes) :]
-        assert tail == sn.scheme.moment_axis(sn.ndim)
+        assert tail == sn.scheme.moment_axis(sn.ndim, sn.coord)
         assert trial.shape == (*base.shape, 2)
 
     def test_ld_trial_space_is_cached_and_single_sourced(self):
@@ -340,6 +393,6 @@ class TestG15ConePredicates:
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
         widened = FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim)
+            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim, sn.coord)
         )
         assert widened.has_coordinate_cone is False

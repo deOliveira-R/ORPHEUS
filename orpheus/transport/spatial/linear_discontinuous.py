@@ -112,6 +112,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
     cell_moment_count,
@@ -620,7 +621,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_moments = per_cell_solve(assembled, R)
         return psi_moments, self._ubld_outgoing_faces(psi_moments, d)
 
-    def moment_mass_diagonal(self, ndim: int) -> np.ndarray:
+    def moment_mass_diagonal(
+        self, ndim: int, coord: CoordSystem,
+    ) -> np.ndarray:
         r"""LD's unit-volume Kronecker mass diagonal ``∏_a θ^{o_a}`` — ``(2^d,)``.
 
         Built from the SAME 1-D factor :func:`~orpheus.transport.spatial._ubld.mass_1d`
@@ -629,6 +632,11 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         diagonal :meth:`residual_kernel_batch` normalises by and the moment
         mass the ``.H`` bulk metric must carry (#310 C2 ruling 3).
         """
+        self._assert_moment_mass_is_expressible(coord)
+        # ⚠ UNIT WIDTH is the Cartesian-only step: M/V is
+        # width-independent on a slab (which is why this is exact
+        # there) and is NOT on a curved chart.  The guard above is
+        # what keeps that assumption honest.
         base = np.diagonal(mass_1d(np.ones(()), self.theta))      # [1, θ]
         diag = np.array([1.0])
         for _ in range(ndim):

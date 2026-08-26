@@ -67,6 +67,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
+from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.numerics.moment_layout import cell_moment_count
 from orpheus.numerics.registry import RegistryMixin
@@ -1355,7 +1356,49 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             "(is_multi_moment is False)."
         )
 
-    def moment_mass_diagonal(self, ndim: int) -> np.ndarray:
+    def _assert_moment_mass_is_expressible(self, coord: CoordSystem) -> None:
+        r"""Refuse a moment mass this codebase cannot yet SPELL.
+
+        The cell mass is :math:`M_{kj} = \int b_k b_j \, \mathrm{d}V`, so
+        it depends on the basis (the scheme's) **and** on the measure (the
+        chart's).  On a Cartesian chart :math:`M/V` is width-independent,
+        which is why the tensor-Legendre diagonal evaluated at unit width is
+        exact there.  On a curvilinear chart it is neither:
+
+        * **non-diagonal** — `[M]` the true :math:`M/V` at a spherical pole
+          cell is ``[[1, 0.5], [0.5, 0.4]]``;
+        * **cell-dependent** — it varies with :math:`r_i`, i.e. along a
+          DIFFERENT axis.
+
+        A per-axis :class:`~orpheus.numerics.axis.Axis` weight vector can
+        express neither, so there is no honest value to return — and the
+        value that WAS returned is the slab's, silently
+        (`[M]` 2026-08-26: sphere and cylinder both installed
+        ``[1, 0.3333]``, bit-identical to a slab).  Refusing is the honest
+        answer until the machinery exists.
+
+        Blocked on two independent things, deliberately named because they
+        need opposite repairs: the **machinery** (a non-Hadamard space
+        metric — ORPHEUS #409) and the **value** (which :math:`G` is right
+        is pinned by physical functionals, and needs #158's cell solve to
+        have a consumer).
+
+        Single-moment schemes are unaffected on every chart: the cell
+        average's mass is :math:`V/V = 1` whatever the measure.
+        """
+        if self.is_multi_moment and coord is not CoordSystem.CARTESIAN:
+            raise NotImplementedError(
+                f"{type(self).__name__} has no moment mass on a "
+                f"{coord.value} chart: the true M/V there is cell-dependent "
+                "AND non-diagonal (a spherical pole cell wants "
+                "[[1, 0.5], [0.5, 0.4]]), which a per-axis Axis weight "
+                "vector cannot express.  Returning the Cartesian diagonal "
+                "would install the SLAB's mass on a curved chart.  See "
+                "ORPHEUS #409 (the non-Hadamard metric) and #158 (the cell "
+                "solve that gives the value a consumer)."
+            )
+
+    def moment_mass_diagonal(self, ndim: int, coord: CoordSystem) -> np.ndarray:
         r"""Unit-volume Legendre mass diagonal over the ``2^d`` cell moments.
 
         The per-moment mass weight ``M_ii/V = ∏_a θ^{o_a}`` of the scheme's
@@ -1370,9 +1413,10 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         mass IS the scheme's (the same diagonal
         :meth:`residual_kernel_batch` normalises by, ÷V).
         """
+        self._assert_moment_mass_is_expressible(coord)
         return np.ones(cell_moment_count(self.spatial_basis_per_axis, ndim))
 
-    def moment_axis(self, ndim: int) -> "Axis":
+    def moment_axis(self, ndim: int, coord: CoordSystem) -> "Axis":
         r"""The within-cell spatial-moment factor as a typed space AXIS.
 
         The :class:`~orpheus.numerics.axis.Axis` form of this scheme's
@@ -1411,7 +1455,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         return Axis(
             SPATIAL_MOMENT_AXIS_LABEL,
             (cell_moment_count(self.spatial_basis_per_axis, ndim),),
-            weights=self.moment_mass_diagonal(ndim),
+            weights=self.moment_mass_diagonal(ndim, coord),
             kind=BasisKind.MODAL,
         )
 

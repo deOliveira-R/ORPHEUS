@@ -1224,7 +1224,7 @@ class SNMesh(MaterialMesh):
         base = self.angular_bulk_space
         assert base.axes is not None  # of_axes-built by construction
         return FunctionSpace.of_axes(
-            *base.axes, self.scheme.moment_axis(self.ndim),
+            *base.axes, self.scheme.moment_axis(self.ndim, self.coord),
         )
 
     @cached_property
