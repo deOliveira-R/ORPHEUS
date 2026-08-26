@@ -8,7 +8,7 @@ M-M recurrence's intermediate state; this test gate pins:
 * **Foundation**: the function exists at module level and is
   invocable (C5, 2026-07-03: the unbound ``MorelMontryAngularSweep()``
   legacy mode was retired, and the pure-algebra surface moved off the
-  class to :func:`orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+  class to :func:`orpheus.sn.angular.closure.compute_psi_half_per_level`
   — hand-built-coefficient verification needs no closure instance).
 * **L0 — shape contract**: returns ``(ng, M+1, nx)``.
 * **L0 — recurrence formula**: the half-angle grid satisfies the
@@ -42,7 +42,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     _MMHalfGrid,
     _psi_half_grid_single_level,
     compute_psi_half_per_level,

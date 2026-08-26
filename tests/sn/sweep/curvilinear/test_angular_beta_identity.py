@@ -47,7 +47,7 @@ from orpheus.derivations.discrete.sn.angular_differencing import (
 )
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
+from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
 pytestmark = pytest.mark.foundation
 

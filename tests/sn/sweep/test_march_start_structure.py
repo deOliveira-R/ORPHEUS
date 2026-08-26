@@ -33,7 +33,7 @@ import pytest
 
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import NODE_ALIGNED, STAGGERED, Quadrature
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     march_start_structure_per_level,
     morel_montry_tau_per_level,
 )
@@ -158,7 +158,7 @@ def test_the_tau_trichotomy_is_a_theorem_about_the_facts(
     τ_0 == 1`` held *because* ``eta_edge[m+1] = (η_m + η_{m+1})/2``
     collapses to ``η_0`` when the two coincide.  The cylinder partition
     is now the midpoint in **ω**
-    (:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`),
+    (:func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`),
     and a level that is not a monotone ω-arc has **no angular cells at
     all** — so for those families there is no τ to make a claim about,
     and the producer REFUSES.  That is asserted here instead of the

@@ -744,7 +744,7 @@ class RadialCharacteristicSeeding(
     ``docs/theory/methods/sn/curvilinear_one_group.rst §sn-direct-seed-solve``.
 
     **Realized as WRAPs of the shared M-M closure** — the SAME
-    :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
     machinery the ``(L+C)`` matvec runs (single source — Cardinal Rule 2).
     ``A_AB`` isolates its own block by ZEROING the bulk (forward: the
     recurrence is linear in :math:`(\psi_{\rm bulk}, \psi_{1/2})` jointly, so a

@@ -2,7 +2,7 @@ r"""L0/L1 tests for the Hébert §3.9.4 starting-direction DD march.
 
 Issue #168 Phase D shipped the curvilinear starting-direction seed as a
 swappable strategy family composed onto
-:class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`.
+:class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`.
 The full retirement narrative lives in the production module docstring of
 :mod:`orpheus.sn.sweep.psi_half_angle_seed` (its "Development history").
 

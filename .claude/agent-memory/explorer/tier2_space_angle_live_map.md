@@ -117,7 +117,7 @@ exact line numbers below drift — re-confirm with Nexus `context`/`query` at pi
   even an identical key string would not collide. §1 is therefore the cheapest tier
   and is largely a naming-convention decision, not a refactor.
 
-## 4. ANGULAR registry — `orpheus/sn/spatial/pole_angular_closure.py`
+## 4. ANGULAR registry — `orpheus/sn/angular/closure.py`
 
 - **Protocol** `PoleAngularClosure` (`:192`) + **concrete ABC**
   `PoleAngularClosureBase(RegistryMixin, ABC)` (`:295`, `registry` dict `:324`,
@@ -128,7 +128,7 @@ exact line numbers below drift — re-confirm with Nexus `context`/`query` at pi
 - **Injection:** `SNMesh(pole_angular_closure=…)` (`geometry.py:204`). Bound at
   `geometry.py:459-465`: user-supplied verbatim, else
   `default_angular_closure_class(self.coord)(self)` —
-  `default_angular_closure_class` (`pole_angular_closure.py:1324`): CARTESIAN→Identity,
+  `default_angular_closure_class` (`sn/angular/closure.py:2149`): CARTESIAN→Identity,
   SPHERICAL/CYLINDRICAL→MorelMontry.
 - **The angular axis IS LIVE in production** (unlike the spatial seam, which is inert
   in the production default sweep). The curvilinear sweep `_run` reads
@@ -221,7 +221,7 @@ exact line numbers below drift — re-confirm with Nexus `context`/`query` at pi
 
 ### Tier 2b — #235 (cylinder 2-D (η,φ) ANGULAR closure)
 - **Smallest first step:** add a new `PoleAngularClosureBase` occupant in
-  `orpheus/sn/spatial/pole_angular_closure.py` (e.g. `class CylinderEtaPhiClosure(
+  `orpheus/sn/angular/closure.py` (e.g. `class CylinderEtaPhiClosure(
   PoleAngularClosureBase, key="cyl_eta_phi")`) implementing `__call__` +
   `precompute_psi_state` + `cell_contribution` + `angular_adjoint` +
   `psi_half_seed`/`level_indices`. Because the angular seam is ALREADY LIVE in

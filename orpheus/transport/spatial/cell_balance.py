@@ -146,14 +146,14 @@ def cell_balance_for_streaming(
     Pre-Phase-2.11 the helper accepted M-M-specific arguments
     ``dA_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``.  Phase 2.11
     pushes those names into the
-    :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+    :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
     strategy: the matvec body calls
     ``closure.cell_contribution(...)`` to obtain ``(angular_denom_term,
     angular_numer_upstream)`` — the operated-on contributions in the
     shapes this helper needs.  ``cell_balance_for_streaming`` is now
     geometry-blind by interface (no M-M names; the closure produces
     zero contributions for slab via
-    :class:`~orpheus.sn.sweep.pole_angular_closure.IdentityAngularClosure`).
+    :class:`~orpheus.sn.angular.closure.IdentityAngularClosure`).
 
     Computes:
 

@@ -7597,7 +7597,7 @@ the masquerade at the metadata source.
 
 The two production ``dr`` consumers (the
 :mod:`~orpheus.sn.loss_representation` 1-D bare sweep and the
-:mod:`~orpheus.sn.sweep.pole_angular_closure` Carlson preamble) repoint
+:mod:`~orpheus.sn.angular.closure` Carlson preamble) repoint
 from ``.dx`` to :attr:`SNMesh.axis_widths <orpheus.sn.mesh.augmented_mesh.SNMesh.axis_widths>`. The
 field / cross-section / scattering read-through chains collapse to the
 rank-generic :attr:`spatial_shape <orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape>`:

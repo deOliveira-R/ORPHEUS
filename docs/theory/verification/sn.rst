@@ -1264,7 +1264,7 @@ is **mis-cited and 100 % spurious on physical fields**:
       stands.**  `[M]` 2026-08-11, feeding a strictly positive analytic
       shadow profile :math:`\exp(-6\cos\omega)` through the production
       kernel
-      :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+      :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
       on level 0 of ``Quadrature.folded_product(4, 32)``
       (:math:`M = 16`) with a positive constant seed — i.e. squarely in
       the inconsistent-seed regime — all four :math:`\tau` conventions
@@ -1333,7 +1333,7 @@ is **mis-cited and 100 % spurious on physical fields**:
    to **drop the clamp** (a config-time, static change) and use the
    linear unclamped :math:`\tau^{\rm raw}`.  The weight :math:`\tau` is
    single-sourced in the pole-angular closure
-   (:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`,
+   (:func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`,
    since Issue #236 Step C — see :ref:`sn-tau-c-on-cellvisit-live`) and
    inherited by every consumer (the SI sweep and the Krylov matvec
    both), so both twins stay linear and stay identical.
@@ -1913,7 +1913,7 @@ machinery:
      - W1: the unique exact-on-linear weight.  ⚠ **Ownership moved after
        W1** — #236 Step C excised the geometry-side τ producer, so τ is
        now single-sourced in the *angular closure*
-       (:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`),
+       (:func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`),
        not in
        :func:`~orpheus.geometry.reduced_operator.spherical_streaming`;
        SI sweep + Krylov matvec still inherit one value.

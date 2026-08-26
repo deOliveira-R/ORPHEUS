@@ -1262,12 +1262,12 @@ older entries classify against.
 
       Where the named objects went, so a reader is not stranded: of the
       three Phase-B closure strategies only
-      :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+      :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
       survives, and it is now the *curvilinear* default (Cartesian meshes
       get
-      :class:`~orpheus.sn.sweep.pole_angular_closure.IdentityAngularClosure`)
+      :class:`~orpheus.sn.angular.closure.IdentityAngularClosure`)
       under the
-      :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+      :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
       ABC that replaced the ``PoleAngularClosure`` Protocol; ``SNMesh``
       lives at :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`; and
       ``SNStreamingOperator`` was re-layered rather than renamed, its
@@ -1378,7 +1378,7 @@ older entries classify against.
    absorbed into the recurrence normalisation: ``α^O = α^H / 2``. Both
    forms are mathematically equivalent. Documented in
    :mod:`orpheus.geometry.reduced_operator`,
-   :mod:`orpheus.sn.sweep.pole_angular_closure`, and
+   :mod:`orpheus.sn.angular.closure`, and
    :doc:`/theory/methods/sn/index`.
 
    Phase B did NOT close ERR-026.  The empirical finding was pinned at

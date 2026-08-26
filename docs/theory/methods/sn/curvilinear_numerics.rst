@@ -214,13 +214,13 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
 
    * Phase D (commit landed 2026-05-12 on
      ``refactor/sn-operator-algebra``) closes the structural bug
-     in :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+     in :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
      by replacing the hardcoded ``psi_half_left = 0`` seed with
      the canonical Hébert §3.9.4 Eqs. (3.432)–(3.435) inward
      :math:`\mu = -1` sweep output.
    * The seed lives in the **M-M angular recurrence**
-     (:func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
-     in ``orpheus/sn/sweep/pole_angular_closure.py``), **NOT**
+     (:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+     in ``orpheus/sn/angular/closure.py``), **NOT**
      in the WDD spatial pole-face initial condition the
      :ref:`Phase C plan <sn-curvilinear-trajectory-resolvent-crosscheck-section>`
      proposed.  The diagnostic memo at
@@ -772,7 +772,7 @@ Option α: composition over sibling Protocol
 -------------------------------------------
 
 The seed is **M-M-specific**: only
-:class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+:class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
 carries a ``psi_half_left`` variable to seed.  The Legacy and
 Bailey closures don't have one — their half-angle face flux
 evaluation collapses to cell-centre values unconditionally.  Two
@@ -781,7 +781,7 @@ architectures were considered:
 * **Option α (composition, shipped)** — the seed strategy lives as
   a ``PsiHalfAngleSeed``
   field on
-  :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`.
+  :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`.
   The abstraction stays local to the closure that consumes it.
 
 * **Option B (sibling Protocol on SNMesh, rejected)** — the seed
@@ -797,7 +797,7 @@ The
 ``CarlsonSweepContext``
 dataclass bundles the four inputs the Carlson sweep needs that
 are NOT in the
-:class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+:class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
 strategy's ordinary per-cell call signature (``sigma_t``, ``dr``,
 ``mu_quad``, ``weights``, ``bc_outer_value``), keeping the
 call-signature expansion to a single new optional keyword — a minimal
@@ -892,7 +892,7 @@ canonical curvilinear closure path:
    flipped from
    ``LegacyTauSymmetricInterpolation``
    to
-   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`.
+   :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`.
    :class:`MorelMontryAngularSweep`'s own constructor default for
    ``psi_half_seed`` is
    ``CarlsonInwardSweep``,
@@ -1018,7 +1018,7 @@ solve.
    **Closure (Q5.6.3, ``1689faf4``).**  The fold this correction
    documents was itself retired: cylindrical ``SNMesh`` admission now
    refuses every non-carrying rule
-   (:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`),
+   (:func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`),
    so neither the dead-weight regime nor the live self-coupling the
    fold absorbed is constructible.  Every admitted cylinder level
    carries an independent seed resolved by route (a)'s forward
@@ -1188,11 +1188,11 @@ The full Phase D footprint (per the closeout memo at
 
 **Modified files**
 
-* :mod:`orpheus.sn.sweep.pole_angular_closure` —
+* :mod:`orpheus.sn.angular.closure` —
   :class:`MorelMontryAngularSweep` gains a
   ``psi_half_seed: PsiHalfAngleSeed`` field; the per-level M-M
   recurrence (then ``_mm_weighted_angular_recurrence_single_level``,
-  now :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`)
+  now :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`)
   accepts an
   optional ``psi_half_seed`` array; Protocol signatures extended
   with an optional ``carlson_context`` kwarg (Legacy + Bailey
@@ -2100,7 +2100,7 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
    * The **half-angle thread seed** is
      ``AngularEdgeExtrapolation``
      (the new
-     :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+     :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
      ``psi_half_seed`` default).  It replaces
      ``CarlsonInwardSweep``,
      whose proxy source :math:`\bar Q = \Sigma_t\phi_0/\!\sum w` was the
@@ -2137,7 +2137,7 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
       (a free function, now the SOLVE engine driven by the **true** q½
       source rather than the falsified proxy, no opt-in), plus the
       inlined
-      :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
+      :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`
       for non-carrying cylinder levels — a class no ``SNMesh``-admitted
       cylinder has since Q5.6.3, leaving that inline unreachable
       through the mesh.  See
@@ -2469,7 +2469,7 @@ A forgotten cylinder site cannot silently fall back to the sphere value.
    "threaded to the strategy via the REQUIRED ``CarlsonSweepContext.mu_start``
    field — no default".  Two things happened.  ``CarlsonSweepContext``
    was retired (its work is
-   :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`'s);
+   :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`'s);
    and the un-weld gave :math:`\mu_{\rm start}` **one owner** on the
    angular factor, after which the thread through ``StreamingTerms`` and
    ``GeometryCoefficients`` was found to be dead — `[M]` its terminal had
@@ -2810,7 +2810,7 @@ oracle), ERR-058 deletes no correct machinery:
    free-function Hébert engine
    :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
    (now the SOLVE driver, on the **true** q½ source) and the inlined
-   :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`
+   :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`
    (non-carrying cylinder levels — unconstructible through ``SNMesh``
    since the Q5.6.3 admission).  The coupled-pole spatial seed row is
    unaffected.  See :ref:`sn-direct-seed-strategy-zoo`.

@@ -66,7 +66,7 @@ from orpheus.sn.operators.streaming import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     MorelMontryAngularSweep,
 )
 from tests.sn._test_helpers import sweep_once

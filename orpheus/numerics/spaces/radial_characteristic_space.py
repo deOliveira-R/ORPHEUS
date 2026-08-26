@@ -15,7 +15,7 @@ Which levels carry a block (ruling R12a)
 
 Presence is keyed PER LEVEL by two structural facts about the level's
 march-start edge
-(:class:`~orpheus.sn.sweep.pole_angular_closure.MarchStart`, Q5.4/T26):
+(:class:`~orpheus.sn.angular.closure.MarchStart`, Q5.4/T26):
 a level carries a block **iff the M-M half-angle recurrence genuinely
 consumes independent starting-direction state**, i.e. NEITHER
 

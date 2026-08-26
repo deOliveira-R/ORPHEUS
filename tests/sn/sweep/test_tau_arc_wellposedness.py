@@ -59,7 +59,7 @@ from orpheus.numerics.quadrature import (
     spherical_product,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3, singular_set
-from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
+from orpheus.sn.angular.closure import morel_montry_tau_per_level
 from tests.sn._test_helpers import seam_quad
 
 pytestmark = pytest.mark.foundation
@@ -109,7 +109,7 @@ def test_shipped_families_pass_the_guard_including_the_closed_endpoints():
     double-cover ``[0, 1, 0, 1, …]`` τ pattern attained BOTH closed
     endpoints.  That rule is now **refused one frame earlier**, by the
     arc guard in
-    :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`
+    :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`
     — a full-circle level has ω of both signs and therefore no angular
     cells at all.  Its refusal is gated in
     ``test_mms_ordering_blindness.py::test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition``.

@@ -420,7 +420,7 @@ merge hash or not at all).
        :math:`1.67\mathrm{e}{-16}`:
        :math:`\tau_m = \tfrac12 + \tfrac12\cot\omega_m\tan(\Delta\omega/4)`.
        ⟹ **one partition producer**
-       (:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`,
+       (:func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`,
        the only place a cell boundary is defined) and **one τ producer
        with a geometry-FREE body** — ``morel_montry_tau_raw_per_level``
        retired, because the raw/clamped distinction it named no longer
@@ -470,9 +470,9 @@ merge hash or not at all).
        machinery campaign).  The R12a march-start predicate was
        promoted from a classifier to the **admission law**:
        ``SNMesh`` construction calls
-       :func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`
+       :func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`
        (offender positions via
-       :func:`~orpheus.sn.sweep.pole_angular_closure.non_carrying_levels`),
+       :func:`~orpheus.sn.angular.closure.non_carrying_levels`),
        refusing any cylinder rule with a non-carrying μ-level and
        naming the facts true on the first offender plus the remedy
        (:meth:`Quadrature.folded_product
@@ -920,12 +920,12 @@ merge hash or not at all).
        output mode split into types (pyright burn-down C5)** — the
        ``MorelMontryAngularSweep(sn_mesh=None)`` test-compatibility mode
        (and the ``| None`` widenings it forced on the whole
-       :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+       :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
        state contract, plus four runtime "unbound" guards) is deleted:
        ``sn_mesh`` is REQUIRED, the family's ``cls(sn_mesh)`` construction
        contract is total, and the pure-algebra recurrence surface moved
        back to module level
-       (:func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+       (:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
        — hand-built-coefficient verification needs no instance).  The
        ``SNMesh`` closure override became a **class** parameter
        (``pole_angular_closure: type[PoleAngularClosureBase]``) — an
@@ -958,7 +958,7 @@ merge hash or not at all).
        linear-discontinuous selection honest. **Phase 2** moves the
        Morel–Montry weight :math:`\tau` off the geometry-owned
        ``StreamingTerms`` onto the angular closure that owns it
-       (:attr:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`);
+       (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`);
        :math:`\tau` and the derived redistribution constants
        :math:`c_{\rm in}` / :math:`c_{\rm out}` travel to the stateless
        diamond scheme as :class:`~orpheus.transport.spatial.scheme.CellVisit`
@@ -976,7 +976,7 @@ merge hash or not at all).
        retire the orphaned ``PoleAngularClosure`` Protocol and its dead
        ``__call__`` bundle, hoisting the three strategy methods to the
        sole
-       :class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+       :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
        ABC (the L2 single-source contract; see
        :ref:`sn-pole-angular-closure-protocol`).
      - #236 / #248 / #249

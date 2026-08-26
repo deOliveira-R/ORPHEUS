@@ -4,7 +4,7 @@ Issue #236 realizes the SN discretization as a tensor product of two
 independently-selectable axes — a SPATIAL closure
 (:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`) and an ANGULAR
 redistribution closure
-(:class:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`).
+(:class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`).
 Some properties of the discretization are properties of the *pair*, not of
 either axis alone.  This module is the home for those pairing-validity
 predicates: each reads only the class-level traits the two axes declare, so a
@@ -47,7 +47,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from orpheus.transport.spatial.scheme import DiscretizationScheme
 
-    from .pole_angular_closure import PoleAngularClosureBase
+    from ..angular.closure import PoleAngularClosureBase
 
 
 def pair_diffusion_limit_consistent(

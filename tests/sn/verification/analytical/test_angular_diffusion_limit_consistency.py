@@ -117,7 +117,7 @@ def solve_uniform_source_ball(*, sigma_t, radius, nx, quad,
     mid-descent iterate and every number below becomes a statement about
     the stopping test. The explicit ``converged`` assertion is the backstop.
     """
-    from orpheus.sn.sweep import pole_angular_closure as pac
+    from orpheus.sn.angular import closure as pac
 
     shipped = pac.morel_montry_tau_per_level
     if tau_transform is not None:

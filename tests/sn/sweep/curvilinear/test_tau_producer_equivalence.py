@@ -1,6 +1,6 @@
 r"""Issue #236 Phase 2 — τ producer-equivalence gate (Leg 1).
 
-The :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+The :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
 closure now PRODUCES the Morel–Montry angular weight τ from the quadrature
 ``(μ, w, levels)`` it already binds (an angular-scheme property), instead of
 reading it back from the streaming-GEOMETRY factory (``reduced_operator.py``).
@@ -81,7 +81,7 @@ import pytest
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     IdentityAngularClosure,
     morel_montry_tau_per_level,
 )

@@ -150,7 +150,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.sweep.pole_angular_closure import MorelMontryAngularSweep
+from orpheus.sn.angular.closure import MorelMontryAngularSweep
 
 pytestmark = pytest.mark.foundation
 

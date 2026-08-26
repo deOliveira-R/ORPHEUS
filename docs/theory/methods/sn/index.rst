@@ -217,7 +217,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
 
    The Morel--Montry angular weight :math:`\tau` is **not** a factory
    output: it is owned by the angular closure
-   (:attr:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`),
+   (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`),
    since the geometry-side producer was retired in Issue #236 Phase 2
    Step C (see :ref:`sn-tau-c-on-cellvisit-live`).  The geometry
    factories carry **geometry only** — face areas, the

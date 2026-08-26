@@ -713,7 +713,7 @@ class Quadrature:
 
         Consequences on the M-M closure (all gated): every level
         consumes an independent ψ½ seed
-        (:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`
+        (:func:`~orpheus.sn.angular.closure.march_start_structure_per_level`
         — carrying), :math:`\tau \in [\tfrac14, \tfrac34]`
         strictly away from the :math:`\{0, 1\}` singularities, and the
         reversal identity :math:`\tau_m + \tau_{M-1-m} = 1` holds to

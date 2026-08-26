@@ -57,7 +57,7 @@ from .method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
 from orpheus.transport.spatial.diamond import DiamondDifference
-from ..sweep.pole_angular_closure import (
+from ..angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosureBase,
@@ -851,7 +851,7 @@ class SNMesh(MaterialMesh):
 
         The seed-presence predicate of #282 route (a), posed on the two
         structural facts of the level's march-start edge
-        (:class:`~orpheus.sn.sweep.pole_angular_closure.MarchStart`,
+        (:class:`~orpheus.sn.angular.closure.MarchStart`,
         Q5.4/T26): a level carries a ψ½ block iff the M-M half-angle
         recurrence genuinely consumes a seed value — i.e. the start
         edge is NOT itself an ordinate (``on_edge_node``: an η-minimum
@@ -864,7 +864,7 @@ class SNMesh(MaterialMesh):
         Cartesian never carries. A σ_y-FOLDED product rule carries on
         every level — the arc's start is genuinely off-node (T22b).
         Since Q5.6.3 the cylindrical ADMISSION
-        (:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`
+        (:func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`
         in ``_init_core``) refuses any cylinder rule with a
         non-carrying level, so on a constructed cylindrical SNMesh
         this property is always the FULL level range; the non-carrying
@@ -1646,7 +1646,7 @@ class SNMesh(MaterialMesh):
         The values are read from the mesh's canonical angular-closure
         owner :attr:`pole_angular_closure` via its per-global-ordinate
         ``(N,)`` accessors
-        (:attr:`~orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
+        (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`
         / ``c_in_per_ordinate`` / ``c_out_per_ordinate``) — NOT rebuilt from
         ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the former
         duplication sites carried).  ``global_ordinate`` is the

@@ -21,7 +21,7 @@ import pytest
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.sn.sweep.pairing import pair_diffusion_limit_consistent
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosureBase,

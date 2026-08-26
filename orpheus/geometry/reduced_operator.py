@@ -156,9 +156,9 @@ retired with it: there is one :math:`\tau`.
 
 ⚠ This module no longer produces :math:`\tau` at all — #236 Step C
 excised the geometry-side producer.  :math:`\tau` is single-sourced in
-:func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`,
+:func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`,
 reading
-:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`.
+:func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`.
 What stays here is genuinely geometric: the :math:`\alpha`-dome, the
 redistribution factor, the face areas, and the starting-direction edges.
 
@@ -870,7 +870,7 @@ def _assert_alpha_dome_closes(
     ``c_out[M-1] = α_{M+1/2}/τ`` (a denominator term) and
     ``c_in[M-1] = (1-τ)/τ·α_{M+1/2} + α_{M-1/2}`` (an
     upstream-numerator term); see
-    :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`'s
+    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`'s
     ``_c_in_per_level`` / ``_c_out_per_level`` precompute.  A closing dome
     makes that denominator term vanish — angular redistribution stops at
     the level's top edge, which is the whole point of the edge.  A
@@ -890,7 +890,7 @@ def _assert_alpha_dome_closes(
     remove is not a contract; this raises.
 
     Sibling of
-    :func:`~orpheus.sn.sweep.pole_angular_closure._assert_tau_within_unit_interval`
+    :func:`~orpheus.sn.angular.closure._assert_tau_within_unit_interval`
     — the same shape (an admission predicate on the angular scheme that
     refuses upstream rather than absorbing downstream), for the same
     reason.
@@ -1194,7 +1194,7 @@ def cylindrical_streaming(
     ⛔ **This paragraph used to name** :meth:`Quadrature.level_symmetric`
     **and** :meth:`Quadrature.product` **as "the two cylindrical-compatible
     factories" — corrected 2026-08-26: both are REFUSED** by
-    :func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`,
+    :func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`,
     which this factory's only caller runs twelve lines after calling it (an
     ABS_MU_Z level carries both hemispheres, so η is degenerate on the
     most-inward node and the seed slot is a rank duplicate).  The rule that

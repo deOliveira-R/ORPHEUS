@@ -239,7 +239,7 @@ def test_alpha_and_tau_are_bit_identical_across_tie_breaks():
     inline here from ``(eta, w)``, needs no cell partition, and is the
     coefficient the tie-break could most plausibly move.
     """
-    from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
+    from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
     def coefficients(tie_break):
         with product_level_ordering(tie_break):
@@ -280,7 +280,7 @@ def test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition():
     that the ``[1/2, 1]`` absorber then laundered it into
     ``{1, 1/2}``.  **Both halves of that thesis are gone:** the absorber
     RETIRED, and the cell partition is no longer taken in ``eta`` at all
-    (:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`
+    (:func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`
     takes the midpoint in :math:`\omega`), so a shared ``eta`` no longer
     collapses anything — the two mirror partners have DIFFERENT
     :math:`\omega`.
@@ -298,7 +298,7 @@ def test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition():
     exercises the partition producer DIRECTLY, so it still pins the
     inner guard for any caller that reaches it without a mesh.
     """
-    from orpheus.sn.sweep.pole_angular_closure import (
+    from orpheus.sn.angular.closure import (
         angular_cell_edges_per_level,
         morel_montry_tau_per_level,
     )

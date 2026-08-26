@@ -4207,7 +4207,7 @@ class _OneDimScanWalk:
             # diagonal).  The admission flip made that configuration
             # unconstructible, and the fold was RETIRED with its family
             # (Q5.6.3 leg 5, user ruling on gate_design §6 Q3).
-            from ..sweep.pole_angular_closure import MorelMontryAngularSweep
+            from ..angular.closure import MorelMontryAngularSweep
 
             closure = self.mesh.pole_angular_closure
             if not isinstance(closure, MorelMontryAngularSweep):
@@ -4602,7 +4602,7 @@ class _OneDimScanWalk:
         # (#280 2.5b-cyl-fwd) — transposed as the seed-ordinate's own-average
         # routing (no carrier, ``m_seed = None``); and the pure-azimuthal
         # DEGENERATE ordinates as slot-local diagonal transposes.
-        from ..sweep.pole_angular_closure import MorelMontryAngularSweep
+        from ..angular.closure import MorelMontryAngularSweep
 
         is_sphere = coord is CoordSystem.SPHERICAL
         closure = self.mesh.pole_angular_closure

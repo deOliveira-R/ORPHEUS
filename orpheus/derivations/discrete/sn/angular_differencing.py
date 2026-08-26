@@ -5,7 +5,7 @@ An angular differencing scheme is a triple:
 * the **quadrature** — nodes and weights on the direction sphere;
 * the **angular cell partition** — the cell each ordinate owns, produced
   in production by
-  :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`;
+  :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`;
 * the **closure weight** :math:`\tau` — how the ordinate flux relates to
   the two half-angle fluxes bounding its cell.
 
@@ -38,7 +38,7 @@ you mean, every time.
        barycentric coordinate in :math:`[0, 1]`, one per ordinate,
        relating the ordinate flux to its two half-angle fluxes. Produced
        by
-       :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`.
+       :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`.
     2. **Optical depth** :math:`\Sigma_t s` — the path integral of the
        total cross section. Unrelated; lives in ``peierls_nystrom``, MoC,
        and the ``transport`` spatial schemes.
@@ -168,7 +168,7 @@ from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_do
 # This module is L0 (``derivations/``); ``sn`` is L3, and
 # ``tests/test_layer_imports.py`` forbids the edge. Until 2026-08-12 this
 # file imported ``angular_cell_edges_per_level`` and
-# ``morel_montry_tau_per_level`` from ``orpheus.sn.sweep.pole_angular_closure``
+# ``morel_montry_tau_per_level`` from ``orpheus.sn.angular.closure``
 # to fetch the very quantities it then GRADED.
 #
 # The fix is NOT to move those producers down a layer: τ is a *scheme*
@@ -288,7 +288,7 @@ def diffusion_limit_c(quad, geometry: str = "spherical") -> np.ndarray:
 #        with the closure::  tau_m = 1/2 + 1/2*cot(omega_m)*tan(d_omega/4)
 #      * or, on the sphere, a hand-written cumulative-weight expression.
 #    A caller that just wants production τ should say so out loud:
-#      from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
+#      from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
 
 def contamination_beta(quad, geometry: str = "spherical", *, edges):

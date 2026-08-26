@@ -36,7 +36,7 @@ from orpheus.numerics.quadrature import (
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.geometry import CoordSystem
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     march_start_structure_per_level,
 )
 

@@ -52,7 +52,7 @@ import orpheus.sn.sweep.psi_half_angle_seed as psi_half_angle_seed_mod
 import orpheus.transport.spatial.diamond as diamond_mod
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
-from orpheus.sn.sweep.pole_angular_closure import MorelMontryAngularSweep
+from orpheus.sn.angular.closure import MorelMontryAngularSweep
 
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _BUILDERS,

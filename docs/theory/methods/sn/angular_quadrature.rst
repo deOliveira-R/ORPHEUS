@@ -395,7 +395,7 @@ its two end cells were stretched symmetrically), and each level's
 forward substitution.  Admission reads this **structure**, never a
 provenance tag — a hand-built rule with the same arrays admits
 identically
-(:func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`).
+(:func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`).
 
 Built by :meth:`Quadrature.folded_product(n_mu, n_phi)
 <orpheus.numerics.quadrature.Quadrature.folded_product>` (the general

@@ -646,8 +646,18 @@ complete and is half a check.** This is the specific trap: the sentence is true,
 it is checkable, it passes — and it is about the direction that was never at
 risk.
 
-⟹ Before any re-home, run one AST pass for the package-to-package edge counts
-and read the pair. **An edge whose count is 0 today is a claim you are about to
+⟹ **First, look for an import-linter — the project may already have DECLARED
+the answer, and a declared layer contract outranks any count you take.** Grep
+the test tree for `FORBIDDEN_EDGES` / `layer` / `import-linter` before
+measuring anything. If one exists, read three things: the forbidden-edge table,
+the **tolerance** (which source layers it applies to — tolerances are usually
+layer-scoped, and the layer you care about is often not covered), and the
+**whitelist** idiom (an exemption with a named retirement trigger is how that
+project spells "transitional violation"). ⚠ Do not paraphrase a tolerance from
+its docstring; read the line that implements it.
+
+⟹ Failing that, run one AST pass for the package-to-package edge counts and
+read the pair. **An edge whose count is 0 today is a claim you are about to
 falsify**; an edge whose reverse is large is the established direction and the
 move is going the wrong way. And when the answer matters, do not reason about
 Python's import machinery — **inject the import and run it**, because the
@@ -672,6 +682,25 @@ direction.
 > Reasoning about which names the mover needs would have cleared it.
 > Cost: none — caught at design time, and the phase was re-scoped so the α move
 > rides the phase that dissolves its callers.
+>
+> ⭐⭐ **And the sharpest part, found only while EXECUTING the re-scoped step:
+> the tree already shipped the answer, gated, and nobody read it.**
+> `tests/test_layer_imports.py` declares
+> `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES` and enforces it on
+> every module via a `@pytest.mark.foundation` parametrized gate — so the move
+> was not a latent cycle, it was a **declared violation with a red waiting for
+> it**. That module's own docstring even spells out the failure mechanism for a
+> sibling back-edge: *"a partially-initialised package can serve a SUBMODULE
+> import but NOT an ATTRIBUTE lookup on a package whose body has not reached
+> that line yet"* — exactly what the probe hit. Authored, gated, inert.
+> ⛔ Then the repair sentence was ITSELF wrong the same way: the amended plan
+> read *"geometry annotates via `TYPE_CHECKING`"*, and `[M]` the tolerance is
+> `if is_tc and src_pkg in (L1_PACKAGES | L2_PACKAGES)` — `geometry` is
+> `INPUT_PACKAGES`, so it is **not covered**. Two unmeasured mechanism claims
+> about the same edge, in the same hour, the second one written *inside the
+> correction of the first*. ⟹ the reason "look for the linter" leads this
+> clause: a count tells you what IS, and only the contract tells you what is
+> ALLOWED — and it is the contract a gate will enforce.
 
 ⚠ Note what §6b's own check returns here: *"enumerate every call site and ask
 which step each one lands in"* answers **"they all stay put, no step boundary is

@@ -68,7 +68,7 @@ full STAGGERED rules start η-degenerate — the τ_raw = 0 / τ_raw = 1
 trichotomy is the gated consequence, Q5.4/T26; a σ_y-FOLDED cylinder
 has NO such levels — every arc carries, Q5.6) the closure inlines the
 2-point angular-edge extrapolation — see
-:meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
+:meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
 
 References
 ==========

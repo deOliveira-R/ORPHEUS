@@ -1057,7 +1057,7 @@ scheme hands to the fast 1-D scan through
           :eq:`mm-weights`
         - :eq:`discretization-angular-closure`;
           :ref:`sn-curvilinear-one-group`;
-          :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`
+          :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
       * - :math:`\tau_{\rm opt}`
         - **optical depth** :math:`\Sigma_t s` along a path
           — :eq:`discretization-optical-depth`

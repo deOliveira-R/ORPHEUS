@@ -424,9 +424,9 @@ achieves).
    (:class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
    which owns the :math:`\alpha`-dome and :math:`\mu_{\rm start}` as of
    the 2026-08-26 un-weld); the M-M closure weight is produced by
-   :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`
+   :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
    reading the single partition producer
-   :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`,
+   :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`,
    which :class:`SNMesh` calls against the quadrature and
    ``self.reduced.coord``.  The split is deliberate: τ is a property of
    the *angular closure scheme*, selectable per mesh, while the curvature
@@ -454,7 +454,7 @@ the :math:`\tau` (the Mode-12 annihilation).  Issue #336 tracks the
 refuse-or-reduce design for ``SNMesh`` on a spherical mesh with a
 non-μ-line rule.  The closed endpoints are legal march starts — ``0`` is
 an edge-node start and ``1`` an η-degenerate tie
-(:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`).
+(:func:`~orpheus.sn.angular.closure.march_start_structure_per_level`).
 The guard does NOT catch the double cover: a full-circle level's
 :math:`[0, 1, 0, 1, \ldots]` fingerprint is entirely inside
 :math:`[0, 1]`; that detector is the singular set :math:`\Sigma`, and

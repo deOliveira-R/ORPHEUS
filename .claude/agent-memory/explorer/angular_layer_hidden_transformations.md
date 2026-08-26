@@ -47,7 +47,7 @@ grep cannot re-find, because most of them are not spelled as transformations.
    `[::-1]` as the Reynolds/group-average in `GeneratingMeasure.gauss`);
    (c) unguarded `argmin` searches (`moc/geometry._reflected_azi_index`,
    `MOCMesh._find_link`, `radial_characteristic_field`'s most-inward ordinate,
-   `pole_angular_closure._edge_seed_stencil`). The tree already owns the typed
+   `sn.angular.closure._edge_seed_stencil`). The tree already owns the typed
    endpoint the angular layer doesn't use: `numerics.operator.PermutationOperator`.
 
 4. **The curvilinear fiber is a CIRCLE that the code only ever treats as an
@@ -79,7 +79,7 @@ grep cannot re-find, because most of them are not spelled as transformations.
 
 `_OCTANT_SIGN_EPS = 1e-15` (`quadrature/directional.py`), `TANGENTIAL_EPS =
 8.88e-16` (`spaces/angular_trace_space.py`), and a bare `1e-14` in
-`pole_angular_closure._edge_seed_stencil` — three different numbers for one
+`sn.angular.closure._edge_seed_stencil` — three different numbers for one
 question. Measured min nonzero `|cos|` over the shipped rules: `1.57e-1`. The
 first is defended by "keep in lockstep with `_DEGENERATE_ABS_MU_THRESHOLD`",
 which **exists nowhere** in `orpheus/` or `tests/`.

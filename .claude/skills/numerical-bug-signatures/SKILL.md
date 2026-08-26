@@ -119,7 +119,7 @@ the offending factor.
   just summed. Conservation always passes; per-ordinate exposes
   the bug.
 - **Catching test:**
-  - `tests/sn/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`
+  - `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`
     (the L0-SN-003 definitive curvilinear diagnostic — flat ψ must
     satisfy streaming + redistribution = 0 per ordinate; tagged
     `@pytest.mark.catches("ERR-006", "ERR-007")`).
@@ -183,7 +183,7 @@ the offending factor.
   source for a 2-group asymmetric scattering matrix, compare to
   code output term-by-term.
 - **Catching test:**
-  - `tests/sn/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`
+  - `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`
     (L0-SN-009 — hand calc against `SigS^T @ φ`, tagged
     `@pytest.mark.catches("ERR-002")`).
   - `tests/mc/test_properties.py::test_sigs_orientation_g0_to_g1`
@@ -218,7 +218,7 @@ the offending factor.
   normalization makes φ deviate from Q/Σ_t by a constant factor
   (the ratio of assumed weight sum to actual).
 - **Catching test:**
-  - `tests/sn/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2`,
+  - `tests/sn/primitives/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2`,
     `::test_lebedev_weights_sum_to_4pi`,
     `::test_level_symmetric_weights_sum_to_4pi`,
     `::test_product_weights_sum_to_4pi` (the weight-sum
@@ -370,7 +370,7 @@ the offending factor.
 - **Diagnostic probe:** `assert np.all(alpha >= -1e-14)` on every
   level of `SNMesh.alpha_per_level` before the first sweep.
 - **Catching test:**
-  `tests/sn/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`,
+  `tests/sn/primitives/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`,
   `::test_alpha_boundary_zero`, and
   `::test_spherical_alpha_dome_non_negative`.
 - **Catalog entry:** Uncatalogued — pattern only. (The
@@ -649,14 +649,14 @@ canon; signatures here are a derived view.
 
 | Signature | Catalog ERR    | Failure mode | Catching test (primary)                                                                              |
 | --------- | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| 1         | ERR-006        | #2 + #3      | `tests/sn/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`       |
+| 1         | ERR-006        | #2 + #3      | `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`       |
 | 1         | ERR-007        | #3           | same — BiCGSTAB-operator variant covered by `@catches("ERR-006","ERR-007")`                          |
 | 1         | ERR-026        | #6           | `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`          |
 | 2         | ERR-019        | #3           | `tests/moc/test_verification.py::TestL0EquilibriumFlux::test_pure_scatterer_equilibrium_single_sweep`|
-| 3         | ERR-002        | #2           | `tests/sn/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`              |
-| 4         | ERR-004        | #4           | `tests/sn/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2` + streaming-equilibrium      |
+| 3         | ERR-002        | #2           | `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`              |
+| 4         | ERR-004        | #4           | `tests/sn/primitives/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2` + streaming-equilibrium      |
 | 4         | ERR-025        | #3 + #4      | `tests/sn/test_cartesian.py::test_heterogeneous_absolute_keff`                                       |
-| 5         | (uncatalogued) | —            | `tests/sn/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`                 |
+| 5         | (uncatalogued) | —            | `tests/sn/primitives/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`                 |
 | 6         | ERR-036        | #3 + #4      | `tests/derivations/test_path_ai_legacy_plain_gl_signature.py` + `test_atkinson_product_nystrom.py`   |
 | 7         | ERR-037        | #4           | `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`                          |
 | 8         | (uncatalogued) | —            | speculative — checked-`info` wrapper raising on `info != 0` + under-`maxiter` case that MUST raise   |

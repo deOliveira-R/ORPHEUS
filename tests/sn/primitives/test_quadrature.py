@@ -394,7 +394,7 @@ class TestL0TermVerification:
     def test_contamination_beta_spherical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
         from orpheus.derivations.discrete.sn.angular_differencing import contamination_beta
-        from orpheus.sn.sweep.pole_angular_closure import angular_cell_edges_per_level
+        from orpheus.sn.angular.closure import angular_cell_edges_per_level
         quad = Quadrature.gauss_legendre(8)
         # ``edges`` is supplied by the caller: L0 may not import orpheus.sn,
         # so the diagnostic is handed the closure it grades (2026-08-12).
@@ -406,7 +406,7 @@ class TestL0TermVerification:
     def test_contamination_beta_cylindrical(self):
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
         from orpheus.derivations.discrete.sn.angular_differencing import contamination_beta
-        from orpheus.sn.sweep.pole_angular_closure import angular_cell_edges_per_level
+        from orpheus.sn.angular.closure import angular_cell_edges_per_level
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         edges = angular_cell_edges_per_level(quad, CoordSystem.CYLINDRICAL)
         betas = contamination_beta(quad, "cylindrical", edges=edges)

@@ -717,7 +717,7 @@ def redistribution_via_live_path(
 
     * the half-angle ψ-thread :math:`\phi_{m\pm 1/2,i,g}` comes from the
       module-level
-      :func:`~orpheus.sn.sweep.pole_angular_closure.compute_psi_half_per_level`
+      :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
       — the pure-algebra surface whose recurrence kernel
       (``_psi_half_grid_single_level``) is the SAME one the matvec's
       :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes (the C5
@@ -748,7 +748,7 @@ def redistribution_via_live_path(
     route (a) — it now consumes the mesh-bound closure's ``precompute_psi_state``
     per-level half-angle grid directly.)
     """
-    from orpheus.sn.sweep.pole_angular_closure import (
+    from orpheus.sn.angular.closure import (
         compute_psi_half_per_level,
     )
 

@@ -207,7 +207,7 @@ fold-product-only-and-keep-LS-red, refuse-LS-on-cylinder, or accept carrying LS.
 evolved: (i) ⛔ the "R12a predicate is `0 < tau_raw[0] < 1`" spelling describes
 the RETIRED encoding — T26 re-posed it as the two named integer facts
 `MarchStart(on_edge_node, degenerate)` with `consumes_independent_seed =
-not(either)` (`pole_angular_closure.py`, `march_start_structure_per_level`);
+not(either)` (`sn/angular/closure.py`, `march_start_structure_per_level`);
 the τ trichotomy is now a gated THEOREM per family, not the predicate.
 (ii) The producer tie-break is NAMED: `argsort(mu_x, kind="stable")` in
 `spherical_product` + a gate whose `n_phi >= 24` parameterization is

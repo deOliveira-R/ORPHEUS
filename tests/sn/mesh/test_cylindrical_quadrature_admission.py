@@ -12,14 +12,14 @@ fixed order on the constructor path:
    no ``LevelStructure`` at all (gated by
    ``tests/sn/sweep/core/test_sweep_regression.py`` and
    ``tests/sn/sweep/curvilinear/test_cyl_sweep_regression.py``);
-3. **carrying** (``sn/sweep/pole_angular_closure.assert_carrying_quadrature``,
+3. **carrying** (``sn/angular/closure.assert_carrying_quadrature``,
    fragment ``non-carrying``) — THIS module's subject: the rule HAS levels,
    but a level's march start is an ordinate (``on_edge_node``) or its seed
    thread weight vanishes (``degenerate``), so route (a) has no honest ψ½
    state to march.
 
 Admission is decided by STRUCTURE, not provenance: the facts are
-:func:`~orpheus.sn.sweep.pole_angular_closure.march_start_structure_per_level`'s
+:func:`~orpheus.sn.angular.closure.march_start_structure_per_level`'s
 — the same producer ``SNMesh.radial_characteristic_levels`` reads.  The
 upstream quadrature-level classification battery is
 ``tests/sn/sweep/test_march_start_structure.py``; this module gates the
@@ -47,7 +47,7 @@ from orpheus.numerics.quadrature.rules_product import spherical_product
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     MarchStart,
     assert_carrying_quadrature,
     non_carrying_levels,
@@ -293,7 +293,7 @@ def test_a_mixed_rule_reports_only_the_offending_levels(monkeypatch):
     fired elsewhere (the tie at position 3)."""
     assert non_carrying_levels(_synthetic_mixed()) == (1, 3)
 
-    from orpheus.sn.sweep import pole_angular_closure as pac
+    from orpheus.sn.angular import closure as pac
 
     monkeypatch.setattr(
         pac, "march_start_structure_per_level",

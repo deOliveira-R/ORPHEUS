@@ -830,7 +830,7 @@ The angular-redistribution contribution to the cell balance is
 with :math:`{\rm angular\_denom\_term} = (\Delta A / w)\,c_{\rm out}`
 and :math:`{\rm angular\_numer\_upstream} = (\Delta A / w)\,c_{\rm in}\,
 \psi_{m-1/2,\,i,\,g}` per the M-M closure (see
-:class:`orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+:class:`orpheus.sn.angular.closure.PoleAngularClosureBase`
 for the closure data). It is an interior-cell operation that does not
 traverse the spatial boundary; only the spatial sweep writes face
 residuals.
@@ -1131,7 +1131,7 @@ Cross-references
     the operator INTO the representation; #238 removed the dual-emission
     ``(M_spatial, M_angular_redist)`` arm (no production consumer). The
     public surface is :meth:`StreamingOperator.apply`.
-  - :class:`orpheus.sn.sweep.pole_angular_closure.PoleAngularClosureBase`
+  - :class:`orpheus.sn.angular.closure.PoleAngularClosureBase`
     — the M-M closure data and per-cell algebra primitive.
   - :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
     — the three-term cell-balance primitive.

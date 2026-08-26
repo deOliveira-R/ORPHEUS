@@ -101,7 +101,7 @@ import numpy as np
 
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.reduced_operator import ReducedStreamingOperator
-from orpheus.sn.sweep.pole_angular_closure import morel_montry_tau_per_level
+from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
 
 def c_from_constants(
@@ -126,7 +126,7 @@ def mm_constants_for_ordinate(
     r"""Resolve the M-M ``(tau, alpha_in, alpha_out)`` for one ordinate.
 
     τ comes from the production producer
-    :func:`~orpheus.sn.sweep.pole_angular_closure.morel_montry_tau_per_level`,
+    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`,
     unclamped on both arms.  α comes from the operator's surviving dome
     (``alpha_half`` / ``alpha_per_level``).  Slab is the neutral element
     τ = 1, α = 0.

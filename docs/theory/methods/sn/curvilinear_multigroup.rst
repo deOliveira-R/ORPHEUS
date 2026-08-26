@@ -177,7 +177,7 @@ construction:
 * **The Morel--Montry closure.**  :math:`\tau` is an angular-scheme
   property — a function of :math:`(\mu, w)` only, per the Issue #236
   Step C ruling — owned by
-  :class:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep`
+  :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
   and stamped per ordinate on each visit; the derived constants
   :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{\rm out} + \alpha_{\rm in}`
   and :math:`c_{\rm out} = \alpha_{\rm out}/\tau` are ``(N,)``.

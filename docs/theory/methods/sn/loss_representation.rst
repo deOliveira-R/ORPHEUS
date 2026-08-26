@@ -2448,7 +2448,7 @@ DAG, forking **only** at orientation:
   ``_ensure_pole_mirror`` derives from ``ordinate_permutation``; the
   adjoint reverses that cross-direction dependency); and
 * the **second triangular factor** —
-  :meth:`~orpheus.sn.sweep.pole_angular_closure.MorelMontryAngularSweep.angular_adjoint`,
+  :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.angular_adjoint`,
   the reverse of the Morel–Montry angular recurrence (zero for slab).
 
 Phase 2.5a landed this frame, **bit-identical in BOTH orientations**

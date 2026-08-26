@@ -1,6 +1,6 @@
 r"""The ANGULAR CELL PARTITION producer's value gate (:eq:`angular-cell-partition`).
 
-:func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`
+:func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`
 is the **single producer** of a :math:`\mu`-level's angular cell
 partition — the object every coefficient that references "the boundary
 between cell :math:`m` and :math:`m+1`" must read.  Until this module
@@ -113,7 +113,7 @@ import pytest
 
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.sweep.pole_angular_closure import (
+from orpheus.sn.angular.closure import (
     angular_cell_edges_per_level,
     morel_montry_tau_per_level,
 )
@@ -228,7 +228,7 @@ def test_sphere_partition_is_the_cumulative_weight_ladder(N: int):
     **Cannot catch**: (a) anything about the *choice* of the
     cumulative-weight convention — that is BMC Eq. 12 verbatim and is
     argued, not tested, in
-    :func:`~orpheus.sn.sweep.pole_angular_closure.angular_cell_edges_per_level`;
+    :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`;
     the row below (`…_is_NOT_the_uniform_partition`) is the only
     convention-loading evidence here.  (b) A mutation that permutes the
     *weights* palindromically — Gauss–Legendre weights are symmetric, so

@@ -185,6 +185,7 @@ warning at any severity). Each row's evidence is the reason, not decoration.
 | `redistribution_gram` | `redistribution_pairing` | `[M]` its own `(n_mom, n_thread)` axes admit the **rectangular** ONETRAN case (Hill 1975 Eq. 32, the angular index closed on the cell average only). A rectangular object is a **pairing, not a Gram** — the word over-claims off the diagonal of its own design space. ⚠ **This name is MINE, from `6859ca05`.** |
 | `GeometryCoefficients` | `ChainScanCoefficients` *(or `SweepCoefficientCache`)* | `[M]` **0 of 15 fields** are un-permuted chart data: 4 are Morel–Montry constants, 3 angular, 2 pure traversal, and the closest 3 are **chain-ordered** (i.e. already traversal artefacts). The name promises geometry and delivers a permuted sweep cache. |
 | module `sn/sweep/pole_angular_closure.py` | `…/angular/closure.py` — ⚠ **executed in P2, not P3** (the re-home and the module rename are one `git mv`) | Two lies in one path. **"pole"** names the special case (the pole cell) for a family that closes the *whole* angular axis — `IdentityAngularClosure` never sees a pole. **"sweep"** is traversal (see §2). R15 already ruled the family `AngularClosure`. |
+| `SNMesh.pole_angular_closure` (the ATTRIBUTE + the constructor kwarg) | `angular_closure` | ⭐ **Found during P2, 2026-08-26 — the module carried TWO occupants of the name and only one moved.** P2 renamed the module `pole_angular_closure` → `sn.angular.closure` on the grounds that *"pole"* names a special case for a family closing the whole angular axis (`IdentityAngularClosure` never sees a pole). The identical lie sits on the mesh attribute, and it is the SURVIVING spelling: `[M]` **62** of the tree's `pole_angular_closure` hits after the move are this attribute, across `sn/mesh`, `sn/loss_representation`, `sn/operators`, `sn/sweep/cache`, `transport/`, and 10 test modules. ⚠ It is also why P2's import sweep had to match QUALIFIED forms only — a bare-token rewrite would have corrupted every one of the 62. Left deliberately: renaming a public constructor kwarg is not bit-identical. |
 | `SNMesh.curvature: str \| None` | **retire** — use `coord` | `[M]` a **stringly-typed duplicate** of the `CoordSystem` enum (`"cylindrical"` / `"spherical"` / `None`), with `is_cartesian` defined as `curvature is None`. Read at two matvec entries through a **defaulted `getattr`** (`vv-principles` #28's temporal twin). ⚠ And `augmented_mesh.py:124` still documents it as storing `α_n/r_i` — a numeric quantity it has never held. |
 | the chart's four spellings | one | `[M]` `coord` 228 hits / `curvature` 68 / `geometry_kind` 105 across `orpheus/`, with 8 / 3 / several case-spellings respectively. One concept, four vocabularies — a grep for any one returns a confident partial answer. |
 
@@ -739,6 +740,19 @@ import breaks it, whatever the mover needs.
 whole `orpheus/` tree, by AST — **`geometry → sn` = 0** import statements,
 **`sn → geometry` = 24**. The established direction is the opposite one.
 
+⭐⭐ **And that 0 is not history — it is ENFORCED. `[M]` found during P2's own
+execution, after the cycle probe.** `tests/test_layer_imports.py` declares
+`FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES` and gates it with
+`test_no_forbidden_imports` (`@pytest.mark.foundation`, parametrized over every
+module in `orpheus/`). So the α move was never a latent hazard to be discovered
+— it was a **declared layer violation with a foundation red waiting for it**,
+and one grep for `FORBIDDEN_EDGES` would have answered the whole question
+before any probe. ⚠ P4 inherits a harder constraint than "avoid the cycle":
+`[M]` the linter's `TYPE_CHECKING` tolerance is
+`if is_tc and src_pkg in (L1_PACKAGES | L2_PACKAGES)`, and `geometry` is
+`INPUT_PACKAGES` — so **geometry may not import `sn` even for typing**. See P4
+for the fork that follows.
+
 ⭐ **The done-when named the WRONG DIRECTION of a symmetric relation, and that
 is why the plan did not see it.** *"`alpha_dome` has no geometry import"* is
 **true** and irrelevant: it asks whether the MOVER depends on its old home. The
@@ -799,6 +813,28 @@ fully-qualified confident path is what a future session copies into an import.
 `[M]` **47** references survive in `docs/**.rst` — but **0 of the 47 are
 Python-domain roles**. The roles were migrated; only literals inside dated
 error-catalog history were left. That is the standard to match.
+
+⛔ **The TEST tree does NOT move with the module, and the reason is a coupling
+worth knowing before any future test re-home: the DIRECTORY IS THE CAPABILITY.**
+`tests/sn/**/conftest.py` × **12** call `stamp_capability_marker(items,
+__file__, "<cap>")`, which stamps `@pytest.mark.cap(...)` on every test
+collected at or below it — *"The directory IS the capability (single source of
+truth)"*, in the conftest's own words. So `git mv`-ing a test file out of
+`tests/sn/sweep/curvilinear/` **silently strips its `cap("sweep_curvilinear")`
+marker** — no error, no red, just a test that has left the taxonomy.
+`[M]` the capability names are hard-listed in `pyproject.toml:97` (**10** nodes),
+and the `sentinel` marker on the next line declares *"one sentinel per capability
+node"* — so a `tests/sn/angular/` tree is not a directory, it is an **11th
+taxonomy node** plus its sentinel. That is a real decision and it is not a
+bit-identical move.
+⟹ P2 leaves every test file where it is. Only `tests/sn/sweep/curvilinear/test_pole_angular_closure.py`
+now carries a filename naming a module that moved; ⚠ it is **not** the only
+misplaced one (`test_angular_cell_partition`, `test_march_start_structure`,
+`test_tau_arc_wellposedness`, `test_angular_beta_identity`,
+`test_tau_producer_equivalence`, `test_compute_psi_half_per_level` all test the
+closure from `tests/sn/sweep/`), so moving the one would split the closure's
+tests across two trees for no gain. The whole set is one item, and its home is
+`.claude/plans/test_architecture_redesign.md` — where the capability DAG lives.
 
 **Out of P2, with its home named** (the §9.3 ruling — a phase number, never an
 issue-and-forget): the four α symbols + `_ALPHA_CLOSURE_ATOL` re-home in **P4**,
@@ -888,6 +924,50 @@ The sequence inside P4, and it only works in this order:
    `_ALPHA_CLOSURE_ATOL`, `AngularRedistribution` and `angular_redistribution`
    move to `sn/angular/redistribution.py`. No runtime `geometry → sn` edge is
    ever created, so the P2 cycle cannot arise.
+
+   ⛔⛔ **AND THE CONSTRAINT IS HARDER THAN THE CYCLE — `[M]` 2026-08-26, found
+   during P2 execution.** The tree ships an **import-linter**,
+   `tests/test_layer_imports.py`, and `geometry → sn` is a **declared forbidden
+   edge**, not an accident of history:
+   `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES`, gated by
+   `test_no_forbidden_imports` (`@pytest.mark.foundation`, parametrized over
+   every module). So the P2 move would not merely have failed at import — it
+   would have gone **red on a foundation gate**, which is the better outcome and
+   the one the plan should have anticipated by reading the linter.
+
+   ⛔ **REFUTED, same day, by its own author.** This block first read
+   *"cycle never arises: geometry annotates via `TYPE_CHECKING`"*. That is
+   **false**, and it was written without reading the tolerance it invoked.
+   `[M]` `_check_module` applies it as
+   `if is_tc and src_pkg in (L1_PACKAGES | L2_PACKAGES): continue` — the
+   tolerance covers **`numerics` and `transport` only**, and `geometry` is in
+   `INPUT_PACKAGES`. ⟹ **`geometry` may not import `sn` under `TYPE_CHECKING`
+   either.** A `TYPE_CHECKING` annotation is not an escape hatch here.
+
+   ⟹ **P4 must therefore choose, and this is a live fork it inherits — do not
+   read the list as a ruling:**
+   (a) `ChartConnection` leaves `geometry/` for `transport/` (L2 — which *does*
+       carry the tolerance) or for `sn/`; (b) the α type lands somewhere
+   `geometry` may import — `numerics/` (L1) is arguable, since
+   `alpha_dome(cosines, weights)` is pure angular-measure math with no chart
+   and no neutron; (c) `ChartConnection` stops naming the type at all, because
+   after step 1 it only *stores* what it was handed; (d) a `WHITELIST` entry
+   with a `RETIRE_IN_…` trigger — the tree's own idiom for a transitional
+   violation (`[M]` 4 live entries), but an exemption is not a design.
+   ⚠ Note (b) sits in tension with §9.2's fork-2 ruling (`sn/angular/` over
+   `transport/angular/`) — that ruling weighed *consumers*, and the layer
+   contract is a *different* constraint it did not see. Re-open it explicitly
+   at P4 rather than treating either as settled.
+
+   ⭐ And read `tests/test_layer_imports.py`'s own module docstring first: it
+   already documents this exact failure mechanism for the `numerics ↔ geometry`
+   back-edge — *"a partially-initialised package can serve
+   `from orpheus.numerics.measure import X` (a SUBMODULE import) but NOT
+   `from orpheus.numerics import X` (an ATTRIBUTE lookup on a package whose body
+   has not reached that line yet)"*. That is precisely what the P2 probe hit
+   (`from orpheus.geometry.reduced_operator import cylindrical_streaming`, an
+   attribute lookup on a half-built module). The knowledge was authored, gated
+   and inert — nobody read it.
 3. `AngularMeasure` **dies outright** — it does not "shrink to ≤2". `[M]` the
    three surviving factories read **0 of its 6** members (`mu_x`, `weights`,
    `N`, `eta`, `mu_z`, `level_indices`); they only forward the object. Its four
@@ -955,7 +1035,9 @@ merely refused; **and `grep -n "coord: CoordSystem" transport/spatial/scheme.py`
 is empty** — the mint has replaced the tag, and the moment mass is evaluated
 against a measure rather than branched on a chart.
 **Plus P2's inherited half:** `grep -rn "alpha_dome\|AngularRedistribution"
-orpheus/geometry/` is empty; `grep -c "AngularMeasure" orpheus/` is 0; and
+orpheus/geometry/` is empty; `grep -c "AngularMeasure" orpheus/` is 0;
+`pytest tests/test_layer_imports.py` green **with no new WHITELIST entry**
+(a whitelisted violation is a deferral, not a done-when); and
 `.venv/bin/python -c "import orpheus.geometry"` succeeds **in a fresh
 interpreter with nothing else imported first** — ⚠ that qualifier is the whole
 gate, since `[M]` importing `orpheus.sn` first masks the cycle entirely.
