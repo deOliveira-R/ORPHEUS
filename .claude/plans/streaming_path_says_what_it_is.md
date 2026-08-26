@@ -862,7 +862,38 @@ closure, and finding it a home is **not** this plan's business.
 `ChartConnection` LAST — after P4 has taken `streaming_terms` out of it, so the
 name describes what remains.
 **Done when.** Each old name has zero live references (past-tense history stays);
-`sphinx -W` clean; `dead_references` 0.
+`sphinx -W` clean.
+⛔ `dead_references 0` is **NOT** a done-when here either — same designed-green
+tell P2 removed from its own: `[M]` it judges 52 decidable references and read
+`total_dead: 0` unchanged across a 195-reference move. Use the per-symbol
+residual grep instead (three filters: qualified form, **string form**,
+**attribute access** — see the pre-audit below).
+
+#### §6b pre-audit — `[M]` measured 2026-08-26 at P2's close-out
+
+Each row is the full call-site set, three filters, **nothing clipped through
+`head`** (`plan-authoring` §2's VIEWPORT clause — a clipped listing silently
+turns a population into a sample). Order the small ones first; `ChartConnection`
+is last by ruling.
+
+| symbol | code+test lines / files | string-form | docs `.rst` (roles / total) |
+|---|---|---|---|
+| `redistribution_gram` → `redistribution_pairing` | **9** / 5 | 0 | 0 / 0 |
+| `GeometryCoefficients` → `ChainScanCoefficients` | **35** / 7 | 2 | 4 / 10 |
+| `ReducedStreamingOperator` → `ChartConnection` | 36 orpheus + 15 tests | 3 | — / 20 |
+
+⚠ **All string-form hits are benign and are listed so nobody re-hunts them**:
+`GeometryCoefficients` — a forward return annotation (`cache.py:205`) and
+`__all__` (`:506`); `ReducedStreamingOperator` — two `__all__` entries
+(`geometry/__init__.py:55`, `reduced_operator.py:1281`) and a forward annotation
+(`radial_characteristic.py:155`). None is a `getattr(x, "name", default)`, which
+is the form that fails *silently in the default's direction* — that is what the
+filter was run to rule out, and it is ruled out.
+⭐ The filter was validated against a positive control before being trusted
+(`MorelMontryAngularSweep` → 2 known hits). ⚠ Two earlier attempts at this same
+census returned a **false `0`** from a zsh quoting error that made the pattern
+unparseable — a broken filter and a clean tree are indistinguishable in the
+output, which is precisely §2's FILTER clause. Re-run it in Python, not zsh.
 
 #### `SNMesh.curvature`'s audit — `[M]` 2026-08-26, and it is NOT a rename
 
