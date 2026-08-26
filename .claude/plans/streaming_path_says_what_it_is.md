@@ -967,6 +967,20 @@ The sequence inside P4, and it only works in this order:
    move to `sn/angular/redistribution.py`. No runtime `geometry → sn` edge is
    ever created, so the P2 cycle cannot arise.
 
+   ⛔ **BUT STEP 1 IS NOT INDEPENDENTLY LANDABLE, and this text said it was —
+   caught 2026-08-26 by re-reading it against the linter, hours after writing
+   it.** Killing the runtime CALL does not kill the reference: whatever holds
+   the angular factor — the factory's parameter, or (if the factories collapse
+   into it, see below) `ChartConnection`'s own field — still needs the **NAME**
+   for its annotation. And `geometry` may not import `sn` for typing either.
+   ⟹ **the sharp statement of P4's constraint, which supersedes the step
+   ordering above:** *`ChartConnection`'s `angular` field needs a type, and that
+   type cannot live in `sn/` while `ChartConnection` lives in `geometry/`.* Steps
+   1 and 2 are therefore **one step**, and it cannot be taken until the fork
+   below is ruled — which is §6b's rule (the unit of work is the call-site set)
+   applied to a *type* reference rather than a call.
+   ⚠ Do not read this as "step 1 first, then decide". Decide first.
+
    ⛔⛔ **AND THE CONSTRAINT IS HARDER THAN THE CYCLE — `[M]` 2026-08-26, found
    during P2 execution.** The tree ships an **import-linter**,
    `tests/test_layer_imports.py`, and `geometry → sn` is a **declared forbidden
