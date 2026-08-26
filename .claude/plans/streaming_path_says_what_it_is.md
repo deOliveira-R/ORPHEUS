@@ -50,12 +50,25 @@
 > that are false, the homes the filtration contradicts, the welds still held,
 > and (§5b) whether `L`'s three factors become first-class.
 >
-> ### ⛔ FOUR FORKS ARE UNRULED — do not start P1 without them
+> ### ✅ ALL FOUR FORKS RULED 2026-08-26 (user) — P1 is unblocked
 >
-> They are §9, in full. Summarised so a fresh session knows one is owed:
-> the `ChartConnection` name; `sn/angular/` vs `transport/angular/`; whether the
-> 401-hit chart-spelling sweep belongs here; and P4's scope. ⚠ Fork 2 and
-> fork 4 change what P2 and P4 DO, not merely how they are described.
+> Full text + the rejected alternatives' reasons at §9. The digest:
+> **`ChartConnection`** · **`sn/angular/`** · the chart sweep SPLITS
+> (`curvature` dies in P1/P3, the `geometry_kind` synonym is **P6**) ·
+> P4 mints the pairing, the moment measure is **P7**.
+>
+> ⭐ **The governing ruling, which applies past these four:** *"scheduled to
+> the end of this plan, **not defer and forget**."* Two phases exist because
+> of it — **P6** and **P7** — and §8's "Choosing `G`" row was AMENDED rather
+> than left standing. Any future "we'll do that later" in this campaign owes
+> a phase number or a named external blocker (P5 has one: O-3).
+>
+> ⭐⭐ **P7 grew past this plan while being scheduled.** `[M]` 2026-08-26 the
+> `FunctionSpace` metric is Hadamard **by construction** at every surface
+> (`space.py:538/542/570/592`), so a non-diagonal `G` is unspellable — and
+> **two** campaigns need one (this plan's §6; CS4b frame-square F-0's slab
+> arm), with the debt recorded in three places and owned by nobody. P7 is
+> that primitive, not "choose `G`" (which really is blocked on #158).
 >
 > ### The four memos this rests on are in `scratch/` and are NOT tracked
 >
@@ -144,7 +157,7 @@ warning at any severity). Each row's evidence is the reason, not decoration.
 
 | current | proposed | why — with evidence |
 |---|---|---|
-| `ReducedStreamingOperator` | `ChartConnection` *(or `StreamingCoefficients`)* | `[M]` **0 of 13** operator-surface members (`apply`/`domain`/`codomain`/`H`/`inverse`/`solve`/`apply_transpose`/`__matmul__`/`__add__`/`is_adjointable`/`block_role`/`system_role`); `SweepOperator` has 12 of 13. It maps nothing to anything. ⛔ And the name is **TAKEN** — the real reduced streaming operator is `L`, in the SN algebra, with genuine spaces. "Operator" is this codebase's most load-bearing word (the S4 amendment: *an operator is not an operator without its two spaces*); a struct wearing it teaches every reader the wrong thing. |
+| `ReducedStreamingOperator` | ✅ **`ChartConnection`** *(ruled §9.1; `StreamingCoefficients` rejected — it lends `L`'s own word to a non-operator, reproducing the very defect being retired)* | `[M]` **0 of 13** operator-surface members (`apply`/`domain`/`codomain`/`H`/`inverse`/`solve`/`apply_transpose`/`__matmul__`/`__add__`/`is_adjointable`/`block_role`/`system_role`); `SweepOperator` has 12 of 13. It maps nothing to anything. ⛔ And the name is **TAKEN** — the real reduced streaming operator is `L`, in the SN algebra, with genuine spaces. "Operator" is this codebase's most load-bearing word (the S4 amendment: *an operator is not an operator without its two spaces*); a struct wearing it teaches every reader the wrong thing. |
 | `redistribution_gram` | `redistribution_pairing` | `[M]` its own `(n_mom, n_thread)` axes admit the **rectangular** ONETRAN case (Hill 1975 Eq. 32, the angular index closed on the cell average only). A rectangular object is a **pairing, not a Gram** — the word over-claims off the diagonal of its own design space. ⚠ **This name is MINE, from `6859ca05`.** |
 | `GeometryCoefficients` | `ChainScanCoefficients` *(or `SweepCoefficientCache`)* | `[M]` **0 of 15 fields** are un-permuted chart data: 4 are Morel–Montry constants, 3 angular, 2 pure traversal, and the closest 3 are **chain-ordered** (i.e. already traversal artefacts). The name promises geometry and delivers a permuted sweep cache. |
 | module `sn/sweep/pole_angular_closure.py` | `…/angular/closure.py` | Two lies in one path. **"pole"** names the special case (the pole cell) for a family that closes the *whole* angular axis — `IdentityAngularClosure` never sees a pole. **"sweep"** is traversal (see §2). R15 already ruled the family `AngularClosure`. |
@@ -165,7 +178,7 @@ avoid importing one of its own inputs is in the wrong stage.
 
 | object | today | belongs | evidence |
 |---|---|---|---|
-| `AngularRedistribution`, `angular_redistribution()`, `alpha_dome`, `_assert_alpha_dome_closes` | `orpheus/geometry/reduced_operator.py` | an **angular-discretization** package (`sn/angular/`) | `[M]` `alpha_dome(cosines, weights)` takes **no geometry argument at all**; the `1/r` lives in `ΔA` (the spatial factor), not in α. Chart-dependence is a *selection*, not spatial data. `[M]` the whole object is buildable from `(quad, coord)` with **no mesh** — and is already called that way on the multi-D path (`augmented_mesh.py:417`). |
+| `AngularRedistribution`, `angular_redistribution()`, `alpha_dome`, `_assert_alpha_dome_closes` | `orpheus/geometry/reduced_operator.py` | ✅ **`sn/angular/`** (ruled §9.2; `transport/angular/` rejected — 0 candidate consumers) | `[M]` `alpha_dome(cosines, weights)` takes **no geometry argument at all**; the `1/r` lives in `ΔA` (the spatial factor), not in α. Chart-dependence is a *selection*, not spatial data. `[M]` the whole object is buildable from `(quad, coord)` with **no mesh** — and is already called that way on the multi-D path (`augmented_mesh.py:417`). |
 | the `AngularMeasure` Protocol | same file | **dissolves** | Its own docstring gives the reason it exists: *"the geometry layer needs no import from the quadrature package at all."* `[M]` trace which members survive moving α out — **4 of 6 go with it**, and the other 2 exist only because `StreamingTerms` bundles angular data into a geometry packet (one of those two is dead, §3). ⟹ **a boundary Protocol that would shrink 6 → 0–2 is the shadow of a misplacement, not a boundary.** |
 | the `AngularClosure` family | `sn/sweep/` | `sn/angular/` | `sn/sweep/` is the **traversal** package (`scan.py`, `cache.py`, `pairing.py`). The closure is a *discretization* object the sweep consumes. §5c's hard guard says traversal is contraband in the scheme; this is the exact mirror. And it breaks R15's symmetry — `SpatialClosure` lives at `transport/spatial/`, its sibling at `sn/sweep/`. |
 | `R` / the pairing | a property on the geometry object | minted by the **scheme** (§5) | `[M]` today it lives on the geometry object and **never reads the scheme** — correct only because DD's basis is the constant. F1 says the basis is the scheme's. |
@@ -457,9 +470,81 @@ rank-1 (ONETRAN) pairing is *expressible* — §6c: it must be constructible, no
 merely refused.
 
 ### P5 — `ChartConnection`'s three stages separate *(rides O-3)*
-**Deferred, deliberately.** Its third piece is `streaming_terms`' evaluated
-per-`(cell, ordinate)` view, which is exactly the layer O-3 redesigns. Splitting
-it here would churn that seam twice.
+**Deferred on a DEPENDENCY, not a punt.** Its third piece is `streaming_terms`'
+evaluated per-`(cell, ordinate)` view, which is exactly the layer O-3 redesigns.
+Splitting it here would churn that seam twice.
+**Unblocked when:** O-3 lands its per-`(cell, ordinate)` layer. That is the
+whole gate — checkable, and named here so this row cannot become a
+defer-and-forget (the ruling at §9.3 applies to every "later" item in this
+plan, and P5 is the one whose blocker is genuinely external).
+
+### P6 — the chart speaks ONE vocabulary *(mechanical; bit-identical)*
+**Goal.** One concept, one spelling. A grep for the chart returns the whole set
+rather than a confident partial answer.
+**Why it is a phase and not an issue.** §9.3: scheduled, not deferred. It is
+last because it is a ~400-hit sweep across files P1–P4 never open — landing it
+inside a phase whose done-when is bit-identity would dominate that phase's diff
+and dilute its evidence. Its own phase, its own diff.
+**Means.** Collapse `geometry_kind` (105) → `coord` (228). `curvature` (68) is
+already gone at P1/P3. ⚠ Three-search audit per §1's warning, and grep the
+**case-spellings** (`[M]` 8 / 3 / several) — a Python-domain xref renders as
+plain text with no warning at any severity.
+**Done when.** `grep -rn "geometry_kind" orpheus/` is empty; `coord` is the only
+live spelling; `dead_references` 0; `sphinx -W` clean; full fast set
+bit-identical.
+
+### P7 — the space metric admits a NON-DIAGONAL `G` *(behavioural; the terminal phase)*
+**Goal.** A function space can carry a metric that is not a Hadamard weight, so
+a cell-dependent non-diagonal `M/V` is *expressible* — and §6's honest refusal
+can become an honest value.
+
+⭐ **This is NOT "choose `G` for curvilinear LD", and the difference is what
+makes it schedulable.** Choosing `G` needs #158's cell solve to have a
+consumer (§6) and is genuinely blocked. What is **not** blocked is the
+machinery, and `[M]` 2026-08-26 the machinery is absent by construction:
+
+| surface | `orpheus/numerics/space.py` | shape |
+|---|---|---|
+| `inner_product` (dense arm) | `float(np.sum(w * x * y))` `:542` | Hadamard |
+| `inner_product` (axes arm) | `np.sum(_apply_axes_weights(x) * y)` `:538` | per-axis diagonal |
+| `apply_metric` | docstring spells it `G⊙x` `:570` | Hadamard **by contract** |
+| `apply_inverse_metric` | `(1/G)⊙x` `:592` | Hadamard |
+| the one extension point | composite spaces override `apply_metric` per BLOCK `:577` | each block still diagonal |
+
+⟹ there is **no** path for a non-diagonal `G`, at any level. `[M]` the
+`__post_init__` guard at `:214` calling `inner_product_weights` "dense" means
+*a dense array of diagonal weights*, not a matrix — which is exactly the sort
+of near-miss vocabulary that makes an absent capability read as present.
+
+⭐⭐ **Cardinal Rule 2 — TWO campaigns demand this one primitive**, which is
+what promotes it from this plan's loose end to a shared foundation:
+
+| campaign | the non-diagonal `G` it needs | what it does today |
+|---|---|---|
+| CS4b frame square, F-0 | the **slab** frame's live discrete Gram, off-diag ~1.15 | records `parseval unavailable` as a limitation; the Parseval gate SKIPS slab |
+| this plan, §6 | curvilinear multi-moment `M/V` = `[[1, 0.5], [0.5, 0.4]]`, cell-dependent | installs the **slab mass** `[1, 0.3333]`; refused one layer out (#158) |
+
+`[M]` recorded independently in three places as a "CS4c matrix-metric debt"
+(`frame_square_recarve.md:122,325`; `collapse_pair_frame_induction.md:103`;
+`orpheus-operator-machinery-report-v2.md:634`) — three records, one missing
+capability, no owner. This phase gives it one.
+
+**Means** (proposed, NOT verified — design at the phase, per §1's discipline):
+the metric becomes a thing that is *applied* rather than a thing that is
+*multiplied* — i.e. the Hadamard weight is the diagonal SPECIAL CASE of an
+operator-valued metric, and `apply_metric`/`apply_inverse_metric` are its two
+faces. That is the same shape CS4c already named ("the leg-as-operator
+machinery"), so the two campaigns should converge here rather than each
+minting one. ⚠ Check CS4c's state before designing — if it has landed legs,
+this phase CONSUMES them and shrinks to the curvilinear installer.
+
+**Done when.** A space carrying a non-diagonal `G` satisfies
+`⟨x, y⟩ = yᵀGx` and `apply_inverse_metric ∘ apply_metric == id` on `G`'s
+range; the CS4b slab arm's Parseval gate STOPS skipping (⚠ §6c — that
+un-skip IS this phase's witness, and it must be named in the gate); §6's
+curvilinear refusal is re-derived — either it becomes a value, or it states
+which of the two blockers still stands. Euclidean and diagonal paths
+bit-identical.
 
 ---
 
@@ -471,24 +556,59 @@ it here would churn that seam twice.
 - **Re-baselining the `cyl_2g_3reg_folded_4x8_dd_n40` red.** `[M]` triply
   confirmed pre-existing and bit-identical across three independent carves
   (#404); it is `@pytest.mark.slow` and deselected by the canonical gate.
-- **Choosing `G`.** §6 says what CANNOT adjudicate it; choosing it is its own
-  campaign, pinned by physical functionals.
+- **Choosing `G`** — the VALUE. §6 says what CANNOT adjudicate it; choosing it
+  is its own campaign, pinned by physical functionals, and it needs #158's cell
+  solve to have a consumer.
+  ✅ **AMENDED 2026-08-26 (user ruling, §9.4) — the row was too wide.** It read
+  as excluding the *machinery* along with the *value*, and those have different
+  blockers: `[M]` the value is blocked on #158, the machinery is blocked on
+  nothing and has **two** waiting consumers. The machinery is now **P7**, a
+  scheduled terminal phase. Only the VALUE stays out of scope.
+  > ⚠ This is plan-authoring §3's REMEDIED-fact case: the row was true when
+  > written and is now half-false, and nothing would have prompted its edit
+  > because being true is exactly why nobody re-reads it.
 
 ---
 
-## 9. Forks the user must rule
+## 9. Forks — ✅ ALL FOUR RULED 2026-08-26 (user)
 
-1. **`ChartConnection` vs `StreamingCoefficients`** — the first names what it
-   is (connection coefficients on a chart, the differential-geometry term the
-   α-dome already cites); the second is more familiar and less right.
-2. **`sn/angular/` vs `transport/angular/`.** `[M]` today the closure family has
+The fork text stays (plan-authoring §3: a decided premise is edited in place,
+never dropped — the alternative's REASON is what stops it being re-litigated).
+
+1. ✅ **`ChartConnection`** — the first names what it is (connection
+   coefficients on a chart, the differential-geometry term the α-dome already
+   cites); the second is more familiar and less right.
+   ⛔ **`StreamingCoefficients` REJECTED**, and the reason is structural, not
+   taste: *"streaming" is what `L` DOES*. Lending `L`'s vocabulary to a
+   non-operator struct is the exact defect `ReducedStreamingOperator` is being
+   retired for, so the alternative reproduces the bug it is meant to fix.
+   ⭐ And the positive evidence is **F2**: after P1's retirements and P4's
+   extraction the residue is `face_areas` + `delta_A`, and
+   `ΔA = ∮ê_r·n̂ dA = ∫∇·ê_r dV` with `∇·ê_r = (d−1)/r` — the *contracted
+   connection coefficient*. The residue is connection data, not metric data,
+   so the name is literally right rather than merely evocative.
+2. ✅ **`sn/angular/`.** `[M]` today the closure family has
    **zero** non-`sn` importers, so `sn/` is honest. But R19 requires the *scheme*
    family to serve diffusion; if the angular family is ever expected to serve a
    second method, `transport/` is the forward-compatible home. My read: the
    angular-cell closure is genuinely SN's (diffusion has no angular axis to
    close; MoC marches space; CP is integral) ⟹ `sn/angular/`.
-3. **Does the chart-spelling unification (§1's last row) belong here or its own
-   pass?** `[M]` 228 + 68 + 105 hits is a large mechanical sweep that touches
-   files this plan otherwise never opens.
-4. **P4's scope:** mint the package *whole* (spatial closure + pairing + moment
-   measure), or only the pairing now and the rest at O-3?
+   ⛔ **`transport/angular/` REJECTED** — it asserts cross-method generality
+   with **0** candidate consumers. A later move is a pure `git mv`.
+3. ✅ **SPLIT, and the remainder is SCHEDULED — not deferred.** Retire
+   `SNMesh.curvature` inside P1/P3 (it is a stringly-typed *duplicate* of the
+   `CoordSystem` enum read through a defaulted `getattr` — a live defect, and
+   already load-bearing for P1's flag retirements). The `geometry_kind` ↔
+   `coord` *synonym* unification is **P6**, a terminal phase of THIS plan.
+   `[M]` 228 + 68 + 105 hits is a large mechanical sweep that touches
+   files this plan otherwise never opens — which is why it gets its own phase
+   and its own diff, **not** why it gets postponed out of the plan.
+   > ⭐ The user's ruling, and it governs #4 too: *"we'll do option 1 to not
+   > dilute the diff, but the rest of the work should be scheduled to the end
+   > of this plan, **not defer and forget**."*
+4. ✅ **Mint the pairing (+ spatial closure) at P4; the moment measure is
+   P7, a terminal phase of THIS plan.** Not `.moment_measure` at P4 — that
+   member requires choosing `G`, and §6 measured that no gate available here
+   can adjudicate the choice. But per the ruling above it is **scheduled, not
+   deferred**: see **P7**, whose scope is materially different from "choose
+   `G`" and is unblocked (§7).
