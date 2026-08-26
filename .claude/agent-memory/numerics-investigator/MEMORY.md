@@ -42,6 +42,13 @@ mesh / flat flux / homogeneous case / two-probe agreement proves nothing.
     SVD is unaffordable the span check is a PRODUCTION-generated kernel vector + a
     round-off NEGATIVE control; ABSENT vs INVISIBLE share a parity fingerprint; a
     blindness list measured on ONE quadrature is a sample; never ship a DENSE basis
+  - L25 an ARITY question is a THEOREM question (**what COMMUTES?** — a scalar convex
+    combination commutes with every linear map ⟹ the widened form is OVERDETERMINED);
+    a SIGNATURE is not an invariance proof; the asymptotic expansion is structurally
+    BLIND to the positive cone (sign-flip modes are excluded by the ansatz); a TENSOR
+    PRODUCT `R ⊗ A(θ)` makes every functional factor — **grep the free symbols**;
+    price the OTHER knob's error in the celebrated knob's units; a published rule of
+    thumb carries the ORDER it was derived at; "lumping" names ≥3 operations
 
 ## 2. Active / in-flight state
 
@@ -83,6 +90,12 @@ call, 3 gates awaiting promotion), #123, #128, #132/#100, #129, #170.
   four kernel-free controls agree at `1e-13`, ERR-056 mutation at `1.0`; `M_GS⁻¹` is
   a SUBSPACE inverse. ⛔ the `n_x`-parity split is SOURCE-dependent (aniso: `1.3e-02`
   at even `n_x`). Backs L23 + both addenda.
+- ⭐ `scratch/tau_under_ld_dip_analysis.md` (in-repo, not agent memory) — the curvilinear
+  LD × Morel–Montry τ verdict: **`tau_per_ordinate` KEEPS its arity** (theorem, not
+  measurement), the risk relocates to a **cone violation in the SEED** (bare LD flips
+  sign at `τ_opt = 3`; a 1.6 % starting-cosine error undoes the whole M-M weight), plus
+  8 refuted candidates with structural reasons. 106 SymPy checks, probes
+  `scratch/probe_tau_ld_0{1..6}_*.py`. Backs L25.
 - ⭐ `scratch/issue_344_kernel_basis.md` (in-repo) — #344's **CLOSED-FORM basis** for
   `ker A`: bulk-zero face sawtooth `(−1)^k φ_a(i_⊥)` ⟹ `Σ_a s_a Y_a(s_{≠a};i_{≠a}) = 0`,
   basis = (group)×(ordinate orbit)×(axis PAIR)×(sign character)×(complementary cell index).

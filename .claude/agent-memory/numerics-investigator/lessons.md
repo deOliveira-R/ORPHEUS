@@ -1009,3 +1009,73 @@ Record: `scratch/issue_344_kernel_basis.md`. Six transferable points.
    against a `7.9 s` solve; the basis never reads a cross-section, so it is built
    once per PHASE SPACE and cached — fissile vs absorber gave a bit-identical
    `2.799e-16` residual.)
+
+---
+
+## L25: An ARITY / "does this contract widen?" question is a THEOREM question — ask what COMMUTES; and a positivity question is a DIFFERENT question the asymptotic expansion is structurally blind to
+
+Curvilinear LD × Morel–Montry τ (2026-08-25/26). Record:
+`scratch/tau_under_ld_dip_analysis.md`; probes `scratch/probe_tau_ld_0{1..6}_*.py`
+(**106 SymPy checks, 0 failures**). Seven transferable points.
+
+1. ⭐⭐ **"Does accessor `f(x)` have to become `f(x, y)`?" is answered by asking what
+   the defining conditions COMMUTE with — not by an expansion.** A **scalar convex
+   combination commutes with every linear map**, so if a quantity is defined by (i)
+   membership of a convex set and (ii) exactness of a scalar blend, then *both*
+   conditions are the SAME scalar statement in every component of every linear
+   representation, and the widened form is an **overdetermined system whose every
+   row returns the same value**. `[M]` solved independently at `n_mom = 4`: all
+   rows give `τ = (μ_n−e_−)/(e_+−e_−)`. Hypotheses to CHECK, all three cheap: the
+   scalar is independent of the widened index; the projection is linear; the set is
+   convex. Cost: minutes, against a multi-day expansion.
+2. ⭐⭐ **A SIGNATURE is not an invariance proof, and a spatial-argument-free
+   producer is the classic tell.** "β cannot accept a mesh, therefore β is
+   mesh-independent" is `vv-principles` Mode 8's SIGNATURE-tautological class: the
+   signature is a consequence of the DERIVATION'S SCOPE (M-M 1984 and BMC 2010 both
+   hold space *continuous* and say so), not evidence about the joint problem. The
+   conclusion was true; the argument carried zero information. **Always ask what
+   analysis produced the object, not what its parameters are.**
+3. ⭐⭐ **The asymptotic expansion and the POSITIVE CONE answer different questions,
+   and the expansion is structurally blind to the cone.** A sign-alternating
+   cell-to-cell mode is EXCLUDED BY THE ANSATZ, so no order of the expansion sees
+   it — which is why Palmer–Adams carry "limits to a *stable* diffusion equation"
+   as a SEPARATE acceptance criterion. `[M]` transmission sign ladder, all derived
+   in one probe: **DD flips at `τ_opt=2` (Padé(1,1)), bare LD at `τ_opt=3`
+   (Padé(1,2)), lumped LD NEVER (Padé(0,2), discriminant `1−2<0`)** — and
+   `a_LD·τ_opt → −2`, i.e. sign-flipped and decaying only as `1/τ_opt`. ⟹ when a
+   scheme is "verified in the diffusion limit", ask which of the two it was.
+4. ⭐ **Where a redistribution/coupling operator is a TENSOR PRODUCT `R ⊗ A(θ)`
+   with disjoint index sets, EVERY functional of it factors** and the θ-scalar is
+   untouched by any change to `R`. `[M]` verified at `n_mom = 1,2,3,4`; `[M]` the
+   scalar's free symbols contained no spatial symbol at all — **grep the free
+   symbols, it is a one-line proof.** Corollary that pays: the leading-order
+   discrete diffusion equation then carries no θ, so a SPATIAL defect cannot be
+   repaired by θ and vice versa — **two orthogonal failure modes**, and conflating
+   them is the whole confusion.
+5. ⭐⭐ **When one knob is exact-by-construction, price the OTHER knob's error in
+   the first knob's units — the ratio is usually the finding.** `[M]` with τ at
+   Morel–Montry (β ≡ 0), a starting-cosine error of only **1.6 % at S4, 0.05 % at
+   S32** reproduces the ENTIRE contamination τ exists to remove, because
+   `β_eff(μ_s) = S + (μ_s+1)·S_e` is EXACTLY affine and `|S_e/S_diamond|` GROWS
+   with N (24× → 333×). ⟹ the celebrated knob was never the risk; its neighbour
+   was. Look for the affine law before assuming two knobs are independent.
+6. ⚠ **A published RULE OF THUMB carries the order it was derived at.** M-M's
+   summary "the dip is eliminated with any spatial scheme as long as the starting
+   flux is not seriously UNDERestimated" is `dβ/dμ_s = S_e > 0`, and `[M]` **`S_e`
+   flips sign between N=2 (their own test case, `+9.1e-1`) and N≥4 (`−1.1e-1 …
+   −1.7e-5`)** — the safe DIRECTION inverts. Honest companion: `|S_e|` falls 5
+   orders over the same range, so the direction inverts while the stakes collapse.
+   Same family as L21-6 (a low-order-consistency benefit decaying with angular
+   order). **Evaluate the quantity, never the heuristic.**
+7. ⚠ **"Lumping" names ≥3 different operations and they disagree.** `[M]`
+   Legendre-diagonal lumping destroys `R₀₁` and breaks the per-moment-row
+   flat-flux identity; **nodal ROW-SUM lumping (which is what Palmer–Adams's FL
+   actually is) PRESERVES `R₀₁` exactly** — only `R₁₁` moves, `ΔA/3 → ΔA` — so the
+   identity survives untouched. And row-sum lumping the GRADIENT gives transmission
+   **identically 0** (a degenerate scheme), which is why MWS lump everything except
+   the gradient. ⟹ a ⛔ banner saying "X may not be lumped" must name the BASIS and
+   the MATRIX; mine (inherited) condemned the wrong operation. The real freedom:
+   the infinite-medium identity pins only `rowsum(L)`, leaving one parameter per
+   row, and a MONOTONE (`A⁻¹ ≥ 0`) member exists inside it at the cost of dropping
+   to first order — **the accuracy/positivity trade is a choice of that parameter,
+   not a property of "lumping".**
