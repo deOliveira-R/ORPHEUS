@@ -706,6 +706,199 @@ an **`AngularClosure`** concept — the closure family pattern is
 `<Axis-role>Closure`, one closure concept per axis the scheme closes
 (R15).
 
+## 5d. The Phase B opening discussion — the record (2026-08-25, IN PROGRESS)
+
+⚠ **Epistemic status of this whole section**: the census/measurement rows are
+`[M]`; the *design* rows are the main agent's **proposals**, opened for the
+user's steer and **NOT ruled**. Nothing here has been executed. The one
+LANDED item is the falsified-claim repair (`7433f7b3`), which was a
+correctness fix, not a design act.
+
+### 5d.1 The naming re-derivation — `AngularClosure` stands (R15 unchanged)
+
+The user asked whether **`CurvilinearClosure`** describes the family better.
+`[M]` **it collides with established in-tree vocabulary**: *"curvilinear cell
+closure"* already means the SPATIAL closure's curvilinear arm —
+`diamond.py:167` ("DD **has** a curvilinear cell closure"), `scheme.py:846`
+(`supports_curvilinear` = "whether the scheme has a curvilinear
+(sphere/cylinder) **cell closure**"), + 5 LD sites. Naming the angular
+family `CurvilinearClosure` would give the angular object its sibling's
+name, and one grep would return both concepts.
+
+The structural reason behind the collision: **curvature is the REGIME, not
+the axis, and it modifies both axes' treatment** — face areas / ΔA on the
+spatial side, α / τ on the angular side. So "Curvilinear" cannot
+discriminate *what is being closed*, whereas `<Axis-role>Closure` names the
+closed unknowns. The Cartesian `IdentityAngularClosure` member confirms the
+family spans regimes: the axis always exists; the closure is trivial when
+curvature vanishes.
+
+⚠ Recorded weakness of `AngularClosure` (not a defect today): in the wider
+field the phrase can also mean the moment-hierarchy closure (P_N / M_N). If
+ORPHEUS ever types THAT concept, it closes the harmonic-moment expansion,
+not the angular-cell differencing — `MomentClosure` / `HarmonicClosure`
+names it without contention. Reserve those spellings; do not rename this one.
+
+### 5d.2 The smuggle audit — what is DD-specific and has escaped DD
+
+The user's question: *is anything actually DD-specific and smuggled outside
+of DD?* `[M]` four findings, one of them live:
+
+1. ⛔ **DD's blend inverse `2.0` is hard-coded in the scheme-neutral balance
+   module.** `transport/spatial/cell_balance.py:248` (`streaming_denom_term =
+   2.0 * abs_mu * A_downstream`) and `:343` (the full denominator). That
+   `2.0` is exactly `1/w` at DD's `w = ½`. Function consumers are NOT
+   DD-only: `diamond.py:87` **and** the streaming matvec bodies
+   (`loss_representation/__init__.py:3121`, `:3472`). Harmless **by
+   coincidence** — `supports_curvilinear` gates every curvilinear mesh to DD,
+   so the containment is a CAPABILITY FENCE, not the algebra. The principled
+   form already exists one class over: `affine_scan_coefficients` RETURNS the
+   blend weight (`face_blend_weight`) rather than inlining it.
+   ⟹ **filed as #407**; the carve belongs to O-3 (§5c), where `cell_balance.py`
+   reorganizes under the scheme family anyway.
+2. **The mirror smuggle, same family, other axis**: the M-M angular
+   recurrence is re-spelled inline in the matvec/transpose kernel bodies
+   (`loss_representation:4346/:4651/:4693`) from `GeometryCoefficients`'
+   stored constants, instead of routed through the closure's kernels — two
+   spellings of one recurrence, mitigated only by the constants being
+   single-sourced (`cache.py:332-337`). Recorded in #407; carve both axes
+   together.
+3. `CollisionCache`'s class docstring states DD's formulas as the *cache's*
+   contract while the code correctly delegates to `scheme.affine_scan_
+   coefficients` — stale over-specific doc, repair when O-3 touches it.
+4. The `affine_scan_coefficients` operand MENU is DD-drawn (`A_total` present
+   because DD needs it — LD's override marks it unused; `c_in` absent because
+   DD's triple does not need it). Not wrong; drawn around the first occupant.
+   Re-derive the menu when a second curvilinear occupant arrives.
+
+✅ **The properly-fenced counter-example, worth keeping as the model**:
+`sn/acceleration/dsa.py:214-219` declares and GATES its DD-consistency
+(`scheme_key != "diamond_difference"` → refusal citing the missing WDD
+stability theory). Scheme-specific consumption done right.
+
+### 5d.3 The LD probe — why a second member was brought in
+
+⭐ **The user's framing, and it is the methodological point of this round**:
+LD was brought in NOT as scope creep but because *"having 2 schemes with
+angular closure allows us to precisely pin-point the shape of an angular
+closure base class and machinery"* — the `defer-until-≥2` rule used as a
+DESIGN INSTRUMENT. The second member is derived to triangulate the ABC, not
+to be built.
+
+Two probes were run **blind to each other** (structural independence,
+`vv-principles` L11): a literature sweep of the local corpus, and a
+from-scratch SymPy derivation.
+
+**⛔ REFUTED — "the curvilinear LD cell closure is unpublished"** (the tree
+asserted this at 16 sites). `[M]` **Adams & Martin 1992**, NSE 111(2), App. A
+(LOCAL, page-verified pp. 160-161) carries the complete 1-D spherical LD
+moment-balance system: (A.1a)/(A.1b) moments, **(A.2a)/(A.2b) weighted-diamond
+angular closure applied PER SPATIAL MOMENT**, (A.4a-d) mass integrals. Plus
+MWS 1996 (JCP 128, lumping — acquire), Morel-González-Aller-Warsa 2007 (r-z
+lumped LD — now local), Hill 1975 ONETRAN, Wu-Xie-Fischer 1999,
+Lathrop 2000 §III.D. Root cause of the false negative: a ONE-QUERY
+denominator in a prior extraction while the refuting paper sat in
+`scratch/literature/`. ✅ **REPAIRED `7433f7b3`** — all 16 sites re-scoped to
+"not yet implemented (#158)". Full record: **#158's 2026-08-25 comment**.
+
+**The two probes agree entry-by-entry** — `[M]` all three independent ratios
+of the redistribution Gram: A-M's `{r_kΔr_k, Δr_k²/6, r_kΔr_k/3}` vs the
+derivation's `R = ΔA·[[1, h/(6r_c)], [h/(6r_c), 1/3]]` ⟹ `R₀₁/R₀₀ =
+h/(6r_c)` ✓, `R₁₁/R₀₀ = 1/3` ✓, `1/w` placement ✓, per-moment τ ✓,
+non-diagonal collision Gram ✓, no-lumping-on-the-sphere ✓ (the derivation
+measured that lumping `R` BREAKS the flat-flux L0 identity; A-M use the exact
+mass matrix). ⚠ One disagreement, **sign only**: A-M's printed slope-coupled
+terms carry a minus where the derivation gives plus; the convention lives in
+the paper BODY (Sec. III.A), not the appendix. Magnitudes cross-confirmed,
+sign to spot-resolve at transcription — the ERR-032-class hazard the
+two-probe design exists to catch.
+
+### 5d.4 ⭐⭐ What the second member actually pinned — the axes are ORTHOGONAL
+
+The finding that reshapes the family, and it was NOT the expected one:
+
+> **There is no separate "LD angular closure" to write.** The angular closure
+> is ONE body (weighted diamond / M-M τ); LD's entire injection is the
+> **Gram `R`** — the one-measure-down Gram of the scheme's own basis.
+
+`[M]` the member split (76 SymPy checks,
+`scratch/ld_curvilinear_shape_derivation.md` §7):
+
+- **Member-INDEPENDENT** (one body, no LD arm): the τ producer, the angular
+  cell edges, `alpha_dome` + its `α_{M+1/2}=0` contract, the `c_in`/`c_out`
+  algebra, the P3 τ∈[0,1] guard, `march_start_structure_per_level` / the
+  carrying-levels predicate, and the recurrence step itself. (τ eliminates
+  componentwise with the **same scalars**: `∂(redist)/∂ψ_vec = c_out·R/w_n`
+  exactly — no row-dependent `c`.)
+- **Member-DEPENDENT**: carrier shape (`(ng,M+1,nx)` → `(ng,M+1,nx,2)`;
+  `2^d` in general), `R`, the collision/source Gram `M`, the weak gradient
+  `G`, the cell solve (scalar denom → 2×2), the coefficient triple
+  (`(a, 1/denom, w)` → `(a, A⁻¹, w_vec)`, `a` stays SCALAR), the
+  starting-direction solve, the sweep-frame⇄global-frame map, lumping.
+
+⟹ **PROPOSED contract** (main agent; not ruled): the closure's cell
+contribution widens to a trailing moment axis —
+`denom_term (n_mask, n_mom, n_mom)`, `upstream_numer_term (ng, n_mask,
+n_mom)` — with DD the `n_mom == 1` case, byte-identical after a squeeze; and
+the scheme's ONLY injection is one hook,
+`redistribution_gram(cell) -> (n_mom, n_mom)` (DD `[[ΔA]]`; LD the 2×2 above,
+**diagonal** on the cylinder).
+
+⟹ **This REFINES the user's proposed pattern** (*"a scheme is a factory of
+spatial closure, angular closure, and other things; whatever scheme cannot
+provide an angular closure fails loud"*). The measurement says the scheme is
+a factory of *(spatial closure, the moment-space data the shared angular
+closure needs)* — the loud-failure discipline is right and already shipped in
+weaker form (`supports_curvilinear` + a value sniff + a per-visit raise); what
+moves is WHAT is minted. The genuinely SECOND `AngularClosure` member is not
+LD-in-space at all — it is **angular-LD** (Walters-Morel 1991, per Lathrop
+2000 §III.D, recorded there as *less* accurate than weighted diamond). That is
+the axis the ABC must keep open.
+
+⚠ **Risk to the contract, unsettled (memo §10, "Q7")**: `R₀₁` mediates an
+average↔slope coupling of size `h/(6r_c)`, which is **`1/3` at the pole
+cell** — exactly where the M-M flux dip lives. If a redone BMC first-order
+expansion carrying both moments gives `β^LD ≠ 0` at the DD-derived τ, then
+**τ becomes cell-dependent** and today's `tau_per_ordinate` contract widens
+from per-ordinate to per-(ordinate, cell). Settling procedure: memo §10.4.
+⟹ **the ABC must not freeze `tau_per_ordinate`'s arity until Q7 is closed.**
+
+### 5d.5 Two gates that do not exist, and one that is doubly blind
+
+`[M]` from the derivation, recorded for `test-architect` (see #158 §5):
+
+1. **Two inequivalent starting-direction discretizations**, both flat-flux
+   exact and `O(h)` apart at the pole cell. ⛔ **Double blindness**: the
+   canonical L0 flat-flux gate cannot discriminate them, AND the gap is
+   proportional to the **slope source moment**, which ORPHEUS zeroes for the
+   external source (#247). A `vv-principles` Mode-12 stabiliser finding.
+2. **No catcher exists** for a global-vs-sweep-frame **slope sign** error on
+   the half-angle thread (the slope flips sign across `μ=0` where the sweep
+   reverses; DD never meets this because the average is sign-invariant).
+   Invisible to flat flux (`ψ̂=0`) and to any single-sweep-direction fixture.
+3. ⛔ **A per-moment-row gate written on the CYLINDER is vacuous** (the slope
+   row is trivially `0=0` under flat flux, and `R` is diagonal there) — such a
+   gate must run on the **sphere**.
+
+### 5d.6 Where the discussion stands — the open forks
+
+| # | fork | main agent's lean |
+|---|---|---|
+| B-a | `reduced`'s angular family: take it whole / take loose fields / **derive at the consumer** (α, τ, μ_start are all quadrature-derivable; `redist_dAw = ΔA ⊗ 1/w` is a stored PRODUCT of a quadrature factor and a geometry×basis factor — `R₀₀ = ΔA` exactly) | derive-at-consumer; the minimal operand set trends to `(quad, coord)` with `R` arriving from the scheme |
+| B-b | does Phase B land the constructor re-contract, or wait and open with the uncontested retirements? | ⚠ **the Q7 risk now argues for the retirements first** — re-contracting before τ's arity is settled would freeze the wrong shape |
+| B-c | who mints the closure (scheme-mints vs registry) | scheme supplies `R`; the mint question is O-3's (§5c), where the space-as-mint-input ruling (R19) lives |
+| B-d | Phase B's boundary at `sn/sweep/cache.py` | `[M]` `CollisionCache` is already operand-shaped (`from_geometry(geom, sig_t, scheme)`); `GeometryCoefficients`' welds are spatial-chart + traversal (the deferred arc). ⟹ Phase B touches neither |
+
+**Retirement list accumulated so far** (uncontested, all `[M]`): the two
+production-dead flags on `ReducedStreamingOperator`
+(`requires_upstream_angular_state`, `angular_marching_axis` — 0 production
+reads, 12 test references); the two dead `SNMesh` shims (`face_areas`,
+`delta_A` — 0 callers); `redist_dAw` as a stored product; and two stale
+comments (the closure binding site's over-listed operands at
+`augmented_mesh.py:391` — it names `_volumes`/`axis_widths`, `[M]` zero
+volume/width reads in the closure file; and the kernel comment claiming the
+closure reads `V` from `self`).
+
 ## 6. The rulings ledger (all user, this session, unless marked)
 
 | # | ruling | date |
