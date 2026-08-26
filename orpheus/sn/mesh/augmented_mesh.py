@@ -32,6 +32,7 @@ from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.geometry.reduced_operator import (
     ReducedStreamingOperator,
     StreamingTerms,
+    angular_redistribution,
     cylindrical_streaming,
     slab_streaming,
     spherical_streaming,
@@ -390,18 +391,34 @@ class SNMesh(MaterialMesh):
         # above, so a bad materials dict raises at construction time.)
 
         # ── Pole-angular closure binding (PR-TYPED-6.5 Phase 2.9) ──
-        # All upstream state needed by the closure constructors is now
-        # available (``self.reduced``, ``self._volumes``, ``self.axis_widths``,
-        # ``self.quad``, ``self.ng``).  The user-supplied closure CLASS —
-        # or the default-by-coord-system — binds to ``self`` through the
-        # family's one-positional-mesh construction contract
-        # (``cls(sn_mesh)``); every mesh therefore carries a BOUND closure.
+        # The closure takes the TWO TENSOR FACTORS of the redistribution
+        # operator, not the mesh (the un-weld arc's Phase B): the angular
+        # factor (dome, starting direction, measure) and the spatial Gram.
+        # The mesh's job here is to hand over two values it already holds —
+        # not to be captured.  The user-supplied closure CLASS, or the
+        # default-by-coord-system, is constructed through the family's
+        # ``cls(angular, gram)`` contract; every mesh carries a BOUND closure.
         closure_cls = (
             self._user_supplied_closure
             if self._user_supplied_closure is not None
             else default_angular_closure_class(self.coord)
         )
-        self.pole_angular_closure: PoleAngularClosureBase = closure_cls(self)
+        if self.reduced is not None:
+            angular = self.reduced.angular
+            gram = self.reduced.redistribution_gram
+        else:
+            # Multi-D Cartesian: there is NO reduced streaming operator
+            # (the chain scan is a 1-D construct; d ≥ 2 rides the
+            # wavefront schedule) — and there is no curvature either, so
+            # both tensor factors are the NEUTRAL element and neither
+            # needs it.  That they are buildable from ``(quad, coord)``
+            # alone is the un-weld's own point: the closure's operands
+            # were never mesh facts.
+            angular = angular_redistribution(self.quad, self.coord)
+            gram = np.zeros((int(np.prod(self.spatial_shape)), 1, 1))
+        self.pole_angular_closure: PoleAngularClosureBase = closure_cls(
+            angular, gram,
+        )
         # Drop the temporary attribute now that the closure is bound.
         del self._user_supplied_closure
 

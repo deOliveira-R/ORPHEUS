@@ -496,7 +496,10 @@ class ReducedStreamingOperator:
 
     * :func:`slab_streaming` — Cartesian 1-D, no curvature.
     * :func:`spherical_streaming` — 1-D spherical, with
-      :math:`\\alpha_{n+1/2}` dome recursion (Bailey 2009 Eq. 50).
+      :math:`\\alpha_{n+1/2}` dome recursion (Hébert Eqs. 3.423-3.424,
+      after Lathrop & Carlson 1966 — ⛔ NOT "Bailey 2009 Eq. 50", which
+      this line claimed until 2026-08-26 while the module header 490
+      lines above already condemned exactly that citation).
     * :func:`cylindrical_streaming` — 1-D cylindrical, with
       per-:math:`\\mu`-level :math:`\\alpha` and :math:`\\tau_{mm}`
       structures.
@@ -562,6 +565,46 @@ class ReducedStreamingOperator:
     _quadrature: AngularMeasure | None = field(default=None, repr=False)
 
     # ── Per-direction extraction ───────────────────────────────────
+
+    @property
+    def redistribution_gram(self) -> np.ndarray:
+        r"""The SPATIAL factor of the redistribution operator, ``(nx, n_mom, n_thread)``.
+
+        The other half of the tensor product
+        :math:`\mathcal{R} = R_{\rm spatial} \otimes A_{\rm angular}` —
+        what the angular closure is handed so that neither side owns the
+        product (:class:`AngularRedistribution` is the angular half).
+
+        **The two axes are the two bases being paired**, and they are
+        independent:
+
+        * ``n_mom`` — how many spatial moments the SCHEME carries
+          (diamond difference: 1; a linear-discontinuous cell: 2);
+        * ``n_thread`` — how much of the spatial representation the
+          ANGULAR device propagates through its half-angle recurrence.
+
+        so the general entry is the one-measure-down Gram
+        :math:`R_{kj} = \int b_k^{\rm scheme}\, b_j^{\rm thread}\,
+        r\,\mathrm{d}r` — rectangular whenever the two differ.  Both
+        published families are realizable in it: closing the angular
+        index per spatial moment (Adams--Martin 1992 App. A) gives a
+        square Gram, while closing it on the cell AVERAGE only (ONETRAN,
+        Hill 1975 Eq. 32) gives a rank-1 column.  ORPHEUS must pick one
+        explicitly; the axes exist so the pick is expressible.
+
+        Today every shipped scheme is single-moment, so this is
+        ``(nx, 1, 1)`` and its single entry is :math:`\Delta A_i` —
+        exactly what the retired ``redist_dAw`` cache held, before the
+        per-ordinate :math:`1/w_n` was fused onto it.
+
+        Cartesian returns the neutral element (zeros): a slab's face
+        areas are constant, so :math:`\Delta A \equiv 0` is the physical
+        value, not a placeholder.
+        """
+        nx = int(self.mesh.widths.size)
+        if self.delta_A is None:
+            return np.zeros((nx, 1, 1))
+        return np.asarray(self.delta_A, dtype=float)[:, None, None]
 
     def _weight_of(self, global_ordinate: int) -> float:
         r"""The measure's weight :math:`w_n` for one GLOBAL ordinate index.
@@ -1112,14 +1155,19 @@ def cylindrical_streaming(
     Requires ``angular_measure`` to carry per-:math:`\mu`-level
     structure: the guard below rejects a quadrature whose
     ``level_structure`` is ``None``, and the math then reads
-    ``level_indices`` (a list of index arrays, one per level). The two
-    cylindrical-compatible factories supply it —
-    :meth:`Quadrature.level_symmetric
-    <orpheus.numerics.quadrature.Quadrature.level_symmetric>` and
-    :meth:`Quadrature.product
-    <orpheus.numerics.quadrature.Quadrature.product>`; the slab
-    (``gauss_legendre``) and pure-sphere (``lebedev``) factories carry
-    no ``LevelStructure`` side-channel. These are named classmethod
+    ``level_indices`` (a list of index arrays, one per level).
+    ⛔ **This paragraph used to name** :meth:`Quadrature.level_symmetric`
+    **and** :meth:`Quadrature.product` **as "the two cylindrical-compatible
+    factories" — corrected 2026-08-26: both are REFUSED** by
+    :func:`~orpheus.sn.sweep.pole_angular_closure.assert_carrying_quadrature`,
+    which this factory's only caller runs twelve lines after calling it (an
+    ABS_MU_Z level carries both hemispheres, so η is degenerate on the
+    most-inward node and the seed slot is a rank duplicate).  The rule that
+    IS admitted is :meth:`Quadrature.folded_product
+    <orpheus.numerics.quadrature.Quadrature.folded_product>`, the σ_y
+    quotient — which appeared in this module only inside an error string.
+    The slab (``gauss_legendre``) and pure-sphere (``lebedev``) factories
+    carry no ``LevelStructure`` side-channel. These are named classmethod
     factories on the single ``Quadrature`` type — the per-family
     adapter classes this docstring used to name were retired in R-1
     Phase A detour-C. The quadrature must also expose ``mu_z`` (axial
@@ -1184,12 +1232,6 @@ def cylindrical_streaming(
     # factory keeps the GEOMETRY data only.  (The cylinder [½, 1] absorber
     # that used to live alongside that producer retired at Q5.6.4 — there
     # is one τ, unclamped, on both arms.)
-    mu_z = angular_measure.mu_z
-    mu_start_per_level: list[float] = []
-    for level_idx in angular_measure.level_indices:
-        sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
-        mu_start_per_level.append(float(-sin_theta))
-
     return ReducedStreamingOperator(
         coord=CoordSystem.CYLINDRICAL,
         mesh=mesh,

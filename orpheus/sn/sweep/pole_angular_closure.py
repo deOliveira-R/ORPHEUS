@@ -173,6 +173,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 
 from orpheus.geometry import CoordSystem
+from orpheus.geometry.reduced_operator import AngularRedistribution
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -192,6 +193,50 @@ if TYPE_CHECKING:  # pragma: no cover
 # curvilinear_one_group.rst §sn-pole-angular-closure-protocol.
 
 
+
+def _require_single_moment_gram(gram: np.ndarray, who: str) -> None:
+    r"""Refuse a multi-moment spatial Gram — the cell SOLVE does not exist yet.
+
+    The Gram's two axes are real and load-bearing (see
+    :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.redistribution_gram`):
+    ``n_mom`` is the scheme's spatial-moment count, ``n_thread`` is what the
+    angular device propagates.  What does NOT exist yet is the other side of
+    the contract: at ``n_mom > 1`` the closure's contribution to the cell
+    balance stops being a scalar and becomes an ``(n_mom, n_thread)`` block,
+    so ``psi_out = numer / denom`` becomes a linear SOLVE — which is the
+    linear-discontinuous cell update itself (Issue #158, the curvilinear
+    arm; the derivation is published, see that issue's record).
+
+    ⚠ **Read its coverage precisely** (``plan-authoring`` §6c).  No SHIPPED
+    scheme is multi-moment, so nothing in production reaches this guard —
+    but a multi-moment Gram is a plain array, so a HAND-BUILT one does, and
+    that is a real witness rather than a mutation of the code under test.
+    The gate is
+    ``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``; it pins
+    both shapes the literature actually proposes — a square ``(nx, 2, 2)``
+    (Adams--Martin, closing per spatial moment) and a rank-1 ``(nx, 2, 1)``
+    (ONETRAN, closing on the cell average only).  So this is a fail-loud
+    marker for the step that adds a multi-moment scheme, AND it is gated.
+    """
+    gram = np.asarray(gram)
+    if gram.ndim != 3:
+        raise ValueError(
+            f"{who}: the redistribution Gram must be (nx, n_mom, n_thread); "
+            f"got shape {gram.shape}. Build it from "
+            f"ReducedStreamingOperator.redistribution_gram."
+        )
+    n_mom, n_thread = gram.shape[1], gram.shape[2]
+    if n_mom != 1 or n_thread != 1:
+        raise NotImplementedError(
+            f"{who}: a multi-moment redistribution Gram "
+            f"(n_mom={n_mom}, n_thread={n_thread}) needs the multi-moment "
+            f"cell SOLVE, which is not implemented (Issue #158, the "
+            f"curvilinear linear-discontinuous arm). The Gram's axes are "
+            f"accepted here so the pairing is expressible; the cell balance "
+            f"below still divides by a scalar."
+        )
+
+
 class PoleAngularClosureBase(RegistryMixin, ABC):
     r"""Concrete abstract base for self-registering pole-angular-closure strategies.
 
@@ -208,12 +253,12 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
       :meth:`angular_adjoint` — the matvec/sweep strategy contract (the
       forward angular path, its per-cell cell-balance contribution, and
       its reverse-mode adjoint).
-    * ``__init__`` constructible as ``cls(sn_mesh)`` — the family
+    * ``__init__`` constructible as ``cls(angular, gram)`` — the family
       construction contract (abstract below): every closure binds to
       its :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at
       construction (PR-TYPED-6.5 Phase 2.3), and the SNMesh
       default-closure dispatch instantiates through this signature
-      (``default_angular_closure_class(coord)(mesh)``). Concretes may
+      (``default_angular_closure_class(coord)(angular, gram)``). Concretes may
       widen (an optional mesh, extra keyword strategy slots).
 
     Notes
@@ -248,7 +293,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     # ``c_in_per_ordinate`` / ``c_out_per_ordinate`` accessors below typecheck
     # against the shared contract; the concrete value is bound in each
     # subclass (M-M from its α-dome / τ, Identity to neutral zeros).  Every
-    # closure binds to its SNMesh at construction (the ``cls(sn_mesh)``
+    # closure binds its two tensor factors at construction (``cls(angular, gram)``
     # family contract), so the state is always populated — the former
     # ``| None`` widenings served only the retired M-M unbound legacy mode.
     level_indices: "tuple[np.ndarray, ...]"
@@ -304,17 +349,42 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         return PoleAngularClosureBase
 
     @abstractmethod
-    def __init__(self, sn_mesh: "SNMesh") -> None:
-        """Family construction contract — a closure binds to its SNMesh.
+    def __init__(
+        self,
+        angular: "AngularRedistribution",
+        gram: np.ndarray,
+    ) -> None:
+        r"""Family construction contract — a closure binds its two TENSOR FACTORS.
 
-        Every concrete strategy is constructible as ``cls(sn_mesh)``
-        (PR-TYPED-6.5 Phase 2.3 mesh binding); the SNMesh
-        default-closure dispatch
-        (``default_angular_closure_class(coord)(mesh)``) instantiates
-        through this signature. Concretes may WIDEN it with extra
-        keyword slots — but the one-positional-mesh call must stay
-        valid. Abstract: declares the signature only; concrete
-        ``__init__`` bodies do not chain here.
+        The curvilinear redistribution operator factors as
+        :math:`\mathcal{R} = R_{\rm spatial} \otimes A_{\rm angular}
+        (\tau, \alpha, w)`, and a member of this family IS the angular
+        factor.  So it takes exactly the two things that product is made
+        of, and nothing else:
+
+        * ``angular`` — the member-INDEPENDENT angular data (the
+          :math:`\alpha`-dome, the starting direction, the measure), shared
+          by every member;
+        * ``gram`` — the SPATIAL factor, ``(nx, n_mom, n_thread)``.
+
+        What each member adds on top is its own :math:`\tau` and the
+        derived :math:`c_{\rm in}` / :math:`c_{\rm out}` — which is
+        precisely why those are NOT on the shared angular object: a
+        second member (plain diamond, an angular-LD device) has to be
+        able to choose differently.
+
+        Every concrete strategy is constructible as ``cls(angular, gram)``;
+        the SNMesh default-closure dispatch
+        (``default_angular_closure_class(coord)(angular, gram)``)
+        instantiates through this signature.  Concretes may WIDEN it with
+        extra keyword slots — the two-positional call must stay valid.
+        Abstract: declares the signature only; concrete ``__init__``
+        bodies do not chain here.
+
+        (Before the 2026-08-26 un-weld this read ``cls(sn_mesh)`` and every
+        member reached into the mesh for its operands.  Nothing it reached
+        for was a mesh fact: measured, the whole set was
+        ``(quad, coord, ΔA)`` plus values derivable from them.)
         """
     # The M-M weighted-diamond closure derives two algebraic constants per
     # μ-level from its α-dome and τ weight (the index convention consumers
@@ -372,6 +442,22 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         self._c_in_per_ordinate_cache = c_in_cache
         self._c_out_per_ordinate_cache = c_out_cache
         self._tau_per_ordinate_cache = tau_cache
+
+    #: Set by every concrete ``__init__`` (the family's two-tensor-factor
+    #: contract); declared here so the base's :attr:`angular` accessor is
+    #: typed against the contract rather than against one member.
+    _angular: "AngularRedistribution"
+
+    @property
+    def angular(self) -> "AngularRedistribution":
+        """The angular factor these coefficients were derived from.
+
+        Provenance, and the diagnostic affordance R19 asks of a bound
+        object: given a closure, recover the dome, the starting direction
+        and the measure that produced its τ / c_in / c_out — without
+        having to find the mesh that built it.
+        """
+        return self._angular
 
     @property
     def c_in_per_ordinate(self) -> np.ndarray:
@@ -1091,7 +1177,7 @@ def morel_montry_tau_per_level(
     quad :
         Quadrature exposing ``mu_x`` (radial cosine — :math:`\mu` sphere,
         :math:`\eta` cylinder), ``weights``, ``mu_y``/``mu_z`` and
-        ``level_indices`` (cylinder only).  This is ``sn_mesh.quad``.
+        ``level_indices`` (cylinder only) — the angular factor's measure.
     coord :
         :class:`~orpheus.geometry.CoordSystem` — ``SPHERICAL`` or
         ``CYLINDRICAL``.  Selects only the cell PARTITION (delegated);
@@ -1416,26 +1502,43 @@ class MorelMontryAngularSweep(
 
     def __init__(
         self,
-        sn_mesh: "SNMesh",
+        angular: "AngularRedistribution",
+        gram: np.ndarray,
     ) -> None:
-        # The mesh binding is REQUIRED (the ``cls(sn_mesh)`` construction
-        # contract): all M-M coefficients are precomputed here and the
-        # strategy methods read them from ``self``.
-        #
+        # The two TENSOR FACTORS, and nothing else (the un-weld arc's
+        # Phase B): the angular factor carries the dome, the starting
+        # direction and the measure; ``gram`` is the spatial factor,
+        # ``(nx, n_mom, n_thread)``.  All M-M coefficients are precomputed
+        # here and the strategy methods read them from ``self``.
+        _require_single_moment_gram(gram, type(self).__name__)
+        self._gram = np.asarray(gram, dtype=float)
+        self._angular = angular
+        # (Retained as PROVENANCE, and read through :attr:`angular` — the
+        # coefficients below are derived from it, so a diagnostic that has
+        # the closure can recover what they were built from.  It was
+        # write-only when first written; an audit caught that, and a
+        # stored-but-unread field is dead weight, not provenance.)
+
+        coord = angular.coord
+        quad = angular.quadrature
+        N = int(np.asarray(quad.mu_x).size)
+        # The single-moment contraction: today's per-cell spatial factor
+        # is the one entry of a (1, 1) Gram — ΔA_i.
+        delta_A = self._gram[:, 0, 0]
+
         # R12a (#282 route (a)): the carrying-level set — the levels whose
         # recurrence consumes independent starting-direction STATE.
-        # Single-sourced from the mesh predicate (which reads the two
-        # march-start facts via ``march_start_structure_per_level``); safe
-        # here because the facts need only ``(quad, coord)``, both bound
-        # before the closure is built.
+        # Derived HERE from (quad, coord), which is where the facts live;
+        # the mesh property that used to supply it reads the same producer
+        # (``march_start_structure_per_level``), so this is the same value
+        # from the same source, one hop shorter.
         # (The predicate: curvilinear_one_group.rst §sn-direct-seed-r12a.)
-        self._carrying_levels = frozenset(sn_mesh.radial_characteristic_levels)
-
-        coord = sn_mesh.coord
-        quad = sn_mesh.quad
-        reduced = sn_mesh.reduced
-        angular = reduced.angular
-        N = quad.N
+        self._carrying_levels = frozenset(
+            p for p, s in enumerate(
+                march_start_structure_per_level(quad, coord)
+            )
+            if s.consumes_independent_seed
+        )
 
         # ── Per-level partition (M-M's concept, NOT the quadrature's)
         # Sphere: every ordinate is one level (M_p = N, n_levels = 1).
@@ -1447,24 +1550,22 @@ class MorelMontryAngularSweep(
             # The angular factor is the shared AngularRedistribution
             # (one producer); the spatial factor is ΔA, and the closure
             # forms ΔA ⊗ 1/w itself rather than reading a stored product.
-            assert reduced.delta_A is not None
             self.level_indices = (np.arange(N),)
             self._alpha_per_level = angular.alpha_per_level
             self._dAw_per_level = (
-                reduced.delta_A[:, None] / np.asarray(quad.weights)[None, :],
+                delta_A[:, None] / np.asarray(quad.weights)[None, :],
             )
             self._tau_per_level = tau_per_level
             self._mu_start_per_level = angular.mu_start_per_level
         elif coord is CoordSystem.CYLINDRICAL:
             # Same two factors, per μ-level (see the sphere arm).
-            assert reduced.delta_A is not None
             w = np.asarray(quad.weights)
             self.level_indices = tuple(
                 np.asarray(lvl) for lvl in quad.level_indices
             )
             self._alpha_per_level = angular.alpha_per_level
             self._dAw_per_level = tuple(
-                reduced.delta_A[:, None] / w[np.asarray(lvl)][None, :]
+                delta_A[:, None] / w[np.asarray(lvl)][None, :]
                 for lvl in quad.level_indices
             )
             self._tau_per_level = tau_per_level
@@ -1918,8 +2019,8 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
     ----------
     sn_mesh : SNMesh
         Bound to the mesh so consumers have one uniform construction
-        pattern.  Identity reads only ``sn_mesh.quad.N`` and
-        ``sn_mesh.ng`` to size its zero-contribution returns; the
+        pattern.  Identity reads only the ordinate count off the angular
+        factor's measure to size its zero-contribution returns; the
         ``level_indices`` attribute is the trivial single-level
         partition ``(arange(N),)``.
     """
@@ -1938,10 +2039,17 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
     pair-validity predicate COLLAPSE to the spatial condition alone in Cartesian
     (:func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`)."""
 
-    def __init__(self, sn_mesh: "SNMesh") -> None:
-        self._sn_mesh = sn_mesh
-        self._N: int = sn_mesh.quad.N
-        self._ng: int = sn_mesh.ng
+    def __init__(
+        self,
+        angular: "AngularRedistribution",
+        gram: np.ndarray,
+    ) -> None:
+        # The same two tensor factors every member takes.  Cartesian's are
+        # both NEUTRAL — a zero dome and a zero Gram — so this member needs
+        # nothing from either beyond the ordinate count.
+        _require_single_moment_gram(gram, type(self).__name__)
+        self._angular = angular   # provenance; read through ``angular``
+        self._N: int = int(np.asarray(angular.quadrature.mu_x).size)
         # Trivial single-level partition: every ordinate in one level.
         self.level_indices = (np.arange(self._N),)
         # Neutral M-M closure constants per level — Cartesian carries no
@@ -1988,7 +2096,10 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         """Zero contribution to ``(denom, upstream_numer)``."""
         del psi_state, cell_idx, level_idx
         n = within_positions.size
-        return np.zeros(n), np.zeros((self._ng, n))
+        # ``(1, n)`` broadcasts over the group axis: "zero for every
+        # group" is the honest object, and it is why this member does not
+        # need to be told ``ng`` (an ENERGY fact) at construction.
+        return np.zeros(n), np.zeros((1, n))
 
     def angular_adjoint(
         self,
@@ -1999,11 +2110,11 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         The seed-cotangent dict is empty by construction (no carrying
         levels on Cartesian, R12a).
         """
-        nx = int(numer_bar[0].shape[2])
-        return np.zeros((self._ng, self._N, nx)), {}
+        ng, _, nx = numer_bar[0].shape
+        return np.zeros((ng, self._N, nx)), {}
 
     def __repr__(self) -> str:
-        return f"IdentityAngularClosure(sn_mesh=<{self._sn_mesh!r}>)"
+        return "IdentityAngularClosure()"
 
 
 # ═══════════════════════════════════════════════════════════════════════
