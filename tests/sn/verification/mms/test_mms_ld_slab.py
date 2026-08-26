@@ -196,13 +196,30 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
 
 
 @pytest.mark.foundation
-def test_ld_curvilinear_scan_rejected() -> None:
-    """Slab-only guard (#158 Inc B): a 1-D *curvilinear* LD mesh would match
-    ``CumprodScan.supports`` (``is_1d and is_affine_scannable``), but the
-    curvilinear LD scan closure is not yet implemented (#158) —
-    ``affine_scan_coefficients``
-    must raise (fail-fast at the ``CollisionCache`` build in
-    ``SNSolver.__init__``) rather than silently run DD-shaped curvature math."""
+def test_ld_curvilinear_solve_fails_fast() -> None:
+    """A 1-D *curvilinear* LD solve must fail FAST, not silently run
+    DD-shaped curvature math.
+
+    The claim is the end-to-end one: such a mesh matches
+    ``CumprodScan.supports`` (``is_1d and is_affine_scannable``), so without
+    a refusal somewhere it would sweep with the wrong math.
+
+    ⚠ **The refusal's PROVENANCE moved on 2026-08-26 and this test moved with
+    it.**  It used to assert ``match="slab/Cartesian"`` — the LD *scan
+    closure* guard (#158 Inc B), which fires at the ``CollisionCache`` build
+    in ``SNSolver.__init__``.  P1 item 9 added an EARLIER guard on the moment
+    MASS: an LD curvilinear space cannot even be posed, because the true
+    ``M/V`` there is cell-dependent and non-diagonal.  That is the deeper
+    cause — you cannot pose the space, let alone scan it — so the earlier,
+    more specific refusal is the right one to surface.
+
+    ⭐ The scan-closure guard is NOT orphaned by that move: this test was its
+    only witness, so a DIRECT one was written in the same commit —
+    ``test_ld_scan_closure_refuses_non_neutral_curvature`` below.  That is
+    strictly better evidence, because it exercises the guard's actual
+    predicate (a *value* signal, ``dA_w``/``c_out`` non-neutral) instead of a
+    path that merely happened to reach it.
+    """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
@@ -215,11 +232,52 @@ def test_ld_curvilinear_scan_rejected() -> None:
     )
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
-    with pytest.raises(NotImplementedError, match="slab/Cartesian"):
+    with pytest.raises(NotImplementedError, match="no moment mass on a spherical"):
         solve_sn_fixed_source(
             materials, sphere, quad, Q, boundary_condition="vacuum",
             scheme=LinearDiscontinuous(),
         )
+
+
+@pytest.mark.foundation
+def test_ld_scan_closure_refuses_non_neutral_curvature() -> None:
+    """The #158 scan-closure guard, pinned at its OWN predicate.
+
+    Written 2026-08-26 because the end-to-end test above stopped being this
+    guard's witness when an earlier refusal was added, and it was the only
+    one (`[M]` ``grep "slab/Cartesian" tests/`` returned exactly one hit).  A
+    guard nothing can redden is a coverage claim an audit will trust —
+    ``vv-principles`` #17.
+
+    The guard keys on a **value** signal, not a chart tag: slab carries
+    ``dA_w == 0`` and ``c_out == 0`` EXACTLY (``slab_streaming``'s neutral
+    element) and curvilinear does not.  So it is reachable directly, with no
+    mesh at all — which no earlier guard can preempt.
+
+    Both legs, per ``vv-principles`` #11: the neutral input is ACCEPTED and
+    the non-neutral input is REFUSED.  Without the positive leg this is
+    satisfied by a guard that rejects everything.
+    """
+    ld = LinearDiscontinuous()
+    kw = dict(
+        abs_mu=np.array([0.5]),
+        A_down=np.array([[1.0]]),
+        A_total=np.array([[2.0]]),
+        V=np.array([[0.25]]),
+        reaction_xs=np.array([[[1.3]]]),
+    )
+    neutral = dict(dA_w=np.array([[0.0]]), c_out=np.array([[0.0]]))
+
+    # POSITIVE: the slab's neutral element is admitted.
+    a, inv, w = ld.affine_scan_coefficients(**kw, **neutral)
+    assert np.all(np.isfinite(a)) and np.all(np.isfinite(inv))
+    assert np.all(np.isfinite(w))
+
+    # NEGATIVE: either non-neutral signal alone is refused.
+    for bad in ({"dA_w": np.array([[0.7]]), "c_out": np.array([[0.0]])},
+                {"dA_w": np.array([[0.0]]), "c_out": np.array([[0.3]])}):
+        with pytest.raises(NotImplementedError, match="slab/Cartesian"):
+            ld.affine_scan_coefficients(**kw, **bad)
 
 
 @pytest.mark.l1

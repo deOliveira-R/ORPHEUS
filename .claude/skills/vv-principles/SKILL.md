@@ -233,6 +233,32 @@ any other review work.
     reddens.** The verdict is a table, not a boolean. An arm that reddens
     *nothing* is a guard with no witness: either construct one, or say in
     its docstring that it is unfalsifiable and why.
+    ⭐ **And the way an arm SILENTLY loses its witness later: someone adds a
+    correct guard EARLIER on the same path.** The clauses above are about a
+    guard that never had a witness. This is about one that had exactly one
+    and stopped — and it is invisible, because the new guard makes the old
+    gate go RED (a wrong-message mismatch), which reads as "update the
+    expected string" rather than "that gate was the only pin on a different
+    guard". Relax the match and the displaced guard is now unfalsifiable,
+    with its docstring still advertising the protection.
+    ⟹ **when a new guard preempts an existing one, ask what was pinning the
+    OLD one — and if the answer is "the test you are about to re-point",
+    write it a direct witness in the SAME commit.** Prefer pinning the
+    displaced guard at *its own predicate*: a guard keyed on a value signal
+    is reachable by calling it directly, which no earlier guard can preempt,
+    and is better evidence than an end-to-end path that merely happened to
+    reach it.
+    > `[M]` 2026-08-26, un-weld P1 item 9. A new moment-mass guard (a
+    > curvilinear multi-moment metric cannot be spelled) fired one frame
+    > before the #158 LD scan-closure guard, so
+    > `test_ld_curvilinear_scan_rejected` failed on
+    > `match="slab/Cartesian"`. `[M]` `grep "slab/Cartesian" tests/` returned
+    > **exactly one hit** — that test was the scan guard's *only* witness, and
+    > the one-line fix (re-point the regex) would have orphaned it while
+    > leaving the whole suite green. The scan guard keys on a VALUE signal
+    > (`dA_w`/`c_out` non-neutral, not a chart tag), so a direct
+    > positive+negative witness with no mesh at all was both possible and
+    > stronger; both landed in the same commit.
     (`[M]` 2026-08-14, the quadrature selector's V conjunct: three arms —
     no claim / wrong reference / degree short. Mutated separately, two
     reddened exactly one gate each and the **`claim is None` arm left all
