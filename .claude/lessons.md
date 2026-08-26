@@ -2293,3 +2293,71 @@ about what code did NOT do could not be gated by what it returns; here a
 claim about what mathematics does NOT depend on could not be gated by
 what an API accepts. Charter §5d.8; memo
 `scratch/tau_under_ld_dip_analysis.md` §5.
+
+---
+
+## L61 — An unvalidated FILTER and a clean tree print the same thing; and in a commit message, the shell's own quoting silently deletes evidence (2026-08-26)
+
+Four incidents in one session, one root cause: **a pattern that never parsed,
+and output that looked like a clean result.**
+
+**(a) The census that returned a false zero.** Auditing P3's rename targets for
+string-form references — `getattr(x, "name", default)`, the form that fails
+*silently in the default's direction* and had already broken two tests during
+P1's `curvature` retirement — I wrote
+
+```zsh
+grep -rnE "['\"]$sym['\"]" --include='*.py' orpheus/ tests/ | wc -l
+```
+
+zsh could not parse the embedded quotes, printed `(eval): bad math expression`,
+and `wc -l` faithfully reported **`0`**. Twice. A broken filter and a
+consumer-free symbol are **indistinguishable in the output** — and the failure
+direction is flattering: it says *"nothing to do"*.
+
+⟹ **Re-run any nontrivial pattern in Python, and prove the filter against a
+POSITIVE CONTROL before trusting a negative.** The third attempt asserted a
+known member first (`MorelMontryAngularSweep` → 2 known `__all__` hits) and
+refused to report if the control came back empty. That one line is the whole
+difference between a measurement and a ritual.
+
+**(b) The same defect eating a COMMIT MESSAGE — and this one is worse, because
+it damages a permanent artifact and nothing warns.** A commit written as
+`git commit -m "… ChartConnection's \`angular\` field needs a type …"` has its
+backticks **command-substituted** by the shell. zsh printed
+`command not found: angular` and committed anyway; the recorded message read
+*"ChartConnection's  field needs a type"* — the identifying word **deleted**,
+the sentence still grammatical, the commit still green.
+
+This project's prose style puts backticks in nearly every commit message, so
+the exposure is not occasional — it is every commit.
+
+⟹ **Never pass a commit message through `-m "…"`. Use `-F -` with a QUOTED
+heredoc** (`<<'MSG'` — the quotes on the delimiter are what disable
+substitution). And after any message that was not written that way, run
+`git log -1 --format=%B` and read it: the damage is invisible at commit time and
+permanent afterwards.
+
+⭐ **What unifies (a) and (b), and why this is one lesson rather than two:** in
+both, the shell reported a problem *on a channel nobody was reading* — an
+`(eval)` warning above a plausible number, a `command not found` above a
+successful commit — while the artifact it produced looked correct. This is
+`vv-principles` #17's broken-harness failure (*the instrument lies before the
+code does, and it lies in the safe-looking direction*) applied to the shell
+itself, and `plan-authoring` §2's FILTER clause sharpened once more: writing the
+pattern down is not validating it, and **a filter's own error output is not
+where you will look.**
+
+⚠ The aggravator specific to this session: I had *already* written the FILTER
+clause's newest sharpening into `plan-authoring` hours earlier, in this same
+session, about this same campaign. The habit did not transfer to my own shell
+commands — which is the same non-transfer recorded at `coding-standards`'
+string-form clause (P1 ran the check for `mu_start`, then failed to run it for
+`curvature` one commit later, the same afternoon).
+
+Cross-reference: `plan-authoring` §2 (the FILTER and VIEWPORT clauses — never
+`head` an enumeration, never trust an unvalidated pattern), `vv-principles` #17
+(validate the instrument on a known positive), `coding-standards` (a symbol grep
+cannot see a name inside a string). Sibling of [[lessons-L56]] — there,
+"nothing found" and "looked in the wrong place" printed the same thing; here,
+"pattern matched nothing" and "pattern never ran" do.
