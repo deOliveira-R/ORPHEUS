@@ -1,101 +1,118 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
-> ## ▶ RESUME STATE — written at the 2026-08-26 compaction point
+> ## ▶ RESUME STATE — rewritten at the 2026-08-26 post-P1 compaction point
 >
 > **This file is the resume surface. Trust it over any summary.**
+> ⛔ The header this replaces described an unmerged Phase-B branch and an
+> in-flight gate. Both resolved hours before it was overwritten. If any
+> summary still says "8 commits, NOT MERGED", it is quoting the dead header.
 >
-> ### Where the tree is
+> ### Where the tree is — `[M]` reconcile with git, never with this
 >
-> Branch **`refactor/unweld-phase-b`**, **8 commits, NOT MERGED**; `main` is
-> at `8f05ca14`. Reconcile with git before believing any of this
-> (`process-discipline`: trust git, never a frozen claim).
+> `main` @ **`1c93b14f`** == `origin/main`. Working tree **clean**.
+> **NO open branch for this campaign** — `refactor/unweld-phase-b` and
+> `refactor/p1-carry-only-what-is-read` are both merged and deleted.
+> (The two branches git still lists, `refactor/operator-inverse-algebra` and
+> `worktree-nexus-workspace-wiring`, belong to other work.)
 >
-> | commit | what |
+> ### What has LANDED
+>
+> **Phase B** (charter §5b O-2) — the angular closure family takes its two
+> tensor factors, not a mesh. **P1** — nothing in the streaming path is held
+> that nothing reads:
+>
+> | commit | item |
 > |---|---|
-> | `27576937` | `AngularRedistribution` minted; six `Optional` fields retired off `ReducedStreamingOperator`; the fused `redist_dAw` cache retired |
-> | `6adf6680` | the doc blast radius of that carve (16 sites) |
-> | `250fcd16` | two theory chapters — the factorization, the τ arity theorem, the seed cone risk |
-> | `226cc6ca` | `vv-principles` **#32** (a positivity review cannot see a wrong limit) |
-> | `6859ca05` | **Phase B.2** — the closure takes `cls(angular, gram)`; the gram carries `(n_mom, n_thread)`; the `n_mom > 1` refusal |
-> | `82853743` | this plan |
-> | `1f1d2cce` | this plan's **§5b** (the three factors) |
-> | `bd1404ea` | `vv-principles` **#17** sharpening + agent memories |
+> | `37d6d1af` | `is_cartesian` reads the ENUM; both dead flags retired |
+> | `fc8b1a0a` | the `_quadrature` twin — dissolving an `Optional` |
+> | `ebe5d22f` | the three-link `mu_start` chain |
+> | `983b36f9` | pairing identity (`cached_property`); two lying docstrings |
+> | `bc1fb804` | `SNMesh.curvature` — a 3-valued string used as a boolean |
+> | `500de1b4` | the moment mass is told its chart, and refuses one it cannot spell |
+> | `2297da03` | the displaced #158 guard gets its own witness |
 >
-> ### ⚠ THE GATE WAS IN FLIGHT AT THE COMPACTION POINT — read it before merging
+> `[M]` P1's exit gate: **9814 passed / 0 failed** (3771 s). pyright 0,
+> `sphinx -W` 0 warnings, `dead_references` 0 of 52. Count reconciles:
+> 9809 baseline + 5 new tests.
 >
-> The canonical fast gate (`python -O -m pytest -p no:randomly -m "not slow"`,
-> serial, full tree) was launched at ~09:40 against `bd1404ea` and logs to
-> **`scratch/_phaseb_merge_gate.log`**. At the compaction point it was at 6 %
-> with zero failures. **Read that log's summary line before merging.**
+> ### ▶ NEXT — P2: the angular factor comes home
 >
-> ⛔ **Do NOT quote the `4661 passed / 1 failed` figure in `6859ca05`'s commit
-> message as this branch's gate.** `[M]` it finished at 03:52, BEFORE the last
-> three fixes in that same commit (the write-only `_angular`, the dead local,
-> two doc bugs). What covers those is the narrower `1058 passed` on
-> `tests/sn/sweep/curvilinear` + `tests/geometry`. The in-flight gate is the
-> first number that covers `bd1404ea`.
+> Full text at §7 P2. `git mv` + imports, **bit-identical**, no renames
+> (those are P3). ✅ Fork 2 was ruled **`sn/angular/`** (§9.2).
 >
-> ⚠ **The one known red is NOT ours and is NOT in this gate.**
-> `cyl_2g_3reg_folded_4x8_dd_n40` fails at `0.1268` vs a `0.12` tolerance —
-> `[M]` **bit-identical to 16 digits** at the pre-branch commit `8f05ca14`
-> (baselined in an isolated worktree), which is the third independent carve to
-> confirm it (#404, itself a **duplicate of #397** — flagged, not closed). It
-> is `@pytest.mark.slow` and `[M]` DESELECTED by the canonical gate.
+> ⛔ **P2's hazard is SILENT and it is the doc side, not the code side.**
+> Moving a module breaks every Python-domain xref naming its dotted path,
+> and those render as **plain text with no warning at any severity** —
+> worse, a docstring xref in a module that is not `automodule`'d is invisible
+> to Sphinx at *every* severity. `[M]` 2026-08-26, before P2:
 >
-> ### What is DONE, and what this plan is for
+> | surface | count |
+> |---|---|
+> | `pole_angular_closure` in `docs/**.rst` | 147 |
+> | …of which Python-domain roles (`:func:`/`:class:`/`:mod:`/…`) | 120 |
+> | `pole_angular_closure` in `orpheus/` + `tests/` | 127 |
+> | `reduced_operator` in `docs/**.rst` | 74 |
+> | non-`sn` production files carrying a **docstring xref** to it | 7 |
 >
-> ✅ **Phase B of the un-weld arc is complete** (charter §5b O-2): the angular
-> closure family no longer takes a mesh — it takes its two tensor factors. What
-> this plan covers is the SUCCESSOR work the four audits surfaced: the names
-> that are false, the homes the filtration contradicts, the welds still held,
-> and (§5b) whether `L`'s three factors become first-class.
+> ⟹ `nexus dead_references` is the only gate that sees this. Run it, and run
+> `sphinx -W`, before calling P2 done.
 >
-> ### ✅ ALL FOUR FORKS RULED 2026-08-26 (user) — P1 is unblocked
+> ✅ **Fork 2's premise re-verified at this compaction point** (it is what the
+> ruling rests on, so it was re-measured rather than quoted): `[M]` **0**
+> non-`sn` *import statements* of `pole_angular_closure`; 5 inside
+> `orpheus/sn/`. ⚠ A bare `grep -rln` returns **7** non-`sn` files — those are
+> docstring xrefs, not importers. The two questions have different answers and
+> only one of them is the ruling's evidence.
 >
-> Full text + the rejected alternatives' reasons at §9. The digest:
-> **`ChartConnection`** · **`sn/angular/`** · the chart sweep SPLITS
-> (`curvature` dies in P1/P3, the `geometry_kind` synonym is **P6**) ·
-> P4 mints the pairing, the moment measure is **P7**.
+> ### The rulings that bind (all ✅ user, 2026-08-26; full text + rejected
+> alternatives at §9)
 >
-> ⭐ **The governing ruling, which applies past these four:** *"scheduled to
-> the end of this plan, **not defer and forget**."* Two phases exist because
-> of it — **P6** and **P7** — and §8's "Choosing `G`" row was AMENDED rather
-> than left standing. Any future "we'll do that later" in this campaign owes
-> a phase number or a named external blocker (P5 has one: O-3).
+> `ChartConnection` · `sn/angular/` · the chart sweep SPLITS (`curvature`
+> died in P1; the `geometry_kind` synonym is **P6**) · P4 mints the pairing,
+> the moment measure is **P7**.
 >
-> ⭐⭐ **P7 grew past this plan while being scheduled.** `[M]` 2026-08-26 the
-> `FunctionSpace` metric is Hadamard **by construction** at every surface
-> (`space.py:538/542/570/592`), so a non-diagonal `G` is unspellable — and
-> **two** campaigns need one (this plan's §6; CS4b frame-square F-0's slab
-> arm), with the debt recorded in three places and owned by nobody. P7 is
-> that primitive, not "choose `G`" (which really is blocked on #158).
+> ⭐⭐ **The governing ruling, which outlives those four:** *"scheduled to the
+> end of this plan, **not defer and forget**."* Deferred work earns a PHASE
+> NUMBER or a named external blocker — never an issue-and-forget. P6 and P7
+> exist because of it, and §8's "Choosing `G`" row was AMENDED rather than
+> left standing.
 >
-> ### The four memos this rests on are in `scratch/` and are NOT tracked
+> ⛔ **P4 carries a debt P1 created deliberately.** `moment_mass_diagonal` /
+> `moment_axis` take `coord: CoordSystem` — a **tag**, when what the mass
+> needs is the **measure**. It shipped because the guard was a correctness
+> repair that could not exist while the producer was never told its chart.
+> F2 gives the right shape: `M` and `R` are the Galerkin matrices of `1` and
+> `∇·ê_r` — one bilinear form, two products, one mint. P4's done-when has the
+> tell: `grep -n "coord: CoordSystem" transport/spatial/scheme.py` → empty.
 >
-> `ld_curvilinear_shape_derivation.md`, `tau_under_ld_dip_analysis.md`,
-> `adjoint_gram_ownership_audit.md`, `specialization_audit.md`, plus their
-> probes (`probe_ld_*`, `probe_adjoint_gram_0{1..6}_*`,
-> `_probe_beta_spatial_independence.py`, `_probe_cone_transmission.py`,
-> `_probe_o2_operand_derivability.py`). ⚠ Untracked ⟹ **a `git clean` destroys
-> them.** The theory chapters at `250fcd16` carry their conclusions; the memos
-> carry the derivations.
+> ### Two rules P1 paid for — read them before the next retirement
 >
-> ### Issues opened or corrected this session
+> - `coding-standards`: **a symbol grep cannot see a name inside a STRING.**
+>   `getattr(x, "name", default)` survives the residual check and fails in the
+>   DEFAULT's direction. P1 hit this on `curvature` one item after running the
+>   same check successfully on `mu_start`.
+> - `vv-principles` **#17**: **adding a correct guard EARLIER can orphan a
+>   later guard's only witness.** The displaced gate goes red with a *message
+>   mismatch*, which reads as "update the expected string". P1 hit this too;
+>   `grep "slab/Cartesian" tests/` had exactly one hit.
 >
-> **#407** DD's blend inverse in scheme-neutral `cell_balance.py` (+ a second
-> instance in the seed march) · **#408** `is_positivity_preserving` conflates
-> three properties — ⚠ its body's `(0, ½)` recommendation is **REFUTED in a
-> comment** (that member is inconsistent: right rate, wrong limit) · **#404**
-> the pre-existing cylinder red, now triply confirmed, duplicate of **#397** ·
-> **#158** carries the curvilinear-LD literature + shape record.
+> ### ⚠ `scratch/` is UNTRACKED — `[M]` 191 entries a `git clean` destroys
 >
-> ### Durable rules landed this session
+> The four audit memos this plan rests on (listed just below), the
+> `mu_start_reachability_census.md` record, and ~190 probes. The theory
+> chapters at `250fcd16` carry the memos' *conclusions*; the memos carry the
+> *derivations*.
 >
-> `vv-principles` **#32** (never rank scheme candidates by positivity alone —
-> add a consistency leg) · `vv-principles` **#17** sharpening (read a mutation's
-> verdict by the red set's IDENTITY, not its size) · `lessons.md` **L60** (a
-> type SIGNATURE is evidence about its author's assumptions, never about a
-> theorem).
+> ### Running the gate
+>
+> `.venv/bin/python -O -m pytest -p no:randomly -m "not slow" -q` — SERIAL,
+> **~63 min**, `[M]` 3771–3779 s across three runs. Launch it DETACHED
+> (`Popen(start_new_session=True)`) to a log file; harness background tasks
+> die at ~30–90 min. ⛔ Never pipe it through `tail` — the shell reports
+> `tail`'s status and a red gate reads as exit 0.
+> ⚠ `-m "not slow"` is part of the number: it deselects 227 tests, including
+> the known-inherited `cyl_2g_3reg_folded_4x8_dd_n40` red (#404, duplicate of
+> #397, `[M]` bit-identical pre-branch).
 
 
 **Status.** Proposed 2026-08-26, un-ruled. Successor work to the un-weld arc's
