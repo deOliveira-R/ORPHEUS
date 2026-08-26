@@ -279,7 +279,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     Gram is symmetric positive-definite, confirmed independently by
     Machorro 2007, JCP 223, and Hill 1975, LA-5990-MS §ONETRAN).
     ⛔ Do NOT implement the bare (A.1) form: Palmer-Adams 1993
-    (UCRL-ID-114256) find plain spherical LD FAILS the thick diffusion
+    (UCRL-JC-111847) find plain spherical LD FAILS the thick diffusion
     limit (three-point removal term, unphysical boundary conditions,
     interior scalar flux low by ~2x); the fully-lumped and
     corner-balance forms pass.  :meth:`update` / :meth:`residual` raise on

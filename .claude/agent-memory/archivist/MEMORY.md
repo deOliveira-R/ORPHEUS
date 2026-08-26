@@ -35,47 +35,33 @@ each layer points down, it does not copy up.**
 
 ## 2. Active / doc-debt state — git-true
 
-**No owed Sphinx pass on merged work.** Landed SN milestones live in the
-**"Development history"** changelog at `docs/theory/methods/sn/history.rst` (the
-`docs/theory/discrete_ordinates.rst` path this index once named was SPLIT away;
-orphaned July HTML survives in `_build`, so a stale-ref grep must `test -f` the
-SOURCE). Active track = the **#231 doc-architecture corpus** (§3); main agent
-commits, I stage + gate.
+**No owed Sphinx pass on merged work.** Landed SN milestones live in the "Development
+history" changelog at `docs/theory/methods/sn/history.rst` (⚠ the `discrete_ordinates.rst`
+path this index once named was SPLIT away, and orphaned July HTML survives in `_build`, so a
+stale-ref grep must `test -f` the SOURCE). Active track = **#231** (§3); main agent commits,
+I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
-- **The campaign-1 history rows** — branch `docs/sn-history-campaign1-landing`, 2026-08-24,
-  COMMITTED `68d265ef`, not pushed. Discharged the held merge-hash contract: 5 rows on
-  `methods/sn/history.rst` (+287) for the `feature/cs1-energy-space` ff-merge at **`55bb47b9`**
-  — one per THESIS (fields-are-space-elements · the frame's Parseval metric + the mint ·
-  the operator base demands its two spaces · kernels/born-bound · the axis layer), each
-  `(merged @ 55bb47b9)`. Plus the merge's own blast radius: 3 stale `*(in development)*` cells
-  on `spaces`/`field_algebra` → `merged @ 55bb47b9`, and `frame.rst`'s F-1 heading re-dated
-  2026-08-23 (git). Gates: `-E -W` EXIT=0, W/E/C/Syntax 0 ↔ 0; `DEAD TARGETS 0`; nexus
-  `dead_references` 0; vv violations 0, sentinels 549 unchanged; my own probe over the 36 added
-  roles = 0 dead; the new rows render 0 visible backticks / 0 dead roles. ⛔ **open, REPORTED not
-  fixed:** RST-cannot-nest-inline-markup is corpus-wide — `[M]` 125 nested runs / 25 pages and
-  **104 roles that do not render at all** / 28 pages (`:math:`mu`` ×10, `:math:`tau`` ×6);
-  widened onto **#379** with a retitle proposal. `history.rst` itself carries 18 pre-existing
-  nested runs I deliberately left. → [[lessons-L68]]
+- **τ-arity / LD-curvilinear archive** — 2026-08-26, UNCOMMITTED (main agent commits). Two new
+  chapters (+1541 lines, 12 labels): the redistribution tensor-product / τ-arity theorem on
+  `curvilinear_one_group.rst`, the Padé positivity ladder on `discretization.rst`; plus 3
+  stale-ref repairs for the `AngularRedistribution` carve (`27576937`). Gates all green (see
+  the lesson). ⛔ **REPORTED not fixed, both CODE-side:** the `LinearDiscontinuous` docstring
+  cites Palmer-Adams 1993 as `UCRL-ID-114256` (that is Palmer's THESIS; the paper is
+  `UCRL-JC-111847`), and `discretization.rst` §6 credits an LD-in-**angle** re-pose with curing
+  ERR-059, which is a SPATIAL defect. → [[lessons-L69]]
 
-- ⏹ **MERGED `55bb47b9` (Campaign 1: CS1 · CS4a+R · CS4b S1–S7 incl. F-0/F-1) — verified
-  2026-08-24.** The doc halves are IN the tree and their milestones are in `history.rst`;
-  `spaces.rst` / `field_algebra.rst` / `frame.rst` carry the per-page narratives.
-  ⛔ **open follow-ups I reported and did NOT fix — all CODE/SKILLS, not docs:**
-  `orpheus/numerics/face_layout.py:363`'s dead role (`FaceField.from_face_arrays` →
-  `BoundaryField`'s) · `transport/fields/scalar_flux.py:45`'s unqualified dead `from_mesh` /
-  `from_ndarray` roles in a correctly-past-tensed line · `_require_typed_composite`'s
-  "mesh identity" docstring over a space-CONTENT body · `AxisSectionOperator`'s docstring citing
-  a probe that no longer prints its number · `IntegratedReactionRate`'s class docstring naming
-  `volume_measure`/`.mesh` over a body reading the SPACE's axes · `spherical_harmonic_space.py`'s
-  class docstring still claiming `inner_product_weights` holds `4π/(2ℓ+1)` ·
-  `_coefficient_role.py`'s 8 present-tense-false lines + 1 dead `:class:` ·
-  `cross_section_field.py:33` · the retired flux ontology in the `cross-domain-frames` A.1
-  worked example + `numerical-bug-signatures` · `infinite_medium.rst:1153`'s retired
-  `basis_shape=(ng, 1)` teaching · `orpheus.numerics.space` / `…mesh.material_mesh` are
-  `automodule`'d nowhere (#302). → [[lessons-L68]] [[lessons-L67]] [[lessons-L66]]
-  [[lessons-L65]] [[lessons-L64]] [[lessons-L63]]
+- **The campaign-1 history rows** — branch `docs/sn-history-campaign1-landing`, COMMITTED
+  `68d265ef`, not pushed. Discharged the held merge-hash contract for `55bb47b9`: 5 thesis rows
+  on `methods/sn/history.rst` + 3 stale `*(in development)*` cells + one re-dated heading.
+  ⛔ **open, REPORTED not fixed:** RST-cannot-nest-inline-markup is corpus-wide (`[M]` 125
+  nested runs / 25 pages, **104 roles that never render** / 28 pages) — widened onto **#379**.
+  → [[lessons-L68]]
+
+- ⏹ **MERGED `55bb47b9` (Campaign 1) — verified 2026-08-24.** Doc halves in the tree;
+  narratives on `spaces` / `field_algebra` / `frame`. Its ~12 CODE/SKILLS follow-ups were
+  reported upward and are GitHub's to track, not this file's. → [[lessons-L68]] … [[lessons-L63]]
 
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ open, re-confirmed unlanded

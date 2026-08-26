@@ -147,6 +147,21 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   same reduction, same order) IS robustly bit-exact, 200/200 — so say which kind you have,
   because only the measurement separates construction-exact from draw-exact. Report a
   seed-fragile gate upward; you do not edit `tests/`. → L-067
+- **⭐⭐ When a memo states an ORDER of accuracy, EXPAND THE SERIES — "monotone and positive"
+  can still be INCONSISTENT.** A memo's lumped-LD member was published to me as *"genuinely
+  monotone at the cost of dropping to **first** order"*, transmission `2/((1+τ)(2+τ))`. The
+  transmission reproduces exactly and the order label is false: `a'(0) = −3/2`, so over a fixed
+  thickness it converges cleanly (10→10⁴ cells: `0.2367 → 0.2231`) **to `e^{−3/2}`, not
+  `e^{−1}`** — vv #5's correct-rate-to-the-wrong-limit, and both properties the memo DID check
+  (sign-preservation, `A⁻¹ ≥ 0`) are true of it. Consistency is a THIRD property neither test
+  sees. ⭐ The correction pays: solving `a'(0) = −1` gave `ν = 1−λ` (a ONE-parameter family, not
+  two) and a genuinely monotone consistent member `(0,1)`, `a = 1/(1+τ_opt/2)²`. One
+  `sp.series(a - exp(-t))`. → L-069
+- **⭐ Read the CLASS DOCSTRING of the object your new chapter theorises about — the code may
+  already state your theorem.** A carve landing mid-task made my tensor-product factorization
+  the code's own words. Two moves: say the chapter is the theory HOME for a structure the code
+  asserts (not a twin), and adopt the code's exact spelling (`R_spatial ⊗ A_angular`) — internal
+  consistency outranks brevity. → L-069, L-051
 - **⭐⭐ A COINCIDENCE claim ("X is bit-identical to Y on 8 of 8 fixtures") needs its FAMILY,
   and it is usually false where it matters.** `[M]` `frame.discrete_gram[0,0] == weights.sum()`
   holds at n ∈ {2,4,5,6} and FAILS at 16 and 64 on BOTH `leggauss` and `linspace` weights (an
@@ -471,6 +486,23 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   `check_docstring_xrefs.py` (it gates TARGETS, not whether the role parsed). The check: slice
   the built HTML between your new section's first/last distinctive phrases, strip tags,
   unescape, count **visible backticks** and **surviving `:role:` spellings** — both must be 0.
+  ⭐ **The shape YOU will write is `**``value``**` in a numeric `list-table` cell** — I did it
+  **14 times in one session**, every time to make a negative row stand out. A literal already
+  carries visual weight in a table; NEVER bold it. One-line guard before the write:
+  `assert "**``" not in text`. → L-069, L-068
+- **⭐⭐ A LITERAL renders a backslash VERBATIM — a number in scientific notation is a `:math:`
+  role, never a `` ``literal`` ``.** ``` ``1.4\times10^{-6}`` ``` shipped as those characters in
+  prose; `-W`, `-n`, the xref gate and nexus `dead_references` are ALL blind. Discriminator: a
+  backslash in the cell ⟹ math, not code. And a bare `:ref:` to a section whose TITLE holds
+  `:math:` leaks the raw TeX into the link text — check the target's title, use explicit link
+  text (silent; the admonition-anchor sibling WARNS). → L-069
+- **⭐⭐ Build the render checker with care — both failure directions are its own regex.** Sphinx
+  emits display math as `<div class="math …" id="equation-X">`, so `<div class="math[^"]*">`
+  misses EVERY numbered equation and reports ~1000 false TeX hits; use `[^>]*>`. The `<head>`
+  MathJax macro config is raw TeX too — slice by `<section id=…>` to the NEXT section's id, not
+  by prose phrases. ⛔ And do NOT substitute a SOURCE-side regex: `\*\*[^*]*``…` matched
+  **26 suspects, 0 real** on my blocks, because `**A** … **B**` is one match whenever no `*`
+  sits between them. The rendered page is the instrument. → L-069
   ⭐ Corpus-wide it is a CENSUS not a sample (RST admits neither in rendered prose), `[M]`
   **125** nested runs / 25 pages and **104** dead roles / 28 pages; rank the dead roles ABOVE
   the backticks — a stray backtick is ugly, a dead `:math:` is a MISSING EQUATION. ⚠ Exclude
@@ -583,6 +615,12 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   survives, carries the falsified version verbatim beneath, and ships the checkable test the
   reversal yields. → L-063
 
+- **⭐⭐ A retirement's stale REASON outlives its stale NAME, and only the name is greppable.**
+  A carve's blast-radius list gives you the symbols; the load-bearing half is the sentence that
+  JUSTIFIES each one. `[M]` two sites 1200 lines apart both read *"…stay on the geometry side —
+  they are genuinely geometric"*: one had stale names (found by grep), the other had correctly
+  past-tensed names and the SAME false reason (found only by reading). ⟹ after fixing a retired
+  name, read the sentence that explains it. → L-069
 - **⭐ A retired guard TIER leaves a stale REASON attached to a surviving FACT — replace the
   reason, keep the instruction, and say what changed.** "The composite is re-homed *because*
   the algebra enforces mesh identity" — the re-home still happens; the tier is now space
@@ -1189,7 +1227,15 @@ never paraphrase a level definition. → L-010
   every pseudo-site); key any block remover to INDENTATION too, or it eats footnotes. → L-031
 - **Self-check the V&V scan directly, not via the full audit** — the theory-equation scanner runs in
   <1 s, avoids pytest collection, and doesn't trip on sibling batches' in-progress sentinels.
-  → L-035
+  ⭐ **A `.. vv-status:` sentinel WORKS INDENTED** — `sentinel_re.match(stripped)`, same-FILE rule
+  only, so one inside a `.. warning::` is found. Read the 30-line scanner instead of reasoning
+  about it (I nearly relocated one for nothing). → L-035, L-069
+- **⭐ To prove a published closed form IS the shipped scheme's, CALL the shipped function — and
+  budget one round for its shapes.** `affine_scan_coefficients` wants `V` at `(N, nx)`, not
+  `(nx,)`. Fed correctly, DD/LD reproduced my Padé ladder to `1.1e-16` / `1.2e-16` over six
+  optical depths, and `carlson_inward_sweep_from_source` showed the shipped seed march
+  sign-alternating at ratio `−0.2 = (2−3)/(2+3)` exactly. That turns "these are the shipped
+  forms" from an assertion into a measured bound, in ~3 minutes. → L-069
 - **zsh does NOT word-split an unquoted `$var`** — a uniqueness loop ran once on the concatenated
   string and printed a false "0 collisions". An `Edit` `old_string` must match LIVE bytes. → L-030
 - **An error-message string inside `raise` is EXECUTABLE — report it, don't edit it, under a doc-only

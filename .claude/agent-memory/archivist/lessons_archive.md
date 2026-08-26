@@ -7061,3 +7061,176 @@ Three things worth carrying:
   to MANDATORY"*. `[M]` CS4a K2b made **F**'s space mandatory, not S's
   (`ScatteringOperator.__init__(..., space: FunctionSpace | None = None)` still
   ships). Scoped to `MANDATORY on :math:`F``.
+
+---
+
+## L-069 — The RENDER is the only gate for inline markup, and a LITERAL is not a role
+
+**Task (2026-08-26).** Archive a three-probe investigation (literature sweep +
+SymPy derivation + an original asymptotic derivation) into
+`docs/theory/methods/sn/curvilinear_one_group.rst` and
+`docs/theory/foundations/discretization.rst`: the tensor-product factorization
+of the curvilinear angular-redistribution operator, the τ-arity theorem, the
+Padé positivity ladder, the seed cone risk, and a refutation of Morel–Montry's
+own 1984 summary rule. Mid-task the code carve I had been told not to name
+LANDED, adding three stale-reference repairs.
+
+### 1. ⭐⭐ A double-backtick LITERAL renders a backslash VERBATIM
+
+In a `list-table` of measured values I wrote ``` ``1.4\times10^{-6}`` ``` for two
+cells. A literal does exactly what a literal promises: the built page carried
+the characters `1.4\times10^{-6}` in prose. `-W` EXIT=0, `-n` blind,
+`check_docstring_xrefs.py` blind (it gates TARGETS, not whether a span parsed),
+nexus `dead_references` blind. **The only instrument that saw it was slicing
+the built HTML and counting raw TeX outside the MathJax spans.**
+
+⟹ **a number in scientific notation is `:math:`1.4\times10^{-6}``, never a
+literal.** The discriminator: does the cell contain a backslash? If yes it is
+math, not code.
+
+### 2. ⭐⭐ `**``value``**` is the commonest way to mint the nested-markup defect
+
+RST cannot nest inline markup (L-068), and the shape I reached for *fourteen
+times in one session* is a bold-wrapped literal in a numeric table cell —
+`- **``-0.200000``**` — because I wanted the negative rows to stand out. Every
+one rendered as ``` ``-0.200000`` ``` with four visible backticks. Plus one
+`**`[M]` this is what ships**` (bold wrapping a `<cite>` span), two more.
+
+⟹ **in a table cell a literal already carries its own visual weight; NEVER wrap
+it in `**`.** Emphasis goes in the surrounding prose, which is where the reader
+needs the interpretation anyway. Guard: `assert "**``" not in text` before the
+write — one line, catches the whole family.
+
+### 3. ⭐ A bare `:ref:` to a section whose TITLE contains `:math:` leaks raw TeX
+
+`The dome closes — :math:`\alpha_{M+1/2} = 0` as an admission contract` is a
+section title. A bare `:ref:` to it pulls the title as link text and the math
+arrives as the literal characters `\alpha_{M+1/2} = 0`. Pre-existing on **4**
+sites of that page — so it is page behaviour, not something I introduced — but
+my two new sites made it five, and the fix is free: explicit link text
+`` :ref:`the dome-closure contract <sn-alpha-dome-closes>` ``.
+
+⟹ before adding a bare `:ref:`, look at the TARGET'S TITLE. Math in a title ⟹
+explicit link text. (Same reflex as the admonition-anchor rule, different
+cause: that one WARNS, this one is silent.)
+
+### 4. ⭐⭐ Build the render checker carefully — its own regex is a false-negative source
+
+Two instrument bugs, both of which made the checker useless in opposite
+directions:
+
+- **Sphinx emits display math as `<div class="math notranslate nohighlight"
+  id="equation-X">`**, so a `<div class="math[^"]*">` strip misses EVERY
+  numbered equation and the checker reports ~1000 false raw-TeX hits (it is
+  reading correct MathJax source). Fix: `<div class="math[^"]*"[^>]*>`. Same
+  for the inline `<span>`.
+- **The `<head>` MathJax macro configuration is raw TeX in the page**
+  (`"Sigt": ["\\Sigma_{\\mathrm{t},#1}", ...]`), so a whole-page scan always
+  reports hits. Slice by `<section id="...">` to the id of the NEXT section.
+
+⟹ **and the source-side regex alternative does not work at all.** A
+`\*\*[^*]*``[^*]*\*\*` scan over my new blocks returned **26 suspects, 0 real**:
+`**A** … **B**` matches as one run whenever no `*` sits between them, so every
+adjacent pair of bold runs is a false positive. The render check found 3 real
+classes with 0 false positives. **The rendered page is the instrument; the
+source is not.**
+
+### 5. ⭐⭐ Expand the series yourself — "monotone and positive" can still be INCONSISTENT
+
+The source memo offered a positivity/accuracy trade inside the lumped-LD family
+and named `(λ,ν) = (0,½)` as *"genuinely monotone at the cost of dropping to
+**first** order"*, with transmission `2/((1+τ)(2+τ))`. I re-derived the family
+from scratch (nodal DG cell, one free parameter per row) and the transmission
+reproduces exactly — and the order label is wrong. `a'(0) = −3/2`, not `−1`:
+
+| cells over a fixed `Σ_t X/|μ| = 1` | 10 | 100 | 1000 | 10000 |
+|---|---|---|---|---|
+| `(0,½)` | 0.2367 | 0.2245 | 0.2233 | **0.2231** |
+
+It converges cleanly — to `e^{−3/2} = 0.223130`, not `e^{−1} = 0.367879`. It is
+`vv-principles` #5 in its purest form: **a correct rate to the wrong limit**,
+and both of the properties the memo checked (sign-preservation, `A⁻¹ ≥ 0`) are
+perfectly true of it. Consistency is a THIRD property neither test sees.
+
+⭐ The correction was cheap and produced a better object: solving
+`a'(0) = −1` symbolically gives `ν = 1 − λ` (a ONE-parameter family, not two),
+monotonicity gives `λ ≤ 0`, and the nearest monotone consistent member is
+`(0,1)` with `a = 1/(1+τ_opt/2)²` — strictly positive, `A⁻¹ ≥ 0`, genuinely
+first order. **A refuted memo claim replaced by a derived one is the best
+possible outcome of "verify every number you cite".**
+
+⟹ when a memo states an ORDER, expand the series. One `sp.series(a - exp(-t))`.
+
+### 6. ⭐ Read the class docstring of the object you are theorising about
+
+The carve landed mid-task and `AngularRedistribution`'s own docstring **already
+states the tensor-product factorization** and cites the same memo. Two
+consequences: (a) my chapter is the theory home for a structure the code
+asserts, not a twin — say so; (b) **align to the code's exact spelling**
+(`R_spatial ⊗ A_angular(τ, α, w)`), because internal consistency between code
+and corpus outranks brevity (L-051). I had drafted `R ⊗ A_ang`.
+
+### 7. ⭐ A `.. vv-status:` sentinel works INDENTED — check before relocating one
+
+`tests/_harness/audit.py`'s `sentinel_re.match(stripped)` matches the STRIPPED
+line, and the only rule is same-FILE. I nearly moved one out of a `.. warning::`
+block on the belief it needed column 0. Read the scanner (30 s) instead of
+reasoning about it. `[M]` 15/15 new labels registered, 0 violations,
+documented 549 → 564.
+
+### 8. ⭐ A retirement's stale REASON outlives its stale NAME
+
+Site 1 of the carve's blast radius read *"``alpha_half`` … stay on the geometry
+side — they are genuinely geometric"*. The NAMES were the greppable half; the
+load-bearing half was the **reason**, which the factorization refutes (the dome
+is the ANGULAR factor, a function of `(quadrature, coord)` alone). The same
+false reason appeared a second time 1200 lines away in a development-history
+item, where the names were correctly past-tensed and the reason was not.
+⟹ after fixing a retired name, read the sentence that JUSTIFIES it.
+
+### 9. ⭐ Reproduce a claim from the SHIPPED function, with the shapes it wants
+
+`affine_scan_coefficients` takes `V` at `(N, nx)`, not `(nx,)` — my first two
+attempts died on `V[:, None, :]`. Fed correctly, DD and LD reproduce the Padé
+ladder to `1.1e-16` / `1.2e-16` over six optical depths, which converts "the
+closed forms are the shipped scheme's" from an assertion into a measured bound.
+Same for the seed: `carlson_inward_sweep_from_source` on 8 cells at
+`Σ_t Δr = 3` returns `+0.4, −0.08, +0.016, …` — ratio `−0.2 = (2−3)/(2+3)`
+exactly, i.e. the shipped seed march sign-alternates, measured on production.
+
+### 10. Verified first-hand against the rendered scans (not the memos)
+
+- **Adams–Martin 1992 App. A, printed p. 160** — read the page: (A.1a)/(A.1b)
+  carry `+r_kΔr_k`, `−Δr_k²/6` / `+Δr_k²/6`, `−r_kΔr_k/3`. Two minus signs on
+  the `ψ^x`-coupled entries; magnitudes match the Gram exactly. The sibling
+  removal block `σ_tk[V_kψ + W_kψ^x]` / `σ_tk[W_kψ + X_kψ^x]` is symmetric on
+  the same page — the typo argument is visible without leaving the page.
+- **Hill 1975 ONETRAN, printed pp. 9–11** — Eq. (30) plain angular diamond
+  *pointwise in r*; Eq. (32) applies it to the two-point spatial AVERAGE; (35a)
+  shows the redistribution as `(α/w)[ΔA_i; z_5]⊗[1,1]`, manifestly rank-1;
+  (36)–(38) the starting direction. The rank contradiction is real.
+- **MWS 1996, printed p. 452** — Eqs. (74)/(75)/(76) and the verdict quote,
+  verbatim; and **they name the Padé degrees themselves**, so the whole ladder
+  framing is literature-backed rather than ours.
+- **Palmer–Adams 1993 = UCRL-JC-111847** (the code docstring says
+  UCRL-ID-114256, which is Palmer's *thesis* — reported, not edited).
+  Their LD verdict is quoted as PREVIOUS work (their ref [5], Palmer–Adams
+  1991), a nuance worth preserving.
+
+### 11. My own derivations that replaced relayed numbers
+
+- flat-flux row-1 identity: sphere `A_+ + A_- − 2V/h = 4πh²/3 = R_10` **exactly**
+  (symbolic); cylinder both `= 0`, so the gate reads `0 = 0` there — the
+  "run it on the SPHERE" rule is a theorem, not a measurement.
+- `R_01/R_00 = h/(3(r_-+r_+)) ≤ 1/3` with equality iff `r_- = 0`, so `R` is SPD
+  on every admissible cell and `det R ≠ 0` — which is what makes "β = 0 is
+  necessary as well as sufficient" true.
+- the 2×1 rectangular column `[ΔA ; ΔA·h/(6r_c)] = [ΔA ; 4πh²/3]`, matching
+  ONETRAN's own `[ΔA_i ; z_5]`.
+- `β⁻/β⁺` half-range split at the M-M τ: `+0.101808 / −0.101808` (N=4) …
+  `+0.124610 / −0.124610` (N=32), sum ~1e-17 — reproduces the memo to every
+  digit and is the evidence for "β = 0 is a GLOBAL identity across μ = 0".
+- `β_e` sign flip `+9.107e-01 (N=2) → −1.111e-01 (N=4)`, and the `|μ_s+1|`
+  equivalents `0.1132 / 0.0161 / 0.0053 / 0.0015 / 0.0004`; and
+  `morel_montry_beta = 1.5 × β` bit-for-bit, so the shipped instrument IS the
+  object the seed analysis needs.

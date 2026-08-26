@@ -902,6 +902,47 @@ any other review work.
     > survives") was false. Caught by the docs audit's independent census;
     > the correction shipped a falsifiable GL8 gate row pinning the bound.
 
+
+32. **NEVER rank scheme CANDIDATES by positivity properties alone —
+    **instead** add a **CONSISTENCY leg**, because sign-preservation and
+    monotonicity are BOTH blind to the perturbation that breaks it.  This
+    is anti-pattern #5 ("convergence rate correct ≠ result correct")
+    relocated from a *solver result* to a *design candidate*, and it is
+    nastier there: at the design stage nothing is converging yet, so the
+    reviewer has only structural properties to rank by — and the two
+    structural properties that a positivity review naturally reaches for
+    are exactly the two that cannot see a wrong limit.
+    The failing candidate does not look sick.  It converges **cleanly**,
+    at the right rate, monotonically, positively — to the wrong answer.
+    The check is one line on the cell transmission `a(τ_opt)`:
+    ``sp.series(a - sp.exp(-t), t, 0, 2)`` — or equivalently
+    ``a'(0) == -1``, since `a` must reproduce `exp(-τ_opt)` to first order
+    for the scheme to be consistent at all.
+    ⟹ every candidate table ranking closures by "positive?" /
+    "monotone?" owes a third column, and a candidate that passes the
+    first two and fails the third must be struck, not ranked lower.
+    > `[M]` 2026-08-26, the LD lumping family (#158 / #408). A derivation
+    > memo proposed the `(λ, ν) = (0, ½)` member as "monotone, at first
+    > order", and it was carried into an issue as a recommendation. Its
+    > transmission is `2/((1+τ)(2+τ))`: `a(0) = 1` ✓, strictly positive
+    > for all `τ_opt` ✓, `A⁻¹ ≥ 0` ✓ — and `a'(0) = **−3/2**`, not `−1`.
+    > Refined over a fixed thickness (`Σ_t X/|μ| = 1`) at 10 / 100 / 1000
+    > / 10000 cells it converges to `0.2367 → 0.2245 → 0.2233 → 0.2231`,
+    > i.e. cleanly to **`e^{−3/2}`** instead of `e^{−1}`. Both properties
+    > the memo checked are TRUE of it; consistency is a third property
+    > neither sees. Caught by an archivist re-deriving the family while
+    > documenting it — not by the review that proposed it. The corrected
+    > statement: `a'(0) = −1` forces **ν = 1 − λ** (a ONE-parameter
+    > family, not two), monotonicity forces `λ ≤ 0`, and the nearest
+    > monotone consistent member is `(0, 1)`, `a = 1/(1 + τ_opt/2)²`
+    > (independently re-derived: `a'(0) = −1`, and `0.3769 → 0.3688 →
+    > 0.3680 → 0.3679 = e^{−1}`).
+    ⭐ The review tell, and it is cheap: **a positivity claim about a
+    scheme is a claim about its NUMERATOR's roots; a consistency claim is
+    a claim about its first DERIVATIVE at zero.** Two different objects —
+    so no amount of care about the first can substitute for looking at
+    the second.
+
 ---
 
 ## The 6 AI failure modes — mechanism and detection
