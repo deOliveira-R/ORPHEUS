@@ -551,6 +551,56 @@ name describes what remains.
 **Done when.** Each old name has zero live references (past-tense history stays);
 `sphinx -W` clean; `dead_references` 0.
 
+#### `SNMesh.curvature`'s audit — `[M]` 2026-08-26, and it is NOT a rename
+
+⭐ **ORDER IT FIRST, and the reason is a dependency the plan did not state.**
+`is_cartesian` is the successor spelling P1 migrates the two dead flags ONTO
+— and `[M]` `augmented_mesh.py:521` implements it as `return self.curvature
+is None`. So the migration target is built on the field P3 retires. Retiring
+`curvature` before re-basing `is_cartesian` breaks **12 production sites**
+(`solver.py:894,1105`; `dsa.py:203`; `loss_representation` ×6;
+`windowing.py`). §6b's shape, with a *definition* in place of a call site.
+
+✅ **But the fix is small, because `is_cartesian` is the CONTRACT and
+`curvature` is its implementation detail.** Re-base the one-line body onto
+`coord` and all 12 consumers — plus both duck-typed `SimpleNamespace`
+surrogates (`test_si_gate_dispatch.py:68`,
+`test_unified_sweep_dispatch.py:354`) — never notice, because the surrogates
+stub the **property**, not the field. ⚠ That is luck worth naming: those two
+files are the *same family* as the 2026-08-24 kwarg-surrogate surprise; had
+they stubbed `curvature=` they would have been invisible to every grep here.
+
+**The real consumer set** (prose hits excluded — `[M]` "curvature" appears in
+~50 more lines of docstring where it is the *physics word*, not the field):
+
+| site | what | becomes |
+|---|---|---|
+| `augmented_mesh.py:348,355,1839` | the 3 writes | deleted with the field |
+| `augmented_mesh.py:521` | `is_cartesian` body | `coord` — **do this first** |
+| `augmented_mesh.py:879` | `if self.curvature is None` | `coord` |
+| `loss_representation:712, 2727` | 2 repr / error strings | `coord` |
+| `loss_representation:3129-3134, 3169, 3228, 3324` | matvec entry **1** | see below |
+| `loss_representation:3479-3481, 3610, 3684, 3764` | matvec entry **2** | see below |
+| 5 test reads | `test_radial_characteristic_slot_coordination:94`, `test_native_matvec:392`, `test_axis_native_construction:214`, `test_snmesh_consumes_reduced:192`, `test_sweep_regression:225` | migrate |
+
+⭐⭐ **The two matvec entries are where the value is, and they are TWINS.**
+Each opens with the identical three lines —
+
+```python
+curvature_raw = getattr(sn_mesh, "curvature", None)
+curvature = curvature_raw if curvature_raw is not None else "cartesian"
+if curvature not in ("spherical", "cylindrical", "cartesian"):
+    raise ValueError(f"Unknown curvature: {curvature!r}")
+```
+
+— then dispatch on `curvature == "cartesian"` / `!= "cartesian"`. That is
+**stringly-typed dispatch re-derived from a value that is already an enum**,
+guarded by a **runtime re-validation of that enum's own domain**, written
+**twice** (Pattern 2). Routing to `coord: CoordSystem` makes the `ValueError`
+branch unrepresentable (Pattern 4) and collapses the twin. ⟹ this row is a
+correctness-adjacent carve wearing a rename's clothes, and it should be
+costed as such rather than batched with the cosmetic rows.
+
 ### P4 — the pairing is minted where its two halves meet *(behavioural at the seam)*
 **Goal.** `R` is produced by the object that owns its basis, from the object that
 owns its measure — and `L` and the RC family receive one minted closure.
