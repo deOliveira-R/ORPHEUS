@@ -411,6 +411,47 @@ consumer). It must **refuse honestly** instead: the metric installer should
 reject a curvilinear multi-moment space rather than install the slab mass. §7
 P1 carries that guard.
 
+#### ⭐ Where the slab mass ENTERS — `[M]` located 2026-08-26
+
+The installer is `SpatialScheme.moment_axis(ndim)` →
+`Axis(…, weights=self.moment_mass_diagonal(ndim))`
+(`transport/spatial/scheme.py:1375-1416`), and LD's override
+(`linear_discontinuous.py:623-636`) builds it as
+
+```python
+base = np.diagonal(mass_1d(np.ones(()), self.theta))   # [1, θ]
+```
+
+⭐⭐ **`mass_1d` evaluated at UNIT WIDTH is the Cartesian-only shortcut, and
+it is exactly where the slab assumption enters.** For a slab, `M/V` really is
+width-independent — which is *why* the shortcut is valid and why nothing has
+ever caught it. On a curvilinear chart `M/V` depends on `r_i`, so unit width
+is not a normalisation, it is a different matrix. The docstring's claim
+*"This IS `diag(M)/V`"* is true on exactly one chart family.
+
+⛔ **And the guard §7 P1 promises cannot be written where the plan assumed.**
+`[M]` **neither** `moment_axis(self, ndim: int)` **nor**
+`moment_mass_diagonal(self, ndim: int)` receives a chart — so the installer
+cannot refuse a curvilinear space *even in principle*: it is never told which
+one it is on. ⟹ P1's item is **not** a guard insertion; it is a signature
+change (the installer must be told the chart) plus the refusal, i.e. a §6b
+call-site change. Sized accordingly in P1.
+`[M]` the call-site set is small — **8 references total**, 5 in `orpheus/`
+(2 defs, `scheme.py:1414`, and 2 docstring mentions) and 5 in `tests/`
+(`test_spatial_moment_field_space.py:211`, `test_angular_bulk_space.py:217,262`,
+plus 2 prose).
+
+⭐ **Two expressiveness failures, not one** — worth stating separately because
+they need different machinery, and #409 must cover both:
+1. the true metric is **non-diagonal within the moment axis** ⟹ a matrix
+   metric (#409);
+2. it is **cell-dependent**, i.e. it varies along a *different* axis ⟹ it is
+   not a per-axis weight at all, but a coupling between the cell axis and the
+   moment axis (block-diagonal in cell, dense in moment).
+   `Axis(weights=…)` fails **twice over**. #409's operator-valued framing does
+   cover both — the metric is an operator on the product space — but a
+   "matrix metric on the moment axis" framing would cover only (1).
+
 ⛔⛔ **And the instrument that cannot adjudicate it:** `[M]` reciprocity
 (`A† ≡ G⁻¹AᵀG`) is an **identity for every invertible `G`** — `1.4e-16` under
 Euclidean, random, and `(V·w)³`; mismatch control `8.22`. A reciprocity gate
@@ -432,7 +473,11 @@ deleted — the successor spellings exist); retire the three-link dead chain's t
 downstream links; retire `_quadrature`; cache the pairing instead of
 re-allocating. Measure `μ_start`'s branch over **every admitted rule** and then
 retire or repair per the result. Add §6's honest refusal for a curvilinear
-multi-moment metric.
+multi-moment metric — ⚠ **re-sized 2026-08-26**: `[M]` neither
+`moment_axis(ndim)` nor `moment_mass_diagonal(ndim)` receives a chart, so this
+is a **signature change + refusal** (a §6b call-site change over 8 references),
+NOT the guard insertion this line originally implied. See §6's
+"Where the slab mass ENTERS".
 **Done when.** `grep` finds no reader for each retired name; the µ_start
 measurement is recorded with its denominator; the metric guard REFUSES a
 constructible input (⚠ §6c — name that input in the gate, or the guard is not
