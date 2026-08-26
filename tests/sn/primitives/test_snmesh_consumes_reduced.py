@@ -96,11 +96,15 @@ def test_sphere_reduced_is_reduced_streaming_operator() -> None:
     assert sn.reduced.coord is CoordSystem.SPHERICAL
     assert sn.reduced.requires_upstream_angular_state is True
     assert sn.reduced.angular_marching_axis == "mu"
-    # Sphere populates alpha_half / redist_dAw.  (Issue #236 Step C
-    # retired the geometry-side tau_mm — the M-M angular weight is now
-    # closure-owned.)
-    assert sn.reduced.alpha_half is not None
-    assert sn.reduced.redist_dAw is not None
+    # The sphere's ANGULAR factor is one level, and its dome is a real
+    # dome — not merely "populated".  (Issue #236 Step C retired the
+    # geometry-side tau_mm; the 2026-08-26 un-weld moved α and μ_start
+    # onto the shared angular factor and retired the fused ΔA ⊗ 1/w
+    # cache, so a not-None check has nothing left to be about.)
+    assert sn.reduced.angular.n_levels == 1
+    assert sn.reduced.angular.alpha_per_level[0].shape == (sn.quad.N + 1,)
+    assert sn.reduced.angular.mu_start_per_level == (-1.0,)
+    assert sn.reduced.delta_A is not None
 
 
 @pytest.mark.foundation
@@ -110,11 +114,14 @@ def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
     assert sn.reduced.coord is CoordSystem.CYLINDRICAL
     assert sn.reduced.requires_upstream_angular_state is True
     assert sn.reduced.angular_marching_axis == "mu"
-    # Cylinder populates per-level structures.  (Issue #236 Step C
-    # retired the geometry-side tau_mm_per_level — the M-M angular
-    # weight is now closure-owned.)
-    assert sn.reduced.alpha_per_level is not None
-    assert sn.reduced.redist_dAw_per_level is not None
+    # The cylinder's ANGULAR factor carries one dome per μ-level.
+    # (See the spherical twin for the 2026-08-26 un-weld note.)
+    assert sn.reduced.angular.n_levels == len(sn.quad.level_indices)
+    for p_, lvl in enumerate(sn.quad.level_indices):
+        assert sn.reduced.angular.alpha_per_level[p_].shape == (
+            len(lvl) + 1,
+        )
+    assert sn.reduced.delta_A is not None
 
 
 # ---------------------------------------------------------------------------

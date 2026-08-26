@@ -53,8 +53,8 @@ class TestAlphaCoefficients:
         quad = Quadrature.gauss_legendre(N)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
-        np.testing.assert_allclose(sn_mesh.reduced.alpha_half[-1], 0.0, atol=1e-14)
+        np.testing.assert_allclose(sn_mesh.reduced.angular.alpha_per_level[0][0], 0.0)
+        np.testing.assert_allclose(sn_mesh.reduced.angular.alpha_per_level[0][-1], 0.0, atol=1e-14)
 
     def test_alpha_recursion(self):
         """α_{n+1/2} = α_{n-1/2} − w_n μ_n (Bailey et al. 2009 Eq. 50)."""
@@ -63,7 +63,7 @@ class TestAlphaCoefficients:
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        alpha = sn_mesh.reduced.alpha_half
+        alpha = sn_mesh.reduced.angular.alpha_per_level[0]
         for n in range(quad.N):
             expected = alpha[n] - quad.weights[n] * quad.mu_x[n]
             np.testing.assert_allclose(alpha[n + 1], expected, rtol=1e-14)
@@ -78,7 +78,7 @@ class TestAlphaCoefficients:
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        alpha = sn_mesh.reduced.alpha_half
+        alpha = sn_mesh.reduced.angular.alpha_per_level[0]
         N = quad.N
         for k in range(N + 1):
             np.testing.assert_allclose(

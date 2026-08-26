@@ -1434,6 +1434,7 @@ class MorelMontryAngularSweep(
         coord = sn_mesh.coord
         quad = sn_mesh.quad
         reduced = sn_mesh.reduced
+        angular = reduced.angular
         N = quad.N
 
         # ── Per-level partition (M-M's concept, NOT the quadrature's)
@@ -1443,31 +1444,31 @@ class MorelMontryAngularSweep(
         # τ-producer note above for the structural-independence constraint).
         tau_per_level = morel_montry_tau_per_level(quad, coord)
         if coord is CoordSystem.SPHERICAL:
-            # Factory contract: spherical_streaming populates the sphere
-            # fields of ReducedStreamingOperator.
-            assert reduced.mu_start is not None
-            assert reduced.alpha_half is not None
-            assert reduced.redist_dAw is not None
+            # The angular factor is the shared AngularRedistribution
+            # (one producer); the spatial factor is ΔA, and the closure
+            # forms ΔA ⊗ 1/w itself rather than reading a stored product.
+            assert reduced.delta_A is not None
             self.level_indices = (np.arange(N),)
-            self._alpha_per_level = (reduced.alpha_half,)
-            self._dAw_per_level = (reduced.redist_dAw,)
+            self._alpha_per_level = angular.alpha_per_level
+            self._dAw_per_level = (
+                reduced.delta_A[:, None] / np.asarray(quad.weights)[None, :],
+            )
             self._tau_per_level = tau_per_level
-            self._mu_start_per_level = (float(reduced.mu_start),)
+            self._mu_start_per_level = angular.mu_start_per_level
         elif coord is CoordSystem.CYLINDRICAL:
-            # Factory contract: cylindrical_streaming populates the
-            # per-level fields of ReducedStreamingOperator.
-            assert reduced.mu_start_per_level is not None
-            assert reduced.alpha_per_level is not None
-            assert reduced.redist_dAw_per_level is not None
+            # Same two factors, per μ-level (see the sphere arm).
+            assert reduced.delta_A is not None
+            w = np.asarray(quad.weights)
             self.level_indices = tuple(
                 np.asarray(lvl) for lvl in quad.level_indices
             )
-            self._alpha_per_level = tuple(reduced.alpha_per_level)
-            self._dAw_per_level = tuple(reduced.redist_dAw_per_level)
-            self._tau_per_level = tau_per_level
-            self._mu_start_per_level = tuple(
-                float(v) for v in reduced.mu_start_per_level
+            self._alpha_per_level = angular.alpha_per_level
+            self._dAw_per_level = tuple(
+                reduced.delta_A[:, None] / w[np.asarray(lvl)][None, :]
+                for lvl in quad.level_indices
             )
+            self._tau_per_level = tau_per_level
+            self._mu_start_per_level = angular.mu_start_per_level
         else:
             raise ValueError(
                 f"MorelMontryAngularSweep supports SPHERICAL or CYLINDRICAL "

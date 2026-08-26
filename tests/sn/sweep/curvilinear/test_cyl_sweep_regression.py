@@ -125,7 +125,7 @@ class TestAzimuthalRedistribution:
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
+        for p, alpha in enumerate(sn_mesh.reduced.angular.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
                                        err_msg=f"Level {p}: α[0] ≠ 0")
             np.testing.assert_allclose(alpha[-1], 0.0, atol=1e-13,
@@ -169,7 +169,7 @@ class TestAzimuthalRedistribution:
         ang, _ = sweep_once(source, sig_t, sn_mesh, boundary_flux)
 
         for p, level_idx in enumerate(quad.level_indices):
-            alpha = sn_mesh.reduced.alpha_per_level[p]
+            alpha = sn_mesh.reduced.angular.alpha_per_level[p]
             M = len(level_idx)
             psi_angle = np.zeros(10)
             for m_local in range(M):

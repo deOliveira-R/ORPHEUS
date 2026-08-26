@@ -170,8 +170,12 @@ def _hand_reference_cyl_matvec(
     for p, level_idx in enumerate(level_indices):
         level_idx_arr = np.asarray(level_idx)
         faces = psi_state[p].faces              # (ng, M_p+1, nx)
-        alpha = reduced.alpha_per_level[p]       # (M_p+1,)
-        dAw = reduced.redist_dAw_per_level[p]    # (nx, M_p)
+        alpha = reduced.angular.alpha_per_level[p]   # (M_p+1,)
+        # ΔA ⊗ 1/w formed from its two factors (the fused cache retired
+        # 2026-08-26); this side is the independent reference, so forming
+        # it here is what keeps the comparison two-sided.
+        lvl = np.asarray(quad.level_indices[p])
+        dAw = reduced.delta_A[:, None] / np.asarray(quad.weights)[lvl][None, :]
         for m in range(level_idx_arr.size):
             redist_full[:, level_idx_arr[m], :] = (
                 dAw[:, m].reshape(1, nx)

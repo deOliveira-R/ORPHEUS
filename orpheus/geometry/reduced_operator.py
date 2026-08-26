@@ -501,20 +501,24 @@ class ReducedStreamingOperator:
       per-:math:`\\mu`-level :math:`\\alpha` and :math:`\\tau_{mm}`
       structures.
 
-    Output shape contract (Issue #236 Step C: the Morel–Montry τ is no
-    longer produced here — it is owned by the angular closure)::
+    Output shape contract.  The Morel–Montry τ is owned by the angular
+    closure (Issue #236 Step C) and the α-dome / starting direction by
+    :class:`AngularRedistribution` (2026-08-26, the un-weld arc's Phase
+    B), so what remains here is the SPATIAL chart data::
 
         slab:        face_areas == None,
-                     alpha_half == None,
-                     redist_dAw == None.
+                     delta_A    == None.
         sphere:      face_areas (nx+1,),
-                     delta_A    (nx,),
-                     alpha_half (N+1,),
-                     redist_dAw (nx, N).
+                     delta_A    (nx,).
         cylinder:    face_areas (nx+1,),
-                     delta_A    (nx,),
-                     alpha_per_level     [(M+1,)] · n_levels,
-                     redist_dAw_per_level [(nx, M)] · n_levels.
+                     delta_A    (nx,).
+
+    ⭐ ``redist_dAw`` retired with them: it was the *fused product*
+    ``ΔA ⊗ 1/w`` of a geometric factor and a quadrature factor, cached on
+    the geometry object and read by two consumers that each wanted a
+    different one of the two.  Both now form what they need from
+    :attr:`delta_A` and the measure's weights (Pattern 2 — the stored
+    product was a second spelling of a quantity neither side owned).
 
     Attributes
     ----------
@@ -536,37 +540,38 @@ class ReducedStreamingOperator:
     mesh: Mesh1D
     requires_upstream_angular_state: bool
     angular_marching_axis: Literal["mu"] | None
+    angular: AngularRedistribution
+    """The angular factor — the dome and the starting direction, produced
+    once by :func:`angular_redistribution` and shared with the angular
+    closure.  Non-optional on every chart: Cartesian carries the NEUTRAL
+    element (zero dome, diameter-ray start), which is what let the
+    per-coordinate ``Optional`` union die."""
 
     # Common (curvilinear)
     face_areas: np.ndarray | None = None
     delta_A: np.ndarray | None = None
 
-    # Spherical
-    alpha_half: np.ndarray | None = None
-    redist_dAw: np.ndarray | None = None
-    # Issue #236 Step C: ``tau_mm`` retired — the Morel–Montry angular weight
-    # is owned by the angular closure (``morel_montry_tau_per_level``), not
-    # the streaming geometry.  The α-dome (``alpha_half``) stays here.
-    mu_start: float | None = None
-    """Starting-direction angular edge :math:`\\mu_{1/2}` of the (single)
-    M-M level — the direction the half-angle thread's seed flux lives
-    at.  Sphere: ``-1.0`` (the Hébert §3.9.4 starting direction).
-    Defined HERE, at the same construction site as the α-dome
-    (single source of truth for the angular cell partition)."""
-
-    # Cylindrical (per-level)
-    alpha_per_level: list[np.ndarray] | None = None
-    redist_dAw_per_level: list[np.ndarray] | None = None
-    # Issue #236 Step C: ``tau_mm_per_level`` retired (see ``tau_mm`` above).
-    mu_start_per_level: list[float] | None = None
-    """Per-level starting-direction angular edge — cylinder:
-    :math:`\\eta_{1/2} = -\\sin\\theta_p = -\\sqrt{1-\\xi_p^2}` (the
-    most-inward azimuthal edge of level *p*)."""
+    # Issue #236 Step C retired ``tau_mm`` / ``tau_mm_per_level``: the
+    # Morel–Montry angular weight is owned by the angular closure
+    # (``morel_montry_tau_per_level``), not by the streaming geometry.
+    # The α-dome went the same way at the 2026-08-26 un-weld (Phase B) —
+    # it is the ANGULAR factor, and now lives on :attr:`angular` beside
+    # the starting direction, with ONE producer.
 
     # Quadrature reference (kept for streaming_terms() extraction)
     _quadrature: AngularMeasure | None = field(default=None, repr=False)
 
     # ── Per-direction extraction ───────────────────────────────────
+
+    def _weight_of(self, global_ordinate: int) -> float:
+        r"""The measure's weight :math:`w_n` for one GLOBAL ordinate index.
+
+        The other factor of the retired ``redist_dAw`` cache.  Callers form
+        :math:`\Delta A_i / w_n` from :attr:`delta_A` and this, rather than
+        reading a stored product that fused a geometric with a quadrature
+        quantity (Pattern 2 — neither side owned the fusion).
+        """
+        return float(np.asarray(self.angular.quadrature.weights)[global_ordinate])
 
     def streaming_terms(
         self,
@@ -630,9 +635,7 @@ class ReducedStreamingOperator:
 
         if self.coord is CoordSystem.SPHERICAL:
             assert self.face_areas is not None
-            assert self.alpha_half is not None
-            assert self.redist_dAw is not None
-            assert self.mu_start is not None
+            assert self.delta_A is not None
             # Sphere: ``direction_idx`` IS the global ordinate index.
             # The Morel–Montry α / τ are NO LONGER packed here (Issue #236
             # Step C): the angular closure owns τ and the derived c
@@ -644,9 +647,10 @@ class ReducedStreamingOperator:
                 face_area_inner=float(self.face_areas[cell_idx]),
                 face_area_outer=float(self.face_areas[cell_idx + 1]),
                 delta_A_over_w=float(
-                    self.redist_dAw[cell_idx, direction_idx]
+                    self.delta_A[cell_idx]
+                    / self._weight_of(direction_idx)
                 ),
-                mu_start=float(self.mu_start),
+                mu_start=float(self.angular.mu_start_per_level[0]),
                 volume=volume,
                 abs_mu=abs(mu_n),
             )
@@ -658,8 +662,7 @@ class ReducedStreamingOperator:
                     "(which μ-level the direction_idx belongs to)."
                 )
             assert self.face_areas is not None
-            assert self.redist_dAw_per_level is not None
-            assert self.mu_start_per_level is not None
+            assert self.delta_A is not None
             # Cylinder: ``direction_idx`` is the within-level azimuthal
             # index; the global ordinate is read through
             # ``level_indices``.  ``mu_x[global_n]`` carries η (the
@@ -671,14 +674,17 @@ class ReducedStreamingOperator:
             level_indices = self._quadrature.level_indices
             global_n = int(level_indices[mu_level_idx][direction_idx])
             eta_n = float(self._quadrature.eta[global_n])
-            dAw_lv = self.redist_dAw_per_level[mu_level_idx]
             return StreamingTerms(
                 chord_length=chord,
                 mu=eta_n,
                 face_area_inner=float(self.face_areas[cell_idx]),
                 face_area_outer=float(self.face_areas[cell_idx + 1]),
-                delta_A_over_w=float(dAw_lv[cell_idx, direction_idx]),
-                mu_start=float(self.mu_start_per_level[mu_level_idx]),
+                delta_A_over_w=float(
+                    self.delta_A[cell_idx] / self._weight_of(global_n)
+                ),
+                mu_start=float(
+                    self.angular.mu_start_per_level[mu_level_idx]
+                ),
                 volume=volume,
                 abs_mu=abs(eta_n),
             )
@@ -831,6 +837,154 @@ def _assert_alpha_dome_closes(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# The angular factor — the redistribution structure of a measure in a chart
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class AngularRedistribution:
+    r"""The angular measure's redistribution structure on a coordinate chart.
+
+    **The object exists because the redistribution operator FACTORS.**  The
+    curvilinear angular-redistribution term of the transport operator is a
+    tensor product
+
+    .. math::
+
+       \mathcal{R} \;=\; R_{\rm spatial} \;\otimes\;
+                          A_{\rm angular}(\tau,\ \alpha,\ w)
+
+    — a spatial Gram against an angular operator — and this type is the
+    **member-independent half of the angular factor**: the :math:`\alpha`
+    dome and the starting direction, which every angular-closure member
+    shares.  What is NOT here is the member's own choice: :math:`\tau` and
+    the derived :math:`c_{\rm in}` / :math:`c_{\rm out}` belong to the
+    closure (Morel--Montry's barycentric weight, plain diamond's
+    :math:`\tfrac12`, the neutral :math:`\tau \equiv 1`), and a shared
+    object holding them would forbid a second member by construction.
+
+    (Derived 2026-08-26, ``scratch/tau_under_ld_dip_analysis.md`` §3 and
+    §7: the factorization is why the angular closure's weight cannot
+    acquire spatial content, and the member-independent /
+    member-dependent split is that memo's §7.1/§7.2 table.)
+
+    **One owner, two consumers.**  Until this type existed, :math:`\alpha`
+    and :math:`\mu_{\rm start}` were stored as six ``Optional`` fields on
+    :class:`ReducedStreamingOperator` — a per-coordinate union discharged
+    by ``assert`` — and were read both by the angular closure and by
+    :meth:`ReducedStreamingOperator.streaming_terms`.  They are produced
+    HERE, once, by :func:`angular_redistribution`.
+
+    **Cartesian is the NEUTRAL element, not a special case.**  A slab has
+    no curvature, so its dome is identically zero and its starting
+    direction is the diameter ray; spelling those values rather than
+    ``None`` is what lets the per-coordinate union die (Pattern 4 — the
+    "no redistribution" state is not separately representable).
+
+    **Sphere is the one-level case.**  Every field is
+    per-:math:`\mu`-level; the sphere carries exactly one level.  The
+    closure's own constructor already normalized to this shape internally,
+    so the normal form is moved here rather than invented.
+
+    Attributes
+    ----------
+    coord :
+        The chart the redistribution was built on.
+    alpha_per_level :
+        The Lathrop--Carlson dome :math:`\alpha_{m\pm 1/2}` per level,
+        each of shape ``(M_p + 1,)`` and closing at
+        :math:`\alpha_{M+1/2} = 0` (:func:`_assert_alpha_dome_closes`).
+    mu_start_per_level :
+        The starting-direction angular edge per level — the direction the
+        half-angle thread's seed flux lives at.  Sphere: ``-1.0`` (the
+        Hébert §3.9.4 diameter ray).  Cylinder:
+        :math:`-\sin\theta_p = -\sqrt{1-\xi_p^2}`.
+    quadrature :
+        The measure this was built from.  Held so a consumer that needs
+        the weights, the level partition or the cosines does not have to
+        be handed the quadrature separately alongside its redistribution.
+    """
+
+    coord: CoordSystem
+    alpha_per_level: tuple[np.ndarray, ...]
+    mu_start_per_level: tuple[float, ...]
+    quadrature: AngularMeasure = field(repr=False)
+
+    @property
+    def n_levels(self) -> int:
+        r"""Number of :math:`\mu`-levels (sphere and slab: ``1``)."""
+        return len(self.alpha_per_level)
+
+
+def angular_redistribution(
+    quadrature: AngularMeasure,
+    coord: CoordSystem,
+) -> AngularRedistribution:
+    r"""Build the :class:`AngularRedistribution` for a measure on a chart.
+
+    THE single producer of :math:`\alpha` and :math:`\mu_{\rm start}`.
+    Both are functions of ``(quadrature, coord)`` alone — no cell, no
+    mesh, no material enters — which is measured, not assumed: every
+    value this returns is **bit-identical** to what the three streaming
+    factories stored before the carve (`[M]` 2026-08-26, both geometries,
+    all levels, ``max|delta| = 0.000e+00``).
+
+    Per level, :math:`\alpha` is :func:`alpha_dome` over that level's
+    cosines and weights, and the admission contract
+    :math:`\alpha_{M+1/2} = 0` is checked here — at the one site that
+    produces it, rather than on whichever arm remembered to.
+    """
+    if coord is CoordSystem.CARTESIAN:
+        # The neutral element: no curvature ⇒ no redistribution.  The dome
+        # is zero (so the closure's c_in = c_out = 0 fall out rather than
+        # being special-cased) and the starting direction is the diameter.
+        n = int(np.asarray(quadrature.mu_x).size)
+        return AngularRedistribution(
+            coord=coord,
+            alpha_per_level=(np.zeros(n + 1),),
+            mu_start_per_level=(-1.0,),
+            quadrature=quadrature,
+        )
+
+    mu_x = np.asarray(quadrature.mu_x)
+    weights = np.asarray(quadrature.weights)
+
+    if coord is CoordSystem.SPHERICAL:
+        # One level: every ordinate marches on the single polar dome, and
+        # the seed rides the diameter ray (Hébert §3.9.4).
+        alpha = alpha_dome(mu_x, weights)
+        _assert_alpha_dome_closes(alpha, coord=coord)
+        return AngularRedistribution(
+            coord=coord,
+            alpha_per_level=(alpha,),
+            mu_start_per_level=(-1.0,),
+            quadrature=quadrature,
+        )
+
+    if coord is CoordSystem.CYLINDRICAL:
+        # One dome per μ-level; the level's seed rides its most-inward
+        # azimuthal edge, η_{1/2} = -sin θ_p = -sqrt(1 - ξ_p²).
+        alphas: list[np.ndarray] = []
+        starts: list[float] = []
+        xi = np.asarray(quadrature.mu_z)
+        for p, level_idx in enumerate(quadrature.level_indices):
+            level_idx = np.asarray(level_idx)
+            alpha = alpha_dome(mu_x[level_idx], weights[level_idx])
+            _assert_alpha_dome_closes(alpha, coord=coord, level=p)
+            alphas.append(alpha)
+            starts.append(-float(np.sqrt(1.0 - float(xi[level_idx[0]]) ** 2)))
+        return AngularRedistribution(
+            coord=coord,
+            alpha_per_level=tuple(alphas),
+            mu_start_per_level=tuple(starts),
+            quadrature=quadrature,
+        )
+
+    raise ValueError(  # pragma: no cover — exhaustive match above
+        f"Unknown coord system: {coord!r}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Factory: slab
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -864,6 +1018,7 @@ def slab_streaming(
         mesh=mesh,
         requires_upstream_angular_state=False,
         angular_marching_axis=None,
+        angular=angular_redistribution(angular_measure, CoordSystem.CARTESIAN),
         _quadrature=angular_measure,
     )
 
@@ -912,15 +1067,10 @@ def spherical_streaming(
     # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
     delta_A = face_areas[1:] - face_areas[:-1]
 
-    # The α-dome (:func:`alpha_dome`) — for GL this is a non-negative dome
-    # closing to 0 at α_{N+1/2} by GL antisymmetry.  The sphere is the
-    # single-level case of the cylinder's per-level dome; both arms run the
-    # ONE recursion, and both are held to the ONE contract.
-    alpha = alpha_dome(mu, w)
-    _assert_alpha_dome_closes(alpha, coord=CoordSystem.SPHERICAL)
-
-    # ΔA_i / w_n — the geometry redistribution factor (nx, N).
-    redist_dAw = delta_A[:, None] / w[None, :]
+    # The α-dome and the starting direction are NOT produced here — they
+    # are the ANGULAR factor, built once by :func:`angular_redistribution`
+    # (which also runs the α_{M+1/2} = 0 admission contract, at the one
+    # site that produces the dome).
 
     # Morel–Montry angular weight τ is NO LONGER produced here (Issue #236
     # Step C): τ is an angular-scheme property (a function of (μ, w) only),
@@ -940,9 +1090,7 @@ def spherical_streaming(
         angular_marching_axis="mu",
         face_areas=face_areas,
         delta_A=delta_A,
-        alpha_half=alpha,
-        redist_dAw=redist_dAw,
-        mu_start=-1.0,
+        angular=angular_redistribution(angular_measure, CoordSystem.SPHERICAL),
         _quadrature=angular_measure,
     )
 
@@ -1027,26 +1175,6 @@ def cylindrical_streaming(
     # #336 tracks the refuse-or-reduce design for the sphere arm).  The
     # per-level form is still right — locatability is reason enough —
     # but it is not held up by that case.
-    alpha_per_level: list[np.ndarray] = []
-    for p, level_idx in enumerate(angular_measure.level_indices):
-        alpha = alpha_dome(
-            angular_measure.mu_x[level_idx],
-            angular_measure.weights[level_idx],
-        )
-        _assert_alpha_dome_closes(
-            alpha, coord=CoordSystem.CYLINDRICAL, level=p,
-        )
-        alpha_per_level.append(alpha)
-
-    # Per-level ΔA_i / w_m — same factor structure as sphere, but the
-    # weights are the level's azimuthal weights.
-    redist_dAw_per_level: list[np.ndarray] = []
-    for level_idx in angular_measure.level_indices:
-        w_level = angular_measure.weights[level_idx]
-        redist_dAw_per_level.append(
-            delta_A[:, None] / w_level[None, :]  # (nx, M)
-        )
-
     # Per-level starting-direction angular edge η_{1/2} = -sin θ_p — the
     # most-inward azimuthal edge of level p, the direction the half-angle
     # thread's seed flux lives at.  The Morel–Montry angular weight τ is NO
@@ -1069,9 +1197,7 @@ def cylindrical_streaming(
         angular_marching_axis="mu",
         face_areas=face_areas,
         delta_A=delta_A,
-        alpha_per_level=alpha_per_level,
-        redist_dAw_per_level=redist_dAw_per_level,
-        mu_start_per_level=mu_start_per_level,
+        angular=angular_redistribution(angular_measure, CoordSystem.CYLINDRICAL),
         _quadrature=angular_measure,
     )
 

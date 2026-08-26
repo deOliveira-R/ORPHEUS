@@ -45,21 +45,28 @@ nowhere the sole evidence.
 
 * ``delta_A`` — ``tests/sn/primitives/test_quadrature.py::
   TestL0TermVerification::test_delta_A_magnitude`` (closed form
-  :math:`4\\pi\\,\\Delta(r^2)` / :math:`2\\pi\\,\\Delta r`).  Sole catcher —
-  the snapshots are blind to it, which is correct: ``delta_A`` has no
-  production consumer.
-* ``alpha_half`` — ``…::test_per_ordinate_flat_flux_consistency
-  [SPHERICAL]``, the L0 per-ordinate flat-flux identity
-  (``catches("ERR-006", "ERR-007")``); plus the sphere snapshots.
-* ``alpha_per_level`` — ``tests/sn/sweep/curvilinear/
-  test_alpha_closed_form.py`` (Dirichlet-kernel closed form) + the
-  cylindrical arm of the flat-flux identity + the cylinder snapshots.
-* ``redist_dAw`` / ``redist_dAw_per_level`` — ``tests/sn/sweep/
-  curvilinear/test_streaming_equilibrium_curvilinear.py``, the L0
-  closed-form :math:`\\varphi = Q/(\\Sigma_t(1-c))` gate (15 and 12 of
-  its 27 cases redden respectively) + both geometries' snapshots.
-  Note the L0 flat-flux identity does NOT cover these: it RECOMPUTES
-  ``dA / w`` rather than reading the production array.
+  :math:`4\\pi\\,\\Delta(r^2)` / :math:`2\\pi\\,\\Delta r`).
+  ⛔ This entry used to add "sole catcher — the snapshots are blind to
+  it, which is correct: ``delta_A`` has no production consumer."  That
+  was true until 2026-08-26 and is now FALSE: retiring the fused
+  ``redist_dAw`` cache made ``delta_A`` the SPATIAL factor that both
+  ``streaming_terms`` and the angular closure read, so every
+  curvilinear snapshot now rides on it.
+* ``angular.alpha_per_level`` (was ``alpha_half`` / ``alpha_per_level``)
+  — ``…::test_per_ordinate_flat_flux_consistency`` on both arms, the L0
+  per-ordinate flat-flux identity (``catches("ERR-006", "ERR-007")``);
+  ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py`` (the
+  Dirichlet-kernel closed form); plus both geometries' snapshots.
+* ``redist_dAw`` / ``redist_dAw_per_level`` — **RETIRED 2026-08-26** as
+  a fused product (``ΔA ⊗ 1/w``) that neither of its two consumers
+  owned.  Its former catcher — ``tests/sn/sweep/curvilinear/
+  test_streaming_equilibrium_curvilinear.py``, the L0 closed-form
+  :math:`\\varphi = Q/(\\Sigma_t(1-c))` gate — still covers the
+  QUANTITY, which is now formed at each consumer from ``delta_A`` and
+  the measure's weights.  (The historical note that the L0 flat-flux
+  identity "RECOMPUTES ``dA / w`` rather than reading the production
+  array" is why that gate needed no migration: it was already computing
+  the product rather than reading the cache.)
 * ``face_areas`` — ``tests/geometry/test_geometry.py`` pins the
   producer ``compute_areas_1d`` against the closed form; the
   snapshots pin that the factory forwards it.
@@ -178,18 +185,23 @@ class TestSNMeshBindsSphericalFactory:
         assert np.array_equal(reduced.delta_A, sn_mesh.delta_A)
 
     @pytest.mark.foundation
-    def test_alpha_half_is_the_factory_value(self, pair):
-        """``SNMesh.reduced.alpha_half`` came from this module's factory."""
-        sn_mesh, reduced = pair
-        assert reduced.alpha_half is not None
-        assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
+    def test_angular_factor_is_the_factory_value(self, pair):
+        """The ANGULAR factor on ``SNMesh`` came from this module's producer.
 
-    @pytest.mark.foundation
-    def test_redist_dAw_is_the_factory_value(self, pair):
-        """``SNMesh.reduced.redist_dAw`` came from this module's factory."""
+        Successor of ``test_alpha_half_is_the_factory_value`` and
+        ``test_redist_dAw_is_the_factory_value`` (2026-08-26 un-weld).  The
+        routing claim is unchanged; what moved is the object it routes.
+        ``redist_dAw`` had no successor because it was never one quantity —
+        it was the fused product ``ΔA ⊗ 1/w``, and each of its two factors
+        is routed by a test of its own (``delta_A`` above; the weights ride
+        the quadrature both sides receive)."""
         sn_mesh, reduced = pair
-        assert reduced.redist_dAw is not None
-        assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
+        assert np.array_equal(
+            reduced.angular.alpha_per_level[0],
+            sn_mesh.reduced.angular.alpha_per_level[0],
+        )
+        assert (reduced.angular.mu_start_per_level
+                == sn_mesh.reduced.angular.mu_start_per_level)
 
     # Issue #236 Step C: the geometry-side tau_mm producer was retired (the
     # M-M angular weight is now closure-owned).  ``test_tau_mm_bit_identical``
@@ -206,8 +218,11 @@ class TestSNMeshBindsSphericalFactory:
         quad = Quadrature.gauss_legendre(N)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
-        assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
-        assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
+        assert np.array_equal(
+            reduced.angular.alpha_per_level[0],
+            sn_mesh.reduced.angular.alpha_per_level[0],
+        )
+        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
 
 
 class TestSNMeshBindsCylindricalFactory:
@@ -250,25 +265,22 @@ class TestSNMeshBindsCylindricalFactory:
         assert np.array_equal(reduced.delta_A, sn_mesh.delta_A)
 
     @pytest.mark.foundation
-    def test_alpha_per_level_is_the_factory_value(self, pair):
-        """Per-level α on ``SNMesh`` came from this module's factory."""
-        sn_mesh, reduced = pair
-        assert reduced.alpha_per_level is not None
-        assert len(reduced.alpha_per_level) == len(sn_mesh.reduced.alpha_per_level)
-        for lvl, (rdc, snm) in enumerate(
-            zip(reduced.alpha_per_level, sn_mesh.reduced.alpha_per_level)
-        ):
-            assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
+    def test_angular_factor_is_the_factory_value(self, pair):
+        """The per-level ANGULAR factor came from this module's producer.
 
-    @pytest.mark.foundation
-    def test_redist_dAw_per_level_is_the_factory_value(self, pair):
-        """Per-level ΔA/w on ``SNMesh`` came from this module's factory."""
+        Successor of the per-level α and ΔA/w routing tests (2026-08-26
+        un-weld) — see the spherical twin for why ``redist_dAw_per_level``
+        has no successor of its own."""
         sn_mesh, reduced = pair
-        assert reduced.redist_dAw_per_level is not None
-        for lvl, (rdc, snm) in enumerate(
-            zip(reduced.redist_dAw_per_level, sn_mesh.reduced.redist_dAw_per_level)
-        ):
+        assert (reduced.angular.n_levels
+                == sn_mesh.reduced.angular.n_levels)
+        for lvl, (rdc, snm) in enumerate(zip(
+            reduced.angular.alpha_per_level,
+            sn_mesh.reduced.angular.alpha_per_level,
+        )):
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
+        assert (reduced.angular.mu_start_per_level
+                == sn_mesh.reduced.angular.mu_start_per_level)
 
     # Issue #236 Step C: ``test_tau_mm_per_level_bit_identical`` retired —
     # the geometry-side cylinder τ producer was deleted; the closure τ
@@ -284,13 +296,11 @@ class TestSNMeshBindsCylindricalFactory:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(
-            reduced.alpha_per_level, sn_mesh.reduced.alpha_per_level
+            reduced.angular.alpha_per_level,
+            sn_mesh.reduced.angular.alpha_per_level,
         ):
             assert np.array_equal(rdc, snm)
-        for rdc, snm in zip(
-            reduced.redist_dAw_per_level, sn_mesh.reduced.redist_dAw_per_level
-        ):
-            assert np.array_equal(rdc, snm)
+        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -310,16 +320,30 @@ class TestProperties:
         assert op.coord is CoordSystem.CARTESIAN
 
     @pytest.mark.foundation
-    def test_slab_curvature_arrays_are_none(self):
+    def test_slab_carries_the_neutral_angular_element(self):
+        """Slab has no curvature — and since the 2026-08-26 un-weld it
+        SPELLS that, rather than leaving the angular fields ``None``.
+
+        ⭐ This is a STRICTLY STRONGER claim than the one this test made
+        before (``alpha_half is None`` etc.).  ``None`` says only "the
+        sphere/cylinder arm did not populate this"; the neutral element
+        says the dome IS identically zero and the starting direction IS
+        the diameter ray — i.e. it pins the VALUES a slab must carry so
+        that the angular closure's ``c_in = c_out = 0`` fall out of the
+        general body instead of being special-cased.  The per-coordinate
+        ``Optional`` union died with it (Pattern 4)."""
         mesh = _slab_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
+        # The SPATIAL chart is still absent for a slab (no curvature).
         assert op.face_areas is None
         assert op.delta_A is None
-        assert op.alpha_half is None
-        assert op.redist_dAw is None
-        assert op.alpha_per_level is None
-        assert op.redist_dAw_per_level is None
+        # The ANGULAR factor is present and NEUTRAL.
+        assert op.angular.n_levels == 1
+        assert np.array_equal(
+            op.angular.alpha_per_level[0], np.zeros(quad.N + 1)
+        )
+        assert op.angular.mu_start_per_level == (-1.0,)
 
     @pytest.mark.foundation
     def test_sphere_requires_upstream(self):
@@ -387,7 +411,7 @@ class TestStreamingTermsExtraction:
         #                   outer = farther (A[i+1]).
         assert st.face_area_inner == float(op.face_areas[i])
         assert st.face_area_outer == float(op.face_areas[i + 1])
-        assert st.delta_A_over_w == float(op.redist_dAw[i, n])
+        assert st.delta_A_over_w == float(op.delta_A[i] / quad.weights[n])
         # Sphere also exposes signed mu (global ordinate index == n).
         assert st.mu == float(quad.mu_x[n])
 
@@ -405,12 +429,16 @@ class TestStreamingTermsExtraction:
         # independent of sweep direction.
         assert st.face_area_inner == float(op.face_areas[i])
         assert st.face_area_outer == float(op.face_areas[i + 1])
-        assert st.delta_A_over_w == float(
-            op.redist_dAw_per_level[level][i, m]
-        )
         # Cylinder mu is signed eta from the GLOBAL ordinate index
         # (resolved via level_indices) — bug 2 fix anchor.
         global_n = int(quad.level_indices[level][m])
+        # ΔA/w is formed from its two factors (the fused ``redist_dAw``
+        # cache retired 2026-08-26).  The claim class is unchanged: this
+        # pins the INDEXING — cell i against GLOBAL ordinate n, not the
+        # within-level m, and not transposed.
+        assert st.delta_A_over_w == float(
+            op.delta_A[i] / quad.weights[global_n]
+        )
         assert st.mu == float(quad.mu_x[global_n])
         assert st.abs_mu == float(abs(quad.mu_x[global_n]))
 
@@ -509,7 +537,7 @@ class TestStreamingTermsVolumeAndAbsMu:
         op = spherical_streaming(mesh, quad)
         i, n = 1, 5
         st = op.streaming_terms(cell_idx=i, direction_idx=n)
-        assert st.delta_A_over_w == float(op.redist_dAw[i, n])
+        assert st.delta_A_over_w == float(op.delta_A[i] / quad.weights[n])
 
 
 # ═══════════════════════════════════════════════════════════════════════

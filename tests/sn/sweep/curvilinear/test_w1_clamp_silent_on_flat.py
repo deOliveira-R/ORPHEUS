@@ -104,7 +104,7 @@ def _flat_field_coeff(
     Issue #236 Step C: the M-M α dome is no longer packed on
     ``StreamingTerms`` (the τ/α packing was retired); the caller passes
     ``alpha_in`` / ``alpha_out`` from the surviving
-    ``ReducedStreamingOperator.alpha_half`` dome.
+    ``AngularRedistribution.alpha_per_level`` dome.
     """
     abs_mu = st.abs_mu
     dA_w = st.delta_A_over_w
@@ -176,8 +176,9 @@ def test_flat_field_coefficient_tau_independent():
         for n in changed:
             st = op.streaming_terms(cell_idx, int(n))
             # α dome from the surviving operator array (Step C).
-            alpha_in = float(op.alpha_half[int(n)])
-            alpha_out = float(op.alpha_half[int(n) + 1])
+            dome = op.angular.alpha_per_level[0]
+            alpha_in = float(dome[int(n)])
+            alpha_out = float(dome[int(n) + 1])
             mu_n = float(mu[n])
             A_down = (
                 float(op.face_areas[cell_idx + 1]) if mu_n > 0

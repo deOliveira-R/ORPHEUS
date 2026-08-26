@@ -91,8 +91,7 @@ def _production_alpha_per_level(n_mu: int, n_phi: int, *, ordering: str | None):
         with product_level_ordering(ordering):
             quad = Quadrature.product(n_mu=n_mu, n_phi=n_phi)
     reduced = cylindrical_streaming(mesh, quad)
-    assert reduced.alpha_per_level is not None
-    return list(reduced.alpha_per_level), quad
+    return list(reduced.angular.alpha_per_level), quad
 
 
 def _level_geometry(quad: Quadrature, p: int):

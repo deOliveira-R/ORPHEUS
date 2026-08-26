@@ -168,8 +168,6 @@ def mm_constants_for_ordinate(
         )
 
     if op.coord is CoordSystem.SPHERICAL:
-        if op.alpha_half is None:
-            raise ValueError("spherical operator missing alpha_half dome.")
         # Production τ, named at the call site (2026-08-12): the L0 wrapper
         # ``angular_differencing.morel_montry_weights`` was retired because
         # its body WAS an ``orpheus.sn`` import, which L0 may not make. It
@@ -177,8 +175,14 @@ def mm_constants_for_ordinate(
         # below. A test file may import ``sn`` freely.
         tau_ref = morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)[0]
         tau = float(tau_ref[direction_idx])
-        alpha_in = float(op.alpha_half[direction_idx])
-        alpha_out = float(op.alpha_half[direction_idx + 1])
+        # The dome is the shared ANGULAR factor (2026-08-26 un-weld).  The
+        # former ``if op.alpha_half is None: raise`` guard retired with it:
+        # every chart carries an angular factor now (Cartesian the neutral
+        # one), so the None-ness branch was a coincidence proxy for
+        # "spherical", which ``op.coord`` states directly one line above.
+        dome = op.angular.alpha_per_level[0]
+        alpha_in = float(dome[direction_idx])
+        alpha_out = float(dome[direction_idx + 1])
         return tau, alpha_in, alpha_out
 
     if op.coord is CoordSystem.CYLINDRICAL:
@@ -186,8 +190,7 @@ def mm_constants_for_ordinate(
             raise ValueError(
                 "cylindrical mm_constants_for_ordinate requires mu_level_idx."
             )
-        if op.alpha_per_level is None:
-            raise ValueError("cylindrical operator missing alpha_per_level.")
+
         # ⛔ Q5.6.4 (2026-08-11): this line used to be
         #     tau = float(np.clip(tau_raw[...], 0.5, 1.0))
         # under a comment asserting "Independent reference is UNCLAMPED" —
@@ -200,7 +203,7 @@ def mm_constants_for_ordinate(
             quad, CoordSystem.CYLINDRICAL,
         )
         tau = float(tau_raw[mu_level_idx][direction_idx])
-        alpha_lv = op.alpha_per_level[mu_level_idx]
+        alpha_lv = op.angular.alpha_per_level[mu_level_idx]
         alpha_in = float(alpha_lv[direction_idx])
         alpha_out = float(alpha_lv[direction_idx + 1])
         return tau, alpha_in, alpha_out

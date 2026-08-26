@@ -231,7 +231,7 @@ class TestAlphaRedistribution:
         )
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
+        for p, alpha in enumerate(sn_mesh.reduced.angular.alpha_per_level):
             assert np.all(alpha >= -1e-14), (
                 f"Level {p}: negative α = {alpha.min():.2e}"
             )
@@ -252,7 +252,7 @@ class TestAlphaRedistribution:
         )
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        for p, alpha in enumerate(sn_mesh.reduced.alpha_per_level):
+        for p, alpha in enumerate(sn_mesh.reduced.angular.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
                                        err_msg=f"Level {p}: α[0] ≠ 0")
             np.testing.assert_allclose(alpha[-1], 0.0, atol=1e-13,
@@ -271,8 +271,8 @@ class TestAlphaRedistribution:
         )
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        assert np.all(sn_mesh.reduced.alpha_half >= -1e-14), (
-            f"Negative spherical α: min = {sn_mesh.reduced.alpha_half.min():.2e}"
+        assert np.all(sn_mesh.reduced.angular.alpha_per_level[0] >= -1e-14), (
+            f"Negative spherical α: min = {sn_mesh.reduced.angular.alpha_per_level[0].min():.2e}"
         )
 
 
@@ -327,7 +327,7 @@ class TestL0TermVerification:
         psi0 = 1.0
 
         if coord == CoordSystem.SPHERICAL:
-            alpha = sn.reduced.alpha_half
+            alpha = sn.reduced.angular.alpha_per_level[0]
             for n in range(quad.N):
                 streaming = quad.mu_x[n] * dA * psi0
                 alpha_diff = alpha[n + 1] - alpha[n]
@@ -338,8 +338,8 @@ class TestL0TermVerification:
                     err_msg=f"Spherical ordinate {n}: residual ≠ 0",
                 )
         else:
-            for p in range(len(sn.reduced.alpha_per_level)):
-                alpha = sn.reduced.alpha_per_level[p]
+            for p in range(len(sn.reduced.angular.alpha_per_level)):
+                alpha = sn.reduced.angular.alpha_per_level[p]
                 for m, n in enumerate(quad.level_indices[p]):
                     streaming = quad.mu_x[n] * dA * psi0
                     alpha_diff = alpha[m + 1] - alpha[m]

@@ -174,11 +174,14 @@ def march_start_cosines(
     operator binds the VALUES; this producer owns the provenance ruling.
     """
     lvls = tuple(levels)
-    if reduced.mu_start_per_level is not None:
-        return {p: abs(float(reduced.mu_start_per_level[p])) for p in lvls}
-    assert reduced.mu_start is not None  # spherical arm always sets it
-    diameter_ray = abs(float(reduced.mu_start))
-    return {p: diameter_ray for p in lvls}
+    starts = reduced.angular.mu_start_per_level
+    if len(starts) == 1:
+        # Sphere: ONE dome, and every carrying level rides the same
+        # diameter ray (|μ_start| = 1).
+        diameter_ray = abs(float(starts[0]))
+        return {p: diameter_ray for p in lvls}
+    # Cylinder: one start per μ-level, |η_{1/2}| = sin θ_p.
+    return {p: abs(float(starts[p])) for p in lvls}
 
 
 class _EmissionKernel(Protocol):
