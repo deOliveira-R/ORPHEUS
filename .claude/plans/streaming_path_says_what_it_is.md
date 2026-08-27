@@ -573,6 +573,84 @@ the machinery gap instead of a chart, so the day #409 lands the guard retires by
 itself. ⚠ Do NOT read this ruling as "compute the curvilinear multi-moment mass"
 — that value needs #409's non-Hadamard metric, and #158 to give it a consumer.
 
+**P4.7 — naming, the fusion, and ⭐ the gap both of them point at.**
+✅ RULED 2026-08-27 (user).
+
+**(a) The fusion.** *"A fusion is accepted to be cached as a performance
+optimization at the place that will assemble a hot path … we're not writing
+algebra to conform to performance optimization and welding things."* `[M]` the
+two fusion sites are NOT alike:
+* `StreamingCoefficientCache.dA_w` — an `(N, nx)` array built **once** at solver
+  init. That IS pre-operating at the hot-path assembly point. **KEEP**, renamed.
+* `StreamingTerms.delta_A_over_w` — built **per (cell, direction)** inside the
+  loop, so it buys no performance; its inputs are recomputed as often.
+  ⟹ **RETIRE.**
+⛔ And a fourth present-tense-false docstring: `_weight_of` says *"Callers form
+`ΔA/w` … rather than reading a stored product that fused a geometric with a
+quadrature quantity (Pattern 2 — neither side owned the fusion)"* while the
+packet stores exactly that product. The fusion moved one frame out; it was never
+eliminated.
+
+**(b) Names — one greppable family.** *"this is not Fortran punch-cards anymore
+… It's more important for the name to be self-explanatory."*
+
+| current | `[M]` what it IS | new |
+|---|---|---|
+| `dA_w` | | `delta_A_over_w` |
+| `V` | | `volume` |
+| `A_down` | `v.face_area_downstream` — the **sweep-direction** downstream face | `face_area_downstream` |
+| `A_total` | `face_area_inner + face_area_outer` (`cache.py:329-330`) — the **sum** | `face_area_total` |
+| `face_area_inner`/`_outer` | the two faces by **chart position** | unchanged |
+
+⭐ `A_down` needs **no coinage — the tree already has the name.**
+`CellVisit.face_area_downstream` is used in `cell_balance.py` and `diamond.py`,
+and `cache.py:324` literally reads `v.face_area_downstream` then stores it under
+a shorter one. A Pattern-2 unification, not a rename. ⟹ the family greps as
+`face_area_`: `_inner`, `_outer`, `_downstream`, `_total`.
+⚠ They are **three distinct concepts, not two** — chart-frame position,
+sweep-frame direction, and their sum.
+
+**(c) ⭐⭐ The gap the producer and `AngularMeasure` both point at.**
+User, on the producer holding mesh + quadrature: *"it makes it seem like it
+needs the spatial axis of space and the angular axis of space … if so, then it's
+just space and R, not a stage-2 generator."*
+
+`[M]` **Half true, and the failing half is the finding.**
+
+| the producer reads | does a space carry it? |
+|---|---|
+| `volumes`, `widths`, `weights` | ✅ `Axis.weights` |
+| `mu_x`, `eta`, `mu_z`, `level_indices` | ⛔ **0 hits** in BOTH `numerics/space.py` and `numerics/axis.py` |
+
+Because `Axis` is a **lossy projection of `DiscreteMeasure`**:
+
+```
+DiscreteMeasure : nodes, weights, support, invariance_group, exactness
+Axis            : label, shape,          weights,            kind
+```
+
+— it keeps the weights and **drops the nodes**, and the direction cosines ARE
+the nodes. `[M]` the exact loss site is `augmented_mesh.py:1170-1175`, which
+builds the angular axis from `quad.N` + `quad.weights` alone and declares
+`kind=BasisKind.NODAL` — **a nodal basis carrying no nodes.**
+
+⟹ **the producer IS `(space, R)`; the space is currently too thin to say so.**
+Give the angular axis its measure and the producer becomes an operator bound to
+one space — which is this campaign's own root ruling ("an operator is not an
+operator without its two spaces").
+
+⛔ **This SUSPENDS `AngularMeasure`'s retirement** (P4 item 3). That ruling
+argued CONSUMERS (*"the 3 factories read 0 of its 6 members"*); the question
+here is TYPE DESIGN — should `DiscreteMeasure` branch into
+`SpatialMeasure` / `AngularMeasure` / `EnergyMeasure`, so an axis can carry a
+real measure? A consumer count cannot refute a type design. `AngularMeasure` is
+at `orpheus/geometry/reduced_operator.py:304-360` (a structural `Protocol`:
+`mu_x`, `weights`, `N`, `eta`, `mu_z`, `level_indices`); its implementer
+`Quadrature` **wraps** a `DiscreteMeasure`, and the family already branches
+(`BundleMeasure`, `DiscreteMeasurePartition`, `GeneratingMeasure`,
+`ReferenceMeasure`, `UniformMeasure`, `ProductMeasure`). **Investigate before
+retiring.**
+
 ### ⛔ The four options this supersedes — kept per §3, with their refutations
 
 The P4 fork (§7) offered four. All four were answers to the wrong question, and
