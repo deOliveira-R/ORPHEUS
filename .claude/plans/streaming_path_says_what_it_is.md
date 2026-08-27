@@ -50,7 +50,9 @@
 > intra-`geometry/` consumers against 1–4 for every other geometry primitive.
 > ⟹ the module **dissolves**, and the forbidden edge never arises rather than
 > being routed around. Full record, the five ordered steps, the four superseded
-> options with their refutations, and **four forks to rule before executing**:
+> options with their refutations, and **three OPEN forks** (a fourth — where
+> `delta_A` lives — was ruled 2026-08-27: `sn/`, on a CONTRACT argument, not a
+> consumer count):
 > **§4ter**.
 >
 > ⚠ Two things §4ter corrects that a summary will otherwise carry forward:
@@ -577,11 +579,32 @@ three are independently refuted:
    constructor) or `sn/sweep/`. Depends on whether §5's `scheme.mint(chart)`
    absorbs `redistribution_pairing`, which would leave much less behind. Decide
    WITH the mint, not before it.
-3. **Whether `delta_A` earns a home in `coord.py` after all.** Mathematically it
-   belongs beside `compute_areas_1d` — same file, same `match coord:`, one line.
-   Proposed here as derived-at-the-consumer because it has exactly one and the
-   project defers a shared primitive until two. That is a judgement about
-   ANTICIPATION, not a measurement.
+3. ✅ **RULED 2026-08-27 (user) — `delta_A` goes to `sn/`, NOT to `coord.py`.**
+   Verbatim reason, and it is the durable half: *"`coord.py` should have geometry
+   inside, method agnostic, serves all methods equally. `delta_A` in `coord.py`
+   means a concept from curvilinear SN leaked into geometry."*
+
+   ⭐ **This supersedes the weaker argument this plan first offered, and the
+   difference is load-bearing.** The proposal reasoned from CONSUMER COUNT — "it
+   has exactly one, and the project defers a shared primitive until two"
+   (`coding-elegance` Pattern 6). That argument **flips** the moment a second
+   SN-ish consumer appears. The ruling reasons from `coord.py`'s **CONTRACT**:
+   method-agnosticism is what the module is *for*, so an SN-specific concept is a
+   leak at ANY consumer count. It does not flip. When a placement question has
+   both an anticipation argument and a contract argument, the contract argument
+   is the one to record — the other is a guess about the future wearing a rule.
+
+   `[M]` 2026-08-27, and it upgrades the ruling from a preference to an invariant
+   the module already holds: `coord.py`'s entire public surface is `CoordSystem`,
+   `compute_volumes_1d`, `compute_areas_1d`, `compute_volumes_2d` — and a regex
+   census over seven method vocabularies (`sn`/`S_N`/discrete-ordinate, `moc`/
+   characteristic, collision-probability, monte-carlo, `diffusion`, `sweep`,
+   ordinate/angular/quadrature), positive control `CoordSystem` present, returns
+   **0 hits in every one**. `delta_A` would have been the first violation.
+
+   ⟹ **the standard, stated so a later phase can check it:** nothing enters
+   `orpheus/geometry/coord.py` that names or presupposes a solution method.
+   A cheap tell is the census above — if it stops reading 0/7, something leaked.
 4. **Freezing.** `redistribution_pairing`'s docstring defers `frozen=True` to
    "the re-home, where the class definition is being touched anyway" — because
    it synthesises `__hash__` and the fields hold ndarrays. `eq=False`? per-field
