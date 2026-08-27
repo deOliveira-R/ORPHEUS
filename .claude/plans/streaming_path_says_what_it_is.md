@@ -10,12 +10,14 @@
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this
 >
-> `main` @ **`1ded900a`** == `origin/main` (P2 merged + pushed;
-> `refactor/p2-angular-comes-home` deleted).
-> **P3 is on `refactor/p3-names-stop-lying`, 4 commits, NOT merged when this
-> was written** — ⚠ a full fast gate was IN FLIGHT, so **ask git**:
-> `git merge-base --is-ancestor 4a3f2390 main`. Ancestor ⟹ merged, and this
-> paragraph is history.
+> `main` @ **`8ffddfb9`** == `origin/main`. ✅ **P2 AND P3 are both MERGED and
+> PUSHED; no open branch for this campaign** (`refactor/p2-angular-comes-home`
+> and `refactor/p3-names-stop-lying` both deleted). `[M]` P3's exit gate ran
+> BEFORE the merge: **9815 passed / 0 failed**, 13 trees all `rc=0`, and
+> **delta 0 on every one of the four axes** against the P2 gate — two renames,
+> nothing moved anywhere.
+> ⚠ Reconcile with git, never with this line
+> (`git merge-base --is-ancestor 4a3f2390 main`).
 > ⚠ This repo has **no CI** (`.github/workflows/` absent). "main is always
 > green" is enforced entirely by the local gate; an empty `gh run list` is not
 > a pass.
@@ -29,13 +31,14 @@
 > | `dcd6a9f6` | **P2** | `sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py`, byte-identical |
 > | `75571c4d` | **P3a** | `redistribution_gram` → `redistribution_pairing` (concept: 60 lines, 7 files) |
 > | `4a3f2390` | **P3b** | `GeometryCoefficients` → `StreamingCoefficientCache` (45 sites, 12 files) |
+> | `8ffddfb9` | — | this compaction point (P2+P3 merged to main here) |
 >
 > `[M]` P2's exit gate: **9815 passed / 0 failed**, 13 trees all `rc=0`; against
 > P1's baseline **+1** passed — the new `sn/angular/__init__.py` adds one case to
 > the import-linter's `rglob` parametrize — and **0 on every other axis**
 > (skipped 22, deselected 227, xfailed 70). `[M]` P3: `tests/sn` +
-> `tests/transport` **3763 passed / 0 failed**, exact on all four axes against
-> P2's numbers for those trees. pyright 0 and `sphinx -W` 0 throughout.
+> `tests/transport` **3763 passed / 0 failed**, then the full gate **9815/0**,
+> **delta 0 on all four axes** vs P2. pyright 0 and `sphinx -W` 0 throughout.
 >
 > ### ▶ NEXT — P4, which now carries FOUR things
 >
