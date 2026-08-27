@@ -537,6 +537,42 @@ both directly. `[M]` **12 of 36** code reads of `.reduced` are `None`-guards
 paying for the conflation. The object should exist **iff there is a radial
 reduction**.
 
+**P4.6 — the moment mass consumes the MEASURE, not a chart tag.**
+✅ RULED 2026-08-27 (user): *"it is very important to correct the flaw"*, in the
+move, after compaction.
+
+`[M]` shipped `M` does **not consume the measure at all**. `LinearDiscontinuous.
+moment_mass_diagonal` builds it from `mass_1d(np.ones(()), self.theta)` — the
+1-D mass factor at **UNIT WIDTH** — Kronecker'd over `ndim`. That is exact on a
+slab (where `M/V` is width-independent, which is *why* the shortcut works) and
+wrong on a curved chart. `_assert_moment_mass_is_expressible` keeps it honest by
+**refusing** curvilinear multi-moment rather than by computing.
+
+⭐ **This is the SAME fix as P4 item 1** (retire the TRANSITIONAL
+`coord: CoordSystem` tag), not a second one: the tag is a **proxy for the
+measure**. Its own docstring already says so — the predicate is
+`is not CARTESIAN`, i.e. *"is the volume element constant across the cell?"*,
+a property of the MEASURE's behaviour. Once `M` is handed the measure, the tag
+has nothing left to stand for and both retire together.
+
+⚠ **The refusal does not vanish — it moves to an honest predicate**, and the
+three arms are not equally affected:
+
+* **single-moment (DD), any chart** — `∫b₀b₀ dV / V = V/V = 1`. Unaffected on
+  every chart, by construction.
+* **multi-moment on Cartesian** — `[1, θ]`. Already correct.
+* **multi-moment on curvilinear** — the true `M/V` is **non-diagonal AND
+  cell-dependent** (`[[1, 0.5], [0.5, 0.4]]` at a spherical pole cell), and
+  `FunctionSpace`'s metric is Hadamard **by construction**, so the VALUE is
+  currently unspellable — ORPHEUS **#409**.
+
+⟹ the guard's predicate changes from *"is the chart Cartesian?"* (a proxy) to
+*"can this metric be expressed?"* (the question). That is strictly better and is
+a **step toward #409 rather than a step blocked on it**: the honest refusal names
+the machinery gap instead of a chart, so the day #409 lands the guard retires by
+itself. ⚠ Do NOT read this ruling as "compute the curvilinear multi-moment mass"
+— that value needs #409's non-Hadamard metric, and #158 to give it a consumer.
+
 ### ⛔ The four options this supersedes — kept per §3, with their refutations
 
 The P4 fork (§7) offered four. All four were answers to the wrong question, and
@@ -575,10 +611,43 @@ three are independently refuted:
    corpus (`lessons.md`, `plans/`, `agent-memory/`, closed issues) before adopting
    any candidate — the P3b precedent is that a free name can be free *because it
    was rejected*.
-2. **Where the residue lands inside `sn/`** — `sn/mesh/` (beside its only
-   constructor) or `sn/sweep/`. Depends on whether §5's `scheme.mint(chart)`
-   absorbs `redistribution_pairing`, which would leave much less behind. Decide
-   WITH the mint, not before it.
+2. ✅ **PARTLY RULED 2026-08-27 (user) — `redistribution_pairing` (R) goes to
+   `transport/` (L2).** The reason is its AUDIENCE, established by separating R
+   from `M` by consumer:
+
+   | | consumes | audience |
+   |---|---|---|
+   | `M = ∫ b_k b_j dV` | basis + volume measure | broad — `[M]` **8** references, ALL in `transport/`, **0** in `sn/`; plus LS-MoC, FE/DG diffusion, nodal, CP-with-linear-source in principle |
+   | `R = ∫ b_k b_j (∇·ê_r) dV` | basis + volume measure **+ the connection** | `{SN actual, Pn potential}` |
+
+   They differ by **exactly one ingredient**, and *neither consumes anything
+   angular* — no `μ`, `w`, `τ` or `α`. That is what makes them the spatial
+   factor.
+
+   ⭐ **R is NOT SN-specific, and this plan said it was.** `[R]` reasoned (there
+   is no `pn/` package): a method consumes R iff it has a `1/r` term multiplying
+   the unknown AND projects it onto a spatial moment basis. The curvilinear **Pn**
+   moment equations carry `c_ℓ·φ_{ℓ±1}/r`; projecting onto `b_k` with
+   `φ = Σ_j c_j b_j` gives `Σ_j c_j ∫ b_k b_j (1/r) dV` — that IS R. SPn and
+   FE/DG diffusion do NOT: their `1/r` lives inside `∇²`, so the weak form yields
+   the **stiffness** matrix `∫∇b_k·∇b_j dV`, a different bilinear form. MoC/CP/MC
+   have no `1/r` term at all.
+
+   ⭐⭐ **So α and R split, and this plan had treated them as one placement
+   question.** Pn needs **no α** — its angular derivative folds into the Legendre
+   recurrence, so no angular differencing coefficient is ever formed — but it
+   does need R. ⟹ **α is SN-specific; R is specific to methods that discretize
+   an angular variable in a ROTATING FRAME, by collocation (SN) or expansion
+   (Pn).**
+
+   ⚠ **STILL OPEN: where the PRODUCER goes.** `[M]` `streaming_terms()` reads
+   `angular.quadrature.{mu_x, eta, level_indices, weights}` (angular),
+   `mesh.{volumes, widths}` + `face_areas` (geometry), `delta_A` (the
+   connection) and `coord`. **It consumes BOTH factors — it is the fusion
+   site**, so the R ruling does not place it. Its inputs are all L2/L1/INPUT, so
+   `sn/` is legal; it produces an SN sweep packet, which argues it is SN's. The
+   packet TYPE `StreamingTerms` must be ≤ L2 regardless (`transport/spatial/`
+   imports it at runtime and `transport → sn` is forbidden).
 3. ✅ **RULED 2026-08-27 (user) — `delta_A` goes to `sn/`, NOT to `coord.py`.**
    Verbatim reason, and it is the durable half: *"`coord.py` should have geometry
    inside, method agnostic, serves all methods equally. `delta_A` in `coord.py`
@@ -605,6 +674,17 @@ three are independently refuted:
    ⟹ **the standard, stated so a later phase can check it:** nothing enters
    `orpheus/geometry/coord.py` that names or presupposes a solution method.
    A cheap tell is the census above — if it stops reading 0/7, something leaked.
+
+   ⚠ **INTERACTION with fork 2's later ruling — needs confirmation before
+   execution.** R's rank-1 entry **is** `ΔA`, so `delta_A` and R are not two
+   objects; `delta_A` is R's rank-1 realization. If R lives in `transport/` and
+   `delta_A` in `sn/`, one quantity spans two layers, and R's L2 producer would
+   need an L3 import (**forbidden**). The coherent reading is that **`delta_A`
+   as a named field DISSOLVES into R** — R's producer derives the connection
+   integral from `mesh.areas` itself — which honours this fork's reasoning
+   (nothing SN-flavoured enters `coord.py`; R is L2, not geometry) while
+   removing the layer conflict. ⛔ Not recorded as ruled: it is a CONSEQUENCE
+   derived here, not a decision the user stated.
 4. **Freezing.** `redistribution_pairing`'s docstring defers `frozen=True` to
    "the re-home, where the class definition is being touched anyway" — because
    it synthesises `__hash__` and the fields hold ndarrays. `eq=False`? per-field
