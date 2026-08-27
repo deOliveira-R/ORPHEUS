@@ -388,11 +388,11 @@ class SNMesh(MaterialMesh):
         # ── Pole-angular closure binding (PR-TYPED-6.5 Phase 2.9) ──
         # The closure takes the TWO TENSOR FACTORS of the redistribution
         # operator, not the mesh (the un-weld arc's Phase B): the angular
-        # factor (dome, starting direction, measure) and the spatial Gram.
+        # factor (dome, starting direction, measure) and the spatial pairing.
         # The mesh's job here is to hand over two values it already holds —
         # not to be captured.  The user-supplied closure CLASS, or the
         # default-by-coord-system, is constructed through the family's
-        # ``cls(angular, gram)`` contract; every mesh carries a BOUND closure.
+        # ``cls(angular, pairing)`` contract; every mesh carries a BOUND closure.
         closure_cls = (
             self._user_supplied_closure
             if self._user_supplied_closure is not None
@@ -400,7 +400,7 @@ class SNMesh(MaterialMesh):
         )
         if self.reduced is not None:
             angular = self.reduced.angular
-            gram = self.reduced.redistribution_gram
+            pairing = self.reduced.redistribution_pairing
         else:
             # Multi-D Cartesian: there is NO reduced streaming operator
             # (the chain scan is a 1-D construct; d ≥ 2 rides the
@@ -410,9 +410,9 @@ class SNMesh(MaterialMesh):
             # alone is the un-weld's own point: the closure's operands
             # were never mesh facts.
             angular = angular_redistribution(self.quad, self.coord)
-            gram = np.zeros((int(np.prod(self.spatial_shape)), 1, 1))
+            pairing = np.zeros((int(np.prod(self.spatial_shape)), 1, 1))
         self.pole_angular_closure: PoleAngularClosureBase = closure_cls(
-            angular, gram,
+            angular, pairing,
         )
         # Drop the temporary attribute now that the closure is bound.
         del self._user_supplied_closure

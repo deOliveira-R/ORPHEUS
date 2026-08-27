@@ -65,13 +65,13 @@ pytestmark = pytest.mark.foundation
 def _mm_from(sn_mesh) -> MorelMontryAngularSweep:
     """Build the closure from a mesh's two TENSOR FACTORS.
 
-    The family's contract is ``cls(angular, gram)`` (the un-weld arc's
+    The family's contract is ``cls(angular, pairing)`` (the un-weld arc's
     Phase B) — the mesh is no longer an operand.  These protocol/repr rows
     only need *a* constructed closure, so they spell the two-factor call
     once here rather than at each site.
     """
     return MorelMontryAngularSweep(
-        sn_mesh.reduced.angular, sn_mesh.reduced.redistribution_gram,
+        sn_mesh.reduced.angular, sn_mesh.reduced.redistribution_pairing,
     )
 
 class TestProtocolConformance:
@@ -120,14 +120,14 @@ class TestRegistry:
 
     def test_create_morel_montry_returns_instance(self) -> None:
         # ``create`` forwards kwargs to the concrete ``__init__`` — the
-        # family's ``cls(angular, gram)`` two-tensor-factor contract rides
+        # family's ``cls(angular, pairing)`` two-tensor-factor contract rides
         # through the registry (C5: no unbound construction; the un-weld
         # arc's Phase B replaced the mesh operand with the two factors).
         sn_mesh = make_tiny_spherical_sn_mesh()
         instance = PoleAngularClosureBase.create(
             "morel_montry_angular_sweep",
             angular=sn_mesh.reduced.angular,
-            gram=sn_mesh.reduced.redistribution_gram,
+            pairing=sn_mesh.reduced.redistribution_pairing,
         )
         assert isinstance(instance, MorelMontryAngularSweep)
 
@@ -421,14 +421,14 @@ def test_strategy_is_linear_in_psi():
     )
 
 
-class TestGramContract:
-    r"""The closure takes the two TENSOR FACTORS, and refuses a Gram it
+class TestPairingContract:
+    r"""The closure takes the two TENSOR FACTORS, and refuses a pairing it
     cannot yet honour.
 
     The redistribution operator factors as
     :math:`R_{\rm spatial} \otimes A_{\rm angular}`, so a member of this
     family is constructed from exactly those two objects
-    (``cls(angular, gram)``, the un-weld arc's Phase B).  The Gram's axes
+    (``cls(angular, pairing)``, the un-weld arc's Phase B).  The pairing's axes
     ``(nx, n_mom, n_thread)`` are real — ``n_mom`` is the spatial scheme's
     moment count, ``n_thread`` is what the angular device propagates — but
     the CELL SOLVE for ``n_mom > 1`` does not exist yet (Issue #158's
@@ -436,7 +436,7 @@ class TestGramContract:
     rather than silently divide by a scalar.
 
     ⭐ **These rows are why the guard is not unfalsifiable.** No shipped
-    scheme produces a multi-moment Gram, but the Gram is a plain array, so
+    scheme produces a multi-moment pairing, but the pairing is a plain array, so
     a hand-built one is a genuine witness — not a mutation of the code
     under test (``vv-principles`` #17's granularity trap: each refusal arm
     is exercised separately, and each reddens on its own).
@@ -450,19 +450,19 @@ class TestGramContract:
     @staticmethod
     def _angular():
         sn = make_tiny_spherical_sn_mesh()
-        return sn.reduced.angular, sn.reduced.redistribution_gram
+        return sn.reduced.angular, sn.reduced.redistribution_pairing
 
     @pytest.mark.foundation
     def test_the_shipped_gram_is_single_moment_and_admits(self) -> None:
         """The positive leg — without it the refusals below prove nothing."""
-        angular, gram = self._angular()
-        if gram.shape[1:] != (1, 1):
+        angular, pairing = self._angular()
+        if pairing.shape[1:] != (1, 1):
             pytest.fail(
-                f"the shipped Gram should be single-moment; got {gram.shape}"
+                f"the shipped pairing should be single-moment; got {pairing.shape}"
             )
-        closure = MorelMontryAngularSweep(angular, gram)
+        closure = MorelMontryAngularSweep(angular, pairing)
         if closure is None:  # pragma: no cover — construction must succeed
-            pytest.fail("the single-moment Gram must be admitted")
+            pytest.fail("the single-moment pairing must be admitted")
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("n_mom,n_thread,family", [
@@ -472,25 +472,25 @@ class TestGramContract:
     def test_multi_moment_gram_refuses_naming_the_missing_solve(
         self, n_mom: int, n_thread: int, family: str,
     ) -> None:
-        angular, gram = self._angular()
-        nx = gram.shape[0]
+        angular, pairing = self._angular()
+        nx = pairing.shape[0]
         with pytest.raises(NotImplementedError, match="158"):
             MorelMontryAngularSweep(angular, np.zeros((nx, n_mom, n_thread)))
 
     @pytest.mark.foundation
     def test_a_gram_without_the_moment_axes_refuses(self) -> None:
-        """The pre-Phase-B spelling (a bare ``(nx,)`` ΔA) is not a Gram."""
-        angular, gram = self._angular()
+        """The pre-Phase-B spelling (a bare ``(nx,)`` ΔA) is not a pairing."""
+        angular, pairing = self._angular()
         with pytest.raises(ValueError, match="n_mom"):
-            MorelMontryAngularSweep(angular, np.zeros(gram.shape[0]))
+            MorelMontryAngularSweep(angular, np.zeros(pairing.shape[0]))
 
     @pytest.mark.foundation
     def test_the_identity_member_takes_the_same_two_operands(self) -> None:
         """The dispatch site constructs whichever class was selected without
         knowing which, so the contract must be uniform — and Cartesian's
         factors are both the NEUTRAL element."""
-        angular, gram = self._angular()
-        closure = IdentityAngularClosure(angular, gram)
+        angular, pairing = self._angular()
+        closure = IdentityAngularClosure(angular, pairing)
         if repr(closure) != "IdentityAngularClosure()":
             pytest.fail(
                 "the identity member's repr must not carry a mesh — it no "

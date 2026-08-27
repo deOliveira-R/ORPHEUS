@@ -47,7 +47,7 @@ implementations were live.
    retired ``alpha_half`` and ``redist_dAw`` / ``redist_dAw_per_level``
    outright, and re-homed ``alpha_per_level`` onto
    :class:`AngularRedistribution`; ``delta_A`` is now read through
-   :attr:`ReducedStreamingOperator.redistribution_gram`.  So three of
+   :attr:`ReducedStreamingOperator.redistribution_pairing`.  So three of
    the five rows name a field that no longer exists here.
 
    It is kept, tensed, rather than deleted or quietly refreshed: the
@@ -587,7 +587,7 @@ class ReducedStreamingOperator:
     # ── Per-direction extraction ───────────────────────────────────
 
     @cached_property
-    def redistribution_gram(self) -> np.ndarray:
+    def redistribution_pairing(self) -> np.ndarray:
         r"""The SPATIAL factor of the redistribution operator, ``(nx, n_mom, n_thread)``.
 
         The other half of the tensor product
@@ -603,7 +603,7 @@ class ReducedStreamingOperator:
         * ``n_thread`` — how much of the spatial representation the
           ANGULAR device propagates through its half-angle recurrence.
 
-        so the general entry is the one-measure-down Gram
+        so the general entry is the one-measure-down pairing
         :math:`R_{kj} = \int b_k^{\rm scheme}\, b_j^{\rm thread}\,
         r\,\mathrm{d}r` — rectangular whenever the two differ.  Both
         published families are realizable in it: closing the angular
@@ -931,7 +931,7 @@ class AngularRedistribution:
        \mathcal{R} \;=\; R_{\rm spatial} \;\otimes\;
                           A_{\rm angular}(\tau,\ \alpha,\ w)
 
-    — a spatial Gram against an angular operator — and this type is the
+    — a spatial pairing against an angular operator — and this type is the
     **member-independent half of the angular factor**: the :math:`\alpha`
     dome and the starting direction, which every angular-closure member
     shares.  What is NOT here is the member's own choice: :math:`\tau` and

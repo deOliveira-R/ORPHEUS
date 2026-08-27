@@ -6,7 +6,7 @@ The curvilinear redistribution operator **factors** —
 
    \mathcal{R} \;=\; R_{\rm spatial} \;\otimes\; A_{\rm angular}(\tau,\ \alpha,\ w)
 
-— a spatial Gram against an angular operator, and this package is the
+— a spatial pairing against an angular operator, and this package is the
 second factor.  It exists because the factorization *is* the ownership
 map: the measure comes from the chart, the basis from the discretization
 scheme, and the angular partner from the quadrature weights.  A module

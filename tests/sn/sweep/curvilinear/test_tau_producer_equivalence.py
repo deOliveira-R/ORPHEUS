@@ -403,7 +403,7 @@ def test_identity_closure_tau_is_neutral_one():
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     closure = IdentityAngularClosure(
-        sn_mesh.reduced.angular, sn_mesh.reduced.redistribution_gram,
+        sn_mesh.reduced.angular, sn_mesh.reduced.redistribution_pairing,
     )
 
     (tau,) = closure._tau_per_level

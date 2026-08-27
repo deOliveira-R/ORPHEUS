@@ -194,11 +194,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 
-def _require_single_moment_gram(gram: np.ndarray, who: str) -> None:
-    r"""Refuse a multi-moment spatial Gram — the cell SOLVE does not exist yet.
+def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
+    r"""Refuse a multi-moment spatial pairing — the cell SOLVE does not exist yet.
 
-    The Gram's two axes are real and load-bearing (see
-    :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.redistribution_gram`):
+    The pairing's two axes are real and load-bearing (see
+    :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.redistribution_pairing`):
     ``n_mom`` is the scheme's spatial-moment count, ``n_thread`` is what the
     angular device propagates.  What does NOT exist yet is the other side of
     the contract: at ``n_mom > 1`` the closure's contribution to the cell
@@ -209,7 +209,7 @@ def _require_single_moment_gram(gram: np.ndarray, who: str) -> None:
 
     ⚠ **Read its coverage precisely** (``plan-authoring`` §6c).  No SHIPPED
     scheme is multi-moment, so nothing in production reaches this guard —
-    but a multi-moment Gram is a plain array, so a HAND-BUILT one does, and
+    but a multi-moment pairing is a plain array, so a HAND-BUILT one does, and
     that is a real witness rather than a mutation of the code under test.
     The gate is
     ``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``; it pins
@@ -218,20 +218,20 @@ def _require_single_moment_gram(gram: np.ndarray, who: str) -> None:
     (ONETRAN, closing on the cell average only).  So this is a fail-loud
     marker for the step that adds a multi-moment scheme, AND it is gated.
     """
-    gram = np.asarray(gram)
-    if gram.ndim != 3:
+    pairing = np.asarray(pairing)
+    if pairing.ndim != 3:
         raise ValueError(
-            f"{who}: the redistribution Gram must be (nx, n_mom, n_thread); "
-            f"got shape {gram.shape}. Build it from "
-            f"ReducedStreamingOperator.redistribution_gram."
+            f"{who}: the redistribution pairing must be (nx, n_mom, n_thread); "
+            f"got shape {pairing.shape}. Build it from "
+            f"ReducedStreamingOperator.redistribution_pairing."
         )
-    n_mom, n_thread = gram.shape[1], gram.shape[2]
+    n_mom, n_thread = pairing.shape[1], pairing.shape[2]
     if n_mom != 1 or n_thread != 1:
         raise NotImplementedError(
-            f"{who}: a multi-moment redistribution Gram "
+            f"{who}: a multi-moment redistribution pairing "
             f"(n_mom={n_mom}, n_thread={n_thread}) needs the multi-moment "
             f"cell SOLVE, which is not implemented (Issue #158, the "
-            f"curvilinear linear-discontinuous arm). The Gram's axes are "
+            f"curvilinear linear-discontinuous arm). The pairing's axes are "
             f"accepted here so the pairing is expressible; the cell balance "
             f"below still divides by a scalar."
         )
@@ -253,12 +253,12 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
       :meth:`angular_adjoint` — the matvec/sweep strategy contract (the
       forward angular path, its per-cell cell-balance contribution, and
       its reverse-mode adjoint).
-    * ``__init__`` constructible as ``cls(angular, gram)`` — the family
+    * ``__init__`` constructible as ``cls(angular, pairing)`` — the family
       construction contract (abstract below): every closure binds to
       its :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at
       construction (PR-TYPED-6.5 Phase 2.3), and the SNMesh
       default-closure dispatch instantiates through this signature
-      (``default_angular_closure_class(coord)(angular, gram)``). Concretes may
+      (``default_angular_closure_class(coord)(angular, pairing)``). Concretes may
       widen (an optional mesh, extra keyword strategy slots).
 
     Notes
@@ -293,7 +293,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     # ``c_in_per_ordinate`` / ``c_out_per_ordinate`` accessors below typecheck
     # against the shared contract; the concrete value is bound in each
     # subclass (M-M from its α-dome / τ, Identity to neutral zeros).  Every
-    # closure binds its two tensor factors at construction (``cls(angular, gram)``
+    # closure binds its two tensor factors at construction (``cls(angular, pairing)``
     # family contract), so the state is always populated — the former
     # ``| None`` widenings served only the retired M-M unbound legacy mode.
     level_indices: "tuple[np.ndarray, ...]"
@@ -352,7 +352,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     def __init__(
         self,
         angular: "AngularRedistribution",
-        gram: np.ndarray,
+        pairing: np.ndarray,
     ) -> None:
         r"""Family construction contract — a closure binds its two TENSOR FACTORS.
 
@@ -365,7 +365,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         * ``angular`` — the member-INDEPENDENT angular data (the
           :math:`\alpha`-dome, the starting direction, the measure), shared
           by every member;
-        * ``gram`` — the SPATIAL factor, ``(nx, n_mom, n_thread)``.
+        * ``pairing`` — the SPATIAL factor, ``(nx, n_mom, n_thread)``.
 
         What each member adds on top is its own :math:`\tau` and the
         derived :math:`c_{\rm in}` / :math:`c_{\rm out}` — which is
@@ -373,9 +373,9 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         second member (plain diamond, an angular-LD device) has to be
         able to choose differently.
 
-        Every concrete strategy is constructible as ``cls(angular, gram)``;
+        Every concrete strategy is constructible as ``cls(angular, pairing)``;
         the SNMesh default-closure dispatch
-        (``default_angular_closure_class(coord)(angular, gram)``)
+        (``default_angular_closure_class(coord)(angular, pairing)``)
         instantiates through this signature.  Concretes may WIDEN it with
         extra keyword slots — the two-positional call must stay valid.
         Abstract: declares the signature only; concrete ``__init__``
@@ -1503,15 +1503,15 @@ class MorelMontryAngularSweep(
     def __init__(
         self,
         angular: "AngularRedistribution",
-        gram: np.ndarray,
+        pairing: np.ndarray,
     ) -> None:
         # The two TENSOR FACTORS, and nothing else (the un-weld arc's
         # Phase B): the angular factor carries the dome, the starting
-        # direction and the measure; ``gram`` is the spatial factor,
+        # direction and the measure; ``pairing`` is the spatial factor,
         # ``(nx, n_mom, n_thread)``.  All M-M coefficients are precomputed
         # here and the strategy methods read them from ``self``.
-        _require_single_moment_gram(gram, type(self).__name__)
-        self._gram = np.asarray(gram, dtype=float)
+        _require_single_moment_pairing(pairing, type(self).__name__)
+        self._gram = np.asarray(pairing, dtype=float)
         self._angular = angular
         # (Retained as PROVENANCE, and read through :attr:`angular` — the
         # coefficients below are derived from it, so a diagnostic that has
@@ -1523,7 +1523,7 @@ class MorelMontryAngularSweep(
         quad = angular.quadrature
         N = int(np.asarray(quad.mu_x).size)
         # The single-moment contraction: today's per-cell spatial factor
-        # is the one entry of a (1, 1) Gram — ΔA_i.
+        # is the one entry of a (1, 1) pairing — ΔA_i.
         delta_A = self._gram[:, 0, 0]
 
         # R12a (#282 route (a)): the carrying-level set — the levels whose
@@ -2066,12 +2066,12 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
     def __init__(
         self,
         angular: "AngularRedistribution",
-        gram: np.ndarray,
+        pairing: np.ndarray,
     ) -> None:
         # The same two tensor factors every member takes.  Cartesian's are
-        # both NEUTRAL — a zero dome and a zero Gram — so this member needs
+        # both NEUTRAL — a zero dome and a zero pairing — so this member needs
         # nothing from either beyond the ordinate count.
-        _require_single_moment_gram(gram, type(self).__name__)
+        _require_single_moment_pairing(pairing, type(self).__name__)
         self._angular = angular   # provenance; read through ``angular``
         self._N: int = int(np.asarray(angular.quadrature.mu_x).size)
         # Trivial single-level partition: every ordinate in one level.
