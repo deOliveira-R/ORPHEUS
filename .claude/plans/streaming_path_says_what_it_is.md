@@ -878,9 +878,36 @@ is last by ruling.
 
 | symbol | code+test lines / files | string-form | docs `.rst` (roles / total) |
 |---|---|---|---|
-| `redistribution_gram` → `redistribution_pairing` | **9** / 5 | 0 | 0 / 0 |
+| `redistribution_gram` → `redistribution_pairing` | ⛔ **9 was the SYMBOL; the CONCEPT is 70** — see below | 0 | 0 / 0 |
 | `GeometryCoefficients` → `ChainScanCoefficients` | **35** / 7 | 2 | 4 / 10 |
 | `ReducedStreamingOperator` → `ChartConnection` | 36 orpheus + 15 tests | 3 | — / 20 |
+
+⛔⛔ **The `redistribution_gram` row's `9` was measured on the SYMBOL, and the
+work is the CONCEPT — `[M]` 2026-08-26, 7× larger.** The identifier appears 9
+times; the *word* `gram` names the same object **70 times** across 7 files: the
+guard `_require_single_moment_gram`, the `gram` parameter in 3 signatures, the
+`cls(angular, gram)` constructor contract, the `self._gram` field, two message
+strings, and a test class `TestGramContract`. Renaming the property alone would
+leave the concept spelled **two ways** — a `redistribution_pairing` returning
+something every consumer still calls a `gram` — which is strictly worse than
+either doing it fully or not at all (Pattern 2, and
+[[feedback-naming-consistency-greppable]]). ⟹ done as a concept rename: **60
+lines rewritten, 6 deliberately KEPT.**
+
+⭐ **The 6 keeps are the point of the rename, not an exception to it.** A Gram is
+⟨bᵢ, bⱼ⟩ over ONE basis — square, symmetric, PSD. This object is
+`R_kj = ∫ b_k^scheme · b_j^thread · r dr`, pairing **two different** bases, so it
+is rectangular in general. Kept as *Gram*, correctly: `reduced_operator.py:611`
+("closing per spatial moment gives a **square** Gram" — that case genuinely is
+one), `augmented_mesh.py:1151/1198/1247/1271` (the field-space Hilbert metric
+`G_bulk = V·w_n ⊗ diag(1,θ,…)`), and `linear_discontinuous.py:280`. ⚠ The word
+appears **493** times repo-wide, nearly all of it legitimate
+(`numerics/frame.py`, `numerics/basis/*`) — this is `coding-standards`' concept-grep
+dual hazard, so every hit was triaged by MEANING before any was called a site.
+
+⛔ **And a blanket replace would have corrupted `closure.py:1445`** — the word
+`pro`**`gram`**`s`. `[M]` substring match = 71, word-bounded = 70. One line, and
+it is production prose.
 
 ⚠ **All string-form hits are benign and are listed so nobody re-hunts them**:
 `GeometryCoefficients` — a forward return annotation (`cache.py:205`) and
