@@ -2417,3 +2417,59 @@ Cross-reference: `plan-authoring` §2 (the FILTER and VIEWPORT clauses — never
 cannot see a name inside a string). Sibling of [[lessons-L56]] — there,
 "nothing found" and "looked in the wrong place" printed the same thing; here,
 "pattern matched nothing" and "pattern never ran" do.
+
+## L62 — A positive control drawn from the TREE validates a filter only for shapes the tree already exhibits (2026-08-27)
+
+`vv-principles` #17 and [[lessons-L61]] establish the rule: validate a filter
+against a positive control before trusting a negative. This is the boundary of
+that rule, and it was found by a census that ran the control correctly and was
+still wrong twice.
+
+**Context.** Censusing whether any non-SN solver computes `delta_A`
+(`= A_{i+1/2} − A_{i−1/2}`, the contracted connection coefficient) under any
+disguise. Ten filter families over 334 files, each validated before its zero was
+read. Tree control: family 1 must find the two known sites in
+`geometry/reduced_operator.py`. It did.
+
+**Two defects survived anyway, and they fail differently:**
+
+| # | the filter | why the control did not catch it |
+|---|---|---|
+| 1 | the slice-difference `X[1:] − X[:-1]` was **single-axis only** | the known site is 1-D, so the control had nothing multi-axis in it. It silently could not see `phi[:, 1:] − phi[:, :-1]`. |
+| 2 | the closed-form family required an **explicit leading coefficient** | ⭐ **no control was possible**: the known site is a *slice*-difference, so the closed-form family had **no tree member to validate against at all**. |
+
+Defect 2 is the lesson. It missed `np.pi * (r_outer**2 - r_inner**2)` in
+`moc/geometry.py:284` — the single most important near-miss in the whole census,
+literally a difference of two areas and numerically `ΔA_sph/4`. It was found by
+**reading the file**, not by any filter.
+
+> **The rule: a positive control drawn from the tree can only validate a filter
+> for shapes the tree already exhibits. Where a filter family has no exemplar in
+> the tree, its control is vacuous and reading is the only instrument.**
+
+⟹ Two checks, both cheap:
+1. **Validate against a LITERAL of the shape, not against a tree member.** An
+   in-memory fixture of the exact form you claim to catch works even when the
+   tree contains no instance. (The census did this for eight of ten families;
+   the two that failed are the two that used the tree as their control.)
+2. **Enumerate your filter families and ask which have no tree exemplar.** Those
+   are exactly the ones whose zero carries no information, and they must be
+   closed by reading rather than by grepping.
+
+⚠ The failure direction is the usual flattering one: a family with no exemplar
+reports zero everywhere, which reads as "the concept does not occur" rather than
+"I cannot see this shape".
+
+⭐ And the adjudication that made the near-miss decidable is worth carrying on
+its own: when two quantities have the same arithmetic form, discriminate by the
+**dimension of the measure being differenced**. `delta_A` differences a
+*(d−1)*-dimensional SURFACE measure (`2πr`, `4πr²`) — a connection coefficient.
+`πr²` is a *d*-dimensional VOLUME measure (in MoC's 2-D plane the volume measure
+IS an area) — a cell volume. The decisive witness was a shipped gate asserting
+`region_areas.sum() == pitch**2`: the regions PARTITION the domain, and a sum of
+surface differences telescopes to `A_out − A_in`, never to a domain measure.
+
+Cross-reference: [[lessons-L61]] (an unvalidated filter and a clean tree print
+the same thing — this is its boundary case, where the filter IS validated and
+the validation is vacuous); [[lessons-L55]] (a census is only as wide as its
+spelling); `vv-principles` #17.

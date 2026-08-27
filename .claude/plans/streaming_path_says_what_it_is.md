@@ -40,7 +40,27 @@
 > `tests/transport` **3763 passed / 0 failed**, then the full gate **9815/0**,
 > **delta 0 on all four axes** vs P2. pyright 0 and `sphinx -W` 0 throughout.
 >
-> ### ▶ NEXT — P4, which now carries FOUR things
+> ### ▶ NEXT — P4, RE-POSED 2026-08-27. **Read §4ter before anything else.**
+>
+> ⛔ P4's four-way fork ("where does the α type live so `geometry` may name it?")
+> was an answer to the WRONG QUESTION and is superseded. `[M]`
+> `geometry/reduced_operator.py` **holds no geometry** — `face_areas` is a
+> verbatim copy of `mesh.areas`, `coord` a copy of `mesh.coord`, `delta_A` a
+> `np.diff` of the former with **0** non-SN consumers, and the module has **0**
+> intra-`geometry/` consumers against 1–4 for every other geometry primitive.
+> ⟹ the module **dissolves**, and the forbidden edge never arises rather than
+> being routed around. Full record, the five ordered steps, the four superseded
+> options with their refutations, and **four forks to rule before executing**:
+> **§4ter**.
+>
+> ⚠ Two things §4ter corrects that a summary will otherwise carry forward:
+> **(a)** this plan asserted the field retirement was bit-identical — `[M]` it is
+> for `coord` (3/3 charts) and is **NOT** for `face_areas` (2/3; the slab holds
+> `None` where `mesh.areas` is `ones`). That step is *finishing P1's un-weld on
+> the spatial half*, not a duplication retirement. **(b)** §9.1's
+> `ChartConnection` name rests on a residue §4ter changes — re-rule it.
+>
+> The mint (below, item 1) and P4b (item 4) are unchanged by any of this.
 >
 > Full text at §7 P4 **and §4bis**. ⚠ Read both; P4 has absorbed work from two
 > other phases.
@@ -355,6 +375,217 @@ Per §9.3's governing ruling. The whole object rebuilds on any re-mesh including
 mesh-bound; `chain_idx` moves to the traversal layer. ⚠ Do **not** convert
 `CollisionCache`'s eager build to lazy — §4 records that its `_build_count`
 instruments a cardinal gate.
+
+---
+
+## 4ter. ⛔ The module in `geometry/` holds no geometry — and that re-poses P4
+
+**Measured 2026-08-27**, in a session that set out only to price P4's α blocker.
+The blocker dissolved because its premise was wrong: the question was never
+*"where should this geometry type live"*.
+
+### The measurement
+
+`[M]` **Intra-`geometry/` consumers, by AST over geometry files OTHER than the
+definer, code references only (a `__init__` re-export is not a consumer):**
+
+| symbol | definer | other geometry files using it |
+|---|---|---|
+| `CoordSystem` | `coord.py` | 4 |
+| `Mesh1D` | `mesh.py` | 2 |
+| `StructuredGeometry` | `structured_geometry.py` | 1 |
+| `RigidMotion` | `transformation.py` | 1 |
+| **`StreamingTerms`** | `reduced_operator.py` | **0** |
+| **`ReducedStreamingOperator`** | `reduced_operator.py` | **0** |
+| **`AngularRedistribution`** | `reduced_operator.py` | **0** |
+
+Every genuine geometry primitive has 1–4 intra-package consumers. Everything in
+`reduced_operator.py` has **zero** — it is an island inside its own package.
+⚠ This measurement DISCRIMINATES only because the control row exists; "0 intra-
+package consumers" would otherwise read as normal for an input layer.
+
+`[M]` **What the module's fields actually are** (`spherical_streaming` /
+`cylindrical_streaming` bodies, 4 and 5 executable statements):
+
+```python
+face_areas = mesh.areas                        # a VERBATIM COPY of a Mesh1D property
+delta_A    = face_areas[1:] - face_areas[:-1]  # np.diff of that same array
+coord      = mesh.coord                        # the guard reads mesh.coord two lines above
+mesh       = mesh                              # …and it holds the source anyway
+```
+
+`[M]` `delta_A == ∫(∇·ê_r) dV` per cell to **8.9e-16** (sphere, `_spherical_mesh()`,
+`gauss_legendre(8)`) — the contracted connection coefficient.
+
+`[M]` **Who wants which**, ten filter families over 334 `.py` files under
+`orpheus/`, every filter validated against a literal of its own shape BEFORE its
+zero was read, tree control = the two known `delta_A` sites:
+
+| datum | sn | geometry | transport | cp | moc | mc | diffusion | numerics |
+|---|---|---|---|---|---|---|---|---|
+| `delta_A` | 9 | 24 | **0** | **0** | **0** | **0** | **0** | **0** |
+| `face_areas` | 6 | 23 | 0 | 0 | 0 | 0 | **2** | **8** |
+| `.areas` | 4 | 3 | **5** | **2** | 0 | 0 | **4** | 0 |
+
+⟹ `face_areas` is **shared geometry** with four independent non-SN consumers —
+`cp/solver.py:412` (`S_cell` in the escape/entrance reciprocity),
+`numerics/spaces/scalar_trace_space.py` (the trace space is *built from* a face-area
+inventory — the Stokes restriction), `diffusion/`, `transport/`. `delta_A` has
+**none**, and its absence is STRUCTURAL, not incidental: a conservative
+finite-volume method needs `A_{i±1/2}` *separately* (`A₊J₊ − A₋J₋`), while
+curvilinear SN needs their *difference*, because `ΔA` multiplies an ANGULAR
+difference `[α ψ₊ − α ψ₋]`. The difference is formed only where one geometric
+factor multiplies an angular difference.
+
+⭐ **The discriminator is already in the code**: `StreamingTerms` carries BOTH
+forms side by side — `face_area_inner`/`face_area_outer` (separate, spatial
+balance) and `delta_A_over_w` (the difference, angular redistribution) — and the
+Cartesian arm sets `delta_A_over_w = 0.0` with the comment *"no curvature
+redistribution"*.
+
+⛔ **`StreamingTerms`' docstring claims "Per-(cell, direction) purely geometric
+inputs". It carries `mu`, `abs_mu`, and `ΔA` divided by a QUADRATURE WEIGHT**
+(`:781`, `:812` — the divisor is `_weight_of` → `angular.quadrature.weights[n]`).
+A per-direction quantity over a quadrature weight is not geometry.
+
+### The ruling — the layer test, and what it forces
+
+> **A datum belongs to the layer that can define it without naming a method.
+> Everything else is posing, and posing belongs to the method head that poses it.**
+
+`[M]` exactly one datum in the module survives that test — `face_areas` — and it
+is a copy of something already single-sourced in `geometry/coord.py`
+(`compute_areas_1d`: CARTESIAN → `ones_like(edges)`, CYLINDRICAL → `2πr`,
+SPHERICAL → `4πr²`). ⟹ **the module dissolves.**
+
+| what | goes to | layer | why |
+|---|---|---|---|
+| `face_areas` | **retired** — read `mesh.areas` | INPUT | already single-sourced; 4 non-SN consumers read it there |
+| `coord` | **retired** — read `mesh.coord` | — | duplicate, and what lets `transport` reach THROUGH the bundle |
+| `StreamingTerms` | `transport/spatial/` | **L2** | its 2 runtime importers are `cell_balance.py:79`, `scheme.py:71` |
+| the five α symbols | `sn/angular/redistribution.py` | **L3** | α is chart × measure at the intersection; only a collocated angular derivative forms it |
+| `AngularMeasure` | **retired** | — | factories read 0 of its 6 members; its stated reason is already false (`geometry/boundary/` TYPE_CHECKING-imports `Quadrature` in 5 modules) |
+| `delta_A`, `redistribution_pairing`, `streaming_terms()` | `sn/` | **L3** | `np.diff(mesh.areas)`, derived where its only consumer lives |
+
+⭐ The forbidden edge never arises — not routed around, not whitelisted, not
+`TYPE_CHECKING`-ed. `geometry` stops NAMING an SN type because it stops HOLDING
+one.
+
+### The step order, and why it is forced
+
+**P4.1a — `coord` retires.** `[M]` duplicate on **3/3** charts
+(`op.coord is op.mesh.coord`). Bit-identical. **This is the load-bearing
+prerequisite**: it is what severs `transport`'s reach into the bundle
+(`transport/radial_characteristic_field.py:361-362` reads `mesh.reduced.coord`
+→ `mesh.coord`). Without it, P4.4 breaks an L2 consumer.
+
+**P4.1b — the spatial fields take their neutral element.** ⛔ **NOT
+bit-identical — this plan asserted it was, and the check refuted it.**
+`[M]` `face_areas` is a duplicate on **2 of 3** charts: on the slab the field is
+`None` while `mesh.areas` is `[1,1,1,1,1,1]`, because `compute_areas_1d` returns
+a real unit cross-section for CARTESIAN and `slab_streaming` never asks for it.
+
+⭐ **What this step actually is: finishing P1's un-weld on the SPATIAL half.**
+P1 converted the ANGULAR fields from `None` to the neutral element on
+2026-08-26 — its gate calls that *"a STRICTLY STRONGER claim … the neutral
+element says the dome IS identically zero"* and *"the per-coordinate `Optional`
+union died with it (Pattern 4)"*. The spatial fields were left as `None`, and
+`tests/geometry/test_reduced_operator.py:343` records the asymmetry two lines
+away (*"The SPATIAL chart is still absent for a slab"*) without closing it.
+
+`[M]` **blast radius, by the §8 grep** (`is None` / `is not None` / `getattr`
+default over `orpheus/` + `tests/`, control = 9 branches in the definer): **14
+branches** —
+* **1** production control-flow branch: `reduced_operator.py:694`,
+  `if self.delta_A is None: return np.zeros((nx,1,1))`;
+* **6** type-narrowing asserts (legitimate per `coding-standards` — `-O` strips
+  them and the downstream failure is an immediate `AttributeError`);
+* **2** test pins that go RED: `test_reduced_operator.py:343-344`;
+* 5 curvilinear asserts, unaffected.
+
+`[M]` **the special case dissolves bit-exactly**: feeding the general body
+`face_areas=mesh.areas, delta_A=np.diff(mesh.areas)` on the slab gives
+`array_equal=True` against the `None` branch (both `(5,1,1)`, `max|·| = 0.0`).
+⟹ the branch is a value wearing a conditional (Pattern 4).
+
+**P4.2 — the angular factor comes home.** The five α symbols to
+`sn/angular/redistribution.py`; `SNMesh` builds the redistribution and hands both
+tensor factors to the closure — which it **already does** on the d≥2 Cartesian
+path at `augmented_mesh.py:412`. The 1-D curvilinear path is the outlier being
+brought into line, not a new pattern.
+⚠ `derivations/discrete/sn/angular_differencing.py:164` imports `alpha_dome` at
+module scope and `derivations → sn` is FORBIDDEN with no tolerance. The fix is
+the precedent that file's own ⛔ banner set for `tau`/`edges` on 2026-08-12:
+**the L0 ladder accepts α as a keyword** (*"the defect was L0 reaching UP for
+it"*). Its delegating local `alpha_dome` retires; nothing re-implements it.
+
+**P4.3 — `StreamingTerms` to L2.** `transport → geometry` stays legal (it reads
+`mesh.areas`); no new edge either way. Fix the *"purely geometric"* claim while
+the file is open.
+
+**P4.4 — the residue to `sn/`, and the module is deleted.** Safe only after
+P4.1a. `[M]` 0 intra-geometry consumers, so nothing stays behind.
+
+**P4.5 — the hollow Cartesian object dies.** `[M]` d≥2 Cartesian gets
+`reduced = None`; the slab gets an object whose every meaningful field is
+`None`/neutral, minted *"so `sn_mesh.reduced` is always populated"* — a promise
+the d≥2 arm already breaks. `reduced is None` today conflates **"no chain scan"**
+(`ndim ≥ 2`) with **"no curvature"** (`coord is CARTESIAN`), and `SNMesh` answers
+both directly. `[M]` **12 of 36** code reads of `.reduced` are `None`-guards
+paying for the conflation. The object should exist **iff there is a radial
+reduction**.
+
+### ⛔ The four options this supersedes — kept per §3, with their refutations
+
+The P4 fork (§7) offered four. All four were answers to the wrong question, and
+three are independently refuted:
+
+* **(a) `ChartConnection` leaves `geometry/`** — reframed, not refuted. It does
+  leave; but as *posing*, and only after P4.1a, and `StreamingTerms` splits off
+  to L2 rather than travelling with it.
+* **(b) the α type to `numerics/`** — ⛔ REFUTED **on the concept**, though it
+  passes the layer contract cleanly (`numerics → geometry` is permitted and
+  already exists 2 RT + 1 TC; import-probed under 5 entry orders, no cycle).
+  `alpha_dome` is not a shareable primitive: **one consumer, identity morphism**,
+  and the one other family that would want this — DG/FE-in-angle — **cannot call
+  it**, needing `f` at its own edges and in the interior. The honest shared
+  object is `f = r·dx/ds`, a different thing. `(ndarray, ndarray)` looks
+  universal, but *the arrays are a quadrature* — the object every non-consumer
+  lacks by construction (`lessons.md` L60).
+* **(c) `ChartConnection` stops NAMING the angular type** — ⛔ REFUTED. `[M]` the
+  class reads the field's interface at **5 sites** (`:658` `weights`, `:707`/`:725`
+  `mu_x`, `:755` `level_indices`, `:757` `eta`). ⭐ But every one dereferences
+  `.quadrature` first, and **none touches `alpha_per_level`, `mu_start_per_level`,
+  `coord` or `n_levels`** — geometry never reads the dome at all. That is the
+  weld: the class needs the MEASURE and is handed the REDISTRIBUTION.
+* **(d) a `WHITELIST` entry** — ⛔ DEAD TWICE. A whitelist silences the linter; it
+  cannot silence `test_entry_point_imports_in_a_fresh_interpreter`, which
+  cold-imports `orpheus.geometry` in a subprocess. And `[M]` the whitelist has no
+  staleness gate — 1 of its 4 entries already covers **0** imports (ORPHEUS #411).
+
+### Open forks — RULE BEFORE EXECUTING
+
+1. ⛔ **§9.1's `ChartConnection` name rests on a residue this decomposition
+   changes.** It was ruled because *"the residue is `face_areas` + `delta_A` …
+   connection data, not metric data"*. Under P4.1a/1b `face_areas` is retired and
+   `delta_A` is derived, so the residue is a **producer of sweep coefficients**,
+   not connection data. Re-rule the name. ⚠ `plan-authoring` §1: grep the PROSE
+   corpus (`lessons.md`, `plans/`, `agent-memory/`, closed issues) before adopting
+   any candidate — the P3b precedent is that a free name can be free *because it
+   was rejected*.
+2. **Where the residue lands inside `sn/`** — `sn/mesh/` (beside its only
+   constructor) or `sn/sweep/`. Depends on whether §5's `scheme.mint(chart)`
+   absorbs `redistribution_pairing`, which would leave much less behind. Decide
+   WITH the mint, not before it.
+3. **Whether `delta_A` earns a home in `coord.py` after all.** Mathematically it
+   belongs beside `compute_areas_1d` — same file, same `match coord:`, one line.
+   Proposed here as derived-at-the-consumer because it has exactly one and the
+   project defers a shared primitive until two. That is a judgement about
+   ANTICIPATION, not a measurement.
+4. **Freezing.** `redistribution_pairing`'s docstring defers `frozen=True` to
+   "the re-home, where the class definition is being touched anyway" — because
+   it synthesises `__hash__` and the fields hold ndarrays. `eq=False`? per-field
+   `compare=False`? Comes due in P4.4.
 
 ---
 
@@ -1070,8 +1301,16 @@ The sequence inside P4, and it only works in this order:
    `INPUT_PACKAGES`. ⟹ **`geometry` may not import `sn` under `TYPE_CHECKING`
    either.** A `TYPE_CHECKING` annotation is not an escape hatch here.
 
-   ⟹ **P4 must therefore choose, and this is a live fork it inherits — do not
-   read the list as a ruling:**
+   ⛔⛔ **SUPERSEDED 2026-08-27 — the fork was an answer to the wrong question.
+   The four options below STAY (§3), with their refutations, at §4ter's
+   "The four options this supersedes". Read §4ter FIRST; it re-poses P4.**
+   `[M]` `geometry/reduced_operator.py` holds no geometry: its `face_areas` is a
+   verbatim copy of `mesh.areas`, `coord` a copy of `mesh.coord`, `delta_A` a
+   `np.diff` of the former with **0** non-SN consumers, and the module has **0**
+   intra-`geometry/` consumers against 1–4 for every other geometry primitive.
+   The module dissolves; the forbidden edge never arises.
+
+   ⟹ **the ORIGINAL fork text, kept because its refutations are the record:**
    (a) `ChartConnection` leaves `geometry/` for `transport/` (L2 — which *does*
        carry the tolerance) or for `sn/`; (b) the α type lands somewhere
    `geometry` may import — `numerics/` (L1) is arguable, since
@@ -1286,6 +1525,12 @@ never dropped — the alternative's REASON is what stops it being re-litigated).
    `ΔA = ∮ê_r·n̂ dA = ∫∇·ê_r dV` with `∇·ê_r = (d−1)/r` — the *contracted
    connection coefficient*. The residue is connection data, not metric data,
    so the name is literally right rather than merely evocative.
+   ⛔ **PREMISE MOVED 2026-08-27 — re-rule before using this name.** The ruling
+   rests on *"the residue is `face_areas` + `delta_A`"*. §4ter retires
+   `face_areas` (it is `mesh.areas`) and derives `delta_A`, so the residue is a
+   **producer of sweep coefficients**, not connection data. The name may still
+   be right; the ARGUMENT for it no longer holds as written. ⚠ §1: grep the
+   prose corpus before adopting any replacement.
 2. ✅ **`sn/angular/`.** `[M]` today the closure family has
    **zero** non-`sn` importers, so `sn/` is honest. But R19 requires the *scheme*
    family to serve diffusion; if the angular family is ever expected to serve a
