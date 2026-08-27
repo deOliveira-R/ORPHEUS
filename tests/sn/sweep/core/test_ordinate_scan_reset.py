@@ -288,12 +288,12 @@ class TestSICylinderResonance:
         from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.sn.sweep.cache import (
             CollisionCache,
-            GeometryCoefficients,
+            StreamingCoefficientCache,
         )
 
         materials, mesh, quad = self._build()
         probe = SNMesh(mesh, quad, materials)
-        geom = GeometryCoefficients.from_mesh_and_quad(probe)
+        geom = StreamingCoefficientCache.from_mesh_and_quad(probe)
         mu = np.asarray(quad.mu_x)
         inward = np.flatnonzero(mu < 0)
 

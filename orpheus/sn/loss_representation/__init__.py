@@ -132,7 +132,7 @@ from ..sweep.scan import (
     ordinate_scan,
     ordinate_scan_transpose,
 )
-from ..sweep.cache import CollisionCache, GeometryCoefficients
+from ..sweep.cache import CollisionCache, StreamingCoefficientCache
 from orpheus.numerics.face_layout import face_name, face_opposite
 from .sweep_graph import (
     OctantLabel,
@@ -3784,11 +3784,11 @@ class _OneDimScanWalk:
             boundary=m_boundary,
         )
 
-    def _ensure_geom_cache(self) -> GeometryCoefficients:
+    def _ensure_geom_cache(self) -> StreamingCoefficientCache:
         """Return the geometry cache, building it on first use if absent."""
         cache = getattr(self.mesh, "_geom_cache", None)
         if cache is None:
-            cache = GeometryCoefficients.from_mesh_and_quad(self.mesh)
+            cache = StreamingCoefficientCache.from_mesh_and_quad(self.mesh)
             self.mesh._geom_cache = cache  # type: ignore[attr-defined]
         return cache
 
@@ -3839,7 +3839,7 @@ class _OneDimScanWalk:
     def _ensure_coll_cache(
         self,
         sig_t: np.ndarray,
-        geom: GeometryCoefficients,
+        geom: StreamingCoefficientCache,
     ) -> CollisionCache:
         """Return the collision cache, building it on first use if absent.
 
@@ -3866,7 +3866,7 @@ class _OneDimScanWalk:
         Q: np.ndarray,
         sig_t: np.ndarray,
         boundary_flux: "AngularBoundaryFlux",
-        geom: GeometryCoefficients,
+        geom: StreamingCoefficientCache,
         coll: CollisionCache,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
@@ -3876,7 +3876,7 @@ class _OneDimScanWalk:
         :ref:`theory-sn-index-convention`), so no entry/exit transposes are
         needed — caller-side principled-layout inputs flow directly through the
         body.  :class:`CollisionCache` fields are ``(N, ng, nx)`` natively;
-        :class:`GeometryCoefficients` stays on ``(N, nx)`` / ``(N,)`` (no group
+        :class:`StreamingCoefficientCache` stays on ``(N, nx)`` / ``(N,)`` (no group
         axis).
 
         Splits cleanly into setup (BC inflow, source pre-scale, Carlson
@@ -4375,7 +4375,7 @@ class _OneDimScanWalk:
         bulk_cot: np.ndarray,
         sigma: np.ndarray,
         boundary_cot: "BoundaryField",
-        geom: GeometryCoefficients,
+        geom: StreamingCoefficientCache,
         coll: CollisionCache,
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The REVERSE-SCAN — :math:`(L+C)^{-\mathsf T}` on the composite cotangent.

@@ -28,13 +28,25 @@ meta-lesson once, list its instances); never truncate.
 ⏹ **DELIVERED** — `scratch/specialization_audit.md` (938 lines), branch
 `refactor/unweld-phase-b` @ `226cc6ca` with 3 corpus files DIRTY (the un-weld
 Phase-B carve is uncommitted; the memo describes the WORKING TREE). C1–C4 table
-over ~45 symbols + D1/D2/D3. Load-bearing, all `[M]`: (1) `mu_start` is a
-**three-link dead chain** — `GeometryCoefficients.mu_start` has zero readers of
-any kind, so `StreamingTerms.mu_start`'s only production consumer is the write
-into it, while its docstring names a closure that reads the OWNER instead;
+over ~45 symbols + D1/D2/D3.
+⛔ **THE BRANCH LINE ABOVE IS A 2026-08-26 SNAPSHOT AND IS VOID — reconcile
+with git, never with it** (`process-discipline`): Phase B merged @ `cc01dd27`,
+P1 @ `1c93b14f`, P2 @ `1ded900a`; `refactor/unweld-phase-b` is deleted.
+✅ **And findings (1) and (2) were REMEDIED THE SAME WEEK by the campaign this
+audit fed** — they are history, not open defects. Kept because the *measurements*
+are the durable content; the tense is not.
+Load-bearing, all `[M]`: (1) `mu_start` **was** a
+**three-link dead chain** — `GeometryCoefficients.mu_start` had zero readers of
+any kind, so `StreamingTerms.mu_start`'s only production consumer was the write
+into it, while its docstring named a closure that reads the OWNER instead.
+✅ REMEDIED by P1 @ `ebe5d22f` (all three links retired). ⚠ Both names in that
+sentence are now dead: the field is gone, and the class is
+`StreamingCoefficientCache` since 2026-08-26 (it was never geometry — `[M]` 0 of
+13 fields are un-permuted chart data);
 (2) `requires_upstream_angular_state`/`angular_marching_axis` — 0 production
 readers, and a **997-operator flip over 2591 rows reddens exactly the 6
-assertions that name them** (the founding measurement for lesson **A13**);
+assertions that name them** (the founding measurement for lesson **A13**).
+✅ REMEDIED by P1 @ `37d6d1af` (both retired);
 (3) the DD-hardcoded `2.0`s in `psi_half_angle_seed.py:180-185` sit in the
 ANGULAR factor of a product `pairing.py` declares orthogonal — latent, guarded
 only by `_require_slab` in another package on the other factor; (4) ⛔

@@ -58,7 +58,7 @@
 > | symbol | exists? | where |
 > |---|---|---|
 > | `ReducedStreamingOperator` | ✅ `reduced_operator.py:500` | 36 \| 15 \| 20 |
-> | `GeometryCoefficients` | ✅ `sn/sweep/cache.py:121` | 23 \| 12 \| 10 |
+> | ~~`GeometryCoefficients`~~ | ✅ **RENAMED `StreamingCoefficientCache`** in P3b @ 2026-08-26 | was 23 \| 12 \| 10 |
 > | `redistribution_gram` | ✅ `reduced_operator.py:590` | 5 \| 4 \| 0 |
 > | `geometry_kind` (the 4-spellings row) | ✅ | 106 \| 31 \| 15 |
 > | `SNMesh.pole_angular_closure` (NEW §1 row, found in P2) | ✅ | 41 \| 21 \| 24 |
@@ -194,7 +194,7 @@ warning at any severity). Each row's evidence is the reason, not decoration.
 |---|---|---|
 | `ReducedStreamingOperator` | ✅ **`ChartConnection`** *(ruled §9.1; `StreamingCoefficients` rejected — it lends `L`'s own word to a non-operator, reproducing the very defect being retired)* | `[M]` **0 of 13** operator-surface members (`apply`/`domain`/`codomain`/`H`/`inverse`/`solve`/`apply_transpose`/`__matmul__`/`__add__`/`is_adjointable`/`block_role`/`system_role`); `SweepOperator` has 12 of 13. It maps nothing to anything. ⛔ And the name is **TAKEN** — the real reduced streaming operator is `L`, in the SN algebra, with genuine spaces. "Operator" is this codebase's most load-bearing word (the S4 amendment: *an operator is not an operator without its two spaces*); a struct wearing it teaches every reader the wrong thing. |
 | `redistribution_gram` | `redistribution_pairing` | `[M]` its own `(n_mom, n_thread)` axes admit the **rectangular** ONETRAN case (Hill 1975 Eq. 32, the angular index closed on the cell average only). A rectangular object is a **pairing, not a Gram** — the word over-claims off the diagonal of its own design space. ⚠ **This name is MINE, from `6859ca05`.** |
-| `GeometryCoefficients` | `ChainScanCoefficients` *(or `SweepCoefficientCache`)* | `[M]` **0 of 15 fields** are un-permuted chart data: 4 are Morel–Montry constants, 3 angular, 2 pure traversal, and the closest 3 are **chain-ordered** (i.e. already traversal artefacts). The name promises geometry and delivers a permuted sweep cache. |
+| `GeometryCoefficients` | ✅ **`StreamingCoefficientCache`** — ⛔ **BOTH plan candidates were REFUTED on measurement, 2026-08-26; see §4bis** | `[M]` **0 of ~~15~~ 13 fields** (⚠ the 15 is a **pre-P1** count — P1 @ `ebe5d22f` retired `mu_start`; §3's REMEDIED-fact clause) are un-permuted chart data: 4 are Morel–Montry constants, 3 angular, 2 pure traversal, and the closest 3 are **chain-ordered** (i.e. already traversal artefacts). The name promises geometry and delivers a permuted sweep cache. |
 | module `sn/sweep/pole_angular_closure.py` | `…/angular/closure.py` — ⚠ **executed in P2, not P3** (the re-home and the module rename are one `git mv`) | Two lies in one path. **"pole"** names the special case (the pole cell) for a family that closes the *whole* angular axis — `IdentityAngularClosure` never sees a pole. **"sweep"** is traversal (see §2). R15 already ruled the family `AngularClosure`. |
 | `SNMesh.pole_angular_closure` (the ATTRIBUTE + the constructor kwarg) | `angular_closure` | ⭐ **Found during P2, 2026-08-26 — the module carried TWO occupants of the name and only one moved.** P2 renamed the module `pole_angular_closure` → `sn.angular.closure` on the grounds that *"pole"* names a special case for a family closing the whole angular axis (`IdentityAngularClosure` never sees a pole). The identical lie sits on the mesh attribute, and it is the SURVIVING spelling: `[M]` **62** of the tree's `pole_angular_closure` hits after the move are this attribute, across `sn/mesh`, `sn/loss_representation`, `sn/operators`, `sn/sweep/cache`, `transport/`, and 10 test modules. ⚠ It is also why P2's import sweep had to match QUALIFIED forms only — a bare-token rewrite would have corrupted every one of the 62. Left deliberately: renaming a public constructor kwarg is not bit-identical. |
 | `SNMesh.curvature: str \| None` | **retire** — use `coord` | `[M]` a **stringly-typed duplicate** of the `CoordSystem` enum (`"cylindrical"` / `"spherical"` / `None`), with `is_cartesian` defined as `curvature is None`. Read at two matvec entries through a **defaulted `getattr`** (`vv-principles` #28's temporal twin). ⚠ And `augmented_mesh.py:124` still documents it as storing `α_n/r_i` — a numeric quantity it has never held. |
@@ -219,7 +219,7 @@ avoid importing one of its own inputs is in the wrong stage.
 | the `AngularClosure` family | `sn/sweep/` | `sn/angular/` | `sn/sweep/` is the **traversal** package (`scan.py`, `cache.py`, `pairing.py`). The closure is a *discretization* object the sweep consumes. §5c's hard guard says traversal is contraband in the scheme; this is the exact mirror. And it breaks R15's symmetry — `SpatialClosure` lives at `transport/spatial/`, its sibling at `sn/sweep/`. |
 | `R` / the pairing | a property on the geometry object | minted by the **scheme** (§5) | `[M]` today it lives on the geometry object and **never reads the scheme** — correct only because DD's basis is the constant. F1 says the basis is the scheme's. |
 | `StreamingTerms` | `geometry/reduced_operator.py` | stays in geometry — but **shed its angular fields** | `[M]` it is **not pure geometry**: `mu`, `abs_mu`, `mu_start` and the `/w` inside `delta_A_over_w` are all quadrature reads. Those four are exactly what forces the 6-member Protocol. |
-| `GeometryCoefficients` / `CollisionCache` | `sn/sweep/` | **stay** (home right, name wrong — §1) | `[M]` chain-ordered ⟹ genuinely traversal-time. This is the audit's D2 verdict: mostly NO smuggling, but the names lie. |
+| `StreamingCoefficientCache` (was `GeometryCoefficients`) / `CollisionCache` | `sn/sweep/` | **stay** — ✅ the name was REMEDIED in P3b 2026-08-26; ⛔ but §4bis then measured the CONTENTS to weld three strata, so "home right" is now the only surviving half of this verdict | `[M]` chain-ordered ⟹ genuinely traversal-time. This is the audit's D2 verdict: mostly NO smuggling, but the names lie. |
 
 ---
 
@@ -228,7 +228,7 @@ avoid importing one of its own inputs is in the wrong stage.
 | weld | what is held | what is used | verdict |
 |---|---|---|---|
 | `requires_upstream_angular_state`, `angular_marching_axis` | two fields on `ChartConnection` | `[M]` **0 production readers**; 12 test assertions. Made RED rather than grepped: flipping both on **997** constructed operators over 4 test trees gives **6 failures — exactly the 6 assertions that name the fields**. | ⛔ **RETIRE, not wire.** The concept is respelled twice already (`upstream_state.angular_upstream is None`, `SNMesh.is_cartesian`). |
-| the three-link dead chain | `AngularRedistribution.mu_start_per_level` → `StreamingTerms.mu_start` → `GeometryCoefficients.mu_start` → **∅** | `[M]` the terminal has **zero readers** of any kind (dynamic access checked). So `StreamingTerms.mu_start`'s only production consumer is *the write into it* — while its docstring claims `MorelMontryAngularSweep` consumes it, which reads **the owner** instead. | Retire the two downstream links; the owner stays. |
+| the three-link dead chain — ✅ **REMEDIED by P1 @ `ebe5d22f`** (both downstream links retired; ⚠ the third name below is now spelled `StreamingCoefficientCache`, P3b) | `AngularRedistribution.mu_start_per_level` → `StreamingTerms.mu_start` → `GeometryCoefficients.mu_start` → **∅** | `[M]` the terminal has **zero readers** of any kind (dynamic access checked). So `StreamingTerms.mu_start`'s only production consumer is *the write into it* — while its docstring claims `MorelMontryAngularSweep` consumes it, which reads **the owner** instead. | Retire the two downstream links; the owner stays. |
 | `ChartConnection._quadrature` | a second reference to the measure | `[M]` `_quadrature IS angular.quadrature` → **True**. A twin reference to one object. | Retire; read through the angular factor. |
 | `μ_start`'s edge-extrapolation branch | a code path + the `argsort` hazard **recorded in #361 (CLOSED 2026-08-13, `dde93b64`)** — ⚠ §9(b): a RECORD, not a work item; its own body is titled *"Why this was left alone rather than fixed inline"*, so `gh issue view 361` reading CLOSED is correct and means "decision documented", **not** "hazard removed" | `[M]` **structurally unreachable** on the probed fixtures (perturbation `0.0`, control `4.04e-01`): its only consumer runs on NON-carrying levels, and every level carries. ⚠ `[M]` on 2 fixtures — **a sample.** | ⛔ **BOTH THE VERDICT AND THIS ROW'S DECISION RULE ARE REFUTED — measured 2026-08-26**, see below. **KEEP** the branch. |
 
@@ -312,6 +312,59 @@ than merely tidy.
 `_build_count` instruments a cardinal invariance gate (*exactly once per Σ_t
 epoch*). Do not convert a gate-instrumented eager build into a lazy one; the
 gate measures the build.
+
+---
+
+## 4bis. ⛔ The cache class welds THREE strata — measured, and it refuted both proposed names
+
+`[M]` 2026-08-26, during P3b. Three meshes against **one** quadrature (uniform
+`nx=6`, uniform `nx=20`, GRADED `nx=6`), comparing every field of the class §1
+proposed to rename:
+
+| stratum | fields | reading |
+|---|---|---|
+| **S0 — mesh-free** | `abs_mu`, `c_in`, `c_out`, `tau_inv`, `mm_a_in_coeff`, `is_degenerate`, `level_ordinates` | **bit-identical on all three** — 7 of 13 |
+| **S1 — chart × basis** | `A_down`, `A_total`, `dA_w`, `V` | **differ on every re-mesh** — 4 of 13 |
+| **S3 — traversal** | `chain_idx`, `chain_idx_inv` | identical between uniform and **graded** at equal `nx` ⟹ turn on ordinate sign and cell COUNT, not edge positions — 2 of 13 |
+
+⟹ **The object is not one stratum, so no single-stratum name is true of it**, and
+§1's own first candidate is the worst available: `ChainScanCoefficients` names
+the **S3** half — **2 of 13** — where the `Geometry` it replaces at least names
+4. A name asserting a stratum would *bless* the weld.
+
+⛔⛔ **And §1's SECOND candidate is worse still: `SweepCoefficientCache` is the
+name of a REFUTED DESIGN.** `.claude/lessons.md` **L15** records
+`SweepCoefficientCache (N, nx, ng)` — a single cache mixing geometry and Σ_t
+fields — as *"the wrong shape"*, the very monolith whose split produced this
+class and `CollisionCache`. `[M]` no class by that name ever existed
+(`git log -S` empty): it was a proposal, rejected. Landing it would make an
+**always-session-loaded** lesson read as condemning the shipped design.
+⟹ promoted to `plan-authoring` §1: *a proposed name's ABSENCE from the tree can
+be evidence AGAINST it — grep the PROSE corpus, not just the code.*
+
+✅ **Ruled `StreamingCoefficientCache`** (user, 2026-08-26). It claims only what
+is true of all three strata, and it realizes the algebra **L15 itself states**:
+*"L (streaming + curvature) lives in [this class]; C joins via
+`1/(g_streaming + Σ_t·g_volume)` to form `CollisionCache`."* This is **L**'s
+coefficient cache; its sibling is **L + C**'s — so the pair now names its
+lifetime discriminator consistently, which `Geometry`/`Collision` did not.
+
+⚠⚠ **The finding that outlives the name: L15's own lesson applies to L15's own
+worked example.** L15 is *"cache shape that mixes immutability strata hurts
+twice"* and it holds this class up as the RIGHT shape — while the measurement
+above shows it mixes three. **A lesson's exhibit is not exempt from the lesson**,
+and nothing prompts the re-check, because the exhibit is what taught you the
+rule.
+
+### ▶ The split earns a phase — **P4b**, not an issue-and-forget
+
+Per §9.3's governing ruling. The whole object rebuilds on any re-mesh including
+7 fields proven unable to change. **Done when:** the S0 half is cached against
+`Quadrature × CoordSystem` alone and survives a re-mesh by identity
+(`cache_a.s0 is cache_b.s0` for two meshes over one quadrature); the S1 half is
+mesh-bound; `chain_idx` moves to the traversal layer. ⚠ Do **not** convert
+`CollisionCache`'s eager build to lazy — §4 records that its `_build_count`
+instruments a cardinal gate.
 
 ---
 
@@ -879,7 +932,7 @@ is last by ruling.
 | symbol | code+test lines / files | string-form | docs `.rst` (roles / total) |
 |---|---|---|---|
 | `redistribution_gram` → `redistribution_pairing` | ⛔ **9 was the SYMBOL; the CONCEPT is 70** — see below | 0 | 0 / 0 |
-| `GeometryCoefficients` → `ChainScanCoefficients` | **35** / 7 | 2 | 4 / 10 |
+| `GeometryCoefficients` → ~~`ChainScanCoefficients`~~ ✅ **`StreamingCoefficientCache`** (both plan candidates refuted — §4bis) | **35** / 7 → `[M]` **45** incl. docs | 2 | 4 / 10 |
 | `ReducedStreamingOperator` → `ChartConnection` | 36 orpheus + 15 tests | 3 | — / 20 |
 
 ⛔⛔ **The `redistribution_gram` row's `9` was measured on the SYMBOL, and the
@@ -910,8 +963,8 @@ dual hazard, so every hit was triaged by MEANING before any was called a site.
 it is production prose.
 
 ⚠ **All string-form hits are benign and are listed so nobody re-hunts them**:
-`GeometryCoefficients` — a forward return annotation (`cache.py:205`) and
-`__all__` (`:506`); `ReducedStreamingOperator` — two `__all__` entries
+`GeometryCoefficients` (pre-rename) — a forward return annotation
+(`cache.py:205`) and `__all__` (`:506`), both carried through by P3b; `ReducedStreamingOperator` — two `__all__` entries
 (`geometry/__init__.py:55`, `reduced_operator.py:1281`) and a forward annotation
 (`radial_characteristic.py:155`). None is a `getattr(x, "name", default)`, which
 is the form that fails *silently in the default's direction* — that is what the

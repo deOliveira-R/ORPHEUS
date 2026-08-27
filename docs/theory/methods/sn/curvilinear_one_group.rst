@@ -849,8 +849,8 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    :math:`(M_p,)` arrays in ``_c_in_per_level`` / ``_c_out_per_level``).
 
    Step B1 (this dispatch) folds the ONE free seam — the
-   :class:`~orpheus.sn.sweep.cache.GeometryCoefficients` populator
-   (:meth:`~orpheus.sn.sweep.cache.GeometryCoefficients.from_mesh_and_quad`),
+   :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` populator
+   (:meth:`~orpheus.sn.sweep.cache.StreamingCoefficientCache.from_mesh_and_quad`),
    which already holds ``sn_mesh`` and so reads
    :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.c_out_per_ordinate`
    /
@@ -972,7 +972,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      called by both ``MorelMontryAngularSweep`` and
      ``IdentityAngularClosure``) and the accessors return the read-only
      cache (``setflags(write=False)`` guards the shared :math:`(N,)` view
-     B1's ``GeometryCoefficients`` populator holds).  Measured on a
+     B1's ``StreamingCoefficientCache`` populator holds).  Measured on a
      ``sphere N=32 nx=200`` walk: :math:`\sim 32\,\text{ms} \to \sim
      22\,\text{ms}` per sweep (:math:`\sim 1.46\times`), value-identical.
 
@@ -1261,7 +1261,7 @@ the :math:`1.0` default protects.
 **(3) The CumprodScan split.** The vectorized fast path — the cumulative
 product that replaces the per-cell Python loop for the curvilinear
 sweep — needs the same recurrence in a form amenable to a forward scan.
-:class:`~orpheus.sn.sweep.cache.GeometryCoefficients` sources
+:class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` sources
 :math:`\tau` from
 :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`
 and precomputes the split
@@ -1502,7 +1502,7 @@ reference.  Migrate-then-delete preserved the floor:
    when written, and repealed hours later: that field was the middle
    link of a three-link **dead chain** —
    ``AngularRedistribution.mu_start_per_level`` →
-   ``StreamingTerms.mu_start`` → ``GeometryCoefficients.mu_start`` →
+   ``StreamingTerms.mu_start`` → ``StreamingCoefficientCache.mu_start`` →
    nothing.  `[M]` the terminal had **zero readers of any kind**, so the
    packet's only consumer was the write into it.  Both downstream links
    are retired; the owner stays, and every consumer reads it.  Step C's

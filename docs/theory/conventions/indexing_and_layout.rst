@@ -428,7 +428,7 @@ The six PRs
        layout flipped to ``(N, ng, nx)`` natively (``a_attenuation``,
        ``inverse_denom``, etc.); cumprod axis updated 1→2; slab
        ``np.swapaxes`` and curvilinear ``.T`` bridges at cache-read
-       sites retired.  ``GeometryCoefficients`` untouched (no group
+       sites retired.  ``StreamingCoefficientCache`` untouched (no group
        axis).  New transient bridge at the
        ``CollisionCache.from_geometry`` callers in
        :class:`SNSolver` (PR-INDEX-3 removes).  Mean

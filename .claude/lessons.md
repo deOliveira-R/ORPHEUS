@@ -236,14 +236,43 @@ Phase G Step 2.5c (cross-domain-attacker memo): the candidate
 σ_t-dependent fields was the wrong shape. The right shape is TWO
 frozen dataclasses by mutation cadence:
 
-- `GeometryCoefficients (N, nx)` — built once at SNMesh construction;
-  NEVER mutates across the run.
+- `StreamingCoefficientCache (N, nx)` — built once at SNMesh
+  construction; NEVER mutates across the run. *(Shipped 2026-05 as
+  `GeometryCoefficients`; renamed 2026-08-26 — see the two banners
+  below.)*
 - `CollisionCache (N, nx, ng)` — built when σ_t binds; rebuilt only
   on depletion / thermal-feedback.
 
 This is the operator-algebra `(L + C)` rehearsed on the cache layer:
-L (streaming + curvature) lives in `GeometryCoefficients`; C joins
+L (streaming + curvature) lives in `StreamingCoefficientCache`; C joins
 via `1/(g_streaming + Σ_t·g_volume)` to form `CollisionCache`.
+
+⛔ **`SweepCoefficientCache` is the REJECTED name above and must never
+be reused.** It is recorded here as the wrong shape, so a class wearing
+it would make this lesson read as condemning the shipped design — and
+this file is loaded at every session start. `[M]` 2026-08-26: no class
+by that name ever existed (`git log -S "class SweepCoefficientCache"`
+is empty); it was a proposal in the cross-domain-attacker memo. It was
+proposed *again* as the rename target for `GeometryCoefficients` and
+caught only because the sweep's residual grep surfaced this entry.
+⟹ this is `plan-authoring` §3's ambiguous-name hazard: a refutation
+attached to a NAME condemns every later design that shares it, so the
+disambiguation belongs here, at the banner, where a summariser reads.
+
+⚠⚠ **And L15 applies one level down, to the class it holds up as
+correct.** `[M]` 2026-08-26, three meshes against one quadrature
+(uniform nx=6, uniform nx=20, GRADED nx=6): the "right shape" class
+mixes **three** invalidation strata, not one — 7 fields bit-identical
+across all three meshes (`abs_mu`, `c_in`, `c_out`, `tau_inv`,
+`mm_a_in_coeff`, `is_degenerate`, `level_ordinates`), 4 that differ on
+every re-mesh (`A_down`, `A_total`, `dA_w`, `V`), and 2 that turn on
+ordinate sign and cell COUNT only (`chain_idx`, `chain_idx_inv`). So
+the whole object rebuilds on any re-mesh including the 7 that provably
+cannot change. **The worked example of a lesson is not exempt from
+it** — and nothing prompts you to re-apply a rule to its own exhibit,
+because the exhibit is what taught you the rule. The split is
+scheduled at the un-weld plan §4; the name was made stratum-agnostic
+in the meantime so it does not bless the weld.
 
 **The diagnostic question for any precomputed cache**: "what's the
 slowest-mutating field, what's the fastest-mutating field, and do

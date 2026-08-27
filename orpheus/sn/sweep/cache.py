@@ -5,7 +5,7 @@ into TWO frozen dataclasses by **mutation cadence**, eliminating per-sweep
 :func:`np.fromiter` plus per-cell ``StreamingTerms`` dataclass construction
 from the hot path:
 
-* :class:`GeometryCoefficients` — Stratum 1, geometry+quadrature only.  Built
+* :class:`StreamingCoefficientCache` — Stratum 1, geometry+quadrature only.  Built
   once at :class:`~orpheus.sn.solver.SNSolver` construction.  No ``ng`` axis;
   invariant under cross-section rebinds, BC changes, every outer / inner /
   Picard iteration.  Lifetime = ``SNMesh`` × ``Quadrature``.
@@ -52,7 +52,7 @@ Closed-form scan (Blelloch §1.5; :func:`~orpheus.sn.sweep.scan.ordinate_scan`):
              \bigl(\psi^{s}_0[n, g] + \mathrm{cumsum}_{k \le i}
                    (b[n, g, k] / \mathrm{cumprod\_a}[n, g, k])\bigr).
 
-The :class:`GeometryCoefficients` populator hoists the geometry tensors
+The :class:`StreamingCoefficientCache` populator hoists the geometry tensors
 (``A_down``, ``A_total``, ``dA_w``, ``V``, ``c_in``, ``c_out``, chain
 indices, M-M closure constants ``mm_a_in_coeff`` and ``tau_inv``) ONCE at
 solver construction.  The :class:`CollisionCache` populator combines them
@@ -118,13 +118,62 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 @dataclass(frozen=True, slots=True)
-class GeometryCoefficients:
-    r"""Stratum 1: geometry + quadrature only.  Built ONCE per ``SNMesh``.
+class StreamingCoefficientCache:
+    r"""The Σ\ :sub:`t`\ -free half of the DD scan coefficients, built ONCE per
+    ``SNMesh`` × ``Quadrature``.
 
-    Carries every per-ordinate-per-cell geometric quantity that enters the DD
+    Carries every per-ordinate-per-cell quantity that enters the DD
     coefficients :math:`(a, b)` of the per-ordinate spatial scan.  Survives
     :math:`\Sigma_t` rebinds (depletion, thermal feedback), BC changes, every
     outer Picard / power iteration, every inner SI / Krylov iteration.
+
+    ⛔ **The name is deliberately stratum-AGNOSTIC, because the contents are
+    not one stratum.**  This class was ``GeometryCoefficients`` until
+    2026-08-26; that name was measurably false — `[M]` **0 of 13** fields are
+    un-permuted chart data.  Its fields span **three** invalidation classes,
+    measured by building three meshes against one quadrature (uniform ``nx=6``,
+    uniform ``nx=20``, and a GRADED ``nx=6``):
+
+    * **S0 — mesh-free** (`[M]` bit-identical on all three): ``abs_mu``,
+      ``c_in``, ``c_out``, ``tau_inv``, ``mm_a_in_coeff``, ``is_degenerate``,
+      ``level_ordinates`` — **7 fields**, invalidated by a new quadrature or
+      chart ONLY.
+    * **S1 — chart × basis** (`[M]` differ on every re-mesh): ``A_down``,
+      ``A_total``, ``dA_w``, ``V`` — **4 fields**.
+    * **S3 — traversal**: ``chain_idx``, ``chain_idx_inv`` — **2 fields**,
+      `[M]` identical between the uniform and GRADED ``nx=6`` meshes, so they
+      turn on ordinate sign and cell COUNT, not on edge positions.
+
+    ⚠ So the whole object rebuilds on any re-mesh, including the 7 fields that
+    provably cannot change — the F3 weld.  A name asserting any one stratum
+    would bless it: ``ChainScanCoefficients`` (the un-weld plan's first
+    proposal) names the **S3** half, 2 of 13, which is *worse* than the
+    ``Geometry`` it replaces.
+
+    ⛔ **Do not propose ``SweepCoefficientCache`` — the name is TAKEN by a
+    REFUTED design.**  It was the un-weld plan's second candidate and was
+    rejected on discovery: ``.claude/lessons.md`` **L15** records
+    ``SweepCoefficientCache (N, nx, ng)``, a single cache mixing geometry and
+    :math:`\Sigma_t` fields, as *"the wrong shape"* — the very monolith whose
+    split produced this class and :class:`CollisionCache`.  `[M]` no class by
+    that name ever existed (`git log -S "class SweepCoefficientCache"` is
+    empty); it was a proposal in a cross-domain-attacker memo.  Reusing it
+    would make L15 read as condemning the shipped design, in a file loaded at
+    every session start.
+
+    ⟹ The name that survived says what is true of all three strata AND
+    realizes the algebra L15 itself states: *"L (streaming + curvature) lives
+    in [this class]; C joins via* :math:`1/(g_{\rm streaming} + \Sigma_t
+    g_{\rm volume})` *to form* :class:`CollisionCache`\ *"*.  This is **L**'s
+    coefficient cache; its sibling is **L + C**'s.  The stratum split is
+    scheduled as phase **P4b**, not forgotten — its measurement and its
+    done-when are at ``.claude/plans/streaming_path_says_what_it_is.md``
+    **§4bis** (§4 states the strata; §4bis measures THIS class against them).
+
+    ⚠ **And L15's own lesson applies one level down, to this class.** L15 is
+    *"cache shape that mixes immutability strata hurts twice"*, and it holds
+    THIS class up as the right shape — while `[M]` it mixes three.  The 2026
+    measurement above is that lesson re-applied to its own worked example.
 
     No ``ng`` axis — Stratum 1 has no cross-section dependence.
 
@@ -202,7 +251,7 @@ class GeometryCoefficients:
     """
 
     @classmethod
-    def from_mesh_and_quad(cls, sn_mesh: "SNMesh") -> "GeometryCoefficients":
+    def from_mesh_and_quad(cls, sn_mesh: "SNMesh") -> "StreamingCoefficientCache":
         r"""Populate Stratum 1 from one :class:`SNMesh` + its quadrature.
 
         Iterates ``sn_mesh.dag_walk(ordinate_idx=...)`` (slow Python path —
@@ -219,7 +268,7 @@ class GeometryCoefficients:
         nx = sn_mesh.nx
         reduced = sn_mesh.reduced
         assert reduced is not None, (
-            "GeometryCoefficients requires a ReducedStreamingOperator "
+            "StreamingCoefficientCache requires a ReducedStreamingOperator "
             "(1-D Cartesian / spherical / cylindrical).  2-D Cartesian "
             "wavefront uses anti-diagonal scheduling, not the chain scan."
         )
@@ -359,7 +408,7 @@ class GeometryCoefficients:
 class CollisionCache:
     r"""Stratum 2: geometry :math:`\times \Sigma_t`.  Built once per :math:`\Sigma_t`.
 
-    Combines :class:`GeometryCoefficients` with the per-cell-per-group
+    Combines :class:`StreamingCoefficientCache` with the per-cell-per-group
     :math:`\Sigma_t` to produce the per-ordinate DD scan coefficients that
     survive every source iteration within one constant-:math:`\Sigma_t`
     epoch:
@@ -419,7 +468,7 @@ class CollisionCache:
     @classmethod
     def from_geometry(
         cls,
-        geom: GeometryCoefficients,
+        geom: StreamingCoefficientCache,
         sig_t: np.ndarray,
         scheme: "DiscretizationSchemeBase",
     ) -> "CollisionCache":
@@ -443,7 +492,7 @@ class CollisionCache:
 
         Parameters
         ----------
-        geom : GeometryCoefficients
+        geom : StreamingCoefficientCache
             The Stratum 1 cache.
         sig_t : ndarray, shape ``(ng, nx)``.
             Per-group per-cell total cross section.  Shape matches the
@@ -503,4 +552,4 @@ class CollisionCache:
         )
 
 
-__all__ = ["CollisionCache", "GeometryCoefficients"]
+__all__ = ["CollisionCache", "StreamingCoefficientCache"]

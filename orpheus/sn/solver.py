@@ -68,7 +68,7 @@ from orpheus.transport.radial_characteristic_field import (
 )
 from .mesh.augmented_mesh import SNMesh
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
-from .sweep.cache import CollisionCache, GeometryCoefficients
+from .sweep.cache import CollisionCache, StreamingCoefficientCache
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
     cell_moment_count,
@@ -1417,12 +1417,12 @@ class SNSolver:
         )
 
         # ── Sweep cache (Issue #196 Phase G Step 2.5c) ───────────────
-        # Two-stratum cache: GeometryCoefficients built once at __init__
+        # Two-stratum cache: StreamingCoefficientCache built once at __init__
         # (geometry × quadrature only); CollisionCache built once after
         # σ_t binding.  Hot path consumes (geom, coll) without per-cell
         # StreamingTerms allocation.  Only applicable to 1-D meshes with
         # ReducedStreamingOperator — 2-D Cartesian uses the wavefront path.
-        self.geom_cache: GeometryCoefficients | None = None
+        self.geom_cache: StreamingCoefficientCache | None = None
         self.coll_cache: CollisionCache | None = None
         # The two-stratum scan cache feeds the DAG-FREE scan strategies
         # (CumprodScan / ScanMarch) ONLY — its σ_t stratum is the closed-form
@@ -1433,7 +1433,7 @@ class SNSolver:
         # directly — never the scan cache.  Build the cache only when the scan
         # path can actually be selected (DD keeps its bit-identical cache).
         if sn_mesh.reduced is not None and sn_mesh.scheme.is_affine_scannable:
-            self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+            self.geom_cache = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
             # No bridge needed: ``mat_xs.total_cross_section`` is the
             # principled ``(ng, nx)`` 1-D layout the cache expects
             # (rank-d (N, ng, *spatial); no phantom ny axis to drop).
@@ -1449,7 +1449,7 @@ class SNSolver:
     def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:
         """Rebind the total cross-section and rebuild only :class:`CollisionCache`.
 
-        :class:`GeometryCoefficients` survives — Stratum 1 is geometry-only.
+        :class:`StreamingCoefficientCache` survives — Stratum 1 is geometry-only.
         Only the σ_t-dependent Stratum 2 rebuilds.  Used by depletion /
         thermal-feedback consumers.
 

@@ -2,7 +2,7 @@ r"""Tests for the Step 2.5c two-stratum sweep cache (Issue #196 Phase G).
 
 Twelve tests in five thematic groups (per plan §"Test catalog"):
 
-* **Cache structure** (#1-3): :class:`GeometryCoefficients` + :class:`CollisionCache`
+* **Cache structure** (#1-3): :class:`StreamingCoefficientCache` + :class:`CollisionCache`
   populate the expected fields with the expected shapes; the two strata are
   separate by ``ng`` axis.
 * **Cache-invariance** (#4-5 — the CARDINAL tests): the collision cache is
@@ -36,7 +36,7 @@ from orpheus.transport.spatial.cell_balance import cell_balance_terms
 from orpheus.transport.spatial.scheme import UpstreamState
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.sn.sweep.scan import ordinate_scan
-from orpheus.sn.sweep.cache import CollisionCache, GeometryCoefficients
+from orpheus.sn.sweep.cache import CollisionCache, StreamingCoefficientCache
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 
@@ -93,13 +93,13 @@ def _make_sphere(nx: int = 10, N: int = 8) -> SNMesh:
 
 @pytest.mark.l0
 def test_geometry_coefficients_built_at_construction() -> None:
-    """Test #1 — :class:`GeometryCoefficients` populates every field.
+    """Test #1 — :class:`StreamingCoefficientCache` populates every field.
 
     All Stratum-1 fields present; shapes match the ``(N, nx)`` contract; the
     frozen dataclass refuses post-construction mutation.
     """
     sn_mesh = _make_slab(nx=10, N=8)
-    geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     N, nx = 8, 10
     assert geom.chain_idx.shape == (N, nx)
     assert geom.chain_idx_inv.shape == (N, nx)
@@ -131,7 +131,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=4, N=4)
-    geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
@@ -164,7 +164,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=5, N=4)
-    geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     # Stratum 1 — no ng axis on ANY field.
     for name in ("A_down", "A_total", "dA_w", "V"):
         field_arr = getattr(geom, name)
@@ -293,7 +293,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
 
 @pytest.mark.l0
 def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
-    """Test #5 — :class:`GeometryCoefficients` survives ``rebind_cross_sections``.
+    """Test #5 — :class:`StreamingCoefficientCache` survives ``rebind_cross_sections``.
 
     After ``solver.rebind_cross_sections(new_sig_t)``, the geometry cache
     is the SAME object (identity check).  Only :class:`CollisionCache`
@@ -332,7 +332,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     coll_after = solver.coll_cache
 
     assert geom_after is geom_before, (
-        "GeometryCoefficients should be invariant under σ_t rebinds; "
+        "StreamingCoefficientCache should be invariant under σ_t rebinds; "
         "rebind_cross_sections accidentally invalidated Stratum 1."
     )
     assert coll_after is not coll_before, (
@@ -374,7 +374,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     else:
         sn_mesh = _make_sphere(nx=nx, N=N)
 
-    geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
@@ -479,7 +479,7 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
     produce — the two paths derive from the same algebra.
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     ng = 2
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     # Build (nx, ng) first via outer product for readability, then transpose.

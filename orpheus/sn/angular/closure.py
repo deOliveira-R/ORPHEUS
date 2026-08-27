@@ -426,7 +426,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         The per-level→global gather is a pure permutation of immutable data,
         so caching it makes the public accessors O(1).  The cached arrays are
         marked READ-ONLY (``setflags(write=False)``) so a consumer holding a
-        reference to the shared ``(N,)`` view (e.g. the ``GeometryCoefficients``
+        reference to the shared ``(N,)`` view (e.g. the ``StreamingCoefficientCache``
         populator) cannot corrupt the cache.
 
         Precondition: called as the LAST ``__init__`` step, after the

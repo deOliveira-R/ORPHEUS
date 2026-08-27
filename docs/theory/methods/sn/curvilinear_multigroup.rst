@@ -182,7 +182,7 @@ construction:
   :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{\rm out} + \alpha_{\rm in}`
   and :math:`c_{\rm out} = \alpha_{\rm out}/\tau` are ``(N,)``.
 * **The geometry stratum of the sweep cache.**
-  :class:`~orpheus.sn.sweep.cache.GeometryCoefficients` documents the
+  :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` documents the
   boundary explicitly: *no* ``ng`` *axis — no cross-section
   dependence*.  It is built once per (mesh, quadrature) and survives
   every cross-section rebind.

@@ -527,7 +527,7 @@ implicitly ruled.
   `augmented_mesh.py:394-401`, PR-TYPED-6.5 Phase 2.3); the
   space→quadrature accessor option; and Phase B's own BOUNDARY (what of
   the L-binding cache family — `sn/sweep/cache.py`'s
-  `GeometryCoefficients`/`CollisionCache` — is O-2's vs O-3's).
+  `StreamingCoefficientCache` (`GeometryCoefficients` until 2026-08-26)/`CollisionCache` — is O-2's vs O-3's).
   Unblocks `RadialCharacteristicSeeding`, the curvilinear walks, and
   the sweep cache.
 - **O-3 — the L-binding bundle — ⭐ REFINED AND ITS FORK RESOLVED (user,

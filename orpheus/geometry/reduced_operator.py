@@ -444,7 +444,7 @@ class StreamingTerms:
 
     # ``mu_start`` retired 2026-08-26.  It was the middle link of a
     # three-link dead chain: AngularRedistribution.mu_start_per_level ->
-    # StreamingTerms.mu_start -> GeometryCoefficients.mu_start -> nothing.
+    # StreamingTerms.mu_start -> StreamingCoefficientCache.mu_start -> nothing.
     # [M] the terminal had ZERO readers of any kind (no attribute access,
     # no getattr by name), so this field's only production consumer was
     # the WRITE into it -- while its own docstring claimed

@@ -2472,7 +2472,7 @@ A forgotten cylinder site cannot silently fall back to the sphere value.
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`'s);
    and the un-weld gave :math:`\mu_{\rm start}` **one owner** on the
    angular factor, after which the thread through ``StreamingTerms`` and
-   ``GeometryCoefficients`` was found to be dead — `[M]` its terminal had
+   ``StreamingCoefficientCache`` was found to be dead — `[M]` its terminal had
    zero readers — and retired.
 
    The ERR-058 property is unchanged and now rests on something stronger
