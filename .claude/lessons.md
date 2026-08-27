@@ -2298,8 +2298,10 @@ what an API accepts. Charter §5d.8; memo
 
 ## L61 — An unvalidated FILTER and a clean tree print the same thing; and in a commit message, the shell's own quoting silently deletes evidence (2026-08-26)
 
-Four incidents in one session, one root cause: **a pattern that never parsed,
-and output that looked like a clean result.**
+**Six** incidents in one session, **two distinct mechanisms**, one shared
+shape: **a pattern that never matched what it was written to match, and output
+that looked like a clean result.** Mechanism (c) below is the worse one — it
+prints no error at all.
 
 **(a) The census that returned a false zero.** Auditing P3's rename targets for
 string-form references — `getattr(x, "name", default)`, the form that fails
@@ -2338,10 +2340,35 @@ substitution). And after any message that was not written that way, run
 `git log -1 --format=%B` and read it: the damage is invisible at commit time and
 permanent afterwards.
 
-⭐ **What unifies (a) and (b), and why this is one lesson rather than two:** in
-both, the shell reported a problem *on a channel nobody was reading* — an
-`(eval)` warning above a plausible number, a `command not found` above a
-successful commit — while the artifact it produced looked correct. This is
+**(c) — and the one that emits NO diagnostic whatsoever: `grep` here is
+`ugrep`, and an anchor inside an alternation group silently matches nothing.**
+`[M]` `grep` is a shell function wrapping **ugrep 7.5.0**, not GNU/BSD grep.
+Isolated on a fixture containing `square Gram, while`:
+
+| pattern | matches |
+|---|---|
+| `grep -E 'Gram'` | 1 ✅ |
+| `grep -E '(^\|[^a-z_])Gram'` | **0** ⛔ exit 1, **no error** |
+| `grep -E '([^a-z_])Gram'` | 1 ✅ |
+| `grep -P '(?<![A-Za-z_])Gram'` | 1 ✅ |
+| `grep -E '\bGram\b'` | 1 ✅ |
+
+⚠ **That construction is precisely the retirement-audit idiom** — *"the symbol,
+but not preceded by a letter"* is how you separate `gram` from `pro`**`gram`**`s`,
+or a retired module name from a surviving attribute spelled identically. It hit
+me twice: once checking whether the `gram → pairing` keeps had survived (shell
+said 0, Python found the 6 that were correctly kept), and once on a residual
+sweep. Both read as *"clean, nothing left"*.
+
+⟹ Recorded in `.claude/rules/nexus-tools.md` with the safe forms
+(`\b…\b`, `-P` lookbehind, or no anchor). **For any COMPLETENESS claim, use
+Python.**
+
+⭐ **What unifies (a), (b) and (c), and why this is one lesson rather than three:** in
+all three, the failure surfaced *on a channel nobody was reading, or on none at
+all* — an `(eval)` warning above a plausible number, a `command not found` above
+a successful commit, and in (c) **nothing whatsoever** — while the artifact
+looked correct. This is
 `vv-principles` #17's broken-harness failure (*the instrument lies before the
 code does, and it lies in the safe-looking direction*) applied to the shell
 itself, and `plan-authoring` §2's FILTER clause sharpened once more: writing the

@@ -57,6 +57,45 @@ smell family (`twin_paths`, `discriminations`, `native_place`, `protocol_conform
 (`nexus-exploring`, `nexus-impact`, `nexus-debugging`, `nexus-refactoring`,
 `nexus-verification`, `nexus-elegance`, `nexus-guide`).
 
+## ⛔ `grep` here is **ugrep**, and one common construction fails SILENTLY
+
+`[M]` 2026-08-26. `grep` in this environment is a shell function wrapping
+**ugrep 7.5.0** (`ARGV0=ugrep … -G --ignore-files --hidden -I --exclude-dir=…`),
+not GNU or BSD grep. Its regex dialect differs in at least one way that matters,
+and the failure mode is the worst possible one: **zero matches, exit 1, no error
+message** — indistinguishable from a clean tree.
+
+**The failing construction: an anchor (`^` or `$`) INSIDE an alternation group.**
+Isolated on a 3-line fixture containing `square Gram, while`:
+
+| pattern | matches | |
+|---|---|---|
+| `grep -E 'Gram'` | 1 | ✅ |
+| `grep -E '(^\|[^a-z_])Gram'` | **0** | ⛔ **silent false negative** |
+| `grep -E '([^a-z_])Gram'` | 1 | ✅ (anchor removed) |
+| `grep -P '(?<![A-Za-z_])Gram'` | 1 | ✅ (PCRE lookbehind, needs `-P`) |
+| `grep -E '\bGram\b'` | 1 | ✅ |
+
+⚠ **This is exactly the idiom a retirement audit reaches for.** *"the symbol, but
+not preceded by a letter or underscore"* is how you separate `gram` from
+`programs`, or a retired module name from a surviving attribute of the same
+spelling — and writing it the natural way returns a confident, empty, wrong
+answer. `coding-standards`' three-search audit is built on greps like this.
+
+⟹ **Use `\b…\b`, or `-P` with a lookbehind, or drop the anchor. Never put `^`/`$`
+inside a group.** And for any *completeness* claim — a residual check, a "no
+consumers left" verdict, a done-when — **re-run it in Python** (`re` +
+`pathlib.rglob`) rather than the shell: the pattern is then unambiguous, and it
+is the only way to state a denominator you can trust.
+
+⭐ **Validate the filter against a POSITIVE CONTROL before trusting a negative.**
+One line — assert the pattern finds a member you already know exists. Without it,
+a broken filter and a clean tree print the same thing, and the broken one reads
+as *"nothing to do"*. See `.claude/lessons.md` L61 (six false negatives in one
+session, two distinct mechanisms: this one, and zsh eating quotes/backticks out
+of double-quoted patterns — that second one at least prints `(eval): bad math
+expression` on a channel nobody reads).
+
 **Operational notes**
 
 - **Deferred tools — ⛔ and the escape hatch is MAIN-AGENT-ONLY.** If `mcp__nexus__*`
