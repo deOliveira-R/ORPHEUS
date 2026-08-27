@@ -1,139 +1,126 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
-> ## ▶ RESUME STATE — rewritten at the 2026-08-26 post-P1 compaction point
+> ## ▶ RESUME STATE — rewritten at the 2026-08-26 post-P3 compaction point
 >
 > **This file is the resume surface. Trust it over any summary.**
-> ⛔ The header this replaces described an unmerged Phase-B branch and an
-> in-flight gate. Both resolved hours before it was overwritten. If any
-> summary still says "8 commits, NOT MERGED", it is quoting the dead header.
+> ⛔ This replaces a post-P1 header. If a summary still says "▶ NEXT = P2", or
+> describes P2 as moving α, or sizes a rename in single-digit lines, it is
+> quoting dead text: P2 was re-scoped, P3 landed, and BOTH plan rename
+> candidates for the cache class were refuted. See §4bis and §7 P2's ⛔ block.
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this
 >
-> `main` @ **`1c93b14f`** == `origin/main`. **P2 is on the branch
-> `refactor/p2-angular-comes-home`, NOT yet merged** — `[M]` reconcile with
-> `git merge-base --is-ancestor dcd6a9f6 main`, never with this line.
-> `refactor/unweld-phase-b` and `refactor/p1-carry-only-what-is-read` are both
-> merged and deleted. (The two branches git still lists,
-> `refactor/operator-inverse-algebra` and `worktree-nexus-workspace-wiring`,
-> belong to other work.)
+> `main` @ **`1ded900a`** == `origin/main` (P2 merged + pushed;
+> `refactor/p2-angular-comes-home` deleted).
+> **P3 is on `refactor/p3-names-stop-lying`, 4 commits, NOT merged when this
+> was written** — ⚠ a full fast gate was IN FLIGHT, so **ask git**:
+> `git merge-base --is-ancestor 4a3f2390 main`. Ancestor ⟹ merged, and this
+> paragraph is history.
+> ⚠ This repo has **no CI** (`.github/workflows/` absent). "main is always
+> green" is enforced entirely by the local gate; an empty `gh run list` is not
+> a pass.
 >
 > ### What has LANDED
 >
-> **Phase B** (charter §5b O-2) — the angular closure family takes its two
-> tensor factors, not a mesh. **P1** — nothing in the streaming path is held
-> that nothing reads:
->
-> | commit | item |
-> |---|---|
-> | `37d6d1af` | `is_cartesian` reads the ENUM; both dead flags retired |
-> | `fc8b1a0a` | the `_quadrature` twin — dissolving an `Optional` |
-> | `ebe5d22f` | the three-link `mu_start` chain |
-> | `983b36f9` | pairing identity (`cached_property`); two lying docstrings |
-> | `bc1fb804` | `SNMesh.curvature` — a 3-valued string used as a boolean |
-> | `500de1b4` | the moment mass is told its chart, and refuses one it cannot spell |
-> | `2297da03` | the displaced #158 guard gets its own witness |
->
-> **P2** (branch, unmerged) — the angular closure comes home:
->
-> | commit | item |
-> |---|---|
-> | `14d6e078` | P2's α half refuted; re-scoped; `plan-authoring` §6d |
-> | `dcd6a9f6` | `sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py` |
->
-> `[M]` P1's exit gate: **9814 passed / 0 failed** (3771 s). pyright 0,
-> `sphinx -W` 0 warnings, `dead_references` 0 of 52. Count reconciles:
-> 9809 baseline + 5 new tests.
->
-> ### ▶ NEXT — P3: the names stop lying
->
-> Full text at §7 P3. Mechanical, bit-identical, one rename per commit, each
-> with the three-search audit (code, tests, **docs**). `ChartConnection` LAST —
-> after P4 has taken `streaming_terms` out of it. ⚠ §1's module row is **already
-> done** (P2 landed it as part of the re-home); do not redo it.
->
-> `[M]` **existence-checked 2026-08-26, at the P2 close-out** (§1's ritual: one
-> grep per symbol a pointer names — a pointer that names a dissolved object is
-> this plan's most expensive failure mode). Counts are `orpheus/ | tests/ | docs/`:
->
-> | symbol | exists? | where |
+> | commit | phase | item |
 > |---|---|---|
-> | `ReducedStreamingOperator` | ✅ `reduced_operator.py:500` | 36 \| 15 \| 20 |
-> | ~~`GeometryCoefficients`~~ | ✅ **RENAMED `StreamingCoefficientCache`** in P3b @ 2026-08-26 | was 23 \| 12 \| 10 |
-> | `redistribution_gram` | ✅ `reduced_operator.py:590` | 5 \| 4 \| 0 |
-> | `geometry_kind` (the 4-spellings row) | ✅ | 106 \| 31 \| 15 |
-> | `SNMesh.pole_angular_closure` (NEW §1 row, found in P2) | ✅ | 41 \| 21 \| 24 |
-> | `SNMesh.curvature` | ⏹ **retired in P1** | 0 \| 0 \| 1 |
+> | `cc01dd27` | Phase B | the angular closure takes its two tensor factors |
+> | …`1c93b14f` | P1 | nothing in the streaming path is held that nothing reads (7 commits) |
+> | `dcd6a9f6` | **P2** | `sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py`, byte-identical |
+> | `75571c4d` | **P3a** | `redistribution_gram` → `redistribution_pairing` (concept: 60 lines, 7 files) |
+> | `4a3f2390` | **P3b** | `GeometryCoefficients` → `StreamingCoefficientCache` (45 sites, 12 files) |
 >
-> ⚠ That last docs hit is **correct and stays**: `index.rst:256` is past-tense
-> history (*"replaced the pre-carve procedural branch on the `SNMesh.curvature`
-> string tags"*) and a literal, not a role. Checked so a future audit does not
-> re-flag it.
+> `[M]` P2's exit gate: **9815 passed / 0 failed**, 13 trees all `rc=0`; against
+> P1's baseline **+1** passed — the new `sn/angular/__init__.py` adds one case to
+> the import-linter's `rglob` parametrize — and **0 on every other axis**
+> (skipped 22, deselected 227, xfailed 70). `[M]` P3: `tests/sn` +
+> `tests/transport` **3763 passed / 0 failed**, exact on all four axes against
+> P2's numbers for those trees. pyright 0 and `sphinx -W` 0 throughout.
 >
-> ⭐ **P2 added a §1 row nobody had noticed: `SNMesh.pole_angular_closure`.** The
-> module carried two occupants of that name and only one moved. The attribute is
-> the surviving spelling and it tells the identical lie the module path did —
-> `[M]` **62** of the tree's post-move `pole_angular_closure` hits are it.
+> ### ▶ NEXT — P4, which now carries FOUR things
 >
-> ### The rulings that bind (all ✅ user, 2026-08-26; full text + rejected
-> alternatives at §9)
+> Full text at §7 P4 **and §4bis**. ⚠ Read both; P4 has absorbed work from two
+> other phases.
 >
-> `ChartConnection` · `sn/angular/` · the chart sweep SPLITS (`curvature`
-> died in P1; the `geometry_kind` synonym is **P6**) · P4 mints the pairing,
-> the moment measure is **P7**.
+> 1. **The mint** — `scheme.mint(chart)`; `R` produced by the object that owns
+>    its basis. Retires P1's TRANSITIONAL `coord: CoordSystem` tag. Tell:
+>    `grep -n "coord: CoordSystem" transport/spatial/scheme.py` → empty.
+> 2. **The moment mass comes with it** — `M` and `R` are the Galerkin matrices
+>    of `1` and `∇·ê_r`: one bilinear form, two products, one mint.
+> 3. **P2's α half** (inherited) — the four α symbols + `_ALPHA_CLOSURE_ATOL`
+>    move to `sn/angular/redistribution.py`; `AngularMeasure` **dies** (`[M]`
+>    the 3 surviving factories read **0 of its 6** members).
+> 4. **P4b** (new, §4bis) — split the cache's three strata.
 >
-> ⭐⭐ **The governing ruling, which outlives those four:** *"scheduled to the
-> end of this plan, **not defer and forget**."* Deferred work earns a PHASE
-> NUMBER or a named external blocker — never an issue-and-forget. P6 and P7
-> exist because of it, and §8's "Choosing `G`" row was AMENDED rather than
-> left standing.
+> ⛔⛔ **P4's hard constraint is ENFORCED, not advisory.**
+> `tests/test_layer_imports.py` declares
+> `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES`, gated on every
+> module by a `@pytest.mark.foundation` parametrized test. `[M]` its
+> `TYPE_CHECKING` tolerance is `if is_tc and src_pkg in (L1_PACKAGES |
+> L2_PACKAGES)` — `geometry` is `INPUT_PACKAGES`, so **geometry may not import
+> `sn` even for typing.** ⟹ the sharp form: *`ChartConnection`'s `angular` field
+> needs a type, and that type cannot live in `sn/` while `ChartConnection` lives
+> in `geometry/`.* Four options at §7 P4 — **rule the fork BEFORE editing**;
+> its steps 1 and 2 are one step, not two.
 >
-> ⛔ **P4 carries a debt P1 created deliberately.** `moment_mass_diagonal` /
-> `moment_axis` take `coord: CoordSystem` — a **tag**, when what the mass
-> needs is the **measure**. It shipped because the guard was a correctness
-> repair that could not exist while the producer was never told its chart.
-> F2 gives the right shape: `M` and `R` are the Galerkin matrices of `1` and
-> `∇·ê_r` — one bilinear form, two products, one mint. P4's done-when has the
-> tell: `grep -n "coord: CoordSystem" transport/spatial/scheme.py` → empty.
+> ⚠ **P3 is NOT finished.** `ReducedStreamingOperator` → `ChartConnection`
+> (P3c) is sequenced deliberately **after P4**, so the name describes what
+> remains once `streaming_terms` is out of it.
 >
-> ### Three rules P1 and P2 paid for — read them before the next retirement or re-home
+> ### ⭐ The three rules P1–P3 paid for — read before the next rename or re-home
 >
-> - `coding-standards`: **a symbol grep cannot see a name inside a STRING.**
->   `getattr(x, "name", default)` survives the residual check and fails in the
->   DEFAULT's direction. P1 hit this on `curvature` one item after running the
->   same check successfully on `mu_start`.
-> - `plan-authoring` **§6d** (P2): **a RE-HOME step must check the import edge
->   it creates, in BOTH directions — and look for an import-linter FIRST.**
->   `[M]` this tree ships one (`tests/test_layer_imports.py`) declaring
->   `geometry → sn` **forbidden**, gated on a `foundation` mark. One grep for
->   `FORBIDDEN_EDGES` answers a re-home's whole legality question before any
->   probe. ⚠ And read the tolerance's *implementation*, not its docstring: the
->   `TYPE_CHECKING` escape covers `L1_PACKAGES | L2_PACKAGES` only, so
->   `geometry` (INPUT) cannot import `sn` even for typing.
-> - `vv-principles` **#17**: **adding a correct guard EARLIER can orphan a
->   later guard's only witness.** The displaced gate goes red with a *message
->   mismatch*, which reads as "update the expected string". P1 hit this too;
->   `grep "slab/Cartesian" tests/` had exactly one hit.
+> - `plan-authoring` **§6d** (P2): **a RE-HOME must check the import edge in
+>   BOTH directions — and look for an import-linter FIRST.** The done-when that
+>   failed was *true*: it asked whether the MOVER depends on its old home, when
+>   the question is whether the OLD HOME depends on the mover.
+> - `plan-authoring` **§1** (P3b): **a proposed NAME's ABSENCE can be evidence
+>   AGAINST it.** `SweepCoefficientCache` was free in code *and* in git history
+>   **because it was rejected** — `lessons.md` L15 records it as "the wrong
+>   shape". Grep the PROSE corpus (lessons, plans, agent-memory, issues).
+> - `.claude/lessons.md` **L61**: **an unvalidated filter and a clean tree print
+>   the same thing.** Six false negatives in one session, two mechanisms — zsh
+>   eating quotes/backticks from double-quoted patterns, and ⛔ **`grep` here is
+>   `ugrep`**, where an anchor inside an alternation group returns 0 with **no
+>   error at all** (now in `nexus-tools.md`). ⟹ run every COMPLETENESS check in
+>   Python, with a positive control.
 >
-> ### ⚠ `scratch/` is UNTRACKED — `[M]` 191 entries a `git clean` destroys
+> ### ⭐⭐ The finding that outlives all three phases
 >
-> The four audit memos this plan rests on (listed just below), the
-> `mu_start_reachability_census.md` record, and ~190 probes. The theory
-> chapters at `250fcd16` carry the memos' *conclusions*; the memos carry the
-> *derivations*.
+> **A lesson's own worked example is not exempt from the lesson.** `lessons.md`
+> L15 is *"cache shape that mixes immutability strata hurts twice"* and holds
+> `GeometryCoefficients` up as the RIGHT shape — while `[M]` (3 meshes, one
+> quadrature) it mixes **three**: 7 fields bit-identical across meshes, 4
+> mesh-bound, 2 traversal-only. Nothing prompts that re-check, because the
+> exhibit is what taught you the rule. → §4bis, and P4b.
+>
+> ### The rulings that bind (✅ user; full text + rejected alternatives at §9)
+>
+> `ChartConnection` · `sn/angular/` · the chart sweep SPLITS · P4 mints the
+> pairing, the moment measure is **P7** · P2 re-scoped to the closure move only
+> · the cache is **`StreamingCoefficientCache`**.
+>
+> ⭐⭐ **The governing ruling:** *"scheduled to the end of this plan, **not
+> defer and forget**."* Deferred work earns a PHASE NUMBER or a named external
+> blocker. P4b, P6 and P7 exist because of it.
+>
+> ### ⚠ `scratch/` is UNTRACKED — a `git clean` destroys it
+>
+> The four audit memos below, the gate logs (`_p2_fast_gate.log`,
+> `_p3_fast_gate.log`) and ~190 probes.
 >
 > ### Running the gate
 >
 > `.venv/bin/python -O -m pytest -p no:randomly -m "not slow" -q` — SERIAL,
-> **~63 min**, `[M]` 3771–3779 s across three runs. Launch it DETACHED
-> (`Popen(start_new_session=True)`) to a log file; harness background tasks
-> die at ~30–90 min. ⛔ Never pipe it through `tail` — the shell reports
-> `tail`'s status and a red gate reads as exit 0.
-> ⚠ `-m "not slow"` is part of the number: it deselects 227 tests, including
-> the known-inherited `cyl_2g_3reg_folded_4x8_dd_n40` red (#404, duplicate of
-> #397, `[M]` bit-identical pre-branch).
+> **~63 min**. Use the per-tree driver (`scratch/_p3_gate_driver.sh`; copy it,
+> change its `LOG=` line) launched DETACHED via
+> `Popen(start_new_session=True)` — harness background tasks die at ~30–90 min.
+> ⛔ Never pipe it through `tail`. ⚠ `-m "not slow"` is part of the number: it
+> deselects 227, including the known-inherited `cyl_2g_3reg_folded_4x8_dd_n40`
+> red (#404, dup of #397, `[M]` bit-identical pre-branch).
 
-
-**Status.** Proposed 2026-08-26, un-ruled. Successor work to the un-weld arc's
+**Status.** ⛔ ~~Proposed 2026-08-26, un-ruled.~~ **IN EXECUTION** — Phase B,
+P1, P2 and P3a/P3b have landed (see the table above); all four §9 forks and
+three further design questions are ✅ RULED. Successor work to the un-weld arc's
 Phase B (`27576937`, `6859ca05`); governed by
 `.claude/plans/posing_filtration_charter.md` (the posing filtration, R1–R23)
 and `.claude/rules/plan-authoring.md`.
