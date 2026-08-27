@@ -7234,3 +7234,317 @@ exactly, i.e. the shipped seed march sign-alternates, measured on production.
   equivalents `0.1132 / 0.0161 / 0.0053 / 0.0015 / 0.0004`; and
   `morel_montry_beta = 1.5 × β` bit-for-bit, so the shipped instrument IS the
   object the seed analysis needs.
+
+## L-070 — the α-dome citation retraction + the MoC/CP sharing claim (2026-08-27, branch `fix/alpha-doc-claims-that-are-false`)
+
+**Task.** Two present-tense-false corpus claims: (1) the α-dome recursion attributed to
+"Bailey 2009" in prose AND in a live `:label:`; (2) `reduced_operator` "shared by SN, MoC,
+and CP curvilinear sweeps". Fix both with meaning- and tense-triage. Doc-only mandate; main
+agent commits; `orpheus/derivations/discrete/sn/angular_differencing.py` off-limits
+(concurrent edit).
+
+**Gates.** `-E -W` baseline EXIT=0, W/E/C = 0/0/0, re-measured this session. Verification
+build identical (0/0/0, EXIT=0). `pytest -O -q -p no:randomly -k "structured_geometry or
+reduced_operator or alpha"` → **342 passed, 9792 deselected, 5 warnings in 339.52s**.
+`check_docstring_xrefs.py` DEAD TARGETS 0. vv scanner 0 violations, `documented` 564.
+Render check: dead roles on the edited page **2 → 0**.
+
+### 1. ⭐⭐ A brief's "these citations are CORRECT, do not touch" list is a CLASSIFICATION and it can be WRONG — resolve each site by its BIBLIOGRAPHIC ENTRY, never by the author-year string
+
+`[M]` "Bailey … 2009" in this tree is **two different papers by the same four authors**:
+
+| entry | spelling in tree | cited for | verdict |
+|---|---|---|---|
+| **(B)** retracted | *"A piecewise linear finite element discretization of the **diffusion** equation for arbitrary polyhedral grids", **JCP 227**, 3738-3757* | "Eq. 50 (dome recursion), Eq. 74 (Morel–Montry)" | the wrong-paper citation retracted at Issue #168 Phase B |
+| **(A)** different | *"A piecewise linear **discontinuous** finite element spatial discretization of the **transport** equation", **Ann. Nucl. Energy 35**, 1929-1936* | the η-ascending level-ordering / `level_structured` convention | a *different* entry; unverified, LEFT + reported |
+
+The brief's protect-list named `orpheus/transport/spatial/scheme.py:42` as "the quadrature
+paper". `[M]` it is entry **(B)** verbatim, cited for *"Eq. 50 (dome recursion) and Eq. 74
+(Morel–Montry) feed the curvilinear cell update"* — i.e. the exact retracted claim. Fixed,
+and the disagreement reported with the two entries side by side. What licensed the override
+was the brief's OWN governing rule: *"Only the DOME-RECURSION attributions are wrong. Read
+each hit and decide by what it asserts."* An enumerated list is a provisional triage; the
+rule outranks it.
+
+⟹ **an author-year collision across two of one author's papers is invisible to every grep.**
+Build the triage on the JOURNAL + TITLE, and expect the brief's site census to be a sample
+(mine found 26 candidate lines vs the brief's ~12; 9 were a whole class the brief had not
+separated).
+
+### 2. ⭐⭐ MEASURE whether a dangling `:eq:` warns before deciding rename-vs-keep — it DOES, which flips L-063's caution
+
+Throwaway 2-file Sphinx project, positive + negative control, ~10 s:
+
+```
+plain : build succeeded, 1 warning.  WARNING: equation not found: no-such-label-anywhere [ref.eq]
+-W    : EXIT=1, build finished with problems
+render: the LIVE label emits href="#equation-live-label"; the dead one appears as raw text
+```
+
+So `:eq:` is in the **gated** class with `:doc:`/intra-doc `:ref:`, NOT in the silent class
+with `:func:`/`:class:`/cross-doc `:ref:`. L-063's third fate ("KEEP + note, because renaming
+risks a silent break") was argued from a label with **8 cross-doc `:ref:` citers**. With
+`:eq:` citers only, the build catches every miss ⟹ **RENAME is safe.** Never carry that
+caution across ref-role classes without re-measuring.
+
+### 3. ⭐ Name the OBJECT, not the paper, in an eq-label
+
+`bailey-dome-recursion` → `alpha-dome-recursion` (8 sites, 4 files, guarded by exact length
+arithmetic + `out.replace(NEW,OLD) == src`). **A label naming a citation is a latent
+staleness bug by construction**: attributions get retracted, equations do not. Checks run
+before adopting the name, in this order:
+1. `grep tests/` for the OLD name → **0** ⟹ no `verifies()` edge to orphan.
+2. `grep` the NEW name across `docs orpheus tests tools` AND the prose corpus
+   (`.claude/lessons.md`, `plans/`, `agent-memory/`) → **0** (plan-authoring §1: a free name
+   can be free *because it was rejected*).
+3. Family fit: siblings are `alpha-recursion`, `alpha-cylindrical`, `alpha-dome-closure`,
+   `sn-alpha-dome-closes`.
+4. Move the `.. vv-status:` sentinel **in the same edit** (L-027) and let `matrix.rst`
+   regenerate — `[M]` the diff was exactly one row moving alphabetically, no hand-edit.
+   Verified with `_scan_theory_equations(Path('docs/theory'))`: old label absent from
+   `all_labels` AND `documented`, new label present, 0 violations.
+
+⚠ **And I found a genuine two-labels-one-equation duplicate**: `alpha-recursion`
+(`curvilinear_one_group.rst`, **the** `verifies` target, 115 tests) states the same recurrence
+as `alpha-dome-recursion` (`structured_geometry.rst`, `documented` sentinel, 0 tests). Brief
+said *say so and recommend, do not collapse* — right call: collapsing moves a generated
+V&V-matrix row and re-points markers a docs pass may not touch. Published as a `.. note::
+**Two labels, one recursion.**` naming the **register** each page owns (geometry-primitive vs
+discretisation) — the L-064 "name the register, not just the fact" move applied to a twin.
+
+### 4. ⭐⭐ For a "family X does not use Y" claim, the load-bearing evidence is a CAPABILITY THAT EXISTS AND DECLINES Y — never an absence
+
+*"MoC and CP have not migrated yet"* and *"MoC and CP never form this term"* both predict
+zero hits, so a census alone cannot separate them, and the first reading **licenses work**
+(go wire them up). What separates them is a positive fact: `[M]`
+`orpheus.moc.geometry.MOCMesh` ray-traces **concentric annuli** on a **cylindrical**
+`Mesh1D` (`_ray_circle_intersections`); `CPSolver._setup_spherical` is a real **sphere**;
+`MCMesh` admits a real **cylinder**. Three shipped curvilinear capabilities, zero α. An
+*absent* capability could never have refuted the migration reading.
+
+⚠ My first draft used "CP ships a sphere and MC ships a cylinder" as "the two curvilinear
+counter-examples" for a claim about **MoC and CP** — MC is not in the claim, and MoC's own
+counter-example (the annuli) was the strongest one and I had not looked for it. Caught in the
+self-consistency pass. ⟹ when refuting a claim about {A, B}, the counter-examples must come
+from {A, B}.
+
+### 5. ⭐ A structural claim publishes as an IFF with numbered conditions + a per-family adjudication table + a "what WOULD change this answer" note
+
+The α dome is needed **iff** (1) an angular unknown survives discretisation with a direction
+index, (2) the index is read in a **local rotating frame**, (3) its derivative is
+**collocated**. MoC fails (2) — Ω is fixed in the global frame, `Ω·∇ = d/ds` is chart-free,
+curvature relocates into segmentation (`[M]` `moc/core.py` forms
+`τ = Σ_t·ℓ_seg/sinθ_p` and attenuates; no ordinate touches its neighbour). CP fails (1) —
+angle is integrated into the kernel first (`[M]` `F(τ)=e^{-τ}` sphere, `Ki_3` cylinder, `E_3`
+slab). MC fails (1) — directions are sampled, not indexed.
+
+The **"what WOULD change this answer"** note is what makes it falsifiable rather than an
+assertion, and it pre-empts the "so it's just not built yet" re-reading: a DG/FE-**in-angle**
+or spherical-harmonics scheme satisfies 1 and 2 and fails 3, and would need a mass/stiffness
+pair in μ, not this recursion. None exists here.
+
+### 6. ⭐⭐ The CONTROL column of a census table you PUBLISH moves under your own edits
+
+I drafted the control row from a **pre-edit** census (`sn 36/66/16/66/44/2`,
+`geometry 33/122/62/46/3/13`). My own ⛔ tombstones name the module, so post-edit it is
+`sn 36/66/16/67/44/3`, `geometry 36/124/56/50/3/14` — the table would have shipped
+unreproducible against its own tree. ⟹ **re-measure a published census AFTER the last edit**,
+and prefer the **file list** (stable) over the raw count for the load-bearing universal:
+*"only twelve files in `orpheus/` name the module — the module itself + `geometry/__init__.py`;
+six under `sn/`; four under `transport/spatial/`; and one derivations file"*.
+⚠ Same pass, same defect class: my first universal read *"every consumer lives in
+`orpheus/sn/`, `orpheus/transport/` or `orpheus/derivations/`"* — it omitted
+`orpheus/geometry/` (the module's own package, 3 hits in `__init__.py`). A universal written
+about "consumers" silently excluded the home package.
+
+### 7. ⭐ The bold-swallowed role — probe the three repair idioms, don't reason
+
+`**per-:math:`\mu`-level**` (2 pre-existing sites on the page I was editing) ships the LITERAL
+characters `:math:`mu``: RST does not nest inline markup, so the role dies inside `**…**` and
+the LaTeX backslash is eaten. Silent at every severity; the rendered HTML is the only
+instrument. `publish_doctree` on four one-liners settled it in one call:
+
+| form | `astext()` |
+|---|---|
+| `**per-:math:`\mu`-level**` | `per-:math:`mu`-level` ⛔ dead |
+| `**per-**\ :math:`\mu`\ **-level**` | `per-\mu-level` ✅ bold AND role |
+| `per-:math:`\mu`-level` | `per-\mu-level` ✅ |
+| `per-:math:`\mu`-**level**` | `per-\mu-level` ✅ but odd emphasis |
+
+Repaired with the escaped-seam form (preserves the author's bold). ⚠ The other class on the
+same page — `**``1.016389``**` numeric cells, and `` ``source_iteration``** `` on
+`curvilinear_numerics.rst:1966` — is cosmetic (a stray backtick) and belongs to **#379**;
+LEFT and reported. **Rank a dead role above a stray backtick: a dead `:math:` is a missing
+equation.**
+
+### 8. Tense triage — the three registers, worked
+
+| register | example | repair |
+|---|---|---|
+| present-tense-FALSE | "shared by SN, MoC, and CP curvilinear sweeps" | rewrite + ⛔ tombstone quoting the old text with its date |
+| aspirational/forward, now refuted ON THE MERITS | "MoC and CP campaigns (post-Wave-1) reuse this primitive" | ⛔ **retracted … closed as NOT APPLICABLE, not as pending** — the distinction is the whole point |
+| stale REASON on a surviving FACT | "lives in geometry **so MoC and CP can consume it**" | keep the instruction, **replace the reason** ("because it is CHART data") + ⛔ note |
+| correct HISTORY | `reduced_operator.py:12` "— **not** 'Bailey 2009', the wrong-paper citation…" | LEAVE |
+
+⚠ The aspirational row is the one that needs judgement. "Leave it, it's only a plan" ships a
+plan that a future session will execute. Closing it **NOT APPLICABLE with the structural
+reason** is what stops that.
+
+### 9. What I found and did NOT fix (each with its reason)
+
+- **9 entry-(A) quadrature sites** (`registry.py:280,470`, `rules_product.py:85,578`,
+  `rules_sphere.py:164,175,271`, `directional.py:292`, and the doc mirror
+  `discrete_measures.rst:955`). A *different* bibliographic entry from the retracted one,
+  cited for an ordering convention. Whether ANE 35:1929-1936 exists and has an Eq. 50 needs
+  the paper → `literature-researcher`. **Directive 4: demand, don't guess.**
+- **3 `tests/` sites** — I do not edit `tests/`.
+  `test_sph_sweep_regression.py:60` is the clearest (`α_{n+1/2} = α_{n-1/2} − w_n μ_n
+  (Bailey et al. 2009 Eq. 50)` = entry (B) verbatim).
+- **`**``literal``**` nested-markup cells** — #379's class, corpus-wide, cosmetic.
+
+
+### L-070 addendum — the census reconciliation (same day, coordinator-raised)
+
+The coordinator could not reproduce the CONTROL counts I published in the
+`reduced_operator.py` docstring (`36/66/16/66/44/2`, `33/122/62/46/3/13`) and offered three
+candidate causes. **All three were live at once**, which is why the numbers looked plausible:
+
+1. **PRE-EDIT.** Measured before my own ⛔ tombstones landed — and those blocks *name the
+   module*, so the correction raised several of the very counts it published. Current values
+   of that same partition: `36/66/16/67/44/3`, `36/124/56/50/3/14`.
+2. **PARTITION MISMATCH — the primary defect.** The prose listed six spellings
+   (`reduced_operator`, `ReducedStreamingOperator`, `AngularRedistribution`, bare `alpha`,
+   `delta_A`/`face_areas`, `redistribut*`) while the numbers came from a **different** six:
+   the first three collapsed into ONE family regex, plus two columns — `.reduced` and
+   "connection coefficient" — that the prose never names. So the 5th and 6th numbers belonged
+   to spellings no reader could see, and the first three spellings had no number at all.
+3. **CONFIGURATION.** Mine was `re.I` and unanchored, so `redistribut` absorbed every
+   `AngularRedistribution`: **67** where the coordinator's `\bredistribut\w*` reads **56**.
+
+⭐⭐ **The rule: a POSITIVE CONTROL must be NON-ZERO — its particular value carries no part of
+the argument — so freezing it is pure liability.** The zeros are the finding (falsifiable: the
+day one stops being zero the claim is refuted); the controls are an instrument check. Publish
+the **predicate**, not the table (`plan-authoring` §9). Applied here: the census `list-table`
+became a `.. code-block:: python` carrying the exact 8 patterns, the root, the
+occurrence semantics, and its own `assert`s — controls non-zero, subjects zero — under a new
+`~`-level section `Reproducing the census — the predicate, not a table of counts`.
+
+⭐⭐ **And I had minted a TWIN SOURCE inside one pass**: the page's `.. important::` block named
+one "six independent spellings" set and the census table's column headers named a *different*
+one. Two definitions of the same instrument, 900 lines apart, both mine, same afternoon. ⟹
+when an evidence set is cited more than once, define it ONCE in a labelled block and make
+every other site a `:ref:` pointer.
+
+⭐ **Adopting the coordinator's exact patterns was the right move, not a concession**: two
+independently-vocabularied instruments that agree is the acceptance evidence (L-067/L-052).
+I kept their six verbatim and *added* the two paraphrase spellings theirs lacked (`.reduced`,
+`connection[ -]coefficient`) — grepping the concept's paraphrase is the point (L-054).
+
+⭐⭐ **RUN A PUBLISHED RECIPE AS PUBLISHED.** Extract the code block back out of the `.rst`,
+`compile()` it, and `exec` it — its own asserts are the verdict. A recipe that does not run is
+the same defect class as a number that does not reproduce, and nothing in the build checks it.
+`[M]` 25 lines extracted, compiled, executed, asserts passed.
+
+⚠ **Two more frozen counts fell out of the same sweep, both mine, both wrong:**
+- *"referenced by 12 files under `orpheus/sn/` and 8 inside `orpheus/transport/`"* → replaced
+  by its predicate (verified as published: controls 141/135, four subjects 0).
+- *"Only twelve files in `orpheus/` name the module"* → `[M]` **thirteen**, and my own prose
+  enumeration in the same sentence summed to 13. A frozen count contradicting its own adjacent
+  enumeration. ⟹ **prefer an ENUMERATION to a COUNT** — a list can be checked by reading it.
+
+⛔ **And the self-inflicted build failure, which my own digest already warned about:** the new
+`.. _connection-coefficient-census:` anchor sat above a **paragraph**, so a bare `:ref:` has no
+title to derive → 3 × `WARNING: … A title or caption not found … [ref.ref]`, EXIT=1. Fixed by
+promoting it to a real titled `~`-level section (ladder verified: `=` 5, `-` 339, `~` 535, all
+before the new section). ⭐ The build DOES catch this class — it is the intra-doc `:ref:` case,
+not the silent cross-doc one — so the cost was one build, not a shipped dead link.
+
+⚠ **Scope discrimination when the coordinator edits concurrently:** the porcelain flag is not
+authorship. `git status` showed `angular_differencing.py` + 4 `tests/` files modified; a
+signature grep matched 3 of them, but the only shared token was the **date** `2026-08-27`.
+Reading the matched lines settled it (their prose: *"Lathrop's Eq. 25"*, which I never wrote).
+⟹ discriminate by CONTENT, and pick a signature that is not a date.
+
+
+### L-070 addendum 2 — the chimera citation re-point (2026-08-27)
+
+A `literature-researcher` settled the entry-(A) question I had reported as "found but NOT
+fixed": the record *"Bailey, Adams, Yang, Zika (2009), Ann. Nucl. Energy 35, 1929-1936"*
+**does not exist**. 9 sites re-pointed / retracted. Gates: `-E -W` EXIT=0, 0/0/0.
+
+### 1. ⭐⭐ Before minting a citation to EQUATION N, grep the corpus for what it already says about EQUATION N
+
+The brief characterised BMC 2010 **Eq. (52)** as *"the η-ascending level ordering /
+per-ξ-level edge-cosine recursion"*. True — and Eq. (52) states **two** things, and the
+corpus already carries a **measured refutation of the other half**:
+
+> `structured_geometry.rst` §`sn-tau-absorber-provenance` + `sn/angular/closure.py:1033-1070`
+> (Q5.6.4, 2026-08-11): imposing Eq. (52)'s *partition* (a cell's η-measure equals the
+> ordinate's weight) violates P3 on the shipped rule — ordinates outside their own cell go
+> **0/4 → 4/8 → 12/16 → 28/32** at `n_φ = 8/16/32/64`, the solve **diverges (NaN)** from
+> `n_φ ≥ 16`, and the mismatch ratio WIDENS with refinement (`[0.5858, 1.4142]` →
+> `[0.0770, 1.5683]`). *"BMC Eq. (52) is not a law; it is the statement that in THEIR
+> quadrature the weight equals the cell's η-measure."*
+
+Citing Eq. (52) bare at the three ordering sites would have imported, at
+`confidence = 1.0`, a claim the corpus explicitly refutes — and it would have contradicted
+`structured_geometry.rst:634`, which already cites `:cite:`BaileyMorelChang2010`` Eq. 52
+for exactly that refutation. ⟹ every Eq.-(52) citation I wrote names the **ORDER half
+only** and points at the refutation. This is L-060's census-before-repair rule applied to an
+**equation NUMBER** rather than to a formula: the corpus's prior reading is the constraint.
+⭐ The two readings turned out to be the *same equation* (accumulating a level's weights
+from `−sinθ` to `+sinθ` gives `Σw̄ = 2 sinθ`; BMC's `√(1−ξ²)` is ORPHEUS's `sinθ` because
+their axis letters are the mirror of ours) — so the brief was right and incomplete, which is
+the harder case to catch than a brief that is wrong.
+
+### 2. ⭐ A fictitious citation is a RE-POINT when its equation numbers are right — and the tombstone is worth more than the fix
+
+Every field traced to a *different real* publication (title → LLNL-CONF-407632 (2008);
+authors → the already-retracted JCP 227; `ANE 35, 1929-1936` → Zio & Zoia 2008;
+year 2009 → nothing). That is precisely why it survived two prior citation audits, so the
+field-by-field origin table is the durable artefact. ⭐ And the cheap self-refutation:
+**(author, year, volume) is over-determined — a journal volume pins its year**, so
+"vol. 35" (= 2008) refuted "2009" before any lookup. Worth running on any citation
+carrying all three.
+
+### 3. ⭐ ONE canonical record, N pointers — applied the round after learning it
+
+The BMC equation-number map (Eq. 11 sphere-α / Eq. 50 R-Z-α / Eq. 52 edge-cosine
+accumulation / Eq. 74 M-M τ), the ⚠ **published-typo** warning (Eq. (50)'s printed RHS is
+self-referential — corrected against the correctly-printed spherical twin Eq. (11)), and
+the Eq.-(52) scoping note live **once**, at a new `:ref:`bmc-equation-map`` beside the two
+existing Corrections. Nine sites point at it. Without this the typo warning alone would have
+been copied 5×, and the next correction would have had 5 places to miss.
+
+### 4. ⭐ "Use the bib key" is a RECORD instruction, not a RENDERING one — match the page's convention
+
+`discrete_measures.rst` carries a plain-text `References` section and, pre-edit, **zero**
+`:cite:`. Minting the page's only `:cite:` would have put two citation systems on one page.
+Resolution that honours both: plain-text inline + a full entry in the page's OWN References
+block. Report the deviation and its reason; the coordinator wanted the right *record*, which
+plain text names just as well.
+
+### 5. ⚠ When the cited claim is a CONVENTION, the fix is a RETRACTION — there is no equation to re-point to
+
+`directional.py:292` credited *"Bailey 2009 / Hébert convention"* for the axis assignment
+`(η, ξ, μ) = radial, azimuthal, axial`. `[VERIFIED ON SCAN]` **both** sources use the
+opposite (Hébert (3.152)/(3.157) p. 91; BMC Eq. (48) p. 156: μ = radial, η = azimuthal,
+ξ = axial). ORPHEUS may name its own axes; it may not credit the naming to sources using the
+other one. So the honest edit deletes the attribution, says why, and **leaves the convention
+prose untouched** — whether any arithmetic depends on the assignment is a separate,
+unperformed audit, and saying so in the tombstone is what stops the next reader "fixing" the
+axes.
+
+### 6. Mechanics that paid
+
+- **Per-edit `count(old) == 1` + assert-before-write over a 10-edit batch**: one guard fired
+  (title 67 code points, underline 66) with the tree **untouched** — no `git checkout`
+  recovery needed.
+- **AST doc-only proof per production file** answered the coordinator's explicit question
+  before it could become a dispute: all four `orpheus/numerics/quadrature/*.py` are
+  DOC/COMMENT-ONLY vs `HEAD`. Pair it with `python -W error::SyntaxWarning` + `py_compile`
+  + `import` — a docstring edit that adds `\b`/`\e` to a NON-raw docstring is a real
+  `SyntaxWarning` the `-W` sphinx gate never sees.
+- **Residual grep read by TENSE**: every surviving "2009" in the quadrature package is inside
+  a ⛔ tombstone. That is the acceptance criterion, not zero hits.
+

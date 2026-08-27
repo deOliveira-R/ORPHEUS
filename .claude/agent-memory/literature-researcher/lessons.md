@@ -10,9 +10,11 @@ files indexed by `MEMORY.md`, NOT here.
 
 ## L-001 — Bailey is the canonical cylindrical SN reference; state the geometry when mapping µ
 
-Bailey, Morel & Chang (2009) NSE: **Eq. 50** = α recursion, **Eq. 74**
-= Morel-Montry weights — the exact equations ORPHEUS implements for
-curvilinear discrete ordinates.
+Bailey, Morel & Chang **(2010)** NSE **165**(2):149-169,
+`10.13182/NSE08-66` (LOCAL): §V is R-Z, and **Eq. 50** = α dome
+recursion, **Eq. 52** = the per-ξ-level edge-cosine recursion (⟸ the
+η-ascending level ordering lives HERE, not in 50), **Eq. 74** =
+Morel-Montry τ. Sphere twins = Eqs. 11/12.
 
 **Why:** Bailey's µ = radial cosine = ORPHEUS `mu_x`, but in
 slab/spherical contexts µ means the *streaming* cosine. The symbol is
@@ -22,6 +24,18 @@ overloaded across geometries.
 curvilinear SN balance / the ΔA/w geometry factor, start at Bailey §4,
 not Lewis & Miller (who omit the asymptotic analysis explaining *why*
 the geometry factor exists).
+
+⛔ **CORRECTION (2026-08-27) — AGENT.md's own notation table is INVERTED
+for the cylinder; L-001 above is the correct one.** `[VERIFIED ON SCAN]`
+Hébert 2009 Ch.3 (3.152)/(3.157) p.91 and BMC 2010 Eq. (48) p.156 use the
+**SAME** assignment: **µ = RADIAL, η = AZIMUTHAL, ξ = AXIAL (level)**.
+AGENT.md says "our `mu_x` = their η (radial); our `mu_z` = their µ
+(axial)" — backwards for BOTH named sources. The redistribution term is
+the tell and it is one grep: whichever symbol sits inside `∂/∂ω(·ψ)` is
+the **azimuthal** cosine (η in both), and whichever multiplies
+`∂/∂r(rψ)` is the **radial** one (µ in both). Run that grep before
+mapping any curvilinear symbol; do not trust the inherited table.
+See [[bailey-ane-chimera-citation-refuted]].
 
 ## L-002 — A citation that lives only in a memory is a PHANTOM; resolve every DOI to a real database
 
@@ -40,6 +54,42 @@ established. The error compounds silently.
 against CrossRef/OpenAlex/OSTI. A reference whose only provenance is a
 prior memory entry is UNVERIFIED until a database confirms author +
 year + DOI. See [[knyazev-1993-cylinder-anisotropic-ic]].
+
+⭐ **Sharpening (2026-08-27) — the CHIMERA, which defeats a title search
+because every field is REAL, just from a different paper. Test the
+VOLUME/PAGE SLOT, not the title.** `[M]` ORPHEUS cited "Bailey, Adams,
+Yang, Zika (2009), *A piecewise linear discontinuous FE spatial
+discretization of the transport equation*, Ann. Nucl. Energy **35**,
+1929-1936". Title search is inconclusive-looking (a near-title paper DOES
+exist — an LLNL conference paper, different authors, geometry clause
+dropped); author search finds a real quartet (from a *different*,
+already-retracted JCP diffusion paper); the page range makes it look
+*more* precise than an ordinary phantom. **The decisive test is the
+slot**: a journal+volume+pages triple is a coordinate that is either
+occupied by your paper or by someone else's. `[M]` ANE 35:1929-1936 is
+Zio & Zoia's Bayesian-MCMC BWR paper (`10.1016/j.anucene.2008.03.007`).
+
+**Three mechanical steps, all cheap:**
+(a) **Enumerate the venue's slot** — CrossRef
+`filter=issn:<ISSN>,from-pub-date:…` with `select=title,volume,page,DOI`,
+then filter locally on the first page. Names the true occupant.
+(b) **Check volume↔year internally** — a volume number and a year are two
+claims about the same object; ANE 35 = **2008**, so "35 … (2009)" was
+self-refuting before any lookup.
+(c) **Get the denominator from the journal index, not free text** —
+`journals/<ISSN>/works?query.author=<surname>` returns `total-results`
+(here **4**, across the entire run of ANE, none a match). That is a
+countable, reportable denominator (L-012a) and it is immune to the
+homograph blindness of free-text search (L-012 sharpening).
+
+⭐ And the payoff that makes this worth doing rather than just deleting the
+citation: **a chimera's EQUATION NUMBERS are usually still valid — for the
+paper the number was stolen from.** Here "Eq. 50" was correct all along for
+BMC 2010 NSE 165, which was LOCAL and already in `refs.bib`. So the fix was
+a **re-point, not a deletion**, and reporting it as "citation is fake,
+delete it" would have thrown away correct physics provenance. Always ask
+*which real paper does this equation number fit?* before recommending
+removal. See [[bailey-ane-chimera-citation-refuted]].
 
 ## L-003 — A code docstring's citation is a CLAIM, not a fact; verify it
 

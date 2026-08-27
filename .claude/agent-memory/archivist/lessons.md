@@ -19,6 +19,41 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⭐⭐ Before minting a citation to EQUATION N, grep the corpus for what it already says
+  about EQUATION N.** A brief's characterisation can be RIGHT and INCOMPLETE — the harder
+  case. `[M]` BMC Eq. (52) states TWO things; the corpus already carries a MEASURED refutation
+  of the second (imposing its partition violates P3, `0/4→4/8→12/16→28/32`, NaN at `n_φ ≥ 16`,
+  mismatch widening `[0.586,1.414]→[0.077,1.568]`) and a page already cites Eq. 52 FOR that
+  refutation. A bare citation would have imported the refuted half at 3 sites at
+  `confidence = 1.0`. Cite the half your sentence claims, and point at the refutation.
+  (L-060's census-before-repair, applied to an equation NUMBER.) → L-070
+- **⭐ A fictitious citation is a RE-POINT when its equation numbers are right — and the
+  field-by-field origin table is worth more than the fix**, because a record whose every
+  field traces to a *different real* publication is what survives audits. ⭐ Cheap
+  self-refutation: **(author, year, volume) is over-determined — a journal volume pins its
+  year**, so "vol. 35" (=2008) refutes "2009" before any lookup. → L-070
+- **⭐ "Use the bib key" is a RECORD instruction, not a RENDERING one.** `[M]` the target page
+  had a plain-text `References` block and ZERO `:cite:`; minting its only one puts two
+  citation systems on one page. Plain-text inline + an entry in the page's OWN References
+  block names the same record and keeps the convention. → L-070, L-006
+- **⚠ When the cited claim is a CONVENTION, the fix is a RETRACTION — there is no equation to
+  re-point to.** A comment credited two sources for an axis assignment BOTH use the opposite
+  of. Delete the attribution, say why, and leave the convention prose untouched — naming the
+  un-performed audit in the tombstone is what stops the next reader "fixing" the axes. → L-070
+- **⭐⭐ A brief's "these are CORRECT — do not touch" LIST is a classification, and it can be
+  wrong; the brief's governing RULE outranks its list.** `[M]` "Bailey … 2009" is TWO papers by
+  the same four authors — the retracted *JCP 227* **diffusion**/polyhedral entry and an
+  *Ann. Nucl. Energy 35* **PWLD-transport** entry — so an author-year string is invisible to
+  every grep. A protect-listed site (`transport/spatial/scheme.py:42`) was the RETRACTED entry
+  verbatim, cited for "Eq. 50 (dome recursion) … feed the curvilinear cell update". Resolve
+  every citation site by its **journal + title**, and expect the brief's census to be a sample
+  (26 candidate lines vs ~12 briefed). → L-070
+- **⭐⭐ For a "family X does not use Y" claim, the evidence is a CAPABILITY THAT EXISTS AND
+  DECLINES Y — an absence cannot separate "never" from "not yet", and "not yet" LICENSES WORK.**
+  `[M]` MoC ray-traces concentric annuli on a cylindrical mesh, CP ships a real sphere, MC a
+  real cylinder — three curvilinear capabilities, zero α. ⚠ When refuting a claim about {A,B},
+  the counter-examples must come from {A,B}: my draft used CP+MC for a claim about MoC+CP, and
+  MoC's own annuli were the strongest one I had not looked for. → L-070
 - **⭐ TWO AGREEING SOURCES CAN BOTH BE WRONG — corroboration is not independence.** A brief said
   a gate held *"dated 2026-08-21"* and an in-tree comment independently agreed; `[M]`
   `git log --date=short` puts every commit of that step on **2026-08-20** (a FUTURE date on both
@@ -329,6 +364,46 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   `references`=docstring · `type_uses`=**a type annotation, i.e. a CODE bug** · `calls`=the import
   that minted it. And nexus counts doc sites **per PAGE** (2 "sites" was 9 roles), while the unit
   of repair is the TARGET tree-wide (3 reported sites, 13 real). → L-052
+- **⭐⭐ A dangling `:eq:` DOES warn — MEASURED, so it is in the GATED class, not the silent
+  one, and that FLIPS L-063's rename caution.** `[M]` throwaway 2-file Sphinx project with
+  positive+negative controls, ~10 s: `WARNING: equation not found: <label> [ref.eq]`, EXIT=1
+  under `-W`; the live label emits an `href`. L-063's "KEEP + note, renaming risks a silent
+  break" was argued from **8 cross-doc `:ref:` citers**; with `:eq:` citers only the build
+  catches every miss ⟹ RENAME is safe. Never carry a ref-role caution across role CLASSES
+  without re-measuring. → L-070
+- **⭐⭐ A POSITIVE CONTROL must be NON-ZERO — its VALUE carries no part of the argument — so
+  publish the PREDICATE, never the table of counts.** A frozen control count in a docstring
+  rots on the next edit of the files it counts, which is the defect class most correction
+  passes exist to repair. Shape that works: a `.. code-block:: python` carrying the exact
+  patterns + root + occurrence semantics + its own `assert`s (controls non-zero, subjects
+  zero), under a LABELLED section every other site `:ref:`s. Keep the ZEROS — they are the
+  falsifiable finding. ⭐ And **RUN THE RECIPE AS PUBLISHED**: extract the block back out of
+  the `.rst`, `compile()`, `exec` — its own asserts are the verdict; a recipe that does not
+  run is the same defect as a number that does not reproduce, and no build checks it.
+  ⭐ Prefer an ENUMERATION to a COUNT (a list can be checked by reading it): my "twelve files"
+  was **thirteen**, and my own prose enumeration in the same sentence summed to 13. → L-070
+- **⭐⭐ When one pass cites an evidence set TWICE, it mints a TWIN SOURCE — define it once,
+  `:ref:` it everywhere.** `[M]` mine: an `.. important::` block naming one "six independent
+  spellings" set and a census table's column headers naming a DIFFERENT six, 900 lines apart,
+  same afternoon. The published numbers then belonged to the table's partition while the prose
+  beside them named the other — so two of six numbers described spellings no reader could see.
+  ⚠ Three independent causes were live at once (pre-edit values · partition mismatch ·
+  `re.I`+unanchored `redistribut` absorbing every `AngularRedistribution`, 67 vs 56), which is
+  exactly why the numbers looked plausible. → L-070
+- **⭐ Adopting a reviewer's EXACT patterns is evidence, not concession** — two
+  independently-vocabularied instruments agreeing is the acceptance evidence. Keep theirs
+  verbatim and ADD what yours had that theirs lacked (here the paraphrase spellings `.reduced`
+  and `connection[ -]coefficient`). → L-070, L-067
+- **⚠ When a coordinator edits concurrently, the porcelain flag is NOT authorship — and a DATE
+  is not a signature.** `git status` showed 5 files I never opened; my signature grep matched 3
+  of them on the shared `2026-08-27`. Reading the matched lines settled it. Discriminate by
+  CONTENT, with a token only you would write. → L-070, L-056
+- **⭐⭐ The CONTROL column of a census table you PUBLISH moves under your own edits.** I drafted
+  `sn 36/66/16/66/44/2` pre-edit; my own ⛔ tombstones name the module, so post-edit it is
+  `.../67/44/3` — the table would have shipped unreproducible against its own tree. Re-measure
+  AFTER the last edit, and prefer the **file list** (stable) to the count for the load-bearing
+  universal. ⚠ Same pass: "every consumer lives in `sn/`, `transport/`, `derivations/`" silently
+  omitted the module's OWN package. → L-070
 - **⭐ Two defects YOUR OWN new prose introduces, both `-W`-caught, both mechanical:** (a) an
   italic run interrupted by a role — `*"… (*:math:`X`*) …"*` — gives *"Inline interpreted text …
   start-string without end-string"*; escape the seam: `(*\ :math:`X`\ *)`. (b) **NEVER hand-align a
@@ -558,6 +633,20 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   labeled; the residue is true intermediates). Fill only the recognizable gap classes: a governing
   eq parallel to a sibling page · an unlabeled object the corpus uses BY NAME · a geometry/sibling
   parallel gap · a paper-numbered eq in the page's established family. 2-of-31 is correct. → L-030
+- **⭐⭐ Name the OBJECT, not the paper — an eq-label naming a citation is a latent staleness
+  bug by construction** (attributions get retracted, equations do not).
+  `bailey-dome-recursion` → `alpha-dome-recursion`. Order of checks: `grep tests/` for the OLD
+  name (0 ⟹ no `verifies` edge) · grep the NEW name across code AND the PROSE corpus
+  (plan-authoring §1: free can mean *rejected*) · family fit · move the `.. vv-status:` in the
+  SAME edit and let `matrix.rst` regenerate (`[M]` exactly one row moved alphabetically; verify
+  with `_scan_theory_equations(Path('docs/theory'))` — old label gone from `all_labels` AND
+  `documented`, 0 violations). → L-070
+- **⭐ Two labels for ONE equation: publish the REGISTER each page owns, do not collapse.**
+  `alpha-recursion` (methods page, the `verifies` target, 115 tests) and
+  `alpha-dome-recursion` (foundations page, `documented`, 0 tests) state the same recurrence.
+  A `.. note:: **Two labels, one recursion.**` naming geometry-primitive vs discretisation is
+  the right output; collapsing moves a generated matrix row and re-points markers a docs pass
+  may not touch. → L-070, L-064
 - **Section-label and equation-label are DIFFERENT namespaces** that coexist under one name with no
   warning — a name owning both is TWO independent single-home checks. Verify with
   `grep -c '^\.\. _X:'` or `grep -c ':label: X'`, never a raw mention count. → L-024, L-003
@@ -765,6 +854,12 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   the first — do not rewrite it.** Ownership moved twice (mesh → leaf at #346, mesh-key →
   space-key at CS4b S5); two notes give the reader the whole arc, each with its own
   one-command `[M]`. → L-066
+- **⭐⭐ An aspirational item refuted ON THE MERITS closes as NOT APPLICABLE, never as
+  pending — and a stale REASON on a surviving FACT keeps the instruction and swaps the
+  reason.** "Leave it, it's only a plan" ships a plan a future session will execute. Four
+  registers, one repair each: present-tense-FALSE ⟹ rewrite + dated ⛔ tombstone quoting the old
+  text · aspirational-but-refuted ⟹ ⛔ *closed as NOT APPLICABLE* + the structural reason ·
+  stale-reason ⟹ keep the imperative, replace the *because* · correct history ⟹ LEAVE. → L-070
 - **A retirement propagates to BOUNDS and to NEGATIVE claims, which no symbol grep sees.** A
   numeric bound is a claim about the retired object (re-measure it from the live producer). And
   grep the retired name inside `independent of|unaffected by|does not depend on` — a negative
@@ -1032,6 +1127,13 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   Derive it a third way as UNLABELLED math, cite the SSOT's label, open with
   `.. important:: … Edited there, consumed here.` **Net new labels on a 1158-line page: ONE.**
   → L-064
+- **⭐⭐ A STRUCTURAL claim ("X is not merely unmigrated, it can never apply") publishes as an
+  IFF with NUMBERED conditions + a per-family adjudication table + a `.. note::` "what WOULD
+  change this answer".** The last is what makes it falsifiable rather than an assertion, and it
+  is the only thing that pre-empts the "so it's just not built yet" re-reading. Instance: the α
+  dome is needed iff (1) an angular unknown survives discretisation indexed, (2) in a LOCAL
+  ROTATING frame, (3) with its derivative COLLOCATED — MoC fails 2, CP and MC fail 1, and a
+  DG/FE-in-angle scheme would fail 3 and need a different object. → L-070
 - **Stub → rich narrative: read memo → production docstrings → tests → SymPy, in that order.** The
   docstrings are the VERBATIM prose seed; the memo carries the honest interim scope — preserve it,
   don't over-claim. Never expand a stub without reading the SymPy; on an algebra error

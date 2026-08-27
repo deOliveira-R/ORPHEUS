@@ -54,6 +54,15 @@ into UNEXPLORED. A bare "category theory — no trigger" is weaker than "categor
 theory — role-parameterization win already captured concretely by affine+Krylov;
 no abstract-nonsense lever needed."
 
+⭐ **SHARPENING (2026-08-27, the α cross-method attack): a refutation must record
+the QUESTION it was refuted FOR, because the same frame can be decisive on a
+different question.** See L-021 — the symplectic frame was correctly refuted for
+a DESIGN question ("does it buy a better scheme?" — no) and is the load-bearing
+answer to a CLASSIFICATION question ("which families share this object?"). A
+banner reading "⛔ symplectic — no independent lever" would have suppressed the
+best available answer. Write "refuted FOR <question>; the fact it establishes is
+<fact>" — the *fact* survives even when the *lever* does not.
+
 ---
 
 ## L-002 -- A first test that cannot fail is rejected output — make it DISCRIMINATE
@@ -987,3 +996,68 @@ object AND its collaborators before reasoning, and write the two-layer table
 the mapping inverts the brief's conclusion, say so plainly and then say which
 half of the brief's diagnosis survives — that half is usually the real
 deliverable.
+
+---
+
+## L-021 -- On a CROSS-METHOD "who consumes X" brief, find the GENERAL-GEOMETRY (or general-case) derivation FIRST: one equation decides every row, and a refutation must carry the QUESTION it was refuted for
+
+Two moves from the α-dome cross-method attack
+([[alpha-dome-chart-vs-measure-cross-method]]). Both converted a per-method
+survey — eight separate arguments, each arguable — into consequences of one
+citable equation.
+
+**(a) Hunt the general-case derivation before answering ANY row.** A brief that
+asks "which of these N families needs X?" invites N independent arguments, and
+N independent arguments is N chances to be plausibly wrong. The literature
+almost always contains a derivation of X for the GENERAL case, and reading it
+collapses the whole table. Worked: **Pomraning 1989, NSE 101:330, "The Transport
+Equation in General Geometry"** derives the angular-derivative coefficient for an
+ARBITRARY chart — his Eq. (68) expresses `dμ/ds` purely in **principal radii of
+curvature + metric coefficients**, i.e. the second fundamental form. That single
+equation (i) settled chart-vs-measure outright (no quadrature appears on the RHS
+at all), and (ii) **DERIVED three rulings the project had asserted**: slab
+neutrality (`ρ=∞`), the sphere's azimuthal decoupling (**umbilic**: `ρ_u=ρ_v` ⟹
+`cos²φ+sin²φ=1` ⟹ φ cancels), and the cylinder's exact `μ_z` conservation (the
+axial principal curvature is **zero**, so the only channel that could move `μ_z`
+is identically absent). TELL that you need this move: the brief lists ≥4 families
+and you are about to reason about each separately. CHECK: grep the local
+literature folder for "general geometry" / "arbitrary geometry" / "general
+formulation" BEFORE the first per-family argument.
+
+Corollary that pays on its own: **the general derivation also yields the
+3-clause discriminator that GENERATES the table** rather than summarising it.
+Here: a family needs α iff it has (1) an angular UNKNOWN, (2) indexed by a LOCAL
+rotating frame, (3) whose derivative is discretised by COLLOCATION. Every "no"
+row then fails a *nameable* clause instead of carrying a bespoke excuse — and
+the clause is what a future session can re-apply to a family nobody asked about.
+
+**(b) A refutation must record the QUESTION it was refuted FOR.** Same frame,
+different question, opposite verdict — and because §3-style banners are permanent
+(the plan-authoring "refuted premise stays" rule), the stale verdict is the one a
+summariser carries forward. Worked: the **symplectic / momentum-map** frame is
+recorded ⛔ REFUTED in [[cylinder-angular-march-jacobi-ladder]] — correctly, for a
+DESIGN question ("does it buy a better scheme?" — no, because the chart that
+conserves `p` by construction IS MoC). For a CLASSIFICATION question it is the
+decisive answer: `[D]` `p = r sinω` (cylinder) and `p² = r²(1−μ²)` (sphere) are
+exactly conserved along every characteristic, so *"a method that uses `p` as a
+COORDINATE generates no redistribution term; a method that uses `(r,x)` must carry
+the connection"* classifies MoC/CP/MC against SN/Pn in one sentence. ⟹ write
+refutations as **"refuted FOR <question>; the FACT it establishes is <fact>"** —
+the fact outlives the lever. This is L-001's sharpening, applied.
+
+**(c) The elegance-verdict shape this produces, worth reusing verbatim.** When a
+primitive is a general object composed with discretisation choices, do not answer
+"is it general?" — answer with the LAYER TABLE (continuous object / evaluation
+points / reconstruction rule) plus **two tests that point opposite ways**: hold
+the measure fixed and change the chart (does it move? ⟹ not a measure invariant);
+hold the chart and refine the measure (does it have a continuum limit as a
+function of the coordinate? ⟹ it IS a chart object). Two opposed tests is what
+makes it a verdict rather than a preference, and neither alone suffices.
+
+How to apply: on any cross-method consumption brief — (1) find and read the
+general-case derivation before arguing a single row; (2) extract the discriminator
+clauses and generate the table from them; (3) check every in-memory ⛔ REFUTED
+banner for whether it was refuted for THIS question; (4) close with the layer
+table + the two opposed tests. Pairs with L-017 (an optimality theorem on the
+target space bounds every design) — same family: **look for the theorem that
+makes the survey unnecessary.**

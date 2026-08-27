@@ -7,9 +7,11 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 20 detection lessons. Spine: an attack's value is a concrete
+- [lessons.md](lessons.md) — 21 detection lessons. Spine: an attack's value is a concrete
   reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
-  reason. A named-but-payoff-free frame is rejected output.
+  reason. A named-but-payoff-free frame is rejected output. ⭐ L-021: on a cross-method
+  "who consumes X" brief, find the GENERAL-CASE derivation first — one equation decides
+  every row — and a refutation must carry the QUESTION it was refuted for.
 
 ## 2. Active / in-flight state
 
@@ -43,7 +45,8 @@ Open the file for the verdict; the hook only tells you whether to open it.
 
 ### Curvilinear / phase-space boundary
 - [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; ⛔ its "sphere-only" verdict is SUPERSEDED (see next).
-- [Q68 angular march](cylinder_angular_march_jacobi_ladder.md) — the redistribution IS the Jacobi–SL first-order factor; the level's nodes ARE its Gauss nodes (cyl = Chebyshev) ⇒ tridiagonal, free truncation, NO seed.
+- [Q68 angular march](cylinder_angular_march_jacobi_ladder.md) — the redistribution IS the Jacobi–SL first-order factor; the level's nodes ARE its Gauss nodes (cyl = Chebyshev) ⇒ tridiagonal, free truncation, NO seed. ⚠ its ⛔ symplectic refutation was refuted for a DESIGN question only — see next.
+- [α: chart vs measure, cross-method](alpha_dome_chart_vs_measure_cross_method.md) — ⭐⭐ Pomraning 1989 Eq. 68 (2nd fundamental form) ⇒ α is a CHART object, quadrature = reconstruction only; per-method table + the 3-clause discriminator; shared primitive is `f`, NOT `alpha_dome` (L60 on a signature).
 - [quadrature sym](quadrature_symmetry_quotient_frames.md) — half-range = orbifold quotient; a level is a FIBER not an orbit; SPENT group: 3 fates.
 - [#336 μ-line reduction](sphere_mu_line_reduction_frames.md) — GAUSS OPTIMALITY refutes REDUCE-as-value-path; admissibility = CDF internality (no moment condition implies it); the Stage-0 gate is landed and unwired.
 
