@@ -57,7 +57,12 @@ class TestAlphaCoefficients:
         np.testing.assert_allclose(sn_mesh.reduced.angular.alpha_per_level[0][-1], 0.0, atol=1e-14)
 
     def test_alpha_recursion(self):
-        """α_{n+1/2} = α_{n-1/2} − w_n μ_n (Bailey et al. 2009 Eq. 50)."""
+        """α_{n+1/2} = α_{n-1/2} − w_n μ_n (Lathrop & Carlson 1966).
+
+        ⛔ Cited "Bailey et al. 2009 Eq. 50" until 2026-08-27 — the
+        wrong Bailey paper (a piecewise-linear FE *diffusion* paper,
+        unrelated to curvilinear SN), retracted at #168 Phase B.
+        """
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)

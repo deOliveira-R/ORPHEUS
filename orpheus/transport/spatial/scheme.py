@@ -39,11 +39,32 @@ References
   Difference, weighted-DD, Linear Discontinuous); §4.5 — the
   Morel--Montry angular closure used for
   :math:`\psi_{n+1/2,\,i}`.
-* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
-  *A piecewise linear finite element discretization of the
-  diffusion equation for arbitrary polyhedral grids*.
-  JCP 227, 3738--3757.  Eq. 50 (dome recursion) and Eq. 74
-  (Morel--Montry) feed the curvilinear cell update.
+* Lathrop, K., & Carlson, B. (1966). *J. Comp. Phys.* 1:173 — the
+  :math:`\alpha` dome recursion that feeds the curvilinear cell
+  update; implemented form Hébert (2009) *Applied Reactor Physics*
+  §3.9.3 (cylinder) / §3.9.4 (sphere), Eqs. 3.423-3.424, which is
+  also the authority for the cell balance and the
+  :math:`\Delta A / w` factor.
+* Morel, J. E., & Montry, G. R. (1984). *Analysis and Elimination of
+  the Discrete-Ordinates Flux Dip*.  Transport Theory and Statistical
+  Physics 13(5):615--633 — primary source for the weighted angular
+  closure :math:`\tau`; the form implemented is Bailey, Morel & Chang
+  (2010), NSE 165(2):149--169, Eqs. (42)/(43).
+
+  ⛔ *Retracted citation (2026-08-27).*  This entry read "Bailey,
+  T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).  A piecewise
+  linear finite element discretization of the diffusion equation for
+  arbitrary polyhedral grids. JCP 227, 3738-3757.  Eq. 50 (dome
+  recursion) and Eq. 74 (Morel--Montry) feed the curvilinear cell
+  update."  That is the **wrong Bailey paper** — a piecewise-linear
+  FE *diffusion* paper unrelated to curvilinear S\ :sub:`N`.  Issue
+  #168 Phase B retracted it across
+  :mod:`orpheus.geometry.reduced_operator`,
+  :mod:`orpheus.transport.spatial.diamond` and
+  :mod:`orpheus.sn.angular.closure`; this module and
+  ``docs/theory/methods/sn/index.rst`` were missed.  Full account:
+  ``docs/theory/methods/sn/curvilinear_one_group.rst``
+  ``§sn-citation-corrections``.
 * See also :doc:`/theory/methods/sn/index`, "Cell update
   strategies (the strategy contract)".
 

@@ -17,7 +17,9 @@ reflective cylinder, the curvilinear apply-matvec must satisfy
    L \cdot \psi_{\text{flat}} = \Sigma_t \cdot \psi_{\text{flat}}
 
 per ordinate, per cell.  Streaming + angular redistribution telescope
-to zero on a flat field (Bailey's α-dome invariant + Pomraning
+to zero on a flat field (the α-dome invariant, Lathrop & Carlson
+1966 — ⛔ attributed to "Bailey" here until 2026-08-27, the wrong
+paper, retracted at #168 Phase B — plus Pomraning
 structural-singularity isotropy preservation).  The remaining term is
 the collision operator ``Σ_t · ψ``.
 

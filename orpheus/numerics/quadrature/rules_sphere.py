@@ -37,6 +37,20 @@ References
 * Lewis, E.E. and Miller, W.F. (1993). *Computational Methods of
   Neutron Transport*. Wiley. §4.2 (level-symmetric construction
   and degree of exactness).
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010). "The Asymptotic
+  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes."
+  *Nucl. Sci. Eng.* **165**(2), 149-169, doi:10.13182/NSE08-66.
+  **Eq. (50)** is the cylindrical (R-Z) :math:`\alpha`-recursion the
+  ``LevelStructure`` below exists to feed; **Eq. (52)** is the
+  per-level edge-cosine accumulation, i.e. the ORDER of a level.
+
+  ⛔ *Retracted citation (2026-08-27).* Three sites in this module
+  credited "Bailey et al. 2009 Eq. 50" to a non-existent *Annals of
+  Nuclear Energy* **35**, 1929-1936 record. The equation numbers were
+  right and belong to BMC 2010; two of the three sites are about the
+  ORDER and so take Eq. (52), not Eq. (50). Full account, the
+  equation-number map, the ⚠ published-typo warning on Eq. (50) and
+  the scoping note on Eq. (52): ``docs/theory/methods/sn/curvilinear_one_group.rst`` §bmc-equation-map.
 """
 
 from __future__ import annotations
@@ -161,7 +175,8 @@ class LevelStructure:
     Captured alongside the :class:`DiscreteMeasure` returned by
     :func:`level_symmetric_sn` and :func:`product_mu_phi`. The cylindrical
     SN sweep needs this structure to compute the azimuthal redistribution
-    coefficients (Bailey et al. 2009, Eq. 50).
+    coefficients (Bailey-Morel-Chang 2010, Eq. (50)), which march per
+    level in the order Eq. (52) fixes.
 
     Attributes
     ----------
@@ -172,8 +187,9 @@ class LevelStructure:
         For each level :math:`p`, the indices into the flattened node
         array of ordinates on that level, ordered by the **fiber's own
         coordinate**: primarily by increasing :math:`\eta = \mu_x` (the
-        radial cosine — the cylindrical sweep convention from Bailey
-        et al. 2009 Eq. 50), ties broken by increasing :math:`\varphi`
+        radial cosine — the cylindrical sweep convention from
+        Bailey-Morel-Chang 2010 Eq. (52)), ties broken by increasing
+        :math:`\varphi`
         then increasing :math:`\operatorname{sign}(\mu_z)`.
 
         :meth:`from_level_membership` is the constructor that
@@ -268,8 +284,10 @@ class LevelStructure:
         The order is the fiber's own coordinate, lexicographically:
 
         1. :math:`\eta = \mu_x` **ascending** — the cylindrical sweep
-           convention (Bailey et al. 2009 Eq. 50), and the only
-           component any consumer's arithmetic reads;
+           convention (Bailey-Morel-Chang 2010 Eq. (52) — its ORDER
+           half only; the partition half it also states is refuted on
+           our rule), and the only component any consumer's arithmetic
+           reads;
         2. :math:`\varphi` **ascending** — the fiber angle;
         3. :math:`\operatorname{sign}(\mu_z)` **ascending** — which
            circle of the fiber, needed only under

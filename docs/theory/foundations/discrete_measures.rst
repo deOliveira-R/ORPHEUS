@@ -952,7 +952,11 @@ always names its stage — points at the paragraph that explains it.
      axes (or include axis-aligned orbits, in the Lebedev case).
    - ``level_structured`` — exposes per-:math:`\mu` polar levels for
      the cylindrical SN sweep's azimuthal redistribution coefficients
-     (Bailey et al. 2009 Eq. 50).
+     (Bailey-Morel-Chang 2010 Eq. (50)), which march per level in
+     the order its Eq. (52) fixes.  ⛔ Credited to a **non-existent**
+     "Bailey et al. 2009" *Annals of Nuclear Energy* record until
+     2026-08-27; the equation numbers were right, the record was not
+     (:ref:`bmc-equation-map`).
    - ``half_range_clean`` — ``measure.restrict(lambda x: x > 0)``
      gives a valid quadrature without re-normalisation.
 
@@ -1729,3 +1733,12 @@ References
   Physics*, Greenspan, Kelber, Okrent, eds., Gordon & Breach.
   Level-symmetric :math:`S_N` quadratures, also :math:`O_h`-invariant
   by construction.
+* Bailey, T.S., Morel, J.E. and Chang, J.H. (2010). "The Asymptotic
+  Diffusion-Limit Accuracy of :math:`S_N` Angular Differencing
+  Schemes." *Nuclear Science and Engineering* **165**, no. 2, 149-169,
+  doi:10.13182/NSE08-66.  **Eq. (50)** is the cylindrical (R-Z)
+  :math:`\alpha`-recursion that ``level_structured`` exists to feed;
+  **Eq. (52)** fixes the order of a level.  ⛔ Both were credited to a
+  **non-existent** "Bailey et al. 2009", *Annals of Nuclear Energy*
+  **35**, 1929-1936, until 2026-08-27 — the equation numbers were
+  right, the record was not (:ref:`bmc-equation-map`).

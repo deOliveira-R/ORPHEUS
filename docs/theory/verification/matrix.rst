@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10134**
+Total tests collected: **10142**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1634, 16.1%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7134, 70.4%
+   foundation, 7142, 70.4%
    unmarked, 5, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10050
+   explicit, 10058
    class-name, 46
    func-name, 0
    case, 33
@@ -111,6 +111,7 @@ Module × level grid
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
+   curvilinear/test_alpha_defect_normalization, 0, 0, 0, 0, 8, 0
    curvilinear/test_angular_beta_identity, 0, 0, 0, 0, 14, 0
    curvilinear/test_angular_endpoint_defect, 0, 0, 0, 0, 6, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
@@ -888,6 +889,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
 - ``alpha-dome-closure``
+- ``alpha-dome-recursion``
 - ``angular-cell-partition``
 - ``angular-windowing-aniso-factoring``
 - ``angular-windowing-moment-iterate``
@@ -901,7 +903,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``apply-solve-parallel-identity``
 - ``apply-solve-source-iteration-series``
 - ``apply-solve-within-group-balance``
-- ``bailey-dome-recursion``
 - ``balance-cartesian-1d-eq``
 - ``balance-cartesian-2d-eq``
 - ``bc-affine-linear-factor``

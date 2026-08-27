@@ -3898,7 +3898,10 @@ def _build_spherical_anisotropic_continuous_reference() -> ContinuousReferenceSo
         phi=lambda r: mms.phi_exact(r),
         provenance=Provenance(
             citation=(
-                "Bailey 2009 (curvilinear SN); Oberkampf & Roy 2010, "
+                "Bailey-Morel-Chang 2010, NSE 165(2):149-169 (curvilinear SN "
+                "angular differencing; 'Bailey 2009' here until "
+                "2026-08-27 was the wrong-paper citation retracted "
+                "at Issue #168 Phase B); Oberkampf & Roy 2010, "
                 "Ch. 6 (MMS fundamentals); vv-principles failure "
                 "mode #7 (MMS simplification bias)"
             ),
@@ -3949,7 +3952,10 @@ def _build_cylindrical_anisotropic_continuous_reference() -> ContinuousReference
         phi=lambda r: mms.phi_exact(r),
         provenance=Provenance(
             citation=(
-                "Bailey 2009 (curvilinear SN); Oberkampf & Roy 2010, "
+                "Bailey-Morel-Chang 2010, NSE 165(2):149-169 (curvilinear SN "
+                "angular differencing; 'Bailey 2009' here until "
+                "2026-08-27 was the wrong-paper citation retracted "
+                "at Issue #168 Phase B); Oberkampf & Roy 2010, "
                 "Ch. 6 (MMS fundamentals); vv-principles failure "
                 "mode #7 (MMS simplification bias)"
             ),

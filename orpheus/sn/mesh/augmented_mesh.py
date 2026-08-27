@@ -297,9 +297,15 @@ class SNMesh(MaterialMesh):
         # Dispatch stencil setup by coordinate system.
         #
         # Curvilinear connection-coefficient math (sphere / cylinder) lives
-        # in :mod:`orpheus.geometry.reduced_operator` (Wave B Issue 6) so
-        # MoC and CP can consume the same primitive — Cardinal Rule 2
-        # forbids duplicating it on each solver-side mesh class.  The
+        # in :mod:`orpheus.geometry.reduced_operator` (Wave B Issue 6)
+        # because it is CHART data, not solver data: one object serves the
+        # sphere and the cylinder, and Cardinal Rule 2 forbids duplicating
+        # it on each solver-side mesh class.  (⛔ The reason recorded here
+        # until 2026-08-27 was "so MoC and CP can consume the same
+        # primitive".  They cannot and will not — neither forms an angular
+        # redistribution term; see structured_geometry.rst "Who needs a
+        # connection coefficient — and who does not".  The placement is
+        # still right, for the chart-data reason above.)  The
         # Cartesian per-axis streaming stencils are SN-specific (DD
         # denominator precomputation) and stay local to ``_setup_cartesian``.
         #
@@ -312,8 +318,9 @@ class SNMesh(MaterialMesh):
         # ``MaterialMesh._init_data`` (the whole-mesh coordinate system;
         # multi-axis tuples are all-Cartesian by construction). The 1-D
         # arms hand the legacy ``Mesh1D`` to the reduced streaming
-        # constructors (the genuine remaining Mesh1D consumers — shared
-        # with MoC/CP via :mod:`orpheus.geometry.reduced_operator`).
+        # constructors (the genuine remaining Mesh1D consumers; ⛔ "shared
+        # with MoC/CP via :mod:`orpheus.geometry.reduced_operator`" until
+        # 2026-08-27 — measurably false, see above).
         match self.coord:
             case CoordSystem.CARTESIAN:
                 self._setup_cartesian()

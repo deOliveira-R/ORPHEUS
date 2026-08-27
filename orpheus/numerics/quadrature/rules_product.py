@@ -82,11 +82,19 @@ in ``tests/``, so the derivation and the walk verify each other.
 References
 ----------
 
-* Bailey, T.S., Adams, M.L., Yang, B., and Zika, M.R. (2009). "A
-  piecewise linear discontinuous finite element spatial discretization
-  of the transport equation." *Annals of Nuclear Energy* **35**,
-  1929-1936. Eq. 50 — α-recursion convention used by the cylindrical
-  sweep that consumes this product rule.
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010). "The Asymptotic
+  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes."
+  *Nucl. Sci. Eng.* **165**(2), 149-169, doi:10.13182/NSE08-66.
+  **Eq. (50)** is the cylindrical (R-Z) :math:`\alpha`-recursion used by
+  the sweep that consumes this product rule; **Eq. (52)** fixes the
+  order of a level, which is what this module's per-level index lists
+  are sorted by.
+
+  ⛔ *Retracted citation (2026-08-27).* This entry named a
+  non-existent "Bailey, Adams, Yang, Zika (2009), Annals of Nuclear
+  Energy 35, 1929-1936"; the equation numbers were right and belong to
+  BMC 2010 above. Full account + the ⚠ published-typo warning on
+  Eq. (50): ``docs/theory/methods/sn/curvilinear_one_group.rst`` §bmc-equation-map.
 """
 
 from __future__ import annotations
@@ -575,7 +583,11 @@ def product_mu_phi(
     Gauss-Legendre nodes (axial cosine), inner loop over the
     :math:`n_\phi` azimuthal samples. Per-level indexing lists are
     sorted by increasing :math:`\eta = \mu_x` to match the
-    cylindrical-sweep convention from Bailey et al. (2009) Eq. 50.
+    cylindrical-sweep convention from Bailey-Morel-Chang 2010 Eq. (52).
+    ⚠ Eq. (52) states two things; only its ORDER transfers here. Its
+    other half - that a cell's radial-cosine measure equals the
+    ordinate's weight - is REFUTED on this rule and is not what the
+    sort means. See ``docs/theory/methods/sn/curvilinear_one_group.rst`` §bmc-equation-map.
 
     Weight sum: :math:`\sum_i w_i = 4\pi`.
 

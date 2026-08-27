@@ -1145,9 +1145,9 @@ class TestResidual:
 
         Term activation: every active solver term in each branch is
         exercised — slab has streaming + collision; sphere /
-        cylinder have streaming + collision + Bailey
+        cylinder have streaming + collision + the α-dome
         :math:`\Delta A / w` + M-M (via ``c_in``, ``c_out``);
-        cylindrical-degenerate has collision + Bailey + M-M only
+        cylindrical-degenerate has collision + α-dome + M-M only
         (no radial streaming).  No term is nulled by ansatz.
         """
         visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
@@ -1232,7 +1232,7 @@ class TestResidual:
     @pytest.mark.parametrize("geometry", GEOMETRIES)
     def test_residual_linear_in_cell_avg(self, geometry: str) -> None:
         r"""Residual is linear in ``cell_avg`` (Diamond Difference closure
-        is linear; M-M and Bailey terms enter only through fixed
+        is linear; M-M and α-dome terms enter only through fixed
         upstream-state contributions, not through ``cell_avg``).
 
         Sentinel (Phase S2) for ``DiamondDifference.residual`` — the

@@ -3231,7 +3231,7 @@ flat-flux invariance, and asymptotic accuracy:
   — the algebraic flat-flux collapse
   :math:`R_{n,i,g} = (\Delta A/w)\,(\alpha_{n+1/2} - \alpha_{n-1/2})\,
   \psi_{n,i,g} / V_i = -\mu_n\,\Delta A_i\,\psi_{n,i,g} / V_i`
-  (using :eq:`bailey-dome-recursion`).  Equivalent to the legacy form
+  (using :eq:`alpha-dome-recursion`).  Equivalent to the legacy form
   on flat :math:`\psi` (a now-retired flat-flux-identity test pinned
   this), and used as a structurally simpler bridge to the
   flat-flux invariant in unit tests.
@@ -3476,6 +3476,112 @@ rendered pages on 2026-08-11:
    Eq. 47), which the retired :math:`[\tfrac12, 1]` absorber would have
    clipped.  The absorber's own provenance is at
    :ref:`sn-tau-absorber-retirement`.
+
+.. _bmc-equation-map:
+
+Correction 3 — a fictitious record, and the BMC equation-number map
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+⛔ **Retracted 2026-08-27.**  The quadrature package cited a *second*
+"Bailey 2009" record, distinct from the one Correction 1 retracted:
+
+   *"Bailey, T. S., Adams, M. L., Yang, B., Zika, M. R. (2009).  'A
+   piecewise linear discontinuous finite element spatial discretization
+   of the transport equation.'  Annals of Nuclear Energy 35,
+   1929-1936."*
+
+**That publication does not exist.**  Every field of it traces to a
+different real one, which is exactly why it read as credible and
+survived two prior citation audits:
+
+.. list-table:: Where each field of the fictitious record came from
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Field
+     - Actual origin
+   * - the title
+     - Bailey, Adams & **Chang** (2008), *"…in 2D Cylindrical
+       Geometry"*, LLNL-CONF-407632 (a conference paper; OSTI 952424)
+   * - the author list (…Yang, Zika)
+     - the record Correction 1 already retracted — JCP 227:3738-3757
+   * - *Ann. Nucl. Energy* **35**, 1929-1936
+     - Zio & Zoia (2008), *"Bayesian inference of BWR model parameters
+       by Markov chain Monte Carlo"*, doi
+       ``10.1016/j.anucene.2008.03.007``
+   * - the year 2009
+     - nothing — all three sources above are **2008**
+
+`[M]` CrossRef over the whole run of *Annals of Nuclear Energy*
+(``journals/0306-4549/works?query.author=Bailey``) returns
+``total-results = 4``, none a finite-element paper and none in vol. 35.
+Volume 35 is 2008, so the (author, year, volume) triple was
+self-refuting before any lookup — a cheap check worth running on any
+citation that carries all three.
+
+⭐ **But the equation numbers were RIGHT.**  They belong to
+:cite:`BaileyMorelChang2010` — already in ``docs/refs.bib``, already
+the authority Correction 1 re-pointed to — so this was a re-point, not
+a deletion.  All four verified on the rendered scan:
+
+.. list-table:: The BMC 2010 equation-number map
+   :header-rows: 1
+   :widths: 14 26 60
+
+   * - Equation
+     - Object
+     - What it says, and the ORPHEUS reading
+   * - **Eq. (11)**
+     - the :math:`\alpha` dome recursion, **sphere**
+     - :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - 2\mu_m w_m`.  The
+       factor of 2 is theirs, because the sphere normalises
+       :math:`\sum w = 2`.
+   * - **Eq. (50)**
+     - the :math:`\alpha` dome recursion, **R-Z** (printed p. 156)
+     - the same recursion **without** the factor of 2, because R-Z
+       normalises :math:`\sum\sum w = 4\pi`.  Seeded at, and closing
+       back to, zero.  This is :eq:`alpha-recursion` /
+       :eq:`alpha-cylindrical` in ORPHEUS letters.
+   * - **Eq. (52)**
+     - the per-level **edge-cosine accumulation** (printed p. 157)
+     - the level's edge cosines are built by accumulating the level's
+       weights from :math:`-\sin\theta` to :math:`+\sin\theta` — so the
+       ordinates of a level run **ascending in the radial cosine**.
+       ⚠ Two separable halves: see the scoping note below.
+   * - **Eq. (74)**
+     - the Morel--Montry :math:`\tau` (printed p. 160)
+     - the same weight Correction 2 records at Eqs. (42)/(43); Eq. (74)
+       is its R-Z statement.
+
+.. warning:: **Eq. (50)'s printed right-hand side is self-referential —
+   a published journal typo**, confirmed on the rendered scan and
+   corrected here against the correctly-printed spherical twin
+   Eq. (11).  A reader checking the paper will otherwise conclude that
+   ORPHEUS has transcribed it wrongly.  The recursion ORPHEUS
+   implements is the one Eq. (11) prints, less the factor of 2 that
+   the R-Z weight normalisation removes.
+
+.. important:: **Scoping Eq. (52): ORPHEUS shares its ORDERING and
+   deliberately does NOT use its PARTITION.**  Eq. (52) states two
+   things at once, and only the first transfers.
+
+   * The **ordering** — a level's ordinates ascend in the radial
+     cosine, from :math:`-\sin\theta` to :math:`+\sin\theta`.  ORPHEUS
+     shares this; it is what the quadrature layer's per-level index
+     lists are sorted by, and it is the only component the
+     :math:`\alpha` march's arithmetic reads.
+   * The **partition** — that each cell's radial-cosine measure equals
+     that ordinate's weight.  ORPHEUS **refutes** this on its own rule:
+     it is a property of *their* quadrature, not a law, and imposing it
+     here violates the cell-membership predicate and diverges.  The
+     measurement and the widening-mismatch table are at
+     :ref:`sn-tau-absorber-provenance`, and the replacement partition
+     (midpoint in :math:`\omega`) is defined at
+     :ref:`angular-cell-partition-section` — both on
+     :doc:`/theory/foundations/structured_geometry`.
+
+   ⟹ cite Eq. (52) for the **order of a level**, never for how the
+   level is **cut**.
 
 .. _sn-tau-pointwise-second-order:
 
@@ -3815,7 +3921,7 @@ stamps once per sweep. (Phase B / Phase C shipped this redistribution
 through a single ``__call__`` bundle on the strategy; that legacy
 bundle — and its ``tau_mm`` argument — was retired in Issue #248, and
 the two strategy methods are now the sole production surface.) See
-:eq:`bailey-dome-recursion` for the :math:`\alpha` recurrence and
+:eq:`alpha-dome-recursion` for the :math:`\alpha` recurrence and
 :eq:`pole-mm-recurrence` for the M–M angular DD form.
 
 Ordinate vectorisation

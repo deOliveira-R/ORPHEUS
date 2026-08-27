@@ -203,7 +203,8 @@ class TestReflectionIndices:
 class TestAlphaRedistribution:
     """Verify α coefficient properties required for curvilinear SN sweeps.
 
-    The α recursion (Bailey et al. 2009, Eq. 50) uses the radial
+    The α recursion (Lathrop & Carlson 1966; Hébert 2009 Eq. 3.424)
+    uses the radial
     direction cosine η (mu_x): α_{m+1/2} = α_{m-1/2} − w_m · η_m.
     The resulting dome must be non-negative with α[0] = α[M] = 0.
     """

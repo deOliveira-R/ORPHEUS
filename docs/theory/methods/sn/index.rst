@@ -477,8 +477,13 @@ sign-of-:math:`\mu` branching inside the strategy.  This pattern
 moves the graph-theoretic concept to where it belongs (the SN
 module) and keeps the geometry-layer
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
-geometry-only and reusable by future MoC / CP / diffusion modules
-that have different mathematical structures.
+geometry-only — which it must be, because the sweep-direction concept
+is S\ :sub:`N`'s alone: MoC, CP, diffusion and MC have no sweep.  (⛔
+This sentence continued "and reusable by future MoC / CP / diffusion
+modules that have different mathematical structures" until 2026-08-27.
+Withdrawn: geometry-only is not the same claim as shared, and those
+families do not form an angular redistribution term at all — see
+:ref:`who-needs-a-connection-coefficient`.)
 
 Slab vs curvilinear discrimination
 -----------------------------------
@@ -674,7 +679,7 @@ angular closure :eq:`mm-weights` to the WDD spatial closure
    c_{\rm in}  \;=\; \frac{1 - \tau_n}{\tau_n}\,\alpha_{n+\tfrac12}
                        + \alpha_{n-\tfrac12},
 
-built from the Bailey 2009 dome :eq:`alpha-recursion` and the
+built from the :math:`\alpha` dome :eq:`alpha-recursion` and the
 Morel–Montry weight :eq:`mm-weights`.  The cell-update is then
 
 .. math::
@@ -799,11 +804,36 @@ References
   Step, and Linear Discontinuous closures and their positivity /
   truncation properties; §4.5 covers the Morel--Montry angular
   closure used for :math:`\psi_{n+1/2,\,i}`.
-* Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).
-  *A piecewise linear finite element discretization of the
-  diffusion equation for arbitrary polyhedral grids*.
-  JCP 227, 3738--3757.  Eq. 50 (dome recursion), Eq. 74
-  (Morel--Montry).
+* Lathrop, K., & Carlson, B. (1966). *J. Comp. Phys.* 1:173 — the
+  :math:`\alpha` recursion :math:`\alpha_{n+1/2} = \alpha_{n-1/2} -
+  w_n \mu_n` (:eq:`alpha-recursion`); the implemented form is
+  Hébert (2009) *Applied Reactor Physics* §3.9.3 (cylinder) /
+  §3.9.4 (sphere), Eqs. 3.423-3.424, which is also the authority for
+  the cell balance, the :math:`\Delta A / w` factor and the
+  :math:`\alpha_{1/2} = 0` seed.
+* Morel, J. E., & Montry, G. R. (1984). *Analysis and Elimination of
+  the Discrete-Ordinates Flux Dip*.  Transport Theory and Statistical
+  Physics 13(5):615--633 — **primary** source for the weighted
+  angular closure :math:`\tau` (:eq:`mm-weights`).  The form
+  implemented here is :cite:`BaileyMorelChang2010` Eqs. (42)/(43);
+  Reed & Lathrop (1970) Eq. (13c) is the same condition, 40 years
+  earlier.
+
+.. note:: ⛔ **Retracted citation (2026-08-27).**  This list carried
+   *"Bailey, T. S., Adams, M. L., Yang, B., & Zika, M. R. (2009).*
+   *A piecewise linear finite element discretization of the diffusion*
+   *equation for arbitrary polyhedral grids. JCP 227, 3738--3757.*
+   *Eq. 50 (dome recursion), Eq. 74 (Morel--Montry)"* — the
+   **wrong Bailey paper**, a piecewise-linear FE *diffusion* paper
+   unrelated to curvilinear S\ :sub:`N`.  Issue #168 Phase B retracted
+   it in 2026 across :mod:`orpheus.geometry.reduced_operator`,
+   :mod:`orpheus.transport.spatial.diamond` and
+   :mod:`orpheus.sn.angular.closure`; this page and
+   :mod:`orpheus.transport.spatial.scheme` were missed and kept
+   asserting it.  Full account, including the second (Hébert-vs-BMC)
+   correction, at :ref:`sn-citation-corrections`.  The two bullets
+   above are the authorities that actually cover the two claims the
+   retracted entry was cited for.
 
 See also
 --------
@@ -908,9 +938,13 @@ Why this mattered:
   already encodes "does this geometry need angular
   redistribution to march the sweep?", so the dispatch reads its
   property directly instead of round-tripping through a
-  string tag — Cardinal Rule 2 (architecture).  Consumers
-  outside the SN sweep (MoC, CP) read the same property when
-  they need the same dispatch.
+  string tag — Cardinal Rule 2 (architecture).  (⛔ This bullet
+  closed with "Consumers outside the SN sweep (MoC, CP) read the
+  same property when they need the same dispatch" until
+  2026-08-27.  There are none, and there will be none: neither
+  method forms an angular redistribution term — see
+  :ref:`who-needs-a-connection-coefficient`.  The dispatch-by-property
+  argument stands on its own; it never needed a second consumer.)
 * The dispatch surface shrinks from four string-equality checks
   to one boolean — a structural simplification that makes the
   control flow easier to reason about and to extend with

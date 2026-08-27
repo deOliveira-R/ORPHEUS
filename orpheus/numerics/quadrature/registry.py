@@ -277,10 +277,24 @@ References
 * Lewis, E.E. and Miller, W.F. (1993). *Computational Methods of
   Neutron Transport*. Wiley. §4.2 (level-symmetric construction);
   §4.4 (1-D spherical SN).
-* Bailey, T.S., Adams, M.L., Yang, B., Zika, M.R. (2009). "A piecewise
-  linear discontinuous finite element spatial discretization of the
-  transport equation." *Annals of Nuclear Energy* **35**, 1929-1936.
-  Eq. 50 (cylindrical α-recursion that needs ``level_structured``).
+* Bailey, T. S., Morel, J. E., & Chang, J. H. (2010). "The Asymptotic
+  Diffusion-Limit Accuracy of Sn Angular Differencing Schemes."
+  *Nucl. Sci. Eng.* **165**(2), 149-169, doi:10.13182/NSE08-66.
+  **Eq. (50)** is the cylindrical (R-Z) :math:`\alpha`-recursion whose
+  per-level march is what needs ``level_structured``; **Eq. (52)** is
+  the per-level edge-cosine accumulation, i.e. the statement that a
+  level's ordinates run ascending in the radial cosine — which is the
+  ORDER the ``LevelStructure`` index lists carry.
+
+  ⛔ *Retracted citation (2026-08-27).* This entry read "Bailey,
+  T.S., Adams, M.L., Yang, B., Zika, M.R. (2009). 'A piecewise linear
+  discontinuous finite element spatial discretization of the transport
+  equation.' Annals of Nuclear Energy 35, 1929-1936." **No such
+  publication exists** - its title, author list, journal reference and
+  year each trace to a different real source. The equation numbers were
+  right and belong to BMC 2010 above. Full account, the BMC
+  equation-number map, the ⚠ published-typo warning on Eq. (50) and the
+  scoping note on Eq. (52): ``docs/theory/methods/sn/curvilinear_one_group.rst`` §bmc-equation-map.
 
 See Also
 --------
@@ -467,7 +481,8 @@ class QuadratureSpec:
     level_structured : bool
         Does the rule expose per-:math:`\mu` polar levels?
         Cylindrical SN sweeps need this for the azimuthal
-        redistribution coefficients (Bailey et al. 2009 Eq. 50).
+        redistribution coefficients (Bailey-Morel-Chang 2010 Eq. (50)),
+        which march per level in the order Eq. (52) fixes.
         :func:`level_symmetric_sn` and :func:`product_mu_phi` both
         return a :class:`LevelStructure`; :func:`lebedev_sphere`
         does not (Lebedev points sit on :math:`O_h` orbits, not on

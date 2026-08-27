@@ -1,19 +1,55 @@
 r"""Reduced streaming operator — connection coefficients on the coordinate chart.
 
-This module hosts the **connection-coefficient primitive** shared by SN,
-MoC, and CP curvilinear sweeps.  In differential-geometric language,
-the spherical :math:`(1-\mu^2)/r\,\partial_\mu` and cylindrical
+This module hosts the **connection-coefficient primitive** that a
+curvilinear SN sweep marches through.  In differential-geometric
+language, the spherical :math:`(1-\mu^2)/r\,\partial_\mu` and cylindrical
 :math:`-(1/r)\,\partial_\varphi(\xi\cdot)` redistribution terms are
 **the same connection-coefficient operator** on SO(3) viewed in two
-coordinate charts (polar-on-sphere vs. azimuthal-on-cylinder).  Each
-solver — SN, MoC, CP — needs the same numerical data: chord lengths,
-face areas, the :math:`\Delta A/w` geometry factor, and the
-:math:`\alpha` dome recursion (Hébert Eqs. 3.423-3.424, after Lathrop &
+coordinate charts (polar-on-sphere vs. azimuthal-on-cylinder).  The
+numerical data the sweep needs is chord lengths, face areas, the
+:math:`\Delta A/w` geometry factor, and the :math:`\alpha` dome
+recursion (Hébert Eqs. 3.423-3.424, after Lathrop &
 Carlson 1966 — **not** "Bailey 2009", the wrong-paper citation this
 module's References corrected at Issue #168 Phase B).  The Morel--Montry
 angular closure weight :math:`\tau` is a *consumer* of these, not a
 product of this module — see the ⚠ note at the end of "Mathematical
 content".
+
+⛔ **This module read "shared by SN, MoC, and CP curvilinear sweeps"
+and "Each solver — SN, MoC, CP — needs the same numerical data" until
+2026-08-27.  Both were false, and structurally so.**  `[M]` no file
+under ``orpheus/moc/``, ``orpheus/cp/`` or ``orpheus/mc/`` names this
+primitive under **any** of eight independent spellings — three symbol
+spellings, three concept spellings, an attribute-access spelling and
+the prose paraphrase — while ``orpheus/sn/`` and ``orpheus/geometry/``
+name every one of them.  That is not an unfinished migration.
+
+⚠ The exact patterns, the root, the occurrence semantics and the
+positive control are published **as a runnable predicate rather than a
+table of counts**, at ``docs/theory/foundations/structured_geometry.rst``
+``§connection-coefficient-census``.  Do not copy counts back here: a
+control's value carries no part of the argument (only its non-zeroness
+does), and it moves under any edit to those packages — including this
+very correction, which names the module and so raises several of them.
+An earlier revision of this block did print them and was wrong three
+ways at once (pre-edit values, a column set that did not match the
+spelling list printed beside it, and an unanchored case-insensitive
+``redistribut`` column that absorbed every ``AngularRedistribution``).
+
+An angular redistribution term exists only where an angular unknown is
+indexed in a *local rotating frame* and its angular derivative is
+*collocated*: MoC fails the middle condition (Ω is fixed in the global
+frame, so Ω·∇ = d/ds is chart-free and the curvature moves into track
+segmentation) and CP fails the first (angle is integrated out into the
+kernel before anything is discretised).  The curvilinear
+counter-examples are decisive, because "not migrated yet" predicts
+there is nothing to migrate: MoC ray-traces concentric annuli on a
+cylindrical mesh (``moc/geometry.py`` ``MOCMesh``), CP ships a real
+sphere (``cp/solver.py`` ``_setup_spherical``) and MC a real cylinder
+(``mc/solver.py`` ``MCMesh``) — all three with no α anywhere.  Full
+argument and falsification conditions:
+``docs/theory/foundations/structured_geometry.rst``,
+"Who needs a connection coefficient — and who does not".
 
 Per Cardinal Rule 2 (architecture), this primitive **MUST NOT** be
 duplicated across solvers.  The historical home was a pair of in-line
@@ -101,7 +137,7 @@ The :math:`\alpha`-dome recursion (sphere) — Hébert (2009)
 normalization:
 
 .. math::
-   :label: bailey-dome-recursion
+   :label: alpha-dome-recursion
 
    \alpha_{n+\tfrac12} = \alpha_{n-\tfrac12} - w_n\,\mu_n,
    \qquad \alpha_{\tfrac12} = 0.
@@ -238,8 +274,13 @@ See also
   ``transport_operator_matvec_*`` matvecs and their unified successor,
   which consumed it in the Depth-B era, were deleted in the typed-field
   (#197) / walk-unification (#280 campaigns) refactors.)
-  MoC and CP campaigns (post-Wave-1) reuse this primitive with their
-  own consumption patterns.
+  ⛔ This bullet read "MoC and CP campaigns (post-Wave-1) reuse this
+  primitive with their own consumption patterns" until 2026-08-27.  It
+  is retracted as NOT APPLICABLE rather than pending — neither method
+  forms an angular redistribution term at all.  See the ⛔ block in
+  "Mathematical content" above and, for the full argument,
+  ``structured_geometry.rst`` "Who needs a connection coefficient — and
+  who does not".
 * :doc:`/theory/foundations/structured_geometry` — the architecture page;
   see "Connection coefficients (reduced streaming operator)".
 """
@@ -379,8 +420,12 @@ class StreamingTerms:
     (:class:`~orpheus.transport.spatial.scheme.CellVisit` packs the
     geometric :class:`StreamingTerms` together with the
     sweep-resolved :attr:`face_area_downstream`).  This module is
-    geometry-only and is reusable by future MoC / CP / diffusion,
-    none of which has SN's sweep-direction concept.
+    geometry-only precisely because the sweep-direction concept is
+    SN's alone — MoC, CP, diffusion and MC have no sweep.  (⛔ That
+    separation is the true claim; the clause "and is reusable by future
+    MoC / CP / diffusion" stood here until 2026-08-27 and is withdrawn.
+    A geometry-only module is not thereby a shared one — see the ⛔
+    block in the module docstring.)
 
     The trailing ``volume`` and ``abs_mu`` fields are populated by
     **all three factories** so that a downstream
@@ -501,10 +546,13 @@ class ReducedStreamingOperator:
     """Connection-coefficient data for a curvilinear (or slab) sweep.
 
     Carries all geometry- and quadrature-dependent precomputed arrays
-    that an SN, MoC, or CP sweep needs to march through the angular
+    that a curvilinear SN sweep needs to march through the angular
     redistribution.  In Cardinal Rule 2 framing, this primitive holds
     the data the **same connection-coefficient operator** demands, in
-    whichever coordinate chart the consumer's geometry lives in.
+    whichever coordinate chart the consumer's geometry lives in — the
+    point being that ONE object serves the sphere and the cylinder, not
+    that several solver families consume it (they do not; see the module
+    docstring's ⛔ block).
 
     Three factory functions construct concrete instances:
 
@@ -1123,9 +1171,11 @@ def spherical_streaming(
     Morel--Montry angular weight :math:`\tau` — that moved to the angular
     closure at Issue #236 Step C (see the body comment below).
 
-    The :math:`\Delta A/w` geometry factor (Cardinal Rule 2 — the
-    connection-coefficient data, common to SN/MoC/CP) is precomputed
-    here once.
+    The :math:`\Delta A/w` geometry factor (Cardinal Rule 2 — chart
+    data, so it belongs to the geometry layer rather than to a
+    solver-side mesh class) is precomputed here once.  ⛔ This line read
+    "common to SN/MoC/CP" until 2026-08-27; see the module docstring's
+    ⛔ block.
 
     Parameters
     ----------

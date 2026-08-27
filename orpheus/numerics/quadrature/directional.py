@@ -289,8 +289,22 @@ class Quadrature:
         return self.axis_cosines(2)
 
     # ────────────────────────────────────────────────────────────
-    # Cylindrical-SN frame aliases (Bailey 2009 / Hébert convention)
+    # Cylindrical-SN frame aliases (ORPHEUS's own axis naming)
     # ────────────────────────────────────────────────────────────
+    #
+    # ⛔ This header read "(Bailey 2009 / Hébert convention)" until
+    # 2026-08-27.  Both halves were wrong.  "Bailey 2009" named a
+    # non-existent Annals of Nuclear Energy record (see
+    # ``docs/theory/methods/sn/curvilinear_one_group.rst``
+    # §bmc-equation-map); and the ATTRIBUTION of the axis assignment
+    # below is false in BOTH sources — [VERIFIED ON SCAN] Hébert
+    # (3.152)/(3.157) p. 91 and Bailey-Morel-Chang 2010 Eq. (48) p. 156
+    # both assign μ = radial, η = azimuthal, ξ = axial, i.e. the
+    # opposite of the names used here.  ORPHEUS may name its own axes
+    # freely; what it may not do is credit the naming to sources that
+    # use the other one.  ⚠ The axis table below is DELIBERATELY LEFT
+    # UNCHANGED — whether any arithmetic depends on the assignment has
+    # not been audited, and that audit is filed separately.
     #
     # In cylindrical SN, the natural direction-cosine names are
     # (η, ξ, μ) — radial, azimuthal, axial. These are the SAME

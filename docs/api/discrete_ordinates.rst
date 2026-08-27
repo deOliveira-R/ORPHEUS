@@ -16,8 +16,14 @@ quadrature and geometry layer:
   can drive the inner solve directly.
 
 The theory pages cover the diamond-difference discretisation, the
-angular-redistribution term for curvilinear geometry (Bailey et al.
-2009), and the source-iteration / Krylov trade-offs.
+angular-redistribution term for curvilinear geometry (the
+:math:`\alpha` dome recursion — Lathrop & Carlson 1966, implemented
+form Hébert 2009 §3.9.3/§3.9.4; the Morel--Montry closure weight is
+Morel & Montry 1984, in the Bailey--Morel--Chang 2010 Eqs. (42)/(43)
+form), and the source-iteration / Krylov trade-offs.  ⛔ This sentence
+credited "Bailey et al. 2009" until 2026-08-27 — the wrong-paper
+citation retracted at Issue #168 Phase B; see
+:ref:`sn-citation-corrections`.
 
 Solver
 ------

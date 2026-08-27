@@ -207,7 +207,7 @@ the spherical redistribution term :math:`(1-\mu^2)/r\,\partial_\mu`
 and the cylindrical redistribution term
 :math:`-(1/r)\,\partial_\varphi(\xi\,\cdot)` are the **same
 connection-coefficient operator** viewed in two coordinate charts.
-SN, MoC, and CP curvilinear :term:`sweeps <sweep>` all march through the same data:
+A curvilinear S\ :sub:`N` :term:`sweep <sweep>` marches through this data:
 
 * **chord lengths**: cell radial widths
   (:attr:`~orpheus.geometry.mesh.Mesh1D.widths`),
@@ -215,33 +215,67 @@ SN, MoC, and CP curvilinear :term:`sweeps <sweep>` all march through the same da
   :math:`2\pi r_{i+1/2}` (cylinder),
 * **the geometry factor** :math:`\Delta A_i / w_n` that ensures
   :term:`per-ordinate <ordinate>` flat-flux consistency,
-* **the Bailey 2009 dome recursion** for :math:`\alpha`, and
+* **the** :math:`\alpha` **dome recursion**, and
 * **the Morel--Montry angular closure** :math:`\tau_{mm}`
   (one geometry-free formula :eq:`morel-montry-closure`, read against a
   per-geometry cell partition :eq:`angular-cell-partition` — see below).
 
 Per Cardinal Rule 2 (architecture is critical), the same data **MUST
-NOT** be duplicated across solvers.
+NOT** be duplicated across the solvers that need it.
 :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
 in :mod:`orpheus.geometry.reduced_operator` lifts the math into a
-geometry-layer primitive that downstream consumers (SN, MoC, CP)
-share.
+geometry-layer primitive rather than a solver-side one.
 
-The Bailey 2009 dome recursion (sphere):
+.. important:: **Which solvers is "the solvers that need it"?**  Until
+   2026-08-27 this page — and the module's own docstring — read *"SN,
+   MoC, and CP curvilinear sweeps all march through the same data"* and
+   *"downstream consumers (SN, MoC, CP) share"* it.  That is
+   **measurably false, and structurally so**: `[M]` no file under
+   ``orpheus/moc/``, ``orpheus/cp/`` or ``orpheus/mc/`` names this
+   primitive under **any** of the eight spellings the census at
+   :ref:`connection-coefficient-census` enumerates — while both of that
+   census's positive controls name every one of them.  That is not a
+   migration which has yet to happen, but a term those methods never
+   form.  The chart data is still correctly geometry-layer; what was
+   wrong is the consumer list.  The reason is worked in
+   :ref:`who-needs-a-connection-coefficient` below, and the
+   re-runnable predicate — deliberately a predicate rather than a table
+   of counts — is at :ref:`connection-coefficient-census`.
+
+The :math:`\alpha` dome recursion (sphere) — Hébert (2009) §3.9.4
+Eqs. 3.423-3.424, after Lathrop, K., & Carlson, B. (1966),
+*J. Comp. Phys.* 1:173, in the ORPHEUS factor-of-2-absorbed
+normalization:
 
 .. math::
-   :label: bailey-dome-recursion
+   :label: alpha-dome-recursion
 
    \alpha_{n+\tfrac12} = \alpha_{n-\tfrac12} - w_n\,\mu_n,
    \qquad \alpha_{\tfrac12} = 0.
 
-.. vv-status: bailey-dome-recursion documented
+.. vv-status: alpha-dome-recursion documented
+   Rationale: this is the literature-transcribed definition of the
+   :math:`\alpha` recursion (Hébert §3.9.4 Eqs. 3.423-3.424, after
+   Lathrop & Carlson 1966), a representational identity rather than a
+   solver claim.  ⛔ The label read ``bailey-dome-recursion`` until
+   2026-08-27; that name encoded the wrong-paper attribution retracted
+   at Issue #168 Phase B (see
+   :ref:`sn-citation-corrections`).  The verifiable content is the
+   dome-closure contract — ``tests/geometry/test_reduced_operator.py``
+   (``test_every_shipped_gauss_legendre_dome_closes``,
+   ``test_every_shipped_folded_product_dome_closes_on_every_level``,
+   and the negative control ``test_a_dome_that_does_not_close_is_refused``)
+   plus ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py``
+   (``test_production_alpha_is_a_non_negative_closing_dome``).
+   ⚠ The SAME recursion is also stated on the S\ :sub:`N` methods page as
+   :eq:`alpha-recursion`, which is the label the ``verifies`` markers
+   target; see the de-duplication note at the end of this section.
 
 For Gauss--Legendre :term:`quadrature` with :math:`\mu` sorted ascending in
 :math:`[-1, 1]`, the recursion produces a non-negative dome
 (:math:`\alpha_{1/2} = 0 \to \text{peak} \to \alpha_{N+1/2} = 0`)
 that closes back to zero at the upper boundary by GL antisymmetry.
-The cylindrical analog runs **per-:math:`\mu`-level**: each level
+The cylindrical analog runs **per-**\ :math:`\mu`\ **-level**: each level
 :math:`p` carries its own :math:`(M+1)`-tuple of
 :math:`\alpha^{(p)}_{m+1/2} = \alpha^{(p)}_{m-1/2} - w_m\,\eta_m`,
 where :math:`\eta` is the radial direction cosine and :math:`M` is the
@@ -401,7 +435,7 @@ achieves).
    defect Q5.6.4 fixed.  But they impose **two different conditions** on
    it: :math:`\tau` the **zeroth** moment (P2, above), :math:`\alpha` the
    **first**-moment conservation recursion (P4,
-   :eq:`bailey-dome-recursion`; Hébert 3.397--3.399, after Alcouffe &
+   :eq:`alpha-dome-recursion`; Hébert 3.397--3.399, after Alcouffe &
    O'Dell).  Forcing :math:`\alpha` to equal the geometric tangential
    cosine at these edges silently drives Lathrop's defect
    :math:`\delta \to 0`, i.e. :math:`\tau \to \tfrac12` — the angular
@@ -736,11 +770,11 @@ per coordinate system:
   lets the per-coordinate ``Optional`` union stay dead.
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
-  with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
+  with the dome recursion :eq:`alpha-dome-recursion` and Morel--Montry
   closure :eq:`morel-montry-closure`.
 * :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
-  cylindrical with **per-:math:`\mu`-level** :math:`\alpha`,
+  cylindrical with **per-**\ :math:`\mu`\ **-level** :math:`\alpha`,
   :math:`\Delta A/w` and :math:`\mu_{\rm start}` lists (τ is
   closure-owned — see the :ref:`τ-ownership note <tau-ownership-note>`).  Requires the
   angular measure to expose ``level_indices`` (e.g., a
@@ -941,6 +975,240 @@ Cartesian sweep (these are SN-specific and not represented in
 a slab :class:`ReducedStreamingOperator` for completeness so
 ``sn_mesh.reduced`` is always populated.
 
+.. _who-needs-a-connection-coefficient:
+
+Who needs a connection coefficient — and who does not
+-----------------------------------------------------
+
+The primitive above is **structurally S**\ :sub:`N`\ **-only**, and that
+is a statement about the mathematics, not about how far a migration has
+got.  The distinction matters because the two readings license opposite
+work: *"MoC and CP have not migrated yet"* invites someone to go and
+wire them up, while *"MoC and CP never form this term"* says the
+primitive is correctly placed and correctly consumed by exactly one
+solver family — S\ :sub:`N`.  (`[M]` the whole
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` /
+:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` chain is
+referenced only from ``orpheus/sn/`` and from inside
+``orpheus/transport/`` itself, and by **no** file under
+``orpheus/moc/``, ``orpheus/cp/``, ``orpheus/mc/`` or
+``orpheus/diffusion/``.  As above, the count is deliberately not frozen
+here — re-run the predicate at
+:ref:`connection-coefficient-census` with
+``r"transport\.spatial|DiscretizationScheme|StreamingTerms|CellVisit"``
+substituted for its pattern set; the two controls stay non-zero and the
+four subjects stay at zero.)
+
+A solver family needs an :math:`\alpha` dome **iff all three** of the
+following hold.
+
+1. **It carries an angular unknown** — a :math:`\psi` that survives
+   discretisation still wearing a direction index.
+2. **That index is read in a local, rotating frame** — a basis that
+   turns as the spatial point moves, so a particle streaming in a fixed
+   *physical* direction changes its *coordinate* label as it travels.
+3. **The resulting angular derivative is discretised by collocation**
+   on that index — :math:`\partial_\mu` (sphere) or
+   :math:`\partial_\varphi` (cylinder) approximated as a difference
+   between neighbouring ordinates, rather than by an expansion in a
+   basis that differentiates exactly.
+
+Condition 2 is what mints the term at all.  In a curvilinear chart the
+direction cosines are measured against the *local* radial and azimuthal
+axes, so straight-line streaming is a continuous relabelling of
+:math:`(\mu, \varphi)`; the redistribution term
+:math:`(1-\mu^2)/r\,\partial_\mu` (sphere) or
+:math:`-(1/r)\,\partial_\varphi(\xi\,\cdot)` (cylinder) is the
+bookkeeping for that relabelling.  Condition 3 is what turns its weight
+into a *recursion*: collocation supplies no exact derivative, so the
+weights must instead be built to preserve the one property that has to
+survive — a spatially flat angular flux must redistribute to zero, per
+ordinate — and :eq:`alpha-dome-recursion` together with its closure
+contract (:ref:`sn-alpha-dome-closes`) is precisely the construction
+that delivers it.
+
+Adjudicating the shipped families against those three conditions:
+
+.. list-table:: Which families satisfy the three conditions
+   :header-rows: 1
+   :widths: 15 19 22 20 24
+
+   * - Family
+     - (1) angular unknown
+     - (2) local rotating frame
+     - (3) collocated angular derivative
+     - Consequence
+   * - S\ :sub:`N`, curvilinear
+     - yes — :math:`\psi_{n,i}`
+     - yes — :math:`(\eta, \xi, \mu)` on the local radial frame
+     - yes — the half-angle recursion
+     - **needs the dome**
+   * - MoC
+     - yes — :math:`\psi` per track
+     - **no** — :math:`\Omega` is fixed in the GLOBAL frame
+     - n/a
+     - term relocates into track segmentation
+   * - CP
+     - **no** — angle is integrated out before discretisation
+     - n/a
+     - n/a
+     - term never appears
+   * - MC
+     - **no** — directions are sampled, not indexed
+     - n/a
+     - n/a
+     - term never appears
+
+**MoC fails condition 2.**  The method of characteristics is *defined*
+by choosing the global frame in which :math:`\Omega` is constant along a
+track, so :math:`\Omega \cdot \nabla \psi = \mathrm{d}\psi/\mathrm{d}s`
+is chart-free and there is no angular derivative left to discretise.
+Curvature does not disappear — it moves into *segmentation*, the
+ray-region intersection that produces the chord lengths.  `[M]` the
+shipped inner loop in :mod:`orpheus.moc.core` forms
+:math:`\tau = \Sigma_t \, \ell_{\rm seg} / \sin\theta_p` per segment and
+applies plain exponential attenuation
+:math:`\Delta\psi = (\psi - Q/\Sigma_t)\,(1 - e^{-\tau})`; no ordinate
+couples to its neighbour anywhere in the sweep.  This is also why
+:mod:`orpheus.sn.loss_representation.sweep_graph` records that MoC will
+define a *per-ray traversal* analog rather than reuse the
+S\ :sub:`N` sweep graph.
+
+**CP fails condition 1.**  Collision probability integrates the angular
+variable analytically *before* anything is discretised — the transport
+kernel is already an angle-integrated function of optical path, so no
+angular unknown, and therefore no angular index, ever exists.  `[M]`
+:class:`orpheus.cp.solver.CPSolver` dispatches on
+:class:`~orpheus.geometry.coord.CoordSystem` to three real setups —
+slab, cylinder, and **sphere**, i.e. the curvilinear cases the false
+claim was about — and each installs a scalar kernel:
+:math:`F(\tau) = e^{-\tau}` with a :math:`y`-weighted quadrature on the
+sphere, the :math:`\mathrm{Ki}_3` kernel on the cylinder, :math:`E_3`
+on the slab.  There is no :math:`\alpha`, no :math:`\Delta A / w`, and
+nothing for either to act on.
+
+**MC fails condition 1 as well, for a different reason.**  Monte Carlo
+samples directions from a continuous distribution rather than indexing
+a fixed set, so there is no neighbouring ordinate to redistribute *to*.
+`[M]` :class:`orpheus.mc.solver.MCMesh` admits ``CARTESIAN`` or
+``CYLINDRICAL`` — so it, too, solves a curvilinear problem with no
+:math:`\alpha` anywhere.
+
+⭐ **The curvilinear counter-examples are the load-bearing evidence.**
+"MoC and CP have not migrated yet" predicts that neither has a
+curvilinear capability to migrate.  Both do.  `[M]`
+:class:`orpheus.moc.geometry.MOCMesh` wraps a **cylindrical**
+:class:`~orpheus.geometry.mesh.Mesh1D` and ray-traces **concentric
+annuli** (``_ray_circle_intersections``); :class:`orpheus.cp.solver.CPSolver`
+ships a real **sphere**; and, as a third witness,
+:class:`orpheus.mc.solver.MCMesh` ships a real **cylinder**.  All three
+solve curved geometry, and none carries one line of redistribution
+machinery.  A capability that exists *and* declines the primitive
+refutes the migration reading in a way that an absent capability never
+could — which is exactly why the claim survived unchallenged for so
+long: nobody had looked at what those packages already do.
+
+.. _connection-coefficient-census:
+
+Reproducing the census — the predicate, not a table of counts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The census behind the `[M]` claims above is published as the **recipe,
+not as a table of counts**.  Eight independent spellings of the concept
+— three symbol spellings, three concept spellings, an attribute-access
+spelling and the prose paraphrase — counted as regex *occurrences* over
+``*.py`` under each package root:
+
+.. code-block:: python
+
+   import pathlib, re
+
+   PATTERNS = {
+       "reduced_operator":         r"reduced_operator",
+       "ReducedStreamingOperator": r"\bReducedStreamingOperator\b",
+       "AngularRedistribution":    r"\bAngularRedistribution\b",
+       "alpha":                    r"\balpha\b",
+       "delta_A / face_areas":     r"\b(?:delta_A|face_areas)\b",
+       "redistribut*":             r"\bredistribut\w*",
+       ".reduced":                 r"\.reduced\b",
+       "connection coefficient":   r"connection[ -]coefficient",
+   }
+   SUBJECTS = ["orpheus/moc", "orpheus/cp", "orpheus/mc"]
+   CONTROLS = ["orpheus/sn", "orpheus/geometry"]
+
+   def count(pkg, pat):
+       return sum(len(re.findall(pat, f.read_text(encoding="utf-8")))
+                  for f in pathlib.Path(pkg).rglob("*.py"))
+
+   for name, pat in PATTERNS.items():
+       # POSITIVE CONTROL: a zero here means the filter is broken,
+       # not that the tree is clean.
+       assert all(count(p, pat) > 0 for p in CONTROLS), name
+       # THE FINDING:
+       assert all(count(p, pat) == 0 for p in SUBJECTS), name
+
+**Run as written on 2026-08-27 it passes: every one of the eight
+patterns is non-zero in both controls and exactly zero in all three
+subjects.**  The zeros are the finding and they are falsifiable — the
+day one of them stops being zero, the claim on this page is refuted and
+should be re-argued rather than patched.
+
+.. note:: **Why the control COUNTS are deliberately not printed here.**
+   A positive control has to be **non-zero**; its particular value
+   carries no part of the argument.  Freezing it would put a number in
+   the corpus that moves under any edit to ``orpheus/sn`` or
+   ``orpheus/geometry`` — including the ⛔ correction blocks this very
+   pass added, which name the module and so raise several of the control
+   counts.  ⛔ An earlier revision of this section did print them, and
+   did so wrongly in three independent ways at once: the counts were
+   taken **before** this pass's own edits; the column set was a
+   **different** partition of "six spellings" from the one the prose
+   beside it named (so two of the six numbers belonged to spellings the
+   prose never mentioned); and the ``redistribut`` column was
+   case-insensitive and unanchored, which silently absorbed every
+   ``AngularRedistribution``.  All three are the failure mode this page
+   exists to document, so the section now points at a re-runnable
+   predicate instead (`plan-authoring` §9: never copy a number the tree
+   can re-measure; `plan-authoring` §2: a number without its predicate
+   is not re-runnable).
+
+The set of files that name the primitive at all is small enough to
+enumerate, and an enumeration — unlike a count — can be checked by
+reading it.  Outside :mod:`orpheus.geometry.reduced_operator` itself,
+it is named only in ``orpheus/geometry/__init__.py``; in
+``orpheus/sn/`` by ``angular/__init__.py``, ``angular/closure.py``,
+``mesh/augmented_mesh.py``, ``operators/radial_characteristic.py``,
+``solver.py`` and ``sweep/cache.py``; in ``orpheus/transport/spatial/``
+by ``__init__.py``, ``cell_balance.py``, ``diamond.py`` and
+``scheme.py``; and in
+``orpheus/derivations/discrete/sn/angular_differencing.py``.  Not one
+of them is under ``orpheus/moc/``, ``orpheus/cp/`` or ``orpheus/mc/``.
+
+.. note:: **What WOULD change this answer.**  The three conditions are
+   the claim, so the honest way to falsify it is to break one.  A
+   discrete-ordinates scheme that expanded the angular flux in a basis
+   which differentiates exactly — spherical harmonics, or a
+   discontinuous-Galerkin / finite-element discretisation *in angle* —
+   would satisfy 1 and 2 and fail 3, and would then need a different
+   object entirely (a mass/stiffness pair in :math:`\mu`), not this
+   recursion.  No such scheme exists in this codebase.  Conversely,
+   neither MoC nor CP is likely to acquire condition 2 or condition 1
+   respectively without ceasing to be MoC or CP.
+
+.. note:: **Two labels, one recursion.**  :eq:`alpha-dome-recursion`
+   here and :eq:`alpha-recursion` on
+   :doc:`/theory/methods/sn/curvilinear_one_group` state the *same*
+   recurrence.  This page carries it in the **geometry-primitive**
+   register — what the chart owes a consumer, seeded at
+   :math:`\alpha_{1/2} = 0` — and the methods page in the
+   **discretisation** register, where it enters the cell update with
+   :eq:`alpha-cylindrical` as the per-level arm.  Only the methods-page
+   label is a ``verifies`` target.  The duplication is a genuine
+   single-source-of-truth smell; collapsing it is **recommended and
+   deliberately not done here**, because it would move a generated
+   V&V-matrix row and re-point ``verifies`` markers that a
+   documentation pass may not edit.
+
 Migration roadmap
 -----------------
 
@@ -960,6 +1228,15 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
   ``transport_operator_matvec_*`` matvecs; that family and its unified
   successor were deleted in the typed-field (#197) and walk-unification
   (#280 campaigns) refactors — the primitive itself is unchanged.)
-* **MoC and CP campaigns (post-Wave-1)** reuse the same primitive
-  with their own consumption patterns (track-segment chord march
-  for MoC; ray-traced chord-length integrals for CP).
+* **MoC and CP campaigns (post-Wave-1)** — ⛔ **retracted 2026-08-27.**
+  This item read *"reuse the same primitive with their own consumption
+  patterns (track-segment chord march for MoC; ray-traced chord-length
+  integrals for CP)"*.  It was never a description of the tree, and it
+  is not a migration still owed: neither method forms an angular
+  redistribution term at all, for two independent structural reasons
+  worked in :ref:`who-needs-a-connection-coefficient` above.  The
+  roadmap item is closed as **not applicable**, not as pending.  What
+  MoC and CP *do* share with S\ :sub:`N` is the L2 transport layer —
+  fields, sources, cross-section data, the scattering kernel and the
+  eigenvalue driver (:mod:`orpheus.transport`) — which is a different
+  and genuinely satisfied sharing claim.

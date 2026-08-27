@@ -250,7 +250,7 @@ The Hébert §3.9.4 equations
 Hébert §3.9.4 (pp. 141–144 of :cite:`Hebert2009`) opens the sphere
 difference relations at Eq. (3.418) (angularly-integrated
 divergence form), introduces the :math:`\alpha`-recursion
-:eq:`bailey-dome-recursion` and the cell-balance with
+:eq:`alpha-dome-recursion` and the cell-balance with
 redistribution divisor :math:`\Delta S_i / (2\,\mathcal{W}_n)` at
 Eq. (3.428), and then specialises to the auxiliary starting
 direction :math:`\mu = -1`.  At this direction the
