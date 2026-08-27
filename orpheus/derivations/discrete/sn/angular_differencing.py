@@ -393,6 +393,13 @@ def morel_montry_beta(
     )
 
 
+#: :math:`\alpha^{H} / \alpha^{O}` — Hébert's α is twice ORPHEUS's, the
+#: factor being absorbed into the :math:`\Delta A / w` divisor.  Named
+#: rather than spelled ``2.0`` inline so the conversion is greppable and
+#: cannot be read as an arbitrary scale.
+_HEBERT_PER_ORPHEUS_ALPHA = 2.0
+
+
 def alpha_defect_beta(quad, geometry: str = "spherical", *, edges):
     r"""**β₂ — the Lathrop α-defect.** A SEQUENCE per level, not a scalar.
 
@@ -405,6 +412,31 @@ def alpha_defect_beta(quad, geometry: str = "spherical", *, edges):
     cell edges.  Zero iff :math:`\delta \equiv 0`, i.e.
     :math:`\tau \equiv \tfrac12` (Eq. 26).
 
+    ⛔ **The two sides must be in ONE normalization, and until
+    2026-08-27 they were not.**  Lathrop's Eq. 25 is written in the
+    Hébert convention :math:`\alpha^{H}`; :func:`alpha_dome` returns
+    the ORPHEUS-normalized :math:`\alpha^{O} = \alpha^{H}/2` (the
+    factor is absorbed into the :math:`\Delta A / w` divisor — see
+    ``docs/theory/conventions/normalization.rst``
+    ``§normalization-alpha-crosswalk``, whose own import rule is
+    *"never move a recursion between texts without carrying its
+    divisor"*).  Subtracting the two directly measured the
+    **normalization**, not the defect: `[M]` sphere / Gauss--Legendre,
+    cumulative-weight edges, the shipped expression converged to
+    :math:`0.5` (``0.4787 → 0.4942 → 0.4985 → 0.4996 → 0.4999`` at
+    N = 4/8/16/32/64) instead of to zero, so the docstring's "zero iff
+    τ ≡ ½" was unsatisfiable by any input.  Lifting to
+    :math:`\alpha^{H}` first gives ``4.253e-02 → 1.153e-02 →
+    3.031e-03 → 7.793e-04 → 1.977e-04``, i.e. :math:`O(N^{-2}) \to 0`.
+    Gated by ``tests/sn/sweep/curvilinear/test_alpha_defect_normalization.py``.
+
+    ⚠ **A SECOND, independent hazard is recorded but NOT repaired here**
+    (it was never measured): ``edges`` must be the angular cell
+    partition in the *cosine*, because the target :math:`1 - e^2` is
+    built from a cosine.  A prior review recorded that feeding the
+    partition in *radians* yields silent garbage (``π² − 1 = 8.8696``
+    at :math:`e = \pi`).  Nothing validates the argument's units.
+
     ⛔ **This is NOT :func:`contamination_beta`.** That one vanishes for
     the Morel–Montry τ; this one vanishes for the *diamond* τ. They are
     near-opposites — see the module docstring's nomenclature section.
@@ -416,7 +448,10 @@ def alpha_defect_beta(quad, geometry: str = "spherical", *, edges):
     """
     coord = _coord_of(geometry)
     return tuple(
-        alpha_dome(mu, w) - (1.0 - np.asarray(e) ** 2)
+        # Lift alpha^O -> alpha^H so both sides speak Lathrop Eq. 25's
+        # convention; see the docstring's normalization block.
+        _HEBERT_PER_ORPHEUS_ALPHA * alpha_dome(mu, w)
+        - (1.0 - np.asarray(e) ** 2)
         for mu, w, e in zip(
             _levels(quad, coord),
             _weights(quad, coord),
