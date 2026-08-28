@@ -870,9 +870,32 @@ both factors off the bundle, `else:` builds them from `(quad, coord)` alone —
 with the comment *"That they are buildable from ``(quad, coord)`` alone is the
 un-weld's own point: the closure's operands were never mesh facts."*
 
-**P4.3 — `StreamingTerms` to L2.** `transport → geometry` stays legal (it reads
-`mesh.areas`); no new edge either way. Fix the *"purely geometric"* claim while
-the file is open.
+**P4.3 — `StreamingTerms` to L2.** ⛔ ~~`transport → geometry` stays legal (it
+reads `mesh.areas`); no new edge either way.~~ **REFUTED 2026-08-27 — the
+"either way" half is false, and it is §6d's own failure mode.** Fix the
+*"purely geometric"* claim while the file is open.
+
+`[M]` by AST: **`geometry → transport` = 0** today and **`transport → geometry`
+= 16**, so the move runs against a 16:0 gradient — the same shape as the 24:0
+that made P2's α half unlandable. And the mover's producer **stays behind**:
+`ReducedStreamingOperator.streaming_terms` lives in `geometry/` and
+`[M]` **CONSTRUCTS** `StreamingTerms(...)` at `reduced_operator.py:856`, inside
+the function body — a **runtime** use, so the `TYPE_CHECKING` tolerance could
+not save it even if `geometry` were covered by it (it is `INPUT_PACKAGES`, so it
+is not). `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES` and
+`transport` is L2 ⟹ **a declared violation with a red waiting for it.**
+
+⟹ **ORDERING CONSTRAINT: P4.3 cannot precede P4.4.** P4.4 dissolves
+`geometry/reduced_operator.py` and re-homes `streaming_terms()` into `sn/`;
+once the producer is there the import is not merely legal but the established
+direction (`[M]` `sn → transport` = **171**). Either run P4.4 first, or fuse
+them — §6b's rule that the unit of work is the call-site set, applied to a type
+whose only constructor is the thing being left behind.
+
+⚠ **Why this survived being written, and it is worth more than the fix:** the
+row says *"no new edge **either way**"* — which is **§6d's own vocabulary**. It
+reads as a §6d check that was run and passed. It was not run; the phrase was
+borrowed. See the surprise-log row of the same date.
 
 **P4.4 — the residue to `sn/`, and the module is deleted.** Safe only after
 P4.1a. `[M]` 0 intra-geometry consumers, so nothing stays behind.
