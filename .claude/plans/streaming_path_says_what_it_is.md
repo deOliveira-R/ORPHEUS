@@ -25,6 +25,19 @@
 > green" is enforced entirely by the local gate; an empty `gh run list` is not
 > a pass.
 >
+> ⚠ **History was REWRITTEN 2026-08-27 and force-pushed.** A `git add -A`
+> swept 212 untracked `scratch/` working files (74 670 lines) into the P4.1a
+> commits; the user ruled a rewrite, so `5ff113c5..main` was replayed without
+> them. **Every hash in that range changed.** `[M]` verified before the push:
+> the 16 subjects are identical, every **non-`scratch`** path is bit-identical
+> to the commit the 9823/0 gate ran on (so the gate result carries over
+> unre-run), the tracked `scratch/` tree is back to its `5ff113c5` state, and
+> all 745 working files were restored to disk byte-for-byte from a pre-rewrite
+> backup — `filter-branch`'s checkout deletes untracked-again files, which is
+> the hazard this plan's own ⚠ `scratch/` banner names. If a summary or memory
+> quotes a hash in `5ff113c5..main` that `git cat-file -e` cannot resolve, it
+> predates the rewrite; re-find it by commit SUBJECT.
+>
 > ### What has LANDED
 >
 > | commit | phase | item |
@@ -36,7 +49,7 @@
 > | `4a3f2390` | **P3b** | `GeometryCoefficients` → `StreamingCoefficientCache` (45 sites, 12 files) |
 > | `8ffddfb9` | — | the post-P3 compaction point |
 | `af801d76` | — | the α-defect diagnostic measured the normalization, not the defect (+ its 8-case gate) |
-| `ad3ebf22` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
+| `d48f4bf4` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
 >
 > `[M]` P2's exit gate: **9815 passed / 0 failed**, 13 trees all `rc=0`; against
 > P1's baseline **+1** passed — the new `sn/angular/__init__.py` adds one case to
@@ -60,7 +73,7 @@
 > consumer count):
 > **§4ter**.
 >
-> ▶▶ **P4.1a has LANDED (`ad3ebf22`). The next executable steps are P4.1b and
+> ▶▶ **P4.1a has LANDED (`d48f4bf4`). The next executable steps are P4.1b and
 > P4.1c**, both fully designed and pre-flighted in §4ter — read the ✅ RULED
 > block under P4.1b before touching anything, because **both its scope and its
 > means were changed by measurement**: the step is a Pattern-2 arm collapse
@@ -496,7 +509,7 @@ one.
 
 ### The step order, and why it is forced
 
-**P4.1a — `coord` retires.** ✅ **LANDED `ad3ebf22`** 2026-08-27 (exit gate: 13 trees `rc=0`,
+**P4.1a — `coord` retires.** ✅ **LANDED `d48f4bf4`** 2026-08-27 (exit gate: 13 trees `rc=0`,
 9823 passed / 0 failed, delta 0 on skipped/deselected/xfailed). `[M]` duplicate on **3/3**
 charts (`op.coord is op.mesh.coord`). Bit-identical. **This is the load-bearing
 prerequisite**: it is what severs `transport`'s reach into the bundle
