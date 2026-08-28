@@ -817,6 +817,40 @@ the precedent that file's own ⛔ banner set for `tau`/`edges` on 2026-08-12:
 **the L0 ladder accepts α as a keyword** (*"the defect was L0 reaching UP for
 it"*). Its delegating local `alpha_dome` retires; nothing re-implements it.
 
+✅ **RECONCILED against the tree 2026-08-27 — the claim holds, verbatim.**
+`[M]` by AST: `FORBIDDEN_EDGES` has **15** keys and `"derivations"` is one of
+them (`tests/test_layer_imports.py:71`), mapping to `L2_PACKAGES |
+L3_PACKAGES` — so `sn` is forbidden. `[M]` the TYPE_CHECKING tolerance is
+`if is_tc and src_pkg in (L1_PACKAGES | L2_PACKAGES)` and
+`L0_PACKAGES = {"derivations"}`, so **derivations is not covered even for
+typing** — the same shape as the `geometry` finding that killed P2's α half,
+one layer down. `[M]` the import is live at `:163-164` and the module still
+re-exports a delegating `alpha_dome` at `:231` whose body is
+`return _production_alpha_dome(mu, w)`.
+
+⛔ **The move's inventory is 5 symbols, and they are not all "α" symbols** —
+`[M]` top-level in `reduced_operator.py`: `alpha_dome`,
+`_ALPHA_CLOSURE_ATOL`, `_assert_alpha_dome_closes`, **`AngularRedistribution`**
+and **`angular_redistribution`**. The last two are the factor and its producer;
+a summary that reads "the five α symbols" and greps `alpha` finds **3 of 5**.
+
+⭐ **There IS a second, WORSE option, and it is worth naming so nobody
+rediscovers it as a shortcut.** `[M]` the linter ships a `WHITELIST` whose
+existing entries are all `derivations → L2/L3` exemptions
+(`cases/diffusion.py → diffusion`, `mms/moc.py → moc`,
+`sood_registry/builders.py → cp`, `mms/sn.py → transport`), so "add a whitelist
+row" is an established idiom and would make the move land green in one line.
+⟹ **Do not.** The whitelist records a transitional violation; the keyword fix
+removes the violation. The file's own banner already ruled the principle for
+`tau`/`edges` — *the defect was L0 reaching UP* — and taking the exemption would
+re-open, for α, exactly what that banner closed for τ.
+
+⚠ `[M]` the d≥2 precedent the paragraph above cites is real and now sits at
+`augmented_mesh.py:408-419` (not `:412`): `if self.reduced is not None:` reads
+both factors off the bundle, `else:` builds them from `(quad, coord)` alone —
+with the comment *"That they are buildable from ``(quad, coord)`` alone is the
+un-weld's own point: the closure's operands were never mesh facts."*
+
 **P4.3 — `StreamingTerms` to L2.** `transport → geometry` stays legal (it reads
 `mesh.areas`); no new edge either way. Fix the *"purely geometric"* claim while
 the file is open.
