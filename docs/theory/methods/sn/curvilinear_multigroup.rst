@@ -154,15 +154,19 @@ construction:
   cell) visit sequence — the direction-keyed topological order the
   sweep follows — as
   :class:`~orpheus.transport.spatial.scheme.CellVisit` packets
-  carrying the cell index, the geometric
-  :class:`~orpheus.transport.spatial.scheme.StreamingTerms`, the
-  sweep-resolved face areas, and the closure floats
-  :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` /
-  :attr:`~orpheus.transport.spatial.scheme.CellVisit.c_in` /
-  :attr:`~orpheus.transport.spatial.scheme.CellVisit.c_out`.
+  carrying the cell index, the
+  :class:`~orpheus.transport.spatial.scheme.StreamingTerms`, and the
+  sweep-resolved downstream face area — three fields, all Tier-1.
   Per-group data is deliberately *not* in the packet: the cell update
-  reads ``total_xs[cell_idx]`` and ``source[cell_idx]`` at the call
-  site.
+  reads ``total_xs[:, cell_idx]`` and ``source[:, cell_idx]`` at the
+  call site.  (⛔ The packet also carried the closure floats ``tau`` /
+  ``c_in`` / ``c_out`` until 2026-08-28.  P4.9a retired all three: the
+  stamp made the *mesh* a second home for closure-owned data, and the
+  angular contributions now reach the scheme already multiplied out,
+  assembled by the caller from the closure's own per-ordinate arrays.
+  Being ordinate-keyed floats they were Tier-1 too, so this does not
+  disturb the stratification argument — it removes three fields from
+  the stratum, not a stratum boundary.)
 * **The** :math:`\alpha` **-dome.**  The recursion
   :eq:`alpha-recursion` on
   :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
@@ -230,9 +234,12 @@ where the WDD cell update's denominator picks up the collision term:
    Not a solver claim; the denominator assembly is pinned by the
    ``@pytest.mark.foundation`` gates
    ``tests/sn/sweep/core/test_cell_balance_for_streaming.py`` and
-   ``test_cache.py::test_cache_populator_matches_cell_balance_terms``
-   (denom vs ``cell_balance_terms`` at rtol=1e-14) — foundation software-
-   invariant tests carry no ``verifies(...)`` by design.
+   ``test_cache.py::test_cache_populator_matches_cell_balance_for_streaming``
+   (the cache's populated denominator vs a direct call to
+   ``cell_balance_for_streaming`` at rtol=1e-14; renamed from
+   ``…_matches_cell_balance_terms`` on 2026-08-28 when the scalar twin it
+   used to compare against was retired) — foundation software-invariant
+   tests carry no ``verifies(...)`` by design.
 .. vv-status: sn-curvilinear-mg-cell-denominator documented
 
 :math:`\Sigt{g} V_i` is the **sole group dependence** of the cell

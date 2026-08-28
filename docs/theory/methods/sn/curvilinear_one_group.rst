@@ -873,9 +873,10 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    bit-for-bit; the per-level :math:`\to (N,)` gather is a pure
    permutation (no arithmetic).  The anchor gate
    ``tests/sn/sweep/core/test_cache.py::test_cache_populator_matches_cell_balance_terms``
-   pins the cache ``denom`` (which carries :math:`(\Delta A/w)\,c_{\rm out}`)
-   to :func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms` at
-   ``rtol=1e-14``, and the curvilinear regression snapshots stay unmoved.
+   pinned the cache ``denom`` (which carries :math:`(\Delta A/w)\,c_{\rm out}`)
+   to ``cell_balance_terms`` at
+   ``rtol=1e-14`` (both renamed / retired at P4.9a — the gate is now
+   ``test_cache_populator_matches_cell_balance_for_streaming``), and the curvilinear regression snapshots stay unmoved.
 
    The remaining THREE inline ``c`` rebuild sites (they need CellVisit
    threading) are later dispatches (Step B2 / B3 / C).  See
@@ -907,13 +908,13 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    must not see the ANGULAR closure's type).  Instead the constants travel
    as DATA: the :class:`~orpheus.transport.spatial.scheme.CellVisit` gains two
    angular-closure-owned fields
-   (:attr:`~orpheus.transport.spatial.scheme.CellVisit.c_in` /
-   :attr:`~orpheus.transport.spatial.scheme.CellVisit.c_out`, distinct in
+   (``CellVisit.c_in`` /
+   ``CellVisit.c_out``, distinct in
    provenance from the geometry-owned
    :attr:`~orpheus.transport.spatial.scheme.CellVisit.streaming_terms`), and the
    single production site
-   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit` — through which
-   ALL four ``dag_walk`` yield paths funnel (Pattern 2, no per-site
+   ``SNMesh._make_cell_visit`` — through which
+   ALL four ``dag_walk`` yield paths funnelled (Pattern 2, no per-site
    divergence) — stamps them from
    :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.c_in_per_ordinate`
    /
@@ -951,8 +952,8 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    twin and on the DriftWarning-escalating
    ``tests/sn/sweep/core`` + ``tests/sn/solve`` snapshots.  The remaining
    TWO ``c`` rebuild sites
-   (:func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms` for the
-   ``DD.update`` solve path; the geometry-side :math:`\tau` producer) are
+   (``cell_balance_terms`` for the
+   ``DD.update`` solve path; the geometry-side :math:`\tau` producer) were
    Step B3 / C.  See :mod:`orpheus.transport.spatial.scheme` for the CellVisit
    fields and :mod:`orpheus.sn.mesh.augmented_mesh` for the production stamp.
 
@@ -983,7 +984,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      visits with a SURROGATE.  A wrong global-ordinate map (a
      ``c_in``:math:`\leftrightarrow`\ ``c_out`` swap, a mis-scattered
      cylinder level block) would ship silently.
-     ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walks a REAL
+     ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walked a REAL
      production ``dag_walk`` (sphere + multi-level cylinder + slab) and
      asserts every ``visit.c_in`` / ``visit.c_out`` equals the constants
      recomputed INLINE from that visit's OWN
@@ -1119,18 +1120,28 @@ would collapse that product into a Cartesian-vs-curvilinear conditional
 inside the spatial scheme — exactly the geometry dispatch the unified
 body was built to delete.
 
-So the constants travel as **data**, not as a **dependency**.  The
-:class:`~orpheus.transport.spatial.scheme.CellVisit` packet — which the
-orchestrator already populates per cell and per ordinate — carries the
-angular-closure-owned numbers as plain ``float`` fields:
-:attr:`~orpheus.transport.spatial.scheme.CellVisit.c_in` and
-:attr:`~orpheus.transport.spatial.scheme.CellVisit.c_out` (added in B2) and now
-:attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` (B3).  They are stamped
-at exactly **one** production site,
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit`, through which all
-four ``dag_walk`` yield paths (slab, sphere, cylinder, cylindrical
-pure-azimuthal degenerate) funnel — Pattern 2, no per-site divergence.
-That site reads the closure's per-global-ordinate accessors and stamps:
+So the constants travel as **data**, not as a **dependency**.
+
+.. note:: **The conclusion survives P4.9a; the mechanism below does
+   not (2026-08-28).**  *Data, not dependency* is still exactly right,
+   and :ref:`sn-p49a-closure-owns-the-march` names the contract that
+   forces it (``FORBIDDEN_EDGES["transport"]`` — an L2 package may not
+   import an L3 one).  What changed is *which* data: the visit no longer
+   carries the closure's constants, because the caller now multiplies
+   them out and passes the two **products** the balance actually needs.
+   That is strictly less coupling — a stamped ``c_in`` still let a
+   scheme spell a Morel--Montry quantity, and one did.  The B3
+   mechanism is recorded below as it then was.
+
+The ``CellVisit`` packet — which the
+orchestrator already populates per cell and per ordinate — carried the
+angular-closure-owned numbers as plain ``float`` fields: ``c_in`` and
+``c_out`` (added in B2) and then ``tau`` (B3).  They were stamped
+at exactly **one** production site, ``SNMesh._make_cell_visit``, through
+which all four ``dag_walk`` yield paths (slab, sphere, cylinder,
+cylindrical pure-azimuthal degenerate) funnelled — Pattern 2, no
+per-site divergence.  That site read the closure's per-global-ordinate
+accessors and stamped:
 
 .. code-block:: python
 
@@ -1144,25 +1155,32 @@ That site reads the closure's per-global-ordinate accessors and stamps:
        tau=float(closure.tau_per_ordinate[global_ordinate]),
    )
 
-where ``global_ordinate`` is the global ordinate index resolved the
+where ``global_ordinate`` was the global ordinate index resolved the
 same way :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`
 resolves it (``direction_idx`` for slab / sphere,
 ``level_indices[mu_level_idx][m]`` for cylinder).  The spatial scheme
-downstream sees only ``visit.tau`` / ``visit.c_in`` / ``visit.c_out``;
-it has no idea a closure produced them.  The provenance is recorded in
-the field docstrings (the constants are distinct in origin from the
-geometry-owned :attr:`~orpheus.transport.spatial.scheme.CellVisit.streaming_terms`),
-but the *type system* never lets the spatial axis reach across to the
-angular axis.
+downstream saw only ``visit.tau`` / ``visit.c_in`` / ``visit.c_out``;
+it had no idea a closure produced them.  The provenance was recorded in
+the field docstrings (the constants being distinct in origin from the
+geometry-owned
+:attr:`~orpheus.transport.spatial.scheme.CellVisit.streaming_terms`),
+but the *type system* never let the spatial axis reach across to the
+angular axis.  P4.9a kept that property and removed the three fields:
+the scheme's signature now names the two assembled contributions
+directly, so there is no closure-owned number on the packet to record
+the provenance of.
 
-Why the CellVisit.tau default is 1.0, not 0.0
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Why τ = 1 is the slab value, and 0 would be a landmine
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` defaults to
-:math:`1.0`, not the zero a numeric field usually defaults to.  The
-default is the value the slab / Cartesian path leaves in place — the
-identity closure supplies it through ``tau_per_ordinate`` — and the
-choice is forced by the angular recurrence the value feeds.
+This subsection was titled *"Why the* ``CellVisit.tau`` *default is
+1.0, not 0.0"* until 2026-08-28, when P4.9a retired that field.  The
+**argument is unchanged and still live**, one layer over: :math:`\tau`
+is the identity closure's value on the slab, supplied through
+:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`,
+and the choice is forced by the angular recurrence the value feeds —
+which is why :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`
+returns :math:`\bar\psi` exactly under the identity closure.
 
 :math:`\tau = 1` is the **neutral element** of the Morel--Montry weight.
 With :math:`\tau_n = 1` the WDD angular closure
@@ -1185,21 +1203,30 @@ scan split :math:`1/\tau`, :math:`(1-\tau)/\tau` are all well-defined
 and reduce to their slab values (:math:`0`, :math:`1`, :math:`0`
 respectively, since :math:`\alpha = 0` on the slab).
 
-A :math:`0.0` default, by contrast, is a **divide-by-zero landmine**.
+A :math:`0` value, by contrast, is a **divide-by-zero landmine**.
 Every consumer of :math:`\tau` divides by it:
-:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`'s angular
-thread divides :math:`(\bar\psi - (1-\tau)\psi^a_{\rm in})` by
-:math:`\tau`; the cache derives ``tau_inv = 1/tau``.  A visit that
-reached the curvilinear branch with an un-stamped :math:`\tau = 0`
-would produce a silent ``inf``/``nan`` rather than a loud error.  The
-:math:`1.0` default makes the *un-stamped* visit compute the
-**identity** transformation — the safe no-op — which is both correct
-for the slab (where the stamp is genuinely neutral) and a benign
-fallback that surfaces a missing stamp as a *wrong-but-finite* answer a
-regression snapshot catches, rather than a ``nan`` that propagates.
+:func:`~orpheus.sn.angular.closure.march_psi_half_step` divides
+:math:`(\bar\psi - (1-\tau)\psi^a_{\rm in})` by :math:`\tau`, and
+:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_inv_per_ordinate`
+mints :math:`1/\tau` for the scan.  A :math:`\tau = 0` reaching either
+would produce a silent ``inf``/``nan`` rather than a loud error, while
+:math:`\tau = 1` computes the **identity** transformation — the safe
+no-op, correct for the slab and a benign fallback that surfaces a
+mis-wired closure as a *wrong-but-finite* answer a regression snapshot
+catches rather than a ``nan`` that propagates.  ⛔ Until 2026-08-28 the
+consumers named here were ``DiamondDifference.update``'s inline angular
+thread and the cache's derived ``tau_inv``; both were re-homed onto the
+closure by P4.9a, and :math:`\tau` is now guarded at its own producer
+(``_assert_tau_within_unit_interval``) rather than by a field default.
 
 The three live consumers and the L21 framing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: **Two of these three consumers were re-homed on 2026-08-28
+   (P4.9a); the section is kept because the reasoning that produced them
+   is what made the re-home legible.**  Read consumers (1) and (2) as the
+   Step-B3 state; each carries its own dated correction below, and the
+   full account is :ref:`sn-p49a-closure-owns-the-march`.
 
 Three live paths read the closure-owned :math:`\tau` (or the constants
 derived from it) after B3.  The first two are the **solve** and
@@ -1209,26 +1236,36 @@ duality this page calls the **L21 twin-path** (two applications of the
 *same* operator; cf. :ref:`sn-sweep-frame-apply-matvec` for the
 apply-direction matvec that is the twin of the curvilinear sweep).
 
-**(1) The scalar solve helper.**
-:func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms` — the
+**(1) The scalar solve helper.**  ``cell_balance_terms`` — the
 :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` solve
-direction — no longer rebuilds :math:`c_{\rm in}` / :math:`c_{\rm out}`
-from ``st.alpha_* / st.tau_mm``.  Its signature now takes them as
-keyword inputs, and
-:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` supplies
-them straight off the visit::
+direction — no longer rebuilt :math:`c_{\rm in}` / :math:`c_{\rm out}`
+from ``st.alpha_* / st.tau_mm``.  Its signature took them as
+keyword inputs, and ``update`` supplied them straight off the visit::
 
    terms = cell_balance_terms(
        visit.streaming_terms, visit.face_area_downstream, total_xs,
        upstream_state, c_in=visit.c_in, c_out=visit.c_out,
    )
 
-The helper now reads :math:`\tau` **not at all** — it consumes only the
+The helper read :math:`\tau` **not at all** — it consumed only the
 already-derived :math:`c` constants, which is the right factoring: the
 cell-balance denominator :eq:`dd-solve` needs
 :math:`(\Delta A_i / w_n)\,c_{\rm out}`, and the upstream numerator
 needs :math:`(\Delta A_i / w_n)\,c_{\rm in}\,\psi_{n-\frac12}`, neither
 of which references :math:`\tau` once :math:`c` is in hand.
+
+⛔ **Superseded 2026-08-28 (P4.9a).**  ``cell_balance_terms`` is
+retired; the surviving helper is
+:func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`,
+reached from ``update`` and ``residual`` through one ``n_mask = 1``
+conversion.  B3's factoring insight *survives and is carried further*:
+having got :math:`\tau` out of the helper, the next step was to get
+:math:`c` out too.  The survivor takes neither — it receives
+:math:`(\Delta A/w)\,c_{\rm out}` and
+:math:`(\Delta A/w)\,c_{\rm in}\,\psi_{n-\frac12}` **already
+multiplied**, as ``angular_denom_term`` / ``angular_numer_upstream``, so
+the transport layer names no Morel--Montry quantity at all.  The code
+block above is retained as the Step-B3 spelling; it will not run today.
 
 **(2) The angular recurrence.** The other half of
 :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` — the
@@ -1246,25 +1283,55 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
    SAME recurrence STEP as :eq:`pole-mm-recurrence` (its seed line is a
    separate statement — this spelling carries no seed; genuinely wired to
    ``test_compute_psi_half_per_level.py::TestRecurrenceFormula``) and
-   :eq:`dd-mm-scan-split`, applied in the ``DiamondDifference.update`` frame;
-   the bit-identity across the three consumer frames is the L21 twin-path
-   content, pinned by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
+   :eq:`dd-mm-scan-split`, applied — until P4.9a — in the
+   ``DiamondDifference.update`` frame and now in the closure's own; the
+   bit-identity across the consumer frames is the L21 twin-path content,
+   pinned by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
 .. vv-status: dd-mm-angular-recurrence documented
 
-and reads it from :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`
-(stamped by
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit` from
+and read it from ``CellVisit.tau`` (stamped by
+``SNMesh._make_cell_visit`` from
 :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`)
-rather than from ``visit.streaming_terms.tau_mm``.  This is the line
-the :math:`1.0` default protects.
+rather than from ``visit.streaming_terms.tau_mm``.  That was the line
+the :math:`1.0` default protected.
+
+.. implements:: dd-mm-angular-recurrence
+   :by: orpheus.sn.angular.closure.march_psi_half_step
+
+   **Implemented by** 2 sites, both in the angular closure since
+   2026-08-28.  ``march_psi_half_step`` is the relation itself — Form A
+   of :eq:`sn-p49a-march-forms`, subtract-then-divide, the operation
+   order being load-bearing for bit-identity.
+   :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`
+   is the per-cell entry that supplies the closure's own :math:`\tau` at
+   an ordinate and delegates.  ⛔ Before P4.9a this equation's
+   implementer was ``DiamondDifference.update``, which evaluated the
+   relation inline because its package may not import the closure's
+   (:ref:`sn-p49a-closure-owns-the-march`); declaring the owners is what
+   stands the inference down — the label previously attracted **32**
+   guesses, every one matched on the shared token *angular*, i.e. a
+   membership list of the angular package rather than a set of
+   implementers.
+
+.. implements:: dd-mm-angular-recurrence
+   :by: orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half
+
+⛔ **Superseded 2026-08-28 (P4.9a).**  The equation is unchanged and
+still labelled; what moved is who evaluates it.  The stamp, the
+``CellVisit.tau`` field and ``_make_cell_visit`` are all retired: a
+scheme that does not apply the march has no use for :math:`\tau`, so the
+mesh stopped being a second home for a closure-owned number.  The
+:math:`1.0` default retired with the field it defended — see the
+subsection below, which is kept for the argument rather than for the
+field.
 
 **(3) The CumprodScan split.** The vectorized fast path — the cumulative
 product that replaces the per-cell Python loop for the curvilinear
 sweep — needs the same recurrence in a form amenable to a forward scan.
-:class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` sources
+:class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` sourced
 :math:`\tau` from
 :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`
-and precomputes the split
+and precomputed the split
 
 .. math::
    :label: dd-mm-scan-split
@@ -1293,17 +1360,58 @@ consumed at the loss-representation scan recurrence (in
    = \frac{\bar\psi}{\tau} - \frac{1-\tau}{\tau}\,\psi^a_{\rm in},
 
 which is algebraically identical to :eq:`dd-mm-angular-recurrence` — the
-same operator, applied in the vectorized frame.  Precomputing
-:math:`1/\tau` and :math:`(1-\tau)/\tau` is a legitimate
-perform-once-at-construction hoist (L16): the closure exposes only the
-**primitive** :math:`\tau` (Pattern 5 — build the primitive, not the
-product), and each consumer derives the trivial :math:`1/\tau`,
-:math:`(1-\tau)/\tau`, :math:`\alpha_{\rm out}/\tau` algebra it needs at
-its own definition site.  The scan derivation lives in the cache; the
-recurrence consumes it.  That keeps the closure's surface minimal (one
-weight) while letting two structurally-different consumers (a scalar
-Python recurrence and a vectorized NumPy scan) each shape it to their
-reduction tree.
+same operator, applied in the vectorized frame — but **not bitwise
+equal** to it, which is the whole reason the two spellings are kept
+apart deliberately rather than collapsed
+(:ref:`sn-p49a-two-forms`).
+
+.. note:: **The hoisting argument survived P4.9a; the ownership half of
+   it did not (2026-08-28).**
+
+   This paragraph read: *"Precomputing* :math:`1/\tau` *and*
+   :math:`(1-\tau)/\tau` *is a legitimate perform-once-at-construction
+   hoist (L16): the closure exposes only the* **primitive**
+   :math:`\tau` *(Pattern 5 — build the primitive, not the product),
+   and each consumer derives the trivial* :math:`1/\tau`,
+   :math:`(1-\tau)/\tau`, :math:`\alpha_{\rm out}/\tau` *algebra it
+   needs at its own definition site.  The scan derivation lives in the
+   cache; the recurrence consumes it."*
+
+   The **hoist** is still right and still where it was — the cache
+   computes these once per solve, not once per iteration.  What was
+   wrong is *"each consumer derives"*.  The pairing of :math:`1/\tau`
+   with :math:`(1-\tau)/\tau` is not a convenience product of a
+   primitive: it is the :math:`\bar\psi` and :math:`\psi^a_{\rm in}`
+   coefficient **pair** of the closure's own update written
+   scan-normally — relation knowledge, and a cache deriving it was the
+   scheme's inline-march smell one notch down.  The closure now
+   **mints** both
+   (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_inv_per_ordinate`,
+   :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.march_a_in_coeff_per_ordinate`)
+   and the cache stores them.  Pattern 5 is unviolated by this: a
+   coefficient of one's own relation is not a "product" a consumer
+   should be assembling.  :math:`\alpha_{\rm out}/\tau` is unaffected —
+   it is :math:`c_{\rm out}`, which the closure has minted since B1.
+
+.. implements:: dd-mm-scan-split
+   :by: orpheus.sn.angular.closure.PoleAngularClosureBase.tau_inv_per_ordinate
+
+   **Implemented by** 2 sites — one per constant, both **minted by the
+   closure** since 2026-08-28.  ⛔ Until P4.9a the split was *derived by
+   the cache* (``StreamingCoefficientCache.from_geometry``), and that was
+   the same smell as the scheme's inline march, one notch down: the
+   pairing of :math:`1/\tau` with :math:`(1-\tau)/\tau` is not a
+   convenience product, it is the :math:`\psi^a_{\rm in}` coefficient of
+   the closure's own update written scan-normally — relation knowledge,
+   which the cache had no business spelling.  L16's hoisting half
+   survives: the cache still *stores* both arrays once per solve for the
+   per-iteration scan.  ⚠ ``march_a_in_coeff_per_ordinate`` is spelled
+   ``(1 - tau) / tau``, never the algebraically-equal ``tau_inv - 1.0``
+   — `[M]` the two differ by 1–2 ULP, and the cache field gate pins this
+   spelling with ``array_equal``.
+
+.. implements:: dd-mm-scan-split
+   :by: orpheus.sn.angular.closure.PoleAngularClosureBase.march_a_in_coeff_per_ordinate
 
 Why the fold is bit-identical, and the regression floor for Step C
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1353,9 +1461,9 @@ Step C) cannot silently break them:
   deleted.
 
 * The **production-stamp catcher**
-  ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walks a real
+  ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walked a real
   production ``dag_walk`` (sphere, multi-level cylinder, slab) and — in
-  its dedicated :math:`\tau` arm — asserts every ``visit.tau`` equals
+  its dedicated :math:`\tau` arm — asserted every ``visit.tau`` equals
   the **independently recomputed** Morel--Montry weight for that visit's
   ordinate at 0-ULP: the test pins the stamp's *ordinate map*, the
   complement of what Leg-1 pins (the producers' *values*).  Before
@@ -1367,13 +1475,26 @@ Step C) cannot silently break them:
   :ref:`reference-migration note <sn-tau-reference-migration>` for the
   Q5.6.4 re-posing.  This arm was added specifically because B3
   made the
-  :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` stamp **live** while
+  ``CellVisit.tau`` stamp **live** while
   the existing named twins never call the rewired reader (vv L11
   Mode 11): a mutation stamping ``tau = ... * 1.1`` drifts the converged
   cylinder scalar flux by :math:`\sim 0.2\,\%` with **no** other test
   red, so the dedicated arm is the only committed catcher of a
   :math:`\tau`-stamp ordinate-map error.  Mutation-verified RED on the
   :math:`\times 1.1` stamp across sphere + cylinder + slab; GREEN clean.
+
+  ⛔ **The stamp is retired (P4.9a, 2026-08-28) and the catcher was
+  re-derived, not deleted.**  The ordinate-map hazard it existed for did
+  not disappear — it moved one producer up.  With the mesh no longer
+  copying closure data onto visits, a wrong per-level :math:`\to` global
+  gather *inside the closure's own construction* would now reach every
+  consumer of the :math:`(N,)` accessors: the cache populator, the walk's
+  degenerate assembly, and the march itself.  The successor
+  ``tests/sn/sweep/core/test_closure_constant_map.py`` pins exactly that
+  map, against the same independent surrogate (:math:`\tau` from a
+  different code path to the BMC-2010 weight, :math:`\alpha` from the
+  operator's surviving dome) at 0-ULP, over every (cell, global ordinate)
+  of a sphere, a multi-level cylinder and a slab.
 
 * The **seam-6 scan catcher**
   ``tests/sn/sweep/core/test_affine_carve_baseline.py`` reddens on a
@@ -1394,9 +1515,9 @@ retired), ``ReducedStreamingOperator.tau_mm``, and
 dropped — confident that nothing live depended on them.
 See :mod:`orpheus.sn.angular.closure` for the
 ``tau_per_ordinate`` accessor and the three-constant cache,
-:mod:`orpheus.transport.spatial.scheme` for the
-:attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` field,
-:mod:`orpheus.sn.mesh.augmented_mesh` for the single production stamp, and
+:mod:`orpheus.transport.spatial.scheme` for the ``CellVisit.tau`` field
+and ``SNMesh._make_cell_visit`` for the single production stamp (both
+retired at P4.9a — :ref:`sn-p49a-closure-owns-the-march`), and
 :mod:`orpheus.sn.sweep.cache` for the scan split.
 
 .. _sn-tau-step-c-closeout:
@@ -1535,6 +1656,245 @@ reference.  Migrate-then-delete preserved the floor:
    (landed in this same re-staging, which deleted the strategy
    ``__call__`` bundle entirely; see the contract-evolution note at
    :ref:`sn-pole-angular-closure-protocol`).
+
+.. _sn-p49a-closure-owns-the-march:
+
+P4.9a — the closure owns its march, and the scheme closes one axis
+--------------------------------------------------------------------
+
+Steps B1–C above moved the Morel--Montry *data* to its owner: first the
+weight :math:`\tau`, then the derived constants :math:`c_{\rm in}` /
+:math:`c_{\rm out}`, until the geometry side produced none of it.  What
+they did **not** move is the *relation* — the march
+:eq:`dd-mm-angular-recurrence` itself, which
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`
+went on evaluating inline, on data it had been handed.  P4.9a
+(2026-08-28) closes that arc: a spatial discretization scheme now closes
+the **spatial** axis and nothing else, and the angular axis is closed by
+its own closure, applied at the site that composes the two.
+
+Why the twin existed: a layer contract, not an oversight
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The inline copy was **forced**, and naming the forcing is the point of
+this subsection — a reader who takes it for carelessness will
+re-introduce it.
+
+The project declares an import-layer contract and gates it.  `[M]` by
+AST over ``tests/test_layer_imports.py``: ``transport`` is **L2**,
+``sn`` is **L3**, and ``FORBIDDEN_EDGES["transport"] = L3_PACKAGES`` —
+enforced per module by a ``@pytest.mark.foundation`` parametrized gate.
+So :mod:`orpheus.transport.spatial.diamond` **may not import**
+:mod:`orpheus.sn.angular.closure`.  A scheme that wanted to apply the
+march therefore could not *call* its owner; it could only re-spell the
+relation.  That is the shape of the defect: not a copy someone forgot to
+delete, but a Pattern-2 twin that the architecture *manufactured* the
+moment the angular relation was made the scheme's responsibility.
+
+The repair is correspondingly not "delete the copy".  It is to move the
+**responsibility** up one level, to the site that already sees both
+packages — the SN walk today, and the ``StreamingOperator`` once P4.9b
+lands.  The scheme keeps only what a spatial scheme can own; it receives
+the angular axis's effect on the balance as two already-multiplied
+numbers, and never sees a closure object, a :math:`\tau`, or a
+half-angle thread.
+
+.. _sn-p49a-two-forms:
+
+Two arithmetic forms, and why they are welded rather than unified
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The march is written two ways in this tree, and the difference is not
+cosmetic:
+
+.. math::
+   :label: sn-p49a-march-forms
+
+   \underbrace{\psi^a_{\rm out} =
+     \frac{\bar\psi - (1-\tau)\,\psi^a_{\rm in}}{\tau}}_{\textbf{Form A} \;-\;
+     \text{subtract, then divide}}
+   \qquad\text{vs.}\qquad
+   \underbrace{\psi^a_{\rm out} =
+     \tau^{-1}\,\bar\psi \;-\; \frac{1-\tau}{\tau}\,\psi^a_{\rm in}}
+     _{\textbf{Form B} \;-\; \text{scan-normal, precomputed constants}}
+
+.. (vv-status rationale) Representational: the two floating-point
+   spellings of ONE relation (:eq:`dd-mm-angular-recurrence` /
+   :eq:`pole-mm-recurrence` state the relation itself; this states the
+   pair).  Not a solver claim — what is verifiable is the arithmetic
+   distance between them, measured below, and the per-path gates named
+   there.
+.. vv-status: sn-p49a-march-forms documented
+
+Form A is the owner's spelling and the one
+:func:`~orpheus.sn.angular.closure.march_psi_half_step` computes.  Form B
+is the scan-normal spelling the vectorized fast path needs, built from
+the two constants the closure now *mints*,
+:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_inv_per_ordinate`
+and
+:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.march_a_in_coeff_per_ordinate`.
+They are algebraically identical and **not bitwise equal**.
+
+Reproduce it as follows: take :math:`\tau` from the shipped producer on a
+shipped rule, evaluate both forms on the same random
+:math:`(\bar\psi, \psi^a_{\rm in})`, and compare with ``==``:
+
+.. code-block:: python
+
+   import numpy as np
+   from orpheus.numerics.quadrature.directional import Quadrature
+   from orpheus.sn.angular.closure import morel_montry_tau_per_level
+   from orpheus.geometry.coord import CoordSystem
+
+   tau = np.concatenate(morel_montry_tau_per_level(
+       Quadrature.folded_product(4, 6), CoordSystem.CYLINDRICAL))   # (12,)
+
+   form_a = lambda t, p, a: (p - (1.0 - t) * a) / t
+   form_b = lambda t, p, a: (1.0 / t) * p - ((1.0 - t) / t) * a
+
+   frac = []
+   for seed in range(200):                       # 200 seeds x 12 x 200 draws
+       r = np.random.default_rng(seed)
+       p = r.uniform(0.1, 2.0, (tau.size, 200))
+       a = r.uniform(0.1, 2.0, (tau.size, 200))
+       frac.append((form_a(tau[:, None], p, a) == form_b(tau[:, None], p, a)).mean())
+
+   assert 0.46 <= min(frac) and max(frac) <= 0.52     # never close to 1.0
+   assert (tau == 0.5).sum() == 2                     # of 12 — see below
+
+`[M]` 2026-08-28, on that fixture:
+
+.. list-table:: Form A vs Form B on ``folded_product(4, 6)``, cylindrical τ
+   :header-rows: 1
+   :widths: 40 60
+
+   * - quantity
+     - measured
+   * - bit-equal fraction (200 seeds × 2400 evaluations)
+     - :math:`46.21\,\%` – :math:`51.42\,\%`, mean :math:`48.66\,\%`
+   * - :math:`\max|{\rm A}-{\rm B}|` (4.8 × 10\ :sup:`5` evaluations)
+     - :math:`1.776\times 10^{-15}`
+   * - :math:`\max` ULP gap, over the *same* 200 seeds
+     - :math:`113` – :math:`91\,839`
+   * - ordinates with :math:`\tau` **exactly** :math:`\tfrac12`
+     - 2 of 12 → those are bit-equal :math:`100\,\%` of the time
+
+.. warning:: **Two of those four rows are stable statistics and two are
+   not — and the tree currently publishes one of the unstable ones.**
+
+   :math:`\max|{\rm A}-{\rm B}| = 1.776\times 10^{-15}` reproduces
+   exactly and is the number to quote.  The **bit-equal fraction** is a
+   property of the *draw*: it must be published as the band above, not
+   as a single figure.  The **ULP gap** is worse than draw-dependent —
+   it spans three orders of magnitude over the same 200 seeds, because
+   the ULP metric explodes wherever the two terms nearly cancel while
+   the absolute difference stays at the round-off floor.
+
+   ⚠ The docstring of
+   :func:`~orpheus.sn.angular.closure.march_psi_half_step` records this
+   as *"bit-equal 59 % on real τ, max 204 ULP"*, from the phase's own
+   single-draw probe.  Neither figure reproduces here: 59 % lies outside
+   the 200-seed band, and 204 sits at the bottom of the ULP range.  The
+   *conclusion* those numbers were offered for is unaffected and in fact
+   strengthened — the forms are not interchangeable at the bit level —
+   but the two numbers should not be re-quoted as if they were
+   properties of the fixture.
+
+The mechanism behind the last table row is exact and needs no
+statistics.  When :math:`\tau` is **bitwise** :math:`\tfrac12`,
+:math:`1/\tau = 2.0` and :math:`(1-\tau)/\tau = 1.0` are both exact, so
+Form B degenerates to Form A's arithmetic and the two agree on every
+input.  `[M]` on ``folded_product(4, 6)`` the twelve ordinates carry
+**six distinct** ``float64`` :math:`\tau` values — the three nominal
+levels :math:`\{0.2679\ldots,\ \tfrac12,\ 0.7320\ldots\}`, each
+appearing as a pair one ULP apart — and only **2 of 12** are exactly
+:math:`\tfrac12`.  A bit-identity claim validated on one ordinate of one
+rule is therefore reading a coin (``vv-principles`` #31, #13).
+
+Which is why the design **welds** the two forms by gate rather than
+unifying them by spelling.  Both are correct; each is the right shape
+for its consumer's reduction tree; and they partition the ordinate set,
+so no single input is ever evaluated both ways:
+
+.. list-table:: The two forms partition the work — neither is a live twin of the other
+   :header-rows: 1
+   :widths: 22 26 52
+
+   * - path
+     - form
+     - where
+   * - degenerate cylindrical-axis ordinates (per-cell)
+     - **A**
+     - :func:`~orpheus.sn.angular.closure.march_psi_half_step`, reached
+       from the walk through
+       :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`
+   * - the batch half-angle grid
+     - **A**
+     - ``_psi_half_grid_single_level``, whose loop body *delegates* to the
+       same function — so the delegation is bit-neutral by shared body
+   * - non-degenerate ordinates (vectorized scan, forward **and** adjoint)
+     - **B**
+     - the scan fast path in :mod:`orpheus.sn.loss_representation`,
+       consuming the closure's two minted constants — `[M]` three sites,
+       the forward thread and the two transpose arms
+
+`[M]` those are the whole population: ``march_psi_half_step`` has exactly
+**two** callers in ``orpheus/`` — the per-cell entry and the batch
+kernel's loop body — and the minted constants are read only on the scan
+path.  No input reaches both forms.
+
+.. important:: **The honest scope, so the done-when is not read as
+   stronger than it is.**
+
+   P4.9a does **not** achieve *"the Morel--Montry relation has exactly
+   one spelling in the tree"*.  What it achieves is that the relation
+   has exactly one spelling **inside** ``orpheus/transport/`` — namely
+   none — and one **owner**, :mod:`orpheus.sn.angular.closure`, which
+   now emits both forms from one place instead of one form here and one
+   form in a package that could not name it.  Form B survives, as the
+   closure's own scan-normal representation; the difference from before
+   is that a reader who changes :math:`\tau`'s meaning now edits one
+   module, and the two forms are pinned against each other by gate
+   rather than by hope.
+
+What moved, concretely
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* **The march.** ``DiamondDifference.update`` no longer evaluates it.
+  :func:`~orpheus.sn.angular.closure.march_psi_half_step` is the one
+  production spelling of Form A; the batch kernel delegates to it, and
+  the per-cell entry is
+  :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`.
+* **The scalar cell-balance twin.** ``cell_balance_terms`` and its
+  ``CellBalanceTerms`` record are retired onto
+  :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`,
+  which the per-cell solve and apply directions now reach through a
+  single ``n_mask = 1`` conversion.
+* **The visit family.** ``CellVisit`` lost the closure stamp
+  (``tau`` / ``c_in`` / ``c_out``) and with it the mesh-side
+  ``SNMesh._make_cell_visit``; ``UpstreamState`` lost
+  ``angular_upstream``; ``CellResult`` lost ``outgoing_angular_state``.
+  What the scheme receives instead are two keyword arguments carrying
+  **assembled** contributions — ``angular_denom_term`` and
+  ``angular_numer_upstream`` — whose slab values are the neutral
+  elements of the sums they enter.
+* **The scan constants.** The cache no longer *derives*
+  :math:`1/\tau` and :math:`(1-\tau)/\tau`; the closure mints them and
+  the cache stores them.  L16's hoisting argument survives — the cache
+  is still where they are computed once per solve — but the *pairing* of
+  those two coefficients is relation knowledge, and a cache deriving it
+  was the same smell as the scheme one notch up.
+* **A guard, re-keyed onto a stronger signal.** Linear-Discontinuous
+  refused curvilinear visits by testing
+  ``upstream_state.angular_upstream is not None``.  That field's
+  retirement would have made the guard silently unreachable — a defaulted
+  presence-test with nothing left to detect (``vv-principles`` #28's
+  temporal twin).  It is re-keyed onto two **value** signals:
+  ``face_area_inner != face_area_outer`` (`[M]` exactly ``False`` on
+  every Cartesian cell, ``True`` on every constructible curvilinear one)
+  and a non-neutral assembled angular contribution.  A value-keyed guard
+  is reachable by calling the scheme directly, so its witness needs no
+  mesh and no earlier guard can preempt it.
 
 .. _sn-space-angle-separability-section:
 
@@ -3065,11 +3425,18 @@ where the superscript :math:`s` denotes spatial face fluxes, and
 direction of neutron travel (see :ref:`sweep-algorithm` for their
 definition).  This is the equation the per-cell
 update solves —
-:func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms`,
+:func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`,
 consumed by
 :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` —
 and, in vectorized scan form, the CumprodScan fast path
-(:ref:`sn-tau-c-on-cellvisit-live`).
+(:ref:`sn-tau-c-on-cellvisit-live`).  ⛔ The helper named here was the
+scalar twin ``cell_balance_terms`` until P4.9a retired it onto the
+vectorized one (2026-08-28).  Note what the survivor does **not**
+take: neither :math:`c_{\rm in}` nor :math:`c_{\rm out}` nor
+:math:`\Delta A/w` reaches it — the caller multiplies the two
+redistribution products out and passes them assembled
+(:ref:`sn-p49a-closure-owns-the-march`), so the equation above is the
+*balance* the helper closes, not the argument list it takes.
 
 Geometry Comparison
 ====================
@@ -3148,12 +3515,16 @@ then updates:
 The spatial face flux propagates to the next cell; the angular face flux
 propagates to the next ordinate on the same cell.
 
-Implemented today by the unified walk — the per-cell
-:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`
-over :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` visits,
-with the vectorized
+Implemented today by the unified walk, and since P4.9a by **two owners,
+one per axis**: the spatial face flux comes out of the per-cell
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` over
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` visits, while
+the angular face flux is advanced by the closure's own
+:func:`~orpheus.sn.angular.closure.march_psi_half_step`, applied by the
+walk that composes them.  The vectorized
 :class:`~orpheus.sn.loss_representation.CumprodScan` fast path
-(:doc:`loss_representation`).
+(:doc:`loss_representation`) runs the same two closures in the
+scan-normal spelling (:ref:`sn-p49a-two-forms`).
 
 .. _sn-pole-angular-closure-protocol:
 
@@ -3250,6 +3621,41 @@ flat-flux invariance, and asymptotic accuracy:
      \phi_{n+1/2,i,g} &= \frac{\phi_{n,i,g}
                               \;-\; (1 - \tau_n)\,\phi_{n-1/2,i,g}}{\tau_n},
      \qquad n = 1, \ldots, M_p .
+
+  .. implements:: pole-mm-recurrence
+     :by: orpheus.sn.angular.closure.march_psi_half_step
+
+     **Implemented by** 5 sites, all inside the angular closure since
+     P4.9a (2026-08-28).  Every symbol that executes this equation's
+     arithmetic is declared, not only the canonical one: a test is
+     adjudicated against the transcription it actually ran, and this
+     equation's five ``verifies`` gates call ``compute_psi_half_per_level``
+     rather than the step function underneath it.  The relation
+     itself is ``march_psi_half_step`` — the second line, and the single
+     production spelling of its subtract-then-divide form
+     (:ref:`sn-p49a-two-forms`).  ``_psi_half_grid_single_level`` is the
+     batch kernel that writes the **seed** line and loops the step,
+     delegating the body so the delegation is bit-neutral;
+     ``compute_psi_half_per_level`` is its public exposure and
+     ``MorelMontryAngularSweep._psi_half_grid_for_level`` the mesh-bound
+     wrapper that reads :math:`\tau_n` from the strategy;
+     ``PoleAngularClosureBase.advance_psi_half`` is the per-cell entry the
+     degenerate cylindrical-axis path uses.  ⛔ Before these declarations
+     the equation carried exactly one *inferred* implementer,
+     ``_OneDimScanWalk._ensure_pole_mirror``, matched on the shared token
+     *pole* — a method that mirrors pole **faces** and marches nothing.
+
+  .. implements:: pole-mm-recurrence
+     :by: orpheus.sn.angular.closure._psi_half_grid_single_level
+
+  .. implements:: pole-mm-recurrence
+     :by: orpheus.sn.angular.closure.compute_psi_half_per_level
+
+  .. implements:: pole-mm-recurrence
+     :by: orpheus.sn.angular.closure.MorelMontryAngularSweep._psi_half_grid_for_level
+
+  .. implements:: pole-mm-recurrence
+     :by: orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half
 
   The march runs over the level's own :math:`M_p` ordinates — the sphere is
   the single-level case :math:`M_p = N`, the cylinder loops it per
@@ -3671,8 +4077,12 @@ Half-angle grid exposure
    (:class:`~orpheus.sn.operators.streaming.StreamingOperator`) consume
    :math:`\phi_{m\pm 1/2}` as
    :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`'s
-   ``psi_angular_upstream`` argument — closing the apply-vs-sweep
-   twin path on the curvilinear angular branch.
+   angular-upstream argument — closing the apply-vs-sweep
+   twin path on the curvilinear angular branch.  (That parameter was
+   named ``psi_angular_upstream`` until PR-TYPED-6.5 Phase 2.11 made
+   the helper closure-blind; it is ``angular_numer_upstream`` today and
+   carries :math:`(\Delta A/w)\,c_{\rm in}\,\phi_{m-1/2}` already
+   multiplied out, not :math:`\phi_{m-1/2}` itself.)
 
    Pattern 2 (Single source of truth).  The :eq:`pole-mm-recurrence`
    recurrence body lives once, in the module-level kernel

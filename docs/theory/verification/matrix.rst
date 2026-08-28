@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10143**
+Total tests collected: **10155**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1634, 16.1%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7142, 70.4%
+   foundation, 7154, 70.4%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10058
+   explicit, 10070
    class-name, 46
    func-name, 0
    case, 33
@@ -71,11 +71,11 @@ Module × level grid
    cartesian_2d/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
-   core/test_affine_carve_baseline, 0, 0, 0, 0, 6, 0
-   core/test_cache, 28, 0, 0, 0, 0, 0
+   core/test_affine_carve_baseline, 0, 0, 0, 0, 8, 0
+   core/test_cache, 28, 0, 0, 0, 2, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 3, 0
-   core/test_cell_visit_c_stamp, 0, 0, 0, 0, 3, 0
+   core/test_closure_constant_map, 0, 0, 0, 0, 3, 0
    core/test_dag_walk, 0, 0, 0, 0, 8, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
    core/test_discretization_scheme_protocol, 0, 0, 0, 0, 17, 0
@@ -114,13 +114,14 @@ Module × level grid
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_alpha_defect_normalization, 0, 0, 0, 0, 8, 0
    curvilinear/test_angular_beta_identity, 0, 0, 0, 0, 14, 0
+   curvilinear/test_angular_closure_is_single_object, 0, 0, 0, 0, 2, 0
    curvilinear/test_angular_endpoint_defect, 0, 0, 0, 0, 6, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_azimuthal_mirror_symmetry, 0, 0, 0, 0, 4, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 17, 0
    curvilinear/test_cyl_sweep_regression, 3, 0, 4, 0, 0, 0
-   curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 18, 0
+   curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 21, 0
    curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
    curvilinear/test_psi_half_positivity, 0, 0, 0, 0, 19, 0
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
@@ -455,8 +456,8 @@ Module × level grid
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 45, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
-   regression/test_dd_regression, 0, 0, 0, 0, 13, 0
-   regression/test_walk_matvec_baselines, 0, 0, 0, 0, 4, 0
+   regression/test_dd_regression, 0, 0, 0, 0, 14, 0
+   regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 32, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
@@ -493,6 +494,7 @@ Module × level grid
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 8, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 21, 0
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
+   spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    sweep/test_angular_cell_partition, 0, 0, 0, 0, 56, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
@@ -885,7 +887,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **564** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **565** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1370,6 +1372,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
 - ``sn-one-measure-down``
+- ``sn-p49a-march-forms``
 - ``sn-pole-cell-shell-average``
 - ``sn-redistribution-gram-eq``
 - ``sn-redistribution-gram-rectangular``

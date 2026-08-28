@@ -754,15 +754,15 @@ inverse), so the collision contribution is the clean additive term
    **Implemented by** the curvilinear assembly, which returns
    ``denom, numer_upstream``: the cell-balance diagonal :math:`S` and the
    upstream-face numerator, as one named pair rather than two loose
-   arrays.
-
-.. implements:: streaming-action-cell-balance
-   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
-
-   **Implemented by** the term-resolved sibling of the same assembly:
-   ``denom = 2·|μ|·A_downstream + (ΔA/w)·c_out + Σ_t·V`` returned inside a
-   ``CellBalanceTerms`` record, so the geometric and collision halves stay
-   individually nameable instead of only their sum.
+   arrays.  Since P4.9a (2026-08-28) it is the **only** cell-balance
+   assembly: the term-resolved sibling ``cell_balance_terms``, which
+   returned ``denom = 2·|μ|·A_downstream + (ΔA/w)·c_out + Σ_t·V`` inside a
+   ``CellBalanceTerms`` record so the geometric and collision halves
+   stayed individually nameable, was retired onto this function and its
+   declaration removed here.  The nameability it bought is preserved
+   without the twin — the three summands of :math:`S` are
+   :eq:`tensor-network-cell-balance-three-terms`, and the angular one now
+   arrives as its own argument.
 
 .. implements:: streaming-action-cell-balance
    :by: orpheus.transport.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal
@@ -780,9 +780,13 @@ inverse), so the collision contribution is the clean additive term
    **Implemented by** the curvilinear scan's ``denom =
    geometric_streaming_term + collision_volume_term``, with
    ``geometric_streaming_term = streaming_face_term +
-   curvature_redistribution_term`` — the same additive split, with the
+   angular_denom_term`` — the same additive split, with the
    angular redistribution :math:`(\Delta A/w)\,c_{\rm out}` folded into the
-   geometric half where it belongs.
+   geometric half where it belongs.  (The second summand was a locally
+   recomputed ``curvature_redistribution_term`` until P4.9a re-posed the
+   signature to take one already-assembled ``angular_denom_term``; the
+   value and the association order are unchanged, and the method now
+   carries no Morel--Montry name.)
 
 .. implements:: streaming-action-cell-balance
    :by: orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch
@@ -5841,6 +5845,47 @@ for merge status.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-08-28)
+     - **A discretization scheme closes ONE axis — the angular closure
+       owns its march, and the operator composes the two** (un-weld
+       campaign, phase P4.9a).  The Morel--Montry angular march had a
+       second, inline spelling inside
+       :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`,
+       and the twin was **forced**: ``transport`` is an L2 package and
+       ``sn`` an L3 one, so ``FORBIDDEN_EDGES["transport"]`` (gated per
+       module in ``tests/test_layer_imports.py``) made it impossible for
+       the scheme to *call* the closure that owns the relation — it could
+       only re-spell it.  P4.9a moves the responsibility up to the site
+       that already sees both packages: the march has one production
+       spelling
+       (:func:`~orpheus.sn.angular.closure.march_psi_half_step`, with the
+       batch kernel delegating to it and
+       :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`
+       as the per-cell entry), and the SN walk applies it.  The scheme
+       now receives the angular axis's effect on the balance as two
+       **assembled** contributions, ``angular_denom_term`` and
+       ``angular_numer_upstream``, whose slab values are the neutral
+       elements of the sums they enter — so the L2 layer names no
+       Morel--Montry quantity at all.  Four consequences: the scalar
+       twin ``cell_balance_terms`` retires onto
+       :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`;
+       the visit family goes purely spatial (``UpstreamState`` loses
+       ``angular_upstream``, ``CellResult`` loses
+       ``outgoing_angular_state``, ``CellVisit`` loses the closure stamp
+       and with it ``SNMesh._make_cell_visit``); the closure **mints**
+       its own scan constants instead of the cache deriving them; and
+       Linear-Discontinuous's curvilinear refusal is re-keyed from a
+       retired field's presence onto two value signals, which is a
+       guard reachable without a mesh.  The two arithmetic forms of the
+       march are welded by gate rather than unified by spelling — `[M]`
+       they agree bitwise on only :math:`46`–:math:`51\,\%` of inputs
+       (:math:`\max|\Delta| = 1.776\times10^{-15}`), and on
+       :math:`100\,\%` exactly where :math:`\tau` is bitwise
+       :math:`\tfrac12`.  See
+       :ref:`sn-p49a-closure-owns-the-march`.
+     - #407
+     - branch ``refactor/unweld-p49a-closure-owns-march``
    * - 2026-07-12
      - **The curvilinear ψ½ ray is System B of a 2×2 coupled block
        operator** — the augmented S\ :sub:`N` within-group problem is

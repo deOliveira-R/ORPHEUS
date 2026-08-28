@@ -961,10 +961,11 @@ merge hash or not at all).
        (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`);
        :math:`\tau` and the derived redistribution constants
        :math:`c_{\rm in}` / :math:`c_{\rm out}` travel to the stateless
-       diamond scheme as :class:`~orpheus.transport.spatial.scheme.CellVisit`
+       diamond scheme as ``CellVisit``
        *data* (never a closure dependency), stamped at the single
-       production site
-       :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit`;
+       production site ``SNMesh._make_cell_visit`` (both the three
+       stamped fields and the stamping method were retired at P4.9a,
+       2026-08-28 — :ref:`sn-p49a-closure-owns-the-march`);
        **Step C** deletes the parallel geometry-side :math:`\tau`
        producer, leaving ``StreamingTerms`` with no closure field (the
        stronger "purely geometric" reading was refuted 2026-08-28 — the

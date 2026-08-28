@@ -395,10 +395,9 @@ state:
 * :class:`~orpheus.transport.spatial.scheme.UpstreamState`
 
   - ``spatial_upstream: np.ndarray`` — shape ``(ng,)``.  Face flux
-    entering the cell from the upstream face (always populated).
-  - ``angular_upstream: np.ndarray | None`` — shape ``(ng,)`` for
-    sphere/cylinder; ``None`` for slab.  :math:`\psi_{n-1/2,\,i}`,
-    the half-flux at the upstream half-angle.
+    entering the cell from the upstream face.  Since P4.9a this is the
+    dataclass's **only** field: the state a spatial scheme is handed is
+    purely spatial.
 
 * :class:`~orpheus.transport.spatial.scheme.CellResult`
 
@@ -409,9 +408,31 @@ state:
     the typical case; ``None`` for the cylindrical pure-azimuthal
     degenerate case where the cell has no radial face flow (see
     below).
-  - ``outgoing_angular_state: np.ndarray | None`` — shape ``(ng,)``
-    for sphere/cylinder; ``None`` for slab.  :math:`\psi_{n+1/2,\,i}`
-    from the Morel--Montry closure.
+
+.. note:: **The angular slots left the visit family (P4.9a, 2026-08-28).**
+
+   ``UpstreamState`` carried ``angular_upstream: np.ndarray | None``
+   (:math:`\psi_{n-1/2,\,i}`, the upstream half-angle flux) and
+   ``CellResult`` carried ``outgoing_angular_state: np.ndarray | None``
+   (:math:`\psi_{n+1/2,\,i}`) until 2026-08-28.  Both are **retired**.
+   They existed so that a *spatial* scheme could carry the
+   Morel--Montry angular thread in and out — the ``None`` on each was
+   the slab case.  P4.9a moved the march to its owner (see
+   :ref:`sn-p49a-closure-owns-the-march`), which left the two slots with
+   nothing to carry, and with them went ``CellVisit``'s closure stamp
+   (``tau`` / ``c_in`` / ``c_out``) and the mesh-side
+   ``SNMesh._make_cell_visit`` that wrote it.
+
+   What replaces them is *not* a renamed slot but a different kind of
+   datum: the two **assembled** contributions
+   ``angular_denom_term`` and ``angular_numer_upstream``, passed as
+   keyword arguments to
+   :meth:`~orpheus.transport.spatial.scheme.DiscretizationScheme.update`
+   and ``residual``.  They are already multiplied out — no closure
+   constant, no half-angle thread, and nothing for the scheme to
+   advance.  A scheme that sees them cannot tell an M-M closure from
+   any other; both default to the neutral element (``0.0`` and
+   ``None`` → zeros), which is exactly the slab case.
 
 The SN sweep DAG and ``CellVisit``
 -----------------------------------
@@ -463,12 +484,19 @@ handling.  The sweep at ``orpheus.sn.loss_representation`` (the dissolved ``swee
 generator::
 
     for visit in sn_mesh.dag_walk(ordinate_idx=n):
-        upstream = UpstreamState(
-            spatial_upstream=psi_face,
-            angular_upstream=psi_angle[visit.cell_idx],
-        )
+        upstream = UpstreamState(spatial_upstream=psi_face)
+        dA_w = visit.streaming_terms.delta_A_over_w
         result = scheme.update(
-            visit, total_xs, source, upstream,
+            visit=visit,
+            total_xs=total_xs,
+            source=source,
+            upstream_state=upstream,
+            angular_denom_term=dA_w * c_out_n,
+            angular_numer_upstream=dA_w * c_in_n * psi_angle[:, visit.cell_idx],
+        )
+        psi_angle[:, visit.cell_idx] = closure.advance_psi_half(
+            result.cell_average_flux, psi_angle[:, visit.cell_idx],
+            ordinate=n,
         )
         ...
 
@@ -505,33 +533,48 @@ Slab vs curvilinear discrimination
    (leaving no closure field on the packet — though "purely geometric"
    it is not, a reading refuted 2026-08-28: it keeps ``mu``/``abs_mu``
    and :math:`\Delta A/w`; :math:`\tau` is closure-owned — see
-   :ref:`sn-tau-c-on-cellvisit-live`).  Slab is now distinguished at the
-   sweep level by ``upstream_state.angular_upstream is None``, not by a
-   ``StreamingTerms`` field test.  The prose below records the historical
-   pre-Step-2.5 convention and is pending a dedicated rewrite to the
-   neutral-curvature mechanism; the authoritative current description is
-   the :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
-   docstring.
+   :ref:`sn-tau-c-on-cellvisit-live`).  ⛔ A second reading died on
+   2026-08-28 as well: this note read *"slab is now distinguished at the
+   sweep level by* ``upstream_state.angular_upstream is None``\ *"* until
+   P4.9a retired that field.  **A spatial scheme no longer distinguishes
+   slab from curvilinear at all** — see below.  The prose after this note
+   records the historical pre-Step-2.5 convention; the authoritative
+   current description is the
+   :class:`~orpheus.transport.spatial.scheme.StreamingTerms` docstring.
 
-A strategy distinguishes slab from curvilinear by a single field test
-on the visit's streaming terms:
+Since P4.9a there is no slab-vs-curvilinear test in a spatial scheme,
+because there is no longer a question to answer.  The curvature data a
+scheme consumes arrives already reduced to two numbers whose slab values
+are the neutral element of the arithmetic they enter:
+``angular_denom_term = 0.0`` adds nothing to the denominator, and a
+``None`` ``angular_numer_upstream`` adds a zero array to the upstream
+numerator.  What survives inside
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` is
+one structural test — ``visit.face_area_downstream > 0.0``, *"is there a
+downstream spatial face?"* — which is **not** geometry dispatch: it is
+``False`` for exactly one case, the cylindrical pure-azimuthal
+degenerate cell, and ``True`` for slab and non-degenerate curvilinear
+alike.
+
+The historical convention this section records was a single field test:
 
 * **Slab** — ``visit.streaming_terms.alpha_in is None`` (and the rest
   of the curvature bundle, ``alpha_out``, ``delta_A_over_w``,
   ``tau_mm``, ``face_area_inner`` / ``face_area_outer``, are all
   ``None``).  ``upstream_state.angular_upstream is None``.  The
-  strategy returns ``CellResult(outgoing_angular_state=None, ...)``.
+  strategy returned ``CellResult(outgoing_angular_state=None, ...)``.
 * **Sphere or cylinder** —
   ``visit.streaming_terms.alpha_in is not None``; the full curvature
-  bundle is populated.  ``upstream_state.angular_upstream`` carries
-  :math:`\psi_{n-1/2,\,i}`.  The strategy returns the M-M-closed
+  bundle was populated.  ``upstream_state.angular_upstream`` carried
+  :math:`\psi_{n-1/2,\,i}`.  The strategy returned the M-M-closed
   ``outgoing_angular_state``.
 
-This single-field discrimination convention is locked in by
-foundation-tier protocol-conformance tests in
-``tests/sn/sweep/core/test_discretization_scheme_protocol.py``; concrete
-strategies and the Wave D sweep rewrite read this same field to
-dispatch.
+That convention was locked in by foundation-tier protocol-conformance
+tests in ``tests/sn/sweep/core/test_discretization_scheme_protocol.py``;
+those tests now pin the successor contract — the assembled-contribution
+keyword arguments and the purely spatial
+:class:`~orpheus.transport.spatial.scheme.UpstreamState` /
+:class:`~orpheus.transport.spatial.scheme.CellResult`.
 
 Cylindrical pure-azimuthal degenerate case
 -------------------------------------------
@@ -558,7 +601,17 @@ with no spatial-flux contribution.  The strategy contract signals
 this case by setting ``CellResult.outgoing_spatial_flux = None``: the
 sweep driver, on receiving ``None``, skips the face-flux update for
 that cell.  The angular M-M closure remains active — angular
-redistribution physics is still present.
+redistribution physics is still present — but since P4.9a it is the
+**walk**, not the scheme, that applies it: the walk assembles
+:math:`(\Delta A/w)\,c_{\rm out}` and
+:math:`(\Delta A/w)\,c_{\rm in}\,\psi_{n-1/2,i}` from the closure's own
+per-ordinate arrays, hands them to
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` as
+the two assembled contributions above, and then advances the half-angle
+thread itself through
+:meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`.
+This is the one production path that visits degenerate cells one at a
+time (:ref:`sn-p49a-closure-owns-the-march`).
 
 The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
 ``abs_mu`` populated from the **global ordinate**
@@ -606,12 +659,21 @@ formulas at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).
 
 Per Wave C decision **D5** (one geometry-polymorphic class), the
 strategy is a single :class:`DiamondDifference` that handles slab,
-sphere, and cylinder by branching on two
-:class:`~orpheus.transport.spatial.scheme.StreamingTerms` fields:
-``alpha_in is None`` (slab vs curvilinear) and ``abs_mu < 1e-15``
-(cylindrical pure-azimuthal degenerate vs not).
+sphere and cylinder in **one body with no geometry dispatch**.  The
+three headings below are therefore *cases of the same formula*, not
+branches of the code: they name the values the incoming data takes, and
+the reader can check that each collapses out of the general form.
 
-**Slab branch** (``streaming_terms.alpha_in is None``).  The flat /
+⛔ This paragraph read *"…by branching on two* ``StreamingTerms`` *fields:*
+``alpha_in is None`` *(slab vs curvilinear) and* ``abs_mu < 1e-15``
+*(cylindrical pure-azimuthal degenerate vs not)"* until 2026-08-28.
+Neither test survives: Issue #236 Step C deleted the ``alpha_*`` /
+``tau_mm`` fields, and the degenerate case is signalled by the
+*geometric* ``visit.face_area_downstream == 0.0``, never by a numerical
+threshold on :math:`|\mu|`.
+
+**Slab case** (neutral curvature: ``face_area_inner = face_area_outer =
+1.0``, ``delta_A_over_w = 0.0``, ``angular_denom_term = 0.0``).  The flat /
 Cartesian DD recurrence reduces to the per-cell scalar form of
 :eq:`dd-recurrence`:
 
@@ -635,10 +697,18 @@ Cartesian DD recurrence reduces to the per-cell scalar form of
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others.
+   others.  P4.9a **migrated** one of the nine rather than dropping it:
+   the scalar helper ``cell_balance_terms`` was retired onto
+   :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`,
+   which the slab case reaches through
+   ``DiamondDifference``'s ``n_mask=1`` bridge and which the module
+   docstring documents as producing the slab denominator
+   :math:`2|\mu|\cdot 1 + 0 + \Sigma_t V` from neutral curvature.
+   Retiring a declared symbol without migrating its edge would have left
+   this equation with eight implementers and one silent hole.
 
 .. implements:: dd-slab-scalar
-   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+   :by: orpheus.transport.spatial.cell_balance.cell_balance_for_streaming
 
 .. implements:: dd-slab-scalar
    :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
@@ -668,15 +738,19 @@ cell solver (``_solve_recurrence`` (the dissolved ``sweep.py``) lines 208–
 222) at the operation level.  Per the strategy contract, ``source``
 arrives at the cell update **already weight-normalised** by the
 sweep — for slab, ``source = Q · Δx / W`` (and slab cell volume is
-``V = Δx``).  For slab, the strategy sets
-:attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_angular_state`
-to ``None`` — slab geometry has no angular redistribution.
+``V = Δx``).  ⛔ This paragraph closed *"For slab, the strategy sets*
+``CellResult.outgoing_angular_state`` *to* ``None`` *— slab geometry has
+no angular redistribution"* until 2026-08-28.  The field is retired: a
+DD cell update returns no angular state on **any** geometry, and the
+reason is structural rather than geometric — a spatial discretization
+scheme closes the spatial axis only.
 
-**Curvilinear branch** (``streaming_terms.alpha_in is not None`` and
-``abs_mu ≥ 1e-15``).  Sphere or cylinder, away from the cylindrical
-pure-azimuthal degenerate case.  The strategy couples the M-M
-angular closure :eq:`mm-weights` to the WDD spatial closure
-:eq:`wdd-closure`, with the redistribution constants
+**Curvilinear case** (physical curvature, with a downstream spatial
+face).  Sphere or cylinder, away from the cylindrical
+pure-azimuthal degenerate case.  Here the M-M angular closure
+:eq:`mm-weights` and the WDD spatial closure :eq:`wdd-closure` meet —
+but they meet *in the balance*, not inside one scheme: the closure
+supplies the redistribution constants
 
 .. math::
    :label: dd-mm-closure-constants
@@ -704,14 +778,16 @@ Morel–Montry weight :eq:`mm-weights`.  The cell-update is then
 .. implements:: dd-curvilinear-scalar
    :by: orpheus.transport.spatial.cell_balance.cell_balance_for_streaming
 
-   **Implemented by** 6 sites. Every symbol that executes this
+   **Implemented by** 5 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others.
-
-.. implements:: dd-curvilinear-scalar
-   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+   others.  ⛔ There were **6** until 2026-08-28: P4.9a retired the
+   scalar twin ``cell_balance_terms``, whose declaration is **removed**
+   rather than migrated, because the survivor
+   :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
+   was already declared here — the retirement collapsed two
+   implementers into one, it did not orphan an edge.
 
 .. implements:: dd-curvilinear-scalar
    :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients
@@ -727,19 +803,30 @@ Morel–Montry weight :eq:`mm-weights`.  The cell-update is then
 
 mirroring ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) lines
 350–355 (and the structurally identical cylindrical branches at
-sweep.py:511–531 / sweep.py:548–575) verbatim, with closures
+sweep.py:511–531 / sweep.py:548–575) verbatim, with two closures —
+**one per axis, and since P4.9a one owner each**:
 
 .. math::
 
-   \psi^s_{\rm out} \;=\; 2\overline{\psi}_{n,i}
-                        - \psi^s_{n,\,{\rm in}},
+   \underbrace{\psi^s_{\rm out} \;=\; 2\overline{\psi}_{n,i}
+                        - \psi^s_{n,\,{\rm in}}}_{\text{spatial — the scheme}},
    \qquad
-   \psi_{n+\tfrac12,\,i} \;=\;
+   \underbrace{\psi_{n+\tfrac12,\,i} \;=\;
        (\overline{\psi}_{n,i}
-         - (1 - \tau_n)\,\psi_{n-\tfrac12,\,i})/\tau_n.
+         - (1 - \tau_n)\,\psi_{n-\tfrac12,\,i})/\tau_n}_{\text{angular — the closure}}.
 
-**Cylindrical pure-azimuthal degenerate branch**
-(``streaming_terms.alpha_in is not None`` and ``abs_mu < 1e-15``).
+The left-hand relation is DD's, and
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`
+returns its value as ``outgoing_spatial_flux``.  The right-hand one is
+the Morel--Montry march; until 2026-08-28 ``update`` evaluated it too, as
+a second inline expression, and returned it as ``outgoing_angular_state``.
+It is now applied by whoever composes the two axes — the SN walk today,
+the ``StreamingOperator`` after P4.9b — through the closure's own
+:func:`~orpheus.sn.angular.closure.march_psi_half_step`
+(:ref:`sn-p49a-closure-owns-the-march`).
+
+**Cylindrical pure-azimuthal degenerate case**
+(``visit.face_area_downstream == 0.0``).
 For a level whose axial direction cosine :math:`|\mu_z| \to 1`, the
 radial direction cosine :math:`|\eta| \to 0` and the cell has no
 radial face flow — the :math:`2|\mu| A_{\rm out}` and
@@ -759,23 +846,63 @@ contributions drop out:
 .. implements:: dd-cylindrical-degenerate
    :by: orpheus.transport.spatial.cell_balance.cell_balance_for_streaming
 
-   **Implemented by** 3 sites. Every symbol that executes this
+   **Implemented by** 4 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
    others.
 
 .. implements:: dd-cylindrical-degenerate
-   :by: orpheus.transport.spatial.cell_balance.cell_balance_terms
+   :by: orpheus.transport.spatial.diamond._cell_balance_n1
 
 .. implements:: dd-cylindrical-degenerate
    :by: orpheus.transport.spatial.diamond.DiamondDifference.update
+
+.. implements:: dd-cylindrical-degenerate
+   :by: orpheus.sn.loss_representation._OneDimScanWalk._run
 
 mirroring ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) lines
 533–543 verbatim.  The strategy returns
 :attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_spatial_flux`
 ``= None`` to signal "no face-flux write" to the sweep driver; the
 M-M angular closure remains active.
+
+.. note:: **Why** ``update`` **still implements this equation after
+   P4.9a — and why the walk now does too (2026-08-28).**
+
+   The obvious reading of the carve is that
+   :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`
+   should lose this declaration along with the march.  It should not,
+   and the discriminator is what the **equation states**.
+   :eq:`dd-cylindrical-degenerate` is a statement about
+   :math:`\mathrm{denom}` and :math:`\mathrm{numer}` — the degenerate
+   **cell balance**, whose whole content is that the two
+   :math:`|\mu|`-weighted face terms drop out and the redistribution
+   pair is all that is left beside collision and source.  ``update``
+   still forms that quotient (through
+   :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
+   at ``n_mask = 1``, where the drop-out happens *geometrically*, via
+   ``A_downstream = A_total = 0.0``, not by a threshold on
+   :math:`|\mu|`).  What ``update`` no longer does is evaluate
+   :math:`\psi_{n+1/2,i}` — and that relation is **not written in this
+   equation**.  It is :eq:`dd-mm-angular-recurrence`, and that is the
+   label whose implementers moved.
+
+   The genuinely new implementer is
+   :meth:`!orpheus.sn.loss_representation._OneDimScanWalk._run`, and it
+   is owed one because the equation writes the two redistribution
+   contributions as **products**, :math:`(\Delta A/w)\,c_{\rm out}` and
+   :math:`(\Delta A/w)\,c_{\rm in}\,\psi_{n-1/2,i}`.  Those products are
+   no longer formed anywhere below the walk: the walk multiplies the
+   closure's own per-ordinate ``c_in`` / ``c_out`` arrays by the visit's
+   :math:`\Delta A/w` and passes the results down as
+   ``angular_denom_term`` / ``angular_numer_upstream``.  Declaring only
+   the balance sites would leave the equation's two most
+   geometry-specific factors implemented by nothing.
+   ``_cell_balance_n1`` — the single scalar-to-vectorized conversion the
+   solve and apply directions share — is declared for the same reason:
+   it is where the ``n_mask = 1`` shapes are built and the ``None``
+   default becomes the zero array.
 
 **Traits and forward references.**  Diamond Difference has
 
@@ -933,8 +1060,15 @@ to the Cartesian path.
    2026-08-26: it was exactly ``coord is not CoordSystem.CARTESIAN``
    and had no production reader, the concept having been respelled by
    ``upstream_state.angular_upstream is None`` (what the DD and LD
-   cell bodies branch on) and by
+   cell bodies then branched on) and by
    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_cartesian`.
+   ⛔ Two days later P4.9a retired ``angular_upstream`` as well, so that
+   respelling is history too: DD branches on nothing, and LD's
+   curvilinear refusal was re-keyed onto **value** signals — unequal
+   face areas, or a non-neutral assembled angular contribution — which
+   is a stronger guard, because it is reachable by calling the scheme
+   directly and cannot be dodged by a mesh that forgets to populate a
+   field (see :ref:`sn-p49a-closure-owns-the-march`).
    Strategy selection today is
    :func:`~orpheus.sn.loss_representation.default_for`, which picks the
    first :data:`~orpheus.sn.loss_representation.LOSS_REPRESENTATIONS`
@@ -967,20 +1101,26 @@ The curvilinear sweep dispatches per-cell to
 
 .. code-block:: python
 
-   for cell_idx in march_order:
-       st = reduced.streaming_terms(cell_idx, dir_idx, mu_level_idx=p)
-       upstream = UpstreamState(
-           spatial_upstream=psi_face,
-           angular_upstream=psi_angle[cell_idx],
-       )
+   closure = sn_mesh.pole_angular_closure
+   c_in_n, c_out_n = closure.c_in_per_ordinate[n], closure.c_out_per_ordinate[n]
+
+   for visit in sn_mesh.dag_walk(ordinate_idx=n, mu_level_idx=p):
+       i = visit.cell_idx
+       dA_w = visit.streaming_terms.delta_A_over_w
        result = sn_mesh.scheme.update(
-           streaming_terms=st,
-           total_xs=sig_t[cell_idx],
-           source=QV[cell_idx],
-           upstream_state=upstream,
+           visit=visit,
+           total_xs=sig_t[:, i],
+           source=QV[:, i],
+           upstream_state=UpstreamState(spatial_upstream=psi_face),
+           # the WALK assembles the closure's balance contributions …
+           angular_denom_term=dA_w * c_out_n,
+           angular_numer_upstream=dA_w * c_in_n * psi_angle[:, i],
        )
        psi_face = result.outgoing_spatial_flux  # may be None for cylindrical degenerate
-       psi_angle[cell_idx] = result.outgoing_angular_state
+       # … and the WALK advances the half-angle thread, through the owner.
+       psi_angle[:, i] = closure.advance_psi_half(
+           result.cell_average_flux, psi_angle[:, i], ordinate=n,
+       )
 
 The cell-update strategy lives on the ``scheme`` attribute that
 :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` realizes in its
