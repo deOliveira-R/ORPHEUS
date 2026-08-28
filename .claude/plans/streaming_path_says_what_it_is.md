@@ -55,8 +55,14 @@
 > the import-linter's `rglob` parametrize), **P3 9815/0** (delta 0 on all four
 > axes), **P4.1a 9823/0** (+8 = the `test_alpha_defect_normalization` gate that
 > rode in on the same landing, `[M]` collects exactly 8; delta 0 elsewhere),
-> **P4.1b+c 9823/0 — delta 0 on every tree AND every axis.** pyright 0 and
-> `sphinx -W` 0 throughout.
+> **P4.1b+c 9823/0 — delta 0 on every tree AND every axis**, and
+> ⭐ **P4.4 9824/0 — `[M]` 13 trees `rc=0`, 64 min, and the +1 was PREDICTED
+> before the run.** Delta 0 on skipped/deselected/xfailed, and localized to
+> exactly three trees: `geometry` **−45**, `sn` **+45** — the migrated tests,
+> conserved at TREE granularity, which is an independent check of the
+> 18+45=63 collection count — and `root+harness` **+1**, the import-linter
+> `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
+> and `dead_references` 0 throughout.
 >
 > ### ▶ NEXT — **P4.2, then P4.3.** (P4.4 ✅ landed `16501ca0`.) Read §4ter first.
 >
