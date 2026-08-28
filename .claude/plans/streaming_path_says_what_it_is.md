@@ -1714,6 +1714,92 @@ angular closure's S0 algebra (§4), so F3's function/evaluated-table split is a
 PREREQUISITE, not a parallel. Splitting the closure after declaring `T_ang`
 would cut the same seam twice.
 
+### The FACTOR INVENTORY — what goes into each term, measured 2026-08-28
+
+⚠ Read with the ⛔ P0 above: the **product form and its order are `[R]`**. What
+follows is `[M]` — the assembled equation the tree actually computes, and which
+coefficient of it belongs to which candidate factor. P0 is what turns the second
+column from an assignment into a factorization.
+
+#### The assembled equation `[M]` (verbatim from the two producers)
+
+`cell_balance_for_streaming` (`transport/spatial/cell_balance.py:123`) and
+`DiamondDifference.affine_scan_coefficients` (`diamond.py:572`) agree on:
+
+```
+denom[n,g,i] = 2|μ_n|·A_down[n,i]      ← streaming face        (spatial)
+             + (ΔA[n,i]/w_n)·c_out[n]  ← curvature redistrib.  (COUPLING)
+             + Σ_t[g,i]·V[n,i]         ← collision             (local)
+
+numer_up[g,n] = |μ_n|·A_total[n]·ψˢ_in      ← upstream CELL     (spatial)
+              + (ΔA/w)·c_in[n]·ψᵃ_in        ← previous ORDINATE (angular)
+
+ψ̄ = (source + numer_up) / denom
+a[n,g,i] = 2|μ_n|·A_total[i] / denom[n,g,i] − 1
+```
+
+closed by **spatial** `ψˢ_out = 2ψ̄ − ψˢ_in` (DD, `w = ½`) and **angular**
+`ψᵃ_out = (ψ̄ − (1−τ)ψᵃ_in)/τ` (Morel–Montry), with `[M]` (`closure.py:1592`)
+
+```
+c_out = α_out/τ           c_in = (1−τ)/τ·α_out + α_in
+```
+
+⟹ `c_in`, `c_out` are pure `(α, τ)`: **F1's `A_angular(τ, α, w)` exactly.**
+
+#### Which coefficient belongs to which factor
+
+| factor | what it is | triangular in | its coefficients | realized today by | its adjoint |
+|---|---|---|---|---|---|
+| **`D`** | the cell-local denominator — **not** "the collision term": all three mechanisms put their DIAGONAL part here | nothing (diagonal in `(n,g,i)`) | `2\|μ\|A_down` + `(ΔA/w)c_out` + `Σ_t V` | `cell_balance_for_streaming`; cached as `inverse_denom` | `D.H = D` — real diagonal, self-adjoint. This is what makes the reversal cheap |
+| **`T_spatial`** | the chain scan: cell `i` ← its upstream neighbour, closed by DD | **chain order** (per ordinate) | off-diagonal `\|μ\|·A_total`; recurrence `ψ_out = a·ψ_in + b`, `a = 2\|μ\|A_total/denom − 1` | `affine_scan_coefficients` → `StreamingCoefficientCache` → `CumprodScan`/`ScanMarch` (`cumprod_a` is the *schedule* transform, deliberately not in the coefficient method) | the **reversed scan** — same coefficients, reversed order. ⭐ `[M]` its index already ships: `StreamingCoefficientCache.chain_idx_inv`, *"inverse permutation"* |
+| **`T_ang`** | the ordinate march: `m` ← `m−1` within a μ-level, closed by M-M | **ordinate index within a level** | off-diagonal `(ΔA/w)·c_in`; recurrence `ψᵃ_{m+½} = (ψ̄_m − (1−τ_m)ψᵃ_{m−½})/τ_m` | `closure.compute_psi_half_per_level` / `precompute_psi_state` (batch), `cell_contribution` (per-cell); `tau_inv`, `mm_a_in_coeff`, `c_in` in the cache. ⛔ **twinned inline in `diamond.py`** — see the layer constraint below | the **reversed march** — today hand-written as `angular_adjoint`, which is what §5b retires |
+
+#### ⭐ `ΔA/w` is NOT a fourth factor — it is the scalar `D` and `T_ang` SHARE
+
+`[M]` it appears exactly twice: `·c_out` inside **`D`'s diagonal**, and
+`·c_in·ψᵃ_in` as **`T_ang`'s off-diagonal**. Its two halves are
+**F2's `R₀₀ = ΔA`** (the spatial rank-1, by the divergence theorem) and
+**`1/w`** (the angular weight).
+
+⟹ `ΔA/w` *is* the spatial ⊗ angular coupling — which is why §4ter calls
+`streaming_terms()` **"the fusion site"**, why fork 3 rules *"`delta_A`
+dissolves into R"*, and why F3 names `_dAw_per_level` as **"the weld nobody
+named"**. It is one quantity wearing two factors' clothes, and that is the
+whole reason it has been homeless.
+
+#### ⭐⭐ F3's two strata are visible in the CACHE'S OWN SHAPES
+
+`[M]` `StreamingCoefficientCache` (`sn/sweep/cache.py:233-244`):
+
+| shape | fields | stratum | factor |
+|---|---|---|---|
+| `(N,)` | `abs_mu`, `c_in`, `c_out`, `tau_inv`, `mm_a_in_coeff` | **mesh-free** — quadrature × chart only | `T_ang`'s algebra (+ `abs_mu`) |
+| `(N, nx)` | `A_down`, `A_total`, `dA_w`, `V`, `chain_idx`, `chain_idx_inv` | **mesh-bound** | `D` and `T_spatial` |
+
+That is F3 stated in the type system rather than in prose: the `(N,)` fields
+cannot change under a re-mesh and the `(N, nx)` ones must. ⭐ And it is the same
+split **P4b** was scheduled for from the L15 direction (7 fields bit-identical
+across 3 meshes, 4 mesh-bound, 2 traversal-only) — two independent routes to one
+carve, which is corroboration worth having.
+
+#### ⛔ What is therefore NOT yet established, restated against this inventory
+
+1. **The FORM.** The equation above is a **sum** — a diagonal plus two upstream
+   couplings. That it equals a **product** `D @ T_ang @ T_spatial` is the P0
+   claim, and the assignment table does not prove it.
+2. **The ORDER.** Nothing measured here fixes `D @ T_ang @ T_spatial` over any
+   other ordering; the sweep applies angular-outer / spatial-inner, which
+   *suggests* one, and suggestion is not the check.
+3. **The ARITY** may be 4 — the audit says *"two order reversals AND one block
+   swap"*, and the pole-mirror permutation and the inflow/outflow trace
+   partition are unplaced in the table above.
+4. **Triangularity is order-relative**, so each factor is checked in its OWN
+   index order — `T_ang` in the ordinate index at fixed cell, `T_spatial` in
+   chain order.
+5. ⛔ **Verify on the SPHERE.** `[M]` `R/ΔA` is bit-exactly `diag(1, 1/3)` on the
+   cylinder and cannot discriminate.
+
 ### ⛔ The LAYER constraint on `T_ang` — measured 2026-08-28, and it is not in the section above
 
 `T_ang` cannot simply be declared and consumed, because **its only per-cell
