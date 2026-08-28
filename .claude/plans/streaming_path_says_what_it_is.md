@@ -11,8 +11,12 @@
 > `sn/spatial/`** · the connection operator or the α cluster is still in
 > `geometry/` · **"▶ NEXT = P4.3"** · **`geometry/reduced_operator.py` still
 > exists** · `StreamingTerms` is "purely geometric" or lives in `geometry/` ·
-> P4.9's edit list is five small edits. Every one was true once, or was
-> proposed and refuted, below.
+> P4.9's edit list is five small edits · **"▶ NEXT = P4.9" or "P4.9a is
+> un-landed"** · the Morel–Montry twin still sits in `diamond.py` ·
+> `cell_balance_terms` exists · `CellVisit` carries `tau`/`c_in`/`c_out` ·
+> the 59 %/204-ULP figure quoted as a point value (it is one draw's
+> reading — the seed-stable discriminator is max |Δ| = 1.776e-15). Every
+> one was true once, or was proposed and refuted, below.
 >
 > ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
 > chartered, then SHARPENED (the direction-supplier ruling), then
@@ -71,6 +75,7 @@
 > | `16501ca0` | **P4.4** | the connection coefficients come home — 4 symbols to `sn/mesh/`, tests follow |
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 > | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
+> | `7a0f434c` | **P4.9a** | the closure owns its march; DD spatial-only; `cell_balance_terms` dead; the visit family purely spatial; the handing; the degenerate frozen corpus; docs `ca852c44` (12 commits, `cb65c4cc`…) |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -86,7 +91,7 @@
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
 > and `dead_references` 0 throughout.
 >
-> ### ▶ NEXT — **P4.9a**. (Split RULED 2026-08-28; P4.3 ✅ `da507e3d`, P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
+> ### ▶ NEXT — **P4.9b** (rows 4–5: the 4-arg ctor + `SNMesh` sheds both closures; lever = the PRODUCTION posing-head factory; the operator-minted scan table is its ruled direction). (P4.9a ✅ `7a0f434c`, P4.3 ✅ `da507e3d`, P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
@@ -318,7 +323,13 @@
 > the −1: `9824 / 0, 22 sk / 227 des / 70 xf`, localized to root+harness
 > (layer gate 344 → 343), all other trees and axes +0** — the first phase of
 > this arc where the count went DOWN, and it went down because the file died.
-> **The acceptance baseline for the next step is `9824 passed / 0 failed,
+> ✅ **P4.9a: `9836 / 0, 22 sk / 227 des / 70 xf` — `[M]` 13 trees `rc=0`,
+> 64 min, delta exactly +12 passed and 0 on the other three axes,
+> localized to transport +1 (the anti-twin gate) / sn +11 (2 is-identity +
+> 3 minted-constants + 2 cache-handing gates, 1 snapshot + 1 walk-baseline
+> + 2 CYL_DEG affine rows), every other tree +0 on every axis. No new
+> production module ⟹ the layer gate stayed at 343.**
+> **The acceptance baseline for the next step is `9836 passed / 0 failed,
 > 22 skipped / 227 deselected / 70 xfailed`.**
 
 **Status.** ⛔ ~~Proposed 2026-08-26, un-ruled.~~ **IN EXECUTION** — Phase B,
@@ -2958,10 +2969,22 @@ with it:**
   gate); P4.9b's operator assembles the table and the walk consumes operator
   artifacts plus one named kernel.
 
+✅ **P4.9a LANDED 2026-08-28 — 12 commits `cb65c4cc`…`7a0f434c` (docs
+`ca852c44`), merged with the full fast gate green (`9836/0`, 13 trees
+`rc=0`, 64 min, delta exactly the +12 new gates).** The done-when audit is
+under each bullet below; the battery table is the tracked memo §9; #407
+was closed (by the user, mid-phase) and carries the completion comment.
+P4.9b inherits: rows 4–5, the posing-head-factory lever, the
+operator-minted scan-table direction, and the is-identity gate's control
+leg (the fast path stays call-free) as a standing constraint.
+
 **Done when** (checkable):
 
 * `[M]` `grep -c "1.0 - tau"` over `orpheus/transport/` returns **0** — the
   Morel–Montry relation is spelled once, in `sn/angular/closure.py`.
+  ✅ **MET at `8a78be1d`** and made PERMANENT by the M8 anti-twin gate
+  (`tests/transport/spatial/test_no_angular_closure_twin.py` — text-surface
+  spellings + AST-surface owner names, per-pattern positive controls).
   ⚠ **SCOPED 2026-08-28** (`scratch/p4_9a_verification_plan.md` §F2): this
   makes `transport/` clean and single-homes the relation's DERIVATION in the
   closure — which after P4.9a owns BOTH its representations (the Form-A march
@@ -2971,13 +2994,21 @@ with it:**
   adjoints are **§5b's named target**, untouched here. "Exactly ONE spelling
   in the tree" is the arc's end-state, not this phase's.
 * `transport/spatial/scheme.py` contains no `tau` / `c_in` / `c_out` /
-  `angular_*` member on any protocol type.
+  `angular_*` member on any protocol type. ✅ **MET at `737f8b32`** (row 3 +
+  row 3b: the scan API's `c_out=`/`dA_w=` kwargs also re-posed onto the
+  assembled term), pinned by the structural gate's `dataclasses.fields`
+  legs.
 * `StreamingOperator(...)` cannot be constructed without both closures — the
   illegal state is unrepresentable, not merely undesirable.
+  ⏸ **P4.9b's bullet** (the split ruling assigned it there).
 * `[M]` the `_OneDimScanWalk` degenerate-ordinate branch and the vectorized
   branch reach the **same** closure object — a `is`-identity assertion, which is
   the gate the twin never had (`[M]` today the intersection of tests naming
   `precompute_psi_state` and `outgoing_angular_state` is **empty**).
+  ✅ **MET** — landed RED at `066982cf` (strict xfail, verified failing on
+  leg 1), flipped at `8a78be1d`; the matvec's degenerate arm is the second
+  per-cell leg and fp(4,8) is the zero-calls control (the fast path stays
+  on minted constants — Q1's perf half, now P4.9b's standing constraint).
 * ~~the aniso curvilinear canary is bit-identical~~ ⛔ **REFUTED 2026-08-28
   `[M]`** (`scratch/p4_9a_verification_plan.md` §F1): the canary CANNOT
   witness this carve — `DiamondDifference.update` executes only on cylinders
