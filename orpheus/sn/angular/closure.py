@@ -500,6 +500,74 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         """
         return self._tau_per_ordinate_cache
 
+    @property
+    def tau_inv_per_ordinate(self) -> np.ndarray:
+        r"""Minted scan constant :math:`\tau^{-1}` per global ordinate.
+
+        ``(N,)``; the :math:`\bar\psi` coefficient of the march's
+        SCAN-NORMAL form :math:`\psi^a_{m+1/2} = \tau^{-1}\bar\psi_m -
+        ((1-\tau)/\tau)\,\psi^a_{m-1/2}` — the closure's OWN update
+        (:func:`march_psi_half_step`) rearranged for the hot scan loop, with
+        the division hoisted out of the per-cell iteration (L16).  The
+        closure MINTS both scan constants (P4.9a: the derivation is relation
+        knowledge and lives with the relation's owner); the
+        :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` stores
+        them.  Derived per access from the cached τ — consumers hoist (the
+        cache IS the hoist).  ``1.0`` everywhere for the identity closure.
+
+        ⚠ The scan-normal form is NOT bitwise equal to
+        :func:`march_psi_half_step` ([M] 59 % bit-equal on real τ, max 204
+        ULP) — the two representations are welded by gate, not by spelling.
+        """
+        return 1.0 / self.tau_per_ordinate
+
+    @property
+    def march_a_in_coeff_per_ordinate(self) -> np.ndarray:
+        r"""Minted scan constant :math:`(1-\tau)/\tau` per global ordinate.
+
+        ``(N,)``; the (positive) :math:`\psi^a_{m-1/2}` coefficient of the
+        march's scan-normal form — consumed SUBTRACTED:
+        :math:`\psi^a_{m+1/2} = \tau^{-1}\bar\psi_m -
+        ((1-\tau)/\tau)\,\psi^a_{m-1/2}`.  See
+        :attr:`tau_inv_per_ordinate` for the minting rationale and the
+        weld-not-spelling caveat.  ``0.0`` everywhere for the identity
+        closure (:math:`\tau = 1`: the march is the identity on
+        :math:`\bar\psi`).
+
+        ⛔ Spelled ``(1 - τ)/τ``, never the algebraically-equal
+        ``tau_inv - 1.0`` — [M] the two differ by 1-2 ULP and the cache
+        field gate pins this spelling with ``array_equal``.
+        """
+        tau = self.tau_per_ordinate
+        return (1.0 - tau) / tau
+
+    def advance_psi_half(
+        self,
+        psi_avg: np.ndarray,
+        psi_half_in: np.ndarray,
+        *,
+        ordinate: int,
+    ) -> np.ndarray:
+        r"""Advance the half-angle thread one step at ``ordinate``.
+
+        The per-cell entry to the M-M march (P4.9a): the degenerate
+        cylindrical-axis solve branch calls THIS instead of evaluating the
+        relation inline, so the update has one owner and the ``is``-identity
+        gate can observe which closure object closed the angular axis.
+        Delegates to :func:`march_psi_half_step` with the closure's own
+        :math:`\tau` — bit-identical to the batch kernel's step by shared
+        body.  For the identity closure (:math:`\tau = 1`) this returns
+        ``psi_avg`` exactly.
+
+        Not for the hot scan loop — the fast path consumes the minted scan
+        constants (:attr:`tau_inv_per_ordinate` /
+        :attr:`march_a_in_coeff_per_ordinate`); the ``is``-identity gate's
+        control leg pins that division of labour.
+        """
+        return march_psi_half_step(
+            psi_avg, psi_half_in, float(self.tau_per_ordinate[ordinate]),
+        )
+
     # ── Matvec strategy contract (the ABC's three abstract methods) ──
     #
     # The unified SN matvec (``loss_representation.py``) reads
@@ -1292,6 +1360,35 @@ def morel_montry_tau_per_level(
 # closure instance (and hence no mesh) required.
 
 
+def march_psi_half_step(
+    psi_avg: np.ndarray,
+    psi_half_in: np.ndarray,
+    tau: float,
+) -> np.ndarray:
+    r"""ONE Morel--Montry march step: :math:`\psi^a_{m+1/2} =
+    (\bar\psi_m - (1-\tau_m)\,\psi^a_{m-1/2})/\tau_m`.
+
+    **The single production spelling of the M-M update relation** (P4.9a).
+    Every consumer routes here: the batch kernel
+    :func:`_psi_half_grid_single_level` delegates its loop body, and the
+    per-cell degenerate solve path calls it through
+    :meth:`PoleAngularClosureBase.advance_psi_half`.  BMC 2010 Eqs.
+    (42)/(43); at :math:`\tau \equiv \tfrac12` this is Hébert's plain
+    angular diamond.
+
+    Operation order is LOAD-BEARING (bit-identity): the subtract-then-divide
+    form.  The scan fast path consumes the algebraically-identical
+    scan-normal form :math:`\tau^{-1}\bar\psi - ((1-\tau)/\tau)\psi^a`
+    via the minted constants (:attr:`PoleAngularClosureBase.tau_inv_per_ordinate`
+    / :attr:`~PoleAngularClosureBase.march_a_in_coeff_per_ordinate`) — the two
+    forms are NOT bitwise equal ([M] 2026-08-28: bit-equal 59 % on real τ,
+    max 204 ULP; ``scratch/p4_9a_verification_plan.md`` §F2), which is
+    exactly why this form and the constants are welded by gate rather than
+    unified by spelling.
+    """
+    return (psi_avg - (1.0 - tau) * psi_half_in) / tau
+
+
 def _psi_half_grid_single_level(
     psi_level: np.ndarray,
     tau_level: np.ndarray,
@@ -1325,9 +1422,11 @@ def _psi_half_grid_single_level(
         psi_half[:, 0, :] = psi_half_seed
     for m in range(M):
         tau_m = tau_level[m]
-        psi_half[:, m + 1, :] = (
-            psi_level[:, m, :] - (1.0 - tau_m) * psi_half[:, m, :]
-        ) / tau_m
+        # Delegates to the SINGLE spelling of the M-M update (P4.9a) —
+        # identical expression, so the delegation is bit-neutral.
+        psi_half[:, m + 1, :] = march_psi_half_step(
+            psi_level[:, m, :], psi_half[:, m, :], tau_m,
+        )
     return psi_half
 
 

@@ -496,3 +496,104 @@ class TestPairingContract:
                 "the identity member's repr must not carry a mesh — it no "
                 f"longer holds one; got {repr(closure)}"
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# P4.9a — the minted scan constants + the two-representation weld
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestMintedScanConstants:
+    """The closure MINTS its scan-normal representation; the two forms weld.
+
+    P4.9a (plan phase; ``scratch/p4_9a_verification_plan.md`` §5): the march
+    has ONE owner spelling (:func:`march_psi_half_step`) and one minted
+    scan-normal form (``tau_inv`` / ``march_a_in_coeff``).  They are
+    algebraically identical and NOT bitwise equal — [M] 2026-08-28, real
+    fp(4, 6) τ: bit-equal 59 %, max 204 ULP — so this class WELDS them
+    within a stated ULP band instead of pretending they are one.
+
+    In-family value comparisons (``advance_psi_half`` vs the batch kernel)
+    are deliberately ABSENT: after the single-sourcing both route through
+    one body, so such a gate would be ``f(x) == f(x)``.  The external
+    anchors are the CYL_DEG snapshots and the M1 owner-mutation arm.
+    """
+
+    @staticmethod
+    def _mm_cylinder():
+        from orpheus.geometry import BC, CoordSystem, Mesh1D
+        from orpheus.numerics.quadrature import Quadrature
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from tests.sn._test_helpers import placeholder_materials
+
+        mesh = Mesh1D(
+            edges=np.linspace(0.01, 2.0, 9),
+            mat_ids=np.zeros(8, dtype=int),
+            coord=CoordSystem.CYLINDRICAL,
+            bc_left=BC("reflective"),
+            bc_right=BC("vacuum"),
+        )
+        quad = Quadrature.folded_product(n_mu=4, n_phi=6)
+        sn = SNMesh(mesh, quad, placeholder_materials(ng=2))
+        closure = sn.pole_angular_closure
+        assert isinstance(closure, MorelMontryAngularSweep)
+        return closure
+
+    def test_minted_constants_pin_their_spelling(self) -> None:
+        """[foundation] ``1.0/τ`` and ``(1−τ)/τ`` — bit-exact, spelled THUS.
+
+        Positive leg: ``array_equal`` against the defining expressions on
+        the closure's own τ (pins the SPELLING, not an independent value —
+        the M7 mutation arm is this gate's teeth).  Discrimination leg:
+        the algebraically-equal respelling ``tau_inv − 1.0`` must differ
+        ([M] 1–2 ULP on all four measured configs) — proving the pin can
+        move under the realistic defect.
+        """
+        closure = self._mm_cylinder()
+        tau = closure.tau_per_ordinate
+        assert np.array_equal(closure.tau_inv_per_ordinate, 1.0 / tau)
+        assert np.array_equal(
+            closure.march_a_in_coeff_per_ordinate, (1.0 - tau) / tau,
+        )
+        respelled = closure.tau_inv_per_ordinate - 1.0
+        assert not np.array_equal(
+            closure.march_a_in_coeff_per_ordinate, respelled,
+        ), "the discrimination leg lost its subject: (1-τ)/τ == τ⁻¹−1 bitwise"
+
+    def test_march_step_and_scan_normal_form_weld_within_band(self) -> None:
+        """[foundation] The two representations agree ≤ 256 ULP, and are
+        NOT bit-equal — the honest weld ([M] max 204 ULP on real τ)."""
+        closure = self._mm_cylinder()
+        tau = closure.tau_per_ordinate
+        tau_inv = closure.tau_inv_per_ordinate
+        a_in = closure.march_a_in_coeff_per_ordinate
+        rng = np.random.default_rng(20260828)
+        psi_avg = rng.uniform(0.1, 5.0, size=(64, tau.size))
+        psi_in = rng.uniform(0.1, 5.0, size=(64, tau.size))
+        form_a = np.empty_like(psi_avg)
+        for n in range(tau.size):
+            form_a[:, n] = closure.advance_psi_half(
+                psi_avg[:, n], psi_in[:, n], ordinate=n,
+            )
+        form_b = tau_inv * psi_avg - a_in * psi_in
+        np.testing.assert_array_almost_equal_nulp(form_a, form_b, nulp=256)
+        assert not np.array_equal(form_a, form_b), (
+            "the weld's premise failed: the two forms read bit-equal on "
+            "this τ — the band assertion is then vacuous, re-derive it"
+        )
+
+    def test_identity_closure_constants_are_neutral(self) -> None:
+        """[foundation] Identity: τ⁻¹ ≡ 1, coeff ≡ 0, advance ≡ ψ̄ exactly."""
+        sn = make_tiny_spherical_sn_mesh()
+        closure = IdentityAngularClosure(
+            sn.reduced.angular, sn.reduced.redistribution_pairing,
+        )
+        n = closure.tau_per_ordinate.size
+        assert np.array_equal(closure.tau_inv_per_ordinate, np.ones(n))
+        assert np.array_equal(
+            closure.march_a_in_coeff_per_ordinate, np.zeros(n),
+        )
+        psi_avg = np.array([1.3, -0.7, 2.9])
+        psi_in = np.array([9.9, 9.9, 9.9])
+        out = closure.advance_psi_half(psi_avg, psi_in, ordinate=n - 1)
+        assert np.array_equal(out, psi_avg)
