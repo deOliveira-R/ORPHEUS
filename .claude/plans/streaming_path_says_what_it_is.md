@@ -1,20 +1,28 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
-> ## ▶ RESUME STATE — ⏸ COMPACTION POINT, rewritten 2026-08-28 after P4.1a/b/c
+> ## ▶ RESUME STATE — ⏸ COMPACTION POINT, rewritten 2026-08-28 after P4.4 + P4.2
 >
 > **This file is the resume surface. Trust it over any summary.**
-> ⛔ It replaces a post-P3 header. A summary is quoting dead text if it says
-> any of: "▶ NEXT = P2" · P2 moves α · P4 has a four-way fork about where the α
-> type lives · `face_areas`/`delta_A` are fields · `streaming_terms` has three
-> chart arms · P4.3 comes before P4.4 · `AngularMeasure` "dies" at P4.2.
-> Every one of those was true once and is refuted below.
+> ⛔ A summary is quoting dead text if it says any of: "▶ NEXT = P2" · P2 moves
+> α · P4 has a four-way fork about where the α type lives ·
+> `face_areas`/`delta_A` are fields · `streaming_terms` has three chart arms ·
+> **"P4.3 before P4.4"** · **"P4.2 before P4.4"** · `AngularMeasure` "dies" at
+> P4.2 · **the α movers are five** · **`transport/spatial/` should move to
+> `sn/spatial/`** · the connection operator or the α cluster is still in
+> `geometry/`. Every one was true once, or was proposed and refuted, below.
+>
+> ⭐ **Two phases landed this session and one was chartered.** If a summary
+> does not mention **P4.9**, it predates the charter.
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this line
 >
 > `main` == `origin/main`, **no open branch for this campaign**, working tree
-> clean. ✅ Phase B, P1, P2, P3a/b and **P4.1a + P4.1b + P4.1c** are all merged
+> clean. ✅ Phase B, P1, P2, P3a/b, P4.1a/b/c and **P4.4 + P4.2** are all merged
 > and pushed. Reconcile with
-> `git merge-base --is-ancestor 7c5a8fb3 main`, never with this sentence.
+> `git merge-base --is-ancestor 5940deba main`, never with this sentence.
+> `[M]` 2026-08-28: **all 22 hashes this file cites resolve AND are ancestors of
+> `main`**. ⚠ `refactor/operator-inverse-algebra` exists locally and is **already
+> merged** — a stale local branch, not open work.
 >
 > ⚠ This repo has **no CI** (`.github/workflows/` absent). "main is always
 > green" is enforced entirely by the local gate; an empty `gh run list` is not
@@ -143,8 +151,13 @@
 > | the spatial-field retirement is **bit-identical** | ✅ **REMEDIED by P4.1b.** It was true for `coord` (3/3 charts) and false for `face_areas` (2/3). Both are now **derived accessors, not fields**, so the claim has no subject left. |
 > | `streaming_terms` dispatches on three chart arms | ✅ **REMEDIED by P4.1b** — one body plus a 2-way resolution of what `direction_idx` MEANS (global ordinate vs within-level index). That surviving `if` is P4.7's, not a chart dispatch. |
 > | P4.2 retires `AngularMeasure` — "the 3 factories read 0 of its 6 members" | ⛔ **SUSPENDED into CS5.** That argued CONSUMERS; the open question is TYPE DESIGN (should `DiscreteMeasure` branch into Spatial/Angular/Energy?). `[M]` it has **5 use sites, all inside `reduced_operator.py`**, zero elsewhere ⟹ it travels with the factories at P4.4 and strands nothing. CS5 rules whether it should EXIST; P4.4 rules where it LIVES. |
+> | the α cluster is **five** symbols | ⛔ **SIX.** `[M]` `AngularRedistribution` annotates a field with `AngularMeasure`, so it had to travel too — leaving it behind is `geometry` naming an `sn` type. A grep for `alpha` finds **3 of 6**. |
+> | `StreamingTerms` / the connection operator / the α cluster live in `geometry/` | ✅ **All moved.** `ReducedStreamingOperator` + the 3 factories → `sn/mesh/reduced_operator.py` (P4.4 `16501ca0`); the 6 α symbols → `sn/angular/redistribution.py` (P4.2 `5940deba`). `[M]` `geometry/reduced_operator.py` now holds **only `StreamingTerms`** and imports **nothing but `dataclasses`**. P4.3 deletes it. |
+> | the L0 ladder imports `alpha_dome` from production | ✅ **REMEDIED by P4.2.** It ACCEPTS α as a keyword, like `tau`/`edges` since 2026-08-12. `[M]` `w` fed nothing but that call in all three graders, so it left `morel_montry_beta`'s signature and `alpha_defect_beta` lost `quad`/`geometry` too. ⛔ NOT the `WHITELIST` row. |
+> | `transport/spatial/` is SN-only, so it should be `sn/spatial/` | ⛔ **PROPOSED AND WITHDRAWN 2026-08-28.** The import census measured MATURITY, not architecture — SN is the deliberate vanguard. `[R]` every method solving a cell-local balance forms a closure (FD diffusion IS box/DD, FE/DG IS LD's basis, LS-MoC needs it for the source); only MC is exempt. `transport/spatial/` is correctly placed. |
+> | the spatial scheme legitimately closes the angular axis | ⛔ **NO — that is the twin.** `[M]` `DiamondDifference.update` evaluates the Morel–Montry relation inline, duplicating `closure.py:1327-1330`; both are LIVE on a data branch and **nothing gates them**. Forced by the layer (L2 cannot call L3). **P4.9** removes the obligation. |
 > | `AngularMeasure` "travels with the factories at P4.4" | ⛔ **REFUTED 2026-08-28.** The measurement (5 in-module use sites) was right; the inference was not. `[M]` `AngularRedistribution` NAMES `AngularMeasure` (`:1082`), so 2 of those 5 sites are in the α cluster. Sending it to `sn/` with the factories while α stays would be `geometry → sn` — forbidden. ⟹ it **stays in `geometry/` across P4.4** (factories read it as `sn → geometry`, legal) and **travels with α at P4.2**. Lands in `sn/` either way, so CS5 is not prejudged. |
-| `delta_A` moves to `sn/` as a field | ✅ **RULED 2026-08-27 (user): it DISSOLVES into R.** ΔA is R's rank-1 realization, not a second object. P4.1b is its first step — `delta_A` is already a derivation over `mesh.areas`, so what P4.4 moves is a derivation, not an array. |
+> | `delta_A` moves to `sn/` as a field | ✅ **RULED 2026-08-27 (user): it DISSOLVES into R.** ΔA is R's rank-1 realization, not a second object. P4.1b is its first step — `delta_A` is already a derivation over `mesh.areas`, so what P4.4 moves is a derivation, not an array. |
 > | `SNMesh.face_areas` / `.delta_A` are deprecated read-throughs | ✅ **REMEDIED by P4.1c** — retired. `[M]` 11 readers, 0 in `orpheus/`; every consumer was a test and 4 were the tests verifying the shims. |
 >
 > ### Still BLOCKED, with a named blocker (not a defer)
@@ -157,6 +170,27 @@
 > ⚠ **P3 is NOT finished** — `ReducedStreamingOperator` → `ChartConnection`
 > (P3c) is deliberately sequenced **after P4**, so the name describes what
 > remains once `streaming_terms` is out of it.
+>
+> ### ⭐ The rules P4.4 + P4.2 paid for — the three that generalise
+>
+> - `plan-authoring` **§6d, INTRA-FILE clause** (P4.4): **a re-home's forbidden
+>   edge can be INVISIBLE TO AN IMPORT GREP, because the split CREATES it.**
+>   §6d says *enumerate the mover's callers* and every reading reaches for
+>   imports — but a caller in the mover's OWN FILE imports nothing. That is what
+>   made "P4.2 before P4.4" wrong after "P4.3 before P4.4" was already corrected.
+> - `coding-standards` (P4.4): **a COMPLETE import audit is still a PARTIAL
+>   audit — a symbol has more than one spelling SURFACE.** AST-enumerated
+>   imports + a positive-control residual check reading **0** + green suite +
+>   pyright 0 + `sphinx -W` clean, and `dead_references` still found **9 live
+>   refs in DOCSTRINGS**. The filter was validated and pointed at the wrong
+>   corpus. ⟹ **run `dead_references` before calling any re-home done** (P4.2 ran
+>   it proactively and it caught one the author had just written).
+> - `plan-authoring` surprise log (P4.3 design): **an import census in a codebase
+>   with a deliberate VANGUARD measures MATURITY, not architecture.** I measured
+>   `transport/spatial` SN-only against a real control and proposed moving it;
+>   the user refuted the METHOD — SN is deliberately first, so "no importer"
+>   means "not built out yet". ⟹ a placement argument must be a **CONTRACT**
+>   argument; a consumer census may only corroborate one.
 >
 > ### ⭐ The rules P1–P4.1 paid for — read before the next rename or re-home
 >
