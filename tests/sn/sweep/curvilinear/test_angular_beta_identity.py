@@ -48,6 +48,7 @@ from orpheus.derivations.discrete.sn.angular_differencing import (
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import morel_montry_tau_per_level
+from orpheus.sn.angular.redistribution import alpha_dome
 
 pytestmark = pytest.mark.foundation
 
@@ -59,7 +60,11 @@ def _sphere_ascending(n: int):
     tau = np.asarray(
         morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)[0], dtype=float
     )
-    return quad.mu_x[order], quad.weights[order], tau
+    mu, w = quad.mu_x[order], quad.weights[order]
+    # ``morel_montry_beta`` used to normalise w and build alpha itself; L0 may
+    # not import orpheus.sn, so the caller does it now (P4.2). Same arithmetic.
+    alpha = alpha_dome(mu, np.asarray(w, dtype=float) / np.sum(w))
+    return mu, w, tau, alpha
 
 
 class TestBetaIdentity:
@@ -67,8 +72,8 @@ class TestBetaIdentity:
 
     @pytest.mark.parametrize("n", [2, 4, 8, 16, 32])
     def test_shipped_tau_annihilates_beta(self, n: int) -> None:
-        mu, w, tau = _sphere_ascending(n)
-        beta = morel_montry_beta(mu, w, tau)
+        mu, w, tau, alpha = _sphere_ascending(n)
+        beta = morel_montry_beta(mu, tau, alpha=alpha)
         assert abs(beta) < 1e-13, (
             f"GL-S{n}: the shipped tau gives beta = {beta:.6e}, but "
             "Morel-Montry Eqs. (17)-(19) prove it is identically zero — a "
@@ -88,8 +93,10 @@ class TestBetaIdentity:
         discriminate a loaded gate from a blind one)."""
         quad = Quadrature.gauss_legendre(n)
         order = np.argsort(quad.mu_x)
+        mu, w = quad.mu_x[order], quad.weights[order]
         beta = morel_montry_beta(
-            quad.mu_x[order], quad.weights[order], np.full(n, 0.5)
+            mu, np.full(n, 0.5),
+            alpha=alpha_dome(mu, np.asarray(w, dtype=float) / np.sum(w)),
         )
         assert abs(beta) > beta_min, (
             f"GL-S{n}: plain angular diamond gives beta = {beta:.6e}, which "
@@ -122,14 +129,14 @@ class TestBetaIdentity:
         throughout. Curiosity worth its line: `[M]` ``β(1−τ) ≈
         β(diamond)/2`` at every N ≥ 4, to 3 figures.
         """
-        mu, w, tau = _sphere_ascending(n)
+        mu, w, tau, alpha = _sphere_ascending(n)
         reflected = 1.0 - tau
         ratios = (1.0 - reflected) / reflected
         assert abs(float(np.prod(ratios)) - 1.0) < 1e-12, (
             "precondition: the reflection must preserve the end-to-end "
             "product, or this row is not testing the hole it claims to"
         )
-        beta = morel_montry_beta(mu, w, reflected)
+        beta = morel_montry_beta(mu, reflected, alpha=alpha)
         assert abs(beta) > beta_min, (
             f"GL-S{n}: beta = {beta:.6e} did not catch tau -> 1-tau above the "
             f"{beta_min:.0e} floor, and every other shipped tau gate passes "

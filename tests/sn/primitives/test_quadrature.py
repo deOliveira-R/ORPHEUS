@@ -396,11 +396,13 @@ class TestL0TermVerification:
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for spherical."""
         from orpheus.derivations.discrete.sn.angular_differencing import contamination_beta
         from orpheus.sn.angular.closure import angular_cell_edges_per_level
+        from orpheus.sn.angular.redistribution import angular_redistribution
         quad = Quadrature.gauss_legendre(8)
         # ``edges`` is supplied by the caller: L0 may not import orpheus.sn,
         # so the diagnostic is handed the closure it grades (2026-08-12).
         edges = angular_cell_edges_per_level(quad, CoordSystem.SPHERICAL)
-        beta = contamination_beta(quad, "spherical", edges=edges)
+        alpha = angular_redistribution(quad, CoordSystem.SPHERICAL).alpha_per_level
+        beta = contamination_beta(quad, "spherical", edges=edges, alpha=alpha)
         assert abs(beta) < 1e-14, f"Spherical β = {beta:.2e}"
 
     @pytest.mark.verifies("sn-contamination-factor")
@@ -408,9 +410,11 @@ class TestL0TermVerification:
         """L0-SN-008: Contamination β ≈ 0 (machine zero) for cylindrical."""
         from orpheus.derivations.discrete.sn.angular_differencing import contamination_beta
         from orpheus.sn.angular.closure import angular_cell_edges_per_level
+        from orpheus.sn.angular.redistribution import angular_redistribution
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         edges = angular_cell_edges_per_level(quad, CoordSystem.CYLINDRICAL)
-        betas = contamination_beta(quad, "cylindrical", edges=edges)
+        alpha = angular_redistribution(quad, CoordSystem.CYLINDRICAL).alpha_per_level
+        betas = contamination_beta(quad, "cylindrical", edges=edges, alpha=alpha)
         assert np.all(np.abs(betas) < 1e-14), (
             f"Cylindrical β_max = {np.abs(betas).max():.2e}"
         )

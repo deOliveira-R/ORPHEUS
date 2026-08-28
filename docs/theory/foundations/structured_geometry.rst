@@ -309,7 +309,7 @@ therefore vanishes **iff the measure's first moment in the marching
 coordinate does**, which makes it a *property of the quadrature* — a real
 admission contract a bad rule can violate — rather than a property of the
 recursion.  One body computes the dome
-(:func:`~orpheus.geometry.reduced_operator.alpha_dome`, called by both
+(:func:`~orpheus.sn.angular.redistribution.alpha_dome`, called by both
 curvilinear factories, with the derivations-side name delegating to it) and
 one guard refuses a non-closing measure
 (``_assert_alpha_dome_closes``, per level on the cylinder so the offending
@@ -472,7 +472,7 @@ achieves).
    field.  The geometry-layer primitive carries the SPATIAL curvature
    coefficients (``face_areas``, ``delta_A``) and a reference to the
    ANGULAR factor
-   (:class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
+   (:class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
    which owns the :math:`\alpha`-dome and :math:`\mu_{\rm start}` as of
    the 2026-08-26 un-weld); the M-M closure weight is produced by
    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`

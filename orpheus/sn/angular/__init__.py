@@ -16,6 +16,10 @@ that axis, not inside the package that walks the spatial one.
 * :mod:`~orpheus.sn.angular.closure` — the angular-redistribution
   closure family (Morel--Montry weighted-DD, the neutral identity), and
   the :math:`\tau` / half-angle-grid machinery it is built from.
+* :mod:`~orpheus.sn.angular.redistribution` — the **member-independent**
+  half: the :math:`\alpha` dome with its admission contract, the
+  :class:`~orpheus.sn.angular.redistribution.AngularRedistribution` factor and
+  its single producer.  Every closure member reads it; none of them owns it.
 
 History: this package was created 2026-08-26 (the un-weld arc, P2).
 ``closure`` lived at ``orpheus.sn.angular.closure`` until then
@@ -28,14 +32,17 @@ closure is a *discretization* object the traversal consumes, not a
 traversal artefact.  The move is a pure relocation: no symbol was
 renamed and no value changed.
 
-⚠ The angular factor's OTHER half — the :math:`\alpha` dome and the
-starting direction (``AngularRedistribution``, ``angular_redistribution``,
-``alpha_dome``) — still lives in :mod:`orpheus.geometry.reduced_operator`
-and joins this package at P4.  It could not move here in P2: its three
-callers, the ``*_streaming`` factories, stay in ``geometry/``, so moving
-it would force a module-scope ``geometry -> sn`` import and a measured
-circular-import failure of ``import orpheus.geometry``.  P4 dissolves
-those callers first, which is why the two halves land in that order.
+✅ **The angular factor's OTHER half arrived 2026-08-28 (P4.2)** — see
+:mod:`~orpheus.sn.angular.redistribution` in the list above.  It could not
+move in P2, and the reason is worth keeping: its three callers, the
+``*_streaming`` factories, were still in ``geometry/``, so moving it forced a
+module-scope ``geometry -> sn`` import — a declared ``FORBIDDEN_EDGES``
+violation *and* a measured circular-import failure of ``import
+orpheus.geometry``.  ⛔ The same refutation landed a second time against the
+order ``P4.2 -> P4.4``: the callers are *intra-file* references, so the split
+itself creates the edge and no import grep can see it coming.  P4.4 moved the
+factories to :mod:`orpheus.sn.mesh.reduced_operator` first, which turned the
+call into ``sn -> sn`` and made this landing trivial.
 """
 
 from .closure import (

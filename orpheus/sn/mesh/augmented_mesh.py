@@ -29,10 +29,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
 )
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
-from orpheus.geometry.reduced_operator import (
-    StreamingTerms,
-    angular_redistribution,
-)
+from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.sn.angular.redistribution import angular_redistribution
 from orpheus.transport.method import resolve_boundary_conditions
 from orpheus.transport.mesh.axis import (
     Axis1D,

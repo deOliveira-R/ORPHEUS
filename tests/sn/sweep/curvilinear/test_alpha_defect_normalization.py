@@ -46,7 +46,9 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.discrete.sn import angular_differencing as ad
+from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.angular.redistribution import angular_redistribution
 
 pytestmark = pytest.mark.foundation
 
@@ -61,7 +63,11 @@ def _sphere_case(n: int):
     order = np.argsort(quad.mu_x)
     w = np.asarray(quad.weights, dtype=float)[order]
     edges = np.concatenate(([-1.0], -1.0 + np.cumsum(w)))
-    return quad, [edges]
+    # L0 may not import orpheus.sn, so the caller hands the diagnostic the
+    # production alpha it grades (2026-08-28, P4.2 — the same treatment
+    # ``tau`` and ``edges`` received in 2026-08-12).
+    alpha = angular_redistribution(quad, CoordSystem.SPHERICAL).alpha_per_level
+    return quad, [edges], alpha
 
 
 class TestDefectIsTheDefect:
@@ -77,8 +83,8 @@ class TestDefectIsTheDefect:
         repaired values and a factor of two clear of the broken one, so
         it cannot be satisfied by the normalization difference at any n.
         """
-        quad, edges = _sphere_case(n)
-        beta = ad.alpha_defect_beta(quad, "spherical", edges=edges)[0]
+        _quad, edges, alpha = _sphere_case(n)
+        beta = ad.alpha_defect_beta(edges=edges, alpha=alpha)[0]
         worst = float(np.abs(beta).max())
         assert worst < 0.25, (
             f"S{n}: max|beta| = {worst:.4f}. A value near 0.5 means the two "
@@ -96,8 +102,8 @@ class TestDefectIsTheDefect:
         """
         worst = []
         for n in (8, 16, 32, 64):
-            quad, edges = _sphere_case(n)
-            beta = ad.alpha_defect_beta(quad, "spherical", edges=edges)[0]
+            _quad, edges, alpha = _sphere_case(n)
+            beta = ad.alpha_defect_beta(edges=edges, alpha=alpha)[0]
             worst.append(float(np.abs(beta).max()))
 
         for coarse, fine in zip(worst[:-1], worst[1:]):
@@ -119,16 +125,16 @@ class TestDefectIsTheDefect:
         editing the file (``process-discipline``: a mutation left on
         disk by a killed run is committed silently).
         """
-        quad, edges = _sphere_case(16)
+        _quad, edges, alpha = _sphere_case(16)
         healthy = float(np.abs(
-            ad.alpha_defect_beta(quad, "spherical", edges=edges)[0]
+            ad.alpha_defect_beta(edges=edges, alpha=alpha)[0]
         ).max())
 
         saved = ad._HEBERT_PER_ORPHEUS_ALPHA
         try:
             ad._HEBERT_PER_ORPHEUS_ALPHA = 1.0  # the pre-repair behaviour
             broken = float(np.abs(
-                ad.alpha_defect_beta(quad, "spherical", edges=edges)[0]
+                ad.alpha_defect_beta(edges=edges, alpha=alpha)[0]
             ).max())
         finally:
             ad._HEBERT_PER_ORPHEUS_ALPHA = saved

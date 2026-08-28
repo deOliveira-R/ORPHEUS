@@ -206,9 +206,9 @@ mesh) is shared with :ref:`theory-collision-probability` and
    The **angular** factor is not a streaming-factory output either
    (2026-08-26): the :math:`\alpha`-dome and the starting direction
    :math:`\mu_{\rm start}` are produced once, per :math:`\mu`-level, by
-   :func:`~orpheus.geometry.reduced_operator.angular_redistribution` and
+   :func:`~orpheus.sn.angular.redistribution.angular_redistribution` and
    carried on
-   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`.
+   :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`.
    ⛔ ``redist_dAw`` / ``redist_dAw_per_level`` retired with them: that
    array was the *fused product* :math:`\Delta A_i \otimes 1/w_n` of a
    geometric with a quadrature factor, and each of its two consumers

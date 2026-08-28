@@ -168,7 +168,7 @@ construction:
   :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
   consumes the quadrature :math:`(\mu_n, w_n)` and nothing else — which
   is why it moved OFF that class in the 2026-08-26 un-weld and onto
-  :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`, the
+  :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`, the
   angular half of the redistribution operator's tensor factorization.
   Per level the dome is ``(M_p + 1,)`` (sphere: one level, ``(N+1,)``);
   the geometric factor is ``delta_A``, and the product

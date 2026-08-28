@@ -83,7 +83,7 @@ system under test moved from ``orpheus/geometry/reduced_operator.py`` to
 :mod:`orpheus.sn.mesh.reduced_operator`.  ⚠ The "all 47 tests in this
 file stay green" measurement above was taken 2026-08-03 on the file as it
 then stood; the α-dome closure contract (7 tests) stayed behind in
-``tests/geometry/test_reduced_operator.py`` with :func:`~orpheus.geometry.reduced_operator.alpha_dome`,
+``tests/geometry/test_reduced_operator.py`` with :func:`~orpheus.sn.angular.redistribution.alpha_dome`,
 so this file now carries 29 of those cases.  The mutation has **not** been
 re-run since — the blindness finding is unchanged in kind, but the count
 is historical.

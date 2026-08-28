@@ -173,7 +173,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.reduced_operator import AngularRedistribution
+from orpheus.sn.angular.redistribution import AngularRedistribution
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -693,7 +693,7 @@ class _MMHalfGrid:
         coefficient is :math:`c_{\rm out}[M-1] = \alpha_{M+1/2}/\tau = 0`,
         because the :math:`\alpha`-dome closes: a contract enforced at
         admission by
-        :func:`~orpheus.geometry.reduced_operator._assert_alpha_dome_closes`
+        :func:`~orpheus.sn.angular.redistribution._assert_alpha_dome_closes`
         and itself a CONSEQUENCE of the measure's antisymmetry, not an axiom
         of the (strictly one-sided) Lathrop--Carlson recursion.  So this face
         is computed and then annihilated.  :meth:`angular_adjoint` agrees

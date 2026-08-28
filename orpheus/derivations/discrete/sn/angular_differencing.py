@@ -161,7 +161,6 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_dome
 
 # ⛔ NOTHING FROM ``orpheus.sn`` MAY BE IMPORTED HERE.
 #
@@ -174,9 +173,27 @@ from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_do
 # The fix is NOT to move those producers down a layer: τ is a *scheme*
 # parameter — how the SN angular differencing interpolates between angular
 # cell edges — so ``sn`` is its correct home. The defect was L0 reaching UP
-# for it. These diagnostics now ACCEPT ``tau`` / ``edges`` as keyword
-# arguments, which is also the more honest signature: a function that grades
-# a closure should be handed the closure, not go shopping for one. The
+# for it. These diagnostics now ACCEPT ``tau`` / ``edges`` / ``alpha`` as
+# keyword arguments, which is also the more honest signature: a function that
+# grades a closure should be handed the closure, not go shopping for one.
+#
+# ``alpha`` joined them 2026-08-28 (the un-weld arc, P4.2), for the same reason
+# one step later: the alpha-dome recursion moved to
+# ``orpheus.sn.angular.redistribution``, so the module-scope
+# ``from orpheus.geometry.reduced_operator import alpha_dome`` this file used to
+# carry would have become ``derivations -> sn``. ⚠ The linter's TYPE_CHECKING
+# tolerance is ``L1 | L2`` only and ``derivations`` is L0, so it is NOT covered
+# even for typing -- and the WHITELIST would have taken the row in one line,
+# which is precisely why it must not: a whitelist RECORDS a violation where the
+# keyword fix REMOVES one.
+#
+# The delegating local ``alpha_dome`` retired with the import. It was a pure
+# ``return _production_alpha_dome(mu, w)`` shim, so nothing re-implements the
+# recursion and no gate was demoted. ``w`` disappeared from three signatures in
+# the same pass: [M] it was used for NOTHING but feeding that call, so handing
+# the caller's alpha in makes the parameter that was a means to it redundant.
+# ``alpha_defect_beta`` lost ``quad``/``geometry`` for the same reason -- it is
+# beta = alpha - (1 - e^2), a function of alpha and the edges alone. The
 # caller (a test, or the sn side) supplies the production values and may
 # import ``sn.angular.closure`` freely — the layer rule constrains
 # ``orpheus/`` packages, not ``tests/``.
@@ -193,7 +210,6 @@ from orpheus.geometry.reduced_operator import alpha_dome as _production_alpha_do
 # one frame down.
 __all__ = [
     "alpha_defect_beta",
-    "alpha_dome",
     "contamination_beta",
     "diffusion_limit_c",
     "morel_montry_beta",
@@ -226,27 +242,6 @@ def _weights(quad, coord: CoordSystem) -> tuple[np.ndarray, ...]:
     if coord is CoordSystem.SPHERICAL:
         return (np.asarray(quad.weights),)
     return tuple(np.asarray(quad.weights)[idx] for idx in quad.level_indices)
-
-
-def alpha_dome(mu: np.ndarray, w: np.ndarray) -> np.ndarray:
-    r"""P4's recursion: :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - w_m\mu_m`.
-
-    Returns ``(M+1,)`` with :math:`\alpha_0 = 0` and, when P0 holds,
-    :math:`\alpha_M \approx 0` — the dome closes.
-
-    ⭐ This is the analysis-facing name for the PRODUCTION recursion
-    (:func:`orpheus.geometry.reduced_operator.alpha_dome`), which both
-    curvilinear streaming factories run.  It was an independent third
-    spelling of the same arithmetic until 2026-08-12; nothing compared
-    the copies, so collapsing them demoted no gate.
-
-    ⚠ It deliberately does NOT carry the production ADMISSION contract
-    (``_assert_alpha_dome_closes``): this module's P0/P4 predicate ladder
-    exists precisely to characterise measures whose dome does **not**
-    close, and a guard welded into the recursion would make that
-    analysis unspellable.  Ask :func:`alpha_defect_beta` for the defect.
-    """
-    return _production_alpha_dome(mu, w)
 
 
 def diffusion_limit_c(quad, geometry: str = "spherical") -> np.ndarray:
@@ -291,7 +286,7 @@ def diffusion_limit_c(quad, geometry: str = "spherical") -> np.ndarray:
 #      from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
 
-def contamination_beta(quad, geometry: str = "spherical", *, edges):
+def contamination_beta(quad, geometry: str = "spherical", *, edges, alpha):
     r"""**β₁ — the BMC contamination coefficient.** One scalar per level.
 
     BMC 2010 Eq. 41 (sphere) / Eq. 75 (cylinder)::
@@ -309,6 +304,10 @@ def contamination_beta(quad, geometry: str = "spherical", *, edges):
     Returns a float for the sphere, ``(n_levels,)`` for the cylinder —
     the retired module's contract, preserved.
 
+    :param alpha: the α dome per μ-level, as
+        ``angular_redistribution(quad, coord).alpha_per_level`` produces it
+        (or :func:`orpheus.sn.angular.redistribution.alpha_dome` directly).
+        **Keyword-only and required**, for the same reason as ``edges``.
     :param edges: the angular cell partition per μ-level, as
         ``angular_cell_edges_per_level(quad, coord)`` produces it.
         **Keyword-only and required**: L0 may not import ``orpheus.sn``, so
@@ -319,20 +318,17 @@ def contamination_beta(quad, geometry: str = "spherical", *, edges):
     """
     coord = _coord_of(geometry)
     out = []
-    for mu, w, e in zip(
-        _levels(quad, coord), _weights(quad, coord), edges
-    ):
-        alpha = alpha_dome(mu, w)
+    for mu, a, e in zip(_levels(quad, coord), alpha, edges):
         scale = 0.5 if coord is CoordSystem.SPHERICAL else 1.0
         out.append(float(sum(
-            scale * mu[m] * (alpha[m + 1] * e[m + 1] - alpha[m] * e[m])
+            scale * mu[m] * (a[m + 1] * e[m + 1] - a[m] * e[m])
             for m in range(mu.size)
         )))
     return out[0] if coord is CoordSystem.SPHERICAL else np.array(out)
 
 
 def morel_montry_beta(
-    mu: np.ndarray, w: np.ndarray, tau: np.ndarray,
+    mu: np.ndarray, tau: np.ndarray, *, alpha: np.ndarray,
 ) -> float:
     r"""**β₃ — M&M Eq. (6a) on the cell edges IMPLIED BY τ.** One scalar.
 
@@ -380,9 +376,7 @@ def morel_montry_beta(
     """
     mu = np.asarray(mu, dtype=float)
     tau = np.asarray(tau, dtype=float)
-    normalized = np.asarray(w, dtype=float)
-    normalized = normalized / normalized.sum()
-    alpha = alpha_dome(mu, normalized)
+    alpha = np.asarray(alpha, dtype=float)
     implied = np.zeros(mu.size + 1)
     implied[0] = -1.0
     for m in range(mu.size):
@@ -400,7 +394,7 @@ def morel_montry_beta(
 _HEBERT_PER_ORPHEUS_ALPHA = 2.0
 
 
-def alpha_defect_beta(quad, geometry: str = "spherical", *, edges):
+def alpha_defect_beta(*, edges, alpha):
     r"""**β₂ — the Lathrop α-defect.** A SEQUENCE per level, not a scalar.
 
     Lathrop 2000 Eq. 25: :math:`\alpha_{m+1/2} = 1 - \eta^2_{m+1/2}
@@ -443,20 +437,21 @@ def alpha_defect_beta(quad, geometry: str = "spherical", *, edges):
 
     Returns one ``(M+1,)`` array per level.
 
+    :param alpha: the α dome per μ-level (keyword-only, required — see
+        :func:`contamination_beta`).
     :param edges: the angular cell partition per μ-level (keyword-only,
         required — see :func:`contamination_beta`).
+
+    ⚠ Takes **no** ``quad``/``geometry``: once α is handed in, this is
+    :math:`\beta = \alpha - (1 - e^2)` — a function of α and the edges
+    alone, with no chart left to consult.
     """
-    coord = _coord_of(geometry)
     return tuple(
         # Lift alpha^O -> alpha^H so both sides speak Lathrop Eq. 25's
         # convention; see the docstring's normalization block.
-        _HEBERT_PER_ORPHEUS_ALPHA * alpha_dome(mu, w)
+        _HEBERT_PER_ORPHEUS_ALPHA * np.asarray(a)
         - (1.0 - np.asarray(e) ** 2)
-        for mu, w, e in zip(
-            _levels(quad, coord),
-            _weights(quad, coord),
-            edges,
-        )
+        for a, e in zip(alpha, edges)
     )
 
 

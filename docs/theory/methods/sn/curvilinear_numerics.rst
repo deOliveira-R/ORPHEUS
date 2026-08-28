@@ -2459,7 +2459,7 @@ The starting-direction edge :math:`\mu_{\rm start}` (sphere
 azimuthal edge) is single-sourced from the SAME
 :math:`\alpha`/:math:`\tau` construction site as the
 :math:`\alpha`-dome, and read by every consumer from that one owner:
-:attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.mu_start_per_level`.
+:attr:`~orpheus.sn.angular.redistribution.AngularRedistribution.mu_start_per_level`.
 A forgotten cylinder site cannot silently fall back to the sphere value.
 
 .. note::

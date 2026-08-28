@@ -1,9 +1,9 @@
 r"""The α-dome recursion and its admission contract.
 
-:func:`~orpheus.geometry.reduced_operator.alpha_dome` is the
+:func:`~orpheus.sn.angular.redistribution.alpha_dome` is the
 Lathrop--Carlson angular redistribution recursion
 :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - w_m\mu_m`, and
-:func:`~orpheus.geometry.reduced_operator._assert_alpha_dome_closes` is
+:func:`~orpheus.sn.angular.redistribution._assert_alpha_dome_closes` is
 its admission contract :math:`\alpha_{M+1/2} = 0` — a *consequence* of
 the measure's antisymmetry, not an axiom of the one-sided recursion.
 
@@ -13,12 +13,12 @@ time, so a contract spelled that way does not run in the suite that
 matters (`coding-standards`).  Both legs are here — a closing measure is
 ACCEPTED, a non-closing one is REFUSED — per ``vv-principles`` #11.
 
-⚠ **This file is the residue of a split.**  Until 2026-08-28 it also
-carried the factory-binding and packet-plumbing tests; those moved with
-their system under test to ``tests/sn/mesh/test_reduced_operator.py``
-(un-weld arc P4.4).  These 7 cases stay with
-:mod:`orpheus.geometry.reduced_operator`, and travel again to
-``tests/sn/angular/`` at P4.2 when :math:`\alpha` itself does.
+⚠ **This file has moved twice, following its system under test.**  It was
+``tests/geometry/test_reduced_operator.py``.  P4.4 (2026-08-28) took the
+factory-binding and packet-plumbing tests out to
+``tests/sn/mesh/test_reduced_operator.py`` with the chart connection; P4.2, the
+same day, brought these 7 α cases here with
+:mod:`orpheus.sn.angular.redistribution` itself.
 
 These tests are tagged ``@pytest.mark.foundation``.
 """
@@ -29,7 +29,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.reduced_operator import (
+from orpheus.sn.angular.redistribution import (
     _ALPHA_CLOSURE_ATOL,
     _assert_alpha_dome_closes,
     alpha_dome,
@@ -151,31 +151,56 @@ class TestAlphaDomeClosureContract:
     # ---- the single-source claim ----------------------------------------
 
     @pytest.mark.foundation
-    def test_the_derivations_alpha_dome_IS_the_production_one(self):
+    def test_the_derivations_module_does_not_SPELL_the_recursion(self):
         r"""Cardinal Rule 2 — the recursion had THREE spellings until
         2026-08-12 (sphere factory, cylinder factory, and the derivations
         analysis module), which is why the contract could be enforced on
         one arm only.
 
-        ⚠ This row is **not** a two-implementation agreement gate and must
-        never be described as one: the derivations name now delegates, so
-        no input can make the two disagree (``coding-standards``' "single-
-        sourcing a duplicate demotes every gate that compared its copies"
-        — the demotion is CORRECT here and the fix stays). What it pins is
-        that the delegation is still in place, i.e. that a fourth copy has
-        not been re-introduced under the old name.
+        ⭐ This gate was PROMOTED on 2026-08-28 (P4.2) and its claim class
+        changed, so its description changed with it (``coding-standards``'
+        mirror clause).  It used to assert that the derivations name
+        *delegated* to production — a comparison no input could fail, since
+        the body was ``return _production_alpha_dome(mu, w)``.  When
+        :math:`\alpha` moved to ``orpheus.sn.angular.redistribution``, that
+        L0 module could no longer import it at all (``derivations`` is L0,
+        ``sn`` is L3), so the wrapper retired and the graders now ACCEPT
+        :math:`\alpha` as a keyword.
+
+        ⟹ what is pinned now is that the twin is **unspellable**, not merely
+        delegating: the module must define no recursion of its own, and its
+        three graders must be *handed* the dome.  A fourth copy
+        re-introduced under any name would have to come back through one of
+        these two doors.
         """
-        from orpheus.derivations.discrete.sn.angular_differencing import (
-            alpha_dome as derivations_alpha_dome,
-        )
+        import inspect
 
-        quad = Quadrature.gauss_legendre(8)
-        np.testing.assert_array_equal(
-            derivations_alpha_dome(quad.mu_x, quad.weights),
-            alpha_dome(quad.mu_x, quad.weights),
-        )
+        from orpheus.derivations.discrete.sn import angular_differencing as ad
 
-    @pytest.mark.foundation
+        assert not hasattr(ad, "alpha_dome"), (
+            "the L0 analysis module has re-acquired an ``alpha_dome`` — that "
+            "is the Pattern-2 twin the 2026-08-12 collapse retired, and it "
+            "cannot import the production one (derivations is L0, sn is L3), "
+            "so a local spelling is the only way it could have come back"
+        )
+        for fn in (ad.contamination_beta, ad.alpha_defect_beta,
+                   ad.morel_montry_beta):
+            param = inspect.signature(fn).parameters.get("alpha")
+            assert param is not None, (
+                f"{fn.__name__} no longer accepts ``alpha`` — it must be "
+                "handed the dome it grades, not compute one"
+            )
+            assert param.kind is inspect.Parameter.KEYWORD_ONLY, (
+                f"{fn.__name__}'s ``alpha`` must stay keyword-only, like "
+                "``tau`` and ``edges``: a positional slot invites a caller "
+                "to pass the wrong per-level sequence silently"
+            )
+            assert param.default is inspect.Parameter.empty, (
+                f"{fn.__name__}'s ``alpha`` must stay REQUIRED — a default "
+                "that fetched would reinstate the forbidden edge, and one "
+                "that guessed would grade the wrong dome"
+            )
+
     def test_the_derivations_recursion_stays_UNGUARDED(self):
         r"""The contract lives at the production ADMISSION point, not
         inside the recursion — deliberately.
@@ -186,16 +211,19 @@ class TestAlphaDomeClosureContract:
         that analysis unspellable, so the split into
         :func:`alpha_dome` (pure) + :func:`_assert_alpha_dome_closes`
         (admission) is load-bearing, not stylistic.
-        """
-        from orpheus.derivations.discrete.sn.angular_differencing import (
-            alpha_dome as derivations_alpha_dome,
-        )
 
+        ⚠ Re-pointed at the PRODUCTION recursion on 2026-08-28 (P4.2): the
+        L0 spelling this used to call has retired, and the L0 ladder now
+        runs on a dome its caller builds with *this* function.  So the
+        claim is unchanged and its subject is now the only recursion there
+        is — still two independently-evaluated functions, so welding the
+        guard into :func:`alpha_dome` reddens the first assertion.
+        """
         # A deliberately non-antisymmetric measure: the recursion must
         # still RETURN it (open dome and all), not raise.
         mu = np.array([-0.8, -0.3, 0.3, 0.8])
         w = np.array([0.50, 0.25, 0.25, 0.25])
-        alpha = derivations_alpha_dome(mu, w)
+        alpha = alpha_dome(mu, w)
         assert alpha[-1] == pytest.approx(0.2), (
             "the analysis recursion must report the OPEN dome, not refuse it"
         )

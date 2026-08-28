@@ -296,8 +296,8 @@ Each level's :math:`\alpha` values form an independent dome from
   that belongs, because it is an admission contract rather than a shape.
 
 The code stores the dome on
-:class:`~orpheus.geometry.reduced_operator.AngularRedistribution`, as
-:attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.alpha_per_level`
+:class:`~orpheus.sn.angular.redistribution.AngularRedistribution`, as
+:attr:`~orpheus.sn.angular.redistribution.AngularRedistribution.alpha_per_level`
 — **per** :math:`\mu`\ **-level on both charts**, each of shape
 ``(M_p + 1,)``, with the sphere as the one-level case and Cartesian
 carrying the neutral zero dome.  It is reached as
@@ -318,9 +318,9 @@ carrying the neutral zero dome.  It is reached as
    neutral element instead of ``None``.
 
 One body computes them —
-:func:`~orpheus.geometry.reduced_operator.alpha_dome` — called from the
+:func:`~orpheus.sn.angular.redistribution.alpha_dome` — called from the
 single producer
-:func:`~orpheus.geometry.reduced_operator.angular_redistribution` (once per
+:func:`~orpheus.sn.angular.redistribution.angular_redistribution` (once per
 :math:`\mu`-level), and delegated to by the derivations-side name of the
 same function; before ``bea6a367`` (2026-08-12) the recursion had **three**
 spellings, and that is exactly why its closure contract could live on one
@@ -362,7 +362,7 @@ follow, and keeping them apart is the whole point:
    recursion at the far endpoint — a representational identity of the
    recursion, not a solver claim with an L0..L3 ladder slot.  The verifiable
    content is the admission guard
-   ``orpheus.geometry.reduced_operator._assert_alpha_dome_closes`` (a real
+   ``orpheus.sn.angular.redistribution._assert_alpha_dome_closes`` (a real
    raise, per level on the cylinder), gated by an explicit positive+negative
    pair in ``tests/geometry/test_reduced_operator.py`` (vv-principles #11):
    ``test_every_shipped_gauss_legendre_dome_closes`` and
@@ -398,9 +398,9 @@ past the top edge, into nothing — a leak, not a small error.
    The reusable lesson is not "add a check to the cylinder arm" — that
    would have guarded a *duplicate*.  The recursion had three spellings,
    which is precisely how a contract comes to live on one of them; Cardinal
-   Rule 2 first (one :func:`~orpheus.geometry.reduced_operator.alpha_dome`
+   Rule 2 first (one :func:`~orpheus.sn.angular.redistribution.alpha_dome`
    body), then the guard
-   (:func:`~orpheus.geometry.reduced_operator._assert_alpha_dome_closes`, a
+   (:func:`~orpheus.sn.angular.redistribution._assert_alpha_dome_closes`, a
    real ``raise``, **per level** on the cylinder so the failure is
    locatable).  Recursion and contract stay separate functions deliberately:
    a derivation that wants to *study* a non-closing measure may call the
@@ -410,9 +410,9 @@ past the top edge, into nothing — a leak, not a small error.
    ⭐ **The argument completed on 2026-08-26.**  ``bea6a367`` gave the
    recursion one body; the guard still ran from whichever streaming
    factory remembered to call it.  Since the α-dome moved onto
-   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution` it
+   :class:`~orpheus.sn.angular.redistribution.AngularRedistribution` it
    has exactly **one producer**,
-   :func:`~orpheus.geometry.reduced_operator.angular_redistribution`, and
+   :func:`~orpheus.sn.angular.redistribution.angular_redistribution`, and
    the contract is checked there — at the site that mints the value, for
    every chart, rather than on the arms that happen to consume it.  A
    guard on a *duplicate* and a guard on a *consumer* fail the same way;
@@ -482,7 +482,7 @@ used, from the **spatial** factor
 :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`
 (shape ``(nx,)``, on the streaming operator) and the **angular** factor
 :math:`1/w_n` (the measure's own weight, reached through
-:attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.quadrature`).
+:attr:`~orpheus.sn.angular.redistribution.AngularRedistribution.quadrature`).
 
 .. note:: ⭐ **The fused product was retired on 2026-08-26, and the reason
    is instructive.**  Until then the geometry object cached
@@ -1488,7 +1488,7 @@ reference.  Migrate-then-delete preserved the floor:
    (``alpha_half`` / ``alpha_per_level``) and the starting-direction edges
    (``mu_start`` / ``mu_start_per_level``) are the **angular** factor —
    functions of ``(quadrature, coord)`` alone — and now live on
-   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution` with
+   :class:`~orpheus.sn.angular.redistribution.AngularRedistribution` with
    one producer; the fused ``redist_dAw`` cache was retired outright,
    because it was a *product* of a geometric with a quadrature factor that
    neither consumer owned.  Only ``face_areas`` and ``delta_A`` — genuinely
@@ -2016,7 +2016,7 @@ settling the question that actually turns out to be dangerous.
      structure — the spatial factor on
      :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`,
      the member-independent angular factor on
-     :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
+     :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
      and the fused :math:`\Delta A_i \otimes 1/w_n` cache that used to
      straddle both **retired**.
    * ⟹ the diffusion-limit contamination condition is the **identical**
@@ -2219,9 +2219,9 @@ not an additional one.
           :math:`r`
         - split by ownership: the member-**independent** part (the
           :math:`\alpha` dome and :math:`\mu_{\rm start}`, per level) on
-          :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
+          :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
           from the single producer
-          :func:`~orpheus.geometry.reduced_operator.angular_redistribution`;
+          :func:`~orpheus.sn.angular.redistribution.angular_redistribution`;
           the member's own :math:`\tau` and the derived
           :math:`c_{\rm in}` / :math:`c_{\rm out}` on the angular closure
           (:ref:`sn-tau-closure-owned`)
@@ -2239,7 +2239,7 @@ not an additional one.
      neither side could own it.  See the note under
      :ref:`sn-geometry-factor` above.
    * ⭐ **The angular factor's own split is load-bearing for a second
-     member.**  :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`
+     member.**  :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`
      deliberately does **not** carry :math:`\tau`: the dome and the
      starting direction are shared by every angular-closure member, while
      :math:`\tau` is the member's *choice* (Morel--Montry's barycentric

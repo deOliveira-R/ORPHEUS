@@ -32,10 +32,10 @@ had 1-4 intra-``geometry/`` consumers and this one had **0**.
 this module imports back from :mod:`orpheus.geometry.reduced_operator` are still
 in flight:
 
-* :class:`~orpheus.geometry.reduced_operator.AngularMeasure` and the five
-  :math:`\alpha` symbols (:func:`~orpheus.geometry.reduced_operator.alpha_dome`,
-  its closure contract, :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
-  :func:`~orpheus.geometry.reduced_operator.angular_redistribution`) land in
+* :class:`~orpheus.sn.angular.redistribution.AngularMeasure` and the five
+  :math:`\alpha` symbols (:func:`~orpheus.sn.angular.redistribution.alpha_dome`,
+  its closure contract, :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
+  :func:`~orpheus.sn.angular.redistribution.angular_redistribution`) land in
   ``sn/angular/redistribution.py`` at **P4.2**.  They could not move first:
   `[M]` the three factories below CALL ``angular_redistribution`` at runtime, so
   moving :math:`\alpha` while they sat in ``geometry/`` would have created
@@ -204,10 +204,10 @@ import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D
-from orpheus.geometry.reduced_operator import (
+from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.sn.angular.redistribution import (
     AngularMeasure,
     AngularRedistribution,
-    StreamingTerms,
     angular_redistribution,
 )
 

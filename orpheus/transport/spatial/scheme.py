@@ -454,7 +454,7 @@ class DiscretizationScheme(Protocol):
     contract follows the project's pattern (see
     :class:`~orpheus.numerics.operator.LinearOperator`,
     :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`,
-    :class:`~orpheus.geometry.reduced_operator.AngularMeasure`):
+    :class:`~orpheus.sn.angular.redistribution.AngularMeasure`):
     ``@runtime_checkable Protocol``, satisfied by structural
     typing — concrete strategies do **not** need to inherit.
 
