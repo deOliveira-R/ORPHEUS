@@ -324,7 +324,7 @@ class TestL0TermVerification:
             region_meshes=(RegionMesh(n_cells=10),),
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        dA = sn.delta_A
+        dA = sn.reduced.delta_A
         psi0 = 1.0
 
         if coord == CoordSystem.SPHERICAL:
@@ -389,7 +389,7 @@ class TestL0TermVerification:
             expected = 4 * np.pi * (edges[1:]**2 - edges[:-1]**2)
         else:
             expected = 2 * np.pi * (edges[1:] - edges[:-1])
-        np.testing.assert_allclose(sn.delta_A, expected, rtol=1e-14)
+        np.testing.assert_allclose(sn.reduced.delta_A, expected, rtol=1e-14)
 
     @pytest.mark.verifies("sn-contamination-factor")
     def test_contamination_beta_spherical(self):

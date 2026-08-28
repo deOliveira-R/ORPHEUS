@@ -1848,32 +1848,14 @@ class SNMesh(MaterialMesh):
         )
 
 
-    # ── Backward-compat property accessors ────────────────────────────
+    # ⛔ The backward-compat accessors ``face_areas`` and ``delta_A``
+    # retired here on 2026-08-27 (P4.1c).  They routed to
+    # ``self.reduced`` and emitted a ``DeprecationWarning``; they dated
+    # from Wave E Round 2 (#164), against ``coding-standards``' rule that
+    # a deprecation alias lives for ONE merge cycle.
     #
-    # These properties route to ``self.reduced`` (the
-    # :class:`ReducedStreamingOperator` built at construction) and emit a
-    # ``DeprecationWarning`` — use ``self.reduced.<name>`` directly.
-
-    @property
-    def face_areas(self) -> np.ndarray:
-        """[Deprecated] Cell face areas. Use ``self.reduced.face_areas`` instead."""
-        warnings.warn(
-            "SNMesh.face_areas is deprecated; "
-            "use SNMesh.reduced.face_areas instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.face_areas is not None
-        return self.reduced.face_areas
-
-    @property
-    def delta_A(self) -> np.ndarray:
-        """[Deprecated] Face-area differences. Use ``self.reduced.delta_A`` instead."""
-        warnings.warn(
-            "SNMesh.delta_A is deprecated; "
-            "use SNMesh.reduced.delta_A instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        assert self.reduced.delta_A is not None
-        return self.reduced.delta_A
+    # `[M]` by AST over ``orpheus/`` + ``tests/`` at retirement: **11
+    # reads, 0 of them in ``orpheus/``** — every consumer was a test, and
+    # the tests were the ones written to verify the shims.  A shim kept
+    # alive by its own coverage.  Read ``self.reduced.face_areas`` /
+    # ``self.reduced.delta_A``, which is what these forwarded to.

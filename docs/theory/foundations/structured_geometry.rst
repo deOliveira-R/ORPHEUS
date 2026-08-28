@@ -764,10 +764,21 @@ per coordinate system:
 
 * :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
-  no curvature math.  Its spatial arrays (``face_areas``,
-  ``delta_A``) remain ``None``; its ANGULAR factor is present and
-  **neutral** — a zero dome and the diameter-ray start — which is what
-  lets the per-coordinate ``Optional`` union stay dead.
+  no curvature math.  Both its factors are present and **neutral**: the
+  ANGULAR one carries a zero dome and the diameter-ray start, and the
+  SPATIAL one carries a unit cross-section with **zero area change**
+  (``face_areas == ones(nx+1)``, ``delta_A == zeros(nx)``) — because a
+  slab having "no curvature" IS its faces not changing area.
+
+  ⛔ Until P4.1b (2026-08-27) this read *"its spatial arrays remain
+  ``None``"*, and they were stored fields.  They are **derived** from
+  the mesh now (``face_areas`` is ``mesh.areas`` itself, ``delta_A`` its
+  difference), so no factory computes them and the per-coordinate
+  ``Optional`` union is dead on **both** factors rather than one.  That
+  is what let :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`
+  collapse from three chart arms to one shared body: the retired
+  CARTESIAN arm was the spherical body with ``1.0`` / ``1.0`` / ``0.0``
+  written out by hand.
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
   with the dome recursion :eq:`alpha-dome-recursion` and Morel--Montry
@@ -866,9 +877,14 @@ unaffected because the two paths computed the same data.
    :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
    itself, so the surviving hash-equality legs compare a fresh factory
    call against ``sn_mesh.reduced`` — *the value that same factory
-   produced*, routed through the mesh constructor — and the two
-   ``SNMesh.face_areas`` / ``SNMesh.delta_A`` legs are deprecated
-   read-throughs to that same object.  The gate therefore pins the
+   produced*, routed through the mesh constructor.
+
+   ⛔ This paragraph used to add *"and the two ``SNMesh.face_areas`` /
+   ``SNMesh.delta_A`` legs are deprecated read-throughs to that same
+   object"*.  Those accessors **retired at P4.1c** (2026-08-27) — `[M]`
+   11 readers, **0** of them in ``orpheus/``, and every one of the
+   tests that read them existed to verify the shims themselves.  The
+   legs now read ``sn_mesh.reduced.*`` directly.  The gate therefore pins the
    **wiring** (the constructor really does route to the geometry-layer
    primitive, for every geometry and every quadrature order in its
    parametrization), not the **math**: no structurally-independent

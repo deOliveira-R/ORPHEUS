@@ -25,11 +25,18 @@ Pins three software invariants on the post-refactor :class:`SNMesh`:
    stronger than the chart tag was (a chart tag agrees for any two
    meshes on the same chart; object identity does not) and independent
    of the chart, so it survives P4.1b's field changes.
-2. The remaining transitional ``@property`` accessors (``face_areas``,
-   ``delta_A``) emit :class:`DeprecationWarning` and route to the
-   matching attribute on ``self.reduced``.
-3. The values returned via the deprecated properties are the *same
-   array objects* held by ``self.reduced`` — no copy, no recompute.
+2. The spatial chart (``face_areas``, ``delta_A``) is DERIVED from the
+   mesh: ``face_areas`` IS ``mesh.areas`` (same object, no copy) and
+   ``delta_A`` is its difference, computed once per operator.
+
+   ⛔ Invariants 2 and 3 used to be about the transitional
+   ``SNMesh.face_areas`` / ``SNMesh.delta_A`` accessors — that they emit
+   a :class:`DeprecationWarning` and route to ``self.reduced``.  Those
+   shims retired at P4.1c (2026-08-27) with `[M]` **0 production
+   readers**; every consumer was a test, and the tests were the ones
+   written to verify the shims.  The no-copy identity claim survived the
+   retirement by moving down to the operator, where P4.1b had just made
+   it a real contract with no witness.
 
 The bit-identical regression contract (11 frozen snapshots at
 ``tests/sn/regression/snapshots/``) is what gates the *math* of the
@@ -39,7 +46,6 @@ canonical accessor + transitional deprecation surface.
 
 from __future__ import annotations
 
-import warnings
 
 import numpy as np
 import pytest
@@ -130,49 +136,50 @@ def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. Deprecated property access emits DeprecationWarning
+# 2. The spatial chart is DERIVED from the mesh — no copy, stable identity
 # ---------------------------------------------------------------------------
+#
+# ⛔ Sections 2 and 3 were four tests over the deprecated ``SNMesh.face_areas``
+# / ``SNMesh.delta_A`` accessors — two asserting they emit a
+# ``DeprecationWarning``, two asserting they returned ``self.reduced``'s exact
+# array.  Those shims retired at P4.1c (2026-08-27) with `[M]` 0 production
+# readers, so the warning pair is API-smoke for a symbol that no longer exists
+# and is deleted.
+#
+# The IDENTITY claim is not deleted, it MOVES one level down.  P4.1b made
+# ``face_areas`` / ``delta_A`` derived accessors rather than stored fields, so
+# "the array is the mesh's own, not a copy" is now a contract of the operator
+# itself — and it had no witness.  That is what this section pins.
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("attr", ["face_areas", "delta_A"])
-def test_sphere_deprecated_properties_warn(attr: str) -> None:
-    sn = _sphere_mesh()
-    with pytest.warns(DeprecationWarning, match=f"SNMesh.{attr} is deprecated"):
-        getattr(sn, attr)
+@pytest.mark.parametrize("build", [_sphere_mesh, _cylinder_mesh, _slab_mesh])
+def test_face_areas_is_the_mesh_array_itself(build) -> None:
+    """``reduced.face_areas`` is ``mesh.areas`` — the SAME object.
+
+    Identity, not equality: the accessor is a pass-through, so a future
+    change that starts copying (or recomputing) would be caught here rather
+    than silently doubling the memory a sweep touches per cell.
+    """
+    sn = build()
+    assert sn.reduced.face_areas is sn.mesh.areas
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("attr", ["face_areas", "delta_A"])
-def test_cylinder_deprecated_properties_warn(attr: str) -> None:
-    sn = _cylinder_mesh()
-    with pytest.warns(DeprecationWarning, match=f"SNMesh.{attr} is deprecated"):
-        getattr(sn, attr)
+@pytest.mark.parametrize("build", [_sphere_mesh, _cylinder_mesh, _slab_mesh])
+def test_delta_A_is_the_face_area_difference_and_is_cached(build) -> None:
+    """``reduced.delta_A`` is ``diff(mesh.areas)``, computed once.
 
-
-# ---------------------------------------------------------------------------
-# 3. Deprecated properties return the same arrays as self.reduced
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.foundation
-def test_sphere_deprecated_properties_route_to_reduced() -> None:
-    sn = _sphere_mesh()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        # Identity check, not just equality — the property returns the
-        # exact array held by ``self.reduced``, not a copy.
-        assert sn.face_areas is sn.reduced.face_areas
-        assert sn.delta_A is sn.reduced.delta_A
-
-
-@pytest.mark.foundation
-def test_cylinder_deprecated_properties_route_to_reduced() -> None:
-    sn = _cylinder_mesh()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        assert sn.face_areas is sn.reduced.face_areas
-        assert sn.delta_A is sn.reduced.delta_A
+    The caching half is load-bearing, not an optimisation detail:
+    ``streaming_terms`` is called per ``(cell, direction)``, so an uncached
+    accessor would recompute an ``nx``-element diff inside the sweep's hot
+    loop.  ``is`` pins that it is computed once per operator — the same
+    stable-identity argument :attr:`redistribution_pairing` records for the
+    two-strata sweep cache.
+    """
+    sn = build()
+    assert np.array_equal(sn.reduced.delta_A, np.diff(sn.mesh.areas))
+    assert sn.reduced.delta_A is sn.reduced.delta_A
 
 
 # ---------------------------------------------------------------------------

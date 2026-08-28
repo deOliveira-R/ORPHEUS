@@ -175,14 +175,14 @@ class TestSNMeshBindsSphericalFactory:
         """
         sn_mesh, reduced = pair
         assert reduced.face_areas is not None
-        assert np.array_equal(reduced.face_areas, sn_mesh.face_areas)
+        assert np.array_equal(reduced.face_areas, sn_mesh.reduced.face_areas)
 
     @pytest.mark.foundation
     def test_delta_A_read_through_is_the_factory_value(self, pair):
         """The deprecated ``SNMesh.delta_A`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert reduced.delta_A is not None
-        assert np.array_equal(reduced.delta_A, sn_mesh.delta_A)
+        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
 
     @pytest.mark.foundation
     def test_angular_factor_is_the_factory_value(self, pair):
@@ -256,13 +256,13 @@ class TestSNMeshBindsCylindricalFactory:
     def test_face_areas_read_through_is_the_factory_value(self, pair):
         """The deprecated ``SNMesh.face_areas`` lands on the factory array."""
         sn_mesh, reduced = pair
-        assert np.array_equal(reduced.face_areas, sn_mesh.face_areas)
+        assert np.array_equal(reduced.face_areas, sn_mesh.reduced.face_areas)
 
     @pytest.mark.foundation
     def test_delta_A_read_through_is_the_factory_value(self, pair):
         """The deprecated ``SNMesh.delta_A`` lands on the factory array."""
         sn_mesh, reduced = pair
-        assert np.array_equal(reduced.delta_A, sn_mesh.delta_A)
+        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
 
     @pytest.mark.foundation
     def test_angular_factor_is_the_factory_value(self, pair):

@@ -223,7 +223,7 @@ class TestSNMesh:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 
         assert sn_mesh.coord is CoordSystem.SPHERICAL
-        assert sn_mesh.face_areas is not None
+        assert sn_mesh.reduced.face_areas is not None
         assert sn_mesh.reduced.angular.alpha_per_level[0] is not None
         assert len(sn_mesh.reduced.angular.alpha_per_level[0]) == quad.N + 1
         # α_{1/2} = 0 and α_{N+1/2} ≈ 0
