@@ -86,7 +86,7 @@
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
 > and `dead_references` 0 throughout.
 >
-> ### ▶ NEXT — **P4.9**. (P4.3 ✅ `da507e3d`, P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
+> ### ▶ NEXT — **P4.9a**. (Split RULED 2026-08-28; P4.3 ✅ `da507e3d`, P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
@@ -96,7 +96,10 @@
 > production + ~148 test sites in ~40 files) and row 5 touches `[M]` **~60
 > production reads** of `SNMesh.scheme`/`pole_angular_closure` in 11 files
 > (incl. an L2 reach-through at `transport/radial_characteristic_field.py:360`).
-> A **P4.9a / P4.9b split** looks forced — rule it at the design round.
+> ✅ The split was **RULED 2026-08-28 (user, design round)**: **P4.9a** =
+> rows 1–3 + the `mm_a_in_coeff` handing + the `is`-identity gate; **P4.9b**
+> = rows 4–5, its migration lever RULED a **production posing-head factory**.
+> Full ruling block in the charter section.
 >
 > ⭐ **P4.9 is NEW, chartered 2026-08-28 (user)** — *each axis is closed by its
 > own closure, and the operator composes them*. It closes **#407**, kills the
@@ -2887,6 +2890,35 @@ time):
    field** (`sn_mesh`) and derives `domain`/`codomain` as properties.
 5. `SNMesh` sheds `scheme` (`augmented_mesh.py:268`) and `pole_angular_closure`
    (`:422`) — a *mesh* is carrying the *method's* two operators.
+
+✅ **RULED 2026-08-28 (user, design round) — the phase SPLITS, and two forks
+with it:**
+
+* **P4.9a** = rows 1–3 **plus the `mm_a_in_coeff` handing** (next bullet) plus
+  the `is`-identity gate. Closes **#407**, kills the twin. **P4.9b** = rows 4–5
+  (the ~150-ctor-site + ~60-read migration; sizing in
+  `scratch/p4_9_design_measured.md`). §6b at the boundary, verified: the two
+  sub-phases change **disjoint interfaces** — rows 1–3 change the scheme
+  protocol's members (consumers: diamond, cell_balance, linear_discontinuous,
+  the walk, 12 test files — all inside P4.9a's own enumeration); rows 4–5
+  change the operator ctor + mesh fields (~150 + ~60 sites). No signature's
+  call-site set is cut by the boundary. Interval state: the mesh still BUILDS
+  both closures (`augmented_mesh.py:268`/`:422` untouched by P4.9a); the scheme
+  just no longer APPLIES the angular one — the walk does, reaching the same
+  object the vectorized branch reads, which is exactly what turns the
+  `is`-identity gate green at P4.9a. The done-when below splits: bullets
+  1/2/4/5 → P4.9a; bullet 3 (ctor unconstructable without closures) → P4.9b.
+* **`mm_a_in_coeff` folds into P4.9a.** `[M]` `sn/sweep/cache.py:377` derives
+  `(1.0 - tau) / tau` itself — the cache spelling a fragment of the M-M
+  relation (the memo's "same smell one notch down"). The closure exposes its
+  march constants; the cache is handed them. That spelling sits outside the
+  done-when's `transport/` grep scope, so the handing gets its own pin (the
+  cache's `(N,)` closure-algebra fields bit-identical before/after).
+* **P4.9b's migration lever is a PRODUCTION posing-head factory** (the
+  Frame/stage-2 pattern): the posing head mints both closures and hands them
+  to `StreamingOperator`; tests consume the same production site — a
+  tests-only builder would twin the assembly (Pattern 2). Binds P4.9b's
+  design round; details ruled there.
 
 **Done when** (checkable):
 
