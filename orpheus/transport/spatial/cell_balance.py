@@ -4,7 +4,7 @@ Issue #196 Phase G Step 2.5.  One function — :func:`cell_balance_terms` —
 computes the algebraic intermediates of the per-cell DD balance for
 slab, sphere, cylinder (non-degenerate), and cylindrical pure-azimuthal
 degenerate cells.  Geometry is data carried by
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` and
 :class:`~orpheus.transport.spatial.scheme.CellVisit`; the helper does NOT
 branch on geometry kind.
 
@@ -76,9 +76,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from orpheus.geometry.reduced_operator import StreamingTerms
-
-    from .scheme import UpstreamState
+    from .scheme import StreamingTerms, UpstreamState
 
 
 @dataclass(frozen=True, slots=True)

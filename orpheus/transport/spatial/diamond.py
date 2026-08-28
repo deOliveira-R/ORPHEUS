@@ -2,7 +2,7 @@ r"""Diamond-Difference (DD) cell-update strategy — geometry-polymorphic by dat
 
 A **single** polymorphic body handles slab, sphere, cylinder, and the
 cylindrical pure-azimuthal degenerate case.  Geometry is data carried by
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` and
 :class:`~orpheus.transport.spatial.scheme.CellVisit`; the strategy does
 NOT branch on geometry kind.  Three structural observations enable the
 collapse (derivation:

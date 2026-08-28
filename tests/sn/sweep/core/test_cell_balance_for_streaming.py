@@ -41,7 +41,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.transport.spatial.cell_balance import (
     cell_balance_for_streaming,
     cell_balance_terms,

@@ -29,7 +29,7 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
 )
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
-from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import angular_redistribution
 from orpheus.transport.method import resolve_boundary_conditions
 from orpheus.transport.mesh.axis import (
@@ -297,7 +297,8 @@ class SNMesh(MaterialMesh):
         # Dispatch stencil setup by coordinate system.
         #
         # Curvilinear connection-coefficient math (sphere / cylinder) lives
-        # in :mod:`orpheus.geometry.reduced_operator` (Wave B Issue 6)
+        # in :mod:`orpheus.sn.mesh.reduced_operator` (Wave B Issue 6 placed
+        # it in ``geometry/``; the 2026-08 un-weld arc brought it home)
         # because it is CHART data, not solver data: one object serves the
         # sphere and the cylinder, and Cardinal Rule 2 forbids duplicating
         # it on each solver-side mesh class.  (⛔ The reason recorded here

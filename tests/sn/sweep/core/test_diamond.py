@@ -59,7 +59,7 @@ from orpheus.sn.mesh.reduced_operator import (
     slab_streaming,
     spherical_streaming,
 )
-from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import DiamondDifference, UpstreamState
 from orpheus.transport.spatial.scheme import CellVisit
@@ -625,10 +625,10 @@ class TestCylindricalDegenerate:
         """Synthetic StreamingTerms with abs_mu < 1e-15.
 
         Constructed directly via the
-        :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
+        :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
         constructor with a tiny ``abs_mu`` — gates the branch
         without depending on the choice of quadrature.  The other
-        fields (``alpha_in``, ``alpha_out``, ``tau_mm``,
+        fields (``face_area_inner`` / ``face_area_outer``,
         ``delta_A_over_w``, ``volume``) come from a real cylindrical
         streaming-terms instance so the algebra exercises a non-
         synthetic geometry.

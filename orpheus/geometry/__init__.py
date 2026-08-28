@@ -27,7 +27,6 @@ standard PWR-shaped 1-D geometries; for 2-D Cartesian pin meshes use
 from .coord import CoordSystem, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .factories import pwr_pin_2d
 from .mesh import BC, Mesh1D, Mesh2D, RegionMesh
-from .reduced_operator import StreamingTerms
 from .structured_geometry import Region, StructuredGeometry
 from .transformation import (
     NotAFinitePointGroupError,
@@ -46,7 +45,6 @@ __all__ = [
     "Region",
     "RegionMesh",
     "RigidMotion",
-    "StreamingTerms",
     "StructuredGeometry",
     "close_group",
     "compute_areas_1d",

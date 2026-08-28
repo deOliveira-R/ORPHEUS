@@ -94,7 +94,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D, StreamingTerms
+from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.mesh.reduced_operator import (
@@ -608,8 +609,8 @@ class TestStreamingTermsGeometricLabels:
     (inner = closer, outer = farther) — they do NOT depend on the
     sweep's marching direction.  The same cell yields the same
     inner / outer values regardless of which ordinate is queried.
-    Sweep-direction resolution lives in the SN module
-    (:class:`orpheus.transport.spatial.scheme.CellVisit`).
+    Sweep-direction resolution is stamped by the sweep producer onto
+    :class:`orpheus.transport.spatial.scheme.CellVisit`.
     """
 
     @pytest.mark.foundation

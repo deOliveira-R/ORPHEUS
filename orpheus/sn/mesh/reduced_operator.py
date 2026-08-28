@@ -10,7 +10,7 @@ coefficient** on SO(3) read in two charts (polar-on-sphere vs.
 azimuthal-on-cylinder), which is why one object serves both.
 
 **Why this lives in ``sn/`` and not in ``geometry/``** — the un-weld arc's P4.4,
-2026-08-28.  It lived in :mod:`orpheus.geometry.reduced_operator` until then, and
+2026-08-28.  It lived in ``orpheus/geometry/reduced_operator.py`` until then, and
 the measurement that moved it is the **layer test**:
 
     *A datum belongs to the layer that can define it without naming a method.
@@ -21,33 +21,33 @@ the measurement that moved it is the **layer test**:
 and it was a verbatim copy of :attr:`orpheus.geometry.mesh.Mesh1D.areas`, already
 single-sourced in :func:`orpheus.geometry.coord.compute_areas_1d`.  Everything
 else is posing: ``delta_A`` is ``np.diff(mesh.areas)`` with **zero** non-SN
-consumers, and :class:`~orpheus.geometry.reduced_operator.StreamingTerms` carries
+consumers, and :class:`~orpheus.transport.spatial.scheme.StreamingTerms` carries
 ``mu``, ``abs_mu`` and :math:`\Delta A` divided by a **quadrature weight** — a
 per-direction quantity over a quadrature weight is not geometry.  `[M]` the old
 module was also an island inside its own package: every genuine geometry
 primitive (``CoordSystem``, ``Mesh1D``, ``StructuredGeometry``, ``RigidMotion``)
 had 1-4 intra-``geometry/`` consumers and this one had **0**.
 
-⚠ **The move is not finished, and the residue is deliberate.**  Three symbols
-this module imports back from :mod:`orpheus.geometry.reduced_operator` are still
-in flight:
+✅ **The un-weld completed in three ordered moves** (order forced by the
+layer contract): the connection operator and its three factories came here
+first (P4.4); then :class:`~orpheus.sn.angular.redistribution.AngularMeasure`
+and the five :math:`\alpha` symbols
+(:func:`~orpheus.sn.angular.redistribution.alpha_dome`, its closure contract,
+:class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
+:func:`~orpheus.sn.angular.redistribution.angular_redistribution`) to
+``sn/angular/redistribution.py`` (P4.2 — they could not move first: `[M]` the
+three factories below CALL ``angular_redistribution`` at runtime, so moving
+:math:`\alpha` while the factories sat in ``geometry/`` would have created
+``geometry -> sn``, a declared ``FORBIDDEN_EDGES`` violation *and* a hard
+circular import); finally
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` to
+:mod:`orpheus.transport.spatial.scheme` (P4.3, 2026-08-28), beside the
+scheme contract that consumes it — and ``orpheus/geometry/reduced_operator.py``
+was deleted.
 
-* :class:`~orpheus.sn.angular.redistribution.AngularMeasure` and the five
-  :math:`\alpha` symbols (:func:`~orpheus.sn.angular.redistribution.alpha_dome`,
-  its closure contract, :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
-  :func:`~orpheus.sn.angular.redistribution.angular_redistribution`) land in
-  ``sn/angular/redistribution.py`` at **P4.2**.  They could not move first:
-  `[M]` the three factories below CALL ``angular_redistribution`` at runtime, so
-  moving :math:`\alpha` while they sat in ``geometry/`` would have created
-  ``geometry -> sn`` — a declared ``FORBIDDEN_EDGES`` violation *and* a hard
-  circular import.  Landing the factories here first makes that call
-  ``sn -> sn``.
-* :class:`~orpheus.geometry.reduced_operator.StreamingTerms` lands in
-  ``transport/spatial/`` at **P4.3**, where its two runtime importers already
-  live; the old module is deleted with it.
-
-Until then the imports below all run ``sn -> geometry``, which is legal
-(``geometry`` is ``INPUT_PACKAGES``; see ``tests/test_layer_imports.py``).
+The imports below run ``sn -> geometry`` and ``sn -> transport``, both legal
+(``geometry`` is ``INPUT_PACKAGES``; ``sn -> transport`` is the established
+direction; see ``tests/test_layer_imports.py``).
 
 ⚠ ``ReducedStreamingOperator`` is a **provisional name** — the object is not a
 streaming operator and never was; it produces the coefficients one marches.
@@ -187,10 +187,12 @@ See also
   object despite the similar name: the operator-algebra leaf :math:`L` in
   :math:`A_{\rm wg} = L + C - S`.  It consumes this primitive through the
   loss-representation walk.
-* :mod:`orpheus.geometry.reduced_operator` — the residue: the angular-measure
-  adapter, the :math:`\alpha` dome with its closure contract, and the
-  ``StreamingTerms`` packet, with the full :math:`\alpha`/:math:`\tau`
-  mathematical content and literature references.
+* :mod:`orpheus.sn.angular.redistribution` — the angular-measure adapter and
+  the :math:`\alpha` dome with its closure contract, carrying the full
+  :math:`\alpha`/:math:`\tau` mathematical content and literature references.
+* :class:`~orpheus.transport.spatial.scheme.StreamingTerms` — the packet this
+  operator's :meth:`~ReducedStreamingOperator.streaming_terms` produces, now
+  beside the scheme contract that consumes it.
 * :doc:`/theory/foundations/structured_geometry` — the architecture page; see
   "Connection coefficients (reduced streaming operator)".
 """
@@ -204,7 +206,7 @@ import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D
-from orpheus.geometry.reduced_operator import StreamingTerms
+from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import (
     AngularMeasure,
     AngularRedistribution,
@@ -449,7 +451,7 @@ class ReducedStreamingOperator:
         direction_idx: int,
         mu_level_idx: int | None = None,
     ) -> StreamingTerms:
-        """Pack the per-cell, per-direction **purely geometric** streaming inputs.
+        """Pack the per-cell, per-direction streaming inputs (the scheme's evaluation point).
 
         For slab and sphere, ``direction_idx`` is the global ordinate
         index and the signed primary direction cosine is read directly

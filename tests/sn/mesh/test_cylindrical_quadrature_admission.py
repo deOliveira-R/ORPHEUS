@@ -7,7 +7,7 @@ fixed order on the constructor path:
 1. **trace-rank** (``numerics/spaces/angular_trace_space.build_omega_dot_n``)
    — refuses a rule with no genuine μ_x cosine (the all-tangential
    ``folded_product(n, 2)`` class; gate_design §8.1);
-2. **structure-less** (``geometry/reduced_operator.cylindrical_streaming``,
+2. **structure-less** (``sn/mesh/reduced_operator.cylindrical_streaming``,
    fragment ``level structure``) — refuses slab/sphere cubatures that carry
    no ``LevelStructure`` at all (gated by
    ``tests/sn/sweep/core/test_sweep_regression.py`` and

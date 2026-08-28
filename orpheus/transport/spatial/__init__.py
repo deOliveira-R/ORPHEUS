@@ -4,7 +4,7 @@ This package hosts the spatial trial-space/closure contract and the
 concrete schemes — Diamond Difference and Linear Discontinuous — that a
 transport method consumes to march through a cell.  The layer is
 METHOD-GENERIC by construction: geometry arrives as data
-(:class:`~orpheus.geometry.reduced_operator.StreamingTerms`), angular
+(:class:`~orpheus.transport.spatial.scheme.StreamingTerms`), angular
 closure constants arrive as plain floats on the
 :class:`~orpheus.transport.spatial.scheme.CellVisit` packet (#236's
 spatial ⊗ angular separation), and nothing here imports from a method

@@ -11,7 +11,7 @@ sphere/cylinder) the downstream angular half-flux.
 
 The cell-update math is **the same algebra** in slab, sphere, and
 cylindrical 1-D — only the populated fields of
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` change; the
+:class:`StreamingTerms` change; the
 remaining ``if`` checks in a strategy test the *structural presence* of a
 direction (``face_area_downstream > 0.0``; ``angular_upstream is not
 None``), NOT the geometry kind (the geometry-as-data collapse is
@@ -59,8 +59,9 @@ References
   update."  That is the **wrong Bailey paper** — a piecewise-linear
   FE *diffusion* paper unrelated to curvilinear S\ :sub:`N`.  Issue
   #168 Phase B retracted it across
-  :mod:`orpheus.geometry.reduced_operator`,
-  :mod:`orpheus.transport.spatial.diamond` and
+  ``orpheus/geometry/reduced_operator.py`` (retired 2026-08-28 — its α
+  content lives in :mod:`orpheus.sn.angular.redistribution`, the packet
+  in this module), :mod:`orpheus.transport.spatial.diamond` and
   :mod:`orpheus.sn.angular.closure`; this module and
   ``docs/theory/methods/sn/index.rst`` were missed.  Full account:
   ``docs/theory/methods/sn/curvilinear_one_group.rst``
@@ -71,8 +72,9 @@ References
 See also
 ========
 
-* :class:`~orpheus.geometry.reduced_operator.StreamingTerms` —
-  the per-(cell, direction) packet a strategy receives.
+* :class:`StreamingTerms` — the per-(cell, direction) packet a
+  strategy receives; defined in this module (P4.3, 2026-08-28) beside
+  the contract that consumes it.
 * :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator` —
   builds the streaming terms; its ``streaming_terms()`` method is
   the canonical extraction site.
@@ -89,13 +91,208 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.numerics.moment_layout import cell_moment_count
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
     from orpheus.numerics.axis import Axis
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# StreamingTerms — the per-(cell, direction) evaluation point a scheme consumes
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True, slots=True)
+class StreamingTerms:
+    """Per-(cell, direction) inputs a spatial scheme's cell update consumes.
+
+    ⚠ Not "purely geometric" — that claim stood on this class until
+    2026-08-28 and is withdrawn.  The packet is the **evaluation point**
+    of a spatial closure for a *directional* method: the cell's metric
+    data (``face_area_inner`` / ``face_area_outer`` / ``volume`` — the
+    mesh's, single-sourced there) together with the ordinate's
+    coordinate (``mu`` / ``abs_mu`` — the quadrature's).  A spatial
+    closure is legitimately *parameterized* by direction (DD's
+    ``a = 2|mu|A/denom - 1``, LD's ``g = |mu|/h``) without being
+    angular-closure-aware.  ``delta_A_over_w`` is the one genuinely
+    SN-bearing field — a geometric increment over a **quadrature
+    weight**, the spatial ⊗ angular coupling; unlike the once-per-solve
+    cache fusion it is rebuilt per ``(cell, direction)`` inside the
+    sweep loop, so the fusion buys nothing here and neither side owns
+    it (Pattern 2).
+
+    All curvature fields are populated for **every** geometry
+    (Issue #196 Phase G Step 2.5):
+
+    * **Slab**: neutral-curvature values — ``face_area_inner =
+      face_area_outer = 1.0``, ``delta_A_over_w = 0.0``.  The
+      Morel–Montry angular weight is NOT carried here (Issue #236
+      Step C — it is closure-owned); the neutral slab closure
+      (IdentityAngularClosure) supplies τ = 1, α = 0 and stamps the
+      derived c on the CellVisit, but ``upstream_state.angular_upstream``
+      is ``None`` for slab so the M-M contribution never engages.  Plus
+      the always-populated ``chord_length``, ``mu``, ``volume``,
+      ``abs_mu``.
+    * **Sphere / cylinder**: physically-populated curvature fields
+      from the dome recursion (the M-M angular weight is closure-owned,
+      not carried here — Issue #236 Step C).
+
+    Cylindrical ``mu`` / ``abs_mu`` are read from the global ordinate
+    ``mu_x[level_indices[mu_level_idx][direction_idx]]`` because
+    cylindrical ``direction_idx`` is the within-level azimuthal index
+    :math:`m \\in [0, M)`, not the global ordinate.
+
+    Before Step 2.5, slab left the curvature fields as ``None`` and
+    cell-update strategies branched on ``alpha_in is None`` to
+    discriminate slab from curvilinear.  Step 2.5 retires that
+    branch — slab carries neutral curvature so the unified
+    cell-balance helper consumes the same packet regardless of
+    geometry.  Geometry is data, not control-flow (Cardinal Rule 2
+    + Pattern 4: make illegal states unrepresentable).
+
+    Geometric, not direction-resolved
+    =================================
+
+    Per Cardinal Rule 2 (architecture), this primitive carries
+    **chart-positional** labels — labels that are independent of the
+    sweep's marching direction.  The two face-area fields are named
+    by their geometric position relative to :math:`r=0`:
+
+    * :attr:`face_area_inner` is :math:`A_{i-1/2}` — the face closer
+      to the centre of the geometry (smaller :math:`r`).
+    * :attr:`face_area_outer` is :math:`A_{i+1/2}` — the face farther
+      from the centre (larger :math:`r`).
+
+    These labels do **not** depend on which way the sweep is
+    marching.  For an outward sweep (centre → boundary,
+    :math:`\\mu > 0`) the inner face is the upstream / incoming face;
+    for an inward sweep (boundary → centre, :math:`\\mu < 0`) the
+    outer face is the upstream / incoming face.  The
+    sweep-direction resolution — *which* of the two faces is
+    "downstream" for a given visit — is the sweep producer's job:
+    :class:`CellVisit` packs this packet together with the
+    sweep-resolved :attr:`CellVisit.face_area_downstream`, stamped by
+    the SN walk.  The packet itself carries no sweep-frame datum.  (⛔
+    Two withdrawn clauses, kept per the correction discipline: "and is
+    reusable by future MoC / CP / diffusion" stood on this class until
+    2026-08-27 — reuse is decided by contract, not by census — and the
+    "purely geometric" claim until 2026-08-28.)
+
+    The trailing ``volume`` and ``abs_mu`` fields are populated by
+    **all three factories** so that a downstream
+    :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` strategy
+    receives a self-contained per-cell, per-direction packet and need
+    not reach back into ``SNMesh`` or the ``Quadrature``.  Every
+    surviving curvature field is populated for **every** geometry
+    (Step 2.5; slab carries neutral values) as a required ``float``
+    (Pattern 4), so cell-update strategies consume the same packet
+    regardless of chart — geometry is **data, not control-flow**.  Slab
+    vs curvilinear is discriminated downstream by
+    ``upstream_state.angular_upstream is None`` (slab has no half-angle
+    state), NOT by any field on this geometry packet — Issue #236 Step C
+    retired the former M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
+    fields (the angular closure now owns that data).
+    """
+
+    chord_length: float
+    """Cell radial width (slab/sphere/cylinder all use ``mesh.widths[i]``).
+
+    ⚠ `[M]` 2026-08-28: **no production reader** — the balance enters
+    through :math:`\\Sigma_t V` and :math:`|\\mu| A`, never through the
+    chord directly; only tests read this field.
+    """
+
+    mu: float
+    """Signed primary direction cosine for this ordinate.
+
+    :math:`\\mu` for slab and sphere (axial); :math:`\\eta` for
+    cylindrical 1-D radial sweeps (the radial direction cosine,
+    with the global ordinate index resolved through
+    :attr:`~orpheus.sn.angular.redistribution.AngularMeasure.level_indices`).  Signed.
+
+    ⚠ `[M]` 2026-08-28: **no production reader** — the sweep
+    pre-resolves direction into :attr:`CellVisit.face_area_downstream`
+    and every cell-update strategy reads ``abs_mu``; only tests read
+    the signed field.
+    """
+
+    face_area_inner: float
+    """:math:`A_{i-1/2}` — area of the **inner** radial face
+    (closer to :math:`r=0`).
+
+    Geometric label, independent of sweep direction.  See class
+    docstring "Geometric, not direction-resolved".
+    """
+
+    face_area_outer: float
+    """:math:`A_{i+1/2}` — area of the **outer** radial face
+    (farther from :math:`r=0`).
+
+    Geometric label, independent of sweep direction.  See class
+    docstring "Geometric, not direction-resolved".
+    """
+
+    delta_A_over_w: float
+    """:math:`\\Delta A_i / w_n` — the geometry-redistribution factor."""
+
+    # Issue #236 Step C: the Morel–Montry ``alpha_in`` / ``alpha_out`` /
+    # ``tau_mm`` are NO LONGER carried on the per-cell geometry packet.  The
+    # angular weight :math:`\\tau` is an angular-scheme property owned by the
+    # MorelMontryAngularSweep angular closure; the derived constants
+    # ``c_in`` / ``c_out`` and ``tau`` are stamped on
+    # :class:`~orpheus.transport.spatial.scheme.CellVisit`.  The α-dome itself
+    # survives on :class:`ReducedStreamingOperator` (``alpha_half`` /
+    # ``alpha_per_level``).
+
+    # ``mu_start`` retired 2026-08-26.  It was the middle link of a
+    # three-link dead chain: AngularRedistribution.mu_start_per_level ->
+    # StreamingTerms.mu_start -> StreamingCoefficientCache.mu_start -> nothing.
+    # [M] the terminal had ZERO readers of any kind (no attribute access,
+    # no getattr by name), so this field's only production consumer was
+    # the WRITE into it -- while its own docstring claimed
+    # ``MorelMontryAngularSweep`` consumed it.  The closure does consume a
+    # starting direction; it reads the OWNER
+    # (``AngularRedistribution.mu_start_per_level``), which is why the
+    # claim read as true.  The chain was ERR-058's threading; the un-weld
+    # gave the datum one owner and the thread became dead weight.
+
+    volume: float
+    """Cell volume :math:`V_i`.
+
+    Populated by all three factories from
+    :attr:`~orpheus.geometry.mesh.Mesh1D.volumes`: slab uses
+    ``mesh.volumes[i]`` (which equals ``widths[i]`` for unit
+    cross-section in 1-D Cartesian); sphere uses
+    :math:`\\tfrac{4}{3}\\pi(r_{i+1}^3 - r_i^3)`; cylinder uses
+    :math:`\\pi(r_{i+1}^2 - r_i^2)` (per unit axial length).  Carried
+    on the streaming-terms packet so that the
+    :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` cell-update
+    contract receives :math:`V_i` directly without needing access to
+    the underlying ``SNMesh``.
+    """
+
+    abs_mu: float
+    """Absolute primary direction cosine.
+
+    :math:`|\\mu|` for slab and sphere (axial direction cosine);
+    :math:`|\\eta|` for cylindrical 1-D radial sweeps (the radial
+    direction cosine).  Slab and sphere factories compute this as
+    ``abs(quadrature.mu_x[direction_idx])`` — for those geometries
+    ``direction_idx`` is the global ordinate index.  The cylindrical
+    factory resolves the global ordinate through
+    :attr:`~orpheus.sn.angular.redistribution.AngularMeasure.level_indices` because cylindrical
+    ``direction_idx`` is the within-level azimuthal index
+    :math:`m \\in [0, M)`, not the global ordinate index.  By
+    ORPHEUS convention, ``mu_x`` carries :math:`\\mu` for sphere and
+    :math:`\\eta` for cylinder, and both are real-valued, so the
+    absolute value is always well-defined.
+
+    The cylindrical pure-azimuthal degenerate case (``abs_mu <
+    1e-15``) is signalled by cell-update strategies via
+    :attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_spatial_flux`
+    set to ``None`` (no radial face flow on the cell).
+    """
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -138,12 +335,13 @@ class CellVisit:
         ``total_xs[cell_idx]`` and ``source[cell_idx]`` at the call
         site (the strategy itself does not see ``cell_idx``).
     streaming_terms : StreamingTerms
-        Pure geometric primitive from
+        The per-(cell, direction) evaluation-point packet from
         :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`.
-        Carries cell volume, face areas (inner / outer — geometric
-        labels), connection coefficients (:math:`\alpha`,
-        :math:`\Delta A / w`, :math:`\tau_{mm}`), and signed +
-        absolute primary direction cosine.
+        Carries cell volume, face areas (inner / outer —
+        chart-positional labels), the :math:`\Delta A / w`
+        redistribution factor, and signed + absolute primary direction
+        cosine.  (The former :math:`\alpha` / :math:`\tau_{mm}` fields
+        left the packet at #236 Step C — the angular closure owns them.)
     face_area_downstream : float
         **Sweep-direction-resolved**: which of the two cell faces
         (inner or outer) is the downstream face for this visit.
@@ -578,7 +776,8 @@ class DiscretizationScheme(Protocol):
         ----------
         visit :
             One visit to this cell during the sweep.  Contains the
-            pure-geometric :class:`StreamingTerms` packet plus the
+            per-(cell, direction) :class:`StreamingTerms` packet
+            (the closure's evaluation point) plus the
             sweep-direction-resolved :attr:`face_area_downstream`.
             Geometry is data, not control-flow (Issue #196 Phase G
             Step 2.5): ``visit.face_area_downstream > 0.0`` signals

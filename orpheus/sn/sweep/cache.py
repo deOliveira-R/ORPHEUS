@@ -79,7 +79,7 @@ Pattern 2 anchor — single source of truth
 =========================================
 
 The cache populator derives from :func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms`
-indirectly via the per-cell :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
+indirectly via the per-cell :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
 factory.  The L1 dual-view validator
 (``test_cache_populator_matches_cell_balance_terms``) asserts that for any
 cell, the cache's ``(a, denom)`` agree with the per-cell ``cell_balance_terms``
@@ -257,7 +257,7 @@ class StreamingCoefficientCache:
         Iterates ``sn_mesh.dag_walk(ordinate_idx=...)`` (slow Python path —
         but ONLY ONCE per solver lifetime; cost amortised across every
         subsequent sweep).  The per-cell
-        :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
+        :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
         dataclass is unpacked into chain-ordered numpy arrays once and never
         rematerialised.
         """
