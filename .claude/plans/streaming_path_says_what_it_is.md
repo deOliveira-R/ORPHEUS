@@ -49,6 +49,7 @@
 > | `7f08d1d7` | **P4.1b** | the slab is the sphere's zero-curvature case — 3 arms → 1 body |
 > | `7c5a8fb3` | **P4.1c** | the `SNMesh` deprecation shims retire |
 > | `16501ca0` | **P4.4** | the connection coefficients come home — 4 symbols to `sn/mesh/`, tests follow |
+> | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -64,7 +65,7 @@
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
 > and `dead_references` 0 throughout.
 >
-> ### ▶ NEXT — **P4.2, then P4.3.** (P4.4 ✅ landed `16501ca0`.) Read §4ter first.
+> ### ▶ NEXT — **P4.3.** (P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.) Read §4ter first.
 >
 > ⛔⛔ **The order was corrected TWICE. `P4.2 → P4.4` (written 2026-08-28
 > in this very header) is itself REFUTED — P4.2 cannot precede P4.4 either.**
@@ -222,14 +223,16 @@
 > known-inherited `cyl_2g_3reg_folded_4x8_dd_n40` red (#404, dup of #397,
 > `[M]` bit-identical pre-branch).
 >
-> **The acceptance baseline for the next step is `9824 passed / 0 failed,
+> **The acceptance baseline for the next step is `9825 passed / 0 failed,
 > 22 skipped / 227 deselected / 70 xfailed`** — state the delta against it and
-> account for every unit. ⚠ The `9824` is P4.4's: `9823` **+1**, because the
-> import-linter `rglob`s every module under `orpheus/` and `sn/mesh/reduced_operator.py`
-> is a new one. Predicted before the run and confirmed twice — the layer gate
-> alone went `342 → 343`, and the regenerated
-> `docs/theory/verification/matrix.rst` moved `10142 → 10143`. **P4.2 adds
-> another +1** (`sn/angular/redistribution.py`), so expect `9825` there.
+> account for every unit. ⚠ Each phase that adds a MODULE under `orpheus/` adds
+> **+1** collected test, because the import-linter `rglob`s every one. Measured
+> three times now: P2 `sn/angular/__init__.py` +1, P4.4
+> `sn/mesh/reduced_operator.py` +1 (9823→9824, layer gate 342→343), P4.2
+> `sn/angular/redistribution.py` +1 (layer gate 343→**344**). ⟹ **P4.3 DELETES
+> a module and moves `StreamingTerms` into an existing one, so expect −1 →
+> `9824`** — the first phase of this arc where the count goes DOWN, and a
+> reading of `9825` there means the file did not actually die.
 
 **Status.** ⛔ ~~Proposed 2026-08-26, un-ruled.~~ **IN EXECUTION** — Phase B,
 P1, P2 and P3a/P3b have landed (see the table above); all four §9 forks and
@@ -890,7 +893,47 @@ the precedent that file's own ⛔ banner set for `tau`/`edges` on 2026-08-12:
 **the L0 ladder accepts α as a keyword** (*"the defect was L0 reaching UP for
 it"*). Its delegating local `alpha_dome` retires; nothing re-implements it.
 
-✅ **UNBLOCKED 2026-08-28 — P4.4 landed at `16501ca0`, so P4.2 is now next.**
+✅ **LANDED `5940deba`** 2026-08-28. Six symbols to
+`orpheus/sn/angular/redistribution.py`; `geometry/reduced_operator.py` is down
+to `StreamingTerms` alone and `[M]` now imports **nothing but `dataclasses`** —
+a file in `geometry/` that names no geometry, which is the whole finding the
+arc was built on. P4.3 deletes it.
+
+⭐ **The plan said FIVE movers; it is SIX.** `AngularMeasure` had to travel:
+`[M]` `AngularRedistribution` annotates a field with it, so leaving it behind
+is `geometry` naming an `sn` type — the same forbidden edge in miniature. This
+was caught by the pre-execution memo, not during execution.
+
+⭐ **The L0 fix, and the thing worth carrying: `w` was only ever a means to α.**
+`[M]` in all three graders `w` fed **nothing** but the `alpha_dome` call, so
+injecting α made it redundant — it left `morel_montry_beta`'s signature
+entirely, and `alpha_defect_beta` lost `quad`/`geometry` too (it is
+`β = α − (1−e²)`, a function of α and the edges alone). ⟹ *the keyword fix is
+not additive; it reveals which parameters were only ever a route to the thing
+you are now handed.* Leaving them would have made dead parameters read as
+load-bearing.
+
+⭐⭐ **A retired gate was PROMOTED rather than deleted, and its claim class
+changed.** `test_the_derivations_alpha_dome_IS_the_production_one` pinned that
+the L0 wrapper *delegated* — a comparison no input could fail, and its own
+docstring said so. With the wrapper retired the twin is **unspellable** (L0
+cannot import the production recursion at all), so the gate became an
+**anti-twin** gate: the module must define no `alpha_dome`, and all three
+graders must take α as a **required keyword-only** parameter. `[M]`
+mutation-checked in-process — 3 arms (twin re-added / default added / made
+positional) all redden, positive control passes. `coding-standards`' mirror
+clause, applied deliberately for once instead of caught late.
+
+⚠ `[M]` the production α is **bit-identical** to what the L0 module computed
+internally, on both charts (GL(8) sphere, folded(4,8) cylinder) — checked
+BEFORE editing the tests, so no test value moved.
+
+⭐ `dead_references` caught a dead `:attr:` **I introduced myself** in the new
+docstring (`StreamingCoefficientCache` is in `sn/sweep/cache.py`, not
+`sn/mesh/reduced_operator.py`). Same instrument, same session, now catching the
+author rather than the inheritance — 1 → 0 dead / 52 checked.
+
+✅ **The blocker record (kept, now past tense) — P4.4 landed at `16501ca0`, which is what unblocked this.**
 `[M]` the three `*_streaming` factories are in `orpheus/sn/mesh/reduced_operator.py`;
 their call to `angular_redistribution` is `sn → geometry` today and becomes
 `sn → sn` the moment α moves. The ordering block below is kept as the record of
