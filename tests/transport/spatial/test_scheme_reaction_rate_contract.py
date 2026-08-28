@@ -85,9 +85,10 @@ from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 #    fixed so the reaction-rate Σ is the only varying axis) ────────────────
 #
 # One ordinate (|μ| = 0.6), one group, one cell.  Slab neutral element:
-# A_down = 1, A_total = 2, ΔA/w = 0, c_out = 0 (the `slab_streaming` neutral
-# values — LD's curvilinear guard demands dA_w == 0 and c_out == 0 exactly).
-# An arbitrary non-power-of-2 cell volume so any FP mismatch surfaces.
+# A_down = 1, A_total = 2, angular_denom_term = 0 (P4.9a: the closure's
+# denominator contribution arrives ASSEMBLED; LD's curvilinear guard
+# demands it be exactly zero).  An arbitrary non-power-of-2 cell volume so
+# any FP mismatch surfaces.
 
 _ABS_MU = 0.6
 _V = 0.7
@@ -102,7 +103,7 @@ def _slab_geometry() -> dict[str, np.ndarray]:
         "abs_mu": np.array([_ABS_MU]),
         "A_down": np.full((_N, _NX), _A_DOWN),
         "A_total": np.full((_N, _NX), _A_TOTAL),
-        "dA_w": np.zeros((_N, _NX)),
+        "angular_denom_term": np.zeros((_N, _NX)),
     }
 
 
@@ -114,7 +115,6 @@ def _sig_t(value: float) -> np.ndarray:
 def _dd_coeffs(scheme: DiamondDifference, sigma: float):
     geo = _slab_geometry()
     return scheme.affine_scan_coefficients(
-        c_out=np.zeros((_N,)),          # DD: c_out is (N,)
         V=np.full((_N, _NX), _V),
         reaction_xs=_sig_t(sigma),
         **geo,
@@ -124,7 +124,6 @@ def _dd_coeffs(scheme: DiamondDifference, sigma: float):
 def _ld_coeffs(scheme: LinearDiscontinuous, sigma: float):
     geo = _slab_geometry()
     return scheme.affine_scan_coefficients(
-        c_out=np.zeros((_N, _NX)),      # LD: c_out is (N, nx)
         V=np.full((_N, _NX), _V),
         reaction_xs=_sig_t(sigma),
         **geo,

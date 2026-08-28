@@ -97,7 +97,7 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
         source = np.array([Q_val * dx_val / W])
         psi_in = np.array([psi_in_per_ordinate[n]])
         upstream = UpstreamState(
-            spatial_upstream=psi_in, angular_upstream=None,
+            spatial_upstream=psi_in,
         )
         visit = CellVisit(
             cell_idx=0, streaming_terms=st, face_area_downstream=1.0,

@@ -175,7 +175,7 @@ class TestOracleId1Reduction:
 
         # Production update (×V contract: source = (Q̄·h, 0) → flat).
         source = np.stack([q_bar_v * h_v, np.zeros(2)], axis=0)
-        upstream = UpstreamState(spatial_upstream=psi_in_v, angular_upstream=None)
+        upstream = UpstreamState(spatial_upstream=psi_in_v)
         res = LinearDiscontinuous().update(visit, sig_v, source, upstream)
 
         np.testing.assert_allclose(

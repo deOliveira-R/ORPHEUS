@@ -491,8 +491,9 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         ``1.0`` for every ordinate of the Cartesian identity closure (the
         neutral weight: the recurrence is then the identity).  Returns the
         read-only cache built once at construction.  The live sweep, matvec,
-        and scan read THIS τ (via
-        :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau`), not the
+        and scan read THIS τ (the walk's march indexes it directly at the
+        global ordinate — P4.9a retired the former ``CellVisit.tau``
+        stamp), not the
         retired geometry-factory ``StreamingTerms.tau_mm`` — the τ ownership
         and Step-C retirement (with the Leg-1 structural-independence gate) are
         the record at
@@ -678,8 +679,9 @@ class _MMHalfGrid:
     Distinct consumers need DIFFERENT slices of this grid:
 
     * The **unified matvec** consumes the upstream-per-ordinate slice — one
-      ``(ng, nx)`` block per ordinate for ``cell_balance_for_streaming``'s
-      ``psi_angular_upstream`` argument. Use :meth:`upstream` (single
+      ``(ng, nx)`` block per ordinate feeding ``cell_balance_for_streaming``'s
+      ``angular_numer_upstream`` argument (via :meth:`cell_contribution`'s
+      assembly). Use :meth:`upstream` (single
       ordinate) or :attr:`upstream_per_ordinate` (all ordinates).  This is
       the ONLY production consumer (:meth:`cell_contribution`).
     * The **endpoint defect** reads the far end alone. Use
@@ -738,7 +740,8 @@ class _MMHalfGrid:
         ``[g, m, i]`` is :math:`\phi_{m-1/2, i, g}` — the upstream face
         of ordinate ``m`` (equivalently, the downstream face of ordinate
         ``m-1``) in group ``g`` at cell ``i``. The matvec consumes this
-        slice as ``psi_angular_upstream`` (one ``(ng, nx)`` block per
+        slice through :meth:`cell_contribution`'s assembled
+        ``angular_numer_upstream`` (one ``(ng, nx)`` block per
         ordinate). Excludes the trailing face ``faces[:, M, :]`` which
         is the downstream of the last ordinate (not consumed as anyone's
         upstream) — see :attr:`trailing_face`.
@@ -799,8 +802,8 @@ class _MMHalfGrid:
         r"""Shape ``(ng, nx)`` — upstream half-face of ordinate ``m``.
 
         Returns :math:`\phi_{m-1/2, i, g}` per ``(g, i)``. The unified
-        matvec consumes one of these per ordinate to populate
-        ``cell_balance_for_streaming``'s ``psi_angular_upstream`` argument.
+        matvec consumes one of these per ordinate to assemble
+        ``cell_balance_for_streaming``'s ``angular_numer_upstream`` argument.
         """
         return self.faces[:, m, :]
 
@@ -2186,10 +2189,11 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._c_in_per_level = (np.zeros(self._N),)
         self._c_out_per_level = (np.zeros(self._N),)
         # ── Cache the (N,) global-ordinate gather ONCE (Fix 1, L16) ──
-        # Cartesian always binds the neutral zeros; the cache is the read-only
-        # ``(N,)`` zeros the slab visit-stamp reads (c_in == c_out == 0.0) plus
-        # the neutral ``τ ≡ 1`` (Issue #236 Phase 2 B3) the slab visit reads as
-        # ``CellVisit.tau`` — the identity M-M weight.
+        # Cartesian always binds the neutral zeros; the cache is the
+        # read-only ``(N,)`` zeros every consumer of the c-accessors reads
+        # (c_in == c_out == 0.0) plus the neutral ``τ ≡ 1`` (Issue #236
+        # Phase 2 B3) — the identity M-M weight the march reduces to
+        # the identity on.
         self._build_per_ordinate_cache()
 
     # ── Strategy Protocol surface ────────────────────────────────────

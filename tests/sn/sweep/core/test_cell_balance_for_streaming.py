@@ -117,7 +117,8 @@ def _slab_streaming_terms() -> StreamingTerms:
 def _scalar_to_vectorized_inputs(
     st: StreamingTerms,
     A_downstream_scalar: float,
-    upstream: UpstreamState,
+    psi_spatial: np.ndarray,
+    psi_ang: "np.ndarray | None",
     *,
     tau: float,
     alpha_in: float,
@@ -129,7 +130,8 @@ def _scalar_to_vectorized_inputs(
     angular_denom_term, angular_numer_upstream)`` — the closure-aware
     PR-TYPED-6.5 Phase 2.11 helper argument shape.  The angular
     contributions are computed inline from the explicit M-M triple
-    (Step C — no longer read off ``st``) to verify
+    (Step C — no longer read off ``st``; P4.9a — nor off the visit
+    family, which is purely spatial now) to verify
     ``cell_balance_for_streaming`` reproduces the pre-Phase-2.11
     behaviour under equivalent inputs.
     """
@@ -139,15 +141,15 @@ def _scalar_to_vectorized_inputs(
     dA_w_scalar = st.delta_A_over_w
     c_out_scalar = alpha_out / tau
     c_in_scalar = (1.0 - tau) / tau * alpha_out + alpha_in
-    psi_face_in = upstream.spatial_upstream[:, None]            # (ng, 1)
+    psi_face_in = psi_spatial[:, None]                          # (ng, 1)
     angular_denom_term = np.array(
         [dA_w_scalar * c_out_scalar], dtype=float,
     )                                                            # (1,)
-    if upstream.angular_upstream is None:
+    if psi_ang is None:
         angular_numer_upstream = np.zeros_like(psi_face_in)
     else:
         angular_numer_upstream = (
-            dA_w_scalar * c_in_scalar * upstream.angular_upstream[:, None]
+            dA_w_scalar * c_in_scalar * psi_ang[:, None]
         )                                                        # (ng, 1)
     return (
         abs_mu, A_down, A_total, psi_face_in,
@@ -179,16 +181,11 @@ def test_n_mask_1_hand_written_pin_curvilinear():
     st = _curvilinear_streaming_terms()
     A_downstream = 1.5
     total_xs = np.array([1.2, 0.8])
-    upstream = UpstreamState(
-        spatial_upstream=np.array([0.5, 0.7]),
-        angular_upstream=np.array([0.4, 0.6]),
-    )
-
     (
         abs_mu, A_down, A_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     ) = _scalar_to_vectorized_inputs(
-        st, A_downstream, upstream,
+        st, A_downstream, np.array([0.5, 0.7]), np.array([0.4, 0.6]),
         tau=_CURVILINEAR_TAU, alpha_in=_CURVILINEAR_ALPHA_IN,
         alpha_out=_CURVILINEAR_ALPHA_OUT,
     )
@@ -225,16 +222,11 @@ def test_n_mask_1_hand_written_pin_slab():
     st = _slab_streaming_terms()
     A_downstream = 1.0
     total_xs = np.array([1.2, 0.8])
-    upstream = UpstreamState(
-        spatial_upstream=np.array([0.5, 0.7]),
-        angular_upstream=None,
-    )
-
     (
         abs_mu, A_down, A_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     ) = _scalar_to_vectorized_inputs(
-        st, A_downstream, upstream,
+        st, A_downstream, np.array([0.5, 0.7]), None,
         tau=_SLAB_TAU, alpha_in=_SLAB_ALPHA_IN, alpha_out=_SLAB_ALPHA_OUT,
     )
     # Slab fixture has dA_w = 0 and c_in = c_out = 0 → both angular
@@ -471,25 +463,30 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=7, streaming_terms=st, face_area_downstream=A_down,
-        c_in=c_in, c_out=c_out, tau=tau,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])
     cell_avg = np.array([0.9, 1.1])
-    upstream = UpstreamState(
-        spatial_upstream=np.array([0.5, 0.7]),
-        angular_upstream=ang_upstream,
-    )
+    psi_spatial = np.array([0.5, 0.7])
+    upstream = UpstreamState(spatial_upstream=psi_spatial)
 
     dd = DiamondDifference()
-    residual = dd.residual(cell_avg, visit, total_xs, source, upstream)
+    # P4.9a: the caller assembles the closure contributions.
+    residual = dd.residual(
+        cell_avg, visit, total_xs, source, upstream,
+        angular_denom_term=st.delta_A_over_w * c_out,
+        angular_numer_upstream=(
+            None if ang_upstream is None
+            else st.delta_A_over_w * c_in * ang_upstream
+        ),
+    )
 
     # Direct delegation to the vectorized helper.
     (
         abs_mu, A_d, A_tot, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     ) = _scalar_to_vectorized_inputs(
-        st, A_down, upstream,
+        st, A_down, psi_spatial, ang_upstream,
         tau=tau, alpha_in=alpha_in, alpha_out=alpha_out,
     )
     denom, numer = cell_balance_for_streaming(
@@ -516,19 +513,21 @@ def test_diamond_residual_round_trip_at_converged_cell_avg():
     )
     visit = CellVisit(
         cell_idx=3, streaming_terms=st, face_area_downstream=1.5,
-        c_in=c_in, c_out=c_out, tau=_CURVILINEAR_TAU,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])
-    upstream = UpstreamState(
-        spatial_upstream=np.array([0.5, 0.7]),
-        angular_upstream=np.array([0.4, 0.6]),
-    )
+    upstream = UpstreamState(spatial_upstream=np.array([0.5, 0.7]))
+    adt = st.delta_A_over_w * c_out
+    anu = st.delta_A_over_w * c_in * np.array([0.4, 0.6])
 
     dd = DiamondDifference()
-    result = dd.update(visit, total_xs, source, upstream)
+    result = dd.update(
+        visit, total_xs, source, upstream,
+        angular_denom_term=adt, angular_numer_upstream=anu,
+    )
     residual = dd.residual(
         result.cell_average_flux, visit, total_xs, source, upstream,
+        angular_denom_term=adt, angular_numer_upstream=anu,
     )
     # The solve form produces the exact solution; residual is zero.
     np.testing.assert_allclose(residual, 0.0, atol=1e-13)

@@ -202,10 +202,7 @@ class TestBitIdenticalSlab:
         Q = np.array([2.5, 0.4])
         source = Q * st.chord_length * weight_norm
         psi_in = np.array([0.3, 0.1])
-        upstream = UpstreamState(
-            spatial_upstream=psi_in,
-            angular_upstream=None,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_in)
 
         # Reference scalar form — mirrors sweep.py:119-123 + 221-222.
         chord = st.chord_length
@@ -239,8 +236,7 @@ class TestBitIdenticalSlab:
         np.testing.assert_allclose(
             result.outgoing_spatial_flux, ref_psi_out, rtol=1e-13,
         )
-        # Slab has no angular redistribution.
-        assert result.outgoing_angular_state is None
+        # P4.9a: CellResult is purely spatial — no angular field.
 
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-slab-scalar")
@@ -269,10 +265,7 @@ class TestBitIdenticalSlab:
         Q = np.array([0.9, 1.7, 0.2])
         source = Q * st.chord_length * weight_norm
         psi_in = np.array([0.42, 0.31, 0.55])  # synthetic upstream
-        upstream = UpstreamState(
-            spatial_upstream=psi_in,
-            angular_upstream=None,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_in)
 
         chord = st.chord_length
         abs_mu = st.abs_mu
@@ -297,7 +290,6 @@ class TestBitIdenticalSlab:
         np.testing.assert_allclose(
             result.outgoing_spatial_flux, ref_psi_out, rtol=1e-13,
         )
-        assert result.outgoing_angular_state is None
 
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-slab-scalar")
@@ -328,10 +320,7 @@ class TestBitIdenticalSlab:
         Q = np.array([1.5, 0.6])
         source = Q * st.chord_length * weight_norm
         psi_in = np.array([0.0, 0.0])  # vacuum BC at outer face
-        upstream = UpstreamState(
-            spatial_upstream=psi_in,
-            angular_upstream=None,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_in)
 
         chord = st.chord_length
         abs_mu = st.abs_mu
@@ -408,10 +397,7 @@ class TestBitIdenticalCurvilinear:
         source = Q * st.volume * weight_norm
         psi_spat_in = np.array([0.21, 0.11])
         psi_angle_in = np.array([0.05, 0.03])
-        upstream = UpstreamState(
-            spatial_upstream=psi_spat_in,
-            angular_upstream=psi_angle_in,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_spat_in)
 
         # Reference scalar form — mirrors sweep.py:328-329 + 350-361.
         # Outward (μ > 0): downstream face is the OUTER face.  Issue #236
@@ -446,17 +432,20 @@ class TestBitIdenticalCurvilinear:
             cell_idx=cell_idx,
             streaming_terms=st,
             face_area_downstream=A_outer,
-            c_in=ref_c_in, c_out=ref_c_out, tau=tau,
         )
         strat = DiamondDifference()
-        result = strat.update(visit, total_xs, source, upstream)
+        # P4.9a: the caller assembles the closure contributions.
+        result = strat.update(
+            visit, total_xs, source, upstream,
+            angular_denom_term=dA_w * ref_c_out,
+            angular_numer_upstream=dA_w * ref_c_in * psi_angle_in,
+        )
 
         # Bit-identical: np.array_equal, not np.allclose.
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
         assert np.array_equal(result.outgoing_spatial_flux, ref_psi_spat_out)
         # P4.9a: the scheme closes no angular axis; the owner's march on the
         # scheme's average reproduces the M-M reference bit-for-bit.
-        assert result.outgoing_angular_state is None
         assert np.array_equal(
             march_psi_half_step(result.cell_average_flux, psi_angle_in, tau),
             ref_psi_angle_out,
@@ -544,10 +533,7 @@ class TestBitIdenticalCurvilinear:
         source = Q * st.volume * weight_norm
         psi_spat_in = np.array([0.05, 0.02])
         psi_angle_in = np.array([0.18, 0.09])
-        upstream = UpstreamState(
-            spatial_upstream=psi_spat_in,
-            angular_upstream=psi_angle_in,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_spat_in)
 
         # Issue #236 Step C: τ / α from the independent surrogate.
         tau, alpha_in, alpha_out = mm_constants_for_ordinate(
@@ -580,10 +566,16 @@ class TestBitIdenticalCurvilinear:
             cell_idx=cell_idx,
             streaming_terms=st,
             face_area_downstream=st.face_area_inner,
-            c_in=ref_c_in, c_out=ref_c_out, tau=tau,
         )
         strat = DiamondDifference()
-        result = strat.update(visit, total_xs, source, upstream)
+        # P4.9a: the caller assembles the closure contributions.
+        result = strat.update(
+            visit, total_xs, source, upstream,
+            angular_denom_term=st.delta_A_over_w * ref_c_out,
+            angular_numer_upstream=(
+                st.delta_A_over_w * ref_c_in * psi_angle_in
+            ),
+        )
 
         # An inward curvilinear visit MUST produce the spatial output; a
         # None there is a contract breach, not a tolerance question.
@@ -595,7 +587,6 @@ class TestBitIdenticalCurvilinear:
                 "inward curvilinear visit returned no outgoing spatial "
                 f"state (spatial={spat_out!r})"
             )
-        assert result.outgoing_angular_state is None
 
         # nULP, not array_equal — see "Why this row asserts nULP" above.
         # np.testing.* raises unconditionally, so this survives -O.
@@ -682,10 +673,7 @@ class TestCylindricalDegenerate:
         source = np.array([0.05, 0.02])
         psi_spat_in = np.array([0.10, 0.04])  # ignored by branch
         psi_angle_in = np.array([0.07, 0.03])
-        upstream = UpstreamState(
-            spatial_upstream=psi_spat_in,
-            angular_upstream=psi_angle_in,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_spat_in)
 
         # Reference scalar form — mirrors sweep.py:533-543.
         ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
@@ -705,10 +693,16 @@ class TestCylindricalDegenerate:
             cell_idx=1,
             streaming_terms=st,
             face_area_downstream=0.0,
-            c_in=ref_c_in, c_out=ref_c_out, tau=tau,
         )
         strat = DiamondDifference()
-        result = strat.update(visit, total_xs, source, upstream)
+        # P4.9a: the caller assembles the closure contributions.
+        result = strat.update(
+            visit, total_xs, source, upstream,
+            angular_denom_term=st.delta_A_over_w * ref_c_out,
+            angular_numer_upstream=(
+                st.delta_A_over_w * ref_c_in * psi_angle_in
+            ),
+        )
 
         # Issue #196 Step 2.5: the unified cell-balance helper retains
         # the ``|μ|·A_total·ψ^s_in`` term naturally — it vanishes as
@@ -724,7 +718,6 @@ class TestCylindricalDegenerate:
         assert result.outgoing_spatial_flux is None
         # P4.9a: no angular output from the scheme; the owner's march on
         # the scheme's average reproduces the degenerate M-M reference.
-        assert result.outgoing_angular_state is None
         np.testing.assert_allclose(
             march_psi_half_step(
                 result.cell_average_flux, psi_angle_in, tau,
@@ -770,28 +763,29 @@ class TestCylindricalDegenerate:
         source = np.array([0.05, 0.02])
         psi_angle_in = np.array([0.07, 0.03])
 
-        upstream_a = UpstreamState(
-            spatial_upstream=np.array([0.0, 0.0]),
-            angular_upstream=psi_angle_in,
-        )
+        upstream_a = UpstreamState(spatial_upstream=np.array([0.0, 0.0]))
         upstream_b = UpstreamState(
             spatial_upstream=np.array([99.0, -42.0]),  # wildly different
-            angular_upstream=psi_angle_in,
         )
 
-        # Issue #236 Phase 2 B3: stamp the M-M c_in / c_out / τ DD.update
-        # reads off the visit (the production denom carries dA_w·c_out, which
-        # sets the |μ|→0 spatial-upstream sensitivity floor this test bounds).
+        # P4.9a: the caller assembles the closure contributions (the
+        # production denom carries dA_w·c_out, which sets the |μ|→0
+        # spatial-upstream sensitivity floor this test bounds).
         c_in_v, c_out_v = c_from_constants(tau, alpha_in, alpha_out)
         visit = CellVisit(
             cell_idx=1,
             streaming_terms=st,
             face_area_downstream=0.0,
-            c_in=c_in_v, c_out=c_out_v, tau=tau,
         )
+        ang_kw = {
+            "angular_denom_term": st.delta_A_over_w * c_out_v,
+            "angular_numer_upstream": (
+                st.delta_A_over_w * c_in_v * psi_angle_in
+            ),
+        }
         strat = DiamondDifference()
-        result_a = strat.update(visit, total_xs, source, upstream_a)
-        result_b = strat.update(visit, total_xs, source, upstream_b)
+        result_a = strat.update(visit, total_xs, source, upstream_a, **ang_kw)
+        result_b = strat.update(visit, total_xs, source, upstream_b, **ang_kw)
 
         # cell_average_flux insensitive to spatial_upstream to
         # FP-noise level (no radial face flow on this cell; the
@@ -851,10 +845,7 @@ class TestPositivityFailure:
         source = Q * st.chord_length * weight_norm
         # Positive but bounded upstream flux.
         psi_in = np.array([1.0])
-        upstream = UpstreamState(
-            spatial_upstream=psi_in,
-            angular_upstream=None,
-        )
+        upstream = UpstreamState(spatial_upstream=psi_in)
 
         visit = CellVisit(
             cell_idx=0, streaming_terms=st, face_area_downstream=1.0,
@@ -916,7 +907,7 @@ def _slab_visit_inputs(
     Q: np.ndarray | None = None,
     psi_in: np.ndarray | None = None,
 ) -> tuple[
-    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+    CellVisit, np.ndarray, np.ndarray, UpstreamState, dict,
 ]:
     """Slab visit + inputs for residual round-trip / linearity tests.
 
@@ -939,20 +930,24 @@ def _slab_visit_inputs(
         psi_in = np.linspace(0.05, 0.35, n_groups)
     weight_norm = 1.0 / quad.weights.sum()
     source = Q * st.chord_length * weight_norm
-    upstream = UpstreamState(spatial_upstream=psi_in, angular_upstream=None)
+    upstream = UpstreamState(spatial_upstream=psi_in)
     # Slab visit: face_area_downstream = 1.0 (Issue #196 Step 2.5
     # neutral curvature) so the unified DD body's spatial-closure
     # branch runs (slab DOES have a downstream face — the cell-edge).
-    # Slab α = 0 / τ = 1 → c_in = c_out = 0.0 (#236 Phase 2 B2).
+    # Slab α = 0 / τ = 1 → c_in = c_out = 0.0; the assembled angular
+    # contributions are the neutral element (P4.9a).
     tau, alpha_in, alpha_out = mm_constants_for_ordinate(
         op, cell_idx, direction_idx,
     )
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,
-        c_in=c_in, c_out=c_out,
     )
-    return visit, total_xs, source, upstream
+    ang = {
+        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_numer_upstream": None,
+    }
+    return visit, total_xs, source, upstream, ang
 
 
 def _sphere_visit_inputs(
@@ -967,7 +962,7 @@ def _sphere_visit_inputs(
     psi_spat_in: np.ndarray | None = None,
     psi_angle_in: np.ndarray | None = None,
 ) -> tuple[
-    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+    CellVisit, np.ndarray, np.ndarray, UpstreamState, dict,
 ]:
     """Sphere visit + inputs for residual contract tests."""
     mesh = _spherical_mesh(nx=nx, radius=1.0)
@@ -986,10 +981,7 @@ def _sphere_visit_inputs(
         psi_angle_in = np.linspace(0.02, 0.11, n_groups)
     weight_norm = 1.0 / quad.weights.sum()
     source = Q * st.volume * weight_norm
-    upstream = UpstreamState(
-        spatial_upstream=psi_spat_in,
-        angular_upstream=psi_angle_in,
-    )
+    upstream = UpstreamState(spatial_upstream=psi_spat_in)
     A_down = st.face_area_outer if outward else st.face_area_inner
     tau, alpha_in, alpha_out = mm_constants_for_ordinate(
         op, cell_idx, direction_idx,
@@ -997,9 +989,14 @@ def _sphere_visit_inputs(
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
-        c_in=c_in, c_out=c_out,
     )
-    return visit, total_xs, source, upstream
+    ang = {
+        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_numer_upstream": (
+            st.delta_A_over_w * c_in * psi_angle_in
+        ),
+    }
+    return visit, total_xs, source, upstream, ang
 
 
 def _cylinder_visit_inputs(
@@ -1014,7 +1011,7 @@ def _cylinder_visit_inputs(
     psi_spat_in: np.ndarray | None = None,
     psi_angle_in: np.ndarray | None = None,
 ) -> tuple[
-    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+    CellVisit, np.ndarray, np.ndarray, UpstreamState, dict,
 ]:
     """Cylinder (non-degenerate) visit + inputs for residual contract tests."""
     mesh = _cylindrical_mesh(nx=nx, radius=1.0)
@@ -1035,10 +1032,7 @@ def _cylinder_visit_inputs(
         psi_angle_in = np.linspace(0.03, 0.13, n_groups)
     weight_norm = 1.0 / quad.weights.sum()
     source = Q * st.volume * weight_norm
-    upstream = UpstreamState(
-        spatial_upstream=psi_spat_in,
-        angular_upstream=psi_angle_in,
-    )
+    upstream = UpstreamState(spatial_upstream=psi_spat_in)
     # Determine sweep direction from signed μ.
     A_down = (
         st.face_area_outer if (st.mu is not None and st.mu >= 0.0)
@@ -1050,9 +1044,14 @@ def _cylinder_visit_inputs(
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
-        c_in=c_in, c_out=c_out,
     )
-    return visit, total_xs, source, upstream
+    ang = {
+        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_numer_upstream": (
+            st.delta_A_over_w * c_in * psi_angle_in
+        ),
+    }
+    return visit, total_xs, source, upstream, ang
 
 
 def _cylinder_degenerate_visit_inputs(
@@ -1064,7 +1063,7 @@ def _cylinder_degenerate_visit_inputs(
     source: np.ndarray | None = None,
     psi_angle_in: np.ndarray | None = None,
 ) -> tuple[
-    CellVisit, np.ndarray, np.ndarray, UpstreamState,
+    CellVisit, np.ndarray, np.ndarray, UpstreamState, dict,
 ]:
     """Cylindrical pure-azimuthal degenerate visit + inputs.
 
@@ -1097,16 +1096,18 @@ def _cylinder_degenerate_visit_inputs(
         source = np.linspace(0.02, 0.07, n_groups)
     if psi_angle_in is None:
         psi_angle_in = np.linspace(0.03, 0.13, n_groups)
-    upstream = UpstreamState(
-        spatial_upstream=np.zeros(n_groups),
-        angular_upstream=psi_angle_in,
-    )
+    upstream = UpstreamState(spatial_upstream=np.zeros(n_groups))
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=0.0,
-        c_in=c_in, c_out=c_out,
     )
-    return visit, total_xs, source, upstream
+    ang = {
+        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_numer_upstream": (
+            st.delta_A_over_w * c_in * psi_angle_in
+        ),
+    }
+    return visit, total_xs, source, upstream, ang
 
 
 # Geometry-keyed visit factory for parametrized tests.
@@ -1180,13 +1181,13 @@ class TestResidual:
         cylindrical-degenerate has collision + α-dome + M-M only
         (no radial streaming).  No term is nulled by ansatz.
         """
-        visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
+        visit, total_xs, source, upstream, ang = _GEOMETRY_FACTORIES[geometry]()
         strat = DiamondDifference()
 
-        result = strat.update(visit, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream, **ang)
         residual = strat.residual(
             result.cell_average_flux,
-            visit, total_xs, source, upstream,
+            visit, total_xs, source, upstream, **ang,
         )
 
         # Round-trip identity to FP rounding — one division ULP band.
@@ -1210,33 +1211,33 @@ class TestResidual:
         total_xs = np.linspace(0.6, 1.5, n_groups)
         Q = np.linspace(0.2, 2.4, n_groups)
         if geometry == "slab":
-            visit, total_xs, source, upstream = _slab_visit_inputs(
+            visit, total_xs, source, upstream, ang = _slab_visit_inputs(
                 n_groups=n_groups, total_xs=total_xs, Q=Q,
                 psi_in=np.linspace(0.05, 0.35, n_groups),
             )
         elif geometry == "sphere_outward":
-            visit, total_xs, source, upstream = _sphere_visit_inputs(
+            visit, total_xs, source, upstream, ang = _sphere_visit_inputs(
                 n_groups=n_groups, outward=True,
                 total_xs=total_xs, Q=Q,
                 psi_spat_in=np.linspace(0.05, 0.27, n_groups),
                 psi_angle_in=np.linspace(0.02, 0.11, n_groups),
             )
         elif geometry == "sphere_inward":
-            visit, total_xs, source, upstream = _sphere_visit_inputs(
+            visit, total_xs, source, upstream, ang = _sphere_visit_inputs(
                 n_groups=n_groups, outward=False,
                 total_xs=total_xs, Q=Q,
                 psi_spat_in=np.linspace(0.05, 0.27, n_groups),
                 psi_angle_in=np.linspace(0.02, 0.11, n_groups),
             )
         elif geometry == "cylinder":
-            visit, total_xs, source, upstream = _cylinder_visit_inputs(
+            visit, total_xs, source, upstream, ang = _cylinder_visit_inputs(
                 n_groups=n_groups,
                 total_xs=total_xs, Q=Q,
                 psi_spat_in=np.linspace(0.04, 0.18, n_groups),
                 psi_angle_in=np.linspace(0.03, 0.13, n_groups),
             )
         elif geometry == "cylinder_degenerate":
-            visit, total_xs, source, upstream = (
+            visit, total_xs, source, upstream, ang = (
                 _cylinder_degenerate_visit_inputs(
                     n_groups=n_groups, total_xs=total_xs,
                     source=np.linspace(0.02, 0.07, n_groups),
@@ -1247,10 +1248,10 @@ class TestResidual:
             raise ValueError(geometry)
 
         strat = DiamondDifference()
-        result = strat.update(visit, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream, **ang)
         residual = strat.residual(
             result.cell_average_flux,
-            visit, total_xs, source, upstream,
+            visit, total_xs, source, upstream, **ang,
         )
 
         np.testing.assert_allclose(residual, 0.0, atol=1e-13)
@@ -1283,7 +1284,7 @@ class TestResidual:
         ``upstream_state``, mistaken ``cell_avg`` usage in a
         denominator).
         """
-        visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
+        visit, total_xs, source, upstream, ang = _GEOMETRY_FACTORIES[geometry]()
         strat = DiamondDifference()
 
         rng = np.random.default_rng(seed=42)
@@ -1325,7 +1326,7 @@ class TestResidual:
         (:func:`cell_balance_for_streaming`) and the slab closed form
         both treat the source as an affine term added on the outside.
         """
-        visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
+        visit, total_xs, source, upstream, ang = _GEOMETRY_FACTORIES[geometry]()
         strat = DiamondDifference()
 
         rng = np.random.default_rng(seed=7)
@@ -1362,15 +1363,15 @@ class TestResidual:
         the brief warns about — see ``vv-principles`` hygiene rule
         H2).
         """
-        visit, total_xs, _, upstream = _GEOMETRY_FACTORIES[geometry]()
+        visit, total_xs, _, upstream, ang = _GEOMETRY_FACTORIES[geometry]()
         n_groups = total_xs.shape[0]
         source = np.zeros(n_groups)
         strat = DiamondDifference()
 
-        result = strat.update(visit, total_xs, source, upstream)
+        result = strat.update(visit, total_xs, source, upstream, **ang)
         residual = strat.residual(
             result.cell_average_flux,
-            visit, total_xs, source, upstream,
+            visit, total_xs, source, upstream, **ang,
         )
 
         # Single-division ULP band.
@@ -1394,7 +1395,7 @@ class TestResidual:
         closed form below.  The two forms are algebraically identical
         but ULP-different at IEEE-754.
         """
-        visit, total_xs, source, upstream = _slab_visit_inputs()
+        visit, total_xs, source, upstream, ang = _slab_visit_inputs()
         strat = DiamondDifference()
 
         # Probe at a non-converged cell_avg so the residual is non-trivial.
@@ -1436,7 +1437,7 @@ class TestResidual:
         can no longer detect a divergence between two helpers because
         there is only one.
         """
-        visit, total_xs, source, upstream = _sphere_visit_inputs()
+        visit, total_xs, source, upstream, ang = _sphere_visit_inputs()
         strat = DiamondDifference()
 
         rng = np.random.default_rng(seed=11)
@@ -1446,18 +1447,18 @@ class TestResidual:
         st = visit.streaming_terms
         ref_denom = (
             2.0 * st.abs_mu * visit.face_area_downstream
-            + st.delta_A_over_w * visit.c_out
+            + ang["angular_denom_term"]
             + total_xs * st.volume
         )
         ref_numer = (
             st.abs_mu * (st.face_area_inner + st.face_area_outer)
             * upstream.spatial_upstream
-            + st.delta_A_over_w * visit.c_in * upstream.angular_upstream
+            + ang["angular_numer_upstream"]
         )
         ref = ref_denom * cell_avg - (source + ref_numer)
 
         computed = strat.residual(
-            cell_avg, visit, total_xs, source, upstream,
+            cell_avg, visit, total_xs, source, upstream, **ang,
         )
 
         # Bit-identical: same association order as the production helper.
@@ -1478,7 +1479,7 @@ class TestResidual:
         ``visit.face_area_downstream = 0.0``, and this row is one of
         the few unit-tier degenerate gates — keep it.
         """
-        visit, total_xs, source, upstream = (
+        visit, total_xs, source, upstream, ang = (
             _cylinder_degenerate_visit_inputs()
         )
         strat = DiamondDifference()
@@ -1490,18 +1491,18 @@ class TestResidual:
         st = visit.streaming_terms
         ref_denom = (
             2.0 * st.abs_mu * visit.face_area_downstream
-            + st.delta_A_over_w * visit.c_out
+            + ang["angular_denom_term"]
             + total_xs * st.volume
         )
         ref_numer = (
             st.abs_mu * (st.face_area_inner + st.face_area_outer)
             * upstream.spatial_upstream
-            + st.delta_A_over_w * visit.c_in * upstream.angular_upstream
+            + ang["angular_numer_upstream"]
         )
         ref = ref_denom * cell_avg - (source + ref_numer)
 
         computed = strat.residual(
-            cell_avg, visit, total_xs, source, upstream,
+            cell_avg, visit, total_xs, source, upstream, **ang,
         )
 
         assert np.array_equal(computed, ref)
@@ -1530,30 +1531,32 @@ class TestResidual:
         )
         total_xs = np.array([1.0, 0.5])
         source = np.array([0.1, 0.05])
-        upstream = UpstreamState(
-            spatial_upstream=np.array([0.2, 0.1]),
-            angular_upstream=np.array([0.05, 0.02]),
-        )
+        upstream = UpstreamState(spatial_upstream=np.array([0.2, 0.1]))
+        psi_angle_in = np.array([0.05, 0.02])
         cell_avg = np.array([0.7, 0.3])
 
         c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
         visit_inward = CellVisit(
             cell_idx=3, streaming_terms=st,
             face_area_downstream=st.face_area_inner,
-            c_in=c_in, c_out=c_out,
         )
         visit_outward = CellVisit(
             cell_idx=3, streaming_terms=st,
             face_area_downstream=st.face_area_outer,
-            c_in=c_in, c_out=c_out,
         )
+        ang_kw = {
+            "angular_denom_term": st.delta_A_over_w * c_out,
+            "angular_numer_upstream": (
+                st.delta_A_over_w * c_in * psi_angle_in
+            ),
+        }
 
         strat = DiamondDifference()
         r_in = strat.residual(
-            cell_avg, visit_inward, total_xs, source, upstream,
+            cell_avg, visit_inward, total_xs, source, upstream, **ang_kw,
         )
         r_out = strat.residual(
-            cell_avg, visit_outward, total_xs, source, upstream,
+            cell_avg, visit_outward, total_xs, source, upstream, **ang_kw,
         )
 
         # Different downstream face areas ⇒ different residuals.
@@ -1573,18 +1576,20 @@ class TestResidual:
         bound ``|μ|·A_total·|ψ^s_in| ≈ 1e-14`` for the test's wild
         probe.
         """
-        visit, total_xs, source, upstream_a = (
+        visit, total_xs, source, upstream_a, ang = (
             _cylinder_degenerate_visit_inputs()
         )
-        psi_angle_in = upstream_a.angular_upstream
         upstream_b = UpstreamState(
             spatial_upstream=np.array([99.0, -42.0]),
-            angular_upstream=psi_angle_in,
         )
         cell_avg = np.array([0.7, 0.3])
         strat = DiamondDifference()
 
-        r_a = strat.residual(cell_avg, visit, total_xs, source, upstream_a)
-        r_b = strat.residual(cell_avg, visit, total_xs, source, upstream_b)
+        r_a = strat.residual(
+            cell_avg, visit, total_xs, source, upstream_a, **ang,
+        )
+        r_b = strat.residual(
+            cell_avg, visit, total_xs, source, upstream_b, **ang,
+        )
 
         np.testing.assert_allclose(r_a, r_b, rtol=0, atol=1e-13)

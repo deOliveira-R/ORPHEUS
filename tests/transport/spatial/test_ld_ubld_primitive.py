@@ -445,8 +445,8 @@ class TestProductionViewsAnchoredToPrimitive:
         )
         a, inv, w = LinearDiscontinuous().affine_scan_coefficients(
             abs_mu=np.array([mu_v]), A_down=np.array([[1.0]]),
-            A_total=np.array([[2.0]]), dA_w=np.array([[0.0]]),
-            c_out=np.array([[0.0]]), V=np.array([[h_v]]),
+            A_total=np.array([[2.0]]),
+            angular_denom_term=np.array([[0.0]]), V=np.array([[h_v]]),
             reaction_xs=sig[None, :, None],
         )                                                    # each (1, 2, 1)
         psi_in_b = psi_in[None, :, None]

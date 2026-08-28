@@ -40,7 +40,10 @@ from orpheus.transport.spatial.scheme import (
     CellVisit,
     UpstreamState,
 )
-from tests.sn.sweep.core._c_surrogate import mm_constants_for_ordinate
+from tests.sn.sweep.core._c_surrogate import (
+    c_from_constants,
+    mm_constants_for_ordinate,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -89,7 +92,6 @@ class IdentityDiscretizationScheme:
         return CellResult(
             cell_average_flux=source / total_xs,
             outgoing_spatial_flux=None,
-            outgoing_angular_state=None,
         )
 
     def residual(
@@ -125,10 +127,11 @@ class BadDiscretizationScheme:
 class FakeCurvilinearStrategy:
     """Synthetic strategy that asserts a curvilinear-shaped input arrives.
 
-    Verifies the shape contract:
-    ``visit.streaming_terms.delta_A_over_w is not None``,
-    ``upstream_state.angular_upstream.shape == (ng,)``.  Returns
-    ``CellResult`` with all three fields populated (shape ``(ng,)``).
+    P4.9a contract: purely spatial.  Verifies the shape contract —
+    ``visit.streaming_terms.delta_A_over_w`` populated, the ASSEMBLED
+    angular contributions arriving as ``update`` kwargs
+    (``angular_denom_term`` scalar, ``angular_numer_upstream (ng,)``) —
+    and returns a ``CellResult`` with the two spatial fields populated.
     """
 
     is_linear: ClassVar[bool] = True
@@ -153,19 +156,20 @@ class FakeCurvilinearStrategy:
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: "np.ndarray | None" = None,
     ) -> CellResult:
         st = visit.streaming_terms
-        # Curvilinear shape check.  Issue #236 Step C: the M-M τ / α packing
-        # on StreamingTerms was retired; the angular weight τ is now read off
-        # the CellVisit (closure-owned).  The curvilinear-shape discriminator
-        # is the surviving geometry redistribution factor.
+        # Curvilinear shape check: the surviving geometry redistribution
+        # factor plus the ASSEMBLED closure contributions (P4.9a — the
+        # scheme sees no closure-named constant and no angular thread).
         assert st.delta_A_over_w is not None, (
             "FakeCurvilinearStrategy expects curvilinear streaming terms "
             "(delta_A_over_w must be populated)."
         )
         assert st.face_area_inner is not None
         assert st.face_area_outer is not None
-        assert visit.tau is not None
         assert st.volume is not None
         assert st.abs_mu is not None
         # Curvilinear non-degenerate visits carry a positive
@@ -176,23 +180,25 @@ class FakeCurvilinearStrategy:
         ng = total_xs.shape[0]
         assert source.shape == (ng,)
         assert upstream_state.spatial_upstream.shape == (ng,)
-        assert upstream_state.angular_upstream is not None, (
-            "Curvilinear cell update needs an upstream angular state."
+        assert angular_denom_term != 0.0, (
+            "Curvilinear cell update expects a non-neutral assembled "
+            "angular denominator contribution."
         )
-        assert upstream_state.angular_upstream.shape == (ng,)
+        assert angular_numer_upstream is not None, (
+            "Curvilinear cell update expects an assembled angular "
+            "numerator contribution."
+        )
+        assert angular_numer_upstream.shape == (ng,)
 
         # Stand-in math — not physically meaningful, just a shape-correct
-        # CellResult that exercises every output channel.
-        avg = source / total_xs
+        # CellResult that exercises the spatial output channels.
+        avg = (source + angular_numer_upstream) / (
+            total_xs + angular_denom_term
+        )
         out_spatial = 2.0 * avg - upstream_state.spatial_upstream
-        tau = visit.tau
-        out_angular = (
-            avg - (1.0 - tau) * upstream_state.angular_upstream
-        ) / tau
         return CellResult(
             cell_average_flux=avg,
             outgoing_spatial_flux=out_spatial,
-            outgoing_angular_state=out_angular,
         )
 
     def residual(
@@ -346,27 +352,29 @@ class TestDataclassImmutability:
     @pytest.mark.foundation
     def test_upstream_state_holds_reference(self):
         spatial = np.array([1.0, 2.0])
-        angular = np.array([3.0, 4.0])
-        st = UpstreamState(
-            spatial_upstream=spatial, angular_upstream=angular,
-        )
+        st = UpstreamState(spatial_upstream=spatial)
         assert st.spatial_upstream is spatial
-        assert st.angular_upstream is angular
 
     @pytest.mark.foundation
     def test_upstream_state_is_frozen(self):
-        st = UpstreamState(
-            spatial_upstream=np.array([1.0]),
-            angular_upstream=None,
-        )
+        st = UpstreamState(spatial_upstream=np.array([1.0]))
         with pytest.raises(AttributeError):
             st.spatial_upstream = np.array([99.0])  # type: ignore[misc]
 
     @pytest.mark.foundation
-    def test_upstream_state_slab_default(self):
-        """Slab UpstreamState has angular_upstream defaulting to None."""
-        st = UpstreamState(spatial_upstream=np.array([1.0]))
-        assert st.angular_upstream is None
+    def test_upstream_state_is_purely_spatial(self):
+        """P4.9a: the input state carries exactly the spatial thread.
+
+        The former ``angular_upstream`` field left with the un-weld —
+        the angular thread is the closure's march, applied by the walk.
+        Asserted by ``dataclasses.fields`` (not ``hasattr``; a defaulted
+        field would still answer ``getattr`` — coding-standards).
+        """
+        import dataclasses
+
+        assert [f.name for f in dataclasses.fields(UpstreamState)] == [
+            "spatial_upstream",
+        ]
 
     @pytest.mark.foundation
     def test_cell_result_is_frozen(self):
@@ -378,7 +386,6 @@ class TestDataclassImmutability:
     def test_cell_result_default_outputs_none(self):
         r = CellResult(cell_average_flux=np.array([1.0]))
         assert r.outgoing_spatial_flux is None
-        assert r.outgoing_angular_state is None
 
 
 class TestSlabVsCurvilinearDiscrimination:
@@ -441,29 +448,32 @@ class TestCurvilinearStrategyDriven:
         # downstream face area (outward → outer face).  Issue #236 Step C:
         # the angular weight τ is stamped on the visit (closure-owned); the
         # fake strategy reads visit.tau, so stamp the independent surrogate τ.
-        tau, _, _ = mm_constants_for_ordinate(op, 2, n)
+        tau, alpha_in, alpha_out = mm_constants_for_ordinate(op, 2, n)
         visit = CellVisit(
             cell_idx=2,
             streaming_terms=st,
             face_area_downstream=st.face_area_outer,
-            tau=tau,
         )
         ng = 3
         total_xs = np.full(ng, 1.5)
         source = np.full(ng, 0.7)
-        upstream = UpstreamState(
-            spatial_upstream=np.full(ng, 0.4),
-            angular_upstream=np.full(ng, 0.3),
-        )
+        upstream = UpstreamState(spatial_upstream=np.full(ng, 0.4))
+        # P4.9a: the caller assembles the closure contributions from the
+        # independent surrogate's constants.
+        c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
         strat = FakeCurvilinearStrategy()
-        result = strat.update(visit, total_xs, source, upstream)
+        result = strat.update(
+            visit, total_xs, source, upstream,
+            angular_denom_term=st.delta_A_over_w * c_out,
+            angular_numer_upstream=(
+                st.delta_A_over_w * c_in * np.full(ng, 0.3)
+            ),
+        )
 
         assert isinstance(result, CellResult)
         assert result.cell_average_flux.shape == (ng,)
         assert result.outgoing_spatial_flux is not None
         assert result.outgoing_spatial_flux.shape == (ng,)
-        assert result.outgoing_angular_state is not None
-        assert result.outgoing_angular_state.shape == (ng,)
 
 
 class TestCellVisitPacket:

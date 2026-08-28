@@ -113,6 +113,9 @@ def _cell_balance_n1(
     visit: CellVisit,
     total_xs: np.ndarray,
     upstream_state: UpstreamState,
+    *,
+    angular_denom_term: float = 0.0,
+    angular_numer_upstream: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Per-cell ``(denom, numer_upstream)`` — the ``n_mask=1`` view of
     :func:`cell_balance_for_streaming`, collapsed to ``(ng,)``.
@@ -126,11 +129,10 @@ def _cell_balance_n1(
     re-pointed as hand-written literal pins in
     ``tests/sn/sweep/core/test_cell_balance_for_streaming.py``).
 
-    P4.9a interval note: the angular contributions are assembled HERE from
-    the visit's stamped closure data (``(ΔA/w)·c_out``, ``(ΔA/w)·c_in·ψ^a``).
-    Row 3 (the protocol shedding) moves this assembly to the caller — the
-    scheme then receives ``angular_denom_term`` / ``angular_numer_upstream``
-    directly and this helper keeps only the spatial conversion.
+    P4.9a row 3: the angular contributions arrive ASSEMBLED from the
+    caller (the SN walk builds ``(ΔA/w)·c_out`` / ``(ΔA/w)·c_in·ψ^a``
+    from closure-minted constants); this helper only lifts the scalar
+    visit data to the vectorized ``n_mask=1`` shapes.
     """
     st = visit.streaming_terms
     abs_mu_arr = np.array([st.abs_mu], dtype=float)
@@ -140,19 +142,11 @@ def _cell_balance_n1(
     )
     psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
 
-    dA_w_scalar = st.delta_A_over_w
-    angular_denom_term = np.array(
-        [dA_w_scalar * visit.c_out], dtype=float,
-    )                                                # (1,)
-    psi_ang = upstream_state.angular_upstream
-    if psi_ang is None:
-        angular_numer_upstream = np.zeros(
-            (total_xs.size, 1), dtype=float,
-        )                                            # (ng, 1)
+    adt = np.array([angular_denom_term], dtype=float)            # (1,)
+    if angular_numer_upstream is None:
+        anu = np.zeros((total_xs.size, 1), dtype=float)          # (ng, 1)
     else:
-        angular_numer_upstream = (
-            dA_w_scalar * visit.c_in * psi_ang[:, None]
-        )                                            # (ng, 1)
+        anu = angular_numer_upstream[:, None]                    # (ng, 1)
 
     denom, numer_upstream = cell_balance_for_streaming(
         abs_mu=abs_mu_arr,
@@ -161,8 +155,8 @@ def _cell_balance_n1(
         total_xs=total_xs,
         volume=st.volume,
         psi_face_in=psi_face_in_mask,
-        angular_denom_term=angular_denom_term,
-        angular_numer_upstream=angular_numer_upstream,
+        angular_denom_term=adt,
+        angular_numer_upstream=anu,
     )
     return denom[:, 0], numer_upstream[:, 0]
 
@@ -246,6 +240,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: np.ndarray | None = None,
     ) -> CellResult:
         r"""Compute the cell-average flux + the downstream SPATIAL state.
 
@@ -265,6 +262,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # ``cell_balance_terms`` retired with P4.9a.
         denom, numer_upstream = _cell_balance_n1(
             visit, total_xs, upstream_state,
+            angular_denom_term=angular_denom_term,
+            angular_numer_upstream=angular_numer_upstream,
         )
         psi_avg = (source + numer_upstream) / denom
 
@@ -286,7 +285,6 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         return CellResult(
             cell_average_flux=psi_avg,
             outgoing_spatial_flux=psi_spat_out,
-            outgoing_angular_state=None,
         )
 
     # ── Apply-direction residual (Issue #196 Phase G Step 1 replan) ──
@@ -298,6 +296,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: np.ndarray | None = None,
     ) -> np.ndarray:
         r"""Per-cell operator residual :math:`L_{\rm cell}\,\bar\psi - q`.
 
@@ -323,6 +324,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         """
         denom, numer_upstream = _cell_balance_n1(
             visit, total_xs, upstream_state,
+            angular_denom_term=angular_denom_term,
+            angular_numer_upstream=angular_numer_upstream,
         )
         return denom * cell_avg - (source + numer_upstream)
 
@@ -586,8 +589,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         abs_mu: np.ndarray,    # (N,)        |μ_n|
         A_down: np.ndarray,    # (N, nx)     downstream face area (sweep-resolved)
         A_total: np.ndarray,   # (N, nx)     A_inner + A_outer
-        dA_w: np.ndarray,      # (N, nx)     ΔA / w_n  (curvature redistribution)
-        c_out: np.ndarray,     # (N,)        α_out / τ  (M-M outgoing closure const)
+        angular_denom_term: np.ndarray,  # (N, nx) assembled closure denom term
         V: np.ndarray,         # (N, nx)     cell volume per ordinate
         reaction_xs: np.ndarray,  # (N, ng, nx) Σ_t in the SAME cell ordering as the geometry arrays
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -684,9 +686,11 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         """
         # streaming + curvature (no group axis) — units: dimensionless
         streaming_face_term = 2.0 * abs_mu[:, None] * A_down              # (N, nx)
-        curvature_redistribution_term = dA_w * c_out[:, None]            # (N, nx)
+        # P4.9a row 3b: the curvature term arrives ASSEMBLED from the
+        # caller ((ΔA/w)·c_out, closure-minted) — same value, same
+        # association, no M-M name in this layer.
         geometric_streaming_term = (
-            streaming_face_term + curvature_redistribution_term
+            streaming_face_term + angular_denom_term
         )                                                                # (N, nx)
         # collision Σ_t·V (group-resolved) — units: cm² (1/cm × cm³)
         collision_volume_term = reaction_xs * V[:, None, :]              # (N, ng, nx)

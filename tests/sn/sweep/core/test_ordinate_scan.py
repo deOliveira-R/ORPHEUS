@@ -52,6 +52,7 @@ from tests.sn.sweep.core._c_surrogate import (
 
 def _affine_coefficients_from_visits(
     visits: list[CellVisit],
+    cs: "list[tuple[float, float]]",
     total_xs: np.ndarray,
     source: np.ndarray,
     angular_state: np.ndarray | None,
@@ -82,8 +83,10 @@ def _affine_coefficients_from_visits(
     b_out = np.empty((nx, ng))
     for idx, visit in enumerate(visits):
         st = visit.streaming_terms
-        # The visits were stamped (by the builders) with the surrogate's
-        # c; assemble the closure's denominator contribution from them.
+        c_in, c_out = cs[idx]
+        # The builders supply the surrogate's per-cell (c_in, c_out)
+        # beside the visits (P4.9a — the visit is purely spatial);
+        # assemble the closure's denominator contribution from them.
         denom_m, _numer_m = cell_balance_for_streaming(
             abs_mu=np.array([st.abs_mu]),
             A_downstream=np.array([visit.face_area_downstream]),
@@ -94,7 +97,7 @@ def _affine_coefficients_from_visits(
             volume=st.volume,
             psi_face_in=np.zeros((ng, 1)),
             angular_denom_term=np.array(
-                [st.delta_A_over_w * visit.c_out],
+                [st.delta_A_over_w * c_out],
             ),
             angular_numer_upstream=np.zeros((ng, 1)),
         )
@@ -103,7 +106,7 @@ def _affine_coefficients_from_visits(
         a_out[idx] = 2.0 * st.abs_mu * A_total / denom - 1.0
         ang_contrib = (
             0.0 if angular_state is None
-            else st.delta_A_over_w * visit.c_in * angular_state[idx]
+            else st.delta_A_over_w * c_in * angular_state[idx]
         )
         b_out[idx] = 2.0 * (source[idx] + ang_contrib) / denom
     return a_out, b_out
@@ -519,6 +522,7 @@ def _build_slab_visits_and_inputs(
     quad = Quadrature.gauss_legendre(4)
     op = slab_streaming(mesh, quad)
     visits = []
+    cs: list[tuple[float, float]] = []
     for i in range(nx):
         st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
         # Issue #236 Phase 2 B3 / Step C: DD.update reads the M-M c_in / c_out
@@ -533,14 +537,14 @@ def _build_slab_visits_and_inputs(
                 cell_idx=i,
                 streaming_terms=st,
                 face_area_downstream=1.0,
-                c_in=c_in, c_out=c_out, tau=tau,
             )
         )
+        cs.append((c_in, c_out))
     rng = np.random.default_rng(seed=seed)
     total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
     source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
     psi_in = rng.uniform(0.05, 0.5, size=n_groups)
-    return visits, total_xs, source, None, psi_in
+    return visits, cs, total_xs, source, None, psi_in
 
 
 def _build_sphere_visits_and_inputs(
@@ -552,6 +556,7 @@ def _build_sphere_visits_and_inputs(
     op = spherical_streaming(mesh, quad)
     direction_idx = quad.N - 2 if outward else 1
     visits = []
+    cs: list[tuple[float, float]] = []
     if outward:
         cell_order = range(nx)
     else:
@@ -570,15 +575,15 @@ def _build_sphere_visits_and_inputs(
                 cell_idx=i,
                 streaming_terms=st,
                 face_area_downstream=A_down,
-                c_in=c_in, c_out=c_out, tau=tau,
             )
         )
+        cs.append((c_in, c_out))
     rng = np.random.default_rng(seed=seed)
     total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
     source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
     psi_angular = rng.uniform(0.02, 0.15, size=(nx, n_groups))
     psi_in = rng.uniform(0.05, 0.5, size=n_groups)
-    return visits, total_xs, source, psi_angular, psi_in
+    return visits, cs, total_xs, source, psi_angular, psi_in
 
 
 def _build_cylinder_visits_and_inputs(
@@ -591,6 +596,7 @@ def _build_cylinder_visits_and_inputs(
     direction_idx = 0
     mu_level_idx = 0
     visits = []
+    cs: list[tuple[float, float]] = []
     # Check sign of η for this ordinate to decide cell order
     level_indices = quad.level_indices
     global_n = int(level_indices[mu_level_idx][direction_idx])
@@ -618,15 +624,15 @@ def _build_cylinder_visits_and_inputs(
                 cell_idx=i,
                 streaming_terms=st,
                 face_area_downstream=A_down,
-                c_in=c_in, c_out=c_out, tau=tau,
             )
         )
+        cs.append((c_in, c_out))
     rng = np.random.default_rng(seed=seed)
     total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
     source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
     psi_angular = rng.uniform(0.02, 0.15, size=(nx, n_groups))
     psi_in = rng.uniform(0.05, 0.5, size=n_groups)
-    return visits, total_xs, source, psi_angular, psi_in
+    return visits, cs, total_xs, source, psi_angular, psi_in
 
 
 # Source kind variations: zero, constant, random.
@@ -691,7 +697,7 @@ class TestDualViewContracts:
         (a single division per cell; one ULP band).
         """
         nx = 6
-        visits, total_xs, source_random, psi_angular, psi_in = (
+        visits, cs, total_xs, source_random, psi_angular, psi_in = (
             _GEOMETRY_BUILDERS[geometry](nx, n_groups, 42)
         )
         # Override source per kind.
@@ -704,16 +710,20 @@ class TestDualViewContracts:
         per_cell_outputs = []
         psi_chain = psi_in
         for idx, visit in enumerate(visits):
+            st_v = visit.streaming_terms
+            c_in, c_out = cs[idx]
             psi_ang = (
                 None if psi_angular is None else psi_angular[idx]
             )
-            upstream = UpstreamState(
-                spatial_upstream=psi_chain,
-                angular_upstream=psi_ang,
-            )
             result = strat.update(
                 visit=visit, total_xs=total_xs[idx],
-                source=source[idx], upstream_state=upstream,
+                source=source[idx],
+                upstream_state=UpstreamState(spatial_upstream=psi_chain),
+                angular_denom_term=st_v.delta_A_over_w * c_out,
+                angular_numer_upstream=(
+                    None if psi_ang is None
+                    else st_v.delta_A_over_w * c_in * psi_ang
+                ),
             )
             per_cell_outputs.append(result.outgoing_spatial_flux)
             # Advance the chain.
@@ -722,7 +732,7 @@ class TestDualViewContracts:
 
         # ── Vectorised (a, b) builder + ordinate_scan ──────────────
         a, b = _affine_coefficients_from_visits(
-            visits, total_xs, source, psi_angular,
+            visits, cs, total_xs, source, psi_angular,
         )
         scan_out = ordinate_scan(a, b, psi_in)
 
@@ -763,13 +773,13 @@ class TestDualViewContracts:
         parallel computation).
         """
         nx, n_groups = 5, 2
-        visits, total_xs, source, psi_angular, _ = (
+        visits, cs, total_xs, source, psi_angular, _ = (
             _GEOMETRY_BUILDERS[geometry](nx, n_groups, 17)
         )
         strat = DiamondDifference()
 
         a_full, b_full = _affine_coefficients_from_visits(
-            visits, total_xs, source, psi_angular,
+            visits, cs, total_xs, source, psi_angular,
         )
 
         a_serial = np.empty((nx, n_groups))
@@ -780,6 +790,7 @@ class TestDualViewContracts:
             )
             a_one, b_one = _affine_coefficients_from_visits(
                 [visit],
+                cs[idx:idx + 1],
                 total_xs[idx:idx + 1],
                 source[idx:idx + 1],
                 psi_ang,
@@ -805,7 +816,7 @@ class TestDualViewContracts:
         are bounded by FP-non-associativity.
         """
         nx, n_groups = 20, 2
-        visits, total_xs, source, psi_angular, psi_in = (
+        visits, cs, total_xs, source, psi_angular, psi_in = (
             _GEOMETRY_BUILDERS["slab"](nx, n_groups, 11)
         )
         strat = DiamondDifference()
@@ -814,19 +825,18 @@ class TestDualViewContracts:
         psi_chain = psi_in
         baseline = np.empty((nx, n_groups))
         for idx, visit in enumerate(visits):
-            upstream = UpstreamState(
-                spatial_upstream=psi_chain,
-                angular_upstream=None,
-            )
             result = strat.update(
                 visit=visit, total_xs=total_xs[idx],
-                source=source[idx], upstream_state=upstream,
+                source=source[idx],
+                upstream_state=UpstreamState(spatial_upstream=psi_chain),
             )
             baseline[idx] = result.outgoing_spatial_flux
             psi_chain = result.outgoing_spatial_flux
 
         # ── New scan path ──────────────────────────────────────────
-        a, b = _affine_coefficients_from_visits(visits, total_xs, source, None)
+        a, b = _affine_coefficients_from_visits(
+            visits, cs, total_xs, source, None,
+        )
         scan_out = ordinate_scan(a, b, psi_in)
 
         np.testing.assert_allclose(scan_out, baseline, rtol=1e-12)

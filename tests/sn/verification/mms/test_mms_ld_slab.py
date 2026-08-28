@@ -217,8 +217,8 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     only witness, so a DIRECT one was written in the same commit —
     ``test_ld_scan_closure_refuses_non_neutral_curvature`` below.  That is
     strictly better evidence, because it exercises the guard's actual
-    predicate (a *value* signal, ``dA_w``/``c_out`` non-neutral) instead of a
-    path that merely happened to reach it.
+    predicate (a *value* signal — P4.9a: the assembled ``angular_denom_term``
+    non-neutral) instead of a path that merely happened to reach it.
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.numerics.quadrature import Quadrature
@@ -249,10 +249,18 @@ def test_ld_scan_closure_refuses_non_neutral_curvature() -> None:
     guard nothing can redden is a coverage claim an audit will trust —
     ``vv-principles`` #17.
 
-    The guard keys on a **value** signal, not a chart tag: slab carries
-    ``dA_w == 0`` and ``c_out == 0`` EXACTLY (``slab_streaming``'s neutral
-    element) and curvilinear does not.  So it is reachable directly, with no
-    mesh at all — which no earlier guard can preempt.
+    The guard keys on a **value** signal, not a chart tag: slab carries an
+    exactly-zero assembled ``angular_denom_term`` (the identity closure's
+    zero constants over ``slab_streaming``'s neutral element) and
+    curvilinear does not.  So it is reachable directly, with no mesh at
+    all — which no earlier guard can preempt.
+
+    ⚠ P4.9a re-key, stated so nobody reads more than it checks: the former
+    two-signal predicate (``dA_w`` / ``c_out`` separately) collapsed to the
+    ASSEMBLED product, so a ``dA_w ≠ 0`` with ``c_out ≡ 0`` configuration
+    (an identity closure hand-mounted on a curvilinear mesh) no longer trips
+    THIS guard — it is refused upstream by the walk admission
+    (``supports_curvilinear=False``), the primary guard.
 
     Both legs, per ``vv-principles`` #11: the neutral input is ACCEPTED and
     the non-neutral input is REFUSED.  Without the positive leg this is
@@ -266,18 +274,19 @@ def test_ld_scan_closure_refuses_non_neutral_curvature() -> None:
         V=np.array([[0.25]]),
         reaction_xs=np.array([[[1.3]]]),
     )
-    neutral = dict(dA_w=np.array([[0.0]]), c_out=np.array([[0.0]]))
 
     # POSITIVE: the slab's neutral element is admitted.
-    a, inv, w = ld.affine_scan_coefficients(**kw, **neutral)
+    a, inv, w = ld.affine_scan_coefficients(
+        **kw, angular_denom_term=np.array([[0.0]]),
+    )
     assert np.all(np.isfinite(a)) and np.all(np.isfinite(inv))
     assert np.all(np.isfinite(w))
 
-    # NEGATIVE: either non-neutral signal alone is refused.
-    for bad in ({"dA_w": np.array([[0.7]]), "c_out": np.array([[0.0]])},
-                {"dA_w": np.array([[0.0]]), "c_out": np.array([[0.3]])}):
-        with pytest.raises(NotImplementedError, match="slab/Cartesian"):
-            ld.affine_scan_coefficients(**kw, **bad)
+    # NEGATIVE: a non-neutral assembled contribution is refused.
+    with pytest.raises(NotImplementedError, match="slab/Cartesian"):
+        ld.affine_scan_coefficients(
+            **kw, angular_denom_term=np.array([[0.21]]),
+        )
 
 
 @pytest.mark.l1

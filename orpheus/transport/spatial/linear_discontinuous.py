@@ -77,8 +77,9 @@ This occupant implements the **slab/Cartesian** LD only.  The curvilinear
 :math:`(r-r_j)` weighting produces a slope-curvature coupling — is **not
 published** and must be derived.  Until then, :meth:`update` / :meth:`residual`
 raise :exc:`NotImplementedError` on a curvilinear visit (signalled by
-``upstream_state.angular_upstream is not None``, exactly as DD signals the
-presence of angular redistribution).
+unequal face areas or a non-neutral assembled angular contribution —
+P4.9a's value-keyed re-key of the retired ``angular_upstream``
+presence-signal).
 
 References
 ==========
@@ -137,20 +138,43 @@ from .scheme import (
 )
 
 
-def _require_slab(upstream_state: UpstreamState) -> None:
+def _require_slab(
+    visit: CellVisit,
+    angular_denom_term: float,
+    angular_numer_upstream: "np.ndarray | None",
+) -> None:
     r"""Guard: this occupant implements the slab/Cartesian LD only.
 
-    Curvilinear geometry carries an upstream angular half-flux (the
-    Morel-Montry redistribution thread); slab does not.  The presence of
-    ``angular_upstream`` is therefore the geometry gate — identical to the
-    signal DD uses to decide whether to run its angular closure.
+    Two independent VALUE signals, either of which refuses (P4.9a re-key —
+    the retired ``UpstreamState.angular_upstream`` presence-signal left with
+    the protocol's angular members):
+
+    * **geometry** — a curvilinear cell's two faces have different areas
+      ([M] ``face_area_inner != face_area_outer`` is exactly ``False`` on
+      every Cartesian cell — ``slab_streaming``'s neutral ``1.0``/``1.0`` —
+      and ``True`` on every constructible sphere/cylinder cell);
+    * **angular coupling** — a non-neutral assembled closure contribution
+      (``angular_denom_term != 0.0`` or a supplied
+      ``angular_numer_upstream``) means the caller is threading the
+      Morel--Montry redistribution, which LD's slab 2×2 cannot honour.
+
+    Value-keyed, so the witness needs no mesh.  Belt-and-braces: the walk
+    admission (``supports_curvilinear=False``) and the scan-path guard in
+    :meth:`LinearDiscontinuous.affine_scan_coefficients` refuse the same
+    configurations upstream.
     """
-    if upstream_state.angular_upstream is not None:
+    st = visit.streaming_terms
+    if (
+        st.face_area_inner != st.face_area_outer
+        or angular_denom_term != 0.0
+        or angular_numer_upstream is not None
+    ):
         raise NotImplementedError(
             "LinearDiscontinuous currently implements the slab/Cartesian LD "
             "only; the curvilinear (sphere/cylinder) LD cell update is "
             "not yet implemented (Issue #158, curvilinear arm). "
-            "A curvilinear visit was detected (angular_upstream is not None)."
+            "A curvilinear visit was detected (unequal face areas or a "
+            "non-neutral assembled angular contribution)."
         )
 
 
@@ -362,6 +386,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: "np.ndarray | None" = None,
     ) -> CellResult:
         r"""Solve the LD cell system; return the average flux + outflow face.
 
@@ -372,14 +399,13 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         the (average, outflow) pair — no ``CellResult`` field change).  Slab
         only (see :func:`_require_slab`).
         """
-        _require_slab(upstream_state)
+        _require_slab(visit, angular_denom_term, angular_numer_upstream)
         terms = self._schur_terms(visit, total_xs, source, upstream_state)
         psi_bar = terms.cell_average()
         psi_out = psi_bar + terms.slope(psi_bar)
         return CellResult(
             cell_average_flux=psi_bar,
             outgoing_spatial_flux=psi_out,
-            outgoing_angular_state=None,     # slab: no angular redistribution
         )
 
     def residual(
@@ -389,6 +415,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: "np.ndarray | None" = None,
     ) -> np.ndarray:
         r"""Per-cell operator residual :math:`S\,\bar\psi - \mathrm{rhs}`.
 
@@ -398,7 +427,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         :meth:`DiscretizationScheme.residual`).  Linear in ``cell_avg``; affine in
         ``source``.  Slab only.
         """
-        _require_slab(upstream_state)
+        _require_slab(visit, angular_denom_term, angular_numer_upstream)
         terms = self._schur_terms(visit, total_xs, source, upstream_state)
         return terms.eff_denom * cell_avg - terms.rhs
 
@@ -762,8 +791,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         abs_mu: np.ndarray,    # (N,)        |μ_n|
         A_down: np.ndarray,    # (N, nx)     downstream face area (slab: 1)
         A_total: np.ndarray,   # (N, nx)     A_inner + A_outer (unused; slab=2)
-        dA_w: np.ndarray,      # (N, nx)     ΔA/w curvature redistribution (slab: 0)
-        c_out: np.ndarray,     # (N, nx)     M-M outgoing closure const (slab: 0)
+        angular_denom_term: np.ndarray,  # (N, nx) assembled closure denom term (slab: 0)
         V: np.ndarray,         # (N, nx)     cell volume per ordinate
         reaction_xs: np.ndarray,  # (N, ng, nx) Σ_t in the geometry's cell ordering
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -789,22 +817,26 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         ---------------
 
         The curvilinear (sphere/cylinder) LD scan closure is not yet
-        implemented (#158).  Its
-        signal is non-neutral curvature: slab carries ``dA_w == 0`` and
-        ``c_out == 0`` EXACTLY (the :func:`slab_streaming` neutral element);
-        curvilinear carries non-zero values.  Raising here fails fast at the
+        implemented (#158).  Its signal is a non-neutral ASSEMBLED angular
+        contribution: slab carries ``angular_denom_term == 0`` EXACTLY (the
+        identity closure's zero constants over :func:`slab_streaming`'s
+        neutral element); curvilinear carries non-zero values.  ⚠ P4.9a
+        narrowing, stated so nobody widens it back blindly: the retired
+        ``(dA_w, c_out)`` form also refused ``dA_w ≠ 0`` with ``c_out ≡ 0``
+        (an identity closure hand-mounted on a curvilinear mesh) — that
+        configuration is refused UPSTREAM by the walk admission
+        (``supports_curvilinear=False``), which is the primary guard; this
+        raise is the belt-and-braces backstop at the
         :class:`~orpheus.sn.sweep.cache.CollisionCache` build
-        (``SNSolver.__init__``) before any sweep or matvec runs — so a 1-D
-        sphere/cylinder mesh carrying ``LinearDiscontinuous`` (which would match
-        ``CumprodScan.supports`` via ``is_1d and is_affine_scannable``) is
-        rejected loudly rather than silently running DD-shaped curvature math.
+        (``SNSolver.__init__``), before any sweep or matvec runs.
         """
-        if np.any(dA_w != 0.0) or np.any(c_out != 0.0):
+        if np.any(angular_denom_term != 0.0):
             raise NotImplementedError(
                 "LinearDiscontinuous.affine_scan_coefficients supports the "
                 "slab/Cartesian LD only; the curvilinear (sphere/cylinder) LD "
-                "scan closure is not yet implemented (#158).  A non-neutral curvature "
-                "was detected (dA_w / c_out are not all zero)."
+                "scan closure is not yet implemented (#158).  A non-neutral "
+                "assembled angular contribution was detected "
+                "(angular_denom_term is not all zero)."
             )
         # Single-source the LD 2×2 Schur through the shared d=1 closed form: the
         # ×V scan reads ``(a, inverse_denom, w)`` off the same helper the ÷V

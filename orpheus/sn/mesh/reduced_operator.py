@@ -294,9 +294,10 @@ class ReducedStreamingOperator:
     Two flags -- ``requires_upstream_angular_state`` and
     ``angular_marching_axis`` -- were retired here on 2026-08-26.  Both
     were exactly ``coord is not CoordSystem.CARTESIAN``, and both had
-    **zero production readers**: the concept is spelled twice already,
-    by ``upstream_state.angular_upstream is None`` (the gate the DD and
-    LD cell bodies actually branch on) and by ``SNMesh.is_cartesian``.
+    **zero production readers**: the concept was spelled twice already —
+    at the time by ``upstream_state.angular_upstream is None`` (the gate
+    the DD and LD cell bodies then branched on; itself retired at P4.9a
+    for assembled angular arguments) and by ``SNMesh.is_cartesian``.
     Their 12 test assertions each sat one line below an assertion on
     ``coord`` that already pinned the same fact.
     """

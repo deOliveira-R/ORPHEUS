@@ -4280,26 +4280,40 @@ class _OneDimScanWalk:
                             ordinate_idx=ordinate_idx,
                             mu_level_idx=level,
                         ))
+                        # P4.9a: the walk (L3, the composition site)
+                        # assembles the closure's balance contributions
+                        # from the MINTED constants and applies the
+                        # owner's march itself — the scheme closes the
+                        # SPATIAL axis only.  ``geom.c_*`` are the
+                        # closure's own per-ordinate arrays (stored
+                        # unchanged by the cache), so the values are
+                        # bit-identical to the retired visit stamp.
+                        c_in_n = geom.c_in[global_n]
+                        c_out_n = geom.c_out[global_n]
                         for visit in visits:
                             i = visit.cell_idx
-                            upstream = UpstreamState(
-                                spatial_upstream=psi_in,
-                                angular_upstream=psi_angle[:, i],
-                            )
+                            st_v = visit.streaming_terms
                             # scheme.update expects per-cell (ng,)
                             # arrays — sig_t / source slice on the cell axis.
-                            # P4.9a: the scheme closes the SPATIAL axis only.
                             result = scheme.update(
                                 visit=visit,
                                 total_xs=sig_t_p[:, i],
                                 source=QV_full[:, i],
-                                upstream_state=upstream,
+                                upstream_state=UpstreamState(
+                                    spatial_upstream=psi_in,
+                                ),
+                                angular_denom_term=(
+                                    st_v.delta_A_over_w * c_out_n
+                                ),
+                                angular_numer_upstream=(
+                                    st_v.delta_A_over_w * c_in_n
+                                    * psi_angle[:, i]
+                                ),
                             )
                             psi = result.cell_average_flux           # (ng,)
-                            # The angular axis is closed by ITS closure —
-                            # the walk (L3, the composition site) applies
-                            # the owner's march; the τ index is the GLOBAL
-                            # ordinate, exactly what the visit stamp used.
+                            # The angular axis is closed by ITS closure;
+                            # the τ index is the GLOBAL ordinate, exactly
+                            # what the retired visit stamp used.
                             psi_angle[:, i] = closure.advance_psi_half(
                                 psi, psi_angle[:, i], ordinate=global_n,
                             )

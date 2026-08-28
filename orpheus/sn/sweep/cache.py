@@ -532,13 +532,16 @@ class CollisionCache:
         # a = 2|μ|·A_total/denom − 1, denom = 2|μ|·A_down + dA_w·c_out
         # + Σ_t·V.  The scheme owns the closure math; the cache keeps the
         # storage and the (order-dependent) cumprod.
+        # P4.9a row 3b: the caller ASSEMBLES the closure's denominator
+        # contribution ((ΔA/w)·c_out — same expression DD used to build
+        # in-scheme, bit-identical) so the scheme family sees no
+        # closure-named constant.
         a_attenuation, inverse_denom, face_blend_weight = (
             scheme.affine_scan_coefficients(
                 abs_mu=geom.abs_mu,
                 A_down=geom.A_down,
                 A_total=geom.A_total,
-                dA_w=geom.dA_w,
-                c_out=geom.c_out,
+                angular_denom_term=geom.dA_w * geom.c_out[:, None],
                 V=geom.V,
                 reaction_xs=sig_t_chain,
             )

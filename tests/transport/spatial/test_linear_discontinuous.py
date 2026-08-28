@@ -113,7 +113,7 @@ class TestLDLinearExactness:
         Q_bar = mu * b + sig * (a + b * xm)            # cell-average source
         Q_hat = sig * b * h / 2.0                      # slope-moment source
         source = _moment_source(Q_bar * h, Q_hat * h)
-        upstream = UpstreamState(spatial_upstream=psi_in, angular_upstream=None)
+        upstream = UpstreamState(spatial_upstream=psi_in)
 
         result = LinearDiscontinuous().update(visit, sig, source, upstream)
 
@@ -128,7 +128,7 @@ class TestLDLinearExactness:
         # The slope is recoverable from (average, outflow): ψ̂ = ψ_out − ψ̄.
         psi_hat = result.outgoing_spatial_flux - result.cell_average_flux
         np.testing.assert_allclose(psi_hat, b * h / 2.0, rtol=1e-12, atol=1e-13)
-        assert result.outgoing_angular_state is None   # slab: no redistribution
+        # P4.9a: CellResult is purely spatial — no angular field at all.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -154,7 +154,7 @@ class TestLDRoundTrip:
             rng.uniform(0.2, 2.4, n_groups), rng.uniform(-0.6, 0.6, n_groups),
         )
         psi_in = rng.uniform(0.05, 0.4, n_groups)
-        upstream = UpstreamState(spatial_upstream=psi_in, angular_upstream=None)
+        upstream = UpstreamState(spatial_upstream=psi_in)
 
         strat = LinearDiscontinuous()
         result = strat.update(visit, sig, source, upstream)
@@ -170,7 +170,7 @@ class TestLDRoundTrip:
         sig = np.array([1.2, 0.7])
         source = _moment_source(np.array([1.5, 0.4]), np.array([0.3, -0.2]))
         upstream = UpstreamState(
-            spatial_upstream=np.array([0.2, 0.1]), angular_upstream=None,
+            spatial_upstream=np.array([0.2, 0.1]),
         )
         strat = LinearDiscontinuous()
         rng = np.random.default_rng(42)
@@ -191,7 +191,7 @@ class TestLDRoundTrip:
         sig = np.array([1.2, 0.7])
         source = _moment_source(np.array([1.5, 0.4]), np.array([0.3, -0.2]))
         upstream = UpstreamState(
-            spatial_upstream=np.array([0.2, 0.1]), angular_upstream=None,
+            spatial_upstream=np.array([0.2, 0.1]),
         )
         strat = LinearDiscontinuous()
         rng = np.random.default_rng(7)
@@ -234,17 +234,39 @@ class TestLDTraits:
 class TestLDGuards:
     @pytest.mark.foundation
     def test_curvilinear_visit_raises(self) -> None:
-        """Curvilinear LD is not yet implemented (#158) — a curvilinear visit
-        (angular_upstream not None) must raise, not silently mis-solve."""
+        """Curvilinear LD is not yet implemented (#158) — must raise, not
+        silently mis-solve.
+
+        P4.9a re-key: the retired ``angular_upstream`` presence-signal left
+        with the protocol's angular members; the guard now keys on two
+        VALUE signals, each witnessed by its own leg here — (a) unequal
+        face areas (the geometric curvature truth, mesh-free), (b) a
+        non-neutral ASSEMBLED angular contribution.  M6-arm proof:
+        no-op the guard and both legs red.
+        """
+        import dataclasses
+
         visit, _, _, _ = _slab_visit(cell_idx=2, n_ord=4)
         sig = np.array([1.0, 0.8])
         source = _moment_source(np.array([1.0, 0.5]), np.array([0.1, 0.0]))
-        curvilinear = UpstreamState(
-            spatial_upstream=np.array([0.2, 0.1]),
-            angular_upstream=np.array([0.15, 0.05]),   # present → curvilinear
+        upstream = UpstreamState(spatial_upstream=np.array([0.2, 0.1]))
+
+        # Leg (a): curvilinear GEOMETRY — a visit whose faces differ.
+        st_curv = dataclasses.replace(
+            visit.streaming_terms, face_area_inner=1.2, face_area_outer=1.5,
         )
+        curv_visit = dataclasses.replace(visit, streaming_terms=st_curv)
         with pytest.raises(NotImplementedError, match="curvilinear"):
-            LinearDiscontinuous().update(visit, sig, source, curvilinear)
+            LinearDiscontinuous().update(curv_visit, sig, source, upstream)
+
+        # Leg (b): a non-neutral assembled ANGULAR contribution on a slab
+        # visit — threading the M-M redistribution LD cannot honour.
+        with pytest.raises(NotImplementedError, match="curvilinear"):
+            LinearDiscontinuous().update(
+                visit, sig, source, upstream,
+                angular_denom_term=0.3,
+                angular_numer_upstream=np.array([0.15, 0.05]),
+            )
 
     @pytest.mark.foundation
     def test_diamond_shaped_source_raises(self) -> None:
@@ -253,7 +275,7 @@ class TestLDGuards:
         sig = np.array([1.0, 0.8])
         dd_source = np.array([1.0, 0.5])               # (ng,) — wrong for LD
         upstream = UpstreamState(
-            spatial_upstream=np.array([0.2, 0.1]), angular_upstream=None,
+            spatial_upstream=np.array([0.2, 0.1]),
         )
         with pytest.raises(ValueError, match="two-moment source"):
             LinearDiscontinuous().update(visit, sig, dd_source, upstream)
@@ -317,7 +339,7 @@ class TestLDKernel:
         # group 1 (×V per-cell): source = (Q̄·h, 0) → flat
         res1 = strat.update(
             visit, sig, _moment_source(q_bar * h, np.zeros(2)),
-            UpstreamState(spatial_upstream=psi_in, angular_upstream=None),
+            UpstreamState(spatial_upstream=psi_in),
         )
         np.testing.assert_allclose(
             res1.cell_average_flux, psi_avg2[..., AVERAGE_MOMENT].ravel(),
@@ -365,8 +387,8 @@ class TestLDKernel:
         # group 3 (×V coefficients) + the generic base reconstruction staticmethods.
         a, inv, w = strat.affine_scan_coefficients(
             abs_mu=np.array([mu]), A_down=np.array([[1.0]]),
-            A_total=np.array([[2.0]]), dA_w=np.array([[0.0]]),
-            c_out=np.array([[0.0]]), V=np.array([[h]]),
+            A_total=np.array([[2.0]]),
+            angular_denom_term=np.array([[0.0]]), V=np.array([[h]]),
             reaction_xs=sig[None, :, None],
         )                                                    # each (1, 2, 1)
         psi_in_b = psi_in[None, :, None]                     # (1, 2, 1)
@@ -445,13 +467,11 @@ class TestLDKernel:
 
 @pytest.mark.foundation
 def test_ld_returns_cell_result() -> None:
-    """update returns a CellResult (slab: outgoing_angular_state is None)."""
+    """update returns a CellResult (purely spatial — P4.9a)."""
     visit, _, _, _ = _slab_visit(cell_idx=1, n_ord=4)
     sig = np.array([1.1])
     source = _moment_source(np.array([0.9]), np.array([0.2]))
-    upstream = UpstreamState(
-        spatial_upstream=np.array([0.3]), angular_upstream=None,
-    )
+    upstream = UpstreamState(spatial_upstream=np.array([0.3]))
     result = LinearDiscontinuous().update(visit, sig, source, upstream)
     assert isinstance(result, CellResult)
-    assert result.outgoing_angular_state is None
+    assert result.outgoing_spatial_flux is not None

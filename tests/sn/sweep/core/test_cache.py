@@ -429,21 +429,28 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     has_downstream = np.zeros(nx, dtype=bool)
     psi_face_in = psi_in
     visits_full = list(sn_mesh.dag_walk(ordinate_idx=n))
+    # P4.9a: the caller assembles the closure contributions from the
+    # closure's own per-ordinate constants (the walk's production idiom).
+    closure = sn_mesh.pole_angular_closure
+    c_in_n = closure.c_in_per_ordinate[n]
+    c_out_n = closure.c_out_per_ordinate[n]
     for k_chain in range(nx):
         cell_i = int(chain[k_chain])
         visit = visits_full[k_chain]
+        st_v = visit.streaming_terms
         psi_a_in_cell = (
             psi_a_in_chain[:, k_chain] if psi_a_in_chain is not None else None
-        )
-        upstream = UpstreamState(
-            spatial_upstream=psi_face_in,
-            angular_upstream=psi_a_in_cell,
         )
         result = dd.update(
             visit=visit,
             total_xs=sig_t[:, cell_i],                         # (ng,) — group axis at axis 0
             source=QV_chain[:, k_chain],                       # (ng,)
-            upstream_state=upstream,
+            upstream_state=UpstreamState(spatial_upstream=psi_face_in),
+            angular_denom_term=st_v.delta_A_over_w * c_out_n,
+            angular_numer_upstream=(
+                None if psi_a_in_cell is None
+                else st_v.delta_A_over_w * c_in_n * psi_a_in_cell
+            ),
         )
         if result.outgoing_spatial_flux is not None:
             psi_face_chain_ref[k_chain] = result.outgoing_spatial_flux
@@ -513,10 +520,12 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
                 total_xs=sig_t[:, cell_i],                                 # (ng,)
                 volume=st.volume,
                 psi_face_in=np.zeros((ng, 1)),
-                # Angular contributions assembled from the visit's stamped
-                # closure data (c stamped by dag_walk).
+                # Angular contribution assembled from the closure's own
+                # per-ordinate constant (P4.9a — the visit is purely
+                # spatial; the closure owns the c-map).
                 angular_denom_term=np.array(
-                    [st.delta_A_over_w * visit.c_out],
+                    [st.delta_A_over_w
+                     * sn_mesh.pole_angular_closure.c_out_per_ordinate[n]],
                 ),
                 angular_numer_upstream=np.zeros((ng, 1)),
             )

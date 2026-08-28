@@ -1637,41 +1637,24 @@ class SNMesh(MaterialMesh):
         self,
         *,
         cell_idx: int,
-        global_ordinate: int,
         face_area_downstream: float,
         st: StreamingTerms,
     ) -> CellVisit:
-        r"""Assemble one :class:`CellVisit`, sourcing the angular-closure τ / c.
+        r"""Assemble one :class:`CellVisit` — purely spatial (P4.9a).
 
-        Issue #236 Phase 2 B2/B3 — the single production site that stamps the
-        Morel--Montry angular weight :attr:`CellVisit.tau` (B3) and the
-        derived weighted-diamond constants
-        (:attr:`CellVisit.c_in` / :attr:`CellVisit.c_out`, B2) onto a visit.
         ALL four ``dag_walk`` yield paths (slab / sphere / cylinder /
-        cylindrical-degenerate) funnel through here so the lookup lives
-        in exactly ONE place (Pattern 2 — no per-site divergence).
-
-        The values are read from the mesh's canonical angular-closure
-        owner :attr:`pole_angular_closure` via its per-global-ordinate
-        ``(N,)`` accessors
-        (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`
-        / ``c_in_per_ordinate`` / ``c_out_per_ordinate``) — NOT rebuilt from
-        ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the former
-        duplication sites carried).  ``global_ordinate`` is the
-        GLOBAL ordinate index: ``direction_idx`` for slab / sphere,
-        ``level_indices[mu_level_idx][m]`` for cylinder (mirroring the
-        index :meth:`streaming_terms` resolves).  Slab / Cartesian reads
-        the identity closure's neutral values, so ``c_in == c_out == 0.0``
-        and ``tau == 1.0`` there.
+        cylindrical-degenerate) funnel through here (Pattern 2 — no
+        per-site divergence).  The former Morel--Montry stamp
+        (``tau`` / ``c_in`` / ``c_out``, #236 Phase 2 B2/B3) left with
+        the un-weld: a MESH copying closure data onto visits was the
+        smell — the closure's contributions now reach a scheme as
+        assembled arguments the SN walk builds from the closure's own
+        minted constants.
         """
-        closure = self.pole_angular_closure
         return CellVisit(
             cell_idx=cell_idx,
             streaming_terms=st,
             face_area_downstream=face_area_downstream,
-            c_in=float(closure.c_in_per_ordinate[global_ordinate]),
-            c_out=float(closure.c_out_per_ordinate[global_ordinate]),
-            tau=float(closure.tau_per_ordinate[global_ordinate]),
         )
 
     def _iter_cartesian_visits(
@@ -1695,11 +1678,9 @@ class SNMesh(MaterialMesh):
             st = self.reduced.streaming_terms(
                 cell_idx=i, direction_idx=ordinate_idx,
             )
-            # Slab: ``direction_idx`` IS the global ordinate; the identity
-            # closure yields neutral c == 0.0 (#236 Phase 2 B2).
+            # Slab: ``direction_idx`` IS the global ordinate.
             yield self._make_cell_visit(
                 cell_idx=i,
-                global_ordinate=ordinate_idx,
                 face_area_downstream=1.0,
                 st=st,
             )
@@ -1729,10 +1710,9 @@ class SNMesh(MaterialMesh):
             face_downstream = (
                 st.face_area_outer if select_outer else st.face_area_inner
             )
-            # Sphere: ``direction_idx`` IS the global ordinate (#236 B2).
+            # Sphere: ``direction_idx`` IS the global ordinate.
             yield self._make_cell_visit(
                 cell_idx=i,
-                global_ordinate=ordinate_idx,
                 face_area_downstream=face_downstream,
                 st=st,
             )
@@ -1779,11 +1759,9 @@ class SNMesh(MaterialMesh):
                 )
                 # Cylinder: the global ordinate is resolved through the
                 # level partition (``global_n`` above) — the SAME index
-                # ``streaming_terms`` used to read the per-level α / τ
-                # (#236 Phase 2 B2).
+                # ``streaming_terms`` resolves.
                 yield self._make_cell_visit(
                     cell_idx=i,
-                    global_ordinate=global_n,
                     face_area_downstream=0.0,
                     st=st,
                 )
@@ -1804,10 +1782,9 @@ class SNMesh(MaterialMesh):
             face_downstream = (
                 st.face_area_outer if select_outer else st.face_area_inner
             )
-            # Cylinder: global ordinate via the level partition (#236 B2).
+            # Cylinder: global ordinate via the level partition.
             yield self._make_cell_visit(
                 cell_idx=i,
-                global_ordinate=global_n,
                 face_area_downstream=face_downstream,
                 st=st,
             )

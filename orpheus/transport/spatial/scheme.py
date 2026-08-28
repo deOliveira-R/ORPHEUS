@@ -12,9 +12,10 @@ sphere/cylinder) the downstream angular half-flux.
 The cell-update math is **the same algebra** in slab, sphere, and
 cylindrical 1-D — only the populated fields of
 :class:`StreamingTerms` change; the
-remaining ``if`` checks in a strategy test the *structural presence* of a
-direction (``face_area_downstream > 0.0``; ``angular_upstream is not
-None``), NOT the geometry kind (the geometry-as-data collapse is
+remaining ``if`` check in a strategy tests the *structural presence* of a
+downstream face (``face_area_downstream > 0.0``), NOT the geometry kind
+— and the angular closure's contributions arrive as ASSEMBLED arguments
+(P4.9a), never as a thread the scheme inspects (the geometry-as-data collapse is
 ``docs/theory/foundations/discretization.rst §discretization-space-angle``).
 Lifting the closure out of the sweep body into a
 :class:`DiscretizationScheme` strategy (Cardinal Rule 2) lets the
@@ -129,9 +130,9 @@ class StreamingTerms:
       face_area_outer = 1.0``, ``delta_A_over_w = 0.0``.  The
       Morel–Montry angular weight is NOT carried here (Issue #236
       Step C — it is closure-owned); the neutral slab closure
-      (IdentityAngularClosure) supplies τ = 1, α = 0 and stamps the
-      derived c on the CellVisit, but ``upstream_state.angular_upstream``
-      is ``None`` for slab so the M-M contribution never engages.  Plus
+      (IdentityAngularClosure) supplies τ = 1, α = 0, so the assembled
+      angular contributions the caller hands a scheme (P4.9a) are the
+      neutral zeros and the M-M contribution never engages.  Plus
       the always-populated ``chord_length``, ``mu``, ``volume``,
       ``abs_mu``.
     * **Sphere / cylinder**: physically-populated curvature fields
@@ -188,11 +189,11 @@ class StreamingTerms:
     (Step 2.5; slab carries neutral values) as a required ``float``
     (Pattern 4), so cell-update strategies consume the same packet
     regardless of chart — geometry is **data, not control-flow**.  Slab
-    vs curvilinear is discriminated downstream by
-    ``upstream_state.angular_upstream is None`` (slab has no half-angle
-    state), NOT by any field on this geometry packet — Issue #236 Step C
-    retired the former M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
-    fields (the angular closure now owns that data).
+    vs curvilinear is carried by the VALUES (neutral vs physical
+    curvature fields; the assembled angular contributions zero vs
+    non-neutral), NOT by any flag on this geometry packet — Issue #236
+    Step C retired the former M-M ``alpha_in`` / ``alpha_out`` /
+    ``tau_mm`` fields (the angular closure owns that data).
     """
 
     chord_length: float
@@ -314,19 +315,21 @@ class CellVisit:
     inner/outer view.
 
     A **transport-layer** per-cell visit packet — method-generic, not
-    SN-only.  It lives in :mod:`orpheus.transport.spatial`, and its
-    sweep-resolved angular-closure fields are plain floats with
-    **Cartesian-neutral defaults** (:attr:`c_in` / :attr:`c_out`
-    ``= 0.0``, :attr:`tau` ``= 1.0``), so a cell-graph sweep in
-    Cartesian geometry populates only ``cell_idx`` +
-    ``streaming_terms`` and inherits the neutral rest.  SN's mesh is
-    the producer today
-    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` stamps
-    it); any other cell-graph transport method may stamp the same
-    packet.  MoC is deliberately **not** such a consumer (its per-ray
-    traversal has a different mathematical structure — fiber bundles /
-    solution sheaves, not a topological sort over a cell graph), so
-    there is no shared ``SweepGraph`` Protocol.
+    SN-only, and (P4.9a) purely SPATIAL: it carries the cell's
+    evaluation-point data and the sweep-resolved downstream face.  The
+    angular closure's contributions reach a scheme as ASSEMBLED
+    arguments of :meth:`DiscretizationScheme.update` / ``residual``
+    (``angular_denom_term`` / ``angular_numer_upstream``), never as
+    closure-named fields on the visit — the former ``c_in`` / ``c_out``
+    / ``tau`` stamp left with the un-weld (the closure owns them; the
+    mesh no longer copies closure data onto visits).  SN's mesh is the
+    producer today
+    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`); any other
+    cell-graph transport method may stamp the same packet.  MoC is
+    deliberately **not** such a consumer (its per-ray traversal has a
+    different mathematical structure — fiber bundles / solution
+    sheaves, not a topological sort over a cell graph), so there is no
+    shared ``SweepGraph`` Protocol.
 
     Attributes
     ----------
@@ -363,37 +366,6 @@ class CellVisit:
           face flow, so the ``2|\mu| A_{\rm down}`` term vanishes
           via ``A_down = 0`` (geometric truth) rather than via the
           numerical threshold ``abs_mu < 1e-15``.
-    c_in : float
-        **Angular-closure-owned**: the Morel--Montry weighted-diamond
-        upstream-numerator constant
-        :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2}
-        + \alpha_{m-1/2}` for THIS visit's ordinate, stamped on the visit
-        by the mesh from its bound ``pole_angular_closure``
-        (:class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`).
-        ``0.0`` for slab / Cartesian (the identity closure carries no
-        angular redistribution).  The spatial scheme consumes it as DATA
-        on the visit; it must NOT be rebuilt from ``streaming_terms``
-        (that would re-fuse the spatial and angular closures).
-    c_out : float
-        **Angular-closure-owned**: the Morel--Montry weighted-diamond
-        denominator constant :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m`
-        for THIS visit's ordinate, stamped by the mesh (see :attr:`c_in`).
-        ``0.0`` for slab / Cartesian.
-    tau : float
-        **Angular-closure-owned**: the Morel--Montry angular weight
-        :math:`\tau_m` for THIS visit's ordinate — the FUNDAMENTAL weight
-        (Bailey--Morel--Chang 2010 Eq. 43) from which :attr:`c_in` /
-        :attr:`c_out` are derived, stamped by the mesh (see :attr:`c_in`).
-        The DEFAULT is ``1.0`` (NOT ``0.0``): :math:`\tau = 1` is the
-        neutral M-M weight the Cartesian identity closure supplies, making
-        the angular recurrence
-        :math:`(\bar\psi - (1-\tau)\psi^{\theta}_{\rm in})/\tau` the
-        identity and keeping :math:`c_{\rm out} = \alpha_{\rm out}/\tau`
-        well-defined.  ⚠ Do NOT default :attr:`tau` to ``0.0`` (like
-        :attr:`c_in` / :attr:`c_out`) — it is a divide-by-zero landmine in
-        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`'s
-        angular thread.
-
     Notes
     -----
     The companion :attr:`UpstreamState.spatial_upstream` is **also**
@@ -412,9 +384,6 @@ class CellVisit:
     cell_idx: int
     streaming_terms: StreamingTerms
     face_area_downstream: float = 0.0
-    c_in: float = 0.0
-    c_out: float = 0.0
-    tau: float = 1.0
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -432,18 +401,16 @@ class UpstreamState:
         upstream radial face — :math:`\psi_{i-1/2}` for sphere /
         cylinder; the upstream face flux for slab.  Always populated
         (the sweep always carries a face flux into the cell update).
-    angular_upstream :
-        Shape ``(ng,)`` for sphere / cylinder; ``None`` for slab.
-        :math:`\psi_{n-1/2,\,i}` — the half-flux at the upstream
-        half-angle on this cell, used by the Morel--Montry closure
-        and the :math:`\Delta A/w \cdot \alpha_{n-1/2}` source
-        contribution in curvilinear geometry.
+
+    P4.9a: the former ``angular_upstream`` field left — the angular
+    thread belongs to the angular closure's march, which the SN walk
+    applies; a scheme sees the thread only through the assembled
+    ``angular_numer_upstream`` argument.
 
     Frozen + slotted: instances are immutable and lightweight.
     """
 
     spatial_upstream: np.ndarray
-    angular_upstream: np.ndarray | None = None
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -466,19 +433,16 @@ class CellResult:
         (``streaming_terms.abs_mu < 1e-15``) where the cell has no
         radial face flow.  For Diamond Difference,
         :math:`\psi_{i+1/2} = 2\overline{\psi}_i - \psi_{i-1/2}`.
-    outgoing_angular_state :
-        Shape ``(ng,)`` for sphere / cylinder; ``None`` for slab.
-        :math:`\psi_{n+1/2,\,i}` from the Morel--Montry closure
-        :math:`\psi_{n+1/2} = (\overline{\psi} -
-        (1-\tau_{mm})\,\psi_{n-1/2})/\tau_{mm}`.  Slab geometry has
-        no angular redistribution and returns ``None``.
+    P4.9a: the former ``outgoing_angular_state`` field left — a spatial
+    scheme closes no angular axis; the walk applies the closure's march
+    (:meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`)
+    to the returned :attr:`cell_average_flux` itself.
 
     Frozen + slotted: instances are immutable and lightweight.
     """
 
     cell_average_flux: np.ndarray
     outgoing_spatial_flux: np.ndarray | None = None
-    outgoing_angular_state: np.ndarray | None = None
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -732,8 +696,9 @@ class DiscretizationScheme(Protocol):
         dip) — that is an angular-axis result.  Read-only class attribute.
     supports_curvilinear : bool
         Whether the scheme has a CURVILINEAR (sphere/cylinder) cell closure —
-        i.e. whether :meth:`update` / :meth:`residual` handle the Morel–Montry
-        angular-redistribution thread (a non-``None`` ``angular_upstream``).
+        i.e. whether :meth:`update` / :meth:`residual` accept non-neutral
+        ASSEMBLED angular contributions (P4.9a: ``angular_denom_term`` /
+        ``angular_numer_upstream``) in their balance.
         ``True`` for Diamond Difference; ``False`` (the default) for
         Linear-Discontinuous (the curvilinear LD closure is not yet implemented —
         Issue #158 curvilinear arm / #6; published: Adams-Martin 1992 App. A).  The 1-D sweep-strategy selection
@@ -769,8 +734,11 @@ class DiscretizationScheme(Protocol):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: np.ndarray | None = None,
     ) -> CellResult:
-        r"""Compute the per-cell average flux and downstream states.
+        r"""Compute the per-cell average flux and the downstream SPATIAL state.
 
         Parameters
         ----------
@@ -800,15 +768,27 @@ class DiscretizationScheme(Protocol):
             ``upstream_state.spatial_upstream`` is the flux flowing
             **into** this cell from the previously-visited cell —
             already sweep-direction-resolved by the orchestrator.
+        angular_denom_term :
+            Scalar.  The angular closure's ASSEMBLED contribution to the
+            cell-balance denominator for this (cell, ordinate) — for the
+            Morel--Montry closure, :math:`(\Delta A/w)\,c_{\rm out}`.
+            Default ``0.0`` (Cartesian / no angular coupling).  Assembled
+            by the CALLER (the SN walk) from closure-minted constants;
+            a scheme consumes it as data and never derives it (P4.9a).
+        angular_numer_upstream :
+            Shape ``(ng,)`` or ``None``.  The closure's assembled
+            contribution to the upstream numerator —
+            :math:`(\Delta A/w)\,c_{\rm in}\,\psi^a_{m-1/2}` for M-M.
+            ``None`` means the zero contribution.
 
         Returns
         -------
         CellResult
-            The cell-average flux + downstream states.  Slab
-            consumers ignore ``outgoing_angular_state``;
-            cylindrical-degenerate consumers handle
-            ``outgoing_spatial_flux is None`` by skipping the
-            face-flux update.
+            The cell-average flux + the downstream spatial state
+            (``outgoing_spatial_flux is None`` on the
+            cylindrical-degenerate visit — the caller skips the
+            face-flux update).  P4.9a: no angular output — the walk
+            applies the closure's march to ``cell_average_flux``.
         """
         ...
 
@@ -819,10 +799,14 @@ class DiscretizationScheme(Protocol):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: np.ndarray | None = None,
     ) -> np.ndarray:
         r"""Per-cell operator residual :math:`L_{\text{cell}}\,\bar\psi - q`.
 
-        Companion to :meth:`update`: where ``update`` answers the
+        Takes the same assembled angular contributions as :meth:`update`
+        (see there).  Companion to :meth:`update`: where ``update`` answers the
         **solve direction** ("given the source and upstream state,
         find the cell-average flux that satisfies the cell balance"),
         :meth:`residual` answers the **apply direction** ("given a
@@ -1208,6 +1192,9 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: np.ndarray | None = None,
     ) -> CellResult:
         ...
 
@@ -1219,6 +1206,9 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         total_xs: np.ndarray,
         source: np.ndarray,
         upstream_state: UpstreamState,
+        *,
+        angular_denom_term: float = 0.0,
+        angular_numer_upstream: np.ndarray | None = None,
     ) -> np.ndarray:
         r"""Per-cell operator residual :math:`L_{\text{cell}}\,\bar\psi - q`.
 
@@ -1396,12 +1386,17 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         abs_mu: np.ndarray,
         A_down: np.ndarray,
         A_total: np.ndarray,
-        dA_w: np.ndarray,
-        c_out: np.ndarray,
+        angular_denom_term: np.ndarray,
         V: np.ndarray,
         reaction_xs: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         r""":math:`\Sigma_t`-epoch affine-scan coefficients ``(a, inverse_denom, w)``.
+
+        P4.9a (row 3b): the angular closure's denominator contribution
+        arrives ASSEMBLED — ``angular_denom_term`` is the ``(N, nx)``
+        product the CALLER builds from closure-minted constants (M-M:
+        ``(ΔA/w)·c_out``; Cartesian: zeros).  A scheme adds it to its
+        diagonal as data and never sees a closure-named constant.
 
         The scheme's **entire** group-3 contribution (#158 the coefficient
         model): the three per-ordinate-per-cell-per-group coefficients that

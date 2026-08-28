@@ -158,14 +158,6 @@ def test_every_per_cell_consumer_reaches_the_mesh_closure(monkeypatch):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "RED until P4.9a row 3 sheds the protocol's angular members "
-        "(CellVisit.{tau, c_in, c_out}, UpstreamState.angular_upstream, "
-        "CellResult.outgoing_angular_state)."
-    ),
-)
 def test_spatial_protocol_carries_no_angular_member():
     """[foundation] The L2 visit family is purely spatial (row 3's half).
 
