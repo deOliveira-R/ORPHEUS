@@ -892,12 +892,61 @@ not save it even if `geometry` were covered by it (it is `INPUT_PACKAGES`, so it
 is not). `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES` and
 `transport` is L2 ⟹ **a declared violation with a red waiting for it.**
 
-⟹ **ORDERING CONSTRAINT: P4.3 cannot precede P4.4.** P4.4 dissolves
-`geometry/reduced_operator.py` and re-homes `streaming_terms()` into `sn/`;
-once the producer is there the import is not merely legal but the established
-direction (`[M]` `sn → transport` = **171**). Either run P4.4 first, or fuse
-them — §6b's rule that the unit of work is the call-site set, applied to a type
-whose only constructor is the thing being left behind.
+⟹ **ORDERING CONSTRAINT: P4.3 cannot precede P4.4.** P4.4 re-homes
+`streaming_terms()` into `sn/`; once the producer is there the import is not
+merely legal but the established direction (`[M]` `sn → transport` = **171**).
+
+#### ✅ And the REVERSE dependency, checked 2026-08-28 — reordering is clean
+
+⚠ The clause above asserted a one-way dependency after measuring only one
+direction, which is the very defect §6d exists to name. Checked properly:
+**P4.4 does NOT depend on P4.3**, so the two reorder rather than needing to
+fuse.
+
+`[M]` `FORBIDDEN_EDGES["sn"] = L3_PACKAGES - {"sn"}` and `geometry` is
+`INPUT_PACKAGES` ⟹ **`sn → geometry` is LEGAL.** So the interval state — the
+producer in `sn/`, `StreamingTerms` still in `geometry/` — is clean in every
+direction:
+
+| interval edge | verdict |
+|---|---|
+| `sn` → `geometry` (the producer constructs `StreamingTerms`) | legal — `geometry` is INPUT |
+| `transport` → `geometry` (`cell_balance.py:79`, `scheme.py:92`) | unchanged from today (`[M]` 16 such edges) |
+| `geometry` → anything L2/L3 | none — the residual file needs only `Mesh1D` / numpy |
+
+⛔ **But P4.4's SCOPE changes twice, and both are easy to miss:**
+
+**(a) The module DELETION moves out of P4.4 and into P4.3.** P4.4's row says
+*"the residue to `sn/`, **and the module is deleted**"* — it cannot be, because
+`StreamingTerms` is still defined there and `[M]` `transport` imports it at
+**runtime** from that exact module. The file survives P4.4 holding
+`StreamingTerms`, and dies when P4.3 moves it out.
+
+**(b) `geometry/__init__.py`'s re-export must be DELETED, not re-pointed** —
+and this is a §6d item for **P4.4 itself**. `[M]` `geometry/__init__.py:30`
+re-exports 7 movers; re-pointing that line at `sn/` would be `geometry → sn`,
+**forbidden**. `[M]` its consumers are **11 files** — 3 in `orpheus/sn/`
+(`augmented_mesh.py:32`, `radial_characteristic.py:142`,
+`angular/closure.py:176`) and 8 under `tests/` — every one of which re-points
+to the new home in the same step.
+⚠ `[M]` the linter walks `ORPHEUS_ROOT = .../orpheus` only, so the 3
+`tests/transport/spatial/*` files that import `slab_streaming` from
+`orpheus.geometry` are **not gated** and will not go red when they start
+importing from `sn/`. Legal, and worth a look: a *transport* test reaching into
+`sn/` for a fixture is the layering smell the linter cannot see.
+
+⭐ **And the thing that is NOT a blocker, contrary to how it reads:**
+`AngularMeasure`'s retirement is suspended into CS5, which sounds like it
+strands the file. `[M]` it has **5 use sites, all inside `reduced_operator.py`
+itself** (the three factory signatures plus `angular_redistribution`), and
+**zero** users anywhere else. So it travels with the factories and does not
+keep the module alive. CS5 decides whether it should EXIST; P4.4 decides where
+it LIVES — separable, and moving it prejudges nothing.
+
+⟹ **Ruling: reorder, do not fuse.** §6b says fuse when a step boundary cuts a
+call-site set; here it does not — the interval compiles and violates no edge.
+Two smaller gated steps beat one large one, and P4.4 is already moving ~8
+symbols and re-pointing 11 files.
 
 ⚠ **Why this survived being written, and it is worth more than the fix:** the
 row says *"no new edge **either way**"* — which is **§6d's own vocabulary**. It
