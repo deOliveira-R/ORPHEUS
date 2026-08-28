@@ -58,6 +58,7 @@
 > | `7c5a8fb3` | **P4.1c** | the `SNMesh` deprecation shims retire |
 > | `16501ca0` | **P4.4** | the connection coefficients come home — 4 symbols to `sn/mesh/`, tests follow |
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
+> | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -73,7 +74,17 @@
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
 > and `dead_references` 0 throughout.
 >
-> ### ▶ NEXT — **P4.3**, then **P4.9**. (P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
+> ### ▶ NEXT — **P4.9**. (P4.3 ✅ `da507e3d`, P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
+>
+> ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
+> §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
+> charter's edit list: rows 1–3 (kill the twin, retire `cell_balance_terms`,
+> shed the protocol's angular members) are the small coherent step; row 4 is
+> `[M]` a **~150-call-site migration** (`StreamingOperator(sn_mesh)`, 1
+> production + ~148 test sites in ~40 files) and row 5 touches `[M]` **~60
+> production reads** of `SNMesh.scheme`/`pole_angular_closure` in 11 files
+> (incl. an L2 reach-through at `transport/radial_characteristic_field.py:360`).
+> A **P4.9a / P4.9b split** looks forced — rule it at the design round.
 >
 > ⭐ **P4.9 is NEW, chartered 2026-08-28 (user)** — *each axis is closed by its
 > own closure, and the operator composes them*. It closes **#407**, kills the
@@ -152,7 +163,7 @@
 > | `streaming_terms` dispatches on three chart arms | ✅ **REMEDIED by P4.1b** — one body plus a 2-way resolution of what `direction_idx` MEANS (global ordinate vs within-level index). That surviving `if` is P4.7's, not a chart dispatch. |
 > | P4.2 retires `AngularMeasure` — "the 3 factories read 0 of its 6 members" | ⛔ **SUSPENDED into CS5.** That argued CONSUMERS; the open question is TYPE DESIGN (should `DiscreteMeasure` branch into Spatial/Angular/Energy?). `[M]` it has **5 use sites, all inside `reduced_operator.py`**, zero elsewhere ⟹ it travels with the factories at P4.4 and strands nothing. CS5 rules whether it should EXIST; P4.4 rules where it LIVES. |
 > | the α cluster is **five** symbols | ⛔ **SIX.** `[M]` `AngularRedistribution` annotates a field with `AngularMeasure`, so it had to travel too — leaving it behind is `geometry` naming an `sn` type. A grep for `alpha` finds **3 of 6**. |
-> | `StreamingTerms` / the connection operator / the α cluster live in `geometry/` | ✅ **All moved.** `ReducedStreamingOperator` + the 3 factories → `sn/mesh/reduced_operator.py` (P4.4 `16501ca0`); the 6 α symbols → `sn/angular/redistribution.py` (P4.2 `5940deba`). `[M]` `geometry/reduced_operator.py` now holds **only `StreamingTerms`** and imports **nothing but `dataclasses`**. P4.3 deletes it. |
+> | `StreamingTerms` / the connection operator / the α cluster live in `geometry/` | ✅ **All moved.** `ReducedStreamingOperator` + the 3 factories → `sn/mesh/reduced_operator.py` (P4.4 `16501ca0`); the 6 α symbols → `sn/angular/redistribution.py` (P4.2 `5940deba`). `[M]` `geometry/reduced_operator.py` now holds **only `StreamingTerms`** and imports **nothing but `dataclasses`**. ✅ P4.3 `da507e3d` moved the packet to `transport/spatial/scheme.py:107` and DELETED the module. |
 > | the L0 ladder imports `alpha_dome` from production | ✅ **REMEDIED by P4.2.** It ACCEPTS α as a keyword, like `tau`/`edges` since 2026-08-12. `[M]` `w` fed nothing but that call in all three graders, so it left `morel_montry_beta`'s signature and `alpha_defect_beta` lost `quad`/`geometry` too. ⛔ NOT the `WHITELIST` row. |
 > | `transport/spatial/` is SN-only, so it should be `sn/spatial/` | ⛔ **PROPOSED AND WITHDRAWN 2026-08-28.** The import census measured MATURITY, not architecture — SN is the deliberate vanguard. `[R]` every method solving a cell-local balance forms a closure (FD diffusion IS box/DD, FE/DG IS LD's basis, LS-MoC needs it for the source); only MC is exempt. `transport/spatial/` is correctly placed. |
 > | the spatial scheme legitimately closes the angular axis | ⛔ **NO — that is the twin.** `[M]` `DiamondDifference.update` evaluates the Morel–Montry relation inline, duplicating `closure.py:1327-1330`; both are LIVE on a data branch and **nothing gates them**. Forced by the layer (L2 cannot call L3). **P4.9** removes the obligation. |
@@ -166,7 +177,7 @@
 > name** — resolve as consequences of **CS5**
 > (`space_and_kernel_binding_campaign.md` §5.5, *an axis can name the generator
 > that made it*), whose NODAL half is the prerequisite. Everything else is
-> unblocked: **P4.2, P4.4, P4.3, P4.5, P4.6, P4.7 and P4b.**
+> unblocked: **P4.5, P4.6, P4.7 and P4b** (P4.2, P4.4 and P4.3 ✅ landed).
 > ⚠ **P3 is NOT finished** — `ReducedStreamingOperator` → `ChartConnection`
 > (P3c) is deliberately sequenced **after P4**, so the name describes what
 > remains once `streaming_terms` is out of it.
@@ -274,10 +285,12 @@
 > confirmed **9825/0, 13 trees `rc=0`, 62 min** — delta 0 on the other three
 > axes, localized to `geometry` −18 / `sn` +18 / `root+harness` +1, everything
 > else +0; ⭐ `derivations` **1637, Δ 0**, so retiring the L0 wrapper and
-> re-signing three graders cost that tree nothing). ⟹ **P4.3 DELETES
-> a module and moves `StreamingTerms` into an existing one, so expect −1 →
-> `9824`** — the first phase of this arc where the count goes DOWN, and a
-> reading of `9825` there means the file did not actually die.
+> re-signing three graders cost that tree nothing). ⟹ ✅ **P4.3 CONFIRMED
+> the −1: `9824 / 0, 22 sk / 227 des / 70 xf`, localized to root+harness
+> (layer gate 344 → 343), all other trees and axes +0** — the first phase of
+> this arc where the count went DOWN, and it went down because the file died.
+> **The acceptance baseline for the next step is `9824 passed / 0 failed,
+> 22 skipped / 227 deselected / 70 xfailed`.**
 
 **Status.** ⛔ ~~Proposed 2026-08-26, un-ruled.~~ **IN EXECUTION** — Phase B,
 P1, P2 and P3a/P3b have landed (see the table above); all four §9 forks and
@@ -939,10 +952,10 @@ the precedent that file's own ⛔ banner set for `tau`/`edges` on 2026-08-12:
 it"*). Its delegating local `alpha_dome` retires; nothing re-implements it.
 
 ✅ **LANDED `5940deba`** 2026-08-28. Six symbols to
-`orpheus/sn/angular/redistribution.py`; `geometry/reduced_operator.py` is down
-to `StreamingTerms` alone and `[M]` now imports **nothing but `dataclasses`** —
-a file in `geometry/` that names no geometry, which is the whole finding the
-arc was built on. P4.3 deletes it.
+`orpheus/sn/angular/redistribution.py`; `geometry/reduced_operator.py` was
+left holding `StreamingTerms` alone, `[M]` importing **nothing but
+`dataclasses`** — a file in `geometry/` that named no geometry, which is the
+whole finding the arc was built on. ✅ P4.3 `da507e3d` deleted it.
 
 ⭐ **The plan said FIVE movers; it is SIX.** `AngularMeasure` had to travel:
 `[M]` `AngularRedistribution` annotates a field with it, so leaving it behind
@@ -1103,8 +1116,8 @@ and a direct grep over all of `orpheus/`):
 
 | field | production readers | test readers | constructed at |
 |---|---|---|---|
-| `chord_length` | **0** | 15 | `sn/mesh/reduced_operator.py:532` |
-| `mu` | **0** | 8 | `:533` |
+| `chord_length` | **0** | 15 | `sn/mesh/reduced_operator.py:534` (was `:532` pre-P4.3 docstring edit) |
+| `mu` | **0** | 8 | `:535` |
 
 Production reads `abs_mu` and **never** `mu`. P1's charter was *"nothing in the
 streaming path is held that nothing reads"*, so these two are exactly its
@@ -1198,6 +1211,55 @@ symbols and re-pointing 11 files.
 row says *"no new edge **either way**"* — which is **§6d's own vocabulary**. It
 reads as a §6d check that was run and passed. It was not run; the phrase was
 borrowed. See the surprise-log row of the same date.
+
+✅ **P4.3 LANDED `da507e3d` (+ docs sweep `590c12d0`) 2026-08-28.** Exit gate:
+**9824 passed / 0 failed, 22 skipped / 227 deselected / 70 xfailed** — the
+predicted **−1**, delta **0 on every other axis**, localized to root+harness
+(410 → 409: the import-linter's `rglob` losing the deleted module, layer gate
+344 → 343), all 12 other trees +0; 13 trees `rc=0`, 62 min wall. pyright **0**;
+`sphinx -W` **0**; `dead_references` **0 dead / 52 checked** — ⭐ the first
+phase of this arc where the docstring-surface sweep was complete BEFORE the
+instrument ran (P4.4 and P4.2 each had 9 found). Fresh-interpreter smoke with
+`orpheus.geometry` imported FIRST. The verification matrix (build-regenerated,
+not hand-written) independently confirms 10144 → 10143.
+
+**The home was ratified through an OWNERSHIP evaluation, not a location
+argument** (user, at execution: *"evaluate ownership of the terms and propose
+their home based on ontology reasoning"*). `[M]` field-by-field, AST
+receiver-attributed (`scratch/p4_3_design_measured.md` §"Ownership by
+ontology"): the metric triple (`face_area_inner`/`_outer`, `volume`) is the
+MESH's, single-sourced there; `abs_mu` is the QUADRATURE's, consumed as the
+closure's direction parameter — both members read it, and
+direction-parameterized ≠ angular-closure-aware; `delta_A_over_w` is the weld,
+owned by neither (P4.7); `chord_length`/`mu` production-dead (P4.7). ⟹ the
+packet is the **evaluation point** of a spatial closure — (cell metric) ×
+(direction coordinate) — and the TYPE is the family contract's argument
+vocabulary, consumed by BOTH members only through
+`CellVisit.streaming_terms`. A type declared by a contract lives with the
+contract: `scheme.py` (`StreamingTerms` now at `:107`), module-level sibling
+of `DiscretizationSchemeBase` — the "base both DD and LD subclass from" the
+user hypothesized; it exists, and both do. ⚠ LD's non-read of the face areas
+is MATURITY (it refuses curvilinear; slab A ≡ 1), not ontology — the vanguard
+rule forbids reading that 0 as "LD doesn't need them".
+
+**Stale AT HEAD, found by this phase's sweep and fixed in passing** (§3 tense
+cases, each): the `structured_geometry.rst` enumeration was pre-P4.2 — re-run
+at its own predicate: **14 files, 3 definers, and for the first time ZERO
+under `orpheus/geometry/`**, the arc's done-when now a property of the
+enumeration; `augmented_mesh`'s Wave-B **comment** still said the math "lives
+in geometry" — ⭐ a `:mod:` role in a `#` comment is invisible to Sphinx AND
+`dead_references` (which reads docstrings); only grep sees that surface;
+index.rst's "geometry-layer … geometry-only"; two "purely geometric"
+parentheticals (index.rst Step-C note, history.rst changelog);
+`test_diamond`'s fixture docstring naming α fields the packet lost at #236
+Step C; "namedtuple" for a frozen dataclass.
+
+**Recorded seam, NOT built:** when diffusion's box scheme joins the family
+(R19), it consumes the metric triple with no ordinate — the {CellMetric} ×
+directional-extension carve is O-3's decomposition-by-destination, cheap at
+the family site. And the NAME `StreamingTerms` is §9.1's own defect
+("streaming is what `L` does") — a fork for P4.7-time, when the shape
+settles. ⚠ `CellBalanceTerms` is TAKEN (`cell_balance.py`).
 
 **P4.4 — the residue to `sn/`, and the module is deleted.** Safe only after
 P4.1a. `[M]` 0 intra-geometry consumers, so nothing stays behind.
@@ -1355,7 +1417,7 @@ two fusion sites are NOT alike:
 `StreamingTerms.chord_length` (**0** production readers, 15 test) and
 `StreamingTerms.mu` (**0** production readers, 8 test — production reads
 `abs_mu` and never `mu`). Both are constructed at
-`sn/mesh/reduced_operator.py:532-533` and read by nobody in `orpheus/`. They are
+`sn/mesh/reduced_operator.py:534-535` and read by nobody in `orpheus/`. They are
 a P1 remainder — P1's charter was *"nothing is held that nothing reads"* and it
 did not reach them. Full measurement + the two-filter method: P4.3's section.
 ⚠ 23 test readers migrate.
