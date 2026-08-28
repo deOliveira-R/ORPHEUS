@@ -1714,6 +1714,94 @@ angular closure's S0 algebra (§4), so F3's function/evaluated-table split is a
 PREREQUISITE, not a parallel. Splitting the closure after declaring `T_ang`
 would cut the same seam twice.
 
+### ✅ THE MECHANISM — the operator is the composition site (user, 2026-08-28)
+
+**Ruled shape.** `StreamingOperator` is constructed from **a domain, a codomain,
+a spatial closure and an angular closure**. Discretization schemes are
+**factories returning a spatial closure**; the angular scheme returns an
+**angular closure**; those four arguments fully determine a well-posed operator
+with a derived adjoint.
+
+⭐⭐ **This is not speculative — the SAME unweld already SHIPPED for the
+vectorized path, and only the per-cell path is the holdout.** `[M]`
+`transport/spatial/cell_balance.py` carries **two** balance helpers:
+
+| helper | signature | closure-blind? | consumer |
+|---|---|---|---|
+| `cell_balance_for_streaming` | `(*, abs_mu, A_downstream, A_total, total_xs, volume, psi_face_in, **angular_denom_term**, **angular_numer_upstream**)` | ✅ **YES — injected** | the vectorized matvec |
+| `cell_balance_terms` | `(st, A_downstream, total_xs, upstream_state, *, **c_in**, **c_out**)` | ⛔ no — names M-M, reads `upstream_state.angular_upstream` | `[M]` **one** production consumer: `diamond.py:194` (#407) |
+
+The blind one's own docstring records the move: *"Phase 2.11 pushes those names
+into the `PoleAngularClosureBase` strategy: the matvec body calls
+`closure.cell_contribution(...)` to obtain `(angular_denom_term,
+angular_numer_upstream)` … `cell_balance_for_streaming` is now **geometry-blind
+by interface** (no M-M names)."* ⟹ the mechanism is **precedented in the same
+file**; what remains is to finish it on the per-cell arm.
+
+#### Why the layer works — and it is the ONLY layer that does
+
+`orpheus/sn/operators/streaming.py` is **L3**. `L3 → L2` (`transport/spatial`)
+is legal; `L3 → L3` (`sn/angular`) is the same package; and **L2 never names
+L3**. The composition happens at the only layer permitted to see both factors,
+so the twin disappears because the OBLIGATION disappears — not because the
+relation was injected into L2.
+
+#### `[M]` the ingredients already exist — they are bound to the WRONG object
+
+| ingredient | today | under the mechanism |
+|---|---|---|
+| spatial closure | `SNMesh.scheme` (`augmented_mesh.py:268`) | a constructor argument of the operator |
+| angular closure | `SNMesh.pole_angular_closure` (`:421`, built from a class) | a constructor argument of the operator |
+| domain / codomain | derived **properties** of `StreamingOperator` | constructor arguments |
+| the operator itself | `[M]` `@dataclass class StreamingOperator` with **exactly ONE field, `sn_mesh`** | `(domain, codomain, spatial_closure, angular_closure)` |
+
+⟹ a *mesh* is carrying the *method's* two operators. That is the same
+"bound at construction" ruling the campaign already made for `Kernel × Frame →
+Operator`, unapplied to the streaming path.
+
+#### `[M]` both closures ALREADY ship their own adjoint — so the adjoint derives
+
+| factor | its adjoint, today | status |
+|---|---|---|
+| `T_spatial` | `DiamondDifference.streaming_cell_transpose` (`:529`), `residual_kernel_batch_transpose` (`:485`), `reflect_scan_coefficients_transpose` (`:767`) — with `has_transpose_kernel` **DERIVED from the registration**, never declared (`scheme.py:910`, #310 ruling 2) | ✅ ships |
+| `T_ang` | `angular_adjoint` — a polymorphic family (`closure.py:557` base, `:1915` M-M, `:2128` Identity) | ✅ ships |
+| `D` | real diagonal ⟹ self-adjoint | ✅ free |
+
+⟹ `L.H = T_spatial.H @ T_ang.H @ D` is a **composition of adjoints that already
+exist**. §5b's payoff — *"the adjoint stops being written and starts being
+derived"* — is one binding away, not one implementation away.
+
+#### What the unweld concretely deletes
+
+1. `DiamondDifference.update`'s `# ── Angular closure (Morel-Montry) ──` block —
+   DD returns spatial-only, and **the twin of `closure.py:1327-1330` is gone**.
+2. `cell_balance_terms` retires onto `cell_balance_for_streaming` (already
+   imported at `diamond.py:87`). `[M]` one production consumer ⟹ #407's
+   *"the whole module is a DD body in a scheme-neutral name and home"* closes
+   with it, and its hard-coded `2.0 = 1/w_DD` goes with the blend weight the
+   spatial closure supplies.
+3. The L2 protocol sheds its angular members — `CellVisit.{tau, c_in, c_out}`,
+   `UpstreamState.angular_upstream`, `CellResult.outgoing_angular_state` —
+   leaving `transport/spatial/scheme.py` **purely spatial, which is what it
+   claims to be**.
+4. `SNMesh` sheds `scheme` and `pole_angular_closure`.
+
+⭐ **And the coupling resolves itself.** `[M]` `closure.cell_contribution(...)`
+already returns BOTH halves of `ΔA/w` — `angular_denom_term = (ΔA/w)·c_out` into
+`D`, and `angular_numer_upstream = (ΔA/w)·c_in·ψᵃ` into `T_ang`. So the angular
+closure already owns the coupling's USE, and the operator supplies `ΔA` as data.
+That is fork 3's *"`delta_A` dissolves into R"* with a concrete consumer: R's
+producer hands `ΔA` to the operator, the operator hands it to the closure.
+
+⚠ **`abs_mu` stays with the SPATIAL closure, and that is correct** — a spatial
+closure for a *directional* method is legitimately parameterized by direction
+(`a = 2|μ|A_total/denom − 1`). Direction-parameterized ≠ angular-closure-aware.
+
+⚠ **P0 still binds.** This mechanism is about WHERE the factors are composed and
+WHO owns each adjoint. It does not establish the product form, its order, or the
+arity — those remain the ⛔ P0 measurement above, and the mechanism is what makes
+that measurement cheap to run (each factor becomes separately applicable).
+
 ### The FACTOR INVENTORY — what goes into each term, measured 2026-08-28
 
 ⚠ Read with the ⛔ P0 above: the **product form and its order are `[R]`**. What
