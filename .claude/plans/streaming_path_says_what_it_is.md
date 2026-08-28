@@ -1026,7 +1026,59 @@ with the comment *"That they are buildable from ``(quad, coord)`` alone is the
 un-weld's own point: the closure's operands were never mesh facts."*
 
 **P4.3 — `StreamingTerms` to L2.** ⛔ ~~`transport → geometry` stays legal (it
-reads `mesh.areas`); no new edge either way.~~ **REFUTED 2026-08-27 — the
+reads `mesh.areas`); no new edge either way.~~
+
+⛔⛔ **The DESTINATION's reason was wrong, and the destination is still right —
+corrected 2026-08-28 after a user challenge.** A pre-execution memo argued
+`transport/spatial/scheme.py` from **where the consumers are**, and separately
+proposed moving the whole `transport/spatial/` subpackage to `sn/spatial/` on an
+import census (`[M]` 10 consumer files, all `sn/`, 0 intra-transport, 0 other
+methods, against a control showing every genuinely shared transport subpackage
+has 2–3 consumer packages plus intra-transport use).
+
+**Both inferences are void.** Verbatim (user): *"the discretization scheme was
+born in Sn first and moved to transport, because we considered it useful for all
+transport methods that need to build a spatial discretization. Measuring no
+import today is a signal that the other transport methods are in infancy stage
+… we're using Sn specifically to bring the entire machinery to state of the art
+before using this machinery in the other methods. So don't assume by import."*
+
+⟹ **an import census in a codebase with a deliberate VANGUARD measures maturity,
+not architecture**, and it always argues for narrowing what was deliberately
+built wide. (→ `plan-authoring` surprise log, 2026-08-28.)
+
+`[R]` **The first-principles argument, which is the one that decides it.** A
+cell balance is ONE equation in (ψ_in, ψ_out, ψ̄) — under-determined — so every
+method solving a cell-local balance must posit how ψ varies inside the cell:
+FD diffusion **is** the box/DD scheme; FE/DG diffusion **is** LD's basis; nodal
+is a transverse-integrated expansion; LS-MoC needs it for the **source**;
+CP-with-linear-source likewise. Only MC is exempt. ⟹ `transport/spatial/` is
+correctly placed and the `sn/spatial/` proposal is **withdrawn**.
+
+⭐ And `StreamingTerms` field-by-field: `[M]` exactly **one** of its seven fields
+is SN-specific — `delta_A_over_w`, whose divisor is a **quadrature weight**.
+`chord_length` / `face_area_inner` / `face_area_outer` / `volume` are any
+finite-volume method's; `mu` / `abs_mu` belong to any **directional** method.
+And P4.7 retires the one, so the packet becomes method-agnostic by a step
+already scheduled. ⟹ the destination stands on the **contract** argument (fork
+3's own ruling: a consumer-count argument flips, a contract argument does not).
+
+⛔ **TWO FIELDS ARE PRODUCTION-DEAD — a P1 remainder P1 missed.** `[M]`
+2026-08-28, two independent filters (AST scoped to the 13 packet-naming files,
+and a direct grep over all of `orpheus/`):
+
+| field | production readers | test readers | constructed at |
+|---|---|---|---|
+| `chord_length` | **0** | 15 | `sn/mesh/reduced_operator.py:532` |
+| `mu` | **0** | 8 | `:533` |
+
+Production reads `abs_mu` and **never** `mu`. P1's charter was *"nothing in the
+streaming path is held that nothing reads"*, so these two are exactly its
+subject and it did not reach them. ⟹ **their retirement is scheduled into P4.7**
+(the phase that already owns `StreamingTerms` field retirement); it is NOT
+P4.3's — P4.3 moves the packet, it does not change its shape. ⚠ 23 test readers
+migrate with them (`coding-standards`: retiring means test migration).
+ **REFUTED 2026-08-27 — the
 "either way" half is false, and it is §6d's own failure mode.** Fix the
 *"purely geometric"* claim while the file is open.
 
@@ -1265,6 +1317,15 @@ algebra to conform to performance optimization and welding things."* `[M]` the
 two fusion sites are NOT alike:
 * `StreamingCoefficientCache.dA_w` — an `(N, nx)` array built **once** at solver
   init. That IS pre-operating at the hot-path assembly point. **KEEP**, renamed.
+⛔ **P4.7 also retires the two PRODUCTION-DEAD fields** `[M]` 2026-08-28:
+`StreamingTerms.chord_length` (**0** production readers, 15 test) and
+`StreamingTerms.mu` (**0** production readers, 8 test — production reads
+`abs_mu` and never `mu`). Both are constructed at
+`sn/mesh/reduced_operator.py:532-533` and read by nobody in `orpheus/`. They are
+a P1 remainder — P1's charter was *"nothing is held that nothing reads"* and it
+did not reach them. Full measurement + the two-filter method: P4.3's section.
+⚠ 23 test readers migrate.
+
 * `StreamingTerms.delta_A_over_w` — built **per (cell, direction)** inside the
   loop, so it buys no performance; its inputs are recomputed as often.
   ⟹ **RETIRE.**
