@@ -121,8 +121,15 @@ _NG = 2
 _N_CELLS = 8
 _N_ORD = 4
 
-# slab / sphere / cylinder — the three 1-D geometries the carve relocates.
-_GEOMS_1D = ("SLB", "SPH", "CYL")
+# slab / sphere / cylinder — the three 1-D geometries the carve relocates —
+# plus CYL_DEG, the ONLY family that executes the per-cell degenerate path.
+# [M] 2026-08-28 (scratch/p4_9a_verification_plan.md §F1): the staggered
+# azimuthal circle places a bit-exact η = 0 node iff n_phi ≡ 2 (mod 4), so
+# ``DiamondDifference.update`` is called ZERO times on every n_phi ∈ {4, 8}
+# config (slab and sphere included) in a full solve — the CYL row is BLIND to
+# the per-cell path, and CYL_DEG (n_phi = 6 ⟹ 4 degenerate ordinates of 12)
+# is the row that pins it (32 ``update`` calls per sweep, ~2 ms).
+_GEOMS_1D = ("SLB", "SPH", "CYL", "CYL_DEG")
 
 
 def _capturing(request) -> bool:
@@ -168,6 +175,20 @@ def _build_sn_mesh(geometry: str) -> SNMesh:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=2 * _N_ORD)
+    elif geometry == "CYL_DEG":
+        # Same cylinder mesh as CYL; the quadrature differs ONLY in n_phi.
+        # n_phi = 6 ≡ 2 (mod 4) places one bit-exact η = 0 ordinate per
+        # μ-level (degenerate: no downstream radial face), routing those
+        # ordinates through the slow per-cell path — the sole production
+        # route into ``scheme.update`` (see _GEOMS_1D note above).
+        mesh = Mesh1D(
+            edges=np.linspace(0.01, 2.0, _N_CELLS + 1),
+            mat_ids=np.zeros(_N_CELLS, dtype=int),
+            coord=CoordSystem.CYLINDRICAL,
+            bc_left=BC("reflective"),
+            bc_right=BC("vacuum"),
+        )
+        quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=6)
     else:  # pragma: no cover - guarded by parametrize
         raise ValueError(geometry)
     return SNMesh(mesh, quad, mats)
