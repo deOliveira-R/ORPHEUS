@@ -55,6 +55,13 @@
 > consumer count):
 > **§4ter**.
 >
+> ⛔ **Of §4ter's three remaining forks, TWO are now BLOCKED rather than open** —
+> the producer's home and the `ChartConnection` name both resolve as consequences
+> of **CS5** (`space_and_kernel_binding_campaign.md` §5.5, chartered 2026-08-27:
+> *an axis can name the generator that made it*). `AngularMeasure`'s retirement
+> is **suspended into CS5** for the same reason. Everything else in P4 —
+> P4.1a/1b, 2, 3, 4, 5, 6, 7 and P4b — is unblocked and can land first.
+>
 > ⚠ Two things §4ter corrects that a summary will otherwise carry forward:
 > **(a)** this plan asserted the field retirement was bit-identical — `[M]` it is
 > for `coord` (3/3 charts) and is **NOT** for `face_areas` (2/3; the slab holds
@@ -727,7 +734,20 @@ correct under the stated predicate.
   so this is not an angular-only fix. A mesh is a discrete measure in principle
   (nodes at cell centres, weights the volumes).
 
-**(e) ⟹ This is the ROOT of the remaining cluster, and smaller than what depends
+**(e) ⟹ ⛔ THE WORK HAS A HOME, AND P4'S REMAINDER IS BLOCKED ON IT — a named
+blocker, NOT a defer** (user's standing ruling: deferred work earns a phase
+number or a named external blocker). The machinery is **space-layer
+architecture**, not names/homes/welds, so by this plan's own §5b precedent it
+belongs to the space campaign: **`space_and_kernel_binding_campaign.md` §5.5,
+Phase CS5 — "an axis can name the generator that made it"**, chartered
+2026-08-27. It carries the three machinery items, the sequencing (NODAL half
+first), the done-when, and `AngularMeasure`'s suspended fate.
+
+⟹ **Blocked on CS5's NODAL half:** P4's producer home, and the `ChartConnection`
+name. ⟹ **NOT blocked:** P4.1a/1b, P4.2, P4.3, P4.4, P4.5, P4.6, P4.7 and P4b —
+all of which can land first.
+
+**This is the ROOT of the remaining cluster, and smaller than what depends
 on it.** Give NODAL axes their measure → the angular axis can answer `mu_x`,
 `eta`, `mu_z`, `level_indices` → the producer binds to `(space, R)` and becomes
 an operator with its two spaces → **which is this campaign's root ruling**, and

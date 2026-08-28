@@ -1969,6 +1969,131 @@ crosswalk written to `.claude/plans/` before code.
 
 ---
 
+## 5.5 Phase CS5 — an axis can name the generator that made it
+
+**Goal.** A space factor can answer *what produced me* — so that a consumer
+needing the generator's data reads it from the space instead of reaching past
+the space to the mesh and the quadrature.
+
+**Why it belongs to THIS campaign and not to the streaming-path plan.** This
+campaign's root ruling is *"an operator is not an operator without its two
+spaces"*. `[M]` 2026-08-27 this is that ruling one level down: **an axis is not
+an axis without its generator**, and the streaming path's P4 is blocked on it.
+Precedent for the split: the streaming plan's own §5b puts the three-factor work
+here rather than in §7, on the same grounds — §7 is names, homes and welds; this
+is space-layer architecture.
+
+### The finding — `generator → space` exists on both sides, `space → generator` on neither
+
+`[M]` 2026-08-27, all by AST/regex with positive controls:
+
+| | generator | `generator → space` | `space → generator` | metric | lossy when |
+|---|---|---|---|---|---|
+| **NODAL** axis | `DiscreteMeasure` | ✅ `.space` | ⛔ **none** | `weights` | never — nodal bases are orthogonal |
+| **MODAL** axis | `Basis` | ✅ `.space` | ⛔ **none** | `diag(mass_matrix)` | **`gram_structure is DENSE`** |
+
+The machinery is **not missing — it is unwired.** `FrameBase` is literally
+`(basis: Basis, measure: DiscreteMeasure)` and already declares the pairing:
+*measure "fixes the domain (`measure_space`)"*, *basis "fixes the codomain
+(`basis_space`)"*, with `measure_space` being `return self.measure.space`. The
+`Basis` ABC (`numerics/basis/base.py:117`, 5 concrete subclasses) already
+exposes `space`, `mass_matrix` and `gram_structure`
+(`DIAGONAL | PARTITION_OF_UNITY | DENSE`).
+
+`[M]` **The forgetting, located.** `Axis` is `@dataclass(frozen=True, eq=False)`
+over `label, shape, weights, kind`, against `DiscreteMeasure`'s
+`nodes, weights, support, invariance_group, exactness`: it **keeps the weights
+and drops the nodes**. Loss site `augmented_mesh.py:1170-1175` — the angular axis
+is built from `quad.N` + `quad.weights` alone while declaring
+`kind=BasisKind.NODAL`, i.e. **a nodal basis carrying no nodes**. Consequence:
+`mu_x`/`eta`/`mu_z`/`level_indices` are **0 hits** in BOTH `numerics/space.py`
+and `numerics/axis.py`, so the SN streaming producer must reach past the space to
+the quadrature.
+
+⭐ `Axis`'s own docstring already asserts what it cannot honour: *"the identity
+is **what kind of generator produced this factor**, not a bag of fields."*
+`kind` names the generator's KIND; nothing names the generator.
+
+### ⛔ `BasisKind` is not the classical nodal/modal distinction — do not read it as one
+
+Its docstring gives the predicate it actually tracks: NODAL *"carries a
+**coordinate cone**, so per-component positivity is a meaningful predicate"*;
+MODAL *"no coordinate cone; a positive function may have negative
+coefficients"*. ⟹ **it answers `has_coordinate_cone`** — CS3's own cone ruling —
+not *"point values or coefficients?"*. An indicator expansion is classically
+MODAL and is cone-preserving, so it classifies **NODAL**: `EnergyAxis`
+`__post_init__` refuses anything else (*"groups are the CELLS of a 1-D energy
+mesh"*) and refuses weights entirely (*"the multigroup convention makes the
+energy measure COUNTING as a theorem"*). ⚠ A naming imprecision, not a defect —
+the values are correct under the stated predicate. Recorded because the labels
+have already misled once.
+
+### The three machinery items, in dependency order
+
+1. **The inverse map (small).** An accessor on `Axis` to its generator —
+   `DiscreteMeasure` for NODAL, `Basis` for MODAL. `[M]` **no import cycle**:
+   `numerics/axis.py → measure` is **0** and `measure → axis` is **0**, so this
+   is a new edge with no reverse (§6d clean). ⚠ **Exclude it from
+   `_identity_key`** — two axes with identical `label/shape/weights/kind` are the
+   same axis whatever instance produced them; provenance is not identity. That
+   also sidesteps **#403** (content-equal `DiscreteMeasure` instances make
+   `frame ==` RAISE).
+2. **A non-diagonal axis metric — this LOCATES #409.** `Axis.weights: NDArray |
+   None` can carry only `diag(Gram)`; `Basis.gram_structure` **already names the
+   predicate** for when that is lossy (`DENSE`). ⟹ #409's *"`FunctionSpace`'s
+   metric is Hadamard by construction"* is precisely *"`Axis.weights` is a lossy
+   projection of `Basis.mass_matrix` exactly when `gram_structure is DENSE`."*
+   Same gap the streaming plan's **P4.6** hit from the moment-mass side (the true
+   curvilinear `M/V` is `[[1, 0.5], [0.5, 0.4]]` at a spherical pole cell).
+3. **A polynomial `Basis` (modelling gap).** `[M]` the five shipped bases are
+   indicator, weighted-indicator, overlap and two spherical-harmonic — there is
+   **no Legendre/polynomial subclass**. The scheme's cell basis is
+   `spatial_basis_per_axis: int` + `theta: float`, so the one shipped MODAL axis
+   has **no `Basis` object to point at**. ⚠ Uncertain whether this is required
+   *for* item 1 or is a consequence of it — see sequencing.
+
+### Sequencing — the NODAL half lands first and unblocks the streaming path
+
+Items 1+2 on the **NODAL** side need nothing from item 3: the angular and both
+spatial axes have a `DiscreteMeasure` behind them today. `[M]` **3 of 4 shipped
+axis sites are NODAL** (`homogeneous/solver.py:148`, `augmented_mesh.py:1170`,
+`material_mesh.py:423`), the fourth (`scheme.py:1514`) being the MODAL moment
+axis. ⟹ **land NODAL first**; the streaming plan's P4 remainder is unblocked at
+that point, and the MODAL half (item 3) can follow.
+
+**Done when** (checkable):
+* a NODAL axis answers `mu_x`/`eta`/`mu_z`/`level_indices` **through the space**
+  — `grep -n "quad\." <the streaming producer>` no longer reaches past it;
+* the accessor is absent from `_identity_key` — two axes built from distinct
+  but content-equal measures still compare equal, with a gate saying so;
+* ⚠ §6c: the gate lands with a case it CATCHES — an axis whose generator is
+  absent must be refusable, and today every axis would have one, so the witness
+  is the MODAL moment axis (item 3 not yet done) or a deliberately generator-less
+  construction. Decide the witness before writing the gate.
+
+### What this phase ALSO settles, and must not be pre-empted
+
+⏸ **`AngularMeasure`'s fate** (streaming plan P4 item 3) is **suspended into this
+phase**. That plan argued CONSUMERS (*"the 3 factories read 0 of its 6
+members"*); the live question is TYPE DESIGN — should `DiscreteMeasure` branch
+into `SpatialMeasure` / `AngularMeasure` / `EnergyMeasure` so an axis can hold a
+typed generator? A consumer count cannot refute a type design. `AngularMeasure`
+is at `orpheus/geometry/reduced_operator.py:304-360`; its implementer
+`Quadrature` **wraps** a `DiscreteMeasure`, and the family already branches
+(`BundleMeasure`, `DiscreteMeasurePartition`, `GeneratingMeasure`,
+`ReferenceMeasure`, `UniformMeasure`, `ProductMeasure`). **Do not retire it
+before this phase rules.**
+
+### The dependency this discharges
+
+⟹ streaming-path **P4's remainder**: with the angular axis able to answer its
+nodes, the SN streaming producer binds to `(space, R)` and becomes an operator
+with its two spaces — which is this campaign's root ruling — and the
+`ChartConnection` name resolves as a **consequence** rather than a decision. See
+that plan's **§4ter P4.8**.
+
+---
+
 ## 6. What this campaign does NOT do (Campaign 2 + parked)
 
 - Everything LOWERING: the LossRepresentation overturn, `GeneralizedEigenPencil`,
