@@ -668,6 +668,51 @@ is a named statement about *what the caller's index means* — which P4.7 owns,
 since it is the same producer-contract question as the `delta_A_over_w`
 retirement.
 
+#### ⭐ The MEANS changes too — they were never fields
+
+The plan's proposed means was *"populate the two fields on the slab"*. Executing
+it that way would **create a Pattern-2 triplicate**: `[M]` the sphere and
+cylinder factory bodies are already character-identical —
+
+```
+face_areas = mesh.areas
+delta_A    = face_areas[1:] - face_areas[:-1]
+```
+
+— so "populate the slab too" means writing those two lines a **third** time, in
+the step whose whole point is that the values were always derivable. That is
+`coding-standards`' clean-before-extend read backwards.
+
+⟹ **`face_areas` and `delta_A` stop being fields and become derived accessors
+on the mesh** — `face_areas` a plain `@property` returning `self.mesh.areas`
+(`[M]` an eagerly-computed frozen attribute on `Mesh1D`, so this is one
+attribute hop, no recompute, and the same object the 4 external
+`.reduced.face_areas` readers already get), and `delta_A` a
+`functools.cached_property` over `np.diff` (⚠ **must** be cached — `streaming_terms`
+is per-(cell, direction), so a plain property would recompute an `nx`-element
+diff in the hot path).
+
+This serves the ruled GOAL by a better means (`plan-authoring` §1 — the goal is
+*"P1's un-weld finished on the spatial half; the per-coordinate `Optional`
+union dies"*; "populate the fields" was the proposed mechanism):
+
+* the `Optional` dies, and so does `delta_A_column`'s `if self.delta_A is None`
+  branch — **Pattern 4**, same as P1's angular half;
+* **no factory changes at all**, and all three bodies collapse to one shape
+  (guard + `angular_redistribution(measure, CHART)`), which is what P4.4 wants;
+* it is strictly *closer* to this plan's own ruled end state — the §4ter table
+  says `face_areas` is **retired, read `mesh.areas`** — while keeping the 4
+  external readers and `SNMesh`'s deprecated accessor working, so the re-point
+  stays P4.4's;
+* ⭐ and it removes a latent defect nobody filed: `@dataclass` generates
+  `__eq__` over the fields, so `op1 == op2` on two ndarray fields raises
+  *"truth value of an array is ambiguous"*. Dropping them from the field list
+  makes the comparison well-defined.
+
+⚠ `[M]` the only 3 construction sites are the factories themselves, and there
+are **0** `dataclasses.replace(...)` calls naming either field, so removing them
+from the constructor signature has no other consumer.
+
 ⚠ **Naming item for P4.7's family.** The unified body needs a chart-neutral
 spelling of `axis_cosines(0)`: `mu_x` is slab-flavoured, `eta` is
 cylinder-flavoured, and `[M]` they are one accessor with two names. `mu_x`'s
