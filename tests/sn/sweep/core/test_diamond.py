@@ -61,6 +61,7 @@ from orpheus.sn.mesh.reduced_operator import (
 )
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.angular.closure import march_psi_half_step
 from orpheus.transport.spatial import DiamondDifference, UpstreamState
 from orpheus.transport.spatial.scheme import CellVisit
 
@@ -370,6 +371,14 @@ class TestBitIdenticalCurvilinear:
     structurally identical cylindrical inward / outward branches at
     sweep.py:511-531 / :548-575 use the same algebra; spherical
     coverage suffices to gate the curvilinear branch.
+
+    P4.9a re-point: ``update`` closes the SPATIAL axis only
+    (``outgoing_angular_state is None`` by contract).  The angular half of
+    each row now pins the OWNER —
+    :func:`orpheus.sn.angular.closure.march_psi_half_step` on
+    ``result.cell_average_flux`` — against the same hand-written M-M
+    reference, so the ``dd-mm-closure-constants`` claim keeps its catchers
+    with the relation's single production spelling as the subject.
     """
 
     @pytest.mark.sentinel
@@ -445,7 +454,13 @@ class TestBitIdenticalCurvilinear:
         # Bit-identical: np.array_equal, not np.allclose.
         assert np.array_equal(result.cell_average_flux, ref_psi_avg)
         assert np.array_equal(result.outgoing_spatial_flux, ref_psi_spat_out)
-        assert np.array_equal(result.outgoing_angular_state, ref_psi_angle_out)
+        # P4.9a: the scheme closes no angular axis; the owner's march on the
+        # scheme's average reproduces the M-M reference bit-for-bit.
+        assert result.outgoing_angular_state is None
+        assert np.array_equal(
+            march_psi_half_step(result.cell_average_flux, psi_angle_in, tau),
+            ref_psi_angle_out,
+        )
 
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-curvilinear-scalar", "dd-mm-closure-constants")
@@ -570,18 +585,17 @@ class TestBitIdenticalCurvilinear:
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
 
-        # An inward curvilinear visit MUST produce all three outputs; a None
-        # here is a contract breach, not a tolerance question. Narrowed
-        # explicitly because ``assert_array_almost_equal_nulp`` types its
-        # arguments more strictly than ``np.array_equal`` did, and
-        # ``CellResult.outgoing_*`` are ``ndarray | None``.
+        # An inward curvilinear visit MUST produce the spatial output; a
+        # None there is a contract breach, not a tolerance question.
+        # (P4.9a: ``outgoing_angular_state`` is None BY contract — the
+        # scheme closes no angular axis; the owner's march is pinned below.)
         spat_out = result.outgoing_spatial_flux
-        ang_out = result.outgoing_angular_state
-        if spat_out is None or ang_out is None:
+        if spat_out is None:
             raise AssertionError(
-                "inward curvilinear visit returned no outgoing state "
-                f"(spatial={spat_out!r}, angular={ang_out!r})"
+                "inward curvilinear visit returned no outgoing spatial "
+                f"state (spatial={spat_out!r})"
             )
+        assert result.outgoing_angular_state is None
 
         # nULP, not array_equal — see "Why this row asserts nULP" above.
         # np.testing.* raises unconditionally, so this survives -O.
@@ -592,7 +606,8 @@ class TestBitIdenticalCurvilinear:
             spat_out, ref_psi_spat_out, nulp=8,
         )
         np.testing.assert_array_almost_equal_nulp(
-            ang_out, ref_psi_angle_out, nulp=8,
+            march_psi_half_step(result.cell_average_flux, psi_angle_in, tau),
+            ref_psi_angle_out, nulp=8,
         )
 
 
@@ -707,10 +722,14 @@ class TestCylindricalDegenerate:
         )
         # outgoing_spatial_flux signals "no face flow" via None.
         assert result.outgoing_spatial_flux is None
-        # outgoing_angular_state still produced via the M-M closure.
-        assert result.outgoing_angular_state is not None
+        # P4.9a: no angular output from the scheme; the owner's march on
+        # the scheme's average reproduces the degenerate M-M reference.
+        assert result.outgoing_angular_state is None
         np.testing.assert_allclose(
-            result.outgoing_angular_state, ref_psi_angle_out,
+            march_psi_half_step(
+                result.cell_average_flux, psi_angle_in, tau,
+            ),
+            ref_psi_angle_out,
             rtol=1e-13, atol=1e-15,
         )
 
@@ -1128,6 +1147,15 @@ class TestResidual:
     Mode 7 (`vv-principles` MMS simplification bias): each test
     declares which terms are activated AND which are nulled, so
     ansatz-driven cancellation is visible by inspection.
+    
+    ⚠ P4.9a claim-class note: before the ``cell_balance_terms`` retirement
+    these rows also cross-checked the scalar helper against
+    ``cell_balance_for_streaming`` ([M] 55 reds under a ``terms.denom``
+    mutation, 2026-08-28).  After the retirement both directions read ONE
+    helper (through ``_cell_balance_n1``), so what survives is the
+    solve↔apply rearrangement of the balance equation, not helper
+    equivalence.
+
     """
 
     GEOMETRIES = list(_GEOMETRY_FACTORIES.keys())
@@ -1293,7 +1321,8 @@ class TestResidual:
         The cell residual carries the source on the RHS of the cell
         balance.  Shifting the source shifts the residual by minus
         the shift — a property that holds in all three branches
-        because :func:`cell_balance_terms` and the slab closed form
+        because the per-cell balance
+        (:func:`cell_balance_for_streaming`) and the slab closed form
         both treat the source as an affine term added on the outside.
         """
         visit, total_xs, source, upstream = _GEOMETRY_FACTORIES[geometry]()
@@ -1390,24 +1419,23 @@ class TestResidual:
         # clause; see test docstring.
         np.testing.assert_allclose(computed, ref, rtol=1e-13)
 
-    # ── 6. Curvilinear residual matches CellBalanceTerms by composition
+    # ── 6. Curvilinear residual matches the hand-written balance
 
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-curvilinear-scalar")
     def test_curvilinear_residual_matches_cell_balance(self) -> None:
         r"""Sphere curvilinear residual equals
-        ``denom · cell_avg - (source + numer_upstream)`` from the
-        shared :func:`cell_balance_terms` helper — bit-identical.
+        ``denom · cell_avg - (source + numer_upstream)`` with the
+        reference written as HAND ARITHMETIC — bit-identical.
 
-        Verifies the Pattern 2 contract directly: both
-        :meth:`update` and :meth:`residual` consume the same
-        :func:`cell_balance_terms` helper (Issue #196 Step 2.5
-        unified body — no geometry dispatch), so the residual at
-        any probe point is the closed-form rearrangement of the
-        balance equation the helper produces.
+        P4.9a rewire: the reference is now hand-written arithmetic in
+        the balance equation's own association order
+        (``(streaming + angular) + collision``), NOT a second
+        production helper — this gate pins ``residual``'s rearrangement
+        against the balance equation as written on the theory page, and
+        can no longer detect a divergence between two helpers because
+        there is only one.
         """
-        from orpheus.transport.spatial.cell_balance import cell_balance_terms
-
         visit, total_xs, source, upstream = _sphere_visit_inputs()
         strat = DiamondDifference()
 
@@ -1415,21 +1443,24 @@ class TestResidual:
         n_groups = source.shape[0]
         cell_avg = rng.normal(loc=1.0, scale=0.5, size=n_groups)
 
-        terms = cell_balance_terms(
-            visit.streaming_terms,
-            visit.face_area_downstream,
-            total_xs,
-            upstream,
-            c_in=visit.c_in,
-            c_out=visit.c_out,
+        st = visit.streaming_terms
+        ref_denom = (
+            2.0 * st.abs_mu * visit.face_area_downstream
+            + st.delta_A_over_w * visit.c_out
+            + total_xs * st.volume
         )
-        ref = terms.denom * cell_avg - (source + terms.numer_upstream)
+        ref_numer = (
+            st.abs_mu * (st.face_area_inner + st.face_area_outer)
+            * upstream.spatial_upstream
+            + st.delta_A_over_w * visit.c_in * upstream.angular_upstream
+        )
+        ref = ref_denom * cell_avg - (source + ref_numer)
 
         computed = strat.residual(
             cell_avg, visit, total_xs, source, upstream,
         )
 
-        # Bit-identical via shared-helper composition.
+        # Bit-identical: same association order as the production helper.
         assert np.array_equal(computed, ref)
 
     # ── 7. Cylindrical degenerate residual matches degenerate helper
@@ -1440,14 +1471,13 @@ class TestResidual:
         self,
     ) -> None:
         r"""Cylindrical degenerate residual equals
-        ``denom · cell_avg - (source + numer_upstream)`` from
-        the unified :func:`cell_balance_terms` (Issue #196 Step 2.5:
-        the degenerate helper was retired in favour of the unified
-        helper, which handles ``2|μ|·A_down = 0`` via
-        ``visit.face_area_downstream = 0.0``).
+        ``denom · cell_avg - (source + numer_upstream)`` with the
+        reference written as HAND ARITHMETIC (P4.9a rewire — see the
+        sphere row above for the claim-class note).  The degenerate
+        arm: ``2|μ|·A_down`` vanishes via
+        ``visit.face_area_downstream = 0.0``, and this row is one of
+        the few unit-tier degenerate gates — keep it.
         """
-        from orpheus.transport.spatial.cell_balance import cell_balance_terms
-
         visit, total_xs, source, upstream = (
             _cylinder_degenerate_visit_inputs()
         )
@@ -1457,15 +1487,18 @@ class TestResidual:
         n_groups = source.shape[0]
         cell_avg = rng.normal(loc=1.0, scale=0.5, size=n_groups)
 
-        terms = cell_balance_terms(
-            visit.streaming_terms,
-            visit.face_area_downstream,
-            total_xs,
-            upstream,
-            c_in=visit.c_in,
-            c_out=visit.c_out,
+        st = visit.streaming_terms
+        ref_denom = (
+            2.0 * st.abs_mu * visit.face_area_downstream
+            + st.delta_A_over_w * visit.c_out
+            + total_xs * st.volume
         )
-        ref = terms.denom * cell_avg - (source + terms.numer_upstream)
+        ref_numer = (
+            st.abs_mu * (st.face_area_inner + st.face_area_outer)
+            * upstream.spatial_upstream
+            + st.delta_A_over_w * visit.c_in * upstream.angular_upstream
+        )
+        ref = ref_denom * cell_avg - (source + ref_numer)
 
         computed = strat.residual(
             cell_avg, visit, total_xs, source, upstream,

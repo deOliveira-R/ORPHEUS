@@ -1,12 +1,16 @@
-r"""Unified per-cell balance algebra — geometry-blind by data (Step 2.5).
+r"""Unified per-cell balance algebra — geometry-blind by data.
 
-Issue #196 Phase G Step 2.5.  One function — :func:`cell_balance_terms` —
-computes the algebraic intermediates of the per-cell DD balance for
-slab, sphere, cylinder (non-degenerate), and cylindrical pure-azimuthal
-degenerate cells.  Geometry is data carried by
-:class:`~orpheus.transport.spatial.scheme.StreamingTerms` and
-:class:`~orpheus.transport.spatial.scheme.CellVisit`; the helper does NOT
-branch on geometry kind.
+One function — :func:`cell_balance_for_streaming` — computes the per-cell
+balance ``(denom, numer_upstream)`` for slab, sphere, cylinder
+(non-degenerate), and cylindrical pure-azimuthal degenerate cells,
+vectorized over an ordinate mask.  Geometry is data (face areas, volume,
+|μ|); the angular closure's contributions arrive ASSEMBLED
+(``angular_denom_term`` / ``angular_numer_upstream``), so the helper is
+blind to both the geometry kind and the closure family.  Every consumer
+routes here: the vectorized matvec directly, and the per-cell
+solve/apply pair through ``DiamondDifference``'s ``n_mask=1`` bridge
+(P4.9a retired the scalar twin ``cell_balance_terms``, which duplicated
+this algebra under M-M-specific argument names).
 
 Mathematical content
 ====================
@@ -40,7 +44,9 @@ Pre-Step-2.5 this lived in two helpers (``cell_balance_terms`` for
 the non-degenerate curvilinear branch and
 ``cell_balance_terms_degenerate`` for the cylindrical pure-azimuthal
 case) plus an inlined slab recurrence inside ``DiamondDifference``.
-Step 2.5 collapses all three into this single helper:
+Step 2.5 collapsed all three into one SCALAR helper; PR-TYPED-6.5 Phase
+2.11 added this vectorized closure-blind form beside it, and P4.9a
+retired the scalar one onto it (2026-08-28).  The geometry cases:
 
 * **Slab** — neutral curvature populated by the
   :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming`
@@ -70,52 +76,7 @@ See :mod:`orpheus.transport.spatial.cell_balance` test gate at
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
 import numpy as np
-
-if TYPE_CHECKING:  # pragma: no cover
-    from .scheme import StreamingTerms, UpstreamState
-
-
-@dataclass(frozen=True, slots=True)
-class CellBalanceTerms:
-    r"""Algebraic intermediates of the unified per-cell balance.
-
-    Constructed by :func:`cell_balance_terms`; consumed by both
-    :class:`~orpheus.transport.spatial.diamond.DiamondDifference.update`
-    (solve branch — divides ``(source + numer_upstream) / denom``)
-    and :meth:`DiamondDifference.residual` (apply branch —
-    computes ``denom · cell_avg − (source + numer_upstream)``).
-    Pattern 2 — single source of truth for the cell-balance algebra
-    across slab, curvilinear, and cylindrical-degenerate geometries.
-
-    Parameters
-    ----------
-    denom :
-        Denominator of the unified DD balance,
-        :math:`2|\mu|\,A_{\text{down}} + (\Delta A / w)\,c_{\text{out}}
-        + \Sigma_t\,V`.  Per-group, shape ``(ng,)``.
-    numer_upstream :
-        Upstream-contribution numerator (excluding the cell source),
-        :math:`|\mu|\,(A_{\text{in}} + A_{\text{out}})\,\psi^s_{\text{in}}
-        + (\Delta A / w)\,c_{\text{in}}\,\psi^{\theta}_{\text{in}}`.
-        Per-group, shape ``(ng,)``.
-    c_in :
-        Morel-Montry "in" closure constant
-        :math:`c_{\text{in}} = (1-\tau)/\tau \cdot \alpha_{\text{out}}
-        + \alpha_{\text{in}}`.  Scalar.  ``0.0`` for slab.
-    c_out :
-        Morel-Montry "out" closure constant
-        :math:`c_{\text{out}} = \alpha_{\text{out}} / \tau`.  Scalar.
-        ``0.0`` for slab.
-    """
-
-    denom: np.ndarray
-    numer_upstream: np.ndarray
-    c_in: float
-    c_out: float
 
 
 def cell_balance_for_streaming(
@@ -263,110 +224,6 @@ def cell_balance_for_streaming(
     return denom, numer_upstream
 
 
-def cell_balance_terms(
-    st: "StreamingTerms",
-    A_downstream: float,
-    total_xs: np.ndarray,
-    upstream_state: "UpstreamState",
-    *,
-    c_in: float,
-    c_out: float,
-) -> CellBalanceTerms:
-    r"""Unified per-cell balance terms — geometry-blind by data.
-
-    Issue #196 Phase G Step 2.5: ONE helper for slab, sphere,
-    cylinder (non-degenerate), and cylindrical pure-azimuthal
-    degenerate.  The geometry kind is encoded in the populated
-    fields of ``st`` (neutral values for slab, physical values for
-    curvilinear) and the value of ``A_downstream`` (``0.0`` for
-    cylindrical-degenerate, ``1.0`` for slab, the physical outgoing
-    face area for curvilinear).
-
-    Issue #236 Phase 2 B3: the Morel--Montry weighted-diamond
-    constants ``c_in`` / ``c_out`` are ANGULAR-CLOSURE-OWNED inputs,
-    passed by the caller from :attr:`CellVisit.c_in` / ``c_out`` (the
-    closure stamps them from its ``c_{in,out}_per_ordinate`` accessors
-    via :meth:`SNMesh._make_cell_visit`).  They are NO LONGER rebuilt
-    here from ``st.alpha_*`` / ``st.tau_mm`` — this helper does not read
-    τ at all.  The spatial scheme receives the angular constants as
-    DATA, preserving the spatial :math:`\otimes` angular separation.
-
-    Parameters
-    ----------
-    st :
-        Streaming-terms packet on the cell-visit.  All curvature
-        fields populated (slab carries neutral values per
-        :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming`).
-    A_downstream :
-        Sweep-direction-resolved outgoing face area.  Read from the
-        :class:`CellVisit`'s ``face_area_downstream`` field.  ``1.0``
-        for slab, ``0.0`` for cyl-degenerate, physical face area for
-        curvilinear.
-    total_xs :
-        Per-group total cross section, shape ``(ng,)``.
-    upstream_state :
-        Per-cell upstream state.  ``spatial_upstream`` is always
-        populated.  ``angular_upstream`` is ``None`` for slab and
-        populated (``(ng,)``) for curvilinear.
-    c_in :
-        Angular-closure-owned Morel--Montry "in" constant
-        :math:`(1-\tau)/\tau\,\alpha_{\rm out} + \alpha_{\rm in}` for this
-        ordinate — read from :attr:`CellVisit.c_in`.  ``0.0`` for slab.
-    c_out :
-        Angular-closure-owned Morel--Montry "out" constant
-        :math:`\alpha_{\rm out}/\tau` for this ordinate — read from
-        :attr:`CellVisit.c_out`.  ``0.0`` for slab.
-
-    Returns
-    -------
-    CellBalanceTerms
-        Bundled algebraic intermediates.  See class docstring.
-    """
-    # All curvature fields populated for every geometry (slab carries
-    # neutral values per Step 2.5 — see slab_streaming factory).
-    abs_mu = st.abs_mu
-    A_total = st.face_area_inner + st.face_area_outer
-    dA_w = st.delta_A_over_w
-    V = st.volume
-
-    # The M-M closure constants c_in / c_out arrive as ANGULAR-CLOSURE-
-    # OWNED data (Issue #236 Phase 2 B3) — the closure produces them from
-    # its α-dome / τ and stamps them on the CellVisit; this helper consumes
-    # them, it does not derive them.  Slab carries 0.0 (neutral identity
-    # closure); curvilinear carries the physical weighted-diamond values.
-
-    # Denominator: 2|μ|·A_down (vanishes for cyl-degenerate via
-    # A_down=0; reduces to 2|μ|·1 for slab) + curvature redistribution
-    # (vanishes for slab via dA_w=0) + collision.
-    denom = 2.0 * abs_mu * A_downstream + dA_w * c_out + total_xs * V
-
-    # Upstream numerator: spatial-streaming contribution (slab:
-    # |μ|·2·ψ^s_in = 2|μ|·ψ^s_in; cyl-deg: zero by A_down=0 path —
-    # but A_total is non-zero for cyl-deg, so we use A_down's
-    # presence as the discriminator. Wait — cyl-deg has populated
-    # A_inner+A_outer but no radial flow, so the |μ|·A_total·ψ^s_in
-    # term must vanish. abs_mu < 1e-15 ensures it ≈ 0.).
-    #
-    # Angular-redistribution contribution: zero for slab via
-    # angular_upstream=None branch below; physical for curvilinear.
-    psi_ang = upstream_state.angular_upstream
-    ang_contrib = (
-        0.0
-        if psi_ang is None
-        else dA_w * c_in * psi_ang
-    )
-    numer_upstream = abs_mu * A_total * upstream_state.spatial_upstream + ang_contrib
-
-    return CellBalanceTerms(
-        denom=denom,
-        numer_upstream=numer_upstream,
-        c_in=c_in,
-        c_out=c_out,
-    )
-
-
 __all__ = [
-    "CellBalanceTerms",
     "cell_balance_for_streaming",
-    "cell_balance_terms",
 ]

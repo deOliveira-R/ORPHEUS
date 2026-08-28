@@ -32,7 +32,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.spatial.cell_balance import cell_balance_terms
+from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.spatial.scheme import UpstreamState
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.sn.sweep.scan import ordinate_scan
@@ -364,7 +364,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
 
     The two MUST agree at ``rtol=1e-13`` (Pattern 2 dual-view contract).
     Disagreement signals either a cache-populator algebra bug or a
-    ``cell_balance_terms`` non-affine term.  Per plan decision-point
+    non-affine term in the per-cell balance.  Per plan decision-point
     checkpoints: STOP and trace algebraically; do NOT widen rtol.
     """
     nx = 8
@@ -471,12 +471,18 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
 
 
 @pytest.mark.l0
-def test_cache_populator_matches_cell_balance_terms() -> None:
-    """Test #7 — cache ``(a, 1/denom)`` agrees with :func:`cell_balance_terms`.
+def test_cache_populator_matches_cell_balance_for_streaming() -> None:
+    """Test #7 — cache ``(a, 1/denom)`` agrees with the per-cell balance helper.
 
     Pattern 2 anchor at ``rtol=1e-14``.  For any cell, the cache's per-cell
-    ``(a, inverse_denom)`` MUST equal what ``cell_balance_terms`` would
-    produce — the two paths derive from the same algebra.
+    ``(a, inverse_denom)`` MUST equal what :func:`cell_balance_for_streaming`
+    (at ``n_mask=1``, angular contributions assembled from the visit's
+    closure data) would produce — [M] ``affine_scan_coefficients`` computes
+    its ``denom`` from its OWN expression and calls neither helper, so
+    cache-populator vs balance-helper remain two independent
+    implementations and this gate keeps its cross-implementation claim
+    (P4.9a rewire of ``…_matches_cell_balance_terms``; the scalar twin
+    retired).
     """
     sn_mesh = _make_sphere(nx=8, N=4)
     geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
@@ -495,20 +501,26 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
         for k_chain in (0, 3, 7):
             visit = visits[k_chain]
             cell_i = int(chain[k_chain])
-            # Use a zero upstream + zero angular probe — the cell_balance_terms
-            # output's ``denom`` is independent of upstream, so this is fine.
-            upstream = UpstreamState(
-                spatial_upstream=np.zeros(ng),
-                angular_upstream=np.zeros(ng),
+            # Zero upstream + zero angular-numer probe — ``denom`` is
+            # independent of upstream, so this is fine.
+            st = visit.streaming_terms
+            denom_ref, _numer_ref = cell_balance_for_streaming(
+                abs_mu=np.array([st.abs_mu]),
+                A_downstream=np.array([visit.face_area_downstream]),
+                A_total=np.array(
+                    [st.face_area_inner + st.face_area_outer],
+                ),
+                total_xs=sig_t[:, cell_i],                                 # (ng,)
+                volume=st.volume,
+                psi_face_in=np.zeros((ng, 1)),
+                # Angular contributions assembled from the visit's stamped
+                # closure data (c stamped by dag_walk).
+                angular_denom_term=np.array(
+                    [st.delta_A_over_w * visit.c_out],
+                ),
+                angular_numer_upstream=np.zeros((ng, 1)),
             )
-            terms = cell_balance_terms(
-                visit.streaming_terms,
-                visit.face_area_downstream,
-                sig_t[:, cell_i],                                          # (ng,)
-                upstream,
-                c_in=visit.c_in,                                          # stamped by dag_walk
-                c_out=visit.c_out,
-            )
+            denom_ref = denom_ref[:, 0]                                   # (ng,)
             # Cache layout (N, ng, nx) — fix n, fix k_chain ⇒ (ng,) vector.
             # Indexing pattern updated from [n, k_chain] (legacy axis 1 was
             # cell) to [n, :, k_chain] (PR-INDEX-2 axis 1 is group, axis 2
@@ -516,16 +528,15 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
             # vector across groups."
             denom_cached = 1.0 / coll.inverse_denom[n, :, k_chain]         # (ng,)
             a_cached = coll.a_attenuation[n, :, k_chain]                   # (ng,)
-            # Algebraic a from terms: a = 2|μ|·A_total / denom − 1.
+            # Algebraic a from the reference denom: a = 2|μ|·A_total/denom − 1.
             A_total = (
-                visit.streaming_terms.face_area_inner
-                + visit.streaming_terms.face_area_outer
+                st.face_area_inner + st.face_area_outer
             )
             a_expected = (
-                2.0 * visit.streaming_terms.abs_mu * A_total / terms.denom - 1.0
+                2.0 * st.abs_mu * A_total / denom_ref - 1.0
             )
             np.testing.assert_allclose(
-                denom_cached, terms.denom, rtol=1e-14,
+                denom_cached, denom_ref, rtol=1e-14,
                 err_msg=f"denom mismatch n={n} k={k_chain}",
             )
             np.testing.assert_allclose(

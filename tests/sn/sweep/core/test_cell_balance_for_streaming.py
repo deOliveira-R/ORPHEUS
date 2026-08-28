@@ -19,9 +19,13 @@ own algebra (no closure dependence at the test surface).
 Pinned invariants
 =================
 
-1. **Bit-identity at n_mask=1**: the vectorized form matches
-   :func:`cell_balance_terms` exactly on the same per-cell scalar
-   inputs, for both curvilinear and slab geometry.
+1. **Hand-written literal pins at n_mask=1**: the helper's output on
+   the module's synthetic curvilinear and slab packets equals literals
+   computed OFFLINE by hand arithmetic (``array_equal``).  ⚠ P4.9a
+   claim-class note: until the ``cell_balance_terms`` retirement these
+   two rows compared TWO independently-spelled production helpers; the
+   literals are the anchor that survives — computed from the balance
+   equation as written, never by re-calling the helper.
 
 2. **Vectorization invariance**: calling the helper at n_mask=N
    produces per-ordinate results bit-identical to calling it n_mask
@@ -44,7 +48,6 @@ import pytest
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.transport.spatial.cell_balance import (
     cell_balance_for_streaming,
-    cell_balance_terms,
 )
 from orpheus.transport.spatial.scheme import UpstreamState
 
@@ -157,26 +160,28 @@ def _scalar_to_vectorized_inputs(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_n_mask_1_matches_scalar_curvilinear():
-    """Pattern 2: the vectorized form at n_mask=1 reproduces the
-    scalar :func:`cell_balance_terms` output bit-for-bit on
-    curvilinear inputs."""
+def test_n_mask_1_hand_written_pin_curvilinear():
+    """The helper's curvilinear output equals OFFLINE hand arithmetic —
+    ``array_equal`` against pasted literals.
+
+    P4.9a rewire (was ``test_n_mask_1_matches_scalar_curvilinear``): the
+    scalar twin ``cell_balance_terms`` retired, so the cross-helper
+    comparison lost its subject.  The literals below were computed by
+    hand in the balance equation's own operation order —
+    ``denom = 2·|μ|·A_down + (ΔA/w)·c_out + Σ_t·V`` (left fold),
+    ``numer = |μ|·A_total·ψˢ + (ΔA/w)·c_in·ψᵃ`` — on the module's
+    synthetic packet (τ=0.75, α=(0.1, 0.15), A_down=1.5), [M] validated
+    bit-equal against the living helper before it died (2026-08-28).
+    This is a claim-class PROMOTION: the values stop being cross-checked
+    between two implementations and start being anchored to literals.
+    ⛔ Never recompute the reference by calling the helper.
+    """
     st = _curvilinear_streaming_terms()
     A_downstream = 1.5
     total_xs = np.array([1.2, 0.8])
     upstream = UpstreamState(
         spatial_upstream=np.array([0.5, 0.7]),
         angular_upstream=np.array([0.4, 0.6]),
-    )
-
-    # Issue #236 Phase 2 B3 / Step C: cell_balance_terms takes c_in / c_out
-    # as data; supply them from the shared surrogate on the chosen M-M triple
-    # (this test has a raw st, no visit).
-    c_in_v, c_out_v = c_from_constants(
-        _CURVILINEAR_TAU, _CURVILINEAR_ALPHA_IN, _CURVILINEAR_ALPHA_OUT,
-    )
-    terms = cell_balance_terms(
-        st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
     )
 
     (
@@ -196,34 +201,33 @@ def test_n_mask_1_matches_scalar_curvilinear():
         angular_numer_upstream=angular_numer_upstream,
     )
 
-    # Bit-identity: both helpers compute the same algebra with the
-    # same operation order (named intermediates).  Differences would
-    # only appear from FP-non-associativity in the multi-term sum;
-    # both forms add the three contributions in the same order.
     assert denom_v.shape == (2, 1)
     assert numer_v.shape == (2, 1)
-    np.testing.assert_array_equal(denom_v[:, 0], terms.denom)
-    np.testing.assert_array_equal(numer_v[:, 0], terms.numer_upstream)
+    np.testing.assert_array_equal(
+        denom_v[:, 0], np.array([1.6799999999999997, 1.44]),
+    )
+    np.testing.assert_array_equal(
+        numer_v[:, 0], np.array([0.42300000000000004, 0.594]),
+    )
 
 
-def test_n_mask_1_matches_scalar_slab():
-    """Pattern 2: bit-identity at n_mask=1 for slab geometry
-    (zero ``angular_denom_term`` / ``angular_numer_upstream``)."""
+def test_n_mask_1_hand_written_pin_slab():
+    """The helper's slab output equals OFFLINE hand arithmetic —
+    ``array_equal`` against pasted literals.
+
+    P4.9a rewire (was ``test_n_mask_1_matches_scalar_slab``); see the
+    curvilinear pin's docstring for the claim-class note.  Slab packet:
+    neutral curvature (dA_w = 0, c = 0, A = 1), so
+    ``denom = 2·|μ| + Σ_t·V`` and ``numer = 2|μ|·ψˢ`` — the two
+    structural zero-legs on the angular contributions survive as
+    independent pins.
+    """
     st = _slab_streaming_terms()
     A_downstream = 1.0
     total_xs = np.array([1.2, 0.8])
     upstream = UpstreamState(
         spatial_upstream=np.array([0.5, 0.7]),
         angular_upstream=None,
-    )
-
-    # Issue #236 Phase 2 B3 / Step C: slab carries neutral α=0 / τ=1
-    # ⇒ c_in = c_out = 0.
-    c_in_v, c_out_v = c_from_constants(
-        _SLAB_TAU, _SLAB_ALPHA_IN, _SLAB_ALPHA_OUT,
-    )
-    terms = cell_balance_terms(
-        st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
     )
 
     (
@@ -246,8 +250,8 @@ def test_n_mask_1_matches_scalar_slab():
         angular_numer_upstream=angular_numer_upstream,
     )
 
-    np.testing.assert_array_equal(denom_v[:, 0], terms.denom)
-    np.testing.assert_array_equal(numer_v[:, 0], terms.numer_upstream)
+    np.testing.assert_array_equal(denom_v[:, 0], np.array([1.2, 1.0]))
+    np.testing.assert_array_equal(numer_v[:, 0], np.array([0.3, 0.42]))
 
 
 # ═══════════════════════════════════════════════════════════════════════

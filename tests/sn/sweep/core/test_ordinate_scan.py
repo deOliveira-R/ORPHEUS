@@ -41,7 +41,7 @@ from orpheus.sn.mesh.reduced_operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import DiamondDifference, UpstreamState
-from orpheus.transport.spatial.cell_balance import cell_balance_terms
+from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.spatial.scheme import CellVisit
 from orpheus.sn.sweep.scan import ordinate_scan
 from tests.sn.sweep.core._c_surrogate import (
@@ -61,8 +61,7 @@ def _affine_coefficients_from_visits(
     Step 2.5c retired ``DiamondDifference.affine_coefficients`` —
     the cache populator subsumes it.  These dual-view tests retain
     their algebraic structure by computing ``(a, b)`` per cell via
-    :func:`cell_balance_terms` (the Pattern 2 anchor that both
-    ``update`` and the cache populator derive from):
+    :func:`cell_balance_for_streaming` at ``n_mask=1``:
 
     .. math::
 
@@ -71,42 +70,42 @@ def _affine_coefficients_from_visits(
         b[i, g] = 2 \cdot (\mathrm{source}[i, g]
                             + \mathrm{ang\_contrib}[i, g])
                   / \mathrm{denom}[i, g].
+
+    ⚠ The helper here GENERATES the ``(a, b)`` the SUT consumes — it is
+    a FIXTURE, not a reference; [M] a mutation of the balance helper
+    reds 0 of these rows (shared-input blindness, measured 2026-08-28).
+    The subject of this module is ``ordinate_scan`` itself.
     """
     nx = len(visits)
     ng = total_xs.shape[1]
     a_out = np.empty((nx, ng))
     b_out = np.empty((nx, ng))
     for idx, visit in enumerate(visits):
-        psi_ang = (
-            np.zeros(ng) if angular_state is None else angular_state[idx]
-        )
-        upstream = UpstreamState(
-            spatial_upstream=np.zeros(ng),
-            angular_upstream=(
-                None if angular_state is None else psi_ang
-            ),
-        )
-        # Issue #236 Phase 2 B3 / Step C: cell_balance_terms consumes the
-        # angular-closure-owned c_in / c_out as data.  These visits were
-        # stamped (by the builders) with the surrogate's c; read them off
-        # the visit (the geometry-side τ/α packing is retired, so the c can
-        # no longer be recomputed from ``visit.streaming_terms``).
-        terms = cell_balance_terms(
-            visit.streaming_terms,
-            visit.face_area_downstream,
-            total_xs[idx],
-            upstream,
-            c_in=visit.c_in,
-            c_out=visit.c_out,
-        )
         st = visit.streaming_terms
+        # The visits were stamped (by the builders) with the surrogate's
+        # c; assemble the closure's denominator contribution from them.
+        denom_m, _numer_m = cell_balance_for_streaming(
+            abs_mu=np.array([st.abs_mu]),
+            A_downstream=np.array([visit.face_area_downstream]),
+            A_total=np.array(
+                [st.face_area_inner + st.face_area_outer],
+            ),
+            total_xs=total_xs[idx],
+            volume=st.volume,
+            psi_face_in=np.zeros((ng, 1)),
+            angular_denom_term=np.array(
+                [st.delta_A_over_w * visit.c_out],
+            ),
+            angular_numer_upstream=np.zeros((ng, 1)),
+        )
+        denom = denom_m[:, 0]
         A_total = st.face_area_inner + st.face_area_outer
-        a_out[idx] = 2.0 * st.abs_mu * A_total / terms.denom - 1.0
+        a_out[idx] = 2.0 * st.abs_mu * A_total / denom - 1.0
         ang_contrib = (
             0.0 if angular_state is None
-            else st.delta_A_over_w * terms.c_in * angular_state[idx]
+            else st.delta_A_over_w * visit.c_in * angular_state[idx]
         )
-        b_out[idx] = 2.0 * (source[idx] + ang_contrib) / terms.denom
+        b_out[idx] = 2.0 * (source[idx] + ang_contrib) / denom
     return a_out, b_out
 
 

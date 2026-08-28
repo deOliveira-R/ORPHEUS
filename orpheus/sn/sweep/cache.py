@@ -78,13 +78,17 @@ and ``b = 2·q/denom``.  The same three tensor ops in
 Pattern 2 anchor — single source of truth
 =========================================
 
-The cache populator derives from :func:`~orpheus.transport.spatial.cell_balance.cell_balance_terms`
-indirectly via the per-cell :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
-factory.  The L1 dual-view validator
-(``test_cache_populator_matches_cell_balance_terms``) asserts that for any
-cell, the cache's ``(a, denom)`` agree with the per-cell ``cell_balance_terms``
-output to ``rtol=1e-14``.  This is the Pattern 2 contract that keeps the
-fast cache-driven path and the slow per-cell-update reference path consistent.
+The cache populator computes its ``(a, denom)`` from its own vectorized
+expression over the per-cell
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` factory's data —
+independently of
+:func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`,
+the per-cell balance's single algebra source (P4.9a retired its scalar
+twin ``cell_balance_terms``).  The L1 dual-view validator
+(``test_cache_populator_matches_cell_balance_for_streaming``) asserts that
+for any cell the two independent implementations agree to ``rtol=1e-14``.
+This is the Pattern 2 contract that keeps the fast cache-driven path and
+the slow per-cell-update reference path consistent.
 
 References
 ==========

@@ -87,14 +87,6 @@ def _run_one_matvec(sn_mesh: SNMesh) -> None:
         grid.apply(CoupledField(systems=(psi, seed)))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "RED until P4.9a's carve makes the degenerate solve branch call the "
-        "closure's advance_psi_half — today it reaches DiamondDifference's "
-        "inline Morel-Montry twin, which is no closure object at all."
-    ),
-)
 def test_every_per_cell_consumer_reaches_the_mesh_closure(monkeypatch):
     """[foundation] Solve + matvec degenerate arms reach ONE closure object.
 

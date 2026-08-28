@@ -4288,6 +4288,7 @@ class _OneDimScanWalk:
                             )
                             # scheme.update expects per-cell (ng,)
                             # arrays — sig_t / source slice on the cell axis.
+                            # P4.9a: the scheme closes the SPATIAL axis only.
                             result = scheme.update(
                                 visit=visit,
                                 total_xs=sig_t_p[:, i],
@@ -4295,7 +4296,13 @@ class _OneDimScanWalk:
                                 upstream_state=upstream,
                             )
                             psi = result.cell_average_flux           # (ng,)
-                            psi_angle[:, i] = result.outgoing_angular_state
+                            # The angular axis is closed by ITS closure —
+                            # the walk (L3, the composition site) applies
+                            # the owner's march; the τ index is the GLOBAL
+                            # ordinate, exactly what the visit stamp used.
+                            psi_angle[:, i] = closure.advance_psi_half(
+                                psi, psi_angle[:, i], ordinate=global_n,
+                            )
                             angular_flux[global_n, :, i] = psi
                             scalar_flux[:, i] += w_n * psi
                         continue

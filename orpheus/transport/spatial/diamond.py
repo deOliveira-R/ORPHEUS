@@ -10,21 +10,28 @@ collapse (derivation:
 
 1. **Cell-balance algebra is one formula across geometries** when
    :class:`StreamingTerms` carries neutral curvature for slab
-   (``α=0, ΔA/w=0, τ=1, A_in=A_out=1``); :func:`cell_balance_terms`
-   produces ``(denom, numer_upstream)`` for any geometry.
+   (``α=0, ΔA/w=0, τ=1, A_in=A_out=1``); :func:`cell_balance_for_streaming`
+   — the SAME geometry-blind helper the vectorized matvec consumes —
+   produces ``(denom, numer_upstream)`` for any geometry at ``n_mask=1``.
 2. **The spatial closure** ``ψ^s_out = 2·ψ_avg − ψ^s_in`` is the same
    formula for slab and non-degenerate curvilinear; cylindrical-degenerate
    has no downstream spatial face, signalled by
    ``visit.face_area_downstream == 0.0`` (geometric truth, not a numerical
    threshold).
-3. **The angular closure** ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` is the
-   same formula for sphere and cylinder; slab has no angular redistribution,
-   signalled by ``upstream_state.angular_upstream is None``.
+3. **The angular (Morel--Montry) closure is NOT this scheme's to apply**
+   (P4.9a): a spatial discretization scheme closes the SPATIAL axis and
+   nothing else.  The march ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` lives
+   with its owner (:func:`orpheus.sn.angular.closure.march_psi_half_step`,
+   applied by the SN walk through
+   :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`);
+   DD consumes the closure's contributions to the BALANCE as assembled
+   data (``(ΔA/w)·c_out`` into the denominator, ``(ΔA/w)·c_in·ψ^a`` into
+   the upstream numerator) and returns
+   ``CellResult(outgoing_angular_state=None)`` unconditionally.
 
-The two ``if`` checks remaining inside :meth:`update`
-(``face_area_downstream > 0.0``; ``angular_upstream is not None``) are NOT
-geometry dispatch — they test the **structural presence** of a direction,
-not the geometry kind.
+The one ``if`` check remaining inside :meth:`update`
+(``face_area_downstream > 0.0``) is NOT geometry dispatch — it tests the
+**structural presence** of a downstream face, not the geometry kind.
 
 References
 ==========
@@ -72,7 +79,7 @@ See also
 
 * :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` — the
   Protocol this strategy satisfies.
-* :func:`cell_balance_terms` — the unified algebra (Step 2.5).
+* :func:`cell_balance_for_streaming` — the unified geometry-blind algebra.
 * :doc:`/theory/methods/sn/index`, "Cell update strategies (the
   strategy contract)" → "Diamond Difference" — the theory page.
 """
@@ -84,7 +91,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from .cell_balance import cell_balance_for_streaming, cell_balance_terms
+from .cell_balance import cell_balance_for_streaming
 from .scheme import (
     CellResult,
     DiscretizationSchemeBase,
@@ -100,6 +107,64 @@ from .scheme import (
 #: the literal ``0.5`` reference ONE source of truth (``_DD_W is exactly
 #: 0.5`` — referencing it is byte-identical to the literal).
 _DD_W: float = 0.5
+
+
+def _cell_balance_n1(
+    visit: CellVisit,
+    total_xs: np.ndarray,
+    upstream_state: UpstreamState,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Per-cell ``(denom, numer_upstream)`` — the ``n_mask=1`` view of
+    :func:`cell_balance_for_streaming`, collapsed to ``(ng,)``.
+
+    The ONE conversion site from a scalar :class:`CellVisit` to the
+    vectorized helper's argument shapes, shared by :meth:`DiamondDifference.update`
+    and :meth:`DiamondDifference.residual` (Pattern 2 — one algebra source;
+    the retired scalar twin ``cell_balance_terms`` was this block's second
+    spelling).  [M] bit-identical to the retired scalar form on both the
+    curvilinear and slab packets (the pre-retirement equivalence gates,
+    re-pointed as hand-written literal pins in
+    ``tests/sn/sweep/core/test_cell_balance_for_streaming.py``).
+
+    P4.9a interval note: the angular contributions are assembled HERE from
+    the visit's stamped closure data (``(ΔA/w)·c_out``, ``(ΔA/w)·c_in·ψ^a``).
+    Row 3 (the protocol shedding) moves this assembly to the caller — the
+    scheme then receives ``angular_denom_term`` / ``angular_numer_upstream``
+    directly and this helper keeps only the spatial conversion.
+    """
+    st = visit.streaming_terms
+    abs_mu_arr = np.array([st.abs_mu], dtype=float)
+    A_down_arr = np.array([visit.face_area_downstream], dtype=float)
+    A_total_arr = np.array(
+        [st.face_area_inner + st.face_area_outer], dtype=float,
+    )
+    psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
+
+    dA_w_scalar = st.delta_A_over_w
+    angular_denom_term = np.array(
+        [dA_w_scalar * visit.c_out], dtype=float,
+    )                                                # (1,)
+    psi_ang = upstream_state.angular_upstream
+    if psi_ang is None:
+        angular_numer_upstream = np.zeros(
+            (total_xs.size, 1), dtype=float,
+        )                                            # (ng, 1)
+    else:
+        angular_numer_upstream = (
+            dA_w_scalar * visit.c_in * psi_ang[:, None]
+        )                                            # (ng, 1)
+
+    denom, numer_upstream = cell_balance_for_streaming(
+        abs_mu=abs_mu_arr,
+        A_downstream=A_down_arr,
+        A_total=A_total_arr,
+        total_xs=total_xs,
+        volume=st.volume,
+        psi_face_in=psi_face_in_mask,
+        angular_denom_term=angular_denom_term,
+        angular_numer_upstream=angular_numer_upstream,
+    )
+    return denom[:, 0], numer_upstream[:, 0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,10 +229,11 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 
     supports_curvilinear: ClassVar[bool] = True
-    r"""DD has a curvilinear cell closure: :meth:`update` runs the Morel–Montry
-    angular redistribution (the ``angular_upstream is not None`` branch) for
-    sphere/cylinder, and DD rides ``CumprodScan`` on every 1-D geometry.  So a
-    curvilinear mesh may select a DD scheme (the default for sphere/cylinder)."""
+    r"""DD has a curvilinear cell closure: its balance consumes the angular
+    closure's assembled curvature contributions as data (P4.9a — the M-M
+    march itself is applied by the walk, not by this scheme), and DD rides
+    ``CumprodScan`` on every 1-D geometry.  So a curvilinear mesh may select
+    a DD scheme (the default for sphere/cylinder)."""
 
     # ``has_transpose_kernel`` is DERIVED True — DD registers
     # ``streaming_cell_transpose`` (the relocated diamond-chain VJP, below
@@ -181,25 +247,26 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         source: np.ndarray,
         upstream_state: UpstreamState,
     ) -> CellResult:
-        r"""Compute the cell-average flux + downstream states.
+        r"""Compute the cell-average flux + the downstream SPATIAL state.
 
         One body — no geometry dispatch.  See the module docstring for the
-        three structural observations enabling the collapse.
+        structural observations enabling the collapse.
+
+        P4.9a: DD closes the SPATIAL axis and nothing else.  The Morel--Montry
+        march is applied by the SN walk through the closure's own
+        ``advance_psi_half``; this scheme consumes the closure's balance
+        contributions as assembled data (via :func:`_cell_balance_n1`) and
+        returns ``outgoing_angular_state=None`` unconditionally.
         """
         # ── Cell-balance solve: ONE formula, all geometries ─────────
-        # The Morel--Montry constants c_in / c_out are angular-closure-owned
-        # and arrive as DATA on the visit; cell_balance_terms consumes them —
-        # it must NOT rebuild them from st.alpha_* / st.tau_mm (that would
-        # re-fuse the spatial and angular closures).
-        terms = cell_balance_terms(
-            visit.streaming_terms,
-            visit.face_area_downstream,
-            total_xs,
-            upstream_state,
-            c_in=visit.c_in,
-            c_out=visit.c_out,
+        # Routed through the SAME geometry-blind helper the vectorized
+        # matvec consumes (cell_balance_for_streaming at n_mask=1) —
+        # Pattern 2's single algebra source; the scalar twin
+        # ``cell_balance_terms`` retired with P4.9a.
+        denom, numer_upstream = _cell_balance_n1(
+            visit, total_xs, upstream_state,
         )
-        psi_avg = (source + terms.numer_upstream) / terms.denom
+        psi_avg = (source + numer_upstream) / denom
 
         # ── Spatial closure (WDD) ───────────────────────────────────
         # Outputs ``None`` when there is no downstream spatial face on
@@ -216,23 +283,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
                 psi_avg, upstream_state.spatial_upstream, _DD_W,
             )
 
-        # ── Angular closure (Morel-Montry) ──────────────────────────
-        # Outputs ``None`` when this geometry has no angular state to
-        # propagate (slab: upstream_state.angular_upstream is None).
-        # Sphere / cylinder share the closure formula
-        # ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` exactly, with τ the
-        # angular-closure-owned weight sourced off the visit (CellVisit.tau).
-        psi_angle_out: np.ndarray | None = None
-        if upstream_state.angular_upstream is not None:
-            tau = visit.tau
-            psi_angle_out = (
-                psi_avg - (1.0 - tau) * upstream_state.angular_upstream
-            ) / tau
-
         return CellResult(
             cell_average_flux=psi_avg,
             outgoing_spatial_flux=psi_spat_out,
-            outgoing_angular_state=psi_angle_out,
+            outgoing_angular_state=None,
         )
 
     # ── Apply-direction residual (Issue #196 Phase G Step 1 replan) ──
@@ -256,64 +310,21 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         Round-trip with :meth:`update`
         ------------------------------
 
-        This method delegates to :func:`cell_balance_for_streaming` (the
-        vectorized helper the SN matvec also consumes) at ``n_mask=1``;
-        :meth:`update` routes through :func:`cell_balance_terms` (the scalar
-        solve-direction form).  Both compute the same intermediates, so at
-        ``n_mask=1`` the per-ordinate result matches the scalar form
-        bit-for-bit (Pattern 2, ONE algebra source).  At the converged
+        Both directions route through :func:`_cell_balance_n1` — ONE
+        conversion, ONE algebra source (:func:`cell_balance_for_streaming`
+        at ``n_mask=1``).  ⚠ P4.9a claim-class note: before the
+        ``cell_balance_terms`` retirement, update/residual agreement also
+        cross-checked two independently-spelled helpers; with one helper
+        left, what this round-trip pins is the solve↔apply REARRANGEMENT
+        of the balance equation, not helper equivalence.  At the converged
         ``cell_avg = update(...).cell_average_flux``, the residual is
         ``denom · cell_avg − (source + numer_upstream)`` = zero by the
         cell-balance equation ``update`` solved.
         """
-        st = visit.streaming_terms
-        # Convert per-cell scalar StreamingTerms primitives to the
-        # ``(n_mask=1,)`` arrays the vectorized helper consumes.
-        # Pattern 2 — single algebra source via cell_balance_for_streaming.
-        abs_mu_arr = np.array([st.abs_mu], dtype=float)
-        A_down_arr = np.array([visit.face_area_downstream], dtype=float)
-        A_total_arr = np.array(
-            [st.face_area_inner + st.face_area_outer], dtype=float,
+        denom, numer_upstream = _cell_balance_n1(
+            visit, total_xs, upstream_state,
         )
-
-        psi_face_in_mask = upstream_state.spatial_upstream[:, None]  # (ng, 1)
-
-        # The M-M algebra is closure-owned: ``cell_balance_for_streaming``
-        # takes only the ``(angular_denom_term, angular_numer_upstream)``
-        # contributions, not raw ``c_in`` / ``c_out``.  The weighted-diamond
-        # constants ``c_in`` / ``c_out`` arrive as DATA on the CellVisit; DD
-        # must NOT rebuild them from ``st.alpha_*`` / ``st.tau_mm`` (it stays
-        # geometry- AND closure-blind).  The (ΔA/w)-scaling below is the
-        # geometry-owned redistribution factor.
-        dA_w_scalar = st.delta_A_over_w
-        c_out_scalar = visit.c_out
-        c_in_scalar = visit.c_in
-        angular_denom_term = np.array(
-            [dA_w_scalar * c_out_scalar], dtype=float,
-        )                                                # (1,)
-        psi_ang = upstream_state.angular_upstream
-        if psi_ang is None:
-            angular_numer_upstream = np.zeros(
-                (total_xs.size, 1), dtype=float,
-            )                                            # (ng, 1)
-        else:
-            angular_numer_upstream = (
-                dA_w_scalar * c_in_scalar * psi_ang[:, None]
-            )                                            # (ng, 1)
-
-        denom, numer_upstream = cell_balance_for_streaming(
-            abs_mu=abs_mu_arr,
-            A_downstream=A_down_arr,
-            A_total=A_total_arr,
-            total_xs=total_xs,
-            volume=st.volume,
-            psi_face_in=psi_face_in_mask,
-            angular_denom_term=angular_denom_term,
-            angular_numer_upstream=angular_numer_upstream,
-        )
-        # Both arrays are (ng, 1); collapse to (ng,) to match the
-        # scalar-form residual contract (Issue #196 Phase G Step 1).
-        return denom[:, 0] * cell_avg - (source + numer_upstream[:, 0])
+        return denom * cell_avg - (source + numer_upstream)
 
     # ── Shared DD Cartesian sub-primitives (single source — #240 D5a) ──
     #
