@@ -2920,10 +2920,55 @@ with it:**
   tests-only builder would twin the assembly (Pattern 2). Binds P4.9b's
   design round; details ruled there.
 
+✅ **RULED 2026-08-28 (user, execution round — after the two pre-measurements
+`scratch/p4_9a_enumeration.md` + `scratch/p4_9a_verification_plan.md`):**
+
+* **Q1 — the degenerate branch routes through the OWNER's form, via a closure
+  march-step method** (Form A, the closure's own operation order; its batch
+  march delegates to the same body). `[M]` the expanded scan form is bit-equal
+  only 59 % on real τ (max 204 ULP) and breaks `keff` bit-equality on 3 of 4
+  configs; and the `is`-identity gate is unbuildable without a closure METHOD
+  call — two independent reasons, one ruling. The fast path keeps the minted
+  scan-form constants (bit-identity of every cylindrical solve), welded to the
+  march by an `array_equal` field gate (`[M]` the realistic drift,
+  `tau_inv − 1.0`, is 1–2 ULP — any tolerance is a non-catcher).
+* **Q2 — CellVisit sheds all three** (`tau`, `c_in`, `c_out`); `update` /
+  `residual` take the two ASSEMBLED angular contributions
+  (`angular_denom_term`, `angular_numer_upstream`) — `residual`'s existing
+  internal idiom and `cell_contribution`'s return type. The walk assembles
+  from the visit's own `st.delta_A_over_w` (NOT the cache's separately-produced
+  `dA_w` twin) to preserve bit-identity; readership of the packet field moves
+  from `cell_balance_terms` to the walk — **P4.7's enumeration must include
+  it**. The mesh's closure-stamp in `_make_cell_visit` dies with the fields.
+* **Row 3b rides P4.9a**: `affine_scan_coefficients(dA_w=, c_out=)` re-poses
+  onto an assembled `angular_denom_term=` (caller assembles; DD's in-L2
+  `dA_w·c_out` at `diamond.py:676` dies). LD's scan guard re-keys on the
+  assembled term; the per-cell guard re-keys on
+  **`face_area_inner != face_area_outer`** — the geometric curvature truth,
+  mesh-free and **P4.7-proof** (`delta_A_over_w`, the architect's candidate
+  signal, is a field P4.7 retires; the assembled term is non-universal at dome
+  ends where `c_out = 0`).
+* ⭐ **DIRECTION, binding P4.9b (user, same ruling):** the fast path should
+  stop having *"its own totally special implementation"* — the fused scan
+  table (the rearranged+welded form: scan-normal coefficients + the
+  `ΔA/w·c_in` spatial⊗angular fusion) is the **OPERATOR's artifact**, minted
+  near the hot path from the two closures the operator holds. P4.9a lands the
+  first half (the closure mints the constants; the spelling is welded by
+  gate); P4.9b's operator assembles the table and the walk consumes operator
+  artifacts plus one named kernel.
+
 **Done when** (checkable):
 
 * `[M]` `grep -c "1.0 - tau"` over `orpheus/transport/` returns **0** — the
   Morel–Montry relation is spelled once, in `sn/angular/closure.py`.
+  ⚠ **SCOPED 2026-08-28** (`scratch/p4_9a_verification_plan.md` §F2): this
+  makes `transport/` clean and single-homes the relation's DERIVATION in the
+  closure — which after P4.9a owns BOTH its representations (the Form-A march
+  + the minted scan-form constants, welded by gate). The walk's fast path
+  consumes the minted constants (restructuring it onto operator-minted
+  artifacts is the P4.9b direction above); the transpose's hand-written
+  adjoints are **§5b's named target**, untouched here. "Exactly ONE spelling
+  in the tree" is the arc's end-state, not this phase's.
 * `transport/spatial/scheme.py` contains no `tau` / `c_in` / `c_out` /
   `angular_*` member on any protocol type.
 * `StreamingOperator(...)` cannot be constructed without both closures — the
@@ -2932,7 +2977,19 @@ with it:**
   branch reach the **same** closure object — a `is`-identity assertion, which is
   the gate the twin never had (`[M]` today the intersection of tests naming
   `precompute_psi_state` and `outgoing_angular_state` is **empty**).
-* the aniso curvilinear canary is bit-identical; `sphinx -W` 0; pyright 0.
+* ~~the aniso curvilinear canary is bit-identical~~ ⛔ **REFUTED 2026-08-28
+  `[M]`** (`scratch/p4_9a_verification_plan.md` §F1): the canary CANNOT
+  witness this carve — `DiamondDifference.update` executes only on cylinders
+  with `n_phi ≡ 2 (mod 4)` (counting spy: **0** calls on slab, sphere, and
+  every `n_phi ∈ {4, 8}` config in full eigenvalue solves; the canary uses
+  8/16), so its bit-identity is unconditional. **Replaced by the BUILT
+  degenerate set**: the `CYL_DEG` (`folded_product(4,6)`) affine-carve
+  baseline row — landed PRE-carve on unmodified production — plus a fp(4,6)
+  eigenvalue `array_equal` pin, the degenerate sibling of the frozen matvec
+  baseline, and the `[M]` 13 existing twin-catcher rows staying green. Slab +
+  sphere stay as CONTROLS (they carry zero information about the carve; the
+  plan says so, so nobody cites them as evidence). Plus `sphinx -W` 0;
+  pyright 0.
 
 ⛔ **§6c — this phase's gate must land with the case it catches.** The
 `is`-identity gate above is the witness: before the unweld it CANNOT pass (there
