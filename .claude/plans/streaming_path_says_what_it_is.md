@@ -713,6 +713,40 @@ union dies"*; "populate the fields" was the proposed mechanism):
 are **0** `dataclasses.replace(...)` calls naming either field, so removing them
 from the constructor signature has no other consumer.
 
+#### The coverage check `coding-standards` demands before this lands — run, and it inverts
+
+Single-sourcing a duplicate obliges the *"hunt for an EXTERNAL hand-written pin
+before concluding you lost coverage"* step, **and** its rider: check the pin
+**moves under the old value**, or it is blind.
+
+`[M]` 2026-08-27 — the pin exists, twice, and neither is blind:
+
+* `tests/geometry/test_geometry.py:113` pins the producer directly against a
+  literal written independently of everything here —
+  `compute_areas_1d(CARTESIAN, [0, 1, 3]) == [1.0, 1.0, 1.0]`;
+* `tests/geometry/test_reduced_operator.py:425-427` **and**
+  `tests/sn/sweep/core/test_discretization_scheme_protocol.py:403-406` (a
+  different tree) each pin the slab packet: `face_area_inner == 1.0`,
+  `face_area_outer == 1.0`, `delta_A_over_w == 0.0`. Under the collapse those
+  values come from `mesh.areas`, so a wrong `compute_areas_1d` reddens them —
+  they move.
+
+⭐⭐ **And the two packet pins are PROMOTED by this step — the MIRROR clause
+again, one phase after P4.1a hit it.** Today they are tautologies: the CARTESIAN
+arm *returns the literal `1.0`* and the test *asserts `1.0`*. After the collapse
+they assert that the areas path flows end-to-end through the unified body. Same
+assertions, no line of either test body changing, claim class strengthened.
+
+⟹ **re-describe both docstrings/comments in the same commit.** Their current
+comment — *"Neutral curvature: slab carries the values that make the unified
+cell-balance algebra collapse to the slab form"* — describes a hardcoded arm
+that will no longer exist.
+
+⚠ Note the symmetry with P4.1a, because it is the reason to look both times:
+P4.1a's promotion landed on a **guard**, which had *no* witness and needed one
+written; P4.1b's lands on **gates**, which *are* the witnesses and need only an
+honest description. Same clause, opposite deliverable.
+
 ⚠ **Naming item for P4.7's family.** The unified body needs a chart-neutral
 spelling of `axis_cosines(0)`: `mu_x` is slab-flavoured, `eta` is
 cylinder-flavoured, and `[M]` they are one accessor with two names. `mu_x`'s
