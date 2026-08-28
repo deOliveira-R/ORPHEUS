@@ -47,6 +47,7 @@ from tests.sn._test_helpers import (
 )
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _make_cyl,
+    _make_cyl_product,
     _make_slab,
     _make_sphere,
     _random_composite,
@@ -141,6 +142,10 @@ CASES: tuple[WalkMatvecCase, ...] = (
     WalkMatvecCase("slab_2g", lambda: _build(_make_slab, 20260705)),
     WalkMatvecCase("sphere_2g", lambda: _build(_make_sphere, 20260706)),
     WalkMatvecCase("cyl_2g", lambda: _build(_make_cyl, 20260707)),
+    # P4.9a (2026-08-28): the degenerate-exercising sibling — fp(2, 6) has
+    # n_phi ≡ 2 (mod 4), the ONLY family whose matvec/adjoint reach the
+    # degenerate per-cell arms; fp(4, 8) above calls them zero times.
+    WalkMatvecCase("cyl_deg_2g", lambda: _build(_make_cyl_product, 20260828)),
     WalkMatvecCase("cart2d_2g", lambda: _build_cart2d(20260724)),
 )
 

@@ -153,6 +153,8 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     if quad_kind == "folded_4x8":
         quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
+    elif quad_kind == "folded_4x6":
+        quadrature = Quadrature.folded_product(n_mu=4, n_phi=6)
     elif quad_kind == "folded_2x4":
         quadrature = Quadrature.folded_product(n_mu=2, n_phi=4)
     else:
@@ -182,6 +184,8 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
     )
     if quad_kind == "folded_4x8":
         quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
+    elif quad_kind == "folded_4x6":
+        quadrature = Quadrature.folded_product(n_mu=4, n_phi=6)
     elif quad_kind == "folded_2x4":
         quadrature = Quadrature.folded_product(n_mu=2, n_phi=4)
     else:
@@ -523,6 +527,21 @@ CASES: tuple[SnapshotCase, ...] = (
         "cyl_2g_3reg_folded_4x8_dd_n40",
         "DD cylinder fuel|moderator|fuel, 2G, folded_product(4x8), n=40",
         lambda: _cylinder_3region("2g", 40, "folded_4x8"),
+    ),
+    # P4.9a (2026-08-28): the DEGENERATE-exercising sibling.  [M] the
+    # per-cell degenerate solve path (and with it the walk-applied angular
+    # march) executes ONLY on cylinders with n_phi ≡ 2 (mod 4) — the
+    # staggered azimuthal circle then places one bit-exact η = 0 ordinate
+    # per μ-level.  Every other frozen artifact uses n_phi ∈ {4, 8} and
+    # calls it ZERO times in a full solve, so this row is the eigenvalue-
+    # level anchor for that path (heterogeneous 2G so the redistribution
+    # term is ACTIVE — a homogeneous medium nulls it, see the bullets
+    # above).  Captured at the P4.9a tip, where the CYL_DEG affine-carve
+    # rows prove the carved path bit-identical to the pre-carve tree.
+    SnapshotCase(
+        "cyl_2g_3reg_folded_4x6_dd_n40",
+        "DD cylinder fuel|moderator|fuel, 2G, folded_product(4x6) DEGENERATE, n=40",
+        lambda: _cylinder_3region("2g", 40, "folded_4x6"),
     ),
     SnapshotCase(
         "slab_2g_p1_aniso_dd_n20",
