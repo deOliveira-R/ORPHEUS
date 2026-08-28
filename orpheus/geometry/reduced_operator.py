@@ -571,12 +571,15 @@ class ReducedStreamingOperator:
     :class:`AngularRedistribution` (2026-08-26, the un-weld arc's Phase
     B), so what remains here is the SPATIAL chart data::
 
-        slab:        face_areas == None,
-                     delta_A    == None.
-        sphere:      face_areas (nx+1,),
-                     delta_A    (nx,).
-        cylinder:    face_areas (nx+1,),
-                     delta_A    (nx,).
+        every chart:  face_areas (nx+1,)   == mesh.areas
+                      delta_A    (nx,)     == diff(mesh.areas)
+
+    ⛔ Until 2026-08-27 (P4.1b) this block read ``slab: face_areas ==
+    None, delta_A == None`` and the two were stored fields.  They are
+    derived now, and the slab is not a special case: its ``face_areas``
+    is ``ones(nx+1)`` (``compute_areas_1d`` returns a real unit
+    cross-section on CARTESIAN) and its ``delta_A`` is ``zeros(nx)`` —
+    no area change, which is exactly what "no curvature" means.
 
     ⭐ ``redist_dAw`` retired with them: it was the *fused product*
     ``ΔA ⊗ 1/w`` of a geometric factor and a quadrature factor, cached on
@@ -629,9 +632,53 @@ class ReducedStreamingOperator:
     element (zero dome, diameter-ray start), which is what let the
     per-coordinate ``Optional`` union die."""
 
-    # Common (curvilinear)
-    face_areas: np.ndarray | None = None
-    delta_A: np.ndarray | None = None
+    # ── The spatial chart — DERIVED, not stored (P4.1b, 2026-08-27) ──
+    #
+    # ``face_areas`` and ``delta_A`` were ``np.ndarray | None`` fields,
+    # populated by the two curvilinear factories and left ``None`` by the
+    # slab.  They are functions of the mesh, so they are read from it.
+    #
+    # ⭐ Storing them was a Pattern-2 triplicate waiting to happen: the
+    # sphere and cylinder factories each spelled ``face_areas = mesh.areas;
+    # delta_A = diff(face_areas)``, and "populate the slab too" would have
+    # written the same two lines a third time.  Deriving them writes it
+    # once and no factory computes anything.
+    #
+    # ⭐ The slab's ``None`` was never "no value" — it was the value nobody
+    # asked for.  ``compute_areas_1d`` returns a real unit cross-section on
+    # CARTESIAN, so ``face_areas`` is ``ones(nx+1)`` and ``delta_A`` is
+    # ``zeros(nx)``: a slab has no area change, which IS what "no
+    # curvature" means.  Spelling it is a STRICTLY STRONGER claim than
+    # ``None`` (the same upgrade P1 made on the ANGULAR half — the zero
+    # dome), and it is what collapses ``streaming_terms``' three arms.
+
+    @property
+    def face_areas(self) -> np.ndarray:
+        r"""Face areas :math:`A_{i\pm1/2}`, ``(nx+1,)`` — the mesh's own.
+
+        One attribute hop: :attr:`Mesh1D.areas` is computed eagerly in
+        ``__post_init__`` (the mesh is frozen), so this is the same array
+        object on every read, not a recompute and not a copy.
+        """
+        return self.mesh.areas
+
+    @cached_property
+    def delta_A(self) -> np.ndarray:
+        r"""The connection integral :math:`\Delta A_i = \int \nabla\cdot\hat{e}_r \, dV`,
+        ``(nx,)`` — realized as the face-area difference.
+
+        ⚠ **Cached, and it must be.** :meth:`streaming_terms` is called per
+        ``(cell, direction)``, so a plain ``@property`` would recompute an
+        ``nx``-element :func:`numpy.diff` inside the sweep's hot loop.
+
+        ⭐ This is the first step of the ruled dissolution of ``delta_A``
+        into the redistribution pairing :math:`R` (2026-08-27): ``ΔA`` is
+        R's rank-1 realization, not a second object, so R's producer will
+        derive the connection integral from ``mesh.areas`` exactly as this
+        does.  Deriving it here means what later moves is a derivation
+        rather than an array.
+        """
+        return np.diff(self.mesh.areas)
 
     # Issue #236 Step C retired ``tau_mm`` / ``tau_mm_per_level``: the
     # Morel–Montry angular weight is owned by the angular closure
@@ -705,9 +752,10 @@ class ReducedStreamingOperator:
         decision (``eq=False``? per-field ``compare=False``?), not a
         drive-by.
         """
-        nx = int(self.mesh.widths.size)
-        if self.delta_A is None:
-            return np.zeros((nx, 1, 1))
+        # ⛔ An ``if self.delta_A is None: return np.zeros((nx, 1, 1))``
+        # branch stood here until P4.1b.  It was a value wearing a
+        # conditional (Pattern 4): the slab's ``delta_A`` IS ``zeros(nx)``,
+        # so the general body returns the same array the branch built.
         return np.asarray(self.delta_A, dtype=float)[:, None, None]
 
     def _weight_of(self, global_ordinate: int) -> float:
@@ -753,85 +801,68 @@ class ReducedStreamingOperator:
         # mesh.volumes returns shape (N,) for 1-D meshes.
         volume = float(self.mesh.volumes[cell_idx])
 
-        if self.mesh.coord is CoordSystem.CARTESIAN:
-            # Slab — neutral curvature values populate the curvilinear
-            # fields so cell_balance_terms_unified can consume the
-            # packet without geometry dispatch (Issue #196 Phase G
-            # Step 2.5).  Slab carries:
-            #   face_area_inner = face_area_outer = 1.0  (so A_total =
-            #       A_inner + A_outer = 2, and 2*|μ|*A_down = 2|μ|·1
-            #       reproduces the slab denominator's "2|μ|" term);
-            #   delta_A_over_w = 0.0  (no curvature redistribution).
-            # The Morel–Montry α / τ are NO LONGER packed here (Issue #236
-            # Step C): the neutral slab closure (IdentityAngularClosure)
-            # supplies τ = 1, α = 0 and stamps the derived c on CellVisit.
-            # ``volume == chord`` is already true for slab (unit
-            # cross-section in 1-D Cartesian).
-            mu_n = float(self.angular.quadrature.mu_x[direction_idx])
-            return StreamingTerms(
-                chord_length=chord,
-                mu=mu_n,
-                face_area_inner=1.0,
-                face_area_outer=1.0,
-                delta_A_over_w=0.0,
-                volume=volume,
-                abs_mu=abs(mu_n),
-            )
-
-        if self.mesh.coord is CoordSystem.SPHERICAL:
-            assert self.face_areas is not None
-            assert self.delta_A is not None
-            # Sphere: ``direction_idx`` IS the global ordinate index.
-            # The Morel–Montry α / τ are NO LONGER packed here (Issue #236
-            # Step C): the angular closure owns τ and the derived c
-            # (stamped on CellVisit); this packet carries geometry only.
-            mu_n = float(self.angular.quadrature.mu_x[direction_idx])
-            return StreamingTerms(
-                chord_length=chord,
-                mu=mu_n,
-                face_area_inner=float(self.face_areas[cell_idx]),
-                face_area_outer=float(self.face_areas[cell_idx + 1]),
-                delta_A_over_w=float(
-                    self.delta_A[cell_idx]
-                    / self._weight_of(direction_idx)
-                ),
-                volume=volume,
-                abs_mu=abs(mu_n),
-            )
-
+        # ── ONE body, every chart (P4.1b, 2026-08-27) ────────────────
+        #
+        # ⛔ This was three arms.  The CARTESIAN one differed from the
+        # SPHERICAL one only in three hardcoded literals —
+        # ``face_area_inner = face_area_outer = 1.0`` and
+        # ``delta_A_over_w = 0.0`` — which were hand-transcriptions of what
+        # the spherical body computes: on a slab ``mesh.areas`` IS
+        # ``ones(nx+1)`` and its difference IS ``zeros(nx)``.  Measured over
+        # the 5x8 (cell x ordinate) grid with the spatial chart derived
+        # rather than stored: 40 of 40 packets bit-identical, with a
+        # perturbed ``delta_A`` detected as the positive control.  The slab
+        # IS the sphere's zero-curvature case, exactly as the sphere is the
+        # cylinder's single-level case (see the α-dome note below, whose
+        # twin path retired 2026-08-12 on the same argument).
+        #
+        # What survives the collapse is NOT chart-dispatched arithmetic —
+        # it is what ``direction_idx`` MEANS, which differs by caller:
+        # the GLOBAL ordinate on slab and sphere, the WITHIN-LEVEL
+        # azimuthal index on the cylinder.  One parameter, two contracts.
+        #
+        # ⚠ It cannot be unified by always going through ``level_indices``.
+        # That reduces to ``direction_idx`` only when the level list is
+        # ``arange(N)``, which holds by construction for a quadrature with
+        # no ``LevelStructure`` — but NOT for every single-level rule:
+        # measured over the 40-rule shipped registry, 9 are single-level
+        # and ``level_symmetric(2)`` (N = 8) carries a PERMUTED list
+        # ``[2,3,0,1,6,7,4,5]``.  Routing a slab or sphere through it would
+        # silently re-index, and nothing in the factories forbids posing one
+        # on that rule.
         if self.mesh.coord is CoordSystem.CYLINDRICAL:
             if mu_level_idx is None:
                 raise ValueError(
                     "cylindrical streaming_terms() requires mu_level_idx "
                     "(which μ-level the direction_idx belongs to)."
                 )
-            assert self.face_areas is not None
-            assert self.delta_A is not None
-            # Cylinder: ``direction_idx`` is the within-level azimuthal
-            # index; the global ordinate is read through
-            # ``level_indices``.  ``mu_x[global_n]`` carries η (the
-            # radial direction cosine).  The Morel–Montry α / τ are NO
-            # LONGER packed here (Issue #236 Step C): the angular closure
-            # owns τ and the derived c, stamped on CellVisit; this packet
-            # carries geometry only.  (There is no clamp on either arm —
-            # the cylinder [1/2, 1] absorber retired at Q5.6.4.)
             level_indices = self.angular.quadrature.level_indices
-            global_n = int(level_indices[mu_level_idx][direction_idx])
-            eta_n = float(self.angular.quadrature.eta[global_n])
-            return StreamingTerms(
-                chord_length=chord,
-                mu=eta_n,
-                face_area_inner=float(self.face_areas[cell_idx]),
-                face_area_outer=float(self.face_areas[cell_idx + 1]),
-                delta_A_over_w=float(
-                    self.delta_A[cell_idx] / self._weight_of(global_n)
-                ),
-                volume=volume,
-                abs_mu=abs(eta_n),
-            )
+            ordinate = int(level_indices[mu_level_idx][direction_idx])
+        else:
+            ordinate = direction_idx
 
-        raise ValueError(  # pragma: no cover — exhaustive match above
-            f"Unknown coord system: {self.mesh.coord!r}"
+        # The direction cosine along the SWEEP AXIS — the radius on a
+        # curvilinear chart, x on a slab.  ``mu_x`` and ``eta`` are the same
+        # accessor (both ``axis_cosines(0)``); ``mu_x``'s own docstring says
+        # "the column index, not the name, is the actual semantic".  Neither
+        # spelling is chart-neutral, which is a naming item for the
+        # ``face_area_*`` family pass; the local name carries the meaning.
+        radial_cosine = float(self.angular.quadrature.mu_x[ordinate])
+
+        # The Morel–Montry α / τ are NOT packed here (Issue #236 Step C):
+        # the angular closure owns τ and the derived c, and stamps them on
+        # CellVisit.  This packet carries geometry only.  There is no clamp
+        # on any chart — the cylinder [1/2, 1] absorber retired at Q5.6.4.
+        return StreamingTerms(
+            chord_length=chord,
+            mu=radial_cosine,
+            face_area_inner=float(self.face_areas[cell_idx]),
+            face_area_outer=float(self.face_areas[cell_idx + 1]),
+            delta_A_over_w=float(
+                self.delta_A[cell_idx] / self._weight_of(ordinate)
+            ),
+            volume=volume,
+            abs_mu=abs(radial_cosine),
         )
 
 
@@ -1206,10 +1237,8 @@ def spherical_streaming(
 
     # Cell face areas: A_{i+1/2} = 4πr² at each edge — sourced from the
     # mesh, which routes through coord.compute_areas_1d().
-    face_areas = mesh.areas  # (nx+1,)
 
     # Cell face-area differences: ΔA_i = A_{i+1/2} − A_{i-1/2}
-    delta_A = face_areas[1:] - face_areas[:-1]
 
     # The α-dome and the starting direction are NOT produced here — they
     # are the ANGULAR factor, built once by :func:`angular_redistribution`
@@ -1230,8 +1259,6 @@ def spherical_streaming(
 
     return ReducedStreamingOperator(
         mesh=mesh,
-        face_areas=face_areas,
-        delta_A=delta_A,
         angular=angular_redistribution(angular_measure, CoordSystem.SPHERICAL),
     )
 
@@ -1298,8 +1325,6 @@ def cylindrical_streaming(
             "LevelStructure side-channel."
         )
 
-    face_areas = mesh.areas  # (nx+1,)
-    delta_A = face_areas[1:] - face_areas[:-1]
 
     # Per-level azimuthal redistribution coefficients — the SAME
     # :func:`alpha_dome` recursion the sphere runs, once per μ-level, on
@@ -1332,8 +1357,6 @@ def cylindrical_streaming(
     # is one τ, unclamped, on both arms.)
     return ReducedStreamingOperator(
         mesh=mesh,
-        face_areas=face_areas,
-        delta_A=delta_A,
         angular=angular_redistribution(angular_measure, CoordSystem.CYLINDRICAL),
     )
 

@@ -1173,16 +1173,29 @@ three are independently refuted:
    `orpheus/geometry/coord.py` that names or presupposes a solution method.
    A cheap tell is the census above — if it stops reading 0/7, something leaked.
 
-   ⚠ **INTERACTION with fork 2's later ruling — needs confirmation before
-   execution.** R's rank-1 entry **is** `ΔA`, so `delta_A` and R are not two
-   objects; `delta_A` is R's rank-1 realization. If R lives in `transport/` and
-   `delta_A` in `sn/`, one quantity spans two layers, and R's L2 producer would
-   need an L3 import (**forbidden**). The coherent reading is that **`delta_A`
-   as a named field DISSOLVES into R** — R's producer derives the connection
-   integral from `mesh.areas` itself — which honours this fork's reasoning
-   (nothing SN-flavoured enters `coord.py`; R is L2, not geometry) while
-   removing the layer conflict. ⛔ Not recorded as ruled: it is a CONSEQUENCE
-   derived here, not a decision the user stated.
+   ✅ **RULED 2026-08-27 (user): `delta_A` DISSOLVES into R.** ⛔ ~~Not recorded
+   as ruled: it is a CONSEQUENCE derived here, not a decision the user stated.~~
+
+   R's rank-1 entry **is** `ΔA`, so `delta_A` and R are not two objects;
+   `delta_A` is R's rank-1 realization. If R lived in `transport/` and
+   `delta_A` in `sn/`, one quantity would span two layers and R's L2 producer
+   would need an L3 import (**forbidden**). So `delta_A` does not travel to
+   `sn/` as a named field at all — **R's producer derives the connection
+   integral from `mesh.areas` itself**, which honours this fork's contract
+   argument (nothing SN-flavoured enters `coord.py`) while removing the layer
+   conflict.
+
+   ⭐ **This SUPERSEDES this fork's DESTINATION while keeping its REASON.** The
+   ruling above ("`delta_A` goes to `sn/`") answered *"where does the field
+   live?"*; the answer is now *"it stops being a field."* The contract argument
+   that produced it — `coord.py` is method-agnostic, so an SN-flavoured concept
+   is a leak at any consumer count — is untouched and still binds.
+
+   ⟹ **P4.1b is the first step of this dissolution**, not merely adjacent to
+   it: making `delta_A` a `cached_property` over `np.diff(mesh.areas)` is
+   already *"derive the connection integral from `mesh.areas`"* — it stops
+   being stored data one phase early, so what P4.4 later moves is a derivation,
+   not an array.
 4. **Freezing.** `redistribution_pairing`'s docstring defers `frozen=True` to
    "the re-home, where the class definition is being touched anyway" — because
    it synthesises `__hash__` and the fields hold ndarrays. `eq=False`? per-field

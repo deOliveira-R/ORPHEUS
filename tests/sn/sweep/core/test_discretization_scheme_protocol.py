@@ -397,6 +397,15 @@ class TestSlabVsCurvilinearDiscrimination:
 
     @pytest.mark.foundation
     def test_slab_streaming_terms_neutral_curvature(self):
+        """The slab packet carries unit faces and zero area change.
+
+        ⭐ PROMOTED by P4.1b (2026-08-27), body unchanged: until then the
+        CARTESIAN arm of ``streaming_terms`` returned these three values as
+        literals and this test restated them.  The arm is retired — the slab
+        is the sphere's zero-curvature case — so the values now come from
+        ``mesh.areas`` through the shared body and this is an end-to-end
+        check of the face-area path rather than a tautology.
+        """
         mesh = _slab_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)

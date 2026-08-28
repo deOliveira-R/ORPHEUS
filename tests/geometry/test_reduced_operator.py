@@ -345,9 +345,9 @@ class TestProperties:
                 slab_streaming(wrong, quad)
 
     @pytest.mark.foundation
-    def test_slab_carries_the_neutral_angular_element(self):
-        """Slab has no curvature — and since the 2026-08-26 un-weld it
-        SPELLS that, rather than leaving the angular fields ``None``.
+    def test_slab_carries_the_neutral_element_on_BOTH_factors(self):
+        """Slab has no curvature — and it SPELLS that on both factors now,
+        rather than leaving either one ``None``.
 
         ⭐ This is a STRICTLY STRONGER claim than the one this test made
         before (``alpha_half is None`` etc.).  ``None`` says only "the
@@ -356,13 +356,28 @@ class TestProperties:
         the diameter ray — i.e. it pins the VALUES a slab must carry so
         that the angular closure's ``c_in = c_out = 0`` fall out of the
         general body instead of being special-cased.  The per-coordinate
-        ``Optional`` union died with it (Pattern 4)."""
+        ``Optional`` union died with it (Pattern 4).
+
+        ⛔ Until P4.1b (2026-08-27) the SPATIAL half was still exempt: this
+        test asserted ``op.face_areas is None`` / ``op.delta_A is None``
+        under the comment *"The SPATIAL chart is still absent for a slab"*,
+        two lines below the paragraph above celebrating the same upgrade on
+        the ANGULAR half.  It was not absent — it was underived.
+        ``compute_areas_1d`` returns a real unit cross-section on CARTESIAN,
+        so the slab's face areas are ``ones(nx+1)`` and its connection
+        integral is ``zeros(nx)``: **a slab has no AREA CHANGE, which is
+        what "no curvature" means.**  Spelling it is what let
+        ``streaming_terms``' three arms collapse to one body — the slab arm
+        was the sphere body with those two values written out by hand.
+        """
         mesh = _slab_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
-        # The SPATIAL chart is still absent for a slab (no curvature).
-        assert op.face_areas is None
-        assert op.delta_A is None
+        # The SPATIAL factor is present and NEUTRAL: unit cross-section,
+        # zero area change.  These are the values the collapsed body reads
+        # where the retired CARTESIAN arm carried the literals 1.0 and 0.0.
+        assert np.array_equal(op.face_areas, np.ones(mesh.N + 1))
+        assert np.array_equal(op.delta_A, np.zeros(mesh.N))
         # The ANGULAR factor is present and NEUTRAL.
         assert op.angular.n_levels == 1
         assert np.array_equal(
@@ -422,6 +437,17 @@ class TestStreamingTermsExtraction:
         assert st.mu == float(quad.mu_x[3])
         # Neutral curvature: slab carries the values that make the
         # unified cell-balance algebra collapse to the slab form.
+        #
+        # ⭐ These three assertions were PROMOTED by P4.1b (2026-08-27)
+        # without a character of the test body changing.  Until then the
+        # CARTESIAN arm of ``streaming_terms`` *returned the literals*
+        # ``1.0`` / ``1.0`` / ``0.0`` and this restated them — a tautology.
+        # That arm is retired; the values now come from ``mesh.areas``
+        # through the one shared body, so these lines test that the face-area
+        # path reaches the packet.  A wrong ``compute_areas_1d`` on CARTESIAN
+        # reddens here (the producer itself is pinned independently, against
+        # a hand-written literal, at ``tests/geometry/test_geometry.py``
+        # ``TestSurfaces1D::test_cartesian``).
         assert st.face_area_inner == 1.0
         assert st.face_area_outer == 1.0
         assert st.delta_A_over_w == 0.0
