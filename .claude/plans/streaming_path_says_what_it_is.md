@@ -2047,6 +2047,11 @@ capability fence, not by the algebra"* — `[M]` `LinearDiscontinuous` REFUSES
 curvilinear (`linear_discontinuous.py:148-153`), so DD is the sole carrier of an
 angular obligation the protocol declares for every member. Carve both with O-3.
 
+⛔ *"Carve both with O-3" is SUPERSEDED 2026-08-28 — **P4.9** was chartered
+(user-ruled, the same day) to own exactly this carve: it closes #407 and kills
+the twin above. O-3 keeps the scheme-family mint design (charter §5c), which
+P4.9 does not touch. §8's #407 row carries the matching amendment.*
+
 ⭐ Fair to the file, so nobody re-flags it: DD's consumption of `tau`, `c_in`,
 `c_out`, `abs_mu` and `dA_w` as DATA is **correct** and the file insists on it
 (*"DD must NOT rebuild them from `st.alpha_*` / `st.tau_mm`"*). The leak is
@@ -2884,6 +2889,11 @@ bit-identical.
 - **#158's cell solve.** `n_mom > 1` stays refused (`6859ca05`'s guard).
 - **#407's carve.** Both instances are recorded; the fix belongs with O-3, where
   `cell_balance.py` reorganises under the scheme family anyway.
+  ✅ **AMENDED 2026-08-28 — P4.9 now owns the carve and closes #407** (chartered
+  the same day, user-ruled). The row predates the charter: it was written when no
+  phase of this plan could hold the fix. What stays with O-3 is the scheme-family
+  mint design (charter §5c) and `cell_balance.py`'s broader reorganisation — not
+  #407. ⚠ §3's REMEDIED-fact case, and the second amended row in this section.
 - **Re-baselining the `cyl_2g_3reg_folded_4x8_dd_n40` red.** `[M]` triply
   confirmed pre-existing and bit-identical across three independent carves
   (#404); it is `@pytest.mark.slow` and deselected by the canonical gate.

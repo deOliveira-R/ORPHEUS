@@ -719,6 +719,27 @@ an **`AngularClosure`** concept — the closure family pattern is
 `<Axis-role>Closure`, one closure concept per axis the scheme closes
 (R15).
 
+✅ **THE BINDING HALF OF THE O-3 DESIGN TASK IS RULED (user, 2026-08-28 —
+recorded at `streaming_path_says_what_it_is.md` §5b "THE MECHANISM" and its
+phase P4.9).** Supersession item **(c)** above asked where the mint sits;
+ruled: **outside the operator** — `StreamingOperator` is constructed from
+**(domain, codomain, spatial closure, angular closure)**; discretization
+schemes are factories returning a `SpatialClosure`, the angular scheme
+returns an `AngularClosure` (R15's family — P4.9 makes both
+constructor-real). The transitional-accessor question resolves with it:
+*what must be extracted from the scheme to live inside L* is the spatial
+closure — and each factor already ships its own adjoint
+(`streaming_cell_transpose`; the polymorphic `angular_adjoint` family), so
+`L.H` composes. Item **(d)**'s diagnosability counter-pressure is NOT
+discharged: whether the operator keeps a provenance accessor to its
+generator is a P4.9 design-time question. **O-3 retains** the cross-head
+mint signature, the (TraceDescriptor, basis-kind, positivity-predicate)
+package, the two-layer closure-function/evaluated-table split, and
+`cell_balance.py`'s reorganisation under the scheme family; the streaming
+plan's P5 still rides O-3. ⚠ The 2026-08-25 paragraph above cites the
+closure at `sn/sweep/pole_angular_closure.py`; it moved to
+`sn/angular/closure.py` at that plan's P2 (`dcd6a9f6`), byte-identical.
+
 ## 5d. The Phase B opening discussion — the record (2026-08-25, IN PROGRESS)
 
 ⚠ **Epistemic status of this whole section**: the census/measurement rows are
