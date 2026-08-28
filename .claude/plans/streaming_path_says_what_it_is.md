@@ -229,7 +229,11 @@
 > **+1** collected test, because the import-linter `rglob`s every one. Measured
 > three times now: P2 `sn/angular/__init__.py` +1, P4.4
 > `sn/mesh/reduced_operator.py` +1 (9823→9824, layer gate 342→343), P4.2
-> `sn/angular/redistribution.py` +1 (layer gate 343→**344**). ⟹ **P4.3 DELETES
+> `sn/angular/redistribution.py` +1 (layer gate 343→**344**, and the full gate
+> confirmed **9825/0, 13 trees `rc=0`, 62 min** — delta 0 on the other three
+> axes, localized to `geometry` −18 / `sn` +18 / `root+harness` +1, everything
+> else +0; ⭐ `derivations` **1637, Δ 0**, so retiring the L0 wrapper and
+> re-signing three graders cost that tree nothing). ⟹ **P4.3 DELETES
 > a module and moves `StreamingTerms` into an existing one, so expect −1 →
 > `9824`** — the first phase of this arc where the count goes DOWN, and a
 > reading of `9825` there means the file did not actually die.
