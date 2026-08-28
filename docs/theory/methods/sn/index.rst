@@ -357,7 +357,7 @@ Characteristic (EC) are all valid choices, each with different
 truncation error, positivity, and cost.  Per Cardinal Rule 2
 (architecture), the cell-update math is **the same algebra** in slab,
 sphere, and cylindrical 1-D — only the populated fields of the
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` packet
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` packet
 change.  Lifting the closure into a strategy contract makes the
 sweep driver thin and lets each closure be unit-tested in isolation.
 
@@ -385,8 +385,8 @@ level traits and a single :meth:`update` method:
   - ``update(visit, total_xs, source, upstream_state) ->
     CellResult`` — the cell update itself.  ``visit`` is a
     :class:`~orpheus.transport.spatial.scheme.CellVisit` packet (see
-    next subsection) that combines the geometric
-    :class:`~orpheus.geometry.reduced_operator.StreamingTerms` with
+    next subsection) that combines the per-(cell, direction)
+    :class:`~orpheus.transport.spatial.scheme.StreamingTerms` with
     sweep-direction-resolved data.
 
 The two helper dataclasses (frozen, slotted) carry the per-cell
@@ -433,7 +433,7 @@ lives in :mod:`orpheus.sn`.
 The contract's :meth:`update` consumes a
 :class:`~orpheus.transport.spatial.scheme.CellVisit` packet rather
 than a raw
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms`.
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms`.
 The :class:`CellVisit` composes:
 
 * ``cell_idx: int`` — the cell being visited.
@@ -475,15 +475,20 @@ generator::
 The cell-update strategy receives only **resolved** data — no
 sign-of-:math:`\mu` branching inside the strategy.  This pattern
 moves the graph-theoretic concept to where it belongs (the SN
-module) and keeps the geometry-layer
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms`
-geometry-only — which it must be, because the sweep-direction concept
-is S\ :sub:`N`'s alone: MoC, CP, diffusion and MC have no sweep.  (⛔
+module) and keeps the
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` packet free
+of any sweep-frame datum — the sweep-direction concept is
+S\ :sub:`N`'s alone: MoC, CP, diffusion and MC have no sweep.  (⛔
 This sentence continued "and reusable by future MoC / CP / diffusion
 modules that have different mathematical structures" until 2026-08-27.
 Withdrawn: geometry-only is not the same claim as shared, and those
 families do not form an angular redistribution term at all — see
-:ref:`who-needs-a-connection-coefficient`.)
+:ref:`who-needs-a-connection-coefficient`.  ⛔ And the sentence called
+the packet "the geometry-layer StreamingTerms, geometry-only" until
+2026-08-28, when P4.3 refuted the layer half too: the packet carries
+``mu``/``abs_mu`` and :math:`\Delta A/w` — direction-bearing posing,
+not geometry — and now lives in ``transport/spatial/scheme.py`` beside
+the scheme contract that consumes it.)
 
 Slab vs curvilinear discrimination
 -----------------------------------
@@ -496,14 +501,16 @@ Slab vs curvilinear discrimination
    cell-balance helper consumes the same packet regardless of geometry,
    and Issue #236 Step C removed the Morel--Montry ``alpha_in`` /
    ``alpha_out`` / ``tau_mm`` fields from
-   :class:`~orpheus.geometry.reduced_operator.StreamingTerms` entirely
-   (it is now **purely geometric**; :math:`\tau` is closure-owned — see
+   :class:`~orpheus.transport.spatial.scheme.StreamingTerms` entirely
+   (leaving no closure field on the packet — though "purely geometric"
+   it is not, a reading refuted 2026-08-28: it keeps ``mu``/``abs_mu``
+   and :math:`\Delta A/w`; :math:`\tau` is closure-owned — see
    :ref:`sn-tau-c-on-cellvisit-live`).  Slab is now distinguished at the
    sweep level by ``upstream_state.angular_upstream is None``, not by a
    ``StreamingTerms`` field test.  The prose below records the historical
    pre-Step-2.5 convention and is pending a dedicated rewrite to the
    neutral-curvature mechanism; the authoritative current description is
-   the :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
+   the :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
    docstring.
 
 A strategy distinguishes slab from curvilinear by a single field test
@@ -600,7 +607,7 @@ formulas at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).
 Per Wave C decision **D5** (one geometry-polymorphic class), the
 strategy is a single :class:`DiamondDifference` that handles slab,
 sphere, and cylinder by branching on two
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` fields:
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` fields:
 ``alpha_in is None`` (slab vs curvilinear) and ``abs_mu < 1e-15``
 (cylindrical pure-azimuthal degenerate vs not).
 
@@ -826,7 +833,9 @@ References
    *Eq. 50 (dome recursion), Eq. 74 (Morel--Montry)"* — the
    **wrong Bailey paper**, a piecewise-linear FE *diffusion* paper
    unrelated to curvilinear S\ :sub:`N`.  Issue #168 Phase B retracted
-   it in 2026 across :mod:`orpheus.geometry.reduced_operator`,
+   it in 2026 across ``orpheus.geometry.reduced_operator`` (since
+   dissolved into :mod:`orpheus.sn.angular.redistribution` /
+   :mod:`orpheus.transport.spatial.scheme`),
    :mod:`orpheus.transport.spatial.diamond` and
    :mod:`orpheus.sn.angular.closure`; this page and
    :mod:`orpheus.transport.spatial.scheme` were missed and kept

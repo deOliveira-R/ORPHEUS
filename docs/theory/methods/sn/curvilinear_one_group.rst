@@ -987,7 +987,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      production ``dag_walk`` (sphere + multi-level cylinder + slab) and
      asserts every ``visit.c_in`` / ``visit.c_out`` equals the constants
      recomputed INLINE from that visit's OWN
-     :class:`~orpheus.geometry.reduced_operator.StreamingTerms` at 0-ULP
+     :class:`~orpheus.transport.spatial.scheme.StreamingTerms` at 0-ULP
      (the hand-transcribed independent reference, not the closure's own
      ``c`` — vv L11).  Mutation-verified: the ``c_in``\ /\ ``c_out`` swap
      reddens the sphere + cylinder cases.
@@ -1050,7 +1050,7 @@ areas :math:`A_{i\pm 1/2}`, the surface-curvature redistribution area
 to an **ordinate**, not to a **cell**.
 
 That :math:`\tau` had historically lived on
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` (as
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` (as
 ``tau_mm``) was an accident of where the curvilinear sweep was first
 assembled — the streaming-geometry factory happened to be the object
 in scope when the weighted-diamond closure was wired in, so it baked
@@ -1496,7 +1496,7 @@ reference.  Migrate-then-delete preserved the floor:
 
    ✅ **REMEDIED later the same day (2026-08-26, P1).**  This paragraph
    originally ended: *"the per-direction extraction packet*
-   :class:`~orpheus.geometry.reduced_operator.StreamingTerms` *still
+   :class:`~orpheus.transport.spatial.scheme.StreamingTerms` *still
    carries a* ``mu_start`` *field, now read from the angular factor
    rather than from a field of the streaming operator's own."*  True
    when written, and repealed hours later: that field was the middle
@@ -3348,7 +3348,9 @@ ORPHEUS arrays carry :math:`\alpha^{O} = \alpha^{H}/2`, absorbing the
 factor of 2 into the recurrence; the redistribution divisor reads
 :math:`\Delta A_i / w_n` correspondingly.  Both forms are
 mathematically equivalent.  This normalisation is documented in
-:mod:`orpheus.geometry.reduced_operator` and re-stated explicitly in
+:mod:`orpheus.sn.angular.redistribution` (which carried the
+:math:`\alpha` mathematics out of the dissolved
+``geometry/reduced_operator.py`` at P4.2) and re-stated explicitly in
 :mod:`orpheus.sn.angular.closure` so the Hébert canonical
 form's connection to the ORPHEUS arrays is transparent.  The full
 cross-source picture — the same recursion spelled four ways across
@@ -3378,7 +3380,8 @@ diffusion paper unrelated to S\ :sub:`N`.  The intended reference is
 Diffusion-Limit Accuracy of :math:`S_N` Angular Differencing Schemes"
 (LLNL preprint LLNL-JRNL-420356; OA at
 https://www.osti.gov/servlets/purl/1020346).  Phase B corrected the
-citations in :mod:`orpheus.geometry.reduced_operator`,
+citations in ``orpheus.geometry.reduced_operator`` (since dissolved; its
+reference apparatus lives in :mod:`orpheus.sn.angular.redistribution`),
 ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``),
 :mod:`orpheus.transport.spatial.diamond`, and the new
 :mod:`orpheus.sn.angular.closure` module.

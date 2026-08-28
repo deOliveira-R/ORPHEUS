@@ -155,7 +155,7 @@ construction:
   sweep follows — as
   :class:`~orpheus.transport.spatial.scheme.CellVisit` packets
   carrying the cell index, the geometric
-  :class:`~orpheus.geometry.reduced_operator.StreamingTerms`, the
+  :class:`~orpheus.transport.spatial.scheme.StreamingTerms`, the
   sweep-resolved face areas, and the closure floats
   :attr:`~orpheus.transport.spatial.scheme.CellVisit.tau` /
   :attr:`~orpheus.transport.spatial.scheme.CellVisit.c_in` /

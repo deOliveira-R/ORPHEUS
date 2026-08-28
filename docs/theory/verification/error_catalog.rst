@@ -1377,7 +1377,7 @@ older entries classify against.
    2·𝒲_n·μ_n`` with divisor ``ΔS_i / (2·𝒲_n)``. The factor of 2 is
    absorbed into the recurrence normalisation: ``α^O = α^H / 2``. Both
    forms are mathematically equivalent. Documented in
-   :mod:`orpheus.geometry.reduced_operator`,
+   :mod:`orpheus.sn.angular.redistribution`,
    :mod:`orpheus.sn.angular.closure`, and
    :doc:`/theory/methods/sn/index`.
 
@@ -1400,14 +1400,15 @@ older entries classify against.
    canonical angular closure to be consistent. That's Phase C scope.
 
    Phase B citation correction:
-   :mod:`orpheus.geometry.reduced_operator` previously cited Bailey,
+   ``orpheus.geometry.reduced_operator`` (since dissolved; references now
+   in :mod:`orpheus.sn.angular.redistribution`) previously cited Bailey,
    Adams, Yang & Zika (2009) JCP 227 — a piecewise-linear FE diffusion
    paper unrelated to curvilinear S\ :sub:`N`. Corrected to **Bailey,
    Morel & Chang (2010), NSE 165(2):149-169** (LLNL-JRNL-420356, OA at
    https://www.osti.gov/servlets/purl/1020346). Hébert (2009) §3.9.4
    is the primary source; Bailey-Morel-Chang 2010 is the auxiliary
    asymptotic-diffusion-limit τ-clamp justification. Citations updated
-   in :mod:`orpheus.geometry.reduced_operator`,
+   in ``orpheus.geometry.reduced_operator`` (since dissolved),
    :mod:`orpheus.sn.sweep`, :mod:`orpheus.transport.spatial.diamond`.
 
    Phase C scope (full ERR-026 closure):

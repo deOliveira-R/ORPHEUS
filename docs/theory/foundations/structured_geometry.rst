@@ -225,7 +225,7 @@ NOT** be duplicated across the solvers that need it.
 :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
 lifts the math into **one** primitive rather than a per-solver one.
 
-⛔ That sentence read *"in* :mod:`orpheus.geometry.reduced_operator`
+⛔ That sentence read *"in* ``orpheus.geometry.reduced_operator``
 *lifts the math into a* **geometry-layer** *primitive rather than a
 solver-side one"* until 2026-08-28.  The single-sourcing half stands and
 is the Cardinal-Rule-2 point; the **layer** half was refuted by the
@@ -234,7 +234,7 @@ geometric datum, ``face_areas``, was a verbatim copy of
 :attr:`~orpheus.geometry.mesh.Mesh1D.areas`, already single-sourced in
 :func:`~orpheus.geometry.coord.compute_areas_1d`, while ``delta_A`` has
 zero non-S\ :sub:`N` consumers and
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` carries a
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` carries a
 :math:`\Delta A` divided by a *quadrature weight*.  It was also an
 island in its own package: every genuine geometry primitive had 1-4
 intra-``geometry/`` consumers and this one had **0**.  The layer test it
@@ -816,7 +816,7 @@ The per-cell, per-direction inputs needed by a sweep cell update are
 extracted via
 :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`,
 which returns a
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` namedtuple
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` dataclass
 whose populated fields are geometry-dependent (slab is minimal;
 sphere/cylinder carry the full curvature-coefficient bundle).
 
@@ -837,7 +837,7 @@ Geometric labels, not flow-direction labels
 -------------------------------------------
 
 The two face-area fields on
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` are
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` are
 **purely geometric**: ``face_area_inner`` is :math:`A_{i-1/2}` (the
 face closer to :math:`r=0`), ``face_area_outer`` is
 :math:`A_{i+1/2}` (the face farther from :math:`r=0`).  These labels
@@ -1020,7 +1020,7 @@ work: *"MoC and CP have not migrated yet"* invites someone to go and
 wire them up, while *"MoC and CP never form this term"* says the
 primitive is correctly placed and correctly consumed by exactly one
 solver family — S\ :sub:`N`.  (`[M]` the whole
-:class:`~orpheus.geometry.reduced_operator.StreamingTerms` /
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` /
 :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` chain is
 referenced only from ``orpheus/sn/`` and from inside
 ``orpheus/transport/`` itself, and by **no** file under
@@ -1207,21 +1207,26 @@ should be re-argued rather than patched.
 
 The set of files that name the primitive at all is small enough to
 enumerate, and an enumeration — unlike a count — can be checked by
-reading it.  `[M]` 2026-08-28, re-run after P4.4 split the primitive
-across two definers: **15** files under ``orpheus/`` name any of
-``ReducedStreamingOperator``, the three ``*_streaming`` factories,
-``StreamingTerms``, ``AngularRedistribution``, ``angular_redistribution``,
-``alpha_dome`` or ``AngularMeasure``.  Two are the definers
-(``geometry/reduced_operator.py``, ``sn/mesh/reduced_operator.py``); the
-rest are ``geometry/__init__.py``; in ``orpheus/sn/``
+reading it.  `[M]` 2026-08-28, re-run after P4.2 + P4.3 completed the
+un-weld (an earlier revision of this list, re-run after P4.4 only, counted
+**15** and named ``geometry/reduced_operator.py`` a definer): **14** files
+under ``orpheus/`` name any of ``ReducedStreamingOperator``, the three
+``*_streaming`` factories, ``StreamingTerms``, ``AngularRedistribution``,
+``angular_redistribution``, ``alpha_dome`` or ``AngularMeasure``.  Three
+are the definers (``sn/mesh/reduced_operator.py`` — the connection
+operator and factories; ``transport/spatial/scheme.py`` —
+``StreamingTerms``, beside the contract that consumes it;
+``sn/angular/redistribution.py`` — the :math:`\alpha` cluster and
+``AngularMeasure``).  The rest: in ``orpheus/sn/``,
 ``angular/__init__.py``, ``angular/closure.py``, ``mesh/augmented_mesh.py``,
 ``operators/radial_characteristic.py``, ``solver.py`` and
-``sweep/cache.py``; in ``orpheus/transport/spatial/`` ``__init__.py``,
-``cell_balance.py``, ``diamond.py``, ``linear_discontinuous.py`` and
-``scheme.py``; and
+``sweep/cache.py``; in ``orpheus/transport/spatial/``, ``__init__.py``,
+``cell_balance.py``, ``diamond.py`` and ``linear_discontinuous.py``; and
 ``orpheus/derivations/discrete/sn/angular_differencing.py``.  Not one of
 them is under ``orpheus/moc/``, ``orpheus/cp/`` or ``orpheus/mc/`` — the
-load-bearing half, and it is unchanged.
+load-bearing half, and it is unchanged.  ⭐ And for the first time not
+one is under ``orpheus/geometry/`` either: the un-weld's own done-when,
+now a property of this enumeration.
 
 ⚠ ``transport/spatial/linear_discontinuous.py`` is **new to this list and
 was missing from it before P4.4**, not added by it: `[M]` it named

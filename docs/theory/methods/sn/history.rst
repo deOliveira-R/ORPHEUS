@@ -966,7 +966,10 @@ merge hash or not at all).
        production site
        :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh._make_cell_visit`;
        **Step C** deletes the parallel geometry-side :math:`\tau`
-       producer so ``StreamingTerms`` is now purely geometric (see
+       producer, leaving ``StreamingTerms`` with no closure field (the
+       stronger "purely geometric" reading was refuted 2026-08-28 — the
+       packet keeps its direction cosines and :math:`\Delta A/w`, and
+       moved to ``transport/spatial/scheme.py`` at P4.3; see
        :ref:`sn-tau-c-on-cellvisit-live`). **Phase 3** characterises the
        error surface — Cartesian **separates** (:math:`E \approx E_{\rm
        space} + E_{\rm angle}`), curvilinear **gates** (:math:`E \approx
