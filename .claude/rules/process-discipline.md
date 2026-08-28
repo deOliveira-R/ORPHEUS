@@ -59,6 +59,47 @@ is never updated — so the snapshot lies forward.
   campaigns were mislabeled in-flight across the memory substrate; only one branch was
   genuinely open — multiple sub-agents rediscovered this independently.)
 
+## Never `git add -A` in this repo — stage explicitly, and READ the staged set
+
+`git add -A` stages every untracked file. This repo carries a large, deliberately
+**untracked** working directory (`scratch/` — probes, audit memos, gate logs; the streaming
+plan's own banner warns *"⚠ `scratch/` is UNTRACKED — a `git clean` destroys it"*), and
+`.gitignore` covers only two of its subdirectories. So the sweep is silent, enormous, and
+lands inside a commit whose message describes something else entirely — which is what makes
+it survive review: the subject line reads `refactor(geometry): …`, and nobody re-reads the
+file list of a commit whose subject they just wrote.
+
+⟹ **Stage by path** (`git add <paths>`), or `git add -u` when the change is confined to
+tracked files. Before every commit, run `git status --porcelain` (not `-uno`) and read it.
+The check is one command and it is the only thing standing between a working directory and
+the history.
+
+⭐ **And the sharper half, which the cleanup teaches: un-tracking a file by REWRITING
+history DELETES it from the working tree.** `filter-branch`/`filter-repo` finish by checking
+out the rewritten HEAD, and a file that is no longer in the new tree is removed from disk —
+so the fix for an accidental commit destroys the very working files the accident preserved.
+⟹ **`cp -a` the directory aside BEFORE the rewrite**, verify with `diff -rq` after, and
+restore with `cp -Rn`. Same family as the `git checkout` clause below: any git operation
+that writes the working tree is irrecoverable for untracked state.
+
+⚠ Two riders for the rewrite itself, both cheap and both worth stating in the report:
+- **Verify the rewrite is content-exact before pushing** —
+  `git diff --quiet <old-tip> <new-tip> -- . ':(exclude)<removed-paths>'`. If that is
+  empty, an already-run test gate **carries over without a re-run**, which is the
+  difference between a 5-minute fix and a 60-minute one.
+- **Every hash in the rewritten range changes**, so plans, memories and issue comments
+  citing one now dangle (`plan-authoring` §7.1). Grep the tracked corpus for the old
+  short hashes, re-point them, and leave a banner saying a dangling hash in that range
+  predates the rewrite and should be re-found by commit SUBJECT.
+
+> `[M]` 2026-08-27, un-weld P4.1a. `git add -A` swept **212** untracked `scratch/` files —
+> **74 670 lines** — into a commit about retiring a `coord` field, and it was pushed. The
+> rewrite that removed them then deleted all 212 from disk; they came back only from a
+> `cp -a` taken beforehand (745 files, restored byte-identical). Of the 212, **19 `.md`
+> memos are cited by path from tracked plans** — i.e. the sweep was not uniformly wrong,
+> which is precisely why reading the staged set matters rather than trusting a rule of
+> thumb about what `scratch/` is for.
+
 ## Mutation-testing an uncommitted file — never `git checkout` to revert
 
 To prove a gate's teeth bite you mutate production code, run the gate (expect RED), then
