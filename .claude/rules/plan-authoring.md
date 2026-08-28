@@ -93,6 +93,7 @@ surprises cost to hit.
 | 2026-08-27 | ⭐ **A plan row written in a RULE'S OWN VOCABULARY reads as that rule having been applied — and nothing distinguishes the echo from the check.** P4.3's row read *"`transport → geometry` stays legal; **no new edge either way**"*. "Either way" is §6d's phrase, verbatim — the clause exists to say a re-home must check BOTH directions — so the row reads as a §6d check that ran and passed. `[M]` it had not run: the mover is a TYPE (`StreamingTerms`) whose only constructor **stays behind** (`geometry/reduced_operator.py:856`, inside the function body, a *runtime* use), so the move creates `geometry → transport` where `[M]` there are **0** today against **16** the other way — a declared violation of `FORBIDDEN_EDGES["geometry"]` with a red waiting for it, and the `TYPE_CHECKING` tolerance cannot apply twice over (runtime use; `geometry` is `INPUT_PACKAGES`). Same campaign, one step after §6d was written FOR it. Cost: none — caught by running the check during an unrelated wait, not by any review of the row. ⟹ **a plan row that uses a rule's vocabulary must cite the rule's MEASUREMENT, not its phrasing** — `"[M] geometry → transport = 0 → 1, forbidden"` is a check; `"no new edge either way"` is a summary of a check that may never have happened. The tell is grep-able: a plan phrase that matches a rule's own words with no `[M]` beside it. ⚠ And note the direction, as with the filter row above: rule-shaped language always reads as *compliance*, never as *doubt*, so the echo is systematically reassuring. | §6d (no new clause — the row is the measurement; §6d's procedure was correct and simply was not run) |
 | 2026-08-27 | ⚠ **TWO filter failures in a row on ONE question, both flattering, caught only because they disagreed with each other.** Reconciling P4.2's claim *"`derivations → sn` is FORBIDDEN with no tolerance"* I ran (a) `sed -n '56,70p'` over the `FORBIDDEN_EDGES` literal — the window ended **one line above** the `"derivations"` key at `:71` — then (b) a regex over the same literal, which terminated at the first `}`, and that brace is **inside** a nested set expression (`L3_PACKAGES - {"sn"}`), so it reported **5 of 15** keys. Both said *derivations is not a key*, i.e. *the move you are about to make is unconstrained*. `[M]` by AST: 15 keys, `derivations` present, mapping to `L2_PACKAGES \| L3_PACKAGES` — **the plan was right and both of my checks said it was wrong.** ⭐ The mechanism is the 2026-08-25 VIEWPORT row's family (a display clip turning a population into a sample) with two new members: a **line-range window** short by one, and a **regex delimiter that lands inside a nested literal** — the second is nastier because nothing about `re.findall(r'"(\w+)":', blk)` looks clipped, and the answer it returns is a well-formed list. ⚠ The aggravator, and the reason to log it rather than shrug: both errors pointed the SAME way, toward "no constraint", which is the direction that licenses the edit — a wrong filter is not a coin flip when the thing you are filtering for is a *prohibition*, because absence is what a prohibition looks like when you cannot see it. ⟹ **parse structured source with AST, never with a line window or a regex, when the answer is a membership question**; and the countermeasure that worked is the log's own two-filter rule — I only re-checked because the `sed` output and the regex output described different tables. | §2 (FILTER/VIEWPORT — no new clause; the row is the measurement, and it extends the family from `\| head` to line-ranges and nested-delimiter regexes) |
 | 2026-08-27 | A step was scoped as retiring two **DUPLICATED** fields — *"`coord` and `face_areas` are copies of `mesh.coord`/`mesh.areas`; bit-identical"* — and the claim was written without a denominator. `[M]` `coord` is a duplicate on **3/3** charts; `face_areas` on **2/3** — on the slab the field is `None` while `mesh.areas` is `ones`, because `compute_areas_1d` returns a real unit cross-section for CARTESIAN and `slab_streaming` never asks for it. §8's own grep sized it in one command: **14** `is None` branches, of which **1** is production control flow, 6 are type-narrowing asserts, and **2 are test pins that go RED**. ⭐ The refutation was worth more than the confirmation: the step is not a duplication retirement but *finishing a prior phase's un-weld on the spatial half* — the ANGULAR fields were converted `None` → neutral element a day earlier, and the same test file records the asymmetry two lines from the pin without closing it. Cost: none, because the user asked for the check before execution. | §8 + §2 (quantifier). No new clause — §8 already prescribes the grep that caught it; the row is the measurement that a plan can assert bit-identity **without ever running it**, and that "these are duplicates" is a universal owing its denominator like any other |
+| 2026-08-28 | ⚠ **THIRD `geometry →` re-home refutation in one campaign, and the first the §6d procedure could not have caught as written.** A header correction written THAT MORNING ruled the order `P4.2 → P4.4`; `[M]` P4.2 cannot precede P4.4 either. The α cluster's callers are **four intra-FILE references** — three `angular_redistribution(...)` runtime calls in the three `*_streaming` factories and one field annotation — so the split itself creates `geometry → sn`. ⭐ The audit that produced the ruling was thorough and DID run §6d: it found the `derivations → sn` hazard, enumerated the 5 movers correctly against a grep that finds only 3, and named the whitelist shortcut as a trap. It found that one because it is a literal `import` line. **§6d says "enumerate the mover's CALLERS" and every reading of that reaches for imports — but a caller in the same file imports nothing, and is invisible until the file splits.** Injected and run: red two ways — the declared violation *and* a circular import killing `import orpheus.geometry`. Cost: none, caught before any edit. | §6d (the INTRA-FILE sharpening) |
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
 to the compaction-point discipline. Those say *where* state lives; this says what
@@ -736,6 +737,39 @@ direction.
 > correction of the first*. ⟹ the reason "look for the linter" leads this
 > clause: a count tells you what IS, and only the contract tells you what is
 > ALLOWED — and it is the contract a gate will enforce.
+
+⭐ **And the caller set that no import audit can return: one in the MOVER'S OWN
+FILE.** Step (2) above says *enumerate the mover's callers* — and every natural
+reading of that reaches for imports, because that is what a cross-package caller
+looks like. A caller sharing the file with the mover imports nothing. It is a
+bare call in a function body or a name in an annotation, and it becomes a
+forbidden edge **only at the moment you split the file** — so it is absent from
+the grep, absent from the import graph, and absent from the linter's current
+reading, all three of which are measuring a tree in which the edge does not yet
+exist.
+
+⟹ **Enumerate intra-file references by AST as part of step (2)**: for each
+mover, every top-level symbol in the same module that names it, and whether that
+symbol is moving too. A namer that STAYS is a caller in the new package's
+language. One AST pass answers it; a grep for the symbol returns the same hits
+and gives you no way to tell a mover from a stayer.
+
+> `[M]` 2026-08-28, the un-weld arc P4.2. The plan ruled the order
+> `P4.2 → P4.4` in a header written that morning, after a §6d audit that was
+> genuinely careful — it caught the `derivations → sn` hazard, corrected the
+> mover inventory from 3 to 5 (a grep for `alpha` finds 3), and flagged the
+> linter's `WHITELIST` as a trap that would land the move green. Every one of
+> those concerns is about an **import line**. `[M]` by AST the α cluster has
+> **four callers inside `reduced_operator.py` itself** — `slab_streaming:1198`,
+> `spherical_streaming:1262`, `cylindrical_streaming:1360` (all *runtime* calls
+> to `angular_redistribution`) and `ReducedStreamingOperator.angular:628` (a
+> field annotation) — none of which move at P4.2. Injected and run: the gate
+> reddens on the declared violation **and** on a circular import that kills
+> `import orpheus.geometry`, `orpheus.numerics` and `orpheus.sn.solver` in a
+> fresh interpreter. ⭐ The aggravator: the audit's thoroughness on the import
+> half is exactly what made the file half feel covered — the same shape as §1's
+> *"a verified existence-check on one clause lends unearned authority to the
+> others"*.
 
 ⚠ Note what §6b's own check returns here: *"enumerate every call site and ask
 which step each one lands in"* answers **"they all stay put, no step boundary is

@@ -57,9 +57,37 @@
 > **P4.1b+c 9823/0 — delta 0 on every tree AND every axis.** pyright 0 and
 > `sphinx -W` 0 throughout.
 >
-> ### ▶ NEXT — **P4.2, then P4.4, then P4.3.** Read §4ter before anything else.
+> ### ▶ NEXT — **P4.4, then P4.2, then P4.3.** Read §4ter before anything else.
 >
-> ⛔ **That order is a CORRECTION.** The plan's own sequence was 4.2 → 4.3 →
+> ⛔⛔ **The order was corrected TWICE. `P4.2 → P4.4` (written 2026-08-28
+> in this very header) is itself REFUTED — P4.2 cannot precede P4.4 either.**
+> `[M]` 2026-08-28 by AST: the three `*_streaming` factories **stay in
+> `geometry/`** and CALL `angular_redistribution` at **runtime**
+> (`reduced_operator.py:1198/:1262/:1360`), and `ReducedStreamingOperator.angular`
+> is annotated `AngularRedistribution` (`:628`) — so moving the α cluster to
+> `sn/angular/` while they stay creates `geometry → sn`, forbidden with no
+> tolerance (`geometry` is INPUT; the `TYPE_CHECKING` carve is `L1|L2` only).
+> ⭐ **Injected and run** (the §6d discipline, not reasoning): the gate goes red
+> **two ways** — `test_no_forbidden_imports[…reduced_operator.py]` *and* a hard
+> circular import killing `import orpheus.geometry`, `orpheus.numerics` and
+> `orpheus.sn.solver` in a fresh interpreter. Same shape as P2's α half.
+> `[M]` the reverse was checked: **P4.4 does not depend on P4.2** — after P4.4
+> the factories sit in `sn/` and name `angular_redistribution` / `AngularMeasure`
+> / `StreamingTerms` back in `geometry/`, which is `sn → geometry`, **legal**;
+> and the geometry residual (`AngularMeasure`, `StreamingTerms`, the 5 α
+> symbols) names only `CoordSystem`, `Mesh1D`, numpy — no L2/L3 at all.
+> ⟹ **reorder, do not fuse**, exactly as ruled for P4.3/P4.4 one paragraph down.
+>
+> ⭐ **The lesson, and it generalises past this campaign: a re-home's forbidden
+> edge can be INVISIBLE TO AN IMPORT GREP, because the edge does not exist yet
+> — the split CREATES it.** This header's own P4.2 entry ran a thorough §6d
+> check and found the `derivations → sn` hazard, because that one is a literal
+> `import` line. It missed `geometry → sn`, which is four *intra-file* call
+> sites — precisely where an import-based audit does not look. ⟹ **when the
+> mover shares a FILE with its callers, the file is the caller: enumerate
+> intra-file references by AST, not only imports.** (`plan-authoring` §6d.)
+>
+> ⛔ **The earlier correction, which still stands.** The plan's own sequence was 4.2 → 4.3 →
 > 4.4, and `[M]` P4.3-before-P4.4 creates `geometry → transport` (**0** today
 > against **16** the other way) because `StreamingTerms`' only constructor
 > stays behind in `geometry/` at a **runtime** call site
@@ -98,7 +126,8 @@
 > | the spatial-field retirement is **bit-identical** | ✅ **REMEDIED by P4.1b.** It was true for `coord` (3/3 charts) and false for `face_areas` (2/3). Both are now **derived accessors, not fields**, so the claim has no subject left. |
 > | `streaming_terms` dispatches on three chart arms | ✅ **REMEDIED by P4.1b** — one body plus a 2-way resolution of what `direction_idx` MEANS (global ordinate vs within-level index). That surviving `if` is P4.7's, not a chart dispatch. |
 > | P4.2 retires `AngularMeasure` — "the 3 factories read 0 of its 6 members" | ⛔ **SUSPENDED into CS5.** That argued CONSUMERS; the open question is TYPE DESIGN (should `DiscreteMeasure` branch into Spatial/Angular/Energy?). `[M]` it has **5 use sites, all inside `reduced_operator.py`**, zero elsewhere ⟹ it travels with the factories at P4.4 and strands nothing. CS5 rules whether it should EXIST; P4.4 rules where it LIVES. |
-> | `delta_A` moves to `sn/` as a field | ✅ **RULED 2026-08-27 (user): it DISSOLVES into R.** ΔA is R's rank-1 realization, not a second object. P4.1b is its first step — `delta_A` is already a derivation over `mesh.areas`, so what P4.4 moves is a derivation, not an array. |
+> | `AngularMeasure` "travels with the factories at P4.4" | ⛔ **REFUTED 2026-08-28.** The measurement (5 in-module use sites) was right; the inference was not. `[M]` `AngularRedistribution` NAMES `AngularMeasure` (`:1082`), so 2 of those 5 sites are in the α cluster. Sending it to `sn/` with the factories while α stays would be `geometry → sn` — forbidden. ⟹ it **stays in `geometry/` across P4.4** (factories read it as `sn → geometry`, legal) and **travels with α at P4.2**. Lands in `sn/` either way, so CS5 is not prejudged. |
+| `delta_A` moves to `sn/` as a field | ✅ **RULED 2026-08-27 (user): it DISSOLVES into R.** ΔA is R's rank-1 realization, not a second object. P4.1b is its first step — `delta_A` is already a derivation over `mesh.areas`, so what P4.4 moves is a derivation, not an array. |
 > | `SNMesh.face_areas` / `.delta_A` are deprecated read-throughs | ✅ **REMEDIED by P4.1c** — retired. `[M]` 11 readers, 0 in `orpheus/`; every consumer was a test and 4 were the tests verifying the shims. |
 >
 > ### Still BLOCKED, with a named blocker (not a defer)
@@ -846,6 +875,40 @@ module scope and `derivations → sn` is FORBIDDEN with no tolerance. The fix is
 the precedent that file's own ⛔ banner set for `tau`/`edges` on 2026-08-12:
 **the L0 ladder accepts α as a keyword** (*"the defect was L0 reaching UP for
 it"*). Its delegating local `alpha_dome` retires; nothing re-implements it.
+
+⛔⛔ **ORDERING REFUTED 2026-08-28 — P4.2 RUNS AFTER P4.4.** The reconciliation
+below is about the `derivations → sn` hazard and it still holds verbatim. What
+it never asked is whether the move is landable *at this point in the order*, and
+`[M]` it is not. The α cluster's callers are **inside its own file**:
+
+| caller (stays in `geometry/` until P4.4) | names | kind |
+|---|---|---|
+| `slab_streaming` `:1198` | `angular_redistribution(...)` | **runtime call** |
+| `spherical_streaming` `:1262` | `angular_redistribution(...)` | **runtime call** |
+| `cylindrical_streaming` `:1360` | `angular_redistribution(...)` | **runtime call** |
+| `ReducedStreamingOperator.angular` `:628` | `AngularRedistribution` | field annotation |
+
+⟹ moving the α cluster out first makes `geometry/` import `sn/` at module
+runtime. `[M]` `FORBIDDEN_EDGES["geometry"] = L2|L3` ∌ tolerance (`geometry` is
+INPUT; the `TYPE_CHECKING` carve is `L1|L2`). **Injected and run** rather than
+reasoned: the gate reddens on
+`test_no_forbidden_imports[…reduced_operator.py]` **and** on a circular import
+that kills `import orpheus.geometry` / `orpheus.numerics` / `orpheus.sn.solver`
+in a fresh interpreter. File restored byte-identical (`diff -q` + `git diff
+--quiet`).
+
+⭐ **Why the thorough check missed it:** §6d says *enumerate the mover's
+callers*. Three of these four are `angular_redistribution(...)` calls in the
+same file — there is no import line to grep, because **the split is what
+creates the edge**. The audit that found the `derivations` hazard found it
+precisely because that one IS an import. ⟹ intra-file references are the
+caller set too; enumerate by AST.
+
+⟹ **After P4.4 this is clean**: the factories are in `sn/`, so the call becomes
+`sn → sn`; `AngularMeasure` travels with the α cluster here (it is
+`AngularRedistribution`'s field type at `:1082`, not only the factories'
+parameter type); and the `derivations → sn` hazard below bites for the first
+time, which is where the keyword fix lands.
 
 ✅ **RECONCILED against the tree 2026-08-27 — the claim holds, verbatim.**
 `[M]` by AST: `FORBIDDEN_EDGES` has **15** keys and `"derivations"` is one of
