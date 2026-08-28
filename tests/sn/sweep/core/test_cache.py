@@ -709,3 +709,49 @@ def test_pair_monoid_associativity_still_passes() -> None:
 # Test #11 (regression snapshots bit-identical) is exercised externally
 # via ``pytest tests/sn/regression/`` — listed in the closeout test-pin
 # block for verbatim paste-back.
+
+
+@pytest.mark.foundation
+def test_closure_algebra_fields_are_the_closures_minted_values() -> None:
+    """The cache's ``(N,)`` closure-algebra block IS the closure's mint.
+
+    P4.9a handing gate (``scratch/p4_9a_verification_plan.md`` §5): the
+    closure owns the derivation of the scan-normal march constants; the
+    cache stores them.  ``array_equal`` — NO tolerance: [M] the realistic
+    defect is the algebraically-equal respelling ``tau_inv − 1.0`` inside
+    the closure, which sits 1–2 ULP away, so any tolerance ≥ 1e-15 makes
+    this gate a non-catcher (the M7 mutation arm is its proof).
+
+    ⚠ What this gate CANNOT see, stated per coding-standards: after the
+    handing the right-hand sides are the closure's own accessors, so this
+    is a *storage-fidelity* pin (cache == mint) and a *spelling* pin (via
+    the closure-side discrimination leg in
+    ``test_pole_angular_closure::TestMintedScanConstants``), NOT an
+    independent-value pin of the constants themselves — that anchor is
+    the closure-vs-surrogate contract in ``test_closure_constant_map.py``.
+    """
+    sn_mesh = _make_sphere(nx=8, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    closure = sn_mesh.pole_angular_closure
+    tau = closure.tau_per_ordinate
+    np.testing.assert_array_equal(geom.tau_inv, 1.0 / tau)
+    np.testing.assert_array_equal(geom.mm_a_in_coeff, (1.0 - tau) / tau)
+    np.testing.assert_array_equal(geom.c_in, closure.c_in_per_ordinate)
+    np.testing.assert_array_equal(geom.c_out, closure.c_out_per_ordinate)
+
+
+@pytest.mark.foundation
+def test_closure_algebra_fields_slab_neutral_element() -> None:
+    """Negative leg: the slab cache carries the exact neutral element.
+
+    ``tau_inv == 1``, ``mm_a_in_coeff == 0``, ``c_in == c_out == 0`` —
+    bit-exact.  Without a structurally-different input the gate above
+    has no reading that could fail for a wrong-geometry reason.
+    """
+    sn_mesh = _make_slab(nx=8, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    N = sn_mesh.quad.N
+    np.testing.assert_array_equal(geom.tau_inv, np.ones(N))
+    np.testing.assert_array_equal(geom.mm_a_in_coeff, np.zeros(N))
+    np.testing.assert_array_equal(geom.c_in, np.zeros(N))
+    np.testing.assert_array_equal(geom.c_out, np.zeros(N))

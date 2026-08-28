@@ -348,37 +348,44 @@ class StreamingCoefficientCache:
                 is_degenerate[global_n] = True
 
         # ── M-M angular weight τ + closure constants (Issue #236) ──
-        # τ, ``c_out = α_{m+1/2}/τ``, and ``c_in = (1−τ)/τ·α_{m+1/2} +
-        # α_{m−1/2}`` are an ANGULAR-closure property — the pole-angular
-        # closure is their canonical owner (it precomputes them at
-        # construction from the same α-dome / τ this populator's geometry
-        # factory uses).  Read the ``(N,)`` global-ordinate views directly
-        # instead of rebuilding the formula here (Cardinal Rule 2; coding-
-        # elegance Pattern 7 — normalise at the definition site).  The closure
-        # dispatches by TYPE: MorelMontry (sphere/cylinder) returns its
-        # precomputed values; the Cartesian IdentityAngularClosure returns the
-        # neutral ones (α=0, τ=1 ⇒ c=0) — so this populator stays geometry-
-        # blind by data.
+        # τ, ``c_out = α_{m+1/2}/τ``, ``c_in = (1−τ)/τ·α_{m+1/2} +
+        # α_{m−1/2}``, AND the scan-normal march constants ``1/τ`` /
+        # ``(1−τ)/τ`` are ANGULAR-closure properties — the pole-angular
+        # closure is their canonical owner.  Read the ``(N,)``
+        # global-ordinate views directly instead of rebuilding any formula
+        # here (Cardinal Rule 2; Pattern 7 — normalise at the definition
+        # site).  The closure dispatches by TYPE: MorelMontry
+        # (sphere/cylinder) returns its precomputed values; the Cartesian
+        # IdentityAngularClosure returns the neutral ones (α=0, τ=1 ⇒ c=0,
+        # tau_inv=1, a_in_coeff=0) — so this populator stays geometry-blind
+        # by data.
         #
-        # ``tau_inv`` / ``mm_a_in_coeff`` are the CumprodScan angular-recurrence
-        # split derived from the closure's τ (B3) — consumed at the
-        # ``loss_representation.py`` scan fast-path
-        # ``geom.tau_inv·ψ_avg − geom.mm_a_in_coeff·ψ_in``, the twin of
-        # ``DiamondDifference.update``'s ``(ψ̄ − (1−τ)ψ_in)/τ``.  Hoisting the
-        # trivial ``1/τ`` / ``(1−τ)/τ`` algebra out of the per-iteration scan is
-        # a legit perf-cache derivation (L16); the closure exposes only the
-        # PRIMITIVE τ (Pattern 5 — build the primitive, not the product).
-        # Bit-identical: closure-τ is 0-ULP equal to the geometry factory's τ
-        # (Step-A Leg-1 producer-equivalence gate) and the α slices are shared,
-        # so the closure's per-level c equals the former inline c bit-for-bit;
-        # the per-level→(N,) gather is a pure permutation (no arithmetic), so
-        # ``tau_inv`` / ``mm_a_in_coeff`` are byte-identical to HEAD.
+        # ⛔ REVISED at P4.9a (2026-08-28, user-ruled), overturning the
+        # 2026-08-26 ruling that stood here — "the closure exposes only the
+        # PRIMITIVE τ (Pattern 5); the cache derives 1/τ and (1−τ)/τ as a
+        # legit L16 perf hoist".  The revision: ``(1−τ)/τ`` is not a
+        # convenience product, it is the ψ_in coefficient of the closure's
+        # OWN update in scan-normal form — the PAIRING is relation
+        # knowledge, and the cache deriving it was the cache spelling a
+        # fragment of the Morel-Montry relation (the same smell, one notch
+        # down, as the DiamondDifference twin P4.9a removed).  The closure
+        # now MINTS both scan constants (tau_inv_per_ordinate /
+        # march_a_in_coeff_per_ordinate, closure.py); L16's hoisting half
+        # SURVIVES here — this cache is still where the values are stored
+        # once per solve for the per-iteration scan.  Consumed at the
+        # ``loss_representation`` scan fast path
+        # ``geom.tau_inv·ψ_avg − geom.mm_a_in_coeff·ψ_in`` — the closure's
+        # own scan-normal representation, welded to its march by gate
+        # (test_pole_angular_closure::TestMintedScanConstants; the M7
+        # mutation arm prices the realistic 1-2 ULP respelling).
+        # Bit-identical to the pre-handing derivation: the accessors
+        # compute the same expressions on the same cached τ array
+        # (test_cache's closure-algebra field gate pins it array_equal).
         closure = sn_mesh.pole_angular_closure
-        tau = closure.tau_per_ordinate
         c_out = closure.c_out_per_ordinate
         c_in = closure.c_in_per_ordinate
-        tau_inv = 1.0 / tau
-        mm_a_in_coeff = (1.0 - tau) / tau
+        tau_inv = closure.tau_inv_per_ordinate
+        mm_a_in_coeff = closure.march_a_in_coeff_per_ordinate
 
         # ── Inverse chain index for scatter-back ──────────────────────
         chain_idx_inv = np.empty_like(chain_idx)
