@@ -1898,6 +1898,9 @@ producer hands `ΔA` to the operator, the operator hands it to the closure.
 ⚠ **`abs_mu` stays with the SPATIAL closure, and that is correct** — a spatial
 closure for a *directional* method is legitimately parameterized by direction
 (`a = 2|μ|A_total/denom − 1`). Direction-parameterized ≠ angular-closure-aware.
+✅ SHARPENED 2026-08-28 (user): *a parameter of the closure's EVALUATION,
+supplied by the OPERATOR, stored by neither* — see P4.9's direction-supplier
+ruling; μ reaches the scheme only inside assembled face coefficients.
 
 ⚠ **P0 still binds.** This mechanism is about WHERE the factors are composed and
 WHO owns each adjoint. It does not establish the product form, its order, or the
@@ -2734,6 +2737,30 @@ list below is proposed and unverified in detail):
 angular closure)**. Discretization schemes become **factories returning a
 spatial closure**; the angular scheme returns an **angular closure**; those four
 arguments fully determine a well-posed operator whose adjoint is derived.
+
+⭐⭐ **SHARPENED 2026-08-28 (user, ratified after a feasibility check): the
+scheme is direction-agnostic in SIGNATURE, not only in state — the OPERATOR
+supplies μ.** Ruled on the Frame analogy (the stage-2 generator hands its
+minted product to the operator; the operator owns the evaluation point).
+`[M]` three facts already in its favor: DD carries **no fields** and LD only
+`theta` — the schemes are direction-STATELESS today, on every path; the
+vectorized path already injects direction from the SN side
+(`affine_scan_coefficients(abs_mu=geom.abs_mu, …)`, called by the cache
+builder); and in the assembled equation μ enters ONLY through the products
+`|μ|·A_down` / `|μ|·A_total` (LD's `g = |μ|/h` is `(|μ|A_down)/V` on the
+slab) — so the agnostic closure consumes **assembled face coefficients**,
+and a diffusion box scheme fills the same slots with face conductances
+`D·A/Δx`, no direction anywhere. ⟹ the scheme family becomes agnostic of
+**directionality itself**, not merely of which method — this RULES the
+direction of O-3's decomposition-by-destination for the μ-bearing slots.
+⚠ The boundary, so nobody over-reads it: the closure FUNCTION is
+direction-free; the evaluated TABLE cannot be (τ depends on |μ|) — the
+evaluation relocates to the operator's side (§5c's two-layer split), it
+does not disappear. Sweep-direction resolution (sign μ →
+`face_area_downstream`) and degenerate-ordinate signalling (`|μ|A ≈ 0`
+data) stay operator-side by construction. ⚠ Until CS5's NODAL half lands,
+the operator reads μ from the quadrature; after it, from its own domain
+space's angular axis — which closes the campaign's root ruling.
 
 ⭐⭐ **This is a COMPLETION, not a new design — `[M]` the same unweld already
 shipped on the vectorized path at Phase 2.11 (#197 PR-TYPED-6.5).**
