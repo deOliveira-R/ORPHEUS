@@ -1,42 +1,38 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
-> ## ▶ RESUME STATE — rewritten at the 2026-08-26 post-P3 compaction point
+> ## ▶ RESUME STATE — ⏸ COMPACTION POINT, rewritten 2026-08-28 after P4.1a/b/c
 >
 > **This file is the resume surface. Trust it over any summary.**
-> ⛔ This replaces a post-P1 header. If a summary still says "▶ NEXT = P2", or
-> describes P2 as moving α, or sizes a rename in single-digit lines, it is
-> quoting dead text: P2 was re-scoped, P3 landed, and BOTH plan rename
-> candidates for the cache class were refuted. See §4bis and §7 P2's ⛔ block.
+> ⛔ It replaces a post-P3 header. A summary is quoting dead text if it says
+> any of: "▶ NEXT = P2" · P2 moves α · P4 has a four-way fork about where the α
+> type lives · `face_areas`/`delta_A` are fields · `streaming_terms` has three
+> chart arms · P4.3 comes before P4.4 · `AngularMeasure` "dies" at P4.2.
+> Every one of those was true once and is refuted below.
 >
-> ### Where the tree is — `[M]` reconcile with git, never with this
+> ### Where the tree is — `[M]` reconcile with git, never with this line
 >
-> ✅ **P2, P3 and P4.1a are all MERGED and PUSHED; no open branch for this
-> campaign.** `[M]` P3's exit gate: **9815 passed / 0 failed**, 13 trees all
-> `rc=0`, **delta 0 on all four axes** vs P2. `[M]` P4.1a's exit gate
-> (2026-08-27, full fast set, 13 trees, all `rc=0`): **9823 passed / 0
-> failed**, and the **+8** against P3 is fully accounted for — it is the
-> `test_alpha_defect_normalization` gate that rode in on the same landing
-> (`[M]` collects exactly 8) — with **delta 0 on skipped / deselected /
-> xfailed**, i.e. P4.1a itself moved nothing, as a bit-identical retirement
-> must.
-> ⚠ Reconcile with git, never with this line
-> (`git merge-base --is-ancestor 4a3f2390 main`).
+> `main` == `origin/main`, **no open branch for this campaign**, working tree
+> clean. ✅ Phase B, P1, P2, P3a/b and **P4.1a + P4.1b + P4.1c** are all merged
+> and pushed. Reconcile with
+> `git merge-base --is-ancestor 7c5a8fb3 main`, never with this sentence.
+>
 > ⚠ This repo has **no CI** (`.github/workflows/` absent). "main is always
 > green" is enforced entirely by the local gate; an empty `gh run list` is not
 > a pass.
 >
-> ⚠ **History was REWRITTEN 2026-08-27 and force-pushed.** A `git add -A`
-> swept 212 untracked `scratch/` working files (74 670 lines) into the P4.1a
-> commits; the user ruled a rewrite, so `5ff113c5..main` was replayed without
-> them. **Every hash in that range changed.** `[M]` verified before the push:
-> the 16 subjects are identical, every **non-`scratch`** path is bit-identical
-> to the commit the 9823/0 gate ran on (so the gate result carries over
-> unre-run), the tracked `scratch/` tree is back to its `5ff113c5` state, and
-> all 745 working files were restored to disk byte-for-byte from a pre-rewrite
-> backup — `filter-branch`'s checkout deletes untracked-again files, which is
-> the hazard this plan's own ⚠ `scratch/` banner names. If a summary or memory
-> quotes a hash in `5ff113c5..main` that `git cat-file -e` cannot resolve, it
-> predates the rewrite; re-find it by commit SUBJECT.
+> ⚠ **History was REWRITTEN 2026-08-27 and force-pushed.** A `git add -A` swept
+> 212 untracked `scratch/` files (74 670 lines) into the P4.1a commits; the user
+> ruled a rewrite, so `5ff113c5..main` was replayed without them and **every
+> hash in that range changed**. `[M]` verified before the push: 16 subjects
+> identical, every non-`scratch` path bit-identical to the commit the gate ran
+> on (so the gate carried over unre-run), tracked `scratch/` back to its
+> `5ff113c5` state, and all 745 working files restored to disk byte-for-byte
+> from a `cp -a` backup — **`filter-branch`'s checkout DELETES files it
+> un-tracks.** ⟹ if a summary or memory quotes a hash in `5ff113c5..main` that
+> `git cat-file -e` cannot resolve, it predates the rewrite; re-find it by
+> commit SUBJECT. `[M]` 2026-08-28: all **20** hashes this plan cites resolve
+> and are ancestors of `main`. The rule landed in `process-discipline.md`
+> ("never `git add -A` here").
 >
 > ### What has LANDED
 >
@@ -45,144 +41,152 @@
 > | `cc01dd27` | Phase B | the angular closure takes its two tensor factors |
 > | …`1c93b14f` | P1 | nothing in the streaming path is held that nothing reads (7 commits) |
 > | `dcd6a9f6` | **P2** | `sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py`, byte-identical |
-> | `75571c4d` | **P3a** | `redistribution_gram` → `redistribution_pairing` (concept: 60 lines, 7 files) |
-> | `4a3f2390` | **P3b** | `GeometryCoefficients` → `StreamingCoefficientCache` (45 sites, 12 files) |
+> | `75571c4d` | **P3a** | `redistribution_gram` → `redistribution_pairing` |
+> | `4a3f2390` | **P3b** | `GeometryCoefficients` → `StreamingCoefficientCache` |
 > | `8ffddfb9` | — | the post-P3 compaction point |
-| `af801d76` | — | the α-defect diagnostic measured the normalization, not the defect (+ its 8-case gate) |
-| `d48f4bf4` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
-| `7f08d1d7` | **P4.1b** | the slab is the sphere's zero-curvature case (3 arms → 1 body) |
-| `7c5a8fb3` | **P4.1c** | the `SNMesh` deprecation shims retire |
+> | `af801d76` | — | the α-defect diagnostic measured the normalization, not the defect (+ its 8-case gate) |
+> | `d48f4bf4` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
+> | `7f08d1d7` | **P4.1b** | the slab is the sphere's zero-curvature case — 3 arms → 1 body |
+> | `7c5a8fb3` | **P4.1c** | the `SNMesh` deprecation shims retire |
 >
-> `[M]` P2's exit gate: **9815 passed / 0 failed**, 13 trees all `rc=0`; against
-> P1's baseline **+1** passed — the new `sn/angular/__init__.py` adds one case to
-> the import-linter's `rglob` parametrize — and **0 on every other axis**
-> (skipped 22, deselected 227, xfailed 70). `[M]` P3: `tests/sn` +
-> `tests/transport` **3763 passed / 0 failed**, then the full gate **9815/0**,
-> **delta 0 on all four axes** vs P2. pyright 0 and `sphinx -W` 0 throughout.
+> `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
+> **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
+> the import-linter's `rglob` parametrize), **P3 9815/0** (delta 0 on all four
+> axes), **P4.1a 9823/0** (+8 = the `test_alpha_defect_normalization` gate that
+> rode in on the same landing, `[M]` collects exactly 8; delta 0 elsewhere),
+> **P4.1b+c 9823/0 — delta 0 on every tree AND every axis.** pyright 0 and
+> `sphinx -W` 0 throughout.
 >
-> ### ▶ NEXT — P4, RE-POSED 2026-08-27. **Read §4ter before anything else.**
+> ### ▶ NEXT — **P4.2, then P4.4, then P4.3.** Read §4ter before anything else.
 >
-> ⛔ P4's four-way fork ("where does the α type live so `geometry` may name it?")
-> was an answer to the WRONG QUESTION and is superseded. `[M]`
-> `geometry/reduced_operator.py` **holds no geometry** — `face_areas` is a
-> verbatim copy of `mesh.areas`, `coord` a copy of `mesh.coord`, `delta_A` a
-> `np.diff` of the former with **0** non-SN consumers, and the module has **0**
-> intra-`geometry/` consumers against 1–4 for every other geometry primitive.
-> ⟹ the module **dissolves**, and the forbidden edge never arises rather than
-> being routed around. Full record, the five ordered steps, the four superseded
-> options with their refutations, and **three OPEN forks** (a fourth — where
-> `delta_A` lives — was ruled 2026-08-27: `sn/`, on a CONTRACT argument, not a
-> consumer count):
-> **§4ter**.
+> ⛔ **That order is a CORRECTION.** The plan's own sequence was 4.2 → 4.3 →
+> 4.4, and `[M]` P4.3-before-P4.4 creates `geometry → transport` (**0** today
+> against **16** the other way) because `StreamingTerms`' only constructor
+> stays behind in `geometry/` at a **runtime** call site
+> (`reduced_operator.py:856`) — a declared `FORBIDDEN_EDGES` violation with a
+> red waiting for it. `[M]` the reverse dependency was then checked too and is
+> clean (`sn → geometry` is legal, `geometry` being INPUT), so the two
+> **reorder rather than fuse**. Full record, both directions, in **P4.3's ⛔
+> block** — including the two scope changes it forces on P4.4 (the module
+> DELETION moves to P4.3; `geometry/__init__.py`'s re-export must be **deleted,
+> not re-pointed**, with 11 consumer files).
 >
-> ▶▶ **P4.1a, P4.1b and P4.1c have all LANDED and are on `main`.** `[M]` their
-> joint exit gate, full fast set, 13 trees all `rc=0`: **9823 passed / 0
-> failed, delta 0 on every tree and on every one of the four axes** against the
-> P4.1a gate. P4.1b is value-identical by construction (40/40 packets) and
-> P4.1c's collected count is net zero — 6 shim cases out, 6 contract cases in.
+> **P4.2 — the angular factor comes home.** `[M]` re-verified 2026-08-27/28:
+> - the movers are **5 symbols and only 3 contain "alpha"** — `alpha_dome`,
+>   `_assert_alpha_dome_closes`, `_ALPHA_CLOSURE_ATOL`, **`AngularRedistribution`**
+>   and **`angular_redistribution`**. A grep-driven reading finds 3 of 5.
+> - `[M]` the destination `orpheus/sn/angular/redistribution.py` **does not
+>   exist yet** (existence-checked); `sn/angular/closure.py` does.
+> - ⛔ the hazard is real and enforced: `derivations/discrete/sn/angular_differencing.py:163-164`
+>   imports `alpha_dome` at module scope, and `[M]` `FORBIDDEN_EDGES` has 15
+>   keys including `"derivations": L2|L3`, with the `TYPE_CHECKING` tolerance
+>   scoped to `L1|L2` only — so **L0 is not covered even for typing.** The fix
+>   is that file's own ruled precedent: **the L0 ladder accepts α as a
+>   keyword**; its delegating local `alpha_dome` retires.
+> - ⛔ **there is a WRONG shortcut, and it is one line.** `[M]` the linter ships
+>   a `WHITELIST` whose existing entries are all `derivations → L2/L3`
+>   exemptions, so adding a row lands the move green. **Do not** — a whitelist
+>   records a violation where the keyword fix removes one.
+> - ⚠ `AngularMeasure` does **not** move here and does **not** "die" here (see
+>   the corrections below).
 >
-> ⛔ **NEXT is P4.2 — and then P4.4 BEFORE P4.3. That order is a CORRECTION,
-> not this plan's original sequence.** `[M]` P4.3 as written creates
-> `geometry → transport` (**0** today, against **16** the other way) because
-> `StreamingTerms`' only constructor stays behind in `geometry/` at a
-> **runtime** call site (`reduced_operator.py:856`) — a declared
-> `FORBIDDEN_EDGES` violation with a red waiting for it. Read P4.3's ⛔ block
-> before sequencing anything.
+> ### Corrections that supersede older text in this file
 >
-> ⛔ **Of §4ter's three remaining forks, TWO are now BLOCKED rather than open** —
-> the producer's home and the `ChartConnection` name both resolve as consequences
-> of **CS5** (`space_and_kernel_binding_campaign.md` §5.5, chartered 2026-08-27:
-> *an axis can name the generator that made it*). `AngularMeasure`'s retirement
-> is **suspended into CS5** for the same reason. Everything else in P4 —
-> P4.1a/1b, 2, 3, 4, 5, 6, 7 and P4b — is unblocked and can land first.
+> | ⛔ the older text says | ✅ the tree says, `[M]` |
+> |---|---|
+> | P4 has a **four-way fork** about where the α type lives so `geometry` may name it | superseded — the module holds no geometry and **dissolves**, so the edge never arises. §4ter. |
+> | the spatial-field retirement is **bit-identical** | ✅ **REMEDIED by P4.1b.** It was true for `coord` (3/3 charts) and false for `face_areas` (2/3). Both are now **derived accessors, not fields**, so the claim has no subject left. |
+> | `streaming_terms` dispatches on three chart arms | ✅ **REMEDIED by P4.1b** — one body plus a 2-way resolution of what `direction_idx` MEANS (global ordinate vs within-level index). That surviving `if` is P4.7's, not a chart dispatch. |
+> | P4.2 retires `AngularMeasure` — "the 3 factories read 0 of its 6 members" | ⛔ **SUSPENDED into CS5.** That argued CONSUMERS; the open question is TYPE DESIGN (should `DiscreteMeasure` branch into Spatial/Angular/Energy?). `[M]` it has **5 use sites, all inside `reduced_operator.py`**, zero elsewhere ⟹ it travels with the factories at P4.4 and strands nothing. CS5 rules whether it should EXIST; P4.4 rules where it LIVES. |
+> | `delta_A` moves to `sn/` as a field | ✅ **RULED 2026-08-27 (user): it DISSOLVES into R.** ΔA is R's rank-1 realization, not a second object. P4.1b is its first step — `delta_A` is already a derivation over `mesh.areas`, so what P4.4 moves is a derivation, not an array. |
+> | `SNMesh.face_areas` / `.delta_A` are deprecated read-throughs | ✅ **REMEDIED by P4.1c** — retired. `[M]` 11 readers, 0 in `orpheus/`; every consumer was a test and 4 were the tests verifying the shims. |
 >
-> ⚠ Two things §4ter corrects that a summary will otherwise carry forward:
-> **(a)** this plan asserted the field retirement was bit-identical — `[M]` it is
-> for `coord` (3/3 charts) and is **NOT** for `face_areas` (2/3; the slab holds
-> `None` where `mesh.areas` is `ones`). That step is *finishing P1's un-weld on
-> the spatial half*, not a duplication retirement. **(b)** §9.1's
-> `ChartConnection` name rests on a residue §4ter changes — re-rule it.
+> ### Still BLOCKED, with a named blocker (not a defer)
 >
-> The mint (below, item 1) and P4b (item 4) are unchanged by any of this.
->
-> Full text at §7 P4 **and §4bis**. ⚠ Read both; P4 has absorbed work from two
-> other phases.
->
-> 1. **The mint** — `scheme.mint(chart)`; `R` produced by the object that owns
->    its basis. Retires P1's TRANSITIONAL `coord: CoordSystem` tag. Tell:
->    `grep -n "coord: CoordSystem" transport/spatial/scheme.py` → empty.
-> 2. **The moment mass comes with it** — `M` and `R` are the Galerkin matrices
->    of `1` and `∇·ê_r`: one bilinear form, two products, one mint.
-> 3. **P2's α half** (inherited) — the four α symbols + `_ALPHA_CLOSURE_ATOL`
->    move to `sn/angular/redistribution.py`; `AngularMeasure` **dies** (`[M]`
->    the 3 surviving factories read **0 of its 6** members).
-> 4. **P4b** (new, §4bis) — split the cache's three strata.
->
-> ⛔⛔ **P4's hard constraint is ENFORCED, not advisory.**
-> `tests/test_layer_imports.py` declares
-> `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES`, gated on every
-> module by a `@pytest.mark.foundation` parametrized test. `[M]` its
-> `TYPE_CHECKING` tolerance is `if is_tc and src_pkg in (L1_PACKAGES |
-> L2_PACKAGES)` — `geometry` is `INPUT_PACKAGES`, so **geometry may not import
-> `sn` even for typing.** ⟹ the sharp form: *`ChartConnection`'s `angular` field
-> needs a type, and that type cannot live in `sn/` while `ChartConnection` lives
-> in `geometry/`.* Four options at §7 P4 — **rule the fork BEFORE editing**;
-> its steps 1 and 2 are one step, not two.
->
-> ⚠ **P3 is NOT finished.** `ReducedStreamingOperator` → `ChartConnection`
-> (P3c) is sequenced deliberately **after P4**, so the name describes what
+> Two of §4ter's forks — **the producer's home** and the **`ChartConnection`
+> name** — resolve as consequences of **CS5**
+> (`space_and_kernel_binding_campaign.md` §5.5, *an axis can name the generator
+> that made it*), whose NODAL half is the prerequisite. Everything else is
+> unblocked: **P4.2, P4.4, P4.3, P4.5, P4.6, P4.7 and P4b.**
+> ⚠ **P3 is NOT finished** — `ReducedStreamingOperator` → `ChartConnection`
+> (P3c) is deliberately sequenced **after P4**, so the name describes what
 > remains once `streaming_terms` is out of it.
 >
-> ### ⭐ The three rules P1–P3 paid for — read before the next rename or re-home
+> ### ⭐ The rules P1–P4.1 paid for — read before the next rename or re-home
 >
 > - `plan-authoring` **§6d** (P2): **a RE-HOME must check the import edge in
 >   BOTH directions — and look for an import-linter FIRST.** The done-when that
 >   failed was *true*: it asked whether the MOVER depends on its old home, when
 >   the question is whether the OLD HOME depends on the mover.
+> - `plan-authoring` **§6d, 2026-08-27** (P4.3): **a plan row written in a
+>   RULE'S OWN VOCABULARY reads as that rule having been applied.** P4.3 said
+>   *"no new edge **either way**"* — §6d's phrase, verbatim, with no `[M]`
+>   beside it. The check had not run. ⟹ cite the rule's MEASUREMENT, not its
+>   phrasing; rule-shaped language reads as compliance and never as doubt.
+> - `plan-authoring` **§2, 2026-08-27**: **parse structured source with AST,
+>   never a line window or a regex, when the answer is a MEMBERSHIP question.**
+>   Two filters in a row said `derivations` was not a `FORBIDDEN_EDGES` key — a
+>   `sed` window one line short, then a regex terminated by a `}` nested inside
+>   `L3_PACKAGES - {"sn"}`. Both wrong, both toward "no constraint". A wrong
+>   filter is not a coin flip when you are filtering for a **prohibition**.
 > - `plan-authoring` **§1** (P3b): **a proposed NAME's ABSENCE can be evidence
->   AGAINST it.** `SweepCoefficientCache` was free in code *and* in git history
->   **because it was rejected** — `lessons.md` L15 records it as "the wrong
->   shape". Grep the PROSE corpus (lessons, plans, agent-memory, issues).
-> - `.claude/lessons.md` **L61**: **an unvalidated filter and a clean tree print
->   the same thing.** Six false negatives in one session, two mechanisms — zsh
->   eating quotes/backticks from double-quoted patterns, and ⛔ **`grep` here is
->   `ugrep`**, where an anchor inside an alternation group returns 0 with **no
->   error at all** (now in `nexus-tools.md`). ⟹ run every COMPLETENESS check in
->   Python, with a positive control.
+>   AGAINST it.** `SweepCoefficientCache` was free in code *and* git history
+>   **because it was rejected** (`lessons.md` L15). Grep the PROSE corpus.
+> - `coding-standards`, **2026-08-27** (P4.1a): **retiring a duplicate promotes
+>   whatever KEPT THE COPIES EQUAL from redundant to load-bearing** — usually a
+>   production guard with no test. `[M]` the three factory chart guards had
+>   **zero witnesses** tree-wide; the tests that asserted the retired copy were
+>   tautologies and became the guards' witnesses.
+> - `process-discipline`, **2026-08-27**: **never `git add -A` here**, and a
+>   history rewrite DELETES what it un-tracks — `cp -a` first.
+> - `.claude/lessons.md` **L61**: an unvalidated filter and a clean tree print
+>   the same thing; ⛔ `grep` here is `ugrep`. Run completeness checks in
+>   Python **with a positive control**.
 >
-> ### ⭐⭐ The finding that outlives all three phases
+> ### ⭐⭐ The finding that outlives every phase
 >
 > **A lesson's own worked example is not exempt from the lesson.** `lessons.md`
-> L15 is *"cache shape that mixes immutability strata hurts twice"* and holds
-> `GeometryCoefficients` up as the RIGHT shape — while `[M]` (3 meshes, one
-> quadrature) it mixes **three**: 7 fields bit-identical across meshes, 4
-> mesh-bound, 2 traversal-only. Nothing prompts that re-check, because the
-> exhibit is what taught you the rule. → §4bis, and P4b.
+> L15 is *"a cache shape that mixes immutability strata hurts twice"* and holds
+> `GeometryCoefficients` up as the RIGHT shape — while `[M]` it mixes **three**
+> (7 fields bit-identical across 3 meshes, 4 mesh-bound, 2 traversal-only).
+> Nothing prompts that re-check, because the exhibit is what taught you the
+> rule. → §4bis, and **P4b**.
 >
 > ### The rulings that bind (✅ user; full text + rejected alternatives at §9)
 >
 > `ChartConnection` · `sn/angular/` · the chart sweep SPLITS · P4 mints the
-> pairing, the moment measure is **P7** · P2 re-scoped to the closure move only
-> · the cache is **`StreamingCoefficientCache`**.
+> pairing, the moment measure is **P7** · the cache is
+> **`StreamingCoefficientCache`** · `delta_A` **dissolves into R** · P4.1b
+> **collapses the arm**.
 >
 > ⭐⭐ **The governing ruling:** *"scheduled to the end of this plan, **not
 > defer and forget**."* Deferred work earns a PHASE NUMBER or a named external
 > blocker. P4b, P6 and P7 exist because of it.
 >
-> ### ⚠ `scratch/` is UNTRACKED — a `git clean` destroys it
+> ### ⚠ `scratch/` is UNTRACKED — and a `git clean` destroys it
 >
-> The four audit memos below, the gate logs (`_p2_fast_gate.log`,
-> `_p3_fast_gate.log`) and ~190 probes.
+> `[M]` **745 files on disk, 142 tracked.** It holds the four cited audit
+> memos, every gate log (`_p2`/`_p3`/`_p41a`/`_p41bc_fast_gate.log`), the gate
+> drivers and ~190 probes. ⛔ Do **not** fix this with `git add -A` — that is
+> what caused the 2026-08-27 rewrite. If any of it should be tracked, stage it
+> by path, deliberately, in its own commit.
 >
 > ### Running the gate
 >
 > `.venv/bin/python -O -m pytest -p no:randomly -m "not slow" -q` — SERIAL,
-> **~63 min**. Use the per-tree driver (`scratch/_p3_gate_driver.sh`; copy it,
-> change its `LOG=` line) launched DETACHED via
-> `Popen(start_new_session=True)` — harness background tasks die at ~30–90 min.
-> ⛔ Never pipe it through `tail`. ⚠ `-m "not slow"` is part of the number: it
-> deselects 227, including the known-inherited `cyl_2g_3reg_folded_4x8_dd_n40`
-> red (#404, dup of #397, `[M]` bit-identical pre-branch).
+> `[M]` **~62 min** wall (P4.1a 20:52→21:56, P4.1b+c 22:33→23:34). Two trees
+> are the whole cost: `[M]` **derivations ~37 min, sn ~15 min**; the other
+> eleven total ~9 min. Use the per-tree driver (copy
+> `scratch/_p41bc_gate_driver.sh`, change its `LOG=` line) launched DETACHED
+> via `Popen(start_new_session=True)` — harness background tasks die at
+> ~30–90 min. ⛔ Never pipe it through `tail`; watch the log with a `Monitor`.
+> ⚠ `-m "not slow"` is part of the number: it deselects 227, including the
+> known-inherited `cyl_2g_3reg_folded_4x8_dd_n40` red (#404, dup of #397,
+> `[M]` bit-identical pre-branch).
+>
+> **The acceptance baseline for the next step is `9823 passed / 0 failed,
+> 22 skipped / 227 deselected / 70 xfailed`** — state the delta against it and
+> account for every unit.
 
 **Status.** ⛔ ~~Proposed 2026-08-26, un-ruled.~~ **IN EXECUTION** — Phase B,
 P1, P2 and P3a/P3b have landed (see the table above); all four §9 forks and
