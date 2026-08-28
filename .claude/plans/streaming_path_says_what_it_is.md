@@ -1714,6 +1714,71 @@ angular closure's S0 algebra (§4), so F3's function/evaluated-table split is a
 PREREQUISITE, not a parallel. Splitting the closure after declaring `T_ang`
 would cut the same seam twice.
 
+### ⛔ The LAYER constraint on `T_ang` — measured 2026-08-28, and it is not in the section above
+
+`T_ang` cannot simply be declared and consumed, because **its only per-cell
+consumer may not name it.** `[M]` `DiamondDifference.update`
+(`orpheus/transport/spatial/diamond.py`) evaluates the Morel--Montry angular
+closure INLINE, under a comment that says so:
+
+```python
+# ── Angular closure (Morel-Montry) ──
+psi_angle_out = (psi_avg - (1.0 - tau) * upstream_state.angular_upstream) / tau
+```
+
+and `[M]` that is a **Pattern-2 twin** of the owner,
+`orpheus/sn/angular/closure.py:1327-1330`:
+
+```python
+psi_half[:, m + 1, :] = (
+    psi_level[:, m, :] - (1.0 - tau_m) * psi_half[:, m, :]
+) / tau_m
+```
+
+⭐ **Both spellings are LIVE, inside ONE class, selected by a data branch.**
+`[M]` `_OneDimScanWalk._run` (`loss_representation/__init__.py`) routes normal
+ordinates through `closure.precompute_psi_state(...)` (the owner) and
+**degenerate cylindrical-axis ordinates** — `if geom.is_degenerate[global_n]:`,
+its own comment *"slow per-cell path"* — through `scheme.update(...)`, i.e.
+diamond's copy (`:4291`, consumed at `:4298`). That is the ERR-026 shape: one
+relation, two implementations, a fix to one silently missing the other.
+
+`[M]` **nothing gates them against each other** — 8 test files name
+`precompute_psi_state`, 3 name `outgoing_angular_state`, and the intersection
+is **empty** (both counts are positive controls for the negative).
+
+⭐⭐ **And the duplication is FORCED, not sloppy.** `diamond.py` is **L2**
+(`transport`), `closure.py` is **L3** (`sn`), and `transport → sn` is a declared
+`FORBIDDEN_EDGES` violation. DD *cannot* call the owner, so it re-spells the
+relation. ⟹ **declaring `T_ang` does not by itself remove the twin** — its L2
+consumer still may not reference it. The design must therefore choose:
+
+* **inject the closure** — L2 is HANDED the relation (a callable/strategy on the
+  visit), staying blind to its provenance. This is the same *"hand it the
+  closure, don't go shopping for one"* principle the L0 ladder took for
+  `tau`/`edges`/`alpha` (P4.2), one layer up; **or**
+* **remove the angular obligation from the spatial protocol** — the scheme
+  closes the SPATIAL axis and returns the cell average; the SN walk applies the
+  angular closure. `UpstreamState.angular_upstream` and
+  `CellResult.outgoing_angular_state` leave `transport/spatial/scheme.py`. This
+  makes the illegal state unrepresentable rather than merely well-injected, and
+  it is what `𝓡 = R_spatial ⊗ A_angular` says the two axes are.
+
+⚠ **This is the ANGULAR sibling of `#407`**, which records the same defect on
+the SPATIAL side (`2.0 = 1/w_DD` hard-coded in scheme-neutral `cell_balance.py`).
+#407's own diagnosis applies verbatim here: *"the containment is being done by a
+capability fence, not by the algebra"* — `[M]` `LinearDiscontinuous` REFUSES
+curvilinear (`linear_discontinuous.py:148-153`), so DD is the sole carrier of an
+angular obligation the protocol declares for every member. Carve both with O-3.
+
+⭐ Fair to the file, so nobody re-flags it: DD's consumption of `tau`, `c_in`,
+`c_out`, `abs_mu` and `dA_w` as DATA is **correct** and the file insists on it
+(*"DD must NOT rebuild them from `st.alpha_*` / `st.tau_mm`"*). The leak is
+narrower and sharper than "diamond.py knows about angle": DD is closure-blind
+about the CONSTANTS and closure-aware about the RELATION. And
+`_reflection_coeffs`' `w` is DD's **blend weight** (½), not a quadrature
+weight — a false alarm.
+
 ---
 
 ## 6. The one CORRECTNESS item — not cosmetics
